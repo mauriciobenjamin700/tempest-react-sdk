@@ -389,6 +389,180 @@ module.exports = {
 
 ---
 
+## Responsive — mobile / tablet / desktop
+
+### Breakpoints
+
+| Token              | Pixels | Device esperado |
+| ------------------ | ------ | --------------- |
+| `--tempest-bp-xs`  | 480px  | Phones pequenos |
+| `--tempest-bp-sm`  | 640px  | Phones large    |
+| `--tempest-bp-md`  | 768px  | Tablets         |
+| `--tempest-bp-lg`  | 1024px | Laptops         |
+| `--tempest-bp-xl`  | 1280px | Desktop padrão  |
+| `--tempest-bp-2xl` | 1536px | Ultrawide       |
+
+Convenção `useBreakpoint()` / `<Show>` / `<Hide>`:
+
+- **mobile** = `< md` (`< 768px`)
+- **tablet** = `md..lg-1` (`768..1023px`)
+- **desktop** = `>= lg` (`>= 1024px`)
+
+### `useBreakpoint()` hook
+
+```tsx
+import { useBreakpoint } from "tempest-react-sdk";
+
+const bp = useBreakpoint();
+bp.current; // "xs" | "sm" | "md" | "lg" | "xl" | "2xl"
+bp.width; // pixels (0 no SSR)
+bp.above("md"); // boolean
+bp.below("lg"); // boolean
+bp.isMobile; // < md
+bp.isTablet; // md..lg-1
+bp.isDesktop; // >= lg
+```
+
+SSR-safe — no servidor retorna `xs` / `width: 0`, atualiza no mount.
+
+### `<Show>` / `<Hide>` components
+
+```tsx
+<Show above="md">Desktop nav</Show>
+<Show below="md">Mobile menu</Show>
+<Show only="xl">Wide-only banner</Show>
+<Show only={["md", "lg"]}>Tablet + laptop</Show>
+
+<Hide above="lg">Hide on desktop</Hide>
+```
+
+### Utility classes (CSS-only, sem JS)
+
+```html
+<div class="tempest-hide-mobile">desktop apenas</div>
+<div class="tempest-show-only-mobile">mobile apenas</div>
+<div class="tempest-hide-tablet">esconde em tablets</div>
+<div class="tempest-show-only-touch">touch devices apenas</div>
+<div class="tempest-hide-print">não imprimir</div>
+```
+
+### Componentes responsive — props
+
+#### `<Container>` — padding responsivo automático
+
+`space-4` mobile / `space-6` tablet / `space-8` desktop.
+
+#### `<Stack>` / `<Grid>` — props aceitam objeto
+
+```tsx
+<Stack direction={{ mobile: "vertical", desktop: "horizontal" }} gap={{ mobile: 2, desktop: 4 }} />
+
+<Grid columns={{ mobile: 1, tablet: 2, desktop: 3 }} gap={4} />
+```
+
+#### `<Modal>` — fullscreen / fullscreenOnMobile / 2xl / 3xl
+
+```tsx
+<Modal size="2xl" />                  // 1280px
+<Modal size="3xl" />                  // 1440px
+<Modal fullscreen />                  // fill viewport
+<Modal fullscreenOnMobile />          // auto-fullscreen < 640px
+```
+
+Padding interno e radius já reduzem abaixo de 640px.
+
+#### `<Drawer>` — mobilePlacement + showHandle
+
+```tsx
+// desktop: right drawer; mobile: bottom-sheet
+<Drawer placement="right" mobilePlacement="bottom" showHandle />
+```
+
+#### `<Table>` — priority + stackOnMobile
+
+```tsx
+<Table
+  stackOnMobile
+  columns={[
+    { key: "name", header: "Nome" }, // sempre visível
+    { key: "email", header: "E-mail", priority: "tablet" }, // some < 768px
+    { key: "role", header: "Cargo", priority: "desktop" }, // some < 1024px
+  ]}
+  data={users}
+/>
+```
+
+#### `<ToastProvider>` — position
+
+```tsx
+<ToastProvider position="top-right" />        // padrão
+<ToastProvider position="bottom-center" />    // mobile-friendly default
+```
+
+Em telas `< 480px`, container estica `left: 0; right: 0` automaticamente.
+
+### Touch targets
+
+- `data-tempest-density="touch"` — força altura mínima 44px em todos os controles.
+- `@media (pointer: coarse)` aplica auto-bump no `xs`/`sm`/`md` quando o usuário está em dispositivo touch (a menos que `density="compact"` explícito).
+- `Button iconOnly` size `xs`/`sm` ganha hit-slop invisível de 8px em todos os lados em pointer coarse.
+
+### Safe-area (iOS notch / Android gestures)
+
+Tokens disponíveis:
+
+```css
+--tempest-safe-area-top
+--tempest-safe-area-right
+--tempest-safe-area-bottom
+--tempest-safe-area-left
+```
+
+Toast, Modal overlay padding e Drawer já consomem automaticamente. Lembre-se de incluir no HTML:
+
+```html
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+```
+
+### Dynamic viewport (iOS Safari address bar bug)
+
+Modal e Drawer usam `dvh` com fallback `vh`. Apps que precisam de altura cheia podem fazer o mesmo:
+
+```css
+.app {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+```
+
+### Fluid type
+
+Para headings que escalam com viewport:
+
+```css
+.hero-title {
+  font-size: var(--tempest-text-fluid-5xl); /* clamp(32px, 24px + 4vw, 72px) */
+}
+```
+
+Tokens: `--tempest-text-fluid-sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl`.
+
+### Hover-only effects
+
+Efeitos `transform` / `box-shadow` em hover (Card interactive lift, Button elevation) ficam atrás de `@media (hover: hover) and (pointer: fine)` — não disparam em tap mobile.
+
+### Print
+
+Tudo embutido em `print.css`:
+
+- Modal, Drawer, Toast, Tooltip ocultos.
+- Background grayscale, cards `page-break-inside: avoid`.
+- Links recebem `(href)` ao lado.
+
+Classe `tempest-hide-print` para esconder elementos próprios.
+
+---
+
 ## Política de versionamento de tokens
 
 Tokens são **API pública**. Mudanças quebram apps consumidores. Política:

@@ -1,0 +1,34 @@
+.card {
+    background-color: var(--tempest-bg);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-lg);
+    padding: var(--tempest-space-5);
+    box-shadow: var(--tempest-shadow-sm);
+}
+
+.padded {
+    padding: var(--tempest-space-5);
+}
+
+.flush {
+    padding: 0;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--tempest-space-4) var(--tempest-space-5);
+    border-bottom: 1px solid var(--tempest-border);
+}
+
+.title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--tempest-text);
+}
+
+.body {
+    padding: var(--tempest-space-5);
+}

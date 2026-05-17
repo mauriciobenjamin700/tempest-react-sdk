@@ -1,0 +1,26 @@
+.skeleton {
+    display: block;
+    background: linear-gradient(
+        90deg,
+        var(--tempest-surface) 0%,
+        var(--tempest-surface-2) 50%,
+        var(--tempest-surface) 100%
+    );
+    background-size: 200% 100%;
+    border-radius: var(--tempest-radius-md);
+    animation: tempest-skeleton 1.4s ease-in-out infinite;
+}
+
+.text {
+    height: 14px;
+    border-radius: var(--tempest-radius-sm);
+}
+
+.circle {
+    border-radius: 50%;
+}
+
+@keyframes tempest-skeleton {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}

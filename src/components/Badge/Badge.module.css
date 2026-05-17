@@ -1,0 +1,31 @@
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tempest-space-1);
+    padding: 2px 8px;
+    border-radius: var(--tempest-radius-full);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.neutral {
+    background-color: var(--tempest-surface-2);
+    color: var(--tempest-text);
+}
+.success {
+    background-color: var(--tempest-success-bg);
+    color: var(--tempest-success);
+}
+.warning {
+    background-color: var(--tempest-warning-bg);
+    color: var(--tempest-warning);
+}
+.danger {
+    background-color: var(--tempest-danger-bg);
+    color: var(--tempest-danger);
+}
+.info {
+    background-color: var(--tempest-info-bg);
+    color: var(--tempest-info);
+}

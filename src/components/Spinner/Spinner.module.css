@@ -1,0 +1,15 @@
+.spinner {
+    display: inline-block;
+    border: 2px solid var(--tempest-surface-2);
+    border-top-color: var(--tempest-primary);
+    border-radius: 50%;
+    animation: tempest-spinner 0.7s linear infinite;
+}
+
+.sm { width: 14px; height: 14px; }
+.md { width: 20px; height: 20px; }
+.lg { width: 32px; height: 32px; }
+
+@keyframes tempest-spinner {
+    to { transform: rotate(360deg); }
+}

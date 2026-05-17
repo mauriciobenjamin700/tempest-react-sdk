@@ -1,0 +1,71 @@
+import { resolve } from "node:path";
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import dts from "vite-plugin-dts";
+
+export default defineConfig({
+    plugins: [
+        react(),
+        dts({
+            tsconfigPath: "./tsconfig.json",
+            insertTypesEntry: true,
+            rollupTypes: true,
+            include: ["src"],
+        }),
+    ],
+    resolve: {
+        alias: {
+            "@": resolve(__dirname, "src"),
+        },
+    },
+    css: {
+        modules: {
+            localsConvention: "camelCaseOnly",
+            generateScopedName: "tempest_[local]_[hash:base64:5]",
+        },
+    },
+    build: {
+        outDir: "dist",
+        emptyOutDir: true,
+        sourcemap: true,
+        cssCodeSplit: false,
+        lib: {
+            entry: resolve(__dirname, "src/index.ts"),
+            name: "TempestReactSdk",
+            formats: ["es", "cjs"],
+            fileName: (format) => `tempest-react-sdk.${format === "es" ? "js" : "cjs"}`,
+        },
+        rollupOptions: {
+            external: [
+                "react",
+                "react-dom",
+                "react/jsx-runtime",
+                "react/jsx-dev-runtime",
+                "zod",
+                "zustand",
+                "zustand/middleware",
+                "@tanstack/react-query",
+                "lucide-react",
+                "dexie",
+                "react-hook-form",
+            ],
+            output: {
+                globals: {
+                    react: "React",
+                    "react-dom": "ReactDOM",
+                    "react/jsx-runtime": "jsxRuntime",
+                    zod: "Zod",
+                    zustand: "Zustand",
+                    "@tanstack/react-query": "ReactQuery",
+                    "lucide-react": "LucideReact",
+                },
+                assetFileNames: (assetInfo) => {
+                    if (assetInfo.name === "style.css" || assetInfo.name?.endsWith(".css")) {
+                        return "styles.css";
+                    }
+                    return assetInfo.name ?? "[name][extname]";
+                },
+            },
+        },
+    },
+});

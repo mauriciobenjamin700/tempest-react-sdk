@@ -1,0 +1,66 @@
+.tablist {
+    display: flex;
+    gap: var(--tempest-space-1);
+    border-bottom: 1px solid var(--tempest-border);
+    overflow-x: auto;
+}
+
+.tab {
+    background: transparent;
+    border: none;
+    padding: var(--tempest-space-3) var(--tempest-space-4);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--tempest-text-muted);
+    cursor: pointer;
+    position: relative;
+    white-space: nowrap;
+    transition: color 0.15s ease;
+}
+
+.tab:hover:not(:disabled) {
+    color: var(--tempest-text);
+}
+
+.tab.active {
+    color: var(--tempest-primary);
+}
+
+.tab.active::after {
+    content: "";
+    position: absolute;
+    left: var(--tempest-space-3);
+    right: var(--tempest-space-3);
+    bottom: -1px;
+    height: 2px;
+    background-color: var(--tempest-primary);
+    border-radius: var(--tempest-radius-sm) var(--tempest-radius-sm) 0 0;
+}
+
+.tab:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.panel {
+    padding: var(--tempest-space-4) 0;
+}
+
+.pill .tab {
+    border-radius: var(--tempest-radius-full);
+    padding: 6px var(--tempest-space-3);
+    font-size: 13px;
+}
+
+.pill .tab.active::after {
+    display: none;
+}
+
+.pill .tab.active {
+    background-color: var(--tempest-primary);
+    color: var(--tempest-primary-foreground);
+}
+
+.pill.tablist {
+    border-bottom: none;
+}

@@ -1,0 +1,52 @@
+.trigger {
+    display: inline-flex;
+    position: relative;
+}
+
+.bubble {
+    position: absolute;
+    z-index: var(--tempest-z-dropdown);
+    background-color: #11151c;
+    color: #ffffff;
+    padding: 4px 8px;
+    border-radius: var(--tempest-radius-sm);
+    font-size: 12px;
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: var(--tempest-shadow-md);
+    animation: tempest-tooltip-in 0.12s ease-out;
+}
+
+.top {
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.bottom {
+    top: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.left {
+    right: calc(100% + 8px);
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.right {
+    left: calc(100% + 8px);
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+@keyframes tempest-tooltip-in {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translate(var(--tempest-tx, 0), var(--tempest-ty, 0));
+    }
+    to {
+        opacity: 1;
+    }
+}

@@ -1,0 +1,72 @@
+.stepper {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--tempest-space-2);
+    width: 100%;
+}
+
+.stepper.vertical {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.step {
+    display: flex;
+    align-items: center;
+    gap: var(--tempest-space-2);
+    flex: 1;
+}
+
+.dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid var(--tempest-border-strong);
+    background-color: var(--tempest-bg);
+    color: var(--tempest-text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.step.completed .dot {
+    background-color: var(--tempest-primary);
+    border-color: var(--tempest-primary);
+    color: var(--tempest-primary-foreground);
+}
+
+.step.active .dot {
+    border-color: var(--tempest-primary);
+    color: var(--tempest-primary);
+}
+
+.label {
+    font-size: 13px;
+    color: var(--tempest-text-muted);
+    font-weight: 600;
+}
+
+.step.active .label,
+.step.completed .label {
+    color: var(--tempest-text);
+}
+
+.connector {
+    flex: 1;
+    height: 2px;
+    background-color: var(--tempest-border);
+    margin: 0 var(--tempest-space-1);
+}
+
+.connector.completed {
+    background-color: var(--tempest-primary);
+}
+
+.stepper.vertical .connector {
+    width: 2px;
+    height: 24px;
+    margin: 0 0 0 13px;
+}

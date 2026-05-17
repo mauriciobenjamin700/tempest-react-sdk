@@ -1,0 +1,120 @@
+.overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(15, 23, 42, 0.45);
+    z-index: var(--tempest-z-modal);
+    animation: tempest-drawer-overlay 0.15s ease-out;
+}
+
+.panel {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    background-color: var(--tempest-bg);
+    color: var(--tempest-text);
+    box-shadow: var(--tempest-shadow-lg);
+    display: flex;
+    flex-direction: column;
+    z-index: calc(var(--tempest-z-modal) + 1);
+    animation-duration: 0.22s;
+    animation-timing-function: ease-out;
+    animation-fill-mode: both;
+}
+
+.right {
+    right: 0;
+    width: min(420px, 92vw);
+    animation-name: tempest-drawer-in-right;
+}
+
+.left {
+    left: 0;
+    width: min(420px, 92vw);
+    animation-name: tempest-drawer-in-left;
+}
+
+.top {
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: auto;
+    height: min(70vh, 480px);
+    animation-name: tempest-drawer-in-top;
+}
+
+.bottom {
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    height: min(70vh, 480px);
+    animation-name: tempest-drawer-in-bottom;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--tempest-space-4) var(--tempest-space-5);
+    border-bottom: 1px solid var(--tempest-border);
+}
+
+.title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.close {
+    background: none;
+    border: none;
+    color: var(--tempest-text-muted);
+    padding: var(--tempest-space-1);
+    border-radius: var(--tempest-radius-sm);
+    display: flex;
+    align-items: center;
+}
+
+.close:hover {
+    background-color: var(--tempest-surface);
+    color: var(--tempest-text);
+}
+
+.body {
+    padding: var(--tempest-space-5);
+    overflow-y: auto;
+    flex: 1;
+}
+
+.footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--tempest-space-2);
+    padding: var(--tempest-space-4) var(--tempest-space-5);
+    border-top: 1px solid var(--tempest-border);
+}
+
+@keyframes tempest-drawer-overlay {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes tempest-drawer-in-right {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+}
+
+@keyframes tempest-drawer-in-left {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+}
+
+@keyframes tempest-drawer-in-top {
+    from { transform: translateY(-100%); }
+    to { transform: translateY(0); }
+}
+
+@keyframes tempest-drawer-in-bottom {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}

@@ -1,0 +1,70 @@
+.wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-space-1);
+    width: 100%;
+}
+
+.label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--tempest-text);
+}
+
+.required {
+    color: var(--tempest-danger);
+    margin-left: 2px;
+}
+
+.field {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.select {
+    width: 100%;
+    height: 40px;
+    padding: 0 36px 0 var(--tempest-space-3);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-md);
+    background-color: var(--tempest-bg);
+    color: var(--tempest-text);
+    font-size: 14px;
+    appearance: none;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.select:focus {
+    outline: none;
+    border-color: var(--tempest-primary);
+    box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.18);
+}
+
+.select:disabled {
+    background-color: var(--tempest-surface);
+    cursor: not-allowed;
+    color: var(--tempest-text-muted);
+}
+
+.caret {
+    position: absolute;
+    right: 12px;
+    pointer-events: none;
+    color: var(--tempest-text-muted);
+}
+
+.error .select {
+    border-color: var(--tempest-danger);
+}
+
+.helper {
+    font-size: 12px;
+    color: var(--tempest-text-muted);
+}
+
+.errorText {
+    font-size: 12px;
+    color: var(--tempest-danger);
+}

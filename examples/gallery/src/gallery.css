@@ -1,0 +1,189 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: var(--tempest-font-sans);
+    background-color: var(--tempest-bg);
+    color: var(--tempest-text);
+    -webkit-font-smoothing: antialiased;
+}
+
+.gallery-shell {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    min-height: 100vh;
+}
+
+.gallery-sidebar {
+    padding: var(--tempest-space-6) var(--tempest-space-5);
+    border-right: 1px solid var(--tempest-border);
+    background-color: var(--tempest-surface);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+}
+
+.gallery-sidebar h1 {
+    font-size: 18px;
+    margin: 0 0 4px;
+}
+
+.gallery-sidebar p {
+    margin: 0 0 var(--tempest-space-5);
+    font-size: 12px;
+    color: var(--tempest-text-muted);
+}
+
+.gallery-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.gallery-nav a {
+    display: block;
+    padding: 6px var(--tempest-space-3);
+    border-radius: var(--tempest-radius-md);
+    color: var(--tempest-text-muted);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.gallery-nav a:hover {
+    background-color: var(--tempest-surface-2);
+    color: var(--tempest-text);
+}
+
+.gallery-nav a.active {
+    background-color: var(--tempest-primary);
+    color: var(--tempest-primary-foreground);
+}
+
+.gallery-main {
+    padding: var(--tempest-space-6) var(--tempest-space-8);
+    max-width: 1100px;
+}
+
+.gallery-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--tempest-space-6);
+    gap: var(--tempest-space-4);
+    flex-wrap: wrap;
+}
+
+.gallery-header h2 {
+    margin: 0;
+    font-size: 24px;
+}
+
+.gallery-header .meta {
+    font-size: 12px;
+    color: var(--tempest-text-muted);
+}
+
+.gallery-section {
+    border-top: 1px solid var(--tempest-border);
+    padding-top: var(--tempest-space-6);
+    margin-top: var(--tempest-space-6);
+}
+
+.gallery-section:first-of-type {
+    border-top: none;
+    margin-top: 0;
+    padding-top: 0;
+}
+
+.gallery-section h3 {
+    font-size: 18px;
+    margin: 0 0 var(--tempest-space-2);
+}
+
+.gallery-section .description {
+    color: var(--tempest-text-muted);
+    margin: 0 0 var(--tempest-space-4);
+    font-size: 14px;
+}
+
+.gallery-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--tempest-space-3);
+    align-items: center;
+    margin-bottom: var(--tempest-space-4);
+}
+
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--tempest-space-4);
+}
+
+.gallery-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-space-3);
+    max-width: 380px;
+}
+
+.gallery-toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--tempest-space-2);
+    flex-wrap: wrap;
+}
+
+.gallery-code {
+    margin: var(--tempest-space-3) 0 0;
+    background-color: var(--tempest-surface);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-md);
+    padding: var(--tempest-space-3) var(--tempest-space-4);
+    font-family: var(--tempest-font-mono);
+    font-size: 12px;
+    line-height: 1.6;
+    overflow-x: auto;
+    white-space: pre;
+}
+
+.theme-toggle-group {
+    display: inline-flex;
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-md);
+    overflow: hidden;
+}
+
+.theme-toggle-group button {
+    border: none;
+    background: transparent;
+    color: var(--tempest-text-muted);
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.theme-toggle-group button.active {
+    background-color: var(--tempest-primary);
+    color: var(--tempest-primary-foreground);
+}
+
+@media (max-width: 800px) {
+    .gallery-shell {
+        grid-template-columns: 1fr;
+    }
+    .gallery-sidebar {
+        position: relative;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--tempest-border);
+    }
+    .gallery-main {
+        padding: var(--tempest-space-5);
+    }
+}

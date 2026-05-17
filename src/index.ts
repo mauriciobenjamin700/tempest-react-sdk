@@ -1,0 +1,68 @@
+// Components
+export * from "./components";
+
+// Hooks
+export * from "./hooks";
+
+// HTTP
+export * from "./http";
+
+// Auth
+export * from "./auth";
+
+// Query
+export * from "./query";
+
+// SSE
+export * from "./sse";
+
+// Web Push
+export * from "./push";
+
+// Service Worker helpers
+export * from "./sw";
+
+// Audio
+export * from "./audio";
+
+// Offline (IndexedDB via Dexie — optional peer dep)
+export * from "./offline";
+
+// Error Boundary
+export * from "./error-boundary";
+
+// Forms (zod-based)
+export * from "./forms";
+
+// WebSocket
+export * from "./ws";
+
+// Theme
+export * from "./theme";
+
+// i18n
+export * from "./i18n";
+
+// Logger
+export * from "./logger";
+
+// Telemetry
+export * from "./telemetry";
+
+// Feature Flags
+export * from "./feature-flags";
+
+// Web Share
+export * from "./share";
+
+// Utils
+export { cn } from "./utils/cn";
+export {
+    formatCurrency,
+    formatDate,
+    formatDateTime,
+    formatPhone,
+    formatCPF,
+    formatPercent,
+} from "./utils/format";
+export { storage } from "./utils/storage";

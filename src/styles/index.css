@@ -1,2 +1,5 @@
 @import "./colors.css";
+@import "./typography.css";
+@import "./motion.css";
+@import "./density.css";
 @import "./reset.css";

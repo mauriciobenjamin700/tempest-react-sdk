@@ -3,13 +3,17 @@ import type { InputHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/utils/cn";
 import styles from "./Input.module.css";
 
-export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+export type InputSize = "sm" | "md" | "lg";
+
+export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "size"> {
     label?: string;
     helperText?: string;
     error?: string;
     leftIcon?: ReactNode;
     rightIcon?: ReactNode;
     wrapperClassName?: string;
+    /** Visual size — drives height, padding and font via density-aware tokens. */
+    size?: InputSize;
 }
 
 /**
@@ -27,6 +31,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         className,
         id,
         required,
+        size = "md",
         ...props
     },
     ref,
@@ -34,6 +39,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     const generatedId = useId();
     const inputId = id ?? generatedId;
     const describedById = error ? `${inputId}-error` : helperText ? `${inputId}-helper` : undefined;
+    const sizeClass = size === "sm" ? styles.sizeSm : size === "lg" ? styles.sizeLg : styles.sizeMd;
 
     return (
         <div className={cn(styles.wrapper, error && styles.error, wrapperClassName)}>
@@ -53,6 +59,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
                     required={required}
                     className={cn(
                         styles.input,
+                        sizeClass,
                         leftIcon && styles.hasLeftIcon,
                         rightIcon && styles.hasRightIcon,
                         className,

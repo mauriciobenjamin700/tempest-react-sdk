@@ -1,69 +1,214 @@
 :root {
-    /* Brand */
-    --tempest-primary: #0066ff;
-    --tempest-primary-hover: #0052cc;
-    --tempest-primary-active: #003d99;
+    /* ============================================================
+     * Brand — primary tint scale (50 lightest → 900 darkest)
+     * --tempest-primary remains the canonical action color.
+     * ============================================================ */
+    --tempest-primary-50: #eef4ff;
+    --tempest-primary-100: #d9e6ff;
+    --tempest-primary-200: #b3ccff;
+    --tempest-primary-300: #80aaff;
+    --tempest-primary-400: #4d85ff;
+    --tempest-primary-500: #0066ff;
+    --tempest-primary-600: #0052cc;
+    --tempest-primary-700: #003d99;
+    --tempest-primary-800: #002e75;
+    --tempest-primary-900: #001f4d;
+
+    /* Backwards-compatible aliases (v0.1.x) */
+    --tempest-primary: var(--tempest-primary-500);
+    --tempest-primary-hover: var(--tempest-primary-600);
+    --tempest-primary-active: var(--tempest-primary-700);
+    --tempest-primary-soft: var(--tempest-primary-50);
+    --tempest-primary-soft-hover: var(--tempest-primary-100);
     --tempest-primary-foreground: #ffffff;
 
-    /* Neutrals */
+    /* ============================================================
+     * Neutrals — grayscale scale + semantic aliases
+     * ============================================================ */
+    --tempest-gray-50: #f8f9fb;
+    --tempest-gray-100: #f1f3f6;
+    --tempest-gray-200: #e4e7ec;
+    --tempest-gray-300: #d0d5dd;
+    --tempest-gray-400: #98a2b3;
+    --tempest-gray-500: #667085;
+    --tempest-gray-600: #475467;
+    --tempest-gray-700: #344054;
+    --tempest-gray-800: #1d2939;
+    --tempest-gray-900: #101828;
+
     --tempest-bg: #ffffff;
-    --tempest-surface: #f6f7f9;
-    --tempest-surface-2: #eceef2;
-    --tempest-border: #d8dce3;
-    --tempest-border-strong: #b5bcc7;
-    --tempest-text: #11151c;
-    --tempest-text-muted: #5a6473;
-    --tempest-text-subtle: #8a93a1;
+    --tempest-surface: var(--tempest-gray-50);
+    --tempest-surface-2: var(--tempest-gray-100);
+    --tempest-surface-3: var(--tempest-gray-200);
+    --tempest-border: var(--tempest-gray-200);
+    --tempest-border-strong: var(--tempest-gray-300);
+    --tempest-text: var(--tempest-gray-900);
+    --tempest-text-muted: var(--tempest-gray-600);
+    --tempest-text-subtle: var(--tempest-gray-500);
+    --tempest-text-on-primary: #ffffff;
 
-    /* Status */
+    /* ============================================================
+     * Status — fg/bg/border triplets for soft variants
+     * Solid colors stay at `--tempest-<status>`.
+     * ============================================================ */
     --tempest-success: #15803d;
+    --tempest-success-fg: #14532d;
     --tempest-success-bg: #dcfce7;
-    --tempest-warning: #b45309;
-    --tempest-warning-bg: #fef3c7;
-    --tempest-danger: #b91c1c;
-    --tempest-danger-bg: #fee2e2;
-    --tempest-info: #1d4ed8;
-    --tempest-info-bg: #dbeafe;
+    --tempest-success-border: #86efac;
+    --tempest-success-solid: #16a34a;
 
-    /* Radius */
+    --tempest-warning: #b45309;
+    --tempest-warning-fg: #78350f;
+    --tempest-warning-bg: #fef3c7;
+    --tempest-warning-border: #fcd34d;
+    --tempest-warning-solid: #d97706;
+
+    --tempest-danger: #b91c1c;
+    --tempest-danger-fg: #7f1d1d;
+    --tempest-danger-bg: #fee2e2;
+    --tempest-danger-border: #fca5a5;
+    --tempest-danger-solid: #dc2626;
+    --tempest-danger-hover: #991b1b;
+
+    --tempest-info: #1d4ed8;
+    --tempest-info-fg: #1e3a8a;
+    --tempest-info-bg: #dbeafe;
+    --tempest-info-border: #93c5fd;
+    --tempest-info-solid: #2563eb;
+
+    /* ============================================================
+     * Focus ring
+     * ============================================================ */
+    --tempest-focus-ring-color: rgba(0, 102, 255, 0.35);
+    --tempest-focus-ring-width: 3px;
+    --tempest-focus-ring-offset: 2px;
+
+    /* ============================================================
+     * Radius
+     * ============================================================ */
+    --tempest-radius-xs: 2px;
     --tempest-radius-sm: 4px;
     --tempest-radius-md: 8px;
     --tempest-radius-lg: 12px;
     --tempest-radius-xl: 16px;
+    --tempest-radius-2xl: 24px;
     --tempest-radius-full: 9999px;
 
-    /* Shadow */
-    --tempest-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
-    --tempest-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
-    --tempest-shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.12);
+    /* ============================================================
+     * Elevation
+     * ============================================================ */
+    --tempest-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+    --tempest-shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+    --tempest-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08), 0 2px 4px rgba(15, 23, 42, 0.04);
+    --tempest-shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.12), 0 4px 8px rgba(15, 23, 42, 0.06);
+    --tempest-shadow-xl: 0 24px 48px rgba(15, 23, 42, 0.18), 0 8px 16px rgba(15, 23, 42, 0.08);
+    --tempest-shadow-inner: inset 0 2px 4px rgba(15, 23, 42, 0.06);
 
-    /* Spacing scale (4px base) */
+    /* ============================================================
+     * Spacing scale (4px base)
+     * ============================================================ */
+    --tempest-space-0: 0px;
     --tempest-space-1: 4px;
     --tempest-space-2: 8px;
     --tempest-space-3: 12px;
     --tempest-space-4: 16px;
     --tempest-space-5: 20px;
     --tempest-space-6: 24px;
+    --tempest-space-7: 28px;
     --tempest-space-8: 32px;
+    --tempest-space-10: 40px;
+    --tempest-space-12: 48px;
+    --tempest-space-16: 64px;
+    --tempest-space-20: 80px;
+    --tempest-space-24: 96px;
 
-    /* Font */
+    /* ============================================================
+     * Font families
+     * ============================================================ */
     --tempest-font-sans:
-        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    --tempest-font-mono: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
+        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+        "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
+    --tempest-font-mono:
+        ui-monospace, SFMono-Regular, "SF Mono", "Cascadia Code", Menlo, Consolas,
+        "Liberation Mono", monospace;
+    --tempest-font-display: var(--tempest-font-sans);
 
-    /* Z-index */
+    /* ============================================================
+     * Z-index scale
+     * ============================================================ */
+    --tempest-z-base: 0;
+    --tempest-z-raised: 10;
     --tempest-z-dropdown: 1000;
+    --tempest-z-sticky: 1020;
+    --tempest-z-overlay: 1050;
     --tempest-z-modal: 1100;
+    --tempest-z-popover: 1150;
     --tempest-z-toast: 1200;
+    --tempest-z-tooltip: 1300;
 }
 
+/* ============================================================
+ * Dark theme overrides
+ * Activated via [data-tempest-theme="dark"] on the root (or any subtree).
+ * ============================================================ */
 [data-tempest-theme="dark"] {
+    --tempest-primary-50: #0a1730;
+    --tempest-primary-100: #0f2245;
+    --tempest-primary-200: #133066;
+    --tempest-primary-300: #1a4399;
+    --tempest-primary-400: #2563eb;
+    --tempest-primary-500: #3b82f6;
+    --tempest-primary-600: #60a5fa;
+    --tempest-primary-700: #93c5fd;
+    --tempest-primary-800: #bfdbfe;
+    --tempest-primary-900: #dbeafe;
+
+    --tempest-primary: var(--tempest-primary-500);
+    --tempest-primary-hover: var(--tempest-primary-400);
+    --tempest-primary-active: var(--tempest-primary-300);
+    --tempest-primary-soft: var(--tempest-primary-100);
+    --tempest-primary-soft-hover: var(--tempest-primary-200);
+
     --tempest-bg: #0b0d12;
     --tempest-surface: #14171f;
     --tempest-surface-2: #1d2230;
+    --tempest-surface-3: #262d3f;
     --tempest-border: #2a3142;
     --tempest-border-strong: #3a4258;
     --tempest-text: #f1f3f8;
     --tempest-text-muted: #aab2c0;
     --tempest-text-subtle: #6f7889;
+
+    --tempest-success-fg: #4ade80;
+    --tempest-success-bg: #052e16;
+    --tempest-success-border: #166534;
+    --tempest-success-solid: #22c55e;
+    --tempest-success: #4ade80;
+
+    --tempest-warning-fg: #fbbf24;
+    --tempest-warning-bg: #2c1c05;
+    --tempest-warning-border: #78350f;
+    --tempest-warning-solid: #f59e0b;
+    --tempest-warning: #fbbf24;
+
+    --tempest-danger-fg: #f87171;
+    --tempest-danger-bg: #2c0a0a;
+    --tempest-danger-border: #7f1d1d;
+    --tempest-danger-solid: #ef4444;
+    --tempest-danger: #f87171;
+    --tempest-danger-hover: #ef4444;
+
+    --tempest-info-fg: #60a5fa;
+    --tempest-info-bg: #0a1730;
+    --tempest-info-border: #1e3a8a;
+    --tempest-info-solid: #3b82f6;
+    --tempest-info: #60a5fa;
+
+    --tempest-focus-ring-color: rgba(96, 165, 250, 0.45);
+
+    --tempest-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --tempest-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.2);
+    --tempest-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2);
+    --tempest-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5), 0 4px 8px rgba(0, 0, 0, 0.3);
+    --tempest-shadow-xl: 0 24px 48px rgba(0, 0, 0, 0.6), 0 8px 16px rgba(0, 0, 0, 0.3);
 }

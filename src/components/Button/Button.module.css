@@ -3,34 +3,45 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: var(--tempest-space-2);
+    gap: var(--tempest-control-gap, var(--tempest-space-2));
     border: 1px solid transparent;
-    border-radius: var(--tempest-radius-md);
-    font-weight: 600;
-    line-height: 1;
-    transition:
-        background-color 0.15s ease,
-        border-color 0.15s ease,
-        color 0.15s ease,
-        box-shadow 0.15s ease,
-        transform 0.05s ease;
+    border-radius: var(--tempest-control-radius, var(--tempest-radius-md));
+    font-family: var(--tempest-font-sans);
+    font-weight: var(--tempest-weight-semibold);
+    line-height: var(--tempest-leading-none);
+    letter-spacing: var(--tempest-tracking-normal);
+    text-decoration: none;
+    white-space: nowrap;
     user-select: none;
+    transition: var(--tempest-transition-base);
+    box-shadow: var(--tempest-shadow-xs);
 }
 
 .button:focus-visible {
-    outline: 2px solid var(--tempest-primary);
-    outline-offset: 2px;
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: var(--tempest-focus-ring-offset);
+}
+
+.button:hover:not(:disabled) {
+    box-shadow: var(--tempest-shadow-sm);
 }
 
 .button:active:not(:disabled) {
     transform: translateY(1px);
+    box-shadow: var(--tempest-shadow-xs);
 }
 
 .button:disabled {
     opacity: 0.55;
+    box-shadow: none;
 }
 
-/* Variants */
+/* ============================================================
+ * Variants — solid (default), soft, outline, ghost
+ * Status colors: primary, secondary (neutral), danger, success
+ * ============================================================ */
+
+/* primary — solid filled */
 .primary {
     background-color: var(--tempest-primary);
     color: var(--tempest-primary-foreground);
@@ -38,7 +49,11 @@
 .primary:hover:not(:disabled) {
     background-color: var(--tempest-primary-hover);
 }
+.primary:active:not(:disabled) {
+    background-color: var(--tempest-primary-active);
+}
 
+/* secondary — neutral surface */
 .secondary {
     background-color: var(--tempest-surface);
     color: var(--tempest-text);
@@ -46,39 +61,133 @@
 }
 .secondary:hover:not(:disabled) {
     background-color: var(--tempest-surface-2);
+    border-color: var(--tempest-border-strong);
 }
 
+/* danger — solid red */
 .danger {
-    background-color: var(--tempest-danger);
+    background-color: var(--tempest-danger-solid);
     color: #ffffff;
 }
 .danger:hover:not(:disabled) {
-    background-color: #991b1b;
+    background-color: var(--tempest-danger-hover);
 }
 
+/* success — solid green */
+.success {
+    background-color: var(--tempest-success-solid);
+    color: #ffffff;
+}
+.success:hover:not(:disabled) {
+    filter: brightness(0.92);
+}
+
+/* ghost — transparent, hover surface */
 .ghost {
     background-color: transparent;
     color: var(--tempest-text);
+    box-shadow: none;
 }
 .ghost:hover:not(:disabled) {
     background-color: var(--tempest-surface);
+    box-shadow: none;
+}
+.ghost:active:not(:disabled) {
+    background-color: var(--tempest-surface-2);
+    box-shadow: none;
 }
 
-/* Sizes */
+/* soft — tinted background, primary text */
+.soft {
+    background-color: var(--tempest-primary-soft);
+    color: var(--tempest-primary-active);
+    box-shadow: none;
+}
+.soft:hover:not(:disabled) {
+    background-color: var(--tempest-primary-soft-hover);
+}
+
+/* outline — bordered, transparent fill */
+.outline {
+    background-color: transparent;
+    color: var(--tempest-primary);
+    border-color: var(--tempest-primary);
+    box-shadow: none;
+}
+.outline:hover:not(:disabled) {
+    background-color: var(--tempest-primary-soft);
+}
+
+/* link — text-only, underline on hover */
+.link {
+    background-color: transparent;
+    color: var(--tempest-primary);
+    box-shadow: none;
+    padding-left: 0;
+    padding-right: 0;
+    border-radius: var(--tempest-radius-sm);
+}
+.link:hover:not(:disabled) {
+    color: var(--tempest-primary-hover);
+    text-decoration: underline;
+    background: none;
+    box-shadow: none;
+}
+
+/* ============================================================
+ * Sizes — token-driven, density-aware
+ * ============================================================ */
+.xs {
+    height: var(--tempest-control-height-xs);
+    padding: 0 var(--tempest-control-padding-xs);
+    font-size: var(--tempest-control-font-xs);
+}
 .sm {
-    height: 32px;
-    padding: 0 var(--tempest-space-3);
-    font-size: 13px;
+    height: var(--tempest-control-height-sm);
+    padding: 0 var(--tempest-control-padding-sm);
+    font-size: var(--tempest-control-font-sm);
 }
 .md {
-    height: 40px;
-    padding: 0 var(--tempest-space-4);
-    font-size: 14px;
+    height: var(--tempest-control-height-md);
+    padding: 0 var(--tempest-control-padding-md);
+    font-size: var(--tempest-control-font-md);
 }
 .lg {
-    height: 48px;
-    padding: 0 var(--tempest-space-5);
-    font-size: 16px;
+    height: var(--tempest-control-height-lg);
+    padding: 0 var(--tempest-control-padding-lg);
+    font-size: var(--tempest-control-font-lg);
+}
+.xl {
+    height: var(--tempest-control-height-xl);
+    padding: 0 var(--tempest-control-padding-xl);
+    font-size: var(--tempest-control-font-xl);
+}
+
+/* Square (icon-only) — width matches height */
+.iconOnly.xs {
+    width: var(--tempest-control-height-xs);
+    padding: 0;
+}
+.iconOnly.sm {
+    width: var(--tempest-control-height-sm);
+    padding: 0;
+}
+.iconOnly.md {
+    width: var(--tempest-control-height-md);
+    padding: 0;
+}
+.iconOnly.lg {
+    width: var(--tempest-control-height-lg);
+    padding: 0;
+}
+.iconOnly.xl {
+    width: var(--tempest-control-height-xl);
+    padding: 0;
+}
+
+/* Pill shape */
+.pill {
+    border-radius: var(--tempest-radius-full);
 }
 
 .fullWidth {

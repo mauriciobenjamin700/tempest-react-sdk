@@ -1,0 +1,40 @@
+:root {
+    /* ============================================================
+     * Type scale (semantic + numeric)
+     * Reference base = 16px. Each step ~1.125 ratio.
+     * ============================================================ */
+    --tempest-text-2xs: 10px;
+    --tempest-text-xs: 12px;
+    --tempest-text-sm: 13px;
+    --tempest-text-base: 14px;
+    --tempest-text-md: 15px;
+    --tempest-text-lg: 16px;
+    --tempest-text-xl: 18px;
+    --tempest-text-2xl: 20px;
+    --tempest-text-3xl: 24px;
+    --tempest-text-4xl: 30px;
+    --tempest-text-5xl: 36px;
+    --tempest-text-6xl: 48px;
+
+    /* Line heights paired with type scale */
+    --tempest-leading-none: 1;
+    --tempest-leading-tight: 1.2;
+    --tempest-leading-snug: 1.35;
+    --tempest-leading-normal: 1.5;
+    --tempest-leading-relaxed: 1.65;
+    --tempest-leading-loose: 1.9;
+
+    /* Font weights */
+    --tempest-weight-regular: 400;
+    --tempest-weight-medium: 500;
+    --tempest-weight-semibold: 600;
+    --tempest-weight-bold: 700;
+    --tempest-weight-extrabold: 800;
+
+    /* Letter spacing */
+    --tempest-tracking-tight: -0.02em;
+    --tempest-tracking-normal: 0;
+    --tempest-tracking-wide: 0.025em;
+    --tempest-tracking-wider: 0.05em;
+    --tempest-tracking-widest: 0.1em;
+}

@@ -2,30 +2,144 @@
     display: inline-flex;
     align-items: center;
     gap: var(--tempest-space-1);
-    padding: 2px 8px;
+    padding: 2px var(--tempest-space-2);
+    border: 1px solid transparent;
     border-radius: var(--tempest-radius-full);
-    font-size: 12px;
-    font-weight: 600;
-    line-height: 1.4;
+    font-family: var(--tempest-font-sans);
+    font-size: var(--tempest-text-xs);
+    font-weight: var(--tempest-weight-semibold);
+    line-height: var(--tempest-leading-snug);
+    letter-spacing: var(--tempest-tracking-normal);
+    white-space: nowrap;
 }
 
+/* ============================================================
+ * Sizes
+ * ============================================================ */
+.sm {
+    padding: 1px var(--tempest-space-2);
+    font-size: var(--tempest-text-2xs);
+}
+.md {
+    padding: 2px var(--tempest-space-2);
+    font-size: var(--tempest-text-xs);
+}
+.lg {
+    padding: 3px var(--tempest-space-3);
+    font-size: var(--tempest-text-sm);
+}
+
+/* ============================================================
+ * Shapes — pill is the default (border-radius-full).
+ * `square` flips to a small radius for chip-style badges.
+ * ============================================================ */
+.square {
+    border-radius: var(--tempest-radius-sm);
+}
+
+/* ============================================================
+ * Tone × Style matrix.
+ * Soft (default) = tinted bg + colored fg.
+ * Solid = filled colored bg + white fg.
+ * Outline = transparent bg + colored fg + colored border.
+ * ============================================================ */
+
+/* Neutral */
 .neutral {
     background-color: var(--tempest-surface-2);
     color: var(--tempest-text);
 }
+.neutral.solid {
+    background-color: var(--tempest-gray-700);
+    color: #ffffff;
+}
+.neutral.outline {
+    background-color: transparent;
+    color: var(--tempest-text);
+    border-color: var(--tempest-border-strong);
+}
+
+/* Success */
 .success {
     background-color: var(--tempest-success-bg);
-    color: var(--tempest-success);
+    color: var(--tempest-success-fg);
 }
+.success.solid {
+    background-color: var(--tempest-success-solid);
+    color: #ffffff;
+}
+.success.outline {
+    background-color: transparent;
+    color: var(--tempest-success);
+    border-color: var(--tempest-success-border);
+}
+
+/* Warning */
 .warning {
     background-color: var(--tempest-warning-bg);
-    color: var(--tempest-warning);
+    color: var(--tempest-warning-fg);
 }
+.warning.solid {
+    background-color: var(--tempest-warning-solid);
+    color: #ffffff;
+}
+.warning.outline {
+    background-color: transparent;
+    color: var(--tempest-warning);
+    border-color: var(--tempest-warning-border);
+}
+
+/* Danger */
 .danger {
     background-color: var(--tempest-danger-bg);
-    color: var(--tempest-danger);
+    color: var(--tempest-danger-fg);
 }
+.danger.solid {
+    background-color: var(--tempest-danger-solid);
+    color: #ffffff;
+}
+.danger.outline {
+    background-color: transparent;
+    color: var(--tempest-danger);
+    border-color: var(--tempest-danger-border);
+}
+
+/* Info */
 .info {
     background-color: var(--tempest-info-bg);
+    color: var(--tempest-info-fg);
+}
+.info.solid {
+    background-color: var(--tempest-info-solid);
+    color: #ffffff;
+}
+.info.outline {
+    background-color: transparent;
     color: var(--tempest-info);
+    border-color: var(--tempest-info-border);
+}
+
+/* Primary */
+.primary {
+    background-color: var(--tempest-primary-soft);
+    color: var(--tempest-primary-active);
+}
+.primary.solid {
+    background-color: var(--tempest-primary);
+    color: var(--tempest-primary-foreground);
+}
+.primary.outline {
+    background-color: transparent;
+    color: var(--tempest-primary);
+    border-color: var(--tempest-primary);
+}
+
+/* Status dot — small leading dot, color inherits from text. */
+.dot {
+    width: 6px;
+    height: 6px;
+    border-radius: var(--tempest-radius-full);
+    background-color: currentColor;
+    display: inline-block;
+    flex-shrink: 0;
 }

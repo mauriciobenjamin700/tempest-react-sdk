@@ -6,9 +6,10 @@
 }
 
 .label {
-    font-size: 13px;
-    font-weight: 600;
+    font-size: var(--tempest-text-sm);
+    font-weight: var(--tempest-weight-semibold);
     color: var(--tempest-text);
+    line-height: var(--tempest-leading-snug);
 }
 
 .required {
@@ -24,32 +25,59 @@
 
 .input {
     width: 100%;
-    height: 40px;
-    padding: 0 var(--tempest-space-3);
+    height: var(--tempest-control-height-md);
+    padding: 0 var(--tempest-control-padding-md);
     border: 1px solid var(--tempest-border);
-    border-radius: var(--tempest-radius-md);
+    border-radius: var(--tempest-control-radius);
     background-color: var(--tempest-bg);
     color: var(--tempest-text);
-    font-size: 14px;
-    transition:
-        border-color 0.15s ease,
-        box-shadow 0.15s ease;
+    font-family: var(--tempest-font-sans);
+    font-size: var(--tempest-control-font-md);
+    line-height: var(--tempest-leading-snug);
+    box-shadow: var(--tempest-shadow-xs);
+    transition: var(--tempest-transition-color), var(--tempest-transition-shadow);
 }
 
 .input::placeholder {
     color: var(--tempest-text-subtle);
 }
 
+.input:hover:not(:disabled):not(:focus) {
+    border-color: var(--tempest-border-strong);
+}
+
 .input:focus {
     outline: none;
     border-color: var(--tempest-primary);
-    box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.18);
+    box-shadow: 0 0 0 var(--tempest-focus-ring-width) var(--tempest-focus-ring-color);
 }
 
 .input:disabled {
     background-color: var(--tempest-surface);
     cursor: not-allowed;
     color: var(--tempest-text-muted);
+    box-shadow: none;
+}
+
+.input:read-only {
+    background-color: var(--tempest-surface);
+}
+
+/* Sizes — density-aware. Applied directly on the <input>. */
+.sizeSm {
+    height: var(--tempest-control-height-sm);
+    padding: 0 var(--tempest-control-padding-sm);
+    font-size: var(--tempest-control-font-sm);
+}
+.sizeMd {
+    height: var(--tempest-control-height-md);
+    padding: 0 var(--tempest-control-padding-md);
+    font-size: var(--tempest-control-font-md);
+}
+.sizeLg {
+    height: var(--tempest-control-height-lg);
+    padding: 0 var(--tempest-control-padding-lg);
+    font-size: var(--tempest-control-font-lg);
 }
 
 .hasLeftIcon {
@@ -82,15 +110,18 @@
 }
 
 .error .input:focus {
-    box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.18);
+    box-shadow: 0 0 0 var(--tempest-focus-ring-width)
+        color-mix(in srgb, var(--tempest-danger) 25%, transparent);
 }
 
 .helper {
-    font-size: 12px;
+    font-size: var(--tempest-text-xs);
     color: var(--tempest-text-muted);
+    line-height: var(--tempest-leading-snug);
 }
 
 .errorText {
-    font-size: 12px;
+    font-size: var(--tempest-text-xs);
     color: var(--tempest-danger);
+    line-height: var(--tempest-leading-snug);
 }

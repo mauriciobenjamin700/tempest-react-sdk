@@ -1,0 +1,48 @@
+:root {
+    /* ============================================================
+     * Duration tokens
+     * ============================================================ */
+    --tempest-duration-instant: 0ms;
+    --tempest-duration-fast: 120ms;
+    --tempest-duration-base: 180ms;
+    --tempest-duration-slow: 280ms;
+    --tempest-duration-slower: 420ms;
+
+    /* ============================================================
+     * Easing curves
+     * ============================================================ */
+    --tempest-ease-linear: linear;
+    --tempest-ease-in: cubic-bezier(0.4, 0, 1, 1);
+    --tempest-ease-out: cubic-bezier(0, 0, 0.2, 1);
+    --tempest-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+    --tempest-ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+    --tempest-ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    /* Composite shortcuts used across components */
+    --tempest-transition-color:
+        color var(--tempest-duration-fast) var(--tempest-ease-out),
+        background-color var(--tempest-duration-fast) var(--tempest-ease-out),
+        border-color var(--tempest-duration-fast) var(--tempest-ease-out);
+    --tempest-transition-shadow: box-shadow var(--tempest-duration-base) var(--tempest-ease-out);
+    --tempest-transition-transform: transform var(--tempest-duration-fast) var(--tempest-ease-out);
+    --tempest-transition-base:
+        color var(--tempest-duration-fast) var(--tempest-ease-out),
+        background-color var(--tempest-duration-fast) var(--tempest-ease-out),
+        border-color var(--tempest-duration-fast) var(--tempest-ease-out),
+        box-shadow var(--tempest-duration-base) var(--tempest-ease-out),
+        transform var(--tempest-duration-fast) var(--tempest-ease-out),
+        opacity var(--tempest-duration-fast) var(--tempest-ease-out);
+}
+
+/* ============================================================
+ * Respect prefers-reduced-motion globally for tempest tokens.
+ * Components reading these tokens become near-instant automatically.
+ * ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --tempest-duration-fast: 0.01ms;
+        --tempest-duration-base: 0.01ms;
+        --tempest-duration-slow: 0.01ms;
+        --tempest-duration-slower: 0.01ms;
+    }
+}

@@ -4,7 +4,7 @@ import { Input } from "@/components/Input";
 
 export interface DatePickerProps extends Omit<
     InputHTMLAttributes<HTMLInputElement>,
-    "type" | "value" | "onChange"
+    "type" | "value" | "onChange" | "size"
 > {
     /** ISO date string (`YYYY-MM-DD`) or empty. */
     value: string;

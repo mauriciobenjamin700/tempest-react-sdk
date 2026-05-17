@@ -4,14 +4,23 @@ SDK público da Tempest com componentes React, hooks e integrações reutilizáv
 
 > Este arquivo é o guia operacional do SDK. Padrões globais (PR template PT-BR, conventional commits, `gh pr edit` workaround) vêm de `~/.claude/CLAUDE.md` e continuam valendo.
 
-## Estado atual (snapshot v0.1.0)
+## Estado atual (snapshot v0.1.4 — publicado)
 
-- **Build verde**: ESM 98KB → 28KB gzip, CJS 71KB → 24KB gzip, CSS 32KB → 6KB gzip, `index.d.ts` rollupado (~2100 linhas).
-- **Cobertura de testes**: 95.30% lines / 92.21% statements / 84.86% branches / 96.13% functions. 444 testes em 164 arquivos. Roda em ~11s sob `vitest + jsdom + fake-indexeddb`.
-- **Tooling**: Prettier, Husky pre-commit (lint-staged), Changesets, CI workflow (matriz node 20/22).
-- **Docs**: 23 markdowns em `docs/` + 3 diagramas drawio (`architecture`, `request-flow`, `push-flow`).
-- **Demo vivo**: app Vite em `examples/gallery` consome o SDK via `file:../..`. 14 seções cobrindo todo o catálogo.
-- **Não commitado ainda**: repo não tem nenhum commit, nenhuma tag, nenhum remote configurado.
+- **Publicado**: <https://www.npmjs.com/package/tempest-react-sdk> — versões 0.1.0 → 0.1.4 todas live com provenance signed via OIDC.
+- **Build verde**: ESM ~103KB → 29KB gzip, CJS ~74KB → 25KB gzip, CSS 33KB → 6KB gzip, `index.d.ts` rollupado.
+- **Cobertura**: 487 testes em 169 arquivos. ~13s sob `vitest + jsdom + fake-indexeddb`.
+- **Tooling**: Prettier, Husky pre-commit (lint-staged), `Makefile` + `scripts/release.sh` (tag-push pipeline), CI workflow (`release-npm.yml` no tag push + `ci.yml` matriz node 20/22 em PR).
+- **Docs**: 24 markdowns em `docs/` + 3 diagramas drawio (`architecture`, `request-flow`, `push-flow`).
+- **Demo vivo**: app Vite em `examples/gallery` consome o SDK via `file:../..`.
+
+### Mudanças desde v0.1.0
+
+- v0.1.1: README rewrite (TOC + 32 recipes), Vite stack section, typecheck/changesets cleanup.
+- v0.1.2: `Form` / `FormSection` / `FormRow` / `FormActions` components (stack/inline/grid layout variants).
+- v0.1.3: `createSentryTelemetryAdapter` (P1 #4).
+- v0.1.4: `createPostHogTelemetryAdapter` (P1 #5), `createGrowthBookFeatureFlagsAdapter` (P1 #6), `createLaunchDarklyFeatureFlagsAdapter` (P1 #7).
+
+Adapter design pattern consolidado: caller injeta instância SDK (não vira peer dep), `<X>Like` interface exposta pra mocking, options minimalistas. Aplica para qualquer wrapper futuro (Datadog, Mixpanel, Amplitude, Unleash, etc.).
 
 ## Tech Stack
 
@@ -52,44 +61,35 @@ tempest-react-sdk/
 │   ├── utils/          cn, format BR, storage
 │   ├── ws/             createWebSocket, useWebSocket
 │   └── index.ts        barrel raiz
-├── docs/               markdown por módulo + diagramas drawio
+├── docs/               markdown por módulo + diagramas drawio + release.md
 ├── examples/gallery/   app Vite consumindo o SDK (file:../..)
 ├── test/setup.ts       jsdom + jest-dom + fake-indexeddb auto
-└── .changeset/         release workflow
+├── Makefile            release + validate + bump + releases-md alvos
+├── scripts/release.sh  pipeline tag-push (branch + bump + validate + tag + PR)
+├── RELEASES.md         auto-gerado por `make releases-md`
+└── .github/workflows/
+    ├── ci.yml          PR — lint + format + typecheck + test + build
+    └── release-npm.yml tag push v*.*.* → smoke + publish --provenance
 ```
 
 ## Próximos passos (priorizado)
 
-### P0 — release inicial
+### ✓ P0 — release inicial (concluído)
 
-1. **Primeiro commit + tag v0.1.0**
-   - Inicializar git (já feito), criar `.gitattributes` se necessário.
-   - `git add -A && git commit -m "feat: initial release v0.1.0"`.
-   - Criar repo remoto em `https://github.com/tempest/tempest-react-sdk` (ou nome final do org).
-   - Push + criar tag `v0.1.0`.
-   - Ajustar `package.json` `repository.url` e `homepage` para a URL real.
-2. **Publicar na npm**
-   - Conferir nome no registry (`npm view tempest-react-sdk` — se estiver tomado, considerar `@tempest/react-sdk` scoped).
-   - Adicionar secret `NPM_TOKEN` no GitHub repo settings (`Settings → Secrets → Actions`).
-   - `npx changeset` para gravar primeira entrada (ou apenas `npm publish` manual nesta primeira vez).
-   - Confirmar que `release.yml` workflow já está pronto pra publishes futuros.
-3. **README badges**
-   - `npm version`, `CI status`, `coverage`, `license MIT`, `peer deps`.
+- ✓ Primeiro commit + tag v0.1.0
+- ✓ Publicado no npm (`tempest-react-sdk`)
+- ✓ README badges
+- ✓ Tag-push release pipeline + Makefile + scripts/release.sh
+- ✓ NPM_TOKEN secret + provenance via OIDC
 
-### P1 — adapters concretos
+### ✓ P1 — adapters concretos (concluído)
 
-4. **Sentry adapter** (`src/telemetry/sentry-adapter.ts`)
-   - `init({ dsn })`, `identify`, `track` (breadcrumb), `captureException`, `flush`.
-   - Exports junto com `consoleTelemetryAdapter`.
-   - Doc em `docs/telemetry.md` (já preparada com snippet).
-5. **PostHog adapter** (`src/telemetry/posthog-adapter.ts`)
-   - Mesma interface; `capture()` para track, `identify()` direto.
-6. **GrowthBook adapter** (`src/feature-flags/growthbook-adapter.ts`)
-   - Wrapper sobre `GrowthBook` instance, expondo `isEnabled` + `get` + `onChange` via `subscribe()`.
-7. **LaunchDarkly adapter** (`src/feature-flags/launchdarkly-adapter.ts`)
-   - Wrapper sobre `LDClient.variation()`.
+- ✓ #4 `createSentryTelemetryAdapter` (v0.1.3)
+- ✓ #5 `createPostHogTelemetryAdapter` (v0.1.4)
+- ✓ #6 `createGrowthBookFeatureFlagsAdapter` (v0.1.4)
+- ✓ #7 `createLaunchDarklyFeatureFlagsAdapter` (v0.1.4)
 
-Cada adapter como peer dep **opcional** + externalizado em `vite.config.ts`. Documentar instalação separada.
+Adapters seguem o pattern: caller injeta instância SDK (não vira peer dep). Próximos providers (Datadog, Amplitude, Mixpanel, Unleash) seguir o mesmo molde.
 
 ### P1 — cobertura de testes para 95%+ branches
 
@@ -163,10 +163,11 @@ npm run lint
 npm run format
 npm run build
 
-# Release (depois que NPM_TOKEN estiver configurado)
-npx changeset       # descrever mudança (patch/minor/major)
-npx changeset version  # bump + atualizar CHANGELOG
-npm run release        # build + publish
+# Release (tag-push pipeline — CI publica via release-npm.yml)
+make release TAG=0.1.5             # branch + bump + validate + tag + push + PR
+make release TAG=0.1.5 DRY_RUN=1   # tudo local, pula push + PR
+make releases                      # lista tags v*.*.*
+make publish                       # fallback manual (requer NPM_TOKEN no ~/.npmrc)
 
 # Gallery
 cd examples/gallery

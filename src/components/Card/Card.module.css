@@ -4,6 +4,45 @@
     border-radius: var(--tempest-radius-lg);
     padding: var(--tempest-space-5);
     box-shadow: var(--tempest-shadow-sm);
+    color: var(--tempest-text);
+    transition:
+        var(--tempest-transition-shadow),
+        var(--tempest-transition-transform),
+        border-color var(--tempest-duration-fast) var(--tempest-ease-out);
+}
+
+/* ============================================================
+ * Elevation variants
+ * ============================================================ */
+.flat {
+    box-shadow: none;
+}
+.raised {
+    box-shadow: var(--tempest-shadow-md);
+}
+.elevated {
+    box-shadow: var(--tempest-shadow-lg);
+    border-color: transparent;
+}
+
+/* ============================================================
+ * Interactive — hoverable card (use for clickable cards, list rows)
+ * ============================================================ */
+.interactive {
+    cursor: pointer;
+}
+.interactive:hover {
+    border-color: var(--tempest-border-strong);
+    box-shadow: var(--tempest-shadow-md);
+    transform: translateY(-1px);
+}
+.interactive:active {
+    transform: translateY(0);
+    box-shadow: var(--tempest-shadow-sm);
+}
+.interactive:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: var(--tempest-focus-ring-offset);
 }
 
 .padded {
@@ -18,17 +57,28 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: var(--tempest-space-3);
     padding: var(--tempest-space-4) var(--tempest-space-5);
     border-bottom: 1px solid var(--tempest-border);
 }
 
 .title {
     margin: 0;
-    font-size: 15px;
-    font-weight: 600;
+    font-size: var(--tempest-text-md);
+    font-weight: var(--tempest-weight-semibold);
+    line-height: var(--tempest-leading-snug);
     color: var(--tempest-text);
 }
 
 .body {
     padding: var(--tempest-space-5);
+}
+
+.footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--tempest-space-2);
+    padding: var(--tempest-space-4) var(--tempest-space-5);
+    border-top: 1px solid var(--tempest-border);
 }

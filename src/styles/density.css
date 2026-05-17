@@ -1,0 +1,76 @@
+/* ============================================================
+ * Density modes
+ * Use [data-tempest-density="compact|comfortable|spacious"] on
+ * any element (typically root) to scale control heights & paddings.
+ * Default is "comfortable" — applied at :root via plain tokens.
+ * ============================================================ */
+
+:root,
+[data-tempest-density="comfortable"] {
+    --tempest-control-height-xs: 24px;
+    --tempest-control-height-sm: 32px;
+    --tempest-control-height-md: 40px;
+    --tempest-control-height-lg: 48px;
+    --tempest-control-height-xl: 56px;
+
+    --tempest-control-padding-xs: var(--tempest-space-2);
+    --tempest-control-padding-sm: var(--tempest-space-3);
+    --tempest-control-padding-md: var(--tempest-space-4);
+    --tempest-control-padding-lg: var(--tempest-space-5);
+    --tempest-control-padding-xl: var(--tempest-space-6);
+
+    --tempest-control-font-xs: var(--tempest-text-xs);
+    --tempest-control-font-sm: var(--tempest-text-sm);
+    --tempest-control-font-md: var(--tempest-text-base);
+    --tempest-control-font-lg: var(--tempest-text-lg);
+    --tempest-control-font-xl: var(--tempest-text-xl);
+
+    --tempest-control-radius: var(--tempest-radius-md);
+    --tempest-control-gap: var(--tempest-space-2);
+}
+
+[data-tempest-density="compact"] {
+    --tempest-control-height-xs: 20px;
+    --tempest-control-height-sm: 28px;
+    --tempest-control-height-md: 34px;
+    --tempest-control-height-lg: 40px;
+    --tempest-control-height-xl: 48px;
+
+    --tempest-control-padding-xs: var(--tempest-space-1);
+    --tempest-control-padding-sm: var(--tempest-space-2);
+    --tempest-control-padding-md: var(--tempest-space-3);
+    --tempest-control-padding-lg: var(--tempest-space-4);
+    --tempest-control-padding-xl: var(--tempest-space-5);
+
+    --tempest-control-font-xs: var(--tempest-text-2xs);
+    --tempest-control-font-sm: var(--tempest-text-xs);
+    --tempest-control-font-md: var(--tempest-text-sm);
+    --tempest-control-font-lg: var(--tempest-text-base);
+    --tempest-control-font-xl: var(--tempest-text-md);
+
+    --tempest-control-radius: var(--tempest-radius-sm);
+    --tempest-control-gap: var(--tempest-space-1);
+}
+
+[data-tempest-density="spacious"] {
+    --tempest-control-height-xs: 28px;
+    --tempest-control-height-sm: 36px;
+    --tempest-control-height-md: 44px;
+    --tempest-control-height-lg: 52px;
+    --tempest-control-height-xl: 64px;
+
+    --tempest-control-padding-xs: var(--tempest-space-3);
+    --tempest-control-padding-sm: var(--tempest-space-4);
+    --tempest-control-padding-md: var(--tempest-space-5);
+    --tempest-control-padding-lg: var(--tempest-space-6);
+    --tempest-control-padding-xl: var(--tempest-space-7);
+
+    --tempest-control-font-xs: var(--tempest-text-xs);
+    --tempest-control-font-sm: var(--tempest-text-base);
+    --tempest-control-font-md: var(--tempest-text-md);
+    --tempest-control-font-lg: var(--tempest-text-xl);
+    --tempest-control-font-xl: var(--tempest-text-2xl);
+
+    --tempest-control-radius: var(--tempest-radius-lg);
+    --tempest-control-gap: var(--tempest-space-3);
+}

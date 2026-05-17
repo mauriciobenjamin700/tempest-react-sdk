@@ -27,6 +27,7 @@ Material complementar ao `README.md` da raiz. Cada arquivo abaixo descreve um m�
 | Feature Flags                        | [feature-flags.md](./feature-flags.md)   | —                                                     |
 | Logger                               | [logger.md](./logger.md)                 | —                                                     |
 | Web Share                            | [share.md](./share.md)                   | —                                                     |
+| Release pipeline + CI                | [release.md](./release.md)               | —                                                     |
 
 ## Como editar os diagramas
 

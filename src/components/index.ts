@@ -2,7 +2,7 @@ export { Avatar } from "./Avatar";
 export type { AvatarProps, AvatarSize, AvatarStatus } from "./Avatar";
 
 export { Badge } from "./Badge";
-export type { BadgeProps, BadgeVariant } from "./Badge";
+export type { BadgeAppearance, BadgeProps, BadgeShape, BadgeSize, BadgeVariant } from "./Badge";
 
 export { Breadcrumbs } from "./Breadcrumbs";
 export type { BreadcrumbItem, BreadcrumbsProps } from "./Breadcrumbs";
@@ -11,7 +11,7 @@ export { Button } from "./Button";
 export type { ButtonProps, ButtonSize, ButtonVariant } from "./Button";
 
 export { Card } from "./Card";
-export type { CardProps } from "./Card";
+export type { CardElevation, CardProps } from "./Card";
 
 export { Checkbox } from "./Checkbox";
 export type { CheckboxProps } from "./Checkbox";
@@ -58,7 +58,7 @@ export type {
 } from "./Layout";
 
 export { Input } from "./Input";
-export type { InputProps } from "./Input";
+export type { InputProps, InputSize } from "./Input";
 
 export { Modal } from "./Modal";
 export type { ModalProps, ModalSize } from "./Modal";

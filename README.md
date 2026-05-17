@@ -15,6 +15,7 @@ The goal is to start every new React frontend with the same opinionated foundati
 
 ## Table of contents
 
+- [Recommended stack](#recommended-stack)
 - [Install](#install)
   - [Peer dependencies](#peer-dependencies)
   - [CSS import](#css-import)
@@ -60,6 +61,32 @@ The goal is to start every new React frontend with the same opinionated foundati
 - [Development](#development)
 - [Release](#release)
 - [License](#license)
+
+---
+
+## Recommended stack
+
+**Vite + React + TypeScript** is the supported consumer stack. The SDK is built and tested against [Vite 7](https://vite.dev) in library mode and assumes a Vite-style host app:
+
+- ESM-first module resolution (the package's `exports` field declares `import` / `require` conditions).
+- `import.meta.env` for env vars (the recipes use `import.meta.env.VITE_API_URL`, `import.meta.env.VITE_VAPID_PUBLIC_KEY`, etc.).
+- Native CSS Modules (the package's hashed `tempest_*` class names are emitted as CSS Modules under the hood and consumed via the global `tempest-react-sdk/styles.css` import).
+- Fast HMR — provider files (`ThemeProvider`, `I18nProvider`, etc.) opt into React Refresh.
+- First-class compatibility with the Vite plugin ecosystem (`vite-plugin-pwa` for service workers, `vite-plugin-dts`, `vite-plugin-svgr`, etc.).
+
+To bootstrap a new app:
+
+```bash
+npm create vite@latest my-app -- --template react-ts
+cd my-app
+npm install tempest-react-sdk
+```
+
+The demo gallery in [`examples/gallery`](./examples/gallery) is itself a Vite app — use it as the reference project layout.
+
+Other bundlers (Next.js app router, Webpack, Rspack, Parcel) **may** work — the package ships standard ESM + CJS + rolled-up `.d.ts` — but they are **not** exercised in CI, and Vite-specific features used in the recipes (`import.meta.env`, `vite-plugin-pwa`) will need their own equivalents. When in doubt, start with Vite.
+
+Vite reference: <https://vite.dev/guide/>. React + TypeScript template: <https://vite.dev/guide/#scaffolding-your-first-vite-project>.
 
 ---
 

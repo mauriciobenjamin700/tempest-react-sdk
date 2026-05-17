@@ -168,8 +168,8 @@ Every module is re-exported from the package root — `import { Button, useDebou
 | `theme`                                    | `ThemeProvider`, `useTheme`, `getInitialTheme`, `themeInitScript`, types: `ThemeMode`, `ResolvedTheme`                                                                                                                                                                                                                                                                                                                                                                             |
 | `i18n`                                     | `createI18n`, `I18nProvider`, `useI18n`, `useTranslate`, types: `Catalog`, `Messages`, `I18n`, `InterpolationValues`                                                                                                                                                                                                                                                                                                                                                               |
 | `logger`                                   | `createLogger`, `consoleSink`, types: `Logger`, `LogEntry`, `LogLevel`, `LoggerSink`                                                                                                                                                                                                                                                                                                                                                                                               |
-| `telemetry`                                | `TelemetryProvider`, `useTelemetry`, `consoleTelemetryAdapter`, `createSentryTelemetryAdapter`, types: `TelemetryAdapter`, `TelemetryEvent`, `TelemetryUser`, `CreateSentryTelemetryAdapterOptions`, `SentryLike`                                                                                                                                                                                                                                                                  |
-| `feature-flags`                            | `FeatureFlagsProvider`, `useFeatureFlag`, `useFlagValue`, `createInMemoryFlags`, types: `FeatureFlagsAdapter`, `FlagValue`                                                                                                                                                                                                                                                                                                                                                         |
+| `telemetry`                                | `TelemetryProvider`, `useTelemetry`, `consoleTelemetryAdapter`, `createSentryTelemetryAdapter`, `createPostHogTelemetryAdapter`, types: `TelemetryAdapter`, `TelemetryEvent`, `TelemetryUser`, `CreateSentryTelemetryAdapterOptions`, `SentryLike`, `CreatePostHogTelemetryAdapterOptions`, `PostHogLike`                                                                                                                                                                          |
+| `feature-flags`                            | `FeatureFlagsProvider`, `useFeatureFlag`, `useFlagValue`, `createInMemoryFlags`, `createGrowthBookFeatureFlagsAdapter`, `createLaunchDarklyFeatureFlagsAdapter`, types: `FeatureFlagsAdapter`, `FlagValue`, `GrowthBookLike`, `LDClientLike`                                                                                                                                                                                                                                       |
 | `share`                                    | `share`, `isShareSupported`, types: `SharePayload`, `ShareResult`                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `utils`                                    | `cn`, `formatCurrency`, `formatDate`, `formatDateTime`, `formatPhone`, `formatCPF`, `formatPercent`, `storage`                                                                                                                                                                                                                                                                                                                                                                     |
 
@@ -1241,7 +1241,7 @@ function Header() {
 
 ### Feature flags recipe
 
-`FeatureFlagsProvider` takes an `adapter` matching the `FeatureFlagsAdapter` interface (`isEnabled`, `get`, `subscribe`). Ship the `InMemory` adapter while you build, swap for GrowthBook / LaunchDarkly when you're ready.
+`FeatureFlagsProvider` takes an `adapter` matching the `FeatureFlagsAdapter` interface (`isEnabled`, `get`, `onChange?`). Ship the `InMemory` adapter while you build, swap for GrowthBook / LaunchDarkly when you're ready.
 
 ```tsx
 import {
@@ -1252,7 +1252,7 @@ import {
 } from "tempest-react-sdk";
 
 const flags = createInMemoryFlags({
-  flags: { "new-checkout": true, "max-items": 10 },
+  initial: { "new-checkout": true, "max-items": 10 },
 });
 
 <FeatureFlagsProvider adapter={flags}>
@@ -1266,7 +1266,52 @@ function CheckoutButton() {
 }
 ```
 
-The interface is intentionally tiny — any third-party SDK can be wrapped into an adapter in ~20 lines.
+**GrowthBook adapter** — wraps a `GrowthBook` instance. The app initialises GrowthBook (so it controls `apiHost`, `clientKey`, attributes, `loadFeatures()`), the adapter only routes lookups.
+
+```ts
+import { GrowthBook } from "@growthbook/growthbook";
+import { FeatureFlagsProvider, createGrowthBookFeatureFlagsAdapter } from "tempest-react-sdk";
+
+const gb = new GrowthBook({
+    apiHost: import.meta.env.VITE_GROWTHBOOK_API_HOST,
+    clientKey: import.meta.env.VITE_GROWTHBOOK_KEY,
+    attributes: { id: userId },
+});
+await gb.loadFeatures();
+
+const adapter = createGrowthBookFeatureFlagsAdapter({ growthbook: gb });
+
+<FeatureFlagsProvider adapter={adapter}>
+    <App />
+</FeatureFlagsProvider>;
+```
+
+Mapping: `isEnabled(key)` → `growthbook.isOn(key)`; `get(key, default)` → `growthbook.getFeatureValue(key, default)`; `onChange(listener)` → `growthbook.setRenderer(...)` (installed lazily on first subscription, multiplexes to all listeners).
+
+**LaunchDarkly adapter** — wraps `launchdarkly-js-client-sdk`.
+
+```ts
+import * as LDClient from "launchdarkly-js-client-sdk";
+import { FeatureFlagsProvider, createLaunchDarklyFeatureFlagsAdapter } from "tempest-react-sdk";
+
+const client = LDClient.initialize(import.meta.env.VITE_LD_CLIENT_ID, {
+    kind: "user",
+    key: userId,
+});
+await client.waitUntilReady();
+
+const adapter = createLaunchDarklyFeatureFlagsAdapter({ client });
+
+<FeatureFlagsProvider adapter={adapter}>
+    <App />
+</FeatureFlagsProvider>;
+```
+
+Mapping: `isEnabled(key)` → `client.variation(key, default) === true`; `get(key, default)` → `client.variation(key, default)`; `onChange(listener)` → `client.on("change", listener)` + `client.off` on unsubscribe.
+
+Neither `@growthbook/growthbook` nor `launchdarkly-js-client-sdk` is declared as a peer dep — the adapter only touches the instance you hand it. Install whichever you opt into: `npm install @growthbook/growthbook` or `npm install launchdarkly-js-client-sdk`.
+
+The `FeatureFlagsAdapter` interface is intentionally tiny — any third-party SDK can be wrapped into an adapter in ~20 lines.
 
 ### Telemetry recipe
 
@@ -1329,7 +1374,38 @@ Mapping:
 
 `@sentry/browser` is **not** declared as a peer dep — the adapter only ever touches the namespace you hand it, so apps that don't use Sentry never pay for it. Install Sentry yourself when you opt in: `npm install @sentry/browser`.
 
-Concrete adapters for PostHog / Datadog / GrowthBook are part of the v0.2 roadmap — for now you can write one in ~20 lines following the Sentry adapter as a template.
+**PostHog adapter** — wraps `posthog-js`.
+
+```ts
+import posthog from "posthog-js";
+import { createPostHogTelemetryAdapter, TelemetryProvider } from "tempest-react-sdk";
+
+const adapter = createPostHogTelemetryAdapter({
+    posthog,
+    init: {
+        apiKey: import.meta.env.VITE_POSTHOG_KEY,
+        options: { api_host: "https://us.i.posthog.com" },
+    },
+});
+
+<TelemetryProvider adapter={adapter}>
+    <App />
+</TelemetryProvider>;
+```
+
+Mapping:
+
+| `TelemetryAdapter` call       | `posthog-js` API                                                                                 |
+| ----------------------------- | ------------------------------------------------------------------------------------------------ |
+| `init()`                      | `posthog.init(apiKey, options)` (only when `init` is provided)                                   |
+| `identify({id, ...})`         | `posthog.identify(id, { email, name, ...traits })`                                               |
+| `identify(null)`              | `posthog.reset()`                                                                                |
+| `track({ name, properties })` | `posthog.capture(name, properties)`                                                              |
+| `captureException(err, ctx)`  | `posthog.captureException(err, ctx)` when available, else `posthog.capture("$exception", { … })` |
+
+`posthog-js` is **not** declared as a peer dep — install only when you opt in: `npm install posthog-js`.
+
+Concrete adapters for Datadog / Amplitude / others are part of the v0.2 roadmap — for now you can write one in ~20 lines following the Sentry / PostHog adapters as templates.
 
 ### Logger recipe
 

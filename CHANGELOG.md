@@ -6,10 +6,13 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Componentes
 
-- **`Input.size`**: nova prop tipada `InputSize = "sm" | "md" | "lg"` (default `"md"`). Substitui o `size?: number` herdado do HTMLInputAttributes via `Omit<..., "size">`. Drive height/padding/font via tokens.
-- **Button**: refresh visual (CSS expandido — variantes / hover / focus states / sizes).
-- **Card**: refresh visual + nova prop exposta no `index.ts`.
-- **Estilos globais** (`src/styles/`): expansão de `colors.css` (paleta dark/light), `reset.css`, e `index.css`. CSS bundle: 33KB → 40KB (gzip 6 → 7KB).
+- **`Input.size`**: nova prop tipada `InputSize = "sm" | "md" | "lg"` (default `"md"`). Substitui o `size?: number` herdado do HTMLInputAttributes via `Omit<..., "size">`. Drive height/padding/font via tokens density-aware.
+- **Button / Card / Badge / Modal**: refresh visual (CSS expandido — variantes / hover / focus states / size scale via tokens).
+- **Estilos globais** (`src/styles/`):
+  - Expansão de `colors.css` (paleta completa light/dark com semânticos).
+  - Novos arquivos: `density.css` (tokens de spacing/sizing escalados), `motion.css` (tokens de transição/animation), `typography.css` (tokens font-family/size/weight/line-height).
+  - `reset.css` ampliado e `index.css` importa os novos.
+  - CSS bundle: 33KB → 40KB (gzip 6 → 7KB).
 
 ### Documentação
 

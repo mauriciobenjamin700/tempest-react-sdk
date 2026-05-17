@@ -2,6 +2,26 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
+## [0.1.6] — 2026-05-17
+
+### Adicionado
+
+- **`Alert`** — banner inline com `variant: info/success/warning/danger` e `appearance: filled/subtle`. Slot pra título, descrição e ação.
+- **`Divider`** — separador horizontal/vertical com `variant: solid/dashed/dotted` e `align: start/center/end` para texto inline.
+- **`Kbd`** — `<kbd>` styled pra atalhos. `size: sm/md/lg`. Compose: `<Kbd>Ctrl</Kbd>+<Kbd>K</Kbd>`.
+- **`docs/styles.md`** — referência de tokens CSS + estratégia de customização.
+
+### Atualizado
+
+- Refresh visual em ~14 componentes (Breadcrumbs, Checkbox, Drawer, Pagination, Radio, Select, Skeleton, Spinner, Stepper, Switch, Table, Tabs, Textarea, Toast, Tooltip) usando density/motion/typography tokens.
+- `docs/components.md` inclui Alert/Divider/Kbd.
+- `CLAUDE.md` snapshot v0.1.6 (499 testes, 39+ componentes).
+
+### Stats
+
+- 499 testes (+12), 172 arquivos (+3).
+- ESM ~104KB / CJS ~78KB / CSS 40 → 54KB (gzip 7 → 8KB).
+
 ## [0.1.5] — 2026-05-17
 
 ### Componentes

@@ -1,13 +1,66 @@
 .container {
     position: fixed;
-    top: var(--tempest-space-4);
-    right: var(--tempest-space-4);
     display: flex;
     flex-direction: column;
     gap: var(--tempest-space-2);
     z-index: var(--tempest-z-toast);
     pointer-events: none;
     max-width: 100%;
+}
+
+/* Top */
+.positionTopRight {
+    top: max(var(--tempest-space-4), var(--tempest-safe-area-top));
+    right: max(var(--tempest-space-4), var(--tempest-safe-area-right));
+}
+.positionTopLeft {
+    top: max(var(--tempest-space-4), var(--tempest-safe-area-top));
+    left: max(var(--tempest-space-4), var(--tempest-safe-area-left));
+}
+.positionTopCenter {
+    top: max(var(--tempest-space-4), var(--tempest-safe-area-top));
+    left: 50%;
+    transform: translateX(-50%);
+    align-items: center;
+}
+
+/* Bottom */
+.positionBottomRight {
+    bottom: max(var(--tempest-space-4), var(--tempest-safe-area-bottom));
+    right: max(var(--tempest-space-4), var(--tempest-safe-area-right));
+}
+.positionBottomLeft {
+    bottom: max(var(--tempest-space-4), var(--tempest-safe-area-bottom));
+    left: max(var(--tempest-space-4), var(--tempest-safe-area-left));
+}
+.positionBottomCenter {
+    bottom: max(var(--tempest-space-4), var(--tempest-safe-area-bottom));
+    left: 50%;
+    transform: translateX(-50%);
+    align-items: center;
+}
+
+/* Mobile — stretch full width and respect safe areas. */
+@media (max-width: 480px) {
+    .container {
+        left: max(var(--tempest-space-3), var(--tempest-safe-area-left)) !important;
+        right: max(var(--tempest-space-3), var(--tempest-safe-area-right)) !important;
+        transform: none !important;
+    }
+    .positionTopRight,
+    .positionTopLeft,
+    .positionTopCenter {
+        top: max(var(--tempest-space-3), var(--tempest-safe-area-top));
+    }
+    .positionBottomRight,
+    .positionBottomLeft,
+    .positionBottomCenter {
+        bottom: max(var(--tempest-space-3), var(--tempest-safe-area-bottom));
+    }
+    .toast {
+        min-width: 0;
+        max-width: 100%;
+    }
 }
 
 .toast {

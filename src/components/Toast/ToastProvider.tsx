@@ -57,16 +57,30 @@ export function useToast(): ToastApi {
     return ctx;
 }
 
+export type ToastPosition =
+    | "top-right"
+    | "top-left"
+    | "top-center"
+    | "bottom-right"
+    | "bottom-left"
+    | "bottom-center";
+
 export interface ToastProviderProps {
     children: ReactNode;
     /** Default auto-dismiss duration (ms). Default 4000. */
     defaultDuration?: number;
+    /** Stack position on screen. Default `"top-right"`. */
+    position?: ToastPosition;
 }
 
 /**
  * Renders a portalled toast container and exposes the imperative {@link useToast} API.
  */
-export function ToastProvider({ children, defaultDuration = 4000 }: ToastProviderProps) {
+export function ToastProvider({
+    children,
+    defaultDuration = 4000,
+    position = "top-right",
+}: ToastProviderProps) {
     const [toasts, setToasts] = useState<ToastEntry[]>([]);
     const counter = useRef<number>(0);
 
@@ -107,7 +121,7 @@ export function ToastProvider({ children, defaultDuration = 4000 }: ToastProvide
     return (
         <ToastContext.Provider value={api}>
             {children}
-            <ToastContainer toasts={toasts} onDismiss={dismiss} />
+            <ToastContainer toasts={toasts} onDismiss={dismiss} position={position} />
         </ToastContext.Provider>
     );
 }
@@ -115,12 +129,35 @@ export function ToastProvider({ children, defaultDuration = 4000 }: ToastProvide
 interface ContainerProps {
     toasts: ToastEntry[];
     onDismiss: (id: string) => void;
+    position: ToastPosition;
 }
 
-function ToastContainer({ toasts, onDismiss }: ContainerProps) {
+function positionClass(position: ToastPosition): string {
+    switch (position) {
+        case "top-left":
+            return styles.positionTopLeft;
+        case "top-center":
+            return styles.positionTopCenter;
+        case "bottom-right":
+            return styles.positionBottomRight;
+        case "bottom-left":
+            return styles.positionBottomLeft;
+        case "bottom-center":
+            return styles.positionBottomCenter;
+        case "top-right":
+        default:
+            return styles.positionTopRight;
+    }
+}
+
+function ToastContainer({ toasts, onDismiss, position }: ContainerProps) {
     if (typeof document === "undefined") return null;
     return createPortal(
-        <div className={styles.container} aria-live="polite" aria-atomic="true">
+        <div
+            className={cn(styles.container, positionClass(position))}
+            aria-live="polite"
+            aria-atomic="true"
+        >
             {toasts.map((toast) => (
                 <ToastItem key={toast.id} toast={toast} onDismiss={onDismiss} />
             ))}

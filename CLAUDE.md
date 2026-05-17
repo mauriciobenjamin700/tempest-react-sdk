@@ -43,11 +43,9 @@ Para qualquer wrapper futuro (Datadog, Amplitude, Mixpanel, Unleash, Cloudflare)
 - ESLint 9 + typescript-eslint + Prettier 3
 - Husky 9 + lint-staged 17 (formatters em staged files)
 
-Peer deps **opcionais** em `peerDependenciesMeta` (apps consomem só o que precisam):
+Apenas `react` + `react-dom` são peer deps (regra de uma instância React). O resto (`@tanstack/react-query`, `zod`, `zustand`, `dexie`, `react-hook-form`, `lucide-react`) virou **direct dependency** a partir de v0.2.0 — instalado automaticamente pelo `npm install tempest-react-sdk`. Continua externalizado no `vite.config.ts` para o bundler do app tree-shakear.
 
-- `@tanstack/react-query`, `zod`, `zustand`, `dexie`, `react-hook-form`, `lucide-react`
-
-SDKs externos para adapters (não declarados como peers — caller injeta instância):
+SDKs externos para adapters (não declarados — caller injeta instância):
 
 - `@sentry/browser`, `posthog-js`, `@growthbook/growthbook`, `launchdarkly-js-client-sdk`
 
@@ -172,7 +170,7 @@ npm run dev               # http://127.0.0.1:5173
 
 - **CSS Modules com prefix `tempest_`** — evita colisão com apps consumidores. Tailwind/Stitches OK lado a lado.
 - **Tokens CSS via `--tempest-*`** — única forma de tema. Apps customizam sobrescrevendo no `:root`.
-- **Peer deps opcionais** em `peerDependenciesMeta` — apps instalam só `react` + `react-dom`. Bibliotecas pesadas (Dexie, RHF) só quando o módulo correspondente é importado.
+- **Direct deps + react peer** (v0.2.0+) — apenas `react` + `react-dom` como peer; demais (`zod`, `zustand`, `dexie`, `react-hook-form`, `@tanstack/react-query`, `lucide-react`) viram `dependencies` instaladas junto. Continuam externalizadas no Rollup config (bundle do SDK não cresce). Apps que não usam um módulo ainda não pagam — Vite/webpack tree-shake. Decisão original v0.1.x era "peer deps opcionais", revertida em v0.2.0 a pedido do usuário pra simplificar onboarding.
 - **Adapters injetam SDK** — Sentry/PostHog/GrowthBook/LaunchDarkly **não** são peer deps. Caller passa a instância. Pattern aplicável pra Datadog/Mixpanel/Unleash/etc.
 - **Sem Storybook** — docs em markdown + `examples/gallery` (app Vite real) cumprem o papel.
 - **Sem barrel default export** — sempre named exports.

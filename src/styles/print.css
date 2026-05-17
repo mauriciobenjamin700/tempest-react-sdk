@@ -1,0 +1,74 @@
+/* ============================================================
+ * Print styles — applied automatically when the user prints.
+ *
+ * Goals:
+ *   - Hide overlays and floating UI (modal, drawer, toast, tooltip).
+ *   - Force grayscale-friendly text/borders.
+ *   - Avoid page breaks inside tables/cards when possible.
+ * Apps can extend this via their own @media print rules.
+ * ============================================================ */
+
+@media print {
+    *,
+    *::before,
+    *::after {
+        box-shadow: none !important;
+        text-shadow: none !important;
+        background-color: transparent !important;
+        color: #000 !important;
+    }
+
+    body {
+        background: #fff !important;
+        color: #000 !important;
+        font-size: 11pt;
+        line-height: 1.4;
+    }
+
+    /* Hide any element flagged with the helper class. */
+    .tempest-hide-print {
+        display: none !important;
+    }
+
+    /* Don't print overlays / floating UI. They escape the document flow
+     * because they live in portals; portal containers are <body> children
+     * named with these patterns in the SDK. */
+    [role="dialog"],
+    [aria-modal="true"],
+    [role="tooltip"],
+    [role="status"][aria-live] {
+        display: none !important;
+    }
+
+    /* Avoid page breaks splitting cards/tables. */
+    table,
+    figure,
+    pre,
+    [class*="card"] {
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+
+    /* Keep links readable in print — append href in parentheses. */
+    a[href]::after {
+        content: " (" attr(href) ")";
+        font-size: 90%;
+        color: #555 !important;
+    }
+    a[href^="#"]::after,
+    a[href^="javascript:"]::after {
+        content: "";
+    }
+
+    /* Headings should not be orphaned. */
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+        page-break-after: avoid;
+        break-after: avoid-page;
+        color: #000 !important;
+    }
+}

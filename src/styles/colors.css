@@ -145,6 +145,28 @@
     --tempest-z-popover: 1150;
     --tempest-z-toast: 1200;
     --tempest-z-tooltip: 1300;
+
+    /* ============================================================
+     * Breakpoints — semantic widths used by responsive components,
+     * `useBreakpoint`, `<Show>` / `<Hide>` and utility classes.
+     * Use as `@media (min-width: var(--tempest-bp-md))`.
+     * ============================================================ */
+    --tempest-bp-xs: 480px;
+    --tempest-bp-sm: 640px;
+    --tempest-bp-md: 768px;
+    --tempest-bp-lg: 1024px;
+    --tempest-bp-xl: 1280px;
+    --tempest-bp-2xl: 1536px;
+
+    /* ============================================================
+     * Safe-area insets (iOS notch / Android gesture area) — fall back
+     * to 0 when not supported. Use to keep fixed-position elements
+     * (toasts, drawers, modals) clear of system UI.
+     * ============================================================ */
+    --tempest-safe-area-top: env(safe-area-inset-top, 0px);
+    --tempest-safe-area-right: env(safe-area-inset-right, 0px);
+    --tempest-safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    --tempest-safe-area-left: env(safe-area-inset-left, 0px);
 }
 
 /* ============================================================

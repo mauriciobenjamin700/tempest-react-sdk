@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import { cn } from "@/utils/cn";
 import styles from "./Modal.module.css";
 
-export type ModalSize = "sm" | "md" | "lg" | "xl";
+export type ModalSize = "sm" | "md" | "lg" | "xl" | "2xl" | "3xl";
 
 export interface ModalProps {
     open: boolean;
@@ -17,6 +17,10 @@ export interface ModalProps {
     closeOnEsc?: boolean;
     className?: string;
     hideCloseButton?: boolean;
+    /** Force fullscreen at all breakpoints. */
+    fullscreen?: boolean;
+    /** Auto-fullscreen on mobile viewports (< 640px). Default `false`. */
+    fullscreenOnMobile?: boolean;
 }
 
 /**
@@ -34,6 +38,8 @@ export function Modal({
     closeOnEsc = true,
     className,
     hideCloseButton = false,
+    fullscreen = false,
+    fullscreenOnMobile = false,
 }: ModalProps) {
     useEffect(() => {
         if (!open) return;
@@ -64,7 +70,13 @@ export function Modal({
             <div
                 role="dialog"
                 aria-modal="true"
-                className={cn(styles.dialog, styles[size], className)}
+                className={cn(
+                    styles.dialog,
+                    sizeClassName(size),
+                    fullscreen && styles.fullscreen,
+                    fullscreenOnMobile && styles.fullscreenOnMobile,
+                    className,
+                )}
                 onClick={(event) => event.stopPropagation()}
             >
                 {(title || !hideCloseButton) && (
@@ -88,6 +100,12 @@ export function Modal({
         </div>,
         document.body,
     );
+}
+
+function sizeClassName(size: ModalSize): string | undefined {
+    if (size === "2xl") return styles.size2xl;
+    if (size === "3xl") return styles.size3xl;
+    return styles[size];
 }
 
 function CloseIcon() {

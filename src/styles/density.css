@@ -52,6 +52,30 @@
     --tempest-control-gap: var(--tempest-space-1);
 }
 
+[data-tempest-density="touch"] {
+    /* Minimum 44×44px target — iOS HIG / Android Material guidance. */
+    --tempest-control-height-xs: 32px;
+    --tempest-control-height-sm: 40px;
+    --tempest-control-height-md: 44px;
+    --tempest-control-height-lg: 52px;
+    --tempest-control-height-xl: 60px;
+
+    --tempest-control-padding-xs: var(--tempest-space-2);
+    --tempest-control-padding-sm: var(--tempest-space-3);
+    --tempest-control-padding-md: var(--tempest-space-4);
+    --tempest-control-padding-lg: var(--tempest-space-5);
+    --tempest-control-padding-xl: var(--tempest-space-6);
+
+    --tempest-control-font-xs: var(--tempest-text-xs);
+    --tempest-control-font-sm: var(--tempest-text-sm);
+    --tempest-control-font-md: var(--tempest-text-base);
+    --tempest-control-font-lg: var(--tempest-text-lg);
+    --tempest-control-font-xl: var(--tempest-text-xl);
+
+    --tempest-control-radius: var(--tempest-radius-md);
+    --tempest-control-gap: var(--tempest-space-2);
+}
+
 [data-tempest-density="spacious"] {
     --tempest-control-height-xs: 28px;
     --tempest-control-height-sm: 36px;
@@ -73,4 +97,20 @@
 
     --tempest-control-radius: var(--tempest-radius-lg);
     --tempest-control-gap: var(--tempest-space-3);
+}
+
+/* ============================================================
+ * Auto touch-target bump on coarse-pointer devices.
+ *
+ * When a touch device is detected and density was NOT explicitly set
+ * to `compact`, raise the floor of the smallest control sizes so taps
+ * always land on a 44×44 target. Apps that need true compact UI on
+ * touch (high-density data grids) keep `data-tempest-density="compact"`.
+ * ============================================================ */
+@media (pointer: coarse) {
+    :root:not([data-tempest-density="compact"]) {
+        --tempest-control-height-xs: 32px;
+        --tempest-control-height-sm: 40px;
+        --tempest-control-height-md: 44px;
+    }
 }

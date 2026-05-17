@@ -31,10 +31,12 @@
 .interactive {
     cursor: pointer;
 }
-.interactive:hover {
-    border-color: var(--tempest-border-strong);
-    box-shadow: var(--tempest-shadow-md);
-    transform: translateY(-1px);
+@media (hover: hover) and (pointer: fine) {
+    .interactive:hover {
+        border-color: var(--tempest-border-strong);
+        box-shadow: var(--tempest-shadow-md);
+        transform: translateY(-1px);
+    }
 }
 .interactive:active {
     transform: translateY(0);

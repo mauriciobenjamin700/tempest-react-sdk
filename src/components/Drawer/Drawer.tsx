@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/utils/cn";
+import { useBreakpoint } from "@/hooks/use-breakpoint";
 import styles from "./Drawer.module.css";
 
 export type DrawerPlacement = "right" | "left" | "top" | "bottom";
@@ -17,6 +18,14 @@ export interface DrawerProps {
     closeOnEsc?: boolean;
     hideCloseButton?: boolean;
     className?: string;
+    /**
+     * Auto-switch to bottom-sheet placement on mobile viewports (< md).
+     * Modern mobile apps default to bottom drawers; on desktop the original
+     * `placement` is preserved.
+     */
+    mobilePlacement?: DrawerPlacement;
+    /** Render a drag handle indicator at the leading edge (bottom-sheet style). */
+    showHandle?: boolean;
 }
 
 /**
@@ -34,7 +43,13 @@ export function Drawer({
     closeOnEsc = true,
     hideCloseButton = false,
     className,
+    mobilePlacement,
+    showHandle = false,
 }: DrawerProps) {
+    const { isMobile } = useBreakpoint();
+    const effectivePlacement: DrawerPlacement =
+        isMobile && mobilePlacement ? mobilePlacement : placement;
+
     useEffect(() => {
         if (!open) return;
         const previousOverflow = document.body.style.overflow;
@@ -62,8 +77,18 @@ export function Drawer({
             <aside
                 role="dialog"
                 aria-modal="true"
-                className={cn(styles.panel, styles[placement], className)}
+                className={cn(styles.panel, styles[effectivePlacement], className)}
             >
+                {showHandle &&
+                    (effectivePlacement === "bottom" || effectivePlacement === "top") && (
+                        <div
+                            className={cn(
+                                styles.handle,
+                                effectivePlacement === "top" && styles.handleTop,
+                            )}
+                            aria-hidden
+                        />
+                    )}
                 {(title || !hideCloseButton) && (
                     <header className={styles.header}>
                         <h3 className={styles.title}>{title}</h3>

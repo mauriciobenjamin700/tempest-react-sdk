@@ -6,6 +6,21 @@
     width: 100%;
 }
 
+/* Responsive horizontal padding — wider on larger viewports. */
+@media (min-width: 768px) {
+    .container {
+        padding-left: var(--tempest-space-6);
+        padding-right: var(--tempest-space-6);
+    }
+}
+
+@media (min-width: 1024px) {
+    .container {
+        padding-left: var(--tempest-space-8);
+        padding-right: var(--tempest-space-8);
+    }
+}
+
 .container.sm {
     max-width: 640px;
 }

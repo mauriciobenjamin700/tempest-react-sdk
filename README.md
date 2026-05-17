@@ -17,7 +17,7 @@ The goal is to start every new React frontend with the same opinionated foundati
 
 - [Recommended stack](#recommended-stack)
 - [Install](#install)
-  - [Peer dependencies](#peer-dependencies)
+  - [Peer & bundled dependencies](#peer--bundled-dependencies)
   - [CSS import](#css-import)
 - [What's inside](#whats-inside)
 - [Architecture overview](#architecture-overview)
@@ -109,28 +109,33 @@ Via `package.json`:
 
 Requires React `>=18` and Node `>=20.19` to build.
 
-### Peer dependencies
+### Peer & bundled dependencies
 
-`react` and `react-dom` are **required** peer dependencies. Everything else is **optional** — install only the packages the modules you import actually need. Importing `tempest-react-sdk` without an optional peer never throws; the failure surfaces only when you instantiate the helper that uses it.
+Only **react** and **react-dom** are peer dependencies — those must come from the host app so a single React copy lives in the tree.
 
-| Peer                                          | Required by                                                         | Status       |
-| --------------------------------------------- | ------------------------------------------------------------------- | ------------ |
-| `react`, `react-dom` (`^18.0.0 \|\| ^19.0.0`) | Everything                                                          | **Required** |
-| `@tanstack/react-query` (`^5`)                | `QueryProvider`, `createQueryKeys`                                  | Optional     |
-| `zod` (`^3.23 \|\| ^4`)                       | `parseResponse`, `validateForm`, `zodResolver`, `useZodForm`        | Optional     |
-| `zustand` (`^4 \|\| ^5`)                      | `createAuthStore`                                                   | Optional     |
-| `dexie` (`^4.4`)                              | `createOfflineStore`                                                | Optional     |
-| `react-hook-form` (`^7.76`)                   | `zodResolver`, `useZodForm`, masked inputs                          | Optional     |
-| `lucide-react` (`>=0.400`)                    | Component icons (`leftIcon`/`rightIcon` on `Input`, `Button`, etc.) | Optional     |
+Everything else (`zod`, `zustand`, `dexie`, `react-hook-form`, `@tanstack/react-query`, `lucide-react`) is a **direct dependency** of the SDK, installed automatically by `npm install tempest-react-sdk`. You never need to install them manually.
 
-Quick recipe for a "typical" app that uses HTTP + Query + Auth + Forms:
+| Package                               | Status              | Used by                                                             |
+| ------------------------------------- | ------------------- | ------------------------------------------------------------------- |
+| `react`, `react-dom` (`^18 \|\| ^19`) | **Peer (required)** | Everything                                                          |
+| `@tanstack/react-query` (`^5`)        | Direct dep (auto)   | `QueryProvider`, `createQueryKeys`                                  |
+| `zod` (`^3.23 \|\| ^4`)               | Direct dep (auto)   | `parseResponse`, `validateForm`, `zodResolver`, `useZodForm`        |
+| `zustand` (`^4 \|\| ^5`)              | Direct dep (auto)   | `createAuthStore`                                                   |
+| `dexie` (`^4.4`)                      | Direct dep (auto)   | `createOfflineStore`                                                |
+| `react-hook-form` (`^7.76`)           | Direct dep (auto)   | `zodResolver`, `useZodForm`, masked inputs                          |
+| `lucide-react` (`>=0.400`)            | Direct dep (auto)   | Component icons (`leftIcon`/`rightIcon` on `Input`, `Button`, etc.) |
+
+The minimum install is just:
 
 ```bash
-npm install tempest-react-sdk react react-dom \
-  @tanstack/react-query zod zustand react-hook-form lucide-react
+npm install tempest-react-sdk react react-dom
 ```
 
-If a module is missing its peer dep at runtime, the bundler will flag the missing import at build time — there is no "silent fallback" behaviour. Add only what you actually consume.
+**Bundle impact**: every bundled dep is externalised in the SDK's Rollup config, so the SDK's published bundle stays at ~104 KB ESM. Your app's bundler (Vite / webpack / Rspack) resolves these from `node_modules` and tree-shakes — if you never call `createOfflineStore`, Dexie never enters your final bundle.
+
+**Version conflicts**: if your app already pins (say) `zod@3.20`, npm dedupes when the range is compatible. If ranges diverge you get two copies — pin a single version in your own `package.json` to force one, or open an issue if the SDK's range is too tight.
+
+Adapters for external SDKs (`@sentry/browser`, `posthog-js`, `@growthbook/growthbook`, `launchdarkly-js-client-sdk`) are **not** bundled — install those only when you opt into the adapter. The caller passes the SDK instance to the factory.
 
 ### CSS import
 

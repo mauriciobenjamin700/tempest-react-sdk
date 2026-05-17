@@ -37,4 +37,22 @@
     --tempest-tracking-wide: 0.025em;
     --tempest-tracking-wider: 0.05em;
     --tempest-tracking-widest: 0.1em;
+
+    /* ============================================================
+     * Fluid type scale — scales smoothly with viewport width.
+     * Use for headings / display copy where a fixed pixel size
+     * looks awkward across mobile and desktop. The clamp(min, vw, max)
+     * pattern guarantees readable sizes on both ends.
+     *
+     * Formula: clamp(<mobile px>, <slope vw> + <intercept rem>, <desktop px>)
+     * ============================================================ */
+    --tempest-text-fluid-sm: clamp(13px, 12px + 0.2vw, 15px);
+    --tempest-text-fluid-base: clamp(14px, 13px + 0.3vw, 16px);
+    --tempest-text-fluid-lg: clamp(16px, 14px + 0.5vw, 20px);
+    --tempest-text-fluid-xl: clamp(18px, 15px + 0.8vw, 24px);
+    --tempest-text-fluid-2xl: clamp(20px, 16px + 1.2vw, 30px);
+    --tempest-text-fluid-3xl: clamp(24px, 18px + 2vw, 40px);
+    --tempest-text-fluid-4xl: clamp(28px, 20px + 3vw, 56px);
+    --tempest-text-fluid-5xl: clamp(32px, 24px + 4vw, 72px);
+    --tempest-text-fluid-6xl: clamp(40px, 28px + 5vw, 96px);
 }

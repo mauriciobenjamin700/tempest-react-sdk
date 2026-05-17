@@ -1,9 +1,30 @@
 .tablist {
+    position: relative;
     display: flex;
     gap: var(--tempest-space-1);
     border-bottom: 1px solid var(--tempest-border);
     overflow-x: auto;
-    scrollbar-width: thin;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    /* Fade indicator on both edges when overflow horizontal. */
+    mask-image: linear-gradient(
+        to right,
+        transparent 0,
+        #000 var(--tempest-space-4),
+        #000 calc(100% - var(--tempest-space-4)),
+        transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+        to right,
+        transparent 0,
+        #000 var(--tempest-space-4),
+        #000 calc(100% - var(--tempest-space-4)),
+        transparent 100%
+    );
+}
+
+.tablist::-webkit-scrollbar {
+    display: none;
 }
 
 .tab {

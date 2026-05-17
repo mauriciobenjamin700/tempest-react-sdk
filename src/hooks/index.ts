@@ -4,6 +4,8 @@ export type { UsePaginationResult } from "./use-pagination";
 export { useClientFilter } from "./use-client-filter";
 export type { FilterPredicate } from "./use-client-filter";
 export { useMediaQuery } from "./use-media-query";
+export { useBreakpoint, BREAKPOINTS } from "./use-breakpoint";
+export type { Breakpoint, BreakpointHelpers } from "./use-breakpoint";
 
 export { useOnline } from "./use-online";
 export { useDocumentVisibility } from "./use-document-visibility";

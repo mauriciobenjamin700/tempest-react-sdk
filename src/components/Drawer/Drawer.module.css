@@ -26,12 +26,14 @@
 .right {
     right: 0;
     width: min(420px, 92vw);
+    padding-right: var(--tempest-safe-area-right);
     animation-name: tempest-drawer-in-right;
 }
 
 .left {
     left: 0;
     width: min(420px, 92vw);
+    padding-left: var(--tempest-safe-area-left);
     animation-name: tempest-drawer-in-left;
 }
 
@@ -41,6 +43,9 @@
     right: 0;
     bottom: auto;
     height: min(70vh, 480px);
+    height: min(70dvh, 480px);
+    padding-top: var(--tempest-safe-area-top);
+    border-radius: 0 0 var(--tempest-radius-xl) var(--tempest-radius-xl);
     animation-name: tempest-drawer-in-top;
 }
 
@@ -50,7 +55,26 @@
     right: 0;
     top: auto;
     height: min(70vh, 480px);
+    height: min(70dvh, 480px);
+    padding-bottom: var(--tempest-safe-area-bottom);
+    border-radius: var(--tempest-radius-xl) var(--tempest-radius-xl) 0 0;
     animation-name: tempest-drawer-in-bottom;
+}
+
+/* Bottom-sheet drag handle (4px pill at top center). */
+.handle {
+    position: relative;
+    width: 36px;
+    height: 4px;
+    margin: var(--tempest-space-2) auto;
+    background-color: var(--tempest-border-strong);
+    border-radius: var(--tempest-radius-full);
+    flex-shrink: 0;
+}
+
+.handleTop {
+    margin-top: auto;
+    margin-bottom: var(--tempest-space-2);
 }
 
 .header {

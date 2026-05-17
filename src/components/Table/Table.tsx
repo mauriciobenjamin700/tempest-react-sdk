@@ -3,6 +3,7 @@ import { cn } from "@/utils/cn";
 import styles from "./Table.module.css";
 
 export type TableAlign = "left" | "right" | "center";
+export type TablePriority = "always" | "tablet" | "desktop";
 
 export interface TableColumn<T> {
     key: string;
@@ -12,6 +13,11 @@ export interface TableColumn<T> {
     align?: TableAlign;
     width?: string | number;
     className?: string;
+    /**
+     * Visibility priority: `always` (default) shows on every viewport,
+     * `tablet` hides below md (< 768px), `desktop` hides below lg (< 1024px).
+     */
+    priority?: TablePriority;
 }
 
 export interface TableProps<T> {
@@ -21,12 +27,25 @@ export interface TableProps<T> {
     onRowClick?: (row: T) => void;
     emptyMessage?: ReactNode;
     className?: string;
+    /**
+     * Stack mode — render rows as label/value cards on mobile (< md).
+     * Better than horizontal scroll when each row has 3+ columns of dense data.
+     */
+    stackOnMobile?: boolean;
+}
+
+function priorityClass(priority: TablePriority | undefined): string | undefined {
+    if (priority === "tablet") return styles.priorityTablet;
+    if (priority === "desktop") return styles.priorityDesktop;
+    return undefined;
 }
 
 /**
- * Lightweight table that maps a list of rows through declarative `columns`.
- * Provide `rowKey` so React reconciliation works. Rows become clickable when
- * `onRowClick` is supplied.
+ * Lightweight table with declarative columns + mobile niceties.
+ *
+ * - `priority` per column lets less-important data hide on narrow viewports.
+ * - `stackOnMobile` re-renders each row as a label/value card on mobile,
+ *   avoiding horizontal scroll for dense data.
  */
 export function Table<T>({
     columns,
@@ -35,11 +54,12 @@ export function Table<T>({
     onRowClick,
     emptyMessage = "Nenhum registro encontrado.",
     className,
+    stackOnMobile = false,
 }: TableProps<T>) {
     return (
-        <div className={cn(styles.scroll, className)}>
+        <div className={cn(styles.scroll, stackOnMobile && styles.stackable, className)}>
             <table className={styles.table}>
-                <thead>
+                <thead className={cn(stackOnMobile && styles.stackableHead)}>
                     <tr>
                         {columns.map((column) => (
                             <th
@@ -48,6 +68,7 @@ export function Table<T>({
                                     styles.th,
                                     column.align === "right" && styles.alignRight,
                                     column.align === "center" && styles.alignCenter,
+                                    priorityClass(column.priority),
                                 )}
                                 style={{ width: column.width }}
                             >
@@ -67,7 +88,11 @@ export function Table<T>({
                         data.map((row, index) => (
                             <tr
                                 key={rowKey(row, index)}
-                                className={cn(styles.tr, onRowClick && styles.clickable)}
+                                className={cn(
+                                    styles.tr,
+                                    onRowClick && styles.clickable,
+                                    stackOnMobile && styles.stackableRow,
+                                )}
                                 onClick={onRowClick ? () => onRowClick(row) : undefined}
                             >
                                 {columns.map((column) => {
@@ -81,8 +106,14 @@ export function Table<T>({
                                                 styles.td,
                                                 column.align === "right" && styles.alignRight,
                                                 column.align === "center" && styles.alignCenter,
+                                                priorityClass(column.priority),
                                                 column.className,
                                             )}
+                                            data-label={
+                                                typeof column.header === "string"
+                                                    ? column.header
+                                                    : undefined
+                                            }
                                         >
                                             {content}
                                         </td>

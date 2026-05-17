@@ -58,7 +58,9 @@ export type {
     ContainerProps,
     ContainerSize,
     GridProps,
+    ResponsiveValue,
     StackAlign,
+    StackDirection,
     StackJustify,
     StackProps,
 } from "./Layout";
@@ -81,6 +83,9 @@ export type { ProgressProps, ProgressVariant } from "./Progress";
 export { Radio, RadioGroup } from "./Radio";
 export type { RadioGroupProps, RadioProps } from "./Radio";
 
+export { Show, Hide } from "./Responsive";
+export type { ShowProps, HideProps } from "./Responsive";
+
 export { SearchBar } from "./SearchBar";
 export type { SearchBarProps } from "./SearchBar";
 
@@ -100,7 +105,7 @@ export { Switch } from "./Switch";
 export type { SwitchProps } from "./Switch";
 
 export { Table } from "./Table";
-export type { TableAlign, TableColumn, TableProps } from "./Table";
+export type { TableAlign, TableColumn, TablePriority, TableProps } from "./Table";
 
 export { Tabs } from "./Tabs";
 export type { TabItem, TabsProps } from "./Tabs";
@@ -112,7 +117,13 @@ export { Tooltip } from "./Tooltip";
 export type { TooltipPlacement, TooltipProps } from "./Tooltip";
 
 export { ToastProvider, useToast } from "./Toast";
-export type { ToastApi, ToastOptions, ToastProviderProps, ToastVariant } from "./Toast";
+export type {
+    ToastApi,
+    ToastOptions,
+    ToastPosition,
+    ToastProviderProps,
+    ToastVariant,
+} from "./Toast";
 
 export { VirtualList } from "./VirtualList";
 export type { VirtualListProps } from "./VirtualList";

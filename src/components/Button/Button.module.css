@@ -22,8 +22,10 @@
     outline-offset: var(--tempest-focus-ring-offset);
 }
 
-.button:hover:not(:disabled) {
-    box-shadow: var(--tempest-shadow-sm);
+@media (hover: hover) and (pointer: fine) {
+    .button:hover:not(:disabled) {
+        box-shadow: var(--tempest-shadow-sm);
+    }
 }
 
 .button:active:not(:disabled) {
@@ -164,6 +166,9 @@
 }
 
 /* Square (icon-only) — width matches height */
+.iconOnly {
+    position: relative;
+}
 .iconOnly.xs {
     width: var(--tempest-control-height-xs);
     padding: 0;
@@ -183,6 +188,17 @@
 .iconOnly.xl {
     width: var(--tempest-control-height-xl);
     padding: 0;
+}
+
+/* Touch hit-slop — extend tap target to a min 44×44 on coarse pointers
+ * for the smallest icon-only sizes, without changing visual footprint. */
+@media (pointer: coarse) {
+    .iconOnly.xs::after,
+    .iconOnly.sm::after {
+        content: "";
+        position: absolute;
+        inset: -8px;
+    }
 }
 
 /* Pill shape */

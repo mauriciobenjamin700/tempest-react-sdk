@@ -63,3 +63,82 @@
     text-align: center;
     color: var(--tempest-text-muted);
 }
+
+/* ============================================================
+ * Priority columns — hide below the corresponding breakpoint.
+ * ============================================================ */
+@media (max-width: 767.98px) {
+    .priorityTablet {
+        display: none;
+    }
+}
+
+@media (max-width: 1023.98px) {
+    .priorityDesktop {
+        display: none;
+    }
+}
+
+/* ============================================================
+ * Stack on mobile — convert rows to label/value cards below md.
+ * ============================================================ */
+@media (max-width: 767.98px) {
+    .stackable {
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+        overflow-x: visible;
+    }
+    .stackable .table {
+        display: block;
+        width: 100%;
+    }
+    .stackableHead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+    .stackable tbody,
+    .stackable tbody tr,
+    .stackable tbody td {
+        display: block;
+        width: 100%;
+    }
+    .stackableRow {
+        margin-bottom: var(--tempest-space-3);
+        border: 1px solid var(--tempest-border);
+        border-radius: var(--tempest-radius-lg);
+        background-color: var(--tempest-bg);
+        box-shadow: var(--tempest-shadow-xs);
+        overflow: hidden;
+    }
+    .stackableRow .td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--tempest-space-3);
+        padding: var(--tempest-space-3) var(--tempest-space-4);
+        border-bottom: 1px solid var(--tempest-border);
+        text-align: left !important;
+    }
+    .stackableRow .td:last-child {
+        border-bottom: none;
+    }
+    .stackableRow .td::before {
+        content: attr(data-label);
+        font-size: var(--tempest-text-xs);
+        font-weight: var(--tempest-weight-semibold);
+        color: var(--tempest-text-muted);
+        text-transform: uppercase;
+        letter-spacing: var(--tempest-tracking-wider);
+        flex-shrink: 0;
+    }
+    .stackableRow .td:empty::before,
+    .stackableRow .td:not([data-label])::before {
+        display: none;
+    }
+}

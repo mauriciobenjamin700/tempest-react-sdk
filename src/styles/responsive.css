@@ -1,0 +1,83 @@
+/* ============================================================
+ * Responsive utility classes
+ *
+ * Plain CSS-only counterpart to <Show>/<Hide>. No JS required — useful
+ * for SSR, e-mails, or static templates where the hooks are unavailable.
+ *
+ * Usage:
+ *   <div class="tempest-hide-mobile">desktop only</div>
+ *   <div class="tempest-show-only-mobile">mobile only</div>
+ *
+ * Breakpoints reuse the same widths as `useBreakpoint`:
+ *   mobile  = below md (768px)
+ *   tablet  = md..lg-1 (768..1023px)
+ *   desktop = lg and up (1024px+)
+ * ============================================================ */
+
+/* Hide on mobile (< md) */
+@media (max-width: 767.98px) {
+    .tempest-hide-mobile {
+        display: none !important;
+    }
+}
+
+/* Hide on tablet (>= md, < lg) */
+@media (min-width: 768px) and (max-width: 1023.98px) {
+    .tempest-hide-tablet {
+        display: none !important;
+    }
+}
+
+/* Hide on desktop (>= lg) */
+@media (min-width: 1024px) {
+    .tempest-hide-desktop {
+        display: none !important;
+    }
+}
+
+/* Show only on mobile */
+@media (min-width: 768px) {
+    .tempest-show-only-mobile {
+        display: none !important;
+    }
+}
+
+/* Show only on tablet */
+@media (max-width: 767.98px), (min-width: 1024px) {
+    .tempest-show-only-tablet {
+        display: none !important;
+    }
+}
+
+/* Show only on desktop */
+@media (max-width: 1023.98px) {
+    .tempest-show-only-desktop {
+        display: none !important;
+    }
+}
+
+/* Show only on touch / coarse pointer devices */
+@media (pointer: fine) {
+    .tempest-show-only-touch {
+        display: none !important;
+    }
+}
+
+/* Hide on touch devices */
+@media (pointer: coarse) {
+    .tempest-hide-touch {
+        display: none !important;
+    }
+}
+
+/* Print helpers */
+@media print {
+    .tempest-hide-print {
+        display: none !important;
+    }
+}
+@media screen {
+    .tempest-show-only-print {
+        display: none !important;
+    }
+}

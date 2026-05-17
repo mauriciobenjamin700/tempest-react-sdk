@@ -67,11 +67,19 @@ Catálogo curto + convenções. Todos usam CSS Modules com prefix `tempest_`, en
 
 ### Layout primitives
 
-| Componente  | Para que                                                                                  |
-| ----------- | ----------------------------------------------------------------------------------------- |
-| `Container` | Max-width wrapper. `size: sm/md/lg/xl/full`.                                              |
-| `Stack`     | Flex vertical ou horizontal com `gap` (escala 4px ou string), `align`, `justify`, `wrap`. |
-| `Grid`      | CSS Grid wrapper. `columns: number \| string`, `gap`.                                     |
+| Componente  | Para que                                                                                                                     |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `Container` | Max-width wrapper. `size: sm/md/lg/xl/full`.                                                                                 |
+| `Stack`     | Flex vertical ou horizontal com `gap` (escala 4px ou string), `align`, `justify`, `wrap`.                                    |
+| `Grid`      | CSS Grid wrapper. `columns: number \| string`, `gap`.                                                                        |
+| `Divider`   | Separador. `orientation: horizontal/vertical`, `variant: solid/dashed/dotted`, label opcional com `align: start/center/end`. |
+
+### Texto inline + feedback
+
+| Componente | Para que                                                                                                   |
+| ---------- | ---------------------------------------------------------------------------------------------------------- |
+| `Kbd`      | `<kbd>` styled pra atalhos. `size: sm/md/lg`. Compose: `<Kbd>Ctrl</Kbd>+<Kbd>K</Kbd>`.                     |
+| `Alert`    | Banner inline. `variant: info/success/warning/danger`, `appearance: filled/subtle`. Slot título/desc/ação. |
 
 ## Convenções
 

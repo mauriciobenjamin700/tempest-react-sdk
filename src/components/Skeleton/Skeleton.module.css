@@ -8,16 +8,20 @@
     );
     background-size: 200% 100%;
     border-radius: var(--tempest-radius-md);
-    animation: tempest-skeleton 1.4s ease-in-out infinite;
+    animation: tempest-skeleton 1.4s var(--tempest-ease-in-out) infinite;
 }
 
 .text {
-    height: 14px;
+    height: var(--tempest-text-base);
     border-radius: var(--tempest-radius-sm);
 }
 
 .circle {
     border-radius: 50%;
+}
+
+.rect {
+    border-radius: var(--tempest-radius-md);
 }
 
 @keyframes tempest-skeleton {
@@ -26,5 +30,12 @@
     }
     100% {
         background-position: -200% 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .skeleton {
+        animation: none;
+        background: var(--tempest-surface-2);
     }
 }

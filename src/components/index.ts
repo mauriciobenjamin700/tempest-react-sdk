@@ -1,3 +1,6 @@
+export { Alert } from "./Alert";
+export type { AlertAppearance, AlertProps, AlertVariant } from "./Alert";
+
 export { Avatar } from "./Avatar";
 export type { AvatarProps, AvatarSize, AvatarStatus } from "./Avatar";
 
@@ -24,6 +27,9 @@ export type { ConfirmDialogProps } from "./ConfirmDialog";
 
 export { DatePicker } from "./DatePicker";
 export type { DatePickerProps } from "./DatePicker";
+
+export { Divider } from "./Divider";
+export type { DividerAlign, DividerOrientation, DividerProps, DividerVariant } from "./Divider";
 
 export { Drawer } from "./Drawer";
 export type { DrawerPlacement, DrawerProps } from "./Drawer";
@@ -59,6 +65,9 @@ export type {
 
 export { Input } from "./Input";
 export type { InputProps, InputSize } from "./Input";
+
+export { Kbd } from "./Kbd";
+export type { KbdProps, KbdSize } from "./Kbd";
 
 export { Modal } from "./Modal";
 export type { ModalProps, ModalSize } from "./Modal";

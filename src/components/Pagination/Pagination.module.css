@@ -4,7 +4,8 @@
     justify-content: space-between;
     gap: var(--tempest-space-3);
     padding: var(--tempest-space-3) 0;
-    font-size: 13px;
+    font-family: var(--tempest-font-sans);
+    font-size: var(--tempest-text-sm);
     color: var(--tempest-text-muted);
     flex-wrap: wrap;
 }
@@ -23,16 +24,25 @@
     background-color: var(--tempest-bg);
     color: var(--tempest-text);
     border-radius: var(--tempest-radius-md);
-    font-size: 13px;
-    font-weight: 500;
+    font-family: inherit;
+    font-size: var(--tempest-text-sm);
+    font-weight: var(--tempest-weight-medium);
+    transition: var(--tempest-transition-color);
 }
 
 .page:hover:not(:disabled) {
     background-color: var(--tempest-surface);
+    border-color: var(--tempest-border-strong);
+}
+
+.page:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: var(--tempest-focus-ring-offset);
 }
 
 .page:disabled {
-    opacity: 0.5;
+    opacity: 0.45;
+    cursor: not-allowed;
 }
 
 .active {
@@ -43,6 +53,7 @@
 
 .active:hover {
     background-color: var(--tempest-primary-hover);
+    border-color: var(--tempest-primary-hover);
 }
 
 .ellipsis {
@@ -57,5 +68,11 @@
     border-radius: var(--tempest-radius-md);
     background-color: var(--tempest-bg);
     color: var(--tempest-text);
-    font-size: 13px;
+    font-family: inherit;
+    font-size: var(--tempest-text-sm);
+}
+
+.sizeSelect:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: var(--tempest-focus-ring-offset);
 }

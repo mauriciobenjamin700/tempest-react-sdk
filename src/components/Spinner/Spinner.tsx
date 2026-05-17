@@ -1,7 +1,7 @@
 import { cn } from "@/utils/cn";
 import styles from "./Spinner.module.css";
 
-export type SpinnerSize = "sm" | "md" | "lg";
+export type SpinnerSize = "xs" | "sm" | "md" | "lg" | "xl";
 
 export interface SpinnerProps {
     size?: SpinnerSize;
@@ -9,7 +9,7 @@ export interface SpinnerProps {
     label?: string;
 }
 
-/** Loading spinner with three preset sizes. Provide `label` for screen readers. */
+/** Loading spinner with preset sizes (xs..xl). Provide `label` for screen readers. */
 export function Spinner({ size = "md", className, label = "Carregando" }: SpinnerProps) {
     return (
         <span

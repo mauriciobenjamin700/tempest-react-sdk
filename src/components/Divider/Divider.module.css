@@ -1,0 +1,71 @@
+.divider {
+    border: 0;
+    background: none;
+    color: var(--tempest-text-subtle);
+    font-family: var(--tempest-font-sans);
+    font-size: var(--tempest-text-xs);
+    font-weight: var(--tempest-weight-medium);
+    letter-spacing: var(--tempest-tracking-wide);
+}
+
+.horizontal {
+    display: flex;
+    align-items: center;
+    gap: var(--tempest-space-3);
+    width: 100%;
+    margin: var(--tempest-space-3) 0;
+}
+
+.horizontal::before,
+.horizontal::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background-color: var(--tempest-border);
+}
+
+.horizontal.bare::before {
+    margin: 0;
+}
+.horizontal.bare::after {
+    display: none;
+}
+
+.horizontal.bare {
+    margin: var(--tempest-space-3) 0;
+    height: 1px;
+    background-color: var(--tempest-border);
+    display: block;
+    padding: 0;
+}
+
+.vertical {
+    display: inline-block;
+    width: 1px;
+    background-color: var(--tempest-border);
+    align-self: stretch;
+    min-height: 1em;
+    margin: 0 var(--tempest-space-2);
+}
+
+/* Dashed style */
+.dashed.horizontal::before,
+.dashed.horizontal::after {
+    background: none;
+    border-top: 1px dashed var(--tempest-border-strong);
+    height: 0;
+}
+
+.dashed.vertical {
+    background: none;
+    border-left: 1px dashed var(--tempest-border-strong);
+    width: 0;
+}
+
+/* Label alignment for horizontal */
+.alignStart::before {
+    flex: 0 0 var(--tempest-space-4);
+}
+.alignEnd::after {
+    flex: 0 0 var(--tempest-space-4);
+}

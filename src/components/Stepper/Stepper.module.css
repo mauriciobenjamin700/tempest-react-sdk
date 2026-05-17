@@ -3,6 +3,7 @@
     align-items: flex-start;
     gap: var(--tempest-space-2);
     width: 100%;
+    font-family: var(--tempest-font-sans);
 }
 
 .stepper.vertical {
@@ -27,9 +28,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
-    font-weight: 700;
+    font-size: var(--tempest-text-xs);
+    font-weight: var(--tempest-weight-bold);
     flex-shrink: 0;
+    transition: var(--tempest-transition-color);
 }
 
 .step.completed .dot {
@@ -41,12 +43,14 @@
 .step.active .dot {
     border-color: var(--tempest-primary);
     color: var(--tempest-primary);
+    box-shadow: 0 0 0 4px var(--tempest-primary-soft);
 }
 
 .label {
-    font-size: 13px;
+    font-size: var(--tempest-text-sm);
     color: var(--tempest-text-muted);
-    font-weight: 600;
+    font-weight: var(--tempest-weight-semibold);
+    line-height: var(--tempest-leading-snug);
 }
 
 .step.active .label,
@@ -59,6 +63,7 @@
     height: 2px;
     background-color: var(--tempest-border);
     margin: 0 var(--tempest-space-1);
+    transition: background-color var(--tempest-duration-base) var(--tempest-ease-out);
 }
 
 .connector.completed {

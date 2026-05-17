@@ -4,12 +4,15 @@
     border: 1px solid var(--tempest-border);
     border-radius: var(--tempest-radius-lg);
     background-color: var(--tempest-bg);
+    box-shadow: var(--tempest-shadow-xs);
 }
 
 .table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 14px;
+    font-family: var(--tempest-font-sans);
+    font-size: var(--tempest-text-base);
+    line-height: var(--tempest-leading-snug);
 }
 
 .th,
@@ -22,9 +25,9 @@
 .th {
     background-color: var(--tempest-surface);
     color: var(--tempest-text-muted);
-    font-weight: 600;
-    font-size: 12px;
-    letter-spacing: 0.04em;
+    font-weight: var(--tempest-weight-semibold);
+    font-size: var(--tempest-text-xs);
+    letter-spacing: var(--tempest-tracking-wider);
     text-transform: uppercase;
     white-space: nowrap;
 }
@@ -35,10 +38,16 @@
 
 .tr.clickable {
     cursor: pointer;
+    transition: background-color var(--tempest-duration-fast) var(--tempest-ease-out);
 }
 
 .tr.clickable:hover {
     background-color: var(--tempest-surface);
+}
+
+.tr.clickable:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: -2px;
 }
 
 .alignRight {

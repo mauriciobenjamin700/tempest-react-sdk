@@ -1,0 +1,32 @@
+.kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.6em;
+    padding: 0 var(--tempest-space-2);
+    border: 1px solid var(--tempest-border-strong);
+    border-bottom-width: 2px;
+    border-radius: var(--tempest-radius-sm);
+    background-color: var(--tempest-surface);
+    color: var(--tempest-text);
+    font-family: var(--tempest-font-mono);
+    font-size: var(--tempest-text-xs);
+    font-weight: var(--tempest-weight-semibold);
+    line-height: var(--tempest-leading-snug);
+    box-shadow: var(--tempest-shadow-xs);
+    white-space: nowrap;
+}
+
+.sm {
+    font-size: var(--tempest-text-2xs);
+    padding: 0 var(--tempest-space-1);
+}
+
+.md {
+    font-size: var(--tempest-text-xs);
+}
+
+.lg {
+    font-size: var(--tempest-text-sm);
+    padding: 0 var(--tempest-space-2);
+}

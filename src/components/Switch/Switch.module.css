@@ -8,7 +8,7 @@
 
 .wrapper.disabled {
     cursor: not-allowed;
-    opacity: 0.6;
+    opacity: 0.55;
 }
 
 .input {
@@ -25,8 +25,9 @@
     background-color: var(--tempest-border-strong);
     border-radius: var(--tempest-radius-full);
     position: relative;
-    transition: background-color 0.18s ease;
     flex-shrink: 0;
+    box-shadow: var(--tempest-shadow-inner);
+    transition: background-color var(--tempest-duration-base) var(--tempest-ease-out);
 }
 
 .thumb {
@@ -38,7 +39,11 @@
     background-color: #ffffff;
     border-radius: 50%;
     box-shadow: var(--tempest-shadow-sm);
-    transition: transform 0.18s ease;
+    transition: transform var(--tempest-duration-base) var(--tempest-ease-emphasized);
+}
+
+.wrapper:hover:not(.disabled) .input:not(:checked) + .track {
+    background-color: var(--tempest-gray-400);
 }
 
 .input:checked + .track {
@@ -50,11 +55,11 @@
 }
 
 .input:focus-visible + .track {
-    outline: 2px solid var(--tempest-primary);
-    outline-offset: 2px;
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: var(--tempest-focus-ring-offset);
 }
 
 .label {
-    font-size: 14px;
+    font-size: var(--tempest-text-base);
     color: var(--tempest-text);
 }

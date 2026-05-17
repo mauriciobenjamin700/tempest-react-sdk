@@ -7,6 +7,7 @@
     gap: var(--tempest-space-2);
     z-index: var(--tempest-z-toast);
     pointer-events: none;
+    max-width: 100%;
 }
 
 .toast {
@@ -15,38 +16,41 @@
     align-items: flex-start;
     gap: var(--tempest-space-3);
     padding: var(--tempest-space-3) var(--tempest-space-4);
-    border-radius: var(--tempest-radius-md);
+    border-radius: var(--tempest-radius-lg);
     background-color: var(--tempest-bg);
     border: 1px solid var(--tempest-border);
-    box-shadow: var(--tempest-shadow-md);
+    box-shadow: var(--tempest-shadow-lg);
     min-width: 280px;
     max-width: 420px;
-    animation: tempest-toast-in 0.18s ease-out;
+    animation: tempest-toast-in var(--tempest-duration-base) var(--tempest-ease-emphasized);
 }
 
 .success {
-    border-left: 4px solid var(--tempest-success);
+    border-left: 4px solid var(--tempest-success-solid);
 }
 .warning {
-    border-left: 4px solid var(--tempest-warning);
+    border-left: 4px solid var(--tempest-warning-solid);
 }
 .error {
-    border-left: 4px solid var(--tempest-danger);
+    border-left: 4px solid var(--tempest-danger-solid);
 }
 .info {
-    border-left: 4px solid var(--tempest-info);
+    border-left: 4px solid var(--tempest-info-solid);
 }
 
 .title {
-    font-weight: 600;
-    font-size: 14px;
+    font-family: var(--tempest-font-sans);
+    font-weight: var(--tempest-weight-semibold);
+    font-size: var(--tempest-text-base);
     color: var(--tempest-text);
+    line-height: var(--tempest-leading-snug);
     margin: 0;
 }
 
 .description {
-    font-size: 13px;
+    font-size: var(--tempest-text-sm);
     color: var(--tempest-text-muted);
+    line-height: var(--tempest-leading-snug);
     margin: 2px 0 0 0;
 }
 
@@ -59,6 +63,7 @@
     border-radius: var(--tempest-radius-sm);
     display: flex;
     align-items: center;
+    transition: var(--tempest-transition-color);
 }
 
 .close:hover {
@@ -66,13 +71,24 @@
     color: var(--tempest-text);
 }
 
+.close:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: var(--tempest-focus-ring-offset);
+}
+
 @keyframes tempest-toast-in {
     from {
-        transform: translateX(20px);
+        transform: translateX(24px);
         opacity: 0;
     }
     to {
         transform: translateX(0);
         opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .toast {
+        animation: none;
     }
 }

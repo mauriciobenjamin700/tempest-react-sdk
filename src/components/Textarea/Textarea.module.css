@@ -6,9 +6,10 @@
 }
 
 .label {
-    font-size: 13px;
-    font-weight: 600;
+    font-size: var(--tempest-text-sm);
+    font-weight: var(--tempest-weight-semibold);
     color: var(--tempest-text);
+    line-height: var(--tempest-leading-snug);
 }
 
 .required {
@@ -19,45 +20,57 @@
 .textarea {
     width: 100%;
     min-height: 96px;
-    padding: var(--tempest-space-3);
+    padding: var(--tempest-space-3) var(--tempest-control-padding-md);
     border: 1px solid var(--tempest-border);
-    border-radius: var(--tempest-radius-md);
+    border-radius: var(--tempest-control-radius);
     background-color: var(--tempest-bg);
     color: var(--tempest-text);
-    font-size: 14px;
-    font-family: inherit;
+    font-family: var(--tempest-font-sans);
+    font-size: var(--tempest-control-font-md);
+    line-height: var(--tempest-leading-normal);
+    box-shadow: var(--tempest-shadow-xs);
     resize: vertical;
-    transition:
-        border-color 0.15s ease,
-        box-shadow 0.15s ease;
+    transition: var(--tempest-transition-color), var(--tempest-transition-shadow);
 }
 
 .textarea::placeholder {
     color: var(--tempest-text-subtle);
 }
 
+.textarea:hover:not(:disabled):not(:focus) {
+    border-color: var(--tempest-border-strong);
+}
+
 .textarea:focus {
     outline: none;
     border-color: var(--tempest-primary);
-    box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.18);
+    box-shadow: 0 0 0 var(--tempest-focus-ring-width) var(--tempest-focus-ring-color);
 }
 
 .textarea:disabled {
     background-color: var(--tempest-surface);
     cursor: not-allowed;
     color: var(--tempest-text-muted);
+    box-shadow: none;
 }
 
 .error .textarea {
     border-color: var(--tempest-danger);
 }
 
+.error .textarea:focus {
+    box-shadow: 0 0 0 var(--tempest-focus-ring-width)
+        color-mix(in srgb, var(--tempest-danger) 25%, transparent);
+}
+
 .helper {
-    font-size: 12px;
+    font-size: var(--tempest-text-xs);
     color: var(--tempest-text-muted);
+    line-height: var(--tempest-leading-snug);
 }
 
 .errorText {
-    font-size: 12px;
+    font-size: var(--tempest-text-xs);
     color: var(--tempest-danger);
+    line-height: var(--tempest-leading-snug);
 }

@@ -1,0 +1,183 @@
+.alert {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--tempest-space-3);
+    padding: var(--tempest-space-3) var(--tempest-space-4);
+    border: 1px solid transparent;
+    border-radius: var(--tempest-radius-lg);
+    font-family: var(--tempest-font-sans);
+    font-size: var(--tempest-text-base);
+    line-height: var(--tempest-leading-snug);
+    color: var(--tempest-text);
+    width: 100%;
+}
+
+.content {
+    flex: 1;
+    min-width: 0;
+}
+
+.title {
+    margin: 0;
+    font-size: var(--tempest-text-base);
+    font-weight: var(--tempest-weight-semibold);
+    line-height: var(--tempest-leading-snug);
+}
+
+.description {
+    margin: 2px 0 0 0;
+    font-size: var(--tempest-text-sm);
+    line-height: var(--tempest-leading-snug);
+    color: var(--tempest-text-muted);
+}
+
+.icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    margin-top: 1px;
+}
+
+.close {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: inherit;
+    opacity: 0.7;
+    padding: 4px;
+    border-radius: var(--tempest-radius-sm);
+    display: flex;
+    align-items: center;
+    transition:
+        var(--tempest-transition-color),
+        opacity var(--tempest-duration-fast) var(--tempest-ease-out);
+}
+
+.close:hover {
+    opacity: 1;
+    background-color: rgba(15, 23, 42, 0.06);
+}
+
+.close:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: var(--tempest-focus-ring-offset);
+}
+
+/* ============================================================
+ * Tone × Appearance matrix
+ * ============================================================ */
+
+/* neutral */
+.neutral {
+    background-color: var(--tempest-surface);
+    color: var(--tempest-text);
+    border-color: var(--tempest-border);
+}
+.neutral.solid {
+    background-color: var(--tempest-gray-700);
+    color: #ffffff;
+    border-color: transparent;
+}
+.neutral.outline {
+    background-color: transparent;
+    border-color: var(--tempest-border-strong);
+}
+
+/* info */
+.info {
+    background-color: var(--tempest-info-bg);
+    color: var(--tempest-info-fg);
+    border-color: var(--tempest-info-border);
+}
+.info .description {
+    color: var(--tempest-info-fg);
+    opacity: 0.85;
+}
+.info.solid {
+    background-color: var(--tempest-info-solid);
+    color: #ffffff;
+    border-color: transparent;
+}
+.info.solid .description {
+    color: rgba(255, 255, 255, 0.9);
+}
+.info.outline {
+    background-color: transparent;
+    color: var(--tempest-info);
+    border-color: var(--tempest-info);
+}
+
+/* success */
+.success {
+    background-color: var(--tempest-success-bg);
+    color: var(--tempest-success-fg);
+    border-color: var(--tempest-success-border);
+}
+.success .description {
+    color: var(--tempest-success-fg);
+    opacity: 0.85;
+}
+.success.solid {
+    background-color: var(--tempest-success-solid);
+    color: #ffffff;
+    border-color: transparent;
+}
+.success.solid .description {
+    color: rgba(255, 255, 255, 0.9);
+}
+.success.outline {
+    background-color: transparent;
+    color: var(--tempest-success);
+    border-color: var(--tempest-success);
+}
+
+/* warning */
+.warning {
+    background-color: var(--tempest-warning-bg);
+    color: var(--tempest-warning-fg);
+    border-color: var(--tempest-warning-border);
+}
+.warning .description {
+    color: var(--tempest-warning-fg);
+    opacity: 0.85;
+}
+.warning.solid {
+    background-color: var(--tempest-warning-solid);
+    color: #ffffff;
+    border-color: transparent;
+}
+.warning.solid .description {
+    color: rgba(255, 255, 255, 0.9);
+}
+.warning.outline {
+    background-color: transparent;
+    color: var(--tempest-warning);
+    border-color: var(--tempest-warning);
+}
+
+/* danger */
+.danger {
+    background-color: var(--tempest-danger-bg);
+    color: var(--tempest-danger-fg);
+    border-color: var(--tempest-danger-border);
+}
+.danger .description {
+    color: var(--tempest-danger-fg);
+    opacity: 0.85;
+}
+.danger.solid {
+    background-color: var(--tempest-danger-solid);
+    color: #ffffff;
+    border-color: transparent;
+}
+.danger.solid .description {
+    color: rgba(255, 255, 255, 0.9);
+}
+.danger.outline {
+    background-color: transparent;
+    color: var(--tempest-danger);
+    border-color: var(--tempest-danger);
+}

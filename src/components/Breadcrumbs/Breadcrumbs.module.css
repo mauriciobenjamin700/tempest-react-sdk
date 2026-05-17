@@ -2,7 +2,8 @@
     display: flex;
     align-items: center;
     gap: var(--tempest-space-1);
-    font-size: 13px;
+    font-family: var(--tempest-font-sans);
+    font-size: var(--tempest-text-sm);
     color: var(--tempest-text-muted);
     flex-wrap: wrap;
 }
@@ -16,8 +17,9 @@
 .link {
     color: var(--tempest-text-muted);
     text-decoration: none;
-    padding: 2px 4px;
+    padding: 2px 6px;
     border-radius: var(--tempest-radius-sm);
+    transition: var(--tempest-transition-color);
 }
 
 .link:hover {
@@ -25,12 +27,18 @@
     background-color: var(--tempest-surface);
 }
 
+.link:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: var(--tempest-focus-ring-offset);
+}
+
 .current {
     color: var(--tempest-text);
-    font-weight: 600;
+    font-weight: var(--tempest-weight-semibold);
 }
 
 .separator {
     color: var(--tempest-text-subtle);
     margin: 0 2px;
+    user-select: none;
 }

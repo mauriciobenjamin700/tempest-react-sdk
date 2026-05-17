@@ -5,16 +5,19 @@
 
 .bubble {
     position: absolute;
-    z-index: var(--tempest-z-dropdown);
-    background-color: #11151c;
+    z-index: var(--tempest-z-tooltip);
+    background-color: var(--tempest-gray-900);
     color: #ffffff;
-    padding: 4px 8px;
+    padding: 6px 10px;
     border-radius: var(--tempest-radius-sm);
-    font-size: 12px;
+    font-family: var(--tempest-font-sans);
+    font-size: var(--tempest-text-xs);
+    font-weight: var(--tempest-weight-medium);
+    line-height: var(--tempest-leading-snug);
     white-space: nowrap;
     pointer-events: none;
-    box-shadow: var(--tempest-shadow-md);
-    animation: tempest-tooltip-in 0.12s ease-out;
+    box-shadow: var(--tempest-shadow-lg);
+    animation: tempest-tooltip-in var(--tempest-duration-fast) var(--tempest-ease-out);
 }
 
 .top {
@@ -44,9 +47,15 @@
 @keyframes tempest-tooltip-in {
     from {
         opacity: 0;
-        transform: scale(0.95) translate(var(--tempest-tx, 0), var(--tempest-ty, 0));
+        transform: scale(0.94) translate(var(--tempest-tx, 0), var(--tempest-ty, 0));
     }
     to {
         opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bubble {
+        animation: none;
     }
 }

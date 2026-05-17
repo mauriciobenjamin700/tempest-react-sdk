@@ -4,23 +4,43 @@
     border-top-color: var(--tempest-primary);
     border-radius: 50%;
     animation: tempest-spinner 0.7s linear infinite;
+    flex-shrink: 0;
 }
 
+.xs {
+    width: 10px;
+    height: 10px;
+    border-width: 1.5px;
+}
 .sm {
     width: 14px;
     height: 14px;
+    border-width: 2px;
 }
 .md {
     width: 20px;
     height: 20px;
+    border-width: 2px;
 }
 .lg {
     width: 32px;
     height: 32px;
+    border-width: 3px;
+}
+.xl {
+    width: 48px;
+    height: 48px;
+    border-width: 4px;
 }
 
 @keyframes tempest-spinner {
     to {
         transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .spinner {
+        animation-duration: 2s;
     }
 }

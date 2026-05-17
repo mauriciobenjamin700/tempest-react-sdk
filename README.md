@@ -168,7 +168,7 @@ Every module is re-exported from the package root — `import { Button, useDebou
 | `theme`                                    | `ThemeProvider`, `useTheme`, `getInitialTheme`, `themeInitScript`, types: `ThemeMode`, `ResolvedTheme`                                                                                                                                                                                                                                                                                                                                                                             |
 | `i18n`                                     | `createI18n`, `I18nProvider`, `useI18n`, `useTranslate`, types: `Catalog`, `Messages`, `I18n`, `InterpolationValues`                                                                                                                                                                                                                                                                                                                                                               |
 | `logger`                                   | `createLogger`, `consoleSink`, types: `Logger`, `LogEntry`, `LogLevel`, `LoggerSink`                                                                                                                                                                                                                                                                                                                                                                                               |
-| `telemetry`                                | `TelemetryProvider`, `useTelemetry`, `consoleTelemetryAdapter`, types: `TelemetryAdapter`, `TelemetryEvent`, `TelemetryUser`                                                                                                                                                                                                                                                                                                                                                       |
+| `telemetry`                                | `TelemetryProvider`, `useTelemetry`, `consoleTelemetryAdapter`, `createSentryTelemetryAdapter`, types: `TelemetryAdapter`, `TelemetryEvent`, `TelemetryUser`, `CreateSentryTelemetryAdapterOptions`, `SentryLike`                                                                                                                                                                                                                                                                  |
 | `feature-flags`                            | `FeatureFlagsProvider`, `useFeatureFlag`, `useFlagValue`, `createInMemoryFlags`, types: `FeatureFlagsAdapter`, `FlagValue`                                                                                                                                                                                                                                                                                                                                                         |
 | `share`                                    | `share`, `isShareSupported`, types: `SharePayload`, `ShareResult`                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `utils`                                    | `cn`, `formatCurrency`, `formatDate`, `formatDateTime`, `formatPhone`, `formatCPF`, `formatPercent`, `storage`                                                                                                                                                                                                                                                                                                                                                                     |
@@ -1270,12 +1270,12 @@ The interface is intentionally tiny — any third-party SDK can be wrapped into 
 
 ### Telemetry recipe
 
-`TelemetryProvider` accepts an adapter matching `TelemetryAdapter` (`identify`, `track`, `captureException`, `flush`). The default `consoleTelemetryAdapter` logs every event — useful for dev and tests.
+`TelemetryProvider` accepts an adapter matching `TelemetryAdapter` (`init?`, `identify`, `track`, `captureException`, `flush?`). The bundled `consoleTelemetryAdapter` logs every event — useful for dev and tests.
 
 ```tsx
 import { TelemetryProvider, useTelemetry, consoleTelemetryAdapter } from "tempest-react-sdk";
 
-<TelemetryProvider adapter={consoleTelemetryAdapter()}>
+<TelemetryProvider adapter={consoleTelemetryAdapter}>
   <App />
 </TelemetryProvider>;
 
@@ -1284,7 +1284,7 @@ function CheckoutForm() {
   return (
     <Button
       onClick={() => {
-        telemetry.track("checkout.completed", { total: 100 });
+        telemetry?.track({ name: "checkout.completed", properties: { total: 100 } });
       }}
     >
       Pagar
@@ -1293,7 +1293,43 @@ function CheckoutForm() {
 }
 ```
 
-Concrete adapters for Sentry / PostHog / Datadog are part of the v0.2 roadmap — for now you can write one in ~20 lines (see [`docs/telemetry.md`](./docs/telemetry.md)).
+`useTelemetry()` returns `null` when no provider is mounted — call sites should optional-chain (`telemetry?.track(...)`).
+
+**Sentry adapter** — wraps `@sentry/browser` so the SDK never depends on Sentry directly. The Sentry namespace is supplied by the caller; if the app already initialises Sentry at startup, just pass that instance.
+
+```ts
+import * as Sentry from "@sentry/browser";
+import { createSentryTelemetryAdapter, TelemetryProvider } from "tempest-react-sdk";
+
+const adapter = createSentryTelemetryAdapter({
+    sentry: Sentry,
+    initOptions: {
+        dsn: import.meta.env.VITE_SENTRY_DSN,
+        environment: import.meta.env.MODE,
+        tracesSampleRate: 0.1,
+    },
+    flushTimeout: 2000,
+    breadcrumbCategory: "app",
+});
+
+<TelemetryProvider adapter={adapter}>
+    <App />
+</TelemetryProvider>;
+```
+
+Mapping:
+
+| `TelemetryAdapter` call          | `@sentry/browser` API                                              |
+| -------------------------------- | ------------------------------------------------------------------ |
+| `init()`                         | `Sentry.init(initOptions)` (only when `initOptions` is provided)   |
+| `identify(user)`                 | `Sentry.setUser({ id, email, username, ...traits })`               |
+| `track({ name, properties })`    | `Sentry.addBreadcrumb({ category, message, level: "info", data })` |
+| `captureException(err, context)` | `Sentry.captureException(err, { extra: context })`                 |
+| `flush()`                        | `Sentry.flush(flushTimeout)`                                       |
+
+`@sentry/browser` is **not** declared as a peer dep — the adapter only ever touches the namespace you hand it, so apps that don't use Sentry never pay for it. Install Sentry yourself when you opt in: `npm install @sentry/browser`.
+
+Concrete adapters for PostHog / Datadog / GrowthBook are part of the v0.2 roadmap — for now you can write one in ~20 lines following the Sentry adapter as a template.
 
 ### Logger recipe
 

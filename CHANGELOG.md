@@ -2,6 +2,16 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
+## [0.1.2] — 2026-05-17
+
+### Adicionado
+
+- **`Form` component** com 3 variantes de layout: `stack` (default, fields verticais), `inline` (linha horizontal com wrap, alinhada ao fim), `grid` (N colunas via `columns` prop). Aceita `gap` (number → escala 4px ou CSS string).
+- **`FormSection`** — subgrupo titulado com `title`/`description` e layout independente do pai (stack/inline/grid + columns/gap próprios).
+- **`FormRow`** — força side-by-side row dentro de forms stacked (útil pra agrupar CEP+cidade, expiry+CVV). Children dividem largura igualmente.
+- **`FormActions`** — footer row de botões com `align` (start/center/end/between).
+- 13 testes novos cobrindo layouts, gap conversion, grid template columns, alignment, submit handler.
+
 ## [0.1.1] — 2026-05-17
 
 ### Documentado

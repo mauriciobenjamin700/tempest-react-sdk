@@ -33,6 +33,7 @@ The goal is to start every new React frontend with the same opinionated foundati
   - [JWT helpers & refresh queue](#jwt-helpers--refresh-queue-recipe)
   - [Code-splitting with retry](#code-splitting-with-retry-recipe)
   - [React Query](#react-query-recipe)
+  - [Form layout (`Form`, `FormSection`, `FormRow`, `FormActions`)](#form-layout-recipe)
   - [Forms (zod)](#forms-zod-recipe)
   - [BR validators & masked inputs](#br-validators--masked-inputs-recipe)
   - [ViaCEP lookup](#viacep-lookup-recipe)
@@ -149,28 +150,28 @@ The styles ship hashed under the `tempest_` namespace — they do **not** collid
 
 Every module is re-exported from the package root — `import { Button, useDebounce, createApiClient } from "tempest-react-sdk"` always works.
 
-| Module                                     | Exports                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `components`                               | `Avatar`, `Badge`, `Breadcrumbs`, `Button`, `Card`, `Checkbox`, `ChipInput`, `ConfirmDialog`, `Container`, `DatePicker`, `Drawer`, `EmptyState`, `ErrorState`, `FileUpload`, `Grid`, `Input`, `Modal`, `Pagination`, `Progress`, `Radio`, `RadioGroup`, `SearchBar`, `Select`, `Skeleton`, `Spinner`, `Stack`, `Stepper`, `Switch`, `Table`, `Tabs`, `Textarea`, `Toast` (`ToastProvider`, `useToast`), `Tooltip`, `VirtualList` |
-| `hooks`                                    | `useDebounce`, `usePagination`, `useClientFilter`, `useMediaQuery`, `useOnline`, `useDocumentVisibility`, `useIntersectionObserver`, `useResizeObserver`, `useClipboard`, `useKeyboardShortcut`, `useBeforeInstallPrompt`, `useIdle`, `useGeolocation`, `useScrollLock`, `useFocusTrap`, `useStableCallback`, `useDeepMemo`                                                                                                      |
-| `http`                                     | `createApiClient`, `parseResponse`, `uploadWithProgress`, `retry`, `generateIdempotencyKey`, `usePoll`, types: `ApiClient`, `ApiClientConfig`, `ApiError`, `RequestOptions`, `RetryOptions`, `UploadProgressEvent`, `UploadWithProgressOptions`, `UsePollOptions`, `UsePollResult`                                                                                                                                               |
-| `auth` _(peer: `zustand`)_                 | `createAuthStore`, `AuthGuard`, `decodeJWT`, `isJWTExpired`, `lazyWithRetry`, `createRefreshQueue`, types: `AuthState`, `CreateAuthStoreOptions`, `AuthGuardProps`, `DecodedJWT`, `LazyWithRetryOptions`                                                                                                                                                                                                                         |
-| `query` _(peer: `@tanstack/react-query`)_  | `QueryProvider`, `createQueryKeys`, `STALE_TIME`, `CACHE_TIME`, `REFETCH_TIME`                                                                                                                                                                                                                                                                                                                                                   |
-| `forms` _(peer: `zod`, `react-hook-form`)_ | `validateForm`, `zodResolver`, `useZodForm`, `validateCPF`, `validateCNPJ`, `formatCEP`, `formatCNPJ`, `unmask`, `CPFInput`, `CNPJInput`, `PhoneInput`, `CEPInput`, `MoneyInput`, `useViaCEP`                                                                                                                                                                                                                                    |
-| `sse`                                      | `createEventStream`, `useEventStream`                                                                                                                                                                                                                                                                                                                                                                                            |
-| `ws`                                       | `createWebSocket`, `useWebSocket`                                                                                                                                                                                                                                                                                                                                                                                                |
-| `push`                                     | `WebPushClient`, `WebPushUnsupportedError`, `WebPushPermissionDeniedError`, `usePushSubscription`, `urlBase64ToUint8Array`, `isPushSupported`                                                                                                                                                                                                                                                                                    |
-| `sw`                                       | `registerServiceWorker`, `skipWaiting`, `unregisterAllServiceWorkers`, `installPushHandler`, `installNotificationClickHandler`, `installSkipWaitingListener`                                                                                                                                                                                                                                                                     |
-| `audio`                                    | `createAudioPlayer`, `playAudio`, `stopAudio`, `useAudio`                                                                                                                                                                                                                                                                                                                                                                        |
-| `offline` _(peer: `dexie`)_                | `createOfflineStore`, types: `OfflineStore`, `OfflineStoreConfig`, `ListOptions`                                                                                                                                                                                                                                                                                                                                                 |
-| `error-boundary`                           | `ErrorBoundary`, `useErrorHandler`, types: `ErrorBoundaryProps`, `ErrorBoundaryRenderProps`                                                                                                                                                                                                                                                                                                                                      |
-| `theme`                                    | `ThemeProvider`, `useTheme`, `getInitialTheme`, `themeInitScript`, types: `ThemeMode`, `ResolvedTheme`                                                                                                                                                                                                                                                                                                                           |
-| `i18n`                                     | `createI18n`, `I18nProvider`, `useI18n`, `useTranslate`, types: `Catalog`, `Messages`, `I18n`, `InterpolationValues`                                                                                                                                                                                                                                                                                                             |
-| `logger`                                   | `createLogger`, `consoleSink`, types: `Logger`, `LogEntry`, `LogLevel`, `LoggerSink`                                                                                                                                                                                                                                                                                                                                             |
-| `telemetry`                                | `TelemetryProvider`, `useTelemetry`, `consoleTelemetryAdapter`, types: `TelemetryAdapter`, `TelemetryEvent`, `TelemetryUser`                                                                                                                                                                                                                                                                                                     |
-| `feature-flags`                            | `FeatureFlagsProvider`, `useFeatureFlag`, `useFlagValue`, `createInMemoryFlags`, types: `FeatureFlagsAdapter`, `FlagValue`                                                                                                                                                                                                                                                                                                       |
-| `share`                                    | `share`, `isShareSupported`, types: `SharePayload`, `ShareResult`                                                                                                                                                                                                                                                                                                                                                                |
-| `utils`                                    | `cn`, `formatCurrency`, `formatDate`, `formatDateTime`, `formatPhone`, `formatCPF`, `formatPercent`, `storage`                                                                                                                                                                                                                                                                                                                   |
+| Module                                     | Exports                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `components`                               | `Avatar`, `Badge`, `Breadcrumbs`, `Button`, `Card`, `Checkbox`, `ChipInput`, `ConfirmDialog`, `Container`, `DatePicker`, `Drawer`, `EmptyState`, `ErrorState`, `FileUpload`, `Form` (`FormSection`, `FormRow`, `FormActions`), `Grid`, `Input`, `Modal`, `Pagination`, `Progress`, `Radio`, `RadioGroup`, `SearchBar`, `Select`, `Skeleton`, `Spinner`, `Stack`, `Stepper`, `Switch`, `Table`, `Tabs`, `Textarea`, `Toast` (`ToastProvider`, `useToast`), `Tooltip`, `VirtualList` |
+| `hooks`                                    | `useDebounce`, `usePagination`, `useClientFilter`, `useMediaQuery`, `useOnline`, `useDocumentVisibility`, `useIntersectionObserver`, `useResizeObserver`, `useClipboard`, `useKeyboardShortcut`, `useBeforeInstallPrompt`, `useIdle`, `useGeolocation`, `useScrollLock`, `useFocusTrap`, `useStableCallback`, `useDeepMemo`                                                                                                                                                        |
+| `http`                                     | `createApiClient`, `parseResponse`, `uploadWithProgress`, `retry`, `generateIdempotencyKey`, `usePoll`, types: `ApiClient`, `ApiClientConfig`, `ApiError`, `RequestOptions`, `RetryOptions`, `UploadProgressEvent`, `UploadWithProgressOptions`, `UsePollOptions`, `UsePollResult`                                                                                                                                                                                                 |
+| `auth` _(peer: `zustand`)_                 | `createAuthStore`, `AuthGuard`, `decodeJWT`, `isJWTExpired`, `lazyWithRetry`, `createRefreshQueue`, types: `AuthState`, `CreateAuthStoreOptions`, `AuthGuardProps`, `DecodedJWT`, `LazyWithRetryOptions`                                                                                                                                                                                                                                                                           |
+| `query` _(peer: `@tanstack/react-query`)_  | `QueryProvider`, `createQueryKeys`, `STALE_TIME`, `CACHE_TIME`, `REFETCH_TIME`                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `forms` _(peer: `zod`, `react-hook-form`)_ | `validateForm`, `zodResolver`, `useZodForm`, `validateCPF`, `validateCNPJ`, `formatCEP`, `formatCNPJ`, `unmask`, `CPFInput`, `CNPJInput`, `PhoneInput`, `CEPInput`, `MoneyInput`, `useViaCEP`                                                                                                                                                                                                                                                                                      |
+| `sse`                                      | `createEventStream`, `useEventStream`                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `ws`                                       | `createWebSocket`, `useWebSocket`                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `push`                                     | `WebPushClient`, `WebPushUnsupportedError`, `WebPushPermissionDeniedError`, `usePushSubscription`, `urlBase64ToUint8Array`, `isPushSupported`                                                                                                                                                                                                                                                                                                                                      |
+| `sw`                                       | `registerServiceWorker`, `skipWaiting`, `unregisterAllServiceWorkers`, `installPushHandler`, `installNotificationClickHandler`, `installSkipWaitingListener`                                                                                                                                                                                                                                                                                                                       |
+| `audio`                                    | `createAudioPlayer`, `playAudio`, `stopAudio`, `useAudio`                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `offline` _(peer: `dexie`)_                | `createOfflineStore`, types: `OfflineStore`, `OfflineStoreConfig`, `ListOptions`                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `error-boundary`                           | `ErrorBoundary`, `useErrorHandler`, types: `ErrorBoundaryProps`, `ErrorBoundaryRenderProps`                                                                                                                                                                                                                                                                                                                                                                                        |
+| `theme`                                    | `ThemeProvider`, `useTheme`, `getInitialTheme`, `themeInitScript`, types: `ThemeMode`, `ResolvedTheme`                                                                                                                                                                                                                                                                                                                                                                             |
+| `i18n`                                     | `createI18n`, `I18nProvider`, `useI18n`, `useTranslate`, types: `Catalog`, `Messages`, `I18n`, `InterpolationValues`                                                                                                                                                                                                                                                                                                                                                               |
+| `logger`                                   | `createLogger`, `consoleSink`, types: `Logger`, `LogEntry`, `LogLevel`, `LoggerSink`                                                                                                                                                                                                                                                                                                                                                                                               |
+| `telemetry`                                | `TelemetryProvider`, `useTelemetry`, `consoleTelemetryAdapter`, types: `TelemetryAdapter`, `TelemetryEvent`, `TelemetryUser`                                                                                                                                                                                                                                                                                                                                                       |
+| `feature-flags`                            | `FeatureFlagsProvider`, `useFeatureFlag`, `useFlagValue`, `createInMemoryFlags`, types: `FeatureFlagsAdapter`, `FlagValue`                                                                                                                                                                                                                                                                                                                                                         |
+| `share`                                    | `share`, `isShareSupported`, types: `SharePayload`, `ShareResult`                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `utils`                                    | `cn`, `formatCurrency`, `formatDate`, `formatDateTime`, `formatPhone`, `formatCPF`, `formatPercent`, `storage`                                                                                                                                                                                                                                                                                                                                                                     |
 
 Full per-module docs in [`docs/`](./docs) (one markdown per module + draw.io diagrams in [`docs/diagrams/`](./docs/diagrams)).
 
@@ -530,6 +531,97 @@ export const eventKeys = createQueryKeys("event", {
 // eventKeys.list({ page: 1, size: 20 }) === ["event", "list", { page: 1, size: 20 }]
 // eventKeys.byId("42") === ["event", "42"]
 ```
+
+### Form layout recipe
+
+`Form` is a `<form>` wrapper with a built-in layout variant — pick `stack` for stacked fields (one per row), `inline` for a wrapping horizontal row, or `grid` for an `N`-column layout. Pair with `FormSection` (titled subgroup), `FormRow` (forces side-by-side inside a stacked form), and `FormActions` (footer button row).
+
+**Stacked (default) — one field per row:**
+
+```tsx
+import { Form, FormActions, Input, Button } from "tempest-react-sdk";
+
+<Form layout="stack" gap={4} onSubmit={onSubmit}>
+  <Input label="Nome" {...form.register("name")} />
+  <Input label="Email" type="email" {...form.register("email")} />
+  <Input label="Senha" type="password" {...form.register("password")} />
+  <FormActions align="end">
+    <Button type="submit">Criar conta</Button>
+  </FormActions>
+</Form>;
+```
+
+**Grid — side-by-side columns:**
+
+```tsx
+import { Form, FormActions, Input, Button } from "tempest-react-sdk";
+
+<Form layout="grid" columns={2} gap={4} onSubmit={onSubmit}>
+  <Input label="Nome" {...register("name")} />
+  <Input label="Sobrenome" {...register("last_name")} />
+  <Input label="Email" type="email" {...register("email")} />
+  <Input label="Telefone" {...register("phone")} />
+  <FormActions align="end" style={{ gridColumn: "1 / -1" }}>
+    <Button type="submit">Salvar</Button>
+  </FormActions>
+</Form>;
+```
+
+`columns` accepts a number (`repeat(N, minmax(0, 1fr))`) or a raw `grid-template-columns` string (e.g. `"2fr 1fr"`).
+
+**Inline — search-style filter row:**
+
+```tsx
+import { Form, Input, Select, Button } from "tempest-react-sdk";
+
+<Form layout="inline" gap={2} onSubmit={onSubmit}>
+  <Input label="Buscar" placeholder="nome…" />
+  <Select label="Status" options={statusOptions} />
+  <Button type="submit">Filtrar</Button>
+</Form>;
+```
+
+`inline` aligns children at `flex-end` and wraps — perfect for filter bars or short login forms.
+
+**Sections + grouped rows:**
+
+`FormSection` lets you nest layouts (e.g. a stacked form with a 3-column "Address" group inside):
+
+```tsx
+import { Form, FormSection, FormRow, FormActions, Input, Button } from "tempest-react-sdk";
+
+<Form layout="stack" gap={5}>
+  <Input label="Email" {...register("email")} />
+
+  <FormSection title="Endereço" description="Usado para entrega" layout="grid" columns={3} gap={3}>
+    <Input label="CEP" {...register("cep")} />
+    <Input label="Cidade" {...register("city")} />
+    <Input label="UF" {...register("state")} />
+    <Input label="Rua" style={{ gridColumn: "1 / -1" }} {...register("street")} />
+  </FormSection>
+
+  <FormRow>
+    <Input label="Validade" placeholder="MM/AA" {...register("expiry")} />
+    <Input label="CVV" {...register("cvv")} />
+  </FormRow>
+
+  <FormActions align="between">
+    <Button variant="ghost" type="button" onClick={onCancel}>
+      Cancelar
+    </Button>
+    <Button type="submit">Salvar</Button>
+  </FormActions>
+</Form>;
+```
+
+| Component     | Default layout            | What it does                                                                                  |
+| ------------- | ------------------------- | --------------------------------------------------------------------------------------------- |
+| `Form`        | `stack`                   | `<form>` element + flex/grid container. `onSubmit` works as expected.                         |
+| `FormSection` | `stack` body              | Titled subgroup with its own independent layout / columns / gap.                              |
+| `FormRow`     | always horizontal         | Forces a wrapping side-by-side row regardless of parent layout. Children share width equally. |
+| `FormActions` | horizontal, `align="end"` | Footer button row. `align` accepts `start` / `center` / `end` / `between`.                    |
+
+Both `Form` and `FormSection` accept `gap` (number → multiple of 4px, or any CSS length string) and `columns` (number → `repeat(N, minmax(0, 1fr))`, or any `grid-template-columns` string).
 
 ### Forms (zod) recipe
 

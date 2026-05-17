@@ -3,12 +3,14 @@
     flex-direction: column;
     gap: var(--tempest-space-1);
     width: 100%;
+    font-family: var(--tempest-font-sans);
 }
 
 .label {
-    font-size: 13px;
-    font-weight: 600;
+    font-size: var(--tempest-text-sm);
+    font-weight: var(--tempest-weight-semibold);
     color: var(--tempest-text);
+    line-height: var(--tempest-leading-snug);
 }
 
 .dropzone {
@@ -18,22 +20,22 @@
     padding: var(--tempest-space-6) var(--tempest-space-5);
     text-align: center;
     cursor: pointer;
-    transition:
-        border-color 0.15s ease,
-        background-color 0.15s ease;
+    transition: var(--tempest-transition-color);
 }
 
-.dropzone:hover {
-    border-color: var(--tempest-primary);
+@media (hover: hover) and (pointer: fine) {
+    .dropzone:hover {
+        border-color: var(--tempest-primary);
+    }
 }
 
 .dropzone.active {
     border-color: var(--tempest-primary);
-    background-color: rgba(0, 102, 255, 0.06);
+    background-color: var(--tempest-primary-soft);
 }
 
 .dropzone.disabled {
-    opacity: 0.6;
+    opacity: 0.55;
     cursor: not-allowed;
 }
 
@@ -43,16 +45,28 @@
 }
 
 .title {
-    font-weight: 600;
+    font-weight: var(--tempest-weight-semibold);
     color: var(--tempest-text);
-    font-size: 14px;
+    font-size: var(--tempest-text-base);
     margin: 0;
+    line-height: var(--tempest-leading-snug);
 }
 
 .subtitle {
     color: var(--tempest-text-muted);
-    font-size: 12px;
+    font-size: var(--tempest-text-xs);
     margin: var(--tempest-space-1) 0 0;
+    line-height: var(--tempest-leading-snug);
+}
+
+/* Mobile — replace dashed drop hint with simpler tap-to-upload text. */
+@media (max-width: 767.98px) {
+    .dropzone {
+        padding: var(--tempest-space-5) var(--tempest-space-4);
+    }
+    .icon {
+        margin-bottom: var(--tempest-space-1);
+    }
 }
 
 .files {
@@ -71,12 +85,13 @@
     background-color: var(--tempest-bg);
     border: 1px solid var(--tempest-border);
     border-radius: var(--tempest-radius-md);
-    font-size: 13px;
+    font-size: var(--tempest-text-sm);
+    box-shadow: var(--tempest-shadow-xs);
 }
 
 .fileMeta {
     color: var(--tempest-text-muted);
-    font-size: 11px;
+    font-size: var(--tempest-text-2xs);
 }
 
 .remove {
@@ -86,11 +101,14 @@
     cursor: pointer;
     padding: 4px;
     border-radius: var(--tempest-radius-sm);
+    transition: var(--tempest-transition-color);
 }
 
-.remove:hover {
-    background-color: var(--tempest-surface);
-    color: var(--tempest-danger);
+@media (hover: hover) and (pointer: fine) {
+    .remove:hover {
+        background-color: var(--tempest-surface);
+        color: var(--tempest-danger);
+    }
 }
 
 .hidden {

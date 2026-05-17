@@ -6,7 +6,8 @@
     background-color: var(--tempest-surface-2);
     color: var(--tempest-text);
     overflow: hidden;
-    font-weight: 600;
+    font-family: var(--tempest-font-sans);
+    font-weight: var(--tempest-weight-semibold);
     text-transform: uppercase;
     flex-shrink: 0;
     user-select: none;
@@ -21,31 +22,31 @@
 .xs {
     width: 24px;
     height: 24px;
-    font-size: 10px;
+    font-size: var(--tempest-text-2xs);
 }
 
 .sm {
     width: 32px;
     height: 32px;
-    font-size: 12px;
+    font-size: var(--tempest-text-xs);
 }
 
 .md {
     width: 40px;
     height: 40px;
-    font-size: 14px;
+    font-size: var(--tempest-text-base);
 }
 
 .lg {
     width: 56px;
     height: 56px;
-    font-size: 18px;
+    font-size: var(--tempest-text-xl);
 }
 
 .xl {
     width: 80px;
     height: 80px;
-    font-size: 24px;
+    font-size: var(--tempest-text-3xl);
 }
 
 .status {
@@ -63,7 +64,7 @@
 }
 
 .dot.online {
-    background-color: var(--tempest-success);
+    background-color: var(--tempest-success-solid);
 }
 
 .dot.offline {
@@ -71,5 +72,5 @@
 }
 
 .dot.busy {
-    background-color: var(--tempest-danger);
+    background-color: var(--tempest-danger-solid);
 }

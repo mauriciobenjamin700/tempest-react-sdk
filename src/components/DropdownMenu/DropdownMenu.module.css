@@ -1,0 +1,109 @@
+.root {
+    position: relative;
+    display: inline-flex;
+}
+
+.menu {
+    position: absolute;
+    z-index: var(--tempest-z-dropdown);
+    min-width: 180px;
+    max-width: 320px;
+    background-color: var(--tempest-bg);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-lg);
+    box-shadow: var(--tempest-shadow-lg);
+    padding: var(--tempest-space-1);
+    font-family: var(--tempest-font-sans);
+    font-size: var(--tempest-text-base);
+    list-style: none;
+    margin: 0;
+    animation: tempest-menu-in var(--tempest-duration-fast) var(--tempest-ease-out);
+}
+
+.bottomStart {
+    top: calc(100% + 4px);
+    left: 0;
+}
+.bottomEnd {
+    top: calc(100% + 4px);
+    right: 0;
+}
+.topStart {
+    bottom: calc(100% + 4px);
+    left: 0;
+}
+.topEnd {
+    bottom: calc(100% + 4px);
+    right: 0;
+}
+
+.item {
+    display: flex;
+    align-items: center;
+    gap: var(--tempest-space-2);
+    width: 100%;
+    padding: var(--tempest-space-2) var(--tempest-space-3);
+    background: none;
+    border: none;
+    border-radius: var(--tempest-radius-sm);
+    color: var(--tempest-text);
+    font-family: inherit;
+    font-size: inherit;
+    line-height: var(--tempest-leading-snug);
+    text-align: left;
+    cursor: pointer;
+    transition: var(--tempest-transition-color);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .item:hover:not(:disabled) {
+        background-color: var(--tempest-surface);
+    }
+}
+
+.item:focus,
+.item.active {
+    outline: none;
+    background-color: var(--tempest-surface);
+}
+
+.item:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.item.danger {
+    color: var(--tempest-danger);
+}
+
+.separator {
+    height: 1px;
+    background-color: var(--tempest-border);
+    margin: var(--tempest-space-1) 0;
+}
+
+.label {
+    padding: var(--tempest-space-1) var(--tempest-space-3);
+    font-size: var(--tempest-text-xs);
+    font-weight: var(--tempest-weight-semibold);
+    color: var(--tempest-text-muted);
+    text-transform: uppercase;
+    letter-spacing: var(--tempest-tracking-wider);
+}
+
+@keyframes tempest-menu-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .menu {
+        animation: none;
+    }
+}

@@ -6,6 +6,13 @@ export type { FilterPredicate } from "./use-client-filter";
 export { useMediaQuery } from "./use-media-query";
 export { useBreakpoint, BREAKPOINTS } from "./use-breakpoint";
 export type { Breakpoint, BreakpointHelpers } from "./use-breakpoint";
+export { useEventListener } from "./use-event-listener";
+export { useLocalStorage } from "./use-local-storage";
+export type { LocalStorageOptions } from "./use-local-storage";
+export { useToggle } from "./use-toggle";
+export type { ToggleHelpers } from "./use-toggle";
+export { useAsync } from "./use-async";
+export type { AsyncStatus, UseAsyncResult } from "./use-async";
 
 export { useOnline } from "./use-online";
 export { useDocumentVisibility } from "./use-document-visibility";

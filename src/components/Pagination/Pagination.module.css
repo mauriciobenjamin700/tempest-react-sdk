@@ -30,9 +30,15 @@
     transition: var(--tempest-transition-color);
 }
 
-.page:hover:not(:disabled) {
-    background-color: var(--tempest-surface);
-    border-color: var(--tempest-border-strong);
+@media (hover: hover) and (pointer: fine) {
+    .page:hover:not(:disabled) {
+        background-color: var(--tempest-surface);
+        border-color: var(--tempest-border-strong);
+    }
+    .active:hover {
+        background-color: var(--tempest-primary-hover);
+        border-color: var(--tempest-primary-hover);
+    }
 }
 
 .page:focus-visible {
@@ -49,11 +55,6 @@
     background-color: var(--tempest-primary);
     border-color: var(--tempest-primary);
     color: var(--tempest-primary-foreground);
-}
-
-.active:hover {
-    background-color: var(--tempest-primary-hover);
-    border-color: var(--tempest-primary-hover);
 }
 
 .ellipsis {
@@ -75,4 +76,19 @@
 .sizeSelect:focus-visible {
     outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
     outline-offset: var(--tempest-focus-ring-offset);
+}
+
+/* Compact mobile mode — hide numeric buttons + size select. */
+@media (max-width: 639.98px) {
+    .numeric,
+    .sizeSelect {
+        display: none;
+    }
+    .summary {
+        font-size: var(--tempest-text-xs);
+    }
+    .controls {
+        flex: 1;
+        justify-content: space-between;
+    }
 }

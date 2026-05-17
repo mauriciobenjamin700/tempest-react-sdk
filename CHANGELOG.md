@@ -2,6 +2,77 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+Trabalho de estilos + responsive + componentes novos. Sem breaking changes — bump minor sugerido `0.3.0`.
+
+### Tokens
+
+- **Cor**: scale `--tempest-primary-50..900`, `--tempest-gray-50..900`, status triplets `*-fg/bg/border/solid` (`success`/`warning`/`danger`/`info`), focus ring tokens (`--tempest-focus-ring-color/width/offset`), shadow `xs`/`xl`/`inner`, radius `xs`/`2xl`. Dark theme atualizado.
+- **Typography**: `typography.css` novo — `--tempest-text-2xs..6xl`, line-heights, weights, tracking, **fluid type** `--tempest-text-fluid-*` com `clamp()`.
+- **Motion**: `motion.css` novo — durations `instant/fast/base/slow/slower`, easings (`out`/`in-out`/`emphasized`/`bounce`), composite transitions, `prefers-reduced-motion` global.
+- **Density**: `density.css` novo — `data-tempest-density="compact|comfortable|spacious|touch"` ajusta heights/padding/font/radius dos controles. Auto-bump em `@media (pointer: coarse)`.
+- **Breakpoints**: `--tempest-bp-xs/sm/md/lg/xl/2xl` (480/640/768/1024/1280/1536).
+- **Safe-area**: `--tempest-safe-area-top/right/bottom/left` com fallback 0.
+
+### Componentes novos
+
+- `Alert` — variants `neutral/info/success/warning/danger` × `appearance="soft|solid|outline"` + icon/dismiss.
+- `Kbd` — chave de teclado estilizada, sizes `sm/md/lg`.
+- `Divider` — horizontal/vertical, solid/dashed, label com align.
+- `Accordion` — single/multiple mode, controlled/uncontrolled.
+- `Popover` — anchor + outside-click + Esc dismiss.
+- `DropdownMenu` — entries `item`/`separator`/`label`, keyboard nav.
+- `RatingStars` — radio group, sizes, readonly.
+- `RangeSlider` — dual-thumb, clamp low ≤ high, format callback.
+- `Combobox` — Select com search/filter, keyboard nav.
+- `<Show>` / `<Hide>` — breakpoint-conditional render (SSR-safe).
+- `Spacer` — flex push (`axis="both|x|y"`) — substitui `<div style={{ flex: 1 }}>`.
+- `Center` — centraliza children (`axis="both|horizontal|vertical"` + `minHeight`).
+- `AspectRatio` — preserva proporção pra media (`ratio={16/9}` default, aceita qualquer número).
+
+### Componentes refatorados
+
+- `Button` — variants novos `success`/`soft`/`outline`/`link`, sizes `xs`/`xl`, props `iconOnly`/`pill`, hover-only gated, touch hit-slop em pointer-coarse.
+- `Badge` — `appearance="soft|solid|outline"`, `shape="pill|square"`, `dot`, prop `primary` variant, sizes `sm/md/lg`.
+- `Card` — `elevation="flat|default|raised|elevated"`, prop `interactive`, slot `footer`.
+- `Modal` — sizes `2xl`/`3xl`, props `fullscreen`/`fullscreenOnMobile`, padding interno reduzido < 640px, `dvh` fallback, safe-area.
+- `Drawer` — props `mobilePlacement` (auto-switch para bottom-sheet) + `showHandle` (drag indicator), safe-area, motion tokens.
+- `Table` — `priority="tablet|desktop"` por coluna + prop `stackOnMobile` (rows viram cards label/value).
+- `Toast` — prop `position` (top/bottom × left/center/right), auto-stretch full-width < 480px, safe-area.
+- `Input` — prop `size="sm|md|lg"`.
+- `Spinner` — sizes `xs`/`xl` novos.
+- `Tabs` — fade-edge mask em overflow horizontal.
+- `Container` — padding responsivo (16/24/32px por bp).
+- `Stack`/`Grid` — `direction`/`columns`/`gap` aceitam `{ mobile, tablet, desktop }`.
+- Todos componentes restantes (ChipInput/ConfirmDialog/DatePicker/EmptyState/ErrorState/FileUpload/Form/Progress/SearchBar/Avatar/Stepper/Pagination/Breadcrumbs/Select/Textarea/Checkbox/Switch/Radio/Tooltip/Skeleton) refatorados para usar tokens novos (typography/motion/focus ring/density).
+
+### Hooks novos
+
+- `useBreakpoint()` — retorna `current/width/above/below/isMobile/isTablet/isDesktop`.
+- `useEventListener(name, handler, target?, options?)` — wrap genérico SSR-safe.
+- `useLocalStorage<T>(key, default)` — state sincronizado com cross-tab via `storage` event.
+- `useToggle(initial?)` — açúcar pra boolean state.
+- `useAsync(fn, deps?, { immediate? })` — track `idle/pending/success/error`.
+
+### Estilos globais
+
+- `styles/responsive.css` — utilities `tempest-hide-mobile/tablet/desktop`, `tempest-show-only-*`, `tempest-hide-touch`, `tempest-hide-print`.
+- `styles/print.css` — esconde overlays/portais, grayscale, page-break, `(href)` em links.
+- `reset.css` modernizado (`modern-normalize` style).
+- Hover effects atrás de `@media (hover: hover) and (pointer: fine)`.
+
+### Documentação
+
+- `docs/styles.md` — guia completo: 14 seções cobrindo tokens, variants, responsive, touch, safe-area, fluid type, print, política de versionamento.
+
+### Numbers
+
+- 200+ módulos transformados na build.
+- ~570+ tests passando (era 487 em v0.1.4).
+- CSS bundle: ~60KB → ~9KB gzip.
+- JS bundle: ~115KB → ~32KB gzip.
+
 ## [0.2.0] — 2026-05-17
 
 ### Mudança arquitetural — child deps agora são `dependencies`

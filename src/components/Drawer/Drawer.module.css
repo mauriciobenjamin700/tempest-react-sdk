@@ -104,9 +104,11 @@
     transition: var(--tempest-transition-color);
 }
 
-.close:hover {
-    background-color: var(--tempest-surface);
-    color: var(--tempest-text);
+@media (hover: hover) and (pointer: fine) {
+    .close:hover {
+        background-color: var(--tempest-surface);
+        color: var(--tempest-text);
+    }
 }
 
 .close:focus-visible {

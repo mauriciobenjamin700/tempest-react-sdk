@@ -41,8 +41,10 @@
     transition: background-color var(--tempest-duration-fast) var(--tempest-ease-out);
 }
 
-.tr.clickable:hover {
-    background-color: var(--tempest-surface);
+@media (hover: hover) and (pointer: fine) {
+    .tr.clickable:hover {
+        background-color: var(--tempest-surface);
+    }
 }
 
 .tr.clickable:focus-visible {

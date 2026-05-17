@@ -7,6 +7,7 @@
     padding: var(--tempest-space-8) var(--tempest-space-4);
     text-align: center;
     color: var(--tempest-text-muted);
+    font-family: var(--tempest-font-sans);
 }
 
 .icon {
@@ -22,15 +23,17 @@
 
 .title {
     margin: 0;
-    font-size: 16px;
-    font-weight: 600;
+    font-size: var(--tempest-text-lg);
+    font-weight: var(--tempest-weight-semibold);
     color: var(--tempest-text);
+    line-height: var(--tempest-leading-snug);
 }
 
 .description {
     margin: 0;
-    font-size: 14px;
+    font-size: var(--tempest-text-base);
     color: var(--tempest-text-muted);
+    line-height: var(--tempest-leading-normal);
     max-width: 480px;
 }
 

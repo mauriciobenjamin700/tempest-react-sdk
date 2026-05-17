@@ -1,0 +1,13 @@
+.spacer.both {
+    flex: 1 1 auto;
+}
+
+.spacer.x {
+    flex: 1 0 auto;
+    width: auto;
+}
+
+.spacer.y {
+    flex: 1 0 auto;
+    height: auto;
+}

@@ -6,9 +6,10 @@
 }
 
 .label {
-    font-size: 13px;
-    font-weight: 600;
+    font-size: var(--tempest-text-sm);
+    font-weight: var(--tempest-weight-semibold);
     color: var(--tempest-text);
+    line-height: var(--tempest-leading-snug);
 }
 
 .field {
@@ -17,20 +18,27 @@
     flex-wrap: wrap;
     gap: var(--tempest-space-1);
     padding: 4px var(--tempest-space-2);
-    min-height: 40px;
+    min-height: var(--tempest-control-height-md);
     border: 1px solid var(--tempest-border);
-    border-radius: var(--tempest-radius-md);
+    border-radius: var(--tempest-control-radius);
     background-color: var(--tempest-bg);
+    box-shadow: var(--tempest-shadow-xs);
     cursor: text;
+    transition: var(--tempest-transition-color), var(--tempest-transition-shadow);
 }
 
 .field:focus-within {
     border-color: var(--tempest-primary);
-    box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.18);
+    box-shadow: 0 0 0 var(--tempest-focus-ring-width) var(--tempest-focus-ring-color);
 }
 
 .wrapper.error .field {
     border-color: var(--tempest-danger);
+}
+
+.wrapper.error .field:focus-within {
+    box-shadow: 0 0 0 var(--tempest-focus-ring-width)
+        color-mix(in srgb, var(--tempest-danger) 25%, transparent);
 }
 
 .chip {
@@ -41,8 +49,9 @@
     color: var(--tempest-text);
     padding: 2px 4px 2px 8px;
     border-radius: var(--tempest-radius-full);
-    font-size: 12px;
-    font-weight: 600;
+    font-family: var(--tempest-font-sans);
+    font-size: var(--tempest-text-xs);
+    font-weight: var(--tempest-weight-semibold);
 }
 
 .remove {
@@ -56,10 +65,13 @@
     width: 18px;
     height: 18px;
     border-radius: 50%;
+    transition: var(--tempest-transition-color);
 }
 
-.remove:hover {
-    background-color: rgba(0, 0, 0, 0.1);
+@media (hover: hover) and (pointer: fine) {
+    .remove:hover {
+        background-color: rgba(0, 0, 0, 0.1);
+    }
 }
 
 .input {
@@ -68,16 +80,19 @@
     background: transparent;
     flex: 1;
     min-width: 80px;
-    font-size: 14px;
+    font-family: var(--tempest-font-sans);
+    font-size: var(--tempest-control-font-md);
     color: var(--tempest-text);
 }
 
 .helper {
-    font-size: 12px;
+    font-size: var(--tempest-text-xs);
     color: var(--tempest-text-muted);
+    line-height: var(--tempest-leading-snug);
 }
 
 .errorText {
-    font-size: 12px;
+    font-size: var(--tempest-text-xs);
     color: var(--tempest-danger);
+    line-height: var(--tempest-leading-snug);
 }

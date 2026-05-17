@@ -1,6 +1,7 @@
 .form {
     display: flex;
     width: 100%;
+    font-family: var(--tempest-font-sans);
 }
 
 .form.stack {
@@ -31,15 +32,17 @@
 }
 
 .sectionTitle {
-    font-size: var(--tempest-font-size-lg);
-    font-weight: 600;
-    color: var(--tempest-text-primary);
+    font-size: var(--tempest-text-lg);
+    font-weight: var(--tempest-weight-semibold);
+    color: var(--tempest-text);
+    line-height: var(--tempest-leading-snug);
     margin: 0;
 }
 
 .sectionDescription {
-    font-size: var(--tempest-font-size-sm);
-    color: var(--tempest-text-secondary);
+    font-size: var(--tempest-text-sm);
+    color: var(--tempest-text-muted);
+    line-height: var(--tempest-leading-snug);
     margin: var(--tempest-space-1) 0 0;
 }
 
@@ -73,6 +76,17 @@
 .row > * {
     flex: 1 1 0;
     min-width: 0;
+}
+
+/* On mobile, rows collapse to single column for legibility. */
+@media (max-width: 639.98px) {
+    .row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .row > * {
+        flex: 1 1 auto;
+    }
 }
 
 .actions {

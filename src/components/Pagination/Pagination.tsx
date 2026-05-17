@@ -54,10 +54,10 @@ export function Pagination({
 
     return (
         <div className={cn(styles.wrapper, className)}>
-            <div>
+            <div className={styles.summary}>
                 {typeof totalItems === "number"
                     ? `${totalItems} resultado${totalItems === 1 ? "" : "s"}`
-                    : null}
+                    : `Página ${page} de ${totalPages}`}
             </div>
             <div className={styles.controls}>
                 <button
@@ -71,14 +71,21 @@ export function Pagination({
                 </button>
                 {pages.map((entry, index) =>
                     entry === "..." ? (
-                        <span key={`ellipsis-${index}`} className={styles.ellipsis}>
+                        <span
+                            key={`ellipsis-${index}`}
+                            className={cn(styles.ellipsis, styles.numeric)}
+                        >
                             …
                         </span>
                     ) : (
                         <button
                             type="button"
                             key={entry}
-                            className={cn(styles.page, entry === page && styles.active)}
+                            className={cn(
+                                styles.page,
+                                styles.numeric,
+                                entry === page && styles.active,
+                            )}
                             onClick={() => onPageChange(entry)}
                             aria-current={entry === page ? "page" : undefined}
                         >

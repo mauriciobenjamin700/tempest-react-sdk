@@ -52,7 +52,10 @@ jobs:
                   mkdir -p /tmp/sdk-smoke && cd /tmp/sdk-smoke
                   npm init -y >/dev/null
                   npm pkg set type=module >/dev/null
-                  npm install --silent "$GITHUB_WORKSPACE/$TARBALL" react@^19 react-dom@^19
+                  npm install --silent "$GITHUB_WORKSPACE/$TARBALL" \
+                    react@^19 react-dom@^19 \
+                    @tanstack/react-query@^5 zod@^4 zustand@^5 \
+                    dexie@^4 react-hook-form@^7 lucide-react@latest
                   PKG_NAME="$PKG_NAME" node -e "import(process.env.PKG_NAME).then(m => { \
                     const required = ['Button','Input','Modal','ToastProvider','useDebounce','createApiClient','createAuthStore','ThemeProvider','I18nProvider','QueryProvider','ErrorBoundary','createOfflineStore','createEventStream','createWebSocket','WebPushClient','registerServiceWorker','playAudio','share','cn','formatCurrency']; \
                     const missing = required.filter(k => !(k in m)); \

@@ -1,0 +1,66 @@
+name: Release to npm
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish tempest-react-sdk
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Run tests
+        run: npm run test:run
+
+      - name: Build
+        run: npm run build
+
+      - name: Smoke-install packed tarball and import core symbols
+        run: |
+          TARBALL=$(npm pack --silent)
+          PKG_NAME=$(node -p "require('./package.json').name")
+          mkdir -p /tmp/sdk-smoke && cd /tmp/sdk-smoke
+          npm init -y >/dev/null
+          npm pkg set type=module >/dev/null
+          npm install --silent "$GITHUB_WORKSPACE/$TARBALL" react@^19 react-dom@^19
+          PKG_NAME="$PKG_NAME" node -e "import(process.env.PKG_NAME).then(m => { \
+            const required = ['Button','Input','Modal','ToastProvider','useDebounce','createApiClient','createAuthStore','ThemeProvider','I18nProvider','QueryProvider','ErrorBoundary','createOfflineStore','createEventStream','createWebSocket','WebPushClient','registerServiceWorker','playAudio','share','cn','formatCurrency']; \
+            const missing = required.filter(k => !(k in m)); \
+            if (missing.length) throw new Error('missing exports: ' + missing.join(', ')); \
+            console.log('Smoke OK · ' + Object.keys(m).length + ' total exports'); \
+          })"
+
+      - name: Publish (with provenance)
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

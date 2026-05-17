@@ -24,9 +24,7 @@ describe("WebPushClient", () => {
             vapidPublicKey: "k",
             onSubscribe: async () => undefined,
         });
-        await expect(client.requestPermission()).rejects.toBeInstanceOf(
-            WebPushUnsupportedError,
-        );
+        await expect(client.requestPermission()).rejects.toBeInstanceOf(WebPushUnsupportedError);
     });
 
     it("throws permission-denied when user declines", async () => {
@@ -43,8 +41,6 @@ describe("WebPushClient", () => {
             vapidPublicKey: "k",
             onSubscribe: async () => undefined,
         });
-        await expect(client.subscribe()).rejects.toBeInstanceOf(
-            WebPushPermissionDeniedError,
-        );
+        await expect(client.subscribe()).rejects.toBeInstanceOf(WebPushPermissionDeniedError);
     });
 });

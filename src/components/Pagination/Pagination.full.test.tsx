@@ -5,9 +5,7 @@ import { Pagination } from "./Pagination";
 
 describe("Pagination — full", () => {
     it("renders ellipsis on long page ranges", () => {
-        render(
-            <Pagination page={5} totalPages={20} onPageChange={vi.fn()} siblingCount={3} />,
-        );
+        render(<Pagination page={5} totalPages={20} onPageChange={vi.fn()} siblingCount={3} />);
         // multiple "…" markers expected for both sides
         const ellipses = screen.getAllByText(/…/);
         expect(ellipses.length).toBeGreaterThanOrEqual(1);
@@ -30,16 +28,12 @@ describe("Pagination — full", () => {
     });
 
     it("renders totalItems summary", () => {
-        render(
-            <Pagination page={1} totalPages={3} totalItems={42} onPageChange={vi.fn()} />,
-        );
+        render(<Pagination page={1} totalPages={3} totalItems={42} onPageChange={vi.fn()} />);
         expect(screen.getByText(/42 resultados/)).toBeInTheDocument();
     });
 
     it("renders singular form when totalItems === 1", () => {
-        render(
-            <Pagination page={1} totalPages={2} totalItems={1} onPageChange={vi.fn()} />,
-        );
+        render(<Pagination page={1} totalPages={2} totalItems={1} onPageChange={vi.fn()} />);
         expect(screen.getByText(/1 resultado$/)).toBeInTheDocument();
     });
 

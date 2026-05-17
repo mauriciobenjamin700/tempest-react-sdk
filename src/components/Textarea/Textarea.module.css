@@ -27,7 +27,9 @@
     font-size: 14px;
     font-family: inherit;
     resize: vertical;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease;
 }
 
 .textarea::placeholder {

@@ -17,13 +17,21 @@ interface SwGlobal {
     };
     clients: {
         matchAll(options: { type: "window"; includeUncontrolled?: boolean }): Promise<
-            { url: string; focused: boolean; focus(): Promise<unknown>; navigate(url: string): Promise<unknown> }[]
+            {
+                url: string;
+                focused: boolean;
+                focus(): Promise<unknown>;
+                navigate(url: string): Promise<unknown>;
+            }[]
         >;
         openWindow(url: string): Promise<unknown>;
     };
     addEventListener(
         type: "push",
-        listener: (event: { data: { json(): unknown; text(): string } | null; waitUntil(promise: Promise<unknown>): void }) => void,
+        listener: (event: {
+            data: { json(): unknown; text(): string } | null;
+            waitUntil(promise: Promise<unknown>): void;
+        }) => void,
     ): void;
     addEventListener(
         type: "notificationclick",
@@ -71,12 +79,7 @@ export interface InstallPushHandlerOptions {
  */
 export function installPushHandler(options: InstallPushHandlerOptions = {}): void {
     const sw = getSwScope();
-    const {
-        defaultTitle = "Notificação",
-        defaultIcon,
-        defaultBadge,
-        transform,
-    } = options;
+    const { defaultTitle = "Notificação", defaultIcon, defaultBadge, transform } = options;
 
     sw.addEventListener("push", (event) => {
         if (!event.data) return;

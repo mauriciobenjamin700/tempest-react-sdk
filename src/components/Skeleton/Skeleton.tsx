@@ -11,13 +11,7 @@ export interface SkeletonProps {
 }
 
 /** Loading placeholder block. Use `variant="text"` for inline lines, `circle` for avatars. */
-export function Skeleton({
-    variant = "rect",
-    width,
-    height,
-    className,
-    style,
-}: SkeletonProps) {
+export function Skeleton({ variant = "rect", width, height, className, style }: SkeletonProps) {
     return (
         <span
             aria-hidden

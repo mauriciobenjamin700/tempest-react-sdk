@@ -45,10 +45,7 @@ describe("Tabs controlled + pill", () => {
 
     it("renders pill variant", () => {
         const { container } = render(
-            <Tabs
-                variant="pill"
-                items={[{ id: "a", label: "A", content: <p>a</p> }]}
-            />,
+            <Tabs variant="pill" items={[{ id: "a", label: "A", content: <p>a</p> }]} />,
         );
         const tablist = container.querySelector('[role="tablist"]');
         expect(tablist?.className).toContain("pill");

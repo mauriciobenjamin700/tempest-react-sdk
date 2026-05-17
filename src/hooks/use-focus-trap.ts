@@ -15,10 +15,7 @@ const FOCUSABLE_SELECTOR = [
  * Tab and Shift+Tab between the first and last focusable descendants. Pair
  * with Modal/Drawer for fully-accessible overlays.
  */
-export function useFocusTrap(
-    containerRef: RefObject<HTMLElement | null>,
-    active: boolean,
-): void {
+export function useFocusTrap(containerRef: RefObject<HTMLElement | null>, active: boolean): void {
     useEffect(() => {
         if (!active) return;
         const container = containerRef.current;
@@ -27,16 +24,16 @@ export function useFocusTrap(
         const previouslyFocused = document.activeElement as HTMLElement | null;
 
         function getFocusable(): HTMLElement[] {
-            return Array.from(container?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR) ?? []).filter(
-                (el) => {
-                    if (el.hasAttribute("aria-hidden")) return false;
-                    const style = typeof window !== "undefined" ? window.getComputedStyle(el) : null;
-                    if (style && (style.display === "none" || style.visibility === "hidden")) {
-                        return false;
-                    }
-                    return true;
-                },
-            );
+            return Array.from(
+                container?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR) ?? [],
+            ).filter((el) => {
+                if (el.hasAttribute("aria-hidden")) return false;
+                const style = typeof window !== "undefined" ? window.getComputedStyle(el) : null;
+                if (style && (style.display === "none" || style.visibility === "hidden")) {
+                    return false;
+                }
+                return true;
+            });
         }
 
         function handleKeydown(event: KeyboardEvent): void {

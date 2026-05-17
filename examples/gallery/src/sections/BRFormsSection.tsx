@@ -106,12 +106,18 @@ export function BRFormsSection() {
                             Buscar
                         </Button>
                     </Stack>
-                    {viaCEP.error && (
-                        <Badge variant="danger">{viaCEP.error}</Badge>
-                    )}
-                    <Input label="Logradouro" value={street} onChange={(e) => setStreet(e.target.value)} />
+                    {viaCEP.error && <Badge variant="danger">{viaCEP.error}</Badge>}
+                    <Input
+                        label="Logradouro"
+                        value={street}
+                        onChange={(e) => setStreet(e.target.value)}
+                    />
                     <Stack direction="horizontal" gap={2}>
-                        <Input label="Cidade" value={city} onChange={(e) => setCity(e.target.value)} />
+                        <Input
+                            label="Cidade"
+                            value={city}
+                            onChange={(e) => setCity(e.target.value)}
+                        />
                         <Input label="UF" value={uf} onChange={(e) => setUf(e.target.value)} />
                     </Stack>
                 </Stack>

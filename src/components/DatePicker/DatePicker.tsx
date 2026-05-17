@@ -2,8 +2,10 @@ import { forwardRef } from "react";
 import type { InputHTMLAttributes } from "react";
 import { Input } from "@/components/Input";
 
-export interface DatePickerProps
-    extends Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "value" | "onChange"> {
+export interface DatePickerProps extends Omit<
+    InputHTMLAttributes<HTMLInputElement>,
+    "type" | "value" | "onChange"
+> {
     /** ISO date string (`YYYY-MM-DD`) or empty. */
     value: string;
     onChange: (value: string) => void;

@@ -14,9 +14,9 @@
 import { createWebSocket } from "tempest-react-sdk";
 
 const socket = createWebSocket<ChatEvent>(`${API}/chat`, {
-    pingInterval: 30_000,
-    onOpen: () => console.log("ws open"),
-    onMessage: ({ data }) => render(data),
+  pingInterval: 30_000,
+  onOpen: () => console.log("ws open"),
+  onMessage: ({ data }) => render(data),
 });
 
 socket.send(JSON.stringify({ text: "hi" }));
@@ -33,15 +33,15 @@ socket.close();
 import { useWebSocket } from "tempest-react-sdk";
 
 function Chat() {
-    const ws = useWebSocket<ChatEvent>(`${API}/chat`, {
-        pingInterval: 30_000,
-        onMessage: ({ data }) => addMessage(data),
-    });
-    return (
-        <button disabled={ws.status !== "open"} onClick={() => ws.send("hi")}>
-            Enviar
-        </button>
-    );
+  const ws = useWebSocket<ChatEvent>(`${API}/chat`, {
+    pingInterval: 30_000,
+    onMessage: ({ data }) => addMessage(data),
+  });
+  return (
+    <button disabled={ws.status !== "open"} onClick={() => ws.send("hi")}>
+      Enviar
+    </button>
+  );
 }
 ```
 

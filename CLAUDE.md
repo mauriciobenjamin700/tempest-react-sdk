@@ -22,6 +22,7 @@ SDK público da Tempest com componentes React, hooks e integrações reutilizáv
 - Changesets para versionamento + release
 
 Peer deps **opcionais** (apps consomem só o que precisam):
+
 - `@tanstack/react-query`, `zod`, `zustand`, `dexie`, `react-hook-form`, `lucide-react`
 
 ## Estrutura

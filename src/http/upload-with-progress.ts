@@ -45,9 +45,7 @@ function parseErrorBody(raw: string): unknown {
  *
  * @returns The parsed JSON response, or the raw text when the response is not JSON.
  */
-export function uploadWithProgress<T = unknown>(
-    options: UploadWithProgressOptions,
-): Promise<T> {
+export function uploadWithProgress<T = unknown>(options: UploadWithProgressOptions): Promise<T> {
     const {
         url,
         body,
@@ -104,8 +102,8 @@ export function uploadWithProgress<T = unknown>(
                 const errorBody = parseErrorBody(xhr.responseText);
                 const detail =
                     (typeof errorBody === "object" && errorBody !== null
-                        ? (errorBody as Record<string, unknown>).detail ??
-                          (errorBody as Record<string, unknown>).message
+                        ? ((errorBody as Record<string, unknown>).detail ??
+                          (errorBody as Record<string, unknown>).message)
                         : undefined) ?? `Erro ${xhr.status}`;
                 const error: ApiError = {
                     status: xhr.status,

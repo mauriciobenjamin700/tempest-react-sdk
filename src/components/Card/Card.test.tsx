@@ -9,7 +9,11 @@ describe("Card", () => {
     });
 
     it("renders title + actions when provided", () => {
-        render(<Card title="t" actions={<span>a</span>}>body</Card>);
+        render(
+            <Card title="t" actions={<span>a</span>}>
+                body
+            </Card>,
+        );
         expect(screen.getByText("t")).toBeInTheDocument();
         expect(screen.getByText("a")).toBeInTheDocument();
         expect(screen.getByText("body")).toBeInTheDocument();

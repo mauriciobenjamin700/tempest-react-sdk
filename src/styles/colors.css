@@ -47,8 +47,8 @@
     --tempest-space-8: 32px;
 
     /* Font */
-    --tempest-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-        "Helvetica Neue", Arial, sans-serif;
+    --tempest-font-sans:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --tempest-font-mono: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
 
     /* Z-index */

@@ -9,12 +9,19 @@ export function ThemeI18nSection() {
             <h3>Tema + i18n</h3>
             <p className="description">
                 Troca light/dark/system atualiza <code>data-tempest-theme</code> e todas as
-                variáveis CSS. i18n persistido em localStorage; <code>html[lang]</code> sincronizado.
+                variáveis CSS. i18n persistido em localStorage; <code>html[lang]</code>{" "}
+                sincronizado.
             </p>
 
             <div className="gallery-row">
                 <div>
-                    <div style={{ fontSize: 12, color: "var(--tempest-text-muted)", marginBottom: 6 }}>
+                    <div
+                        style={{
+                            fontSize: 12,
+                            color: "var(--tempest-text-muted)",
+                            marginBottom: 6,
+                        }}
+                    >
                         Tema
                     </div>
                     <div className="theme-toggle-group">
@@ -34,7 +41,13 @@ export function ThemeI18nSection() {
                 </div>
 
                 <div>
-                    <div style={{ fontSize: 12, color: "var(--tempest-text-muted)", marginBottom: 6 }}>
+                    <div
+                        style={{
+                            fontSize: 12,
+                            color: "var(--tempest-text-muted)",
+                            marginBottom: 6,
+                        }}
+                    >
                         Idioma
                     </div>
                     <div className="theme-toggle-group">
@@ -57,7 +70,8 @@ export function ThemeI18nSection() {
             <p>{i18n.plural("gallery.notifications", 1)}</p>
             <p>{i18n.plural("gallery.notifications", 5)}</p>
             <p>
-                Número: <code>{i18n.formatNumber(1234.56, { style: "currency", currency: "BRL" })}</code>
+                Número:{" "}
+                <code>{i18n.formatNumber(1234.56, { style: "currency", currency: "BRL" })}</code>
             </p>
             <p>
                 Data: <code>{i18n.formatDate(new Date(), { dateStyle: "full" })}</code>

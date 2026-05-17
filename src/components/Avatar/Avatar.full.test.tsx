@@ -10,9 +10,7 @@ describe("Avatar — full", () => {
     });
 
     it("falls back to initials when image errors", () => {
-        const { container } = render(
-            <Avatar src="https://bad/x.png" name="Maria Silva" />,
-        );
+        const { container } = render(<Avatar src="https://bad/x.png" name="Maria Silva" />);
         const img = container.querySelector("img");
         fireEvent.error(img as HTMLImageElement);
         expect(screen.getByText("MS")).toBeInTheDocument();

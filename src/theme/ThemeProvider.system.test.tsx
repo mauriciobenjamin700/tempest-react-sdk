@@ -15,7 +15,10 @@ beforeAll(() => {
             addEventListener: (_name: string, listener: (event: MediaQueryListEvent) => void) => {
                 mediaListeners.push(listener);
             },
-            removeEventListener: (_name: string, listener: (event: MediaQueryListEvent) => void) => {
+            removeEventListener: (
+                _name: string,
+                listener: (event: MediaQueryListEvent) => void,
+            ) => {
                 mediaListeners = mediaListeners.filter((l) => l !== listener);
             },
             addListener: vi.fn(),

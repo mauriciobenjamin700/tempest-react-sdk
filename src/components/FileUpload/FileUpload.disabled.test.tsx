@@ -5,9 +5,7 @@ import { FileUpload } from "./FileUpload";
 describe("FileUpload disabled + keyboard", () => {
     it("does not accept files when disabled", () => {
         const onChange = vi.fn();
-        const { container } = render(
-            <FileUpload value={[]} onChange={onChange} disabled />,
-        );
+        const { container } = render(<FileUpload value={[]} onChange={onChange} disabled />);
         const dropzone = container.querySelector('[role="button"]') as HTMLElement;
         fireEvent.dragEnter(dropzone);
         fireEvent.drop(dropzone, {

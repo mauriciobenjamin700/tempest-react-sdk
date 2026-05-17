@@ -49,7 +49,9 @@ export const Radio = forwardRef<HTMLInputElement, RadioProps>(function Radio(
     }
 
     return (
-        <label className={cn(styles.wrapper, resolvedDisabled && styles.disabled, wrapperClassName)}>
+        <label
+            className={cn(styles.wrapper, resolvedDisabled && styles.disabled, wrapperClassName)}
+        >
             <input
                 ref={ref}
                 type="radio"
@@ -128,4 +130,3 @@ export function RadioGroup({
         </RadioGroupContext.Provider>
     );
 }
-

@@ -18,13 +18,13 @@ End-to-end de notificações push. O SDK lida com a parte browser (permissão, `
 import { registerServiceWorker, skipWaiting } from "tempest-react-sdk";
 
 registerServiceWorker({
-    url: "/sw.js",
-    onUpdate: (waiting) => {
-        if (confirm("Nova versão disponível. Recarregar?")) {
-            skipWaiting(waiting);
-            window.location.reload();
-        }
-    },
+  url: "/sw.js",
+  onUpdate: (waiting) => {
+    if (confirm("Nova versão disponível. Recarregar?")) {
+      skipWaiting(waiting);
+      window.location.reload();
+    }
+  },
 });
 ```
 
@@ -34,13 +34,13 @@ registerServiceWorker({
 import { usePushSubscription, Button } from "tempest-react-sdk";
 
 const push = usePushSubscription({
-    vapidPublicKey: import.meta.env.VITE_VAPID_PUBLIC_KEY,
-    onSubscribe: (sub) => api.post("/webpush/subscribe", { body: sub }),
-    onUnsubscribe: () => api.delete("/webpush/my"),
+  vapidPublicKey: import.meta.env.VITE_VAPID_PUBLIC_KEY,
+  onSubscribe: (sub) => api.post("/webpush/subscribe", { body: sub }),
+  onUnsubscribe: () => api.delete("/webpush/my"),
 });
 
 <Button loading={push.loading} onClick={() => push.subscribe()}>
-    {push.subscribed ? "Desinscrever" : "Receber notificações"}
+  {push.subscribed ? "Desinscrever" : "Receber notificações"}
 </Button>;
 ```
 
@@ -53,17 +53,17 @@ Dentro do **seu** service worker, importe os handlers:
 ```ts
 /// <reference lib="webworker" />
 import {
-    installPushHandler,
-    installNotificationClickHandler,
-    installSkipWaitingListener,
+  installPushHandler,
+  installNotificationClickHandler,
+  installSkipWaitingListener,
 } from "tempest-react-sdk";
 
 installSkipWaitingListener();
 
 installPushHandler({
-    defaultTitle: "Tempest",
-    defaultIcon: "/icons/Logo.png",
-    transform: (payload) => (payload.tag === "silent-ping" ? null : payload),
+  defaultTitle: "Tempest",
+  defaultIcon: "/icons/Logo.png",
+  transform: (payload) => (payload.tag === "silent-ping" ? null : payload),
 });
 
 installNotificationClickHandler();

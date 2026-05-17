@@ -4,25 +4,25 @@ Conjunto de hooks granulares pra evitar reescrever wrappers de DOM API em cada a
 
 ## Lista
 
-| Hook | O que faz |
-|------|-----------|
-| `useDebounce(value, delay?)` | Retorna o valor estabilizado após `delay` ms sem mudanças. |
-| `usePagination(initialPage?, initialSize?)` | Estado `{ page, size, setPage, setSize, reset }`. |
-| `useClientFilter(items, search, keysOrPredicate)` | Filtro client-side por keys ou predicado. |
-| `useMediaQuery(query)` | Subscreve `matchMedia` e re-renderiza ao mudar. |
-| `useOnline()` | `navigator.onLine` reativo. |
-| `useDocumentVisibility()` | `document.visibilityState` reativo. |
-| `useIntersectionObserver(ref, opts?)` | `IntersectionObserverEntry` ou `null`. |
-| `useResizeObserver(ref)` | `{ width, height }` da referência. |
-| `useClipboard(opts?)` | `{ copied, copy, reset }` com TTL configurável. |
-| `useKeyboardShortcut(shortcut, handler, opts?)` | Atalho global; aceita `mod` (Ctrl/Cmd). |
-| `useBeforeInstallPrompt()` | PWA install prompt diferido. |
-| `useIdle(timeout?)` | True quando usuário ocioso. |
-| `useGeolocation(opts?)` | Position + erro + loading. |
-| `useScrollLock(active)` | Lock de `body.overflow`. |
-| `useFocusTrap(ref, active)` | Confina Tab dentro do container. |
-| `useStableCallback(fn)` | Ref estável que chama o callback atual. |
-| `useDeepMemo(value)` | Memoização com igualdade estrutural. |
+| Hook                                              | O que faz                                                  |
+| ------------------------------------------------- | ---------------------------------------------------------- |
+| `useDebounce(value, delay?)`                      | Retorna o valor estabilizado após `delay` ms sem mudanças. |
+| `usePagination(initialPage?, initialSize?)`       | Estado `{ page, size, setPage, setSize, reset }`.          |
+| `useClientFilter(items, search, keysOrPredicate)` | Filtro client-side por keys ou predicado.                  |
+| `useMediaQuery(query)`                            | Subscreve `matchMedia` e re-renderiza ao mudar.            |
+| `useOnline()`                                     | `navigator.onLine` reativo.                                |
+| `useDocumentVisibility()`                         | `document.visibilityState` reativo.                        |
+| `useIntersectionObserver(ref, opts?)`             | `IntersectionObserverEntry` ou `null`.                     |
+| `useResizeObserver(ref)`                          | `{ width, height }` da referência.                         |
+| `useClipboard(opts?)`                             | `{ copied, copy, reset }` com TTL configurável.            |
+| `useKeyboardShortcut(shortcut, handler, opts?)`   | Atalho global; aceita `mod` (Ctrl/Cmd).                    |
+| `useBeforeInstallPrompt()`                        | PWA install prompt diferido.                               |
+| `useIdle(timeout?)`                               | True quando usuário ocioso.                                |
+| `useGeolocation(opts?)`                           | Position + erro + loading.                                 |
+| `useScrollLock(active)`                           | Lock de `body.overflow`.                                   |
+| `useFocusTrap(ref, active)`                       | Confina Tab dentro do container.                           |
+| `useStableCallback(fn)`                           | Ref estável que chama o callback atual.                    |
+| `useDeepMemo(value)`                              | Memoização com igualdade estrutural.                       |
 
 ## Exemplos curtos
 
@@ -32,8 +32,8 @@ Conjunto de hooks granulares pra evitar reescrever wrappers de DOM API em cada a
 import { useOnline, Badge } from "tempest-react-sdk";
 
 function NetworkPill() {
-    const online = useOnline();
-    return <Badge variant={online ? "success" : "danger"}>{online ? "online" : "offline"}</Badge>;
+  const online = useOnline();
+  return <Badge variant={online ? "success" : "danger"}>{online ? "online" : "offline"}</Badge>;
 }
 ```
 
@@ -62,7 +62,7 @@ return <div ref={ref}>{entry?.isIntersecting && <HeavyChart />}</div>;
 const { copied, copy } = useClipboard();
 
 <Button onClick={() => copy("npm install tempest-react-sdk")}>
-    {copied ? "Copiado!" : "Copiar"}
+  {copied ? "Copiado!" : "Copiar"}
 </Button>;
 ```
 

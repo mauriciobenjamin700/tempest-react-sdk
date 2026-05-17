@@ -47,11 +47,7 @@ export function FormFieldsSection() {
                     onChange={(e) => setBio(e.target.value)}
                     helperText={`${bio.length}/280`}
                 />
-                <SearchBar
-                    value={search}
-                    onChange={setSearch}
-                    placeholder="Buscar usuários…"
-                />
+                <SearchBar value={search} onChange={setSearch} placeholder="Buscar usuários…" />
             </div>
         </section>
     );

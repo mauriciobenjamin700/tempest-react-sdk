@@ -8,7 +8,10 @@ class EventSourceMock {
     onerror: ((event: Event) => void) | null = null;
     addEventListener = vi.fn();
     close = vi.fn();
-    constructor(public url: string, public init?: EventSourceInit) {}
+    constructor(
+        public url: string,
+        public init?: EventSourceInit,
+    ) {}
 }
 
 describe("useEventStream", () => {

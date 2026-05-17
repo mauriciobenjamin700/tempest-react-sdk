@@ -14,13 +14,10 @@ export function IntegrationsSection() {
     const [streamEnabled, setStreamEnabled] = useState(false);
     const pushSupported = isPushSupported();
 
-    const stream = useEventStream<{ message: string }>(
-        "https://sse.dev/test?interval=2",
-        {
-            enabled: streamEnabled,
-            onMessage: ({ data }) => toast.info(String(data?.message ?? data)),
-        },
-    );
+    const stream = useEventStream<{ message: string }>("https://sse.dev/test?interval=2", {
+        enabled: streamEnabled,
+        onMessage: ({ data }) => toast.info(String(data?.message ?? data)),
+    });
 
     return (
         <section className="gallery-section" id="integrations">
@@ -33,7 +30,8 @@ export function IntegrationsSection() {
             <div className="gallery-grid">
                 <Card title="SSE — Server-Sent Events">
                     <p style={{ marginTop: 0, fontSize: 13 }}>
-                        Status: <Badge variant={statusVariant(stream.status)}>{stream.status}</Badge>
+                        Status:{" "}
+                        <Badge variant={statusVariant(stream.status)}>{stream.status}</Badge>
                     </p>
                     <Button
                         variant={streamEnabled ? "danger" : "primary"}

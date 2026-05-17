@@ -13,7 +13,9 @@
     background-color: var(--tempest-bg);
     color: var(--tempest-text);
     font-size: 14px;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease;
 }
 
 .input:focus {

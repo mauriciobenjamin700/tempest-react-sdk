@@ -11,8 +11,8 @@ import { validateForm } from "tempest-react-sdk";
 
 const result = validateForm(schema, values);
 if (!result.success) {
-    setErrors(result.errors); // Record<path, message>
-    return;
+  setErrors(result.errors); // Record<path, message>
+  return;
 }
 await save(result.data);
 ```
@@ -35,7 +35,7 @@ const form = useForm({ resolver: zodResolver(loginSchema) });
 ```tsx
 const form = useZodForm(loginSchema, { defaultValues: { email: "", password: "" } });
 <form onSubmit={form.handleSubmit(login)}>
-    <input {...form.register("email")} />
+  <input {...form.register("email")} />
 </form>;
 ```
 

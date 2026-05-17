@@ -8,7 +8,9 @@ describe("ThemeProvider persistence", () => {
 
     it("persists user choice in localStorage", () => {
         const wrapper = ({ children }: { children: ReactNode }) => (
-            <ThemeProvider defaultTheme="light" storageKey="t">{children}</ThemeProvider>
+            <ThemeProvider defaultTheme="light" storageKey="t">
+                {children}
+            </ThemeProvider>
         );
         const { result } = renderHook(() => useTheme(), { wrapper });
         act(() => result.current.setTheme("dark"));
@@ -18,7 +20,9 @@ describe("ThemeProvider persistence", () => {
     it("reads stored choice on mount", () => {
         window.localStorage.setItem("t2", "dark");
         const wrapper = ({ children }: { children: ReactNode }) => (
-            <ThemeProvider defaultTheme="light" storageKey="t2">{children}</ThemeProvider>
+            <ThemeProvider defaultTheme="light" storageKey="t2">
+                {children}
+            </ThemeProvider>
         );
         const { result } = renderHook(() => useTheme(), { wrapper });
         expect(result.current.theme).toBe("dark");

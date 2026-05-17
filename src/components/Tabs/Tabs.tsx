@@ -47,10 +47,7 @@ export function Tabs({
 
     return (
         <div className={className}>
-            <div
-                role="tablist"
-                className={cn(styles.tablist, variant === "pill" && styles.pill)}
-            >
+            <div role="tablist" className={cn(styles.tablist, variant === "pill" && styles.pill)}>
                 {items.map((item) => {
                     const isActive = item.id === active?.id;
                     return (

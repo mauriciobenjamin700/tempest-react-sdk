@@ -1,11 +1,4 @@
-type ClassValue =
-    | string
-    | number
-    | bigint
-    | boolean
-    | null
-    | undefined
-    | ClassValue[];
+type ClassValue = string | number | bigint | boolean | null | undefined | ClassValue[];
 
 /**
  * Tiny classnames helper. Accepts strings, falsy values and nested arrays.

@@ -17,7 +17,12 @@ describe("ErrorBoundary reset", () => {
             const [boom, setBoom] = useState(true);
             return (
                 <>
-                    <button onClick={() => { setBoom(false); setTick((t) => t + 1); }}>
+                    <button
+                        onClick={() => {
+                            setBoom(false);
+                            setTick((t) => t + 1);
+                        }}
+                    >
                         reset
                     </button>
                     <ErrorBoundary resetKeys={[tick]} fallback={<span>caught</span>}>
@@ -44,4 +49,3 @@ describe("ErrorBoundary reset", () => {
         spy.mockRestore();
     });
 });
-

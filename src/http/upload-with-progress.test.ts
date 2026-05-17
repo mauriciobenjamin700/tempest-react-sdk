@@ -47,9 +47,9 @@ describe("uploadWithProgress", () => {
             });
         }
         vi.stubGlobal("XMLHttpRequest", XHRFail);
-        await expect(
-            uploadWithProgress({ url: "/u", body: new FormData() }),
-        ).rejects.toMatchObject({ status: 422, detail: "bad" });
+        await expect(uploadWithProgress({ url: "/u", body: new FormData() })).rejects.toMatchObject(
+            { status: 422, detail: "bad" },
+        );
         vi.unstubAllGlobals();
     });
 });

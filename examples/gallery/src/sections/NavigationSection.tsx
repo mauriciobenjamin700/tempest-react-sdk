@@ -1,11 +1,5 @@
 import { useState } from "react";
-import {
-    Breadcrumbs,
-    Button,
-    Drawer,
-    Tabs,
-    Tooltip,
-} from "tempest-react-sdk";
+import { Breadcrumbs, Button, Drawer, Tabs, Tooltip } from "tempest-react-sdk";
 
 export function NavigationSection() {
     const [drawer, setDrawer] = useState(false);

@@ -24,10 +24,18 @@
     animation: tempest-toast-in 0.18s ease-out;
 }
 
-.success { border-left: 4px solid var(--tempest-success); }
-.warning { border-left: 4px solid var(--tempest-warning); }
-.error { border-left: 4px solid var(--tempest-danger); }
-.info { border-left: 4px solid var(--tempest-info); }
+.success {
+    border-left: 4px solid var(--tempest-success);
+}
+.warning {
+    border-left: 4px solid var(--tempest-warning);
+}
+.error {
+    border-left: 4px solid var(--tempest-danger);
+}
+.info {
+    border-left: 4px solid var(--tempest-info);
+}
 
 .title {
     font-weight: 600;
@@ -59,6 +67,12 @@
 }
 
 @keyframes tempest-toast-in {
-    from { transform: translateX(20px); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
+    from {
+        transform: translateX(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
 }

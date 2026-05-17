@@ -9,7 +9,10 @@ class IOMock {
     disconnect = vi.fn();
     constructor(public callback: IntersectionObserverCallback) {}
     trigger(entries: Partial<IntersectionObserverEntry>[]): void {
-        this.callback(entries as IntersectionObserverEntry[], this as unknown as IntersectionObserver);
+        this.callback(
+            entries as IntersectionObserverEntry[],
+            this as unknown as IntersectionObserver,
+        );
     }
 }
 

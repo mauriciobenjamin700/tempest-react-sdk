@@ -8,28 +8,28 @@ Wrapper sobre `navigator.share` com resultado uniforme. Permite renderizar fallb
 import { share, isShareSupported } from "tempest-react-sdk";
 
 async function shareEvent() {
-    const result = await share({
-        title: "Tempest",
-        text: "Confira esse evento",
-        url: window.location.href,
-    });
+  const result = await share({
+    title: "Tempest",
+    text: "Confira esse evento",
+    url: window.location.href,
+  });
 
-    if (result.unsupported) {
-        copyLinkInstead();
-    } else if (result.cancelled) {
-        // usuário fechou o sheet — silencioso
-    } else if (result.shared) {
-        toast.success("Compartilhado");
-    }
+  if (result.unsupported) {
+    copyLinkInstead();
+  } else if (result.cancelled) {
+    // usuário fechou o sheet — silencioso
+  } else if (result.shared) {
+    toast.success("Compartilhado");
+  }
 }
 ```
 
-| Campo | Significado |
-|-------|-------------|
-| `shared` | `navigator.share` resolveu OK |
+| Campo         | Significado                                     |
+| ------------- | ----------------------------------------------- |
+| `shared`      | `navigator.share` resolveu OK                   |
 | `unsupported` | API ausente ou payload (arquivos) não suportado |
-| `cancelled` | Usuário fechou o sheet (`AbortError`) |
-| `error` | Outros erros — capture pra telemetria |
+| `cancelled`   | Usuário fechou o sheet (`AbortError`)           |
+| `error`       | Outros erros — capture pra telemetria           |
 
 ## Arquivos
 

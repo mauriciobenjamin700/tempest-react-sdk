@@ -17,10 +17,7 @@ import { zodResolver } from "./zod-resolver";
 export function useZodForm<
     TSchema extends z.ZodTypeAny,
     TValues extends FieldValues = z.infer<TSchema> & FieldValues,
->(
-    schema: TSchema,
-    options: Omit<UseFormProps<TValues>, "resolver"> = {},
-): UseFormReturn<TValues> {
+>(schema: TSchema, options: Omit<UseFormProps<TValues>, "resolver"> = {}): UseFormReturn<TValues> {
     return useForm<TValues>({
         ...options,
         resolver: zodResolver(schema) as unknown as UseFormProps<TValues>["resolver"],

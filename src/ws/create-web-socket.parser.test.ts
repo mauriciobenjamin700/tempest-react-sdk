@@ -44,9 +44,7 @@ describe("createWebSocket — parser + clean close", () => {
             onMessage,
         });
         WSMock.last?.onmessage?.({ data: "hello" } as MessageEvent);
-        expect(onMessage).toHaveBeenCalledWith(
-            expect.objectContaining({ data: "parsed:hello" }),
-        );
+        expect(onMessage).toHaveBeenCalledWith(expect.objectContaining({ data: "parsed:hello" }));
         controller.close();
         vi.unstubAllGlobals();
     });
@@ -56,9 +54,7 @@ describe("createWebSocket — parser + clean close", () => {
         const onMessage = vi.fn();
         const controller = createWebSocket("ws://x", { onMessage });
         WSMock.last?.onmessage?.({ data: "{invalid" } as MessageEvent);
-        expect(onMessage).toHaveBeenCalledWith(
-            expect.objectContaining({ data: "{invalid" }),
-        );
+        expect(onMessage).toHaveBeenCalledWith(expect.objectContaining({ data: "{invalid" }));
         controller.close();
         vi.unstubAllGlobals();
     });

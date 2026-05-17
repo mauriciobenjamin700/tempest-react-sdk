@@ -1,11 +1,7 @@
 import { renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it } from "vitest";
-import {
-    FeatureFlagsProvider,
-    useFeatureFlag,
-    useFlagValue,
-} from "./FeatureFlagsProvider";
+import { FeatureFlagsProvider, useFeatureFlag, useFlagValue } from "./FeatureFlagsProvider";
 import type { FeatureFlagsAdapter } from "./types";
 
 const adapter: FeatureFlagsAdapter = {

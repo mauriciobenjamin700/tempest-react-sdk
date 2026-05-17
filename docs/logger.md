@@ -31,20 +31,20 @@ refresh.warn("retry"); // "[auth:refresh] retry"
 import { createLogger, type LoggerSink } from "tempest-react-sdk";
 
 const datadogSink: LoggerSink = (entry) => {
-    fetch("https://datadog/intake", {
-        method: "POST",
-        body: JSON.stringify({
-            level: entry.level,
-            message: entry.message,
-            context: entry.context,
-            ts: entry.timestamp,
-        }),
-    });
+  fetch("https://datadog/intake", {
+    method: "POST",
+    body: JSON.stringify({
+      level: entry.level,
+      message: entry.message,
+      context: entry.context,
+      ts: entry.timestamp,
+    }),
+  });
 };
 
 const log = createLogger({
-    level: "info",
-    sinks: [datadogSink],
+  level: "info",
+  sinks: [datadogSink],
 });
 ```
 

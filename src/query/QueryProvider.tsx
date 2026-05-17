@@ -17,23 +17,24 @@ export interface QueryProviderProps {
  * sane SDK defaults (5-minute stale time, 30-minute gc time, 1 retry).
  */
 export function QueryProvider({ children, client, defaultOptions }: QueryProviderProps) {
-    const [internalClient] = useState<QueryClient>(() =>
-        client ??
-        new QueryClient({
-            defaultOptions: {
-                queries: {
-                    staleTime: STALE_TIME.DEFAULT,
-                    gcTime: CACHE_TIME.DEFAULT,
-                    retry: 1,
-                    refetchOnWindowFocus: false,
-                    ...(defaultOptions?.queries ?? {}),
+    const [internalClient] = useState<QueryClient>(
+        () =>
+            client ??
+            new QueryClient({
+                defaultOptions: {
+                    queries: {
+                        staleTime: STALE_TIME.DEFAULT,
+                        gcTime: CACHE_TIME.DEFAULT,
+                        retry: 1,
+                        refetchOnWindowFocus: false,
+                        ...(defaultOptions?.queries ?? {}),
+                    },
+                    mutations: {
+                        retry: 0,
+                        ...(defaultOptions?.mutations ?? {}),
+                    },
                 },
-                mutations: {
-                    retry: 0,
-                    ...(defaultOptions?.mutations ?? {}),
-                },
-            },
-        }),
+            }),
     );
 
     return <QueryClientProvider client={internalClient}>{children}</QueryClientProvider>;

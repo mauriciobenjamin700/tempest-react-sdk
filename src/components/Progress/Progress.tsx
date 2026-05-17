@@ -45,10 +45,7 @@ export function Progress({
                 className={cn(styles.bar, indeterminate && styles.indeterminate)}
             >
                 <div
-                    className={cn(
-                        styles.fill,
-                        variant !== "primary" && styles[variant],
-                    )}
+                    className={cn(styles.fill, variant !== "primary" && styles[variant])}
                     style={{ width: indeterminate ? undefined : `${pct}%` }}
                 />
             </div>

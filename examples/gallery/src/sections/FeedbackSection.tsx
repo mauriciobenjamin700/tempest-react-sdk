@@ -36,7 +36,9 @@ export function FeedbackSection() {
                 </Card>
                 <Card title="Loading">
                     <Spinner size="md" />
-                    <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div
+                        style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}
+                    >
                         <Skeleton variant="text" width="80%" />
                         <Skeleton variant="text" width="60%" />
                         <Skeleton variant="rect" width="100%" height={40} />

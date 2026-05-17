@@ -5,7 +5,9 @@ export type DocumentVisibility = "visible" | "hidden";
 /** Subscribe to `document.visibilityState`. Returns `"visible"` during SSR. */
 export function useDocumentVisibility(): DocumentVisibility {
     const [state, setState] = useState<DocumentVisibility>(() =>
-        typeof document === "undefined" ? "visible" : (document.visibilityState as DocumentVisibility),
+        typeof document === "undefined"
+            ? "visible"
+            : (document.visibilityState as DocumentVisibility),
     );
 
     useEffect(() => {

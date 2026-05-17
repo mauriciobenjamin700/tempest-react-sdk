@@ -22,10 +22,18 @@
     animation: tempest-modal-in 0.15s ease-out;
 }
 
-.sm { max-width: 400px; }
-.md { max-width: 560px; }
-.lg { max-width: 800px; }
-.xl { max-width: 1024px; }
+.sm {
+    max-width: 400px;
+}
+.md {
+    max-width: 560px;
+}
+.lg {
+    max-width: 800px;
+}
+.xl {
+    max-width: 1024px;
+}
 
 .header {
     display: flex;
@@ -71,11 +79,21 @@
 }
 
 @keyframes tempest-fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }
 
 @keyframes tempest-modal-in {
-    from { opacity: 0; transform: translateY(8px) scale(0.98); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }

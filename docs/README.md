@@ -4,29 +4,29 @@ Material complementar ao `README.md` da raiz. Cada arquivo abaixo descreve um m�
 
 ## Índice
 
-| Módulo | Documento | Diagrama |
-|--------|-----------|----------|
-| **Gallery (demo vivo)** | [gallery.md](./gallery.md) | — |
-| Arquitetura geral | [architecture.md](./architecture.md) | [architecture.drawio](./diagrams/architecture.drawio) |
-| HTTP + retry + parse | [http.md](./http.md) | [request-flow.drawio](./diagrams/request-flow.drawio) |
-| SSE | [sse.md](./sse.md) | — |
-| WebSocket | [websocket.md](./websocket.md) | — |
-| Web Push + Service Worker | [push.md](./push.md) | [push-flow.drawio](./diagrams/push-flow.drawio) |
-| Auth + Guard | [auth.md](./auth.md) | — |
-| Query (TanStack) | [query.md](./query.md) | — |
-| Offline (IndexedDB) | [offline.md](./offline.md) | — |
-| Forms (zod) | [forms.md](./forms.md) | — |
-| Forms BR (CPF/CNPJ/CEP/Money/ViaCEP) | [forms-br.md](./forms-br.md) | — |
-| Hooks utilitários | [hooks.md](./hooks.md) | — |
-| Tema (dark/light) | [theme.md](./theme.md) | — |
-| i18n | [i18n.md](./i18n.md) | — |
-| Componentes UI | [components.md](./components.md) | — |
-| Áudio | [audio.md](./audio.md) | — |
-| Error Boundary | [error-boundary.md](./error-boundary.md) | — |
-| Telemetry | [telemetry.md](./telemetry.md) | — |
-| Feature Flags | [feature-flags.md](./feature-flags.md) | — |
-| Logger | [logger.md](./logger.md) | — |
-| Web Share | [share.md](./share.md) | — |
+| Módulo                               | Documento                                | Diagrama                                              |
+| ------------------------------------ | ---------------------------------------- | ----------------------------------------------------- |
+| **Gallery (demo vivo)**              | [gallery.md](./gallery.md)               | —                                                     |
+| Arquitetura geral                    | [architecture.md](./architecture.md)     | [architecture.drawio](./diagrams/architecture.drawio) |
+| HTTP + retry + parse                 | [http.md](./http.md)                     | [request-flow.drawio](./diagrams/request-flow.drawio) |
+| SSE                                  | [sse.md](./sse.md)                       | —                                                     |
+| WebSocket                            | [websocket.md](./websocket.md)           | —                                                     |
+| Web Push + Service Worker            | [push.md](./push.md)                     | [push-flow.drawio](./diagrams/push-flow.drawio)       |
+| Auth + Guard                         | [auth.md](./auth.md)                     | —                                                     |
+| Query (TanStack)                     | [query.md](./query.md)                   | —                                                     |
+| Offline (IndexedDB)                  | [offline.md](./offline.md)               | —                                                     |
+| Forms (zod)                          | [forms.md](./forms.md)                   | —                                                     |
+| Forms BR (CPF/CNPJ/CEP/Money/ViaCEP) | [forms-br.md](./forms-br.md)             | —                                                     |
+| Hooks utilitários                    | [hooks.md](./hooks.md)                   | —                                                     |
+| Tema (dark/light)                    | [theme.md](./theme.md)                   | —                                                     |
+| i18n                                 | [i18n.md](./i18n.md)                     | —                                                     |
+| Componentes UI                       | [components.md](./components.md)         | —                                                     |
+| Áudio                                | [audio.md](./audio.md)                   | —                                                     |
+| Error Boundary                       | [error-boundary.md](./error-boundary.md) | —                                                     |
+| Telemetry                            | [telemetry.md](./telemetry.md)           | —                                                     |
+| Feature Flags                        | [feature-flags.md](./feature-flags.md)   | —                                                     |
+| Logger                               | [logger.md](./logger.md)                 | —                                                     |
+| Web Share                            | [share.md](./share.md)                   | —                                                     |
 
 ## Como editar os diagramas
 

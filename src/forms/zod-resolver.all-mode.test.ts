@@ -10,14 +10,8 @@ const schema = z.object({
 describe("zodResolver criteriaMode", () => {
     it("collects all issues when criteriaMode=all", async () => {
         const resolver = zodResolver(schema);
-        const result = await resolver(
-            { email: "no", age: 12 },
-            undefined,
-            { criteriaMode: "all" },
-        );
-        expect(Object.keys(result.errors)).toEqual(
-            expect.arrayContaining(["email", "age"]),
-        );
+        const result = await resolver({ email: "no", age: 12 }, undefined, { criteriaMode: "all" });
+        expect(Object.keys(result.errors)).toEqual(expect.arrayContaining(["email", "age"]));
     });
 
     it("uses _root for root-level errors", async () => {

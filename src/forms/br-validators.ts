@@ -55,7 +55,9 @@ export function validateCNPJ(value: string): boolean {
 
 /** Format an 11-digit Brazilian CEP-like value as `00000-000`. */
 export function formatCEP(value: string): string {
-    return digitsOnly(value).slice(0, 8).replace(/(\d{5})(\d)/, "$1-$2");
+    return digitsOnly(value)
+        .slice(0, 8)
+        .replace(/(\d{5})(\d)/, "$1-$2");
 }
 
 /** Format an unmasked CNPJ-shaped value as `00.000.000/0000-00`. */

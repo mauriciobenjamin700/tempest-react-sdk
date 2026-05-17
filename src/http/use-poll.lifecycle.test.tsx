@@ -16,9 +16,7 @@ describe("usePoll lifecycle", () => {
     it("stopWhen halts polling when predicate is true", async () => {
         let counter = 0;
         const factory = vi.fn(async () => ++counter);
-        renderHook(() =>
-            usePoll(factory, { interval: 5, stopWhen: (n: number) => n >= 2 }),
-        );
+        renderHook(() => usePoll(factory, { interval: 5, stopWhen: (n: number) => n >= 2 }));
         await waitFor(() => expect(factory.mock.calls.length).toBeGreaterThanOrEqual(2));
         const last = factory.mock.calls.length;
         await new Promise((r) => setTimeout(r, 30));

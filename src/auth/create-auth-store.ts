@@ -30,14 +30,9 @@ export interface CreateAuthStoreOptions<TUser> {
  * const useAuthStore = createAuthStore<UserResponse>();
  * const { user, token, logout } = useAuthStore();
  */
-export function createAuthStore<TUser>(
-    options: CreateAuthStoreOptions<TUser> = {},
-) {
+export function createAuthStore<TUser>(options: CreateAuthStoreOptions<TUser> = {}) {
     const name = options.name ?? "tempest-auth";
-    const storageImpl =
-        options.storage === "session"
-            ? () => sessionStorage
-            : () => localStorage;
+    const storageImpl = options.storage === "session" ? () => sessionStorage : () => localStorage;
 
     return create<AuthState<TUser>>()(
         persist(
@@ -45,11 +40,9 @@ export function createAuthStore<TUser>(
                 user: options.initialUser ?? null,
                 token: options.initialToken ?? null,
                 isAuthenticated: !!options.initialToken,
-                setSession: ({ user, token }) =>
-                    set({ user, token, isAuthenticated: true }),
+                setSession: ({ user, token }) => set({ user, token, isAuthenticated: true }),
                 setUser: (user) => set({ user }),
-                setToken: (token) =>
-                    set({ token, isAuthenticated: !!token }),
+                setToken: (token) => set({ token, isAuthenticated: !!token }),
                 logout: () => set({ user: null, token: null, isAuthenticated: false }),
             }),
             {

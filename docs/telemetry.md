@@ -7,9 +7,7 @@ Adapter genérico (`identify` / `track` / `captureException` / `flush`) que isol
 ```tsx
 import { TelemetryProvider, consoleTelemetryAdapter } from "tempest-react-sdk";
 
-<TelemetryProvider adapter={consoleTelemetryAdapter}>
-    {children}
-</TelemetryProvider>;
+<TelemetryProvider adapter={consoleTelemetryAdapter}>{children}</TelemetryProvider>;
 ```
 
 Em produção, substitua `consoleTelemetryAdapter` por um adapter sobre Sentry/Datadog/PostHog:
@@ -19,11 +17,12 @@ import * as Sentry from "@sentry/react";
 import type { TelemetryAdapter } from "tempest-react-sdk";
 
 export const sentryAdapter: TelemetryAdapter = {
-    init: () => Sentry.init({ dsn: import.meta.env.VITE_SENTRY_DSN }),
-    identify: (user) => Sentry.setUser(user ? { id: user.id, email: user.email } : null),
-    track: ({ name, properties }) => Sentry.addBreadcrumb({ category: "track", message: name, data: properties }),
-    captureException: (error, context) => Sentry.captureException(error, { extra: context }),
-    flush: () => Sentry.close(),
+  init: () => Sentry.init({ dsn: import.meta.env.VITE_SENTRY_DSN }),
+  identify: (user) => Sentry.setUser(user ? { id: user.id, email: user.email } : null),
+  track: ({ name, properties }) =>
+    Sentry.addBreadcrumb({ category: "track", message: name, data: properties }),
+  captureException: (error, context) => Sentry.captureException(error, { extra: context }),
+  flush: () => Sentry.close(),
 };
 ```
 
@@ -44,7 +43,7 @@ Retorna `null` quando o provider não está montado — UI não quebra em testes
 const telemetry = useTelemetry();
 
 <ErrorBoundary onError={(err, info) => telemetry?.captureException(err, info)}>
-    {children}
+  {children}
 </ErrorBoundary>;
 ```
 

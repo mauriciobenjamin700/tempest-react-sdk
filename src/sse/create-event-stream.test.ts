@@ -8,7 +8,10 @@ class EventSourceMock {
     onerror: ((event: Event) => void) | null = null;
     listeners: Record<string, (event: MessageEvent) => void> = {};
     closed = false;
-    constructor(public url: string, public init?: EventSourceInit) {
+    constructor(
+        public url: string,
+        public init?: EventSourceInit,
+    ) {
         EventSourceMock.instances.push(this);
     }
     addEventListener(name: string, listener: (event: MessageEvent) => void): void {
@@ -27,9 +30,7 @@ describe("createEventStream", () => {
         const instance = EventSourceMock.instances.at(-1)!;
         instance.onopen?.(new Event("open"));
         instance.onmessage?.({ data: JSON.stringify({ value: 1 }) } as MessageEvent);
-        expect(onMessage).toHaveBeenCalledWith(
-            expect.objectContaining({ data: { value: 1 } }),
-        );
+        expect(onMessage).toHaveBeenCalledWith(expect.objectContaining({ data: { value: 1 } }));
         controller.close();
         expect(instance.closed).toBe(true);
         vi.unstubAllGlobals();

@@ -7,7 +7,11 @@ function makeFile(name: string, size: number, type = "image/png"): File {
     return new File([new ArrayBuffer(size)], name, { type });
 }
 
-function Controlled({ onReject }: { onReject?: (rejected: { file: File; reason: string }[]) => void }) {
+function Controlled({
+    onReject,
+}: {
+    onReject?: (rejected: { file: File; reason: string }[]) => void;
+}) {
     const [files, setFiles] = useState<File[]>([]);
     return (
         <FileUpload

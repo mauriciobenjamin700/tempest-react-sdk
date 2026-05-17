@@ -11,13 +11,11 @@ import { useLocation } from "react-router-dom";
 const location = useLocation();
 
 <ErrorBoundary
-    resetKeys={[location.pathname]}
-    onError={(err, info) => reportToSentry(err, info)}
-    fallback={({ error, reset }) => (
-        <ErrorState description={error.message} onRetry={reset} />
-    )}
+  resetKeys={[location.pathname]}
+  onError={(err, info) => reportToSentry(err, info)}
+  fallback={({ error, reset }) => <ErrorState description={error.message} onRetry={reset} />}
 >
-    {children}
+  {children}
 </ErrorBoundary>;
 ```
 
@@ -30,7 +28,7 @@ import { useErrorHandler } from "tempest-react-sdk";
 
 const throwError = useErrorHandler();
 useEffect(() => {
-    socket.on("error", throwError);
+  socket.on("error", throwError);
 }, [throwError]);
 ```
 

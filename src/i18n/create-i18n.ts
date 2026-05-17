@@ -42,7 +42,12 @@ function interpolate(template: string, params?: InterpolationValues): string {
     });
 }
 
-function lookup(catalog: Catalog, locale: string, fallback: string | null, key: string): string | null {
+function lookup(
+    catalog: Catalog,
+    locale: string,
+    fallback: string | null,
+    key: string,
+): string | null {
     const direct = catalog[locale]?.[key];
     if (direct !== undefined) return direct;
     if (fallback) {
@@ -111,6 +116,10 @@ export function createI18n(options: CreateI18nOptions): I18n {
         formatNumber,
         formatDate,
         withLocale: (nextLocale) =>
-            createI18n({ locale: nextLocale, fallbackLocale: fallbackLocale ?? undefined, messages }),
+            createI18n({
+                locale: nextLocale,
+                fallbackLocale: fallbackLocale ?? undefined,
+                messages,
+            }),
     };
 }

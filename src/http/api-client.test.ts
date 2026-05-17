@@ -43,9 +43,7 @@ describe("createApiClient", () => {
     });
 
     it("returns undefined on 204", async () => {
-        const fetcher = vi
-            .fn()
-            .mockResolvedValue(new Response(null, { status: 204 }));
+        const fetcher = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
         const api = createApiClient({ baseURL: "https://api.example.com", fetcher });
         const result = await api.delete("/x");
         expect(result).toBeUndefined();

@@ -8,7 +8,7 @@ Interface mínima (`isEnabled`, `get`, `onChange`) que isola o app do provider d
 import { FeatureFlagsProvider, createInMemoryFlags } from "tempest-react-sdk";
 
 const flags = createInMemoryFlags({
-    initial: { "new-feed": true, "max_items": 50 },
+  initial: { "new-feed": true, max_items: 50 },
 });
 
 <FeatureFlagsProvider adapter={flags}>{children}</FeatureFlagsProvider>;
@@ -35,9 +35,9 @@ import { GrowthBook } from "@growthbook/growthbook";
 
 const gb = new GrowthBook();
 export const growthbookAdapter: FeatureFlagsAdapter = {
-    isEnabled: (key, defaultValue = false) => gb.isOn(key) ?? defaultValue,
-    get: (key, defaultValue) => gb.getFeatureValue(key, defaultValue),
-    onChange: (listener) => gb.subscribe(listener),
+  isEnabled: (key, defaultValue = false) => gb.isOn(key) ?? defaultValue,
+  get: (key, defaultValue) => gb.getFeatureValue(key, defaultValue),
+  onChange: (listener) => gb.subscribe(listener),
 };
 ```
 

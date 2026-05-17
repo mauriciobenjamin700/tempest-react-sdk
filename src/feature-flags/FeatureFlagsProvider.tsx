@@ -47,4 +47,3 @@ export function useFlagValue<T extends FlagValue = FlagValue>(key: string, defau
     const get = (): T => adapter.get<T>(key, defaultValue);
     return useSyncExternalStore(subscribe, get, get);
 }
-

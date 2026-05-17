@@ -8,11 +8,11 @@ Notificações sonoras (chime de mensagem, confirmação de pagamento, etc.). Us
 import { playAudio, useEventStream } from "tempest-react-sdk";
 
 useEventStream<StreamEvent>(`${API}/notifications`, {
-    onMessage: ({ data }) => {
-        if (data.type === "PAYMENT-SUCCESS") {
-            void playAudio("/audio/dinheiro.mp3", { volume: 0.5 });
-        }
-    },
+  onMessage: ({ data }) => {
+    if (data.type === "PAYMENT-SUCCESS") {
+      void playAudio("/audio/dinheiro.mp3", { volume: 0.5 });
+    }
+  },
 });
 ```
 
@@ -41,9 +41,9 @@ O SDK não embute áudios. Sirva em `/audio/*` (ou CDN) e passe a URL. Inspiraç
 
 ```ts
 export const AUDIOS = {
-    plim: "/audio/plim.wav",
-    dinheiro: "/audio/dinheiro.mp3",
-    notification: "/audio/bell_sound.wav",
+  plim: "/audio/plim.wav",
+  dinheiro: "/audio/dinheiro.mp3",
+  notification: "/audio/bell_sound.wav",
 };
 ```
 

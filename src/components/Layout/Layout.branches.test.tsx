@@ -9,14 +9,11 @@ describe("Layout branches", () => {
         expect(el.className).toContain(align);
     });
 
-    it.each(["start", "center", "end", "between"] as const)(
-        "Stack justify=%s",
-        (justify) => {
-            const { container } = render(<Stack justify={justify}>x</Stack>);
-            const el = container.firstChild as HTMLElement;
-            expect(el.className).toMatch(/justify/i);
-        },
-    );
+    it.each(["start", "center", "end", "between"] as const)("Stack justify=%s", (justify) => {
+        const { container } = render(<Stack justify={justify}>x</Stack>);
+        const el = container.firstChild as HTMLElement;
+        expect(el.className).toMatch(/justify/i);
+    });
 
     it("Stack horizontal direction wraps when wrap=true", () => {
         const { container } = render(

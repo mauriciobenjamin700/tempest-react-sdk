@@ -43,7 +43,11 @@ export function useGeolocation(options: UseGeolocationOptions = {}): Geolocation
         };
 
         if (watch) {
-            const watchId = navigator.geolocation.watchPosition(onSuccess, onError, positionOptions);
+            const watchId = navigator.geolocation.watchPosition(
+                onSuccess,
+                onError,
+                positionOptions,
+            );
             return () => navigator.geolocation.clearWatch(watchId);
         }
 

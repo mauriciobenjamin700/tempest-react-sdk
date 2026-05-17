@@ -13,8 +13,9 @@ export function ButtonsSection() {
         <section className="gallery-section" id="buttons">
             <h3>Buttons</h3>
             <p className="description">
-                Variantes <code>primary</code> / <code>secondary</code> / <code>danger</code> / <code>ghost</code>, três
-                tamanhos, estado de loading com spinner absoluto (não desloca o layout).
+                Variantes <code>primary</code> / <code>secondary</code> / <code>danger</code> /{" "}
+                <code>ghost</code>, três tamanhos, estado de loading com spinner absoluto (não
+                desloca o layout).
             </p>
 
             <div className="gallery-row">

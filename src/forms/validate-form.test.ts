@@ -22,7 +22,12 @@ describe("validateForm", () => {
     });
 
     it("dedupes multiple issues per path to first message", () => {
-        const stricter = z.object({ name: z.string().min(2).regex(/^[a-z]+$/) });
+        const stricter = z.object({
+            name: z
+                .string()
+                .min(2)
+                .regex(/^[a-z]+$/),
+        });
         const result = validateForm(stricter, { name: "" });
         expect(Object.keys(result.errors)).toEqual(["name"]);
     });

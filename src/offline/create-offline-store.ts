@@ -107,16 +107,13 @@ export function createOfflineStore<TItem, TKey extends string | number = string>
     async function list(owner?: string, options: ListOptions<TItem> = {}): Promise<TItem[]> {
         const { orderBy = keyPath, reverse = false, limit, offset, filter } = options;
 
-        let collection = ownerField && owner
-            ? table.where(ownerField).equals(owner)
-            : table.toCollection();
+        let collection =
+            ownerField && owner ? table.where(ownerField).equals(owner) : table.toCollection();
 
         if (filter) collection = collection.filter(filter);
 
         let items =
-            orderBy === keyPath
-                ? await collection.toArray()
-                : await collection.sortBy(orderBy);
+            orderBy === keyPath ? await collection.toArray() : await collection.sortBy(orderBy);
 
         if (reverse) items = items.reverse();
         if (offset) items = items.slice(offset);

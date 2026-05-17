@@ -28,7 +28,12 @@ describe("Table", () => {
     it("fires onRowClick", async () => {
         const onRowClick = vi.fn();
         render(
-            <Table columns={columns} data={rows} rowKey={(row) => row.id} onRowClick={onRowClick} />,
+            <Table
+                columns={columns}
+                data={rows}
+                rowKey={(row) => row.id}
+                onRowClick={onRowClick}
+            />,
         );
         await userEvent.click(screen.getByText("Alice"));
         expect(onRowClick).toHaveBeenCalledWith(rows[0]);

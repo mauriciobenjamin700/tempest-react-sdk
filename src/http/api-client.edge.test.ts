@@ -64,11 +64,7 @@ describe("createApiClient — edge cases", () => {
         const api = createApiClient({ baseURL: "https://x", fetcher });
         await api.put("/y", { body: { a: 1 } });
         await api.patch("/y", { body: { a: 2 } });
-        expect(
-            (fetcher.mock.calls[0][1] as RequestInit).method,
-        ).toBe("PUT");
-        expect(
-            (fetcher.mock.calls[1][1] as RequestInit).method,
-        ).toBe("PATCH");
+        expect((fetcher.mock.calls[0][1] as RequestInit).method).toBe("PUT");
+        expect((fetcher.mock.calls[1][1] as RequestInit).method).toBe("PATCH");
     });
 });

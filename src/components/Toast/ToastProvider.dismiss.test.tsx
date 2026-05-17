@@ -5,11 +5,7 @@ import { ToastProvider, useToast } from "./ToastProvider";
 
 function Trigger() {
     const toast = useToast();
-    return (
-        <button onClick={() => toast.warning("careful", { title: "Heads up" })}>
-            fire
-        </button>
-    );
+    return <button onClick={() => toast.warning("careful", { title: "Heads up" })}>fire</button>;
 }
 
 describe("ToastProvider dismiss", () => {

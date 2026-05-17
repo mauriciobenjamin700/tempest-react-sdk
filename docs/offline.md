@@ -16,21 +16,21 @@ NÃO use pra estado de UI volátil — zustand é mais barato.
 import { createOfflineStore } from "tempest-react-sdk";
 
 type Notification = {
-    message_id: string;
-    owner_id: string;
-    type: "NOTIFY" | "PAYMENT-SUCCESS";
-    message: string;
-    created_at: string;
-    read: boolean;
+  message_id: string;
+  owner_id: string;
+  type: "NOTIFY" | "PAYMENT-SUCCESS";
+  message: string;
+  created_at: string;
+  read: boolean;
 };
 
 export const notificationsStore = createOfflineStore<Notification, string>({
-    databaseName: "TempestNotifications",
-    version: 1,
-    tableName: "notifications",
-    indexes: "&message_id, owner_id, read, created_at",
-    keyPath: "message_id",
-    ownerField: "owner_id",
+  databaseName: "TempestNotifications",
+  version: 1,
+  tableName: "notifications",
+  indexes: "&message_id, owner_id, read, created_at",
+  keyPath: "message_id",
+  ownerField: "owner_id",
 });
 ```
 
@@ -42,9 +42,9 @@ Sintaxe do `indexes`: Dexie. `&` = primary key único, vírgulas separam indexes
 await notificationsStore.put(notification, ownerId);
 await notificationsStore.bulkPut(notifications, ownerId);
 const items = await notificationsStore.list(ownerId, {
-    orderBy: "created_at",
-    reverse: true,
-    limit: 50,
+  orderBy: "created_at",
+  reverse: true,
+  limit: 50,
 });
 await notificationsStore.updateMany(ownerId, { read: true });
 await notificationsStore.clear(ownerId);

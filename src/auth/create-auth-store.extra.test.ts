@@ -35,7 +35,7 @@ describe("createAuthStore extras", () => {
         // Wait a microtask for zustand persist write
         return Promise.resolve().then(() => {
             const stored = window.sessionStorage.getItem("test3");
-            expect(stored).toContain("\"id\":\"1\"");
+            expect(stored).toContain('"id":"1"');
         });
     });
 

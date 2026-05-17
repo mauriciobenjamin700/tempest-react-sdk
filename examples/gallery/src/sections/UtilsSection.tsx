@@ -26,32 +26,44 @@ export function UtilsSection() {
                 </thead>
                 <tbody>
                     <tr>
-                        <td style={cellStyle}><code>formatCurrency(1234.5)</code></td>
+                        <td style={cellStyle}>
+                            <code>formatCurrency(1234.5)</code>
+                        </td>
                         <td style={cellStyle}>1234.5</td>
                         <td style={cellStyle}>{formatCurrency(1234.5)}</td>
                     </tr>
                     <tr>
-                        <td style={cellStyle}><code>formatDate(today)</code></td>
+                        <td style={cellStyle}>
+                            <code>formatDate(today)</code>
+                        </td>
                         <td style={cellStyle}>now</td>
                         <td style={cellStyle}>{formatDate(today)}</td>
                     </tr>
                     <tr>
-                        <td style={cellStyle}><code>formatDateTime(today)</code></td>
+                        <td style={cellStyle}>
+                            <code>formatDateTime(today)</code>
+                        </td>
                         <td style={cellStyle}>now</td>
                         <td style={cellStyle}>{formatDateTime(today)}</td>
                     </tr>
                     <tr>
-                        <td style={cellStyle}><code>formatPhone("11987654321")</code></td>
+                        <td style={cellStyle}>
+                            <code>formatPhone("11987654321")</code>
+                        </td>
                         <td style={cellStyle}>11987654321</td>
                         <td style={cellStyle}>{formatPhone("11987654321")}</td>
                     </tr>
                     <tr>
-                        <td style={cellStyle}><code>formatCPF("12345678900")</code></td>
+                        <td style={cellStyle}>
+                            <code>formatCPF("12345678900")</code>
+                        </td>
                         <td style={cellStyle}>12345678900</td>
                         <td style={cellStyle}>{formatCPF("12345678900")}</td>
                     </tr>
                     <tr>
-                        <td style={cellStyle}><code>formatPercent(0.125)</code></td>
+                        <td style={cellStyle}>
+                            <code>formatPercent(0.125)</code>
+                        </td>
                         <td style={cellStyle}>0.125</td>
                         <td style={cellStyle}>{formatPercent(0.125)}</td>
                     </tr>

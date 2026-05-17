@@ -43,6 +43,10 @@
 }
 
 @keyframes tempest-progress-loop {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(360%); }
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(360%);
+    }
 }

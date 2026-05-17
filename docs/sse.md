@@ -16,15 +16,15 @@ Pra envio bidirecional, use [WebSocket](./websocket.md).
 import { createEventStream } from "tempest-react-sdk";
 
 const stream = createEventStream<StreamEvent>(`${API}/notifications/stream`, {
-    withCredentials: true,
-    namedEvents: ["notification", "payment"],
-    heartbeatEvents: ["ping"],
-    maxRetries: 10,
-    onMessage: ({ event, data }) => {
-        if (event === "payment") handlePayment(data);
-        else addNotification(data);
-    },
-    onStatusChange: (status) => console.log("SSE", status),
+  withCredentials: true,
+  namedEvents: ["notification", "payment"],
+  heartbeatEvents: ["ping"],
+  maxRetries: 10,
+  onMessage: ({ event, data }) => {
+    if (event === "payment") handlePayment(data);
+    else addNotification(data);
+  },
+  onStatusChange: (status) => console.log("SSE", status),
 });
 
 stream.close();
@@ -38,9 +38,9 @@ Reconnect: 1s → 2s → 4s → ... → 30s, max 10 tentativas. Heartbeats não 
 import { useEventStream } from "tempest-react-sdk";
 
 useEventStream<StreamEvent>(`${API}/notifications/stream`, {
-    enabled: !!user,
-    withCredentials: true,
-    onMessage: ({ data }) => add(data),
+  enabled: !!user,
+  withCredentials: true,
+  onMessage: ({ data }) => add(data),
 });
 ```
 

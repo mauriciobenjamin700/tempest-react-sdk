@@ -6,7 +6,10 @@ import {
     type EventStreamStatus,
 } from "./create-event-stream";
 
-export interface UseEventStreamOptions<T> extends Omit<CreateEventStreamOptions<T>, "onStatusChange"> {
+export interface UseEventStreamOptions<T> extends Omit<
+    CreateEventStreamOptions<T>,
+    "onStatusChange"
+> {
     /** When false, the stream is not opened. Useful for "wait for auth". Default: true. */
     enabled?: boolean;
 }

@@ -20,7 +20,7 @@ const messages = {
         "gallery.notifications_one": "{count} notificação",
         "gallery.notifications_other": "{count} notificações",
     },
-    "en": {
+    en: {
         "gallery.title": "tempest-react-sdk Gallery",
         "gallery.subtitle": "Visual + functional catalog",
         "gallery.greet": "Hi, {name}",

@@ -64,7 +64,10 @@ export function AdvancedComponentsSection() {
                             >
                                 -10
                             </Button>
-                            <Button size="sm" onClick={() => setProgress(Math.min(100, progress + 10))}>
+                            <Button
+                                size="sm"
+                                onClick={() => setProgress(Math.min(100, progress + 10))}
+                            >
                                 +10
                             </Button>
                         </Stack>

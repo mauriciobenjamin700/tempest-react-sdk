@@ -20,7 +20,7 @@ import { useTheme } from "tempest-react-sdk";
 const { theme, resolvedTheme, setTheme, toggle } = useTheme();
 
 <button onClick={toggle}>
-    {resolvedTheme === "dark" ? "🌙" : "☀️"} ({theme})
+  {resolvedTheme === "dark" ? "🌙" : "☀️"} ({theme})
 </button>;
 ```
 
@@ -36,7 +36,7 @@ Inline um script no `<head>` antes de qualquer CSS carregar:
 import { themeInitScript } from "tempest-react-sdk";
 
 <head>
-    <script dangerouslySetInnerHTML={{ __html: themeInitScript() }} />
+  <script dangerouslySetInnerHTML={{ __html: themeInitScript() }} />
 </head>;
 ```
 
@@ -48,12 +48,12 @@ Sobrescreva em qualquer ponto da cascata:
 
 ```css
 :root {
-    --tempest-primary: #ff3366;
-    --tempest-radius-md: 6px;
+  --tempest-primary: #ff3366;
+  --tempest-radius-md: 6px;
 }
 
 [data-tempest-theme="dark"] {
-    --tempest-primary: #ff6688;
+  --tempest-primary: #ff6688;
 }
 ```
 
@@ -63,8 +63,8 @@ Passe `target` pra aplicar o tema numa subárvore (útil em portais ou docs site
 
 ```tsx
 <ThemeProvider target={() => document.getElementById("preview")}>
-    <Preview />
-</ThemeProvider>;
+  <Preview />
+</ThemeProvider>
 ```
 
 ## Veja também

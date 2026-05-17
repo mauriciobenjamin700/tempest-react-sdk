@@ -1,10 +1,6 @@
 import type { ApiClient, ApiClientConfig, ApiError, RequestOptions } from "./types";
 
-function buildUrl(
-    baseURL: string,
-    path: string,
-    params?: RequestOptions["params"],
-): string {
+function buildUrl(baseURL: string, path: string, params?: RequestOptions["params"]): string {
     const url = new URL(path, baseURL.endsWith("/") ? baseURL : `${baseURL}/`);
     if (params) {
         for (const [key, value] of Object.entries(params)) {
@@ -33,8 +29,8 @@ async function parseError(response: Response): Promise<ApiError> {
     }
     const detail =
         (typeof body === "object" && body !== null
-            ? (body as Record<string, unknown>).detail ??
-              (body as Record<string, unknown>).message
+            ? ((body as Record<string, unknown>).detail ??
+              (body as Record<string, unknown>).message)
             : undefined) ?? `Erro ${response.status}`;
     return {
         status: response.status,
@@ -58,10 +54,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         return token ? { Authorization: `Bearer ${token}` } : {};
     }
 
-    async function rawRequest(
-        path: string,
-        options: RequestOptions,
-    ): Promise<Response> {
+    async function rawRequest(path: string, options: RequestOptions): Promise<Response> {
         const { body, params, headers, ...rest } = options;
         const isForm = isFormData(body);
 
@@ -76,11 +69,12 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
             ...rest,
             headers: finalHeaders,
             credentials: config.withCredentials ? "include" : rest.credentials,
-            body: body === undefined || body === null
-                ? undefined
-                : isForm
-                  ? (body as FormData)
-                  : JSON.stringify(body),
+            body:
+                body === undefined || body === null
+                    ? undefined
+                    : isForm
+                      ? (body as FormData)
+                      : JSON.stringify(body),
         };
 
         return fetcher(buildUrl(config.baseURL, path, params), init);

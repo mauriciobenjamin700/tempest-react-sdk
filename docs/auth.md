@@ -10,8 +10,8 @@ import { createAuthStore } from "tempest-react-sdk";
 type SessionUser = { id: string; name: string; is_admin: boolean };
 
 export const useAuthStore = createAuthStore<SessionUser>({
-    name: "tempest-app-auth",
-    storage: "local",
+  name: "tempest-app-auth",
+  storage: "local",
 });
 
 // uso
@@ -27,12 +27,12 @@ import { Navigate, Outlet } from "react-router-dom";
 import { AuthGuard } from "tempest-react-sdk";
 
 export function ProtectedLayout() {
-    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-    return (
-        <AuthGuard isAuthenticated={isAuthenticated} fallback={<Navigate to="/login" replace />}>
-            <Outlet />
-        </AuthGuard>
-    );
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  return (
+    <AuthGuard isAuthenticated={isAuthenticated} fallback={<Navigate to="/login" replace />}>
+      <Outlet />
+    </AuthGuard>
+  );
 }
 ```
 

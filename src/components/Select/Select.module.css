@@ -33,7 +33,9 @@
     font-size: 14px;
     appearance: none;
     cursor: pointer;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease;
 }
 
 .select:focus {

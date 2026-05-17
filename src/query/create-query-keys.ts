@@ -26,7 +26,10 @@ export function createQueryKeys<
               : never;
     };
 
-    for (const [name, entry] of Object.entries(entries) as [keyof TEntries, KeyBuilder | readonly unknown[]][]) {
+    for (const [name, entry] of Object.entries(entries) as [
+        keyof TEntries,
+        KeyBuilder | readonly unknown[],
+    ][]) {
         if (typeof entry === "function") {
             (output as Record<string, unknown>)[name as string] = (...args: unknown[]) =>
                 [scope, ...entry(...args)] as const;

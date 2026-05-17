@@ -53,9 +53,7 @@ describe("createEventStream — parser + named events", () => {
         const onMessage = vi.fn();
         const controller = createEventStream("/sse", { onMessage });
         EventSourceMock.last?.onmessage?.({ data: "not json" } as MessageEvent);
-        expect(onMessage).toHaveBeenCalledWith(
-            expect.objectContaining({ data: "not json" }),
-        );
+        expect(onMessage).toHaveBeenCalledWith(expect.objectContaining({ data: "not json" }));
         controller.close();
         vi.unstubAllGlobals();
     });

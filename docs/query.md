@@ -34,9 +34,9 @@ useQuery({
 import { createQueryKeys } from "tempest-react-sdk";
 
 export const userKeys = createQueryKeys("user", {
-    me: () => ["me"] as const,
-    byId: (id: string) => [id] as const,
-    list: (filters: { page: number; size: number }) => ["list", filters] as const,
+  me: () => ["me"] as const,
+  byId: (id: string) => [id] as const,
+  list: (filters: { page: number; size: number }) => ["list", filters] as const,
 });
 
 // userKeys.byId("42") === ["user", "42"]

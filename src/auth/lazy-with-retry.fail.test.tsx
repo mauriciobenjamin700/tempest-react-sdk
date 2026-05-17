@@ -16,7 +16,8 @@ describe("lazyWithRetry final failure", () => {
             reloadOnFinalFailure: true,
         });
         // trigger the lazy resolver
-        const inner = (Lazy as unknown as { _payload: { _result: () => Promise<unknown> } })._payload;
+        const inner = (Lazy as unknown as { _payload: { _result: () => Promise<unknown> } })
+            ._payload;
         try {
             await inner._result();
         } catch {

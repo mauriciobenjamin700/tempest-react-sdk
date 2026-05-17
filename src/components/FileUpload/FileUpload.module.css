@@ -18,7 +18,9 @@
     padding: var(--tempest-space-6) var(--tempest-space-5);
     text-align: center;
     cursor: pointer;
-    transition: border-color 0.15s ease, background-color 0.15s ease;
+    transition:
+        border-color 0.15s ease,
+        background-color 0.15s ease;
 }
 
 .dropzone:hover {

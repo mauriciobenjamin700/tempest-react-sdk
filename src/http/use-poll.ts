@@ -23,7 +23,10 @@ export interface UsePollResult<T> {
  * Poll an async factory on a fixed interval. Skips overlapping requests if a
  * prior call has not finished. Pause via `disabled` or `stopWhen`.
  */
-export function usePoll<T>(factory: () => Promise<T>, options: UsePollOptions<T>): UsePollResult<T> {
+export function usePoll<T>(
+    factory: () => Promise<T>,
+    options: UsePollOptions<T>,
+): UsePollResult<T> {
     const { interval, disabled = false, stopWhen, onError } = options;
     const [data, setData] = useState<T | null>(null);
     const [error, setError] = useState<unknown>(null);

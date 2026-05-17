@@ -16,12 +16,7 @@ describe("FileUpload — full", () => {
     it("rejects mismatched type via accept filter", () => {
         const onReject = vi.fn();
         const { container } = render(
-            <FileUpload
-                value={[]}
-                onChange={vi.fn()}
-                accept=".png"
-                onReject={onReject}
-            />,
+            <FileUpload value={[]} onChange={vi.fn()} accept=".png" onReject={onReject} />,
         );
         const input = container.querySelector("input[type=file]") as HTMLInputElement;
         fireEvent.change(input, {

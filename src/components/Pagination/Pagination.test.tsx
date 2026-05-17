@@ -5,9 +5,7 @@ import { Pagination } from "./Pagination";
 
 describe("Pagination", () => {
     it("renders nothing when totalPages <= 1 and no size selector", () => {
-        const { container } = render(
-            <Pagination page={1} totalPages={1} onPageChange={vi.fn()} />,
-        );
+        const { container } = render(<Pagination page={1} totalPages={1} onPageChange={vi.fn()} />);
         expect(container.firstChild).toBeNull();
     });
 

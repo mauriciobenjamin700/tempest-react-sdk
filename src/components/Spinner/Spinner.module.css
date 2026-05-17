@@ -6,10 +6,21 @@
     animation: tempest-spinner 0.7s linear infinite;
 }
 
-.sm { width: 14px; height: 14px; }
-.md { width: 20px; height: 20px; }
-.lg { width: 32px; height: 32px; }
+.sm {
+    width: 14px;
+    height: 14px;
+}
+.md {
+    width: 20px;
+    height: 20px;
+}
+.lg {
+    width: 32px;
+    height: 32px;
+}
 
 @keyframes tempest-spinner {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }

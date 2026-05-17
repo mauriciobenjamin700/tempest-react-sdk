@@ -16,20 +16,21 @@ Camada de fetch tipada com tratamento de 401 + refresh, parse JSON automático e
 import { createApiClient } from "tempest-react-sdk";
 
 export const api = createApiClient({
-    baseURL: import.meta.env.VITE_API_URL,
-    getToken: () => useAuthStore.getState().token,
-    onUnauthorized: () => useAuthStore.getState().logout(),
-    refresh: async () => {
-        await AuthService.refresh(); // refresh seta novo token no store
-    },
-    withCredentials: true,
-    headers: { "X-Client": "web" },
+  baseURL: import.meta.env.VITE_API_URL,
+  getToken: () => useAuthStore.getState().token,
+  onUnauthorized: () => useAuthStore.getState().logout(),
+  refresh: async () => {
+    await AuthService.refresh(); // refresh seta novo token no store
+  },
+  withCredentials: true,
+  headers: { "X-Client": "web" },
 });
 ```
 
 Métodos: `get`, `post`, `put`, `patch`, `delete`, `upload`, `request`.
 
 Comportamento:
+
 - `Content-Type: application/json` automático (exceto `FormData`).
 - `Authorization: Bearer <token>` quando `getToken()` retorna string.
 - Em 401 com `refresh` configurado: aguarda `refresh()`, repete o request 1x. Se falhar, chama `onUnauthorized` e lança `ApiError`.
@@ -61,12 +62,12 @@ import { uploadWithProgress } from "tempest-react-sdk";
 const controller = new AbortController();
 
 await uploadWithProgress<{ url: string }>({
-    url: `${API}/uploads`,
-    method: "POST",
-    body: formData,
-    getToken: () => useAuthStore.getState().token,
-    onProgress: ({ fraction }) => fraction && setProgress(Math.round(fraction * 100)),
-    signal: controller.signal,
+  url: `${API}/uploads`,
+  method: "POST",
+  body: formData,
+  getToken: () => useAuthStore.getState().token,
+  onProgress: ({ fraction }) => fraction && setProgress(Math.round(fraction * 100)),
+  signal: controller.signal,
 });
 ```
 
@@ -78,11 +79,11 @@ await uploadWithProgress<{ url: string }>({
 
 ```ts
 try {
-    await api.get("/users/me");
+  await api.get("/users/me");
 } catch (err) {
-    const error = err as ApiError;
-    if (error.status === 403) toast.error("Sem permissão");
-    else toast.error(error.detail);
+  const error = err as ApiError;
+  if (error.status === 403) toast.error("Sem permissão");
+  else toast.error(error.detail);
 }
 ```
 

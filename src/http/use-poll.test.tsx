@@ -19,9 +19,7 @@ describe("usePoll", () => {
     it("calls onError on rejected factory", async () => {
         const factory = vi.fn().mockRejectedValue(new Error("boom"));
         const onError = vi.fn();
-        renderHook(() =>
-            usePoll(factory, { interval: 100_000, onError }),
-        );
+        renderHook(() => usePoll(factory, { interval: 100_000, onError }));
         await waitFor(() => expect(onError).toHaveBeenCalled());
     });
 });

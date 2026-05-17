@@ -60,7 +60,11 @@ export function Tooltip({
         <span className={styles.trigger}>
             {trigger}
             {open && (
-                <span id={tooltipId} role="tooltip" className={cn(styles.bubble, styles[placement])}>
+                <span
+                    id={tooltipId}
+                    role="tooltip"
+                    className={cn(styles.bubble, styles[placement])}
+                >
                     {content}
                 </span>
             )}

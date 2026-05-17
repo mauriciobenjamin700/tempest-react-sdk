@@ -15,7 +15,15 @@ export interface CardProps extends Omit<HTMLAttributes<HTMLDivElement>, "title">
 export function Card({ title, actions, flush = false, className, children, ...props }: CardProps) {
     const hasHeader = title || actions;
     return (
-        <div className={cn(styles.card, !hasHeader && !flush && styles.padded, flush && styles.flush, className)} {...props}>
+        <div
+            className={cn(
+                styles.card,
+                !hasHeader && !flush && styles.padded,
+                flush && styles.flush,
+                className,
+            )}
+            {...props}
+        >
             {hasHeader && (
                 <header className={styles.header}>
                     {typeof title === "string" ? <h3 className={styles.title}>{title}</h3> : title}

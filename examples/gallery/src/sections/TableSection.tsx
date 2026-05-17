@@ -21,12 +21,48 @@ type Order = {
 };
 
 const SEED: Order[] = [
-    { id: "ord_001", customer: "Maria Silva", total: 129.9, status: "paid", created_at: "2026-05-14" },
-    { id: "ord_002", customer: "João Souza", total: 89.0, status: "pending", created_at: "2026-05-13" },
-    { id: "ord_003", customer: "Ana Carolina", total: 245.5, status: "paid", created_at: "2026-05-12" },
-    { id: "ord_004", customer: "Pedro Lima", total: 32.0, status: "failed", created_at: "2026-05-11" },
-    { id: "ord_005", customer: "Carlos Mendes", total: 412.3, status: "paid", created_at: "2026-05-10" },
-    { id: "ord_006", customer: "Beatriz Faria", total: 78.0, status: "pending", created_at: "2026-05-09" },
+    {
+        id: "ord_001",
+        customer: "Maria Silva",
+        total: 129.9,
+        status: "paid",
+        created_at: "2026-05-14",
+    },
+    {
+        id: "ord_002",
+        customer: "João Souza",
+        total: 89.0,
+        status: "pending",
+        created_at: "2026-05-13",
+    },
+    {
+        id: "ord_003",
+        customer: "Ana Carolina",
+        total: 245.5,
+        status: "paid",
+        created_at: "2026-05-12",
+    },
+    {
+        id: "ord_004",
+        customer: "Pedro Lima",
+        total: 32.0,
+        status: "failed",
+        created_at: "2026-05-11",
+    },
+    {
+        id: "ord_005",
+        customer: "Carlos Mendes",
+        total: 412.3,
+        status: "paid",
+        created_at: "2026-05-10",
+    },
+    {
+        id: "ord_006",
+        customer: "Beatriz Faria",
+        total: 78.0,
+        status: "pending",
+        created_at: "2026-05-09",
+    },
 ];
 
 export function TableSection() {

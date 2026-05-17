@@ -4,7 +4,11 @@ import { lazyWithRetry } from "./lazy-with-retry";
 describe("lazyWithRetry", () => {
     it("returns a lazy component when factory succeeds", () => {
         const factory = vi.fn(() =>
-            Promise.resolve({ default: function X() { return null; } }),
+            Promise.resolve({
+                default: function X() {
+                    return null;
+                },
+            }),
         );
         const Lazy = lazyWithRetry(factory);
         expect(typeof Lazy).toBe("object");
@@ -12,7 +16,11 @@ describe("lazyWithRetry", () => {
 
     it("accepts options", () => {
         const factory = vi.fn(() =>
-            Promise.resolve({ default: function X() { return null; } }),
+            Promise.resolve({
+                default: function X() {
+                    return null;
+                },
+            }),
         );
         const Lazy = lazyWithRetry(factory, {
             retries: 2,

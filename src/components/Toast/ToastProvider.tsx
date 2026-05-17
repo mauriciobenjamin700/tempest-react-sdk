@@ -32,9 +32,15 @@ interface ToastEntry extends Required<Omit<ToastOptions, "id" | "title" | "descr
 export interface ToastApi {
     show: (options: ToastOptions) => string;
     dismiss: (id: string) => void;
-    success: (description: string, options?: Omit<ToastOptions, "variant" | "description">) => string;
+    success: (
+        description: string,
+        options?: Omit<ToastOptions, "variant" | "description">,
+    ) => string;
     error: (description: string, options?: Omit<ToastOptions, "variant" | "description">) => string;
-    warning: (description: string, options?: Omit<ToastOptions, "variant" | "description">) => string;
+    warning: (
+        description: string,
+        options?: Omit<ToastOptions, "variant" | "description">,
+    ) => string;
     info: (description: string, options?: Omit<ToastOptions, "variant" | "description">) => string;
 }
 
@@ -88,9 +94,11 @@ export function ToastProvider({ children, defaultDuration = 4000 }: ToastProvide
         () => ({
             show,
             dismiss,
-            success: (description, options) => show({ ...options, description, variant: "success" }),
+            success: (description, options) =>
+                show({ ...options, description, variant: "success" }),
             error: (description, options) => show({ ...options, description, variant: "error" }),
-            warning: (description, options) => show({ ...options, description, variant: "warning" }),
+            warning: (description, options) =>
+                show({ ...options, description, variant: "warning" }),
             info: (description, options) => show({ ...options, description, variant: "info" }),
         }),
         [show, dismiss],

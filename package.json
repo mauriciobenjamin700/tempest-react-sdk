@@ -4,11 +4,14 @@
   "description": "SDK público da Tempest com componentes, hooks e integrações para projetos React.",
   "type": "module",
   "license": "MIT",
-  "author": "Tempest",
-  "homepage": "https://github.com/tempest/tempest-react-sdk",
+  "author": "Mauricio Benjamin <mauriciobenjamin700@gmail.com>",
+  "homepage": "https://github.com/mauriciobenjamin700/tempest-react-sdk",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tempest/tempest-react-sdk.git"
+    "url": "git+https://github.com/mauriciobenjamin700/tempest-react-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mauriciobenjamin700/tempest-react-sdk/issues"
   },
   "keywords": [
     "react",

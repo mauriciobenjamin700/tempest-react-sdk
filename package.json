@@ -55,7 +55,8 @@
     "version": "changeset version",
     "release": "npm run build && changeset publish",
     "clean": "rm -rf dist coverage",
-    "prepare": "husky"
+    "prepare": "husky",
+    "prepublishOnly": "npm run typecheck && npm run lint && npm run test:run && npm run build"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

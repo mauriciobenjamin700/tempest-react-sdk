@@ -2,6 +2,23 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
+## [0.5.1] — 2026-05-17
+
+### Documentação
+
+- **Catálogo de componentes reorganizado em `docs/components/`** (8 arquivos por categoria) com props detalhadas + exemplos + notas de a11y para cada componente:
+  - [inputs.md](./docs/components/inputs.md) — 17 controles (Input, Select, Combobox, PinInput, PasswordInput, StepperInput, etc.).
+  - [actions.md](./docs/components/actions.md) — Button, Tooltip, DropdownMenu, Popover, ConfirmDialog.
+  - [navigation.md](./docs/components/navigation.md) — Navbar, Sidebar, BottomNavigation, Tabs, Stepper, Breadcrumbs, Pagination, SegmentedControl.
+  - [overlay.md](./docs/components/overlay.md) — Modal, Drawer, BottomSheet.
+  - [layout.md](./docs/components/layout.md) — AppShell, Page, Container, Stack, Grid, Divider, Spacer, Center, AspectRatio, SafeArea, Show/Hide + responsive value pattern.
+  - [data.md](./docs/components/data.md) — Table, VirtualList, Accordion, Timeline.
+  - [feedback.md](./docs/components/feedback.md) — Alert, Banner, Badge, Tag, Stat, Progress, Spinner, Skeleton, Toast, EmptyState, ErrorState.
+  - [identity.md](./docs/components/identity.md) — Avatar, Card, Kbd.
+- **`docs/testing.md`** — doc dedicada ao subpath `tempest-react-sdk/testing` com integração MSW + vitest fetch stub.
+- `docs/components.md` virou stub apontando pra `docs/components/`.
+- `docs/README.md` atualizado com índice por subpasta.
+
 ## [0.5.0] — 2026-05-17
 
 ### Hooks novos

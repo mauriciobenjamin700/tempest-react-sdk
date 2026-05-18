@@ -69,3 +69,7 @@ export {
     formatPercent,
 } from "./utils/format";
 export { storage } from "./utils/storage";
+export { slugify, truncate } from "./utils/strings";
+export { clamp } from "./utils/numbers";
+export { relativeTime } from "./utils/relative-time";
+export type { RelativeTimeLocale } from "./utils/relative-time";

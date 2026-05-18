@@ -110,6 +110,12 @@ export type { PageProps } from "./Page";
 export { Pagination } from "./Pagination";
 export type { PaginationProps } from "./Pagination";
 
+export { PasswordInput, estimatePasswordStrength } from "./PasswordInput";
+export type { PasswordInputProps, PasswordStrength } from "./PasswordInput";
+
+export { PinInput } from "./PinInput";
+export type { PinInputProps, PinInputSize, PinInputType } from "./PinInput";
+
 export { Popover } from "./Popover";
 export type { PopoverPlacement, PopoverProps } from "./Popover";
 
@@ -134,6 +140,9 @@ export type { SafeAreaEdge, SafeAreaProps } from "./SafeArea";
 export { SearchBar } from "./SearchBar";
 export type { SearchBarProps } from "./SearchBar";
 
+export { SegmentedControl } from "./SegmentedControl";
+export type { SegmentedControlOption, SegmentedControlProps } from "./SegmentedControl";
+
 export { Select } from "./Select";
 export type { SelectOption, SelectProps } from "./Select";
 
@@ -155,6 +164,9 @@ export type { StatProps, StatTrend } from "./Stat";
 export { Stepper } from "./Stepper";
 export type { StepItem, StepperProps } from "./Stepper";
 
+export { StepperInput } from "./StepperInput";
+export type { StepperInputProps } from "./StepperInput";
+
 export { Switch } from "./Switch";
 export type { SwitchProps } from "./Switch";
 
@@ -169,6 +181,9 @@ export type { TabItem, TabsProps } from "./Tabs";
 
 export { Textarea } from "./Textarea";
 export type { TextareaProps } from "./Textarea";
+
+export { Timeline } from "./Timeline";
+export type { TimelineItem, TimelineMarker, TimelineProps } from "./Timeline";
 
 export { Tooltip } from "./Tooltip";
 export type { TooltipPlacement, TooltipProps } from "./Tooltip";

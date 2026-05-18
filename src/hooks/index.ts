@@ -34,3 +34,13 @@ export { useScrollLock } from "./use-scroll-lock";
 export { useFocusTrap } from "./use-focus-trap";
 export { useStableCallback } from "./use-stable-callback";
 export { useDeepMemo } from "./use-deep-memo";
+
+export { usePrevious } from "./use-previous";
+export { useInterval } from "./use-interval";
+export { useTimeout } from "./use-timeout";
+export { useThrottle } from "./use-throttle";
+export { useWindowSize } from "./use-window-size";
+export type { WindowSize } from "./use-window-size";
+export { useHover } from "./use-hover";
+export { useLongPress } from "./use-long-press";
+export type { UseLongPressOptions } from "./use-long-press";

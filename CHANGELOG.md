@@ -2,6 +2,38 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] — 2026-05-17
+
+### Hooks novos
+
+- **`usePrevious<T>(value)`** — valor da renderização anterior.
+- **`useInterval(fn, delay | null)`** — setInterval reativo, `null` pausa, callback em ref (sem reassinar).
+- **`useTimeout(fn, delay | null)`** — equivalente pra timeout.
+- **`useThrottle<T>(value, ms)`** — throttle leading + trailing.
+- **`useWindowSize()`** — `{ width, height }` SSR-safe.
+- **`useHover<T>(ref)`** — boolean reativo pra mouseenter/leave.
+- **`useLongPress(ref, fn, { delay, moveThreshold })`** — long-press gesture com cancelamento por movimento ou pointerup precoce.
+
+### Componentes novos
+
+- **`PinInput`** — OTP/one-time-code style com N células, paste support, auto-advance, backspace/arrow nav, masked option, sizes `sm/md/lg`, `type: numeric|alphanumeric`.
+- **`PasswordInput`** — toggle show/hide + strength meter opcional (5 níveis). Helper `estimatePasswordStrength(value)` exposto.
+- **`SegmentedControl`** — iOS-style pill bar, 2-5 opções mutuamente exclusivas, sizes, fullWidth, ícones por opção.
+- **`StepperInput`** — `+ / −` numeric com clamp em `min/max`, custom `format()`, sizes, disabled.
+- **`Timeline`** — feed vertical com markers coloridos (primary/success/warning/danger/neutral), conector entre items, slots title/description/meta/icon.
+
+### Utils
+
+- **`slugify(str)`** — URL-safe slug, strip diacritics, collapse separators, lowercase.
+- **`truncate(str, max, suffix?)`** — corta strings com ellipsis (`…` default) ou suffix custom.
+- **`clamp(value, min, max)`** — bounded numeric, NaN-safe, swap-tolerant.
+- **`relativeTime(date, { locale?, now? })`** — "agora há pouco" / "5 min atrás" / "em 3 dias". Locales `pt-BR` (default) + `en`. Aceita `Date | string | number`.
+
+### Stats
+
+- 758 testes em 225 arquivos (era 682 / 210).
+- 7 hooks novos, 5 componentes novos, 4 utils novos.
+
 ## [0.4.0] — 2026-05-17
 
 ### Navegação mobile/desktop

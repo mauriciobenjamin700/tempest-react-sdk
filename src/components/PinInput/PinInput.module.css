@@ -1,0 +1,72 @@
+.wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-space-1);
+    font-family: var(--tempest-font-sans);
+}
+
+.label {
+    font-size: var(--tempest-text-sm);
+    font-weight: var(--tempest-weight-medium);
+    color: var(--tempest-text);
+}
+
+.cells {
+    display: flex;
+    gap: var(--tempest-space-2);
+}
+
+.cell {
+    flex: 0 0 auto;
+    text-align: center;
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-md);
+    background: var(--tempest-surface);
+    color: var(--tempest-text);
+    font-family: var(--tempest-font-mono, var(--tempest-font-sans));
+    transition: border-color var(--tempest-duration-fast, 120ms);
+}
+
+.cells.sm .cell {
+    width: 32px;
+    height: 36px;
+    font-size: var(--tempest-text-md);
+}
+
+.cells.md .cell {
+    width: 44px;
+    height: 52px;
+    font-size: var(--tempest-text-lg);
+}
+
+.cells.lg .cell {
+    width: 56px;
+    height: 64px;
+    font-size: var(--tempest-text-xl);
+}
+
+.cell:focus {
+    outline: none;
+    border-color: var(--tempest-primary);
+    box-shadow: 0 0 0 var(--tempest-focus-ring-width, 2px)
+        var(--tempest-focus-ring-color, var(--tempest-primary-100));
+}
+
+.cell:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.error .cell {
+    border-color: var(--tempest-danger-border, var(--tempest-danger));
+}
+
+.helper {
+    font-size: var(--tempest-text-xs);
+    color: var(--tempest-text-muted);
+}
+
+.errorText {
+    font-size: var(--tempest-text-xs);
+    color: var(--tempest-danger-fg, var(--tempest-danger));
+}

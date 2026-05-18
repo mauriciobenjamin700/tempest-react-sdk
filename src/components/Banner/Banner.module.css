@@ -1,0 +1,79 @@
+.banner {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--tempest-space-3);
+    padding: var(--tempest-space-3) var(--tempest-space-4);
+    border-radius: var(--tempest-radius-md);
+    border: 1px solid;
+    width: 100%;
+    font-family: var(--tempest-font-sans);
+    font-size: var(--tempest-text-sm);
+    line-height: var(--tempest-leading-snug);
+}
+
+.banner.info {
+    background: var(--tempest-info-bg);
+    color: var(--tempest-info-fg);
+    border-color: var(--tempest-info-border);
+}
+
+.banner.success {
+    background: var(--tempest-success-bg);
+    color: var(--tempest-success-fg);
+    border-color: var(--tempest-success-border);
+}
+
+.banner.warning {
+    background: var(--tempest-warning-bg);
+    color: var(--tempest-warning-fg);
+    border-color: var(--tempest-warning-border);
+}
+
+.banner.danger {
+    background: var(--tempest-danger-bg);
+    color: var(--tempest-danger-fg);
+    border-color: var(--tempest-danger-border);
+}
+
+.icon {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+}
+
+.body {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.title {
+    margin: 0 0 var(--tempest-space-1);
+    font-weight: var(--tempest-weight-semibold);
+}
+
+.description {
+    margin: 0;
+}
+
+.action {
+    flex: 0 0 auto;
+}
+
+.close {
+    flex: 0 0 auto;
+    background: none;
+    border: 0;
+    color: currentColor;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--tempest-radius-sm);
+}
+
+.close:hover {
+    background: color-mix(in srgb, currentColor 10%, transparent);
+}

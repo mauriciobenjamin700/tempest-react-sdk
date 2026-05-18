@@ -4,26 +4,34 @@ SDK público da Tempest com componentes React, hooks e integrações reutilizáv
 
 > Este arquivo é o guia operacional do SDK. Padrões globais (PR template PT-BR, conventional commits, `gh pr edit` workaround) vêm de `~/.claude/CLAUDE.md` e continuam valendo.
 
-## Estado atual (snapshot v0.1.6 — publicado)
+## Estado atual (snapshot v0.4.0 — publicado)
 
-- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — versões 0.1.0 → 0.1.6 todas live, signed provenance via OIDC.
-- **Build**: ESM ~104KB → 30KB gzip, CJS ~78KB → 27KB gzip, CSS 54KB → 8KB gzip, `index.d.ts` rollupado.
-- **Testes**: 499 testes em 172 arquivos. ~13s sob `vitest + jsdom + fake-indexeddb`.
-- **Tooling**: Prettier 3, Husky pre-commit (lint-staged), `Makefile` + `scripts/release.sh` (tag-push pipeline), CI `release-npm.yml` (tag push) + `ci.yml` (PR matriz node 20/22).
-- **Docs**: 24 markdowns em `docs/` (1 por módulo + `architecture.md`, `gallery.md`, `release.md`) + 3 diagramas drawio (`architecture`, `request-flow`, `push-flow`).
+- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — versões 0.1.0 → 0.4.0 todas live com signed provenance via OIDC.
+- **Build**: ESM ~149 KB → 42 KB gzip, CJS ~106 KB → 36 KB gzip, CSS 86 KB → 13 KB gzip, `tempest-react-sdk.d.ts` rollupado.
+- **Subpath**: `tempest-react-sdk/testing` bundle separado (0.3 KB ESM) pra MSW helpers.
+- **Testes**: 682 testes em 210 arquivos. ~13 s sob `vitest + jsdom + fake-indexeddb`.
+- **Componentes**: 50+ no catálogo (era 32 em v0.1.6). Novos em 0.4.0: Navbar, Sidebar, BottomNavigation, BottomSheet, AppShell, Page, Banner, Tag, Stat, SafeArea, FormField. Novos em 0.3.0: Accordion, Popover, DropdownMenu, RatingStars, RangeSlider, Combobox, Show/Hide, Spacer, Center, AspectRatio.
+- **Hooks**: 22+ — novos em 0.3.0: useBreakpoint, useEventListener, useLocalStorage, useToggle, useAsync.
+- **OAuth (módulo novo `src/oauth/`)**: GoogleSignIn + useOAuthCallback.
+- **Testing (subpath novo `src/testing/`)**: createMockHandlers (MSW-shaped factory).
+- **Style modules**: `colors.css` + `typography.css` + `motion.css` + `density.css` + `reset.css` + `responsive.css` + `print.css`.
+- **Tooling**: Prettier 3, Husky pre-commit (lint-staged), `Makefile` + `scripts/release.sh` (tag-push pipeline), CI `release-npm.yml` (tag push) + `ci.yml` (PR matriz node 20/22) + `size-limit.yml` (bundle budget).
+- **Docs**: 24+ markdowns em `docs/` + 3 diagramas drawio (`architecture`, `request-flow`, `push-flow`).
 - **Demo vivo**: app Vite em `examples/gallery` consome o SDK via `file:../..`.
 
 ### Histórico de releases
 
-| Ver   | Tag                            | Highlights                                                                                                                    |
-| ----- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| 0.1.0 | initial release                | 444 testes, ESM 98KB, README inicial, infra changesets (depois removida)                                                      |
-| 0.1.1 | docs + ci                      | README rewrite (TOC + 31 recipes), Vite stack section, typecheck cleanup, format-check em CI                                  |
-| 0.1.2 | feat: Form                     | `Form` / `FormSection` / `FormRow` / `FormActions` (stack/inline/grid layout variants)                                        |
-| 0.1.3 | feat: Sentry                   | `createSentryTelemetryAdapter` (P1 #4) — wrap `@sentry/browser`                                                               |
-| 0.1.4 | feat: PostHog + flags adapters | `createPostHogTelemetryAdapter`, `createGrowthBookFeatureFlagsAdapter`, `createLaunchDarklyFeatureFlagsAdapter` (P1 #5/#6/#7) |
-| 0.1.5 | docs + style refresh           | Docs audit completo, Input.size tipado, Button/Card/Badge/Modal refresh, novos style modules (density/motion/typography)      |
-| 0.1.6 | feat: Alert + Divider + Kbd    | 3 componentes novos + refresh visual em ~14 components + `docs/styles.md`                                                     |
+| Ver   | Tag                            | Highlights                                                                                                                                                                                                                                      |
+| ----- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0.1.0 | initial release                | 444 testes, ESM 98KB, README inicial, infra changesets (depois removida)                                                                                                                                                                        |
+| 0.1.1 | docs + ci                      | README rewrite (TOC + 31 recipes), Vite stack section, typecheck cleanup, format-check em CI                                                                                                                                                    |
+| 0.1.2 | feat: Form                     | `Form` / `FormSection` / `FormRow` / `FormActions` (stack/inline/grid layout variants)                                                                                                                                                          |
+| 0.1.3 | feat: Sentry                   | `createSentryTelemetryAdapter` (P1 #4) — wrap `@sentry/browser`                                                                                                                                                                                 |
+| 0.1.4 | feat: PostHog + flags adapters | `createPostHogTelemetryAdapter`, `createGrowthBookFeatureFlagsAdapter`, `createLaunchDarklyFeatureFlagsAdapter` (P1 #5/#6/#7)                                                                                                                   |
+| 0.1.5 | docs + style refresh           | Docs audit completo, Input.size tipado, Button/Card/Badge/Modal refresh, novos style modules (density/motion/typography)                                                                                                                        |
+| 0.1.6 | feat: Alert + Divider + Kbd    | 3 componentes novos + refresh visual em ~14 components + `docs/styles.md`                                                                                                                                                                       |
+| 0.2.0 | breaking: deps switch          | `peerDependencies` → `dependencies` para child deps; `Stack.direction` responsive; `Table.priority`; `print.css`/`responsive.css`                                                                                                               |
+| 0.3.0 | unreleased: full responsive    | Breakpoint tokens, useBreakpoint/Show/Hide, Modal fullscreen, Drawer bottom-sheet, Table stackOnMobile, Toast position, fluid type, safe-area, density="touch", 10 componentes novos, 4 hooks novos, hover-only gated, total component refactor |
 
 ### Adapter design pattern (consolidado v0.1.3+)
 

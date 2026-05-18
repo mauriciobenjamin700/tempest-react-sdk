@@ -39,10 +39,8 @@ function shouldLog(threshold: LogLevel, level: LogLevel): boolean {
 export const consoleSink: LoggerSink = ({ level, message, context }) => {
     const method = level === "debug" ? "log" : level;
     if (context) {
-        // eslint-disable-next-line no-console
         console[method](message, context);
     } else {
-        // eslint-disable-next-line no-console
         console[method](message);
     }
 };

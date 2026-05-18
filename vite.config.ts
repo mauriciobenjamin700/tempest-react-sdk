@@ -30,10 +30,16 @@ export default defineConfig({
         sourcemap: true,
         cssCodeSplit: false,
         lib: {
-            entry: resolve(__dirname, "src/index.ts"),
+            entry: {
+                "tempest-react-sdk": resolve(__dirname, "src/index.ts"),
+                testing: resolve(__dirname, "src/testing/index.ts"),
+            },
             name: "TempestReactSdk",
             formats: ["es", "cjs"],
-            fileName: (format) => `tempest-react-sdk.${format === "es" ? "js" : "cjs"}`,
+            fileName: (format, entryName) => {
+                const ext = format === "es" ? "js" : "cjs";
+                return `${entryName}.${ext}`;
+            },
         },
         rollupOptions: {
             external: [

@@ -1,0 +1,35 @@
+name: Bundle size
+
+on:
+    pull_request:
+        branches: [main]
+    push:
+        branches: [main]
+
+permissions:
+    contents: read
+    pull-requests: write
+
+jobs:
+    size:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v5
+
+            - uses: actions/setup-node@v5
+              with:
+                  node-version: "22"
+                  cache: npm
+                  cache-dependency-path: package-lock.json
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Install size-limit
+              run: npm install --no-save --silent size-limit @size-limit/preset-small-lib
+
+            - name: Build
+              run: npm run build
+
+            - name: Check bundle size
+              run: npx size-limit

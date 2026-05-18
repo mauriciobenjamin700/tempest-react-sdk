@@ -1,0 +1,92 @@
+.root {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgb(0 0 0 / 0.45);
+    animation: fadeIn var(--tempest-duration-base, 200ms) var(--tempest-ease-out, ease-out);
+}
+
+.sheet {
+    position: relative;
+    width: 100%;
+    max-width: 720px;
+    max-height: 90dvh;
+    background: var(--tempest-surface);
+    border-top-left-radius: var(--tempest-radius-2xl, var(--tempest-radius-lg));
+    border-top-right-radius: var(--tempest-radius-2xl, var(--tempest-radius-lg));
+    box-shadow: var(--tempest-shadow-xl, 0 -10px 30px rgb(0 0 0 / 0.25));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    animation: slideUp var(--tempest-duration-base, 240ms) var(--tempest-ease-out, ease-out);
+    font-family: var(--tempest-font-sans);
+}
+
+.handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 0;
+    padding: var(--tempest-space-2) 0;
+    cursor: grab;
+    flex: 0 0 auto;
+}
+
+.handleBar {
+    display: block;
+    width: 36px;
+    height: 4px;
+    background: var(--tempest-gray-300);
+    border-radius: var(--tempest-radius-full);
+}
+
+.title {
+    flex: 0 0 auto;
+    padding: var(--tempest-space-2) var(--tempest-space-4) var(--tempest-space-3);
+    font-size: var(--tempest-text-lg);
+    font-weight: var(--tempest-weight-semibold);
+    color: var(--tempest-text);
+    border-bottom: 1px solid var(--tempest-border);
+}
+
+.body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: var(--tempest-space-4);
+    color: var(--tempest-text);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .backdrop,
+    .sheet {
+        animation: none;
+    }
+}

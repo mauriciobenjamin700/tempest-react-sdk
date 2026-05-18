@@ -10,6 +10,9 @@ export * from "./http";
 // Auth
 export * from "./auth";
 
+// OAuth (Google sign-in wrapper, callback hook)
+export * from "./oauth";
+
 // Query
 export * from "./query";
 

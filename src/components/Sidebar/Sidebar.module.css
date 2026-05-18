@@ -1,0 +1,99 @@
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--tempest-surface);
+    border-right: 1px solid var(--tempest-border);
+    font-family: var(--tempest-font-sans);
+    transition: width var(--tempest-duration-base, 200ms) var(--tempest-ease-out, ease-out);
+    overflow: hidden;
+}
+
+.header {
+    padding: var(--tempest-space-3) var(--tempest-space-4);
+    border-bottom: 1px solid var(--tempest-border);
+    min-height: 56px;
+    display: flex;
+    align-items: center;
+}
+
+.nav {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: var(--tempest-space-2);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.item {
+    display: flex;
+    align-items: center;
+    gap: var(--tempest-space-3);
+    padding: var(--tempest-space-2) var(--tempest-space-3);
+    background: none;
+    border: 0;
+    border-radius: var(--tempest-radius-md);
+    color: var(--tempest-text);
+    font-size: var(--tempest-text-sm);
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--tempest-duration-fast, 120ms);
+    min-height: 36px;
+    width: 100%;
+}
+
+.collapsed .item {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.item:hover {
+    background: var(--tempest-gray-100);
+}
+
+.item.active {
+    background: var(--tempest-primary-100);
+    color: var(--tempest-primary-700);
+    font-weight: var(--tempest-weight-medium);
+}
+
+.item:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.icon {
+    display: inline-flex;
+    align-items: center;
+    font-size: 18px;
+    line-height: 1;
+    flex: 0 0 auto;
+}
+
+.label {
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.badge {
+    flex: 0 0 auto;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: var(--tempest-radius-full);
+    background: var(--tempest-gray-200);
+    color: var(--tempest-text);
+    font-size: 10px;
+    line-height: 18px;
+    text-align: center;
+}
+
+.footer {
+    padding: var(--tempest-space-3) var(--tempest-space-4);
+    border-top: 1px solid var(--tempest-border);
+}

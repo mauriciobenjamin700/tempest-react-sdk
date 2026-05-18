@@ -1,0 +1,78 @@
+.tag {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tempest-space-1);
+    border-radius: var(--tempest-radius-full);
+    font-family: var(--tempest-font-sans);
+    font-weight: var(--tempest-weight-medium);
+    line-height: 1;
+}
+
+.tag.sm {
+    padding: 2px 8px;
+    font-size: var(--tempest-text-2xs);
+}
+
+.tag.md {
+    padding: 4px 10px;
+    font-size: var(--tempest-text-xs);
+}
+
+.tag.lg {
+    padding: 6px 12px;
+    font-size: var(--tempest-text-sm);
+}
+
+.tag.neutral {
+    background: var(--tempest-gray-100);
+    color: var(--tempest-text);
+}
+
+.tag.primary {
+    background: var(--tempest-primary-100);
+    color: var(--tempest-primary-700);
+}
+
+.tag.success {
+    background: var(--tempest-success-bg);
+    color: var(--tempest-success-fg);
+}
+
+.tag.warning {
+    background: var(--tempest-warning-bg);
+    color: var(--tempest-warning-fg);
+}
+
+.tag.danger {
+    background: var(--tempest-danger-bg);
+    color: var(--tempest-danger-fg);
+}
+
+.tag.info {
+    background: var(--tempest-info-bg);
+    color: var(--tempest-info-fg);
+}
+
+.label {
+    line-height: 1.2;
+}
+
+.remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 0;
+    color: currentColor;
+    cursor: pointer;
+    padding: 0;
+    width: 16px;
+    height: 16px;
+    border-radius: var(--tempest-radius-full);
+    font-size: 14px;
+    line-height: 1;
+}
+
+.remove:hover {
+    background: color-mix(in srgb, currentColor 15%, transparent);
+}

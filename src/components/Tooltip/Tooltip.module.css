@@ -59,3 +59,11 @@
         animation: none;
     }
 }
+
+/* Hide tooltip on touch / no-hover devices — tap+hold leaves
+ * tooltip stuck visible and competes with native long-press menus. */
+@media (hover: none) {
+    .bubble {
+        display: none;
+    }
+}

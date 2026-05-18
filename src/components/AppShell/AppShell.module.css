@@ -1,0 +1,41 @@
+.shell {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+    width: 100%;
+    background: var(--tempest-bg);
+    color: var(--tempest-text);
+    font-family: var(--tempest-font-sans);
+}
+
+.navbar {
+    flex: 0 0 auto;
+}
+
+.row {
+    flex: 1 1 auto;
+    display: flex;
+    min-height: 0;
+    width: 100%;
+}
+
+.sidebar {
+    flex: 0 0 auto;
+}
+
+.main {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+}
+
+.footer {
+    flex: 0 0 auto;
+}
+
+.bottomNav {
+    position: sticky;
+    bottom: 0;
+    z-index: 30;
+    flex: 0 0 auto;
+}

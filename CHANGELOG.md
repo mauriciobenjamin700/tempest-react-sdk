@@ -2,9 +2,61 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.4.0] — 2026-05-17
 
-Trabalho de estilos + responsive + componentes novos. Sem breaking changes — bump minor sugerido `0.3.0`.
+### Navegação mobile/desktop
+
+- **`Navbar`** — app bar superior, slots `logo`/`nav`/`actions`, sticky default, tones `surface/primary/transparent`, safe-area top.
+- **`Sidebar`** — desktop nav, `items: SidebarItem[]`, `collapsed`, slots `header`/`footer`, badge support, width controlável.
+- **`BottomNavigation`** — tab bar mobile fixa no rodapé, 3-5 itens, badges, safe-area bottom.
+- **`BottomSheet`** — slide-up modal mobile com drag handle, portal, scroll lock, dismissOnBackdrop/Esc.
+- **`AppShell`** — composer responsivo: navbar + sidebar (desktop) / bottomNav (mobile) + main + footer. `sidebarBreakpoint` ajusta switch.
+- **`Page`** — page wrapper com header (`title`/`eyebrow`/`description`/`actions`) + `toolbar` + content + `footer`.
+
+### Conteúdo
+
+- **`Banner`** — banner persistente top-of-page. `variant: info/success/warning/danger`, dismissible, action slot.
+- **`Tag`** — chip removível pra filter tokens. `variant`, `size`, `onRemove`.
+- **`Stat`** — KPI card. `label`, `value`, `delta` (trend up/down inferido por `+`/`-`), `hint`, `icon`.
+- **`SafeArea`** — `env(safe-area-inset-*)` padding por edge — wrap content que esbarra em chrome iOS/Android.
+
+### Forms
+
+- **`FormField`** — wrapper RHF `Controller` + zod auto. Aceita qualquer control que receba `{ value, onChange, error, label }` via `cloneElement`. Funciona com `FormProvider` (preferido) ou `control` prop explícita.
+- **`useFieldArray`** re-export tipado (já vinha do user, agora documentado).
+
+### OAuth (novo módulo `src/oauth/`)
+
+- **`GoogleSignIn`** — wrapper sobre `@react-oauth/google`'s `<GoogleLogin>`. Aceita o componente Google via prop `component` (não vira peer dep). Normaliza `onSuccess` → `OAuthCredential` (`idToken`, `provider`, `raw`), `onError` → `OAuthError` (`provider`, `code`, `message`, `raw`).
+- **`useOAuthCallback<T>`** — hook pra `/callback` route. Exchange one-shot com `{ loading, data, error, status }`. StrictMode-safe (ref guard).
+- Tipos: `OAuthCredential`, `OAuthError`, `GoogleSignInTheme/Text/Shape/Size`, `UseOAuthCallbackOptions`, `UseOAuthCallbackResult`.
+
+### Testing (novo subpath `tempest-react-sdk/testing`)
+
+- **`createMockHandlers`** — factory MSW-shaped (`method/path/status/body/headers/delayMs`). MSW não é peer dep; output é puro data-shape que o consumidor passa pra `http.<method>` ou similar.
+- Bundle separado (~0.3KB ESM) — não polui o main bundle.
+
+### Build / CI
+
+- **Subpath entries**: vite multi-entry config. `tempest-react-sdk` (main) + `tempest-react-sdk/testing` (standalone).
+- `package.json` `exports` mapeia `./testing` para `dist/testing.{js,cjs,d.ts}`.
+- **`.size-limit.json`** + **`.github/workflows/size-limit.yml`** — bundle size budget enforcement. Main ESM ≤ 50KB, CJS ≤ 45KB, testing ≤ 2KB, styles.css ≤ 15KB.
+
+### Documentação
+
+- `docs/hooks.md` reescrito — todos 22 hooks (DOM/viewport + estado), exemplos pra `useBreakpoint`, `useLocalStorage`, `useAsync`, `useEventListener`, `useToggle`, `useStableCallback`.
+- `docs/components.md` reescrito — catálogo completo reorganizado em 9 categorias (Entrada / Ação / Navegação / Overlay / Layout / Dados / Status / Texto / Identidade) + seções OAuth + Testing.
+
+### Stats
+
+- 682 testes em 210 arquivos (era 670 / 206).
+- Main bundle: ESM ~149KB / CJS ~106KB (gzip 42/36KB).
+- Testing bundle: 0.31KB ESM (0.23KB gzip).
+- CSS bundle: 86KB / 13KB gzip.
+
+## [0.3.0] — 2026-05-17
+
+Trabalho de estilos + responsive + componentes novos.
 
 ### Tokens
 
@@ -68,10 +120,10 @@ Trabalho de estilos + responsive + componentes novos. Sem breaking changes — b
 
 ### Numbers
 
-- 200+ módulos transformados na build.
-- ~570+ tests passando (era 487 em v0.1.4).
-- CSS bundle: ~60KB → ~9KB gzip.
-- JS bundle: ~115KB → ~32KB gzip.
+- 225 módulos transformados na build (era 191 em v0.2.0).
+- **628 tests passando em 196 arquivos** (era 487 em v0.1.4, 510 em v0.2.0).
+- CSS bundle: 74 KB → **10.6 KB gzip**.
+- JS bundle: 133 KB → **37.5 KB gzip** (CJS 95 KB → 32.1 KB gzip).
 
 ## [0.2.0] — 2026-05-17
 

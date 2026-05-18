@@ -28,15 +28,20 @@
   ],
   "main": "./dist/tempest-react-sdk.cjs",
   "module": "./dist/tempest-react-sdk.js",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/tempest-react-sdk.d.ts",
   "sideEffects": [
     "**/*.css"
   ],
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
+      "types": "./dist/tempest-react-sdk.d.ts",
       "import": "./dist/tempest-react-sdk.js",
       "require": "./dist/tempest-react-sdk.cjs"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js",
+      "require": "./dist/testing.cjs"
     },
     "./styles.css": "./dist/styles.css",
     "./package.json": "./package.json"

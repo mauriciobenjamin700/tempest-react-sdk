@@ -11,6 +11,7 @@ import { IntegrationsSection } from "./sections/IntegrationsSection";
 import { MetaSection } from "./sections/MetaSection";
 import { ModalSection } from "./sections/ModalSection";
 import { NavigationSection } from "./sections/NavigationSection";
+import { NewIn030Section } from "./sections/NewIn030Section";
 import { TableSection } from "./sections/TableSection";
 import { ThemeI18nSection } from "./sections/ThemeI18nSection";
 import { UtilsSection } from "./sections/UtilsSection";
@@ -30,6 +31,7 @@ const SECTIONS: { id: string; label: string }[] = [
     { id: "meta", label: "Network · Clipboard · Share" },
     { id: "integrations", label: "SSE · Push · Audio" },
     { id: "utils", label: "Utils" },
+    { id: "new-in-030", label: "New in 0.3.0" },
 ];
 
 export function App() {
@@ -92,6 +94,7 @@ export function App() {
                 <MetaSection />
                 <IntegrationsSection />
                 <UtilsSection />
+                <NewIn030Section />
             </main>
         </div>
     );

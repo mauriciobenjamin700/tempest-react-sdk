@@ -4,6 +4,9 @@ export type { AccordionItem, AccordionProps } from "./Accordion";
 export { Alert } from "./Alert";
 export type { AlertAppearance, AlertProps, AlertVariant } from "./Alert";
 
+export { AppShell } from "./AppShell";
+export type { AppShellProps } from "./AppShell";
+
 export { AspectRatio } from "./AspectRatio";
 export type { AspectRatioProps } from "./AspectRatio";
 
@@ -12,6 +15,15 @@ export type { AvatarProps, AvatarSize, AvatarStatus } from "./Avatar";
 
 export { Badge } from "./Badge";
 export type { BadgeAppearance, BadgeProps, BadgeShape, BadgeSize, BadgeVariant } from "./Badge";
+
+export { Banner } from "./Banner";
+export type { BannerProps, BannerVariant } from "./Banner";
+
+export { BottomNavigation } from "./BottomNavigation";
+export type { BottomNavigationItem, BottomNavigationProps } from "./BottomNavigation";
+
+export { BottomSheet } from "./BottomSheet";
+export type { BottomSheetProps } from "./BottomSheet";
 
 export { Breadcrumbs } from "./Breadcrumbs";
 export type { BreadcrumbItem, BreadcrumbsProps } from "./Breadcrumbs";
@@ -89,6 +101,12 @@ export type { KbdProps, KbdSize } from "./Kbd";
 export { Modal } from "./Modal";
 export type { ModalProps, ModalSize } from "./Modal";
 
+export { Navbar } from "./Navbar";
+export type { NavbarProps, NavbarTone } from "./Navbar";
+
+export { Page } from "./Page";
+export type { PageProps } from "./Page";
+
 export { Pagination } from "./Pagination";
 export type { PaginationProps } from "./Pagination";
 
@@ -110,11 +128,17 @@ export type { RatingSize, RatingStarsProps } from "./RatingStars";
 export { Show, Hide } from "./Responsive";
 export type { ShowProps, HideProps } from "./Responsive";
 
+export { SafeArea } from "./SafeArea";
+export type { SafeAreaEdge, SafeAreaProps } from "./SafeArea";
+
 export { SearchBar } from "./SearchBar";
 export type { SearchBarProps } from "./SearchBar";
 
 export { Select } from "./Select";
 export type { SelectOption, SelectProps } from "./Select";
+
+export { Sidebar } from "./Sidebar";
+export type { SidebarItem, SidebarProps } from "./Sidebar";
 
 export { Skeleton } from "./Skeleton";
 export type { SkeletonProps } from "./Skeleton";
@@ -125,11 +149,17 @@ export type { SpacerAxis, SpacerProps } from "./Spacer";
 export { Spinner } from "./Spinner";
 export type { SpinnerProps, SpinnerSize } from "./Spinner";
 
+export { Stat } from "./Stat";
+export type { StatProps, StatTrend } from "./Stat";
+
 export { Stepper } from "./Stepper";
 export type { StepItem, StepperProps } from "./Stepper";
 
 export { Switch } from "./Switch";
 export type { SwitchProps } from "./Switch";
+
+export { Tag } from "./Tag";
+export type { TagProps, TagSize, TagVariant } from "./Tag";
 
 export { Table } from "./Table";
 export type { TableAlign, TableColumn, TablePriority, TableProps } from "./Table";

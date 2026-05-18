@@ -20,13 +20,14 @@ Material complementar ao `README.md` da raiz. Cada arquivo abaixo descreve um m�
 | Hooks utilitários                    | [hooks.md](./hooks.md)                   | —                                                     |
 | Tema (dark/light)                    | [theme.md](./theme.md)                   | —                                                     |
 | i18n                                 | [i18n.md](./i18n.md)                     | —                                                     |
-| Componentes UI                       | [components.md](./components.md)         | —                                                     |
+| **Componentes UI**                   | [components/](./components/)             | catálogo por categoria (8 arquivos)                   |
 | Áudio                                | [audio.md](./audio.md)                   | —                                                     |
 | Error Boundary                       | [error-boundary.md](./error-boundary.md) | —                                                     |
 | Telemetry                            | [telemetry.md](./telemetry.md)           | —                                                     |
 | Feature Flags                        | [feature-flags.md](./feature-flags.md)   | —                                                     |
 | Logger                               | [logger.md](./logger.md)                 | —                                                     |
 | Web Share                            | [share.md](./share.md)                   | —                                                     |
+| Testing helpers (subpath)            | [testing.md](./testing.md)               | —                                                     |
 | Release pipeline + CI                | [release.md](./release.md)               | —                                                     |
 
 ## Como editar os diagramas

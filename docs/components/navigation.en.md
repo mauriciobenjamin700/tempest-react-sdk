@@ -27,14 +27,14 @@ Top app bar. Three slots (`logo` / `nav` / `actions`). Sticky by default.
 />
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `logo` | `ReactNode` | — |
-| `nav` | `ReactNode` | — |
-| `actions` | `ReactNode` | — |
-| `sticky` | `boolean` | `true` |
-| `tone` | `"surface" \| "primary" \| "transparent"` | `"surface"` |
-| `bordered` | `boolean` | `true` |
+| Prop       | Type                                      | Default     |
+| ---------- | ----------------------------------------- | ----------- |
+| `logo`     | `ReactNode`                               | —           |
+| `nav`      | `ReactNode`                               | —           |
+| `actions`  | `ReactNode`                               | —           |
+| `sticky`   | `boolean`                                 | `true`      |
+| `tone`     | `"surface" \| "primary" \| "transparent"` | `"surface"` |
+| `bordered` | `boolean`                                 | `true`      |
 
 **Safe-area**: applies `padding-top: max(space-3, env(safe-area-inset-top))`
 automatically.
@@ -64,16 +64,16 @@ const [collapsed, setCollapsed] = useState(false);
 />;
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `header` | `ReactNode` | — |
-| `items` | `SidebarItem[]` | — |
-| `value` | `string` | — |
-| `onChange` | `(key: string) => void` | — |
-| `footer` | `ReactNode` | — |
-| `collapsed` | `boolean` | `false` |
-| `width` | `number \| string` (px or CSS) | `240` |
-| `collapsedWidth` | `number \| string` | `64` |
+| Prop             | Type                           | Default |
+| ---------------- | ------------------------------ | ------- |
+| `header`         | `ReactNode`                    | —       |
+| `items`          | `SidebarItem[]`                | —       |
+| `value`          | `string`                       | —       |
+| `onChange`       | `(key: string) => void`        | —       |
+| `footer`         | `ReactNode`                    | —       |
+| `collapsed`      | `boolean`                      | `false` |
+| `width`          | `number \| string` (px or CSS) | `240`   |
+| `collapsedWidth` | `number \| string`             | `64`    |
 
 Type `SidebarItem = { key, label, icon?, badge?, disabled?, href? }`.
 
@@ -99,12 +99,12 @@ A bottom-fixed tab bar for mobile. 3-5 items.
 </Show>
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `items` | `BottomNavigationItem[]` (3–5) | — |
-| `value` | `string` | — |
-| `onChange` | `(key: string) => void` | — |
-| `showLabels` | `boolean` | `true` |
+| Prop         | Type                           | Default |
+| ------------ | ------------------------------ | ------- |
+| `items`      | `BottomNavigationItem[]` (3–5) | —       |
+| `value`      | `string`                       | —       |
+| `onChange`   | `(key: string) => void`        | —       |
+| `showLabels` | `boolean`                      | `true`  |
 
 Type `BottomNavigationItem = { key, label, icon?, badge?, disabled? }`.
 
@@ -127,12 +127,12 @@ Controlled/uncontrolled tabs. Fade-edge mask on horizontal overflow.
 />
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `items` | `TabItem[]` | — |
-| `value` | `string` (controlled) | — |
-| `defaultValue` | `string` (uncontrolled) | — |
-| `onChange` | `(key: string) => void` | — |
+| Prop           | Type                    | Default |
+| -------------- | ----------------------- | ------- |
+| `items`        | `TabItem[]`             | —       |
+| `value`        | `string` (controlled)   | —       |
+| `defaultValue` | `string` (uncontrolled) | —       |
+| `onChange`     | `(key: string) => void` | —       |
 
 ## `Stepper`
 
@@ -176,14 +176,14 @@ Numeric with siblings + an optional page-size selector.
 />
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `page` | `number` (1-indexed) | — |
-| `pageSize` | `number` | — |
-| `total` | `number` (item count) | — |
-| `onPageChange` | `(page: number) => void` | — |
-| `onPageSizeChange` | `(size: number) => void` | — |
-| `siblings` | `number` (neighbors) | `1` |
+| Prop               | Type                     | Default |
+| ------------------ | ------------------------ | ------- |
+| `page`             | `number` (1-indexed)     | —       |
+| `pageSize`         | `number`                 | —       |
+| `total`            | `number` (item count)    | —       |
+| `onPageChange`     | `(page: number) => void` | —       |
+| `onPageSizeChange` | `(size: number) => void` | —       |
+| `siblings`         | `number` (neighbors)     | `1`     |
 
 ## `SegmentedControl`
 
@@ -203,13 +203,13 @@ An iOS-style pill bar (2-5 options).
 />
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `options` | `SegmentedControlOption[]` | — |
-| `value` | `string` | — |
-| `onChange` | `(value: string) => void` | — |
-| `size` | `"sm" \| "md" \| "lg"` | `"md"` |
-| `fullWidth` | `boolean` | `false` |
+| Prop        | Type                       | Default |
+| ----------- | -------------------------- | ------- |
+| `options`   | `SegmentedControlOption[]` | —       |
+| `value`     | `string`                   | —       |
+| `onChange`  | `(value: string) => void`  | —       |
+| `size`      | `"sm" \| "md" \| "lg"`     | `"md"`  |
+| `fullWidth` | `boolean`                  | `false` |
 
 **A11y**: `role="radiogroup"` + `role="radio"` with `aria-checked`.
 

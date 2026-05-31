@@ -24,16 +24,16 @@ import { Search } from "lucide-react";
 <Input label="Password" type="password" error="Minimum 8 characters" />;
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `label` | `string` | — |
-| `helperText` | `string` | — |
-| `error` | `string` | — |
-| `leftIcon` | `ReactNode` | — |
-| `rightIcon` | `ReactNode` | — |
-| `size` | `"sm" \| "md" \| "lg"` | `"md"` |
-| `wrapperClassName` | `string` | — |
-| ... | All `HTMLInputElement` attributes except `size` | — |
+| Prop               | Type                                            | Default |
+| ------------------ | ----------------------------------------------- | ------- |
+| `label`            | `string`                                        | —       |
+| `helperText`       | `string`                                        | —       |
+| `error`            | `string`                                        | —       |
+| `leftIcon`         | `ReactNode`                                     | —       |
+| `rightIcon`        | `ReactNode`                                     | —       |
+| `size`             | `"sm" \| "md" \| "lg"`                          | `"md"`  |
+| `wrapperClassName` | `string`                                        | —       |
+| ...                | All `HTMLInputElement` attributes except `size` | —       |
 
 ## `Textarea`
 
@@ -57,11 +57,11 @@ Native `<select>`. Accepts `options` (a list) or `<option>` children.
 />
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `options` | `SelectOption[]` | — |
-| `label` | `string` | — |
-| `error` | `string` | — |
+| Prop      | Type             | Default |
+| --------- | ---------------- | ------- |
+| `options` | `SelectOption[]` | —       |
+| `label`   | `string`         | —       |
+| `error`   | `string`         | —       |
 
 ## `Combobox`
 
@@ -184,17 +184,17 @@ nav.
 <PinInput length={4} type="alphanumeric" masked autoFocus />;
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `length` | `number` | `6` |
-| `type` | `"numeric" \| "alphanumeric"` | `"numeric"` |
-| `value` | `string` | — (controlled) |
-| `defaultValue` | `string` | `""` |
-| `onChange` | `(value: string) => void` | — |
-| `onComplete` | `(value: string) => void` | — |
-| `masked` | `boolean` | `false` |
-| `size` | `"sm" \| "md" \| "lg"` | `"md"` |
-| `autoFocus` | `boolean` | `false` |
+| Prop           | Type                          | Default        |
+| -------------- | ----------------------------- | -------------- |
+| `length`       | `number`                      | `6`            |
+| `type`         | `"numeric" \| "alphanumeric"` | `"numeric"`    |
+| `value`        | `string`                      | — (controlled) |
+| `defaultValue` | `string`                      | `""`           |
+| `onChange`     | `(value: string) => void`     | —              |
+| `onComplete`   | `(value: string) => void`     | —              |
+| `masked`       | `boolean`                     | `false`        |
+| `size`         | `"sm" \| "md" \| "lg"`        | `"md"`         |
+| `autoFocus`    | `boolean`                     | `false`        |
 
 ## `PasswordInput`
 
@@ -208,12 +208,12 @@ levels).
 Exposed helper: `estimatePasswordStrength(value)` returns `0-4` (length, case
 mix, digits, symbols).
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `showStrength` | `boolean` | `false` |
-| `strength` | `0 \| 1 \| 2 \| 3 \| 4` (manual override) | `estimatePasswordStrength(value)` |
-| `strengthLabels` | `[string,string,string,string,string]` | `["Muito fraca","Fraca","Razoável","Forte","Excelente"]` |
-| `toggleLabels` | `{ show, hide }` | `{ show: "Mostrar senha", hide: "Esconder senha" }` |
+| Prop             | Type                                      | Default                                                  |
+| ---------------- | ----------------------------------------- | -------------------------------------------------------- |
+| `showStrength`   | `boolean`                                 | `false`                                                  |
+| `strength`       | `0 \| 1 \| 2 \| 3 \| 4` (manual override) | `estimatePasswordStrength(value)`                        |
+| `strengthLabels` | `[string,string,string,string,string]`    | `["Muito fraca","Fraca","Razoável","Forte","Excelente"]` |
+| `toggleLabels`   | `{ show, hide }`                          | `{ show: "Mostrar senha", hide: "Esconder senha" }`      |
 
 ## `StepperInput`
 

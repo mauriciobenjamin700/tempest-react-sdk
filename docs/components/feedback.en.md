@@ -22,15 +22,15 @@ An inline banner. Different from `Banner` (top-of-page) and `Toast` (transient).
 </Alert>;
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `variant` | `"neutral" \| "info" \| "success" \| "warning" \| "danger"` | `"info"` |
-| `appearance` | `"soft" \| "solid" \| "outline"` | `"soft"` |
-| `title` | `ReactNode` | — |
-| `icon` | `ReactNode` | — |
-| `action` | `ReactNode` | — |
-| `dismissible` | `boolean` | `false` |
-| `onDismiss` | `() => void` | — |
+| Prop          | Type                                                        | Default  |
+| ------------- | ----------------------------------------------------------- | -------- |
+| `variant`     | `"neutral" \| "info" \| "success" \| "warning" \| "danger"` | `"info"` |
+| `appearance`  | `"soft" \| "solid" \| "outline"`                            | `"soft"` |
+| `title`       | `ReactNode`                                                 | —        |
+| `icon`        | `ReactNode`                                                 | —        |
+| `action`      | `ReactNode`                                                 | —        |
+| `dismissible` | `boolean`                                                   | `false`  |
+| `onDismiss`   | `() => void`                                                | —        |
 
 **A11y**: `role="status"` for info/success, `role="alert"` for warning/danger.
 
@@ -64,13 +64,13 @@ Status pill — not removable.
 <Badge variant="info" dot>3</Badge>
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `variant` | `"neutral" \| "primary" \| "success" \| "warning" \| "danger" \| "info"` | `"neutral"` |
-| `appearance` | `"soft" \| "solid" \| "outline"` | `"soft"` |
-| `shape` | `"pill" \| "square"` | `"pill"` |
-| `size` | `"sm" \| "md" \| "lg"` | `"md"` |
-| `dot` | `boolean` (status indicator + number) | `false` |
+| Prop         | Type                                                                     | Default     |
+| ------------ | ------------------------------------------------------------------------ | ----------- |
+| `variant`    | `"neutral" \| "primary" \| "success" \| "warning" \| "danger" \| "info"` | `"neutral"` |
+| `appearance` | `"soft" \| "solid" \| "outline"`                                         | `"soft"`    |
+| `shape`      | `"pill" \| "square"`                                                     | `"pill"`    |
+| `size`       | `"sm" \| "md" \| "lg"`                                                   | `"md"`      |
+| `dot`        | `boolean` (status indicator + number)                                    | `false`     |
 
 ## `Tag`
 
@@ -81,12 +81,12 @@ A removable chip. Use it for filter tokens, applied filters, selected entities.
 <Tag size="sm">In stock</Tag>
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `variant` | `"neutral" \| "primary" \| "success" \| "warning" \| "danger" \| "info"` | `"neutral"` |
-| `size` | `"sm" \| "md" \| "lg"` | `"md"` |
-| `onRemove` | `() => void` | — |
-| `removeLabel` | `string` (a11y) | `"Remover"` |
+| Prop          | Type                                                                     | Default     |
+| ------------- | ------------------------------------------------------------------------ | ----------- |
+| `variant`     | `"neutral" \| "primary" \| "success" \| "warning" \| "danger" \| "info"` | `"neutral"` |
+| `size`        | `"sm" \| "md" \| "lg"`                                                   | `"md"`      |
+| `onRemove`    | `() => void`                                                             | —           |
+| `removeLabel` | `string` (a11y)                                                          | `"Remover"` |
 
 ## `Stat`
 
@@ -105,14 +105,14 @@ A KPI card for dashboards.
 <Stat label="NPS" value="78" delta="0" trend="flat" />;
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `label` | `ReactNode` | — |
-| `value` | `ReactNode` | — |
-| `delta` | `ReactNode` | — |
+| Prop    | Type                       | Default                                   |
+| ------- | -------------------------- | ----------------------------------------- |
+| `label` | `ReactNode`                | —                                         |
+| `value` | `ReactNode`                | —                                         |
+| `delta` | `ReactNode`                | —                                         |
 | `trend` | `"up" \| "down" \| "flat"` | inferred from `+`/`-` in the delta string |
-| `hint` | `ReactNode` | — |
-| `icon` | `ReactNode` | — |
+| `hint`  | `ReactNode`                | —                                         |
+| `icon`  | `ReactNode`                | —                                         |
 
 ## `Progress`
 
@@ -124,12 +124,12 @@ Progress bar.
 <Progress indeterminate variant="primary" />;
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `value` | `number` | — |
-| `max` | `number` | `100` |
-| `variant` | `"primary" \| "success" \| "danger"` | `"primary"` |
-| `indeterminate` | `boolean` | `false` |
+| Prop            | Type                                 | Default     |
+| --------------- | ------------------------------------ | ----------- |
+| `value`         | `number`                             | —           |
+| `max`           | `number`                             | `100`       |
+| `variant`       | `"primary" \| "success" \| "danger"` | `"primary"` |
+| `indeterminate` | `boolean`                            | `false`     |
 
 ## `Spinner`
 
@@ -143,9 +143,9 @@ A generic loader.
 </Center>;
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `size` | `"xs" \| "sm" \| "md" \| "lg" \| "xl"` | `"md"` |
+| Prop   | Type                                   | Default |
+| ------ | -------------------------------------- | ------- |
+| `size` | `"xs" \| "sm" \| "md" \| "lg" \| "xl"` | `"md"`  |
 
 ## `Skeleton`
 
@@ -166,11 +166,11 @@ A placeholder with shimmer while data loads.
 <Skeleton variant="circle" width={40} height={40} />;
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
+| Prop      | Type                           | Default  |
+| --------- | ------------------------------ | -------- |
 | `variant` | `"rect" \| "text" \| "circle"` | `"rect"` |
-| `width` | `number \| string` | `"100%"` |
-| `height` | `number \| string` | — |
+| `width`   | `number \| string`             | `"100%"` |
+| `height`  | `number \| string`             | —        |
 
 ## `Toast`
 
@@ -189,14 +189,14 @@ toast.error("Failed to process payment", { duration: 8000 });
 toast.show({ title: "Sync", description: "In progress…", variant: "info" });
 ```
 
-| `ToastApi` | Signature |
-| --- | --- |
-| `show` | `(options: ToastOptions) => string` (returns id) |
-| `success` | `(description, options?) => string` |
-| `error` | `(description, options?) => string` |
-| `warning` | `(description, options?) => string` |
-| `info` | `(description, options?) => string` |
-| `dismiss` | `(id: string) => void` |
+| `ToastApi` | Signature                                        |
+| ---------- | ------------------------------------------------ |
+| `show`     | `(options: ToastOptions) => string` (returns id) |
+| `success`  | `(description, options?) => string`              |
+| `error`    | `(description, options?) => string`              |
+| `warning`  | `(description, options?) => string`              |
+| `info`     | `(description, options?) => string`              |
+| `dismiss`  | `(id: string) => void`                           |
 
 `ToastProvider.position`: `"top-right"` (default), `"top-left"`, `"top-center"`,
 `"bottom-right"`, `"bottom-left"`, `"bottom-center"`.

@@ -18,13 +18,13 @@ without a mask.
 
 ## Masked inputs
 
-| Component | Mask | inputMode |
-| --- | --- | --- |
-| `CPFInput` | `000.000.000-00` | numeric |
-| `CNPJInput` | `00.000.000/0000-00` | numeric |
-| `PhoneInput` | `(00) 00000-0000` (or 10 digits) | tel |
-| `CEPInput` | `00000-000` | numeric |
-| `MoneyInput` | `R$ X,XXX.XX` (cents) | numeric |
+| Component    | Mask                             | inputMode |
+| ------------ | -------------------------------- | --------- |
+| `CPFInput`   | `000.000.000-00`                 | numeric   |
+| `CNPJInput`  | `00.000.000/0000-00`             | numeric   |
+| `PhoneInput` | `(00) 00000-0000` (or 10 digits) | tel       |
+| `CEPInput`   | `00000-000`                      | numeric   |
+| `MoneyInput` | `R$ X,XXX.XX` (cents)            | numeric   |
 
 Uniform API — they all take `value: string` (or `number` for `MoneyInput`) +
 `onChange`:

@@ -28,16 +28,16 @@ import { Plus, Trash } from "lucide-react";
 </Button>;
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `variant` | `"primary" \| "secondary" \| "success" \| "danger" \| "soft" \| "outline" \| "ghost" \| "link"` | `"primary"` |
-| `size` | `"xs" \| "sm" \| "md" \| "lg" \| "xl"` | `"md"` |
-| `loading` | `boolean` | `false` |
-| `fullWidth` | `boolean` | `false` |
-| `iconOnly` | `boolean` (square, requires `aria-label`) | `false` |
-| `pill` | `boolean` (pill border-radius) | `false` |
-| `leftIcon` | `ReactNode` | — |
-| `rightIcon` | `ReactNode` | — |
+| Prop        | Type                                                                                            | Default     |
+| ----------- | ----------------------------------------------------------------------------------------------- | ----------- |
+| `variant`   | `"primary" \| "secondary" \| "success" \| "danger" \| "soft" \| "outline" \| "ghost" \| "link"` | `"primary"` |
+| `size`      | `"xs" \| "sm" \| "md" \| "lg" \| "xl"`                                                          | `"md"`      |
+| `loading`   | `boolean`                                                                                       | `false`     |
+| `fullWidth` | `boolean`                                                                                       | `false`     |
+| `iconOnly`  | `boolean` (square, requires `aria-label`)                                                       | `false`     |
+| `pill`      | `boolean` (pill border-radius)                                                                  | `false`     |
+| `leftIcon`  | `ReactNode`                                                                                     | —           |
+| `rightIcon` | `ReactNode`                                                                                     | —           |
 
 **A11y**: `loading` disables the button + `aria-busy="true"`. `iconOnly` requires
 `aria-label`.
@@ -54,11 +54,11 @@ A portaled hover tooltip.
 </Tooltip>
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `content` | `ReactNode` | — |
+| Prop        | Type                                     | Default |
+| ----------- | ---------------------------------------- | ------- |
+| `content`   | `ReactNode`                              | —       |
 | `placement` | `"top" \| "right" \| "bottom" \| "left"` | `"top"` |
-| `delay` | `number` (ms) | `200` |
+| `delay`     | `number` (ms)                            | `200`   |
 
 **A11y**: uses `role="tooltip"` + `aria-describedby` on the trigger.
 
@@ -78,11 +78,11 @@ A dropdown menu of actions. Keyboard nav (↑↓ Home End Esc).
 />
 ```
 
-| Entry type | Fields |
-| --- | --- |
-| `"item"` | `label`, `icon?`, `onSelect`, `disabled?`, `danger?`, `keepOpen?` |
-| `"label"` | `label` |
-| `"separator"` | (none) |
+| Entry type    | Fields                                                            |
+| ------------- | ----------------------------------------------------------------- |
+| `"item"`      | `label`, `icon?`, `onSelect`, `disabled?`, `danger?`, `keepOpen?` |
+| `"label"`     | `label`                                                           |
+| `"separator"` | (none)                                                            |
 
 **A11y**: `role="menu"` + `role="menuitem"`, focus trapping while open.
 
@@ -105,12 +105,12 @@ A generic floating panel (anchor + outside-click + Esc dismiss).
 </Popover>
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `open` | `boolean` | — (controlled) |
-| `onOpenChange` | `(open: boolean) => void` | — |
-| `placement` | `"top" \| "top-start" \| "top-end" \| "bottom" \| "bottom-start" \| "bottom-end" \| "left" \| "right"` | `"bottom"` |
-| `trigger` | `ReactElement` (cloned with handlers) | — |
+| Prop           | Type                                                                                                   | Default        |
+| -------------- | ------------------------------------------------------------------------------------------------------ | -------------- |
+| `open`         | `boolean`                                                                                              | — (controlled) |
+| `onOpenChange` | `(open: boolean) => void`                                                                              | —              |
+| `placement`    | `"top" \| "top-start" \| "top-end" \| "bottom" \| "bottom-start" \| "bottom-end" \| "left" \| "right"` | `"bottom"`     |
+| `trigger`      | `ReactElement` (cloned with handlers)                                                                  | —              |
 
 **A11y**: outside-click dismissal, `Escape` closes, optional focus trap.
 
@@ -134,16 +134,16 @@ A pre-built destructive prompt (Modal + 2 buttons).
 />
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `open` | `boolean` | — |
-| `title` | `ReactNode` | — |
-| `description` | `ReactNode` | — |
-| `confirmLabel` | `string` | `"Confirmar"` |
-| `cancelLabel` | `string` | `"Cancelar"` |
-| `tone` | `"default" \| "danger"` | `"default"` |
-| `onConfirm` | `() => void \| Promise<void>` (the button can show loading) | — |
-| `onCancel` | `() => void` | — |
+| Prop           | Type                                                        | Default       |
+| -------------- | ----------------------------------------------------------- | ------------- |
+| `open`         | `boolean`                                                   | —             |
+| `title`        | `ReactNode`                                                 | —             |
+| `description`  | `ReactNode`                                                 | —             |
+| `confirmLabel` | `string`                                                    | `"Confirmar"` |
+| `cancelLabel`  | `string`                                                    | `"Cancelar"`  |
+| `tone`         | `"default" \| "danger"`                                     | `"default"`   |
+| `onConfirm`    | `() => void \| Promise<void>` (the button can show loading) | —             |
+| `onCancel`     | `() => void`                                                | —             |
 
 ## General A11y
 

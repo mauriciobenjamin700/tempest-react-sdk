@@ -27,17 +27,17 @@ const [open, setOpen] = useState(false);
 </Modal>;
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `open` | `boolean` | — |
-| `onClose` | `() => void` | — |
-| `title` | `ReactNode` | — |
-| `size` | `"sm" \| "md" \| "lg" \| "xl" \| "2xl" \| "3xl"` | `"md"` |
-| `footer` | `ReactNode` | — |
-| `fullscreen` | `boolean` (fills 100dvh regardless of size) | `false` |
-| `fullscreenOnMobile` | `boolean` (becomes fullscreen below 640px) | `false` |
-| `dismissOnBackdrop` | `boolean` | `true` |
-| `dismissOnEsc` | `boolean` | `true` |
+| Prop                 | Type                                             | Default |
+| -------------------- | ------------------------------------------------ | ------- |
+| `open`               | `boolean`                                        | —       |
+| `onClose`            | `() => void`                                     | —       |
+| `title`              | `ReactNode`                                      | —       |
+| `size`               | `"sm" \| "md" \| "lg" \| "xl" \| "2xl" \| "3xl"` | `"md"`  |
+| `footer`             | `ReactNode`                                      | —       |
+| `fullscreen`         | `boolean` (fills 100dvh regardless of size)      | `false` |
+| `fullscreenOnMobile` | `boolean` (becomes fullscreen below 640px)       | `false` |
+| `dismissOnBackdrop`  | `boolean`                                        | `true`  |
+| `dismissOnEsc`       | `boolean`                                        | `true`  |
 
 **Safe-area**: in `fullscreen` it applies `env(safe-area-inset-*)` on all edges.
 
@@ -63,15 +63,15 @@ on mobile via `mobilePlacement`.
 </Drawer>
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `open` | `boolean` | — |
-| `onClose` | `() => void` | — |
-| `placement` | `"left" \| "right" \| "top" \| "bottom"` | `"right"` |
-| `mobilePlacement` | `"left" \| "right" \| "top" \| "bottom"` (mobile override) | — |
-| `size` | `"sm" \| "md" \| "lg" \| "xl"` | `"md"` |
-| `title` | `ReactNode` | — |
-| `showHandle` | `boolean` (drag indicator on the opposite edge) | `false` |
+| Prop              | Type                                                       | Default   |
+| ----------------- | ---------------------------------------------------------- | --------- |
+| `open`            | `boolean`                                                  | —         |
+| `onClose`         | `() => void`                                               | —         |
+| `placement`       | `"left" \| "right" \| "top" \| "bottom"`                   | `"right"` |
+| `mobilePlacement` | `"left" \| "right" \| "top" \| "bottom"` (mobile override) | —         |
+| `size`            | `"sm" \| "md" \| "lg" \| "xl"`                             | `"md"`    |
+| `title`           | `ReactNode`                                                | —         |
+| `showHandle`      | `boolean` (drag indicator on the opposite edge)            | `false`   |
 
 ## `BottomSheet`
 
@@ -88,14 +88,14 @@ mobile.
 </BottomSheet>
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `open` | `boolean` | — |
-| `onClose` | `() => void` | — |
-| `title` | `ReactNode` | — |
-| `showHandle` | `boolean` | `true` |
-| `dismissOnBackdrop` | `boolean` | `true` |
-| `dismissOnEsc` | `boolean` | `true` |
+| Prop                | Type         | Default |
+| ------------------- | ------------ | ------- |
+| `open`              | `boolean`    | —       |
+| `onClose`           | `() => void` | —       |
+| `title`             | `ReactNode`  | —       |
+| `showHandle`        | `boolean`    | `true`  |
+| `dismissOnBackdrop` | `boolean`    | `true`  |
+| `dismissOnEsc`      | `boolean`    | `true`  |
 
 **Safe-area**: automatic padding-bottom.
 

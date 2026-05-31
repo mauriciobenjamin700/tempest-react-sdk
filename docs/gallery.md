@@ -18,8 +18,8 @@ npm run dev             # http://127.0.0.1:5173
 
 ## Seções
 
-| #   | Seção              | Componentes / Features                                                                               | Arquivo                                                                             |
-| --- | ------------------ | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| #   | Seção              | Componentes / Features                                                                               | Arquivo                                                                                                                                             |
+| --- | ------------------ | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Buttons            | `Button`                                                                                             | [ButtonsSection.tsx](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/examples/gallery/src/sections/ButtonsSection.tsx)           |
 | 2   | Form fields        | `Input`, `Select`, `Textarea`, `SearchBar`                                                           | [FormFieldsSection.tsx](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/examples/gallery/src/sections/FormFieldsSection.tsx)     |
 | 3   | Feedback           | `Badge`, `Card`, `Spinner`, `Skeleton`                                                               | [FeedbackSection.tsx](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/examples/gallery/src/sections/FeedbackSection.tsx)         |

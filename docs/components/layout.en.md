@@ -26,13 +26,13 @@ Responsive behavior:
 - **>= `sidebarBreakpoint`**: navbar + sidebar + main + footer.
 - **< `sidebarBreakpoint`**: navbar + main + bottomNav + footer (sidebar hidden).
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `navbar` | `ReactNode` | — |
-| `sidebar` | `ReactNode` | — |
-| `bottomNav` | `ReactNode` | — |
-| `footer` | `ReactNode` | — |
-| `sidebarBreakpoint` | `"sm" \| "md" \| "lg" \| "xl"` | `"md"` |
+| Prop                | Type                           | Default |
+| ------------------- | ------------------------------ | ------- |
+| `navbar`            | `ReactNode`                    | —       |
+| `sidebar`           | `ReactNode`                    | —       |
+| `bottomNav`         | `ReactNode`                    | —       |
+| `footer`            | `ReactNode`                    | —       |
+| `sidebarBreakpoint` | `"sm" \| "md" \| "lg" \| "xl"` | `"md"`  |
 
 ## `Page`
 
@@ -57,15 +57,15 @@ Page wrapper with a header (`eyebrow` + `title` + `description` + `actions`) +
 </Page>;
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `title` | `ReactNode` | — |
-| `eyebrow` | `ReactNode` | — |
-| `description` | `ReactNode` | — |
-| `actions` | `ReactNode` | — |
-| `toolbar` | `ReactNode` | — |
-| `footer` | `ReactNode` | — |
-| `padded` | `boolean` | `true` |
+| Prop          | Type        | Default |
+| ------------- | ----------- | ------- |
+| `title`       | `ReactNode` | —       |
+| `eyebrow`     | `ReactNode` | —       |
+| `description` | `ReactNode` | —       |
+| `actions`     | `ReactNode` | —       |
+| `toolbar`     | `ReactNode` | —       |
+| `footer`      | `ReactNode` | —       |
+| `padded`      | `boolean`   | `true`  |
 
 ## `Container`
 
@@ -77,13 +77,13 @@ Max-width wrapper.
 </Container>
 ```
 
-| `size` | Max-width |
-| --- | --- |
-| `"sm"` | `640px` |
-| `"md"` | `768px` |
-| `"lg"` | `1024px` |
-| `"xl"` | `1280px` |
-| `"full"` | `100%` |
+| `size`   | Max-width |
+| -------- | --------- |
+| `"sm"`   | `640px`   |
+| `"md"`   | `768px`   |
+| `"lg"`   | `1024px`  |
+| `"xl"`   | `1280px`  |
+| `"full"` | `100%`    |
 
 ## `Stack`
 
@@ -101,13 +101,13 @@ Vertical or horizontal flex with `gap`, `align`, `justify`, `wrap`. Accepts
 </Stack>;
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
+| Prop        | Type                                                | Default      |
+| ----------- | --------------------------------------------------- | ------------ |
 | `direction` | `"vertical" \| "horizontal"` (or `ResponsiveValue`) | `"vertical"` |
-| `gap` | `number \| string` (or `ResponsiveValue`) | `2` (8px) |
-| `align` | `"start" \| "center" \| "end" \| "stretch"` | — |
-| `justify` | `"start" \| "center" \| "end" \| "between"` | — |
-| `wrap` | `boolean` | `false` |
+| `gap`       | `number \| string` (or `ResponsiveValue`)           | `2` (8px)    |
+| `align`     | `"start" \| "center" \| "end" \| "stretch"`         | —            |
+| `justify`   | `"start" \| "center" \| "end" \| "between"`         | —            |
+| `wrap`      | `boolean`                                           | `false`      |
 
 A numeric `gap` maps to the 4px scale (`2 → 8px`, `4 → 16px`).
 
@@ -134,10 +134,10 @@ CSS Grid wrapper.
 </Grid>;
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `columns` | `number \| string` (or `ResponsiveValue`) | `2` |
-| `gap` | `number \| string` | `4` |
+| Prop      | Type                                      | Default |
+| --------- | ----------------------------------------- | ------- |
+| `columns` | `number \| string` (or `ResponsiveValue`) | `2`     |
+| `gap`     | `number \| string`                        | `4`     |
 
 A numeric `columns` → `repeat(N, minmax(0, 1fr))`. A string passes straight to
 `grid-template-columns`.
@@ -153,11 +153,11 @@ Horizontal/vertical separator with an optional label.
 <Divider align="center">OR</Divider>;
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `orientation` | `"horizontal" \| "vertical"` | `"horizontal"` |
-| `variant` | `"solid" \| "dashed" \| "dotted"` | `"solid"` |
-| `align` | `"start" \| "center" \| "end"` (label) | `"center"` |
+| Prop          | Type                                   | Default        |
+| ------------- | -------------------------------------- | -------------- |
+| `orientation` | `"horizontal" \| "vertical"`           | `"horizontal"` |
+| `variant`     | `"solid" \| "dashed" \| "dotted"`      | `"solid"`      |
+| `align`       | `"start" \| "center" \| "end"` (label) | `"center"`     |
 
 ## `Spacer`
 
@@ -171,8 +171,8 @@ Flex push.
 </Stack>
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
+| Prop   | Type                   | Default  |
+| ------ | ---------------------- | -------- |
 | `axis` | `"both" \| "x" \| "y"` | `"both"` |
 
 ## `Center`
@@ -185,11 +185,11 @@ Centers children horizontally/vertically/both.
 </Center>
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `axis` | `"both" \| "horizontal" \| "vertical"` | `"both"` |
-| `minHeight` | `number \| string` | — |
-| `fullWidth` | `boolean` | `true` |
+| Prop        | Type                                   | Default  |
+| ----------- | -------------------------------------- | -------- |
+| `axis`      | `"both" \| "horizontal" \| "vertical"` | `"both"` |
+| `minHeight` | `number \| string`                     | —        |
+| `fullWidth` | `boolean`                              | `true`   |
 
 ## `AspectRatio`
 
@@ -205,8 +205,8 @@ Preserves the ratio for media.
 </AspectRatio>;
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
+| Prop    | Type     | Default  |
+| ------- | -------- | -------- |
 | `ratio` | `number` | `16 / 9` |
 
 Uses the native CSS `aspect-ratio`. Compatible with all modern browsers.
@@ -221,10 +221,10 @@ Per-edge padding using `env(safe-area-inset-*)`.
 </SafeArea>
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `edges` | `("top" \| "right" \| "bottom" \| "left")[]` | `["top","right","bottom","left"]` |
-| `inline` | `boolean` (`display: contents` instead of block) | `false` |
+| Prop     | Type                                             | Default                           |
+| -------- | ------------------------------------------------ | --------------------------------- |
+| `edges`  | `("top" \| "right" \| "bottom" \| "left")[]`     | `["top","right","bottom","left"]` |
+| `inline` | `boolean` (`display: contents` instead of block) | `false`                           |
 
 Components that already handle safe-area automatically: `Navbar` (top),
 `BottomNavigation`/`BottomSheet` (bottom), `Modal.fullscreen` (all), `Toast`
@@ -242,11 +242,11 @@ Conditional render based on breakpoint. SSR-safe — the first render uses `xs`
 <Show only={["sm", "md"]}><TabletOnlyHint /></Show>
 ```
 
-| Prop | Type |
-| --- | --- |
+| Prop    | Type                              |
+| ------- | --------------------------------- |
 | `above` | `Breakpoint` (xs/sm/md/lg/xl/2xl) |
-| `below` | `Breakpoint` |
-| `only` | `Breakpoint \| Breakpoint[]` |
+| `below` | `Breakpoint`                      |
+| `only`  | `Breakpoint \| Breakpoint[]`      |
 
 `only` overrides `above`/`below` when set.
 

@@ -33,26 +33,21 @@ apenas o que cada módulo exige (`zod`, `zustand`, `@tanstack/react-query`,
 
 ## O que tem dentro
 
-| Área | Páginas |
-| --- | --- |
-| **Guia** | [Arquitetura](architecture.md), [Gallery (demo)](gallery.md) |
-| **Componentes** | [Catálogo](components.md) — [Entrada de dados](components/inputs.md), [Ação](components/actions.md), [Navegação](components/navigation.md), [Overlay](components/overlay.md), [Layout](components/layout.md), [Dados](components/data.md), [Status & feedback](components/feedback.md), [Identidade & micro](components/identity.md) |
-| **Hooks** | [Hooks utilitários](hooks.md) |
-| **Integrações** | [HTTP](http.md), [Auth](auth.md), [Query](query.md), [SSE](sse.md), [WebSocket](websocket.md), [Web Push](push.md), [Offline](offline.md), [Web Share](share.md), [Áudio](audio.md) |
-| **Formulários** | [Forms (zod)](forms.md), [Forms BR](forms-br.md) |
-| **Estilo & Tema** | [Estilos & Design Tokens](styles.md), [Tema](theme.md), [i18n](i18n.md) |
-| **Observabilidade** | [Telemetry](telemetry.md), [Feature Flags](feature-flags.md), [Logger](logger.md), [Error Boundary](error-boundary.md) |
-| **Projeto** | [Testing helpers](testing.md), [Release pipeline](release.md) |
+| Área                | Páginas                                                                                                                                                                                                                                                                                                                              |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Guia**            | [Arquitetura](architecture.md), [Gallery (demo)](gallery.md)                                                                                                                                                                                                                                                                         |
+| **Componentes**     | [Catálogo](components.md) — [Entrada de dados](components/inputs.md), [Ação](components/actions.md), [Navegação](components/navigation.md), [Overlay](components/overlay.md), [Layout](components/layout.md), [Dados](components/data.md), [Status & feedback](components/feedback.md), [Identidade & micro](components/identity.md) |
+| **Hooks**           | [Hooks utilitários](hooks.md)                                                                                                                                                                                                                                                                                                        |
+| **Integrações**     | [HTTP](http.md), [Auth](auth.md), [Query](query.md), [SSE](sse.md), [WebSocket](websocket.md), [Web Push](push.md), [Offline](offline.md), [Web Share](share.md), [Áudio](audio.md)                                                                                                                                                  |
+| **Formulários**     | [Forms (zod)](forms.md), [Forms BR](forms-br.md)                                                                                                                                                                                                                                                                                     |
+| **Estilo & Tema**   | [Estilos & Design Tokens](styles.md), [Tema](theme.md), [i18n](i18n.md)                                                                                                                                                                                                                                                              |
+| **Observabilidade** | [Telemetry](telemetry.md), [Feature Flags](feature-flags.md), [Logger](logger.md), [Error Boundary](error-boundary.md)                                                                                                                                                                                                               |
+| **Projeto**         | [Testing helpers](testing.md), [Release pipeline](release.md)                                                                                                                                                                                                                                                                        |
 
 ## Início rápido
 
 ```tsx
-import {
-  ThemeProvider,
-  QueryProvider,
-  ToastProvider,
-  I18nProvider,
-} from "tempest-react-sdk";
+import { ThemeProvider, QueryProvider, ToastProvider, I18nProvider } from "tempest-react-sdk";
 import "tempest-react-sdk/dist/styles.css";
 
 export function AppProviders({ children }: { children: React.ReactNode }) {

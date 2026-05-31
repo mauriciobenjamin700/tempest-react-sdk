@@ -7,35 +7,35 @@ hook is independent — import only what you need.
 
 ### DOM / viewport
 
-| Hook | What it does |
-| --- | --- |
-| `useDebounce(value, delay?)` | Returns the value stabilized after `delay` ms without changes. |
-| `useMediaQuery(query)` | Subscribes to `matchMedia` and re-renders on change. |
-| `useBreakpoint()` | `{ current, width, above, below, isMobile, isTablet, isDesktop }` — reactive breakpoint (xs/sm/md/lg/xl/2xl). |
-| `useEventListener(name, handler, target?, opts?)` | Generic SSR-safe wrapper. `target` default = `window`. Accepts a ref or an `EventTarget` directly. |
-| `useOnline()` | Reactive `navigator.onLine`. |
-| `useDocumentVisibility()` | Reactive `document.visibilityState`. |
-| `useIntersectionObserver(ref, opts?)` | `IntersectionObserverEntry` or `null`. |
-| `useResizeObserver(ref)` | `{ width, height }` of the reference. |
-| `useScrollLock(active)` | Locks `body.overflow`. |
-| `useFocusTrap(ref, active)` | Confines Tab within the container. |
-| `useBeforeInstallPrompt()` | Deferred PWA install prompt. |
-| `useIdle(timeout?)` | True when the user is idle for `timeout` ms. |
-| `useGeolocation(opts?)` | Position + error + loading. |
+| Hook                                              | What it does                                                                                                  |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `useDebounce(value, delay?)`                      | Returns the value stabilized after `delay` ms without changes.                                                |
+| `useMediaQuery(query)`                            | Subscribes to `matchMedia` and re-renders on change.                                                          |
+| `useBreakpoint()`                                 | `{ current, width, above, below, isMobile, isTablet, isDesktop }` — reactive breakpoint (xs/sm/md/lg/xl/2xl). |
+| `useEventListener(name, handler, target?, opts?)` | Generic SSR-safe wrapper. `target` default = `window`. Accepts a ref or an `EventTarget` directly.            |
+| `useOnline()`                                     | Reactive `navigator.onLine`.                                                                                  |
+| `useDocumentVisibility()`                         | Reactive `document.visibilityState`.                                                                          |
+| `useIntersectionObserver(ref, opts?)`             | `IntersectionObserverEntry` or `null`.                                                                        |
+| `useResizeObserver(ref)`                          | `{ width, height }` of the reference.                                                                         |
+| `useScrollLock(active)`                           | Locks `body.overflow`.                                                                                        |
+| `useFocusTrap(ref, active)`                       | Confines Tab within the container.                                                                            |
+| `useBeforeInstallPrompt()`                        | Deferred PWA install prompt.                                                                                  |
+| `useIdle(timeout?)`                               | True when the user is idle for `timeout` ms.                                                                  |
+| `useGeolocation(opts?)`                           | Position + error + loading.                                                                                   |
 
 ### State
 
-| Hook | What it does |
-| --- | --- |
-| `usePagination(initialPage?, initialSize?)` | `{ page, size, setPage, setSize, reset }`. |
-| `useClientFilter(items, search, keysOrPredicate)` | Client-side filter by keys or predicate. |
-| `useClipboard(opts?)` | `{ copied, copy, reset }` with a configurable TTL. |
-| `useKeyboardShortcut(shortcut, handler, opts?)` | Global shortcut; accepts `mod` (Ctrl/Cmd). |
-| `useLocalStorage<T>(key, default)` | State persisted to localStorage + synced cross-tab via the `storage` event. SSR-safe. |
-| `useToggle(initial?)` | `[on, toggle, set]` — sugar for boolean state. |
-| `useAsync<T>(fn, deps?, { immediate? })` | Tracks `idle/pending/success/error`. `{ status, data, error, run, reset }`. Distinct from React Query (no cache). |
-| `useStableCallback(fn)` | Stable ref that calls the current callback. |
-| `useDeepMemo(value)` | Memoization with structural equality. |
+| Hook                                              | What it does                                                                                                      |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `usePagination(initialPage?, initialSize?)`       | `{ page, size, setPage, setSize, reset }`.                                                                        |
+| `useClientFilter(items, search, keysOrPredicate)` | Client-side filter by keys or predicate.                                                                          |
+| `useClipboard(opts?)`                             | `{ copied, copy, reset }` with a configurable TTL.                                                                |
+| `useKeyboardShortcut(shortcut, handler, opts?)`   | Global shortcut; accepts `mod` (Ctrl/Cmd).                                                                        |
+| `useLocalStorage<T>(key, default)`                | State persisted to localStorage + synced cross-tab via the `storage` event. SSR-safe.                             |
+| `useToggle(initial?)`                             | `[on, toggle, set]` — sugar for boolean state.                                                                    |
+| `useAsync<T>(fn, deps?, { immediate? })`          | Tracks `idle/pending/success/error`. `{ status, data, error, run, reset }`. Distinct from React Query (no cache). |
+| `useStableCallback(fn)`                           | Stable ref that calls the current callback.                                                                       |
+| `useDeepMemo(value)`                              | Memoization with structural equality.                                                                             |
 
 ## Examples
 

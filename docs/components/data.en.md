@@ -54,26 +54,26 @@ const columns: TableColumn<Order>[] = [
 />;
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `columns` | `TableColumn<T>[]` | — |
-| `rows` | `T[]` | — |
-| `rowKey` | `(row: T) => string \| number` | — |
-| `onRowClick` | `(row: T) => void` | — |
-| `loading` | `boolean` (shows skeleton rows) | `false` |
-| `emptyState` | `ReactNode` | — |
+| Prop            | Type                                                        | Default |
+| --------------- | ----------------------------------------------------------- | ------- |
+| `columns`       | `TableColumn<T>[]`                                          | —       |
+| `rows`          | `T[]`                                                       | —       |
+| `rowKey`        | `(row: T) => string \| number`                              | —       |
+| `onRowClick`    | `(row: T) => void`                                          | —       |
+| `loading`       | `boolean` (shows skeleton rows)                             | `false` |
+| `emptyState`    | `ReactNode`                                                 | —       |
 | `stackOnMobile` | `boolean` (rows become label/value cards below the `sm` bp) | `false` |
 
 `TableColumn<T>`:
 
-| Field | Type | Notes |
-| --- | --- | --- |
-| `key` | `string` | Identifier + default key for `keyof T` |
-| `label` | `ReactNode` | Header |
-| `render` | `(row: T) => ReactNode` | Default = `row[key as keyof T]` |
-| `align` | `"left" \| "center" \| "right"` | Default `"left"` |
+| Field      | Type                                | Notes                                          |
+| ---------- | ----------------------------------- | ---------------------------------------------- |
+| `key`      | `string`                            | Identifier + default key for `keyof T`         |
+| `label`    | `ReactNode`                         | Header                                         |
+| `render`   | `(row: T) => ReactNode`             | Default = `row[key as keyof T]`                |
+| `align`    | `"left" \| "center" \| "right"`     | Default `"left"`                               |
 | `priority` | `"always" \| "tablet" \| "desktop"` | `tablet`: hidden < md. `desktop`: hidden < lg. |
-| `width` | `string` | CSS width (`120px`, `20%`, `auto`) |
+| `width`    | `string`                            | CSS width (`120px`, `20%`, `auto`)             |
 
 **Responsive**:
 
@@ -95,13 +95,13 @@ Renders thousands of items without flooding the DOM. Supports dynamic height via
 />
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `items` | `T[]` | — |
-| `renderItem` | `(item: T, index: number) => ReactNode` | — |
-| `estimatedItemHeight` | `number` (px) | `48` |
-| `overscan` | `number` (items above/below) | `3` |
-| `gap` | `number` (px between items) | `0` |
+| Prop                  | Type                                    | Default |
+| --------------------- | --------------------------------------- | ------- |
+| `items`               | `T[]`                                   | —       |
+| `renderItem`          | `(item: T, index: number) => ReactNode` | —       |
+| `estimatedItemHeight` | `number` (px)                           | `48`    |
+| `overscan`            | `number` (items above/below)            | `3`     |
+| `gap`                 | `number` (px between items)             | `0`     |
 
 **When to use**: lists with 500+ items. Below that the perf gain is negligible
 and you lose native search (Ctrl+F).
@@ -122,13 +122,13 @@ Single/multiple mode, controlled/uncontrolled.
 <Accordion mode="multiple" value={open} onChange={setOpen} items={faqItems} />;
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `items` | `AccordionItem[]` | — |
-| `mode` | `"single" \| "multiple"` | `"single"` |
-| `value` | `string \| string[]` (controlled) | — |
-| `defaultValue` | `string \| string[]` | — |
-| `onChange` | `(value) => void` | — |
+| Prop           | Type                              | Default    |
+| -------------- | --------------------------------- | ---------- |
+| `items`        | `AccordionItem[]`                 | —          |
+| `mode`         | `"single" \| "multiple"`          | `"single"` |
+| `value`        | `string \| string[]` (controlled) | —          |
+| `defaultValue` | `string \| string[]`              | —          |
+| `onChange`     | `(value) => void`                 | —          |
 
 `AccordionItem = { key, title, content, disabled? }`.
 
@@ -156,10 +156,10 @@ A vertical feed with colored markers.
 />
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `items` | `TimelineItem[]` | — |
-| `connector` | `boolean` (line between markers) | `true` |
+| Prop        | Type                             | Default |
+| ----------- | -------------------------------- | ------- |
+| `items`     | `TimelineItem[]`                 | —       |
+| `connector` | `boolean` (line between markers) | `true`  |
 
 `TimelineItem = { id, title, description?, meta?, icon?, marker?: "primary" \| "success" \| "warning" \| "danger" \| "neutral" }`.
 

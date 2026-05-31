@@ -78,11 +78,11 @@ const adapter = createGrowthBookFeatureFlagsAdapter({ growthbook: gb });
 
 Mapping:
 
-| `FeatureFlagsAdapter` | `GrowthBook` |
-| --- | --- |
-| `isEnabled(key, default)` | `growthbook.isOn(key)` (falls back to the default if the return isn't a bool) |
-| `get(key, default)` | `growthbook.getFeatureValue(key, default)` |
-| `onChange(listener)` | `growthbook.setRenderer(...)` — installed lazily on the 1st subscription, multiplexes to all listeners |
+| `FeatureFlagsAdapter`     | `GrowthBook`                                                                                           |
+| ------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `isEnabled(key, default)` | `growthbook.isOn(key)` (falls back to the default if the return isn't a bool)                          |
+| `get(key, default)`       | `growthbook.getFeatureValue(key, default)`                                                             |
+| `onChange(listener)`      | `growthbook.setRenderer(...)` — installed lazily on the 1st subscription, multiplexes to all listeners |
 
 `GrowthBook` accepts only **one** `setRenderer`, so the adapter keeps an internal
 fan-out (`Set<listener>`) and installs the single renderer on the first
@@ -109,11 +109,11 @@ const adapter = createLaunchDarklyFeatureFlagsAdapter({ client });
 
 Mapping:
 
-| `FeatureFlagsAdapter` | `LDClient` |
-| --- | --- |
-| `isEnabled(key, default)` | `client.variation(key, default) === true` |
-| `get(key, default)` | `client.variation(key, default)` |
-| `onChange(listener)` | `client.on("change", listener)` + `client.off` on cleanup |
+| `FeatureFlagsAdapter`     | `LDClient`                                                |
+| ------------------------- | --------------------------------------------------------- |
+| `isEnabled(key, default)` | `client.variation(key, default) === true`                 |
+| `get(key, default)`       | `client.variation(key, default)`                          |
+| `onChange(listener)`      | `client.on("change", listener)` + `client.off` on cleanup |
 
 ## Custom adapter
 

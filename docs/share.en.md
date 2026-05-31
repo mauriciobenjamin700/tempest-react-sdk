@@ -26,12 +26,12 @@ async function shareEvent() {
 }
 ```
 
-| Field | Meaning |
-| --- | --- |
-| `shared` | `navigator.share` resolved OK |
+| Field         | Meaning                                      |
+| ------------- | -------------------------------------------- |
+| `shared`      | `navigator.share` resolved OK                |
 | `unsupported` | API missing or payload (files) not supported |
-| `cancelled` | User closed the sheet (`AbortError`) |
-| `error` | Other errors — capture for telemetry |
+| `cancelled`   | User closed the sheet (`AbortError`)         |
+| `error`       | Other errors — capture for telemetry         |
 
 ## Files
 

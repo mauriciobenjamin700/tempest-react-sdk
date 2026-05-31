@@ -13,13 +13,13 @@ A user's photo/initials.
 <Avatar alt="John" status="busy" size="sm" />;
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `src` | `string` | — |
-| `alt` | `string` (used to generate initials when `src` fails) | — |
-| `size` | `"sm" \| "md" \| "lg"` (or a `number` in px) | `"md"` |
-| `status` | `"online" \| "offline" \| "busy" \| "away"` | — |
-| `shape` | `"circle" \| "square"` | `"circle"` |
+| Prop     | Type                                                  | Default    |
+| -------- | ----------------------------------------------------- | ---------- |
+| `src`    | `string`                                              | —          |
+| `alt`    | `string` (used to generate initials when `src` fails) | —          |
+| `size`   | `"sm" \| "md" \| "lg"` (or a `number` in px)          | `"md"`     |
+| `status` | `"online" \| "offline" \| "busy" \| "away"`           | —          |
+| `shape`  | `"circle" \| "square"`                                | `"circle"` |
 
 **A11y**: `alt` is required when `src` is set.
 
@@ -41,14 +41,14 @@ A container with slots.
 </Card>;
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `title` | `ReactNode` | — |
-| `actions` | `ReactNode` (right slot of the header) | — |
-| `footer` | `ReactNode` | — |
-| `elevation` | `"flat" \| "default" \| "raised" \| "elevated"` | `"default"` |
-| `interactive` | `boolean` (cursor pointer + hover ring) | `false` |
-| `flush` | `boolean` (zero internal padding — to host a Table) | `false` |
+| Prop          | Type                                                | Default     |
+| ------------- | --------------------------------------------------- | ----------- |
+| `title`       | `ReactNode`                                         | —           |
+| `actions`     | `ReactNode` (right slot of the header)              | —           |
+| `footer`      | `ReactNode`                                         | —           |
+| `elevation`   | `"flat" \| "default" \| "raised" \| "elevated"`     | `"default"` |
+| `interactive` | `boolean` (cursor pointer + hover ring)             | `false`     |
+| `flush`       | `boolean` (zero internal padding — to host a Table) | `false`     |
 
 ## `Kbd`
 
@@ -59,9 +59,9 @@ A `<kbd>` styled for keyboard shortcuts.
 <Kbd size="lg">⌘</Kbd>
 ```
 
-| Prop | Type | Default |
-| --- | --- | --- |
-| `size` | `"sm" \| "md" \| "lg"` | `"md"` |
+| Prop   | Type                   | Default |
+| ------ | ---------------------- | ------- |
+| `size` | `"sm" \| "md" \| "lg"` | `"md"`  |
 
 **A11y**: renders a semantic `<kbd>` — screen readers announce it correctly.
 

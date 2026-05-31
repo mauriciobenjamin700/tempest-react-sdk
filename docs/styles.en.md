@@ -73,17 +73,17 @@ To swap the entire brand:
 
 Semantic aliases:
 
-| Token | Use |
-| --- | --- |
-| `--tempest-bg` | Canvas background |
-| `--tempest-surface` | Cards, headers, footers |
-| `--tempest-surface-2` | Elevated surface (chip, button hover) |
-| `--tempest-surface-3` | More elevated surface |
-| `--tempest-border` | Default border |
-| `--tempest-border-strong` | Higher-contrast border |
-| `--tempest-text` | Primary text |
-| `--tempest-text-muted` | Secondary text |
-| `--tempest-text-subtle` | Tertiary text (placeholders) |
+| Token                     | Use                                   |
+| ------------------------- | ------------------------------------- |
+| `--tempest-bg`            | Canvas background                     |
+| `--tempest-surface`       | Cards, headers, footers               |
+| `--tempest-surface-2`     | Elevated surface (chip, button hover) |
+| `--tempest-surface-3`     | More elevated surface                 |
+| `--tempest-border`        | Default border                        |
+| `--tempest-border-strong` | Higher-contrast border                |
+| `--tempest-text`          | Primary text                          |
+| `--tempest-text-muted`    | Secondary text                        |
+| `--tempest-text-subtle`   | Tertiary text (placeholders)          |
 
 ### Status — triplets (fg/bg/border/solid)
 
@@ -115,20 +115,20 @@ automatically pick the right combination.
 
 ### Sizes
 
-| Token | Pixels |
-| --- | --- |
-| `--tempest-text-2xs` | 10px |
-| `--tempest-text-xs` | 12px |
-| `--tempest-text-sm` | 13px |
-| `--tempest-text-base` | 14px |
-| `--tempest-text-md` | 15px |
-| `--tempest-text-lg` | 16px |
-| `--tempest-text-xl` | 18px |
-| `--tempest-text-2xl` | 20px |
-| `--tempest-text-3xl` | 24px |
-| `--tempest-text-4xl` | 30px |
-| `--tempest-text-5xl` | 36px |
-| `--tempest-text-6xl` | 48px |
+| Token                 | Pixels |
+| --------------------- | ------ |
+| `--tempest-text-2xs`  | 10px   |
+| `--tempest-text-xs`   | 12px   |
+| `--tempest-text-sm`   | 13px   |
+| `--tempest-text-base` | 14px   |
+| `--tempest-text-md`   | 15px   |
+| `--tempest-text-lg`   | 16px   |
+| `--tempest-text-xl`   | 18px   |
+| `--tempest-text-2xl`  | 20px   |
+| `--tempest-text-3xl`  | 24px   |
+| `--tempest-text-4xl`  | 30px   |
+| `--tempest-text-5xl`  | 36px   |
+| `--tempest-text-6xl`  | 48px   |
 
 ### Line heights
 
@@ -407,14 +407,14 @@ module.exports = {
 
 ### Breakpoints
 
-| Token | Pixels | Expected device |
-| --- | --- | --- |
-| `--tempest-bp-xs` | 480px | Small phones |
-| `--tempest-bp-sm` | 640px | Large phones |
-| `--tempest-bp-md` | 768px | Tablets |
-| `--tempest-bp-lg` | 1024px | Laptops |
-| `--tempest-bp-xl` | 1280px | Default desktop |
-| `--tempest-bp-2xl` | 1536px | Ultrawide |
+| Token              | Pixels | Expected device |
+| ------------------ | ------ | --------------- |
+| `--tempest-bp-xs`  | 480px  | Small phones    |
+| `--tempest-bp-sm`  | 640px  | Large phones    |
+| `--tempest-bp-md`  | 768px  | Tablets         |
+| `--tempest-bp-lg`  | 1024px | Laptops         |
+| `--tempest-bp-xl`  | 1280px | Default desktop |
+| `--tempest-bp-2xl` | 1536px | Ultrawide       |
 
 `useBreakpoint()` / `<Show>` / `<Hide>` convention:
 

@@ -84,14 +84,14 @@ const adapter = createSentryTelemetryAdapter({
 
 Mapping:
 
-| `TelemetryAdapter` | `@sentry/browser` |
-| --- | --- |
-| `init()` | `Sentry.init(initOptions)` (only when `initOptions` is passed) |
-| `identify(user)` | `Sentry.setUser({id, email, username, ...traits})` |
-| `identify(null)` | `Sentry.setUser(null)` |
-| `track({name, properties})` | `Sentry.addBreadcrumb({category, message, level:"info", data})` |
-| `captureException(err, ctx)` | `Sentry.captureException(err, { extra: ctx })` |
-| `flush()` | `Sentry.flush(flushTimeout)` |
+| `TelemetryAdapter`           | `@sentry/browser`                                               |
+| ---------------------------- | --------------------------------------------------------------- |
+| `init()`                     | `Sentry.init(initOptions)` (only when `initOptions` is passed)  |
+| `identify(user)`             | `Sentry.setUser({id, email, username, ...traits})`              |
+| `identify(null)`             | `Sentry.setUser(null)`                                          |
+| `track({name, properties})`  | `Sentry.addBreadcrumb({category, message, level:"info", data})` |
+| `captureException(err, ctx)` | `Sentry.captureException(err, { extra: ctx })`                  |
+| `flush()`                    | `Sentry.flush(flushTimeout)`                                    |
 
 The `SentryLike` type is exported so you can mock it in tests:
 
@@ -126,12 +126,12 @@ const adapter = createPostHogTelemetryAdapter({
 
 Mapping:
 
-| `TelemetryAdapter` | `posthog-js` |
-| --- | --- |
-| `init()` | `posthog.init(apiKey, options)` (only when `init` is passed) |
-| `identify({id, ...})` | `posthog.identify(id, { email, name, ...traits })` (skip if `id` is missing) |
-| `identify(null)` | `posthog.reset()` |
-| `track({name, properties})` | `posthog.capture(name, properties)` |
+| `TelemetryAdapter`           | `posthog-js`                                                                                         |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `init()`                     | `posthog.init(apiKey, options)` (only when `init` is passed)                                         |
+| `identify({id, ...})`        | `posthog.identify(id, { email, name, ...traits })` (skip if `id` is missing)                         |
+| `identify(null)`             | `posthog.reset()`                                                                                    |
+| `track({name, properties})`  | `posthog.capture(name, properties)`                                                                  |
 | `captureException(err, ctx)` | `posthog.captureException(err, ctx)` when available, fallback `posthog.capture("$exception", {...})` |
 
 ## Custom adapter

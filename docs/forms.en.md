@@ -18,11 +18,11 @@ import { Form, FormSection, FormRow, FormActions, Input, Button } from "tempest-
 
 ### `layout` variants
 
-| `layout` | Behavior |
-| --- | --- |
-| `"stack"` | (default) — flex column, gap = `gap` (default 4 → 16px). |
+| `layout`   | Behavior                                                                                  |
+| ---------- | ----------------------------------------------------------------------------------------- |
+| `"stack"`  | (default) — flex column, gap = `gap` (default 4 → 16px).                                  |
 | `"inline"` | Flex row with `flex-wrap: wrap` + `align-items: flex-end`. Filter bars, short login, etc. |
-| `"grid"` | `display: grid` with `grid-template-columns: repeat(columns, minmax(0, 1fr))`. |
+| `"grid"`   | `display: grid` with `grid-template-columns: repeat(columns, minmax(0, 1fr))`.            |
 
 `columns` accepts a `number` (`repeat(N, minmax(0, 1fr))`) or a `string`
 (`"2fr 1fr"`, `"min-content auto"`).

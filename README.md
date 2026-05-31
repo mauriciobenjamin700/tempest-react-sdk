@@ -7,6 +7,8 @@
 [![TypeScript](https://img.shields.io/badge/types-TypeScript-3178c6.svg?logo=typescript)](https://www.typescriptlang.org/)
 [![Bundle size](https://img.shields.io/bundlephobia/minzip/tempest-react-sdk?label=gzip)](https://bundlephobia.com/package/tempest-react-sdk)
 
+> 📚 **Documentation (bilingual / bilíngue):** **[Português (BR)](https://mauriciobenjamin700.github.io/tempest-react-sdk/)** · **[English (US)](https://mauriciobenjamin700.github.io/tempest-react-sdk/en/)** — full docs site (MkDocs Material on GitHub Pages) with a PT-BR / EN-US language switcher in the header. The site is the navigable, per-module source of truth; this README stays the npm/GitHub landing page.
+
 Shared React/TypeScript building blocks used across Tempest frontends: UI components, hooks, HTTP client, auth store, query keys, forms (zod), real-time transports (SSE / WebSocket / Web Push / Service Worker), theme, i18n, telemetry, feature flags, offline storage, error boundary, and a curated set of utilities (`cn`, `formatCurrency`, `formatCPF`, etc.).
 
 The goal is to start every new React frontend with the same opinionated foundation already in place — no copy-pasting `Button`/`Input` styles, no rewriting the same auth Zustand store, no re-inventing the SSE reconnect loop. The patterns here are a distillation of what was consolidated in **alofans-frontend** and **transport-admin-system** — apps that consume the SDK gain consistency without paying for boilerplate.
@@ -178,7 +180,9 @@ Every module is re-exported from the package root — `import { Button, useDebou
 | `share`                                    | `share`, `isShareSupported`, types: `SharePayload`, `ShareResult`                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `utils`                                    | `cn`, `formatCurrency`, `formatDate`, `formatDateTime`, `formatPhone`, `formatCPF`, `formatPercent`, `storage`                                                                                                                                                                                                                                                                                                                                                                     |
 
-Full per-module docs in [`docs/`](./docs) (one markdown per module + draw.io diagrams in [`docs/diagrams/`](./docs/diagrams)).
+Full per-module docs are published as a bilingual MkDocs site on GitHub Pages — **[Português (BR)](https://mauriciobenjamin700.github.io/tempest-react-sdk/)** / **[English (US)](https://mauriciobenjamin700.github.io/tempest-react-sdk/en/)** (one page per module + draw.io diagrams in [`docs/diagrams/`](./docs/diagrams)). The source markdown lives in [`docs/`](./docs) (PT-BR base files + `.en.md` translations).
+
+> **Local preview:** `pip install -r docs/requirements.txt && mkdocs serve` (the published site is built and deployed automatically by `.github/workflows/docs.yml`).
 
 A demo app exercising every module lives in [`examples/gallery`](./examples/gallery) — `cd examples/gallery && npm install && npm run dev`.
 

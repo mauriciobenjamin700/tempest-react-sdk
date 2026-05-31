@@ -2,7 +2,7 @@
 
 End-to-end de notificações push. O SDK lida com a parte browser (permissão, `pushManager.subscribe`, `notificationclick`); o app fornece os endpoints via callbacks.
 
-![Push flow](./diagrams/push-flow.drawio)
+> Diagrama editável: [push-flow.drawio](./diagrams/push-flow.drawio) (abra no [draw.io](https://app.diagrams.net)).
 
 ## Pré-requisitos
 

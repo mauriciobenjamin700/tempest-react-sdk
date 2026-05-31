@@ -1,6 +1,6 @@
 # Gallery — catálogo visual + funcional
 
-Demo interativo de todos os componentes e features do SDK. Roda como app Vite + React em [`examples/gallery`](../examples/gallery).
+Demo interativo de todos os componentes e features do SDK. Roda como app Vite + React em [`examples/gallery`](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/examples/gallery).
 
 ## Como rodar
 
@@ -18,17 +18,17 @@ npm run dev             # http://127.0.0.1:5173
 
 ## Seções
 
-| #   | Seção              | Componentes / Features                                                                               | Arquivo                                                                             |
-| --- | ------------------ | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| 1   | Buttons            | `Button`                                                                                             | [ButtonsSection.tsx](../examples/gallery/src/sections/ButtonsSection.tsx)           |
-| 2   | Form fields        | `Input`, `Select`, `Textarea`, `SearchBar`                                                           | [FormFieldsSection.tsx](../examples/gallery/src/sections/FormFieldsSection.tsx)     |
-| 3   | Feedback           | `Badge`, `Card`, `Spinner`, `Skeleton`                                                               | [FeedbackSection.tsx](../examples/gallery/src/sections/FeedbackSection.tsx)         |
-| 4   | Modal & Toast      | `Modal`, `ConfirmDialog`, `ToastProvider`, `useToast`                                                | [ModalSection.tsx](../examples/gallery/src/sections/ModalSection.tsx)               |
-| 5   | Table & Pagination | `Table`, `Pagination`, `EmptyState`, `ErrorState`, `useDebounce`, `useClientFilter`, `usePagination` | [TableSection.tsx](../examples/gallery/src/sections/TableSection.tsx)               |
-| 6   | Forms (zod)        | `useZodForm`, `zodResolver`                                                                          | [FormsSection.tsx](../examples/gallery/src/sections/FormsSection.tsx)               |
-| 7   | Tema + i18n        | `ThemeProvider`, `useTheme`, `I18nProvider`, `useI18n`                                               | [ThemeI18nSection.tsx](../examples/gallery/src/sections/ThemeI18nSection.tsx)       |
-| 8   | Integrações        | `useEventStream` (SSE vivo), `isPushSupported`, `playAudio`                                          | [IntegrationsSection.tsx](../examples/gallery/src/sections/IntegrationsSection.tsx) |
-| 9   | Utils              | `formatCurrency`, `formatDate`, `formatPhone`, `formatCPF`, `formatPercent`, `formatDateTime`        | [UtilsSection.tsx](../examples/gallery/src/sections/UtilsSection.tsx)               |
+| #   | Seção              | Componentes / Features                                                                               | Arquivo                                                                                                                                             |
+| --- | ------------------ | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Buttons            | `Button`                                                                                             | [ButtonsSection.tsx](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/examples/gallery/src/sections/ButtonsSection.tsx)           |
+| 2   | Form fields        | `Input`, `Select`, `Textarea`, `SearchBar`                                                           | [FormFieldsSection.tsx](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/examples/gallery/src/sections/FormFieldsSection.tsx)     |
+| 3   | Feedback           | `Badge`, `Card`, `Spinner`, `Skeleton`                                                               | [FeedbackSection.tsx](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/examples/gallery/src/sections/FeedbackSection.tsx)         |
+| 4   | Modal & Toast      | `Modal`, `ConfirmDialog`, `ToastProvider`, `useToast`                                                | [ModalSection.tsx](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/examples/gallery/src/sections/ModalSection.tsx)               |
+| 5   | Table & Pagination | `Table`, `Pagination`, `EmptyState`, `ErrorState`, `useDebounce`, `useClientFilter`, `usePagination` | [TableSection.tsx](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/examples/gallery/src/sections/TableSection.tsx)               |
+| 6   | Forms (zod)        | `useZodForm`, `zodResolver`                                                                          | [FormsSection.tsx](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/examples/gallery/src/sections/FormsSection.tsx)               |
+| 7   | Tema + i18n        | `ThemeProvider`, `useTheme`, `I18nProvider`, `useI18n`                                               | [ThemeI18nSection.tsx](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/examples/gallery/src/sections/ThemeI18nSection.tsx)       |
+| 8   | Integrações        | `useEventStream` (SSE vivo), `isPushSupported`, `playAudio`                                          | [IntegrationsSection.tsx](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/examples/gallery/src/sections/IntegrationsSection.tsx) |
+| 9   | Utils              | `formatCurrency`, `formatDate`, `formatPhone`, `formatCPF`, `formatPercent`, `formatDateTime`        | [UtilsSection.tsx](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/examples/gallery/src/sections/UtilsSection.tsx)               |
 
 ## Matriz de variantes
 
@@ -103,6 +103,6 @@ Os screenshots não são commitados — gere localmente abrindo o app em `dev`. 
 
 ## Veja também
 
-- [README do app gallery](../examples/gallery/README.md)
+- [README do app gallery](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/examples/gallery/README.md)
 - [Arquitetura](./architecture.md)
 - [Componentes](./components.md)

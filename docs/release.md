@@ -131,11 +131,11 @@ Publish manual local **não** consegue provenance — não há OIDC provider for
 
 ## Histórico
 
-Veja [`RELEASES.md`](../RELEASES.md) (auto-gerado via `make releases-md`) e [`CHANGELOG.md`](../CHANGELOG.md) (escrito à mão antes de cada release).
+Veja [`RELEASES.md`](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/RELEASES.md) (auto-gerado via `make releases-md`) e [`CHANGELOG.md`](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/CHANGELOG.md) (escrito à mão antes de cada release).
 
 ## Veja também
 
-- [`CHANGELOG.md`](../CHANGELOG.md) — registro de mudanças por versão
-- [`RELEASES.md`](../RELEASES.md) — tabela de tags com data e commit
-- [`Makefile`](../Makefile) — definição dos alvos
-- [`scripts/release.sh`](../scripts/release.sh) — script bash do pipeline
+- [`CHANGELOG.md`](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/CHANGELOG.md) — registro de mudanças por versão
+- [`RELEASES.md`](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/RELEASES.md) — tabela de tags com data e commit
+- [`Makefile`](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/Makefile) — definição dos alvos
+- [`scripts/release.sh`](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/scripts/release.sh) — script bash do pipeline

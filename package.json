@@ -57,6 +57,7 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "clean": "rm -rf dist coverage",
+    "size": "size-limit",
     "prepare": "husky",
     "prepublishOnly": "npm run typecheck && npm run lint && npm run test:run && npm run build"
   },
@@ -83,6 +84,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
+    "@size-limit/preset-small-lib": "^12.1.0",
     "@tanstack/react-query": "^5.90.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -106,6 +108,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hook-form": "^7.76.0",
+    "size-limit": "^12.1.0",
     "typescript": "~5.9.0",
     "typescript-eslint": "^8.45.0",
     "vite": "^7.0.0",

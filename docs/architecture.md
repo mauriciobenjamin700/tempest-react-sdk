@@ -2,7 +2,7 @@
 
 O `tempest-react-sdk` é um pacote único com camadas independentes. O consumidor importa só o que precisa; o resto fica externalizado nos peer deps e não entra no bundle.
 
-![Arquitetura geral](./diagrams/architecture.drawio)
+> Diagrama editável: [architecture.drawio](./diagrams/architecture.drawio) (abra no [draw.io](https://app.diagrams.net)).
 
 ## Camadas
 

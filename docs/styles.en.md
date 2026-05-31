@@ -1,37 +1,40 @@
-# Estilos & Design Tokens
+# Styles & Design Tokens
 
-O SDK expõe um conjunto de CSS Custom Properties (`--tempest-*`) que controlam toda a aparência dos componentes. Apps consumidores customizam o tema sobrescrevendo esses tokens — **não é necessário tocar em CSS Modules**.
+The SDK exposes a set of CSS Custom Properties (`--tempest-*`) that control the
+entire appearance of the components. Consumer apps customize the theme by
+overriding these tokens — **there's no need to touch CSS Modules**.
 
 ```tsx
 import "tempest-react-sdk/dist/styles.css";
 ```
 
-Pronto. Tudo o que está abaixo já está disponível na sua aplicação.
+Done. Everything below is already available in your application.
 
-## Sumário
+## Summary
 
-- [Cor](#cor)
+- [Color](#color)
   - [Brand — primary tints](#brand-primary-tints)
-  - [Neutros — gray scale](#neutros-gray-scale)
+  - [Neutrals — gray scale](#neutrals-gray-scale)
   - [Status — triplets (fg/bg/border/solid)](#status-triplets-fgbgbordersolid)
-- [Tipografia](#tipografia)
-- [Espaçamento](#espacamento)
+- [Typography](#typography)
+- [Spacing](#spacing)
 - [Radius](#radius)
-- [Elevação (shadow)](#elevacao-shadow)
+- [Elevation (shadow)](#elevation-shadow)
 - [Motion](#motion)
 - [Focus ring](#focus-ring)
 - [Z-index](#z-index)
-- [Densidade — `data-tempest-density`](#densidade-data-tempest-density)
-- [Tema dark — `data-tempest-theme`](#tema-dark-data-tempest-theme)
-- [Componentes — variants disponíveis](#componentes-variants-disponiveis)
+- [Density — `data-tempest-density`](#density-data-tempest-density)
+- [Dark theme — `data-tempest-theme`](#dark-theme-data-tempest-theme)
+- [Components — available variants](#components-available-variants)
 
 ---
 
-## Cor
+## Color
 
 ### Brand — primary tints
 
-Scale `50` (mais claro) → `900` (mais escuro). Use `--tempest-primary` como cor canônica de ação.
+Scale `50` (lightest) → `900` (darkest). Use `--tempest-primary` as the canonical
+action color.
 
 ```css
 --tempest-primary-50: #eef4ff;
@@ -46,21 +49,21 @@ Aliases:
 - `--tempest-primary` = primary-500
 - `--tempest-primary-hover` = primary-600
 - `--tempest-primary-active` = primary-700
-- `--tempest-primary-soft` = primary-50 (fundo tinted para soft buttons/badges)
-- `--tempest-primary-foreground` = `#ffffff` (cor do texto sobre a primary)
+- `--tempest-primary-soft` = primary-50 (tinted background for soft buttons/badges)
+- `--tempest-primary-foreground` = `#ffffff` (text color over the primary)
 
-Para trocar a brand inteira:
+To swap the entire brand:
 
 ```css
 :root {
-  --tempest-primary-500: #7c3aed; /* roxo */
+  --tempest-primary-500: #7c3aed; /* purple */
   --tempest-primary-600: #6d28d9;
   --tempest-primary-700: #5b21b6;
   --tempest-primary-soft: #ede9fe;
 }
 ```
 
-### Neutros — gray scale
+### Neutrals — gray scale
 
 ```css
 --tempest-gray-50: #f8f9fb;
@@ -68,48 +71,49 @@ Para trocar a brand inteira:
 --tempest-gray-900: #101828;
 ```
 
-Aliases semânticos:
+Semantic aliases:
 
-| Token                     | Uso                                  |
-| ------------------------- | ------------------------------------ |
-| `--tempest-bg`            | Background canvas                    |
-| `--tempest-surface`       | Cards, headers, footers              |
-| `--tempest-surface-2`     | Surface elevada (chip, button hover) |
-| `--tempest-surface-3`     | Surface mais elevada                 |
-| `--tempest-border`        | Borda padrão                         |
-| `--tempest-border-strong` | Borda com mais contraste             |
-| `--tempest-text`          | Texto principal                      |
-| `--tempest-text-muted`    | Texto secundário                     |
-| `--tempest-text-subtle`   | Texto terciário (placeholders)       |
+| Token                     | Use                                   |
+| ------------------------- | ------------------------------------- |
+| `--tempest-bg`            | Canvas background                     |
+| `--tempest-surface`       | Cards, headers, footers               |
+| `--tempest-surface-2`     | Elevated surface (chip, button hover) |
+| `--tempest-surface-3`     | More elevated surface                 |
+| `--tempest-border`        | Default border                        |
+| `--tempest-border-strong` | Higher-contrast border                |
+| `--tempest-text`          | Primary text                          |
+| `--tempest-text-muted`    | Secondary text                        |
+| `--tempest-text-subtle`   | Tertiary text (placeholders)          |
 
 ### Status — triplets (fg/bg/border/solid)
 
-Cada status (`success`, `warning`, `danger`, `info`) expõe 4 cores:
+Each status (`success`, `warning`, `danger`, `info`) exposes 4 colors:
 
 ```css
---tempest-success-fg:     /* texto sobre bg soft */ --tempest-success-bg: /* fundo soft tinted */
-  --tempest-success-border: /* borda outline */ --tempest-success-solid: /* fill solid */;
+--tempest-success-fg:     /* text over soft bg */ --tempest-success-bg: /* tinted soft background */
+  --tempest-success-border: /* outline border */ --tempest-success-solid: /* solid fill */;
 ```
 
-Atalhos:
+Shortcuts:
 
-- `--tempest-success` — cor principal (igual a `success` solid escuro no light, mais clara no dark).
-- `--tempest-danger-hover` — variação para hover em danger solid.
+- `--tempest-success` — main color (same as the dark `success` solid in light, lighter in dark).
+- `--tempest-danger-hover` — variation for hover on danger solid.
 
-Componentes que aceitam `appearance="soft|solid|outline"` (Badge, Alert, etc.) escolhem automaticamente a combinação certa.
+Components that accept `appearance="soft|solid|outline"` (Badge, Alert, etc.)
+automatically pick the right combination.
 
 ---
 
-## Tipografia
+## Typography
 
-### Famílias
+### Families
 
 ```css
 --tempest-font-sans:    /* system stack */ --tempest-font-mono: /* monospace stack */
-  --tempest-font-display: /* === sans, override pra heading */;
+  --tempest-font-display: /* === sans, override for heading */;
 ```
 
-### Tamanhos
+### Sizes
 
 | Token                 | Pixels |
 | --------------------- | ------ |
@@ -130,7 +134,7 @@ Componentes que aceitam `appearance="soft|solid|outline"` (Badge, Alert, etc.) e
 
 `--tempest-leading-none|tight|snug|normal|relaxed|loose` (1.0 → 1.9).
 
-### Pesos
+### Weights
 
 `--tempest-weight-regular|medium|semibold|bold|extrabold` (400 → 800).
 
@@ -140,9 +144,9 @@ Componentes que aceitam `appearance="soft|solid|outline"` (Badge, Alert, etc.) e
 
 ---
 
-## Espaçamento
+## Spacing
 
-Base 4px. Vai de 0 até 24 (96px).
+Base 4px. Goes from 0 up to 24 (96px).
 
 ```css
 --tempest-space-0: 0 --tempest-space-1: 4px --tempest-space-2: 8px --tempest-space-3: 12px
@@ -156,32 +160,32 @@ Base 4px. Vai de 0 até 24 (96px).
 ## Radius
 
 ```css
---tempest-radius-xs: 2px --tempest-radius-sm: 4px --tempest-radius-md: 8px /* controls padrão */
-  --tempest-radius-lg: 12px /* cards padrão */ --tempest-radius-xl: 16px /* modais */
+--tempest-radius-xs: 2px --tempest-radius-sm: 4px --tempest-radius-md: 8px /* default controls */
+  --tempest-radius-lg: 12px /* default cards */ --tempest-radius-xl: 16px /* modals */
   --tempest-radius-2xl: 24px --tempest-radius-full: 9999px;
 ```
 
 ---
 
-## Elevação (shadow)
+## Elevation (shadow)
 
 ```css
---tempest-shadow-xs:    /* hairline, controls em rest */ --tempest-shadow-sm: /* card padrão */
-  --tempest-shadow-md: /* hover card, dropdown */ --tempest-shadow-lg: /* drawer, popover */
-  --tempest-shadow-xl: /* modal */ --tempest-shadow-inner: /* tracks, inputs sunken */;
+--tempest-shadow-xs:    /* hairline, controls at rest */ --tempest-shadow-sm: /* default card */
+  --tempest-shadow-md: /* card hover, dropdown */ --tempest-shadow-lg: /* drawer, popover */
+  --tempest-shadow-xl: /* modal */ --tempest-shadow-inner: /* tracks, sunken inputs */;
 ```
 
-Shadows são automaticamente mais escuros no tema dark.
+Shadows are automatically darker in the dark theme.
 
 ---
 
 ## Motion
 
-### Duração
+### Duration
 
 ```css
 --tempest-duration-instant: 0ms --tempest-duration-fast: 120ms /* hover, focus */
-  --tempest-duration-base: 180ms /* enter/leave padrão */ --tempest-duration-slow: 280ms
+  --tempest-duration-base: 180ms /* default enter/leave */ --tempest-duration-slow: 280ms
   /* drawer, modal */ --tempest-duration-slower: 420ms;
 ```
 
@@ -202,12 +206,14 @@ Shadows são automaticamente mais escuros no tema dark.
 --tempest-transition-color:      /* color + bg + border, fast */ --tempest-transition-shadow:
   /* box-shadow, base */
   --tempest-transition-transform: /* transform, fast */
-  --tempest-transition-base: /* tudo acima + opacity */;
+  --tempest-transition-base: /* everything above + opacity */;
 ```
 
 ### Reduced motion
 
-`@media (prefers-reduced-motion: reduce)` zera todas as durações de tokens automaticamente. Componentes que usam keyframes pesados (modal, drawer, toast, tooltip, skeleton) também detectam e desabilitam animações específicas.
+`@media (prefers-reduced-motion: reduce)` zeroes out all token durations
+automatically. Components that use heavy keyframes (modal, drawer, toast,
+tooltip, skeleton) also detect it and disable their specific animations.
 
 ---
 
@@ -218,9 +224,10 @@ Shadows são automaticamente mais escuros no tema dark.
   --tempest-focus-ring-offset: 2px;
 ```
 
-`:focus-visible` global aplicado em `reset.css`. Componentes interactive (Button, Card interactive, Tabs, Pagination, etc.) reaplicam o ring com tokens.
+A global `:focus-visible` is applied in `reset.css`. Interactive components
+(Button, interactive Card, Tabs, Pagination, etc.) re-apply the ring with tokens.
 
-Para customizar o ring por subárvore (ex: tema marca branca):
+To customize the ring per subtree (e.g. a white-label theme):
 
 ```css
 .my-app {
@@ -240,17 +247,18 @@ Para customizar o ring por subárvore (ex: tema marca branca):
 
 ---
 
-## Densidade — `data-tempest-density`
+## Density — `data-tempest-density`
 
-Atributo aplicado em qualquer elemento (geralmente `<html>` ou `<body>`) ajusta altura, padding, font-size e radius de todos os controles na subárvore.
+An attribute applied to any element (usually `<html>` or `<body>`) adjusts the
+height, padding, font-size, and radius of every control in the subtree.
 
 ```html
 <html data-tempest-density="compact"></html>
 ```
 
-Valores: `compact` | `comfortable` (padrão) | `spacious`.
+Values: `compact` | `comfortable` (default) | `spacious`.
 
-Tokens controlados:
+Controlled tokens:
 
 ```css
 --tempest-control-height-xs..xl
@@ -260,23 +268,27 @@ Tokens controlados:
 --tempest-control-gap
 ```
 
-Button, Input, Select, Textarea já lêem desses tokens — basta trocar o atributo no root e tudo redimensiona junto.
+Button, Input, Select, and Textarea already read these tokens — just swap the
+attribute on the root and everything resizes together.
 
 ---
 
-## Tema dark — `data-tempest-theme`
+## Dark theme — `data-tempest-theme`
 
 ```html
 <html data-tempest-theme="dark"></html>
 ```
 
-Atributo aplicado em qualquer elemento ativa o tema escuro só naquela subárvore. Tokens de cor (primary scale, neutrals, status, focus ring, shadow) são todos sobrescritos.
+An attribute applied to any element enables the dark theme only in that subtree.
+Color tokens (primary scale, neutrals, status, focus ring, shadow) are all
+overridden.
 
-Use junto com `<ThemeProvider>` (`tempest-react-sdk/theme`) para persistência + flash prevention.
+Use it together with `<ThemeProvider>` (`tempest-react-sdk/theme`) for
+persistence + flash prevention.
 
 ---
 
-## Componentes — variants disponíveis
+## Components — available variants
 
 ### Button
 
@@ -352,9 +364,11 @@ Use junto com `<ThemeProvider>` (`tempest-react-sdk/theme`) para persistência +
 
 ---
 
-## Importando tokens em CSS-in-JS
+## Importing tokens in CSS-in-JS
 
-Como os tokens são CSS Custom Properties, qualquer solução (`styled-components`, `emotion`, `vanilla-extract`, Tailwind arbitrary values) lê com `var(--tempest-*)`:
+Since the tokens are CSS Custom Properties, any solution (`styled-components`,
+`emotion`, `vanilla-extract`, Tailwind arbitrary values) reads them with
+`var(--tempest-*)`:
 
 ```ts
 import styled from "styled-components";
@@ -393,16 +407,16 @@ module.exports = {
 
 ### Breakpoints
 
-| Token              | Pixels | Device esperado |
+| Token              | Pixels | Expected device |
 | ------------------ | ------ | --------------- |
-| `--tempest-bp-xs`  | 480px  | Phones pequenos |
-| `--tempest-bp-sm`  | 640px  | Phones large    |
+| `--tempest-bp-xs`  | 480px  | Small phones    |
+| `--tempest-bp-sm`  | 640px  | Large phones    |
 | `--tempest-bp-md`  | 768px  | Tablets         |
 | `--tempest-bp-lg`  | 1024px | Laptops         |
-| `--tempest-bp-xl`  | 1280px | Desktop padrão  |
+| `--tempest-bp-xl`  | 1280px | Default desktop |
 | `--tempest-bp-2xl` | 1536px | Ultrawide       |
 
-Convenção `useBreakpoint()` / `<Show>` / `<Hide>`:
+`useBreakpoint()` / `<Show>` / `<Hide>` convention:
 
 - **mobile** = `< md` (`< 768px`)
 - **tablet** = `md..lg-1` (`768..1023px`)
@@ -415,7 +429,7 @@ import { useBreakpoint } from "tempest-react-sdk";
 
 const bp = useBreakpoint();
 bp.current; // "xs" | "sm" | "md" | "lg" | "xl" | "2xl"
-bp.width; // pixels (0 no SSR)
+bp.width; // pixels (0 on SSR)
 bp.above("md"); // boolean
 bp.below("lg"); // boolean
 bp.isMobile; // < md
@@ -423,7 +437,7 @@ bp.isTablet; // md..lg-1
 bp.isDesktop; // >= lg
 ```
 
-SSR-safe — no servidor retorna `xs` / `width: 0`, atualiza no mount.
+SSR-safe — on the server it returns `xs` / `width: 0`, updating on mount.
 
 ### `<Show>` / `<Hide>` components
 
@@ -436,23 +450,23 @@ SSR-safe — no servidor retorna `xs` / `width: 0`, atualiza no mount.
 <Hide above="lg">Hide on desktop</Hide>
 ```
 
-### Utility classes (CSS-only, sem JS)
+### Utility classes (CSS-only, no JS)
 
 ```html
-<div class="tempest-hide-mobile">desktop apenas</div>
-<div class="tempest-show-only-mobile">mobile apenas</div>
-<div class="tempest-hide-tablet">esconde em tablets</div>
-<div class="tempest-show-only-touch">touch devices apenas</div>
-<div class="tempest-hide-print">não imprimir</div>
+<div class="tempest-hide-mobile">desktop only</div>
+<div class="tempest-show-only-mobile">mobile only</div>
+<div class="tempest-hide-tablet">hide on tablets</div>
+<div class="tempest-show-only-touch">touch devices only</div>
+<div class="tempest-hide-print">don't print</div>
 ```
 
-### Componentes responsive — props
+### Responsive components — props
 
-#### `<Container>` — padding responsivo automático
+#### `<Container>` — automatic responsive padding
 
 `space-4` mobile / `space-6` tablet / `space-8` desktop.
 
-#### `<Stack>` / `<Grid>` — props aceitam objeto
+#### `<Stack>` / `<Grid>` — props accept an object
 
 ```tsx
 <Stack direction={{ mobile: "vertical", desktop: "horizontal" }} gap={{ mobile: 2, desktop: 4 }} />
@@ -469,7 +483,7 @@ SSR-safe — no servidor retorna `xs` / `width: 0`, atualiza no mount.
 <Modal fullscreenOnMobile />          // auto-fullscreen < 640px
 ```
 
-Padding interno e radius já reduzem abaixo de 640px.
+Internal padding and radius already shrink below 640px.
 
 #### `<Drawer>` — mobilePlacement + showHandle
 
@@ -484,9 +498,9 @@ Padding interno e radius já reduzem abaixo de 640px.
 <Table
   stackOnMobile
   columns={[
-    { key: "name", header: "Nome" }, // sempre visível
-    { key: "email", header: "E-mail", priority: "tablet" }, // some < 768px
-    { key: "role", header: "Cargo", priority: "desktop" }, // some < 1024px
+    { key: "name", header: "Name" }, // always visible
+    { key: "email", header: "E-mail", priority: "tablet" }, // hidden < 768px
+    { key: "role", header: "Role", priority: "desktop" }, // hidden < 1024px
   ]}
   data={users}
 />
@@ -495,21 +509,21 @@ Padding interno e radius já reduzem abaixo de 640px.
 #### `<ToastProvider>` — position
 
 ```tsx
-<ToastProvider position="top-right" />        // padrão
+<ToastProvider position="top-right" />        // default
 <ToastProvider position="bottom-center" />    // mobile-friendly default
 ```
 
-Em telas `< 480px`, container estica `left: 0; right: 0` automaticamente.
+On screens `< 480px`, the container automatically stretches `left: 0; right: 0`.
 
 ### Touch targets
 
-- `data-tempest-density="touch"` — força altura mínima 44px em todos os controles.
-- `@media (pointer: coarse)` aplica auto-bump no `xs`/`sm`/`md` quando o usuário está em dispositivo touch (a menos que `density="compact"` explícito).
-- `Button iconOnly` size `xs`/`sm` ganha hit-slop invisível de 8px em todos os lados em pointer coarse.
+- `data-tempest-density="touch"` — forces a 44px minimum height on every control.
+- `@media (pointer: coarse)` applies an auto-bump on `xs`/`sm`/`md` when the user is on a touch device (unless `density="compact"` is explicit).
+- `Button iconOnly` size `xs`/`sm` gains an invisible 8px hit-slop on all sides on pointer coarse.
 
 ### Safe-area (iOS notch / Android gestures)
 
-Tokens disponíveis:
+Available tokens:
 
 ```css
 --tempest-safe-area-top
@@ -518,7 +532,8 @@ Tokens disponíveis:
 --tempest-safe-area-left
 ```
 
-Toast, Modal overlay padding e Drawer já consomem automaticamente. Lembre-se de incluir no HTML:
+Toast, the Modal overlay padding, and Drawer already consume them automatically.
+Remember to include this in the HTML:
 
 ```html
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -526,7 +541,8 @@ Toast, Modal overlay padding e Drawer já consomem automaticamente. Lembre-se de
 
 ### Dynamic viewport (iOS Safari address bar bug)
 
-Modal e Drawer usam `dvh` com fallback `vh`. Apps que precisam de altura cheia podem fazer o mesmo:
+Modal and Drawer use `dvh` with a `vh` fallback. Apps that need full height can do
+the same:
 
 ```css
 .app {
@@ -537,7 +553,7 @@ Modal e Drawer usam `dvh` com fallback `vh`. Apps que precisam de altura cheia p
 
 ### Fluid type
 
-Para headings que escalam com viewport:
+For headings that scale with the viewport:
 
 ```css
 .hero-title {
@@ -549,24 +565,26 @@ Tokens: `--tempest-text-fluid-sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl`.
 
 ### Hover-only effects
 
-Efeitos `transform` / `box-shadow` em hover (Card interactive lift, Button elevation) ficam atrás de `@media (hover: hover) and (pointer: fine)` — não disparam em tap mobile.
+`transform` / `box-shadow` hover effects (interactive Card lift, Button
+elevation) sit behind `@media (hover: hover) and (pointer: fine)` — they don't
+fire on a mobile tap.
 
 ### Print
 
-Tudo embutido em `print.css`:
+Everything is bundled in `print.css`:
 
-- Modal, Drawer, Toast, Tooltip ocultos.
-- Background grayscale, cards `page-break-inside: avoid`.
-- Links recebem `(href)` ao lado.
+- Modal, Drawer, Toast, Tooltip are hidden.
+- Grayscale background, cards get `page-break-inside: avoid`.
+- Links get their `(href)` appended next to them.
 
-Classe `tempest-hide-print` para esconder elementos próprios.
+Use the `tempest-hide-print` class to hide your own elements.
 
 ---
 
-## Política de versionamento de tokens
+## Token versioning policy
 
-Tokens são **API pública**. Mudanças quebram apps consumidores. Política:
+Tokens are a **public API**. Changes break consumer apps. Policy:
 
-- **Adições** (novos tokens) — bump minor.
-- **Renames / removals** — bump major. Tokens antigos ficam como alias deprecated por pelo menos 1 minor antes de remoção.
-- **Mudanças de valor** que afetam aparência visivelmente (cor primária, radius padrão, font stack) — bump minor + nota no changelog.
+- **Additions** (new tokens) — minor bump.
+- **Renames / removals** — major bump. Old tokens stay as deprecated aliases for at least 1 minor before removal.
+- **Value changes** that visibly affect appearance (primary color, default radius, font stack) — minor bump + a changelog note.

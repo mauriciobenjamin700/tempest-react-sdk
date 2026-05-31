@@ -1,6 +1,6 @@
 # Tema (dark / light)
 
-`ThemeProvider` aplica `data-tempest-theme="dark"` em `<html>` (ou em outro elemento). `useTheme()` lê e muta. Tokens CSS (`--tempest-*`) reagem automaticamente — ver [`src/styles/colors.css`](../src/styles/colors.css).
+`ThemeProvider` aplica `data-tempest-theme="dark"` em `<html>` (ou em outro elemento). `useTheme()` lê e muta. Tokens CSS (`--tempest-*`) reagem automaticamente — ver [`src/styles/colors.css`](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/src/styles/colors.css).
 
 ## Setup
 

@@ -10,3 +10,7 @@ coverage
 .tsbuildinfo
 *.tsbuildinfo
 .playwright-mcp/
+
+# MkDocs
+site/
+.venv/

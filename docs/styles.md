@@ -11,19 +11,19 @@ Pronto. Tudo o que está abaixo já está disponível na sua aplicação.
 ## Sumário
 
 - [Cor](#cor)
-  - [Brand — primary tints](#brand--primary-tints)
-  - [Neutros — gray scale](#neutros--gray-scale)
-  - [Status — triplets (fg/bg/border/solid)](#status--triplets-fgbgbordersolid)
+  - [Brand — primary tints](#brand-primary-tints)
+  - [Neutros — gray scale](#neutros-gray-scale)
+  - [Status — triplets (fg/bg/border/solid)](#status-triplets-fgbgbordersolid)
 - [Tipografia](#tipografia)
-- [Espaçamento](#espaçamento)
+- [Espaçamento](#espacamento)
 - [Radius](#radius)
-- [Elevação (shadow)](#elevação-shadow)
+- [Elevação (shadow)](#elevacao-shadow)
 - [Motion](#motion)
 - [Focus ring](#focus-ring)
 - [Z-index](#z-index)
-- [Densidade — `data-tempest-density`](#densidade--data-tempest-density)
-- [Tema dark — `data-tempest-theme`](#tema-dark--data-tempest-theme)
-- [Componentes — variants disponíveis](#componentes--variants-disponíveis)
+- [Densidade — `data-tempest-density`](#densidade-data-tempest-density)
+- [Tema dark — `data-tempest-theme`](#tema-dark-data-tempest-theme)
+- [Componentes — variants disponíveis](#componentes-variants-disponiveis)
 
 ---
 

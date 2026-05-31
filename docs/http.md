@@ -8,7 +8,7 @@ Camada de fetch tipada com tratamento de 401 + refresh, parse JSON automático e
 - Pra validar a resposta contra um schema, combine com `parseResponse`.
 - Pra upload com barra de progresso, use `uploadWithProgress`.
 
-![Request flow](./diagrams/request-flow.drawio)
+> Diagrama editável: [request-flow.drawio](./diagrams/request-flow.drawio) (abra no [draw.io](https://app.diagrams.net)).
 
 ## `createApiClient`
 

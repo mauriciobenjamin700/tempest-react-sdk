@@ -2,7 +2,7 @@
 
 O catálogo foi dividido por categoria para facilitar navegação. Cada arquivo cobre props, exemplos e notas de acessibilidade.
 
-➡️ **[Ver índice completo em `docs/components/`](./components/)**
+➡️ **[Começar pela Entrada de dados](./components/inputs.md)**
 
 ## Categorias
 
@@ -31,5 +31,5 @@ O catálogo foi dividido por categoria para facilitar navegação. Cada arquivo 
 - [Forms (zod + Form layout + masked inputs BR)](./forms.md)
 - [Hooks](./hooks.md)
 - [Testing helpers (subpath)](./testing.md)
-- [README raiz](../README.md)
+- [README raiz](https://github.com/mauriciobenjamin700/tempest-react-sdk#readme)
 - [Gallery (demo)](./gallery.md)

@@ -22,6 +22,8 @@ The goal is to start every new React frontend with the same opinionated foundati
   - [Peer & bundled dependencies](#peer--bundled-dependencies)
   - [CSS import](#css-import)
 - [What's inside](#whats-inside)
+- [Scaffold a new app](#scaffold-a-new-app)
+- [App foundation (routing, state, providers, Vite)](#app-foundation)
 - [Architecture overview](#architecture-overview)
 - [Quickstart — wiring the app providers](#quickstart--wiring-the-app-providers)
 - [Recipes](#recipes)
@@ -77,7 +79,18 @@ The goal is to start every new React frontend with the same opinionated foundati
 - Fast HMR — provider files (`ThemeProvider`, `I18nProvider`, etc.) opt into React Refresh.
 - First-class compatibility with the Vite plugin ecosystem (`vite-plugin-pwa` for service workers, `vite-plugin-dts`, `vite-plugin-svgr`, etc.).
 
-To bootstrap a new app:
+**Fastest path — scaffold a fully wired app** with the companion CLI (Vite `@` alias, declarative routing, Zustand store, TanStack Query, providers — all pre-fiados):
+
+```bash
+npm create tempest-app my-app
+cd my-app
+npm install
+npm run dev
+```
+
+See [Scaffold a new app](#scaffold-a-new-app) for the generated layout.
+
+Or start from a bare Vite template and add the SDK manually:
 
 ```bash
 npm create vite@latest my-app -- --template react-ts
@@ -115,17 +128,19 @@ Requires React `>=18` and Node `>=20.19` to build.
 
 Only **react** and **react-dom** are peer dependencies — those must come from the host app so a single React copy lives in the tree.
 
-Everything else (`zod`, `zustand`, `dexie`, `react-hook-form`, `@tanstack/react-query`, `lucide-react`) is a **direct dependency** of the SDK, installed automatically by `npm install tempest-react-sdk`. You never need to install them manually.
+Everything else (`zod`, `zustand`, `dexie`, `react-hook-form`, `@tanstack/react-query`, `react-router-dom`, `lucide-react`) is a **direct dependency** of the SDK, installed automatically by `npm install tempest-react-sdk`. You never need to install them manually.
 
-| Package                               | Status              | Used by                                                             |
-| ------------------------------------- | ------------------- | ------------------------------------------------------------------- |
-| `react`, `react-dom` (`^18 \|\| ^19`) | **Peer (required)** | Everything                                                          |
-| `@tanstack/react-query` (`^5`)        | Direct dep (auto)   | `QueryProvider`, `createQueryKeys`                                  |
-| `zod` (`^3.23 \|\| ^4`)               | Direct dep (auto)   | `parseResponse`, `validateForm`, `zodResolver`, `useZodForm`        |
-| `zustand` (`^4 \|\| ^5`)              | Direct dep (auto)   | `createAuthStore`                                                   |
-| `dexie` (`^4.4`)                      | Direct dep (auto)   | `createOfflineStore`                                                |
-| `react-hook-form` (`^7.76`)           | Direct dep (auto)   | `zodResolver`, `useZodForm`, masked inputs                          |
-| `lucide-react` (`>=0.400`)            | Direct dep (auto)   | Component icons (`leftIcon`/`rightIcon` on `Input`, `Button`, etc.) |
+| Package                               | Status              | Used by                                                                 |
+| ------------------------------------- | ------------------- | ----------------------------------------------------------------------- |
+| `react`, `react-dom` (`^18 \|\| ^19`) | **Peer (required)** | Everything                                                              |
+| `@tanstack/react-query` (`^5`)        | Direct dep (auto)   | `QueryProvider`, `createQueryKeys`, `AppProviders`                      |
+| `zod` (`^3.23 \|\| ^4`)               | Direct dep (auto)   | `parseResponse`, `validateForm`, `zodResolver`, `useZodForm`            |
+| `zustand` (`^4 \|\| ^5`)              | Direct dep (auto)   | `createAuthStore`, `createStore`, `createSelectors`                     |
+| `react-router-dom` (`^7`)             | Direct dep (auto)   | `AppRouter`, `defineRoutes`, `RouteGuard`, routing re-exports           |
+| `dexie` (`^4.4`)                      | Direct dep (auto)   | `createOfflineStore`                                                    |
+| `react-hook-form` (`^7.76`)           | Direct dep (auto)   | `zodResolver`, `useZodForm`, masked inputs                              |
+| `lucide-react` (`>=0.400`)            | Direct dep (auto)   | Component icons (`leftIcon`/`rightIcon` on `Input`, `Button`, etc.)     |
+| `vite`, `@vitejs/plugin-react`        | **Optional peer**   | `createViteConfig` (`tempest-react-sdk/vite`) — already in any Vite app |
 
 The minimum install is just:
 
@@ -157,34 +172,157 @@ The styles ship hashed under the `tempest_` namespace — they do **not** collid
 
 Every module is re-exported from the package root — `import { Button, useDebounce, createApiClient } from "tempest-react-sdk"` always works.
 
-| Module                                     | Exports                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `components`                               | `Avatar`, `Badge`, `Breadcrumbs`, `Button`, `Card`, `Checkbox`, `ChipInput`, `ConfirmDialog`, `Container`, `DatePicker`, `Drawer`, `EmptyState`, `ErrorState`, `FileUpload`, `Form` (`FormSection`, `FormRow`, `FormActions`), `Grid`, `Input`, `Modal`, `Pagination`, `Progress`, `Radio`, `RadioGroup`, `SearchBar`, `Select`, `Skeleton`, `Spinner`, `Stack`, `Stepper`, `Switch`, `Table`, `Tabs`, `Textarea`, `Toast` (`ToastProvider`, `useToast`), `Tooltip`, `VirtualList` |
-| `hooks`                                    | `useDebounce`, `usePagination`, `useClientFilter`, `useMediaQuery`, `useOnline`, `useDocumentVisibility`, `useIntersectionObserver`, `useResizeObserver`, `useClipboard`, `useKeyboardShortcut`, `useBeforeInstallPrompt`, `useIdle`, `useGeolocation`, `useScrollLock`, `useFocusTrap`, `useStableCallback`, `useDeepMemo`                                                                                                                                                        |
-| `http`                                     | `createApiClient`, `parseResponse`, `uploadWithProgress`, `retry`, `generateIdempotencyKey`, `usePoll`, types: `ApiClient`, `ApiClientConfig`, `ApiError`, `RequestOptions`, `RetryOptions`, `UploadProgressEvent`, `UploadWithProgressOptions`, `UsePollOptions`, `UsePollResult`                                                                                                                                                                                                 |
-| `auth` _(peer: `zustand`)_                 | `createAuthStore`, `AuthGuard`, `decodeJWT`, `isJWTExpired`, `lazyWithRetry`, `createRefreshQueue`, types: `AuthState`, `CreateAuthStoreOptions`, `AuthGuardProps`, `DecodedJWT`, `LazyWithRetryOptions`                                                                                                                                                                                                                                                                           |
-| `query` _(peer: `@tanstack/react-query`)_  | `QueryProvider`, `createQueryKeys`, `STALE_TIME`, `CACHE_TIME`, `REFETCH_TIME`                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `forms` _(peer: `zod`, `react-hook-form`)_ | `validateForm`, `zodResolver`, `useZodForm`, `validateCPF`, `validateCNPJ`, `formatCEP`, `formatCNPJ`, `unmask`, `CPFInput`, `CNPJInput`, `PhoneInput`, `CEPInput`, `MoneyInput`, `useViaCEP`                                                                                                                                                                                                                                                                                      |
-| `sse`                                      | `createEventStream`, `useEventStream`                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `ws`                                       | `createWebSocket`, `useWebSocket`                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `push`                                     | `WebPushClient`, `WebPushUnsupportedError`, `WebPushPermissionDeniedError`, `usePushSubscription`, `urlBase64ToUint8Array`, `isPushSupported`                                                                                                                                                                                                                                                                                                                                      |
-| `sw`                                       | `registerServiceWorker`, `skipWaiting`, `unregisterAllServiceWorkers`, `installPushHandler`, `installNotificationClickHandler`, `installSkipWaitingListener`                                                                                                                                                                                                                                                                                                                       |
-| `audio`                                    | `createAudioPlayer`, `playAudio`, `stopAudio`, `useAudio`                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `offline` _(peer: `dexie`)_                | `createOfflineStore`, types: `OfflineStore`, `OfflineStoreConfig`, `ListOptions`                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `error-boundary`                           | `ErrorBoundary`, `useErrorHandler`, types: `ErrorBoundaryProps`, `ErrorBoundaryRenderProps`                                                                                                                                                                                                                                                                                                                                                                                        |
-| `theme`                                    | `ThemeProvider`, `useTheme`, `getInitialTheme`, `themeInitScript`, types: `ThemeMode`, `ResolvedTheme`                                                                                                                                                                                                                                                                                                                                                                             |
-| `i18n`                                     | `createI18n`, `I18nProvider`, `useI18n`, `useTranslate`, types: `Catalog`, `Messages`, `I18n`, `InterpolationValues`                                                                                                                                                                                                                                                                                                                                                               |
-| `logger`                                   | `createLogger`, `consoleSink`, types: `Logger`, `LogEntry`, `LogLevel`, `LoggerSink`                                                                                                                                                                                                                                                                                                                                                                                               |
-| `telemetry`                                | `TelemetryProvider`, `useTelemetry`, `consoleTelemetryAdapter`, `createSentryTelemetryAdapter`, `createPostHogTelemetryAdapter`, types: `TelemetryAdapter`, `TelemetryEvent`, `TelemetryUser`, `CreateSentryTelemetryAdapterOptions`, `SentryLike`, `CreatePostHogTelemetryAdapterOptions`, `PostHogLike`                                                                                                                                                                          |
-| `feature-flags`                            | `FeatureFlagsProvider`, `useFeatureFlag`, `useFlagValue`, `createInMemoryFlags`, `createGrowthBookFeatureFlagsAdapter`, `createLaunchDarklyFeatureFlagsAdapter`, types: `FeatureFlagsAdapter`, `FlagValue`, `GrowthBookLike`, `LDClientLike`                                                                                                                                                                                                                                       |
-| `share`                                    | `share`, `isShareSupported`, types: `SharePayload`, `ShareResult`                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `utils`                                    | `cn`, `formatCurrency`, `formatDate`, `formatDateTime`, `formatPhone`, `formatCPF`, `formatPercent`, `storage`                                                                                                                                                                                                                                                                                                                                                                     |
+| Module                                      | Exports                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `components`                                | `Avatar`, `Badge`, `Breadcrumbs`, `Button`, `Card`, `Checkbox`, `ChipInput`, `ConfirmDialog`, `Container`, `DatePicker`, `Drawer`, `EmptyState`, `ErrorState`, `FileUpload`, `Form` (`FormSection`, `FormRow`, `FormActions`), `Grid`, `Input`, `Modal`, `Pagination`, `Progress`, `Radio`, `RadioGroup`, `SearchBar`, `Select`, `Skeleton`, `Spinner`, `Stack`, `Stepper`, `Switch`, `Table`, `Tabs`, `Textarea`, `Toast` (`ToastProvider`, `useToast`), `Tooltip`, `VirtualList` |
+| `hooks`                                     | `useDebounce`, `usePagination`, `useClientFilter`, `useMediaQuery`, `useOnline`, `useDocumentVisibility`, `useIntersectionObserver`, `useResizeObserver`, `useClipboard`, `useKeyboardShortcut`, `useBeforeInstallPrompt`, `useIdle`, `useGeolocation`, `useScrollLock`, `useFocusTrap`, `useStableCallback`, `useDeepMemo`                                                                                                                                                        |
+| `http`                                      | `createApiClient`, `parseResponse`, `uploadWithProgress`, `retry`, `generateIdempotencyKey`, `usePoll`, types: `ApiClient`, `ApiClientConfig`, `ApiError`, `RequestOptions`, `RetryOptions`, `UploadProgressEvent`, `UploadWithProgressOptions`, `UsePollOptions`, `UsePollResult`                                                                                                                                                                                                 |
+| `auth` _(peer: `zustand`)_                  | `createAuthStore`, `AuthGuard`, `decodeJWT`, `isJWTExpired`, `lazyWithRetry`, `createRefreshQueue`, types: `AuthState`, `CreateAuthStoreOptions`, `AuthGuardProps`, `DecodedJWT`, `LazyWithRetryOptions`                                                                                                                                                                                                                                                                           |
+| `query` _(peer: `@tanstack/react-query`)_   | `QueryProvider`, `createQueryKeys`, `STALE_TIME`, `CACHE_TIME`, `REFETCH_TIME`                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `router` _(dep: `react-router-dom`)_        | `defineRoutes`, `AppRouter`, `RouteGuard`, + re-exports (`Link`, `NavLink`, `Outlet`, `Navigate`, `useNavigate`, `useParams`, `useSearchParams`, `useLocation`, `useMatch`, `useRouteError`, `redirect`, `BrowserRouter`/`HashRouter`/`MemoryRouter`/`Routes`/`Route`), types: `TempestRouteObject`, `RouterKind`, `AppRouterProps`, `RouteGuardProps`                                                                                                                             |
+| `store` _(dep: `zustand`)_                  | `createStore`, `createSelectors`, types: `CreateStoreOptions`, `CreateStorePersistOptions`, `WithSelectors`                                                                                                                                                                                                                                                                                                                                                                        |
+| `app`                                       | `AppProviders` (composes `ErrorBoundary` → `QueryProvider` → `ThemeProvider` → `I18nProvider`), type: `AppProvidersProps`                                                                                                                                                                                                                                                                                                                                                          |
+| `vite` _(subpath `tempest-react-sdk/vite`)_ | `createViteConfig`, types: `CreateViteConfigOptions`, `ProxyEntry`, `TempestViteConfig`                                                                                                                                                                                                                                                                                                                                                                                            |
+| `forms` _(peer: `zod`, `react-hook-form`)_  | `validateForm`, `zodResolver`, `useZodForm`, `validateCPF`, `validateCNPJ`, `formatCEP`, `formatCNPJ`, `unmask`, `CPFInput`, `CNPJInput`, `PhoneInput`, `CEPInput`, `MoneyInput`, `useViaCEP`                                                                                                                                                                                                                                                                                      |
+| `sse`                                       | `createEventStream`, `useEventStream`                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `ws`                                        | `createWebSocket`, `useWebSocket`                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `push`                                      | `WebPushClient`, `WebPushUnsupportedError`, `WebPushPermissionDeniedError`, `usePushSubscription`, `urlBase64ToUint8Array`, `isPushSupported`                                                                                                                                                                                                                                                                                                                                      |
+| `sw`                                        | `registerServiceWorker`, `skipWaiting`, `unregisterAllServiceWorkers`, `installPushHandler`, `installNotificationClickHandler`, `installSkipWaitingListener`                                                                                                                                                                                                                                                                                                                       |
+| `audio`                                     | `createAudioPlayer`, `playAudio`, `stopAudio`, `useAudio`                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `offline` _(peer: `dexie`)_                 | `createOfflineStore`, types: `OfflineStore`, `OfflineStoreConfig`, `ListOptions`                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `error-boundary`                            | `ErrorBoundary`, `useErrorHandler`, types: `ErrorBoundaryProps`, `ErrorBoundaryRenderProps`                                                                                                                                                                                                                                                                                                                                                                                        |
+| `theme`                                     | `ThemeProvider`, `useTheme`, `getInitialTheme`, `themeInitScript`, types: `ThemeMode`, `ResolvedTheme`                                                                                                                                                                                                                                                                                                                                                                             |
+| `i18n`                                      | `createI18n`, `I18nProvider`, `useI18n`, `useTranslate`, types: `Catalog`, `Messages`, `I18n`, `InterpolationValues`                                                                                                                                                                                                                                                                                                                                                               |
+| `logger`                                    | `createLogger`, `consoleSink`, types: `Logger`, `LogEntry`, `LogLevel`, `LoggerSink`                                                                                                                                                                                                                                                                                                                                                                                               |
+| `telemetry`                                 | `TelemetryProvider`, `useTelemetry`, `consoleTelemetryAdapter`, `createSentryTelemetryAdapter`, `createPostHogTelemetryAdapter`, types: `TelemetryAdapter`, `TelemetryEvent`, `TelemetryUser`, `CreateSentryTelemetryAdapterOptions`, `SentryLike`, `CreatePostHogTelemetryAdapterOptions`, `PostHogLike`                                                                                                                                                                          |
+| `feature-flags`                             | `FeatureFlagsProvider`, `useFeatureFlag`, `useFlagValue`, `createInMemoryFlags`, `createGrowthBookFeatureFlagsAdapter`, `createLaunchDarklyFeatureFlagsAdapter`, types: `FeatureFlagsAdapter`, `FlagValue`, `GrowthBookLike`, `LDClientLike`                                                                                                                                                                                                                                       |
+| `share`                                     | `share`, `isShareSupported`, types: `SharePayload`, `ShareResult`                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `utils`                                     | `cn`, `formatCurrency`, `formatDate`, `formatDateTime`, `formatPhone`, `formatCPF`, `formatPercent`, `storage`                                                                                                                                                                                                                                                                                                                                                                     |
 
 Full per-module docs are published as a bilingual MkDocs site on GitHub Pages — **[Português (BR)](https://mauriciobenjamin700.github.io/tempest-react-sdk/)** / **[English (US)](https://mauriciobenjamin700.github.io/tempest-react-sdk/en/)** (one page per module + draw.io diagrams in [`docs/diagrams/`](./docs/diagrams)). The source markdown lives in [`docs/`](./docs) (PT-BR base files + `.en.md` translations).
 
 > **Local preview:** `pip install -r docs/requirements.txt && mkdocs serve` (the published site is built and deployed automatically by `.github/workflows/docs.yml`).
 
 A demo app exercising every module lives in [`examples/gallery`](./examples/gallery) — `cd examples/gallery && npm install && npm run dev`.
+
+---
+
+## Scaffold a new app
+
+The companion CLI **`create-tempest-app`** generates a ready-to-run Vite + React 19 + TypeScript project already wired with the SDK — no manual provider/router/store setup:
+
+```bash
+npm create tempest-app my-app
+# or: npx create-tempest-app my-app  ·  pnpm create tempest-app my-app
+cd my-app
+npm install
+cp .env.example .env
+npm run dev            # http://127.0.0.1:5173
+```
+
+Generated layout:
+
+```text
+my-app/
+├── index.html
+├── package.json          # react, react-dom, tempest-react-sdk (+ vite/ts devDeps)
+├── tsconfig.json         # "@/*" -> "./src/*"
+├── vite.config.ts        # export default createViteConfig()
+├── .env.example          # VITE_API_URL
+└── src/
+    ├── main.tsx          # createRoot + "tempest-react-sdk/styles.css" + <App/>
+    ├── App.tsx           # <AppProviders> → <AppRouter routes fallback/>
+    ├── routes.tsx        # defineRoutes([...]) — index, login, lazy + guarded dashboard
+    ├── layouts/RootLayout.tsx   # nav (Link) + <Outlet/>
+    ├── pages/            # Home, Login, Dashboard (lazy + protected)
+    ├── stores/auth.ts    # createSelectors(createAuthStore<User>())
+    └── lib/api.ts        # createApiClient(...) + createQueryKeys
+```
+
+Each generated file demonstrates one SDK capability. Full walkthrough: **[scaffold docs (PT)](https://mauriciobenjamin700.github.io/tempest-react-sdk/scaffold/)** · **[EN](https://mauriciobenjamin700.github.io/tempest-react-sdk/en/scaffold/)**.
+
+---
+
+## App foundation
+
+Beyond UI blocks, the SDK ships an opinionated **application foundation** so every Tempest frontend wires Vite, routing, state and cache the same way. These are also what the scaffold above generates.
+
+**Vite config** — one call wires `@vitejs/plugin-react`, the `@` → `src` alias and dev-server defaults (import from the Node subpath):
+
+```ts
+// vite.config.ts
+import { createViteConfig } from "tempest-react-sdk/vite";
+
+export default createViteConfig({
+  proxy: { "/api": "http://127.0.0.1:8000" },
+});
+```
+
+> Declare the same alias in `tsconfig.json` so the type-checker resolves it: `"paths": { "@/*": ["./src/*"] }`.
+
+**Declarative routing** (React Router v7) — describe the tree as data, with `lazy` code-splitting and per-route `guard` redirects:
+
+```tsx
+import { defineRoutes, AppRouter } from "tempest-react-sdk";
+import { useAuth } from "@/stores/auth";
+
+export const routes = defineRoutes([
+  {
+    path: "/",
+    element: <RootLayout />,
+    children: [
+      { index: true, element: <Home /> },
+      { path: "login", element: <Login /> },
+      {
+        path: "dashboard",
+        lazy: () => import("@/pages/Dashboard"),
+        guard: () => useAuth.getState().isAuthenticated,
+        redirectTo: "/login",
+      },
+    ],
+  },
+]);
+
+// <AppRouter routes={routes} fallback={<p>Loading…</p>} />
+```
+
+`AppRouter` also re-exports `Link`, `NavLink`, `Outlet`, `Navigate`, `useNavigate`, `useParams`, … so apps import their whole routing surface from the SDK.
+
+**State (Zustand)** — `createStore` for any domain slice, `createSelectors` for per-field subscription hooks:
+
+```ts
+import { createStore, createSelectors } from "tempest-react-sdk";
+
+interface CartState {
+  items: string[];
+  add: (id: string) => void;
+}
+
+export const useCart = createSelectors(
+  createStore<CartState>(
+    (set) => ({ items: [], add: (id) => set((s) => ({ items: [...s.items, id] })) }),
+    { persist: { name: "cart", partialize: (s) => ({ items: s.items }) } },
+  ),
+);
+// const items = useCart.use.items();   // subscribes only to `items`
+```
+
+**Provider composition** — `AppProviders` nests ErrorBoundary → Query → Theme → i18n in one block (Query + Theme on by default; i18n + ErrorBoundary opt-in):
+
+```tsx
+import { AppProviders, AppRouter } from "tempest-react-sdk";
+import { routes } from "@/routes";
+
+export function App() {
+  return (
+    <AppProviders errorBoundary={{ fallback: <p>Something went wrong.</p> }}>
+      <AppRouter routes={routes} fallback={<p>Loading…</p>} />
+    </AppProviders>
+  );
+}
+```
+
+Per-topic guides (bilingual): **[Routing](https://mauriciobenjamin700.github.io/tempest-react-sdk/routing/)** · **[State](https://mauriciobenjamin700.github.io/tempest-react-sdk/state/)** · **[Providers](https://mauriciobenjamin700.github.io/tempest-react-sdk/app-providers/)** · **[Vite & alias](https://mauriciobenjamin700.github.io/tempest-react-sdk/vite-config/)**.
 
 ---
 

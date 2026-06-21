@@ -43,6 +43,12 @@ plugins:
                     Visão geral: Overview
                     Arquitetura: Architecture
                     Gallery (demo): Gallery (demo)
+                    Estrutura de aplicação: App foundation
+                    Scaffold (create-tempest-app): Scaffold (create-tempest-app)
+                    Vite & alias: Vite & alias
+                    Roteamento: Routing
+                    Estado (Zustand): State (Zustand)
+                    Providers: Providers
                     Componentes: Components
                     Catálogo de componentes: Components catalogue
                     Entrada de dados: Data entry
@@ -102,6 +108,12 @@ nav:
     - Guia:
           - Visão geral: architecture.md
           - Gallery (demo): gallery.md
+    - Estrutura de aplicação:
+          - Scaffold (create-tempest-app): scaffold.md
+          - Vite & alias: vite-config.md
+          - Roteamento: routing.md
+          - Estado (Zustand): state.md
+          - Providers: app-providers.md
     - Componentes:
           - Catálogo de componentes: components.md
           - Entrada de dados: components/inputs.md

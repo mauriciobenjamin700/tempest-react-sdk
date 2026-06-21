@@ -4,9 +4,10 @@ SDK público da Tempest com componentes React, hooks e integrações reutilizáv
 
 > Este arquivo é o guia operacional do SDK. Padrões globais (PR template PT-BR, conventional commits, `gh pr edit` workaround) vêm de `~/.claude/CLAUDE.md` e continuam valendo.
 
-## Estado atual (snapshot v0.4.0 — publicado)
+## Estado atual (snapshot v0.6.0 — preparado, aguardando release)
 
-- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — versões 0.1.0 → 0.4.0 todas live com signed provenance via OIDC.
+- **App foundation (v0.6.0)**: novos módulos `src/router/` (React Router v7 declarativo: `defineRoutes` + `<AppRouter>` + `<RouteGuard>` + re-exports), `src/store/` (`createStore` + `createSelectors` genéricos Zustand), `src/app/` (`<AppProviders>` glue Query+Theme+i18n+ErrorBoundary), `src/vite/` (subpath `tempest-react-sdk/vite` → `createViteConfig`). `react-router-dom@7` virou dep direta; `vite`/`@vitejs/plugin-react` peers opcionais. CLI nova `create-tempest-app` (pacote separado em `create-tempest-app/`, `npm create tempest-app`) gera projeto Vite+React+TS fiado com o SDK. Docs bilíngues novas: routing/state/app-providers/vite-config/scaffold.
+- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — versões 0.1.0 → 0.5.1 live com signed provenance via OIDC.
 - **Build**: ESM ~149 KB → 42 KB gzip, CJS ~106 KB → 36 KB gzip, CSS 86 KB → 13 KB gzip, `tempest-react-sdk.d.ts` rollupado.
 - **Subpath**: `tempest-react-sdk/testing` bundle separado (0.3 KB ESM) pra MSW helpers.
 - **Testes**: 682 testes em 210 arquivos. ~13 s sob `vitest + jsdom + fake-indexeddb`.

@@ -1,0 +1,37 @@
+{
+  "name": "create-tempest-app",
+  "version": "0.6.0",
+  "description": "Scaffold a Tempest React app preconfigured with Vite (@ alias), React Router (declarative), Zustand stores and TanStack Query — powered by tempest-react-sdk.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Mauricio Benjamin <mauriciobenjamin700@gmail.com>",
+  "homepage": "https://github.com/mauriciobenjamin700/tempest-react-sdk",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mauriciobenjamin700/tempest-react-sdk.git",
+    "directory": "create-tempest-app"
+  },
+  "keywords": [
+    "tempest",
+    "react",
+    "vite",
+    "scaffold",
+    "create",
+    "template",
+    "starter"
+  ],
+  "bin": {
+    "create-tempest-app": "index.mjs"
+  },
+  "files": [
+    "index.mjs",
+    "template",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20.19"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

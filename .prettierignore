@@ -4,4 +4,4 @@ coverage
 .changeset
 *.drawio
 package-lock.json
-create-tempest-app
+template

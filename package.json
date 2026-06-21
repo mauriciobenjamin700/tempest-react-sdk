@@ -1,6 +1,6 @@
 {
   "name": "tempest-react-sdk",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "SDK público da Tempest com componentes, hooks e integrações para projetos React.",
   "type": "module",
   "license": "MIT",
@@ -23,9 +23,14 @@
   ],
   "files": [
     "dist",
+    "bin",
+    "template",
     "README.md",
     "LICENSE"
   ],
+  "bin": {
+    "create-tempest-app": "./bin/create-tempest-app.mjs"
+  },
   "main": "./dist/tempest-react-sdk.cjs",
   "module": "./dist/tempest-react-sdk.js",
   "types": "./dist/tempest-react-sdk.d.ts",

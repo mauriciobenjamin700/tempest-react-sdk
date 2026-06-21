@@ -79,13 +79,21 @@ The goal is to start every new React frontend with the same opinionated foundati
 - Fast HMR — provider files (`ThemeProvider`, `I18nProvider`, etc.) opt into React Refresh.
 - First-class compatibility with the Vite plugin ecosystem (`vite-plugin-pwa` for service workers, `vite-plugin-dts`, `vite-plugin-svgr`, etc.).
 
-**Fastest path — scaffold a fully wired app** with the companion CLI (Vite `@` alias, declarative routing, Zustand store, TanStack Query, providers — all pre-fiados):
+**Fastest path — scaffold a fully wired app** with the `create-tempest-app` CLI that ships **inside the SDK** (Vite `@` alias, declarative routing, Zustand store, TanStack Query, providers — all pre-fiados):
 
 ```bash
-npm create tempest-app my-app
+# brand-new project (no install needed)
+npx -p tempest-react-sdk create-tempest-app my-app
 cd my-app
 npm install
 npm run dev
+```
+
+Already have a project? Install the SDK, then scaffold `src/` + configs into it:
+
+```bash
+npm install tempest-react-sdk
+npx create-tempest-app .     # merges into the current dir, skips existing files
 ```
 
 See [Scaffold a new app](#scaffold-a-new-app) for the generated layout.
@@ -209,15 +217,22 @@ A demo app exercising every module lives in [`examples/gallery`](./examples/gall
 
 ## Scaffold a new app
 
-The companion CLI **`create-tempest-app`** generates a ready-to-run Vite + React 19 + TypeScript project already wired with the SDK — no manual provider/router/store setup:
+The **`create-tempest-app`** CLI **ships inside the `tempest-react-sdk` package** (it is the package's `bin`) and generates a ready-to-run Vite + React 19 + TypeScript project already wired with the SDK — no manual provider/router/store setup:
 
 ```bash
-npm create tempest-app my-app
-# or: npx create-tempest-app my-app  ·  pnpm create tempest-app my-app
+# brand-new project folder (npx pulls the SDK and runs its bin)
+npx -p tempest-react-sdk create-tempest-app my-app
 cd my-app
 npm install
 cp .env.example .env
 npm run dev            # http://127.0.0.1:5173
+```
+
+Or, in a project that already depends on the SDK, scaffold into the current directory (existing files are left untouched; an existing `package.json` gets the Tempest scripts/deps merged in):
+
+```bash
+npm install tempest-react-sdk
+npx create-tempest-app .
 ```
 
 Generated layout:

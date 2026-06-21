@@ -1,45 +1,53 @@
 # Scaffold — `create-tempest-app`
 
-`create-tempest-app` é a CLI oficial de scaffolding da Tempest. Com **um comando** você cria um app React 19 + Vite + TypeScript já pré-cabeado com o `tempest-react-sdk`: providers, roteamento, store de autenticação e cliente HTTP saem prontos pra rodar. É uma CLI Node **zero-dependency** publicada no npm — nada pra instalar globalmente, você sempre roda a versão mais recente.
+`create-tempest-app` é a CLI oficial de scaffolding da Tempest. Com **um comando** você cria um app React 19 + Vite + TypeScript já pré-cabeado com o `tempest-react-sdk`: providers, roteamento, store de autenticação e cliente HTTP saem prontos pra rodar. A CLI **não é um pacote separado** — ela vem **dentro do próprio `tempest-react-sdk`** como o `bin` do pacote (`create-tempest-app`), junto com um `template/` embutido no tarball.
+
+```json
+"bin": { "create-tempest-app": "./bin/create-tempest-app.mjs" }
+```
 
 Esta página é um tutorial: vamos do comando vazio até o app rodando no navegador, e depois passeamos por cada arquivo gerado pra entender qual recurso do SDK ele demonstra. 🚀
 
+!!! info "Versionada junto com o SDK"
+Como a CLI mora dentro do `tempest-react-sdk`, ela é **versionada junto com o SDK**. Fixar uma versão é fixar a versão do SDK: `npx -p tempest-react-sdk@0.5.1 create-tempest-app …`. E o app gerado já nasce com a dependência `tempest-react-sdk` **carimbada na mesma versão** que o produziu — nada de número hardcoded que desatualiza.
+
 ## Crie seu primeiro app
 
-Escolha o gerenciador de pacotes que você já usa — todos chamam a mesma CLI:
+Para uma pasta **nova** (ainda sem nada instalado), o `npx` baixa o SDK e roda o `bin` dele:
 
 ```bash
-npm create tempest-app my-app
-```
-
-```bash
-npx create-tempest-app my-app
-```
-
-```bash
-pnpm create tempest-app my-app
-```
-
-Os três fazem a mesma coisa: baixam a última versão da CLI e geram o projeto na pasta `my-app`.
-
-!!! tip "Sem nome de projeto?"
-Se você omitir o nome (`npm create tempest-app`), a CLI vai **perguntar** interativamente. O valor padrão sugerido é `my-tempest-app` — é só apertar Enter pra aceitar.
-
-!!! warning "A pasta de destino precisa estar vazia"
-O diretório alvo **não pode existir** ou precisa estar **vazio**. Isso evita sobrescrever um projeto seu por acidente. Se a pasta já tem arquivos, a CLI aborta sem tocar em nada — apague-a ou escolha outro nome.
-
-## Rode o app
-
-Assim que o scaffold termina, são quatro passos até ver a tela inicial:
-
-```bash
+npx -p tempest-react-sdk create-tempest-app my-app
 cd my-app
 npm install
 cp .env.example .env
-npm run dev
+npm run dev            # http://127.0.0.1:5173
 ```
 
+O `-p tempest-react-sdk` diz ao `npx` qual pacote buscar; `create-tempest-app my-app` é o `bin` que ele executa, gerando o projeto na pasta `my-app`.
+
 Abra **<http://127.0.0.1:5173>** — o app já está no ar com providers, rotas e store funcionando.
+
+!!! tip "Sem nome de projeto?"
+Se você omitir o nome, a CLI vai **perguntar** interativamente. O valor padrão sugerido é `my-tempest-app` — é só apertar Enter pra aceitar.
+
+!!! warning "A pasta de destino precisa estar vazia"
+No modo de projeto novo (`create-tempest-app my-app`), o diretório alvo **não pode existir** ou precisa estar **vazio**. Isso evita sobrescrever um projeto seu por acidente. Se a pasta já tem arquivos, a CLI sugere usar `.` para **mesclar** no diretório atual em vez de abortar (veja a próxima seção).
+
+## Scaffold dentro de um projeto existente
+
+Se você já tem um projeto que depende do SDK, dá pra gerar o `src/` + configs **no diretório atual**, sem criar uma pasta nova:
+
+```bash
+npm install tempest-react-sdk
+npx create-tempest-app .
+```
+
+Aqui o `npx create-tempest-app` resolve o `bin` a partir do `tempest-react-sdk` que você acabou de instalar — não precisa do `-p`. Rodar **sem argumento** se comporta igual a `.`.
+
+Nesse modo "diretório atual":
+
+- **Arquivos existentes são preservados** — a CLI pula cada um que já existe e **reporta** o que foi pulado, sem sobrescrever nada seu.
+- Um `package.json` existente tem os scripts e deps da Tempest **mesclados**: seu `name`/`version` e os scripts/deps que já estavam lá são mantidos, e o `tempest-react-sdk` é fixado na **própria versão do SDK** que está rodando o scaffold.
 
 !!! info "O `.env`"
 O `.env.example` declara `VITE_API_URL`, a base usada pelo cliente HTTP em `src/lib/api.ts`. Copie pra `.env` e ajuste pra apontar pro seu backend.
@@ -190,8 +198,9 @@ Aprofunde em [Query](./query.md) e [HTTP](./http.md).
 
 ## Recap
 
-- `npm create tempest-app my-app` (ou `npx` / `pnpm create`) gera um app **React 19 + Vite + TypeScript** já cabeado com o `tempest-react-sdk` — CLI zero-dependency, sempre na última versão. ✅
-- Sem nome, ela **pergunta** (padrão `my-tempest-app`); a pasta de destino **precisa estar vazia**.
+- A CLI é o **`bin` do próprio `tempest-react-sdk`** (`create-tempest-app`), com um `template/` embutido no tarball — versionada junto com o SDK, não um pacote separado. ✅
+- Pasta nova: `npx -p tempest-react-sdk create-tempest-app my-app` (a pasta de destino **precisa estar vazia** ou não existir; sem nome ela **pergunta**, padrão `my-tempest-app`). Use `@X` no `-p` pra fixar a versão do SDK.
+- Projeto existente: `npm install tempest-react-sdk` e `npx create-tempest-app .` (ou sem argumento) gera no diretório atual — **arquivos existentes são preservados** e o `package.json` tem scripts/deps **mesclados** (`tempest-react-sdk` fixado na versão do SDK).
 - `cd my-app && npm install && cp .env.example .env && npm run dev` te leva a **<http://127.0.0.1:5173>** com providers, rotas e auth funcionando.
 - Cada arquivo gerado **demonstra um recurso**: `createViteConfig`, `AppProviders` + `AppRouter`, `defineRoutes` (lazy + guard), `createAuthStore` + `createSelectors`, `createApiClient` + `createQueryKeys`.
 - Pra crescer: adicione páginas em `pages/` + entradas em `routes.tsx`, crie stores com `createStore`, e busque dados com `useQuery` + `queryKeys` + `api`.

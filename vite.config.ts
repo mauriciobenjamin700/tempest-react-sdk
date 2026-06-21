@@ -33,6 +33,7 @@ export default defineConfig({
             entry: {
                 "tempest-react-sdk": resolve(__dirname, "src/index.ts"),
                 testing: resolve(__dirname, "src/testing/index.ts"),
+                vite: resolve(__dirname, "src/vite/index.ts"),
             },
             name: "TempestReactSdk",
             formats: ["es", "cjs"],
@@ -54,6 +55,14 @@ export default defineConfig({
                 "lucide-react",
                 "dexie",
                 "react-hook-form",
+                "react-router",
+                "react-router-dom",
+                // `tempest-react-sdk/vite` is a Node-only config helper — keep
+                // vite + its react plugin (and node builtins) out of the bundle.
+                "vite",
+                "@vitejs/plugin-react",
+                "node:path",
+                "node:url",
             ],
             output: {
                 globals: {

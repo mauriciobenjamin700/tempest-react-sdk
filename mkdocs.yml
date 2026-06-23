@@ -60,6 +60,7 @@ plugins:
                     Status & feedback: Status & feedback
                     Identidade & micro: Identity & micro
                     Utilitários & headless: Utility & headless
+                    Overlays & avançados: Overlays & advanced
                     Hooks: Hooks
                     Hooks utilitários: Utility hooks
                     Integrações: Integrations
@@ -127,6 +128,7 @@ nav:
           - Status & feedback: components/feedback.md
           - Identidade & micro: components/identity.md
           - Utilitários & headless: components/utility.md
+          - Overlays & avançados: components/advanced.md
     - Hooks:
           - Hooks utilitários: hooks.md
     - Integrações:

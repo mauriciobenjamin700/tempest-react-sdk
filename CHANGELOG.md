@@ -22,9 +22,20 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - **Headless / lógicos**: `Portal`, `ClickOutside`, `ConditionalWrapper`, `For`, `ErrorText`.
 - **Mídia / conteúdo**: `Image` (fallback + lazy), `DataList`, `DescriptionList`.
 
+### Componentes shadcn-parity novos (`src/components/`)
+
+Preenchem as lacunas vs shadcn/ui — sem dependências novas (construídos sobre Popover/DropdownMenu/Modal/Table/Portal + hooks existentes):
+
+- **Essenciais**: `Toggle`, `ToggleGroup` (+ `ToggleGroupItem`), `Label`, `Collapsible`, `ContextMenu`, `HoverCard`, `Command` (palette ⌘K).
+- **Layout/UX**: `ScrollArea`, `Resizable`, `Calendar` (grid de mês standalone).
+- **Navegação/conteúdo**: `NavigationMenu`, `Menubar`, `Carousel`.
+- **DataTable**: wrapper com sort/filtro/paginação client-side sobre o `Table` (sem dep tanstack).
+- `Chart` ficou de fora de propósito — o app injeta recharts/visx direto (padrão "caller injeta").
+
 ### Docs
 
 - Nova página **Utilitários** (`utilities.md`) e **Utilitários & headless** (`components/utility.md`) — bilíngues PT-BR + EN-US.
+- Catálogo **Overlays & avançados** (`components/advanced.md`) — bilíngue — para os componentes shadcn-parity.
 
 ## [0.6.1] — 2026-06-21
 

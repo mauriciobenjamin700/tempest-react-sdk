@@ -28,7 +28,7 @@ O `-p tempest-react-sdk` diz ao `npx` qual pacote buscar; `create-tempest-app my
 Abra **<http://127.0.0.1:5173>** — o app já está no ar com providers, rotas e store funcionando.
 
 !!! tip "Sem nome de projeto?"
-Se você omitir o nome, a CLI vai **perguntar** interativamente. O valor padrão sugerido é `my-tempest-app` — é só apertar Enter pra aceitar.
+Rodar **sem argumento** (ou `.`) pula o modo pasta-nova e **mescla no diretório atual** — veja a próxima seção.
 
 !!! warning "A pasta de destino precisa estar vazia"
 No modo de projeto novo (`create-tempest-app my-app`), o diretório alvo **não pode existir** ou precisa estar **vazio**. Isso evita sobrescrever um projeto seu por acidente. Se a pasta já tem arquivos, a CLI sugere usar `.` para **mesclar** no diretório atual em vez de abortar (veja a próxima seção).
@@ -54,7 +54,7 @@ O `.env.example` declara `VITE_API_URL`, a base usada pelo cliente HTTP em `src/
 
 ### Scripts disponíveis
 
-O `package.json` gerado vem com quatro scripts:
+O `package.json` gerado vem com estes scripts:
 
 | Script              | O que faz                                                 |
 | ------------------- | --------------------------------------------------------- |

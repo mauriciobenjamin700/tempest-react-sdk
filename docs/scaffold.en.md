@@ -28,7 +28,7 @@ npm run dev            # http://127.0.0.1:5173
 Open **<http://127.0.0.1:5173>** — the app is already live with providers, routes, and the store working.
 
 !!! tip "No project name?"
-If you omit the name, the CLI will **prompt** you interactively. The suggested default is `my-tempest-app` — just hit Enter to accept it.
+Running with **no argument** (or `.`) skips new-folder mode and **merges into the current directory** instead — see the next section.
 
 !!! warning "The target folder must be empty"
 In new-project mode (`create-tempest-app my-app`), the target directory **must not exist** or must be **empty**. This keeps you from overwriting one of your projects by accident. If the folder already has files, the CLI suggests using `.` to **merge** into the current directory instead of aborting (see the next section).
@@ -54,7 +54,7 @@ In this "current directory" mode:
 
 ### Available scripts
 
-The generated `package.json` ships four scripts:
+The generated `package.json` ships these scripts:
 
 | Script              | What it does                                              |
 | ------------------- | --------------------------------------------------------- |

@@ -56,12 +56,14 @@ In this "current directory" mode:
 
 The generated `package.json` ships four scripts:
 
-| Script              | What it does                                         |
-| ------------------- | ---------------------------------------------------- |
-| `npm run dev`       | `vite` — dev server at `127.0.0.1:5173`              |
-| `npm run build`     | `tsc --noEmit && vite build` — type-check and bundle |
-| `npm run preview`   | `vite preview` — serve the production build          |
-| `npm run typecheck` | `tsc --noEmit` — type-check only                     |
+| Script              | What it does                                              |
+| ------------------- | --------------------------------------------------------- |
+| `npm run dev`       | `vite` — dev server at `127.0.0.1:5173`                   |
+| `npm run build`     | `tsc --noEmit && vite build` — type-check and bundle      |
+| `npm run preview`   | `vite preview` — serve the production build               |
+| `npm run typecheck` | `tsc --noEmit` — type-check only                          |
+| `npm run lint`      | `eslint .` — ESLint 9 flat config (react-hooks + refresh) |
+| `npm run lint:fix`  | `eslint . --fix` — auto-fix what it can                   |
 
 ## Tour of what gets generated
 

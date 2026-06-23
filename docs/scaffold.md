@@ -56,12 +56,14 @@ O `.env.example` declara `VITE_API_URL`, a base usada pelo cliente HTTP em `src/
 
 O `package.json` gerado vem com quatro scripts:
 
-| Script              | O que faz                                             |
-| ------------------- | ----------------------------------------------------- |
-| `npm run dev`       | `vite` — dev server em `127.0.0.1:5173`               |
-| `npm run build`     | `tsc --noEmit && vite build` — checa tipos e empacota |
-| `npm run preview`   | `vite preview` — serve o build de produção            |
-| `npm run typecheck` | `tsc --noEmit` — só checagem de tipos                 |
+| Script              | O que faz                                                 |
+| ------------------- | --------------------------------------------------------- |
+| `npm run dev`       | `vite` — dev server em `127.0.0.1:5173`                   |
+| `npm run build`     | `tsc --noEmit && vite build` — checa tipos e empacota     |
+| `npm run preview`   | `vite preview` — serve o build de produção                |
+| `npm run typecheck` | `tsc --noEmit` — só checagem de tipos                     |
+| `npm run lint`      | `eslint .` — ESLint 9 flat config (react-hooks + refresh) |
+| `npm run lint:fix`  | `eslint . --fix` — autocorrige o que dá                   |
 
 ## Tour pelo que foi gerado
 

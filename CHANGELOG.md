@@ -11,6 +11,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   - Projeto existente (já com a lib): `npx create-tempest-app .` escreve `src/` + configs no diretório atual, **pulando arquivos que já existem** e fazendo **merge** dos scripts/deps no `package.json` existente (preserva `name`/`version`/scripts próprios).
 - O `bin` carimba no `package.json` gerado a **versão do SDK que o produziu** (`tempest-react-sdk: ^<versão>`), em vez de pin fixo.
 - `template/` e `bin/` entram no tarball publicado (`files`).
+- O app gerado já vem com **ESLint 9** (flat config react-hooks + react-refresh, scripts `lint`/`lint:fix`) e `tsconfig` estrito (`noImplicitOverride` + `forceConsistentCasingInFileNames`).
 
 ## [0.6.0] — 2026-06-21
 

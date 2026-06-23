@@ -1,0 +1,126 @@
+.root {
+    display: flex;
+    align-items: center;
+    gap: var(--tempest-space-1);
+    font-family: var(--tempest-font-sans);
+    font-size: var(--tempest-text-sm);
+}
+
+.menu {
+    position: relative;
+}
+
+.trigger {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--tempest-space-1) var(--tempest-space-3);
+    background: none;
+    border: none;
+    border-radius: var(--tempest-radius-sm);
+    color: var(--tempest-text);
+    font-family: inherit;
+    font-size: inherit;
+    line-height: var(--tempest-leading-snug);
+    cursor: pointer;
+    transition: var(--tempest-transition-color);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .trigger:hover {
+        background-color: var(--tempest-surface);
+    }
+}
+
+.trigger:focus-visible {
+    outline: 2px solid var(--tempest-primary);
+    outline-offset: 2px;
+}
+
+.triggerOpen {
+    background-color: var(--tempest-surface);
+}
+
+.panel {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: var(--tempest-z-dropdown);
+    min-width: 200px;
+    max-width: 360px;
+    background-color: var(--tempest-bg);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-lg);
+    box-shadow: var(--tempest-shadow-lg);
+    padding: var(--tempest-space-1);
+    list-style: none;
+    margin: 0;
+    animation: tempest-menubar-in var(--tempest-duration-fast) var(--tempest-ease-out);
+}
+
+.item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--tempest-space-4);
+    width: 100%;
+    padding: var(--tempest-space-2) var(--tempest-space-3);
+    background: none;
+    border: none;
+    border-radius: var(--tempest-radius-sm);
+    color: var(--tempest-text);
+    font-family: inherit;
+    font-size: var(--tempest-text-base);
+    line-height: var(--tempest-leading-snug);
+    text-align: left;
+    cursor: pointer;
+    transition: var(--tempest-transition-color);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .item:hover:not(:disabled) {
+        background-color: var(--tempest-surface);
+    }
+}
+
+.item:focus {
+    outline: none;
+    background-color: var(--tempest-surface);
+}
+
+.item:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.itemLabel {
+    flex: 1;
+}
+
+.shortcut {
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-xs);
+    font-variant-numeric: tabular-nums;
+}
+
+.separator {
+    height: 1px;
+    background-color: var(--tempest-border);
+    margin: var(--tempest-space-1) 0;
+}
+
+@keyframes tempest-menubar-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .panel {
+        animation: none;
+    }
+}

@@ -241,3 +241,46 @@ export type { DataListProps } from "./DataList";
 
 export { DescriptionList } from "./DescriptionList";
 export type { DescriptionListItem, DescriptionListProps } from "./DescriptionList";
+
+// shadcn-parity additions
+export { Toggle } from "./Toggle";
+export type { ToggleProps, ToggleSize, ToggleVariant } from "./Toggle";
+
+export { ToggleGroup, ToggleGroupItem } from "./ToggleGroup";
+export type { ToggleGroupProps, ToggleGroupItemProps, ToggleGroupType } from "./ToggleGroup";
+
+export { Label } from "./Label";
+export type { LabelProps } from "./Label";
+
+export { Collapsible } from "./Collapsible";
+export type { CollapsibleProps } from "./Collapsible";
+
+export { ContextMenu } from "./ContextMenu";
+export type { ContextMenuItem, ContextMenuProps } from "./ContextMenu";
+
+export { HoverCard } from "./HoverCard";
+export type { HoverCardPlacement, HoverCardProps } from "./HoverCard";
+
+export { Command } from "./Command";
+export type { CommandProps, CommandItem } from "./Command";
+
+export { ScrollArea } from "./ScrollArea";
+export type { ScrollAreaProps, ScrollAreaOrientation } from "./ScrollArea";
+
+export { Resizable } from "./Resizable";
+export type { ResizableProps, ResizableDirection } from "./Resizable";
+
+export { Calendar } from "./Calendar";
+export type { CalendarProps, WeekStart } from "./Calendar";
+
+export { NavigationMenu } from "./NavigationMenu";
+export type { NavigationMenuItem, NavigationMenuProps } from "./NavigationMenu";
+
+export { Menubar } from "./Menubar";
+export type { MenubarItem, MenubarMenu, MenubarProps } from "./Menubar";
+
+export { Carousel } from "./Carousel";
+export type { CarouselProps } from "./Carousel";
+
+export { DataTable } from "./DataTable";
+export type { DataTableColumn, DataTableProps, DataTableSort, SortDirection } from "./DataTable";

@@ -1,0 +1,27 @@
+.wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-space-3, 0.75rem);
+}
+
+.search {
+    max-width: 20rem;
+}
+
+.sortButton {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    user-select: none;
+}
+
+.sortIndicator {
+    font-size: 0.75em;
+    opacity: 0.7;
+}

@@ -1,0 +1,15 @@
+.label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tempest-space-1);
+    color: var(--tempest-text);
+    font-family: var(--tempest-font-sans);
+    font-size: var(--tempest-text-sm);
+    font-weight: var(--tempest-weight-medium);
+    line-height: var(--tempest-leading-snug);
+}
+
+.asterisk {
+    color: var(--tempest-danger);
+    font-weight: var(--tempest-weight-semibold);
+}

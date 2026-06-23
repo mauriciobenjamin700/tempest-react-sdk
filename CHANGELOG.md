@@ -2,6 +2,30 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Utilitários genéricos novos (`src/utils/`)
+
+- **Arrays**: `groupBy`, `uniqueBy`, `chunk`, `range`.
+- **Objects**: `pick`, `omit`, `deepMerge`, `isEmpty`.
+- **Type guards**: `isDefined`, `isString`, `isNumber`, `isPlainObject`, `assertNever`.
+- **Funções**: `debounce`, `throttle`, `once`, `memoizeOne` (funções puras — distintas dos hooks `useDebounce`/`useThrottle`).
+- **Promises**: `sleep`, `withTimeout`.
+- **Ids**: `randomId`.
+- **Strings** (extras): `capitalize`, `camelCase`, `kebabCase`, `pluralize`.
+- **Numbers** (extras): `formatBytes`, `formatCompactNumber`.
+- `src/utils/index.ts` agora exporta toda a superfície; o barrel raiz passou a `export * from "./utils"`.
+
+### Componentes genéricos novos (`src/components/`)
+
+- **Display**: `CopyButton`, `RelativeTime`, `Money`, `TruncateText`, `VisuallyHidden`.
+- **Headless / lógicos**: `Portal`, `ClickOutside`, `ConditionalWrapper`, `For`, `ErrorText`.
+- **Mídia / conteúdo**: `Image` (fallback + lazy), `DataList`, `DescriptionList`.
+
+### Docs
+
+- Nova página **Utilitários** (`utilities.md`) e **Utilitários & headless** (`components/utility.md`) — bilíngues PT-BR + EN-US.
+
 ## [0.6.1] — 2026-06-21
 
 ### CLI `create-tempest-app` embarcada na lib

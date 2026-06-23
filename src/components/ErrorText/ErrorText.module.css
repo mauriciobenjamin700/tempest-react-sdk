@@ -1,0 +1,6 @@
+.errorText {
+    margin: 0;
+    font-size: var(--tempest-font-size-sm, 0.8125rem);
+    line-height: 1.4;
+    color: var(--tempest-danger, var(--tempest-color-danger, #dc2626));
+}

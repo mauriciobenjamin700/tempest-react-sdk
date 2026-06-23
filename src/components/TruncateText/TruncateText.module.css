@@ -1,0 +1,8 @@
+.clamp {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: var(--tempest-clamp-lines, 1);
+    line-clamp: var(--tempest-clamp-lines, 1);
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

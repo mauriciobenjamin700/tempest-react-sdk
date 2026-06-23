@@ -1,0 +1,27 @@
+.button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--tempest-space-1);
+    padding: var(--tempest-space-1) var(--tempest-space-3);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-sm);
+    background-color: var(--tempest-surface);
+    color: var(--tempest-text);
+    font-family: var(--tempest-font-sans);
+    font-size: var(--tempest-text-sm);
+    font-weight: var(--tempest-weight-medium);
+    line-height: var(--tempest-leading-snug);
+    cursor: pointer;
+    transition: background-color var(--tempest-duration-fast) var(--tempest-ease-out);
+}
+
+.button:hover {
+    background-color: var(--tempest-surface-2);
+}
+
+.copied {
+    color: var(--tempest-primary-foreground, var(--tempest-text-on-primary));
+    background-color: var(--tempest-primary);
+    border-color: var(--tempest-primary);
+}

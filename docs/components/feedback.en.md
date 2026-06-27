@@ -2,7 +2,33 @@
 
 Signaling state, success, error, activity. Spinners, skeletons, alerts, KPIs.
 
+## What this category is
+
+Components that **communicate state** to the user — what happened, what's
+happening, and what isn't there. They group by intent:
+
+- **Messages** (success/error/warning): `Alert` (inline), `Banner` (top of
+  page), `Toast` (transient) — three scopes of the same concept.
+- **Status labels**: `Badge` (fixed status), `Tag` (removable chip), `Stat`
+  (KPI).
+- **Activity/loading**: `Spinner`, `Progress`, `Skeleton`.
+- **Empty/error screen states**: `EmptyState`, `ErrorState`.
+
+**When to use:** whenever the user needs to know the outcome of an action or the
+state of some data. The golden rule: **never leave an async action without
+feedback** — show `Spinner`/`Skeleton` during, `Toast`/`Alert` on completion.
+
+!!! tip "Alert vs Banner vs Toast — pick by scope"
+    `Alert` is inline and stays until the user resolves the context. `Banner` is
+    persistent at the top and applies to the whole page/app. `Toast` is
+    transient and dismisses itself. Use `Toast` for quick confirmations, `Alert`
+    for errors tied to a field/section, `Banner` for global notices
+    (maintenance, expiration).
+
 ## `Alert`
+
+**When to use:** a message tied to a specific context on the screen (form error,
+result of an operation in a section). Visible until the condition changes.
 
 An inline banner. Different from `Banner` (top-of-page) and `Toast` (transient).
 
@@ -54,6 +80,9 @@ Same variants as Alert.
 
 ## `Badge`
 
+**When to use:** a short, read-only status label next to an item (order status,
+count). For a chip the user removes, use `Tag`.
+
 Status pill — not removable.
 
 ```tsx
@@ -89,6 +118,9 @@ A removable chip. Use it for filter tokens, applied filters, selected entities.
 | `removeLabel` | `string` (a11y)                                                          | `"Remover"` |
 
 ## `Stat`
+
+**When to use:** highlight a single metric with its delta (revenue, sessions,
+NPS) on dashboards. For several KPIs side by side, combine with `Grid`.
 
 A KPI card for dashboards.
 
@@ -149,7 +181,16 @@ A generic loader.
 
 ## `Skeleton`
 
+**When to use:** loading content whose **shape** is already known (cards, table
+rows, avatar). It reduces layout shift. For shapeless loading (a button
+processing), use `Spinner`.
+
 A placeholder with shimmer while data loads.
+
+!!! tip "Skeleton mirrors the final layout"
+    Give the skeleton the same dimensions/proportions as the real content — that
+    is what eliminates layout shift when the data arrives. Skeletons that are too
+    generic (a single block) confuse more than they help.
 
 ```tsx
 {
@@ -174,7 +215,16 @@ A placeholder with shimmer while data loads.
 
 ## `Toast`
 
+**When to use:** a transient confirmation of an action that already finished
+("Saved", "Item removed") — it needs no attention and dismisses itself. For
+errors the user must resolve, prefer `Alert`/`Banner` (which stay).
+
 Transient notifications. Set up via `ToastProvider` + use via `useToast()`.
+
+!!! warning "Toast is not for critical errors"
+    Toasts disappear in a few seconds — if the user must **act** on the message
+    (fix a field, retry), it has to persist. Use `Toast` only for dismissible
+    feedback; actionable errors go in `Alert`/`ErrorState`.
 
 ```tsx
 // app root
@@ -205,6 +255,11 @@ toast.show({ title: "Sync", description: "In progress…", variant: "info" });
 
 ## `EmptyState`
 
+**When to use:** a list/collection returned **zero items successfully** (no
+orders yet, search with no results). Always offer a way out (create the first
+item, clear filters). Don't confuse it with an error — for a failure use
+`ErrorState`.
+
 A centered "nothing here".
 
 ```tsx
@@ -217,6 +272,9 @@ A centered "nothing here".
 ```
 
 ## `ErrorState`
+
+**When to use:** an operation **failed** (a request errored, an exception) and
+the user can retry. Unlike `EmptyState`, which represents success with no data.
 
 A failure with a retry button.
 
@@ -231,3 +289,25 @@ A failure with a retry button.
 - `Spinner`/`Progress.indeterminate` add `aria-busy="true"`.
 - `Skeleton` is decorative — it doesn't announce (`aria-hidden`).
 - `Stat.value` with tabular-nums aligns numeric values in columns.
+
+## Recap
+
+- **Never leave an async action without feedback**: `Spinner`/`Skeleton` during,
+  `Toast`/`Alert` on completion.
+- Messages by scope: `Alert` (inline/contextual), `Banner` (global/top), `Toast`
+  (transient).
+- `EmptyState` = success with no data; `ErrorState` = failure with retry. Don't
+  swap one for the other.
+- `Toast` only for dismissible feedback; actionable errors stay in
+  `Alert`/`ErrorState`.
+
+Related pages:
+
+- [Data entry](./inputs.md) — `error` on form fields, complementary to a section
+  `Alert`.
+- [Data](./data.md) — `Table`/`DataTable` that pair with `Skeleton` (loading)
+  and `EmptyState`/`ErrorState`.
+- [Overlays](./overlay.md) — `ConfirmDialog` for destructive actions that need
+  confirmation before the `Toast`.
+- [Layout](./layout.md) — `Grid` to lay out multiple `Stat`s; `Center` for a
+  full-screen `Spinner`.

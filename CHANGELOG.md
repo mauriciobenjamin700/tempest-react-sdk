@@ -2,6 +2,19 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### `create-tempest-app --pwa` — scaffold de PWA
+
+- Nova flag **`--pwa`** na CLI: gera o app já **instalável** (manifest + ícones) e com **web push** cabeado. Funciona em pasta nova e em modo merge (`.`).
+- A flag sobrepõe um overlay `template-pwa/` por cima do template base: `public/manifest.webmanifest` + `icon.svg`/`icon-maskable.svg`, `index.html` com link do manifest + `theme-color` + metas apple, `src/sw.ts` (service worker), `vite.sw.config.ts` (build dedicado do SW → `dist/sw.js`), `main.tsx` registrando o SW só em produção (e limpando em dev), `Dashboard.tsx` com botão **Instalar** (`useBeforeInstallPrompt`) + toggle de notificações (`usePushSubscription`), e `.env.example` com `VITE_VAPID_PUBLIC_KEY`. O script `build` passa a empacotar o SW.
+- **Sem `vite-plugin-pwa`**: o service worker é montado com os helpers do próprio SDK.
+- Em modo merge, a CLI **nunca sobrescreve arquivos do usuário** — a cópia passou a usar um snapshot dos arquivos pré-existentes como conjunto protegido, e tanto o template base quanto o overlay PWA respeitam isso.
+
+### Novo subpath `tempest-react-sdk/sw`
+
+- Os helpers de service worker (`installPushHandler`, `installNotificationClickHandler`, `installSkipWaitingListener`, `registerServiceWorker`, `skipWaiting`, `unregisterAllServiceWorkers`) agora têm um **subpath dedicado e sem React**: `tempest-react-sdk/sw` (~1 KB). Ideal pra empacotar no seu `sw.ts` sem arrastar o grafo de componentes pro escopo do worker. O barrel raiz continua exportando tudo.
+
 ## [0.7.0] — 2026-06-27
 
 > Inclui também tudo que foi preparado em `0.6.0` e `0.6.1` (nunca publicados no npm — ver entradas abaixo): **app foundation** (router/store/app/vite), **CLI `create-tempest-app`** embarcada como `bin`, migração do publish para **Trusted Publishing (OIDC)**.

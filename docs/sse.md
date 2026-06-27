@@ -3,7 +3,7 @@
 Wrapper sobre `EventSource` com reconnect exponencial, heartbeat opt-in e parsing JSON. Caso de uso original: stream de notificações (`NEW-ALO`, `PAYMENT-SUCCESS`, etc.) do alofans-frontend.
 
 !!! info "SSE vs WebSocket — qual escolher?"
-SSE é unidirecional (servidor → cliente), roda sobre HTTP comum, reconecta sozinho e autentica por cookie sem cerimônia. Se o cliente **não precisa enviar** mensagens, SSE é mais simples e barato. Pra tráfego bidirecional (chat, colaboração), use [WebSocket](./websocket.md).
+    SSE é unidirecional (servidor → cliente), roda sobre HTTP comum, reconecta sozinho e autentica por cookie sem cerimônia. Se o cliente **não precisa enviar** mensagens, SSE é mais simples e barato. Pra tráfego bidirecional (chat, colaboração), use [WebSocket](./websocket.md).
 
 ## Quando usar
 
@@ -63,7 +63,7 @@ Backoff: 1s → 2s → 4s → 8s → ... (limitado em 30s), até maxRetries (def
 - Eventos listados em `heartbeatEvents` (default `["ping"]`) **não** disparam `onMessage` — só mantêm o socket vivo.
 
 !!! tip "Configure os `heartbeatEvents` conforme seu backend"
-Se o servidor envia keep-alives sob outro nome de evento (ex.: `"keepalive"`), liste-o em `heartbeatEvents` pra não poluir o `onMessage` com pings.
+    Se o servidor envia keep-alives sob outro nome de evento (ex.: `"keepalive"`), liste-o em `heartbeatEvents` pra não poluir o `onMessage` com pings.
 
 ## Hook — `useEventStream`
 
@@ -103,7 +103,7 @@ export function NotificationListener({ user }: { user: { id: string } | null }) 
 - Cleanup automático no unmount.
 
 !!! warning "`error` significa que esgotou as tentativas"
-Quando o status chega em `"error"`, o stream desistiu sozinho. Ofereça um botão chamando `reconnect()` (que zera o contador) em vez de esperar uma reconexão automática que não vem mais.
+    Quando o status chega em `"error"`, o stream desistiu sozinho. Ofereça um botão chamando `reconnect()` (que zera o contador) em vez de esperar uma reconexão automática que não vem mais.
 
 ## Status
 

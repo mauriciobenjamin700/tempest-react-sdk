@@ -1,39 +1,44 @@
 # Data
 
-Presenting lists and collections: tables, virtualized lists, accordions,
-timelines.
+**Data** components present collections — many entities of the same type — in a
+readable, navigable way. The choice depends on _how many_ items there are and
+_how_ the user moves through them: compare fields side by side (`Table`), scroll
+thousands of rows without choking (`VirtualList`), expand/collapse content
+sections (`Accordion`), or follow a sequence of events over time (`Timeline`).
+
+Reach for this page when you need to **list/compare** records. For a single
+record use a [`Card`](./identity.md); for data entry, [inputs](./inputs.md).
 
 ## `Table<T>`
 
-A typed table with declarative `columns` + responsive priority + optional stack
-on mobile.
+> **When to use**: compare structured records field by field in columns — orders, users, transactions. Typed by `T`, with per-column responsive priority and optional stack on mobile.
 
 ```tsx
 const columns: TableColumn<Order>[] = [
-  { key: "id", label: "ID", align: "right", priority: "always" },
-  { key: "customer", label: "Customer", priority: "always" },
+  { key: "id", header: "ID", align: "right", priority: "always" },
+  { key: "customer", header: "Customer", priority: "always" },
   {
     key: "total",
-    label: "Total",
+    header: "Total",
     align: "right",
     render: (row) => formatCurrency(row.total, "BRL"),
     priority: "always",
   },
   {
     key: "created_at",
-    label: "Date",
+    header: "Date",
     render: (row) => formatDate(row.created_at),
     priority: "tablet",
   },
   {
     key: "status",
-    label: "Status",
+    header: "Status",
     render: (row) => <Badge variant={statusVariant(row.status)}>{row.status}</Badge>,
     priority: "desktop",
   },
   {
     key: "actions",
-    label: "",
+    header: "",
     render: (row) => (
       <Button size="sm" onClick={() => edit(row.id)}>
         Edit
@@ -45,35 +50,40 @@ const columns: TableColumn<Order>[] = [
 
 <Table
   columns={columns}
-  rows={orders}
+  data={orders}
   rowKey={(row) => row.id}
   onRowClick={(row) => navigate(`/orders/${row.id}`)}
   stackOnMobile
-  loading={loading}
-  emptyState={<EmptyState title="No orders" />}
+  emptyMessage="No orders found."
 />;
 ```
 
-| Prop            | Type                                                        | Default |
-| --------------- | ----------------------------------------------------------- | ------- |
-| `columns`       | `TableColumn<T>[]`                                          | —       |
-| `rows`          | `T[]`                                                       | —       |
-| `rowKey`        | `(row: T) => string \| number`                              | —       |
-| `onRowClick`    | `(row: T) => void`                                          | —       |
-| `loading`       | `boolean` (shows skeleton rows)                             | `false` |
-| `emptyState`    | `ReactNode`                                                 | —       |
-| `stackOnMobile` | `boolean` (rows become label/value cards below the `sm` bp) | `false` |
+| Prop            | Type                                           | Default                         |
+| --------------- | ---------------------------------------------- | ------------------------------- |
+| `columns`       | `TableColumn<T>[]`                             | —                               |
+| `data`          | `T[]`                                          | —                               |
+| `rowKey`        | `(row: T, index: number) => string \| number`  | —                               |
+| `onRowClick`    | `(row: T) => void`                             | —                               |
+| `emptyMessage`  | `ReactNode` (shown when `data` is empty)       | `"Nenhum registro encontrado."` |
+| `stackOnMobile` | `boolean` (rows become label/value cards < md) | `false`                         |
 
 `TableColumn<T>`:
 
-| Field      | Type                                | Notes                                          |
-| ---------- | ----------------------------------- | ---------------------------------------------- |
-| `key`      | `string`                            | Identifier + default key for `keyof T`         |
-| `label`    | `ReactNode`                         | Header                                         |
-| `render`   | `(row: T) => ReactNode`             | Default = `row[key as keyof T]`                |
-| `align`    | `"left" \| "center" \| "right"`     | Default `"left"`                               |
-| `priority` | `"always" \| "tablet" \| "desktop"` | `tablet`: hidden < md. `desktop`: hidden < lg. |
-| `width`    | `string`                            | CSS width (`120px`, `20%`, `auto`)             |
+| Field       | Type                                   | Notes                                             |
+| ----------- | -------------------------------------- | ------------------------------------------------- |
+| `key`       | `string`                               | Identifier + default key (reads `row[key]`)       |
+| `header`    | `ReactNode`                            | Column header; becomes `data-label` in stack mode |
+| `render`    | `(row: T, index: number) => ReactNode` | Default = `row[key]`                              |
+| `align`     | `"left" \| "right" \| "center"`        | Default `"left"`                                  |
+| `priority`  | `"always" \| "tablet" \| "desktop"`    | `tablet`: hidden < md. `desktop`: hidden < lg.    |
+| `width`     | `string \| number`                     | CSS width (`120px`, `20%`, `auto`)                |
+| `className` | `string`                               | Extra class applied to that column's cells        |
+
+!!! warning "There is no `loading` prop"
+    `Table` does not render skeleton rows on its own. For a loading state, render your own skeleton conditionally _before_ the table, or pass placeholder rows in `data`. `emptyMessage` only covers the "valid query, zero results" case.
+
+!!! info "Default `emptyMessage` is Portuguese"
+    `emptyMessage` defaults to `"Nenhum registro encontrado."`. Pass an explicit English string in EN-locale apps.
 
 **Responsive**:
 
@@ -83,61 +93,71 @@ const columns: TableColumn<Order>[] = [
 
 ## `VirtualList`
 
-Renders thousands of items without flooding the DOM. Supports dynamic height via
-`ResizeObserver`.
+> **When to use**: scroll very long lists (500+ items) of **fixed-height** rows without flooding the DOM — chats, logs, infinite feeds.
+
+Renders only the visible window + a small overscan buffer. Each row needs a fixed height (`itemHeight`); the container needs a height (`height`).
 
 ```tsx
 <VirtualList
   items={messages}
-  estimatedItemHeight={64}
+  itemHeight={64}
+  height={480}
   overscan={5}
-  renderItem={(message) => <MessageRow key={message.id} message={message} />}
+  getKey={(message) => message.id}
+  renderItem={(message) => <MessageRow message={message} />}
 />
 ```
 
-| Prop                  | Type                                    | Default |
-| --------------------- | --------------------------------------- | ------- |
-| `items`               | `T[]`                                   | —       |
-| `renderItem`          | `(item: T, index: number) => ReactNode` | —       |
-| `estimatedItemHeight` | `number` (px)                           | `48`    |
-| `overscan`            | `number` (items above/below)            | `3`     |
-| `gap`                 | `number` (px between items)             | `0`     |
+| Prop         | Type                                           | Default |
+| ------------ | ---------------------------------------------- | ------- |
+| `items`      | `T[]`                                          | —       |
+| `itemHeight` | `number` (fixed height per row, px)            | —       |
+| `height`     | `number \| string` (container height)          | —       |
+| `renderItem` | `(item: T, index: number) => ReactNode`        | —       |
+| `overscan`   | `number` (items above/below the viewport)      | `4`     |
+| `getKey`     | `(item: T, index: number) => string \| number` | `index` |
 
-**When to use**: lists with 500+ items. Below that the perf gain is negligible
-and you lose native search (Ctrl+F).
+!!! warning "Fixed height is required"
+    `VirtualList` assumes a constant `itemHeight` to compute the window. For variable-height rows use `@tanstack/react-virtual` or `react-window` — they solve the general case at the cost of more setup.
+
+!!! note "Native search (Ctrl+F) only finds the visible window"
+    Items outside the viewport are not in the DOM, so the browser's `Ctrl+F` won't find them. Below ~500 items, prefer normal rendering: the perf gain is negligible and you keep native search.
 
 ## `Accordion`
 
-Single/multiple mode, controlled/uncontrolled.
+> **When to use**: condense sectionable content the user expands on demand — FAQs, long stepped forms, settings panels.
+
+Single mode (default) or `multiple`. Controlled via `value` + `onChange`, or uncontrolled via `defaultValue`.
 
 ```tsx
 <Accordion
-  mode="single"
   items={[
-    { key: "1", title: "How do I cancel my subscription?", content: <p>...</p> },
-    { key: "2", title: "What payment methods?", content: <p>...</p> },
+    { id: "1", title: "How do I cancel my subscription?", children: <p>...</p> },
+    { id: "2", title: "What payment methods?", children: <p>...</p> },
   ]}
 />;
 
-<Accordion mode="multiple" value={open} onChange={setOpen} items={faqItems} />;
+<Accordion multiple value={openIds} onChange={setOpenIds} items={faqItems} />;
 ```
 
-| Prop           | Type                              | Default    |
-| -------------- | --------------------------------- | ---------- |
-| `items`        | `AccordionItem[]`                 | —          |
-| `mode`         | `"single" \| "multiple"`          | `"single"` |
-| `value`        | `string \| string[]` (controlled) | —          |
-| `defaultValue` | `string \| string[]`              | —          |
-| `onChange`     | `(value) => void`                 | —          |
+| Prop           | Type                                 | Default |
+| -------------- | ------------------------------------ | ------- |
+| `items`        | `AccordionItem[]`                    | —       |
+| `multiple`     | `boolean` (allow several open)       | `false` |
+| `value`        | `string[]` (open ids, controlled)    | —       |
+| `defaultValue` | `string[]` (initially open ids)      | `[]`    |
+| `onChange`     | `(openIds: string[]) => void`        | —       |
 
-`AccordionItem = { key, title, content, disabled? }`.
+`AccordionItem = { id, title, children, disabled? }`.
 
-**A11y**: headers are `<button aria-expanded>`, content is `aria-hidden` when
-closed.
+!!! note "Accessibility is built in"
+    Headers are `<button aria-expanded>` and content gets `aria-hidden` when closed. ↑↓ arrows switch the focused item; Home/End jump to the first/last.
 
 ## `Timeline`
 
-A vertical feed with colored markers.
+> **When to use**: show a sequence of events over time — order tracking, audit log, activity feed. Each entry has an optional colored marker, title, description and meta.
+
+A vertical feed with colored markers. Renders as a semantic `<ol>` (each item is an `<li>`).
 
 ```tsx
 <Timeline
@@ -163,9 +183,20 @@ A vertical feed with colored markers.
 
 `TimelineItem = { id, title, description?, meta?, icon?, marker?: "primary" \| "success" \| "warning" \| "danger" \| "neutral" }`.
 
-## General A11y
+## Recap
 
-- Table: uses `<th scope="col">` (already included). `onRowClick` applies `role="button"` + `tabIndex={0}`.
-- VirtualList: non-visible items are not rendered — native search (Ctrl+F) only finds items in the viewport.
-- Accordion: ↑↓ arrows switch the focused item, Home/End jump to the first/last.
-- Timeline: semantic order via `<ol>`; each item is an `<li>`.
+| Component     | Use for                                    | Typical volume   |
+| ------------- | ------------------------------------------ | ---------------- |
+| `Table<T>`    | Compare records in columns                 | tens to hundreds |
+| `VirtualList` | Scroll long fixed-height lists             | 500+ items       |
+| `Accordion`   | On-demand expandable sections (FAQ, steps) | a few sections   |
+| `Timeline`    | A sequence of events over time             | any              |
+
+Key accessibility points:
+
+- `Table` uses `<th scope="col">` (already included); `onRowClick` applies `role="button"` + `tabIndex={0}`.
+- `VirtualList`: items outside the viewport are not rendered — `Ctrl+F` only finds the visible window.
+- `Accordion`: ↑↓ switch the focused item, Home/End jump to the first/last.
+- `Timeline`: semantic order via `<ol>`; each item is an `<li>`.
+
+Related: [identity](./identity.md) (`Card flush` to host the `Table`) · [feedback](./feedback.md) (`Badge` inside cells) · [actions](./actions.md) (row buttons).

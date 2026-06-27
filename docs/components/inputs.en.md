@@ -3,6 +3,25 @@
 Controls for collecting user data. They all forward refs to the native DOM
 element (compatible with `react-hook-form`).
 
+## What this category is
+
+This page gathers the SDK's full set of **form controls** — from the plain
+`Input` to specialized fields like `PinInput` (OTP), `PasswordInput` (with a
+strength meter) and `RangeSlider` (dual-thumb range). They all share the same
+label/error/size API (see Conventions below) and forward their `ref`, so they
+plug straight into `react-hook-form` with no extra wrappers.
+
+**When to use:** whenever you need to collect a value from the user. Pick the
+control by data type — short text (`Input`), long text (`Textarea`), one option
+out of a few (`Radio`/`Select`), one option out of many with search
+(`Combobox`), a boolean (`Switch`/`Checkbox`), a verification code (`PinInput`),
+a number with increment (`StepperInput`), etc.
+
+!!! tip "Start with the Conventions"
+    Every field accepts `label`, `helperText`, `error`, `required` and `size`
+    the same way. Learn those 5 props once and you know how to use any field on
+    this page.
+
 ## Conventions
 
 - `label` (string or node) — label above the field.
@@ -65,6 +84,9 @@ Native `<select>`. Accepts `options` (a list) or `<option>` children.
 
 ## `Combobox`
 
+**When to use:** one option out of many (dozens+), where the user needs to type
+to filter. For a few options use `Select`.
+
 Select with search + filter. Keyboard nav (↑↓ Enter Esc).
 
 ```tsx
@@ -100,6 +122,10 @@ Standalone radio OR grouped with a single value.
 
 ## `Switch`
 
+**When to use:** turn a preference on/off with immediate effect (e.g.
+notifications). For an opt-in that only takes effect on form submit (e.g.
+accepting terms), prefer `Checkbox`.
+
 On/off toggle.
 
 ```tsx
@@ -109,6 +135,11 @@ On/off toggle.
   onChange={(e) => setSubscribed(e.target.checked)}
 />
 ```
+
+!!! note "Switch vs Checkbox — not interchangeable"
+    A `Switch` signals an action that happens **now**; a `Checkbox` signals a
+    state that will be applied **later** (on submit). Swapping one for the other
+    confuses the user about when the change takes effect.
 
 ## `ChipInput`
 
@@ -176,8 +207,16 @@ A radio group of stars.
 
 ## `PinInput`
 
+**When to use:** short verification codes (OTP, 2FA, SMS/email confirmation).
+For passwords use `PasswordInput`.
+
 OTP / one-time-code with N cells. Paste, auto-advance, backspace flowback, arrow
 nav.
+
+!!! tip "Pasting the whole code works"
+    The user can paste `123456` into any cell and `PinInput` distributes the
+    digits automatically — set `type="numeric"` so the mobile keyboard opens in
+    numeric mode.
 
 ```tsx
 <PinInput length={6} type="numeric" onComplete={(otp) => verify(otp)} />;
@@ -207,6 +246,11 @@ levels).
 
 Exposed helper: `estimatePasswordStrength(value)` returns `0-4` (length, case
 mix, digits, symbols).
+
+!!! warning "Use the correct `autoComplete`"
+    On signup screens use `autoComplete="new-password"`; on login use
+    `autoComplete="current-password"`. The wrong value makes the browser's
+    password manager suggest/save the password incorrectly.
 
 | Prop             | Type                                      | Default                                                  |
 | ---------------- | ----------------------------------------- | -------------------------------------------------------- |
@@ -247,3 +291,22 @@ Full details in [../forms.md](../forms.md).
 - `required` propagates the native `required` attribute + a visual `*` indicator.
 - `PinInput` cells expose individual `aria-label="Digit N"`.
 - `PasswordInput.toggle` uses `aria-pressed` and a localized `aria-label`.
+
+## Recap
+
+- Pick the control by **data type** — don't force an `Input` where a `Select`,
+  `Switch` or `PinInput` communicates intent better.
+- Every field shares `label` / `helperText` / `error` / `required` / `size` and
+  forwards its `ref` → they plug straight into `react-hook-form`.
+- `error` replaces `helperText` and adds `aria-invalid` automatically — don't
+  duplicate the message.
+
+Related pages:
+
+- [Form validation](../forms.md) — `validateForm`, `useZodForm`, BR masks,
+  `useViaCEP` and the `<FormField>` wrapper.
+- [Layout](./layout.md) — `Form`/`FormSection`/`FormRow`/`FormActions` to
+  structure the fields.
+- [Actions](./actions.md) — `Button` for the form submit.
+- [Status & feedback](./feedback.md) — `Alert`/`Toast` to confirm submit success
+  or error.

@@ -3,7 +3,7 @@
 `createWebSocket` + `useWebSocket` espelham a API de SSE, mas adicionam o canal de **envio**. Use quando o cliente precisar mandar mensagens, não só receber.
 
 !!! info "Quando WebSocket em vez de SSE?"
-SSE só recebe. Assim que o cliente precisa **enviar** (chat, cursores compartilhados, comandos em tempo real), você precisa de um canal bidirecional — é aí que entra o WebSocket. Se for só push servidor → cliente, [SSE](./sse.md) é mais simples.
+    SSE só recebe. Assim que o cliente precisa **enviar** (chat, cursores compartilhados, comandos em tempo real), você precisa de um canal bidirecional — é aí que entra o WebSocket. Se for só push servidor → cliente, [SSE](./sse.md) é mais simples.
 
 ## Quando usar
 
@@ -56,7 +56,7 @@ Backoff: 1s → 2s → 4s → ... (limitado em 30s), até maxRetries (default 10
 - **Reconnect só dispara em `close.wasClean === false`.** Fechamentos limpos (`socket.close()` ou um close normal do servidor) **não** tentam reabrir.
 
 !!! warning "`send()` é no-op quando o socket não está aberto"
-Se você chamar `send()` antes do status virar `"open"` (ou após um `close`), nada é enviado e o retorno é `false`. Sempre confira `status === "open"` (ou o boolean de retorno) antes de assumir que a mensagem saiu.
+    Se você chamar `send()` antes do status virar `"open"` (ou após um `close`), nada é enviado e o retorno é `false`. Sempre confira `status === "open"` (ou o boolean de retorno) antes de assumir que a mensagem saiu.
 
 ## Hook — `useWebSocket`
 

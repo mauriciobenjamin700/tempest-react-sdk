@@ -3,7 +3,7 @@
 `ThemeProvider` decides the effective theme and writes `data-tempest-theme="dark"` (or `"light"`) on `<html>`. The `--tempest-*` CSS tokens react to that attribute, so **switching the theme is switching one attribute** — no component needs to know the theme changed. See the tokens in [`src/styles/colors.css`](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/src/styles/colors.css).
 
 !!! info "Why an attribute, not `class=\"dark\"`?"
-Using `data-tempest-theme` (instead of the `class="dark"` convention) avoids clashing with the app's classes and enables partial scoping: you can apply a different theme to a subtree (preview, portal, docs) without touching the rest of the page. It is the only theming mechanism the SDK supports.
+    Using `data-tempest-theme` (instead of the `class="dark"` convention) avoids clashing with the app's classes and enables partial scoping: you can apply a different theme to a subtree (preview, portal, docs) without touching the rest of the page. It is the only theming mechanism the SDK supports.
 
 ## Setup
 
@@ -60,7 +60,7 @@ What each field means:
 - `toggle()`: inverts the `resolvedTheme`. In `"system"` mode it flips to the opposite of what is applied.
 
 !!! tip "Use `resolvedTheme` to render, `theme` for the selector"
-When deciding which icon/image to show, read `resolvedTheme` (it is always concrete). Reserve `theme` for reflecting the choice in a three-option selector.
+    When deciding which icon/image to show, read `resolvedTheme` (it is always concrete). Reserve `theme` for reflecting the choice in a three-option selector.
 
 ## No-flash (avoiding the wrong-theme flash)
 
@@ -110,7 +110,7 @@ export function Head() {
 ```
 
 !!! warning "The script must be synchronous and run early"
-Do not use `defer`, `async`, or move the script to the end of `<body>` — it has to run before the first paint, otherwise the flash returns. `getInitialTheme()` exposes the same resolution logic for when you want the computed theme in JS without injecting the script.
+    Do not use `defer`, `async`, or move the script to the end of `<body>` — it has to run before the first paint, otherwise the flash returns. `getInitialTheme()` exposes the same resolution logic for when you want the computed theme in JS without injecting the script.
 
 ## Customizing tokens
 
@@ -128,7 +128,7 @@ The `--tempest-*` tokens are the only theming API. Override them anywhere in the
 ```
 
 !!! note "Tokens are public API"
-Because apps depend on these names, changing/removing a token is a breaking change — that is why they follow the SDK's semantic versioning.
+    Because apps depend on these names, changing/removing a token is a breaking change — that is why they follow the SDK's semantic versioning.
 
 ## Partial scope
 

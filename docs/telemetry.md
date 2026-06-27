@@ -1,6 +1,15 @@
 # Telemetry
 
-Interface mínima (`init?` / `identify` / `track` / `captureException` / `flush?`) que isola o app dos detalhes do provider real (Sentry, PostHog, Datadog, custom). Adapters concretos para os providers mais comuns vêm prontos no SDK; nenhum deles é peer dep — você instala apenas o que usa.
+Toda app precisa de telemetria — identificar usuários, rastrear eventos, capturar exceções — mas você não quer espalhar chamadas de `Sentry.captureException` ou `posthog.capture` por todo o código. Se um dia trocar de provider, teria que caçar cada callsite. O módulo `telemetry` resolve isso com uma **interface mínima** que isola o app do provider real (Sentry, PostHog, Datadog, custom). Você programa contra a interface; o provider é injetado uma vez, na raiz.
+
+Adapters concretos para os providers mais comuns vêm prontos no SDK; nenhum deles é peer dep — o **caller injeta a instância** do SDK externo, então você instala apenas o que usa.
+
+!!! info "Por que injetar a instância em vez de declarar peer dep"
+    Apps que já inicializam o Sentry no startup (DSN, sample rate, integrações)
+    querem reusar _aquela_ instância — não uma criada pelo SDK. E apps que não
+    usam Sentry não devem pagar por ele no bundle. Por isso cada
+    `create<Provider>Adapter` recebe a instância pronta no options
+    (`{ sentry: Sentry }`, `{ posthog }`).
 
 ## Interface
 
@@ -49,7 +58,74 @@ const telemetry = useTelemetry();
 telemetry?.track({ name: "alo_purchased", properties: { aloId, valueBRL: 990 } });
 ```
 
-`useTelemetry()` retorna `null` quando não há provider montado — UI não quebra em testes. **Sempre use optional chaining** (`telemetry?.track(...)`) nos callsites.
+`useTelemetry()` retorna `null` quando não há provider montado — a UI não quebra em testes.
+
+!!! warning "Sempre use optional chaining"
+    `useTelemetry()` devolve `null` fora de um `<TelemetryProvider>`. Chame
+    sempre com `?.` (`telemetry?.track(...)`) — assim os callsites continuam
+    funcionando em testes unitários e em árvores que não montam o provider, sem
+    explodir com "cannot read property of null".
+
+## Setup completo — adapter + provider + identify + track
+
+Um app real inicializa o adapter na raiz, identifica o usuário no login e rastreia eventos nas ações. Esqueleto completo e copiável:
+
+```tsx
+// telemetry.tsx
+import posthog from "posthog-js";
+import { createPostHogTelemetryAdapter, TelemetryProvider } from "tempest-react-sdk";
+import type { ReactNode } from "react";
+
+export const telemetryAdapter = createPostHogTelemetryAdapter({
+  posthog,
+  init: {
+    apiKey: import.meta.env.VITE_POSTHOG_KEY,
+    options: { api_host: "https://us.i.posthog.com" },
+  },
+});
+
+export function AppTelemetry({ children }: { children: ReactNode }) {
+  return <TelemetryProvider adapter={telemetryAdapter}>{children}</TelemetryProvider>;
+}
+```
+
+```tsx
+// useSessionTelemetry.ts — identifica/reseta quando a sessão muda
+import { useEffect } from "react";
+import { useTelemetry } from "tempest-react-sdk";
+import { useAuthStore } from "./auth-store";
+
+export function useSessionTelemetry() {
+  const telemetry = useTelemetry();
+  const user = useAuthStore((s) => s.user);
+
+  useEffect(() => {
+    if (user) {
+      telemetry?.identify({ id: user.id, email: user.email, name: user.name });
+    } else {
+      telemetry?.identify(null); // logout → reset
+    }
+  }, [telemetry, user]);
+}
+```
+
+```tsx
+// CheckoutButton.tsx — rastreia um evento de negócio
+import { useTelemetry, Button } from "tempest-react-sdk";
+
+export function CheckoutButton({ aloId, valueBRL }: { aloId: string; valueBRL: number }) {
+  const telemetry = useTelemetry();
+  return (
+    <Button
+      onClick={() => {
+        telemetry?.track({ name: "alo_purchased", properties: { aloId, valueBRL } });
+      }}
+    >
+      Comprar
+    </Button>
+  );
+}
+```
 
 ## Sentry adapter
 
@@ -125,6 +201,12 @@ Mapeamento:
 | `track({name, properties})`  | `posthog.capture(name, properties)`                                                                     |
 | `captureException(err, ctx)` | `posthog.captureException(err, ctx)` quando disponível, fallback `posthog.capture("$exception", {...})` |
 
+!!! tip "`SentryLike` / `PostHogLike` são subsets, não os SDKs inteiros"
+    Cada adapter declara só os métodos que usa (`setUser`, `addBreadcrumb`,
+    `capture`…). Isso te dá um alvo minúsculo para mockar em testes — você
+    monta um objeto com 3 `vi.fn()` em vez de stubar o SDK completo — e mantém
+    o adapter resiliente a mudanças de API que não tocam esse subset.
+
 ## Adapter custom
 
 Para Datadog, Amplitude, Mixpanel — escreva ~20 linhas:
@@ -152,8 +234,16 @@ const telemetry = useTelemetry();
 </ErrorBoundary>;
 ```
 
-## Veja também
+## Resumo
 
-- [Error Boundary](./error-boundary.md)
+- **Programe contra `TelemetryAdapter`**, não contra o SDK do provider — troca de provider = troca de uma linha na raiz.
+- **`TelemetryProvider`** injeta o adapter; chama `init` no mount, `flush` no unmount.
+- **`useTelemetry()` pode ser `null`** — sempre `telemetry?.track(...)` com optional chaining.
+- **Adapters injetam a instância** (`{ sentry }`, `{ posthog }`) — nunca peer dep.
+- **Adapter custom** é ~20 linhas mapeando 4 métodos.
+
+### Veja também
+
+- [Error Boundary](./error-boundary.md) — `onError` → `captureException`
 - [Logger](./logger.md) — logs estruturados locais
-- [Feature Flags](./feature-flags.md) — adapters seguem o mesmo padrão
+- [Feature Flags](./feature-flags.md) — adapters seguem exatamente o mesmo padrão de injeção

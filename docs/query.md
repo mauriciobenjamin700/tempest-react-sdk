@@ -3,7 +3,7 @@
 Wrappers finos pra padronizar tempos de cache, chaves de query e o `QueryClient`. Você continua usando o `@tanstack/react-query` de sempre — o SDK só entrega os defaults bem calibrados e um factory de keys tipado.
 
 !!! info "Por que esses wrappers existem?"
-Sem padronização, cada tela escolhe um `staleTime` no chute e cada domínio escreve `queryKey: ["user", id]` à mão. Isso gera invalidações que não pegam (key montada diferente em dois lugares) e refetch agressivo demais. O SDK centraliza ambos: presets nomeados e um factory que garante a mesma key em todo lugar.
+    Sem padronização, cada tela escolhe um `staleTime` no chute e cada domínio escreve `queryKey: ["user", id]` à mão. Isso gera invalidações que não pegam (key montada diferente em dois lugares) e refetch agressivo demais. O SDK centraliza ambos: presets nomeados e um factory que garante a mesma key em todo lugar.
 
 ## Provider
 
@@ -51,7 +51,7 @@ const client = new QueryClient();
 ```
 
 !!! warning "Um único `QueryClient` por app"
-Não aninhe dois `QueryProvider` sem passar o mesmo `client`. Cada provider cria um cache isolado, e queries de subárvores diferentes deixam de compartilhar dados. Para múltiplos roots, crie o `QueryClient` uma vez e passe via prop `client`.
+    Não aninhe dois `QueryProvider` sem passar o mesmo `client`. Cada provider cria um cache isolado, e queries de subárvores diferentes deixam de compartilhar dados. Para múltiplos roots, crie o `QueryClient` uma vez e passe via prop `client`.
 
 ## Presets de tempo
 
@@ -73,7 +73,7 @@ useQuery({
 - `REFETCH_TIME`: `REALTIME` 5s, `FAST` 30s, `DEFAULT` 60s, `SLOW` 5min
 
 !!! tip "Quando usar `INFINITE`"
-`STALE_TIME.INFINITE` marca o dado como nunca obsoleto — o TanStack só refaz o fetch via invalidação manual. Ideal para listas estáticas (categorias, cidades) que mudam por deploy, não por uso.
+    `STALE_TIME.INFINITE` marca o dado como nunca obsoleto — o TanStack só refaz o fetch via invalidação manual. Ideal para listas estáticas (categorias, cidades) que mudam por deploy, não por uso.
 
 ## Query keys tipadas
 
@@ -148,7 +148,7 @@ export function ProfileCard() {
 ```
 
 !!! note "Por que `setQueryData` + `invalidateQueries`?"
-`setQueryData` aplica a resposta da mutation no cache imediatamente (UI sem flicker), enquanto `invalidateQueries` marca queries _relacionadas_ como obsoletas pra revalidar no background. Usar uma key factory garante que a key invalidada seja exatamente a mesma que a query consultou.
+    `setQueryData` aplica a resposta da mutation no cache imediatamente (UI sem flicker), enquanto `invalidateQueries` marca queries _relacionadas_ como obsoletas pra revalidar no background. Usar uma key factory garante que a key invalidada seja exatamente a mesma que a query consultou.
 
 Padrão de organização: cada domínio em `src/constants/query-keys/<dominio>.ts`, agrupados num barrel.
 

@@ -3,7 +3,7 @@
 A wrapper over `EventSource` with exponential reconnect, opt-in heartbeat, and JSON parsing. Original use case: the notifications stream (`NEW-ALO`, `PAYMENT-SUCCESS`, etc.) from alofans-frontend.
 
 !!! info "SSE vs WebSocket — which one?"
-SSE is one-way (server → client), runs over plain HTTP, reconnects on its own, and authenticates via cookies with no ceremony. If the client **does not need to send** messages, SSE is simpler and cheaper. For bidirectional traffic (chat, collaboration), use [WebSocket](./websocket.md).
+    SSE is one-way (server → client), runs over plain HTTP, reconnects on its own, and authenticates via cookies with no ceremony. If the client **does not need to send** messages, SSE is simpler and cheaper. For bidirectional traffic (chat, collaboration), use [WebSocket](./websocket.md).
 
 ## When to use
 
@@ -63,7 +63,7 @@ Backoff: 1s → 2s → 4s → 8s → ... (capped at 30s), up to maxRetries (defa
 - Events listed in `heartbeatEvents` (default `["ping"]`) do **not** fire `onMessage` — they only keep the socket alive.
 
 !!! tip "Match `heartbeatEvents` to your backend"
-If the server sends keep-alives under a different event name (e.g. `"keepalive"`), list it in `heartbeatEvents` so it doesn't pollute `onMessage` with pings.
+    If the server sends keep-alives under a different event name (e.g. `"keepalive"`), list it in `heartbeatEvents` so it doesn't pollute `onMessage` with pings.
 
 ## Hook — `useEventStream`
 
@@ -103,7 +103,7 @@ export function NotificationListener({ user }: { user: { id: string } | null }) 
 - Automatic cleanup on unmount.
 
 !!! warning "`error` means it exhausted its attempts"
-When the status reaches `"error"`, the stream gave up on its own. Offer a button calling `reconnect()` (which resets the counter) instead of waiting for an automatic reconnect that won't come.
+    When the status reaches `"error"`, the stream gave up on its own. Offer a button calling `reconnect()` (which resets the counter) instead of waiting for an automatic reconnect that won't come.
 
 ## Status
 

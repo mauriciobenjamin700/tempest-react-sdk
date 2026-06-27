@@ -5,7 +5,7 @@ Every app needs state that lives **outside** a single component: the shopping ca
 The goal is that you never again hand-write the `persist` + `createJSONStorage` boilerplate or type out selectors one by one. You describe the state, and the SDK handles the rest. 🚀
 
 !!! info "Already know `createAuthStore`?"
-If you read the [Auth](auth.md) page, you've seen `createAuthStore<TUser>` — a **ready-made, persisted** auth store. `createStore` is its **generic counterpart**: it works for any domain slice (cart, preferences, wizard). Both are Zustand under the hood, so everything you learn here applies to both.
+    If you read the [Auth](auth.md) page, you've seen `createAuthStore<TUser>` — a **ready-made, persisted** auth store. `createStore` is its **generic counterpart**: it works for any domain slice (cart, preferences, wizard). Both are Zustand under the hood, so everything you learn here applies to both.
 
 ## What Zustand gives you (and why the SDK wraps it)
 
@@ -93,7 +93,7 @@ Piece by piece:
 | `migrate`    | `(persisted, version) => T` | —         | Transforms an old payload into the current shape on rehydrate. |
 
 !!! tip "Always use `partialize` for transient fields"
-Derived or ephemeral state — a `isLoading` spinner, a just-typed `searchQuery`, handlers — should **not** live in storage. If you persist everything, an `isLoading: true` saved mid-request could rehydrate stuck at `true` on the next reload. List in `partialize` only what is durable source-of-truth (here, `items`). ✅
+    Derived or ephemeral state — a `isLoading` spinner, a just-typed `searchQuery`, handlers — should **not** live in storage. If you persist everything, an `isLoading: true` saved mid-request could rehydrate stuck at `true` on the next reload. List in `partialize` only what is durable source-of-truth (here, `items`). ✅
 
 ### Rehydration across reloads
 
@@ -107,7 +107,7 @@ When the page loads, the `persist` middleware reads the saved payload from stora
 With web storage this happens synchronously, so on the first paint the state is already restored — no flash of an empty cart.
 
 !!! note "Versioning the persisted schema"
-Changed the shape of the saved state (renamed a field, swapped `string[]` for objects)? Bump `version` and write a `migrate` that takes the old payload and returns the new shape. Without it, an old payload in a user's browser may rehydrate with a shape your code no longer expects.
+    Changed the shape of the saved state (renamed a field, swapped `string[]` for objects)? Bump `version` and write a `migrate` that takes the old payload and returns the new shape. Without it, an old payload in a user's browser may rehydrate with a shape your code no longer expects.
 
 ## `createSelectors` — one subscription per field
 
@@ -146,7 +146,7 @@ function Counter() {
 `useCounter.use.count()` subscribes to **only** `count`. If another slice of state changes, this component does not re-render. You get selector-level granularity without typing selector functions.
 
 !!! tip "Why this matters for performance"
-In a store with many fields, a component that only shows `count` shouldn't re-render when `items` changes. The per-field selectors under `.use` give exactly that isolation — each component subscribes to the minimum it needs, and re-renders become localized instead of global.
+    In a store with many fields, a component that only shows `count` shouldn't re-render when `items` changes. The per-field selectors under `.use` give exactly that isolation — each component subscribes to the minimum it needs, and re-renders become localized instead of global.
 
 ### Combining with `createAuthStore`
 
@@ -187,7 +187,7 @@ function requireAuth(): boolean {
 This is exactly how a route guard reads the auth session: it needs the value _now_, once, without subscribing for re-renders. `getState()` gives you a snapshot. (To _react_ to changes outside React, use `useStore.subscribe()`.)
 
 !!! warning "`getState()` does not subscribe"
-`getState()` reads once and won't re-render anything when state changes later. Inside components, always prefer the hook (`useStore(...)` or `useStore.use.field()`) so the UI stays in sync. Reserve `getState()` for non-React code.
+    `getState()` reads once and won't re-render anything when state changes later. Inside components, always prefer the hook (`useStore(...)` or `useStore.use.field()`) so the UI stays in sync. Reserve `getState()` for non-React code.
 
 ## Recap
 

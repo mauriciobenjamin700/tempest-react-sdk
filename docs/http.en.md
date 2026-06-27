@@ -3,7 +3,7 @@
 Typed fetch layer with 401 + refresh handling, automatic JSON parsing, and upload with progress. Inspired by the `RequestHandler` from alofans-frontend, but factory-based so each app instantiates its own client.
 
 !!! info "Why a factory instead of a global singleton?"
-Each app has its own `baseURL`, its own way to store the token, and its own logout strategy. A factory lets you create the client once, inject those dependencies, and export a ready instance — no global-state imports scattered across the code.
+    Each app has its own `baseURL`, its own way to store the token, and its own logout strategy. A factory lets you create the client once, inject those dependencies, and export a ready instance — no global-state imports scattered across the code.
 
 ## When to use
 
@@ -72,7 +72,7 @@ Behavior:
 - `Content-Type: application/json` in the response → `JSON.parse`. Otherwise, returns the raw text.
 
 !!! warning "`refresh` retries only once"
-If `refresh()` runs but the retry still returns 401, the client gives up, calls `onUnauthorized` and throws. This avoids an infinite refresh loop when the session has truly expired.
+    If `refresh()` runs but the retry still returns 401, the client gives up, calls `onUnauthorized` and throws. This avoids an infinite refresh loop when the session has truly expired.
 
 ## `parseResponse`
 
@@ -91,7 +91,7 @@ const user = parseResponse(userSchema, raw, "GET /users/me");
 ```
 
 !!! tip "The 3rd argument is the context"
-Always pass a label like `"GET /users/me"`. It shows up in the dev error message and makes it trivial to pinpoint which endpoint broke the contract.
+    Always pass a label like `"GET /users/me"`. It shows up in the dev error message and makes it trivial to pinpoint which endpoint broke the contract.
 
 ## `uploadWithProgress`
 
@@ -153,7 +153,7 @@ const data = await retry(() => api.get("/flaky-endpoint"), {
 ```
 
 !!! note "`shouldRetry` avoids retrying what won't improve"
-A 403 or 422 will fail the same way on the 5th try. Filter by `status >= 500` (or network errors) so you don't waste attempts on deterministic errors.
+    A 403 or 422 will fail the same way on the 5th try. Filter by `status >= 500` (or network errors) so you don't waste attempts on deterministic errors.
 
 ## `usePoll` — polling with overlap guard
 
@@ -205,7 +205,7 @@ await api.post("/orders", {
 ```
 
 !!! warning "Generate the key once per operation, not per attempt"
-If you generate a new key on each retry, the server treats every call as new and the protection is gone. Create the key **before** the retry loop and reuse it.
+    If you generate a new key on each retry, the server treats every call as new and the protection is gone. Create the key **before** the retry loop and reuse it.
 
 ## Errors
 

@@ -2,7 +2,31 @@
 
 A full shell + spacing primitives + responsive utilities.
 
+## What this category is
+
+Layout components don't draw content — they **organize space**. There are three
+levels:
+
+1. **Application shell** (`AppShell` + `Page` + `Container`) — the responsive
+   frame that holds the navbar, sidebar/bottom-nav, header and content.
+2. **Spacing primitives** (`Stack`, `Grid`, `Divider`, `Spacer`, `Center`,
+   `AspectRatio`) — declarative flex/grid without writing CSS yourself.
+3. **Responsive utilities** (`SafeArea`, `<Show>`/`<Hide>`, `ResponsiveValue`) —
+   adapt the layout per breakpoint and respect notches/system bars.
+
+**When to use:** prefer these primitives over ad-hoc `<div style={{ display:
+"flex" }}>`. They use the SDK spacing tokens (4px scale), are responsive by
+construction, and keep spacing consistent across apps.
+
+!!! tip "Compose from the outside in"
+    Think `AppShell` → `Container` → `Page` → `Stack`/`Grid` → content. Each
+    layer has a single responsibility; stacking them gives a complete responsive
+    layout with no manual media query.
+
 ## `AppShell`
+
+**When to use:** as the root frame of an app with persistent navigation
+(dashboard, admin panel). For a simple landing page, a `Container` is enough.
 
 Composer: navbar + sidebar (desktop) / bottomNav (mobile) + main + responsive
 footer.
@@ -87,6 +111,9 @@ Max-width wrapper.
 
 ## `Stack`
 
+**When to use:** the default primitive for stacking elements in one dimension
+(column or row) with uniform spacing. For a 2D grid use `Grid`.
+
 Vertical or horizontal flex with `gap`, `align`, `justify`, `wrap`. Accepts
 `ResponsiveValue` for `direction` and `gap`.
 
@@ -141,6 +168,12 @@ CSS Grid wrapper.
 
 A numeric `columns` → `repeat(N, minmax(0, 1fr))`. A string passes straight to
 `grid-template-columns`.
+
+!!! tip "Responsive columns with no media query"
+    `columns={{ base: 1, sm: 2, lg: 4 }}` is the idiomatic way to make a grid
+    that becomes a list on mobile and opens columns on desktop. The
+    `minmax(0, 1fr)` avoids the classic overflow of cells with wide content
+    (long text, `<pre>`).
 
 ## `Divider`
 
@@ -230,7 +263,16 @@ Components that already handle safe-area automatically: `Navbar` (top),
 `BottomNavigation`/`BottomSheet` (bottom), `Modal.fullscreen` (all), `Toast`
 (top+bottom).
 
+!!! warning "Don't stack `SafeArea` on components that already handle it"
+    If you already use `Navbar`/`BottomNavigation`/`Toast`, don't wrap them in
+    `SafeArea` again — the padding doubles and creates a visible gap. Use
+    `SafeArea` only on custom surfaces (your own sheet or overlay).
+
 ## `<Show>` / `<Hide>`
+
+**When to use:** swap an entire tree by breakpoint (desktop vs. mobile nav, for
+example). To merely hide via CSS without unmounting, prefer responsive CSS —
+`<Show>`/`<Hide>` unmount the component from the DOM.
 
 Conditional render based on breakpoint. SSR-safe — the first render uses `xs`
 (mobile first), then re-renders on the client.
@@ -265,3 +307,26 @@ Falls back to the last value defined per cascading breakpoint.
 - `Page.title` is `<h1>` — only one per page for correct hierarchy.
 - `AppShell` wraps in a semantic `<main>`.
 - `<Show>`/`<Hide>` render `null` on the server + adjust on the client (no SEO impact, the first paint may flicker).
+
+## Recap
+
+- Compose from the outside in: `AppShell` → `Container` → `Page` →
+  `Stack`/`Grid` → content.
+- Use the primitives (`Stack`/`Grid`/`Spacer`/`Center`) instead of ad-hoc CSS
+  flex/grid — they use the spacing tokens (4px scale) and are responsive by
+  construction.
+- `direction`/`columns`/`layout` accept `ResponsiveValue` → responsive layout
+  without writing a media query.
+- `SafeArea` only on custom surfaces; `Navbar`/`BottomNavigation`/`Toast`/
+  `Modal.fullscreen` already handle the notch.
+
+Related pages:
+
+- [Navigation](./navigation.md) — `Navbar`, `Sidebar`, `BottomNavigation` that
+  fill the `AppShell` slots.
+- [Data entry](./inputs.md) — `Form`/`FormSection`/`FormRow`/`FormActions` to
+  structure fields inside a `Page`.
+- [Data](./data.md) — `Table`/`DataTable`/`Pagination` that live in a `Page`'s
+  content.
+- [App Providers](../app-providers.md) and [Routing](../routing.md) — the glue
+  that wraps the `AppShell`.

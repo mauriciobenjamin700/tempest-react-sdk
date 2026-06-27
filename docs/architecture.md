@@ -4,6 +4,11 @@ O `tempest-react-sdk` é um pacote único com camadas independentes. O consumido
 importa só o que usa; tudo é externalizado no bundle do SDK, então o bundler do
 app faz tree-shake do que não é referenciado.
 
+!!! tip "Importe só o que usa"
+    Não existe penalidade por o SDK ser grande. Cada camada (HTTP, auth, query,
+    forms…) é independente — se você nunca importa `createOfflineStore`, o `dexie`
+    não entra no seu bundle. Comece com um `Button` e cresça a partir daí.
+
 > Diagrama editável: [architecture.drawio](./diagrams/architecture.drawio) (abra no [draw.io](https://app.diagrams.net)).
 
 ## Camadas
@@ -54,6 +59,12 @@ automaticamente por `npm install tempest-react-sdk` e externalizada no bundle
 | `lucide-react`                 | Dep direta          | Ícones (`leftIcon`/`rightIcon`)                                                          |
 | `vite`, `@vitejs/plugin-react` | **Peer opcional**   | `createViteConfig` (subpath `tempest-react-sdk/vite`) — já presente em qualquer app Vite |
 
+!!! note "Apenas `react` e `react-dom` são peers"
+    A regra de uma única instância do React obriga esses dois a serem peer deps.
+    Todo o resto (`zustand`, `zod`, `dexie`, `react-hook-form`,
+    `@tanstack/react-query`, `lucide-react`) é dependência direta — `npm install
+    tempest-react-sdk` já traz tudo, sem você listar nada à mão.
+
 Adapters de SDKs externos (Sentry, PostHog, GrowthBook, LaunchDarkly) **não**
 são declarados — o caller injeta a instância na factory.
 
@@ -71,6 +82,18 @@ são declarados — o caller injeta a instância na factory.
 Vite library mode → ESM (`tempest-react-sdk.js`) + CJS (`.cjs`) + `.d.ts`
 rollupado + `styles.css` (CSS Modules num arquivo só, `cssCodeSplit: false`).
 Orçamento monitorado por `size-limit` no CI.
+
+## Recap
+
+- Um pacote, camadas independentes; você importa só o que usa e o bundler faz
+  tree-shake do resto.
+- Só `react` + `react-dom` são peers; as demais libs são deps diretas instaladas
+  junto.
+- Quatro subpaths: o barrel principal, `…/styles.css`, `…/vite` (Node-only) e
+  `…/testing`.
+- A fundação de app ([Vite](./vite-config.md) · [Router](./routing.md) ·
+  [Store](./state.md) · [Providers](./app-providers.md)) é o que o
+  [`create-tempest-app`](./scaffold.md) monta pra você.
 
 ## Veja também
 

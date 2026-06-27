@@ -3,7 +3,7 @@
 `ErrorBoundary` captura erros lançados durante o render de qualquer descendente e mostra um fallback no lugar de uma tela branca. `useErrorHandler` estende isso para erros assíncronos, que o React não captura sozinho.
 
 !!! info "Por que isso importa"
-Sem um boundary, um erro de render em qualquer componente desmonta a árvore inteira — o usuário vê uma página em branco. Um boundary isola a falha: o ramo quebrado vira um fallback amigável (com botão de tentar de novo) e o resto do app continua de pé.
+    Sem um boundary, um erro de render em qualquer componente desmonta a árvore inteira — o usuário vê uma página em branco. Um boundary isola a falha: o ramo quebrado vira um fallback amigável (com botão de tentar de novo) e o resto do app continua de pé.
 
 ## Uso típico
 
@@ -40,7 +40,7 @@ As três props que importam:
 - `resetKeys`: array observado por igualdade `Object.is`. Quando **qualquer** valor muda, o boundary reseta sozinho.
 
 !!! tip "`resetKeys` limpa o erro ao navegar"
-Passando `resetKeys={[location.pathname]}`, o boundary se recupera automaticamente quando o usuário troca de rota — sem isso, o fallback ficaria preso na tela até um `reset()` manual.
+    Passando `resetKeys={[location.pathname]}`, o boundary se recupera automaticamente quando o usuário troca de rota — sem isso, o fallback ficaria preso na tela até um `reset()` manual.
 
 ## Erros assíncronos
 
@@ -64,7 +64,7 @@ export function LiveFeed({ socket }: { socket: WebSocket }) {
 ```
 
 !!! note "Aceita qualquer valor"
-`throwError` recebe `unknown` e normaliza para `Error`: se você passar algo que não é `Error` (uma string, um objeto), ele embrulha em `new Error(String(value))` antes de propagar.
+    `throwError` recebe `unknown` e normaliza para `Error`: se você passar algo que não é `Error` (uma string, um objeto), ele embrulha em `new Error(String(value))` antes de propagar.
 
 ## Como o AppProviders monta o boundary
 

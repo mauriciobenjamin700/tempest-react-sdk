@@ -34,6 +34,9 @@ export default defineConfig({
                 "tempest-react-sdk": resolve(__dirname, "src/index.ts"),
                 testing: resolve(__dirname, "src/testing/index.ts"),
                 vite: resolve(__dirname, "src/vite/index.ts"),
+                // Service-worker-context helpers only (push/notification/skip-waiting).
+                // Pure, React-free — safe to bundle into a consuming app's `sw.ts`.
+                sw: resolve(__dirname, "src/sw/index.ts"),
             },
             name: "TempestReactSdk",
             formats: ["es", "cjs"],

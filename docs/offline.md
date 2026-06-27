@@ -3,7 +3,7 @@
 `createOfflineStore` empacota o Dexie com scoping opcional por owner. Use pra histórico de SSE/push, drafts e cache local que precisa sobreviver a reload.
 
 !!! info "Por que IndexedDB e não `localStorage`?"
-`localStorage` é síncrono, limitado a ~5 MB e só guarda strings. IndexedDB é assíncrono, comporta MBs de dados estruturados e suporta índices/consultas. O `createOfflineStore` esconde a verbosidade do Dexie por trás de um CRUD tipado — e o `dexie` já vem como dependência direta do SDK (v0.2.0+), instalado junto com `npm install tempest-react-sdk`.
+    `localStorage` é síncrono, limitado a ~5 MB e só guarda strings. IndexedDB é assíncrono, comporta MBs de dados estruturados e suporta índices/consultas. O `createOfflineStore` esconde a verbosidade do Dexie por trás de um CRUD tipado — e o `dexie` já vem como dependência direta do SDK (v0.2.0+), instalado junto com `npm install tempest-react-sdk`.
 
 ## Quando usar
 
@@ -12,7 +12,7 @@
 - Cache de dados raramente alterados (cidades, categorias) — combina com `initialData` do TanStack Query.
 
 !!! warning "Não use pra estado de UI volátil"
-Toggle de menu, aba ativa, modal aberto — isso é estado de UI que morre no reload. Zustand (veja [State](./state.md)) é muito mais barato. Reserve o offline store pra dados que **precisam** persistir.
+    Toggle de menu, aba ativa, modal aberto — isso é estado de UI que morre no reload. Zustand (veja [State](./state.md)) é muito mais barato. Reserve o offline store pra dados que **precisam** persistir.
 
 ## Setup
 
@@ -68,7 +68,7 @@ await notificationsStore.clear(userId); // não afeta outros usuários
 ```
 
 !!! tip "Sem `ownerField`, o store vira global"
-Se você não configurar `ownerField`, os métodos ignoram o argumento `owner` e operam sobre a tabela inteira. Use o store global pra dados não associados a um usuário (catálogo de cidades, por exemplo).
+    Se você não configurar `ownerField`, os métodos ignoram o argumento `owner` e operam sobre a tabela inteira. Use o store global pra dados não associados a um usuário (catálogo de cidades, por exemplo).
 
 ## CRUD completo
 
@@ -150,7 +150,7 @@ notificationsStore.db.version(2).upgrade(async (tx) => {
 ```
 
 !!! warning "Esquecer de bumpar a `version` quebra silenciosamente"
-Mudar `indexes` sem subir `version` faz o Dexie lançar `VersionError` na abertura do banco. Sempre incremente `version` junto com qualquer mudança de schema.
+    Mudar `indexes` sem subir `version` faz o Dexie lançar `VersionError` na abertura do banco. Sempre incremente `version` junto com qualquer mudança de schema.
 
 ## Recap
 

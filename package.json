@@ -25,6 +25,7 @@
     "dist",
     "bin",
     "template",
+    "template-pwa",
     "README.md",
     "LICENSE"
   ],
@@ -52,6 +53,11 @@
       "types": "./dist/vite.d.ts",
       "import": "./dist/vite.js",
       "require": "./dist/vite.cjs"
+    },
+    "./sw": {
+      "types": "./dist/sw.d.ts",
+      "import": "./dist/sw.js",
+      "require": "./dist/sw.cjs"
     },
     "./styles.css": "./dist/styles.css",
     "./package.json": "./package.json"

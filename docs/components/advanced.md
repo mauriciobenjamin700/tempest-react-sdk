@@ -32,7 +32,7 @@ import { Toggle } from "tempest-react-sdk";
 Demais props de `<button>` são repassadas.
 
 !!! info "A11y"
-Renderiza um `<button type="button">` nativo expondo o estado via `aria-pressed` e `data-state="on"|"off"`.
+    Renderiza um `<button type="button">` nativo expondo o estado via `aria-pressed` e `data-state="on"|"off"`.
 
 ### `ToggleGroup` (+ `ToggleGroupItem`)
 
@@ -67,7 +67,7 @@ import { ToggleGroup, ToggleGroupItem } from "tempest-react-sdk";
 | `children` | `ReactNode` | —       | Conteúdo do item                    |
 
 !!! note "Single mode"
-Em `single`, `onValueChange` recebe `""` (string vazia) quando nada está selecionado.
+    Em `single`, `onValueChange` recebe `""` (string vazia) quando nada está selecionado.
 
 ### `Label`
 
@@ -108,7 +108,7 @@ import { Collapsible } from "tempest-react-sdk";
 | `children`     | `ReactNode`               | —       | Conteúdo recolhível, oculto enquanto fechado        |
 
 !!! info "A11y"
-O gatilho é um `<button aria-expanded aria-controls>` ligado a uma `role="region"` de mesmo id; a região fica `hidden` enquanto fechada.
+    O gatilho é um `<button aria-expanded aria-controls>` ligado a uma `role="region"` de mesmo id; a região fica `hidden` enquanto fechada.
 
 ### `ContextMenu`
 
@@ -138,7 +138,7 @@ import { ContextMenu } from "tempest-react-sdk";
 `ContextMenuItem` = `{ label: ReactNode; onSelect?: () => void; disabled?: boolean; danger?: boolean }` ou `{ separator: true }`.
 
 !!! tip "Teclado"
-Setas ↑/↓ movem o foco entre itens selecionáveis; Enter ativa o item focado.
+    Setas ↑/↓ movem o foco entre itens selecionáveis; Enter ativa o item focado.
 
 ### `HoverCard`
 
@@ -164,7 +164,7 @@ import { HoverCard } from "tempest-react-sdk";
 | `placement`  | `"top" \| "bottom" \| "left" \| "right"` | `"bottom"` | Ancoragem do card relativa ao gatilho           |
 
 !!! info "A11y"
-O card é uma `role="dialog"` rotulada; o gatilho permanece focável por teclado.
+    O card é uma `role="dialog"` rotulada; o gatilho permanece focável por teclado.
 
 ### `Command` (paleta ⌘K)
 
@@ -206,7 +206,7 @@ const [open, setOpen] = useState(false);
 `CommandItem` = `{ id: string; label: string; group?: string; keywords?: string[]; onSelect: () => void; icon?: ReactNode }`.
 
 !!! tip "Gatilho global"
-Combine com `useKeyboardShortcut("mod+k", () => setOpen(true))` para abrir via ⌘K / Ctrl+K.
+    Combine com `useKeyboardShortcut("mod+k", () => setOpen(true))` para abrir via ⌘K / Ctrl+K.
 
 ## Layout & UX
 
@@ -255,7 +255,7 @@ import { Resizable } from "tempest-react-sdk";
 | `children`    | `[ReactNode, ReactNode]`     | —              | Exatamente dois painéis — `[paneA, paneB]`         |
 
 !!! warning "Exatamente dois filhos"
-`children` é uma tupla `[ReactNode, ReactNode]`. O tamanho é sempre fixado em `[min, max]`.
+    `children` é uma tupla `[ReactNode, ReactNode]`. O tamanho é sempre fixado em `[min, max]`.
 
 ### `Calendar`
 
@@ -282,7 +282,7 @@ const [date, setDate] = useState<Date>();
 | `weekStartsOn`  | `0 \| 1`                | `0`     | Primeira coluna — `0` domingo, `1` segunda        |
 
 !!! tip "Teclado"
-Setas movem o foco por dia (←/→) ou por semana (↑/↓); Enter/Espaço seleciona o dia focado.
+    Setas movem o foco por dia (←/→) ou por semana (↑/↓); Enter/Espaço seleciona o dia focado.
 
 ## Navegação & conteúdo
 
@@ -314,7 +314,7 @@ import { NavigationMenu } from "tempest-react-sdk";
 `NavigationMenuItem` = `{ label: ReactNode; href?: string; onSelect?: () => void; children?: NavigationMenuItem[] }`.
 
 !!! note "Fechamento"
-Fecha no clique fora, Escape, ou ao selecionar uma entrada-folha.
+    Fecha no clique fora, Escape, ou ao selecionar uma entrada-folha.
 
 ### `Menubar`
 
@@ -368,7 +368,7 @@ import { Carousel } from "tempest-react-sdk";
 | `onIndexChange` | `(index: number) => void` | —       | Chamado quando o índice ativo muda    |
 
 !!! tip "Teclado"
-Setas ←/→ sobre a região focada navegam entre slides.
+    Setas ←/→ sobre a região focada navegam entre slides.
 
 ## Dados
 
@@ -417,7 +417,7 @@ const columns: DataTableColumn<User>[] = [
 `DataTableColumn<T>` = `{ key: keyof T; header: ReactNode; render?: (row: T) => ReactNode; sortable?: boolean; align?: TableAlign; priority?: TablePriority; width?: string | number }`. `DataTableSort<T>` = `{ key: keyof T; direction: "asc" | "desc" }`.
 
 !!! info "Comportamento"
-Clicar um cabeçalho ordenável cicla asc → desc → sem ordenação. A busca combina substring case-insensitive nas `searchKeys` (ou em toda coluna string/number quando omitidas). A paginação some quando o resultado cabe em uma única página.
+    Clicar um cabeçalho ordenável cicla asc → desc → sem ordenação. A busca combina substring case-insensitive nas `searchKeys` (ou em toda coluna string/number quando omitidas). A paginação some quando o resultado cabe em uma única página.
 
 ## Recap
 

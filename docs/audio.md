@@ -3,7 +3,7 @@
 Notificações sonoras (chime de mensagem, confirmação de pagamento, etc.) sobre o `Audio` nativo do navegador. Três entradas: `playAudio` (one-off no player compartilhado), `useAudio` (player privado por componente) e `createAudioPlayer` (canal isolado imperativo).
 
 !!! info "Por que um wrapper em volta de `new Audio()`?"
-Tocar som no navegador esbarra na _autoplay policy_ e em vazamento de elementos `Audio`. O SDK encapsula: rastreia o clipe atual (pra dar `stop`), normaliza volume, trata o bloqueio de autoplay devolvendo `null` em vez de estourar, e limpa no unmount quando você usa o hook.
+    Tocar som no navegador esbarra na _autoplay policy_ e em vazamento de elementos `Audio`. O SDK encapsula: rastreia o clipe atual (pra dar `stop`), normaliza volume, trata o bloqueio de autoplay devolvendo `null` em vez de estourar, e limpa no unmount quando você usa o hook.
 
 ## `playAudio` — one-off no player compartilhado
 
@@ -55,7 +55,7 @@ export function NotificationBell() {
 - Cleanup automático no unmount.
 
 !!! tip "Use `unlocked` pra guiar o usuário"
-Antes do primeiro clique, o navegador bloqueia áudio. Mostre uma dica ("toque pra ativar som") enquanto `unlocked === false` e esconda assim que ele virar `true`.
+    Antes do primeiro clique, o navegador bloqueia áudio. Mostre uma dica ("toque pra ativar som") enquanto `unlocked === false` e esconda assim que ele virar `true`.
 
 ## `createAudioPlayer` — canais isolados
 
@@ -81,7 +81,7 @@ Cada player rastreia **um** clipe atual. `stopPrevious: true` no `play()` para o
 Navegadores bloqueiam playback antes da primeira interação do usuário. `playAudio` / `play()` retornam `null` quando bloqueado (e chamam `onError` se passado) — em vez de lançar.
 
 !!! warning "Destrave o áudio no primeiro clique"
-Não dá pra tocar som antes de qualquer interação. Desenhe o app pra disparar um `play()` (mesmo de um clipe silencioso curto) no primeiro clique de qualquer botão; a partir daí o navegador libera os próximos.
+    Não dá pra tocar som antes de qualquer interação. Desenhe o app pra disparar um `play()` (mesmo de um clipe silencioso curto) no primeiro clique de qualquer botão; a partir daí o navegador libera os próximos.
 
 ## Assets
 

@@ -13,7 +13,7 @@ With the `routing` module you get:
 - **Batteries included.** `<AppRouter>` already builds the router, the `<Suspense>`, and the `<Routes>`. `defineRoutes` gives you typing. Guards and lazy loading are fields on the route itself.
 
 !!! info "Re-exported primitives"
-The SDK re-exports React Router's declarative primitives so you import everything from one place: `BrowserRouter`, `HashRouter`, `MemoryRouter`, `Routes`, `Route`, `Outlet`, `Navigate`, `Link`, `NavLink`, `useNavigate`, `useParams`, `useSearchParams`, `useLocation`, `useMatch`, `useRouteError`, and `redirect`.
+    The SDK re-exports React Router's declarative primitives so you import everything from one place: `BrowserRouter`, `HashRouter`, `MemoryRouter`, `Routes`, `Route`, `Outlet`, `Navigate`, `Link`, `NavLink`, `useNavigate`, `useParams`, `useSearchParams`, `useLocation`, `useMatch`, `useRouteError`, and `redirect`.
 
 ## Building the tree with `defineRoutes`
 
@@ -98,7 +98,7 @@ export const routes = defineRoutes([
 Here, opening `/` renders `<RootLayout>` with `<Home>` inside it; opening `/about` renders `<RootLayout>` with `<About>` inside it.
 
 !!! warning "`index` and `path` are mutually exclusive"
-A route is either an index (`index: true`) **or** it has a `path`, never both. Setting both is a configuration error.
+    A route is either an index (`index: true`) **or** it has a `path`, never both. Setting both is a configuration error.
 
 ## Nested layouts with `Outlet`
 
@@ -124,7 +124,7 @@ export function RootLayout() {
 The `<nav>` stays visible across every child route; the `<Outlet>` swaps content as the URL changes. Use `<Link>` (also re-exported by the SDK) to navigate without reloading the page.
 
 !!! tip "Programmatic navigation"
-To navigate from code (after a submit, for example), use `useNavigate`: `const navigate = useNavigate(); navigate("/dashboard");`.
+    To navigate from code (after a submit, for example), use `useNavigate`: `const navigate = useNavigate(); navigate("/dashboard");`.
 
 ## Lazy loading + the Suspense fallback
 
@@ -164,7 +164,7 @@ export function App() {
 ```
 
 !!! note "Automatic retry on a stale chunk"
-When you ship a new deploy, chunk names change. A user who left a tab open for hours may request a chunk that no longer exists and hit an import error. The SDK's `lazy` detects that case and reloads automatically — you don't have to write that retry by hand.
+    When you ship a new deploy, chunk names change. A user who left a tab open for hours may request a chunk that no longer exists and hit an import error. The SDK's `lazy` detects that case and reloads automatically — you don't have to write that retry by hand.
 
 ## Guards: protecting routes
 
@@ -222,7 +222,7 @@ export const routes = defineRoutes([
 ```
 
 !!! warning "The guard runs on render — read your store via `getState()` or a hook"
-The `guard` function is evaluated **during the route's render**. So it must read the state _at that moment_: use `useAuth.getState().isAuthenticated` (an imperative read, outside React) or a selector hook inside a component. Don't capture the value once outside the function — you'd freeze the auth state at initial load.
+    The `guard` function is evaluated **during the route's render**. So it must read the state _at that moment_: use `useAuth.getState().isAuthenticated` (an imperative read, outside React) or a selector hook inside a component. Don't capture the value once outside the function — you'd freeze the auth state at initial load.
 
 When `guard` is falsy, the user is redirected to `redirectTo` (default `"/"`). In the example above, anyone not authenticated who tries to open `/dashboard` lands on `/login`.
 
@@ -257,7 +257,7 @@ export function ProtectedDashboard() {
 | `children`   | `ReactNode` | —       | What to protect.                               |
 
 !!! tip "Same state-reading rule"
-Here you're inside a React component, so read the store with the hook (`useAuth((state) => state.isAuthenticated)`) to re-render when auth changes — unlike the tree's `guard`, which uses `getState()` because it runs outside the hook lifecycle.
+    Here you're inside a React component, so read the store with the hook (`useAuth((state) => state.isAuthenticated)`) to re-render when auth changes — unlike the tree's `guard`, which uses `getState()` because it runs outside the hook lifecycle.
 
 ## Choosing the router kind
 
@@ -290,7 +290,7 @@ test("renders the dashboard route", () => {
 ```
 
 !!! note "`initialEntries` is `memory`-only"
-`initialEntries` sets the initial history and only makes sense with `router="memory"`. On the `browser`/`hash` routers the initial route comes from the browser URL itself.
+    `initialEntries` sets the initial history and only makes sense with `router="memory"`. On the `browser`/`hash` routers the initial route comes from the browser URL itself.
 
 ## Recap
 

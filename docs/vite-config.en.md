@@ -29,10 +29,10 @@ import { createViteConfig } from "tempest-react-sdk/vite";
 ```
 
 !!! info "Why a separate subpath?"
-The main barrel runs in the **browser** (React components, hooks). But
-`createViteConfig` runs in **Node**, inside `vite.config.ts`, during the
-build. Different environments — so the helper lives in a dedicated subpath, to
-never drag config code into your production bundle.
+    The main barrel runs in the **browser** (React components, hooks). But
+    `createViteConfig` runs in **Node**, inside `vite.config.ts`, during the
+    build. Different environments — so the helper lives in a dedicated subpath, to
+    never drag config code into your production bundle.
 
 ### Peer deps
 
@@ -86,10 +86,10 @@ export default createViteConfig({
 ```
 
 !!! warning "The `@` alias must ALSO live in `tsconfig.json`"
-Vite and TypeScript resolve paths **independently**. `createViteConfig` teaches
-Vite to resolve `@`, but the type-checker knows nothing until you declare the
-same alias in `compilerOptions.paths`. Without it, `tsc` complains "Cannot find
-module '@/...'" even though the app runs fine.
+    Vite and TypeScript resolve paths **independently**. `createViteConfig` teaches
+    Vite to resolve `@`, but the type-checker knows nothing until you declare the
+    same alias in `compilerOptions.paths`. Without it, `tsc` complains "Cannot find
+    module '@/...'" even though the app runs fine.
 
     ```jsonc
     // tsconfig.json — keep the @ alias in sync for the type-checker
@@ -138,8 +138,8 @@ export default createViteConfig({
 ```
 
 !!! tip "Mix the two freely"
-Each `proxy` key is handled independently: strings are expanded, objects pass
-through. Use the shorthand where you can and the object where you must.
+    Each `proxy` key is handled independently: strings are expanded, objects pass
+    through. Use the shorthand where you can and the object where you must.
 
 ## The escape hatch: `overrides`
 
@@ -160,11 +160,11 @@ export default createViteConfig({
 ```
 
 !!! note "Merged, not replaced"
-In `overrides`, the keys `plugins`, `resolve`, and `server` are **merged** with
-what the helper already configured — not overwritten. So an `overrides.server`
-with a new key coexists with the `port`/`host` you passed as top-level options,
-and `overrides.plugins` are appended to yours. The rest of the `UserConfig`
-(`build`, `define`, etc.) applies normally.
+    In `overrides`, the keys `plugins`, `resolve`, and `server` are **merged** with
+    what the helper already configured — not overwritten. So an `overrides.server`
+    with a new key coexists with the `port`/`host` you passed as top-level options,
+    and `overrides.plugins` are appended to yours. The rest of the `UserConfig`
+    (`build`, `define`, etc.) applies normally.
 
 ## Options reference
 

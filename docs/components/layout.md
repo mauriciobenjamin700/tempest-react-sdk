@@ -2,7 +2,22 @@
 
 Shell completo + primitivos de espaçamento + utilitários responsivos.
 
+## O que é esta categoria
+
+Os componentes de layout não desenham conteúdo — eles **organizam o espaço**. Há três níveis:
+
+1. **Shell de aplicação** (`AppShell` + `Page` + `Container`) — a moldura responsiva que segura navbar, sidebar/bottom-nav, header e conteúdo.
+2. **Primitivos de espaçamento** (`Stack`, `Grid`, `Divider`, `Spacer`, `Center`, `AspectRatio`) — flex/grid declarativos sem você escrever CSS.
+3. **Utilitários responsivos** (`SafeArea`, `<Show>`/`<Hide>`, `ResponsiveValue`) — adaptam o layout por breakpoint e respeitam notches/barras do sistema.
+
+**Quando usar:** prefira esses primitivos a `<div style={{ display: "flex" }}>` ad-hoc. Eles usam os tokens de spacing do SDK (escala 4px), são responsivos por construção e mantêm o espaçamento consistente entre apps.
+
+!!! tip "Componha de fora pra dentro"
+    Pense `AppShell` → `Container` → `Page` → `Stack`/`Grid` → conteúdo. Cada camada tem uma responsabilidade única; empilhá-las dá um layout responsivo completo sem nenhuma media query manual.
+
 ## `AppShell`
+
+**Quando usar:** como a moldura raiz de um app com navegação persistente (dashboard, painel admin). Para uma landing page simples, um `Container` basta.
 
 Composer: navbar + sidebar (desktop) / bottomNav (mobile) + main + footer responsivo.
 
@@ -85,6 +100,8 @@ Max-width wrapper.
 
 ## `Stack`
 
+**Quando usar:** o primitivo padrão para empilhar elementos em uma dimensão (coluna ou linha) com espaçamento uniforme. Para grade 2D use `Grid`.
+
 Flex vertical ou horizontal com `gap`, `align`, `justify`, `wrap`. Aceita `ResponsiveValue` em `direction` e `gap`.
 
 ```tsx
@@ -137,6 +154,9 @@ CSS Grid wrapper.
 | `gap`     | `number \| string`                        | `4`     |
 
 `columns` numérico → `repeat(N, minmax(0, 1fr))`. String passa direto pra `grid-template-columns`.
+
+!!! tip "Colunas responsivas sem media query"
+    `columns={{ base: 1, sm: 2, lg: 4 }}` é a forma idiomática de uma grade que vira lista no mobile e abre colunas no desktop. O `minmax(0, 1fr)` evita o overflow clássico de células com conteúdo largo (texto longo, `<pre>`).
 
 ## `Divider`
 
@@ -224,7 +244,12 @@ Padding por edge usando `env(safe-area-inset-*)`.
 
 Componentes que já cuidam de safe-area automaticamente: `Navbar` (top), `BottomNavigation`/`BottomSheet` (bottom), `Modal.fullscreen` (todos), `Toast` (top+bottom).
 
+!!! warning "Não empilhe `SafeArea` em quem já trata"
+    Se você já usa `Navbar`/`BottomNavigation`/`Toast`, não envolva-os de novo em `SafeArea` — o padding dobra e cria um vão visível. Use `SafeArea` só em superfícies custom (um sheet ou overlay próprio).
+
 ## `<Show>` / `<Hide>`
+
+**Quando usar:** trocar de árvore inteira por breakpoint (nav desktop vs. mobile, por exemplo). Para apenas ocultar via CSS sem desmontar, prefira CSS responsivo — `<Show>`/`<Hide>` desmontam o componente do DOM.
 
 Conditional render baseado em breakpoint. SSR-safe — primeiro render usa `xs` (mobile first), re-renderiza ao client.
 
@@ -258,3 +283,17 @@ Falls back para o último valor definido por breakpoint cascading.
 - `Page.title` é `<h1>` — apenas um por página para hierarquia correta.
 - `AppShell` envolve em `<main>` semântico.
 - `<Show>`/`<Hide>` renderizam `null` no servidor + ajustam no client (no SEO impact, primeira tinta pode flickerizar).
+
+## Resumo
+
+- Componha de fora pra dentro: `AppShell` → `Container` → `Page` → `Stack`/`Grid` → conteúdo.
+- Use os primitivos (`Stack`/`Grid`/`Spacer`/`Center`) em vez de CSS flex/grid ad-hoc — eles usam os tokens de spacing (escala 4px) e são responsivos por construção.
+- `direction`/`columns`/`layout` aceitam `ResponsiveValue` → layout responsivo sem escrever media query.
+- `SafeArea` só em superfícies custom; `Navbar`/`BottomNavigation`/`Toast`/`Modal.fullscreen` já tratam o notch.
+
+Páginas relacionadas:
+
+- [Navegação](./navigation.md) — `Navbar`, `Sidebar`, `BottomNavigation` que preenchem os slots do `AppShell`.
+- [Entrada de dados](./inputs.md) — `Form`/`FormSection`/`FormRow`/`FormActions` para estruturar campos dentro de um `Page`.
+- [Dados](./data.md) — `Table`/`DataTable`/`Pagination` que vivem no conteúdo de um `Page`.
+- [App Providers](../app-providers.md) e [Roteamento](../routing.md) — a glue que envolve o `AppShell`.

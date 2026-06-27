@@ -32,7 +32,7 @@ import { Toggle } from "tempest-react-sdk";
 Remaining `<button>` props are forwarded.
 
 !!! info "A11y"
-Renders a native `<button type="button">` exposing its state through `aria-pressed` and `data-state="on"|"off"`.
+    Renders a native `<button type="button">` exposing its state through `aria-pressed` and `data-state="on"|"off"`.
 
 ### `ToggleGroup` (+ `ToggleGroupItem`)
 
@@ -67,7 +67,7 @@ import { ToggleGroup, ToggleGroupItem } from "tempest-react-sdk";
 | `children` | `ReactNode` | —       | Item content                       |
 
 !!! note "Single mode"
-In `single` mode, `onValueChange` receives `""` (empty string) when nothing is selected.
+    In `single` mode, `onValueChange` receives `""` (empty string) when nothing is selected.
 
 ### `Label`
 
@@ -108,7 +108,7 @@ import { Collapsible } from "tempest-react-sdk";
 | `children`     | `ReactNode`               | —       | Collapsible content, hidden while closed         |
 
 !!! info "A11y"
-The trigger is a `<button aria-expanded aria-controls>` wired to a `role="region"` sharing the same id; the region is `hidden` while closed.
+    The trigger is a `<button aria-expanded aria-controls>` wired to a `role="region"` sharing the same id; the region is `hidden` while closed.
 
 ### `ContextMenu`
 
@@ -138,7 +138,7 @@ import { ContextMenu } from "tempest-react-sdk";
 `ContextMenuItem` = `{ label: ReactNode; onSelect?: () => void; disabled?: boolean; danger?: boolean }` or `{ separator: true }`.
 
 !!! tip "Keyboard"
-Arrow Up/Down move focus across selectable items; Enter activates the focused item.
+    Arrow Up/Down move focus across selectable items; Enter activates the focused item.
 
 ### `HoverCard`
 
@@ -164,7 +164,7 @@ import { HoverCard } from "tempest-react-sdk";
 | `placement`  | `"top" \| "bottom" \| "left" \| "right"` | `"bottom"` | Where the card is anchored relative to the trigger |
 
 !!! info "A11y"
-The card is a labelled `role="dialog"` region; the trigger stays keyboard focusable.
+    The card is a labelled `role="dialog"` region; the trigger stays keyboard focusable.
 
 ### `Command` (⌘K palette)
 
@@ -200,7 +200,7 @@ const [open, setOpen] = useState(false);
 `CommandItem` = `{ id: string; label: string; group?: string; keywords?: string[]; onSelect: () => void; icon?: ReactNode }`.
 
 !!! tip "Global trigger"
-Pair with `useKeyboardShortcut("mod+k", () => setOpen(true))` to open via ⌘K / Ctrl+K.
+    Pair with `useKeyboardShortcut("mod+k", () => setOpen(true))` to open via ⌘K / Ctrl+K.
 
 ## Layout & UX
 
@@ -249,7 +249,7 @@ import { Resizable } from "tempest-react-sdk";
 | `children`    | `[ReactNode, ReactNode]`     | —              | Exactly two panes — `[paneA, paneB]`            |
 
 !!! warning "Exactly two children"
-`children` is a `[ReactNode, ReactNode]` tuple. The size is always clamped to `[min, max]`.
+    `children` is a `[ReactNode, ReactNode]` tuple. The size is always clamped to `[min, max]`.
 
 ### `Calendar`
 
@@ -276,7 +276,7 @@ const [date, setDate] = useState<Date>();
 | `weekStartsOn`  | `0 \| 1`                | `0`     | First column — `0` Sunday, `1` Monday             |
 
 !!! tip "Keyboard"
-Arrow keys move focus by day (←/→) or week (↑/↓); Enter/Space selects the focused day.
+    Arrow keys move focus by day (←/→) or week (↑/↓); Enter/Space selects the focused day.
 
 ## Navigation & content
 
@@ -308,7 +308,7 @@ import { NavigationMenu } from "tempest-react-sdk";
 `NavigationMenuItem` = `{ label: ReactNode; href?: string; onSelect?: () => void; children?: NavigationMenuItem[] }`.
 
 !!! note "Closing"
-Closes on outside click, Escape, or selecting a leaf entry.
+    Closes on outside click, Escape, or selecting a leaf entry.
 
 ### `Menubar`
 
@@ -362,7 +362,7 @@ import { Carousel } from "tempest-react-sdk";
 | `onIndexChange` | `(index: number) => void` | —       | Called whenever the active index changes    |
 
 !!! tip "Keyboard"
-Arrow Left/Right on the focused region navigate between slides.
+    Arrow Left/Right on the focused region navigate between slides.
 
 ## Data
 
@@ -411,7 +411,7 @@ const columns: DataTableColumn<User>[] = [
 `DataTableColumn<T>` = `{ key: keyof T; header: ReactNode; render?: (row: T) => ReactNode; sortable?: boolean; align?: TableAlign; priority?: TablePriority; width?: string | number }`. `DataTableSort<T>` = `{ key: keyof T; direction: "asc" | "desc" }`.
 
 !!! info "Behavior"
-Clicking a sortable header cycles asc → desc → unsorted. Search matches a case-insensitive substring across `searchKeys` (or every string/number column when omitted). Pagination is hidden when the result fits on a single page.
+    Clicking a sortable header cycles asc → desc → unsorted. Search matches a case-insensitive substring across `searchKeys` (or every string/number column when omitted). Pagination is hidden when the result fits on a single page.
 
 ## Recap
 

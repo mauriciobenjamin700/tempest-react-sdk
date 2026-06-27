@@ -1,0 +1,7 @@
+# Base URL of your backend API (consumed by src/lib/api.ts).
+VITE_API_URL=http://127.0.0.1:8000
+
+# VAPID public key for web push (consumed by usePushSubscription in
+# src/pages/Dashboard.tsx). Generate a key pair on your backend; the private
+# half stays on the server, this public half ships to the browser.
+VITE_VAPID_PUBLIC_KEY=

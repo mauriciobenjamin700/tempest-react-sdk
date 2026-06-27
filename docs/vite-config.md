@@ -29,10 +29,10 @@ import { createViteConfig } from "tempest-react-sdk/vite";
 ```
 
 !!! info "Por que um subpath separado?"
-O barrel principal roda no **navegador** (componentes React, hooks). Já o
-`createViteConfig` roda no **Node**, dentro do `vite.config.ts`, durante o
-build. São ambientes diferentes, então o helper mora num subpath dedicado pra
-nunca arrastar código de config pro seu bundle de produção.
+    O barrel principal roda no **navegador** (componentes React, hooks). Já o
+    `createViteConfig` roda no **Node**, dentro do `vite.config.ts`, durante o
+    build. São ambientes diferentes, então o helper mora num subpath dedicado pra
+    nunca arrastar código de config pro seu bundle de produção.
 
 ### Peer deps
 
@@ -86,10 +86,10 @@ export default createViteConfig({
 ```
 
 !!! warning "O alias `@` também precisa estar no `tsconfig.json`"
-O Vite e o TypeScript resolvem caminhos de forma **independente**. O
-`createViteConfig` ensina o Vite a resolver `@`, mas o type-checker não sabe
-de nada até você declarar o mesmo alias em `compilerOptions.paths`. Sem isso, o
-`tsc` vai reclamar de "Cannot find module '@/...'" mesmo com o app rodando.
+    O Vite e o TypeScript resolvem caminhos de forma **independente**. O
+    `createViteConfig` ensina o Vite a resolver `@`, mas o type-checker não sabe
+    de nada até você declarar o mesmo alias em `compilerOptions.paths`. Sem isso, o
+    `tsc` vai reclamar de "Cannot find module '@/...'" mesmo com o app rodando.
 
     ```jsonc
     // tsconfig.json — mantenha o alias @ em sincronia com o type-checker
@@ -138,8 +138,8 @@ export default createViteConfig({
 ```
 
 !!! tip "Misture os dois à vontade"
-Cada chave do `proxy` é tratada de forma independente: strings são expandidas,
-objetos passam direto. Use o atalho onde der e o objeto onde precisar.
+    Cada chave do `proxy` é tratada de forma independente: strings são expandidas,
+    objetos passam direto. Use o atalho onde der e o objeto onde precisar.
 
 ## O escape hatch: `overrides`
 
@@ -160,11 +160,11 @@ export default createViteConfig({
 ```
 
 !!! note "Merge, não substituição"
-Em `overrides`, as chaves `plugins`, `resolve` e `server` são **mescladas** com
-o que o helper já configurou — não sobrescritas. Então um `overrides.server`
-com uma chave nova convive com o `port`/`host` que você passou nas opções de
-primeiro nível, e `overrides.plugins` são acrescentados aos seus. O resto do
-`UserConfig` (`build`, `define`, etc.) entra normalmente.
+    Em `overrides`, as chaves `plugins`, `resolve` e `server` são **mescladas** com
+    o que o helper já configurou — não sobrescritas. Então um `overrides.server`
+    com uma chave nova convive com o `port`/`host` que você passou nas opções de
+    primeiro nível, e `overrides.plugins` são acrescentados aos seus. O resto do
+    `UserConfig` (`build`, `define`, etc.) entra normalmente.
 
 ## Referência das opções
 

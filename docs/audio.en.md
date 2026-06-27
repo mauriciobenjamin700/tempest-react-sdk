@@ -3,7 +3,7 @@
 Sound notifications (message chime, payment confirmation, etc.) on top of the browser's native `Audio`. Three entry points: `playAudio` (one-off on the shared player), `useAudio` (private per-component player), and `createAudioPlayer` (isolated imperative channel).
 
 !!! info "Why a wrapper around `new Audio()`?"
-Playing sound in the browser runs into the _autoplay policy_ and leaking `Audio` elements. The SDK encapsulates it: it tracks the current clip (so you can `stop` it), normalizes volume, handles the autoplay block by returning `null` instead of throwing, and cleans up on unmount when you use the hook.
+    Playing sound in the browser runs into the _autoplay policy_ and leaking `Audio` elements. The SDK encapsulates it: it tracks the current clip (so you can `stop` it), normalizes volume, handles the autoplay block by returning `null` instead of throwing, and cleans up on unmount when you use the hook.
 
 ## `playAudio` — one-off on the shared player
 
@@ -55,7 +55,7 @@ export function NotificationBell() {
 - Automatic cleanup on unmount.
 
 !!! tip "Use `unlocked` to guide the user"
-Before the first click, the browser blocks audio. Show a hint ("tap to enable sound") while `unlocked === false` and hide it as soon as it flips to `true`.
+    Before the first click, the browser blocks audio. Show a hint ("tap to enable sound") while `unlocked === false` and hide it as soon as it flips to `true`.
 
 ## `createAudioPlayer` — isolated channels
 
@@ -81,7 +81,7 @@ Each player tracks **one** current clip. `stopPrevious: true` in `play()` stops 
 Browsers block playback before the user's first interaction. `playAudio` / `play()` return `null` when blocked (and call `onError` if provided) — instead of throwing.
 
 !!! warning "Unlock audio on the first click"
-You can't play sound before any interaction. Design the app to fire a `play()` (even of a short silent clip) on the first click of any button; from then on the browser allows the rest.
+    You can't play sound before any interaction. Design the app to fire a `play()` (even of a short silent clip) on the first click of any button; from then on the browser allows the rest.
 
 ## Assets
 

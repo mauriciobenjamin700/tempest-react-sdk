@@ -9,7 +9,7 @@
 Esta página é um tutorial: vamos do comando vazio até o app rodando no navegador, e depois passeamos por cada arquivo gerado pra entender qual recurso do SDK ele demonstra. 🚀
 
 !!! info "Versionada junto com o SDK"
-Como a CLI mora dentro do `tempest-react-sdk`, ela é **versionada junto com o SDK**. Fixar uma versão é fixar a versão do SDK: `npx -p tempest-react-sdk@0.5.1 create-tempest-app …`. E o app gerado já nasce com a dependência `tempest-react-sdk` **carimbada na mesma versão** que o produziu — nada de número hardcoded que desatualiza.
+    Como a CLI mora dentro do `tempest-react-sdk`, ela é **versionada junto com o SDK**. Fixar uma versão é fixar a versão do SDK: `npx -p tempest-react-sdk@0.5.1 create-tempest-app …`. E o app gerado já nasce com a dependência `tempest-react-sdk` **carimbada na mesma versão** que o produziu — nada de número hardcoded que desatualiza.
 
 ## Crie seu primeiro app
 
@@ -28,10 +28,10 @@ O `-p tempest-react-sdk` diz ao `npx` qual pacote buscar; `create-tempest-app my
 Abra **<http://127.0.0.1:5173>** — o app já está no ar com providers, rotas e store funcionando.
 
 !!! tip "Sem nome de projeto?"
-Rodar **sem argumento** (ou `.`) pula o modo pasta-nova e **mescla no diretório atual** — veja a próxima seção.
+    Rodar **sem argumento** (ou `.`) pula o modo pasta-nova e **mescla no diretório atual** — veja a próxima seção.
 
 !!! warning "A pasta de destino precisa estar vazia"
-No modo de projeto novo (`create-tempest-app my-app`), o diretório alvo **não pode existir** ou precisa estar **vazio**. Isso evita sobrescrever um projeto seu por acidente. Se a pasta já tem arquivos, a CLI sugere usar `.` para **mesclar** no diretório atual em vez de abortar (veja a próxima seção).
+    No modo de projeto novo (`create-tempest-app my-app`), o diretório alvo **não pode existir** ou precisa estar **vazio**. Isso evita sobrescrever um projeto seu por acidente. Se a pasta já tem arquivos, a CLI sugere usar `.` para **mesclar** no diretório atual em vez de abortar (veja a próxima seção).
 
 ## Scaffold dentro de um projeto existente
 
@@ -50,7 +50,7 @@ Nesse modo "diretório atual":
 - Um `package.json` existente tem os scripts e deps da Tempest **mesclados**: seu `name`/`version` e os scripts/deps que já estavam lá são mantidos, e o `tempest-react-sdk` é fixado na **própria versão do SDK** que está rodando o scaffold.
 
 !!! info "O `.env`"
-O `.env.example` declara `VITE_API_URL`, a base usada pelo cliente HTTP em `src/lib/api.ts`. Copie pra `.env` e ajuste pra apontar pro seu backend.
+    O `.env.example` declara `VITE_API_URL`, a base usada pelo cliente HTTP em `src/lib/api.ts`. Copie pra `.env` e ajuste pra apontar pro seu backend.
 
 ### Scripts disponíveis
 
@@ -145,7 +145,102 @@ export const useAuth = createSelectors(createAuthStore<User>({ name: "app-auth" 
 `createAuthStore<User>` cria uma store Zustand de autenticação persistida (`name: "app-auth"` é a chave de storage). `createSelectors` te dá acesso atômico via `useAuth.use.<campo>()` — é assim que `RootLayout.tsx` lê `useAuth.use.isAuthenticated()` e `Login.tsx` chama `useAuth.use.setSession()`. Mais padrões em [State](./state.md).
 
 !!! note "O resto se explica sozinho"
-`routes.tsx` usa `defineRoutes([...])` com uma rota index, uma de login e um `dashboard` que é ao mesmo tempo **lazy** e **protegido** por guard. `lib/api.ts` instancia `createApiClient` com `baseURL`/`getToken`/`onUnauthorized` e exporta `createQueryKeys` pra você organizar as chaves de cache.
+    `routes.tsx` usa `defineRoutes([...])` com uma rota index, uma de login e um `dashboard` que é ao mesmo tempo **lazy** e **protegido** por guard. `lib/api.ts` instancia `createApiClient` com `baseURL`/`getToken`/`onUnauthorized` e exporta `createQueryKeys` pra você organizar as chaves de cache.
+
+## Modo PWA (`--pwa`)
+
+Quer que o app já nasça **instalável** (ícone na home screen) e capaz de **emitir notificações web push**? Passe a flag `--pwa`:
+
+```bash
+npx -p tempest-react-sdk create-tempest-app my-app --pwa
+```
+
+A flag funciona nos dois modos (pasta nova **e** `.`/merge). Ela **sobrepõe** o template PWA por cima do base: tudo do app normal continua igual, mais alguns arquivos novos e alguns sobrescritos.
+
+!!! info "Sem `vite-plugin-pwa`, sem Workbox"
+    O SW é montado com os próprios helpers do SDK (`tempest-react-sdk/sw`) e empacotado por um build dedicado. Nada de dependência extra de PWA — o app PWA usa exatamente as mesmas deps do app base.
+
+### O que a flag adiciona
+
+```text
+my-app/
+├── index.html                  # (sobrescrito) link do manifest + theme-color + metas apple
+├── vite.sw.config.ts           # build dedicado que empacota src/sw.ts -> dist/sw.js
+├── public/
+│   ├── manifest.webmanifest    # metadados de instalação (nome, ícones, cor do tema)
+│   ├── icon.svg                # ícone do app (placeholder — troque pelo seu)
+│   └── icon-maskable.svg       # variante maskable (Android adaptive icon)
+└── src/
+    ├── sw.ts                   # service worker: push + notificationclick + skip-waiting
+    ├── main.tsx                # (sobrescrito) registra /sw.js em produção, limpa SW em dev
+    ├── vite-env.d.ts           # (sobrescrito) tipa VITE_VAPID_PUBLIC_KEY
+    └── pages/Dashboard.tsx     # (sobrescrito) botão Instalar + toggle de notificações
+```
+
+O `package.json` também é ajustado: o script `build` passa a empacotar o SW (`tsc --noEmit && vite build && npm run build:sw`) e ganha um `build:sw`.
+
+!!! warning "Em merge, seus arquivos são preservados"
+    No modo `.` (mesclar em projeto existente), a CLI **nunca sobrescreve um arquivo seu** — só os que ela mesma acabou de gerar. Se você já tinha um `index.html`, ele é pulado e reportado, e a parte PWA dele fica por sua conta.
+
+### As três peças
+
+#### 1. Instalação → `useBeforeInstallPrompt`
+
+O `index.html` linka o `manifest.webmanifest`, e o `Dashboard.tsx` mostra um botão **Instalar** só quando o navegador oferece o prompt:
+
+```tsx
+const install = useBeforeInstallPrompt();
+// ...
+{
+  install.installable && <Button onClick={() => void install.prompt()}>Install app</Button>;
+}
+```
+
+#### 2. Service worker → `tempest-react-sdk/sw`
+
+O `src/sw.ts` é só cola em cima dos helpers do SDK:
+
+```ts
+/// <reference lib="webworker" />
+import {
+  installNotificationClickHandler,
+  installPushHandler,
+  installSkipWaitingListener,
+} from "tempest-react-sdk/sw";
+
+installPushHandler({ defaultTitle: "Notificação", defaultIcon: "/icon.svg" });
+installNotificationClickHandler();
+installSkipWaitingListener();
+```
+
+O `vite.sw.config.ts` empacota esse arquivo (e os helpers que ele importa) num **service worker clássico** em `dist/sw.js`, e o `main.tsx` registra ele **só em produção** via `registerServiceWorker`. Veja os detalhes dos helpers em [Web Push](./push.md).
+
+#### 3. Web push → `usePushSubscription`
+
+O `Dashboard.tsx` liga o toggle de notificações ao hook, lendo a chave VAPID do `.env`:
+
+```tsx
+const push = usePushSubscription({
+  vapidPublicKey: import.meta.env.VITE_VAPID_PUBLIC_KEY ?? "",
+  onSubscribe: async (subscription) => {
+    // mande a subscription pro seu backend entregar os pushes
+    await api.post("/webpush/subscribe", { body: subscription });
+  },
+  onUnsubscribe: async () => {
+    await api.delete("/webpush/my");
+  },
+});
+```
+
+!!! danger "Push e offline só valem num build de produção"
+    O service worker é empacotado **em tempo de build**, então ele só existe depois de `npm run build`. Em `npm run dev` o SW é **desregistrado de propósito** pra evitar cache velho. Pra testar instalação e push, rode `npm run build && npm run preview`.
+
+!!! tip "Troque os ícones"
+    O `public/icon.svg` é um placeholder. Pra instalabilidade garantida em todos os navegadores, adicione PNGs (192×192 e 512×512) em `public/` e aponte as entradas `icons` do `manifest.webmanifest` pra eles.
+
+### Recap do modo PWA
+
+`--pwa` te entrega manifest + service worker + push **já cabeados** sobre o mesmo app base, usando os helpers `tempest-react-sdk/sw`, `usePushSubscription` e `useBeforeInstallPrompt` do SDK — sem `vite-plugin-pwa`. Gere o VAPID no backend, preencha `VITE_VAPID_PUBLIC_KEY` no `.env`, e teste com `npm run build && npm run preview`. 🚀
 
 ## Próximos passos
 

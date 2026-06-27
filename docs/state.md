@@ -5,7 +5,7 @@ Toda aplicação precisa guardar estado que vive **fora** de um único component
 A ideia é que você nunca mais escreva à mão o boilerplate de `persist` + `createJSONStorage` nem digite seletores um a um. Você descreve o estado, e o SDK cuida do resto. 🚀
 
 !!! info "Já conhece o `createAuthStore`?"
-Se você leu a página de [Auth](auth.md), já viu o `createAuthStore<TUser>` — um store de autenticação **pronto e persistido**. O `createStore` é o **primo genérico** dele: serve para qualquer fatia de domínio (carrinho, preferências, wizard). Ambos são Zustand por baixo dos panos, então tudo que você aprender aqui vale para os dois.
+    Se você leu a página de [Auth](auth.md), já viu o `createAuthStore<TUser>` — um store de autenticação **pronto e persistido**. O `createStore` é o **primo genérico** dele: serve para qualquer fatia de domínio (carrinho, preferências, wizard). Ambos são Zustand por baixo dos panos, então tudo que você aprender aqui vale para os dois.
 
 ## O que o Zustand te dá (e por que o SDK envolve)
 
@@ -93,7 +93,7 @@ Recapitulando peça por peça:
 | `migrate`    | `(persisted, version) => T` | —          | Transforma um payload antigo no formato atual ao reidratar.  |
 
 !!! tip "Sempre use `partialize` para campos transitórios"
-Estado derivado ou efêmero — um spinner `isLoading`, um `searchQuery` digitado agora, handlers — **não** deveria viver no storage. Se você persistir tudo, um `isLoading: true` salvo no meio de uma requisição pode reidratar travado em `true` no próximo reload. Liste em `partialize` só o que é fonte de verdade durável (aqui, `items`). ✅
+    Estado derivado ou efêmero — um spinner `isLoading`, um `searchQuery` digitado agora, handlers — **não** deveria viver no storage. Se você persistir tudo, um `isLoading: true` salvo no meio de uma requisição pode reidratar travado em `true` no próximo reload. Liste em `partialize` só o que é fonte de verdade durável (aqui, `items`). ✅
 
 ### Reidratação entre reloads
 
@@ -107,7 +107,7 @@ Quando a página carrega, o middleware `persist` lê o payload salvo no storage 
 Isso acontece de forma síncrona com storage web, então na primeira pintura o estado já está restaurado — sem flash de carrinho vazio.
 
 !!! note "Versionando o schema persistido"
-Mudou o formato do estado salvo (renomeou um campo, trocou `string[]` por objetos)? Suba `version` e escreva um `migrate` que recebe o payload antigo e devolve o novo formato. Sem isso, um payload antigo no navegador de um usuário pode reidratar com um shape que seu código não espera mais.
+    Mudou o formato do estado salvo (renomeou um campo, trocou `string[]` por objetos)? Suba `version` e escreva um `migrate` que recebe o payload antigo e devolve o novo formato. Sem isso, um payload antigo no navegador de um usuário pode reidratar com um shape que seu código não espera mais.
 
 ## `createSelectors` — uma assinatura por campo
 
@@ -146,7 +146,7 @@ function Counter() {
 `useCounter.use.count()` assina **só** `count`. Se outra fatia do estado mudar, este componente não re-renderiza. Você ganha a granularidade de seletor sem digitar funções de seletor.
 
 !!! tip "Por que isso importa para performance"
-Em um store com muitos campos, um componente que só mostra `count` não deveria re-renderizar quando `items` muda. Os seletores por campo do `.use` dão exatamente esse isolamento — cada componente assina o mínimo que precisa, e re-renders viram localizados em vez de globais.
+    Em um store com muitos campos, um componente que só mostra `count` não deveria re-renderizar quando `items` muda. Os seletores por campo do `.use` dão exatamente esse isolamento — cada componente assina o mínimo que precisa, e re-renders viram localizados em vez de globais.
 
 ### Combinando com `createAuthStore`
 
@@ -187,7 +187,7 @@ function requireAuth(): boolean {
 É exatamente assim que um guard de rota lê a sessão de auth: ele precisa do valor _agora_, uma vez, sem assinar para re-renders. `getState()` te dá um snapshot. (Para _reagir_ a mudanças fora do React, use `useStore.subscribe()`.)
 
 !!! warning "`getState()` não assina"
-`getState()` lê uma vez e não re-renderiza nada quando o estado muda depois. Dentro de componentes, prefira sempre o hook (`useStore(...)` ou `useStore.use.campo()`) para que a UI se mantenha em sincronia. Reserve `getState()` para o código fora do React.
+    `getState()` lê uma vez e não re-renderiza nada quando o estado muda depois. Dentro de componentes, prefira sempre o hook (`useStore(...)` ou `useStore.use.campo()`) para que a UI se mantenha em sincronia. Reserve `getState()` para o código fora do React.
 
 ## Recap
 

@@ -7,7 +7,7 @@ import { groupBy, pick, debounce, formatBytes } from "tempest-react-sdk";
 ```
 
 !!! tip "Tree-shaking"
-Every function is an independent named export. Import only what you use — your app's bundler drops the rest.
+    Every function is an independent named export. Import only what you use — your app's bundler drops the rest.
 
 ---
 
@@ -46,7 +46,7 @@ range(5, 0, -1); // [5, 4, 3, 2, 1]
 ```
 
 !!! warning "`chunk` requires `size >= 1`"
-Calling `chunk(items, 0)` throws `RangeError`. `range` with a wrong-direction (or `0`) step returns `[]` instead of throwing.
+    Calling `chunk(items, 0)` throws `RangeError`. `range` with a wrong-direction (or `0`) step returns `[]` instead of throwing.
 
 ---
 
@@ -79,7 +79,7 @@ isEmpty(""); // true
 ```
 
 !!! info "`deepMerge` does not merge arrays"
-Arrays and non-plain values (dates, class instances, primitives) **replace** the whole `target` value — there is no element-by-element merge. `deepMerge({ tags: ["a", "b"] }, { tags: ["c"] })` yields `{ tags: ["c"] }`.
+    Arrays and non-plain values (dates, class instances, primitives) **replace** the whole `target` value — there is no element-by-element merge. `deepMerge({ tags: ["a", "b"] }, { tags: ["c"] })` yields `{ tags: ["c"] }`.
 
 ---
 
@@ -118,7 +118,7 @@ function area(shape: Shape): number {
 ```
 
 !!! tip "`assertNever` is an exhaustiveness check"
-Use it in the `default` branch of a `switch`. If you add a new union member and forget to handle it, TypeScript complains at compile time — and the runtime fails loudly if something slips through.
+    Use it in the `default` branch of a `switch`. If you add a new union member and forget to handle it, TypeScript complains at compile time — and the runtime fails loudly if something slips through.
 
 ---
 
@@ -156,7 +156,7 @@ select(2, 2); // recomputes 4
 ```
 
 !!! note "`memoizeOne` remembers only the last call"
-Unlike an LRU cache — any different argument list recomputes and replaces the cache. Ideal for selectors derived from props.
+    Unlike an LRU cache — any different argument list recomputes and replaces the cache. Ideal for selectors derived from props.
 
 ---
 
@@ -195,7 +195,7 @@ randomId("user"); // "user-9f1c2b3a-..."
 ```
 
 !!! tip "Great for UI keys"
-Use it for client-generated lists when there is no stable id from the server. For persisted ids, prefer the real backend id.
+    Use it for client-generated lists when there is no stable id from the server. For persisted ids, prefer the real backend id.
 
 ---
 
@@ -225,7 +225,7 @@ pluralize(2, "person", "people"); // "people"
 ```
 
 !!! note "Pre-existing — `slugify` and `truncate`"
-Already in the strings module: `slugify(input)` builds a URL-safe slug (`"São Paulo / Centro"` → `"sao-paulo-centro"`), and `truncate(input, max, suffix?)` cuts text to `max` characters appending `…` (or the given `suffix`).
+    Already in the strings module: `slugify(input)` builds a URL-safe slug (`"São Paulo / Centro"` → `"sao-paulo-centro"`), and `truncate(input, max, suffix?)` cuts text to `max` characters appending `…` (or the given `suffix`).
 
 ---
 
@@ -249,7 +249,7 @@ formatCompactNumber(1234, "pt-BR"); // "1,2 mil"
 ```
 
 !!! note "Pre-existing — `clamp`"
-`clamp(value, min, max)` pins a number to the `[min, max]` range (and tolerates `min > max`, swapping the bounds). `clamp(120, 0, 100)` → `100`.
+    `clamp(value, min, max)` pins a number to the `[min, max]` range (and tolerates `min > max`, swapping the bounds). `clamp(120, 0, 100)` → `100`.
 
 ---
 

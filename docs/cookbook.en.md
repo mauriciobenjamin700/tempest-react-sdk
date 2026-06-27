@@ -6,8 +6,8 @@ couple of explanations. The recipes combine several `tempest-react-sdk` modules
 into flows that Tempest apps repeat all the time. 🚀
 
 !!! info "Common prerequisites"
-Every recipe assumes you have installed the SDK and imported the CSS once at your
-app entrypoint:
+    Every recipe assumes you have installed the SDK and imported the CSS once at your
+    app entrypoint:
 
     ```bash
     npm install tempest-react-sdk
@@ -123,9 +123,9 @@ export const routes = defineRoutes([
   see [Auth](./auth.md).
 
 !!! tip "Guard as a route vs. component"
-Use `guard: () => useAuth.getState().isAuthenticated` right in the `defineRoutes`
-tree when a whole route is protected; use `<RouteGuard when={...}>` when you guard
-a piece of JSX. Details in [Routing](./routing.md).
+    Use `guard: () => useAuth.getState().isAuthenticated` right in the `defineRoutes`
+    tree when a whole route is protected; use `<RouteGuard when={...}>` when you guard
+    a piece of JSX. Details in [Routing](./routing.md).
 
 ## Paginated list with search and sorting
 
@@ -181,9 +181,9 @@ export function Users() {
   [Overlays & advanced](./components/advanced.md).
 
 !!! note "Server-side pagination"
-For large datasets, fetch one page at a time (pass `page`/`pageSize` in the
-`queryFn`) and use the headless `Table` instead of `DataTable` — that way sorting
-and pagination are the backend's job.
+    For large datasets, fetch one page at a time (pass `page`/`pageSize` in the
+    `queryFn`) and use the headless `Table` instead of `DataTable` — that way sorting
+    and pagination are the backend's job.
 
 ## Form with zod validation
 
@@ -325,9 +325,9 @@ export function App() {
   [Theme](./theme.md).
 
 !!! tip "Using AppProviders"
-If you use `<AppProviders>`, theme is already on — tweak it with
-`theme={{ defaultTheme: "dark" }}`. The inline script in `index.html` is still
-required for the no-flash.
+    If you use `<AppProviders>`, theme is already on — tweak it with
+    `theme={{ defaultTheme: "dark" }}`. The inline script in `index.html` is still
+    required for the no-flash.
 
 ## Offline-first
 
@@ -391,9 +391,9 @@ export async function markAllRead(ownerId: string): Promise<void> {
   offline with the same code. See [Offline](./offline.md).
 
 !!! warning "Don't use it for volatile UI state"
-IndexedDB is for data that must **survive a reload** (history, drafts, cache). For
-ephemeral UI state (spinner, active tab) use Zustand — it's much cheaper. See
-[State](./state.md).
+    IndexedDB is for data that must **survive a reload** (history, drafts, cache). For
+    ephemeral UI state (spinner, active tab) use Zustand — it's much cheaper. See
+    [State](./state.md).
 
 ## Command palette ⌘K
 
@@ -496,9 +496,9 @@ I18nProvider → children` in the right order, and `<AppRouter>` assembles route
   [App Providers](./app-providers.md), and [Routing](./routing.md).
 
 !!! tip "Already have a project?"
-Inside an existing project, run `npm install tempest-react-sdk` and
-`npx create-tempest-app .` — the CLI generates `src/` + configs **in the current
-directory**, preserving files that already exist and merging `package.json`.
+    Inside an existing project, run `npm install tempest-react-sdk` and
+    `npx create-tempest-app .` — the CLI generates `src/` + configs **in the current
+    directory**, preserving files that already exist and merging `package.json`.
 
 ## Recap
 

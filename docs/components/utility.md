@@ -126,7 +126,7 @@ import { Portal } from "tempest-react-sdk";
 | `container` | `Element \| null` | `document.body` | Nó DOM alvo.                            |
 
 !!! info "SSR-safe"
-Renderiza `null` no servidor e no primeiro render do cliente; monta o portal só depois da hidratação.
+    Renderiza `null` no servidor e no primeiro render do cliente; monta o portal só depois da hidratação.
 
 ### `ClickOutside`
 

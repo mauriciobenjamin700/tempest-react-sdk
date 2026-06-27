@@ -2,6 +2,15 @@
 
 Demo interativo de todos os componentes e features do SDK. Roda como app Vite + React em [`examples/gallery`](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/examples/gallery).
 
+## O que é a gallery?
+
+A gallery é um app Vite + React **real** que consome o SDK exatamente como um app
+de produção faria — via `npm install` apontando para `file:../..`. Ela substitui
+o Storybook: cada seção monta componentes com props variadas, exercita hooks ao
+vivo (SSE, toast, paginação) e serve como banco de provas visual quando você
+mexe em estilos ou layout. Se um componente parece certo na gallery, parece certo
+nos apps consumidores.
+
 ## Como rodar
 
 ```bash
@@ -15,6 +24,16 @@ npm run dev             # http://127.0.0.1:5173
 ```
 
 `tempest-react-sdk` é consumido via `file:../..` — qualquer rebuild da raiz aparece na gallery após reload.
+
+!!! tip "Rode `npm run dev` na raiz em paralelo"
+    A gallery serve o `dist/` do SDK. Para ver mudanças no SDK na hora, deixe um
+    `npm run dev` (vite build --watch) rodando na raiz numa aba e o
+    `npm run dev` da gallery em outra — cada rebuild recarrega a página.
+
+!!! note "Valide UI nos dois breakpoints"
+    A gallery é o lugar pra conferir responsividade: redimensione para ≤ 430px
+    (mobile) e ≥ 1024px (desktop) antes de dar uma mudança visual como pronta.
+    Stack/Grid/Modal/Drawer/Table todos têm comportamento responsivo aqui.
 
 ## Seções
 
@@ -100,6 +119,16 @@ Os screenshots não são commitados — gere localmente abrindo o app em `dev`. 
 - `gallery-light.png` — visão geral no tema claro
 - `gallery-dark.png` — mesmo conteúdo no tema escuro
 - `gallery-mobile.png` — viewport ≤ 430px
+
+## Resumo
+
+- A gallery é um app Vite + React real que consome o SDK via `file:../..` — faz
+  o papel de Storybook.
+- Rode com `npm run build` na raiz, depois `npm run dev` em `examples/gallery`
+  (porta `5173`).
+- 9 seções cobrem componentes, hooks, tema/i18n, integrações ao vivo e utils.
+- Use-a pra validar UI nos breakpoints mobile e desktop antes de fechar uma
+  mudança visual.
 
 ## Veja também
 

@@ -4,6 +4,11 @@
 what you use; everything is externalized in the SDK bundle, so your app's bundler
 tree-shakes whatever isn't referenced.
 
+!!! tip "Import only what you use"
+    There's no penalty for the SDK being large. Each layer (HTTP, auth, query,
+    forms…) is independent — if you never import `createOfflineStore`, `dexie`
+    never enters your bundle. Start with a single `Button` and grow from there.
+
 > Editable diagram: [architecture.drawio](./diagrams/architecture.drawio) (open in [draw.io](https://app.diagrams.net)).
 
 ## Layers
@@ -54,6 +59,12 @@ automatically by `npm install tempest-react-sdk` and externalized in the bundle
 | `lucide-react`                 | Direct dep          | Icons (`leftIcon`/`rightIcon`)                                                  |
 | `vite`, `@vitejs/plugin-react` | **Optional peer**   | `createViteConfig` (subpath `tempest-react-sdk/vite`) — already in any Vite app |
 
+!!! note "Only `react` and `react-dom` are peers"
+    The single React instance rule forces those two to be peer deps. Everything
+    else (`zustand`, `zod`, `dexie`, `react-hook-form`, `@tanstack/react-query`,
+    `lucide-react`) is a direct dependency — `npm install tempest-react-sdk` pulls
+    them all in, with nothing for you to list by hand.
+
 Adapters for external SDKs (Sentry, PostHog, GrowthBook, LaunchDarkly) are **not**
 declared — the caller injects the instance into the factory.
 
@@ -71,6 +82,18 @@ declared — the caller injects the instance into the factory.
 Vite library mode → ESM (`tempest-react-sdk.js`) + CJS (`.cjs`) + rolled-up
 `.d.ts` + `styles.css` (CSS Modules in a single file, `cssCodeSplit: false`).
 Budget monitored by `size-limit` in CI.
+
+## Recap
+
+- One package, independent layers; you import only what you use and the bundler
+  tree-shakes the rest.
+- Only `react` + `react-dom` are peers; the other libs are direct deps installed
+  alongside.
+- Four subpaths: the main barrel, `…/styles.css`, `…/vite` (Node-only) and
+  `…/testing`.
+- The app foundation ([Vite](./vite-config.md) · [Router](./routing.md) ·
+  [Store](./state.md) · [Providers](./app-providers.md)) is what
+  [`create-tempest-app`](./scaffold.md) assembles for you.
 
 ## See also
 

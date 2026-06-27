@@ -3,7 +3,7 @@
 `createLogger` é um logger nivelado com **sinks plugáveis**. O padrão escreve no `console`; você troca ou soma destinos (Sentry, Datadog, ingestão remota) implementando a interface `LoggerSink`. Cada entrada é estruturada (`{ level, message, context, timestamp }`), não uma string solta.
 
 !!! info "Por que não `console.log` direto?"
-`console.log` espalhado pelo código não tem nível (não dá pra silenciar `debug` em produção), não tem namespace (de onde veio aquele log?) e não dá pra redirecionar para um serviço remoto. O logger resolve os três: filtra por nível, prefixa namespaces e despacha a mesma entrada para quantos sinks você quiser.
+    `console.log` espalhado pelo código não tem nível (não dá pra silenciar `debug` em produção), não tem namespace (de onde veio aquele log?) e não dá pra redirecionar para um serviço remoto. O logger resolve os três: filtra por nível, prefixa namespaces e despacha a mesma entrada para quantos sinks você quiser.
 
 ## Uso
 
@@ -31,7 +31,7 @@ prod.warn("isso aparece"); // emitido
 ```
 
 !!! tip "Ajuste o nível por ambiente"
-Use `level: "debug"` em desenvolvimento e `level: "warn"` (ou `"error"`) em produção. Como o filtro acontece antes dos sinks, logs silenciados não custam I/O nem chamadas de rede.
+    Use `level: "debug"` em desenvolvimento e `level: "warn"` (ou `"error"`) em produção. Como o filtro acontece antes dos sinks, logs silenciados não custam I/O nem chamadas de rede.
 
 ## Namespaces (loggers filhos)
 
@@ -48,7 +48,7 @@ refresh.warn("retry"); // "[auth:refresh] retry"
 ```
 
 !!! note "Filhos herdam nível e sinks"
-Um logger filho compartilha o `level` e os `sinks` do pai — só o namespace muda. Configure o destino uma vez na raiz e crie filhos à vontade pelos módulos.
+    Um logger filho compartilha o `level` e os `sinks` do pai — só o namespace muda. Configure o destino uma vez na raiz e crie filhos à vontade pelos módulos.
 
 ## Sinks custom
 
@@ -87,7 +87,7 @@ const log = createLogger({
 ```
 
 !!! warning "Sinks nunca derrubam o app"
-Cada sink roda dentro de um `try/catch` interno — se um sink lançar exceção, o erro é engolido e os demais sinks ainda recebem a entrada. Logging defeituoso não pode quebrar a aplicação.
+    Cada sink roda dentro de um `try/catch` interno — se um sink lançar exceção, o erro é engolido e os demais sinks ainda recebem a entrada. Logging defeituoso não pode quebrar a aplicação.
 
 ## Plugando na telemetria
 
@@ -109,7 +109,7 @@ export const log = createLogger({ level: "info", sinks: [sentrySink] });
 ```
 
 !!! note "Logger ≠ Telemetry"
-O logger é para **diagnóstico técnico** (traces, falhas, estados). Eventos de produto/negócio (`signup`, `purchase`) vão pelo módulo de [Telemetry](./telemetry.md), que tem semântica própria de eventos e adapters dedicados. Use cada um para o que foi feito.
+    O logger é para **diagnóstico técnico** (traces, falhas, estados). Eventos de produto/negócio (`signup`, `purchase`) vão pelo módulo de [Telemetry](./telemetry.md), que tem semântica própria de eventos e adapters dedicados. Use cada um para o que foi feito.
 
 ## Recap
 

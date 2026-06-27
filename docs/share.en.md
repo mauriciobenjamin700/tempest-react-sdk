@@ -3,7 +3,7 @@
 `share()` is a wrapper over the Web Share API (`navigator.share`) that returns a **uniform result** instead of throwing. You decide what to do in each case — including a custom fallback (copy link, social buttons) when the browser does not support it.
 
 !!! info "Why wrap `navigator.share`?"
-The native API rejects the promise both when the user cancels the dialog and on real errors, and not every browser exposes it. Handling that by hand turns into a `try/catch` full of checks at every call site. `share()` collapses it all into a `ShareResult` object with clear booleans (`shared` / `unsupported` / `cancelled`), so your code becomes a simple `if`.
+    The native API rejects the promise both when the user cancels the dialog and on real errors, and not every browser exposes it. Handling that by hand turns into a `try/catch` full of checks at every call site. `share()` collapses it all into a `ShareResult` object with clear booleans (`shared` / `unsupported` / `cancelled`), so your code becomes a simple `if`.
 
 ## Usage
 
@@ -54,7 +54,7 @@ All fields are optional — pass the ones that make sense:
 | `error`       | `unknown` | Another error — capture for telemetry              |
 
 !!! tip "`cancelled` is not an error"
-When the user closes the share sheet, it comes back as `cancelled: true`, **not** in `error`. Treat it as a silent no-op — showing an error toast here annoys the user.
+    When the user closes the share sheet, it comes back as `cancelled: true`, **not** in `error`. Treat it as a silent no-op — showing an error toast here annoys the user.
 
 ## Detecting support upfront
 
@@ -93,7 +93,7 @@ declare function downloadFile(file: File): void;
 ```
 
 !!! warning "Web Share API requires HTTPS and a user gesture"
-`navigator.share` only works in a secure context (HTTPS or `localhost`) and must be called inside a user-gesture handler (e.g. `onClick`). Calling it outside a click makes the browser reject — which lands in `error`, not `unsupported`.
+    `navigator.share` only works in a secure context (HTTPS or `localhost`) and must be called inside a user-gesture handler (e.g. `onClick`). Calling it outside a click makes the browser reject — which lands in `error`, not `unsupported`.
 
 ## Recap
 

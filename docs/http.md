@@ -3,7 +3,7 @@
 Camada de fetch tipada com tratamento de 401 + refresh, parse JSON automático e upload com progresso. Inspirada no `RequestHandler` do alofans-frontend, mas factory-based pra cada app instanciar o seu próprio cliente.
 
 !!! info "Por que um factory em vez de um singleton global?"
-Cada app tem seu próprio `baseURL`, sua forma de guardar o token e sua estratégia de logout. Um factory deixa você criar o cliente uma vez, injetar essas dependências, e exportar uma instância pronta — sem `import` de estado global espalhado pelo código.
+    Cada app tem seu próprio `baseURL`, sua forma de guardar o token e sua estratégia de logout. Um factory deixa você criar o cliente uma vez, injetar essas dependências, e exportar uma instância pronta — sem `import` de estado global espalhado pelo código.
 
 ## Quando usar
 
@@ -72,7 +72,7 @@ Comportamento:
 - `Content-Type: application/json` na resposta → `JSON.parse`. Caso contrário, retorna texto cru.
 
 !!! warning "`refresh` só repete uma vez"
-Se o `refresh()` rodar mas o retry ainda devolver 401, o cliente desiste, chama `onUnauthorized` e lança. Isso evita loop infinito de refresh quando a sessão realmente expirou.
+    Se o `refresh()` rodar mas o retry ainda devolver 401, o cliente desiste, chama `onUnauthorized` e lança. Isso evita loop infinito de refresh quando a sessão realmente expirou.
 
 ## `parseResponse`
 
@@ -91,7 +91,7 @@ const user = parseResponse(userSchema, raw, "GET /users/me");
 ```
 
 !!! tip "O 3º argumento é o contexto"
-Passe sempre um label como `"GET /users/me"`. Ele aparece na mensagem de erro de dev e torna trivial localizar qual endpoint quebrou o contrato.
+    Passe sempre um label como `"GET /users/me"`. Ele aparece na mensagem de erro de dev e torna trivial localizar qual endpoint quebrou o contrato.
 
 ## `uploadWithProgress`
 
@@ -153,7 +153,7 @@ const data = await retry(() => api.get("/flaky-endpoint"), {
 ```
 
 !!! note "`shouldRetry` evita retentar o que não vai melhorar"
-Um 403 ou 422 vai falhar igual na 5ª vez. Filtre por `status >= 500` (ou erros de rede) pra não desperdiçar tentativas em erros determinísticos.
+    Um 403 ou 422 vai falhar igual na 5ª vez. Filtre por `status >= 500` (ou erros de rede) pra não desperdiçar tentativas em erros determinísticos.
 
 ## `usePoll` — polling com guarda de overlap
 
@@ -205,7 +205,7 @@ await api.post("/orders", {
 ```
 
 !!! warning "Gere a key uma vez por operação, não por tentativa"
-Se você gerar uma key nova a cada retry, o servidor trata cada chamada como nova e a proteção some. Crie a key **antes** do loop de retry e reutilize.
+    Se você gerar uma key nova a cada retry, o servidor trata cada chamada como nova e a proteção some. Crie a key **antes** do loop de retry e reutilize.
 
 ## Erros
 

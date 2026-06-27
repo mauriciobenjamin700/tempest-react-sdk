@@ -5,3 +5,7 @@ coverage
 *.drawio
 package-lock.json
 template
+
+# MkDocs content: prettier flattens `!!!` admonition bodies (4-space indent),
+# breaking Material rendering. The docs site owns its own markdown formatting.
+docs

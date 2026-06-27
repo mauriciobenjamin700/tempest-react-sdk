@@ -3,7 +3,7 @@
 `share()` é um wrapper sobre a Web Share API (`navigator.share`) que devolve um **resultado uniforme** em vez de lançar exceções. Você decide o que fazer em cada caso — incluindo um fallback custom (copiar link, botões sociais) quando o browser não suporta.
 
 !!! info "Por que envolver `navigator.share`?"
-A API nativa rejeita a promise tanto quando o usuário cancela o diálogo quanto em erros reais, e nem todo browser a expõe. Tratar isso manualmente vira um `try/catch` cheio de checagens em cada call site. `share()` colapsa tudo num objeto `ShareResult` com booleanos claros (`shared` / `unsupported` / `cancelled`), então o seu código vira um `if` simples.
+    A API nativa rejeita a promise tanto quando o usuário cancela o diálogo quanto em erros reais, e nem todo browser a expõe. Tratar isso manualmente vira um `try/catch` cheio de checagens em cada call site. `share()` colapsa tudo num objeto `ShareResult` com booleanos claros (`shared` / `unsupported` / `cancelled`), então o seu código vira um `if` simples.
 
 ## Uso
 
@@ -54,7 +54,7 @@ Todos os campos são opcionais — passe os que fizerem sentido:
 | `error`       | `unknown` | Outro erro — capture para telemetria                 |
 
 !!! tip "`cancelled` não é erro"
-Quando o usuário fecha o sheet de compartilhamento, isso vem como `cancelled: true`, **não** em `error`. Trate como um no-op silencioso — mostrar um toast de erro aqui irrita o usuário.
+    Quando o usuário fecha o sheet de compartilhamento, isso vem como `cancelled: true`, **não** em `error`. Trate como um no-op silencioso — mostrar um toast de erro aqui irrita o usuário.
 
 ## Detectando suporte antecipadamente
 
@@ -93,7 +93,7 @@ declare function downloadFile(file: File): void;
 ```
 
 !!! warning "Web Share API exige HTTPS e gesto do usuário"
-`navigator.share` só funciona em contexto seguro (HTTPS ou `localhost`) e precisa ser chamado dentro de um handler de gesto do usuário (ex.: `onClick`). Chamar fora de um clique faz o browser rejeitar — o que cai em `error`, não em `unsupported`.
+    `navigator.share` só funciona em contexto seguro (HTTPS ou `localhost`) e precisa ser chamado dentro de um handler de gesto do usuário (ex.: `onClick`). Chamar fora de um clique faz o browser rejeitar — o que cai em `error`, não em `unsupported`.
 
 ## Recap
 

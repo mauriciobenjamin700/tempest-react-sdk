@@ -7,7 +7,7 @@ import { groupBy, pick, debounce, formatBytes } from "tempest-react-sdk";
 ```
 
 !!! tip "Tree-shaking"
-Cada função é um export nomeado independente. Importe só o que usar — o bundler do seu app remove o resto.
+    Cada função é um export nomeado independente. Importe só o que usar — o bundler do seu app remove o resto.
 
 ---
 
@@ -46,7 +46,7 @@ range(5, 0, -1); // [5, 4, 3, 2, 1]
 ```
 
 !!! warning "`chunk` exige `size >= 1`"
-Chamar `chunk(items, 0)` lança `RangeError`. `range` com passo na direção errada (ou `0`) devolve `[]` em vez de estourar.
+    Chamar `chunk(items, 0)` lança `RangeError`. `range` com passo na direção errada (ou `0`) devolve `[]` em vez de estourar.
 
 ---
 
@@ -79,7 +79,7 @@ isEmpty(""); // true
 ```
 
 !!! info "`deepMerge` não funde arrays"
-Arrays e valores não-planos (datas, instâncias de classe, primitivos) **substituem** o valor do `target` inteiro — não há merge elemento a elemento. `deepMerge({ tags: ["a", "b"] }, { tags: ["c"] })` resulta em `{ tags: ["c"] }`.
+    Arrays e valores não-planos (datas, instâncias de classe, primitivos) **substituem** o valor do `target` inteiro — não há merge elemento a elemento. `deepMerge({ tags: ["a", "b"] }, { tags: ["c"] })` resulta em `{ tags: ["c"] }`.
 
 ---
 
@@ -118,7 +118,7 @@ function area(shape: Shape): number {
 ```
 
 !!! tip "`assertNever` é checagem de exaustividade"
-Use no `default` de um `switch`. Se você adicionar um membro novo à union e esquecer de tratá-lo, o TypeScript reclama na hora da compilação — e o runtime falha alto se algo escapar.
+    Use no `default` de um `switch`. Se você adicionar um membro novo à union e esquecer de tratá-lo, o TypeScript reclama na hora da compilação — e o runtime falha alto se algo escapar.
 
 ---
 
@@ -156,7 +156,7 @@ select(2, 2); // recalcula 4
 ```
 
 !!! note "`memoizeOne` lembra só do último"
-Diferente de um cache LRU — qualquer lista de argumentos diferente recomputa e substitui o cache. Ideal pra selectors derivados de props.
+    Diferente de um cache LRU — qualquer lista de argumentos diferente recomputa e substitui o cache. Ideal pra selectors derivados de props.
 
 ---
 
@@ -195,7 +195,7 @@ randomId("user"); // "user-9f1c2b3a-..."
 ```
 
 !!! tip "Bom pra keys de UI"
-Use em listas geradas no cliente quando não há id estável vindo do servidor. Para ids persistidos, prefira o id real do backend.
+    Use em listas geradas no cliente quando não há id estável vindo do servidor. Para ids persistidos, prefira o id real do backend.
 
 ---
 
@@ -225,7 +225,7 @@ pluralize(2, "person", "people"); // "people"
 ```
 
 !!! note "Pré-existentes — `slugify` e `truncate`"
-Já presentes no módulo de strings: `slugify(input)` gera um slug URL-safe (`"São Paulo / Centro"` → `"sao-paulo-centro"`), e `truncate(input, max, suffix?)` corta texto em `max` caracteres acrescentando `…` (ou o `suffix` informado).
+    Já presentes no módulo de strings: `slugify(input)` gera um slug URL-safe (`"São Paulo / Centro"` → `"sao-paulo-centro"`), e `truncate(input, max, suffix?)` corta texto em `max` caracteres acrescentando `…` (ou o `suffix` informado).
 
 ---
 
@@ -249,7 +249,7 @@ formatCompactNumber(1234, "pt-BR"); // "1,2 mil"
 ```
 
 !!! note "Pré-existente — `clamp`"
-`clamp(value, min, max)` prende um número no intervalo `[min, max]` (e tolera `min > max`, trocando os limites). `clamp(120, 0, 100)` → `100`.
+    `clamp(value, min, max)` prende um número no intervalo `[min, max]` (e tolera `min > max`, trocando os limites). `clamp(120, 0, 100)` → `100`.
 
 ---
 

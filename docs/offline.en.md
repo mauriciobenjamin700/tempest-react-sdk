@@ -3,7 +3,7 @@
 `createOfflineStore` wraps Dexie with optional per-owner scoping. Use it for SSE/push history, drafts, and local cache that must survive a reload.
 
 !!! info "Why IndexedDB and not `localStorage`?"
-`localStorage` is synchronous, capped at ~5 MB, and only stores strings. IndexedDB is asynchronous, holds MBs of structured data, and supports indexes/queries. `createOfflineStore` hides Dexie's verbosity behind a typed CRUD — and `dexie` ships as a direct dependency of the SDK (v0.2.0+), installed alongside `npm install tempest-react-sdk`.
+    `localStorage` is synchronous, capped at ~5 MB, and only stores strings. IndexedDB is asynchronous, holds MBs of structured data, and supports indexes/queries. `createOfflineStore` hides Dexie's verbosity behind a typed CRUD — and `dexie` ships as a direct dependency of the SDK (v0.2.0+), installed alongside `npm install tempest-react-sdk`.
 
 ## When to use
 
@@ -12,7 +12,7 @@
 - Cache of rarely changing data (cities, categories) — pairs with TanStack Query's `initialData`.
 
 !!! warning "Do not use it for volatile UI state"
-Menu toggle, active tab, open modal — that's UI state that dies on reload. Zustand (see [State](./state.md)) is far cheaper. Reserve the offline store for data that **must** persist.
+    Menu toggle, active tab, open modal — that's UI state that dies on reload. Zustand (see [State](./state.md)) is far cheaper. Reserve the offline store for data that **must** persist.
 
 ## Setup
 
@@ -68,7 +68,7 @@ await notificationsStore.clear(userId); // does not affect other users
 ```
 
 !!! tip "Without `ownerField`, the store is global"
-If you don't configure `ownerField`, the methods ignore the `owner` argument and operate over the whole table. Use the global store for data not tied to a user (a cities catalog, for example).
+    If you don't configure `ownerField`, the methods ignore the `owner` argument and operate over the whole table. Use the global store for data not tied to a user (a cities catalog, for example).
 
 ## Full CRUD
 
@@ -150,7 +150,7 @@ notificationsStore.db.version(2).upgrade(async (tx) => {
 ```
 
 !!! warning "Forgetting to bump `version` breaks silently"
-Changing `indexes` without bumping `version` makes Dexie throw `VersionError` when opening the database. Always increment `version` alongside any schema change.
+    Changing `indexes` without bumping `version` makes Dexie throw `VersionError` when opening the database. Always increment `version` alongside any schema change.
 
 ## Recap
 

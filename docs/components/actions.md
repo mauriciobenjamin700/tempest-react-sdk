@@ -1,8 +1,12 @@
 # Ação
 
-Botões, tooltips, menus, overlays de confirmação.
+Componentes de **ação** são o ponto onde o usuário dispara algo: clicar, escolher numa lista, confirmar. Eles carregam intenção — um clique muda dados, navega, ou inicia um fluxo. Por isso a categoria reúne tanto o gatilho direto (`Button`) quanto os elementos que cercam uma ação: dica contextual (`Tooltip`), conjunto de ações secundárias (`DropdownMenu`), painel ancorado (`Popover`) e a salvaguarda antes de algo destrutivo (`ConfirmDialog`).
+
+Use esta página quando precisar que o usuário **faça** algo. Para entrada de dados (texto, seleção, datas) veja [inputs](./inputs.md); para apresentar coleções, veja [data](./data.md).
 
 ## `Button`
+
+> **Quando usar**: a ação primária ou secundária de qualquer tela — submeter um form, abrir um modal, navegar. É o gatilho de ação por padrão.
 
 Botão primário com variants, sizes, estado de loading.
 
@@ -39,14 +43,20 @@ import { Plus, Trash } from "lucide-react";
 | `leftIcon`  | `ReactNode`                                                                                     | —           |
 | `rightIcon` | `ReactNode`                                                                                     | —           |
 
-**A11y**: `loading` desabilita o botão + `aria-busy="true"`. `iconOnly` exige `aria-label`.
+!!! warning "iconOnly precisa de rótulo acessível"
+    `iconOnly` remove o texto visível, então leitores de tela não têm o que anunciar. Sempre passe `aria-label` descrevendo a ação (`aria-label="Excluir"`). Sem isso o botão é um ícone mudo para tecnologia assistiva.
+
+!!! tip "loading bloqueia duplo clique"
+    `loading` desabilita o botão e seta `aria-busy="true"` — é o padrão para submits assíncronos. Ative-o assim que disparar a request para evitar requisições duplicadas por cliques repetidos.
 
 ## `Tooltip`
 
-Hover tooltip portalado.
+> **Quando usar**: dar contexto extra a um controle cujo significado não é óbvio — tipicamente botões `iconOnly`. Nunca para informação crítica.
+
+Hover tooltip portalado. Aparece no hover **e** no foco por teclado.
 
 ```tsx
-<Tooltip content="Excluir permanentemente" placement="bottom" delay={300}>
+<Tooltip content="Excluir permanentemente" placement="bottom" openDelay={300}>
   <Button variant="danger" iconOnly aria-label="Excluir">
     <Trash />
   </Button>
@@ -57,43 +67,52 @@ Hover tooltip portalado.
 | ----------- | ---------------------------------------- | ------- |
 | `content`   | `ReactNode`                              | —       |
 | `placement` | `"top" \| "right" \| "bottom" \| "left"` | `"top"` |
-| `delay`     | `number` (ms)                            | `200`   |
+| `openDelay` | `number` (ms antes de aparecer)          | `150`   |
+| `disabled`  | `boolean` (desliga sem mexer no trigger) | `false` |
 
-**A11y**: usa `role="tooltip"` + `aria-describedby` no trigger.
+!!! warning "Não esconda informação essencial num tooltip"
+    Usuários de touch não têm hover — eles nunca verão o conteúdo. Tooltip é reforço, não a única fonte de uma informação necessária para concluir a tarefa.
 
 ## `DropdownMenu`
 
-Menu suspenso de ações. Keyboard nav (↑↓ Home End Esc).
+> **Quando usar**: agrupar ações secundárias atrás de um único gatilho ("Mais ações", menu de perfil) quando elas não cabem na barra principal.
+
+Menu suspenso de ações. Navegação por teclado (↑↓ Home End Esc). Cada entrada precisa de um `id` estável (usado como key do React).
 
 ```tsx
 <DropdownMenu
   trigger={<Button variant="ghost">Mais ações</Button>}
-  entries={[
-    { type: "label", label: "Conta" },
-    { type: "item", label: "Editar perfil", onSelect: () => navigate("/profile") },
-    { type: "separator" },
-    { type: "item", label: "Sair", onSelect: logout, danger: true },
+  items={[
+    { type: "label", id: "h", label: "Conta" },
+    { type: "item", id: "edit", label: "Editar perfil", onSelect: () => navigate("/profile") },
+    { type: "separator", id: "s1" },
+    { type: "item", id: "logout", label: "Sair", onSelect: logout, danger: true },
   ]}
 />
 ```
 
-| Entry type    | Campos                                                            |
-| ------------- | ----------------------------------------------------------------- |
-| `"item"`      | `label`, `icon?`, `onSelect`, `disabled?`, `danger?`, `keepOpen?` |
-| `"label"`     | `label`                                                           |
-| `"separator"` | (nenhum)                                                          |
+| Entry type    | Campos                                                     |
+| ------------- | ---------------------------------------------------------- |
+| `"item"`      | `id`, `label`, `icon?`, `onSelect`, `disabled?`, `danger?` |
+| `"label"`     | `id`, `label`                                              |
+| `"separator"` | `id`                                                       |
 
-**A11y**: `role="menu"` + `role="menuitem"`, focus trapping enquanto aberto.
+Props do componente: `trigger` (`ReactElement`), `items` (`DropdownMenuEntry[]`), `placement` (`"bottom-start" \| "bottom-end" \| "top-start" \| "top-end"`, default `"bottom-start"`).
+
+!!! note "Fecha após selecionar"
+    Selecionar um item dispara `onSelect` e fecha o menu. Para um painel que permanece aberto com múltiplas escolhas (checkboxes, filtros), use `Popover` em vez de `DropdownMenu`.
 
 ## `Popover`
 
-Painel flutuante genérico (anchor + outside-click + Esc dismiss).
+> **Quando usar**: um painel flutuante com conteúdo arbitrário (filtros, mini-form, preview) ancorado a um gatilho — quando você precisa de mais que uma lista de ações.
+
+Painel flutuante genérico (anchor + outside-click + Esc dismiss). Funciona controlado (`open` + `onOpenChange`) ou não-controlado (`defaultOpen`).
 
 ```tsx
 <Popover
   open={open}
   onOpenChange={setOpen}
-  placement="bottom-start"
+  placement="bottom"
   trigger={<Button>Filtros</Button>}
 >
   <Stack gap={3}>
@@ -104,18 +123,24 @@ Painel flutuante genérico (anchor + outside-click + Esc dismiss).
 </Popover>
 ```
 
-| Prop           | Tipo                                                                                                   | Default        |
-| -------------- | ------------------------------------------------------------------------------------------------------ | -------------- |
-| `open`         | `boolean`                                                                                              | — (controlled) |
-| `onOpenChange` | `(open: boolean) => void`                                                                              | —              |
-| `placement`    | `"top" \| "top-start" \| "top-end" \| "bottom" \| "bottom-start" \| "bottom-end" \| "left" \| "right"` | `"bottom"`     |
-| `trigger`      | `ReactElement` (clonado com handlers)                                                                  | —              |
+| Prop                  | Tipo                                     | Default        |
+| --------------------- | ---------------------------------------- | -------------- |
+| `trigger`             | `ReactElement` (clonado com handlers)    | —              |
+| `open`                | `boolean`                                | — (controlled) |
+| `onOpenChange`        | `(open: boolean) => void`                | —              |
+| `defaultOpen`         | `boolean` (uso não-controlado)           | `false`        |
+| `placement`           | `"top" \| "bottom" \| "left" \| "right"` | `"bottom"`     |
+| `closeOnEsc`          | `boolean`                                | `true`         |
+| `closeOnOutsideClick` | `boolean`                                | `true`         |
 
-**A11y**: outside-click dismissal, `Escape` fecha, focus trap opcional.
+!!! note "Sem collision detection"
+    O `Popover` não reposiciona automaticamente quando esbarra na borda da viewport. Se você precisa de flip/shift automático, prefira o `DropdownMenu` (lista simples) ou integre Floating UI no app.
 
 ## `ConfirmDialog`
 
-Prompt destrutivo pré-montado (Modal + 2 botões).
+> **Quando usar**: a última barreira antes de uma ação irreversível ou cara (excluir, sobrescrever, cancelar). Sempre com `variant="danger"` quando destrutiva.
+
+Prompt destrutivo pré-montado em cima do [`Modal`](./overlay.md) (texto + 2 botões).
 
 ```tsx
 <ConfirmDialog
@@ -124,7 +149,8 @@ Prompt destrutivo pré-montado (Modal + 2 botões).
   description={`Esta ação é permanente. Excluir ${user.name}?`}
   confirmLabel="Sim, excluir"
   cancelLabel="Cancelar"
-  tone="danger"
+  variant="danger"
+  loading={deleting}
   onConfirm={async () => {
     await deleteUser(user.id);
     setOpen(false);
@@ -133,20 +159,36 @@ Prompt destrutivo pré-montado (Modal + 2 botões).
 />
 ```
 
-| Prop           | Tipo                                                       | Default       |
-| -------------- | ---------------------------------------------------------- | ------------- |
-| `open`         | `boolean`                                                  | —             |
-| `title`        | `ReactNode`                                                | —             |
-| `description`  | `ReactNode`                                                | —             |
-| `confirmLabel` | `string`                                                   | `"Confirmar"` |
-| `cancelLabel`  | `string`                                                   | `"Cancelar"`  |
-| `tone`         | `"default" \| "danger"`                                    | `"default"`   |
-| `onConfirm`    | `() => void \| Promise<void>` (botão pode mostrar loading) | —             |
-| `onCancel`     | `() => void`                                               | —             |
+| Prop           | Tipo                                                    | Default       |
+| -------------- | ------------------------------------------------------- | ------------- |
+| `open`         | `boolean`                                               | —             |
+| `title`        | `ReactNode`                                             | —             |
+| `description`  | `ReactNode`                                             | —             |
+| `confirmLabel` | `string`                                                | `"Confirmar"` |
+| `cancelLabel`  | `string`                                                | `"Cancelar"`  |
+| `variant`      | `"primary" \| "danger"`                                 | `"primary"`   |
+| `loading`      | `boolean` (mostra spinner + desabilita ambos os botões) | `false`       |
+| `onConfirm`    | `() => void \| Promise<void>`                           | —             |
+| `onCancel`     | `() => void`                                            | —             |
 
-## A11y geral
+!!! tip "Controle o loading durante a request"
+    `onConfirm` aceita uma promise, mas o `ConfirmDialog` não gerencia o estado de loading sozinho — passe `loading={deleting}` controlado pelo seu estado para travar ambos os botões enquanto a ação assíncrona corre.
 
-- Ações destrutivas devem ter `variant="danger"` ou `tone="danger"`.
+## Resumo
+
+| Componente      | Use para                                       | Gatilho    |
+| --------------- | ---------------------------------------------- | ---------- |
+| `Button`        | Disparar a ação primária/secundária            | clique     |
+| `Tooltip`       | Contexto não-crítico num controle              | hover/foco |
+| `DropdownMenu`  | Lista de ações secundárias (fecha ao escolher) | clique     |
+| `Popover`       | Painel flutuante com conteúdo arbitrário       | clique     |
+| `ConfirmDialog` | Confirmar ação destrutiva antes de executar    | —          |
+
+Pontos-chave de acessibilidade:
+
+- Ações destrutivas devem usar `variant="danger"`.
 - `Button.loading` é o padrão para submits async — bloqueia duplos cliques.
-- Tooltips não devem conter informação crítica (touch users não veem hover).
-- DropdownMenu items com `keepOpen: true` não fecham após click — útil pra checkboxes/filtros.
+- Tooltips não devem conter informação crítica (usuários de touch não veem hover).
+- `iconOnly` **exige** `aria-label`.
+
+Relacionados: [overlay](./overlay.md) (`ConfirmDialog` é construído sobre `Modal`) · [inputs](./inputs.md) (entrada de dados) · [feedback](./feedback.md) (toasts/alerts após a ação).

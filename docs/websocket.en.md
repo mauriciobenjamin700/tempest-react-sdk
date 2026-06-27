@@ -3,7 +3,7 @@
 `createWebSocket` + `useWebSocket` mirror the SSE API but add a **send** channel. Use them when the client needs to send messages, not just receive.
 
 !!! info "When WebSocket instead of SSE?"
-SSE only receives. As soon as the client needs to **send** (chat, shared cursors, real-time commands), you need a bidirectional channel — that's where WebSocket comes in. If it's purely server → client push, [SSE](./sse.md) is simpler.
+    SSE only receives. As soon as the client needs to **send** (chat, shared cursors, real-time commands), you need a bidirectional channel — that's where WebSocket comes in. If it's purely server → client push, [SSE](./sse.md) is simpler.
 
 ## When to use
 
@@ -56,7 +56,7 @@ Backoff: 1s → 2s → 4s → ... (capped at 30s), up to maxRetries (default 10)
 - **Reconnect only fires on `close.wasClean === false`.** Clean closes (`socket.close()` or a normal server close) do **not** try to reopen.
 
 !!! warning "`send()` is a no-op when the socket isn't open"
-If you call `send()` before the status becomes `"open"` (or after a `close`), nothing is sent and the return value is `false`. Always check `status === "open"` (or the returned boolean) before assuming the message went out.
+    If you call `send()` before the status becomes `"open"` (or after a `close`), nothing is sent and the return value is `false`. Always check `status === "open"` (or the returned boolean) before assuming the message went out.
 
 ## Hook — `useWebSocket`
 

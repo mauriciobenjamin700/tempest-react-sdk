@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 // create-tempest-app — ships inside tempest-react-sdk.
 //
-//   npx create-tempest-app my-app   → scaffold a brand-new project folder
-//   npx create-tempest-app .        → scaffold into the current directory
-//   npx create-tempest-app          → same as "." (merge into the current dir)
+//   npx create-tempest-app my-app         → scaffold a brand-new project folder
+//   npx create-tempest-app .              → scaffold into the current directory
+//   npx create-tempest-app                → same as "." (merge into the current dir)
+//   npx create-tempest-app my-app --pwa   → also wire installability + web-push
 //
-// In merge mode, existing files are left untouched and an existing package.json
-// has the Tempest scripts/deps merged in (your name/version are preserved).
+// In merge mode, files the user already has are left untouched and an existing
+// package.json has the Tempest scripts/deps merged in (your name/version are
+// preserved). The `--pwa` flag overlays the PWA template (manifest, service
+// worker, push-subscribe wiring) on top of the base.
 import { cp, mkdir, readdir, readFile, rename, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -15,6 +18,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = resolve(__dirname, "..");
 const TEMPLATE_DIR = join(PKG_ROOT, "template");
+const TEMPLATE_PWA_DIR = join(PKG_ROOT, "template-pwa");
 
 /** Files renamed on copy so they ship inside the npm tarball. */
 const RENAME_ON_COPY = { _gitignore: ".gitignore", "_env.example": ".env.example" };
@@ -33,6 +37,26 @@ function isValidName(name) {
     return /^[a-z0-9._-]+$/i.test(name) && !name.startsWith(".");
 }
 
+/** Final on-disk name for a template entry (dotfiles are unprefixed on copy). */
+function finalName(entryName) {
+    return RENAME_ON_COPY[entryName] ?? entryName;
+}
+
+/** Recursively collect existing file paths under `dir`, relative to it. */
+async function listFiles(dir, relBase = "", out = new Set()) {
+    if (!existsSync(dir)) return out;
+    const entries = await readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+        const rel = join(relBase, entry.name);
+        if (entry.isDirectory()) {
+            await listFiles(join(dir, entry.name), rel, out);
+        } else {
+            out.add(rel);
+        }
+    }
+    return out;
+}
+
 async function isEmptyDir(dir) {
     if (!existsSync(dir)) return true;
     const entries = await readdir(dir);
@@ -49,6 +73,31 @@ async function readSdkVersion() {
     }
 }
 
+/**
+ * Copy a template tree into `destDir`. `package.json` is handled separately;
+ * any path already present in `protect` (the user's own files) is skipped and
+ * recorded. Everything else is overwritten, so a later overlay wins over the
+ * base it sits on.
+ */
+async function copyTree(srcDir, destDir, protect, skipped, relBase = "") {
+    const entries = await readdir(srcDir, { withFileTypes: true });
+    for (const entry of entries) {
+        const rel = join(relBase, finalName(entry.name));
+        const from = join(srcDir, entry.name);
+        const to = join(destDir, finalName(entry.name));
+        if (entry.isDirectory()) {
+            await mkdir(to, { recursive: true });
+            await copyTree(from, to, protect, skipped, rel);
+        } else if (entry.name === "package.json") {
+            // handled separately by writeFreshPackageJson / mergePackageJson
+        } else if (protect.has(rel)) {
+            skipped.add(rel);
+        } else {
+            await cp(from, to);
+        }
+    }
+}
+
 /** Recursively rename underscore-prefixed dotfiles after a directory copy. */
 async function fixDotfiles(dir) {
     const entries = await readdir(dir, { withFileTypes: true });
@@ -58,26 +107,6 @@ async function fixDotfiles(dir) {
             await fixDotfiles(full);
         } else if (RENAME_ON_COPY[entry.name]) {
             await rename(full, join(dir, RENAME_ON_COPY[entry.name]));
-        }
-    }
-}
-
-/** Recursively copy template files, skipping any that already exist in dest. */
-async function mergeCopy(srcDir, destDir, skipped, relBase = "") {
-    const entries = await readdir(srcDir, { withFileTypes: true });
-    for (const entry of entries) {
-        const rel = join(relBase, RENAME_ON_COPY[entry.name] ?? entry.name);
-        const from = join(srcDir, entry.name);
-        const to = join(destDir, RENAME_ON_COPY[entry.name] ?? entry.name);
-        if (entry.isDirectory()) {
-            await mkdir(to, { recursive: true });
-            await mergeCopy(from, to, skipped, rel);
-        } else if (entry.name === "package.json") {
-            // handled separately by mergePackageJson
-        } else if (existsSync(to)) {
-            skipped.push(rel);
-        } else {
-            await cp(from, to);
         }
     }
 }
@@ -104,6 +133,31 @@ async function mergePackageJson(destDir, sdkVersion) {
     await writeFile(join(destDir, "package.json"), JSON.stringify(target, null, 2) + "\n");
 }
 
+/**
+ * Fold the PWA package.json patch into the just-written one: PWA scripts win
+ * (e.g. `build` also bundles the service worker), deps/devDeps are added.
+ */
+async function applyPwaPackageJson(destDir) {
+    const patch = JSON.parse(await readFile(join(TEMPLATE_PWA_DIR, "package.json"), "utf8"));
+    const target = JSON.parse(await readFile(join(destDir, "package.json"), "utf8"));
+
+    target.scripts = { ...(target.scripts ?? {}), ...(patch.scripts ?? {}) };
+    target.dependencies = { ...(target.dependencies ?? {}), ...(patch.dependencies ?? {}) };
+    target.devDependencies = {
+        ...(target.devDependencies ?? {}),
+        ...(patch.devDependencies ?? {}),
+    };
+
+    await writeFile(join(destDir, "package.json"), JSON.stringify(target, null, 2) + "\n");
+}
+
+function parseArgs(argv) {
+    const rest = argv.slice(2);
+    const flags = new Set(rest.filter((a) => a.startsWith("--")));
+    const positionals = rest.filter((a) => !a.startsWith("--"));
+    return { name: positionals[0], pwa: flags.has("--pwa") };
+}
+
 async function main() {
     console.log(`\n${c.bold}${c.cyan}create-tempest-app${c.reset}\n`);
 
@@ -112,63 +166,76 @@ async function main() {
         process.exit(1);
     }
 
+    const { name: arg, pwa } = parseArgs(process.argv);
+
+    if (pwa && !existsSync(TEMPLATE_PWA_DIR)) {
+        console.error(`${c.red}✗ PWA template not found at ${TEMPLATE_PWA_DIR}${c.reset}`);
+        process.exit(1);
+    }
+
     const sdkVersion = await readSdkVersion();
-    const arg = process.argv[2];
+    const mergeMode = arg === "." || arg === undefined;
 
-    // Merge mode: "." or no arg → scaffold into the current directory.
-    if (arg === "." || arg === undefined) {
-        const destDir = process.cwd();
-        const hasPkg = existsSync(join(destDir, "package.json"));
+    // Resolve destination + validate.
+    let destDir;
+    if (mergeMode) {
+        destDir = process.cwd();
         console.log(`${c.dim}Scaffolding into the current directory…${c.reset}`);
-
-        const skipped = [];
-        await mergeCopy(TEMPLATE_DIR, destDir, skipped);
-        await fixDotfiles(destDir);
-
-        if (hasPkg) {
-            await mergePackageJson(destDir, sdkVersion);
-            console.log(`${c.dim}Merged scripts + deps into existing package.json.${c.reset}`);
-        } else {
-            const name = (destDir.split("/").pop() || "tempest-app").toLowerCase();
-            await writeFreshPackageJson(destDir, name, sdkVersion);
+    } else {
+        if (!isValidName(arg)) {
+            console.error(`${c.red}✗ Invalid project name: "${arg}"${c.reset}`);
+            process.exit(1);
         }
-
-        if (skipped.length) {
-            console.log(`\n${c.yellow}Skipped ${skipped.length} existing file(s):${c.reset}`);
-            for (const f of skipped) console.log(`  ${c.dim}· ${f}${c.reset}`);
+        destDir = resolve(process.cwd(), arg);
+        if (!(await isEmptyDir(destDir))) {
+            console.error(`${c.red}✗ Directory "${arg}" exists and is not empty.${c.reset}`);
+            console.error(
+                `${c.dim}  Use "create-tempest-app ." to merge into the current directory.${c.reset}`,
+            );
+            process.exit(1);
         }
-
-        console.log(`\n${c.green}✓ Done!${c.reset} Next steps:\n`);
-        console.log(`  ${c.bold}npm install${c.reset}`);
-        console.log(`  ${c.bold}npm run dev${c.reset}\n`);
-        return;
+        await mkdir(destDir, { recursive: true });
+        console.log(`${c.dim}Scaffolding into ${destDir}…${c.reset}`);
     }
+    if (pwa) console.log(`${c.dim}PWA mode: installability + web-push wiring.${c.reset}`);
 
-    // New-project mode: scaffold a fresh folder from the given name.
-    if (!isValidName(arg)) {
-        console.error(`${c.red}✗ Invalid project name: "${arg}"${c.reset}`);
-        process.exit(1);
-    }
+    // Snapshot the user's own files so neither copy pass clobbers them.
+    const protect = await listFiles(destDir);
+    const hadPkg = protect.has("package.json");
+    const skipped = new Set();
 
-    const destDir = resolve(process.cwd(), arg);
-    if (!(await isEmptyDir(destDir))) {
-        console.error(`${c.red}✗ Directory "${arg}" exists and is not empty.${c.reset}`);
-        console.error(
-            `${c.dim}  Use "create-tempest-app ." to merge into the current directory.${c.reset}`,
-        );
-        process.exit(1);
-    }
-
-    console.log(`${c.dim}Scaffolding into ${destDir}…${c.reset}`);
-    await mkdir(destDir, { recursive: true });
-    await cp(TEMPLATE_DIR, destDir, { recursive: true });
+    await copyTree(TEMPLATE_DIR, destDir, protect, skipped);
+    if (pwa) await copyTree(TEMPLATE_PWA_DIR, destDir, protect, skipped);
     await fixDotfiles(destDir);
-    await writeFreshPackageJson(destDir, arg, sdkVersion);
+
+    // package.json: merge into the user's if present, otherwise write fresh.
+    if (hadPkg) {
+        await mergePackageJson(destDir, sdkVersion);
+        console.log(`${c.dim}Merged scripts + deps into existing package.json.${c.reset}`);
+    } else {
+        const name = mergeMode ? (destDir.split("/").pop() || "tempest-app").toLowerCase() : arg;
+        await writeFreshPackageJson(destDir, name, sdkVersion);
+    }
+    if (pwa) await applyPwaPackageJson(destDir);
+
+    if (skipped.size) {
+        console.log(`\n${c.yellow}Skipped ${skipped.size} existing file(s):${c.reset}`);
+        for (const f of skipped) console.log(`  ${c.dim}· ${f}${c.reset}`);
+    }
 
     console.log(`\n${c.green}✓ Done!${c.reset} Next steps:\n`);
-    console.log(`  ${c.bold}cd ${arg}${c.reset}`);
+    if (!mergeMode) console.log(`  ${c.bold}cd ${arg}${c.reset}`);
     console.log(`  ${c.bold}npm install${c.reset}`);
-    console.log(`  ${c.bold}npm run dev${c.reset}\n`);
+    console.log(`  ${c.bold}npm run dev${c.reset}`);
+    if (pwa) {
+        console.log(
+            `\n${c.dim}PWA: set VITE_VAPID_PUBLIC_KEY in .env, then test installability${c.reset}`,
+        );
+        console.log(
+            `${c.dim}and push with a production build: ${c.reset}${c.bold}npm run build && npm run preview${c.reset}`,
+        );
+    }
+    console.log();
 }
 
 main().catch((err) => {

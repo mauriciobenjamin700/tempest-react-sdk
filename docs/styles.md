@@ -8,6 +8,16 @@ import "tempest-react-sdk/styles.css";
 
 Pronto. Tudo o que está abaixo já está disponível na sua aplicação.
 
+!!! tip "Sobrescreva tokens no `:root`"
+    A única forma de tematizar é redefinir os tokens `--tempest-*` no seu próprio
+    CSS. Coloque os overrides num `:root` (ou numa subárvore para escopo parcial)
+    **depois** do import — nunca edite os CSS Modules do SDK.
+
+!!! warning "Tokens são API pública"
+    Os nomes `--tempest-*` fazem parte do contrato semver do SDK. Veja a
+    [política de versionamento](#politica-de-versionamento-de-tokens) no fim da
+    página antes de depender de um token específico.
+
 ## Sumário
 
 - [Cor](#cor)
@@ -274,6 +284,11 @@ Atributo aplicado em qualquer elemento ativa o tema escuro só naquela subárvor
 
 Use junto com `<ThemeProvider>` (`tempest-react-sdk/theme`) para persistência + flash prevention.
 
+!!! warning "Use `data-tempest-theme=\"dark\"`, não `class=\"dark\"`"
+    O dark mode do SDK liga pelo atributo `data-tempest-theme`, nunca por uma
+    classe `dark`. Isso permite escopar o tema escuro a uma subárvore específica
+    em vez do documento inteiro — algo que a convenção de classe não faz.
+
 ---
 
 ## Componentes — variants disponíveis
@@ -353,6 +368,12 @@ Use junto com `<ThemeProvider>` (`tempest-react-sdk/theme`) para persistência +
 ---
 
 ## Importando tokens em CSS-in-JS
+
+!!! note "O prefixo `tempest_` evita colisão"
+    As classes geradas pelos CSS Modules saem prefixadas com `tempest_`, então
+    nunca colidem com o CSS do seu app nem com Tailwind/Stitches/Linaria rodando
+    lado a lado. Você só interage com os tokens `--tempest-*` — não precisa
+    conhecer os nomes de classe.
 
 Como os tokens são CSS Custom Properties, qualquer solução (`styled-components`, `emotion`, `vanilla-extract`, Tailwind arbitrary values) lê com `var(--tempest-*)`:
 
@@ -570,3 +591,16 @@ Tokens são **API pública**. Mudanças quebram apps consumidores. Política:
 - **Adições** (novos tokens) — bump minor.
 - **Renames / removals** — bump major. Tokens antigos ficam como alias deprecated por pelo menos 1 minor antes de remoção.
 - **Mudanças de valor** que afetam aparência visivelmente (cor primária, radius padrão, font stack) — bump minor + nota no changelog.
+
+---
+
+## Resumo
+
+- Importe `tempest-react-sdk/styles.css` uma vez; tematize sobrescrevendo tokens
+  `--tempest-*` no `:root` (ou numa subárvore).
+- Dark mode liga por `data-tempest-theme="dark"`; densidade por
+  `data-tempest-density` — ambos escopáveis a qualquer subárvore.
+- As classes de CSS Module saem prefixadas com `tempest_`, sem colisão com o CSS
+  do app nem com Tailwind/Stitches/Linaria.
+- Tokens são **API pública** sob semver — adições bumpam minor, renames/removals
+  bumpam major.

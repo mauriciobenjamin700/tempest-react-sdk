@@ -9,7 +9,7 @@
 This page is a tutorial: we go from an empty command to the app running in your browser, then walk through every generated file to understand which SDK feature it shows off. 🚀
 
 !!! info "Versioned with the SDK"
-Because the CLI lives inside `tempest-react-sdk`, it's **versioned together with the SDK**. Pinning a version means pinning the SDK version: `npx -p tempest-react-sdk@0.5.1 create-tempest-app …`. And the generated app's `tempest-react-sdk` dependency is **stamped to the very SDK version** that produced it — no hardcoded number that drifts out of date.
+    Because the CLI lives inside `tempest-react-sdk`, it's **versioned together with the SDK**. Pinning a version means pinning the SDK version: `npx -p tempest-react-sdk@0.5.1 create-tempest-app …`. And the generated app's `tempest-react-sdk` dependency is **stamped to the very SDK version** that produced it — no hardcoded number that drifts out of date.
 
 ## Create your first app
 
@@ -28,10 +28,10 @@ npm run dev            # http://127.0.0.1:5173
 Open **<http://127.0.0.1:5173>** — the app is already live with providers, routes, and the store working.
 
 !!! tip "No project name?"
-Running with **no argument** (or `.`) skips new-folder mode and **merges into the current directory** instead — see the next section.
+    Running with **no argument** (or `.`) skips new-folder mode and **merges into the current directory** instead — see the next section.
 
 !!! warning "The target folder must be empty"
-In new-project mode (`create-tempest-app my-app`), the target directory **must not exist** or must be **empty**. This keeps you from overwriting one of your projects by accident. If the folder already has files, the CLI suggests using `.` to **merge** into the current directory instead of aborting (see the next section).
+    In new-project mode (`create-tempest-app my-app`), the target directory **must not exist** or must be **empty**. This keeps you from overwriting one of your projects by accident. If the folder already has files, the CLI suggests using `.` to **merge** into the current directory instead of aborting (see the next section).
 
 ## Scaffold into an existing project
 
@@ -50,7 +50,7 @@ In this "current directory" mode:
 - An existing `package.json` has the Tempest scripts and deps **merged** in: your `name`/`version` and the scripts/deps already there are preserved, and `tempest-react-sdk` is pinned to the **SDK's own version** running the scaffold.
 
 !!! info "The `.env`"
-`.env.example` declares `VITE_API_URL`, the base used by the HTTP client in `src/lib/api.ts`. Copy it to `.env` and point it at your backend.
+    `.env.example` declares `VITE_API_URL`, the base used by the HTTP client in `src/lib/api.ts`. Copy it to `.env` and point it at your backend.
 
 ### Available scripts
 
@@ -145,7 +145,102 @@ export const useAuth = createSelectors(createAuthStore<User>({ name: "app-auth" 
 `createAuthStore<User>` creates a persisted Zustand auth store (`name: "app-auth"` is the storage key). `createSelectors` gives you atomic access via `useAuth.use.<field>()` — that's how `RootLayout.tsx` reads `useAuth.use.isAuthenticated()` and `Login.tsx` calls `useAuth.use.setSession()`. More patterns in [State](./state.md).
 
 !!! note "The rest is self-explanatory"
-`routes.tsx` uses `defineRoutes([...])` with an index route, a login route, and a `dashboard` that is both **lazy** and **guarded**. `lib/api.ts` instantiates `createApiClient` with `baseURL`/`getToken`/`onUnauthorized` and exports `createQueryKeys` so you can organize your cache keys.
+    `routes.tsx` uses `defineRoutes([...])` with an index route, a login route, and a `dashboard` that is both **lazy** and **guarded**. `lib/api.ts` instantiates `createApiClient` with `baseURL`/`getToken`/`onUnauthorized` and exports `createQueryKeys` so you can organize your cache keys.
+
+## PWA mode (`--pwa`)
+
+Want the app to be **installable** (home-screen icon) and able to **emit web push notifications** out of the box? Pass the `--pwa` flag:
+
+```bash
+npx -p tempest-react-sdk create-tempest-app my-app --pwa
+```
+
+The flag works in both modes (new folder **and** `.`/merge). It **overlays** the PWA template on top of the base: everything from the normal app stays the same, plus a few new files and a few overwritten ones.
+
+!!! info "No `vite-plugin-pwa`, no Workbox"
+    The SW is assembled from the SDK's own helpers (`tempest-react-sdk/sw`) and bundled by a dedicated build. No extra PWA dependency — the PWA app uses the exact same deps as the base app.
+
+### What the flag adds
+
+```text
+my-app/
+├── index.html                  # (overwritten) manifest link + theme-color + apple metas
+├── vite.sw.config.ts           # dedicated build that bundles src/sw.ts -> dist/sw.js
+├── public/
+│   ├── manifest.webmanifest    # install metadata (name, icons, theme color)
+│   ├── icon.svg                # app icon (placeholder — swap for yours)
+│   └── icon-maskable.svg       # maskable variant (Android adaptive icon)
+└── src/
+    ├── sw.ts                   # service worker: push + notificationclick + skip-waiting
+    ├── main.tsx                # (overwritten) registers /sw.js in prod, cleans up SW in dev
+    ├── vite-env.d.ts           # (overwritten) types VITE_VAPID_PUBLIC_KEY
+    └── pages/Dashboard.tsx     # (overwritten) Install button + notifications toggle
+```
+
+`package.json` is patched too: the `build` script now bundles the SW (`tsc --noEmit && vite build && npm run build:sw`) and gains a `build:sw`.
+
+!!! warning "In merge mode, your files are preserved"
+    In `.` mode (merging into an existing project), the CLI **never overwrites a file of yours** — only the ones it just generated. If you already had an `index.html`, it is skipped and reported, and its PWA bits are up to you.
+
+### The three pieces
+
+#### 1. Install → `useBeforeInstallPrompt`
+
+`index.html` links the `manifest.webmanifest`, and `Dashboard.tsx` shows an **Install** button only when the browser offers the prompt:
+
+```tsx
+const install = useBeforeInstallPrompt();
+// ...
+{
+  install.installable && <Button onClick={() => void install.prompt()}>Install app</Button>;
+}
+```
+
+#### 2. Service worker → `tempest-react-sdk/sw`
+
+`src/sw.ts` is just glue over the SDK helpers:
+
+```ts
+/// <reference lib="webworker" />
+import {
+  installNotificationClickHandler,
+  installPushHandler,
+  installSkipWaitingListener,
+} from "tempest-react-sdk/sw";
+
+installPushHandler({ defaultTitle: "Notificação", defaultIcon: "/icon.svg" });
+installNotificationClickHandler();
+installSkipWaitingListener();
+```
+
+`vite.sw.config.ts` bundles that file (and the helpers it imports) into a **classic service worker** at `dist/sw.js`, and `main.tsx` registers it **in production only** via `registerServiceWorker`. See the helper details in [Web Push](./push.md).
+
+#### 3. Web push → `usePushSubscription`
+
+`Dashboard.tsx` wires the notifications toggle to the hook, reading the VAPID key from `.env`:
+
+```tsx
+const push = usePushSubscription({
+  vapidPublicKey: import.meta.env.VITE_VAPID_PUBLIC_KEY ?? "",
+  onSubscribe: async (subscription) => {
+    // send the subscription to your backend to deliver pushes
+    await api.post("/webpush/subscribe", { body: subscription });
+  },
+  onUnsubscribe: async () => {
+    await api.delete("/webpush/my");
+  },
+});
+```
+
+!!! danger "Push and offline only work in a production build"
+    The service worker is bundled **at build time**, so it only exists after `npm run build`. In `npm run dev` the SW is **unregistered on purpose** to avoid stale caches. To test install and push, run `npm run build && npm run preview`.
+
+!!! tip "Swap the icons"
+    `public/icon.svg` is a placeholder. For guaranteed installability across all browsers, add PNGs (192×192 and 512×512) to `public/` and point the `manifest.webmanifest` `icons` entries at them.
+
+### PWA mode recap
+
+`--pwa` hands you manifest + service worker + push **already wired** on top of the same base app, using the SDK's `tempest-react-sdk/sw` helpers, `usePushSubscription` and `useBeforeInstallPrompt` — without `vite-plugin-pwa`. Generate the VAPID key on your backend, fill in `VITE_VAPID_PUBLIC_KEY` in `.env`, and test with `npm run build && npm run preview`. 🚀
 
 ## Next steps
 

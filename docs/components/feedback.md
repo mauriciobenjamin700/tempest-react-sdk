@@ -2,7 +2,23 @@
 
 Sinalizar estado, sucesso, erro, atividade. Spinners, skeletons, alertas, KPIs.
 
+## O que é esta categoria
+
+Componentes que **comunicam estado** ao usuário — o que aconteceu, o que está acontecendo e o que não tem ali. Agrupam-se por intenção:
+
+- **Mensagens** (sucesso/erro/aviso): `Alert` (inline), `Banner` (topo da página), `Toast` (transiente) — três escopos do mesmo conceito.
+- **Rótulos de status**: `Badge` (status fixo), `Tag` (chip removível), `Stat` (KPI).
+- **Atividade/carregamento**: `Spinner`, `Progress`, `Skeleton`.
+- **Estados vazios/erro de tela**: `EmptyState`, `ErrorState`.
+
+**Quando usar:** sempre que o usuário precisar saber o resultado de uma ação ou o estado de um dado. A regra de ouro: **nunca deixe uma ação assíncrona sem feedback** — mostre `Spinner`/`Skeleton` durante, `Toast`/`Alert` ao terminar.
+
+!!! tip "Alert vs Banner vs Toast — escolha pelo escopo"
+    `Alert` é inline e fica até o usuário resolver o contexto. `Banner` é persistente no topo e vale para a página/app inteiro. `Toast` é transiente e some sozinho. Use `Toast` para confirmações rápidas, `Alert` para erros ligados a um campo/seção, `Banner` para avisos globais (manutenção, expiração).
+
 ## `Alert`
+
+**Quando usar:** mensagem ligada a um contexto específico da tela (erro de formulário, resultado de uma operação numa seção). Fica visível até a condição mudar.
 
 Banner inline. Diferente de `Banner` (top-of-page) e `Toast` (transient).
 
@@ -53,6 +69,8 @@ Mesmas variants do Alert.
 
 ## `Badge`
 
+**Quando usar:** rótulo de status curto e somente-leitura ao lado de um item (status de pedido, contagem). Para um chip que o usuário remove, use `Tag`.
+
 Status pill — não removível.
 
 ```tsx
@@ -88,6 +106,8 @@ Chip removível. Use para filter tokens, applied filters, selected entities.
 | `removeLabel` | `string` (a11y)                                                          | `"Remover"` |
 
 ## `Stat`
+
+**Quando usar:** destacar uma métrica única com variação (receita, sessões, NPS) em dashboards. Para vários KPIs lado a lado, combine com `Grid`.
 
 KPI card para dashboards.
 
@@ -148,7 +168,12 @@ Loader genérico.
 
 ## `Skeleton`
 
+**Quando usar:** carregamento de conteúdo cuja **forma** já é conhecida (cards, linhas de tabela, avatar). Reduz o salto de layout. Para carregamento sem forma definida (um botão processando), use `Spinner`.
+
 Placeholder com shimmer enquanto data carrega.
+
+!!! tip "Skeleton imita o layout final"
+    Faça o skeleton ter as mesmas dimensões/proporções do conteúdo real — é isso que elimina o layout shift quando os dados chegam. Skeletons genéricos demais (um bloco só) confundem mais do que ajudam.
 
 ```tsx
 {
@@ -173,7 +198,12 @@ Placeholder com shimmer enquanto data carrega.
 
 ## `Toast`
 
+**Quando usar:** confirmação transiente de uma ação que já terminou ("Salvo", "Item removido") — não exige atenção e some sozinho. Para erros que o usuário precisa resolver, prefira `Alert`/`Banner` (que ficam).
+
 Notificações transientes. Setup via `ToastProvider` + uso via `useToast()`.
+
+!!! warning "Toast não é para erros críticos"
+    Toasts somem em poucos segundos — se o usuário precisar **agir** sobre a mensagem (corrigir um campo, tentar de novo), ela tem que persistir. Use `Toast` só para feedback descartável; erros acionáveis vão em `Alert`/`ErrorState`.
 
 ```tsx
 // app root
@@ -203,6 +233,8 @@ toast.show({ title: "Sincronização", description: "Em andamento…", variant: 
 
 ## `EmptyState`
 
+**Quando usar:** uma lista/coleção retornou **zero itens com sucesso** (sem pedidos ainda, busca sem resultados). Sempre ofereça uma ação de saída (criar o primeiro item, limpar filtros). Não confunda com erro — para falha use `ErrorState`.
+
 "Nada por aqui" centralizado.
 
 ```tsx
@@ -215,6 +247,8 @@ toast.show({ title: "Sincronização", description: "Em andamento…", variant: 
 ```
 
 ## `ErrorState`
+
+**Quando usar:** uma operação **falhou** (request com erro, exceção) e o usuário pode tentar de novo. Diferente de `EmptyState`, que representa sucesso sem dados.
 
 Falha com botão de retry.
 
@@ -229,3 +263,17 @@ Falha com botão de retry.
 - `Spinner`/`Progress.indeterminate` adicionam `aria-busy="true"`.
 - `Skeleton` é decorativo — não anuncia (`aria-hidden`).
 - `Stat.value` com tabular-nums alinha valores numéricos em colunas.
+
+## Resumo
+
+- **Nunca deixe uma ação assíncrona sem feedback**: `Spinner`/`Skeleton` durante, `Toast`/`Alert` ao terminar.
+- Mensagens por escopo: `Alert` (inline/contextual), `Banner` (global/topo), `Toast` (transiente).
+- `EmptyState` = sucesso sem dados; `ErrorState` = falha com retry. Não troque um pelo outro.
+- `Toast` só para feedback descartável; erros acionáveis ficam em `Alert`/`ErrorState`.
+
+Páginas relacionadas:
+
+- [Entrada de dados](./inputs.md) — `error` em campos de formulário, complementar a `Alert` de seção.
+- [Dados](./data.md) — `Table`/`DataTable` que combinam com `Skeleton` (loading) e `EmptyState`/`ErrorState`.
+- [Sobreposições](./overlay.md) — `ConfirmDialog` para ações destrutivas que pedem confirmação antes do `Toast`.
+- [Layout](./layout.md) — `Grid` para dispor vários `Stat`; `Center` para `Spinner` em tela cheia.

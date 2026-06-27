@@ -2,16 +2,7 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
-## [0.8.0] — 2026-06-27
-
-### CLI `tempest` — doctor + fix/lint/format
-
-- Novo `bin` **`tempest`** no pacote (`npx tempest <comando>`), além do `create-tempest-app`:
-  - **`tempest doctor`** — diagnóstico do projeto no estilo `flutter doctor` (Node, SDK instalado, `createViteConfig`, alias `@/*`, import do `styles.css`, ESLint/Prettier, `.env`). Sai com código 1 em problemas bloqueantes.
-  - **`tempest fix`** — organiza imports, **remove imports não usados**, limpa linhas em branco extras/espaços no fim e roda Prettier (via `eslint --fix` + `prettier --write`).
-  - **`tempest lint`** (report) e **`tempest format`** (só Prettier).
-- Template do scaffold ganhou `eslint-plugin-simple-import-sort` + `eslint-plugin-unused-imports` + regras de whitespace, `prettier` + `.prettierrc.json`, e scripts `doctor`/`fix`/`format`.
-- Dead-code profundo (funções/exports órfãos) fica fora — só imports/vars (seguro); report dedicado é trabalho futuro.
+## [0.9.0] — 2026-06-27
 
 ### `create-tempest-app --pwa` — scaffold de PWA (paridade com `vite-plugin-pwa`, sem ele)
 
@@ -38,6 +29,22 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 ### Novo subpath `tempest-react-sdk/sw`
 
 - Os helpers de service worker (`installPushHandler`, `installNotificationClickHandler`, `installSkipWaitingListener`, `installPrecache`, `installRuntimeCache`, `createPartialResponse`, `installBackgroundSync`, `registerServiceWorker`, `skipWaiting`, `unregisterAllServiceWorkers`) têm um **subpath dedicado e sem React**: `tempest-react-sdk/sw`. Ideal pra empacotar no seu `sw.ts` sem arrastar o grafo de componentes pro escopo do worker. O barrel raiz continua exportando tudo.
+
+### CLI `tempest gen api` — OpenAPI → cliente tipado
+
+- Novo subcomando **`tempest gen api`**: lê um schema OpenAPI (arquivo ou URL, ex. `/openapi.json`) e gera, por grupo de rotas (tag), schemas **Zod** + tipos TypeScript + classes de serviço tipadas. `--out <dir>` define o destino.
+- Gerador em `bin/lib/openapi/` (ESM puro, com testes) — sem dependências novas.
+
+## [0.8.0] — 2026-06-27
+
+### CLI `tempest` — doctor + fix/lint/format
+
+- Novo `bin` **`tempest`** no pacote (`npx tempest <comando>`), além do `create-tempest-app`:
+  - **`tempest doctor`** — diagnóstico do projeto no estilo `flutter doctor` (Node, SDK instalado, `createViteConfig`, alias `@/*`, import do `styles.css`, ESLint/Prettier, `.env`). Sai com código 1 em problemas bloqueantes.
+  - **`tempest fix`** — organiza imports, **remove imports não usados**, limpa linhas em branco extras/espaços no fim e roda Prettier (via `eslint --fix` + `prettier --write`).
+  - **`tempest lint`** (report) e **`tempest format`** (só Prettier).
+- Template do scaffold ganhou `eslint-plugin-simple-import-sort` + `eslint-plugin-unused-imports` + regras de whitespace, `prettier` + `.prettierrc.json`, e scripts `doctor`/`fix`/`format`.
+- Dead-code profundo (funções/exports órfãos) fica fora — só imports/vars (seguro); report dedicado é trabalho futuro.
 
 ## [0.7.0] — 2026-06-27
 

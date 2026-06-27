@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button, ConfirmDialog, Modal, useToast } from "tempest-react-sdk";
+import { Example } from "../Example";
 
 export function ModalSection() {
     const [open, setOpen] = useState(false);
@@ -23,48 +24,101 @@ export function ModalSection() {
                 variant.
             </p>
 
-            <div className="gallery-row">
-                <Button onClick={() => setOpen(true)}>Abrir Modal</Button>
-                <Button variant="danger" onClick={() => setConfirm(true)}>
-                    Excluir item (Confirm)
-                </Button>
-                <Button variant="secondary" onClick={() => toast.success("Operação concluída")}>
-                    Toast success
-                </Button>
-                <Button variant="ghost" onClick={() => toast.error("Erro de conexão")}>
-                    Toast error
-                </Button>
-                <Button variant="ghost" onClick={() => toast.warning("Sessão expirando")}>
-                    Toast warning
-                </Button>
-            </div>
+            <Example
+                title="Modal e ConfirmDialog"
+                note="Esc e click no backdrop fecham. ConfirmDialog tem loading state."
+                code={`<Button onClick={() => setOpen(true)}>Abrir Modal</Button>
+<Button variant="danger" onClick={() => setConfirm(true)}>
+    Excluir item (Confirm)
+</Button>
 
-            <Modal
-                open={open}
-                onClose={() => setOpen(false)}
-                title="Editar perfil"
-                footer={
-                    <>
-                        <Button variant="secondary" onClick={() => setOpen(false)}>
-                            Cancelar
-                        </Button>
-                        <Button onClick={() => setOpen(false)}>Salvar</Button>
-                    </>
-                }
+<Modal
+    open={open}
+    onClose={() => setOpen(false)}
+    title="Editar perfil"
+    footer={
+        <>
+            <Button variant="secondary" onClick={() => setOpen(false)}>
+                Cancelar
+            </Button>
+            <Button onClick={() => setOpen(false)}>Salvar</Button>
+        </>
+    }
+>
+    <p>Conteúdo do modal. Esc fecha. Click no backdrop fecha.</p>
+</Modal>
+
+<ConfirmDialog
+    open={confirm}
+    title="Excluir registro?"
+    description="Essa ação não pode ser desfeita."
+    variant="danger"
+    confirmLabel="Excluir"
+    loading={loading}
+    onConfirm={handleConfirm}
+    onCancel={() => setConfirm(false)}
+/>`}
             >
-                <p>Conteúdo do modal. Esc fecha. Click no backdrop fecha.</p>
-            </Modal>
+                <div className="gallery-row">
+                    <Button onClick={() => setOpen(true)}>Abrir Modal</Button>
+                    <Button variant="danger" onClick={() => setConfirm(true)}>
+                        Excluir item (Confirm)
+                    </Button>
+                </div>
 
-            <ConfirmDialog
-                open={confirm}
-                title="Excluir registro?"
-                description="Essa ação não pode ser desfeita."
-                variant="danger"
-                confirmLabel="Excluir"
-                loading={loading}
-                onConfirm={handleConfirm}
-                onCancel={() => setConfirm(false)}
-            />
+                <Modal
+                    open={open}
+                    onClose={() => setOpen(false)}
+                    title="Editar perfil"
+                    footer={
+                        <>
+                            <Button variant="secondary" onClick={() => setOpen(false)}>
+                                Cancelar
+                            </Button>
+                            <Button onClick={() => setOpen(false)}>Salvar</Button>
+                        </>
+                    }
+                >
+                    <p>Conteúdo do modal. Esc fecha. Click no backdrop fecha.</p>
+                </Modal>
+
+                <ConfirmDialog
+                    open={confirm}
+                    title="Excluir registro?"
+                    description="Essa ação não pode ser desfeita."
+                    variant="danger"
+                    confirmLabel="Excluir"
+                    loading={loading}
+                    onConfirm={handleConfirm}
+                    onCancel={() => setConfirm(false)}
+                />
+            </Example>
+
+            <Example
+                title="Toasts"
+                note="Agrupados por variant: success · error · warning."
+                code={`<Button variant="secondary" onClick={() => toast.success("Operação concluída")}>
+    Toast success
+</Button>
+<Button variant="ghost" onClick={() => toast.error("Erro de conexão")}>
+    Toast error
+</Button>
+<Button variant="ghost" onClick={() => toast.warning("Sessão expirando")}>
+    Toast warning
+</Button>`}
+            >
+                <div className="gallery-row">
+                    <Button variant="secondary" onClick={() => toast.success("Operação concluída")}>
+                        Toast success
+                    </Button>
+                    <Button variant="ghost" onClick={() => toast.error("Erro de conexão")}>
+                        Toast error
+                    </Button>
+                    <Button variant="ghost" onClick={() => toast.warning("Sessão expirando")}>
+                        Toast warning
+                    </Button>
+                </div>
+            </Example>
         </section>
     );
 }

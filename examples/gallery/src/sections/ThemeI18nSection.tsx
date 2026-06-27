@@ -1,5 +1,7 @@
 import { useI18n, useTheme } from "tempest-react-sdk";
 
+import { Example } from "../Example";
+
 export function ThemeI18nSection() {
     const theme = useTheme();
     const i18n = useI18n();
@@ -13,69 +15,120 @@ export function ThemeI18nSection() {
                 sincronizado.
             </p>
 
-            <div className="gallery-row">
+            <Example
+                title="Tema + Idioma"
+                note="Troca de tema e locale com persistência automática."
+                code={`const theme = useTheme();
+const i18n = useI18n();
+
+<div className="theme-toggle-group">
+    {(["light", "dark", "system"] as const).map((mode) => (
+        <button
+            key={mode}
+            className={theme.theme === mode ? "active" : ""}
+            onClick={() => theme.setTheme(mode)}
+        >
+            {mode}
+        </button>
+    ))}
+</div>
+
+<div className="theme-toggle-group">
+    {i18n.availableLocales.map((locale) => (
+        <button
+            key={locale}
+            className={i18n.locale === locale ? "active" : ""}
+            onClick={() => i18n.setLocale(locale)}
+        >
+            {locale}
+        </button>
+    ))}
+</div>`}
+            >
+                <div className="gallery-row">
+                    <div>
+                        <div
+                            style={{
+                                fontSize: 12,
+                                color: "var(--tempest-text-muted)",
+                                marginBottom: 6,
+                            }}
+                        >
+                            Tema
+                        </div>
+                        <div className="theme-toggle-group">
+                            {(["light", "dark", "system"] as const).map((mode) => (
+                                <button
+                                    key={mode}
+                                    className={theme.theme === mode ? "active" : ""}
+                                    onClick={() => theme.setTheme(mode)}
+                                >
+                                    {mode}
+                                </button>
+                            ))}
+                        </div>
+                        <p
+                            style={{
+                                fontSize: 12,
+                                color: "var(--tempest-text-muted)",
+                                marginTop: 8,
+                            }}
+                        >
+                            Aplicado: <strong>{theme.resolvedTheme}</strong>
+                        </p>
+                    </div>
+
+                    <div>
+                        <div
+                            style={{
+                                fontSize: 12,
+                                color: "var(--tempest-text-muted)",
+                                marginBottom: 6,
+                            }}
+                        >
+                            Idioma
+                        </div>
+                        <div className="theme-toggle-group">
+                            {i18n.availableLocales.map((locale) => (
+                                <button
+                                    key={locale}
+                                    className={i18n.locale === locale ? "active" : ""}
+                                    onClick={() => i18n.setLocale(locale)}
+                                >
+                                    {locale}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </Example>
+
+            <Example
+                title="Traduções, plurais e Intl"
+                note="t(), plural() e formatadores Intl localizados."
+                code={`i18n.t("gallery.greet", { name: "Tempest" });
+i18n.plural("gallery.notifications", 1);
+i18n.plural("gallery.notifications", 5);
+i18n.formatNumber(1234.56, { style: "currency", currency: "BRL" });
+i18n.formatDate(new Date(), { dateStyle: "full" });`}
+            >
                 <div>
-                    <div
-                        style={{
-                            fontSize: 12,
-                            color: "var(--tempest-text-muted)",
-                            marginBottom: 6,
-                        }}
-                    >
-                        Tema
-                    </div>
-                    <div className="theme-toggle-group">
-                        {(["light", "dark", "system"] as const).map((mode) => (
-                            <button
-                                key={mode}
-                                className={theme.theme === mode ? "active" : ""}
-                                onClick={() => theme.setTheme(mode)}
-                            >
-                                {mode}
-                            </button>
-                        ))}
-                    </div>
-                    <p style={{ fontSize: 12, color: "var(--tempest-text-muted)", marginTop: 8 }}>
-                        Aplicado: <strong>{theme.resolvedTheme}</strong>
+                    <p>
+                        <strong>{i18n.t("gallery.greet", { name: "Tempest" })}</strong>
+                    </p>
+                    <p>{i18n.plural("gallery.notifications", 1)}</p>
+                    <p>{i18n.plural("gallery.notifications", 5)}</p>
+                    <p>
+                        Número:{" "}
+                        <code>
+                            {i18n.formatNumber(1234.56, { style: "currency", currency: "BRL" })}
+                        </code>
+                    </p>
+                    <p>
+                        Data: <code>{i18n.formatDate(new Date(), { dateStyle: "full" })}</code>
                     </p>
                 </div>
-
-                <div>
-                    <div
-                        style={{
-                            fontSize: 12,
-                            color: "var(--tempest-text-muted)",
-                            marginBottom: 6,
-                        }}
-                    >
-                        Idioma
-                    </div>
-                    <div className="theme-toggle-group">
-                        {i18n.availableLocales.map((locale) => (
-                            <button
-                                key={locale}
-                                className={i18n.locale === locale ? "active" : ""}
-                                onClick={() => i18n.setLocale(locale)}
-                            >
-                                {locale}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </div>
-
-            <p>
-                <strong>{i18n.t("gallery.greet", { name: "Tempest" })}</strong>
-            </p>
-            <p>{i18n.plural("gallery.notifications", 1)}</p>
-            <p>{i18n.plural("gallery.notifications", 5)}</p>
-            <p>
-                Número:{" "}
-                <code>{i18n.formatNumber(1234.56, { style: "currency", currency: "BRL" })}</code>
-            </p>
-            <p>
-                Data: <code>{i18n.formatDate(new Date(), { dateStyle: "full" })}</code>
-            </p>
+            </Example>
         </section>
     );
 }

@@ -19,7 +19,13 @@ Tudo abaixo está commitado e validado (typecheck · lint 0 erros · 998 testes 
 
 ## 🔴 Bloqueado
 
-- **Publish no npm** — token `NPM_TOKEN` inválido/sem permissão de write (publish de `v0.6.0` e `v0.6.1` falhou com `E404 PUT … not in this registry`; build/pack/provenance OK). Push de release **congelado** por ordem do dono. Destravar = corrigir o secret no GitHub (token Classic **Automation**, ou Granular com write em `tempest-react-sdk` + bypass 2FA; conta precisa ser maintainer do pacote).
+- **Publish no npm** — migrado pra **Trusted Publishing (OIDC + GitHub Actions)**: o workflow `release-npm.yml` não usa mais `NPM_TOKEN` (publish de `v0.6.0`/`v0.6.1` com token falhou `E404`). Falta **configurar o Trusted Publisher no npmjs.com** (uma vez):
+  - <https://www.npmjs.com/package/tempest-react-sdk/access> → **Trusted Publisher** → **GitHub Actions**:
+    - Organization/user: `mauriciobenjamin700`
+    - Repository: `tempest-react-sdk`
+    - Workflow filename: `release-npm.yml`
+    - Environment: (em branco)
+  - npm CLI ≥ 11.5.1 (o workflow já faz `npm install -g npm@latest`) + `id-token: write` (já presente). Provenance automática. Push de release segue **congelado** até o dono liberar.
 
 ## 🟡 Próximos (priorizado)
 
@@ -40,9 +46,9 @@ Tudo abaixo está commitado e validado (typecheck · lint 0 erros · 998 testes 
 
 A branch está verde e pronta. Passos pra publicar **`0.7.0`**:
 
-1. Corrigir `NPM_TOKEN` no GitHub (Settings → Secrets → Actions).
+1. Configurar o **Trusted Publisher** no npmjs.com (ver Bloqueado) — uma vez só. Sem secret.
 2. No `CHANGELOG.md`, renomear a seção `## [Unreleased]` → `## [0.7.0] — <data>` (consolida 0.6.0/0.6.1 que nunca foram ao npm).
-3. `make release TAG=0.7.0` (branch + bump + validate + tag + push → workflow `release-npm.yml` publica com provenance).
+3. `make release TAG=0.7.0` (branch + bump + validate + tag + push → workflow `release-npm.yml` publica via OIDC com provenance).
 4. Conferir `gh run list --workflow=release-npm.yml` e `npm view tempest-react-sdk@0.7.0`.
 5. Atualizar o snapshot deste arquivo + `CLAUDE.md`.
 

@@ -199,3 +199,88 @@ export type {
 
 export { VirtualList } from "./VirtualList";
 export type { VirtualListProps } from "./VirtualList";
+
+// Generic display
+export { CopyButton } from "./CopyButton";
+export type { CopyButtonProps } from "./CopyButton";
+
+export { RelativeTime } from "./RelativeTime";
+export type { RelativeTimeProps } from "./RelativeTime";
+
+export { Money } from "./Money";
+export type { MoneyProps } from "./Money";
+
+export { TruncateText } from "./TruncateText";
+export type { TruncateTextProps } from "./TruncateText";
+
+export { VisuallyHidden } from "./VisuallyHidden";
+export type { VisuallyHiddenProps } from "./VisuallyHidden";
+
+// Generic headless / logical
+export { Portal } from "./Portal";
+export type { PortalProps } from "./Portal";
+
+export { ClickOutside } from "./ClickOutside";
+export type { ClickOutsideProps } from "./ClickOutside";
+
+export { ConditionalWrapper } from "./ConditionalWrapper";
+export type { ConditionalWrapperProps } from "./ConditionalWrapper";
+
+export { For } from "./For";
+export type { ForProps } from "./For";
+
+export { ErrorText } from "./ErrorText";
+export type { ErrorTextProps } from "./ErrorText";
+
+// Generic media / content
+export { Image } from "./Image";
+export type { ImageProps } from "./Image";
+
+export { DataList } from "./DataList";
+export type { DataListProps } from "./DataList";
+
+export { DescriptionList } from "./DescriptionList";
+export type { DescriptionListItem, DescriptionListProps } from "./DescriptionList";
+
+// shadcn-parity additions
+export { Toggle } from "./Toggle";
+export type { ToggleProps, ToggleSize, ToggleVariant } from "./Toggle";
+
+export { ToggleGroup, ToggleGroupItem } from "./ToggleGroup";
+export type { ToggleGroupProps, ToggleGroupItemProps, ToggleGroupType } from "./ToggleGroup";
+
+export { Label } from "./Label";
+export type { LabelProps } from "./Label";
+
+export { Collapsible } from "./Collapsible";
+export type { CollapsibleProps } from "./Collapsible";
+
+export { ContextMenu } from "./ContextMenu";
+export type { ContextMenuItem, ContextMenuProps } from "./ContextMenu";
+
+export { HoverCard } from "./HoverCard";
+export type { HoverCardPlacement, HoverCardProps } from "./HoverCard";
+
+export { Command } from "./Command";
+export type { CommandProps, CommandItem } from "./Command";
+
+export { ScrollArea } from "./ScrollArea";
+export type { ScrollAreaProps, ScrollAreaOrientation } from "./ScrollArea";
+
+export { Resizable } from "./Resizable";
+export type { ResizableProps, ResizableDirection } from "./Resizable";
+
+export { Calendar } from "./Calendar";
+export type { CalendarProps, WeekStart } from "./Calendar";
+
+export { NavigationMenu } from "./NavigationMenu";
+export type { NavigationMenuItem, NavigationMenuProps } from "./NavigationMenu";
+
+export { Menubar } from "./Menubar";
+export type { MenubarItem, MenubarMenu, MenubarProps } from "./Menubar";
+
+export { Carousel } from "./Carousel";
+export type { CarouselProps } from "./Carousel";
+
+export { DataTable } from "./DataTable";
+export type { DataTableColumn, DataTableProps, DataTableSort, SortDirection } from "./DataTable";

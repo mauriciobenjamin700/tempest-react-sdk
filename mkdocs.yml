@@ -43,6 +43,12 @@ plugins:
                     Visão geral: Overview
                     Arquitetura: Architecture
                     Gallery (demo): Gallery (demo)
+                    Estrutura de aplicação: App foundation
+                    Scaffold (create-tempest-app): Scaffold (create-tempest-app)
+                    Vite & alias: Vite & alias
+                    Roteamento: Routing
+                    Estado (Zustand): State (Zustand)
+                    Providers: Providers
                     Componentes: Components
                     Catálogo de componentes: Components catalogue
                     Entrada de dados: Data entry
@@ -53,6 +59,8 @@ plugins:
                     Dados: Data
                     Status & feedback: Status & feedback
                     Identidade & micro: Identity & micro
+                    Utilitários & headless: Utility & headless
+                    Overlays & avançados: Overlays & advanced
                     Hooks: Hooks
                     Hooks utilitários: Utility hooks
                     Integrações: Integrations
@@ -78,6 +86,7 @@ plugins:
                     Logger: Logger
                     Error Boundary: Error Boundary
                     Projeto: Project
+                    Utilitários: Utilities
                     Testing helpers: Testing helpers
                     Release pipeline: Release pipeline
 
@@ -102,6 +111,12 @@ nav:
     - Guia:
           - Visão geral: architecture.md
           - Gallery (demo): gallery.md
+    - Estrutura de aplicação:
+          - Scaffold (create-tempest-app): scaffold.md
+          - Vite & alias: vite-config.md
+          - Roteamento: routing.md
+          - Estado (Zustand): state.md
+          - Providers: app-providers.md
     - Componentes:
           - Catálogo de componentes: components.md
           - Entrada de dados: components/inputs.md
@@ -112,6 +127,8 @@ nav:
           - Dados: components/data.md
           - Status & feedback: components/feedback.md
           - Identidade & micro: components/identity.md
+          - Utilitários & headless: components/utility.md
+          - Overlays & avançados: components/advanced.md
     - Hooks:
           - Hooks utilitários: hooks.md
     - Integrações:
@@ -137,5 +154,6 @@ nav:
           - Logger: logger.md
           - Error Boundary: error-boundary.md
     - Projeto:
+          - Utilitários: utilities.md
           - Testing helpers: testing.md
           - Release pipeline: release.md

@@ -2,6 +2,84 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
+## [0.7.0] — 2026-06-27
+
+> Inclui também tudo que foi preparado em `0.6.0` e `0.6.1` (nunca publicados no npm — ver entradas abaixo): **app foundation** (router/store/app/vite), **CLI `create-tempest-app`** embarcada como `bin`, migração do publish para **Trusted Publishing (OIDC)**.
+
+### Utilitários genéricos novos (`src/utils/`)
+
+- **Arrays**: `groupBy`, `uniqueBy`, `chunk`, `range`.
+- **Objects**: `pick`, `omit`, `deepMerge`, `isEmpty`.
+- **Type guards**: `isDefined`, `isString`, `isNumber`, `isPlainObject`, `assertNever`.
+- **Funções**: `debounce`, `throttle`, `once`, `memoizeOne` (funções puras — distintas dos hooks `useDebounce`/`useThrottle`).
+- **Promises**: `sleep`, `withTimeout`.
+- **Ids**: `randomId`.
+- **Strings** (extras): `capitalize`, `camelCase`, `kebabCase`, `pluralize`.
+- **Numbers** (extras): `formatBytes`, `formatCompactNumber`.
+- `src/utils/index.ts` agora exporta toda a superfície; o barrel raiz passou a `export * from "./utils"`.
+
+### Componentes genéricos novos (`src/components/`)
+
+- **Display**: `CopyButton`, `RelativeTime`, `Money`, `TruncateText`, `VisuallyHidden`.
+- **Headless / lógicos**: `Portal`, `ClickOutside`, `ConditionalWrapper`, `For`, `ErrorText`.
+- **Mídia / conteúdo**: `Image` (fallback + lazy), `DataList`, `DescriptionList`.
+
+### Componentes shadcn-parity novos (`src/components/`)
+
+Preenchem as lacunas vs shadcn/ui — sem dependências novas (construídos sobre Popover/DropdownMenu/Modal/Table/Portal + hooks existentes):
+
+- **Essenciais**: `Toggle`, `ToggleGroup` (+ `ToggleGroupItem`), `Label`, `Collapsible`, `ContextMenu`, `HoverCard`, `Command` (palette ⌘K).
+- **Layout/UX**: `ScrollArea`, `Resizable`, `Calendar` (grid de mês standalone).
+- **Navegação/conteúdo**: `NavigationMenu`, `Menubar`, `Carousel`.
+- **DataTable**: wrapper com sort/filtro/paginação client-side sobre o `Table` (sem dep tanstack).
+- `Chart` ficou de fora de propósito — o app injeta recharts/visx direto (padrão "caller injeta").
+
+### Docs
+
+- Nova página **Utilitários** (`utilities.md`) e **Utilitários & headless** (`components/utility.md`) — bilíngues PT-BR + EN-US.
+- Catálogo **Overlays & avançados** (`components/advanced.md`) — bilíngue — para os componentes shadcn-parity.
+
+## [0.6.1] — 2026-06-21
+
+### CLI `create-tempest-app` embarcada na lib
+
+- A CLI de scaffolding agora **vem dentro do pacote `tempest-react-sdk`** como `bin` (`create-tempest-app`) — não é mais um pacote npm separado. Instala a lib e o comando fica disponível:
+  - Projeto novo: `npx -p tempest-react-sdk create-tempest-app my-app`.
+  - Projeto existente (já com a lib): `npx create-tempest-app .` escreve `src/` + configs no diretório atual, **pulando arquivos que já existem** e fazendo **merge** dos scripts/deps no `package.json` existente (preserva `name`/`version`/scripts próprios).
+- O `bin` carimba no `package.json` gerado a **versão do SDK que o produziu** (`tempest-react-sdk: ^<versão>`), em vez de pin fixo.
+- `template/` e `bin/` entram no tarball publicado (`files`).
+- O app gerado já vem com **ESLint 9** (flat config react-hooks + react-refresh, scripts `lint`/`lint:fix`) e `tsconfig` estrito (`noImplicitOverride` + `forceConsistentCasingInFileNames`).
+
+## [0.6.0] — 2026-06-21
+
+Estrutura de aplicação: o SDK passa a oferecer uma fundação opinativa para projetos React — Vite com alias `@`, roteamento declarativo (React Router v7), estado com Zustand e cache com TanStack Query já fiados —, além de uma CLI de scaffolding.
+
+### Módulos novos
+
+- **`src/router/`** — roteamento React Router v7 (modo declarativo) embrulhado pelo SDK:
+  - `defineRoutes(routes)` — helper tipado pra árvore de rotas declarativa (`TempestRouteObject`: `path`/`index`/`element`/`lazy`/`children`/`guard`/`redirectTo`/`caseSensitive`).
+  - `<AppRouter routes router? basename? initialEntries? fallback? />` — monta o router (`browser`/`hash`/`memory`), o boundary `<Suspense>` pra rotas `lazy` e os redirects de `guard` por rota.
+  - `<RouteGuard when redirectTo? replace? />` — guarda declarativa standalone (combina com `createAuthStore`).
+  - Re-exporta os primitivos declarativos (`Link`, `NavLink`, `Outlet`, `Navigate`, `useNavigate`, `useParams`, `useSearchParams`, `useLocation`, `useMatch`, `useRouteError`, `redirect`, `BrowserRouter`/`HashRouter`/`MemoryRouter`/`Routes`/`Route`) — apps importam toda a superfície de rotas do próprio SDK.
+- **`src/store/`** — fábricas Zustand genéricas:
+  - `createStore<T>(initializer, { persist? })` — contraparte genérica do `createAuthStore`, com `persist` opcional (`name`/`storage`/`partialize`/`version`/`migrate`).
+  - `createSelectors(store)` — gera `store.use.<campo>()` (assinatura por slice, menos re-renders).
+- **`src/app/`** — `<AppProviders query? theme? i18n? errorBoundary? />` compõe ErrorBoundary → QueryProvider → ThemeProvider → I18nProvider num único bloco. Query e theme ligados por padrão; i18n e error boundary opt-in.
+- **`src/vite/`** (subpath novo `tempest-react-sdk/vite`) — `createViteConfig(options?)`: liga `@vitejs/plugin-react`, alias `@` → `src` e defaults de dev server (porta, host, proxy com shorthand string, `overrides`). Entry Node-only, separada do barrel do browser.
+
+### CLI nova: `create-tempest-app`
+
+- Pacote separado (`npm create tempest-app my-app`) que gera um projeto Vite + React 19 + TypeScript já fiado com o SDK: `vite.config.ts` com `createViteConfig`, `App.tsx` com `AppProviders` + `AppRouter`, `routes.tsx` com `defineRoutes` (incluindo rota `lazy` + `guard`), `stores/auth.ts` com `createAuthStore` + `createSelectors`, `lib/api.ts` com `createApiClient` + `createQueryKeys`. Zero dependências de runtime.
+
+### Dependências
+
+- `react-router-dom@^7` agora é **dependency direta** (instalada junto com o SDK; externalizada no bundle).
+- `vite` e `@vitejs/plugin-react` viram **peer dependencies opcionais** (só pro helper `tempest-react-sdk/vite`; já presentes em qualquer app Vite).
+
+### Docs
+
+- Nova seção **Estrutura de aplicação** no site (bilíngue PT-BR + EN-US): `scaffold`, `vite-config`, `routing`, `state`, `app-providers`.
+
 ## [0.5.1] — 2026-05-17
 
 ### Documentação

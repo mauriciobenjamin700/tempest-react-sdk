@@ -1,0 +1,40 @@
+.collapsible {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tempest-space-2);
+    padding: var(--tempest-space-2) var(--tempest-space-3);
+    background: none;
+    border: none;
+    text-align: left;
+    color: var(--tempest-text);
+    font-family: var(--tempest-font-sans);
+    font-size: var(--tempest-text-base);
+    font-weight: var(--tempest-weight-semibold);
+    line-height: var(--tempest-leading-snug);
+    cursor: pointer;
+    border-radius: var(--tempest-radius-md);
+    transition: var(--tempest-transition-color);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .trigger:hover {
+        background-color: var(--tempest-surface);
+    }
+}
+
+.trigger:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: 2px;
+}
+
+.content {
+    padding: var(--tempest-space-2) var(--tempest-space-3) var(--tempest-space-3);
+    color: var(--tempest-text);
+    line-height: var(--tempest-leading-normal);
+}

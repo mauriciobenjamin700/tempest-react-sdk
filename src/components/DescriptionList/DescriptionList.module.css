@@ -1,0 +1,18 @@
+.list {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--tempest-space-1) var(--tempest-space-4);
+    margin: 0;
+}
+
+.term {
+    color: var(--tempest-text-subtle);
+    font-size: var(--tempest-text-sm);
+    font-weight: var(--tempest-weight-medium);
+}
+
+.description {
+    margin: 0;
+    color: var(--tempest-text);
+    font-size: var(--tempest-text-sm);
+}

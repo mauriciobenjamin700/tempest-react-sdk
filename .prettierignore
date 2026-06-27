@@ -4,3 +4,4 @@ coverage
 .changeset
 *.drawio
 package-lock.json
+template

@@ -1,0 +1,29 @@
+.root {
+    /* Overflow is set inline per orientation; this only styles the scrollbar.
+       Firefox thin scrollbar; degrades gracefully elsewhere. */
+    scrollbar-width: thin;
+    scrollbar-color: var(--tempest-border) transparent;
+    overscroll-behavior: contain;
+}
+
+.root::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.root::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.root::-webkit-scrollbar-thumb {
+    background-color: var(--tempest-border);
+    border-radius: var(--tempest-radius-full);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .root::-webkit-scrollbar-thumb:hover {
+        background-color: var(--tempest-text-muted);
+    }
+}

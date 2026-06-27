@@ -13,7 +13,9 @@
       "@tanstack/react-query",
       "lucide-react",
       "dexie",
-      "react-hook-form"
+      "react-hook-form",
+      "react-router",
+      "react-router-dom"
     ]
   },
   {
@@ -30,7 +32,9 @@
       "@tanstack/react-query",
       "lucide-react",
       "dexie",
-      "react-hook-form"
+      "react-hook-form",
+      "react-router",
+      "react-router-dom"
     ]
   },
   {

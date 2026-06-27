@@ -16,6 +16,15 @@ export * from "./oauth";
 // Query
 export * from "./query";
 
+// Router (React Router v7, declarative mode)
+export * from "./router";
+
+// State stores (Zustand factories)
+export * from "./store";
+
+// App-wide provider composition
+export * from "./app";
+
 // SSE
 export * from "./sse";
 
@@ -59,17 +68,4 @@ export * from "./feature-flags";
 export * from "./share";
 
 // Utils
-export { cn } from "./utils/cn";
-export {
-    formatCurrency,
-    formatDate,
-    formatDateTime,
-    formatPhone,
-    formatCPF,
-    formatPercent,
-} from "./utils/format";
-export { storage } from "./utils/storage";
-export { slugify, truncate } from "./utils/strings";
-export { clamp } from "./utils/numbers";
-export { relativeTime } from "./utils/relative-time";
-export type { RelativeTimeLocale } from "./utils/relative-time";
+export * from "./utils";

@@ -1,0 +1,103 @@
+.root {
+    position: relative;
+    width: 100%;
+    font-family: var(--tempest-font-sans);
+}
+
+.root:focus-visible {
+    outline: 2px solid var(--tempest-primary);
+    outline-offset: 2px;
+}
+
+.viewport {
+    overflow: hidden;
+    border-radius: var(--tempest-radius-lg);
+}
+
+.track {
+    display: flex;
+    transition: transform var(--tempest-duration-normal) var(--tempest-ease-out);
+}
+
+.slide {
+    flex: 0 0 100%;
+    min-width: 0;
+}
+
+.arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    background-color: var(--tempest-bg);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-full);
+    box-shadow: var(--tempest-shadow-md);
+    color: var(--tempest-text);
+    font-size: var(--tempest-text-xl);
+    line-height: 1;
+    cursor: pointer;
+    transition: var(--tempest-transition-color);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .arrow:hover:not(:disabled) {
+        background-color: var(--tempest-surface);
+    }
+}
+
+.arrow:focus-visible {
+    outline: 2px solid var(--tempest-primary);
+    outline-offset: 2px;
+}
+
+.arrow:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.prev {
+    left: var(--tempest-space-2);
+}
+
+.next {
+    right: var(--tempest-space-2);
+}
+
+.dots {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--tempest-space-2);
+    margin-top: var(--tempest-space-3);
+}
+
+.dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    padding: 0;
+    background-color: var(--tempest-border);
+    border: none;
+    border-radius: var(--tempest-radius-full);
+    cursor: pointer;
+    transition: var(--tempest-transition-color);
+}
+
+.dotActive {
+    background-color: var(--tempest-primary);
+}
+
+.dot:focus-visible {
+    outline: 2px solid var(--tempest-primary);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .track {
+        transition: none;
+    }
+}

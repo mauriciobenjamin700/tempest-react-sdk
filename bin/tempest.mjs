@@ -8,8 +8,11 @@
 //   tempest --help | --version
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { generate } from "./lib/openapi/generate.mjs";
+import { loadSpec } from "./lib/openapi/load.mjs";
 
 const ROOT = process.cwd();
 const SELF_DIR = resolve(fileURLToPath(import.meta.url), "..");
@@ -234,6 +237,62 @@ function format(paths) {
     return run(requireBin("prettier"), ["--write", ...(paths.length ? paths : ["."])]);
 }
 
+// -------------------------------------------------------------- gen api ----
+
+/** Parse `--out <dir>` from the argv tail. */
+function parseOut(args, fallback) {
+    const i = args.indexOf("--out");
+    return i >= 0 && args[i + 1] ? args[i + 1] : fallback;
+}
+
+/**
+ * `tempest gen api <url|file> [--out src/api]` — generate Zod schemas, TS types
+ * and a service class per route-group from an OpenAPI spec.
+ */
+async function genApi(args) {
+    const source = args.find((a) => !a.startsWith("--") && a !== "api");
+    if (!source) {
+        console.error(`${c.red}✗ Missing OpenAPI source.${c.reset} Usage: tempest gen api <url|file> [--out src/api]`);
+        return 1;
+    }
+    const outDir = resolve(ROOT, parseOut(args, "src/api"));
+    console.log(`${c.dim}→ loading ${source}${c.reset}`);
+    const doc = await loadSpec(source);
+    const { files, tags } = generate(doc);
+
+    for (const [rel, contents] of Object.entries(files)) {
+        const dest = join(outDir, rel);
+        await mkdir(dirname(dest), { recursive: true });
+        await writeFile(dest, contents);
+    }
+
+    console.log(`\n${c.green}✓ Generated${c.reset} ${Object.keys(files).length} files for ${tags.length} route group(s): ${c.bold}${tags.join(", ")}${c.reset}`);
+    console.log(`  ${c.dim}out: ${outDir}${c.reset}`);
+    const prettier = localBin("prettier");
+    if (prettier) {
+        console.log(`${c.dim}→ prettier --write ${parseOut(args, "src/api")}${c.reset}`);
+        run(prettier, ["--write", parseOut(args, "src/api")]);
+    }
+    console.log(`\n${c.dim}Inject an ApiClient into a service:${c.reset}`);
+    console.log(`  import { createApiClient } from "tempest-react-sdk";`);
+    if (tags[0]) {
+        const cls = tags[0].replace(/[^a-zA-Z0-9]+(.)?/g, (_, ch) => (ch ? ch.toUpperCase() : ""));
+        const Cls = cls.charAt(0).toUpperCase() + cls.slice(1) + "Service";
+        console.log(`  import { ${Cls} } from "@/api/${tags[0].toLowerCase()}";`);
+        console.log(`  const svc = new ${Cls}(createApiClient({ baseURL: import.meta.env.VITE_API_URL }));`);
+    }
+    return 0;
+}
+
+function gen(args) {
+    const what = args[0];
+    if (what !== "api") {
+        console.error(`${c.red}✗ Unknown gen target: ${what ?? "(none)"}${c.reset} — only \`gen api\` is supported.`);
+        return 1;
+    }
+    return genApi(args.slice(1));
+}
+
 // ------------------------------------------------------------------ main ----
 
 function usage() {
@@ -248,6 +307,8 @@ ${c.bold}Commands${c.reset}
   ${c.bold}lint${c.reset} [paths]      Run ESLint (report only)
   ${c.bold}fix${c.reset} [paths]       ESLint --fix (sort imports, remove unused, tidy whitespace) + Prettier
   ${c.bold}format${c.reset} [paths]    Prettier --write
+  ${c.bold}gen api${c.reset} <src>    Generate Zod schemas + types + service classes from an OpenAPI spec
+                    (e.g. tempest gen api http://127.0.0.1:8000/openapi.json --out src/api)
 
 ${c.bold}Options${c.reset}
   -h, --help        Show this help
@@ -271,6 +332,7 @@ const commands = {
     lint: () => lint(rest),
     fix: () => fix(rest),
     format: () => format(rest),
+    gen: () => gen(rest),
 };
 
 if (!commands[cmd]) {
@@ -279,4 +341,12 @@ if (!commands[cmd]) {
     process.exit(1);
 }
 
-process.exit(commands[cmd]());
+const result = commands[cmd]();
+if (result instanceof Promise) {
+    result.then((code) => process.exit(code)).catch((err) => {
+        console.error(`${c.red}✗ ${err instanceof Error ? err.message : String(err)}${c.reset}`);
+        process.exit(1);
+    });
+} else {
+    process.exit(result);
+}

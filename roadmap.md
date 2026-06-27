@@ -27,7 +27,7 @@ Tudo abaixo está commitado e validado (typecheck · lint 0 erros · 998 testes 
 1. **Bundle / size-limit** — CJS em **43.76 KB / teto 45**. Decidir: subir teto **ou** criar subpaths (`tempest-react-sdk/components`, `/utils`, `/forms`, `/http`) pra tree-shaking refinado (casa com P2 antigo). Não cabe mais ~2-3 componentes sem isso.
 2. ~~Auditar `docs/components/data.md`~~ ✅ feito — props do `Table` corrigidas (`data`/`header`/`emptyMessage`).
 3. **Smoke no browser** dos pesados novos (Command ⌘K, DataTable, Calendar, Resizable) no app local `tempest-app-local`.
-4. **OpenAPI → geração de serviços (in-house)** — ler um spec OpenAPI (estilo o `/openapi.json` do FastAPI) e gerar clientes/serviços tipados por rota (sobre o `createApiClient`), com tipos derivados dos schemas. Existem libs (openapi-typescript, orval, openapi-ts) mas queremos a **nossa** — provável bin `tempest gen api <url|file>` + templates. Decidir: gerar tipos + funções de serviço por tag/rota, alinhado ao padrão de `createQueryKeys`/Query.
+4. ~~OpenAPI → geração de serviços (in-house)~~ ✅ **feito** — `tempest gen api <url|file> --out src/api`: por grupo de rotas (tag) gera `schemas.ts` (Zod), `types.ts` (`z.infer`) e `service.ts` (classe com método por rota + validação Zod do body), sobre o `createApiClient`. Gerador em `bin/lib/openapi/`. v1 cobre o comum de FastAPI (JSON). Futuro: YAML, validação opcional de resposta, query keys geradas.
 
 ## 📝 Docs a melhorar
 

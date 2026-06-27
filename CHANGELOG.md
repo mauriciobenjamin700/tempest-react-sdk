@@ -4,16 +4,24 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
-### `create-tempest-app --pwa` — scaffold de PWA
+### `create-tempest-app --pwa` — scaffold de PWA (paridade com `vite-plugin-pwa`, sem ele)
 
-- Nova flag **`--pwa`** na CLI: gera o app já **instalável** (manifest + ícones) e com **web push** cabeado. Funciona em pasta nova e em modo merge (`.`).
-- A flag sobrepõe um overlay `template-pwa/` por cima do template base: `public/manifest.webmanifest` + `icon.svg`/`icon-maskable.svg`, `index.html` com link do manifest + `theme-color` + metas apple, `src/sw.ts` (service worker), `vite.sw.config.ts` (build dedicado do SW → `dist/sw.js`), `main.tsx` registrando o SW só em produção (e limpando em dev), `Dashboard.tsx` com botão **Instalar** (`useBeforeInstallPrompt`) + toggle de notificações (`usePushSubscription`), e `.env.example` com `VITE_VAPID_PUBLIC_KEY`. O script `build` passa a empacotar o SW.
-- **Sem `vite-plugin-pwa`**: o service worker é montado com os helpers do próprio SDK.
-- Em modo merge, a CLI **nunca sobrescreve arquivos do usuário** — a cópia passou a usar um snapshot dos arquivos pré-existentes como conjunto protegido, e tanto o template base quanto o overlay PWA respeitam isso.
+- Nova flag **`--pwa`** na CLI: gera o app já **instalável**, com **web push**, **offline-first** (precache + runtime cache), **ícones gerados** e **SW funcionando em dev**. Funciona em pasta nova e em modo merge (`.`).
+- A flag sobrepõe um overlay `template-pwa/` por cima do template base: `public/manifest.webmanifest` (aponta pros PNGs gerados) + `public/icon.svg` (fonte), `index.html` com link do manifest + `theme-color` + metas apple, `src/sw.ts` (push + notificationclick + skip-waiting + cache), `vite.config.ts` (registra os plugins PWA), `vite.sw.config.ts` (build dedicado do SW → `dist/sw.js`), `main.tsx` registrando o SW em dev e produção, `Dashboard.tsx` com botão **Instalar** (`useBeforeInstallPrompt`) + toggle de notificações (`usePushSubscription`), `.env.example` com `VITE_VAPID_PUBLIC_KEY`, e `sharp` como `devDependency`. O `build` empacota o SW + gera os ícones.
+- **Sem `vite-plugin-pwa` nem Workbox**: tudo montado com helpers do próprio SDK.
+- Em modo merge, a CLI **nunca sobrescreve arquivos do usuário** — a cópia usa um snapshot dos arquivos pré-existentes como conjunto protegido, respeitado pelo template base e pelo overlay PWA.
+
+### Offline, ícones e SW em dev (novos plugins/helpers)
+
+- **`installPrecache`** + **`installRuntimeCache`** (em `tempest-react-sdk/sw`): precache do app shell com `navigateFallback` offline (SPA), versão de cache + limpeza no `activate`, e caching por rota (`cache-first` / `network-first` / `stale-while-revalidate`) com `maxEntries` / `maxAgeSeconds` / `networkTimeoutSeconds`.
+- **`tempestPwaManifest()`** (em `tempest-react-sdk/vite`): plugin Vite que emite `precache-manifest.json` (todos os assets do build + `version` por conteúdo) — o equivalente sem-dependência ao `__WB_MANIFEST` do Workbox.
+- **`tempestPwaIcons()`** (em `tempest-react-sdk/vite`): rasteriza um SVG-fonte no set completo de ícones (`icon-192/512.png`, `maskable-512.png`, `apple-touch-icon.png`) via **`sharp`** (import preguiçoso e opcional — sem ele, avisa e pula em vez de falhar). Equivalente sem-dep ao `@vite-pwa/assets-generator`.
+- **`tempestPwaDevSw()`** (em `tempest-react-sdk/vite`): serve `/sw.js` em `npm run dev` compilando `src/sw.ts` na hora com esbuild + um `precache-manifest.json` vazio — fecha o gap "SW em dev".
+- Resultado: o `--pwa` atinge **paridade com o `vite-plugin-pwa`** no caso comum (precache, runtime caching, navigateFallback, cleanup, geração de ícones, SW em dev) sem dependência de runtime nova.
 
 ### Novo subpath `tempest-react-sdk/sw`
 
-- Os helpers de service worker (`installPushHandler`, `installNotificationClickHandler`, `installSkipWaitingListener`, `registerServiceWorker`, `skipWaiting`, `unregisterAllServiceWorkers`) agora têm um **subpath dedicado e sem React**: `tempest-react-sdk/sw` (~1 KB). Ideal pra empacotar no seu `sw.ts` sem arrastar o grafo de componentes pro escopo do worker. O barrel raiz continua exportando tudo.
+- Os helpers de service worker (`installPushHandler`, `installNotificationClickHandler`, `installSkipWaitingListener`, `installPrecache`, `installRuntimeCache`, `registerServiceWorker`, `skipWaiting`, `unregisterAllServiceWorkers`) têm um **subpath dedicado e sem React**: `tempest-react-sdk/sw`. Ideal pra empacotar no seu `sw.ts` sem arrastar o grafo de componentes pro escopo do worker. O barrel raiz continua exportando tudo.
 
 ## [0.7.0] — 2026-06-27
 

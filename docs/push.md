@@ -168,6 +168,14 @@ installNotificationClickHandler();
 
 `installNotificationClickHandler` foca o client existente quando a URL bate, ou abre nova janela.
 
+!!! tip "Cache offline mora no mesmo módulo"
+    `tempest-react-sdk/sw` também exporta `installPrecache` (app shell offline) e
+    `installRuntimeCache` (caching por rota: cache-first / network-first /
+    stale-while-revalidate). Junto com o plugin `tempestPwaManifest()` de
+    `tempest-react-sdk/vite`, dão paridade com o `vite-plugin-pwa` no caso comum
+    — sem dependência nova. É o que o
+    [`create-tempest-app --pwa`](./scaffold.md#modo-pwa-pwa) já cabeia.
+
 !!! tip "`urlBase64ToUint8Array` e `isPushSupported` são exportados"
     Você raramente os chama na mão — `WebPushClient` já usa os dois internamente
     (`applicationServerKey` exige `Uint8Array`, não a string base64). Eles estão

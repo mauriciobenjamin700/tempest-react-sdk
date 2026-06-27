@@ -149,7 +149,7 @@ export const useAuth = createSelectors(createAuthStore<User>({ name: "app-auth" 
 
 ## PWA mode (`--pwa`)
 
-Want the app to be **installable** (home-screen icon) and able to **emit web push notifications** out of the box? Pass the `--pwa` flag:
+Want the app to be **installable** (home-screen icon), able to **emit web push notifications**, and to **work offline** (app shell + cache) out of the box? Pass the `--pwa` flag:
 
 ```bash
 npx -p tempest-react-sdk create-tempest-app my-app --pwa
@@ -158,31 +158,31 @@ npx -p tempest-react-sdk create-tempest-app my-app --pwa
 The flag works in both modes (new folder **and** `.`/merge). It **overlays** the PWA template on top of the base: everything from the normal app stays the same, plus a few new files and a few overwritten ones.
 
 !!! info "No `vite-plugin-pwa`, no Workbox"
-    The SW is assembled from the SDK's own helpers (`tempest-react-sdk/sw`) and bundled by a dedicated build. No extra PWA dependency — the PWA app uses the exact same deps as the base app.
+    Install, push **and** offline caching are assembled from the SDK's own helpers (`tempest-react-sdk/sw` + `tempest-react-sdk/vite`) and bundled by a dedicated build. No extra PWA dependency — the PWA app uses the exact same deps as the base app. (Full comparison vs `vite-plugin-pwa` below.)
 
 ### What the flag adds
 
 ```text
 my-app/
 ├── index.html                  # (overwritten) manifest link + theme-color + apple metas
+├── vite.config.ts              # (overwritten) createViteConfig + tempestPwaIcons + Manifest + DevSw
 ├── vite.sw.config.ts           # dedicated build that bundles src/sw.ts -> dist/sw.js
 ├── public/
-│   ├── manifest.webmanifest    # install metadata (name, icons, theme color)
-│   ├── icon.svg                # app icon (placeholder — swap for yours)
-│   └── icon-maskable.svg       # maskable variant (Android adaptive icon)
+│   ├── manifest.webmanifest    # install metadata (points at the generated PNGs)
+│   └── icon.svg                # source icon (swap for yours — the PNGs come from it)
 └── src/
-    ├── sw.ts                   # service worker: push + notificationclick + skip-waiting
-    ├── main.tsx                # (overwritten) registers /sw.js in prod, cleans up SW in dev
+    ├── sw.ts                   # service worker: push + notificationclick + skip-waiting + cache
+    ├── main.tsx                # (overwritten) registers /sw.js in dev and prod
     ├── vite-env.d.ts           # (overwritten) types VITE_VAPID_PUBLIC_KEY
     └── pages/Dashboard.tsx     # (overwritten) Install button + notifications toggle
 ```
 
-`package.json` is patched too: the `build` script now bundles the SW (`tsc --noEmit && vite build && npm run build:sw`) and gains a `build:sw`.
+`package.json` is patched too: the `build` script now bundles the SW (`tsc --noEmit && vite build && npm run build:sw`) and gains a `build:sw`; `sharp` is added as a `devDependency` (generates the icons). The build emits a `dist/precache-manifest.json` (the asset list for offline caching) via `tempestPwaManifest()` and the PNG icon set (`dist/icons/*.png` + `apple-touch-icon.png`) via `tempestPwaIcons()`.
 
 !!! warning "In merge mode, your files are preserved"
     In `.` mode (merging into an existing project), the CLI **never overwrites a file of yours** — only the ones it just generated. If you already had an `index.html`, it is skipped and reported, and its PWA bits are up to you.
 
-### The three pieces
+### The five pieces
 
 #### 1. Install → `useBeforeInstallPrompt`
 
@@ -213,7 +213,7 @@ installNotificationClickHandler();
 installSkipWaitingListener();
 ```
 
-`vite.sw.config.ts` bundles that file (and the helpers it imports) into a **classic service worker** at `dist/sw.js`, and `main.tsx` registers it **in production only** via `registerServiceWorker`. See the helper details in [Web Push](./push.md).
+`vite.sw.config.ts` bundles that file (and the helpers it imports) into a **classic service worker** at `dist/sw.js`, and `main.tsx` registers it via `registerServiceWorker`. In **dev**, the `tempestPwaDevSw()` plugin compiles `sw.ts` on the fly and serves it at `/sw.js` — so push and caching work under `npm run dev` too (without it, the SW would only exist in the build). See the helper details in [Web Push](./push.md).
 
 #### 3. Web push → `usePushSubscription`
 
@@ -232,15 +232,73 @@ const push = usePushSubscription({
 });
 ```
 
-!!! danger "Push and offline only work in a production build"
-    The service worker is bundled **at build time**, so it only exists after `npm run build`. In `npm run dev` the SW is **unregistered on purpose** to avoid stale caches. To test install and push, run `npm run build && npm run preview`.
+#### 4. Offline → `installPrecache` + `installRuntimeCache`
 
-!!! tip "Swap the icons"
-    `public/icon.svg` is a placeholder. For guaranteed installability across all browsers, add PNGs (192×192 and 512×512) to `public/` and point the `manifest.webmanifest` `icons` entries at them.
+`vite.config.ts` adds the `tempestPwaManifest()` plugin, which emits a `dist/precache-manifest.json` listing every built asset (the dependency-free counterpart to Workbox's `__WB_MANIFEST`). In `sw.ts`, two helpers consume it:
+
+```ts
+import { installPrecache, installRuntimeCache } from "tempest-react-sdk/sw";
+
+// Specific routes FIRST (they win over the precache catch-all):
+installRuntimeCache([
+  {
+    match: (url) => url.pathname.startsWith("/api/"),
+    strategy: "network-first", // or "cache-first" / "stale-while-revalidate"
+    cacheName: "api",
+    networkTimeoutSeconds: 5,
+    maxEntries: 50,
+    maxAgeSeconds: 60 * 5,
+  },
+]);
+
+// App shell last — launches offline:
+installPrecache({ navigateFallback: "/index.html", navigateFallbackDenylist: [/^\/api\//] });
+```
+
+- **`installPrecache`** caches the app shell on `install`, serves assets cache-first, and returns the `navigateFallback` (SPA) when a navigation happens offline. It versions the cache by the manifest's `version` and cleans up old versions on `activate`.
+- **`installRuntimeCache`** applies per-route strategies (cache-first / network-first / stale-while-revalidate) with `maxEntries` and `maxAgeSeconds`.
+
+#### 5. Icons → `tempestPwaIcons`
+
+`vite.config.ts` adds `tempestPwaIcons({ source: "public/icon.svg" })`, which at build time rasterizes **a single source SVG** into the full icon set — the dependency-free counterpart to `@vite-pwa/assets-generator`:
+
+```ts
+import { tempestPwaIcons } from "tempest-react-sdk/vite";
+
+tempestPwaIcons({ source: "public/icon.svg" });
+// emits: dist/icons/icon-192.png, icon-512.png, maskable-512.png, dist/apple-touch-icon.png
+```
+
+Rasterization uses **`sharp`** (already a template `devDependency`). The `manifest.webmanifest` points at the generated PNGs, and `tempestPwaManifest()` includes them in the precache automatically. Changing the app icon = swapping `public/icon.svg`.
+
+!!! note "`sharp` is optional"
+    The plugin imports `sharp` lazily: if it isn't installed the build **doesn't fail** — it just logs a warning and skips generation. The template ships `sharp` as a devDep, so it works out of the box.
+
+!!! danger "Push and offline only work in a production build"
+    Icon generation happens **at build time**, and the app shell is only precached after `npm run build`. In `npm run dev` the `tempestPwaDevSw()` plugin serves the SW (push + runtime caching work), but offline precache and the PNGs only exist in the build. To test full install + offline, run `npm run build && npm run preview` (then tick **Offline** under DevTools › Network to watch the app shell serve).
+
+### `--pwa` vs `vite-plugin-pwa`
+
+`--pwa` now covers the same ground as `vite-plugin-pwa` for the common case, with no new runtime dependency:
+
+| Feature                             | `vite-plugin-pwa` (Workbox) | `--pwa` (SDK)                               |
+| ----------------------------------- | --------------------------- | ------------------------------------------- |
+| Manifest + installable              | ✅                          | ✅                                          |
+| Install prompt                      | manual                      | ✅ `useBeforeInstallPrompt`                 |
+| Web push + `notificationclick`      | you write it                | ✅ SDK helpers                              |
+| Update flow (skip-waiting)          | ✅                          | ✅ `registerServiceWorker`                  |
+| App-shell precache                  | ✅ (`__WB_MANIFEST`)        | ✅ `tempestPwaManifest` + `installPrecache` |
+| Runtime caching (cache/network/SWR) | ✅                          | ✅ `installRuntimeCache`                    |
+| `navigateFallback` (SPA offline)    | ✅                          | ✅                                          |
+| Old-cache cleanup                   | ✅                          | ✅ (version on `activate`)                  |
+| Automatic icon generation           | ✅ (sharp)                  | ✅ `tempestPwaIcons` (sharp, optional)      |
+| SW in dev                           | ✅ (`devOptions`)           | ✅ `tempestPwaDevSw` (esbuild)              |
+
+Only very elaborate cases are left (Background Sync, range requests, splash-screen generation) — there `vite-plugin-pwa` is still more complete, and you can pass it via `plugins: [...]` in `createViteConfig`.
 
 ### PWA mode recap
 
-`--pwa` hands you manifest + service worker + push **already wired** on top of the same base app, using the SDK's `tempest-react-sdk/sw` helpers, `usePushSubscription` and `useBeforeInstallPrompt` — without `vite-plugin-pwa`. Generate the VAPID key on your backend, fill in `VITE_VAPID_PUBLIC_KEY` in `.env`, and test with `npm run build && npm run preview`. 🚀
+`--pwa` hands you manifest + service worker + push + **offline cache** + **generated icons** + **SW in dev**, already wired on top of the same base app, using `tempest-react-sdk/sw` (`installPushHandler`, `installPrecache`, `installRuntimeCache`), `tempest-react-sdk/vite` (`tempestPwaManifest`, `tempestPwaIcons`, `tempestPwaDevSw`), `usePushSubscription` and `useBeforeInstallPrompt` — without `vite-plugin-pwa`. Generate the VAPID key on your backend, fill in `VITE_VAPID_PUBLIC_KEY` in `.env`, swap `public/icon.svg`, and test with `npm run build && npm run preview`. 🚀
 
 ## Next steps
 

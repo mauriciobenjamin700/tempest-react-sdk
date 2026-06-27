@@ -7,19 +7,20 @@
 - [AppProviders](https://mauriciobenjamin700.github.io/tempest-react-sdk/app-providers/): Todo app React precisa de um punhado de _providers_ no topo da árvore: cache de
 - [Arquitetura](https://mauriciobenjamin700.github.io/tempest-react-sdk/architecture/): O tempest-react-sdk é um pacote único com camadas independentes.
 - [Áudio](https://mauriciobenjamin700.github.io/tempest-react-sdk/audio/): Notificações sonoras (chime de mensagem, confirmação de pagamento, etc.) sobre o Audio nativo do navegador.
-- [Auth](https://mauriciobenjamin700.github.io/tempest-react-sdk/auth/): Quatro peças, todas independentes:
+- [Auth](https://mauriciobenjamin700.github.io/tempest-react-sdk/auth/): Autenticação no front-end é sempre o mesmo punhado de problemas: onde guardar a sessão, como proteger uma rota, como ler o que tem dentro do token e o que fazer quando ele expira no meio de um deploy.
+- [CLI `tempest`](https://mauriciobenjamin700.github.io/tempest-react-sdk/cli/): Além da CLI de scaffolding create-tempest-app, o pacote
 - [Cookbook — Receitas](https://mauriciobenjamin700.github.io/tempest-react-sdk/cookbook/): Esta página é um livro de receitas: cada seção responde a um "eu quero fazer X"
 - [Error Boundary](https://mauriciobenjamin700.github.io/tempest-react-sdk/error-boundary/): ErrorBoundary captura erros lançados durante o render de qualquer descendente e mostra um fallback no lugar de uma tela branca.
-- [Feature Flags](https://mauriciobenjamin700.github.io/tempest-react-sdk/feature-flags/): Interface mínima (isEnabled / get / onChange?) que isola o app do provider real (GrowthBook, LaunchDarkly, Unleash, custom).
-- [Forms BR — máscaras, validadores, ViaCEP](https://mauriciobenjamin700.github.io/tempest-react-sdk/forms-br/): Tudo que apps brasileiros usam diariamente.
-- [Forms](https://mauriciobenjamin700.github.io/tempest-react-sdk/forms/): Dois eixos independentes:
-- [Hooks utilitários](https://mauriciobenjamin700.github.io/tempest-react-sdk/hooks/): Conjunto de hooks granulares pra evitar reescrever wrappers de DOM API em cada app.
+- [Feature Flags](https://mauriciobenjamin700.github.io/tempest-react-sdk/feature-flags/): Feature flags ligam e desligam funcionalidades sem novo deploy: rollouts graduais (new-checkout para 10% dos usuários), kill-switches (disable_payments quando o gateway cai), experimentos A/B.
+- [Forms BR — máscaras, validadores, ViaCEP](https://mauriciobenjamin700.github.io/tempest-react-sdk/forms-br/): Tudo que apps brasileiros usam diariamente: validar CPF/CNPJ de verdade, mascarar
+- [Forms](https://mauriciobenjamin700.github.io/tempest-react-sdk/forms/): Forms quase sempre travam em dois problemas que não têm nada a ver um com o outro:
+- [Hooks utilitários](https://mauriciobenjamin700.github.io/tempest-react-sdk/hooks/): Toda app React reescreve os mesmos wrappers: "debounce esse input", "fecha o menu
 - [HTTP](https://mauriciobenjamin700.github.io/tempest-react-sdk/http/): Camada de fetch tipada com tratamento de 401 + refresh, parse JSON automático e upload com progresso.
 - [i18n](https://mauriciobenjamin700.github.io/tempest-react-sdk/i18n/): i18n minimalista (≈ 1.5KB gzip) embutido no SDK.
 - [tempest-react-sdk](https://mauriciobenjamin700.github.io/tempest-react-sdk/): Blocos de construção React/TypeScript compartilhados pelos frontends da Tempest:
 - [Logger](https://mauriciobenjamin700.github.io/tempest-react-sdk/logger/): createLogger é um logger nivelado com sinks plugáveis.
 - [Offline (IndexedDB)](https://mauriciobenjamin700.github.io/tempest-react-sdk/offline/): createOfflineStore empacota o Dexie com scoping opcional por owner.
-- [Web Push + Service Worker](https://mauriciobenjamin700.github.io/tempest-react-sdk/push/): End-to-end de notificações push. O SDK lida com a parte browser (permissão, pushManager.subscribe, notificationclick); o app fornece os endpoints via callbacks.
+- [Web Push + Service Worker](https://mauriciobenjamin700.github.io/tempest-react-sdk/push/): Notificações push no navegador têm duas metades que conversam: a main thread (sua UI pede permissão e cria a inscrição) e a worker thread (o service worker recebe o push e desenha a notificação, mesmo com a aba fechada).
 - [Query (TanStack Query)](https://mauriciobenjamin700.github.io/tempest-react-sdk/query/): Wrappers finos pra padronizar tempos de cache, chaves de query e o QueryClient.
 - [Routing](https://mauriciobenjamin700.github.io/tempest-react-sdk/routing/): O módulo routing do tempest-react-sdk embrulha o React Router v7 (modo declarativo) e devolve uma superfície única de import: você declara sua árvore de rotas com defineRoutes, monta tudo com um único <AppRouter> e importa cada primitivo (Link, Outlet, useNavigate, …) direto do SDK — nunca do react-router-dom.
 - [Scaffold — `create-tempest-app`](https://mauriciobenjamin700.github.io/tempest-react-sdk/scaffold/): create-tempest-app é a CLI oficial de scaffolding da Tempest.
@@ -27,7 +28,7 @@
 - [Server-Sent Events](https://mauriciobenjamin700.github.io/tempest-react-sdk/sse/): Wrapper sobre EventSource com reconnect exponencial, heartbeat opt-in e parsing JSON.
 - [State (Zustand)](https://mauriciobenjamin700.github.io/tempest-react-sdk/state/): Toda aplicação precisa guardar estado que vive fora de um único componente: o carrinho de compras, as preferências do usuário, o passo atual de um wizard, a sessão de autenticação.
 - [Estilos & Design Tokens](https://mauriciobenjamin700.github.io/tempest-react-sdk/styles/): O SDK expõe um conjunto de CSS Custom Properties (--tempest-*) que controlam toda a aparência dos componentes.
-- [Telemetry](https://mauriciobenjamin700.github.io/tempest-react-sdk/telemetry/): Interface mínima (init? / identify / track / captureException / flush?) que isola o app dos detalhes do provider real (Sentry, PostHog, Datadog, custom).
+- [Telemetry](https://mauriciobenjamin700.github.io/tempest-react-sdk/telemetry/): Toda app precisa de telemetria — identificar usuários, rastrear eventos, capturar exceções — mas você não quer espalhar chamadas de Sentry.captureException ou posthog.capture por todo o código.
 - [Testing helpers (`tempest-react-sdk/testing`)](https://mauriciobenjamin700.github.io/tempest-react-sdk/testing/): Subpath bundle separado, opt-in via tempest-react-sdk/testing.
 - [Tema (dark / light)](https://mauriciobenjamin700.github.io/tempest-react-sdk/theme/): ThemeProvider decide o tema efetivo e escreve data-tempest-theme="dark" (ou "light") em <html>.
 - [Tutorial — Fluxo de autenticação](https://mauriciobenjamin700.github.io/tempest-react-sdk/tutorial/auth-flow/): Você já tem todas as peças soltas: a store de auth (Estado), o guard
@@ -43,15 +44,15 @@
 ## Componentes
 
 - [Componentes UI](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/): O catálogo foi dividido por categoria para facilitar navegação.
-- [Ação](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/actions/): Botões, tooltips, menus, overlays de confirmação.
+- [Ação](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/actions/): Componentes de ação são o ponto onde o usuário dispara algo: clicar, escolher numa lista, confirmar.
 - [Overlays & avançados](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/advanced/): Componentes em paridade com a shadcn/ui: toggles, label, regiões expansíveis, menus contextuais, paleta de comandos, áreas roláveis, painéis redimensionáveis, calendário, menus de navegação e uma tabela de dados stateful.
-- [Dados](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/data/): Apresentação de listas e coleções: tabelas, listas virtualizadas, accordions, timelines.
+- [Dados](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/data/): Componentes de dados apresentam coleções — várias entidades do mesmo tipo — de forma legível e navegável.
 - [Status & feedback](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/feedback/): Sinalizar estado, sucesso, erro, atividade.
-- [Identidade & micro](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/identity/): Avatares, cards, kbd shortcuts.
+- [Identidade & micro](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/identity/): Componentes de identidade representam _quem_ ou _o quê_ na interface: a pessoa por trás de uma conta (Avatar), um bloco de conteúdo agrupado e reconhecível (Card) e a tipografia semântica de uma tecla de atalho (Kbd).
 - [Entrada de dados](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/inputs/): Controles para coleta de dados do usuário.
 - [Layout](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/layout/): Shell completo + primitivos de espaçamento + utilitários responsivos.
 - [Navegação](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/navigation/): Top bars, side navs, bottom nav, tabs, breadcrumbs, paginação, segmented control.
-- [Overlay](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/overlay/): Modais, drawers, bottom sheets. Todos portalados pra document.body.
+- [Overlay](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/overlay/): Componentes de overlay interrompem o fluxo principal para focar a atenção numa tarefa isolada — eles aparecem _por cima_ da página, com backdrop, e capturam o foco até serem fechados.
 - [Utilitários & headless](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/utility/): Componentes pequenos e focados: alguns renderizam pedaços de UI (Money, RelativeTime, CopyButton), outros são headless — controlam comportamento/lógica sem opinar sobre o visual (Portal, ClickOutside, For).
 
 ## Receitas

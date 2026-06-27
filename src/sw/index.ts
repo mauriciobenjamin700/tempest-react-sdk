@@ -14,3 +14,5 @@ export type {
     InstallNotificationClickHandlerOptions,
     PushPayload,
 } from "./create-push-handler";
+export { installPrecache, installRuntimeCache } from "./cache";
+export type { InstallPrecacheOptions, RuntimeRoute, RuntimeStrategy } from "./cache";

@@ -2,5 +2,8 @@
   "scripts": {
     "build": "tsc --noEmit && vite build && npm run build:sw",
     "build:sw": "vite build --config vite.sw.config.ts"
+  },
+  "devDependencies": {
+    "sharp": "^0.34.0"
   }
 }

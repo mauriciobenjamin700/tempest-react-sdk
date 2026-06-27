@@ -2,7 +2,9 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.7.0] — 2026-06-27
+
+> Inclui também tudo que foi preparado em `0.6.0` e `0.6.1` (nunca publicados no npm — ver entradas abaixo): **app foundation** (router/store/app/vite), **CLI `create-tempest-app`** embarcada como `bin`, migração do publish para **Trusted Publishing (OIDC)**.
 
 ### Utilitários genéricos novos (`src/utils/`)
 

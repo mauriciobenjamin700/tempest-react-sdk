@@ -60,7 +60,10 @@ function tsType(schema) {
     if (!schema || typeof schema !== "object") return "unknown";
     if (schema.$ref) return refName(schema.$ref);
     if (schema.allOf) return schema.allOf.map(tsType).join(" & ");
-    if (schema.anyOf || schema.oneOf) return (schema.anyOf ?? schema.oneOf).map(tsType).join(" | ");
+    if (schema.anyOf || schema.oneOf) {
+        const parts = (schema.anyOf ?? schema.oneOf).map(tsType);
+        return [...new Set(parts)].join(" | ");
+    }
     const t = Array.isArray(schema.type) ? schema.type.find((x) => x !== "null") : schema.type;
     const nul = (Array.isArray(schema.type) && schema.type.includes("null")) || schema.nullable;
     let base;
@@ -77,6 +80,8 @@ function tsType(schema) {
         case "boolean":
             base = "boolean";
             break;
+        case "null":
+            return "null";
         case "array":
             base = `${tsType(schema.items)}[]`;
             break;
@@ -85,6 +90,24 @@ function tsType(schema) {
             base = "Record<string, unknown>";
     }
     return nul ? `${base} | null` : base;
+}
+
+/**
+ * TS type for a query-param value. Query params serialize to strings, so the
+ * client only accepts `string | number | boolean | null`. Anything richer
+ * (objects, arrays of objects) is narrowed to `string` to stay assignable.
+ */
+function queryParamType(schema) {
+    const t = tsType(schema ?? { type: "string" });
+    const allowed = new Set(["string", "number", "boolean", "null"]);
+    const ok = t.split("|").every((part) => allowed.has(part.trim()));
+    return ok ? t : "string";
+}
+
+/** Turn a tag slug into a JS-safe identifier ("chat-messages" → "chatMessages"). */
+function slugIdent(slug) {
+    const id = slug.replace(/[^a-zA-Z0-9]+(.)?/g, (_, ch) => (ch ? ch.toUpperCase() : ""));
+    return /^[a-zA-Z_]/.test(id) ? id : `_${id}`;
 }
 
 /** Topologically sort schema names so dependencies are declared first. */
@@ -108,6 +131,39 @@ function topoSort(names, schemas) {
     }
     for (const n of [...names].sort()) visit(n);
     return { sorted, cyclic };
+}
+
+/** Follow a chain of $refs to the concrete schema node. */
+function resolveSchema(schema, schemas) {
+    let node = schema;
+    let guard = 0;
+    while (node && node.$ref && guard++ < 16) node = schemas[refName(node.$ref)];
+    return node;
+}
+
+/**
+ * Detect a Tempest pagination envelope and return its kind + item type.
+ *
+ * Offset (fastapi-pagination `Page` / `BasePaginationSchema`):
+ *   items + total + pages + (size | page_size).
+ * Cursor (`CursorPaginationSchema`): items + next_cursor + has_more.
+ *
+ * @returns {{ kind: "offset"|"cursor", itemType: string }|null}
+ */
+function detectPage(schema, schemas) {
+    const node = resolveSchema(schema, schemas);
+    const props = node?.properties;
+    if (!props || !props.items || resolveSchema(props.items, schemas)?.type !== "array") {
+        return null;
+    }
+    const itemType = tsType(resolveSchema(props.items, schemas).items);
+    if ("total" in props && "pages" in props && ("size" in props || "page_size" in props)) {
+        return { kind: "offset", itemType };
+    }
+    if ("next_cursor" in props && "has_more" in props) {
+        return { kind: "cursor", itemType };
+    }
+    return null;
 }
 
 /** Extract the success ($2xx) JSON response schema of an operation. */
@@ -181,20 +237,28 @@ export function generate(doc) {
             `import type { z } from "zod";\n\nimport * as S from "./schemas";\n\n${typeLines.join("\n")}\n`;
 
         // 4. service.ts
-        const methods = ops.map(({ method, path, op }) => emitMethod(method, path, op, used));
+        const usedNames = new Set();
+        const methods = ops.map(({ method, path, op }) =>
+            emitMethod(method, path, op, schemas, usedNames),
+        );
         const usedTypeNames = [...used].sort();
         const typeImport = usedTypeNames.length
             ? `import type { ${usedTypeNames.join(", ")} } from "./types";\n`
             : "";
         const schemaImport = usedTypeNames.length ? `import * as S from "./schemas";\n` : "";
+        const body = methods.join("\n\n");
+        // Pagination envelopes are re-exported from the SDK; import what we used.
+        const sdkTypes = ["ApiClient"];
+        if (body.includes("OffsetPage<")) sdkTypes.push("OffsetPage");
+        if (body.includes("CursorPage<")) sdkTypes.push("CursorPage");
         files[`${slug}/service.ts`] =
-            `import type { ApiClient } from "tempest-react-sdk";\n\n` +
+            `import type { ${sdkTypes.join(", ")} } from "tempest-react-sdk";\n\n` +
             schemaImport +
             typeImport +
             `\n/** Generated service for the "${tag}" routes. Inject an ApiClient (createApiClient). */\n` +
             `export class ${Class} {\n` +
             `    constructor(private readonly api: ApiClient) {}\n\n` +
-            methods.join("\n\n") +
+            body +
             `\n}\n`;
 
         // 5. index.ts (re-export)
@@ -202,21 +266,37 @@ export function generate(doc) {
             `export * from "./schemas";\nexport * from "./types";\nexport { ${Class} } from "./service";\n`;
     }
 
-    // Root barrel.
+    // Root barrel — namespaced per group so schema/type names shared across
+    // groups (e.g. UserResponseSchema in both `admin` and `auth`) don't collide.
     files["index.ts"] =
-        [...groups.values()].map(({ slug }) => `export * from "./${slug}";`).join("\n") + "\n";
+        [...groups.values()]
+            .map(({ slug }) => `export * as ${slugIdent(slug)} from "./${slug}";`)
+            .join("\n") + "\n";
 
     return { files, tags };
 }
 
 /** Emit a single class method for one operation. */
-function emitMethod(method, path, op, used) {
-    const name = methodName(op, method, path);
+function emitMethod(method, path, op, schemas, usedNames = new Set()) {
+    let name = methodName(op, method, path);
+    // Dedupe collisions within a group (e.g. operationIds "home__get" / "home_get").
+    if (usedNames.has(name)) {
+        let n = 2;
+        while (usedNames.has(`${name}${n}`)) n += 1;
+        name = `${name}${n}`;
+    }
+    usedNames.add(name);
     const pathParams = (op.parameters ?? []).filter((p) => p.in === "path");
     const queryParams = (op.parameters ?? []).filter((p) => p.in === "query");
     const body = bodySchema(op);
     const resp = successSchema(op);
-    const retType = resp ? tsType(resp) : "void";
+    // Map a Tempest pagination envelope to OffsetPage<T>/CursorPage<T>.
+    const page = resp ? detectPage(resp, schemas) : null;
+    const retType = page
+        ? `${page.kind === "offset" ? "OffsetPage" : "CursorPage"}<${page.itemType}>`
+        : resp
+          ? tsType(resp)
+          : "void";
 
     const args = [];
     for (const p of pathParams) args.push(`${p.name}: ${tsType(p.schema ?? { type: "string" })}`);
@@ -225,7 +305,7 @@ function emitMethod(method, path, op, used) {
         const q = queryParams
             .map(
                 (p) =>
-                    `${JSON.stringify(p.name)}${p.required ? "" : "?"}: ${tsType(p.schema ?? { type: "string" })}`,
+                    `${JSON.stringify(p.name)}${p.required ? "" : "?"}: ${queryParamType(p.schema)}`,
             )
             .join("; ");
         args.push(`params: { ${q} }`);

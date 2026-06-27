@@ -61,7 +61,7 @@ describe("schemaToZod — array / object", () => {
     });
     it("record for additionalProperties schema", () => {
         expect(schemaToZod({ type: "object", additionalProperties: { type: "number" } })).toBe(
-            "z.record(z.number())",
+            "z.record(z.string(), z.number())",
         );
     });
 });

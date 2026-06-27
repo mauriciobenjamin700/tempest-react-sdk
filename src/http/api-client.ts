@@ -1,4 +1,6 @@
-import type { ApiClient, ApiClientConfig, ApiError, RequestOptions } from "./types";
+import { randomId } from "../utils";
+import { buildApiError, TempestApiError } from "./errors";
+import type { ApiClient, ApiClientConfig, RequestOptions } from "./types";
 
 function buildUrl(baseURL: string, path: string, params?: RequestOptions["params"]): string {
     const url = new URL(path, baseURL.endsWith("/") ? baseURL : `${baseURL}/`);
@@ -16,7 +18,7 @@ function isFormData(body: unknown): body is FormData {
     return typeof FormData !== "undefined" && body instanceof FormData;
 }
 
-async function parseError(response: Response): Promise<ApiError> {
+async function parseError(response: Response, sentRequestId?: string): Promise<TempestApiError> {
     let body: unknown = null;
     try {
         body = await response.clone().json();
@@ -27,16 +29,9 @@ async function parseError(response: Response): Promise<ApiError> {
             body = null;
         }
     }
-    const detail =
-        (typeof body === "object" && body !== null
-            ? ((body as Record<string, unknown>).detail ??
-              (body as Record<string, unknown>).message)
-            : undefined) ?? `Erro ${response.status}`;
-    return {
-        status: response.status,
-        detail: String(detail),
-        body,
-    };
+    return new TempestApiError(
+        buildApiError(response.status, body, response.headers, sentRequestId),
+    );
 }
 
 /**
@@ -54,12 +49,17 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         return token ? { Authorization: `Bearer ${token}` } : {};
     }
 
-    async function rawRequest(path: string, options: RequestOptions): Promise<Response> {
+    async function rawRequest(
+        path: string,
+        options: RequestOptions,
+        requestId?: string,
+    ): Promise<Response> {
         const { body, params, headers, ...rest } = options;
         const isForm = isFormData(body);
 
         const finalHeaders: Record<string, string> = {
             ...(isForm ? {} : { "Content-Type": "application/json" }),
+            ...(requestId ? { "X-Request-ID": requestId } : {}),
             ...config.headers,
             ...authHeaders(),
             ...(headers as Record<string, string> | undefined),
@@ -81,16 +81,17 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     }
 
     async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-        let response = await rawRequest(path, options);
+        const requestId = config.requestId ? config.requestId() : randomId();
+        let response = await rawRequest(path, options, requestId);
 
         if (response.status === 401) {
             if (config.refresh) {
                 try {
                     await config.refresh();
-                    response = await rawRequest(path, options);
+                    response = await rawRequest(path, options, requestId);
                 } catch {
                     await config.onUnauthorized?.(response);
-                    throw await parseError(response);
+                    throw await parseError(response, requestId);
                 }
             } else {
                 await config.onUnauthorized?.(response);
@@ -98,7 +99,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         }
 
         if (!response.ok) {
-            throw await parseError(response);
+            throw await parseError(response, requestId);
         }
 
         if (response.status === 204) {

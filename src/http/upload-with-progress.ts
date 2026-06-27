@@ -1,4 +1,5 @@
-import type { ApiError } from "./types";
+import { randomId } from "../utils";
+import { buildApiError, TempestApiError } from "./errors";
 
 export interface UploadProgressEvent {
     /** Bytes already uploaded. */
@@ -25,6 +26,11 @@ export interface UploadWithProgressOptions {
     signal?: AbortSignal;
     /** Override the JSON parser. Defaults to `JSON.parse`. */
     parser?: (raw: string) => unknown;
+    /**
+     * Per-request correlation id sent as `X-Request-ID` (Tempest convention).
+     * Defaults to a generated id. Return an empty string to disable.
+     */
+    requestId?: () => string;
 }
 
 function parseErrorBody(raw: string): unknown {
@@ -41,7 +47,7 @@ function parseErrorBody(raw: string): unknown {
  *
  * `fetch` cannot report upload progress in browsers, so this helper falls
  * back to `XMLHttpRequest`. It mirrors the error contract used by
- * {@link createApiClient}: non-2xx responses throw an {@link ApiError}.
+ * {@link createApiClient}: non-2xx responses reject with a `TempestApiError`.
  *
  * @returns The parsed JSON response, or the raw text when the response is not JSON.
  */
@@ -56,6 +62,7 @@ export function uploadWithProgress<T = unknown>(options: UploadWithProgressOptio
         onProgress,
         signal,
         parser = JSON.parse,
+        requestId,
     } = options;
 
     return new Promise<T>((resolve, reject) => {
@@ -69,9 +76,13 @@ export function uploadWithProgress<T = unknown>(options: UploadWithProgressOptio
         xhr.withCredentials = withCredentials;
 
         const token = getToken?.();
+        const sentRequestId = requestId ? requestId() : randomId();
         const finalHeaders: Record<string, string> = { ...headers };
         if (token && !("Authorization" in finalHeaders)) {
             finalHeaders.Authorization = `Bearer ${token}`;
+        }
+        if (sentRequestId && !("X-Request-ID" in finalHeaders)) {
+            finalHeaders["X-Request-ID"] = sentRequestId;
         }
         for (const [key, value] of Object.entries(finalHeaders)) {
             xhr.setRequestHeader(key, value);
@@ -100,17 +111,16 @@ export function uploadWithProgress<T = unknown>(options: UploadWithProgressOptio
 
             if (!isSuccess) {
                 const errorBody = parseErrorBody(xhr.responseText);
-                const detail =
-                    (typeof errorBody === "object" && errorBody !== null
-                        ? ((errorBody as Record<string, unknown>).detail ??
-                          (errorBody as Record<string, unknown>).message)
-                        : undefined) ?? `Erro ${xhr.status}`;
-                const error: ApiError = {
-                    status: xhr.status,
-                    detail: String(detail),
-                    body: errorBody,
-                };
-                reject(error);
+                reject(
+                    new TempestApiError(
+                        buildApiError(
+                            xhr.status,
+                            errorBody,
+                            { get: (name) => xhr.getResponseHeader(name) },
+                            sentRequestId,
+                        ),
+                    ),
+                );
                 return;
             }
 
@@ -132,7 +142,13 @@ export function uploadWithProgress<T = unknown>(options: UploadWithProgressOptio
 
         xhr.onerror = () => {
             signal?.removeEventListener("abort", handleAbort);
-            reject({ status: 0, detail: "Falha de rede no upload." } as ApiError);
+            reject(
+                new TempestApiError({
+                    status: 0,
+                    detail: "Falha de rede no upload.",
+                    requestId: sentRequestId || undefined,
+                }),
+            );
         };
 
         xhr.onabort = () => {

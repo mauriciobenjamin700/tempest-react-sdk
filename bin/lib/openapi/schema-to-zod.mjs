@@ -112,12 +112,12 @@ export function schemaToZod(schema, resolveRef = (ref) => zodName(refName(ref)))
             }
             if (schema.additionalProperties && typeof schema.additionalProperties === "object") {
                 return withModifiers(
-                    `z.record(${schemaToZod(schema.additionalProperties, resolveRef)})`,
+                    `z.record(z.string(), ${schemaToZod(schema.additionalProperties, resolveRef)})`,
                     schema,
                 );
             }
             // No type info → unknown record / passthrough object.
-            return withModifiers("z.record(z.unknown())", schema);
+            return withModifiers("z.record(z.string(), z.unknown())", schema);
         }
     }
 }

@@ -29,6 +29,30 @@ Tudo abaixo está commitado e validado (typecheck · lint 0 erros · 998 testes 
 3. **Smoke no browser** dos pesados novos (Command ⌘K, DataTable, Calendar, Resizable) no app local `tempest-app-local`.
 4. ~~OpenAPI → geração de serviços (in-house)~~ ✅ **feito** — `tempest gen api <url|file> --out src/api`: por grupo de rotas (tag) gera `schemas.ts` (Zod), `types.ts` (`z.infer`) e `service.ts` (classe com método por rota + validação Zod do body), sobre o `createApiClient`. Gerador em `bin/lib/openapi/`. v1 cobre o comum de FastAPI (JSON). Futuro: YAML, validação opcional de resposta, query keys geradas.
 
+## 🔗 Integração full-stack Tempest (react SDK ⇄ fastapi SDK)
+
+> Origem: análise dos recipes do [`tempest-fastapi-sdk`](https://mauriciobenjamin700.github.io/tempest-fastapi-sdk/recipes/). Objetivo: front feito com nosso react SDK fala com API feita com nosso fastapi SDK **sem cola manual** — mesmos contratos dos dois lados.
+
+Contratos do backend (referência):
+
+- **Erro** `{ "detail": str, "code": "ERROR_CODE", "details": { "request_id": str } }`
+- **Paginação offset** `{ items, total, page, page_size, pages }` · filtros `?page&page_size&order_by&ascending`
+- **Paginação cursor** `{ items, next_cursor, has_more, limit }` · filtros `?cursor&limit&order_by&ascending` (cursor opaco base64, repassar literal até `null`)
+- **Auth** login → `{ access_token, token_type: "bearer" }` · header `Authorization: Bearer <token>` · refresh com TTL separado
+- **Correlação** middleware lê/gera `X-Request-ID`; vem de volta no `details.request_id` do erro
+- **Rate limit** `429 Too Many Requests` + `Retry-After: <segundos>`
+
+Itens (priorizado):
+
+6. ~~**Contrato de erro Tempest**~~ ✅ **feito** — `ApiError` ganhou `code` + `requestId` + `retryAfter`; `class TempestApiError` (Error real) + `isApiError` + `buildApiError` em [src/http/errors.ts](src/http/errors.ts); parseado em api-client + upload. `if (err.code === "EMAIL_TAKEN")` tipado.
+7. ~~**`X-Request-ID` propagation**~~ ✅ **feito** — `createApiClient`/`uploadWithProgress` enviam `X-Request-ID` por request (config `requestId?: () => string`, default `randomId()`), reusam o mesmo id no retry pós-refresh, e ecoam de volta no `ApiError.requestId` (body → header → enviado).
+8. ~~**`Retry-After` no retry**~~ ✅ **feito** — `buildApiError` parseia `Retry-After` (segundos ou HTTP-date) → `ApiError.retryAfter`; `retry()` honra (cap em `maxDelay`, flag `respectRetryAfter`).
+9. ~~**Tipos + hooks de paginação**~~ ✅ **feito** — `OffsetPage<T>`/`CursorPage<T>` + guards + `emptyOffsetPage` em [src/query/pagination.ts](src/query/pagination.ts); `usePaginatedQuery` (offset, `keepPreviousData`, `next`/`prev`/`setPage`, `hasNext`/`pageCount`) e `useCursorQuery` (cursor → `useInfiniteQuery`, `next_cursor`→`getNextPageParam`).
+10. ~~**Preset de auth Tempest**~~ ✅ **feito** — `createTempestAuth({ baseURL, loginPath, refreshPath, mePath })` em [src/auth/create-tempest-auth.ts](src/auth/create-tempest-auth.ts): liga `createAuthStore` + `createRefreshQueue` + `createApiClient`, login `{access_token}`, Bearer, 401→refresh→retry, refresh token em body ou cookie httpOnly (`withCredentials`).
+11. ~~**Codegen OpenAPI ciente do Tempest**~~ ✅ **feito + validado na API real** ([api.buscar.app.br](https://api.buscar.app.br/openapi.json), 20 grupos / 77 arquivos, **compila limpo** contra o SDK + zod v4). Detecta envelopes offset (`items+total+pages+size|page_size`) / cursor → `OffsetPage<T>`/`CursorPage<T>`. Erro já vira `TempestApiError` em runtime. **Hardening do teste real**: `{type:"null"}`→`null` (era `Record<unknown>`, quebrava query params), dedup de nomes de método colididos, barrel raiz namespaced (`export * as <grupo>`, casa com a doc), `z.record(z.string(), …)` (zod v4). Futuro: opção `--query-keys`.
+
+**Doc transversal** ✅ — recipe bilíngue [integration-fastapi.md](docs/integration-fastapi.md) (+`.en`) mostrando o loop completo: backend fastapi SDK → `tempest gen api $API/openapi.json` → service tipado → auth preset → paginação → erros correlacionados por `request_id`. Inclui tabela de recursos pareados (SSE/WebPush/BR helpers). Na nav em Receitas.
+
 ## 📝 Docs a melhorar
 
 - **Tutorial de routing — múltiplos layouts**: enriquecer `tutorial/routing` (e/ou `routing.md`) com o caso comum de **vários layouts**: mobile vs desktop, e área **não-autenticada vs autenticada** (ex.: `<AuthLayout>` público + `<AppLayout>` protegido com `RouteGuard`, e troca de shell por `useBreakpoint`). Mostrar a árvore de rotas aninhada com layouts por seção.

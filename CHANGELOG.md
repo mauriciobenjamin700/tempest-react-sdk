@@ -2,6 +2,23 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
+## [0.10.0] — 2026-06-27
+
+### Integração full-stack Tempest (React ⇄ FastAPI)
+
+Conjunto de recursos que alinham o frontend aos contratos do `tempest-fastapi-sdk`, sem cola manual. Recipe bilíngue nova: **Integração FastAPI (full-stack)**.
+
+- **Erro tipado (`TempestApiError`)**: toda resposta não-2xx de `createApiClient`/`uploadWithProgress` vira um `Error` real com `code`, `requestId` e `retryAfter`, espelhando o envelope `{ detail, code, details.request_id }` do backend. Novos exports `TempestApiError`, `isApiError`, `buildApiError`. `ApiError` ganhou os campos `code?`, `requestId?`, `retryAfter?`.
+- **`X-Request-ID`**: `createApiClient` e `uploadWithProgress` enviam um id de correlação por request (config `requestId?: () => string`, default gerado), reusam o mesmo id no retry pós-refresh, e ecoam de volta em `ApiError.requestId` (body → header → enviado). Casa com o `RequestIDMiddleware` do backend.
+- **`Retry-After`**: `buildApiError` parseia o header (segundos ou HTTP-date) em `ApiError.retryAfter`; `retry()` honra automaticamente em `429`/`503` (cap em `maxDelay`, flag `respectRetryAfter`).
+- **Paginação**: novos `OffsetPage<T>` / `CursorPage<T>` + guards `isOffsetPage`/`isCursorPage` + `emptyOffsetPage`, e os hooks **`usePaginatedQuery`** (offset, `keepPreviousData`, `next`/`prev`/`setPage`, `hasNext`/`pageCount`; opção `sizeParam` para `size` — default, `fastapi-pagination` — ou `page_size`) e **`useCursorQuery`** (cursor → `useInfiniteQuery`, `next_cursor` → `getNextPageParam`).
+- **Preset de auth (`createTempestAuth`)**: liga `createAuthStore` + `createRefreshQueue` + `createApiClient` ao contrato real — login `{ access_token, token_type }`, `Authorization: Bearer`, `401 → refresh → retry` deduplicado, refresh token em body ou cookie httpOnly (`withCredentials`), `mePath` opcional. Retorna `{ useAuthStore, api, login, logout, refresh, getToken }`.
+
+### `tempest gen api` — ciente de paginação + hardening
+
+- Detecta os envelopes de paginação offset (`items + total + pages + size|page_size`) e cursor, resolvendo `$ref`, e gera retornos `OffsetPage<T>` / `CursorPage<T>` importados do SDK.
+- Validado contra uma API real (FastAPI, 20 grupos / 77 arquivos, compila limpo contra o SDK + zod v4). Correções vindas do teste real: `{type:"null"}` → `null` (era `Record<string, unknown>`, quebrava query params); query params narrowed a primitivos; dedup de nomes de método colididos; barrel raiz namespaced (`export * as <grupo>`); `z.record(z.string(), …)` (zod v4).
+
 ## [0.9.0] — 2026-06-27
 
 ### `create-tempest-app --pwa` — scaffold de PWA (paridade com `vite-plugin-pwa`, sem ele)

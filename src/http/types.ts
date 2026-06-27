@@ -1,6 +1,24 @@
 export interface ApiError {
+    /** HTTP status code (0 for network failures). */
     status: number;
+    /** Human-readable message — the backend envelope's `detail` (or `message`). */
     detail: string;
+    /**
+     * Programmatic error code from the Tempest FastAPI SDK envelope (`code`),
+     * e.g. `"EMAIL_TAKEN"`. Lets callers branch without parsing `detail`.
+     */
+    code?: string;
+    /**
+     * Correlation id echoed from the backend envelope's `details.request_id`
+     * (or the `X-Request-ID` response header). Pair it with `createLogger`.
+     */
+    requestId?: string;
+    /**
+     * Seconds to wait before retrying, parsed from the `Retry-After` response
+     * header (commonly on `429`/`503`). Honored by {@link retry}.
+     */
+    retryAfter?: number;
+    /** The raw parsed error body, when available. */
     body?: unknown;
 }
 
@@ -14,6 +32,12 @@ export interface ApiClientConfig {
     baseURL: string;
     /** Returns the current bearer token (or null/undefined). Called per request. */
     getToken?: () => string | null | undefined;
+    /**
+     * Per-request correlation id sent as the `X-Request-ID` header, matching the
+     * Tempest FastAPI SDK `RequestIDMiddleware`. Defaults to a generated id.
+     * Return an empty string to disable the header.
+     */
+    requestId?: () => string;
     /** Called on 401 responses. Use it to logout the user or trigger a refresh. */
     onUnauthorized?: (response: Response) => void | Promise<void>;
     /**

@@ -46,6 +46,8 @@ plugins:
                     Fluxo de autenticação: Auth flow
                     Receitas: Recipes
                     Cookbook: Cookbook
+                    Integração FastAPI (full-stack): FastAPI integration (full-stack)
+                    Offline Sync (FastAPI): Offline Sync (FastAPI)
                     Guia: Guide
                     Visão geral: Overview
                     Arquitetura: Architecture
@@ -173,6 +175,7 @@ nav:
           - Error Boundary: error-boundary.md
     - Receitas:
           - Cookbook: cookbook.md
+          - Integração FastAPI (full-stack): integration-fastapi.md
           - Offline Sync (FastAPI): offline-sync.md
           - Utilitários: utilities.md
     - Projeto:

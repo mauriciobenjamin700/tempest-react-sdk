@@ -6,6 +6,13 @@ export interface RetryOptions {
     /** Maximum delay between attempts. Default: 10_000. */
     maxDelay?: number;
     /**
+     * Honor a `Retry-After` hint on the thrown error (`error.retryAfter`, in
+     * seconds — populated by {@link createApiClient} on `429`/`503`). When
+     * present it overrides the exponential backoff for that attempt. The value
+     * is capped at `maxDelay`. Default: true.
+     */
+    respectRetryAfter?: boolean;
+    /**
      * Return false to stop retrying for a specific error.
      * Default: retry on any thrown error.
      */
@@ -47,6 +54,7 @@ export async function retry<T>(factory: () => Promise<T>, options: RetryOptions 
         retries = 3,
         initialDelay = 300,
         maxDelay = 10_000,
+        respectRetryAfter = true,
         shouldRetry = () => true,
         onRetry,
         signal,
@@ -65,7 +73,15 @@ export async function retry<T>(factory: () => Promise<T>, options: RetryOptions 
             if (attempt >= retries || !shouldRetry(error, attempt)) {
                 throw error;
             }
-            const delay = Math.min(initialDelay * 2 ** (attempt - 1), maxDelay);
+            const retryAfter =
+                respectRetryAfter &&
+                typeof (error as { retryAfter?: unknown })?.retryAfter === "number"
+                    ? (error as { retryAfter: number }).retryAfter * 1000
+                    : null;
+            const delay =
+                retryAfter !== null
+                    ? Math.min(retryAfter, maxDelay)
+                    : Math.min(initialDelay * 2 ** (attempt - 1), maxDelay);
             onRetry?.({ attempt, delay, error });
             await wait(delay, signal);
         }

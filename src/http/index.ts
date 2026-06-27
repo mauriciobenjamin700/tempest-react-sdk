@@ -1,4 +1,5 @@
 export { createApiClient } from "./api-client";
+export { TempestApiError, isApiError, buildApiError } from "./errors";
 export { parseResponse } from "./parse-response";
 export { uploadWithProgress } from "./upload-with-progress";
 export type { UploadProgressEvent, UploadWithProgressOptions } from "./upload-with-progress";

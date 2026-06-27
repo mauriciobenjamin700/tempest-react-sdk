@@ -18,6 +18,7 @@
 - [HTTP](https://mauriciobenjamin700.github.io/tempest-react-sdk/http/): Camada de fetch tipada com tratamento de 401 + refresh, parse JSON automático e upload com progresso.
 - [i18n](https://mauriciobenjamin700.github.io/tempest-react-sdk/i18n/): i18n minimalista (≈ 1.5KB gzip) embutido no SDK.
 - [tempest-react-sdk](https://mauriciobenjamin700.github.io/tempest-react-sdk/): Blocos de construção React/TypeScript compartilhados pelos frontends da Tempest:
+- [Integração full-stack Tempest (React ⇄ FastAPI)](https://mauriciobenjamin700.github.io/tempest-react-sdk/integration-fastapi/): Você tem um backend feito com o tempest-fastapi-sdk e um frontend feito com este SDK.
 - [Logger](https://mauriciobenjamin700.github.io/tempest-react-sdk/logger/): createLogger é um logger nivelado com sinks plugáveis.
 - [Offline Sync com `tempest-fastapi-sdk`](https://mauriciobenjamin700.github.io/tempest-react-sdk/offline-sync/): Esta receita liga o frontend (tempest-react-sdk) ao backend (tempest-fastapi-sdk) num fluxo offline-first completo: o app continua usável sem rede, grava localmente, e sincroniza com o servidor quando a conexão volta — sem perder nada e sem duplicar.
 - [Offline (IndexedDB)](https://mauriciobenjamin700.github.io/tempest-react-sdk/offline/): createOfflineStore empacota o Dexie com scoping opcional por owner.

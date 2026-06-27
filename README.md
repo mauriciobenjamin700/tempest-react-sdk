@@ -13,6 +13,7 @@
 
 - **PT-BR:** [Scaffold](https://mauriciobenjamin700.github.io/tempest-react-sdk/scaffold/) · [Estrutura de app](https://mauriciobenjamin700.github.io/tempest-react-sdk/architecture/) · [Componentes](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/) · [Hooks](https://mauriciobenjamin700.github.io/tempest-react-sdk/hooks/) · [Utilitários](https://mauriciobenjamin700.github.io/tempest-react-sdk/utilities/)
 - **EN-US:** [Scaffold](https://mauriciobenjamin700.github.io/tempest-react-sdk/en/scaffold/) · [App foundation](https://mauriciobenjamin700.github.io/tempest-react-sdk/en/architecture/) · [Components](https://mauriciobenjamin700.github.io/tempest-react-sdk/en/components/) · [Hooks](https://mauriciobenjamin700.github.io/tempest-react-sdk/en/hooks/) · [Utilities](https://mauriciobenjamin700.github.io/tempest-react-sdk/en/utilities/)
+- **🤖 For LLMs:** [llms.txt](https://mauriciobenjamin700.github.io/tempest-react-sdk/llms.txt) (curated index) · [llms-full.txt](https://mauriciobenjamin700.github.io/tempest-react-sdk/llms-full.txt) (full docs in one block) — [llmstxt.org](https://llmstxt.org) convention.
 
 > 💡 `pip install -r docs/requirements.txt && mkdocs serve` é só para preview local — em produção use as URLs do GitHub Pages acima. / For local preview only — in production use the GitHub Pages URLs above.
 

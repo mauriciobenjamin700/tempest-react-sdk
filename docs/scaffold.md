@@ -182,7 +182,7 @@ export const useCounter = createStore<{ count: number; inc: () => void }>((set) 
 Combine o cliente HTTP, as query keys e o `useQuery` (já disponível pelo `AppProviders`):
 
 ```tsx
-import { useQuery } from "tempest-react-sdk";
+import { useQuery } from "@tanstack/react-query";
 import { api, queryKeys } from "@/lib/api";
 
 export function UserList() {

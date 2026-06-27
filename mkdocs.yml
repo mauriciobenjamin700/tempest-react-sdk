@@ -39,6 +39,13 @@ plugins:
                 build: true
                 nav_translations:
                     Início: Home
+                    Tutorial: Tutorial
+                    Comece aqui: Start here
+                    Estado: State
+                    Buscando dados: Data fetching
+                    Fluxo de autenticação: Auth flow
+                    Receitas: Recipes
+                    Cookbook: Cookbook
                     Guia: Guide
                     Visão geral: Overview
                     Arquitetura: Architecture
@@ -108,6 +115,13 @@ validation:
 
 nav:
     - Início: index.md
+    - Tutorial:
+          - Comece aqui: tutorial/index.md
+          - Roteamento: tutorial/routing.md
+          - Estado: tutorial/state.md
+          - Buscando dados: tutorial/data-fetching.md
+          - Formulários: tutorial/forms.md
+          - Fluxo de autenticação: tutorial/auth-flow.md
     - Guia:
           - Visão geral: architecture.md
           - Gallery (demo): gallery.md
@@ -153,7 +167,9 @@ nav:
           - Feature Flags: feature-flags.md
           - Logger: logger.md
           - Error Boundary: error-boundary.md
-    - Projeto:
+    - Receitas:
+          - Cookbook: cookbook.md
           - Utilitários: utilities.md
+    - Projeto:
           - Testing helpers: testing.md
           - Release pipeline: release.md

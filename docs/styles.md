@@ -3,7 +3,7 @@
 O SDK expõe um conjunto de CSS Custom Properties (`--tempest-*`) que controlam toda a aparência dos componentes. Apps consumidores customizam o tema sobrescrevendo esses tokens — **não é necessário tocar em CSS Modules**.
 
 ```tsx
-import "tempest-react-sdk/dist/styles.css";
+import "tempest-react-sdk/styles.css";
 ```
 
 Pronto. Tudo o que está abaixo já está disponível na sua aplicação.

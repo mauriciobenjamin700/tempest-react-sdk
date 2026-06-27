@@ -1,6 +1,6 @@
 # Roadmap — tempest-react-sdk
 
-> Snapshot: 2026-06-23 · Última versão **publicada no npm: `0.5.1`** · `package.json`: `0.6.1` (não publicada) · branch de trabalho: `feat/app-foundation`.
+> Snapshot: 2026-06-27 · Última versão **publicada no npm: `0.7.0`** (via Trusted Publishing/OIDC, sem token) · branch de release: `release/v0.7.0` (PR #15 → main).
 
 Backlog operacional vive aqui. `CLAUDE.md` mantém só as decisões consolidadas e o guia de contribuição.
 
@@ -17,15 +17,10 @@ Tudo abaixo está commitado e validado (typecheck · lint 0 erros · 998 testes 
 - **Componentes shadcn-parity** (14) — `Toggle`, `ToggleGroup`, `Label`, `Collapsible`, `ContextMenu`, `HoverCard`, `Command`, `ScrollArea`, `Resizable`, `Calendar`, `NavigationMenu`, `Menubar`, `Carousel`, `DataTable`.
 - **Docs** — páginas bilíngues novas: routing, state, app-providers, vite-config, scaffold, utilities, components/utility, components/advanced.
 
-## 🔴 Bloqueado
+## ✅ Publish resolvido
 
-- **Publish no npm** — migrado pra **Trusted Publishing (OIDC + GitHub Actions)**: o workflow `release-npm.yml` não usa mais `NPM_TOKEN` (publish de `v0.6.0`/`v0.6.1` com token falhou `E404`). Falta **configurar o Trusted Publisher no npmjs.com** (uma vez):
-  - <https://www.npmjs.com/package/tempest-react-sdk/access> → **Trusted Publisher** → **GitHub Actions**:
-    - Organization/user: `mauriciobenjamin700`
-    - Repository: `tempest-react-sdk`
-    - Workflow filename: `release-npm.yml`
-    - Environment: (em branco)
-  - npm CLI ≥ 11.5.1 (o workflow já faz `npm install -g npm@latest`) + `id-token: write` (já presente). Provenance automática. Push de release segue **congelado** até o dono liberar.
+- **`0.7.0` publicado** via **Trusted Publishing (OIDC + GitHub Actions)** — `release-npm.yml` sem `NPM_TOKEN`, provenance automática, npm CLI ≥ 11.5.1 no runner. Trusted Publisher configurado no npmjs.com (repo + `release-npm.yml`, environment vazio). Próximos releases: só `make release TAG=X`.
+- Falhas anteriores (`v0.6.0`/`v0.6.1`, `E404`) eram do token/config; tags deletadas, PRs #13/#14 fechados.
 
 ## 🟡 Próximos (priorizado)
 

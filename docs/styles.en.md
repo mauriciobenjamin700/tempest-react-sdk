@@ -5,7 +5,7 @@ entire appearance of the components. Consumer apps customize the theme by
 overriding these tokens — **there's no need to touch CSS Modules**.
 
 ```tsx
-import "tempest-react-sdk/dist/styles.css";
+import "tempest-react-sdk/styles.css";
 ```
 
 Done. Everything below is already available in your application.

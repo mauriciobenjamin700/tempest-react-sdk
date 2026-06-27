@@ -7146,12 +7146,57 @@ O `--pwa` agora cobre o mesmo terreno do `vite-plugin-pwa` para o caso comum, se
 | Limpeza de caches antigos           | ✅                          | ✅ (versão no `activate`)                   |
 | Geração automática de ícones        | ✅ (sharp)                  | ✅ `tempestPwaIcons` (sharp, opcional)      |
 | SW em dev                           | ✅ (`devOptions`)           | ✅ `tempestPwaDevSw` (esbuild)              |
+| Background Sync                      | ✅ (`BackgroundSyncPlugin`) | ✅ `installBackgroundSync`                  |
+| Range requests (mídia)              | ✅ (`RangeRequestsPlugin`)  | ✅ `installRuntimeCache({ rangeRequests })` |
+| Splash screens (Apple)              | ✅ (assets generator)       | ✅ `tempestPwaIcons({ appleSplash })`       |
 
-Sobra só caso muito elaborado (Background Sync, range requests, geração de splash screens) — aí o `vite-plugin-pwa` continua mais completo, e você pode passá-lo via `plugins: [...]` no `createViteConfig`.
+Cobertura total do caso comum. Pra extremos muito específicos (range requests parciais de precache, estratégias Workbox exóticas), `vite-plugin-pwa` ainda existe e pode ser passado via `plugins: [...]` no `createViteConfig`.
+
+### Recursos avançados
+
+#### Background Sync — mutações offline que reenviam sozinhas
+
+`installBackgroundSync` enfileira POST/PUT/PATCH/DELETE que falham offline (IndexedDB) e os **reenvia quando a conexão volta** — via Background Sync API onde existe, e oportunisticamente (no próximo request) onde não:
+
+```ts
+import { installBackgroundSync } from "tempest-react-sdk/sw";
+
+installBackgroundSync({ match: (url) => url.pathname.startsWith("/api/") });
+```
+
+O fetch original ainda **rejeita** no momento (seu app mostra estado offline), mas a requisição é replayada depois. `maxRetentionMinutes` descarta entradas velhas; respostas 4xx são dropadas (erro do cliente não se conserta sozinho).
+
+#### Range requests — seek de áudio/vídeo offline
+
+Marque uma rota com `rangeRequests: true` pra servir `206 Partial Content` fatiando o recurso cacheado — sem isso, mídia não dá seek offline:
+
+```ts
+installRuntimeCache([
+  {
+    match: (url) => /\.(mp3|mp4|webm)$/.test(url.pathname),
+    strategy: "cache-first",
+    cacheName: "media",
+    rangeRequests: true,
+  },
+]);
+```
+
+O helper `createPartialResponse(request, response)` também é exportado pra uso manual.
+
+#### Splash screens (Apple) — telas de abertura no iOS
+
+`tempestPwaIcons({ appleSplash: true })` gera as launch images por device (iPhone/iPad, portrait) e injeta os `<link rel="apple-touch-startup-image" media=...>` no `index.html`. Passe um array pra customizar os tamanhos:
+
+```ts
+tempestPwaIcons({
+  source: "public/icon.svg",
+  appleSplash: [{ width: 390, height: 844, ratio: 3 }],
+});
+```
 
 ### Recap do modo PWA
 
-`--pwa` te entrega manifest + service worker + push + **cache offline** + **ícones gerados** + **SW em dev**, já cabeados sobre o mesmo app base, usando `tempest-react-sdk/sw` (`installPushHandler`, `installPrecache`, `installRuntimeCache`), `tempest-react-sdk/vite` (`tempestPwaManifest`, `tempestPwaIcons`, `tempestPwaDevSw`), `usePushSubscription` e `useBeforeInstallPrompt` — sem `vite-plugin-pwa`. Gere o VAPID no backend, preencha `VITE_VAPID_PUBLIC_KEY` no `.env`, troque o `public/icon.svg`, e teste com `npm run build && npm run preview`. 🚀
+`--pwa` te entrega manifest + service worker + push + **cache offline** + **ícones gerados** + **SW em dev** + **background sync** + **range requests** + **splash screens**, já cabeados sobre o mesmo app base, usando `tempest-react-sdk/sw` (`installPushHandler`, `installPrecache`, `installRuntimeCache`, `installBackgroundSync`, `createPartialResponse`), `tempest-react-sdk/vite` (`tempestPwaManifest`, `tempestPwaIcons`, `tempestPwaDevSw`), `usePushSubscription` e `useBeforeInstallPrompt` — sem `vite-plugin-pwa`. Gere o VAPID no backend, preencha `VITE_VAPID_PUBLIC_KEY` no `.env`, troque o `public/icon.svg`, e teste com `npm run build && npm run preview`. 🚀
 
 ## Próximos passos
 

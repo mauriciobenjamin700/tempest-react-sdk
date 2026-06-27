@@ -19,6 +19,52 @@ export interface TempestPwaIconsOptions {
     background?: string;
     /** Maskable safe-zone padding as a fraction of the icon. Default `0.1` (10% each side). */
     maskablePadding?: number;
+    /**
+     * Generate Apple splash screens (launch images) and inject the matching
+     * `<link rel="apple-touch-startup-image">` tags. `true` uses a built-in set
+     * of common iPhone/iPad portrait sizes; pass an array to override. Default `false`.
+     */
+    appleSplash?: boolean | AppleSplashSpec[];
+    /** Background color for splash screens. Default: `background`. */
+    splashBackground?: string;
+    /** Icon size on the splash as a fraction of the shorter side. Default `0.3`. */
+    splashIconScale?: number;
+}
+
+/** A single Apple splash target (CSS px + device pixel ratio). */
+export interface AppleSplashSpec {
+    /** CSS width (device-width in the media query). */
+    width: number;
+    /** CSS height (device-height in the media query). */
+    height: number;
+    /** Device pixel ratio. */
+    ratio: number;
+}
+
+/** Common iPhone/iPad portrait splash sizes (CSS px @ ratio). */
+const DEFAULT_SPLASH: AppleSplashSpec[] = [
+    { width: 375, height: 667, ratio: 2 }, // iPhone SE / 8
+    { width: 375, height: 812, ratio: 3 }, // iPhone X / 11 Pro
+    { width: 390, height: 844, ratio: 3 }, // iPhone 12 / 13 / 14
+    { width: 393, height: 852, ratio: 3 }, // iPhone 14 Pro / 15
+    { width: 414, height: 896, ratio: 2 }, // iPhone XR / 11
+    { width: 414, height: 896, ratio: 3 }, // iPhone XS Max / 11 Pro Max
+    { width: 428, height: 926, ratio: 3 }, // iPhone 13/14 Pro Max
+    { width: 430, height: 932, ratio: 3 }, // iPhone 15 Pro Max
+    { width: 768, height: 1024, ratio: 2 }, // iPad
+    { width: 834, height: 1194, ratio: 2 }, // iPad Pro 11"
+    { width: 1024, height: 1366, ratio: 2 }, // iPad Pro 12.9"
+];
+
+function splashFileName(spec: AppleSplashSpec): string {
+    return `splash/apple-splash-${spec.width * spec.ratio}x${spec.height * spec.ratio}.png`;
+}
+
+function splashMedia(spec: AppleSplashSpec): string {
+    return (
+        `(device-width: ${spec.width}px) and (device-height: ${spec.height}px) ` +
+        `and (-webkit-device-pixel-ratio: ${spec.ratio}) and (orientation: portrait)`
+    );
 }
 
 interface Rgb {
@@ -71,7 +117,16 @@ export function tempestPwaIcons(options: TempestPwaIconsOptions = {}): TempestVi
         outDir = "icons",
         background = "#ffffff",
         maskablePadding = 0.1,
+        appleSplash = false,
+        splashBackground,
+        splashIconScale = 0.3,
     } = options;
+
+    const splashSpecs: AppleSplashSpec[] = appleSplash
+        ? Array.isArray(appleSplash)
+            ? appleSplash
+            : DEFAULT_SPLASH
+        : [];
 
     let root = process.cwd();
 
@@ -80,6 +135,18 @@ export function tempestPwaIcons(options: TempestPwaIconsOptions = {}): TempestVi
         apply: "build",
         configResolved(config) {
             root = config.root ?? process.cwd();
+        },
+        transformIndexHtml() {
+            if (!splashSpecs.length) return;
+            return splashSpecs.map((spec) => ({
+                tag: "link",
+                attrs: {
+                    rel: "apple-touch-startup-image",
+                    media: splashMedia(spec),
+                    href: `/${splashFileName(spec)}`,
+                },
+                injectTo: "head" as const,
+            }));
         },
         async generateBundle() {
             let sharp: SharpFactory;
@@ -148,14 +215,53 @@ export function tempestPwaIcons(options: TempestPwaIconsOptions = {}): TempestVi
                     .toBuffer();
                 emit("apple-touch-icon.png", png);
             }
+
+            // Apple splash screens — icon centered on a solid background.
+            if (splashSpecs.length) {
+                const splashBg = hexToRgb(splashBackground ?? background);
+                for (const spec of splashSpecs) {
+                    const w = spec.width * spec.ratio;
+                    const h = spec.height * spec.ratio;
+                    const iconPx = Math.round(Math.min(w, h) * splashIconScale);
+                    const icon = await sharp(input, { density: Math.max(iconPx, 512) })
+                        .resize(iconPx, iconPx, {
+                            fit: "contain",
+                            background: { r: 0, g: 0, b: 0, alpha: 0 },
+                        })
+                        .png()
+                        .toBuffer();
+                    const png = await sharp({
+                        create: {
+                            width: w,
+                            height: h,
+                            channels: 4,
+                            background: { ...splashBg, alpha: 1 },
+                        },
+                    })
+                        .composite([{ input: icon, gravity: "center" }])
+                        .png()
+                        .toBuffer();
+                    emit(splashFileName(spec), png);
+                }
+            }
         },
     };
 
     return plugin as TempestVitePlugin;
 }
 
+/** Options for the sharp `create` (blank canvas) form. */
+interface SharpCreate {
+    create: {
+        width: number;
+        height: number;
+        channels: number;
+        background: { r: number; g: number; b: number; alpha: number };
+    };
+}
+
 /** The sharp factory function (minimal typing — sharp is an optional dep). */
-type SharpFactory = (input: Buffer, opts?: { density?: number }) => SharpInstance;
+type SharpFactory = (input: Buffer | SharpCreate, opts?: { density?: number }) => SharpInstance;
 
 /** Minimal subset of the sharp chainable API this plugin uses. */
 interface SharpInstance {
@@ -172,6 +278,7 @@ interface SharpInstance {
         background: { r: number; g: number; b: number; alpha: number };
     }): SharpInstance;
     flatten(opts: { background: Rgb }): SharpInstance;
+    composite(items: { input: Buffer; gravity?: string }[]): SharpInstance;
     png(): SharpInstance;
     toBuffer(): Promise<Buffer>;
 }

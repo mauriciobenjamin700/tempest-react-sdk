@@ -57,6 +57,28 @@ describe("tempestPwaIcons", () => {
         expect(warn).toHaveBeenCalled();
         expect(emitFile).not.toHaveBeenCalled();
     });
+
+    it("injects apple splash links only when appleSplash is on", () => {
+        expect((tempestPwaIcons() as any).transformIndexHtml()).toBeUndefined();
+
+        const tags = (tempestPwaIcons({ appleSplash: true }) as any).transformIndexHtml();
+        expect(Array.isArray(tags)).toBe(true);
+        expect(tags.length).toBeGreaterThan(0);
+        for (const tag of tags) {
+            expect(tag.tag).toBe("link");
+            expect(tag.attrs.rel).toBe("apple-touch-startup-image");
+            expect(tag.attrs.media).toMatch(/device-width.*orientation: portrait/);
+            expect(tag.attrs.href).toMatch(/^\/splash\/apple-splash-\d+x\d+\.png$/);
+        }
+    });
+
+    it("honors a custom appleSplash spec list", () => {
+        const tags = (
+            tempestPwaIcons({ appleSplash: [{ width: 390, height: 844, ratio: 3 }] }) as any
+        ).transformIndexHtml();
+        expect(tags).toHaveLength(1);
+        expect(tags[0].attrs.href).toBe("/splash/apple-splash-1170x2532.png");
+    });
 });
 
 describe("tempestPwaDevSw", () => {

@@ -59,6 +59,12 @@ export interface RuntimeRoute {
     maxAgeSeconds?: number;
     /** For `network-first`: fall back to cache after this timeout (seconds). */
     networkTimeoutSeconds?: number;
+    /**
+     * Serve HTTP `Range` requests (206 Partial Content) by slicing the cached
+     * full response. Enable for audio/video so seeking works offline. The full
+     * resource is cached once (the `Range` header is stripped before caching).
+     */
+    rangeRequests?: boolean;
 }
 
 /** Options for {@link installPrecache}. */
@@ -183,6 +189,63 @@ function routeMatches(route: RuntimeRoute, url: URL, request: Request): boolean 
 }
 
 /**
+ * Build a `206 Partial Content` response from a full one for an HTTP `Range`
+ * request. Supports `bytes=start-end`, open-ended `bytes=start-` and suffix
+ * `bytes=-suffixLength`. Returns the original response when there is no usable
+ * `Range` header, or a `416` when the range is unsatisfiable.
+ *
+ * @param request The incoming request (its `Range` header drives the slice).
+ * @param response The full (200) response to slice.
+ */
+export async function createPartialResponse(
+    request: Request,
+    response: Response,
+): Promise<Response> {
+    const rangeHeader = request.headers.get("range");
+    if (!rangeHeader) return response;
+
+    const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader.trim());
+    if (!match || (match[1] === "" && match[2] === "")) {
+        return new Response(null, { status: 416, statusText: "Range Not Satisfiable" });
+    }
+
+    const buffer = await response.clone().arrayBuffer();
+    const total = buffer.byteLength;
+
+    let start: number;
+    let end: number;
+    if (match[1] === "") {
+        // Suffix range: last N bytes.
+        const suffix = Number(match[2]);
+        start = Math.max(0, total - suffix);
+        end = total - 1;
+    } else {
+        start = Number(match[1]);
+        end = match[2] === "" ? total - 1 : Math.min(Number(match[2]), total - 1);
+    }
+
+    if (start > end || start >= total) {
+        return new Response(null, {
+            status: 416,
+            statusText: "Range Not Satisfiable",
+            headers: { "Content-Range": `bytes */${total}` },
+        });
+    }
+
+    const slice = buffer.slice(start, end + 1);
+    const headers = new Headers(response.headers);
+    headers.set("Content-Range", `bytes ${start}-${end}/${total}`);
+    headers.set("Content-Length", String(slice.byteLength));
+    headers.set("Accept-Ranges", "bytes");
+
+    return new Response(slice, {
+        status: 206,
+        statusText: "Partial Content",
+        headers,
+    });
+}
+
+/**
  * Install a `fetch` handler that resolves matching `GET` requests with the
  * given runtime strategies. Non-matching requests are left untouched (no
  * `respondWith`), so a later {@link installPrecache} can handle them.
@@ -202,8 +265,28 @@ export function installRuntimeCache(routes: RuntimeRoute[]): void {
         const route = routes.find((candidate) => routeMatches(candidate, url, request));
         if (!route) return;
 
+        if (route.rangeRequests && request.headers.has("range")) {
+            // Cache/serve the FULL resource once (no Range), then slice it.
+            const full = new Request(request.url, {
+                headers: stripRange(request.headers),
+                credentials: request.credentials,
+                mode: request.mode === "navigate" ? "same-origin" : request.mode,
+            });
+            event.respondWith(
+                runRoute(full, route).then((response) => createPartialResponse(request, response)),
+            );
+            return;
+        }
+
         event.respondWith(runRoute(request, route));
     });
+}
+
+/** Copy headers without the `Range` header (so the cached entry is the full file). */
+function stripRange(headers: Headers): Headers {
+    const out = new Headers(headers);
+    out.delete("range");
+    return out;
 }
 
 /**

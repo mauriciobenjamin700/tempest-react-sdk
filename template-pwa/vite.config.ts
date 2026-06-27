@@ -14,7 +14,7 @@ import {
 export default createViteConfig({
     // proxy: { "/api": "http://127.0.0.1:8000" },
     plugins: [
-        tempestPwaIcons({ source: "public/icon.svg" }),
+        tempestPwaIcons({ source: "public/icon.svg", appleSplash: true }),
         tempestPwaManifest({ additionalUrls: ["/manifest.webmanifest", "/icon.svg"] }),
         tempestPwaDevSw(),
     ],

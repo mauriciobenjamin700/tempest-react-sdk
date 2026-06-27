@@ -14,5 +14,7 @@ export type {
     InstallNotificationClickHandlerOptions,
     PushPayload,
 } from "./create-push-handler";
-export { installPrecache, installRuntimeCache } from "./cache";
+export { installPrecache, installRuntimeCache, createPartialResponse } from "./cache";
 export type { InstallPrecacheOptions, RuntimeRoute, RuntimeStrategy } from "./cache";
+export { installBackgroundSync } from "./background-sync";
+export type { InstallBackgroundSyncOptions } from "./background-sync";

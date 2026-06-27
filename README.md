@@ -7,7 +7,14 @@
 [![TypeScript](https://img.shields.io/badge/types-TypeScript-3178c6.svg?logo=typescript)](https://www.typescriptlang.org/)
 [![Bundle size](https://img.shields.io/bundlephobia/minzip/tempest-react-sdk?label=gzip)](https://bundlephobia.com/package/tempest-react-sdk)
 
-> 📚 **Documentation (bilingual / bilíngue):** **[Português (BR)](https://mauriciobenjamin700.github.io/tempest-react-sdk/)** · **[English (US)](https://mauriciobenjamin700.github.io/tempest-react-sdk/en/)** — full docs site (MkDocs Material on GitHub Pages) with a PT-BR / EN-US language switcher in the header. The site is the navigable, per-module source of truth; this README stays the npm/GitHub landing page.
+[**📖 Documentação completa (PT-BR) →**](https://mauriciobenjamin700.github.io/tempest-react-sdk/) · [**📖 Full documentation (EN-US) →**](https://mauriciobenjamin700.github.io/tempest-react-sdk/en/)
+
+> O site MkDocs é bilíngue (**PT-BR** padrão · **EN-US**) com seletor de idioma 🇧🇷/🇺🇸 no cabeçalho. — The MkDocs site is bilingual (**PT-BR** default · **EN-US**) with a 🇧🇷/🇺🇸 language switcher in the header. The site is the navigable, per-module source of truth; this README stays the npm/GitHub landing page.
+
+- **PT-BR:** [Scaffold](https://mauriciobenjamin700.github.io/tempest-react-sdk/scaffold/) · [Estrutura de app](https://mauriciobenjamin700.github.io/tempest-react-sdk/architecture/) · [Componentes](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/) · [Hooks](https://mauriciobenjamin700.github.io/tempest-react-sdk/hooks/) · [Utilitários](https://mauriciobenjamin700.github.io/tempest-react-sdk/utilities/)
+- **EN-US:** [Scaffold](https://mauriciobenjamin700.github.io/tempest-react-sdk/en/scaffold/) · [App foundation](https://mauriciobenjamin700.github.io/tempest-react-sdk/en/architecture/) · [Components](https://mauriciobenjamin700.github.io/tempest-react-sdk/en/components/) · [Hooks](https://mauriciobenjamin700.github.io/tempest-react-sdk/en/hooks/) · [Utilities](https://mauriciobenjamin700.github.io/tempest-react-sdk/en/utilities/)
+
+> 💡 `pip install -r docs/requirements.txt && mkdocs serve` é só para preview local — em produção use as URLs do GitHub Pages acima. / For local preview only — in production use the GitHub Pages URLs above.
 
 Shared React/TypeScript building blocks used across Tempest frontends: UI components, hooks, HTTP client, auth store, query keys, forms (zod), real-time transports (SSE / WebSocket / Web Push / Service Worker), theme, i18n, telemetry, feature flags, offline storage, error boundary, and a curated set of utilities (`cn`, `formatCurrency`, `formatCPF`, etc.).
 

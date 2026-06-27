@@ -9,6 +9,8 @@ import {
     useToast,
 } from "tempest-react-sdk";
 
+import { Example } from "../Example";
+
 export function IntegrationsSection() {
     const toast = useToast();
     const [streamEnabled, setStreamEnabled] = useState(false);
@@ -27,7 +29,25 @@ export function IntegrationsSection() {
                 playback de áudio.
             </p>
 
-            <div className="gallery-grid">
+            <Example
+                title="SSE — Server-Sent Events"
+                note="Conexão viva com sse.dev; mensagens viram toasts."
+                code={`const stream = useEventStream<{ message: string }>(
+    "https://sse.dev/test?interval=2",
+    {
+        enabled: streamEnabled,
+        onMessage: ({ data }) => toast.info(String(data?.message ?? data)),
+    },
+);
+
+<Badge variant={statusVariant(stream.status)}>{stream.status}</Badge>
+<Button
+    variant={streamEnabled ? "danger" : "primary"}
+    onClick={() => setStreamEnabled((v) => !v)}
+>
+    {streamEnabled ? "Desconectar" : "Conectar"}
+</Button>`}
+            >
                 <Card title="SSE — Server-Sent Events">
                     <p style={{ marginTop: 0, fontSize: 13 }}>
                         Status:{" "}
@@ -43,7 +63,17 @@ export function IntegrationsSection() {
                         Última mensagem aparece como toast.
                     </p>
                 </Card>
+            </Example>
 
+            <Example
+                title="Web Push"
+                note="Checagem de suporte do navegador a notificações push."
+                code={`const pushSupported = isPushSupported();
+
+<Badge variant={pushSupported ? "success" : "danger"}>
+    {pushSupported ? "sim" : "não"}
+</Badge>`}
+            >
                 <Card title="Web Push">
                     <p style={{ marginTop: 0, fontSize: 13 }}>
                         Suportado:{" "}
@@ -56,7 +86,24 @@ export function IntegrationsSection() {
                         <code>docs/push.md</code>.
                     </p>
                 </Card>
+            </Example>
 
+            <Example
+                title="Áudio"
+                note="Playback local via playAudio(); autoplay exige interação."
+                code={`<Button
+    onClick={() => {
+        const audio = new Audio();
+        audio.src =
+            "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+        void playAudio(audio.src, { volume: 0.4 }).catch(() =>
+            toast.warning("Autoplay bloqueado"),
+        );
+    }}
+>
+    Tocar bipe
+</Button>`}
+            >
                 <Card title="Áudio">
                     <p style={{ marginTop: 0, fontSize: 13 }}>
                         Playback de notificação local. Política de autoplay exige clique do usuário.
@@ -74,7 +121,7 @@ export function IntegrationsSection() {
                         Tocar bipe
                     </Button>
                 </Card>
-            </div>
+            </Example>
         </section>
     );
 }

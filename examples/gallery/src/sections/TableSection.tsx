@@ -11,6 +11,7 @@ import {
     usePagination,
     type TableColumn,
 } from "tempest-react-sdk";
+import { Example } from "../Example";
 
 type Order = {
     id: string;
@@ -114,49 +115,94 @@ export function TableSection() {
                 possíveis.
             </p>
 
-            <div className="gallery-toolbar" style={{ marginBottom: 16 }}>
-                <SearchBar value={search} onChange={setSearch} placeholder="Buscar pedidos…" />
-                <div className="theme-toggle-group">
-                    {(["data", "empty", "error"] as const).map((m) => (
-                        <button
-                            key={m}
-                            className={mode === m ? "active" : ""}
-                            onClick={() => setMode(m)}
-                        >
-                            {m}
-                        </button>
-                    ))}
-                </div>
-            </div>
+            <Example
+                title="Tabela com busca, paginação e estados"
+                note="Alterne entre data/empty/error nos botões e busque pra ver o filtro debounced."
+                code={`const [search, setSearch] = useState("");
+const debounced = useDebounce(search, 250);
+const pagination = usePagination(1, 4);
+const filtered = useClientFilter<Order>(SEED, debounced, ["id", "customer"]);
 
-            {mode === "error" ? (
-                <ErrorState
-                    description="Não foi possível carregar os pedidos."
-                    onRetry={() => setMode("data")}
-                />
-            ) : mode === "empty" || page.length === 0 ? (
-                <EmptyState
-                    title="Sem pedidos por aqui"
-                    description="Crie um pedido pra começar."
-                />
-            ) : (
-                <>
-                    <Table<Order>
-                        columns={columns}
-                        data={page}
-                        rowKey={(row) => row.id}
-                        onRowClick={(row) => console.log("row click", row)}
+const columns: TableColumn<Order>[] = [
+    { key: "id", header: "ID", width: 110 },
+    { key: "customer", header: "Cliente" },
+    { key: "total", header: "Total", align: "right", render: (row) => \`R$ \${row.total.toFixed(2)}\` },
+    {
+        key: "status",
+        header: "Status",
+        render: (row) => (
+            <Badge variant={row.status === "paid" ? "success" : row.status === "pending" ? "warning" : "danger"}>
+                {row.status}
+            </Badge>
+        ),
+    },
+    { key: "created_at", header: "Data" },
+];
+
+<SearchBar value={search} onChange={setSearch} placeholder="Buscar pedidos…" />
+
+{mode === "error" ? (
+    <ErrorState description="Não foi possível carregar os pedidos." onRetry={() => setMode("data")} />
+) : mode === "empty" || page.length === 0 ? (
+    <EmptyState title="Sem pedidos por aqui" description="Crie um pedido pra começar." />
+) : (
+    <>
+        <Table<Order> columns={columns} data={page} rowKey={(row) => row.id} onRowClick={(row) => console.log("row click", row)} />
+        <Pagination
+            page={pagination.page}
+            totalPages={Math.max(1, Math.ceil(filtered.length / pagination.size))}
+            onPageChange={pagination.setPage}
+            pageSize={pagination.size}
+            onPageSizeChange={pagination.setSize}
+            totalItems={filtered.length}
+        />
+    </>
+)}`}
+            >
+                <div className="gallery-toolbar" style={{ marginBottom: 16 }}>
+                    <SearchBar value={search} onChange={setSearch} placeholder="Buscar pedidos…" />
+                    <div className="theme-toggle-group">
+                        {(["data", "empty", "error"] as const).map((m) => (
+                            <button
+                                key={m}
+                                className={mode === m ? "active" : ""}
+                                onClick={() => setMode(m)}
+                            >
+                                {m}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {mode === "error" ? (
+                    <ErrorState
+                        description="Não foi possível carregar os pedidos."
+                        onRetry={() => setMode("data")}
                     />
-                    <Pagination
-                        page={pagination.page}
-                        totalPages={Math.max(1, Math.ceil(filtered.length / pagination.size))}
-                        onPageChange={pagination.setPage}
-                        pageSize={pagination.size}
-                        onPageSizeChange={pagination.setSize}
-                        totalItems={filtered.length}
+                ) : mode === "empty" || page.length === 0 ? (
+                    <EmptyState
+                        title="Sem pedidos por aqui"
+                        description="Crie um pedido pra começar."
                     />
-                </>
-            )}
+                ) : (
+                    <>
+                        <Table<Order>
+                            columns={columns}
+                            data={page}
+                            rowKey={(row) => row.id}
+                            onRowClick={(row) => console.log("row click", row)}
+                        />
+                        <Pagination
+                            page={pagination.page}
+                            totalPages={Math.max(1, Math.ceil(filtered.length / pagination.size))}
+                            onPageChange={pagination.setPage}
+                            pageSize={pagination.size}
+                            onPageSizeChange={pagination.setSize}
+                            totalItems={filtered.length}
+                        />
+                    </>
+                )}
+            </Example>
         </section>
     );
 }

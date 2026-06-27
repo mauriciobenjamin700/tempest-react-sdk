@@ -39,17 +39,32 @@ shows up in the gallery after a reload.
 
 ## Sections
 
-| #   | Section            | Components / Features                                                                                | File                                                                                                                                                |
-| --- | ------------------ | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Buttons            | `Button`                                                                                             | [ButtonsSection.tsx](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/examples/gallery/src/sections/ButtonsSection.tsx)           |
-| 2   | Form fields        | `Input`, `Select`, `Textarea`, `SearchBar`                                                           | [FormFieldsSection.tsx](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/examples/gallery/src/sections/FormFieldsSection.tsx)     |
-| 3   | Feedback           | `Badge`, `Card`, `Spinner`, `Skeleton`                                                               | [FeedbackSection.tsx](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/examples/gallery/src/sections/FeedbackSection.tsx)         |
-| 4   | Modal & Toast      | `Modal`, `ConfirmDialog`, `ToastProvider`, `useToast`                                                | [ModalSection.tsx](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/examples/gallery/src/sections/ModalSection.tsx)               |
-| 5   | Table & Pagination | `Table`, `Pagination`, `EmptyState`, `ErrorState`, `useDebounce`, `useClientFilter`, `usePagination` | [TableSection.tsx](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/examples/gallery/src/sections/TableSection.tsx)               |
-| 6   | Forms (zod)        | `useZodForm`, `zodResolver`                                                                          | [FormsSection.tsx](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/examples/gallery/src/sections/FormsSection.tsx)               |
-| 7   | Theme + i18n       | `ThemeProvider`, `useTheme`, `I18nProvider`, `useI18n`                                               | [ThemeI18nSection.tsx](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/examples/gallery/src/sections/ThemeI18nSection.tsx)       |
-| 8   | Integrations       | `useEventStream` (live SSE), `isPushSupported`, `playAudio`                                          | [IntegrationsSection.tsx](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/examples/gallery/src/sections/IntegrationsSection.tsx) |
-| 9   | Utils              | `formatCurrency`, `formatDate`, `formatPhone`, `formatCPF`, `formatPercent`, `formatDateTime`        | [UtilsSection.tsx](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/examples/gallery/src/sections/UtilsSection.tsx)               |
+Each section is a file under [`examples/gallery/src/sections/`](https://github.com/mauriciobenjamin700/tempest-react-sdk/tree/main/examples/gallery/src/sections) and every example is wrapped by the [`<Example>`](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/examples/gallery/src/Example.tsx) helper (demo + code + copy button).
+
+| #   | Section                                | Components / Features                                                             |
+| --- | -------------------------------------- | -------------------------------------------------------------------------------- |
+| 1   | Buttons                                | `Button` (variants, sizes, loading, fullWidth)                                   |
+| 2   | Form fields                            | `Input`, `Select`, `Textarea`, `SearchBar`                                        |
+| 3   | Checkbox · Radio · Switch              | `Checkbox`, `RadioGroup`, `Switch`                                                |
+| 4   | Toggle · Rating · Range · Combobox     | `Toggle`, `ToggleGroup`, `RatingStars`, `RangeSlider`, `Combobox`, `Label`       |
+| 5   | Feedback                               | `Badge`, `Card`, `Spinner`, `Skeleton`                                            |
+| 6   | Stat · Tag · Money · Banner            | `Stat`, `Tag`, `Banner`, `Money`, `RelativeTime`, `TruncateText`, `DataList`, `DescriptionList`, `CopyButton` |
+| 7   | Avatar · Image · Carousel              | `Avatar`, `Image` (fallback), `AspectRatio`, `Carousel`                          |
+| 8   | Modal & Toast                          | `Modal`, `ConfirmDialog`, `ToastProvider`, `useToast`                            |
+| 9   | Overlays                               | `Popover`, `DropdownMenu`, `HoverCard`, `ContextMenu`, `Menubar`, `Command` (⌘K) |
+| 10  | Disclosure                             | `Accordion`, `Collapsible`, `ScrollArea`                                          |
+| 11  | Navigation                             | `Breadcrumbs`, `Tabs`, `Tooltip`, `Drawer`                                        |
+| 12  | Stepper · Progress · VirtualList       | `Stepper`, `Progress`, `ChipInput`, `FileUpload`, `VirtualList`                   |
+| 13  | Table & Pagination                     | `Table`, `Pagination`, `EmptyState`, `ErrorState`, `usePagination`               |
+| 14  | DataTable                              | `DataTable` (client-side search, sort, pagination)                               |
+| 15  | Forms (zod)                            | `useZodForm`, `zodResolver`                                                       |
+| 16  | BR Forms                               | `CPFInput`, `CNPJInput`, `PhoneInput`, `MoneyInput`, `CEPInput`, `useViaCEP`     |
+| 17  | Store (Zustand)                        | `createStore`, `createSelectors` (persisted counter)                             |
+| 18  | Theme + i18n                           | `ThemeProvider`, `useTheme`, `I18nProvider`, `useI18n`                           |
+| 19  | Network · Clipboard · Share            | `useOnline`, `useClipboard`, `share`, `useKeyboardShortcut`, `useIntersectionObserver` |
+| 20  | SSE · Push · Audio                     | `useEventStream` (live SSE), `isPushSupported`, `playAudio`                      |
+| 21  | PWA: Install · Push                    | `useBeforeInstallPrompt`, `usePushSubscription`, `isPushSupported`               |
+| 22  | Utils                                  | `formatCurrency`, `formatDate`, `formatPhone`, `formatCPF`, `formatPercent`      |
 
 ## Variant matrix
 
@@ -116,12 +131,40 @@ shows up in the gallery after a reload.
 
 ## Screenshots
 
-Screenshots are not committed — generate them locally by opening the app in
-`dev`. Suggested pages to save:
+Every example sits **next to its source code** (with a "Copy" button), so the
+gallery doubles as a copy-paste reference. Captures of the running app:
 
-- `gallery-light.png` — overview in the light theme
-- `gallery-dark.png` — the same content in the dark theme
-- `gallery-mobile.png` — viewport ≤ 430px
+### Overview
+
+![Gallery overview](assets/gallery/gallery-overview.png)
+
+### Avatar · Image · AspectRatio · Carousel
+
+![Media components](assets/gallery/gallery-display-media.png)
+
+### Stat · Tag · Banner · Money · lists
+
+![Data-display components](assets/gallery/gallery-data-display.png)
+
+### Toggle · Rating · Range · Combobox · Calendar
+
+![Advanced inputs](assets/gallery/gallery-inputs-advanced.png)
+
+### Popover · Dropdown · HoverCard · ContextMenu · Menubar · Command
+
+![Overlays](assets/gallery/gallery-overlays.png)
+
+### DataTable
+
+![DataTable with search, sort and pagination](assets/gallery/gallery-data-table.png)
+
+### Store (Zustand): createStore + createSelectors
+
+![Foundation / store](assets/gallery/gallery-foundation.png)
+
+### PWA: install prompt + web push
+
+![PWA](assets/gallery/gallery-pwa.png)
 
 ## Recap
 
@@ -129,7 +172,9 @@ Screenshots are not committed — generate them locally by opening the app in
   it plays the role of Storybook.
 - Run it with `npm run build` at the root, then `npm run dev` in
   `examples/gallery` (port `5173`).
-- 9 sections cover components, hooks, theme/i18n, live integrations and utils.
+- 22 sections cover components, overlays, media/images, advanced inputs,
+  DataTable, store, theme/i18n, live integrations, PWA and utils — each example
+  with copy-paste code next to it.
 - Use it to validate UI at the mobile and desktop breakpoints before closing out
   a visual change.
 

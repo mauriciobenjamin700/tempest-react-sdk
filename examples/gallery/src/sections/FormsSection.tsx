@@ -1,5 +1,6 @@
 import { Button, Input, Textarea, useToast, useZodForm } from "tempest-react-sdk";
 import { z } from "zod";
+import { Example } from "../Example";
 
 const contactSchema = z.object({
     name: z.string().min(2, "Nome deve ter pelo menos 2 letras."),
@@ -28,31 +29,54 @@ export function FormsSection() {
                 Schema é a fonte da verdade. Tipo, validação e erros derivam dele.
             </p>
 
-            <form className="gallery-stack" onSubmit={form.handleSubmit(onSubmit)}>
-                <Input
-                    label="Nome"
-                    {...form.register("name")}
-                    error={form.formState.errors.name?.message}
-                    required
-                />
-                <Input
-                    label="Email"
-                    type="email"
-                    {...form.register("email")}
-                    error={form.formState.errors.email?.message}
-                    required
-                />
-                <Textarea
-                    label="Mensagem"
-                    rows={4}
-                    {...form.register("message")}
-                    error={form.formState.errors.message?.message}
-                    required
-                />
-                <Button type="submit" loading={form.formState.isSubmitting}>
-                    Enviar
-                </Button>
-            </form>
+            <Example
+                title="Formulário de contato validado por Zod"
+                note="O schema gera tipo, validação e mensagens de erro automaticamente."
+                code={`const contactSchema = z.object({
+    name: z.string().min(2, "Nome deve ter pelo menos 2 letras."),
+    email: z.string().email("Email inválido."),
+    message: z.string().min(10, "Mensagem muito curta (mínimo 10 caracteres)."),
+});
+
+const form = useZodForm(contactSchema, {
+    defaultValues: { name: "", email: "", message: "" },
+});
+
+<form className="gallery-stack" onSubmit={form.handleSubmit(onSubmit)}>
+    <Input label="Nome" {...form.register("name")} error={form.formState.errors.name?.message} required />
+    <Input label="Email" type="email" {...form.register("email")} error={form.formState.errors.email?.message} required />
+    <Textarea label="Mensagem" rows={4} {...form.register("message")} error={form.formState.errors.message?.message} required />
+    <Button type="submit" loading={form.formState.isSubmitting}>
+        Enviar
+    </Button>
+</form>`}
+            >
+                <form className="gallery-stack" onSubmit={form.handleSubmit(onSubmit)}>
+                    <Input
+                        label="Nome"
+                        {...form.register("name")}
+                        error={form.formState.errors.name?.message}
+                        required
+                    />
+                    <Input
+                        label="Email"
+                        type="email"
+                        {...form.register("email")}
+                        error={form.formState.errors.email?.message}
+                        required
+                    />
+                    <Textarea
+                        label="Mensagem"
+                        rows={4}
+                        {...form.register("message")}
+                        error={form.formState.errors.message?.message}
+                        required
+                    />
+                    <Button type="submit" loading={form.formState.isSubmitting}>
+                        Enviar
+                    </Button>
+                </form>
+            </Example>
         </section>
     );
 }

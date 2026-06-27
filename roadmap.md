@@ -25,8 +25,15 @@ Tudo abaixo está commitado e validado (typecheck · lint 0 erros · 998 testes 
 ## 🟡 Próximos (priorizado)
 
 1. **Bundle / size-limit** — CJS em **43.76 KB / teto 45**. Decidir: subir teto **ou** criar subpaths (`tempest-react-sdk/components`, `/utils`, `/forms`, `/http`) pra tree-shaking refinado (casa com P2 antigo). Não cabe mais ~2-3 componentes sem isso.
-2. **Auditar `docs/components/data.md`** — drift nos nomes de prop do `Table` (doc usa `rows`/`label`; código atual usa `data`/`header`/`emptyMessage`).
+2. ~~Auditar `docs/components/data.md`~~ ✅ feito — props do `Table` corrigidas (`data`/`header`/`emptyMessage`).
 3. **Smoke no browser** dos pesados novos (Command ⌘K, DataTable, Calendar, Resizable) no app local `tempest-app-local`.
+4. **OpenAPI → geração de serviços (in-house)** — ler um spec OpenAPI (estilo o `/openapi.json` do FastAPI) e gerar clientes/serviços tipados por rota (sobre o `createApiClient`), com tipos derivados dos schemas. Existem libs (openapi-typescript, orval, openapi-ts) mas queremos a **nossa** — provável bin `tempest gen api <url|file>` + templates. Decidir: gerar tipos + funções de serviço por tag/rota, alinhado ao padrão de `createQueryKeys`/Query.
+
+## 🟢 Em progresso
+
+- **CLI `tempest`** (bin novo no pacote): `tempest doctor` (health-check estilo flutter doctor) + `tempest fix`/`lint`/`format` (ESLint --fix com import-sort + unused-imports + whitespace, e Prettier). Template ganha os plugins.
+
+5. **Recursos de SEO** — primitivos pra meta tags / `<head>` por rota (title, description, Open Graph, Twitter card, canonical, JSON-LD), `robots`/`sitemap` helpers e dicas de SSR/pre-render. Provável `<Seo>` / `useSeo()` (sem dep tipo react-helmet — in-house) integrado ao router.
 
 ## ⚪ Backlog
 

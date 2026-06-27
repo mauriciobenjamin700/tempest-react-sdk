@@ -52,6 +52,7 @@ plugins:
                     Gallery (demo): Gallery (demo)
                     Estrutura de aplicação: App foundation
                     Scaffold (create-tempest-app): Scaffold (create-tempest-app)
+                    CLI tempest: tempest CLI
                     Vite & alias: Vite & alias
                     Roteamento: Routing
                     Estado (Zustand): State (Zustand)
@@ -127,6 +128,7 @@ nav:
           - Gallery (demo): gallery.md
     - Estrutura de aplicação:
           - Scaffold (create-tempest-app): scaffold.md
+          - CLI tempest: cli.md
           - Vite & alias: vite-config.md
           - Roteamento: routing.md
           - Estado (Zustand): state.md

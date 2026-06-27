@@ -21,7 +21,11 @@ const TEMPLATE_DIR = join(PKG_ROOT, "template");
 const TEMPLATE_PWA_DIR = join(PKG_ROOT, "template-pwa");
 
 /** Files renamed on copy so they ship inside the npm tarball. */
-const RENAME_ON_COPY = { _gitignore: ".gitignore", "_env.example": ".env.example" };
+const RENAME_ON_COPY = {
+    _gitignore: ".gitignore",
+    "_env.example": ".env.example",
+    "_prettierrc.json": ".prettierrc.json",
+};
 
 const c = {
     reset: "\x1b[0m",

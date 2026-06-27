@@ -30,7 +30,8 @@
     "LICENSE"
   ],
   "bin": {
-    "create-tempest-app": "./bin/create-tempest-app.mjs"
+    "create-tempest-app": "./bin/create-tempest-app.mjs",
+    "tempest": "./bin/tempest.mjs"
   },
   "main": "./dist/tempest-react-sdk.cjs",
   "module": "./dist/tempest-react-sdk.js",

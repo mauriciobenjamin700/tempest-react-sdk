@@ -173,6 +173,7 @@ nav:
           - Error Boundary: error-boundary.md
     - Receitas:
           - Cookbook: cookbook.md
+          - Offline Sync (FastAPI): offline-sync.md
           - Utilitários: utilities.md
     - Projeto:
           - Testing helpers: testing.md

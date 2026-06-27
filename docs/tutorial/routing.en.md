@@ -249,6 +249,133 @@ export function Login() {
 }
 ```
 
+## Multiple layouts (mobile/desktop · public/authenticated)
+
+Real apps rarely have a single layout. The two most common axes:
+
+- **Public vs authenticated** — the login/signup screen uses a minimal shell (a centered card), while the signed-in area uses the app shell (nav + content). These are **different layouts**, not the same shell with an `if`.
+- **Mobile vs desktop** — a fixed sidebar on desktop, a bottom bar on mobile. Same content, different shells.
+
+The declarative router solves the first axis with **nested layout routes**, and the second with the `useBreakpoint` hook **inside** the layout.
+
+### One layout per section (layout routes)
+
+A route with **no `path`**, only `element` + `children`, is a _layout route_: it
+wraps the children in its `<Outlet>` without adding a URL segment. Group the
+public routes under one layout and the protected ones under another:
+
+```tsx
+// routes.tsx
+import { defineRoutes } from "tempest-react-sdk";
+import { AuthLayout } from "@/layouts/AuthLayout";
+import { AppLayout } from "@/layouts/AppLayout";
+import { Login } from "@/pages/Login";
+import { Signup } from "@/pages/Signup";
+import { TaskList } from "@/pages/TaskList";
+
+export const routes = defineRoutes([
+  {
+    // PUBLIC group — auth shell, no guard.
+    element: <AuthLayout />,
+    children: [
+      { path: "/login", element: <Login /> },
+      { path: "/signup", element: <Signup /> },
+    ],
+  },
+  {
+    // PROTECTED group — app shell; the layout itself guards.
+    element: <AppLayout />,
+    children: [
+      { index: true, element: <TaskList /> },
+      { path: "settings", lazy: () => import("@/pages/Settings") },
+    ],
+  },
+]);
+```
+
+The public layout is simple — it just centers the `<Outlet>`:
+
+```tsx
+// layouts/AuthLayout.tsx
+import { Outlet } from "tempest-react-sdk";
+
+export function AuthLayout() {
+  return (
+    <div style={{ display: "grid", placeItems: "center", minHeight: "100vh" }}>
+      <main style={{ width: "min(360px, 90vw)" }}>
+        <Outlet />
+      </main>
+    </div>
+  );
+}
+```
+
+### Responsive shell + guard in the protected layout
+
+`AppLayout` does two things: it **protects** the whole section (redirects if not
+authenticated) and **swaps the shell** by breakpoint via `useBreakpoint`:
+
+```tsx
+// layouts/AppLayout.tsx
+import { Link, Navigate, Outlet, useBreakpoint } from "tempest-react-sdk";
+import { useAuth } from "@/stores/auth";
+
+export function AppLayout() {
+  const isAuthenticated = useAuth.use.isAuthenticated();
+  const { isDesktop } = useBreakpoint();
+
+  // Guards the whole protected section at once.
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+
+  const nav = (
+    <nav style={{ display: "flex", gap: 12 }}>
+      <Link to="/">Tasks</Link>
+      <Link to="/settings">Settings</Link>
+    </nav>
+  );
+
+  return (
+    <div style={{ display: "flex", minHeight: "100vh" }}>
+      {/* Desktop: fixed sidebar */}
+      {isDesktop && <aside style={{ width: 220, padding: 16 }}>{nav}</aside>}
+
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        <main style={{ flex: 1, padding: 16 }}>
+          <Outlet />
+        </main>
+
+        {/* Mobile: bottom navigation bar */}
+        {!isDesktop && (
+          <footer style={{ borderTop: "1px solid var(--tempest-border)", padding: 8 }}>
+            {nav}
+          </footer>
+        )}
+      </div>
+    </div>
+  );
+}
+```
+
+!!! tip "Guard in the layout vs. per-route guard"
+    Protecting **a whole section** is cleaner with the redirect inside the
+    layout (one place). To protect **a single route**, use the `guard` field /
+    the `<RouteGuard>` we saw earlier. The two coexist.
+
+!!! note "`useBreakpoint` is SSR-safe"
+    On the server it returns `xs` / `width: 0` and updates after mount — so the
+    mobile shell is the default until JS hydrates. To avoid a layout “jump”,
+    prefer CSS (`Show`/`Hide` or media queries) when the content is the same;
+    use `useBreakpoint` when the **structure** changes (sidebar vs bottom-nav).
+
+!!! warning "A layout route adds no segment"
+    The layout route has **no `path`** — it only wraps the children. The URL is
+    defined by the children (`/login`, `/settings`, index at `/`). Don't put a
+    `path` on the layout route unless you want a prefix (e.g. `path: "/app"`).
+
+Result: `/login` and `/signup` render inside `AuthLayout`; `/` and `/settings`
+inside `AppLayout` (already guarded and responsive). Each section has its own
+shell, with no `if` scattered across the pages.
+
 ## Recap
 
 - All routing comes from `"tempest-react-sdk"` — you never import from
@@ -263,5 +390,7 @@ export function Login() {
   stale chunk) — the component needs `export default`.
 - Guard routes with `guard` (boolean or function) + `redirectTo`; the guard runs
   on render, so read the store with `getState()`.
+- **Multiple layouts**: nested layout routes (no `path`) separate public/
+  authenticated shells; `useBreakpoint` inside the layout swaps mobile/desktop.
 
 ➡️ **Next page:** [State — the authentication store](state.md)

@@ -29,6 +29,10 @@ Tudo abaixo está commitado e validado (typecheck · lint 0 erros · 998 testes 
 3. **Smoke no browser** dos pesados novos (Command ⌘K, DataTable, Calendar, Resizable) no app local `tempest-app-local`.
 4. **OpenAPI → geração de serviços (in-house)** — ler um spec OpenAPI (estilo o `/openapi.json` do FastAPI) e gerar clientes/serviços tipados por rota (sobre o `createApiClient`), com tipos derivados dos schemas. Existem libs (openapi-typescript, orval, openapi-ts) mas queremos a **nossa** — provável bin `tempest gen api <url|file>` + templates. Decidir: gerar tipos + funções de serviço por tag/rota, alinhado ao padrão de `createQueryKeys`/Query.
 
+## 📝 Docs a melhorar
+
+- **Tutorial de routing — múltiplos layouts**: enriquecer `tutorial/routing` (e/ou `routing.md`) com o caso comum de **vários layouts**: mobile vs desktop, e área **não-autenticada vs autenticada** (ex.: `<AuthLayout>` público + `<AppLayout>` protegido com `RouteGuard`, e troca de shell por `useBreakpoint`). Mostrar a árvore de rotas aninhada com layouts por seção.
+
 ## 🟢 Em progresso
 
 - **CLI `tempest`** (bin novo no pacote): `tempest doctor` (health-check estilo flutter doctor) + `tempest fix`/`lint`/`format` (ESLint --fix com import-sort + unused-imports + whitespace, e Prettier). Template ganha os plugins.

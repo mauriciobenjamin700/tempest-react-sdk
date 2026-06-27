@@ -10,27 +10,20 @@ createRoot(document.getElementById("root")!).render(
     </StrictMode>,
 );
 
-// The service worker is bundled to `/sw.js` at build time, so it only exists in
-// production. In dev we proactively unregister any leftover worker to avoid a
-// stale cache shadowing your `npm run dev` output.
-if (import.meta.env.DEV && "serviceWorker" in navigator) {
-    void navigator.serviceWorker
-        .getRegistrations()
-        .then((regs) => Promise.all(regs.map((r) => r.unregister())))
-        .catch((err) => console.warn("[sw] dev cleanup failed", err));
-}
-
-if (import.meta.env.PROD) {
-    void registerServiceWorker({
-        url: "/sw.js",
-        onUpdate: (waiting) => {
-            // A new worker is ready. Prompt your users however you like; here we
-            // just activate it and reload so the next visit is up to date.
-            if (confirm("Nova versão disponível. Atualizar agora?")) {
-                skipWaiting(waiting);
-                window.location.reload();
-            }
-        },
-        onError: (err) => console.warn("[sw] registration failed", err),
-    });
-}
+// Register the service worker in both dev and prod. In production it's the
+// bundled `/sw.js` (built by `vite.sw.config.ts`); in dev the `tempestPwaDevSw`
+// plugin (in `vite.config.ts`) compiles and serves it on the fly, so push and
+// runtime caching work under `npm run dev` too. Drop the `tempestPwaDevSw`
+// plugin if you'd rather keep dev SW-free.
+void registerServiceWorker({
+    url: "/sw.js",
+    onUpdate: (waiting) => {
+        // A new worker is ready. Prompt your users however you like; here we
+        // just activate it and reload so the next visit is up to date.
+        if (confirm("Nova versão disponível. Atualizar agora?")) {
+            skipWaiting(waiting);
+            window.location.reload();
+        }
+    },
+    onError: (err) => console.warn("[sw] registration failed", err),
+});

@@ -64,8 +64,10 @@ export default defineConfig({
                 // vite + its react plugin (and node builtins) out of the bundle.
                 "vite",
                 "@vitejs/plugin-react",
+                "esbuild",
                 "node:path",
                 "node:url",
+                "node:fs/promises",
             ],
             output: {
                 globals: {

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { installPrecache, installRuntimeCache } from "./cache";
+import { createPartialResponse, installPrecache, installRuntimeCache } from "./cache";
 
 type Listener = (event: unknown) => void;
 
@@ -218,5 +218,64 @@ describe("installPrecache", () => {
         } as unknown as Request;
         const res = (await dispatchFetch(nav)) as Response;
         expect(await res.text()).toBe("<!doctype html>shell");
+    });
+});
+
+describe("createPartialResponse", () => {
+    function full(): Response {
+        return new Response("0123456789"); // 10 bytes
+    }
+
+    it("slices a closed byte range into a 206", async () => {
+        const req = new Request("https://app.test/v.mp4", { headers: { range: "bytes=2-5" } });
+        const res = await createPartialResponse(req, full());
+        expect(res.status).toBe(206);
+        expect(res.headers.get("content-range")).toBe("bytes 2-5/10");
+        expect(res.headers.get("content-length")).toBe("4");
+        expect(await res.text()).toBe("2345");
+    });
+
+    it("supports open-ended and suffix ranges", async () => {
+        const open = await createPartialResponse(
+            new Request("https://app.test/v", { headers: { range: "bytes=7-" } }),
+            full(),
+        );
+        expect(await open.text()).toBe("789");
+
+        const suffix = await createPartialResponse(
+            new Request("https://app.test/v", { headers: { range: "bytes=-3" } }),
+            full(),
+        );
+        expect(suffix.headers.get("content-range")).toBe("bytes 7-9/10");
+        expect(await suffix.text()).toBe("789");
+    });
+
+    it("returns 416 when the range is unsatisfiable, and passes through with no range", async () => {
+        const bad = await createPartialResponse(
+            new Request("https://app.test/v", { headers: { range: "bytes=50-60" } }),
+            full(),
+        );
+        expect(bad.status).toBe(416);
+
+        const none = await createPartialResponse(new Request("https://app.test/v"), full());
+        expect(none.status).toBe(200);
+    });
+
+    it("serves a Range request from cache via a rangeRequests route", async () => {
+        fetchMock.mockResolvedValue(new Response("0123456789"));
+        installRuntimeCache([
+            {
+                match: /\/media\//,
+                strategy: "cache-first",
+                cacheName: "media",
+                rangeRequests: true,
+            },
+        ]);
+        const req = new Request("https://app.test/media/a.mp3", {
+            headers: { range: "bytes=0-3" },
+        });
+        const res = (await dispatchFetch(req)) as Response;
+        expect(res.status).toBe(206);
+        expect(await res.text()).toBe("0123");
     });
 });

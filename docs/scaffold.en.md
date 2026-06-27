@@ -293,12 +293,57 @@ Rasterization uses **`sharp`** (already a template `devDependency`). The `manife
 | Old-cache cleanup                   | ✅                          | ✅ (version on `activate`)                  |
 | Automatic icon generation           | ✅ (sharp)                  | ✅ `tempestPwaIcons` (sharp, optional)      |
 | SW in dev                           | ✅ (`devOptions`)           | ✅ `tempestPwaDevSw` (esbuild)              |
+| Background Sync                     | ✅ (`BackgroundSyncPlugin`) | ✅ `installBackgroundSync`                  |
+| Range requests (media)             | ✅ (`RangeRequestsPlugin`)  | ✅ `installRuntimeCache({ rangeRequests })` |
+| Splash screens (Apple)             | ✅ (assets generator)       | ✅ `tempestPwaIcons({ appleSplash })`       |
 
-Only very elaborate cases are left (Background Sync, range requests, splash-screen generation) — there `vite-plugin-pwa` is still more complete, and you can pass it via `plugins: [...]` in `createViteConfig`.
+Full coverage of the common case. For very specific edges (partial-content precache, exotic Workbox strategies), `vite-plugin-pwa` still exists and can be passed via `plugins: [...]` in `createViteConfig`.
+
+### Advanced features
+
+#### Background Sync — offline mutations that resend themselves
+
+`installBackgroundSync` queues POST/PUT/PATCH/DELETE that fail offline (in IndexedDB) and **replays them when connectivity returns** — via the Background Sync API where available, opportunistically (on the next request) where not:
+
+```ts
+import { installBackgroundSync } from "tempest-react-sdk/sw";
+
+installBackgroundSync({ match: (url) => url.pathname.startsWith("/api/") });
+```
+
+The original fetch still **rejects** for now (your app shows an offline state), but the request is replayed later. `maxRetentionMinutes` drops stale entries; 4xx responses are discarded (a client error won't fix itself).
+
+#### Range requests — offline audio/video seeking
+
+Mark a route with `rangeRequests: true` to serve `206 Partial Content` by slicing the cached resource — without it, media can't seek offline:
+
+```ts
+installRuntimeCache([
+  {
+    match: (url) => /\.(mp3|mp4|webm)$/.test(url.pathname),
+    strategy: "cache-first",
+    cacheName: "media",
+    rangeRequests: true,
+  },
+]);
+```
+
+The `createPartialResponse(request, response)` helper is also exported for manual use.
+
+#### Apple splash screens — iOS launch images
+
+`tempestPwaIcons({ appleSplash: true })` generates the per-device launch images (iPhone/iPad, portrait) and injects the `<link rel="apple-touch-startup-image" media=...>` tags into `index.html`. Pass an array to customize the sizes:
+
+```ts
+tempestPwaIcons({
+  source: "public/icon.svg",
+  appleSplash: [{ width: 390, height: 844, ratio: 3 }],
+});
+```
 
 ### PWA mode recap
 
-`--pwa` hands you manifest + service worker + push + **offline cache** + **generated icons** + **SW in dev**, already wired on top of the same base app, using `tempest-react-sdk/sw` (`installPushHandler`, `installPrecache`, `installRuntimeCache`), `tempest-react-sdk/vite` (`tempestPwaManifest`, `tempestPwaIcons`, `tempestPwaDevSw`), `usePushSubscription` and `useBeforeInstallPrompt` — without `vite-plugin-pwa`. Generate the VAPID key on your backend, fill in `VITE_VAPID_PUBLIC_KEY` in `.env`, swap `public/icon.svg`, and test with `npm run build && npm run preview`. 🚀
+`--pwa` hands you manifest + service worker + push + **offline cache** + **generated icons** + **SW in dev** + **background sync** + **range requests** + **splash screens**, already wired on top of the same base app, using `tempest-react-sdk/sw` (`installPushHandler`, `installPrecache`, `installRuntimeCache`, `installBackgroundSync`, `createPartialResponse`), `tempest-react-sdk/vite` (`tempestPwaManifest`, `tempestPwaIcons`, `tempestPwaDevSw`), `usePushSubscription` and `useBeforeInstallPrompt` — without `vite-plugin-pwa`. Generate the VAPID key on your backend, fill in `VITE_VAPID_PUBLIC_KEY` in `.env`, swap `public/icon.svg`, and test with `npm run build && npm run preview`. 🚀
 
 ## Next steps
 

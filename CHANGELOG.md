@@ -19,9 +19,16 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - **`tempestPwaDevSw()`** (em `tempest-react-sdk/vite`): serve `/sw.js` em `npm run dev` compilando `src/sw.ts` na hora com esbuild + um `precache-manifest.json` vazio — fecha o gap "SW em dev".
 - Resultado: o `--pwa` atinge **paridade com o `vite-plugin-pwa`** no caso comum (precache, runtime caching, navigateFallback, cleanup, geração de ícones, SW em dev) sem dependência de runtime nova.
 
+### PWA avançado: Background Sync, range requests e splash screens
+
+- **`installBackgroundSync()`** (em `tempest-react-sdk/sw`): enfileira mutações (POST/PUT/PATCH/DELETE) que falham offline numa fila IndexedDB e as **reenvia quando a conexão volta** — via Background Sync API ou, sem ela, oportunisticamente no próximo request. `match`, `queueName`, `maxRetentionMinutes`; respostas 4xx são descartadas. Contrapartida sem-dep ao `BackgroundSyncPlugin` do Workbox.
+- **Range requests**: opção `rangeRequests` em `installRuntimeCache` serve `206 Partial Content` fatiando o recurso cacheado (seek de áudio/vídeo offline), e o helper **`createPartialResponse(request, response)`** fica exportado pra uso manual. Equivalente ao `RangeRequestsPlugin`.
+- **Splash screens (Apple)**: opção `appleSplash` em `tempestPwaIcons` gera as launch images por device (iPhone/iPad portrait) e injeta os `<link rel="apple-touch-startup-image">` no `index.html`. Tipo `AppleSplashSpec` exportado pra customizar a lista. Equivalente ao gerador de splash do `@vite-pwa/assets-generator`.
+- Com isso o `--pwa` cobre **também** os três itens que antes ficavam só no `vite-plugin-pwa` — paridade praticamente total no caso comum.
+
 ### Novo subpath `tempest-react-sdk/sw`
 
-- Os helpers de service worker (`installPushHandler`, `installNotificationClickHandler`, `installSkipWaitingListener`, `installPrecache`, `installRuntimeCache`, `registerServiceWorker`, `skipWaiting`, `unregisterAllServiceWorkers`) têm um **subpath dedicado e sem React**: `tempest-react-sdk/sw`. Ideal pra empacotar no seu `sw.ts` sem arrastar o grafo de componentes pro escopo do worker. O barrel raiz continua exportando tudo.
+- Os helpers de service worker (`installPushHandler`, `installNotificationClickHandler`, `installSkipWaitingListener`, `installPrecache`, `installRuntimeCache`, `createPartialResponse`, `installBackgroundSync`, `registerServiceWorker`, `skipWaiting`, `unregisterAllServiceWorkers`) têm um **subpath dedicado e sem React**: `tempest-react-sdk/sw`. Ideal pra empacotar no seu `sw.ts` sem arrastar o grafo de componentes pro escopo do worker. O barrel raiz continua exportando tudo.
 
 ## [0.7.0] — 2026-06-27
 

@@ -252,7 +252,9 @@ function parseOut(args, fallback) {
 async function genApi(args) {
     const source = args.find((a) => !a.startsWith("--") && a !== "api");
     if (!source) {
-        console.error(`${c.red}✗ Missing OpenAPI source.${c.reset} Usage: tempest gen api <url|file> [--out src/api]`);
+        console.error(
+            `${c.red}✗ Missing OpenAPI source.${c.reset} Usage: tempest gen api <url|file> [--out src/api]`,
+        );
         return 1;
     }
     const outDir = resolve(ROOT, parseOut(args, "src/api"));
@@ -266,7 +268,9 @@ async function genApi(args) {
         await writeFile(dest, contents);
     }
 
-    console.log(`\n${c.green}✓ Generated${c.reset} ${Object.keys(files).length} files for ${tags.length} route group(s): ${c.bold}${tags.join(", ")}${c.reset}`);
+    console.log(
+        `\n${c.green}✓ Generated${c.reset} ${Object.keys(files).length} files for ${tags.length} route group(s): ${c.bold}${tags.join(", ")}${c.reset}`,
+    );
     console.log(`  ${c.dim}out: ${outDir}${c.reset}`);
     const prettier = localBin("prettier");
     if (prettier) {
@@ -279,7 +283,9 @@ async function genApi(args) {
         const cls = tags[0].replace(/[^a-zA-Z0-9]+(.)?/g, (_, ch) => (ch ? ch.toUpperCase() : ""));
         const Cls = cls.charAt(0).toUpperCase() + cls.slice(1) + "Service";
         console.log(`  import { ${Cls} } from "@/api/${tags[0].toLowerCase()}";`);
-        console.log(`  const svc = new ${Cls}(createApiClient({ baseURL: import.meta.env.VITE_API_URL }));`);
+        console.log(
+            `  const svc = new ${Cls}(createApiClient({ baseURL: import.meta.env.VITE_API_URL }));`,
+        );
     }
     return 0;
 }
@@ -287,7 +293,9 @@ async function genApi(args) {
 function gen(args) {
     const what = args[0];
     if (what !== "api") {
-        console.error(`${c.red}✗ Unknown gen target: ${what ?? "(none)"}${c.reset} — only \`gen api\` is supported.`);
+        console.error(
+            `${c.red}✗ Unknown gen target: ${what ?? "(none)"}${c.reset} — only \`gen api\` is supported.`,
+        );
         return 1;
     }
     return genApi(args.slice(1));
@@ -343,10 +351,14 @@ if (!commands[cmd]) {
 
 const result = commands[cmd]();
 if (result instanceof Promise) {
-    result.then((code) => process.exit(code)).catch((err) => {
-        console.error(`${c.red}✗ ${err instanceof Error ? err.message : String(err)}${c.reset}`);
-        process.exit(1);
-    });
+    result
+        .then((code) => process.exit(code))
+        .catch((err) => {
+            console.error(
+                `${c.red}✗ ${err instanceof Error ? err.message : String(err)}${c.reset}`,
+            );
+            process.exit(1);
+        });
 } else {
     process.exit(result);
 }

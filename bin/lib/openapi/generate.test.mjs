@@ -29,22 +29,53 @@ const SPEC = {
             get: {
                 tags: ["users"],
                 operationId: "list_users",
-                parameters: [{ name: "limit", in: "query", required: false, schema: { type: "integer" } }],
-                responses: { 200: { content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/User" } } } } } },
+                parameters: [
+                    { name: "limit", in: "query", required: false, schema: { type: "integer" } },
+                ],
+                responses: {
+                    200: {
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "array",
+                                    items: { $ref: "#/components/schemas/User" },
+                                },
+                            },
+                        },
+                    },
+                },
             },
             post: {
                 tags: ["users"],
                 operationId: "create_user",
-                requestBody: { content: { "application/json": { schema: { $ref: "#/components/schemas/UserCreate" } } } },
-                responses: { 201: { content: { "application/json": { schema: { $ref: "#/components/schemas/User" } } } } },
+                requestBody: {
+                    content: {
+                        "application/json": { schema: { $ref: "#/components/schemas/UserCreate" } },
+                    },
+                },
+                responses: {
+                    201: {
+                        content: {
+                            "application/json": { schema: { $ref: "#/components/schemas/User" } },
+                        },
+                    },
+                },
             },
         },
         "/users/{id}": {
             get: {
                 tags: ["users"],
                 operationId: "get_user",
-                parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
-                responses: { 200: { content: { "application/json": { schema: { $ref: "#/components/schemas/User" } } } } },
+                parameters: [
+                    { name: "id", in: "path", required: true, schema: { type: "integer" } },
+                ],
+                responses: {
+                    200: {
+                        content: {
+                            "application/json": { schema: { $ref: "#/components/schemas/User" } },
+                        },
+                    },
+                },
             },
         },
     },
@@ -85,7 +116,9 @@ describe("generate — FastAPI-style spec", () => {
         expect(svc).toContain("export class UsersService {");
         expect(svc).toContain("constructor(private readonly api: ApiClient) {}");
         // list with query params
-        expect(svc).toMatch(/async listUsers\(params: \{ "limit"\?: number \}\): Promise<User\[\]>/);
+        expect(svc).toMatch(
+            /async listUsers\(params: \{ "limit"\?: number \}\): Promise<User\[\]>/,
+        );
         // create with Zod input validation
         expect(svc).toContain("S.UserCreateSchema.parse(body);");
         expect(svc).toMatch(/async createUser\(body: UserCreate\): Promise<User>/);

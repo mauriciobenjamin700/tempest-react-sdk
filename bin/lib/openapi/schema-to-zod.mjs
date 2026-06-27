@@ -47,7 +47,10 @@ export function schemaToZod(schema, resolveRef = (ref) => zodName(refName(ref)))
     if (Array.isArray(schema.allOf)) {
         const parts = schema.allOf.map((s) => schemaToZod(s, resolveRef));
         if (parts.length === 1) return withModifiers(parts[0], schema);
-        return withModifiers(parts.reduce((a, b) => `z.intersection(${a}, ${b})`), schema);
+        return withModifiers(
+            parts.reduce((a, b) => `z.intersection(${a}, ${b})`),
+            schema,
+        );
     }
     if (Array.isArray(schema.anyOf) || Array.isArray(schema.oneOf)) {
         const variants = (schema.anyOf ?? schema.oneOf).map((s) => schemaToZod(s, resolveRef));
@@ -102,9 +105,7 @@ export function schemaToZod(schema, resolveRef = (ref) => zodName(refName(ref)))
                     if (!required.has(key)) expr += ".optional()";
                     return `    ${JSON.stringify(key)}: ${expr},`;
                 });
-                let e = entries.length
-                    ? `z.object({\n${entries.join("\n")}\n})`
-                    : "z.object({})";
+                let e = entries.length ? `z.object({\n${entries.join("\n")}\n})` : "z.object({})";
                 // additionalProperties → passthrough / record.
                 if (schema.additionalProperties === true) e += ".passthrough()";
                 return withModifiers(e, schema);

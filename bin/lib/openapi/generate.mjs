@@ -6,11 +6,13 @@ const HTTP_METHODS = ["get", "post", "put", "patch", "delete"];
 
 /** Slug a tag into a folder/identifier-safe base ("User Profiles" → "user-profiles"). */
 function tagSlug(tag) {
-    return tag
-        .trim()
-        .replace(/[^a-zA-Z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "")
-        .toLowerCase() || "default";
+    return (
+        tag
+            .trim()
+            .replace(/[^a-zA-Z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "")
+            .toLowerCase() || "default"
+    );
 }
 
 /** PascalCase for class names ("user-profiles" → "UserProfiles"). */
@@ -21,10 +23,15 @@ function pascal(s) {
 /** camelCase method name from operationId or method+path. */
 function methodName(op, method, path) {
     if (op.operationId) {
-        const id = op.operationId.replace(/[^a-zA-Z0-9]+(.)?/g, (_, ch) => (ch ? ch.toUpperCase() : ""));
+        const id = op.operationId.replace(/[^a-zA-Z0-9]+(.)?/g, (_, ch) =>
+            ch ? ch.toUpperCase() : "",
+        );
         return id.charAt(0).toLowerCase() + id.slice(1);
     }
-    const parts = path.split("/").filter(Boolean).map((p) => p.replace(/[{}]/g, ""));
+    const parts = path
+        .split("/")
+        .filter(Boolean)
+        .map((p) => p.replace(/[{}]/g, ""));
     return method + parts.map((p) => pascal(p)).join("");
 }
 
@@ -106,7 +113,9 @@ function topoSort(names, schemas) {
 /** Extract the success ($2xx) JSON response schema of an operation. */
 function successSchema(op) {
     const responses = op.responses ?? {};
-    const code = ["200", "201", "202", "2XX"].find((c) => responses[c]) ?? Object.keys(responses).find((c) => c.startsWith("2"));
+    const code =
+        ["200", "201", "202", "2XX"].find((c) => responses[c]) ??
+        Object.keys(responses).find((c) => c.startsWith("2"));
     const content = code && responses[code]?.content?.["application/json"];
     return content?.schema ?? null;
 }
@@ -162,8 +171,7 @@ export function generate(doc) {
             });
             return `export const ${zodName(name)} = ${expr};`;
         });
-        files[`${slug}/schemas.ts`] =
-            `import { z } from "zod";\n\n${schemaLines.join("\n\n")}\n`;
+        files[`${slug}/schemas.ts`] = `import { z } from "zod";\n\n${schemaLines.join("\n\n")}\n`;
 
         // 3. types.ts
         const typeLines = sorted.map(
@@ -195,9 +203,8 @@ export function generate(doc) {
     }
 
     // Root barrel.
-    files["index.ts"] = [...groups.values()]
-        .map(({ slug }) => `export * from "./${slug}";`)
-        .join("\n") + "\n";
+    files["index.ts"] =
+        [...groups.values()].map(({ slug }) => `export * from "./${slug}";`).join("\n") + "\n";
 
     return { files, tags };
 }
@@ -216,7 +223,10 @@ function emitMethod(method, path, op, used) {
     if (body) args.push(`body: ${tsType(body)}`);
     if (queryParams.length) {
         const q = queryParams
-            .map((p) => `${JSON.stringify(p.name)}${p.required ? "" : "?"}: ${tsType(p.schema ?? { type: "string" })}`)
+            .map(
+                (p) =>
+                    `${JSON.stringify(p.name)}${p.required ? "" : "?"}: ${tsType(p.schema ?? { type: "string" })}`,
+            )
             .join("; ");
         args.push(`params: { ${q} }`);
     }

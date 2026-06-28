@@ -16,6 +16,13 @@ O catálogo foi dividido por categoria para facilitar navegação. Cada arquivo 
 - **[Layout](./components/layout.md)** — AppShell, Page, Container, Stack, Grid, Divider, Spacer, Center, AspectRatio, SafeArea, Show, Hide
 - **[Dados](./components/data.md)** — Table, VirtualList, ListTile, Accordion, Timeline
 - **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, Spinner, Skeleton, RefreshIndicator, Toast, EmptyState, ErrorState
+- **[Entrada de dados](./components/inputs.md)** — Input, Textarea, Select, Combobox, Checkbox, Radio, Switch, ChipInput, SearchBar, DatePicker, FileUpload, Dropzone, RangeSlider, RatingStars, PinInput, PasswordInput, StepperInput, Form\*
+- **[Ação](./components/actions.md)** — Button, Tooltip, DropdownMenu, Popover, ConfirmDialog
+- **[Navegação](./components/navigation.md)** — Navbar, Sidebar, BottomNavigation, Tabs, Stepper, Breadcrumbs, Pagination, SegmentedControl
+- **[Overlay](./components/overlay.md)** — Modal, Drawer, BottomSheet, ModalsManager
+- **[Layout](./components/layout.md)** — AppShell, Page, Container, Stack, Grid, Divider, Spacer, Center, AspectRatio, SafeArea, Show, Hide
+- **[Dados](./components/data.md)** — Table, VirtualList, Accordion, Timeline
+- **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, NProgress, Spinner, Skeleton, Toast, EmptyState, ErrorState
 - **[Identidade & micro](./components/identity.md)** — Avatar, Card, Kbd
 
 ## Convenções globais

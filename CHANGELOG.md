@@ -43,6 +43,15 @@ Cada módulo: implementação + testes (data 19, access 24). Docs bilíngues nov
 - **`recharts` é peer opcional, externalizado** — apps que não usam charts não pagam nada (padrão "caller injeta a dep pesada", igual telemetry/feature-flags). Instale `recharts` só se for usar.
 - Fecha o gap de charts (antes deixado de fora de propósito). Tipos `ChartData`, `CartesianChartProps`, `PieChartProps`. Docs bilíngues novas; entry de `size-limit` pro bundle do subpath (~1 KB sem recharts). Caps alinhados (CJS 52 KB, css 17 KB).
 
+### DX pack (inspirado em Mantine)
+
+- **+10 hooks utilitários**: `useDisclosure`, `useListState`, `useCounter`, `useDocumentTitle`, `useFavicon`, `useMap`, `useSet`, `useQueue`, `useClickOutside`, `useIsFirstRender` (SSR-safe, totalmente tipados).
+- **`NProgress`** — barra de loading fixa no topo: controlador `nprogress` (`start`/`done`/`set`/`inc`/`subscribe`, com trickle automático) + `<NProgressBar color? height?>`. Ótimo com navegação de rota.
+- **`Dropzone`** — área de drag-and-drop de arquivos: `<Dropzone onDrop accept? multiple? maxSize? onReject? disabled>` (clicável/teclado, estado de arraste).
+- **`ModalsManager`** — modais imperativos: `<ModalsProvider>` + `useModals()` → `{ open, confirm, close, closeAll }` sobre o `Modal`/`ConfirmDialog` existentes.
+
+Cada item: implementação + testes (58 no total). Docs bilíngues (hooks + feedback/inputs/overlay). Caps do `size-limit` alinhados (CJS 52 KB, css 17 KB).
+
 ## [0.10.0] — 2026-06-27
 
 ### Integração full-stack Tempest (React ⇄ FastAPI)

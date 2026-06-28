@@ -1,0 +1,44 @@
+.zone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-height: 120px;
+    padding: var(--tempest-space-6, 24px);
+    border: 2px dashed var(--tempest-border);
+    border-radius: var(--tempest-radius-lg, 12px);
+    background: var(--tempest-surface);
+    color: var(--tempest-text-muted);
+    font-family: var(--tempest-font-sans);
+    font-size: var(--tempest-text-sm);
+    cursor: pointer;
+    transition:
+        border-color var(--tempest-duration-fast, 120ms) var(--tempest-ease-out, ease-out),
+        background var(--tempest-duration-fast, 120ms) var(--tempest-ease-out, ease-out);
+}
+
+.zone:hover,
+.zone:focus-visible {
+    border-color: var(--tempest-primary);
+    color: var(--tempest-text);
+    outline: none;
+}
+
+.dragging {
+    border-color: var(--tempest-primary);
+    background: var(--tempest-primary-subtle, var(--tempest-surface));
+    color: var(--tempest-text);
+}
+
+.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.input {
+    display: none;
+}
+
+.prompt {
+    line-height: 1.4;
+}

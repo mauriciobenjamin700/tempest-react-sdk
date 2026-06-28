@@ -1,0 +1,12 @@
+.bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: var(--tempest-z-toast, 1100);
+    border-radius: 0 var(--tempest-radius-full) var(--tempest-radius-full) 0;
+    box-shadow:
+        0 0 8px var(--tempest-primary),
+        0 0 4px var(--tempest-primary);
+    transition: width var(--tempest-duration-fast, 120ms) var(--tempest-ease-out, ease-out);
+    pointer-events: none;
+}

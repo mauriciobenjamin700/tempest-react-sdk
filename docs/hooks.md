@@ -31,6 +31,9 @@ testados, **SSR-safe** e independentes — importe só o que precisar.
 | `useBeforeInstallPrompt()`                        | PWA install prompt diferido.                                                                                 |
 | `useIdle(timeout?)`                               | True quando usuário ocioso por `timeout` ms.                                                                 |
 | `useGeolocation(opts?)`                           | Position + erro + loading.                                                                                   |
+| `useClickOutside(handler)`                        | Retorna um ref; chama `handler` em `mousedown`/`touchstart` fora do elemento. SSR-safe.                      |
+| `useDocumentTitle(title)`                         | Seta `document.title` enquanto montado, restaurando o anterior no unmount. SSR-safe.                         |
+| `useFavicon(href)`                                | Troca o favicon via `<link rel="icon">` (cria o elemento se faltar). SSR-safe.                               |
 
 ### Entrada / interação
 
@@ -51,6 +54,13 @@ testados, **SSR-safe** e independentes — importe só o que precisar.
 | `useToggle(initial?)`                             | `[value, { toggle, setTrue, setFalse, set }]` — açúcar pra boolean state.                                       |
 | `useAsync<T>(fn, deps?, { immediate? })`          | Track `idle/pending/success/error`. `{ status, data, error, run, reset }`. Distinto de React Query (sem cache). |
 | `usePrevious(value)`                              | Valor anterior do render passado.                                                                               |
+| `useDisclosure(initial?)`                         | `[opened, { open, close, toggle }]` — handlers estáveis para modais/drawers/popovers.                          |
+| `useCounter(initial?, { min, max })`              | `[count, { increment, decrement, set, reset }]` — contador numérico com clamp opcional.                        |
+| `useListState<T>(initial?)`                       | `[list, handlers]` com `append`/`prepend`/`insert`/`remove`/`reorder`/`setItem`/`setState`/`apply`/`clear`.     |
+| `useMap<K, V>(initial?)`                          | `{ map, set, delete, clear, get, has, size }` — `Map` reativo (nova referência a cada mutação).                 |
+| `useSet<T>(initial?)`                             | `{ set, add, delete, clear, has, toggle, size }` — `Set` reativo (nova referência a cada mutação).              |
+| `useQueue<T>({ initialValues, limit })`           | `{ queue, add, update, cleanQueue, size }` — fila FIFO com `limit` e buffer de overflow.                        |
+| `useIsFirstRender()`                              | `true` no primeiro render do componente, `false` depois.                                                        |
 
 ### Timers
 
@@ -293,11 +303,173 @@ function Tracker({ onSelect }: { onSelect: (id: string) => void }) {
     `useAsync` com `deps`) devem entrar nas deps normalmente — omiti-los gera bugs de
     valor obsoleto. Regra geral: confie no `eslint-plugin-react-hooks`.
 
+### Disclosure — `useDisclosure`
+
+```tsx
+import { useDisclosure, Modal, Button } from "tempest-react-sdk";
+
+function EditPanel() {
+  const [opened, { open, close }] = useDisclosure(false);
+  return (
+    <>
+      <Button onClick={open}>Editar</Button>
+      <Modal open={opened} onClose={close} title="Editar perfil">
+        …
+      </Modal>
+    </>
+  );
+}
+```
+
+Os handlers (`open`/`close`/`toggle`) têm referência estável entre renders — diferente de `useToggle`, é o atalho certo para overlays.
+
+### Contador com clamp — `useCounter`
+
+```tsx
+import { useCounter, Button } from "tempest-react-sdk";
+
+function Quantity() {
+  const [count, { increment, decrement, reset }] = useCounter(1, { min: 1, max: 10 });
+  return (
+    <>
+      <Button onClick={decrement}>−</Button>
+      <span>{count}</span>
+      <Button onClick={increment}>+</Button>
+      <Button onClick={reset}>Resetar</Button>
+    </>
+  );
+}
+```
+
+`useCounter(initial, { min, max })` clampa o valor — `increment`/`decrement`/`set` respeitam os limites.
+
+### Lista como estado — `useListState`
+
+```tsx
+import { useListState, Button } from "tempest-react-sdk";
+
+function TodoList() {
+  const [items, handlers] = useListState<string>(["Comprar pão"]);
+  return (
+    <>
+      <Button onClick={() => handlers.append("Novo item")}>Adicionar</Button>
+      <ul>
+        {items.map((item, i) => (
+          <li key={i} onClick={() => handlers.remove(i)}>
+            {item}
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+```
+
+Handlers imutáveis: `append`/`prepend`/`insert`/`remove`/`reorder`/`setItem`/`setState`/`apply`/`clear`. Use `handlers.reorder({ from, to })` para drag-and-drop.
+
+### Map e Set reativos — `useMap` / `useSet`
+
+```tsx
+import { useMap, useSet } from "tempest-react-sdk";
+
+function SelectionTracker() {
+  const selected = useSet<string>();
+  const meta = useMap<string, number>();
+
+  return (
+    <button
+      onClick={() => {
+        selected.toggle("a");
+        meta.set("clicks", (meta.get("clicks") ?? 0) + 1);
+      }}
+    >
+      {selected.size} selecionados · {meta.get("clicks") ?? 0} cliques
+    </button>
+  );
+}
+```
+
+`useMap` retorna `{ map, set, delete, clear, get, has, size }` e `useSet` retorna `{ set, add, delete, clear, has, toggle, size }` — cada mutação gera uma nova referência e re-renderiza.
+
+### Fila FIFO — `useQueue`
+
+```tsx
+import { useQueue, Button } from "tempest-react-sdk";
+
+function Notifications() {
+  const { queue, add, cleanQueue, size } = useQueue<string>({ limit: 3 });
+  return (
+    <>
+      <Button onClick={() => add(`msg ${Date.now()}`)}>Enfileirar</Button>
+      <Button onClick={cleanQueue}>Limpar visíveis ({size})</Button>
+      <ul>
+        {queue.map((msg, i) => (
+          <li key={i}>{msg}</li>
+        ))}
+      </ul>
+    </>
+  );
+}
+```
+
+`useQueue({ initialValues, limit })` mantém até `limit` itens visíveis em `queue`; o excedente fica num buffer e entra conforme `cleanQueue` libera espaço.
+
+### Fechar ao clicar fora — `useClickOutside`
+
+```tsx
+import { useState } from "react";
+import { useClickOutside } from "tempest-react-sdk";
+
+function Menu() {
+  const [open, setOpen] = useState(false);
+  const ref = useClickOutside<HTMLDivElement>(() => setOpen(false));
+  return open ? (
+    <div ref={ref} role="menu">
+      …
+    </div>
+  ) : null;
+}
+```
+
+`useClickOutside(handler)` devolve um ref; o `handler` dispara em `mousedown`/`touchstart` fora do elemento.
+
+### Título e favicon — `useDocumentTitle` / `useFavicon`
+
+```tsx
+import { useDocumentTitle, useFavicon } from "tempest-react-sdk";
+
+function InboxPage({ unread }: { unread: number }) {
+  useDocumentTitle(unread > 0 ? `(${unread}) Caixa de entrada` : "Caixa de entrada");
+  useFavicon(unread > 0 ? "/favicon-alert.ico" : "/favicon.ico");
+  return <main>…</main>;
+}
+```
+
+Ambos são SSR-safe; `useDocumentTitle` restaura o título anterior no unmount.
+
+### Primeiro render — `useIsFirstRender`
+
+```tsx
+import { useEffect } from "react";
+import { useIsFirstRender } from "tempest-react-sdk";
+
+function Analytics({ query }: { query: string }) {
+  const first = useIsFirstRender();
+  useEffect(() => {
+    if (!first) track("search-refined", { query });
+  }, [query, first]);
+  return null;
+}
+```
+
+Retorna `true` apenas na primeira renderização — útil para pular efeitos de montagem.
+
 ## Resumo
 
 - Hooks granulares, independentes e tree-shakáveis — importe só o que usar.
 - Os que tocam o browser são **SSR-safe**: retornam um default no servidor e hidratam após o mount.
 - `useToggle` devolve `[value, { toggle, setTrue, setFalse, set }]` — o segundo item é um objeto.
+- `useDisclosure`/`useCounter`/`useListState` retornam uma tupla `[estado, handlers]`; `useMap`/`useSet`/`useQueue` retornam um objeto único.
 - `useAsync` é o primitivo sem cache; para dados de servidor com cache use React Query.
 - Atenção aos arrays de dependência: `useStableCallback` para fugir de re-runs, deps explícitas no resto.
 

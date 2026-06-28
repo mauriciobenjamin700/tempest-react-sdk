@@ -41,6 +41,9 @@ export default defineConfig({
                 charts: resolve(__dirname, "src/charts/index.ts"),
                 // Rich text editor — tiptap is an optional peer, externalized.
                 editor: resolve(__dirname, "src/editor/index.ts"),
+                // Vision inference (vendored ort-vision-sdk-web) — onnxruntime-web
+                // is an optional peer, externalized.
+                vision: resolve(__dirname, "src/vision/index.ts"),
             },
             name: "TempestReactSdk",
             formats: ["es", "cjs"],
@@ -69,6 +72,7 @@ export default defineConfig({
                 "@tiptap/starter-kit",
                 "@tiptap/core",
                 "@tiptap/pm",
+                "onnxruntime-web",
                 // `tempest-react-sdk/vite` is a Node-only config helper — keep
                 // vite + its react plugin (and node builtins) out of the bundle.
                 "vite",

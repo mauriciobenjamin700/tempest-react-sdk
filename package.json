@@ -70,6 +70,11 @@
       "import": "./dist/editor.js",
       "require": "./dist/editor.cjs"
     },
+    "./vision": {
+      "types": "./dist/vision.d.ts",
+      "import": "./dist/vision.js",
+      "require": "./dist/vision.cjs"
+    },
     "./styles.css": "./dist/styles.css",
     "./package.json": "./package.json"
   },
@@ -86,6 +91,7 @@
     "clean": "rm -rf dist coverage",
     "size": "size-limit",
     "docs:llms": "node scripts/gen-llms.mjs",
+    "vendor:vision": "node scripts/vendor-vision.mjs",
     "prepare": "husky",
     "prepublishOnly": "npm run typecheck && npm run lint && npm run test:run && npm run build"
   },
@@ -111,6 +117,7 @@
     "@tiptap/react": "^2.0.0 || ^3.0.0",
     "@tiptap/starter-kit": "^2.0.0 || ^3.0.0",
     "@vitejs/plugin-react": "^4.0.0 || ^5.0.0",
+    "onnxruntime-web": ">=1.17.0",
     "react": "^18.0.0 || ^19.0.0",
     "react-dom": "^18.0.0 || ^19.0.0",
     "recharts": "^2.0.0 || ^3.0.0",
@@ -130,6 +137,9 @@
       "optional": true
     },
     "@tiptap/starter-kit": {
+      "optional": true
+    },
+    "onnxruntime-web": {
       "optional": true
     }
   },
@@ -158,6 +168,7 @@
     "jsdom": "^29.1.1",
     "lint-staged": "^17.0.5",
     "lucide-react": "^0.575.0",
+    "onnxruntime-web": "^1.27.0",
     "prettier": "^3.8.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

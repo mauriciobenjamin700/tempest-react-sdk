@@ -45,6 +45,7 @@
 - [Tutorial — Roteamento](https://mauriciobenjamin700.github.io/tempest-react-sdk/tutorial/routing/): Nosso app vai ter mais de uma tela: a lista de tarefas, uma página de login e um
 - [Tutorial — Estado](https://mauriciobenjamin700.github.io/tempest-react-sdk/tutorial/state/): Na página anterior, o guard do dashboard leu useAuth.getState().isAuthenticated
 - [Utilitários](https://mauriciobenjamin700.github.io/tempest-react-sdk/utilities/): Coleção de funções puras, sem dependência de React, pra resolver as tarefas chatas do dia a dia — agrupar listas, mesclar objetos, debouncar callbacks, formatar bytes.
+- [Vision (ONNX Runtime Web)](https://mauriciobenjamin700.github.io/tempest-react-sdk/vision/): Visão computacional no dispositivo — direto no navegador, sem servidor de
 - [Vite Config](https://mauriciobenjamin700.github.io/tempest-react-sdk/vite-config/): Todo app frontend Tempest começa com o mesmo vite.config.ts: o plugin React, o
 - [WebSocket](https://mauriciobenjamin700.github.io/tempest-react-sdk/websocket/): createWebSocket + useWebSocket espelham a API de SSE, mas adicionam o canal de envio.
 

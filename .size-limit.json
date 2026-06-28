@@ -62,6 +62,12 @@
     ]
   },
   {
+    "name": "vision entry (onnxruntime-web external)",
+    "path": "dist/vision.js",
+    "limit": "15 KB",
+    "ignore": ["onnxruntime-web"]
+  },
+  {
     "name": "styles.css",
     "path": "dist/styles.css",
     "limit": "17 KB"

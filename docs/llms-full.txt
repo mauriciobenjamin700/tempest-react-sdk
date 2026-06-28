@@ -1,5 +1,229 @@
 ---
 
+# access-control.md
+
+# Access Control (RBAC)
+
+Checagens de **permissão e papel** para esconder ou bloquear ações que o usuário não pode executar. Enquanto o [`AuthGuard`](./auth.md) responde só "está logado?", o Access Control responde "esse usuário pode **excluir um post**?" — granularidade de `<resource>:<action>`.
+
+!!! info "Por que isso existe além do `AuthGuard`?"
+    `AuthGuard` é binário: autenticado ou não. Mas dentro de um app logado, um editor pode criar posts e um leitor não; um admin vê o botão de excluir e o resto não. Esconder esses controles na UI (e idealmente bloquear no backend) é trabalho de RBAC. O Access Control entrega um contrato plugável (`AccessControl`), uma estratégia pronta baseada em papéis, e os utilitários de UI (`useCan`, `<Can>`) para amarrar tudo.
+
+!!! warning "RBAC no frontend é UX, não segurança"
+    Esconder um botão **não** protege o endpoint. A decisão de permissão que importa acontece no backend (no `tempest-fastapi-sdk`). O Access Control aqui melhora a experiência — evita mostrar ações que vão falhar com 403 — mas o servidor continua sendo a fonte da verdade.
+
+## Quando usar
+
+- Esconder/desabilitar botões e links conforme a permissão (`<Can>`).
+- Ramificar lógica por permissão dentro de um componente (`useCan`).
+- Derivar o conjunto de permissões do usuário a partir do JWT (`permissionsFromToken`).
+
+## Provider — `<AccessControlProvider>`
+
+Envolva o app com `<AccessControlProvider control={…}>`, passando uma estratégia `AccessControl`. Toda checagem (`useCan`, `<Can>`) lê dessa estratégia via contexto:
+
+```tsx
+import { AccessControlProvider, createRoleAccessControl } from "tempest-react-sdk";
+import { App } from "./App";
+
+const accessControl = createRoleAccessControl({
+  role: "editor",
+  roles: {
+    editor: ["posts:create", "posts:update", "comments:read"],
+    admin: ["*"],
+  },
+});
+
+export function Root() {
+  return (
+    <AccessControlProvider control={accessControl}>
+      <App />
+    </AccessControlProvider>
+  );
+}
+```
+
+!!! note "Sem provider → libera tudo"
+    Se **nenhum** `<AccessControlProvider>` estiver acima na árvore, `useCan`/`<Can>` tratam toda checagem como **permitida**. Isso mantém o SDK opt-in: você liga a aplicação dropando um provider, e desliga removendo-o. Útil em dev ou em apps sem RBAC ainda — os componentes que usam `<Can>` continuam funcionando, só não bloqueiam nada.
+
+## `createRoleAccessControl`
+
+Constrói uma estratégia RBAC a partir de um conjunto estático de permissões. A assinatura é `createRoleAccessControl({ permissions?, roles?, role? })`:
+
+- `permissions` — strings concedidas diretamente, independente de papel.
+- `roles` — mapa `nome do papel → permissões` que aquele papel concede.
+- `role` — o(s) papel(éis) ativo(s) (string ou array). As permissões deles (de `roles`) são mescladas.
+
+O conjunto efetivo é `permissions` **mais**, para cada papel ativo em `role`, as permissões listadas em `roles[role]`.
+
+### Regras de matching
+
+Cada permissão é uma string `"<resource>:<action>"` (ex.: `"posts:create"`) ou um `"<action>"` sozinho. Os curingas:
+
+| Permissão concedida | O que libera                                              |
+| ------------------- | -------------------------------------------------------- |
+| `"*"`               | **tudo** — qualquer action em qualquer resource          |
+| `"posts:*"`         | qualquer action no resource `posts`                      |
+| `"posts:create"`    | exatamente a action `create` no resource `posts`         |
+| `"export"`          | a action global `export` (checagem **sem** `resource`)   |
+
+```ts
+import { createRoleAccessControl } from "tempest-react-sdk";
+
+const ac = createRoleAccessControl({
+  role: "editor",
+  roles: { editor: ["posts:*", "comments:read"] },
+});
+
+ac.can({ action: "create", resource: "posts" }); // { can: true } — bate em "posts:*"
+ac.can({ action: "read", resource: "comments" }); // { can: true } — bate exato
+ac.can({ action: "delete", resource: "users" }); // { can: false, reason: "missing permission" }
+```
+
+!!! tip "Combine `permissions` e `roles`"
+    `permissions` é para concessões diretas (um override pontual num usuário específico), `roles` + `role` é para o caso comum baseado em papel. Os dois se somam — uma permissão direta vale mesmo que nenhum papel a conceda.
+
+## `permissionsFromToken` — permissões a partir do JWT
+
+Em vez de manter a lista de permissões à mão, derive-a do JWT do usuário. `permissionsFromToken(token, { claim })`:
+
+- Lê a claim configurada (default `"permissions"`).
+- Se ausente, cai para as claims OAuth `"scopes"` e depois `"scope"`.
+- Claim em array é usada como está; claim em string é quebrada por espaços (convenção de `scope` OAuth).
+- Retorna `[]` em qualquer falha de decode ou quando nenhuma claim reconhecível existe.
+
+```ts
+import { createRoleAccessControl, permissionsFromToken } from "tempest-react-sdk";
+
+const token = getAccessTokenFromSomewhere();
+
+// Lê a claim "permissions" (default), caindo para "scopes"/"scope"
+const permissions = permissionsFromToken(token);
+
+const accessControl = createRoleAccessControl({ permissions });
+```
+
+!!! warning "`permissionsFromToken` não valida assinatura"
+    Ele só decodifica o payload do JWT (via `decodeJWT`) para ler a claim — **não** verifica a assinatura. É leitura defensiva para UX, igual ao [`decodeJWT`](./auth.md). Confiar nessas permissões para segurança real é trabalho do backend.
+
+Para uma claim custom (ex.: o backend emite `"perms"`):
+
+```ts
+const permissions = permissionsFromToken(token, { claim: "perms" });
+```
+
+## `useCan` — checagem programática
+
+`useCan({ action, resource })` resolve a checagem contra a estratégia em contexto e devolve `{ allowed, isLoading, reason }`. Funciona com `can` síncrono (boolean ou `CanResult`) e com `Promise` (políticas remotas), re-rodando quando os params mudam:
+
+```tsx
+import { useCan } from "tempest-react-sdk";
+
+export function PostActions({ postId }: { postId: string }) {
+  const { allowed, isLoading } = useCan({ action: "update", resource: "posts" });
+
+  if (isLoading) return null; // checagem assíncrona em andamento
+
+  return (
+    <button disabled={!allowed} onClick={() => editPost(postId)}>
+      Editar
+    </button>
+  );
+}
+```
+
+!!! note "`reason` explica o `false`"
+    Quando `allowed` é `false`, `reason` costuma trazer o motivo (`"missing permission"` vindo do `createRoleAccessControl`, ou a mensagem de erro de uma política async que rejeitou). Útil para tooltip ("Você não tem permissão para X") em vez de só esconder.
+
+## `<Can>` — render condicional
+
+`<Can action resource fallback>` renderiza `children` quando a action é permitida, senão o `fallback` (ou nada). Enquanto uma checagem async está pendente, renderiza o `fallback` (ou nada):
+
+```tsx
+import { Can } from "tempest-react-sdk";
+
+<Can action="create" resource="posts" fallback={<p>Sem permissão para criar.</p>}>
+  <NewPostButton />
+</Can>;
+```
+
+## Exemplo completo — botão "Excluir" protegido
+
+Tudo junto: deriva permissões do JWT, configura a estratégia, e protege a ação de excluir tanto por render (`<Can>`) quanto por estado desabilitado (`useCan`):
+
+```tsx
+import {
+  AccessControlProvider,
+  Can,
+  createRoleAccessControl,
+  permissionsFromToken,
+  useCan,
+} from "tempest-react-sdk";
+
+// 1. Estratégia derivada do JWT do usuário logado.
+function buildAccessControl(token: string) {
+  return createRoleAccessControl({
+    // ex.: token com { permissions: ["posts:read", "posts:delete"] }
+    permissions: permissionsFromToken(token),
+  });
+}
+
+// 2. Provider no topo do app.
+export function Root({ token }: { token: string }) {
+  return (
+    <AccessControlProvider control={buildAccessControl(token)}>
+      <PostRow id="post-1" title="Olá mundo" />
+    </AccessControlProvider>
+  );
+}
+
+// 3a. Esconder a ação inteira com <Can>.
+function PostRow({ id, title }: { id: string; title: string }) {
+  return (
+    <div>
+      <span>{title}</span>
+      <Can action="delete" resource="posts" fallback={null}>
+        <DeleteButton id={id} />
+      </Can>
+    </div>
+  );
+}
+
+// 3b. Mostrar sempre, mas desabilitar + explicar com useCan.
+function DeleteButton({ id }: { id: string }) {
+  const { allowed, isLoading, reason } = useCan({ action: "delete", resource: "posts" });
+
+  return (
+    <button
+      disabled={!allowed || isLoading}
+      title={allowed ? "Excluir post" : reason}
+      onClick={() => deletePost(id)}
+    >
+      Excluir
+    </button>
+  );
+}
+```
+
+!!! tip "`<Can>` esconde; `useCan` desabilita"
+    Use `<Can>` quando a ação simplesmente não deve existir para quem não pode (limpa a UI). Use `useCan` quando você quer manter o controle visível mas inerte, com um `title`/tooltip explicando o porquê — útil para descoberta ("isso existe, mas precisa de outro papel").
+
+## Recap
+
+- `<AccessControlProvider control={…}>` injeta uma estratégia `AccessControl`; **sem provider, toda checagem libera** (opt-in).
+- `createRoleAccessControl({ permissions, roles, role })` monta RBAC estático; matching por `"<resource>:<action>"`, com curingas `"*"` (tudo) e `"<resource>:*"` (resource inteiro).
+- `permissionsFromToken(token, { claim })` lê permissões do JWT (claim default `"permissions"`, fallback `"scopes"`/`"scope"`); não valida assinatura.
+- `useCan({ action, resource })` → `{ allowed, isLoading, reason }`, com suporte a checagens síncronas e assíncronas.
+- `<Can action resource fallback>` esconde a UI; `useCan` desabilita e explica com `reason`.
+- RBAC no frontend é UX — o backend continua sendo a fonte da verdade da autorização.
+
+## Veja também
+
+- [Auth + Guard](./auth.md) — `AuthGuard` (autenticado?) e `decodeJWT`/`isJWTExpired`
+- [Data Provider](./data-provider.md) — proteja as ações de CRUD por papel/permissão
+
+---
+
 # app-providers.md
 
 # AppProviders
@@ -3897,6 +4121,276 @@ I18nProvider → children` na ordem certa, e o `<AppRouter>` monta router +
   `useNavigate`.
 - **App do zero**: `create-tempest-app` gera tudo cabeado com `<AppProviders>` +
   `<AppRouter>`.
+
+---
+
+# data-provider.md
+
+# Data Provider (CRUD)
+
+Camada de CRUD no estilo [Refine](https://refine.dev) fiada nas convenções de paginação e endpoints do [`tempest-fastapi-sdk`](https://pypi.org/project/tempest-fastapi-sdk/). Em vez de escrever uma `queryFn` à mão para cada lista, cada `getOne`, cada mutation de criar/editar/excluir, você descreve **o recurso** (`"posts"`, `"users"`) e o SDK monta a URL, serializa paginação/ordenação/filtros e invalida o cache certo no sucesso.
+
+!!! info "Por que um data provider em cima do `createApiClient` + TanStack Query?"
+    O [`createApiClient`](./http.md) entrega fetch tipado e a [Query](./query.md) entrega cache. O que falta é a **cola repetitiva**: traduzir `{ page, sort, filters }` para `?page=&size=&order_by=&ascending=`, escolher PATCH vs PUT, e lembrar de invalidar a lista depois de criar. O data provider centraliza esse padrão uma vez, alinhado às convenções do backend FastAPI. Você troca dezenas de `useQuery`/`useMutation` quase idênticos por `useList("posts")`, `useCreate("posts")`, etc.
+
+## Quando usar
+
+- Telas de CRUD: listagens paginadas, detalhe, formulários de criar/editar, botão de excluir.
+- Backends que seguem as convenções do `tempest-fastapi-sdk` (paginação offset `BasePaginationSchema`, endpoints `/{resource}` e `/{resource}/{id}`).
+- Quando você quer cache + invalidação automática sem escrever `queryKey`/`invalidateQueries` à mão em cada tela.
+
+Para chamadas que **não** são CRUD de recurso (RPC, agregações, endpoints custom), continue usando o [`createApiClient`](./http.md) direto.
+
+## `createDataProvider`
+
+Crie o provider uma vez, a partir do seu `apiClient`, e passe-o para a árvore via `<TempestDataProvider>`:
+
+```ts
+import { createApiClient, createDataProvider } from "tempest-react-sdk";
+
+const apiClient = createApiClient({
+  baseURL: import.meta.env.VITE_API_URL,
+});
+
+export const dataProvider = createDataProvider(apiClient);
+```
+
+`createDataProvider(client, options?)` recebe o cliente HTTP e um objeto opcional de overrides. Os defaults já casam com o `tempest-fastapi-sdk`:
+
+| Opção                | Default        | Para que serve                                                                              |
+| -------------------- | -------------- | ------------------------------------------------------------------------------------------ |
+| `pageParam`          | `"page"`       | Nome do query-param do número da página.                                                    |
+| `sizeParam`          | `"size"`       | Nome do query-param do tamanho da página.                                                   |
+| `sortFieldParam`     | `"order_by"`   | Nome do query-param do campo de ordenação.                                                  |
+| `sortOrderParam`     | `"ascending"`  | Nome do query-param da direção da ordenação.                                                |
+| `sortOrderAsBoolean` | `true`         | `true` → emite booleano (`order:"asc"` vira `true`). `false` → emite `"asc"`/`"desc"`.      |
+| `updateMethod`       | `"patch"`      | Método HTTP usado por `update` (`"patch"` ou `"put"`).                                       |
+| `buildPath`          | ver abaixo     | Monta o path do recurso. Default: `id == null ? "/{resource}" : "/{resource}/{id}"`.        |
+
+!!! note "Os defaults seguem o `tempest-fastapi-sdk`"
+    `BasePaginationFilterSchema` usa `page`/`size`/`order_by`/`ascending`, e `ascending` é um booleano. Por isso `sortOrderAsBoolean` é `true` por default. Se o seu backend espera `?sort=desc` em vez de `?ascending=false`, ajuste `sortOrderParam` e `sortOrderAsBoolean`.
+
+Exemplo com overrides — um backend que pagina com `pageSize` e ordena com `sort=field:desc` num único param:
+
+```ts
+import { createApiClient, createDataProvider } from "tempest-react-sdk";
+
+const apiClient = createApiClient({ baseURL: import.meta.env.VITE_API_URL });
+
+export const dataProvider = createDataProvider(apiClient, {
+  sizeParam: "pageSize",
+  sortOrderAsBoolean: false, // emite "asc"/"desc" literais
+  updateMethod: "put", // PUT em vez de PATCH
+  buildPath: (resource, id) => (id == null ? `/api/${resource}` : `/api/${resource}/${id}`),
+});
+```
+
+### Como cada chamada vira uma requisição
+
+| Método do provider                 | Requisição HTTP                                                |
+| ---------------------------------- | ------------------------------------------------------------- |
+| `getList("posts", params)`         | `GET /posts?page=&size=&order_by=&ascending=&...filters`      |
+| `getOne("posts", id)`              | `GET /posts/{id}`                                             |
+| `getMany("posts", ids)`            | `getOne` em paralelo para cada id                            |
+| `create("posts", data)`            | `POST /posts`                                                 |
+| `update("posts", id, data)`        | `PATCH /posts/{id}` (ou `PUT` com `updateMethod: "put"`)      |
+| `deleteOne("posts", id)`           | `DELETE /posts/{id}`                                          |
+
+## Provider na árvore
+
+Envolva o app com `<TempestDataProvider>` passando o provider criado. Ele **precisa** estar abaixo de um [`<QueryProvider>`](./query.md) — os hooks de recurso usam o `QueryClient` por baixo:
+
+```tsx
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { QueryProvider, TempestDataProvider } from "tempest-react-sdk";
+import "tempest-react-sdk/styles.css";
+import { App } from "./App";
+import { dataProvider } from "./data-provider";
+
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <QueryProvider>
+      <TempestDataProvider provider={dataProvider}>
+        <App />
+      </TempestDataProvider>
+    </QueryProvider>
+  </StrictMode>,
+);
+```
+
+!!! warning "`<QueryProvider>` por cima, sempre"
+    `useList`/`useOne`/`useCreate`/… chamam `useQuery`/`useMutation` internamente. Sem um `<QueryProvider>` (ou outro `QueryClientProvider`) acima na árvore, eles lançam o erro do TanStack Query "No QueryClient set". E sem um `<TempestDataProvider>` acima, os hooks lançam `useDataProvider must be used within a <TempestDataProvider>`.
+
+## Os hooks de recurso
+
+Todos resolvem o provider via contexto — você só informa o nome do recurso e, opcionalmente, os parâmetros.
+
+- `useList<T>(resource, params?, options?)` → `UseQueryResult<OffsetPage<T>, Error>`
+- `useOne<T>(resource, id, options?)` → `UseQueryResult<T, Error>` (desabilitado enquanto `id` for `null`/`undefined`)
+- `useCreate<T>(resource, options?)` → mutation; `mutate(data)`
+- `useUpdate<T>(resource, options?)` → mutation; `mutate({ id, data })`
+- `useDelete<T>(resource, options?)` → mutation; `mutate(id)`
+
+As mutations já invalidam o cache certo no sucesso:
+
+| Hook        | Invalida no `onSuccess`                          |
+| ----------- | ----------------------------------------------- |
+| `useCreate` | a lista do recurso                              |
+| `useUpdate` | a lista **e** o registro `useOne` daquele `id`  |
+| `useDelete` | a lista do recurso                              |
+
+!!! tip "Você ainda passa opções do TanStack Query"
+    Cada hook aceita um último argumento `options` que é repassado para o `useQuery`/`useMutation` por baixo (menos `queryKey`/`queryFn`/`mutationFn`, que o SDK controla). Então `staleTime`, `placeholderData`, `onError`, `onSuccess` (chamado **depois** da invalidação do SDK) continuam funcionando normalmente.
+
+### O envelope `OffsetPage<T>`
+
+`useList` resolve com o envelope de paginação offset do `tempest-fastapi-sdk` — você não mapeia nada à mão:
+
+```ts
+interface OffsetPage<T> {
+  items: T[]; // as linhas da página atual
+  total: number; // total de registros que casam, em todas as páginas
+  page: number; // página atual (1-based)
+  pages: number; // total de páginas
+  size?: number; // tamanho da página (convenção fastapi-pagination)
+  page_size?: number; // tamanho da página (convenção alternativa)
+}
+```
+
+## Exemplo completo — recurso "posts"
+
+Listagem paginada + ordenada + filtrada, criação via mutation, e a invalidação acontecendo sozinha:
+
+```tsx
+import { useState } from "react";
+import { useList, useCreate } from "tempest-react-sdk";
+
+interface Post {
+  id: string;
+  title: string;
+  published: boolean;
+}
+
+export function PostsPage() {
+  const [page, setPage] = useState(1);
+  const [onlyPublished, setOnlyPublished] = useState(false);
+
+  // GET /posts?page=1&size=20&order_by=created_at&ascending=false&published=true
+  const { data, isLoading, isError } = useList<Post>("posts", {
+    pagination: { page, pageSize: 20 },
+    sort: { field: "created_at", order: "desc" },
+    filters: onlyPublished ? { published: true } : undefined,
+  });
+
+  // POST /posts — invalida a lista de "posts" no sucesso, sem código extra
+  const createPost = useCreate<Post>("posts");
+
+  if (isLoading) return <p>Carregando…</p>;
+  if (isError) return <p>Erro ao carregar posts.</p>;
+
+  const pageData = data!; // OffsetPage<Post>
+
+  return (
+    <div>
+      <label>
+        <input
+          type="checkbox"
+          checked={onlyPublished}
+          onChange={(e) => {
+            setOnlyPublished(e.target.checked);
+            setPage(1);
+          }}
+        />
+        Só publicados
+      </label>
+
+      <button
+        disabled={createPost.isPending}
+        onClick={() => createPost.mutate({ title: "Novo post", published: false })}
+      >
+        Criar post
+      </button>
+
+      <ul>
+        {pageData.items.map((post) => (
+          <li key={post.id}>
+            {post.title} {post.published ? "✅" : "📝"}
+          </li>
+        ))}
+      </ul>
+
+      <footer>
+        Página {pageData.page} de {pageData.pages} — {pageData.total} no total
+        <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+          Anterior
+        </button>
+        <button disabled={page >= pageData.pages} onClick={() => setPage((p) => p + 1)}>
+          Próxima
+        </button>
+      </footer>
+    </div>
+  );
+}
+```
+
+E uma tela de edição usando `useOne` + `useUpdate` + `useDelete`:
+
+```tsx
+import { useOne, useUpdate, useDelete } from "tempest-react-sdk";
+
+interface Post {
+  id: string;
+  title: string;
+  published: boolean;
+}
+
+export function EditPost({ id }: { id: string }) {
+  const { data: post, isLoading } = useOne<Post>("posts", id);
+
+  const updatePost = useUpdate<Post>("posts");
+  const deletePost = useDelete<Post>("posts", {
+    onSuccess: () => console.log("post removido"),
+  });
+
+  if (isLoading || !post) return <p>Carregando…</p>;
+
+  return (
+    <div>
+      <h2>{post.title}</h2>
+
+      <button
+        disabled={updatePost.isPending}
+        // PATCH /posts/{id} — invalida a lista E o useOne deste id
+        onClick={() => updatePost.mutate({ id: post.id, data: { published: !post.published } })}
+      >
+        {post.published ? "Despublicar" : "Publicar"}
+      </button>
+
+      <button disabled={deletePost.isPending} onClick={() => deletePost.mutate(post.id)}>
+        Excluir
+      </button>
+    </div>
+  );
+}
+```
+
+!!! note "`useOne` se desabilita sozinho sem `id`"
+    Quando `id` é `null`/`undefined`, o `useOne` não dispara o fetch (`enabled: false`). Útil em telas que recebem o id de forma assíncrona (rota, seleção) — não precisa de `enabled` manual no caso comum. Você ainda pode passar `enabled` em `options` para combinar com outra condição.
+
+## Recap
+
+- `createDataProvider(client, options?)` transforma um `apiClient` num provider CRUD no estilo Refine, com defaults alinhados ao `tempest-fastapi-sdk` (`page`/`size`/`order_by`/`ascending`, `ascending` booleano, PATCH no update).
+- Envolva a árvore com `<TempestDataProvider provider={…}>` **abaixo** de um `<QueryProvider>`.
+- `useList` resolve um `OffsetPage<T>` (`items`/`total`/`page`/`pages`); `useOne` busca um registro e se desabilita sem `id`.
+- `useCreate` / `useUpdate` / `useDelete` são mutations que invalidam o cache certo no sucesso — lista (create/delete) ou lista + registro (update).
+- Backends fora da convenção? Ajuste `pageParam`/`sizeParam`/`sortFieldParam`/`sortOrderParam`/`sortOrderAsBoolean`/`updateMethod`/`buildPath`.
+
+## Veja também
+
+- [HTTP](./http.md) — o `createApiClient` que alimenta o data provider
+- [Query](./query.md) — o `<QueryProvider>` obrigatório por cima
+- [Access Control](./access-control.md) — restringir ações de CRUD por papel/permissão
 
 ---
 

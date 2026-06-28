@@ -10,11 +10,17 @@ export * from "./http";
 // Auth
 export * from "./auth";
 
+// Access control (RBAC / permissions)
+export * from "./access";
+
 // OAuth (Google sign-in wrapper, callback hook)
 export * from "./oauth";
 
 // Query
 export * from "./query";
+
+// Data provider (resource CRUD hooks)
+export * from "./data";
 
 // Router (React Router v7, declarative mode)
 export * from "./router";

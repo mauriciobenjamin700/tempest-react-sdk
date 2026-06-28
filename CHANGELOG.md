@@ -2,6 +2,16 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Correções
+
+- **`styles.css` agora inclui os design tokens.** Bug presente desde a v0.1.0: o `dist/styles.css` publicado continha só os CSS Modules dos componentes, **sem** os tokens `--tempest-*` (`colors/typography/motion/density/reset/responsive/print`) — porque nada no grafo JS importava `src/styles/index.css`, então o Vite o descartava do bundle. Consumidores que faziam `import "tempest-react-sdk/styles.css"` recebiam componentes referenciando variáveis indefinidas (sem cor/tema). Corrigido importando os tokens no barrel raiz; o `styles.css` agora sai temático de um único import, como a doc sempre prometeu. (`styles.css` ~13 → ~19 KB gzip — agora carrega os tokens.)
+
+### Componente novo
+
+- **`AppBar`** — app bar mobile-first de PWA: slot **leading** (botão voltar acessível + `brand`) · **título** (`<h1>`) · **actions** à direita. Sticky + `env(safe-area-inset-top)` por padrão. Sem `onBack`, cai em `window.history.back()`; com router, `onBack={() => navigate(-1)}`. Tons `surface`/`primary`/`transparent`, `centered` (título centralizado estilo iOS), `leading` substitui o lado esquerdo inteiro. Resolve o padrão "voltar + título + ação" que cada PWA reimplementava na mão (ex.: `famachapp-pwa`). Complementa o `Navbar` (3 slots, desktop). Tokens `--tempest-*` cobrem cor/altura/tipografia. 9 tests, docs bilíngues em **Navegação**, vitrine na galeria.
+
 ## [0.12.0] — 2026-06-28
 
 ### Vision — subpath `tempest-react-sdk/vision` (ONNX Runtime Web)

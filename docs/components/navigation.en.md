@@ -64,6 +64,59 @@ Top app bar. Three slots (`logo` / `nav` / `actions`). Sticky by default.
 **Safe-area**: applies `padding-top: max(space-3, env(safe-area-inset-top))`
 automatically.
 
+## `AppBar`
+
+**When to use:** the **mobile-first PWA app bar** — the "back + title + action"
+pattern every detail screen repeats. Use `AppBar` for mobile/PWA apps; use
+`Navbar` when you want the desktop horizontal nav (three slots).
+
+Grid layout: a **leading** slot (back button + brand) · the **title** (`<h1>`) ·
+**actions** on the right. Sticky + safe-area by default. The back button is
+accessible and, without `onBack`, falls back to `window.history.back()` — with a
+router, pass `onBack={() => navigate(-1)}`.
+
+```tsx
+// Detail screen: back + an action
+<AppBar
+  title="Profile"
+  showBack
+  onBack={() => navigate(-1)}
+  actions={
+    <Button variant="ghost" iconOnly aria-label="Settings" onClick={openSettings}>
+      <Settings />
+    </Button>
+  }
+/>
+
+// Home screen: brand on the left, no back
+<AppBar brand="Famachapp" actions={<Avatar src={user.photo} />} />
+
+// Centered title (iOS-style)
+<AppBar title="History" showBack centered />
+```
+
+| Prop        | Type                                      | Default          |
+| ----------- | ----------------------------------------- | ---------------- |
+| `title`     | `ReactNode`                               | —                |
+| `leading`   | `ReactNode` (replaces back + brand)       | —                |
+| `showBack`  | `boolean`                                 | `false`          |
+| `onBack`    | `() => void`                              | `history.back()` |
+| `backLabel` | `string` (button aria-label)              | `"Go back"`      |
+| `backIcon`  | `ReactNode`                               | ← arrow          |
+| `brand`     | `ReactNode`                               | —                |
+| `actions`   | `ReactNode`                               | —                |
+| `centered`  | `boolean`                                 | `false`          |
+| `sticky`    | `boolean`                                 | `true`           |
+| `tone`      | `"surface" \| "primary" \| "transparent"` | `"surface"`      |
+| `bordered`  | `boolean`                                 | `true`           |
+| `safeArea`  | `boolean`                                 | `true`           |
+
+!!! tip "Visual customization"
+    The SDK ships only the layout + behaviour. Color, height and typography come
+    from the `--tempest-*` tokens (override them on `:root`). For a custom
+    icon/menu on the right, pass any node to `actions`; to replace the whole left
+    side (e.g. an avatar instead of the back button), use `leading`.
+
 ## `Sidebar`
 
 Desktop side nav. `items: SidebarItem[]`, `header`/`footer` slots, a `collapsed`

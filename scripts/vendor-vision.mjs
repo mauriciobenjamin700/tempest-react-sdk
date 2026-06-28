@@ -19,10 +19,7 @@ import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const PKG_DIR = resolve(
-    REPO_ROOT,
-    process.env.ORT_VISION_SRC ?? "../ort-vision-sdk/sdk-js-web",
-);
+const PKG_DIR = resolve(REPO_ROOT, process.env.ORT_VISION_SRC ?? "../ort-vision-sdk/sdk-js-web");
 const SRC = join(PKG_DIR, "src");
 const DST = join(REPO_ROOT, "src", "vision");
 

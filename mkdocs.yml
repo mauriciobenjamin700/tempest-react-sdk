@@ -154,7 +154,9 @@ nav:
     - Integrações:
           - HTTP: http.md
           - Auth: auth.md
+          - Access Control (RBAC): access-control.md
           - Query (TanStack): query.md
+          - Data Provider (CRUD): data-provider.md
           - SSE: sse.md
           - WebSocket: websocket.md
           - Web Push: push.md

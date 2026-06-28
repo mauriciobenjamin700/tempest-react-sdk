@@ -23,6 +23,20 @@ A lib já cobria os conceitos Material via equivalentes web; estes 5 não tinham
 
 Cada um: componente + CSS module (tokens `--tempest-*`) + testes + export no barrel. Docs bilíngues + vitrine na galeria ("Material"). Caps do `size-limit` ajustados (CJS 52 KB, styles.css 17 KB).
 
+### Data Provider + hooks de recurso (estilo Refine, fiado ao tempest-fastapi-sdk)
+
+- **`createDataProvider(client, options?)`** (em `src/data/`) — camada CRUD por recurso sobre o `createApiClient`, mapeada às convenções do `tempest-fastapi-sdk`: `getList` → `GET /{resource}?page&size&order_by&ascending&…filtros` (devolve `OffsetPage<T>`), `getOne`/`getMany`, `create` (POST), `update` (PATCH por padrão / PUT), `deleteOne` (DELETE). Opções pra nomes de params (`pageParam`/`sizeParam`/`sortFieldParam`/`sortOrderParam`/`sortOrderAsBoolean`), `updateMethod` e `buildPath`.
+- **`<TempestDataProvider provider={…}>`** + `useDataProvider()` — injeta o provider no contexto.
+- **Hooks de recurso** (sobre TanStack Query, com invalidação automática): `useList` / `useOne` / `useCreate` / `useUpdate` / `useDelete`.
+
+### Access Control (RBAC) — além do AuthGuard
+
+- **`<AccessControlProvider control={…}>`** + **`useCan({ action, resource })`** → `{ allowed, isLoading, reason }` + **`<Can action resource fallback>`**. Sem provider = libera tudo (documentado).
+- **`createRoleAccessControl({ permissions, roles, role })`** — RBAC simples: casa `"<resource>:<action>"`, `"*"` e `"<resource>:*"`; expande roles→permissões.
+- **`permissionsFromToken(token, { claim })`** — extrai permissões do JWT (claim `permissions` por padrão; fallback `scope`/`scopes`).
+
+Cada módulo: implementação + testes (data 19, access 24). Docs bilíngues novas (Data Provider, Access Control). Caps do `size-limit` ajustados (CJS 52 KB, styles.css 17 KB).
+
 ## [0.10.0] — 2026-06-27
 
 ### Integração full-stack Tempest (React ⇄ FastAPI)

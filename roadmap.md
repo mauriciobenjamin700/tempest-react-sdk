@@ -69,6 +69,7 @@ Itens (priorizado):
 - CSS opcional `data-tempest-classname` (consumidores Tailwind/Stitches/Linaria).
 - Versionamento de tokens CSS (`--tempest-*` é API pública → mudança bumpa minor/major).
 - **Chart**: fora de escopo — caller injeta recharts/visx (padrão "caller injeta", como os adapters).
+- **`BottomNavigation` ciente de rota**: item `to` + ativo-por-rota + navegação interna. Adiado em 0.14.0 — `useNavigate`/`useLocation` exigem contexto Router, então quebraria o uso genérico atual (`value`/`onChange`). Implementar como componente novo em `src/router/` (que já depende de `react-router-dom`), compondo o `BottomNavigation` — não mexer no componente base. Remove o wrapper `NavBar` que apps como `famachapp-pwa` escrevem.
 
 ---
 

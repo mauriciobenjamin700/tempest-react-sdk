@@ -28,7 +28,7 @@ dependency array. The SDK packages these patterns into granular, tested,
 | `useScrollLock(active)`                           | Locks `body.overflow`.                                                                                        |
 | `useFocusTrap(ref, active)`                       | Confines Tab within the container.                                                                            |
 | `useHover(ref)` / `useLongPress(handler, opts?)`  | Pointer gestures (reactive hover / long-press).                                                               |
-| `useBeforeInstallPrompt()`                        | Deferred PWA install prompt.                                                                                  |
+| `useBeforeInstallPrompt()`                        | Deferred PWA install prompt (`installable`, `installed`, `isStandalone`, `prompt()`).                         |
 | `useIdle(timeout?)`                               | True when the user is idle for `timeout` ms.                                                                  |
 | `useGeolocation(opts?)`                           | Position + error + loading.                                                                                   |
 | `useClickOutside(handler)`                        | Returns a ref; calls `handler` on a `mousedown`/`touchstart` outside the element. SSR-safe.                   |

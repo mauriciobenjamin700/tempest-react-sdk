@@ -28,7 +28,7 @@ testados, **SSR-safe** e independentes — importe só o que precisar.
 | `useScrollLock(active)`                           | Lock de `body.overflow`.                                                                                     |
 | `useFocusTrap(ref, active)`                       | Confina Tab dentro do container.                                                                             |
 | `useHover(ref)` / `useLongPress(handler, opts?)`  | Gestos de ponteiro (hover reativo / long-press).                                                             |
-| `useBeforeInstallPrompt()`                        | PWA install prompt diferido.                                                                                 |
+| `useBeforeInstallPrompt()`                        | PWA install prompt diferido (`installable`, `installed`, `isStandalone`, `prompt()`).                        |
 | `useIdle(timeout?)`                               | True quando usuário ocioso por `timeout` ms.                                                                 |
 | `useGeolocation(opts?)`                           | Position + erro + loading.                                                                                   |
 | `useClickOutside(handler)`                        | Retorna um ref; chama `handler` em `mousedown`/`touchstart` fora do elemento. SSR-safe.                      |

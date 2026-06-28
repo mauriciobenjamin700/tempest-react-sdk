@@ -30,18 +30,51 @@ export interface ThemeProviderProps {
     /** localStorage key used to persist the preference. Pass `null` to disable persistence. Default: `"tempest-theme"`. */
     storageKey?: string | null;
     /**
-     * Element that receives the `data-tempest-theme` attribute. Defaults to
+     * Element that receives the theme attribute(s). Defaults to
      * `document.documentElement`. Override when scoping the theme to a subtree.
      */
     target?: () => HTMLElement | null;
-    /** Attribute name written on the target. Default: `"data-tempest-theme"`. */
-    attribute?: string;
+    /**
+     * Attribute name(s) written on the target with the resolved theme
+     * (`"light"` / `"dark"`). Default: `"data-tempest-theme"`.
+     *
+     * Pass an array to mirror the theme onto more than one attribute — handy
+     * when the SDK components read `data-tempest-theme` but the host app's own
+     * CSS keys off a different attribute (e.g. `["data-tempest-theme",
+     * "data-theme"]`). Avoids a separate sync effect in the consumer.
+     */
+    attribute?: string | string[];
+    /**
+     * When set, keeps `<meta name="theme-color">` in sync with the resolved
+     * theme — `content` becomes `themeColor.dark` in dark mode and
+     * `themeColor.light` in light mode. The meta tag must already exist in the
+     * document `<head>`. No-op when omitted.
+     */
+    themeColor?: { light: string; dark: string };
 }
 
 function resolve(mode: ThemeMode): ResolvedTheme {
     if (mode === "dark" || mode === "light") return mode;
     if (typeof window === "undefined") return "light";
     return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+/**
+ * Write the resolved theme onto every configured attribute and, when a
+ * `themeColor` map is provided, sync the `<meta name="theme-color">` tag.
+ */
+function applyResolved(
+    element: HTMLElement,
+    resolved: ResolvedTheme,
+    attribute: string | string[],
+    themeColor?: { light: string; dark: string },
+): void {
+    const attrs = Array.isArray(attribute) ? attribute : [attribute];
+    for (const attr of attrs) element.setAttribute(attr, resolved);
+    if (themeColor && typeof document !== "undefined") {
+        const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+        if (meta) meta.content = themeColor[resolved];
+    }
 }
 
 function readStored(storageKey: string | null): ThemeMode | null {
@@ -69,6 +102,7 @@ export function ThemeProvider({
     storageKey = "tempest-theme",
     target,
     attribute = "data-tempest-theme",
+    themeColor,
 }: ThemeProviderProps) {
     const [theme, setThemeState] = useState<ThemeMode>(
         () => readStored(storageKey) ?? defaultTheme,
@@ -78,26 +112,34 @@ export function ThemeProvider({
     const targetRef = useRef<typeof target>(target);
     targetRef.current = target;
 
+    const attributeKey = Array.isArray(attribute) ? attribute.join(",") : attribute;
+    const themeColorRef = useRef(themeColor);
+    themeColorRef.current = themeColor;
+
     useEffect(() => {
         const element = targetRef.current?.() ?? document.documentElement;
         if (!element) return;
         const next = resolve(theme);
-        element.setAttribute(attribute, next);
+        applyResolved(element, next, attribute, themeColorRef.current);
         setResolvedTheme(next);
-    }, [theme, attribute]);
+        // attributeKey is the stable string form of `attribute`.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [theme, attributeKey]);
 
     useEffect(() => {
         if (theme !== "system" || typeof window === "undefined") return;
         const list = window.matchMedia("(prefers-color-scheme: dark)");
         const handler = (): void => {
             const element = targetRef.current?.() ?? document.documentElement;
+            if (!element) return;
             const next: ResolvedTheme = list.matches ? "dark" : "light";
-            element?.setAttribute(attribute, next);
+            applyResolved(element, next, attribute, themeColorRef.current);
             setResolvedTheme(next);
         };
         list.addEventListener("change", handler);
         return () => list.removeEventListener("change", handler);
-    }, [theme, attribute]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [theme, attributeKey]);
 
     const setTheme = useCallback(
         (next: ThemeMode) => {

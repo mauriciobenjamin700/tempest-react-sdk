@@ -200,12 +200,53 @@ Prompt destrutivo pré-montado em cima do [`Modal`](./overlay.md) (texto + 2 bot
 !!! tip "Controle o loading durante a request"
     `onConfirm` aceita uma promise, mas o `ConfirmDialog` não gerencia o estado de loading sozinho — passe `loading={deleting}` controlado pelo seu estado para travar ambos os botões enquanto a ação assíncrona corre.
 
+## `InstallButton`
+
+Botão de instalação do PWA, ligado ao prompt `beforeinstallprompt` ([`useBeforeInstallPrompt`](../hooks.md)). **Renderiza `null`** quando o app não pode ser instalado — prompt ainda não capturado, já instalado, ou rodando standalone — então você o solta na UI sem guardar visibilidade. Herda todas as props do [`Button`](#button).
+
+```tsx
+import { InstallButton } from "tempest-react-sdk";
+import { Download } from "lucide-react";
+
+<InstallButton variant="primary" leftIcon={<Download size={18} />} />;
+```
+
+| Prop       | Tipo                                                       | Default          |
+| ---------- | ---------------------------------------------------------- | ---------------- |
+| `label`    | `ReactNode`                                                | `"Instalar app"` |
+| `onResult` | `(o: "accepted" \| "dismissed" \| "unsupported") => void`  | —                |
+| …          | todas as props de `Button` (`variant`, `size`, `leftIcon`) | —                |
+
+## `InstallBanner`
+
+Banner inferior dispensável que convida a instalar o PWA. Aparece só quando há prompt capturado e o app **não** está standalone; em plataformas que nunca disparam `beforeinstallprompt` (iOS Safari) fica oculto — surfa instruções manuais em outro lugar. `storageKey` lembra a dispensa entre recarregamentos.
+
+```tsx
+<InstallBanner
+  title="Instale o app"
+  description="Acesso offline e atalho na tela inicial."
+  storageKey="meu-app:install-dismissed"
+/>;
+```
+
+| Prop           | Tipo                  | Default        |
+| -------------- | --------------------- | -------------- |
+| `title`        | `ReactNode`           | `"Instale o app"` |
+| `description`  | `ReactNode`           | —              |
+| `installLabel` | `string`              | `"Instalar"`   |
+| `dismissLabel` | `string`              | `"Dispensar"`  |
+| `icon`         | `ReactNode`           | —              |
+| `storageKey`   | `string`              | — (sessão)     |
+| `onResult`     | `(o) => void`         | —              |
+
 ## Resumo
 
 | Componente      | Use para                                       | Gatilho    |
 | --------------- | ---------------------------------------------- | ---------- |
 | `Button`        | Disparar a ação primária/secundária            | clique     |
 | `FloatingActionButton` | Ação primária flutuante e persistente   | clique     |
+| `InstallButton` | Instalar o PWA (some quando não aplicável)     | clique     |
+| `InstallBanner` | Convite dispensável pra instalar o PWA         | clique     |
 | `Tooltip`       | Contexto não-crítico num controle              | hover/foco |
 | `DropdownMenu`  | Lista de ações secundárias (fecha ao escolher) | clique     |
 | `Popover`       | Painel flutuante com conteúdo arbitrário       | clique     |

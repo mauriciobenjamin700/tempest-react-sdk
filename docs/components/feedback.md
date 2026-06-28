@@ -200,14 +200,19 @@ Loader genérico.
 ```tsx
 <Spinner />;
 <Spinner size="lg" />;
-<Center minHeight="50vh">
-  <Spinner size="xl" />
-</Center>;
+<Spinner size="lg" caption="Carregando…" />;
+<Spinner overlay caption="Carregando…" />; // fallback de Suspense/rota
 ```
 
-| Prop   | Tipo                                   | Default |
-| ------ | -------------------------------------- | ------- |
-| `size` | `"xs" \| "sm" \| "md" \| "lg" \| "xl"` | `"md"`  |
+| Prop      | Tipo                                   | Default        | Descrição                                                       |
+| --------- | -------------------------------------- | -------------- | --------------------------------------------------------------- |
+| `size`    | `"xs" \| "sm" \| "md" \| "lg" \| "xl"` | `"md"`         | Tamanho do indicador.                                           |
+| `label`   | `string`                               | `"Carregando"` | Rótulo acessível (lido por leitores de tela).                   |
+| `caption` | `ReactNode`                            | —              | Texto **visível** abaixo do spinner.                            |
+| `overlay` | `boolean`                              | `false`        | Centraliza num container de área cheia (`position: absolute`).  |
+
+!!! note "Back-compat"
+    `<Spinner />` sem `caption`/`overlay` continua um único `<span role="status">` — nada muda no uso antigo.
 
 ## `Skeleton`
 

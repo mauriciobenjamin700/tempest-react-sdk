@@ -1,0 +1,58 @@
+.banner {
+    display: flex;
+    align-items: center;
+    gap: var(--tempest-space-3);
+    padding: var(--tempest-space-3) var(--tempest-space-4);
+    border-radius: var(--tempest-radius-lg);
+    border: 1px solid var(--tempest-border);
+    background: var(--tempest-surface);
+    color: var(--tempest-text);
+    box-shadow: var(--tempest-shadow-lg);
+    width: 100%;
+    font-family: var(--tempest-font-sans);
+    font-size: var(--tempest-text-sm);
+    line-height: var(--tempest-leading-snug);
+}
+
+.icon {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+    color: var(--tempest-primary);
+}
+
+.body {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.title {
+    margin: 0;
+    font-weight: var(--tempest-weight-semibold);
+    color: var(--tempest-text);
+}
+
+.description {
+    margin: var(--tempest-space-1) 0 0;
+    color: var(--tempest-text-muted);
+}
+
+.close {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 0;
+    color: var(--tempest-text-muted);
+    cursor: pointer;
+    padding: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--tempest-radius-sm);
+}
+
+.close:hover {
+    background: color-mix(in srgb, currentColor 10%, transparent);
+}

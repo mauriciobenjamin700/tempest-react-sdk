@@ -6,6 +6,8 @@
  * author) so it ships inside this SDK without an extra package install.
  * `onnxruntime-web` stays an optional peer dependency — install it (and ship
  * the matching `.wasm` files) only when you use this subpath.
+ *
+ * Do not hand-edit — regenerate with `npm run vendor:vision`.
  */
 
 export {

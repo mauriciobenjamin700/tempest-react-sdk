@@ -2,6 +2,15 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Componentes novos (fecham os últimos gaps vs shadcn/ui)
+
+- **`Slider`** — slider de um polegar (valor único) sobre `<input type="range">` nativo (acessível, sem libs). Complementa o `RangeSlider` de dois polegares. Props: `value`/`onChange`, `min`/`max`/`step`, `label`, `helperText`, `disabled`, `formatValue`.
+- **`MultiSelect`** — dropdown multi-seleção com chips removíveis + busca filtrável. Teclado: ↑/↓ navega, Enter alterna, Esc fecha, Backspace (query vazia) remove o último chip. Props: `options`, `value: string[]`/`onChange`, `maxItems`, `filter`, `error`, etc. Tipo `MultiSelectOption`.
+- **`DateRangePicker`** — seleção de intervalo de datas (1+ meses lado a lado) com preview no hover e auto-ordenação. `Date` puro, sem dependências. Props: `value: DateRange`/`onChange`, `numberOfMonths`, `minDate`/`maxDate`, `weekStartsOn`, `defaultMonth`. Tipo `DateRange = { start: Date | null; end: Date | null }`.
+- Galeria: nova vitrine dos três em **Inputs avançados**; docs bilíngues em **Entrada de dados**.
+
 ## [0.10.0] — 2026-06-27
 
 ### Integração full-stack Tempest (React ⇄ FastAPI)

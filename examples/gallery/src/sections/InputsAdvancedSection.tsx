@@ -1,10 +1,14 @@
 import { useState } from "react";
 import {
     Combobox,
+    DateRangePicker,
+    type DateRange,
     Input,
     Label,
+    MultiSelect,
     RangeSlider,
     RatingStars,
+    Slider,
     Toggle,
     ToggleGroup,
     ToggleGroupItem,
@@ -21,7 +25,10 @@ export function InputsAdvancedSection() {
     const [view, setView] = useState<string | string[]>("grid");
     const [rating, setRating] = useState(3);
     const [price, setPrice] = useState<[number, number]>([20, 80]);
+    const [volume, setVolume] = useState(60);
     const [fruit, setFruit] = useState("");
+    const [states, setStates] = useState<string[]>(["sp"]);
+    const [range, setRange] = useState<DateRange>({ start: null, end: null });
 
     return (
         <section className="gallery-section" id="inputs-advanced">
@@ -90,6 +97,21 @@ const [italic, setItalic] = useState(true);
             </Example>
 
             <Example
+                title="Slider"
+                note="Faixa de um polegar (valor único)."
+                code={`const [volume, setVolume] = useState(60);
+
+<Slider value={volume} onChange={setVolume} label="Volume" formatValue={(v) => v + "%"} />`}
+            >
+                <Slider
+                    value={volume}
+                    onChange={setVolume}
+                    label="Volume"
+                    formatValue={(v) => `${v}%`}
+                />
+            </Example>
+
+            <Example
                 title="Combobox"
                 note="Input com lista filtrável — digite para buscar."
                 code={`const [fruit, setFruit] = useState("");
@@ -119,6 +141,46 @@ const [italic, setItalic] = useState(true);
                         { value: "orange", label: "Laranja" },
                     ]}
                 />
+            </Example>
+
+            <Example
+                title="MultiSelect"
+                note="Multi-seleção com chips remováveis + busca."
+                code={`const [states, setStates] = useState<string[]>(["sp"]);
+
+<MultiSelect
+  label="Estados"
+  value={states}
+  onChange={setStates}
+  options={[
+    { value: "sp", label: "São Paulo" },
+    { value: "rj", label: "Rio de Janeiro" },
+    { value: "mg", label: "Minas Gerais" },
+    { value: "ba", label: "Bahia" },
+  ]}
+/>`}
+            >
+                <MultiSelect
+                    label="Estados"
+                    value={states}
+                    onChange={setStates}
+                    options={[
+                        { value: "sp", label: "São Paulo" },
+                        { value: "rj", label: "Rio de Janeiro" },
+                        { value: "mg", label: "Minas Gerais" },
+                        { value: "ba", label: "Bahia" },
+                    ]}
+                />
+            </Example>
+
+            <Example
+                title="DateRangePicker"
+                note="Selecione início e fim; dias entre eles são destacados."
+                code={`const [range, setRange] = useState<DateRange>({ start: null, end: null });
+
+<DateRangePicker value={range} onChange={setRange} numberOfMonths={2} />`}
+            >
+                <DateRangePicker value={range} onChange={setRange} numberOfMonths={2} />
             </Example>
 
             <Example

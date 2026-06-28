@@ -99,6 +99,46 @@ Select with search + filter. Keyboard nav (↑↓ Enter Esc).
 />
 ```
 
+## `MultiSelect`
+
+**When to use:** several options out of many, with search and removable chips.
+For a single option use `Combobox`; for a few boolean options use `Checkbox`.
+
+Filterable multi-select with removable chips. Keyboard nav (↑↓ moves, Enter
+toggles, Esc closes, Backspace on an empty query removes the last chip).
+
+```tsx
+import { MultiSelect, type MultiSelectOption } from "tempest-react-sdk";
+import { useState } from "react";
+
+function Example() {
+  const [sel, setSel] = useState<string[]>([]);
+  const options: MultiSelectOption[] = [
+    { value: "sp", label: "São Paulo" },
+    { value: "rj", label: "Rio de Janeiro" },
+  ];
+
+  return <MultiSelect label="States" options={options} value={sel} onChange={setSel} />;
+}
+```
+
+| Prop           | Type                                            | Default                       |
+| -------------- | ----------------------------------------------- | ----------------------------- |
+| `options`      | `MultiSelectOption[]`                           | — (required)                  |
+| `value`        | `string[]`                                       | — (required, controlled)      |
+| `onChange`     | `(value: string[]) => void`                      | — (required)                  |
+| `label`        | `string`                                         | —                             |
+| `placeholder`  | `string`                                         | `"Selecione"`                 |
+| `helperText`   | `string`                                         | —                             |
+| `error`        | `string`                                         | —                             |
+| `disabled`     | `boolean`                                         | `false`                       |
+| `maxItems`     | `number`                                          | —                             |
+| `filter`       | `(option, query) => boolean`                     | —                             |
+| `emptyMessage` | `string`                                          | `"Nenhuma opção encontrada"`  |
+| `className`    | `string`                                         | —                             |
+
+`MultiSelectOption` is `{ value: string; label: string; disabled?: boolean }`.
+
 ## `Checkbox`
 
 A single checkbox. Supports `indeterminate`.
@@ -166,6 +206,39 @@ A search input with a clear button + optional debounce via `useDebounce`.
 <DatePicker label="Start" mode="datetime-local" value={start} onChange={setStart} />;
 ```
 
+## `DateRangePicker`
+
+**When to use:** selecting a date range (start + end) on a calendar. For a
+single date use `Calendar`.
+
+Range calendar: the first click sets `start`, the next sets `end` (auto-ordered
+if it is earlier), a third click starts over; the hovered day previews the range.
+Pure `Date` math, no dependencies.
+
+```tsx
+import { DateRangePicker, type DateRange } from "tempest-react-sdk";
+import { useState } from "react";
+
+function Example() {
+  const [range, setRange] = useState<DateRange>({ start: null, end: null });
+
+  return <DateRangePicker value={range} onChange={setRange} numberOfMonths={2} />;
+}
+```
+
+| Prop             | Type                              | Default                  |
+| ---------------- | --------------------------------- | ------------------------ |
+| `value`          | `DateRange`                       | — (required, controlled) |
+| `onChange`       | `(range: DateRange) => void`      | — (required)             |
+| `numberOfMonths` | `number`                          | `2`                      |
+| `defaultMonth`   | `Date`                            | —                        |
+| `minDate`        | `Date`                            | —                        |
+| `maxDate`        | `Date`                            | —                        |
+| `weekStartsOn`   | `0 \| 1`                          | `0`                      |
+| `className`      | `string`                          | —                        |
+
+`DateRange` is `{ start: Date | null; end: Date | null }`.
+
 ## `FileUpload`
 
 Drag-and-drop + click-to-upload + file list.
@@ -179,6 +252,37 @@ Drag-and-drop + click-to-upload + file list.
   maxSize={5 * 1024 * 1024}
 />
 ```
+
+## `Slider`
+
+**When to use:** picking a single value on a continuous range (volume,
+brightness, etc.). For a two-value range use `RangeSlider`.
+
+Single-thumb slider over a native `<input type="range">`.
+
+```tsx
+import { Slider } from "tempest-react-sdk";
+import { useState } from "react";
+
+function Example() {
+  const [vol, setVol] = useState(30);
+
+  return <Slider value={vol} onChange={setVol} label="Volume" formatValue={(v) => v + "%"} />;
+}
+```
+
+| Prop          | Type                          | Default                  |
+| ------------- | ----------------------------- | ------------------------ |
+| `value`       | `number`                      | — (required, controlled) |
+| `onChange`    | `(value: number) => void`     | — (required)             |
+| `min`         | `number`                      | `0`                      |
+| `max`         | `number`                      | `100`                    |
+| `step`        | `number`                      | `1`                      |
+| `label`       | `string`                      | —                        |
+| `helperText`  | `string`                      | —                        |
+| `disabled`    | `boolean`                     | `false`                  |
+| `formatValue` | `(value: number) => string`   | —                        |
+| `className`   | `string`                      | —                        |
 
 ## `RangeSlider`
 

@@ -2,7 +2,7 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.12.0] — 2026-06-28
 
 ### Vision — subpath `tempest-react-sdk/vision` (ONNX Runtime Web)
 

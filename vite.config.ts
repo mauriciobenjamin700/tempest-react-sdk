@@ -37,6 +37,8 @@ export default defineConfig({
                 // Service-worker-context helpers only (push/notification/skip-waiting).
                 // Pure, React-free — safe to bundle into a consuming app's `sw.ts`.
                 sw: resolve(__dirname, "src/sw/index.ts"),
+                // Rich text editor — tiptap is an optional peer, externalized.
+                editor: resolve(__dirname, "src/editor/index.ts"),
             },
             name: "TempestReactSdk",
             formats: ["es", "cjs"],
@@ -60,6 +62,10 @@ export default defineConfig({
                 "react-hook-form",
                 "react-router",
                 "react-router-dom",
+                "@tiptap/react",
+                "@tiptap/starter-kit",
+                "@tiptap/core",
+                "@tiptap/pm",
                 // `tempest-react-sdk/vite` is a Node-only config helper — keep
                 // vite + its react plugin (and node builtins) out of the bundle.
                 "vite",

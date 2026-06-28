@@ -10,6 +10,7 @@
 - [Auth](https://mauriciobenjamin700.github.io/tempest-react-sdk/auth/): Autenticação no front-end é sempre o mesmo punhado de problemas: onde guardar a sessão, como proteger uma rota, como ler o que tem dentro do token e o que fazer quando ele expira no meio de um deploy.
 - [CLI `tempest`](https://mauriciobenjamin700.github.io/tempest-react-sdk/cli/): Além da CLI de scaffolding create-tempest-app, o pacote
 - [Cookbook — Receitas](https://mauriciobenjamin700.github.io/tempest-react-sdk/cookbook/): Esta página é um livro de receitas: cada seção responde a um "eu quero fazer X"
+- [Rich Text Editor (`tempest-react-sdk/editor`)](https://mauriciobenjamin700.github.io/tempest-react-sdk/editor/): Editor WYSIWYG controlado, construído sobre tiptap.
 - [Error Boundary](https://mauriciobenjamin700.github.io/tempest-react-sdk/error-boundary/): ErrorBoundary captura erros lançados durante o render de qualquer descendente e mostra um fallback no lugar de uma tela branca.
 - [Feature Flags](https://mauriciobenjamin700.github.io/tempest-react-sdk/feature-flags/): Feature flags ligam e desligam funcionalidades sem novo deploy: rollouts graduais (new-checkout para 10% dos usuários), kill-switches (disable_payments quando o gateway cai), experimentos A/B.
 - [Forms BR — máscaras, validadores, ViaCEP](https://mauriciobenjamin700.github.io/tempest-react-sdk/forms-br/): Tudo que apps brasileiros usam diariamente: validar CPF/CNPJ de verdade, mascarar

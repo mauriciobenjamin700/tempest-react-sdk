@@ -2,6 +2,14 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Rich Text Editor — subpath `tempest-react-sdk/editor` (tiptap)
+
+- Novo subpath **`tempest-react-sdk/editor`** com **`<RichTextEditor value onChange placeholder? editable? toolbar? />`** sobre **tiptap v3** (StarterKit): toolbar (negrito/itálico/strike/code/H1/H2/listas/citação/undo/redo), `value` HTML controlado, área editável tematizada por `--tempest-*`.
+- **`@tiptap/react` + `@tiptap/starter-kit` são peers OPCIONAIS, externalizados** — apps que não usam o editor não pagam nada (padrão "caller injeta a dep pesada", igual charts). Instale só se for usar.
+- Tests +5. Docs bilíngues novas; entry de `size-limit` (~1.3 KB sem tiptap). Caps alinhados (CJS 52 KB, css 17 KB).
+
 ## [0.10.0] — 2026-06-27
 
 ### Integração full-stack Tempest (React ⇄ FastAPI)

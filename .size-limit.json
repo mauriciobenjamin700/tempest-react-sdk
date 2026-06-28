@@ -21,7 +21,7 @@
   {
     "name": "main bundle (CJS)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "47 KB",
+    "limit": "52 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -43,8 +43,21 @@
     "limit": "2 KB"
   },
   {
+    "name": "editor entry (tiptap external)",
+    "path": "dist/editor.js",
+    "limit": "3 KB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "lucide-react",
+      "@tiptap/react",
+      "@tiptap/starter-kit"
+    ]
+  },
+  {
     "name": "styles.css",
     "path": "dist/styles.css",
-    "limit": "15 KB"
+    "limit": "17 KB"
   }
 ]

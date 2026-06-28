@@ -49,6 +49,19 @@
     "ignore": ["react", "react-dom", "react/jsx-runtime", "recharts"]
   },
   {
+    "name": "editor entry (tiptap external)",
+    "path": "dist/editor.js",
+    "limit": "3 KB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "lucide-react",
+      "@tiptap/react",
+      "@tiptap/starter-kit"
+    ]
+  },
+  {
     "name": "styles.css",
     "path": "dist/styles.css",
     "limit": "17 KB"

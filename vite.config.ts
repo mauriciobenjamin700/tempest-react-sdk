@@ -39,6 +39,8 @@ export default defineConfig({
                 sw: resolve(__dirname, "src/sw/index.ts"),
                 // Recharts wrappers — `recharts` is an optional peer, externalized.
                 charts: resolve(__dirname, "src/charts/index.ts"),
+                // Rich text editor — tiptap is an optional peer, externalized.
+                editor: resolve(__dirname, "src/editor/index.ts"),
             },
             name: "TempestReactSdk",
             formats: ["es", "cjs"],
@@ -63,6 +65,10 @@ export default defineConfig({
                 "react-router",
                 "react-router-dom",
                 "recharts",
+                "@tiptap/react",
+                "@tiptap/starter-kit",
+                "@tiptap/core",
+                "@tiptap/pm",
                 // `tempest-react-sdk/vite` is a Node-only config helper — keep
                 // vite + its react plugin (and node builtins) out of the bundle.
                 "vite",

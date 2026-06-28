@@ -164,6 +164,7 @@ nav:
           - Web Share: share.md
           - Áudio: audio.md
           - Charts (recharts): charts.md
+          - Rich Text Editor (tiptap): editor.md
     - Formulários:
           - Forms (zod): forms.md
           - Forms BR: forms-br.md

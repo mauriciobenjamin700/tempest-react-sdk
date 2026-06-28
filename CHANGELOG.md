@@ -2,6 +2,14 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Vision — subpath `tempest-react-sdk/vision` (ONNX Runtime Web)
+
+- Novo subpath **`tempest-react-sdk/vision`**: inferência de visão computacional on-device no navegador — **`Classifier`**, **`Detector`**, **`Segmenter`** (+ `results`, `labels`/`COCO_CLASSES`/`resolveLabels`, `preprocess`, `postprocess` YOLO/YOLOv8, `OrtSession`).
+- **Vendorizado** de `@mauriciobenjamin700/ort-vision-sdk-web@0.2.1` (MIT, mesmo autor) — o conteúdo é copiado pra dentro do SDK, **sem depender do pacote npm**. `onnxruntime-web` é **peer opcional, externalizado** (instale + sirva os `.wasm` só se usar visão).
+- Mesma API do `ort-vision-sdk` Python. Tests (funções puras: `softmax`/`topK`/`resolveLabels`). Docs bilíngues novas; entry de `size-limit` (~8 KB sem onnxruntime-web).
+
 ## [0.11.0] — 2026-06-28
 
 ### Componentes novos (fecham os últimos gaps vs shadcn/ui)

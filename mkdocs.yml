@@ -163,6 +163,7 @@ nav:
           - Offline: offline.md
           - Web Share: share.md
           - Áudio: audio.md
+          - Vision (ONNX): vision.md
           - Charts (recharts): charts.md
           - Rich Text Editor (tiptap): editor.md
     - Formulários:

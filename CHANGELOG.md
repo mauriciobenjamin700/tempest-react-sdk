@@ -2,7 +2,7 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.13.0] — 2026-06-28
 
 ### Correções
 

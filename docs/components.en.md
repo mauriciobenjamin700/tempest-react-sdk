@@ -7,7 +7,7 @@ props, examples, and accessibility notes.
 
 ## Categories
 
-- **[Data entry](./components/inputs.md)** — Input, Textarea, Select, Combobox, Checkbox, Radio, Switch, ChipInput, SearchBar, DatePicker, FileUpload, RangeSlider, RatingStars, PinInput, PasswordInput, StepperInput, Form\*
+- **[Data entry](./components/inputs.md)** — Input, Textarea, Select, Combobox, MultiSelect, Checkbox, Radio, Switch, ChipInput, SearchBar, DatePicker, DateRangePicker, FileUpload, Slider, RangeSlider, RatingStars, PinInput, PasswordInput, StepperInput, Form\*
 - **[Actions](./components/actions.md)** — Button, Tooltip, DropdownMenu, Popover, ConfirmDialog
 - **[Navigation](./components/navigation.md)** — Navbar, Sidebar, BottomNavigation, Tabs, Stepper, Breadcrumbs, Pagination, SegmentedControl
 - **[Overlay](./components/overlay.md)** — Modal, Drawer, BottomSheet

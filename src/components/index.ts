@@ -273,6 +273,15 @@ export type { ResizableProps, ResizableDirection } from "./Resizable";
 export { Calendar } from "./Calendar";
 export type { CalendarProps, WeekStart } from "./Calendar";
 
+export { Slider } from "./Slider";
+export type { SliderProps } from "./Slider";
+
+export { MultiSelect } from "./MultiSelect";
+export type { MultiSelectOption, MultiSelectProps } from "./MultiSelect";
+
+export { DateRangePicker } from "./DateRangePicker";
+export type { DateRange, DateRangePickerProps } from "./DateRangePicker";
+
 export { NavigationMenu } from "./NavigationMenu";
 export type { NavigationMenuItem, NavigationMenuProps } from "./NavigationMenu";
 

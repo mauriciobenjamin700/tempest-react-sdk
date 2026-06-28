@@ -1,0 +1,100 @@
+.wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-space-1);
+    width: 100%;
+    font-family: var(--tempest-font-sans);
+}
+
+.label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: var(--tempest-text-sm);
+    font-weight: var(--tempest-weight-semibold);
+    color: var(--tempest-text);
+    line-height: var(--tempest-leading-snug);
+}
+
+.value {
+    color: var(--tempest-text-muted);
+    font-weight: var(--tempest-weight-medium);
+}
+
+.field {
+    position: relative;
+    height: 28px;
+    display: flex;
+    align-items: center;
+}
+
+.track {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 4px;
+    border-radius: var(--tempest-radius-full);
+    background-color: var(--tempest-surface-2);
+}
+
+.fill {
+    position: absolute;
+    left: 0;
+    height: 4px;
+    border-radius: var(--tempest-radius-full);
+    background-color: var(--tempest-primary);
+}
+
+.input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 28px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: none;
+    margin: 0;
+}
+
+.input::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background-color: var(--tempest-bg);
+    border: 2px solid var(--tempest-primary);
+    box-shadow: var(--tempest-shadow-sm);
+    cursor: pointer;
+}
+
+.input::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background-color: var(--tempest-bg);
+    border: 2px solid var(--tempest-primary);
+    box-shadow: var(--tempest-shadow-sm);
+    cursor: pointer;
+}
+
+.input:focus-visible::-webkit-slider-thumb {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: 2px;
+}
+.input:focus-visible::-moz-range-thumb {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: 2px;
+}
+
+.input:disabled::-webkit-slider-thumb,
+.input:disabled::-moz-range-thumb {
+    border-color: var(--tempest-border-strong);
+    cursor: not-allowed;
+}
+
+.helper {
+    font-size: var(--tempest-text-xs);
+    color: var(--tempest-text-muted);
+    line-height: var(--tempest-leading-snug);
+}

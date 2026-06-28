@@ -827,7 +827,7 @@ O catálogo foi dividido por categoria para facilitar navegação. Cada arquivo 
 
 ## Categorias
 
-- **[Entrada de dados](./components/inputs.md)** — Input, Textarea, Select, Combobox, Checkbox, Radio, Switch, ChipInput, SearchBar, DatePicker, FileUpload, RangeSlider, RatingStars, PinInput, PasswordInput, StepperInput, Form\*
+- **[Entrada de dados](./components/inputs.md)** — Input, Textarea, Select, Combobox, MultiSelect, Checkbox, Radio, Switch, ChipInput, SearchBar, DatePicker, DateRangePicker, FileUpload, Slider, RangeSlider, RatingStars, PinInput, PasswordInput, StepperInput, Form\*
 - **[Ação](./components/actions.md)** — Button, Tooltip, DropdownMenu, Popover, ConfirmDialog
 - **[Navegação](./components/navigation.md)** — Navbar, Sidebar, BottomNavigation, Tabs, Stepper, Breadcrumbs, Pagination, SegmentedControl
 - **[Overlay](./components/overlay.md)** — Modal, Drawer, BottomSheet
@@ -2170,6 +2170,44 @@ Select com busca + filtro. Keyboard nav (↑↓ Enter Esc).
 />
 ```
 
+## `MultiSelect`
+
+**Quando usar:** várias opções entre muitas, com busca e chips removíveis. Para uma única opção use `Combobox`; para poucas opções booleanas use `Checkbox`.
+
+Multi-select filtrável com chips removíveis. Keyboard nav (↑↓ navega, Enter alterna, Esc fecha, Backspace com query vazia remove o último chip).
+
+```tsx
+import { MultiSelect, type MultiSelectOption } from "tempest-react-sdk";
+import { useState } from "react";
+
+function Example() {
+  const [sel, setSel] = useState<string[]>([]);
+  const options: MultiSelectOption[] = [
+    { value: "sp", label: "São Paulo" },
+    { value: "rj", label: "Rio de Janeiro" },
+  ];
+
+  return <MultiSelect label="Estados" options={options} value={sel} onChange={setSel} />;
+}
+```
+
+| Prop           | Tipo                                            | Default                       |
+| -------------- | ----------------------------------------------- | ----------------------------- |
+| `options`      | `MultiSelectOption[]`                           | — (obrigatório)               |
+| `value`        | `string[]`                                       | — (obrigatório, controlled)   |
+| `onChange`     | `(value: string[]) => void`                      | — (obrigatório)               |
+| `label`        | `string`                                         | —                             |
+| `placeholder`  | `string`                                         | `"Selecione"`                 |
+| `helperText`   | `string`                                         | —                             |
+| `error`        | `string`                                         | —                             |
+| `disabled`     | `boolean`                                         | `false`                       |
+| `maxItems`     | `number`                                          | —                             |
+| `filter`       | `(option, query) => boolean`                     | —                             |
+| `emptyMessage` | `string`                                          | `"Nenhuma opção encontrada"`  |
+| `className`    | `string`                                         | —                             |
+
+`MultiSelectOption` é `{ value: string; label: string; disabled?: boolean }`.
+
 ## `Checkbox`
 
 Single checkbox. Suporta `indeterminate`.
@@ -2233,6 +2271,36 @@ Input de busca com clear button + debounce opcional via `useDebounce`.
 <DatePicker label="Início" mode="datetime-local" value={start} onChange={setStart} />;
 ```
 
+## `DateRangePicker`
+
+**Quando usar:** seleção de um intervalo de datas (início + fim) num calendário. Para uma única data use `Calendar`.
+
+Calendário de intervalo: o primeiro clique define `start`, o próximo define `end` (reordenado automaticamente se for anterior), um terceiro clique recomeça; o dia sob o cursor pré-visualiza o intervalo. Matemática de `Date` pura, sem dependências.
+
+```tsx
+import { DateRangePicker, type DateRange } from "tempest-react-sdk";
+import { useState } from "react";
+
+function Example() {
+  const [range, setRange] = useState<DateRange>({ start: null, end: null });
+
+  return <DateRangePicker value={range} onChange={setRange} numberOfMonths={2} />;
+}
+```
+
+| Prop             | Tipo                              | Default                     |
+| ---------------- | --------------------------------- | --------------------------- |
+| `value`          | `DateRange`                       | — (obrigatório, controlled) |
+| `onChange`       | `(range: DateRange) => void`      | — (obrigatório)             |
+| `numberOfMonths` | `number`                          | `2`                         |
+| `defaultMonth`   | `Date`                            | —                           |
+| `minDate`        | `Date`                            | —                           |
+| `maxDate`        | `Date`                            | —                           |
+| `weekStartsOn`   | `0 \| 1`                          | `0`                         |
+| `className`      | `string`                          | —                           |
+
+`DateRange` é `{ start: Date | null; end: Date | null }`.
+
 ## `FileUpload`
 
 Drag-and-drop + click-to-upload + lista de arquivos.
@@ -2246,6 +2314,36 @@ Drag-and-drop + click-to-upload + lista de arquivos.
   maxSize={5 * 1024 * 1024}
 />
 ```
+
+## `Slider`
+
+**Quando usar:** escolher um único valor numa faixa contínua (volume, brilho, etc.). Para uma faixa de dois valores use `RangeSlider`.
+
+Slider de thumb único sobre `<input type="range">` nativo.
+
+```tsx
+import { Slider } from "tempest-react-sdk";
+import { useState } from "react";
+
+function Example() {
+  const [vol, setVol] = useState(30);
+
+  return <Slider value={vol} onChange={setVol} label="Volume" formatValue={(v) => v + "%"} />;
+}
+```
+
+| Prop          | Tipo                          | Default                     |
+| ------------- | ----------------------------- | --------------------------- |
+| `value`       | `number`                      | — (obrigatório, controlled) |
+| `onChange`    | `(value: number) => void`     | — (obrigatório)             |
+| `min`         | `number`                      | `0`                         |
+| `max`         | `number`                      | `100`                       |
+| `step`        | `number`                      | `1`                         |
+| `label`       | `string`                      | —                           |
+| `helperText`  | `string`                      | —                           |
+| `disabled`    | `boolean`                     | `false`                     |
+| `formatValue` | `(value: number) => string`   | —                           |
+| `className`   | `string`                      | —                           |
 
 ## `RangeSlider`
 

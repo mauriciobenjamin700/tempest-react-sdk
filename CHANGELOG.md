@@ -2,6 +2,14 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Charts — subpath `tempest-react-sdk/charts` (recharts)
+
+- Novo subpath **`tempest-react-sdk/charts`** com wrappers finos e tematizados sobre **recharts v3**: `AreaChart`, `BarChart`, `LineChart`, `PieChart`, `RadarChart` + `DEFAULT_CHART_COLORS`. API enxuta (`data`/`index`/`categories`/`colors`/`height`/`stack`/`valueFormatter`…); prop `width` pula o `ResponsiveContainer` (SSR/teste).
+- **`recharts` é peer opcional, externalizado** — apps que não usam charts não pagam nada (padrão "caller injeta a dep pesada", igual telemetry/feature-flags). Instale `recharts` só se for usar.
+- Fecha o gap de charts (antes deixado de fora de propósito). Tipos `ChartData`, `CartesianChartProps`, `PieChartProps`. Docs bilíngues novas; entry de `size-limit` pro bundle do subpath (~1 KB sem recharts). Caps alinhados (CJS 52 KB, css 17 KB).
+
 ## [0.10.0] — 2026-06-27
 
 ### Integração full-stack Tempest (React ⇄ FastAPI)

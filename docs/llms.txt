@@ -8,6 +8,7 @@
 - [Arquitetura](https://mauriciobenjamin700.github.io/tempest-react-sdk/architecture/): O tempest-react-sdk é um pacote único com camadas independentes.
 - [Áudio](https://mauriciobenjamin700.github.io/tempest-react-sdk/audio/): Notificações sonoras (chime de mensagem, confirmação de pagamento, etc.) sobre o Audio nativo do navegador.
 - [Auth](https://mauriciobenjamin700.github.io/tempest-react-sdk/auth/): Autenticação no front-end é sempre o mesmo punhado de problemas: onde guardar a sessão, como proteger uma rota, como ler o que tem dentro do token e o que fazer quando ele expira no meio de um deploy.
+- [Charts (recharts)](https://mauriciobenjamin700.github.io/tempest-react-sdk/charts/): Gráficos transformam números em forma: uma tendência que sobe, uma fatia que
 - [CLI `tempest`](https://mauriciobenjamin700.github.io/tempest-react-sdk/cli/): Além da CLI de scaffolding create-tempest-app, o pacote
 - [Cookbook — Receitas](https://mauriciobenjamin700.github.io/tempest-react-sdk/cookbook/): Esta página é um livro de receitas: cada seção responde a um "eu quero fazer X"
 - [Error Boundary](https://mauriciobenjamin700.github.io/tempest-react-sdk/error-boundary/): ErrorBoundary captura erros lançados durante o render de qualquer descendente e mostra um fallback no lugar de uma tela branca.

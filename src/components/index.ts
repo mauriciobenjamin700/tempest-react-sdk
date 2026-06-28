@@ -61,6 +61,9 @@ export type { DrawerPlacement, DrawerProps } from "./Drawer";
 export { DropdownMenu } from "./DropdownMenu";
 export type { DropdownMenuEntry, DropdownMenuPlacement, DropdownMenuProps } from "./DropdownMenu";
 
+export { Dropzone } from "./Dropzone";
+export type { DropzoneProps } from "./Dropzone";
+
 export { EmptyState } from "./EmptyState";
 export type { EmptyStateProps } from "./EmptyState";
 
@@ -101,8 +104,24 @@ export type { KbdProps, KbdSize } from "./Kbd";
 export { Modal } from "./Modal";
 export type { ModalProps, ModalSize } from "./Modal";
 
+export { ModalsProvider, useModals } from "./ModalsManager";
+export type {
+    ConfirmModalOptions,
+    ModalsApi,
+    ModalsProviderProps,
+    OpenModalOptions,
+} from "./ModalsManager";
+
 export { Navbar } from "./Navbar";
 export type { NavbarProps, NavbarTone } from "./Navbar";
+
+export { nprogress, NProgressBar } from "./NProgress";
+export type {
+    NProgressBarProps,
+    NProgressController,
+    NProgressListener,
+    NProgressState,
+} from "./NProgress";
 
 export { Page } from "./Page";
 export type { PageProps } from "./Page";

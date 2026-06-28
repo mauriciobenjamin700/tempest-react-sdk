@@ -2,6 +2,17 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### DX pack (inspirado em Mantine)
+
+- **+10 hooks utilitários**: `useDisclosure`, `useListState`, `useCounter`, `useDocumentTitle`, `useFavicon`, `useMap`, `useSet`, `useQueue`, `useClickOutside`, `useIsFirstRender` (SSR-safe, totalmente tipados).
+- **`NProgress`** — barra de loading fixa no topo: controlador `nprogress` (`start`/`done`/`set`/`inc`/`subscribe`, com trickle automático) + `<NProgressBar color? height?>`. Ótimo com navegação de rota.
+- **`Dropzone`** — área de drag-and-drop de arquivos: `<Dropzone onDrop accept? multiple? maxSize? onReject? disabled>` (clicável/teclado, estado de arraste).
+- **`ModalsManager`** — modais imperativos: `<ModalsProvider>` + `useModals()` → `{ open, confirm, close, closeAll }` sobre o `Modal`/`ConfirmDialog` existentes.
+
+Cada item: implementação + testes (58 no total). Docs bilíngues (hooks + feedback/inputs/overlay). Caps do `size-limit` alinhados (CJS 52 KB, css 17 KB).
+
 ## [0.10.0] — 2026-06-27
 
 ### Integração full-stack Tempest (React ⇄ FastAPI)

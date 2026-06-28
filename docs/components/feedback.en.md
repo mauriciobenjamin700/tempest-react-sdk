@@ -11,7 +11,8 @@ happening, and what isn't there. They group by intent:
   page), `Toast` (transient) — three scopes of the same concept.
 - **Status labels**: `Badge` (fixed status), `Tag` (removable chip), `Stat`
   (KPI).
-- **Activity/loading**: `Spinner`, `Progress`, `Skeleton`.
+- **Activity/loading**: `Spinner`, `Progress`, `Skeleton`, `NProgressBar` (fixed
+  top bar).
 - **Empty/error screen states**: `EmptyState`, `ErrorState`.
 
 **When to use:** whenever the user needs to know the outcome of an action or the
@@ -162,6 +163,56 @@ Progress bar.
 | `max`           | `number`                             | `100`       |
 | `variant`       | `"primary" \| "success" \| "danger"` | `"primary"` |
 | `indeterminate` | `boolean`                            | `false`     |
+
+## `NProgress`
+
+**When to use:** a fixed top loading bar for transitions with no exact position —
+route navigation, background requests. For deterministic upload progress, prefer
+`Progress`.
+
+An imperative controller (`nprogress`) + the visual bar (`<NProgressBar>`). Mount
+the bar once near the app root and drive the controller from anywhere (router
+transitions, fetch interceptors).
+
+```tsx
+import { NProgressBar, nprogress, Button } from "tempest-react-sdk";
+
+// app root — renders nothing while inactive
+<NProgressBar color="var(--tempest-primary)" height={3} />;
+
+// trigger from anywhere
+async function loadPage() {
+  nprogress.start();
+  try {
+    await fetch("/api/data");
+  } finally {
+    nprogress.done();
+  }
+}
+
+<Button onClick={loadPage}>Load</Button>;
+```
+
+| `nprogress` | Signature                   | What it does                                    |
+| ----------- | --------------------------- | ----------------------------------------------- |
+| `start`     | `() => void`                | Shows the bar and starts trickling toward ~0.9. |
+| `done`      | `() => void`                | Completes to `1` and hides the bar shortly after. |
+| `set`       | `(n: number) => void`       | Sets progress explicitly (clamped `0..1`).      |
+| `inc`       | `(amount?: number) => void` | Increments progress by `amount`.                |
+
+| Prop (`NProgressBar`) | Type     | Default                  |
+| --------------------- | -------- | ------------------------ |
+| `color`               | `string` | `var(--tempest-primary)` |
+| `height`              | `number` | `3`                      |
+| `className`           | `string` | —                        |
+
+!!! tip "Great with router navigation"
+    Call `nprogress.start()` when a transition begins and `nprogress.done()` when
+    the route mounts. `nprogress` is a module-level singleton — no provider or
+    props drilling needed.
+
+**A11y**: the bar uses `role="progressbar"` with `aria-valuenow` reflecting the
+percentage.
 
 ## `Spinner`
 

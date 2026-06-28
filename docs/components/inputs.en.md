@@ -7,7 +7,8 @@ element (compatible with `react-hook-form`).
 
 This page gathers the SDK's full set of **form controls** — from the plain
 `Input` to specialized fields like `PinInput` (OTP), `PasswordInput` (with a
-strength meter) and `RangeSlider` (dual-thumb range). They all share the same
+strength meter), `RangeSlider` (dual-thumb range) and `Dropzone` (drag-and-drop
+file area). They all share the same
 label/error/size API (see Conventions below) and forward their `ref`, so they
 plug straight into `react-hook-form` with no extra wrappers.
 
@@ -179,6 +180,57 @@ Drag-and-drop + click-to-upload + file list.
   maxSize={5 * 1024 * 1024}
 />
 ```
+
+## `Dropzone`
+
+**When to use:** a lean drag-and-drop area when you only need to capture the
+files (`onDrop`) and render the list/preview yourself. For a ready-made field
+with a label, file list and form styling, use `FileUpload`.
+
+A drag-and-drop area with a hidden file input — clickable and keyboard
+focusable. It filters by `maxSize` before calling `onDrop`; rejected files go to
+`onReject`.
+
+```tsx
+import { useState } from "react";
+import { Dropzone } from "tempest-react-sdk";
+
+function Uploader() {
+  const [files, setFiles] = useState<File[]>([]);
+  return (
+    <>
+      <Dropzone
+        accept="image/*"
+        multiple
+        maxSize={5 * 1024 * 1024}
+        onDrop={(accepted) => setFiles(accepted)}
+        onReject={(rejected) => alert(`${rejected.length} file(s) over 5 MB`)}
+      >
+        Drag images here or click to select
+      </Dropzone>
+      <ul>
+        {files.map((file) => (
+          <li key={file.name}>{file.name}</li>
+        ))}
+      </ul>
+    </>
+  );
+}
+```
+
+| Prop        | Type                      | Default        |
+| ----------- | ------------------------- | -------------- |
+| `onDrop`    | `(files: File[]) => void` | —              |
+| `accept`    | `string`                  | —              |
+| `multiple`  | `boolean`                 | `true`         |
+| `maxSize`   | `number` (bytes)          | —              |
+| `onReject`  | `(files: File[]) => void` | —              |
+| `disabled`  | `boolean`                 | `false`        |
+| `children`  | `ReactNode`               | default prompt |
+| `className` | `string`                  | —              |
+
+**A11y**: `role="button"` + `tabIndex` (Enter/Space open the picker);
+`aria-disabled` when `disabled`.
 
 ## `RangeSlider`
 

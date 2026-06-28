@@ -4,7 +4,7 @@ Controles para coleta de dados do usuário. Todos forward refs para o elemento D
 
 ## O que é esta categoria
 
-Esta página reúne todo o conjunto de **controles de formulário** do SDK — desde o `Input` de texto simples até campos especializados como `PinInput` (OTP), `PasswordInput` (com medidor de força) e `RangeSlider` (faixa dupla). Todos compartilham a mesma API de rótulo/erro/tamanho (ver a seção Convenções abaixo) e fazem forward de `ref`, então plugam direto em `react-hook-form` sem wrappers extras.
+Esta página reúne todo o conjunto de **controles de formulário** do SDK — desde o `Input` de texto simples até campos especializados como `PinInput` (OTP), `PasswordInput` (com medidor de força), `RangeSlider` (faixa dupla) e `Dropzone` (arrastar-e-soltar arquivos). Todos compartilham a mesma API de rótulo/erro/tamanho (ver a seção Convenções abaixo) e fazem forward de `ref`, então plugam direto em `react-hook-form` sem wrappers extras.
 
 **Quando usar:** sempre que precisar coletar um valor do usuário. Escolha o controle pelo tipo de dado — texto curto (`Input`), texto longo (`Textarea`), uma opção entre poucas (`Radio`/`Select`), uma opção entre muitas com busca (`Combobox`), booleano (`Switch`/`Checkbox`), código de verificação (`PinInput`), número com incremento (`StepperInput`), etc.
 
@@ -163,6 +163,57 @@ Drag-and-drop + click-to-upload + lista de arquivos.
   maxSize={5 * 1024 * 1024}
 />
 ```
+
+## `Dropzone`
+
+**Quando usar:** uma área de arrastar-e-soltar enxuta, quando você só precisa
+capturar os arquivos (`onDrop`) e renderizar a lista/preview por conta própria.
+Para um campo pronto com label, lista de arquivos e estilo de formulário, use
+`FileUpload`.
+
+Área drag-and-drop com input de arquivo escondido — clicável e focável por
+teclado. Filtra por `maxSize` antes de chamar `onDrop`; rejeitados vão em
+`onReject`.
+
+```tsx
+import { useState } from "react";
+import { Dropzone } from "tempest-react-sdk";
+
+function Uploader() {
+  const [files, setFiles] = useState<File[]>([]);
+  return (
+    <>
+      <Dropzone
+        accept="image/*"
+        multiple
+        maxSize={5 * 1024 * 1024}
+        onDrop={(accepted) => setFiles(accepted)}
+        onReject={(rejected) => alert(`${rejected.length} arquivo(s) acima de 5 MB`)}
+      >
+        Arraste imagens aqui ou clique para selecionar
+      </Dropzone>
+      <ul>
+        {files.map((file) => (
+          <li key={file.name}>{file.name}</li>
+        ))}
+      </ul>
+    </>
+  );
+}
+```
+
+| Prop        | Tipo                       | Default |
+| ----------- | -------------------------- | ------- |
+| `onDrop`    | `(files: File[]) => void`  | —       |
+| `accept`    | `string`                   | —       |
+| `multiple`  | `boolean`                  | `true`  |
+| `maxSize`   | `number` (bytes)           | —       |
+| `onReject`  | `(files: File[]) => void`  | —       |
+| `disabled`  | `boolean`                  | `false` |
+| `children`  | `ReactNode`                | prompt padrão |
+| `className` | `string`                   | —       |
+
+**A11y**: `role="button"` + `tabIndex` (Enter/Espaço abrem o seletor); `aria-disabled` quando `disabled`.
 
 ## `RangeSlider`
 

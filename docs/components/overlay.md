@@ -124,6 +124,57 @@ Modal ancorado na borda inferior — slide-up via animation. Otimizado pra mobil
 !!! warning "Cuidado ao desligar `closeOnBackdrop`/`dismissOnBackdrop`"
     Desabilitar o dismiss por backdrop ou Esc prende o usuário no overlay até concluir a tarefa. Faça isso só em forms verdadeiramente críticos (perda de dados) — caso contrário sempre ofereça uma saída clara, ou a navegação por teclado vira uma armadilha.
 
+## `ModalsManager`
+
+> **Quando usar**: quando você quer abrir modais e confirmações de forma **imperativa** — direto de um handler, sem montar `<Modal open={...}>` controlado por estado local em cada lugar. Ideal para confirmações de exclusão e diálogos pontuais.
+
+`<ModalsProvider>` monta uma vez perto da raiz e gerencia uma pilha de modais; `useModals()` expõe a API imperativa sobre os componentes `Modal` e `ConfirmDialog` já existentes.
+
+```tsx
+import { ModalsProvider, useModals, Button } from "tempest-react-sdk";
+
+// raiz do app
+<ModalsProvider>
+  <App />
+</ModalsProvider>;
+
+// em qualquer componente abaixo do provider
+function DeleteButton({ id }: { id: string }) {
+  const modals = useModals();
+  return (
+    <Button
+      variant="danger"
+      onClick={() =>
+        modals.confirm({
+          title: "Excluir item",
+          message: "Esta ação não pode ser desfeita. Continuar?",
+          confirmLabel: "Excluir",
+          danger: true,
+          onConfirm: async () => {
+            await fetch(`/api/items/${id}`, { method: "DELETE" });
+          },
+        })
+      }
+    >
+      Excluir
+    </Button>
+  );
+}
+```
+
+| `useModals()` | Assinatura                                | O que faz                                |
+| ------------- | ----------------------------------------- | ---------------------------------------- |
+| `open`        | `(options: OpenModalOptions) => string`   | Empilha um modal de conteúdo; retorna o id. |
+| `confirm`     | `(options: ConfirmModalOptions) => string` | Empilha um `ConfirmDialog`; retorna o id. |
+| `close`       | `(id: string) => void`                    | Remove o modal com aquele id.            |
+| `closeAll`    | `() => void`                              | Remove todos os modais da pilha.         |
+
+!!! info "Construído sobre os componentes existentes"
+    `open` renderiza um `Modal` e `confirm` renderiza um `ConfirmDialog` — você herda focus trap, scroll lock, Esc e backdrop sem configurar nada. O `onConfirm` pode ser `async`: o dialog mostra `loading` até a promise resolver e fecha sozinho ao terminar.
+
+!!! warning "Precisa do `<ModalsProvider>` acima"
+    `useModals()` lança um erro se chamado fora de um `<ModalsProvider>`. Monte o provider uma única vez perto da raiz do app.
+
 ## A11y geral
 
 - **Focus trap**: Tab circula apenas dentro do dialog. Restaura o foco no trigger ao fechar.
@@ -139,7 +190,8 @@ Modal ancorado na borda inferior — slide-up via animation. Otimizado pra mobil
 | `Modal`       | centralizado     | fluxos centrais (criar/editar)    | `dismissOnBackdrop`/`dismissOnEsc` |
 | `Drawer`      | borda (variável) | painéis laterais persistentes     | `closeOnBackdrop`/`closeOnEsc`     |
 | `BottomSheet` | borda inferior   | ações mobile-first (compartilhar) | `dismissOnBackdrop`/`dismissOnEsc` |
+| `ModalsManager` | pilha (imperativa) | abrir modais/confirmações via código | `useModals().close`/`closeAll`     |
 
-Para confirmação destrutiva pré-montada, use o `ConfirmDialog` ([actions](./actions.md)), construído sobre o `Modal`.
+Para confirmação destrutiva pré-montada, use o `ConfirmDialog` ([actions](./actions.md)), construído sobre o `Modal`. Para abrir modais imperativamente (sem estado local), use `<ModalsProvider>` + `useModals()`.
 
 Relacionados: [actions](./actions.md) (`ConfirmDialog`, botões no `footer`) · [inputs](./inputs.md) (forms dentro do overlay) · [navigation](./navigation.md) (`Drawer` como nav secundária).

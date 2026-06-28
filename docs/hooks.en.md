@@ -31,6 +31,9 @@ dependency array. The SDK packages these patterns into granular, tested,
 | `useBeforeInstallPrompt()`                        | Deferred PWA install prompt.                                                                                  |
 | `useIdle(timeout?)`                               | True when the user is idle for `timeout` ms.                                                                  |
 | `useGeolocation(opts?)`                           | Position + error + loading.                                                                                   |
+| `useClickOutside(handler)`                        | Returns a ref; calls `handler` on a `mousedown`/`touchstart` outside the element. SSR-safe.                   |
+| `useDocumentTitle(title)`                         | Sets `document.title` while mounted, restoring the previous one on unmount. SSR-safe.                         |
+| `useFavicon(href)`                                | Swaps the favicon via `<link rel="icon">` (creating the element if missing). SSR-safe.                        |
 
 ### Input / interaction
 
@@ -51,6 +54,13 @@ dependency array. The SDK packages these patterns into granular, tested,
 | `useToggle(initial?)`                             | `[value, { toggle, setTrue, setFalse, set }]` — sugar for boolean state.                                          |
 | `useAsync<T>(fn, deps?, { immediate? })`          | Tracks `idle/pending/success/error`. `{ status, data, error, run, reset }`. Distinct from React Query (no cache). |
 | `usePrevious(value)`                              | The value from the previous render.                                                                               |
+| `useDisclosure(initial?)`                         | `[opened, { open, close, toggle }]` — stable handlers for modals/drawers/popovers.                               |
+| `useCounter(initial?, { min, max })`              | `[count, { increment, decrement, set, reset }]` — numeric counter with an optional clamp.                        |
+| `useListState<T>(initial?)`                       | `[list, handlers]` with `append`/`prepend`/`insert`/`remove`/`reorder`/`setItem`/`setState`/`apply`/`clear`.      |
+| `useMap<K, V>(initial?)`                          | `{ map, set, delete, clear, get, has, size }` — reactive `Map` (a fresh reference on each mutation).             |
+| `useSet<T>(initial?)`                             | `{ set, add, delete, clear, has, toggle, size }` — reactive `Set` (a fresh reference on each mutation).          |
+| `useQueue<T>({ initialValues, limit })`           | `{ queue, add, update, cleanQueue, size }` — FIFO queue with a `limit` and an overflow buffer.                   |
+| `useIsFirstRender()`                              | `true` on the component's first render, `false` after.                                                           |
 
 ### Timers
 
@@ -294,11 +304,173 @@ function Tracker({ onSelect }: { onSelect: (id: string) => void }) {
     `deps`) should still go into the deps normally — omitting them causes stale-value
     bugs. Rule of thumb: trust `eslint-plugin-react-hooks`.
 
+### Disclosure — `useDisclosure`
+
+```tsx
+import { useDisclosure, Modal, Button } from "tempest-react-sdk";
+
+function EditPanel() {
+  const [opened, { open, close }] = useDisclosure(false);
+  return (
+    <>
+      <Button onClick={open}>Edit</Button>
+      <Modal open={opened} onClose={close} title="Edit profile">
+        …
+      </Modal>
+    </>
+  );
+}
+```
+
+The handlers (`open`/`close`/`toggle`) are referentially stable across renders — unlike `useToggle`, it's the right sugar for overlays.
+
+### Clamped counter — `useCounter`
+
+```tsx
+import { useCounter, Button } from "tempest-react-sdk";
+
+function Quantity() {
+  const [count, { increment, decrement, reset }] = useCounter(1, { min: 1, max: 10 });
+  return (
+    <>
+      <Button onClick={decrement}>−</Button>
+      <span>{count}</span>
+      <Button onClick={increment}>+</Button>
+      <Button onClick={reset}>Reset</Button>
+    </>
+  );
+}
+```
+
+`useCounter(initial, { min, max })` clamps the value — `increment`/`decrement`/`set` respect the bounds.
+
+### List as state — `useListState`
+
+```tsx
+import { useListState, Button } from "tempest-react-sdk";
+
+function TodoList() {
+  const [items, handlers] = useListState<string>(["Buy bread"]);
+  return (
+    <>
+      <Button onClick={() => handlers.append("New item")}>Add</Button>
+      <ul>
+        {items.map((item, i) => (
+          <li key={i} onClick={() => handlers.remove(i)}>
+            {item}
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+```
+
+Immutable handlers: `append`/`prepend`/`insert`/`remove`/`reorder`/`setItem`/`setState`/`apply`/`clear`. Use `handlers.reorder({ from, to })` for drag-and-drop.
+
+### Reactive Map and Set — `useMap` / `useSet`
+
+```tsx
+import { useMap, useSet } from "tempest-react-sdk";
+
+function SelectionTracker() {
+  const selected = useSet<string>();
+  const meta = useMap<string, number>();
+
+  return (
+    <button
+      onClick={() => {
+        selected.toggle("a");
+        meta.set("clicks", (meta.get("clicks") ?? 0) + 1);
+      }}
+    >
+      {selected.size} selected · {meta.get("clicks") ?? 0} clicks
+    </button>
+  );
+}
+```
+
+`useMap` returns `{ map, set, delete, clear, get, has, size }` and `useSet` returns `{ set, add, delete, clear, has, toggle, size }` — each mutation yields a fresh reference and re-renders.
+
+### FIFO queue — `useQueue`
+
+```tsx
+import { useQueue, Button } from "tempest-react-sdk";
+
+function Notifications() {
+  const { queue, add, cleanQueue, size } = useQueue<string>({ limit: 3 });
+  return (
+    <>
+      <Button onClick={() => add(`msg ${Date.now()}`)}>Enqueue</Button>
+      <Button onClick={cleanQueue}>Clear visible ({size})</Button>
+      <ul>
+        {queue.map((msg, i) => (
+          <li key={i}>{msg}</li>
+        ))}
+      </ul>
+    </>
+  );
+}
+```
+
+`useQueue({ initialValues, limit })` keeps up to `limit` items visible in `queue`; the surplus sits in a buffer and surfaces as `cleanQueue` frees space.
+
+### Close on outside click — `useClickOutside`
+
+```tsx
+import { useState } from "react";
+import { useClickOutside } from "tempest-react-sdk";
+
+function Menu() {
+  const [open, setOpen] = useState(false);
+  const ref = useClickOutside<HTMLDivElement>(() => setOpen(false));
+  return open ? (
+    <div ref={ref} role="menu">
+      …
+    </div>
+  ) : null;
+}
+```
+
+`useClickOutside(handler)` returns a ref; the `handler` fires on a `mousedown`/`touchstart` outside the element.
+
+### Title and favicon — `useDocumentTitle` / `useFavicon`
+
+```tsx
+import { useDocumentTitle, useFavicon } from "tempest-react-sdk";
+
+function InboxPage({ unread }: { unread: number }) {
+  useDocumentTitle(unread > 0 ? `(${unread}) Inbox` : "Inbox");
+  useFavicon(unread > 0 ? "/favicon-alert.ico" : "/favicon.ico");
+  return <main>…</main>;
+}
+```
+
+Both are SSR-safe; `useDocumentTitle` restores the previous title on unmount.
+
+### First render — `useIsFirstRender`
+
+```tsx
+import { useEffect } from "react";
+import { useIsFirstRender } from "tempest-react-sdk";
+
+function Analytics({ query }: { query: string }) {
+  const first = useIsFirstRender();
+  useEffect(() => {
+    if (!first) track("search-refined", { query });
+  }, [query, first]);
+  return null;
+}
+```
+
+Returns `true` only on the first render — handy to skip mount-time effects.
+
 ## Recap
 
 - Granular, independent, tree-shakeable hooks — import only what you use.
 - The browser-facing ones are **SSR-safe**: they return a default on the server and hydrate after mount.
 - `useToggle` returns `[value, { toggle, setTrue, setFalse, set }]` — the second item is an object.
+- `useDisclosure`/`useCounter`/`useListState` return a `[state, handlers]` tuple; `useMap`/`useSet`/`useQueue` return a single object.
 - `useAsync` is the cache-less primitive; for server data with caching use React Query.
 - Watch the dependency arrays: `useStableCallback` to avoid re-runs, explicit deps everywhere else.
 

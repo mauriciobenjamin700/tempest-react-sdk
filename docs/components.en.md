@@ -7,12 +7,12 @@ props, examples, and accessibility notes.
 
 ## Categories
 
-- **[Data entry](./components/inputs.md)** — Input, Textarea, Select, Combobox, Checkbox, Radio, Switch, ChipInput, SearchBar, DatePicker, FileUpload, RangeSlider, RatingStars, PinInput, PasswordInput, StepperInput, Form\*
+- **[Data entry](./components/inputs.md)** — Input, Textarea, Select, Combobox, Checkbox, Radio, Switch, ChipInput, SearchBar, DatePicker, FileUpload, Dropzone, RangeSlider, RatingStars, PinInput, PasswordInput, StepperInput, Form\*
 - **[Actions](./components/actions.md)** — Button, Tooltip, DropdownMenu, Popover, ConfirmDialog
 - **[Navigation](./components/navigation.md)** — Navbar, Sidebar, BottomNavigation, Tabs, Stepper, Breadcrumbs, Pagination, SegmentedControl
-- **[Overlay](./components/overlay.md)** — Modal, Drawer, BottomSheet
+- **[Overlay](./components/overlay.md)** — Modal, Drawer, BottomSheet, ModalsManager
 - **[Layout](./components/layout.md)** — AppShell, Page, Container, Stack, Grid, Divider, Spacer, Center, AspectRatio, SafeArea, Show, Hide
-- **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, Spinner, Skeleton, Toast, EmptyState, ErrorState
+- **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, NProgress, Spinner, Skeleton, Toast, EmptyState, ErrorState
 - **[Identity & micro](./components/identity.md)** — Avatar, Card, Kbd
 
 ## Global conventions

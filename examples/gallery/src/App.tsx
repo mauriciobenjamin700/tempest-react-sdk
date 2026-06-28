@@ -14,6 +14,7 @@ import { NavigationSection } from "./sections/NavigationSection";
 import { AdvancedComponentsSection } from "./sections/AdvancedComponentsSection";
 import { TableSection } from "./sections/TableSection";
 import { DataTableSection } from "./sections/DataTableSection";
+import { MaterialSection } from "./sections/MaterialSection";
 import { FormsSection } from "./sections/FormsSection";
 import { BRFormsSection } from "./sections/BRFormsSection";
 import { FoundationSection } from "./sections/FoundationSection";
@@ -38,6 +39,7 @@ const SECTIONS: { id: string; label: string }[] = [
     { id: "advanced", label: "Stepper · Progress · VirtualList" },
     { id: "table", label: "Table & Pagination" },
     { id: "data-table", label: "DataTable" },
+    { id: "material", label: "Material (ListTile · FAB · Rail)" },
     { id: "forms", label: "Forms (zod)" },
     { id: "br-forms", label: "BR Forms (CPF/CNPJ/CEP)" },
     { id: "foundation", label: "Store (Zustand)" },
@@ -108,6 +110,7 @@ export function App() {
                 <AdvancedComponentsSection />
                 <TableSection />
                 <DataTableSection />
+                <MaterialSection />
                 <FormsSection />
                 <BRFormsSection />
                 <FoundationSection />

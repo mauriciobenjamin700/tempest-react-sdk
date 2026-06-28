@@ -91,6 +91,50 @@ Tipo `SidebarItem = { key, label, icon?, badge?, disabled?, href? }`.
 
 **Mobile**: esconda com `<Show above="md">` e exponha via `<Drawer>` no menu hambúrguer.
 
+## `NavigationRail`
+
+**Quando usar:** coluna de navegação vertical e compacta para desktop/tablet — uma alternativa mais estreita à `Sidebar` quando você só precisa de ícones empilhados sobre rótulos curtos. Cada item empilha ícone sobre o label; o ativo recebe `aria-current="page"`.
+
+`items: NavigationRailItem[]`, slots `header`/`footer` e controle de rótulos via `labelVisibility`.
+
+```tsx
+import { useState } from "react";
+import { NavigationRail, FloatingActionButton } from "tempest-react-sdk";
+import { Home, Inbox, Settings, Plus } from "lucide-react";
+
+function AppRail() {
+  const [tab, setTab] = useState("home");
+
+  return (
+    <NavigationRail
+      header={<FloatingActionButton icon={<Plus />} aria-label="Novo" position="none" />}
+      items={[
+        { key: "home", label: "Início", icon: <Home /> },
+        { key: "inbox", label: "Caixa", icon: <Inbox />, badge: 3 },
+        { key: "settings", label: "Ajustes", icon: <Settings /> },
+      ]}
+      value={tab}
+      onChange={setTab}
+      labelVisibility="all"
+    />
+  );
+}
+```
+
+| Prop              | Tipo                              | Default |
+| ----------------- | --------------------------------- | ------- |
+| `items`           | `NavigationRailItem[]`            | —       |
+| `value`           | `string` (key selecionada)        | —       |
+| `onChange`        | `(key: string) => void`           | —       |
+| `header`          | `ReactNode` (topo — ex.: FAB)     | —       |
+| `footer`          | `ReactNode` (rodapé)              | —       |
+| `labelVisibility` | `"all" \| "selected" \| "none"`   | `"all"` |
+
+Tipo `NavigationRailItem = { key, label, icon?, badge?, disabled? }`.
+
+!!! tip "`labelVisibility` controla a densidade"
+    Use `"selected"` para mostrar só o rótulo do item ativo (rail mais estreito) ou `"none"` para um rail puramente de ícones. Em telas pequenas prefira a `BottomNavigation`.
+
 ## `BottomNavigation`
 
 Tab bar fixa no rodapé pra mobile. 3-5 items.
@@ -248,7 +292,7 @@ iOS-style pill bar (2-5 opções).
 
 ## Resumo
 
-- Escolha pelo **escopo**: `Navbar`/`Sidebar`/`BottomNavigation` para navegar entre seções; `Tabs`/`SegmentedControl`/`Stepper` para mover-se dentro de uma tela.
+- Escolha pelo **escopo**: `Navbar`/`Sidebar`/`NavigationRail`/`BottomNavigation` para navegar entre seções; `Tabs`/`SegmentedControl`/`Stepper` para mover-se dentro de uma tela.
 - O trio `Navbar` + `Sidebar` + `BottomNavigation` são os slots do `AppShell` — deixe ele orquestrar a troca desktop/mobile.
 - `Pagination` para listas paginadas; `Breadcrumbs` para hierarquias profundas.
 - Sempre marque o item ativo com `aria-current="page"` na navegação primária.

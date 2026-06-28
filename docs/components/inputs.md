@@ -150,6 +150,44 @@ Input de busca com clear button + debounce opcional via `useDebounce`.
 <DatePicker label="Início" mode="datetime-local" value={start} onChange={setStart} />;
 ```
 
+## `TimePicker`
+
+**Quando usar:** escolher um horário em colunas roláveis (estilo "spinner" do Material) — agendamentos, lembretes, janelas de atendimento. Para um campo nativo simples, use o `DatePicker` com `mode="time"`.
+
+Sempre emite uma string 24h `"HH:MM"` via `onChange`, mesmo com `use12Hours` ligado. O `minuteStep` controla a granularidade da coluna de minutos.
+
+```tsx
+import { useState } from "react";
+import { TimePicker } from "tempest-react-sdk";
+
+function ScheduleField() {
+  const [t, setT] = useState("09:30");
+
+  return (
+    <TimePicker
+      label="Horário"
+      value={t}
+      onChange={setT}
+      minuteStep={15}
+      helperText="Selecione hora e minuto"
+    />
+  );
+}
+```
+
+| Prop         | Tipo                          | Default |
+| ------------ | ----------------------------- | ------- |
+| `value`      | `string` (24h `"HH:MM"`)      | —       |
+| `onChange`   | `(value: string) => void`     | —       |
+| `minuteStep` | `number` (granularidade)      | `5`     |
+| `use12Hours` | `boolean` (colunas 1–12 + AM/PM) | `false` |
+| `label`      | `string`                      | —       |
+| `helperText` | `string`                      | —       |
+| `disabled`   | `boolean`                     | `false` |
+
+!!! note "Sempre 24h na saída"
+    Mesmo com `use12Hours` (colunas 1–12 + AM/PM), o `onChange` continua emitindo `"HH:MM"` em 24h — o display 12h é só visual. Guarde e envie o valor de 24h direto.
+
 ## `FileUpload`
 
 Drag-and-drop + click-to-upload + lista de arquivos.

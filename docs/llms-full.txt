@@ -827,13 +827,13 @@ O catálogo foi dividido por categoria para facilitar navegação. Cada arquivo 
 
 ## Categorias
 
-- **[Entrada de dados](./components/inputs.md)** — Input, Textarea, Select, Combobox, Checkbox, Radio, Switch, ChipInput, SearchBar, DatePicker, FileUpload, RangeSlider, RatingStars, PinInput, PasswordInput, StepperInput, Form\*
-- **[Ação](./components/actions.md)** — Button, Tooltip, DropdownMenu, Popover, ConfirmDialog
-- **[Navegação](./components/navigation.md)** — Navbar, Sidebar, BottomNavigation, Tabs, Stepper, Breadcrumbs, Pagination, SegmentedControl
+- **[Entrada de dados](./components/inputs.md)** — Input, Textarea, Select, Combobox, Checkbox, Radio, Switch, ChipInput, SearchBar, DatePicker, TimePicker, FileUpload, RangeSlider, RatingStars, PinInput, PasswordInput, StepperInput, Form\*
+- **[Ação](./components/actions.md)** — Button, FloatingActionButton, Tooltip, DropdownMenu, Popover, ConfirmDialog
+- **[Navegação](./components/navigation.md)** — Navbar, Sidebar, NavigationRail, BottomNavigation, Tabs, Stepper, Breadcrumbs, Pagination, SegmentedControl
 - **[Overlay](./components/overlay.md)** — Modal, Drawer, BottomSheet
 - **[Layout](./components/layout.md)** — AppShell, Page, Container, Stack, Grid, Divider, Spacer, Center, AspectRatio, SafeArea, Show, Hide
-- **[Dados](./components/data.md)** — Table, VirtualList, Accordion, Timeline
-- **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, Spinner, Skeleton, Toast, EmptyState, ErrorState
+- **[Dados](./components/data.md)** — Table, VirtualList, ListTile, Accordion, Timeline
+- **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, Spinner, Skeleton, RefreshIndicator, Toast, EmptyState, ErrorState
 - **[Identidade & micro](./components/identity.md)** — Avatar, Card, Kbd
 
 ## Convenções globais
@@ -909,6 +909,32 @@ import { Plus, Trash } from "lucide-react";
 
 !!! tip "loading bloqueia duplo clique"
     `loading` desabilita o botão e seta `aria-busy="true"` — é o padrão para submits assíncronos. Ative-o assim que disparar a request para evitar requisições duplicadas por cliques repetidos.
+
+## `FloatingActionButton`
+
+> **Quando usar**: a ação primária e persistente de uma tela (criar, compor, adicionar) que deve ficar sempre acessível, flutuando sobre o conteúdo. Redondo quando só tem ícone, ou estendido (pílula) quando tem `label`.
+
+Por padrão fica fixo no canto inferior direito; passe `position="none"` para posicioná-lo inline (ex.: dentro de um `NavigationRail`). Espalha todos os props nativos de `<button>` (`onClick`, `disabled`, etc.).
+
+```tsx
+import { FloatingActionButton } from "tempest-react-sdk";
+import { Plus } from "lucide-react";
+
+<FloatingActionButton icon={<Plus />} aria-label="Novo" position="none" onClick={create} />;
+<FloatingActionButton icon={<Plus />} label="Novo pedido" onClick={create} />;
+```
+
+| Prop       | Tipo                                       | Default          |
+| ---------- | ------------------------------------------ | ---------------- |
+| `icon`     | `ReactNode`                                | —                |
+| `label`    | `ReactNode` (presente → FAB estendido)     | —                |
+| `position` | `"bottom-right" \| "bottom-left" \| "none"` | `"bottom-right"` |
+| `size`     | `"sm" \| "md" \| "lg"`                     | `"md"`           |
+| `variant`  | `"primary" \| "surface"`                   | `"primary"`      |
+| ...        | Todos os atributos de `HTMLButtonElement`  | —                |
+
+!!! warning "FAB só de ícone precisa de `aria-label`"
+    Sem `label` visível, o FAB redondo não tem nome acessível. Sempre passe `aria-label` descrevendo a ação (`aria-label="Novo"`); quando há `label`, ele já serve de nome.
 
 ## `Tooltip`
 
@@ -1040,6 +1066,7 @@ Prompt destrutivo pré-montado em cima do [`Modal`](./overlay.md) (texto + 2 bot
 | Componente      | Use para                                       | Gatilho    |
 | --------------- | ---------------------------------------------- | ---------- |
 | `Button`        | Disparar a ação primária/secundária            | clique     |
+| `FloatingActionButton` | Ação primária flutuante e persistente   | clique     |
 | `Tooltip`       | Contexto não-crítico num controle              | hover/foco |
 | `DropdownMenu`  | Lista de ações secundárias (fecha ao escolher) | clique     |
 | `Popover`       | Painel flutuante com conteúdo arbitrário       | clique     |
@@ -1608,6 +1635,46 @@ Renderiza apenas a janela visível + um pequeno buffer de overscan. Cada linha p
 !!! note "Busca nativa (Ctrl+F) só acha o visível"
     Itens fora da viewport não estão no DOM, então o `Ctrl+F` do navegador não os encontra. Abaixo de ~500 itens, prefira renderização normal: o ganho de perf é negligível e você mantém a busca nativa.
 
+## `ListTile`
+
+> **Quando usar**: a linha canônica de lista do Material — um item com slot à esquerda (ícone/avatar), título com subtítulo opcional e slot à direita (ícone, switch, meta). Ideal para listas de configurações, contatos ou menus.
+
+Renderiza como `<div>` estático por padrão; ao receber `onClick` vira um `<button>` de largura total, acessível por teclado.
+
+```tsx
+import { useState } from "react";
+import { ListTile, Switch } from "tempest-react-sdk";
+import { Bell } from "lucide-react";
+
+function NotificationsRow() {
+  const [enabled, setEnabled] = useState(true);
+
+  return (
+    <ListTile
+      leading={<Bell size={20} />}
+      title="Notificações"
+      subtitle="Receber alertas por push"
+      trailing={
+        <Switch checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+      }
+    />
+  );
+}
+```
+
+| Prop       | Tipo                                  | Default |
+| ---------- | ------------------------------------- | ------- |
+| `title`    | `ReactNode`                           | —       |
+| `leading`  | `ReactNode` (slot esquerdo)           | —       |
+| `subtitle` | `ReactNode` (linha secundária)        | —       |
+| `trailing` | `ReactNode` (slot direito)            | —       |
+| `onClick`  | `() => void` (torna a tile um botão)  | —       |
+| `selected` | `boolean` (destaca a linha ativa)     | `false` |
+| `disabled` | `boolean` (esmaecida, não-interativa) | `false` |
+
+!!! note "Botão só quando há `onClick`"
+    Sem `onClick`, a `ListTile` é um `<div>` puramente visual. Com `onClick`, ela vira `<button>` com `aria-pressed` (quando `selected`) e respeita `disabled` — não envolva em outro elemento clicável.
+
 ## `Accordion`
 
 > **Quando usar**: condensar conteúdo seccionável que o usuário expande sob demanda — FAQs, formulários longos em etapas, painéis de configurações.
@@ -1674,6 +1741,7 @@ Feed vertical com markers coloridos. Renderiza como `<ol>` semântica (cada item
 | ------------- | ------------------------------------------- | ------------------ |
 | `Table<T>`    | Comparar registros em colunas               | dezenas a centenas |
 | `VirtualList` | Rolar listas longas de altura fixa          | 500+ itens         |
+| `ListTile`    | Linha de lista (ícone + título + ação)      | qualquer           |
 | `Accordion`   | Seções expansíveis sob demanda (FAQ, steps) | poucas seções      |
 | `Timeline`    | Sequência de eventos no tempo               | qualquer           |
 
@@ -1887,6 +1955,38 @@ Placeholder com shimmer enquanto data carrega.
 | `variant` | `"rect" \| "text" \| "circle"` | `"rect"` |
 | `width`   | `number \| string`             | `"100%"` |
 | `height`  | `number \| string`             | —        |
+
+## `RefreshIndicator`
+
+**Quando usar:** dar ao usuário um gesto de **pull-to-refresh** em listas/telas roláveis no mobile (touch) — feeds, caixas de entrada, dashboards. Envolve o conteúdo rolável e dispara `onRefresh` quando o usuário puxa além do limite e solta.
+
+É um gesto **de toque** — não há equivalente com mouse. O `Spinner` do SDK aparece enquanto puxa e durante a atualização.
+
+```tsx
+import { RefreshIndicator } from "tempest-react-sdk";
+
+function Feed({ items, refetch }) {
+  return (
+    <RefreshIndicator onRefresh={async () => await refetch()}>
+      <ul>
+        {items.map((item) => (
+          <li key={item.id}>{item.title}</li>
+        ))}
+      </ul>
+    </RefreshIndicator>
+  );
+}
+```
+
+| Prop         | Tipo                          | Default |
+| ------------ | ----------------------------- | ------- |
+| `onRefresh`  | `() => void \| Promise<void>` | —       |
+| `children`   | `ReactNode` (conteúdo rolável)| —       |
+| `threshold`  | `number` (px até disparar)    | `80`    |
+| `disabled`   | `boolean`                     | `false` |
+
+!!! note "Gesto só de toque"
+    O `RefreshIndicator` escuta arrastos de toque que começam com o container no topo do scroll — não responde ao mouse. Em desktop, ofereça um botão de "Atualizar" explícito como alternativa.
 
 ## `Toast`
 
@@ -2232,6 +2332,44 @@ Input de busca com clear button + debounce opcional via `useDebounce`.
 <DatePicker label="Data" value={date} onChange={setDate} mode="date" min="2025-01-01" />;
 <DatePicker label="Início" mode="datetime-local" value={start} onChange={setStart} />;
 ```
+
+## `TimePicker`
+
+**Quando usar:** escolher um horário em colunas roláveis (estilo "spinner" do Material) — agendamentos, lembretes, janelas de atendimento. Para um campo nativo simples, use o `DatePicker` com `mode="time"`.
+
+Sempre emite uma string 24h `"HH:MM"` via `onChange`, mesmo com `use12Hours` ligado. O `minuteStep` controla a granularidade da coluna de minutos.
+
+```tsx
+import { useState } from "react";
+import { TimePicker } from "tempest-react-sdk";
+
+function ScheduleField() {
+  const [t, setT] = useState("09:30");
+
+  return (
+    <TimePicker
+      label="Horário"
+      value={t}
+      onChange={setT}
+      minuteStep={15}
+      helperText="Selecione hora e minuto"
+    />
+  );
+}
+```
+
+| Prop         | Tipo                          | Default |
+| ------------ | ----------------------------- | ------- |
+| `value`      | `string` (24h `"HH:MM"`)      | —       |
+| `onChange`   | `(value: string) => void`     | —       |
+| `minuteStep` | `number` (granularidade)      | `5`     |
+| `use12Hours` | `boolean` (colunas 1–12 + AM/PM) | `false` |
+| `label`      | `string`                      | —       |
+| `helperText` | `string`                      | —       |
+| `disabled`   | `boolean`                     | `false` |
+
+!!! note "Sempre 24h na saída"
+    Mesmo com `use12Hours` (colunas 1–12 + AM/PM), o `onChange` continua emitindo `"HH:MM"` em 24h — o display 12h é só visual. Guarde e envie o valor de 24h direto.
 
 ## `FileUpload`
 
@@ -2765,6 +2903,50 @@ Tipo `SidebarItem = { key, label, icon?, badge?, disabled?, href? }`.
 
 **Mobile**: esconda com `<Show above="md">` e exponha via `<Drawer>` no menu hambúrguer.
 
+## `NavigationRail`
+
+**Quando usar:** coluna de navegação vertical e compacta para desktop/tablet — uma alternativa mais estreita à `Sidebar` quando você só precisa de ícones empilhados sobre rótulos curtos. Cada item empilha ícone sobre o label; o ativo recebe `aria-current="page"`.
+
+`items: NavigationRailItem[]`, slots `header`/`footer` e controle de rótulos via `labelVisibility`.
+
+```tsx
+import { useState } from "react";
+import { NavigationRail, FloatingActionButton } from "tempest-react-sdk";
+import { Home, Inbox, Settings, Plus } from "lucide-react";
+
+function AppRail() {
+  const [tab, setTab] = useState("home");
+
+  return (
+    <NavigationRail
+      header={<FloatingActionButton icon={<Plus />} aria-label="Novo" position="none" />}
+      items={[
+        { key: "home", label: "Início", icon: <Home /> },
+        { key: "inbox", label: "Caixa", icon: <Inbox />, badge: 3 },
+        { key: "settings", label: "Ajustes", icon: <Settings /> },
+      ]}
+      value={tab}
+      onChange={setTab}
+      labelVisibility="all"
+    />
+  );
+}
+```
+
+| Prop              | Tipo                              | Default |
+| ----------------- | --------------------------------- | ------- |
+| `items`           | `NavigationRailItem[]`            | —       |
+| `value`           | `string` (key selecionada)        | —       |
+| `onChange`        | `(key: string) => void`           | —       |
+| `header`          | `ReactNode` (topo — ex.: FAB)     | —       |
+| `footer`          | `ReactNode` (rodapé)              | —       |
+| `labelVisibility` | `"all" \| "selected" \| "none"`   | `"all"` |
+
+Tipo `NavigationRailItem = { key, label, icon?, badge?, disabled? }`.
+
+!!! tip "`labelVisibility` controla a densidade"
+    Use `"selected"` para mostrar só o rótulo do item ativo (rail mais estreito) ou `"none"` para um rail puramente de ícones. Em telas pequenas prefira a `BottomNavigation`.
+
 ## `BottomNavigation`
 
 Tab bar fixa no rodapé pra mobile. 3-5 items.
@@ -2922,7 +3104,7 @@ iOS-style pill bar (2-5 opções).
 
 ## Resumo
 
-- Escolha pelo **escopo**: `Navbar`/`Sidebar`/`BottomNavigation` para navegar entre seções; `Tabs`/`SegmentedControl`/`Stepper` para mover-se dentro de uma tela.
+- Escolha pelo **escopo**: `Navbar`/`Sidebar`/`NavigationRail`/`BottomNavigation` para navegar entre seções; `Tabs`/`SegmentedControl`/`Stepper` para mover-se dentro de uma tela.
 - O trio `Navbar` + `Sidebar` + `BottomNavigation` são os slots do `AppShell` — deixe ele orquestrar a troca desktop/mobile.
 - `Pagination` para listas paginadas; `Breadcrumbs` para hierarquias profundas.
 - Sempre marque o item ativo com `aria-current="page"` na navegação primária.

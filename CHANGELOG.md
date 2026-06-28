@@ -2,7 +2,7 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.11.0] — 2026-06-28
 
 ### Componentes novos (fecham os últimos gaps vs shadcn/ui)
 

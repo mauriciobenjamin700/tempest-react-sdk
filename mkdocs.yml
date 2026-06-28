@@ -163,6 +163,7 @@ nav:
           - Offline: offline.md
           - Web Share: share.md
           - Áudio: audio.md
+          - Charts (recharts): charts.md
     - Formulários:
           - Forms (zod): forms.md
           - Forms BR: forms-br.md

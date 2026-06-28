@@ -37,6 +37,8 @@ export default defineConfig({
                 // Service-worker-context helpers only (push/notification/skip-waiting).
                 // Pure, React-free — safe to bundle into a consuming app's `sw.ts`.
                 sw: resolve(__dirname, "src/sw/index.ts"),
+                // Recharts wrappers — `recharts` is an optional peer, externalized.
+                charts: resolve(__dirname, "src/charts/index.ts"),
             },
             name: "TempestReactSdk",
             formats: ["es", "cjs"],
@@ -60,6 +62,7 @@ export default defineConfig({
                 "react-hook-form",
                 "react-router",
                 "react-router-dom",
+                "recharts",
                 // `tempest-react-sdk/vite` is a Node-only config helper — keep
                 // vite + its react plugin (and node builtins) out of the bundle.
                 "vite",

@@ -43,6 +43,12 @@
     "limit": "2 KB"
   },
   {
+    "name": "charts entry (recharts external)",
+    "path": "dist/charts.js",
+    "limit": "3 KB",
+    "ignore": ["react", "react-dom", "react/jsx-runtime", "recharts"]
+  },
+  {
     "name": "styles.css",
     "path": "dist/styles.css",
     "limit": "17 KB"

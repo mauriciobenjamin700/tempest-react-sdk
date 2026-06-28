@@ -4,6 +4,9 @@ export type { AccordionItem, AccordionProps } from "./Accordion";
 export { Alert } from "./Alert";
 export type { AlertAppearance, AlertProps, AlertVariant } from "./Alert";
 
+export { AppBar } from "./AppBar";
+export type { AppBarProps, AppBarTone } from "./AppBar";
+
 export { AppShell } from "./AppShell";
 export type { AppShellProps } from "./AppShell";
 

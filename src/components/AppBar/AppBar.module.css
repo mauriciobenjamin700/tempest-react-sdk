@@ -1,0 +1,106 @@
+.bar {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: var(--tempest-space-2);
+    width: 100%;
+    min-height: 56px;
+    padding: var(--tempest-space-3) var(--tempest-space-4);
+    font-family: var(--tempest-font-sans);
+}
+
+/* Symmetric side columns so the title is truly centered. */
+.bar.centered {
+    grid-template-columns: 1fr auto 1fr;
+}
+
+.bar.surface {
+    background: var(--tempest-surface);
+    color: var(--tempest-text);
+}
+
+.bar.primary {
+    background: var(--tempest-primary);
+    color: var(--tempest-text-on-primary);
+}
+
+.bar.transparent {
+    background: transparent;
+    color: inherit;
+}
+
+.bar.bordered {
+    border-bottom: 1px solid var(--tempest-border);
+}
+
+.bar.sticky {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+}
+
+.bar.safeArea {
+    padding-top: max(var(--tempest-space-3), env(safe-area-inset-top, 0px));
+}
+
+.leading {
+    display: flex;
+    align-items: center;
+    gap: var(--tempest-space-2);
+    min-width: 0;
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--tempest-space-1);
+    min-width: 0;
+}
+
+.title {
+    margin: 0;
+    min-width: 0;
+    font-size: var(--tempest-text-xl);
+    font-weight: var(--tempest-weight-bold);
+    line-height: 1.2;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bar.centered .title {
+    text-align: center;
+}
+
+.brand {
+    font-size: var(--tempest-text-lg);
+    font-weight: var(--tempest-weight-bold);
+    color: inherit;
+    white-space: nowrap;
+}
+
+.iconBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: none;
+    border-radius: var(--tempest-radius-full);
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+}
+
+.iconBtn:hover {
+    background: var(--tempest-surface-2);
+}
+
+.iconBtn:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: var(--tempest-focus-ring-offset);
+}

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Breadcrumbs, Button, Drawer, Tabs, Tooltip } from "tempest-react-sdk";
+import { Bell, Settings } from "lucide-react";
+import { AppBar, Avatar, Breadcrumbs, Button, Drawer, Tabs, Tooltip } from "tempest-react-sdk";
 import { Example } from "../Example";
 
 export function NavigationSection() {
@@ -7,8 +8,51 @@ export function NavigationSection() {
 
     return (
         <section className="gallery-section" id="navigation">
-            <h3>Tabs · Tooltip · Drawer · Breadcrumbs</h3>
+            <h3>AppBar · Tabs · Tooltip · Drawer · Breadcrumbs</h3>
             <p className="description">Navegação interna + overlays.</p>
+
+            <Example
+                title="AppBar (PWA)"
+                note="App bar mobile: voltar + título + ação. Sticky + safe-area. Customize via tokens/slots."
+                code={`// Tela de detalhe
+<AppBar
+    title="Perfil"
+    showBack
+    onBack={() => navigate(-1)}
+    actions={
+        <Button variant="ghost" iconOnly aria-label="Ajustes">
+            <Settings size={20} />
+        </Button>
+    }
+/>
+
+// Tela inicial: marca + avatar (tone primary)
+<AppBar brand="Famachapp" tone="primary" actions={<Avatar name="Ana" size="sm" />} />`}
+            >
+                <div style={{ display: "grid", gap: 12, width: "100%" }}>
+                    <AppBar
+                        title="Perfil"
+                        showBack
+                        onBack={() => undefined}
+                        actions={
+                            <>
+                                <Button variant="ghost" iconOnly aria-label="Notificações">
+                                    <Bell size={20} />
+                                </Button>
+                                <Button variant="ghost" iconOnly aria-label="Ajustes">
+                                    <Settings size={20} />
+                                </Button>
+                            </>
+                        }
+                    />
+                    <AppBar
+                        brand="Famachapp"
+                        tone="primary"
+                        actions={<Avatar name="Ana" size="sm" />}
+                    />
+                    <AppBar title="Histórico" showBack onBack={() => undefined} centered />
+                </div>
+            </Example>
 
             <Example
                 title="Breadcrumbs"

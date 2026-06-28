@@ -1,3 +1,8 @@
+// Design tokens (`--tempest-*`) + base resets. Imported here so the bundled
+// `dist/styles.css` carries the tokens the component CSS modules depend on —
+// consumers get a fully themed `tempest-react-sdk/styles.css` from one import.
+import "./styles/index.css";
+
 // Components
 export * from "./components";
 

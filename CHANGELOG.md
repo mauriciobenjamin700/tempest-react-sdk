@@ -15,7 +15,7 @@ Lote motivado pela migração do `famachapp-pwa`: cada item abaixo elimina códi
 - **`ThemeProvider` → nova prop `themeColor={{ light, dark }}`** — sincroniza `<meta name="theme-color">` com o tema resolvido (chrome do navegador / status bar do PWA). Antes, cada app fazia isso num hook próprio.
 - **`Spinner` → `caption` + `overlay`** — `caption` renderiza um texto visível abaixo do spinner; `overlay` centraliza num container de área cheia (fallback de Suspense/rota). O caminho "bare" (`<Spinner />` sem caption/overlay) permanece idêntico — back-compat total.
 
-26 tests novos. Docs bilíngues atualizadas (Tema, Feedback, Ações, Hooks). Sem breaking changes.
+12 tests novos. Docs bilíngues atualizadas (Tema, Feedback, Ações, Hooks). Sem breaking changes.
 
 ## [0.13.0] — 2026-06-28
 

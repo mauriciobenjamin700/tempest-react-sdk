@@ -101,6 +101,12 @@ export type {
 export { Input } from "./Input";
 export type { InputProps, InputSize } from "./Input";
 
+export { InstallBanner } from "./InstallBanner";
+export type { InstallBannerProps } from "./InstallBanner";
+
+export { InstallButton } from "./InstallButton";
+export type { InstallButtonProps, InstallOutcome } from "./InstallButton";
+
 export { Kbd } from "./Kbd";
 export type { KbdProps, KbdSize } from "./Kbd";
 

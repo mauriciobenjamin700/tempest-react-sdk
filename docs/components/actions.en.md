@@ -203,12 +203,53 @@ A pre-built destructive prompt on top of [`Modal`](./overlay.md) (text + 2 butto
 !!! info "Default labels are Portuguese"
     `confirmLabel`/`cancelLabel` default to `"Confirmar"`/`"Cancelar"`. Pass explicit English strings in EN-locale apps.
 
+## `InstallButton`
+
+PWA install button wired to the `beforeinstallprompt` event ([`useBeforeInstallPrompt`](../hooks.md)). **Renders `null`** when the app can't be installed — no prompt captured yet, already installed, or running standalone — so you can drop it in without guarding visibility. Inherits every [`Button`](#button) prop.
+
+```tsx
+import { InstallButton } from "tempest-react-sdk";
+import { Download } from "lucide-react";
+
+<InstallButton variant="primary" leftIcon={<Download size={18} />} />;
+```
+
+| Prop       | Type                                                       | Default          |
+| ---------- | ---------------------------------------------------------- | ---------------- |
+| `label`    | `ReactNode`                                                | `"Instalar app"` |
+| `onResult` | `(o: "accepted" \| "dismissed" \| "unsupported") => void`  | —                |
+| …          | all `Button` props (`variant`, `size`, `leftIcon`)         | —                |
+
+## `InstallBanner`
+
+Dismissible bottom banner inviting the user to install the PWA. Shows only when a prompt was captured and the app is **not** already standalone; on platforms that never fire `beforeinstallprompt` (iOS Safari) it stays hidden — surface manual instructions elsewhere. `storageKey` remembers the dismissal across reloads.
+
+```tsx
+<InstallBanner
+  title="Install the app"
+  description="Offline access and a home-screen shortcut."
+  storageKey="my-app:install-dismissed"
+/>;
+```
+
+| Prop           | Type        | Default           |
+| -------------- | ----------- | ----------------- |
+| `title`        | `ReactNode` | `"Instale o app"` |
+| `description`  | `ReactNode` | —                 |
+| `installLabel` | `string`    | `"Instalar"`      |
+| `dismissLabel` | `string`    | `"Dispensar"`     |
+| `icon`         | `ReactNode` | —                 |
+| `storageKey`   | `string`    | — (session)       |
+| `onResult`     | `(o) => void` | —               |
+
 ## Recap
 
 | Component       | Use for                                         | Trigger     |
 | --------------- | ----------------------------------------------- | ----------- |
 | `Button`        | Fire the primary/secondary action               | click       |
 | `FloatingActionButton` | Floating, persistent primary action      | click       |
+| `InstallButton` | Install the PWA (hides when not applicable)     | click       |
+| `InstallBanner` | Dismissible invite to install the PWA           | click       |
 | `Tooltip`       | Non-critical context on a control               | hover/focus |
 | `DropdownMenu`  | A list of secondary actions (closes on pick)    | click       |
 | `Popover`       | A floating panel with arbitrary content         | click       |

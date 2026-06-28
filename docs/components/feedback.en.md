@@ -221,14 +221,19 @@ A generic loader.
 ```tsx
 <Spinner />;
 <Spinner size="lg" />;
-<Center minHeight="50vh">
-  <Spinner size="xl" />
-</Center>;
+<Spinner size="lg" caption="Loading…" />;
+<Spinner overlay caption="Loading…" />; // Suspense / route fallback
 ```
 
-| Prop   | Type                                   | Default |
-| ------ | -------------------------------------- | ------- |
-| `size` | `"xs" \| "sm" \| "md" \| "lg" \| "xl"` | `"md"`  |
+| Prop      | Type                                   | Default        | Description                                                  |
+| --------- | -------------------------------------- | -------------- | ------------------------------------------------------------ |
+| `size`    | `"xs" \| "sm" \| "md" \| "lg" \| "xl"` | `"md"`         | Indicator size.                                              |
+| `label`   | `string`                               | `"Carregando"` | Accessible label (screen readers).                           |
+| `caption` | `ReactNode`                            | —              | **Visible** text under the spinner.                          |
+| `overlay` | `boolean`                              | `false`        | Centers inside a full-area container (`position: absolute`). |
+
+!!! note "Back-compat"
+    `<Spinner />` with no `caption`/`overlay` stays a single `<span role="status">` — existing usage is unchanged.
 
 ## `Skeleton`
 

@@ -27,11 +27,17 @@ describe("useBeforeInstallPrompt full", () => {
         expect(result.current.installed).toBe(true);
     });
 
-    it("appinstalled marks installed", () => {
+    it("appinstalled marks installed and standalone", () => {
         const { result } = renderHook(() => useBeforeInstallPrompt());
         act(() => {
             window.dispatchEvent(new Event("appinstalled"));
         });
         expect(result.current.installed).toBe(true);
+        expect(result.current.isStandalone).toBe(true);
+    });
+
+    it("isStandalone defaults to false in a normal browser tab", () => {
+        const { result } = renderHook(() => useBeforeInstallPrompt());
+        expect(result.current.isStandalone).toBe(false);
     });
 });

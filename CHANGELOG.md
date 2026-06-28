@@ -2,6 +2,21 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
+## [0.14.0] — 2026-06-28
+
+### Ergonomia PWA (remove boilerplate dos apps consumidores)
+
+Lote motivado pela migração do `famachapp-pwa`: cada item abaixo elimina código genérico que o app reimplementava na mão.
+
+- **`InstallButton`** — botão de instalação ligado ao prompt PWA (`useBeforeInstallPrompt`). Renderiza **nada** quando o app não é instalável (prompt ainda não capturado, já instalado, ou rodando standalone) — pode soltar em qualquer lugar sem guardar visibilidade. Herda todas as props do `Button` (`variant`/`size`/`leftIcon`/…); `onResult` recebe a escolha do usuário.
+- **`InstallBanner`** — banner inferior dispensável que convida a instalar o PWA. Aparece só quando há prompt capturado e o app não está standalone; em plataformas que nunca disparam `beforeinstallprompt` (ex.: iOS Safari) fica oculto. `storageKey` persiste a dispensa em `localStorage`. Props: `title`/`description`/`installLabel`/`dismissLabel`/`icon`/`onResult`.
+- **`useBeforeInstallPrompt` → novo campo `isStandalone`** — detecta se o app já roda como PWA instalado (`display-mode: standalone`/`fullscreen`/`minimal-ui` ou `navigator.standalone` no iOS). Reage a mudanças de display-mode e a `appinstalled`. Use pra esconder afordâncias de instalação de quem já instalou.
+- **`ThemeProvider` → `attribute` aceita `string | string[]`** — espelha o tema resolvido em mais de um atributo. Resolve o caso comum "componentes do SDK leem `data-tempest-theme`, mas o CSS do app usa outro atributo" (ex.: `["data-tempest-theme", "data-theme"]`) sem um effect de sync no consumidor.
+- **`ThemeProvider` → nova prop `themeColor={{ light, dark }}`** — sincroniza `<meta name="theme-color">` com o tema resolvido (chrome do navegador / status bar do PWA). Antes, cada app fazia isso num hook próprio.
+- **`Spinner` → `caption` + `overlay`** — `caption` renderiza um texto visível abaixo do spinner; `overlay` centraliza num container de área cheia (fallback de Suspense/rota). O caminho "bare" (`<Spinner />` sem caption/overlay) permanece idêntico — back-compat total.
+
+12 tests novos. Docs bilíngues atualizadas (Tema, Feedback, Ações, Hooks). Sem breaking changes.
+
 ## [0.13.0] — 2026-06-28
 
 ### Correções

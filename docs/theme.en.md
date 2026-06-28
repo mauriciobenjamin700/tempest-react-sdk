@@ -130,6 +130,27 @@ The `--tempest-*` tokens are the only theming API. Override them anywhere in the
 !!! note "Tokens are public API"
     Because apps depend on these names, changing/removing a token is a breaking change — that is why they follow the SDK's semantic versioning.
 
+## App CSS integration + `theme-color`
+
+SDK components read `data-tempest-theme`. If your **app's own CSS** already keys the theme off a different attribute (e.g. `[data-theme="dark"]`), you don't need a sync effect — pass an array to `attribute` and the provider writes the resolved theme to **all** of them:
+
+```tsx
+<ThemeProvider attribute={["data-tempest-theme", "data-theme"]}>
+  <App />
+</ThemeProvider>
+```
+
+To keep the browser chrome / PWA status bar in sync, pass `themeColor` — the provider updates `<meta name="theme-color">` with the resolved theme's color (the meta tag must already exist in `<head>`):
+
+```tsx
+<ThemeProvider themeColor={{ light: "#1f7a3f", dark: "#0f1411" }}>
+  <App />
+</ThemeProvider>
+```
+
+!!! tip "Why this exists"
+    Apps mixing their own CSS with SDK components used to write a hook just to mirror the theme onto `data-theme` and update the meta tag. `attribute` (array) + `themeColor` cover both cases in the provider itself.
+
 ## Partial scope
 
 Pass `target` to apply the theme to a specific subtree instead of `<html>` — useful for a preview or portal that needs an independent theme:

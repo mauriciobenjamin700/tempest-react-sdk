@@ -1649,12 +1649,53 @@ Prompt destrutivo pré-montado em cima do [`Modal`](./overlay.md) (texto + 2 bot
 !!! tip "Controle o loading durante a request"
     `onConfirm` aceita uma promise, mas o `ConfirmDialog` não gerencia o estado de loading sozinho — passe `loading={deleting}` controlado pelo seu estado para travar ambos os botões enquanto a ação assíncrona corre.
 
+## `InstallButton`
+
+Botão de instalação do PWA, ligado ao prompt `beforeinstallprompt` ([`useBeforeInstallPrompt`](../hooks.md)). **Renderiza `null`** quando o app não pode ser instalado — prompt ainda não capturado, já instalado, ou rodando standalone — então você o solta na UI sem guardar visibilidade. Herda todas as props do [`Button`](#button).
+
+```tsx
+import { InstallButton } from "tempest-react-sdk";
+import { Download } from "lucide-react";
+
+<InstallButton variant="primary" leftIcon={<Download size={18} />} />;
+```
+
+| Prop       | Tipo                                                       | Default          |
+| ---------- | ---------------------------------------------------------- | ---------------- |
+| `label`    | `ReactNode`                                                | `"Instalar app"` |
+| `onResult` | `(o: "accepted" \| "dismissed" \| "unsupported") => void`  | —                |
+| …          | todas as props de `Button` (`variant`, `size`, `leftIcon`) | —                |
+
+## `InstallBanner`
+
+Banner inferior dispensável que convida a instalar o PWA. Aparece só quando há prompt capturado e o app **não** está standalone; em plataformas que nunca disparam `beforeinstallprompt` (iOS Safari) fica oculto — surfa instruções manuais em outro lugar. `storageKey` lembra a dispensa entre recarregamentos.
+
+```tsx
+<InstallBanner
+  title="Instale o app"
+  description="Acesso offline e atalho na tela inicial."
+  storageKey="meu-app:install-dismissed"
+/>;
+```
+
+| Prop           | Tipo                  | Default        |
+| -------------- | --------------------- | -------------- |
+| `title`        | `ReactNode`           | `"Instale o app"` |
+| `description`  | `ReactNode`           | —              |
+| `installLabel` | `string`              | `"Instalar"`   |
+| `dismissLabel` | `string`              | `"Dispensar"`  |
+| `icon`         | `ReactNode`           | —              |
+| `storageKey`   | `string`              | — (sessão)     |
+| `onResult`     | `(o) => void`         | —              |
+
 ## Resumo
 
 | Componente      | Use para                                       | Gatilho    |
 | --------------- | ---------------------------------------------- | ---------- |
 | `Button`        | Disparar a ação primária/secundária            | clique     |
 | `FloatingActionButton` | Ação primária flutuante e persistente   | clique     |
+| `InstallButton` | Instalar o PWA (some quando não aplicável)     | clique     |
+| `InstallBanner` | Convite dispensável pra instalar o PWA         | clique     |
 | `Tooltip`       | Contexto não-crítico num controle              | hover/foco |
 | `DropdownMenu`  | Lista de ações secundárias (fecha ao escolher) | clique     |
 | `Popover`       | Painel flutuante com conteúdo arbitrário       | clique     |
@@ -2548,14 +2589,19 @@ Loader genérico.
 ```tsx
 <Spinner />;
 <Spinner size="lg" />;
-<Center minHeight="50vh">
-  <Spinner size="xl" />
-</Center>;
+<Spinner size="lg" caption="Carregando…" />;
+<Spinner overlay caption="Carregando…" />; // fallback de Suspense/rota
 ```
 
-| Prop   | Tipo                                   | Default |
-| ------ | -------------------------------------- | ------- |
-| `size` | `"xs" \| "sm" \| "md" \| "lg" \| "xl"` | `"md"`  |
+| Prop      | Tipo                                   | Default        | Descrição                                                       |
+| --------- | -------------------------------------- | -------------- | --------------------------------------------------------------- |
+| `size`    | `"xs" \| "sm" \| "md" \| "lg" \| "xl"` | `"md"`         | Tamanho do indicador.                                           |
+| `label`   | `string`                               | `"Carregando"` | Rótulo acessível (lido por leitores de tela).                   |
+| `caption` | `ReactNode`                            | —              | Texto **visível** abaixo do spinner.                            |
+| `overlay` | `boolean`                              | `false`        | Centraliza num container de área cheia (`position: absolute`).  |
+
+!!! note "Back-compat"
+    `<Spinner />` sem `caption`/`overlay` continua um único `<span role="status">` — nada muda no uso antigo.
 
 ## `Skeleton`
 
@@ -6479,7 +6525,7 @@ testados, **SSR-safe** e independentes — importe só o que precisar.
 | `useScrollLock(active)`                           | Lock de `body.overflow`.                                                                                     |
 | `useFocusTrap(ref, active)`                       | Confina Tab dentro do container.                                                                             |
 | `useHover(ref)` / `useLongPress(handler, opts?)`  | Gestos de ponteiro (hover reativo / long-press).                                                             |
-| `useBeforeInstallPrompt()`                        | PWA install prompt diferido.                                                                                 |
+| `useBeforeInstallPrompt()`                        | PWA install prompt diferido (`installable`, `installed`, `isStandalone`, `prompt()`).                        |
 | `useIdle(timeout?)`                               | True quando usuário ocioso por `timeout` ms.                                                                 |
 | `useGeolocation(opts?)`                           | Position + erro + loading.                                                                                   |
 | `useClickOutside(handler)`                        | Retorna um ref; chama `handler` em `mousedown`/`touchstart` fora do elemento. SSR-safe.                      |
@@ -11307,6 +11353,27 @@ Os tokens `--tempest-*` são a única API de tema. Sobrescreva-os em qualquer po
 
 !!! note "Tokens são API pública"
     Como apps dependem desses nomes, mudar/remover um token é breaking change — por isso eles seguem o versionamento semântico do SDK.
+
+## Integração com o CSS do app + `theme-color`
+
+Os componentes do SDK leem `data-tempest-theme`. Se o **CSS próprio do seu app** já chaveia o tema em outro atributo (ex.: `[data-theme="dark"]`), você não precisa de um effect de sincronização — passe um array em `attribute` e o provider escreve o tema resolvido em **todos**:
+
+```tsx
+<ThemeProvider attribute={["data-tempest-theme", "data-theme"]}>
+  <App />
+</ThemeProvider>
+```
+
+Para sincronizar a barra do navegador / status bar do PWA, passe `themeColor` — o provider atualiza `<meta name="theme-color">` com a cor do tema resolvido (a meta tag precisa existir no `<head>`):
+
+```tsx
+<ThemeProvider themeColor={{ light: "#1f7a3f", dark: "#0f1411" }}>
+  <App />
+</ThemeProvider>
+```
+
+!!! tip "Por que isso existe"
+    Antes, apps que misturavam CSS próprio + componentes do SDK escreviam um hook só pra espelhar o tema em `data-theme` e atualizar a meta tag. `attribute` (array) + `themeColor` cobrem os dois casos no próprio provider.
 
 ## Escopo parcial
 

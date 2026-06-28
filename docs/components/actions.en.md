@@ -49,6 +49,32 @@ import { Plus, Trash } from "lucide-react";
 !!! tip "loading blocks double-clicks"
     `loading` disables the button and sets `aria-busy="true"` — it's the standard for async submits. Turn it on the moment you fire the request to avoid duplicate requests from repeated clicks.
 
+## `FloatingActionButton`
+
+> **When to use**: the primary, persistent action of a screen (create, compose, add) that should always be reachable, floating over the content. Round when icon-only, or extended (pill) when given a `label`.
+
+By default it is fixed to the bottom-right corner; pass `position="none"` to place it inline (e.g. inside a `NavigationRail`). Spreads all native `<button>` props (`onClick`, `disabled`, etc.).
+
+```tsx
+import { FloatingActionButton } from "tempest-react-sdk";
+import { Plus } from "lucide-react";
+
+<FloatingActionButton icon={<Plus />} aria-label="New" position="none" onClick={create} />;
+<FloatingActionButton icon={<Plus />} label="New order" onClick={create} />;
+```
+
+| Prop       | Type                                        | Default          |
+| ---------- | ------------------------------------------- | ---------------- |
+| `icon`     | `ReactNode`                                 | —                |
+| `label`    | `ReactNode` (present → extended FAB)         | —                |
+| `position` | `"bottom-right" \| "bottom-left" \| "none"` | `"bottom-right"` |
+| `size`     | `"sm" \| "md" \| "lg"`                      | `"md"`           |
+| `variant`  | `"primary" \| "surface"`                    | `"primary"`      |
+| ...        | All `HTMLButtonElement` attributes          | —                |
+
+!!! warning "An icon-only FAB needs `aria-label`"
+    Without a visible `label`, the round FAB has no accessible name. Always pass `aria-label` describing the action (`aria-label="New"`); when a `label` is present, it already serves as the name.
+
 ## `Tooltip`
 
 > **When to use**: give extra context to a control whose meaning isn't obvious — typically `iconOnly` buttons. Never for critical information.
@@ -182,6 +208,7 @@ A pre-built destructive prompt on top of [`Modal`](./overlay.md) (text + 2 butto
 | Component       | Use for                                         | Trigger     |
 | --------------- | ----------------------------------------------- | ----------- |
 | `Button`        | Fire the primary/secondary action               | click       |
+| `FloatingActionButton` | Floating, persistent primary action      | click       |
 | `Tooltip`       | Non-critical context on a control               | hover/focus |
 | `DropdownMenu`  | A list of secondary actions (closes on pick)    | click       |
 | `Popover`       | A floating panel with arbitrary content         | click       |

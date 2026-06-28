@@ -213,6 +213,44 @@ A placeholder with shimmer while data loads.
 | `width`   | `number \| string`             | `"100%"` |
 | `height`  | `number \| string`             | —        |
 
+## `RefreshIndicator`
+
+**When to use:** give the user a **pull-to-refresh** gesture on scrollable
+mobile lists/screens (touch) — feeds, inboxes, dashboards. It wraps the
+scrollable content and fires `onRefresh` when the user pulls past the threshold
+and releases.
+
+It is a **touch** gesture — there's no mouse equivalent. The SDK `Spinner` shows
+while pulling and during the refresh.
+
+```tsx
+import { RefreshIndicator } from "tempest-react-sdk";
+
+function Feed({ items, refetch }) {
+  return (
+    <RefreshIndicator onRefresh={async () => await refetch()}>
+      <ul>
+        {items.map((item) => (
+          <li key={item.id}>{item.title}</li>
+        ))}
+      </ul>
+    </RefreshIndicator>
+  );
+}
+```
+
+| Prop        | Type                          | Default |
+| ----------- | ----------------------------- | ------- |
+| `onRefresh` | `() => void \| Promise<void>` | —       |
+| `children`  | `ReactNode` (scrollable area) | —       |
+| `threshold` | `number` (px before firing)   | `80`    |
+| `disabled`  | `boolean`                     | `false` |
+
+!!! note "Touch-only gesture"
+    `RefreshIndicator` listens for touch drags that start with the container
+    scrolled to the top — it doesn't respond to the mouse. On desktop, offer an
+    explicit "Refresh" button as a fallback.
+
 ## `Toast`
 
 **When to use:** a transient confirmation of an action that already finished

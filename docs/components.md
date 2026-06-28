@@ -9,10 +9,13 @@ O catálogo foi dividido por categoria para facilitar navegação. Cada arquivo 
 - **[Entrada de dados](./components/inputs.md)** — Input, Textarea, Select, Combobox, MultiSelect, Checkbox, Radio, Switch, ChipInput, SearchBar, DatePicker, DateRangePicker, FileUpload, Slider, RangeSlider, RatingStars, PinInput, PasswordInput, StepperInput, Form\*
 - **[Ação](./components/actions.md)** — Button, Tooltip, DropdownMenu, Popover, ConfirmDialog
 - **[Navegação](./components/navigation.md)** — Navbar, Sidebar, BottomNavigation, Tabs, Stepper, Breadcrumbs, Pagination, SegmentedControl
+- **[Entrada de dados](./components/inputs.md)** — Input, Textarea, Select, Combobox, Checkbox, Radio, Switch, ChipInput, SearchBar, DatePicker, TimePicker, FileUpload, RangeSlider, RatingStars, PinInput, PasswordInput, StepperInput, Form\*
+- **[Ação](./components/actions.md)** — Button, FloatingActionButton, Tooltip, DropdownMenu, Popover, ConfirmDialog
+- **[Navegação](./components/navigation.md)** — Navbar, Sidebar, NavigationRail, BottomNavigation, Tabs, Stepper, Breadcrumbs, Pagination, SegmentedControl
 - **[Overlay](./components/overlay.md)** — Modal, Drawer, BottomSheet
 - **[Layout](./components/layout.md)** — AppShell, Page, Container, Stack, Grid, Divider, Spacer, Center, AspectRatio, SafeArea, Show, Hide
-- **[Dados](./components/data.md)** — Table, VirtualList, Accordion, Timeline
-- **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, Spinner, Skeleton, Toast, EmptyState, ErrorState
+- **[Dados](./components/data.md)** — Table, VirtualList, ListTile, Accordion, Timeline
+- **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, Spinner, Skeleton, RefreshIndicator, Toast, EmptyState, ErrorState
 - **[Identidade & micro](./components/identity.md)** — Avatar, Card, Kbd
 
 ## Convenções globais

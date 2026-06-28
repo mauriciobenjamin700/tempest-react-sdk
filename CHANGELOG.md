@@ -11,6 +11,18 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - **`DateRangePicker`** — seleção de intervalo de datas (1+ meses lado a lado) com preview no hover e auto-ordenação. `Date` puro, sem dependências. Props: `value: DateRange`/`onChange`, `numberOfMonths`, `minDate`/`maxDate`, `weekStartsOn`, `defaultMonth`. Tipo `DateRange = { start: Date | null; end: Date | null }`.
 - Galeria: nova vitrine dos três em **Inputs avançados**; docs bilíngues em **Entrada de dados**.
 
+### Widgets Material (fecham os gaps vs Flutter Material)
+
+A lib já cobria os conceitos Material via equivalentes web; estes 5 não tinham equivalente direto:
+
+- **`ListTile`** — linha Material (o widget mais usado): `leading` / `title` / `subtitle` / `trailing`, clicável (vira `<button>` quando há `onClick`), com `selected`/`disabled`.
+- **`FloatingActionButton`** — FAB redondo (icon-only) ou estendido (`label`); `position` (`bottom-right` padrão / `bottom-left` / `none` inline), `size`, `variant`; espalha props de `<button>`.
+- **`NavigationRail`** — navegação vertical compacta (rail de ícones) pra desktop: `items`/`value`/`onChange`, `header`/`footer`, `labelVisibility` (`all`/`selected`/`none`). Tipo `NavigationRailItem`.
+- **`TimePicker`** — seletor de hora inline (colunas hora/minuto, opção 12h com AM/PM); emite sempre 24h `"HH:MM"`; `minuteStep`. Sem dependências.
+- **`RefreshIndicator`** — pull-to-refresh (toque): puxar no topo além de `threshold` chama `onRefresh` (await) mostrando o `Spinner`.
+
+Cada um: componente + CSS module (tokens `--tempest-*`) + testes + export no barrel. Docs bilíngues + vitrine na galeria ("Material"). Caps do `size-limit` ajustados (CJS 52 KB, styles.css 17 KB).
+
 ## [0.10.0] — 2026-06-27
 
 ### Integração full-stack Tempest (React ⇄ FastAPI)

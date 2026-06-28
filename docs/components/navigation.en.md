@@ -105,6 +105,55 @@ Type `SidebarItem = { key, label, icon?, badge?, disabled?, href? }`.
 **Mobile**: hide it with `<Show above="md">` and expose it via `<Drawer>` in the
 hamburger menu.
 
+## `NavigationRail`
+
+**When to use:** a compact, vertical navigation column for desktop/tablet — a
+narrower alternative to `Sidebar` when you only need icons stacked over short
+labels. Each item stacks an icon over its label; the active one gets
+`aria-current="page"`.
+
+`items: NavigationRailItem[]`, `header`/`footer` slots, and label control via
+`labelVisibility`.
+
+```tsx
+import { useState } from "react";
+import { NavigationRail, FloatingActionButton } from "tempest-react-sdk";
+import { Home, Inbox, Settings, Plus } from "lucide-react";
+
+function AppRail() {
+  const [tab, setTab] = useState("home");
+
+  return (
+    <NavigationRail
+      header={<FloatingActionButton icon={<Plus />} aria-label="New" position="none" />}
+      items={[
+        { key: "home", label: "Home", icon: <Home /> },
+        { key: "inbox", label: "Inbox", icon: <Inbox />, badge: 3 },
+        { key: "settings", label: "Settings", icon: <Settings /> },
+      ]}
+      value={tab}
+      onChange={setTab}
+      labelVisibility="all"
+    />
+  );
+}
+```
+
+| Prop              | Type                            | Default |
+| ----------------- | ------------------------------- | ------- |
+| `items`           | `NavigationRailItem[]`          | —       |
+| `value`           | `string` (selected key)         | —       |
+| `onChange`        | `(key: string) => void`         | —       |
+| `header`          | `ReactNode` (top — e.g. a FAB)  | —       |
+| `footer`          | `ReactNode` (bottom)            | —       |
+| `labelVisibility` | `"all" \| "selected" \| "none"` | `"all"` |
+
+Type `NavigationRailItem = { key, label, icon?, badge?, disabled? }`.
+
+!!! tip "`labelVisibility` controls the density"
+    Use `"selected"` to show only the active item's label (a narrower rail) or
+    `"none"` for an icon-only rail. On small screens prefer `BottomNavigation`.
+
 ## `BottomNavigation`
 
 A bottom-fixed tab bar for mobile. 3-5 items.
@@ -276,8 +325,9 @@ An iOS-style pill bar (2-5 options).
 
 ## Recap
 
-- Pick by **scope**: `Navbar`/`Sidebar`/`BottomNavigation` to navigate between
-  sections; `Tabs`/`SegmentedControl`/`Stepper` to move within a screen.
+- Pick by **scope**: `Navbar`/`Sidebar`/`NavigationRail`/`BottomNavigation` to
+  navigate between sections; `Tabs`/`SegmentedControl`/`Stepper` to move within a
+  screen.
 - The trio `Navbar` + `Sidebar` + `BottomNavigation` are the `AppShell` slots —
   let it orchestrate the desktop/mobile swap.
 - `Pagination` for paged lists; `Breadcrumbs` for deep hierarchies.

@@ -49,6 +49,32 @@ import { Plus, Trash } from "lucide-react";
 !!! tip "loading bloqueia duplo clique"
     `loading` desabilita o botão e seta `aria-busy="true"` — é o padrão para submits assíncronos. Ative-o assim que disparar a request para evitar requisições duplicadas por cliques repetidos.
 
+## `FloatingActionButton`
+
+> **Quando usar**: a ação primária e persistente de uma tela (criar, compor, adicionar) que deve ficar sempre acessível, flutuando sobre o conteúdo. Redondo quando só tem ícone, ou estendido (pílula) quando tem `label`.
+
+Por padrão fica fixo no canto inferior direito; passe `position="none"` para posicioná-lo inline (ex.: dentro de um `NavigationRail`). Espalha todos os props nativos de `<button>` (`onClick`, `disabled`, etc.).
+
+```tsx
+import { FloatingActionButton } from "tempest-react-sdk";
+import { Plus } from "lucide-react";
+
+<FloatingActionButton icon={<Plus />} aria-label="Novo" position="none" onClick={create} />;
+<FloatingActionButton icon={<Plus />} label="Novo pedido" onClick={create} />;
+```
+
+| Prop       | Tipo                                       | Default          |
+| ---------- | ------------------------------------------ | ---------------- |
+| `icon`     | `ReactNode`                                | —                |
+| `label`    | `ReactNode` (presente → FAB estendido)     | —                |
+| `position` | `"bottom-right" \| "bottom-left" \| "none"` | `"bottom-right"` |
+| `size`     | `"sm" \| "md" \| "lg"`                     | `"md"`           |
+| `variant`  | `"primary" \| "surface"`                   | `"primary"`      |
+| ...        | Todos os atributos de `HTMLButtonElement`  | —                |
+
+!!! warning "FAB só de ícone precisa de `aria-label`"
+    Sem `label` visível, o FAB redondo não tem nome acessível. Sempre passe `aria-label` descrevendo a ação (`aria-label="Novo"`); quando há `label`, ele já serve de nome.
+
 ## `Tooltip`
 
 > **Quando usar**: dar contexto extra a um controle cujo significado não é óbvio — tipicamente botões `iconOnly`. Nunca para informação crítica.
@@ -179,6 +205,7 @@ Prompt destrutivo pré-montado em cima do [`Modal`](./overlay.md) (texto + 2 bot
 | Componente      | Use para                                       | Gatilho    |
 | --------------- | ---------------------------------------------- | ---------- |
 | `Button`        | Disparar a ação primária/secundária            | clique     |
+| `FloatingActionButton` | Ação primária flutuante e persistente   | clique     |
 | `Tooltip`       | Contexto não-crítico num controle              | hover/foco |
 | `DropdownMenu`  | Lista de ações secundárias (fecha ao escolher) | clique     |
 | `Popover`       | Painel flutuante com conteúdo arbitrário       | clique     |

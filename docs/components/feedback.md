@@ -196,6 +196,38 @@ Placeholder com shimmer enquanto data carrega.
 | `width`   | `number \| string`             | `"100%"` |
 | `height`  | `number \| string`             | —        |
 
+## `RefreshIndicator`
+
+**Quando usar:** dar ao usuário um gesto de **pull-to-refresh** em listas/telas roláveis no mobile (touch) — feeds, caixas de entrada, dashboards. Envolve o conteúdo rolável e dispara `onRefresh` quando o usuário puxa além do limite e solta.
+
+É um gesto **de toque** — não há equivalente com mouse. O `Spinner` do SDK aparece enquanto puxa e durante a atualização.
+
+```tsx
+import { RefreshIndicator } from "tempest-react-sdk";
+
+function Feed({ items, refetch }) {
+  return (
+    <RefreshIndicator onRefresh={async () => await refetch()}>
+      <ul>
+        {items.map((item) => (
+          <li key={item.id}>{item.title}</li>
+        ))}
+      </ul>
+    </RefreshIndicator>
+  );
+}
+```
+
+| Prop         | Tipo                          | Default |
+| ------------ | ----------------------------- | ------- |
+| `onRefresh`  | `() => void \| Promise<void>` | —       |
+| `children`   | `ReactNode` (conteúdo rolável)| —       |
+| `threshold`  | `number` (px até disparar)    | `80`    |
+| `disabled`   | `boolean`                     | `false` |
+
+!!! note "Gesto só de toque"
+    O `RefreshIndicator` escuta arrastos de toque que começam com o container no topo do scroll — não responde ao mouse. Em desktop, ofereça um botão de "Atualizar" explícito como alternativa.
+
 ## `Toast`
 
 **Quando usar:** confirmação transiente de uma ação que já terminou ("Salvo", "Item removido") — não exige atenção e some sozinho. Para erros que o usuário precisa resolver, prefira `Alert`/`Banner` (que ficam).

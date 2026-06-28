@@ -21,7 +21,7 @@
   {
     "name": "main bundle (CJS)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "50 KB",
+    "limit": "52 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -45,6 +45,6 @@
   {
     "name": "styles.css",
     "path": "dist/styles.css",
-    "limit": "16 KB"
+    "limit": "17 KB"
   }
 ]

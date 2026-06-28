@@ -123,6 +123,46 @@ Renders only the visible window + a small overscan buffer. Each row needs a fixe
 !!! note "Native search (Ctrl+F) only finds the visible window"
     Items outside the viewport are not in the DOM, so the browser's `Ctrl+F` won't find them. Below ~500 items, prefer normal rendering: the perf gain is negligible and you keep native search.
 
+## `ListTile`
+
+> **When to use**: the canonical Material list row — an item with a leading slot (icon/avatar), a title with an optional subtitle, and a trailing slot (icon, switch, meta). Ideal for settings lists, contacts, or menus.
+
+Renders as a static `<div>` by default; given an `onClick` it becomes a full-width, keyboard-accessible `<button>`.
+
+```tsx
+import { useState } from "react";
+import { ListTile, Switch } from "tempest-react-sdk";
+import { Bell } from "lucide-react";
+
+function NotificationsRow() {
+  const [enabled, setEnabled] = useState(true);
+
+  return (
+    <ListTile
+      leading={<Bell size={20} />}
+      title="Notifications"
+      subtitle="Receive push alerts"
+      trailing={
+        <Switch checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+      }
+    />
+  );
+}
+```
+
+| Prop       | Type                                   | Default |
+| ---------- | -------------------------------------- | ------- |
+| `title`    | `ReactNode`                            | —       |
+| `leading`  | `ReactNode` (left slot)                | —       |
+| `subtitle` | `ReactNode` (secondary line)           | —       |
+| `trailing` | `ReactNode` (right slot)               | —       |
+| `onClick`  | `() => void` (turns the tile a button) | —       |
+| `selected` | `boolean` (highlights the active row)  | `false` |
+| `disabled` | `boolean` (dimmed, non-interactive)    | `false` |
+
+!!! note "Button only when `onClick` is set"
+    Without `onClick`, `ListTile` is a purely visual `<div>`. With `onClick`, it becomes a `<button>` with `aria-pressed` (when `selected`) and honors `disabled` — don't wrap it in another clickable element.
+
 ## `Accordion`
 
 > **When to use**: condense sectionable content the user expands on demand — FAQs, long stepped forms, settings panels.
@@ -189,6 +229,7 @@ A vertical feed with colored markers. Renders as a semantic `<ol>` (each item is
 | ------------- | ------------------------------------------ | ---------------- |
 | `Table<T>`    | Compare records in columns                 | tens to hundreds |
 | `VirtualList` | Scroll long fixed-height lists             | 500+ items       |
+| `ListTile`    | A list row (icon + title + action)         | any              |
 | `Accordion`   | On-demand expandable sections (FAQ, steps) | a few sections   |
 | `Timeline`    | A sequence of events over time             | any              |
 

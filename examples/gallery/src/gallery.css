@@ -37,10 +37,49 @@ body {
     color: var(--tempest-text-muted);
 }
 
+.gallery-search {
+    width: 100%;
+    margin-bottom: var(--tempest-space-4);
+    padding: 7px var(--tempest-space-3);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-md);
+    background-color: var(--tempest-bg);
+    color: var(--tempest-text);
+    font-size: 13px;
+    font-family: inherit;
+}
+
+.gallery-search:focus-visible {
+    outline: 2px solid var(--tempest-primary);
+    outline-offset: 1px;
+}
+
 .gallery-nav {
     display: flex;
     flex-direction: column;
     gap: 2px;
+}
+
+.gallery-nav-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: var(--tempest-space-4);
+}
+
+.gallery-nav-group-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--tempest-text-subtle);
+    padding: var(--tempest-space-2) var(--tempest-space-3) 4px;
+}
+
+.gallery-empty {
+    font-size: 13px;
+    color: var(--tempest-text-muted);
+    padding: 0 var(--tempest-space-3);
 }
 
 .gallery-nav a {
@@ -85,6 +124,29 @@ body {
 .gallery-header .meta {
     font-size: 12px;
     color: var(--tempest-text-muted);
+}
+
+.gallery-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--tempest-space-3);
+    flex-wrap: wrap;
+}
+
+.lang-toggle {
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-md);
+    background: transparent;
+    color: var(--tempest-text-muted);
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.lang-toggle:hover {
+    background-color: var(--tempest-surface-2);
+    color: var(--tempest-text);
 }
 
 .gallery-section {
@@ -182,6 +244,51 @@ body {
 
 .example-copy {
     flex-shrink: 0;
+}
+
+.example-anchor {
+    color: inherit;
+    text-decoration: none;
+}
+
+.example-anchor:hover {
+    text-decoration: underline;
+    text-decoration-color: var(--tempest-primary);
+}
+
+.example-props {
+    border-top: 1px solid var(--tempest-border);
+    overflow-x: auto;
+}
+
+.example-props table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.example-props th,
+.example-props td {
+    text-align: left;
+    padding: 6px var(--tempest-space-4);
+    border-bottom: 1px solid var(--tempest-border);
+    vertical-align: top;
+}
+
+.example-props th {
+    font-weight: 700;
+    color: var(--tempest-text-muted);
+    background-color: var(--tempest-surface-2);
+}
+
+.example-props tr:last-child td {
+    border-bottom: none;
+}
+
+.example-props code {
+    font-family: var(--tempest-font-mono);
+    font-size: 11px;
+    color: var(--tempest-text);
 }
 
 .example-body {

@@ -1,65 +1,41 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useI18n, useTheme } from "tempest-react-sdk";
-import { ButtonsSection } from "./sections/ButtonsSection";
-import { FormFieldsSection } from "./sections/FormFieldsSection";
-import { FormPrimitivesSection } from "./sections/FormPrimitivesSection";
-import { InputsAdvancedSection } from "./sections/InputsAdvancedSection";
-import { FeedbackSection } from "./sections/FeedbackSection";
-import { DataDisplaySection } from "./sections/DataDisplaySection";
-import { DisplayMediaSection } from "./sections/DisplayMediaSection";
-import { ModalSection } from "./sections/ModalSection";
-import { OverlaysSection } from "./sections/OverlaysSection";
-import { DisclosureSection } from "./sections/DisclosureSection";
-import { NavigationSection } from "./sections/NavigationSection";
-import { AdvancedComponentsSection } from "./sections/AdvancedComponentsSection";
-import { TableSection } from "./sections/TableSection";
-import { DataTableSection } from "./sections/DataTableSection";
-import { MaterialSection } from "./sections/MaterialSection";
-import { FormsSection } from "./sections/FormsSection";
-import { BRFormsSection } from "./sections/BRFormsSection";
-import { FoundationSection } from "./sections/FoundationSection";
-import { ThemeI18nSection } from "./sections/ThemeI18nSection";
-import { MetaSection } from "./sections/MetaSection";
-import { IntegrationsSection } from "./sections/IntegrationsSection";
-import { PWASection } from "./sections/PWASection";
-import { UtilsSection } from "./sections/UtilsSection";
+import { GROUP_ORDER, SECTIONS, type SectionEntry } from "./sections/registry";
 
-const SECTIONS: { id: string; label: string }[] = [
-    { id: "buttons", label: "Buttons" },
-    { id: "form-fields", label: "Form fields" },
-    { id: "form-primitives", label: "Checkbox · Radio · Switch" },
-    { id: "inputs-advanced", label: "Toggle · Rating · Range · Combobox" },
-    { id: "feedback", label: "Badges · Cards · Skeleton" },
-    { id: "data-display", label: "Stat · Tag · Money · Banner" },
-    { id: "display-media", label: "Avatar · Image · Carousel" },
-    { id: "modal", label: "Modal & Toast" },
-    { id: "overlays", label: "Popover · Dropdown · HoverCard" },
-    { id: "disclosure", label: "Accordion · Collapsible · Scroll" },
-    { id: "navigation", label: "Tabs · Tooltip · Drawer" },
-    { id: "advanced", label: "Stepper · Progress · VirtualList" },
-    { id: "table", label: "Table & Pagination" },
-    { id: "data-table", label: "DataTable" },
-    { id: "material", label: "Material (ListTile · FAB · Rail)" },
-    { id: "forms", label: "Forms (zod)" },
-    { id: "br-forms", label: "BR Forms (CPF/CNPJ/CEP)" },
-    { id: "foundation", label: "Store (Zustand)" },
-    { id: "theme-i18n", label: "Tema + i18n" },
-    { id: "meta", label: "Network · Clipboard · Share" },
-    { id: "integrations", label: "SSE · Push · Audio" },
-    { id: "pwa", label: "PWA: Install · Push" },
-    { id: "utils", label: "Utils" },
-];
+type ThemeMode = "light" | "dark" | "system";
+
+function matches(section: SectionEntry, query: string): boolean {
+    if (!query) return true;
+    const q = query.toLowerCase();
+    return (
+        section.label.toLowerCase().includes(q) ||
+        section.keywords.toLowerCase().includes(q) ||
+        section.id.includes(q)
+    );
+}
 
 export function App() {
     const i18n = useI18n();
     const theme = useTheme();
-    const [active, setActive] = useState<string>("buttons");
+    const [active, setActive] = useState<string>(SECTIONS[0]?.id ?? "");
+    const [query, setQuery] = useState<string>("");
+
+    const visible = useMemo(() => SECTIONS.filter((s) => matches(s, query)), [query]);
+
+    const grouped = useMemo(
+        () =>
+            GROUP_ORDER.map((group) => ({
+                group,
+                items: visible.filter((s) => s.group === group),
+            })).filter((g) => g.items.length > 0),
+        [visible],
+    );
 
     useEffect(() => {
         const handler = (): void => {
             const fromTop = window.scrollY + 120;
-            let current = SECTIONS[0]?.id ?? "buttons";
-            for (const section of SECTIONS) {
+            let current = visible[0]?.id ?? "";
+            for (const section of visible) {
                 const el = document.getElementById(section.id);
                 if (el && el.offsetTop <= fromTop) current = section.id;
             }
@@ -68,22 +44,36 @@ export function App() {
         window.addEventListener("scroll", handler, { passive: true });
         handler();
         return () => window.removeEventListener("scroll", handler);
-    }, []);
+    }, [visible]);
 
     return (
         <div className="gallery-shell">
             <aside className="gallery-sidebar">
                 <h1>tempest-react-sdk</h1>
                 <p>{i18n.t("gallery.subtitle")}</p>
+                <input
+                    className="gallery-search"
+                    type="search"
+                    placeholder="Buscar componente, hook…"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    aria-label="Buscar seções"
+                />
                 <nav className="gallery-nav">
-                    {SECTIONS.map((section) => (
-                        <a
-                            key={section.id}
-                            href={`#${section.id}`}
-                            className={active === section.id ? "active" : ""}
-                        >
-                            {section.label}
-                        </a>
+                    {grouped.length === 0 && <p className="gallery-empty">Nada encontrado.</p>}
+                    {grouped.map(({ group, items }) => (
+                        <div key={group} className="gallery-nav-group">
+                            <span className="gallery-nav-group-title">{group}</span>
+                            {items.map((section) => (
+                                <a
+                                    key={section.id}
+                                    href={`#${section.id}`}
+                                    className={active === section.id ? "active" : ""}
+                                >
+                                    {section.label}
+                                </a>
+                            ))}
+                        </div>
                     ))}
                 </nav>
             </aside>
@@ -92,33 +82,35 @@ export function App() {
                     <div>
                         <h2>{i18n.t("gallery.title")}</h2>
                         <span className="meta">
-                            tema: {theme.resolvedTheme} · idioma: {i18n.locale}
+                            {visible.length}/{SECTIONS.length} seções · tema: {theme.resolvedTheme}{" "}
+                            · idioma: {i18n.locale}
                         </span>
                     </div>
+                    <div className="gallery-controls">
+                        <div className="theme-toggle-group" role="group" aria-label="Tema">
+                            {(["light", "dark", "system"] as ThemeMode[]).map((mode) => (
+                                <button
+                                    key={mode}
+                                    type="button"
+                                    className={theme.theme === mode ? "active" : ""}
+                                    onClick={() => theme.setTheme(mode)}
+                                >
+                                    {mode}
+                                </button>
+                            ))}
+                        </div>
+                        <button
+                            type="button"
+                            className="lang-toggle"
+                            onClick={() => i18n.setLocale(i18n.locale === "pt-BR" ? "en" : "pt-BR")}
+                        >
+                            {i18n.locale === "pt-BR" ? "EN" : "PT"}
+                        </button>
+                    </div>
                 </header>
-                <ButtonsSection />
-                <FormFieldsSection />
-                <FormPrimitivesSection />
-                <InputsAdvancedSection />
-                <FeedbackSection />
-                <DataDisplaySection />
-                <DisplayMediaSection />
-                <ModalSection />
-                <OverlaysSection />
-                <DisclosureSection />
-                <NavigationSection />
-                <AdvancedComponentsSection />
-                <TableSection />
-                <DataTableSection />
-                <MaterialSection />
-                <FormsSection />
-                <BRFormsSection />
-                <FoundationSection />
-                <ThemeI18nSection />
-                <MetaSection />
-                <IntegrationsSection />
-                <PWASection />
-                <UtilsSection />
+                {visible.map(({ id, Component }) => (
+                    <Component key={id} />
+                ))}
             </main>
         </div>
     );

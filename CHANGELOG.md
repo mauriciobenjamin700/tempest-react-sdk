@@ -13,9 +13,10 @@ Relatório agrupado por seção (estilo `flutter doctor`) + checks novos pra pro
 - **Peers opcionais de subpaths usados** — importa `/charts` sem `recharts`, `/editor` sem `@tiptap/react`, `/vision` sem `onnxruntime-web`, ou `TrajectoryMap tileUrl=` sem `leaflet`.
 - **tsconfig**: `moduleResolution` fora de `bundler`/`node16`/`nodenext` (subpath exports não resolvem tipos), `jsx` ≠ `react-jsx`, `strict` off, `skipLibCheck` off.
 - **SDK desatualizado** vs `latest` no npm (best-effort, timeout curto, pula offline).
-- **Versões de toolchain**: TypeScript (≥5), Vite (≥5), `@vitejs/plugin-react` instalado, React major ≥18, `engines.node` satisfeito.
-- **Deps declaradas mas não instaladas** (drift `package.json` × `node_modules`).
-- **Lockfile**: ausente ou múltiplos (npm/yarn/pnpm misturados).
+- **Versões de toolchain**: TypeScript (≥5), Vite (≥5), `@vitejs/plugin-react` instalado, React major ≥18, `engines.node` satisfeito, aviso de Node **não-LTS** (major ímpar).
+- **Deps declaradas mas não instaladas** (drift `package.json` × `node_modules`) + **`peerDependencies` do app** não satisfeitas.
+- **Lockfile**: ausente, múltiplos (npm/yarn/pnpm misturados) ou **desatualizado** (`package.json` mais novo que o lock).
+- **`styles.css` importado mais de uma vez**; com testes + `vitest`, aviso se `tsconfig.types` omite `vitest/globals`.
 - **Env & secrets** (seção nova): `.env` no `.gitignore` (evita vazar segredo), variáveis `import.meta.env.*` sem prefixo `VITE_` (undefined no client).
 - Seções (Environment/Project/Dependency health/TypeScript/Integration/Tooling/Env & secrets), linhas de versão e de info. Matchers de uso ancorados em imports/JSX reais (evita falso-positivo de strings em docs/exemplos).
 

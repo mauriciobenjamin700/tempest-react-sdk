@@ -7,7 +7,7 @@
 //   tempest format [paths…]  Prettier --write
 //   tempest --help | --version
 import { spawnSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -103,10 +103,14 @@ function nestedDupe(name) {
     return existsSync(join(ROOT, "node_modules", "tempest-react-sdk", "node_modules", name));
 }
 
-/** Recursively collect source text (bounded) to scan for import usage. */
+/**
+ * Recursively collect source text (bounded) to scan for import usage, and note
+ * whether any test file exists. Returns `{ text, hasTests }`.
+ */
 function scanSources() {
     const roots = ["src", "app"].map((d) => join(ROOT, d)).filter(existsSync);
     let text = "";
+    let hasTests = false;
     let budget = 4000; // file cap — keep the doctor fast on big trees
     const exts = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs"]);
     const walk = (dir) => {
@@ -124,6 +128,7 @@ function scanSources() {
             if (e.isDirectory()) walk(full);
             else if (exts.has(e.name.slice(e.name.lastIndexOf(".")))) {
                 budget -= 1;
+                if (/\.(test|spec)\./.test(e.name)) hasTests = true;
                 try {
                     text += readFileSync(full, "utf8");
                 } catch {
@@ -133,7 +138,16 @@ function scanSources() {
         }
     };
     roots.forEach(walk);
-    return text;
+    return { text, hasTests };
+}
+
+/** File mtime in ms, or 0 if unreadable. */
+function mtimeMs(path) {
+    try {
+        return statSync(path).mtimeMs;
+    } catch {
+        return 0;
+    }
 }
 
 /** npm's published latest for a package (best-effort, short timeout). */
@@ -243,6 +257,14 @@ function doctor() {
         `Node ${process.versions.node}`,
         nodeOk ? "" : "requires >= 20.19",
     ]);
+    // Even majors are Node LTS lines; odd majors (21, 23…) aren't — avoid in prod.
+    if (nodeOk && maj % 2 === 1) {
+        checks.push([
+            "warn",
+            `Node ${maj} is not an LTS line`,
+            "odd majors aren't LTS — prefer an even major (20, 22…) for production",
+        ]);
+    }
     checks.push(["info", `tempest CLI v${selfVersion()}`]);
 
     if (!pkg) {
@@ -251,7 +273,7 @@ function doctor() {
     }
 
     const deps = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) };
-    const src = scanSources();
+    const { text: src, hasTests } = scanSources();
 
     // Toolchain versions.
     const tsV = installedVersion("typescript");
@@ -339,6 +361,17 @@ function doctor() {
         checks.push(["ok", "all declared dependencies installed"]);
     }
 
+    // App's own peerDependencies unmet.
+    const peerDeps = Object.keys(pkg.peerDependencies ?? {});
+    const unmetPeers = peerDeps.filter((name) => !installedVersion(name));
+    if (unmetPeers.length > 0) {
+        checks.push([
+            "warn",
+            `${unmetPeers.length} peerDependency(ies) unmet`,
+            `${unmetPeers.slice(0, 8).join(", ")} — install them or document as optional`,
+        ]);
+    }
+
     // @types/react major vs react major.
     const typesReact = installedVersion("@types/react");
     if (typesReact && reactV) {
@@ -416,6 +449,19 @@ function doctor() {
                 'set "skipLibCheck": true — avoids type errors leaking from dependencies',
             ]);
         }
+        // Tests present but tsconfig restricts `types` and omits vitest globals.
+        if (
+            hasTests &&
+            installedVersion("vitest") &&
+            Array.isArray(co.types) &&
+            !co.types.some((t) => /vitest/.test(t))
+        ) {
+            checks.push([
+                "warn",
+                "vitest globals not in tsconfig types",
+                'tests exist but "types" omits vitest — add "vitest/globals" so tsc sees describe/it/expect',
+            ]);
+        }
     }
 
     // ── Integration ───────────────────────────────────────────────────────────
@@ -449,6 +495,15 @@ function doctor() {
         );
     } else {
         checks.push(["warn", "app entry", "no src/main.tsx found"]);
+    }
+    // styles.css should be imported once — duplicates re-inject the whole sheet.
+    const stylesImports = (src.match(/tempest-react-sdk\/styles\.css/g) ?? []).length;
+    if (stylesImports > 1) {
+        checks.push([
+            "warn",
+            `styles.css imported ${stylesImports}×`,
+            "import it once at the app entry — duplicate imports ship the stylesheet repeatedly",
+        ]);
     }
 
     // ── Tooling ────────────────────────────────────────────────────────────────
@@ -485,6 +540,15 @@ function doctor() {
         ]);
     } else {
         checks.push(["ok", `lockfile (${locks[0][1]})`]);
+        // package.json edited after the lockfile → likely out of sync.
+        const lockFile = locks[0][0];
+        if (mtimeMs(join(ROOT, "package.json")) > mtimeMs(join(ROOT, lockFile)) + 1000) {
+            checks.push([
+                "warn",
+                "lockfile may be stale",
+                `package.json is newer than ${lockFile} — run npm install to sync it`,
+            ]);
+        }
     }
 
     // ── Env & secrets ────────────────────────────────────────────────────────

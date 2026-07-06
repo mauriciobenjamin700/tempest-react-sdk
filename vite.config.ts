@@ -44,6 +44,10 @@ export default defineConfig({
                 // Vision inference (vendored ort-vision-sdk-web) — onnxruntime-web
                 // is an optional peer, externalized.
                 vision: resolve(__dirname, "src/vision/index.ts"),
+                // Brazilian locations + clickable UF map. Bundles the names
+                // dataset + a simplified UF GeoJSON — kept off the root entry so
+                // apps that don't need it pay nothing.
+                br: resolve(__dirname, "src/br/index.ts"),
             },
             name: "TempestReactSdk",
             formats: ["es", "cjs"],

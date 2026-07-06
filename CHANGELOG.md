@@ -2,6 +2,19 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
+## [0.16.0] — 2026-07-06
+
+### Mapa do Brasil + dados de localidade — novo subpath `tempest-react-sdk/br`
+
+Mapa nacional clicável das 27 UFs + dataset de estados/cidades, **sem API paga ou externa**. Complementa o módulo [`geo`](#0150--2026-07-05). Espelha o `utils/locations` do `tempest-fastapi-sdk`.
+
+- **`BrazilMap`** — mapa SVG das 27 unidades federativas a partir de um GeoJSON do IBGE **simplificado (Douglas-Peucker ~2 km) e empacotado** (~119 KB cru / ~36 KB gzip, chunk lazy — só carrega quando o mapa monta). Clicável (`onSelect(uf)`, estados focáveis por teclado), destacável (`selected` aceita UF ou lista), choropleth (`values` por UF → tinta linear `minColor`→`maxColor`), rótulos de sigla, `<title>`/`aria-label` acessíveis. Reusa a projeção Web Mercator do módulo `geo`.
+- **`BrazilStateCitySelect`** — seletor encadeado Estado → Cidade (cidade reseta ao trocar o estado; habilita só após escolher UF).
+- **Dados** (espelham `utils/locations`): `listStates`, `getState`, `citiesByUf`, `statesByRegion`, `ufChoices`, `cityChoices`, `isValidUf`, `normalizeUf`, `isValidCity` + `loadBrUfGeoJson` (acesso lazy à geometria). Tipos `UF`, `BrRegion`, `BrazilState`, `Choice`. Dataset de ~5600 cidades empacotado.
+- **Subpath dedicado** `tempest-react-sdk/br` (padrão charts/vision/editor) — os dados/geometria **não** entram no bundle raiz; só quem importa `/br` paga.
+
+19 tests novos. Docs bilíngues novas (`br.md` / `br.en.md`, padrão tutorial com receitas) em **Integrações**, seção nova na galeria (mapa clicável + choropleth + seletor). `leaflet` continua peer opcional (só pro `TrajectoryMap`). Budget `size-limit`: bundle raiz 54→58 KB (ESM) por conta do módulo `geo`; nova entry `br` (56 KB, empacota dados). Sem breaking changes.
+
 ## [0.15.0] — 2026-07-05
 
 ### Geolocalização — novo módulo `geo` (self-hosted, sem API paga/externa)

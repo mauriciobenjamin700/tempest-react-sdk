@@ -75,6 +75,11 @@
       "import": "./dist/vision.js",
       "require": "./dist/vision.cjs"
     },
+    "./br": {
+      "types": "./dist/br.d.ts",
+      "import": "./dist/br.js",
+      "require": "./dist/br.cjs"
+    },
     "./styles.css": "./dist/styles.css",
     "./package.json": "./package.json"
   },

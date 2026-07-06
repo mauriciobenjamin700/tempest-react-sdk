@@ -2,7 +2,7 @@
   {
     "name": "main bundle (ESM)",
     "path": "dist/tempest-react-sdk.js",
-    "limit": "54 KB",
+    "limit": "58 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -21,7 +21,7 @@
   {
     "name": "main bundle (CJS)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "56 KB",
+    "limit": "60 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -66,6 +66,12 @@
     "path": "dist/vision.js",
     "limit": "15 KB",
     "ignore": ["onnxruntime-web"]
+  },
+  {
+    "name": "br entry (bundles BR locations dataset + UF geometry + components)",
+    "path": "dist/br.js",
+    "limit": "56 KB",
+    "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
     "name": "styles.css",

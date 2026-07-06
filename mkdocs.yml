@@ -59,6 +59,7 @@ plugins:
                     Vite & alias: Vite & alias
                     Roteamento: Routing
                     Geolocalização: Geolocation
+                    Mapa do Brasil (br): Brazil map (br)
                     Estado (Zustand): State (Zustand)
                     Providers: Providers
                     Componentes: Components
@@ -161,6 +162,7 @@ nav:
           - SSE: sse.md
           - WebSocket: websocket.md
           - Geolocalização: geo.md
+          - Mapa do Brasil (br): br.md
           - Web Push: push.md
           - Offline: offline.md
           - Web Share: share.md

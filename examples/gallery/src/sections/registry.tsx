@@ -34,6 +34,7 @@ import { HttpRecipeSection } from "./HttpRecipeSection";
 import { QueryRecipeSection } from "./QueryRecipeSection";
 import { RealtimeRecipeSection } from "./RealtimeRecipeSection";
 import { GeoSection } from "./GeoSection";
+import { BrazilMapSection } from "./BrazilMapSection";
 
 /** Sidebar grouping for sections, in display order. */
 export type SectionGroup = "Componentes" | "Hooks" | "Receitas" | "Fundação";
@@ -279,6 +280,14 @@ export const SECTIONS: SectionEntry[] = [
             "geolocation geo trajectory map trajectorymap usepositiontracker createpositiontracker haversinekm pathlengthkm estimatetravel coordinate bearingdeg boundingbox osrm leaflet mercator latitude longitude",
         group: "Receitas",
         Component: GeoSection,
+    },
+    {
+        id: "brazil-map",
+        label: "Mapa do Brasil (UF + cidades)",
+        keywords:
+            "brazilmap mapa brasil estados cidades uf geojson choropleth brazilstatecityselect citiesbyuf ufchoices liststates getstate ibge municipios locations",
+        group: "Receitas",
+        Component: BrazilMapSection,
     },
     {
         id: "recipe-auth",

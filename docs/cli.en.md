@@ -67,22 +67,25 @@ Tooling
 
 ### What it checks
 
-**Environment** — Node ≥ 20.19; CLI version.
+**Environment** — Node ≥ 20.19; CLI version; **TypeScript** (≥5) and **Vite** (≥5) versions; `package.json` `engines.node` satisfied.
 
-**Project** — `tempest-react-sdk` declared and installed (with version); `react`/`react-dom` present.
+**Project** — `tempest-react-sdk` declared and installed (with version); `react`/`react-dom` present; **React major** ≥ 18.
 
 **Dependency health** (the silent ones):
 
 - **Duplicate instance** of React or a stateful/context lib (`@tanstack/react-query`, `zustand`, `react-hook-form`, `react-router-dom`): a copy **nested** under `tempest-react-sdk` means **two instances** at runtime — invalid hooks, a `QueryClient`/RHF context that "vanishes". Suggests `npm dedupe`. _(Skipped when the SDK is a local `file:`/`link:` dependency.)_
+- **Declared-but-not-installed deps** (drift between `package.json` and `node_modules`) → `npm install`.
 - **`@types/react` vs `react`** major mismatch → phantom type errors.
 - **Optional peers for used subpaths**: importing `tempest-react-sdk/charts` without `recharts`, `/editor` without `@tiptap/react`, `/vision` without `onnxruntime-web`, or passing `tileUrl` to `TrajectoryMap` without `leaflet` — it all compiles, then breaks on the lazy import at runtime.
 - **SDK out of date** vs `latest` on npm (best-effort, short timeout; skipped offline).
 
-**TypeScript** — `@/*` alias; **`moduleResolution`** ∈ `bundler`/`node16`/`nodenext` (otherwise _subpath exports_ like `tempest-react-sdk/br` won't resolve types — silent!); **`jsx: "react-jsx"`**; **`strict: true`**.
+**TypeScript** — `@/*` alias; **`moduleResolution`** ∈ `bundler`/`node16`/`nodenext` (otherwise _subpath exports_ like `tempest-react-sdk/br` won't resolve types — silent!); **`jsx: "react-jsx"`**; **`strict: true`**; **`skipLibCheck`** on.
 
-**Integration** — `vite.config.*` using `createViteConfig`; `styles.css` import in the entry.
+**Integration** — `vite.config.*` using `createViteConfig`; **`@vitejs/plugin-react`** installed (JSX/Fast Refresh); `styles.css` import in the entry.
 
-**Tooling** — ESLint and Prettier config + binaries; `.env` vs `.env.example`.
+**Tooling** — ESLint and Prettier config + binaries; **lockfile** present and single (mixed npm/yarn/pnpm drift out of sync).
+
+**Env & secrets** — **`.env` in `.gitignore`** (else secrets leak on commit); vars used via `import.meta.env.*` **without the `VITE_` prefix** (Vite won't expose them to the browser → `undefined` at runtime); `.env` vs `.env.example`.
 
 ## `tempest fix`
 

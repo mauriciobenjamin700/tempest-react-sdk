@@ -155,6 +155,56 @@ function importsSubpath(src, sub) {
     return new RegExp(`from\\s*["']tempest-react-sdk/${sub}["']`).test(src);
 }
 
+// Vite's built-in `import.meta.env` keys — these don't need the VITE_ prefix.
+const BUILTIN_ENV = new Set(["MODE", "DEV", "PROD", "BASE_URL", "SSR"]);
+
+/**
+ * `import.meta.env.X` references in source that are neither built-ins nor
+ * `VITE_`-prefixed — Vite strips them, so they're `undefined` in the browser.
+ */
+function envPrefixIssues(src) {
+    const found = new Set();
+    const re = /import\.meta\.env\.([A-Za-z_$][\w$]*)/g;
+    let m;
+    while ((m = re.exec(src))) {
+        const key = m[1];
+        if (!BUILTIN_ENV.has(key) && !key.startsWith("VITE_")) found.add(key);
+    }
+    return [...found];
+}
+
+/** Package-manager lockfiles present in the project root. */
+function lockfiles() {
+    return [
+        ["package-lock.json", "npm"],
+        ["yarn.lock", "yarn"],
+        ["pnpm-lock.yaml", "pnpm"],
+        ["bun.lockb", "bun"],
+    ].filter(([f]) => existsSync(join(ROOT, f)));
+}
+
+/** Declared deps whose folder is missing from node_modules (install drift). */
+function missingInstalled(deps) {
+    return Object.keys(deps).filter((name) => {
+        const spec = String(deps[name]);
+        if (spec.startsWith("workspace:")) return false;
+        return !existsSync(join(ROOT, "node_modules", name));
+    });
+}
+
+/** True when `.gitignore` has a line that ignores `.env`. */
+function envIsGitignored() {
+    try {
+        const lines = readFileSync(join(ROOT, ".gitignore"), "utf8").split(/\r?\n/);
+        return lines.some((l) => {
+            const s = l.trim();
+            return s === ".env" || s === ".env*" || s === "*.local" || s === ".env.local";
+        });
+    } catch {
+        return false;
+    }
+}
+
 // Optional peer deps required only when the matching subpath/feature is used.
 // Matchers target real import statements / JSX props, not incidental mentions.
 const OPTIONAL_PEERS = [
@@ -203,6 +253,33 @@ function doctor() {
     const deps = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) };
     const src = scanSources();
 
+    // Toolchain versions.
+    const tsV = installedVersion("typescript");
+    if (tsV)
+        checks.push(
+            (major(tsV) ?? 0) >= 5
+                ? ["ok", "TypeScript", `v${tsV}`]
+                : ["warn", "TypeScript", `v${tsV} — SDK targets 5.x`],
+        );
+    const viteV = installedVersion("vite");
+    if (viteV)
+        checks.push(
+            (major(viteV) ?? 0) >= 5
+                ? ["ok", "Vite", `v${viteV}`]
+                : ["warn", "Vite", `v${viteV} — SDK targets 5/6/7`],
+        );
+
+    // Node satisfies package.json engines.node's lower bound, if declared.
+    const engineNode = pkg.engines?.node;
+    const reqMajor = engineNode ? major(engineNode) : null;
+    if (reqMajor !== null && maj < reqMajor) {
+        checks.push([
+            "warn",
+            "engines.node",
+            `package.json wants "${engineNode}" but you're on ${process.versions.node}`,
+        ]);
+    }
+
     // ── Project ─────────────────────────────────────────────────────────────
     checks.push(["section", "Project"]);
     checks.push(["ok", "package.json found"]);
@@ -223,6 +300,9 @@ function doctor() {
             ? ["ok", "react + react-dom present", reactV ? `v${reactV}` : ""]
             : ["fail", "react + react-dom present", "install react react-dom"],
     );
+    if (reactV && (major(reactV) ?? 0) < 18) {
+        checks.push(["warn", "react version", `v${reactV} — SDK requires React 18 or 19`]);
+    }
 
     // ── Dependency health (silent bugs) ──────────────────────────────────────
     checks.push(["section", "Dependency health"]);
@@ -244,6 +324,19 @@ function doctor() {
                       "nested copy under tempest-react-sdk — run `npm dedupe` or align versions; two instances break hooks/context",
                   ],
         );
+    }
+
+    // Declared-but-not-installed (package.json ↔ node_modules drift).
+    const missing = missingInstalled(deps);
+    if (missing.length > 0) {
+        const shown = missing.slice(0, 8).join(", ");
+        checks.push([
+            "warn",
+            `${missing.length} dependency(ies) not installed`,
+            `${shown}${missing.length > 8 ? ", …" : ""} — run npm install`,
+        ]);
+    } else {
+        checks.push(["ok", "all declared dependencies installed"]);
     }
 
     // @types/react major vs react major.
@@ -316,6 +409,13 @@ function doctor() {
                 ? ["ok", "strict mode on"]
                 : ["warn", "strict mode off", 'enable "strict": true to catch silent type bugs'],
         );
+        if (co.skipLibCheck === false) {
+            checks.push([
+                "warn",
+                "skipLibCheck disabled",
+                'set "skipLibCheck": true — avoids type errors leaking from dependencies',
+            ]);
+        }
     }
 
     // ── Integration ───────────────────────────────────────────────────────────
@@ -328,6 +428,16 @@ function doctor() {
             fileIncludes(join(ROOT, viteCfg), "createViteConfig")
                 ? ["ok", `${viteCfg} uses createViteConfig`]
                 : ["warn", `${viteCfg}`, "not using createViteConfig from tempest-react-sdk/vite"],
+        );
+        // React plugin is required for JSX/Fast Refresh in a Vite React app.
+        checks.push(
+            installedVersion("@vitejs/plugin-react")
+                ? ["ok", "@vitejs/plugin-react installed"]
+                : [
+                      "warn",
+                      "@vitejs/plugin-react",
+                      "not installed — Vite needs it for JSX/Fast Refresh (npm i -D @vitejs/plugin-react)",
+                  ],
         );
     }
     const entry = firstExisting(["src/main.tsx", "src/main.ts", "src/index.tsx", "src/index.ts"]);
@@ -358,9 +468,52 @@ function doctor() {
             ? ["ok", "prettier installed"]
             : ["warn", "prettier installed", "npm i -D prettier"],
     );
-    if (existsSync(join(ROOT, ".env"))) checks.push(["ok", ".env present"]);
-    else if (existsSync(join(ROOT, ".env.example")))
+
+    // Lockfile / package manager.
+    const locks = lockfiles();
+    if (locks.length === 0) {
+        checks.push([
+            "warn",
+            "no lockfile",
+            "commit a lockfile (package-lock.json) for reproducible installs",
+        ]);
+    } else if (locks.length > 1) {
+        checks.push([
+            "warn",
+            `multiple lockfiles: ${locks.map(([, pm]) => pm).join(", ")}`,
+            "pick one package manager — mixed lockfiles drift out of sync",
+        ]);
+    } else {
+        checks.push(["ok", `lockfile (${locks[0][1]})`]);
+    }
+
+    // ── Env & secrets ────────────────────────────────────────────────────────
+    checks.push(["section", "Env & secrets"]);
+    const hasEnv = existsSync(join(ROOT, ".env"));
+    if (hasEnv) {
+        checks.push(
+            envIsGitignored()
+                ? ["ok", ".env is git-ignored"]
+                : [
+                      "warn",
+                      ".env NOT git-ignored",
+                      "secrets can be committed — add `.env` to .gitignore now",
+                  ],
+        );
+    } else if (existsSync(join(ROOT, ".env.example"))) {
         checks.push(["warn", ".env", "only .env.example — copy it: cp .env.example .env"]);
+    }
+    const envIssues = envPrefixIssues(src);
+    if (envIssues.length > 0) {
+        const shown = envIssues.slice(0, 6).join(", ");
+        checks.push([
+            "warn",
+            "client env without VITE_ prefix",
+            `${shown}${envIssues.length > 6 ? ", …" : ""} — Vite only exposes VITE_* to the browser; these are undefined at runtime`,
+        ]);
+    } else {
+        checks.push(["ok", "client env vars use the VITE_ prefix"]);
+    }
 
     return report(checks);
 }

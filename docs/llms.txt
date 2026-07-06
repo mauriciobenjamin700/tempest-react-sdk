@@ -18,6 +18,7 @@
 - [Feature Flags](https://mauriciobenjamin700.github.io/tempest-react-sdk/feature-flags/): Feature flags ligam e desligam funcionalidades sem novo deploy: rollouts graduais (new-checkout para 10% dos usuários), kill-switches (disable_payments quando o gateway cai), experimentos A/B.
 - [Forms BR — máscaras, validadores, ViaCEP](https://mauriciobenjamin700.github.io/tempest-react-sdk/forms-br/): Tudo que apps brasileiros usam diariamente: validar CPF/CNPJ de verdade, mascarar
 - [Forms](https://mauriciobenjamin700.github.io/tempest-react-sdk/forms/): Forms quase sempre travam em dois problemas que não têm nada a ver um com o outro:
+- [Geolocalização](https://mauriciobenjamin700.github.io/tempest-react-sdk/geo/): Módulo de geolocalização 100% self-hosted: coleta de latitude/longitude pela API do navegador, cálculo de distância/trajetória e plot de mapas — sem nenhuma API paga ou externa.
 - [Hooks utilitários](https://mauriciobenjamin700.github.io/tempest-react-sdk/hooks/): Toda app React reescreve os mesmos wrappers: "debounce esse input", "fecha o menu
 - [HTTP](https://mauriciobenjamin700.github.io/tempest-react-sdk/http/): Camada de fetch tipada com tratamento de 401 + refresh, parse JSON automático e upload com progresso.
 - [i18n](https://mauriciobenjamin700.github.io/tempest-react-sdk/i18n/): i18n minimalista (≈ 1.5KB gzip) embutido no SDK.

@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type HTMLAttributes, type ReactNode } from "react";
 import { cn } from "@/utils/cn";
 import { fitProjection } from "@/geo/projection";
+import type { GeoMarker } from "@/geo/types";
 import type { BrUfFeatureCollection } from "./br-geo";
 import { getState, type UF } from "./locations";
+import { MapMarkers } from "./MapMarkers";
 import { MapTooltip } from "./MapTooltip";
+import type { ColorScale } from "./scales";
 import { geometriesBounds, geometryCentroid, geometryPath, lerpColor } from "./svg-utils";
 import { useMapHover } from "./use-map-hover";
 import styles from "./BrazilMap.module.css";
@@ -27,10 +30,15 @@ export interface BrazilMapProps extends Omit<HTMLAttributes<HTMLDivElement>, "on
      * use the base surface color.
      */
     values?: Partial<Record<UF, number>>;
-    /** Choropleth low-end color. Default: a light primary tint. */
+    /** Choropleth low-end color (2-color linear ramp). Default: a light primary tint. */
     minColor?: string;
-    /** Choropleth high-end color. Default: the primary token. */
+    /** Choropleth high-end color (2-color linear ramp). Default: the primary token. */
     maxColor?: string;
+    /**
+     * Custom value→color scale (e.g. from `sequentialScale`/`quantizeScale`).
+     * Takes precedence over `minColor`/`maxColor`. Pair with a `<MapLegend>`.
+     */
+    colorScale?: ColorScale;
     /** Viewport height in pixels. Default: `440`. */
     height?: number;
     /** Inner padding in pixels. Default: `12`. */
@@ -45,6 +53,10 @@ export interface BrazilMapProps extends Omit<HTMLAttributes<HTMLDivElement>, "on
     showTooltip?: boolean;
     /** Override the default tooltip content. */
     renderTooltip?: (data: BrazilMapTooltipData) => ReactNode;
+    /** Point markers to overlay on the map (e.g. capitals, stores). */
+    markers?: readonly GeoMarker[];
+    /** Fired when a marker is clicked. */
+    onMarkerClick?: (marker: GeoMarker, index: number) => void;
 }
 
 /**
@@ -70,6 +82,7 @@ export function BrazilMap({
     values,
     minColor = "#dbeafe",
     maxColor = "#2563eb",
+    colorScale,
     height = 440,
     padding = 12,
     showLabels = true,
@@ -77,6 +90,8 @@ export function BrazilMap({
     loadingContent,
     showTooltip = true,
     renderTooltip,
+    markers,
+    onMarkerClick,
     className,
     style,
     ...rest
@@ -127,18 +142,20 @@ export function BrazilMap({
             height,
             { padding },
         );
-        return collection.features.map((feature) => ({
+        const items = collection.features.map((feature) => ({
             uf: feature.properties.uf,
             name: feature.properties.name,
             d: geometryPath(feature.geometry, projection),
             centroid: geometryCentroid(feature.geometry, projection),
         }));
+        return { projection, items };
     }, [collection, width, height, padding]);
 
     function fillFor(uf: UF): string | undefined {
-        if (!values || !valueRange) return undefined;
-        const v = values[uf];
+        const v = values?.[uf];
         if (typeof v !== "number") return undefined;
+        if (colorScale) return colorScale(v);
+        if (!valueRange) return undefined;
         const [min, max] = valueRange;
         const t = max === min ? 1 : (v - min) / (max - min);
         return lerpColor(minColor, maxColor, t);
@@ -163,15 +180,18 @@ export function BrazilMap({
                     viewBox={`0 0 ${width} ${height}`}
                     preserveAspectRatio="xMidYMid meet"
                 >
-                    {shapes.map((shape) => {
+                    {shapes.items.map((shape) => {
                         const isSelected = selectedSet.has(shape.uf);
+                        // Inline style (not the `fill` attribute) so the choropleth color
+                        // wins over the `.state` CSS rule's `fill`.
+                        const fillColor = isSelected ? undefined : fillFor(shape.uf);
                         return (
                             <path
                                 key={shape.uf}
                                 className={cn(styles.state, isSelected && styles.selected)}
                                 d={shape.d}
                                 fillRule="evenodd"
-                                fill={isSelected ? undefined : fillFor(shape.uf)}
+                                style={fillColor ? { fill: fillColor } : undefined}
                                 data-uf={shape.uf}
                                 tabIndex={onSelect ? 0 : undefined}
                                 role={onSelect ? "button" : undefined}
@@ -199,7 +219,7 @@ export function BrazilMap({
                     })}
 
                     {showLabels &&
-                        shapes.map((shape) => (
+                        shapes.items.map((shape) => (
                             <text
                                 key={`label-${shape.uf}`}
                                 className={styles.label}
@@ -211,6 +231,14 @@ export function BrazilMap({
                                 {shape.uf}
                             </text>
                         ))}
+
+                    {markers && markers.length > 0 && (
+                        <MapMarkers
+                            projection={shapes.projection}
+                            markers={markers}
+                            onMarkerClick={onMarkerClick}
+                        />
+                    )}
                 </svg>
             )}
 

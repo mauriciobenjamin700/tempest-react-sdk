@@ -52,3 +52,21 @@ export type {
 } from "./BrazilStateMap";
 export { BrazilStateCitySelect } from "./BrazilStateCitySelect";
 export type { BrazilStateCitySelectProps, BrazilStateCitySelection } from "./BrazilStateCitySelect";
+export type { GeoMarker } from "@/geo/types";
+export { MapMarkers } from "./MapMarkers";
+export type { MapMarkersProps } from "./MapMarkers";
+export { MapLegend } from "./MapLegend";
+export type { MapLegendProps, LegendItem } from "./MapLegend";
+
+// Color scales + palettes for choropleths.
+export {
+    interpolatePalette,
+    sequentialScale,
+    quantizeScale,
+    thresholdScale,
+    SEQUENTIAL_BLUES,
+    SEQUENTIAL_GREENS,
+    SEQUENTIAL_VIRIDIS,
+    DIVERGING_RDBU,
+} from "./scales";
+export type { ColorScale } from "./scales";

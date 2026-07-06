@@ -6,6 +6,10 @@ import {
     BrazilStateMap,
     citiesByUf,
     getState,
+    MapLegend,
+    sequentialScale,
+    SEQUENTIAL_VIRIDIS,
+    type GeoMarker,
     type Municipality,
     type UF,
 } from "tempest-react-sdk/br";
@@ -77,13 +81,31 @@ const POPULATION_INDEX: Partial<Record<UF, number>> = {
     RR: 4,
 };
 
+/** A few capitals as markers. */
+const CAPITAIS: GeoMarker[] = [
+    { id: "sp", latitude: -23.55, longitude: -46.63, label: "São Paulo", color: "#e11d48" },
+    { id: "df", latitude: -15.78, longitude: -47.93, label: "Brasília", color: "#e11d48" },
+    { id: "am", latitude: -3.12, longitude: -60.02, label: "Manaus", color: "#e11d48" },
+];
+
 function ChoroplethDemo(): ReactElement {
+    const scale = sequentialScale(0, 100, SEQUENTIAL_VIRIDIS);
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
             <span style={{ fontSize: 13, color: "var(--tempest-text-muted, #888)" }}>
-                Tinta proporcional a um índice fictício por estado (choropleth).
+                Choropleth (escala Viridis) + legenda + marcadores de capitais.
             </span>
-            <BrazilMap values={POPULATION_INDEX} showLabels height={420} />
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
+                <BrazilMap
+                    values={POPULATION_INDEX}
+                    colorScale={scale}
+                    markers={CAPITAIS}
+                    showLabels={false}
+                    height={420}
+                    style={{ flex: "1 1 320px" }}
+                />
+                <MapLegend title="Índice" min={0} max={100} palette={SEQUENTIAL_VIRIDIS} />
+            </div>
         </div>
     );
 }

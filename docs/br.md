@@ -347,6 +347,57 @@ export function OndeEstou() {
 
 ---
 
+## Parte 6 — Marcadores, escalas de cor e legenda
+
+### Marcadores (pins)
+
+`BrazilMap`, `BrazilStateMap` e o `TrajectoryMap` (módulo [Geolocalização](./geo.md)) aceitam `markers` — pontos `{ latitude, longitude }` plotados sobre o mapa, com `label` (tooltip), `color`, `radius` e `id`. `onMarkerClick(marker, index)` no clique.
+
+```tsx
+import { BrazilMap, type GeoMarker } from "tempest-react-sdk/br";
+
+const capitais: GeoMarker[] = [
+  { id: "sp", latitude: -23.55, longitude: -46.63, label: "São Paulo", color: "#e11d48" },
+  { id: "rj", latitude: -22.91, longitude: -43.17, label: "Rio de Janeiro" },
+];
+
+<BrazilMap markers={capitais} onMarkerClick={(m) => console.log(m.label)} />;
+```
+
+!!! tip "Pins a partir do geocode"
+    Combine com o geocode (Parte 5): `municipalityCentroid(id)` ou `geocodeMunicipality(name)` dão as coordenadas pra virar `markers`.
+
+### Escalas de cor + legenda
+
+Pra choropleth além do gradiente de 2 cores, passe `colorScale` (de `sequentialScale`/`quantizeScale`/`thresholdScale`) e emparelhe com `<MapLegend>`. Paletas prontas (colorblind-safe): `SEQUENTIAL_BLUES`, `SEQUENTIAL_GREENS`, `SEQUENTIAL_VIRIDIS`, `DIVERGING_RDBU`.
+
+```tsx
+import {
+  BrazilMap,
+  MapLegend,
+  sequentialScale,
+  SEQUENTIAL_VIRIDIS,
+} from "tempest-react-sdk/br";
+
+const vendas = { SP: 1200, MG: 640, RJ: 580, BA: 410, RS: 390 };
+const scale = sequentialScale(0, 1200, SEQUENTIAL_VIRIDIS);
+
+<div>
+  <BrazilMap values={vendas} colorScale={scale} showLabels={false} />
+  <MapLegend title="Vendas (R$ mil)" min={0} max={1200} palette={SEQUENTIAL_VIRIDIS} />
+</div>;
+```
+
+- **`sequentialScale(min, max, palette)`** — gradiente contínuo.
+- **`quantizeScale(min, max, palette)`** — `palette.length` faixas iguais.
+- **`thresholdScale(thresholds, palette)`** — faixas por corte (`palette` tem `thresholds.length + 1` cores).
+- **`<MapLegend>`** — gradiente contínuo (`min`/`max`/`palette` + `format`) **ou** faixas discretas (`items={[{ color, label }]}`).
+
+!!! note "Paleta da marca"
+    As paletas são padrões públicos (ColorBrewer/Viridis). Troque por qualquer lista ordenada de hex da sua marca — os builders de escala aceitam qualquer `string[]`.
+
+---
+
 ## Sobre a geometria
 
 - Fonte: fronteiras das UFs do **IBGE** (domínio público), simplificadas com Douglas-Peucker (~2 km de tolerância) e arredondadas a 3 casas decimais.

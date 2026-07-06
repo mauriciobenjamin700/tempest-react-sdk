@@ -80,6 +80,22 @@
     }
 }
 
+.marker {
+    fill: var(--tempest-primary);
+    stroke: var(--tempest-surface);
+    stroke-width: 2;
+}
+
+.marker[role="button"] {
+    cursor: pointer;
+}
+
+.marker[role="button"]:focus-visible {
+    outline: none;
+    stroke: var(--tempest-primary-active);
+    stroke-width: 3;
+}
+
 .scale line {
     stroke: var(--tempest-text);
     stroke-width: 2;

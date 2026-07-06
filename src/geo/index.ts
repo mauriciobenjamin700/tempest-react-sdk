@@ -1,5 +1,12 @@
 // Types + validators
-export type { Coordinate, TrackPoint, TravelMode, TravelEstimate, GeoBounds } from "./types";
+export type {
+    Coordinate,
+    GeoMarker,
+    TrackPoint,
+    TravelMode,
+    TravelEstimate,
+    GeoBounds,
+} from "./types";
 export {
     isValidLatitude,
     isValidLongitude,

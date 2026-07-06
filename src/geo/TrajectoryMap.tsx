@@ -3,7 +3,7 @@ import { cn } from "@/utils/cn";
 import { boundingBox, expandBounds } from "./bounds";
 import { haversineKm } from "./distance";
 import { fitProjection, type PixelPoint } from "./projection";
-import type { Coordinate } from "./types";
+import type { Coordinate, GeoMarker } from "./types";
 import styles from "./TrajectoryMap.module.css";
 
 // Leaflet layer is loaded on demand — only when a `tileUrl` is supplied, so
@@ -37,6 +37,10 @@ export interface TrajectoryMapProps extends Omit<HTMLAttributes<HTMLDivElement>,
     tileAttribution?: string;
     /** Accessible label for the map region. Default: `"Trajetória"`. */
     label?: string;
+    /** Point markers to overlay (e.g. stops, POIs). Included in the auto-fit. */
+    markers?: readonly GeoMarker[];
+    /** Fired when a marker is clicked. */
+    onMarkerClick?: (marker: GeoMarker, index: number) => void;
 }
 
 const NICE_KM_STEPS = [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 25, 50, 100, 250, 500, 1000] as const;
@@ -81,6 +85,8 @@ export function TrajectoryMap({
     tileUrl,
     tileAttribution,
     label = "Trajetória",
+    markers,
+    onMarkerClick,
     className,
     style,
     ...rest
@@ -100,8 +106,8 @@ export function TrajectoryMap({
     }, []);
 
     const allPoints = useMemo<Coordinate[]>(
-        () => (current ? [...points, current] : [...points]),
-        [points, current],
+        () => [...points, ...(current ? [current] : []), ...(markers ?? [])],
+        [points, current, markers],
     );
 
     const svg = useMemo(() => {
@@ -128,8 +134,10 @@ export function TrajectoryMap({
         const edgePixels = Math.abs(eastRef.x - center.x) || 1;
         const kmPerPixel = edgeKm / edgePixels || 0;
 
-        return { polyline, startPixel, endPixel, currentPixel, kmPerPixel };
-    }, [allPoints, points, current, width, height, padding]);
+        const markerPixels = (markers ?? []).map((m) => ({ marker: m, p: projection.project(m) }));
+
+        return { polyline, startPixel, endPixel, currentPixel, kmPerPixel, markerPixels };
+    }, [allPoints, points, current, markers, width, height, padding]);
 
     // ── Leaflet tile mode ────────────────────────────────────────────────────
     if (tileUrl) {
@@ -245,6 +253,37 @@ export function TrajectoryMap({
                             />
                         </>
                     )}
+
+                    {svg.markerPixels.map(({ marker, p }, i) => {
+                        const interactive = Boolean(onMarkerClick);
+                        return (
+                            <circle
+                                key={marker.id ?? i}
+                                className={styles.marker}
+                                cx={p.x}
+                                cy={p.y}
+                                r={marker.radius ?? 6}
+                                style={marker.color ? { fill: marker.color } : undefined}
+                                data-marker-id={marker.id ?? i}
+                                tabIndex={interactive ? 0 : undefined}
+                                role={interactive ? "button" : undefined}
+                                aria-label={marker.label}
+                                onClick={interactive ? () => onMarkerClick?.(marker, i) : undefined}
+                                onKeyDown={
+                                    interactive
+                                        ? (e) => {
+                                              if (e.key === "Enter" || e.key === " ") {
+                                                  e.preventDefault();
+                                                  onMarkerClick?.(marker, i);
+                                              }
+                                          }
+                                        : undefined
+                                }
+                            >
+                                {marker.label ? <title>{marker.label}</title> : null}
+                            </circle>
+                        );
+                    })}
 
                     {scale && (
                         <g

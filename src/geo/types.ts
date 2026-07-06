@@ -11,6 +11,22 @@ export interface Coordinate {
 }
 
 /**
+ * A pin plotted on a map: a {@link Coordinate} plus optional presentation and
+ * an identity used for click callbacks. Shared by `TrajectoryMap` and the
+ * Brazil maps' `markers` prop.
+ */
+export interface GeoMarker extends Coordinate {
+    /** Stable identity (returned by click handlers). Falls back to the index. */
+    id?: string;
+    /** Tooltip / accessible label for the pin. */
+    label?: string;
+    /** Fill color. Defaults to the primary token. */
+    color?: string;
+    /** Radius in pixels. Default: 6. */
+    radius?: number;
+}
+
+/**
  * A single sample in a recorded trajectory: a {@link Coordinate} stamped with
  * the epoch millisecond it was captured, plus the optional accuracy radius
  * reported by the Geolocation API.

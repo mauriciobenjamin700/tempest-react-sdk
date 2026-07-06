@@ -58,4 +58,15 @@ describe("BrazilMap", () => {
         fireEvent.mouseMove(container.querySelector('path[data-uf="SP"]')!);
         expect(screen.queryByTestId("map-tooltip")).toBeNull();
     });
+
+    it("plots markers and fires onMarkerClick", async () => {
+        const onMarkerClick = vi.fn();
+        const markers = [{ latitude: -23.55, longitude: -46.63, label: "SP capital", id: "sp" }];
+        const { container } = render(<BrazilMap markers={markers} onMarkerClick={onMarkerClick} />);
+        await waitFor(() =>
+            expect(container.querySelector("circle[data-marker-id='sp']")).toBeTruthy(),
+        );
+        await userEvent.click(container.querySelector("circle[data-marker-id='sp']")!);
+        expect(onMarkerClick).toHaveBeenCalledWith(markers[0], 0);
+    });
 });

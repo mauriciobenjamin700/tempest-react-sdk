@@ -4,6 +4,15 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Marcadores, escalas de cor e legenda nos mapas (`/br` + geo)
+
+- **Marcadores (`markers`)** em `BrazilMap`, `BrazilStateMap` e `TrajectoryMap`: pontos `{ latitude, longitude, label?, color?, radius?, id? }` plotados sobre o mapa (incluídos no auto-fit), com `onMarkerClick(marker, index)`. Novo tipo `GeoMarker` (em `geo`) + componente `MapMarkers`.
+- **Escalas de cor**: `sequentialScale`, `quantizeScale`, `thresholdScale` + `interpolatePalette` e paletas colorblind-safe (`SEQUENTIAL_BLUES/GREENS/VIRIDIS`, `DIVERGING_RDBU`). Nova prop `colorScale` em `BrazilMap`/`BrazilStateMap` (precede o ramp de 2 cores).
+- **`MapLegend`**: legenda de gradiente contínuo (min/mid/max + `format`) ou faixas discretas (`items`).
+- **Fix**: o choropleth não tingia de verdade — o `fill` via atributo era sobrescrito pela regra CSS `.state`. Passou a usar `style` inline (vence o CSS). Afetava `BrazilMap`/`BrazilStateMap` desde a introdução do choropleth.
+
+Tests novos (escalas, legenda, marcadores). Docs bilíngues (Parte 6). Gallery: choropleth Viridis + legenda + marcadores de capitais.
+
 ### Geocoding offline + geodata reproduzível (subpath `/br`)
 
 - **`scripts/gen-br-geodata.mjs`** — script reproduzível que baixa as fronteiras do IBGE (UF + municípios), simplifica (Douglas-Peucker ~2 km), divide por UF e **computa centroides**. Substitui o processo manual; roda via `npm run gen:geodata`. Cache em `scripts/.geodata-cache/` (git-ignored).

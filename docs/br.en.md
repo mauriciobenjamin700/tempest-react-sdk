@@ -342,6 +342,57 @@ export function WhereAmI() {
 
 ---
 
+## Part 6 — Markers, color scales and legend
+
+### Markers (pins)
+
+`BrazilMap`, `BrazilStateMap` and `TrajectoryMap` (the [Geolocation](./geo.md) module) accept `markers` — `{ latitude, longitude }` points plotted over the map, with `label` (tooltip), `color`, `radius` and `id`. `onMarkerClick(marker, index)` on click.
+
+```tsx
+import { BrazilMap, type GeoMarker } from "tempest-react-sdk/br";
+
+const capitals: GeoMarker[] = [
+  { id: "sp", latitude: -23.55, longitude: -46.63, label: "São Paulo", color: "#e11d48" },
+  { id: "rj", latitude: -22.91, longitude: -43.17, label: "Rio de Janeiro" },
+];
+
+<BrazilMap markers={capitals} onMarkerClick={(m) => console.log(m.label)} />;
+```
+
+!!! tip "Pins from geocoding"
+    Combine with geocoding (Part 5): `municipalityCentroid(id)` or `geocodeMunicipality(name)` give the coordinates to turn into `markers`.
+
+### Color scales + legend
+
+For a choropleth beyond the 2-color ramp, pass `colorScale` (from `sequentialScale`/`quantizeScale`/`thresholdScale`) and pair it with `<MapLegend>`. Built-in colorblind-safe palettes: `SEQUENTIAL_BLUES`, `SEQUENTIAL_GREENS`, `SEQUENTIAL_VIRIDIS`, `DIVERGING_RDBU`.
+
+```tsx
+import {
+  BrazilMap,
+  MapLegend,
+  sequentialScale,
+  SEQUENTIAL_VIRIDIS,
+} from "tempest-react-sdk/br";
+
+const sales = { SP: 1200, MG: 640, RJ: 580, BA: 410, RS: 390 };
+const scale = sequentialScale(0, 1200, SEQUENTIAL_VIRIDIS);
+
+<div>
+  <BrazilMap values={sales} colorScale={scale} showLabels={false} />
+  <MapLegend title="Sales (R$ k)" min={0} max={1200} palette={SEQUENTIAL_VIRIDIS} />
+</div>;
+```
+
+- **`sequentialScale(min, max, palette)`** — continuous gradient.
+- **`quantizeScale(min, max, palette)`** — `palette.length` equal bands.
+- **`thresholdScale(thresholds, palette)`** — bands by cutoff (`palette` has `thresholds.length + 1` colors).
+- **`<MapLegend>`** — continuous gradient (`min`/`max`/`palette` + `format`) **or** discrete bands (`items={[{ color, label }]}`).
+
+!!! note "Brand palette"
+    The palettes are public standards (ColorBrewer/Viridis). Swap for any ordered list of your brand's hex colors — the scale builders accept any `string[]`.
+
+---
+
 ## About the geometry
 
 - Source: **IBGE** UF boundaries (public domain), simplified with Douglas-Peucker (~2 km tolerance) and rounded to 3 decimals.

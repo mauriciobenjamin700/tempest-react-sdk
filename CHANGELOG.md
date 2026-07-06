@@ -4,6 +4,19 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### `tempest doctor` — diagnósticos de problemas silenciosos
+
+Relatório agrupado por seção (estilo `flutter doctor`) + checks novos pra problemas que **não geram erro de build** mas quebram em runtime ou custam horas:
+
+- **Instância duplicada** de React / libs com contexto (`@tanstack/react-query`, `zustand`, `react-hook-form`, `react-router-dom`) — detecta cópia aninhada sob `tempest-react-sdk` (duas instâncias = hooks/context quebrados). Pulado quando o SDK é `file:`/`link:` local.
+- **`@types/react` × `react`** com majors divergentes.
+- **Peers opcionais de subpaths usados** — importa `/charts` sem `recharts`, `/editor` sem `@tiptap/react`, `/vision` sem `onnxruntime-web`, ou `TrajectoryMap tileUrl=` sem `leaflet`.
+- **tsconfig**: `moduleResolution` fora de `bundler`/`node16`/`nodenext` (subpath exports não resolvem tipos), `jsx` ≠ `react-jsx`, `strict` off.
+- **SDK desatualizado** vs `latest` no npm (best-effort, timeout curto, pula offline).
+- Seções (Environment/Project/Dependency health/TypeScript/Integration/Tooling), linhas de versão e de info. Matchers de uso ancorados em imports/JSX reais (evita falso-positivo de strings em docs/exemplos).
+
+Docs (CLI) bilíngues atualizadas.
+
 ### Pan/zoom, cor por região, busca de município e perf (`/br`)
 
 - **Pan & zoom** (`zoomable`, opt-in) em `BrazilMap`/`BrazilStateMap`: roda-do-mouse (zoom no cursor) + arrastar (pan) + duplo-clique/botão **Reset**. Hook `useMapZoom`.

@@ -7,7 +7,7 @@
 //   tempest format [paths…]  Prettier --write
 //   tempest --help | --version
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -81,11 +81,111 @@ function firstExisting(paths) {
     return paths.find((p) => existsSync(join(ROOT, p))) ?? null;
 }
 
+/** Version string from an installed package's package.json, or null. */
+function installedVersion(name) {
+    return readJSON(join(ROOT, "node_modules", name, "package.json"))?.version ?? null;
+}
+
+/** Major version number from a semver string, or null. */
+function major(version) {
+    if (!version) return null;
+    const m = /(\d+)\./.exec(String(version).replace(/^[^\d]*/, ""));
+    return m ? Number(m[1]) : null;
+}
+
+/**
+ * True when `name` has a **nested** copy under tempest-react-sdk — meaning two
+ * physical instances load at runtime. Silent killer for React (invalid-hook /
+ * dispatcher null) and for context-based libs (react-query, zustand, RHF,
+ * router): providers and consumers end up in different module instances.
+ */
+function nestedDupe(name) {
+    return existsSync(join(ROOT, "node_modules", "tempest-react-sdk", "node_modules", name));
+}
+
+/** Recursively collect source text (bounded) to scan for import usage. */
+function scanSources() {
+    const roots = ["src", "app"].map((d) => join(ROOT, d)).filter(existsSync);
+    let text = "";
+    let budget = 4000; // file cap — keep the doctor fast on big trees
+    const exts = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs"]);
+    const walk = (dir) => {
+        if (budget <= 0) return;
+        let entries;
+        try {
+            entries = readdirSync(dir, { withFileTypes: true });
+        } catch {
+            return;
+        }
+        for (const e of entries) {
+            if (budget <= 0) return;
+            if (e.name === "node_modules" || e.name.startsWith(".")) continue;
+            const full = join(dir, e.name);
+            if (e.isDirectory()) walk(full);
+            else if (exts.has(e.name.slice(e.name.lastIndexOf(".")))) {
+                budget -= 1;
+                try {
+                    text += readFileSync(full, "utf8");
+                } catch {
+                    /* ignore */
+                }
+            }
+        }
+    };
+    roots.forEach(walk);
+    return text;
+}
+
+/** npm's published latest for a package (best-effort, short timeout). */
+function npmLatest(name) {
+    try {
+        const res = spawnSync("npm", ["view", name, "version"], {
+            encoding: "utf8",
+            timeout: 2500,
+        });
+        const v = (res.stdout ?? "").trim();
+        return /^\d+\.\d+\.\d+/.test(v) ? v : null;
+    } catch {
+        return null;
+    }
+}
+
+/** Matches a real `import … from "tempest-react-sdk/<sub>"` (any quote style). */
+function importsSubpath(src, sub) {
+    return new RegExp(`from\\s*["']tempest-react-sdk/${sub}["']`).test(src);
+}
+
+// Optional peer deps required only when the matching subpath/feature is used.
+// Matchers target real import statements / JSX props, not incidental mentions.
+const OPTIONAL_PEERS = [
+    { peer: "recharts", used: (s) => importsSubpath(s, "charts"), why: "charts" },
+    { peer: "@tiptap/react", used: (s) => importsSubpath(s, "editor"), why: "editor" },
+    { peer: "onnxruntime-web", used: (s) => importsSubpath(s, "vision"), why: "vision" },
+    {
+        peer: "leaflet",
+        // Only when a TrajectoryMap actually receives a tileUrl prop.
+        used: (s) => /<TrajectoryMap[^>]*\stileUrl\s*=/.test(s),
+        why: "TrajectoryMap tiles",
+    },
+];
+
+// SDK child-deps that hold module-level state / React context — a second
+// instance silently breaks them (two QueryClients, two RHF contexts, etc.).
+const STATEFUL_DEPS = [
+    "react",
+    "react-dom",
+    "@tanstack/react-query",
+    "zustand",
+    "react-hook-form",
+    "react-router-dom",
+];
+
 function doctor() {
     const checks = [];
     const pkg = readJSON(join(ROOT, "package.json"));
 
-    // Node
+    // ── Environment ─────────────────────────────────────────────────────────
+    checks.push(["section", "Environment"]);
     const [maj, min] = process.versions.node.split(".").map(Number);
     const nodeOk = maj > 20 || (maj === 20 && min >= 19);
     checks.push([
@@ -93,40 +193,133 @@ function doctor() {
         `Node ${process.versions.node}`,
         nodeOk ? "" : "requires >= 20.19",
     ]);
+    checks.push(["info", `tempest CLI v${selfVersion()}`]);
 
-    // package.json
     if (!pkg) {
         checks.push(["fail", "package.json", "not found — run inside your project root"]);
         return report(checks);
     }
-    checks.push(["ok", "package.json found"]);
 
-    // SDK dependency + installed
     const deps = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) };
+    const src = scanSources();
+
+    // ── Project ─────────────────────────────────────────────────────────────
+    checks.push(["section", "Project"]);
+    checks.push(["ok", "package.json found"]);
+    const sdkInstalled = installedVersion("tempest-react-sdk");
     checks.push(
         deps["tempest-react-sdk"]
             ? ["ok", "tempest-react-sdk in dependencies", deps["tempest-react-sdk"]]
-            : [
-                  "fail",
-                  "tempest-react-sdk in dependencies",
-                  "add it: npm install tempest-react-sdk",
-              ],
+            : ["fail", "tempest-react-sdk in dependencies", "npm install tempest-react-sdk"],
     );
     checks.push(
-        existsSync(join(ROOT, "node_modules", "tempest-react-sdk"))
-            ? ["ok", "tempest-react-sdk installed"]
+        sdkInstalled
+            ? ["ok", "tempest-react-sdk installed", `v${sdkInstalled}`]
             : ["fail", "tempest-react-sdk installed", "run npm install"],
     );
-
-    // React peers
-    const hasReact = deps.react && deps["react-dom"];
+    const reactV = installedVersion("react");
     checks.push(
-        hasReact
-            ? ["ok", "react + react-dom present"]
+        deps.react && deps["react-dom"]
+            ? ["ok", "react + react-dom present", reactV ? `v${reactV}` : ""]
             : ["fail", "react + react-dom present", "install react react-dom"],
     );
 
-    // Vite config + createViteConfig
+    // ── Dependency health (silent bugs) ──────────────────────────────────────
+    checks.push(["section", "Dependency health"]);
+
+    // Duplicate / nested instances. Skipped when the SDK is a local file:/link:
+    // dependency — its dev node_modules is expected and not shipped to real installs.
+    const sdkSpec = String(deps["tempest-react-sdk"] ?? "");
+    const linked = sdkSpec.startsWith("file:") || sdkSpec.startsWith("link:");
+    if (linked) {
+        checks.push(["info", "SDK is a local link", "skipping duplicate-instance check"]);
+    } else {
+        const dupes = STATEFUL_DEPS.filter(nestedDupe);
+        checks.push(
+            dupes.length === 0
+                ? ["ok", "single instance of React & stateful deps"]
+                : [
+                      "warn",
+                      `duplicate instance: ${dupes.join(", ")}`,
+                      "nested copy under tempest-react-sdk — run `npm dedupe` or align versions; two instances break hooks/context",
+                  ],
+        );
+    }
+
+    // @types/react major vs react major.
+    const typesReact = installedVersion("@types/react");
+    if (typesReact && reactV) {
+        checks.push(
+            major(typesReact) === major(reactV)
+                ? ["ok", "@types/react matches react", `v${major(reactV)}`]
+                : [
+                      "warn",
+                      "@types/react mismatch",
+                      `@types/react v${major(typesReact)} vs react v${major(reactV)} — align them`,
+                  ],
+        );
+    }
+
+    // Optional peers for used subpaths.
+    for (const { peer, used, why } of OPTIONAL_PEERS) {
+        if (used(src) && !installedVersion(peer)) {
+            checks.push([
+                "warn",
+                `${peer} missing (used by ${why})`,
+                `you import ${why} but ${peer} isn't installed — npm i ${peer}`,
+            ]);
+        }
+    }
+
+    // SDK up to date (online, best-effort).
+    if (sdkInstalled) {
+        const latest = npmLatest("tempest-react-sdk");
+        if (latest && latest !== sdkInstalled) {
+            const behind = (major(latest) ?? 0) > (major(sdkInstalled) ?? 0);
+            checks.push([
+                behind ? "warn" : "info",
+                "tempest-react-sdk update available",
+                `installed v${sdkInstalled} · latest v${latest}`,
+            ]);
+        } else if (latest) {
+            checks.push(["ok", "tempest-react-sdk up to date", `v${latest}`]);
+        }
+    }
+
+    // ── TypeScript ────────────────────────────────────────────────────────────
+    const tsc = readJSON(join(ROOT, "tsconfig.json"));
+    if (tsc) {
+        checks.push(["section", "TypeScript"]);
+        const co = tsc.compilerOptions ?? {};
+        checks.push(
+            co.paths?.["@/*"]
+                ? ["ok", 'tsconfig "@/*" alias']
+                : ["warn", 'tsconfig "@/*" alias', 'add "paths": { "@/*": ["./src/*"] }'],
+        );
+        const mr = String(co.moduleResolution ?? "").toLowerCase();
+        checks.push(
+            ["bundler", "node16", "nodenext"].includes(mr)
+                ? ["ok", `moduleResolution: ${co.moduleResolution}`]
+                : [
+                      "warn",
+                      `moduleResolution: ${co.moduleResolution ?? "(unset)"}`,
+                      'use "bundler" — otherwise subpath types (tempest-react-sdk/br, /charts…) won\'t resolve',
+                  ],
+        );
+        checks.push(
+            String(co.jsx ?? "").toLowerCase() === "react-jsx"
+                ? ["ok", 'jsx: "react-jsx"']
+                : ["warn", `jsx: ${co.jsx ?? "(unset)"}`, 'set "jsx": "react-jsx"'],
+        );
+        checks.push(
+            co.strict === true
+                ? ["ok", "strict mode on"]
+                : ["warn", "strict mode off", 'enable "strict": true to catch silent type bugs'],
+        );
+    }
+
+    // ── Integration ───────────────────────────────────────────────────────────
+    checks.push(["section", "Integration"]);
     const viteCfg = firstExisting(["vite.config.ts", "vite.config.js", "vite.config.mjs"]);
     if (!viteCfg) {
         checks.push(["warn", "vite config", "no vite.config.* found"]);
@@ -137,17 +330,6 @@ function doctor() {
                 : ["warn", `${viteCfg}`, "not using createViteConfig from tempest-react-sdk/vite"],
         );
     }
-
-    // tsconfig @ alias
-    const tsc = readJSON(join(ROOT, "tsconfig.json"));
-    const paths = tsc?.compilerOptions?.paths ?? {};
-    checks.push(
-        paths["@/*"]
-            ? ["ok", 'tsconfig "@/*" alias']
-            : ["warn", 'tsconfig "@/*" alias', 'add "paths": { "@/*": ["./src/*"] }'],
-    );
-
-    // styles.css imported at entry
     const entry = firstExisting(["src/main.tsx", "src/main.ts", "src/index.tsx", "src/index.ts"]);
     if (entry) {
         checks.push(
@@ -159,7 +341,8 @@ function doctor() {
         checks.push(["warn", "app entry", "no src/main.tsx found"]);
     }
 
-    // tooling
+    // ── Tooling ────────────────────────────────────────────────────────────────
+    checks.push(["section", "Tooling"]);
     checks.push(
         firstExisting(["eslint.config.js", "eslint.config.mjs", ".eslintrc.cjs", ".eslintrc.json"])
             ? ["ok", "ESLint config present"]
@@ -175,8 +358,6 @@ function doctor() {
             ? ["ok", "prettier installed"]
             : ["warn", "prettier installed", "npm i -D prettier"],
     );
-
-    // .env
     if (existsSync(join(ROOT, ".env"))) checks.push(["ok", ".env present"]);
     else if (existsSync(join(ROOT, ".env.example")))
         checks.push(["warn", ".env", "only .env.example — copy it: cp .env.example .env"]);
@@ -185,8 +366,20 @@ function doctor() {
 }
 
 function report(checks) {
-    console.log(`\n${c.bold}${c.cyan}tempest doctor${c.reset} ${c.dim}(${ROOT})${c.reset}\n`);
-    for (const [status, label, detail] of checks) console.log(fmt(status, label, detail));
+    console.log(`\n${c.bold}${c.cyan}tempest doctor${c.reset} ${c.dim}(${ROOT})${c.reset}`);
+    for (const entry of checks) {
+        if (entry[0] === "section") {
+            console.log(`\n${c.bold}${entry[1]}${c.reset}`);
+            continue;
+        }
+        if (entry[0] === "info") {
+            console.log(
+                `  [${c.cyan}i${c.reset}] ${entry[1]}${entry[2] ? ` ${c.dim}— ${entry[2]}${c.reset}` : ""}`,
+            );
+            continue;
+        }
+        console.log(fmt(entry[0], entry[1], entry[2]));
+    }
     const fails = checks.filter((x) => x[0] === "fail").length;
     const warns = checks.filter((x) => x[0] === "warn").length;
     console.log("");

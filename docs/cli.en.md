@@ -12,7 +12,9 @@ scripts the scaffold already creates.
 
 ## `tempest doctor`
 
-Diagnoses the current project and prints a `[✓] / [!] / [✗]` report:
+Diagnoses the current project and prints a `[✓] / [!] / [✗]` report **grouped by
+section** (à la `flutter doctor`) — including **silent problems** that don't
+break the build but blow up at runtime or eat hours of debugging:
 
 ```bash
 npx tempest doctor
@@ -21,20 +23,41 @@ npx tempest doctor
 ```text
 tempest doctor (/path/to/your/app)
 
+Environment
   [✓] Node 22.13.0
+  [i] tempest CLI v0.18.0
+
+Project
   [✓] package.json found
-  [✓] tempest-react-sdk in dependencies — ^0.7.0
-  [✓] tempest-react-sdk installed
-  [✓] react + react-dom present
-  [✓] vite.config.ts uses createViteConfig
+  [✓] tempest-react-sdk in dependencies — ^0.18.0
+  [✓] tempest-react-sdk installed — v0.18.0
+  [✓] react + react-dom present — v19.2.0
+
+Dependency health
+  [!] duplicate instance: react — nested copy under tempest-react-sdk;
+      run `npm dedupe`; two instances break hooks/context
+  [✓] @types/react matches react — v19
+  [!] recharts missing (used by charts) — you import charts but recharts
+      isn't installed — npm i recharts
+  [✓] tempest-react-sdk up to date — v0.18.0
+
+TypeScript
   [✓] tsconfig "@/*" alias
+  [!] moduleResolution: node — use "bundler" (otherwise subpaths
+      tempest-react-sdk/br, /charts… won't resolve types)
+  [✓] jsx: "react-jsx"
+  [!] strict mode off — enable "strict": true
+
+Integration
+  [✓] vite.config.ts uses createViteConfig
   [✓] src/main.tsx imports styles.css
+
+Tooling
   [✓] ESLint config present
   [✓] eslint installed
   [✓] prettier installed
-  [!] .env — only .env.example — copy it: cp .env.example .env
 
-! 1 warning(s) — usable, but worth fixing.
+! 3 warning(s) — usable, but worth fixing.
 ```
 
 !!! tip "Use it at onboarding and in CI"
@@ -42,10 +65,24 @@ tempest doctor (/path/to/your/app)
     and as a quick CI step. It exits with code **1** on any `✗` (blocking
     problem); `!` warnings don't fail the command.
 
-It checks: Node version (≥ 20.19), `tempest-react-sdk` declared and installed,
-`react`/`react-dom`, `vite.config.*` using `createViteConfig`, the `@/*` alias
-in `tsconfig`, the `styles.css` import in the entry, ESLint and Prettier config +
-binaries, and the `.env`.
+### What it checks
+
+**Environment** — Node ≥ 20.19; CLI version.
+
+**Project** — `tempest-react-sdk` declared and installed (with version); `react`/`react-dom` present.
+
+**Dependency health** (the silent ones):
+
+- **Duplicate instance** of React or a stateful/context lib (`@tanstack/react-query`, `zustand`, `react-hook-form`, `react-router-dom`): a copy **nested** under `tempest-react-sdk` means **two instances** at runtime — invalid hooks, a `QueryClient`/RHF context that "vanishes". Suggests `npm dedupe`. _(Skipped when the SDK is a local `file:`/`link:` dependency.)_
+- **`@types/react` vs `react`** major mismatch → phantom type errors.
+- **Optional peers for used subpaths**: importing `tempest-react-sdk/charts` without `recharts`, `/editor` without `@tiptap/react`, `/vision` without `onnxruntime-web`, or passing `tileUrl` to `TrajectoryMap` without `leaflet` — it all compiles, then breaks on the lazy import at runtime.
+- **SDK out of date** vs `latest` on npm (best-effort, short timeout; skipped offline).
+
+**TypeScript** — `@/*` alias; **`moduleResolution`** ∈ `bundler`/`node16`/`nodenext` (otherwise _subpath exports_ like `tempest-react-sdk/br` won't resolve types — silent!); **`jsx: "react-jsx"`**; **`strict: true`**.
+
+**Integration** — `vite.config.*` using `createViteConfig`; `styles.css` import in the entry.
+
+**Tooling** — ESLint and Prettier config + binaries; `.env` vs `.env.example`.
 
 ## `tempest fix`
 

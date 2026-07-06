@@ -115,7 +115,18 @@ export function SeletorNoMapa() {
 
 - `onSelect(uf)` dispara no clique (e no Enter/Espaço — os estados são focáveis quando há `onSelect`).
 - `selected` aceita uma UF **ou uma lista** — útil pra seleção múltipla.
-- Cada estado tem `<title>` (tooltip nativo) e `aria-label` com o nome — acessível por padrão.
+- Cada estado tem `aria-label` com o nome — acessível por padrão.
+
+!!! tip "Tooltip ao passar o mouse"
+    Por padrão (`showTooltip`, default `true`) aparece uma **dica flutuante** ao passar o mouse: **nome, sigla, região e nº de cidades** — e o valor do choropleth quando `values` está setado (ex.: `São Paulo (SP) · Sudeste · 645 cidades`). Passe `showTooltip={false}` pra desligar, ou `renderTooltip={(data) => ...}` pra customizar o conteúdo (`data` = `{ uf, name, value? }`).
+
+    ```tsx
+    <BrazilMap
+      renderTooltip={({ uf, name, value }) => (
+        <><strong>{name}</strong> — {value ?? "sem dado"}</>
+      )}
+    />
+    ```
 
 ### Choropleth (tinta por métrica)
 
@@ -191,6 +202,8 @@ _(veja também o [`BrazilStateMap`](#parte-4-submapa-de-estado-brazilstatemap) p
 | `height` | `number` | `440` | Altura do viewport em px. |
 | `padding` | `number` | `12` | Margem interna em px. |
 | `showLabels` | `boolean` | `true` | Sigla no centroide de cada UF. |
+| `showTooltip` | `boolean` | `true` | Dica flutuante (nome + região + nº cidades + valor) no hover. |
+| `renderTooltip` | `(data) => ReactNode` | — | Conteúdo custom do tooltip (`{ uf, name, value? }`). |
 | `label` | `string` | `"Mapa do Brasil por estado"` | Rótulo acessível da região. |
 
 ---
@@ -219,6 +232,7 @@ export function MunicipiosDeSP() {
 - `selected` — casa por `id` **ou** por `name`; aceita lista.
 - `values` — choropleth por município (chave = `id` ou `name`).
 - `showLabels` — **`false` por padrão**: um estado tem centenas de municípios e os rótulos se sobrepõem.
+- `showTooltip` (default `true`) — dica flutuante no hover com **nome + código IBGE** (+ valor do choropleth quando houver). `renderTooltip={(data) => ...}` customiza (`data` = `{ id, name, value? }`).
 
 ### Drill-down nacional → estado (receita)
 

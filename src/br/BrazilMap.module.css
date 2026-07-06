@@ -63,3 +63,29 @@
     pointer-events: none;
     user-select: none;
 }
+
+.tooltip {
+    position: absolute;
+    z-index: 2;
+    transform: translate(12px, 12px);
+    max-width: 240px;
+    padding: var(--tempest-space-2) var(--tempest-space-3);
+    background: var(--tempest-surface);
+    color: var(--tempest-text);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-md);
+    box-shadow: var(--tempest-shadow-md, 0 4px 12px rgb(0 0 0 / 0.12));
+    font-size: var(--tempest-text-xs);
+    line-height: var(--tempest-leading-snug);
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.tooltipTitle {
+    font-weight: var(--tempest-weight-semibold);
+    font-size: var(--tempest-text-sm);
+}
+
+.tooltipMeta {
+    color: var(--tempest-text-muted);
+}

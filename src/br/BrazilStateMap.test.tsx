@@ -1,4 +1,4 @@
-import { render, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { BrazilStateMap } from "./BrazilStateMap";
@@ -45,5 +45,19 @@ describe("BrazilStateMap", () => {
         await waitFor(() => expect(container.querySelector("path[data-city-id]")).toBeTruthy());
         const el = container.querySelector(`path[data-city="${CSS.escape(target)}"]`)!;
         expect(el.getAttribute("aria-pressed")).toBe("true");
+    });
+
+    it("shows a hover tooltip with municipality name + IBGE code", async () => {
+        const { container } = render(<BrazilStateMap uf="AC" />);
+        await waitFor(() => expect(container.querySelector("path[data-city-id]")).toBeTruthy());
+
+        const path = container.querySelector("path[data-city-id]")!;
+        const name = path.getAttribute("data-city")!;
+        const id = path.getAttribute("data-city-id")!;
+        fireEvent.mouseMove(path);
+
+        const tip = await screen.findByTestId("map-tooltip");
+        expect(tip).toHaveTextContent(name);
+        expect(tip).toHaveTextContent(`IBGE ${id}`);
     });
 });

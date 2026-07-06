@@ -2,8 +2,10 @@ import { useEffect, useMemo, useRef, useState, type HTMLAttributes, type ReactNo
 import { cn } from "@/utils/cn";
 import { fitProjection } from "@/geo/projection";
 import { getState, type UF } from "./locations";
+import { MapTooltip } from "./MapTooltip";
 import { loadStateMunicipalities, type StateMunicipalities } from "./state-geo";
 import { geometriesBounds, geometryCentroid, geometryPath, lerpColor } from "./svg-utils";
+import { useMapHover } from "./use-map-hover";
 import styles from "./BrazilMap.module.css";
 
 /** A municipality identified for selection callbacks. */
@@ -12,6 +14,12 @@ export interface Municipality {
     id: string;
     /** Municipality name. */
     name: string;
+}
+
+/** Data passed to a {@link BrazilStateMapProps.renderTooltip} callback. */
+export interface BrazilStateMapTooltipData extends Municipality {
+    /** Choropleth value for this municipality, if `values` was provided. */
+    value?: number;
 }
 
 export interface BrazilStateMapProps extends Omit<HTMLAttributes<HTMLDivElement>, "onSelect"> {
@@ -43,6 +51,10 @@ export interface BrazilStateMapProps extends Omit<HTMLAttributes<HTMLDivElement>
     label?: string;
     /** Content while the state geometry is loading. */
     loadingContent?: ReactNode;
+    /** Show a floating tooltip (name + IBGE code + value) on hover. Default: `true`. */
+    showTooltip?: boolean;
+    /** Override the default tooltip content. */
+    renderTooltip?: (data: BrazilStateMapTooltipData) => ReactNode;
 }
 
 /**
@@ -71,6 +83,8 @@ export function BrazilStateMap({
     showLabels = false,
     label,
     loadingContent,
+    showTooltip = true,
+    renderTooltip,
     className,
     style,
     ...rest
@@ -78,6 +92,7 @@ export function BrazilStateMap({
     const containerRef = useRef<HTMLDivElement>(null);
     const [width, setWidth] = useState<number>(600);
     const [collection, setCollection] = useState<StateMunicipalities | null>(null);
+    const { hover, onMove, onLeave } = useMapHover<Municipality>(containerRef);
 
     useEffect(() => {
         let active = true;
@@ -179,6 +194,12 @@ export function BrazilStateMap({
                                         ? () => onSelect({ id: shape.id, name: shape.name })
                                         : undefined
                                 }
+                                onMouseMove={
+                                    showTooltip
+                                        ? (e) => onMove({ id: shape.id, name: shape.name }, e)
+                                        : undefined
+                                }
+                                onMouseLeave={showTooltip ? onLeave : undefined}
                                 onKeyDown={
                                     onSelect
                                         ? (e) => {
@@ -189,9 +210,7 @@ export function BrazilStateMap({
                                           }
                                         : undefined
                                 }
-                            >
-                                <title>{shape.name}</title>
-                            </path>
+                            />
                         );
                     })}
 
@@ -209,6 +228,28 @@ export function BrazilStateMap({
                             </text>
                         ))}
                 </svg>
+            )}
+
+            {showTooltip && hover && (
+                <MapTooltip x={hover.x} y={hover.y}>
+                    {renderTooltip ? (
+                        renderTooltip({
+                            ...hover.item,
+                            value: values?.[hover.item.id] ?? values?.[hover.item.name],
+                        })
+                    ) : (
+                        <>
+                            <div className={styles.tooltipTitle}>{hover.item.name}</div>
+                            <div className={styles.tooltipMeta}>
+                                IBGE {hover.item.id}
+                                {(() => {
+                                    const v = values?.[hover.item.id] ?? values?.[hover.item.name];
+                                    return typeof v === "number" ? ` · ${v}` : "";
+                                })()}
+                            </div>
+                        </>
+                    )}
+                </MapTooltip>
             )}
         </div>
     );

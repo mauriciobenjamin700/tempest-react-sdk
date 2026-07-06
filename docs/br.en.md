@@ -115,7 +115,18 @@ export function MapPicker() {
 
 - `onSelect(uf)` fires on click (and on Enter/Space — states are focusable when `onSelect` is set).
 - `selected` accepts a single UF **or a list** — handy for multi-select.
-- Each state has a `<title>` (native tooltip) and an `aria-label` with the name — accessible by default.
+- Each state has an `aria-label` with the name — accessible by default.
+
+!!! tip "Hover tooltip"
+    By default (`showTooltip`, default `true`) a **floating tooltip** appears on hover: **name, acronym, region and city count** — plus the choropleth value when `values` is set (e.g. `São Paulo (SP) · Sudeste · 645 cidades`). Pass `showTooltip={false}` to disable, or `renderTooltip={(data) => ...}` to customize the content (`data` = `{ uf, name, value? }`).
+
+    ```tsx
+    <BrazilMap
+      renderTooltip={({ uf, name, value }) => (
+        <><strong>{name}</strong> — {value ?? "no data"}</>
+      )}
+    />
+    ```
 
 ### Choropleth (tint by metric)
 
@@ -186,6 +197,8 @@ _(see also [`BrazilStateMap`](#part-4-state-submap-brazilstatemap) for the munic
 | `height` | `number` | `440` | Viewport height in px. |
 | `padding` | `number` | `12` | Inner padding in px. |
 | `showLabels` | `boolean` | `true` | Acronym at each UF centroid. |
+| `showTooltip` | `boolean` | `true` | Floating hover tooltip (name + region + city count + value). |
+| `renderTooltip` | `(data) => ReactNode` | — | Custom tooltip content (`{ uf, name, value? }`). |
 | `label` | `string` | `"Mapa do Brasil por estado"` | Accessible region label. |
 
 ---
@@ -214,6 +227,7 @@ export function SPMunicipalities() {
 - `selected` — matches by `id` **or** `name`; accepts a list.
 - `values` — choropleth by municipality (key = `id` or `name`).
 - `showLabels` — **`false` by default**: a state has hundreds of municipalities and labels overlap.
+- `showTooltip` (default `true`) — floating hover tooltip with **name + IBGE code** (+ choropleth value when present). `renderTooltip={(data) => ...}` customizes it (`data` = `{ id, name, value? }`).
 
 ### National → state drill-down (recipe)
 

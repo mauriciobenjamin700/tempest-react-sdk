@@ -32,8 +32,12 @@ export type { MunicipalityFeature, StateMunicipalities } from "./state-geo";
 
 // Components
 export { BrazilMap } from "./BrazilMap";
-export type { BrazilMapProps } from "./BrazilMap";
+export type { BrazilMapProps, BrazilMapTooltipData } from "./BrazilMap";
 export { BrazilStateMap } from "./BrazilStateMap";
-export type { BrazilStateMapProps, Municipality } from "./BrazilStateMap";
+export type {
+    BrazilStateMapProps,
+    BrazilStateMapTooltipData,
+    Municipality,
+} from "./BrazilStateMap";
 export { BrazilStateCitySelect } from "./BrazilStateCitySelect";
 export type { BrazilStateCitySelectProps, BrazilStateCitySelection } from "./BrazilStateCitySelect";

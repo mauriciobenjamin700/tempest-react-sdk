@@ -2,9 +2,19 @@ import { useEffect, useMemo, useRef, useState, type HTMLAttributes, type ReactNo
 import { cn } from "@/utils/cn";
 import { fitProjection } from "@/geo/projection";
 import type { BrUfFeatureCollection } from "./br-geo";
-import type { UF } from "./locations";
+import { getState, type UF } from "./locations";
+import { MapTooltip } from "./MapTooltip";
 import { geometriesBounds, geometryCentroid, geometryPath, lerpColor } from "./svg-utils";
+import { useMapHover } from "./use-map-hover";
 import styles from "./BrazilMap.module.css";
+
+/** Data passed to a {@link BrazilMapProps.renderTooltip} callback. */
+export interface BrazilMapTooltipData {
+    uf: UF;
+    name: string;
+    /** Choropleth value for this UF, if `values` was provided. */
+    value?: number;
+}
 
 export interface BrazilMapProps extends Omit<HTMLAttributes<HTMLDivElement>, "onSelect"> {
     /** Currently selected UF(s) — highlighted. Accepts one or many. */
@@ -31,6 +41,10 @@ export interface BrazilMapProps extends Omit<HTMLAttributes<HTMLDivElement>, "on
     label?: string;
     /** Custom content when the geometry is still loading. */
     loadingContent?: ReactNode;
+    /** Show a floating tooltip (name + region + city count + value) on hover. Default: `true`. */
+    showTooltip?: boolean;
+    /** Override the default tooltip content. */
+    renderTooltip?: (data: BrazilMapTooltipData) => ReactNode;
 }
 
 /**
@@ -61,6 +75,8 @@ export function BrazilMap({
     showLabels = true,
     label = "Mapa do Brasil por estado",
     loadingContent,
+    showTooltip = true,
+    renderTooltip,
     className,
     style,
     ...rest
@@ -68,6 +84,7 @@ export function BrazilMap({
     const containerRef = useRef<HTMLDivElement>(null);
     const [width, setWidth] = useState<number>(600);
     const [collection, setCollection] = useState<BrUfFeatureCollection | null>(null);
+    const { hover, onMove, onLeave } = useMapHover<{ uf: UF; name: string }>(containerRef);
 
     useEffect(() => {
         let active = true;
@@ -161,6 +178,12 @@ export function BrazilMap({
                                 aria-label={shape.name}
                                 aria-pressed={onSelect ? isSelected : undefined}
                                 onClick={onSelect ? () => onSelect(shape.uf) : undefined}
+                                onMouseMove={
+                                    showTooltip
+                                        ? (e) => onMove({ uf: shape.uf, name: shape.name }, e)
+                                        : undefined
+                                }
+                                onMouseLeave={showTooltip ? onLeave : undefined}
                                 onKeyDown={
                                     onSelect
                                         ? (e) => {
@@ -171,9 +194,7 @@ export function BrazilMap({
                                           }
                                         : undefined
                                 }
-                            >
-                                <title>{shape.name}</title>
-                            </path>
+                            />
                         );
                     })}
 
@@ -192,6 +213,40 @@ export function BrazilMap({
                         ))}
                 </svg>
             )}
+
+            {showTooltip && hover && (
+                <MapTooltip x={hover.x} y={hover.y}>
+                    {renderTooltip ? (
+                        renderTooltip({
+                            uf: hover.item.uf,
+                            name: hover.item.name,
+                            value: values?.[hover.item.uf],
+                        })
+                    ) : (
+                        <DefaultUfTooltip
+                            uf={hover.item.uf}
+                            name={hover.item.name}
+                            value={values?.[hover.item.uf]}
+                        />
+                    )}
+                </MapTooltip>
+            )}
         </div>
+    );
+}
+
+/** Default UF tooltip: name (UF) + region + city count + optional value. */
+function DefaultUfTooltip({ uf, name, value }: { uf: UF; name: string; value?: number }) {
+    const state = getState(uf);
+    return (
+        <>
+            <div className={styles.tooltipTitle}>
+                {name} ({uf})
+            </div>
+            <div className={styles.tooltipMeta}>
+                {state ? `${state.region} · ${state.cities.length} cidades` : uf}
+                {typeof value === "number" ? ` · ${value}` : ""}
+            </div>
+        </>
     );
 }

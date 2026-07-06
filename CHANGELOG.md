@@ -2,6 +2,19 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
+## [0.18.0] — 2026-07-06
+
+### Tooltips de hover nos mapas do Brasil (`BrazilMap` + `BrazilStateMap`)
+
+Passar o mouse sobre um estado ou município agora mostra uma **dica flutuante estilizada** com nome + metadados (antes só havia o `<title>` nativo com o nome cru).
+
+- **`BrazilMap`** — tooltip com **nome, sigla, região e nº de cidades** (+ valor do choropleth quando `values` está setado). Ex.: `São Paulo (SP) · Sudeste · 645 cidades`.
+- **`BrazilStateMap`** — tooltip com **nome do município + código IBGE** (+ valor do choropleth).
+- Novas props em ambos: `showTooltip` (default `true`) liga/desliga; `renderTooltip((data) => ReactNode)` customiza o conteúdo. Tipos `BrazilMapTooltipData` (`{ uf, name, value? }`) e `BrazilStateMapTooltipData` (`{ id, name, value? }`).
+- O `<title>` nativo foi removido (evita tooltip duplicado); a acessibilidade fica no `aria-label` de cada shape, e o tooltip visual é `aria-hidden` pra não duplicar no leitor de tela. Tooltip segue o cursor, não intercepta hover (`pointer-events: none`), e usa tokens `--tempest-*`.
+
+6 tests novos (hover mostra/esconde, valor do choropleth, `showTooltip={false}`, tooltip municipal). Docs bilíngues atualizadas. Sem breaking changes.
+
 ## [0.17.0] — 2026-07-06
 
 ### Submapas de estado — `BrazilStateMap` (todos os municípios de uma UF)

@@ -58,6 +58,7 @@ plugins:
                     OpenAPI (codegen): OpenAPI (codegen)
                     Vite & alias: Vite & alias
                     Roteamento: Routing
+                    Geolocalização: Geolocation
                     Estado (Zustand): State (Zustand)
                     Providers: Providers
                     Componentes: Components
@@ -159,6 +160,7 @@ nav:
           - Data Provider (CRUD): data-provider.md
           - SSE: sse.md
           - WebSocket: websocket.md
+          - Geolocalização: geo.md
           - Web Push: push.md
           - Offline: offline.md
           - Web Share: share.md

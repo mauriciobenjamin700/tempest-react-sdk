@@ -33,6 +33,7 @@ import { AuthAccessRecipeSection } from "./AuthAccessRecipeSection";
 import { HttpRecipeSection } from "./HttpRecipeSection";
 import { QueryRecipeSection } from "./QueryRecipeSection";
 import { RealtimeRecipeSection } from "./RealtimeRecipeSection";
+import { GeoSection } from "./GeoSection";
 
 /** Sidebar grouping for sections, in display order. */
 export type SectionGroup = "Componentes" | "Hooks" | "Receitas" | "Fundação";
@@ -270,6 +271,14 @@ export const SECTIONS: SectionEntry[] = [
         keywords: "usewebsocket createwebsocket reconnect backoff realtime ws socket",
         group: "Receitas",
         Component: RealtimeRecipeSection,
+    },
+    {
+        id: "geo",
+        label: "Geolocalização (mapas & trajetória)",
+        keywords:
+            "geolocation geo trajectory map trajectorymap usepositiontracker createpositiontracker haversinekm pathlengthkm estimatetravel coordinate bearingdeg boundingbox osrm leaflet mercator latitude longitude",
+        group: "Receitas",
+        Component: GeoSection,
     },
     {
         id: "recipe-auth",

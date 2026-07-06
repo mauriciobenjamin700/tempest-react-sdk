@@ -2,6 +2,21 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
+## [0.15.0] — 2026-07-05
+
+### Geolocalização — novo módulo `geo` (self-hosted, sem API paga/externa)
+
+Coleta de latitude/longitude, cálculo de distância/trajetória e plot de mapa **100% no navegador**, sem nenhuma API paga ou externa. Espelha o módulo `geo` do [`tempest-fastapi-sdk`](https://pypi.org/project/tempest-fastapi-sdk/) — tipos e matemática batem entre cliente e servidor.
+
+- **Tipos + validadores** — `Coordinate`, `TrackPoint`, `TravelEstimate` (snake_case preservado pra desserializar direto de uma resposta), `TravelMode`, `GeoBounds`; `isValidLatitude`/`isValidLongitude`/`isCoordinate`/`clampLatitude`/`normalizeLongitude`.
+- **Matemática offline** — `haversineKm`, `pathLengthKm`, `bearingDeg` (mesma `EARTH_RADIUS_KM` do backend); `estimateTravel` (heurística: grande-círculo × circuity 1.3, velocidade média por modo `car 1.0 · motorcycle 0.95 · bus 1.6`); `boundingBox`/`boundsCenter`/`expandBounds`.
+- **Projeção Web Mercator** — `projectMercator`/`unprojectMercator`/`fitProjection` — núcleo do plot tile-free (mesma projeção dos tile servers, então SVG e tiles alinham).
+- **Rastreamento ao vivo** — `createPositionTracker` (controller sobre `watchPosition`, filtra jitter, acumula distância) + `usePositionTracker` (hook com ciclo de vida amarrado ao componente).
+- **`TrajectoryMap`** — plot **SVG tile-free por padrão** (projeção + auto-fit + polyline + marcadores início/atual + grid + barra de escala em km), **zero request externa**. Prop `tileUrl` (opt-in) sobe uma camada Leaflet real a partir de um tile server **seu** — `leaflet` é peer **opcional, lazy-loaded** (nunca entra no bundle sem `tileUrl`).
+- **Rota real opt-in** — `createOSRMBackend` + interface `RoutingBackend`: aponta pro **seu** OSRM (único ponto que toca a rede; caller injeta a URL). Para zero-rede, `estimateTravel`.
+
+52 tests novos. Docs bilíngues novas (`geo.md` / `geo.en.md`) em **Integrações**, seção nova na galeria (com fallback "simular caminhada" sem GPS). Complementa o hook de baixo nível `useGeolocation` (fix único / watch). `leaflet` adicionado como peer opcional. Sem breaking changes.
+
 ## [0.14.0] — 2026-06-28
 
 ### Ergonomia PWA (remove boilerplate dos apps consumidores)

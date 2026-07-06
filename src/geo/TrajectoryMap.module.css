@@ -1,0 +1,92 @@
+.map {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    background: var(--tempest-surface-2);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-lg);
+    font-family: var(--tempest-font-sans);
+}
+
+.svg {
+    display: block;
+    width: 100%;
+}
+
+.empty,
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-sm);
+}
+
+.grid line {
+    stroke: var(--tempest-border);
+    stroke-width: 1;
+    stroke-dasharray: 3 5;
+    opacity: 0.5;
+}
+
+.path {
+    stroke: var(--tempest-primary);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.start {
+    fill: var(--tempest-success-solid);
+    stroke: var(--tempest-surface);
+    stroke-width: 2;
+}
+
+.end {
+    fill: var(--tempest-primary);
+    stroke: var(--tempest-surface);
+    stroke-width: 2;
+}
+
+.current {
+    fill: var(--tempest-primary);
+    stroke: var(--tempest-surface);
+    stroke-width: 2;
+}
+
+.pulse {
+    fill: var(--tempest-primary);
+    opacity: 0.25;
+    transform-origin: center;
+    transform-box: fill-box;
+    animation: tempest-geo-pulse 1.8s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pulse {
+        animation: none;
+    }
+}
+
+@keyframes tempest-geo-pulse {
+    0% {
+        transform: scale(0.6);
+        opacity: 0.35;
+    }
+    100% {
+        transform: scale(1.6);
+        opacity: 0;
+    }
+}
+
+.scale line {
+    stroke: var(--tempest-text);
+    stroke-width: 2;
+}
+
+.scale text {
+    fill: var(--tempest-text);
+    font-size: var(--tempest-text-xs);
+    font-family: var(--tempest-font-sans);
+}

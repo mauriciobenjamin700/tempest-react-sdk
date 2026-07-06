@@ -60,6 +60,9 @@ export * from "./forms";
 // WebSocket
 export * from "./ws";
 
+// Geolocation (tile-free maps, trajectory tracking, distance/estimate math)
+export * from "./geo";
+
 // Theme
 export * from "./theme";
 

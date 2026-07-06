@@ -73,6 +73,8 @@ export default defineConfig({
                 "@tiptap/core",
                 "@tiptap/pm",
                 "onnxruntime-web",
+                // Optional peer for the geo module's Leaflet tile layer (lazy).
+                "leaflet",
                 // `tempest-react-sdk/vite` is a Node-only config helper — keep
                 // vite + its react plugin (and node builtins) out of the bundle.
                 "vite",

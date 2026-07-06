@@ -2,7 +2,7 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.19.0] — 2026-07-06
 
 ### `tempest doctor` — diagnósticos de problemas silenciosos
 

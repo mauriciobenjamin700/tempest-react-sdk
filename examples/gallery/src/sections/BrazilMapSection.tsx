@@ -7,6 +7,8 @@ import {
     citiesByUf,
     getState,
     MapLegend,
+    MunicipalitySearch,
+    regionLegendItems,
     sequentialScale,
     SEQUENTIAL_VIRIDIS,
     type GeoMarker,
@@ -150,13 +152,22 @@ function DrillDownDemo(): ReactElement {
                 </div>
                 <div style={{ flex: "1 1 280px", minWidth: 0 }}>
                     <span style={{ fontSize: 13, color: "var(--tempest-text-muted, #888)" }}>
-                        2. Clique num município de {getState(uf)?.name}
+                        2. Busque ou clique num município de {getState(uf)?.name} (zoom com a roda)
                     </span>
+                    <div style={{ marginBottom: 8, maxWidth: 260 }}>
+                        <MunicipalitySearch
+                            key={uf}
+                            uf={uf}
+                            placeholder="Buscar município…"
+                            onSelect={(m) => setCity({ id: m.id, name: m.name })}
+                        />
+                    </div>
                     <BrazilStateMap
                         uf={uf}
                         selected={city?.name ?? null}
                         onSelect={setCity}
                         height={320}
+                        zoomable
                     />
                 </div>
             </div>
@@ -305,6 +316,33 @@ function DrillDown() {
 />;`}
             >
                 <ChoroplethDemo />
+            </Example>
+
+            <Example
+                id="ex-brazil-region"
+                title="BrazilMap — cor por região + legenda"
+                note={
+                    <>
+                        <code>colorByRegion</code> tinge cada UF pela macro-região; a legenda vem de{" "}
+                        <code>regionLegendItems()</code>.
+                    </>
+                }
+                code={`import { BrazilMap, MapLegend, regionLegendItems } from "tempest-react-sdk/br";
+
+<BrazilMap colorByRegion showLabels={false} />
+<MapLegend title="Região" items={regionLegendItems()} />`}
+            >
+                <div
+                    style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}
+                >
+                    <BrazilMap
+                        colorByRegion
+                        showLabels={false}
+                        height={380}
+                        style={{ flex: "1 1 300px" }}
+                    />
+                    <MapLegend title="Região" items={regionLegendItems()} />
+                </div>
             </Example>
 
             <Example

@@ -59,6 +59,29 @@ describe("BrazilMap", () => {
         expect(screen.queryByTestId("map-tooltip")).toBeNull();
     });
 
+    it("tints states by region when colorByRegion is set", async () => {
+        const { container } = render(<BrazilMap colorByRegion />);
+        await waitFor(() => expect(container.querySelector('path[data-uf="SP"]')).toBeTruthy());
+        // SP is Sudeste (#e15759).
+        const sp = container.querySelector('path[data-uf="SP"]') as SVGPathElement;
+        expect(sp.style.fill).toBe("rgb(225, 87, 89)");
+    });
+
+    it("zooms on wheel and shows a reset control when zoomable", async () => {
+        const { container } = render(<BrazilMap zoomable />);
+        await waitFor(() => expect(container.querySelector("svg g")).toBeTruthy());
+
+        expect(screen.queryByRole("button", { name: "Reset" })).toBeNull();
+        fireEvent.wheel(container.querySelector("svg")!, { deltaY: -100 });
+
+        // Zoomed in → transform is no longer the identity, reset control appears.
+        expect(container.querySelector("svg g")?.getAttribute("transform")).not.toBe(
+            "translate(0 0) scale(1)",
+        );
+        fireEvent.click(screen.getByRole("button", { name: "Reset" }));
+        expect(screen.queryByRole("button", { name: "Reset" })).toBeNull();
+    });
+
     it("plots markers and fires onMarkerClick", async () => {
         const onMarkerClick = vi.fn();
         const markers = [{ latitude: -23.55, longitude: -46.63, label: "SP capital", id: "sp" }];

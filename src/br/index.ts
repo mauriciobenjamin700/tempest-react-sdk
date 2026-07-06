@@ -52,6 +52,8 @@ export type {
 } from "./BrazilStateMap";
 export { BrazilStateCitySelect } from "./BrazilStateCitySelect";
 export type { BrazilStateCitySelectProps, BrazilStateCitySelection } from "./BrazilStateCitySelect";
+export { MunicipalitySearch } from "./MunicipalitySearch";
+export type { MunicipalitySearchProps } from "./MunicipalitySearch";
 export type { GeoMarker } from "@/geo/types";
 export { MapMarkers } from "./MapMarkers";
 export type { MapMarkersProps } from "./MapMarkers";
@@ -70,3 +72,4 @@ export {
     DIVERGING_RDBU,
 } from "./scales";
 export type { ColorScale } from "./scales";
+export { REGION_COLORS, regionLegendItems } from "./regions";

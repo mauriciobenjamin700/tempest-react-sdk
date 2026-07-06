@@ -4,6 +4,15 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Pan/zoom, cor por região, busca de município e perf (`/br`)
+
+- **Pan & zoom** (`zoomable`, opt-in) em `BrazilMap`/`BrazilStateMap`: roda-do-mouse (zoom no cursor) + arrastar (pan) + duplo-clique/botão **Reset**. Hook `useMapZoom`.
+- **Cor por região** (`colorByRegion`) no `BrazilMap`: tinge cada UF pela macro-região (categórico). `REGION_COLORS` + `regionLegendItems()` (pra `<MapLegend items>`).
+- **`MunicipalitySearch`**: autocomplete offline de município (debounced, `searchMunicipalities`), casável com o `selected` de um `BrazilStateMap`.
+- **Perf**: listas de paths dos dois mapas agora são memoizadas — hover/tooltip não reconstrói mais todos os polígonos (relevante em estados com centenas de municípios).
+
+Tests novos (zoom, região, busca). Docs bilíngues (Parte 7). Gallery: exemplo de região + busca+zoom no drill-down.
+
 ### Marcadores, escalas de cor e legenda nos mapas (`/br` + geo)
 
 - **Marcadores (`markers`)** em `BrazilMap`, `BrazilStateMap` e `TrajectoryMap`: pontos `{ latitude, longitude, label?, color?, radius?, id? }` plotados sobre o mapa (incluídos no auto-fit), com `onMarkerClick(marker, index)`. Novo tipo `GeoMarker` (em `geo`) + componente `MapMarkers`.

@@ -1342,6 +1342,56 @@ const scale = sequentialScale(0, 1200, SEQUENTIAL_VIRIDIS);
 
 ---
 
+## Parte 7 — Zoom, cor por região e busca de município
+
+### Pan & zoom
+
+`zoomable` liga roda-do-mouse (zoom no cursor) + arrastar (pan) em `BrazilMap`/`BrazilStateMap`. Duplo-clique reseta; um botão **Reset** aparece quando há zoom/pan.
+
+```tsx
+<BrazilStateMap uf="MG" zoomable />
+```
+
+### Cor por região
+
+`colorByRegion` tinge cada estado pela macro-região (categórico), sobrepondo `values`/`colorScale`. Emparelhe com uma legenda de faixas via `regionLegendItems()`.
+
+```tsx
+import { BrazilMap, MapLegend, regionLegendItems } from "tempest-react-sdk/br";
+
+<div>
+  <BrazilMap colorByRegion showLabels={false} />
+  <MapLegend title="Região" items={regionLegendItems()} />
+</div>;
+```
+
+`REGION_COLORS` expõe o mapa `região → cor` (troque pela paleta da marca se quiser).
+
+### Busca de município (autocomplete)
+
+`MunicipalitySearch` é um autocomplete offline (usa `searchMunicipalities`, debounced). Ligue o `onSelect` ao `selected` de um `BrazilStateMap` pra destacar no mapa.
+
+```tsx
+import { useState } from "react";
+import { MunicipalitySearch, BrazilStateMap, type UF } from "tempest-react-sdk/br";
+
+export function BuscaNoMapa() {
+  const [uf] = useState<UF>("SP");
+  const [city, setCity] = useState<string | null>(null);
+  return (
+    <>
+      <MunicipalitySearch uf={uf} label="Município" onSelect={(m) => setCity(m.name)} />
+      <BrazilStateMap uf={uf} selected={city} zoomable />
+    </>
+  );
+}
+```
+
+- `uf` restringe a busca a um estado; sem ele, busca no país todo (resultado mostra a UF).
+- `onSelect(m)` recebe `{ id, name, uf, latitude, longitude }` — dá pra centralizar/marcar também.
+
+---
+
 ## Sobre a geometria
 
 - Fonte: fronteiras das UFs do **IBGE** (domínio público), simplificadas com Douglas-Peucker (~2 km de tolerância) e arredondadas a 3 casas decimais.

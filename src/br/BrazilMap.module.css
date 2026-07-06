@@ -108,3 +108,21 @@
     stroke: var(--tempest-primary);
     stroke-width: 3;
 }
+
+.zoomReset {
+    position: absolute;
+    top: var(--tempest-space-2);
+    right: var(--tempest-space-2);
+    padding: var(--tempest-space-1) var(--tempest-space-2);
+    font-family: var(--tempest-font-sans);
+    font-size: var(--tempest-text-xs);
+    color: var(--tempest-text);
+    background: var(--tempest-surface);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-sm);
+    cursor: pointer;
+}
+
+.zoomReset:hover {
+    background: var(--tempest-surface-2);
+}

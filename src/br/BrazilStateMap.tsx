@@ -6,6 +6,7 @@ import { getState, type UF } from "./locations";
 import { MapMarkers } from "./MapMarkers";
 import { MapTooltip } from "./MapTooltip";
 import type { ColorScale } from "./scales";
+import { useMapZoom } from "./use-map-zoom";
 import { loadStateMunicipalities, type StateMunicipalities } from "./state-geo";
 import { geometriesBounds, geometryCentroid, geometryPath, lerpColor } from "./svg-utils";
 import { useMapHover } from "./use-map-hover";
@@ -67,6 +68,8 @@ export interface BrazilStateMapProps extends Omit<HTMLAttributes<HTMLDivElement>
     markers?: readonly GeoMarker[];
     /** Fired when a marker is clicked. */
     onMarkerClick?: (marker: GeoMarker, index: number) => void;
+    /** Enable wheel-zoom + drag-pan (double-click resets). Default: `false`. */
+    zoomable?: boolean;
 }
 
 /**
@@ -100,6 +103,7 @@ export function BrazilStateMap({
     renderTooltip,
     markers,
     onMarkerClick,
+    zoomable = false,
     className,
     style,
     ...rest
@@ -107,6 +111,7 @@ export function BrazilStateMap({
     const containerRef = useRef<HTMLDivElement>(null);
     const [width, setWidth] = useState<number>(600);
     const [collection, setCollection] = useState<StateMunicipalities | null>(null);
+    const mapZoom = useMapZoom(zoomable);
     const { hover, onMove, onLeave } = useMapHover<Municipality>(containerRef);
 
     useEffect(() => {
@@ -170,6 +175,61 @@ export function BrazilStateMap({
         return lerpColor(minColor, maxColor, t);
     }
 
+    // Memoized so hover re-renders don't rebuild hundreds of municipality paths.
+    const cityEls = useMemo(() => {
+        if (!shapes) return null;
+        return shapes.items.map((shape) => {
+            const isSelected = selectedSet.has(shape.id) || selectedSet.has(shape.name);
+            const fillColor = isSelected ? undefined : fillFor(shape.id, shape.name);
+            return (
+                <path
+                    key={shape.id}
+                    className={cn(styles.state, isSelected && styles.selected)}
+                    d={shape.d}
+                    fillRule="evenodd"
+                    style={fillColor ? { fill: fillColor } : undefined}
+                    data-city-id={shape.id}
+                    data-city={shape.name}
+                    tabIndex={onSelect ? 0 : undefined}
+                    role={onSelect ? "button" : undefined}
+                    aria-label={shape.name}
+                    aria-pressed={onSelect ? isSelected : undefined}
+                    onClick={
+                        onSelect ? () => onSelect({ id: shape.id, name: shape.name }) : undefined
+                    }
+                    onMouseMove={
+                        showTooltip
+                            ? (e) => onMove({ id: shape.id, name: shape.name }, e)
+                            : undefined
+                    }
+                    onMouseLeave={showTooltip ? onLeave : undefined}
+                    onKeyDown={
+                        onSelect
+                            ? (e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault();
+                                      onSelect({ id: shape.id, name: shape.name });
+                                  }
+                              }
+                            : undefined
+                    }
+                />
+            );
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        shapes,
+        selectedSet,
+        values,
+        colorScale,
+        minColor,
+        maxColor,
+        onSelect,
+        showTooltip,
+        onMove,
+        onLeave,
+    ]);
+
     const resolvedLabel = label ?? `Municípios de ${getState(uf)?.name ?? uf}`;
 
     return (
@@ -190,72 +250,40 @@ export function BrazilStateMap({
                     height={height}
                     viewBox={`0 0 ${width} ${height}`}
                     preserveAspectRatio="xMidYMid meet"
+                    {...mapZoom.handlers}
                 >
-                    {shapes.items.map((shape) => {
-                        const isSelected = selectedSet.has(shape.id) || selectedSet.has(shape.name);
-                        // Inline style (not the `fill` attribute) so the choropleth color
-                        // wins over the `.state` CSS rule's `fill`.
-                        const fillColor = isSelected ? undefined : fillFor(shape.id, shape.name);
-                        return (
-                            <path
-                                key={shape.id}
-                                className={cn(styles.state, isSelected && styles.selected)}
-                                d={shape.d}
-                                fillRule="evenodd"
-                                style={fillColor ? { fill: fillColor } : undefined}
-                                data-city-id={shape.id}
-                                data-city={shape.name}
-                                tabIndex={onSelect ? 0 : undefined}
-                                role={onSelect ? "button" : undefined}
-                                aria-label={shape.name}
-                                aria-pressed={onSelect ? isSelected : undefined}
-                                onClick={
-                                    onSelect
-                                        ? () => onSelect({ id: shape.id, name: shape.name })
-                                        : undefined
-                                }
-                                onMouseMove={
-                                    showTooltip
-                                        ? (e) => onMove({ id: shape.id, name: shape.name }, e)
-                                        : undefined
-                                }
-                                onMouseLeave={showTooltip ? onLeave : undefined}
-                                onKeyDown={
-                                    onSelect
-                                        ? (e) => {
-                                              if (e.key === "Enter" || e.key === " ") {
-                                                  e.preventDefault();
-                                                  onSelect({ id: shape.id, name: shape.name });
-                                              }
-                                          }
-                                        : undefined
-                                }
+                    <g transform={mapZoom.transform || undefined}>
+                        {cityEls}
+
+                        {showLabels &&
+                            shapes.items.map((shape) => (
+                                <text
+                                    key={`label-${shape.id}`}
+                                    className={styles.label}
+                                    x={shape.centroid.x}
+                                    y={shape.centroid.y}
+                                    textAnchor="middle"
+                                    dominantBaseline="central"
+                                >
+                                    {shape.name}
+                                </text>
+                            ))}
+
+                        {markers && markers.length > 0 && (
+                            <MapMarkers
+                                projection={shapes.projection}
+                                markers={markers}
+                                onMarkerClick={onMarkerClick}
                             />
-                        );
-                    })}
-
-                    {showLabels &&
-                        shapes.items.map((shape) => (
-                            <text
-                                key={`label-${shape.id}`}
-                                className={styles.label}
-                                x={shape.centroid.x}
-                                y={shape.centroid.y}
-                                textAnchor="middle"
-                                dominantBaseline="central"
-                            >
-                                {shape.name}
-                            </text>
-                        ))}
-
-                    {markers && markers.length > 0 && (
-                        <MapMarkers
-                            projection={shapes.projection}
-                            markers={markers}
-                            onMarkerClick={onMarkerClick}
-                        />
-                    )}
+                        )}
+                    </g>
                 </svg>
+            )}
+
+            {mapZoom.isTransformed && (
+                <button type="button" className={styles.zoomReset} onClick={mapZoom.reset}>
+                    Reset
+                </button>
             )}
 
             {showTooltip && hover && (

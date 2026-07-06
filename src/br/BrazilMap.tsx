@@ -6,7 +6,9 @@ import type { BrUfFeatureCollection } from "./br-geo";
 import { getState, type UF } from "./locations";
 import { MapMarkers } from "./MapMarkers";
 import { MapTooltip } from "./MapTooltip";
+import { REGION_COLORS } from "./regions";
 import type { ColorScale } from "./scales";
+import { useMapZoom } from "./use-map-zoom";
 import { geometriesBounds, geometryCentroid, geometryPath, lerpColor } from "./svg-utils";
 import { useMapHover } from "./use-map-hover";
 import styles from "./BrazilMap.module.css";
@@ -39,6 +41,11 @@ export interface BrazilMapProps extends Omit<HTMLAttributes<HTMLDivElement>, "on
      * Takes precedence over `minColor`/`maxColor`. Pair with a `<MapLegend>`.
      */
     colorScale?: ColorScale;
+    /**
+     * Tint each state by its macro-region (categorical). Overrides
+     * `values`/`colorScale`. Pair with `<MapLegend items={regionLegendItems()} />`.
+     */
+    colorByRegion?: boolean;
     /** Viewport height in pixels. Default: `440`. */
     height?: number;
     /** Inner padding in pixels. Default: `12`. */
@@ -57,6 +64,8 @@ export interface BrazilMapProps extends Omit<HTMLAttributes<HTMLDivElement>, "on
     markers?: readonly GeoMarker[];
     /** Fired when a marker is clicked. */
     onMarkerClick?: (marker: GeoMarker, index: number) => void;
+    /** Enable wheel-zoom + drag-pan (double-click resets). Default: `false`. */
+    zoomable?: boolean;
 }
 
 /**
@@ -83,6 +92,7 @@ export function BrazilMap({
     minColor = "#dbeafe",
     maxColor = "#2563eb",
     colorScale,
+    colorByRegion = false,
     height = 440,
     padding = 12,
     showLabels = true,
@@ -92,6 +102,7 @@ export function BrazilMap({
     renderTooltip,
     markers,
     onMarkerClick,
+    zoomable = false,
     className,
     style,
     ...rest
@@ -100,6 +111,7 @@ export function BrazilMap({
     const [width, setWidth] = useState<number>(600);
     const [collection, setCollection] = useState<BrUfFeatureCollection | null>(null);
     const { hover, onMove, onLeave } = useMapHover<{ uf: UF; name: string }>(containerRef);
+    const mapZoom = useMapZoom(zoomable);
 
     useEffect(() => {
         let active = true;
@@ -145,6 +157,7 @@ export function BrazilMap({
         const items = collection.features.map((feature) => ({
             uf: feature.properties.uf,
             name: feature.properties.name,
+            region: feature.properties.region,
             d: geometryPath(feature.geometry, projection),
             centroid: geometryCentroid(feature.geometry, projection),
         }));
@@ -160,6 +173,63 @@ export function BrazilMap({
         const t = max === min ? 1 : (v - min) / (max - min);
         return lerpColor(minColor, maxColor, t);
     }
+
+    // Memoized so frequent re-renders (hover tooltip) don't rebuild all 27 paths.
+    const stateEls = useMemo(() => {
+        if (!shapes) return null;
+        return shapes.items.map((shape) => {
+            const isSelected = selectedSet.has(shape.uf);
+            const fillColor = isSelected
+                ? undefined
+                : colorByRegion
+                  ? REGION_COLORS[shape.region]
+                  : fillFor(shape.uf);
+            return (
+                <path
+                    key={shape.uf}
+                    className={cn(styles.state, isSelected && styles.selected)}
+                    d={shape.d}
+                    fillRule="evenodd"
+                    style={fillColor ? { fill: fillColor } : undefined}
+                    data-uf={shape.uf}
+                    tabIndex={onSelect ? 0 : undefined}
+                    role={onSelect ? "button" : undefined}
+                    aria-label={shape.name}
+                    aria-pressed={onSelect ? isSelected : undefined}
+                    onClick={onSelect ? () => onSelect(shape.uf) : undefined}
+                    onMouseMove={
+                        showTooltip
+                            ? (e) => onMove({ uf: shape.uf, name: shape.name }, e)
+                            : undefined
+                    }
+                    onMouseLeave={showTooltip ? onLeave : undefined}
+                    onKeyDown={
+                        onSelect
+                            ? (e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault();
+                                      onSelect(shape.uf);
+                                  }
+                              }
+                            : undefined
+                    }
+                />
+            );
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        shapes,
+        selectedSet,
+        values,
+        colorScale,
+        colorByRegion,
+        minColor,
+        maxColor,
+        onSelect,
+        showTooltip,
+        onMove,
+        onLeave,
+    ]);
 
     return (
         <div
@@ -179,67 +249,40 @@ export function BrazilMap({
                     height={height}
                     viewBox={`0 0 ${width} ${height}`}
                     preserveAspectRatio="xMidYMid meet"
+                    {...mapZoom.handlers}
                 >
-                    {shapes.items.map((shape) => {
-                        const isSelected = selectedSet.has(shape.uf);
-                        // Inline style (not the `fill` attribute) so the choropleth color
-                        // wins over the `.state` CSS rule's `fill`.
-                        const fillColor = isSelected ? undefined : fillFor(shape.uf);
-                        return (
-                            <path
-                                key={shape.uf}
-                                className={cn(styles.state, isSelected && styles.selected)}
-                                d={shape.d}
-                                fillRule="evenodd"
-                                style={fillColor ? { fill: fillColor } : undefined}
-                                data-uf={shape.uf}
-                                tabIndex={onSelect ? 0 : undefined}
-                                role={onSelect ? "button" : undefined}
-                                aria-label={shape.name}
-                                aria-pressed={onSelect ? isSelected : undefined}
-                                onClick={onSelect ? () => onSelect(shape.uf) : undefined}
-                                onMouseMove={
-                                    showTooltip
-                                        ? (e) => onMove({ uf: shape.uf, name: shape.name }, e)
-                                        : undefined
-                                }
-                                onMouseLeave={showTooltip ? onLeave : undefined}
-                                onKeyDown={
-                                    onSelect
-                                        ? (e) => {
-                                              if (e.key === "Enter" || e.key === " ") {
-                                                  e.preventDefault();
-                                                  onSelect(shape.uf);
-                                              }
-                                          }
-                                        : undefined
-                                }
+                    <g transform={mapZoom.transform || undefined}>
+                        {stateEls}
+
+                        {showLabels &&
+                            shapes.items.map((shape) => (
+                                <text
+                                    key={`label-${shape.uf}`}
+                                    className={styles.label}
+                                    x={shape.centroid.x}
+                                    y={shape.centroid.y}
+                                    textAnchor="middle"
+                                    dominantBaseline="central"
+                                >
+                                    {shape.uf}
+                                </text>
+                            ))}
+
+                        {markers && markers.length > 0 && (
+                            <MapMarkers
+                                projection={shapes.projection}
+                                markers={markers}
+                                onMarkerClick={onMarkerClick}
                             />
-                        );
-                    })}
-
-                    {showLabels &&
-                        shapes.items.map((shape) => (
-                            <text
-                                key={`label-${shape.uf}`}
-                                className={styles.label}
-                                x={shape.centroid.x}
-                                y={shape.centroid.y}
-                                textAnchor="middle"
-                                dominantBaseline="central"
-                            >
-                                {shape.uf}
-                            </text>
-                        ))}
-
-                    {markers && markers.length > 0 && (
-                        <MapMarkers
-                            projection={shapes.projection}
-                            markers={markers}
-                            onMarkerClick={onMarkerClick}
-                        />
-                    )}
+                        )}
+                    </g>
                 </svg>
+            )}
+
+            {mapZoom.isTransformed && (
+                <button type="button" className={styles.zoomReset} onClick={mapZoom.reset}>
+                    Reset
+                </button>
             )}
 
             {showTooltip && hover && (

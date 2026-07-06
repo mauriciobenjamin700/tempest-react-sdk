@@ -30,6 +30,17 @@ export async function loadBrUfGeoJson(): Promise<BrUfFeatureCollection> {
 export { loadStateMunicipalities } from "./state-geo";
 export type { MunicipalityFeature, StateMunicipalities } from "./state-geo";
 
+// Offline geocoding (lazy centroid index).
+export {
+    nearestMunicipality,
+    reverseGeocode,
+    geocodeMunicipality,
+    searchMunicipalities,
+    municipalityCentroid,
+    stateCentroid,
+} from "./geocode";
+export type { MunicipalityCentroid, NearestMunicipality, ReverseGeocodeResult } from "./geocode";
+
 // Components
 export { BrazilMap } from "./BrazilMap";
 export type { BrazilMapProps, BrazilMapTooltipData } from "./BrazilMap";

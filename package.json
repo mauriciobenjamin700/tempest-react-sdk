@@ -96,6 +96,7 @@
     "clean": "rm -rf dist coverage",
     "size": "size-limit",
     "docs:llms": "node scripts/gen-llms.mjs",
+    "gen:geodata": "node scripts/gen-br-geodata.mjs",
     "vendor:vision": "node scripts/vendor-vision.mjs",
     "prepare": "husky",
     "prepublishOnly": "npm run typecheck && npm run lint && npm run test:run && npm run build"

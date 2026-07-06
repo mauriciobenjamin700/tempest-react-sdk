@@ -17,3 +17,4 @@ site/
 
 # Generated docs/llms.txt + docs/llms-full.txt (npm run docs:llms) are committed
 # on purpose so the published site serves them even without a regen step.
+scripts/.geodata-cache/

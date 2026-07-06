@@ -68,9 +68,9 @@
     "ignore": ["onnxruntime-web"]
   },
   {
-    "name": "br entry — full opt-in surface incl. ALL lazy UF/municipality chunks",
+    "name": "br entry — full opt-in surface incl. ALL lazy UF/municipality/centroid chunks",
     "path": "dist/br.js",
-    "limit": "420 KB",
+    "limit": "500 KB",
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {

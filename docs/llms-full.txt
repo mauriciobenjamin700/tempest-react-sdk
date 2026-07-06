@@ -1231,6 +1231,66 @@ sp?.features.length; // 644
 
 ---
 
+## Parte 5 — Geocoding offline
+
+Converter entre nome/coordenada e município, **sem rede**. Usa um índice compacto de centroides (~97 KB gzip) carregado **lazy** — nenhuma chamada de rede, nenhuma API key.
+
+```ts
+import {
+  reverseGeocode,
+  nearestMunicipality,
+  geocodeMunicipality,
+  municipalityCentroid,
+  stateCentroid,
+} from "tempest-react-sdk/br";
+
+// Coordenada → município que a CONTÉM (point-in-polygon, exato):
+await reverseGeocode({ latitude: -23.5505, longitude: -46.6333 });
+// { id: "3550308", name: "São Paulo", uf: "SP" }
+
+// Coordenada → município de centroide mais próximo (rápido, aproximado, sem geometria):
+await nearestMunicipality({ latitude: -23.55, longitude: -46.63 });
+// { id, name, uf: "SP", latitude, longitude, distanceKm }
+
+// Nome → coordenada (pode haver homônimos em UFs diferentes):
+await geocodeMunicipality("Bonito");          // vários
+await geocodeMunicipality("São Paulo", "SP"); // filtra por UF
+
+// Centroides:
+await municipalityCentroid("3550308"); // { id, name, uf, latitude, longitude }
+await stateCentroid("SP");             // { latitude, longitude }
+```
+
+!!! tip "`reverseGeocode` vs `nearestMunicipality`"
+    - **`reverseGeocode`** faz **point-in-polygon** → devolve o município que realmente contém o ponto. Carrega a geometria de **um** estado (chunk lazy por UF). Passe `{ uf }` se já souber, pra pular a detecção do estado candidato.
+    - **`nearestMunicipality`** compara só **centroides** → rápido e sem carregar geometria, mas perto de bordas/em municípios grandes pode cair num vizinho.
+
+### Receita: "onde estou?" (GPS → município)
+
+Combine com o `usePositionTracker` do módulo [Geolocalização](./geo.md):
+
+```tsx
+import { useEffect, useState } from "react";
+import { usePositionTracker } from "tempest-react-sdk";
+import { reverseGeocode, type ReverseGeocodeResult } from "tempest-react-sdk/br";
+
+export function OndeEstou() {
+  const { lastPoint, start } = usePositionTracker({ autoStart: true });
+  const [local, setLocal] = useState<ReverseGeocodeResult | null>(null);
+
+  useEffect(() => {
+    if (lastPoint) reverseGeocode(lastPoint).then(setLocal);
+  }, [lastPoint]);
+
+  return <p>{local ? `Você está em ${local.name} — ${local.uf}` : "Localizando…"}</p>;
+}
+```
+
+!!! warning "Precisão"
+    A geometria é simplificada (~2 km). Pontos a ~1-2 km de uma divisa podem resolver pro município vizinho; pontos no mar/fora do território devolvem o vizinho mais próximo por centroide.
+
+---
+
 ## Sobre a geometria
 
 - Fonte: fronteiras das UFs do **IBGE** (domínio público), simplificadas com Douglas-Peucker (~2 km de tolerância) e arredondadas a 3 casas decimais.

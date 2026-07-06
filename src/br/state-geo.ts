@@ -9,6 +9,8 @@ export interface MunicipalityFeature {
         id: string;
         /** Municipality name. */
         name: string;
+        /** Representative point `[longitude, latitude]` (area-weighted centroid). */
+        centroid: [number, number];
     };
     geometry: BrUfGeometry;
 }

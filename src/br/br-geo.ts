@@ -18,6 +18,8 @@ export interface BrUfFeature {
         uf: UF;
         name: string;
         region: BrRegion;
+        /** Representative point `[longitude, latitude]` (area-weighted centroid). */
+        centroid: [number, number];
     };
     geometry: BrUfGeometry;
 }

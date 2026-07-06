@@ -2,6 +2,17 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Geocoding offline + geodata reproduzível (subpath `/br`)
+
+- **`scripts/gen-br-geodata.mjs`** — script reproduzível que baixa as fronteiras do IBGE (UF + municípios), simplifica (Douglas-Peucker ~2 km), divide por UF e **computa centroides**. Substitui o processo manual; roda via `npm run gen:geodata`. Cache em `scripts/.geodata-cache/` (git-ignored).
+- **Centroides embutidos** em cada feature (UF e município) — `properties.centroid = [lon, lat]` (centroide ponderado por área).
+- **Geocoding offline** (novo `geocode.ts`, índice de centroides ~97 KB gzip carregado lazy): `reverseGeocode(coord)` (point-in-polygon exato, carrega a geometria de um estado), `nearestMunicipality(coord)` (centroide mais próximo, rápido/aproximado), `geocodeMunicipality(name, uf?)`, `searchMunicipalities(query, {uf,limit})`, `municipalityCentroid(id)`, `stateCentroid(uf)`. Tipos `MunicipalityCentroid`, `NearestMunicipality`, `ReverseGeocodeResult`. Zero rede.
+- Receita "onde estou?" (`usePositionTracker` + `reverseGeocode`) nas docs.
+
+12 tests novos. Docs bilíngues (Parte 5). `size-limit` da entry `br` ajustado (inclui o índice de centroides lazy).
+
 ## [0.18.0] — 2026-07-06
 
 ### Tooltips de hover nos mapas do Brasil (`BrazilMap` + `BrazilStateMap`)

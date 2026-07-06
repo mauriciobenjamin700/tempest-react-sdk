@@ -282,6 +282,66 @@ sp?.features.length; // 644
 
 ---
 
+## Part 5 — Offline geocoding
+
+Convert between name/coordinate and municipality, **offline**. Uses a compact centroid index (~97 KB gzip) loaded **lazily** — no network calls, no API key.
+
+```ts
+import {
+  reverseGeocode,
+  nearestMunicipality,
+  geocodeMunicipality,
+  municipalityCentroid,
+  stateCentroid,
+} from "tempest-react-sdk/br";
+
+// Coordinate → the municipality that CONTAINS it (point-in-polygon, exact):
+await reverseGeocode({ latitude: -23.5505, longitude: -46.6333 });
+// { id: "3550308", name: "São Paulo", uf: "SP" }
+
+// Coordinate → nearest-centroid municipality (fast, approximate, no geometry):
+await nearestMunicipality({ latitude: -23.55, longitude: -46.63 });
+// { id, name, uf: "SP", latitude, longitude, distanceKm }
+
+// Name → coordinate (homonyms may exist across states):
+await geocodeMunicipality("Bonito");          // several
+await geocodeMunicipality("São Paulo", "SP"); // filtered by UF
+
+// Centroids:
+await municipalityCentroid("3550308"); // { id, name, uf, latitude, longitude }
+await stateCentroid("SP");             // { latitude, longitude }
+```
+
+!!! tip "`reverseGeocode` vs `nearestMunicipality`"
+    - **`reverseGeocode`** does **point-in-polygon** → returns the municipality that actually contains the point. Loads **one** state's geometry (lazy per-UF chunk). Pass `{ uf }` if you know it, to skip candidate-state detection.
+    - **`nearestMunicipality`** compares **centroids** only → fast and geometry-free, but near borders / in large municipalities it can pick a neighbor.
+
+### Recipe: "where am I?" (GPS → municipality)
+
+Combine with `usePositionTracker` from the [Geolocation](./geo.md) module:
+
+```tsx
+import { useEffect, useState } from "react";
+import { usePositionTracker } from "tempest-react-sdk";
+import { reverseGeocode, type ReverseGeocodeResult } from "tempest-react-sdk/br";
+
+export function WhereAmI() {
+  const { lastPoint } = usePositionTracker({ autoStart: true });
+  const [place, setPlace] = useState<ReverseGeocodeResult | null>(null);
+
+  useEffect(() => {
+    if (lastPoint) reverseGeocode(lastPoint).then(setPlace);
+  }, [lastPoint]);
+
+  return <p>{place ? `You are in ${place.name} — ${place.uf}` : "Locating…"}</p>;
+}
+```
+
+!!! warning "Accuracy"
+    The geometry is simplified (~2 km). Points within ~1-2 km of a border may resolve to the neighboring municipality; points offshore / outside the territory fall back to the nearest centroid.
+
+---
+
 ## About the geometry
 
 - Source: **IBGE** UF boundaries (public domain), simplified with Douglas-Peucker (~2 km tolerance) and rounded to 3 decimals.

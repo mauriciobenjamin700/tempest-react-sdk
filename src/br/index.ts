@@ -26,8 +26,14 @@ export async function loadBrUfGeoJson(): Promise<BrUfFeatureCollection> {
     return mod.BR_UF_GEOJSON;
 }
 
+// Per-state municipality geometry (lazy, one chunk per UF).
+export { loadStateMunicipalities } from "./state-geo";
+export type { MunicipalityFeature, StateMunicipalities } from "./state-geo";
+
 // Components
 export { BrazilMap } from "./BrazilMap";
 export type { BrazilMapProps } from "./BrazilMap";
+export { BrazilStateMap } from "./BrazilStateMap";
+export type { BrazilStateMapProps, Municipality } from "./BrazilStateMap";
 export { BrazilStateCitySelect } from "./BrazilStateCitySelect";
 export type { BrazilStateCitySelectProps, BrazilStateCitySelection } from "./BrazilStateCitySelect";

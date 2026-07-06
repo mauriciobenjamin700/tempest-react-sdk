@@ -174,6 +174,9 @@ export function NationalMap() {
 
 ### `BrazilMap` props
 
+_(see also [`BrazilStateMap`](#part-4-state-submap-brazilstatemap) for the municipality level.)_
+
+
 | Prop | Type | Default | Description |
 | --- | --- | --- | --- |
 | `selected` | `UF \| UF[] \| null` | — | Highlighted UF(s). |
@@ -187,14 +190,92 @@ export function NationalMap() {
 
 ---
 
+## Part 4 — State submap (`BrazilStateMap`)
+
+A submap of **one state** with **all its municipalities** clickable. Municipal geometry is split per UF and loaded **lazily** — opening the SP map fetches only SP's chunk (~40-70 KB gzip), never the country's ~2 MB.
+
+```tsx
+import { useState } from "react";
+import { BrazilStateMap, type Municipality } from "tempest-react-sdk/br";
+
+export function SPMunicipalities() {
+  const [city, setCity] = useState<Municipality | null>(null);
+  return (
+    <>
+      <BrazilStateMap uf="SP" selected={city?.name} onSelect={setCity} height={420} />
+      {city && <p>{city.name} — IBGE {city.id}</p>}
+    </>
+  );
+}
+```
+
+- `uf` (required) — the state to draw.
+- `onSelect({ id, name })` — fires on a municipality click (`id` = 7-digit IBGE code).
+- `selected` — matches by `id` **or** `name`; accepts a list.
+- `values` — choropleth by municipality (key = `id` or `name`).
+- `showLabels` — **`false` by default**: a state has hundreds of municipalities and labels overlap.
+
+### National → state drill-down (recipe)
+
+Combine both maps: clicking the national map switches the submap's state.
+
+```tsx
+import { useState } from "react";
+import { BrazilMap, BrazilStateMap, type Municipality, type UF } from "tempest-react-sdk/br";
+
+export function DrillDown() {
+  const [uf, setUf] = useState<UF>("SP");
+  const [city, setCity] = useState<Municipality | null>(null);
+
+  return (
+    <div style={{ display: "flex", gap: 16 }}>
+      <BrazilMap
+        selected={uf}
+        onSelect={(u) => {
+          setUf(u);
+          setCity(null);
+        }}
+        height={320}
+      />
+      <BrazilStateMap uf={uf} selected={city?.name} onSelect={setCity} height={320} />
+    </div>
+  );
+}
+```
+
+### Municipal choropleth
+
+```tsx
+import { BrazilStateMap } from "tempest-react-sdk/br";
+
+<BrazilStateMap
+  uf="RJ"
+  values={{ "Rio de Janeiro": 100, Niterói: 40, "Duque de Caxias": 55 }}
+/>;
+```
+
+!!! note "Map names vs. names dataset"
+    Municipality names on the map come from the IBGE GeoJSON; `citiesByUf` comes from the names dataset. They are nearly identical, but spelling/accents may differ in rare cases. To match values, prefer the **IBGE code** (`id`) when you have it.
+
+### Direct municipal-geometry access
+
+```ts
+import { loadStateMunicipalities } from "tempest-react-sdk/br";
+
+const sp = await loadStateMunicipalities("SP");
+sp?.features.length; // 644
+```
+
+---
+
 ## About the geometry
 
 - Source: **IBGE** UF boundaries (public domain), simplified with Douglas-Peucker (~2 km tolerance) and rounded to 3 decimals.
 - Size: **~119 KB raw / ~36 KB gzip**, in a separate chunk loaded **lazily** by `BrazilMap`.
 - Accuracy: adequate for a **clickable overview map**, **not** for precise geographic analysis or area computation.
 
-!!! warning "Municipality level on the map"
-    The map draws **states**, not municipalities — the 5570 municipal polygons do not fit in a bundle. For city drill-down, use the **selector** (`BrazilStateCitySelect`) or draw it yourself with a municipality GeoJSON **you host** (via the [Geolocation](./geo.md) module's projection/`<TrajectoryMap>`, or Leaflet).
+!!! info "Municipality: use `BrazilStateMap`"
+    `BrazilMap` draws **states**. For the **municipality** level, [`BrazilStateMap`](#part-4-state-submap-brazilstatemap) draws every municipality of a state — the municipal geometry (~2 MB total) is split per UF and loaded **lazily**, one chunk per state, so it never lands in a single bundle.
 
 ## Advanced geometry access
 
@@ -213,7 +294,8 @@ collection.features.length; // 27
 
 - **Data**: `listStates`, `getState`, `citiesByUf`, `statesByRegion`, `ufChoices`, `cityChoices`, `isValidUf`, `normalizeUf`, `isValidCity` — offline, mirroring the FastAPI SDK's `utils/locations`.
 - **Selector**: `BrazilStateCitySelect` chains State → City.
-- **Map**: `BrazilMap` renders the 27 UFs in SVG — clickable (`onSelect`), highlightable (`selected`) and choropleth (`values`). No external tiles; bundled, lazy geometry.
+- **National map**: `BrazilMap` renders the 27 UFs in SVG — clickable (`onSelect`), highlightable (`selected`) and choropleth (`values`). No external tiles; bundled, lazy geometry.
+- **State submap**: `BrazilStateMap` draws every municipality of a UF — clickable, choropleth, per-state geometry loaded lazily. `loadStateMunicipalities(uf)` exposes the raw geometry.
 - **Import** always from the `tempest-react-sdk/br` subpath.
 
 ## See also

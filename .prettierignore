@@ -6,6 +6,10 @@ coverage
 package-lock.json
 template
 
+# Bundled geodata (minified single-line JSON on purpose; source isn't shipped,
+# only the built dist is). Prettier would balloon these with no benefit.
+src/br/data
+
 # MkDocs content: prettier flattens `!!!` admonition bodies (4-space indent),
 # breaking Material rendering. The docs site owns its own markdown formatting.
 docs

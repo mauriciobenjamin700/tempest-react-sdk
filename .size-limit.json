@@ -68,9 +68,9 @@
     "ignore": ["onnxruntime-web"]
   },
   {
-    "name": "br entry (bundles BR locations dataset + UF geometry + components)",
+    "name": "br entry — full opt-in surface incl. ALL lazy UF/municipality chunks",
     "path": "dist/br.js",
-    "limit": "56 KB",
+    "limit": "420 KB",
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {

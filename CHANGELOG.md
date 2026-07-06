@@ -2,6 +2,19 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
+## [0.17.0] — 2026-07-06
+
+### Submapas de estado — `BrazilStateMap` (todos os municípios de uma UF)
+
+Extende o subpath [`tempest-react-sdk/br`](#0160--2026-07-06) com o nível de **município**, ainda **sem API paga ou externa**.
+
+- **`BrazilStateMap`** — submapa SVG de **um estado** com **todos os seus municípios** clicáveis. `uf` (obrigatório), `onSelect({ id, name })` (id = código IBGE de 7 dígitos), `selected` (casa por id ou nome, aceita lista), `values` (choropleth por município via id/nome), `showLabels` (off por padrão — denso). Reusa os helpers SVG/projeção compartilhados com o `BrazilMap`.
+- **`loadStateMunicipalities(uf)`** — carrega lazy a geometria municipal de uma UF. O dataset municipal (GeoJSON IBGE simplificado, Douglas-Peucker ~2 km, ~2 MB no total) é **dividido por estado**: um chunk por UF (~40-70 KB gzip), com um import dinâmico explícito por UF — só o estado exibido é baixado, o país inteiro nunca cai num bundle só. Tipos `MunicipalityFeature`, `StateMunicipalities`, `Municipality`.
+- **Receita drill-down**: `BrazilMap` (nacional) → clique num estado → `BrazilStateMap` (municípios). Demonstrada na galeria.
+- Helpers SVG (`ringsOf`/`geometriesBounds`/`geometryPath`/`geometryCentroid`/`lerpColor`) extraídos pra `svg-utils`, compartilhados entre os dois mapas.
+
+4 tests novos. Docs bilíngues atualizadas (`br.md`/`br.en.md`, Parte 4 + receita), seção da galeria com drill-down nacional→estado→município. Budget `size-limit` da entry `br` ajustado (mede a superfície opt-in completa, incluindo todos os chunks lazy). Sem breaking changes.
+
 ## [0.16.0] — 2026-07-06
 
 ### Mapa do Brasil + dados de localidade — novo subpath `tempest-react-sdk/br`

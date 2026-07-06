@@ -3,8 +3,10 @@ import { Badge } from "tempest-react-sdk";
 import {
     BrazilMap,
     BrazilStateCitySelect,
+    BrazilStateMap,
     citiesByUf,
     getState,
+    type Municipality,
     type UF,
 } from "tempest-react-sdk/br";
 import { Example } from "../Example";
@@ -103,6 +105,46 @@ function SelectorDemo(): ReactElement {
     );
 }
 
+/** Drill-down: click a state on the national map → its municipality submap. */
+function DrillDownDemo(): ReactElement {
+    const [uf, setUf] = useState<UF>("SP");
+    const [city, setCity] = useState<Municipality | null>(null);
+
+    return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
+            <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
+                <div style={{ flex: "1 1 280px", minWidth: 0 }}>
+                    <span style={{ fontSize: 13, color: "var(--tempest-text-muted, #888)" }}>
+                        1. Escolha um estado
+                    </span>
+                    <BrazilMap
+                        selected={uf}
+                        onSelect={(next) => {
+                            setUf(next);
+                            setCity(null);
+                        }}
+                        height={320}
+                    />
+                </div>
+                <div style={{ flex: "1 1 280px", minWidth: 0 }}>
+                    <span style={{ fontSize: 13, color: "var(--tempest-text-muted, #888)" }}>
+                        2. Clique num município de {getState(uf)?.name}
+                    </span>
+                    <BrazilStateMap
+                        uf={uf}
+                        selected={city?.name ?? null}
+                        onSelect={setCity}
+                        height={320}
+                    />
+                </div>
+            </div>
+            <Badge variant={city ? "success" : "neutral"}>
+                {city ? `${city.name} — ${uf} (IBGE ${city.id})` : "nenhum município selecionado"}
+            </Badge>
+        </div>
+    );
+}
+
 /** Recipe section for the Brazil map + locations data (subpath `/br`). */
 export function BrazilMapSection(): ReactElement {
     return (
@@ -168,6 +210,59 @@ function MapaNacional() {
                 ]}
             >
                 <ClickableMapDemo />
+            </Example>
+
+            <Example
+                id="ex-brazil-statemap"
+                title="BrazilStateMap — submapa do estado com todos os municípios"
+                note={
+                    <>
+                        Drill-down: clique num estado no mapa nacional e o submapa ao lado desenha{" "}
+                        <strong>todos os municípios</strong> daquele estado (geometria IBGE
+                        simplificada, carregada lazy por UF). Clique num município →{" "}
+                        <code>onSelect({"{ id, name }"})</code>.
+                    </>
+                }
+                code={`import { useState } from "react";
+import { BrazilMap, BrazilStateMap, type Municipality, type UF } from "tempest-react-sdk/br";
+
+function DrillDown() {
+  const [uf, setUf] = useState<UF>("SP");
+  const [city, setCity] = useState<Municipality | null>(null);
+  return (
+    <>
+      <BrazilMap selected={uf} onSelect={(u) => { setUf(u); setCity(null); }} />
+      <BrazilStateMap uf={uf} selected={city?.name} onSelect={setCity} />
+      {city && <p>{city.name} (IBGE {city.id})</p>}
+    </>
+  );
+}`}
+                props={[
+                    { name: "uf", type: "UF", description: "Estado a desenhar (obrigatório)." },
+                    {
+                        name: "onSelect",
+                        type: "(m: { id; name }) => void",
+                        description: "Clique num município.",
+                    },
+                    {
+                        name: "selected",
+                        type: "string | string[] | null",
+                        description: "Município(s) por id OU nome.",
+                    },
+                    {
+                        name: "values",
+                        type: "Record<string, number>",
+                        description: "Choropleth por id/nome de município.",
+                    },
+                    {
+                        name: "showLabels",
+                        type: "boolean",
+                        default: "false",
+                        description: "Nome no centroide (denso — off por padrão).",
+                    },
+                ]}
+            >
+                <DrillDownDemo />
             </Example>
 
             <Example

@@ -2,6 +2,13 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
+## [0.19.1] — 2026-07-14
+
+### Corrigido
+
+- **Input** — adornos interativos passados em `leftIcon`/`rightIcon` (um botão de salvar/limpar/revelar) não recebiam clique: o slot tinha `pointer-events: none` (pensado só para ícones decorativos), o que matava o clique no botão e ainda deixava o `<input>` por baixo capturá-lo. Agora os filhos dos slots têm `pointer-events: auto` — ícones decorativos seguem deixando o clique passar para o input, mas botões voltam a ser clicáveis.
+- **Button** — o conteúdo (`leftIcon` + label + `rightIcon`) era renderizado em um `<span>` sem layout, ficando inline, sem `gap` e com o ícone desalinhado do texto (mais visível em botões `fullWidth`). O conteúdo agora vive em um `.content` `inline-flex` centralizado com `gap`.
+
 ## [0.19.0] — 2026-07-06
 
 ### `tempest doctor` — diagnósticos de problemas silenciosos

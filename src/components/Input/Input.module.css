@@ -97,6 +97,16 @@
     pointer-events: none;
 }
 
+/*
+ * Decorative icons let clicks fall through to the input, but interactive
+ * adornments (a clear/reveal/save button passed as leftIcon/rightIcon) must
+ * stay clickable — re-enable pointer events on the slot's children.
+ */
+.iconLeft > *,
+.iconRight > * {
+    pointer-events: auto;
+}
+
 .iconLeft {
     left: 12px;
 }

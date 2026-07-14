@@ -70,7 +70,7 @@ export function Button({
                     <SpinnerIcon />
                 </span>
             )}
-            <span className={cn(loading && styles.hiddenText)}>
+            <span className={cn(styles.content, loading && styles.hiddenText)}>
                 {leftIcon}
                 {children}
                 {rightIcon}

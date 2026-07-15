@@ -2,6 +2,22 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
+## [0.21.0] — 2026-07-15
+
+### Adicionado
+
+- **`createOfflineSync`** (entrada principal, peer `dexie`) — motor de
+  sincronização offline-first sobre `createOfflineStore`: **outbox** durável
+  (IndexedDB), **flush single-flight** (push → pull), **guarda de offline**,
+  **loop de paginação** e **watermark**, tudo atrás de três callbacks de
+  transporte (`deliver`, `pullPage`, `applyRemote`). Entregas que falham ficam
+  na fila com `attempts`/`lastError` incrementados; `flush` colapsa gatilhos
+  concorrentes e é pulado sozinho quando offline (`summary.skipped`). Expõe
+  `enqueue`, `flush`, `pendingCount`, `listPending`, `clearOutbox`,
+  `resetWatermark`. Formaliza o que a receita _Offline Sync_ montava à mão.
+  Novos tipos: `OfflineSync`, `OfflineSyncConfig`, `OutboxEntry`, `OutboxOp`,
+  `PullPage`, `SyncRunSummary`, `SyncTrigger`, `WatermarkStore`.
+
 ## [0.20.0] — 2026-07-15
 
 ### Adicionado

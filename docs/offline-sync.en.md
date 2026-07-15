@@ -20,6 +20,74 @@ It's the counterpart to the backend recipe: **[Offline-First Sync — tempest-fa
 !!! info "Why automatic replay is safe here"
     The backend contract is **upsert by client `id`** (idempotent) + **last-write-wins by `updated_at`**. That's exactly what makes `installBackgroundSync` safe: replaying the same mutation N times converges to the same state.
 
+## The fast path: `createOfflineSync`
+
+`createOfflineSync` packs the whole engine — a durable **outbox** (IndexedDB), a **single-flight flush** (push → pull), an **offline guard**, the **pagination loop** and the **watermark** — behind three transport callbacks. You say *how* to deliver a mutation, *how* to fetch one delta page and *how* to apply an item; the SDK does the rest.
+
+```ts
+// src/sync/engine.ts
+import { createOfflineSync } from "tempest-react-sdk";
+import { api } from "@/lib/api";
+import { analyses } from "./store"; // createOfflineStore
+import { fromDto, toPayload, type Analysis, type AnalysisDto } from "./types";
+
+export const sync = createOfflineSync<Analysis, AnalysisDto>({
+  databaseName: "AnalysesOutbox",
+  watermark: { storageKey: "analyses.watermark" },
+
+  // push: deliver one queued mutation
+  deliver: async (entry) => {
+    if (entry.op === "delete") {
+      await api.delete(`/api/analyses/${entry.recordId}`);
+      return;
+    }
+    await api.put(`/api/analyses/${entry.recordId}`, { body: toPayload(entry.payload!) });
+  },
+
+  // pull: one delta page since the watermark
+  pullPage: async (since, cursor) => {
+    const page = await api.get<{ items: AnalysisDto[]; next_cursor: string | null; server_time: string }>(
+      "/api/analyses/changes",
+      { params: { since: since ?? undefined, cursor: cursor ?? undefined } },
+    );
+    return { items: page.items, nextCursor: page.next_cursor, serverTime: page.server_time };
+  },
+
+  // applyRemote: merge one server item into the local store (you own conflicts)
+  applyRemote: async (dto) => {
+    if (dto.is_deleted) {
+      await analyses.delete(dto.id);
+      return;
+    }
+    const local = await analyses.get(dto.id);
+    // last-write-wins: keep a newer local pending edit
+    if (local?.pending && local.updated_at > dto.updated_at) return;
+    await analyses.put(fromDto(dto));
+  },
+});
+```
+
+Using it from the UI:
+
+```ts
+// write locally, queue, then flush
+await analyses.put({ ...record, pending: true });
+await sync.enqueue(record.createdOnServer ? "update" : "create", record.id, record);
+await sync.flush("after-mutation");
+
+sync.pendingCount(); // pending badge
+sync.resetWatermark(); // on logout / account switch
+sync.clearOutbox();
+```
+
+!!! tip "When to sync"
+    Fire `sync.flush("boot")` at boot, `sync.flush("online-event")` when the network returns (see `useOnline`), and inside your web-push handler. The flush is single-flight — concurrent triggers collapse into one run — and is **skipped automatically** while offline (`summary.skipped`).
+
+!!! info "Failed deliveries stay queued"
+    If `deliver` throws, the entry **stays** in the outbox with its `attempts` bumped and `lastError` recorded — the next flush retries it. Pair it with `installBackgroundSync` in the service worker to replay even with the app closed.
+
+The sections below show **what the engine does under the hood** (and how to wire it by hand when you need fine-grained control — multiple stores, per-field merges, etc.).
+
 ## Prerequisites
 
 1. A backend running the `tempest-fastapi-sdk` offline-sync recipe (`GET /api/analyses/changes` + an upsert route).

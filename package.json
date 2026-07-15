@@ -1,6 +1,6 @@
 {
   "name": "tempest-react-sdk",
-  "version": "0.21.0",
+  "version": "0.22.0",
   "description": "SDK público da Tempest com componentes, hooks e integrações para projetos React.",
   "type": "module",
   "license": "MIT",
@@ -113,6 +113,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.0.0",
     "dexie": "^4.4.2",
+    "fflate": "^0.8.3",
     "lucide-react": ">=0.400.0",
     "react-hook-form": "^7.76.0",
     "react-router-dom": "^7.18.0",

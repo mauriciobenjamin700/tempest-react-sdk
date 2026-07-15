@@ -13,6 +13,42 @@ export interface RegisterServiceWorkerOptions {
     onUpdate?: (waiting: ServiceWorker, registration: ServiceWorkerRegistration) => void;
     /** Called on registration failure. */
     onError?: (error: unknown) => void;
+    /**
+     * When `true`, poll the server for a fresh service worker on an interval
+     * (see {@link RegisterServiceWorkerOptions.updateIntervalMs}) and, unless
+     * {@link RegisterServiceWorkerOptions.reloadOnActivate} is disabled, reload
+     * the page as soon as a new worker takes control. Mirrors the auto-update
+     * behaviour of `vite-plugin-pwa` without depending on it. Default `false`.
+     */
+    autoUpdate?: boolean;
+    /**
+     * How often, in ms, to call `registration.update()` while `autoUpdate` is
+     * on. Browsers already re-check roughly every 24h; an hourly poll keeps
+     * long-lived sessions current without flooding the network. Default
+     * `3600000` (1 hour).
+     */
+    updateIntervalMs?: number;
+    /**
+     * When `autoUpdate` is on, reload the page once a new worker takes control
+     * (`controllerchange`), guarded against reload loops. Set to `false` to
+     * keep polling but leave the reload to the host app. Default `true`.
+     */
+    reloadOnActivate?: boolean;
+}
+
+const DEFAULT_UPDATE_INTERVAL_MS = 60 * 60 * 1000;
+
+let controllerReloadWired = false;
+
+function wireControllerReload(): void {
+    if (controllerReloadWired) return;
+    controllerReloadWired = true;
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
+    });
 }
 
 /**
@@ -21,6 +57,11 @@ export interface RegisterServiceWorkerOptions {
  * Skips silently when the runtime has no `serviceWorker` support. The host
  * app keeps full control over the SW file — this helper only handles the
  * boilerplate around `register()` and `updatefound`.
+ *
+ * With `autoUpdate` enabled it additionally polls `registration.update()` on
+ * an interval and (by default) reloads the page when a freshly activated worker
+ * takes control — a framework-agnostic equivalent of `vite-plugin-pwa`'s
+ * auto-update client, implemented directly on `navigator.serviceWorker`.
  *
  * @returns The registration when it succeeds, or `null` when unsupported.
  */
@@ -47,6 +88,14 @@ export async function registerServiceWorker(
                 }
             });
         });
+
+        if (options.autoUpdate) {
+            if (options.reloadOnActivate !== false) wireControllerReload();
+            const intervalMs = options.updateIntervalMs ?? DEFAULT_UPDATE_INTERVAL_MS;
+            window.setInterval(() => {
+                void registration.update();
+            }, intervalMs);
+        }
 
         return registration;
     } catch (error) {

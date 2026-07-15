@@ -7691,6 +7691,81 @@ function Analytics({ query }: { query: string }) {
 
 Retorna `true` apenas na primeira renderização — útil para pular efeitos de montagem.
 
+## PWA & gestos de ponteiro
+
+### Prompt de instalação com fallback — `useInstallPrompt`
+
+`useBeforeInstallPrompt` (acima) só captura o evento `beforeinstallprompt` do Chromium. Mas metade dos seus usuários está no iOS Safari (que nunca dispara o evento) ou num fork Chromium do Android que removeu a API. `useInstallPrompt` resolve **qual estratégia** oferecer, num único `method`:
+
+```tsx
+import { useInstallPrompt } from "tempest-react-sdk";
+
+function InstallButton() {
+  const { method, install, openInChromeIntent } = useInstallPrompt();
+
+  if (method === "native")
+    return <button onClick={install}>Instalar app</button>;
+  if (method === "ios")
+    return <p>Toque em Compartilhar → Adicionar à Tela de Início</p>;
+  if (method === "manual")
+    return openInChromeIntent ? (
+      <a href={openInChromeIntent}>Abrir no Chrome para instalar</a>
+    ) : (
+      <p>Use o menu do navegador → Instalar app</p>
+    );
+  return null; // "none" — já instalado ou runtime sem suporte
+}
+```
+
+O `method` é resolvido assim:
+
+- `"native"` → o evento `beforeinstallprompt` chegou; chame `install()` para disparar o prompt nativo.
+- `"ios"` → iOS/iPadOS Safari; mostre as instruções de "Adicionar à Tela de Início".
+- `"manual"` → fork Chromium sem a API, **ou** nenhum evento chegou dentro de `manualFallbackDelayMs` (3s por padrão); mostre instruções genéricas de menu.
+- `"none"` → já rodando como PWA instalado (display-mode standalone) ou o cooldown de recusa está ativo.
+
+Quando o usuário recusa, o hook grava um timestamp no `localStorage` e esconde a CTA por `declineCooldownMs` (7 dias por padrão). Tudo é plugável e SSR-safe:
+
+| Opção                   | Padrão                        | O que faz                                             |
+| ----------------------- | ----------------------------- | ----------------------------------------------------- |
+| `declineStorageKey`     | `"tempest:install-declined-at"` | Chave do `localStorage` para o timestamp de recusa. |
+| `declineCooldownMs`     | `604800000` (7 dias)          | Por quanto tempo a CTA some após recusar.             |
+| `manualFallbackDelayMs` | `3000`                        | Espera por `beforeinstallprompt` antes de cair em `"manual"`. |
+
+!!! info "Helpers de ambiente exportados à parte"
+    As funções puras por trás do hook também são exportadas — úteis sozinhas: `isIOS()`, `isAndroid()`, `isAndroidWithoutPromptApi()` (Mi/UC/Opera Mini/Huawei/KaiOS), `isStandalone()` e `buildOpenInChromeIntent()` (monta uma URL `intent://` que reabre a página no Chrome do Android, com fallback pra Play Store). O tipo `BeforeInstallPromptEvent` também vem do SDK.
+
+### Long-press que devolve handlers — `useLongPressHandlers`
+
+O `useLongPress(ref, fn)` (na tabela **DOM / viewport** acima) anexa listeners de ponteiro a um `ref`. Quando você prefere **espalhar handlers** direto num elemento e ainda suprimir o clique que segue o long-press, use `useLongPressHandlers`:
+
+```tsx
+import { useLongPressHandlers } from "tempest-react-sdk";
+
+function AnimalCard({ id }: { id: string }) {
+  const longPress = useLongPressHandlers(() => enterSelectionMode(id), {
+    delayMs: 500,
+  });
+
+  return (
+    <button
+      {...longPress}
+      onClick={() => {
+        if (longPress.wasLongPress()) return; // segura o clique pós-hold
+        openDetails(id);
+      }}
+    >
+      Animal {id}
+    </button>
+  );
+}
+
+declare function enterSelectionMode(id: string): void;
+declare function openDetails(id: string): void;
+```
+
+Dispara `onLongPress` uma vez após `delayMs` (mouse ou toque), cancela ao soltar/mover, e liga o `contextmenu` para o botão direito no desktop abrir o modo de seleção igual ao long-press do Android. `wasLongPress()` diz se a última interação foi um long-press — use no `onClick` pra não navegar duas vezes. Passe `{ disabled: true }` para deixar os handlers inertes.
+
 ## Resumo
 
 - Hooks granulares, independentes e tree-shakáveis — importe só o que usar.
@@ -9334,6 +9409,22 @@ registerServiceWorker({
 });
 ```
 
+!!! tip "Atualização automática (sem `vite-plugin-pwa`)"
+    Se você prefere que cada deploy chegue sozinho ao usuário — sem prompt de "recarregar?" — ligue `autoUpdate`. O helper passa a chamar `registration.update()` num intervalo (`updateIntervalMs`, padrão 1h) e recarrega a página assim que um novo worker assume o controle (`controllerchange`), com guarda contra loop de reload. É o comportamento auto-update do `vite-plugin-pwa`, mas implementado direto sobre `navigator.serviceWorker`, sem depender dele:
+
+    ```ts
+    import { registerServiceWorker } from "tempest-react-sdk";
+
+    registerServiceWorker({
+      url: "/sw.js",
+      autoUpdate: true, // poll + reload no controllerchange
+      updateIntervalMs: 60 * 60 * 1000, // 1h (padrão)
+      reloadOnActivate: true, // padrão; use `false` para só fazer o poll
+    });
+    ```
+
+    Deixe `reloadOnActivate: false` quando quiser continuar o poll mas controlar o reload você mesmo (ex.: exibir um toast antes).
+
 ### Inscrever o usuário (com o hook)
 
 ```tsx
@@ -10619,9 +10710,34 @@ declare function downloadFile(file: File): void;
 !!! warning "Web Share API exige HTTPS e gesto do usuário"
     `navigator.share` só funciona em contexto seguro (HTTPS ou `localhost`) e precisa ser chamado dentro de um handler de gesto do usuário (ex.: `onClick`). Chamar fora de um clique faz o browser rejeitar — o que cai em `error`, não em `unsupported`.
 
+## Exportar um arquivo — `shareOrDownloadBlob`
+
+O caso mais comum de `files` é "gerei um artefato, agora entrega pro usuário": no celular abre a sheet nativa de compartilhamento, e no desktop (ou onde arquivos não são suportados) cai num download simples. `shareOrDownloadBlob(blob, fileName, options?)` encapsula exatamente esse fluxo — é um companheiro do `share()` construído em cima dele:
+
+```ts
+import { shareOrDownloadBlob } from "tempest-react-sdk";
+
+async function exportReport(bytes: Uint8Array) {
+  const zip = new Blob([bytes], { type: "application/zip" });
+  await shareOrDownloadBlob(zip, "relatorio.zip");
+}
+```
+
+Por baixo ele chama `share({ title, files: [file] })`. Se o usuário **compartilhou** ou **cancelou** a sheet, a função retorna e nada mais acontece. Caso contrário (browser sem suporte a compartilhar arquivos), ela cria um `<a download>`, dispara o clique e revoga o object URL — o download clássico.
+
+| Parâmetro       | Tipo     | Descrição                                            |
+| --------------- | -------- | ---------------------------------------------------- |
+| `blob`          | `Blob`   | O conteúdo binário a compartilhar/baixar             |
+| `fileName`      | `string` | Nome do arquivo apresentado ao usuário               |
+| `options.title` | `string` | Título da sheet de compartilhamento (padrão: o nome) |
+
+!!! tip "Combina com `writeXlsx` / geração de ZIP"
+    Gere a planilha com [`writeXlsx`](./utilities.md#planilhas-xlsx-writexlsx), embrulhe num `Blob` e passe pro `shareOrDownloadBlob` — exportação de dados completa, do byte à sheet nativa, sem dependência extra.
+
 ## Recap
 
 - `share(payload)` envolve `navigator.share` e devolve `ShareResult` em vez de lançar.
+- `shareOrDownloadBlob(blob, fileName)` compartilha o arquivo quando dá, senão baixa via `<a download>`.
 - Cheque na ordem: `unsupported` → fallback, `cancelled` → silêncio, `shared` → sucesso, `error` → telemetria.
 - `SharePayload` aceita `title`, `text`, `url`, `files` (todos opcionais).
 - `isShareSupported()` decide antecipadamente entre o botão nativo e o fallback.
@@ -13897,9 +14013,41 @@ formatCompactNumber(1234, "pt-BR"); // "1,2 mil"
 
 ---
 
+## Planilhas `.xlsx` — `writeXlsx`
+
+Exportar dados como CSV parece simples até um acento virar `Ã©` no Excel. `writeXlsx(headers, rows)` gera um workbook Office Open XML (`.xlsx`) de uma aba direto em memória — UTF-8 de ponta a ponta, então acentos sobrevivem em Excel/LibreOffice/Google Sheets sem a fragilidade de BOM do CSV. A única dependência é o `fflate` (usado para deflate do pacote), já embutido no SDK.
+
+```ts
+import { writeXlsx } from "tempest-react-sdk";
+
+const bytes = writeXlsx(
+  ["Nome", "Score", "Observação"],
+  [
+    ["Ada", 99, "aprovada"],
+    ["Alan", 87, null], // null vira célula vazia
+  ],
+);
+
+const blob = new Blob([bytes], {
+  type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+});
+```
+
+- `headers: string[]` — a primeira linha (cabeçalho).
+- `rows: (string | number | null)[][]` — cada valor vira uma célula: `number` usa o tipo nativo `"n"` (o app de planilha reconhece como número), `null` (ou `""`) vira célula vazia, o resto é string inline.
+- Retorna os bytes do arquivo como `Uint8Array`.
+
+O XML é enxuto de propósito: strings inline (sem tabela de shared-strings), sem estilos, sem merge. É um escritor **genérico** — mapeie seus registros de domínio para `headers`/`rows` na camada da sua aplicação.
+
+!!! tip "Do byte ao usuário"
+    Combine com [`shareOrDownloadBlob`](./share.md#exportar-um-arquivo-shareordownloadblob): `writeXlsx` → `new Blob([...])` → `shareOrDownloadBlob(blob, "dados.xlsx")` abre a sheet nativa no celular e baixa no desktop.
+
+---
+
 ## Recap
 
 - Importe qualquer helper direto de `tempest-react-sdk` — todos são exports nomeados, puros e tree-shakable.
+- **Planilhas**: `writeXlsx(headers, rows)` gera um `.xlsx` UTF-8 de uma aba como `Uint8Array` (sem drama de BOM do CSV).
 - **Arrays/Objetos**: `groupBy`, `uniqueBy`, `chunk`, `range`, `pick`, `omit`, `deepMerge`, `isEmpty` — sempre imutáveis; `deepMerge` substitui arrays em vez de fundir.
 - **Guards**: `isDefined`, `isString`, `isNumber`, `isPlainObject`, `assertNever` — narrowing seguro + exaustividade em `switch`.
 - **Funções**: `debounce`/`throttle` (com `.cancel()`), `once`, `memoizeOne` para controlar execução.

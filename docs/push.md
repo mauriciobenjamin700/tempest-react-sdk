@@ -51,6 +51,22 @@ registerServiceWorker({
 });
 ```
 
+!!! tip "Atualização automática (sem `vite-plugin-pwa`)"
+    Se você prefere que cada deploy chegue sozinho ao usuário — sem prompt de "recarregar?" — ligue `autoUpdate`. O helper passa a chamar `registration.update()` num intervalo (`updateIntervalMs`, padrão 1h) e recarrega a página assim que um novo worker assume o controle (`controllerchange`), com guarda contra loop de reload. É o comportamento auto-update do `vite-plugin-pwa`, mas implementado direto sobre `navigator.serviceWorker`, sem depender dele:
+
+    ```ts
+    import { registerServiceWorker } from "tempest-react-sdk";
+
+    registerServiceWorker({
+      url: "/sw.js",
+      autoUpdate: true, // poll + reload no controllerchange
+      updateIntervalMs: 60 * 60 * 1000, // 1h (padrão)
+      reloadOnActivate: true, // padrão; use `false` para só fazer o poll
+    });
+    ```
+
+    Deixe `reloadOnActivate: false` quando quiser continuar o poll mas controlar o reload você mesmo (ex.: exibir um toast antes).
+
 ### Inscrever o usuário (com o hook)
 
 ```tsx

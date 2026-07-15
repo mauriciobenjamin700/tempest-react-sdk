@@ -466,6 +466,81 @@ function Analytics({ query }: { query: string }) {
 
 Returns `true` only on the first render — handy to skip mount-time effects.
 
+## PWA & pointer gestures
+
+### Install prompt with fallback — `useInstallPrompt`
+
+`useBeforeInstallPrompt` (above) only captures the Chromium `beforeinstallprompt` event. But half of your users are on iOS Safari (which never fires it) or on an Android Chromium fork that stripped the API. `useInstallPrompt` resolves **which strategy** to offer, in a single `method`:
+
+```tsx
+import { useInstallPrompt } from "tempest-react-sdk";
+
+function InstallButton() {
+  const { method, install, openInChromeIntent } = useInstallPrompt();
+
+  if (method === "native")
+    return <button onClick={install}>Install app</button>;
+  if (method === "ios")
+    return <p>Tap Share → Add to Home Screen</p>;
+  if (method === "manual")
+    return openInChromeIntent ? (
+      <a href={openInChromeIntent}>Open in Chrome to install</a>
+    ) : (
+      <p>Use the browser menu → Install app</p>
+    );
+  return null; // "none" — already installed or unsupported runtime
+}
+```
+
+`method` resolves like this:
+
+- `"native"` → the `beforeinstallprompt` event arrived; call `install()` to trigger the native prompt.
+- `"ios"` → iOS/iPadOS Safari; show the "Add to Home Screen" instructions.
+- `"manual"` → a Chromium fork without the API, **or** no event arrived within `manualFallbackDelayMs` (3s by default); show generic browser-menu instructions.
+- `"none"` → already running as an installed PWA (standalone display mode) or the decline cooldown is active.
+
+When the user declines, the hook stores a timestamp in `localStorage` and hides the CTA for `declineCooldownMs` (7 days by default). It's all pluggable and SSR-safe:
+
+| Option                  | Default                         | What it does                                          |
+| ----------------------- | ------------------------------- | ----------------------------------------------------- |
+| `declineStorageKey`     | `"tempest:install-declined-at"` | `localStorage` key for the decline timestamp.         |
+| `declineCooldownMs`     | `604800000` (7 days)            | How long the CTA stays hidden after a decline.        |
+| `manualFallbackDelayMs` | `3000`                          | How long to wait for `beforeinstallprompt` before falling back to `"manual"`. |
+
+!!! info "Environment helpers exported separately"
+    The pure functions behind the hook are exported too — useful on their own: `isIOS()`, `isAndroid()`, `isAndroidWithoutPromptApi()` (Mi/UC/Opera Mini/Huawei/KaiOS), `isStandalone()`, and `buildOpenInChromeIntent()` (builds an `intent://` URL that reopens the page in Android Chrome, with a Play Store fallback). The `BeforeInstallPromptEvent` type ships from the SDK as well.
+
+### Long-press that returns handlers — `useLongPressHandlers`
+
+`useLongPress(ref, fn)` (in the **DOM / viewport** table above) attaches pointer listeners to a `ref`. When you'd rather **spread handlers** onto an element and also suppress the click that follows a long-press, use `useLongPressHandlers`:
+
+```tsx
+import { useLongPressHandlers } from "tempest-react-sdk";
+
+function AnimalCard({ id }: { id: string }) {
+  const longPress = useLongPressHandlers(() => enterSelectionMode(id), {
+    delayMs: 500,
+  });
+
+  return (
+    <button
+      {...longPress}
+      onClick={() => {
+        if (longPress.wasLongPress()) return; // guard the post-hold click
+        openDetails(id);
+      }}
+    >
+      Animal {id}
+    </button>
+  );
+}
+
+declare function enterSelectionMode(id: string): void;
+declare function openDetails(id: string): void;
+```
+
+It fires `onLongPress` once after `delayMs` (mouse or touch), cancels on release/move, and wires `contextmenu` so a desktop right-click opens selection mode just like an Android long-press. `wasLongPress()` reports whether the last interaction was a long-press — use it in `onClick` to avoid navigating twice. Pass `{ disabled: true }` to make the handlers inert.
+
 ## Recap
 
 - Granular, independent, tree-shakeable hooks — import only what you use.

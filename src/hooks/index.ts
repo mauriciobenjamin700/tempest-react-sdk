@@ -62,3 +62,23 @@ export type { UseQueueOptions, UseQueueResult } from "./use-queue";
 export { useClickOutside } from "./use-click-outside";
 export { useIsFirstRender } from "./use-is-first-render";
 export { useObjectUrl } from "./use-object-url";
+export { useLongPressHandlers } from "./use-long-press-handlers";
+export type {
+    LongPressHandlers,
+    UseLongPressHandlersOptions,
+    UseLongPressHandlersResult,
+} from "./use-long-press-handlers";
+export {
+    isIOS,
+    isAndroid,
+    isAndroidWithoutPromptApi,
+    isStandalone,
+    buildOpenInChromeIntent,
+} from "./pwa-env";
+export type { BeforeInstallPromptEvent } from "./pwa-env";
+export { useInstallPrompt } from "./use-install-prompt";
+export type {
+    InstallMethod,
+    UseInstallPromptOptions,
+    UseInstallPromptResult,
+} from "./use-install-prompt";

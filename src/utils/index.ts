@@ -18,3 +18,4 @@ export { assertNever, isDefined, isNumber, isPlainObject, isString } from "./gua
 export { debounce, throttle, once, memoizeOne } from "./functions";
 export { sleep, withTimeout } from "./promises";
 export { randomId } from "./ids";
+export { writeXlsx } from "./xlsx";

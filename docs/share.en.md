@@ -95,9 +95,34 @@ declare function downloadFile(file: File): void;
 !!! warning "Web Share API requires HTTPS and a user gesture"
     `navigator.share` only works in a secure context (HTTPS or `localhost`) and must be called inside a user-gesture handler (e.g. `onClick`). Calling it outside a click makes the browser reject — which lands in `error`, not `unsupported`.
 
+## Export a file — `shareOrDownloadBlob`
+
+The most common use of `files` is "I generated an artifact, now hand it to the user": on mobile it opens the native share sheet, and on desktop (or wherever file sharing is unsupported) it falls back to a plain download. `shareOrDownloadBlob(blob, fileName, options?)` wraps exactly that flow — a companion to `share()` built on top of it:
+
+```ts
+import { shareOrDownloadBlob } from "tempest-react-sdk";
+
+async function exportReport(bytes: Uint8Array) {
+  const zip = new Blob([bytes], { type: "application/zip" });
+  await shareOrDownloadBlob(zip, "report.zip");
+}
+```
+
+Under the hood it calls `share({ title, files: [file] })`. If the user **shared** or **cancelled** the sheet, the function returns and nothing else happens. Otherwise (browser without file-share support) it creates an `<a download>`, clicks it, and revokes the object URL — the classic download.
+
+| Parameter       | Type     | Description                                          |
+| --------------- | -------- | ---------------------------------------------------- |
+| `blob`          | `Blob`   | The binary payload to share/download                 |
+| `fileName`      | `string` | The file name presented to the user                  |
+| `options.title` | `string` | Title for the share sheet (defaults to the file name)|
+
+!!! tip "Pairs with `writeXlsx` / ZIP generation"
+    Generate the spreadsheet with [`writeXlsx`](./utilities.en.md#spreadsheets-xlsx-writexlsx), wrap it in a `Blob`, and hand it to `shareOrDownloadBlob` — a full data export, from bytes to native sheet, with no extra dependency.
+
 ## Recap
 
 - `share(payload)` wraps `navigator.share` and returns `ShareResult` instead of throwing.
+- `shareOrDownloadBlob(blob, fileName)` shares the file when it can, otherwise downloads it via `<a download>`.
 - Check in order: `unsupported` → fallback, `cancelled` → silence, `shared` → success, `error` → telemetry.
 - `SharePayload` accepts `title`, `text`, `url`, `files` (all optional).
 - `isShareSupported()` decides upfront between the native button and the fallback.

@@ -70,6 +70,7 @@ export default defineConfig({
                 "@tanstack/react-query",
                 "lucide-react",
                 "dexie",
+                "fflate",
                 "react-hook-form",
                 "react-router",
                 "react-router-dom",

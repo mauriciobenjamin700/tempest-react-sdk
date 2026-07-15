@@ -2,6 +2,39 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
+## [0.22.0] — 2026-07-15
+
+### Adicionado
+
+- **`useInstallPrompt`** + helpers de ambiente PWA (entrada principal) —
+  orquestra o prompt de instalação: cacheia `beforeinstallprompt`, detecta
+  iOS/iPadOS, forks Chromium do Android sem prompt API e modo standalone,
+  monta um `intent://` pra abrir no Chrome, aplica cooldown de recusa
+  (`declineStorageKey`/`declineCooldownMs` plugáveis) e resolve um
+  `InstallMethod` (`"native" | "ios" | "manual" | "none"`). Exporta também
+  `isIOS`, `isAndroid`, `isAndroidWithoutPromptApi`, `isStandalone`,
+  `buildOpenInChromeIntent` e o tipo `BeforeInstallPromptEvent`.
+- **`useLongPressHandlers`** (entrada principal) — hook de long-press que
+  devolve handlers espalháveis (mouse/touch/contextmenu) + um guard
+  `wasLongPress()` pra suprimir o clique seguinte. Complementa o
+  `useLongPress` existente (baseado em ref), com API de props.
+- **`shareOrDownloadBlob(blob, fileName, options?)`** (entrada principal) —
+  companheiro do `share`: tenta o Web Share API com arquivo e cai para um
+  download-anchor quando compartilhar arquivo não é suportado.
+- **`writeXlsx(headers, rows)`** (entrada principal) — writer OOXML `.xlsx`
+  sem dependência de runtime além de `fflate` (escaping XML, aritmética de
+  colunas, células inline-string/number, montagem de sheet/workbook). Só o
+  core genérico — mapeamento de linhas fica no app.
+- **`registerServiceWorker`** (`/sw`) ganhou opções de auto-update:
+  `autoUpdate`, `updateIntervalMs`, `reloadOnActivate` — poll de
+  `registration.update()` + reload no `controllerchange` (guarda de refresh),
+  direto sobre `navigator.serviceWorker`, sem `vite-plugin-pwa`.
+
+### Dependências
+
+- `fflate` promovido a dependência direta (era peer implícito) — usado pelo
+  `writeXlsx`; externalizado no bundle.
+
 ## [0.21.0] — 2026-07-15
 
 ### Adicionado

@@ -465,6 +465,81 @@ function Analytics({ query }: { query: string }) {
 
 Retorna `true` apenas na primeira renderização — útil para pular efeitos de montagem.
 
+## PWA & gestos de ponteiro
+
+### Prompt de instalação com fallback — `useInstallPrompt`
+
+`useBeforeInstallPrompt` (acima) só captura o evento `beforeinstallprompt` do Chromium. Mas metade dos seus usuários está no iOS Safari (que nunca dispara o evento) ou num fork Chromium do Android que removeu a API. `useInstallPrompt` resolve **qual estratégia** oferecer, num único `method`:
+
+```tsx
+import { useInstallPrompt } from "tempest-react-sdk";
+
+function InstallButton() {
+  const { method, install, openInChromeIntent } = useInstallPrompt();
+
+  if (method === "native")
+    return <button onClick={install}>Instalar app</button>;
+  if (method === "ios")
+    return <p>Toque em Compartilhar → Adicionar à Tela de Início</p>;
+  if (method === "manual")
+    return openInChromeIntent ? (
+      <a href={openInChromeIntent}>Abrir no Chrome para instalar</a>
+    ) : (
+      <p>Use o menu do navegador → Instalar app</p>
+    );
+  return null; // "none" — já instalado ou runtime sem suporte
+}
+```
+
+O `method` é resolvido assim:
+
+- `"native"` → o evento `beforeinstallprompt` chegou; chame `install()` para disparar o prompt nativo.
+- `"ios"` → iOS/iPadOS Safari; mostre as instruções de "Adicionar à Tela de Início".
+- `"manual"` → fork Chromium sem a API, **ou** nenhum evento chegou dentro de `manualFallbackDelayMs` (3s por padrão); mostre instruções genéricas de menu.
+- `"none"` → já rodando como PWA instalado (display-mode standalone) ou o cooldown de recusa está ativo.
+
+Quando o usuário recusa, o hook grava um timestamp no `localStorage` e esconde a CTA por `declineCooldownMs` (7 dias por padrão). Tudo é plugável e SSR-safe:
+
+| Opção                   | Padrão                        | O que faz                                             |
+| ----------------------- | ----------------------------- | ----------------------------------------------------- |
+| `declineStorageKey`     | `"tempest:install-declined-at"` | Chave do `localStorage` para o timestamp de recusa. |
+| `declineCooldownMs`     | `604800000` (7 dias)          | Por quanto tempo a CTA some após recusar.             |
+| `manualFallbackDelayMs` | `3000`                        | Espera por `beforeinstallprompt` antes de cair em `"manual"`. |
+
+!!! info "Helpers de ambiente exportados à parte"
+    As funções puras por trás do hook também são exportadas — úteis sozinhas: `isIOS()`, `isAndroid()`, `isAndroidWithoutPromptApi()` (Mi/UC/Opera Mini/Huawei/KaiOS), `isStandalone()` e `buildOpenInChromeIntent()` (monta uma URL `intent://` que reabre a página no Chrome do Android, com fallback pra Play Store). O tipo `BeforeInstallPromptEvent` também vem do SDK.
+
+### Long-press que devolve handlers — `useLongPressHandlers`
+
+O `useLongPress(ref, fn)` (na tabela **DOM / viewport** acima) anexa listeners de ponteiro a um `ref`. Quando você prefere **espalhar handlers** direto num elemento e ainda suprimir o clique que segue o long-press, use `useLongPressHandlers`:
+
+```tsx
+import { useLongPressHandlers } from "tempest-react-sdk";
+
+function AnimalCard({ id }: { id: string }) {
+  const longPress = useLongPressHandlers(() => enterSelectionMode(id), {
+    delayMs: 500,
+  });
+
+  return (
+    <button
+      {...longPress}
+      onClick={() => {
+        if (longPress.wasLongPress()) return; // segura o clique pós-hold
+        openDetails(id);
+      }}
+    >
+      Animal {id}
+    </button>
+  );
+}
+
+declare function enterSelectionMode(id: string): void;
+declare function openDetails(id: string): void;
+```
+
+Dispara `onLongPress` uma vez após `delayMs` (mouse ou toque), cancela ao soltar/mover, e liga o `contextmenu` para o botão direito no desktop abrir o modo de seleção igual ao long-press do Android. `wasLongPress()` diz se a última interação foi um long-press — use no `onClick` pra não navegar duas vezes. Passe `{ disabled: true }` para deixar os handlers inertes.
+
 ## Resumo
 
 - Hooks granulares, independentes e tree-shakáveis — importe só o que usar.

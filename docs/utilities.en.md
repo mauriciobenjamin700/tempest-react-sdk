@@ -253,9 +253,41 @@ formatCompactNumber(1234, "pt-BR"); // "1,2 mil"
 
 ---
 
+## Spreadsheets `.xlsx` — `writeXlsx`
+
+Exporting data as CSV feels simple until an accent turns into `Ã©` in Excel. `writeXlsx(headers, rows)` builds a single-sheet Office Open XML (`.xlsx`) workbook straight in memory — UTF-8 end to end, so accents survive Excel/LibreOffice/Google Sheets without the CSV BOM fragility. The only dependency is `fflate` (used to deflate the package), already bundled in the SDK.
+
+```ts
+import { writeXlsx } from "tempest-react-sdk";
+
+const bytes = writeXlsx(
+  ["Name", "Score", "Note"],
+  [
+    ["Ada", 99, "approved"],
+    ["Alan", 87, null], // null becomes an empty cell
+  ],
+);
+
+const blob = new Blob([bytes], {
+  type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+});
+```
+
+- `headers: string[]` — the first (header) row.
+- `rows: (string | number | null)[][]` — each value becomes a cell: `number` uses the native `"n"` type (recognised as a number by the spreadsheet app), `null` (or `""`) becomes an empty cell, everything else is an inline string.
+- Returns the file bytes as a `Uint8Array`.
+
+The XML is deliberately lean: inline strings (no shared-string table), no styles, no merges. It's a **generic** writer — map your domain records to `headers`/`rows` in your application layer.
+
+!!! tip "From bytes to the user"
+    Pair it with [`shareOrDownloadBlob`](./share.en.md#export-a-file-shareordownloadblob): `writeXlsx` → `new Blob([...])` → `shareOrDownloadBlob(blob, "data.xlsx")` opens the native sheet on mobile and downloads on desktop.
+
+---
+
 ## Recap
 
 - Import any helper straight from `tempest-react-sdk` — they are all named, pure, tree-shakable exports.
+- **Spreadsheets**: `writeXlsx(headers, rows)` builds a single-sheet UTF-8 `.xlsx` as a `Uint8Array` (no CSV BOM drama).
 - **Arrays/Objects**: `groupBy`, `uniqueBy`, `chunk`, `range`, `pick`, `omit`, `deepMerge`, `isEmpty` — always immutable; `deepMerge` replaces arrays instead of merging them.
 - **Guards**: `isDefined`, `isString`, `isNumber`, `isPlainObject`, `assertNever` — safe narrowing + `switch` exhaustiveness.
 - **Functions**: `debounce`/`throttle` (with `.cancel()`), `once`, `memoizeOne` to control execution.

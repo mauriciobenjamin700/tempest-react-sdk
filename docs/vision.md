@@ -267,6 +267,136 @@ COCO_CLASSES; // o array readonly das 80 classes, em ordem canônica
     preset de ImageNet embutido. Passar `numClasses` valida que a contagem de
     rótulos bate com a do modelo (`LabelMapError` se divergir).
 
+## Hooks de câmera e luminância
+
+Antes de rodar qualquer modelo você precisa de um **frame** — e de um frame que
+preste. O subpath `/vision` traz três primitivas de navegador pra isso: abrir a
+câmera, medir o brilho ao vivo e rejeitar capturas escuras demais. Elas são
+genéricas (não dependem de nenhum modelo), mas moram no `/vision` porque é ali
+que a captura acontece.
+
+### `useCameraStream` — abrir a câmera
+
+Pede um `MediaStream` via `getUserMedia`, prende num `<video>` e expõe
+`status`/`error` já classificados, pra você renderizar os estados de permissão e
+erro sem decorar os nomes de `DOMException`. O stream é liberado sozinho no
+unmount e no `retry()`.
+
+```tsx
+import { useCameraStream } from "tempest-react-sdk/vision";
+
+function CameraView() {
+  const { status, error, videoRef, retry } = useCameraStream();
+
+  if (status === "error") {
+    return (
+      <div>
+        <p>{error?.message}</p>
+        <button onClick={retry}>Tentar de novo</button>
+      </div>
+    );
+  }
+
+  return (
+    <video ref={videoRef} playsInline muted style={{ opacity: status === "ready" ? 1 : 0.4 }} />
+  );
+}
+```
+
+Por padrão pede a câmera **traseira** (`facingMode: "environment"`) em Full-HD —
+o ideal pra tirar foto de algo à sua frente. Desktops caem na única câmera que
+expõem. Pra sobrescrever, passe `constraints`:
+
+```tsx
+const cam = useCameraStream({
+  constraints: { video: { facingMode: "user" }, audio: false }, // câmera frontal
+});
+```
+
+O `error.kind` é um enum estável — mapeie-o pra UI, não pra `error.message`:
+
+| `kind`              | Quando acontece                                             |
+| ------------------- | ----------------------------------------------------------- |
+| `unsupported`       | navegador sem `getUserMedia` (ou SSR).                      |
+| `insecure`          | página fora de HTTPS (contexto não seguro).                 |
+| `permission-denied` | usuário negou (ou o SO bloqueou) o acesso.                  |
+| `no-camera`         | nenhum dispositivo de câmera / constraints impossíveis.     |
+| `in-use`            | a câmera está presa por outro app.                          |
+| `unknown`           | qualquer outra falha (a mensagem original vem em `message`).|
+
+!!! warning "Câmera só em contexto seguro"
+    `getUserMedia` só funciona sob **HTTPS** (ou `localhost`). Numa origem
+    insegura o hook devolve `status: "error"` com `kind: "insecure"` — não é bug,
+    é política do navegador. As mensagens em `error.message` são em **inglês**;
+    traduza na sua camada de i18n se precisar.
+
+### `computeImageLuminance` + `useLiveLuminance` — medir o brilho
+
+`computeImageLuminance` calcula a **luminância média BT.709**
+(`0.2126*R + 0.7152*G + 0.0722*B`, escala `0..255`) de um `<img>`, `<video>` ou
+`<canvas>` já decodificado. Faz downsample até no máximo
+`LUMINANCE_SAMPLE_MAX_EDGE` (256px) antes de ler os pixels — estatisticamente
+equivalente pra um threshold e ordens de magnitude mais rápido que ler o frame
+inteiro.
+
+```tsx
+import {
+  computeImageLuminance,
+  isLuminanceAcceptable,
+  LowLuminanceError,
+} from "tempest-react-sdk/vision";
+
+const luminance = computeImageLuminance(videoOrImageOrCanvas); // 0..255
+if (!isLuminanceAcceptable(luminance, 70)) {
+  throw new LowLuminanceError(luminance, 70);
+}
+```
+
+!!! note "O threshold é seu"
+    `isLuminanceAcceptable(luminance, threshold)` recebe o `threshold`
+    **obrigatoriamente** — o valor ideal depende do seu modelo, da luz em que ele
+    foi treinado e da taxa de rejeição aceitável. O SDK não crava um default.
+    `LowLuminanceError` carrega `.luminance` e `.threshold` pra você mostrar
+    feedback acionável.
+
+Pra feedback **ao vivo** (barra de brilho, borda que muda de cor enquanto a
+câmera está aberta), `useLiveLuminance` amostra o `<video>` num laço de
+`requestAnimationFrame`, reaproveitando um único canvas offscreen:
+
+```tsx
+import { useCameraStream, useLiveLuminance, isLuminanceAcceptable } from "tempest-react-sdk/vision";
+
+function BrightnessGuardedCamera() {
+  const { status, videoRef } = useCameraStream();
+  const luminance = useLiveLuminance(videoRef, { enabled: status === "ready" });
+  const bright = isLuminanceAcceptable(luminance, 70);
+
+  return (
+    <div style={{ border: `3px solid ${bright ? "green" : "orange"}` }}>
+      <video ref={videoRef} playsInline muted />
+      {!bright && <p>Ambiente escuro — aproxime-se de uma luz.</p>}
+    </div>
+  );
+}
+```
+
+Ele pausa sozinho quando `enabled` é `false` ou enquanto o vídeo ainda não está
+pronto (`readyState < 2`), e é limitado por `intervalMs` (padrão `160`, ~6 fps —
+mais que suficiente pra UX).
+
+!!! tip "Pré-visualizar o frame capturado: `useObjectUrl`"
+    Depois de exportar o frame pra um `Blob` (`canvas.toBlob(...)`), use o
+    [`useObjectUrl`](hooks.md) (barrel principal, `tempest-react-sdk`) pra virar
+    um `src` de `<img>` sem vazar memória — ele cria o `URL.createObjectURL` e o
+    revoga sozinho quando o blob muda ou o componente desmonta.
+
+    ```tsx
+    import { useObjectUrl } from "tempest-react-sdk";
+
+    const previewUrl = useObjectUrl(capturedBlob);
+    return previewUrl ? <img src={previewUrl} alt="Prévia" /> : null;
+    ```
+
 ## Paridade com o `ort-vision-sdk` em Python
 
 Essa API espelha de propósito a do pacote Python
@@ -300,3 +430,8 @@ quase sem atrito.
   exige `labels`.
 - A API espelha o `ort-vision-sdk` em Python — mesmo modelo mental nos dois
   lados.
+- Pra **capturar** o frame: `useCameraStream` (câmera traseira por padrão,
+  `error.kind` estável, `retry()`), `computeImageLuminance` +
+  `isLuminanceAcceptable` + `LowLuminanceError` pra checar o brilho (threshold
+  obrigatório) e `useLiveLuminance` pro feedback ao vivo. Pra pré-visualizar o
+  `Blob` capturado, `useObjectUrl` (barrel principal).

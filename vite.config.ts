@@ -42,8 +42,10 @@ export default defineConfig({
                 // Rich text editor — tiptap is an optional peer, externalized.
                 editor: resolve(__dirname, "src/editor/index.ts"),
                 // Vision inference (vendored ort-vision-sdk-web) — onnxruntime-web
-                // is an optional peer, externalized.
-                vision: resolve(__dirname, "src/vision/index.ts"),
+                // is an optional peer, externalized. Entry is `public.ts`, which
+                // re-exports the vendored `index.ts` plus the SDK camera/luminance
+                // hooks, so re-vendoring never clobbers the hook exports.
+                vision: resolve(__dirname, "src/vision/public.ts"),
                 // Brazilian locations + clickable UF map. Bundles the names
                 // dataset + a simplified UF GeoJSON — kept off the root entry so
                 // apps that don't need it pay nothing.

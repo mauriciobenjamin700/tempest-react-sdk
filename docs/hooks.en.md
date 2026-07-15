@@ -61,6 +61,7 @@ dependency array. The SDK packages these patterns into granular, tested,
 | `useSet<T>(initial?)`                             | `{ set, add, delete, clear, has, toggle, size }` — reactive `Set` (a fresh reference on each mutation).          |
 | `useQueue<T>({ initialValues, limit })`           | `{ queue, add, update, cleanQueue, size }` — FIFO queue with a `limit` and an overflow buffer.                   |
 | `useIsFirstRender()`                              | `true` on the component's first render, `false` after.                                                           |
+| `useObjectUrl(blob)`                              | Creates `URL.createObjectURL(blob)` and revokes it on unmount / when the blob changes; `null` for nullish input.  |
 
 ### Timers
 

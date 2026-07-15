@@ -61,6 +61,7 @@ testados, **SSR-safe** e independentes — importe só o que precisar.
 | `useSet<T>(initial?)`                             | `{ set, add, delete, clear, has, toggle, size }` — `Set` reativo (nova referência a cada mutação).              |
 | `useQueue<T>({ initialValues, limit })`           | `{ queue, add, update, cleanQueue, size }` — fila FIFO com `limit` e buffer de overflow.                        |
 | `useIsFirstRender()`                              | `true` no primeiro render do componente, `false` depois.                                                        |
+| `useObjectUrl(blob)`                              | Cria `URL.createObjectURL(blob)` e o revoga no unmount / quando o blob muda; `null` pra entrada nula.           |
 
 ### Timers
 

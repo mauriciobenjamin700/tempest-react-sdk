@@ -2,6 +2,26 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
+## [0.20.0] — 2026-07-15
+
+### Adicionado
+
+- **Hooks de câmera e luminância** (`tempest-react-sdk/vision`) — primitivas de
+  browser para apps de visão pararem de reimplementar:
+  - `useCameraStream(options?)` — adquire um `MediaStream` via `getUserMedia`
+    (câmera traseira por padrão, `constraints` sobrescrevível), pluga num
+    `<video ref={videoRef} />`, expõe `status`/`error` tipados (kinds
+    `unsupported | permission-denied | no-camera | in-use | insecure | unknown`)
+    e libera as tracks no unmount/`retry()`.
+  - `computeImageLuminance(source, reusableCanvas?)` — luminância média BT.709
+    (0..255) de `<img>`/`<video>`/`<canvas>`, com downsample para
+    `LUMINANCE_SAMPLE_MAX_EDGE`; `isLuminanceAcceptable(luminance, threshold)`;
+    `LowLuminanceError` (carrega `luminance` + `threshold`).
+  - `useLiveLuminance(videoRef, options?)` — loop `requestAnimationFrame`
+    (throttle `intervalMs`, pausável) que amostra a luminância de um `<video>`.
+- **`useObjectUrl(blob)`** (entrada principal) — cria um object URL para um
+  `Blob` e o revoga no unmount / quando o blob muda.
+
 ## [0.19.1] — 2026-07-14
 
 ### Corrigido

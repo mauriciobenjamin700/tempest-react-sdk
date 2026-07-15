@@ -61,3 +61,4 @@ export { useQueue } from "./use-queue";
 export type { UseQueueOptions, UseQueueResult } from "./use-queue";
 export { useClickOutside } from "./use-click-outside";
 export { useIsFirstRender } from "./use-is-first-render";
+export { useObjectUrl } from "./use-object-url";

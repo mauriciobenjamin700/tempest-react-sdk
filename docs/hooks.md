@@ -29,6 +29,8 @@ testados, **SSR-safe** e independentes — importe só o que precisar.
 | `useFocusTrap(ref, active)`                       | Confina Tab dentro do container.                                                                             |
 | `useHover(ref)` / `useLongPress(handler, opts?)`  | Gestos de ponteiro (hover reativo / long-press).                                                             |
 | `useBeforeInstallPrompt()`                        | PWA install prompt diferido (`installable`, `installed`, `isStandalone`, `prompt()`).                        |
+| `useServiceWorkerUpdate({ url })`                 | Registra o SW e expõe `{ updateAvailable, applyUpdate, registration }` — fluxo de update com consentimento (par de `<UpdatePrompt>`). Veja [PWA](./pwa.md). |
+| `useStorageEstimate({ pollMs? })`                 | `{ usage, quota, ratio, persisted, requestPersist, refresh }` — quota do Storage API + `persist()`. Pares puros: `estimateStorage`, `requestPersistentStorage`. |
 | `useIdle(timeout?)`                               | True quando usuário ocioso por `timeout` ms.                                                                 |
 | `useGeolocation(opts?)`                           | Position + erro + loading.                                                                                   |
 | `useClickOutside(handler)`                        | Retorna um ref; chama `handler` em `mousedown`/`touchstart` fora do elemento. SSR-safe.                      |

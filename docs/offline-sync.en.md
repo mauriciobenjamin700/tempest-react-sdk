@@ -265,9 +265,37 @@ export function startSync(): void {
 !!! tip "Push instead of polling"
     If the backend fires a **web push** on change, swap the `setInterval` for a `pullAnalyses` inside the notification handler — near real-time sync, no polling. See [Web Push](./push.md) + `usePushSubscription`.
 
+## Reactive UI and auto-flush
+
+Don't wire sync state by hand: `useOfflineSync(sync, opts)` subscribes the component to the engine (via `subscribe`/`getState`) and exposes `{ phase, pending, syncing, lastSummary, lastError, flush, enqueue }`, with optional flush on mount, on the `online` event and on an interval. `useSyncStatus(sync)` returns a ready `{ tone, pending, syncing }` for `<SyncStatusBadge>`. For the offline bar and the SW update prompt, see **[PWA & Offline-First](./pwa.md)**.
+
+```tsx
+import { useOfflineSync, SyncStatusBadge, useSyncStatus } from "tempest-react-sdk";
+import { sync } from "@/sync/engine";
+
+function SyncBadge() {
+  const { tone, pending } = useSyncStatus(sync);
+  return <SyncStatusBadge tone={tone} pending={pending} />;
+}
+```
+
+For optimistic mutations wired to TanStack Query, use `useOfflineMutation` — see [Query](./query.md#useofflinemutation).
+
 ## Conflicts: last-write-wins
 
 The backend resolves by `updated_at` (the most recent write wins). On the client, the pull does `bulkPut`, which **overwrites** the local record with the server version — so an unconfirmed local edit can be replaced by a newer server version. If your domain needs finer merging (independent fields, CRDTs), handle it in the `saveAnalysis`/pull layer; the SDK gives you the blocks, it doesn't impose the policy.
+
+For the two common cases, the SDK exports ready-made resolvers to use inside `applyRemote` (ties → remote wins):
+
+```ts
+import { lastWriteWins, higherVersionWins } from "tempest-react-sdk";
+
+applyRemote: async (dto) => {
+  const local = await analyses.get(dto.id);
+  await analyses.save(lastWriteWins(local, dto, (r) => r.updatedAt));
+  // or: higherVersionWins(local, dto, (r) => r.version)
+};
+```
 
 ## Recap
 

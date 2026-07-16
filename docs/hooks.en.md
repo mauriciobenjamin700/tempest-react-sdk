@@ -29,6 +29,8 @@ dependency array. The SDK packages these patterns into granular, tested,
 | `useFocusTrap(ref, active)`                       | Confines Tab within the container.                                                                            |
 | `useHover(ref)` / `useLongPress(handler, opts?)`  | Pointer gestures (reactive hover / long-press).                                                               |
 | `useBeforeInstallPrompt()`                        | Deferred PWA install prompt (`installable`, `installed`, `isStandalone`, `prompt()`).                         |
+| `useServiceWorkerUpdate({ url })`                 | Registers the SW and exposes `{ updateAvailable, applyUpdate, registration }` — consent-based update flow (pairs with `<UpdatePrompt>`). See [PWA](./pwa.md). |
+| `useStorageEstimate({ pollMs? })`                 | `{ usage, quota, ratio, persisted, requestPersist, refresh }` — Storage API quota + `persist()`. Pure pairs: `estimateStorage`, `requestPersistentStorage`. |
 | `useIdle(timeout?)`                               | True when the user is idle for `timeout` ms.                                                                  |
 | `useGeolocation(opts?)`                           | Position + error + loading.                                                                                   |
 | `useClickOutside(handler)`                        | Returns a ref; calls `handler` on a `mousedown`/`touchstart` outside the element. SSR-safe.                   |

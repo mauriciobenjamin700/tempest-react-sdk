@@ -376,6 +376,38 @@ A failure with a retry button.
 <ErrorState title="Couldn't load" description={String(error)} onRetry={refetch} />
 ```
 
+## `OfflineIndicator`
+
+**When to use:** warn that the app is offline and confirm when the connection returns. Driven by `useOnline` — renders nothing while online, so mount it at the root without an `if`.
+
+```tsx
+<OfflineIndicator position="top" />
+```
+
+`position`: `"top"` | `"bottom"` (default). Pass `children` to replace the body, or `onlineFlashMs={0}` to skip the confirmation flash. See [PWA & Offline-First](../pwa.md).
+
+## `SyncStatusBadge`
+
+**When to use:** show the offline engine state (synced / syncing / pending / offline / error). Presentational — feed it from `useSyncStatus(sync)`.
+
+```tsx
+const { tone, pending } = useSyncStatus(notesSync);
+<SyncStatusBadge tone={tone} pending={pending} />;
+```
+
+`tone`: `"idle"` | `"syncing"` | `"pending"` | `"offline"` | `"error"`. `iconOnly` hides the label; `labels` overrides the per-tone text.
+
+## `UpdatePrompt`
+
+**When to use:** announce a new app version (service worker) and let the user reload. Pairs with `useServiceWorkerUpdate`.
+
+```tsx
+const { updateAvailable, applyUpdate } = useServiceWorkerUpdate({ url: "/sw.js" });
+<UpdatePrompt open={updateAvailable} onUpdate={applyUpdate} />;
+```
+
+Renders nothing when `open={false}`. `onDismiss` (optional) shows the dismiss button; `position` `"top"`/`"bottom"`.
+
 ## General A11y
 
 - `Alert`/`Banner` with the `warning`/`danger` variant use `role="alert"` (announced immediately).

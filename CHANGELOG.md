@@ -2,6 +2,42 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Adicionado — PWA & Offline-First
+
+- **Camada observável no `createOfflineSync`** (`/offline`) — o motor agora
+  expõe `getState()` + `subscribe(listener)` com um `SyncState`
+  (`phase`/`pending`/`lastSummary`/`lastError`/`lastSyncedAt`). Aditivo e
+  não-breaking. `SyncRunSummary` ganhou `lastError`. Novos tipos `SyncPhase`,
+  `SyncState`.
+- **`useOfflineSync(sync, opts)` + `useSyncStatus(sync)`** (`/offline`) — hooks
+  React sobre o motor via `useSyncExternalStore`; flush opcional no mount, no
+  evento `online` e por intervalo. `useSyncStatus` devolve um `tone` pronto pra
+  badge.
+- **`useServiceWorkerUpdate({ url })`** (entrada principal) — registra o SW e
+  expõe `{ updateAvailable, applyUpdate, registration }` pro fluxo de update
+  com consentimento.
+- **`useStorageEstimate`** + **`estimateStorage`** + **`requestPersistentStorage`**
+  (entrada principal) — quota do Storage API (`usage`/`quota`/`ratio`/`persisted`)
+  e `navigator.storage.persist()` pra evitar despejo do IndexedDB.
+- **`<OfflineIndicator>`**, **`<SyncStatusBadge>`**, **`<UpdatePrompt>`**
+  (componentes) — UI de status offline / sincronização / atualização do SW.
+- **`useOfflineMutation`** (`/query`) — mutation otimista que enfileira no
+  outbox, atualiza o cache do TanStack Query, dá flush e faz rollback em falha.
+- **`lastWriteWins` / `higherVersionWins`** (`/offline`) — resolvedores de
+  conflito prontos pro `applyRemote`.
+- **Navigation Preload** no `installPrecache` (`/sw`) — habilita a API no
+  `activate` e serve `event.preloadResponse` (opção `navigationPreload`,
+  default `true`).
+- **Periodic Background Sync** no `installBackgroundSync` (`/sw`) — listener
+  `periodicsync` (opção `periodicSyncTag`) + helper de main-thread
+  `registerPeriodicSync`.
+- **`inspectCaches` / `clearCaches`** (`/sw`) — observabilidade e limpeza do
+  Cache Storage (contagem + bytes, filtro por prefixo/regex/predicado).
+- **Docs**: nova página bilíngue **PWA & Offline-First** (`docs/pwa.md`); seções
+  novas em `offline-sync`, `query`, `hooks` e `components/feedback`.
+
 ## [0.22.0] — 2026-07-15
 
 ### Adicionado

@@ -84,6 +84,7 @@ plugins:
                     WebSocket: WebSocket
                     Web Push: Web Push
                     Offline: Offline
+                    PWA & Offline-First: PWA & Offline-First
                     Web Share: Web Share
                     Áudio: Audio
                     Formulários: Forms
@@ -165,6 +166,7 @@ nav:
           - Mapa do Brasil (br): br.md
           - Web Push: push.md
           - Offline: offline.md
+          - PWA & Offline-First: pwa.md
           - Web Share: share.md
           - Áudio: audio.md
           - Vision (ONNX): vision.md

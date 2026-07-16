@@ -265,9 +265,37 @@ export function startSync(): void {
 !!! tip "Push em vez de polling"
     Se o backend dispara um **web push** quando há mudança, troque o `setInterval` por um `pullAnalyses` no handler de notificação — sincronia quase em tempo real e sem polling. Veja [Web Push](./push.md) + `usePushSubscription`.
 
+## UI reativa e flush automático
+
+Não fie o estado de sincronização na mão: `useOfflineSync(sync, opts)` inscreve o componente no motor (via `subscribe`/`getState`) e expõe `{ phase, pending, syncing, lastSummary, lastError, flush, enqueue }`, com flush opcional no mount, no evento `online` e num intervalo. `useSyncStatus(sync)` devolve um `{ tone, pending, syncing }` pronto pro `<SyncStatusBadge>`. Para a barra offline e o prompt de atualização do SW, veja **[PWA & Offline-First](./pwa.md)**.
+
+```tsx
+import { useOfflineSync, SyncStatusBadge, useSyncStatus } from "tempest-react-sdk";
+import { sync } from "@/sync/engine";
+
+function SyncBadge() {
+  const { tone, pending } = useSyncStatus(sync);
+  return <SyncStatusBadge tone={tone} pending={pending} />;
+}
+```
+
+Para mutações otimistas ligadas ao TanStack Query, use `useOfflineMutation` — veja [Query](./query.md#useofflinemutation).
+
 ## Conflitos: last-write-wins
 
 O backend resolve por `updated_at` (a escrita mais recente vence). No cliente, o pull faz `bulkPut`, que **sobrescreve** o registro local pela versão do servidor — então uma edição local não confirmada pode ser substituída por uma versão mais nova do servidor. Se o seu domínio precisa de merge mais fino (campos independentes, CRDT), trate isso na camada de `saveAnalysis`/pull; o SDK te dá os blocos, não impõe a política.
+
+Para os dois casos comuns, o SDK exporta resolvedores prontos pra usar dentro do `applyRemote` (empate → remoto vence):
+
+```ts
+import { lastWriteWins, higherVersionWins } from "tempest-react-sdk";
+
+applyRemote: async (dto) => {
+  const local = await analyses.get(dto.id);
+  await analyses.save(lastWriteWins(local, dto, (r) => r.updatedAt));
+  // ou: higherVersionWins(local, dto, (r) => r.version)
+};
+```
 
 ## Recap
 

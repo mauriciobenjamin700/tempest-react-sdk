@@ -152,14 +152,46 @@ export function ProfileCard() {
 
 Padrão de organização: cada domínio em `src/constants/query-keys/<dominio>.ts`, agrupados num barrel.
 
+## `useOfflineMutation`
+
+Quando o app é offline-first, uma mutation não deve bater na rede direto — ela grava no **outbox** do [`createOfflineSync`](./offline-sync.md) e sincroniza depois. `useOfflineMutation` faz a ponte entre o motor de sync e o TanStack Query: no `mutate` ele enfileira a entrada, **atualiza o cache da query otimisticamente**, dá o **flush** e faz **rollback** do cache se o enqueue falhar.
+
+```tsx
+import { useOfflineMutation } from "tempest-react-sdk";
+import { notesSync } from "@/sync/engine";
+import type { Note } from "@/sync/types";
+
+function useAddNote() {
+  return useOfflineMutation<Note, Note[], Note>({
+    sync: notesSync,
+    queryKey: ["notes"],
+    toEntry: (note) => ({ op: "create", recordId: note.id, payload: note }),
+    applyOptimistic: (current = [], note) => [...current, note],
+  });
+}
+
+// const addNote = useAddNote();
+// addNote.mutate({ id: crypto.randomUUID(), text: "offline!" });
+```
+
+- `toEntry` mapeia as variáveis pra `{ op, recordId, payload }` do outbox.
+- `applyOptimistic` produz o próximo valor do cache; o anterior é restaurado se o enqueue lançar.
+- `flush` (default `true` → `"after-mutation"`) dispara a sincronização; `false` deixa isso pro `useOfflineSync`.
+- `invalidate` (default `false`) revalida a `queryKey` no `onSettled`.
+
+!!! tip "A entrega ao servidor acontece no flush"
+    O `mutate` resolve com o **id da entrada no outbox**, não com a resposta do servidor — a entrega real roda no loop de flush do motor, então a UI atualiza na hora e sobrevive a reloads e a períodos offline.
+
 ## Recap
 
 - `<QueryProvider>` na raiz — um por app — entrega defaults calibrados; sobrescreva via `defaultOptions` ou `client`.
 - `STALE_TIME` / `CACHE_TIME` / `REFETCH_TIME` substituem números mágicos por presets nomeados.
 - `createQueryKeys(scope, builders)` gera keys tipadas e consistentes, com um `all` automático pra invalidação ampla.
 - Combine `setQueryData` (resposta imediata) com `invalidateQueries` (revalidação) usando a mesma key factory.
+- `useOfflineMutation` liga o motor offline ao cache: enqueue + optimistic update + flush + rollback.
 
 ## Veja também
 
 - [HTTP](./http.md) — o `createApiClient` que alimenta as `queryFn`
 - [Offline](./offline.md) — combinar com `initialData` pra fallback offline
+- [PWA & Offline-First](./pwa.md) — service worker, background sync, status UI

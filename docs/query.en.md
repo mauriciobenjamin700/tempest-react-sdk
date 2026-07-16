@@ -179,6 +179,17 @@ function useAddNote() {
 - `flush` (default `true` → `"after-mutation"`) triggers sync; `false` leaves it to `useOfflineSync`.
 - `invalidate` (default `false`) revalidates the `queryKey` in `onSettled`.
 
+!!! tip "List-cache helpers"
+    For the common case (the cache is a list), use `upsertById()` / `removeById()` instead of hand-writing the spread:
+
+    ```ts
+    import { upsertById, removeById } from "tempest-react-sdk";
+
+    applyOptimistic: upsertById(); // insert or merge by `id`
+    applyOptimistic: removeById(); // remove by `id` (op "delete")
+    // custom field: upsertById("uuid")
+    ```
+
 !!! tip "Server delivery happens on flush"
     `mutate` resolves with the **outbox entry id**, not the server response — actual delivery runs inside the engine's flush loop, so the UI updates instantly and survives reloads and offline periods.
 

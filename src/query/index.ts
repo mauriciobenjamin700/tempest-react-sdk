@@ -10,3 +10,4 @@ export { useCursorQuery } from "./use-cursor-query";
 export type { UseCursorQueryOptions, UseCursorQueryResult } from "./use-cursor-query";
 export { useOfflineMutation } from "./use-offline-mutation";
 export type { OutboxDraft, UseOfflineMutationOptions } from "./use-offline-mutation";
+export { upsertById, removeById } from "./optimistic";

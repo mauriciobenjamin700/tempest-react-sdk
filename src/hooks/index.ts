@@ -15,6 +15,7 @@ export { useAsync } from "./use-async";
 export type { AsyncStatus, UseAsyncResult } from "./use-async";
 
 export { useOnline } from "./use-online";
+export type { UseOnlineOptions } from "./use-online";
 export { useDocumentVisibility } from "./use-document-visibility";
 export type { DocumentVisibility } from "./use-document-visibility";
 export { useIntersectionObserver } from "./use-intersection-observer";

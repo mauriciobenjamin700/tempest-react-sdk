@@ -21,7 +21,7 @@ testados, **SSR-safe** e independentes — importe só o que precisar.
 | `useBreakpoint()`                                 | `{ current, width, above, below, isMobile, isTablet, isDesktop }` — breakpoint reativo (xs/sm/md/lg/xl/2xl). |
 | `useWindowSize()`                                 | `{ width, height }` da janela, reativo.                                                                      |
 | `useEventListener(name, handler, target?, opts?)` | Wrap genérico SSR-safe. `target` default = `window`. Aceita ref ou `EventTarget` direto.                     |
-| `useOnline()`                                     | `navigator.onLine` reativo.                                                                                  |
+| `useOnline(opts?)`                                | `navigator.onLine` reativo; `{ pingUrl, intervalMs, timeoutMs }` adiciona probe de reachability real (capta captive portal / link morto). |
 | `useDocumentVisibility()`                         | `document.visibilityState` reativo.                                                                          |
 | `useIntersectionObserver(ref, opts?)`             | `IntersectionObserverEntry` ou `null`.                                                                       |
 | `useResizeObserver(ref)`                          | `{ width, height }` da referência.                                                                           |

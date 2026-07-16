@@ -21,7 +21,7 @@ dependency array. The SDK packages these patterns into granular, tested,
 | `useBreakpoint()`                                 | `{ current, width, above, below, isMobile, isTablet, isDesktop }` — reactive breakpoint (xs/sm/md/lg/xl/2xl). |
 | `useWindowSize()`                                 | `{ width, height }` of the window, reactive.                                                                  |
 | `useEventListener(name, handler, target?, opts?)` | Generic SSR-safe wrapper. `target` default = `window`. Accepts a ref or an `EventTarget` directly.            |
-| `useOnline()`                                     | Reactive `navigator.onLine`.                                                                                  |
+| `useOnline(opts?)`                                | Reactive `navigator.onLine`; `{ pingUrl, intervalMs, timeoutMs }` adds a real-reachability probe (catches captive portals / dead links). |
 | `useDocumentVisibility()`                         | Reactive `document.visibilityState`.                                                                          |
 | `useIntersectionObserver(ref, opts?)`             | `IntersectionObserverEntry` or `null`.                                                                        |
 | `useResizeObserver(ref)`                          | `{ width, height }` of the reference.                                                                         |

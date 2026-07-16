@@ -82,3 +82,14 @@ export type {
     UseInstallPromptOptions,
     UseInstallPromptResult,
 } from "./use-install-prompt";
+export { useServiceWorkerUpdate } from "./use-service-worker-update";
+export type {
+    UseServiceWorkerUpdateOptions,
+    UseServiceWorkerUpdateResult,
+} from "./use-service-worker-update";
+export {
+    estimateStorage,
+    requestPersistentStorage,
+    useStorageEstimate,
+} from "./use-storage-estimate";
+export type { StorageEstimate, UseStorageEstimateResult } from "./use-storage-estimate";

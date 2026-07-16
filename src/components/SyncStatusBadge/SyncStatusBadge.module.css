@@ -1,0 +1,79 @@
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tempest-space-1);
+    padding: 2px var(--tempest-space-2);
+    border: 1px solid transparent;
+    border-radius: var(--tempest-radius-full);
+    font-family: var(--tempest-font-sans);
+    font-size: var(--tempest-text-xs);
+    font-weight: var(--tempest-weight-semibold);
+    line-height: var(--tempest-leading-snug);
+    white-space: nowrap;
+}
+
+.icon {
+    flex: 0 0 auto;
+}
+
+.label {
+    min-width: 0;
+}
+
+.count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: var(--tempest-radius-full);
+    background: color-mix(in srgb, currentColor 18%, transparent);
+    font-size: var(--tempest-text-2xs);
+}
+
+.idle {
+    background-color: var(--tempest-success-bg);
+    color: var(--tempest-success-fg);
+    border-color: var(--tempest-success-border);
+}
+
+.syncing {
+    background-color: var(--tempest-info-bg);
+    color: var(--tempest-info-fg);
+    border-color: var(--tempest-info-border);
+}
+
+.pending {
+    background-color: var(--tempest-warning-bg);
+    color: var(--tempest-warning-fg);
+    border-color: var(--tempest-warning-border);
+}
+
+.offline {
+    background-color: var(--tempest-surface-2);
+    color: var(--tempest-text-muted);
+    border-color: var(--tempest-border-strong);
+}
+
+.error {
+    background-color: var(--tempest-danger-bg);
+    color: var(--tempest-danger-fg);
+    border-color: var(--tempest-danger-border);
+}
+
+.spin {
+    animation: tempest-sync-spin 0.9s linear infinite;
+}
+
+@keyframes tempest-sync-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .spin {
+        animation: none;
+    }
+}

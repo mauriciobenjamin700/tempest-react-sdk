@@ -107,6 +107,15 @@ export type { InstallBannerProps } from "./InstallBanner";
 export { InstallButton } from "./InstallButton";
 export type { InstallButtonProps, InstallOutcome } from "./InstallButton";
 
+export { OfflineIndicator } from "./OfflineIndicator";
+export type { OfflineIndicatorPosition, OfflineIndicatorProps } from "./OfflineIndicator";
+
+export { SyncStatusBadge } from "./SyncStatusBadge";
+export type { SyncStatusBadgeProps } from "./SyncStatusBadge";
+
+export { UpdatePrompt } from "./UpdatePrompt";
+export type { UpdatePromptPosition, UpdatePromptProps } from "./UpdatePrompt";
+
 export { Kbd } from "./Kbd";
 export type { KbdProps, KbdSize } from "./Kbd";
 

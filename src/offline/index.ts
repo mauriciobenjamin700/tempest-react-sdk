@@ -7,7 +7,16 @@ export type {
     OutboxEntry,
     OutboxOp,
     PullPage,
+    SyncPhase,
     SyncRunSummary,
+    SyncState,
     SyncTrigger,
     WatermarkStore,
 } from "./create-offline-sync";
+export { useOfflineSync, useSyncStatus } from "./use-offline-sync";
+export type {
+    SyncStatus,
+    SyncTone,
+    UseOfflineSyncOptions,
+    UseOfflineSyncResult,
+} from "./use-offline-sync";

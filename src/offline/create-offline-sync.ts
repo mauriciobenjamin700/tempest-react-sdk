@@ -75,6 +75,37 @@ export interface SyncRunSummary {
     durationMs: number;
     /** `true` when the run was skipped because the device was offline. */
     skipped: boolean;
+    /** Last delivery error message seen this run, or `null` when none failed. */
+    lastError: string | null;
+}
+
+/**
+ * Coarse lifecycle phase of the sync engine, surfaced through
+ * {@link OfflineSync.getState} / {@link OfflineSync.subscribe} for reactive UI.
+ *
+ * - `"idle"` — nothing in flight and the last run (if any) fully succeeded.
+ * - `"syncing"` — a `flush` run is currently in progress.
+ * - `"offline"` — the last run was skipped because the device was offline.
+ * - `"error"` — the last run left at least one entry queued after a failure.
+ */
+export type SyncPhase = "idle" | "syncing" | "offline" | "error";
+
+/**
+ * Immutable snapshot of the engine's reactive state. A fresh object is emitted
+ * to subscribers on every change, so it is safe to use as a
+ * `useSyncExternalStore` snapshot (reference equality signals "no change").
+ */
+export interface SyncState {
+    /** Current lifecycle phase. */
+    phase: SyncPhase;
+    /** Number of mutations still queued in the outbox. */
+    pending: number;
+    /** Summary of the most recent `flush` run, or `null` before the first. */
+    lastSummary: SyncRunSummary | null;
+    /** Message of the most recent delivery failure, or `null`. */
+    lastError: string | null;
+    /** Epoch ms of the last non-skipped run, or `null` before the first. */
+    lastSyncedAt: number | null;
 }
 
 /**
@@ -165,6 +196,16 @@ export interface OfflineSync<TPayload> {
     clearOutbox: () => Promise<void>;
     /** Reset the pull watermark (e.g. on logout / account switch). */
     resetWatermark: () => void;
+    /** Read the current reactive {@link SyncState} snapshot synchronously. */
+    getState: () => SyncState;
+    /**
+     * Subscribe to {@link SyncState} changes. The listener fires on every
+     * enqueue, flush transition and outbox clear.
+     *
+     * @param listener - Called with the new snapshot on each change.
+     * @returns An unsubscribe function.
+     */
+    subscribe: (listener: (state: SyncState) => void) => () => void;
 }
 
 /**
@@ -245,6 +286,24 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
 
     let inflight: Promise<SyncRunSummary> | null = null;
 
+    const listeners = new Set<(state: SyncState) => void>();
+    let state: SyncState = {
+        phase: "idle",
+        pending: 0,
+        lastSummary: null,
+        lastError: null,
+        lastSyncedAt: null,
+    };
+
+    function setState(patch: Partial<SyncState>): void {
+        state = { ...state, ...patch };
+        for (const listener of listeners) listener(state);
+    }
+
+    async function refreshPending(): Promise<void> {
+        setState({ pending: await outbox.count() });
+    }
+
     async function push(summary: SyncRunSummary): Promise<void> {
         const entries = await outbox.list(undefined, { orderBy: "enqueuedAt" });
         for (const entry of entries) {
@@ -261,6 +320,7 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
                 } as Partial<OutboxEntry<TPayload>>);
                 await config.onEntryFailed?.(entry, cause);
                 summary.failed += 1;
+                summary.lastError = message;
             }
         }
     }
@@ -288,6 +348,7 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
             failed: 0,
             durationMs: 0,
             skipped: false,
+            lastError: null,
         };
         if (!isOnline()) {
             summary.skipped = true;
@@ -300,6 +361,8 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
         return summary;
     }
 
+    void refreshPending();
+
     return {
         async enqueue(op, recordId, payload) {
             const entry: OutboxEntry<TPayload> = {
@@ -311,13 +374,30 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
                 payload,
             };
             await outbox.put(entry);
+            await refreshPending();
             return entry.id;
         },
         flush(trigger: SyncTrigger = "manual") {
             if (!inflight) {
-                inflight = runOnce(trigger).finally(() => {
-                    inflight = null;
-                });
+                setState({ phase: "syncing" });
+                inflight = runOnce(trigger)
+                    .then(async (summary) => {
+                        await refreshPending();
+                        setState({
+                            phase: summary.skipped
+                                ? "offline"
+                                : summary.failed > 0
+                                  ? "error"
+                                  : "idle",
+                            lastSummary: summary,
+                            lastError: summary.lastError,
+                            lastSyncedAt: summary.skipped ? state.lastSyncedAt : Date.now(),
+                        });
+                        return summary;
+                    })
+                    .finally(() => {
+                        inflight = null;
+                    });
             }
             return inflight;
         },
@@ -327,11 +407,21 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
         listPending() {
             return outbox.list(undefined, { orderBy: "enqueuedAt" });
         },
-        clearOutbox() {
-            return outbox.clear();
+        async clearOutbox() {
+            await outbox.clear();
+            await refreshPending();
         },
         resetWatermark() {
             watermark.clear();
+        },
+        getState() {
+            return state;
+        },
+        subscribe(listener) {
+            listeners.add(listener);
+            return () => {
+                listeners.delete(listener);
+            };
         },
     };
 }

@@ -18,3 +18,7 @@ export { installPrecache, installRuntimeCache, createPartialResponse } from "./c
 export type { InstallPrecacheOptions, RuntimeRoute, RuntimeStrategy } from "./cache";
 export { installBackgroundSync } from "./background-sync";
 export type { InstallBackgroundSyncOptions } from "./background-sync";
+export { registerPeriodicSync } from "./periodic-sync";
+export type { RegisterPeriodicSyncOptions } from "./periodic-sync";
+export { inspectCaches, clearCaches } from "./cache-inspect";
+export type { CacheFilter, CacheReport } from "./cache-inspect";

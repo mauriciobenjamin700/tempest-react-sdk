@@ -114,4 +114,22 @@ describe("installBackgroundSync", () => {
         expect(registerMock).not.toHaveBeenCalled();
         expect(await countQueue("test-q-skip")).toBe(0);
     });
+
+    it("drains the queue on a matching periodicsync event", async () => {
+        const queue = "test-q-periodic";
+        installBackgroundSync({ queueName: queue });
+
+        fetchMock.mockRejectedValueOnce(new Error("offline"));
+        await dispatchFetch(new Request("https://app.test/api/x", { method: "POST", body: "x" }));
+        expect(await countQueue(queue)).toBe(1);
+
+        fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+        let drained: Promise<unknown> | undefined;
+        listeners.periodicsync[0]?.({
+            tag: `${queue}-periodic`,
+            waitUntil: (p: Promise<unknown>) => (drained = p),
+        });
+        await drained;
+        expect(await countQueue(queue)).toBe(0);
+    });
 });

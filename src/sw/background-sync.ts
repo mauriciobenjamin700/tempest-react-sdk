@@ -24,10 +24,16 @@ interface BgFetchEventLike {
     waitUntil(promise: Promise<unknown>): void;
 }
 
+interface PeriodicSyncEventLike {
+    tag: string;
+    waitUntil(promise: Promise<unknown>): void;
+}
+
 interface BgSwGlobal {
     registration: { sync?: { register(tag: string): Promise<void> } };
     addEventListener(type: "sync", listener: (event: SyncEventLike) => void): void;
     addEventListener(type: "fetch", listener: (event: BgFetchEventLike) => void): void;
+    addEventListener(type: "periodicsync", listener: (event: PeriodicSyncEventLike) => void): void;
 }
 
 function getSwScope(): BgSwGlobal {
@@ -56,6 +62,13 @@ export interface InstallBackgroundSyncOptions {
     queueName?: string;
     /** Drop queued requests older than this (minutes) on replay. Default `1440` (24h). */
     maxRetentionMinutes?: number;
+    /**
+     * Also drain the queue on the `periodicsync` event carrying this tag,
+     * complementing the one-off `sync` replay so long-pending mutations retry
+     * even without a fresh navigation. Register the periodic sync from the main
+     * thread with {@link registerPeriodicSync}. Default `${queueName}-periodic`.
+     */
+    periodicSyncTag?: string;
 }
 
 const STORE = "requests";
@@ -174,7 +187,12 @@ function matches(
  */
 export function installBackgroundSync(options: InstallBackgroundSyncOptions = {}): void {
     const sw = getSwScope();
-    const { match, queueName = "tempest-bg-sync", maxRetentionMinutes = 1440 } = options;
+    const {
+        match,
+        queueName = "tempest-bg-sync",
+        maxRetentionMinutes = 1440,
+        periodicSyncTag = `${options.queueName ?? "tempest-bg-sync"}-periodic`,
+    } = options;
     const maxRetentionMs = maxRetentionMinutes * 60 * 1000;
 
     sw.addEventListener("fetch", (event) => {
@@ -201,6 +219,11 @@ export function installBackgroundSync(options: InstallBackgroundSyncOptions = {}
     sw.addEventListener("sync", (event) => {
         if (event.tag !== queueName) return;
         event.waitUntil(replayQueue(queueName, maxRetentionMs, Date.now()));
+    });
+
+    sw.addEventListener("periodicsync", (event) => {
+        if (event.tag !== periodicSyncTag) return;
+        event.waitUntil(replayQueue(queueName, maxRetentionMs, Date.now()).catch(() => undefined));
     });
 
     // Fallback for browsers without the Background Sync API: whenever a GET

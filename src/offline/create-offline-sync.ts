@@ -165,6 +165,19 @@ export interface OfflineSyncConfig<TPayload, TRemote> {
      * non-browser environments). When it returns `false`, `flush` is skipped.
      */
     isOnline?: () => boolean;
+    /**
+     * Broadcast {@link SyncState} across browser tabs of the same origin via a
+     * `BroadcastChannel`, so every tab shows a coherent pending count / phase
+     * (e.g. one tab flushing drops the badge to zero everywhere). The outbox is
+     * already a shared IndexedDB; this only shares the in-memory state. Silently
+     * ignored where `BroadcastChannel` is unavailable. Default `false`.
+     *
+     * Note: `flush` stays single-flight *per tab* — two tabs can still flush at
+     * once. Guard delivery idempotently (upsert by client id) as usual.
+     */
+    crossTab?: boolean;
+    /** Channel name when `crossTab` is on. Default `tempest-sync:${databaseName}`. */
+    broadcastChannelName?: string;
 }
 
 /**
@@ -206,6 +219,13 @@ export interface OfflineSync<TPayload> {
      * @returns An unsubscribe function.
      */
     subscribe: (listener: (state: SyncState) => void) => () => void;
+    /**
+     * Release resources held by the engine — currently the cross-tab
+     * `BroadcastChannel` when `crossTab` is enabled. Safe to call when none was
+     * opened. Optional in long-lived apps (the channel is reclaimed on tab
+     * close); call it in tests and on teardown.
+     */
+    dispose: () => void;
 }
 
 /**
@@ -295,9 +315,30 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
         lastSyncedAt: null,
     };
 
+    const channel: BroadcastChannel | null =
+        config.crossTab && typeof BroadcastChannel !== "undefined"
+            ? new BroadcastChannel(
+                  config.broadcastChannelName ?? `tempest-sync:${config.databaseName}`,
+              )
+            : null;
+    let closed = false;
+
+    function notify(): void {
+        for (const listener of listeners) listener(state);
+    }
+
     function setState(patch: Partial<SyncState>): void {
         state = { ...state, ...patch };
-        for (const listener of listeners) listener(state);
+        notify();
+        if (channel && !closed) channel.postMessage(state);
+    }
+
+    if (channel) {
+        channel.onmessage = (event: MessageEvent<SyncState>) => {
+            if (closed) return;
+            state = event.data;
+            notify();
+        };
     }
 
     async function refreshPending(): Promise<void> {
@@ -422,6 +463,10 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
             return () => {
                 listeners.delete(listener);
             };
+        },
+        dispose() {
+            closed = true;
+            channel?.close();
         },
     };
 }

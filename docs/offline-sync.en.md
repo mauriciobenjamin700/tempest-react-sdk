@@ -281,6 +281,17 @@ function SyncBadge() {
 
 For optimistic mutations wired to TanStack Query, use `useOfflineMutation` — see [Query](./query.md#useofflinemutation).
 
+!!! tip "Cross-tab coherence"
+    Pass `crossTab: true` to `createOfflineSync` to broadcast `SyncState` across tabs of the same origin via `BroadcastChannel` — one tab flushing zeroes the pending badge everywhere. The outbox is already a shared IndexedDB; this only mirrors the in-memory state. `flush` stays single-flight **per tab** (idempotent delivery by `id` covers the rest). Call `sync.dispose()` on teardown to close the channel.
+
+    ```ts
+    export const sync = createOfflineSync<Analysis, AnalysisDto>({
+      databaseName: "AnalysesOutbox",
+      crossTab: true,
+      // ...
+    });
+    ```
+
 ## Conflicts: last-write-wins
 
 The backend resolves by `updated_at` (the most recent write wins). On the client, the pull does `bulkPut`, which **overwrites** the local record with the server version — so an unconfirmed local edit can be replaced by a newer server version. If your domain needs finer merging (independent fields, CRDTs), handle it in the `saveAnalysis`/pull layer; the SDK gives you the blocks, it doesn't impose the policy.

@@ -281,6 +281,17 @@ function SyncBadge() {
 
 Para mutações otimistas ligadas ao TanStack Query, use `useOfflineMutation` — veja [Query](./query.md#useofflinemutation).
 
+!!! tip "Coerência entre abas"
+    Passe `crossTab: true` no `createOfflineSync` pra propagar o `SyncState` entre abas do mesmo origin via `BroadcastChannel` — uma aba que dá flush zera o badge de pendências em todas. O outbox já é um IndexedDB compartilhado; isto só espelha o estado em memória. `flush` continua single-flight **por aba** (entregas idempotentes por `id` cobrem o resto). Chame `sync.dispose()` no teardown pra fechar o canal.
+
+    ```ts
+    export const sync = createOfflineSync<Analysis, AnalysisDto>({
+      databaseName: "AnalysesOutbox",
+      crossTab: true,
+      // ...
+    });
+    ```
+
 ## Conflitos: last-write-wins
 
 O backend resolve por `updated_at` (a escrita mais recente vence). No cliente, o pull faz `bulkPut`, que **sobrescreve** o registro local pela versão do servidor — então uma edição local não confirmada pode ser substituída por uma versão mais nova do servidor. Se o seu domínio precisa de merge mais fino (campos independentes, CRDT), trate isso na camada de `saveAnalysis`/pull; o SDK te dá os blocos, não impõe a política.

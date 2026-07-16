@@ -27,6 +27,14 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   outbox, atualiza o cache do TanStack Query, dá flush e faz rollback em falha.
 - **`lastWriteWins` / `higherVersionWins`** (`/offline`) — resolvedores de
   conflito prontos pro `applyRemote`.
+- **Coerência multi-tab** no `createOfflineSync` (`/offline`) — opção `crossTab`
+  (+ `broadcastChannelName`) propaga `SyncState` entre abas via
+  `BroadcastChannel`; novo método `dispose()` fecha o canal.
+- **`upsertById` / `removeById`** (`/query`) — builders de `applyOptimistic` pra
+  cache de lista no `useOfflineMutation`.
+- **`useOnline(opts?)`** (entrada principal) — probe de reachability opt-in
+  (`pingUrl`/`intervalMs`/`timeoutMs`) que capta captive portal / link morto
+  além do `navigator.onLine`.
 - **Navigation Preload** no `installPrecache` (`/sw`) — habilita a API no
   `activate` e serve `event.preloadResponse` (opção `navigationPreload`,
   default `true`).

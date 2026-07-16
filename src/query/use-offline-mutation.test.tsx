@@ -33,6 +33,7 @@ function fakeSync(overrides: Partial<OfflineSync<Note>> = {}): OfflineSync<Note>
             lastSyncedAt: null,
         })),
         subscribe: vi.fn(() => () => undefined),
+        dispose: vi.fn(),
         ...overrides,
     };
 }

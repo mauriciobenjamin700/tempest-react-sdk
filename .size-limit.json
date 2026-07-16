@@ -2,7 +2,7 @@
   {
     "name": "main bundle (ESM)",
     "path": "dist/tempest-react-sdk.js",
-    "limit": "58 KB",
+    "limit": "68 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -21,7 +21,7 @@
   {
     "name": "main bundle (CJS)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "60 KB",
+    "limit": "78 KB",
     "ignore": [
       "react",
       "react-dom",

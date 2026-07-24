@@ -113,6 +113,9 @@ export interface ToggleGroupItemProps extends Omit<HTMLAttributes<HTMLButtonElem
  * A single selectable item inside a {@link ToggleGroup}. Reads and updates the
  * group's shared state through context.
  *
+ * Icon-only items need an explicit `aria-label` (forwarded to the button):
+ * an SVG child gives screen readers nothing to announce.
+ *
  * @param props - {@link ToggleGroupItemProps}.
  * @returns A `role="button"` element exposing its state via `aria-pressed`.
  */

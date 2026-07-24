@@ -78,17 +78,29 @@ export function DisplayMediaSection() {
                 note="Setas, dots e loop habilitado."
                 code={`<div style={{ width: 360 }}>
   <Carousel loop>
-    <img src="/cover-1.svg" style={{ width: "100%", display: "block" }} />
-    <img src="/cover-2.svg" style={{ width: "100%", display: "block" }} />
-    <img src="/cover-3.svg" style={{ width: "100%", display: "block" }} />
+    <img src="/cover-1.svg" alt="Capa 1" style={{ width: "100%", display: "block" }} />
+    <img src="/cover-2.svg" alt="Capa 2" style={{ width: "100%", display: "block" }} />
+    <img src="/cover-3.svg" alt="Capa 3" style={{ width: "100%", display: "block" }} />
   </Carousel>
 </div>`}
             >
                 <div style={{ width: 360 }}>
                     <Carousel loop>
-                        <img src="/cover-1.svg" style={{ width: "100%", display: "block" }} />
-                        <img src="/cover-2.svg" style={{ width: "100%", display: "block" }} />
-                        <img src="/cover-3.svg" style={{ width: "100%", display: "block" }} />
+                        <img
+                            src="/cover-1.svg"
+                            alt="Capa 1"
+                            style={{ width: "100%", display: "block" }}
+                        />
+                        <img
+                            src="/cover-2.svg"
+                            alt="Capa 2"
+                            style={{ width: "100%", display: "block" }}
+                        />
+                        <img
+                            src="/cover-3.svg"
+                            alt="Capa 3"
+                            style={{ width: "100%", display: "block" }}
+                        />
                     </Carousel>
                 </div>
             </Example>

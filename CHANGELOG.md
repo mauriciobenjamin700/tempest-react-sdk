@@ -54,6 +54,43 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - **Docs**: nova página bilíngue **PWA & Offline-First** (`docs/pwa.md`); seções
   novas em `offline-sync`, `query`, `hooks` e `components/feedback`.
 
+### Corrigido — acessibilidade
+
+- **`Modal` sem nome acessível** — o `role="dialog"` não era ligado ao `title`.
+  Agora o título recebe um id e o diálogo aponta pra ele via `aria-labelledby`;
+  diálogo sem título aceita `aria-label`. O `<h3>` do header só é renderizado
+  quando existe `title` (antes sobrava um heading vazio quando só havia o botão
+  de fechar).
+- **`PasswordInput` e `ChipInput` com label solto** — o `<label>` não tinha
+  `htmlFor` nem o input tinha `id`, então o campo ficava sem nome acessível
+  (`getByLabelText` não achava). Ambos passaram a gerar id (respeitando um `id`
+  vindo do caller), associar o label e apontar `aria-describedby` pro erro ou
+  helper. `ChipInput` também aceita `aria-label` pra quando o label vive fora.
+- **`Progress` sem nome acessível** — `role="progressbar"` exige nome; agora sai
+  de `aria-labelledby`, `aria-label` ou do `label` visível, nessa ordem.
+- **Contraste abaixo de AA em `Calendar` / `DateRangePicker`** — os dias fora do
+  mês combinavam `--tempest-text-subtle` com `opacity: 0.55`, resultando em
+  2.11:1 em botões clicáveis. A opacidade saiu.
+- **Novo token `--tempest-primary-on-soft`** — texto sobre
+  `--tempest-primary-soft` usava `--tempest-primary`, que dá 4.37:1 (AA pede
+  4.5:1). O token novo aponta pro shade 600 no tema claro e 700 no escuro (~6:1)
+  e passou a ser usado em `Toggle`, `ToggleGroup`, `ListTile`, `Stepper`,
+  `NavigationRail` e `FileUpload`. Tokens são API pública: apps que
+  sobrescreveram a paleta podem redefini-lo.
+- **`ToggleGroupItem` só com ícone**: documentado que precisa de `aria-label`.
+
+### Testes & CI
+
+- **Sweep de acessibilidade em jsdom** (`src/components/a11y.test.tsx`) — 27
+  casos passando `axe-core` em componentes representativos, com helper em
+  `test/a11y.ts`. `color-contrast` e `region` ficam desligados nesse nível (jsdom
+  não pinta nem monta página) — quem cobre isso é o smoke em browser real.
+- **Smoke E2E do gallery com Playwright** (`e2e/gallery.spec.ts` +
+  `playwright.config.ts` + workflow `e2e.yml`) — Chromium sobre o build de
+  produção do gallery: boot sem erro de console, filtro de busca, troca de
+  tema/idioma, ausência de scroll horizontal em viewport de 390px e varredura
+  axe com layout real. Novos scripts `npm run e2e` / `npm run e2e:build`.
+
 ### Documentação
 
 - **Nova página bilíngue `oauth`** — o módulo `src/oauth/` (`<GoogleSignIn>`,

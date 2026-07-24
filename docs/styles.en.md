@@ -61,6 +61,14 @@ Aliases:
 - `--tempest-primary-active` = primary-700
 - `--tempest-primary-soft` = primary-50 (tinted background for soft buttons/badges)
 - `--tempest-primary-foreground` = `#ffffff` (text color over the primary)
+- `--tempest-primary-on-soft` = primary-600 in light, primary-700 in dark (text/icon color **on top of** `--tempest-primary-soft`)
+
+!!! warning "Text on `primary-soft` uses `primary-on-soft`, not `primary`"
+    `--tempest-primary` over `--tempest-primary-soft` yields 4.37:1 — WCAG AA
+    asks for 4.5:1 on text. That is why `--tempest-primary-on-soft` exists
+    (~6:1). If you redefine the palette, redefine both: overriding only
+    `--tempest-primary` leaves the selected states (Toggle, ToggleGroup,
+    ListTile, Stepper, NavigationRail, FileUpload) out of compliance.
 
 To swap the entire brand:
 

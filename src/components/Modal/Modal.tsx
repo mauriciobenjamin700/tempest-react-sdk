@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useId } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/utils/cn";
@@ -21,11 +21,21 @@ export interface ModalProps {
     fullscreen?: boolean;
     /** Auto-fullscreen on mobile viewports (< 640px). Default `false`. */
     fullscreenOnMobile?: boolean;
+    /**
+     * Accessible name for the dialog. Only needed when there is no `title` —
+     * with a `title` the dialog is named by it through `aria-labelledby`.
+     */
+    "aria-label"?: string;
 }
 
 /**
  * Portal-rendered modal dialog with backdrop, Esc handler, and slots for
  * header/body/footer. Locks body scroll while open.
+ *
+ * The `dialog` role needs an accessible name: a `title` supplies it via
+ * `aria-labelledby`, and a titleless dialog should pass `aria-label`. The
+ * header heading is only rendered when there is a title, so a close-button-only
+ * header does not leave an empty `h3` behind.
  */
 export function Modal({
     open,
@@ -40,7 +50,9 @@ export function Modal({
     hideCloseButton = false,
     fullscreen = false,
     fullscreenOnMobile = false,
+    "aria-label": ariaLabel,
 }: ModalProps) {
+    const titleId = useId();
     useEffect(() => {
         if (!open) return;
         const previousOverflow = document.body.style.overflow;
@@ -70,6 +82,8 @@ export function Modal({
             <div
                 role="dialog"
                 aria-modal="true"
+                aria-labelledby={title ? titleId : undefined}
+                aria-label={title ? undefined : ariaLabel}
                 className={cn(
                     styles.dialog,
                     sizeClassName(size),
@@ -81,7 +95,11 @@ export function Modal({
             >
                 {(title || !hideCloseButton) && (
                     <header className={styles.header}>
-                        <h3 className={styles.title}>{title}</h3>
+                        {title && (
+                            <h3 id={titleId} className={styles.title}>
+                                {title}
+                            </h3>
+                        )}
                         {!hideCloseButton && (
                             <button
                                 type="button"

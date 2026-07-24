@@ -30,7 +30,7 @@
 }
 
 .dropzone.active {
-    border-color: var(--tempest-primary);
+    border-color: var(--tempest-primary-on-soft);
     background-color: var(--tempest-primary-soft);
 }
 

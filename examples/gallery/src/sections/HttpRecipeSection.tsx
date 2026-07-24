@@ -221,7 +221,7 @@ function UploadDemo(): ReactElement {
                 style={{
                     height: 10,
                     borderRadius: 6,
-                    background: "var(--tempest-color-surface-2, #e5e5e5)",
+                    background: "var(--tempest-surface-2, #e5e5e5)",
                     overflow: "hidden",
                 }}
             >
@@ -229,12 +229,12 @@ function UploadDemo(): ReactElement {
                     style={{
                         width: `${progress}%`,
                         height: "100%",
-                        background: "var(--tempest-color-primary, #4f46e5)",
+                        background: "var(--tempest-primary, #4f46e5)",
                         transition: "width 120ms linear",
                     }}
                 />
             </div>
-            <span style={{ fontSize: 13, color: "var(--tempest-color-text-muted, #888)" }}>
+            <span style={{ fontSize: 13, color: "var(--tempest-text-muted, #888)" }}>
                 {progress}% (simulado — sem backend real)
             </span>
         </div>
@@ -251,7 +251,7 @@ function IdempotencyDemo(): ReactElement {
                     fontSize: 13,
                     padding: "4px 8px",
                     borderRadius: 6,
-                    background: "var(--tempest-color-surface-2, #f0f0f0)",
+                    background: "var(--tempest-surface-2, #f0f0f0)",
                 }}
             >
                 {key}

@@ -24,4 +24,28 @@ describe("Modal", () => {
         await userEvent.keyboard("{Escape}");
         expect(onClose).toHaveBeenCalled();
     });
+
+    it("names the dialog from its title via aria-labelledby", () => {
+        render(
+            <Modal open onClose={vi.fn()} title="Confirmar">
+                body
+            </Modal>,
+        );
+        const dialog = screen.getByRole("dialog");
+        const labelledBy = dialog.getAttribute("aria-labelledby");
+        expect(labelledBy).toBeTruthy();
+        expect(document.getElementById(labelledBy!)).toHaveTextContent("Confirmar");
+    });
+
+    it("falls back to aria-label and renders no empty heading without a title", () => {
+        render(
+            <Modal open onClose={vi.fn()} aria-label="Pré-visualização">
+                body
+            </Modal>,
+        );
+        const dialog = screen.getByRole("dialog");
+        expect(dialog).toHaveAttribute("aria-label", "Pré-visualização");
+        expect(dialog).not.toHaveAttribute("aria-labelledby");
+        expect(screen.queryByRole("heading")).not.toBeInTheDocument();
+    });
 });

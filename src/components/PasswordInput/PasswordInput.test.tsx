@@ -43,4 +43,22 @@ describe("PasswordInput", () => {
         expect(screen.getByText("weak")).toBeInTheDocument();
         expect(screen.getByPlaceholderText("x")).toHaveAttribute("aria-invalid", "true");
     });
+
+    it("associates the label with the input", () => {
+        render(<PasswordInput label="Senha" />);
+        expect(screen.getByLabelText("Senha")).toBeInTheDocument();
+    });
+
+    it("points aria-describedby at the error, then at the helper text", () => {
+        const { unmount } = render(<PasswordInput label="Senha" error="fraca" />);
+        const withError = screen.getByLabelText("Senha");
+        const errorId = withError.getAttribute("aria-describedby");
+        expect(document.getElementById(errorId!)).toHaveTextContent("fraca");
+        unmount();
+
+        render(<PasswordInput label="Senha" helperText="mínimo 8 caracteres" />);
+        const withHelper = screen.getByLabelText("Senha");
+        const helperId = withHelper.getAttribute("aria-describedby");
+        expect(document.getElementById(helperId!)).toHaveTextContent("mínimo 8 caracteres");
+    });
 });

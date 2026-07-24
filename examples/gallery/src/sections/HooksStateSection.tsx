@@ -55,7 +55,7 @@ function CounterDemo(): ReactElement {
             <Button size="sm" variant="ghost" onClick={reset}>
                 <RotateCcw size={16} /> reset
             </Button>
-            <span style={{ fontSize: 13, color: "var(--tempest-color-text-muted, #888)" }}>
+            <span style={{ fontSize: 13, color: "var(--tempest-text-muted, #888)" }}>
                 clamp [0, 10]
             </span>
         </div>
@@ -106,7 +106,7 @@ function DisclosureDemo(): ReactElement {
                     style={{
                         padding: 12,
                         borderRadius: 8,
-                        background: "var(--tempest-color-surface-2, #f3f3f3)",
+                        background: "var(--tempest-surface-2, #f3f3f3)",
                     }}
                 >
                     Painel revelado pelo handler <code>open()</code>.
@@ -145,7 +145,7 @@ function ListStateDemo(): ReactElement {
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {list.length === 0 && (
-                    <span style={{ fontSize: 13, color: "var(--tempest-color-text-muted, #888)" }}>
+                    <span style={{ fontSize: 13, color: "var(--tempest-text-muted, #888)" }}>
                         (lista vazia)
                     </span>
                 )}
@@ -240,13 +240,13 @@ function QueueDemo(): ReactElement {
                 <Button size="sm" variant="ghost" onClick={cleanQueue}>
                     cleanQueue
                 </Button>
-                <span style={{ fontSize: 13, color: "var(--tempest-color-text-muted, #888)" }}>
+                <span style={{ fontSize: 13, color: "var(--tempest-text-muted, #888)" }}>
                     limit 3 — excedente fica no overflow
                 </span>
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {queue.length === 0 && (
-                    <span style={{ fontSize: 13, color: "var(--tempest-color-text-muted, #888)" }}>
+                    <span style={{ fontSize: 13, color: "var(--tempest-text-muted, #888)" }}>
                         (vazio)
                     </span>
                 )}
@@ -312,7 +312,7 @@ function IsFirstRenderDemo(): ReactElement {
             <Button size="sm" onClick={() => setTick((value) => value + 1)}>
                 forçar re-render
             </Button>
-            <span style={{ fontSize: 13, color: "var(--tempest-color-text-muted, #888)" }}>
+            <span style={{ fontSize: 13, color: "var(--tempest-text-muted, #888)" }}>
                 após o primeiro paint sempre retorna <code>false</code>
             </span>
         </div>

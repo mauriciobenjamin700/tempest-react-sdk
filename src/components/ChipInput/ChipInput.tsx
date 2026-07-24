@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { cn } from "@/utils/cn";
 import styles from "./ChipInput.module.css";
@@ -10,6 +10,13 @@ export interface ChipInputProps {
     placeholder?: string;
     helperText?: string;
     error?: string;
+    /** Id for the inner input. Generated when omitted. */
+    id?: string;
+    /**
+     * Accessible name for the inner input when there is no visible `label`.
+     * Without either, screen readers announce an unnamed text field.
+     */
+    "aria-label"?: string;
     /** Keys that commit the current draft as a chip. Default: Enter, comma, Tab. */
     commitKeys?: string[];
     /** Lowercase + trim each chip + dedupe. Default: true. */
@@ -20,6 +27,10 @@ export interface ChipInputProps {
 /**
  * Multi-value input. Type a value and press Enter (or comma / Tab) to push a
  * chip. Backspace on empty input removes the last chip.
+ *
+ * Name the field with `label` (associated through `htmlFor`) or, when the label
+ * lives elsewhere in the layout, with `aria-label`. The placeholder is not an
+ * accessible name — it disappears as soon as the first chip is added.
  */
 export function ChipInput({
     value,
@@ -31,9 +42,14 @@ export function ChipInput({
     commitKeys = ["Enter", ",", "Tab"],
     normalize = true,
     className,
+    id,
+    "aria-label": ariaLabel,
 }: ChipInputProps) {
     const [draft, setDraft] = useState<string>("");
     const inputRef = useRef<HTMLInputElement>(null);
+    const generatedId = useId();
+    const inputId = id ?? generatedId;
+    const describedById = error ? `${inputId}-error` : helperText ? `${inputId}-helper` : undefined;
 
     function commit(): void {
         const next = normalize ? draft.trim().toLowerCase() : draft.trim();
@@ -65,7 +81,11 @@ export function ChipInput({
 
     return (
         <div className={cn(styles.wrapper, error && styles.error, className)}>
-            {label && <label className={styles.label}>{label}</label>}
+            {label && (
+                <label htmlFor={inputId} className={styles.label}>
+                    {label}
+                </label>
+            )}
             <div className={styles.field} onClick={() => inputRef.current?.focus()}>
                 {value.map((chip, index) => (
                     <span key={`${chip}-${index}`} className={styles.chip}>
@@ -82,18 +102,26 @@ export function ChipInput({
                 ))}
                 <input
                     ref={inputRef}
+                    id={inputId}
                     className={styles.input}
                     value={draft}
                     placeholder={value.length === 0 ? placeholder : ""}
+                    aria-label={label ? undefined : ariaLabel}
+                    aria-invalid={!!error}
+                    aria-describedby={describedById}
                     onChange={(event) => setDraft(event.target.value)}
                     onKeyDown={handleKeyDown}
                     onBlur={commit}
                 />
             </div>
             {error ? (
-                <span className={styles.errorText}>{error}</span>
+                <span id={`${inputId}-error`} className={styles.errorText}>
+                    {error}
+                </span>
             ) : helperText ? (
-                <span className={styles.helper}>{helperText}</span>
+                <span id={`${inputId}-helper`} className={styles.helper}>
+                    {helperText}
+                </span>
             ) : null}
         </div>
     );

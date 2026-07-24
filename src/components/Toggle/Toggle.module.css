@@ -40,7 +40,7 @@
 
 .pressed {
     background-color: var(--tempest-primary-soft);
-    color: var(--tempest-primary);
+    color: var(--tempest-primary-on-soft);
     border-color: var(--tempest-primary-soft);
 }
 

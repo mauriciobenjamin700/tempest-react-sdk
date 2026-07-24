@@ -94,7 +94,7 @@ function QueryKeysDemo(): ReactElement {
             </div>
 
             {tasks.isLoading ? (
-                <p style={{ color: "var(--tempest-color-text-muted, #888)" }}>Carregando…</p>
+                <p style={{ color: "var(--tempest-text-muted, #888)" }}>Carregando…</p>
             ) : (
                 <ul style={{ margin: 0, paddingLeft: 18 }}>
                     {(tasks.data ?? []).map((task) => (
@@ -203,7 +203,7 @@ function TimePresetsDemo(): ReactElement {
 
             <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                 <Badge variant="success">online: {dashboard.data?.online ?? "—"}</Badge>
-                <span style={{ fontSize: 13, color: "var(--tempest-color-text-muted, #888)" }}>
+                <span style={{ fontSize: 13, color: "var(--tempest-text-muted, #888)" }}>
                     última leitura: {dashboard.data?.checkedAt ?? "carregando…"}
                 </span>
             </div>
@@ -264,14 +264,14 @@ function PaginatedQueryDemo(): ReactElement {
                 <Badge variant="info">
                     página {cities.pageNumber} / {cities.pageCount || "—"}
                 </Badge>
-                <span style={{ fontSize: 13, color: "var(--tempest-color-text-muted, #888)" }}>
+                <span style={{ fontSize: 13, color: "var(--tempest-text-muted, #888)" }}>
                     {cities.total} itens no total
                 </span>
                 {cities.isFetching && <Badge variant="neutral">carregando…</Badge>}
             </div>
 
             {cities.isLoading ? (
-                <p style={{ color: "var(--tempest-color-text-muted, #888)" }}>Carregando…</p>
+                <p style={{ color: "var(--tempest-text-muted, #888)" }}>Carregando…</p>
             ) : (
                 <ul style={{ margin: 0, paddingLeft: 18, minHeight: 96 }}>
                     {cities.items.map((city) => (

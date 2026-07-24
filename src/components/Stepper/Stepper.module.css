@@ -41,8 +41,8 @@
 }
 
 .step.active .dot {
-    border-color: var(--tempest-primary);
-    color: var(--tempest-primary);
+    border-color: var(--tempest-primary-on-soft);
+    color: var(--tempest-primary-on-soft);
     box-shadow: 0 0 0 4px var(--tempest-primary-soft);
 }
 

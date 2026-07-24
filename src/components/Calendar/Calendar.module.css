@@ -101,8 +101,10 @@
 }
 
 .outside {
+    /* No extra opacity: subtle-on-surface already reads as de-emphasised, and
+       fading it further dropped the contrast to 2.11:1 (WCAG AA needs 4.5:1)
+       for dates that are still clickable. */
     color: var(--tempest-text-subtle);
-    opacity: 0.55;
 }
 
 .today {

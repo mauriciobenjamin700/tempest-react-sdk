@@ -248,9 +248,9 @@ const [format, setFormat] = useState<string[]>(["bold"]);
     value={format}
     onValueChange={(value) => setFormat(value as string[])}
 >
-    <ToggleGroupItem value="bold"><Bold size={16} /></ToggleGroupItem>
-    <ToggleGroupItem value="italic"><Italic size={16} /></ToggleGroupItem>
-    <ToggleGroupItem value="underline"><Underline size={16} /></ToggleGroupItem>
+    <ToggleGroupItem value="bold" aria-label="Negrito"><Bold size={16} /></ToggleGroupItem>
+    <ToggleGroupItem value="italic" aria-label="Itálico"><Italic size={16} /></ToggleGroupItem>
+    <ToggleGroupItem value="underline" aria-label="Sublinhado"><Underline size={16} /></ToggleGroupItem>
 </ToggleGroup>`}
                 props={[
                     {
@@ -282,13 +282,13 @@ const [format, setFormat] = useState<string[]>(["bold"]);
                         value={format}
                         onValueChange={(value) => setFormat(value as string[])}
                     >
-                        <ToggleGroupItem value="bold">
+                        <ToggleGroupItem value="bold" aria-label="Negrito">
                             <Bold size={16} />
                         </ToggleGroupItem>
-                        <ToggleGroupItem value="italic">
+                        <ToggleGroupItem value="italic" aria-label="Itálico">
                             <Italic size={16} />
                         </ToggleGroupItem>
-                        <ToggleGroupItem value="underline">
+                        <ToggleGroupItem value="underline" aria-label="Sublinhado">
                             <Underline size={16} />
                         </ToggleGroupItem>
                     </ToggleGroup>

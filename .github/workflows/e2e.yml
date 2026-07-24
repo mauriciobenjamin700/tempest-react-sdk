@@ -1,0 +1,54 @@
+name: E2E (gallery)
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    gallery:
+        name: gallery smoke (chromium)
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup Node
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "22"
+                  cache: npm
+
+            - name: Install SDK dependencies
+              run: npm ci
+
+            # The gallery consumes the SDK through `file:../..`, so `dist/` has to
+            # exist before its own install/build resolves the package.
+            - name: Build the SDK
+              run: npm run build
+
+            - name: Install gallery dependencies
+              run: npm install --prefix examples/gallery
+
+            - name: Build the gallery
+              run: npm --prefix examples/gallery run build
+
+            - name: Install Chromium
+              run: npx playwright install --with-deps chromium
+
+            - name: Run gallery smoke
+              run: npm run e2e
+
+            - name: Upload Playwright report
+              if: failure()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: playwright-report
+                  path: |
+                      playwright-report
+                      test-results
+                  retention-days: 7

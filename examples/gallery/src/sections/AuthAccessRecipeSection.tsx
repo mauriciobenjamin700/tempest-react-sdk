@@ -200,7 +200,7 @@ function JWTInspectorDemo() {
                         margin: 0,
                         padding: 12,
                         borderRadius: 8,
-                        background: "var(--tempest-color-surface-muted, #f4f4f5)",
+                        background: "var(--tempest-surface-2, #f4f4f5)",
                         overflowX: "auto",
                     }}
                 >

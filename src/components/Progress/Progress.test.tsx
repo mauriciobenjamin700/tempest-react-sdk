@@ -19,4 +19,25 @@ describe("Progress", () => {
         render(<Progress value={50} showLabel />);
         expect(screen.getByText("50%")).toBeInTheDocument();
     });
+
+    it("names the bar from the visible label", () => {
+        render(<Progress value={10} label="Enviando arquivo" />);
+        expect(screen.getByRole("progressbar", { name: "Enviando arquivo" })).toBeInTheDocument();
+    });
+
+    it("prefers an explicit aria-label over the visible label", () => {
+        render(<Progress value={10} label="Enviando" aria-label="Upload do anexo" />);
+        expect(screen.getByRole("progressbar", { name: "Upload do anexo" })).toBeInTheDocument();
+    });
+
+    it("defers to aria-labelledby when given", () => {
+        render(
+            <>
+                <span id="pg-name">Sincronizando</span>
+                <Progress value={10} label="Enviando" aria-labelledby="pg-name" />
+            </>,
+        );
+        const bar = screen.getByRole("progressbar", { name: "Sincronizando" });
+        expect(bar).not.toHaveAttribute("aria-label");
+    });
 });

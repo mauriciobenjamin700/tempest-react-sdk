@@ -24,4 +24,14 @@ describe("ChipInput", () => {
         await userEvent.click(screen.getByLabelText("Remover react"));
         expect(screen.queryByText("react")).not.toBeInTheDocument();
     });
+
+    it("associates the label with the inner input", () => {
+        render(<ChipInput value={[]} onChange={() => undefined} label="Tags" />);
+        expect(screen.getByLabelText("Tags")).toBeInTheDocument();
+    });
+
+    it("falls back to aria-label when there is no visible label", () => {
+        render(<ChipInput value={[]} onChange={() => undefined} aria-label="Etiquetas" />);
+        expect(screen.getByLabelText("Etiquetas")).toBeInTheDocument();
+    });
 });

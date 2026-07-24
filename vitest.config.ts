@@ -12,6 +12,10 @@ export default defineConfig({
         environment: "jsdom",
         globals: true,
         setupFiles: ["./test/setup.ts"],
+        // Explicit include so `e2e/` stays out: it holds Playwright specs (real
+        // browser, own runner) that Vitest would collect and fail on for the
+        // missing Playwright fixtures. `bin/` carries the OpenAPI codegen tests.
+        include: ["src/**/*.test.{ts,tsx}", "bin/**/*.test.mjs"],
         css: { modules: { classNameStrategy: "non-scoped" } },
         coverage: {
             provider: "v8",

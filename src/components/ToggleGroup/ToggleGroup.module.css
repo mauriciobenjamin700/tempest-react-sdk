@@ -52,7 +52,7 @@
 
 .selected {
     background-color: var(--tempest-primary-soft);
-    color: var(--tempest-primary);
+    color: var(--tempest-primary-on-soft);
 }
 
 @media (hover: hover) and (pointer: fine) {

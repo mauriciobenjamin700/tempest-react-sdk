@@ -11,3 +11,8 @@ export type { UseCursorQueryOptions, UseCursorQueryResult } from "./use-cursor-q
 export { useOfflineMutation } from "./use-offline-mutation";
 export type { OutboxDraft, UseOfflineMutationOptions } from "./use-offline-mutation";
 export { upsertById, removeById } from "./optimistic";
+export { persistQueryClientOffline } from "./offline-persistence";
+export type {
+    OfflineQueryPersistence,
+    OfflineQueryPersistenceOptions,
+} from "./offline-persistence";

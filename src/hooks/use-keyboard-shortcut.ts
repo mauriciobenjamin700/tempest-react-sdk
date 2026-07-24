@@ -48,6 +48,12 @@ function isEditable(target: EventTarget | null): boolean {
  * Bind a global keyboard shortcut. Supports modifier combinations and a
  * cross-OS `mod` key (Ctrl on Windows/Linux, Cmd on macOS).
  *
+ * The effect depends on the individual `shortcut` fields rather than on the
+ * object itself: callers pass an inline literal (`{ key: "k", mod: true }`),
+ * which is a fresh reference on every render and would otherwise tear down and
+ * re-add the listener each time. `exhaustive-deps` is silenced for that line
+ * because the destructured fields are the complete dependency set.
+ *
  * @example
  * useKeyboardShortcut({ key: "k", mod: true }, () => openSearch());
  */
@@ -66,6 +72,7 @@ export function useKeyboardShortcut(
         };
         window.addEventListener("keydown", listener);
         return () => window.removeEventListener("keydown", listener);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         disabled,
         ignoreInput,

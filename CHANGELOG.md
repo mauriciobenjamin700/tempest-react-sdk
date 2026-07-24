@@ -91,6 +91,28 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   tema/idioma, ausência de scroll horizontal em viewport de 390px e varredura
   axe com layout real. Novos scripts `npm run e2e` / `npm run e2e:build`.
 
+### Qualidade — cobertura e lint
+
+- **Cobertura passou a gatear o CI** — `vitest.config.ts` não tinha
+  `coverage.thresholds` e o `ci.yml` rodava `test:run`, então cobertura era só
+  relatório. Agora o CI roda `test:coverage` com pisos em 89% linhas / 86%
+  statements / 88% funções / 79% branches (medidos: 90.2 / 87.5 / 89.1 / 80.8).
+- **`src/vision/` vendorizado saiu da conta** — os arquivos copiados do
+  `ort-vision-sdk-web` (regerados por `npm run vendor:vision`, testados no
+  upstream) puxavam 845 linhas descobertas e distorciam a métrica: 78% virou
+  90% de linhas ao medir só o que é nosso. As adições próprias do SDK ali
+  (`public.ts`, hooks de câmera e luminância) continuam medidas.
+- **`pwa-env` ganhou testes** — 19 casos cobrindo iOS/iPadOS com UA de desktop,
+  forks Chromium do Android sem prompt API, `intent://` e detecção de
+  standalone, incluindo os caminhos sem `window`/`navigator`.
+- **Warnings de lint reais resolvidos** — `useKeyboardShortcut`,
+  `useGeolocation` e `DataTable` dependem de campos desestruturados de propósito
+  (o objeto é literal inline e recriaria o listener/memo a cada render); a
+  intenção foi pro docstring e o `exhaustive-deps` silenciado na linha. O
+  `eslint.config.js` passou a ignorar saída gerada (`coverage`,
+  `test-results`, `playwright-report`, `template-pwa`), que respondia por 3
+  warnings de diretiva inútil.
+
 ### Documentação
 
 - **Nova página bilíngue `oauth`** — o módulo `src/oauth/` (`<GoogleSignIn>`,

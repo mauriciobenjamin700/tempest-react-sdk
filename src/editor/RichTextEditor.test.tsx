@@ -1,6 +1,39 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { RichTextEditor } from "./RichTextEditor";
+
+/**
+ * jsdom implements neither `Range.getClientRects` nor
+ * `Element.getClientRects`, and ProseMirror calls them while placing the
+ * selection on `chain().focus()`. Without these stubs the toolbar tests still
+ * pass but leak an unhandled `TypeError`, which fails the run in CI.
+ */
+beforeAll(() => {
+    const emptyRects = (): DOMRectList =>
+        Object.assign([], { item: () => null }) as unknown as DOMRectList;
+    const zeroRect = (): DOMRect =>
+        ({
+            x: 0,
+            y: 0,
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: 0,
+            height: 0,
+            toJSON: () => ({}),
+        }) as DOMRect;
+
+    for (const proto of [Range.prototype, Element.prototype] as {
+        getClientRects?: unknown;
+        getBoundingClientRect?: unknown;
+    }[]) {
+        if (typeof proto.getClientRects !== "function") proto.getClientRects = emptyRects;
+        if (typeof proto.getBoundingClientRect !== "function") {
+            proto.getBoundingClientRect = zeroRect;
+        }
+    }
+});
 
 describe("RichTextEditor", () => {
     it("renders the provided HTML content", () => {

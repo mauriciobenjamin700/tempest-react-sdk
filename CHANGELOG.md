@@ -2,6 +2,152 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
+## [0.23.0] — 2026-07-24
+
+### Adicionado — PWA & Offline-First
+
+- **Camada observável no `createOfflineSync`** (`/offline`) — o motor agora
+  expõe `getState()` + `subscribe(listener)` com um `SyncState`
+  (`phase`/`pending`/`lastSummary`/`lastError`/`lastSyncedAt`). Aditivo e
+  não-breaking. `SyncRunSummary` ganhou `lastError`. Novos tipos `SyncPhase`,
+  `SyncState`.
+- **`useOfflineSync(sync, opts)` + `useSyncStatus(sync)`** (`/offline`) — hooks
+  React sobre o motor via `useSyncExternalStore`; flush opcional no mount, no
+  evento `online` e por intervalo. `useSyncStatus` devolve um `tone` pronto pra
+  badge.
+- **`useServiceWorkerUpdate({ url })`** (entrada principal) — registra o SW e
+  expõe `{ updateAvailable, applyUpdate, registration }` pro fluxo de update
+  com consentimento.
+- **`useStorageEstimate`** + **`estimateStorage`** + **`requestPersistentStorage`**
+  (entrada principal) — quota do Storage API (`usage`/`quota`/`ratio`/`persisted`)
+  e `navigator.storage.persist()` pra evitar despejo do IndexedDB.
+- **`<OfflineIndicator>`**, **`<SyncStatusBadge>`**, **`<UpdatePrompt>`**
+  (componentes) — UI de status offline / sincronização / atualização do SW.
+- **`useOfflineMutation`** (`/query`) — mutation otimista que enfileira no
+  outbox, atualiza o cache do TanStack Query, dá flush e faz rollback em falha.
+- **`lastWriteWins` / `higherVersionWins`** (`/offline`) — resolvedores de
+  conflito prontos pro `applyRemote`.
+- **Coerência multi-tab** no `createOfflineSync` (`/offline`) — opção `crossTab`
+  (+ `broadcastChannelName`) propaga `SyncState` entre abas via
+  `BroadcastChannel`; novo método `dispose()` fecha o canal.
+- **`upsertById` / `removeById`** (`/query`) — builders de `applyOptimistic` pra
+  cache de lista no `useOfflineMutation`.
+- **`useOnline(opts?)`** (entrada principal) — probe de reachability opt-in
+  (`pingUrl`/`intervalMs`/`timeoutMs`) que capta captive portal / link morto
+  além do `navigator.onLine`.
+- **Flush cross-tab via Web Locks** no `createOfflineSync` — quando `crossTab`
+  está ligado e a Web Locks API existe, o `flush` é serializado entre abas
+  (uma roda, as outras pulam e pegam o resultado pelo broadcast).
+- **`persistQueryClientOffline`** (`/query`) — persiste o cache do `QueryClient`
+  no IndexedDB (`dehydrate`/`hydrate`) e restaura no boot; `restore`/`flush`/
+  `clear`/`unsubscribe`. Sem depender de `@tanstack/react-query-persist-client`.
+- **`<SyncStatusBadge sync={...}>`** — variante conectada que auto-fia
+  `useSyncStatus` (além do modo apresentacional por `tone`).
+- **Navigation Preload** no `installPrecache` (`/sw`) — habilita a API no
+  `activate` e serve `event.preloadResponse` (opção `navigationPreload`,
+  default `true`).
+- **Periodic Background Sync** no `installBackgroundSync` (`/sw`) — listener
+  `periodicsync` (opção `periodicSyncTag`) + helper de main-thread
+  `registerPeriodicSync`.
+- **`inspectCaches` / `clearCaches`** (`/sw`) — observabilidade e limpeza do
+  Cache Storage (contagem + bytes, filtro por prefixo/regex/predicado).
+- **Docs**: nova página bilíngue **PWA & Offline-First** (`docs/pwa.md`); seções
+  novas em `offline-sync`, `query`, `hooks` e `components/feedback`.
+
+### Mudado — empacotamento
+
+- **`dist/` agora preserva o grafo de módulos** (`preserveModules` no Rollup):
+  um arquivo por módulo de origem em vez de um bundle único por entrada. O
+  bundle único fazia o bundler do app não conseguir provar que os statements
+  eram livres de efeito colateral, então importar só `cn` arrastava ~8.5 KB
+  gzip de componentes não usados. Medido com `npm run size` (brotli):
+
+  | fatia importada                                                        | antes   | agora   |
+  | ---------------------------------------------------------------------- | ------- | ------- |
+  | `{ cn }`                                                               | 7.8 KB  | 118 B   |
+  | `{ Button }`                                                           | 7.8 KB  | 820 B   |
+  | app típico (5 componentes + router + providers + HTTP + auth + 1 hook) | 12.8 KB | 6.83 KB |
+
+  Sem mudança de API: mesmas entradas (`tempest-react-sdk.js` / `.cjs`),
+  mesmo `styles.css` único, mesmos subpaths. O tarball publicado continua em
+  2.5 MB (212 → 1804 arquivos, +0.3 MB descompactado).
+
+- **Budgets de `size-limit` reescritos por fatia** — as entradas agora medem o
+  que um app realmente paga (`{ cn }`, um componente, app típico, HTTP, forms
+  BR, offline/PWA, geo) em vez de só o barrel inteiro. O barrel virou um teto
+  explícito ("ninguém importa isso") em 80 KB ESM / 95 KB CJS: medir o total
+  fazia o gate crescer junto com cada feature e não dizia nada sobre custo pro
+  consumidor — os budgets estavam a 3% de estourar.
+
+### Corrigido — acessibilidade
+
+- **`Modal` sem nome acessível** — o `role="dialog"` não era ligado ao `title`.
+  Agora o título recebe um id e o diálogo aponta pra ele via `aria-labelledby`;
+  diálogo sem título aceita `aria-label`. O `<h3>` do header só é renderizado
+  quando existe `title` (antes sobrava um heading vazio quando só havia o botão
+  de fechar).
+- **`PasswordInput` e `ChipInput` com label solto** — o `<label>` não tinha
+  `htmlFor` nem o input tinha `id`, então o campo ficava sem nome acessível
+  (`getByLabelText` não achava). Ambos passaram a gerar id (respeitando um `id`
+  vindo do caller), associar o label e apontar `aria-describedby` pro erro ou
+  helper. `ChipInput` também aceita `aria-label` pra quando o label vive fora.
+- **`Progress` sem nome acessível** — `role="progressbar"` exige nome; agora sai
+  de `aria-labelledby`, `aria-label` ou do `label` visível, nessa ordem.
+- **Contraste abaixo de AA em `Calendar` / `DateRangePicker`** — os dias fora do
+  mês combinavam `--tempest-text-subtle` com `opacity: 0.55`, resultando em
+  2.11:1 em botões clicáveis. A opacidade saiu.
+- **Novo token `--tempest-primary-on-soft`** — texto sobre
+  `--tempest-primary-soft` usava `--tempest-primary`, que dá 4.37:1 (AA pede
+  4.5:1). O token novo aponta pro shade 600 no tema claro e 700 no escuro (~6:1)
+  e passou a ser usado em `Toggle`, `ToggleGroup`, `ListTile`, `Stepper`,
+  `NavigationRail` e `FileUpload`. Tokens são API pública: apps que
+  sobrescreveram a paleta podem redefini-lo.
+- **`ToggleGroupItem` só com ícone**: documentado que precisa de `aria-label`.
+
+### Qualidade — cobertura e lint
+
+- **Cobertura passou a gatear o CI** — `vitest.config.ts` não tinha
+  `coverage.thresholds` e o `ci.yml` rodava `test:run`, então cobertura era só
+  relatório. Agora o CI roda `test:coverage` com pisos em 89% linhas / 86%
+  statements / 88% funções / 79% branches (medidos: 90.2 / 87.5 / 89.1 / 80.8).
+- **`src/vision/` vendorizado saiu da conta** — os arquivos copiados do
+  `ort-vision-sdk-web` (regerados por `npm run vendor:vision`, testados no
+  upstream) puxavam 845 linhas descobertas e distorciam a métrica: 78% virou
+  90% de linhas ao medir só o que é nosso. As adições próprias do SDK ali
+  (`public.ts`, hooks de câmera e luminância) continuam medidas.
+- **`pwa-env` ganhou testes** — 19 casos cobrindo iOS/iPadOS com UA de desktop,
+  forks Chromium do Android sem prompt API, `intent://` e detecção de
+  standalone, incluindo os caminhos sem `window`/`navigator`.
+- **Warnings de lint reais resolvidos** — `useKeyboardShortcut`,
+  `useGeolocation` e `DataTable` dependem de campos desestruturados de propósito
+  (o objeto é literal inline e recriaria o listener/memo a cada render); a
+  intenção foi pro docstring e o `exhaustive-deps` silenciado na linha. O
+  `eslint.config.js` passou a ignorar saída gerada (`coverage`,
+  `test-results`, `playwright-report`, `template-pwa`), que respondia por 3
+  warnings de diretiva inútil.
+
+### Testes & CI
+
+- **Sweep de acessibilidade em jsdom** (`src/components/a11y.test.tsx`) — 27
+  casos passando `axe-core` em componentes representativos, com helper em
+  `test/a11y.ts`. `color-contrast` e `region` ficam desligados nesse nível (jsdom
+  não pinta nem monta página) — quem cobre isso é o smoke em browser real.
+- **Smoke E2E do gallery com Playwright** (`e2e/gallery.spec.ts` +
+  `playwright.config.ts` + workflow `e2e.yml`) — Chromium sobre o build de
+  produção do gallery: boot sem erro de console, filtro de busca, troca de
+  tema/idioma, ausência de scroll horizontal em viewport de 390px e varredura
+  axe com layout real. Novos scripts `npm run e2e` / `npm run e2e:build`.
+
+### Documentação
+
+- **Nova página bilíngue `oauth`** — o módulo `src/oauth/` (`<GoogleSignIn>`,
+  `useOAuthCallback`) era o único módulo público sem nenhuma documentação: não
+  aparecia no site, no nav nem na tabela de módulos do README. Página no padrão
+  tutorial (motivação → exemplo completo → peça por peça → recap), cobrindo a
+  injeção do `GoogleLogin` via prop `component`, o default de One Tap ligado, a
+  regra de validar o `idToken` no backend e a guarda de StrictMode do
+  `useOAuthCallback`. Entrada nova no nav do MkDocs (PT + EN) e no README.
+
 ## [0.22.0] — 2026-07-15
 
 ### Adicionado

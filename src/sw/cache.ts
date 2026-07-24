@@ -27,6 +27,14 @@ interface ExtendableEventLike {
 interface FetchEventLike extends ExtendableEventLike {
     request: Request;
     respondWith(response: Response | Promise<Response>): void;
+    /** Resolves to the navigation-preload response when it is enabled, else `undefined`. */
+    preloadResponse?: Promise<Response | undefined>;
+}
+
+/** Minimal shape of `registration.navigationPreload` (Navigation Preload API). */
+interface NavigationPreloadManagerLike {
+    enable(): Promise<void>;
+    disable(): Promise<void>;
 }
 
 interface CacheSwGlobal {
@@ -36,6 +44,7 @@ interface CacheSwGlobal {
     clients: { claim(): Promise<void> };
     skipWaiting(): Promise<void>;
     location: { origin: string };
+    registration?: { navigationPreload?: NavigationPreloadManagerLike };
 }
 
 function getSwScope(): CacheSwGlobal {
@@ -79,6 +88,13 @@ export interface InstallPrecacheOptions {
     navigateFallbackDenylist?: RegExp[];
     /** Activate the new worker immediately after precaching. Default `true`. */
     skipWaiting?: boolean;
+    /**
+     * Enable the Navigation Preload API on `activate`, so the browser fetches
+     * the navigation request in parallel with the worker boot and the handler
+     * serves `event.preloadResponse` — cutting first-navigation latency after
+     * the worker starts. Silently ignored where unsupported. Default `true`.
+     */
+    navigationPreload?: boolean;
 }
 
 interface PrecacheManifest {
@@ -307,6 +323,7 @@ export function installPrecache(options: InstallPrecacheOptions = {}): void {
         navigateFallback = "/index.html",
         navigateFallbackDenylist = [],
         skipWaiting = true,
+        navigationPreload = true,
     } = options;
 
     sw.addEventListener("install", (event) => {
@@ -335,6 +352,9 @@ export function installPrecache(options: InstallPrecacheOptions = {}): void {
                         .filter((key) => key.startsWith(`${cacheName}-`) && key !== precacheName)
                         .map((key) => caches.delete(key)),
                 );
+                if (navigationPreload && sw.registration?.navigationPreload) {
+                    await sw.registration.navigationPreload.enable();
+                }
                 await sw.clients.claim();
             })(),
         );
@@ -353,6 +373,8 @@ export function installPrecache(options: InstallPrecacheOptions = {}): void {
             event.respondWith(
                 (async () => {
                     try {
+                        const preloaded = await event.preloadResponse;
+                        if (preloaded) return preloaded;
                         return await fetch(request);
                     } catch {
                         const cache = await caches.open(precacheName);

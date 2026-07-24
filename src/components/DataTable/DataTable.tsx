@@ -87,6 +87,11 @@ function compareValues(a: unknown, b: unknown): number {
  * - Search matches a case-insensitive substring across `searchKeys`
  *   (or every string/number column when not provided).
  * - Pagination is hidden when the result fits on a single page.
+ *
+ * The header memo depends on `columns` and `sort` only: `toggleSort` is
+ * recreated each render but always closes over the same setter, so including it
+ * would rebuild every header on every render without changing behaviour. That
+ * is why `exhaustive-deps` is silenced on that dependency array.
  */
 export function DataTable<T>({
     data,
@@ -187,7 +192,7 @@ export function DataTable<T>({
                         : (row: T) => (row[column.key] as ReactNode) ?? null,
                 };
             }),
-        // toggleSort is stable enough for this memo; sort drives header re-render.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         [columns, sort],
     );
 

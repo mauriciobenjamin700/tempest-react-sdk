@@ -30,7 +30,7 @@
 
 .selected {
     background: var(--tempest-primary-soft);
-    color: var(--tempest-primary);
+    color: var(--tempest-primary-on-soft);
 }
 
 .interactive.selected:hover {

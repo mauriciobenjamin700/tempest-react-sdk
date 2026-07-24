@@ -70,7 +70,7 @@
 }
 
 .item.active {
-    color: var(--tempest-primary);
+    color: var(--tempest-primary-on-soft);
     background: var(--tempest-primary-soft);
 }
 

@@ -21,6 +21,10 @@
     --tempest-primary-soft: var(--tempest-primary-50);
     --tempest-primary-soft-hover: var(--tempest-primary-100);
     --tempest-primary-foreground: #ffffff;
+    /* Text/icon color for content sitting on --tempest-primary-soft. The plain
+       --tempest-primary only reaches 4.37:1 over that tint, which fails WCAG AA
+       for body text; the 600 shade lands at ~6.2:1. */
+    --tempest-primary-on-soft: var(--tempest-primary-600);
 
     /* ============================================================
      * Neutrals — grayscale scale + semantic aliases
@@ -190,6 +194,9 @@
     --tempest-primary-active: var(--tempest-primary-300);
     --tempest-primary-soft: var(--tempest-primary-100);
     --tempest-primary-soft-hover: var(--tempest-primary-200);
+    /* Dark theme inverts the ramp: the tint is dark, so the readable text is a
+       lighter shade, not a darker one. */
+    --tempest-primary-on-soft: var(--tempest-primary-700);
 
     --tempest-bg: #0b0d12;
     --tempest-surface: #14171f;

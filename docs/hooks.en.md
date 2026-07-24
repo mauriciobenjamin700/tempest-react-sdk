@@ -21,7 +21,7 @@ dependency array. The SDK packages these patterns into granular, tested,
 | `useBreakpoint()`                                 | `{ current, width, above, below, isMobile, isTablet, isDesktop }` — reactive breakpoint (xs/sm/md/lg/xl/2xl). |
 | `useWindowSize()`                                 | `{ width, height }` of the window, reactive.                                                                  |
 | `useEventListener(name, handler, target?, opts?)` | Generic SSR-safe wrapper. `target` default = `window`. Accepts a ref or an `EventTarget` directly.            |
-| `useOnline()`                                     | Reactive `navigator.onLine`.                                                                                  |
+| `useOnline(opts?)`                                | Reactive `navigator.onLine`; `{ pingUrl, intervalMs, timeoutMs }` adds a real-reachability probe (catches captive portals / dead links). |
 | `useDocumentVisibility()`                         | Reactive `document.visibilityState`.                                                                          |
 | `useIntersectionObserver(ref, opts?)`             | `IntersectionObserverEntry` or `null`.                                                                        |
 | `useResizeObserver(ref)`                          | `{ width, height }` of the reference.                                                                         |
@@ -29,6 +29,8 @@ dependency array. The SDK packages these patterns into granular, tested,
 | `useFocusTrap(ref, active)`                       | Confines Tab within the container.                                                                            |
 | `useHover(ref)` / `useLongPress(handler, opts?)`  | Pointer gestures (reactive hover / long-press).                                                               |
 | `useBeforeInstallPrompt()`                        | Deferred PWA install prompt (`installable`, `installed`, `isStandalone`, `prompt()`).                         |
+| `useServiceWorkerUpdate({ url })`                 | Registers the SW and exposes `{ updateAvailable, applyUpdate, registration }` — consent-based update flow (pairs with `<UpdatePrompt>`). See [PWA](./pwa.md). |
+| `useStorageEstimate({ pollMs? })`                 | `{ usage, quota, ratio, persisted, requestPersist, refresh }` — Storage API quota + `persist()`. Pure pairs: `estimateStorage`, `requestPersistentStorage`. |
 | `useIdle(timeout?)`                               | True when the user is idle for `timeout` ms.                                                                  |
 | `useGeolocation(opts?)`                           | Position + error + loading.                                                                                   |
 | `useClickOutside(handler)`                        | Returns a ref; calls `handler` on a `mousedown`/`touchstart` outside the element. SSR-safe.                   |

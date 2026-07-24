@@ -152,14 +152,76 @@ export function ProfileCard() {
 
 Organization pattern: each domain in `src/constants/query-keys/<domain>.ts`, grouped in a barrel.
 
+## `useOfflineMutation`
+
+When the app is offline-first, a mutation should not hit the network directly — it writes to the [`createOfflineSync`](./offline-sync.md) **outbox** and syncs later. `useOfflineMutation` bridges the sync engine and TanStack Query: on `mutate` it enqueues the entry, **optimistically patches the query cache**, kicks a **flush**, and **rolls back** the cache if the enqueue fails.
+
+```tsx
+import { useOfflineMutation } from "tempest-react-sdk";
+import { notesSync } from "@/sync/engine";
+import type { Note } from "@/sync/types";
+
+function useAddNote() {
+  return useOfflineMutation<Note, Note[], Note>({
+    sync: notesSync,
+    queryKey: ["notes"],
+    toEntry: (note) => ({ op: "create", recordId: note.id, payload: note }),
+    applyOptimistic: (current = [], note) => [...current, note],
+  });
+}
+
+// const addNote = useAddNote();
+// addNote.mutate({ id: crypto.randomUUID(), text: "offline!" });
+```
+
+- `toEntry` maps the variables to the outbox `{ op, recordId, payload }`.
+- `applyOptimistic` produces the next cache value; the previous one is restored if the enqueue throws.
+- `flush` (default `true` → `"after-mutation"`) triggers sync; `false` leaves it to `useOfflineSync`.
+- `invalidate` (default `false`) revalidates the `queryKey` in `onSettled`.
+
+!!! tip "List-cache helpers"
+    For the common case (the cache is a list), use `upsertById()` / `removeById()` instead of hand-writing the spread:
+
+    ```ts
+    import { upsertById, removeById } from "tempest-react-sdk";
+
+    applyOptimistic: upsertById(); // insert or merge by `id`
+    applyOptimistic: removeById(); // remove by `id` (op "delete")
+    // custom field: upsertById("uuid")
+    ```
+
+!!! tip "Server delivery happens on flush"
+    `mutate` resolves with the **outbox entry id**, not the server response — actual delivery runs inside the engine's flush loop, so the UI updates instantly and survives reloads and offline periods.
+
+## `persistQueryClientOffline`
+
+Persists the `QueryClient` cache to IndexedDB and restores it on boot — a reload or a cold offline start shows the last-known data instead of empty screens. Self-contained: uses `dehydrate`/`hydrate` from `@tanstack/react-query` directly, with no `@tanstack/react-query-persist-client` dependency.
+
+```ts
+import { persistQueryClientOffline } from "tempest-react-sdk";
+import { queryClient } from "@/lib/query";
+
+const persistence = persistQueryClientOffline({ queryClient });
+await persistence.restore(); // before the first render
+
+// on logout:
+await persistence.clear();
+// on teardown:
+persistence.unsubscribe();
+```
+
+Writes are throttled (`throttleMs`, default 1s) and subscribe to the cache. `flush()` writes immediately; `clear()` drops the snapshot; `unsubscribe()` stops persisting. Dexie is a peer dependency of the offline store — install it (`npm i dexie`).
+
 ## Recap
 
 - `<QueryProvider>` at the root — one per app — ships calibrated defaults; override via `defaultOptions` or `client`.
 - `STALE_TIME` / `CACHE_TIME` / `REFETCH_TIME` replace magic numbers with named presets.
 - `createQueryKeys(scope, builders)` generates typed, consistent keys, with an automatic `all` for broad invalidation.
 - Combine `setQueryData` (immediate response) with `invalidateQueries` (revalidation) using the same key factory.
+- `useOfflineMutation` bridges the offline engine to the cache: enqueue + optimistic update + flush + rollback.
 
 ## See also
 
 - [HTTP](./http.md) — the `createApiClient` that powers your `queryFn`s
 - [Offline](./offline.md) — combine with `initialData` for an offline fallback
+- [PWA & Offline-First](./pwa.md) — service worker, background sync, status UI

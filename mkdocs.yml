@@ -79,11 +79,13 @@ plugins:
                     Integrações: Integrations
                     HTTP: HTTP
                     Auth: Auth
+                    OAuth (Google): OAuth (Google)
                     Query (TanStack): Query (TanStack)
                     SSE: SSE
                     WebSocket: WebSocket
                     Web Push: Web Push
                     Offline: Offline
+                    PWA & Offline-First: PWA & Offline-First
                     Web Share: Web Share
                     Áudio: Audio
                     Formulários: Forms
@@ -156,6 +158,7 @@ nav:
     - Integrações:
           - HTTP: http.md
           - Auth: auth.md
+          - OAuth (Google): oauth.md
           - Access Control (RBAC): access-control.md
           - Query (TanStack): query.md
           - Data Provider (CRUD): data-provider.md
@@ -165,6 +168,7 @@ nav:
           - Mapa do Brasil (br): br.md
           - Web Push: push.md
           - Offline: offline.md
+          - PWA & Offline-First: pwa.md
           - Web Share: share.md
           - Áudio: audio.md
           - Vision (ONNX): vision.md

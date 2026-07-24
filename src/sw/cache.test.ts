@@ -219,6 +219,52 @@ describe("installPrecache", () => {
         const res = (await dispatchFetch(nav)) as Response;
         expect(await res.text()).toBe("<!doctype html>shell");
     });
+
+    it("enables navigation preload on activate when supported", async () => {
+        const enable = vi.fn().mockResolvedValue(undefined);
+        Object.defineProperty(globalThis, "registration", {
+            value: { navigationPreload: { enable } },
+            configurable: true,
+            writable: true,
+        });
+        fetchMock.mockResolvedValueOnce(
+            new Response(JSON.stringify({ version: "np", urls: ["/index.html"] })),
+        );
+        installPrecache();
+        await dispatch("install");
+        await dispatch("activate");
+        expect(enable).toHaveBeenCalled();
+        delete (globalThis as Record<string, unknown>).registration;
+    });
+
+    it("serves the navigation preload response instead of refetching", async () => {
+        fetchMock.mockResolvedValueOnce(
+            new Response(JSON.stringify({ version: "pp", urls: ["/index.html"] })),
+        );
+        installPrecache();
+        await dispatch("install");
+
+        const nav = {
+            url: "https://app.test/dashboard",
+            method: "GET",
+            mode: "navigate",
+        } as unknown as Request;
+        let produced: Promise<Response> | Response | undefined;
+        const event = {
+            request: nav,
+            respondWith: (r: Response | Promise<Response>) => {
+                produced = r;
+            },
+            preloadResponse: Promise.resolve(new Response("preloaded")),
+        };
+        for (const listener of listeners.fetch) {
+            listener(event);
+            if (produced !== undefined) break;
+        }
+        const res = (await produced) as Response;
+        expect(await res.text()).toBe("preloaded");
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
 });
 
 describe("createPartialResponse", () => {

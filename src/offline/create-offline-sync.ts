@@ -75,6 +75,37 @@ export interface SyncRunSummary {
     durationMs: number;
     /** `true` when the run was skipped because the device was offline. */
     skipped: boolean;
+    /** Last delivery error message seen this run, or `null` when none failed. */
+    lastError: string | null;
+}
+
+/**
+ * Coarse lifecycle phase of the sync engine, surfaced through
+ * {@link OfflineSync.getState} / {@link OfflineSync.subscribe} for reactive UI.
+ *
+ * - `"idle"` — nothing in flight and the last run (if any) fully succeeded.
+ * - `"syncing"` — a `flush` run is currently in progress.
+ * - `"offline"` — the last run was skipped because the device was offline.
+ * - `"error"` — the last run left at least one entry queued after a failure.
+ */
+export type SyncPhase = "idle" | "syncing" | "offline" | "error";
+
+/**
+ * Immutable snapshot of the engine's reactive state. A fresh object is emitted
+ * to subscribers on every change, so it is safe to use as a
+ * `useSyncExternalStore` snapshot (reference equality signals "no change").
+ */
+export interface SyncState {
+    /** Current lifecycle phase. */
+    phase: SyncPhase;
+    /** Number of mutations still queued in the outbox. */
+    pending: number;
+    /** Summary of the most recent `flush` run, or `null` before the first. */
+    lastSummary: SyncRunSummary | null;
+    /** Message of the most recent delivery failure, or `null`. */
+    lastError: string | null;
+    /** Epoch ms of the last non-skipped run, or `null` before the first. */
+    lastSyncedAt: number | null;
 }
 
 /**
@@ -134,6 +165,22 @@ export interface OfflineSyncConfig<TPayload, TRemote> {
      * non-browser environments). When it returns `false`, `flush` is skipped.
      */
     isOnline?: () => boolean;
+    /**
+     * Broadcast {@link SyncState} across browser tabs of the same origin via a
+     * `BroadcastChannel`, so every tab shows a coherent pending count / phase
+     * (e.g. one tab flushing drops the badge to zero everywhere). The outbox is
+     * already a shared IndexedDB; this only shares the in-memory state. Silently
+     * ignored where `BroadcastChannel` is unavailable. Default `false`.
+     *
+     * When the Web Locks API is available, `flush` is additionally coordinated
+     * *across* tabs: only one tab runs at a time and others skip while the lock
+     * is held (they pick up the result via the broadcast). Delivery should still
+     * be idempotent (upsert by client id). Without Web Locks, `flush` falls back
+     * to per-tab single-flight.
+     */
+    crossTab?: boolean;
+    /** Channel name when `crossTab` is on. Default `tempest-sync:${databaseName}`. */
+    broadcastChannelName?: string;
 }
 
 /**
@@ -165,6 +212,23 @@ export interface OfflineSync<TPayload> {
     clearOutbox: () => Promise<void>;
     /** Reset the pull watermark (e.g. on logout / account switch). */
     resetWatermark: () => void;
+    /** Read the current reactive {@link SyncState} snapshot synchronously. */
+    getState: () => SyncState;
+    /**
+     * Subscribe to {@link SyncState} changes. The listener fires on every
+     * enqueue, flush transition and outbox clear.
+     *
+     * @param listener - Called with the new snapshot on each change.
+     * @returns An unsubscribe function.
+     */
+    subscribe: (listener: (state: SyncState) => void) => () => void;
+    /**
+     * Release resources held by the engine — currently the cross-tab
+     * `BroadcastChannel` when `crossTab` is enabled. Safe to call when none was
+     * opened. Optional in long-lived apps (the channel is reclaimed on tab
+     * close); call it in tests and on teardown.
+     */
+    dispose: () => void;
 }
 
 /**
@@ -245,6 +309,45 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
 
     let inflight: Promise<SyncRunSummary> | null = null;
 
+    const listeners = new Set<(state: SyncState) => void>();
+    let state: SyncState = {
+        phase: "idle",
+        pending: 0,
+        lastSummary: null,
+        lastError: null,
+        lastSyncedAt: null,
+    };
+
+    const crossTab = config.crossTab === true;
+    const channelName = config.broadcastChannelName ?? `tempest-sync:${config.databaseName}`;
+    const channel: BroadcastChannel | null =
+        crossTab && typeof BroadcastChannel !== "undefined"
+            ? new BroadcastChannel(channelName)
+            : null;
+    let closed = false;
+
+    function notify(): void {
+        for (const listener of listeners) listener(state);
+    }
+
+    function setState(patch: Partial<SyncState>): void {
+        state = { ...state, ...patch };
+        notify();
+        if (channel && !closed) channel.postMessage(state);
+    }
+
+    if (channel) {
+        channel.onmessage = (event: MessageEvent<SyncState>) => {
+            if (closed) return;
+            state = event.data;
+            notify();
+        };
+    }
+
+    async function refreshPending(): Promise<void> {
+        setState({ pending: await outbox.count() });
+    }
+
     async function push(summary: SyncRunSummary): Promise<void> {
         const entries = await outbox.list(undefined, { orderBy: "enqueuedAt" });
         for (const entry of entries) {
@@ -261,6 +364,7 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
                 } as Partial<OutboxEntry<TPayload>>);
                 await config.onEntryFailed?.(entry, cause);
                 summary.failed += 1;
+                summary.lastError = message;
             }
         }
     }
@@ -288,6 +392,7 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
             failed: 0,
             durationMs: 0,
             skipped: false,
+            lastError: null,
         };
         if (!isOnline()) {
             summary.skipped = true;
@@ -300,6 +405,42 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
         return summary;
     }
 
+    /**
+     * Run one sync pass, serialized across tabs when possible.
+     *
+     * With `crossTab` on and the Web Locks API available, the pass is wrapped in
+     * an `ifAvailable` lock request: whichever tab holds the lock runs, and the
+     * others get `null` back instead of duplicating the work — their `SyncState`
+     * catches up through the `BroadcastChannel`. The no-op summary keeps
+     * `skipped: false` on purpose: `skipped` means "device offline" (it maps to
+     * `phase: "offline"`), which is not what happened here. Falls back to a plain
+     * per-tab run when `crossTab` is off or Web Locks is missing.
+     *
+     * @param trigger - What asked for this run, carried into the summary.
+     * @returns The run summary, or an empty summary when another tab held the lock.
+     */
+    async function runGuarded(trigger: SyncTrigger): Promise<SyncRunSummary> {
+        const locks = typeof navigator !== "undefined" ? navigator.locks : undefined;
+        if (!crossTab || !locks) return runOnce(trigger);
+        const result = await locks.request(
+            `${channelName}:flush`,
+            { ifAvailable: true },
+            async (lock) => (lock ? runOnce(trigger) : null),
+        );
+        return (
+            result ?? {
+                trigger,
+                succeeded: 0,
+                failed: 0,
+                durationMs: 0,
+                skipped: false,
+                lastError: null,
+            }
+        );
+    }
+
+    void refreshPending();
+
     return {
         async enqueue(op, recordId, payload) {
             const entry: OutboxEntry<TPayload> = {
@@ -311,13 +452,30 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
                 payload,
             };
             await outbox.put(entry);
+            await refreshPending();
             return entry.id;
         },
         flush(trigger: SyncTrigger = "manual") {
             if (!inflight) {
-                inflight = runOnce(trigger).finally(() => {
-                    inflight = null;
-                });
+                setState({ phase: "syncing" });
+                inflight = runGuarded(trigger)
+                    .then(async (summary) => {
+                        await refreshPending();
+                        setState({
+                            phase: summary.skipped
+                                ? "offline"
+                                : summary.failed > 0
+                                  ? "error"
+                                  : "idle",
+                            lastSummary: summary,
+                            lastError: summary.lastError,
+                            lastSyncedAt: summary.skipped ? state.lastSyncedAt : Date.now(),
+                        });
+                        return summary;
+                    })
+                    .finally(() => {
+                        inflight = null;
+                    });
             }
             return inflight;
         },
@@ -327,11 +485,25 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
         listPending() {
             return outbox.list(undefined, { orderBy: "enqueuedAt" });
         },
-        clearOutbox() {
-            return outbox.clear();
+        async clearOutbox() {
+            await outbox.clear();
+            await refreshPending();
         },
         resetWatermark() {
             watermark.clear();
+        },
+        getState() {
+            return state;
+        },
+        subscribe(listener) {
+            listeners.add(listener);
+            return () => {
+                listeners.delete(listener);
+            };
+        },
+        dispose() {
+            closed = true;
+            channel?.close();
         },
     };
 }

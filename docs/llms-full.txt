@@ -3257,6 +3257,42 @@ Falha com botão de retry.
 <ErrorState title="Não foi possível carregar" description={String(error)} onRetry={refetch} />
 ```
 
+## `OfflineIndicator`
+
+**Quando usar:** avisar que o app está offline e confirmar quando a conexão volta. Guiado por `useOnline` — não renderiza nada online, então monte na raiz sem `if`.
+
+```tsx
+<OfflineIndicator position="top" />
+```
+
+`position`: `"top"` | `"bottom"` (default). Passe `children` pra substituir o corpo, ou `onlineFlashMs={0}` pra não piscar a confirmação. Veja [PWA & Offline-First](../pwa.md).
+
+## `SyncStatusBadge`
+
+**Quando usar:** mostrar o estado do motor offline (sincronizado / sincronizando / pendente / offline / erro). Dois modos: passe `sync` pra conectar direto no motor (zero fiação), ou passe `tone` explícito (apresentacional, testável sem IndexedDB).
+
+```tsx
+// Conectado — auto-fia o motor:
+<SyncStatusBadge sync={notesSync} />;
+
+// Apresentacional — você controla o estado:
+const { tone, pending } = useSyncStatus(notesSync);
+<SyncStatusBadge tone={tone} pending={pending} />;
+```
+
+`tone`: `"idle"` | `"syncing"` | `"pending"` | `"offline"` | `"error"`. `iconOnly` esconde o label; `labels` sobrescreve os textos por tom.
+
+## `UpdatePrompt`
+
+**Quando usar:** avisar que há uma versão nova do app (service worker) e deixar o usuário recarregar. Par de `useServiceWorkerUpdate`.
+
+```tsx
+const { updateAvailable, applyUpdate } = useServiceWorkerUpdate({ url: "/sw.js" });
+<UpdatePrompt open={updateAvailable} onUpdate={applyUpdate} />;
+```
+
+Renderiza nada com `open={false}`. `onDismiss` (opcional) mostra o botão de dispensar; `position` `"top"`/`"bottom"`.
+
 ## A11y geral
 
 - `Alert`/`Banner` com variant `warning`/`danger` usam `role="alert"` (anunciado imediatamente).
@@ -7247,7 +7283,7 @@ testados, **SSR-safe** e independentes — importe só o que precisar.
 | `useBreakpoint()`                                 | `{ current, width, above, below, isMobile, isTablet, isDesktop }` — breakpoint reativo (xs/sm/md/lg/xl/2xl). |
 | `useWindowSize()`                                 | `{ width, height }` da janela, reativo.                                                                      |
 | `useEventListener(name, handler, target?, opts?)` | Wrap genérico SSR-safe. `target` default = `window`. Aceita ref ou `EventTarget` direto.                     |
-| `useOnline()`                                     | `navigator.onLine` reativo.                                                                                  |
+| `useOnline(opts?)`                                | `navigator.onLine` reativo; `{ pingUrl, intervalMs, timeoutMs }` adiciona probe de reachability real (capta captive portal / link morto). |
 | `useDocumentVisibility()`                         | `document.visibilityState` reativo.                                                                          |
 | `useIntersectionObserver(ref, opts?)`             | `IntersectionObserverEntry` ou `null`.                                                                       |
 | `useResizeObserver(ref)`                          | `{ width, height }` da referência.                                                                           |
@@ -7255,6 +7291,8 @@ testados, **SSR-safe** e independentes — importe só o que precisar.
 | `useFocusTrap(ref, active)`                       | Confina Tab dentro do container.                                                                             |
 | `useHover(ref)` / `useLongPress(handler, opts?)`  | Gestos de ponteiro (hover reativo / long-press).                                                             |
 | `useBeforeInstallPrompt()`                        | PWA install prompt diferido (`installable`, `installed`, `isStandalone`, `prompt()`).                        |
+| `useServiceWorkerUpdate({ url })`                 | Registra o SW e expõe `{ updateAvailable, applyUpdate, registration }` — fluxo de update com consentimento (par de `<UpdatePrompt>`). Veja [PWA](./pwa.md). |
+| `useStorageEstimate({ pollMs? })`                 | `{ usage, quota, ratio, persisted, requestPersist, refresh }` — quota do Storage API + `persist()`. Pares puros: `estimateStorage`, `requestPersistentStorage`. |
 | `useIdle(timeout?)`                               | True quando usuário ocioso por `timeout` ms.                                                                 |
 | `useGeolocation(opts?)`                           | Position + erro + loading.                                                                                   |
 | `useClickOutside(handler)`                        | Retorna um ref; chama `handler` em `mousedown`/`touchstart` fora do elemento. SSR-safe.                      |
@@ -8748,6 +8786,179 @@ export const log = createLogger({ level: "info", sinks: [sentrySink] });
 
 ---
 
+# oauth.md
+
+# OAuth (Google)
+
+O módulo `oauth` cobre as **duas pontas** de um login social: o botão que o usuário clica (`<GoogleSignIn>`) e a rota de callback que troca a credencial do provider por uma sessão da sua API (`useOAuthCallback`).
+
+!!! info "Por que envolver o `@react-oauth/google`?"
+    Duas dores. Primeiro, o payload de sucesso do Google vem como `{ credential?: string }` — opcional, então todo call site precisa checar se veio vazio, e o `onError` não recebe argumento nenhum. Segundo, se o SDK declarasse `@react-oauth/google` como peer dep, **todo** app que instala `tempest-react-sdk` pagaria por ele, inclusive os que não têm login social. O wrapper resolve os dois: normaliza sucesso/erro em `OAuthCredential`/`OAuthError`, e você passa o `GoogleLogin` pela prop `component`.
+
+## Instale o SDK do Google
+
+O `@react-oauth/google` é do **seu app**, não do SDK:
+
+```bash
+npm install @react-oauth/google
+```
+
+## O botão: `<GoogleSignIn>`
+
+Programa completo, copiável:
+
+```tsx
+import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
+import { GoogleSignIn } from "tempest-react-sdk";
+
+export function LoginPage() {
+  return (
+    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+      <GoogleSignIn
+        component={GoogleLogin}
+        locale="pt-BR"
+        text="continue_with"
+        onSuccess={async ({ idToken }) => {
+          await fetch("/api/auth/google", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ id_token: idToken }),
+          });
+        }}
+        onError={(error) => console.error(error.message)}
+      />
+    </GoogleOAuthProvider>
+  );
+}
+```
+
+Peça por peça:
+
+1. `GoogleOAuthProvider` (do `@react-oauth/google`) carrega o script do Google e injeta o `clientId`. Ele fica **em volta**, normalmente no topo da árvore ou só na página de login.
+2. `component={GoogleLogin}` é a injeção de dependência — é assim que o SDK renderiza o botão oficial do Google sem depender dele.
+3. `onSuccess` recebe um `OAuthCredential` já validado: se o Google devolver resposta sem `credential`, o wrapper chama `onError` e **não** chama `onSuccess`. Você nunca lida com `idToken` vazio.
+4. `onError` recebe um `OAuthError` com `provider` e `message` preenchidos.
+
+### Props
+
+| Prop            | Tipo                                         | Descrição                                                                 |
+| --------------- | -------------------------------------------- | ------------------------------------------------------------------------- |
+| `component`     | `(props) => ReactNode`                       | **Obrigatório.** O `GoogleLogin` importado pelo seu app.                  |
+| `onSuccess`     | `(c: OAuthCredential) => void \| Promise`    | **Obrigatório.** Recebe `{ idToken, provider, raw }`.                     |
+| `onError`       | `(e: OAuthError) => void`                    | Erro normalizado (inclui o caso "veio sem credential").                   |
+| `locale`        | `string`                                     | Idioma do botão (ex.: `"pt-BR"`). Default: locale do browser.             |
+| `theme`         | `"filled_blue" \| "filled_black" \| "outline"` | Tema visual repassado ao Google.                                        |
+| `text`          | `"signin_with" \| "signup_with" \| "continue_with" \| "signin"` | Texto do botão.                                       |
+| `shape`         | `"rectangular" \| "pill" \| "circle" \| "square"` | Forma do botão.                                                     |
+| `size`          | `"large" \| "medium" \| "small"`             | Tamanho.                                                                  |
+| `disableOneTap` | `boolean`                                    | Desliga o auto-prompt "One Tap". Default `false` (One Tap **ligado**).     |
+| `width`         | `number`                                     | Largura em px — o botão do Google é fixo por padrão.                      |
+| `className`     | `string`                                     | Aplicada no wrapper.                                                      |
+| `style`         | `CSSProperties`                              | Aplicado no wrapper.                                                      |
+
+!!! warning "One Tap vem ligado"
+    `disableOneTap` tem default `false`, ou seja o SDK passa `useOneTap: true` pro Google. Se você não quer o prompt automático aparecendo sozinho no canto da tela (comum em telas que não são de login), passe `disableOneTap`.
+
+### O que chega no `onSuccess` / `onError`
+
+```ts
+interface OAuthCredential {
+  idToken: string; // JWT do provider — manda pro seu backend validar
+  provider: string; // "google"
+  raw?: unknown; // resposta crua do SDK do provider
+}
+
+interface OAuthError {
+  provider: string;
+  code?: string;
+  message: string;
+  raw?: unknown;
+}
+```
+
+!!! danger "Nunca confie no `idToken` no cliente"
+    O `idToken` é um JWT assinado pelo Google, mas quem **valida a assinatura** tem que ser o seu backend (via as chaves públicas do Google), conferindo `aud` (seu `clientId`) e `iss`. Decodificar no cliente com `decodeJWT` serve pra UI (mostrar nome/foto), nunca pra autorizar.
+
+## A rota de callback: `useOAuthCallback`
+
+Quando o fluxo é **redirect** (o provider volta pra `/callback?code=…`) em vez de popup, você precisa trocar esse código por uma sessão — exatamente uma vez.
+
+```tsx
+import { useNavigate } from "tempest-react-sdk";
+import { ErrorState, Spinner, useOAuthCallback } from "tempest-react-sdk";
+
+interface Session {
+  token: string;
+  user: { id: string; name: string };
+}
+
+export function OAuthCallbackPage() {
+  const navigate = useNavigate();
+
+  const { loading, error } = useOAuthCallback<Session>({
+    exchange: async () => {
+      const code = new URLSearchParams(window.location.search).get("code");
+      if (!code) throw new Error("missing code");
+      const response = await fetch("/api/auth/google/exchange", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      if (!response.ok) throw new Error("exchange failed");
+      return (await response.json()) as Session;
+    },
+    onSuccess: () => navigate("/dashboard", { replace: true }),
+    onError: () => navigate("/login?error=oauth", { replace: true }),
+  });
+
+  if (loading) return <Spinner />;
+  if (error) return <ErrorState description="Não foi possível concluir o login." />;
+  return null;
+}
+```
+
+Resultado: enquanto o POST está em voo aparece o spinner; ao resolver, o hook chama `onSuccess` e você redireciona; se estourar, `onError` manda pro login com a flag de erro.
+
+!!! check "Roda uma vez, mesmo em StrictMode"
+    Em desenvolvimento o React 18/19 monta cada componente duas vezes de propósito. Sem guarda, `exchange` dispararia dois POSTs e o segundo falharia — código OAuth é de uso único. O hook usa um `ref` pra garantir uma execução só, então você não vê o erro fantasma "code already redeemed" em dev.
+
+### Retorno
+
+| Campo     | Tipo                                  | Significado                            |
+| --------- | ------------------------------------- | -------------------------------------- |
+| `loading` | `boolean`                             | `true` enquanto `exchange` está pendente |
+| `data`    | `T \| null`                           | Valor resolvido, quando deu certo      |
+| `error`   | `unknown`                             | Motivo da rejeição, quando falhou      |
+| `status`  | `"pending" \| "success" \| "error"`   | Estado agregado                        |
+
+!!! tip "`exchange` só precisa ser uma Promise"
+    O hook não sabe nada de OAuth — ele só executa uma função assíncrona uma vez e expõe o estado. Serve pra qualquer troca de "callback vira sessão": magic link, SSO corporativo, confirmação de e-mail.
+
+## Fechando o ciclo com o `auth`
+
+O par natural é o [`createAuthStore`](auth.md): o `onSuccess` grava a sessão, e daí em diante o `AuthGuard` e o `createApiClient` já enxergam o usuário logado.
+
+```tsx
+const { loading } = useOAuthCallback<Session>({
+  exchange: () => api.post<Session>("/auth/google/exchange", { body: { code } }),
+  onSuccess: ({ token, user }) => {
+    useAuthStore.getState().setSession({ token, user });
+    navigate("/dashboard", { replace: true });
+  },
+});
+```
+
+## Recapitulando
+
+- `@react-oauth/google` é dependência do **seu** app; o SDK só recebe o `GoogleLogin` pela prop `component`.
+- `<GoogleSignIn>` normaliza sucesso e erro — `onSuccess` só roda com `idToken` presente.
+- One Tap vem **ligado**; desligue com `disableOneTap` onde não faz sentido.
+- Validar o `idToken` é trabalho do backend, sempre.
+- `useOAuthCallback` roda a troca uma vez só (à prova de StrictMode) e devolve `loading`/`data`/`error`/`status`.
+- Casa com [`auth`](auth.md) pra gravar a sessão e com [`routing`](routing.md) pra redirecionar.
+
+---
+
 # offline-sync.md
 
 # Offline Sync com `tempest-fastapi-sdk`
@@ -9017,9 +9228,48 @@ export function startSync(): void {
 !!! tip "Push em vez de polling"
     Se o backend dispara um **web push** quando há mudança, troque o `setInterval` por um `pullAnalyses` no handler de notificação — sincronia quase em tempo real e sem polling. Veja [Web Push](./push.md) + `usePushSubscription`.
 
+## UI reativa e flush automático
+
+Não fie o estado de sincronização na mão: `useOfflineSync(sync, opts)` inscreve o componente no motor (via `subscribe`/`getState`) e expõe `{ phase, pending, syncing, lastSummary, lastError, flush, enqueue }`, com flush opcional no mount, no evento `online` e num intervalo. `useSyncStatus(sync)` devolve um `{ tone, pending, syncing }` pronto pro `<SyncStatusBadge>`. Para a barra offline e o prompt de atualização do SW, veja **[PWA & Offline-First](./pwa.md)**.
+
+```tsx
+import { useOfflineSync, SyncStatusBadge, useSyncStatus } from "tempest-react-sdk";
+import { sync } from "@/sync/engine";
+
+function SyncBadge() {
+  const { tone, pending } = useSyncStatus(sync);
+  return <SyncStatusBadge tone={tone} pending={pending} />;
+}
+```
+
+Para mutações otimistas ligadas ao TanStack Query, use `useOfflineMutation` — veja [Query](./query.md#useofflinemutation).
+
+!!! tip "Coerência entre abas"
+    Passe `crossTab: true` no `createOfflineSync` pra propagar o `SyncState` entre abas do mesmo origin via `BroadcastChannel` — uma aba que dá flush zera o badge de pendências em todas. O outbox já é um IndexedDB compartilhado; isto só espelha o estado em memória. `flush` continua single-flight **por aba** (entregas idempotentes por `id` cobrem o resto). Chame `sync.dispose()` no teardown pra fechar o canal.
+
+    ```ts
+    export const sync = createOfflineSync<Analysis, AnalysisDto>({
+      databaseName: "AnalysesOutbox",
+      crossTab: true,
+      // ...
+    });
+    ```
+
 ## Conflitos: last-write-wins
 
 O backend resolve por `updated_at` (a escrita mais recente vence). No cliente, o pull faz `bulkPut`, que **sobrescreve** o registro local pela versão do servidor — então uma edição local não confirmada pode ser substituída por uma versão mais nova do servidor. Se o seu domínio precisa de merge mais fino (campos independentes, CRDT), trate isso na camada de `saveAnalysis`/pull; o SDK te dá os blocos, não impõe a política.
+
+Para os dois casos comuns, o SDK exporta resolvedores prontos pra usar dentro do `applyRemote` (empate → remoto vence):
+
+```ts
+import { lastWriteWins, higherVersionWins } from "tempest-react-sdk";
+
+applyRemote: async (dto) => {
+  const local = await analyses.get(dto.id);
+  await analyses.save(lastWriteWins(local, dto, (r) => r.updatedAt));
+  // ou: higherVersionWins(local, dto, (r) => r.version)
+};
+```
 
 ## Recap
 
@@ -9576,6 +9826,179 @@ installNotificationClickHandler();
 
 ---
 
+# pwa.md
+
+# PWA & Offline-First
+
+O `tempest-react-sdk` traz tudo que um app Tempest precisa pra virar um **PWA offline-first** — sem depender de Workbox nem de `vite-plugin-pwa`. Esta página é o mapa: registro e atualização do service worker, cache, sincronização em background, durabilidade do armazenamento e a UI de status. O **motor de sincronização** (`createOfflineSync`) tem sua própria receita em [Offline Sync (FastAPI)](./offline-sync.md) — aqui cobrimos a camada PWA ao redor dele.
+
+!!! info "As peças"
+    | Camada | O que faz | Onde roda |
+    | -- | -- | -- |
+    | `tempest-react-sdk/vite` | gera manifest, ícones, SW de dev | build (Vite) |
+    | `tempest-react-sdk/sw` | precache, cache runtime, background sync | dentro do `sw.ts` |
+    | hooks + componentes | update, status, quota, indicadores | main thread (React) |
+
+## 1. Registrar o service worker e atualizar com consentimento
+
+`registerServiceWorker` cuida do `register()` + detecção de update. Para o fluxo **guiado pelo usuário** ("Nova versão — atualizar"), use o hook `useServiceWorkerUpdate` com o componente `<UpdatePrompt>`:
+
+```tsx
+import { useServiceWorkerUpdate, UpdatePrompt } from "tempest-react-sdk";
+
+export function ServiceWorkerGate() {
+  const { updateAvailable, applyUpdate } = useServiceWorkerUpdate({ url: "/sw.js" });
+  return <UpdatePrompt open={updateAvailable} onUpdate={applyUpdate} />;
+}
+```
+
+Quando um worker novo termina de instalar, `updateAvailable` vira `true`; `applyUpdate()` ativa o worker em espera (`skipWaiting`) e recarrega a página assim que ele assume o controle.
+
+!!! tip "Deixe `autoUpdate` desligado aqui"
+    `useServiceWorkerUpdate` existe para dar a decisão de recarregar ao usuário. Se você quer recarga silenciosa, use `registerServiceWorker({ url, autoUpdate: true })` direto, sem o hook.
+
+## 2. Precache + cache runtime + navigation preload
+
+Dentro do seu `sw.ts`, registre as rotas específicas **antes** do precache (para vencerem o catch-all):
+
+```ts
+/// <reference lib="webworker" />
+import { installRuntimeCache, installPrecache } from "tempest-react-sdk/sw";
+
+installRuntimeCache([
+  { match: /\/api\//, strategy: "network-first", cacheName: "api", maxAgeSeconds: 300 },
+  { match: /\.(png|jpg|webp)$/, strategy: "cache-first", cacheName: "img", maxEntries: 60 },
+]);
+
+installPrecache(); // app shell + navegação offline
+```
+
+`installPrecache` liga a **Navigation Preload API** no `activate` por padrão (`navigationPreload: true`): o navegador começa a buscar a navegação em paralelo com o boot do worker e o handler serve `event.preloadResponse`, cortando a latência da primeira navegação depois que o worker sobe.
+
+!!! note "De onde vem o manifest"
+    `installPrecache` lê `precache-manifest.json`, emitido pelo plugin `tempestPwaManifest()` do subpath `tempest-react-sdk/vite`. Veja [Vite config](./vite-config.md).
+
+## 3. Background sync + periodic sync
+
+`installBackgroundSync` enfileira mutações (`POST`/`PUT`/`PATCH`/`DELETE`) que falham offline e as reenvia quando a rede volta — via Background Sync API, com fallback oportunista para navegadores sem ela (Safari).
+
+```ts
+import { installBackgroundSync } from "tempest-react-sdk/sw";
+
+installBackgroundSync({ match: (url) => url.pathname.startsWith("/api/") });
+```
+
+Para reenviar mesmo **sem uma navegação nova**, registre um *periodic sync* na main thread. O SW já escuta o evento `periodicsync`:
+
+```ts
+import { registerPeriodicSync } from "tempest-react-sdk/sw";
+
+const registration = await navigator.serviceWorker.ready;
+await registerPeriodicSync({ registration, minIntervalMinutes: 360 });
+```
+
+`registerPeriodicSync` checa a permissão `periodic-background-sync` primeiro e retorna `false` quando indisponível (Chrome-only) — chamar sempre é seguro.
+
+## 4. Durabilidade: peça armazenamento persistente
+
+Sem `navigator.storage.persist()`, o navegador pode **despejar** o IndexedDB e o Cache Storage sob pressão de disco — fatal pra dados offline. `useStorageEstimate` mostra uso/quota e expõe a ação de tornar o armazenamento permanente:
+
+```tsx
+import { useStorageEstimate } from "tempest-react-sdk";
+
+function StorageMeter() {
+  const { usage, quota, ratio, persisted, requestPersist } = useStorageEstimate();
+  return (
+    <div>
+      <progress value={ratio ?? 0} />
+      <span>
+        {((usage ?? 0) / 1e6).toFixed(1)} de {((quota ?? 0) / 1e6).toFixed(0)} MB
+      </span>
+      {!persisted && <button onClick={requestPersist}>Tornar permanente</button>}
+    </div>
+  );
+}
+```
+
+Fora do React, use as funções puras `estimateStorage()` e `requestPersistentStorage()`.
+
+## 5. Observabilidade do cache
+
+Para um readout "X MB cacheado" ou um "limpar cache" no logout, use os helpers de main thread:
+
+```ts
+import { inspectCaches, clearCaches } from "tempest-react-sdk/sw";
+
+const reports = await inspectCaches({ filter: "tempest-" });
+const totalMb = reports.reduce((n, r) => n + (r.bytes ?? 0), 0) / 1e6;
+
+await clearCaches("tempest-"); // no logout
+```
+
+`inspectCaches` mede bytes por padrão (lendo cada resposta); passe `measureBytes: false` para um relatório rápido só de contagem.
+
+## 6. UI de status offline
+
+Dois componentes prontos, guiados por `useOnline` e pelo motor de sync:
+
+```tsx
+import { OfflineIndicator, SyncStatusBadge, useSyncStatus } from "tempest-react-sdk";
+import { notesSync } from "@/sync/engine";
+
+function StatusBar() {
+  const { tone, pending } = useSyncStatus(notesSync);
+  return (
+    <>
+      <OfflineIndicator position="top" />
+      <SyncStatusBadge tone={tone} pending={pending} />
+    </>
+  );
+}
+```
+
+- **`<OfflineIndicator>`** — barra fixa que aparece offline e pisca uma confirmação ao reconectar. Não renderiza nada online, então é seguro montar na raiz do app.
+- **`<SyncStatusBadge>`** — pílula com ícone + label + contagem de pendências, alimentada por `useSyncStatus(sync).tone`.
+
+## 7. Hooks reativos do motor de sync
+
+`useOfflineSync` inscreve um componente no `OfflineSync` e opcionalmente dispara flush no mount, no evento `online` e num intervalo:
+
+```tsx
+import { useOfflineSync } from "tempest-react-sdk";
+import { notesSync } from "@/sync/engine";
+
+function useNotesSync() {
+  return useOfflineSync(notesSync, { flushOnMount: true, intervalMs: 30_000 });
+  // → { phase, pending, syncing, lastSummary, lastError, lastSyncedAt, enqueue, flush }
+}
+```
+
+Para mutações **otimistas** que gravam no outbox e atualizam o cache do TanStack Query (com rollback em falha), use `useOfflineMutation` — veja [Query](./query.md#useofflinemutation).
+
+## 8. Resolução de conflitos
+
+O pull sobrescreve o registro local pela versão do servidor. Quando precisar de uma política explícita dentro do `applyRemote`, os helpers cobrem os dois casos comuns (empate → remoto vence):
+
+```ts
+import { lastWriteWins, higherVersionWins } from "tempest-react-sdk";
+
+applyRemote: async (dto) => {
+  const local = await store.get(dto.id);
+  await store.save(lastWriteWins(local, dto, (r) => r.updatedAt));
+};
+```
+
+## Recap
+
+- **`useServiceWorkerUpdate` + `<UpdatePrompt>`** dão o fluxo de atualização com consentimento. ✅
+- **`installPrecache`** liga navigation preload; **`installRuntimeCache`** cobre as estratégias Workbox-like.
+- **`installBackgroundSync`** + **`registerPeriodicSync`** reenviam mutações offline, com ou sem navegação nova.
+- **`useStorageEstimate`** + **`requestPersistentStorage`** evitam o despejo do IndexedDB.
+- **`inspectCaches`/`clearCaches`** dão visibilidade e limpeza do cache.
+- **`<OfflineIndicator>` / `<SyncStatusBadge>` / `useOfflineSync` / `useSyncStatus`** montam a UI de status reativa. 🚀
+
+---
+
 # query.md
 
 # Query (TanStack Query)
@@ -9732,17 +10155,79 @@ export function ProfileCard() {
 
 Padrão de organização: cada domínio em `src/constants/query-keys/<dominio>.ts`, agrupados num barrel.
 
+## `useOfflineMutation`
+
+Quando o app é offline-first, uma mutation não deve bater na rede direto — ela grava no **outbox** do [`createOfflineSync`](./offline-sync.md) e sincroniza depois. `useOfflineMutation` faz a ponte entre o motor de sync e o TanStack Query: no `mutate` ele enfileira a entrada, **atualiza o cache da query otimisticamente**, dá o **flush** e faz **rollback** do cache se o enqueue falhar.
+
+```tsx
+import { useOfflineMutation } from "tempest-react-sdk";
+import { notesSync } from "@/sync/engine";
+import type { Note } from "@/sync/types";
+
+function useAddNote() {
+  return useOfflineMutation<Note, Note[], Note>({
+    sync: notesSync,
+    queryKey: ["notes"],
+    toEntry: (note) => ({ op: "create", recordId: note.id, payload: note }),
+    applyOptimistic: (current = [], note) => [...current, note],
+  });
+}
+
+// const addNote = useAddNote();
+// addNote.mutate({ id: crypto.randomUUID(), text: "offline!" });
+```
+
+- `toEntry` mapeia as variáveis pra `{ op, recordId, payload }` do outbox.
+- `applyOptimistic` produz o próximo valor do cache; o anterior é restaurado se o enqueue lançar.
+- `flush` (default `true` → `"after-mutation"`) dispara a sincronização; `false` deixa isso pro `useOfflineSync`.
+- `invalidate` (default `false`) revalida a `queryKey` no `onSettled`.
+
+!!! tip "Helpers de cache de lista"
+    Para o caso comum (cache é uma lista), use `upsertById()` / `removeById()` no lugar de escrever o spread na mão:
+
+    ```ts
+    import { upsertById, removeById } from "tempest-react-sdk";
+
+    applyOptimistic: upsertById(); // insere ou faz merge por `id`
+    applyOptimistic: removeById(); // remove por `id` (op "delete")
+    // campo custom: upsertById("uuid")
+    ```
+
+!!! tip "A entrega ao servidor acontece no flush"
+    O `mutate` resolve com o **id da entrada no outbox**, não com a resposta do servidor — a entrega real roda no loop de flush do motor, então a UI atualiza na hora e sobrevive a reloads e a períodos offline.
+
+## `persistQueryClientOffline`
+
+Persiste o cache do `QueryClient` no IndexedDB e restaura no boot — um reload ou início offline mostra os últimos dados conhecidos em vez de telas vazias. Self-contained: usa `dehydrate`/`hydrate` do próprio `@tanstack/react-query`, sem precisar do `@tanstack/react-query-persist-client`.
+
+```ts
+import { persistQueryClientOffline } from "tempest-react-sdk";
+import { queryClient } from "@/lib/query";
+
+const persistence = persistQueryClientOffline({ queryClient });
+await persistence.restore(); // antes do primeiro render
+
+// no logout:
+await persistence.clear();
+// no teardown:
+persistence.unsubscribe();
+```
+
+As gravações são throttled (`throttleMs`, default 1s) e assinam o cache. `flush()` grava na hora; `clear()` apaga o snapshot; `unsubscribe()` para de persistir. Dexie é peer dependency do store offline — instale (`npm i dexie`).
+
 ## Recap
 
 - `<QueryProvider>` na raiz — um por app — entrega defaults calibrados; sobrescreva via `defaultOptions` ou `client`.
 - `STALE_TIME` / `CACHE_TIME` / `REFETCH_TIME` substituem números mágicos por presets nomeados.
 - `createQueryKeys(scope, builders)` gera keys tipadas e consistentes, com um `all` automático pra invalidação ampla.
 - Combine `setQueryData` (resposta imediata) com `invalidateQueries` (revalidação) usando a mesma key factory.
+- `useOfflineMutation` liga o motor offline ao cache: enqueue + optimistic update + flush + rollback.
 
 ## Veja também
 
 - [HTTP](./http.md) — o `createApiClient` que alimenta as `queryFn`
 - [Offline](./offline.md) — combinar com `initialData` pra fallback offline
+- [PWA & Offline-First](./pwa.md) — service worker, background sync, status UI
 
 ---
 
@@ -11151,6 +11636,14 @@ Aliases:
 - `--tempest-primary-active` = primary-700
 - `--tempest-primary-soft` = primary-50 (fundo tinted para soft buttons/badges)
 - `--tempest-primary-foreground` = `#ffffff` (cor do texto sobre a primary)
+- `--tempest-primary-on-soft` = primary-600 no claro, primary-700 no escuro (cor do texto/ícone **sobre** `--tempest-primary-soft`)
+
+!!! warning "Texto sobre `primary-soft` usa `primary-on-soft`, não `primary`"
+    `--tempest-primary` sobre `--tempest-primary-soft` dá 4.37:1 de contraste — o
+    WCAG AA pede 4.5:1 pra texto. Por isso existe o `--tempest-primary-on-soft`
+    (~6:1). Se você redefinir a paleta, redefina os dois: trocar só o
+    `--tempest-primary` deixa os estados selecionados (Toggle, ToggleGroup,
+    ListTile, Stepper, NavigationRail, FileUpload) fora de conformidade.
 
 Para trocar a brand inteira:
 

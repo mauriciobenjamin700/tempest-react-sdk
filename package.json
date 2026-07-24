@@ -1,6 +1,6 @@
 {
   "name": "tempest-react-sdk",
-  "version": "0.22.0",
+  "version": "0.23.0",
   "description": "SDK público da Tempest com componentes, hooks e integrações para projetos React.",
   "type": "module",
   "license": "MIT",
@@ -99,7 +99,9 @@
     "gen:geodata": "node scripts/gen-br-geodata.mjs",
     "vendor:vision": "node scripts/vendor-vision.mjs",
     "prepare": "husky",
-    "prepublishOnly": "npm run typecheck && npm run lint && npm run test:run && npm run build"
+    "prepublishOnly": "npm run typecheck && npm run lint && npm run test:run && npm run build",
+    "e2e": "playwright test",
+    "e2e:build": "npm run build && npm --prefix examples/gallery run build"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
@@ -156,6 +158,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
+    "@playwright/test": "^1.61.1",
     "@size-limit/preset-small-lib": "^12.1.0",
     "@tanstack/react-query": "^5.90.0",
     "@testing-library/jest-dom": "^6.9.1",
@@ -169,6 +172,7 @@
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^5.0.0",
     "@vitest/coverage-v8": "^4.1.6",
+    "axe-core": "^4.12.1",
     "dexie": "^4.4.2",
     "eslint": "^9.36.0",
     "eslint-plugin-react-hooks": "^5.2.0",

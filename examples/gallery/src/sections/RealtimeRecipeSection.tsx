@@ -45,7 +45,7 @@ function UseWebSocketDemo(): ReactElement {
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 13, color: "var(--tempest-color-text-muted, #888)" }}>
+                <span style={{ fontSize: 13, color: "var(--tempest-text-muted, #888)" }}>
                     Status:
                 </span>
                 <Badge variant={statusVariant(ws.status)}>{ws.status}</Badge>
@@ -78,11 +78,11 @@ function UseWebSocketDemo(): ReactElement {
                     minHeight: 48,
                     padding: "8px 10px",
                     borderRadius: 8,
-                    background: "var(--tempest-color-surface-muted, #f5f5f5)",
+                    background: "var(--tempest-surface-2, #f5f5f5)",
                 }}
             >
                 {log.length === 0 ? (
-                    <span style={{ color: "var(--tempest-color-text-muted, #888)" }}>
+                    <span style={{ color: "var(--tempest-text-muted, #888)" }}>
                         {isOpen
                             ? "Aguardando ecos… envie uma mensagem."
                             : "Sem conexão — servidor público pode estar offline."}
@@ -156,8 +156,8 @@ function CreateWebSocketDemo(): ReactElement {
                     minHeight: 32,
                     padding: "8px 10px",
                     borderRadius: 8,
-                    background: "var(--tempest-color-surface-muted, #f5f5f5)",
-                    color: "var(--tempest-color-text-muted, #888)",
+                    background: "var(--tempest-surface-2, #f5f5f5)",
+                    color: "var(--tempest-text-muted, #888)",
                 }}
             >
                 {received.length === 0
@@ -359,7 +359,7 @@ const socket = createWebSocket("wss://echo.websocket.events", {
                 <p
                     style={{
                         fontSize: 13,
-                        color: "var(--tempest-color-text-muted, #888)",
+                        color: "var(--tempest-text-muted, #888)",
                         margin: 0,
                     }}
                 >

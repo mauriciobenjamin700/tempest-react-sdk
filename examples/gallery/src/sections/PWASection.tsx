@@ -1,10 +1,17 @@
+import { useState } from "react";
 import {
     Button,
+    SyncStatusBadge,
+    UpdatePrompt,
     isPushSupported,
     useBeforeInstallPrompt,
     usePushSubscription,
+    useStorageEstimate,
+    type SyncTone,
 } from "tempest-react-sdk";
 import { Example } from "../Example";
+
+const TONES: SyncTone[] = ["idle", "syncing", "pending", "offline", "error"];
 
 /**
  * Recursos de PWA do SDK: o prompt de instalação (`beforeinstallprompt`) e a
@@ -17,12 +24,16 @@ export function PWASection() {
         vapidPublicKey: "",
         onSubscribe: async () => {},
     });
+    const [tone, setTone] = useState<SyncTone>("pending");
+    const [updateOpen, setUpdateOpen] = useState(false);
+    const storage = useStorageEstimate();
 
     return (
         <section className="gallery-section" id="pwa">
-            <h3>PWA: Install prompt · Web Push</h3>
+            <h3>PWA: Install · Push · Sync · Update · Storage</h3>
             <p className="description">
-                Hooks para tornar seu app instalável e capaz de receber notificações push.
+                Hooks e componentes para instalar, receber push, mostrar status de sincronização,
+                atualizar o service worker e gerenciar o armazenamento offline.
             </p>
 
             <Example
@@ -69,6 +80,58 @@ export function PWASection() {
                     onClick={() => void push.subscribe().catch(() => {})}
                 >
                     {push.subscribed ? "Desinscrever" : "Ativar notificações"}
+                </Button>
+            </Example>
+
+            <Example
+                title="SyncStatusBadge"
+                note="Badge de status do motor offline. Alimente por useSyncStatus(sync).tone."
+                code={`const { tone, pending } = useSyncStatus(sync);
+<SyncStatusBadge tone={tone} pending={pending} />`}
+            >
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                    {TONES.map((t) => (
+                        <Button
+                            key={t}
+                            size="sm"
+                            variant={t === tone ? "primary" : "outline"}
+                            onClick={() => setTone(t)}
+                        >
+                            {t}
+                        </Button>
+                    ))}
+                </div>
+                <SyncStatusBadge tone={tone} pending={3} />
+            </Example>
+
+            <Example
+                title="UpdatePrompt"
+                note="Toast de nova versão do SW. Par de useServiceWorkerUpdate (open ↔ updateAvailable)."
+                code={`const { updateAvailable, applyUpdate } = useServiceWorkerUpdate({ url: "/sw.js" });
+<UpdatePrompt open={updateAvailable} onUpdate={applyUpdate} />`}
+            >
+                <Button onClick={() => setUpdateOpen(true)}>Simular nova versão</Button>
+                <UpdatePrompt
+                    open={updateOpen}
+                    message="Uma nova versão está disponível (demo)."
+                    onUpdate={() => setUpdateOpen(false)}
+                    onDismiss={() => setUpdateOpen(false)}
+                />
+            </Example>
+
+            <Example
+                title="useStorageEstimate"
+                note="Quota do Storage API + persistência. Evita despejo do IndexedDB offline."
+                code={`const { usage, quota, ratio, persisted, requestPersist } = useStorageEstimate();`}
+            >
+                <p>supported: {String(storage.supported)}</p>
+                <p>
+                    usage: {((storage.usage ?? 0) / 1e6).toFixed(2)} MB / quota:{" "}
+                    {((storage.quota ?? 0) / 1e6).toFixed(0)} MB
+                </p>
+                <p>persisted: {String(storage.persisted)}</p>
+                <Button disabled={!storage.supported} onClick={() => void storage.requestPersist()}>
+                    Tornar armazenamento permanente
                 </Button>
             </Example>
         </section>

@@ -12,7 +12,10 @@ body {
 
 .gallery-shell {
     display: grid;
-    grid-template-columns: 240px 1fr;
+    /* minmax(0, 1fr) instead of 1fr: a bare 1fr floors at min-content, so one
+       wide demo (a table, a long token) pushes the whole shell past the
+       viewport and the page scrolls sideways. */
+    grid-template-columns: 240px minmax(0, 1fr);
     min-height: 100vh;
 }
 
@@ -353,7 +356,7 @@ body {
 
 @media (max-width: 800px) {
     .gallery-shell {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
     }
     .gallery-sidebar {
         position: relative;

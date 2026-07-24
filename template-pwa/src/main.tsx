@@ -1,29 +1,20 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { registerServiceWorker, skipWaiting } from "tempest-react-sdk";
 import "tempest-react-sdk/styles.css";
 import { App } from "@/App";
+import { PwaShell } from "@/pwa";
 
+/**
+ * PWA entrypoint. `<PwaShell>` registers the service worker (the bundled
+ * `/sw.js` in production, the `tempestPwaDevSw` plugin under `npm run dev`) and
+ * layers the update prompt, offline indicator, persistent-storage request and
+ * periodic background sync on top of the base app. Swap it for a bare `<App />`
+ * to opt out of any of that.
+ */
 createRoot(document.getElementById("root")!).render(
     <StrictMode>
-        <App />
+        <PwaShell>
+            <App />
+        </PwaShell>
     </StrictMode>,
 );
-
-// Register the service worker in both dev and prod. In production it's the
-// bundled `/sw.js` (built by `vite.sw.config.ts`); in dev the `tempestPwaDevSw`
-// plugin (in `vite.config.ts`) compiles and serves it on the fly, so push and
-// runtime caching work under `npm run dev` too. Drop the `tempestPwaDevSw`
-// plugin if you'd rather keep dev SW-free.
-void registerServiceWorker({
-    url: "/sw.js",
-    onUpdate: (waiting) => {
-        // A new worker is ready. Prompt your users however you like; here we
-        // just activate it and reload so the next visit is up to date.
-        if (confirm("Nova versão disponível. Atualizar agora?")) {
-            skipWaiting(waiting);
-            window.location.reload();
-        }
-    },
-    onError: (err) => console.warn("[sw] registration failed", err),
-});

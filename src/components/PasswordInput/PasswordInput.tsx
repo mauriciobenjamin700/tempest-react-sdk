@@ -1,4 +1,4 @@
-import { forwardRef, useState } from "react";
+import { forwardRef, useId, useState } from "react";
 import type { InputHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/utils/cn";
 import styles from "./PasswordInput.module.css";
@@ -60,10 +60,18 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
             className,
             value,
             defaultValue,
+            id,
             ...inputProps
         },
         ref,
     ) {
+        const generatedId = useId();
+        const inputId = id ?? generatedId;
+        const describedById = error
+            ? `${inputId}-error`
+            : helperText
+              ? `${inputId}-helper`
+              : undefined;
         const [revealed, setRevealed] = useState<boolean>(false);
         const stringValue = String((value ?? defaultValue ?? "") as string);
         const computedStrength: PasswordStrength =
@@ -71,15 +79,21 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
 
         return (
             <div className={cn(styles.wrapper, styles[size], error && styles.error, className)}>
-                {label && <label className={styles.label}>{label}</label>}
+                {label && (
+                    <label htmlFor={inputId} className={styles.label}>
+                        {label}
+                    </label>
+                )}
                 <div className={styles.field}>
                     <input
                         ref={ref}
                         {...inputProps}
+                        id={inputId}
                         value={value}
                         defaultValue={defaultValue}
                         type={revealed ? "text" : "password"}
                         aria-invalid={!!error}
+                        aria-describedby={describedById}
                         className={styles.input}
                     />
                     <button
@@ -106,9 +120,13 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
                     </div>
                 )}
                 {error ? (
-                    <span className={styles.errorText}>{error}</span>
+                    <span id={`${inputId}-error`} className={styles.errorText}>
+                        {error}
+                    </span>
                 ) : helperText ? (
-                    <span className={styles.helper}>{helperText}</span>
+                    <span id={`${inputId}-helper`} className={styles.helper}>
+                        {helperText}
+                    </span>
                 ) : null}
             </div>
         );

@@ -336,6 +336,42 @@ Falha com botão de retry.
 <ErrorState title="Não foi possível carregar" description={String(error)} onRetry={refetch} />
 ```
 
+## `OfflineIndicator`
+
+**Quando usar:** avisar que o app está offline e confirmar quando a conexão volta. Guiado por `useOnline` — não renderiza nada online, então monte na raiz sem `if`.
+
+```tsx
+<OfflineIndicator position="top" />
+```
+
+`position`: `"top"` | `"bottom"` (default). Passe `children` pra substituir o corpo, ou `onlineFlashMs={0}` pra não piscar a confirmação. Veja [PWA & Offline-First](../pwa.md).
+
+## `SyncStatusBadge`
+
+**Quando usar:** mostrar o estado do motor offline (sincronizado / sincronizando / pendente / offline / erro). Dois modos: passe `sync` pra conectar direto no motor (zero fiação), ou passe `tone` explícito (apresentacional, testável sem IndexedDB).
+
+```tsx
+// Conectado — auto-fia o motor:
+<SyncStatusBadge sync={notesSync} />;
+
+// Apresentacional — você controla o estado:
+const { tone, pending } = useSyncStatus(notesSync);
+<SyncStatusBadge tone={tone} pending={pending} />;
+```
+
+`tone`: `"idle"` | `"syncing"` | `"pending"` | `"offline"` | `"error"`. `iconOnly` esconde o label; `labels` sobrescreve os textos por tom.
+
+## `UpdatePrompt`
+
+**Quando usar:** avisar que há uma versão nova do app (service worker) e deixar o usuário recarregar. Par de `useServiceWorkerUpdate`.
+
+```tsx
+const { updateAvailable, applyUpdate } = useServiceWorkerUpdate({ url: "/sw.js" });
+<UpdatePrompt open={updateAvailable} onUpdate={applyUpdate} />;
+```
+
+Renderiza nada com `open={false}`. `onDismiss` (opcional) mostra o botão de dispensar; `position` `"top"`/`"bottom"`.
+
 ## A11y geral
 
 - `Alert`/`Banner` com variant `warning`/`danger` usam `role="alert"` (anunciado imediatamente).

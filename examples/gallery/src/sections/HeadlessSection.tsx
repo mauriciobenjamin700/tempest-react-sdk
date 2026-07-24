@@ -54,7 +54,7 @@ export function HeadlessSection() {
                 zIndex: 1000,
                 padding: "16px 20px",
                 borderRadius: 8,
-                background: "var(--tempest-color-surface, #fff)",
+                background: "var(--tempest-surface, #fff)",
                 boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
             }}
         >
@@ -90,7 +90,7 @@ export function HeadlessSection() {
                                     zIndex: 1000,
                                     padding: "16px 20px",
                                     borderRadius: 8,
-                                    background: "var(--tempest-color-surface, #fff)",
+                                    background: "var(--tempest-surface, #fff)",
                                     boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
                                 }}
                             >
@@ -306,7 +306,7 @@ export function HeadlessSection() {
                 title="Resizable"
                 id="ex-resizable"
                 note="Layout de dois painéis com divisor arrastável. Arraste o divisor ou foque-o e use as setas (2% por passo)."
-                code={`<div style={{ height: 180, border: "1px solid var(--tempest-color-border, #e2e2e2)" }}>
+                code={`<div style={{ height: 180, border: "1px solid var(--tempest-border, #e2e2e2)" }}>
     <Resizable defaultSize={40} min={20} max={80} style={{ height: "100%" }}>
         <div style={{ padding: 12 }}>Painel A</div>
         <div style={{ padding: 12 }}>Painel B</div>
@@ -347,7 +347,7 @@ export function HeadlessSection() {
                 <div
                     style={{
                         height: 180,
-                        border: "1px solid var(--tempest-color-border, #e2e2e2)",
+                        border: "1px solid var(--tempest-border, #e2e2e2)",
                         borderRadius: 8,
                         overflow: "hidden",
                     }}

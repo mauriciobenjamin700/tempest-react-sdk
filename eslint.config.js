@@ -5,7 +5,19 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-    { ignores: ["dist", "node_modules", "template"] },
+    {
+        ignores: [
+            "dist",
+            "node_modules",
+            "template",
+            "template-pwa",
+            // Generated output: the v8 HTML report ships its own vendored
+            // scripts, and Playwright writes traces/screenshots.
+            "coverage",
+            "test-results",
+            "playwright-report",
+        ],
+    },
     {
         extends: [js.configs.recommended, ...tseslint.configs.recommended],
         files: ["**/*.{ts,tsx}"],

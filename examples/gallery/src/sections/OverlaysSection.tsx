@@ -89,7 +89,7 @@ export function OverlaysSection() {
     { label: "Excluir", danger: true, onSelect: () => {} },
   ]}
 >
-  <div style={{ padding: 24, border: "1px dashed var(--tempest-color-border)" }}>
+  <div style={{ padding: 24, border: "1px dashed var(--tempest-border)" }}>
     Clique direito
   </div>
 </ContextMenu>`}
@@ -105,7 +105,7 @@ export function OverlaysSection() {
                     <div
                         style={{
                             padding: 24,
-                            border: "1px dashed var(--tempest-color-border)",
+                            border: "1px dashed var(--tempest-border)",
                         }}
                     >
                         Clique direito

@@ -15,6 +15,7 @@ export { useAsync } from "./use-async";
 export type { AsyncStatus, UseAsyncResult } from "./use-async";
 
 export { useOnline } from "./use-online";
+export type { UseOnlineOptions } from "./use-online";
 export { useDocumentVisibility } from "./use-document-visibility";
 export type { DocumentVisibility } from "./use-document-visibility";
 export { useIntersectionObserver } from "./use-intersection-observer";
@@ -82,3 +83,14 @@ export type {
     UseInstallPromptOptions,
     UseInstallPromptResult,
 } from "./use-install-prompt";
+export { useServiceWorkerUpdate } from "./use-service-worker-update";
+export type {
+    UseServiceWorkerUpdateOptions,
+    UseServiceWorkerUpdateResult,
+} from "./use-service-worker-update";
+export {
+    estimateStorage,
+    requestPersistentStorage,
+    useStorageEstimate,
+} from "./use-storage-estimate";
+export type { StorageEstimate, UseStorageEstimateResult } from "./use-storage-estimate";

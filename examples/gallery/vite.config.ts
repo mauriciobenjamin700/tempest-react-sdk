@@ -5,6 +5,15 @@ import react from "@vitejs/plugin-react";
 const galleryReact = fileURLToPath(new URL("./node_modules/react", import.meta.url));
 const galleryReactDom = fileURLToPath(new URL("./node_modules/react-dom", import.meta.url));
 
+/**
+ * Packages that keep state in a React context and therefore break when two
+ * physical copies end up in the bundle: the provider from copy A is invisible
+ * to the hooks from copy B ("No QueryClient set…"). The SDK is linked with
+ * `file:..` and ships its own `node_modules`, so each of these must be pinned
+ * to the gallery's single copy the same way React is.
+ */
+const SINGLETONS = ["@tanstack/react-query", "react-hook-form"] as const;
+
 export default defineConfig({
     plugins: [react()],
     server: {
@@ -31,8 +40,12 @@ export default defineConfig({
                 find: /^react-dom\/client$/,
                 replacement: `${galleryReactDom}/client`,
             },
+            ...SINGLETONS.map((name) => ({
+                find: new RegExp(`^${name.replace(/[/@]/g, "\\$&")}$`),
+                replacement: fileURLToPath(new URL(`./node_modules/${name}`, import.meta.url)),
+            })),
         ],
-        dedupe: ["react", "react-dom"],
+        dedupe: ["react", "react-dom", ...SINGLETONS],
     },
     optimizeDeps: {
         // Force re-prebundle when alias targets change.

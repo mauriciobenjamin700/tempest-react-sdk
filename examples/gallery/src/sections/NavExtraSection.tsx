@@ -105,7 +105,7 @@ export function NavExtraSection() {
             >
                 <div
                     className="gallery-stack"
-                    style={{ border: "1px solid var(--tempest-color-border)", borderRadius: 8 }}
+                    style={{ border: "1px solid var(--tempest-border)", borderRadius: 8 }}
                 >
                     <Navbar
                         sticky={false}
@@ -209,7 +209,7 @@ const [collapsed, setCollapsed] = useState(false);
                         style={{
                             display: "flex",
                             height: 280,
-                            border: "1px solid var(--tempest-color-border)",
+                            border: "1px solid var(--tempest-border)",
                             borderRadius: 8,
                             overflow: "hidden",
                         }}
@@ -291,7 +291,7 @@ const [collapsed, setCollapsed] = useState(false);
                         style={{
                             width: 360,
                             maxWidth: "100%",
-                            border: "1px solid var(--tempest-color-border)",
+                            border: "1px solid var(--tempest-border)",
                             borderRadius: 8,
                             overflow: "hidden",
                         }}
@@ -354,7 +354,7 @@ const [collapsed, setCollapsed] = useState(false);
                         padding: 12,
                         minHeight: 140,
                         alignItems: "flex-start",
-                        border: "1px solid var(--tempest-color-border)",
+                        border: "1px solid var(--tempest-border)",
                         borderRadius: 8,
                     }}
                 >

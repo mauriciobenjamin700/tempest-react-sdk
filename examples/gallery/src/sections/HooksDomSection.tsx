@@ -28,7 +28,7 @@ import {
 } from "tempest-react-sdk";
 
 const boxStyle: CSSProperties = {
-    border: "1px solid var(--tempest-color-border, #ddd)",
+    border: "1px solid var(--tempest-border, #ddd)",
     borderRadius: 8,
     padding: 16,
     textAlign: "center",
@@ -92,7 +92,7 @@ function HoverDemo(): React.JSX.Element {
             ref={ref}
             style={{
                 ...boxStyle,
-                background: hovered ? "var(--tempest-color-primary-soft, #e6f0ff)" : "transparent",
+                background: hovered ? "var(--tempest-primary-soft, #e6f0ff)" : "transparent",
             }}
         >
             {hovered ? "Hover ativo ✨" : "Passe o mouse aqui"}
@@ -205,6 +205,7 @@ function ResizeObserverDemo(): React.JSX.Element {
         <Stack gap={8}>
             <textarea
                 ref={ref}
+                aria-label="Área redimensionável observada pelo useResizeObserver"
                 defaultValue="Arraste o canto para redimensionar"
                 style={{ width: "100%", minHeight: 60, resize: "both", padding: 8 }}
             />
@@ -410,8 +411,8 @@ function FocusTrapDemo(): React.JSX.Element {
                     ...boxStyle,
                     textAlign: "left",
                     borderColor: active
-                        ? "var(--tempest-color-primary, #7c3aed)"
-                        : "var(--tempest-color-border, #ddd)",
+                        ? "var(--tempest-primary, #7c3aed)"
+                        : "var(--tempest-border, #ddd)",
                 }}
             >
                 <Stack gap={8} direction="horizontal">

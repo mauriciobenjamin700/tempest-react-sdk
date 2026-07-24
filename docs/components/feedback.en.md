@@ -388,9 +388,13 @@ A failure with a retry button.
 
 ## `SyncStatusBadge`
 
-**When to use:** show the offline engine state (synced / syncing / pending / offline / error). Presentational — feed it from `useSyncStatus(sync)`.
+**When to use:** show the offline engine state (synced / syncing / pending / offline / error). Two modes: pass `sync` to connect straight to the engine (zero wiring), or pass an explicit `tone` (presentational, testable without IndexedDB).
 
 ```tsx
+// Connected — auto-wires the engine:
+<SyncStatusBadge sync={notesSync} />;
+
+// Presentational — you own the state:
 const { tone, pending } = useSyncStatus(notesSync);
 <SyncStatusBadge tone={tone} pending={pending} />;
 ```

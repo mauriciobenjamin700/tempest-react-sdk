@@ -348,9 +348,13 @@ Falha com botão de retry.
 
 ## `SyncStatusBadge`
 
-**Quando usar:** mostrar o estado do motor offline (sincronizado / sincronizando / pendente / offline / erro). Apresentacional — alimente por `useSyncStatus(sync)`.
+**Quando usar:** mostrar o estado do motor offline (sincronizado / sincronizando / pendente / offline / erro). Dois modos: passe `sync` pra conectar direto no motor (zero fiação), ou passe `tone` explícito (apresentacional, testável sem IndexedDB).
 
 ```tsx
+// Conectado — auto-fia o motor:
+<SyncStatusBadge sync={notesSync} />;
+
+// Apresentacional — você controla o estado:
 const { tone, pending } = useSyncStatus(notesSync);
 <SyncStatusBadge tone={tone} pending={pending} />;
 ```

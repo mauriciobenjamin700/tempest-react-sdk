@@ -35,6 +35,14 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - **`useOnline(opts?)`** (entrada principal) — probe de reachability opt-in
   (`pingUrl`/`intervalMs`/`timeoutMs`) que capta captive portal / link morto
   além do `navigator.onLine`.
+- **Flush cross-tab via Web Locks** no `createOfflineSync` — quando `crossTab`
+  está ligado e a Web Locks API existe, o `flush` é serializado entre abas
+  (uma roda, as outras pulam e pegam o resultado pelo broadcast).
+- **`persistQueryClientOffline`** (`/query`) — persiste o cache do `QueryClient`
+  no IndexedDB (`dehydrate`/`hydrate`) e restaura no boot; `restore`/`flush`/
+  `clear`/`unsubscribe`. Sem depender de `@tanstack/react-query-persist-client`.
+- **`<SyncStatusBadge sync={...}>`** — variante conectada que auto-fia
+  `useSyncStatus` (além do modo apresentacional por `tone`).
 - **Navigation Preload** no `installPrecache` (`/sw`) — habilita a API no
   `activate` e serve `event.preloadResponse` (opção `navigationPreload`,
   default `true`).

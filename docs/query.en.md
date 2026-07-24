@@ -193,6 +193,25 @@ function useAddNote() {
 !!! tip "Server delivery happens on flush"
     `mutate` resolves with the **outbox entry id**, not the server response — actual delivery runs inside the engine's flush loop, so the UI updates instantly and survives reloads and offline periods.
 
+## `persistQueryClientOffline`
+
+Persists the `QueryClient` cache to IndexedDB and restores it on boot — a reload or a cold offline start shows the last-known data instead of empty screens. Self-contained: uses `dehydrate`/`hydrate` from `@tanstack/react-query` directly, with no `@tanstack/react-query-persist-client` dependency.
+
+```ts
+import { persistQueryClientOffline } from "tempest-react-sdk";
+import { queryClient } from "@/lib/query";
+
+const persistence = persistQueryClientOffline({ queryClient });
+await persistence.restore(); // before the first render
+
+// on logout:
+await persistence.clear();
+// on teardown:
+persistence.unsubscribe();
+```
+
+Writes are throttled (`throttleMs`, default 1s) and subscribe to the cache. `flush()` writes immediately; `clear()` drops the snapshot; `unsubscribe()` stops persisting. Dexie is a peer dependency of the offline store — install it (`npm i dexie`).
+
 ## Recap
 
 - `<QueryProvider>` at the root — one per app — ships calibrated defaults; override via `defaultOptions` or `client`.

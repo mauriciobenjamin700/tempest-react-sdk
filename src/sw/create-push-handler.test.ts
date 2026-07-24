@@ -129,3 +129,130 @@ describe("installSkipWaitingListener", () => {
         expect(sw.skipWaiting).not.toHaveBeenCalled();
     });
 });
+
+describe("push handlers — payload and url resolution edges", () => {
+    it("ignores a push event with no data", () => {
+        const sw = stubSw();
+        installPushHandler();
+        sw.listeners.push?.({ waitUntil: vi.fn() });
+        expect(sw.registration.showNotification).not.toHaveBeenCalled();
+    });
+
+    it("falls back to the default title and merges extra data", () => {
+        const sw = stubSw();
+        installPushHandler({ defaultTitle: "Padrão", defaultBadge: "/b.png" });
+        sw.listeners.push?.({
+            data: { json: () => ({ body: "sem título", data: { orderId: 9 } }) },
+            waitUntil: vi.fn(),
+        });
+        expect(sw.registration.showNotification).toHaveBeenCalledWith(
+            "Padrão",
+            expect.objectContaining({
+                badge: "/b.png",
+                data: { url: "/", orderId: 9 },
+            }),
+        );
+    });
+
+    it("keeps a payload-level icon, badge, image, tag and url", () => {
+        const sw = stubSw();
+        installPushHandler({ defaultIcon: "/default.png" });
+        sw.listeners.push?.({
+            data: {
+                json: () => ({
+                    title: "T",
+                    icon: "/own.png",
+                    badge: "/own-badge.png",
+                    image: "/hero.png",
+                    tag: "orders",
+                    url: "/orders/9",
+                }),
+            },
+            waitUntil: vi.fn(),
+        });
+        expect(sw.registration.showNotification).toHaveBeenCalledWith(
+            "T",
+            expect.objectContaining({
+                icon: "/own.png",
+                badge: "/own-badge.png",
+                image: "/hero.png",
+                tag: "orders",
+                data: { url: "/orders/9" },
+            }),
+        );
+    });
+
+    it("lets transform rewrite the payload", () => {
+        const sw = stubSw();
+        installPushHandler({ transform: (payload) => ({ ...payload, title: "reescrito" }) });
+        sw.listeners.push?.({
+            data: { json: () => ({ title: "original" }) },
+            waitUntil: vi.fn(),
+        });
+        expect(sw.registration.showNotification).toHaveBeenCalledWith(
+            "reescrito",
+            expect.anything(),
+        );
+    });
+
+    it("focuses an already-open client whose url matches", async () => {
+        const sw = stubSw();
+        const focus = vi.fn().mockResolvedValue(undefined);
+        sw.clients.matchAll.mockResolvedValue([
+            { url: "https://app.test/other", focus: vi.fn() },
+            { url: "https://app.test/orders/9", focus },
+        ]);
+        installNotificationClickHandler();
+
+        let pending: Promise<unknown> | undefined;
+        sw.listeners.notificationclick?.({
+            notification: { close: vi.fn(), data: { url: "/orders/9" } },
+            waitUntil: (promise: Promise<unknown>) => (pending = promise),
+        });
+        await pending;
+        expect(focus).toHaveBeenCalled();
+        expect(sw.clients.openWindow).not.toHaveBeenCalled();
+    });
+
+    it("accepts a plain string as the notification data", async () => {
+        const sw = stubSw();
+        installNotificationClickHandler();
+        let pending: Promise<unknown> | undefined;
+        sw.listeners.notificationclick?.({
+            notification: { close: vi.fn(), data: "/from-string" },
+            waitUntil: (promise: Promise<unknown>) => (pending = promise),
+        });
+        await pending;
+        expect(sw.clients.openWindow).toHaveBeenCalledWith("/from-string");
+    });
+
+    it("falls back to / for data without a usable url", async () => {
+        const sw = stubSw();
+        installNotificationClickHandler();
+
+        for (const data of [undefined, {}, { url: 42 }]) {
+            sw.clients.openWindow.mockClear();
+            let pending: Promise<unknown> | undefined;
+            sw.listeners.notificationclick?.({
+                notification: { close: vi.fn(), data },
+                waitUntil: (promise: Promise<unknown>) => (pending = promise),
+            });
+            await pending;
+            expect(sw.clients.openWindow).toHaveBeenCalledWith("/");
+        }
+    });
+
+    it("uses a custom resolveUrl", async () => {
+        const sw = stubSw();
+        installNotificationClickHandler({
+            resolveUrl: (data) => `/deep/${(data as { id: number }).id}`,
+        });
+        let pending: Promise<unknown> | undefined;
+        sw.listeners.notificationclick?.({
+            notification: { close: vi.fn(), data: { id: 3 } },
+            waitUntil: (promise: Promise<unknown>) => (pending = promise),
+        });
+        await pending;
+        expect(sw.clients.openWindow).toHaveBeenCalledWith("/deep/3");
+    });
+});

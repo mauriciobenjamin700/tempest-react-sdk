@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { Carousel } from "./Carousel";
@@ -64,5 +64,74 @@ describe("Carousel", () => {
         expect(track(container).style.transform).toBe("translateX(-100%)");
         await userEvent.keyboard("{ArrowLeft}");
         expect(track(container).style.transform).toBe("translateX(-0%)");
+    });
+});
+
+describe("Carousel — loop, controlled mode and chrome", () => {
+    it("wraps in both directions when loop is on", async () => {
+        const onIndexChange = vi.fn();
+        render(
+            <Carousel loop onIndexChange={onIndexChange}>
+                {slides}
+            </Carousel>,
+        );
+        await userEvent.click(screen.getByLabelText("Previous slide"));
+        expect(onIndexChange).toHaveBeenLastCalledWith(slides.length - 1);
+    });
+
+    it("stops at the start without loop", async () => {
+        const onIndexChange = vi.fn();
+        render(<Carousel onIndexChange={onIndexChange}>{slides}</Carousel>);
+        await userEvent.click(screen.getByLabelText("Previous slide"));
+        expect(onIndexChange).not.toHaveBeenCalled();
+    });
+
+    it("honours a controlled index without moving itself", async () => {
+        const onIndexChange = vi.fn();
+        const { container } = render(
+            <Carousel index={1} onIndexChange={onIndexChange}>
+                {slides}
+            </Carousel>,
+        );
+        await userEvent.click(screen.getByLabelText("Next slide"));
+        expect(onIndexChange).toHaveBeenCalledWith(2);
+        expect((container.querySelector("[class*='track']") as HTMLElement).style.transform).toBe(
+            "translateX(-100%)",
+        );
+    });
+
+    it("ignores keys other than the arrows", () => {
+        const onIndexChange = vi.fn();
+        render(<Carousel onIndexChange={onIndexChange}>{slides}</Carousel>);
+        fireEvent.keyDown(screen.getByRole("region"), { key: "Enter" });
+        expect(onIndexChange).not.toHaveBeenCalled();
+    });
+
+    it("hides the arrows and the dots when asked", () => {
+        render(
+            <Carousel showArrows={false} showDots={false}>
+                {slides}
+            </Carousel>,
+        );
+        expect(screen.queryByLabelText("Previous slide")).not.toBeInTheDocument();
+        expect(screen.queryAllByRole("tab")).toHaveLength(0);
+    });
+
+    it("ignores a dot jump to the current slide", async () => {
+        const onIndexChange = vi.fn();
+        render(<Carousel onIndexChange={onIndexChange}>{slides}</Carousel>);
+        await userEvent.click(screen.getByLabelText("Go to slide 1"));
+        expect(onIndexChange).not.toHaveBeenCalled();
+    });
+
+    it("wraps forward from the last slide when loop is on", async () => {
+        const onIndexChange = vi.fn();
+        render(
+            <Carousel loop defaultIndex={slides.length - 1} onIndexChange={onIndexChange}>
+                {slides}
+            </Carousel>,
+        );
+        await userEvent.click(screen.getByLabelText("Next slide"));
+        expect(onIndexChange).toHaveBeenLastCalledWith(0);
     });
 });

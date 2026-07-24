@@ -93,3 +93,68 @@ describe("useStorageEstimate", () => {
         expect(result.current.persisted).toBe(true);
     });
 });
+
+describe("useStorageEstimate — polling and partial support", () => {
+    it("treats missing usage/quota fields as unknown and yields no ratio", async () => {
+        mockStorage({ estimate: vi.fn().mockResolvedValue({}) });
+        const { result } = renderHook(() => useStorageEstimate());
+        await waitFor(() => expect(result.current.loading).toBe(false));
+        expect(result.current.usage).toBeNull();
+        expect(result.current.quota).toBeNull();
+        expect(result.current.ratio).toBeNull();
+    });
+
+    it("yields no ratio when the quota is zero", async () => {
+        mockStorage({ estimate: vi.fn().mockResolvedValue({ usage: 10, quota: 0 }) });
+        const { result } = renderHook(() => useStorageEstimate());
+        await waitFor(() => expect(result.current.loading).toBe(false));
+        expect(result.current.ratio).toBeNull();
+    });
+
+    it("leaves persisted null when the API lacks persisted()", async () => {
+        mockStorage({ estimate: vi.fn().mockResolvedValue({ usage: 1, quota: 2 }) });
+        const { result } = renderHook(() => useStorageEstimate());
+        await waitFor(() => expect(result.current.loading).toBe(false));
+        expect(result.current.persisted).toBeNull();
+    });
+
+    it("re-reads on the poll interval and stops on unmount", async () => {
+        vi.useFakeTimers();
+        const estimate = vi.fn().mockResolvedValue({ usage: 1, quota: 2 });
+        mockStorage({ estimate });
+        const { unmount } = renderHook(() => useStorageEstimate({ pollMs: 50 }));
+
+        await vi.advanceTimersByTimeAsync(120);
+        const callsWhileMounted = estimate.mock.calls.length;
+        expect(callsWhileMounted).toBeGreaterThan(1);
+
+        unmount();
+        await vi.advanceTimersByTimeAsync(200);
+        expect(estimate.mock.calls.length).toBe(callsWhileMounted);
+        vi.useRealTimers();
+    });
+
+    it("does not poll when the API is unsupported", async () => {
+        vi.useFakeTimers();
+        delete (navigator as { storage?: unknown }).storage;
+        const { result } = renderHook(() => useStorageEstimate({ pollMs: 10 }));
+        await vi.advanceTimersByTimeAsync(100);
+        expect(result.current.supported).toBe(false);
+        expect(result.current.loading).toBe(false);
+        vi.useRealTimers();
+    });
+
+    it("refresh() is a no-op when unsupported", async () => {
+        delete (navigator as { storage?: unknown }).storage;
+        const { result } = renderHook(() => useStorageEstimate());
+        await act(async () => {
+            await result.current.refresh();
+        });
+        expect(result.current.usage).toBeNull();
+    });
+
+    it("requestPersistentStorage returns false without persist()", async () => {
+        mockStorage({ estimate: vi.fn().mockResolvedValue({}) });
+        expect(await requestPersistentStorage()).toBe(false);
+    });
+});

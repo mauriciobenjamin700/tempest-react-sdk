@@ -325,3 +325,242 @@ describe("createPartialResponse", () => {
         expect(await res.text()).toBe("0123");
     });
 });
+
+describe("installRuntimeCache — strategy edges", () => {
+    it("stale-while-revalidate serves the cache immediately and refreshes behind it", async () => {
+        installRuntimeCache([
+            { match: /\/swr\//, strategy: "stale-while-revalidate", cacheName: "swr" },
+        ]);
+        const req = new Request("https://app.test/swr/a.json");
+
+        let version = 1;
+        fetchMock.mockImplementation(async () => new Response(`v${version}`));
+
+        const first = (await dispatchFetch(req)) as Response;
+        expect(await first.text()).toBe("v1");
+
+        version = 2;
+        const second = (await dispatchFetch(req)) as Response;
+        expect(await second.text()).toBe("v1");
+
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        const third = (await dispatchFetch(req)) as Response;
+        expect(await third.text()).toBe("v2");
+    });
+
+    it("stale-while-revalidate throws with neither network nor cache", async () => {
+        installRuntimeCache([
+            { match: /\/swr2\//, strategy: "stale-while-revalidate", cacheName: "swr2" },
+        ]);
+        fetchMock.mockRejectedValueOnce(new Error("offline"));
+        await expect(dispatchFetch(new Request("https://app.test/swr2/a"))).rejects.toThrow(
+            "no network and no cache",
+        );
+    });
+
+    it("treats a cached response past maxAgeSeconds as a miss", async () => {
+        const stale = new Response("old", {
+            headers: { date: new Date(Date.now() - 600_000).toUTCString() },
+        });
+        (await cacheStorage.open("aged")).store.set("https://app.test/aged/a.json", stale);
+
+        installRuntimeCache([
+            { match: /\/aged\//, strategy: "cache-first", cacheName: "aged", maxAgeSeconds: 60 },
+        ]);
+        fetchMock.mockResolvedValueOnce(new Response("fresh"));
+        const res = (await dispatchFetch(new Request("https://app.test/aged/a.json"))) as Response;
+        expect(await res.text()).toBe("fresh");
+    });
+
+    it("keeps a cached response with no date header regardless of maxAgeSeconds", async () => {
+        (await cacheStorage.open("nodate")).store.set(
+            "https://app.test/nodate/a.json",
+            new Response("kept"),
+        );
+        installRuntimeCache([
+            { match: /\/nodate\//, strategy: "cache-first", cacheName: "nodate", maxAgeSeconds: 1 },
+        ]);
+        const res = (await dispatchFetch(
+            new Request("https://app.test/nodate/a.json"),
+        )) as Response;
+        expect(await res.text()).toBe("kept");
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("does not cache a non-ok response", async () => {
+        installRuntimeCache([{ match: /\/e\//, strategy: "cache-first", cacheName: "err" }]);
+        fetchMock.mockResolvedValue(new Response("nope", { status: 500 }));
+        const res = (await dispatchFetch(new Request("https://app.test/e/a"))) as Response;
+        expect(res.status).toBe(500);
+        expect((await (await cacheStorage.open("err")).keys()).length).toBe(0);
+    });
+
+    it("network-first falls back to cache when the network outruns networkTimeoutSeconds", async () => {
+        installRuntimeCache([
+            {
+                match: /\/slow\//,
+                strategy: "network-first",
+                cacheName: "slow",
+                networkTimeoutSeconds: 0.01,
+            },
+        ]);
+        (await cacheStorage.open("slow")).store.set(
+            "https://app.test/slow/a",
+            new Response("cached"),
+        );
+        fetchMock.mockImplementation(
+            () => new Promise((resolve) => setTimeout(() => resolve(new Response("late")), 200)),
+        );
+        const res = (await dispatchFetch(new Request("https://app.test/slow/a"))) as Response;
+        expect(await res.text()).toBe("cached");
+    });
+
+    it("network-first throws when there is neither network nor cache", async () => {
+        installRuntimeCache([{ match: /\/nf\//, strategy: "network-first", cacheName: "nf" }]);
+        fetchMock.mockRejectedValueOnce(new Error("offline"));
+        await expect(dispatchFetch(new Request("https://app.test/nf/a"))).rejects.toThrow(
+            "no network and no cache",
+        );
+    });
+
+    it("accepts a predicate as `match`", async () => {
+        const match = vi.fn((url: URL) => url.pathname.endsWith(".woff2"));
+        installRuntimeCache([{ match, strategy: "cache-first", cacheName: "fonts" }]);
+        fetchMock.mockResolvedValue(new Response("font"));
+
+        expect(await dispatchFetch(new Request("https://app.test/f/a.png"))).toBe("passthrough");
+        const hit = (await dispatchFetch(new Request("https://app.test/f/a.woff2"))) as Response;
+        expect(await hit.text()).toBe("font");
+        expect(match).toHaveBeenCalled();
+    });
+});
+
+describe("installPrecache — options and fetch edges", () => {
+    function dispatchLifecycle(type: "install" | "activate"): Promise<void> {
+        const waits: Promise<unknown>[] = [];
+        const event = { waitUntil: (p: Promise<unknown>) => waits.push(p) };
+        for (const listener of listeners[type]) listener(event);
+        return Promise.all(waits).then(() => undefined);
+    }
+
+    it("honours skipWaiting: false and navigationPreload: false", async () => {
+        const enable = vi.fn().mockResolvedValue(undefined);
+        Object.defineProperty(globalThis, "registration", {
+            value: { navigationPreload: { enable } },
+            configurable: true,
+            writable: true,
+        });
+        fetchMock.mockResolvedValueOnce(
+            new Response(JSON.stringify({ version: "opt", urls: ["/index.html"] })),
+        );
+        installPrecache({ skipWaiting: false, navigationPreload: false });
+        await dispatchLifecycle("install");
+        await dispatchLifecycle("activate");
+
+        expect(
+            (globalThis as unknown as { skipWaiting: ReturnType<typeof vi.fn> }).skipWaiting,
+        ).not.toHaveBeenCalled();
+        expect(enable).not.toHaveBeenCalled();
+        delete (globalThis as Record<string, unknown>).registration;
+    });
+
+    it("reads a custom manifest url and cache name", async () => {
+        fetchMock.mockResolvedValueOnce(
+            new Response(JSON.stringify({ version: "c1", urls: ["/index.html"] })),
+        );
+        installPrecache({ manifestUrl: "/pc.json", cacheName: "custom" });
+        await dispatchLifecycle("install");
+
+        expect(fetchMock).toHaveBeenCalledWith("/pc.json", { cache: "no-cache" });
+        expect(await cacheStorage.keys()).toContain("custom-c1");
+    });
+
+    it("skips the navigation fallback for denylisted paths", async () => {
+        fetchMock.mockResolvedValueOnce(
+            new Response(JSON.stringify({ version: "dl", urls: ["/index.html"] })),
+        );
+        installPrecache({ navigateFallbackDenylist: [/^\/api\//] });
+        await dispatchLifecycle("install");
+
+        const nav = {
+            url: "https://app.test/api/stream",
+            method: "GET",
+            mode: "navigate",
+        } as unknown as Request;
+        expect(await dispatchFetch(nav)).toBe("passthrough");
+    });
+
+    it("ignores cross-origin and non-GET requests", async () => {
+        fetchMock.mockResolvedValueOnce(
+            new Response(JSON.stringify({ version: "xo", urls: ["/index.html"] })),
+        );
+        installPrecache();
+        await dispatchLifecycle("install");
+
+        expect(await dispatchFetch(new Request("https://cdn.other/lib.js"))).toBe("passthrough");
+        expect(
+            await dispatchFetch(new Request("https://app.test/index.html", { method: "POST" })),
+        ).toBe("passthrough");
+    });
+
+    it("serves a precached asset from the cache and refetches when it is missing", async () => {
+        fetchMock.mockResolvedValueOnce(
+            new Response(JSON.stringify({ version: "as", urls: ["/assets/app.js"] })),
+        );
+        installPrecache();
+        await dispatchLifecycle("install");
+
+        const hit = (await dispatchFetch(
+            new Request("https://app.test/assets/app.js"),
+        )) as Response;
+        expect(await hit.text()).toBe("x");
+
+        (await cacheStorage.open("tempest-precache-as")).store.clear();
+        fetchMock.mockResolvedValueOnce(new Response("from network"));
+        const miss = (await dispatchFetch(
+            new Request("https://app.test/assets/app.js"),
+        )) as Response;
+        expect(await miss.text()).toBe("from network");
+    });
+
+    it("throws on an offline navigation with no cached shell", async () => {
+        fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ version: "ns", urls: [] })));
+        installPrecache();
+        await dispatchLifecycle("install");
+        fetchMock.mockRejectedValueOnce(new Error("offline"));
+
+        const nav = {
+            url: "https://app.test/dashboard",
+            method: "GET",
+            mode: "navigate",
+        } as unknown as Request;
+        await expect(dispatchFetch(nav)).rejects.toThrow("no cached app shell");
+    });
+});
+
+describe("createPartialResponse — malformed ranges", () => {
+    it("rejects a range with neither start nor end", async () => {
+        const res = await createPartialResponse(
+            new Request("https://app.test/v", { headers: { range: "bytes=-" } }),
+            new Response("0123456789"),
+        );
+        expect(res.status).toBe(416);
+    });
+
+    it("rejects a syntactically invalid range header", async () => {
+        const res = await createPartialResponse(
+            new Request("https://app.test/v", { headers: { range: "items=1-2" } }),
+            new Response("0123456789"),
+        );
+        expect(res.status).toBe(416);
+    });
+
+    it("clamps an end past the resource length", async () => {
+        const res = await createPartialResponse(
+            new Request("https://app.test/v", { headers: { range: "bytes=8-99" } }),
+            new Response("0123456789"),
+        );
+        expect(res.headers.get("content-range")).toBe("bytes 8-9/10");
+        expect(await res.text()).toBe("89");
+    });
+});

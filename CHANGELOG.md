@@ -2,6 +2,27 @@
 
 Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog.com/) + [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Testes
+
+- **Cobertura de branches 80.8% → 90.1%** (linhas 90.2% → 97.4%, statements
+  87.5% → 95.0%, funções 89.1% → 95.6%), com ~440 testes novos em 24 arquivos.
+  Pisos do CI subiram pra 96/94/94/89 (linhas/statements/funções/branches).
+  Alvos: `relative-time` (todas as unidades/plurais nos 2 locales), `sw/cache`
+  (stale-while-revalidate, timeout de rede, `Range` malformado),
+  `sw/background-sync` (4xx vs 5xx, expiração, replay sem Background Sync API),
+  `geo/leaflet-map` (era 0% — leaflet mockado + o caminho real de peer ausente),
+  `TrajectoryMap`, `BrazilMap`/`BrazilStateMap` (choropleth, pan/zoom, markers),
+  `use-camera-stream` (todo o mapeamento de `DOMException`), `Layout`,
+  `DataTable`, `MultiSelect`, `DropdownMenu`, `PinInput`, `Carousel`,
+  `Resizable`, `Calendar`, `TimePicker`, `Combobox`, `FileUpload`, `Dropzone`,
+  `DateRangePicker`, `RichTextEditor`, `useFocusTrap`, `useLocalStorage`,
+  `useKeyboardShortcut`, `useInstallPrompt`, `useStorageEstimate`,
+  `useServiceWorkerUpdate`, `ThemeProvider` (listener de `prefers-color-scheme`),
+  `createWebSocket`, `createTempestAuth`, `createOfflineSync`, `cache-inspect`,
+  `create-push-handler`, `geocode` e `tempestPwaIcons` (sharp mockado).
+
 ## [0.23.0] — 2026-07-24
 
 ### Adicionado — PWA & Offline-First

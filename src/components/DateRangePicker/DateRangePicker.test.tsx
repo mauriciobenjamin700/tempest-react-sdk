@@ -58,3 +58,37 @@ describe("DateRangePicker", () => {
         expect(screen.getByText("July 2026")).toBeInTheDocument();
     });
 });
+
+describe("DateRangePicker — hover preview and range clamps", () => {
+    function dayButtons(): HTMLButtonElement[] {
+        return Array.from(document.querySelectorAll<HTMLButtonElement>("button[aria-label]"));
+    }
+
+    it("previews the range under the cursor while only the start is set", () => {
+        render(<Harness />);
+        const days = dayButtons();
+        fireEvent.click(days[10]);
+
+        fireEvent.mouseEnter(days[15]);
+        const previewed = dayButtons().filter((button) => button.className.includes("inRange"));
+        expect(previewed.length).toBeGreaterThan(0);
+
+        fireEvent.mouseLeave(days[15]);
+        expect(dayButtons().filter((button) => button.className.includes("inRange")).length).toBe(
+            0,
+        );
+    });
+
+    it("refuses a click outside minDate/maxDate", () => {
+        const { container } = render(
+            <DateRangePicker
+                value={{ start: null, end: null }}
+                onChange={() => {}}
+                minDate={new Date(2999, 0, 1)}
+            />,
+        );
+        const day = container.querySelector("button[aria-label]") as HTMLButtonElement;
+        fireEvent.click(day);
+        expect(container.querySelectorAll("[class*='selected']").length).toBe(0);
+    });
+});

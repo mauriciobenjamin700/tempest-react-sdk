@@ -1,8 +1,10 @@
 name: Bundle size
 
+# `pull_request` runs for every target branch on purpose: release and stacked
+# PRs (feature -> release/x) would otherwise get no checks at all, which is how a
+# PR can look green when nothing ever ran. Pushes stay limited to `main`.
 on:
     pull_request:
-        branches: [main]
     push:
         branches: [main]
 

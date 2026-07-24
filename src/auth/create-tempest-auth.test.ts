@@ -108,3 +108,108 @@ describe("createTempestAuth", () => {
         expect(localStorage.getItem("tempest-auth-refresh")).toBeNull();
     });
 });
+
+describe("createTempestAuth — parsing, storage and refresh options", () => {
+    beforeEach(() => {
+        localStorage.clear();
+        sessionStorage.clear();
+    });
+
+    it("skips the me request when parseUser finds the user in the login payload", async () => {
+        const fetcher = vi.fn(async () =>
+            jsonResponse({ access_token: "tok", user: { id: 7, email: "x@y.z" } }),
+        );
+        const auth = createTempestAuth<User>({
+            baseURL: "https://api.test",
+            mePath: "/api/auth/me",
+            fetcher,
+            parseUser: (data) => (data as { user?: User }).user ?? null,
+        });
+
+        const user = await auth.login({ email: "x@y.z", password: "p" });
+        expect(user).toEqual({ id: 7, email: "x@y.z" });
+        expect(fetcher).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the current user when no mePath is configured", async () => {
+        const fetcher = vi.fn(async () => jsonResponse({ access_token: "tok" }));
+        const auth = createTempestAuth<User>({ baseURL: "https://api.test", fetcher });
+
+        const user = await auth.login({ email: "a@b.c", password: "p" });
+        expect(user).toBeNull();
+        expect(auth.getToken()).toBe("tok");
+        expect(fetcher).toHaveBeenCalledTimes(1);
+    });
+
+    it("stores the refresh token in sessionStorage when asked", async () => {
+        const fetcher = vi.fn(async () =>
+            jsonResponse({ access_token: "tok", refresh_token: "rt-1" }),
+        );
+        const auth = createTempestAuth<User>({
+            baseURL: "https://api.test",
+            storage: "session",
+            storeName: "s-auth",
+            fetcher,
+        });
+
+        await auth.login({ email: "a@b.c", password: "p" });
+        expect(sessionStorage.getItem("s-auth-refresh")).toBe("rt-1");
+
+        auth.logout();
+        expect(sessionStorage.getItem("s-auth-refresh")).toBeNull();
+    });
+
+    it("sends the stored refresh token in the refresh body and rotates it", async () => {
+        localStorage.setItem("tempest-auth-refresh", "rt-old");
+        const bodies: unknown[] = [];
+        const fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+            bodies.push(init?.body ? JSON.parse(String(init.body)) : null);
+            return jsonResponse({ access_token: "tok-2", refresh_token: "rt-new" });
+        });
+        const auth = createTempestAuth<User>({ baseURL: "https://api.test", fetcher });
+
+        await auth.refresh();
+        expect(bodies[0]).toEqual({ refresh_token: "rt-old" });
+        expect(localStorage.getItem("tempest-auth-refresh")).toBe("rt-new");
+        expect(auth.getToken()).toBe("tok-2");
+    });
+
+    it("omits the refresh body when nothing is stored", async () => {
+        const bodies: (string | null)[] = [];
+        const fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+            bodies.push(init?.body ? String(init.body) : null);
+            return jsonResponse({ access_token: "tok-3" });
+        });
+        const auth = createTempestAuth<User>({ baseURL: "https://api.test", fetcher });
+
+        await auth.refresh();
+        expect(bodies[0]).toBeNull();
+        expect(localStorage.getItem("tempest-auth-refresh")).toBeNull();
+    });
+
+    it("accepts a custom refreshBody and parseTokens", async () => {
+        localStorage.setItem("tempest-auth-refresh", "rt");
+        const bodies: unknown[] = [];
+        const fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+            bodies.push(init?.body ? JSON.parse(String(init.body)) : null);
+            return jsonResponse({ jwt: "custom-tok" });
+        });
+        const auth = createTempestAuth<User>({
+            baseURL: "https://api.test",
+            fetcher,
+            refreshBody: (rt) => ({ token: rt }),
+            parseTokens: (data) => ({ token: (data as { jwt: string }).jwt }),
+        });
+
+        await auth.refresh();
+        expect(bodies[0]).toEqual({ token: "rt" });
+        expect(auth.getToken()).toBe("custom-tok");
+    });
+
+    it("treats an empty login payload as an undefined token", async () => {
+        const fetcher = vi.fn(async () => new Response(null, { status: 204 }));
+        const auth = createTempestAuth<User>({ baseURL: "https://api.test", fetcher });
+        await auth.login({ email: "a@b.c", password: "p" });
+        expect(auth.getToken()).toBeUndefined();
+    });
+});

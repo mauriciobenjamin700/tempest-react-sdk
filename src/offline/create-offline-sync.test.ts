@@ -153,3 +153,110 @@ describe("createOfflineSync", () => {
         expect(watermark.get()).toBeNull();
     });
 });
+
+describe("createOfflineSync — callbacks, watermark and options", () => {
+    it("notifies onEntryDelivered for each successful entry", async () => {
+        const onEntryDelivered = vi.fn();
+        const { sync } = makeSync({ onEntryDelivered });
+        await sync.enqueue("create", "r1", { id: "r1" });
+        await sync.flush();
+        expect(onEntryDelivered).toHaveBeenCalledWith(expect.objectContaining({ recordId: "r1" }));
+    });
+
+    it("notifies onEntryFailed and records the message in the summary", async () => {
+        const onEntryFailed = vi.fn();
+        const { sync } = makeSync({
+            deliver: vi.fn(async () => {
+                throw new Error("server said no");
+            }),
+            onEntryFailed,
+        });
+        await sync.enqueue("update", "r2", { id: "r2" });
+        const summary = await sync.flush();
+
+        expect(onEntryFailed).toHaveBeenCalled();
+        expect(summary.failed).toBe(1);
+        expect(summary.lastError).toBe("server said no");
+        expect(sync.getState().lastError).toBe("server said no");
+    });
+
+    it("falls back to a generic message for a non-Error rejection", async () => {
+        const { sync } = makeSync({
+            deliver: vi.fn(async () => {
+                throw "nope";
+            }),
+        });
+        await sync.enqueue("delete", "r3");
+        const summary = await sync.flush();
+        expect(summary.lastError).toBe("delivery failed");
+    });
+
+    it("keeps the previous watermark when the server sends none", async () => {
+        const watermark = memoryWatermark("2026-01-01T00:00:00Z");
+        const { sync } = makeSync({ watermark });
+        await sync.flush();
+        expect(watermark.get()).toBe("2026-01-01T00:00:00Z");
+    });
+
+    it("walks every page of the delta before advancing the watermark", async () => {
+        const watermark = memoryWatermark();
+        const pages: PullPage<Dto>[] = [
+            { items: [{ id: "a" }], nextCursor: "c1", serverTime: null },
+            { items: [{ id: "b" }], nextCursor: null, serverTime: "2026-02-02T00:00:00Z" },
+        ];
+        const pullPage = vi.fn(async () => pages.shift() as PullPage<Dto>);
+        const applyRemote = vi.fn(async () => undefined);
+        const { sync } = makeSync({ watermark, pullPage, applyRemote });
+
+        await sync.flush();
+        expect(pullPage).toHaveBeenCalledTimes(2);
+        expect(applyRemote).toHaveBeenCalledTimes(2);
+        expect(watermark.get()).toBe("2026-02-02T00:00:00Z");
+    });
+
+    it("accepts a localStorage-backed watermark descriptor", async () => {
+        window.localStorage.clear();
+        const { sync } = makeSync({
+            watermark: { storageKey: "wm-test" },
+            pullPage: vi.fn(async () => ({
+                items: [],
+                nextCursor: null,
+                serverTime: "2026-03-03T00:00:00Z",
+            })),
+        });
+        await sync.flush();
+        expect(window.localStorage.getItem("wm-test")).toBe("2026-03-03T00:00:00Z");
+
+        sync.resetWatermark();
+        expect(window.localStorage.getItem("wm-test")).toBeNull();
+    });
+
+    it("honours a custom table name, version and id prefix", async () => {
+        const { sync } = makeSync({ tableName: "queue", version: 2, idPrefix: "job" });
+        const id = await sync.enqueue("create", "r4", { id: "r4" });
+        expect(id.startsWith("job")).toBe(true);
+        expect(await sync.pendingCount()).toBe(1);
+    });
+
+    it("lists pending entries in enqueue order", async () => {
+        const { sync } = makeSync({
+            deliver: vi.fn(async () => {
+                throw new Error("offline");
+            }),
+        });
+        await sync.enqueue("create", "first", { id: "first" });
+        await sync.enqueue("create", "second", { id: "second" });
+        const pending = await sync.listPending();
+        expect(pending.map((entry) => entry.recordId)).toEqual(["first", "second"]);
+    });
+
+    it("dispose() is safe without a broadcast channel and keeps state readable", async () => {
+        const { sync } = makeSync();
+        await sync.enqueue("create", "r5", { id: "r5" });
+
+        sync.dispose();
+        sync.dispose();
+        expect(sync.getState().pending).toBe(1);
+        expect(await sync.pendingCount()).toBe(1);
+    });
+});

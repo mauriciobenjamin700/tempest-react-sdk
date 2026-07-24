@@ -84,3 +84,47 @@ describe("municipalityCentroid / stateCentroid", () => {
         expect(c!.latitude).toBeLessThan(0);
     });
 });
+
+describe("geocode — centroid lookups and edges", () => {
+    it("returns a municipality centroid by IBGE code, or null", async () => {
+        const sp = await municipalityCentroid("3550308");
+        expect(sp?.name).toBe("São Paulo");
+        expect(sp?.uf).toBe("SP");
+        expect(await municipalityCentroid("0000000")).toBeNull();
+    });
+
+    it("returns a state centroid, or null for an unknown UF", async () => {
+        const sp = await stateCentroid("SP");
+        expect(sp?.latitude).toBeLessThan(0);
+        expect(await stateCentroid("XX" as never)).toBeNull();
+    });
+
+    it("scopes the search to a UF", async () => {
+        const inSp = await searchMunicipalities("santo", { uf: "SP" });
+        expect(inSp.length).toBeGreaterThan(0);
+        expect(inSp.every((m) => m.uf === "SP")).toBe(true);
+    });
+
+    it("falls back to the nearest centroid for an offshore point", async () => {
+        const offshore = await reverseGeocode({ latitude: -30, longitude: -40 });
+        expect(offshore).not.toBeNull();
+        expect(offshore?.uf).toBeTruthy();
+    });
+
+    it("falls back to the nearest centroid when a forced uf contains no match", async () => {
+        const result = await reverseGeocode({ latitude: -23.55, longitude: -46.63 }, { uf: "AC" });
+        expect(result).not.toBeNull();
+    });
+
+    it("reports the distance for the nearest municipality", async () => {
+        const nearest = await nearestMunicipality({ latitude: -23.5505, longitude: -46.6333 });
+        expect(nearest?.distanceKm).toBeGreaterThanOrEqual(0);
+        expect(nearest?.distanceKm).toBeLessThan(50);
+    });
+
+    it("caches the index across calls", async () => {
+        const first = await municipalityCentroid("3550308");
+        const second = await municipalityCentroid("3550308");
+        expect(second).toBe(first);
+    });
+});

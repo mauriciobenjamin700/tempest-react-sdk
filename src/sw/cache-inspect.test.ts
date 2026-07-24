@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearCaches, inspectCaches } from "./cache-inspect";
 
 class FakeCache {
@@ -96,5 +96,62 @@ describe("clearCaches", () => {
         const deleted = await clearCaches();
         expect(deleted).toHaveLength(2);
         expect(await storage.keys()).toEqual([]);
+    });
+});
+
+describe("cache-inspect — filters and byte measurement", () => {
+    /** Put one response in a fresh bucket of the fake Cache Storage. */
+    async function seed(name: string, url: string, response: Response): Promise<void> {
+        (await storage.open(name)).store.set(`https://app.test${url}`, response);
+    }
+
+    it("matches names by RegExp and by predicate", async () => {
+        expect((await inspectCaches({ filter: /^tempest-/ })).map((r) => r.name)).toEqual([
+            "tempest-precache-v1",
+        ]);
+        expect(
+            (await inspectCaches({ filter: (name) => name.startsWith("other") })).map(
+                (r) => r.name,
+            ),
+        ).toEqual(["other-cache"]);
+    });
+
+    it("prefers content-length over reading the body", async () => {
+        await seed(
+            "sizes",
+            "/header",
+            new Response("x", { headers: { "content-length": "1234" } }),
+        );
+        const [report] = await inspectCaches({ filter: "sizes" });
+        expect(report.bytes).toBe(1234);
+    });
+
+    it("ignores a non-numeric content-length and falls back to the blob", async () => {
+        await seed("bad-header", "/x", new Response("abc", { headers: { "content-length": "" } }));
+        const [report] = await inspectCaches({ filter: "bad-header" });
+        expect(report.bytes).toBe(3);
+    });
+
+    it("counts zero bytes when the body cannot be read", async () => {
+        const broken = new Response("x");
+        vi.spyOn(broken, "clone").mockImplementation(() => {
+            throw new Error("detached");
+        });
+        await seed("broken", "/x", broken);
+        const [report] = await inspectCaches({ filter: "broken" });
+        expect(report.bytes).toBe(0);
+    });
+
+    it("returns empty lists when Cache Storage is unavailable", async () => {
+        delete (globalThis as Record<string, unknown>).caches;
+        expect(await inspectCaches()).toEqual([]);
+        expect(await clearCaches()).toEqual([]);
+    });
+
+    it("clearCaches deletes only matching buckets and reports them", async () => {
+        expect(await clearCaches("other")).toEqual(["other-cache"]);
+        const names = (await inspectCaches()).map((r) => r.name);
+        expect(names).toContain("tempest-precache-v1");
+        expect(names).not.toContain("other-cache");
     });
 });

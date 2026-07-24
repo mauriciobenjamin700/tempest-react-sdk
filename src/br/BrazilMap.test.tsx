@@ -93,3 +93,119 @@ describe("BrazilMap", () => {
         expect(onMarkerClick).toHaveBeenCalledWith(markers[0], 0);
     });
 });
+
+describe("BrazilMap — remaining branches", () => {
+    async function renderLoaded(ui: Parameters<typeof render>[0]) {
+        const view = render(ui);
+        await waitFor(() => expect(view.container.querySelector("path[data-uf]")).toBeTruthy());
+        return view;
+    }
+
+    it("tints states from the min/max ramp and keeps selected ones plain", async () => {
+        const { container } = await renderLoaded(
+            <BrazilMap values={{ SP: 100, AC: 0 }} selected="SP" onSelect={() => {}} />,
+        );
+        const ac = container.querySelector("path[data-uf='AC']") as SVGPathElement;
+        const sp = container.querySelector("path[data-uf='SP']") as SVGPathElement;
+        expect(ac.style.fill).toBeTruthy();
+        expect(sp.style.fill).toBe("");
+    });
+
+    it("prefers a colorScale over the ramp", async () => {
+        const colorScale = vi.fn(() => "rgb(9, 9, 9)");
+        const { container } = await renderLoaded(
+            <BrazilMap values={{ SP: 3 }} colorScale={colorScale} />,
+        );
+        expect((container.querySelector("path[data-uf='SP']") as SVGPathElement).style.fill).toBe(
+            "rgb(9, 9, 9)",
+        );
+        expect(colorScale).toHaveBeenCalledWith(3);
+    });
+
+    it("handles a flat value range and an empty values map", async () => {
+        const { container, unmount } = await renderLoaded(<BrazilMap values={{ SP: 5, RJ: 5 }} />);
+        expect(
+            (container.querySelector("path[data-uf='SP']") as SVGPathElement).style.fill,
+        ).toBeTruthy();
+        unmount();
+
+        const { container: plain } = await renderLoaded(<BrazilMap values={{}} />);
+        expect((plain.querySelector("path[data-uf='SP']") as SVGPathElement).style.fill).toBe("");
+    });
+
+    it("accepts an array of selected UFs", async () => {
+        const { container } = await renderLoaded(
+            <BrazilMap selected={["SP", "RJ"]} onSelect={() => {}} />,
+        );
+        expect(container.querySelector("path[data-uf='SP']")?.getAttribute("aria-pressed")).toBe(
+            "true",
+        );
+        expect(container.querySelector("path[data-uf='RJ']")?.getAttribute("aria-pressed")).toBe(
+            "true",
+        );
+        expect(container.querySelector("path[data-uf='AC']")?.getAttribute("aria-pressed")).toBe(
+            "false",
+        );
+    });
+
+    it("stays non-interactive without onSelect and selects with the keyboard when set", async () => {
+        const { container, unmount } = await renderLoaded(<BrazilMap />);
+        const plain = container.querySelector("path[data-uf='SP']") as SVGPathElement;
+        expect(plain.getAttribute("role")).toBeNull();
+        unmount();
+
+        const onSelect = vi.fn();
+        const { container: live } = await renderLoaded(<BrazilMap onSelect={onSelect} />);
+        const path = live.querySelector("path[data-uf='SP']") as SVGPathElement;
+        fireEvent.keyDown(path, { key: "Enter" });
+        fireEvent.keyDown(path, { key: " " });
+        fireEvent.keyDown(path, { key: "Shift" });
+        expect(onSelect).toHaveBeenCalledTimes(2);
+        expect(onSelect).toHaveBeenLastCalledWith("SP");
+    });
+
+    it("hides labels when showLabels is off", async () => {
+        const { container } = await renderLoaded(<BrazilMap showLabels={false} />);
+        expect(container.querySelectorAll("text").length).toBe(0);
+    });
+
+    it("renders a custom loading placeholder", () => {
+        render(<BrazilMap loadingContent="Carregando UFs" />);
+        expect(screen.getByText("Carregando UFs")).toBeInTheDocument();
+    });
+
+    it("honours a custom label, height and inline style", async () => {
+        const { container } = await renderLoaded(
+            <BrazilMap label="Mapa" height={700} style={{ opacity: 0.4 }} />,
+        );
+        const root = container.firstChild as HTMLElement;
+        expect(screen.getByRole("group", { name: "Mapa" })).toBeInTheDocument();
+        expect(root.style.height).toBe("700px");
+        expect(root.style.opacity).toBe("0.4");
+    });
+
+    it("uses a custom renderTooltip", async () => {
+        const { container } = await renderLoaded(
+            <BrazilMap
+                values={{ SP: 12 }}
+                renderTooltip={(data) => <span>{`${data.uf}:${data.value ?? "-"}`}</span>}
+            />,
+        );
+        fireEvent.mouseMove(container.querySelector("path[data-uf='SP']") as SVGPathElement);
+        expect(await screen.findByText("SP:12")).toBeInTheDocument();
+    });
+
+    it("clears the tooltip on mouse leave", async () => {
+        const { container } = await renderLoaded(<BrazilMap />);
+        const path = container.querySelector("path[data-uf='SP']") as SVGPathElement;
+        fireEvent.mouseMove(path);
+        expect(await screen.findByTestId("map-tooltip")).toBeInTheDocument();
+        fireEvent.mouseLeave(path);
+        expect(screen.queryByTestId("map-tooltip")).not.toBeInTheDocument();
+    });
+
+    it("skips the marker overlay for an empty array", async () => {
+        const { container } = await renderLoaded(<BrazilMap markers={[]} />);
+        expect(container.querySelector("circle[data-marker-id]")).toBeNull();
+    });
+});

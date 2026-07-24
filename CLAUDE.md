@@ -4,35 +4,18 @@ SDK público da Tempest com componentes React, hooks e integrações reutilizáv
 
 > Este arquivo é o guia operacional do SDK. Padrões globais (PR template PT-BR, conventional commits, `gh pr edit` workaround) vêm de `~/.claude/CLAUDE.md` e continuam valendo.
 
-## Estado atual (snapshot v0.6.0 — preparado, aguardando release)
+## Estado atual (snapshot v0.23.0 — em preparo, aguardando tag)
 
-- **App foundation (v0.6.0)**: novos módulos `src/router/` (React Router v7 declarativo: `defineRoutes` + `<AppRouter>` + `<RouteGuard>` + re-exports), `src/store/` (`createStore` + `createSelectors` genéricos Zustand), `src/app/` (`<AppProviders>` glue Query+Theme+i18n+ErrorBoundary), `src/vite/` (subpath `tempest-react-sdk/vite` → `createViteConfig`). `react-router-dom@7` virou dep direta; `vite`/`@vitejs/plugin-react` peers opcionais. CLI nova `create-tempest-app` (pacote separado em `create-tempest-app/`, `npm create tempest-app`) gera projeto Vite+React+TS fiado com o SDK. Docs bilíngues novas: routing/state/app-providers/vite-config/scaffold.
-- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — versões 0.1.0 → 0.5.1 live com signed provenance via OIDC.
-- **Build**: ESM ~149 KB → 42 KB gzip, CJS ~106 KB → 36 KB gzip, CSS 86 KB → 13 KB gzip, `tempest-react-sdk.d.ts` rollupado.
-- **Subpath**: `tempest-react-sdk/testing` bundle separado (0.3 KB ESM) pra MSW helpers.
-- **Testes**: 682 testes em 210 arquivos. ~13 s sob `vitest + jsdom + fake-indexeddb`.
-- **Componentes**: 50+ no catálogo (era 32 em v0.1.6). Novos em 0.4.0: Navbar, Sidebar, BottomNavigation, BottomSheet, AppShell, Page, Banner, Tag, Stat, SafeArea, FormField. Novos em 0.3.0: Accordion, Popover, DropdownMenu, RatingStars, RangeSlider, Combobox, Show/Hide, Spacer, Center, AspectRatio.
-- **Hooks**: 22+ — novos em 0.3.0: useBreakpoint, useEventListener, useLocalStorage, useToggle, useAsync.
-- **OAuth (módulo novo `src/oauth/`)**: GoogleSignIn + useOAuthCallback.
-- **Testing (subpath novo `src/testing/`)**: createMockHandlers (MSW-shaped factory).
+- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 29 tags publicadas (0.1.0 → 0.22.0) com signed provenance via OIDC. Histórico completo em `RELEASES.md` (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
+- **Testes**: 1490 testes em 358 arquivos, ~33 s sob `vitest + jsdom + fake-indexeddb`.
+- **Superfície**: 34 módulos em `src/`, 104 componentes, 45 hooks, 384 exports na entrada raiz.
+- **Empacotamento (v0.23.0)**: `dist/` preserva o grafo de módulos (`preserveModules`). O que o app paga de fato (brotli): `{ cn }` 118 B · `{ Button }` 820 B · app típico 6.83 KB · offline/PWA 4.45 KB · `styles.css` 20.6 KB. Teto sem tree-shaking: 64.5 KB ESM / 79.9 KB CJS. Budgets do `size-limit` são **por fatia importada**, não pelo barrel.
+- **Subpaths** (8): `.`, `/testing` (MSW), `/vite` (`createViteConfig`), `/sw` (helpers de contexto SW), `/charts` (recharts peer), `/editor` (tiptap peer), `/vision` (onnxruntime-web peer), `/br` (dataset BR + mapa clicável), `/styles.css`.
+- **CLIs** (`bin/`): `create-tempest-app` (scaffold, `npm create tempest-app`) com templates `template/` e `template-pwa/`; `tempest` (project CLI: `doctor`, `lint`, `fix`, `format`, `gen api <openapi>` → Zod + types + services).
 - **Style modules**: `colors.css` + `typography.css` + `motion.css` + `density.css` + `reset.css` + `responsive.css` + `print.css`.
-- **Tooling**: Prettier 3, Husky pre-commit (lint-staged), `Makefile` + `scripts/release.sh` (tag-push pipeline), CI `release-npm.yml` (tag push) + `ci.yml` (PR matriz node 20/22) + `size-limit.yml` (bundle budget).
-- **Docs**: 24+ markdowns em `docs/` + 3 diagramas drawio (`architecture`, `request-flow`, `push-flow`).
-- **Demo vivo**: app Vite em `examples/gallery` consome o SDK via `file:../..`.
-
-### Histórico de releases
-
-| Ver   | Tag                            | Highlights                                                                                                                                                                                                                                      |
-| ----- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0.1.0 | initial release                | 444 testes, ESM 98KB, README inicial, infra changesets (depois removida)                                                                                                                                                                        |
-| 0.1.1 | docs + ci                      | README rewrite (TOC + 31 recipes), Vite stack section, typecheck cleanup, format-check em CI                                                                                                                                                    |
-| 0.1.2 | feat: Form                     | `Form` / `FormSection` / `FormRow` / `FormActions` (stack/inline/grid layout variants)                                                                                                                                                          |
-| 0.1.3 | feat: Sentry                   | `createSentryTelemetryAdapter` (P1 #4) — wrap `@sentry/browser`                                                                                                                                                                                 |
-| 0.1.4 | feat: PostHog + flags adapters | `createPostHogTelemetryAdapter`, `createGrowthBookFeatureFlagsAdapter`, `createLaunchDarklyFeatureFlagsAdapter` (P1 #5/#6/#7)                                                                                                                   |
-| 0.1.5 | docs + style refresh           | Docs audit completo, Input.size tipado, Button/Card/Badge/Modal refresh, novos style modules (density/motion/typography)                                                                                                                        |
-| 0.1.6 | feat: Alert + Divider + Kbd    | 3 componentes novos + refresh visual em ~14 components + `docs/styles.md`                                                                                                                                                                       |
-| 0.2.0 | breaking: deps switch          | `peerDependencies` → `dependencies` para child deps; `Stack.direction` responsive; `Table.priority`; `print.css`/`responsive.css`                                                                                                               |
-| 0.3.0 | unreleased: full responsive    | Breakpoint tokens, useBreakpoint/Show/Hide, Modal fullscreen, Drawer bottom-sheet, Table stackOnMobile, Toast position, fluid type, safe-area, density="touch", 10 componentes novos, 4 hooks novos, hover-only gated, total component refactor |
+- **Tooling**: Prettier 3, Husky pre-commit (lint-staged), `Makefile` + `scripts/release.sh` (tag-push pipeline), 4 workflows — `ci.yml` (PR, matriz node 20/22), `release-npm.yml` (tag push), `size-limit.yml`, `docs.yml` (Pages).
+- **Docs**: 44 páginas base em `docs/` (88 arquivos com as traduções `.en.md`) + 10 páginas de componentes por categoria + tutorial de 6 páginas + 3 diagramas drawio + `llms.txt`/`llms-full.txt` (`npm run docs:llms`).
+- **Demo vivo**: app Vite em `examples/gallery` (37 sections) consome o SDK via `file:../..`.
 
 ### Adapter design pattern (consolidado v0.1.3+)
 
@@ -52,7 +35,9 @@ Para qualquer wrapper futuro (Datadog, Amplitude, Mixpanel, Unleash, Cloudflare)
 - ESLint 9 + typescript-eslint + Prettier 3
 - Husky 9 + lint-staged 17 (formatters em staged files)
 
-Apenas `react` + `react-dom` são peer deps (regra de uma instância React). O resto (`@tanstack/react-query`, `zod`, `zustand`, `dexie`, `react-hook-form`, `lucide-react`) virou **direct dependency** a partir de v0.2.0 — instalado automaticamente pelo `npm install tempest-react-sdk`. Continua externalizado no `vite.config.ts` para o bundler do app tree-shakear.
+Apenas `react` + `react-dom` são peer deps **obrigatórios** (regra de uma instância React). Deps diretas (instaladas junto): `@tanstack/react-query`, `zod`, `zustand`, `dexie`, `react-hook-form`, `lucide-react`, `react-router-dom`, `fflate`. Todas externalizadas no `vite.config.ts` pro bundler do app tree-shakear.
+
+Peers **opcionais** (`peerDependenciesMeta.optional`), só quem usa o módulo instala: `recharts` (`/charts`), `@tiptap/react` + `@tiptap/starter-kit` (`/editor`), `leaflet` (tile layer do `geo`), `onnxruntime-web` (`/vision`), `vite` + `@vitejs/plugin-react` (`/vite`).
 
 SDKs externos para adapters (não declarados — caller injeta instância):
 
@@ -62,85 +47,77 @@ SDKs externos para adapters (não declarados — caller injeta instância):
 
 ```text
 tempest-react-sdk/
-├── src/
+├── src/                                     (34 módulos — subpath marcado com ⇢)
+│   ├── access/         useCan, <Can>, permissionsFromToken (RBAC)
+│   ├── app/            <AppProviders> (ErrorBoundary → Query → Theme → i18n)
 │   ├── audio/          createAudioPlayer, useAudio, playAudio
-│   ├── auth/           createAuthStore, AuthGuard, decodeJWT, isJWTExpired, lazyWithRetry, createRefreshQueue
-│   ├── components/     39+ componentes UI (Alert, Avatar, Badge, Button, Divider, Form/FormSection/FormRow/FormActions, Input, Kbd, Modal, Table, Tabs, VirtualList, etc.)
+│   ├── auth/           createAuthStore, AuthGuard, decodeJWT, lazyWithRetry, createRefreshQueue, createTempestAuth
+│   ├── br/          ⇢  dataset de estados/municípios + mapa UF clicável + centroides (chunks lazy)
+│   ├── charts/      ⇢  wrappers recharts
+│   ├── components/     104 componentes UI
+│   ├── data/           createDataProvider, <TempestDataProvider>, useDataProvider (CRUD por recurso)
+│   ├── editor/      ⇢  RichTextEditor (tiptap)
 │   ├── error-boundary/ ErrorBoundary, useErrorHandler
 │   ├── feature-flags/  Provider + InMemory + GrowthBook + LaunchDarkly adapters
-│   ├── forms/          validateForm, zodResolver, useZodForm, masked inputs BR, useViaCEP
-│   ├── hooks/          17 hooks (useDebounce, useClipboard, useKeyboardShortcut, useFocusTrap, …)
+│   ├── forms/          FormField, validateForm, zodResolver, useZodForm, inputs mascarados BR, useViaCEP
+│   ├── geo/            mapas sem tile, createPositionTracker, OSRM backend, haversine/bounds
+│   ├── hooks/          45 hooks (useDebounce, useBreakpoint, useInstallPrompt, useServiceWorkerUpdate, …)
 │   ├── http/           createApiClient, parseResponse, uploadWithProgress, retry, usePoll, idempotency
 │   ├── i18n/           createI18n, I18nProvider, useI18n, useTranslate
 │   ├── logger/         createLogger leveled + plug sinks
-│   ├── offline/        createOfflineStore (Dexie wrapper, owner-scoped)
-│   ├── push/           WebPushClient, usePushSubscription, urlBase64ToUint8Array, isPushSupported
-│   ├── query/          QueryProvider, createQueryKeys, STALE_TIME / CACHE_TIME / REFETCH_TIME
-│   ├── share/          share() + isShareSupported
+│   ├── oauth/          <GoogleSignIn>, useOAuthCallback
+│   ├── offline/        createOfflineStore (Dexie), createOfflineSync (outbox+pull+watermark), useOfflineSync, resolvers de conflito
+│   ├── push/           usePushSubscription, urlBase64ToUint8Array, isPushSupported
+│   ├── query/          QueryProvider, createQueryKeys, paginação, useOfflineMutation, persistQueryClientOffline
+│   ├── router/         defineRoutes, <AppRouter>, <RouteGuard> (React Router v7 declarativo)
+│   ├── share/          share, isShareSupported, shareOrDownloadBlob
 │   ├── sse/            createEventStream, useEventStream
-│   ├── styles/         colors.css + density.css + motion.css + typography.css + reset.css + index.css
-│   ├── sw/             registerServiceWorker, installPushHandler, installNotificationClickHandler, installSkipWaitingListener
+│   ├── store/          createStore, createSelectors (Zustand)
+│   ├── styles/         colors + density + motion + typography + reset + responsive + print + index.css
+│   ├── sw/          ⇢  registerServiceWorker, installPrecache, installBackgroundSync, inspectCaches/clearCaches
 │   ├── telemetry/      Provider + console + Sentry + PostHog adapters
+│   ├── testing/     ⇢  createMockHandlers (MSW-shaped)
 │   ├── theme/          ThemeProvider, useTheme, themeInitScript (no-flash)
-│   ├── utils/          cn, format BR, storage
+│   ├── utils/          cn, format BR, storage, writeXlsx, coleções
+│   ├── vision/      ⇢  inferência ONNX (ort-vision-sdk-web vendorizado) + hooks de câmera
+│   ├── vite/        ⇢  createViteConfig
 │   ├── ws/             createWebSocket, useWebSocket
-│   └── index.ts        barrel raiz
-├── docs/               24 markdowns por módulo + release.md + 3 diagramas drawio
-├── examples/gallery/   app Vite consumindo o SDK (file:../..)
+│   └── index.ts        barrel raiz (384 exports)
+├── bin/                create-tempest-app.mjs + tempest.mjs (doctor/lint/fix/format/gen api)
+├── template/           scaffold Vite+React+TS
+├── template-pwa/       scaffold PWA (SW próprio + vite.sw.config.ts)
+├── docs/               44 páginas base (+ .en.md) + components/ + tutorial/ + diagrams/ + llms.txt
+├── examples/gallery/   app Vite com 37 sections consumindo o SDK (file:../..)
 ├── test/setup.ts       jsdom + jest-dom + fake-indexeddb auto
 ├── Makefile            release / validate / bump / releases-md alvos
-├── scripts/release.sh  pipeline tag-push (branch + bump + validate + tag + PR)
+├── scripts/            release.sh (tag-push), gen-llms.mjs, gen-br-geodata.mjs, vendor-vision.mjs
 ├── RELEASES.md         auto-gerado por `make releases-md`
 └── .github/workflows/
-    ├── ci.yml          PR — lint + format + typecheck + test + build
+    ├── ci.yml          PR — format + lint + typecheck + test + build (node 20/22)
+    ├── size-limit.yml  budgets por fatia importada
+    ├── docs.yml        MkDocs bilíngue → GitHub Pages
     └── release-npm.yml tag push v*.*.* → smoke install + publish --provenance
 ```
 
 ## Backlog priorizado
 
-### ✓ P0 — release inicial (concluído)
+Entregue e fora do backlog: release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`).
 
-- ✓ Primeiro commit + tag v0.1.0
-- ✓ Publicado no npm (`tempest-react-sdk`)
-- ✓ README badges
-- ✓ Tag-push release pipeline + Makefile + scripts/release.sh
-- ✓ NPM_TOKEN secret + provenance via OIDC
+### P1 — gates de qualidade que faltam
 
-### ✓ P1 — adapters concretos (concluído)
+1. **Zero a11y automatizado**: 104 componentes, nenhum `axe`. Roles/aria/contraste só verificados por olho. Adicionar `vitest-axe` nos testes de componente.
+2. **Zero E2E/visual**: `examples/gallery` (37 sections) não roda no CI. Regressão de CSS passa batido — v0.19.1 foi exatamente isso ("clickable Input adornments"). Playwright smoke na gallery = ROI alto.
+3. **Coverage não gateia nada**: `vitest.config.ts` não tem `coverage.thresholds`. Medir baseline e cravar.
 
-- ✓ #4 `createSentryTelemetryAdapter` (v0.1.3)
-- ✓ #5 `createPostHogTelemetryAdapter` (v0.1.4)
-- ✓ #6 `createGrowthBookFeatureFlagsAdapter` (v0.1.4)
-- ✓ #7 `createLaunchDarklyFeatureFlagsAdapter` (v0.1.4)
+### P2 — decisões em aberto
 
-### P1 — cobertura de branches 95%+
+4. **Next.js / RSC**: nenhum arquivo tem `"use client"` → o SDK não funciona no App Router. Se o alvo é só Vite, virar decisão explícita em "Decisões consolidadas"; senão é gap de plataforma.
+5. **CSS opcional** (`data-tempest-classname`) para users de Tailwind/Stitches/Linaria.
+6. **Versionamento de tokens CSS**: tokens são API pública; mudanças bumpam minor/major.
 
-Branches atual: ~85%. Gaps (~5%):
+### P3 — cobertura de branches 95%+
 
-- Paths `typeof window === "undefined"` em hooks SSR-safe (`use-online`, `use-media-query`, `use-document-visibility`, `use-idle`, `storage`, `i18n storage`).
-- `usePushSubscription` paths de erro raros.
-- `use-focus-trap` ramificações Tab/Shift+Tab quando `current === null`.
-- `use-before-install-prompt` else branches.
-
-Custo > valor — só atacar se quiser cravar badge 95%.
-
-### P2 — features adicionais
-
-8. **Hooks novos**: `useEventListener`, `useLocalStorage<T>`, `useToggle`, `useAsync<T>`.
-9. **Componentes pendentes**: `Accordion`/`Collapse`, `Popover`/`DropdownMenu` (Floating UI), `Combobox`, `RangeSlider`, `RatingStars`.
-10. **Form helpers extras**: `<FormField>` wrapper RHF + zod automático, `useFieldArray` re-export tipado.
-11. **OAuth wrapper**: `<GoogleSignIn>` sobre `@react-oauth/google`, `useOAuthCallback`.
-12. **MSW handlers**: `createMockHandlers` factory pra testes com `msw`.
-
-### P2 — performance & DX
-
-13. **Subpath entries**: `tempest-react-sdk/forms`, `tempest-react-sdk/http` — tree-shaking refinement.
-14. **CSS opcional**: `data-tempest-classname` para users de Tailwind/Stitches/Linaria.
-
-### P3 — observabilidade SDK em produção
-
-15. **Bundle size budget**: GH Action (`size-limit`) falha PR se passar de X KB.
-16. **Versionamento de tokens CSS**: tokens são API pública; mudanças bumpam minor/major.
+Gaps conhecidos: paths `typeof window === "undefined"` em hooks SSR-safe (`use-online`, `use-media-query`, `use-document-visibility`, `use-idle`, `storage`, `i18n storage`), erros raros de `usePushSubscription`, ramos Tab/Shift+Tab do `use-focus-trap` com `current === null`, else branches do `use-before-install-prompt`. Custo > valor — só atacar se quiser cravar o badge.
 
 ## Como retomar
 
@@ -182,6 +159,7 @@ npm run dev               # http://127.0.0.1:5173
 - **Direct deps + react peer** (v0.2.0+) — apenas `react` + `react-dom` como peer; demais (`zod`, `zustand`, `dexie`, `react-hook-form`, `@tanstack/react-query`, `lucide-react`) viram `dependencies` instaladas junto. Continuam externalizadas no Rollup config (bundle do SDK não cresce). Apps que não usam um módulo ainda não pagam — Vite/webpack tree-shake. Decisão original v0.1.x era "peer deps opcionais", revertida em v0.2.0 a pedido do usuário pra simplificar onboarding.
 - **Adapters injetam SDK** — Sentry/PostHog/GrowthBook/LaunchDarkly **não** são peer deps. Caller passa a instância. Pattern aplicável pra Datadog/Mixpanel/Unleash/etc.
 - **Sem Storybook** — docs em markdown + `examples/gallery` (app Vite real) cumprem o papel.
+- **`dist` com grafo de módulos preservado** (v0.23.0+) — `preserveModules` no Rollup em vez de bundle por entrada. Muitos arquivos em `dist` é esperado, não regressão. Budgets de tamanho medem fatias importadas.
 - **Sem barrel default export** — sempre named exports.
 - **Sem Changesets** — pipeline tag-push (`make release TAG=X`) via `scripts/release.sh` + workflow `release-npm.yml`.
 - **i18n minimalista in-house** — apps que precisarem de plurais avançados / namespaces / async devem usar `i18next` direto. SDK cobre o caso simples e barato (~1.5KB gzip).
@@ -204,3 +182,6 @@ npm run dev               # http://127.0.0.1:5173
 - **provenance**: requer OIDC provider. Funciona em GitHub Actions (`id-token: write` + `NPM_CONFIG_PROVENANCE=true`). Local fails com `provider: null`.
 - **Changesets `npm version` hijack**: ter `"version": "changeset version"` no `package.json.scripts` faz `npm version 0.1.1` (script lifecycle) rodar `changeset version`. Quebra release.sh. Solução: remover scripts changeset quando migrar para outro fluxo.
 - **`Input.size: InputSize`** (union) shadowed `HTMLInputElement.size: number`. Componentes que repassavam `...InputHTMLAttributes` para `Input` (como `DatePicker`) precisam de `Omit<..., "size">`.
+- **Bundle único mata tree-shaking**: Vite lib mode emite um arquivo por entrada, e o bundler do app não consegue provar que aqueles statements são livres de efeito colateral — importar só `cn` arrastava 8.5 KB gzip. `rollupOptions.output.preserveModules: true` (um arquivo por módulo de origem) derruba o piso pra 118 B brotli. Custo: `dist` vai de 212 pra 1804 arquivos, tarball igual (2.5 MB). `sideEffects: ["**/*.css"]` no `package.json` só ajuda **depois** disso.
+- **Budget de bundle no barrel inteiro é métrica errada**: cresce com toda feature e não diz nada do custo pro consumidor. Medir por fatia importada (`size-limit` + campo `import`); manter o barrel só como teto explícito.
+- **`size-limit` + campo `import`**: o path é relativo ao arquivo de config (config fora do repo quebra a resolução) e a sintaxe é `"import": { "./dist/x.js": "{ A, B }" }` — string solta não funciona. Nome de export errado derruba o build inteiro do esbuild.

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { BrazilMap } from "./BrazilMap";
@@ -207,5 +207,42 @@ describe("BrazilMap — remaining branches", () => {
     it("skips the marker overlay for an empty array", async () => {
         const { container } = await renderLoaded(<BrazilMap markers={[]} />);
         expect(container.querySelector("circle[data-marker-id]")).toBeNull();
+    });
+});
+
+describe("BrazilMap — resize observation", () => {
+    it("re-projects when the container reports a new width, ignoring zero", async () => {
+        const observers: ((entries: { contentRect: { width: number } }[]) => void)[] = [];
+        const original = globalThis.ResizeObserver;
+        class FakeResizeObserver {
+            constructor(callback: (entries: { contentRect: { width: number } }[]) => void) {
+                observers.push(callback);
+            }
+            observe(): void {}
+            disconnect(): void {}
+            unobserve(): void {}
+        }
+        vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+
+        const { container } = render(<BrazilMap showLabels={false} />);
+        await waitFor(() => expect(container.querySelector("path[data-uf]")).toBeTruthy());
+        const viewBox = () => container.querySelector("svg")?.getAttribute("viewBox");
+        expect(viewBox()).toContain("600");
+
+        act(() => observers[0]?.([{ contentRect: { width: 820 } }]));
+        expect(viewBox()).toContain("820");
+
+        act(() => observers[0]?.([{ contentRect: { width: 0 } }]));
+        expect(viewBox()).toContain("820");
+
+        vi.stubGlobal("ResizeObserver", original);
+    });
+
+    it("renders without a ResizeObserver in the environment", async () => {
+        const original = globalThis.ResizeObserver;
+        vi.stubGlobal("ResizeObserver", undefined);
+        const { container } = render(<BrazilMap showLabels={false} />);
+        await waitFor(() => expect(container.querySelector("path[data-uf]")).toBeTruthy());
+        vi.stubGlobal("ResizeObserver", original);
     });
 });

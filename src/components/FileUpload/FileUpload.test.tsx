@@ -47,9 +47,9 @@ describe("FileUpload", () => {
 describe("FileUpload — accept filter, size labels and interaction", () => {
     function fileList(...files: File[]): FileList {
         return {
+            ...files,
             length: files.length,
             item: (index: number) => files[index] ?? null,
-            ...files,
         } as unknown as FileList;
     }
 

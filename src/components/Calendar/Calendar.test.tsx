@@ -90,7 +90,7 @@ describe("Calendar — keyboard grid navigation", () => {
     }
 
     it("moves focus with the four arrow keys", () => {
-        render(<Calendar defaultMonth={new Date(2026, 4, 1)} />);
+        render(<Calendar month={new Date(2026, 4, 1)} />);
         const cells = dayButtons();
         cells[10].focus();
 
@@ -108,7 +108,7 @@ describe("Calendar — keyboard grid navigation", () => {
     });
 
     it("clamps navigation at both ends of the grid", () => {
-        render(<Calendar defaultMonth={new Date(2026, 4, 1)} />);
+        render(<Calendar month={new Date(2026, 4, 1)} />);
         const cells = dayButtons();
 
         cells[0].focus();
@@ -123,7 +123,7 @@ describe("Calendar — keyboard grid navigation", () => {
 
     it("selects the focused day with Enter and Space", () => {
         const onChange = vi.fn();
-        render(<Calendar defaultMonth={new Date(2026, 4, 1)} onChange={onChange} />);
+        render(<Calendar month={new Date(2026, 4, 1)} onChange={onChange} />);
         const cells = dayButtons();
 
         fireEvent.keyDown(cells[10], { key: "Enter" });
@@ -133,7 +133,7 @@ describe("Calendar — keyboard grid navigation", () => {
 
     it("ignores other keys", () => {
         const onChange = vi.fn();
-        render(<Calendar defaultMonth={new Date(2026, 4, 1)} onChange={onChange} />);
+        render(<Calendar month={new Date(2026, 4, 1)} onChange={onChange} />);
         fireEvent.keyDown(dayButtons()[10], { key: "Tab" });
         expect(onChange).not.toHaveBeenCalled();
     });
@@ -142,7 +142,7 @@ describe("Calendar — keyboard grid navigation", () => {
         const onChange = vi.fn();
         render(
             <Calendar
-                defaultMonth={new Date(2026, 4, 1)}
+                month={new Date(2026, 4, 1)}
                 minDate={new Date(2026, 4, 15)}
                 onChange={onChange}
             />,
@@ -157,7 +157,7 @@ describe("Calendar — keyboard grid navigation", () => {
     });
 
     it("tracks selection internally when uncontrolled", () => {
-        render(<Calendar defaultMonth={new Date(2026, 4, 1)} />);
+        render(<Calendar month={new Date(2026, 4, 1)} />);
         const target = dayButtons()[15];
         fireEvent.click(target);
         expect(target).toHaveAttribute("aria-pressed", "true");

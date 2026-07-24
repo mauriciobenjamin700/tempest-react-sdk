@@ -128,3 +128,61 @@ describe("TimePicker — parsing and 12h conversion", () => {
         expect(onChange).toHaveBeenCalledWith("07:00");
     });
 });
+
+describe("TimePicker — column generation and defaults", () => {
+    it("lists 24 hour cells in 24h mode and 12 in 12h mode", () => {
+        const { unmount } = render(<TimePicker value="" onChange={() => {}} />);
+        expect(
+            within(screen.getByRole("listbox", { name: "Horas" })).getAllByRole("option"),
+        ).toHaveLength(24);
+        unmount();
+
+        render(<TimePicker value="" use12Hours onChange={() => {}} />);
+        expect(
+            within(screen.getByRole("listbox", { name: "Horas" })).getAllByRole("option"),
+        ).toHaveLength(12);
+    });
+
+    it("falls back to a 1-minute step for a non-positive minuteStep", () => {
+        render(<TimePicker value="" minuteStep={0} onChange={() => {}} />);
+        expect(
+            within(screen.getByRole("listbox", { name: "Minutos" })).getAllByRole("option"),
+        ).toHaveLength(60);
+    });
+
+    it("defaults an empty 12h value to midnight when a minute is picked", async () => {
+        const onChange = vi.fn();
+        render(<TimePicker value="" use12Hours onChange={onChange} />);
+        const minutes = screen.getByRole("listbox", { name: "Minutos" });
+        await userEvent.click(within(minutes).getByRole("option", { name: "30" }));
+        expect(onChange).toHaveBeenCalledWith("00:30");
+    });
+
+    it("defaults the hour to 12 when only the period is picked", async () => {
+        const onChange = vi.fn();
+        render(<TimePicker value="" use12Hours onChange={onChange} />);
+        await userEvent.click(screen.getByRole("option", { name: "PM" }));
+        expect(onChange).toHaveBeenCalledWith("12:00");
+    });
+
+    it("keeps the PM period when the hour changes in the afternoon", async () => {
+        const onChange = vi.fn();
+        render(<TimePicker value="15:20" use12Hours onChange={onChange} />);
+        const hours = screen.getByRole("listbox", { name: "Horas" });
+        await userEvent.click(within(hours).getByRole("option", { name: "5" }));
+        expect(onChange).toHaveBeenCalledWith("17:20");
+    });
+
+    it("does not emit a period change while disabled", async () => {
+        const onChange = vi.fn();
+        render(<TimePicker value="10:00" use12Hours disabled onChange={onChange} />);
+        await userEvent.click(screen.getByRole("option", { name: "PM" }));
+        expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it("renders the label and helper text", () => {
+        render(<TimePicker value="" onChange={() => {}} label="Horário" helperText="fuso local" />);
+        expect(screen.getByText("Horário")).toBeInTheDocument();
+        expect(screen.getByText("fuso local")).toBeInTheDocument();
+    });
+});

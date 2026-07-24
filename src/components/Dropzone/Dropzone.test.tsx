@@ -70,9 +70,9 @@ describe("Dropzone — drag states and file filtering", () => {
 
     function fileList(...files: File[]): FileList {
         return {
+            ...files,
             length: files.length,
             item: (index: number) => files[index] ?? null,
-            ...files,
         } as unknown as FileList;
     }
 

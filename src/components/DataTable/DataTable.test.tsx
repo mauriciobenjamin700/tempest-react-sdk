@@ -79,3 +79,178 @@ describe("DataTable", () => {
         expect(screen.queryByText("Person 01")).not.toBeInTheDocument();
     });
 });
+
+describe("DataTable — sorting edges", () => {
+    it("cycles asc → desc → unsorted on a third click", async () => {
+        render(<DataTable data={people} columns={columns} />);
+        const header = screen.getByRole("button", { name: /Ordenar por Name/ });
+
+        await userEvent.click(header);
+        expect(firstBodyRowCells()[0]).toBe("Alice");
+        await userEvent.click(header);
+        expect(firstBodyRowCells()[0]).toBe("Charlie");
+        await userEvent.click(header);
+        expect(firstBodyRowCells()[0]).toBe("Charlie");
+    });
+
+    it("switching columns restarts at ascending", async () => {
+        render(<DataTable data={people} columns={columns} />);
+        await userEvent.click(screen.getByRole("button", { name: /Ordenar por Name/ }));
+        await userEvent.click(screen.getByRole("button", { name: /Ordenar por Age/ }));
+        expect(firstBodyRowCells()).toEqual(["Bob", "25"]);
+    });
+
+    it("honours initialSort", () => {
+        render(
+            <DataTable
+                data={people}
+                columns={columns}
+                initialSort={{ key: "age", direction: "desc" }}
+            />,
+        );
+        expect(firstBodyRowCells()).toEqual(["Alice", "42"]);
+    });
+
+    it("orders nulls before values, and equal values stably", () => {
+        type Row = { name: string | null; flag?: boolean };
+        const rows: Row[] = [{ name: "b" }, { name: null }, { name: null }, { name: "a" }];
+        render(
+            <DataTable<Row>
+                data={rows}
+                columns={[{ key: "name", header: "Name", sortable: true }]}
+                initialSort={{ key: "name", direction: "asc" }}
+            />,
+        );
+        const cells = screen
+            .getAllByRole("row")
+            .slice(1)
+            .map((r) => r.textContent);
+        expect(cells[0]).toBe("");
+        expect(cells[1]).toBe("");
+    });
+
+    it("sorts Date and boolean columns by their natural order", () => {
+        type Row = { when: Date; done: boolean };
+        const rows: Row[] = [
+            { when: new Date("2026-03-01"), done: true },
+            { when: new Date("2026-01-01"), done: false },
+        ];
+        const { unmount } = render(
+            <DataTable<Row>
+                data={rows}
+                columns={[
+                    {
+                        key: "when",
+                        header: "When",
+                        sortable: true,
+                        render: (r) => r.when.toISOString().slice(0, 10),
+                    },
+                    { key: "done", header: "Done", sortable: true, render: (r) => String(r.done) },
+                ]}
+                initialSort={{ key: "when", direction: "asc" }}
+            />,
+        );
+        expect(firstBodyRowCells()[0]).toBe("2026-01-01");
+        unmount();
+
+        render(
+            <DataTable<Row>
+                data={rows}
+                columns={[
+                    {
+                        key: "when",
+                        header: "When",
+                        sortable: true,
+                        render: (r) => r.when.toISOString().slice(0, 10),
+                    },
+                    { key: "done", header: "Done", sortable: true, render: (r) => String(r.done) },
+                ]}
+                initialSort={{ key: "done", direction: "asc" }}
+            />,
+        );
+        expect(firstBodyRowCells()[1]).toBe("false");
+    });
+
+    it("labels a non-string header by its key", () => {
+        render(
+            <DataTable
+                data={people}
+                columns={[{ key: "name", header: <em>Nome</em>, sortable: true }]}
+            />,
+        );
+        expect(screen.getByRole("button", { name: "Ordenar por name" })).toBeInTheDocument();
+    });
+
+    it("renders a non-sortable header as plain content", () => {
+        render(<DataTable data={people} columns={[{ key: "name", header: "Name" }]} />);
+        expect(screen.queryByRole("button", { name: /Ordenar/ })).not.toBeInTheDocument();
+    });
+});
+
+describe("DataTable — search and empty state", () => {
+    it("ignores the search term when searchable is off", async () => {
+        render(<DataTable data={people} columns={columns} />);
+        expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+        expect(screen.getAllByRole("row")).toHaveLength(people.length + 1);
+    });
+
+    it("searches only the explicit searchKeys", async () => {
+        render(<DataTable data={people} columns={columns} searchable searchKeys={["name"]} />);
+        await userEvent.type(screen.getByRole("searchbox"), "42");
+        expect(screen.getByText("Nenhum registro encontrado.")).toBeInTheDocument();
+    });
+
+    it("auto-detects string/number columns when searchKeys is omitted", async () => {
+        render(<DataTable data={people} columns={columns} searchable />);
+        await userEvent.type(screen.getByRole("searchbox"), "42");
+        expect(firstBodyRowCells()).toEqual(["Alice", "42"]);
+    });
+
+    it("skips non-primitive columns when auto-detecting search keys", async () => {
+        type Row = { name: string; tags: string[] };
+        const rows: Row[] = [
+            { name: "Alice", tags: ["x"] },
+            { name: "Bob", tags: ["y"] },
+        ];
+        render(
+            <DataTable<Row>
+                data={rows}
+                columns={[
+                    { key: "name", header: "Name" },
+                    { key: "tags", header: "Tags", render: (r) => r.tags.join(",") },
+                ]}
+                searchable
+            />,
+        );
+        await userEvent.type(screen.getByRole("searchbox"), "y");
+        expect(screen.getByText("Nenhum registro encontrado.")).toBeInTheDocument();
+    });
+
+    it("treats a whitespace-only term as no filter", async () => {
+        render(<DataTable data={people} columns={columns} searchable />);
+        await userEvent.type(screen.getByRole("searchbox"), "   ");
+        expect(screen.getAllByRole("row")).toHaveLength(people.length + 1);
+    });
+
+    it("shows a custom empty message", () => {
+        render(<DataTable data={[]} columns={columns} emptyMessage="Sem pessoas" />);
+        expect(screen.getByText("Sem pessoas")).toBeInTheDocument();
+    });
+
+    it("hides pagination when everything fits on one page", () => {
+        render(<DataTable data={people} columns={columns} />);
+        expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
+    });
+
+    it("clamps the page when filtering shrinks the dataset", async () => {
+        const many: Person[] = Array.from({ length: 6 }, (_, i) => ({
+            id: i,
+            name: `P${i}`,
+            age: 20 + i,
+        }));
+        render(<DataTable data={many} columns={columns} pageSize={2} searchable />);
+        await userEvent.click(screen.getByRole("button", { name: "3" }));
+        await userEvent.type(screen.getByRole("searchbox"), "P1");
+        expect(firstBodyRowCells()).toEqual(["P1", "21"]);
+    });
+});

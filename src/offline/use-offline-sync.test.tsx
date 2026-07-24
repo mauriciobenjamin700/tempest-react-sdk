@@ -84,6 +84,22 @@ describe("useOfflineSync", () => {
         });
         await waitFor(() => expect(flushSpy).toHaveBeenCalledWith("online-event"));
     });
+
+    it("flushes on the configured interval", () => {
+        vi.useFakeTimers();
+        try {
+            const sync = makeSync();
+            const flushSpy = vi.spyOn(sync, "flush");
+            renderHook(() => useOfflineSync(sync, { flushOnOnline: false, intervalMs: 1000 }));
+            act(() => {
+                vi.advanceTimersByTime(2500);
+            });
+            expect(flushSpy).toHaveBeenCalledWith("interval");
+            expect(flushSpy.mock.calls.filter((c) => c[0] === "interval").length).toBe(2);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
 });
 
 describe("useSyncStatus", () => {

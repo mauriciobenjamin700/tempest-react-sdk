@@ -172,8 +172,11 @@ export interface OfflineSyncConfig<TPayload, TRemote> {
      * already a shared IndexedDB; this only shares the in-memory state. Silently
      * ignored where `BroadcastChannel` is unavailable. Default `false`.
      *
-     * Note: `flush` stays single-flight *per tab* — two tabs can still flush at
-     * once. Guard delivery idempotently (upsert by client id) as usual.
+     * When the Web Locks API is available, `flush` is additionally coordinated
+     * *across* tabs: only one tab runs at a time and others skip while the lock
+     * is held (they pick up the result via the broadcast). Delivery should still
+     * be idempotent (upsert by client id). Without Web Locks, `flush` falls back
+     * to per-tab single-flight.
      */
     crossTab?: boolean;
     /** Channel name when `crossTab` is on. Default `tempest-sync:${databaseName}`. */
@@ -315,11 +318,11 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
         lastSyncedAt: null,
     };
 
+    const crossTab = config.crossTab === true;
+    const channelName = config.broadcastChannelName ?? `tempest-sync:${config.databaseName}`;
     const channel: BroadcastChannel | null =
-        config.crossTab && typeof BroadcastChannel !== "undefined"
-            ? new BroadcastChannel(
-                  config.broadcastChannelName ?? `tempest-sync:${config.databaseName}`,
-              )
+        crossTab && typeof BroadcastChannel !== "undefined"
+            ? new BroadcastChannel(channelName)
             : null;
     let closed = false;
 
@@ -402,6 +405,40 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
         return summary;
     }
 
+    /**
+     * Run one sync pass, serialized across tabs when possible.
+     *
+     * With `crossTab` on and the Web Locks API available, the pass is wrapped in
+     * an `ifAvailable` lock request: whichever tab holds the lock runs, and the
+     * others get `null` back instead of duplicating the work — their `SyncState`
+     * catches up through the `BroadcastChannel`. The no-op summary keeps
+     * `skipped: false` on purpose: `skipped` means "device offline" (it maps to
+     * `phase: "offline"`), which is not what happened here. Falls back to a plain
+     * per-tab run when `crossTab` is off or Web Locks is missing.
+     *
+     * @param trigger - What asked for this run, carried into the summary.
+     * @returns The run summary, or an empty summary when another tab held the lock.
+     */
+    async function runGuarded(trigger: SyncTrigger): Promise<SyncRunSummary> {
+        const locks = typeof navigator !== "undefined" ? navigator.locks : undefined;
+        if (!crossTab || !locks) return runOnce(trigger);
+        const result = await locks.request(
+            `${channelName}:flush`,
+            { ifAvailable: true },
+            async (lock) => (lock ? runOnce(trigger) : null),
+        );
+        return (
+            result ?? {
+                trigger,
+                succeeded: 0,
+                failed: 0,
+                durationMs: 0,
+                skipped: false,
+                lastError: null,
+            }
+        );
+    }
+
     void refreshPending();
 
     return {
@@ -421,7 +458,7 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
         flush(trigger: SyncTrigger = "manual") {
             if (!inflight) {
                 setState({ phase: "syncing" });
-                inflight = runOnce(trigger)
+                inflight = runGuarded(trigger)
                     .then(async (summary) => {
                         await refreshPending();
                         setState({

@@ -54,6 +54,31 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - **Docs**: nova página bilíngue **PWA & Offline-First** (`docs/pwa.md`); seções
   novas em `offline-sync`, `query`, `hooks` e `components/feedback`.
 
+### Mudado — empacotamento
+
+- **`dist/` agora preserva o grafo de módulos** (`preserveModules` no Rollup):
+  um arquivo por módulo de origem em vez de um bundle único por entrada. O
+  bundle único fazia o bundler do app não conseguir provar que os statements
+  eram livres de efeito colateral, então importar só `cn` arrastava ~8.5 KB
+  gzip de componentes não usados. Medido com `npm run size` (brotli):
+
+  | fatia importada                                                        | antes   | agora   |
+  | ---------------------------------------------------------------------- | ------- | ------- |
+  | `{ cn }`                                                               | 7.8 KB  | 118 B   |
+  | `{ Button }`                                                           | 7.8 KB  | 820 B   |
+  | app típico (5 componentes + router + providers + HTTP + auth + 1 hook) | 12.8 KB | 6.83 KB |
+
+  Sem mudança de API: mesmas entradas (`tempest-react-sdk.js` / `.cjs`),
+  mesmo `styles.css` único, mesmos subpaths. O tarball publicado continua em
+  2.5 MB (212 → 1804 arquivos, +0.3 MB descompactado).
+
+- **Budgets de `size-limit` reescritos por fatia** — as entradas agora medem o
+  que um app realmente paga (`{ cn }`, um componente, app típico, HTTP, forms
+  BR, offline/PWA, geo) em vez de só o barrel inteiro. O barrel virou um teto
+  explícito ("ninguém importa isso") em 80 KB ESM / 95 KB CJS: medir o total
+  fazia o gate crescer junto com cada feature e não dizia nada sobre custo pro
+  consumidor — os budgets estavam a 3% de estourar.
+
 ## [0.22.0] — 2026-07-15
 
 ### Adicionado

@@ -1,8 +1,11 @@
 [
   {
-    "name": "main bundle (ESM)",
+    "name": "slice: tree-shake floor (`cn` alone)",
     "path": "dist/tempest-react-sdk.js",
-    "limit": "68 KB",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ cn }"
+    },
+    "limit": "500 B",
     "ignore": [
       "react",
       "react-dom",
@@ -15,13 +18,17 @@
       "dexie",
       "react-hook-form",
       "react-router",
-      "react-router-dom"
+      "react-router-dom",
+      "fflate"
     ]
   },
   {
-    "name": "main bundle (CJS)",
-    "path": "dist/tempest-react-sdk.cjs",
-    "limit": "78 KB",
+    "name": "slice: one component (`Button`)",
+    "path": "dist/tempest-react-sdk.js",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ Button }"
+    },
+    "limit": "1.5 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -34,7 +41,163 @@
       "dexie",
       "react-hook-form",
       "react-router",
-      "react-router-dom"
+      "react-router-dom",
+      "fflate"
+    ]
+  },
+  {
+    "name": "slice: typical app (shell + 5 components + http + auth + hook)",
+    "path": "dist/tempest-react-sdk.js",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ Button, Input, Modal, Table, ToastProvider, AppProviders, AppRouter, createApiClient, createAuthStore, useDebounce }"
+    },
+    "limit": "9 KB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router",
+      "react-router-dom",
+      "fflate"
+    ]
+  },
+  {
+    "name": "slice: http client",
+    "path": "dist/tempest-react-sdk.js",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ createApiClient, parseResponse, uploadWithProgress, retry, usePoll }"
+    },
+    "limit": "3 KB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router",
+      "react-router-dom",
+      "fflate"
+    ]
+  },
+  {
+    "name": "slice: forms + BR masks",
+    "path": "dist/tempest-react-sdk.js",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ FormField, useZodForm, zodResolver, CPFInput, CNPJInput, PhoneInput, CEPInput, MoneyInput, useViaCEP }"
+    },
+    "limit": "3 KB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router",
+      "react-router-dom",
+      "fflate"
+    ]
+  },
+  {
+    "name": "slice: offline + PWA surface",
+    "path": "dist/tempest-react-sdk.js",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ createOfflineStore, createOfflineSync, useOfflineSync, useSyncStatus, useServiceWorkerUpdate, useStorageEstimate, OfflineIndicator, SyncStatusBadge, UpdatePrompt }"
+    },
+    "limit": "6 KB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router",
+      "react-router-dom",
+      "fflate"
+    ]
+  },
+  {
+    "name": "slice: geo (tile-free maps + tracking)",
+    "path": "dist/tempest-react-sdk.js",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ TrajectoryMap, createPositionTracker, createOSRMBackend, haversineKm }"
+    },
+    "limit": "5 KB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router",
+      "react-router-dom",
+      "fflate"
+    ]
+  },
+  {
+    "name": "ceiling: full barrel ESM (nobody imports this \u2014 tree-shaking is the real cost)",
+    "path": "dist/tempest-react-sdk.js",
+    "limit": "80 KB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router",
+      "react-router-dom",
+      "fflate"
+    ]
+  },
+  {
+    "name": "ceiling: full barrel CJS (no tree-shaking \u2014 worst case for require() consumers)",
+    "path": "dist/tempest-react-sdk.cjs",
+    "limit": "95 KB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router",
+      "react-router-dom",
+      "fflate"
     ]
   },
   {
@@ -68,7 +231,7 @@
     "ignore": ["onnxruntime-web"]
   },
   {
-    "name": "br entry — full opt-in surface incl. ALL lazy UF/municipality/centroid chunks",
+    "name": "br entry \u2014 full opt-in surface incl. ALL lazy UF/municipality/centroid chunks",
     "path": "dist/br.js",
     "limit": "500 KB",
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
@@ -76,6 +239,6 @@
   {
     "name": "styles.css",
     "path": "dist/styles.css",
-    "limit": "21 KB"
+    "limit": "24 KB"
   }
 ]

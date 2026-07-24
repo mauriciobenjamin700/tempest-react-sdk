@@ -169,7 +169,7 @@ The minimum install is just:
 npm install tempest-react-sdk react react-dom
 ```
 
-**Bundle impact**: every bundled dep is externalised in the SDK's Rollup config, so the SDK's published bundle stays at ~104 KB ESM. Your app's bundler (Vite / webpack / Rspack) resolves these from `node_modules` and tree-shakes — if you never call `createOfflineStore`, Dexie never enters your final bundle.
+**Bundle impact**: every bundled dep is externalised in the SDK's Rollup config, and `dist/` ships with the module graph preserved (one file per source module), so your bundler drops what you don't import instead of inheriting one opaque blob — importing `cn` alone costs **118 B** brotli, a full app shell around **6.8 KB**. Your app's bundler (Vite / webpack / Rspack) resolves the deps from `node_modules` and tree-shakes them the same way — if you never call `createOfflineStore`, Dexie never enters your final bundle.
 
 **Version conflicts**: if your app already pins (say) `zod@3.20`, npm dedupes when the range is compatible. If ranges diverge you get two copies — pin a single version in your own `package.json` to force one, or open an issue if the SDK's range is too tight.
 
@@ -1779,8 +1779,9 @@ npm run clean          # rm -rf dist coverage
 
 Snapshot of current health:
 
-- 444 tests / 164 files. 95% line / 96% function coverage.
-- ESM 98 KB → 28 KB gzip. CJS 71 KB → 24 KB gzip. CSS 32 KB → 6 KB gzip.
+- 1490 tests / 358 files.
+- What your app actually pays (brotli, tree-shaken slices measured by `npm run size`): `cn` alone 118 B · one `Button` 820 B · a typical app shell (5 components + router + providers + HTTP + auth + a hook) 6.83 KB · offline/PWA surface 4.45 KB · `styles.css` 20.6 KB.
+- Full-barrel ceiling — nobody imports this, it is the no-tree-shaking worst case: 64.5 KB ESM / 79.9 KB CJS.
 - Husky pre-commit runs `lint-staged` (eslint --fix + prettier --write) on staged files.
 
 The demo gallery lives in `examples/gallery` and consumes the local SDK via `file:../..`:

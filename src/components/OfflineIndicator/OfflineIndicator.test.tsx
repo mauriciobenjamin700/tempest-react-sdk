@@ -39,6 +39,17 @@ describe("OfflineIndicator", () => {
         expect(screen.queryByText("De volta")).not.toBeInTheDocument();
     });
 
+    it("does not flash when onlineFlashMs is 0", () => {
+        setOnline(false);
+        const { rerender } = render(<OfflineIndicator onlineFlashMs={0} onlineLabel="De volta" />);
+        act(() => {
+            setOnline(true);
+            window.dispatchEvent(new Event("online"));
+        });
+        rerender(<OfflineIndicator onlineFlashMs={0} onlineLabel="De volta" />);
+        expect(screen.queryByText("De volta")).not.toBeInTheDocument();
+    });
+
     it("renders custom children over the default body", () => {
         setOnline(false);
         render(

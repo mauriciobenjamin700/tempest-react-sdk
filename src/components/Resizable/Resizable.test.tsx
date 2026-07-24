@@ -81,3 +81,112 @@ describe("Resizable", () => {
         expect((container.firstChild as HTMLElement).className).toContain("custom");
     });
 });
+
+describe("Resizable — keyboard and pointer", () => {
+    function panes(): [React.ReactNode, React.ReactNode] {
+        return [<div key="a">A</div>, <div key="b">B</div>];
+    }
+
+    it("ArrowUp / ArrowDown adjust a vertical split", () => {
+        render(<Resizable direction="vertical">{panes()}</Resizable>);
+        const divider = screen.getByRole("separator");
+
+        fireEvent.keyDown(divider, { key: "ArrowDown" });
+        expect(divider).toHaveAttribute("aria-valuenow", "52");
+        fireEvent.keyDown(divider, { key: "ArrowUp" });
+        expect(divider).toHaveAttribute("aria-valuenow", "50");
+    });
+
+    it("ignores the cross-axis arrows for each direction", () => {
+        const { unmount } = render(<Resizable>{panes()}</Resizable>);
+        const horizontal = screen.getByRole("separator");
+        fireEvent.keyDown(horizontal, { key: "ArrowDown" });
+        expect(horizontal).toHaveAttribute("aria-valuenow", "50");
+        unmount();
+
+        render(<Resizable direction="vertical">{panes()}</Resizable>);
+        const vertical = screen.getByRole("separator");
+        fireEvent.keyDown(vertical, { key: "ArrowRight" });
+        expect(vertical).toHaveAttribute("aria-valuenow", "50");
+    });
+
+    it("Home and End jump to the clamps", () => {
+        render(
+            <Resizable min={20} max={80}>
+                {panes()}
+            </Resizable>,
+        );
+        const divider = screen.getByRole("separator");
+
+        fireEvent.keyDown(divider, { key: "Home" });
+        expect(divider).toHaveAttribute("aria-valuenow", "20");
+        fireEvent.keyDown(divider, { key: "End" });
+        expect(divider).toHaveAttribute("aria-valuenow", "80");
+    });
+
+    it("ignores unrelated keys", () => {
+        render(<Resizable>{panes()}</Resizable>);
+        const divider = screen.getByRole("separator");
+        fireEvent.keyDown(divider, { key: "Enter" });
+        expect(divider).toHaveAttribute("aria-valuenow", "50");
+    });
+
+    it("clamps a defaultSize that sits outside the range", () => {
+        const { unmount } = render(
+            <Resizable defaultSize={5} min={25} max={75}>
+                {panes()}
+            </Resizable>,
+        );
+        expect(screen.getByRole("separator")).toHaveAttribute("aria-valuenow", "25");
+        unmount();
+
+        render(
+            <Resizable defaultSize={99} min={25} max={75}>
+                {panes()}
+            </Resizable>,
+        );
+        expect(screen.getByRole("separator")).toHaveAttribute("aria-valuenow", "75");
+    });
+
+    it("resizes from a pointer drag along the container", () => {
+        const { container } = render(<Resizable>{panes()}</Resizable>);
+        const root = container.firstChild as HTMLElement;
+        root.getBoundingClientRect = () =>
+            ({ left: 0, top: 0, width: 200, height: 100 }) as DOMRect;
+
+        const divider = screen.getByRole("separator");
+        divider.setPointerCapture = () => undefined;
+        fireEvent.pointerDown(divider, { pointerId: 1 });
+        fireEvent.pointerMove(window, { clientX: 60, clientY: 0 });
+        expect(divider).toHaveAttribute("aria-valuenow", "30");
+
+        fireEvent.pointerUp(window, { pointerId: 1 });
+        fireEvent.pointerMove(window, { clientX: 150, clientY: 0 });
+        expect(divider).toHaveAttribute("aria-valuenow", "30");
+    });
+
+    it("drags along the vertical axis when the split is vertical", () => {
+        const { container } = render(<Resizable direction="vertical">{panes()}</Resizable>);
+        const root = container.firstChild as HTMLElement;
+        root.getBoundingClientRect = () =>
+            ({ left: 0, top: 0, width: 200, height: 100 }) as DOMRect;
+
+        const divider = screen.getByRole("separator");
+        divider.setPointerCapture = () => undefined;
+        fireEvent.pointerDown(divider, { pointerId: 1 });
+        fireEvent.pointerMove(window, { clientX: 0, clientY: 70 });
+        expect(divider).toHaveAttribute("aria-valuenow", "70");
+    });
+
+    it("ignores a drag when the container has no size", () => {
+        const { container } = render(<Resizable>{panes()}</Resizable>);
+        const root = container.firstChild as HTMLElement;
+        root.getBoundingClientRect = () => ({ left: 0, top: 0, width: 0, height: 0 }) as DOMRect;
+
+        const divider = screen.getByRole("separator");
+        divider.setPointerCapture = () => undefined;
+        fireEvent.pointerDown(divider, { pointerId: 1 });
+        fireEvent.pointerMove(window, { clientX: 50, clientY: 50 });
+        expect(divider).toHaveAttribute("aria-valuenow", "50");
+    });
+});

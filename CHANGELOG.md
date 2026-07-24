@@ -54,6 +54,16 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - **Docs**: nova página bilíngue **PWA & Offline-First** (`docs/pwa.md`); seções
   novas em `offline-sync`, `query`, `hooks` e `components/feedback`.
 
+### Documentação
+
+- **Nova página bilíngue `oauth`** — o módulo `src/oauth/` (`<GoogleSignIn>`,
+  `useOAuthCallback`) era o único módulo público sem nenhuma documentação: não
+  aparecia no site, no nav nem na tabela de módulos do README. Página no padrão
+  tutorial (motivação → exemplo completo → peça por peça → recap), cobrindo a
+  injeção do `GoogleLogin` via prop `component`, o default de One Tap ligado, a
+  regra de validar o `idToken` no backend e a guarda de StrictMode do
+  `useOAuthCallback`. Entrada nova no nav do MkDocs (PT + EN) e no README.
+
 ### Mudado — empacotamento
 
 - **`dist/` agora preserva o grafo de módulos** (`preserveModules` no Rollup):

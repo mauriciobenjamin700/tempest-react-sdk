@@ -3,8 +3,15 @@
 Toda app React reescreve os mesmos wrappers: "debounce esse input", "fecha o menu
 no Escape", "guarda o tema no localStorage", "re-renderiza quando a janela muda de
 tamanho". São pequenos, mas cada um tem uma armadilha — limpeza de listener, segurança
-em SSR, array de dependências. O SDK empacota esses padrões em hooks granulares,
-testados, **SSR-safe** e independentes — importe só o que precisar.
+sem `window`, array de dependências. O SDK empacota esses padrões em hooks
+granulares, testados e independentes — importe só o que precisar.
+
+!!! note "Safe fora do browser ≠ suporte a SSR"
+    Vários hooks abaixo aparecem como *safe* fora do browser: eles checam
+    `typeof window === "undefined"` e devolvem um default em vez de explodir. Isso
+    existe para testes em Node, contexto de service worker e plugins de build —
+    **não** é promessa de render no servidor. O SDK é client-only por decisão
+    (veja [Arquitetura](./architecture.md#escopo-so-client-side)).
 
 !!! info "Cada hook é uma peça isolada"
     Nenhum hook depende de outro nem de provider. `import { useDebounce } from "tempest-react-sdk"`
@@ -20,7 +27,7 @@ testados, **SSR-safe** e independentes — importe só o que precisar.
 | `useMediaQuery(query)`                            | Subscreve `matchMedia` e re-renderiza ao mudar.                                                              |
 | `useBreakpoint()`                                 | `{ current, width, above, below, isMobile, isTablet, isDesktop }` — breakpoint reativo (xs/sm/md/lg/xl/2xl). |
 | `useWindowSize()`                                 | `{ width, height }` da janela, reativo.                                                                      |
-| `useEventListener(name, handler, target?, opts?)` | Wrap genérico SSR-safe. `target` default = `window`. Aceita ref ou `EventTarget` direto.                     |
+| `useEventListener(name, handler, target?, opts?)` | Wrap genérico safe sem `window`. `target` default = `window`. Aceita ref ou `EventTarget` direto.                     |
 | `useOnline(opts?)`                                | `navigator.onLine` reativo; `{ pingUrl, intervalMs, timeoutMs }` adiciona probe de reachability real (capta captive portal / link morto). |
 | `useDocumentVisibility()`                         | `document.visibilityState` reativo.                                                                          |
 | `useIntersectionObserver(ref, opts?)`             | `IntersectionObserverEntry` ou `null`.                                                                       |
@@ -33,9 +40,9 @@ testados, **SSR-safe** e independentes — importe só o que precisar.
 | `useStorageEstimate({ pollMs? })`                 | `{ usage, quota, ratio, persisted, requestPersist, refresh }` — quota do Storage API + `persist()`. Pares puros: `estimateStorage`, `requestPersistentStorage`. |
 | `useIdle(timeout?)`                               | True quando usuário ocioso por `timeout` ms.                                                                 |
 | `useGeolocation(opts?)`                           | Position + erro + loading.                                                                                   |
-| `useClickOutside(handler)`                        | Retorna um ref; chama `handler` em `mousedown`/`touchstart` fora do elemento. SSR-safe.                      |
-| `useDocumentTitle(title)`                         | Seta `document.title` enquanto montado, restaurando o anterior no unmount. SSR-safe.                         |
-| `useFavicon(href)`                                | Troca o favicon via `<link rel="icon">` (cria o elemento se faltar). SSR-safe.                               |
+| `useClickOutside(handler)`                        | Retorna um ref; chama `handler` em `mousedown`/`touchstart` fora do elemento. safe sem `window`.                      |
+| `useDocumentTitle(title)`                         | Seta `document.title` enquanto montado, restaurando o anterior no unmount. safe sem `window`.                         |
+| `useFavicon(href)`                                | Troca o favicon via `<link rel="icon">` (cria o elemento se faltar). safe sem `window`.                               |
 
 ### Entrada / interação
 
@@ -52,7 +59,7 @@ testados, **SSR-safe** e independentes — importe só o que precisar.
 | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | `usePagination(initialPage?, initialSize?)`       | `{ page, size, setPage, setSize, reset }`.                                                                      |
 | `useClientFilter(items, search, keysOrPredicate)` | Filtro client-side por keys ou predicado (memoizado).                                                           |
-| `useLocalStorage<T>(key, default)`                | State persistido em localStorage + sincronizado cross-tab via `storage` event. SSR-safe.                        |
+| `useLocalStorage<T>(key, default)`                | State persistido em localStorage + sincronizado cross-tab via `storage` event. safe sem `window`.                        |
 | `useToggle(initial?)`                             | `[value, { toggle, setTrue, setFalse, set }]` — açúcar pra boolean state.                                       |
 | `useAsync<T>(fn, deps?, { immediate? })`          | Track `idle/pending/success/error`. `{ status, data, error, run, reset }`. Distinto de React Query (sem cache). |
 | `usePrevious(value)`                              | Valor anterior do render passado.                                                                               |
@@ -79,7 +86,7 @@ testados, **SSR-safe** e independentes — importe só o que precisar.
 | `useStableCallback(fn)` | Ref estável que chama o callback atual. |
 | `useDeepMemo(value)`    | Memoização com igualdade estrutural.    |
 
-!!! tip "SSR-safe por padrão"
+!!! tip "safe sem `window` por padrão"
     Os hooks que tocam APIs do browser (`useMediaQuery`, `useBreakpoint`,
     `useWindowSize`, `useOnline`, `useDocumentVisibility`, `useLocalStorage`,
     `useEventListener`) checam `typeof window === "undefined"` e retornam um default
@@ -448,7 +455,7 @@ function InboxPage({ unread }: { unread: number }) {
 }
 ```
 
-Ambos são SSR-safe; `useDocumentTitle` restaura o título anterior no unmount.
+Ambos são safe sem `window`; `useDocumentTitle` restaura o título anterior no unmount.
 
 ### Primeiro render — `useIsFirstRender`
 
@@ -500,7 +507,7 @@ O `method` é resolvido assim:
 - `"manual"` → fork Chromium sem a API, **ou** nenhum evento chegou dentro de `manualFallbackDelayMs` (3s por padrão); mostre instruções genéricas de menu.
 - `"none"` → já rodando como PWA instalado (display-mode standalone) ou o cooldown de recusa está ativo.
 
-Quando o usuário recusa, o hook grava um timestamp no `localStorage` e esconde a CTA por `declineCooldownMs` (7 dias por padrão). Tudo é plugável e SSR-safe:
+Quando o usuário recusa, o hook grava um timestamp no `localStorage` e esconde a CTA por `declineCooldownMs` (7 dias por padrão). Tudo é plugável e safe sem `window`:
 
 | Opção                   | Padrão                        | O que faz                                             |
 | ----------------------- | ----------------------------- | ----------------------------------------------------- |
@@ -545,7 +552,7 @@ Dispara `onLongPress` uma vez após `delayMs` (mouse ou toque), cancela ao solta
 ## Resumo
 
 - Hooks granulares, independentes e tree-shakáveis — importe só o que usar.
-- Os que tocam o browser são **SSR-safe**: retornam um default no servidor e hidratam após o mount.
+- Os que tocam o browser são **safe sem `window`**: retornam um default no servidor e hidratam após o mount.
 - `useToggle` devolve `[value, { toggle, setTrue, setFalse, set }]` — o segundo item é um objeto.
 - `useDisclosure`/`useCounter`/`useListState` retornam uma tupla `[estado, handlers]`; `useMap`/`useSet`/`useQueue` retornam um objeto único.
 - `useAsync` é o primitivo sem cache; para dados de servidor com cache use React Query.

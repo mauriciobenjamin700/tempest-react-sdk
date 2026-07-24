@@ -101,23 +101,16 @@ tempest-react-sdk/
 
 ## Backlog priorizado
 
-Entregue e fora do backlog: release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`).
+Entregue e fora do backlog: release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`), sweep `axe` em jsdom + smoke Playwright do gallery (`e2e.yml`), coverage gateando o CI (pisos 96/94/94/89), política de versionamento de tokens CSS (`docs/styles.md`).
 
-### P1 — gates de qualidade que faltam
+### P1 — features opcionais
 
-1. **Zero a11y automatizado**: 104 componentes, nenhum `axe`. Roles/aria/contraste só verificados por olho. Adicionar `vitest-axe` nos testes de componente.
-2. **Zero E2E/visual**: `examples/gallery` (37 sections) não roda no CI. Regressão de CSS passa batido — v0.19.1 foi exatamente isso ("clickable Input adornments"). Playwright smoke na gallery = ROI alto.
-3. **Coverage não gateia nada**: `vitest.config.ts` não tem `coverage.thresholds`. Medir baseline e cravar.
+1. **CSS opcional** (`data-tempest-classname`) para users de Tailwind/Stitches/Linaria.
 
-### P2 — decisões em aberto
+### P2 — polimento
 
-4. **Next.js / RSC**: nenhum arquivo tem `"use client"` → o SDK não funciona no App Router. Se o alvo é só Vite, virar decisão explícita em "Decisões consolidadas"; senão é gap de plataforma.
-5. **CSS opcional** (`data-tempest-classname`) para users de Tailwind/Stitches/Linaria.
-6. **Versionamento de tokens CSS**: tokens são API pública; mudanças bumpam minor/major.
-
-### P3 — cobertura de branches 95%+
-
-Gaps conhecidos: paths `typeof window === "undefined"` em hooks SSR-safe (`use-online`, `use-media-query`, `use-document-visibility`, `use-idle`, `storage`, `i18n storage`), erros raros de `usePushSubscription`, ramos Tab/Shift+Tab do `use-focus-trap` com `current === null`, else branches do `use-before-install-prompt`. Custo > valor — só atacar se quiser cravar o badge.
+2. **13 warnings de `react-refresh/only-export-components`** em Providers (hook exportado junto do componente, intencional). Viram annotations em todo run de CI. Resolver com `allowExportNames` ou override por arquivo.
+3. **Cauda de branches (90.1% → 95%)**: sobra ~470 branches espalhadas em ~90 arquivos, ~5 cada. Sem alvo gordo — só valeria com um objetivo específico (badge).
 
 ## Como retomar
 
@@ -158,6 +151,7 @@ npm run dev               # http://127.0.0.1:5173
 - **Tokens CSS via `--tempest-*`** — única forma de tema. Apps customizam sobrescrevendo no `:root`.
 - **Direct deps + react peer** (v0.2.0+) — apenas `react` + `react-dom` como peer; demais (`zod`, `zustand`, `dexie`, `react-hook-form`, `@tanstack/react-query`, `lucide-react`) viram `dependencies` instaladas junto. Continuam externalizadas no Rollup config (bundle do SDK não cresce). Apps que não usam um módulo ainda não pagam — Vite/webpack tree-shake. Decisão original v0.1.x era "peer deps opcionais", revertida em v0.2.0 a pedido do usuário pra simplificar onboarding.
 - **Adapters injetam SDK** — Sentry/PostHog/GrowthBook/LaunchDarkly **não** são peer deps. Caller passa a instância. Pattern aplicável pra Datadog/Mixpanel/Unleash/etc.
+- **Client-side only, PWA offline-first** — o SDK **não** vai para SSR/RSC. Nada de `"use client"`, nada de suporte ao App Router do Next: o alvo é SPA Vite que roda offline (service worker, IndexedDB, outbox, install prompt). Isso é escopo escolhido, não lacuna: um SDK que precisa funcionar nos dois mundos paga em cada API (dois caminhos de render, hidratação, `window` proibido no módulo) e o offline-first fica pior. Os guards `typeof window === "undefined"` que existem nos hooks **continuam** — eles servem pra não explodir fora do browser (testes, contexto de service worker, plugin de build), não pra prometer render no servidor.
 - **Sem Storybook** — docs em markdown + `examples/gallery` (app Vite real) cumprem o papel.
 - **`dist` com grafo de módulos preservado** (v0.23.0+) — `preserveModules` no Rollup em vez de bundle por entrada. Muitos arquivos em `dist` é esperado, não regressão. Budgets de tamanho medem fatias importadas.
 - **Sem barrel default export** — sempre named exports.

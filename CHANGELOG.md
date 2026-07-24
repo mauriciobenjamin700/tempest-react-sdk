@@ -23,6 +23,21 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `createWebSocket`, `createTempestAuth`, `createOfflineSync`, `cache-inspect`,
   `create-push-handler`, `geocode` e `tempestPwaIcons` (sharp mockado).
 
+### Documentação
+
+- **Escopo cravado: client-side only, PWA offline-first.** O SDK **não** vai pra
+  SSR/RSC — nenhum módulo declara `"use client"`, os componentes assumem browser
+  e o App Router do Next não é alvo. Registrado como decisão em `CLAUDE.md`, no
+  README (seção de stack) e numa seção nova "Escopo: só client-side" na página de
+  Arquitetura (PT + EN), com o porquê: cobrir os dois mundos custaria em cada API
+  (dois caminhos de render, hidratação, `window` proibido no topo do módulo) e o
+  offline-first sairia pior.
+- **`SSR-safe` virou `safe sem window`** na doc de hooks (PT + EN). O termo
+  antigo prometia render no servidor; o que os guards
+  `typeof window === "undefined"` realmente entregam é não explodir fora do
+  browser (testes em Node, contexto de service worker, plugin de build). Nota
+  explícita no topo da página apontando pra decisão de escopo.
+
 ## [0.23.0] — 2026-07-24
 
 ### Adicionado — PWA & Offline-First

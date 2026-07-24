@@ -2,14 +2,21 @@
 
 Every React app rewrites the same wrappers: "debounce this input", "close the menu
 on Escape", "store the theme in localStorage", "re-render when the window resizes".
-They are small, but each one has a trap — listener cleanup, SSR safety, the
+They are small, but each one has a trap — listener cleanup, running without `window`, the
 dependency array. The SDK packages these patterns into granular, tested,
-**SSR-safe** and independent hooks — import only what you need.
+browser-guarded and independent hooks — import only what you need.
 
 !!! info "Each hook is a standalone piece"
     No hook depends on another or on a provider. `import { useDebounce } from "tempest-react-sdk"`
     and you're done — the bundler tree-shakes the rest. They are grouped by _purpose_
     in these docs, not by coupling.
+
+!!! note "Browser-guarded is not SSR support"
+    Several hooks below guard on `typeof window === "undefined"` and return a
+    default instead of throwing. That exists for Node tests, the service-worker
+    context and build plugins — it is **not** a promise of server rendering. The
+    SDK is client-only by decision (see
+    [Architecture](./architecture.en.md#scope-client-side-only)).
 
 ## Catalogue by purpose
 
@@ -20,7 +27,7 @@ dependency array. The SDK packages these patterns into granular, tested,
 | `useMediaQuery(query)`                            | Subscribes to `matchMedia` and re-renders on change.                                                          |
 | `useBreakpoint()`                                 | `{ current, width, above, below, isMobile, isTablet, isDesktop }` — reactive breakpoint (xs/sm/md/lg/xl/2xl). |
 | `useWindowSize()`                                 | `{ width, height }` of the window, reactive.                                                                  |
-| `useEventListener(name, handler, target?, opts?)` | Generic SSR-safe wrapper. `target` default = `window`. Accepts a ref or an `EventTarget` directly.            |
+| `useEventListener(name, handler, target?, opts?)` | Generic browser-guarded wrapper. `target` default = `window`. Accepts a ref or an `EventTarget` directly.            |
 | `useOnline(opts?)`                                | Reactive `navigator.onLine`; `{ pingUrl, intervalMs, timeoutMs }` adds a real-reachability probe (catches captive portals / dead links). |
 | `useDocumentVisibility()`                         | Reactive `document.visibilityState`.                                                                          |
 | `useIntersectionObserver(ref, opts?)`             | `IntersectionObserverEntry` or `null`.                                                                        |
@@ -33,9 +40,9 @@ dependency array. The SDK packages these patterns into granular, tested,
 | `useStorageEstimate({ pollMs? })`                 | `{ usage, quota, ratio, persisted, requestPersist, refresh }` — Storage API quota + `persist()`. Pure pairs: `estimateStorage`, `requestPersistentStorage`. |
 | `useIdle(timeout?)`                               | True when the user is idle for `timeout` ms.                                                                  |
 | `useGeolocation(opts?)`                           | Position + error + loading.                                                                                   |
-| `useClickOutside(handler)`                        | Returns a ref; calls `handler` on a `mousedown`/`touchstart` outside the element. SSR-safe.                   |
-| `useDocumentTitle(title)`                         | Sets `document.title` while mounted, restoring the previous one on unmount. SSR-safe.                         |
-| `useFavicon(href)`                                | Swaps the favicon via `<link rel="icon">` (creating the element if missing). SSR-safe.                        |
+| `useClickOutside(handler)`                        | Returns a ref; calls `handler` on a `mousedown`/`touchstart` outside the element. browser-guarded.                   |
+| `useDocumentTitle(title)`                         | Sets `document.title` while mounted, restoring the previous one on unmount. browser-guarded.                         |
+| `useFavicon(href)`                                | Swaps the favicon via `<link rel="icon">` (creating the element if missing). browser-guarded.                        |
 
 ### Input / interaction
 
@@ -52,7 +59,7 @@ dependency array. The SDK packages these patterns into granular, tested,
 | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `usePagination(initialPage?, initialSize?)`       | `{ page, size, setPage, setSize, reset }`.                                                                        |
 | `useClientFilter(items, search, keysOrPredicate)` | Client-side filter by keys or predicate (memoized).                                                               |
-| `useLocalStorage<T>(key, default)`                | State persisted to localStorage + synced cross-tab via the `storage` event. SSR-safe.                             |
+| `useLocalStorage<T>(key, default)`                | State persisted to localStorage + synced cross-tab via the `storage` event. browser-guarded.                             |
 | `useToggle(initial?)`                             | `[value, { toggle, setTrue, setFalse, set }]` — sugar for boolean state.                                          |
 | `useAsync<T>(fn, deps?, { immediate? })`          | Tracks `idle/pending/success/error`. `{ status, data, error, run, reset }`. Distinct from React Query (no cache). |
 | `usePrevious(value)`                              | The value from the previous render.                                                                               |
@@ -79,7 +86,7 @@ dependency array. The SDK packages these patterns into granular, tested,
 | `useStableCallback(fn)` | Stable ref that calls the current callback. |
 | `useDeepMemo(value)`    | Memoization with structural equality.       |
 
-!!! tip "SSR-safe by default"
+!!! tip "browser-guarded by default"
     The hooks that touch browser APIs (`useMediaQuery`, `useBreakpoint`,
     `useWindowSize`, `useOnline`, `useDocumentVisibility`, `useLocalStorage`,
     `useEventListener`) check `typeof window === "undefined"` and return a safe
@@ -449,7 +456,7 @@ function InboxPage({ unread }: { unread: number }) {
 }
 ```
 
-Both are SSR-safe; `useDocumentTitle` restores the previous title on unmount.
+Both are browser-guarded; `useDocumentTitle` restores the previous title on unmount.
 
 ### First render — `useIsFirstRender`
 
@@ -501,7 +508,7 @@ function InstallButton() {
 - `"manual"` → a Chromium fork without the API, **or** no event arrived within `manualFallbackDelayMs` (3s by default); show generic browser-menu instructions.
 - `"none"` → already running as an installed PWA (standalone display mode) or the decline cooldown is active.
 
-When the user declines, the hook stores a timestamp in `localStorage` and hides the CTA for `declineCooldownMs` (7 days by default). It's all pluggable and SSR-safe:
+When the user declines, the hook stores a timestamp in `localStorage` and hides the CTA for `declineCooldownMs` (7 days by default). It's all pluggable and browser-guarded:
 
 | Option                  | Default                         | What it does                                          |
 | ----------------------- | ------------------------------- | ----------------------------------------------------- |
@@ -546,7 +553,7 @@ It fires `onLongPress` once after `delayMs` (mouse or touch), cancels on release
 ## Recap
 
 - Granular, independent, tree-shakeable hooks — import only what you use.
-- The browser-facing ones are **SSR-safe**: they return a default on the server and hydrate after mount.
+- The browser-facing ones are browser-guarded: they return a default on the server and hydrate after mount.
 - `useToggle` returns `[value, { toggle, setTrue, setFalse, set }]` — the second item is an object.
 - `useDisclosure`/`useCounter`/`useListState` return a `[state, handlers]` tuple; `useMap`/`useSet`/`useQueue` return a single object.
 - `useAsync` is the cache-less primitive; for server data with caching use React Query.

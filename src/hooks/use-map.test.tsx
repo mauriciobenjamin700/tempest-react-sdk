@@ -37,3 +37,19 @@ describe("useMap", () => {
         expect(result.current.map).not.toBe(first);
     });
 });
+
+describe("useMap — identity preservation", () => {
+    it("keeps the same Map when removing an absent key", () => {
+        const { result } = renderHook(() => useMap<string, number>([["a", 1]]));
+        const before = result.current.map;
+        act(() => result.current.delete("zzz"));
+        expect(result.current.map).toBe(before);
+    });
+
+    it("keeps the same Map when clearing an already-empty one", () => {
+        const { result } = renderHook(() => useMap<string, number>());
+        const before = result.current.map;
+        act(() => result.current.clear());
+        expect(result.current.map).toBe(before);
+    });
+});

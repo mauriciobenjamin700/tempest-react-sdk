@@ -23,6 +23,19 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `createWebSocket`, `createTempestAuth`, `createOfflineSync`, `cache-inspect`,
   `create-push-handler`, `geocode` e `tempestPwaIcons` (sharp mockado).
 
+### Corrigido
+
+- **Toolbar do `<RichTextEditor>` ficava com estado velho.** O `useEditor` do
+  tiptap v3 **não** re-renderiza a cada transação (default
+  `shouldRerenderOnTransaction: false`), e o componente lia `isActive()` e
+  `can()` direto no corpo do render — então clicar em Negrito com o cursor
+  colapsado armava a marca sem mudar o documento, nenhum evento de update
+  chegava, e o botão não acendia. Undo/Redo tinham o mesmo problema no
+  `disabled`. Agora a toolbar assina exatamente esses valores via
+  `useEditorState`, que re-renderiza só quando um deles muda (mais barato que
+  re-render por tecla digitada). Encontrado ao cobrir os branches
+  `isActive(...) && styles.active`, que nunca executavam.
+
 ### Qualidade
 
 - **Lint 100% limpo** — os 13 warnings de

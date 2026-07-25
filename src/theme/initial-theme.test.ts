@@ -42,3 +42,27 @@ describe("themeInitScript", () => {
         expect(script).toContain("tempest-theme");
     });
 });
+
+describe("getInitialTheme — fallbacks", () => {
+    it("returns the default theme without a window (SSR-less bootstrap)", () => {
+        const original = globalThis.window;
+        vi.stubGlobal("window", undefined);
+        expect(getInitialTheme({ defaultTheme: "dark" })).toBe("dark");
+        expect(getInitialTheme({ defaultTheme: "light" })).toBe("light");
+        expect(getInitialTheme({ defaultTheme: "system" })).toBe("light");
+        vi.stubGlobal("window", original);
+    });
+
+    it("survives a localStorage that throws", () => {
+        const getItem = vi.spyOn(window.localStorage, "getItem").mockImplementation(() => {
+            throw new Error("blocked");
+        });
+        expect(["dark", "light"]).toContain(getInitialTheme());
+        getItem.mockRestore();
+    });
+
+    it("honours an explicit defaultTheme when nothing is stored", () => {
+        window.localStorage.clear();
+        expect(getInitialTheme({ defaultTheme: "dark" })).toBe("dark");
+    });
+});

@@ -81,3 +81,63 @@ describe("ContextMenu", () => {
         expect(first).not.toHaveBeenCalled();
     });
 });
+
+describe("ContextMenu — navigation wrap and dismissal", () => {
+    const items = [
+        { label: "Abrir", onSelect: vi.fn() },
+        { separator: true as const },
+        { label: "Renomear", onSelect: vi.fn() },
+        { label: "Excluir", disabled: true, onSelect: vi.fn() },
+    ];
+
+    function openMenu() {
+        const view = render(
+            <ContextMenu items={items}>
+                <div>alvo</div>
+            </ContextMenu>,
+        );
+        fireEvent.contextMenu(screen.getByText("alvo"), { clientX: 10, clientY: 10 });
+        return view;
+    }
+
+    it("wraps forwards past the last selectable item", () => {
+        openMenu();
+        fireEvent.keyDown(window, { key: "ArrowDown" });
+        expect(document.activeElement?.textContent).toContain("Abrir");
+        fireEvent.keyDown(window, { key: "ArrowDown" });
+        expect(document.activeElement?.textContent).toContain("Renomear");
+        fireEvent.keyDown(window, { key: "ArrowDown" });
+        expect(document.activeElement?.textContent).toContain("Abrir");
+    });
+
+    it("wraps backwards with ArrowUp", () => {
+        openMenu();
+        fireEvent.keyDown(window, { key: "ArrowUp" });
+        expect(document.activeElement?.textContent).toContain("Abrir");
+        fireEvent.keyDown(window, { key: "ArrowUp" });
+        expect(document.activeElement?.textContent).toContain("Renomear");
+    });
+
+    it("closes on an outside mousedown and stays open inside", () => {
+        openMenu();
+        fireEvent.mouseDown(screen.getByRole("menu"));
+        expect(screen.getByRole("menu")).toBeInTheDocument();
+
+        fireEvent.mouseDown(document.body);
+        expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    });
+
+    it("ignores keys while closed and unrelated keys while open", () => {
+        render(
+            <ContextMenu items={items}>
+                <div>alvo</div>
+            </ContextMenu>,
+        );
+        fireEvent.keyDown(window, { key: "ArrowDown" });
+        expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+
+        fireEvent.contextMenu(screen.getByText("alvo"), { clientX: 5, clientY: 5 });
+        fireEvent.keyDown(window, { key: "b" });
+        expect(screen.getByRole("menu")).toBeInTheDocument();
+    });
+});

@@ -103,14 +103,21 @@ tempest-react-sdk/
 
 Entregue e fora do backlog: release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`), sweep `axe` em jsdom + smoke Playwright do gallery (`e2e.yml`), coverage gateando o CI (pisos 98/97/96/94), política de versionamento de tokens CSS (`docs/styles.md`).
 
-### Em revisão (PRs abertos, aguardando merge)
+### Em revisão (PRs **encadeados** — mergear em ordem)
 
-| PR  | O que entrega                                                                                               |
-| --- | ----------------------------------------------------------------------------------------------------------- |
-| #45 | `createTheme` + presets + `applyTheme`; tokens `--tempest-chart-*` e charts seguindo o tema                 |
-| #46 | `tempest-react-sdk/utilities.css` — camada de layout opt-in (~50 classes, 1.13 KB br)                       |
-| #47 | `TreeView` (hierarquia acessível) + `Wizard` (fluxo multi-passo); `Stepper` com `description`/`onStepClick` |
-| #48 | `SignaturePad` (canvas), `Lightbox` (galeria overlay), `AvatarGroup`                                        |
+`main` ← #46 ← #47 ← #48 ← #49. Cada PR sai do anterior, não da `main`: o diff de
+cada um mostra só o que ele acrescenta, e o `[Unreleased]` do CHANGELOG deixa de
+conflitar a cada abertura de PR (foi o que aconteceu com a primeira rodada).
+
+| PR  | Base | O que entrega                                                                                               |
+| --- | ---- | ----------------------------------------------------------------------------------------------------------- |
+| #46 | main | `tempest-react-sdk/utilities.css` — camada de layout opt-in (~50 classes, 1.13 KB br)                       |
+| #47 | #46  | `TreeView` (hierarquia acessível) + `Wizard` (fluxo multi-passo); `Stepper` com `description`/`onStepClick` |
+| #48 | #47  | `SignaturePad` (canvas), `Lightbox` (galeria overlay), `AvatarGroup`                                        |
+| #49 | #48  | este roadmap                                                                                                |
+
+Já na `main`: **#45** — `createTheme` + presets + `applyTheme`, tokens
+`--tempest-chart-*` e charts seguindo o tema.
 
 ### P1 — componentes (na ordem)
 

@@ -174,3 +174,61 @@ describe("usePushSubscription — non-Error rejections and refresh", () => {
         expect(result.current.permission).toBe("granted");
     });
 });
+
+describe("usePushSubscription — unsubscribe paths", () => {
+    afterEach(() => {
+        delete (globalThis as { Notification?: unknown }).Notification;
+        delete (globalThis as { PushManager?: unknown }).PushManager;
+        delete (navigator as { serviceWorker?: unknown }).serviceWorker;
+    });
+
+    it("wraps a non-Error rejection from unsubscribe()", async () => {
+        Object.assign(globalThis, {
+            Notification: { permission: "granted", requestPermission: vi.fn() },
+            PushManager: function () {},
+        });
+        Object.assign(navigator, {
+            serviceWorker: {
+                ready: Promise.resolve({
+                    pushManager: {
+                        getSubscription: vi.fn().mockResolvedValue({
+                            endpoint: "https://push/1",
+                            toJSON: () => ({ endpoint: "https://push/1", keys: {} }),
+                            unsubscribe: vi.fn().mockRejectedValue("nope"),
+                        }),
+                    },
+                }),
+            },
+        });
+
+        const { result } = renderHook(() =>
+            usePushSubscription({
+                vapidPublicKey: VALID_VAPID_KEY,
+                onSubscribe: async () => undefined,
+                onUnsubscribe: async () => undefined,
+            }),
+        );
+        await act(async () => {
+            try {
+                await result.current.unsubscribe();
+            } catch {
+                /* expected */
+            }
+        });
+        expect(result.current.error?.message).toBe("nope");
+        expect(result.current.loading).toBe(false);
+    });
+
+    it("unsubscribe() is a no-op when the environment lacks Push support", async () => {
+        const { result } = renderHook(() =>
+            usePushSubscription({
+                vapidPublicKey: VALID_VAPID_KEY,
+                onSubscribe: async () => undefined,
+            }),
+        );
+        await act(async () => {
+            await result.current.unsubscribe();
+        });
+        expect(result.current.error).toBeNull();
+    });
+});

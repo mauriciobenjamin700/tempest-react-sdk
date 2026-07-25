@@ -166,6 +166,55 @@ describe("tempestPwaDevSw", () => {
         expect(next).toHaveBeenCalled();
     });
 
+    it("bundles the service worker on request and sets the SW headers", async () => {
+        const plugin = tempestPwaDevSw({ swSrc: "src/sw.ts" }) as any;
+        plugin.configResolved({ root: process.cwd() });
+        let handler: any;
+        plugin.configureServer({ middlewares: { use: (fn: any) => (handler = fn) } });
+
+        const headers: Record<string, string> = {};
+        const ended: string[] = [];
+        const res = {
+            setHeader: (name: string, value: string) => {
+                headers[name] = value;
+            },
+            end: (body: string) => ended.push(body),
+            statusCode: 200,
+        };
+        await handler({ url: "/sw.js?t=123" }, res, vi.fn());
+
+        // No `src/sw.ts` in this repo, so esbuild fails and the plugin answers
+        // with a 500 whose body explains it — the browser gets a readable error
+        // instead of a hung request.
+        expect(res.statusCode).toBe(500);
+        expect(ended[0]).toContain("SW dev build failed");
+    });
+
+    it("falls back to cwd when configResolved has no root", async () => {
+        const plugin = tempestPwaDevSw() as any;
+        plugin.configResolved({});
+        let handler: any;
+        plugin.configureServer({ middlewares: { use: (fn: any) => (handler = fn) } });
+
+        const ended: string[] = [];
+        await handler(
+            { url: "/precache-manifest.json" },
+            { setHeader: vi.fn(), end: (body: string) => ended.push(body) },
+            vi.fn(),
+        );
+        expect(JSON.parse(ended[0]).version).toBe("dev");
+    });
+
+    it("treats a request with no url as a passthrough", async () => {
+        const plugin = tempestPwaDevSw() as any;
+        let handler: any;
+        plugin.configureServer({ middlewares: { use: (fn: any) => (handler = fn) } });
+
+        const next = vi.fn();
+        await handler({}, { setHeader: vi.fn(), end: vi.fn() }, next);
+        expect(next).toHaveBeenCalled();
+    });
+
     it("respects enabled: false (no middleware registered)", () => {
         const plugin = tempestPwaDevSw({ enabled: false }) as any;
         const use = vi.fn();

@@ -44,10 +44,10 @@ export default defineConfig({
              * climbs — never lower them to make a red build green.
              */
             thresholds: {
-                lines: 96,
-                statements: 94,
-                functions: 94,
-                branches: 89,
+                lines: 98,
+                statements: 96,
+                functions: 96,
+                branches: 93,
             },
         },
     },

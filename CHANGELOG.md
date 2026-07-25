@@ -23,6 +23,31 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `createWebSocket`, `createTempestAuth`, `createOfflineSync`, `cache-inspect`,
   `create-push-handler`, `geocode` e `tempestPwaIcons` (sharp mockado).
 
+### Testes
+
+- **Cobertura de branches 90.1% → 93.6%** (linhas 97.4% → 98.3%, statements
+  95.0% → 96.6%, funções 95.6% → 96.2%), +234 testes. Pisos do CI subiram pra
+  98/96/96/93. Alvos: `sw/cache` e `background-sync`, `sse/create-event-stream`,
+  `ws/create-web-socket` (guards pós-`close`), `http/api-client` e
+  `upload-with-progress`, `usePaginatedQuery`, `useOfflineMutation`,
+  `persistQueryClientOffline`, `createOfflineSync`, `createOfflineStore`,
+  `createTempestAuth`, `br/geocode`, `br/scales`, `br/svg-utils` (suíte nova),
+  `br/BrazilMap`, `tempestPwaManifest`, `tempestPwaIcons`, `tempestPwaDevSw`,
+  `initial-theme`, `ThemeProvider`, `posthog-adapter`, `sentry-adapter`,
+  `useOAuthCallback`, `useIntersectionObserver`, `usePoll`, `useDeepMemo`,
+  `useEventListener`, `useLocalStorage`, `usePushSubscription`, `storage`,
+  `deepMerge`, `br-validators` e os componentes `Table`, `Input`, `Sidebar`,
+  `RefreshIndicator`, `Drawer`, `ContextMenu`, `NavigationMenu`, `Menubar`,
+  `Command`, `Divider`, `Checkbox`, `StepperInput`, `Carousel`, `AppShell`,
+  `Layout`, `TimePicker`, `Combobox`, `Dropzone`, `FileUpload`, `Resizable`,
+  `PinInput`, `DropdownMenu`, `MultiSelect`, `DataTable`, `Calendar`,
+  `DateRangePicker` e os três charts.
+- **Restam ~300 branches**, sendo **28 inalcançáveis** neste setup: são guards
+  `typeof window === "undefined"` dentro de hooks/componentes, e o react-dom
+  precisa de `window` pra renderizar — remover o global quebra o próprio
+  `render()`. O resto é cauda de 1-2 branches defensivas espalhadas em ~120
+  arquivos.
+
 ### Corrigido
 
 - **Toolbar do `<RichTextEditor>` ficava com estado velho.** O `useEditor` do

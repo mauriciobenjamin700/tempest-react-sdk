@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { deepMerge, isEmpty, omit, pick } from "./objects";
 
 describe("pick", () => {
@@ -114,5 +115,25 @@ describe("isEmpty", () => {
         expect(isEmpty(false)).toBe(false);
         expect(isEmpty(true)).toBe(false);
         expect(isEmpty(new Date())).toBe(false);
+    });
+});
+
+describe("deepMerge — non-record operands", () => {
+    it("replaces a primitive target with the source", () => {
+        expect(deepMerge(1 as unknown as { a: number }, { a: 2 })).toEqual({ a: 2 });
+    });
+
+    it("keeps the target when the source is undefined", () => {
+        expect(deepMerge({ a: 1 }, undefined as unknown as Partial<{ a: number }>)).toEqual({
+            a: 1,
+        });
+    });
+
+    it("replaces a record target with a primitive source", () => {
+        expect(deepMerge({ a: 1 }, 5 as unknown as Partial<{ a: number }>)).toBe(5);
+    });
+
+    it("replaces arrays instead of merging them", () => {
+        expect(deepMerge({ tags: ["a", "b"] }, { tags: ["c"] })).toEqual({ tags: ["c"] });
     });
 });

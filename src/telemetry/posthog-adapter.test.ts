@@ -110,3 +110,32 @@ describe("createPostHogTelemetryAdapter", () => {
         expect(props.$exception_type).toBe("Error");
     });
 });
+
+describe("createPostHogTelemetryAdapter — partial user shapes", () => {
+    it("sends only the fields the user carries", () => {
+        const posthog = makePostHogMock();
+        createPostHogTelemetryAdapter({ posthog }).identify({ id: "u1" });
+        expect(posthog.identify).toHaveBeenCalledWith("u1", {});
+    });
+
+    it("includes an email-only user", () => {
+        const posthog = makePostHogMock();
+        createPostHogTelemetryAdapter({ posthog }).identify({ id: "u1", email: "a@b.c" });
+        expect(posthog.identify).toHaveBeenCalledWith("u1", { email: "a@b.c" });
+    });
+
+    it("includes a name-only user", () => {
+        const posthog = makePostHogMock();
+        createPostHogTelemetryAdapter({ posthog }).identify({ id: "u1", name: "Nome" });
+        expect(posthog.identify).toHaveBeenCalledWith("u1", { name: "Nome" });
+    });
+
+    it("spreads traits", () => {
+        const posthog = makePostHogMock();
+        createPostHogTelemetryAdapter({ posthog }).identify({
+            id: "u1",
+            traits: { plan: "pro" },
+        });
+        expect(posthog.identify).toHaveBeenCalledWith("u1", { plan: "pro" });
+    });
+});

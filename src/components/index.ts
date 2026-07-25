@@ -16,6 +16,8 @@ export type { AspectRatioProps } from "./AspectRatio";
 export { Avatar } from "./Avatar";
 export type { AvatarProps, AvatarSize, AvatarStatus } from "./Avatar";
 
+export { AvatarGroup } from "./AvatarGroup";
+export type { AvatarGroupItem, AvatarGroupProps } from "./AvatarGroup";
 export { Badge } from "./Badge";
 export type { BadgeAppearance, BadgeProps, BadgeShape, BadgeSize, BadgeVariant } from "./Badge";
 
@@ -247,6 +249,8 @@ export type { RelativeTimeProps } from "./RelativeTime";
 export { Money } from "./Money";
 export type { MoneyProps } from "./Money";
 
+export { TreeView } from "./TreeView";
+export type { TreeNode, TreeViewProps } from "./TreeView";
 export { TruncateText } from "./TruncateText";
 export type { TruncateTextProps } from "./TruncateText";
 
@@ -345,3 +349,9 @@ export type { TimePickerProps } from "./TimePicker";
 
 export { RefreshIndicator } from "./RefreshIndicator";
 export type { RefreshIndicatorProps } from "./RefreshIndicator";
+export { Wizard } from "./Wizard";
+export type { WizardControls, WizardProps, WizardStep } from "./Wizard";
+export { Lightbox } from "./Lightbox";
+export type { LightboxItem, LightboxProps } from "./Lightbox";
+export { SignaturePad } from "./SignaturePad";
+export type { SignaturePadHandle, SignaturePadProps } from "./SignaturePad";

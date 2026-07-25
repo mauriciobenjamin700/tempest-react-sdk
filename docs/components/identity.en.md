@@ -85,6 +85,40 @@ A `<kbd>` styled for keyboard shortcuts.
 !!! tip "One `<Kbd>` per key"
     For combinations, repeat the component instead of merging it all into plain text: `<Kbd>Ctrl</Kbd>+<Kbd>K</Kbd>`. Each `<Kbd>` renders a semantic `<kbd>` element that screen readers announce individually.
 
+## `AvatarGroup`
+
+> **When to use it**: show several people in a small space — meeting participants, task assignees, team members.
+
+An overlapping row of avatars with a `+N` chip at the end.
+
+```tsx
+<AvatarGroup
+  label="Participants"
+  max={3}
+  items={[
+    { name: "Ada Lovelace", src: ada },
+    { name: "Grace Hopper" },
+    { name: "Alan Turing" },
+    { name: "Edsger Dijkstra" },
+  ]}
+  onOverflowClick={() => setDrawerOpen(true)}
+/>
+```
+
+| Prop              | Type                | Default | What it does                                                  |
+| ----------------- | ------------------- | ------- | ------------------------------------------------------------- |
+| `items`           | `AvatarGroupItem[]` | —       | People in the group (`{ name, src? }`).                        |
+| `max`             | `number`            | `4`     | How many avatars before collapsing into `+N`.                  |
+| `size`            | `AvatarSize`        | `"md"`  | Size applied to the avatars **and** the chip.                  |
+| `label`           | `string`            | —       | Accessible name of the group.                                  |
+| `onOverflowClick` | `() => void`        | —       | Makes the `+N` chip a focusable button (e.g. open "see all").   |
+
+!!! info "One group, one accessible name"
+    The row is a single `role="group"` with one name, and each avatar exposes its person's name. Announcing seven unrelated images is noise; the `+N` chip carries the remaining count, so the total is never hidden from a screen reader.
+
+!!! tip "The overlap is tunable"
+    `--tempest-avatar-overlap` controls how much each avatar covers the previous one — the defaults are proportional to `size`.
+
 ## Recap
 
 | Component | Use for                                      |

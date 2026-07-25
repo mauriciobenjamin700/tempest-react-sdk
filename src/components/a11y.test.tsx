@@ -5,6 +5,7 @@ import { findA11yViolations, formatA11yViolations } from "../../test/a11y";
 import { Accordion } from "./Accordion";
 import { Alert } from "./Alert";
 import { Avatar } from "./Avatar";
+import { AvatarGroup } from "./AvatarGroup";
 import { Badge } from "./Badge";
 import { Banner } from "./Banner";
 import { Breadcrumbs } from "./Breadcrumbs";
@@ -25,7 +26,10 @@ import { Spinner } from "./Spinner";
 import { Switch } from "./Switch";
 import { Table } from "./Table";
 import { Tabs } from "./Tabs";
+import { SignaturePad } from "./SignaturePad";
 import { Textarea } from "./Textarea";
+import { TreeView } from "./TreeView";
+import { Wizard } from "./Wizard";
 
 interface Row {
     id: string;
@@ -116,6 +120,35 @@ const CASES: [name: string, ui: ReactElement][] = [
             Tem certeza?
         </Modal>,
     ],
+    [
+        "TreeView",
+        <TreeView
+            label="Permissões"
+            defaultExpandedIds={["vendas"]}
+            nodes={[
+                { id: "vendas", label: "Vendas", children: [{ id: "vendas.ler", label: "Ler" }] },
+                { id: "sobre", label: "Sobre" },
+            ]}
+        />,
+    ],
+    [
+        "Wizard",
+        <Wizard
+            steps={[
+                { id: "dados", label: "Dados", content: <Input label="Nome" name="nome" /> },
+                { id: "revisao", label: "Revisão", content: <p>Confira os dados</p> },
+            ]}
+        />,
+    ],
+    [
+        "AvatarGroup",
+        <AvatarGroup
+            label="Participantes"
+            max={2}
+            items={[{ name: "Ada Lovelace" }, { name: "Grace Hopper" }, { name: "Alan Turing" }]}
+        />,
+    ],
+    ["SignaturePad", <SignaturePad label="Assinatura do cliente" />],
 ];
 
 describe("component accessibility sweep", () => {

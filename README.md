@@ -198,6 +198,14 @@ This injects the design tokens (`--tempest-primary`, `--tempest-radius-md`, ...)
 
 The styles ship hashed under the `tempest_` namespace — they do **not** collide with Tailwind, Stitches, Linaria, or app-level CSS Modules.
 
+**Optional layout layer.** CSS Modules cover the inside of each component; the layer _around_ them (page shell, two-column form, action row, card, a region that scrolls sideways instead of the page) is a second, opt-in stylesheet:
+
+```ts
+import "tempest-react-sdk/utilities.css";
+```
+
+~50 token-driven classes, all prefixed `tempest-`, **1.13 KB brotli** — a page shell like `<div className="tempest-container tempest-page">` with `.tempest-grid-auto`, `.tempest-form-grid`, `.tempest-card`, `.tempest-truncate`. It is not imported by `styles.css`, so an app with its own layout system pays nothing. It is deliberately _not_ a utility framework: no `p-4 mt-2 bg-blue-500` per value. See [Styles › opt-in utility layer](https://mauriciobenjamin700.github.io/tempest-react-sdk/styles/).
+
 ---
 
 ## What's inside
@@ -1790,7 +1798,7 @@ Snapshot of current health:
 
 - 2272 tests / 366 files — 98.5% lines, 97.1% statements, 96.4% functions, 95.0% branches (CI floors: 98/97/96/94).
 - What your app actually pays (brotli, tree-shaken slices measured by `npm run size`): `cn` alone 153 B · one `Button` 794 B · a typical app shell (5 components + router + providers + HTTP + auth + a hook) 6.79 KB · offline/PWA surface 4.41 KB · `styles.css` 20.61 KB.
-- Full-barrel ceiling — nobody imports this, it is the no-tree-shaking worst case: 64.16 KB ESM / 78.83 KB CJS.
+- Full-barrel ceiling — nobody imports this, it is the no-tree-shaking worst case: 66.53 KB ESM / 81.53 KB CJS.
 - Husky pre-commit runs `lint-staged` (eslint --fix + prettier --write) on staged files.
 
 The demo gallery lives in `examples/gallery` and consumes the local SDK via `file:../..`:

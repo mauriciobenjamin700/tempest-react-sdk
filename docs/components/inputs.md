@@ -445,6 +445,66 @@ Layout wrappers para forms (`stack`/`inline`/`grid`) + integração RHF.
 
 Detalhes completos em [../forms.md](../forms.md).
 
+## `SignaturePad`
+
+> **Quando usar**: coletar assinatura de próprio punho — comprovante de entrega, ordem de serviço, termo de aceite. Em campo, no celular, com o dedo.
+
+Canvas com captura por `pointer` (mouse, dedo e caneta pelo mesmo caminho). Os traços são guardados como **listas de pontos** e o canvas é redesenhado a partir delas — é isso que torna o `undo` possível: canvas guarda pixel, não histórico, então remover o último traço significa repintar o resto.
+
+```tsx
+import { Button, SignaturePad, type SignaturePadHandle } from "tempest-react-sdk";
+import { useRef, useState } from "react";
+
+export function AssinaturaDaEntrega({ entregaId }: { entregaId: string }) {
+  const pad = useRef<SignaturePadHandle>(null);
+  const [vazio, setVazio] = useState(true);
+
+  async function enviar() {
+    const blob = await pad.current?.toBlob("image/png");
+    if (!blob) return;
+    const form = new FormData();
+    form.append("assinatura", blob, `${entregaId}.png`);
+    await api.post(`/entregas/${entregaId}/assinatura`, form);
+  }
+
+  return (
+    <>
+      <SignaturePad
+        label="Assinatura do cliente"
+        width={360}
+        height={180}
+        onEmptyChange={setVazio}
+      />
+      <Button disabled={vazio} onClick={enviar}>Confirmar entrega</Button>
+    </>
+  );
+}
+```
+
+| Prop            | Tipo                        | Default       | O que faz                                                     |
+| --------------- | --------------------------- | ------------- | ------------------------------------------------------------- |
+| `width`         | `number`                    | `400`         | Largura da superfície em px CSS.                              |
+| `height`        | `number`                    | `160`         | Altura da superfície em px CSS.                               |
+| `penColor`      | `string`                    | cor computada | Cor do traço. O default segue `--tempest-text`.               |
+| `penWidth`      | `number`                    | `2`           | Espessura do traço.                                           |
+| `disabled`      | `boolean`                   | `false`       | Bloqueia o desenho e esmaece a superfície.                    |
+| `label`         | `string`                    | `"Signature"` | Nome acessível do canvas.                                     |
+| `onBegin`       | `() => void`                | —             | Chamado no início de cada traço.                              |
+| `onEnd`         | `(dataUrl: string) => void` | —             | Chamado ao fim de cada traço, com a imagem atual.             |
+| `onEmptyChange` | `(isEmpty: boolean) => void`| —             | Chamado quando a vacuidade muda — ligue no botão de submit.    |
+| `showActions`   | `boolean`                   | `true`        | Renderiza os botões Desfazer/Limpar.                          |
+
+**Handle imperativo** (`ref`): `clear()`, `undo()`, `isEmpty()`, `toDataURL(type?, quality?)`, `toBlob(type?, quality?)`.
+
+!!! tip "Suba `toBlob()`, não `toDataURL()`"
+    Data URL é base64: ~33% mais bytes, e ainda vira string no meio do seu JSON. `toBlob()` entrega binário pronto pro `FormData`.
+
+!!! info "Nitidez em tela de alta densidade"
+    O buffer do canvas é escalado por `devicePixelRatio` e o contexto recebe o `setTransform` correspondente. Sem isso o traço sai borrado no celular — é o defeito clássico de canvas em 1x.
+
+!!! note "A cor do traço segue o tema"
+    O default lê a cor **computada** do canvas, que o CSS liga em `--tempest-text`. Assinatura desenhada no tema escuro sai clara; no claro, escura. Passe `penColor` só se precisar de tinta fixa (azul de caneta, por exemplo).
+
 ## A11y
 
 - Sempre use `label` — screen readers anunciam o campo.

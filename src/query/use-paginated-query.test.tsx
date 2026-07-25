@@ -73,3 +73,72 @@ describe("usePaginatedQuery", () => {
         );
     });
 });
+
+describe("usePaginatedQuery — ordering and navigation clamps", () => {
+    it("sends order_by and ascending when ordering is configured", async () => {
+        const queryFn = vi.fn(async () => pageOf(1, 10, 30));
+        const { result } = renderHook(
+            () =>
+                usePaginatedQuery({
+                    queryKey: ["ordered"],
+                    queryFn,
+                    orderBy: "created_at",
+                    ascending: false,
+                }),
+            { wrapper: wrapper() },
+        );
+        await waitFor(() => expect(result.current.page).toBeDefined());
+        expect(queryFn).toHaveBeenCalledWith(
+            expect.objectContaining({ order_by: "created_at", ascending: false }),
+        );
+    });
+
+    it("omits ordering params when orderBy is absent", async () => {
+        const queryFn = vi.fn(async () => pageOf(1, 10, 30));
+        const { result } = renderHook(() => usePaginatedQuery({ queryKey: ["plain"], queryFn }), {
+            wrapper: wrapper(),
+        });
+        await waitFor(() => expect(result.current.page).toBeDefined());
+        const params = queryFn.mock.calls[0][0] as Record<string, unknown>;
+        expect(params.order_by).toBeUndefined();
+        expect(params.ascending).toBeUndefined();
+    });
+
+    it("clamps setPage to the first page", async () => {
+        const queryFn = vi.fn(async (params: { page: number }) => pageOf(params.page, 10, 30));
+        const { result } = renderHook(() => usePaginatedQuery({ queryKey: ["clamp"], queryFn }), {
+            wrapper: wrapper(),
+        });
+        await waitFor(() => expect(result.current.page).toBeDefined());
+
+        act(() => result.current.setPage(-3));
+        await waitFor(() => expect(result.current.page?.page).toBe(1));
+    });
+
+    it("next() stops at the last page and prev() stops at the first", async () => {
+        const queryFn = vi.fn(async (params: { page: number }) => pageOf(params.page, 10, 20));
+        const { result } = renderHook(() => usePaginatedQuery({ queryKey: ["ends"], queryFn }), {
+            wrapper: wrapper(),
+        });
+        await waitFor(() => expect(result.current.page).toBeDefined());
+
+        act(() => result.current.prev());
+        await waitFor(() => expect(result.current.page?.page).toBe(1));
+
+        act(() => result.current.next());
+        await waitFor(() => expect(result.current.page?.page).toBe(2));
+        act(() => result.current.next());
+        await waitFor(() => expect(result.current.hasNext).toBe(false));
+        expect(result.current.page?.page).toBe(2);
+    });
+
+    it("reports pageCount 0 before the first page resolves", () => {
+        const queryFn = vi.fn(async () => pageOf(1, 10, 30));
+        const { result } = renderHook(() => usePaginatedQuery({ queryKey: ["pending"], queryFn }), {
+            wrapper: wrapper(),
+        });
+        expect(result.current.pageCount).toBe(0);
+        expect(result.current.hasNext).toBe(false);
+        expect(result.current.hasPrev).toBe(false);
+    });
+});

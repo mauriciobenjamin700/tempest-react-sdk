@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { Menubar } from "./Menubar";
@@ -60,6 +60,52 @@ describe("Menubar", () => {
         await userEvent.click(screen.getByText("File"));
         await userEvent.keyboard("{ArrowRight}");
         expect(screen.getByText("Undo")).toBeInTheDocument();
+        expect(screen.queryByText("New")).not.toBeInTheDocument();
+    });
+});
+
+describe("Menubar — keyboard wrap and dismissal", () => {
+    it("Escape closes and returns focus to the trigger", async () => {
+        render(<Menubar menus={buildMenus()} />);
+        const file = screen.getByRole("menuitem", { name: "File" });
+        await userEvent.click(file);
+        expect(screen.getByText("New")).toBeInTheDocument();
+
+        fireEvent.keyDown(window, { key: "Escape" });
+        expect(screen.queryByText("New")).not.toBeInTheDocument();
+        expect(document.activeElement).toBe(file);
+    });
+
+    it("ArrowLeft wraps back to the last menu", async () => {
+        render(<Menubar menus={buildMenus()} />);
+        await userEvent.click(screen.getByRole("menuitem", { name: "File" }));
+
+        fireEvent.keyDown(window, { key: "ArrowLeft" });
+        expect(screen.getByText("Undo")).toBeInTheDocument();
+    });
+
+    it("ArrowRight wraps from the last menu to the first", async () => {
+        render(<Menubar menus={buildMenus()} />);
+        await userEvent.click(screen.getByRole("menuitem", { name: "Edit" }));
+
+        fireEvent.keyDown(window, { key: "ArrowRight" });
+        expect(screen.getByText("New")).toBeInTheDocument();
+    });
+
+    it("closes on an outside mousedown but not inside", async () => {
+        render(<Menubar menus={buildMenus()} />);
+        await userEvent.click(screen.getByRole("menuitem", { name: "File" }));
+
+        fireEvent.mouseDown(screen.getByText("New"));
+        expect(screen.getByText("New")).toBeInTheDocument();
+
+        fireEvent.mouseDown(document.body);
+        expect(screen.queryByText("New")).not.toBeInTheDocument();
+    });
+
+    it("ignores keys while every menu is closed", () => {
+        render(<Menubar menus={buildMenus()} />);
+        fireEvent.keyDown(window, { key: "ArrowRight" });
         expect(screen.queryByText("New")).not.toBeInTheDocument();
     });
 });

@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { OffsetPage } from "./pagination";
+import type { OffsetPage, OffsetParams } from "./pagination";
 import { usePaginatedQuery } from "./use-paginated-query";
 
 function wrapper() {
@@ -94,18 +94,18 @@ describe("usePaginatedQuery — ordering and navigation clamps", () => {
     });
 
     it("omits ordering params when orderBy is absent", async () => {
-        const queryFn = vi.fn(async () => pageOf(1, 10, 30));
+        const queryFn = vi.fn(async (_params: OffsetParams) => pageOf(1, 10, 30));
         const { result } = renderHook(() => usePaginatedQuery({ queryKey: ["plain"], queryFn }), {
             wrapper: wrapper(),
         });
         await waitFor(() => expect(result.current.page).toBeDefined());
-        const params = queryFn.mock.calls[0][0] as Record<string, unknown>;
+        const params = queryFn.mock.calls[0]![0] as Record<string, unknown>;
         expect(params.order_by).toBeUndefined();
         expect(params.ascending).toBeUndefined();
     });
 
     it("clamps setPage to the first page", async () => {
-        const queryFn = vi.fn(async (params: { page: number }) => pageOf(params.page, 10, 30));
+        const queryFn = vi.fn(async (params: OffsetParams) => pageOf(Number(params.page), 10, 30));
         const { result } = renderHook(() => usePaginatedQuery({ queryKey: ["clamp"], queryFn }), {
             wrapper: wrapper(),
         });
@@ -116,7 +116,7 @@ describe("usePaginatedQuery — ordering and navigation clamps", () => {
     });
 
     it("next() stops at the last page and prev() stops at the first", async () => {
-        const queryFn = vi.fn(async (params: { page: number }) => pageOf(params.page, 10, 20));
+        const queryFn = vi.fn(async (params: OffsetParams) => pageOf(Number(params.page), 10, 20));
         const { result } = renderHook(() => usePaginatedQuery({ queryKey: ["ends"], queryFn }), {
             wrapper: wrapper(),
         });

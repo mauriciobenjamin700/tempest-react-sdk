@@ -14,10 +14,14 @@ jobs:
         name: Publish tempest-react-sdk
         runs-on: ubuntu-latest
         permissions:
-            contents: read
+            # contents: write is what lets the last step cut the GitHub Release
+            # for the tag that triggered this run.
+            contents: write
             id-token: write
         steps:
             - uses: actions/checkout@v5
+              with:
+                  fetch-depth: 0
 
             - name: Set up Node.js
               uses: actions/setup-node@v5
@@ -32,6 +36,29 @@ jobs:
             # token from the GitHub OIDC identity — no NPM_TOKEN needed.
             - name: Upgrade npm for Trusted Publishing
               run: npm install -g npm@latest
+
+            # Guard: the git tag and package.json must agree before anything is
+            # published, otherwise npm gets a version the tag does not describe
+            # and the GitHub Release ends up pointing at the wrong code.
+            - name: Resolve version and check it matches the tag
+              id: version
+              run: |
+                  PKG_VERSION=$(node -p "require('./package.json').version")
+                  if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+                    TAG_VERSION="${GITHUB_REF_NAME#v}"
+                    if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+                      echo "::error::tag ${GITHUB_REF_NAME} does not match package.json version ${PKG_VERSION}"
+                      exit 1
+                    fi
+                    echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+                  else
+                    echo "tag=v${PKG_VERSION}" >> "$GITHUB_OUTPUT"
+                  fi
+                  echo "version=${PKG_VERSION}" >> "$GITHUB_OUTPUT"
+                  case "$PKG_VERSION" in
+                    *-*) echo "prerelease=true" >> "$GITHUB_OUTPUT" ;;
+                    *) echo "prerelease=false" >> "$GITHUB_OUTPUT" ;;
+                  esac
 
             - name: Install dependencies
               run: npm ci
@@ -75,3 +102,56 @@ jobs:
             # this repo + workflow file (release-npm.yml).
             - name: Publish (Trusted Publishing / OIDC)
               run: npm publish --provenance --access public
+
+            # Registry read-back: npm must actually serve this version, and the
+            # `latest` dist-tag must point at it — a publish that silently landed
+            # under another tag would otherwise look like a green release.
+            - name: Verify the npm registry serves this version as latest
+              run: |
+                  VERSION="${{ steps.version.outputs.version }}"
+                  PKG_NAME=$(node -p "require('./package.json').name")
+                  for attempt in 1 2 3 4 5; do
+                    PUBLISHED=$(npm view "${PKG_NAME}@${VERSION}" version 2>/dev/null || true)
+                    [ -n "$PUBLISHED" ] && break
+                    echo "· registry has not caught up yet (attempt ${attempt}); retrying in 10s"
+                    sleep 10
+                  done
+                  if [ "$PUBLISHED" != "$VERSION" ]; then
+                    echo "::error::npm does not serve ${PKG_NAME}@${VERSION} (got '${PUBLISHED}')"
+                    exit 1
+                  fi
+                  LATEST=$(npm view "${PKG_NAME}" dist-tags.latest 2>/dev/null || true)
+                  if [ "$LATEST" != "$VERSION" ]; then
+                    echo "::error::npm dist-tag latest is '${LATEST}', expected '${VERSION}'"
+                    exit 1
+                  fi
+                  echo "✓ npm: ${PKG_NAME}@${VERSION} published and tagged latest"
+
+            # Keeps GitHub in step with npm: every published version gets the
+            # matching GitHub Release, with its CHANGELOG section as the notes and
+            # the packed tarball attached. Idempotent — re-running a tag edits the
+            # existing Release instead of failing.
+            - name: Create or update the GitHub Release
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  TAG: ${{ steps.version.outputs.tag }}
+                  VERSION: ${{ steps.version.outputs.version }}
+                  PRERELEASE: ${{ steps.version.outputs.prerelease }}
+              run: |
+                  node scripts/changelog.mjs notes "$VERSION" --allow-unreleased > /tmp/release-notes.md
+                  {
+                    echo ""
+                    echo "---"
+                    echo ""
+                    echo "📦 npm: [\`tempest-react-sdk@${VERSION}\`](https://www.npmjs.com/package/tempest-react-sdk/v/${VERSION}) — publicado com provenance (OIDC)."
+                  } >> /tmp/release-notes.md
+                  TARBALL=$(npm pack --silent)
+                  FLAGS=(--title "$TAG" --notes-file /tmp/release-notes.md)
+                  [ "$PRERELEASE" = "true" ] && FLAGS+=(--prerelease)
+                  if gh release view "$TAG" >/dev/null 2>&1; then
+                    gh release edit "$TAG" "${FLAGS[@]}"
+                    gh release upload "$TAG" "$TARBALL" --clobber
+                  else
+                    gh release create "$TAG" "$TARBALL" "${FLAGS[@]}"
+                  fi
+                  echo "✓ GitHub Release ${TAG} em sincronia com npm ${VERSION}"

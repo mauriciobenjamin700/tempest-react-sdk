@@ -13,7 +13,7 @@ SDK público da Tempest com componentes React, hooks e integrações reutilizáv
 - **Subpaths** (8): `.`, `/testing` (MSW), `/vite` (`createViteConfig`), `/sw` (helpers de contexto SW), `/charts` (recharts peer), `/editor` (tiptap peer), `/vision` (onnxruntime-web peer), `/br` (dataset BR + mapa clicável), `/styles.css`.
 - **CLIs** (`bin/`): `create-tempest-app` (scaffold — invocado como `npx -p tempest-react-sdk create-tempest-app .`; **não** existe pacote `create-tempest-app` no npm, então `npm create tempest-app` dá 404) com templates `template/` e `template-pwa/`; `tempest` (project CLI: `doctor`, `lint`, `fix`, `format`, `gen api <openapi>` → Zod + types + services).
 - **Style modules**: `colors.css` + `typography.css` + `motion.css` + `density.css` + `reset.css` + `responsive.css` + `print.css`.
-- **Tooling**: Prettier 3, Husky pre-commit (lint-staged), `Makefile` + `scripts/release.sh` (tag-push pipeline), 4 workflows — `ci.yml` (PR, matriz node 20/22), `release-npm.yml` (tag push), `size-limit.yml`, `docs.yml` (Pages).
+- **Tooling**: Prettier 3, Husky pre-commit (lint-staged), `Makefile` + `scripts/release.sh` (tag-push pipeline) + `scripts/changelog.mjs` (notes/close) + `scripts/sync-github-releases.sh` (backfill de Releases), 5 workflows — `ci.yml` (PR, matriz node 20/22), `release-npm.yml` (tag push → guard de versão + publish OIDC + read-back do registry + GitHub Release), `size-limit.yml`, `e2e.yml` (gallery), `docs.yml` (Pages).
 - **Docs**: 44 páginas base em `docs/` (88 arquivos com as traduções `.en.md`) + 10 páginas de componentes por categoria + tutorial de 6 páginas + 3 diagramas drawio + `llms.txt`/`llms-full.txt` (`npm run docs:llms`).
 - **Demo vivo**: app Vite em `examples/gallery` (37 sections) consome o SDK via `file:../..`.
 
@@ -89,8 +89,8 @@ tempest-react-sdk/
 ├── docs/               44 páginas base (+ .en.md) + components/ + tutorial/ + diagrams/ + llms.txt
 ├── examples/gallery/   app Vite com 37 sections consumindo o SDK (file:../..)
 ├── test/setup.ts       jsdom + jest-dom + fake-indexeddb auto
-├── Makefile            release / validate / bump / releases-md alvos
-├── scripts/            release.sh (tag-push), gen-llms.mjs, gen-br-geodata.mjs, vendor-vision.mjs
+├── Makefile            release / validate / bump / releases-md / releases-check / releases-sync alvos
+├── scripts/            release.sh (tag-push), changelog.mjs, sync-github-releases.sh, gen-llms.mjs, gen-br-geodata.mjs, vendor-vision.mjs
 ├── RELEASES.md         auto-gerado por `make releases-md`
 └── .github/workflows/
     ├── ci.yml          PR — format + lint + typecheck + test + build (node 20/22)
@@ -151,6 +151,7 @@ npm run dev               # http://127.0.0.1:5173
 - **`dist` com grafo de módulos preservado** (v0.23.0+) — `preserveModules` no Rollup em vez de bundle por entrada. Muitos arquivos em `dist` é esperado, não regressão. Budgets de tamanho medem fatias importadas.
 - **Sem barrel default export** — sempre named exports.
 - **Sem Changesets** — pipeline tag-push (`make release TAG=X`) via `scripts/release.sh` + workflow `release-npm.yml`.
+- **Três superfícies sincronizadas por release**: git tag, versão no npm e GitHub Release. O workflow aborta se a tag não bater com o `package.json`, faz read-back do registry (`dist-tags.latest`) e cria/atualiza o Release com as notas do CHANGELOG. `make releases-check` audita; `make releases-sync` faz backfill de tags antigas.
 - **i18n minimalista in-house** — apps que precisarem de plurais avançados / namespaces / async devem usar `i18next` direto. SDK cobre o caso simples e barato (~1.5KB gzip).
 - **Tema dark via `data-tempest-theme="dark"`** — não usar `class="dark"`. Permite escopo parcial (subárvore).
 - **Validações BR** (`validateCPF`/`validateCNPJ`) — algoritmo completo, rejeita todos-iguais.

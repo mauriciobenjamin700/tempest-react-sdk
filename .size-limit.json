@@ -154,7 +154,7 @@
     ]
   },
   {
-    "name": "ceiling: full barrel ESM (nobody imports this \u2014 tree-shaking is the real cost)",
+    "name": "ceiling: full barrel ESM (nobody imports this — tree-shaking is the real cost)",
     "path": "dist/tempest-react-sdk.js",
     "limit": "80 KB",
     "ignore": [
@@ -173,7 +173,7 @@
     ]
   },
   {
-    "name": "ceiling: full barrel CJS (no tree-shaking \u2014 worst case for require() consumers)",
+    "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
     "limit": "95 KB",
     "ignore": [
@@ -222,7 +222,7 @@
     "ignore": ["onnxruntime-web"]
   },
   {
-    "name": "br entry \u2014 full opt-in surface incl. ALL lazy UF/municipality/centroid chunks",
+    "name": "br entry — full opt-in surface incl. ALL lazy UF/municipality/centroid chunks",
     "path": "dist/br.js",
     "limit": "500 KB",
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
@@ -231,5 +231,10 @@
     "name": "styles.css",
     "path": "dist/styles.css",
     "limit": "24 KB"
+  },
+  {
+    "name": "utilities.css (opt-in layer)",
+    "path": "dist/utilities.css",
+    "limit": "3 KB"
   }
 ]

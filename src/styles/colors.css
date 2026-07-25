@@ -163,6 +163,27 @@
     --tempest-bp-2xl: 1536px;
 
     /* ============================================================
+     * Data visualization — categorical series colors, in cycle order.
+     * `tempest-react-sdk/charts` reads these at runtime (see
+     * `resolveChartColors`), so rebranding via `createTheme` moves the
+     * charts too instead of leaving a hardcoded palette behind.
+     * Hues are spaced for categorical distinction, not for a ramp — for
+     * a sequential/diverging scale use `--tempest-primary-*`.
+     * ============================================================ */
+    --tempest-chart-1: #2563eb;
+    --tempest-chart-2: #16a34a;
+    --tempest-chart-3: #f59e0b;
+    --tempest-chart-4: #7c3aed;
+    --tempest-chart-5: #ec4899;
+    --tempest-chart-6: #06b6d4;
+    --tempest-chart-7: #ea580c;
+    --tempest-chart-8: #0f766e;
+
+    /* Chart chrome — axis lines, grid and tooltip surface. */
+    --tempest-chart-grid: var(--tempest-gray-200);
+    --tempest-chart-axis: var(--tempest-gray-500);
+
+    /* ============================================================
      * Safe-area insets (iOS notch / Android gesture area) — fall back
      * to 0 when not supported. Use to keep fixed-position elements
      * (toasts, drawers, modals) clear of system UI.
@@ -240,4 +261,18 @@
     --tempest-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2);
     --tempest-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5), 0 4px 8px rgba(0, 0, 0, 0.3);
     --tempest-shadow-xl: 0 24px 48px rgba(0, 0, 0, 0.6), 0 8px 16px rgba(0, 0, 0, 0.3);
+
+    /* Series colors lightened for a dark canvas: the light-theme values keep
+       their hue but lose too much contrast against `--tempest-bg`. */
+    --tempest-chart-1: #60a5fa;
+    --tempest-chart-2: #4ade80;
+    --tempest-chart-3: #fbbf24;
+    --tempest-chart-4: #a78bfa;
+    --tempest-chart-5: #f472b6;
+    --tempest-chart-6: #22d3ee;
+    --tempest-chart-7: #fb923c;
+    --tempest-chart-8: #2dd4bf;
+
+    --tempest-chart-grid: var(--tempest-gray-300);
+    --tempest-chart-axis: var(--tempest-gray-600);
 }

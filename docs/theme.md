@@ -130,6 +130,118 @@ Os tokens `--tempest-*` são a única API de tema. Sobrescreva-os em qualquer po
 !!! note "Tokens são API pública"
     Como apps dependem desses nomes, mudar/remover um token é breaking change — por isso eles seguem o versionamento semântico do SDK.
 
+## `createTheme` — a marca inteira a partir de uma cor
+
+Sobrescrever token por token funciona pra um ajuste pontual. Pra **trocar a marca**, são ~30 valores só de `primary` (dez degraus × claro/escuro, mais os aliases de hover/active/soft) — e é fácil errar a inversão do ramp no dark. `createTheme` gera tudo:
+
+```tsx
+import { applyTheme, createTheme } from "tempest-react-sdk";
+
+const theme = createTheme({ primary: "#7c3aed" });
+
+applyTheme(theme);
+```
+
+Pronto: os 104 componentes passam a usar a marca nova, no claro e no escuro.
+
+### O que ele gera
+
+```ts
+const theme = createTheme({
+  primary: "#7c3aed",          // escala 50→900 + hover/active/soft/foreground/focus-ring
+  gray: "#6b7280",             // superfícies, bordas e texto
+  success: "#16a34a",          // cada status vira -fg / -bg / -border / -solid
+  danger: "#dc2626",
+  chart: ["#7c3aed", "#0ea5e9", "#22c55e"],  // --tempest-chart-1..N (ver Charts)
+  radius: "lg",                // "none" | "sm" | "md" | "lg" | "xl" | "full"
+  focusRingAlpha: 0.35,
+});
+
+theme.light; // { "--tempest-primary-500": "#7c3aed", … }
+theme.dark;  // idem, com o ramp invertido
+theme.css;   // ":root { … }\n\n[data-tempest-theme=\"dark\"] { … }"
+```
+
+Só as famílias que você passa são geradas — o resto continua vindo do `colors.css` do SDK. Um tema é um **patch**, não um fork da paleta.
+
+!!! info "Por que OKLCH e não HSL"
+    A escala é derivada em OKLCH porque lightness em HSL **não é perceptual**: um amarelo e um azul com o mesmo `L` em HSL têm brilho visivelmente diferente, e é exatamente isso que faz uma paleta gerada parecer "quebrada" em algumas cores. Em OKLCH o degrau `500` de qualquer marca ocupa o mesmo lugar visual.
+
+!!! tip "O passo de texto sobre a tinta soft é medido, não convencionado"
+    `--tempest-primary-on-soft` não é fixo no `600`: o SDK **mede** o contraste contra a tinta `50` e desce no ramp até passar de 4.5:1 (AA para texto). Isso não é preciosismo — o azul padrão só alcança 4.37:1 no `500` sobre a própria tinta, e um emerald gerado para em 4.41:1 no `600`. Os dois reprovariam AA por um fio.
+
+### Presets prontos
+
+```tsx
+import { applyTheme, createTheme, themePresets } from "tempest-react-sdk";
+
+applyTheme(createTheme(themePresets.violet));
+
+// ou partindo de um e ajustando
+applyTheme(createTheme({ ...themePresets.emerald, radius: "full" }));
+```
+
+Presets disponíveis: `tempest` (o default do SDK), `violet`, `emerald`, `rose`, `slate`, `amber`. Cada um é um objeto de opções — dado, não CSS —, então dá pra guardar o nome escolhido em `localStorage` e resolver com `getThemePreset(name)` (que devolve `undefined` para nome inválido em vez de explodir no boot).
+
+### Trocando de tema em runtime
+
+```tsx
+import { applyTheme, createTheme, getThemePreset } from "tempest-react-sdk";
+import { useEffect, useState } from "react";
+
+export function BrandPicker() {
+  const [brand, setBrand] = useState(() => localStorage.getItem("brand") ?? "tempest");
+
+  useEffect(() => {
+    const preset = getThemePreset(brand);
+    if (!preset) return;
+    localStorage.setItem("brand", brand);
+    return applyTheme(createTheme(preset));
+  }, [brand]);
+
+  return (
+    <select value={brand} onChange={(event) => setBrand(event.target.value)}>
+      {["tempest", "violet", "emerald", "rose", "slate", "amber"].map((name) => (
+        <option key={name} value={name}>{name}</option>
+      ))}
+    </select>
+  );
+}
+```
+
+`applyTheme` é **idempotente**: ele é dono de um `<style id="tempest-theme">` e reescreve o conteúdo, então um seletor de marca pode ser acionado à vontade sem empilhar folhas mortas no `<head>`. O retorno é o disposer (usado como cleanup do effect acima).
+
+!!! tip "Tema escopado numa subárvore"
+    Passe `selector`/`darkSelector` no `createTheme` e `id`/`target` no `applyTheme` pra pintar só um pedaço da tela — útil pra preview de marca:
+
+    ```tsx
+    applyTheme(
+      createTheme({ primary: "#e11d48", selector: ".preview", darkSelector: '.preview[data-tempest-theme="dark"]' }),
+      { id: "preview-theme" },
+    );
+    ```
+
+### Sem JS: cole o CSS gerado
+
+`theme.css` é texto. Se você prefere um tema estático (zero JS no caminho crítico), gere uma vez e cole no CSS global do app:
+
+```bash
+node -e "import('tempest-react-sdk').then(({ createTheme }) => console.log(createTheme({ primary: '#7c3aed' }).css))" > src/brand.css
+```
+
+### Auditando o contraste da sua marca
+
+```ts
+import { contrastRatio, createColorScale, themeContrast } from "tempest-react-sdk";
+
+themeContrast({ primary: "#fde047" }); // 15.2 — texto escuro foi escolhido automaticamente
+
+const scale = createColorScale("#7c3aed");
+contrastRatio(scale[500], "#ffffff");  // asserte no seu teste, se a marca é requisito
+```
+
+`--tempest-primary-foreground` (e `--tempest-text-on-primary`) é escolhido por contraste medido entre branco e o cinza escuro — hardcodar branco produziria botões ilegíveis em marcas claras (amarelo, lima, ciano).
+
 ## Integração com o CSS do app + `theme-color`
 
 Os componentes do SDK leem `data-tempest-theme`. Se o **CSS próprio do seu app** já chaveia o tema em outro atributo (ex.: `[data-theme="dark"]`), você não precisa de um effect de sincronização — passe um array em `attribute` e o provider escreve o tema resolvido em **todos**:

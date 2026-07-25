@@ -6,6 +6,73 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`createTheme` — a marca inteira a partir de uma cor.** Trocar a marca exigia
+  escrever ~30 valores só de `primary` (dez degraus × claro/escuro + os aliases
+  de hover/active/soft) e acertar na mão a **inversão do ramp** no tema escuro.
+  Agora `createTheme({ primary: "#7c3aed" })` deriva tudo: escalas de `primary` e
+  `gray`, os quatro status (`-fg`/`-bg`/`-border`/`-solid`), tokens de gráfico,
+  escala de radius e o focus ring. Devolve `{ light, dark, css }` — só as
+  famílias passadas são geradas, então um tema é **patch** e não fork do
+  `colors.css`.
+- **A escala é derivada em OKLCH**, não em HSL: lightness em HSL não é
+  perceptual, e é isso que faz uma paleta gerada parecer quebrada em algumas
+  matizes (um amarelo e um azul com o mesmo `L` têm brilho bem diferente). A
+  matiz e a croma da cor de entrada são preservadas, então marca discreta gera
+  escala discreta em vez de ser "corrigida". Conversões expostas (`hexToOklch`,
+  `oklchToHex`, `createColorScale`, `contrastRatio`, `relativeLuminance`,
+  `readableForeground`) — zero dependência nova.
+- **Contraste é medido, não convencionado.** `--tempest-primary-foreground` é
+  escolhido por contraste entre branco e o cinza escuro (hardcodar branco
+  produziria botão ilegível em marca clara — amarelo, lima, ciano), e
+  `--tempest-primary-on-soft` desce no ramp até passar de 4.5:1 sobre a tinta
+  soft. Isso saiu de um teste que falhou: o passo fixo `600` do emerald gerado
+  parava em 4.41:1, e o azul embutido só alcança 4.37:1 no `500` — os dois
+  reprovavam AA por um fio. `themeContrast()` expõe a medição pra quem quer
+  assertar a própria marca no teste.
+- **`applyTheme(theme)`** instala o tema num `<style id="tempest-theme">` que ele
+  mesmo gerencia — idempotente, então um seletor de marca pode ser acionado à
+  vontade sem empilhar folhas mortas no `<head>`. Retorna o disposer, aceita
+  `id`/`target` (subárvore ou shadow root) e é no-op fora do browser.
+  `readThemeToken(name, element?)` lê um token computado pra JS que não aceita
+  `var()` (canvas, `<meta name="theme-color">`, libs de gráfico).
+- **6 presets de marca** (`themePresets`: `tempest`, `violet`, `emerald`, `rose`,
+  `slate`, `amber`) como **objeto de opções**, não CSS — dá pra espalhar e
+  sobrescrever um campo. `getThemePreset(name)` devolve `undefined` para nome
+  inválido, então um valor vindo de `localStorage` não quebra o boot.
+- **Tokens de data viz** — `--tempest-chart-1` … `--tempest-chart-8` (categóricas,
+  espaçadas por matiz) + `--tempest-chart-grid` / `--tempest-chart-axis`, com
+  versão clareada no bloco dark.
+- **`tempest-react-sdk/utilities.css` — camada de layout opt-in.** Os CSS Modules
+  resolvem o **dentro** de cada componente; o que sobrava pro app era o **em
+  volta** — casca de página, form de duas colunas, linha de ações, card, região
+  que rola na horizontal. Todo app reescrevia esse CSS. Agora são ~50 classes
+  prefixadas `tempest-`, escritas **só com tokens** `--tempest-*` (nenhuma cor
+  literal, nenhum número mágico), então a camada acompanha o tema e o modo escuro.
+  Primitivas: `container`, `stack`, `cluster`, `row`, `center`, `spread`,
+  `grid-auto` (responsivo **sem media query**), `sidebar-layout`, `form-grid` +
+  `form-span`, `fill`/`fixed`, escala de `gap`/`pad`, `truncate`/`clamp-2..4`,
+  `card`/`panel`/`inset`/`divider`, `scroll-x`/`scroll-y`, `page` +
+  `page-header`/`page-title`/`toolbar`, `aspect-video`/`aspect-square`,
+  `visually-hidden`, `numeric` (tabular-nums), `busy`.
+- **Ajuste por instância via custom property**, não por variante de classe:
+  `--tempest-grid-min`, `--tempest-stack-gap`, `--tempest-sidebar-width`,
+  `--tempest-container-width`, `--tempest-form-columns` etc. — `style={{
+"--tempest-grid-min": "220px" }}` resolve sem escrever CSS.
+- **Novo subpath `./utilities.css`** e um passo de build (`scripts/copy-css-assets.mjs`)
+  que copia o arquivo pra `dist/` **sem** passar pelo grafo de módulos: o
+  `cssCodeSplit: false` do Vite juntaria a camada dentro do `styles.css`, e ela
+  precisa continuar separada pra ser de fato opt-in. Budget próprio no
+  `size-limit`: **1.13 KB brotli** (limite 3 KB).
+
+Fica **opt-in de propósito**: são nomes de classe globais, e um app que já tem
+sistema de layout próprio não deve pagar por eles. E não é um Tailwind — a decisão
+"CSS Modules + tokens é a estratégia de estilo dos componentes" segue de pé; isto
+é ferramenta pro código do app, não um segundo caminho de estilizar o SDK.
+
+Um teste de contrato guarda essas promessas (prefixo em toda classe, zero cor
+literal, zero `!important`, só tokens `--tempest-*` referenciados, fora do
+`index.css` e presente no `exports`) — sem ele a camada apodrece em silêncio.
+
 - **`<TreeView>`** — árvore acessível para dado hierárquico (categorias,
   permissões por módulo, pastas, organograma), que era a lacuna mais óbvia do
   catálogo: os 104 componentes cobriam lista e tabela, e nada cobria hierarquia.
@@ -31,6 +98,23 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   indicador continua **read-only por default**: num fluxo com gates, deixar pular
   livremente contradiz o motivo do fluxo existir.
 - Os dois entraram no sweep de acessibilidade em jsdom (`axe`), sem violações.
+
+### Corrigido
+
+- **Gráficos ignoravam o tema.** O módulo `/charts` usava `DEFAULT_CHART_COLORS`
+  **hardcoded em JS**: rebrandar o app via tokens não mexia em nenhuma série, e
+  virar o tema escuro deixava cores de tema claro num canvas escuro. Os cinco
+  gráficos agora resolvem `--tempest-chart-*` em runtime (`useChartColors`, que
+  re-resolve observando `data-tempest-theme`); `colors` explícito continua
+  ganhando e curto-circuita o observer. `DEFAULT_CHART_COLORS` passou a ser o
+  **fallback** (sem `styles.css`, fora do browser, página sem os tokens).
+- **A doc de charts ensinava algo que não funciona.** Ela sugeria
+  `colors={["var(--tempest-color-primary)"]}`; recharts aplica cor como
+  **atributo de apresentação** do SVG e navegador nenhum resolve `var()` ali —
+  custom property só resolve em declaração CSS, então a série renderizava
+  inválida (invisível). A seção foi reescrita (PT + EN) com o porquê e com o
+  caminho certo (`resolveChartColors` / `readThemeToken`), e a coluna "default"
+  das tabelas de props deixou de mentir.
 
 ## [0.24.0] — 2026-07-25
 

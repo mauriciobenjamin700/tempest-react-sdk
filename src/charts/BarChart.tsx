@@ -9,7 +9,7 @@ import {
     YAxis,
 } from "recharts";
 import { cn } from "@/utils/cn";
-import { DEFAULT_CHART_COLORS } from "./palette";
+import { useChartColors } from "./use-chart-colors";
 import { toTooltipFormatter } from "./types";
 import type { CartesianChartProps } from "./types";
 
@@ -17,7 +17,7 @@ import type { CartesianChartProps } from "./types";
  * BarChart — themed wrapper over recharts `BarChart`.
  *
  * Plots one bar series per entry in `categories`, colored from `colors`
- * (cycling {@link DEFAULT_CHART_COLORS} by default). When `stack` is set, all
+ * (cycling the `--tempest-chart-*` theme tokens by default). When `stack` is set, all
  * bars share a stackId. When `width` is provided the chart renders at that
  * fixed size without a ResponsiveContainer; otherwise it fills its parent.
  */
@@ -25,7 +25,7 @@ export function BarChart({
     data,
     index,
     categories,
-    colors = DEFAULT_CHART_COLORS,
+    colors,
     height = 300,
     width,
     stack = false,
@@ -35,6 +35,7 @@ export function BarChart({
     valueFormatter,
     className,
 }: CartesianChartProps) {
+    const palette = useChartColors(colors);
     const stackId = stack ? "stack" : undefined;
 
     const chart = (
@@ -49,7 +50,7 @@ export function BarChart({
                     key={category}
                     dataKey={category}
                     stackId={stackId}
-                    fill={colors[i % colors.length]}
+                    fill={palette[i % palette.length]}
                 />
             ))}
         </RBarChart>

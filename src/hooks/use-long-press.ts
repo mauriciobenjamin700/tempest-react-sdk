@@ -24,7 +24,9 @@ export function useLongPress<T extends HTMLElement>(
 ): void {
     const { delay = 500, moveThreshold = 10 } = options;
     const fnRef = useRef(fn);
-    fnRef.current = fn;
+    useEffect(() => {
+        fnRef.current = fn;
+    }, [fn]);
 
     useEffect(() => {
         const node = ref.current;

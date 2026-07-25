@@ -44,7 +44,9 @@ export function useEventStream<T = unknown>(
     const reconnectRef = useRef<(() => void) | null>(null);
 
     const onMessageRef = useRef(onMessage);
-    onMessageRef.current = onMessage;
+    useEffect(() => {
+        onMessageRef.current = onMessage;
+    }, [onMessage]);
 
     useEffect(() => {
         if (!enabled || !url) {

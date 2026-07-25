@@ -6,6 +6,52 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **`<Tooltip>` deixava de cancelar a abertura pendente.** O handle do timer vivia
+  num `let` no corpo do componente, e esse binding é **recriado a cada render** —
+  então qualquer re-render entre o `mouseenter` e o `mouseleave` (update do pai,
+  mudança de estado em outro lugar) descartava o handle, o `clearTimeout` cancelava
+  nada e o tooltip abria com o ponteiro já fora. Virou `useRef` + cleanup no
+  unmount. Achado pela regra `react-hooks/immutability`, e coberto por um teste de
+  regressão que **falha** na implementação antiga (verificado apontando o teste
+  para a versão anterior do arquivo).
+- **`<RefreshIndicator>`: `engaged` saía de um ref lido no render.** Ref não é
+  reativo, então a classe renderizada dependia de um valor pelo qual o React nunca
+  re-renderiza — só parecia certo porque os handlers de toque também chamavam
+  `setPull`. Agora é estado de verdade.
+- **`useAudio` criava o player durante o render.** `if (!ref.current) ref.current =
+createAudioPlayer()` é efeito colateral em tempo de render; virou inicializador
+  de `useState`, que roda exatamente uma vez. De brinde o valor deixou de ser
+  nullable, e as duas `useCallback` que dependiam dele ganharam a dep que faltava.
+
+### Alterado
+
+- **Regras do React Compiler ligadas** (`eslint-plugin-react-hooks` v7 completo).
+  17 sites que escreviam o "latest ref" no corpo do hook passaram a escrever em
+  `useEffect` — legítimo aqui porque quem consome esses refs são subscriptions,
+  timers e handlers, que só disparam depois do commit.
+- **Regras escopadas a código de produto.** Teste e gallery ficam de fora das
+  regras do Compiler: um teste escreve em ref e faz stub de global justamente pra
+  simular ambiente que o componente não controla, e sinalizar isso é ruído, não
+  segurança. O par clássico (`rules-of-hooks`, `exhaustive-deps`) continua valendo
+  em todo lugar. Isso derrubou o volume de 91 para 53 diagnósticos antes de
+  qualquer refatoração.
+- **5 hooks ficam explicitamente exentos**, com o porquê no próprio arquivo:
+  `useStableCallback` (mover pra effect abriria janela de staleness de um commit
+  num primitivo que outros hooks usam — o caso de uso do futuro `useEffectEvent`),
+  `useDeepMemo` (o cache é ref lido e escrito no render, e a escrita é idempotente,
+  então replay de render não muda resultado), `usePrevious` e `useIsFirstRender`
+  (o acesso ao ref no render **é** o contrato), e `usePushSubscription` +
+  `Tooltip` (o ref é lido dentro de callback diferido, não no render).
+- **`set-state-in-effect` fica desligada por ora**, com a justificativa no próprio
+  `eslint.config.js`: são 19 sites em 18 arquivos que semeiam estado a partir de
+  sistema externo (media query, storage estimate, geolocalização, install prompt,
+  status de socket…). Cada um precisa de decisão própria — derivar, migrar pra
+  `useSyncExternalStore`, ou manter com justificativa — e juntar esse julgamento na
+  mesma mudança que ligou as regras deixaria os dois irrevisáveis. O follow-up
+  religa como `error`.
+
+### Corrigido
+
 - **`createTheme` não entregava a sua cor de marca.** O degrau `500` era forçado na
   lightness alvo da curva, então `primary: "#7c3aed"` voltava como `#9161fe` —
   mesma matiz, mesma croma, **re-clareado**. A doc até afirmava

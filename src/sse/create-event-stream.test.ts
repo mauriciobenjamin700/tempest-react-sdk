@@ -164,3 +164,35 @@ describe("createEventStream — status, ids and manual control", () => {
         vi.unstubAllGlobals();
     });
 });
+
+describe("createEventStream — handlers after close", () => {
+    it("stops reconnecting once closed", async () => {
+        vi.useFakeTimers();
+        EventSourceMock.instances = [];
+        vi.stubGlobal("EventSource", EventSourceMock);
+
+        const controller = createEventStream("/sse", { initialBackoff: 20 });
+        const instance = EventSourceMock.instances[0];
+        controller.close();
+
+        instance.onerror?.(new Event("error"));
+        await vi.advanceTimersByTimeAsync(200);
+        expect(EventSourceMock.instances.length).toBe(1);
+
+        vi.useRealTimers();
+        vi.unstubAllGlobals();
+    });
+
+    it("drops messages that arrive after close", () => {
+        EventSourceMock.instances = [];
+        vi.stubGlobal("EventSource", EventSourceMock);
+        const onMessage = vi.fn();
+        const controller = createEventStream("/sse", { onMessage });
+        const instance = EventSourceMock.instances[0];
+
+        controller.close();
+        instance.onmessage?.({ data: "{}" } as MessageEvent);
+        expect(onMessage).toHaveBeenCalledTimes(1);
+        vi.unstubAllGlobals();
+    });
+});

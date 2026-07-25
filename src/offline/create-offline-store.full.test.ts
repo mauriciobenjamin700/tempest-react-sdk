@@ -76,3 +76,40 @@ describe("createOfflineStore — full", () => {
         expect(await store.get("1")).toBeUndefined();
     });
 });
+
+describe("createOfflineStore — list ordering and slicing", () => {
+    it("orders by a non-key field, reverses, offsets and limits", async () => {
+        const store = createOfflineStore<{ id: string; n: number }, string>({
+            databaseName: `list-${Math.random().toString(36).slice(2)}`,
+            version: 1,
+            tableName: "rows",
+            indexes: "&id, n",
+        });
+        await store.bulkPut([
+            { id: "a", n: 3 },
+            { id: "b", n: 1 },
+            { id: "c", n: 2 },
+        ]);
+
+        expect((await store.list(undefined, { orderBy: "n" })).map((r) => r.id)).toEqual([
+            "b",
+            "c",
+            "a",
+        ]);
+        expect(
+            (await store.list(undefined, { orderBy: "n", reverse: true })).map((r) => r.id),
+        ).toEqual(["a", "c", "b"]);
+        expect((await store.list(undefined, { orderBy: "n", offset: 1 })).map((r) => r.id)).toEqual(
+            ["c", "a"],
+        );
+        expect((await store.list(undefined, { orderBy: "n", limit: 2 })).map((r) => r.id)).toEqual([
+            "b",
+            "c",
+        ]);
+        expect(
+            (await store.list(undefined, { filter: (row) => row.n > 1 })).map((r) => r.id).sort(),
+        ).toEqual(["a", "c"]);
+
+        await store.db.delete();
+    });
+});

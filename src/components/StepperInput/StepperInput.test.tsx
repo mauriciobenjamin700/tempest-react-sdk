@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { StepperInput } from "./StepperInput";
@@ -47,5 +47,18 @@ describe("StepperInput", () => {
     it("renders via format()", () => {
         render(<StepperInput value={3} onChange={() => {}} format={(n) => `${n} un.`} />);
         expect(screen.getByText("3 un.")).toBeInTheDocument();
+    });
+});
+
+describe("StepperInput — disabled", () => {
+    it("never emits from the handlers while disabled", () => {
+        const onChange = vi.fn();
+        const { container } = render(<StepperInput value={5} onChange={onChange} disabled />);
+        const buttons = container.querySelectorAll("button");
+        buttons.forEach((button) => {
+            expect(button).toBeDisabled();
+            fireEvent.click(button);
+        });
+        expect(onChange).not.toHaveBeenCalled();
     });
 });

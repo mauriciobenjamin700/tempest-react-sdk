@@ -25,9 +25,9 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Testes
 
-- **Cobertura de branches 90.1% → 93.6%** (linhas 97.4% → 98.3%, statements
-  95.0% → 96.6%, funções 95.6% → 96.2%), +234 testes. Pisos do CI subiram pra
-  98/96/96/93. Alvos: `sw/cache` e `background-sync`, `sse/create-event-stream`,
+- **Cobertura de branches 90.1% → 95.0%** (linhas 97.4% → 98.5%, statements
+  95.0% → 97.1%, funções 95.6% → 96.4%), +303 testes (1969 → 2272). Pisos do CI
+  subiram pra 98/97/96/94. Alvos: `sw/cache` e `background-sync`, `sse/create-event-stream`,
   `ws/create-web-socket` (guards pós-`close`), `http/api-client` e
   `upload-with-progress`, `usePaginatedQuery`, `useOfflineMutation`,
   `persistQueryClientOffline`, `createOfflineSync`, `createOfflineStore`,
@@ -42,11 +42,12 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `Layout`, `TimePicker`, `Combobox`, `Dropzone`, `FileUpload`, `Resizable`,
   `PinInput`, `DropdownMenu`, `MultiSelect`, `DataTable`, `Calendar`,
   `DateRangePicker` e os três charts.
-- **Restam ~300 branches**, sendo **28 inalcançáveis** neste setup: são guards
-  `typeof window === "undefined"` dentro de hooks/componentes, e o react-dom
-  precisa de `window` pra renderizar — remover o global quebra o próprio
-  `render()`. O resto é cauda de 1-2 branches defensivas espalhadas em ~120
-  arquivos.
+- **Restam 237 branches** (5%), sendo **28 inalcançáveis** neste setup: são
+  guards `typeof window === "undefined"` dentro de hooks/componentes, e o
+  react-dom precisa de `window` pra renderizar — remover o global quebra o
+  próprio `render()`. O resto é cauda de 1-2 branches defensivas espalhadas em
+  ~120 arquivos (props opcionais com default, `?? fallback` inalcançável por
+  causa do default, ramos de geometria com buracos).
 
 ### Corrigido
 

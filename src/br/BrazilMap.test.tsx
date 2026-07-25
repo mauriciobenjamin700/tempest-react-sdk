@@ -246,3 +246,15 @@ describe("BrazilMap — resize observation", () => {
         vi.stubGlobal("ResizeObserver", original);
     });
 });
+
+describe("BrazilMap — tooltip fallback and empty values", () => {
+    it("adds no tint when values holds no numbers", async () => {
+        const { container } = render(
+            <BrazilMap values={{ SP: "nope" as unknown as number }} showLabels={false} />,
+        );
+        await waitFor(() => expect(container.querySelector("path[data-uf]")).toBeTruthy());
+        expect((container.querySelector("path[data-uf='SP']") as SVGPathElement).style.fill).toBe(
+            "",
+        );
+    });
+});

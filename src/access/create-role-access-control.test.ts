@@ -68,3 +68,10 @@ describe("createRoleAccessControl", () => {
         });
     });
 });
+
+describe("createRoleAccessControl — unknown role", () => {
+    it("grants nothing when the role has no entry", () => {
+        const ac = createRoleAccessControl({ role: "ghost", roles: { editor: ["posts:*"] } });
+        expect(ac.can({ action: "create", resource: "posts" })).toMatchObject({ can: false });
+    });
+});

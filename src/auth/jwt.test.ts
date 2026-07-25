@@ -40,3 +40,10 @@ describe("isJWTExpired", () => {
         expect(isJWTExpired(token, 30)).toBe(true);
     });
 });
+
+describe("isJWTExpired — payload without exp", () => {
+    it("treats a token with no exp as expired", () => {
+        const payload = btoa(JSON.stringify({ sub: "u1" }));
+        expect(isJWTExpired(`header.${payload}.sig`)).toBe(true);
+    });
+});

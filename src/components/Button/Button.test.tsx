@@ -29,3 +29,10 @@ describe("Button", () => {
         expect(onClick).not.toHaveBeenCalled();
     });
 });
+
+describe("Button — fullWidth", () => {
+    it("carries the fullWidth class", () => {
+        render(<Button fullWidth>Salvar</Button>);
+        expect(screen.getByRole("button", { name: "Salvar" }).className).toContain("fullWidth");
+    });
+});

@@ -97,3 +97,12 @@ describe("LineChart — toggles", () => {
         expect(container.querySelector("svg")).not.toBeNull();
     });
 });
+
+describe("LineChart — responsive wrapper", () => {
+    it("wraps in a ResponsiveContainer when no width is given", () => {
+        const { container } = render(
+            <LineChart data={data} index="month" categories={["sales"]} />,
+        );
+        expect(container.querySelector(".recharts-responsive-container")).not.toBeNull();
+    });
+});

@@ -61,3 +61,10 @@ describe("AppBar", () => {
         expect(header).toHaveAttribute("data-testid", "bar");
     });
 });
+
+describe("AppBar — centered title", () => {
+    it("carries the centered class", () => {
+        const { container } = render(<AppBar centered title="Tempest" />);
+        expect((container.firstChild as HTMLElement).className).toContain("centered");
+    });
+});

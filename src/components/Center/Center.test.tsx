@@ -28,3 +28,10 @@ describe("Center", () => {
         expect((container.firstElementChild as HTMLElement).style.minHeight).toBe("50vh");
     });
 });
+
+describe("Center — fullWidth", () => {
+    it("stretches to the full width when asked", () => {
+        const { container } = render(<Center fullWidth>conteúdo</Center>);
+        expect((container.firstChild as HTMLElement).style.width).toBe("100%");
+    });
+});

@@ -103,3 +103,12 @@ describe("AreaChart — toggles", () => {
         expect(container.querySelector("svg")).not.toBeNull();
     });
 });
+
+describe("AreaChart — responsive wrapper", () => {
+    it("wraps in a ResponsiveContainer when no width is given", () => {
+        const { container } = render(
+            <AreaChart data={data} index="month" categories={["sales"]} />,
+        );
+        expect(container.querySelector(".recharts-responsive-container")).not.toBeNull();
+    });
+});

@@ -1,6 +1,6 @@
 import { Cell, Legend, Pie, PieChart as RPieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { cn } from "@/utils/cn";
-import { DEFAULT_CHART_COLORS } from "./palette";
+import { useChartColors } from "./use-chart-colors";
 import { toTooltipFormatter } from "./types";
 import type { PieChartProps } from "./types";
 
@@ -9,7 +9,7 @@ import type { PieChartProps } from "./types";
  *
  * Renders one slice per row, reading the numeric value from `category` and the
  * label from `index`. Each slice is colored from `colors` (cycling
- * {@link DEFAULT_CHART_COLORS} by default). When `donut` is set the pie gets a
+ * the `--tempest-chart-*` theme tokens by default). When `donut` is set the pie gets a
  * non-zero inner radius. When `width` is provided the chart renders at that
  * fixed size without a ResponsiveContainer; otherwise it fills its parent.
  */
@@ -17,7 +17,7 @@ export function PieChart({
     data,
     category,
     index,
-    colors = DEFAULT_CHART_COLORS,
+    colors,
     height = 300,
     width,
     donut = false,
@@ -26,6 +26,7 @@ export function PieChart({
     valueFormatter,
     className,
 }: PieChartProps) {
+    const palette = useChartColors(colors);
     const chart = (
         <RPieChart width={width} height={height}>
             {showTooltip ? <Tooltip formatter={toTooltipFormatter(valueFormatter)} /> : null}
@@ -38,7 +39,7 @@ export function PieChart({
                 outerRadius="80%"
             >
                 {data.map((row, i) => (
-                    <Cell key={`${String(row[index])}-${i}`} fill={colors[i % colors.length]} />
+                    <Cell key={`${String(row[index])}-${i}`} fill={palette[i % palette.length]} />
                 ))}
             </Pie>
         </RPieChart>

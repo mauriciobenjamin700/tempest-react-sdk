@@ -9,7 +9,7 @@ import {
     YAxis,
 } from "recharts";
 import { cn } from "@/utils/cn";
-import { DEFAULT_CHART_COLORS } from "./palette";
+import { useChartColors } from "./use-chart-colors";
 import { toTooltipFormatter } from "./types";
 import type { CartesianChartProps } from "./types";
 
@@ -17,7 +17,7 @@ import type { CartesianChartProps } from "./types";
  * LineChart — themed wrapper over recharts `LineChart`.
  *
  * Plots one line per entry in `categories`, colored from `colors` (cycling
- * {@link DEFAULT_CHART_COLORS} by default). `stack` is accepted for API parity
+ * the `--tempest-chart-*` theme tokens by default). `stack` is accepted for API parity
  * but does not visually stack lines. When `width` is provided the chart renders
  * at that fixed size without a ResponsiveContainer; otherwise it fills its
  * parent.
@@ -26,7 +26,7 @@ export function LineChart({
     data,
     index,
     categories,
-    colors = DEFAULT_CHART_COLORS,
+    colors,
     height = 300,
     width,
     showLegend = true,
@@ -35,6 +35,7 @@ export function LineChart({
     valueFormatter,
     className,
 }: CartesianChartProps) {
+    const palette = useChartColors(colors);
     const chart = (
         <RLineChart data={data} width={width} height={height}>
             {showGrid ? <CartesianGrid strokeDasharray="3 3" /> : null}
@@ -47,7 +48,7 @@ export function LineChart({
                     key={category}
                     type="monotone"
                     dataKey={category}
-                    stroke={colors[i % colors.length]}
+                    stroke={palette[i % palette.length]}
                     dot={false}
                 />
             ))}

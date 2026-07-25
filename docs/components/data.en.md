@@ -223,6 +223,69 @@ A vertical feed with colored markers. Renders as a semantic `<ol>` (each item is
 
 `TimelineItem = { id, title, description?, meta?, icon?, marker?: "primary" \| "success" \| "warning" \| "danger" \| "neutral" }`.
 
+## `TreeView`
+
+> **When to use it**: **hierarchical** data — a category tree, permissions per module, folders, an org chart. When the data is a flat list, `Table` or `ListTile` fit better.
+
+Implements `role="tree"` with **roving tabindex**: exactly one row is tabbable and the arrow keys move focus inside the widget. That is what stops a 500-node tree from adding 500 stops to the page's tab order.
+
+```tsx
+import { TreeView, type TreeNode } from "tempest-react-sdk";
+
+const permissions: TreeNode[] = [
+  {
+    id: "sales",
+    label: "Sales",
+    children: [
+      { id: "sales.read", label: "View" },
+      { id: "sales.write", label: "Edit" },
+      { id: "sales.delete", label: "Delete", disabled: true },
+    ],
+  },
+  { id: "settings", label: "Settings", children: [] },
+  { id: "about", label: "About" },
+];
+
+export function RolePermissions() {
+  const [selected, setSelected] = useState<string | null>(null);
+
+  return (
+    <TreeView
+      label="Permissions"
+      nodes={permissions}
+      defaultExpandedIds={["sales"]}
+      selectedId={selected}
+      onSelect={(node) => setSelected(node.id)}
+    />
+  );
+}
+```
+
+| Prop                 | Type                        | Default | What it does                                                       |
+| -------------------- | --------------------------- | ------- | ------------------------------------------------------------------ |
+| `nodes`              | `TreeNode[]`                | —       | Root nodes.                                                        |
+| `expandedIds`        | `string[]`                  | —       | Controlled expansion.                                              |
+| `defaultExpandedIds` | `string[]`                  | `[]`    | Initial expansion (uncontrolled).                                  |
+| `onExpandedChange`   | `(ids: string[]) => void`   | —       | Called on every expand/collapse.                                   |
+| `selectedId`         | `string \| null`            | —       | Controlled selection.                                              |
+| `defaultSelectedId`  | `string \| null`            | `null`  | Initial selection.                                                 |
+| `onSelect`           | `(node: TreeNode) => void`  | —       | Called on select (click, `Enter` or `Space`).                        |
+| `toggleOnSelect`     | `boolean`                   | `true`  | Selecting a branch also expands/collapses it.                      |
+| `label`              | `string`                    | —       | Accessible name for the tree.                                      |
+
+`TreeNode = { id, label, children?, icon?, disabled? }`.
+
+**Keyboard**: `↓`/`↑` move · `→` expands (or descends into the first child) · `←` collapses (or walks to the parent) · `Home`/`End` first/last visible row · `Enter`/`Space` select.
+
+!!! tip "`children: []` is an empty branch, not a leaf"
+    The distinction matters: an empty folder should still show the chevron and announce `aria-expanded`. A leaf is a **missing** `children`.
+
+!!! note "`toggleOnSelect={false}` when the branch is a valid choice"
+    The default (`true`) mimics a file explorer: clicking the folder opens the folder. Pass `false` when the branch itself is selectable — a category that is also a destination, say.
+
+!!! info "The chevron is not a button"
+    It is decoration (`aria-hidden`): the row already carries `aria-expanded`, so a second focusable control there would only add screen-reader noise while duplicating an action the keyboard map has. Clicking it works (with the event stopped, so it toggles without selecting).
+
 ## Recap
 
 | Component     | Use for                                    | Typical volume   |
@@ -232,6 +295,7 @@ A vertical feed with colored markers. Renders as a semantic `<ol>` (each item is
 | `ListTile`    | A list row (icon + title + action)         | any              |
 | `Accordion`   | On-demand expandable sections (FAQ, steps) | a few sections   |
 | `Timeline`    | A sequence of events over time             | any              |
+| `TreeView`    | Navigable hierarchy (categories, permissions) | tens to hundreds |
 
 Key accessibility points:
 
@@ -239,5 +303,6 @@ Key accessibility points:
 - `VirtualList`: items outside the viewport are not rendered — `Ctrl+F` only finds the visible window.
 - `Accordion`: ↑↓ switch the focused item, Home/End jump to the first/last.
 - `Timeline`: semantic order via `<ol>`; each item is an `<li>`.
+- `TreeView`: `role="tree"` + roving tabindex (a single tab stop); `aria-level` reports depth and disabled nodes are skipped while navigating.
 
 Related: [identity](./identity.md) (`Card flush` to host the `Table`) · [feedback](./feedback.md) (`Badge` inside cells) · [actions](./actions.md) (row buttons).

@@ -1604,7 +1604,7 @@ Com `stack`, as três áreas se empilham e o topo mostra o total por hora.
 | `data`           | `ChartData`                 | —                      | Linhas a plotar (array de objetos `chave → string \| number`).                  |
 | `index`          | `string`                    | —                      | Chave da linha usada no eixo X (cartesiano) ou eixo angular (radar).            |
 | `categories`     | `string[]`                  | —                      | Chaves a plotar, uma série cada.                                                |
-| `colors`         | `string[]`                  | `DEFAULT_CHART_COLORS` | Cores das séries, cicladas por categoria.                                       |
+| `colors`         | `string[]`                  | tokens `--tempest-chart-*` | Cores das séries, cicladas por categoria.                                       |
 | `height`         | `number`                    | `300`                  | Altura do gráfico em pixels.                                                     |
 | `width`          | `number`                    | —                      | Largura fixa em px. Quando definida, dispensa o `ResponsiveContainer`.          |
 | `stack`          | `boolean`                   | `false`                | Empilha as séries num `stackId` comum (ignorado pelo `LineChart`).              |
@@ -1661,7 +1661,7 @@ centro fica vazio (raio interno de 60%) — ótimo pra colocar um total no meio.
 | `data`           | `ChartData`                 | —                      | Linhas a plotar, uma fatia cada.                                      |
 | `category`       | `string`                    | —                      | Chave da linha com o **valor** numérico da fatia.                     |
 | `index`          | `string`                    | —                      | Chave da linha com o **nome/rótulo** da fatia.                        |
-| `colors`         | `string[]`                  | `DEFAULT_CHART_COLORS` | Cores das fatias, cicladas por fatia.                                 |
+| `colors`         | `string[]`                  | tokens `--tempest-chart-*` | Cores das fatias, cicladas por fatia.                                 |
 | `height`         | `number`                    | `300`                  | Altura do gráfico em pixels.                                          |
 | `width`          | `number`                    | —                      | Largura fixa em px. Quando definida, dispensa o `ResponsiveContainer`.|
 | `donut`          | `boolean`                   | `false`                | Renderiza como rosca (raio interno não-zero) em vez de pizza cheia.   |
@@ -1713,24 +1713,57 @@ perfeito pra comparar perfis multidimensionais.
 
 ## Cores e tema
 
-Toda a família compartilha uma paleta padrão exportada, `DEFAULT_CHART_COLORS` —
-seis cores hex visualmente distintas, aplicadas às séries em ordem cíclica:
+**Você não precisa fazer nada:** por padrão as séries saem dos tokens
+`--tempest-chart-1` … `--tempest-chart-8` do tema. Trocar a marca com
+`createTheme({ chart: [...] })` move os gráficos junto, e virar o tema escuro
+troca a paleta pela versão clareada — sem prop nenhuma no gráfico.
 
-```tsx
-import { DEFAULT_CHART_COLORS } from "tempest-react-sdk/charts";
-
-// ["#2563eb", "#16a34a", "#f59e0b", "#7c3aed", "#ec4899", "#06b6d4"]
-// azul       verde      âmbar      violeta    rosa       ciano
+```css
+/* o que o SDK já define (colors.css) */
+:root {
+  --tempest-chart-1: #2563eb; /* azul    */
+  --tempest-chart-2: #16a34a; /* verde   */
+  --tempest-chart-3: #f59e0b; /* âmbar   */
+  --tempest-chart-4: #7c3aed; /* violeta */
+  --tempest-chart-5: #ec4899; /* rosa    */
+  --tempest-chart-6: #06b6d4; /* ciano   */
+  --tempest-chart-7: #ea580c;
+  --tempest-chart-8: #0f766e;
+}
 ```
 
-Para tematizar, passe seu próprio array em `colors`. As cores são cicladas por
-índice da série (ou fatia), então com mais séries que cores ela reinicia do
-começo:
+Sobrescreva no seu CSS, ou gere com o factory de tema:
+
+```tsx
+import { applyTheme, createTheme } from "tempest-react-sdk";
+
+applyTheme(createTheme({
+  primary: "#0f766e",
+  chart: ["#0f766e", "#f97316", "#9333ea"],
+}));
+```
+
+!!! danger "`colors={["var(--meu-token)"]}` **não** funciona"
+    O recharts aplica cor como **atributo de apresentação** do SVG
+    (`fill="…"`), e navegador nenhum substitui `var()` ali — custom property só
+    é resolvida em **declaração** CSS. Um `var()` passado em `colors` renderiza
+    como cor inválida (série invisível).
+
+    É por isso que o SDK **lê os tokens** via `getComputedStyle` e entrega cor
+    literal pro recharts. Se você precisa do valor de um token seu em JS, use o
+    mesmo caminho:
+
+    ```tsx
+    import { readThemeToken } from "tempest-react-sdk";
+
+    const marca = readThemeToken("--minha-marca"); // "#0f766e"
+    ```
+
+Para um gráfico específico, `colors` continua ganhando de tudo — é a via de
+escape, ciclada por índice da série (ou fatia):
 
 ```tsx
 import { BarChart, DEFAULT_CHART_COLORS } from "tempest-react-sdk/charts";
-
-const marca = ["#0f766e", "#f97316", "#9333ea"];
 
 export function VendasComCoresDaMarca() {
   return (
@@ -1738,19 +1771,39 @@ export function VendasComCoresDaMarca() {
       data={vendas}
       index="mes"
       categories={["loja_a", "loja_b", "loja_c"]}
-      colors={marca}
+      colors={["#0f766e", "#f97316", "#9333ea"]}
     />
   );
 }
 
-// Quer só ajustar a primeira cor e manter o resto da paleta?
+// Ajustar só a primeira cor e manter o resto do fallback:
 const minhaPaleta = ["#e11d48", ...DEFAULT_CHART_COLORS.slice(1)];
 ```
 
-!!! tip "Combine com seus tokens CSS"
-    `colors` aceita qualquer string CSS de cor válida — hex, `rgb()`, ou até
-    `var(--tempest-color-primary)` lido do seu tema. Assim os gráficos seguem a
-    identidade visual do app sem hardcode.
+`DEFAULT_CHART_COLORS` é o **fallback**, usado quando os tokens não são
+legíveis: sem `styles.css` importado, fora do browser (testes, script de build)
+ou numa página que removeu os tokens.
+
+### Resolvendo tokens você mesmo
+
+```tsx
+import { resolveChartColors, useChartColors } from "tempest-react-sdk/charts";
+
+// dentro de um componente — re-resolve quando o tema virar
+const colors = useChartColors();
+
+// fora do React (canvas, export de imagem, tooltip customizado)
+const palette = resolveChartColors();
+```
+
+`useChartColors` observa o atributo `data-tempest-theme` e re-resolve na troca de
+tema; passar um array explícito curto-circuita o hook (nenhum observer é criado).
+Precisa da cor do grid/eixo? `resolveChartChrome("grid" | "axis")`.
+
+!!! tip "Tema escopado numa seção"
+    Os dois aceitam um elemento: `useChartColors(undefined, sectionRef.current)`
+    resolve os tokens **daquela** subárvore, então uma seção com tema próprio
+    pinta seus gráficos com a paleta dela.
 
 ## Responsivo por padrão, fixo quando preciso
 
@@ -1961,14 +2014,14 @@ O catálogo foi dividido por categoria para facilitar navegação. Cada arquivo 
 - **[Navegação](./components/navigation.md)** — Navbar, Sidebar, NavigationRail, BottomNavigation, Tabs, Stepper, Breadcrumbs, Pagination, SegmentedControl
 - **[Overlay](./components/overlay.md)** — Modal, Drawer, BottomSheet
 - **[Layout](./components/layout.md)** — AppShell, Page, Container, Stack, Grid, Divider, Spacer, Center, AspectRatio, SafeArea, Show, Hide
-- **[Dados](./components/data.md)** — Table, VirtualList, ListTile, Accordion, Timeline
+- **[Dados](./components/data.md)** — Table, VirtualList, ListTile, Accordion, Timeline, TreeView
 - **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, Spinner, Skeleton, RefreshIndicator, Toast, EmptyState, ErrorState
 - **[Entrada de dados](./components/inputs.md)** — Input, Textarea, Select, Combobox, Checkbox, Radio, Switch, ChipInput, SearchBar, DatePicker, FileUpload, Dropzone, RangeSlider, RatingStars, PinInput, PasswordInput, StepperInput, Form\*
 - **[Ação](./components/actions.md)** — Button, Tooltip, DropdownMenu, Popover, ConfirmDialog
 - **[Navegação](./components/navigation.md)** — Navbar, Sidebar, BottomNavigation, Tabs, Stepper, Breadcrumbs, Pagination, SegmentedControl
 - **[Overlay](./components/overlay.md)** — Modal, Drawer, BottomSheet, ModalsManager
 - **[Layout](./components/layout.md)** — AppShell, Page, Container, Stack, Grid, Divider, Spacer, Center, AspectRatio, SafeArea, Show, Hide
-- **[Dados](./components/data.md)** — Table, VirtualList, Accordion, Timeline
+- **[Dados](./components/data.md)** — Table, VirtualList, Accordion, Timeline, TreeView
 - **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, NProgress, Spinner, Skeleton, Toast, EmptyState, ErrorState
 - **[Identidade & micro](./components/identity.md)** — Avatar, AvatarGroup, Card, Kbd
 
@@ -2683,6 +2736,93 @@ const columns: DataTableColumn<User>[] = [
 !!! info "Comportamento"
     Clicar um cabeçalho ordenável cicla asc → desc → sem ordenação. A busca combina substring case-insensitive nas `searchKeys` (ou em toda coluna string/number quando omitidas). A paginação some quando o resultado cabe em uma única página.
 
+### `Wizard`
+
+Fluxo multi-passo: indicador, um corpo por vez e navegação que respeita **validação por passo**. O `Stepper` desenha o indicador; o `Wizard` é dono do que todo app reescrevia — índice ativo, gate assíncrono antes de avançar, botões desabilitados/pendentes e a chamada de conclusão.
+
+```tsx
+import { Button, FormActions, FormField, Input, Wizard, useZodForm } from "tempest-react-sdk";
+import { FormProvider } from "react-hook-form";
+import { z } from "zod";
+
+const schema = z.object({
+  nome: z.string().min(2, "Informe o nome"),
+  email: z.string().email("E-mail inválido"),
+  cep: z.string().min(9, "CEP incompleto"),
+});
+
+export function CadastroEmEtapas() {
+  const form = useZodForm(schema, { defaultValues: { nome: "", email: "", cep: "" } });
+
+  return (
+    <FormProvider {...form}>
+      <Wizard
+        nextLabel="Avançar"
+        backLabel="Voltar"
+        finishLabel="Concluir"
+        onComplete={form.handleSubmit((values) => console.log(values))}
+        steps={[
+          {
+            id: "dados",
+            label: "Dados",
+            description: "Quem é o cliente",
+            validate: () => form.trigger(["nome", "email"]),
+            content: (
+              <>
+                <FormField name="nome" label="Nome" required><Input /></FormField>
+                <FormField name="email" label="E-mail" required><Input type="email" /></FormField>
+              </>
+            ),
+          },
+          {
+            id: "endereco",
+            label: "Endereço",
+            validate: () => form.trigger(["cep"]),
+            content: <FormField name="cep" label="CEP" required><Input /></FormField>,
+          },
+          {
+            id: "revisao",
+            label: "Revisão",
+            content: ({ back }) => (
+              <>
+                <pre>{JSON.stringify(form.getValues(), null, 2)}</pre>
+                <Button variant="ghost" onClick={back}>Corrigir</Button>
+              </>
+            ),
+          },
+        ]}
+      />
+    </FormProvider>
+  );
+}
+```
+
+| Prop                 | Tipo                                          | Default    | Descrição                                                    |
+| -------------------- | --------------------------------------------- | ---------- | ------------------------------------------------------------ |
+| `steps`              | `WizardStep[]`                                | —          | Passos do fluxo.                                             |
+| `activeIndex`        | `number`                                      | —          | Índice controlado.                                           |
+| `defaultActiveIndex` | `number`                                      | `0`        | Índice inicial (não controlado).                             |
+| `onStepChange`       | `(index, step) => void`                       | —          | Chamado a cada troca de passo.                               |
+| `onComplete`         | `() => void \| Promise<void>`                 | —          | Chamado quando o último passo passa na validação.            |
+| `nextLabel`          | `string`                                      | `"Next"`   | Rótulo do botão de avanço.                                   |
+| `backLabel`          | `string`                                      | `"Back"`   | Rótulo do botão de voltar.                                   |
+| `finishLabel`        | `string`                                      | `"Finish"` | Rótulo no último passo.                                      |
+| `clickableSteps`     | `boolean`                                     | `false`    | Permite pular clicando no indicador.                         |
+| `renderActions`      | `(controls: WizardControls) => ReactNode`     | —          | Substitui a linha de botões padrão.                          |
+
+`WizardStep = { id, label, description?, content, validate?, optional? }` — `content` aceita `ReactNode` **ou** função que recebe os controles.
+
+`WizardControls = { activeIndex, step, validating, isFirst, isLast, next, back, goTo }`.
+
+!!! warning "Só o passo ativo está montado"
+    Input não commitado em um passo que você abandona **se perde**, a menos que o estado viva fora (o `FormProvider` do react-hook-form, uma store, um `useState` do pai) — que é onde ele deveria estar de todo jeito, já que o último passo normalmente submete tudo de uma vez.
+
+!!! tip "`validate` assíncrono já vem com estado de pendência"
+    Enquanto a promise corre, o botão de avanço fica em `loading` e o de voltar desabilitado. Um `validate` que **lança** conta como "não permitido": um gate ligado a checagem de rede não deve deixar o usuário num fluxo meio-avançado quando a requisição falha.
+
+!!! note "`clickableSteps` é `false` de propósito"
+    Um wizard existe porque a **ordem importa**. Com `clickableSteps`, pular pra trás é livre (voltar nunca bloqueia), mas pular pra frente valida **cada passo atravessado** — o primeiro gate que reprovar interrompe o salto ali.
+
 ## Recap
 
 - **Essenciais**: `Toggle`/`ToggleGroup` para estados pressionáveis, `Label` para formulários, `Collapsible` para um bloco expansível, `ContextMenu`/`HoverCard` para overlays disparados por interação e `Command` para a paleta ⌘K.
@@ -2912,6 +3052,69 @@ Feed vertical com markers coloridos. Renderiza como `<ol>` semântica (cada item
 
 `TimelineItem = { id, title, description?, meta?, icon?, marker?: "primary" \| "success" \| "warning" \| "danger" \| "neutral" }`.
 
+## `TreeView`
+
+> **Quando usar**: dados **hierárquicos** — árvore de categorias, permissões por módulo, pastas, organograma. Quando o dado é uma lista plana, `Table` ou `ListTile` servem melhor.
+
+Implementa `role="tree"` com **roving tabindex**: uma única linha é tabulável e as setas movem o foco dentro do widget. É isso que evita uma árvore de 500 nós adicionar 500 paradas na ordem de tabulação da página.
+
+```tsx
+import { TreeView, type TreeNode } from "tempest-react-sdk";
+
+const permissoes: TreeNode[] = [
+  {
+    id: "vendas",
+    label: "Vendas",
+    children: [
+      { id: "vendas.ler", label: "Visualizar" },
+      { id: "vendas.editar", label: "Editar" },
+      { id: "vendas.excluir", label: "Excluir", disabled: true },
+    ],
+  },
+  { id: "config", label: "Configurações", children: [] },
+  { id: "sobre", label: "Sobre" },
+];
+
+export function PermissoesDoPapel() {
+  const [selecionado, setSelecionado] = useState<string | null>(null);
+
+  return (
+    <TreeView
+      label="Permissões"
+      nodes={permissoes}
+      defaultExpandedIds={["vendas"]}
+      selectedId={selecionado}
+      onSelect={(node) => setSelecionado(node.id)}
+    />
+  );
+}
+```
+
+| Prop                 | Tipo                        | Default | O que faz                                                          |
+| -------------------- | --------------------------- | ------- | ------------------------------------------------------------------ |
+| `nodes`              | `TreeNode[]`                | —       | Nós raiz.                                                          |
+| `expandedIds`        | `string[]`                  | —       | Expansão controlada.                                               |
+| `defaultExpandedIds` | `string[]`                  | `[]`    | Expansão inicial (não controlada).                                 |
+| `onExpandedChange`   | `(ids: string[]) => void`   | —       | Chamado a cada expandir/colapsar.                                  |
+| `selectedId`         | `string \| null`            | —       | Seleção controlada.                                                |
+| `defaultSelectedId`  | `string \| null`            | `null`  | Seleção inicial.                                                   |
+| `onSelect`           | `(node: TreeNode) => void`  | —       | Chamado ao selecionar (clique, `Enter` ou `Espaço`).                |
+| `toggleOnSelect`     | `boolean`                   | `true`  | Selecionar um galho também o expande/colapsa.                      |
+| `label`              | `string`                    | —       | Nome acessível da árvore.                                          |
+
+`TreeNode = { id, label, children?, icon?, disabled? }`.
+
+**Teclado**: `↓`/`↑` movem · `→` expande (ou desce pro primeiro filho) · `←` colapsa (ou sobe pro pai) · `Home`/`End` primeira/última linha visível · `Enter`/`Espaço` selecionam.
+
+!!! tip "`children: []` é um galho vazio, não uma folha"
+    A distinção importa: uma pasta vazia deve mostrar o chevron e anunciar `aria-expanded`. Folha é `children` **ausente**.
+
+!!! note "`toggleOnSelect={false}` quando o galho é uma escolha válida"
+    O default (`true`) imita explorador de arquivos: clicar na pasta abre a pasta. Passe `false` quando o galho em si é selecionável — uma categoria que também é destino, por exemplo.
+
+!!! info "O chevron não é um botão"
+    Ele é decoração (`aria-hidden`): a linha já carrega `aria-expanded`, então um segundo controle focável ali só adicionaria ruído no leitor de tela, duplicando uma ação que o teclado já tem. Clique nele funciona (com o evento parado, então expande sem selecionar).
+
 ## Resumo
 
 | Componente    | Use para                                    | Volume típico      |
@@ -2921,6 +3124,7 @@ Feed vertical com markers coloridos. Renderiza como `<ol>` semântica (cada item
 | `ListTile`    | Linha de lista (ícone + título + ação)      | qualquer           |
 | `Accordion`   | Seções expansíveis sob demanda (FAQ, steps) | poucas seções      |
 | `Timeline`    | Sequência de eventos no tempo               | qualquer           |
+| `TreeView`    | Hierarquia navegável (categorias, permissões) | dezenas a centenas |
 
 Pontos-chave de acessibilidade:
 
@@ -2928,6 +3132,7 @@ Pontos-chave de acessibilidade:
 - `VirtualList`: itens fora da viewport não são renderizados — `Ctrl+F` só acha o visível.
 - `Accordion`: ↑↓ trocam o item focado, Home/End pulam pro primeiro/último.
 - `Timeline`: ordem semântica via `<ol>`; cada item é `<li>`.
+- `TreeView`: `role="tree"` + roving tabindex (uma parada de tab só); `aria-level` reporta a profundidade e nós desabilitados são pulados na navegação.
 
 Relacionados: [identity](./identity.md) (`Card flush` para hospedar a `Table`) · [feedback](./feedback.md) (`Badge` dentro de células) · [actions](./actions.md) (botões de linha).
 
@@ -11851,6 +12056,8 @@ Pronto. Tudo o que está abaixo já está disponível na sua aplicação.
   - [Brand — primary tints](#brand-primary-tints)
   - [Neutros — gray scale](#neutros-gray-scale)
   - [Status — triplets (fg/bg/border/solid)](#status-triplets-fgbgbordersolid)
+  - [Data viz — cores de série](#data-viz-cores-de-serie)
+  - [Gerando a paleta com `createTheme`](#gerando-a-paleta-com-createtheme)
 - [Tipografia](#tipografia)
 - [Espaçamento](#espacamento)
 - [Radius](#radius)
@@ -11861,6 +12068,7 @@ Pronto. Tudo o que está abaixo já está disponível na sua aplicação.
 - [Densidade — `data-tempest-density`](#densidade-data-tempest-density)
 - [Tema dark — `data-tempest-theme`](#tema-dark-data-tempest-theme)
 - [Componentes — variants disponíveis](#componentes-variants-disponiveis)
+- [Camada utilitária opt-in — `utilities.css`](#camada-utilitaria-opt-in-utilitiescss)
 
 ---
 
@@ -11942,6 +12150,42 @@ Atalhos:
 - `--tempest-danger-hover` — variação para hover em danger solid.
 
 Componentes que aceitam `appearance="soft|solid|outline"` (Badge, Alert, etc.) escolhem automaticamente a combinação certa.
+
+### Data viz — cores de série
+
+Oito cores categóricas em ordem cíclica, mais o cromado do gráfico:
+
+| Token                        | Uso                                                   |
+| ---------------------------- | ----------------------------------------------------- |
+| `--tempest-chart-1` … `-8`   | Cores de série, aplicadas por índice (ciclam)          |
+| `--tempest-chart-grid`       | Linhas de grid                                         |
+| `--tempest-chart-axis`       | Linhas e rótulos de eixo                               |
+
+As oito são espaçadas por **matiz** — são categóricas, não um ramp. Para escala sequencial ou divergente, use `--tempest-primary-*`.
+
+O módulo `tempest-react-sdk/charts` lê esses tokens em runtime e re-resolve quando o tema vira, então sobrescrevê-los muda os gráficos sem tocar em prop nenhuma:
+
+```css
+:root {
+  --tempest-chart-1: #0f766e;
+  --tempest-chart-2: #f97316;
+}
+```
+
+!!! warning "Não passe `var()` como cor de série"
+    O recharts aplica cor como atributo de apresentação do SVG, e `var()` não é resolvido ali. É por isso que o SDK lê o token via `getComputedStyle` e entrega cor literal. Detalhes em [Charts › Cores e tema](charts.md#cores-e-tema).
+
+### Gerando a paleta com `createTheme`
+
+Escrever os ~30 valores de uma marca na mão (dez degraus × claro/escuro + aliases) é trabalhoso e fácil de errar no dark, onde o ramp **inverte**. `createTheme` deriva tudo de uma cor, em OKLCH:
+
+```tsx
+import { applyTheme, createTheme } from "tempest-react-sdk";
+
+applyTheme(createTheme({ primary: "#7c3aed", radius: "lg" }));
+```
+
+Isso emite os mesmos tokens desta página — é açúcar sobre a API de token, não um segundo sistema de tema. Guia completo em [Tema › `createTheme`](theme.md#createtheme-a-marca-inteira-a-partir-de-uma-cor).
 
 ---
 
@@ -12253,6 +12497,120 @@ module.exports = {
   },
 };
 ```
+
+---
+
+## Camada utilitária opt-in — `utilities.css`
+
+Os componentes são estilizados por CSS Modules, o que resolve o **dentro** deles. O que sobrava pro app era o **em volta**: casca de página, form de duas colunas, linha de ações, card, região que rola na horizontal. Todo app reescrevia esse CSS.
+
+`utilities.css` é essa camada, escrita só com tokens `--tempest-*` — então ela acompanha o tema, incluindo o que sai do `createTheme` e o modo escuro.
+
+```ts
+// src/main.tsx
+import "tempest-react-sdk/styles.css";
+import "tempest-react-sdk/utilities.css"; // opt-in
+```
+
+!!! info "Por que opt-in e não dentro do `styles.css`"
+    São ~50 nomes de classe **globais**. Um app que já tem o próprio sistema de layout não deve pagar por eles, e injetar classe global em página alheia sem pedir é falta de educação. Custo se você optar: **1.13 KB brotli**.
+
+!!! warning "Isto não é um Tailwind, e não vira"
+    A camada tem um punhado de primitivas de layout — não existe (nem entra no backlog) `p-4 mt-2 text-sm bg-blue-500` para cada valor possível. A [decisão consolidada](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/CLAUDE.md) segue valendo: **CSS Modules + tokens é a estratégia de estilo dos componentes**. Isso aqui é ferramenta pro código do *app*, não um segundo caminho de estilizar o SDK.
+
+### Layout
+
+| Classe                    | O que faz                                                                | Ajuste                                             |
+| ------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------- |
+| `.tempest-container`      | Centraliza, limita a largura, aplica gutter respeitando a safe area       | `--tempest-container-width`, `--tempest-container-gutter` |
+| `.tempest-stack`          | Fluxo vertical com um gap só                                             | `--tempest-stack-gap`                              |
+| `.tempest-cluster`        | Grupo horizontal que **quebra linha** em vez de estourar                  | `--tempest-cluster-gap`                            |
+| `.tempest-row`            | Grupo horizontal que não quebra (toolbar, campos inline)                  | `--tempest-row-gap`                                |
+| `.tempest-center`         | Centraliza o filho nos dois eixos                                        | —                                                  |
+| `.tempest-spread`         | Empurra primeiro e último filho pras pontas (título ↔ ações)              | `--tempest-row-gap`                                |
+| `.tempest-grid-auto`      | Grid de cards responsivo **sem media query** (`auto-fill` + `minmax`)     | `--tempest-grid-min`, `--tempest-grid-gap`         |
+| `.tempest-sidebar-layout` | Sidebar + conteúdo; vira uma coluna abaixo de 768px                      | `--tempest-sidebar-width`, `--tempest-sidebar-gap` |
+| `.tempest-form-grid`      | Form de 2 colunas que colapsa abaixo de 640px                            | `--tempest-form-columns`, `--tempest-form-gap`     |
+| `.tempest-form-span`      | Campo que ocupa a linha inteira do grid de form                          | —                                                  |
+| `.tempest-fill`           | Ocupa o espaço restante do flex (com `min-width: 0`, então truncar funciona) | —                                               |
+| `.tempest-fixed`          | Nunca encolhe abaixo do conteúdo (botão de ícone ao lado de campo)        | —                                                  |
+
+### Espaçamento, texto, superfície, scroll
+
+| Grupo         | Classes                                                                                      |
+| ------------- | -------------------------------------------------------------------------------------------- |
+| Gap           | `.tempest-gap-{0,1,2,3,4,5,6,8,10,12}`                                                       |
+| Padding       | `.tempest-pad-{0,2,3,4,6,8}`, `.tempest-pad-block`, `.tempest-pad-inline`                     |
+| Texto         | `.tempest-truncate`, `.tempest-clamp-{2,3,4}`, `.tempest-text-{muted,subtle}`, `.tempest-text-{xs,sm,base,lg,xl,2xl}`, `.tempest-weight-{medium,semibold,bold}`, `.tempest-numeric` |
+| Superfície    | `.tempest-card`, `.tempest-panel`, `.tempest-inset`, `.tempest-divider`                       |
+| Scroll        | `.tempest-scroll-x`, `.tempest-scroll-y`                                                      |
+| Mídia         | `.tempest-aspect-video`, `.tempest-aspect-square`                                             |
+| Diversos      | `.tempest-visually-hidden`, `.tempest-no-select`, `.tempest-busy`                             |
+
+!!! tip "`.tempest-numeric` existe por um motivo específico"
+    `font-variant-numeric: tabular-nums` impede que uma coluna de números **dance** quando o valor muda (dígitos proporcionais têm larguras diferentes). Use em tabela de valores, contador ao vivo e `Stat`.
+
+!!! tip "`.tempest-scroll-x` em volta de tabela larga"
+    Sem ele, uma tabela larga faz a **página** rolar na horizontal — que é o defeito de layout mais comum em mobile. Com ele, a rolagem fica contida na região.
+
+### Página inteira, montada
+
+```tsx
+export function UsersPage() {
+  return (
+    <div className="tempest-container tempest-page">
+      <header className="tempest-page-header">
+        <div>
+          <h1 className="tempest-page-title">Usuários</h1>
+          <p className="tempest-page-subtitle">142 ativos · 8 convites pendentes</p>
+        </div>
+        <div className="tempest-cluster">
+          <Button variant="secondary">Exportar</Button>
+          <Button>Convidar</Button>
+        </div>
+      </header>
+
+      <div className="tempest-toolbar tempest-toolbar-sticky">
+        <SearchBar className="tempest-fill" placeholder="Buscar por nome ou e-mail" />
+        <Select className="tempest-fixed" options={papeis} />
+      </div>
+
+      <div className="tempest-card tempest-scroll-x">
+        <DataTable data={usuarios} columns={colunas} />
+      </div>
+
+      <div className="tempest-grid-auto" style={{ "--tempest-grid-min": "220px" } as React.CSSProperties}>
+        <Stat label="Ativos" value={142} />
+        <Stat label="Convidados" value={8} />
+        <Stat label="Bloqueados" value={3} />
+      </div>
+    </div>
+  );
+}
+```
+
+Note o `style={{ "--tempest-grid-min": "220px" }}`: os hooks locais são custom properties, então dá pra ajustar **por instância** sem escrever CSS nem criar variante de classe.
+
+### Form de duas colunas
+
+```tsx
+<Form className="tempest-form-grid" onSubmit={form.handleSubmit(onSubmit)}>
+  <FormField name="nome" label="Nome" required><Input /></FormField>
+  <FormField name="email" label="E-mail" required><Input type="email" /></FormField>
+  <FormField name="cpf" label="CPF"><CPFInput /></FormField>
+  <FormField name="telefone" label="Telefone"><PhoneInput /></FormField>
+
+  <FormField name="observacoes" label="Observações" className="tempest-form-span">
+    <Textarea rows={4} />
+  </FormField>
+
+  <FormActions align="end" className="tempest-form-span">
+    <Button type="submit">Salvar</Button>
+  </FormActions>
+</Form>
+```
+
+Uma coluna no celular, duas a partir de 640px, e `.tempest-form-span` para o que ocupa a linha inteira.
 
 ---
 
@@ -13020,6 +13378,118 @@ Os tokens `--tempest-*` são a única API de tema. Sobrescreva-os em qualquer po
 
 !!! note "Tokens são API pública"
     Como apps dependem desses nomes, mudar/remover um token é breaking change — por isso eles seguem o versionamento semântico do SDK.
+
+## `createTheme` — a marca inteira a partir de uma cor
+
+Sobrescrever token por token funciona pra um ajuste pontual. Pra **trocar a marca**, são ~30 valores só de `primary` (dez degraus × claro/escuro, mais os aliases de hover/active/soft) — e é fácil errar a inversão do ramp no dark. `createTheme` gera tudo:
+
+```tsx
+import { applyTheme, createTheme } from "tempest-react-sdk";
+
+const theme = createTheme({ primary: "#7c3aed" });
+
+applyTheme(theme);
+```
+
+Pronto: os 104 componentes passam a usar a marca nova, no claro e no escuro.
+
+### O que ele gera
+
+```ts
+const theme = createTheme({
+  primary: "#7c3aed",          // escala 50→900 + hover/active/soft/foreground/focus-ring
+  gray: "#6b7280",             // superfícies, bordas e texto
+  success: "#16a34a",          // cada status vira -fg / -bg / -border / -solid
+  danger: "#dc2626",
+  chart: ["#7c3aed", "#0ea5e9", "#22c55e"],  // --tempest-chart-1..N (ver Charts)
+  radius: "lg",                // "none" | "sm" | "md" | "lg" | "xl" | "full"
+  focusRingAlpha: 0.35,
+});
+
+theme.light; // { "--tempest-primary-500": "#7c3aed", … }
+theme.dark;  // idem, com o ramp invertido
+theme.css;   // ":root { … }\n\n[data-tempest-theme=\"dark\"] { … }"
+```
+
+Só as famílias que você passa são geradas — o resto continua vindo do `colors.css` do SDK. Um tema é um **patch**, não um fork da paleta.
+
+!!! info "Por que OKLCH e não HSL"
+    A escala é derivada em OKLCH porque lightness em HSL **não é perceptual**: um amarelo e um azul com o mesmo `L` em HSL têm brilho visivelmente diferente, e é exatamente isso que faz uma paleta gerada parecer "quebrada" em algumas cores. Em OKLCH o degrau `500` de qualquer marca ocupa o mesmo lugar visual.
+
+!!! tip "O passo de texto sobre a tinta soft é medido, não convencionado"
+    `--tempest-primary-on-soft` não é fixo no `600`: o SDK **mede** o contraste contra a tinta `50` e desce no ramp até passar de 4.5:1 (AA para texto). Isso não é preciosismo — o azul padrão só alcança 4.37:1 no `500` sobre a própria tinta, e um emerald gerado para em 4.41:1 no `600`. Os dois reprovariam AA por um fio.
+
+### Presets prontos
+
+```tsx
+import { applyTheme, createTheme, themePresets } from "tempest-react-sdk";
+
+applyTheme(createTheme(themePresets.violet));
+
+// ou partindo de um e ajustando
+applyTheme(createTheme({ ...themePresets.emerald, radius: "full" }));
+```
+
+Presets disponíveis: `tempest` (o default do SDK), `violet`, `emerald`, `rose`, `slate`, `amber`. Cada um é um objeto de opções — dado, não CSS —, então dá pra guardar o nome escolhido em `localStorage` e resolver com `getThemePreset(name)` (que devolve `undefined` para nome inválido em vez de explodir no boot).
+
+### Trocando de tema em runtime
+
+```tsx
+import { applyTheme, createTheme, getThemePreset } from "tempest-react-sdk";
+import { useEffect, useState } from "react";
+
+export function BrandPicker() {
+  const [brand, setBrand] = useState(() => localStorage.getItem("brand") ?? "tempest");
+
+  useEffect(() => {
+    const preset = getThemePreset(brand);
+    if (!preset) return;
+    localStorage.setItem("brand", brand);
+    return applyTheme(createTheme(preset));
+  }, [brand]);
+
+  return (
+    <select value={brand} onChange={(event) => setBrand(event.target.value)}>
+      {["tempest", "violet", "emerald", "rose", "slate", "amber"].map((name) => (
+        <option key={name} value={name}>{name}</option>
+      ))}
+    </select>
+  );
+}
+```
+
+`applyTheme` é **idempotente**: ele é dono de um `<style id="tempest-theme">` e reescreve o conteúdo, então um seletor de marca pode ser acionado à vontade sem empilhar folhas mortas no `<head>`. O retorno é o disposer (usado como cleanup do effect acima).
+
+!!! tip "Tema escopado numa subárvore"
+    Passe `selector`/`darkSelector` no `createTheme` e `id`/`target` no `applyTheme` pra pintar só um pedaço da tela — útil pra preview de marca:
+
+    ```tsx
+    applyTheme(
+      createTheme({ primary: "#e11d48", selector: ".preview", darkSelector: '.preview[data-tempest-theme="dark"]' }),
+      { id: "preview-theme" },
+    );
+    ```
+
+### Sem JS: cole o CSS gerado
+
+`theme.css` é texto. Se você prefere um tema estático (zero JS no caminho crítico), gere uma vez e cole no CSS global do app:
+
+```bash
+node -e "import('tempest-react-sdk').then(({ createTheme }) => console.log(createTheme({ primary: '#7c3aed' }).css))" > src/brand.css
+```
+
+### Auditando o contraste da sua marca
+
+```ts
+import { contrastRatio, createColorScale, themeContrast } from "tempest-react-sdk";
+
+themeContrast({ primary: "#fde047" }); // 15.2 — texto escuro foi escolhido automaticamente
+
+const scale = createColorScale("#7c3aed");
+contrastRatio(scale[500], "#ffffff");  // asserte no seu teste, se a marca é requisito
+```
+
+`--tempest-primary-foreground` (e `--tempest-text-on-primary`) é escolhido por contraste medido entre branco e o cinza escuro — hardcodar branco produziria botões ilegíveis em marcas claras (amarelo, lima, ciano).
 
 ## Integração com o CSS do app + `theme-color`
 

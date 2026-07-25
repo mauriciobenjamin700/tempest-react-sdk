@@ -130,6 +130,118 @@ The `--tempest-*` tokens are the only theming API. Override them anywhere in the
 !!! note "Tokens are public API"
     Because apps depend on these names, changing/removing a token is a breaking change — that is why they follow the SDK's semantic versioning.
 
+## `createTheme` — a whole brand from one color
+
+Overriding token by token is fine for a one-off tweak. To **change the brand**, it is ~30 values for `primary` alone (ten steps × light/dark, plus the hover/active/soft aliases) — and the dark ramp inversion is easy to get wrong by hand. `createTheme` generates all of it:
+
+```tsx
+import { applyTheme, createTheme } from "tempest-react-sdk";
+
+const theme = createTheme({ primary: "#7c3aed" });
+
+applyTheme(theme);
+```
+
+That's it: all 104 components pick up the new brand, in light and dark.
+
+### What it generates
+
+```ts
+const theme = createTheme({
+  primary: "#7c3aed",          // 50→900 scale + hover/active/soft/foreground/focus-ring
+  gray: "#6b7280",             // surfaces, borders and text
+  success: "#16a34a",          // each status becomes -fg / -bg / -border / -solid
+  danger: "#dc2626",
+  chart: ["#7c3aed", "#0ea5e9", "#22c55e"],  // --tempest-chart-1..N (see Charts)
+  radius: "lg",                // "none" | "sm" | "md" | "lg" | "xl" | "full"
+  focusRingAlpha: 0.35,
+});
+
+theme.light; // { "--tempest-primary-500": "#7c3aed", … }
+theme.dark;  // same, with the ramp inverted
+theme.css;   // ":root { … }\n\n[data-tempest-theme=\"dark\"] { … }"
+```
+
+Only the families you pass are generated — everything else still comes from the SDK's `colors.css`. A theme is a **patch**, not a fork of the palette.
+
+!!! info "Why OKLCH and not HSL"
+    The scale is derived in OKLCH because HSL lightness is **not perceptual**: a yellow and a blue at the same HSL `L` read as visibly different brightness, and that is exactly what makes a generated palette look broken for some colors. In OKLCH, the `500` step of any brand sits in the same visual place.
+
+!!! tip "The text-on-soft step is measured, not conventional"
+    `--tempest-primary-on-soft` is not pinned to `600`: the SDK **measures** contrast against the `50` tint and walks down the ramp until it clears 4.5:1 (AA for body text). This is not fussiness — the default blue only reaches 4.37:1 at `500` over its own tint, and a generated emerald stops at 4.41:1 at `600`. Both would miss AA by a hair.
+
+### Bundled presets
+
+```tsx
+import { applyTheme, createTheme, themePresets } from "tempest-react-sdk";
+
+applyTheme(createTheme(themePresets.violet));
+
+// or start from one and tweak it
+applyTheme(createTheme({ ...themePresets.emerald, radius: "full" }));
+```
+
+Available presets: `tempest` (the SDK default), `violet`, `emerald`, `rose`, `slate`, `amber`. Each one is an options object — data, not CSS — so you can persist the chosen name in `localStorage` and resolve it with `getThemePreset(name)`, which returns `undefined` for an unknown name instead of blowing up at boot.
+
+### Switching themes at runtime
+
+```tsx
+import { applyTheme, createTheme, getThemePreset } from "tempest-react-sdk";
+import { useEffect, useState } from "react";
+
+export function BrandPicker() {
+  const [brand, setBrand] = useState(() => localStorage.getItem("brand") ?? "tempest");
+
+  useEffect(() => {
+    const preset = getThemePreset(brand);
+    if (!preset) return;
+    localStorage.setItem("brand", brand);
+    return applyTheme(createTheme(preset));
+  }, [brand]);
+
+  return (
+    <select value={brand} onChange={(event) => setBrand(event.target.value)}>
+      {["tempest", "violet", "emerald", "rose", "slate", "amber"].map((name) => (
+        <option key={name} value={name}>{name}</option>
+      ))}
+    </select>
+  );
+}
+```
+
+`applyTheme` is **idempotent**: it owns a single `<style id="tempest-theme">` and rewrites its content, so a brand picker can fire as often as it likes without stacking dead stylesheets in `<head>`. The return value is the disposer (used as the effect cleanup above).
+
+!!! tip "Theming one subtree"
+    Pass `selector`/`darkSelector` to `createTheme` and `id`/`target` to `applyTheme` to paint only part of the screen — handy for a brand preview:
+
+    ```tsx
+    applyTheme(
+      createTheme({ primary: "#e11d48", selector: ".preview", darkSelector: '.preview[data-tempest-theme="dark"]' }),
+      { id: "preview-theme" },
+    );
+    ```
+
+### No JS: paste the generated CSS
+
+`theme.css` is text. If you prefer a static theme (zero JS on the critical path), generate it once and paste it into the app's global CSS:
+
+```bash
+node -e "import('tempest-react-sdk').then(({ createTheme }) => console.log(createTheme({ primary: '#7c3aed' }).css))" > src/brand.css
+```
+
+### Auditing your brand's contrast
+
+```ts
+import { contrastRatio, createColorScale, themeContrast } from "tempest-react-sdk";
+
+themeContrast({ primary: "#fde047" }); // 15.2 — dark text was picked automatically
+
+const scale = createColorScale("#7c3aed");
+contrastRatio(scale[500], "#ffffff");  // assert it in your own test if the brand is a requirement
+```
+
+`--tempest-primary-foreground` (and `--tempest-text-on-primary`) is picked by measured contrast between white and the dark gray — hardcoding white would produce unreadable buttons for light brands (yellow, lime, cyan).
+
 ## App CSS integration + `theme-color`
 
 SDK components read `data-tempest-theme`. If your **app's own CSS** already keys the theme off a different attribute (e.g. `[data-theme="dark"]`), you don't need a sync effect — pass an array to `attribute` and the provider writes the resolved theme to **all** of them:

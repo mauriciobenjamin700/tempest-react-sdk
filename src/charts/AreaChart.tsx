@@ -9,7 +9,7 @@ import {
     YAxis,
 } from "recharts";
 import { cn } from "@/utils/cn";
-import { DEFAULT_CHART_COLORS } from "./palette";
+import { useChartColors } from "./use-chart-colors";
 import { toTooltipFormatter } from "./types";
 import type { CartesianChartProps } from "./types";
 
@@ -17,7 +17,7 @@ import type { CartesianChartProps } from "./types";
  * AreaChart — themed wrapper over recharts `AreaChart`.
  *
  * Plots one filled area per entry in `categories`, colored from `colors`
- * (cycling {@link DEFAULT_CHART_COLORS} by default). When `stack` is set, all
+ * (cycling the `--tempest-chart-*` theme tokens by default). When `stack` is set, all
  * areas share a stackId. When `width` is provided the chart renders at that
  * fixed size without a ResponsiveContainer; otherwise it fills its parent.
  */
@@ -25,7 +25,7 @@ export function AreaChart({
     data,
     index,
     categories,
-    colors = DEFAULT_CHART_COLORS,
+    colors,
     height = 300,
     width,
     stack = false,
@@ -35,6 +35,7 @@ export function AreaChart({
     valueFormatter,
     className,
 }: CartesianChartProps) {
+    const palette = useChartColors(colors);
     const stackId = stack ? "stack" : undefined;
 
     const chart = (
@@ -45,7 +46,7 @@ export function AreaChart({
             {showTooltip ? <Tooltip formatter={toTooltipFormatter(valueFormatter)} /> : null}
             {showLegend ? <Legend /> : null}
             {categories.map((category, i) => {
-                const color = colors[i % colors.length];
+                const color = palette[i % palette.length];
                 return (
                     <Area
                         key={category}

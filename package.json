@@ -81,11 +81,12 @@
       "require": "./dist/br.cjs"
     },
     "./styles.css": "./dist/styles.css",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./utilities.css": "./dist/utilities.css"
   },
   "scripts": {
     "dev": "vite build --watch",
-    "build": "tsc -b tsconfig.build.json && vite build",
+    "build": "tsc -b tsconfig.build.json && vite build && node scripts/copy-css-assets.mjs",
     "typecheck": "tsc -b tsconfig.json --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",

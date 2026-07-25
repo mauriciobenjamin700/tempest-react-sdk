@@ -28,6 +28,8 @@ import { Table } from "./Table";
 import { Tabs } from "./Tabs";
 import { SignaturePad } from "./SignaturePad";
 import { Textarea } from "./Textarea";
+import { TreeView } from "./TreeView";
+import { Wizard } from "./Wizard";
 
 interface Row {
     id: string;
@@ -117,6 +119,26 @@ const CASES: [name: string, ui: ReactElement][] = [
         <Modal open onClose={() => undefined} title="Confirmar">
             Tem certeza?
         </Modal>,
+    ],
+    [
+        "TreeView",
+        <TreeView
+            label="Permissões"
+            defaultExpandedIds={["vendas"]}
+            nodes={[
+                { id: "vendas", label: "Vendas", children: [{ id: "vendas.ler", label: "Ler" }] },
+                { id: "sobre", label: "Sobre" },
+            ]}
+        />,
+    ],
+    [
+        "Wizard",
+        <Wizard
+            steps={[
+                { id: "dados", label: "Dados", content: <Input label="Nome" name="nome" /> },
+                { id: "revisao", label: "Revisão", content: <p>Confira os dados</p> },
+            ]}
+        />,
     ],
     [
         "AvatarGroup",

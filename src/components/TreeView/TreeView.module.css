@@ -1,0 +1,105 @@
+.tree {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: var(--tempest-text);
+    font-size: var(--tempest-text-sm);
+}
+
+.item {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: var(--tempest-space-2);
+    width: 100%;
+    padding-block: var(--tempest-space-2);
+    padding-inline-end: var(--tempest-space-3);
+    border-radius: var(--tempest-radius-sm);
+    cursor: pointer;
+    user-select: none;
+    transition:
+        background-color var(--tempest-duration-fast) var(--tempest-ease-out),
+        color var(--tempest-duration-fast) var(--tempest-ease-out);
+}
+
+.row:hover {
+    background-color: var(--tempest-surface-2);
+}
+
+.row:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: calc(var(--tempest-focus-ring-offset) * -1);
+}
+
+.selected {
+    background-color: var(--tempest-primary-soft);
+    color: var(--tempest-primary-on-soft);
+    font-weight: var(--tempest-weight-medium);
+}
+
+.selected:hover {
+    background-color: var(--tempest-primary-soft-hover);
+}
+
+.disabled {
+    color: var(--tempest-text-subtle);
+    cursor: not-allowed;
+}
+
+.disabled:hover {
+    background-color: transparent;
+}
+
+.chevron {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    border-radius: var(--tempest-radius-xs);
+    color: var(--tempest-text-muted);
+    transition: transform var(--tempest-duration-fast) var(--tempest-ease-out);
+}
+
+.chevron:hover {
+    background-color: var(--tempest-surface-3);
+}
+
+.chevronOpen {
+    transform: rotate(90deg);
+}
+
+.chevronPlaceholder {
+    display: inline-block;
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+}
+
+.icon {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    color: var(--tempest-text-muted);
+}
+
+.label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .row,
+    .chevron {
+        transition: none;
+    }
+}

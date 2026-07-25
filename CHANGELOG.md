@@ -42,6 +42,62 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - **Tokens de data viz** — `--tempest-chart-1` … `--tempest-chart-8` (categóricas,
   espaçadas por matiz) + `--tempest-chart-grid` / `--tempest-chart-axis`, com
   versão clareada no bloco dark.
+- **`tempest-react-sdk/utilities.css` — camada de layout opt-in.** Os CSS Modules
+  resolvem o **dentro** de cada componente; o que sobrava pro app era o **em
+  volta** — casca de página, form de duas colunas, linha de ações, card, região
+  que rola na horizontal. Todo app reescrevia esse CSS. Agora são ~50 classes
+  prefixadas `tempest-`, escritas **só com tokens** `--tempest-*` (nenhuma cor
+  literal, nenhum número mágico), então a camada acompanha o tema e o modo escuro.
+  Primitivas: `container`, `stack`, `cluster`, `row`, `center`, `spread`,
+  `grid-auto` (responsivo **sem media query**), `sidebar-layout`, `form-grid` +
+  `form-span`, `fill`/`fixed`, escala de `gap`/`pad`, `truncate`/`clamp-2..4`,
+  `card`/`panel`/`inset`/`divider`, `scroll-x`/`scroll-y`, `page` +
+  `page-header`/`page-title`/`toolbar`, `aspect-video`/`aspect-square`,
+  `visually-hidden`, `numeric` (tabular-nums), `busy`.
+- **Ajuste por instância via custom property**, não por variante de classe:
+  `--tempest-grid-min`, `--tempest-stack-gap`, `--tempest-sidebar-width`,
+  `--tempest-container-width`, `--tempest-form-columns` etc. — `style={{
+"--tempest-grid-min": "220px" }}` resolve sem escrever CSS.
+- **Novo subpath `./utilities.css`** e um passo de build (`scripts/copy-css-assets.mjs`)
+  que copia o arquivo pra `dist/` **sem** passar pelo grafo de módulos: o
+  `cssCodeSplit: false` do Vite juntaria a camada dentro do `styles.css`, e ela
+  precisa continuar separada pra ser de fato opt-in. Budget próprio no
+  `size-limit`: **1.13 KB brotli** (limite 3 KB).
+
+Fica **opt-in de propósito**: são nomes de classe globais, e um app que já tem
+sistema de layout próprio não deve pagar por eles. E não é um Tailwind — a decisão
+"CSS Modules + tokens é a estratégia de estilo dos componentes" segue de pé; isto
+é ferramenta pro código do app, não um segundo caminho de estilizar o SDK.
+
+Um teste de contrato guarda essas promessas (prefixo em toda classe, zero cor
+literal, zero `!important`, só tokens `--tempest-*` referenciados, fora do
+`index.css` e presente no `exports`) — sem ele a camada apodrece em silêncio.
+
+- **`<TreeView>`** — árvore acessível para dado hierárquico (categorias,
+  permissões por módulo, pastas, organograma), que era a lacuna mais óbvia do
+  catálogo: os 104 componentes cobriam lista e tabela, e nada cobria hierarquia.
+  Implementa `role="tree"` com **roving tabindex** — uma única linha tabulável, e
+  as setas movem o foco dentro do widget; sem isso uma árvore de 500 nós
+  adicionaria 500 paradas na ordem de tabulação da página. Teclado completo
+  (`↓`/`↑`, `→` expande ou desce, `←` colapsa ou sobe pro pai, `Home`/`End`,
+  `Enter`/`Espaço`), `aria-level` por profundidade, nós desabilitados pulados na
+  navegação, expansão e seleção controladas ou não. `children: []` é **galho
+  vazio** (mostra chevron, anuncia `aria-expanded`); folha é `children` ausente.
+  O chevron é decoração `aria-hidden`, não um segundo controle focável — a linha
+  já carrega o estado, e o clique nele expande sem selecionar.
+- **`<Wizard>`** — fluxo multi-passo com validação por passo. O `Stepper` era só
+  o **indicador visual**: índice ativo, gate antes de avançar, botão pendente e
+  chamada de conclusão ficavam por conta de cada app. `validate` por passo aceita
+  função sync ou async (`() => form.trigger([...])` é o caso típico), e um gate
+  que **lança** conta como "não permitido" — um `validate` ligado a checagem de
+  rede não deve deixar o usuário num fluxo meio-avançado quando a requisição
+  falha. Pulo pra trás é livre; pulo pra frente valida **cada passo atravessado**.
+  `content` aceita nó ou função que recebe os controles (`next`/`back`/`goTo`/
+  `validating`), e `renderActions` substitui a linha de botões.
+- **`<Stepper>` ganhou `description` por passo e `onStepClick`** (aditivo). O
+  indicador continua **read-only por default**: num fluxo com gates, deixar pular
+  livremente contradiz o motivo do fluxo existir.
+- Os dois entraram no sweep de acessibilidade em jsdom (`axe`), sem violações.
 
 ### Corrigido
 

@@ -198,6 +198,14 @@ This injects the design tokens (`--tempest-primary`, `--tempest-radius-md`, ...)
 
 The styles ship hashed under the `tempest_` namespace — they do **not** collide with Tailwind, Stitches, Linaria, or app-level CSS Modules.
 
+**Optional layout layer.** CSS Modules cover the inside of each component; the layer _around_ them (page shell, two-column form, action row, card, a region that scrolls sideways instead of the page) is a second, opt-in stylesheet:
+
+```ts
+import "tempest-react-sdk/utilities.css";
+```
+
+~50 token-driven classes, all prefixed `tempest-`, **1.13 KB brotli** — a page shell like `<div className="tempest-container tempest-page">` with `.tempest-grid-auto`, `.tempest-form-grid`, `.tempest-card`, `.tempest-truncate`. It is not imported by `styles.css`, so an app with its own layout system pays nothing. It is deliberately _not_ a utility framework: no `p-4 mt-2 bg-blue-500` per value. See [Styles › opt-in utility layer](https://mauriciobenjamin700.github.io/tempest-react-sdk/styles/).
+
 ---
 
 ## What's inside

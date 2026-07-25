@@ -413,6 +413,90 @@ const columns: DataTableColumn<User>[] = [
 !!! info "Behavior"
     Clicking a sortable header cycles asc → desc → unsorted. Search matches a case-insensitive substring across `searchKeys` (or every string/number column when omitted). Pagination is hidden when the result fits on a single page.
 
+### `Wizard`
+
+Multi-step flow: an indicator, one body at a time, and navigation that respects **per-step validation**. `Stepper` draws the indicator; `Wizard` owns the part every app was rewriting — the active index, the async gate before advancing, disabled/pending buttons and the completion call.
+
+```tsx
+import { Button, FormField, Input, Wizard, useZodForm } from "tempest-react-sdk";
+import { FormProvider } from "react-hook-form";
+import { z } from "zod";
+
+const schema = z.object({
+  name: z.string().min(2, "Enter a name"),
+  email: z.string().email("Invalid email"),
+  zip: z.string().min(5, "Incomplete ZIP"),
+});
+
+export function SteppedSignup() {
+  const form = useZodForm(schema, { defaultValues: { name: "", email: "", zip: "" } });
+
+  return (
+    <FormProvider {...form}>
+      <Wizard
+        onComplete={form.handleSubmit((values) => console.log(values))}
+        steps={[
+          {
+            id: "details",
+            label: "Details",
+            description: "Who the customer is",
+            validate: () => form.trigger(["name", "email"]),
+            content: (
+              <>
+                <FormField name="name" label="Name" required><Input /></FormField>
+                <FormField name="email" label="Email" required><Input type="email" /></FormField>
+              </>
+            ),
+          },
+          {
+            id: "address",
+            label: "Address",
+            validate: () => form.trigger(["zip"]),
+            content: <FormField name="zip" label="ZIP" required><Input /></FormField>,
+          },
+          {
+            id: "review",
+            label: "Review",
+            content: ({ back }) => (
+              <>
+                <pre>{JSON.stringify(form.getValues(), null, 2)}</pre>
+                <Button variant="ghost" onClick={back}>Fix something</Button>
+              </>
+            ),
+          },
+        ]}
+      />
+    </FormProvider>
+  );
+}
+```
+
+| Prop                 | Type                                          | Default    | Description                                                  |
+| -------------------- | --------------------------------------------- | ---------- | ------------------------------------------------------------ |
+| `steps`              | `WizardStep[]`                                | —          | The flow's steps.                                            |
+| `activeIndex`        | `number`                                      | —          | Controlled index.                                            |
+| `defaultActiveIndex` | `number`                                      | `0`        | Initial index (uncontrolled).                                |
+| `onStepChange`       | `(index, step) => void`                       | —          | Called on every step change.                                 |
+| `onComplete`         | `() => void \| Promise<void>`                 | —          | Called when the last step passes validation.                 |
+| `nextLabel`          | `string`                                      | `"Next"`   | Advance button label.                                        |
+| `backLabel`          | `string`                                      | `"Back"`   | Back button label.                                           |
+| `finishLabel`        | `string`                                      | `"Finish"` | Label on the last step.                                      |
+| `clickableSteps`     | `boolean`                                     | `false`    | Allows jumping by clicking the indicator.                    |
+| `renderActions`      | `(controls: WizardControls) => ReactNode`     | —          | Replaces the default button row.                             |
+
+`WizardStep = { id, label, description?, content, validate?, optional? }` — `content` accepts a `ReactNode` **or** a function receiving the controls.
+
+`WizardControls = { activeIndex, step, validating, isFirst, isLast, next, back, goTo }`.
+
+!!! warning "Only the active step is mounted"
+    Uncommitted input in a step you leave is **lost** unless the state lives outside (react-hook-form's `FormProvider`, a store, a parent `useState`) — which is where it belongs anyway, since the last step usually submits everything at once.
+
+!!! tip "An async `validate` comes with a pending state"
+    While the promise runs, the advance button is in `loading` and Back is disabled. A `validate` that **throws** counts as "not allowed": a gate wired to a network check should not strand the user on a half-advanced flow when the request fails.
+
+!!! note "`clickableSteps` is `false` on purpose"
+    A wizard exists because **order matters**. With `clickableSteps`, jumping back is free (going back never blocks), but jumping forward validates **every step crossed** — the first gate that fails stops the jump right there.
+
 ## Recap
 
 - **Essentials**: `Toggle`/`ToggleGroup` for pressable states, `Label` for forms, `Collapsible` for a single expandable block, `ContextMenu`/`HoverCard` for interaction-triggered overlays, and `Command` for the ⌘K palette.

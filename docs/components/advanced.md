@@ -419,6 +419,93 @@ const columns: DataTableColumn<User>[] = [
 !!! info "Comportamento"
     Clicar um cabeçalho ordenável cicla asc → desc → sem ordenação. A busca combina substring case-insensitive nas `searchKeys` (ou em toda coluna string/number quando omitidas). A paginação some quando o resultado cabe em uma única página.
 
+### `Wizard`
+
+Fluxo multi-passo: indicador, um corpo por vez e navegação que respeita **validação por passo**. O `Stepper` desenha o indicador; o `Wizard` é dono do que todo app reescrevia — índice ativo, gate assíncrono antes de avançar, botões desabilitados/pendentes e a chamada de conclusão.
+
+```tsx
+import { Button, FormActions, FormField, Input, Wizard, useZodForm } from "tempest-react-sdk";
+import { FormProvider } from "react-hook-form";
+import { z } from "zod";
+
+const schema = z.object({
+  nome: z.string().min(2, "Informe o nome"),
+  email: z.string().email("E-mail inválido"),
+  cep: z.string().min(9, "CEP incompleto"),
+});
+
+export function CadastroEmEtapas() {
+  const form = useZodForm(schema, { defaultValues: { nome: "", email: "", cep: "" } });
+
+  return (
+    <FormProvider {...form}>
+      <Wizard
+        nextLabel="Avançar"
+        backLabel="Voltar"
+        finishLabel="Concluir"
+        onComplete={form.handleSubmit((values) => console.log(values))}
+        steps={[
+          {
+            id: "dados",
+            label: "Dados",
+            description: "Quem é o cliente",
+            validate: () => form.trigger(["nome", "email"]),
+            content: (
+              <>
+                <FormField name="nome" label="Nome" required><Input /></FormField>
+                <FormField name="email" label="E-mail" required><Input type="email" /></FormField>
+              </>
+            ),
+          },
+          {
+            id: "endereco",
+            label: "Endereço",
+            validate: () => form.trigger(["cep"]),
+            content: <FormField name="cep" label="CEP" required><Input /></FormField>,
+          },
+          {
+            id: "revisao",
+            label: "Revisão",
+            content: ({ back }) => (
+              <>
+                <pre>{JSON.stringify(form.getValues(), null, 2)}</pre>
+                <Button variant="ghost" onClick={back}>Corrigir</Button>
+              </>
+            ),
+          },
+        ]}
+      />
+    </FormProvider>
+  );
+}
+```
+
+| Prop                 | Tipo                                          | Default    | Descrição                                                    |
+| -------------------- | --------------------------------------------- | ---------- | ------------------------------------------------------------ |
+| `steps`              | `WizardStep[]`                                | —          | Passos do fluxo.                                             |
+| `activeIndex`        | `number`                                      | —          | Índice controlado.                                           |
+| `defaultActiveIndex` | `number`                                      | `0`        | Índice inicial (não controlado).                             |
+| `onStepChange`       | `(index, step) => void`                       | —          | Chamado a cada troca de passo.                               |
+| `onComplete`         | `() => void \| Promise<void>`                 | —          | Chamado quando o último passo passa na validação.            |
+| `nextLabel`          | `string`                                      | `"Next"`   | Rótulo do botão de avanço.                                   |
+| `backLabel`          | `string`                                      | `"Back"`   | Rótulo do botão de voltar.                                   |
+| `finishLabel`        | `string`                                      | `"Finish"` | Rótulo no último passo.                                      |
+| `clickableSteps`     | `boolean`                                     | `false`    | Permite pular clicando no indicador.                         |
+| `renderActions`      | `(controls: WizardControls) => ReactNode`     | —          | Substitui a linha de botões padrão.                          |
+
+`WizardStep = { id, label, description?, content, validate?, optional? }` — `content` aceita `ReactNode` **ou** função que recebe os controles.
+
+`WizardControls = { activeIndex, step, validating, isFirst, isLast, next, back, goTo }`.
+
+!!! warning "Só o passo ativo está montado"
+    Input não commitado em um passo que você abandona **se perde**, a menos que o estado viva fora (o `FormProvider` do react-hook-form, uma store, um `useState` do pai) — que é onde ele deveria estar de todo jeito, já que o último passo normalmente submete tudo de uma vez.
+
+!!! tip "`validate` assíncrono já vem com estado de pendência"
+    Enquanto a promise corre, o botão de avanço fica em `loading` e o de voltar desabilitado. Um `validate` que **lança** conta como "não permitido": um gate ligado a checagem de rede não deve deixar o usuário num fluxo meio-avançado quando a requisição falha.
+
+!!! note "`clickableSteps` é `false` de propósito"
+    Um wizard existe porque a **ordem importa**. Com `clickableSteps`, pular pra trás é livre (voltar nunca bloqueia), mas pular pra frente valida **cada passo atravessado** — o primeiro gate que reprovar interrompe o salto ali.
+
 ## Recap
 
 - **Essenciais**: `Toggle`/`ToggleGroup` para estados pressionáveis, `Label` para formulários, `Collapsible` para um bloco expansível, `ContextMenu`/`HoverCard` para overlays disparados por interação e `Command` para a paleta ⌘K.

@@ -248,6 +248,49 @@ describe("createOfflineSync — callbacks, watermark and options", () => {
         expect(pending.map((entry) => entry.recordId)).toEqual(["first", "second"]);
     });
 
+    it("keeps FIFO order when every enqueue lands in the same millisecond", async () => {
+        // Date.now() frozen: with a plain timestamp all three entries would tie and
+        // the order would fall to whatever the index returns — which is exactly the
+        // flake this guards against, and why a create could ship after its update.
+        const frozen = vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+        const { sync } = makeSync({
+            deliver: vi.fn(async () => {
+                throw new Error("offline");
+            }),
+        });
+
+        await sync.enqueue("create", "a", { id: "a" });
+        await sync.enqueue("update", "b", { id: "b" });
+        await sync.enqueue("delete", "c");
+
+        const pending = await sync.listPending();
+        expect(pending.map((entry) => entry.recordId)).toEqual(["a", "b", "c"]);
+        expect(pending.map((entry) => entry.enqueuedAt)).toEqual([
+            1_700_000_000_000, 1_700_000_000_001, 1_700_000_000_002,
+        ]);
+
+        frozen.mockRestore();
+    });
+
+    it("delivers in enqueue order after a same-millisecond burst", async () => {
+        const frozen = vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+        const delivered: string[] = [];
+        const { sync } = makeSync({
+            deliver: vi.fn(async (entry) => {
+                delivered.push(entry.recordId);
+            }),
+        });
+
+        await sync.enqueue("create", "first", { id: "first" });
+        await sync.enqueue("update", "second", { id: "second" });
+        await sync.enqueue("update", "third", { id: "third" });
+
+        frozen.mockRestore();
+        await sync.flush("manual");
+
+        expect(delivered).toEqual(["first", "second", "third"]);
+    });
+
     it("dispose() is safe without a broadcast channel and keeps state readable", async () => {
         const { sync } = makeSync();
         await sync.enqueue("create", "r5", { id: "r5" });

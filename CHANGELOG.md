@@ -4,6 +4,21 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **Outbox podia entregar fora de ordem.** `enqueuedAt` era `Date.now()` puro e é
+  a chave de ordenação **tanto** do `listPending()` **quanto** do laço de entrega
+  do `flush()`. Dois enqueues dentro do mesmo milissegundo — o normal num burst —
+  empatavam, e o empate deixava a ordem para o índice: um `create` podia ser
+  entregue **depois** do `update` que depende dele, e o servidor recebe uma
+  atualização de registro que ainda não existe. Agora o timestamp é estritamente
+  crescente por instância do motor (empate avança 1ms), então a fila é FIFO de
+  verdade. Custo: o `enqueuedAt` pode ficar alguns milissegundos à frente do
+  relógio durante um burst. Achado porque o teste "lists pending entries in enqueue
+  order" falhava **de forma intermitente** — passava quando os dois enqueues caíam
+  em milissegundos diferentes. O teste de regressão agora **congela** `Date.now()`,
+  então o empate é garantido em vez de sorteado.
+
 ### Adicionado
 
 - **`createTheme` — a marca inteira a partir de uma cor.** Trocar a marca exigia

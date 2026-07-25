@@ -4,12 +4,12 @@ SDK público da Tempest com componentes React, hooks e integrações reutilizáv
 
 > Este arquivo é o guia operacional do SDK. Padrões globais (PR template PT-BR, conventional commits, `gh pr edit` workaround) vêm de `~/.claude/CLAUDE.md` e continuam valendo.
 
-## Estado atual (snapshot pós-v0.23.0 — `[Unreleased]` no CHANGELOG aguardando tag)
+## Estado atual (snapshot pós-v0.24.0 — `[Unreleased]` no CHANGELOG aguardando tag)
 
 - **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 30 tags publicadas (0.1.0 → 0.23.0) com signed provenance via OIDC. Histórico completo em `RELEASES.md` (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
-- **Testes**: 2272 testes em 366 arquivos, ~28 s sob `vitest + jsdom + fake-indexeddb`. Cobertura 98.5% linhas / 97.1% statements / 96.4% funções / 95.0% branches; pisos do CI em 98/97/96/94.
-- **Superfície**: 34 módulos em `src/`, 107 componentes, 45 hooks, 384 exports na entrada raiz.
-- **Empacotamento (v0.24.0)**: `dist/` preserva o grafo de módulos (`preserveModules`). O que o app paga de fato (brotli): `{ cn }` 153 B · `{ Button }` 794 B · app típico 6.79 KB · offline/PWA 4.41 KB · `styles.css` 20.61 KB. Teto sem tree-shaking: 66.53 KB ESM / 81.53 KB CJS. Budgets do `size-limit` são **por fatia importada**, não pelo barrel.
+- **Testes**: 2488 testes em 377 arquivos, ~36 s sob `vitest + jsdom + fake-indexeddb`. Cobertura 98.5% linhas / 97.1% statements / 96.6% funções / 95.0% branches; pisos do CI em 98/97/96/94.
+- **Superfície**: 34 módulos em `src/`, 109 componentes, 45 hooks, 384 exports na entrada raiz.
+- **Empacotamento (v0.25.0)**: `dist/` preserva o grafo de módulos (`preserveModules`). O que o app paga de fato (brotli): `{ cn }` 153 B · `{ Button }` 794 B · app típico 6.83 KB · offline/PWA 4.44 KB · `styles.css` 21.68 KB · `utilities.css` 1.13 KB (opt-in). Teto sem tree-shaking: 70.21 KB ESM / 85.52 KB CJS. Budgets do `size-limit` são **por fatia importada**, não pelo barrel.
 - **Subpaths** (9): `.`, `/testing` (MSW), `/vite` (`createViteConfig`), `/sw` (helpers de contexto SW), `/charts` (recharts peer), `/editor` (tiptap peer), `/vision` (onnxruntime-web peer), `/br` (dataset BR + mapa clicável), `/styles.css`, `/utilities.css` (camada de layout opt-in).
 - **CLIs** (`bin/`): `create-tempest-app` (scaffold — invocado como `npx -p tempest-react-sdk create-tempest-app .`; **não** existe pacote `create-tempest-app` no npm, então `npm create tempest-app` dá 404) com templates `template/` e `template-pwa/`; `tempest` (project CLI: `doctor`, `lint`, `fix`, `format`, `gen api <openapi>` → Zod + types + services).
 - **Style modules**: `colors.css` + `typography.css` + `motion.css` + `density.css` + `reset.css` + `responsive.css` + `print.css`; `utilities.css` fica **fora** do bundle (opt-in, copiado pra `dist/` no build).
@@ -54,7 +54,7 @@ tempest-react-sdk/
 │   ├── auth/           createAuthStore, AuthGuard, decodeJWT, lazyWithRetry, createRefreshQueue, createTempestAuth
 │   ├── br/          ⇢  dataset de estados/municípios + mapa UF clicável + centroides (chunks lazy)
 │   ├── charts/      ⇢  wrappers recharts
-│   ├── components/     107 componentes UI
+│   ├── components/     109 componentes UI
 │   ├── data/           createDataProvider, <TempestDataProvider>, useDataProvider (CRUD por recurso)
 │   ├── editor/      ⇢  RichTextEditor (tiptap)
 │   ├── error-boundary/ ErrorBoundary, useErrorHandler

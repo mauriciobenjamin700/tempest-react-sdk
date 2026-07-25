@@ -56,3 +56,28 @@ describe("createStore", () => {
         expect(second.getState().count).toBe(99);
     });
 });
+
+describe("createStore — persist options", () => {
+    it("wires partialize, version and migrate through to persist", () => {
+        const useStore = createStore<CounterState>(initializer, {
+            persist: {
+                name: "with-options",
+                partialize: (state: CounterState) => ({ count: state.count }) as CounterState,
+                version: 2,
+                migrate: (state: unknown) => state as CounterState,
+            },
+        });
+
+        useStore.getState().inc();
+        expect(useStore.getState().count).toBe(1);
+    });
+
+    it("uses sessionStorage when asked", () => {
+        const useStore = createStore<CounterState>(initializer, {
+            persist: { name: "session-store", storage: "session" },
+        });
+
+        useStore.getState().inc();
+        expect(useStore.getState().count).toBe(1);
+    });
+});

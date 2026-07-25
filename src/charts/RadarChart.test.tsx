@@ -37,3 +37,26 @@ describe("RadarChart", () => {
         expect(series.length).toBe(2);
     });
 });
+
+describe("RadarChart — toggles and responsive wrapper", () => {
+    it("omits tooltip and legend when disabled", () => {
+        const { container } = render(
+            <RadarChart
+                data={data}
+                index="skill"
+                categories={["alice"]}
+                width={300}
+                showTooltip={false}
+                showLegend={false}
+            />,
+        );
+        expect(container.querySelector(".recharts-legend-wrapper")).toBeNull();
+    });
+
+    it("wraps in a ResponsiveContainer when no width is given", () => {
+        const { container } = render(
+            <RadarChart data={data} index="skill" categories={["alice"]} />,
+        );
+        expect(container.querySelector(".recharts-responsive-container")).not.toBeNull();
+    });
+});

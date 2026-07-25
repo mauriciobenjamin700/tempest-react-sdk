@@ -34,3 +34,26 @@ describe("Alert", () => {
         expect(screen.getByRole("alert")).toBeInTheDocument();
     });
 });
+
+describe("Alert — appearances and icon", () => {
+    it.each([
+        ["solid", "solid"],
+        ["outline", "outline"],
+    ] as const)("carries the %s appearance class", (appearance, expected) => {
+        const { container } = render(
+            <Alert appearance={appearance} title="T">
+                corpo
+            </Alert>,
+        );
+        expect((container.firstChild as HTMLElement).className).toContain(expected);
+    });
+
+    it("renders a custom icon", () => {
+        render(
+            <Alert title="T" icon={<span data-testid="alert-icon">!</span>}>
+                corpo
+            </Alert>,
+        );
+        expect(screen.getByTestId("alert-icon")).toBeInTheDocument();
+    });
+});

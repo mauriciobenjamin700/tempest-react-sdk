@@ -258,8 +258,12 @@ export function createTheme(options: CreateThemeOptions = {}): GeneratedTheme {
     }
 
     if (gray) {
-        const lightScale = createColorScale(gray, "light");
-        const darkScale = createColorScale(gray, "dark");
+        // `anchor: false`: a neutral ramp has to keep its tuned lightness curve.
+        // Anchoring it at the input compressed both halves and dropped
+        // text-muted-on-surface-3 to ~4.2:1 — below AA — which the browser axe
+        // sweep caught on the generated themes.
+        const lightScale = createColorScale(gray, "light", { anchor: false, neutral: true });
+        const darkScale = createColorScale(gray, "dark", { anchor: false, neutral: true });
         writeScale(light, "gray", lightScale);
         writeScale(dark, "gray", darkScale);
         writeNeutralAliases(light, lightScale, "light");

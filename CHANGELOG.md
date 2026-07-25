@@ -6,6 +6,24 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **Tema gerado reprovava contraste AA.** O sweep `axe` no browser (que roda no
+  `e2e.yml`, ao contrário do sweep em jsdom — jsdom não pinta, então não mede
+  contraste) reprovou o chip `+N` do `AvatarGroup` e o label ativo do `Stepper`
+  nos temas gerados. A causa não era o CSS dos componentes: os pares de token
+  afinados à mão dão 6.2:1, mas o **ramp neutro gerado** dava 4.2:1 — e caía para
+  3.5:1 quando eu tentei corrigir tirando a ancoragem. O erro de fundo era usar
+  **uma única curva de lightness** para marca e para neutro: medindo as escalas do
+  `colors.css` em OKLCH, a neutra é bem mais larga (`0.982 → 0.210`) que a de marca
+  (`0.966 → 0.251`), porque neutro carrega superfície quase branca e texto quase
+  preto. Agora existem duas curvas, ambas com os valores **medidos** das escalas
+  embutidas, e a neutra não é ancorada (ancorar comprime exatamente a faixa que ela
+  precisa ter larga). `createColorScale` ganhou as opções `neutral` e `anchor`.
+- **O guard que faltava**: um teste percorre os 6 presets e assere
+  `text-muted`/`surface-3` ≥ 4.5:1, `text`/`surface-3` ≥ 7:1 e `text`/`bg` ≥ 7:1.
+  Sem ele, esse tipo de regressão só aparecia no CI — e o docstring da curva antiga
+  ainda afirmava estar "afinada contra as escalas do colors.css", o que não era
+  verdade.
+
 - **`<Tooltip>` deixava de cancelar a abertura pendente.** O handle do timer vivia
   num `let` no corpo do componente, e esse binding é **recriado a cada render** —
   então qualquer re-render entre o `mouseenter` e o `mouseleave` (update do pai,

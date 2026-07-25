@@ -51,6 +51,13 @@ ArrayBufferView`). O lib DOM do TS 6 tirou `SharedArrayBuffer` de
   nunca passaram pela própria regra `simple-import-sort/imports` que o template
   liga, então `npm run lint` num projeto recém-criado saía com 6 erros. Imports
   ordenados na fonte; app novo agora linta limpo.
+- **Pre-commit quebrava com ESLint 10.** O v10 resolve o config **por arquivo**,
+  então o `lint-staged` passava a achar o `template/eslint.config.js` e o
+  typescript-eslint abortava com `No tsconfigRootDir was set, and multiple
+candidate TSConfigRootDirs are present`. Os dois configs agora fixam
+  `parserOptions.tsconfigRootDir: import.meta.dirname`, e os plugins que só o
+  template usava (`simple-import-sort`, `unused-imports`) entraram como devDep da
+  raiz — de brinde, os fontes do template passaram a ser lintados de verdade.
 - **CLI não mencionava o `.env`.** O `create-tempest-app` imprimia
   `npm install` + `npm run dev`, mas `src/lib/api.ts` lê
   `import.meta.env.VITE_API_URL` — sem `.env` a base do cliente HTTP fica

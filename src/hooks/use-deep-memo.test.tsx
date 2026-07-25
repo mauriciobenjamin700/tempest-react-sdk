@@ -52,7 +52,7 @@ describe("useDeepMemo — structural mismatches", () => {
     it("treats objects with a different key count as different", () => {
         const { result, rerender } = renderHook(
             ({ value }: { value: Record<string, number> }) => useDeepMemo(value),
-            { initialProps: { value: { a: 1 } } },
+            { initialProps: { value: { a: 1 } as Record<string, number> } },
         );
         const first = result.current;
         rerender({ value: { a: 1, b: 2 } });

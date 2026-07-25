@@ -28,7 +28,14 @@ describe("Checkbox", () => {
 describe("Checkbox — ref forwarding, indeterminate and description", () => {
     it("accepts a callback ref", () => {
         const seen: (HTMLInputElement | null)[] = [];
-        render(<Checkbox label="x" ref={(node) => seen.push(node)} />);
+        render(
+            <Checkbox
+                label="x"
+                ref={(node) => {
+                    seen.push(node);
+                }}
+            />,
+        );
         expect(seen[0]).toBeInstanceOf(HTMLInputElement);
     });
 

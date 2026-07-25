@@ -128,3 +128,81 @@ describe("useOfflineMutation", () => {
         expect(sync.flush).not.toHaveBeenCalled();
     });
 });
+
+describe("useOfflineMutation — trigger, invalidate and no-cache mode", () => {
+    it("uses a custom flush trigger", async () => {
+        const sync = fakeSync();
+        const { result } = renderHook(
+            () =>
+                useOfflineMutation<Note, { text: string }>({
+                    sync,
+                    toEntry: (vars) => ({
+                        op: "create",
+                        recordId: "n1",
+                        payload: { id: "n1", ...vars },
+                    }),
+                    flush: "boot",
+                }),
+            { wrapper: makeWrapper(new QueryClient()) },
+        );
+
+        await act(async () => {
+            await result.current.mutateAsync({ text: "x" });
+        });
+        expect(sync.flush).toHaveBeenCalledWith("boot");
+    });
+
+    it("skips the optimistic patch without a queryKey", async () => {
+        const sync = fakeSync();
+        const applyOptimistic = vi.fn();
+        const { result } = renderHook(
+            () =>
+                useOfflineMutation<Note, { text: string }>({
+                    sync,
+                    toEntry: (vars) => ({
+                        op: "create",
+                        recordId: "n1",
+                        payload: { id: "n1", ...vars },
+                    }),
+                    applyOptimistic,
+                }),
+            { wrapper: makeWrapper(new QueryClient()) },
+        );
+
+        await act(async () => {
+            await result.current.mutateAsync({ text: "x" });
+        });
+        expect(applyOptimistic).not.toHaveBeenCalled();
+    });
+
+    it("invalidates the query when invalidate is set", async () => {
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        const invalidateQueries = vi.spyOn(client, "invalidateQueries");
+        const sync = fakeSync();
+        const { result } = renderHook(
+            () =>
+                useOfflineMutation<Note, { text: string }>({
+                    sync,
+                    queryKey: ["notes"],
+                    toEntry: (vars) => ({
+                        op: "create",
+                        recordId: "n1",
+                        payload: { id: "n1", ...vars },
+                    }),
+                    invalidate: true,
+                }),
+            {
+                wrapper: ({ children }: { children: ReactNode }) => (
+                    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+                ),
+            },
+        );
+
+        await act(async () => {
+            await result.current.mutateAsync({ text: "x" });
+        });
+        await waitFor(() =>
+            expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["notes"] }),
+        );
+    });
+});

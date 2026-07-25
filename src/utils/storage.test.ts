@@ -51,3 +51,16 @@ describe("storage — unavailable backend", () => {
         expect(storage.get("bad-json", 7)).toBe(7);
     });
 });
+
+describe("storage — no window", () => {
+    it("returns the fallback and no-ops without a window", () => {
+        const original = globalThis.window;
+        vi.stubGlobal("window", undefined);
+
+        expect(storage.get("k", "fallback")).toBe("fallback");
+        expect(() => storage.set("k", 1)).not.toThrow();
+        expect(() => storage.remove("k")).not.toThrow();
+
+        vi.stubGlobal("window", original);
+    });
+});

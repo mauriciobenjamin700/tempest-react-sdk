@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { Command } from "./Command";
@@ -94,5 +94,51 @@ describe("Command", () => {
         render(<Command open onOpenChange={vi.fn()} items={makeItems(vi.fn())} />);
         expect(screen.getByText("File")).toBeInTheDocument();
         expect(screen.getByText("Preferences")).toBeInTheDocument();
+    });
+});
+
+describe("Command — navigation guards, wrap and icons", () => {
+    it("wraps ArrowUp from the first item to the last", async () => {
+        const onOpenChange = vi.fn();
+        render(<Command open items={makeItems(vi.fn())} onOpenChange={onOpenChange} />);
+        const input = screen.getByRole("combobox");
+
+        await userEvent.type(input, "{ArrowUp}");
+        const options = screen.getAllByRole("option");
+        expect(options[options.length - 1]).toHaveAttribute("aria-selected", "true");
+    });
+
+    it("ignores the arrows when nothing matches", async () => {
+        render(<Command open items={makeItems(vi.fn())} onOpenChange={vi.fn()} />);
+        const input = screen.getByRole("combobox");
+
+        await userEvent.type(input, "zzzznadaaqui");
+        await userEvent.type(input, "{ArrowDown}{ArrowUp}{Enter}");
+        expect(screen.queryAllByRole("option")).toHaveLength(0);
+    });
+
+    it("highlights the item under the pointer", () => {
+        render(<Command open items={makeItems(vi.fn())} onOpenChange={vi.fn()} />);
+        const options = screen.getAllByRole("option");
+        fireEvent.mouseMove(options[1]);
+        expect(options[1]).toHaveAttribute("aria-selected", "true");
+    });
+
+    it("renders an item icon when provided", () => {
+        render(
+            <Command
+                open
+                onOpenChange={vi.fn()}
+                items={[
+                    {
+                        id: "with-icon",
+                        label: "Com ícone",
+                        icon: <span data-testid="cmd-icon">*</span>,
+                        onSelect: vi.fn(),
+                    },
+                ]}
+            />,
+        );
+        expect(screen.getByTestId("cmd-icon")).toBeInTheDocument();
     });
 });

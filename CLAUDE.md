@@ -103,14 +103,9 @@ tempest-react-sdk/
 
 Entregue e fora do backlog: release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`), sweep `axe` em jsdom + smoke Playwright do gallery (`e2e.yml`), coverage gateando o CI (pisos 96/94/94/89), política de versionamento de tokens CSS (`docs/styles.md`).
 
-### P1 — features opcionais
+### P1 — cauda de cobertura
 
-1. **CSS opcional** (`data-tempest-classname`) para users de Tailwind/Stitches/Linaria.
-
-### P2 — polimento
-
-2. **13 warnings de `react-refresh/only-export-components`** em Providers (hook exportado junto do componente, intencional). Viram annotations em todo run de CI. Resolver com `allowExportNames` ou override por arquivo.
-3. **Cauda de branches (90.1% → 95%)**: sobra ~470 branches espalhadas em ~90 arquivos, ~5 cada. Sem alvo gordo — só valeria com um objetivo específico (badge).
+1. **Branches 95% → mais alto**: a cauda restante está espalhada em dezenas de arquivos com ~2-4 branches cada. Sem alvo gordo; só vale com objetivo específico.
 
 ## Como retomar
 
@@ -147,7 +142,7 @@ npm run dev               # http://127.0.0.1:5173
 
 ## Decisões consolidadas (não revisitar sem razão)
 
-- **CSS Modules com prefix `tempest_`** — evita colisão com apps consumidores. Tailwind/Stitches OK lado a lado.
+- **CSS Modules com prefix `tempest_`, e só isso** — é a única estratégia de estilo do SDK. Não existe (nem entra no backlog) modo "headless"/`data-tempest-classname` para Tailwind, Stitches ou Linaria: manter um segundo caminho de estilo dobraria a superfície de cada componente e diluiria os tokens. Um app que use Tailwind pode conviver com o SDK lado a lado (o prefixo evita colisão), mas os componentes continuam estilizados por CSS Modules + tokens `--tempest-*`.
 - **Tokens CSS via `--tempest-*`** — única forma de tema. Apps customizam sobrescrevendo no `:root`.
 - **Direct deps + react peer** (v0.2.0+) — apenas `react` + `react-dom` como peer; demais (`zod`, `zustand`, `dexie`, `react-hook-form`, `@tanstack/react-query`, `lucide-react`) viram `dependencies` instaladas junto. Continuam externalizadas no Rollup config (bundle do SDK não cresce). Apps que não usam um módulo ainda não pagam — Vite/webpack tree-shake. Decisão original v0.1.x era "peer deps opcionais", revertida em v0.2.0 a pedido do usuário pra simplificar onboarding.
 - **Adapters injetam SDK** — Sentry/PostHog/GrowthBook/LaunchDarkly **não** são peer deps. Caller passa a instância. Pattern aplicável pra Datadog/Mixpanel/Unleash/etc.

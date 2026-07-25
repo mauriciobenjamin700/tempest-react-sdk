@@ -23,6 +23,16 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `createWebSocket`, `createTempestAuth`, `createOfflineSync`, `cache-inspect`,
   `create-push-handler`, `geocode` e `tempestPwaIcons` (sharp mockado).
 
+### Qualidade
+
+- **Lint 100% limpo** — os 13 warnings de
+  `react-refresh/only-export-components` vinham de módulos de contexto que
+  exportam o hook junto do provider (`ThemeProvider`+`useTheme`,
+  `I18nProvider`+`useI18n`/`useTranslate`, etc.), que é a forma da API pública:
+  um caminho de import por módulo. Em vez de silenciar a regra, um override
+  lista **os nomes exatos** permitidos nesses arquivos — um export novo e não
+  previsto continua avisando (verificado).
+
 ### Documentação
 
 - **Escopo cravado: client-side only, PWA offline-first.** O SDK **não** vai pra
@@ -32,6 +42,12 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   Arquitetura (PT + EN), com o porquê: cobrir os dois mundos custaria em cada API
   (dois caminhos de render, hidratação, `window` proibido no topo do módulo) e o
   offline-first sairia pior.
+- **CSS Modules é a única estratégia de estilo, e isso é definitivo.** O item
+  "CSS opcional / `data-tempest-classname` para Tailwind/Stitches/Linaria" saiu
+  do backlog e virou decisão em `CLAUDE.md` + aviso em `docs/styles.md` (PT +
+  EN): dois caminhos de estilo dobrariam a superfície de cada componente e
+  diluiriam os tokens. Conviver lado a lado com um utilitário no resto do app
+  continua suportado (prefixo `tempest_` + tokens legíveis via `var()`).
 - **`SSR-safe` virou `safe sem window`** na doc de hooks (PT + EN). O termo
   antigo prometia render no servidor; o que os guards
   `typeof window === "undefined"` realmente entregam é não explodir fora do

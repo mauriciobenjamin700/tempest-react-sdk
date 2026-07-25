@@ -395,6 +395,17 @@ persistence + flash prevention.
     running side by side. You only interact with the `--tempest-*` tokens — you
     never need to know the class names.
 
+!!! warning "CSS Modules is the SDK's only styling strategy"
+    Components are styled with CSS Modules plus `--tempest-*` tokens, full stop.
+    There is no headless mode and no class hook (`data-tempest-classname`) for
+    Tailwind/Stitches/Linaria to take over the styling — and none is planned.
+    Keeping two styling paths would double every component's surface and dilute
+    the tokens.
+
+    What you **can** do: run your favourite utility framework side by side in the
+    rest of the app, read the SDK's tokens with `var(--tempest-*)`, and customise
+    the SDK by overriding those tokens on `:root`.
+
 Since the tokens are CSS Custom Properties, any solution (`styled-components`,
 `emotion`, `vanilla-extract`, Tailwind arbitrary values) reads them with
 `var(--tempest-*)`:

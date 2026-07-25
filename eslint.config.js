@@ -36,4 +36,49 @@ export default tseslint.config(
             "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
         },
     },
+    {
+        // Context modules deliberately export their hook (or a small helper) next
+        // to the provider: one import path per module is the SDK's public-API
+        // shape, and splitting them would fragment it for no consumer gain —
+        // `dist` ships prebuilt, so Fast Refresh of SDK source is moot.
+        //
+        // Whitelisting the exact names keeps the rule useful: a new, unintended
+        // export from any of these files still warns.
+        files: [
+            "src/access/access-control-context.tsx",
+            "src/components/ModalsManager/ModalsManager.tsx",
+            "src/components/NProgress/NProgress.tsx",
+            "src/components/PasswordInput/PasswordInput.tsx",
+            "src/components/Toast/ToastProvider.tsx",
+            "src/data/data-provider-context.tsx",
+            "src/feature-flags/FeatureFlagsProvider.tsx",
+            "src/i18n/I18nProvider.tsx",
+            "src/router/AppRouter.tsx",
+            "src/telemetry/TelemetryProvider.tsx",
+            "src/theme/ThemeProvider.tsx",
+        ],
+        rules: {
+            "react-refresh/only-export-components": [
+                "warn",
+                {
+                    allowConstantExport: true,
+                    allowExportNames: [
+                        "defineRoutes",
+                        "estimatePasswordStrength",
+                        "nprogress",
+                        "useAccessControl",
+                        "useDataProvider",
+                        "useFeatureFlag",
+                        "useFlagValue",
+                        "useI18n",
+                        "useModals",
+                        "useTelemetry",
+                        "useTheme",
+                        "useToast",
+                        "useTranslate",
+                    ],
+                },
+            ],
+        },
+    },
 );

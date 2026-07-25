@@ -4,10 +4,10 @@ SDK público da Tempest com componentes React, hooks e integrações reutilizáv
 
 > Este arquivo é o guia operacional do SDK. Padrões globais (PR template PT-BR, conventional commits, `gh pr edit` workaround) vêm de `~/.claude/CLAUDE.md` e continuam valendo.
 
-## Estado atual (snapshot v0.23.0 — em preparo, aguardando tag)
+## Estado atual (snapshot pós-v0.23.0 — `[Unreleased]` no CHANGELOG aguardando tag)
 
-- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 29 tags publicadas (0.1.0 → 0.22.0) com signed provenance via OIDC. Histórico completo em `RELEASES.md` (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
-- **Testes**: 1490 testes em 358 arquivos, ~33 s sob `vitest + jsdom + fake-indexeddb`.
+- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 30 tags publicadas (0.1.0 → 0.23.0) com signed provenance via OIDC. Histórico completo em `RELEASES.md` (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
+- **Testes**: 2272 testes em 366 arquivos, ~28 s sob `vitest + jsdom + fake-indexeddb`. Cobertura 98.5% linhas / 97.1% statements / 96.4% funções / 95.0% branches; pisos do CI em 98/97/96/94.
 - **Superfície**: 34 módulos em `src/`, 104 componentes, 45 hooks, 384 exports na entrada raiz.
 - **Empacotamento (v0.23.0)**: `dist/` preserva o grafo de módulos (`preserveModules`). O que o app paga de fato (brotli): `{ cn }` 118 B · `{ Button }` 820 B · app típico 6.83 KB · offline/PWA 4.45 KB · `styles.css` 20.6 KB. Teto sem tree-shaking: 64.5 KB ESM / 79.9 KB CJS. Budgets do `size-limit` são **por fatia importada**, não pelo barrel.
 - **Subpaths** (8): `.`, `/testing` (MSW), `/vite` (`createViteConfig`), `/sw` (helpers de contexto SW), `/charts` (recharts peer), `/editor` (tiptap peer), `/vision` (onnxruntime-web peer), `/br` (dataset BR + mapa clicável), `/styles.css`.
@@ -101,7 +101,7 @@ tempest-react-sdk/
 
 ## Backlog priorizado
 
-Entregue e fora do backlog: release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`), sweep `axe` em jsdom + smoke Playwright do gallery (`e2e.yml`), coverage gateando o CI (pisos 96/94/94/89), política de versionamento de tokens CSS (`docs/styles.md`).
+Entregue e fora do backlog: release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`), sweep `axe` em jsdom + smoke Playwright do gallery (`e2e.yml`), coverage gateando o CI (pisos 98/97/96/94), política de versionamento de tokens CSS (`docs/styles.md`).
 
 ### P1 — cauda de cobertura
 

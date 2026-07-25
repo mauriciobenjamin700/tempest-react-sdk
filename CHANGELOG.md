@@ -22,9 +22,6 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `useServiceWorkerUpdate`, `ThemeProvider` (listener de `prefers-color-scheme`),
   `createWebSocket`, `createTempestAuth`, `createOfflineSync`, `cache-inspect`,
   `create-push-handler`, `geocode` e `tempestPwaIcons` (sharp mockado).
-
-### Testes
-
 - **Cobertura de branches 90.1% → 95.0%** (linhas 97.4% → 98.5%, statements
   95.0% → 97.1%, funções 95.6% → 96.4%), +303 testes (1969 → 2272). Pisos do CI
   subiram pra 98/97/96/94. Alvos: `sw/cache` e `background-sync`, `sse/create-event-stream`,

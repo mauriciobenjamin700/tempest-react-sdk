@@ -52,3 +52,38 @@ describe("thresholdScale", () => {
         expect(scale(999)).toBe("#high");
     });
 });
+
+describe("scales — degenerate palettes and ranges", () => {
+    it("falls back to black for an empty palette", () => {
+        expect(interpolatePalette([], 0.5)).toBe("#000000");
+    });
+
+    it("returns the single stop of a one-color palette", () => {
+        expect(interpolatePalette(["#123456"], 0.7)).toBe("#123456");
+    });
+
+    it("clamps t below 0 and above 1", () => {
+        const palette = ["#000000", "#ffffff"];
+        // Blended stops come back as `rgb(...)`; the clamped ends are exact.
+        expect(interpolatePalette(palette, -1)).toBe("rgb(0, 0, 0)");
+        expect(interpolatePalette(palette, 2)).toBe("#ffffff");
+    });
+
+    it("returns the last stop exactly at t = 1", () => {
+        expect(interpolatePalette(["#000000", "#ff0000"], 1)).toBe("#ff0000");
+    });
+
+    it("treats a zero-width range as a single bucket", () => {
+        const sequential = sequentialScale(5, 5);
+        expect(typeof sequential(5)).toBe("string");
+
+        const quantized = quantizeScale(5, 5, ["#aaaaaa", "#bbbbbb"]);
+        expect(quantized(5)).toBe("#aaaaaa");
+    });
+
+    it("clamps quantize buckets at both ends", () => {
+        const scale = quantizeScale(0, 10, ["#000000", "#888888", "#ffffff"]);
+        expect(scale(-5)).toBe("#000000");
+        expect(scale(50)).toBe("#ffffff");
+    });
+});

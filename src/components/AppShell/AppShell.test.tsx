@@ -24,3 +24,53 @@ describe("AppShell", () => {
         expect(screen.getByText("only content")).toBeInTheDocument();
     });
 });
+
+describe("AppShell — sidebar vs bottom nav by breakpoint", () => {
+    /**
+     * `useBreakpoint` reads `window.innerWidth`; jsdom lets us set it, so each
+     * case resizes instead of mocking the hook.
+     *
+     * @param width - Viewport width to report.
+     */
+    function setViewport(width: number): void {
+        Object.defineProperty(window, "innerWidth", { configurable: true, value: width });
+        window.dispatchEvent(new Event("resize"));
+    }
+
+    it("shows the sidebar and hides the bottom nav on a wide viewport", () => {
+        setViewport(1280);
+        render(
+            <AppShell sidebar={<nav>lateral</nav>} bottomNav={<nav>inferior</nav>}>
+                conteúdo
+            </AppShell>,
+        );
+        expect(screen.getByText("lateral")).toBeInTheDocument();
+        expect(screen.queryByText("inferior")).not.toBeInTheDocument();
+    });
+
+    it("swaps to the bottom nav on a narrow viewport", () => {
+        setViewport(380);
+        render(
+            <AppShell sidebar={<nav>lateral</nav>} bottomNav={<nav>inferior</nav>}>
+                conteúdo
+            </AppShell>,
+        );
+        expect(screen.queryByText("lateral")).not.toBeInTheDocument();
+        expect(screen.getByText("inferior")).toBeInTheDocument();
+    });
+
+    it("honours a custom sidebarBreakpoint", () => {
+        setViewport(800);
+        render(
+            <AppShell
+                sidebar={<nav>lateral</nav>}
+                bottomNav={<nav>inferior</nav>}
+                sidebarBreakpoint="xl"
+            >
+                conteúdo
+            </AppShell>,
+        );
+        expect(screen.queryByText("lateral")).not.toBeInTheDocument();
+        expect(screen.getByText("inferior")).toBeInTheDocument();
+    });
+});

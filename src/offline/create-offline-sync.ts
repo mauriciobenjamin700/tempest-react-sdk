@@ -24,7 +24,12 @@ export interface OutboxEntry<TPayload = unknown> {
     op: OutboxOp;
     /** Primary key of the record the mutation targets. */
     recordId: string;
-    /** Epoch milliseconds when the mutation was queued. */
+    /**
+     * Epoch milliseconds when the mutation was queued, and the FIFO sort key for
+     * `listPending()` and the delivery loop. Strictly increasing per engine
+     * instance: entries queued inside the same millisecond are spaced by 1ms so
+     * the order never depends on how the index breaks a tie.
+     */
     enqueuedAt: number;
     /** How many delivery attempts have been made so far. */
     attempts: number;
@@ -436,13 +441,37 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
 
     void refreshPending();
 
+    let lastEnqueuedAt = 0;
+
+    /**
+     * Timestamp for a new outbox entry, guaranteed to be strictly greater than
+     * the previous one.
+     *
+     * `enqueuedAt` is the sort key for both `listPending()` and the delivery loop
+     * in `flush()`. A plain `Date.now()` ties whenever two mutations are queued
+     * within the same millisecond — which is normal in a burst — and a tie leaves
+     * the order to the index, so a `create` could be delivered *after* the
+     * `update` that depends on it. Advancing by 1ms on a tie keeps the queue FIFO
+     * at the cost of a timestamp that can run a few milliseconds ahead of the wall
+     * clock during a burst.
+     *
+     * Scope: this is per engine instance. Two tabs enqueueing in the same
+     * millisecond can still tie; cross-tab FIFO would need a persisted sequence,
+     * and the delivery loop is already single-flight across tabs via Web Locks.
+     */
+    function nextEnqueuedAt(): number {
+        const now = Date.now();
+        lastEnqueuedAt = now > lastEnqueuedAt ? now : lastEnqueuedAt + 1;
+        return lastEnqueuedAt;
+    }
+
     return {
         async enqueue(op, recordId, payload) {
             const entry: OutboxEntry<TPayload> = {
                 id: randomId(idPrefix),
                 op,
                 recordId,
-                enqueuedAt: Date.now(),
+                enqueuedAt: nextEnqueuedAt(),
                 attempts: 0,
                 payload,
             };

@@ -26,6 +26,8 @@ Done. Everything below is already available in your application.
   - [Brand — primary tints](#brand-primary-tints)
   - [Neutrals — gray scale](#neutrals-gray-scale)
   - [Status — triplets (fg/bg/border/solid)](#status-triplets-fgbgbordersolid)
+  - [Data viz — series colors](#data-viz-series-colors)
+  - [Generating the palette with `createTheme`](#generating-the-palette-with-createtheme)
 - [Typography](#typography)
 - [Spacing](#spacing)
 - [Radius](#radius)
@@ -120,6 +122,42 @@ Shortcuts:
 
 Components that accept `appearance="soft|solid|outline"` (Badge, Alert, etc.)
 automatically pick the right combination.
+
+### Data viz — series colors
+
+Eight categorical colors in cycle order, plus the chart chrome:
+
+| Token                       | Use                                            |
+| --------------------------- | ---------------------------------------------- |
+| `--tempest-chart-1` … `-8`  | Series colors, applied by index (they cycle)   |
+| `--tempest-chart-grid`      | Grid lines                                     |
+| `--tempest-chart-axis`      | Axis lines and labels                          |
+
+The eight are spaced by **hue** — they are categorical, not a ramp. For a sequential or diverging scale, use `--tempest-primary-*`.
+
+The `tempest-react-sdk/charts` module reads these tokens at runtime and re-resolves when the theme flips, so overriding them moves the charts without touching a single prop:
+
+```css
+:root {
+  --tempest-chart-1: #0f766e;
+  --tempest-chart-2: #f97316;
+}
+```
+
+!!! warning "Do not pass `var()` as a series color"
+    Recharts applies color as an SVG presentation attribute, where `var()` is not resolved. That is why the SDK reads the token via `getComputedStyle` and hands over a literal color. Details in [Charts › Colors and theming](charts.md#colors-and-theming).
+
+### Generating the palette with `createTheme`
+
+Writing a brand's ~30 values by hand (ten steps × light/dark + aliases) is tedious and easy to get wrong in dark, where the ramp **inverts**. `createTheme` derives all of it from one color, in OKLCH:
+
+```tsx
+import { applyTheme, createTheme } from "tempest-react-sdk";
+
+applyTheme(createTheme({ primary: "#7c3aed", radius: "lg" }));
+```
+
+It emits the same tokens documented on this page — it is sugar over the token API, not a second theming system. Full guide in [Theme › `createTheme`](theme.md#createtheme-a-whole-brand-from-one-color).
 
 ---
 

@@ -155,7 +155,7 @@ With `stack`, the three areas stack and the top shows the total per hour.
 | `data`           | `ChartData`                 | —                      | Rows to plot (array of objects `key → string \| number`).                    |
 | `index`          | `string`                    | —                      | Row key used for the X axis (cartesian) or angle axis (radar).               |
 | `categories`     | `string[]`                  | —                      | Row keys to plot, one series each.                                           |
-| `colors`         | `string[]`                  | `DEFAULT_CHART_COLORS` | Series colors, cycled per category.                                          |
+| `colors`         | `string[]`                  | `--tempest-chart-*` tokens | Series colors, cycled per category.                                          |
 | `height`         | `number`                    | `300`                  | Chart height in pixels.                                                      |
 | `width`          | `number`                    | —                      | Fixed width in px. When set, bypasses the `ResponsiveContainer`.            |
 | `stack`          | `boolean`                   | `false`                | Stacks the series on a shared `stackId` (ignored by `LineChart`).            |
@@ -212,7 +212,7 @@ center is hollow (60% inner radius) — great for putting a total in the middle.
 | `data`           | `ChartData`                 | —                      | Rows to plot, one slice each.                                     |
 | `category`       | `string`                    | —                      | Row key holding the slice's numeric **value**.                   |
 | `index`          | `string`                    | —                      | Row key holding the slice's **name/label**.                      |
-| `colors`         | `string[]`                  | `DEFAULT_CHART_COLORS` | Slice colors, cycled per slice.                                  |
+| `colors`         | `string[]`                  | `--tempest-chart-*` tokens | Slice colors, cycled per slice.                                  |
 | `height`         | `number`                    | `300`                  | Chart height in pixels.                                          |
 | `width`          | `number`                    | —                      | Fixed width in px. When set, bypasses the `ResponsiveContainer`. |
 | `donut`          | `boolean`                   | `false`                | Renders as a donut (non-zero inner radius) instead of a full pie.|
@@ -264,23 +264,57 @@ for comparing multi-dimensional profiles.
 
 ## Colors and theming
 
-The whole family shares an exported default palette, `DEFAULT_CHART_COLORS` — six
-visually distinct hex colors, applied to series in cycle order:
+**You do not have to do anything:** series colors come from the theme tokens
+`--tempest-chart-1` … `--tempest-chart-8` by default. Rebranding with
+`createTheme({ chart: [...] })` moves the charts along, and flipping to dark swaps
+in the lightened palette — with no prop on the chart at all.
 
-```tsx
-import { DEFAULT_CHART_COLORS } from "tempest-react-sdk/charts";
-
-// ["#2563eb", "#16a34a", "#f59e0b", "#7c3aed", "#ec4899", "#06b6d4"]
-// blue       green      amber      violet     pink       cyan
+```css
+/* what the SDK already defines (colors.css) */
+:root {
+  --tempest-chart-1: #2563eb; /* blue   */
+  --tempest-chart-2: #16a34a; /* green  */
+  --tempest-chart-3: #f59e0b; /* amber  */
+  --tempest-chart-4: #7c3aed; /* violet */
+  --tempest-chart-5: #ec4899; /* pink   */
+  --tempest-chart-6: #06b6d4; /* cyan   */
+  --tempest-chart-7: #ea580c;
+  --tempest-chart-8: #0f766e;
+}
 ```
 
-To theme, pass your own array to `colors`. Colors are cycled by series (or slice)
-index, so with more series than colors it wraps around from the start:
+Override them in your own CSS, or generate them with the theme factory:
+
+```tsx
+import { applyTheme, createTheme } from "tempest-react-sdk";
+
+applyTheme(createTheme({
+  primary: "#0f766e",
+  chart: ["#0f766e", "#f97316", "#9333ea"],
+}));
+```
+
+!!! danger "`colors={["var(--my-token)"]}` does **not** work"
+    Recharts applies color as an SVG **presentation attribute** (`fill="…"`), and
+    no browser substitutes `var()` there — a custom property is only resolved in a
+    CSS **declaration**. A `var()` passed through `colors` renders as an invalid
+    color (invisible series).
+
+    That is why the SDK **reads the tokens** via `getComputedStyle` and hands
+    literal colors to recharts. If you need one of your own tokens in JS, take the
+    same route:
+
+    ```tsx
+    import { readThemeToken } from "tempest-react-sdk";
+
+    const brand = readThemeToken("--my-brand"); // "#0f766e"
+    ```
+
+For one specific chart, `colors` still wins over everything — it is the escape
+hatch, cycled by series (or slice) index:
 
 ```tsx
 import { BarChart, DEFAULT_CHART_COLORS } from "tempest-react-sdk/charts";
-
-const brand = ["#0f766e", "#f97316", "#9333ea"];
 
 export function SalesWithBrandColors() {
   return (
@@ -288,19 +322,39 @@ export function SalesWithBrandColors() {
       data={sales}
       index="month"
       categories={["store_a", "store_b", "store_c"]}
-      colors={brand}
+      colors={["#0f766e", "#f97316", "#9333ea"]}
     />
   );
 }
 
-// Want to tweak just the first color and keep the rest of the palette?
+// Tweak just the first color and keep the rest of the fallback:
 const myPalette = ["#e11d48", ...DEFAULT_CHART_COLORS.slice(1)];
 ```
 
-!!! tip "Combine with your CSS tokens"
-    `colors` accepts any valid CSS color string — hex, `rgb()`, or even
-    `var(--tempest-color-primary)` read from your theme. That way the charts
-    follow the app's visual identity without hardcoding.
+`DEFAULT_CHART_COLORS` is the **fallback**, used when the tokens are not
+readable: no `styles.css` imported, outside a browser (tests, a build script), or
+a page that dropped the tokens.
+
+### Resolving tokens yourself
+
+```tsx
+import { resolveChartColors, useChartColors } from "tempest-react-sdk/charts";
+
+// inside a component — re-resolves when the theme flips
+const colors = useChartColors();
+
+// outside React (canvas, image export, custom tooltip)
+const palette = resolveChartColors();
+```
+
+`useChartColors` observes the `data-tempest-theme` attribute and re-resolves on a
+theme switch; passing an explicit array short-circuits the hook (no observer is
+created). Need the grid/axis color? `resolveChartChrome("grid" | "axis")`.
+
+!!! tip "Theming one section"
+    Both accept an element: `useChartColors(undefined, sectionRef.current)`
+    resolves the tokens of **that** subtree, so a section carrying its own theme
+    paints its charts with its own palette.
 
 ## Responsive by default, fixed when needed
 

@@ -1604,7 +1604,7 @@ Com `stack`, as três áreas se empilham e o topo mostra o total por hora.
 | `data`           | `ChartData`                 | —                      | Linhas a plotar (array de objetos `chave → string \| number`).                  |
 | `index`          | `string`                    | —                      | Chave da linha usada no eixo X (cartesiano) ou eixo angular (radar).            |
 | `categories`     | `string[]`                  | —                      | Chaves a plotar, uma série cada.                                                |
-| `colors`         | `string[]`                  | `DEFAULT_CHART_COLORS` | Cores das séries, cicladas por categoria.                                       |
+| `colors`         | `string[]`                  | tokens `--tempest-chart-*` | Cores das séries, cicladas por categoria.                                       |
 | `height`         | `number`                    | `300`                  | Altura do gráfico em pixels.                                                     |
 | `width`          | `number`                    | —                      | Largura fixa em px. Quando definida, dispensa o `ResponsiveContainer`.          |
 | `stack`          | `boolean`                   | `false`                | Empilha as séries num `stackId` comum (ignorado pelo `LineChart`).              |
@@ -1661,7 +1661,7 @@ centro fica vazio (raio interno de 60%) — ótimo pra colocar um total no meio.
 | `data`           | `ChartData`                 | —                      | Linhas a plotar, uma fatia cada.                                      |
 | `category`       | `string`                    | —                      | Chave da linha com o **valor** numérico da fatia.                     |
 | `index`          | `string`                    | —                      | Chave da linha com o **nome/rótulo** da fatia.                        |
-| `colors`         | `string[]`                  | `DEFAULT_CHART_COLORS` | Cores das fatias, cicladas por fatia.                                 |
+| `colors`         | `string[]`                  | tokens `--tempest-chart-*` | Cores das fatias, cicladas por fatia.                                 |
 | `height`         | `number`                    | `300`                  | Altura do gráfico em pixels.                                          |
 | `width`          | `number`                    | —                      | Largura fixa em px. Quando definida, dispensa o `ResponsiveContainer`.|
 | `donut`          | `boolean`                   | `false`                | Renderiza como rosca (raio interno não-zero) em vez de pizza cheia.   |
@@ -1713,24 +1713,57 @@ perfeito pra comparar perfis multidimensionais.
 
 ## Cores e tema
 
-Toda a família compartilha uma paleta padrão exportada, `DEFAULT_CHART_COLORS` —
-seis cores hex visualmente distintas, aplicadas às séries em ordem cíclica:
+**Você não precisa fazer nada:** por padrão as séries saem dos tokens
+`--tempest-chart-1` … `--tempest-chart-8` do tema. Trocar a marca com
+`createTheme({ chart: [...] })` move os gráficos junto, e virar o tema escuro
+troca a paleta pela versão clareada — sem prop nenhuma no gráfico.
 
-```tsx
-import { DEFAULT_CHART_COLORS } from "tempest-react-sdk/charts";
-
-// ["#2563eb", "#16a34a", "#f59e0b", "#7c3aed", "#ec4899", "#06b6d4"]
-// azul       verde      âmbar      violeta    rosa       ciano
+```css
+/* o que o SDK já define (colors.css) */
+:root {
+  --tempest-chart-1: #2563eb; /* azul    */
+  --tempest-chart-2: #16a34a; /* verde   */
+  --tempest-chart-3: #f59e0b; /* âmbar   */
+  --tempest-chart-4: #7c3aed; /* violeta */
+  --tempest-chart-5: #ec4899; /* rosa    */
+  --tempest-chart-6: #06b6d4; /* ciano   */
+  --tempest-chart-7: #ea580c;
+  --tempest-chart-8: #0f766e;
+}
 ```
 
-Para tematizar, passe seu próprio array em `colors`. As cores são cicladas por
-índice da série (ou fatia), então com mais séries que cores ela reinicia do
-começo:
+Sobrescreva no seu CSS, ou gere com o factory de tema:
+
+```tsx
+import { applyTheme, createTheme } from "tempest-react-sdk";
+
+applyTheme(createTheme({
+  primary: "#0f766e",
+  chart: ["#0f766e", "#f97316", "#9333ea"],
+}));
+```
+
+!!! danger "`colors={["var(--meu-token)"]}` **não** funciona"
+    O recharts aplica cor como **atributo de apresentação** do SVG
+    (`fill="…"`), e navegador nenhum substitui `var()` ali — custom property só
+    é resolvida em **declaração** CSS. Um `var()` passado em `colors` renderiza
+    como cor inválida (série invisível).
+
+    É por isso que o SDK **lê os tokens** via `getComputedStyle` e entrega cor
+    literal pro recharts. Se você precisa do valor de um token seu em JS, use o
+    mesmo caminho:
+
+    ```tsx
+    import { readThemeToken } from "tempest-react-sdk";
+
+    const marca = readThemeToken("--minha-marca"); // "#0f766e"
+    ```
+
+Para um gráfico específico, `colors` continua ganhando de tudo — é a via de
+escape, ciclada por índice da série (ou fatia):
 
 ```tsx
 import { BarChart, DEFAULT_CHART_COLORS } from "tempest-react-sdk/charts";
-
-const marca = ["#0f766e", "#f97316", "#9333ea"];
 
 export function VendasComCoresDaMarca() {
   return (
@@ -1738,19 +1771,39 @@ export function VendasComCoresDaMarca() {
       data={vendas}
       index="mes"
       categories={["loja_a", "loja_b", "loja_c"]}
-      colors={marca}
+      colors={["#0f766e", "#f97316", "#9333ea"]}
     />
   );
 }
 
-// Quer só ajustar a primeira cor e manter o resto da paleta?
+// Ajustar só a primeira cor e manter o resto do fallback:
 const minhaPaleta = ["#e11d48", ...DEFAULT_CHART_COLORS.slice(1)];
 ```
 
-!!! tip "Combine com seus tokens CSS"
-    `colors` aceita qualquer string CSS de cor válida — hex, `rgb()`, ou até
-    `var(--tempest-color-primary)` lido do seu tema. Assim os gráficos seguem a
-    identidade visual do app sem hardcode.
+`DEFAULT_CHART_COLORS` é o **fallback**, usado quando os tokens não são
+legíveis: sem `styles.css` importado, fora do browser (testes, script de build)
+ou numa página que removeu os tokens.
+
+### Resolvendo tokens você mesmo
+
+```tsx
+import { resolveChartColors, useChartColors } from "tempest-react-sdk/charts";
+
+// dentro de um componente — re-resolve quando o tema virar
+const colors = useChartColors();
+
+// fora do React (canvas, export de imagem, tooltip customizado)
+const palette = resolveChartColors();
+```
+
+`useChartColors` observa o atributo `data-tempest-theme` e re-resolve na troca de
+tema; passar um array explícito curto-circuita o hook (nenhum observer é criado).
+Precisa da cor do grid/eixo? `resolveChartChrome("grid" | "axis")`.
+
+!!! tip "Tema escopado numa seção"
+    Os dois aceitam um elemento: `useChartColors(undefined, sectionRef.current)`
+    resolve os tokens **daquela** subárvore, então uma seção com tema próprio
+    pinta seus gráficos com a paleta dela.
 
 ## Responsivo por padrão, fixo quando preciso
 
@@ -11703,6 +11756,8 @@ Pronto. Tudo o que está abaixo já está disponível na sua aplicação.
   - [Brand — primary tints](#brand-primary-tints)
   - [Neutros — gray scale](#neutros-gray-scale)
   - [Status — triplets (fg/bg/border/solid)](#status-triplets-fgbgbordersolid)
+  - [Data viz — cores de série](#data-viz-cores-de-serie)
+  - [Gerando a paleta com `createTheme`](#gerando-a-paleta-com-createtheme)
 - [Tipografia](#tipografia)
 - [Espaçamento](#espacamento)
 - [Radius](#radius)
@@ -11795,6 +11850,42 @@ Atalhos:
 - `--tempest-danger-hover` — variação para hover em danger solid.
 
 Componentes que aceitam `appearance="soft|solid|outline"` (Badge, Alert, etc.) escolhem automaticamente a combinação certa.
+
+### Data viz — cores de série
+
+Oito cores categóricas em ordem cíclica, mais o cromado do gráfico:
+
+| Token                        | Uso                                                   |
+| ---------------------------- | ----------------------------------------------------- |
+| `--tempest-chart-1` … `-8`   | Cores de série, aplicadas por índice (ciclam)          |
+| `--tempest-chart-grid`       | Linhas de grid                                         |
+| `--tempest-chart-axis`       | Linhas e rótulos de eixo                               |
+
+As oito são espaçadas por **matiz** — são categóricas, não um ramp. Para escala sequencial ou divergente, use `--tempest-primary-*`.
+
+O módulo `tempest-react-sdk/charts` lê esses tokens em runtime e re-resolve quando o tema vira, então sobrescrevê-los muda os gráficos sem tocar em prop nenhuma:
+
+```css
+:root {
+  --tempest-chart-1: #0f766e;
+  --tempest-chart-2: #f97316;
+}
+```
+
+!!! warning "Não passe `var()` como cor de série"
+    O recharts aplica cor como atributo de apresentação do SVG, e `var()` não é resolvido ali. É por isso que o SDK lê o token via `getComputedStyle` e entrega cor literal. Detalhes em [Charts › Cores e tema](charts.md#cores-e-tema).
+
+### Gerando a paleta com `createTheme`
+
+Escrever os ~30 valores de uma marca na mão (dez degraus × claro/escuro + aliases) é trabalhoso e fácil de errar no dark, onde o ramp **inverte**. `createTheme` deriva tudo de uma cor, em OKLCH:
+
+```tsx
+import { applyTheme, createTheme } from "tempest-react-sdk";
+
+applyTheme(createTheme({ primary: "#7c3aed", radius: "lg" }));
+```
+
+Isso emite os mesmos tokens desta página — é açúcar sobre a API de token, não um segundo sistema de tema. Guia completo em [Tema › `createTheme`](theme.md#createtheme-a-marca-inteira-a-partir-de-uma-cor).
 
 ---
 
@@ -12987,6 +13078,118 @@ Os tokens `--tempest-*` são a única API de tema. Sobrescreva-os em qualquer po
 
 !!! note "Tokens são API pública"
     Como apps dependem desses nomes, mudar/remover um token é breaking change — por isso eles seguem o versionamento semântico do SDK.
+
+## `createTheme` — a marca inteira a partir de uma cor
+
+Sobrescrever token por token funciona pra um ajuste pontual. Pra **trocar a marca**, são ~30 valores só de `primary` (dez degraus × claro/escuro, mais os aliases de hover/active/soft) — e é fácil errar a inversão do ramp no dark. `createTheme` gera tudo:
+
+```tsx
+import { applyTheme, createTheme } from "tempest-react-sdk";
+
+const theme = createTheme({ primary: "#7c3aed" });
+
+applyTheme(theme);
+```
+
+Pronto: os 104 componentes passam a usar a marca nova, no claro e no escuro.
+
+### O que ele gera
+
+```ts
+const theme = createTheme({
+  primary: "#7c3aed",          // escala 50→900 + hover/active/soft/foreground/focus-ring
+  gray: "#6b7280",             // superfícies, bordas e texto
+  success: "#16a34a",          // cada status vira -fg / -bg / -border / -solid
+  danger: "#dc2626",
+  chart: ["#7c3aed", "#0ea5e9", "#22c55e"],  // --tempest-chart-1..N (ver Charts)
+  radius: "lg",                // "none" | "sm" | "md" | "lg" | "xl" | "full"
+  focusRingAlpha: 0.35,
+});
+
+theme.light; // { "--tempest-primary-500": "#7c3aed", … }
+theme.dark;  // idem, com o ramp invertido
+theme.css;   // ":root { … }\n\n[data-tempest-theme=\"dark\"] { … }"
+```
+
+Só as famílias que você passa são geradas — o resto continua vindo do `colors.css` do SDK. Um tema é um **patch**, não um fork da paleta.
+
+!!! info "Por que OKLCH e não HSL"
+    A escala é derivada em OKLCH porque lightness em HSL **não é perceptual**: um amarelo e um azul com o mesmo `L` em HSL têm brilho visivelmente diferente, e é exatamente isso que faz uma paleta gerada parecer "quebrada" em algumas cores. Em OKLCH o degrau `500` de qualquer marca ocupa o mesmo lugar visual.
+
+!!! tip "O passo de texto sobre a tinta soft é medido, não convencionado"
+    `--tempest-primary-on-soft` não é fixo no `600`: o SDK **mede** o contraste contra a tinta `50` e desce no ramp até passar de 4.5:1 (AA para texto). Isso não é preciosismo — o azul padrão só alcança 4.37:1 no `500` sobre a própria tinta, e um emerald gerado para em 4.41:1 no `600`. Os dois reprovariam AA por um fio.
+
+### Presets prontos
+
+```tsx
+import { applyTheme, createTheme, themePresets } from "tempest-react-sdk";
+
+applyTheme(createTheme(themePresets.violet));
+
+// ou partindo de um e ajustando
+applyTheme(createTheme({ ...themePresets.emerald, radius: "full" }));
+```
+
+Presets disponíveis: `tempest` (o default do SDK), `violet`, `emerald`, `rose`, `slate`, `amber`. Cada um é um objeto de opções — dado, não CSS —, então dá pra guardar o nome escolhido em `localStorage` e resolver com `getThemePreset(name)` (que devolve `undefined` para nome inválido em vez de explodir no boot).
+
+### Trocando de tema em runtime
+
+```tsx
+import { applyTheme, createTheme, getThemePreset } from "tempest-react-sdk";
+import { useEffect, useState } from "react";
+
+export function BrandPicker() {
+  const [brand, setBrand] = useState(() => localStorage.getItem("brand") ?? "tempest");
+
+  useEffect(() => {
+    const preset = getThemePreset(brand);
+    if (!preset) return;
+    localStorage.setItem("brand", brand);
+    return applyTheme(createTheme(preset));
+  }, [brand]);
+
+  return (
+    <select value={brand} onChange={(event) => setBrand(event.target.value)}>
+      {["tempest", "violet", "emerald", "rose", "slate", "amber"].map((name) => (
+        <option key={name} value={name}>{name}</option>
+      ))}
+    </select>
+  );
+}
+```
+
+`applyTheme` é **idempotente**: ele é dono de um `<style id="tempest-theme">` e reescreve o conteúdo, então um seletor de marca pode ser acionado à vontade sem empilhar folhas mortas no `<head>`. O retorno é o disposer (usado como cleanup do effect acima).
+
+!!! tip "Tema escopado numa subárvore"
+    Passe `selector`/`darkSelector` no `createTheme` e `id`/`target` no `applyTheme` pra pintar só um pedaço da tela — útil pra preview de marca:
+
+    ```tsx
+    applyTheme(
+      createTheme({ primary: "#e11d48", selector: ".preview", darkSelector: '.preview[data-tempest-theme="dark"]' }),
+      { id: "preview-theme" },
+    );
+    ```
+
+### Sem JS: cole o CSS gerado
+
+`theme.css` é texto. Se você prefere um tema estático (zero JS no caminho crítico), gere uma vez e cole no CSS global do app:
+
+```bash
+node -e "import('tempest-react-sdk').then(({ createTheme }) => console.log(createTheme({ primary: '#7c3aed' }).css))" > src/brand.css
+```
+
+### Auditando o contraste da sua marca
+
+```ts
+import { contrastRatio, createColorScale, themeContrast } from "tempest-react-sdk";
+
+themeContrast({ primary: "#fde047" }); // 15.2 — texto escuro foi escolhido automaticamente
+
+const scale = createColorScale("#7c3aed");
+contrastRatio(scale[500], "#ffffff");  // asserte no seu teste, se a marca é requisito
+```
+
+`--tempest-primary-foreground` (e `--tempest-text-on-primary`) é escolhido por contraste medido entre branco e o cinza escuro — hardcodar branco produziria botões ilegíveis em marcas claras (amarelo, lima, ciano).
 
 ## Integração com o CSS do app + `theme-color`
 

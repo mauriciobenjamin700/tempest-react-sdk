@@ -103,7 +103,40 @@ tempest-react-sdk/
 
 Entregue e fora do backlog: release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`), sweep `axe` em jsdom + smoke Playwright do gallery (`e2e.yml`), coverage gateando o CI (pisos 98/97/96/94), política de versionamento de tokens CSS (`docs/styles.md`).
 
-### P1 — cauda de cobertura
+### Em revisão (PRs **encadeados** — mergear em ordem)
+
+`main` ← #46 ← #47 ← #48 ← #49. Cada PR sai do anterior, não da `main`: o diff de
+cada um mostra só o que ele acrescenta, e o `[Unreleased]` do CHANGELOG deixa de
+conflitar a cada abertura de PR (foi o que aconteceu com a primeira rodada).
+
+| PR  | Base | O que entrega                                                                                               |
+| --- | ---- | ----------------------------------------------------------------------------------------------------------- |
+| #46 | main | `tempest-react-sdk/utilities.css` — camada de layout opt-in (~50 classes, 1.13 KB br)                       |
+| #47 | #46  | `TreeView` (hierarquia acessível) + `Wizard` (fluxo multi-passo); `Stepper` com `description`/`onStepClick` |
+| #48 | #47  | `SignaturePad` (canvas), `Lightbox` (galeria overlay), `AvatarGroup`                                        |
+| #49 | #48  | este roadmap                                                                                                |
+
+Já na `main`: **#45** — `createTheme` + presets + `applyTheme`, tokens
+`--tempest-chart-*` e charts seguindo o tema.
+
+### P1 — componentes (na ordem)
+
+1. **Primitiva de drag & drop (`useSortable`)** — **enabler**: sem ela, `Kanban`, reordenar lista e ordenar upload ficam bloqueados. Não existe nada de DnD nos 45 hooks.
+2. **`VirtualTable`** — `VirtualList` virtualiza lista simples e `DataTable` não virtualiza nada; tabela de 10k linhas hoje não tem resposta no SDK.
+3. **`NotificationCenter`** — casa direto com o módulo `push` (inbox de notificação recebida, lida/não lida, ação por item).
+4. **`ImageCropper`** — par natural do `FileUpload` + câmera do `vision` para foto de perfil / documento.
+5. **`Kanban`** (depois do item 1) e **`Scheduler`/agenda** — o `Calendar` é date-picker, não agenda de evento.
+
+### P2 — componentes
+
+`Chat`/thread de comentários · `Transfer` (dual list) · `FilterBar`/QueryBuilder · `Masonry` · `Tour`/coachmarks · `QRCode` · `CodeBlock` · `Markdown` · `Sparkline`.
+
+### P2 — CSS pronto (o que sobrou da fatia)
+
+- **Presets de densidade e de radius por app** já existem via token; falta receita de **página inteira** além do que o `utilities.css` cobre (dashboard com grid de widget redimensionável, por exemplo).
+- **Paleta sequencial/divergente** para data viz: hoje só existem as 8 categóricas (`--tempest-chart-*`). Escala contínua (heatmap, choropleth do `br`) ainda é responsabilidade do app.
+
+### P3 — cauda de cobertura
 
 1. **Branches 95% → mais alto**: a cauda restante está espalhada em dezenas de arquivos com ~2-4 branches cada. Sem alvo gordo; só vale com objetivo específico.
 

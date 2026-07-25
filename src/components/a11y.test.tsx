@@ -5,6 +5,7 @@ import { findA11yViolations, formatA11yViolations } from "../../test/a11y";
 import { Accordion } from "./Accordion";
 import { Alert } from "./Alert";
 import { Avatar } from "./Avatar";
+import { AvatarGroup } from "./AvatarGroup";
 import { Badge } from "./Badge";
 import { Banner } from "./Banner";
 import { Breadcrumbs } from "./Breadcrumbs";
@@ -25,6 +26,7 @@ import { Spinner } from "./Spinner";
 import { Switch } from "./Switch";
 import { Table } from "./Table";
 import { Tabs } from "./Tabs";
+import { SignaturePad } from "./SignaturePad";
 import { Textarea } from "./Textarea";
 
 interface Row {
@@ -116,6 +118,15 @@ const CASES: [name: string, ui: ReactElement][] = [
             Tem certeza?
         </Modal>,
     ],
+    [
+        "AvatarGroup",
+        <AvatarGroup
+            label="Participantes"
+            max={2}
+            items={[{ name: "Ada Lovelace" }, { name: "Grace Hopper" }, { name: "Alan Turing" }]}
+        />,
+    ],
+    ["SignaturePad", <SignaturePad label="Assinatura do cliente" />],
 ];
 
 describe("component accessibility sweep", () => {

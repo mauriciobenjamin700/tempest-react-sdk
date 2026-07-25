@@ -1970,7 +1970,7 @@ O catálogo foi dividido por categoria para facilitar navegação. Cada arquivo 
 - **[Layout](./components/layout.md)** — AppShell, Page, Container, Stack, Grid, Divider, Spacer, Center, AspectRatio, SafeArea, Show, Hide
 - **[Dados](./components/data.md)** — Table, VirtualList, Accordion, Timeline
 - **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, NProgress, Spinner, Skeleton, Toast, EmptyState, ErrorState
-- **[Identidade & micro](./components/identity.md)** — Avatar, Card, Kbd
+- **[Identidade & micro](./components/identity.md)** — Avatar, AvatarGroup, Card, Kbd
 
 ## Convenções globais
 
@@ -3422,6 +3422,40 @@ Container com slots de header (`title` + `actions`) e `footer`.
 !!! tip "Um `<Kbd>` por tecla"
     Para combinações, repita o componente em vez de juntar tudo em texto plano: `<Kbd>Ctrl</Kbd>+<Kbd>K</Kbd>`. Cada `<Kbd>` renderiza um elemento `<kbd>` semântico que leitores de tela anunciam individualmente.
 
+## `AvatarGroup`
+
+> **Quando usar**: mostrar várias pessoas num espaço pequeno — participantes de uma reunião, responsáveis por uma tarefa, membros de um time.
+
+Fileira de avatares sobrepostos com chip `+N` no fim.
+
+```tsx
+<AvatarGroup
+  label="Participantes"
+  max={3}
+  items={[
+    { name: "Ada Lovelace", src: ada },
+    { name: "Grace Hopper" },
+    { name: "Alan Turing" },
+    { name: "Edsger Dijkstra" },
+  ]}
+  onOverflowClick={() => setDrawerAberto(true)}
+/>
+```
+
+| Prop              | Tipo                | Default | O que faz                                                    |
+| ----------------- | ------------------- | ------- | ------------------------------------------------------------ |
+| `items`           | `AvatarGroupItem[]` | —       | Pessoas do grupo (`{ name, src? }`).                          |
+| `max`             | `number`            | `4`     | Quantos avatares antes de colapsar em `+N`.                   |
+| `size`            | `AvatarSize`        | `"md"`  | Tamanho aplicado aos avatares **e** ao chip.                  |
+| `label`           | `string`            | —       | Nome acessível do grupo.                                      |
+| `onOverflowClick` | `() => void`        | —       | Torna o chip `+N` um botão focável (ex.: abrir "ver todos").   |
+
+!!! info "Um grupo, um nome acessível"
+    A fileira é um `role="group"` com um nome só, e cada avatar expõe o nome da pessoa. Anunciar sete imagens soltas sem relação entre elas é ruído; o chip `+N` carrega o restante da contagem, então o total nunca fica escondido do leitor de tela.
+
+!!! tip "A sobreposição é ajustável"
+    `--tempest-avatar-overlap` controla o quanto cada avatar cobre o anterior — os defaults são proporcionais ao `size`.
+
 ## Resumo
 
 | Componente | Use para                                       |
@@ -3888,6 +3922,66 @@ Layout wrappers para forms (`stack`/`inline`/`grid`) + integração RHF.
 ```
 
 Detalhes completos em [../forms.md](../forms.md).
+
+## `SignaturePad`
+
+> **Quando usar**: coletar assinatura de próprio punho — comprovante de entrega, ordem de serviço, termo de aceite. Em campo, no celular, com o dedo.
+
+Canvas com captura por `pointer` (mouse, dedo e caneta pelo mesmo caminho). Os traços são guardados como **listas de pontos** e o canvas é redesenhado a partir delas — é isso que torna o `undo` possível: canvas guarda pixel, não histórico, então remover o último traço significa repintar o resto.
+
+```tsx
+import { Button, SignaturePad, type SignaturePadHandle } from "tempest-react-sdk";
+import { useRef, useState } from "react";
+
+export function AssinaturaDaEntrega({ entregaId }: { entregaId: string }) {
+  const pad = useRef<SignaturePadHandle>(null);
+  const [vazio, setVazio] = useState(true);
+
+  async function enviar() {
+    const blob = await pad.current?.toBlob("image/png");
+    if (!blob) return;
+    const form = new FormData();
+    form.append("assinatura", blob, `${entregaId}.png`);
+    await api.post(`/entregas/${entregaId}/assinatura`, form);
+  }
+
+  return (
+    <>
+      <SignaturePad
+        label="Assinatura do cliente"
+        width={360}
+        height={180}
+        onEmptyChange={setVazio}
+      />
+      <Button disabled={vazio} onClick={enviar}>Confirmar entrega</Button>
+    </>
+  );
+}
+```
+
+| Prop            | Tipo                        | Default       | O que faz                                                     |
+| --------------- | --------------------------- | ------------- | ------------------------------------------------------------- |
+| `width`         | `number`                    | `400`         | Largura da superfície em px CSS.                              |
+| `height`        | `number`                    | `160`         | Altura da superfície em px CSS.                               |
+| `penColor`      | `string`                    | cor computada | Cor do traço. O default segue `--tempest-text`.               |
+| `penWidth`      | `number`                    | `2`           | Espessura do traço.                                           |
+| `disabled`      | `boolean`                   | `false`       | Bloqueia o desenho e esmaece a superfície.                    |
+| `label`         | `string`                    | `"Signature"` | Nome acessível do canvas.                                     |
+| `onBegin`       | `() => void`                | —             | Chamado no início de cada traço.                              |
+| `onEnd`         | `(dataUrl: string) => void` | —             | Chamado ao fim de cada traço, com a imagem atual.             |
+| `onEmptyChange` | `(isEmpty: boolean) => void`| —             | Chamado quando a vacuidade muda — ligue no botão de submit.    |
+| `showActions`   | `boolean`                   | `true`        | Renderiza os botões Desfazer/Limpar.                          |
+
+**Handle imperativo** (`ref`): `clear()`, `undo()`, `isEmpty()`, `toDataURL(type?, quality?)`, `toBlob(type?, quality?)`.
+
+!!! tip "Suba `toBlob()`, não `toDataURL()`"
+    Data URL é base64: ~33% mais bytes, e ainda vira string no meio do seu JSON. `toBlob()` entrega binário pronto pro `FormData`.
+
+!!! info "Nitidez em tela de alta densidade"
+    O buffer do canvas é escalado por `devicePixelRatio` e o contexto recebe o `setTransform` correspondente. Sem isso o traço sai borrado no celular — é o defeito clássico de canvas em 1x.
+
+!!! note "A cor do traço segue o tema"
+    O default lê a cor **computada** do canvas, que o CSS liga em `--tempest-text`. Assinatura desenhada no tema escuro sai clara; no claro, escura. Passe `penColor` só se precisar de tinta fixa (azul de caneta, por exemplo).
 
 ## A11y
 
@@ -4749,6 +4843,60 @@ function DeleteButton({ id }: { id: string }) {
 
 !!! warning "Precisa do `<ModalsProvider>` acima"
     `useModals()` lança um erro se chamado fora de um `<ModalsProvider>`. Monte o provider uma única vez perto da raiz do app.
+
+## `Lightbox`
+
+> **Quando usar**: visualizar foto em tela cheia com navegação — galeria de imóvel, anexos de uma ocorrência, fotos de vistoria.
+
+Overlay `role="dialog" aria-modal` com foco preso dentro e rolagem da página travada. Só a imagem atual é montada; as vizinhas são **pré-carregadas** via `Image()`, então apertar `→` não pisca um quadro vazio.
+
+```tsx
+import { Lightbox } from "tempest-react-sdk";
+import { useState } from "react";
+
+export function GaleriaDaVistoria({ fotos }: { fotos: { url: string; descricao: string }[] }) {
+  const [aberto, setAberto] = useState(false);
+  const [indice, setIndice] = useState(0);
+
+  return (
+    <>
+      <div className="tempest-grid-auto">
+        {fotos.map((foto, i) => (
+          <button key={foto.url} type="button" onClick={() => { setIndice(i); setAberto(true); }}>
+            <img src={foto.url} alt={foto.descricao} className="tempest-aspect-square" />
+          </button>
+        ))}
+      </div>
+
+      <Lightbox
+        open={aberto}
+        items={fotos.map((f) => ({ src: f.url, alt: f.descricao }))}
+        index={indice}
+        onIndexChange={setIndice}
+        onClose={() => setAberto(false)}
+      />
+    </>
+  );
+}
+```
+
+| Prop             | Tipo                       | Default             | O que faz                                     |
+| ---------------- | -------------------------- | ------------------- | --------------------------------------------- |
+| `items`          | `LightboxItem[]`           | —                   | Imagens da galeria.                           |
+| `open`           | `boolean`                  | —                   | Controla a visibilidade.                      |
+| `index`          | `number`                   | `0`                 | Índice exibido.                               |
+| `onIndexChange`  | `(index: number) => void`  | —                   | Passar isso torna o índice **controlado**.     |
+| `onClose`        | `() => void`               | —                   | Chamado no `Esc` e no botão fechar.            |
+| `showThumbnails` | `boolean`                  | `true` se > 1 item  | Faixa de miniaturas.                           |
+| `showCounter`    | `boolean`                  | `true`              | Contador `3 / 12`.                             |
+| `loop`           | `boolean`                  | `true`              | Circula nas pontas.                            |
+
+`LightboxItem = { src, alt, caption?, thumbnail? }` — `alt` é **obrigatório**: galeria de imagem sem rótulo é inutilizável em leitor de tela.
+
+**Teclado**: `Esc` fecha · `←`/`→` navegam · `Home`/`End` vão pras pontas.
+
+!!! note "`loop` é `true` de propósito"
+    Em visualizador de foto, esbarrar num fim morto na última imagem é lido como bug mais vezes do que como limite. Passe `loop={false}` quando a ordem tem significado (um passo-a-passo, por exemplo) — aí os botões de navegação desabilitam nas pontas.
 
 ## A11y geral
 

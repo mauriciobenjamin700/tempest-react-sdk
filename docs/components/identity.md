@@ -85,6 +85,40 @@ Container com slots de header (`title` + `actions`) e `footer`.
 !!! tip "Um `<Kbd>` por tecla"
     Para combinações, repita o componente em vez de juntar tudo em texto plano: `<Kbd>Ctrl</Kbd>+<Kbd>K</Kbd>`. Cada `<Kbd>` renderiza um elemento `<kbd>` semântico que leitores de tela anunciam individualmente.
 
+## `AvatarGroup`
+
+> **Quando usar**: mostrar várias pessoas num espaço pequeno — participantes de uma reunião, responsáveis por uma tarefa, membros de um time.
+
+Fileira de avatares sobrepostos com chip `+N` no fim.
+
+```tsx
+<AvatarGroup
+  label="Participantes"
+  max={3}
+  items={[
+    { name: "Ada Lovelace", src: ada },
+    { name: "Grace Hopper" },
+    { name: "Alan Turing" },
+    { name: "Edsger Dijkstra" },
+  ]}
+  onOverflowClick={() => setDrawerAberto(true)}
+/>
+```
+
+| Prop              | Tipo                | Default | O que faz                                                    |
+| ----------------- | ------------------- | ------- | ------------------------------------------------------------ |
+| `items`           | `AvatarGroupItem[]` | —       | Pessoas do grupo (`{ name, src? }`).                          |
+| `max`             | `number`            | `4`     | Quantos avatares antes de colapsar em `+N`.                   |
+| `size`            | `AvatarSize`        | `"md"`  | Tamanho aplicado aos avatares **e** ao chip.                  |
+| `label`           | `string`            | —       | Nome acessível do grupo.                                      |
+| `onOverflowClick` | `() => void`        | —       | Torna o chip `+N` um botão focável (ex.: abrir "ver todos").   |
+
+!!! info "Um grupo, um nome acessível"
+    A fileira é um `role="group"` com um nome só, e cada avatar expõe o nome da pessoa. Anunciar sete imagens soltas sem relação entre elas é ruído; o chip `+N` carrega o restante da contagem, então o total nunca fica escondido do leitor de tela.
+
+!!! tip "A sobreposição é ajustável"
+    `--tempest-avatar-overlap` controla o quanto cada avatar cobre o anterior — os defaults são proporcionais ao `size`.
+
 ## Resumo
 
 | Componente | Use para                                       |

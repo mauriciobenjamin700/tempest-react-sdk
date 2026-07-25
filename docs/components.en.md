@@ -23,7 +23,7 @@ props, examples, and accessibility notes.
 - **[Overlay](./components/overlay.md)** — Modal, Drawer, BottomSheet, ModalsManager
 - **[Layout](./components/layout.md)** — AppShell, Page, Container, Stack, Grid, Divider, Spacer, Center, AspectRatio, SafeArea, Show, Hide
 - **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, NProgress, Spinner, Skeleton, Toast, EmptyState, ErrorState
-- **[Identity & micro](./components/identity.md)** — Avatar, Card, Kbd
+- **[Identity & micro](./components/identity.md)** — Avatar, AvatarGroup, Card, Kbd
 
 ## Global conventions
 

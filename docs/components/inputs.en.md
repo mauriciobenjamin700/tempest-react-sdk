@@ -481,6 +481,66 @@ Layout wrappers for forms (`stack`/`inline`/`grid`) + RHF integration.
 
 Full details in [../forms.md](../forms.md).
 
+## `SignaturePad`
+
+> **When to use it**: capture a handwritten signature — a delivery receipt, a service order, a terms acceptance. In the field, on a phone, with a finger.
+
+A canvas driven by `pointer` events (mouse, finger and stylus down the same path). Strokes are kept as **point lists** and the canvas is redrawn from them — that is what makes `undo` possible at all: a canvas holds pixels, not history, so dropping the last stroke means repainting the rest.
+
+```tsx
+import { Button, SignaturePad, type SignaturePadHandle } from "tempest-react-sdk";
+import { useRef, useState } from "react";
+
+export function DeliverySignature({ deliveryId }: { deliveryId: string }) {
+  const pad = useRef<SignaturePadHandle>(null);
+  const [empty, setEmpty] = useState(true);
+
+  async function submit() {
+    const blob = await pad.current?.toBlob("image/png");
+    if (!blob) return;
+    const form = new FormData();
+    form.append("signature", blob, `${deliveryId}.png`);
+    await api.post(`/deliveries/${deliveryId}/signature`, form);
+  }
+
+  return (
+    <>
+      <SignaturePad
+        label="Customer signature"
+        width={360}
+        height={180}
+        onEmptyChange={setEmpty}
+      />
+      <Button disabled={empty} onClick={submit}>Confirm delivery</Button>
+    </>
+  );
+}
+```
+
+| Prop            | Type                        | Default        | What it does                                                   |
+| --------------- | --------------------------- | -------------- | -------------------------------------------------------------- |
+| `width`         | `number`                    | `400`          | Surface width in CSS px.                                       |
+| `height`        | `number`                    | `160`          | Surface height in CSS px.                                      |
+| `penColor`      | `string`                    | computed color | Stroke color. The default follows `--tempest-text`.            |
+| `penWidth`      | `number`                    | `2`            | Stroke width.                                                  |
+| `disabled`      | `boolean`                   | `false`        | Blocks drawing and dims the surface.                           |
+| `label`         | `string`                    | `"Signature"`  | Accessible name of the canvas.                                 |
+| `onBegin`       | `() => void`                | —              | Called at the start of each stroke.                            |
+| `onEnd`         | `(dataUrl: string) => void` | —              | Called at the end of each stroke, with the current image.      |
+| `onEmptyChange` | `(isEmpty: boolean) => void`| —              | Called when emptiness changes — wire it to the submit button.   |
+| `showActions`   | `boolean`                   | `true`         | Renders the Undo/Clear buttons.                                |
+
+**Imperative handle** (`ref`): `clear()`, `undo()`, `isEmpty()`, `toDataURL(type?, quality?)`, `toBlob(type?, quality?)`.
+
+!!! tip "Upload `toBlob()`, not `toDataURL()`"
+    A data URL is base64: ~33% more bytes, and it ends up as a string inside your JSON. `toBlob()` hands you binary ready for `FormData`.
+
+!!! info "Sharpness on a high-density screen"
+    The canvas backing store is scaled by `devicePixelRatio` and the context gets the matching `setTransform`. Without it the line comes out blurry on a phone — the classic 1x canvas defect.
+
+!!! note "The ink follows the theme"
+    The default reads the canvas' **computed** color, which the CSS binds to `--tempest-text`. A signature drawn in dark mode is light; in light mode, dark. Pass `penColor` only when you need fixed ink (pen blue, say).
+
 ## A11y
 
 - Always use `label` — screen readers announce the field.

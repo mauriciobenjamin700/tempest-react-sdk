@@ -39,7 +39,7 @@ help: ## Mostra esta ajuda
 # Histórico de releases (lê das git tags — fonte da verdade)
 # ---------------------------------------------------------------------------
 
-.PHONY: releases last-release releases-md
+.PHONY: releases last-release releases-md releases-sync releases-sync-dry releases-check
 
 releases: ## Lista todas as tags de release (mais recentes primeiro)
 	@printf "\n=== tempest-react-sdk (npm) ===\n"
@@ -62,6 +62,26 @@ releases-md: ## (Re)gera RELEASES.md a partir das git tags
 	  fi; \
 	} > $(RELEASES_FILE)
 	@echo "✓ $(RELEASES_FILE) atualizado"
+
+releases-check: ## Compara git tags × versões no npm × GitHub Releases
+	@printf "\n%-12s %-8s %-8s %s\n" "TAG" "NPM" "RELEASE" "STATUS"
+	@name=$$(node -p "require('./package.json').name"); \
+	npm_versions=$$(npm view $$name versions --json 2>/dev/null | tr -d '[]", ' | tr '\n' ' '); \
+	gh_releases=$$(gh release list --limit 200 --json tagName --jq '.[].tagName' 2>/dev/null | tr '\n' ' '); \
+	for tag in $$(git tag -l "v*.*.*" --sort=-v:refname); do \
+	  v=$${tag#v}; \
+	  case " $$npm_versions " in *" $$v "*) n="ok";; *) n="FALTA";; esac; \
+	  case " $$gh_releases " in *" $$tag "*) r="ok";; *) r="FALTA";; esac; \
+	  if [ "$$n" = "ok" ] && [ "$$r" = "ok" ]; then s="sincronizado"; else s="DESSINCRONIZADO"; fi; \
+	  printf "%-12s %-8s %-8s %s\n" "$$tag" "$$n" "$$r" "$$s"; \
+	done; \
+	printf "\n"
+
+releases-sync: ## Cria os GitHub Releases faltantes para as git tags existentes
+	@./scripts/sync-github-releases.sh
+
+releases-sync-dry: ## Mostra quais GitHub Releases faltam, sem criar nada
+	@DRY_RUN=1 ./scripts/sync-github-releases.sh
 
 # ---------------------------------------------------------------------------
 # Bump de versão nos arquivos-fonte

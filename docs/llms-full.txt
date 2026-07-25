@@ -10281,25 +10281,40 @@ Local:                                  GitHub Actions:
   │ scripts/release.sh:     │
   │  1. branch release/vTAG │
   │  2. npm version TAG     │
-  │  3. validate (lint +    │
+  │  3. fecha o CHANGELOG   │
+  │     ([Unreleased] →     │
+  │      [TAG] — data)      │
+  │  4. validate (lint +    │
   │     format + typecheck  │
   │     + test + build)     │
-  │  4. commit + tag local  │
-  │  5. push branch + tag   │──────────► tag push triggers
-  │  6. abre PR via gh      │            .github/workflows/release-npm.yml
+  │  5. commit + tag local  │
+  │  6. push branch + tag   │──────────► tag push triggers
+  │  7. abre PR via gh      │            .github/workflows/release-npm.yml
   └─────────────────────────┘                     │
                                                   ▼
-                                       ┌────────────────────────┐
-                                       │ 1. Checkout @ tag      │
-                                       │ 2. Lint + format-check │
-                                       │ 3. Typecheck           │
-                                       │ 4. Tests (vitest)      │
-                                       │ 5. Build (vite + dts)  │
-                                       │ 6. Smoke install       │
-                                       │ 7. npm publish         │
-                                       │    --provenance        │
-                                       └────────────────────────┘
+                                       ┌────────────────────────────┐
+                                       │ 1. Checkout @ tag          │
+                                       │ 2. tag == package.json?    │
+                                       │ 3. Lint + format-check     │
+                                       │ 4. Typecheck               │
+                                       │ 5. Tests (vitest)          │
+                                       │ 6. Build (vite + dts)      │
+                                       │ 7. Smoke install           │
+                                       │ 8. npm publish             │
+                                       │    --provenance            │
+                                       │ 9. read-back: registry     │
+                                       │    serve a versão e o      │
+                                       │    dist-tag latest bate?   │
+                                       │ 10. GitHub Release da tag  │
+                                       │     (notas = CHANGELOG,    │
+                                       │      tarball anexado)      │
+                                       └────────────────────────────┘
 ```
+
+**As três superfícies andam juntas**: a git tag, a versão no npm e o GitHub
+Release. O workflow falha se a tag não descrever a versão do `package.json`, e
+falha se o registry não estiver servindo a versão como `latest` — então "workflow
+verde" significa de fato "publicado e visível".
 
 Tag push é a **única** forma de publicar. Não há "publish via PR merge" — o merge do release PR é apenas para sincronizar `main` com `package.json` + `RELEASES.md` atualizados.
 
@@ -10353,6 +10368,32 @@ Lista todas as tags `v*.*.*` ordenadas por versão (mais recentes primeiro).
 
 Regenera `RELEASES.md` a partir das git tags. Chamado automaticamente pelo `scripts/release.sh` após criar a tag.
 
+### `make releases-check`
+
+Relatório de sincronia das três superfícies — uma linha por git tag, dizendo se a versão existe no npm e se a tag tem GitHub Release:
+
+```text
+TAG          NPM      RELEASE  STATUS
+v0.24.0      ok       ok       sincronizado
+v0.23.0      ok       FALTA    DESSINCRONIZADO
+```
+
+Só leitura, seguro de rodar sempre. Use antes e depois de um release.
+
+### `make releases-sync` / `make releases-sync-dry`
+
+Cria os **GitHub Releases faltantes** para tags que já existem (backfill), com as notas vindas da seção correspondente do `CHANGELOG.md`. Tags que já têm Release são puladas — o script é idempotente e nunca reescreve um Release existente.
+
+```bash
+make releases-sync-dry   # lista o que faria, sem criar nada
+make releases-sync       # cria de verdade
+```
+
+Necessário porque o publish no npm e a criação do Release passaram a andar juntos só a partir da v0.24.0: as tags anteriores existiam no git e no npm, mas sem Release no GitHub.
+
+!!! info "Notas de um backfill nunca herdam `[Unreleased]`"
+    O `scripts/changelog.mjs notes <versão>` só cai no bloco `[Unreleased]` quando recebe `--allow-unreleased` (o que o workflow faz, para o caso de um release cortado antes de datar a seção). No backfill a flag **não** é passada — assim uma tag antiga nunca recebe as notas do ciclo seguinte; sem seção, o Release sai com um ponteiro para o `CHANGELOG.md`.
+
 ## CI workflow (`.github/workflows/release-npm.yml`)
 
 Disparado por:
@@ -10363,35 +10404,35 @@ Disparado por:
 Passos do job `publish`:
 
 1. **Checkout** (`actions/checkout@v5`) com `fetch-depth: 0`.
-2. **Node 22** + `registry-url: https://registry.npmjs.org` + cache npm.
-3. **`npm ci`**.
-4. **Lint** (`npm run lint`).
-5. **Format check** (`npm run format:check`).
-6. **Typecheck** (`npm run typecheck`).
-7. **Tests** (`npm run test:run`).
-8. **Build** (`npm run build`).
-9. **Smoke install** — gera tarball via `npm pack`, instala em `/tmp/sdk-smoke` com **todos** os optional peers (`@tanstack/react-query`, `zod`, `zustand`, `dexie`, `react-hook-form`, `lucide-react`) + `react@^19 react-dom@^19`, importa o pacote dinamicamente, valida que 20 exports core estão presentes.
-10. **`npm publish --provenance --access public`** usando `NPM_TOKEN` secret. `id-token: write` permission permite o OIDC necessário para o sigstore provenance attestation.
+2. **Node 22** + `registry-url: https://registry.npmjs.org` + cache npm, e `npm install -g npm@latest` (Trusted Publishing exige npm >= 11.5.1).
+3. **Guard de versão** — compara a tag (`GITHUB_REF_NAME` sem o `v`) com o `version` do `package.json` e **aborta** se divergirem, antes de qualquer publish. Também deriva `prerelease` (versão com `-`) para marcar o Release corretamente. Em `workflow_dispatch` a tag é derivada do `package.json`.
+4. **`npm ci`**.
+5. **Lint** (`npm run lint`).
+6. **Format check** (`npm run format:check`).
+7. **Typecheck** (`npm run typecheck`).
+8. **Tests** (`npm run test:run`).
+9. **Build** (`npm run build`).
+10. **Smoke install** — gera tarball via `npm pack`, instala em `/tmp/sdk-smoke` com `react@^19 react-dom@^19` (as demais deps vêm como dependências diretas do pacote), importa o pacote dinamicamente e valida que 20 exports core estão presentes.
+11. **`npm publish --provenance --access public`** via **Trusted Publishing (OIDC)** — sem `NPM_TOKEN`. `id-token: write` é o que permite o attestation de provenance no sigstore.
+12. **Read-back do registry** — confirma que o npm serve `tempest-react-sdk@<versão>` (com até 5 tentativas, porque o registry demora a propagar) **e** que `dist-tags.latest` aponta para ela. Falha o job caso contrário: publish que aterrissou em outra tag deixaria de parecer verde.
+13. **GitHub Release** — `gh release create <tag>` com o tarball anexado e as notas extraídas da seção do `CHANGELOG.md` (`scripts/changelog.mjs notes <versão> --allow-unreleased`), acrescidas do link para a versão no npm. Se o Release já existe, faz `gh release edit` + `upload --clobber` em vez de falhar, então re-rodar o workflow para a mesma tag é seguro. Exige `contents: write` no job.
 
 ## Segredos necessários no GitHub
 
-Apenas um:
+**Nenhum.** O publish usa **Trusted Publishing** do npm: o `npm publish` troca a identidade OIDC do GitHub Actions por um token de vida curta, então não existe `NPM_TOKEN` no repositório. O que precisa estar configurado é um **Trusted Publisher** em npmjs.com apontando para este repositório + o arquivo `release-npm.yml`.
 
-- **`NPM_TOKEN`** — token npm com permissão de publicar tempest-react-sdk + bypass 2FA habilitado. Configurar:
-  ```bash
-  gh secret set NPM_TOKEN --body "npm_xxx..."
-  ```
-  Tipo recomendado: **Classic Automation token** (bypass 2FA por default) OU **Granular Access Token** com flag "Allow bypass 2FA" marcada explicitamente.
+O `GITHUB_TOKEN` (usado para criar o Release) é fornecido automaticamente pelo Actions runtime — só o `permissions: contents: write` do job precisa estar declarado, e está.
 
-`GITHUB_TOKEN` é fornecido automaticamente pelo Actions runtime.
+!!! warning "O `NPM_TOKEN` continua sendo assunto do fallback local"
+    `make publish` publica da sua máquina e aí sim precisa de token no `~/.npmrc` (Classic Automation, ou Granular com "Allow bypass 2FA" marcado). Esse caminho **não** gera provenance e **não** cria o GitHub Release — se você usar o fallback, rode `make releases-sync` depois para o Release não ficar faltando.
 
 ## Provenance signing
 
 O publish inclui `--provenance` quando rodado no CI. Isso requer:
 
 - `permissions: id-token: write` no workflow (já configurado).
-- `NPM_CONFIG_PROVENANCE=true` env var (já configurado).
-- Token npm com permissão `publish`.
+- npm >= 11.5.1 no runner (o step de upgrade cuida disso).
+- Um Trusted Publisher configurado no npmjs.com para este repositório.
 
 O resultado: cada versão publicada carrega um attestation assinado pelo sigstore, ligando o tarball ao commit + workflow run que o produziram. Visível no [registry](https://www.npmjs.com/package/tempest-react-sdk) como badge "Verified provenance".
 

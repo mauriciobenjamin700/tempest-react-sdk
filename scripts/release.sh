@@ -82,6 +82,12 @@ echo "→ Bump de versão para $TAG"
 npm version "$TAG" --no-git-tag-version --allow-same-version >/dev/null
 VERSION_PATHSPEC=("package.json" "package-lock.json")
 
+# Fecha o [Unreleased] numa seção datada da versão. O workflow de release usa
+# exatamente essa seção como corpo do GitHub Release, então sem isso o Release
+# sai com as notas do ciclo seguinte.
+echo "→ Fechando o CHANGELOG em [$TAG]"
+node scripts/changelog.mjs close "$TAG"
+
 if [[ "$SKIP_VALIDATE" != "1" ]]; then
   echo "→ Validando build localmente"
   npm ci

@@ -4,6 +4,26 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **Release sincroniza as três superfícies: git tag, npm e GitHub Release.**
+  Havia 30 tags e 30 versões no npm contra **zero** GitHub Releases — quem
+  chegava pelo repositório não tinha changelog navegável nem tarball por versão.
+  O `release-npm.yml` ganhou, depois do publish: **guard de versão** (aborta se a
+  tag não descrever o `version` do `package.json`, antes de publicar qualquer
+  coisa), **read-back do registry** (o npm precisa servir a versão _e_ apontar
+  `dist-tags.latest` pra ela, com retry pela propagação) e **criação do GitHub
+  Release** com as notas extraídas da seção do CHANGELOG + tarball anexado —
+  idempotente, então re-rodar a mesma tag edita o Release em vez de falhar.
+- **`scripts/changelog.mjs`** — `notes <versão>` extrai a seção do CHANGELOG (só
+  cai no `[Unreleased]` com `--allow-unreleased`, pra um backfill nunca colar as
+  notas do ciclo seguinte numa tag antiga) e `close <versão> [data]` fecha o
+  `[Unreleased]` numa seção datada. O `release.sh` chama o `close` no bump, então
+  a tag que sai já carrega notas datadas.
+- **`make releases-check`** (relatório tag × npm × Release, só leitura),
+  **`make releases-sync`** e **`make releases-sync-dry`** (backfill dos Releases
+  faltantes via `scripts/sync-github-releases.sh`, idempotente).
+
 ### Alterado
 
 - **`react-router-dom@7` → `react-router@8`.** O advisory

@@ -321,3 +321,21 @@ describe("installBackgroundSync — without the Background Sync API", () => {
         expect(drained).toBeUndefined();
     });
 });
+
+describe("installBackgroundSync — defaults and entry guards", () => {
+    it("uses the default queue name and periodic tag", async () => {
+        installBackgroundSync();
+        fetchMock.mockRejectedValueOnce(new Error("offline"));
+        await dispatchFetch(new Request("https://app.test/api/x", { method: "POST", body: "x" }));
+        expect(registerMock).toHaveBeenCalledWith("tempest-bg-sync");
+
+        fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+        let drained: Promise<unknown> | undefined;
+        listeners.periodicsync[0]?.({
+            tag: "tempest-bg-sync-periodic",
+            waitUntil: (p: Promise<unknown>) => (drained = p),
+        });
+        await drained;
+        expect(await countQueue("tempest-bg-sync")).toBe(0);
+    });
+});

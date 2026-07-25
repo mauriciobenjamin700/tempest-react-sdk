@@ -180,3 +180,38 @@ describe("Grid", () => {
         expect(el.style.gridTemplateColumns).toBe("1fr");
     });
 });
+
+describe("Stack — undefined responsive values", () => {
+    it("renders with no gap when gap is explicitly undefined", () => {
+        const el = firstChild(<Stack gap={undefined}>x</Stack>);
+        expect(el.style.gap).toBe("8px");
+    });
+
+    it("keeps the default direction when direction is undefined", () => {
+        expect(firstChild(<Stack direction={undefined} />).className).toContain("vertical");
+    });
+
+    it("resolves gap from the tablet entry on a tablet", () => {
+        setDevice("tablet");
+        expect(firstChild(<Stack gap={{ tablet: 3 }} />).style.gap).toBe("12px");
+    });
+
+    it("resolves gap from the desktop entry on a tablet when tablet is absent", () => {
+        setDevice("tablet");
+        expect(firstChild(<Stack gap={{ desktop: 5 }} />).style.gap).toBe("20px");
+    });
+});
+
+describe("Grid — undefined values", () => {
+    it("omits gridTemplateColumns when columns is undefined", () => {
+        const el = firstChild(<Grid columns={undefined} />);
+        expect(el.style.gridTemplateColumns).toBe("repeat(2, minmax(0, 1fr))");
+    });
+
+    it("resolves columns from the tablet entry on a tablet", () => {
+        setDevice("tablet");
+        expect(firstChild(<Grid columns={{ tablet: 3 }} />).style.gridTemplateColumns).toContain(
+            "repeat(3",
+        );
+    });
+});

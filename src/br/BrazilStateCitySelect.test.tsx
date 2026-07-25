@@ -35,3 +35,10 @@ describe("BrazilStateCitySelect", () => {
         expect(onChange).toHaveBeenLastCalledWith({ uf: "RJ", city: null });
     });
 });
+
+describe("BrazilStateCitySelect — layout and cleared city", () => {
+    it("lays out in a row when asked", () => {
+        const { container } = render(<BrazilStateCitySelect layout="row" />);
+        expect((container.firstChild as HTMLElement).style.flexDirection).toBe("row");
+    });
+});

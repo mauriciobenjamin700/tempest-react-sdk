@@ -87,3 +87,10 @@ describe("choices", () => {
         expect(cityChoices("SP")).toHaveLength(citiesByUf("SP").length);
     });
 });
+
+describe("getState — unusable input", () => {
+    it("returns null for an empty or malformed acronym", () => {
+        expect(getState("")).toBeNull();
+        expect(getState("XYZ")).toBeNull();
+    });
+});

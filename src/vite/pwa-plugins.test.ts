@@ -40,6 +40,69 @@ describe("tempestPwaManifest", () => {
     });
 });
 
+describe("tempestPwaManifest — options and base handling", () => {
+    /** Run generateBundle with a fake Rollup context and return the manifest. */
+    function emit(
+        options: Parameters<typeof tempestPwaManifest>[0],
+        bundle: Record<string, unknown>,
+        base = "/",
+    ) {
+        const plugin = tempestPwaManifest(options) as any;
+        plugin.configResolved({ base });
+        const emitFile = vi.fn();
+        plugin.generateBundle.call({ emitFile }, {}, bundle);
+        const call = emitFile.mock.calls[0]?.[0] as
+            | { fileName: string; source: string }
+            | undefined;
+        return call ? { fileName: call.fileName, ...JSON.parse(call.source) } : undefined;
+    }
+
+    it("normalises a base without a trailing slash", () => {
+        const manifest = emit({}, { "assets/a.js": {} }, "/app");
+        expect(manifest?.urls).toContain("/app/assets/a.js");
+    });
+
+    it("drops the app shell when appShell is false", () => {
+        const manifest = emit({ appShell: false }, { "assets/a.js": {} });
+        expect(manifest?.urls).not.toContain("/index.html");
+    });
+
+    it("guarantees the shell even when the bundle has no html", () => {
+        const manifest = emit({}, { "assets/a.js": {} });
+        expect(manifest?.urls).toContain("/index.html");
+    });
+
+    it("keeps html assets by default", () => {
+        const manifest = emit({}, { "extra.html": {}, "assets/a.js": {} });
+        expect(manifest?.urls).toContain("/extra.html");
+    });
+
+    it("drops html assets when includeHtml is off", () => {
+        const manifest = emit({ includeHtml: false }, { "extra.html": {}, "assets/a.js": {} });
+        expect(manifest?.urls).not.toContain("/extra.html");
+        // The app shell is added explicitly, so it survives the html filter.
+        expect(manifest?.urls).toContain("/index.html");
+    });
+
+    it("honours a custom exclude pattern and never lists itself", () => {
+        const manifest = emit(
+            { exclude: /\.css$/, fileName: "pc.json" },
+            { "assets/a.css": {}, "assets/a.js": {}, "pc.json": {} },
+        );
+        expect(manifest?.fileName).toBe("pc.json");
+        expect(manifest?.urls).not.toContain("/assets/a.css");
+        expect(manifest?.urls).not.toContain("/pc.json");
+    });
+
+    it("produces a stable version for the same asset list and a new one otherwise", () => {
+        const a = emit({}, { "assets/a.js": {} });
+        const b = emit({}, { "assets/a.js": {} });
+        const c = emit({}, { "assets/b.js": {} });
+        expect(a?.version).toBe(b?.version);
+        expect(a?.version).not.toBe(c?.version);
+    });
+});
+
 describe("tempestPwaIcons", () => {
     it("is a build-only plugin", () => {
         const plugin = tempestPwaIcons() as any;
@@ -100,6 +163,55 @@ describe("tempestPwaDevSw", () => {
 
         const next = vi.fn();
         await handler({ url: "/something-else" }, { setHeader: vi.fn(), end: vi.fn() }, next);
+        expect(next).toHaveBeenCalled();
+    });
+
+    it("bundles the service worker on request and sets the SW headers", async () => {
+        const plugin = tempestPwaDevSw({ swSrc: "src/sw.ts" }) as any;
+        plugin.configResolved({ root: process.cwd() });
+        let handler: any;
+        plugin.configureServer({ middlewares: { use: (fn: any) => (handler = fn) } });
+
+        const headers: Record<string, string> = {};
+        const ended: string[] = [];
+        const res = {
+            setHeader: (name: string, value: string) => {
+                headers[name] = value;
+            },
+            end: (body: string) => ended.push(body),
+            statusCode: 200,
+        };
+        await handler({ url: "/sw.js?t=123" }, res, vi.fn());
+
+        // No `src/sw.ts` in this repo, so esbuild fails and the plugin answers
+        // with a 500 whose body explains it — the browser gets a readable error
+        // instead of a hung request.
+        expect(res.statusCode).toBe(500);
+        expect(ended[0]).toContain("SW dev build failed");
+    });
+
+    it("falls back to cwd when configResolved has no root", async () => {
+        const plugin = tempestPwaDevSw() as any;
+        plugin.configResolved({});
+        let handler: any;
+        plugin.configureServer({ middlewares: { use: (fn: any) => (handler = fn) } });
+
+        const ended: string[] = [];
+        await handler(
+            { url: "/precache-manifest.json" },
+            { setHeader: vi.fn(), end: (body: string) => ended.push(body) },
+            vi.fn(),
+        );
+        expect(JSON.parse(ended[0]).version).toBe("dev");
+    });
+
+    it("treats a request with no url as a passthrough", async () => {
+        const plugin = tempestPwaDevSw() as any;
+        let handler: any;
+        plugin.configureServer({ middlewares: { use: (fn: any) => (handler = fn) } });
+
+        const next = vi.fn();
+        await handler({}, { setHeader: vi.fn(), end: vi.fn() }, next);
         expect(next).toHaveBeenCalled();
     });
 

@@ -564,3 +564,41 @@ describe("createPartialResponse — malformed ranges", () => {
         expect(await res.text()).toBe("89");
     });
 });
+
+describe("installRuntimeCache — cache hit after a failed refresh", () => {
+    it("serves the stale cache when the revalidation fails", async () => {
+        installRuntimeCache([
+            { match: /\/swr3\//, strategy: "stale-while-revalidate", cacheName: "swr3" },
+        ]);
+        const req = new Request("https://app.test/swr3/a.json");
+
+        fetchMock.mockResolvedValueOnce(new Response("cached"));
+        await (await dispatchFetch(req)).valueOf();
+
+        fetchMock.mockRejectedValue(new Error("offline"));
+        const res = (await dispatchFetch(req)) as Response;
+        expect(await res.text()).toBe("cached");
+    });
+
+    it("rewrites a navigate-mode Range request to same-origin", async () => {
+        fetchMock.mockResolvedValue(new Response("0123456789"));
+        installRuntimeCache([
+            {
+                match: /\/media2\//,
+                strategy: "cache-first",
+                cacheName: "media2",
+                rangeRequests: true,
+            },
+        ]);
+
+        const nav = {
+            url: "https://app.test/media2/a.mp3",
+            method: "GET",
+            mode: "navigate",
+            credentials: "same-origin",
+            headers: new Headers({ range: "bytes=0-3" }),
+        } as unknown as Request;
+        const res = (await dispatchFetch(nav)) as Response;
+        expect(res.status).toBe(206);
+    });
+});

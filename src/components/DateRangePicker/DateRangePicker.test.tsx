@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { DateRangePicker, type DateRange } from "./DateRangePicker";
 
@@ -19,6 +19,10 @@ function Harness({ initial }: { initial?: DateRange }) {
         </>
     );
 }
+
+const onChangeSpy = vi.fn();
+
+beforeEach(() => onChangeSpy.mockClear());
 
 const day = (n: number, month = "June") =>
     screen.getByRole("gridcell", { name: `${month} ${n}, 2026` });
@@ -90,5 +94,36 @@ describe("DateRangePicker — hover preview and range clamps", () => {
         const day = container.querySelector("button[aria-label]") as HTMLButtonElement;
         fireEvent.click(day);
         expect(container.querySelectorAll("[class*='selected']").length).toBe(0);
+    });
+});
+
+describe("DateRangePicker — maxDate boundary", () => {
+    it("refuses a day past maxDate", () => {
+        render(
+            <DateRangePicker
+                value={{ start: null, end: null }}
+                onChange={onChangeSpy}
+                numberOfMonths={1}
+                defaultMonth={new Date(2026, 5, 1)}
+                maxDate={new Date(2026, 5, 10)}
+            />,
+        );
+        fireEvent.click(day(20));
+        expect(onChangeSpy).not.toHaveBeenCalled();
+    });
+
+    it("accepts a day inside the range", () => {
+        render(
+            <DateRangePicker
+                value={{ start: null, end: null }}
+                onChange={onChangeSpy}
+                numberOfMonths={1}
+                defaultMonth={new Date(2026, 5, 1)}
+                minDate={new Date(2026, 5, 1)}
+                maxDate={new Date(2026, 5, 30)}
+            />,
+        );
+        fireEvent.click(day(15));
+        expect(onChangeSpy).toHaveBeenCalled();
     });
 });

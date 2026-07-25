@@ -63,3 +63,34 @@ describe("useCan", () => {
         expect(result.current.isLoading).toBe(false);
     });
 });
+
+describe("useCan — async failures", () => {
+    it("reports the error message when the check rejects", async () => {
+        const control: AccessControl = {
+            can: () => Promise.reject(new Error("backend caiu")),
+        };
+        const wrapper = ({ children }: { children: ReactNode }) => (
+            <AccessControlProvider control={control}>{children}</AccessControlProvider>
+        );
+
+        const { result } = renderHook(() => useCan({ action: "read", resource: "orders" }), {
+            wrapper,
+        });
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+        expect(result.current.allowed).toBe(false);
+        expect(result.current.reason).toBe("backend caiu");
+    });
+
+    it("falls back to a generic reason for a non-Error rejection", async () => {
+        const control: AccessControl = { can: () => Promise.reject("nope") };
+        const wrapper = ({ children }: { children: ReactNode }) => (
+            <AccessControlProvider control={control}>{children}</AccessControlProvider>
+        );
+
+        const { result } = renderHook(() => useCan({ action: "read", resource: "orders" }), {
+            wrapper,
+        });
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+        expect(result.current.reason).toBe("access check failed");
+    });
+});

@@ -122,3 +122,30 @@ describe("createSentryTelemetryAdapter", () => {
         await expect(adapter.flush?.()).resolves.toBeUndefined();
     });
 });
+
+describe("createSentryTelemetryAdapter — partial user shapes", () => {
+    it("omits every field the user does not carry", () => {
+        const sentry = makeSentryMock();
+        const adapter = createSentryTelemetryAdapter({ sentry });
+        adapter.identify({ id: "only-id" });
+        expect(sentry.setUser).toHaveBeenCalledWith({ id: "only-id" });
+    });
+
+    it("maps an email-only user", () => {
+        const sentry = makeSentryMock();
+        createSentryTelemetryAdapter({ sentry }).identify({ email: "a@b.c" });
+        expect(sentry.setUser).toHaveBeenCalledWith({ email: "a@b.c" });
+    });
+
+    it("maps a name to username without an id", () => {
+        const sentry = makeSentryMock();
+        createSentryTelemetryAdapter({ sentry }).identify({ name: "Sem Id" });
+        expect(sentry.setUser).toHaveBeenCalledWith({ username: "Sem Id" });
+    });
+
+    it("spreads traits for a user with no identifiers", () => {
+        const sentry = makeSentryMock();
+        createSentryTelemetryAdapter({ sentry }).identify({ traits: { plan: "free" } });
+        expect(sentry.setUser).toHaveBeenCalledWith({ plan: "free" });
+    });
+});

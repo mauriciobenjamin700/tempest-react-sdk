@@ -260,3 +260,40 @@ describe("createOfflineSync — callbacks, watermark and options", () => {
         expect(await sync.pendingCount()).toBe(1);
     });
 });
+
+describe("createOfflineSync — environment guards", () => {
+    it("uses navigator.onLine by default and skips the run when offline", async () => {
+        const original = navigator.onLine;
+        Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+
+        const { sync } = makeSync({ isOnline: undefined });
+        await sync.enqueue("create", "r1", { id: "r1" });
+        const summary = await sync.flush();
+        expect(summary.skipped).toBe(true);
+        expect(sync.getState().phase).toBe("offline");
+
+        Object.defineProperty(navigator, "onLine", { configurable: true, value: original });
+    });
+
+    it("ignores a broadcast arriving after dispose", async () => {
+        const channelName = `chan-${Math.random().toString(36).slice(2)}`;
+        const { sync } = makeSync({ crossTab: true, broadcastChannelName: channelName });
+        const listener = vi.fn();
+        sync.subscribe(listener);
+        listener.mockClear();
+
+        sync.dispose();
+        const peer = new BroadcastChannel(channelName);
+        peer.postMessage({
+            phase: "syncing",
+            pending: 99,
+            lastSummary: null,
+            lastError: null,
+            lastSyncedAt: null,
+        });
+        peer.close();
+        await new Promise((resolve) => setTimeout(resolve, 20));
+
+        expect(sync.getState().pending).not.toBe(99);
+    });
+});

@@ -42,3 +42,19 @@ describe("useSet", () => {
         expect(result.current.size).toBe(1);
     });
 });
+
+describe("useSet — identity preservation", () => {
+    it("keeps the same Set when removing a value that is not there", () => {
+        const { result } = renderHook(() => useSet<string>(["a"]));
+        const before = result.current.set;
+        act(() => result.current.delete("zzz"));
+        expect(result.current.set).toBe(before);
+    });
+
+    it("keeps the same Set when clearing an already-empty one", () => {
+        const { result } = renderHook(() => useSet<string>());
+        const before = result.current.set;
+        act(() => result.current.clear());
+        expect(result.current.set).toBe(before);
+    });
+});

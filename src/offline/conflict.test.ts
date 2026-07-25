@@ -48,3 +48,28 @@ describe("higherVersionWins", () => {
         expect(higherVersionWins(local, tie, (r) => r.version).tag).toBe("remote-tie");
     });
 });
+
+describe("lastWriteWins — timestamp shapes", () => {
+    it("accepts Date objects", () => {
+        const local = { id: "1", updatedAt: new Date("2026-05-17T12:00:00Z") };
+        const remote = { id: "1", updatedAt: new Date("2026-05-17T13:00:00Z") };
+        expect(lastWriteWins(local, remote, (r) => r.updatedAt)).toBe(remote);
+    });
+
+    it("treats an unparseable string as epoch zero", () => {
+        const local = { id: "1", updatedAt: "not-a-date" };
+        const remote = { id: "1", updatedAt: 1 };
+        expect(
+            lastWriteWins<{ id: string; updatedAt: number | string }>(
+                local,
+                remote,
+                (r) => r.updatedAt,
+            ),
+        ).toBe(remote);
+    });
+
+    it("returns the remote copy when there is no local record", () => {
+        const remote = { id: "1", updatedAt: 5 };
+        expect(lastWriteWins(undefined, remote, (r) => r.updatedAt)).toBe(remote);
+    });
+});

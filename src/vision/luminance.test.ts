@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
     computeImageLuminance,
     isLuminanceAcceptable,
@@ -87,5 +87,66 @@ describe("LowLuminanceError", () => {
         expect(err.luminance).toBe(12);
         expect(err.threshold).toBe(70);
         expect(err.message).toMatch(/too dark/i);
+    });
+});
+
+describe("computeImageLuminance — source shapes", () => {
+    it("reads a video's natural size from videoWidth/videoHeight", () => {
+        const video = Object.create(HTMLVideoElement.prototype) as HTMLVideoElement;
+        Object.defineProperties(video, {
+            videoWidth: { value: 4 },
+            videoHeight: { value: 4 },
+        });
+        const canvas = makeSolidCanvas(255, 255, 255, 4);
+        expect(computeImageLuminance(video, canvas)).toBeCloseTo(255, 0);
+    });
+
+    it("returns 0 for an unloaded video", () => {
+        const video = Object.create(HTMLVideoElement.prototype) as HTMLVideoElement;
+        Object.defineProperties(video, {
+            videoWidth: { value: 0 },
+            videoHeight: { value: 0 },
+        });
+        expect(computeImageLuminance(video)).toBe(0);
+    });
+
+    it("reads a canvas source from its width/height", () => {
+        const source = makeSolidCanvas(0, 0, 0, 4);
+        source.width = 4;
+        source.height = 4;
+        expect(computeImageLuminance(source, makeSolidCanvas(0, 0, 0, 4))).toBe(0);
+    });
+
+    it("falls back to width/height when naturalWidth is 0", () => {
+        const img = {
+            naturalWidth: 0,
+            naturalHeight: 0,
+            width: 4,
+            height: 4,
+        } as HTMLImageElement;
+        expect(computeImageLuminance(img, makeSolidCanvas(255, 255, 255, 4))).toBeCloseTo(255, 0);
+    });
+
+    it("returns 0 when no 2D context is available", () => {
+        const target = document.createElement("canvas");
+        target.getContext = (() => null) as unknown as HTMLCanvasElement["getContext"];
+        expect(computeImageLuminance(makeSource(4), target)).toBe(0);
+    });
+
+    it("allocates its own canvas when none is passed", () => {
+        const created: HTMLCanvasElement[] = [];
+        const realCreate = document.createElement.bind(document);
+        const spy = vi.spyOn(document, "createElement").mockImplementation(((tag: string) => {
+            const el = realCreate(tag) as HTMLCanvasElement;
+            if (tag === "canvas") {
+                el.getContext = (() => null) as unknown as HTMLCanvasElement["getContext"];
+                created.push(el);
+            }
+            return el;
+        }) as typeof document.createElement);
+
+        expect(computeImageLuminance(makeSource(4))).toBe(0);
+        expect(created).toHaveLength(1);
+        spy.mockRestore();
     });
 });

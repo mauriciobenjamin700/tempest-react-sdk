@@ -45,3 +45,24 @@ describe("BottomNavigation", () => {
         expect(onChange).not.toHaveBeenCalled();
     });
 });
+
+describe("BottomNavigation — icons and badges", () => {
+    it("renders an item icon and badge", () => {
+        render(
+            <BottomNavigation
+                value="home"
+                onChange={() => undefined}
+                items={[
+                    {
+                        key: "home",
+                        label: "Início",
+                        icon: <span data-testid="nav-icon">*</span>,
+                        badge: 7,
+                    },
+                ]}
+            />,
+        );
+        expect(screen.getByTestId("nav-icon")).toBeInTheDocument();
+        expect(screen.getByText("7")).toBeInTheDocument();
+    });
+});

@@ -53,3 +53,16 @@ describe("Can", () => {
         expect(screen.queryByText("denied")).not.toBeInTheDocument();
     });
 });
+
+describe("Can — no fallback", () => {
+    it("renders nothing when denied and no fallback is given", async () => {
+        const { container } = render(
+            <AccessControlProvider control={{ can: () => ({ can: false }) }}>
+                <Can action="delete" resource="orders">
+                    <span>secreto</span>
+                </Can>
+            </AccessControlProvider>,
+        );
+        await waitFor(() => expect(container.textContent).toBe(""));
+    });
+});

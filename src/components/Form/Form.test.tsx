@@ -140,3 +140,16 @@ describe("FormActions", () => {
         expect((container.firstElementChild as HTMLElement).className).toMatch(/between/);
     });
 });
+
+describe("Form — default grid columns", () => {
+    it("falls back to two columns in grid layout", () => {
+        const { container } = render(
+            <Form layout="grid">
+                <input aria-label="a" />
+            </Form>,
+        );
+        expect((container.firstChild as HTMLElement).style.gridTemplateColumns).toBe(
+            "repeat(2, minmax(0, 1fr))",
+        );
+    });
+});

@@ -4,10 +4,10 @@ SDK público da Tempest com componentes React, hooks e integrações reutilizáv
 
 > Este arquivo é o guia operacional do SDK. Padrões globais (PR template PT-BR, conventional commits, `gh pr edit` workaround) vêm de `~/.claude/CLAUDE.md` e continuam valendo.
 
-## Estado atual (snapshot v0.23.0 — em preparo, aguardando tag)
+## Estado atual (snapshot pós-v0.23.0 — `[Unreleased]` no CHANGELOG aguardando tag)
 
-- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 29 tags publicadas (0.1.0 → 0.22.0) com signed provenance via OIDC. Histórico completo em `RELEASES.md` (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
-- **Testes**: 1490 testes em 358 arquivos, ~33 s sob `vitest + jsdom + fake-indexeddb`.
+- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 30 tags publicadas (0.1.0 → 0.23.0) com signed provenance via OIDC. Histórico completo em `RELEASES.md` (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
+- **Testes**: 2272 testes em 366 arquivos, ~28 s sob `vitest + jsdom + fake-indexeddb`. Cobertura 98.5% linhas / 97.1% statements / 96.4% funções / 95.0% branches; pisos do CI em 98/97/96/94.
 - **Superfície**: 34 módulos em `src/`, 104 componentes, 45 hooks, 384 exports na entrada raiz.
 - **Empacotamento (v0.23.0)**: `dist/` preserva o grafo de módulos (`preserveModules`). O que o app paga de fato (brotli): `{ cn }` 118 B · `{ Button }` 820 B · app típico 6.83 KB · offline/PWA 4.45 KB · `styles.css` 20.6 KB. Teto sem tree-shaking: 64.5 KB ESM / 79.9 KB CJS. Budgets do `size-limit` são **por fatia importada**, não pelo barrel.
 - **Subpaths** (8): `.`, `/testing` (MSW), `/vite` (`createViteConfig`), `/sw` (helpers de contexto SW), `/charts` (recharts peer), `/editor` (tiptap peer), `/vision` (onnxruntime-web peer), `/br` (dataset BR + mapa clicável), `/styles.css`.
@@ -101,16 +101,11 @@ tempest-react-sdk/
 
 ## Backlog priorizado
 
-Entregue e fora do backlog: release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`), sweep `axe` em jsdom + smoke Playwright do gallery (`e2e.yml`), coverage gateando o CI (pisos 96/94/94/89), política de versionamento de tokens CSS (`docs/styles.md`).
+Entregue e fora do backlog: release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`), sweep `axe` em jsdom + smoke Playwright do gallery (`e2e.yml`), coverage gateando o CI (pisos 98/97/96/94), política de versionamento de tokens CSS (`docs/styles.md`).
 
-### P1 — features opcionais
+### P1 — cauda de cobertura
 
-1. **CSS opcional** (`data-tempest-classname`) para users de Tailwind/Stitches/Linaria.
-
-### P2 — polimento
-
-2. **13 warnings de `react-refresh/only-export-components`** em Providers (hook exportado junto do componente, intencional). Viram annotations em todo run de CI. Resolver com `allowExportNames` ou override por arquivo.
-3. **Cauda de branches (90.1% → 95%)**: sobra ~470 branches espalhadas em ~90 arquivos, ~5 cada. Sem alvo gordo — só valeria com um objetivo específico (badge).
+1. **Branches 95% → mais alto**: a cauda restante está espalhada em dezenas de arquivos com ~2-4 branches cada. Sem alvo gordo; só vale com objetivo específico.
 
 ## Como retomar
 
@@ -147,7 +142,7 @@ npm run dev               # http://127.0.0.1:5173
 
 ## Decisões consolidadas (não revisitar sem razão)
 
-- **CSS Modules com prefix `tempest_`** — evita colisão com apps consumidores. Tailwind/Stitches OK lado a lado.
+- **CSS Modules com prefix `tempest_`, e só isso** — é a única estratégia de estilo do SDK. Não existe (nem entra no backlog) modo "headless"/`data-tempest-classname` para Tailwind, Stitches ou Linaria: manter um segundo caminho de estilo dobraria a superfície de cada componente e diluiria os tokens. Um app que use Tailwind pode conviver com o SDK lado a lado (o prefixo evita colisão), mas os componentes continuam estilizados por CSS Modules + tokens `--tempest-*`.
 - **Tokens CSS via `--tempest-*`** — única forma de tema. Apps customizam sobrescrevendo no `:root`.
 - **Direct deps + react peer** (v0.2.0+) — apenas `react` + `react-dom` como peer; demais (`zod`, `zustand`, `dexie`, `react-hook-form`, `@tanstack/react-query`, `lucide-react`) viram `dependencies` instaladas junto. Continuam externalizadas no Rollup config (bundle do SDK não cresce). Apps que não usam um módulo ainda não pagam — Vite/webpack tree-shake. Decisão original v0.1.x era "peer deps opcionais", revertida em v0.2.0 a pedido do usuário pra simplificar onboarding.
 - **Adapters injetam SDK** — Sentry/PostHog/GrowthBook/LaunchDarkly **não** são peer deps. Caller passa a instância. Pattern aplicável pra Datadog/Mixpanel/Unleash/etc.

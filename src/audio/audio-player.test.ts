@@ -43,3 +43,11 @@ describe("createAudioPlayer", () => {
         vi.unstubAllGlobals();
     });
 });
+
+describe("createAudioPlayer — stop with nothing playing", () => {
+    it("is a no-op before any play", () => {
+        const player = createAudioPlayer();
+        expect(() => player.stop()).not.toThrow();
+        expect(player.current()).toBeNull();
+    });
+});

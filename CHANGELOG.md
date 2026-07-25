@@ -22,6 +22,52 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `useServiceWorkerUpdate`, `ThemeProvider` (listener de `prefers-color-scheme`),
   `createWebSocket`, `createTempestAuth`, `createOfflineSync`, `cache-inspect`,
   `create-push-handler`, `geocode` e `tempestPwaIcons` (sharp mockado).
+- **Cobertura de branches 90.1% → 95.0%** (linhas 97.4% → 98.5%, statements
+  95.0% → 97.1%, funções 95.6% → 96.4%), +303 testes (1969 → 2272). Pisos do CI
+  subiram pra 98/97/96/94. Alvos: `sw/cache` e `background-sync`, `sse/create-event-stream`,
+  `ws/create-web-socket` (guards pós-`close`), `http/api-client` e
+  `upload-with-progress`, `usePaginatedQuery`, `useOfflineMutation`,
+  `persistQueryClientOffline`, `createOfflineSync`, `createOfflineStore`,
+  `createTempestAuth`, `br/geocode`, `br/scales`, `br/svg-utils` (suíte nova),
+  `br/BrazilMap`, `tempestPwaManifest`, `tempestPwaIcons`, `tempestPwaDevSw`,
+  `initial-theme`, `ThemeProvider`, `posthog-adapter`, `sentry-adapter`,
+  `useOAuthCallback`, `useIntersectionObserver`, `usePoll`, `useDeepMemo`,
+  `useEventListener`, `useLocalStorage`, `usePushSubscription`, `storage`,
+  `deepMerge`, `br-validators` e os componentes `Table`, `Input`, `Sidebar`,
+  `RefreshIndicator`, `Drawer`, `ContextMenu`, `NavigationMenu`, `Menubar`,
+  `Command`, `Divider`, `Checkbox`, `StepperInput`, `Carousel`, `AppShell`,
+  `Layout`, `TimePicker`, `Combobox`, `Dropzone`, `FileUpload`, `Resizable`,
+  `PinInput`, `DropdownMenu`, `MultiSelect`, `DataTable`, `Calendar`,
+  `DateRangePicker` e os três charts.
+- **Restam 237 branches** (5%), sendo **28 inalcançáveis** neste setup: são
+  guards `typeof window === "undefined"` dentro de hooks/componentes, e o
+  react-dom precisa de `window` pra renderizar — remover o global quebra o
+  próprio `render()`. O resto é cauda de 1-2 branches defensivas espalhadas em
+  ~120 arquivos (props opcionais com default, `?? fallback` inalcançável por
+  causa do default, ramos de geometria com buracos).
+
+### Corrigido
+
+- **Toolbar do `<RichTextEditor>` ficava com estado velho.** O `useEditor` do
+  tiptap v3 **não** re-renderiza a cada transação (default
+  `shouldRerenderOnTransaction: false`), e o componente lia `isActive()` e
+  `can()` direto no corpo do render — então clicar em Negrito com o cursor
+  colapsado armava a marca sem mudar o documento, nenhum evento de update
+  chegava, e o botão não acendia. Undo/Redo tinham o mesmo problema no
+  `disabled`. Agora a toolbar assina exatamente esses valores via
+  `useEditorState`, que re-renderiza só quando um deles muda (mais barato que
+  re-render por tecla digitada). Encontrado ao cobrir os branches
+  `isActive(...) && styles.active`, que nunca executavam.
+
+### Qualidade
+
+- **Lint 100% limpo** — os 13 warnings de
+  `react-refresh/only-export-components` vinham de módulos de contexto que
+  exportam o hook junto do provider (`ThemeProvider`+`useTheme`,
+  `I18nProvider`+`useI18n`/`useTranslate`, etc.), que é a forma da API pública:
+  um caminho de import por módulo. Em vez de silenciar a regra, um override
+  lista **os nomes exatos** permitidos nesses arquivos — um export novo e não
+  previsto continua avisando (verificado).
 
 ### Documentação
 
@@ -32,6 +78,12 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   Arquitetura (PT + EN), com o porquê: cobrir os dois mundos custaria em cada API
   (dois caminhos de render, hidratação, `window` proibido no topo do módulo) e o
   offline-first sairia pior.
+- **CSS Modules é a única estratégia de estilo, e isso é definitivo.** O item
+  "CSS opcional / `data-tempest-classname` para Tailwind/Stitches/Linaria" saiu
+  do backlog e virou decisão em `CLAUDE.md` + aviso em `docs/styles.md` (PT +
+  EN): dois caminhos de estilo dobrariam a superfície de cada componente e
+  diluiriam os tokens. Conviver lado a lado com um utilitário no resto do app
+  continua suportado (prefixo `tempest_` + tokens legíveis via `var()`).
 - **`SSR-safe` virou `safe sem window`** na doc de hooks (PT + EN). O termo
   antigo prometia render no servidor; o que os guards
   `typeof window === "undefined"` realmente entregam é não explodir fora do

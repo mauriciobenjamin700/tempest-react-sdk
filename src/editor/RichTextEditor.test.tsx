@@ -91,12 +91,18 @@ describe("RichTextEditor — toolbar commands and value sync", () => {
         ["Citação", "blockquote"],
     ];
 
-    it.each(COMMANDS)("%s toggles the mark and reports through onChange", async (label) => {
+    it.each(COMMANDS)("%s activates the mark it toggles", async (label) => {
         const onChange = vi.fn();
         render(<RichTextEditor value="<p>texto</p>" onChange={onChange} />);
         const button = screen.getByRole("button", { name: label });
+        expect(button).toHaveAttribute("aria-pressed", "false");
+
         fireEvent.click(button);
-        await waitFor(() => expect(button).toHaveAttribute("aria-pressed"));
+        await waitFor(() => expect(button).toHaveAttribute("aria-pressed", "true"));
+        expect(button.className).toMatch(/active/);
+
+        fireEvent.click(button);
+        await waitFor(() => expect(button).toHaveAttribute("aria-pressed", "false"));
     });
 
     it("exposes undo and redo buttons, disabled on a fresh document", () => {

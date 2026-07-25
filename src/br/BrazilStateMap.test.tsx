@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { BrazilStateMap } from "./BrazilStateMap";
@@ -330,5 +330,49 @@ describe("BrazilStateMap — tooltip, markers and zoom", () => {
         fireEvent.pointerLeave(svg, { pointerId: 2 });
         fireEvent.pointerMove(svg, { clientX: 200, clientY: 200, pointerId: 2 });
         expect(group.getAttribute("transform")).toBe("translate(0 0) scale(1)");
+    });
+});
+
+describe("BrazilStateMap — label fallback, empty values and resize", () => {
+    it("falls back to the raw UF in the label for an unknown code", async () => {
+        const { container } = render(<BrazilStateMap uf={"ZZ" as never} />);
+        await waitFor(() => expect(container.firstChild).toBeTruthy());
+        expect(screen.getByRole("group", { name: /Municípios de ZZ/ })).toBeInTheDocument();
+    });
+
+    it("adds no tint when values holds no numbers", async () => {
+        const { container } = render(
+            <BrazilStateMap uf="AC" values={{ x: "nope" as unknown as number }} />,
+        );
+        await waitFor(() => expect(container.querySelector("path[data-city-id]")).toBeTruthy());
+        const el = container.querySelector("path[data-city-id]") as SVGPathElement;
+        expect(el.style.fill).toBe("");
+    });
+
+    it("re-projects on a ResizeObserver report, ignoring zero widths", async () => {
+        const observers: ((entries: { contentRect: { width: number } }[]) => void)[] = [];
+        const original = globalThis.ResizeObserver;
+        class FakeResizeObserver {
+            constructor(callback: (entries: { contentRect: { width: number } }[]) => void) {
+                observers.push(callback);
+            }
+            observe(): void {}
+            disconnect(): void {}
+            unobserve(): void {}
+        }
+        vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+
+        const { container } = render(<BrazilStateMap uf="AC" />);
+        await waitFor(() => expect(container.querySelector("svg")).toBeTruthy());
+        const viewBox = () => container.querySelector("svg")?.getAttribute("viewBox");
+        expect(viewBox()).toContain("600");
+
+        act(() => observers[0]?.([{ contentRect: { width: 900 } }]));
+        expect(viewBox()).toContain("900");
+
+        act(() => observers[0]?.([{ contentRect: { width: 0 } }]));
+        expect(viewBox()).toContain("900");
+
+        vi.stubGlobal("ResizeObserver", original);
     });
 });

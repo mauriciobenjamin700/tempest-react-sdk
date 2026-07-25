@@ -27,3 +27,18 @@ describe("Banner", () => {
         expect((container.firstElementChild as HTMLElement).className).toMatch(/danger/);
     });
 });
+
+describe("Banner — icon and action slots", () => {
+    it("renders both slots when given", () => {
+        render(
+            <Banner
+                icon={<span data-testid="banner-icon">*</span>}
+                action={<button type="button">Agir</button>}
+            >
+                aviso
+            </Banner>,
+        );
+        expect(screen.getByTestId("banner-icon")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Agir" })).toBeInTheDocument();
+    });
+});

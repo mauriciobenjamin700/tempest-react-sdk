@@ -1783,7 +1783,7 @@ npm run clean          # rm -rf dist coverage
 
 Snapshot of current health:
 
-- 1490 tests / 358 files.
+- 2272 tests / 366 files — 98.5% lines, 97.1% statements, 96.4% functions, 95.0% branches (CI floors: 98/97/96/94).
 - What your app actually pays (brotli, tree-shaken slices measured by `npm run size`): `cn` alone 118 B · one `Button` 820 B · a typical app shell (5 components + router + providers + HTTP + auth + a hook) 6.83 KB · offline/PWA surface 4.45 KB · `styles.css` 20.6 KB.
 - Full-barrel ceiling — nobody imports this, it is the no-tree-shaking worst case: 64.5 KB ESM / 79.9 KB CJS.
 - Husky pre-commit runs `lint-staged` (eslint --fix + prettier --write) on staged files.

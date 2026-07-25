@@ -52,3 +52,22 @@ describe("createViteConfig", () => {
         expect((config.plugins ?? []).length).toBeGreaterThan(0);
     });
 });
+
+describe("createViteConfig — proxy objects and plugin merging", () => {
+    it("passes a proxy object through untouched", () => {
+        const config = createViteConfig({
+            proxy: { "/api": { target: "http://127.0.0.1:8000", ws: true } },
+        }) as { server?: { proxy?: Record<string, unknown> } };
+        expect(config.server?.proxy?.["/api"]).toEqual({
+            target: "http://127.0.0.1:8000",
+            ws: true,
+        });
+    });
+
+    it("concatenates plugins from the base and the overrides", () => {
+        const marker = { name: "extra-plugin" };
+        const config = createViteConfig({ plugins: [marker] }) as { plugins?: unknown[] };
+        expect(config.plugins).toContain(marker);
+        expect((config.plugins ?? []).length).toBeGreaterThan(1);
+    });
+});

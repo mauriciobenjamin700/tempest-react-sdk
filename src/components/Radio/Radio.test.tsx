@@ -26,3 +26,27 @@ describe("RadioGroup", () => {
         expect(screen.getByRole("radiogroup")).toBeInTheDocument();
     });
 });
+
+describe("Radio — label, description and uncontrolled mode", () => {
+    it("renders a description next to the label", () => {
+        render(<Radio name="p" value="a" label="Plano A" description="Ideal pra começar" />);
+        expect(screen.getByText("Ideal pra começar")).toBeInTheDocument();
+    });
+
+    it("renders neither wrapper without label or description", () => {
+        const { container } = render(<Radio name="p" value="a" aria-label="sem rótulo" />);
+        expect(container.querySelector("[class*='labelWrap']")).toBeNull();
+    });
+
+    it("tracks its own state when uncontrolled inside a group", async () => {
+        render(
+            <RadioGroup name="plan" defaultValue="a">
+                <Radio value="a" label="A" />
+                <Radio value="b" label="B" />
+            </RadioGroup>,
+        );
+        const b = screen.getByRole("radio", { name: "B" });
+        await userEvent.click(b);
+        expect(b).toBeChecked();
+    });
+});

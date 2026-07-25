@@ -186,3 +186,28 @@ describe("TimePicker — column generation and defaults", () => {
         expect(screen.getByText("fuso local")).toBeInTheDocument();
     });
 });
+
+describe("TimePicker — disabled guards", () => {
+    it("does not emit when an hour is clicked while disabled", async () => {
+        const onChange = vi.fn();
+        render(<TimePicker value="10:00" disabled onChange={onChange} />);
+        const hours = screen.getByRole("listbox", { name: "Horas" });
+        await userEvent.click(within(hours).getByRole("option", { name: "11" }));
+        expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it("does not emit when a minute is clicked while disabled", async () => {
+        const onChange = vi.fn();
+        render(<TimePicker value="10:00" disabled onChange={onChange} />);
+        const minutes = screen.getByRole("listbox", { name: "Minutos" });
+        await userEvent.click(within(minutes).getByRole("option", { name: "30" }));
+        expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it("keeps the 12h hour when only the period changes from an empty selection", async () => {
+        const onChange = vi.fn();
+        render(<TimePicker value="" use12Hours onChange={onChange} />);
+        await userEvent.click(screen.getByRole("option", { name: "AM" }));
+        expect(onChange).toHaveBeenCalledWith("00:00");
+    });
+});

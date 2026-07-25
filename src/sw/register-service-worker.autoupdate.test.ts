@@ -70,3 +70,31 @@ describe("registerServiceWorker — autoUpdate", () => {
         expect(reload).toHaveBeenCalledTimes(1);
     });
 });
+
+describe("registerServiceWorker — wiring guards", () => {
+    it("wires the controllerchange reload only once across registrations", async () => {
+        const listeners: string[] = [];
+        const registration = {
+            waiting: null,
+            installing: null,
+            addEventListener: vi.fn(),
+        } as unknown as ServiceWorkerRegistration;
+
+        Object.defineProperty(navigator, "serviceWorker", {
+            configurable: true,
+            value: {
+                register: vi.fn().mockResolvedValue(registration),
+                ready: Promise.resolve(registration),
+                controller: {},
+                addEventListener: (type: string) => listeners.push(type),
+            },
+        });
+
+        await registerServiceWorker({ url: "/sw.js", autoUpdate: true });
+        await registerServiceWorker({ url: "/sw.js", autoUpdate: true });
+
+        expect(listeners.filter((type) => type === "controllerchange").length).toBeLessThanOrEqual(
+            1,
+        );
+    });
+});

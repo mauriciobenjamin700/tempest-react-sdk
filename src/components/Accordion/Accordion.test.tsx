@@ -54,3 +54,23 @@ describe("Accordion", () => {
         expect(btn).toBeDisabled();
     });
 });
+
+describe("Accordion — multiple mode collapse", () => {
+    it("closes only the clicked item when multiple is on", async () => {
+        render(
+            <Accordion
+                multiple
+                defaultValue={["a", "b"]}
+                items={[
+                    { id: "a", title: "A", children: <p>corpo A</p> },
+                    { id: "b", title: "B", children: <p>corpo B</p> },
+                ]}
+            />,
+        );
+        expect(screen.getByText("corpo A")).toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole("button", { name: "A" }));
+        expect(screen.queryByText("corpo A")).not.toBeInTheDocument();
+        expect(screen.getByText("corpo B")).toBeInTheDocument();
+    });
+});

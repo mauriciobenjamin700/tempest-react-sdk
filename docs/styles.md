@@ -383,6 +383,17 @@ Use junto com `<ThemeProvider>` (`tempest-react-sdk/theme`) para persistência +
     lado a lado. Você só interage com os tokens `--tempest-*` — não precisa
     conhecer os nomes de classe.
 
+!!! warning "CSS Modules é a única estratégia de estilo do SDK"
+    Os componentes são estilizados por CSS Modules + tokens `--tempest-*`, e ponto.
+    Não existe modo "headless" nem hook de classe (`data-tempest-classname`) para
+    Tailwind/Stitches/Linaria assumirem a estilização — e isso não está no
+    backlog. Manter dois caminhos de estilo dobraria a superfície de cada
+    componente e diluiria os tokens.
+
+    O que você **pode** fazer: rodar seu utilitário favorito lado a lado no resto
+    do app, ler os tokens do SDK com `var(--tempest-*)` e customizar o SDK
+    sobrescrevendo os tokens no `:root`.
+
 Como os tokens são CSS Custom Properties, qualquer solução (`styled-components`, `emotion`, `vanilla-extract`, Tailwind arbitrary values) lê com `var(--tempest-*)`:
 
 ```ts

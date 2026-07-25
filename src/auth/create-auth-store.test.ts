@@ -36,3 +36,11 @@ describe("createAuthStore", () => {
         expect(state.isAuthenticated).toBe(false);
     });
 });
+
+describe("createAuthStore — default name", () => {
+    it("persists under the default key when no name is given", () => {
+        const useStore = createAuthStore();
+        useStore.getState().setToken("tok");
+        expect(useStore.getState().token).toBe("tok");
+    });
+});

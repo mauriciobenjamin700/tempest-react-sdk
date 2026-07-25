@@ -83,3 +83,107 @@ describe("NProgressBar", () => {
         expect(bar).toHaveAttribute("aria-valuenow", "50");
     });
 });
+
+describe("nprogress controller — guards and clamping", () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+        nprogress.set(0);
+        nprogress.done();
+        vi.advanceTimersByTime(400);
+    });
+
+    afterEach(() => {
+        vi.runOnlyPendingTimers();
+        vi.useRealTimers();
+    });
+
+    /** Subscribe and expose the latest state plus the unsubscribe handle. */
+    function watch() {
+        let state = { value: 0, active: false };
+        const unsubscribe = nprogress.subscribe((s) => (state = s));
+        return { get: () => state, unsubscribe };
+    }
+
+    it("clamps set() into [0, 1]", () => {
+        const w = watch();
+        nprogress.set(-5);
+        expect(w.get().value).toBe(0);
+        nprogress.set(9);
+        expect(w.get().value).toBe(1);
+        w.unsubscribe();
+    });
+
+    it("set(1) leaves the bar inactive when it was not running", () => {
+        const w = watch();
+        nprogress.set(1);
+        expect(w.get().active).toBe(false);
+        w.unsubscribe();
+    });
+
+    it("set(<1) activates the bar", () => {
+        const w = watch();
+        nprogress.set(0.4);
+        expect(w.get()).toEqual({ value: 0.4, active: true });
+        w.unsubscribe();
+    });
+
+    it("a second start() is ignored while already running", () => {
+        const w = watch();
+        nprogress.start();
+        const first = w.get().value;
+        nprogress.start();
+        expect(w.get().value).toBe(first);
+        w.unsubscribe();
+    });
+
+    it("start() resumes from a value already set", () => {
+        const w = watch();
+        nprogress.set(0.5);
+        nprogress.done();
+        vi.advanceTimersByTime(400);
+        nprogress.set(0.3);
+        nprogress.start();
+        expect(w.get().value).toBe(0.3);
+        w.unsubscribe();
+    });
+
+    it("inc() is a no-op at the trickle ceiling and honours an explicit amount", () => {
+        const w = watch();
+        nprogress.set(0.95);
+        nprogress.inc();
+        expect(w.get().value).toBe(0.95);
+
+        nprogress.set(0.1);
+        nprogress.inc(0.2);
+        expect(w.get().value).toBeCloseTo(0.3, 5);
+        w.unsubscribe();
+    });
+
+    it("trickles automatically while running", () => {
+        const w = watch();
+        nprogress.start();
+        const initial = w.get().value;
+        vi.advanceTimersByTime(1000);
+        expect(w.get().value).toBeGreaterThan(initial);
+        w.unsubscribe();
+    });
+
+    it("done() cancels a pending hide when start() comes back first", () => {
+        const w = watch();
+        nprogress.start();
+        nprogress.done();
+        nprogress.start();
+        vi.advanceTimersByTime(400);
+        expect(w.get().active).toBe(true);
+        w.unsubscribe();
+    });
+
+    it("stops notifying after unsubscribe", () => {
+        const listener = vi.fn();
+        const unsubscribe = nprogress.subscribe(listener);
+        listener.mockClear();
+        unsubscribe();
+        nprogress.set(0.7);
+        expect(listener).not.toHaveBeenCalled();
+    });
+});

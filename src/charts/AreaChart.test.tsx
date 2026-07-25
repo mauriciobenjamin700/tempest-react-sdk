@@ -45,3 +45,70 @@ describe("AreaChart", () => {
         expect(container.querySelector(".recharts-responsive-container")).toBeNull();
     });
 });
+
+describe("AreaChart — toggles", () => {
+    it("omits grid, tooltip and legend when disabled", () => {
+        const { container } = render(
+            <AreaChart
+                data={data}
+                index="month"
+                categories={["sales"]}
+                width={400}
+                showGrid={false}
+                showTooltip={false}
+                showLegend={false}
+            />,
+        );
+        expect(container.querySelector(".recharts-cartesian-grid")).toBeNull();
+        expect(container.querySelector(".recharts-legend-wrapper")).toBeNull();
+    });
+
+    it("stacks the series when stack is set", () => {
+        const { container } = render(
+            <AreaChart
+                data={data}
+                index="month"
+                categories={["sales", "costs"]}
+                width={400}
+                stack
+            />,
+        );
+        expect(container.querySelector("svg")).not.toBeNull();
+    });
+
+    it("formats axis and tooltip values through valueFormatter", () => {
+        const valueFormatter = vi.fn((value: number) => `R$ ${value}`);
+        render(
+            <AreaChart
+                data={data}
+                index="month"
+                categories={["sales"]}
+                width={400}
+                valueFormatter={valueFormatter}
+            />,
+        );
+        expect(valueFormatter).toHaveBeenCalled();
+    });
+
+    it("cycles the palette when there are more categories than colors", () => {
+        const { container } = render(
+            <AreaChart
+                data={data}
+                index="month"
+                categories={["sales", "costs"]}
+                width={400}
+                colors={["#111111"]}
+            />,
+        );
+        expect(container.querySelector("svg")).not.toBeNull();
+    });
+});
+
+describe("AreaChart — responsive wrapper", () => {
+    it("wraps in a ResponsiveContainer when no width is given", () => {
+        const { container } = render(
+            <AreaChart data={data} index="month" categories={["sales"]} />,
+        );
+        expect(container.querySelector(".recharts-responsive-container")).not.toBeNull();
+    });
+});

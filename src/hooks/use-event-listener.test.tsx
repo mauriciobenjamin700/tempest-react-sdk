@@ -50,3 +50,36 @@ describe("useEventListener", () => {
         expect(handler).not.toHaveBeenCalled();
     });
 });
+
+describe("useEventListener — target resolution", () => {
+    it("accepts a plain EventTarget", () => {
+        const target = document.createElement("div");
+        const handler = vi.fn();
+        renderHook(() => useEventListener("click", handler, target));
+        target.dispatchEvent(new Event("click"));
+        expect(handler).toHaveBeenCalled();
+    });
+
+    it("does nothing while a ref target is still null", () => {
+        const handler = vi.fn();
+        const ref = { current: null } as { current: HTMLElement | null };
+        renderHook(() => useEventListener("click", handler, ref));
+        window.dispatchEvent(new Event("click"));
+        expect(handler).not.toHaveBeenCalled();
+    });
+
+    it("ignores a target without addEventListener", () => {
+        const handler = vi.fn();
+        const bogus = {} as EventTarget;
+        expect(() => renderHook(() => useEventListener("click", handler, bogus))).not.toThrow();
+        expect(handler).not.toHaveBeenCalled();
+    });
+
+    it("forwards listener options", () => {
+        const target = document.createElement("div");
+        const add = vi.spyOn(target, "addEventListener");
+        const handler = vi.fn();
+        renderHook(() => useEventListener("click", handler, target, { once: true }));
+        expect(add).toHaveBeenCalledWith("click", expect.any(Function), { once: true });
+    });
+});

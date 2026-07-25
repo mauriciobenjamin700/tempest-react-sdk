@@ -16,3 +16,10 @@ describe("EmptyState", () => {
         expect(screen.getByRole("button", { name: "Create" })).toBeInTheDocument();
     });
 });
+
+describe("EmptyState — icon slot", () => {
+    it("renders a custom icon", () => {
+        render(<EmptyState title="Vazio" icon={<span data-testid="empty-icon">*</span>} />);
+        expect(screen.getByTestId("empty-icon")).toBeInTheDocument();
+    });
+});

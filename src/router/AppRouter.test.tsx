@@ -83,3 +83,68 @@ describe("AppRouter", () => {
         expect(screen.getByText("secret")).toBeInTheDocument();
     });
 });
+
+describe("AppRouter — router kinds, lazy routes and caseSensitive", () => {
+    it("renders a browser router at the current location", () => {
+        window.history.pushState({}, "", "/");
+        render(<AppRouter routes={defineRoutes([{ path: "/", element: <p>raiz</p> }])} />);
+        expect(screen.getByText("raiz")).toBeInTheDocument();
+    });
+
+    it("accepts a hash router", () => {
+        window.location.hash = "#/";
+        render(
+            <AppRouter
+                router="hash"
+                routes={defineRoutes([{ path: "/", element: <p>hash</p> }])}
+            />,
+        );
+        expect(screen.getByText("hash")).toBeInTheDocument();
+    });
+
+    it("resolves a lazy route through Suspense and caches the component", async () => {
+        const loader = vi.fn(async () => ({ default: () => <p>preguiçoso</p> }));
+        const routes = defineRoutes([{ path: "/", lazy: loader }]);
+
+        const { unmount } = render(
+            <AppRouter
+                router="memory"
+                initialEntries={["/"]}
+                routes={routes}
+                fallback={<p>…</p>}
+            />,
+        );
+        expect(await screen.findByText("preguiçoso")).toBeInTheDocument();
+        unmount();
+
+        render(<AppRouter router="memory" initialEntries={["/"]} routes={routes} />);
+        expect(await screen.findByText("preguiçoso")).toBeInTheDocument();
+        expect(loader).toHaveBeenCalledTimes(1);
+    });
+
+    it("honours caseSensitive on a path", () => {
+        render(
+            <AppRouter
+                router="memory"
+                initialEntries={["/Caixa"]}
+                routes={defineRoutes([
+                    { path: "/caixa", element: <p>minúscula</p>, caseSensitive: true },
+                    { path: "*", element: <p>não encontrado</p> },
+                ])}
+            />,
+        );
+        expect(screen.getByText("não encontrado")).toBeInTheDocument();
+    });
+
+    it("passes a basename through", () => {
+        render(
+            <AppRouter
+                router="memory"
+                basename="/app"
+                initialEntries={["/app/x"]}
+                routes={defineRoutes([{ path: "/x", element: <p>com basename</p> }])}
+            />,
+        );
+        expect(screen.getByText("com basename")).toBeInTheDocument();
+    });
+});

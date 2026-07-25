@@ -189,3 +189,36 @@ describe("createWebSocket — retries, ping and manual control", () => {
         expect(closedEmissions).toBe(1);
     });
 });
+
+describe("createWebSocket — zero retries", () => {
+    it("goes straight to error when maxRetries is 0", () => {
+        WSMock.instances = [];
+        vi.stubGlobal("WebSocket", WSMock as unknown as typeof WebSocket);
+        const onStatusChange = vi.fn();
+        createWebSocket("wss://x", { maxRetries: 0, onStatusChange });
+
+        WSMock.instances[0].onclose?.({ wasClean: false } as CloseEvent);
+        expect(onStatusChange).toHaveBeenCalledWith("error");
+        expect(WSMock.instances.length).toBe(1);
+        vi.unstubAllGlobals();
+    });
+});
+
+describe("createWebSocket — handlers after close", () => {
+    it("ignores connect and reconnect scheduling once closed", async () => {
+        vi.useFakeTimers();
+        WSMock.instances = [];
+        vi.stubGlobal("WebSocket", WSMock as unknown as typeof WebSocket);
+
+        const controller = createWebSocket("wss://x", { initialBackoff: 20 });
+        const socket = WSMock.instances[0];
+        controller.close();
+
+        socket.onclose?.({ wasClean: false } as CloseEvent);
+        await vi.advanceTimersByTimeAsync(200);
+        expect(WSMock.instances.length).toBe(1);
+
+        vi.useRealTimers();
+        vi.unstubAllGlobals();
+    });
+});

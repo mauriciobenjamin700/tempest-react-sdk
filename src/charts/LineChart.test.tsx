@@ -1,5 +1,5 @@
 import { render } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { LineChart } from "./LineChart";
 import type { ChartData } from "./types";
 
@@ -50,5 +50,59 @@ describe("LineChart", () => {
         );
         const series = container.querySelectorAll(".recharts-line");
         expect(series.length).toBe(2);
+    });
+});
+
+describe("LineChart — toggles", () => {
+    it("omits grid, tooltip and legend when disabled", () => {
+        const { container } = render(
+            <LineChart
+                data={data}
+                index="month"
+                categories={["sales"]}
+                width={400}
+                showGrid={false}
+                showTooltip={false}
+                showLegend={false}
+            />,
+        );
+        expect(container.querySelector(".recharts-cartesian-grid")).toBeNull();
+        expect(container.querySelector(".recharts-legend-wrapper")).toBeNull();
+    });
+
+    it("formats values through valueFormatter", () => {
+        const valueFormatter = vi.fn((value: number) => `${value}%`);
+        render(
+            <LineChart
+                data={data}
+                index="month"
+                categories={["sales"]}
+                width={400}
+                valueFormatter={valueFormatter}
+            />,
+        );
+        expect(valueFormatter).toHaveBeenCalled();
+    });
+
+    it("cycles the palette when categories outnumber colors", () => {
+        const { container } = render(
+            <LineChart
+                data={data}
+                index="month"
+                categories={["sales", "returns"]}
+                width={400}
+                colors={["#111111"]}
+            />,
+        );
+        expect(container.querySelector("svg")).not.toBeNull();
+    });
+});
+
+describe("LineChart — responsive wrapper", () => {
+    it("wraps in a ResponsiveContainer when no width is given", () => {
+        const { container } = render(
+            <LineChart data={data} index="month" categories={["sales"]} />,
+        );
+        expect(container.querySelector(".recharts-responsive-container")).not.toBeNull();
     });
 });

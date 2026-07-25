@@ -27,3 +27,37 @@ describe("createLogger", () => {
         expect(() => logger.info("x")).not.toThrow();
     });
 });
+
+describe("createLogger — namespaces and defaults", () => {
+    it("nests child namespaces with a colon", () => {
+        const lines: string[] = [];
+        const root = createLogger({
+            sinks: [(entry) => lines.push(entry.message)],
+            namespace: "app",
+            level: "debug",
+        });
+
+        root.child("db").info("oi");
+        expect(lines[0]).toBe("[app:db] oi");
+    });
+
+    it("uses the child namespace alone when the parent has none", () => {
+        const lines: string[] = [];
+        const root = createLogger({
+            sinks: [(entry) => lines.push(entry.message)],
+            level: "debug",
+        });
+
+        root.child("http").info("oi");
+        expect(lines[0]).toBe("[http] oi");
+    });
+
+    it("defaults the threshold to info, dropping debug lines", () => {
+        const levels: string[] = [];
+        const logger = createLogger({ sinks: [(entry) => levels.push(entry.level)] });
+
+        logger.debug("invisível");
+        logger.info("visível");
+        expect(levels).toEqual(["info"]);
+    });
+});

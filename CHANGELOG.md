@@ -4,6 +4,34 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`<TreeView>`** — árvore acessível para dado hierárquico (categorias,
+  permissões por módulo, pastas, organograma), que era a lacuna mais óbvia do
+  catálogo: os 104 componentes cobriam lista e tabela, e nada cobria hierarquia.
+  Implementa `role="tree"` com **roving tabindex** — uma única linha tabulável, e
+  as setas movem o foco dentro do widget; sem isso uma árvore de 500 nós
+  adicionaria 500 paradas na ordem de tabulação da página. Teclado completo
+  (`↓`/`↑`, `→` expande ou desce, `←` colapsa ou sobe pro pai, `Home`/`End`,
+  `Enter`/`Espaço`), `aria-level` por profundidade, nós desabilitados pulados na
+  navegação, expansão e seleção controladas ou não. `children: []` é **galho
+  vazio** (mostra chevron, anuncia `aria-expanded`); folha é `children` ausente.
+  O chevron é decoração `aria-hidden`, não um segundo controle focável — a linha
+  já carrega o estado, e o clique nele expande sem selecionar.
+- **`<Wizard>`** — fluxo multi-passo com validação por passo. O `Stepper` era só
+  o **indicador visual**: índice ativo, gate antes de avançar, botão pendente e
+  chamada de conclusão ficavam por conta de cada app. `validate` por passo aceita
+  função sync ou async (`() => form.trigger([...])` é o caso típico), e um gate
+  que **lança** conta como "não permitido" — um `validate` ligado a checagem de
+  rede não deve deixar o usuário num fluxo meio-avançado quando a requisição
+  falha. Pulo pra trás é livre; pulo pra frente valida **cada passo atravessado**.
+  `content` aceita nó ou função que recebe os controles (`next`/`back`/`goTo`/
+  `validating`), e `renderActions` substitui a linha de botões.
+- **`<Stepper>` ganhou `description` por passo e `onStepClick`** (aditivo). O
+  indicador continua **read-only por default**: num fluxo com gates, deixar pular
+  livremente contradiz o motivo do fluxo existir.
+- Os dois entraram no sweep de acessibilidade em jsdom (`axe`), sem violações.
+
 ## [0.24.0] — 2026-07-25
 
 ### Adicionado

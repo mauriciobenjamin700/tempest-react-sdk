@@ -1,0 +1,22 @@
+.wizard {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-space-6);
+    width: 100%;
+}
+
+.body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-space-4);
+    min-height: var(--tempest-wizard-body-min-height, 0);
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--tempest-space-3);
+    padding-top: var(--tempest-space-4);
+    border-top: 1px solid var(--tempest-border);
+}

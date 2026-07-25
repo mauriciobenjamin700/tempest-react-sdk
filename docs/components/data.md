@@ -215,6 +215,69 @@ Feed vertical com markers coloridos. Renderiza como `<ol>` semântica (cada item
 
 `TimelineItem = { id, title, description?, meta?, icon?, marker?: "primary" \| "success" \| "warning" \| "danger" \| "neutral" }`.
 
+## `TreeView`
+
+> **Quando usar**: dados **hierárquicos** — árvore de categorias, permissões por módulo, pastas, organograma. Quando o dado é uma lista plana, `Table` ou `ListTile` servem melhor.
+
+Implementa `role="tree"` com **roving tabindex**: uma única linha é tabulável e as setas movem o foco dentro do widget. É isso que evita uma árvore de 500 nós adicionar 500 paradas na ordem de tabulação da página.
+
+```tsx
+import { TreeView, type TreeNode } from "tempest-react-sdk";
+
+const permissoes: TreeNode[] = [
+  {
+    id: "vendas",
+    label: "Vendas",
+    children: [
+      { id: "vendas.ler", label: "Visualizar" },
+      { id: "vendas.editar", label: "Editar" },
+      { id: "vendas.excluir", label: "Excluir", disabled: true },
+    ],
+  },
+  { id: "config", label: "Configurações", children: [] },
+  { id: "sobre", label: "Sobre" },
+];
+
+export function PermissoesDoPapel() {
+  const [selecionado, setSelecionado] = useState<string | null>(null);
+
+  return (
+    <TreeView
+      label="Permissões"
+      nodes={permissoes}
+      defaultExpandedIds={["vendas"]}
+      selectedId={selecionado}
+      onSelect={(node) => setSelecionado(node.id)}
+    />
+  );
+}
+```
+
+| Prop                 | Tipo                        | Default | O que faz                                                          |
+| -------------------- | --------------------------- | ------- | ------------------------------------------------------------------ |
+| `nodes`              | `TreeNode[]`                | —       | Nós raiz.                                                          |
+| `expandedIds`        | `string[]`                  | —       | Expansão controlada.                                               |
+| `defaultExpandedIds` | `string[]`                  | `[]`    | Expansão inicial (não controlada).                                 |
+| `onExpandedChange`   | `(ids: string[]) => void`   | —       | Chamado a cada expandir/colapsar.                                  |
+| `selectedId`         | `string \| null`            | —       | Seleção controlada.                                                |
+| `defaultSelectedId`  | `string \| null`            | `null`  | Seleção inicial.                                                   |
+| `onSelect`           | `(node: TreeNode) => void`  | —       | Chamado ao selecionar (clique, `Enter` ou `Espaço`).                |
+| `toggleOnSelect`     | `boolean`                   | `true`  | Selecionar um galho também o expande/colapsa.                      |
+| `label`              | `string`                    | —       | Nome acessível da árvore.                                          |
+
+`TreeNode = { id, label, children?, icon?, disabled? }`.
+
+**Teclado**: `↓`/`↑` movem · `→` expande (ou desce pro primeiro filho) · `←` colapsa (ou sobe pro pai) · `Home`/`End` primeira/última linha visível · `Enter`/`Espaço` selecionam.
+
+!!! tip "`children: []` é um galho vazio, não uma folha"
+    A distinção importa: uma pasta vazia deve mostrar o chevron e anunciar `aria-expanded`. Folha é `children` **ausente**.
+
+!!! note "`toggleOnSelect={false}` quando o galho é uma escolha válida"
+    O default (`true`) imita explorador de arquivos: clicar na pasta abre a pasta. Passe `false` quando o galho em si é selecionável — uma categoria que também é destino, por exemplo.
+
+!!! info "O chevron não é um botão"
+    Ele é decoração (`aria-hidden`): a linha já carrega `aria-expanded`, então um segundo controle focável ali só adicionaria ruído no leitor de tela, duplicando uma ação que o teclado já tem. Clique nele funciona (com o evento parado, então expande sem selecionar).
+
 ## Resumo
 
 | Componente    | Use para                                    | Volume típico      |
@@ -224,6 +287,7 @@ Feed vertical com markers coloridos. Renderiza como `<ol>` semântica (cada item
 | `ListTile`    | Linha de lista (ícone + título + ação)      | qualquer           |
 | `Accordion`   | Seções expansíveis sob demanda (FAQ, steps) | poucas seções      |
 | `Timeline`    | Sequência de eventos no tempo               | qualquer           |
+| `TreeView`    | Hierarquia navegável (categorias, permissões) | dezenas a centenas |
 
 Pontos-chave de acessibilidade:
 
@@ -231,5 +295,6 @@ Pontos-chave de acessibilidade:
 - `VirtualList`: itens fora da viewport não são renderizados — `Ctrl+F` só acha o visível.
 - `Accordion`: ↑↓ trocam o item focado, Home/End pulam pro primeiro/último.
 - `Timeline`: ordem semântica via `<ol>`; cada item é `<li>`.
+- `TreeView`: `role="tree"` + roving tabindex (uma parada de tab só); `aria-level` reporta a profundidade e nós desabilitados são pulados na navegação.
 
 Relacionados: [identity](./identity.md) (`Card flush` para hospedar a `Table`) · [feedback](./feedback.md) (`Badge` dentro de células) · [actions](./actions.md) (botões de linha).

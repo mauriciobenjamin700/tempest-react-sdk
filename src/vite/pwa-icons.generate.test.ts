@@ -129,3 +129,18 @@ describe("tempestPwaIcons — html injection", () => {
         expect(plugin.transformIndexHtml()).toBeUndefined();
     });
 });
+
+describe("tempestPwaIcons — root fallback", () => {
+    it("falls back to cwd when configResolved carries no root", async () => {
+        sharpMock.factory.mockClear();
+        const plugin = tempestPwaIcons({
+            sizes: [64],
+            maskableSizes: [],
+            appleTouchIcon: false,
+        }) as any;
+        plugin.configResolved({});
+        const emitFile = vi.fn();
+        await plugin.generateBundle.call({ emitFile, warn: vi.fn() });
+        expect(emitFile).toHaveBeenCalled();
+    });
+});

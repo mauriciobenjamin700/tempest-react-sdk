@@ -32,7 +32,7 @@ describe("usePoll — custom key, stopWhen and throttling", () => {
             .mockResolvedValueOnce({ done: false })
             .mockResolvedValue({ done: true });
 
-        renderHook(() => usePoll(factory, { intervalMs: 20, stopWhen: (value) => value.done }));
+        renderHook(() => usePoll(factory, { interval: 20, stopWhen: (value) => value.done }));
         await vi.advanceTimersByTimeAsync(100);
         const callsAfterStop = factory.mock.calls.length;
 
@@ -44,7 +44,7 @@ describe("usePoll — custom key, stopWhen and throttling", () => {
     it("stops on unmount", async () => {
         vi.useFakeTimers();
         const factory = vi.fn(async () => 1);
-        const { unmount } = renderHook(() => usePoll(factory, { intervalMs: 20 }));
+        const { unmount } = renderHook(() => usePoll(factory, { interval: 20 }));
         await vi.advanceTimersByTimeAsync(50);
         const before = factory.mock.calls.length;
 
@@ -58,7 +58,7 @@ describe("usePoll — custom key, stopWhen and throttling", () => {
         vi.useFakeTimers();
         const factory = vi.fn(async () => 1);
         const { rerender } = renderHook(
-            ({ disabled }: { disabled: boolean }) => usePoll(factory, { intervalMs: 20, disabled }),
+            ({ disabled }: { disabled: boolean }) => usePoll(factory, { interval: 20, disabled }),
             { initialProps: { disabled: false } },
         );
         await vi.advanceTimersByTimeAsync(50);

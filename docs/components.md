@@ -23,7 +23,7 @@ O catálogo foi dividido por categoria para facilitar navegação. Cada arquivo 
 - **[Layout](./components/layout.md)** — AppShell, Page, Container, Stack, Grid, Divider, Spacer, Center, AspectRatio, SafeArea, Show, Hide
 - **[Dados](./components/data.md)** — Table, VirtualList, Accordion, Timeline, TreeView
 - **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, NProgress, Spinner, Skeleton, Toast, EmptyState, ErrorState
-- **[Identidade & micro](./components/identity.md)** — Avatar, Card, Kbd
+- **[Identidade & micro](./components/identity.md)** — Avatar, AvatarGroup, Card, Kbd
 
 ## Convenções globais
 

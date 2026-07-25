@@ -1,0 +1,98 @@
+.group {
+    display: inline-flex;
+    align-items: center;
+}
+
+/**
+ * Each slot pulls the next avatar over the previous one. The overlap is a
+ * fraction of the avatar size so every size keeps the same proportion.
+ */
+.slot {
+    display: inline-flex;
+    border-radius: var(--tempest-radius-full);
+    box-shadow: 0 0 0 2px var(--tempest-bg);
+}
+
+.slot + .slot {
+    margin-inline-start: var(--tempest-avatar-overlap, -10px);
+}
+
+.xs .slot + .slot {
+    margin-inline-start: var(--tempest-avatar-overlap, -8px);
+}
+
+.sm .slot + .slot {
+    margin-inline-start: var(--tempest-avatar-overlap, -10px);
+}
+
+.md .slot + .slot {
+    margin-inline-start: var(--tempest-avatar-overlap, -12px);
+}
+
+.lg .slot + .slot {
+    margin-inline-start: var(--tempest-avatar-overlap, -16px);
+}
+
+.xl .slot + .slot {
+    margin-inline-start: var(--tempest-avatar-overlap, -22px);
+}
+
+.overflow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 40px;
+    height: 40px;
+    border: 0;
+    border-radius: var(--tempest-radius-full);
+    background-color: var(--tempest-surface-3);
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-xs);
+    font-weight: var(--tempest-weight-medium);
+    font-variant-numeric: tabular-nums;
+}
+
+.xs .overflow {
+    width: 24px;
+    height: 24px;
+    font-size: var(--tempest-text-2xs);
+}
+
+.sm .overflow {
+    width: 32px;
+    height: 32px;
+}
+
+.lg .overflow {
+    width: 56px;
+    height: 56px;
+    font-size: var(--tempest-text-sm);
+}
+
+.xl .overflow {
+    width: 80px;
+    height: 80px;
+    font-size: var(--tempest-text-base);
+}
+
+.overflowButton {
+    cursor: pointer;
+    transition: background-color var(--tempest-duration-fast) var(--tempest-ease-out);
+}
+
+.overflowButton:hover {
+    background-color: var(--tempest-border-strong);
+    color: var(--tempest-text);
+}
+
+.overflowButton:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: var(--tempest-focus-ring-offset);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .overflowButton {
+        transition: none;
+    }
+}

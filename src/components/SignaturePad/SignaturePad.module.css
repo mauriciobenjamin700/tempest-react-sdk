@@ -1,0 +1,31 @@
+.pad {
+    display: inline-flex;
+    flex-direction: column;
+    gap: var(--tempest-space-2);
+}
+
+.canvas {
+    color: var(--tempest-text);
+    background-color: var(--tempest-bg);
+    border: 1px dashed var(--tempest-border-strong);
+    border-radius: var(--tempest-radius-md);
+    cursor: crosshair;
+}
+
+.canvas:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: var(--tempest-focus-ring-offset);
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--tempest-space-2);
+}
+
+.disabled .canvas {
+    cursor: not-allowed;
+    opacity: 0.6;
+    background-color: var(--tempest-surface-2);
+}

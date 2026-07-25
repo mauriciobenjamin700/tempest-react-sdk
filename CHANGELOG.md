@@ -98,6 +98,30 @@ literal, zero `!important`, só tokens `--tempest-*` referenciados, fora do
   indicador continua **read-only por default**: num fluxo com gates, deixar pular
   livremente contradiz o motivo do fluxo existir.
 - Os dois entraram no sweep de acessibilidade em jsdom (`axe`), sem violações.
+- **`<SignaturePad>`** — captura de assinatura em canvas, pra comprovante de
+  entrega, ordem de serviço e termo de aceite. Eventos `pointer` (mouse, dedo e
+  caneta pelo mesmo caminho), traços guardados como **listas de pontos** e canvas
+  redesenhado a partir delas — é o que torna `undo` possível: canvas guarda pixel,
+  não histórico. O buffer é escalado por `devicePixelRatio` (sem isso o traço sai
+  borrado no celular, o defeito clássico de canvas 1x), e a cor default é a cor
+  **computada** do canvas, que o CSS liga em `--tempest-text` — então a tinta
+  segue o tema em vez de ser preto fixo. Handle imperativo com `clear`, `undo`,
+  `isEmpty`, `toDataURL` e `toBlob` (a doc recomenda `toBlob` pro upload: data URL
+  é base64, ~33% mais bytes).
+- **`<Lightbox>`** — visualizador de imagem em tela cheia com navegação. Overlay
+  `role="dialog" aria-modal` com foco preso e rolagem da página travada, teclado
+  completo (`Esc`, `←`/`→`, `Home`/`End`), contador, faixa de miniaturas e
+  **pré-carregamento das vizinhas** via `Image()`, pra que `→` não pisque um
+  quadro vazio. `alt` é obrigatório no item: galeria sem rótulo é inutilizável em
+  leitor de tela. `loop` default `true` — num visualizador de foto, fim morto na
+  última imagem é lido como bug mais vezes do que como limite.
+- **`<AvatarGroup>`** — fileira de avatares sobrepostos com chip `+N`. Um único
+  `role="group"` com um nome acessível, e o chip carrega a contagem restante, pra
+  que o total não fique escondido do leitor de tela. Sobreposição ajustável por
+  `--tempest-avatar-overlap`, proporcional ao `size` por default. O chip só é
+  focável quando existe `onOverflowClick` — botão sem ação é ruído de tabulação.
+- Os três (com exceção do `Lightbox`, que monta em portal) entraram no sweep de
+  acessibilidade `axe`, sem violações.
 
 ### Corrigido
 

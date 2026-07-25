@@ -175,6 +175,60 @@ function DeleteButton({ id }: { id: string }) {
 !!! warning "Precisa do `<ModalsProvider>` acima"
     `useModals()` lança um erro se chamado fora de um `<ModalsProvider>`. Monte o provider uma única vez perto da raiz do app.
 
+## `Lightbox`
+
+> **Quando usar**: visualizar foto em tela cheia com navegação — galeria de imóvel, anexos de uma ocorrência, fotos de vistoria.
+
+Overlay `role="dialog" aria-modal` com foco preso dentro e rolagem da página travada. Só a imagem atual é montada; as vizinhas são **pré-carregadas** via `Image()`, então apertar `→` não pisca um quadro vazio.
+
+```tsx
+import { Lightbox } from "tempest-react-sdk";
+import { useState } from "react";
+
+export function GaleriaDaVistoria({ fotos }: { fotos: { url: string; descricao: string }[] }) {
+  const [aberto, setAberto] = useState(false);
+  const [indice, setIndice] = useState(0);
+
+  return (
+    <>
+      <div className="tempest-grid-auto">
+        {fotos.map((foto, i) => (
+          <button key={foto.url} type="button" onClick={() => { setIndice(i); setAberto(true); }}>
+            <img src={foto.url} alt={foto.descricao} className="tempest-aspect-square" />
+          </button>
+        ))}
+      </div>
+
+      <Lightbox
+        open={aberto}
+        items={fotos.map((f) => ({ src: f.url, alt: f.descricao }))}
+        index={indice}
+        onIndexChange={setIndice}
+        onClose={() => setAberto(false)}
+      />
+    </>
+  );
+}
+```
+
+| Prop             | Tipo                       | Default             | O que faz                                     |
+| ---------------- | -------------------------- | ------------------- | --------------------------------------------- |
+| `items`          | `LightboxItem[]`           | —                   | Imagens da galeria.                           |
+| `open`           | `boolean`                  | —                   | Controla a visibilidade.                      |
+| `index`          | `number`                   | `0`                 | Índice exibido.                               |
+| `onIndexChange`  | `(index: number) => void`  | —                   | Passar isso torna o índice **controlado**.     |
+| `onClose`        | `() => void`               | —                   | Chamado no `Esc` e no botão fechar.            |
+| `showThumbnails` | `boolean`                  | `true` se > 1 item  | Faixa de miniaturas.                           |
+| `showCounter`    | `boolean`                  | `true`              | Contador `3 / 12`.                             |
+| `loop`           | `boolean`                  | `true`              | Circula nas pontas.                            |
+
+`LightboxItem = { src, alt, caption?, thumbnail? }` — `alt` é **obrigatório**: galeria de imagem sem rótulo é inutilizável em leitor de tela.
+
+**Teclado**: `Esc` fecha · `←`/`→` navegam · `Home`/`End` vão pras pontas.
+
+!!! note "`loop` é `true` de propósito"
+    Em visualizador de foto, esbarrar num fim morto na última imagem é lido como bug mais vezes do que como limite. Passe `loop={false}` quando a ordem tem significado (um passo-a-passo, por exemplo) — aí os botões de navegação desabilitam nas pontas.
+
 ## A11y geral
 
 - **Focus trap**: Tab circula apenas dentro do dialog. Restaura o foco no trigger ao fechar.

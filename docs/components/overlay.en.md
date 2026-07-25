@@ -198,6 +198,60 @@ function DeleteButton({ id }: { id: string }) {
 - **`aria-modal="true"`** tells screen readers the rest of the page is blocked.
 - **Backdrop**: clicks close it (`Modal`/`BottomSheet`: `dismissOnBackdrop={false}`; `Drawer`: `closeOnBackdrop={false}`).
 
+## `Lightbox`
+
+> **When to use it**: view a photo full-screen with navigation — a property gallery, the attachments of a ticket, inspection photos.
+
+A `role="dialog" aria-modal` overlay with focus trapped inside and the page scroll locked. Only the current image is mounted; the neighbours are **preloaded** via `Image()`, so pressing `→` does not flash an empty frame.
+
+```tsx
+import { Lightbox } from "tempest-react-sdk";
+import { useState } from "react";
+
+export function InspectionGallery({ photos }: { photos: { url: string; description: string }[] }) {
+  const [open, setOpen] = useState(false);
+  const [index, setIndex] = useState(0);
+
+  return (
+    <>
+      <div className="tempest-grid-auto">
+        {photos.map((photo, i) => (
+          <button key={photo.url} type="button" onClick={() => { setIndex(i); setOpen(true); }}>
+            <img src={photo.url} alt={photo.description} className="tempest-aspect-square" />
+          </button>
+        ))}
+      </div>
+
+      <Lightbox
+        open={open}
+        items={photos.map((p) => ({ src: p.url, alt: p.description }))}
+        index={index}
+        onIndexChange={setIndex}
+        onClose={() => setOpen(false)}
+      />
+    </>
+  );
+}
+```
+
+| Prop             | Type                       | Default             | What it does                                  |
+| ---------------- | -------------------------- | ------------------- | --------------------------------------------- |
+| `items`          | `LightboxItem[]`           | —                   | Gallery images.                               |
+| `open`           | `boolean`                  | —                   | Controls visibility.                          |
+| `index`          | `number`                   | `0`                 | Index being shown.                            |
+| `onIndexChange`  | `(index: number) => void`  | —                   | Passing this makes the index **controlled**.  |
+| `onClose`        | `() => void`               | —                   | Called on `Esc` and on the close button.      |
+| `showThumbnails` | `boolean`                  | `true` if > 1 item  | Thumbnail strip.                              |
+| `showCounter`    | `boolean`                  | `true`              | The `3 / 12` counter.                         |
+| `loop`           | `boolean`                  | `true`              | Wraps around at the ends.                     |
+
+`LightboxItem = { src, alt, caption?, thumbnail? }` — `alt` is **required**: a gallery of unlabeled images is unusable with a screen reader.
+
+**Keyboard**: `Esc` closes · `←`/`→` navigate · `Home`/`End` jump to the ends.
+
+!!! note "`loop` is `true` on purpose"
+    In a photo viewer, hitting a dead end at the last image reads as a bug more often than as a boundary. Pass `loop={false}` when order carries meaning (a step-by-step, say) — then the nav buttons disable at the ends.
+
 ## Recap
 
 | Component     | Anchoring       | Purpose                          | Dismiss props                      |

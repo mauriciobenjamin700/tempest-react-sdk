@@ -34,3 +34,26 @@ describe("formatCEP / formatCNPJ", () => {
         expect(formatCNPJ("11222333000181")).toBe("11.222.333/0001-81");
     });
 });
+
+describe("check-digit branches", () => {
+    it("accepts a CPF whose first check digit lands on the 10 → 0 wrap", () => {
+        // 526.018.159 has remainder 10 for the first digit, so it must become 0.
+        expect(validateCPF("526.018.159-06")).toBe(true);
+    });
+
+    it("accepts a CPF with both check digits zero", () => {
+        expect(validateCPF("478.245.040-00")).toBe(true);
+    });
+
+    it("rejects a CPF with a wrong second check digit", () => {
+        expect(validateCPF("111.444.777-36")).toBe(false);
+    });
+
+    it("accepts a CNPJ whose check digit computes below 2 → 0", () => {
+        expect(validateCNPJ("11.222.333/0001-81")).toBe(true);
+    });
+
+    it("rejects a CNPJ with a wrong second check digit", () => {
+        expect(validateCNPJ("11.222.333/0001-82")).toBe(false);
+    });
+});

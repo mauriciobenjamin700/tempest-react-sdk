@@ -1,6 +1,6 @@
 import { Suspense, useMemo } from "react";
 import type { ComponentType, ReactNode } from "react";
-import { BrowserRouter, HashRouter, MemoryRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, HashRouter, MemoryRouter, Routes, Route } from "react-router";
 import { lazyWithRetry } from "../auth/lazy-with-retry";
 import { RouteGuard } from "./RouteGuard";
 import type { RouterKind, TempestRouteObject } from "./types";

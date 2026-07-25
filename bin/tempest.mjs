@@ -241,6 +241,7 @@ const STATEFUL_DEPS = [
     "@tanstack/react-query",
     "zustand",
     "react-hook-form",
+    "react-router",
     "react-router-dom",
 ];
 

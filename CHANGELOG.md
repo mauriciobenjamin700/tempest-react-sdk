@@ -4,6 +4,78 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Alterado
+
+- **`react-router-dom@7` → `react-router@8`.** O advisory
+  [GHSA-qwww-vcr4-c8h2](https://github.com/advisories/GHSA-qwww-vcr4-c8h2) (CSRF
+  em modo RSC) cobre **todo** o intervalo `7.12–8.2` e a linha `react-router-dom`
+  **parou no 7.18.1** — não existe `react-router-dom@8`, as bindings de DOM
+  passaram a morar no próprio `react-router`. Como o SDK já re-exportava a
+  superfície inteira (`Link`, `Outlet`, `useNavigate`, …), a troca é interna:
+  quem importa de `"tempest-react-sdk"` não muda uma linha. **Quem importava
+  `react-router-dom` direto** no app precisa trocar o especificador para
+  `react-router` (a API é a mesma). O advisory nunca alcançou o SDK — modo RSC
+  não é alvo (client-only), mas poluía o `npm audit` de todo consumidor.
+- **Tooling atualizado até o topo**: Vite 7 → **8**, `@vitejs/plugin-react` 5 →
+  **6**, `vite-plugin-dts` 4 → **5** (a opção `rollupTypes` virou `bundleTypes` e
+  o `@microsoft/api-extractor` agora é dependência explícita), ESLint 9 → **10**,
+  `@eslint/js` 10, `globals` 17, `eslint-plugin-react-hooks` 5 → **7**,
+  `eslint-plugin-react-refresh` 0.4 → **0.5**, TypeScript 5.9 → **6.0**,
+  `lucide-react` 0.575 → **1.26**, `@testing-library/jest-dom` 6 → **7**,
+  `size-limit` 12 → **13**, `@types/node` 24 → **26**, Playwright 1.62. O peer de
+  `vite` aceita `^8` e o de `@vitejs/plugin-react` aceita `^6`.
+- **`npm audit` do app gerado: 0 vulnerabilidades** (era 8 highs). Validado
+  scaffoldando um app do zero contra o tarball local, nos dois templates (base e
+  `--pwa`): `npm install` limpo, `typecheck`, `lint` e `build` passando.
+- **TypeScript 7 ficou de fora, e não por preguiça**: `typescript-eslint@8.65`
+  declara peer `typescript >=4.8.4 <6.1.0`, então o 7.x derrubaria o lint com
+  tipos. O 6.0.3 é o teto suportado hoje.
+- **Templates (`template/`, `template-pwa/`) na mesma stack** — ESLint 10,
+  TypeScript 6, Vite 8, `plugin-react` 6, `sharp` 0.35, React 19.2.8. O preset
+  `reactHooks.configs.recommended` do plugin v7 (que passou a incluir as regras
+  do React Compiler) fica **fora** por default: um app novo reprovaria no dia um.
+  As duas regras clássicas (`rules-of-hooks`, `exhaustive-deps`) continuam ligadas
+  e o resto é opt-in, comentado no `eslint.config.js` gerado.
+- **`WebSocket` — `payload` agora é `string | Blob | BufferSource`** em
+  `createWebSocket`/`useWebSocket` (era `string | ArrayBufferLike | Blob |
+ArrayBufferView`). O lib DOM do TS 6 tirou `SharedArrayBuffer` de
+  `BufferSource`, e `WebSocket.send` nunca aceitou SAB de fato — o tipo antigo
+  prometia mais do que a plataforma entrega.
+- **`tsconfig.json` sem `baseUrl`** — deprecado no TS 6 (erro `TS5101`), com
+  `paths` passando a usar `./src/*`. O `tempest doctor` também passou a checar
+  instância duplicada de `react-router`, além de `react-router-dom`.
+
+### Corrigido
+
+- **App gerado reprovava `npm run lint` no dia um.** Os fontes do `template/`
+  nunca passaram pela própria regra `simple-import-sort/imports` que o template
+  liga, então `npm run lint` num projeto recém-criado saía com 6 erros. Imports
+  ordenados na fonte; app novo agora linta limpo.
+- **CLI não mencionava o `.env`.** O `create-tempest-app` imprimia
+  `npm install` + `npm run dev`, mas `src/lib/api.ts` lê
+  `import.meta.env.VITE_API_URL` — sem `.env` a base do cliente HTTP fica
+  `undefined`. Os next steps agora incluem `cp .env.example .env` (omitido quando
+  o diretório já tem um `.env`).
+
+### Documentação
+
+- **Getting started reescrito em cima do modo `.`** (`docs/index`,
+  `docs/tutorial/index`, `docs/scaffold`, `docs/cookbook`, README — PT + EN):
+  `mkdir my-app && cd my-app && npx -p tempest-react-sdk create-tempest-app .` é
+  o caminho recomendado, com tabela explicando **cada pedaço** do comando
+  (`npx`, `-p`, nome do `bin`, destino), tabela comparando os dois modos
+  (`.` / sem argumento / nome de pasta) e uma seção de troubleshooting com o erro
+  real de cada sintoma.
+- **Duas afirmações falsas removidas da doc**: (1) `npm create tempest-app`
+  **não** funciona — não existe pacote `create-tempest-app` no npm (404), a CLI é
+  o `bin` do SDK; (2) rodar sem argumento **não pergunta** um nome de projeto com
+  default `my-tempest-app` — é idêntico a passar `.` (merge no diretório atual),
+  conforme `bin/create-tempest-app.mjs`.
+- Referências a `react-router-dom@7` viraram `react-router@8` na doc de
+  roteamento, arquitetura, cookbook, auth, error-boundary e tutorial (PT + EN);
+  o "Versão atual: 0.7.0" cravado no cookbook virou link pra página do npm, que
+  não desatualiza.
+
 ### Testes
 
 - **Cobertura de branches 80.8% → 90.1%** (linhas 90.2% → 97.4%, statements

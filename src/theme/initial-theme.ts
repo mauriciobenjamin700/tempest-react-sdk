@@ -19,7 +19,7 @@ export function getInitialTheme(options: GetInitialThemeOptions = {}): ResolvedT
         return defaultTheme === "dark" ? "dark" : "light";
     }
 
-    let stored: ThemeMode | null = null;
+    let stored: ThemeMode | null;
     try {
         stored = window.localStorage.getItem(storageKey) as ThemeMode | null;
     } catch {

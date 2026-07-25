@@ -19,7 +19,7 @@ function isFormData(body: unknown): body is FormData {
 }
 
 async function parseError(response: Response, sentRequestId?: string): Promise<TempestApiError> {
-    let body: unknown = null;
+    let body: unknown;
     try {
         body = await response.clone().json();
     } catch {

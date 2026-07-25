@@ -5,12 +5,7 @@ export type CameraStreamStatus = "idle" | "loading" | "ready" | "error";
 
 /** Classified reason a camera stream could not be acquired. */
 export type CameraStreamErrorKind =
-    | "unsupported"
-    | "permission-denied"
-    | "no-camera"
-    | "in-use"
-    | "insecure"
-    | "unknown";
+    "unsupported" | "permission-denied" | "no-camera" | "in-use" | "insecure" | "unknown";
 
 /** A classified camera error with a human-readable, English message. */
 export interface CameraStreamError {

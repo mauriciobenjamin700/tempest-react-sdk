@@ -74,7 +74,7 @@ Tooling
 
 **Dependency health** (os silenciosos):
 
-- **Instância duplicada** de React ou de libs com estado/contexto (`@tanstack/react-query`, `zustand`, `react-hook-form`, `react-router-dom`): uma cópia **aninhada** dentro do `tempest-react-sdk` significa **duas instâncias** no runtime — hooks inválidos, `QueryClient`/contexto de RHF que "somem". Sugere `npm dedupe`. _(Pulado quando o SDK é `file:`/`link:` local.)_
+- **Instância duplicada** de React ou de libs com estado/contexto (`@tanstack/react-query`, `zustand`, `react-hook-form`, `react-router`): uma cópia **aninhada** dentro do `tempest-react-sdk` significa **duas instâncias** no runtime — hooks inválidos, `QueryClient`/contexto de RHF que "somem". Sugere `npm dedupe`. _(Pulado quando o SDK é `file:`/`link:` local.)_
 - **Deps declaradas mas não instaladas** (drift entre `package.json` e `node_modules`) → `npm install`.
 - **`peerDependencies` do próprio app** não satisfeitas.
 - **`@types/react` × `react`** com majors diferentes → erros de tipo fantasma.

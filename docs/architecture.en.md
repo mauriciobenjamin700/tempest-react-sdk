@@ -36,7 +36,7 @@ The opinionated base that assembles a whole React app. This is what the
 | Layer                  | What it does                                                                          | Page                             |
 | ---------------------- | ------------------------------------------------------------------------------------- | -------------------------------- |
 | **Vite (`vite/`)**     | `createViteConfig` — React plugin + `@` → `src` alias + dev server (subpath `/vite`). | [Vite & alias](./vite-config.md) |
-| **Router (`router/`)** | `defineRoutes`, `<AppRouter>`, `<RouteGuard>` + React Router v7 re-exports.           | [Routing](./routing.md)          |
+| **Router (`router/`)** | `defineRoutes`, `<AppRouter>`, `<RouteGuard>` + React Router v8 re-exports.           | [Routing](./routing.md)          |
 | **Store (`store/`)**   | `createStore`, `createSelectors` (generic Zustand factories).                         | [State](./state.md)              |
 | **App (`app/`)**       | `<AppProviders>` — composes ErrorBoundary → Query → Theme → i18n in one block.        | [Providers](./app-providers.md)  |
 
@@ -65,7 +65,7 @@ automatically by `npm install tempest-react-sdk` and externalized in the bundle
 | Package                        | Status              | Used by                                                                         |
 | ------------------------------ | ------------------- | ------------------------------------------------------------------------------- |
 | `react`, `react-dom`           | **Peer (required)** | Everything                                                                      |
-| `react-router-dom@7`           | Direct dep          | `AppRouter`, `defineRoutes`, `RouteGuard`, re-exports                           |
+| `react-router@8`           | Direct dep          | `AppRouter`, `defineRoutes`, `RouteGuard`, re-exports                           |
 | `zustand`                      | Direct dep          | `createStore`, `createSelectors`, `createAuthStore`                             |
 | `@tanstack/react-query`        | Direct dep          | `QueryProvider`, `createQueryKeys`, `AppProviders`                              |
 | `zod`                          | Direct dep          | `parseResponse`, `validateForm`, `zodResolver`, `useZodForm`                    |

@@ -19,9 +19,8 @@
     "useDefineForClassFields": true,
     "forceConsistentCasingInFileNames": true,
     "types": ["node", "vitest/globals", "@testing-library/jest-dom"],
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src", "src/types.d.ts", "vite.config.ts", "eslint.config.js"],

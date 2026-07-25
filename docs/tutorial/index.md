@@ -19,7 +19,7 @@ de `"tempest-react-sdk"` e nunca precisa colar a integração na mão.
 !!! info "Só `react` e `react-dom` são peer deps"
 
     Quando você instala o SDK, **todo o resto vem junto** automaticamente:
-    `react-router-dom`, `zustand`, `@tanstack/react-query`, `zod`,
+    `react-router`, `zustand`, `@tanstack/react-query`, `zod`,
     `react-hook-form`, `dexie`, `lucide-react`. São **dependências diretas** do
     SDK. As únicas dependências que **você** precisa garantir são `react` e
     `react-dom` — porque o React exige uma única instância no app inteiro.
@@ -194,7 +194,7 @@ esse é o guard de rota em ação, que você vai entender em [Roteamento](routin
 
 - O `tempest-react-sdk` reúne roteamento, estado, dados, formulários e auth atrás
   de **uma só superfície de import** (`"tempest-react-sdk"`). ✅
-- **Só `react` e `react-dom` são peer deps**; todo o resto (`react-router-dom`,
+- **Só `react` e `react-dom` são peer deps**; todo o resto (`react-router`,
   `zustand`, `@tanstack/react-query`, `zod`, `react-hook-form`, ...) é dependência
   **direta** instalada junto.
 - Crie o app com `mkdir my-app && cd my-app`, depois

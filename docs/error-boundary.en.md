@@ -12,7 +12,7 @@
 ```tsx
 import { useEffect } from "react";
 import { ErrorBoundary, ErrorState } from "tempest-react-sdk";
-import { useLocation } from "react-router-dom";
+import { useLocation } from "react-router";
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const location = useLocation();

@@ -1,15 +1,15 @@
 # Routing
 
-O módulo `routing` do `tempest-react-sdk` embrulha o **React Router v7 (modo declarativo)** e devolve uma superfície única de import: você declara sua árvore de rotas com `defineRoutes`, monta tudo com um único `<AppRouter>` e importa cada primitivo (`Link`, `Outlet`, `useNavigate`, …) direto do SDK — nunca do `react-router-dom`. Em cima do v7, o SDK adiciona o que todo app Tempest repete na mão: code-splitting com retry automático em chunk velho, guards declarativos de rota e um `<Suspense>` já pronto. Esta página te leva do zero a uma árvore com layout aninhado, lazy loading e rotas protegidas.
+O módulo `routing` do `tempest-react-sdk` embrulha o **React Router v8 (modo declarativo)** e devolve uma superfície única de import: você declara sua árvore de rotas com `defineRoutes`, monta tudo com um único `<AppRouter>` e importa cada primitivo (`Link`, `Outlet`, `useNavigate`, …) direto do SDK — nunca do `react-router`. Em cima do v8, o SDK adiciona o que todo app Tempest repete na mão: code-splitting com retry automático em chunk velho, guards declarativos de rota e um `<Suspense>` já pronto. Esta página te leva do zero a uma árvore com layout aninhado, lazy loading e rotas protegidas.
 
 ## Por que o SDK é dono do roteamento agora
 
-Antes, cada app instalava `react-router-dom`, criava seu próprio `<Suspense>`, escrevia o seu helper de guard e reinventava o retry de chunk. Isso gerava divergência entre os apps Tempest e import paths espalhados.
+Antes, cada app instalava `react-router`, criava seu próprio `<Suspense>`, escrevia o seu helper de guard e reinventava o retry de chunk. Isso gerava divergência entre os apps Tempest e import paths espalhados.
 
 Com o módulo `routing` você ganha:
 
-- **Uma só superfície de import.** Tudo vem de `"tempest-react-sdk"` — componentes, hooks e os primitivos re-exportados do React Router. Seu app nunca importa de `react-router-dom`.
-- **v7 declarativo.** Você descreve _o que_ são as rotas (uma árvore de objetos), não _como_ montá-las imperativamente.
+- **Uma só superfície de import.** Tudo vem de `"tempest-react-sdk"` — componentes, hooks e os primitivos re-exportados do React Router. Seu app nunca importa de `react-router`.
+- **v8 declarativo.** Você descreve _o que_ são as rotas (uma árvore de objetos), não _como_ montá-las imperativamente.
 - **Baterias inclusas.** `<AppRouter>` já constrói o router, o `<Suspense>` e as `<Routes>`. `defineRoutes` te dá tipagem. Guards e lazy loading são campos da própria rota.
 
 !!! info "Primitivos re-exportados"
@@ -294,7 +294,7 @@ test("renders the dashboard route", () => {
 
 ## Recap
 
-- O módulo `routing` embrulha o **React Router v7 declarativo** e te dá uma **superfície única de import** — tudo vem de `"tempest-react-sdk"`.
+- O módulo `routing` embrulha o **React Router v8 declarativo** e te dá uma **superfície única de import** — tudo vem de `"tempest-react-sdk"`.
 - `defineRoutes` tipa sua árvore; `<AppRouter routes={...} />` monta router + `<Suspense>` + `<Routes>` sozinho.
 - Use `index: true` para a rota padrão de um layout e `path` para as demais — nunca os dois juntos.
 - Layouts aninhados renderizam filhos no `<Outlet>`; navegue com `<Link>`.

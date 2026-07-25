@@ -24,16 +24,43 @@ export default tseslint.config(
         languageOptions: {
             ecmaVersion: 2022,
             globals: globals.browser,
+            // typescript-eslint refuses to guess the root once a lint run spans
+            // two config roots (the repo and the shipped `template/`), which is
+            // what happens when lint-staged passes explicit paths.
+            parserOptions: { tsconfigRootDir: import.meta.dirname },
         },
         plugins: {
             "react-hooks": reactHooks,
             "react-refresh": reactRefresh,
         },
         rules: {
-            ...reactHooks.configs.recommended.rules,
+            // eslint-plugin-react-hooks v7 folded the React Compiler rule set into
+            // `recommended` (refs, set-state-in-effect, purity, immutability…).
+            // Those flag idioms this SDK uses on purpose — callback refs written
+            // during render, effects that seed state from an external system — so
+            // the classic pair stays enforced and adopting the compiler rules is
+            // tracked separately instead of silently rewriting 80+ call sites.
+            "react-hooks/rules-of-hooks": "error",
+            "react-hooks/exhaustive-deps": "warn",
             "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
             "@typescript-eslint/consistent-type-imports": "error",
             "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+        },
+    },
+    {
+        // The BR masked inputs are produced by the `maskedInput()` factory, so
+        // react-refresh v0.5 cannot see them as components and warns on every
+        // one. They *are* components; naming them keeps the rule live for any
+        // other export added to this file.
+        files: ["src/forms/masked-inputs.tsx"],
+        rules: {
+            "react-refresh/only-export-components": [
+                "warn",
+                {
+                    allowConstantExport: true,
+                    allowExportNames: ["CPFInput", "CNPJInput", "PhoneInput", "CEPInput"],
+                },
+            ],
         },
     },
     {

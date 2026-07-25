@@ -36,13 +36,11 @@ function makeSync(
         watermark: memoryWatermark(),
         crossTab: true,
         deliver: vi.fn(async () => undefined),
-        pullPage: vi.fn(
-            async (): Promise<PullPage<Dto>> => ({
-                items: [],
-                nextCursor: null,
-                serverTime: null,
-            }),
-        ),
+        pullPage: vi.fn(async (): Promise<PullPage<Dto>> => ({
+            items: [],
+            nextCursor: null,
+            serverTime: null,
+        })),
         applyRemote: vi.fn(async () => undefined),
         ...overrides,
     };

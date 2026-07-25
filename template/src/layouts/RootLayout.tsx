@@ -1,4 +1,5 @@
 import { Link, Outlet } from "tempest-react-sdk";
+
 import { useAuth } from "@/stores/auth";
 
 /** App shell: nav bar + routed content via `<Outlet />`. */

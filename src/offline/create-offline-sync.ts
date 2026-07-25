@@ -39,12 +39,7 @@ export interface OutboxEntry<TPayload = unknown> {
  * string is accepted so apps can add their own telemetry labels.
  */
 export type SyncTrigger =
-    | "boot"
-    | "online-event"
-    | "after-mutation"
-    | "manual"
-    | "interval"
-    | (string & {});
+    "boot" | "online-event" | "after-mutation" | "manual" | "interval" | (string & {});
 
 /**
  * One page of the server delta pull.
@@ -372,7 +367,7 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
     async function pull(): Promise<void> {
         const since = watermark.get();
         let cursor: string | null = null;
-        let serverTime: string | null = since;
+        let serverTime: string | null;
         do {
             const page = await config.pullPage(since, cursor);
             for (const item of page.items) {

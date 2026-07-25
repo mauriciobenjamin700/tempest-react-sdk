@@ -19,7 +19,7 @@ theming — behind **one single import surface**. You import everything from
 !!! info "Only `react` and `react-dom` are peer deps"
 
     When you install the SDK, **everything else comes along** automatically:
-    `react-router-dom`, `zustand`, `@tanstack/react-query`, `zod`,
+    `react-router`, `zustand`, `@tanstack/react-query`, `zod`,
     `react-hook-form`, `dexie`, `lucide-react`. They are **direct dependencies**
     of the SDK. The only dependencies **you** must provide are `react` and
     `react-dom` — because React requires a single instance across the whole app.
@@ -195,7 +195,7 @@ that's the route guard in action, which you'll learn in [Routing](routing.md).
 - `tempest-react-sdk` bundles routing, state, data, forms and auth behind **one
   single import surface** (`"tempest-react-sdk"`). ✅
 - **Only `react` and `react-dom` are peer deps**; everything else
-  (`react-router-dom`, `zustand`, `@tanstack/react-query`, `zod`,
+  (`react-router`, `zustand`, `@tanstack/react-query`, `zod`,
   `react-hook-form`, ...) is a **direct** dependency installed alongside.
 - Create the app with `mkdir my-app && cd my-app`, then
   `npx -p tempest-react-sdk create-tempest-app .` — `.` scaffolds into the current

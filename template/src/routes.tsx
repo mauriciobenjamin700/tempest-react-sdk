@@ -1,8 +1,9 @@
 import { defineRoutes } from "tempest-react-sdk";
-import { useAuth } from "@/stores/auth";
+
 import { RootLayout } from "@/layouts/RootLayout";
 import { Home } from "@/pages/Home";
 import { Login } from "@/pages/Login";
+import { useAuth } from "@/stores/auth";
 
 /**
  * Declarative route tree. `lazy` code-splits a page (with retry on stale

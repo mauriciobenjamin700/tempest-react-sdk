@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { AppRouter, defineRoutes } from "./AppRouter";
-import { Outlet, Link } from "react-router-dom";
+import { Outlet, Link } from "react-router";
 
 function Layout() {
     return (

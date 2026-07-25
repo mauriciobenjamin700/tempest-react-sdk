@@ -55,7 +55,7 @@ import "tempest-react-sdk/styles.css";
 ```
 
 Only **`react`** and **`react-dom`** are peer dependencies (single React
-instance rule). Everything else — `react-router-dom`, `zustand`,
+instance rule). Everything else — `react-router`, `zustand`,
 `@tanstack/react-query`, `zod`, `react-hook-form`, `dexie`, `lucide-react` — is
 a **direct dependency**, installed automatically with the SDK and externalized
 in the bundle (your bundler tree-shakes what you don't use). Details in

@@ -6,7 +6,7 @@ we need routes. On this page you'll add a new page, wire it to a URL, navigate
 with `<Link>`, and finally create a **lazy** and **guarded** route.
 
 Everything comes from `"tempest-react-sdk"` — you never import from
-`react-router-dom` directly. The SDK wraps declarative React Router v7 and
+`react-router` directly. The SDK wraps declarative React Router v8 and
 exposes `defineRoutes`, `<AppRouter>`, `<Link>`, `<Outlet>` and `useNavigate` in
 one place.
 
@@ -379,7 +379,7 @@ shell, with no `if` scattered across the pages.
 ## Recap
 
 - All routing comes from `"tempest-react-sdk"` — you never import from
-  `react-router-dom`. ✅
+  `react-router`. ✅
 - `defineRoutes([...])` types the tree; `<AppRouter routes={routes} />` builds
   router + `<Suspense>` + `<Routes>` itself.
 - Use `index: true` for a layout's default route and `path` for the rest — never

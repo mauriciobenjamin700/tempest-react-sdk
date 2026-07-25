@@ -52,8 +52,7 @@ describe("tempestPwaManifest — options and base handling", () => {
         const emitFile = vi.fn();
         plugin.generateBundle.call({ emitFile }, {}, bundle);
         const call = emitFile.mock.calls[0]?.[0] as
-            | { fileName: string; source: string }
-            | undefined;
+            { fileName: string; source: string } | undefined;
         return call ? { fileName: call.fileName, ...JSON.parse(call.source) } : undefined;
     }
 

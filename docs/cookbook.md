@@ -20,8 +20,8 @@ fluxos que apps Tempest repetem o tempo todo. 🚀
 
     Apenas `react` e `react-dom` são **peer dependencies** — o resto (`zod`,
     `zustand`, `dexie`, `react-hook-form`, `@tanstack/react-query`, `lucide-react`,
-    `react-router-dom`) é instalado junto como dependência direta. Versão atual:
-    **0.7.0**.
+    `react-router`) é instalado junto como dependência direta. A versão publicada
+    mais recente está na [página do npm](https://www.npmjs.com/package/tempest-react-sdk).
 
 ## Fluxo de autenticação completo
 

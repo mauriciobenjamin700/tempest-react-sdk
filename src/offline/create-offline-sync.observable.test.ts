@@ -29,13 +29,11 @@ function makeSync(overrides: Partial<OfflineSyncConfig<{ id: string }, Dto>> = {
         databaseName: `obs-${Math.random().toString(36).slice(2)}`,
         watermark: memoryWatermark(),
         deliver: vi.fn(async () => undefined),
-        pullPage: vi.fn(
-            async (): Promise<PullPage<Dto>> => ({
-                items: [],
-                nextCursor: null,
-                serverTime: null,
-            }),
-        ),
+        pullPage: vi.fn(async (): Promise<PullPage<Dto>> => ({
+            items: [],
+            nextCursor: null,
+            serverTime: null,
+        })),
         applyRemote: vi.fn(async () => undefined),
         ...overrides,
     };

@@ -5,8 +5,8 @@ painel. Para o usuário trocar de tela **sem recarregar a página**, precisamos 
 rotas. Nesta página você vai adicionar uma página nova, ligá-la a uma URL,
 navegar com `<Link>` e, por fim, criar uma rota **lazy** e **protegida**.
 
-Tudo vem de `"tempest-react-sdk"` — você nunca importa de `react-router-dom`
-diretamente. O SDK embrulha o React Router v7 declarativo e expõe `defineRoutes`,
+Tudo vem de `"tempest-react-sdk"` — você nunca importa de `react-router`
+diretamente. O SDK embrulha o React Router v8 declarativo e expõe `defineRoutes`,
 `<AppRouter>`, `<Link>`, `<Outlet>` e `useNavigate` num só lugar.
 
 ## A árvore de rotas que já existe
@@ -376,7 +376,7 @@ seu shell, sem `if` espalhado pelas páginas.
 ## Recap
 
 - Tudo de roteamento vem de `"tempest-react-sdk"` — você nunca importa de
-  `react-router-dom`. ✅
+  `react-router`. ✅
 - `defineRoutes([...])` tipa a árvore; `<AppRouter routes={routes} />` monta
   router + `<Suspense>` + `<Routes>` sozinho.
 - Use `index: true` para a rota padrão de um layout e `path` para as demais —

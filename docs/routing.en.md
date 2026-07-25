@@ -1,15 +1,15 @@
 # Routing
 
-The `routing` module in `tempest-react-sdk` wraps **React Router v7 (declarative mode)** and gives you a single import surface: you declare your route tree with `defineRoutes`, wire everything up with one `<AppRouter>`, and import every primitive (`Link`, `Outlet`, `useNavigate`, …) straight from the SDK — never from `react-router-dom`. On top of v7, the SDK adds what every Tempest app rewrites by hand: code-splitting with automatic retry on a stale chunk, declarative route guards, and a ready-made `<Suspense>` boundary. This page takes you from zero to a tree with nested layouts, lazy loading, and protected routes.
+The `routing` module in `tempest-react-sdk` wraps **React Router v8 (declarative mode)** and gives you a single import surface: you declare your route tree with `defineRoutes`, wire everything up with one `<AppRouter>`, and import every primitive (`Link`, `Outlet`, `useNavigate`, …) straight from the SDK — never from `react-router`. On top of v8, the SDK adds what every Tempest app rewrites by hand: code-splitting with automatic retry on a stale chunk, declarative route guards, and a ready-made `<Suspense>` boundary. This page takes you from zero to a tree with nested layouts, lazy loading, and protected routes.
 
 ## Why the SDK owns routing now
 
-Before, each app installed `react-router-dom`, built its own `<Suspense>`, wrote its own guard helper, and reinvented chunk retry. That bred divergence across Tempest apps and import paths scattered everywhere.
+Before, each app installed `react-router`, built its own `<Suspense>`, wrote its own guard helper, and reinvented chunk retry. That bred divergence across Tempest apps and import paths scattered everywhere.
 
 With the `routing` module you get:
 
-- **One import surface.** Everything comes from `"tempest-react-sdk"` — components, hooks, and the re-exported React Router primitives. Your app never imports from `react-router-dom`.
-- **Declarative v7.** You describe _what_ the routes are (a tree of objects), not _how_ to assemble them imperatively.
+- **One import surface.** Everything comes from `"tempest-react-sdk"` — components, hooks, and the re-exported React Router primitives. Your app never imports from `react-router`.
+- **Declarative v8.** You describe _what_ the routes are (a tree of objects), not _how_ to assemble them imperatively.
 - **Batteries included.** `<AppRouter>` already builds the router, the `<Suspense>`, and the `<Routes>`. `defineRoutes` gives you typing. Guards and lazy loading are fields on the route itself.
 
 !!! info "Re-exported primitives"
@@ -294,7 +294,7 @@ test("renders the dashboard route", () => {
 
 ## Recap
 
-- The `routing` module wraps **declarative React Router v7** and gives you a **single import surface** — everything comes from `"tempest-react-sdk"`.
+- The `routing` module wraps **declarative React Router v8** and gives you a **single import surface** — everything comes from `"tempest-react-sdk"`.
 - `defineRoutes` types your tree; `<AppRouter routes={...} />` builds router + `<Suspense>` + `<Routes>` on its own.
 - Use `index: true` for a layout's default route and `path` for the rest — never both together.
 - Nested layouts render children in the `<Outlet>`; navigate with `<Link>`.

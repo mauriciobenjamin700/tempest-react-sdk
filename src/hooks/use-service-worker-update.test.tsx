@@ -28,8 +28,7 @@ describe("useServiceWorkerUpdate", () => {
 
     it("flips updateAvailable when onUpdate fires", async () => {
         let capturedOnUpdate:
-            | ((w: ServiceWorker, r: ServiceWorkerRegistration) => void)
-            | undefined;
+            ((w: ServiceWorker, r: ServiceWorkerRegistration) => void) | undefined;
         const registration = { waiting: null } as unknown as ServiceWorkerRegistration;
         registerMock.mockImplementation((options: RegisterServiceWorkerOptions) => {
             capturedOnUpdate = options.onUpdate;
@@ -44,8 +43,7 @@ describe("useServiceWorkerUpdate", () => {
 
     it("applyUpdate posts skipWaiting to the waiting worker", async () => {
         let capturedOnUpdate:
-            | ((w: ServiceWorker, r: ServiceWorkerRegistration) => void)
-            | undefined;
+            ((w: ServiceWorker, r: ServiceWorkerRegistration) => void) | undefined;
         const registration = { waiting: null } as unknown as ServiceWorkerRegistration;
         registerMock.mockImplementation((options: RegisterServiceWorkerOptions) => {
             capturedOnUpdate = options.onUpdate;
@@ -153,8 +151,7 @@ describe("useServiceWorkerUpdate — onReady and no-ops", () => {
         });
 
         let capturedOnUpdate:
-            | ((w: ServiceWorker, r: ServiceWorkerRegistration) => void)
-            | undefined;
+            ((w: ServiceWorker, r: ServiceWorkerRegistration) => void) | undefined;
         const registration = { waiting: null } as unknown as ServiceWorkerRegistration;
         registerMock.mockImplementation((options: RegisterServiceWorkerOptions) => {
             capturedOnUpdate = options.onUpdate;

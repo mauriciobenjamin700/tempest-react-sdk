@@ -18,14 +18,23 @@ projeto inteiro já cabeado.
 
 ## Comece em 1 minuto
 
-Gere um app novo já fiado com o SDK (a CLI vem dentro do pacote):
+Gere um app novo já fiado com o SDK (a CLI vem dentro do pacote — crie a pasta e
+scaffolde dentro dela com `.`):
 
 ```bash
-npx -p tempest-react-sdk create-tempest-app my-app
+mkdir my-app
 cd my-app
+npx -p tempest-react-sdk create-tempest-app .
 npm install
+cp .env.example .env
 npm run dev            # http://127.0.0.1:5173
 ```
+
+O `.` é o destino: **diretório atual**. Ele preserva o que já existe na pasta
+(`git init`, `README.md`) e tira o nome do projeto do nome do diretório —
+por isso é o modo recomendado. `npm create tempest-app` **não** existe: a CLI é o
+`bin` do SDK, então o `-p tempest-react-sdk` é o que diz ao `npx` de onde buscá-la.
+Os dois modos e cada pedaço do comando estão explicados em [Scaffold](scaffold.md).
 
 Novo por aqui? Siga o **[Tutorial — Guia do Usuário](tutorial/index.md)**: do
 scaffold ao app completo, um conceito por página.
@@ -45,7 +54,7 @@ import "tempest-react-sdk/styles.css";
 ```
 
 Apenas **`react`** e **`react-dom`** são peer dependencies (regra de uma única
-instância do React). Todo o resto — `react-router-dom`, `zustand`,
+instância do React). Todo o resto — `react-router`, `zustand`,
 `@tanstack/react-query`, `zod`, `react-hook-form`, `dexie`, `lucide-react` — é
 **dependência direta**, instalada automaticamente com o SDK e externalizada no
 bundle (seu bundler faz tree-shake do que não usar). Detalhes em

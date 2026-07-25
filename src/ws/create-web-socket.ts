@@ -22,7 +22,7 @@ export interface CreateWebSocketOptions<T> {
      */
     pingInterval?: number;
     /** Payload sent on each ping. Default: `JSON.stringify({ type: "ping" })`. */
-    pingPayload?: string | ArrayBufferLike | Blob | ArrayBufferView;
+    pingPayload?: string | Blob | BufferSource;
     /** Parse incoming frames. Default: JSON with raw-string fallback. */
     parser?: (raw: string) => T;
     onOpen?: (event: Event) => void;
@@ -34,7 +34,7 @@ export interface CreateWebSocketOptions<T> {
 
 export interface WebSocketController {
     /** Send a payload over the current connection. No-op when not open. */
-    send: (payload: string | ArrayBufferLike | Blob | ArrayBufferView) => boolean;
+    send: (payload: string | Blob | BufferSource) => boolean;
     /** Close the connection and stop reconnecting. */
     close: (code?: number, reason?: string) => void;
     /** Force an immediate reconnect, resetting the retry counter. */
@@ -163,7 +163,7 @@ export function createWebSocket<T = unknown>(
         };
     }
 
-    function send(payload: string | ArrayBufferLike | Blob | ArrayBufferView): boolean {
+    function send(payload: string | Blob | BufferSource): boolean {
         if (socket?.readyState !== WebSocket.OPEN) return false;
         socket.send(payload);
         return true;

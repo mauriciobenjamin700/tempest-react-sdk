@@ -9,7 +9,7 @@ export default defineConfig({
         dts({
             tsconfigPath: "./tsconfig.json",
             insertTypesEntry: true,
-            rollupTypes: true,
+            bundleTypes: true,
             include: ["src"],
         }),
     ],
@@ -73,7 +73,6 @@ export default defineConfig({
                 "fflate",
                 "react-hook-form",
                 "react-router",
-                "react-router-dom",
                 "recharts",
                 "@tiptap/react",
                 "@tiptap/starter-kit",

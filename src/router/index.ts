@@ -4,9 +4,14 @@ export { RouteGuard } from "./RouteGuard";
 export type { RouteGuardProps } from "./RouteGuard";
 export type { TempestRouteObject, RouterKind } from "./types";
 
-// Re-export the declarative React Router primitives so apps can import their
-// whole routing surface from the SDK and never depend on react-router-dom
-// directly. The SDK owns the version (v7, declarative mode).
+/**
+ * Declarative React Router primitives, re-exported so apps import their whole
+ * routing surface from the SDK and never depend on `react-router` directly —
+ * the SDK owns the version (v8, declarative mode).
+ *
+ * Since v8 there is no `react-router-dom` package: the DOM bindings ship in
+ * `react-router` itself, so this is the single source for both.
+ */
 export {
     BrowserRouter,
     HashRouter,
@@ -24,5 +29,5 @@ export {
     useMatch,
     useRouteError,
     redirect,
-} from "react-router-dom";
-export type { NavigateOptions, To, Params } from "react-router-dom";
+} from "react-router";
+export type { NavigateOptions, To, Params } from "react-router";

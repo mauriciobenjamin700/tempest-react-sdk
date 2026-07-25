@@ -14,6 +14,7 @@ export default tseslint.config(
         languageOptions: {
             ecmaVersion: 2022,
             globals: globals.browser,
+            parserOptions: { tsconfigRootDir: import.meta.dirname },
         },
         plugins: {
             "react-hooks": reactHooks,
@@ -22,7 +23,13 @@ export default tseslint.config(
             "unused-imports": unusedImports,
         },
         rules: {
-            ...reactHooks.configs.recommended.rules,
+            // react-hooks v7 ships the React Compiler rules inside `recommended`
+            // (refs, set-state-in-effect, purity…). They are opinionated enough to
+            // fail a fresh app on day one, so the classic pair is enforced and the
+            // rest is opt-in: add `...reactHooks.configs.recommended.rules` here
+            // once you want the compiler-grade checks.
+            "react-hooks/rules-of-hooks": "error",
+            "react-hooks/exhaustive-deps": "warn",
             "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
             "@typescript-eslint/consistent-type-imports": "error",
             // Organize imports/exports (tempest fix).

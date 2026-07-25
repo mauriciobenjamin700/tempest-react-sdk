@@ -79,7 +79,7 @@ The goal is to start every new React frontend with the same opinionated foundati
 
 ## Recommended stack
 
-**Vite + React + TypeScript** is the supported consumer stack. The SDK is built and tested against [Vite 7](https://vite.dev) in library mode and assumes a Vite-style host app:
+**Vite + React + TypeScript** is the supported consumer stack. The SDK is built and tested against [Vite 8](https://vite.dev) in library mode and assumes a Vite-style host app:
 
 - ESM-first module resolution (the package's `exports` field declares `import` / `require` conditions).
 - `import.meta.env` for env vars (the recipes use `import.meta.env.VITE_API_URL`, `import.meta.env.VITE_VAPID_PUBLIC_KEY`, etc.).
@@ -90,15 +90,24 @@ The goal is to start every new React frontend with the same opinionated foundati
 **Fastest path — scaffold a fully wired app** with the `create-tempest-app` CLI that ships **inside the SDK** (Vite `@` alias, declarative routing, Zustand store, TanStack Query, providers — all pre-fiados):
 
 ```bash
-# brand-new project (no install needed)
-npx -p tempest-react-sdk create-tempest-app my-app
+# brand-new project (no install needed) — create the folder, scaffold into it with "."
+mkdir my-app
 cd my-app
+npx -p tempest-react-sdk create-tempest-app .
 npm install
+cp .env.example .env
 npm run dev
 
 # want it installable + web-push + offline ready? add --pwa
-npx -p tempest-react-sdk create-tempest-app my-app --pwa
+npx -p tempest-react-sdk create-tempest-app . --pwa
 ```
+
+`.` means "the current directory" — it preserves files you already have (`git
+init`, `README.md`, `LICENSE`) and takes the project name from the folder, so it
+is the recommended mode. Passing a name (`create-tempest-app my-app`) creates the
+folder instead, and aborts when it is not empty. Note there is no
+`create-tempest-app` package on npm — `npm create tempest-app` 404s, because the
+CLI is this package's `bin`; that is what `-p tempest-react-sdk` is for.
 
 The `--pwa` flag overlays a manifest, install prompt (`useBeforeInstallPrompt`), push wiring (`usePushSubscription`), **offline caching** (app-shell precache + runtime caching), **generated icons** (`tempestPwaIcons`, via `sharp`) and a **dev-mode service worker** (`tempestPwaDevSw`) on top of the base app — full `vite-plugin-pwa` parity for the common case, built from `tempest-react-sdk/sw` + `tempest-react-sdk/vite`, with no `vite-plugin-pwa`. See [Scaffold › PWA mode](https://mauriciobenjamin700.github.io/tempest-react-sdk/scaffold/#modo-pwa-pwa).
 
@@ -151,7 +160,7 @@ Requires React `>=18` and Node `>=20.19` to build.
 
 Only **react** and **react-dom** are peer dependencies — those must come from the host app so a single React copy lives in the tree.
 
-Everything else (`zod`, `zustand`, `dexie`, `react-hook-form`, `@tanstack/react-query`, `react-router-dom`, `lucide-react`) is a **direct dependency** of the SDK, installed automatically by `npm install tempest-react-sdk`. You never need to install them manually.
+Everything else (`zod`, `zustand`, `dexie`, `react-hook-form`, `@tanstack/react-query`, `react-router`, `lucide-react`) is a **direct dependency** of the SDK, installed automatically by `npm install tempest-react-sdk`. You never need to install them manually.
 
 | Package                               | Status              | Used by                                                                 |
 | ------------------------------------- | ------------------- | ----------------------------------------------------------------------- |
@@ -159,7 +168,7 @@ Everything else (`zod`, `zustand`, `dexie`, `react-hook-form`, `@tanstack/react-
 | `@tanstack/react-query` (`^5`)        | Direct dep (auto)   | `QueryProvider`, `createQueryKeys`, `AppProviders`                      |
 | `zod` (`^3.23 \|\| ^4`)               | Direct dep (auto)   | `parseResponse`, `validateForm`, `zodResolver`, `useZodForm`            |
 | `zustand` (`^4 \|\| ^5`)              | Direct dep (auto)   | `createAuthStore`, `createStore`, `createSelectors`                     |
-| `react-router-dom` (`^7`)             | Direct dep (auto)   | `AppRouter`, `defineRoutes`, `RouteGuard`, routing re-exports           |
+| `react-router` (`^7`)                 | Direct dep (auto)   | `AppRouter`, `defineRoutes`, `RouteGuard`, routing re-exports           |
 | `dexie` (`^4.4`)                      | Direct dep (auto)   | `createOfflineStore`                                                    |
 | `react-hook-form` (`^7.76`)           | Direct dep (auto)   | `zodResolver`, `useZodForm`, masked inputs                              |
 | `lucide-react` (`>=0.400`)            | Direct dep (auto)   | Component icons (`leftIcon`/`rightIcon` on `Input`, `Button`, etc.)     |
@@ -171,7 +180,7 @@ The minimum install is just:
 npm install tempest-react-sdk react react-dom
 ```
 
-**Bundle impact**: every bundled dep is externalised in the SDK's Rollup config, and `dist/` ships with the module graph preserved (one file per source module), so your bundler drops what you don't import instead of inheriting one opaque blob — importing `cn` alone costs **118 B** brotli, a full app shell around **6.8 KB**. Your app's bundler (Vite / webpack / Rspack) resolves the deps from `node_modules` and tree-shakes them the same way — if you never call `createOfflineStore`, Dexie never enters your final bundle.
+**Bundle impact**: every bundled dep is externalised in the SDK's Rollup config, and `dist/` ships with the module graph preserved (one file per source module), so your bundler drops what you don't import instead of inheriting one opaque blob — importing `cn` alone costs **153 B** brotli, a full app shell around **6.8 KB**. Your app's bundler (Vite / webpack / Rspack) resolves the deps from `node_modules` and tree-shakes them the same way — if you never call `createOfflineStore`, Dexie never enters your final bundle.
 
 **Version conflicts**: if your app already pins (say) `zod@3.20`, npm dedupes when the range is compatible. If ranges diverge you get two copies — pin a single version in your own `package.json` to force one, or open an issue if the SDK's range is too tight.
 
@@ -203,7 +212,7 @@ Every module is re-exported from the package root — `import { Button, useDebou
 | `auth` _(peer: `zustand`)_                                                                        | `createAuthStore`, `AuthGuard`, `decodeJWT`, `isJWTExpired`, `lazyWithRetry`, `createRefreshQueue`, types: `AuthState`, `CreateAuthStoreOptions`, `AuthGuardProps`, `DecodedJWT`, `LazyWithRetryOptions`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `oauth` _(caller injects `@react-oauth/google`)_                                                  | `GoogleSignIn` (normalises Google's credential/error payload), `useOAuthCallback` (runs the callback exchange once, StrictMode-proof), types: `GoogleSignInProps`, `OAuthCredential`, `OAuthError`, `UseOAuthCallbackOptions`, `UseOAuthCallbackResult`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `query` _(peer: `@tanstack/react-query`)_                                                         | `QueryProvider`, `createQueryKeys`, `STALE_TIME`, `CACHE_TIME`, `REFETCH_TIME`, `usePaginatedQuery`, `useCursorQuery`, `useOfflineMutation` (optimistic offline mutation + cache rollback), `upsertById`/`removeById` (optimistic list-cache helpers), `persistQueryClientOffline` (IndexedDB cache persistence for offline reads)                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `router` _(dep: `react-router-dom`)_                                                              | `defineRoutes`, `AppRouter`, `RouteGuard`, + re-exports (`Link`, `NavLink`, `Outlet`, `Navigate`, `useNavigate`, `useParams`, `useSearchParams`, `useLocation`, `useMatch`, `useRouteError`, `redirect`, `BrowserRouter`/`HashRouter`/`MemoryRouter`/`Routes`/`Route`), types: `TempestRouteObject`, `RouterKind`, `AppRouterProps`, `RouteGuardProps`                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `router` _(dep: `react-router`)_                                                                  | `defineRoutes`, `AppRouter`, `RouteGuard`, + re-exports (`Link`, `NavLink`, `Outlet`, `Navigate`, `useNavigate`, `useParams`, `useSearchParams`, `useLocation`, `useMatch`, `useRouteError`, `redirect`, `BrowserRouter`/`HashRouter`/`MemoryRouter`/`Routes`/`Route`), types: `TempestRouteObject`, `RouterKind`, `AppRouterProps`, `RouteGuardProps`                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `store` _(dep: `zustand`)_                                                                        | `createStore`, `createSelectors`, types: `CreateStoreOptions`, `CreateStorePersistOptions`, `WithSelectors`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `app`                                                                                             | `AppProviders` (composes `ErrorBoundary` → `QueryProvider` → `ThemeProvider` → `I18nProvider`), type: `AppProvidersProps`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `vite` _(subpath `tempest-react-sdk/vite`)_                                                       | `createViteConfig`, `tempestPwaManifest` (emits `precache-manifest.json` for offline precache), `tempestPwaIcons` (generates the PNG icon set from one SVG via `sharp`), `tempestPwaDevSw` (serves the SW under `npm run dev`), `tempestPwaIcons({ appleSplash })` (Apple splash screens), types: `CreateViteConfigOptions`, `ProxyEntry`, `TempestViteConfig`, `TempestPwaManifestOptions`, `TempestPwaIconsOptions`, `TempestPwaDevSwOptions`, `AppleSplashSpec`, `TempestVitePlugin`                                                                                                                                                                                                                                                                                                                      |
@@ -234,7 +243,7 @@ Every module is re-exported from the package root — `import { Button, useDebou
 | `auth` _(peer: `zustand`)_                                                                        | `createAuthStore`, `AuthGuard`, `decodeJWT`, `isJWTExpired`, `lazyWithRetry`, `createRefreshQueue`, types: `AuthState`, `CreateAuthStoreOptions`, `AuthGuardProps`, `DecodedJWT`, `LazyWithRetryOptions`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `oauth` _(caller injects `@react-oauth/google`)_                                                  | `GoogleSignIn` (normalises Google's credential/error payload), `useOAuthCallback` (runs the callback exchange once, StrictMode-proof), types: `GoogleSignInProps`, `OAuthCredential`, `OAuthError`, `UseOAuthCallbackOptions`, `UseOAuthCallbackResult`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `query` _(peer: `@tanstack/react-query`)_                                                         | `QueryProvider`, `createQueryKeys`, `STALE_TIME`, `CACHE_TIME`, `REFETCH_TIME`, `usePaginatedQuery`, `useCursorQuery`, `useOfflineMutation` (optimistic offline mutation + cache rollback), `upsertById`/`removeById` (optimistic list-cache helpers), `persistQueryClientOffline` (IndexedDB cache persistence for offline reads)                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `router` _(dep: `react-router-dom`)_                                                              | `defineRoutes`, `AppRouter`, `RouteGuard`, + re-exports (`Link`, `NavLink`, `Outlet`, `Navigate`, `useNavigate`, `useParams`, `useSearchParams`, `useLocation`, `useMatch`, `useRouteError`, `redirect`, `BrowserRouter`/`HashRouter`/`MemoryRouter`/`Routes`/`Route`), types: `TempestRouteObject`, `RouterKind`, `AppRouterProps`, `RouteGuardProps`                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `router` _(dep: `react-router`)_                                                                  | `defineRoutes`, `AppRouter`, `RouteGuard`, + re-exports (`Link`, `NavLink`, `Outlet`, `Navigate`, `useNavigate`, `useParams`, `useSearchParams`, `useLocation`, `useMatch`, `useRouteError`, `redirect`, `BrowserRouter`/`HashRouter`/`MemoryRouter`/`Routes`/`Route`), types: `TempestRouteObject`, `RouterKind`, `AppRouterProps`, `RouteGuardProps`                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `store` _(dep: `zustand`)_                                                                        | `createStore`, `createSelectors`, types: `CreateStoreOptions`, `CreateStorePersistOptions`, `WithSelectors`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `app`                                                                                             | `AppProviders` (composes `ErrorBoundary` → `QueryProvider` → `ThemeProvider` → `I18nProvider`), type: `AppProvidersProps`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `vite` _(subpath `tempest-react-sdk/vite`)_                                                       | `createViteConfig`, `tempestPwaManifest` (emits `precache-manifest.json` for offline precache), `tempestPwaIcons` (generates the PNG icon set from one SVG via `sharp`), `tempestPwaDevSw` (serves the SW under `npm run dev`), `tempestPwaIcons({ appleSplash })` (Apple splash screens), types: `CreateViteConfigOptions`, `ProxyEntry`, `TempestViteConfig`, `TempestPwaManifestOptions`, `TempestPwaIconsOptions`, `TempestPwaDevSwOptions`, `AppleSplashSpec`, `TempestVitePlugin`                                                                                                                                                                                                                                                                                                                      |
@@ -273,8 +282,9 @@ The **`create-tempest-app`** CLI **ships inside the `tempest-react-sdk` package*
 
 ```bash
 # brand-new project folder (npx pulls the SDK and runs its bin)
-npx -p tempest-react-sdk create-tempest-app my-app
+mkdir my-app
 cd my-app
+npx -p tempest-react-sdk create-tempest-app .
 npm install
 cp .env.example .env
 npm run dev            # http://127.0.0.1:5173
@@ -327,7 +337,7 @@ export default createViteConfig({
 
 > Declare the same alias in `tsconfig.json` so the type-checker resolves it: `"paths": { "@/*": ["./src/*"] }`.
 
-**Declarative routing** (React Router v7) — describe the tree as data, with `lazy` code-splitting and per-route `guard` redirects:
+**Declarative routing** (React Router v8) — describe the tree as data, with `lazy` code-splitting and per-route `guard` redirects:
 
 ```tsx
 import { defineRoutes, AppRouter } from "tempest-react-sdk";
@@ -450,7 +460,7 @@ A minimal `main.tsx` for an app using HTTP + Query + Auth + Toast + Theme + i18n
 ```tsx
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter } from "react-router";
 import {
   ThemeProvider,
   I18nProvider,
@@ -657,7 +667,7 @@ The store exposes `user`, `token`, `isAuthenticated`, `setSession`, `setUser`, `
 ### Route guard recipe
 
 ```tsx
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet } from "react-router";
 import { AuthGuard } from "tempest-react-sdk";
 import { useAuthStore } from "@/store/auth";
 
@@ -1179,12 +1189,7 @@ export const notificationsStore = createOfflineStore<Notification, string>({
   ownerField: "owner_id",
 });
 
-await notificationsStore.put(
-  {
-    /* … */
-  } as Notification,
-  "u1",
-);
+await notificationsStore.put({/* … */} as Notification, "u1");
 const items = await notificationsStore.list("u1", {
   orderBy: "created_at",
   reverse: true,
@@ -1202,7 +1207,7 @@ Renders a fallback (static element or render-prop), auto-resets via `resetKeys`,
 
 ```tsx
 import { ErrorBoundary, ErrorState } from "tempest-react-sdk";
-import { useLocation } from "react-router-dom";
+import { useLocation } from "react-router";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
@@ -1784,8 +1789,8 @@ npm run clean          # rm -rf dist coverage
 Snapshot of current health:
 
 - 2272 tests / 366 files — 98.5% lines, 97.1% statements, 96.4% functions, 95.0% branches (CI floors: 98/97/96/94).
-- What your app actually pays (brotli, tree-shaken slices measured by `npm run size`): `cn` alone 118 B · one `Button` 820 B · a typical app shell (5 components + router + providers + HTTP + auth + a hook) 6.83 KB · offline/PWA surface 4.45 KB · `styles.css` 20.6 KB.
-- Full-barrel ceiling — nobody imports this, it is the no-tree-shaking worst case: 64.5 KB ESM / 79.9 KB CJS.
+- What your app actually pays (brotli, tree-shaken slices measured by `npm run size`): `cn` alone 153 B · one `Button` 794 B · a typical app shell (5 components + router + providers + HTTP + auth + a hook) 6.79 KB · offline/PWA surface 4.41 KB · `styles.css` 20.61 KB.
+- Full-barrel ceiling — nobody imports this, it is the no-tree-shaking worst case: 64.16 KB ESM / 78.83 KB CJS.
 - Husky pre-commit runs `lint-staged` (eslint --fix + prettier --write) on staged files.
 
 The demo gallery lives in `examples/gallery` and consumes the local SDK via `file:../..`:

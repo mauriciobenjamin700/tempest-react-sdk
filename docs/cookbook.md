@@ -20,8 +20,8 @@ fluxos que apps Tempest repetem o tempo todo. 🚀
 
     Apenas `react` e `react-dom` são **peer dependencies** — o resto (`zod`,
     `zustand`, `dexie`, `react-hook-form`, `@tanstack/react-query`, `lucide-react`,
-    `react-router-dom`) é instalado junto como dependência direta. Versão atual:
-    **0.7.0**.
+    `react-router`) é instalado junto como dependência direta. A versão publicada
+    mais recente está na [página do npm](https://www.npmjs.com/package/tempest-react-sdk).
 
 ## Fluxo de autenticação completo
 
@@ -457,9 +457,10 @@ Você quer começar um projeto novo já cabeado com providers, roteamento e stor
 auth — sem montar a pirâmide na mão. Use a CLI `create-tempest-app`.
 
 ```bash
-# Pasta nova — npx baixa o SDK e roda o bin dele
-npx -p tempest-react-sdk create-tempest-app my-app
+# Pasta nova — crie o diretório e scaffolde dentro dele com "."
+mkdir my-app
 cd my-app
+npx -p tempest-react-sdk create-tempest-app .
 npm install
 cp .env.example .env
 npm run dev            # http://127.0.0.1:5173

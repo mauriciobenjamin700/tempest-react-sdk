@@ -51,7 +51,7 @@ Opções extras: `initialUser`, `initialToken` (úteis para hydration em SSR).
 Router-agnostic: é um if/else puro. Você decide o que renderizar em cada ramo — tipicamente `<Outlet />` quando autenticado e `<Navigate />` para o redirect.
 
 ```tsx
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet } from "react-router";
 import { AuthGuard } from "tempest-react-sdk";
 
 export function ProtectedLayout() {
@@ -198,7 +198,7 @@ export const api = createApiClient({
 
 ```tsx
 // LoginPage.tsx
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useAuthStore, type SessionUser } from "./auth-store";
 import { api } from "./api";
 
@@ -220,7 +220,7 @@ export function LoginPage() {
 
 ```tsx
 // ProtectedLayout.tsx
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet } from "react-router";
 import { AuthGuard } from "tempest-react-sdk";
 import { useAuthStore } from "./auth-store";
 

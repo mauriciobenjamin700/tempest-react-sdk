@@ -3,14 +3,7 @@ import { cn } from "@/utils/cn";
 import styles from "./Button.module.css";
 
 export type ButtonVariant =
-    | "primary"
-    | "secondary"
-    | "danger"
-    | "success"
-    | "ghost"
-    | "soft"
-    | "outline"
-    | "link";
+    "primary" | "secondary" | "danger" | "success" | "ghost" | "soft" | "outline" | "link";
 export type ButtonSize = "xs" | "sm" | "md" | "lg" | "xl";
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

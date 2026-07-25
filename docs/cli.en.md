@@ -73,7 +73,7 @@ Tooling
 
 **Dependency health** (the silent ones):
 
-- **Duplicate instance** of React or a stateful/context lib (`@tanstack/react-query`, `zustand`, `react-hook-form`, `react-router-dom`): a copy **nested** under `tempest-react-sdk` means **two instances** at runtime — invalid hooks, a `QueryClient`/RHF context that "vanishes". Suggests `npm dedupe`. _(Skipped when the SDK is a local `file:`/`link:` dependency.)_
+- **Duplicate instance** of React or a stateful/context lib (`@tanstack/react-query`, `zustand`, `react-hook-form`, `react-router`): a copy **nested** under `tempest-react-sdk` means **two instances** at runtime — invalid hooks, a `QueryClient`/RHF context that "vanishes". Suggests `npm dedupe`. _(Skipped when the SDK is a local `file:`/`link:` dependency.)_
 - **Declared-but-not-installed deps** (drift between `package.json` and `node_modules`) → `npm install`.
 - **The app's own `peerDependencies`** left unmet.
 - **`@types/react` vs `react`** major mismatch → phantom type errors.

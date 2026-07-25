@@ -20,8 +20,9 @@ into flows that Tempest apps repeat all the time. 🚀
 
     Only `react` and `react-dom` are **peer dependencies** — everything else
     (`zod`, `zustand`, `dexie`, `react-hook-form`, `@tanstack/react-query`,
-    `lucide-react`, `react-router-dom`) is installed alongside as a direct
-    dependency. Current version: **0.7.0**.
+    `lucide-react`, `react-router`) is installed alongside as a direct
+    dependency. The latest published version is on the
+    [npm page](https://www.npmjs.com/package/tempest-react-sdk).
 
 ## Full authentication flow
 
@@ -462,8 +463,9 @@ store — without building the pyramid by hand. Use the `create-tempest-app` CLI
 
 ```bash
 # New folder — npx downloads the SDK and runs its bin
-npx -p tempest-react-sdk create-tempest-app my-app
+mkdir my-app
 cd my-app
+npx -p tempest-react-sdk create-tempest-app .
 npm install
 cp .env.example .env
 npm run dev            # http://127.0.0.1:5173

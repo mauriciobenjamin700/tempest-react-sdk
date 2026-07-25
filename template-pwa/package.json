@@ -4,6 +4,6 @@
     "build:sw": "vite build --config vite.sw.config.ts"
   },
   "devDependencies": {
-    "sharp": "^0.34.0"
+    "sharp": "^0.35.3"
   }
 }

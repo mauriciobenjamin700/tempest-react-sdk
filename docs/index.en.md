@@ -18,14 +18,24 @@ CLI that scaffolds a whole wired-up project.
 
 ## Get started in 1 minute
 
-Scaffold a new app already wired with the SDK (the CLI ships inside the package):
+Scaffold a new app already wired with the SDK (the CLI ships inside the package —
+create the folder, then scaffold into it with `.`):
 
 ```bash
-npx -p tempest-react-sdk create-tempest-app my-app
+mkdir my-app
 cd my-app
+npx -p tempest-react-sdk create-tempest-app .
 npm install
+cp .env.example .env
 npm run dev            # http://127.0.0.1:5173
 ```
+
+`.` is the destination: the **current directory**. It preserves whatever is
+already in the folder (`git init`, `README.md`) and takes the project name from
+the directory name — which is why it's the recommended mode. `npm create
+tempest-app` does **not** exist: the CLI is the SDK's `bin`, so `-p
+tempest-react-sdk` is what tells `npx` where to fetch it from. Both modes, and
+every piece of the command, are explained in [Scaffold](scaffold.md).
 
 New here? Follow the **[Tutorial — User Guide](tutorial/index.md)**: from
 scaffold to a complete app, one concept per page.
@@ -45,7 +55,7 @@ import "tempest-react-sdk/styles.css";
 ```
 
 Only **`react`** and **`react-dom`** are peer dependencies (single React
-instance rule). Everything else — `react-router-dom`, `zustand`,
+instance rule). Everything else — `react-router`, `zustand`,
 `@tanstack/react-query`, `zod`, `react-hook-form`, `dexie`, `lucide-react` — is
 a **direct dependency**, installed automatically with the SDK and externalized
 in the bundle (your bundler tree-shakes what you don't use). Details in

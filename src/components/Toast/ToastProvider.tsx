@@ -58,12 +58,7 @@ export function useToast(): ToastApi {
 }
 
 export type ToastPosition =
-    | "top-right"
-    | "top-left"
-    | "top-center"
-    | "bottom-right"
-    | "bottom-left"
-    | "bottom-center";
+    "top-right" | "top-left" | "top-center" | "bottom-right" | "bottom-left" | "bottom-center";
 
 export interface ToastProviderProps {
     children: ReactNode;

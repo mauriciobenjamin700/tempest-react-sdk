@@ -37,7 +37,7 @@ A base opinativa que monta um app React inteiro. É o que a CLI
 | Camada                 | O que faz                                                                             | Página                           |
 | ---------------------- | ------------------------------------------------------------------------------------- | -------------------------------- |
 | **Vite (`vite/`)**     | `createViteConfig` — plugin React + alias `@` → `src` + dev server (subpath `/vite`). | [Vite & alias](./vite-config.md) |
-| **Router (`router/`)** | `defineRoutes`, `<AppRouter>`, `<RouteGuard>` + re-exports do React Router v7.        | [Roteamento](./routing.md)       |
+| **Router (`router/`)** | `defineRoutes`, `<AppRouter>`, `<RouteGuard>` + re-exports do React Router v8.        | [Roteamento](./routing.md)       |
 | **Store (`store/`)**   | `createStore`, `createSelectors` (fábricas Zustand genéricas).                        | [Estado](./state.md)             |
 | **App (`app/`)**       | `<AppProviders>` — compõe ErrorBoundary → Query → Theme → i18n num bloco.             | [Providers](./app-providers.md)  |
 
@@ -66,7 +66,7 @@ automaticamente por `npm install tempest-react-sdk` e externalizada no bundle
 | Pacote                         | Status              | Usado por                                                                                |
 | ------------------------------ | ------------------- | ---------------------------------------------------------------------------------------- |
 | `react`, `react-dom`           | **Peer (obrigat.)** | Tudo                                                                                     |
-| `react-router-dom@7`           | Dep direta          | `AppRouter`, `defineRoutes`, `RouteGuard`, re-exports                                    |
+| `react-router@8`           | Dep direta          | `AppRouter`, `defineRoutes`, `RouteGuard`, re-exports                                    |
 | `zustand`                      | Dep direta          | `createStore`, `createSelectors`, `createAuthStore`                                      |
 | `@tanstack/react-query`        | Dep direta          | `QueryProvider`, `createQueryKeys`, `AppProviders`                                       |
 | `zod`                          | Dep direta          | `parseResponse`, `validateForm`, `zodResolver`, `useZodForm`                             |

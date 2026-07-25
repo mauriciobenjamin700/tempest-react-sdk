@@ -13,6 +13,7 @@
     "resolveJsonModule": true,
     "useDefineForClassFields": true,
     "forceConsistentCasingInFileNames": true,
+    "types": ["vite/client"],
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noEmit": true

@@ -505,7 +505,7 @@ A base opinativa que monta um app React inteiro. É o que a CLI
 | Camada                 | O que faz                                                                             | Página                           |
 | ---------------------- | ------------------------------------------------------------------------------------- | -------------------------------- |
 | **Vite (`vite/`)**     | `createViteConfig` — plugin React + alias `@` → `src` + dev server (subpath `/vite`). | [Vite & alias](./vite-config.md) |
-| **Router (`router/`)** | `defineRoutes`, `<AppRouter>`, `<RouteGuard>` + re-exports do React Router v7.        | [Roteamento](./routing.md)       |
+| **Router (`router/`)** | `defineRoutes`, `<AppRouter>`, `<RouteGuard>` + re-exports do React Router v8.        | [Roteamento](./routing.md)       |
 | **Store (`store/`)**   | `createStore`, `createSelectors` (fábricas Zustand genéricas).                        | [Estado](./state.md)             |
 | **App (`app/`)**       | `<AppProviders>` — compõe ErrorBoundary → Query → Theme → i18n num bloco.             | [Providers](./app-providers.md)  |
 
@@ -534,7 +534,7 @@ automaticamente por `npm install tempest-react-sdk` e externalizada no bundle
 | Pacote                         | Status              | Usado por                                                                                |
 | ------------------------------ | ------------------- | ---------------------------------------------------------------------------------------- |
 | `react`, `react-dom`           | **Peer (obrigat.)** | Tudo                                                                                     |
-| `react-router-dom@7`           | Dep direta          | `AppRouter`, `defineRoutes`, `RouteGuard`, re-exports                                    |
+| `react-router@8`           | Dep direta          | `AppRouter`, `defineRoutes`, `RouteGuard`, re-exports                                    |
 | `zustand`                      | Dep direta          | `createStore`, `createSelectors`, `createAuthStore`                                      |
 | `@tanstack/react-query`        | Dep direta          | `QueryProvider`, `createQueryKeys`, `AppProviders`                                       |
 | `zod`                          | Dep direta          | `parseResponse`, `validateForm`, `zodResolver`, `useZodForm`                             |
@@ -755,7 +755,7 @@ Opções extras: `initialUser`, `initialToken` (úteis para hydration em SSR).
 Router-agnostic: é um if/else puro. Você decide o que renderizar em cada ramo — tipicamente `<Outlet />` quando autenticado e `<Navigate />` para o redirect.
 
 ```tsx
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet } from "react-router";
 import { AuthGuard } from "tempest-react-sdk";
 
 export function ProtectedLayout() {
@@ -902,7 +902,7 @@ export const api = createApiClient({
 
 ```tsx
 // LoginPage.tsx
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useAuthStore, type SessionUser } from "./auth-store";
 import { api } from "./api";
 
@@ -924,7 +924,7 @@ export function LoginPage() {
 
 ```tsx
 // ProtectedLayout.tsx
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet } from "react-router";
 import { AuthGuard } from "tempest-react-sdk";
 import { useAuthStore } from "./auth-store";
 
@@ -1878,7 +1878,7 @@ Tooling
 
 **Dependency health** (os silenciosos):
 
-- **Instância duplicada** de React ou de libs com estado/contexto (`@tanstack/react-query`, `zustand`, `react-hook-form`, `react-router-dom`): uma cópia **aninhada** dentro do `tempest-react-sdk` significa **duas instâncias** no runtime — hooks inválidos, `QueryClient`/contexto de RHF que "somem". Sugere `npm dedupe`. _(Pulado quando o SDK é `file:`/`link:` local.)_
+- **Instância duplicada** de React ou de libs com estado/contexto (`@tanstack/react-query`, `zustand`, `react-hook-form`, `react-router`): uma cópia **aninhada** dentro do `tempest-react-sdk` significa **duas instâncias** no runtime — hooks inválidos, `QueryClient`/contexto de RHF que "somem". Sugere `npm dedupe`. _(Pulado quando o SDK é `file:`/`link:` local.)_
 - **Deps declaradas mas não instaladas** (drift entre `package.json` e `node_modules`) → `npm install`.
 - **`peerDependencies` do próprio app** não satisfeitas.
 - **`@types/react` × `react`** com majors diferentes → erros de tipo fantasma.
@@ -5090,8 +5090,8 @@ fluxos que apps Tempest repetem o tempo todo. 🚀
 
     Apenas `react` e `react-dom` são **peer dependencies** — o resto (`zod`,
     `zustand`, `dexie`, `react-hook-form`, `@tanstack/react-query`, `lucide-react`,
-    `react-router-dom`) é instalado junto como dependência direta. Versão atual:
-    **0.7.0**.
+    `react-router`) é instalado junto como dependência direta. A versão publicada
+    mais recente está na [página do npm](https://www.npmjs.com/package/tempest-react-sdk).
 
 ## Fluxo de autenticação completo
 
@@ -5527,9 +5527,10 @@ Você quer começar um projeto novo já cabeado com providers, roteamento e stor
 auth — sem montar a pirâmide na mão. Use a CLI `create-tempest-app`.
 
 ```bash
-# Pasta nova — npx baixa o SDK e roda o bin dele
-npx -p tempest-react-sdk create-tempest-app my-app
+# Pasta nova — crie o diretório e scaffolde dentro dele com "."
+mkdir my-app
 cd my-app
+npx -p tempest-react-sdk create-tempest-app .
 npm install
 cp .env.example .env
 npm run dev            # http://127.0.0.1:5173
@@ -6055,7 +6056,7 @@ editor minimalista (um campo de comentário, por exemplo):
 ```tsx
 import { useEffect } from "react";
 import { ErrorBoundary, ErrorState } from "tempest-react-sdk";
-import { useLocation } from "react-router-dom";
+import { useLocation } from "react-router";
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
@@ -8275,14 +8276,23 @@ projeto inteiro já cabeado.
 
 ## Comece em 1 minuto
 
-Gere um app novo já fiado com o SDK (a CLI vem dentro do pacote):
+Gere um app novo já fiado com o SDK (a CLI vem dentro do pacote — crie a pasta e
+scaffolde dentro dela com `.`):
 
 ```bash
-npx -p tempest-react-sdk create-tempest-app my-app
+mkdir my-app
 cd my-app
+npx -p tempest-react-sdk create-tempest-app .
 npm install
+cp .env.example .env
 npm run dev            # http://127.0.0.1:5173
 ```
+
+O `.` é o destino: **diretório atual**. Ele preserva o que já existe na pasta
+(`git init`, `README.md`) e tira o nome do projeto do nome do diretório —
+por isso é o modo recomendado. `npm create tempest-app` **não** existe: a CLI é o
+`bin` do SDK, então o `-p tempest-react-sdk` é o que diz ao `npx` de onde buscá-la.
+Os dois modos e cada pedaço do comando estão explicados em [Scaffold](scaffold.md).
 
 Novo por aqui? Siga o **[Tutorial — Guia do Usuário](tutorial/index.md)**: do
 scaffold ao app completo, um conceito por página.
@@ -8302,7 +8312,7 @@ import "tempest-react-sdk/styles.css";
 ```
 
 Apenas **`react`** e **`react-dom`** são peer dependencies (regra de uma única
-instância do React). Todo o resto — `react-router-dom`, `zustand`,
+instância do React). Todo o resto — `react-router`, `zustand`,
 `@tanstack/react-query`, `zod`, `react-hook-form`, `dexie`, `lucide-react` — é
 **dependência direta**, instalada automaticamente com o SDK e externalizada no
 bundle (seu bundler faz tree-shake do que não usar). Detalhes em
@@ -10404,16 +10414,16 @@ Veja [`RELEASES.md`](https://github.com/mauriciobenjamin700/tempest-react-sdk/bl
 
 # Routing
 
-O módulo `routing` do `tempest-react-sdk` embrulha o **React Router v7 (modo declarativo)** e devolve uma superfície única de import: você declara sua árvore de rotas com `defineRoutes`, monta tudo com um único `<AppRouter>` e importa cada primitivo (`Link`, `Outlet`, `useNavigate`, …) direto do SDK — nunca do `react-router-dom`. Em cima do v7, o SDK adiciona o que todo app Tempest repete na mão: code-splitting com retry automático em chunk velho, guards declarativos de rota e um `<Suspense>` já pronto. Esta página te leva do zero a uma árvore com layout aninhado, lazy loading e rotas protegidas.
+O módulo `routing` do `tempest-react-sdk` embrulha o **React Router v8 (modo declarativo)** e devolve uma superfície única de import: você declara sua árvore de rotas com `defineRoutes`, monta tudo com um único `<AppRouter>` e importa cada primitivo (`Link`, `Outlet`, `useNavigate`, …) direto do SDK — nunca do `react-router`. Em cima do v8, o SDK adiciona o que todo app Tempest repete na mão: code-splitting com retry automático em chunk velho, guards declarativos de rota e um `<Suspense>` já pronto. Esta página te leva do zero a uma árvore com layout aninhado, lazy loading e rotas protegidas.
 
 ## Por que o SDK é dono do roteamento agora
 
-Antes, cada app instalava `react-router-dom`, criava seu próprio `<Suspense>`, escrevia o seu helper de guard e reinventava o retry de chunk. Isso gerava divergência entre os apps Tempest e import paths espalhados.
+Antes, cada app instalava `react-router`, criava seu próprio `<Suspense>`, escrevia o seu helper de guard e reinventava o retry de chunk. Isso gerava divergência entre os apps Tempest e import paths espalhados.
 
 Com o módulo `routing` você ganha:
 
-- **Uma só superfície de import.** Tudo vem de `"tempest-react-sdk"` — componentes, hooks e os primitivos re-exportados do React Router. Seu app nunca importa de `react-router-dom`.
-- **v7 declarativo.** Você descreve _o que_ são as rotas (uma árvore de objetos), não _como_ montá-las imperativamente.
+- **Uma só superfície de import.** Tudo vem de `"tempest-react-sdk"` — componentes, hooks e os primitivos re-exportados do React Router. Seu app nunca importa de `react-router`.
+- **v8 declarativo.** Você descreve _o que_ são as rotas (uma árvore de objetos), não _como_ montá-las imperativamente.
 - **Baterias inclusas.** `<AppRouter>` já constrói o router, o `<Suspense>` e as `<Routes>`. `defineRoutes` te dá tipagem. Guards e lazy loading são campos da própria rota.
 
 !!! info "Primitivos re-exportados"
@@ -10698,7 +10708,7 @@ test("renders the dashboard route", () => {
 
 ## Recap
 
-- O módulo `routing` embrulha o **React Router v7 declarativo** e te dá uma **superfície única de import** — tudo vem de `"tempest-react-sdk"`.
+- O módulo `routing` embrulha o **React Router v8 declarativo** e te dá uma **superfície única de import** — tudo vem de `"tempest-react-sdk"`.
 - `defineRoutes` tipa sua árvore; `<AppRouter routes={...} />` monta router + `<Suspense>` + `<Routes>` sozinho.
 - Use `index: true` para a rota padrão de um layout e `path` para as demais — nunca os dois juntos.
 - Layouts aninhados renderizam filhos no `<Outlet>`; navegue com `<Link>`.
@@ -10725,25 +10735,51 @@ Esta página é um tutorial: vamos do comando vazio até o app rodando no navega
 
 ## Crie seu primeiro app
 
-Para uma pasta **nova** (ainda sem nada instalado), o `npx` baixa o SDK e roda o `bin` dele:
+O caminho **recomendado** é criar a pasta você mesmo e scaffoldar dentro dela com `.`:
 
 ```bash
-npx -p tempest-react-sdk create-tempest-app my-app
+mkdir my-app
 cd my-app
+npx -p tempest-react-sdk create-tempest-app .
 npm install
 cp .env.example .env
 npm run dev            # http://127.0.0.1:5173
 ```
 
-O `-p tempest-react-sdk` diz ao `npx` qual pacote buscar; `create-tempest-app my-app` é o `bin` que ele executa, gerando o projeto na pasta `my-app`.
-
 Abra **<http://127.0.0.1:5173>** — o app já está no ar com providers, rotas e store funcionando.
 
-!!! tip "Sem nome de projeto?"
-    Rodar **sem argumento** (ou `.`) pula o modo pasta-nova e **mescla no diretório atual** — veja a próxima seção.
+### O que cada pedaço do comando faz
 
-!!! warning "A pasta de destino precisa estar vazia"
-    No modo de projeto novo (`create-tempest-app my-app`), o diretório alvo **não pode existir** ou precisa estar **vazio**. Isso evita sobrescrever um projeto seu por acidente. Se a pasta já tem arquivos, a CLI sugere usar `.` para **mesclar** no diretório atual em vez de abortar (veja a próxima seção).
+| Pedaço                 | O que faz                                                                                                                    |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `npx`                  | Baixa e executa um binário **sem instalar nada global** — descarta o download depois.                                         |
+| `-p tempest-react-sdk` | Diz **de qual pacote** vem o binário. Necessário porque a CLI mora dentro do SDK, com nome diferente do nome do pacote.        |
+| `create-tempest-app`   | O nome do `bin` dentro daquele pacote — é o que roda de fato.                                                                 |
+| `.`                    | O **destino**: o diretório atual (modo recomendado). Um nome no lugar do `.` cria a pasta e exige que ela esteja vazia.        |
+
+!!! tip "Prefira `.` a `create-tempest-app my-app`"
+    As duas formas funcionam, mas `.` é melhor no dia a dia:
+
+    - **Você controla a pasta e o nome** — o `name` do `package.json` sai do nome do diretório atual, sem risco de acabar com `my-app/my-app` por já estar dentro da pasta.
+    - **Convive com o que já existe** — `git init`, `README.md`, `LICENSE` e afins são **preservados** (a CLI lista o que pulou). O modo com nome **aborta** se a pasta não estiver vazia.
+    - **Um comando só** pra pasta nova e pra projeto existente.
+
+!!! info "Rodar sem argumento = `.`"
+    `npx -p tempest-react-sdk create-tempest-app` (sem nada depois) faz exatamente o mesmo que passar `.`: scaffold no diretório atual. A CLI **não** pergunta nome de projeto.
+
+!!! warning "`npm create tempest-app` não funciona"
+    Não existe pacote `create-tempest-app` publicado no npm — a CLI é o `bin` do `tempest-react-sdk`, então `npm create tempest-app` falha com 404. Use `npx -p tempest-react-sdk create-tempest-app .`; dentro de um projeto que já tem o SDK instalado, o `-p` é dispensável.
+
+!!! warning "No modo com nome, a pasta precisa estar vazia"
+    Em `create-tempest-app my-app`, o diretório alvo **não pode existir** ou precisa estar **vazio** — isso evita sobrescrever um projeto seu por acidente. Se a pasta já tem arquivos, a CLI sugere usar `.` para **mesclar** no diretório atual em vez de abortar (veja a próxima seção).
+
+### Os dois modos, lado a lado
+
+| Você digita                 | Destino           | Se a pasta tem arquivos                         | Nome do projeto     |
+| --------------------------- | ----------------- | ----------------------------------------------- | ------------------- |
+| `create-tempest-app .`      | diretório atual   | **preserva** os seus e reporta o que foi pulado | nome da pasta atual |
+| `create-tempest-app` (só)   | diretório atual   | idem                                             | nome da pasta atual |
+| `create-tempest-app my-app` | `./my-app`        | **aborta** se existir e não estiver vazia        | `my-app`            |
 
 ## Scaffold dentro de um projeto existente
 
@@ -10864,7 +10900,7 @@ export const useAuth = createSelectors(createAuthStore<User>({ name: "app-auth" 
 Quer que o app já nasça **instalável** (ícone na home screen), capaz de **emitir notificações web push** e **funcionar offline** (app shell + cache)? Passe a flag `--pwa`:
 
 ```bash
-npx -p tempest-react-sdk create-tempest-app my-app --pwa
+npx -p tempest-react-sdk create-tempest-app . --pwa
 ```
 
 A flag funciona nos dois modos (pasta nova **e** `.`/merge). Ela **sobrepõe** o template PWA por cima do base: tudo do app normal continua igual, mais alguns arquivos novos e alguns sobrescritos.
@@ -11111,9 +11147,10 @@ Aprofunde em [Query](./query.md) e [HTTP](./http.md).
 ## Recap
 
 - A CLI é o **`bin` do próprio `tempest-react-sdk`** (`create-tempest-app`), com um `template/` embutido no tarball — versionada junto com o SDK, não um pacote separado. ✅
-- Pasta nova: `npx -p tempest-react-sdk create-tempest-app my-app` (a pasta de destino **precisa estar vazia** ou não existir; sem nome ela **pergunta**, padrão `my-tempest-app`). Use `@X` no `-p` pra fixar a versão do SDK.
-- Projeto existente: `npm install tempest-react-sdk` e `npx create-tempest-app .` (ou sem argumento) gera no diretório atual — **arquivos existentes são preservados** e o `package.json` tem scripts/deps **mesclados** (`tempest-react-sdk` fixado na versão do SDK).
-- `cd my-app && npm install && cp .env.example .env && npm run dev` te leva a **<http://127.0.0.1:5173>** com providers, rotas e auth funcionando.
+- Caminho recomendado: `mkdir my-app && cd my-app && npx -p tempest-react-sdk create-tempest-app .` — o `.` (igual a rodar **sem argumento**) gera no diretório atual, **preserva arquivos existentes** e tira o nome do projeto da pasta. Use `@X` no `-p` pra fixar a versão do SDK.
+- Modo com nome: `npx -p tempest-react-sdk create-tempest-app my-app` cria a pasta, mas **aborta** se ela já existir e não estiver vazia. A CLI **não pergunta** nome de projeto em nenhum modo.
+- Projeto existente: `npm install tempest-react-sdk` e `npx create-tempest-app .` (sem `-p`, o `bin` vem do `node_modules`) — o `package.json` tem scripts/deps **mesclados** (`tempest-react-sdk` fixado na versão do SDK).
+- `npm install && cp .env.example .env && npm run dev` te leva a **<http://127.0.0.1:5173>** com providers, rotas e auth funcionando.
 - Cada arquivo gerado **demonstra um recurso**: `createViteConfig`, `AppProviders` + `AppRouter`, `defineRoutes` (lazy + guard), `createAuthStore` + `createSelectors`, `createApiClient` + `createQueryKeys`.
 - Pra crescer: adicione páginas em `pages/` + entradas em `routes.tsx`, crie stores com `createStore`, e busque dados com `useQuery` + `queryKeys` + `api`.
 
@@ -13545,34 +13582,103 @@ de `"tempest-react-sdk"` e nunca precisa colar a integração na mão.
 !!! info "Só `react` e `react-dom` são peer deps"
 
     Quando você instala o SDK, **todo o resto vem junto** automaticamente:
-    `react-router-dom`, `zustand`, `@tanstack/react-query`, `zod`,
+    `react-router`, `zustand`, `@tanstack/react-query`, `zod`,
     `react-hook-form`, `dexie`, `lucide-react`. São **dependências diretas** do
     SDK. As únicas dependências que **você** precisa garantir são `react` e
     `react-dom` — porque o React exige uma única instância no app inteiro.
 
 ## Passo 1 — Crie o app com `create-tempest-app`
 
-A CLT oficial de scaffolding **vem dentro do próprio SDK** (é o `bin` do pacote).
-Num diretório vazio, rode:
+A CLI oficial de scaffolding **vem dentro do próprio SDK** (é o `bin` do pacote —
+não existe um pacote separado). O caminho recomendado é **criar a pasta você
+mesmo e scaffoldar dentro dela** com `.`:
 
 ```bash
-npx -p tempest-react-sdk create-tempest-app my-app
+mkdir my-app
 cd my-app
+npx -p tempest-react-sdk create-tempest-app .
 npm install
 cp .env.example .env
 npm run dev
 ```
 
-O `-p tempest-react-sdk` diz ao `npx` qual pacote baixar; `create-tempest-app my-app`
-é o `bin` que ele executa. Abra **<http://127.0.0.1:5173>** — o app já está no ar
-com providers, rotas e store de autenticação funcionando.
+Abra **<http://127.0.0.1:5173>** — o app já está no ar com providers, rotas e
+store de autenticação funcionando.
 
-!!! tip "A pasta de destino precisa estar vazia"
+### Anatomia do comando
 
-    No modo projeto novo (`create-tempest-app my-app`), o diretório alvo **não
-    pode existir** ou precisa estar **vazio**, pra não sobrescrever nada seu. Se
-    você já tem um projeto, instale `tempest-react-sdk` e rode
-    `npx create-tempest-app .` pra mesclar no diretório atual.
+Esse comando parece longo, mas cada pedaço tem um papel:
+
+| Pedaço                  | O que faz                                                                                                                    |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `npx`                   | Baixa e executa um binário **sem instalar nada global**. Ele descarta o download depois.                                      |
+| `-p tempest-react-sdk`  | Diz **de qual pacote** vem o binário. Necessário porque a CLI mora dentro do SDK, e o nome dela é diferente do nome do pacote. |
+| `create-tempest-app`    | O nome do `bin` dentro daquele pacote — é o que de fato roda.                                                                 |
+| `.`                     | O **destino**: o diretório atual. É o modo recomendado.                                                                       |
+
+!!! tip "Por que `.` e não `create-tempest-app my-app`?"
+
+    Passar um nome também funciona (`create-tempest-app my-app` cria a pasta
+    `my-app` e escreve dentro dela), mas o fluxo com `.` é melhor no dia a dia:
+
+    - **Você controla a pasta e o nome.** O `name` do `package.json` sai do nome
+      do diretório em que você está — nada de descobrir depois que ficou
+      `my-app/my-app` porque você já estava dentro da pasta.
+    - **Convive com o que já existe.** Se você já rodou `git init`, ou já tem um
+      `README.md`/`LICENSE`/`.git` na pasta, o modo `.` **preserva** cada arquivo
+      que já existe e lista o que pulou. O modo com nome **aborta** se a pasta
+      não estiver vazia.
+    - **É o mesmo comando pra pasta nova e pra projeto existente** — um fluxo só
+      pra decorar.
+
+!!! info "Rodar sem argumento = `.`"
+
+    `npx -p tempest-react-sdk create-tempest-app` (sem nada depois) faz
+    exatamente o mesmo que passar `.`: scaffold no diretório atual. A CLI **não**
+    pergunta um nome de projeto.
+
+!!! warning "`npm create tempest-app` **não** funciona"
+
+    Não existe um pacote `create-tempest-app` publicado no npm — a CLI é o `bin`
+    do `tempest-react-sdk`. Então `npm create tempest-app` falha com 404. Use
+    sempre a forma com `-p`:
+
+    ```bash
+    npx -p tempest-react-sdk create-tempest-app .
+    ```
+
+    Já num projeto que **tem o SDK instalado**, o `-p` é dispensável — o `npx`
+    acha o `bin` no `node_modules` local:
+
+    ```bash
+    npm install tempest-react-sdk
+    npx create-tempest-app .
+    ```
+
+### Os dois modos, lado a lado
+
+| Você digita              | Destino            | Se a pasta tem arquivos                        | Nome do projeto        |
+| ------------------------ | ------------------ | ---------------------------------------------- | ---------------------- |
+| `create-tempest-app .`   | diretório atual    | **preserva** os seus e reporta o que foi pulado | nome da pasta atual    |
+| `create-tempest-app` (só) | diretório atual    | idem                                            | nome da pasta atual    |
+| `create-tempest-app my-app` | `./my-app`      | **aborta** se existir e não estiver vazia       | `my-app`               |
+
+!!! tip "Quer um PWA?"
+
+    Some `--pwa` em qualquer um dos modos
+    (`npx -p tempest-react-sdk create-tempest-app . --pwa`) e o scaffold sai com
+    service worker, manifest e wiring de web push. Detalhes em
+    [Scaffold](../scaffold.md) e [PWA](../pwa.md).
+
+### Fixando a versão do SDK
+
+O app gerado nasce com a dependência `tempest-react-sdk` **carimbada na mesma
+versão da CLI que rodou o scaffold**. Pra escolher essa versão, ponha o `@` no
+`-p`:
+
+```bash
+npx -p tempest-react-sdk@0.23.0 create-tempest-app .
+```
 
 ## Passo 2 — A linha mais importante: o CSS
 
@@ -13636,15 +13742,31 @@ esse é o guard de rota em ação, que você vai entender em [Roteamento](routin
     Se o app abriu no navegador e os links de navegação trocam o conteúdo sem
     recarregar a página, sua base está perfeita. Vamos construir em cima dela. ✅
 
+## Se algo deu errado
+
+| Sintoma                                                            | Causa                                                                | O que fazer                                                                                    |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `404 Not Found - create-tempest-app`                               | Você usou `npm create tempest-app` — esse pacote não existe no npm.  | Use `npx -p tempest-react-sdk create-tempest-app .`                                             |
+| `✗ Directory "my-app" exists and is not empty.`                    | Modo pasta-nova com pasta já populada.                               | `cd my-app && npx -p tempest-react-sdk create-tempest-app .` — o modo `.` preserva seus arquivos. |
+| `Skipped N existing file(s)`                                       | Não é erro: a CLI **não sobrescreveu** arquivos seus.                | Confira a lista; se quiser a versão do template, remova o arquivo e rode de novo.               |
+| Componentes aparecem sem estilo                                    | Falta o import do CSS.                                               | `import "tempest-react-sdk/styles.css"` em `src/main.tsx` (**sem** `/dist/`).                    |
+| Erro de sintaxe/engine ao rodar o `npx`                            | Node antigo.                                                         | O SDK exige **Node >= 20.19**. Confira com `node -v`.                                           |
+| `VITE_API_URL` undefined em runtime                                | Faltou o `.env`.                                                     | `cp .env.example .env` e ajuste a URL do backend.                                               |
+
 ## Recap
 
 - O `tempest-react-sdk` reúne roteamento, estado, dados, formulários e auth atrás
   de **uma só superfície de import** (`"tempest-react-sdk"`). ✅
-- **Só `react` e `react-dom` são peer deps**; todo o resto (`react-router-dom`,
+- **Só `react` e `react-dom` são peer deps**; todo o resto (`react-router`,
   `zustand`, `@tanstack/react-query`, `zod`, `react-hook-form`, ...) é dependência
   **direta** instalada junto.
-- Crie o app com `npx -p tempest-react-sdk create-tempest-app my-app`, depois
+- Crie o app com `mkdir my-app && cd my-app`, depois
+  `npx -p tempest-react-sdk create-tempest-app .` — o `.` scaffolda no diretório
+  atual, preserva o que já existe e tira o nome do projeto da pasta. Em seguida
   `npm install`, `cp .env.example .env` e `npm run dev`.
+- `npm create tempest-app` **não** existe; a CLI é o `bin` do SDK, então a forma
+  correta tem `-p tempest-react-sdk` (ou nenhum `-p`, se o SDK já está instalado
+  no projeto).
 - A linha de CSS é `import "tempest-react-sdk/styles.css"` (**sem** `/dist/`) — sem
   ela os componentes ficam sem estilo.
 - Cada arquivo gerado é a porta de entrada pra um conceito do tutorial.
@@ -13662,8 +13784,8 @@ painel. Para o usuário trocar de tela **sem recarregar a página**, precisamos 
 rotas. Nesta página você vai adicionar uma página nova, ligá-la a uma URL,
 navegar com `<Link>` e, por fim, criar uma rota **lazy** e **protegida**.
 
-Tudo vem de `"tempest-react-sdk"` — você nunca importa de `react-router-dom`
-diretamente. O SDK embrulha o React Router v7 declarativo e expõe `defineRoutes`,
+Tudo vem de `"tempest-react-sdk"` — você nunca importa de `react-router`
+diretamente. O SDK embrulha o React Router v8 declarativo e expõe `defineRoutes`,
 `<AppRouter>`, `<Link>`, `<Outlet>` e `useNavigate` num só lugar.
 
 ## A árvore de rotas que já existe
@@ -14033,7 +14155,7 @@ seu shell, sem `if` espalhado pelas páginas.
 ## Recap
 
 - Tudo de roteamento vem de `"tempest-react-sdk"` — você nunca importa de
-  `react-router-dom`. ✅
+  `react-router`. ✅
 - `defineRoutes([...])` tipa a árvore; `<AppRouter routes={routes} />` monta
   router + `<Suspense>` + `<Routes>` sozinho.
 - Use `index: true` para a rota padrão de um layout e `path` para as demais —

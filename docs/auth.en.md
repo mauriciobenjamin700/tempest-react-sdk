@@ -51,7 +51,7 @@ Extra options: `initialUser`, `initialToken` (useful for SSR hydration).
 Router-agnostic: it's a pure if/else. You decide what to render in each branch — typically `<Outlet />` when authenticated and `<Navigate />` for the redirect.
 
 ```tsx
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet } from "react-router";
 import { AuthGuard } from "tempest-react-sdk";
 
 export function ProtectedLayout() {
@@ -199,7 +199,7 @@ export const api = createApiClient({
 
 ```tsx
 // LoginPage.tsx
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useAuthStore, type SessionUser } from "./auth-store";
 import { api } from "./api";
 
@@ -221,7 +221,7 @@ export function LoginPage() {
 
 ```tsx
 // ProtectedLayout.tsx
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet } from "react-router";
 import { AuthGuard } from "tempest-react-sdk";
 import { useAuthStore } from "./auth-store";
 

@@ -17,7 +17,7 @@ export interface UseWebSocketResult<T> {
     /** Last decoded frame received. */
     lastMessage: WebSocketMessage<T> | null;
     /** Send a payload through the active connection. Returns false when not open. */
-    send: (payload: string | ArrayBufferLike | Blob | ArrayBufferView) => boolean;
+    send: (payload: string | Blob | BufferSource) => boolean;
     /** Force a reconnect, resetting the retry counter. */
     reconnect: () => void;
 }
@@ -61,12 +61,9 @@ export function useWebSocket<T = unknown>(
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [url, enabled]);
 
-    const send = useCallback(
-        (payload: string | ArrayBufferLike | Blob | ArrayBufferView): boolean => {
-            return controllerRef.current?.send(payload) ?? false;
-        },
-        [],
-    );
+    const send = useCallback((payload: string | Blob | BufferSource): boolean => {
+        return controllerRef.current?.send(payload) ?? false;
+    }, []);
 
     const reconnect = useCallback((): void => {
         controllerRef.current?.reconnect();

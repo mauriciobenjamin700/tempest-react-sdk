@@ -24,6 +24,8 @@ Pronto. Tudo o que está abaixo já está disponível na sua aplicação.
   - [Brand — primary tints](#brand-primary-tints)
   - [Neutros — gray scale](#neutros-gray-scale)
   - [Status — triplets (fg/bg/border/solid)](#status-triplets-fgbgbordersolid)
+  - [Data viz — cores de série](#data-viz-cores-de-serie)
+  - [Gerando a paleta com `createTheme`](#gerando-a-paleta-com-createtheme)
 - [Tipografia](#tipografia)
 - [Espaçamento](#espacamento)
 - [Radius](#radius)
@@ -115,6 +117,42 @@ Atalhos:
 - `--tempest-danger-hover` — variação para hover em danger solid.
 
 Componentes que aceitam `appearance="soft|solid|outline"` (Badge, Alert, etc.) escolhem automaticamente a combinação certa.
+
+### Data viz — cores de série
+
+Oito cores categóricas em ordem cíclica, mais o cromado do gráfico:
+
+| Token                        | Uso                                                   |
+| ---------------------------- | ----------------------------------------------------- |
+| `--tempest-chart-1` … `-8`   | Cores de série, aplicadas por índice (ciclam)          |
+| `--tempest-chart-grid`       | Linhas de grid                                         |
+| `--tempest-chart-axis`       | Linhas e rótulos de eixo                               |
+
+As oito são espaçadas por **matiz** — são categóricas, não um ramp. Para escala sequencial ou divergente, use `--tempest-primary-*`.
+
+O módulo `tempest-react-sdk/charts` lê esses tokens em runtime e re-resolve quando o tema vira, então sobrescrevê-los muda os gráficos sem tocar em prop nenhuma:
+
+```css
+:root {
+  --tempest-chart-1: #0f766e;
+  --tempest-chart-2: #f97316;
+}
+```
+
+!!! warning "Não passe `var()` como cor de série"
+    O recharts aplica cor como atributo de apresentação do SVG, e `var()` não é resolvido ali. É por isso que o SDK lê o token via `getComputedStyle` e entrega cor literal. Detalhes em [Charts › Cores e tema](charts.md#cores-e-tema).
+
+### Gerando a paleta com `createTheme`
+
+Escrever os ~30 valores de uma marca na mão (dez degraus × claro/escuro + aliases) é trabalhoso e fácil de errar no dark, onde o ramp **inverte**. `createTheme` deriva tudo de uma cor, em OKLCH:
+
+```tsx
+import { applyTheme, createTheme } from "tempest-react-sdk";
+
+applyTheme(createTheme({ primary: "#7c3aed", radius: "lg" }));
+```
+
+Isso emite os mesmos tokens desta página — é açúcar sobre a API de token, não um segundo sistema de tema. Guia completo em [Tema › `createTheme`](theme.md#createtheme-a-marca-inteira-a-partir-de-uma-cor).
 
 ---
 

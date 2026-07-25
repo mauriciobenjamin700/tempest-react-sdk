@@ -1790,7 +1790,7 @@ Snapshot of current health:
 
 - 2272 tests / 366 files — 98.5% lines, 97.1% statements, 96.4% functions, 95.0% branches (CI floors: 98/97/96/94).
 - What your app actually pays (brotli, tree-shaken slices measured by `npm run size`): `cn` alone 153 B · one `Button` 794 B · a typical app shell (5 components + router + providers + HTTP + auth + a hook) 6.79 KB · offline/PWA surface 4.41 KB · `styles.css` 20.61 KB.
-- Full-barrel ceiling — nobody imports this, it is the no-tree-shaking worst case: 64.16 KB ESM / 78.83 KB CJS.
+- Full-barrel ceiling — nobody imports this, it is the no-tree-shaking worst case: 66.53 KB ESM / 81.53 KB CJS.
 - Husky pre-commit runs `lint-staged` (eslint --fix + prettier --write) on staged files.
 
 The demo gallery lives in `examples/gallery` and consumes the local SDK via `file:../..`:

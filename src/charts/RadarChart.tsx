@@ -9,7 +9,7 @@ import {
     Tooltip,
 } from "recharts";
 import { cn } from "@/utils/cn";
-import { DEFAULT_CHART_COLORS } from "./palette";
+import { useChartColors } from "./use-chart-colors";
 import { toTooltipFormatter } from "./types";
 import type { CartesianChartProps } from "./types";
 
@@ -17,7 +17,7 @@ import type { CartesianChartProps } from "./types";
  * RadarChart — themed wrapper over recharts `RadarChart`.
  *
  * Plots one radar polygon per entry in `categories`, colored from `colors`
- * (cycling {@link DEFAULT_CHART_COLORS} by default). `index` drives the angle
+ * (cycling the `--tempest-chart-*` theme tokens by default). `index` drives the angle
  * axis. When `width` is provided the chart renders at that fixed size without a
  * ResponsiveContainer; otherwise it fills its parent.
  */
@@ -25,7 +25,7 @@ export function RadarChart({
     data,
     index,
     categories,
-    colors = DEFAULT_CHART_COLORS,
+    colors,
     height = 300,
     width,
     showLegend = true,
@@ -33,6 +33,7 @@ export function RadarChart({
     valueFormatter,
     className,
 }: CartesianChartProps) {
+    const palette = useChartColors(colors);
     const chart = (
         <RRadarChart data={data} width={width} height={height}>
             <PolarGrid />
@@ -41,7 +42,7 @@ export function RadarChart({
             {showTooltip ? <Tooltip formatter={toTooltipFormatter(valueFormatter)} /> : null}
             {showLegend ? <Legend /> : null}
             {categories.map((category, i) => {
-                const color = colors[i % colors.length];
+                const color = palette[i % palette.length];
                 return (
                     <Radar
                         key={category}

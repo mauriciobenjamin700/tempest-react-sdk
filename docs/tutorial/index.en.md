@@ -27,27 +27,95 @@ theming — behind **one single import surface**. You import everything from
 ## Step 1 — Create the app with `create-tempest-app`
 
 The official scaffolding CLI **ships inside the SDK itself** (it's the package's
-`bin`). In an empty directory, run:
+`bin` — there is no separate package). The recommended path is to **create the
+folder yourself and scaffold into it** with `.`:
 
 ```bash
-npx -p tempest-react-sdk create-tempest-app my-app
+mkdir my-app
 cd my-app
+npx -p tempest-react-sdk create-tempest-app .
 npm install
 cp .env.example .env
 npm run dev
 ```
 
-The `-p tempest-react-sdk` tells `npx` which package to fetch;
-`create-tempest-app my-app` is the `bin` it runs. Open
-**<http://127.0.0.1:5173>** — the app is already live with providers, routes and
-an auth store working.
+Open **<http://127.0.0.1:5173>** — the app is already live with providers, routes
+and an auth store working.
 
-!!! tip "The target folder must be empty"
+### Anatomy of the command
 
-    In new-project mode (`create-tempest-app my-app`), the target directory
-    **must not exist** or must be **empty**, so nothing of yours is overwritten.
-    If you already have a project, install `tempest-react-sdk` and run
-    `npx create-tempest-app .` to merge into the current directory.
+It looks long, but every piece has a job:
+
+| Piece                  | What it does                                                                                                            |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `npx`                  | Downloads and runs a binary **without installing anything globally**, then throws the download away.                      |
+| `-p tempest-react-sdk` | Says **which package** the binary comes from. Needed because the CLI lives inside the SDK, under a different name.        |
+| `create-tempest-app`   | The `bin` name inside that package — the thing that actually runs.                                                        |
+| `.`                    | The **destination**: the current directory. This is the recommended mode.                                                 |
+
+!!! tip "Why `.` instead of `create-tempest-app my-app`?"
+
+    Passing a name works too (`create-tempest-app my-app` creates the `my-app`
+    folder and writes into it), but the `.` flow is nicer day to day:
+
+    - **You own the folder and its name.** The `package.json` `name` comes from
+      the directory you're in — no discovering later that you ended up with
+      `my-app/my-app` because you were already inside the folder.
+    - **It coexists with what's already there.** If you already ran `git init`, or
+      you already have a `README.md`/`LICENSE`/`.git`, the `.` mode **preserves**
+      every existing file and lists what it skipped. The named mode **aborts** if
+      the folder isn't empty.
+    - **One command for both new and existing projects** — a single flow to
+      remember.
+
+!!! info "No argument = `.`"
+
+    `npx -p tempest-react-sdk create-tempest-app` (nothing after it) does exactly
+    what `.` does: scaffold into the current directory. The CLI does **not**
+    prompt for a project name.
+
+!!! warning "`npm create tempest-app` does **not** work"
+
+    There is no `create-tempest-app` package published on npm — the CLI is the
+    `bin` of `tempest-react-sdk`. So `npm create tempest-app` fails with a 404.
+    Always use the `-p` form:
+
+    ```bash
+    npx -p tempest-react-sdk create-tempest-app .
+    ```
+
+    In a project that **already has the SDK installed**, `-p` is unnecessary —
+    `npx` finds the `bin` in the local `node_modules`:
+
+    ```bash
+    npm install tempest-react-sdk
+    npx create-tempest-app .
+    ```
+
+### The two modes, side by side
+
+| You type                     | Destination       | If the folder has files                    | Project name         |
+| ---------------------------- | ----------------- | ------------------------------------------ | -------------------- |
+| `create-tempest-app .`       | current directory | **preserves** yours and reports what it skipped | current folder name |
+| `create-tempest-app` (bare)  | current directory | same                                        | current folder name |
+| `create-tempest-app my-app`  | `./my-app`        | **aborts** if it exists and isn't empty     | `my-app`             |
+
+!!! tip "Want a PWA?"
+
+    Add `--pwa` to either mode
+    (`npx -p tempest-react-sdk create-tempest-app . --pwa`) and the scaffold ships
+    with a service worker, a manifest and web-push wiring. Details in
+    [Scaffold](../scaffold.md) and [PWA](../pwa.md).
+
+### Pinning the SDK version
+
+The generated app is born with its `tempest-react-sdk` dependency **stamped at
+the same version as the CLI that scaffolded it**. To choose that version, put the
+`@` on `-p`:
+
+```bash
+npx -p tempest-react-sdk@0.23.0 create-tempest-app .
+```
 
 ## Step 2 — The most important line: the CSS
 
@@ -111,6 +179,17 @@ that's the route guard in action, which you'll learn in [Routing](routing.md).
     If the app opened in the browser and the nav links swap the content without
     reloading the page, your foundation is perfect. Let's build on it. ✅
 
+## If something went wrong
+
+| Symptom                                          | Cause                                                            | What to do                                                                                     |
+| ------------------------------------------------ | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `404 Not Found - create-tempest-app`             | You ran `npm create tempest-app` — that package isn't on npm.    | Use `npx -p tempest-react-sdk create-tempest-app .`                                             |
+| `✗ Directory "my-app" exists and is not empty.`  | New-folder mode against an already populated folder.             | `cd my-app && npx -p tempest-react-sdk create-tempest-app .` — the `.` mode preserves your files. |
+| `Skipped N existing file(s)`                     | Not an error: the CLI **did not overwrite** files of yours.      | Check the list; to take the template version, delete the file and run again.                    |
+| Components render unstyled                       | The CSS import is missing.                                       | `import "tempest-react-sdk/styles.css"` in `src/main.tsx` (**no** `/dist/`).                     |
+| Syntax/engine error while running `npx`          | Old Node.                                                        | The SDK requires **Node >= 20.19**. Check with `node -v`.                                       |
+| `VITE_API_URL` undefined at runtime              | Missing `.env`.                                                  | `cp .env.example .env` and point it at your backend.                                            |
+
 ## Recap
 
 - `tempest-react-sdk` bundles routing, state, data, forms and auth behind **one
@@ -118,8 +197,13 @@ that's the route guard in action, which you'll learn in [Routing](routing.md).
 - **Only `react` and `react-dom` are peer deps**; everything else
   (`react-router-dom`, `zustand`, `@tanstack/react-query`, `zod`,
   `react-hook-form`, ...) is a **direct** dependency installed alongside.
-- Create the app with `npx -p tempest-react-sdk create-tempest-app my-app`, then
-  `npm install`, `cp .env.example .env` and `npm run dev`.
+- Create the app with `mkdir my-app && cd my-app`, then
+  `npx -p tempest-react-sdk create-tempest-app .` — `.` scaffolds into the current
+  directory, preserves what's already there and takes the project name from the
+  folder. Then `npm install`, `cp .env.example .env` and `npm run dev`.
+- `npm create tempest-app` does **not** exist; the CLI is the SDK's `bin`, so the
+  correct form carries `-p tempest-react-sdk` (or no `-p` at all when the SDK is
+  already installed in the project).
 - The CSS line is `import "tempest-react-sdk/styles.css"` (**no** `/dist/`) —
   without it components are unstyled.
 - Each generated file is the gateway to a tutorial concept.

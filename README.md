@@ -90,15 +90,24 @@ The goal is to start every new React frontend with the same opinionated foundati
 **Fastest path — scaffold a fully wired app** with the `create-tempest-app` CLI that ships **inside the SDK** (Vite `@` alias, declarative routing, Zustand store, TanStack Query, providers — all pre-fiados):
 
 ```bash
-# brand-new project (no install needed)
-npx -p tempest-react-sdk create-tempest-app my-app
+# brand-new project (no install needed) — create the folder, scaffold into it with "."
+mkdir my-app
 cd my-app
+npx -p tempest-react-sdk create-tempest-app .
 npm install
+cp .env.example .env
 npm run dev
 
 # want it installable + web-push + offline ready? add --pwa
-npx -p tempest-react-sdk create-tempest-app my-app --pwa
+npx -p tempest-react-sdk create-tempest-app . --pwa
 ```
+
+`.` means "the current directory" — it preserves files you already have (`git
+init`, `README.md`, `LICENSE`) and takes the project name from the folder, so it
+is the recommended mode. Passing a name (`create-tempest-app my-app`) creates the
+folder instead, and aborts when it is not empty. Note there is no
+`create-tempest-app` package on npm — `npm create tempest-app` 404s, because the
+CLI is this package's `bin`; that is what `-p tempest-react-sdk` is for.
 
 The `--pwa` flag overlays a manifest, install prompt (`useBeforeInstallPrompt`), push wiring (`usePushSubscription`), **offline caching** (app-shell precache + runtime caching), **generated icons** (`tempestPwaIcons`, via `sharp`) and a **dev-mode service worker** (`tempestPwaDevSw`) on top of the base app — full `vite-plugin-pwa` parity for the common case, built from `tempest-react-sdk/sw` + `tempest-react-sdk/vite`, with no `vite-plugin-pwa`. See [Scaffold › PWA mode](https://mauriciobenjamin700.github.io/tempest-react-sdk/scaffold/#modo-pwa-pwa).
 
@@ -273,8 +282,9 @@ The **`create-tempest-app`** CLI **ships inside the `tempest-react-sdk` package*
 
 ```bash
 # brand-new project folder (npx pulls the SDK and runs its bin)
-npx -p tempest-react-sdk create-tempest-app my-app
+mkdir my-app
 cd my-app
+npx -p tempest-react-sdk create-tempest-app .
 npm install
 cp .env.example .env
 npm run dev            # http://127.0.0.1:5173

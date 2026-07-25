@@ -462,8 +462,9 @@ store — without building the pyramid by hand. Use the `create-tempest-app` CLI
 
 ```bash
 # New folder — npx downloads the SDK and runs its bin
-npx -p tempest-react-sdk create-tempest-app my-app
+mkdir my-app
 cd my-app
+npx -p tempest-react-sdk create-tempest-app .
 npm install
 cp .env.example .env
 npm run dev            # http://127.0.0.1:5173

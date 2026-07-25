@@ -230,6 +230,7 @@ async function main() {
     console.log(`\n${c.green}✓ Done!${c.reset} Next steps:\n`);
     if (!mergeMode) console.log(`  ${c.bold}cd ${arg}${c.reset}`);
     console.log(`  ${c.bold}npm install${c.reset}`);
+    if (!protect.has(".env")) console.log(`  ${c.bold}cp .env.example .env${c.reset}`);
     console.log(`  ${c.bold}npm run dev${c.reset}`);
     if (pwa) {
         console.log(

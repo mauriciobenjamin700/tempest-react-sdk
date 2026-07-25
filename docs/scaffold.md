@@ -13,25 +13,51 @@ Esta página é um tutorial: vamos do comando vazio até o app rodando no navega
 
 ## Crie seu primeiro app
 
-Para uma pasta **nova** (ainda sem nada instalado), o `npx` baixa o SDK e roda o `bin` dele:
+O caminho **recomendado** é criar a pasta você mesmo e scaffoldar dentro dela com `.`:
 
 ```bash
-npx -p tempest-react-sdk create-tempest-app my-app
+mkdir my-app
 cd my-app
+npx -p tempest-react-sdk create-tempest-app .
 npm install
 cp .env.example .env
 npm run dev            # http://127.0.0.1:5173
 ```
 
-O `-p tempest-react-sdk` diz ao `npx` qual pacote buscar; `create-tempest-app my-app` é o `bin` que ele executa, gerando o projeto na pasta `my-app`.
-
 Abra **<http://127.0.0.1:5173>** — o app já está no ar com providers, rotas e store funcionando.
 
-!!! tip "Sem nome de projeto?"
-    Rodar **sem argumento** (ou `.`) pula o modo pasta-nova e **mescla no diretório atual** — veja a próxima seção.
+### O que cada pedaço do comando faz
 
-!!! warning "A pasta de destino precisa estar vazia"
-    No modo de projeto novo (`create-tempest-app my-app`), o diretório alvo **não pode existir** ou precisa estar **vazio**. Isso evita sobrescrever um projeto seu por acidente. Se a pasta já tem arquivos, a CLI sugere usar `.` para **mesclar** no diretório atual em vez de abortar (veja a próxima seção).
+| Pedaço                 | O que faz                                                                                                                    |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `npx`                  | Baixa e executa um binário **sem instalar nada global** — descarta o download depois.                                         |
+| `-p tempest-react-sdk` | Diz **de qual pacote** vem o binário. Necessário porque a CLI mora dentro do SDK, com nome diferente do nome do pacote.        |
+| `create-tempest-app`   | O nome do `bin` dentro daquele pacote — é o que roda de fato.                                                                 |
+| `.`                    | O **destino**: o diretório atual (modo recomendado). Um nome no lugar do `.` cria a pasta e exige que ela esteja vazia.        |
+
+!!! tip "Prefira `.` a `create-tempest-app my-app`"
+    As duas formas funcionam, mas `.` é melhor no dia a dia:
+
+    - **Você controla a pasta e o nome** — o `name` do `package.json` sai do nome do diretório atual, sem risco de acabar com `my-app/my-app` por já estar dentro da pasta.
+    - **Convive com o que já existe** — `git init`, `README.md`, `LICENSE` e afins são **preservados** (a CLI lista o que pulou). O modo com nome **aborta** se a pasta não estiver vazia.
+    - **Um comando só** pra pasta nova e pra projeto existente.
+
+!!! info "Rodar sem argumento = `.`"
+    `npx -p tempest-react-sdk create-tempest-app` (sem nada depois) faz exatamente o mesmo que passar `.`: scaffold no diretório atual. A CLI **não** pergunta nome de projeto.
+
+!!! warning "`npm create tempest-app` não funciona"
+    Não existe pacote `create-tempest-app` publicado no npm — a CLI é o `bin` do `tempest-react-sdk`, então `npm create tempest-app` falha com 404. Use `npx -p tempest-react-sdk create-tempest-app .`; dentro de um projeto que já tem o SDK instalado, o `-p` é dispensável.
+
+!!! warning "No modo com nome, a pasta precisa estar vazia"
+    Em `create-tempest-app my-app`, o diretório alvo **não pode existir** ou precisa estar **vazio** — isso evita sobrescrever um projeto seu por acidente. Se a pasta já tem arquivos, a CLI sugere usar `.` para **mesclar** no diretório atual em vez de abortar (veja a próxima seção).
+
+### Os dois modos, lado a lado
+
+| Você digita                 | Destino           | Se a pasta tem arquivos                         | Nome do projeto     |
+| --------------------------- | ----------------- | ----------------------------------------------- | ------------------- |
+| `create-tempest-app .`      | diretório atual   | **preserva** os seus e reporta o que foi pulado | nome da pasta atual |
+| `create-tempest-app` (só)   | diretório atual   | idem                                             | nome da pasta atual |
+| `create-tempest-app my-app` | `./my-app`        | **aborta** se existir e não estiver vazia        | `my-app`            |
 
 ## Scaffold dentro de um projeto existente
 
@@ -152,7 +178,7 @@ export const useAuth = createSelectors(createAuthStore<User>({ name: "app-auth" 
 Quer que o app já nasça **instalável** (ícone na home screen), capaz de **emitir notificações web push** e **funcionar offline** (app shell + cache)? Passe a flag `--pwa`:
 
 ```bash
-npx -p tempest-react-sdk create-tempest-app my-app --pwa
+npx -p tempest-react-sdk create-tempest-app . --pwa
 ```
 
 A flag funciona nos dois modos (pasta nova **e** `.`/merge). Ela **sobrepõe** o template PWA por cima do base: tudo do app normal continua igual, mais alguns arquivos novos e alguns sobrescritos.
@@ -399,8 +425,9 @@ Aprofunde em [Query](./query.md) e [HTTP](./http.md).
 ## Recap
 
 - A CLI é o **`bin` do próprio `tempest-react-sdk`** (`create-tempest-app`), com um `template/` embutido no tarball — versionada junto com o SDK, não um pacote separado. ✅
-- Pasta nova: `npx -p tempest-react-sdk create-tempest-app my-app` (a pasta de destino **precisa estar vazia** ou não existir; sem nome ela **pergunta**, padrão `my-tempest-app`). Use `@X` no `-p` pra fixar a versão do SDK.
-- Projeto existente: `npm install tempest-react-sdk` e `npx create-tempest-app .` (ou sem argumento) gera no diretório atual — **arquivos existentes são preservados** e o `package.json` tem scripts/deps **mesclados** (`tempest-react-sdk` fixado na versão do SDK).
-- `cd my-app && npm install && cp .env.example .env && npm run dev` te leva a **<http://127.0.0.1:5173>** com providers, rotas e auth funcionando.
+- Caminho recomendado: `mkdir my-app && cd my-app && npx -p tempest-react-sdk create-tempest-app .` — o `.` (igual a rodar **sem argumento**) gera no diretório atual, **preserva arquivos existentes** e tira o nome do projeto da pasta. Use `@X` no `-p` pra fixar a versão do SDK.
+- Modo com nome: `npx -p tempest-react-sdk create-tempest-app my-app` cria a pasta, mas **aborta** se ela já existir e não estiver vazia. A CLI **não pergunta** nome de projeto em nenhum modo.
+- Projeto existente: `npm install tempest-react-sdk` e `npx create-tempest-app .` (sem `-p`, o `bin` vem do `node_modules`) — o `package.json` tem scripts/deps **mesclados** (`tempest-react-sdk` fixado na versão do SDK).
+- `npm install && cp .env.example .env && npm run dev` te leva a **<http://127.0.0.1:5173>** com providers, rotas e auth funcionando.
 - Cada arquivo gerado **demonstra um recurso**: `createViteConfig`, `AppProviders` + `AppRouter`, `defineRoutes` (lazy + guard), `createAuthStore` + `createSelectors`, `createApiClient` + `createQueryKeys`.
 - Pra crescer: adicione páginas em `pages/` + entradas em `routes.tsx`, crie stores com `createStore`, e busque dados com `useQuery` + `queryKeys` + `api`.

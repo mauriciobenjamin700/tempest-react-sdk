@@ -13,25 +13,51 @@ This page is a tutorial: we go from an empty command to the app running in your 
 
 ## Create your first app
 
-For a **brand-new** folder (nothing installed yet), `npx` fetches the SDK and runs its `bin`:
+The **recommended** path is to create the folder yourself and scaffold into it with `.`:
 
 ```bash
-npx -p tempest-react-sdk create-tempest-app my-app
+mkdir my-app
 cd my-app
+npx -p tempest-react-sdk create-tempest-app .
 npm install
 cp .env.example .env
 npm run dev            # http://127.0.0.1:5173
 ```
 
-`-p tempest-react-sdk` tells `npx` which package to fetch; `create-tempest-app my-app` is the `bin` it runs, generating the project into the `my-app` folder.
-
 Open **<http://127.0.0.1:5173>** — the app is already live with providers, routes, and the store working.
 
-!!! tip "No project name?"
-    Running with **no argument** (or `.`) skips new-folder mode and **merges into the current directory** instead — see the next section.
+### What each piece of the command does
 
-!!! warning "The target folder must be empty"
-    In new-project mode (`create-tempest-app my-app`), the target directory **must not exist** or must be **empty**. This keeps you from overwriting one of your projects by accident. If the folder already has files, the CLI suggests using `.` to **merge** into the current directory instead of aborting (see the next section).
+| Piece                  | What it does                                                                                                            |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `npx`                  | Downloads and runs a binary **without installing anything globally** — then throws the download away.                     |
+| `-p tempest-react-sdk` | Says **which package** the binary comes from. Needed because the CLI lives inside the SDK, under a different name.        |
+| `create-tempest-app`   | The `bin` name inside that package — the thing that actually runs.                                                       |
+| `.`                    | The **destination**: the current directory (recommended). A name instead of `.` creates the folder and requires it empty. |
+
+!!! tip "Prefer `.` over `create-tempest-app my-app`"
+    Both work, but `.` is nicer day to day:
+
+    - **You own the folder and its name** — the `package.json` `name` comes from the current directory, with no risk of ending up with `my-app/my-app` because you were already inside the folder.
+    - **It coexists with what's there** — `git init`, `README.md`, `LICENSE` and friends are **preserved** (the CLI lists what it skipped). The named mode **aborts** when the folder isn't empty.
+    - **One command** for both a fresh folder and an existing project.
+
+!!! info "No argument = `.`"
+    `npx -p tempest-react-sdk create-tempest-app` (nothing after it) does exactly what `.` does: scaffold into the current directory. The CLI does **not** prompt for a project name.
+
+!!! warning "`npm create tempest-app` does not work"
+    There is no `create-tempest-app` package on npm — the CLI is the `bin` of `tempest-react-sdk`, so `npm create tempest-app` fails with a 404. Use `npx -p tempest-react-sdk create-tempest-app .`; inside a project that already has the SDK installed, `-p` is unnecessary.
+
+!!! warning "In named mode the folder must be empty"
+    With `create-tempest-app my-app`, the target directory **must not exist** or must be **empty** — this keeps you from overwriting one of your projects by accident. If the folder already has files, the CLI suggests using `.` to **merge** into the current directory instead of aborting (see the next section).
+
+### The two modes, side by side
+
+| You type                     | Destination       | If the folder has files                         | Project name        |
+| ---------------------------- | ----------------- | ----------------------------------------------- | ------------------- |
+| `create-tempest-app .`       | current directory | **preserves** yours and reports what it skipped | current folder name |
+| `create-tempest-app` (bare)  | current directory | same                                             | current folder name |
+| `create-tempest-app my-app`  | `./my-app`        | **aborts** if it exists and isn't empty          | `my-app`            |
 
 ## Scaffold into an existing project
 
@@ -152,7 +178,7 @@ export const useAuth = createSelectors(createAuthStore<User>({ name: "app-auth" 
 Want the app to be **installable** (home-screen icon), able to **emit web push notifications**, and to **work offline** (app shell + cache) out of the box? Pass the `--pwa` flag:
 
 ```bash
-npx -p tempest-react-sdk create-tempest-app my-app --pwa
+npx -p tempest-react-sdk create-tempest-app . --pwa
 ```
 
 The flag works in both modes (new folder **and** `.`/merge). It **overlays** the PWA template on top of the base: everything from the normal app stays the same, plus a few new files and a few overwritten ones.
@@ -399,8 +425,9 @@ Go deeper in [Query](./query.md) and [HTTP](./http.md).
 ## Recap
 
 - The CLI is **`tempest-react-sdk`'s own `bin`** (`create-tempest-app`), with a bundled `template/` in the tarball — versioned together with the SDK, not a separate package. ✅
-- New folder: `npx -p tempest-react-sdk create-tempest-app my-app` (the target folder **must be empty** or not exist; with no name it **prompts**, default `my-tempest-app`). Use `@X` on `-p` to pin the SDK version.
-- Existing project: `npm install tempest-react-sdk` then `npx create-tempest-app .` (or no argument) generates into the current directory — **existing files are preserved** and `package.json` has scripts/deps **merged** (`tempest-react-sdk` pinned to the SDK version).
-- `cd my-app && npm install && cp .env.example .env && npm run dev` takes you to **<http://127.0.0.1:5173>** with providers, routes, and auth working.
+- Recommended path: `mkdir my-app && cd my-app && npx -p tempest-react-sdk create-tempest-app .` — `.` (same as running with **no argument**) generates into the current directory, **preserves existing files** and takes the project name from the folder. Use `@X` on `-p` to pin the SDK version.
+- Named mode: `npx -p tempest-react-sdk create-tempest-app my-app` creates the folder but **aborts** if it already exists and isn't empty. The CLI **never prompts** for a project name.
+- Existing project: `npm install tempest-react-sdk` then `npx create-tempest-app .` (no `-p` — the `bin` comes from `node_modules`) — `package.json` has scripts/deps **merged** (`tempest-react-sdk` pinned to the SDK version).
+- `npm install && cp .env.example .env && npm run dev` takes you to **<http://127.0.0.1:5173>** with providers, routes, and auth working.
 - Every generated file **demonstrates a feature**: `createViteConfig`, `AppProviders` + `AppRouter`, `defineRoutes` (lazy + guard), `createAuthStore` + `createSelectors`, `createApiClient` + `createQueryKeys`.
 - To grow: add pages in `pages/` + entries in `routes.tsx`, create stores with `createStore`, and fetch data with `useQuery` + `queryKeys` + `api`.

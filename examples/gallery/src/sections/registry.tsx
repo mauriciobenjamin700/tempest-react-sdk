@@ -35,6 +35,10 @@ import { QueryRecipeSection } from "./QueryRecipeSection";
 import { RealtimeRecipeSection } from "./RealtimeRecipeSection";
 import { GeoSection } from "./GeoSection";
 import { BrazilMapSection } from "./BrazilMapSection";
+import { ThemeFactorySection } from "./ThemeFactorySection";
+import { UtilitiesCssSection } from "./UtilitiesCssSection";
+import { HierarchyFlowSection } from "./HierarchyFlowSection";
+import { CaptureMediaSection } from "./CaptureMediaSection";
 
 /** Sidebar grouping for sections, in display order. */
 export type SectionGroup = "Componentes" | "Hooks" | "Receitas" | "Fundação";
@@ -182,6 +186,20 @@ export const SECTIONS: SectionEntry[] = [
         Component: AdvancedComponentsSection,
     },
     {
+        id: "hierarchy-flow",
+        label: "TreeView · Wizard",
+        keywords: "treeview tree hierarquia permissoes wizard stepper multi-step fluxo etapas",
+        group: "Componentes",
+        Component: HierarchyFlowSection,
+    },
+    {
+        id: "capture-media",
+        label: "SignaturePad · Lightbox · AvatarGroup",
+        keywords: "signaturepad assinatura canvas lightbox galeria foto avatargroup participantes",
+        group: "Componentes",
+        Component: CaptureMediaSection,
+    },
+    {
         id: "table",
         label: "Table & Pagination",
         keywords: "table pagination emptystate errorstate",
@@ -318,6 +336,22 @@ export const SECTIONS: SectionEntry[] = [
         keywords: "createstore createselectors zustand",
         group: "Fundação",
         Component: FoundationSection,
+    },
+    {
+        id: "theme-factory",
+        label: "createTheme · presets · tokens de gráfico",
+        keywords:
+            "createtheme applytheme themepresets oklch marca brand paleta contraste chart tokens",
+        group: "Fundação",
+        Component: ThemeFactorySection,
+    },
+    {
+        id: "utilities-css",
+        label: "utilities.css (camada opt-in)",
+        keywords:
+            "utilities css layout container stack cluster grid-auto form-grid card scroll-x truncate",
+        group: "Fundação",
+        Component: UtilitiesCssSection,
     },
     {
         id: "theme-i18n",

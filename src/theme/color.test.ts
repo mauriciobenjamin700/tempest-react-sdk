@@ -125,6 +125,46 @@ describe("createColorScale", () => {
         expect(hexToOklch(muted[500]).c).toBeLessThan(hexToOklch(vivid[500]).c);
     });
 
+    it("puts the brand color itself at step 500", () => {
+        for (const hex of ["#7c3aed", "#0066ff", "#e11d48", "#059669", "#d97706"]) {
+            const scale = createColorScale(hex);
+            const source = hexToRgb(hex);
+            const anchored = hexToRgb(scale[500]);
+            expect(Math.abs(source.r - anchored.r)).toBeLessThan(0.02);
+            expect(Math.abs(source.g - anchored.g)).toBeLessThan(0.02);
+            expect(Math.abs(source.b - anchored.b)).toBeLessThan(0.02);
+        }
+    });
+
+    it("anchors step 500 in the dark ramp too", () => {
+        const scale = createColorScale("#7c3aed", "dark");
+        const source = hexToOklch("#7c3aed");
+        expect(hexToOklch(scale[500]).l).toBeCloseTo(source.l, 2);
+    });
+
+    it("stays monotonic for a very light brand", () => {
+        const scale = createColorScale("#fde047");
+        const steps = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900] as const;
+        const luminance = steps.map((step) => relativeLuminance(scale[step]));
+        for (let i = 1; i < luminance.length; i += 1) {
+            expect(luminance[i]).toBeLessThan(luminance[i - 1]);
+        }
+    });
+
+    it("stays monotonic for a very dark brand", () => {
+        const scale = createColorScale("#0b1020");
+        const steps = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900] as const;
+        const luminance = steps.map((step) => relativeLuminance(scale[step]));
+        for (let i = 1; i < luminance.length; i += 1) {
+            expect(luminance[i]).toBeLessThan(luminance[i - 1]);
+        }
+    });
+
+    it("still spans a usable range from a light brand", () => {
+        const scale = createColorScale("#fde047");
+        expect(relativeLuminance(scale[900])).toBeLessThan(relativeLuminance(scale[500]) / 2);
+    });
+
     it("stays achromatic for a gray input", () => {
         const scale = createColorScale("#808080");
         expect(hexToOklch(scale[500]).c).toBeLessThan(0.01);

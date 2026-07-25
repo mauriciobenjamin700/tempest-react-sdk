@@ -282,6 +282,21 @@ troca a paleta pela versão clareada — sem prop nenhuma no gráfico.
 }
 ```
 
+!!! warning "Uma paleta de 6 cores não deve virar 8"
+    Se você define só `chart-1..6`, o leitor continuaria andando nos
+    `--tempest-chart-7`/`-8` embutidos do SDK e o gráfico com 7 séries sairia com
+    paleta misturada — 6 cores da sua marca + 2 sobras. Por isso existe
+    `--tempest-chart-count`: o `createTheme` escreve quantas cores o tema tem, e o
+    `resolveChartColors` para ali. Definindo tokens à mão, declare junto:
+
+    ```css
+    :root {
+      --tempest-chart-1: #0f766e;
+      --tempest-chart-2: #f97316;
+      --tempest-chart-count: 2;
+    }
+    ```
+
 Sobrescreva no seu CSS, ou gere com o factory de tema:
 
 ```tsx

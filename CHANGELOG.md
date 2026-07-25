@@ -6,6 +6,45 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **`createTheme` não entregava a sua cor de marca.** O degrau `500` era forçado na
+  lightness alvo da curva, então `primary: "#7c3aed"` voltava como `#9161fe` —
+  mesma matiz, mesma croma, **re-clareado**. A doc até afirmava
+  `theme.light["--tempest-primary-500"] // "#7c3aed"`, o que simplesmente não era
+  verdade. Agora a escala é **ancorada** no `500`: a lightness da marca é o ponto
+  fixo e as duas metades do ramp são reescaladas em volta dela, preservando a forma
+  da curva e a monotonicidade — inclusive para marca muito clara (amarelo) ou muito
+  escura (navy), que ganham um trecho mais curto do lado apertado. **Quem já gerou
+  tema na 0.25.0 verá as cores mudarem** (para a cor certa).
+- **Paleta de 6 cores virava 8 no gráfico.** `createTheme({ chart: [6 cores] })`
+  escrevia `--tempest-chart-1..6`, mas o `resolveChartColors` seguia lendo até o
+  `-8` e pegava os dois defaults embutidos do SDK — um gráfico com 7 séries saía
+  com paleta misturada, 6 da marca + 2 sobras. O factory agora escreve
+  `--tempest-chart-count` e o leitor para ali (clampado ao total de tokens
+  existentes; contagem malformada é ignorada). Descoberto **olhando** a section
+  nova do gallery: com o preset violeta, `chart-7`/`-8` continuavam laranja e teal.
+- **`<Wizard>` tinha string de UI cravada em inglês.** O sufixo `(optional)` do
+  passo opcional era hardcoded num SDK que tem i18n — no gallery em PT-BR aparecia
+  “Opcional (optional)”. Virou a prop `optionalLabel`.
+- **Gallery cortava demo largo no celular.** `.example` tem `overflow: hidden`, e
+  como item de grid não encolhe abaixo do conteúdo por default, uma tabela com
+  `min-width` empurrava a coluna e o conteúdo ficava **inalcançável** em 390px em
+  vez de rolar. `min-width: 0` nos filhos do `.example-body` devolve a rolagem pro
+  container do próprio demo — a mesma armadilha de flex/grid que a classe
+  `.tempest-fill` documenta.
+
+### Adicionado
+
+- **4 sections novas no gallery** (37 → 41) cobrindo tudo que a 0.25.0 publicou e
+  que não tinha demo: `createTheme` com troca de preset ao vivo + escala gerada +
+  contraste medido + tokens de série; vitrine do `utilities.css`; `TreeView` +
+  `Wizard`; `SignaturePad` + `Lightbox` + `AvatarGroup`. Efeito prático: essas
+  features passam a ser exercidas pelo smoke Playwright do gallery no CI, e dá pra
+  verificar pixel — foi assim que os quatro bugs acima apareceram.
+- **README ganhou a seção de rebranding** — o `createTheme` era a feature principal
+  da 0.25.0 e não tinha uma linha na vitrine que o npm renderiza.
+
+### Corrigido
+
 - **Outbox podia entregar fora de ordem.** `enqueuedAt` era `Date.now()` puro e é
   a chave de ordenação **tanto** do `listPending()` **quanto** do laço de entrega
   do `flush()`. Dois enqueues dentro do mesmo milissegundo — o normal num burst —

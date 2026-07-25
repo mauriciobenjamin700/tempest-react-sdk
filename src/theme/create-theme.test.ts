@@ -91,6 +91,15 @@ describe("createTheme", () => {
         expect(light["--tempest-chart-4"]).toBeUndefined();
     });
 
+    it("declares how many series colors the theme owns", () => {
+        const { light } = createTheme({ chart: ["#111111", "#222222", "#333333"] });
+        expect(light["--tempest-chart-count"]).toBe("3");
+    });
+
+    it("omits the count when no chart colors are given", () => {
+        expect(createTheme({ primary: "#0066ff" }).light["--tempest-chart-count"]).toBeUndefined();
+    });
+
     it("ignores an empty chart array", () => {
         expect(createTheme({ chart: [] }).light["--tempest-chart-1"]).toBeUndefined();
     });

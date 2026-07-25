@@ -214,7 +214,8 @@ export function oklchToHex(color: Oklch): string {
  */
 export function createColorScale(hex: string, mode: "light" | "dark" = "light"): ColorScale {
     const base = hexToOklch(hex);
-    const lightness = mode === "dark" ? DARK_LIGHTNESS : LIGHT_LIGHTNESS;
+    const targets = mode === "dark" ? DARK_LIGHTNESS : LIGHT_LIGHTNESS;
+    const lightness = anchorLightnessAt500(targets, base.l, mode);
     const scale = {} as ColorScale;
 
     for (const step of SCALE_STEPS) {
@@ -226,6 +227,56 @@ export function createColorScale(hex: string, mode: "light" | "dark" = "light"):
     }
 
     return scale;
+}
+
+/** Widest lightness band a generated ramp may span, so both ends stay usable. */
+const LIGHTNESS_CEILING = 0.985;
+const LIGHTNESS_FLOOR = 0.12;
+
+/**
+ * Re-anchor a lightness ramp so step `500` lands on the brand color exactly.
+ *
+ * Without this, `500` is forced onto the ramp's own target lightness: a brand
+ * `#7c3aed` came back as `#9161fe` — same hue, same chroma, *re-lightened*. It
+ * looks fine in isolation and is wrong anyway, because the one color a designer
+ * hands over is the one the buttons must actually be.
+ *
+ * Each half of the ramp is scaled independently around the anchor, so the shape
+ * of the original curve survives and the ramp stays monotonic even for a very
+ * light brand (yellow) or a very dark one (navy) — those simply get a shorter
+ * run on the crowded side.
+ *
+ * @param targets - The default per-step lightness for this scheme.
+ * @param anchor - Lightness of the brand color, used verbatim at step `500`.
+ * @param mode - `"dark"` inverts which side of the ramp is the light one.
+ */
+function anchorLightnessAt500(
+    targets: Record<ScaleStep, number>,
+    anchor: number,
+    mode: "light" | "dark",
+): Record<ScaleStep, number> {
+    const anchored = {} as Record<ScaleStep, number>;
+    const base = targets[500];
+    const lightEnd = mode === "dark" ? targets[900] : targets[50];
+    const darkEnd = mode === "dark" ? targets[50] : targets[900];
+
+    const top = Math.min(LIGHTNESS_CEILING, Math.max(lightEnd, anchor + 0.05));
+    const bottom = Math.max(LIGHTNESS_FLOOR, Math.min(darkEnd, anchor - 0.05));
+
+    for (const step of SCALE_STEPS) {
+        const target = targets[step];
+        if (target === base) {
+            anchored[step] = anchor;
+        } else if (target > base) {
+            const ratio = (target - base) / (lightEnd - base);
+            anchored[step] = anchor + ratio * (top - anchor);
+        } else {
+            const ratio = (base - target) / (base - darkEnd);
+            anchored[step] = anchor - ratio * (anchor - bottom);
+        }
+    }
+
+    return anchored;
 }
 
 /** WCAG 2.x relative luminance of a hex color. */

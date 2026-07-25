@@ -9,6 +9,7 @@ import {
     ToastProvider,
 } from "tempest-react-sdk";
 import "tempest-react-sdk/styles.css";
+import "tempest-react-sdk/utilities.css";
 import "./gallery.css";
 import { App } from "./App";
 

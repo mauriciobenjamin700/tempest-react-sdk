@@ -299,8 +299,21 @@ body {
     grid-template-columns: 1fr 1fr;
 }
 
+/**
+ * Grid and flex items refuse to shrink below their content by default, so a wide
+ * demo (a table with a min-width, a chart) pushed the column past the viewport
+ * and `.example`'s `overflow: hidden` then *clipped* it — the content became
+ * unreachable on a phone instead of scrolling. `min-width: 0` lets the column
+ * shrink so the demo's own scroll container (e.g. `.tempest-scroll-x`) can do its
+ * job.
+ */
+.example-body > * {
+    min-width: 0;
+}
+
 .example-demo {
     padding: var(--tempest-space-5);
+    min-width: 0;
     display: flex;
     flex-wrap: wrap;
     gap: var(--tempest-space-3);

@@ -283,6 +283,21 @@ in the lightened palette — with no prop on the chart at all.
 }
 ```
 
+!!! warning "A 6-color palette must not become 8"
+    If you define only `chart-1..6`, the reader would keep walking into the SDK's
+    built-in `--tempest-chart-7`/`-8` and a 7-series chart would come out with a
+    mixed palette — 6 brand colors plus 2 leftovers. That is what
+    `--tempest-chart-count` is for: `createTheme` writes how many colors the theme
+    owns and `resolveChartColors` stops there. Setting tokens by hand, declare it:
+
+    ```css
+    :root {
+      --tempest-chart-1: #0f766e;
+      --tempest-chart-2: #f97316;
+      --tempest-chart-count: 2;
+    }
+    ```
+
 Override them in your own CSS, or generate them with the theme factory:
 
 ```tsx

@@ -490,6 +490,7 @@ export function CadastroEmEtapas() {
 | `nextLabel`          | `string`                                      | `"Next"`   | Rótulo do botão de avanço.                                   |
 | `backLabel`          | `string`                                      | `"Back"`   | Rótulo do botão de voltar.                                   |
 | `finishLabel`        | `string`                                      | `"Finish"` | Rótulo no último passo.                                      |
+| `optionalLabel`      | `string`                                      | `"(optional)"` | Sufixo do passo opcional no indicador — troque para localizar.  |
 | `clickableSteps`     | `boolean`                                     | `false`    | Permite pular clicando no indicador.                         |
 | `renderActions`      | `(controls: WizardControls) => ReactNode`     | —          | Substitui a linha de botões padrão.                          |
 

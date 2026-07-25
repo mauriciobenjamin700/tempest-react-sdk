@@ -277,6 +277,11 @@ export function createTheme(options: CreateThemeOptions = {}): GeneratedTheme {
         chart.forEach((color, index) => {
             light[`--tempest-chart-${index + 1}`] = color;
         });
+        // Declares how many series colors this theme owns. Without it the reader
+        // keeps walking into the SDK's built-in `--tempest-chart-7`/`-8`, so a
+        // 6-color brand palette silently mixes with two leftover defaults — which
+        // is exactly what a 7-series chart would show.
+        light["--tempest-chart-count"] = String(chart.length);
     }
 
     if (radius) {

@@ -134,12 +134,12 @@ describe("useOfflineMutation — trigger, invalidate and no-cache mode", () => {
         const sync = fakeSync();
         const { result } = renderHook(
             () =>
-                useOfflineMutation<Note, { text: string }>({
+                useOfflineMutation<Note, Note[], Note>({
                     sync,
-                    toEntry: (vars) => ({
+                    toEntry: (note) => ({
                         op: "create",
-                        recordId: "n1",
-                        payload: { id: "n1", ...vars },
+                        recordId: note.id,
+                        payload: note,
                     }),
                     flush: "boot",
                 }),
@@ -147,7 +147,7 @@ describe("useOfflineMutation — trigger, invalidate and no-cache mode", () => {
         );
 
         await act(async () => {
-            await result.current.mutateAsync({ text: "x" });
+            await result.current.mutateAsync({ id: "n1", text: "x" });
         });
         expect(sync.flush).toHaveBeenCalledWith("boot");
     });
@@ -157,12 +157,12 @@ describe("useOfflineMutation — trigger, invalidate and no-cache mode", () => {
         const applyOptimistic = vi.fn();
         const { result } = renderHook(
             () =>
-                useOfflineMutation<Note, { text: string }>({
+                useOfflineMutation<Note, Note[], Note>({
                     sync,
-                    toEntry: (vars) => ({
+                    toEntry: (note) => ({
                         op: "create",
-                        recordId: "n1",
-                        payload: { id: "n1", ...vars },
+                        recordId: note.id,
+                        payload: note,
                     }),
                     applyOptimistic,
                 }),
@@ -170,7 +170,7 @@ describe("useOfflineMutation — trigger, invalidate and no-cache mode", () => {
         );
 
         await act(async () => {
-            await result.current.mutateAsync({ text: "x" });
+            await result.current.mutateAsync({ id: "n1", text: "x" });
         });
         expect(applyOptimistic).not.toHaveBeenCalled();
     });
@@ -181,13 +181,13 @@ describe("useOfflineMutation — trigger, invalidate and no-cache mode", () => {
         const sync = fakeSync();
         const { result } = renderHook(
             () =>
-                useOfflineMutation<Note, { text: string }>({
+                useOfflineMutation<Note, Note[], Note>({
                     sync,
                     queryKey: ["notes"],
-                    toEntry: (vars) => ({
+                    toEntry: (note) => ({
                         op: "create",
-                        recordId: "n1",
-                        payload: { id: "n1", ...vars },
+                        recordId: note.id,
+                        payload: note,
                     }),
                     invalidate: true,
                 }),
@@ -199,7 +199,7 @@ describe("useOfflineMutation — trigger, invalidate and no-cache mode", () => {
         );
 
         await act(async () => {
-            await result.current.mutateAsync({ text: "x" });
+            await result.current.mutateAsync({ id: "n1", text: "x" });
         });
         await waitFor(() =>
             expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["notes"] }),

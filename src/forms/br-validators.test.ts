@@ -57,3 +57,17 @@ describe("check-digit branches", () => {
         expect(validateCNPJ("11.222.333/0001-82")).toBe(false);
     });
 });
+
+describe("validateCNPJ — check-digit wrap to zero", () => {
+    it("accepts a CNPJ whose first check digit wraps to 0 (remainder < 2)", () => {
+        expect(validateCNPJ("09.005.474/9952-08")).toBe(true);
+    });
+
+    it("accepts a CNPJ whose second check digit wraps to 0", () => {
+        expect(validateCNPJ("04.661.099/0695-90")).toBe(true);
+    });
+
+    it("rejects the same CNPJ with a tampered first digit", () => {
+        expect(validateCNPJ("09.005.474/9952-18")).toBe(false);
+    });
+});

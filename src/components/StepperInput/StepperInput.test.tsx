@@ -62,3 +62,17 @@ describe("StepperInput — disabled", () => {
         expect(onChange).not.toHaveBeenCalled();
     });
 });
+
+describe("StepperInput — label branch", () => {
+    it("renders a label when given and none otherwise", () => {
+        const { container, unmount } = render(
+            <StepperInput value={1} onChange={vi.fn()} label="Quantidade" />,
+        );
+        expect(screen.getByText("Quantidade")).toBeInTheDocument();
+        unmount();
+
+        const { container: bare } = render(<StepperInput value={1} onChange={vi.fn()} />);
+        expect(bare.querySelector("label")).toBeNull();
+        expect(container).toBeDefined();
+    });
+});

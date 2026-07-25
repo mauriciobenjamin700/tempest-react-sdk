@@ -163,3 +163,21 @@ describe("Calendar — keyboard grid navigation", () => {
         expect(target).toHaveAttribute("aria-pressed", "true");
     });
 });
+
+describe("Calendar — visible month resolution", () => {
+    it("derives the visible month from value when month is absent", () => {
+        render(<Calendar value={new Date(2026, 7, 15)} />);
+        expect(screen.getByText(/August/i)).toBeInTheDocument();
+    });
+
+    it("derives the visible month from defaultValue", () => {
+        render(<Calendar defaultValue={new Date(2026, 10, 3)} />);
+        expect(screen.getByText(/November/i)).toBeInTheDocument();
+    });
+
+    it("falls back to today with no month, value or defaultValue", () => {
+        render(<Calendar />);
+        const monthName = new Date().toLocaleDateString("en-US", { month: "long" });
+        expect(screen.getByText(new RegExp(monthName, "i"))).toBeInTheDocument();
+    });
+});

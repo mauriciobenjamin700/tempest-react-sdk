@@ -2014,14 +2014,14 @@ O catálogo foi dividido por categoria para facilitar navegação. Cada arquivo 
 - **[Navegação](./components/navigation.md)** — Navbar, Sidebar, NavigationRail, BottomNavigation, Tabs, Stepper, Breadcrumbs, Pagination, SegmentedControl
 - **[Overlay](./components/overlay.md)** — Modal, Drawer, BottomSheet
 - **[Layout](./components/layout.md)** — AppShell, Page, Container, Stack, Grid, Divider, Spacer, Center, AspectRatio, SafeArea, Show, Hide
-- **[Dados](./components/data.md)** — Table, VirtualList, ListTile, Accordion, Timeline
+- **[Dados](./components/data.md)** — Table, VirtualList, ListTile, Accordion, Timeline, TreeView
 - **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, Spinner, Skeleton, RefreshIndicator, Toast, EmptyState, ErrorState
 - **[Entrada de dados](./components/inputs.md)** — Input, Textarea, Select, Combobox, Checkbox, Radio, Switch, ChipInput, SearchBar, DatePicker, FileUpload, Dropzone, RangeSlider, RatingStars, PinInput, PasswordInput, StepperInput, Form\*
 - **[Ação](./components/actions.md)** — Button, Tooltip, DropdownMenu, Popover, ConfirmDialog
 - **[Navegação](./components/navigation.md)** — Navbar, Sidebar, BottomNavigation, Tabs, Stepper, Breadcrumbs, Pagination, SegmentedControl
 - **[Overlay](./components/overlay.md)** — Modal, Drawer, BottomSheet, ModalsManager
 - **[Layout](./components/layout.md)** — AppShell, Page, Container, Stack, Grid, Divider, Spacer, Center, AspectRatio, SafeArea, Show, Hide
-- **[Dados](./components/data.md)** — Table, VirtualList, Accordion, Timeline
+- **[Dados](./components/data.md)** — Table, VirtualList, Accordion, Timeline, TreeView
 - **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, NProgress, Spinner, Skeleton, Toast, EmptyState, ErrorState
 - **[Identidade & micro](./components/identity.md)** — Avatar, Card, Kbd
 
@@ -2736,6 +2736,93 @@ const columns: DataTableColumn<User>[] = [
 !!! info "Comportamento"
     Clicar um cabeçalho ordenável cicla asc → desc → sem ordenação. A busca combina substring case-insensitive nas `searchKeys` (ou em toda coluna string/number quando omitidas). A paginação some quando o resultado cabe em uma única página.
 
+### `Wizard`
+
+Fluxo multi-passo: indicador, um corpo por vez e navegação que respeita **validação por passo**. O `Stepper` desenha o indicador; o `Wizard` é dono do que todo app reescrevia — índice ativo, gate assíncrono antes de avançar, botões desabilitados/pendentes e a chamada de conclusão.
+
+```tsx
+import { Button, FormActions, FormField, Input, Wizard, useZodForm } from "tempest-react-sdk";
+import { FormProvider } from "react-hook-form";
+import { z } from "zod";
+
+const schema = z.object({
+  nome: z.string().min(2, "Informe o nome"),
+  email: z.string().email("E-mail inválido"),
+  cep: z.string().min(9, "CEP incompleto"),
+});
+
+export function CadastroEmEtapas() {
+  const form = useZodForm(schema, { defaultValues: { nome: "", email: "", cep: "" } });
+
+  return (
+    <FormProvider {...form}>
+      <Wizard
+        nextLabel="Avançar"
+        backLabel="Voltar"
+        finishLabel="Concluir"
+        onComplete={form.handleSubmit((values) => console.log(values))}
+        steps={[
+          {
+            id: "dados",
+            label: "Dados",
+            description: "Quem é o cliente",
+            validate: () => form.trigger(["nome", "email"]),
+            content: (
+              <>
+                <FormField name="nome" label="Nome" required><Input /></FormField>
+                <FormField name="email" label="E-mail" required><Input type="email" /></FormField>
+              </>
+            ),
+          },
+          {
+            id: "endereco",
+            label: "Endereço",
+            validate: () => form.trigger(["cep"]),
+            content: <FormField name="cep" label="CEP" required><Input /></FormField>,
+          },
+          {
+            id: "revisao",
+            label: "Revisão",
+            content: ({ back }) => (
+              <>
+                <pre>{JSON.stringify(form.getValues(), null, 2)}</pre>
+                <Button variant="ghost" onClick={back}>Corrigir</Button>
+              </>
+            ),
+          },
+        ]}
+      />
+    </FormProvider>
+  );
+}
+```
+
+| Prop                 | Tipo                                          | Default    | Descrição                                                    |
+| -------------------- | --------------------------------------------- | ---------- | ------------------------------------------------------------ |
+| `steps`              | `WizardStep[]`                                | —          | Passos do fluxo.                                             |
+| `activeIndex`        | `number`                                      | —          | Índice controlado.                                           |
+| `defaultActiveIndex` | `number`                                      | `0`        | Índice inicial (não controlado).                             |
+| `onStepChange`       | `(index, step) => void`                       | —          | Chamado a cada troca de passo.                               |
+| `onComplete`         | `() => void \| Promise<void>`                 | —          | Chamado quando o último passo passa na validação.            |
+| `nextLabel`          | `string`                                      | `"Next"`   | Rótulo do botão de avanço.                                   |
+| `backLabel`          | `string`                                      | `"Back"`   | Rótulo do botão de voltar.                                   |
+| `finishLabel`        | `string`                                      | `"Finish"` | Rótulo no último passo.                                      |
+| `clickableSteps`     | `boolean`                                     | `false`    | Permite pular clicando no indicador.                         |
+| `renderActions`      | `(controls: WizardControls) => ReactNode`     | —          | Substitui a linha de botões padrão.                          |
+
+`WizardStep = { id, label, description?, content, validate?, optional? }` — `content` aceita `ReactNode` **ou** função que recebe os controles.
+
+`WizardControls = { activeIndex, step, validating, isFirst, isLast, next, back, goTo }`.
+
+!!! warning "Só o passo ativo está montado"
+    Input não commitado em um passo que você abandona **se perde**, a menos que o estado viva fora (o `FormProvider` do react-hook-form, uma store, um `useState` do pai) — que é onde ele deveria estar de todo jeito, já que o último passo normalmente submete tudo de uma vez.
+
+!!! tip "`validate` assíncrono já vem com estado de pendência"
+    Enquanto a promise corre, o botão de avanço fica em `loading` e o de voltar desabilitado. Um `validate` que **lança** conta como "não permitido": um gate ligado a checagem de rede não deve deixar o usuário num fluxo meio-avançado quando a requisição falha.
+
+!!! note "`clickableSteps` é `false` de propósito"
+    Um wizard existe porque a **ordem importa**. Com `clickableSteps`, pular pra trás é livre (voltar nunca bloqueia), mas pular pra frente valida **cada passo atravessado** — o primeiro gate que reprovar interrompe o salto ali.
+
 ## Recap
 
 - **Essenciais**: `Toggle`/`ToggleGroup` para estados pressionáveis, `Label` para formulários, `Collapsible` para um bloco expansível, `ContextMenu`/`HoverCard` para overlays disparados por interação e `Command` para a paleta ⌘K.
@@ -2965,6 +3052,69 @@ Feed vertical com markers coloridos. Renderiza como `<ol>` semântica (cada item
 
 `TimelineItem = { id, title, description?, meta?, icon?, marker?: "primary" \| "success" \| "warning" \| "danger" \| "neutral" }`.
 
+## `TreeView`
+
+> **Quando usar**: dados **hierárquicos** — árvore de categorias, permissões por módulo, pastas, organograma. Quando o dado é uma lista plana, `Table` ou `ListTile` servem melhor.
+
+Implementa `role="tree"` com **roving tabindex**: uma única linha é tabulável e as setas movem o foco dentro do widget. É isso que evita uma árvore de 500 nós adicionar 500 paradas na ordem de tabulação da página.
+
+```tsx
+import { TreeView, type TreeNode } from "tempest-react-sdk";
+
+const permissoes: TreeNode[] = [
+  {
+    id: "vendas",
+    label: "Vendas",
+    children: [
+      { id: "vendas.ler", label: "Visualizar" },
+      { id: "vendas.editar", label: "Editar" },
+      { id: "vendas.excluir", label: "Excluir", disabled: true },
+    ],
+  },
+  { id: "config", label: "Configurações", children: [] },
+  { id: "sobre", label: "Sobre" },
+];
+
+export function PermissoesDoPapel() {
+  const [selecionado, setSelecionado] = useState<string | null>(null);
+
+  return (
+    <TreeView
+      label="Permissões"
+      nodes={permissoes}
+      defaultExpandedIds={["vendas"]}
+      selectedId={selecionado}
+      onSelect={(node) => setSelecionado(node.id)}
+    />
+  );
+}
+```
+
+| Prop                 | Tipo                        | Default | O que faz                                                          |
+| -------------------- | --------------------------- | ------- | ------------------------------------------------------------------ |
+| `nodes`              | `TreeNode[]`                | —       | Nós raiz.                                                          |
+| `expandedIds`        | `string[]`                  | —       | Expansão controlada.                                               |
+| `defaultExpandedIds` | `string[]`                  | `[]`    | Expansão inicial (não controlada).                                 |
+| `onExpandedChange`   | `(ids: string[]) => void`   | —       | Chamado a cada expandir/colapsar.                                  |
+| `selectedId`         | `string \| null`            | —       | Seleção controlada.                                                |
+| `defaultSelectedId`  | `string \| null`            | `null`  | Seleção inicial.                                                   |
+| `onSelect`           | `(node: TreeNode) => void`  | —       | Chamado ao selecionar (clique, `Enter` ou `Espaço`).                |
+| `toggleOnSelect`     | `boolean`                   | `true`  | Selecionar um galho também o expande/colapsa.                      |
+| `label`              | `string`                    | —       | Nome acessível da árvore.                                          |
+
+`TreeNode = { id, label, children?, icon?, disabled? }`.
+
+**Teclado**: `↓`/`↑` movem · `→` expande (ou desce pro primeiro filho) · `←` colapsa (ou sobe pro pai) · `Home`/`End` primeira/última linha visível · `Enter`/`Espaço` selecionam.
+
+!!! tip "`children: []` é um galho vazio, não uma folha"
+    A distinção importa: uma pasta vazia deve mostrar o chevron e anunciar `aria-expanded`. Folha é `children` **ausente**.
+
+!!! note "`toggleOnSelect={false}` quando o galho é uma escolha válida"
+    O default (`true`) imita explorador de arquivos: clicar na pasta abre a pasta. Passe `false` quando o galho em si é selecionável — uma categoria que também é destino, por exemplo.
+
+!!! info "O chevron não é um botão"
+    Ele é decoração (`aria-hidden`): a linha já carrega `aria-expanded`, então um segundo controle focável ali só adicionaria ruído no leitor de tela, duplicando uma ação que o teclado já tem. Clique nele funciona (com o evento parado, então expande sem selecionar).
+
 ## Resumo
 
 | Componente    | Use para                                    | Volume típico      |
@@ -2974,6 +3124,7 @@ Feed vertical com markers coloridos. Renderiza como `<ol>` semântica (cada item
 | `ListTile`    | Linha de lista (ícone + título + ação)      | qualquer           |
 | `Accordion`   | Seções expansíveis sob demanda (FAQ, steps) | poucas seções      |
 | `Timeline`    | Sequência de eventos no tempo               | qualquer           |
+| `TreeView`    | Hierarquia navegável (categorias, permissões) | dezenas a centenas |
 
 Pontos-chave de acessibilidade:
 
@@ -2981,6 +3132,7 @@ Pontos-chave de acessibilidade:
 - `VirtualList`: itens fora da viewport não são renderizados — `Ctrl+F` só acha o visível.
 - `Accordion`: ↑↓ trocam o item focado, Home/End pulam pro primeiro/último.
 - `Timeline`: ordem semântica via `<ol>`; cada item é `<li>`.
+- `TreeView`: `role="tree"` + roving tabindex (uma parada de tab só); `aria-level` reporta a profundidade e nós desabilitados são pulados na navegação.
 
 Relacionados: [identity](./identity.md) (`Card flush` para hospedar a `Table`) · [feedback](./feedback.md) (`Badge` dentro de células) · [actions](./actions.md) (botões de linha).
 

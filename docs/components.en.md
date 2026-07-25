@@ -15,7 +15,7 @@ props, examples, and accessibility notes.
 - **[Navigation](./components/navigation.md)** — Navbar, Sidebar, NavigationRail, BottomNavigation, Tabs, Stepper, Breadcrumbs, Pagination, SegmentedControl
 - **[Overlay](./components/overlay.md)** — Modal, Drawer, BottomSheet
 - **[Layout](./components/layout.md)** — AppShell, Page, Container, Stack, Grid, Divider, Spacer, Center, AspectRatio, SafeArea, Show, Hide
-- **[Data](./components/data.md)** — Table, VirtualList, ListTile, Accordion, Timeline
+- **[Data](./components/data.md)** — Table, VirtualList, ListTile, Accordion, Timeline, TreeView
 - **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, Spinner, Skeleton, RefreshIndicator, Toast, EmptyState, ErrorState
 - **[Data entry](./components/inputs.md)** — Input, Textarea, Select, Combobox, Checkbox, Radio, Switch, ChipInput, SearchBar, DatePicker, FileUpload, Dropzone, RangeSlider, RatingStars, PinInput, PasswordInput, StepperInput, Form\*
 - **[Actions](./components/actions.md)** — Button, Tooltip, DropdownMenu, Popover, ConfirmDialog

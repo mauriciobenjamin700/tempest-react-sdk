@@ -36,6 +36,7 @@ Done. Everything below is already available in your application.
 - [Density — `data-tempest-density`](#density-data-tempest-density)
 - [Dark theme — `data-tempest-theme`](#dark-theme-data-tempest-theme)
 - [Components — available variants](#components-available-variants)
+- [Opt-in utility layer — `utilities.css`](#opt-in-utility-layer-utilitiescss)
 
 ---
 
@@ -440,6 +441,120 @@ module.exports = {
   },
 };
 ```
+
+---
+
+## Opt-in utility layer — `utilities.css`
+
+Components are styled with CSS Modules, which solves the **inside** of them. What was left for the app was the **around**: the page shell, a two-column form, a row of actions, a card, a region that scrolls sideways. Every app rewrote that CSS.
+
+`utilities.css` is that layer, written only in `--tempest-*` tokens — so it follows the theme, including whatever `createTheme` emits and dark mode.
+
+```ts
+// src/main.tsx
+import "tempest-react-sdk/styles.css";
+import "tempest-react-sdk/utilities.css"; // opt-in
+```
+
+!!! info "Why opt-in and not part of `styles.css`"
+    It ships ~50 **global** class names. An app that already has its own layout system should not pay for them, and injecting global classes into someone's page uninvited is rude. Cost if you opt in: **1.13 KB brotli**.
+
+!!! warning "This is not a Tailwind, and it is not becoming one"
+    The layer holds a handful of layout primitives — there is no (and no plan for) `p-4 mt-2 text-sm bg-blue-500` for every possible value. The [consolidated decision](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/CLAUDE.md) still holds: **CSS Modules + tokens is the components' styling strategy**. This is a tool for the *app's* code, not a second way to style the SDK.
+
+### Layout
+
+| Class                     | What it does                                                              | Tune with                                          |
+| ------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------- |
+| `.tempest-container`      | Centers, caps the width, applies gutters that respect the safe area        | `--tempest-container-width`, `--tempest-container-gutter` |
+| `.tempest-stack`          | Vertical flow with a single gap                                           | `--tempest-stack-gap`                              |
+| `.tempest-cluster`        | Horizontal group that **wraps** instead of overflowing                     | `--tempest-cluster-gap`                            |
+| `.tempest-row`            | Horizontal group that does not wrap (toolbars, inline fields)              | `--tempest-row-gap`                                |
+| `.tempest-center`         | Centers the child on both axes                                            | —                                                  |
+| `.tempest-spread`         | Pushes first and last child apart (title ↔ actions)                        | `--tempest-row-gap`                                |
+| `.tempest-grid-auto`      | Responsive card grid with **no media query** (`auto-fill` + `minmax`)      | `--tempest-grid-min`, `--tempest-grid-gap`         |
+| `.tempest-sidebar-layout` | Sidebar + content; collapses to one column below 768px                    | `--tempest-sidebar-width`, `--tempest-sidebar-gap` |
+| `.tempest-form-grid`      | Two-column form that collapses below 640px                                | `--tempest-form-columns`, `--tempest-form-gap`     |
+| `.tempest-form-span`      | Field taking the full row of the form grid                                | —                                                  |
+| `.tempest-fill`           | Takes the remaining flex space (with `min-width: 0`, so truncation works)  | —                                                  |
+| `.tempest-fixed`          | Never shrinks below its content (an icon button next to a growing field)   | —                                                  |
+
+### Spacing, text, surfaces, scrolling
+
+| Group      | Classes                                                                                       |
+| ---------- | --------------------------------------------------------------------------------------------- |
+| Gap        | `.tempest-gap-{0,1,2,3,4,5,6,8,10,12}`                                                        |
+| Padding    | `.tempest-pad-{0,2,3,4,6,8}`, `.tempest-pad-block`, `.tempest-pad-inline`                      |
+| Text       | `.tempest-truncate`, `.tempest-clamp-{2,3,4}`, `.tempest-text-{muted,subtle}`, `.tempest-text-{xs,sm,base,lg,xl,2xl}`, `.tempest-weight-{medium,semibold,bold}`, `.tempest-numeric` |
+| Surfaces   | `.tempest-card`, `.tempest-panel`, `.tempest-inset`, `.tempest-divider`                        |
+| Scrolling  | `.tempest-scroll-x`, `.tempest-scroll-y`                                                       |
+| Media      | `.tempest-aspect-video`, `.tempest-aspect-square`                                              |
+| Misc       | `.tempest-visually-hidden`, `.tempest-no-select`, `.tempest-busy`                               |
+
+!!! tip "`.tempest-numeric` exists for one specific reason"
+    `font-variant-numeric: tabular-nums` stops a column of numbers from **dancing** as values change (proportional digits have different widths). Use it on value tables, live counters and `Stat`.
+
+!!! tip "`.tempest-scroll-x` around a wide table"
+    Without it, a wide table makes the **page** scroll horizontally — the most common mobile layout defect there is. With it, the scrolling stays inside the region.
+
+### A whole page, assembled
+
+```tsx
+export function UsersPage() {
+  return (
+    <div className="tempest-container tempest-page">
+      <header className="tempest-page-header">
+        <div>
+          <h1 className="tempest-page-title">Users</h1>
+          <p className="tempest-page-subtitle">142 active · 8 pending invites</p>
+        </div>
+        <div className="tempest-cluster">
+          <Button variant="secondary">Export</Button>
+          <Button>Invite</Button>
+        </div>
+      </header>
+
+      <div className="tempest-toolbar tempest-toolbar-sticky">
+        <SearchBar className="tempest-fill" placeholder="Search by name or email" />
+        <Select className="tempest-fixed" options={roles} />
+      </div>
+
+      <div className="tempest-card tempest-scroll-x">
+        <DataTable data={users} columns={columns} />
+      </div>
+
+      <div className="tempest-grid-auto" style={{ "--tempest-grid-min": "220px" } as React.CSSProperties}>
+        <Stat label="Active" value={142} />
+        <Stat label="Invited" value={8} />
+        <Stat label="Blocked" value={3} />
+      </div>
+    </div>
+  );
+}
+```
+
+Note the `style={{ "--tempest-grid-min": "220px" }}`: the local hooks are custom properties, so you tune **per instance** without writing CSS or inventing a class variant.
+
+### Two-column form
+
+```tsx
+<Form className="tempest-form-grid" onSubmit={form.handleSubmit(onSubmit)}>
+  <FormField name="name" label="Name" required><Input /></FormField>
+  <FormField name="email" label="Email" required><Input type="email" /></FormField>
+  <FormField name="cpf" label="CPF"><CPFInput /></FormField>
+  <FormField name="phone" label="Phone"><PhoneInput /></FormField>
+
+  <FormField name="notes" label="Notes" className="tempest-form-span">
+    <Textarea rows={4} />
+  </FormField>
+
+  <FormActions align="end" className="tempest-form-span">
+    <Button type="submit">Save</Button>
+  </FormActions>
+</Form>
+```
+
+One column on a phone, two from 640px up, and `.tempest-form-span` for whatever takes the full row.
 
 ---
 

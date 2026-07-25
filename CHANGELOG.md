@@ -4,6 +4,39 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`tempest-react-sdk/utilities.css` — camada de layout opt-in.** Os CSS Modules
+  resolvem o **dentro** de cada componente; o que sobrava pro app era o **em
+  volta** — casca de página, form de duas colunas, linha de ações, card, região
+  que rola na horizontal. Todo app reescrevia esse CSS. Agora são ~50 classes
+  prefixadas `tempest-`, escritas **só com tokens** `--tempest-*` (nenhuma cor
+  literal, nenhum número mágico), então a camada acompanha o tema e o modo escuro.
+  Primitivas: `container`, `stack`, `cluster`, `row`, `center`, `spread`,
+  `grid-auto` (responsivo **sem media query**), `sidebar-layout`, `form-grid` +
+  `form-span`, `fill`/`fixed`, escala de `gap`/`pad`, `truncate`/`clamp-2..4`,
+  `card`/`panel`/`inset`/`divider`, `scroll-x`/`scroll-y`, `page` +
+  `page-header`/`page-title`/`toolbar`, `aspect-video`/`aspect-square`,
+  `visually-hidden`, `numeric` (tabular-nums), `busy`.
+- **Ajuste por instância via custom property**, não por variante de classe:
+  `--tempest-grid-min`, `--tempest-stack-gap`, `--tempest-sidebar-width`,
+  `--tempest-container-width`, `--tempest-form-columns` etc. — `style={{
+"--tempest-grid-min": "220px" }}` resolve sem escrever CSS.
+- **Novo subpath `./utilities.css`** e um passo de build (`scripts/copy-css-assets.mjs`)
+  que copia o arquivo pra `dist/` **sem** passar pelo grafo de módulos: o
+  `cssCodeSplit: false` do Vite juntaria a camada dentro do `styles.css`, e ela
+  precisa continuar separada pra ser de fato opt-in. Budget próprio no
+  `size-limit`: **1.13 KB brotli** (limite 3 KB).
+
+Fica **opt-in de propósito**: são nomes de classe globais, e um app que já tem
+sistema de layout próprio não deve pagar por eles. E não é um Tailwind — a decisão
+"CSS Modules + tokens é a estratégia de estilo dos componentes" segue de pé; isto
+é ferramenta pro código do app, não um segundo caminho de estilizar o SDK.
+
+Um teste de contrato guarda essas promessas (prefixo em toda classe, zero cor
+literal, zero `!important`, só tokens `--tempest-*` referenciados, fora do
+`index.css` e presente no `exports`) — sem ele a camada apodrece em silêncio.
+
 ## [0.24.0] — 2026-07-25
 
 ### Adicionado

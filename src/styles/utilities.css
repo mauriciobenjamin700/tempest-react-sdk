@@ -1,0 +1,432 @@
+/* ============================================================
+ * tempest-react-sdk/utilities.css — opt-in app-level layout layer
+ *
+ * NOT imported by `styles.css`. Import it explicitly when you want it:
+ *
+ *   import "tempest-react-sdk/styles.css";
+ *   import "tempest-react-sdk/utilities.css";
+ *
+ * Why it exists: the components are styled by CSS Modules, which means an app
+ * still had to hand-write CSS for the layer *around* them — a page shell, a
+ * two-column form, a row of actions, a card. This is that layer, expressed only
+ * in `--tempest-*` tokens, so it stays in step with the theme (including
+ * `createTheme` output and dark mode).
+ *
+ * Why it is opt-in: it ships ~50 global class names. An app that already has its
+ * own layout system should not pay for them, and global classes are not something
+ * to inject into someone's page uninvited.
+ *
+ * Scope rules:
+ *   - Every class is prefixed `tempest-` (no collisions with app CSS).
+ *   - Every value comes from a token — no literal colors, no magic numbers.
+ *   - Tunable per instance through the local `--tempest-*` vars documented below.
+ *   - Single class, no forced overrides, so your own CSS wins on a specificity
+ *     tie instead of fighting the layer.
+ * ============================================================ */
+
+/* ============================================================
+ * Layout — the primitives every screen repeats
+ * ============================================================ */
+
+/**
+ * Page container: centered, max-width, gutters that respect the safe area.
+ * Tune with `--tempest-container-width` and `--tempest-container-gutter`.
+ */
+.tempest-container {
+    width: 100%;
+    max-width: var(--tempest-container-width, 1200px);
+    margin-inline: auto;
+    padding-inline: max(
+        var(--tempest-container-gutter, var(--tempest-space-4)),
+        var(--tempest-safe-area-left)
+    );
+}
+
+/** Vertical flow with a single gap. Tune with `--tempest-stack-gap`. */
+.tempest-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-stack-gap, var(--tempest-space-4));
+}
+
+/** Horizontal group that wraps instead of overflowing. Tune with `--tempest-cluster-gap`. */
+.tempest-cluster {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tempest-cluster-gap, var(--tempest-space-3));
+}
+
+/** Horizontal group that does not wrap — toolbars, inline fields. */
+.tempest-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--tempest-row-gap, var(--tempest-space-3));
+}
+
+/** Center a child both ways. */
+.tempest-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/** Push the first and last child apart (title on the left, actions on the right). */
+.tempest-spread {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--tempest-row-gap, var(--tempest-space-3));
+}
+
+/**
+ * Responsive card grid with no media query: columns fit as many as
+ * `--tempest-grid-min` allows.
+ */
+.tempest-grid-auto {
+    display: grid;
+    gap: var(--tempest-grid-gap, var(--tempest-space-4));
+    grid-template-columns: repeat(
+        auto-fill,
+        minmax(min(var(--tempest-grid-min, 260px), 100%), 1fr)
+    );
+}
+
+/**
+ * Sidebar + content. Collapses to one column below `--tempest-bp-md` because a
+ * fixed sidebar is unusable on a phone.
+ */
+.tempest-sidebar-layout {
+    display: grid;
+    gap: var(--tempest-sidebar-gap, var(--tempest-space-6));
+    grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+    .tempest-sidebar-layout {
+        grid-template-columns: var(--tempest-sidebar-width, 260px) 1fr;
+        align-items: start;
+    }
+}
+
+/**
+ * Two-column form grid that collapses on small screens. A field spanning the
+ * full row takes `.tempest-form-span`.
+ */
+.tempest-form-grid {
+    display: grid;
+    gap: var(--tempest-form-gap, var(--tempest-space-4));
+    grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+    .tempest-form-grid {
+        grid-template-columns: repeat(var(--tempest-form-columns, 2), minmax(0, 1fr));
+    }
+}
+
+.tempest-form-span {
+    grid-column: 1 / -1;
+}
+
+/** Take the remaining space in a flex container. */
+.tempest-fill {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/** Never shrink below content size (icon buttons next to a growing field). */
+.tempest-fixed {
+    flex: 0 0 auto;
+}
+
+/* ============================================================
+ * Spacing — gap and padding on the token scale
+ * ============================================================ */
+
+.tempest-gap-0 {
+    gap: var(--tempest-space-0);
+}
+.tempest-gap-1 {
+    gap: var(--tempest-space-1);
+}
+.tempest-gap-2 {
+    gap: var(--tempest-space-2);
+}
+.tempest-gap-3 {
+    gap: var(--tempest-space-3);
+}
+.tempest-gap-4 {
+    gap: var(--tempest-space-4);
+}
+.tempest-gap-5 {
+    gap: var(--tempest-space-5);
+}
+.tempest-gap-6 {
+    gap: var(--tempest-space-6);
+}
+.tempest-gap-8 {
+    gap: var(--tempest-space-8);
+}
+.tempest-gap-10 {
+    gap: var(--tempest-space-10);
+}
+.tempest-gap-12 {
+    gap: var(--tempest-space-12);
+}
+
+.tempest-pad-0 {
+    padding: var(--tempest-space-0);
+}
+.tempest-pad-2 {
+    padding: var(--tempest-space-2);
+}
+.tempest-pad-3 {
+    padding: var(--tempest-space-3);
+}
+.tempest-pad-4 {
+    padding: var(--tempest-space-4);
+}
+.tempest-pad-6 {
+    padding: var(--tempest-space-6);
+}
+.tempest-pad-8 {
+    padding: var(--tempest-space-8);
+}
+
+.tempest-pad-block {
+    padding-block: var(--tempest-pad-block, var(--tempest-space-6));
+}
+
+.tempest-pad-inline {
+    padding-inline: var(--tempest-pad-inline, var(--tempest-space-4));
+}
+
+/* ============================================================
+ * Text — the handful of treatments every screen needs
+ * ============================================================ */
+
+/** One line, ellipsis. Needs a bounded width (pair with `.tempest-fill`). */
+.tempest-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/** Clamp to N lines with an ellipsis. */
+.tempest-clamp-2,
+.tempest-clamp-3,
+.tempest-clamp-4 {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.tempest-clamp-2 {
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+}
+
+.tempest-clamp-3 {
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+}
+
+.tempest-clamp-4 {
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+}
+
+.tempest-text-muted {
+    color: var(--tempest-text-muted);
+}
+
+.tempest-text-subtle {
+    color: var(--tempest-text-subtle);
+}
+
+.tempest-text-xs {
+    font-size: var(--tempest-text-xs);
+}
+.tempest-text-sm {
+    font-size: var(--tempest-text-sm);
+}
+.tempest-text-base {
+    font-size: var(--tempest-text-base);
+}
+.tempest-text-lg {
+    font-size: var(--tempest-text-lg);
+}
+.tempest-text-xl {
+    font-size: var(--tempest-text-xl);
+}
+.tempest-text-2xl {
+    font-size: var(--tempest-text-2xl);
+}
+
+.tempest-weight-medium {
+    font-weight: var(--tempest-weight-medium);
+}
+.tempest-weight-semibold {
+    font-weight: var(--tempest-weight-semibold);
+}
+.tempest-weight-bold {
+    font-weight: var(--tempest-weight-bold);
+}
+
+/** Tabular figures — keeps columns of numbers from dancing as values change. */
+.tempest-numeric {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+}
+
+/* ============================================================
+ * Surfaces — card, panel, divider
+ * ============================================================ */
+
+/** Raised surface: background, border, radius, shadow. */
+.tempest-card {
+    background: var(--tempest-bg);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-lg);
+    box-shadow: var(--tempest-shadow-sm);
+    padding: var(--tempest-card-padding, var(--tempest-space-5));
+}
+
+/** Flat surface: same shape, no shadow — for a section inside a card. */
+.tempest-panel {
+    background: var(--tempest-surface);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-md);
+    padding: var(--tempest-panel-padding, var(--tempest-space-4));
+}
+
+/** Inset surface for code samples, empty states, previews. */
+.tempest-inset {
+    background: var(--tempest-surface-2);
+    border-radius: var(--tempest-radius-md);
+    padding: var(--tempest-space-4);
+}
+
+.tempest-divider {
+    border: 0;
+    border-top: 1px solid var(--tempest-border);
+    margin-block: var(--tempest-space-4);
+}
+
+/* ============================================================
+ * Scrolling — bounded regions that do not blow up the page
+ * ============================================================ */
+
+/**
+ * Horizontal scroll region. Wide content (a table, a chart) scrolls *here*
+ * instead of making the whole page scroll sideways.
+ */
+.tempest-scroll-x {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+.tempest-scroll-y {
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ============================================================
+ * Page pattern — the shell every screen shares
+ * ============================================================ */
+
+.tempest-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-page-gap, var(--tempest-space-6));
+    padding-block: var(--tempest-space-6);
+}
+
+/** Title on the left, actions on the right; stacks on narrow screens. */
+.tempest-page-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--tempest-space-3);
+}
+
+.tempest-page-title {
+    margin: 0;
+    font-size: var(--tempest-text-fluid-2xl);
+    font-weight: var(--tempest-weight-semibold);
+    line-height: var(--tempest-leading-tight);
+    color: var(--tempest-text);
+}
+
+.tempest-page-subtitle {
+    margin: 0;
+    font-size: var(--tempest-text-sm);
+    color: var(--tempest-text-muted);
+}
+
+/** Sticky filter/action bar above a list. */
+.tempest-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tempest-space-3);
+    padding: var(--tempest-space-3);
+    background: var(--tempest-bg);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-md);
+}
+
+.tempest-toolbar-sticky {
+    position: sticky;
+    top: var(--tempest-toolbar-top, 0);
+    z-index: var(--tempest-z-sticky);
+}
+
+/* ============================================================
+ * Media — fixed ratios without layout shift
+ * ============================================================ */
+
+.tempest-aspect-video {
+    aspect-ratio: 16 / 9;
+    width: 100%;
+    object-fit: cover;
+}
+
+.tempest-aspect-square {
+    aspect-ratio: 1 / 1;
+    width: 100%;
+    object-fit: cover;
+}
+
+/* ============================================================
+ * Misc
+ * ============================================================ */
+
+/** Visually hidden, still announced by screen readers. */
+.tempest-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+}
+
+.tempest-no-select {
+    user-select: none;
+}
+
+/** Kill the pointer and dim — a region waiting on a request. */
+.tempest-busy {
+    pointer-events: none;
+    opacity: 0.6;
+    transition: opacity var(--tempest-duration-fast) var(--tempest-ease-out);
+}

@@ -11,6 +11,22 @@ app faz tree-shake do que não é referenciado.
 
 > Diagrama editável: [architecture.drawio](./diagrams/architecture.drawio) (abra no [draw.io](https://app.diagrams.net)).
 
+## Escopo: só client-side
+
+O SDK é feito para **SPA client-rendered com capacidade offline** — service
+worker, outbox no IndexedDB, prompt de instalação, background sync. Ele **não**
+suporta SSR nem React Server Components: nenhum módulo declara `"use client"` e
+os componentes assumem que montam num browser. O App Router do Next não é alvo.
+
+!!! warning "Isso é escolha de escopo, não lacuna"
+    Cobrir os dois mundos custaria em cada API (dois caminhos de render,
+    hidratação, `window` proibido no topo do módulo) e o offline-first — a razão
+    de existir do pacote — sairia pior. Os guards
+    `typeof window === "undefined"` que existem nos hooks servem pra não explodir
+    fora do browser (testes em Node, contexto de service worker, plugin de
+    build), não pra prometer render no servidor.
+
+
 ## Camadas
 
 ### Fundação de aplicação

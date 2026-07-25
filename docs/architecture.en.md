@@ -11,6 +11,21 @@ tree-shakes whatever isn't referenced.
 
 > Editable diagram: [architecture.drawio](./diagrams/architecture.drawio) (open in [draw.io](https://app.diagrams.net)).
 
+## Scope: client-side only
+
+This SDK targets **client-rendered SPAs with offline capability** — service
+worker, IndexedDB outbox, install prompt, background sync. It does **not**
+support SSR or React Server Components: no module declares `"use client"`, and
+components assume they mount in a browser. Next.js App Router is not a target.
+
+!!! warning "That is a scope choice, not a gap"
+    Covering both worlds would cost at every API (two render paths, hydration, no
+    `window` at module top level) and offline-first — the whole reason the package
+    exists — would come out worse. The `typeof window === "undefined"` guards in
+    the hooks exist so they do not throw outside a browser (Node tests, the
+    service-worker context, build plugins), not to promise server rendering.
+
+
 ## Layers
 
 ### Application foundation

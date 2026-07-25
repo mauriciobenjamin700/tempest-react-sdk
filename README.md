@@ -121,7 +121,9 @@ npm install tempest-react-sdk
 
 The demo gallery in [`examples/gallery`](./examples/gallery) is itself a Vite app — use it as the reference project layout.
 
-Other bundlers (Next.js app router, Webpack, Rspack, Parcel) **may** work — the package ships standard ESM + CJS + rolled-up `.d.ts` — but they are **not** exercised in CI, and Vite-specific features used in the recipes (`import.meta.env`, `vite-plugin-pwa`) will need their own equivalents. When in doubt, start with Vite.
+**Scope: client-side only.** This SDK targets client-rendered, offline-capable PWAs — service worker, IndexedDB outbox, install prompt, background sync. It does **not** support server-side rendering or React Server Components: no module ships a `"use client"` directive, and components assume they mount in a browser. Next.js App Router is not a target.
+
+Other client bundlers (Webpack, Rspack, Parcel) **may** work — the package ships standard ESM + CJS + rolled-up `.d.ts` — but they are **not** exercised in CI, and the Vite-specific pieces used in the recipes (`import.meta.env`, the `/vite` plugins) need their own equivalents. When in doubt, start with Vite.
 
 Vite reference: <https://vite.dev/guide/>. React + TypeScript template: <https://vite.dev/guide/#scaffolding-your-first-vite-project>.
 

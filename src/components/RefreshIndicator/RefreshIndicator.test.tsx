@@ -75,3 +75,65 @@ describe("RefreshIndicator", () => {
         expect(onRefresh).not.toHaveBeenCalled();
     });
 });
+
+describe("RefreshIndicator — gesture guards", () => {
+    function setup(props: Partial<Parameters<typeof RefreshIndicator>[0]> = {}) {
+        const onRefresh = vi.fn().mockResolvedValue(undefined);
+        render(
+            <RefreshIndicator onRefresh={onRefresh} {...props}>
+                <div>Content</div>
+            </RefreshIndicator>,
+        );
+        const wrapper = getWrapper();
+        return { onRefresh, wrapper };
+    }
+
+    it("ignores a pull that starts while the content is scrolled down", async () => {
+        const { onRefresh, wrapper } = setup();
+        stubScrollTop(wrapper, 40);
+
+        fireEvent.touchStart(wrapper, { touches: [{ clientY: 0 }] });
+        fireEvent.touchMove(wrapper, { touches: [{ clientY: 200 }] });
+        fireEvent.touchEnd(wrapper);
+        expect(onRefresh).not.toHaveBeenCalled();
+    });
+
+    it("ignores a touch event with no touch point", async () => {
+        const { onRefresh, wrapper } = setup();
+        stubScrollTop(wrapper, 0);
+
+        fireEvent.touchStart(wrapper, { touches: [] });
+        fireEvent.touchMove(wrapper, { touches: [{ clientY: 200 }] });
+        fireEvent.touchEnd(wrapper);
+        expect(onRefresh).not.toHaveBeenCalled();
+    });
+
+    it("ignores a move with no touch point after a valid start", async () => {
+        const { onRefresh, wrapper } = setup();
+        stubScrollTop(wrapper, 0);
+
+        fireEvent.touchStart(wrapper, { touches: [{ clientY: 0 }] });
+        fireEvent.touchMove(wrapper, { touches: [] });
+        fireEvent.touchEnd(wrapper);
+        expect(onRefresh).not.toHaveBeenCalled();
+    });
+
+    it("resets the pull when the finger moves back up", async () => {
+        const { onRefresh, wrapper } = setup();
+        stubScrollTop(wrapper, 0);
+
+        fireEvent.touchStart(wrapper, { touches: [{ clientY: 100 }] });
+        fireEvent.touchMove(wrapper, { touches: [{ clientY: 40 }] });
+        fireEvent.touchEnd(wrapper);
+        expect(onRefresh).not.toHaveBeenCalled();
+    });
+
+    it("ignores a move that never had a start", async () => {
+        const { onRefresh, wrapper } = setup();
+        stubScrollTop(wrapper, 0);
+
+        fireEvent.touchMove(wrapper, { touches: [{ clientY: 300 }] });
+        fireEvent.touchEnd(wrapper);
+        expect(onRefresh).not.toHaveBeenCalled();
+    });
+});

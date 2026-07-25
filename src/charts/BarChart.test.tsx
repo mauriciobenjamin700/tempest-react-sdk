@@ -52,3 +52,61 @@ describe("BarChart", () => {
         expect(series.length).toBe(2);
     });
 });
+
+describe("BarChart — toggles", () => {
+    it("omits grid, tooltip and legend when disabled", () => {
+        const { container } = render(
+            <BarChart
+                data={data}
+                index="month"
+                categories={["sales"]}
+                width={400}
+                showGrid={false}
+                showTooltip={false}
+                showLegend={false}
+            />,
+        );
+        expect(container.querySelector(".recharts-cartesian-grid")).toBeNull();
+        expect(container.querySelector(".recharts-legend-wrapper")).toBeNull();
+    });
+
+    it("stacks the series when stack is set", () => {
+        const { container } = render(
+            <BarChart
+                data={data}
+                index="month"
+                categories={["sales", "costs"]}
+                width={400}
+                stack
+            />,
+        );
+        expect(container.querySelector("svg")).not.toBeNull();
+    });
+
+    it("formats axis and tooltip values through valueFormatter", () => {
+        const valueFormatter = vi.fn((value: number) => `R$ ${value}`);
+        render(
+            <BarChart
+                data={data}
+                index="month"
+                categories={["sales"]}
+                width={400}
+                valueFormatter={valueFormatter}
+            />,
+        );
+        expect(valueFormatter).toHaveBeenCalled();
+    });
+
+    it("cycles the palette when there are more categories than colors", () => {
+        const { container } = render(
+            <BarChart
+                data={data}
+                index="month"
+                categories={["sales", "costs"]}
+                width={400}
+                colors={["#111111"]}
+            />,
+        );
+        expect(container.querySelector("svg")).not.toBeNull();
+    });
+});

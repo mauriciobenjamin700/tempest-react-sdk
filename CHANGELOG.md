@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.24.0] — 2026-07-25
+
 ### Adicionado
 
 - **Release sincroniza as três superfícies: git tag, npm e GitHub Release.**

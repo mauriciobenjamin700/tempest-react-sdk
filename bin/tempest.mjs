@@ -312,16 +312,45 @@ function doctor() {
     checks.push(["section", "Project"]);
     checks.push(["ok", "package.json found"]);
     const sdkInstalled = installedVersion("tempest-react-sdk");
-    checks.push(
-        deps["tempest-react-sdk"]
-            ? ["ok", "tempest-react-sdk in dependencies", deps["tempest-react-sdk"]]
-            : ["fail", "tempest-react-sdk in dependencies", "npm install tempest-react-sdk"],
-    );
-    checks.push(
-        sdkInstalled
-            ? ["ok", "tempest-react-sdk installed", `v${sdkInstalled}`]
-            : ["fail", "tempest-react-sdk installed", "run npm install"],
-    );
+
+    /**
+     * Whether this project has adopted the SDK.
+     *
+     * When it has not, `doctor` runs in **generic mode**: the checks that only make
+     * sense once you use the SDK (its `@/*` alias, `createViteConfig`, the
+     * `styles.css` import, its optional peers) drop out, and not having the SDK is
+     * reported as information rather than as a defect.
+     *
+     * Without this the tool is useless on the exact project it should help most —
+     * somebody's existing app, being evaluated. It reported two hard failures for the
+     * single fact "you have not installed this yet", exited non-zero, and buried the
+     * findings that *were* actionable (no lockfile, no plugin-react, no linter) among
+     * warnings that were really just the SDK's own conventions.
+     */
+    const usesSdk = Boolean(deps["tempest-react-sdk"] || sdkInstalled);
+
+    if (usesSdk) {
+        checks.push(
+            deps["tempest-react-sdk"]
+                ? ["ok", "tempest-react-sdk in dependencies", deps["tempest-react-sdk"]]
+                : [
+                      "warn",
+                      "tempest-react-sdk not in dependencies",
+                      `installed as v${sdkInstalled} but undeclared — add it to package.json`,
+                  ],
+        );
+        checks.push(
+            sdkInstalled
+                ? ["ok", "tempest-react-sdk installed", `v${sdkInstalled}`]
+                : ["fail", "tempest-react-sdk installed", "run npm install"],
+        );
+    } else {
+        checks.push([
+            "info",
+            "tempest-react-sdk not installed",
+            "checking generic React/Vite health only — `npm i tempest-react-sdk` to adopt it",
+        ]);
+    }
     const reactV = installedVersion("react");
     checks.push(
         deps.react && deps["react-dom"]
@@ -438,11 +467,15 @@ function doctor() {
     if (tsc) {
         checks.push(["section", "TypeScript"]);
         const co = tsc.compilerOptions;
-        checks.push(
-            co.paths?.["@/*"]
-                ? ["ok", 'tsconfig "@/*" alias']
-                : ["warn", 'tsconfig "@/*" alias', 'add "paths": { "@/*": ["./src/*"] }'],
-        );
+        // The `@/*` alias is the SDK's convention, not a health property: a project
+        // that has not adopted the SDK is not wrong for lacking it.
+        if (usesSdk) {
+            checks.push(
+                co.paths?.["@/*"]
+                    ? ["ok", 'tsconfig "@/*" alias']
+                    : ["warn", 'tsconfig "@/*" alias', 'add "paths": { "@/*": ["./src/*"] }'],
+            );
+        }
         const mr = String(co.moduleResolution ?? "").toLowerCase();
         checks.push(
             ["bundler", "node16", "nodenext"].includes(mr)
@@ -450,7 +483,9 @@ function doctor() {
                 : [
                       "warn",
                       `moduleResolution: ${co.moduleResolution ?? "(unset)"}`,
-                      'use "bundler" — otherwise subpath types (tempest-react-sdk/br, /charts…) won\'t resolve',
+                      usesSdk
+                          ? 'use "bundler" — otherwise subpath types (tempest-react-sdk/br, /charts…) won\'t resolve'
+                          : 'use "bundler" — a bundled app needs it for any package that ships subpath exports',
                   ],
         );
         checks.push(
@@ -491,11 +526,21 @@ function doctor() {
     if (!viteCfg) {
         checks.push(["warn", "vite config", "no vite.config.* found"]);
     } else {
-        checks.push(
-            fileIncludes(join(ROOT, viteCfg), "createViteConfig")
-                ? ["ok", `${viteCfg} uses createViteConfig`]
-                : ["warn", `${viteCfg}`, "not using createViteConfig from tempest-react-sdk/vite"],
-        );
+        // `createViteConfig` is a convenience, not a requirement — only worth
+        // mentioning to a project that already uses the SDK, and even then as info.
+        if (usesSdk) {
+            checks.push(
+                fileIncludes(join(ROOT, viteCfg), "createViteConfig")
+                    ? ["ok", `${viteCfg} uses createViteConfig`]
+                    : [
+                          "info",
+                          `${viteCfg}`,
+                          "not using createViteConfig from tempest-react-sdk/vite — optional",
+                      ],
+            );
+        } else {
+            checks.push(["ok", `${viteCfg} found`]);
+        }
         // React plugin is required for JSX/Fast Refresh in a Vite React app.
         checks.push(
             installedVersion("@vitejs/plugin-react")
@@ -508,14 +553,23 @@ function doctor() {
         );
     }
     const entry = firstExisting(["src/main.tsx", "src/main.ts", "src/index.tsx", "src/index.ts"]);
-    if (entry) {
-        checks.push(
-            fileIncludes(join(ROOT, entry), "tempest-react-sdk/styles.css")
-                ? ["ok", `${entry} imports styles.css`]
-                : ["warn", `${entry}`, 'add import "tempest-react-sdk/styles.css"'],
-        );
-    } else {
-        checks.push(["warn", "app entry", "no src/main.tsx found"]);
+    if (usesSdk) {
+        // Without the stylesheet every component renders unstyled, so for an SDK
+        // project this is a real defect. For anyone else the entry's filename is
+        // their business, not ours.
+        if (entry) {
+            checks.push(
+                fileIncludes(join(ROOT, entry), "tempest-react-sdk/styles.css")
+                    ? ["ok", `${entry} imports styles.css`]
+                    : ["warn", `${entry}`, 'add import "tempest-react-sdk/styles.css"'],
+            );
+        } else {
+            checks.push([
+                "warn",
+                "app entry",
+                "none of src/main.tsx, src/main.ts, src/index.tsx, src/index.ts found — cannot verify the styles.css import",
+            ]);
+        }
     }
     // styles.css should be imported once — duplicates re-inject the whole sheet.
     const stylesImports = (src.match(/tempest-react-sdk\/styles\.css/g) ?? []).length;
@@ -598,6 +652,26 @@ function doctor() {
         ]);
     } else {
         checks.push(["ok", "client env vars use the VITE_ prefix"]);
+    }
+
+    /*
+     * In generic mode, close with what adoption would actually take. A tool that
+     * audits somebody's project and then says nothing about the next step reads as an
+     * ad for a product they cannot find the door to.
+     */
+    if (!usesSdk) {
+        checks.push(["section", "Adopting the SDK (optional)"]);
+        checks.push(["info", "install", "npm i tempest-react-sdk"]);
+        checks.push([
+            "info",
+            "import the stylesheet once, in your entry",
+            'import "tempest-react-sdk/styles.css"',
+        ]);
+        checks.push([
+            "info",
+            "not all-or-nothing",
+            "one component at a time works — the @/* alias, createViteConfig and the scaffold are all optional",
+        ]);
     }
 
     return report(checks);

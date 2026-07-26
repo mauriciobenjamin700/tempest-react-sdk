@@ -61,6 +61,35 @@ Tooling
 ! 3 warning(s) — usable, but worth fixing.
 ```
 
+!!! success "Funciona em projeto que ainda não usa o SDK"
+    Se o `tempest-react-sdk` não está nas suas dependências, o `doctor` roda em
+    **modo genérico**: audita a saúde de um app React + Vite qualquer e **não** reprova
+    você por não ter adotado nada.
+
+    As checagens que são convenção do SDK saem do relatório — alias `@/*`,
+    `createViteConfig`, o import do `styles.css`, o `src/main.tsx` esperado, os peers
+    opcionais dos subpaths. O que continua é o que vale pra qualquer app: versão do
+    Node, instância duplicada de React, dependência declarada e não instalada, peer não
+    satisfeita, `@types/react` desalinhado, `strict`/`jsx`/`moduleResolution`, lockfile
+    (presente, único, não desatualizado), ESLint e Prettier, `.env` no `.gitignore` e
+    variável de cliente sem prefixo `VITE_`.
+
+    ```console
+    $ npx tempest doctor
+    …
+      [i] tempest-react-sdk not installed — checking generic React/Vite health only
+    …
+    Adopting the SDK (optional)
+      [i] install — npm i tempest-react-sdk
+      [i] import the stylesheet once, in your entry — import "tempest-react-sdk/styles.css"
+      [i] not all-or-nothing — one component at a time works
+    ```
+
+    Antes disso o comando dava **duas falhas e exit 1** por um único fato — "você não
+    instalou isto ainda" — e enterrava os achados acionáveis no meio de avisos que eram
+    só a opinião do SDK. Ou seja: era inútil exatamente no projeto onde deveria ajudar
+    mais.
+
 !!! tip "Use no onboarding e na CI"
     Rode `tempest doctor` ao clonar um projeto (confirma que tudo está no lugar)
     e como passo rápido na CI. Ele sai com código **1** se houver qualquer `✗`

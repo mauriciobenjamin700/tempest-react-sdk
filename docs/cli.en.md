@@ -60,6 +60,35 @@ Tooling
 ! 3 warning(s) — usable, but worth fixing.
 ```
 
+!!! success "It works on a project that does not use the SDK yet"
+    When `tempest-react-sdk` is not among your dependencies, `doctor` runs in **generic
+    mode**: it audits the health of any React + Vite app and does **not** fail you for
+    having adopted nothing.
+
+    The checks that are SDK conventions drop out of the report — the `@/*` alias,
+    `createViteConfig`, the `styles.css` import, the expected `src/main.tsx`, the
+    optional subpath peers. What remains is what matters for any app: Node version,
+    duplicate React instances, declared-but-not-installed dependencies, unmet peers,
+    `@types/react` mismatch, `strict`/`jsx`/`moduleResolution`, the lockfile (present,
+    single, not stale), ESLint and Prettier, `.env` in `.gitignore`, and client env vars
+    missing the `VITE_` prefix.
+
+    ```console
+    $ npx tempest doctor
+    …
+      [i] tempest-react-sdk not installed — checking generic React/Vite health only
+    …
+    Adopting the SDK (optional)
+      [i] install — npm i tempest-react-sdk
+      [i] import the stylesheet once, in your entry — import "tempest-react-sdk/styles.css"
+      [i] not all-or-nothing — one component at a time works
+    ```
+
+    Before this the command produced **two failures and exit 1** for a single fact —
+    "you have not installed this yet" — and buried the actionable findings among
+    warnings that were really just the SDK's preferences. It was useless on exactly the
+    project it should help most.
+
 !!! tip "Use it at onboarding and in CI"
     Run `tempest doctor` after cloning a project (confirms everything is wired)
     and as a quick CI step. It exits with code **1** on any `✗` (blocking

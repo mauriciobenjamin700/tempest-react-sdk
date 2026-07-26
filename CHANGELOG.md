@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.27.0] — 2026-07-26
+
 ### Adicionado
 
 - **`<ImageCropper>` — recorte com proporção fixa, par natural do `FileUpload`.** O

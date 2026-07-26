@@ -6,6 +6,45 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`<Kanban>` + `applyKanbanMove`** — quadro de colunas com cards que trocam de
+  estágio, reordenável dentro da coluna e móvel entre colunas, por ponteiro **ou**
+  teclado. A máquina de arrasto é o `useSortable`: o quadro não reimplementa nada
+  disso, que era exatamente o motivo de o enabler existir antes do componente.
+  `onMove` dispara uma vez por movimento confirmado e `applyKanbanMove` é o reducer
+  (exportado porque todo consumidor precisa do mesmo — e é onde vive o off-by-one).
+  Coluna `locked` recusa entrada mas deixa card sair.
+- **`useSortable` ganhou suporte a grupos** (aditivo): `getItemProps(index, group)`,
+  `getEmptyGroupProps(group)` para coluna vazia poder receber drop, `activeGroup`/
+  `overGroup` no retorno, e `fromGroup`/`toGroup` no `onReorder`. Movimento que troca
+  de grupo conta como movimento mesmo no mesmo índice — o card muda de coluna.
+
+### Corrigido
+
+- **`useSortable` expunha o grupo por ref lido no render.** Mesmo defeito que as
+  regras do React Compiler acharam no `RefreshIndicator`: ref não é reativo, então
+  `aria-selected` e a classe do card dependiam de um valor pelo qual o React não
+  re-renderiza. Grupo virou **estado**, com o ref apenas como espelho para a leitura
+  síncrona do listener de `pointerup`. Na mesma linha, `commit` passou a **receber**
+  os grupos em vez de lê-los de ref: ele acaba dentro dos props que o render
+  distribui, e leitura de ref em qualquer ponto dessa cadeia é acesso em tempo de
+  render.
+- **`ref` do `useSortable` virou `setContainer`.** O nome antigo prometia um objeto
+  legível quando é um **callback**, e as regras do Compiler sinalizavam todo
+  consumidor por causa disso.
+- **Contador mutável durante o render no `Kanban`.** O índice flat vinha de
+  `flatIndex++` dentro do `map` — mesma família do `let timer` do `Tooltip`. Agora os
+  offsets por coluna são derivados com `useMemo`, sem mutação: render replayado não
+  retoma de contador meio-avançado.
+- **Três defeitos de ARIA no quadro, achados pelo sweep `axe`**: `role="option"` não
+  é permitido em `<article>`; `<header>` fora de elemento de seccionamento vira
+  landmark `banner` (três colunas = três banners duplicados); e um `listbox` único no
+  quadro reprova `aria-required-children`, porque o cabeçalho da coluna quebra a
+  posse dos `option`. A estrutura final é **um `listbox` por coluna com cards**,
+  nomeado pelo título — coluna vazia não é listbox, já que zero `option` também
+  reprova.
+
+### Adicionado
+
 - **`useSortable` + `moveItem` — a primitiva de drag & drop que faltava.** Não
   havia nada de DnD nos 45 hooks, e isso bloqueava três itens do roadmap de uma vez
   (Kanban, reordenar lista, ordenar fila de upload). O hook cuida **só** da

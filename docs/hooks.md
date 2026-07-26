@@ -567,7 +567,7 @@ export function PrioridadeDoBacklog() {
   });
 
   return (
-    <ul {...sortable.getListProps()} aria-label="Prioridade" ref={sortable.ref}>
+    <ul {...sortable.getListProps()} aria-label="Prioridade" ref={sortable.setContainer}>
       {itens.map((item, index) => (
         <li
           key={item}
@@ -588,7 +588,7 @@ export function PrioridadeDoBacklog() {
 | `overIndex` | `number \| null` | Onde ele cairia se soltasse agora — use pra desenhar o indicador |
 | `getItemProps(index)` | props | Espalhe em cada item (pointer, teclado, `role="option"`, `tabIndex`) |
 | `getListProps()` | props | Espalhe no container (`role="listbox"`) |
-| `ref` | callback ref | Aponte pro container: é ali que o hit-test procura os itens |
+| `setContainer` | callback ref | Aponte pro container: é ali que o hit-test procura os itens |
 | `cancel()` | `() => void` | Aborta o arrasto sem reordenar |
 
 **Teclado**: `Espaço` pega o item · setas movem · `Espaço`/`Enter` soltam · `Escape` cancela.

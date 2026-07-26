@@ -56,7 +56,7 @@ function List({
 
     return (
         <>
-            <ul {...sortable.getListProps()} aria-label="Prioridade" ref={sortable.ref}>
+            <ul {...sortable.getListProps()} aria-label="Prioridade" ref={sortable.setContainer}>
                 {items.map((item, index) => (
                     <li key={item} {...sortable.getItemProps(index)}>
                         {item}
@@ -320,7 +320,7 @@ describe("useSortable — lifecycle", () => {
             const sortable = useSortable({ itemCount: items.length, onReorder: vi.fn() });
             return (
                 <>
-                    <ul {...sortable.getListProps()} ref={sortable.ref}>
+                    <ul {...sortable.getListProps()} ref={sortable.setContainer}>
                         {items.map((item, index) => (
                             <li key={item} {...sortable.getItemProps(index)}>
                                 {item}
@@ -360,7 +360,7 @@ describe("useSortable — lifecycle", () => {
             const sortable = useSortable({ itemCount: 3, onReorder: () => handler() });
             return (
                 <>
-                    <ul {...sortable.getListProps()} ref={sortable.ref}>
+                    <ul {...sortable.getListProps()} ref={sortable.setContainer}>
                         {[0, 1, 2].map((index) => (
                             <li key={index} {...sortable.getItemProps(index)}>
                                 {`row-${index}`}

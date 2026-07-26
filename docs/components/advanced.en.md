@@ -498,6 +498,56 @@ export function SteppedSignup() {
 !!! note "`clickableSteps` is `false` on purpose"
     A wizard exists because **order matters**. With `clickableSteps`, jumping back is free (going back never blocks), but jumping forward validates **every step crossed** — the first gate that fails stops the jump right there.
 
+### `Kanban`
+
+> **When to use it**: a board of columns whose cards move between stages — backlog, sales pipeline, work orders by status.
+
+Reorders within a column and moves across columns, by pointer **or** keyboard. The drag machine is `useSortable` — the board reimplements none of it.
+
+```tsx
+import { applyKanbanMove, Kanban, type KanbanColumn } from "tempest-react-sdk";
+import { useState } from "react";
+
+export function BacklogBoard() {
+  const [columns, setColumns] = useState<KanbanColumn[]>([
+    { id: "todo", title: "To do", cards: [{ id: "1", content: "Fix login" }] },
+    { id: "doing", title: "Doing", cards: [] },
+    { id: "done", title: "Done", cards: [], locked: true },
+  ]);
+
+  return (
+    <Kanban
+      label="Backlog"
+      columns={columns}
+      onMove={(move) => setColumns((current) => applyKanbanMove(current, move))}
+    />
+  );
+}
+```
+
+| Prop | Type | Default | What it does |
+| --- | --- | --- | --- |
+| `columns` | `KanbanColumn[]` | — | Columns with their cards, in display order. |
+| `onMove` | `(move: KanbanMove) => void` | — | Called **once** per committed move. You apply it. |
+| `renderCard` | `(card, column) => ReactNode` | the card content | Customizes the card body. |
+| `label` | `string` | `"Quadro"` | Accessible name of the board. |
+| `emptyLabel` | `ReactNode` | `"Nenhum card"` | Text for an empty column. |
+| `cardRoleDescription` | `string` | keyboard hint | Announced per card — override to localize. |
+| `disabled` | `boolean` | `false` | Blocks all dragging. |
+
+`KanbanColumn = { id, title, cards, locked? }` · `KanbanCard = { id, content }` · `KanbanMove = { cardId, fromColumn, toColumn, toIndex }`.
+
+`applyKanbanMove(columns, move)` is the reducer that applies a move returning new arrays — exported because every consumer needs the same one, and it is where the off-by-one lives.
+
+!!! info "A `locked` column refuses drops but still lets cards leave"
+    That is a "Done" column which takes no new work, but whose cards can still be pulled back.
+
+!!! warning "A keyboard move can only target a position that holds a card"
+    The move walks the index space of existing cards, so **dropping into an empty column works by pointer but not by keyboard**. That is a limitation of the current implementation, not a design choice: until column-switch keys land, the way around is to move into a column that already has a card and then reorder.
+
+!!! info "ARIA: one `listbox` per column, not one per board"
+    Each column that has cards is a `listbox` named by its title, containing only `option`s. A single board-wide listbox does not survive the markup a board needs — `listbox` requires `option`/`group` children and the column header in between breaks that ownership. An **empty** column is not marked as a listbox (zero `option`s fails `aria-required-children`), and the header is a `div`, not a `<header>`: outside a sectioning element every `<header>` becomes a `banner` landmark — with three columns, three duplicate banners.
+
 ## Recap
 
 - **Essentials**: `Toggle`/`ToggleGroup` for pressable states, `Label` for forms, `Collapsible` for a single expandable block, `ContextMenu`/`HoverCard` for interaction-triggered overlays, and `Command` for the ⌘K palette.

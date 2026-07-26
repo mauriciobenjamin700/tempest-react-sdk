@@ -14,6 +14,7 @@ import { Card } from "./Card";
 import { Checkbox } from "./Checkbox";
 import { EmptyState } from "./EmptyState";
 import { Input } from "./Input";
+import { Kanban } from "./Kanban";
 import { Modal } from "./Modal";
 import { Pagination } from "./Pagination";
 import { PasswordInput } from "./PasswordInput";
@@ -149,6 +150,16 @@ const CASES: [name: string, ui: ReactElement][] = [
         />,
     ],
     ["SignaturePad", <SignaturePad label="Assinatura do cliente" />],
+    [
+        "Kanban",
+        <Kanban
+            columns={[
+                { id: "todo", title: "A fazer", cards: [{ id: "k1", content: "Corrigir login" }] },
+                { id: "done", title: "Feito", cards: [] },
+            ]}
+            onMove={() => {}}
+        />,
+    ],
 ];
 
 describe("component accessibility sweep", () => {

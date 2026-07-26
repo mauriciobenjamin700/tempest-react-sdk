@@ -568,7 +568,7 @@ export function BacklogPriority() {
   });
 
   return (
-    <ul {...sortable.getListProps()} aria-label="Priority" ref={sortable.ref}>
+    <ul {...sortable.getListProps()} aria-label="Priority" ref={sortable.setContainer}>
       {items.map((item, index) => (
         <li
           key={item}
@@ -589,7 +589,7 @@ export function BacklogPriority() {
 | `overIndex` | `number \| null` | Where it would land if dropped now — use it to draw the indicator |
 | `getItemProps(index)` | props | Spread on each item (pointer, keyboard, `role="option"`, `tabIndex`) |
 | `getListProps()` | props | Spread on the container (`role="listbox"`) |
-| `ref` | callback ref | Point it at the container: that is where hit-testing looks for items |
+| `setContainer` | callback ref | Point it at the container: that is where hit-testing looks for items |
 | `cancel()` | `() => void` | Aborts the drag without reordering |
 
 **Keyboard**: `Space` picks the item up · arrows move it · `Space`/`Enter` drop it · `Escape` cancels.

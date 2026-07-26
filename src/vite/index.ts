@@ -6,3 +6,5 @@ export { tempestPwaIcons } from "./tempest-pwa-icons";
 export type { TempestPwaIconsOptions, AppleSplashSpec } from "./tempest-pwa-icons";
 export { tempestPwaDevSw } from "./tempest-pwa-dev-sw";
 export type { TempestPwaDevSwOptions } from "./tempest-pwa-dev-sw";
+export { buildIconsModule, scanIconSlugs, TEMPEST_ICONS_ID, tempestIcons } from "./tempest-icons";
+export type { TempestIconsOptions } from "./tempest-icons";

@@ -36,6 +36,7 @@ import { RealtimeRecipeSection } from "./RealtimeRecipeSection";
 import { GeoSection } from "./GeoSection";
 import { BrazilMapSection } from "./BrazilMapSection";
 import { ThemeFactorySection } from "./ThemeFactorySection";
+import { IconsSection } from "./IconsSection";
 import { UtilitiesCssSection } from "./UtilitiesCssSection";
 import { HierarchyFlowSection } from "./HierarchyFlowSection";
 import { CaptureMediaSection } from "./CaptureMediaSection";
@@ -344,6 +345,14 @@ export const SECTIONS: SectionEntry[] = [
             "createtheme applytheme themepresets oklch marca brand paleta contraste chart tokens",
         group: "Fundação",
         Component: ThemeFactorySection,
+    },
+    {
+        id: "icons",
+        label: "Ícones por slug (/icons)",
+        keywords:
+            "icon icons lucide slug dynamicicon nome name shard lazy iconprovider iconnames preloadicons",
+        group: "Fundação",
+        Component: IconsSection,
     },
     {
         id: "utilities-css",

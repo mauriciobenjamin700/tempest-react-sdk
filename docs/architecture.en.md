@@ -91,6 +91,7 @@ declared — the caller injects the instance into the factory.
 | `tempest-react-sdk/styles.css` | `--tempest-*` tokens + reset + CSS Modules.           |
 | `tempest-react-sdk/vite`       | `createViteConfig` (Node-only, for `vite.config.ts`). |
 | `tempest-react-sdk/testing`    | `createMockHandlers` (MSW test helpers).              |
+| `tempest-react-sdk/icons`      | `Icon` by slug + static registry ([Icons](./icons.md)). |
 
 ## Bundle
 
@@ -104,8 +105,8 @@ Budget monitored by `size-limit` in CI.
   tree-shakes the rest.
 - Only `react` + `react-dom` are peers; the other libs are direct deps installed
   alongside.
-- Four subpaths: the main barrel, `…/styles.css`, `…/vite` (Node-only) and
-  `…/testing`.
+- Subpaths: the main barrel, `…/styles.css`, `…/vite` (Node-only), `…/testing` and
+  `…/icons` (icon by slug).
 - The app foundation ([Vite](./vite-config.md) · [Router](./routing.md) ·
   [Store](./state.md) · [Providers](./app-providers.md)) is what
   [`create-tempest-app`](./scaffold.md) assembles for you.

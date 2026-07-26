@@ -11,7 +11,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.90.0",
     "dexie": "^4.4.2",
-    "lucide-react": "^0.575.0",
+    "lucide-react": "^1.26.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hook-form": "^7.76.0",

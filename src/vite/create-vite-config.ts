@@ -3,6 +3,8 @@ import { defineConfig } from "vite";
 import type { ProxyOptions, UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
+import { tempestIcons, type TempestIconsOptions } from "./tempest-icons";
+
 /**
  * A Vite proxy entry: either a target URL string (expanded to
  * `{ target, changeOrigin: true }`) or a raw Vite `ProxyOptions` object.
@@ -32,6 +34,13 @@ export interface CreateViteConfigOptions {
     alias?: Record<string, string>;
     /** Vite plugins appended after `@vitejs/plugin-react`. */
     plugins?: unknown[];
+    /**
+     * The `tempestIcons()` plugin, which generates `virtual:tempest-icons` from the
+     * icon slugs your source mentions. On by default — it only ever removes
+     * requests. Pass `false` to leave it out, or an options object to configure the
+     * scan.
+     */
+    icons?: boolean | TempestIconsOptions;
     /**
      * Arbitrary Vite config (a `UserConfig` object) deep-merged last, for
      * escape-hatch overrides (build target, define, extra `server` keys, …).
@@ -82,13 +91,17 @@ export function createViteConfig(options: CreateViteConfigOptions = {}): Tempest
         proxy,
         alias = {},
         plugins = [],
+        icons = true,
         overrides = {},
     } = options;
 
     const overridesConfig = overrides as UserConfig;
+    const iconsPlugin = icons
+        ? [tempestIcons({ dir: srcDir, ...(typeof icons === "object" ? icons : {}) })]
+        : [];
 
     const base: UserConfig = {
-        plugins: [react(), ...plugins] as UserConfig["plugins"],
+        plugins: [react(), ...iconsPlugin, ...plugins] as UserConfig["plugins"],
         resolve: {
             alias: {
                 "@": resolve(process.cwd(), srcDir),

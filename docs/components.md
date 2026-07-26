@@ -4,6 +4,11 @@ O catálogo foi dividido por categoria para facilitar navegação. Cada arquivo 
 
 ➡️ **[Começar pela Entrada de dados](./components/inputs.md)**
 
+!!! tip "Ícone por nome"
+    Precisa renderizar um ícone cujo nome só existe em runtime (menu vindo da API,
+    campo de CMS)? Veja [Ícones por slug](./icons.md) — `<Icon name="save" />` cobre
+    os 1997 slugs do lucide sem o custo de chunk do `DynamicIcon`.
+
 ## Categorias
 
 - **[Entrada de dados](./components/inputs.md)** — Input, Textarea, Select, Combobox, MultiSelect, Checkbox, Radio, Switch, ChipInput, SearchBar, DatePicker, DateRangePicker, FileUpload, Slider, RangeSlider, RatingStars, PinInput, PasswordInput, StepperInput, Form\*

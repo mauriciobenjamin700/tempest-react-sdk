@@ -71,3 +71,31 @@ describe("createViteConfig — proxy objects and plugin merging", () => {
         expect((config.plugins ?? []).length).toBeGreaterThan(1);
     });
 });
+
+describe("createViteConfig — icons plugin", () => {
+    /** Plugin names present in a config, flattened out of nested plugin arrays. */
+    function pluginNames(config: unknown): string[] {
+        const plugins = (config as { plugins?: unknown[] }).plugins ?? [];
+        return plugins.flat(Infinity).map((p) => (p as { name?: string })?.name ?? "");
+    }
+
+    it("wires tempestIcons by default", () => {
+        expect(pluginNames(createViteConfig())).toContain("tempest-icons");
+    });
+
+    it("leaves it out when icons is false", () => {
+        expect(pluginNames(createViteConfig({ icons: false }))).not.toContain("tempest-icons");
+    });
+
+    it("wires it when icons is an options object", () => {
+        expect(pluginNames(createViteConfig({ icons: { include: ["save"] } }))).toContain(
+            "tempest-icons",
+        );
+    });
+
+    it("keeps the icons plugin ahead of user plugins, so the scan sees the tree first", () => {
+        const marker = { name: "extra-plugin" };
+        const names = pluginNames(createViteConfig({ plugins: [marker] }));
+        expect(names.indexOf("tempest-icons")).toBeLessThan(names.indexOf("extra-plugin"));
+    });
+});

@@ -1,0 +1,12 @@
+export { Icon } from "./Icon";
+export type { IconProps } from "./Icon";
+export { IconProvider } from "./IconProvider";
+export type { IconProviderProps } from "./IconProvider";
+export { createIconRegistry } from "./icon-context";
+export type { IconRegistry } from "./icon-context";
+export { iconStatus, loadIcon, peekIcon, preloadIcons, resolveIconAlias } from "./shard-cache";
+export { useIcon } from "./use-icon";
+export { isIconName } from "./is-icon-name";
+export { iconAliases } from "./generated/aliases";
+export { iconNames } from "./generated/icon-names";
+export type { IconName } from "./generated/icon-name";

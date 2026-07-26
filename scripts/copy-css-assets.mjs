@@ -18,8 +18,18 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-/** Files copied verbatim from `src/` to `dist/`, as `[from, to]` pairs. */
-const ASSETS = [["src/styles/utilities.css", "dist/utilities.css"]];
+/**
+ * Files copied verbatim from `src/` to `dist/`, as `[from, to]` pairs.
+ *
+ * `icons/virtual.d.ts` rides along for the same reason: it declares the
+ * `virtual:tempest-icons` module the `tempestIcons()` plugin generates, so it must
+ * reach `dist/` as a standalone ambient declaration an app can `/// <reference>`.
+ * The dts rollup would otherwise inline or drop it — nothing imports it.
+ */
+const ASSETS = [
+    ["src/styles/utilities.css", "dist/utilities.css"],
+    ["src/icons/virtual.d.ts", "dist/icons-virtual.d.ts"],
+];
 
 async function main() {
     await mkdir(join(ROOT, "dist"), { recursive: true });

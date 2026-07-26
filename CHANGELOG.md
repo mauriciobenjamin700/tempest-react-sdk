@@ -6,6 +6,45 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`tempest-react-sdk/icons` — os 1997 ícones do lucide endereçáveis por slug.**
+  Os 23 slots de ícone dos componentes aceitam só `ReactNode`, então nome que chega
+  pronto (menu servido pela API, campo de CMS, tabela de configuração) não tinha
+  resposta dentro do SDK. A saída de fora era o `DynamicIcon` do `lucide-react`, e ela
+  é destrutiva: o mapa `dynamicIconImports` é um módulo de 116 KB com **uma chamada
+  `import()` por ícone**, então o bundler é obrigado a criar ~1997 fronteiras de chunk
+  — enxurrada de requisições em dev, milhares de arquivos minúsculos no build. Ele
+  ainda resolve o ícone num `useEffect` (primeiro paint sempre sem ícone, layout
+  pulando) e **lança** em nome desconhecido, justamente no caso em que o nome vem de
+  fora.
+- **Dois caminhos, um componente.** Slug **literal** (`<Icon name="save" />`) é achado
+  em tempo de build pelo plugin `tempestIcons()` e vira import estático comum — **zero
+  requisição extra**. Slug de **runtime** carrega **um shard por letra inicial**: no
+  máximo 25 requisições, nunca uma por ícone. Renderizar ~130 ícones diferentes na
+  gallery pediu **9** chunks, verificado no navegador.
+- Medido: `{ Icon }` custa **2,95 KB brotli** no bundle inicial; o maior shard (`s`,
+  247 ícones) **19,2 KB** e o mediano ~2,4 KB, ambos sob demanda; os 25 shards somados
+  dão ~124,5 KB (teto que nenhum app paga inteiro). A lista dos 1997 slugs
+  (`iconNames`, ~5,7 KB) fica **fora** do custo do `<Icon>` — mora em módulo próprio,
+  porque só um seletor de ícone precisa dela.
+- **Slug inexistente nunca derruba a tela**: renderiza `fallback` (nada, por default) e
+  emite `console.warn` uma vez por slug **só em dev** — e só quando o nome é realmente
+  inexistente, nunca enquanto um ícone válido está carregando (`iconStatus` distingue
+  `"loading"` de `"missing"` olhando se o shard da letra já chegou).
+- Os **248 aliases depreciados** do lucide continuam resolvendo (`alert-circle` →
+  `circle-alert`), então slug gravado no banco anos atrás segue renderizando. O alias
+  resolve pro canônico **antes** de escolher o shard.
+- Exports: `Icon`, `IconProvider`, `createIconRegistry`, `useIcon`, `preloadIcons`,
+  `iconStatus`, `peekIcon`, `loadIcon`, `resolveIconAlias`, `isIconName`, `iconNames`,
+  `iconAliases`, tipo `IconName` (união dos 1997 slugs — só tipo, custo zero, mas dá
+  autocomplete e pega typo no `tsc`).
+- **`tempestIcons()`** em `tempest-react-sdk/vite`, ligado por default no
+  `createViteConfig` (`icons: false` desliga). Varre a árvore de source no
+  `buildStart` em vez de colher módulos no `transform`: depender da ordem de transform
+  deixaria o módulo virtual carregar antes de todo consumidor ser visto, e o registro
+  sairia curto num start frio de dev — silenciosamente, porque os slugs faltando ainda
+  renderizam pelo caminho lazy.
+- **`tempest gen icons`** no CLI, pra projeto que não usa Vite ou que prefere um
+  arquivo versionado: mesmo scan, escreve um `createIconRegistry({…})` de verdade.
 - **`<Kanban>` + `applyKanbanMove`** — quadro de colunas com cards que trocam de
   estágio, reordenável dentro da coluna e móvel entre colunas, por ponteiro **ou**
   teclado. A máquina de arrasto é o `useSortable`: o quadro não reimplementa nada
@@ -17,6 +56,18 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `getEmptyGroupProps(group)` para coluna vazia poder receber drop, `activeGroup`/
   `overGroup` no retorno, e `fromGroup`/`toGroup` no `onReorder`. Movimento que troca
   de grupo conta como movimento mesmo no mesmo índice — o card muda de coluna.
+
+### Alterado
+
+- **`lucide-react` apertado de `>=0.400.0` para `^1.26.0`.** A faixa antiga era frouxa
+  demais pra sustentar tabela nome→ícone: nomes de export foram renomeados dentro dela
+  (`CircleAlert` era `AlertCircle`), então uma tabela gerada contra 1.x pode
+  simplesmente não existir em 0.4.x e o app quebra no build. O `examples/gallery` foi
+  alinhado junto (pinava `^0.575.0`).
+- **`npm run build` roda o `vite build` com heap de 6 GB.** A entrada `icons` empurra o
+  rollup de tipos do API-Extractor acima do heap default do Node (~4,2 GB) e o build
+  morria com `Reached heap limit`. É custo só de build — não afeta consumidor nem
+  runtime.
 
 ### Corrigido
 

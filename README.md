@@ -149,7 +149,7 @@ Via `package.json`:
 ```json
 {
   "dependencies": {
-    "tempest-react-sdk": "^0.26.0"
+    "tempest-react-sdk": "^0.27.0"
   }
 }
 ```

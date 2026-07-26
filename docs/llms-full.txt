@@ -8918,6 +8918,51 @@ assim, incluindo nome que só existe em runtime:
     `"trash-2"`, não `"Trash2"`. Em dev, um nome errado sai no console com essa
     dica.
 
+## Não instale `lucide-react` você mesmo
+
+O `lucide-react` é **dependência direta do SDK** — instalar ele no seu app é o que
+cria problema, não o que resolve.
+
+```bash
+npm uninstall lucide-react
+```
+
+!!! danger "Duas cópias de lucide = bytes duplicados e tabela de slug quebrada"
+    Se o seu `package.json` declara `lucide-react` numa faixa diferente da do SDK,
+    o gerenciador instala **duas cópias físicas**. Dois efeitos, e o segundo é o
+    grave:
+
+    1. **Bytes duplicados** no bundle — o app importa da cópia dele, o SDK da
+       cópia dele, e nenhuma das duas é tree-shaken pela outra.
+    2. **Skew de versão**: as tabelas de slug do `/icons` são **geradas** contra a
+       versão que o SDK declara (`^1.26.0`). Uma segunda cópia mais antiga pode não
+       ter exports que as tabelas referenciam, e aí o erro aparece no build do app
+       como `X is not exported by lucide-react` — apontando pra dentro do SDK, o
+       que torna a causa difícil de achar.
+
+    A regra: **uma cópia só**, a que o SDK trouxe.
+
+!!! info "Se você importa componentes do lucide direto"
+    Usando só `<Icon name="…" />`, não precisa declarar lucide em lugar nenhum.
+
+    Se você também escreve `import { Save } from "lucide-react"` no seu código, o
+    que acontece depende do gerenciador:
+
+    - **npm / yarn** — hoisting deixa a cópia do SDK visível na raiz do seu
+      `node_modules`, então o import resolve sem você declarar nada. É o caminho
+      recomendado.
+    - **pnpm** (isolamento estrito) — o app não vê dependência que não declarou,
+      então você **precisa** declarar. Nesse caso use **a mesma faixa do SDK**
+      (`"lucide-react": "^1.26.0"`) pra continuar existindo uma cópia só.
+
+!!! tip "Confirme que sobrou uma"
+    ```bash
+    npm ls lucide-react
+    ```
+    Mais de uma linha na saída (ou uma cópia aninhada em
+    `node_modules/tempest-react-sdk/node_modules/`) significa duas instâncias —
+    rode `npm dedupe`, e se persistir, remova a declaração do seu `package.json`.
+
 ## Por que não `DynamicIcon` do lucide
 
 O `lucide-react` traz um `DynamicIcon` que parece resolver o mesmo problema. Ele
@@ -9168,6 +9213,9 @@ Veja rodando na [gallery](./gallery.md), seção **Ícones por slug**.
 - Os 248 **aliases** antigos do lucide continuam resolvendo.
 - `iconNames` fica **fora** do custo do `<Icon>` — importe só se for listar ou
   validar.
+- **Não declare `lucide-react` no seu app**: ele já vem com o SDK, e uma segunda
+  cópia duplica bytes e pode não ter os exports que as tabelas de slug geradas
+  referenciam.
 - Veja também: [Vite & alias](./vite-config.md) · [CLI tempest](./cli.md) ·
   [Componentes](./components.md)
 

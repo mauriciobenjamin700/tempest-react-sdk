@@ -90,17 +90,93 @@ Tooling
 
 ## `tempest fix`
 
-Cleans the code in one shot: **organizes imports**, **removes unused imports**,
-**strips extra blank lines and trailing spaces**, then runs **Prettier**.
+Cleans the code in one shot: **converts relative imports to `@/`**, **organizes
+imports**, **removes unused imports**, **strips extra blank lines and trailing
+spaces**, then runs **Prettier**.
 
 ```bash
-npx tempest fix            # the whole project
-npx tempest fix src/app    # a single path
+npx tempest fix              # the whole project
+npx tempest fix src/app      # a single path
+npx tempest fix --dry-run    # show what would change, write nothing
+npx tempest fix --no-alias   # skip the import conversion (ESLint + Prettier only)
 ```
 
-Under the hood it runs `eslint --fix` (with the `simple-import-sort`,
-`unused-imports/no-unused-imports`, `no-multiple-empty-lines`,
-`no-trailing-spaces`, `eol-last` rules) then `prettier --write`.
+Three passes, in this order: the alias conversion, `eslint --fix` (with the
+`simple-import-sort`, `unused-imports/no-unused-imports`,
+`no-multiple-empty-lines`, `no-trailing-spaces`, `eol-last` rules), then
+`prettier --write`. The conversion runs **first** on purpose: turning
+`../../services/api` into `@/services/api` changes its `simple-import-sort`
+group, so running ESLint afterwards leaves everything sorted in a single `fix`.
+
+### The import conversion
+
+One rule: **no import climbs out of its directory**.
+
+```ts
+// before                                   // after
+import { api } from "../../services/api";   import { api } from "@/services/api";
+import { Button } from "../Button";         import { Button } from "@/components/Button";
+import { Row } from "./Row";                // unchanged — siblings stay relative
+import cfg from "../../../vite.config";     // unchanged — resolves outside src/
+```
+
+A sibling import (`./x`) stays as it is: it already says "this lives right next
+to me", which is information `@/` throws away. A path that resolves **outside**
+the alias base stays too — that's what protects `../../../vite.config` and
+`../../../scripts/x`.
+
+What the conversion reaches beyond `import` and `export … from`:
+
+```ts
+import type { User } from "../../types/user";       // import type
+const m = await import("../../pages/Dashboard");    // dynamic import()
+vi.mock("../../lib/api");                            // vi.mock / vi.doMock
+```
+
+And in `.css` files (Vite resolves aliases in stylesheets too):
+
+```css
+@import "../../styles/tokens.css";        /* → @/styles/tokens.css */
+.hero {
+    background: url(../../assets/bg.png); /* → @/assets/bg.png */
+}
+```
+
+!!! tip "Run `--dry-run` first on a large project"
+    `--dry-run` lists the file, the line and the before/after of every import
+    without writing anything — and without running ESLint or Prettier. It's how
+    you review the diff before letting the tool touch it.
+
+    ```console
+    $ npx tempest fix --dry-run
+    → alias imports (../ → @/) [dry-run]
+      src/pages/admin/Users.tsx 2
+        1: "../../lib/api" → "@/lib/api"
+        2: "../../styles/tokens.css" → "@/styles/tokens.css"
+      ✓ would convert 2 import(s) in 1 file(s)
+    ```
+
+!!! info "The alias comes from your `tsconfig.json` — it isn't hardcoded"
+    The base is read from `compilerOptions.paths`, following `extends` and
+    accepting comments in the JSON. If your project uses `~/*` or `#/*` instead
+    of `@/*`, that's the prefix you get; if it uses `app/` instead of `src/`,
+    that's the base.
+
+!!! warning "Without `paths` in the tsconfig, the conversion doesn't run"
+    That's deliberate. `paths` is what the **type-checker** honors: an alias found
+    there is one `tsc --noEmit` accepts after the conversion. Guessing `@` → `src`
+    just because a `src/` exists would produce imports that resolve nowhere in any
+    project that doesn't have the alias configured. When none is found the command
+    says so and moves on to ESLint without touching anything:
+
+    ```console
+    ! no path alias found — skipping alias pass  add "paths": { "@/*": ["./src/*"] } to tsconfig.json
+    ```
+
+    The conversion also needs `typescript` installed in the project: it uses
+    **your project's** compiler to find import positions, so a path-looking string
+    inside a comment, a template literal or a variable is never rewritten by
+    mistake.
 
 !!! warning "Dead code = imports/vars, not whole functions"
     `fix` **removes unused imports** and **warns** about unused variables (it
@@ -119,7 +195,9 @@ npx tempest lint     # eslint . (report only, no changes)
 npx tempest format   # prettier --write . (formatting only)
 ```
 
-`lint` is the read-only report; `fix` is `lint` that corrects + formats.
+`lint` is the read-only report; `fix` is `lint` that corrects + formats. Flags you
+pass are forwarded to the binary (`npx tempest lint --max-warnings 0`), and the
+path stays positional.
 
 ## Help
 
@@ -132,6 +210,6 @@ npx tempest --version
 
 - The **`tempest`** `bin` ships inside the SDK — `npx tempest <command>`.
 - **`doctor`** diagnoses the project (à la `flutter doctor`), exits 1 on blocking problems.
-- **`fix`** organizes imports + removes dead imports + tidies whitespace + Prettier (ESLint under the hood).
+- **`fix`** converts relative imports to `@/` + organizes imports + removes dead imports + tidies whitespace + Prettier. `--dry-run` to review, `--no-alias` to skip the conversion.
 - **`lint`** reports; **`format`** only formats.
 - See also: [Scaffold](./scaffold.md) · [Architecture](./architecture.md).

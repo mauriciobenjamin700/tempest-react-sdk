@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.26.1] — 2026-07-26
+
 ### Adicionado
 
 - **`tempest doctor` detecta cópia dupla de `lucide-react`.** Checagem **separada** da

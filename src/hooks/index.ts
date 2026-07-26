@@ -94,3 +94,10 @@ export {
     useStorageEstimate,
 } from "./use-storage-estimate";
 export type { StorageEstimate, UseStorageEstimateResult } from "./use-storage-estimate";
+export { moveItem, useSortable } from "./use-sortable";
+export type {
+    SortableDropTarget,
+    SortableItemProps,
+    UseSortableOptions,
+    UseSortableResult,
+} from "./use-sortable";

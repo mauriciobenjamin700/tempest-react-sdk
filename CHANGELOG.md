@@ -4,6 +4,26 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`useSortable` + `moveItem` — a primitiva de drag & drop que faltava.** Não
+  havia nada de DnD nos 45 hooks, e isso bloqueava três itens do roadmap de uma vez
+  (Kanban, reordenar lista, ordenar fila de upload). O hook cuida **só** da
+  interação: ponteiro unificado (mouse/toque/caneta) com pointer capture, e
+  `onReorder` disparando **uma vez** por movimento confirmado — nunca durante o
+  arrasto, porque aí uma lista controlada re-renderizaria a cada `pointermove` e os
+  índices mudariam debaixo do próprio arrasto. Você desenha o preview com
+  `overIndex` e aplica a mudança com `moveItem` (helper puro, não mutante).
+- **Caminho de teclado de igual peso, não um extra**: `Espaço` pega, setas movem,
+  `Espaço`/`Enter` soltam, `Escape` cancela — mesmo estado, mesma confirmação, mesmo
+  `onReorder` do caminho de ponteiro. Reorder que só funciona arrastando exclui
+  quem navega por teclado, e é onde a maioria das implementações falha. A semântica
+  é `role="listbox"` + `role="option"` + `aria-roledescription` (localizável).
+- O hit-test lê os **rects vivos** dos filhos `[data-sortable-index]` em vez de
+  supor altura fixa, então linha de altura variável funciona. Mudança em
+  `itemCount` no meio de um arrasto **cancela** o arrasto: a lista não tem mais os
+  índices em que ele se baseava, e confirmar moveria a linha errada.
+
 ## [0.25.0] — 2026-07-25
 
 ### Corrigido

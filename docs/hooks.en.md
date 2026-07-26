@@ -550,6 +550,59 @@ declare function openDetails(id: string): void;
 
 It fires `onLongPress` once after `delayMs` (mouse or touch), cancels on release/move, and wires `contextmenu` so a desktop right-click opens selection mode just like an Android long-press. `wasLongPress()` reports whether the last interaction was a long-press — use it in `onClick` to avoid navigating twice. Pass `{ disabled: true }` to make the handlers inert.
 
+### Drag to reorder — `useSortable`
+
+Drag-to-reorder, with a **keyboard path of equal standing**. The hook owns interaction only: it never touches your data. `onReorder` fires **once** per committed move and you apply it, typically with `moveItem`.
+
+```tsx
+import { moveItem, useSortable } from "tempest-react-sdk";
+import { useState } from "react";
+
+export function BacklogPriority() {
+  const [items, setItems] = useState(["Fix login", "CSV export", "Dark mode"]);
+
+  const sortable = useSortable({
+    itemCount: items.length,
+    roleDescription: "Sortable item",
+    onReorder: ({ from, to }) => setItems((current) => moveItem(current, from, to)),
+  });
+
+  return (
+    <ul {...sortable.getListProps()} aria-label="Priority" ref={sortable.ref}>
+      {items.map((item, index) => (
+        <li
+          key={item}
+          {...sortable.getItemProps(index)}
+          className={index === sortable.overIndex ? "highlight" : undefined}
+        >
+          {item}
+        </li>
+      ))}
+    </ul>
+  );
+}
+```
+
+| Field | Type | What it is |
+| --- | --- | --- |
+| `activeIndex` | `number \| null` | Index being dragged, or `null` when idle |
+| `overIndex` | `number \| null` | Where it would land if dropped now — use it to draw the indicator |
+| `getItemProps(index)` | props | Spread on each item (pointer, keyboard, `role="option"`, `tabIndex`) |
+| `getListProps()` | props | Spread on the container (`role="listbox"`) |
+| `ref` | callback ref | Point it at the container: that is where hit-testing looks for items |
+| `cancel()` | `() => void` | Aborts the drag without reordering |
+
+**Keyboard**: `Space` picks the item up · arrows move it · `Space`/`Enter` drop it · `Escape` cancels.
+
+!!! warning "A reorder that only works by dragging excludes keyboard users"
+    That is where most drag-and-drop implementations fail. Here the keyboard path is not an extra: same state (`activeIndex`/`overIndex`), same commit, same `onReorder`. `role="listbox"` + `role="option"` + `aria-roledescription` are what make a screen reader announce the list as sortable.
+
+!!! info "One `onReorder` per move, not per frame"
+    The hook does **not** call `onReorder` mid-drag. If it did, a controlled list would re-render on every `pointermove` — and the indices would shift underneath the drag itself. You draw the preview from `overIndex`; the mutation happens once, on release.
+
+!!! tip "Rows of different heights work"
+    Hit-testing reads the live rects of the `[data-sortable-index]` children instead of assuming a fixed row height. Changing `itemCount` mid-drag **cancels** it: the list no longer has the indices the drag was based on, and committing would move the wrong row.
+
 ## Recap
 
 - Granular, independent, tree-shakeable hooks — import only what you use.

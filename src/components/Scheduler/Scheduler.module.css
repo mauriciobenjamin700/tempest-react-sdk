@@ -1,0 +1,200 @@
+.wrapper {
+    /*
+     * Column widths are declared once here and reused by the header, the all-day
+     * lane and the grid — three separate grids that have to line up exactly, and
+     * would drift the moment any of them computed its own tracks.
+     */
+    --tempest-scheduler-gutter: 3.5rem;
+    --tempest-scheduler-height: 32rem;
+
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-lg);
+    background-color: var(--tempest-bg);
+    font-family: var(--tempest-font-sans);
+    overflow: hidden;
+}
+
+.head,
+.allDayLane {
+    display: grid;
+    grid-template-columns: var(--tempest-scheduler-gutter) repeat(
+            var(--tempest-scheduler-days),
+            minmax(0, 1fr)
+        );
+    border-bottom: 1px solid var(--tempest-border);
+    background-color: var(--tempest-surface);
+}
+
+.dayHead {
+    padding: var(--tempest-space-2);
+    text-align: center;
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-xs);
+    font-weight: var(--tempest-weight-semibold);
+    letter-spacing: var(--tempest-tracking-wide);
+    text-transform: capitalize;
+    border-left: 1px solid var(--tempest-border);
+}
+
+.dayHead.today {
+    color: var(--tempest-primary);
+}
+
+.gutterHead {
+    padding: var(--tempest-space-2);
+    color: var(--tempest-text-muted);
+    font-size: 0.625rem;
+    text-align: right;
+}
+
+.allDayTrack {
+    display: grid;
+    grid-template-columns: repeat(var(--tempest-scheduler-days), minmax(0, 1fr));
+    grid-column: 2 / -1;
+    gap: 2px;
+    padding: 2px;
+}
+
+.allDayEvent {
+    overflow: hidden;
+    padding: 0 var(--tempest-space-2);
+    border: none;
+    border-radius: var(--tempest-radius-sm);
+    background-color: var(--tempest-primary);
+    color: var(--tempest-primary-contrast, #fff);
+    font: inherit;
+    font-size: var(--tempest-text-xs);
+    line-height: 1.5rem;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.allDayEvent:disabled {
+    cursor: default;
+}
+
+.body {
+    display: grid;
+    grid-template-columns: var(--tempest-scheduler-gutter) 1fr;
+    height: var(--tempest-scheduler-height);
+    overflow-y: auto;
+}
+
+.gutter {
+    position: relative;
+    border-right: 1px solid var(--tempest-border);
+}
+
+.hourLabel {
+    position: absolute;
+    right: var(--tempest-space-1);
+    /*
+     * Nudged up by half a line so the label reads as sitting *on* its hour line
+     * rather than hanging below it.
+     */
+    transform: translateY(-50%);
+    color: var(--tempest-text-muted);
+    font-size: 0.625rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(var(--tempest-scheduler-days), minmax(0, 1fr));
+}
+
+.dayColumn {
+    position: relative;
+    grid-row: 1;
+    border-left: 1px solid var(--tempest-border);
+}
+
+.dayColumn:first-child {
+    border-left: none;
+}
+
+.todayColumn {
+    background-color: var(--tempest-surface);
+}
+
+.hourLine {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 1px solid var(--tempest-border);
+    pointer-events: none;
+}
+
+/*
+ * Events live in the same grid as the day columns, one row deep, positioned inside
+ * their column by percentage. Being siblings of the columns rather than children is
+ * what lets an event overlay the hour lines without clipping.
+ */
+.event {
+    position: absolute;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    overflow: hidden;
+    padding: 2px var(--tempest-space-1);
+    border: 1px solid var(--tempest-bg);
+    border-radius: var(--tempest-radius-sm);
+    background-color: var(--tempest-primary);
+    color: var(--tempest-primary-contrast, #fff);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.event:disabled {
+    cursor: default;
+}
+
+.event:focus-visible {
+    outline: 2px solid var(--tempest-text);
+    outline-offset: -2px;
+}
+
+.eventTime {
+    font-size: 0.625rem;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.85;
+}
+
+.eventTitle {
+    font-size: var(--tempest-text-xs);
+    font-weight: var(--tempest-weight-medium);
+    line-height: var(--tempest-leading-snug);
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.nowLine {
+    position: absolute;
+    left: 0;
+    right: 0;
+    grid-row: 1;
+    grid-column: 1 / -1;
+    height: 0;
+    border-top: 2px solid var(--tempest-danger, #dc2626);
+    pointer-events: none;
+    z-index: 1;
+}
+
+@media (max-width: 640px) {
+    .wrapper {
+        --tempest-scheduler-gutter: 2.75rem;
+    }
+
+    .dayHead {
+        font-size: 0.625rem;
+        padding: var(--tempest-space-1);
+    }
+}

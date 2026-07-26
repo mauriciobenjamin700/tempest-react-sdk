@@ -284,6 +284,84 @@ const [date, setDate] = useState<Date>();
 !!! tip "Teclado"
     Setas movem o foco por dia (←/→) ou por semana (↑/↓); Enter/Espaço seleciona o dia focado.
 
+### `Scheduler`
+
+Agenda: eventos posicionados numa grade de tempo ao longo de dias consecutivos. O `Calendar` acima é um **seletor de data** — responde "qual dia?". Este responde "o que tem nesses dias, e quando", o que exige estrutura diferente: eixo vertical de tempo, evento dimensionado pela duração e eventos sobrepostos lado a lado.
+
+```tsx
+import { Scheduler, type SchedulerEvent } from "tempest-react-sdk";
+
+const events: SchedulerEvent[] = [
+  { id: "1", title: "Daily", start: new Date(2026, 6, 27, 9, 0), end: new Date(2026, 6, 27, 9, 15) },
+  { id: "2", title: "Cliente", start: new Date(2026, 6, 27, 9, 0), end: new Date(2026, 6, 27, 10, 30) },
+  { id: "3", title: "Feriado", start: new Date(2026, 6, 29), end: new Date(2026, 6, 30), allDay: true },
+];
+
+<Scheduler
+  events={events}
+  days={7}
+  startHour={7}
+  endHour={21}
+  onEventClick={(event) => abrir(event.id)}
+  onSlotClick={(start) => criarEm(start)}
+/>;
+```
+
+| Prop              | Tipo                                    | Default   | Descrição                                              |
+| ----------------- | --------------------------------------- | --------- | ------------------------------------------------------ |
+| `events`          | `SchedulerEvent[]`                      | —         | Eventos; instantes lidos no fuso local                 |
+| `anchor`          | `Date`                                  | hoje      | Qualquer dia dentro do intervalo a mostrar             |
+| `days`            | `number`                                | `7`       | Dias consecutivos — `1` é visão de dia                 |
+| `startHour`       | `number`                                | `8`       | Primeira hora visível                                  |
+| `endHour`         | `number`                                | `20`      | Última hora visível                                    |
+| `snapMinutes`     | `number`                                | `30`      | Granularidade do clique em espaço vazio                |
+| `onEventClick`    | `(event: SchedulerEvent) => void`       | —         | Evento ativado                                         |
+| `onSlotClick`     | `(start: Date) => void`                 | —         | Clique em espaço vazio, já snapado                     |
+| `renderEvent`     | `(event: SchedulerEvent) => ReactNode`  | —         | Conteúdo do evento                                     |
+| `locale`          | `string`                                | `"pt-BR"` | Rótulos de dia e hora                                  |
+| `showCurrentTime` | `boolean`                               | `true`    | Linha de agora                                         |
+| `now`             | `Date`                                  | relógio   | "Agora" fixo — use em teste e demo pra determinismo     |
+
+Evento: `{ id, title, start, end, allDay?, data? }`.
+
+!!! info "Sobreposição é o que quase toda implementação erra"
+    Eventos sobrepostos são agrupados em **clusters de sobreposição mútua** — uma
+    cadeia onde cada evento sobrepõe ao menos um outro — e **todos no cluster
+    compartilham a mesma contagem de colunas**. É isso que faz as larguras baterem;
+    atribuir coluna par a par produz o layout esfarrapado onde dois eventos ocupam
+    metade cada e um terceiro cobre um deles silenciosamente.
+
+    A coluna é **reaproveitada assim que libera**: `9–10`, `9–10`, `10–11` usa duas
+    colunas, não três. E encostar não é sobrepor — `9–10` seguido de `10–11` ficam os
+    dois com largura cheia.
+
+    O layout é puro e mora em `scheduler-layout.ts`, com teste próprio.
+
+!!! warning "Horário local, e DST não duplica dia"
+    `start`/`end` são instantes lidos no fuso do navegador. O intervalo de dias é
+    montado **incrementando o dia do calendário**, não somando 24 h em milissegundos:
+    num limite de horário de verão o dia tem 23 ou 25 horas, e a aritmética de
+    milissegundo produziria data duplicada ou pulada.
+
+!!! check "Evento cruzando meia-noite aparece nas duas colunas"
+    Uma reserva 23:00–01:00 é dividida em dois segmentos, cada um clipado à janela
+    visível do seu dia. Sem isso ela ou desaparece ou é desenhada fora da coluna.
+
+!!! note "Dia inteiro tem faixa própria"
+    Evento com `allDay` sai numa faixa acima da grade, atravessando os dias que
+    cobre — posição vertical não significaria nada pra ele. A faixa não é renderizada
+    quando não há nenhum.
+
+!!! tip "Clique em espaço vazio cria; clique no evento não"
+    O `onSlotClick` só dispara quando o clique caiu na coluna, não num evento dentro
+    dela — o instante vem snapado em `snapMinutes` e clampado à janela.
+
+!!! warning "Não é `role="grid"`"
+    Uma grade ARIA exige filhos `row`, e aqui os eventos são **irmãos** das colunas
+    dentro de um único CSS grid: um wrapper `row` faria as colunas deixarem de ser
+    itens do grid e o layout colapsaria. Cada dia é um `group` rotulado — o leitor de
+    tela tabula os botões de evento e o nome do grupo dá o dia. Verificado com `axe`.
+
 ## Navegação & conteúdo
 
 ### `NavigationMenu`

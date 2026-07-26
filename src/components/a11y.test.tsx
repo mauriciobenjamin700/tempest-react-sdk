@@ -22,6 +22,7 @@ import { Pagination } from "./Pagination";
 import { PasswordInput } from "./PasswordInput";
 import { Progress } from "./Progress";
 import { Radio } from "./Radio";
+import { Scheduler } from "./Scheduler";
 import { SearchBar } from "./SearchBar";
 import { SegmentedControl } from "./SegmentedControl";
 import { Select } from "./Select";
@@ -126,6 +127,30 @@ const CASES: [name: string, ui: ReactElement][] = [
         />,
     ],
     ["ImageCropper", <ImageCropper src="/photo.jpg" label="Foto de perfil" />],
+    [
+        "Scheduler",
+        <Scheduler
+            anchor={new Date(2026, 6, 27)}
+            now={new Date(2026, 6, 27, 14, 0)}
+            days={3}
+            events={[
+                {
+                    id: "s1",
+                    title: "Reunião",
+                    start: new Date(2026, 6, 27, 9, 0),
+                    end: new Date(2026, 6, 27, 10, 0),
+                },
+                {
+                    id: "s2",
+                    title: "Viagem",
+                    start: new Date(2026, 6, 28),
+                    end: new Date(2026, 6, 29),
+                    allDay: true,
+                },
+            ]}
+            onEventClick={() => undefined}
+        />,
+    ],
     ["Accordion", <Accordion items={[{ id: "a", title: "Seção A", children: <p>Corpo A</p> }]} />],
     [
         "Table",

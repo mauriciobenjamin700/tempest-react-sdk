@@ -240,6 +240,8 @@ export type {
 
 export { ImageCropper } from "./ImageCropper";
 export type { ImageCropperHandle, ImageCropperProps } from "./ImageCropper";
+export { Scheduler } from "./Scheduler";
+export type { DayWindow, PlacedEvent, SchedulerEvent, SchedulerProps } from "./Scheduler";
 export { NotificationCenter, useNotificationInbox } from "./NotificationCenter";
 export type {
     NotificationCenterProps,

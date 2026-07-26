@@ -32,6 +32,44 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   reporta `naturalWidth: 0` — aceitar isso habilitaria os controles sobre uma imagem
   com a qual a matemática de recorte não pode fazer nada. Pego na verificação no
   navegador, não em revisão de código.
+- **`<Scheduler>` — agenda com grade de tempo.** O `Calendar` é seletor de data:
+  responde "qual dia?". Este responde "o que tem nesses dias, e quando", o que exige
+  estrutura diferente — eixo vertical de tempo, evento dimensionado pela duração e
+  sobreposição resolvida em colunas. Visão de dia, de N dias ou de semana pelo mesmo
+  prop (`days`).
+- **Sobreposição é a parte que quase toda implementação erra.** Eventos sobrepostos
+  são agrupados em **clusters de sobreposição mútua** e **todos no cluster
+  compartilham a mesma contagem de colunas** — é isso que faz as larguras baterem.
+  Coluna é reaproveitada assim que libera, e encostar não é sobrepor. Verificado no
+  navegador: três eventos numa segunda usam **2** colunas (dois deles não se sobrepõem
+  entre si), dois encostados na terça ficam com largura cheia, e na quarta a coluna
+  liberada é reusada.
+- **Horário local sem armadilha de DST**: o intervalo de dias é montado incrementando
+  o **dia do calendário**, não somando 24 h em milissegundos — num limite de horário de
+  verão o dia tem 23 ou 25 horas, e a aritmética de milissegundo duplicaria ou pularia
+  data.
+- **Evento cruzando meia-noite aparece nas duas colunas**, cada segmento clipado à
+  janela visível do seu dia. Verificado: 23:00–01:00 rende um pedaço em 95,83% do
+  primeiro dia e outro em 0% do seguinte.
+- Faixa própria pra evento `allDay` (atravessando os dias que cobre, e não renderizada
+  quando não há nenhum), linha de "agora" que só aparece se hoje está no intervalo e
+  dentro da janela, `onSlotClick` com o instante já snapado e clampado — e que **não**
+  dispara quando o clique caiu num evento. O layout é puro em `scheduler-layout.ts`,
+  com 39 casos de teste próprios.
+- **Dois defeitos de acessibilidade pegos no navegador, não em revisão.** O `axe` do
+  jsdom não pinta, então não mede contraste: o horário do evento tinha `opacity: 0.85`
+  sobre o fill e **reprovava AA** — o sweep do browser no `e2e.yml` acusou. A hierarquia
+  agora vem de tamanho e peso, que não custam contraste. E a região que rola na
+  vertical não era focável (`scrollable-region-focusable`), então quem usa teclado não
+  conseguia rolá-la; virou focável com nome, como `group` e não `region` — um `region`
+  nomeado é landmark, e duas agendas na mesma página seriam dois landmarks de nome
+  idêntico.
+- **Não é `role="grid"`**, e isso foi decisão forçada por evidência: grade ARIA exige
+  filhos `row`, e os eventos são irmãos das colunas dentro de um único CSS grid — um
+  wrapper `row` faria as colunas deixarem de ser itens do grid. O `axe` reprovou a
+  primeira versão com `aria-required-children` + `aria-required-parent`. Cada dia é um
+  `group` rotulado; o leitor de tela tabula os botões de evento e o nome do grupo dá o
+  dia.
 
 ## [0.26.1] — 2026-07-26
 

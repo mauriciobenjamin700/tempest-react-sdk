@@ -14,6 +14,7 @@ import { AdvancedComponentsSection } from "./AdvancedComponentsSection";
 import { TableSection } from "./TableSection";
 import { DataTableSection } from "./DataTableSection";
 import { ImageCropperSection } from "./ImageCropperSection";
+import { SchedulerSection } from "./SchedulerSection";
 import { VirtualTableSection } from "./VirtualTableSection";
 import { NotificationCenterSection } from "./NotificationCenterSection";
 import { MaterialSection } from "./MaterialSection";
@@ -232,6 +233,14 @@ export const SECTIONS: SectionEntry[] = [
             "virtualtable virtual tabela grande 10k 40k linhas virtualizacao scroll sticky header aria-rowcount aria-rowindex ordenar",
         group: "Componentes",
         Component: VirtualTableSection,
+    },
+    {
+        id: "scheduler",
+        label: "Scheduler (agenda)",
+        keywords:
+            "scheduler agenda calendario evento hora grade semana dia sobreposicao overlap allday dia-inteiro",
+        group: "Componentes",
+        Component: SchedulerSection,
     },
     {
         id: "material",

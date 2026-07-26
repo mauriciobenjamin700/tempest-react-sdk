@@ -549,6 +549,59 @@ declare function openDetails(id: string): void;
 
 Dispara `onLongPress` uma vez após `delayMs` (mouse ou toque), cancela ao soltar/mover, e liga o `contextmenu` para o botão direito no desktop abrir o modo de seleção igual ao long-press do Android. `wasLongPress()` diz se a última interação foi um long-press — use no `onClick` pra não navegar duas vezes. Passe `{ disabled: true }` para deixar os handlers inertes.
 
+### Reordenar por arrastar — `useSortable`
+
+Arrastar para reordenar, com **caminho de teclado de igual peso**. O hook cuida só da interação: ele nunca mexe nos seus dados. `onReorder` dispara **uma vez** por movimento confirmado e você aplica, normalmente com `moveItem`.
+
+```tsx
+import { moveItem, useSortable } from "tempest-react-sdk";
+import { useState } from "react";
+
+export function PrioridadeDoBacklog() {
+  const [itens, setItens] = useState(["Corrigir login", "Exportar CSV", "Modo escuro"]);
+
+  const sortable = useSortable({
+    itemCount: itens.length,
+    roleDescription: "Item reordenável",
+    onReorder: ({ from, to }) => setItens((atual) => moveItem(atual, from, to)),
+  });
+
+  return (
+    <ul {...sortable.getListProps()} aria-label="Prioridade" ref={sortable.ref}>
+      {itens.map((item, index) => (
+        <li
+          key={item}
+          {...sortable.getItemProps(index)}
+          className={index === sortable.overIndex ? "destaque" : undefined}
+        >
+          {item}
+        </li>
+      ))}
+    </ul>
+  );
+}
+```
+
+| Campo | Tipo | O que é |
+| --- | --- | --- |
+| `activeIndex` | `number \| null` | Índice sendo arrastado, ou `null` em repouso |
+| `overIndex` | `number \| null` | Onde ele cairia se soltasse agora — use pra desenhar o indicador |
+| `getItemProps(index)` | props | Espalhe em cada item (pointer, teclado, `role="option"`, `tabIndex`) |
+| `getListProps()` | props | Espalhe no container (`role="listbox"`) |
+| `ref` | callback ref | Aponte pro container: é ali que o hit-test procura os itens |
+| `cancel()` | `() => void` | Aborta o arrasto sem reordenar |
+
+**Teclado**: `Espaço` pega o item · setas movem · `Espaço`/`Enter` soltam · `Escape` cancela.
+
+!!! warning "Reorder que só funciona arrastando exclui quem usa teclado"
+    É onde a maioria das implementações de drag-and-drop falha. Aqui o caminho de teclado não é um extra: é o mesmo estado (`activeIndex`/`overIndex`), a mesma confirmação e o mesmo `onReorder`. `role="listbox"` + `role="option"` + `aria-roledescription` são o que faz o leitor de tela anunciar que a lista é reordenável.
+
+!!! info "Um `onReorder` por movimento, não por frame"
+    O hook **não** chama `onReorder` durante o arrasto. Se chamasse, uma lista controlada re-renderizaria a cada `pointermove` — e os índices mudariam debaixo do próprio arrasto. Você desenha o preview com `overIndex`; a mutação acontece uma vez, no soltar.
+
+!!! tip "Alturas diferentes funcionam"
+    O hit-test lê os rects vivos dos filhos `[data-sortable-index]` em vez de supor altura fixa de linha. Mudar `itemCount` no meio de um arrasto **cancela** ele: a lista não tem mais os índices em que o arrasto se baseava, e confirmar moveria a linha errada.
+
 ## Resumo
 
 - Hooks granulares, independentes e tree-shakáveis — importe só o que usar.

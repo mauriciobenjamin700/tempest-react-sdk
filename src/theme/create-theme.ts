@@ -258,8 +258,12 @@ export function createTheme(options: CreateThemeOptions = {}): GeneratedTheme {
     }
 
     if (gray) {
-        const lightScale = createColorScale(gray, "light");
-        const darkScale = createColorScale(gray, "dark");
+        // `anchor: false`: a neutral ramp has to keep its tuned lightness curve.
+        // Anchoring it at the input compressed both halves and dropped
+        // text-muted-on-surface-3 to ~4.2:1 — below AA — which the browser axe
+        // sweep caught on the generated themes.
+        const lightScale = createColorScale(gray, "light", { anchor: false, neutral: true });
+        const darkScale = createColorScale(gray, "dark", { anchor: false, neutral: true });
         writeScale(light, "gray", lightScale);
         writeScale(dark, "gray", darkScale);
         writeNeutralAliases(light, lightScale, "light");
@@ -277,6 +281,11 @@ export function createTheme(options: CreateThemeOptions = {}): GeneratedTheme {
         chart.forEach((color, index) => {
             light[`--tempest-chart-${index + 1}`] = color;
         });
+        // Declares how many series colors this theme owns. Without it the reader
+        // keeps walking into the SDK's built-in `--tempest-chart-7`/`-8`, so a
+        // 6-color brand palette silently mixes with two leftover defaults — which
+        // is exactly what a 7-series chart would show.
+        light["--tempest-chart-count"] = String(chart.length);
     }
 
     if (radius) {

@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/refs -- returning last render's value IS this hook's contract */
 import { useEffect, useRef } from "react";
 
 /**

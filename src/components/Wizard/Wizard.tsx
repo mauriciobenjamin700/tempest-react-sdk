@@ -59,6 +59,12 @@ export interface WizardProps {
     /** Label of the button on the last step. Default `"Finish"`. */
     finishLabel?: string;
     /**
+     * Suffix appended to an optional step's description in the indicator.
+     * Default `"(optional)"` — override it to localize, since the SDK ships no
+     * translation for component-internal copy.
+     */
+    optionalLabel?: string;
+    /**
      * Allow clicking the indicator to jump. Default `false` — a wizard exists
      * because order matters, and a free jump skips the gates.
      */
@@ -115,6 +121,7 @@ export function Wizard({
     nextLabel = "Next",
     backLabel = "Back",
     finishLabel = "Finish",
+    optionalLabel = "(optional)",
     clickableSteps = false,
     renderActions,
     className,
@@ -199,10 +206,10 @@ export function Wizard({
             steps.map((item) => ({
                 label: item.label,
                 description: item.optional
-                    ? `${item.description ?? ""} (optional)`.trim()
+                    ? `${item.description ?? ""} ${optionalLabel}`.trim()
                     : item.description,
             })),
-        [steps],
+        [optionalLabel, steps],
     );
 
     return (

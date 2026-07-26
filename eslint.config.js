@@ -34,17 +34,40 @@ export default tseslint.config(
             "react-refresh": reactRefresh,
         },
         rules: {
-            // eslint-plugin-react-hooks v7 folded the React Compiler rule set into
-            // `recommended` (refs, set-state-in-effect, purity, immutability…).
-            // Those flag idioms this SDK uses on purpose — callback refs written
-            // during render, effects that seed state from an external system — so
-            // the classic pair stays enforced and adopting the compiler rules is
-            // tracked separately instead of silently rewriting 80+ call sites.
-            "react-hooks/rules-of-hooks": "error",
-            "react-hooks/exhaustive-deps": "warn",
+            // Full react-hooks v7 set, React Compiler rules included.
+            ...reactHooks.configs.recommended.rules,
+            /**
+             * Deferred, deliberately. 19 sites across 18 files seed state from an
+             * external system inside an effect (media query, storage estimate,
+             * geolocation, install prompt, socket status…). Each one needs its own
+             * call — derive it, move to `useSyncExternalStore`, or keep it with a
+             * reason — and lumping that judgement into the same change that enabled
+             * the rules would make both unreviewable. Turning the rule off here
+             * keeps the deferral visible in the config instead of buried in a
+             * backlog note; the follow-up flips it back to `error`.
+             */
+            "react-hooks/set-state-in-effect": "off",
             "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
             "@typescript-eslint/consistent-type-imports": "error",
             "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+        },
+    },
+    {
+        /**
+         * The React Compiler rules describe how a *component* must behave under
+         * the compiler. Tests and the gallery are not that: a test writes to refs
+         * and stubs globals precisely to simulate an environment the component
+         * cannot control, and flagging that produces noise, not safety. The
+         * classic pair still applies everywhere.
+         */
+        files: ["**/*.test.{ts,tsx}", "examples/**/*.{ts,tsx}", "test/**/*.{ts,tsx}"],
+        rules: {
+            "react-hooks/refs": "off",
+            "react-hooks/globals": "off",
+            "react-hooks/set-state-in-effect": "off",
+            "react-hooks/purity": "off",
+            "react-hooks/immutability": "off",
+            "react-hooks/preserve-manual-memoization": "off",
         },
     },
     {

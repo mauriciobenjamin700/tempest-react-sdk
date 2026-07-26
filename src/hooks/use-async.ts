@@ -39,7 +39,9 @@ export function useAsync<T>(
     }>({ status: "idle", data: undefined, error: undefined });
 
     const fnRef = useRef(asyncFn);
-    fnRef.current = asyncFn;
+    useEffect(() => {
+        fnRef.current = asyncFn;
+    }, [asyncFn]);
     const callIdRef = useRef<number>(0);
     const mountedRef = useRef<boolean>(true);
 

@@ -43,7 +43,9 @@ export function useOnline(options: UseOnlineOptions = {}): boolean {
     const [reachable, setReachable] = useState<boolean>(true);
 
     const optionsRef = useRef({ pingUrl, timeoutMs });
-    optionsRef.current = { pingUrl, timeoutMs };
+    useEffect(() => {
+        optionsRef.current = { pingUrl, timeoutMs };
+    }, [pingUrl, timeoutMs]);
 
     useEffect(() => {
         if (typeof window === "undefined") return;

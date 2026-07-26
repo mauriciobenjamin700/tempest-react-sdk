@@ -8,6 +8,109 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **Tema gerado reprovava contraste AA.** O sweep `axe` no browser (que roda no
+  `e2e.yml`, ao contrário do sweep em jsdom — jsdom não pinta, então não mede
+  contraste) reprovou o chip `+N` do `AvatarGroup` e o label ativo do `Stepper`
+  nos temas gerados. A causa não era o CSS dos componentes: os pares de token
+  afinados à mão dão 6.2:1, mas o **ramp neutro gerado** dava 4.2:1 — e caía para
+  3.5:1 quando eu tentei corrigir tirando a ancoragem. O erro de fundo era usar
+  **uma única curva de lightness** para marca e para neutro: medindo as escalas do
+  `colors.css` em OKLCH, a neutra é bem mais larga (`0.982 → 0.210`) que a de marca
+  (`0.966 → 0.251`), porque neutro carrega superfície quase branca e texto quase
+  preto. Agora existem duas curvas, ambas com os valores **medidos** das escalas
+  embutidas, e a neutra não é ancorada (ancorar comprime exatamente a faixa que ela
+  precisa ter larga). `createColorScale` ganhou as opções `neutral` e `anchor`.
+- **O guard que faltava**: um teste percorre os 6 presets e assere
+  `text-muted`/`surface-3` ≥ 4.5:1, `text`/`surface-3` ≥ 7:1 e `text`/`bg` ≥ 7:1.
+  Sem ele, esse tipo de regressão só aparecia no CI — e o docstring da curva antiga
+  ainda afirmava estar "afinada contra as escalas do colors.css", o que não era
+  verdade.
+
+- **`<Tooltip>` deixava de cancelar a abertura pendente.** O handle do timer vivia
+  num `let` no corpo do componente, e esse binding é **recriado a cada render** —
+  então qualquer re-render entre o `mouseenter` e o `mouseleave` (update do pai,
+  mudança de estado em outro lugar) descartava o handle, o `clearTimeout` cancelava
+  nada e o tooltip abria com o ponteiro já fora. Virou `useRef` + cleanup no
+  unmount. Achado pela regra `react-hooks/immutability`, e coberto por um teste de
+  regressão que **falha** na implementação antiga (verificado apontando o teste
+  para a versão anterior do arquivo).
+- **`<RefreshIndicator>`: `engaged` saía de um ref lido no render.** Ref não é
+  reativo, então a classe renderizada dependia de um valor pelo qual o React nunca
+  re-renderiza — só parecia certo porque os handlers de toque também chamavam
+  `setPull`. Agora é estado de verdade.
+- **`useAudio` criava o player durante o render.** `if (!ref.current) ref.current =
+createAudioPlayer()` é efeito colateral em tempo de render; virou inicializador
+  de `useState`, que roda exatamente uma vez. De brinde o valor deixou de ser
+  nullable, e as duas `useCallback` que dependiam dele ganharam a dep que faltava.
+
+### Alterado
+
+- **Regras do React Compiler ligadas** (`eslint-plugin-react-hooks` v7 completo).
+  17 sites que escreviam o "latest ref" no corpo do hook passaram a escrever em
+  `useEffect` — legítimo aqui porque quem consome esses refs são subscriptions,
+  timers e handlers, que só disparam depois do commit.
+- **Regras escopadas a código de produto.** Teste e gallery ficam de fora das
+  regras do Compiler: um teste escreve em ref e faz stub de global justamente pra
+  simular ambiente que o componente não controla, e sinalizar isso é ruído, não
+  segurança. O par clássico (`rules-of-hooks`, `exhaustive-deps`) continua valendo
+  em todo lugar. Isso derrubou o volume de 91 para 53 diagnósticos antes de
+  qualquer refatoração.
+- **5 hooks ficam explicitamente exentos**, com o porquê no próprio arquivo:
+  `useStableCallback` (mover pra effect abriria janela de staleness de um commit
+  num primitivo que outros hooks usam — o caso de uso do futuro `useEffectEvent`),
+  `useDeepMemo` (o cache é ref lido e escrito no render, e a escrita é idempotente,
+  então replay de render não muda resultado), `usePrevious` e `useIsFirstRender`
+  (o acesso ao ref no render **é** o contrato), e `usePushSubscription` +
+  `Tooltip` (o ref é lido dentro de callback diferido, não no render).
+- **`set-state-in-effect` fica desligada por ora**, com a justificativa no próprio
+  `eslint.config.js`: são 19 sites em 18 arquivos que semeiam estado a partir de
+  sistema externo (media query, storage estimate, geolocalização, install prompt,
+  status de socket…). Cada um precisa de decisão própria — derivar, migrar pra
+  `useSyncExternalStore`, ou manter com justificativa — e juntar esse julgamento na
+  mesma mudança que ligou as regras deixaria os dois irrevisáveis. O follow-up
+  religa como `error`.
+
+### Corrigido
+
+- **`createTheme` não entregava a sua cor de marca.** O degrau `500` era forçado na
+  lightness alvo da curva, então `primary: "#7c3aed"` voltava como `#9161fe` —
+  mesma matiz, mesma croma, **re-clareado**. A doc até afirmava
+  `theme.light["--tempest-primary-500"] // "#7c3aed"`, o que simplesmente não era
+  verdade. Agora a escala é **ancorada** no `500`: a lightness da marca é o ponto
+  fixo e as duas metades do ramp são reescaladas em volta dela, preservando a forma
+  da curva e a monotonicidade — inclusive para marca muito clara (amarelo) ou muito
+  escura (navy), que ganham um trecho mais curto do lado apertado. **Quem já gerou
+  tema na 0.25.0 verá as cores mudarem** (para a cor certa).
+- **Paleta de 6 cores virava 8 no gráfico.** `createTheme({ chart: [6 cores] })`
+  escrevia `--tempest-chart-1..6`, mas o `resolveChartColors` seguia lendo até o
+  `-8` e pegava os dois defaults embutidos do SDK — um gráfico com 7 séries saía
+  com paleta misturada, 6 da marca + 2 sobras. O factory agora escreve
+  `--tempest-chart-count` e o leitor para ali (clampado ao total de tokens
+  existentes; contagem malformada é ignorada). Descoberto **olhando** a section
+  nova do gallery: com o preset violeta, `chart-7`/`-8` continuavam laranja e teal.
+- **`<Wizard>` tinha string de UI cravada em inglês.** O sufixo `(optional)` do
+  passo opcional era hardcoded num SDK que tem i18n — no gallery em PT-BR aparecia
+  “Opcional (optional)”. Virou a prop `optionalLabel`.
+- **Gallery cortava demo largo no celular.** `.example` tem `overflow: hidden`, e
+  como item de grid não encolhe abaixo do conteúdo por default, uma tabela com
+  `min-width` empurrava a coluna e o conteúdo ficava **inalcançável** em 390px em
+  vez de rolar. `min-width: 0` nos filhos do `.example-body` devolve a rolagem pro
+  container do próprio demo — a mesma armadilha de flex/grid que a classe
+  `.tempest-fill` documenta.
+
+### Adicionado
+
+- **4 sections novas no gallery** (37 → 41) cobrindo tudo que a 0.25.0 publicou e
+  que não tinha demo: `createTheme` com troca de preset ao vivo + escala gerada +
+  contraste medido + tokens de série; vitrine do `utilities.css`; `TreeView` +
+  `Wizard`; `SignaturePad` + `Lightbox` + `AvatarGroup`. Efeito prático: essas
+  features passam a ser exercidas pelo smoke Playwright do gallery no CI, e dá pra
+  verificar pixel — foi assim que os quatro bugs acima apareceram.
+- **README ganhou a seção de rebranding** — o `createTheme` era a feature principal
+  da 0.25.0 e não tinha uma linha na vitrine que o npm renderiza.
+
+### Corrigido
+
 - **Outbox podia entregar fora de ordem.** `enqueuedAt` era `Date.now()` puro e é
   a chave de ordenação **tanto** do `listPending()` **quanto** do laço de entrega
   do `flush()`. Dois enqueues dentro do mesmo milissegundo — o normal num burst —

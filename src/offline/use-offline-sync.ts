@@ -73,7 +73,9 @@ export function useOfflineSync<TPayload>(
     const state = useSyncExternalStore(sync.subscribe, sync.getState, sync.getState);
 
     const flushRef = useRef(sync.flush);
-    flushRef.current = sync.flush;
+    useEffect(() => {
+        flushRef.current = sync.flush;
+    }, [sync.flush]);
 
     useEffect(() => {
         if (flushOnMount) void flushRef.current("boot");

@@ -50,6 +50,34 @@ describe("resolveChartColors", () => {
         host.remove();
     });
 
+    it("honours --tempest-chart-count so a brand palette is not padded with defaults", () => {
+        setTokens(["#111111", "#222222", "#333333"]);
+        document.documentElement.style.setProperty("--tempest-chart-count", "3");
+
+        expect(resolveChartColors()).toEqual(["#111111", "#222222", "#333333"]);
+    });
+
+    it("keeps reading past the count when the theme declares more than it set", () => {
+        setTokens(["#111111", "#222222"]);
+        document.documentElement.style.setProperty("--tempest-chart-count", "6");
+
+        expect(resolveChartColors()).toEqual(["#111111", "#222222"]);
+    });
+
+    it("clamps the declared count to the tokens the SDK ships", () => {
+        setTokens(Array.from({ length: CHART_COLOR_TOKEN_COUNT }, (_, i) => `#00000${i}`));
+        document.documentElement.style.setProperty("--tempest-chart-count", "99");
+
+        expect(resolveChartColors()).toHaveLength(CHART_COLOR_TOKEN_COUNT);
+    });
+
+    it("ignores a malformed count", () => {
+        setTokens(["#111111", "#222222"]);
+        document.documentElement.style.setProperty("--tempest-chart-count", "abc");
+
+        expect(resolveChartColors()).toEqual(["#111111", "#222222"]);
+    });
+
     it("trims whitespace around a token value", () => {
         document.documentElement.style.setProperty("--tempest-chart-1", "  #abcdef  ");
         expect(resolveChartColors()).toEqual(["#abcdef"]);

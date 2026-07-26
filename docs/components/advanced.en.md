@@ -481,6 +481,7 @@ export function SteppedSignup() {
 | `nextLabel`          | `string`                                      | `"Next"`   | Advance button label.                                        |
 | `backLabel`          | `string`                                      | `"Back"`   | Back button label.                                           |
 | `finishLabel`        | `string`                                      | `"Finish"` | Label on the last step.                                      |
+| `optionalLabel`      | `string`                                      | `"(optional)"` | Suffix for an optional step in the indicator — override to localize. |
 | `clickableSteps`     | `boolean`                                     | `false`    | Allows jumping by clicking the indicator.                    |
 | `renderActions`      | `(controls: WizardControls) => ReactNode`     | —          | Replaces the default button row.                             |
 

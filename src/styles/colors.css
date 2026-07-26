@@ -169,6 +169,9 @@
      * charts too instead of leaving a hardcoded palette behind.
      * Hues are spaced for categorical distinction, not for a ramp — for
      * a sequential/diverging scale use `--tempest-primary-*`.
+     * A theme that owns fewer than 8 series sets `--tempest-chart-count`
+     * so the reader stops there instead of padding with the defaults
+     * below (`createTheme` writes it for you).
      * ============================================================ */
     --tempest-chart-1: #2563eb;
     --tempest-chart-2: #16a34a;

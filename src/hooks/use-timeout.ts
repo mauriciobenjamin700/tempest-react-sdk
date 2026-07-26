@@ -9,7 +9,9 @@ import { useEffect, useRef } from "react";
  */
 export function useTimeout(fn: () => void, delay: number | null): void {
     const fnRef = useRef(fn);
-    fnRef.current = fn;
+    useEffect(() => {
+        fnRef.current = fn;
+    }, [fn]);
 
     useEffect(() => {
         if (delay === null) return;

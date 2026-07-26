@@ -1732,6 +1732,21 @@ troca a paleta pela versão clareada — sem prop nenhuma no gráfico.
 }
 ```
 
+!!! warning "Uma paleta de 6 cores não deve virar 8"
+    Se você define só `chart-1..6`, o leitor continuaria andando nos
+    `--tempest-chart-7`/`-8` embutidos do SDK e o gráfico com 7 séries sairia com
+    paleta misturada — 6 cores da sua marca + 2 sobras. Por isso existe
+    `--tempest-chart-count`: o `createTheme` escreve quantas cores o tema tem, e o
+    `resolveChartColors` para ali. Definindo tokens à mão, declare junto:
+
+    ```css
+    :root {
+      --tempest-chart-1: #0f766e;
+      --tempest-chart-2: #f97316;
+      --tempest-chart-count: 2;
+    }
+    ```
+
 Sobrescreva no seu CSS, ou gere com o factory de tema:
 
 ```tsx
@@ -2807,6 +2822,7 @@ export function CadastroEmEtapas() {
 | `nextLabel`          | `string`                                      | `"Next"`   | Rótulo do botão de avanço.                                   |
 | `backLabel`          | `string`                                      | `"Back"`   | Rótulo do botão de voltar.                                   |
 | `finishLabel`        | `string`                                      | `"Finish"` | Rótulo no último passo.                                      |
+| `optionalLabel`      | `string`                                      | `"(optional)"` | Sufixo do passo opcional no indicador — troque para localizar.  |
 | `clickableSteps`     | `boolean`                                     | `false`    | Permite pular clicando no indicador.                         |
 | `renderActions`      | `(controls: WizardControls) => ReactNode`     | —          | Substitui a linha de botões padrão.                          |
 
@@ -13401,17 +13417,26 @@ const theme = createTheme({
   gray: "#6b7280",             // superfícies, bordas e texto
   success: "#16a34a",          // cada status vira -fg / -bg / -border / -solid
   danger: "#dc2626",
-  chart: ["#7c3aed", "#0ea5e9", "#22c55e"],  // --tempest-chart-1..N (ver Charts)
+  chart: ["#7c3aed", "#0ea5e9", "#22c55e"],  // --tempest-chart-1..N + -count (ver Charts)
   radius: "lg",                // "none" | "sm" | "md" | "lg" | "xl" | "full"
   focusRingAlpha: 0.35,
 });
 
-theme.light; // { "--tempest-primary-500": "#7c3aed", … }
+theme.light; // { "--tempest-primary-500": "#7c3aed", … } — a sua cor, exata
 theme.dark;  // idem, com o ramp invertido
 theme.css;   // ":root { … }\n\n[data-tempest-theme=\"dark\"] { … }"
 ```
 
 Só as famílias que você passa são geradas — o resto continua vindo do `colors.css` do SDK. Um tema é um **patch**, não um fork da paleta.
+
+!!! check "O degrau `500` é exatamente a cor que você passou"
+    A escala é **ancorada** no `500`: a lightness da sua marca vira o ponto fixo e
+    as duas metades do ramp são reescaladas em volta dela. Sem isso o `500` era
+    forçado na lightness alvo da curva e `#7c3aed` voltava como `#9161fe` — mesma
+    matiz, mesma croma, **re-clareado**. Parece bom isolado e está errado de todo
+    jeito: a única cor que o designer entregou é justamente a que os botões
+    precisam ter. Marca muito clara (amarelo) ou muito escura (navy) simplesmente
+    ganha um trecho mais curto do lado apertado, e o ramp continua monótono.
 
 !!! info "Por que OKLCH e não HSL"
     A escala é derivada em OKLCH porque lightness em HSL **não é perceptual**: um amarelo e um azul com o mesmo `L` em HSL têm brilho visivelmente diferente, e é exatamente isso que faz uma paleta gerada parecer "quebrada" em algumas cores. Em OKLCH o degrau `500` de qualquer marca ocupa o mesmo lugar visual.

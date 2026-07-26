@@ -198,6 +198,17 @@ This injects the design tokens (`--tempest-primary`, `--tempest-radius-md`, ...)
 
 The styles ship hashed under the `tempest_` namespace — they do **not** collide with Tailwind, Stitches, Linaria, or app-level CSS Modules.
 
+**Rebranding.** The `--tempest-*` tokens are the only theming API, and `createTheme` writes them for you — `primary` alone yields the ten-step scale for **both** color schemes (dark inverts the ramp), plus the status families, the radius scale and the focus ring:
+
+```ts
+import { applyTheme, createTheme, themePresets } from "tempest-react-sdk";
+
+applyTheme(createTheme({ primary: "#7c3aed", radius: "lg" }));
+applyTheme(createTheme(themePresets.violet)); // or start from a preset
+```
+
+The ramp is derived in OKLCH (HSL lightness is not perceptual, which is what makes generated palettes look broken for some hues) and **anchored at step `500`**, so the color you pass is the color your buttons get. `--tempest-primary-foreground` and the text-on-soft step are picked by **measured** contrast, not convention — hardcoding white breaks a yellow brand. See [Theme › createTheme](https://mauriciobenjamin700.github.io/tempest-react-sdk/theme/).
+
 **Optional layout layer.** CSS Modules cover the inside of each component; the layer _around_ them (page shell, two-column form, action row, card, a region that scrolls sideways instead of the page) is a second, opt-in stylesheet:
 
 ```ts

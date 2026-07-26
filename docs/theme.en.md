@@ -152,17 +152,26 @@ const theme = createTheme({
   gray: "#6b7280",             // surfaces, borders and text
   success: "#16a34a",          // each status becomes -fg / -bg / -border / -solid
   danger: "#dc2626",
-  chart: ["#7c3aed", "#0ea5e9", "#22c55e"],  // --tempest-chart-1..N (see Charts)
+  chart: ["#7c3aed", "#0ea5e9", "#22c55e"],  // --tempest-chart-1..N + -count (see Charts)
   radius: "lg",                // "none" | "sm" | "md" | "lg" | "xl" | "full"
   focusRingAlpha: 0.35,
 });
 
-theme.light; // { "--tempest-primary-500": "#7c3aed", … }
+theme.light; // { "--tempest-primary-500": "#7c3aed", … } — your color, exactly
 theme.dark;  // same, with the ramp inverted
 theme.css;   // ":root { … }\n\n[data-tempest-theme=\"dark\"] { … }"
 ```
 
 Only the families you pass are generated — everything else still comes from the SDK's `colors.css`. A theme is a **patch**, not a fork of the palette.
+
+!!! check "Step `500` is exactly the color you passed"
+    The scale is **anchored** at `500`: your brand's lightness becomes the fixed
+    point and both halves of the ramp are rescaled around it. Without that, `500`
+    was forced onto the curve's target lightness and `#7c3aed` came back as
+    `#9161fe` — same hue, same chroma, **re-lightened**. It looks fine in isolation
+    and is wrong anyway: the one color the designer handed over is the one the
+    buttons have to be. A very light brand (yellow) or a very dark one (navy)
+    simply gets a shorter run on the crowded side, and the ramp stays monotonic.
 
 !!! info "Why OKLCH and not HSL"
     The scale is derived in OKLCH because HSL lightness is **not perceptual**: a yellow and a blue at the same HSL `L` read as visibly different brightness, and that is exactly what makes a generated palette look broken for some colors. In OKLCH, the `500` step of any brand sits in the same visual place.

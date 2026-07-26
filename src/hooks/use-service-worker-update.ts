@@ -57,7 +57,9 @@ export function useServiceWorkerUpdate(
     const waitingRef = useRef<ServiceWorker | null>(null);
 
     const optionsRef = useRef(options);
-    optionsRef.current = options;
+    useEffect(() => {
+        optionsRef.current = options;
+    }, [options]);
 
     useEffect(() => {
         let cancelled = false;

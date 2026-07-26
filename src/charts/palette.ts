@@ -32,9 +32,11 @@ export const CHART_COLOR_TOKEN_COUNT = 8;
 /**
  * Read `--tempest-chart-1` … `--tempest-chart-8` into a color array.
  *
- * Stops at the first unset token, so an app that overrides only four series gets
- * exactly those four cycled instead of a half-themed tail. Returns
- * {@link DEFAULT_CHART_COLORS} when nothing is resolvable.
+ * Respects `--tempest-chart-count` when the theme declares one (`createTheme`
+ * writes it), so a six-color brand palette is read as six and not padded with the
+ * SDK's leftover `-7`/`-8` defaults. Otherwise it walks the tokens and stops at
+ * the first unset one. Returns {@link DEFAULT_CHART_COLORS} when nothing is
+ * resolvable.
  *
  * @param element - Element to resolve the tokens against. Default `<html>`; pass
  *   a subtree root when a section carries a scoped theme.
@@ -50,8 +52,13 @@ export function resolveChartColors(element?: Element | null): string[] {
 
     const styles = window.getComputedStyle(target);
     const resolved: string[] = [];
+    const declared = Number.parseInt(styles.getPropertyValue("--tempest-chart-count").trim(), 10);
+    const limit =
+        Number.isFinite(declared) && declared > 0
+            ? Math.min(declared, CHART_COLOR_TOKEN_COUNT)
+            : CHART_COLOR_TOKEN_COUNT;
 
-    for (let index = 1; index <= CHART_COLOR_TOKEN_COUNT; index += 1) {
+    for (let index = 1; index <= limit; index += 1) {
         const value = styles.getPropertyValue(`--tempest-chart-${index}`).trim();
         if (!value) break;
         resolved.push(value);

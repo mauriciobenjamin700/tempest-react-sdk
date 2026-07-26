@@ -248,6 +248,21 @@ describe("Wizard", () => {
         expect(screen.getByText("extra (optional)")).toBeInTheDocument();
     });
 
+    it("localizes the optional suffix", () => {
+        render(
+            <Wizard
+                optionalLabel="(opcional)"
+                steps={[{ ...steps[0], optional: true, description: "extra" }, steps[1]]}
+            />,
+        );
+        expect(screen.getByText("extra (opcional)")).toBeInTheDocument();
+    });
+
+    it("uses the suffix alone when an optional step has no description", () => {
+        render(<Wizard steps={[{ ...steps[0], optional: true }, steps[1]]} />);
+        expect(screen.getByText("(optional)")).toBeInTheDocument();
+    });
+
     it("shows the plain description when the step is not optional", () => {
         render(<Wizard steps={[{ ...steps[0], description: "dados básicos" }, steps[1]]} />);
         expect(screen.getByText("dados básicos")).toBeInTheDocument();

@@ -14,6 +14,7 @@ import {
     type ColorScale,
     type ScaleStep,
 } from "./color";
+import { buildDivergingRamp, buildRamp, hueOf } from "./data-viz-ramps";
 
 /** Radius presets, applied to the whole `--tempest-radius-*` family at once. */
 export type ThemeRadius = "none" | "sm" | "md" | "lg" | "xl" | "full";
@@ -286,6 +287,42 @@ export function createTheme(options: CreateThemeOptions = {}): GeneratedTheme {
         // 6-color brand palette silently mixes with two leftover defaults — which
         // is exactly what a 7-series chart would show.
         light["--tempest-chart-count"] = String(chart.length);
+    }
+
+    /*
+     * Continuous scales follow the brand too.
+     *
+     * Without this a rebranded app gets its categorical slots recoloured and then a
+     * heatmap still painted in the SDK's blue — the one chart on the page that
+     * silently ignores the brand. Both scales derive from the first series hue (or
+     * the primary), stepped by perceptual lightness for each mode separately.
+     *
+     * Skipped entirely when the theme names no colour to derive from, so the
+     * built-in tokens survive instead of being overwritten with a guess.
+     */
+    const scaleSource = chart?.[0] ?? primary;
+    if (scaleSource) {
+        const coolHue = hueOf(scaleSource);
+        // The opposite pole: the brand's own danger colour when it has one, since a
+        // diverging scale's warm arm and "bad" should not disagree on screen.
+        const warmHue = options.danger ? hueOf(options.danger) : (coolHue + 180) % 360;
+        for (const [target, mode] of [
+            [light, "light"],
+            [dark, "dark"],
+        ] as const) {
+            buildRamp(coolHue, mode).forEach((stepColor, index) => {
+                target[`--tempest-chart-sequential-${index + 1}`] = stepColor;
+            });
+            const diverging = buildDivergingRamp({
+                coolHue,
+                warmHue,
+                mid: mode === "light" ? "#e4e7ec" : "#262d3f",
+                mode,
+            });
+            [...diverging.cool, diverging.mid, ...diverging.warm].forEach((stepColor, index) => {
+                target[`--tempest-chart-diverging-${index + 1}`] = stepColor;
+            });
+        }
     }
 
     if (radius) {

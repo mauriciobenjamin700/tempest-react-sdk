@@ -4,6 +4,48 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **Escalas contínuas de data viz — `sequentialScale` e `divergingScale`.** As 8 cores
+  de série codificam **identidade**; heatmap e choropleth codificam **quanto**, e isso
+  pede _um_ hue escalonado por claridade. Era a última lacuna da fatia de CSS no
+  roadmap: escala contínua ainda era responsabilidade do app.
+- Tokens novos: `--tempest-chart-sequential-1…7` e `--tempest-chart-diverging-1…9`
+  (1–4 frio · 5 neutro · 6–9 quente), nos dois modos. **As rampas não foram escolhidas
+  a olho**: os passos são calculados em OKLCH com claridade espaçada por igual — passo
+  igual de dado parece passo igual de cor, o que não acontece espaçando em RGB — e
+  validados por script em ambos os modos (claridade monótona, gap ≥ 0,06 entre passos
+  adjacentes, hue único, ponta perto da superfície passando 2:1 no recorte ordinal).
+- **Saem da raiz, não do `/charts`**: são matemática de token pura, sem recharts, e
+  quem mais precisa delas — choropleth do `/br`, heatmap feito à mão — não tem motivo
+  pra instalar recharts. Medido: **365 B brotli** importando da raiz, e o bundle não
+  menciona recharts. O `/charts` re-exporta só por descoberta.
+- Devolvem `var(--tempest-chart-…)` em vez de hex, então um heatmap pintado uma vez
+  segue o tema. **Sequencial deixa o zero recuar** pra superfície de propósito (é o que
+  "quase nada" deve parecer); `ordinal: true` começa no passo 3 pra quando cada passo é
+  uma marca que alguém precisa ver.
+- **Cada braço da divergente escala pelo próprio alcance**: num domínio assimétrico
+  (−5 a +80) os negativos ainda usam o braço frio inteiro. Escalar os dois pelo mais
+  largo colapsaria todo negativo no passo ao lado do meio e esconderia o sinal. O meio
+  é cinza nos dois modos — meio colorido lê como terceira categoria em vez de "sem
+  desvio".
+- `createTheme` reescreve as duas escalas a partir do hue da marca, usando o `danger`
+  do tema como polo quente pra "quente" e "ruim" não discordarem na tela. Sem cor pra
+  derivar, não sobrescreve nada — os defaults validados sobrevivem em vez de virar
+  chute.
+- `scaleSteps` devolve a rampa inteira pra montar a legenda: sem faixa rotulada nas
+  pontas ninguém converte cor de volta em número.
+
+### Corrigido
+
+- **As duas fontes do mesmo token discordavam da direção no modo escuro.** O
+  `colors.css` declara token 1 = passo mais escuro no dark (o que recua pra superfície
+  escura), mas o `buildRamp` invertia e o `createTheme` escrevia token 1 = mais claro —
+  então um tema **gerado** pintava todo heatmap invertido no escuro. Pego medindo os
+  tokens no navegador, não em revisão: o `buildRamp` passou a devolver ordem de token
+  (índice 0 = ponta "perto de zero", por modo), e tem teste amarrando o gerado ao que o
+  `colors.css` declara.
+
 ## [0.27.0] — 2026-07-26
 
 ### Adicionado

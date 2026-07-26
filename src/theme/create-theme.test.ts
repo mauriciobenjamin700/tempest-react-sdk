@@ -249,3 +249,42 @@ describe("themePresets", () => {
         }
     });
 });
+
+describe("createTheme — continuous data-viz scales", () => {
+    it("rewrites both scales from the brand hue", () => {
+        const { css } = createTheme({ primary: "#7c3aed" });
+        expect(css).toContain("--tempest-chart-sequential-1:");
+        expect(css).toContain("--tempest-chart-sequential-7:");
+        expect(css).toContain("--tempest-chart-diverging-5:");
+    });
+
+    it("derives them from the first series colour when one is given", () => {
+        const fromChart = createTheme({ primary: "#7c3aed", chart: ["#0ea5e9"] }).css;
+        const fromPrimary = createTheme({ primary: "#7c3aed" }).css;
+        const step = (css: string) =>
+            /--tempest-chart-sequential-4:\s*(#[0-9a-f]{6})/.exec(css)?.[1];
+        expect(step(fromChart)).not.toBe(step(fromPrimary));
+    });
+
+    it("uses the brand's danger colour as the warm pole, so warm and bad agree", () => {
+        const withDanger = createTheme({ primary: "#2563eb", danger: "#a21caf" }).css;
+        const without = createTheme({ primary: "#2563eb" }).css;
+        const warm = (css: string) =>
+            /--tempest-chart-diverging-9:\s*(#[0-9a-f]{6})/.exec(css)?.[1];
+        expect(warm(withDanger)).not.toBe(warm(without));
+    });
+
+    it("emits each scale for light and dark separately", () => {
+        const { css } = createTheme({ primary: "#2563eb" });
+        expect(css.match(/--tempest-chart-sequential-1:/g)).toHaveLength(2);
+        expect(css.match(/--tempest-chart-diverging-1:/g)).toHaveLength(2);
+    });
+
+    it("leaves the built-in scales alone when no colour is given to derive from", () => {
+        // Overwriting them with a guess would be worse than keeping the validated
+        // defaults from colors.css.
+        const { css } = createTheme({ radius: "lg" });
+        expect(css).not.toContain("--tempest-chart-sequential-");
+        expect(css).not.toContain("--tempest-chart-diverging-");
+    });
+});

@@ -371,6 +371,90 @@ created). Need the grid/axis color? `resolveChartChrome("grid" | "axis")`.
     resolves the tokens of **that** subtree, so a section carrying its own theme
     paints its charts with its own palette.
 
+## Continuous scales: magnitude and polarity
+
+The 8 series colors encode **identity** — which series is which. A heatmap or a
+choropleth encodes **how much**, and that is a different job: it needs *one* hue
+stepped by lightness, not eight hues.
+
+```tsx
+import { sequentialScale, divergingScale, scaleSteps } from "tempest-react-sdk";
+
+const color = sequentialScale({ min: 0, max: 250 });
+<rect fill={color(value)} />;
+
+// Polarity: variance against a target
+const variance = divergingScale({ min: 80, max: 130, center: 100 });
+<rect fill={variance(actual)} />;
+```
+
+| Export                  | What it does                                              |
+| ----------------------- | --------------------------------------------------------- |
+| `sequentialScale`       | `{ min, max, ordinal? }` → `(value) => color`             |
+| `divergingScale`        | `{ min, max, center? }` → `(value) => color`               |
+| `scaleSteps`            | Every step in order, for building the legend               |
+| `SEQUENTIAL_STEP_COUNT` | `7`                                                       |
+| `DIVERGING_STEP_COUNT`  | `9` (1–4 cool · 5 neutral · 6–9 warm)                     |
+| `ORDINAL_START_STEP`    | `3` — first step that clears 2:1 on the surface            |
+
+!!! info "They ship on the root entry, not behind `/charts`"
+    They are pure token math with **no recharts dependency**. The things that need
+    them most — a `/br` choropleth, a hand-rolled heatmap — have no reason to install
+    recharts. Measured cost: **365 B brotli** importing from the root. `/charts`
+    re-exports them only for discoverability.
+
+!!! tip "They return a token, not a hex"
+    The result is `var(--tempest-chart-sequential-4)`. A heatmap painted once follows
+    the theme — including dark mode, whose steps are **selected** for the dark surface
+    rather than flipped from the light ones.
+
+!!! warning "Sequential lets zero recede; ordinal must not"
+    On a **sequential** scale the lightest step disappears into the surface on
+    purpose: that is what "almost nothing" should look like on a heatmap. On an
+    **ordinal** one — funnel stages, tiers, bands — every step is a mark someone has
+    to see, and an invisible step is lost data. Pass `ordinal: true` and the scale
+    starts at step 3.
+
+    ```tsx
+    sequentialScale({ min: 0, max: 4, ordinal: true }); // uses 3..7
+    ```
+
+!!! check "Each diverging arm scales against its own range"
+    On an asymmetric domain (−5 to +80) the negatives still use the whole cool arm.
+    Scaling both arms by the wider one — the easy mistake — would collapse every
+    negative into the step next to the midpoint and hide the sign entirely.
+
+!!! danger "The diverging midpoint is grey, never a hue"
+    A coloured midpoint reads as a **third category** instead of "no deviation", which
+    is the one thing a diverging scale exists to show. That is why token 5 is neutral
+    in both modes.
+
+!!! note "A continuous scale needs a legend"
+    Without a ramp labelled at its ends, nobody can turn a colour back into a number.
+    That is what `scaleSteps` is for:
+
+    ```tsx
+    <div style={{ display: "flex" }}>
+      {scaleSteps("sequential").map((color) => (
+        <span key={color} style={{ background: color, width: 20, height: 10 }} />
+      ))}
+    </div>
+    <span>0</span> … <span>250</span>
+    ```
+
+### How the ramps were built
+
+They were not picked by eye. The steps are **computed** in OKLCH with evenly spaced
+lightness, so an equal step of data looks like an equal step of colour — which does
+not happen when you space in RGB. Chroma follows a dome: the ends stay believable and
+the middle carries the hue.
+
+Each ramp was validated by script in both modes: monotone lightness, adjacent gaps
+≥ 0.06, a single hue, and the end nearest the surface clearing 2:1 in the ordinal
+slice. `createTheme` rebuilds both scales from the brand hue (using the theme's
+`danger` as the warm pole, so "warm" and "bad" do not disagree on screen), so
+rebranding moves the heatmap too instead of leaving it in the SDK's blue.
+
 ## Responsive by default, fixed when needed
 
 By default, each chart **stretches to its parent's width** via a recharts

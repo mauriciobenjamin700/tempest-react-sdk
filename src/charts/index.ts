@@ -10,4 +10,13 @@ export {
     resolveChartColors,
 } from "./palette";
 export { useChartColors } from "./use-chart-colors";
+export {
+    divergingScale,
+    DIVERGING_STEP_COUNT,
+    ORDINAL_START_STEP,
+    scaleSteps,
+    sequentialScale,
+    SEQUENTIAL_STEP_COUNT,
+} from "./scales";
+export type { ChartColorToken, DivergingScaleOptions, SequentialScaleOptions } from "./scales";
 export type { ChartData, CartesianChartProps, PieChartProps } from "./types";

@@ -182,6 +182,42 @@
     --tempest-chart-7: #ea580c;
     --tempest-chart-8: #0f766e;
 
+    /* ============================================================
+     * Continuous data-viz scales — magnitude and polarity.
+     * The 8 categorical slots above encode *identity*; a heatmap or a
+     * choropleth encodes *how much*, which needs one hue stepped by
+     * perceptual lightness, not eight hues.
+     * Steps are evenly spaced in OKLCH lightness, so equal data steps
+     * look like equal colour steps. `createTheme` rewrites both scales
+     * from the brand hue, so rebranding moves them too.
+     * Step 1 is the lightest and is allowed to recede into the surface —
+     * on a sequential scale that is what "near zero" should look like.
+     * For an ORDINAL ramp (discrete ordered marks: tiers, funnel stages)
+     * start at step 3, the first that clears 2:1 against the surface.
+     * ============================================================ */
+    --tempest-chart-sequential-1: #dde8fe;
+    --tempest-chart-sequential-2: #acc8fe;
+    --tempest-chart-sequential-3: #7aa7ff;
+    --tempest-chart-sequential-4: #4983fc;
+    --tempest-chart-sequential-5: #3667ce;
+    --tempest-chart-sequential-6: #2b4e96;
+    --tempest-chart-sequential-7: #25375a;
+
+    /*
+     * Diverging: cool arm (1–4), neutral midpoint (5), warm arm (6–9).
+     * The midpoint is grey on purpose — a coloured midpoint reads as a
+     * third category instead of as "no deviation".
+     */
+    --tempest-chart-diverging-1: #0f3ca1;
+    --tempest-chart-diverging-2: #416eca;
+    --tempest-chart-diverging-3: #7ba0e7;
+    --tempest-chart-diverging-4: #bdd2f9;
+    --tempest-chart-diverging-5: #e4e7ec;
+    --tempest-chart-diverging-6: #f6c3bc;
+    --tempest-chart-diverging-7: #de847a;
+    --tempest-chart-diverging-8: #ba473f;
+    --tempest-chart-diverging-9: #870f11;
+
     /* Chart chrome — axis lines, grid and tooltip surface. */
     --tempest-chart-grid: var(--tempest-gray-200);
     --tempest-chart-axis: var(--tempest-gray-500);
@@ -275,6 +311,32 @@
     --tempest-chart-6: #22d3ee;
     --tempest-chart-7: #fb923c;
     --tempest-chart-8: #2dd4bf;
+
+    /*
+     * Continuous scales, stepped for the dark surface rather than flipped.
+     * A mechanical inversion of the light ramp lands either invisible against
+     * a near-black canvas or bright enough to read as a highlight, so both
+     * bands are chosen. Step 1 is still the end nearest "zero"; on a dark
+     * canvas that is the darkest step, which is why the order reverses.
+     * Ordinal ramps start at step 3 here too (first to clear 2:1).
+     */
+    --tempest-chart-sequential-1: #172849;
+    --tempest-chart-sequential-2: #1b3c83;
+    --tempest-chart-sequential-3: #2453b9;
+    --tempest-chart-sequential-4: #376fe5;
+    --tempest-chart-sequential-5: #5b90fb;
+    --tempest-chart-sequential-6: #8cb2fa;
+    --tempest-chart-sequential-7: #bad2fe;
+
+    --tempest-chart-diverging-1: #1543a8;
+    --tempest-chart-diverging-2: #416eca;
+    --tempest-chart-diverging-3: #7599e0;
+    --tempest-chart-diverging-4: #b0c5ec;
+    --tempest-chart-diverging-5: #262d3f;
+    --tempest-chart-diverging-6: #e8b6af;
+    --tempest-chart-diverging-7: #d77e74;
+    --tempest-chart-diverging-8: #ba473f;
+    --tempest-chart-diverging-9: #94020c;
 
     --tempest-chart-grid: var(--tempest-gray-300);
     --tempest-chart-axis: var(--tempest-gray-600);

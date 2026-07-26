@@ -8,7 +8,7 @@ SDK público da Tempest com componentes React, hooks e integrações reutilizáv
 
 - **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 30 tags publicadas (0.1.0 → 0.23.0) com signed provenance via OIDC. Histórico completo em `RELEASES.md` (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
 - **Testes**: 2488 testes em 377 arquivos, ~36 s sob `vitest + jsdom + fake-indexeddb`. Cobertura 98.5% linhas / 97.1% statements / 96.6% funções / 95.0% branches; pisos do CI em 98/97/96/94.
-- **Superfície**: 34 módulos em `src/`, 111 componentes, 46 hooks, 384 exports na entrada raiz.
+- **Superfície**: 34 módulos em `src/`, 112 componentes, 46 hooks (+ `useNotificationInbox`, que mora junto do `NotificationCenter`), 384 exports na entrada raiz.
 - **Empacotamento (v0.25.0)**: `dist/` preserva o grafo de módulos (`preserveModules`). O que o app paga de fato (brotli): `{ cn }` 153 B · `{ Button }` 794 B · app típico 6.83 KB · offline/PWA 4.44 KB · `styles.css` 21.68 KB · `utilities.css` 1.13 KB (opt-in). Teto sem tree-shaking: 70.21 KB ESM / 85.52 KB CJS. Budgets do `size-limit` são **por fatia importada**, não pelo barrel.
 - **Subpaths** (11): `.`, `/testing` (MSW), `/vite` (`createViteConfig` + plugins), `/sw` (helpers de contexto SW), `/charts` (recharts peer), `/editor` (tiptap peer), `/vision` (onnxruntime-web peer), `/br` (dataset BR + mapa clicável), `/icons` (ícone por slug, 25 shards lazy), `/icons/virtual` (declaração ambiente do módulo do plugin), `/styles.css`, `/utilities.css` (camada de layout opt-in).
 - **CLIs** (`bin/`): `create-tempest-app` (scaffold — invocado como `npx -p tempest-react-sdk create-tempest-app .`; **não** existe pacote `create-tempest-app` no npm, então `npm create tempest-app` dá 404) com templates `template/` e `template-pwa/`; `tempest` (project CLI: `doctor`, `lint`, `fix`, `format`, `gen api <openapi>` → Zod + types + services, `gen icons` → registry estático de ícone).
@@ -54,7 +54,7 @@ tempest-react-sdk/
 │   ├── auth/           createAuthStore, AuthGuard, decodeJWT, lazyWithRetry, createRefreshQueue, createTempestAuth
 │   ├── br/          ⇢  dataset de estados/municípios + mapa UF clicável + centroides (chunks lazy)
 │   ├── charts/      ⇢  wrappers recharts
-│   ├── components/     111 componentes UI
+│   ├── components/     112 componentes UI
 │   ├── data/           createDataProvider, <TempestDataProvider>, useDataProvider (CRUD por recurso)
 │   ├── editor/      ⇢  RichTextEditor (tiptap)
 │   ├── error-boundary/ ErrorBoundary, useErrorHandler
@@ -69,6 +69,7 @@ tempest-react-sdk/
 │   ├── oauth/          <GoogleSignIn>, useOAuthCallback
 │   ├── offline/        createOfflineStore (Dexie), createOfflineSync (outbox+pull+watermark), useOfflineSync, resolvers de conflito
 │   ├── push/           usePushSubscription, urlBase64ToUint8Array, isPushSupported
+│                        (inbox: <NotificationCenter> + useNotificationInbox em components/)
 │   ├── query/          QueryProvider, createQueryKeys, paginação, useOfflineMutation, persistQueryClientOffline
 │   ├── router/         defineRoutes, <AppRouter>, <RouteGuard> (React Router v8 declarativo)
 │   ├── share/          share, isShareSupported, shareOrDownloadBlob
@@ -102,31 +103,14 @@ tempest-react-sdk/
 
 ## Backlog priorizado
 
-Entregue e fora do backlog: **`VirtualTable`**, **ícone por slug (`/icons`, issue #37)**, release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`), sweep `axe` em jsdom + smoke Playwright do gallery (`e2e.yml`), coverage gateando o CI (pisos 98/97/96/94), política de versionamento de tokens CSS (`docs/styles.md`).
-
-### Em revisão (PRs **encadeados** — mergear em ordem)
-
-`main` ← #46 ← #47 ← #48 ← #49. Cada PR sai do anterior, não da `main`: o diff de
-cada um mostra só o que ele acrescenta, e o `[Unreleased]` do CHANGELOG deixa de
-conflitar a cada abertura de PR (foi o que aconteceu com a primeira rodada).
-
-| PR  | Base | O que entrega                                                                                               |
-| --- | ---- | ----------------------------------------------------------------------------------------------------------- |
-| #46 | main | `tempest-react-sdk/utilities.css` — camada de layout opt-in (~50 classes, 1.13 KB br)                       |
-| #47 | #46  | `TreeView` (hierarquia acessível) + `Wizard` (fluxo multi-passo); `Stepper` com `description`/`onStepClick` |
-| #48 | #47  | `SignaturePad` (canvas), `Lightbox` (galeria overlay), `AvatarGroup`                                        |
-| #49 | #48  | este roadmap                                                                                                |
-
-Já na `main`: **#45** — `createTheme` + presets + `applyTheme`, tokens
-`--tempest-chart-*` e charts seguindo o tema.
+Entregue e fora do backlog: **`NotificationCenter`** (inbox de push), **`VirtualTable`**, **ícone por slug (`/icons`, issue #37)**, **`tempest fix` convertendo import relativo pra `@/` (issue #56)**, release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`), sweep `axe` em jsdom + smoke Playwright do gallery (`e2e.yml`), coverage gateando o CI (pisos 98/97/96/94), política de versionamento de tokens CSS (`docs/styles.md`).
 
 ### P1 — componentes (na ordem)
 
-1. **`NotificationCenter`** — casa direto com o módulo `push` (inbox de notificação recebida, lida/não lida, ação por item).
-2. **`ImageCropper`** — par natural do `FileUpload` + câmera do `vision` para foto de perfil / documento.
-3. **`Scheduler`/agenda** — o `Calendar` é date-picker, não agenda de evento.
+1. **`ImageCropper`** — par natural do `FileUpload` + câmera do `vision` para foto de perfil / documento.
+2. **`Scheduler`/agenda** — o `Calendar` é date-picker, não agenda de evento.
 
-Já entregues desta lista: `useSortable` (enabler de DnD), `Kanban`, `VirtualTable`.
+Já entregues desta lista: `useSortable` (enabler de DnD), `Kanban`, `VirtualTable`, `NotificationCenter`.
 
 ### P2 — componentes
 

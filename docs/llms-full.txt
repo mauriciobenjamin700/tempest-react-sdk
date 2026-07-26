@@ -10758,6 +10758,132 @@ installNotificationClickHandler();
     no barrel para quem precisa de uma checagem de suporte fora do hook
     (`isPushSupported()`) ou de um fluxo de inscrição 100% customizado.
 
+## Inbox na aplicação (`NotificationCenter`)
+
+Um push mostra uma notificação do sistema e depois **desaparece** — no que
+depende da sua UI, ele nunca existiu. O usuário que fechou o toast não tem onde
+reencontrar aquilo. É a metade que falta do web push: um inbox dentro do app.
+
+O service worker roda **fora** da página e não pode tocar em estado React. A ponte
+é uma mensagem:
+
+```ts
+// src/sw.ts — dentro do seu handler de push
+self.addEventListener("push", (event) => {
+    const payload = event.data?.json() ?? {};
+    event.waitUntil(
+        (async () => {
+            await self.registration.showNotification(payload.title, payload);
+            const clients = await self.clients.matchAll({ includeUncontrolled: true });
+            for (const client of clients) {
+                client.postMessage({ type: "tempest:notification", notification: payload });
+            }
+        })(),
+    );
+});
+```
+
+E, no app, `useNotificationInbox` escuta essa mensagem por default:
+
+```tsx
+import { NotificationCenter, useNotificationInbox, Popover, Button } from "tempest-react-sdk";
+
+export function NotificationsButton() {
+    const inbox = useNotificationInbox();
+
+    return (
+        <Popover
+            trigger={
+                <Button variant="ghost" aria-label={`Notificações (${inbox.unreadCount} não lidas)`}>
+                    🔔 {inbox.unreadCount > 0 && inbox.unreadCount}
+                </Button>
+            }
+        >
+            <NotificationCenter
+                items={inbox.items}
+                onMarkRead={inbox.markRead}
+                onMarkAllRead={inbox.markAllRead}
+                onDismiss={inbox.remove}
+                onSelect={(item) => item.url && navigate(item.url)}
+            />
+        </Popover>
+    );
+}
+```
+
+### `useNotificationInbox`
+
+| Opção                   | Tipo                                          | Default                   |
+| ----------------------- | --------------------------------------------- | ------------------------- |
+| `initialItems`          | `NotificationItem[]`                          | `[]`                      |
+| `listenToServiceWorker` | `boolean`                                     | `true`                    |
+| `messageType`           | `string`                                      | `"tempest:notification"`  |
+| `limit`                 | `number`                                      | `100`                     |
+| `onChange`              | `(items: NotificationItem[]) => void`         | —                         |
+
+Retorna `{ items, unreadCount, add, markRead, markUnread, markAllRead, remove, clear }`.
+Entrada: `{ id, title, body?, receivedAt, read?, url?, data? }`.
+
+!!! info "Filtra por `type`, e isso não é detalhe"
+    O canal de mensagens do service worker é **compartilhado** — um ping de
+    progresso de sync ou um aviso de cache atualizado passam pelo mesmo lugar.
+    Sem filtrar por `type`, tudo isso apareceria no inbox do usuário.
+
+!!! warning "Persistência é decisão sua"
+    O hook guarda a lista em memória e nada mais: onde um inbox mora (servidor,
+    Dexie, `localStorage`) muda por app, e um default errado seria pior que
+    nenhum. Use `onChange` pra escrever e `initialItems` pra ler de volta.
+
+    ```tsx
+    const inbox = useNotificationInbox({
+        initialItems: restored,
+        onChange: (items) => storage.set("inbox", items),
+    });
+    ```
+
+!!! tip "`limit` existe porque um inbox alimentado por push cresce sem fim"
+    Default de 100, os mais antigos caem fora. Aumente se você persiste e pagina.
+
+### `NotificationCenter`
+
+| Prop            | Tipo                                    | Default            |
+| --------------- | --------------------------------------- | ------------------ |
+| `items`         | `NotificationItem[]`                    | —                  |
+| `title`         | `ReactNode` (`null` remove o cabeçalho) | `"Notificações"`   |
+| `onSelect`      | `(item: NotificationItem) => void`      | —                  |
+| `onMarkRead`    | `(id: string) => void`                  | —                  |
+| `onMarkAllRead` | `() => void`                            | —                  |
+| `onDismiss`     | `(id: string) => void`                  | —                  |
+| `renderIcon`    | `(item: NotificationItem) => ReactNode` | —                  |
+| `locale`        | `"pt-BR" \| "en"`                       | `"pt-BR"`          |
+| `emptyState`    | `ReactNode`                             | `<EmptyState …/>`  |
+| `now`           | `number` (referência dos timestamps)    | agora, no render   |
+
+!!! note "É só o painel, não um popover"
+    Monte dentro do seu `Popover`, `Drawer` ou de uma rota própria. Um componente
+    que fosse dono do inbox **e** de uma estratégia de posicionamento serviria pra
+    menos casos, não mais.
+
+!!! check "Abrir é ler"
+    Ativar uma notificação chama `onMarkRead` junto com `onSelect` — senão todo app
+    teria que lembrar de chamar os dois, e o contador de não lidas continuaria
+    contando algo que o usuário já viu.
+
+!!! tip "Não lida não é só cor"
+    A linha ganha barra à esquerda **e** fundo tingido, mais `aria-current="true"`.
+    Cor sozinha não sobrevive a monocromia nem a daltonismo.
+
+`renderIcon` casa direto com o subpath de ícones:
+
+```tsx
+import { Icon } from "tempest-react-sdk/icons";
+
+<NotificationCenter
+    items={inbox.items}
+    renderIcon={(item) => <Icon name={(item.data?.icon as string) ?? "bell"} size={16} />}
+/>
+```
+
 ## Compatibilidade
 
 - iOS Safari só funciona quando o app é instalado como PWA (Add to Home Screen).
@@ -10770,6 +10896,7 @@ installNotificationClickHandler();
 - **`usePushSubscription`** dá todo o estado (`supported`/`permission`/`subscribed`/`loading`/`error`) + ações; **`WebPushClient`** é a versão imperativa.
 - **Handlers do worker** (`installPushHandler`/`installNotificationClickHandler`/`installSkipWaitingListener`) vão dentro do _seu_ `sw.ts`.
 - **iOS** só recebe push em PWA instalado — esconda o toggle quando `!supported`.
+- **`useNotificationInbox` + `NotificationCenter`** fecham o ciclo: o worker faz `postMessage`, o hook guarda a lista (filtrando por `type`, com `limit`) e o painel mostra lida/não lida com ação por item. Persistência fica com o app, via `onChange`/`initialItems`.
 
 ### Veja também
 

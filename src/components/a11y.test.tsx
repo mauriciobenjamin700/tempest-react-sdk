@@ -16,6 +16,7 @@ import { EmptyState } from "./EmptyState";
 import { Input } from "./Input";
 import { Kanban } from "./Kanban";
 import { Modal } from "./Modal";
+import { NotificationCenter } from "./NotificationCenter";
 import { Pagination } from "./Pagination";
 import { PasswordInput } from "./PasswordInput";
 import { Progress } from "./Progress";
@@ -102,6 +103,25 @@ const CASES: [name: string, ui: ReactElement][] = [
                 { id: "one", label: "Um", content: <p>Um</p> },
                 { id: "two", label: "Dois", content: <p>Dois</p> },
             ]}
+        />,
+    ],
+    [
+        "NotificationCenter",
+        <NotificationCenter
+            items={[
+                { id: "n1", title: "Pedido enviado", body: "#1234", receivedAt: 1_700_000_000_000 },
+                {
+                    id: "n2",
+                    title: "Pagamento aprovado",
+                    receivedAt: 1_700_000_000_000,
+                    read: true,
+                },
+            ]}
+            now={1_700_000_060_000}
+            onSelect={() => undefined}
+            onMarkRead={() => undefined}
+            onMarkAllRead={() => undefined}
+            onDismiss={() => undefined}
         />,
     ],
     ["Accordion", <Accordion items={[{ id: "a", title: "Seção A", children: <p>Corpo A</p> }]} />],

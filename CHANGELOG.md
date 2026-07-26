@@ -71,6 +71,36 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   elas pulavam no meio da rolagem; e um `<th>` sticky dentro de tabela colapsada
   perde a borda de baixo ao rolar, porque a borda compartilhada pertence à célula que
   saiu.
+- **`<NotificationCenter>` + `useNotificationInbox` — a metade que faltava do web
+  push.** Um push mostra a notificação do sistema e **desaparece**: no que depende da
+  UI do app, ela nunca existiu, e quem fechou o toast não tem onde reencontrar
+  aquilo. O módulo `push` cuidava de assinar e receber; não havia inbox.
+- **A ponte é uma mensagem, e ela precisava existir.** O service worker roda fora da
+  página e não pode tocar em estado React. O worker faz `postMessage` e
+  `useNotificationInbox` escuta por default — mais nada. Filtra por `type` (default
+  `"tempest:notification"`) porque o canal de mensagens do SW é **compartilhado**: sem
+  isso, um ping de progresso de sync ou um aviso de cache atualizado apareceria no
+  inbox do usuário.
+- O hook mantém a lista mais-nova-primeiro, deduplicada por `id` (re-adicionar um id
+  **atualiza** em vez de duplicar) e limitada a `limit` (default 100 — um inbox
+  alimentado por push cresce sem fim e mora em memória). Expõe `unreadCount`, `add`,
+  `markRead`, `markUnread`, `markAllRead`, `remove`, `clear`.
+- **Persistência ficou de fora de propósito.** Onde um inbox mora (servidor, Dexie,
+  `localStorage`) muda por app, e um default errado seria pior que nenhum: `onChange`
+  reporta toda mudança e `initialItems` lê de volta.
+- **O painel é controlado e é só o painel.** Recebe a lista e emite intenção; monta
+  dentro do `Popover`/`Drawer`/rota do app. Um componente dono do inbox **e** de uma
+  estratégia de posicionamento serviria pra menos casos, não mais.
+- **Abrir é ler**: ativar uma notificação chama `onMarkRead` junto com `onSelect` —
+  senão todo app teria que lembrar de chamar os dois e o contador continuaria contando
+  algo que o usuário já viu. Sem handler nenhum, as linhas viram texto puro em vez de
+  botões: nada de alvo clicável que não faz nada.
+- **Não lida não é só cor**: barra à esquerda + fundo tingido + `aria-current="true"`,
+  porque cor sozinha não sobrevive a monocromia nem a daltonismo. Timestamp relativo
+  em `<time dateTime>` (com `now` injetável, pra o demo e os testes serem
+  determinísticos) e o controle de descarte nomeia a notificação
+  (`aria-label="Descartar: …"`).
+
 - **`<Kanban>` + `applyKanbanMove`** — quadro de colunas com cards que trocam de
   estágio, reordenável dentro da coluna e móvel entre colunas, por ponteiro **ou**
   teclado. A máquina de arrasto é o `useSortable`: o quadro não reimplementa nada

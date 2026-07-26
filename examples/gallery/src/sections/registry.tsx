@@ -14,6 +14,7 @@ import { AdvancedComponentsSection } from "./AdvancedComponentsSection";
 import { TableSection } from "./TableSection";
 import { DataTableSection } from "./DataTableSection";
 import { VirtualTableSection } from "./VirtualTableSection";
+import { NotificationCenterSection } from "./NotificationCenterSection";
 import { MaterialSection } from "./MaterialSection";
 import { FormsSection } from "./FormsSection";
 import { BRFormsSection } from "./BRFormsSection";
@@ -331,6 +332,14 @@ export const SECTIONS: SectionEntry[] = [
         keywords: "useeventstream sse push audio playaudio",
         group: "Receitas",
         Component: IntegrationsSection,
+    },
+    {
+        id: "notification-center",
+        label: "NotificationCenter (inbox)",
+        keywords:
+            "notificationcenter notification inbox push notificacao lida nao-lida usenotificationinbox service worker postmessage",
+        group: "Receitas",
+        Component: NotificationCenterSection,
     },
     {
         id: "pwa",

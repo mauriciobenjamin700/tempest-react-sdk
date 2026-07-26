@@ -79,6 +79,7 @@ Tooling
 - **`@types/react` vs `react`** major mismatch → phantom type errors.
 - **Optional peers for used subpaths**: importing `tempest-react-sdk/charts` without `recharts`, `/editor` without `@tiptap/react`, `/vision` without `onnxruntime-web`, or passing `tileUrl` to `TrajectoryMap` without `leaflet` — it all compiles, then breaks on the lazy import at runtime.
 - **SDK out of date** vs `latest` on npm (best-effort, short timeout; skipped offline).
+- **A duplicated `lucide-react`** — a separate check from the one above, because two copies of lucide do not break hooks the way a second React does: they duplicate bytes and, worse, leave `/icons`' **generated slug tables** pointing at exports the older copy lacks. It warns when your `package.json` declares lucide on a different range than the SDK's (the cause), when a nested copy exists under `tempest-react-sdk` (the proof), and **fails** when the installed version is older than the tables need — that case breaks the build with `… is not exported by lucide-react` pointing inside the SDK. See [Icons by slug](./icons.md).
 
 **TypeScript** — `@/*` alias; **`moduleResolution`** ∈ `bundler`/`node16`/`nodenext` (otherwise _subpath exports_ like `tempest-react-sdk/br` won't resolve types — silent!); **`jsx: "react-jsx"`**; **`strict: true`**; **`skipLibCheck`** on; with tests + `vitest`, warns if tsconfig `types` omits `vitest/globals`.
 

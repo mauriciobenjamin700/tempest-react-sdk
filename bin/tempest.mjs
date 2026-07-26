@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import { aliasImports } from "./lib/alias/index.mjs";
 import { loadTypeScript } from "./lib/alias/typescript.mjs";
 import { readTsconfig } from "./lib/alias/tsconfig.mjs";
+import { checkLucide } from "./lib/doctor/lucide.mjs";
 import { generateRegistry, loadIconTables } from "./lib/icons/generate.mjs";
 import { generate } from "./lib/openapi/generate.mjs";
 import { loadSpec } from "./lib/openapi/load.mjs";
@@ -350,6 +351,21 @@ function doctor() {
                       `duplicate instance: ${dupes.join(", ")}`,
                       "nested copy under tempest-react-sdk — run `npm dedupe` or align versions; two instances break hooks/context",
                   ],
+        );
+
+        // lucide-react gets its own check: two copies of it do not break hooks the
+        // way a second React does, but they duplicate bytes and can leave the
+        // generated icon slug tables pointing at exports the older copy lacks.
+        const sdkPkg = readJSON(join(ROOT, "node_modules", "tempest-react-sdk", "package.json"));
+        checks.push(
+            ...checkLucide({
+                appSpec: deps["lucide-react"] ? String(deps["lucide-react"]) : null,
+                sdkSpec: sdkPkg?.dependencies?.["lucide-react"]
+                    ? String(sdkPkg.dependencies["lucide-react"])
+                    : null,
+                installedVersion: installedVersion("lucide-react"),
+                nestedCopy: nestedDupe("lucide-react"),
+            }),
         );
     }
 

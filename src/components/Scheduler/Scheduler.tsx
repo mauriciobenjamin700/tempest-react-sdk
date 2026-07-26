@@ -183,9 +183,20 @@ export function Scheduler({
                 </div>
             )}
 
+            {/*
+             * Focusable because it scrolls vertically: a scroll region that cannot be
+             * focused is unreachable by keyboard, which is what `axe`'s
+             * `scrollable-region-focusable` rule is about. It needs a name too, or the
+             * new tab stop would announce nothing — but `group`, not `region`: a named
+             * `region` is a landmark, and two schedulers on one page would then be two
+             * identically-named landmarks (`landmark-unique`).
+             */}
             <div
                 className={styles.body}
                 style={{ ["--tempest-scheduler-days" as string]: dayCount }}
+                tabIndex={0}
+                role="group"
+                aria-label="Grade de horários"
             >
                 <div className={styles.gutter}>
                     {marks.map((minute) => (

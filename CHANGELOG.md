@@ -56,6 +56,14 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   dentro da janela, `onSlotClick` com o instante já snapado e clampado — e que **não**
   dispara quando o clique caiu num evento. O layout é puro em `scheduler-layout.ts`,
   com 39 casos de teste próprios.
+- **Dois defeitos de acessibilidade pegos no navegador, não em revisão.** O `axe` do
+  jsdom não pinta, então não mede contraste: o horário do evento tinha `opacity: 0.85`
+  sobre o fill e **reprovava AA** — o sweep do browser no `e2e.yml` acusou. A hierarquia
+  agora vem de tamanho e peso, que não custam contraste. E a região que rola na
+  vertical não era focável (`scrollable-region-focusable`), então quem usa teclado não
+  conseguia rolá-la; virou focável com nome, como `group` e não `region` — um `region`
+  nomeado é landmark, e duas agendas na mesma página seriam dois landmarks de nome
+  idêntico.
 - **Não é `role="grid"`**, e isso foi decisão forçada por evidência: grade ARIA exige
   filhos `row`, e os eventos são irmãos das colunas dentro de um único CSS grid — um
   wrapper `row` faria as colunas deixarem de ser itens do grid. O `axe` reprovou a

@@ -162,10 +162,15 @@
     outline-offset: -2px;
 }
 
+/*
+ * No `opacity` here, deliberately. Dimming the time to signal it as secondary drops
+ * it below the AA contrast threshold against the event fill — the browser `axe` sweep
+ * caught exactly that (jsdom cannot, since it does not paint). The hierarchy comes
+ * from size and weight instead, which cost nothing in contrast.
+ */
 .eventTime {
     font-size: 0.625rem;
     font-variant-numeric: tabular-nums;
-    opacity: 0.85;
 }
 
 .eventTitle {

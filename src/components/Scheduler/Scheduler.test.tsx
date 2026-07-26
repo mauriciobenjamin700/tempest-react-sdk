@@ -274,3 +274,17 @@ describe("Scheduler — current time", () => {
         }
     });
 });
+
+describe("Scheduler — the scroll region", () => {
+    it("is focusable and named, since it scrolls vertically", () => {
+        renderScheduler();
+        const region = screen.getByRole("group", { name: "Grade de horários" });
+        expect(region).toHaveAttribute("tabIndex", "0");
+    });
+
+    it("is a group and not a landmark, so two schedulers do not collide", () => {
+        renderScheduler();
+        // A named `region` is a landmark; duplicates trip axe's `landmark-unique`.
+        expect(screen.queryByRole("region")).not.toBeInTheDocument();
+    });
+});

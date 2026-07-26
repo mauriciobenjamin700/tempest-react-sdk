@@ -5,6 +5,11 @@ props, examples, and accessibility notes.
 
 ➡️ **[Start with Data entry](./components/inputs.md)**
 
+!!! tip "Icons by name"
+    Need to render an icon whose name only exists at runtime (a menu from the API, a
+    CMS field)? See [Icons by slug](./icons.md) — `<Icon name="save" />` covers all
+    1997 lucide slugs without `DynamicIcon`'s chunk cost.
+
 ## Categories
 
 - **[Data entry](./components/inputs.md)** — Input, Textarea, Select, Combobox, MultiSelect, Checkbox, Radio, Switch, ChipInput, SearchBar, DatePicker, DateRangePicker, FileUpload, Slider, RangeSlider, RatingStars, PinInput, PasswordInput, StepperInput, Form\*

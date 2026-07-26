@@ -80,13 +80,21 @@
       "import": "./dist/br.js",
       "require": "./dist/br.cjs"
     },
+    "./icons": {
+      "types": "./dist/icons.d.ts",
+      "import": "./dist/icons.js",
+      "require": "./dist/icons.cjs"
+    },
+    "./icons/virtual": {
+      "types": "./dist/icons-virtual.d.ts"
+    },
     "./styles.css": "./dist/styles.css",
     "./package.json": "./package.json",
     "./utilities.css": "./dist/utilities.css"
   },
   "scripts": {
     "dev": "vite build --watch",
-    "build": "tsc -b tsconfig.build.json && vite build && node scripts/copy-css-assets.mjs",
+    "build": "tsc -b tsconfig.build.json && node --max-old-space-size=6144 ./node_modules/vite/bin/vite.js build && node scripts/copy-css-assets.mjs",
     "typecheck": "tsc -b tsconfig.json --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -98,6 +106,7 @@
     "size": "size-limit",
     "docs:llms": "node scripts/gen-llms.mjs",
     "gen:geodata": "node scripts/gen-br-geodata.mjs",
+    "gen:icons": "node scripts/gen-icons.mjs",
     "vendor:vision": "node scripts/vendor-vision.mjs",
     "prepare": "husky",
     "prepublishOnly": "npm run typecheck && npm run lint && npm run test:run && npm run build",
@@ -117,7 +126,7 @@
     "@tanstack/react-query": "^5.0.0",
     "dexie": "^4.4.2",
     "fflate": "^0.8.3",
-    "lucide-react": ">=0.400.0",
+    "lucide-react": "^1.26.0",
     "react-hook-form": "^7.76.0",
     "react-router": "^8.3.0",
     "zod": "^3.23.0 || ^4.0.0",

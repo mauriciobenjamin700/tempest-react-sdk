@@ -92,6 +92,7 @@ são declarados — o caller injeta a instância na factory.
 | `tempest-react-sdk/styles.css` | Tokens `--tempest-*` + reset + CSS Modules.           |
 | `tempest-react-sdk/vite`       | `createViteConfig` (Node-only, pro `vite.config.ts`). |
 | `tempest-react-sdk/testing`    | `createMockHandlers` (helpers MSW pra testes).        |
+| `tempest-react-sdk/icons`      | `Icon` por slug + registro estático ([Ícones](./icons.md)). |
 
 ## Bundle
 
@@ -105,8 +106,8 @@ Orçamento monitorado por `size-limit` no CI.
   tree-shake do resto.
 - Só `react` + `react-dom` são peers; as demais libs são deps diretas instaladas
   junto.
-- Quatro subpaths: o barrel principal, `…/styles.css`, `…/vite` (Node-only) e
-  `…/testing`.
+- Subpaths: o barrel principal, `…/styles.css`, `…/vite` (Node-only), `…/testing` e
+  `…/icons` (ícone por slug).
 - A fundação de app ([Vite](./vite-config.md) · [Router](./routing.md) ·
   [Store](./state.md) · [Providers](./app-providers.md)) é o que o
   [`create-tempest-app`](./scaffold.md) monta pra você.

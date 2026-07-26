@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import { aliasImports } from "./lib/alias/index.mjs";
 import { loadTypeScript } from "./lib/alias/typescript.mjs";
 import { readTsconfig } from "./lib/alias/tsconfig.mjs";
+import { generateRegistry, loadIconTables } from "./lib/icons/generate.mjs";
 import { generate } from "./lib/openapi/generate.mjs";
 import { loadSpec } from "./lib/openapi/load.mjs";
 
@@ -786,15 +787,67 @@ async function genApi(args) {
     return 0;
 }
 
-function gen(args) {
-    const what = args[0];
-    if (what !== "api") {
+// ------------------------------------------------------------ gen icons ----
+
+/**
+ * `tempest gen icons [--out src/icons.generated.ts] [--dir src]` — write a static
+ * icon registry from the slugs the project's source mentions.
+ *
+ * The `tempestIcons()` Vite plugin does the same thing as a virtual module and
+ * needs no file; this exists for a project that is not on Vite, or that prefers a
+ * registry it can read and commit.
+ */
+async function genIcons(args) {
+    const outRel = parseOut(args, "src/icons.generated.ts");
+    const dirIndex = args.indexOf("--dir");
+    const dirRel = dirIndex >= 0 && args[dirIndex + 1] ? args[dirIndex + 1] : "src";
+    const dir = resolve(ROOT, dirRel);
+
+    let tables;
+    try {
+        tables = await loadIconTables(SELF_DIR);
+    } catch {
         console.error(
-            `${c.red}✗ Unknown gen target: ${what ?? "(none)"}${c.reset} — only \`gen api\` is supported.`,
+            `${c.red}✗ Could not read the icon tables from the installed SDK.${c.reset} Is tempest-react-sdk installed and built?`,
         );
         return 1;
     }
-    return genApi(args.slice(1));
+
+    console.log(`${c.dim}→ scanning ${dirRel}${c.reset}`);
+    const { source, slugs, files } = await generateRegistry({
+        dir,
+        known: tables.known,
+        aliases: tables.aliases,
+    });
+
+    const dest = resolve(ROOT, outRel);
+    await mkdir(dirname(dest), { recursive: true });
+    await writeFile(dest, source);
+
+    console.log(
+        `\n${c.green}✓ ${slugs.length} icon(s)${c.reset} from ${files} file(s) → ${c.bold}${outRel}${c.reset}`,
+    );
+    const prettier = localBin("prettier");
+    if (prettier) run(prettier, ["--write", outRel]);
+    console.log(`\n${c.dim}Wire it up:${c.reset}`);
+    console.log(`  import { IconProvider } from "tempest-react-sdk/icons";`);
+    console.log(`  import { icons } from "@/icons.generated";`);
+    console.log(`  <IconProvider registry={icons}>…</IconProvider>`);
+    return 0;
+}
+
+const GEN_TARGETS = { api: genApi, icons: genIcons };
+
+function gen(args) {
+    const what = args[0];
+    const target = GEN_TARGETS[what];
+    if (!target) {
+        console.error(
+            `${c.red}✗ Unknown gen target: ${what ?? "(none)"}${c.reset} — supported: ${Object.keys(GEN_TARGETS).join(", ")}.`,
+        );
+        return 1;
+    }
+    return target(args.slice(1));
 }
 
 // ------------------------------------------------------------------ main ----
@@ -814,6 +867,8 @@ ${c.bold}Commands${c.reset}
   ${c.bold}format${c.reset} [paths]    Prettier --write
   ${c.bold}gen api${c.reset} <src>    Generate Zod schemas + types + service classes from an OpenAPI spec
                     (e.g. tempest gen api http://127.0.0.1:8000/openapi.json --out src/api)
+  ${c.bold}gen icons${c.reset}         Write a static icon registry from the slugs your source uses
+                    (e.g. tempest gen icons --out src/icons.generated.ts --dir src)
 
 ${c.bold}fix options${c.reset}
   --dry-run         List the imports that would be rewritten; write nothing

@@ -50,6 +50,11 @@ export default defineConfig({
                 // dataset + a simplified UF GeoJSON — kept off the root entry so
                 // apps that don't need it pay nothing.
                 br: resolve(__dirname, "src/br/index.ts"),
+                // Icon-by-slug. The 25 generated shards are reachable only through
+                // the dynamic imports in `generated/loaders.ts`, so they stay async
+                // chunks in the consuming app instead of dragging ~2000 named
+                // lucide imports into whatever imports `Icon`.
+                icons: resolve(__dirname, "src/icons/index.ts"),
             },
             name: "TempestReactSdk",
             formats: ["es", "cjs"],

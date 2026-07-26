@@ -228,6 +228,36 @@
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
+    "name": "slice: icons — no-shard surface (`{ IconProvider, createIconRegistry }`)",
+    "path": "dist/icons.js",
+    "import": {
+      "./dist/icons.js": "{ IconProvider, createIconRegistry }"
+    },
+    "limit": "1 KB",
+    "ignore": ["react", "react-dom", "react/jsx-runtime"]
+  },
+  {
+    "name": "ceiling: largest icon shard (`s`) — the real cost of ONE lazy fetch",
+    "path": "dist/icons/generated/shard-s.js",
+    "limit": "22 KB",
+    "ignore": ["react", "react-dom", "react/jsx-runtime"]
+  },
+  {
+    "name": "ceiling: icons — `{ Icon }` incl. ALL 25 lazy shards (lucide MEASURED)",
+    "path": "dist/icons.js",
+    "import": {
+      "./dist/icons.js": "{ Icon }"
+    },
+    "limit": "140 KB",
+    "ignore": ["react", "react-dom", "react/jsx-runtime"]
+  },
+  {
+    "name": "ceiling: icons — full surface incl. the 1997-slug list and every shard",
+    "path": "dist/icons.js",
+    "limit": "145 KB",
+    "ignore": ["react", "react-dom", "react/jsx-runtime"]
+  },
+  {
     "name": "styles.css",
     "path": "dist/styles.css",
     "limit": "24 KB"

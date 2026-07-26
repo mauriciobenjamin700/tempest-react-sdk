@@ -23,6 +23,7 @@
 - [Hooks utilitários](https://mauriciobenjamin700.github.io/tempest-react-sdk/hooks/): Toda app React reescreve os mesmos wrappers: "debounce esse input", "fecha o menu
 - [HTTP](https://mauriciobenjamin700.github.io/tempest-react-sdk/http/): Camada de fetch tipada com tratamento de 401 + refresh, parse JSON automático e upload com progresso.
 - [i18n](https://mauriciobenjamin700.github.io/tempest-react-sdk/i18n/): i18n minimalista (≈ 1.5KB gzip) embutido no SDK.
+- [Ícones por slug](https://mauriciobenjamin700.github.io/tempest-react-sdk/icons/): Todo componente do SDK que aceita ícone aceita um ReactNode:
 - [tempest-react-sdk](https://mauriciobenjamin700.github.io/tempest-react-sdk/): Blocos de construção React/TypeScript compartilhados pelos frontends da Tempest:
 - [Integração full-stack Tempest (React ⇄ FastAPI)](https://mauriciobenjamin700.github.io/tempest-react-sdk/integration-fastapi/): Você tem um backend feito com o tempest-fastapi-sdk e um frontend feito com este SDK.
 - [Logger](https://mauriciobenjamin700.github.io/tempest-react-sdk/logger/): createLogger é um logger nivelado com sinks plugáveis.

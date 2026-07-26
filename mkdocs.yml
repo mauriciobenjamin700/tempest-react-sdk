@@ -143,6 +143,7 @@ nav:
           - Providers: app-providers.md
     - Componentes:
           - Catálogo de componentes: components.md
+          - Ícones por slug: icons.md
           - Entrada de dados: components/inputs.md
           - Ação: components/actions.md
           - Navegação: components/navigation.md

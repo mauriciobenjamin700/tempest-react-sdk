@@ -37,6 +37,15 @@ export default defineConfig({
                 "src/vision/labels.ts",
                 "src/vision/results.ts",
                 "src/vision/types.ts",
+                // `src/icons/generated/` is emitted by `npm run gen:icons` from the
+                // installed lucide: 25 shard modules that are pure slug → component
+                // tables plus the alias map and the slug list. Their correctness is
+                // asserted structurally in `shard-cache.test.ts` (every slug has a
+                // loader, every alias points at a real canonical name, the letter set
+                // matches). Importing all 25 shards in a test would only move a
+                // percentage — the shards exist precisely so that a page loads a few
+                // of them, never all.
+                "src/icons/generated/**",
             ],
             /**
              * Floors set just under the current numbers so a regression fails

@@ -1,12 +1,15 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { iconAliases } from "@/icons/generated/aliases";
 import { iconNames } from "@/icons/generated/icon-names";
 
 import { buildIconsModule, scanIconSlugs, TEMPEST_ICONS_ID, tempestIcons } from "./tempest-icons";
+
+/** The id the plugin resolves `virtual:tempest-icons` to (Rollup's `\0` convention). */
+const RESOLVED_VIRTUAL_ID = `\0${TEMPEST_ICONS_ID}`;
 
 const known = new Set<string>(iconNames);
 
@@ -186,5 +189,97 @@ describe("tempestIcons — plugin", () => {
         };
         expect(plugin.resolveId("react")).toBeNull();
         expect(plugin.load("react")).toBeNull();
+    });
+});
+
+describe("tempestIcons — dev-server updates", () => {
+    let root: string;
+
+    beforeEach(() => {
+        root = mkdtempSync(join(tmpdir(), "tempest-icons-hmr-"));
+        mkdirSync(join(root, "src"), { recursive: true });
+    });
+
+    afterEach(() => {
+        rmSync(root, { recursive: true, force: true });
+    });
+
+    /** The plugin's hooks, typed just enough to drive them directly. */
+    function plugin(options?: Parameters<typeof tempestIcons>[0]) {
+        return tempestIcons(options) as unknown as {
+            configResolved: (config: { root?: string }) => void;
+            buildStart: () => Promise<void>;
+            load: (id: string) => string | null;
+            handleHotUpdate: (ctx: {
+                file: string;
+                read: () => Promise<string>;
+                server: { moduleGraph: { getModuleById: (id: string) => unknown } };
+            }) => Promise<unknown>;
+        };
+    }
+
+    const virtualModule = { id: RESOLVED_VIRTUAL_ID };
+    const server = {
+        moduleGraph: {
+            getModuleById: (id: string) => (id === RESOLVED_VIRTUAL_ID ? virtualModule : null),
+        },
+    };
+
+    it("invalidates the virtual module when a file adds a new slug", async () => {
+        writeFileSync(join(root, "src", "App.tsx"), "");
+        const p = plugin();
+        p.configResolved({ root });
+        await p.buildStart();
+
+        const result = await p.handleHotUpdate({
+            file: join(root, "src", "App.tsx"),
+            read: async () => `<Icon name="rocket" />`,
+            server,
+        });
+
+        expect(result).toEqual([virtualModule]);
+        expect(p.load(RESOLVED_VIRTUAL_ID)).toContain(`"rocket": Rocket,`);
+    });
+
+    it("leaves the module alone when nothing new appeared", async () => {
+        writeFileSync(join(root, "src", "App.tsx"), `<Icon name="rocket" />`);
+        const p = plugin();
+        p.configResolved({ root });
+        await p.buildStart();
+
+        const result = await p.handleHotUpdate({
+            file: join(root, "src", "App.tsx"),
+            read: async () => `<Icon name="rocket" />`,
+            server,
+        });
+
+        expect(result).toBeUndefined();
+    });
+
+    it("ignores a changed file that is not source", async () => {
+        const p = plugin();
+        p.configResolved({ root });
+        const read = vi.fn();
+        const result = await p.handleHotUpdate({
+            file: join(root, "src", "styles.css"),
+            read,
+            server,
+        });
+        expect(result).toBeUndefined();
+        expect(read).not.toHaveBeenCalled();
+    });
+
+    it("falls back to the cwd when the config carries no root", async () => {
+        const p = plugin({ dir: "does-not-exist" });
+        p.configResolved({});
+        await p.buildStart();
+        expect(p.load(RESOLVED_VIRTUAL_ID)).toBe("export const staticIcons = {};\n");
+    });
+
+    it("survives a directory it cannot read", async () => {
+        const p = plugin({ dir: "nope" });
+        p.configResolved({ root });
+        await expect(p.buildStart()).resolves.toBeUndefined();
+        expect(p.load(RESOLVED_VIRTUAL_ID)).toBe("export const staticIcons = {};\n");
     });
 });

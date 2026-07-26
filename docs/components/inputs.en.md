@@ -481,6 +481,91 @@ Layout wrappers for forms (`stack`/`inline`/`grid`) + RHF integration.
 
 Full details in [../forms.md](../forms.md).
 
+## `ImageCropper`
+
+> **When to use**: the natural partner of [`FileUpload`](#fileupload) — a profile photo, a document photo, a cover image. The app decides the output ratio; the user only chooses what lands inside it.
+
+The frame stays **still** and the image pans and zooms behind it. That is the model an avatar flow wants: by construction there is no off-ratio crop.
+
+```tsx
+import { useRef, useState } from "react";
+import { Button, FileUpload, ImageCropper, type ImageCropperHandle } from "tempest-react-sdk";
+
+export function AvatarField({ onSave }: { onSave: (blob: Blob) => void }) {
+  const [files, setFiles] = useState<File[]>([]);
+  const cropper = useRef<ImageCropperHandle>(null);
+
+  return (
+    <>
+      <FileUpload value={files} onChange={setFiles} accept="image/*" label="Photo" />
+      {files[0] && (
+        <>
+          <ImageCropper
+            ref={cropper}
+            src={files[0]}
+            aspect={1}
+            shape="circle"
+            maxSize={512}
+            outputType="image/jpeg"
+          />
+          <Button
+            onClick={async () => {
+              const blob = await cropper.current?.crop();
+              if (blob) onSave(blob);
+            }}
+          >
+            Save
+          </Button>
+        </>
+      )}
+    </>
+  );
+}
+```
+
+| Prop            | Type                                            | Default             |
+| --------------- | ----------------------------------------------- | ------------------- |
+| `src`           | `File \| Blob \| string`                        | —                   |
+| `aspect`        | `number` (`width / height`)                     | `1`                 |
+| `maxZoom`       | `number`                                        | `4`                 |
+| `maxSize`       | `number` (cap on the exported long edge, px)    | —                   |
+| `outputType`    | `string`                                        | `"image/png"`       |
+| `outputQuality` | `number` (`0`–`1`, lossy types)                 | `0.92`              |
+| `shape`         | `"rect" \| "circle"`                            | `"rect"`            |
+| `onCropChange`  | `({ zoom, offset }) => void`                    | —                   |
+| `label`         | `string` (accessible name for the crop area)    | `"Área de recorte"` |
+| `ref`           | `Ref<ImageCropperHandle>`                       | —                   |
+
+The `ref` exposes `{ crop, reset }`. `crop()` resolves `Promise<Blob | null>`.
+
+!!! tip "It exports the original pixels, not the preview"
+    The crop is read from the image's **natural** size through a canvas. A 4000 px
+    photo cropped in a 320 px preview exports at the source's resolution, not the
+    preview's — the most common defect in a hand-rolled cropper.
+
+    Use `maxSize` to cap it: a 12 MP photo cropped for a 96 px avatar is megabytes of
+    waste.
+
+!!! check "An empty edge can never happen"
+    The image is always **clamped to cover the frame**, on pan and on zoom. That is the
+    other classic defect: dragging or zooming out until the frame shows background, and
+    the transparent (or black) band gets baked into the exported file. Here it is
+    impossible by construction — including when zooming out, where an offset that was
+    legal a moment ago stops being.
+
+!!! info "Keyboard support of equal weight"
+    The crop area is focusable. **Arrows** pan (with `Shift`, 4× the step), **`+`/`−`**
+    zoom, **`0`** recentres. The mouse wheel zooms too. A cropper that only works by
+    dragging excludes anyone navigating by keyboard.
+
+!!! warning "`crop()` returns `null`, it does not throw"
+    Before the image has loaded, or if the browser declines to encode, the result is
+    `null`. A submit handler needs no `try/catch` — it needs to check the result.
+
+!!! note "A `File`/`Blob` becomes an object URL, and it is revoked"
+    Changing the photo or unmounting revokes the previous URL. Without that, every
+    re-pick would leak the previous one for the lifetime of the document.
+
 ## `SignaturePad`
 
 > **When to use it**: capture a handwritten signature — a delivery receipt, a service order, a terms acceptance. In the field, on a phone, with a finger.

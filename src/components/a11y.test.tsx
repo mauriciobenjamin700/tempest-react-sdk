@@ -13,6 +13,7 @@ import { Button } from "./Button";
 import { Card } from "./Card";
 import { Checkbox } from "./Checkbox";
 import { EmptyState } from "./EmptyState";
+import { ImageCropper } from "./ImageCropper";
 import { Input } from "./Input";
 import { Kanban } from "./Kanban";
 import { Modal } from "./Modal";
@@ -124,6 +125,7 @@ const CASES: [name: string, ui: ReactElement][] = [
             onDismiss={() => undefined}
         />,
     ],
+    ["ImageCropper", <ImageCropper src="/photo.jpg" label="Foto de perfil" />],
     ["Accordion", <Accordion items={[{ id: "a", title: "Seção A", children: <p>Corpo A</p> }]} />],
     [
         "Table",

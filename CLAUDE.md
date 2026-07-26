@@ -103,42 +103,14 @@ tempest-react-sdk/
 
 ## Backlog priorizado
 
-<<<<<<< HEAD
-Entregue e fora do backlog: **`VirtualTable`**, **ícone por slug (`/icons`, issue #37)**, release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`), sweep `axe` em jsdom + smoke Playwright do gallery (`e2e.yml`), coverage gateando o CI (pisos 98/97/96/94), política de versionamento de tokens CSS (`docs/styles.md`).
-=======
-Entregue e fora do backlog: **`NotificationCenter`** (inbox de push), release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`), sweep `axe` em jsdom + smoke Playwright do gallery (`e2e.yml`), coverage gateando o CI (pisos 98/97/96/94), política de versionamento de tokens CSS (`docs/styles.md`).
->>>>>>> 3bd384b (feat(components): add NotificationCenter and useNotificationInbox)
-
-### Em revisão (PRs **encadeados** — mergear em ordem)
-
-`main` ← #46 ← #47 ← #48 ← #49. Cada PR sai do anterior, não da `main`: o diff de
-cada um mostra só o que ele acrescenta, e o `[Unreleased]` do CHANGELOG deixa de
-conflitar a cada abertura de PR (foi o que aconteceu com a primeira rodada).
-
-| PR  | Base | O que entrega                                                                                               |
-| --- | ---- | ----------------------------------------------------------------------------------------------------------- |
-| #46 | main | `tempest-react-sdk/utilities.css` — camada de layout opt-in (~50 classes, 1.13 KB br)                       |
-| #47 | #46  | `TreeView` (hierarquia acessível) + `Wizard` (fluxo multi-passo); `Stepper` com `description`/`onStepClick` |
-| #48 | #47  | `SignaturePad` (canvas), `Lightbox` (galeria overlay), `AvatarGroup`                                        |
-| #49 | #48  | este roadmap                                                                                                |
-
-Já na `main`: **#45** — `createTheme` + presets + `applyTheme`, tokens
-`--tempest-chart-*` e charts seguindo o tema.
+Entregue e fora do backlog: **`NotificationCenter`** (inbox de push), **`VirtualTable`**, **ícone por slug (`/icons`, issue #37)**, **`tempest fix` convertendo import relativo pra `@/` (issue #56)**, release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`), sweep `axe` em jsdom + smoke Playwright do gallery (`e2e.yml`), coverage gateando o CI (pisos 98/97/96/94), política de versionamento de tokens CSS (`docs/styles.md`).
 
 ### P1 — componentes (na ordem)
 
-<<<<<<< HEAD
-1. **`NotificationCenter`** — casa direto com o módulo `push` (inbox de notificação recebida, lida/não lida, ação por item).
-2. **`ImageCropper`** — par natural do `FileUpload` + câmera do `vision` para foto de perfil / documento.
-3. **`Scheduler`/agenda** — o `Calendar` é date-picker, não agenda de evento.
+1. **`ImageCropper`** — par natural do `FileUpload` + câmera do `vision` para foto de perfil / documento.
+2. **`Scheduler`/agenda** — o `Calendar` é date-picker, não agenda de evento.
 
-Já entregues desta lista: `useSortable` (enabler de DnD), `Kanban`, `VirtualTable`.
-=======
-1. **Primitiva de drag & drop (`useSortable`)** — **enabler**: sem ela, `Kanban`, reordenar lista e ordenar upload ficam bloqueados. Não existe nada de DnD nos 45 hooks.
-2. **`VirtualTable`** — `VirtualList` virtualiza lista simples e `DataTable` não virtualiza nada; tabela de 10k linhas hoje não tem resposta no SDK.
-3. **`ImageCropper`** — par natural do `FileUpload` + câmera do `vision` para foto de perfil / documento.
-4. **`Kanban`** (depois do item 1) e **`Scheduler`/agenda** — o `Calendar` é date-picker, não agenda de evento.
->>>>>>> 3bd384b (feat(components): add NotificationCenter and useNotificationInbox)
+Já entregues desta lista: `useSortable` (enabler de DnD), `Kanban`, `VirtualTable`, `NotificationCenter`.
 
 ### P2 — componentes
 

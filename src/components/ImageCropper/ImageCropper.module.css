@@ -1,0 +1,113 @@
+.wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-space-3);
+    max-width: 100%;
+    font-family: var(--tempest-font-sans);
+}
+
+.frame {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-lg);
+    background-color: var(--tempest-surface);
+    /*
+     * `grab` rather than `move`: nothing is being moved to a destination, the
+     * image is being dragged under a fixed frame.
+     */
+    cursor: grab;
+    /*
+     * The frame owns dragging on touch, so the browser must not also scroll the
+     * page from the same gesture.
+     */
+    touch-action: none;
+    user-select: none;
+}
+
+.frame:active {
+    cursor: grabbing;
+}
+
+.frame:focus-visible {
+    outline: 2px solid var(--tempest-primary);
+    outline-offset: 2px;
+}
+
+.circle {
+    border-radius: var(--tempest-radius-full);
+}
+
+.image {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    max-width: none;
+    pointer-events: none;
+    /*
+     * Centring lives in `translate` and the pan in the inline `transform`, which
+     * are separate CSS properties applied in that order. Keeping them apart means
+     * a pan is just `transform: translate(x, y)` — it never has to re-derive the
+     * `-50% -50%` centring, and the two cannot overwrite each other.
+     */
+    translate: -50% -50%;
+}
+
+.controls {
+    display: flex;
+    align-items: center;
+    gap: var(--tempest-space-3);
+}
+
+.zoom {
+    flex: 1;
+    min-width: 0;
+    accent-color: var(--tempest-primary);
+}
+
+.zoom:disabled {
+    opacity: 0.5;
+}
+
+.reset {
+    padding: var(--tempest-space-1) var(--tempest-space-3);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-md);
+    background-color: var(--tempest-bg);
+    color: var(--tempest-text);
+    font: inherit;
+    font-size: var(--tempest-text-sm);
+    cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .reset:hover:not(:disabled) {
+        background-color: var(--tempest-surface);
+    }
+}
+
+.reset:focus-visible {
+    outline: 2px solid var(--tempest-primary);
+    outline-offset: 2px;
+}
+
+.reset:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.hint {
+    margin: 0;
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-xs);
+}
+
+.hint kbd {
+    padding: 0 var(--tempest-space-1);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-sm);
+    background-color: var(--tempest-surface);
+    font-family: var(--tempest-font-mono, monospace);
+    font-size: inherit;
+}

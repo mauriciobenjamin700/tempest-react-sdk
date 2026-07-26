@@ -4,6 +4,35 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`<ImageCropper>` — recorte com proporção fixa, par natural do `FileUpload`.** O
+  frame fica parado e a imagem pana/zooma atrás dele: é o modelo que um fluxo de
+  avatar ou de foto de documento quer, onde o app decide a proporção de saída e o
+  usuário só escolhe o que cai dentro. Por construção não existe recorte fora da
+  proporção — retângulo arrastável livre é outro componente.
+- **Exporta os pixels naturais, não o preview.** O recorte é lido do tamanho original
+  via canvas. Verificado no navegador com fonte de 480×320: o avatar 1:1 sai
+  **320×320** e o 16:9 sai **480×269**, não os ~293 px que o preview media. É o erro
+  mais comum em cropper caseiro. `maxSize` capa a maior aresta, porque uma foto de
+  12 MP recortada pra um avatar de 96 px é megabyte de desperdício.
+- **Borda vazia é impossível.** A imagem é sempre clampada pra cobrir o frame, em pan
+  **e** em zoom — inclusive ao dar zoom-out, quando um offset que era legal deixa de
+  ser. É o outro defeito clássico: arrastar até o frame mostrar fundo e assar a faixa
+  transparente no arquivo exportado.
+- Teclado de igual peso: setas movem (`Shift` move 4×), `+`/`-` dão zoom, `0`
+  centraliza; roda do mouse também. A geometria mora em `crop-geometry.ts` como
+  funções puras (`coverScale`, `clampOffset`, `computeCropRect`, `outputSize`), com
+  teste próprio — `getContext` não existe no jsdom, então a matemática precisava ser
+  testável fora do componente.
+- `crop()` devolve `Promise<Blob | null>` e **nunca lança**: antes de carregar, sem
+  contexto 2D ou com encoder recusando, o retorno é `null`. `File`/`Blob` viram object
+  URL revogada na troca de fonte e no unmount.
+- **Imagem sem tamanho intrínseco é rejeitada.** Um SVG sem `viewBox` decodifica bem e
+  reporta `naturalWidth: 0` — aceitar isso habilitaria os controles sobre uma imagem
+  com a qual a matemática de recorte não pode fazer nada. Pego na verificação no
+  navegador, não em revisão de código.
+
 ## [0.26.1] — 2026-07-26
 
 ### Adicionado

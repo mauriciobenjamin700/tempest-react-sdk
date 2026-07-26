@@ -13,6 +13,7 @@ import { NavigationSection } from "./NavigationSection";
 import { AdvancedComponentsSection } from "./AdvancedComponentsSection";
 import { TableSection } from "./TableSection";
 import { DataTableSection } from "./DataTableSection";
+import { ImageCropperSection } from "./ImageCropperSection";
 import { VirtualTableSection } from "./VirtualTableSection";
 import { NotificationCenterSection } from "./NotificationCenterSection";
 import { MaterialSection } from "./MaterialSection";
@@ -201,6 +202,14 @@ export const SECTIONS: SectionEntry[] = [
         keywords: "signaturepad assinatura canvas lightbox galeria foto avatargroup participantes",
         group: "Componentes",
         Component: CaptureMediaSection,
+    },
+    {
+        id: "image-cropper",
+        label: "ImageCropper (recorte)",
+        keywords:
+            "imagecropper crop recorte avatar foto perfil documento aspect zoom pan canvas fileupload",
+        group: "Componentes",
+        Component: ImageCropperSection,
     },
     {
         id: "table",

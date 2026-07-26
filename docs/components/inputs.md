@@ -445,6 +445,91 @@ Layout wrappers para forms (`stack`/`inline`/`grid`) + integração RHF.
 
 Detalhes completos em [../forms.md](../forms.md).
 
+## `ImageCropper`
+
+> **Quando usar**: par natural do [`FileUpload`](#fileupload) — foto de perfil, foto de documento, capa. O app decide a proporção de saída; o usuário só escolhe o que cai dentro dela.
+
+O frame fica **parado** e a imagem pana e dá zoom atrás dele. É o modelo que um fluxo de avatar quer: por construção não existe recorte fora da proporção.
+
+```tsx
+import { useRef, useState } from "react";
+import { Button, FileUpload, ImageCropper, type ImageCropperHandle } from "tempest-react-sdk";
+
+export function AvatarField({ onSave }: { onSave: (blob: Blob) => void }) {
+  const [files, setFiles] = useState<File[]>([]);
+  const cropper = useRef<ImageCropperHandle>(null);
+
+  return (
+    <>
+      <FileUpload value={files} onChange={setFiles} accept="image/*" label="Foto" />
+      {files[0] && (
+        <>
+          <ImageCropper
+            ref={cropper}
+            src={files[0]}
+            aspect={1}
+            shape="circle"
+            maxSize={512}
+            outputType="image/jpeg"
+          />
+          <Button
+            onClick={async () => {
+              const blob = await cropper.current?.crop();
+              if (blob) onSave(blob);
+            }}
+          >
+            Salvar
+          </Button>
+        </>
+      )}
+    </>
+  );
+}
+```
+
+| Prop            | Tipo                                             | Default              |
+| --------------- | ------------------------------------------------ | -------------------- |
+| `src`           | `File \| Blob \| string`                         | —                    |
+| `aspect`        | `number` (`largura / altura`)                    | `1`                  |
+| `maxZoom`       | `number`                                         | `4`                  |
+| `maxSize`       | `number` (teto da maior aresta exportada, px)    | —                    |
+| `outputType`    | `string`                                         | `"image/png"`        |
+| `outputQuality` | `number` (`0`–`1`, tipos com perda)              | `0.92`               |
+| `shape`         | `"rect" \| "circle"`                             | `"rect"`             |
+| `onCropChange`  | `({ zoom, offset }) => void`                     | —                    |
+| `label`         | `string` (nome acessível da área)                | `"Área de recorte"`  |
+| `ref`           | `Ref<ImageCropperHandle>`                        | —                    |
+
+O `ref` expõe `{ crop, reset }`. O `crop()` devolve `Promise<Blob | null>`.
+
+!!! tip "Exporta os pixels originais, não o preview"
+    O recorte é lido do tamanho **natural** da imagem via canvas. Uma foto de 4000 px
+    recortada num preview de 320 px sai com a resolução do original, não com a do
+    preview — que é o erro mais comum em cropper caseiro.
+
+    Use `maxSize` pra limitar: uma foto de 12 MP recortada pra um avatar de 96 px são
+    megabytes de desperdício.
+
+!!! check "Nunca sai borda vazia"
+    A imagem é sempre **clampada pra cobrir o frame**, em pan e em zoom. É o outro
+    defeito clássico: arrastar ou dar zoom-out até o frame mostrar fundo, e aí a faixa
+    transparente (ou preta) fica assada no arquivo exportado. Aqui é impossível por
+    construção — inclusive ao dar zoom-out, quando um offset que era legal deixa de
+    ser.
+
+!!! info "Teclado de igual peso"
+    A área de recorte é focável. **Setas** movem (com `Shift` movem 4×), **`+`/`−`**
+    dão zoom, **`0`** centraliza. Roda do mouse também dá zoom. Um cropper que só
+    funciona arrastando exclui quem navega por teclado.
+
+!!! warning "`crop()` devolve `null`, não lança"
+    Antes da imagem carregar, ou se o navegador recusar o encode, o retorno é `null`.
+    Um handler de submit não precisa de `try/catch` — precisa checar o retorno.
+
+!!! note "`File`/`Blob` viram object URL, e ele é revogado"
+    Trocar de foto ou desmontar o componente revoga a URL anterior. Sem isso, cada
+    re-escolha de foto vazaria a anterior pelo resto da vida do documento.
+
 ## `SignaturePad`
 
 > **Quando usar**: coletar assinatura de próprio punho — comprovante de entrega, ordem de serviço, termo de aceite. Em campo, no celular, com o dedo.

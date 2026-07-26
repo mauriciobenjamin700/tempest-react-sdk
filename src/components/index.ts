@@ -238,6 +238,8 @@ export type {
     ToastVariant,
 } from "./Toast";
 
+export { ImageCropper } from "./ImageCropper";
+export type { ImageCropperHandle, ImageCropperProps } from "./ImageCropper";
 export { NotificationCenter, useNotificationInbox } from "./NotificationCenter";
 export type {
     NotificationCenterProps,

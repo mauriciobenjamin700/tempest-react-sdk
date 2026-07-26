@@ -4,6 +4,25 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`tempest doctor` detecta cópia dupla de `lucide-react`.** Checagem **separada** da
+  de instâncias duplicadas de React e libs com estado, porque a falha é de outra
+  natureza: duas cópias de lucide não quebram hooks nem contexto — elas duplicam bytes
+  e, o que é grave, deixam as **tabelas de slug geradas** do `/icons` apontando pra
+  exports que a cópia mais antiga não tem. Três sinais: avisa quando o `package.json`
+  do app declara lucide numa faixa diferente da do SDK (a **causa**), avisa quando
+  existe cópia aninhada sob `node_modules/tempest-react-sdk/` (a **prova**), e
+  **reprova** (exit 1) quando a versão instalada é mais antiga do que as tabelas
+  exigem — esse é o caso que quebra o build com `… is not exported by lucide-react`
+  apontando pra dentro do SDK, onde a causa é difícil de achar.
+- A mensagem cobre o único caso em que declarar lucide está certo: **pnpm** com
+  isolamento estrito, e aí apontando a faixa do próprio SDK. Declaração com faixa
+  idêntica sai como `info`, não aviso — é redundante, não quebrado.
+- A lógica mora em `bin/lib/doctor/lucide.mjs` como função pura, então tem teste: o
+  `doctor` não tinha nenhum até aqui, e um diagnóstico que erra o veredito é pior que
+  não existir.
+
 ## [0.26.0] — 2026-07-26
 
 ### Adicionado

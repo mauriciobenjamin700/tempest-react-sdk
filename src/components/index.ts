@@ -238,6 +238,13 @@ export type {
     ToastVariant,
 } from "./Toast";
 
+export { NotificationCenter, useNotificationInbox } from "./NotificationCenter";
+export type {
+    NotificationCenterProps,
+    NotificationItem,
+    UseNotificationInboxOptions,
+    UseNotificationInboxResult,
+} from "./NotificationCenter";
 export { VirtualList } from "./VirtualList";
 export type { VirtualListProps } from "./VirtualList";
 export { VirtualTable } from "./VirtualTable";

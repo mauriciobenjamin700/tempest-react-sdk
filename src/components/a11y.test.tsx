@@ -30,6 +30,7 @@ import { Tabs } from "./Tabs";
 import { SignaturePad } from "./SignaturePad";
 import { Textarea } from "./Textarea";
 import { TreeView } from "./TreeView";
+import { VirtualTable } from "./VirtualTable";
 import { Wizard } from "./Wizard";
 
 interface Row {
@@ -112,6 +113,20 @@ const CASES: [name: string, ui: ReactElement][] = [
                 { key: "name", header: "Nome", render: (row) => row.name },
             ]}
             data={ROWS}
+            rowKey={(row) => row.id}
+        />,
+    ],
+    [
+        "VirtualTable",
+        <VirtualTable<Row>
+            caption="Pessoas"
+            columns={[
+                { key: "id", header: "ID", width: 80, sortable: true },
+                { key: "name", header: "Nome", width: 200 },
+            ]}
+            data={ROWS}
+            rowHeight={40}
+            height={200}
             rowKey={(row) => row.id}
         />,
     ],

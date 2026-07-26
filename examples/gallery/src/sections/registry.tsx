@@ -13,6 +13,7 @@ import { NavigationSection } from "./NavigationSection";
 import { AdvancedComponentsSection } from "./AdvancedComponentsSection";
 import { TableSection } from "./TableSection";
 import { DataTableSection } from "./DataTableSection";
+import { VirtualTableSection } from "./VirtualTableSection";
 import { MaterialSection } from "./MaterialSection";
 import { FormsSection } from "./FormsSection";
 import { BRFormsSection } from "./BRFormsSection";
@@ -213,6 +214,14 @@ export const SECTIONS: SectionEntry[] = [
         keywords: "datatable sort",
         group: "Componentes",
         Component: DataTableSection,
+    },
+    {
+        id: "virtual-table",
+        label: "VirtualTable (40k linhas)",
+        keywords:
+            "virtualtable virtual tabela grande 10k 40k linhas virtualizacao scroll sticky header aria-rowcount aria-rowindex ordenar",
+        group: "Componentes",
+        Component: VirtualTableSection,
     },
     {
         id: "material",

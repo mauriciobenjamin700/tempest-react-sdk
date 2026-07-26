@@ -3102,6 +3102,65 @@ Renderiza apenas a janela visível + um pequeno buffer de overscan. Cada linha p
 !!! note "Busca nativa (Ctrl+F) só acha o visível"
     Itens fora da viewport não estão no DOM, então o `Ctrl+F` do navegador não os encontra. Abaixo de ~500 itens, prefira renderização normal: o ganho de perf é negligível e você mantém a busca nativa.
 
+## `VirtualTable<T>`
+
+> **Quando usar**: uma tabela de **milhares de linhas** numa única grade rolável — extrato, log de auditoria, exportação bruta. O `Table` renderiza tudo o que recebe e o `DataTable` pagina pra manter esse número pequeno; nenhum dos dois responde "me mostre as 40 000 linhas de uma vez".
+
+Renderiza só a janela visível, como o `VirtualList`, mas continua sendo uma `<table>` de verdade: colunas alinhadas pelo browser, cabeçalho fixo, semântica de grade pra leitor de tela.
+
+```tsx
+<VirtualTable
+  data={rows}
+  columns={[
+    { key: "id", header: "#", width: 80, sortable: true },
+    { key: "name", header: "Nome", width: 240, sortable: true },
+    { key: "total", header: "Total", width: 120, align: "right", sortable: true },
+  ]}
+  rowHeight={40}
+  height={480}
+  rowKey={(row) => row.id}
+  onRowClick={(row) => open(row.id)}
+/>
+```
+
+| Prop            | Tipo                                            | Default                            |
+| --------------- | ----------------------------------------------- | ---------------------------------- |
+| `data`          | `T[]`                                           | —                                  |
+| `columns`       | `VirtualTableColumn<T>[]`                       | —                                  |
+| `rowHeight`     | `number` (px, **uniforme**)                     | —                                  |
+| `height`        | `number \| string` (altura do viewport)         | —                                  |
+| `overscan`      | `number`                                        | `4`                                |
+| `rowKey`        | `(row: T, index: number) => string \| number`   | `index`                            |
+| `initialSort`   | `{ key: keyof T; direction: "asc" \| "desc" }`  | —                                  |
+| `onRowClick`    | `(row: T, index: number) => void`               | —                                  |
+| `scrollToIndex` | `number`                                        | —                                  |
+| `caption`       | `ReactNode` (nome acessível, oculto visualmente) | —                                  |
+| `emptyMessage`  | `ReactNode`                                     | `"Nenhum registro encontrado."`    |
+
+Coluna: `{ key, header, render?, sortable?, align?, width? }`.
+
+!!! info "Por que continua uma `<table>`"
+    A janela é feita com **duas linhas espaçadoras** — uma acima da fatia visível, outra abaixo — em vez de posicionar linhas com `position: absolute`. Absoluto colapsaria o layout de tabela: cada largura de coluna teria que ser calculada à mão, e o elemento deixaria de ser uma tabela pra tecnologia assistiva. Com espaçadoras, o browser continua fazendo o layout das colunas e o leitor de tela continua anunciando uma grade.
+
+!!! tip "Índice real, não o da janela"
+    Como só uma fatia está no DOM, `aria-rowcount` na tabela e `aria-rowindex` em cada linha carregam os números **reais**. Sem isso o leitor de tela anuncia "linha 3 de 20" enquanto o usuário está na linha 5003 de 40 000 — é o detalhe que quase toda tabela virtualizada erra.
+
+!!! warning "`rowHeight` uniforme, e igual ao que o CSS produz"
+    É o que mapeia offset de rolagem pra índice de linha. Se o CSS renderizar uma altura diferente da declarada, a janela sai deslocada. Para altura variável use `@tanstack/react-virtual`.
+
+!!! note "Defina `width` em toda coluna"
+    Linhas entram e saem do DOM durante a rolagem, então deixar o browser dimensionar as colunas pelo que está renderizado agora faz elas pularem no meio do scroll. O componente usa `table-layout: fixed` justamente pra isso funcionar.
+
+### `VirtualTable` ou `DataTable`?
+
+| Precisa de…                                     | Use            |
+| ----------------------------------------------- | -------------- |
+| Busca + paginação, dezenas a centenas de linhas | `DataTable`    |
+| Uma grade rolável de milhares de linhas         | `VirtualTable` |
+| Controle total do markup, poucas linhas         | `Table`        |
+
+Os dois ordenam com o mesmo comparador (`compareValues`), então "ordenado" quer dizer a mesma coisa nos dois — número numericamente, data por timestamp, string com `localeCompare` e `numeric: true`.
+
 ## `ListTile`
 
 > **Quando usar**: a linha canônica de lista do Material — um item com slot à esquerda (ícone/avatar), título com subtítulo opcional e slot à direita (ícone, switch, meta). Ideal para listas de configurações, contatos ou menus.
@@ -3271,6 +3330,7 @@ export function PermissoesDoPapel() {
 | ------------- | ------------------------------------------- | ------------------ |
 | `Table<T>`    | Comparar registros em colunas               | dezenas a centenas |
 | `VirtualList` | Rolar listas longas de altura fixa          | 500+ itens         |
+| `VirtualTable<T>` | Grade rolável de linhas em colunas      | milhares de linhas |
 | `ListTile`    | Linha de lista (ícone + título + ação)      | qualquer           |
 | `Accordion`   | Seções expansíveis sob demanda (FAQ, steps) | poucas seções      |
 | `Timeline`    | Sequência de eventos no tempo               | qualquer           |
@@ -3280,6 +3340,7 @@ Pontos-chave de acessibilidade:
 
 - `Table` usa `<th scope="col">` (já incluso); `onRowClick` aplica `role="button"` + `tabIndex={0}`.
 - `VirtualList`: itens fora da viewport não são renderizados — `Ctrl+F` só acha o visível.
+- `VirtualTable`: continua uma `<table>` real (espaçadoras em vez de posicionamento absoluto), com `aria-rowcount`/`aria-rowindex` carregando os índices reais e não os da janela; cabeçalho ordenável expõe `aria-sort`.
 - `Accordion`: ↑↓ trocam o item focado, Home/End pulam pro primeiro/último.
 - `Timeline`: ordem semântica via `<ol>`; cada item é `<li>`.
 - `TreeView`: `role="tree"` + roving tabindex (uma parada de tab só); `aria-level` reporta a profundidade e nós desabilitados são pulados na navegação.

@@ -1,0 +1,127 @@
+.scroll {
+    width: 100%;
+    overflow: auto;
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-lg);
+    background-color: var(--tempest-bg);
+    box-shadow: var(--tempest-shadow-xs);
+}
+
+.table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-family: var(--tempest-font-sans);
+    font-size: var(--tempest-text-base);
+    line-height: var(--tempest-leading-snug);
+    /*
+     * Fixed layout is what keeps columns from jumping mid-scroll: with `auto`,
+     * the browser sizes each column from the rows currently in the DOM, and a
+     * virtualized table swaps those rows out as you scroll.
+     */
+    table-layout: fixed;
+}
+
+.caption {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border-width: 0;
+}
+
+/*
+ * `border-collapse: separate` above exists for this: a sticky `<th>` inside a
+ * collapsed table loses its bottom border while scrolling, because the shared
+ * border belongs to the cell that scrolled away.
+ */
+.head .th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.th,
+.td {
+    padding: 0 var(--tempest-space-4);
+    text-align: left;
+    border-bottom: 1px solid var(--tempest-border);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.th {
+    padding-block: var(--tempest-space-3);
+    background-color: var(--tempest-surface);
+    color: var(--tempest-text-muted);
+    font-weight: var(--tempest-weight-semibold);
+    font-size: var(--tempest-text-xs);
+    letter-spacing: var(--tempest-tracking-wider);
+    text-transform: uppercase;
+}
+
+.alignRight {
+    text-align: right;
+}
+
+.alignCenter {
+    text-align: center;
+}
+
+.sortButton {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tempest-space-1);
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    cursor: pointer;
+}
+
+.sortButton:focus-visible {
+    outline: 2px solid var(--tempest-primary);
+    outline-offset: 2px;
+    border-radius: var(--tempest-radius-sm);
+}
+
+.sortIndicator {
+    font-size: var(--tempest-text-xs);
+    opacity: 0.55;
+}
+
+.tr.clickable {
+    cursor: pointer;
+    transition: background-color var(--tempest-duration-fast) var(--tempest-ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .tr.clickable:hover {
+        background-color: var(--tempest-surface);
+    }
+}
+
+.tr.clickable:focus-visible {
+    outline: 2px solid var(--tempest-primary);
+    outline-offset: -2px;
+}
+
+.emptyRow {
+    padding: var(--tempest-space-8) var(--tempest-space-4);
+    text-align: center;
+    color: var(--tempest-text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tr.clickable {
+        transition: none;
+    }
+}

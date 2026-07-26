@@ -240,6 +240,13 @@ export type {
 
 export { VirtualList } from "./VirtualList";
 export type { VirtualListProps } from "./VirtualList";
+export { VirtualTable } from "./VirtualTable";
+export type {
+    VirtualTableColumn,
+    VirtualTableProps,
+    VirtualTableSort,
+    VirtualTableSortDirection,
+} from "./VirtualTable";
 
 // Generic display
 export { CopyButton } from "./CopyButton";

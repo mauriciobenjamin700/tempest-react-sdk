@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/utils/cn";
+import { compareValues } from "@/utils/compare-values";
 import { usePagination } from "@/hooks";
 import { Table, type TableAlign, type TableColumn, type TablePriority } from "../Table";
 import { Pagination } from "../Pagination";
@@ -56,26 +57,6 @@ export interface DataTableProps<T> extends HTMLAttributes<HTMLDivElement> {
     rowKey?: (row: T, index: number) => string | number;
     /** Content shown when no rows match. */
     emptyMessage?: ReactNode;
-}
-
-/**
- * Compare two arbitrary cell values with stable, type-aware ordering:
- * numbers numerically, dates by timestamp, everything else by `localeCompare`.
- *
- * @param a - First value.
- * @param b - Second value.
- * @returns Negative when `a < b`, positive when `a > b`, zero when equal.
- */
-function compareValues(a: unknown, b: unknown): number {
-    if (a == null && b == null) return 0;
-    if (a == null) return -1;
-    if (b == null) return 1;
-    if (typeof a === "number" && typeof b === "number") return a - b;
-    if (a instanceof Date && b instanceof Date) return a.getTime() - b.getTime();
-    if (typeof a === "boolean" && typeof b === "boolean") {
-        return Number(a) - Number(b);
-    }
-    return String(a).localeCompare(String(b), undefined, { numeric: true });
 }
 
 /**

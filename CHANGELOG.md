@@ -45,6 +45,32 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   renderizam pelo caminho lazy.
 - **`tempest gen icons`** no CLI, pra projeto que não usa Vite ou que prefere um
   arquivo versionado: mesmo scan, escreve um `createIconRegistry({…})` de verdade.
+- **`<VirtualTable>` — tabela que aguenta 40 000 linhas numa grade rolável.** O
+  `Table` renderiza tudo o que recebe e o `DataTable` pagina pra manter esse número
+  pequeno; nenhum dos dois respondia "me mostre as 40 000 linhas de uma vez". Agora
+  só a janela visível está no DOM: verificado no navegador, **20 `<tr>`** para
+  `aria-rowcount=40000`, com `scrollHeight` de 1,6 M px.
+- **Continua uma `<table>` de verdade.** A janela é feita com **duas linhas
+  espaçadoras** (uma acima da fatia, uma abaixo) em vez de posicionar linhas com
+  `position: absolute`. Absoluto colapsaria o layout de tabela: cada largura de
+  coluna teria que ser calculada à mão e o elemento deixaria de ser uma tabela pra
+  tecnologia assistiva. Com espaçadoras o browser continua fazendo o layout das
+  colunas (larguras declaradas respeitadas: 110/200/160/130/130/120 px no demo) e o
+  leitor de tela continua anunciando uma grade.
+- **`aria-rowcount` na tabela e `aria-rowindex` em cada linha carregam os números
+  reais**, não os da janela — sem isso o leitor de tela anuncia "linha 3 de 20"
+  enquanto o usuário está na linha 5003 de 40 000. É o detalhe que quase toda tabela
+  virtualizada erra. Rolando até a linha 30 000 no navegador: `aria-rowindex` de
+  29997 a 30016, ainda 20 linhas no DOM.
+- Cabeçalho fixo (`position: sticky`) com ordenação por coluna (asc → desc → sem
+  ordem) expondo `aria-sort`, `onRowClick` por clique **e** por `Enter`/`Espaço`,
+  `scrollToIndex` (rolar até a linha 30 000 na mão não é opção), `caption` como nome
+  acessível, e `emptyMessage`.
+- `table-layout: fixed` + `border-collapse: separate` não são detalhe estético:
+  layout `auto` dimensiona as colunas pelas linhas que estão no DOM **agora**, então
+  elas pulavam no meio da rolagem; e um `<th>` sticky dentro de tabela colapsada
+  perde a borda de baixo ao rolar, porque a borda compartilhada pertence à célula que
+  saiu.
 - **`<Kanban>` + `applyKanbanMove`** — quadro de colunas com cards que trocam de
   estágio, reordenável dentro da coluna e móvel entre colunas, por ponteiro **ou**
   teclado. A máquina de arrasto é o `useSortable`: o quadro não reimplementa nada
@@ -68,6 +94,11 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   rollup de tipos do API-Extractor acima do heap default do Node (~4,2 GB) e o build
   morria com `Reached heap limit`. É custo só de build — não afeta consumidor nem
   runtime.
+- **O comparador de ordenação saiu do `DataTable` para `compareValues` em
+  `utils/`.** Estava privado num componente, e o `VirtualTable` precisava do mesmo —
+  duplicar significaria que "ordenado" passaria a querer dizer coisas diferentes em
+  duas tabelas do mesmo SDK. Comportamento idêntico ao anterior; agora exportado no
+  barrel para quem ordena listas fora de uma tabela.
 
 ### Corrigido
 

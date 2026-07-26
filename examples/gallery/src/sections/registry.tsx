@@ -13,6 +13,7 @@ import { NavigationSection } from "./NavigationSection";
 import { AdvancedComponentsSection } from "./AdvancedComponentsSection";
 import { TableSection } from "./TableSection";
 import { DataTableSection } from "./DataTableSection";
+import { DataVizScalesSection } from "./DataVizScalesSection";
 import { ImageCropperSection } from "./ImageCropperSection";
 import { SchedulerSection } from "./SchedulerSection";
 import { VirtualTableSection } from "./VirtualTableSection";
@@ -373,6 +374,14 @@ export const SECTIONS: SectionEntry[] = [
         keywords: "createstore createselectors zustand",
         group: "Fundação",
         Component: FoundationSection,
+    },
+    {
+        id: "dataviz-scales",
+        label: "Escalas contínuas (heatmap)",
+        keywords:
+            "sequentialscale divergingscale scalesteps heatmap choropleth magnitude polaridade oklch rampa ordinal legenda",
+        group: "Fundação",
+        Component: DataVizScalesSection,
     },
     {
         id: "theme-factory",

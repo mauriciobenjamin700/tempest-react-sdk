@@ -1821,6 +1821,89 @@ Precisa da cor do grid/eixo? `resolveChartChrome("grid" | "axis")`.
     resolve os tokens **daquela** subárvore, então uma seção com tema próprio
     pinta seus gráficos com a paleta dela.
 
+## Escala contínua: magnitude e polaridade
+
+As 8 cores de série codificam **identidade** — qual série é qual. Um heatmap ou um
+choropleth codifica **quanto**, e isso é outro trabalho: precisa de *um* hue
+escalonado por claridade, não de oito hues.
+
+```tsx
+import { sequentialScale, divergingScale, scaleSteps } from "tempest-react-sdk";
+
+const cor = sequentialScale({ min: 0, max: 250 });
+<rect fill={cor(valor)} />;
+
+// Polaridade: variação contra a meta
+const desvio = divergingScale({ min: 80, max: 130, center: 100 });
+<rect fill={desvio(realizado)} />;
+```
+
+| Export                  | O que faz                                                     |
+| ----------------------- | ------------------------------------------------------------- |
+| `sequentialScale`       | `{ min, max, ordinal? }` → `(valor) => cor`                   |
+| `divergingScale`        | `{ min, max, center? }` → `(valor) => cor`                    |
+| `scaleSteps`            | Todos os passos em ordem, pra montar a legenda                 |
+| `SEQUENTIAL_STEP_COUNT` | `7`                                                           |
+| `DIVERGING_STEP_COUNT`  | `9` (1–4 frio · 5 neutro · 6–9 quente)                        |
+| `ORDINAL_START_STEP`    | `3` — primeiro passo que passa 2:1 na superfície                |
+
+!!! info "Sai da raiz, não do `/charts`"
+    São matemática de token pura, **sem recharts**. Quem mais precisa delas — um
+    choropleth do `/br`, um heatmap feito à mão — não tem motivo pra instalar
+    recharts. Custo medido: **365 B brotli** importando da raiz. O `/charts`
+    re-exporta só por descoberta.
+
+!!! tip "Devolvem token, não hex"
+    O retorno é `var(--tempest-chart-sequential-4)`. Um heatmap pintado uma vez
+    segue o tema — inclusive o escuro, cujos passos são **escolhidos** pra superfície
+    escura, não invertidos do claro.
+
+!!! warning "Sequencial deixa o zero recuar; ordinal não pode"
+    Numa **sequencial** o passo mais claro some na superfície de propósito: é o que
+    "quase nada" deve parecer num heatmap. Numa **ordinal** — degrau de funil, faixa,
+    tier — cada passo é uma marca que alguém precisa ver, e um passo invisível é um
+    dado perdido. Passe `ordinal: true` e a escala começa no passo 3.
+
+    ```tsx
+    sequentialScale({ min: 0, max: 4, ordinal: true }); // usa 3..7
+    ```
+
+!!! check "Cada braço da divergente escala pelo próprio alcance"
+    Num domínio assimétrico (−5 a +80) os negativos ainda usam o braço frio inteiro.
+    Escalar os dois braços pelo mais largo — o erro fácil — colapsaria todo negativo
+    no passo ao lado do meio e esconderia o sinal.
+
+!!! danger "O meio da divergente é cinza, nunca um hue"
+    Um meio colorido lê como uma **terceira categoria** em vez de "sem desvio", que é
+    a única coisa que uma divergente existe pra mostrar. Por isso o token 5 é neutro
+    nos dois modos.
+
+!!! note "Escala contínua precisa de legenda"
+    Sem uma faixa com rótulo nas pontas, ninguém converte cor de volta em número. O
+    `scaleSteps` existe pra isso:
+
+    ```tsx
+    <div style={{ display: "flex" }}>
+      {scaleSteps("sequential").map((cor) => (
+        <span key={cor} style={{ background: cor, width: 20, height: 10 }} />
+      ))}
+    </div>
+    <span>0</span> … <span>250</span>
+    ```
+
+### Como as rampas foram feitas
+
+Não foram escolhidas a olho. Os passos são **calculados** em OKLCH com claridade
+espaçada por igual, então passo igual de dado parece passo igual de cor — o que não
+acontece espaçando em RGB. A croma segue um domo: as pontas ficam críveis e o meio
+carrega o hue.
+
+Cada rampa foi validada por script nos dois modos: claridade monótona, gap ≥ 0,06
+entre passos adjacentes, hue único, e a ponta perto da superfície passando 2:1 no
+recorte ordinal. O `createTheme` refaz as duas escalas a partir do hue da marca
+(usando o `danger` do tema como polo quente, pra "quente" e "ruim" não discordarem na
+tela), então rebrandar move o heatmap junto em vez de deixá-lo azul do SDK.
+
 ## Responsivo por padrão, fixo quando preciso
 
 Por padrão, cada gráfico se **estica pra largura do pai** via um

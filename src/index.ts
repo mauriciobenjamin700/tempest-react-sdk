@@ -82,4 +82,23 @@ export * from "./feature-flags";
 export * from "./share";
 
 // Utils
+/*
+ * The continuous data-viz scales live on the ROOT entry, not only behind
+ * `/charts`: they are pure token math with no recharts dependency, and the things
+ * that need them most — a choropleth from `/br`, a hand-rolled heatmap — have no
+ * reason to install recharts. `/charts` re-exports them for discoverability.
+ */
+export {
+    divergingScale,
+    DIVERGING_STEP_COUNT,
+    ORDINAL_START_STEP,
+    scaleSteps,
+    sequentialScale,
+    SEQUENTIAL_STEP_COUNT,
+} from "./charts/scales";
+export type {
+    ChartColorToken,
+    DivergingScaleOptions,
+    SequentialScaleOptions,
+} from "./charts/scales";
 export * from "./utils";

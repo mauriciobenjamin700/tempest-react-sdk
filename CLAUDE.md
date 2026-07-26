@@ -103,7 +103,7 @@ tempest-react-sdk/
 
 ## Backlog priorizado
 
-Entregue e fora do backlog: **`NotificationCenter`** (inbox de push), **`VirtualTable`**, **ícone por slug (`/icons`, issue #37)**, **`tempest fix` convertendo import relativo pra `@/` (issue #56)**, release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`), sweep `axe` em jsdom + smoke Playwright do gallery (`e2e.yml`), coverage gateando o CI (pisos 98/97/96/94), política de versionamento de tokens CSS (`docs/styles.md`).
+Entregue e fora do backlog: **escala contínua de data viz** (`sequentialScale`/`divergingScale`), **`NotificationCenter`** (inbox de push), **`VirtualTable`**, **ícone por slug (`/icons`, issue #37)**, **`tempest fix` convertendo import relativo pra `@/` (issue #56)**, release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`), sweep `axe` em jsdom + smoke Playwright do gallery (`e2e.yml`), coverage gateando o CI (pisos 98/97/96/94), política de versionamento de tokens CSS (`docs/styles.md`).
 
 ### P1 — componentes
 
@@ -118,7 +118,6 @@ de componente passa a ser a lista P2 abaixo.
 ### P2 — CSS pronto (o que sobrou da fatia)
 
 - **Presets de densidade e de radius por app** já existem via token; falta receita de **página inteira** além do que o `utilities.css` cobre (dashboard com grid de widget redimensionável, por exemplo).
-- **Paleta sequencial/divergente** para data viz: hoje só existem as 8 categóricas (`--tempest-chart-*`). Escala contínua (heatmap, choropleth do `br`) ainda é responsabilidade do app.
 
 ### P3 — cauda de cobertura
 

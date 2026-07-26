@@ -3,7 +3,7 @@
 //
 //   tempest doctor          health-check the current project (à la flutter doctor)
 //   tempest lint [paths…]    run ESLint (report only)
-//   tempest fix [paths…]     ESLint --fix (sort imports, drop unused, tidy whitespace) + Prettier
+//   tempest fix [paths…]     alias imports (../ → @/) + ESLint --fix + Prettier
 //   tempest format [paths…]  Prettier --write
 //   tempest --help | --version
 import { spawnSync } from "node:child_process";
@@ -11,6 +11,9 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { aliasImports } from "./lib/alias/index.mjs";
+import { loadTypeScript } from "./lib/alias/typescript.mjs";
+import { readTsconfig } from "./lib/alias/tsconfig.mjs";
 import { generate } from "./lib/openapi/generate.mjs";
 import { loadSpec } from "./lib/openapi/load.mjs";
 
@@ -414,10 +417,10 @@ function doctor() {
     }
 
     // ── TypeScript ────────────────────────────────────────────────────────────
-    const tsc = readJSON(join(ROOT, "tsconfig.json"));
+    const tsc = readTsconfig({ root: ROOT, ts: loadTypeScript(ROOT) });
     if (tsc) {
         checks.push(["section", "TypeScript"]);
-        const co = tsc.compilerOptions ?? {};
+        const co = tsc.compilerOptions;
         checks.push(
             co.paths?.["@/*"]
                 ? ["ok", 'tsconfig "@/*" alias']
@@ -625,12 +628,93 @@ function requireBin(name) {
     return bin;
 }
 
-function lint(paths) {
-    return run(requireBin("eslint"), paths.length ? paths : ["."]);
+/**
+ * Split argv into flags and positional paths.
+ *
+ * Needed because these commands used to hand `rest` straight through as their
+ * path list, so `tempest lint --max-warnings 0` counted the flag as a path and
+ * ESLint ran with a flag but no pattern. Flags are kept in order for forwarding.
+ *
+ * @param {string[]} args - The argv tail for the command.
+ * @returns {{ flags: string[], paths: string[] }}
+ */
+function splitArgs(args) {
+    const flags = [];
+    const paths = [];
+    for (const arg of args) (arg.startsWith("-") ? flags : paths).push(arg);
+    return { flags, paths };
 }
 
-function fix(paths) {
+function lint(args) {
+    const { flags, paths } = splitArgs(args);
+    return run(requireBin("eslint"), [...(paths.length ? paths : ["."]), ...flags]);
+}
+
+/** Flags `fix` owns itself; anything else is rejected rather than forwarded. */
+const FIX_FLAGS = new Set(["--no-alias", "--dry-run"]);
+
+/**
+ * Print the alias pass result.
+ *
+ * @param {object} result - Return value of `aliasImports`.
+ * @param {boolean} dryRun - Whether the pass wrote anything.
+ * @returns {void}
+ */
+function reportAlias(result, dryRun) {
+    if (result.status === "no-typescript") {
+        console.log(
+            `${c.yellow}! typescript not installed — skipping alias pass${c.reset} ${c.dim}(npm i -D typescript)${c.reset}`,
+        );
+        return;
+    }
+    if (result.status === "no-alias") {
+        console.log(
+            `${c.yellow}! no path alias found — skipping alias pass${c.reset} ${c.dim}add "paths": { "@/*": ["./src/*"] } to tsconfig.json${c.reset}`,
+        );
+        return;
+    }
+    for (const file of result.files) {
+        console.log(`  ${file.path} ${c.dim}${file.changes.length}${c.reset}`);
+        if (dryRun) {
+            for (const ch of file.changes) {
+                console.log(`    ${c.dim}${ch.line}:${c.reset} "${ch.from}" → "${ch.to}"`);
+            }
+        }
+    }
+    for (const err of result.errors) {
+        console.log(`  ${c.red}✗ ${err.path}${c.reset} ${c.dim}${err.message}${c.reset}`);
+    }
+    if (!result.total) {
+        console.log(`  ${c.dim}nothing to convert${c.reset}`);
+        return;
+    }
+    const verb = dryRun ? "would convert" : "converted";
+    console.log(
+        `  ${c.green}✓${c.reset} ${verb} ${result.total} import(s) in ${result.files.length} file(s)`,
+    );
+}
+
+function fix(args) {
+    const { flags, paths } = splitArgs(args);
+    const unknown = flags.filter((f) => !FIX_FLAGS.has(f));
+    if (unknown.length) {
+        console.error(
+            `${c.red}✗ Unknown flag for fix: ${unknown.join(", ")}${c.reset} — supported: ${[...FIX_FLAGS].join(", ")}`,
+        );
+        return 1;
+    }
     const targets = paths.length ? paths : ["."];
+    const dryRun = flags.includes("--dry-run");
+
+    let aliasStatus = 0;
+    if (!flags.includes("--no-alias")) {
+        console.log(`${c.dim}→ alias imports (../ → @/)${dryRun ? " [dry-run]" : ""}${c.reset}`);
+        const result = aliasImports({ root: ROOT, targets, dryRun });
+        reportAlias(result, dryRun);
+        aliasStatus = result.status === "error" ? 1 : 0;
+    }
+    if (dryRun) return aliasStatus;
+
     console.log(`${c.dim}→ eslint --fix (sort imports · drop unused · tidy whitespace)${c.reset}`);
     const eslintStatus = run(requireBin("eslint"), [...targets, "--fix"]);
     const prettier = localBin("prettier");
@@ -641,11 +725,12 @@ function fix(paths) {
     } else {
         console.log(`${c.yellow}! prettier not installed — skipping format pass${c.reset}`);
     }
-    return eslintStatus || prettierStatus;
+    return aliasStatus || eslintStatus || prettierStatus;
 }
 
-function format(paths) {
-    return run(requireBin("prettier"), ["--write", ...(paths.length ? paths : ["."])]);
+function format(args) {
+    const { flags, paths } = splitArgs(args);
+    return run(requireBin("prettier"), ["--write", ...(paths.length ? paths : ["."]), ...flags]);
 }
 
 // -------------------------------------------------------------- gen api ----
@@ -724,10 +809,15 @@ ${c.bold}Usage${c.reset}
 ${c.bold}Commands${c.reset}
   ${c.bold}doctor${c.reset}            Health-check the current project
   ${c.bold}lint${c.reset} [paths]      Run ESLint (report only)
-  ${c.bold}fix${c.reset} [paths]       ESLint --fix (sort imports, remove unused, tidy whitespace) + Prettier
+  ${c.bold}fix${c.reset} [paths]       Alias imports (../ → @/) + ESLint --fix (sort imports, remove
+                    unused, tidy whitespace) + Prettier
   ${c.bold}format${c.reset} [paths]    Prettier --write
   ${c.bold}gen api${c.reset} <src>    Generate Zod schemas + types + service classes from an OpenAPI spec
                     (e.g. tempest gen api http://127.0.0.1:8000/openapi.json --out src/api)
+
+${c.bold}fix options${c.reset}
+  --dry-run         List the imports that would be rewritten; write nothing
+  --no-alias        Skip the alias pass (ESLint + Prettier only)
 
 ${c.bold}Options${c.reset}
   -h, --help        Show this help

@@ -91,17 +91,93 @@ Tooling
 
 ## `tempest fix`
 
-Arruma o código de uma vez: **organiza imports**, **remove imports não usados**,
-**limpa linhas em branco extras e espaços no fim**, e roda o **Prettier**.
+Arruma o código de uma vez: **converte import relativo pra `@/`**, **organiza
+imports**, **remove imports não usados**, **limpa linhas em branco extras e
+espaços no fim**, e roda o **Prettier**.
 
 ```bash
-npx tempest fix            # o projeto inteiro
-npx tempest fix src/app    # só um caminho
+npx tempest fix              # o projeto inteiro
+npx tempest fix src/app      # só um caminho
+npx tempest fix --dry-run    # mostra o que mudaria, não escreve
+npx tempest fix --no-alias    # pula a conversão de import (só ESLint + Prettier)
 ```
 
-Por baixo dos panos roda `eslint --fix` (com as regras `simple-import-sort`,
-`unused-imports/no-unused-imports`, `no-multiple-empty-lines`,
-`no-trailing-spaces`, `eol-last`) e depois `prettier --write`.
+São três passadas, nessa ordem: a conversão de alias, `eslint --fix` (com as
+regras `simple-import-sort`, `unused-imports/no-unused-imports`,
+`no-multiple-empty-lines`, `no-trailing-spaces`, `eol-last`) e `prettier --write`.
+A conversão vem **primeiro** de propósito: trocar `../../services/api` por
+`@/services/api` muda o grupo de ordenação do `simple-import-sort`, então rodar o
+ESLint depois deixa tudo ordenado num único `fix`.
+
+### A conversão de import
+
+A regra é uma só: **nenhum import sobe de diretório**.
+
+```ts
+// antes                                    // depois
+import { api } from "../../services/api";   import { api } from "@/services/api";
+import { Button } from "../Button";         import { Button } from "@/components/Button";
+import { Row } from "./Row";                // inalterado — irmão continua relativo
+import cfg from "../../../vite.config";     // inalterado — resolve fora de src/
+```
+
+Um import de irmão (`./x`) fica como está: ele já diz "isso mora aqui do lado",
+que é informação que o `@/` joga fora. Um caminho que resolve **fora** da base do
+alias também fica — é isso que protege `../../../vite.config` e
+`../../../scripts/x`.
+
+O que a conversão alcança, além de `import` e `export … from`:
+
+```ts
+import type { User } from "../../types/user";       // import type
+const m = await import("../../pages/Dashboard");    // import() dinâmico
+vi.mock("../../lib/api");                            // vi.mock / vi.doMock
+```
+
+E em arquivo `.css` (o Vite resolve alias em CSS também):
+
+```css
+@import "../../styles/tokens.css";        /* → @/styles/tokens.css */
+.hero {
+    background: url(../../assets/bg.png); /* → @/assets/bg.png */
+}
+```
+
+!!! tip "Rode com `--dry-run` primeiro num projeto grande"
+    O `--dry-run` lista arquivo, linha e o antes/depois de cada import sem
+    escrever nada — e sem rodar ESLint ou Prettier. É a forma de revisar o
+    diff antes de deixar a ferramenta mexer.
+
+    ```console
+    $ npx tempest fix --dry-run
+    → alias imports (../ → @/) [dry-run]
+      src/pages/admin/Users.tsx 2
+        1: "../../lib/api" → "@/lib/api"
+        2: "../../styles/tokens.css" → "@/styles/tokens.css"
+      ✓ would convert 2 import(s) in 1 file(s)
+    ```
+
+!!! info "O alias vem do seu `tsconfig.json`, não é chumbado"
+    A base é lida de `compilerOptions.paths` — seguindo `extends` e aceitando
+    comentário no JSON. Se o seu projeto usa `~/*` ou `#/*` em vez de `@/*`, é
+    esse prefixo que sai na conversão; se usa `app/` em vez de `src/`, é essa a
+    base.
+
+!!! warning "Sem `paths` no tsconfig, a conversão não roda"
+    Isso é de propósito. O `paths` é o que o **type-checker** honra: um alias
+    achado ali é um alias que o `tsc --noEmit` aceita depois da conversão.
+    Adivinhar `@` → `src` só porque existe um `src/` produziria import que não
+    resolve em projeto nenhum que não tenha o alias configurado. Quando não acha,
+    o comando avisa e segue pro ESLint sem tocar em nada:
+
+    ```console
+    ! no path alias found — skipping alias pass  add "paths": { "@/*": ["./src/*"] } to tsconfig.json
+    ```
+
+    A conversão também precisa do `typescript` instalado no projeto: ela usa o
+    compilador **do seu projeto** pra achar as posições de import, então uma
+    string parecida com caminho dentro de comentário, template literal ou
+    variável nunca é reescrita por engano.
 
 !!! warning "Código morto = imports/vars, não funções inteiras"
     O `fix` **remove imports não usados** e **avisa** sobre variáveis não usadas
@@ -120,7 +196,9 @@ npx tempest lint     # eslint . (só reporta, não altera)
 npx tempest format   # prettier --write . (só formatação)
 ```
 
-`lint` é o relatório read-only; `fix` é o `lint` que corrige + formata.
+`lint` é o relatório read-only; `fix` é o `lint` que corrige + formata. Flags que
+você passar são repassadas pro binário (`npx tempest lint --max-warnings 0`), e o
+caminho continua sendo posicional.
 
 ## Ajuda
 
@@ -133,6 +211,6 @@ npx tempest --version
 
 - O `bin` **`tempest`** vem dentro do SDK — `npx tempest <comando>`.
 - **`doctor`** diagnostica o projeto (estilo `flutter doctor`), sai com código 1 em problemas bloqueantes.
-- **`fix`** organiza imports + remove imports mortos + limpa espaçamento + Prettier (ESLint por baixo).
+- **`fix`** converte import relativo pra `@/` + organiza imports + remove imports mortos + limpa espaçamento + Prettier. `--dry-run` pra revisar, `--no-alias` pra pular a conversão.
 - **`lint`** reporta; **`format`** só formata.
 - Veja também: [Scaffold](./scaffold.md) · [Arquitetura](./architecture.md).

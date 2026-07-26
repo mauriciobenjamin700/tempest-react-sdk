@@ -45,6 +45,31 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`tempest fix` converte import relativo pra `@/`.** O `@/` era a convenção do
+  scaffold e do `doctor`, mas nada no ferramental convertia pra ela: nem o ESLint
+  nem o Prettier reescrevem caminho de módulo, então `../../services/api` sobrevivia
+  a quantos `fix` você rodasse, e o projeto acumulava duas convenções (arquivo novo
+  com `@/`, arquivo antigo com `../`). A regra é uma só — **nenhum import sobe de
+  diretório**: todo specifier que começa com `../` **e** resolve dentro da base do
+  alias vira `@/…`; irmão (`./x`) continua relativo, porque já diz "isso mora aqui
+  do lado"; e caminho que resolve **fora** da base fica intacto (é isso que protege
+  `../../../vite.config`).
+- A conversão roda **antes** do `eslint --fix`, não depois: trocar o specifier muda
+  o grupo de ordenação do `simple-import-sort`, então na ordem inversa o resultado
+  sairia desordenado e só o `fix` seguinte arrumaria.
+- Alcança `import`, `export … from`, `import type`, `import()` dinâmico,
+  `vi.mock`/`vi.doMock`, e `@import`/`url()` em `.css` (o Vite resolve alias em
+  stylesheet também). Usa a AST do **`typescript` do próprio projeto**, então string
+  parecida com caminho em comentário, template literal, variável ou `import()`
+  interpolado nunca é reescrita — e `require()` fica de fora por decisão.
+- **O alias vem do `tsconfig.json`, não é chumbado**: prefixo e base saem de
+  `compilerOptions.paths`, seguindo `extends` e aceitando JSONC, então `~/*`, `#/*`
+  e base `app/` funcionam. **Sem `paths` declarado a conversão não roda** — adivinhar
+  `@` → `src` só porque existe um `src/` geraria import que não resolve (o
+  `examples/gallery` deste repositório é exatamente esse caso: tem `src/` e nenhum
+  alias). O comando avisa apontando o conserto e segue pro ESLint sem tocar em nada.
+- Flags novas do `fix`: `--dry-run` lista arquivo, linha e antes/depois sem escrever
+  e sem rodar ESLint/Prettier; `--no-alias` reproduz o comportamento anterior.
 - **`useSortable` + `moveItem` — a primitiva de drag & drop que faltava.** Não
   havia nada de DnD nos 45 hooks, e isso bloqueava três itens do roadmap de uma vez
   (Kanban, reordenar lista, ordenar fila de upload). O hook cuida **só** da
@@ -62,6 +87,21 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   supor altura fixa, então linha de altura variável funciona. Mudança em
   `itemCount` no meio de um arrasto **cancela** o arrasto: a lista não tem mais os
   índices em que ele se baseava, e confirmar moveria a linha errada.
+
+### Corrigido
+
+- **`tempest lint`/`format` tratavam flag como caminho.** Os três comandos
+  repassavam a cauda do argv inteira como lista de caminhos, então
+  `tempest lint --max-warnings 0` contava a flag como caminho e o ESLint rodava com
+  a flag e **sem padrão de arquivo**. Agora flag e caminho posicional são separados:
+  o caminho continua default `.`, e as flags são repassadas pro binário.
+- **O `doctor` sumia com a seção TypeScript em silêncio.** A leitura do
+  `tsconfig.json` era `JSON.parse` puro dentro de um `try/catch` que devolvia `null`,
+  então comentário no JSON (JSONC, que o `tsc` aceita) fazia o `doctor` pular a
+  seção inteira sem dizer nada, e `paths` herdado via `extends` aparecia como "sem
+  alias". Passa a ler pela API do compilador, com a cadeia de `extends` mesclada e
+  os valores mantidos crus (`"bundler"`, `"react-jsx"`) em vez de normalizados pra
+  enum numérico.
 
 ## [0.25.0] — 2026-07-25
 

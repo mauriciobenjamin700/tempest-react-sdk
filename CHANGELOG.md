@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.26.0] — 2026-07-26
+
 ### Adicionado
 
 - **`tempest-react-sdk/icons` — os 1997 ícones do lucide endereçáveis por slug.**

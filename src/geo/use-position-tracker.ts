@@ -62,7 +62,9 @@ export function usePositionTracker(
 
     const trackerRef = useRef<PositionTracker | null>(null);
     const onErrorRef = useRef(onError);
-    onErrorRef.current = onError;
+    useEffect(() => {
+        onErrorRef.current = onError;
+    }, [onError]);
 
     useEffect(() => {
         const tracker = createPositionTracker({

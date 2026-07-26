@@ -20,7 +20,9 @@ export interface ClickOutsideProps extends HTMLAttributes<HTMLDivElement> {
 export function ClickOutside({ onOutside, children, ...props }: ClickOutsideProps): ReactNode {
     const ref = useRef<HTMLDivElement>(null);
     const handlerRef = useRef(onOutside);
-    handlerRef.current = onOutside;
+    useEffect(() => {
+        handlerRef.current = onOutside;
+    }, [onOutside]);
 
     useEffect(() => {
         if (typeof document === "undefined") {

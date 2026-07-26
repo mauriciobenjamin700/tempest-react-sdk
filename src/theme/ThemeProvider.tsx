@@ -110,11 +110,15 @@ export function ThemeProvider({
     const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => resolve(theme));
 
     const targetRef = useRef<typeof target>(target);
-    targetRef.current = target;
+    useEffect(() => {
+        targetRef.current = target;
+    }, [target]);
 
     const attributeKey = Array.isArray(attribute) ? attribute.join(",") : attribute;
     const themeColorRef = useRef(themeColor);
-    themeColorRef.current = themeColor;
+    useEffect(() => {
+        themeColorRef.current = themeColor;
+    }, [themeColor]);
 
     useEffect(() => {
         const element = targetRef.current?.() ?? document.documentElement;

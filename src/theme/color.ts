@@ -29,23 +29,63 @@ export type ColorScale = Record<ScaleStep, string>;
 const SCALE_STEPS: ScaleStep[] = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900];
 
 /**
- * Target perceptual lightness per step for a light-theme ramp.
+ * Target lightness per step for a **brand** ramp in light mode.
  *
- * Tuned against the hand-written scales in `colors.css` so a generated theme
- * sits in the same visual range as the built-in one: `500` is the action color,
- * `50`/`100` are usable as soft backgrounds, `700`+ carries text on white.
+ * These are the measured OKLCH lightnesses of the hand-written `--tempest-primary-*`
+ * scale in `colors.css`, so a generated brand ramp lands in the same visual range
+ * as the built-in one instead of merely near it.
  */
 const LIGHT_LIGHTNESS: Record<ScaleStep, number> = {
-    50: 0.972,
-    100: 0.938,
-    200: 0.878,
-    300: 0.798,
-    400: 0.712,
-    500: 0.624,
-    600: 0.542,
-    700: 0.458,
-    800: 0.378,
-    900: 0.292,
+    50: 0.966,
+    100: 0.923,
+    200: 0.844,
+    300: 0.743,
+    400: 0.642,
+    500: 0.563,
+    600: 0.48,
+    700: 0.391,
+    800: 0.325,
+    900: 0.251,
+};
+
+/**
+ * Target lightness per step for a **neutral** ramp in light mode — measured from
+ * the hand-written `--tempest-gray-*` scale.
+ *
+ * Deliberately **wider** than the brand curve at both ends (`0.982` → `0.210` vs
+ * `0.966` → `0.251`): a neutral carries surfaces that must read as near-white and
+ * text that must read as near-black, and the pair `text-muted` on `surface-3` has
+ * to clear AA. Reusing the brand curve for neutrals is what dropped that pair to
+ * 3.5:1 and made the browser axe sweep fail on every generated theme.
+ */
+const NEUTRAL_LIGHT_LIGHTNESS: Record<ScaleStep, number> = {
+    50: 0.982,
+    100: 0.963,
+    200: 0.927,
+    300: 0.872,
+    400: 0.71,
+    500: 0.544,
+    600: 0.442,
+    700: 0.369,
+    800: 0.278,
+    900: 0.21,
+};
+
+/**
+ * Neutral ramp for dark mode, measured from the `[data-tempest-theme="dark"]`
+ * surface/text tokens: `50` is the page background and `900` is text-grade.
+ */
+const NEUTRAL_DARK_LIGHTNESS: Record<ScaleStep, number> = {
+    50: 0.159,
+    100: 0.205,
+    200: 0.254,
+    300: 0.314,
+    400: 0.381,
+    500: 0.5,
+    600: 0.571,
+    700: 0.762,
+    800: 0.86,
+    900: 0.964,
 };
 
 /**
@@ -201,8 +241,32 @@ export function oklchToHex(color: Oklch): string {
     return rgbToHex(linearToSrgb(rgb.r), linearToSrgb(rgb.g), linearToSrgb(rgb.b));
 }
 
+/** Options for {@link createColorScale}. */
+export interface ColorScaleOptions {
+    /**
+     * Pin step `500` to the input color's exact lightness. Default `true`.
+     *
+     * Right for a **brand** color: the hex a designer hands over is the one the
+     * buttons must be. Wrong for a **neutral**: nobody checks that `gray-500` is
+     * exactly the input, while everybody notices that a surface stopped being
+     * near-white — anchoring rescales both halves around the input and compresses
+     * exactly the range a neutral needs wide. With `false`, the ramp keeps the
+     * tuned lightness curve and the input only contributes hue and chroma (a warm
+     * or cool neutral, as asked).
+     */
+    anchor?: boolean;
+    /**
+     * Use the neutral lightness curve instead of the brand one. Default `false`.
+     *
+     * The neutral curve is wider at both ends, which is what keeps
+     * `text-muted`-on-`surface-3` above AA. Implies the ramp is meant for
+     * surfaces, borders and text rather than for an action color.
+     */
+    neutral?: boolean;
+}
+
 /**
- * Build a ten-step tint scale from a single brand color.
+ * Build a ten-step tint scale from a single color.
  *
  * The input color's hue is kept throughout and its chroma sets the intensity of
  * the whole ramp, so a muted brand color yields a muted scale instead of being
@@ -211,11 +275,23 @@ export function oklchToHex(color: Oklch): string {
  * @param hex - Any hex color (`#abc` or `#aabbcc`), the intended `500` step.
  * @param mode - `"light"` for a light→dark ramp, `"dark"` for the inverted ramp
  *   used under `[data-tempest-theme="dark"]`.
+ * @param options - See {@link ColorScaleOptions}.
  */
-export function createColorScale(hex: string, mode: "light" | "dark" = "light"): ColorScale {
+export function createColorScale(
+    hex: string,
+    mode: "light" | "dark" = "light",
+    options: ColorScaleOptions = {},
+): ColorScale {
     const base = hexToOklch(hex);
-    const targets = mode === "dark" ? DARK_LIGHTNESS : LIGHT_LIGHTNESS;
-    const lightness = anchorLightnessAt500(targets, base.l, mode);
+    const targets = options.neutral
+        ? mode === "dark"
+            ? NEUTRAL_DARK_LIGHTNESS
+            : NEUTRAL_LIGHT_LIGHTNESS
+        : mode === "dark"
+          ? DARK_LIGHTNESS
+          : LIGHT_LIGHTNESS;
+    const lightness =
+        options.anchor === false ? targets : anchorLightnessAt500(targets, base.l, mode);
     const scale = {} as ColorScale;
 
     for (const step of SCALE_STEPS) {

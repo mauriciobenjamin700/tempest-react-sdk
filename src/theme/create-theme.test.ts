@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { contrastRatio } from "./color";
+import { contrastRatio, relativeLuminance } from "./color";
 import { createTheme, themeContrast } from "./create-theme";
 import { getThemePreset, themePresets } from "./theme-presets";
 
@@ -162,6 +162,45 @@ describe("themeContrast", () => {
             const ratio = themeContrast(themePresets[name as keyof typeof themePresets]);
             expect(ratio as number).toBeGreaterThanOrEqual(3);
         }
+    });
+});
+
+describe("legibilidade dos temas gerados", () => {
+    /**
+     * Resolve a token that may be a `var(--tempest-…)` alias into its literal hex,
+     * so contrast can be measured on what the browser would actually paint.
+     */
+    function literal(tokens: Record<string, string>, name: string): string {
+        const value = tokens[name];
+        if (!value) throw new Error(`token ausente: ${name}`);
+        const alias = value.match(/^var\((--[\w-]+)\)$/);
+        return alias ? literal(tokens, alias[1]) : value;
+    }
+
+    it.each(Object.entries(themePresets))(
+        "%s mantém texto legível sobre as superfícies neutras",
+        (_name, preset) => {
+            const { light } = createTheme(preset);
+            const surface3 = literal(light, "--tempest-surface-3");
+            const muted = literal(light, "--tempest-text-muted");
+            const text = literal(light, "--tempest-text");
+
+            // O sweep axe no browser reprovou exatamente este par (o chip +N do
+            // AvatarGroup usa text-muted sobre surface-3): o ramp neutro gerado
+            // caía para ~4.2:1. jsdom não calcula pintura, então só um teste
+            // numérico como este pega isso antes do CI.
+            expect(contrastRatio(muted, surface3)).toBeGreaterThanOrEqual(4.5);
+            expect(contrastRatio(text, surface3)).toBeGreaterThanOrEqual(7);
+            expect(contrastRatio(text, literal(light, "--tempest-bg"))).toBeGreaterThanOrEqual(7);
+        },
+    );
+
+    it("mantém o ramp neutro na curva afinada em vez de ancorar no input", () => {
+        const { light } = createTheme({ gray: "#667085" });
+        // Ancorar comprimiria a faixa: a superfície deixaria de ser quase branca.
+        expect(relativeLuminance(light["--tempest-gray-200"])).toBeGreaterThan(
+            relativeLuminance("#dcdfe4"),
+        );
     });
 });
 

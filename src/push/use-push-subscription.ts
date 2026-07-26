@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/refs -- the ref is read inside deferred callbacks, not during render */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { WebPushClient, type WebPushClientConfig } from "./web-push-client";
 import { isPushSupported } from "./utils";
@@ -35,7 +36,9 @@ export interface UsePushSubscriptionResult {
  */
 export function usePushSubscription(config: WebPushClientConfig): UsePushSubscriptionResult {
     const configRef = useRef(config);
-    configRef.current = config;
+    useEffect(() => {
+        configRef.current = config;
+    }, [config]);
 
     const client = useMemo(
         () =>

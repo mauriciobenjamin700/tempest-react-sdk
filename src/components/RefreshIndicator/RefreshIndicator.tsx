@@ -39,8 +39,13 @@ export function RefreshIndicator({
     const startYRef = useRef<number | null>(null);
     const [pull, setPull] = useState(0);
     const [refreshing, setRefreshing] = useState(false);
-
-    const engaged = startYRef.current !== null;
+    /**
+     * Whether a drag is in progress. Kept in state, not derived from
+     * `startYRef.current`: a ref is not reactive, so reading it during render ties
+     * the rendered class to a value React never re-renders for — it only looked
+     * correct here because the touch handlers happen to call `setPull` too.
+     */
+    const [engaged, setEngaged] = useState(false);
 
     const handleTouchStart = (event: TouchEvent<HTMLDivElement>): void => {
         if (disabled || refreshing) return;
@@ -49,6 +54,7 @@ export function RefreshIndicator({
         const touch = event.touches[0];
         if (!touch) return;
         startYRef.current = touch.clientY;
+        setEngaged(true);
     };
 
     const handleTouchMove = (event: TouchEvent<HTMLDivElement>): void => {
@@ -67,6 +73,7 @@ export function RefreshIndicator({
 
     const reset = (): void => {
         startYRef.current = null;
+        setEngaged(false);
         setPull(0);
     };
 
@@ -82,6 +89,7 @@ export function RefreshIndicator({
             return;
         }
         startYRef.current = null;
+        setEngaged(false);
         setRefreshing(true);
         setPull(threshold);
         try {

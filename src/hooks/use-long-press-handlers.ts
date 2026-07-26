@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from "react";
 
 /**
@@ -74,7 +74,9 @@ export function useLongPressHandlers(
     const timerRef = useRef<number | null>(null);
     const firedRef = useRef<boolean>(false);
     const callbackRef = useRef<() => void>(onLongPress);
-    callbackRef.current = onLongPress;
+    useEffect(() => {
+        callbackRef.current = onLongPress;
+    }, [onLongPress]);
 
     const clear = useCallback((): void => {
         if (timerRef.current !== null) {

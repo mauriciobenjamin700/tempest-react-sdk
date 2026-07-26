@@ -118,7 +118,9 @@ export function useCameraStream(options: UseCameraStreamOptions = {}): UseCamera
     const constraintsRef = useRef<MediaStreamConstraints>(
         options.constraints ?? DEFAULT_CONSTRAINTS,
     );
-    constraintsRef.current = options.constraints ?? DEFAULT_CONSTRAINTS;
+    useEffect(() => {
+        constraintsRef.current = options.constraints ?? DEFAULT_CONSTRAINTS;
+    }, [options.constraints]);
 
     useEffect(() => {
         let cancelled = false;

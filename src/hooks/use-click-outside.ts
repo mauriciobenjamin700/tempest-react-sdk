@@ -14,7 +14,9 @@ export function useClickOutside<T extends HTMLElement = HTMLElement>(
 ): RefObject<T | null> {
     const ref = useRef<T>(null);
     const handlerRef = useRef(handler);
-    handlerRef.current = handler;
+    useEffect(() => {
+        handlerRef.current = handler;
+    }, [handler]);
 
     useEffect(() => {
         if (typeof document === "undefined") return;

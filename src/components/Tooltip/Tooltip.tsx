@@ -1,4 +1,6 @@
-import { cloneElement, useId, useState } from "react";
+/* eslint-disable react-hooks/refs -- the handlers below read the timer ref, and they only
+   run on user events (hover/focus), never during render */
+import { cloneElement, useEffect, useId, useRef, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
 import { cn } from "@/utils/cn";
 import styles from "./Tooltip.module.css";
@@ -32,21 +34,39 @@ export function Tooltip({
 }: TooltipProps) {
     const [open, setOpen] = useState<boolean>(false);
     const tooltipId = useId();
-    let timer: ReturnType<typeof setTimeout> | null = null;
+    /**
+     * Handle of the pending open timer.
+     *
+     * A ref, not a `let` in the component body: that binding is recreated on every
+     * render, so any re-render between `show` and `hide` (a parent update, a state
+     * change elsewhere) dropped the handle and `clearTimeout` silently cancelled
+     * nothing — the tooltip then opened after the pointer had already left.
+     */
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    function clearTimer(): void {
+        if (timerRef.current !== null) {
+            clearTimeout(timerRef.current);
+            timerRef.current = null;
+        }
+    }
 
     function show(): void {
         if (disabled) return;
-        if (timer) clearTimeout(timer);
-        timer = setTimeout(() => setOpen(true), openDelay);
+        clearTimer();
+        timerRef.current = setTimeout(() => setOpen(true), openDelay);
     }
 
     function hide(): void {
-        if (timer) {
-            clearTimeout(timer);
-            timer = null;
-        }
+        clearTimer();
         setOpen(false);
     }
+
+    useEffect(() => {
+        return () => {
+            clearTimer();
+        };
+    }, []);
 
     const trigger = cloneElement(children, {
         onMouseEnter: show,

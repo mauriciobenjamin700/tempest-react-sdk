@@ -1,4 +1,5 @@
 export { cn } from "./cn";
+export { compareValues } from "./compare-values";
 export {
     formatCurrency,
     formatDate,

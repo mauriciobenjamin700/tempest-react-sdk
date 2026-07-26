@@ -123,6 +123,65 @@ Renders only the visible window + a small overscan buffer. Each row needs a fixe
 !!! note "Native search (Ctrl+F) only finds the visible window"
     Items outside the viewport are not in the DOM, so the browser's `Ctrl+F` won't find them. Below ~500 items, prefer normal rendering: the perf gain is negligible and you keep native search.
 
+## `VirtualTable<T>`
+
+> **When to use**: a table of **thousands of rows** in one scrollable grid — a statement, an audit log, a raw export. `Table` renders everything it is given and `DataTable` paginates to keep that count small; neither answers "show me all 40 000 rows at once".
+
+It renders only the visible window, like `VirtualList`, while staying a real `<table>`: the browser aligns the columns, the header sticks, and assistive technology still sees a grid.
+
+```tsx
+<VirtualTable
+  data={rows}
+  columns={[
+    { key: "id", header: "#", width: 80, sortable: true },
+    { key: "name", header: "Name", width: 240, sortable: true },
+    { key: "total", header: "Total", width: 120, align: "right", sortable: true },
+  ]}
+  rowHeight={40}
+  height={480}
+  rowKey={(row) => row.id}
+  onRowClick={(row) => open(row.id)}
+/>
+```
+
+| Prop            | Type                                            | Default                         |
+| --------------- | ----------------------------------------------- | ------------------------------- |
+| `data`          | `T[]`                                           | —                               |
+| `columns`       | `VirtualTableColumn<T>[]`                       | —                               |
+| `rowHeight`     | `number` (px, **uniform**)                      | —                               |
+| `height`        | `number \| string` (viewport height)            | —                               |
+| `overscan`      | `number`                                        | `4`                             |
+| `rowKey`        | `(row: T, index: number) => string \| number`   | `index`                         |
+| `initialSort`   | `{ key: keyof T; direction: "asc" \| "desc" }`  | —                               |
+| `onRowClick`    | `(row: T, index: number) => void`               | —                               |
+| `scrollToIndex` | `number`                                        | —                               |
+| `caption`       | `ReactNode` (accessible name, visually hidden)  | —                               |
+| `emptyMessage`  | `ReactNode`                                     | `"Nenhum registro encontrado."` |
+
+Column: `{ key, header, render?, sortable?, align?, width? }`.
+
+!!! info "Why it stays a `<table>`"
+    The window is produced by **two spacer rows** — one above the visible slice, one below — instead of absolutely positioning rows. `position: absolute` would collapse table layout: every column width would have to be computed by hand, and the element would stop being a table for assistive technology. With spacer rows the browser keeps doing column layout and screen readers keep announcing a grid.
+
+!!! tip "Real indices, not window indices"
+    Because only a slice is in the DOM, `aria-rowcount` on the table and `aria-rowindex` on each row carry the **real** numbers. Without them a screen reader announces "row 3 of 20" while the user is on row 5003 of 40 000 — the detail almost every virtualized table gets wrong.
+
+!!! warning "`rowHeight` must be uniform, and match what the CSS produces"
+    It is what maps scroll offset to row index. If the CSS renders a different height than declared, the window comes out shifted. For variable heights use `@tanstack/react-virtual`.
+
+!!! note "Set `width` on every column"
+    Rows enter and leave the DOM as you scroll, so letting the browser size columns from whatever is rendered right now makes them jump mid-scroll. The component uses `table-layout: fixed` precisely so that works.
+
+### `VirtualTable` or `DataTable`?
+
+| You need…                                     | Use            |
+| --------------------------------------------- | -------------- |
+| Search + pagination, tens to hundreds of rows | `DataTable`    |
+| A scrollable grid of thousands of rows        | `VirtualTable` |
+| Full control of the markup, few rows          | `Table`        |
+
+Both sort with the same comparator (`compareValues`), so "sorted" means the same thing in each — numbers numerically, dates by timestamp, strings via `localeCompare` with `numeric: true`.
+
 ## `ListTile`
 
 > **When to use**: the canonical Material list row — an item with a leading slot (icon/avatar), a title with an optional subtitle, and a trailing slot (icon, switch, meta). Ideal for settings lists, contacts, or menus.
@@ -292,6 +351,7 @@ export function RolePermissions() {
 | ------------- | ------------------------------------------ | ---------------- |
 | `Table<T>`    | Compare records in columns                 | tens to hundreds |
 | `VirtualList` | Scroll long fixed-height lists             | 500+ items       |
+| `VirtualTable<T>` | Scrollable grid of rows in columns     | thousands of rows |
 | `ListTile`    | A list row (icon + title + action)         | any              |
 | `Accordion`   | On-demand expandable sections (FAQ, steps) | a few sections   |
 | `Timeline`    | A sequence of events over time             | any              |
@@ -301,6 +361,7 @@ Key accessibility points:
 
 - `Table` uses `<th scope="col">` (already included); `onRowClick` applies `role="button"` + `tabIndex={0}`.
 - `VirtualList`: items outside the viewport are not rendered — `Ctrl+F` only finds the visible window.
+- `VirtualTable`: stays a real `<table>` (spacer rows instead of absolute positioning), with `aria-rowcount`/`aria-rowindex` carrying real indices rather than window indices; sortable headers expose `aria-sort`.
 - `Accordion`: ↑↓ switch the focused item, Home/End jump to the first/last.
 - `Timeline`: semantic order via `<ol>`; each item is an `<li>`.
 - `TreeView`: `role="tree"` + roving tabindex (a single tab stop); `aria-level` reports depth and disabled nodes are skipped while navigating.

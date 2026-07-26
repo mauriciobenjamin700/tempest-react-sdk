@@ -8,7 +8,7 @@ SDK público da Tempest com componentes React, hooks e integrações reutilizáv
 
 - **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 30 tags publicadas (0.1.0 → 0.23.0) com signed provenance via OIDC. Histórico completo em `RELEASES.md` (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
 - **Testes**: 2488 testes em 377 arquivos, ~36 s sob `vitest + jsdom + fake-indexeddb`. Cobertura 98.5% linhas / 97.1% statements / 96.6% funções / 95.0% branches; pisos do CI em 98/97/96/94.
-- **Superfície**: 34 módulos em `src/`, 110 componentes, 46 hooks, 384 exports na entrada raiz.
+- **Superfície**: 34 módulos em `src/`, 111 componentes, 46 hooks, 384 exports na entrada raiz.
 - **Empacotamento (v0.25.0)**: `dist/` preserva o grafo de módulos (`preserveModules`). O que o app paga de fato (brotli): `{ cn }` 153 B · `{ Button }` 794 B · app típico 6.83 KB · offline/PWA 4.44 KB · `styles.css` 21.68 KB · `utilities.css` 1.13 KB (opt-in). Teto sem tree-shaking: 70.21 KB ESM / 85.52 KB CJS. Budgets do `size-limit` são **por fatia importada**, não pelo barrel.
 - **Subpaths** (11): `.`, `/testing` (MSW), `/vite` (`createViteConfig` + plugins), `/sw` (helpers de contexto SW), `/charts` (recharts peer), `/editor` (tiptap peer), `/vision` (onnxruntime-web peer), `/br` (dataset BR + mapa clicável), `/icons` (ícone por slug, 25 shards lazy), `/icons/virtual` (declaração ambiente do módulo do plugin), `/styles.css`, `/utilities.css` (camada de layout opt-in).
 - **CLIs** (`bin/`): `create-tempest-app` (scaffold — invocado como `npx -p tempest-react-sdk create-tempest-app .`; **não** existe pacote `create-tempest-app` no npm, então `npm create tempest-app` dá 404) com templates `template/` e `template-pwa/`; `tempest` (project CLI: `doctor`, `lint`, `fix`, `format`, `gen api <openapi>` → Zod + types + services, `gen icons` → registry estático de ícone).
@@ -54,7 +54,7 @@ tempest-react-sdk/
 │   ├── auth/           createAuthStore, AuthGuard, decodeJWT, lazyWithRetry, createRefreshQueue, createTempestAuth
 │   ├── br/          ⇢  dataset de estados/municípios + mapa UF clicável + centroides (chunks lazy)
 │   ├── charts/      ⇢  wrappers recharts
-│   ├── components/     110 componentes UI
+│   ├── components/     111 componentes UI
 │   ├── data/           createDataProvider, <TempestDataProvider>, useDataProvider (CRUD por recurso)
 │   ├── editor/      ⇢  RichTextEditor (tiptap)
 │   ├── error-boundary/ ErrorBoundary, useErrorHandler
@@ -102,7 +102,7 @@ tempest-react-sdk/
 
 ## Backlog priorizado
 
-Entregue e fora do backlog: **ícone por slug (`/icons`, issue #37)**, release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`), sweep `axe` em jsdom + smoke Playwright do gallery (`e2e.yml`), coverage gateando o CI (pisos 98/97/96/94), política de versionamento de tokens CSS (`docs/styles.md`).
+Entregue e fora do backlog: **`VirtualTable`**, **ícone por slug (`/icons`, issue #37)**, release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`), sweep `axe` em jsdom + smoke Playwright do gallery (`e2e.yml`), coverage gateando o CI (pisos 98/97/96/94), política de versionamento de tokens CSS (`docs/styles.md`).
 
 ### Em revisão (PRs **encadeados** — mergear em ordem)
 
@@ -122,11 +122,11 @@ Já na `main`: **#45** — `createTheme` + presets + `applyTheme`, tokens
 
 ### P1 — componentes (na ordem)
 
-1. **Primitiva de drag & drop (`useSortable`)** — **enabler**: sem ela, `Kanban`, reordenar lista e ordenar upload ficam bloqueados. Não existe nada de DnD nos 45 hooks.
-2. **`VirtualTable`** — `VirtualList` virtualiza lista simples e `DataTable` não virtualiza nada; tabela de 10k linhas hoje não tem resposta no SDK.
-3. **`NotificationCenter`** — casa direto com o módulo `push` (inbox de notificação recebida, lida/não lida, ação por item).
-4. **`ImageCropper`** — par natural do `FileUpload` + câmera do `vision` para foto de perfil / documento.
-5. **`Kanban`** (depois do item 1) e **`Scheduler`/agenda** — o `Calendar` é date-picker, não agenda de evento.
+1. **`NotificationCenter`** — casa direto com o módulo `push` (inbox de notificação recebida, lida/não lida, ação por item).
+2. **`ImageCropper`** — par natural do `FileUpload` + câmera do `vision` para foto de perfil / documento.
+3. **`Scheduler`/agenda** — o `Calendar` é date-picker, não agenda de evento.
+
+Já entregues desta lista: `useSortable` (enabler de DnD), `Kanban`, `VirtualTable`.
 
 ### P2 — componentes
 

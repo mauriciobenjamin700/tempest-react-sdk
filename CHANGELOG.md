@@ -4,6 +4,29 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Alterado
+
+- **`tempest doctor` passa a servir projeto de terceiro que ainda não usa o SDK.** Era
+  inútil exatamente onde deveria ajudar mais: num app React + Vite **saudável** que só
+  não tinha adotado o SDK, ele dava **duas falhas e exit 1** por um único fato ("você
+  não instalou isto ainda") e enterrava os achados acionáveis — sem lockfile, sem
+  `@vitejs/plugin-react`, sem linter — no meio de avisos que eram só a opinião do SDK.
+- Agora detecta o caso e roda em **modo genérico**. SDK ausente é `info`, não falha. As
+  checagens que são convenção saem do relatório: alias `@/*`, `createViteConfig`, import
+  do `styles.css`, o `src/main.tsx` esperado. O motivo do aviso de `moduleResolution`
+  também deixa de citar subpath do SDK quando ele não está em jogo.
+- Continua checando o que vale pra qualquer app: versão do Node, instância duplicada de
+  React, dependência declarada e não instalada, peer não satisfeita, `@types/react`
+  desalinhado, `strict`/`jsx`/`moduleResolution`, lockfile, ESLint/Prettier, `.env` no
+  `.gitignore` e variável de cliente sem `VITE_`. E fecha com uma seção de **como
+  adotar** — auditar o projeto de alguém e não dizer qual é o próximo passo lê como
+  anúncio.
+- SDK **instalado mas não declarado** no `package.json` passou de falha a aviso: é
+  drift de declaração, não app quebrado.
+- **O `doctor` ganhou testes** — não tinha nenhum. 15 casos rodam o CLI de verdade como
+  subprocesso contra fixture em disco, porque o que mais importa nele é o **exit code**,
+  e só executando como o usuário executa isso é testado.
+
 ### Adicionado
 
 - **`<ImageCropper>` — recorte com proporção fixa, par natural do `FileUpload`.** O

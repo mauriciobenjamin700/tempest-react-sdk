@@ -96,6 +96,7 @@ export default tseslint.config(
         // export from any of these files still warns.
         files: [
             "src/access/access-control-context.tsx",
+            "src/components/Kanban/Kanban.tsx",
             "src/components/ModalsManager/ModalsManager.tsx",
             "src/components/NProgress/NProgress.tsx",
             "src/components/PasswordInput/PasswordInput.tsx",
@@ -113,6 +114,7 @@ export default tseslint.config(
                 {
                     allowConstantExport: true,
                     allowExportNames: [
+                        "applyKanbanMove",
                         "defineRoutes",
                         "estimatePasswordStrength",
                         "nprogress",

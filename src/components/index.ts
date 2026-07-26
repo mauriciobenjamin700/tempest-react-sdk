@@ -118,6 +118,8 @@ export type { SyncStatusBadgeProps } from "./SyncStatusBadge";
 export { UpdatePrompt } from "./UpdatePrompt";
 export type { UpdatePromptPosition, UpdatePromptProps } from "./UpdatePrompt";
 
+export { applyKanbanMove, Kanban } from "./Kanban";
+export type { KanbanCard, KanbanColumn, KanbanMove, KanbanProps } from "./Kanban";
 export { Kbd } from "./Kbd";
 export type { KbdProps, KbdSize } from "./Kbd";
 

@@ -507,6 +507,56 @@ export function CadastroEmEtapas() {
 !!! note "`clickableSteps` é `false` de propósito"
     Um wizard existe porque a **ordem importa**. Com `clickableSteps`, pular pra trás é livre (voltar nunca bloqueia), mas pular pra frente valida **cada passo atravessado** — o primeiro gate que reprovar interrompe o salto ali.
 
+### `Kanban`
+
+> **Quando usar**: quadro de colunas com cards que mudam de estágio — backlog, pipeline de vendas, ordens de serviço por status.
+
+Reordena dentro da coluna e move entre colunas, por ponteiro **ou** teclado. A máquina de arrasto é o `useSortable` — o quadro não reimplementa nada disso.
+
+```tsx
+import { applyKanbanMove, Kanban, type KanbanColumn } from "tempest-react-sdk";
+import { useState } from "react";
+
+export function QuadroDoBacklog() {
+  const [colunas, setColunas] = useState<KanbanColumn[]>([
+    { id: "todo", title: "A fazer", cards: [{ id: "1", content: "Corrigir login" }] },
+    { id: "doing", title: "Fazendo", cards: [] },
+    { id: "done", title: "Feito", cards: [], locked: true },
+  ]);
+
+  return (
+    <Kanban
+      label="Backlog"
+      columns={colunas}
+      onMove={(move) => setColunas((atual) => applyKanbanMove(atual, move))}
+    />
+  );
+}
+```
+
+| Prop | Tipo | Default | O que faz |
+| --- | --- | --- | --- |
+| `columns` | `KanbanColumn[]` | — | Colunas com seus cards, em ordem de exibição. |
+| `onMove` | `(move: KanbanMove) => void` | — | Chamado **uma vez** por movimento confirmado. Você aplica. |
+| `renderCard` | `(card, column) => ReactNode` | conteúdo do card | Customiza o corpo do card. |
+| `label` | `string` | `"Quadro"` | Nome acessível do quadro. |
+| `emptyLabel` | `ReactNode` | `"Nenhum card"` | Texto da coluna vazia. |
+| `cardRoleDescription` | `string` | instrução de teclado | Anunciado por card — troque para localizar. |
+| `disabled` | `boolean` | `false` | Bloqueia todo arrasto. |
+
+`KanbanColumn = { id, title, cards, locked? }` · `KanbanCard = { id, content }` · `KanbanMove = { cardId, fromColumn, toColumn, toIndex }`.
+
+`applyKanbanMove(columns, move)` é o reducer que aplica o movimento devolvendo arrays novos — exportado porque todo consumidor precisa do mesmo, e é onde vive o off-by-one.
+
+!!! info "Coluna `locked` recusa entrada, mas deixa sair"
+    É o caso de uma coluna "Feito" que não aceita mais trabalho, mas cujos cards ainda podem voltar atrás.
+
+!!! warning "Movimento por teclado só alcança posição que tem card"
+    O movimento caminha pelo espaço de índices dos cards existentes, então **soltar numa coluna vazia funciona por ponteiro, mas não por teclado**. Isso é limitação da implementação atual, não desenho: enquanto teclas de troca de coluna não entrarem, o caminho é mover para uma coluna que já tenha um card e reordenar.
+
+!!! info "ARIA: um `listbox` por coluna, não um por quadro"
+    Cada coluna com cards é um `listbox` nomeado pelo título, contendo só `option`. Um listbox único no quadro não sobrevive à marcação que um quadro precisa — `listbox` exige filhos `option`/`group`, e o cabeçalho da coluna no meio quebra essa posse. Coluna **vazia** não é marcada como listbox (zero `option` reprova `aria-required-children`), e o cabeçalho é `div`, não `<header>`: fora de elemento de seccionamento, todo `<header>` vira landmark `banner` — com três colunas, três banners duplicados.
+
 ## Recap
 
 - **Essenciais**: `Toggle`/`ToggleGroup` para estados pressionáveis, `Label` para formulários, `Collapsible` para um bloco expansível, `ContextMenu`/`HoverCard` para overlays disparados por interação e `Command` para a paleta ⌘K.

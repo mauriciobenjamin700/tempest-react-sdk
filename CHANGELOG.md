@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.29.1] — 2026-07-27
+
 ### Corrigido
 
 - **`tempest doctor` quebrava com stack trace em qualquer projeto no TypeScript 7.** O 7 é

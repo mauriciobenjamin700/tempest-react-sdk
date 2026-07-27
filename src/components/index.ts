@@ -408,3 +408,18 @@ export type { MarkdownAlign, MarkdownBlock, MarkdownInline } from "./Markdown";
 
 export { Tour } from "./Tour";
 export type { TourPlacement, TourProps, TourStep } from "./Tour";
+
+export { FilterBar } from "./FilterBar";
+export type {
+    Filter,
+    FilterBarProps,
+    FilterField,
+    FilterFieldType,
+    FilterOperator,
+} from "./FilterBar";
+export {
+    describeFilter,
+    filtersFromSearchParams,
+    filtersToSearchParams,
+    operatorsFor,
+} from "./FilterBar";

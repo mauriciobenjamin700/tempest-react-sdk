@@ -6,6 +6,23 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`FilterBar` — filtros de lista com chips e editor**, e o **último item da lista P2**:
+  a fila de componentes zerou. Combinados com **E**, achatados.
+- **É E achatado, não árvore com OU, e a doc diz o teto**: grupos aninhados
+  (`(a OU b) E c`) exigem UI de árvore com operador por nó e outra serialização —
+  tentar ser os dois produz um builder desengonçado justamente no caso de 95%.
+- **O conjunto cabe na URL e volta dela**: `filtersToSearchParams` /
+  `filtersFromSearchParams`, com teste de round-trip. Filtro que não sobrevive a reload
+  é filtro que a pessoa redigita toda vez que abre um link que alguém mandou.
+- **O que não parseia é descartado, não adivinhado** — operador que o campo não oferece,
+  campo desconhecido, `between` com uma ponta só. URL editada à mão é a forma normal
+  desse dado chegar, e renderizar chip que o backend não avalia mostraria uma lista que
+  não corresponde ao que o chip afirma.
+- **O chip lê em palavras com o label da opção** ("Status é Pago", não `paid`), e o botão
+  de remover usa a mesma frase no `aria-label`: chip que diz uma coisa pra quem vê e
+  outra pra quem ouve são duas verdades diferentes.
+- Input segue o **campo**, não o operador (data ganha date picker mesmo no `between`);
+  filtro incompleto só desabilita o Aplicar; trocar operador limpa o valor.
 - **`Tour` — coachmarks guiados**: escurece a página, destaca um elemento por vez e
   explica. Penúltimo item da lista P2.
 - **O elemento destacado continua clicável**, e é isso que faz um coachmark servir. O
@@ -24,7 +41,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   aberto sobre um modal não feche os dois. Card é `role="dialog"` + `aria-modal`, nomeado
   pelo título e descrito pelo corpo, com armadilha de foco e "Passo 2 de 5" visível.
   Entrou no sweep do `axe`.
-- Tetos do barrel subiram com o componente novo: ESM 91 → 92,5 kB, CJS 110 → 112 kB,
+- Tetos do barrel subiram com os dois componentes novos: ESM 91 → 94 kB, CJS 110 → 113 kB,
   `styles.css` 25,5 → 26 kB. Tetos de "ninguém importa isso" — nenhuma fatia importada
   mudou.
 - Persistir "já viu" fica com o app (`open` + `onClose`/`onFinish`): a chave tem versão,

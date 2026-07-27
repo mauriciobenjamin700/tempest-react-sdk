@@ -1,0 +1,147 @@
+.bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tempest-space-2);
+    font-family: var(--tempest-font-sans);
+    font-size: var(--tempest-text-sm);
+}
+
+.chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tempest-space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tempest-space-1);
+    padding: var(--tempest-space-1) var(--tempest-space-1) var(--tempest-space-1)
+        var(--tempest-space-3);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-full);
+    background-color: var(--tempest-surface);
+    color: var(--tempest-text);
+}
+
+.empty {
+    color: var(--tempest-text-muted);
+}
+
+.remove {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    padding: 0;
+    border: none;
+    border-radius: var(--tempest-radius-full);
+    background: none;
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-base);
+    line-height: 1;
+    cursor: pointer;
+}
+
+.remove:hover {
+    background-color: var(--tempest-surface-3);
+    color: var(--tempest-text);
+}
+
+/*
+ * The editor wraps as a whole on a narrow screen: field, condition and value each
+ * keep a usable width instead of shrinking into three unreadable boxes.
+ */
+.editor {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tempest-space-2);
+    padding: var(--tempest-space-2);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-md);
+    background-color: var(--tempest-surface);
+}
+
+.control {
+    display: inline-flex;
+    min-width: 0;
+}
+
+.select,
+.input {
+    min-width: 7rem;
+    max-width: 14rem;
+    padding: var(--tempest-space-1) var(--tempest-space-2);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-sm);
+    background-color: var(--tempest-bg);
+    color: inherit;
+    font: inherit;
+}
+
+.select:focus-visible,
+.input:focus-visible {
+    outline: 2px solid var(--tempest-primary);
+    outline-offset: -1px;
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tempest-space-2);
+}
+
+.primary,
+.secondary,
+.ghost {
+    padding: var(--tempest-space-1) var(--tempest-space-3);
+    border-radius: var(--tempest-radius-md);
+    font: inherit;
+    cursor: pointer;
+}
+
+.primary {
+    border: none;
+    background-color: var(--tempest-primary);
+    color: var(--tempest-primary-foreground);
+}
+
+.primary:disabled {
+    background-color: var(--tempest-surface-3);
+    color: var(--tempest-text-subtle);
+    cursor: not-allowed;
+}
+
+.secondary {
+    border: 1px dashed var(--tempest-border-strong);
+    background-color: transparent;
+    color: var(--tempest-text);
+}
+
+.secondary:disabled {
+    color: var(--tempest-text-subtle);
+    cursor: not-allowed;
+}
+
+.ghost {
+    border: none;
+    background: none;
+    color: var(--tempest-text-muted);
+    text-decoration: underline;
+}
+
+.primary:focus-visible,
+.secondary:focus-visible,
+.ghost:focus-visible,
+.remove:focus-visible {
+    outline: 2px solid var(--tempest-primary);
+    outline-offset: 1px;
+}

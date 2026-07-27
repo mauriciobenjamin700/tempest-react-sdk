@@ -156,7 +156,7 @@
   {
     "name": "ceiling: full barrel ESM (nobody imports this \u2014 tree-shaking is the real cost)",
     "path": "dist/tempest-react-sdk.js",
-    "limit": "83 KB",
+    "limit": "86 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -175,7 +175,7 @@
   {
     "name": "ceiling: full barrel CJS (no tree-shaking \u2014 worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "100 KB",
+    "limit": "104 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -264,6 +264,28 @@
       "./dist/tempest-react-sdk.js": "{ QRCode }"
     },
     "limit": "4 KB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router",
+      "fflate"
+    ]
+  },
+  {
+    "name": "slice: CodeBlock (10 grammars, no highlighter dependency)",
+    "path": "dist/tempest-react-sdk.js",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ CodeBlock }"
+    },
+    "limit": "3.5 KB",
     "ignore": [
       "react",
       "react-dom",

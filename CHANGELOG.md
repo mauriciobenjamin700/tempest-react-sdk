@@ -6,6 +6,35 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`CodeBlock` — amostra de código com realce, número de linha e botão de copiar.**
+  Dez gramáticas (`ts`, `js`, `tsx`, `json`, `css`, `html`, `bash`, `python`, `sql` e
+  apelidos). O realce é **scanner de padrões, não parser**: reconhece comentário,
+  string, número, palavra-chave e pontuação, e não sabe nada de escopo ou tipo. É teto
+  escolhido — parser de verdade por linguagem é dependência do tamanho do resto do SDK.
+  Onde não tem certeza, emite texto normal em vez de emitir errado; linguagem
+  desconhecida vira bloco sem cor, que é resultado normal e nunca erro.
+- **Tokens de sintaxe próprios, `--tempest-code-*`** — e essa foi a correção que só
+  apareceu medindo no browser. A primeira versão reaproveitava a rampa de chart com o
+  argumento de que ela "já é validada nos dois modos". Ela é — pro piso de **marca**
+  (3:1). Cor de sintaxe é **texto** e precisa de **4,5:1**: medida como texto, uma
+  palavra-chave em `--tempest-chart-1` deu 3,47:1 no escuro e uma string em
+  `--tempest-chart-3` deu 2,03:1 no claro. Os dez tokens novos foram resolvidos em
+  OKLCH contra **os dois fundos** em que podem cair — a superfície do bloco e a linha
+  marcada depois que o realce compõe sobre ela; resolver só contra a superfície deixava
+  uma palavra-chave em 4,17:1 na linha marcada.
+- `src/styles/colors.contrast.test.ts` lê o `colors.css` e reafere cada token nos dois
+  modos contra os dois fundos, pra que uma edição futura de rampa não volte a baixar
+  disso em silêncio.
+- **O `<pre>` é sempre focável**, ao contrário dos outros contêineres de rolagem do SDK,
+  onde a parada de tabulação é condicional. Um bloco de código não tem nada focável
+  dentro e existe pra ser alcançado, lido e selecionado por conta própria.
+- Número de linha é `aria-hidden` + `user-select: none`: selecionar o bloco no mouse e
+  copiar devolve a fonte, sem os números. Verificado no browser lendo a seleção.
+- O `\n` que separa as linhas é caractere de verdade e fica **fora** da caixa da linha.
+  Dentro dela — a linha é `inline-block` — ele é consumido pelo próprio box e as dez
+  linhas do exemplo foram parar lado a lado numa fileira só. Também só apareceu no
+  browser.
+
 - **`QRCode` — símbolo QR codificado no browser, sem dependência.** Um gerador
   remoto entregaria o conteúdo — link de pagamento, token de sessão, convite — a um
   terceiro; o encoder inteiro custa **3,2 KB brotli** importando `{ QRCode }`.

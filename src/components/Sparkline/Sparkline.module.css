@@ -1,0 +1,23 @@
+.wrapper {
+    display: inline-flex;
+    align-items: center;
+    /*
+     * `middle` rather than the inline default: a sparkline sits beside a number, and
+     * a baseline-aligned SVG hangs low enough to look like it fell off the line.
+     */
+    vertical-align: middle;
+    line-height: 0;
+}
+
+.svg {
+    display: block;
+    overflow: visible;
+}
+
+/*
+ * A wash, never a saturated block — the fill is context for the line, and at full
+ * strength it competes with the mark that actually carries the data.
+ */
+.area {
+    opacity: 0.12;
+}

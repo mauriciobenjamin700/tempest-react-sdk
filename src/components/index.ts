@@ -240,6 +240,8 @@ export type {
 
 export { ImageCropper } from "./ImageCropper";
 export type { ImageCropperHandle, ImageCropperProps } from "./ImageCropper";
+export { Sparkline } from "./Sparkline";
+export type { SparklineProps, SparklineVariant } from "./Sparkline";
 export { Scheduler } from "./Scheduler";
 export type { DayWindow, PlacedEvent, SchedulerEvent, SchedulerProps } from "./Scheduler";
 export { NotificationCenter, useNotificationInbox } from "./NotificationCenter";

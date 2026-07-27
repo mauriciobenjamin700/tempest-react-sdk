@@ -6,6 +6,24 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`Sparkline` — mini-gráfico inline, na entrada raiz e sem recharts.** Uma coluna de
+  tendência numa tabela não deveria obrigar o app a instalar uma biblioteca de gráfico
+  inteira: são ~40 linhas de SVG. Três variantes (`line`, `area`, `bar`), tamanho e cor
+  livres, ponto no último valor com anel na cor da superfície pra continuar legível em
+  cima da linha.
+- **`min`/`max` fixam o eixo, e é o que torna várias linhas comparáveis.** Sem eles cada
+  sparkline se normaliza contra os próprios extremos — uma linha de 2 a 4 e outra de 200
+  a 400 desenham exatamente a mesma forma. O erro não gera aviso nenhum: os gráficos
+  ficam bonitos e mentem. A seção do gallery mostra as duas colunas lado a lado.
+- **`role="img"` com a série descrita em palavras** (quantidade de pontos, direção,
+  pontas, extremos). Um sparkline não tem eixo nem legenda pra servir de apoio: sem essa
+  frase o leitor de tela chega nele e não lê nada. `valueFormatter` entra na descrição;
+  `label` substitui quando o texto ao redor já diz o que está plotado.
+- Valores não-finitos são filtrados antes de projetar — um `NaN` dentro de um atributo
+  `d` anula o path inteiro **em silêncio**, e o gráfico some sem erro. Série achatada
+  fica centrada em vez de colada numa borda, que é a leitura honesta de "não variou" e
+  evita dividir por um domínio de altura zero.
+
 - **Escalas contínuas de data viz — `sequentialScale` e `divergingScale`.** As 8 cores
   de série codificam **identidade**; heatmap e choropleth codificam **quanto**, e isso
   pede _um_ hue escalonado por claridade. Era a última lacuna da fatia de CSS no

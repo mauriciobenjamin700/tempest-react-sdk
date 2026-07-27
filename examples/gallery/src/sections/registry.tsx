@@ -16,6 +16,7 @@ import { DataTableSection } from "./DataTableSection";
 import { DataVizScalesSection } from "./DataVizScalesSection";
 import { ImageCropperSection } from "./ImageCropperSection";
 import { SchedulerSection } from "./SchedulerSection";
+import { SparklineSection } from "./SparklineSection";
 import { VirtualTableSection } from "./VirtualTableSection";
 import { NotificationCenterSection } from "./NotificationCenterSection";
 import { MaterialSection } from "./MaterialSection";
@@ -242,6 +243,14 @@ export const SECTIONS: SectionEntry[] = [
             "scheduler agenda calendario evento hora grade semana dia sobreposicao overlap allday dia-inteiro",
         group: "Componentes",
         Component: SchedulerSection,
+    },
+    {
+        id: "sparkline",
+        label: "Sparkline (mini-gráfico inline)",
+        keywords:
+            "sparkline mini grafico inline tendencia serie linha area barra tabela kpi sem eixo svg",
+        group: "Componentes",
+        Component: SparklineSection,
     },
     {
         id: "material",

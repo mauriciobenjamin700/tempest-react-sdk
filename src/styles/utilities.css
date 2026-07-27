@@ -339,8 +339,15 @@
  * Page pattern — the shell every screen shares
  * ============================================================ */
 
+/*
+ * `width: 100%` is not decoration: dropped inside a flex **row** — a preview pane,
+ * a split view — a page container is a flex item and sizes to its content, so a
+ * dashboard inside it collapsed to about 200px while its parent had 500. Only the
+ * browser shows that; in normal flow the declaration changes nothing.
+ */
 .tempest-page {
     display: flex;
+    width: 100%;
     flex-direction: column;
     gap: var(--tempest-page-gap, var(--tempest-space-6));
     padding-block: var(--tempest-space-6);
@@ -385,6 +392,132 @@
     position: sticky;
     top: var(--tempest-toolbar-top, 0);
     z-index: var(--tempest-z-sticky);
+}
+
+/* ============================================================
+ * Dashboard — a page of widgets, without a media query per widget
+ * ============================================================ */
+
+/**
+ * Widget grid.
+ *
+ * Columns come from the **container**, not the viewport: `container-type:
+ * inline-size` makes the spans below react to the width the grid actually has, so
+ * the same dashboard works full-bleed, inside a sidebar layout, or in a drawer. A
+ * media query would give a 320px-wide panel the desktop span, and every widget in
+ * it would be one column of squashed text.
+ *
+ * Tune with `--tempest-dashboard-columns` (default 12) and
+ * `--tempest-dashboard-gap`.
+ */
+.tempest-dashboard {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(var(--tempest-dashboard-columns, 12), minmax(0, 1fr));
+    gap: var(--tempest-dashboard-gap, var(--tempest-space-4));
+    container-type: inline-size;
+    container-name: tempest-dashboard;
+}
+
+/**
+ * One widget.
+ *
+ * Full width by default, because a dashboard read on a phone is a single column
+ * and that is the state a widget spends most of its life in. The spans below widen
+ * it as the container earns the room.
+ */
+.tempest-widget {
+    grid-column: 1 / -1;
+    min-width: 0;
+}
+
+/** Two rows tall — a chart next to a stack of stat tiles. */
+.tempest-widget-tall {
+    grid-row: span 2;
+}
+
+/*
+ * Spans open up in two steps, keyed on the container.
+ *
+ * 40rem is where two columns of prose stop being cramped; 64rem is where four fit.
+ * The `span` values assume the default 12 columns — with a custom
+ * `--tempest-dashboard-columns` the widget still lands inside the grid, it just
+ * covers a different fraction, which is the tradeoff of using one shared scale
+ * instead of a class per column count.
+ */
+@container tempest-dashboard (min-width: 40rem) {
+    .tempest-widget-half {
+        grid-column: span 6;
+    }
+
+    .tempest-widget-third,
+    .tempest-widget-quarter {
+        grid-column: span 6;
+    }
+
+    .tempest-widget-two-thirds {
+        grid-column: span 12;
+    }
+}
+
+@container tempest-dashboard (min-width: 64rem) {
+    .tempest-widget-third {
+        grid-column: span 4;
+    }
+
+    .tempest-widget-quarter {
+        grid-column: span 3;
+    }
+
+    .tempest-widget-two-thirds {
+        grid-column: span 8;
+    }
+}
+
+/** Row of stat tiles that fits as many as it can, no spans needed. */
+.tempest-stat-row {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(auto-fit, minmax(min(var(--tempest-stat-min, 11rem), 100%), 1fr));
+    gap: var(--tempest-dashboard-gap, var(--tempest-space-4));
+}
+
+/**
+ * A widget's own frame: header on top, body taking the rest.
+ *
+ * `min-height: 0` on the body is what lets a chart inside it shrink — a grid child
+ * defaults to `min-height: auto`, so a canvas that reports a tall intrinsic size
+ * pushes the row instead of fitting it, and the dashboard grows a scrollbar nobody
+ * asked for.
+ */
+.tempest-widget-frame {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-space-3);
+    height: 100%;
+    padding: var(--tempest-widget-padding, var(--tempest-space-4));
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-lg);
+    background-color: var(--tempest-bg);
+}
+
+.tempest-widget-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--tempest-space-2);
+}
+
+.tempest-widget-title {
+    margin: 0;
+    color: var(--tempest-text);
+    font-size: var(--tempest-text-sm);
+    font-weight: var(--tempest-weight-semibold);
+}
+
+.tempest-widget-body {
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 /* ============================================================

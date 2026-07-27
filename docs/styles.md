@@ -571,6 +571,82 @@ export function UsersPage() {
 
 Note o `style={{ "--tempest-grid-min": "220px" }}`: os hooks locais são custom properties, então dá pra ajustar **por instância** sem escrever CSS nem criar variante de classe.
 
+### Dashboard de widgets
+
+A camada tem uma fatia própria pra isso, e o que a torna diferente de um grid comum é
+que as colunas reagem à largura do **contêiner**, não do viewport.
+
+```tsx
+import "tempest-react-sdk/utilities.css";
+
+export function OperacaoPage() {
+  return (
+    <div className="tempest-container tempest-page">
+      <header className="tempest-page-header">
+        <div>
+          <h1 className="tempest-page-title">Operação</h1>
+          <p className="tempest-page-subtitle">Últimos 30 dias</p>
+        </div>
+        <Badge variant="success">no ar</Badge>
+      </header>
+
+      {/* Fileira de tiles: cabe quantos couberem, sem span nenhum */}
+      <div className="tempest-stat-row">
+        <div className="tempest-widget-frame">
+          <span className="tempest-text-muted tempest-text-xs">Pedidos</span>
+          <strong className="tempest-text-2xl tempest-numeric">1.284</strong>
+        </div>
+        {/* … */}
+      </div>
+
+      {/* Grid de 12 colunas com spans por container query */}
+      <div className="tempest-dashboard">
+        <section className="tempest-widget tempest-widget-two-thirds">
+          <div className="tempest-widget-frame">
+            <div className="tempest-widget-header">
+              <h2 className="tempest-widget-title">Vendas por dia</h2>
+              <span className="tempest-text-subtle tempest-text-xs">12 dias</span>
+            </div>
+            <div className="tempest-widget-body">
+              <Sparkline data={vendas} width={320} height={72} label="Vendas por dia" />
+            </div>
+          </div>
+        </section>
+
+        <section className="tempest-widget tempest-widget-third">{/* … */}</section>
+        <section className="tempest-widget tempest-widget-half">{/* … */}</section>
+        <section className="tempest-widget tempest-widget-half">{/* … */}</section>
+      </div>
+    </div>
+  );
+}
+```
+
+| Classe | O que faz |
+| --- | --- |
+| `.tempest-dashboard` | grid de 12 colunas **e** container de tamanho (`container-type: inline-size`) |
+| `.tempest-widget` | largura total por default — o estado em que um widget passa a maior parte da vida |
+| `.tempest-widget-half` · `-third` · `-quarter` · `-two-thirds` | spans que abrem em **40rem e 64rem de contêiner** |
+| `.tempest-widget-tall` | `grid-row: span 2` — gráfico ao lado de uma pilha de tiles |
+| `.tempest-stat-row` | fileira de tiles com `auto-fit`, sem span. Ajuste com `--tempest-stat-min` |
+| `.tempest-widget-frame` · `-header` · `-title` · `-body` | a moldura do widget |
+
+Hooks: `--tempest-dashboard-columns` (12), `--tempest-dashboard-gap`, `--tempest-widget-padding`, `--tempest-stat-min`.
+
+!!! check "As colunas são do contêiner, não do viewport — e isso é o ponto"
+    Medido no browser, com **viewport de 1360px**: o mesmo dashboard dentro de um painel de 440px renderiza em **coluna única**; com 660px, o `-third` e o `-half` vão pra mesma linha (`span 6`); com 1060px, `-two-thirds` fica em `span 8` ao lado do `-third` em `span 4`, e as duas metades dividem a linha seguinte.
+
+    Media query daria o span de desktop pro painel de 440px, e cada widget viraria uma coluna de texto amassado. É o mesmo motivo pelo qual o `Masonry` observa o contêiner.
+
+!!! warning "`width: 100%` no `.tempest-page` não é decoração"
+    Solto dentro de um flex **row** — painel de preview, split view — um contêiner de página é um flex item e dimensiona pelo conteúdo: o dashboard colapsou pra ~200px enquanto o pai tinha 500. Só o browser mostra isso; em fluxo normal a declaração não muda nada. Achado exatamente assim, montando esta receita na gallery.
+
+!!! info "`min-height: 0` no `-body` é o que deixa um gráfico caber"
+    Filho de grid tem `min-height: auto` por default, então um canvas que reporta altura intrínseca grande empurra a linha em vez de caber nela — e o dashboard ganha uma barra de rolagem que ninguém pediu.
+
+!!! tip "Widget redimensionável pelo usuário é outra coisa"
+    Arrastar a borda de um widget briga com a grade: os tracks vêm do grid, e uma largura em pixel vinda do drag não pode conviver com isso. Se você precisa disso, use o [`Resizable`](./components/advanced.md#resizable) numa área livre, ou guarde o span escolhido por widget e aplique a classe correspondente — que é a versão que sobrevive a um reload e cabe na URL.
+
 ### Form de duas colunas
 
 ```tsx

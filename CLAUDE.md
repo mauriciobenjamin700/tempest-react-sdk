@@ -117,9 +117,14 @@ Lista **concluída**. Entregues: `Chat`, `Transfer`, `Masonry`, `Markdown`, `Tou
 `FilterBar`. O próximo alvo de componente precisa de uma lista nova — o que sobrou de
 backlog é a fatia de CSS (P2) e a cauda de cobertura (P3).
 
-### P2 — CSS pronto (o que sobrou da fatia)
+### P2 — CSS pronto
 
-- **Presets de densidade e de radius por app** já existem via token; falta receita de **página inteira** além do que o `utilities.css` cobre (dashboard com grid de widget redimensionável, por exemplo).
+Fatia **concluída**. A camada opt-in ganhou o dashboard (`.tempest-dashboard` +
+`.tempest-widget` com spans por **container query**, `.tempest-stat-row`, moldura de
+widget), que era o item de "receita de página inteira". Widget redimensionável **pelo
+usuário** ficou de fora com motivo escrito na doc: largura em pixel vinda de drag não
+convive com track de grid — quem precisa usa `Resizable` numa área livre ou guarda o span
+escolhido.
 
 ### P3 — cauda de cobertura
 

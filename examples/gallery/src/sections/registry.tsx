@@ -16,6 +16,7 @@ import { DataTableSection } from "./DataTableSection";
 import { DataVizScalesSection } from "./DataVizScalesSection";
 import { ImageCropperSection } from "./ImageCropperSection";
 import { ChatSection } from "./ChatSection";
+import { DashboardLayoutSection } from "./DashboardLayoutSection";
 import { FilterBarSection } from "./FilterBarSection";
 import { MarkdownSection } from "./MarkdownSection";
 import { MasonrySection } from "./MasonrySection";
@@ -275,6 +276,14 @@ export const SECTIONS: SectionEntry[] = [
             "chat thread conversa mensagem comentario comments bolha bubble typing digitando composer enviar retry falhou",
         group: "Componentes",
         Component: ChatSection,
+    },
+    {
+        id: "dashboard-layout",
+        label: "Dashboard (CSS)",
+        keywords:
+            "dashboard layout grid widget container query stat tile pagina css utilities span coluna",
+        group: "Componentes",
+        Component: DashboardLayoutSection,
     },
     {
         id: "filterbar",

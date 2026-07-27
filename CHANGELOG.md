@@ -4,6 +4,34 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **Fatia de dashboard no `utilities.css`** (opt-in): `.tempest-dashboard`,
+  `.tempest-widget` com spans `-half`/`-third`/`-quarter`/`-two-thirds`,
+  `.tempest-widget-tall`, `.tempest-stat-row` e a moldura
+  `.tempest-widget-frame`/`-header`/`-title`/`-body`. Fecha o item de "receita de página
+  inteira" do backlog de CSS — e é **só CSS**, nenhum componente novo: layout de página
+  não precisa de componente pra ser dono dele.
+- **As colunas reagem ao contêiner, não ao viewport** — primeira vez que o SDK usa
+  `@container`. Medido no browser com viewport de 1360px: o mesmo dashboard dentro de um
+  painel de 440px vira **coluna única**; com 660px o `-third` e o `-half` dividem a linha;
+  com 1060px o `-two-thirds` fica em `span 8` ao lado do `-third` em `span 4`. Media query
+  daria o span de desktop pro painel de 440px, e cada widget viraria uma coluna de texto
+  amassado — mesmo motivo pelo qual o `Masonry` observa o contêiner.
+- **Widget começa em largura total** (`grid-column: 1 / -1`), porque é o estado em que ele
+  passa a maior parte da vida; os spans abrem conforme o contêiner ganha espaço.
+- `min-height: 0` no `-body`: filho de grid tem `min-height: auto`, então um canvas que
+  reporta altura intrínseca grande empurraria a linha em vez de caber nela, e o dashboard
+  ganharia barra de rolagem que ninguém pediu.
+
+### Corrigido
+
+- **`.tempest-page` colapsava pra largura do conteúdo dentro de um flex row** (painel de
+  preview, split view): sendo flex item, dimensionava pelo conteúdo — o dashboard ficou em
+  ~200px com o pai em 500. Ganhou `width: 100%`, igual `.tempest-container` já tinha; em
+  fluxo normal a declaração não muda nada. Achado montando a receita na gallery, no
+  browser — jsdom não calcula layout, então nenhum teste pegaria.
+
 ## [0.31.0] — 2026-07-27
 
 ### Adicionado

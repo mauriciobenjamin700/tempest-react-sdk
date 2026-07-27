@@ -156,6 +156,14 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **Quatro tokens inexistentes no CSS do próprio SDK**, achados pela análise nova — todos
+  `var()` **sem** fallback, ou seja, propriedade que resolvia pra nada em runtime:
+  `--tempest-duration-normal` na transição do `Carousel` (não existe; virou
+  `--tempest-duration-base`), `--tempest-primary-solid` e `--tempest-primary-on` no
+  `.navbar.primary` (viraram `--tempest-primary` e `--tempest-primary-foreground`) e
+  `--tempest-danger-on` no badge do `BottomNavigation` (ganhou o fallback `#fff` que o
+  `NavigationRail` já usava, mantendo o knob).
+
 - **As duas fontes do mesmo token discordavam da direção no modo escuro.** O
   `colors.css` declara token 1 = passo mais escuro no dark (o que recua pra superfície
   escura), mas o `buildRamp` invertia e o `createTheme` escrevia token 1 = mais claro —

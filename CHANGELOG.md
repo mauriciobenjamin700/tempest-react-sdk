@@ -6,6 +6,28 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`Markdown` — renderizar texto que veio de gente**, com parser próprio e **zero
+  dependência**. Headings, parágrafos, listas (aninhadas e numeradas), citação, código
+  cercado (via `CodeBlock`), regra, tabela GFM com alinhamento, e o inline usual.
+- **A segurança é estrutural, não promessa de escape**: `dangerouslySetInnerHTML` **não
+  existe** no componente. O parser produz árvore de nós, o render vira elementos React, e
+  filho de React só pode ser texto — então `<script>` num comentário renderiza como os
+  caracteres que a pessoa digitou. Não é "HTML sanitizado", **é texto**; por isso não há
+  sanitizador nem lista de tags permitidas.
+- **URL passa por allowlist de esquema**, não blocklist: link aceita `http`/`https`/
+  `mailto`/`tel`/`sms` e relativo; imagem aceita os mesmos mais `data:image/` **raster** —
+  `svg+xml` fica fora porque um SVG é documento e carrega script. Blocklist teria que
+  enumerar `javascript:`, `JaVaScRiPt:`, `java\tscript:`, e erraria a que ninguém pensou.
+  URL recusada mantém o **rótulo como texto**: apagar as palavras seria pior que apagar o
+  link.
+- **`#` vira `h2` por default** (`headingOffset`): um comentário dentro de página cujo `h1`
+  é o título não pode emitir um segundo `h1`, e o componente nunca passa de `h6`.
+- Dois bugs de parser pegos por teste antes do merge: **tabela de uma coluna** (`| --- |`)
+  não era reconhecida porque o regex exigia duas, e **URL com parêntese balanceado**
+  (`javascript:alert(1)`) deixava o `)` sobrando como texto.
+- É **subconjunto de propósito**, e a doc diz o teto: sem HTML embutido, nota de rodapé,
+  referência de link ou lista de tarefa. Quem precisa de CommonMark completo usa
+  `react-markdown` + `remark` direto — 40 KB e cadeia de plugins que o SDK não paga.
 - **`Masonry` — cards de altura desigual empacotados em colunas** com a borda de baixo o
   mais reta que o conteúdo permite. Mede os cards e joga cada um na **coluna mais curta**;
   `index % colunas` produz colunas desiguais no primeiro momento em que as alturas
@@ -71,12 +93,9 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   tingida usa o foreground da própria bolha (`--tempest-primary-on-soft`). O que
   de-enfatiza ali é o **tamanho**; a cor ainda tem que passar. Mesma armadilha dos tokens
   de sintaxe do `CodeBlock`.
-- Tetos do barrel no `size-limit` subiram com os dois componentes novos: ESM 86 → 88 kB,
-  CJS 104 → 107 kB. São **tetos explícitos** de "ninguém importa isso" — o que o app paga
+- Tetos do barrel no `size-limit` subiram com os quatro componentes novos: ESM 86 → 91 kB,
+  CJS 104 → 110 kB, e o `styles.css` 24 → 25,5 kB. São **tetos explícitos** de "ninguém importa isso" — o que o app paga
   de verdade continua medido por fatia importada, e nenhuma fatia mudou.
-- Budget do `styles.css` no `size-limit` subiu de 24 kB pra 25 kB: o CSS do `Chat` custa
-  ~0,5 kB brotli na folha única, e o teto existia justamente pra essa subida ser uma
-  decisão e não uma surpresa.
 - Gallery ganhou a section `Chat` com três exemplos: thread viva (insert otimista +
   digitando + resposta), mensagem que falhou, e thread de comentários.
 

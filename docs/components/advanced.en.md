@@ -582,6 +582,45 @@ export function SteppedSignup() {
 !!! note "`clickableSteps` is `false` on purpose"
     A wizard exists because **order matters**. With `clickableSteps`, jumping back is free (going back never blocks), but jumping forward validates **every step crossed** — the first gate that fails stops the jump right there.
 
+### `Markdown`
+
+> **When to use**: rendering text that came from people — a comment, a ticket description, release notes, a message body.
+
+A Markdown subset: headings, paragraphs, lists (nested and ordered), blockquote, fenced code (through [`CodeBlock`](#codeblock)), thematic break, GFM pipe tables with alignment, and the usual inline set (`**strong**`, `*em*`, `` `code` ``, `~~del~~`, links, images, autolinks, hard breaks).
+
+```tsx
+import { Markdown } from "tempest-react-sdk";
+
+<Markdown source={comment.body} linkProps={{ target: "_blank", rel: "noreferrer" }} />;
+```
+
+| Prop | Type | Default | What it does |
+| --- | --- | --- | --- |
+| `source` | `string` | — | The Markdown. |
+| `headingOffset` | `number` | `2` | Level the document's `#` becomes. |
+| `highlightCode` | `boolean` | `true` | Fenced code through `CodeBlock` (copy, line numbers). |
+| `showLineNumbers` | `boolean` | `false` | Line numbers in fenced code. |
+| `linkProps` | `AnchorHTMLAttributes` | — | Extra props on **every** link. |
+
+!!! danger "The safety is structural, not a promise about escaping"
+    `dangerouslySetInnerHTML` **does not exist** in this component. The parser produces a node tree and the renderer turns it into React elements — and a React child can only be text. So `<script>alert(1)</script>` in a comment renders as the characters somebody typed, and so does `<img src=x onerror=...>`.
+
+    This is not "sanitized HTML": **it is text**. Which is why there is no sanitizer here and no allowed-tags list — there is no path for markup to enter.
+
+!!! danger "URLs go through a scheme allowlist, not a blocklist"
+    Links accept `http`, `https`, `mailto`, `tel`, `sms` and relative. Images accept the same plus **raster** `data:image/` (png/jpeg/gif/webp/avif) — `data:image/svg+xml` is deliberately out: an SVG is a document, it carries `<script>` and event handlers.
+
+    `[click](javascript:alert(1))` renders **"click"** as text: the link goes, the words stay. A blocklist would have to enumerate `javascript:`, `JaVaScRiPt:`, `java\tscript:`, `\u0001javascript:` — and would miss the one nobody thought of. An allowlist carries no such debt.
+
+!!! warning "It is a subset, and that is the chosen ceiling"
+    No embedded HTML, footnotes, definition lists, reference links (`[a][b]`) or task lists. If your case needs full CommonMark with plugins, reach for `react-markdown` + `remark` directly — that is 40 KB and a plugin chain the whole SDK does not pay for. The scope here is what a user comment uses.
+
+!!! info "`#` becomes `h2` by default"
+    A comment rendered inside a page whose `h1` is the page title must not emit a second `h1`. `headingOffset` shifts the whole scale, and the component never goes past `h6`, so the document outline stays valid.
+
+!!! check "A wide table scrolls in its own box, and the box is reachable"
+    The tab stop appears **only while** the overflow is real — a scroll area with nothing focusable inside is unreachable by keyboard, and adding the stop unconditionally would pollute the tab order with one entry per table.
+
 ### `Masonry`
 
 > **When to use**: cards of **uneven height** with no order between them — a notes wall, a photo gallery, dashboard cards.

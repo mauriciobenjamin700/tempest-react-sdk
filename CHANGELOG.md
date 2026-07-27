@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.31.1] — 2026-07-27
+
 ### Adicionado
 
 - **Fatia de dashboard no `utilities.css`** (opt-in): `.tempest-dashboard`,

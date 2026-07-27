@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.28.1] — 2026-07-27
+
 ### Corrigido
 
 - **`urlBase64ToUint8Array` estourava `ReferenceError` dentro do service worker.** Ela

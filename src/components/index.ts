@@ -400,3 +400,8 @@ export { applyMove as applyTransferMove, splitSides as splitTransferSides } from
 
 export { Masonry } from "./Masonry";
 export type { MasonryProps } from "./Masonry";
+
+export { Markdown } from "./Markdown";
+export type { MarkdownProps } from "./Markdown";
+export { parseMarkdown, safeLinkUrl } from "./Markdown";
+export type { MarkdownAlign, MarkdownBlock, MarkdownInline } from "./Markdown";

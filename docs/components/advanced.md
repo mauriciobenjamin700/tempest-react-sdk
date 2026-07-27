@@ -589,6 +589,45 @@ export function CadastroEmEtapas() {
 !!! note "`clickableSteps` é `false` de propósito"
     Um wizard existe porque a **ordem importa**. Com `clickableSteps`, pular pra trás é livre (voltar nunca bloqueia), mas pular pra frente valida **cada passo atravessado** — o primeiro gate que reprovar interrompe o salto ali.
 
+### `Markdown`
+
+> **Quando usar**: renderizar texto que veio de gente — comentário, descrição de ticket, release notes, corpo de mensagem.
+
+Subconjunto de Markdown: headings, parágrafos, listas (aninhadas e numeradas), citação, código cercado (via [`CodeBlock`](#codeblock)), regra, tabela GFM com alinhamento, e o inline usual (`**forte**`, `*itálico*`, `` `código` ``, `~~riscado~~`, link, imagem, autolink, quebra forçada).
+
+```tsx
+import { Markdown } from "tempest-react-sdk";
+
+<Markdown source={comentario.corpo} linkProps={{ target: "_blank", rel: "noreferrer" }} />;
+```
+
+| Prop | Tipo | Default | O que faz |
+| --- | --- | --- | --- |
+| `source` | `string` | — | O Markdown. |
+| `headingOffset` | `number` | `2` | Nível que o `#` do documento vira. |
+| `highlightCode` | `boolean` | `true` | Código cercado via `CodeBlock` (copiar, número de linha). |
+| `showLineNumbers` | `boolean` | `false` | Número de linha no código cercado. |
+| `linkProps` | `AnchorHTMLAttributes` | — | Props extras em **todo** link. |
+
+!!! danger "A segurança é estrutural, não uma promessa de escape"
+    `dangerouslySetInnerHTML` **não existe** neste componente. O parser produz uma árvore de nós e o render vira elementos React — e um filho de React só pode ser texto. Então `<script>alert(1)</script>` num comentário renderiza como os caracteres que a pessoa digitou, e `<img src=x onerror=...>` também.
+
+    Isso não é "HTML sanitizado": **é texto**. É por isso que não há sanitizador aqui, nem lista de tags permitidas — não há caminho por onde markup entre.
+
+!!! danger "URL passa por allowlist de esquema, não blocklist"
+    Link aceita `http`, `https`, `mailto`, `tel`, `sms` e relativo. Imagem aceita os mesmos, mais `data:image/` **raster** (png/jpeg/gif/webp/avif) — `data:image/svg+xml` fica fora de propósito: um SVG é um documento, carrega `<script>` e handler de evento.
+
+    `[clique](javascript:alert(1))` renderiza **"clique"** como texto: o link cai, as palavras ficam. Blocklist teria que enumerar `javascript:`, `JaVaScRiPt:`, `java\tscript:`, `\u0001javascript:` — e erraria a que ninguém pensou. A allowlist não tem essa dívida.
+
+!!! warning "É um subconjunto, e isso é o teto escolhido"
+    Não tem HTML embutido, nota de rodapé, definition list, referência de link (`[a][b]`), nem lista de tarefa. Se o seu caso precisa de CommonMark completo com plugins, use `react-markdown` + `remark` direto — são 40 KB e uma cadeia de plugins que o SDK inteiro não paga. O escopo aqui é o que um comentário de usuário usa.
+
+!!! info "`#` vira `h2` por default"
+    Um comentário renderizado numa página cujo `h1` é o título da página não pode emitir um segundo `h1`. O `headingOffset` desloca a escala inteira e o componente nunca passa de `h6`, então a outline continua válida.
+
+!!! check "Tabela larga rola na própria caixa, e a caixa é alcançável"
+    A parada de tabulação aparece **só enquanto** o transbordo é real — área que rola sem nada focável dentro é inalcançável por teclado, e adicionar a parada sempre poluiria a ordem de tabulação com uma entrada por tabela.
+
 ### `Masonry`
 
 > **Quando usar**: cards de **altura desigual** que não têm ordem entre si — mural de notas, galeria de fotos, cartões de dashboard.

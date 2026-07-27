@@ -1,0 +1,138 @@
+.root {
+    color: var(--tempest-text);
+    font-family: var(--tempest-font-sans);
+    font-size: var(--tempest-text-base);
+    line-height: var(--tempest-leading-relaxed);
+    overflow-wrap: anywhere;
+}
+
+/*
+ * Every block spaces itself with `margin-block-end` and the last child clears it,
+ * so a Markdown body dropped into a card does not add a phantom gap at the bottom.
+ */
+.root > * {
+    margin-block: 0 var(--tempest-space-3);
+}
+
+.root > *:last-child {
+    margin-block-end: 0;
+}
+
+.h1,
+.h2,
+.h3,
+.h4,
+.h5,
+.h6 {
+    margin-block-start: var(--tempest-space-5);
+    font-weight: var(--tempest-weight-semibold);
+    line-height: var(--tempest-leading-tight);
+}
+
+.root > .h1:first-child,
+.root > .h2:first-child,
+.root > .h3:first-child,
+.root > .h4:first-child,
+.root > .h5:first-child,
+.root > .h6:first-child {
+    margin-block-start: 0;
+}
+
+.h1 {
+    font-size: var(--tempest-text-2xl);
+}
+
+.h2 {
+    font-size: var(--tempest-text-xl);
+}
+
+.h3 {
+    font-size: var(--tempest-text-lg);
+}
+
+.h4,
+.h5,
+.h6 {
+    font-size: var(--tempest-text-base);
+}
+
+.list {
+    padding-inline-start: var(--tempest-space-6);
+}
+
+.list .list {
+    margin-block: var(--tempest-space-1) 0;
+}
+
+.item {
+    margin-block-end: var(--tempest-space-1);
+}
+
+.item > p {
+    margin: 0;
+}
+
+.quote {
+    padding-inline-start: var(--tempest-space-4);
+    border-inline-start: 3px solid var(--tempest-border-strong);
+    color: var(--tempest-text-muted);
+}
+
+.rule {
+    height: 1px;
+    border: 0;
+    background-color: var(--tempest-border);
+}
+
+.inlineCode {
+    padding: 0.1em 0.35em;
+    border-radius: var(--tempest-radius-sm);
+    background-color: var(--tempest-surface-2);
+    color: var(--tempest-code-text, var(--tempest-text));
+    font-family: var(--tempest-font-mono);
+    font-size: 0.9em;
+}
+
+.link {
+    color: var(--tempest-primary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.image {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--tempest-radius-md);
+}
+
+/*
+ * A wide table scrolls inside its own box, and that box is focusable — a scroll
+ * container with nothing focusable inside cannot be reached by keyboard, which is
+ * the same defect the Table fix addressed.
+ */
+.tableScroll {
+    overflow-x: auto;
+}
+
+.tableScroll:focus-visible {
+    outline: 2px solid var(--tempest-primary);
+    outline-offset: 2px;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--tempest-text-sm);
+}
+
+.table th,
+.table td {
+    padding: var(--tempest-space-2) var(--tempest-space-3);
+    border-bottom: 1px solid var(--tempest-border);
+    text-align: left;
+}
+
+.table th {
+    color: var(--tempest-text-muted);
+    font-weight: var(--tempest-weight-semibold);
+}

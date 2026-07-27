@@ -16,6 +16,7 @@ import { DataTableSection } from "./DataTableSection";
 import { DataVizScalesSection } from "./DataVizScalesSection";
 import { ImageCropperSection } from "./ImageCropperSection";
 import { ChatSection } from "./ChatSection";
+import { MarkdownSection } from "./MarkdownSection";
 import { MasonrySection } from "./MasonrySection";
 import { TransferSection } from "./TransferSection";
 import { CodeBlockSection } from "./CodeBlockSection";
@@ -272,6 +273,14 @@ export const SECTIONS: SectionEntry[] = [
             "chat thread conversa mensagem comentario comments bolha bubble typing digitando composer enviar retry falhou",
         group: "Componentes",
         Component: ChatSection,
+    },
+    {
+        id: "markdown",
+        label: "Markdown",
+        keywords:
+            "markdown md render comentario texto rico tabela lista citacao xss sanitize seguro allowlist",
+        group: "Componentes",
+        Component: MarkdownSection,
     },
     {
         id: "masonry",

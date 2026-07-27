@@ -17,6 +17,7 @@ import { EmptyState } from "./EmptyState";
 import { ImageCropper } from "./ImageCropper";
 import { Input } from "./Input";
 import { Kanban } from "./Kanban";
+import { Markdown } from "./Markdown";
 import { Masonry } from "./Masonry";
 import { Modal } from "./Modal";
 import { NotificationCenter } from "./NotificationCenter";
@@ -184,6 +185,14 @@ const CASES: [name: string, ui: ReactElement][] = [
             rowHeight={40}
             height={200}
             rowKey={(row) => row.id}
+        />,
+    ],
+    [
+        "Markdown",
+        <Markdown
+            source={
+                "# Título\n\nUm parágrafo com **forte** e [link](https://x.dev).\n\n- item\n- outro\n\n| a | b |\n| :-- | --: |\n| 1 | 2 |\n\n> citação\n\n```ts\nconst a = 1;\n```"
+            }
         />,
     ],
     [

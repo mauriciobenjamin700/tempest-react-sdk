@@ -4,6 +4,32 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`Tour` — coachmarks guiados**: escurece a página, destaca um elemento por vez e
+  explica. Penúltimo item da lista P2.
+- **O elemento destacado continua clicável**, e é isso que faz um coachmark servir. O
+  escuro são **quatro retângulos** em volta do alvo, não um overlay com buraco de
+  `box-shadow`: sombra **não é hit-testável**, então o buraco feito assim não bloquearia
+  clique nenhum — o resto da página continuaria clicável e o alvo, não.
+- **O alvo é um seletor CSS, não um ref**: o tour pode ser declarado como dado (config,
+  backend, ao lado da cópia) sem cada tela passar refs pra quem renderiza.
+- **Passo com alvo ausente aparece centralizado**, não desaparece — recurso escondido por
+  permissão é caso real, e sumir com o passo esconderia a mensagem em silêncio.
+- **O card vira pro lado oposto** quando o preferido não cabe (mantém a relação de leitura
+  com o alvo), tenta os outros lados depois, e vai pro **centro** quando nada cabe — card
+  metade fora da tela é pior que card no meio, e isso acontece quando o alvo é mais alto
+  que o viewport. Sempre clampado dentro da viewport.
+- Teclado: setas andam, `Esc` sai — tratado **no card**, não na `window`, pra que um tour
+  aberto sobre um modal não feche os dois. Card é `role="dialog"` + `aria-modal`, nomeado
+  pelo título e descrito pelo corpo, com armadilha de foco e "Passo 2 de 5" visível.
+  Entrou no sweep do `axe`.
+- Tetos do barrel subiram com o componente novo: ESM 91 → 92,5 kB, CJS 110 → 112 kB,
+  `styles.css` 25,5 → 26 kB. Tetos de "ninguém importa isso" — nenhuma fatia importada
+  mudou.
+- Persistir "já viu" fica com o app (`open` + `onClose`/`onFinish`): a chave tem versão,
+  escopo por usuário, e às vezes mora no backend.
+
 ## [0.30.0] — 2026-07-27
 
 ### Adicionado

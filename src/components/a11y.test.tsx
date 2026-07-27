@@ -39,6 +39,7 @@ import { Tabs } from "./Tabs";
 import { SignaturePad } from "./SignaturePad";
 import { Textarea } from "./Textarea";
 import { Transfer } from "./Transfer";
+import { Tour } from "./Tour";
 import { TreeView } from "./TreeView";
 import { VirtualTable } from "./VirtualTable";
 import { Wizard } from "./Wizard";
@@ -218,6 +219,17 @@ const CASES: [name: string, ui: ReactElement][] = [
             value={["c"]}
             onChange={() => {}}
             searchable
+        />,
+    ],
+    [
+        "Tour",
+        <Tour
+            steps={[
+                { target: "#nada", title: "Passo", body: "Explicação do passo." },
+                { body: "Segundo passo, sem título." },
+            ]}
+            open
+            onClose={() => {}}
         />,
     ],
     [

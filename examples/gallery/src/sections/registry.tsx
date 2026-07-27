@@ -18,6 +18,7 @@ import { ImageCropperSection } from "./ImageCropperSection";
 import { ChatSection } from "./ChatSection";
 import { MarkdownSection } from "./MarkdownSection";
 import { MasonrySection } from "./MasonrySection";
+import { TourSection } from "./TourSection";
 import { TransferSection } from "./TransferSection";
 import { CodeBlockSection } from "./CodeBlockSection";
 import { QRCodeSection } from "./QRCodeSection";
@@ -288,6 +289,13 @@ export const SECTIONS: SectionEntry[] = [
         keywords: "masonry mosaico colunas altura desigual cards pinterest grid coluna curta",
         group: "Componentes",
         Component: MasonrySection,
+    },
+    {
+        id: "tour",
+        label: "Tour",
+        keywords: "tour coachmark onboarding passo a passo spotlight destaque guia walkthrough",
+        group: "Componentes",
+        Component: TourSection,
     },
     {
         id: "transfer",

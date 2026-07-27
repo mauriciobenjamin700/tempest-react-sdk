@@ -1,0 +1,162 @@
+.root {
+    position: fixed;
+    inset: 0;
+    z-index: var(--tempest-z-modal, 1000);
+    font-family: var(--tempest-font-sans);
+    pointer-events: none;
+}
+
+/*
+ * The dimmed area is four rectangles, each one hit-testable, so the page behind is
+ * blocked while the highlighted element stays clickable. A single overlay with a
+ * `box-shadow` hole looks the same and blocks nothing: a shadow is not hit-tested.
+ */
+.backdrop {
+    position: fixed;
+    background-color: var(--tempest-tour-backdrop, rgb(0 0 0 / 55%));
+    pointer-events: auto;
+}
+
+.spotlight {
+    position: fixed;
+    border-radius: var(--tempest-radius-md);
+    box-shadow: 0 0 0 2px var(--tempest-primary);
+    pointer-events: none;
+}
+
+.card {
+    position: fixed;
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-space-2);
+    width: min(22rem, calc(100vw - 2rem));
+    padding: var(--tempest-space-4);
+    border-radius: var(--tempest-radius-lg);
+    background-color: var(--tempest-bg);
+    box-shadow: var(--tempest-shadow-lg);
+    color: var(--tempest-text);
+    pointer-events: auto;
+}
+
+.card:focus-visible {
+    outline: 2px solid var(--tempest-primary);
+    outline-offset: 2px;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--tempest-space-2);
+}
+
+.progress {
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-xs);
+    font-variant-numeric: tabular-nums;
+}
+
+.close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    border: none;
+    border-radius: var(--tempest-radius-sm);
+    background: none;
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-lg);
+    line-height: 1;
+    cursor: pointer;
+}
+
+.close:hover {
+    background-color: var(--tempest-surface);
+    color: var(--tempest-text);
+}
+
+.title {
+    margin: 0;
+    font-size: var(--tempest-text-base);
+    font-weight: var(--tempest-weight-semibold);
+}
+
+.body {
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-sm);
+    line-height: var(--tempest-leading-normal);
+}
+
+.footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--tempest-space-3);
+    margin-block-start: var(--tempest-space-2);
+}
+
+.actions {
+    display: flex;
+    gap: var(--tempest-space-2);
+    margin-inline-start: auto;
+}
+
+.skip {
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--tempest-text-muted);
+    font: inherit;
+    font-size: var(--tempest-text-xs);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.primary,
+.secondary {
+    padding: var(--tempest-space-2) var(--tempest-space-4);
+    border-radius: var(--tempest-radius-md);
+    font: inherit;
+    font-size: var(--tempest-text-sm);
+    font-weight: var(--tempest-weight-medium);
+    cursor: pointer;
+}
+
+.primary {
+    border: none;
+    background-color: var(--tempest-primary);
+    color: var(--tempest-primary-foreground);
+}
+
+.secondary {
+    border: 1px solid var(--tempest-border);
+    background-color: var(--tempest-bg);
+    color: var(--tempest-text);
+}
+
+.primary:focus-visible,
+.secondary:focus-visible,
+.skip:focus-visible,
+.close:focus-visible {
+    outline: 2px solid var(--tempest-primary);
+    outline-offset: 2px;
+}
+
+/* The spotlight ring is decoration; a reader who asked for less motion gets none. */
+@media (prefers-reduced-motion: no-preference) {
+    .spotlight {
+        transition:
+            top var(--tempest-duration-base) var(--tempest-ease-out),
+            left var(--tempest-duration-base) var(--tempest-ease-out),
+            width var(--tempest-duration-base) var(--tempest-ease-out),
+            height var(--tempest-duration-base) var(--tempest-ease-out);
+    }
+
+    .card {
+        transition:
+            top var(--tempest-duration-base) var(--tempest-ease-out),
+            left var(--tempest-duration-base) var(--tempest-ease-out);
+    }
+}

@@ -658,6 +658,66 @@ import { Masonry, Card } from "tempest-react-sdk";
 !!! tip "An image that loads later is re-measured"
     Every card is observed individually: a height measured at mount is wrong in exactly the case of an image still downloading. The first paint weights every card as 1 (so it is never blank) and the measured pass re-deals.
 
+### `Tour`
+
+> **When to use**: introducing a screen — first-run onboarding, a feature that moved, a flow nobody finds on their own.
+
+Dims the page, highlights one element at a time and explains it. The highlighted element **stays clickable**.
+
+```tsx
+import { Tour } from "tempest-react-sdk";
+import { useState } from "react";
+
+export function Orders() {
+  const [open, setOpen] = useState(!storage.get("tour-orders-v1"));
+
+  return (
+    <>
+      {/* … the screen … */}
+      <Tour
+        open={open}
+        steps={[
+          { target: "#new-order", title: "Start here", body: "Every order begins with this button." },
+          { target: "[data-tour='filters']", body: "And filter by period here.", placement: "right" },
+        ]}
+        onClose={() => setOpen(false)}
+        onFinish={() => storage.set("tour-orders-v1", true)}
+      />
+    </>
+  );
+}
+```
+
+| Prop | Type | Default | What it does |
+| --- | --- | --- | --- |
+| `steps` | `TourStep[]` | — | The stops, in order. |
+| `open` | `boolean` | — | Controlled by the app. |
+| `onClose` | `() => void` | — | `Esc`, the close button, "skip", or a click on the dim. |
+| `onFinish` | `() => void` | — | After the last step, before `onClose`. |
+| `index` / `onIndexChange` | `number` / `(i) => void` | internal | The app drives the current step, if it wants to. |
+| `spotlightPadding` | `number` | `4` | Space kept clear around the highlighted element. |
+| `locale` | `"pt-BR" \| "en"` | `"pt-BR"` | Labels. |
+
+`TourStep = { target?, title?, body, placement? }` · `placement` ∈ `"top" | "bottom" | "left" | "right" | "center"`.
+
+!!! check "The highlighted element stays clickable — and that is what makes a coachmark useful"
+    The dim is **four rectangles** around the target, not one overlay with a `box-shadow` hole. Because a shadow is **not hit-testable**: a hole made that way would block nothing — the rest of the page would stay clickable and the target would not. Four rectangles are the other way round, which is what "press this button" needs.
+
+!!! info "The target is a **selector**, not a ref"
+    So a tour can be declared as data — in a config file, from the backend, next to the copy — without every screen threading refs up to whoever renders the tour.
+
+!!! warning "A step whose target is missing shows centred, it does not vanish"
+    That is the real case: a feature hidden by permission, a button that only exists with data. Dropping the step would hide its message silently, and skipping to the next could skip the whole tour.
+
+!!! check "Keyboard: arrows walk, `Esc` leaves, focus goes to the card"
+    The card is `role="dialog"` + `aria-modal`, named by its title and described by its body, with a focus trap (`useFocusTrap`) and a visible "Step 2 of 5". `Esc` is handled **on the card**, not on `window`: a tour opened over a modal does not close both.
+
+!!! info "The card flips when it does not fit — and centres when nothing fits"
+    It tries the preferred side, then the **opposite** one (which keeps the reading relationship with the target; jumping to a side would move the card across the screen for no visible reason), then the others. A card half off-screen is worse than a card in the middle — and that happens for real when the target is taller than the viewport.
+
+!!! tip "Persisting 'already seen' is the app's business"
+    The component takes `open` and emits `onClose`/`onFinish`. Writing the flag is one line in the app (`storage.set`) and would be a wrong default here — the key is versioned, scoped per user, and sometimes lives on the backend.
+
 ### `Transfer`
 
 > **When to use**: picking a **subset** of a catalogue — a profile's permissions, cities on a route, members of a group, columns of a report.

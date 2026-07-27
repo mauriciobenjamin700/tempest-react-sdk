@@ -665,6 +665,66 @@ import { Masonry, Card } from "tempest-react-sdk";
 !!! tip "Imagem que carrega depois é re-medida"
     Cada card é observado individualmente: altura medida na montagem erra justamente no caso da imagem que ainda estava baixando. O primeiro paint usa peso 1 pra todos (nunca aparece vazio) e o passe medido redistribui.
 
+### `Tour`
+
+> **Quando usar**: apresentar uma tela nova — onboarding de primeiro acesso, um recurso que mudou de lugar, um fluxo que ninguém acha sozinho.
+
+Escurece a página, destaca um elemento por vez e explica. O elemento destacado **continua clicável**.
+
+```tsx
+import { Tour } from "tempest-react-sdk";
+import { useState } from "react";
+
+export function Pedidos() {
+  const [aberto, setAberto] = useState(!storage.get("tour-pedidos-v1"));
+
+  return (
+    <>
+      {/* … a tela … */}
+      <Tour
+        open={aberto}
+        steps={[
+          { target: "#novo-pedido", title: "Comece aqui", body: "Todo pedido nasce deste botão." },
+          { target: "[data-tour='filtros']", body: "E filtre por período aqui.", placement: "right" },
+        ]}
+        onClose={() => setAberto(false)}
+        onFinish={() => storage.set("tour-pedidos-v1", true)}
+      />
+    </>
+  );
+}
+```
+
+| Prop | Tipo | Default | O que faz |
+| --- | --- | --- | --- |
+| `steps` | `TourStep[]` | — | As paradas, em ordem. |
+| `open` | `boolean` | — | Controlado pelo app. |
+| `onClose` | `() => void` | — | `Esc`, botão de fechar, "pular" ou clique no escuro. |
+| `onFinish` | `() => void` | — | Depois do último passo, antes do `onClose`. |
+| `index` / `onIndexChange` | `number` / `(i) => void` | interno | O app dirige o passo atual, se quiser. |
+| `spotlightPadding` | `number` | `4` | Folga em volta do elemento destacado. |
+| `locale` | `"pt-BR" \| "en"` | `"pt-BR"` | Rótulos. |
+
+`TourStep = { target?, title?, body, placement? }` · `placement` ∈ `"top" | "bottom" | "left" | "right" | "center"`.
+
+!!! check "O elemento destacado continua clicável — e é isso que faz um coachmark útil"
+    O escuro são **quatro retângulos** em volta do alvo, não um overlay com buraco de `box-shadow`. Motivo: sombra **não é hit-testável**, então um buraco feito assim não bloquearia clique nenhum — o resto da página continuaria clicável e o alvo, não. Com quatro retângulos é o contrário, que é o que "aperte este botão" precisa.
+
+!!! info "O alvo é um **seletor**, não um ref"
+    Assim um tour pode ser declarado como dado — num arquivo de config, vindo do backend, ao lado da cópia — sem cada tela ter que passar refs pra quem renderiza o tour.
+
+!!! warning "Passo cujo alvo não existe aparece centralizado, não desaparece"
+    É o caso real: um recurso escondido por permissão, um botão que só existe com dado. Sumir com o passo esconderia a mensagem em silêncio, e pular pro seguinte poderia pular o tour inteiro.
+
+!!! check "Teclado: setas andam, `Esc` sai, foco vai pro card"
+    O card é `role="dialog"` + `aria-modal`, nomeado pelo título e descrito pelo corpo, com armadilha de foco (`useFocusTrap`) e "Passo 2 de 5" visível. O `Esc` é tratado **no card**, não na `window`: um tour aberto sobre um modal não fecha os dois.
+
+!!! info "O card vira de lado quando não cabe — e vai pro centro quando nada cabe"
+    Tenta o lado preferido, depois o **oposto** (vira relação de leitura com o alvo; pular pro lado moveria o card pela tela sem motivo visível), depois os outros. Card metade fora da tela é pior que card no meio — e isso acontece de verdade quando o alvo é mais alto que o viewport.
+
+!!! tip "Persistir 'já viu' é do app"
+    O componente recebe `open` e emite `onClose`/`onFinish`. Gravar a flag é uma linha no app (`storage.set`) e seria um default errado aqui — a chave tem versão, escopo por usuário, e às vezes mora no backend.
+
 ### `Transfer`
 
 > **Quando usar**: escolher um **subconjunto** de um catálogo — permissões de um perfil, cidades de uma rota, membros de um grupo, colunas de um relatório.

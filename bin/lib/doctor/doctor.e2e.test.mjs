@@ -155,6 +155,51 @@ describe("tempest doctor — generic findings still surface", () => {
     });
 });
 
+describe("tempest doctor — stylesheets", () => {
+    beforeEach(thirdPartyApp);
+
+    it("says nothing about CSS in a project with no stylesheet", () => {
+        expect(doctor().out).not.toContain("Stylesheets");
+    });
+
+    it("reports a clean sheet as clean", () => {
+        write("src/app.css", ".a {\n    color: red;\n}\n");
+        const { out, code } = doctor();
+        expect(out).toContain("Stylesheets");
+        expect(out).toContain("no CSS problems found");
+        expect(code).toBe(0);
+    });
+
+    it("fails the audit on CSS the browser cannot parse", () => {
+        write("src/app.css", ".a {\n    color: red;\n");
+        const { out, code } = doctor();
+        expect(out).toContain("src/app.css:1");
+        expect(out).toContain("never closed");
+        expect(code).toBe(1);
+    });
+
+    it("warns without failing on CSS that is valid but wrong", () => {
+        write("src/app.css", ".a {\n    bacground-color: red;\n}\n");
+        const { out, code } = doctor();
+        expect(out).toContain("did you mean `background-color`");
+        expect(code).toBe(0);
+    });
+
+    it("points at the fix command when something is auto-fixable", () => {
+        write("src/app.css", ".a {\n    color: red;\n    color: red;\n}\n");
+        const { out } = doctor();
+        expect(out).toMatch(/finding\(s\) are auto-fixable/);
+    });
+
+    it("suggests one global class over repeated local copies", () => {
+        const row = ".row {\n    display: flex;\n    align-items: center;\n    gap: 8px;\n}\n";
+        write("src/A.module.css", row);
+        write("src/B.module.css", row);
+        write("src/C.module.css", row);
+        expect(doctor().out).toContain("one global class beats");
+    });
+});
+
 describe("tempest doctor — a project that does use the SDK", () => {
     beforeEach(() => {
         thirdPartyApp();

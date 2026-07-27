@@ -345,6 +345,93 @@ export function RolePermissions() {
 !!! info "The chevron is not a button"
     It is decoration (`aria-hidden`): the row already carries `aria-expanded`, so a second focusable control there would only add screen-reader noise while duplicating an action the keyboard map has. Clicking it works (with the event stopped, so it toggles without selecting).
 
+## `Sparkline`
+
+> **When to use it**: show the **shape** of a series next to the number it explains — a table cell, a metric card, a list row. It is not a chart replacement: if the reader needs to read values off an axis, use [`LineChart`](../charts.md).
+
+A sparkline is plain SVG on the root entry, **no recharts**. A trend column in a table should not oblige an app to install a whole charting library.
+
+```tsx
+import { formatCurrency, Sparkline, Table } from "tempest-react-sdk";
+
+const products = [
+  { name: "Pro plan", revenue: 48200, series: [12, 18, 15, 24, 22, 31, 29] },
+  { name: "Base plan", revenue: 19400, series: [22, 19, 20, 17, 14, 13, 11] },
+];
+
+export function TrendByProduct() {
+  return (
+    <Table
+      data={products}
+      columns={[
+        { key: "name", header: "Product" },
+        {
+          key: "series",
+          header: "7 days",
+          render: (row) => (
+            <Sparkline data={row.series} label={`${row.name} trend`} />
+          ),
+        },
+        { key: "revenue", header: "Revenue", render: (r) => formatCurrency(r.revenue) },
+      ]}
+      rowKey={(row) => row.name}
+    />
+  );
+}
+```
+
+### Variants
+
+```tsx
+<Sparkline data={series} />                        {/* line (default) */}
+<Sparkline data={series} variant="area" />         {/* line + washed fill */}
+<Sparkline data={series} variant="bar" />          {/* one bar per point */}
+```
+
+| Prop             | Type                              | Default                     | What it does                                                    |
+| ---------------- | --------------------------------- | --------------------------- | --------------------------------------------------------------- |
+| `data`           | `readonly number[]`               | —                           | The series, in order. Non-finite entries are dropped.            |
+| `variant`        | `"line" \| "area" \| "bar"`       | `"line"`                    | Which mark to draw.                                              |
+| `width`          | `number`                          | `88`                        | Drawing width in px.                                             |
+| `height`         | `number`                          | `24`                        | Drawing height in px.                                            |
+| `color`          | `string`                          | `var(--tempest-chart-1)`    | Any CSS colour.                                                  |
+| `showEnd`        | `boolean`                         | `true` (except in `"bar"`)  | Marks the last point with a dot.                                 |
+| `min` / `max`    | `number`                          | the series extremes         | Pins the value axis — this is what makes several rows comparable. |
+| `valueFormatter` | `(value: number) => string`       | `String`                    | How to render a value in the accessible description.             |
+| `label`          | `string`                          | generated description       | Accessible name.                                                 |
+
+### Comparing rows requires a shared axis
+
+By default each sparkline normalises against its own extremes. In a table column that is a trap: a row going from 2 to 4 and one going from 200 to 400 draw **exactly the same shape**.
+
+```tsx
+const ceiling = Math.max(...products.flatMap((p) => p.series));
+
+<Sparkline data={row.series} min={0} max={ceiling} />;
+```
+
+!!! warning "Without `min`/`max` the shape is relative — never comparable"
+    Pass both when sparklines are stacked. It is the most common mistake with this component, and it raises no warning at all: the charts look fine and lie.
+
+### Accessibility
+
+The component carries `role="img"` and an `aria-label` that **describes the series in words**: point count, direction, extremes and both ends.
+
+```text
+"7 pontos, subindo. Início 12, fim 29. Mínimo 12, máximo 31."
+```
+
+A sparkline has no axis and no legend to fall back on — without that sentence it is an unnamed image, and a screen reader reaches it and reads nothing. Pass `label` when the surrounding text already says what is plotted.
+
+!!! tip "The shape is context, never the only path to the value"
+    Always place the sparkline **next to the number** it annotates. It answers "is it going up?", not "by how much?".
+
+!!! info "A series with holes does not blank the chart"
+    A `NaN` inside a `d` attribute silently voids the whole path — the chart vanishes with no error. Non-finite values are filtered out before projection.
+
+!!! note "A flat series is centred"
+    A series with no variation is drawn in the middle of the box, not pinned to an edge. That is the honest reading of "it did not move", and it avoids dividing by a zero-height domain.
+
 ## Recap
 
 | Component     | Use for                                    | Typical volume   |
@@ -356,6 +443,7 @@ export function RolePermissions() {
 | `Accordion`   | On-demand expandable sections (FAQ, steps) | a few sections   |
 | `Timeline`    | A sequence of events over time             | any              |
 | `TreeView`    | Navigable hierarchy (categories, permissions) | tens to hundreds |
+| `Sparkline`   | The shape of a series next to the number it explains | 5 to ~100 points |
 
 Key accessibility points:
 
@@ -365,6 +453,7 @@ Key accessibility points:
 - `VirtualTable`: stays a real `<table>` (spacer rows instead of absolute positioning), with `aria-rowcount`/`aria-rowindex` carrying real indices rather than window indices; sortable headers expose `aria-sort`.
 - `Accordion`: ↑↓ switch the focused item, Home/End jump to the first/last.
 - `Timeline`: semantic order via `<ol>`; each item is an `<li>`.
+- `Sparkline`: `role="img"` with a sentence describing direction, both ends and the extremes — with no axis or legend, it is the only reading available without sight.
 - `TreeView`: `role="tree"` + roving tabindex (a single tab stop); `aria-level` reports depth and disabled nodes are skipped while navigating.
 
 Related: [identity](./identity.md) (`Card flush` to host the `Table`) · [feedback](./feedback.md) (`Badge` inside cells) · [actions](./actions.md) (row buttons).

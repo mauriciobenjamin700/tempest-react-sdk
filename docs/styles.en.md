@@ -161,6 +161,18 @@ It emits the same tokens documented on this page — it is sugar over the token 
 
 ---
 
+
+### Syntax colours (`--tempest-code-*`)
+
+`CodeBlock` paints with ten tokens of its own: `comment` · `punctuation` · `string` · `number` · `keyword` · `literal` · `function` · `tag` · `attribute` · `property`.
+
+!!! danger "Do not reuse the chart ramp for text"
+    It is tempting — the eight series colours already exist and are already validated. But they are validated at the **mark** floor: 3:1, which is what WCAG asks of a graphical element. A syntax colour is **text**, and text needs **4.5:1**. Measured as text in a browser, a keyword in `--tempest-chart-1` came out at **3.47:1** on the dark surface and a string in `--tempest-chart-3` at **2.03:1** on the light one. Both pass as marks and fail as text.
+
+Each code token was solved in OKLCH: fix the hue, then search for the highest lightness (in dark mode, the lowest) that still clears AA against **both grounds** the token can land on — the block surface, and a highlighted line once the 10% primary wash composites over it. Solving against the surface alone is not enough: the highlight moves the ground, and a keyword measured 4.17:1 on it.
+
+`src/styles/colors.contrast.test.ts` reads `colors.css` and re-checks every token in both modes against both grounds. If you override these tokens in your app, redo that arithmetic.
+
 ## Typography
 
 ### Families

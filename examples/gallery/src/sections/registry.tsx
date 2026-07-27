@@ -15,7 +15,10 @@ import { TableSection } from "./TableSection";
 import { DataTableSection } from "./DataTableSection";
 import { DataVizScalesSection } from "./DataVizScalesSection";
 import { ImageCropperSection } from "./ImageCropperSection";
+import { CodeBlockSection } from "./CodeBlockSection";
+import { QRCodeSection } from "./QRCodeSection";
 import { SchedulerSection } from "./SchedulerSection";
+import { SparklineSection } from "./SparklineSection";
 import { VirtualTableSection } from "./VirtualTableSection";
 import { NotificationCenterSection } from "./NotificationCenterSection";
 import { MaterialSection } from "./MaterialSection";
@@ -242,6 +245,30 @@ export const SECTIONS: SectionEntry[] = [
             "scheduler agenda calendario evento hora grade semana dia sobreposicao overlap allday dia-inteiro",
         group: "Componentes",
         Component: SchedulerSection,
+    },
+    {
+        id: "sparkline",
+        label: "Sparkline (mini-gráfico inline)",
+        keywords:
+            "sparkline mini grafico inline tendencia serie linha area barra tabela kpi sem eixo svg",
+        group: "Componentes",
+        Component: SparklineSection,
+    },
+    {
+        id: "qrcode",
+        label: "QRCode",
+        keywords:
+            "qrcode qr code pix boleto link convite svg encoder reed-solomon nivel correcao L M Q H",
+        group: "Componentes",
+        Component: QRCodeSection,
+    },
+    {
+        id: "codeblock",
+        label: "CodeBlock",
+        keywords:
+            "codeblock code bloco codigo sintaxe highlight realce linguagem ts bash sql json copiar linha numero",
+        group: "Componentes",
+        Component: CodeBlockSection,
     },
     {
         id: "material",

@@ -52,6 +52,16 @@ Integration
   [✓] vite.config.ts uses createViteConfig
   [✓] src/main.tsx imports styles.css
 
+Stylesheets
+  [i] 34 stylesheet(s) · 210 rules · 806 declarations
+  [✗] src/pages/Dashboard.module.css:12 — the value of `padding` swallows the
+      declaration(s) below it — a `;` is missing, so the browser drops all of them
+  [!] src/components/Card.module.css:8 — `bacground-color` is not a CSS property
+      — did you mean `background-color`?
+  [i] src/components/Row.module.css:4 — 7 rules in 6 file(s) declare the same 3
+      properties — one global class beats 7 local copies
+  [i] 2 finding(s) are auto-fixable — run `tempest fix`
+
 Tooling
   [✓] ESLint config present
   [✓] eslint installed
@@ -114,29 +124,187 @@ Tooling
 
 **Integration** — `vite.config.*` using `createViteConfig`; **`@vitejs/plugin-react`** installed (JSX/Fast Refresh); `styles.css` import in the entry (and a warning if imported **more than once**).
 
+**Stylesheets** — **syntax and semantic** analysis of every `.css` in the project (CSS Modules included): CSS the browser drops, dead declarations, names that do not exist, and a repeated block that wants to be one global class. Detailed in the next section — [CSS analysis](#css-analysis). Here `doctor` shows at most **6 findings per severity** and says how many it left out; the full list comes from `tempest fix --dry-run`.
+
 **Tooling** — ESLint and Prettier config + binaries; **lockfile** present, single (mixed npm/yarn/pnpm drift out of sync) and **not stale** (`package.json` newer than the lock → `npm install`).
 
 **Env & secrets** — **`.env` in `.gitignore`** (else secrets leak on commit); vars used via `import.meta.env.*` **without the `VITE_` prefix** (Vite won't expose them to the browser → `undefined` at runtime); `.env` vs `.env.example`.
 
+## CSS analysis
+
+ESLint does not read `.css` and Prettier only reformats it: between the two,
+**broken CSS goes through untouched**. `tempest` analyzes every stylesheet in the
+project — CSS Modules included — on two fronts, and both commands read the same
+result: `doctor` shows the summary, `fix` removes the part that is provably dead.
+
+```bash
+npx tempest doctor                 # the summary, under Stylesheets
+npx tempest fix --dry-run          # the full list, writing nothing
+npx tempest fix                    # removes what is genuinely dead
+npx tempest fix src/components     # a single path
+npx tempest fix --no-css           # skip the CSS pass
+```
+
+### Syntax — what the browser drops
+
+Errors (`✗`) are things the browser **discards silently**. None of them break the
+Vite build, and that is exactly what makes them expensive:
+
+| Finding | Example |
+| -- | -- |
+| missing `;` between declarations | `padding: 8px⏎margin: 0;` → **both** die |
+| declaration without `:` | `color red;` |
+| empty value | `color: ;` |
+| block never closed / stray `}` | `.a { color: red;` |
+| unterminated comment, string or `(` | `/* forever`, `content: "oops` |
+| declaration outside any rule | `color: red;` at the top of the file |
+| `{` with no selector before it | `{ color: red; }` |
+
+!!! danger "The missing `;` is the worst of them"
+    `padding: 8px` followed by `margin: 0;` with no semicolon between them is
+    **one** syntactically valid declaration whose value is `8px margin: 0` — the
+    browser drops both, says nothing in the console, and the layout is wrong in a
+    place you did not write. It is the finding that pays for the whole analysis.
+
+### Semantics — valid CSS that is still wrong
+
+Warnings (`!`) are sheets the browser accepts that still do not do what the author
+meant:
+
+- **Duplicate declaration** — `color` twice with the **same** value: the first one
+  is dead. Auto-fixable.
+- **Overridden declaration** — `color` twice with **different** values in the same
+  rule: one of them is a mistake. Not fixable — picking which value you meant is
+  a guess inside somebody's design.
+- **Selector declared twice** — in the same `@media` context; it names the
+  properties the second rule kills and asks for the merge. When the two rules are
+  identical declaration for declaration, it is auto-fixable.
+- **Property that does not exist** — `bacground-color`, `dispaly`, `paddign`. Only
+  reported when a real property is within **2 edits**, so a new property the table
+  has never heard of is never accused.
+- **Nonexistent `@at-rule`** — `@medai`, `@suports`: the browser skips the whole
+  block.
+- **A `--tempest-*` token that does not exist** — compared against the table read
+  from the **installed** `styles.css`, never a copy hard-coded in the CLI.
+- **`var(--x)` nobody defines** and has no fallback — resolves to nothing.
+- **Empty rule** — dead code. In a `.module.css` it is reported and **never**
+  removed: it may be the marker class your JS references via `styles.x`.
+
+!!! info "A `var()` with a fallback is never reported"
+    `var(--tempest-card-padding, var(--tempest-space-5))` is the SDK's own **knob
+    idiom**: the name is not a token, it is a hook an app may override. The
+    fallback guarantees it renders, so the check stays quiet. Without a fallback
+    the same `var()` resolves to nothing — that is a defect, and it is reported.
+
+    This rule removed 43 false positives when the analysis first ran over the
+    SDK's own CSS — and left **4 real bugs** standing
+    (`--tempest-duration-normal`, `--tempest-primary-solid`,
+    `--tempest-primary-on`, `--tempest-danger-on` with no fallback), fixed in the
+    same commit that brought the analysis.
+
+### Suggestions (`i`) — when global beats repeated local
+
+This is the check CSS Modules **cannot** do for you: scoping guarantees `.card` in
+one module never collides with `.card` in another, and the price is that nothing
+tells you the two are identical. The duplication is invisible by design.
+
+```text
+[i] src/br/MapLegend.module.css:32 — 39 rules in 31 file(s) re-implement
+    `.tempest-stack` from utilities.css — import "tempest-react-sdk/utilities.css"
+    once and use the class
+[i] src/components/Row.module.css:4 — 7 rules in 6 file(s) declare the same 4
+    properties (display: flex; align-items: center; gap: 8px; …+1) — one global
+    class beats 7 local copies
+```
+
+Two shapes of the same finding:
+
+- **`global-candidate`** — a block of **≥ 3 declarations** repeated across **≥ 3
+  rules** and **≥ 2 files** (inside a single file it takes a 4th copy). It groups
+  by declarations, not by class name: `.row`, `.line` and `.bar` with the same body
+  count as three copies.
+- **`utility-candidate`** — when the repeated block is an idiom
+  [`utilities.css`](./styles.md) already ships: `.tempest-row`, `.tempest-stack`,
+  `.tempest-center`, `.tempest-cluster`, `.tempest-spread`, `.tempest-truncate`,
+  `.tempest-grid-auto`, `.tempest-card`. Matching ignores the `gap` value and
+  tells neighbours apart (a column is a `stack`, not a `row`).
+
+On top of that, `hardcoded-token-value` points at a literal that is **exactly** a
+token's value (`gap: 8px` → `var(--tempest-space-2)`) — and only when **exactly
+one** token has it, because `4px` is the value of several and telling you to use
+`--tempest-space-1` where you meant a border is a guess delivered confidently.
+
+!!! tip "A suggestion never fails the command"
+    `i` is advice: it may not be worth it, and turning five identical blocks into
+    one global class is a decision about **coupling between screens** that the CLI
+    is not entitled to make. It shows the number and gets out of the way.
+
+### What `fix` removes — and what it never touches
+
+The CSS pass removes **three** things, all provably dead:
+
+1. a declaration repeated with the identical value in the same rule;
+2. a rule that repeats an earlier one declaration for declaration;
+3. an empty rule in a plain stylesheet (**not** in a `.module.css`).
+
+```console
+$ npx tempest fix
+→ css (dedupe declarations · drop dead rules)
+  src/components/Card.module.css 2
+    12: removed duplicate `color` — line 14 declares the same value
+    31: removed `.title` — line 40 repeats it exactly
+  ✓ removed 2 dead declaration(s)/rule(s) in 1 file(s)
+```
+
+!!! warning "Always the **earlier** copy, never the one below"
+    CSS is last-wins: removing the later declaration would change the result
+    whenever something between the two touches the same property. Removing the
+    earlier one changes nothing the browser computes — that is what makes the
+    operation safe.
+
+!!! note "A sheet with a syntax error is not written"
+    An offset taken from a sheet the parser had to guess its way through is not an
+    offset worth splicing. `fix` reports the error, leaves the file intact and
+    exits with code **1**: fix the syntax and run again.
+
+    `fix` also does **not** rewrite a value into a token, does not merge a
+    duplicated selector, and does not turn a repeated block into a global class.
+    All of that is design editing, not cleanup.
+
+!!! info "What the analysis leaves out, on purpose"
+    A **minified** sheet (`*.min.css`, or a high bytes-per-line density), a file
+    over **512 KB**, and the `node_modules/`, `dist/`, `build/`, `coverage/`,
+    `public/`, `vendor/` trees. Past **600 sheets** `doctor` says it hit the cap
+    instead of truncating in silence. The sweep runs in ~0.3 s over the SDK's own
+    200+ stylesheets.
+
 ## `tempest fix`
 
-Cleans the code in one shot: **converts relative imports to `@/`**, **organizes
-imports**, **removes unused imports**, **strips extra blank lines and trailing
-spaces**, then runs **Prettier**.
+Cleans the code in one shot: **converts relative imports to `@/`**, **removes dead
+CSS**, **organizes imports**, **removes unused imports**, **strips extra blank
+lines and trailing spaces**, then runs **Prettier**.
 
 ```bash
 npx tempest fix              # the whole project
 npx tempest fix src/app      # a single path
 npx tempest fix --dry-run    # show what would change, write nothing
-npx tempest fix --no-alias   # skip the import conversion (ESLint + Prettier only)
+npx tempest fix --no-alias   # skip the import conversion
+npx tempest fix --no-css     # skip the CSS pass
 ```
 
-Three passes, in this order: the alias conversion, `eslint --fix` (with the
-`simple-import-sort`, `unused-imports/no-unused-imports`,
-`no-multiple-empty-lines`, `no-trailing-spaces`, `eol-last` rules), then
-`prettier --write`. The conversion runs **first** on purpose: turning
-`../../services/api` into `@/services/api` changes its `simple-import-sort`
-group, so running ESLint afterwards leaves everything sorted in a single `fix`.
+Four passes, in this order: the alias conversion, the
+[CSS analysis](#css-analysis), `eslint --fix` (with the `simple-import-sort`,
+`unused-imports/no-unused-imports`, `no-multiple-empty-lines`,
+`no-trailing-spaces`, `eol-last` rules), then `prettier --write`. The conversion
+runs **first** on purpose: turning `../../services/api` into `@/services/api`
+changes its `simple-import-sort` group, so running ESLint afterwards leaves
+everything sorted in a single `fix`. CSS comes before Prettier for the same
+reason: whatever the removal leaves crooked, Prettier straightens next.
+
+!!! tip "`--dry-run` is the review surface for CSS"
+    `doctor` shows 6 findings per severity; `--dry-run` lists **every** error and
+    warning (only the suggestion tail is capped, at 10) and writes nothing. It is
+    what you read before letting the tool edit.
 
 ### The import conversion
 
@@ -240,6 +408,7 @@ npx tempest --version
 
 - The **`tempest`** `bin` ships inside the SDK — `npx tempest <command>`.
 - **`doctor`** diagnoses the project (à la `flutter doctor`), exits 1 on blocking problems.
-- **`fix`** converts relative imports to `@/` + organizes imports + removes dead imports + tidies whitespace + Prettier. `--dry-run` to review, `--no-alias` to skip the conversion.
+- **`fix`** converts relative imports to `@/` + removes dead CSS + organizes imports + removes dead imports + tidies whitespace + Prettier. `--dry-run` to review, `--no-alias`/`--no-css` to skip a pass.
+- The **[CSS analysis](#css-analysis)** finds syntax the browser drops, duplicated declarations and rules, names that do not exist, and repeated blocks that want one global class. `doctor` summarizes, `--dry-run` lists everything, `fix` removes only what is dead.
 - **`lint`** reports; **`format`** only formats.
 - See also: [Scaffold](./scaffold.md) · [Architecture](./architecture.md).

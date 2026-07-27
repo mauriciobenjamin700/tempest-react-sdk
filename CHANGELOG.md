@@ -6,6 +6,124 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **Análise de CSS no `tempest doctor` e no `tempest fix`.** O ESLint não lê `.css` e o
+  Prettier só reformata: entre os dois, CSS quebrado passava batido. Agora as duas
+  ferramentas leem cada folha do projeto (CSS Modules incluídos) com um **scanner
+  próprio, sem dependência** — nem postcss, nem stylelint — e reportam três classes de
+  problema.
+- **Sintaxe que o browser derruba em silêncio** (`✗`, reprova o `doctor`): `;` faltando
+  entre declarações — que é o pior deles, porque `padding: 8px⏎margin: 0;` é **uma**
+  declaração válida com valor `8px margin: 0` e o browser mata as duas sem dizer nada —,
+  declaração sem `:`, valor vazio, bloco nunca fechado, `}` sobrando, comentário/string/`(`
+  sem fechar, declaração fora de regra, `{` sem seletor. Nada disso quebra o build do
+  Vite, e é exatamente por isso que custa uma tarde.
+- **Semântica: CSS válido que ainda está errado** (`!`): declaração duplicada com o mesmo
+  valor (a primeira é morta), declaração sobrescrita com valor diferente na mesma regra,
+  seletor declarado duas vezes no mesmo contexto de `@media`, propriedade inexistente com
+  sugestão da mais próxima (`bacground-color` → `background-color`), `@at-rule`
+  inexistente, token `--tempest-*` que não existe, `var()` que ninguém define e não tem
+  fallback, e regra vazia.
+- **Sugestão de global sobre local repetido** (`i`) — a checagem que o CSS Modules **não
+  pode** fazer por você: o escopo garante que `.card` de um módulo nunca colide com o de
+  outro, e o preço é que nada te conta que os dois são idênticos. Bloco de ≥ 3 declarações
+  repetido em ≥ 3 regras e ≥ 2 arquivos vira `global-candidate`; quando o bloco é um
+  idioma que o `utilities.css` já entrega (`.tempest-row`, `.tempest-stack`,
+  `.tempest-center`, `.tempest-cluster`, `.tempest-spread`, `.tempest-truncate`,
+  `.tempest-grid-auto`, `.tempest-card`) o achado nomeia a classe. Agrupa por declaração,
+  não por nome de classe. Também aponta valor literal que é **exatamente** o de um token
+  — e só quando **um único** token tem aquele valor, porque `4px` é o valor de vários.
+- **O `fix` remove três coisas, todas comprovadamente mortas**: declaração repetida com
+  valor idêntico, regra que repete uma anterior declaração por declaração, e regra vazia
+  em folha comum. Sempre a cópia **anterior** — CSS é last-wins, então remover a de baixo
+  mudaria o resultado quando algo no meio mexe na mesma propriedade; remover a de cima não
+  muda nada do que o browser computa. Em `.module.css` regra vazia é reportada e **nunca**
+  removida: pode ser a classe-marcador que o JS referencia via `styles.x`. Folha com erro
+  de sintaxe não é escrita — offset tirado de um parse adivinhado não serve pra splice.
+- Novas flags e superfície: `tempest fix --no-css` pula a passada; `--dry-run` lista
+  **todos** os erros e avisos (a cauda de sugestão fica limitada a 10) e virou a
+  superfície de revisão do CSS; o `doctor` ganhou a seção **Stylesheets** com no máximo 6
+  achados por severidade e o número do que ficou de fora.
+- **A tabela de tokens é lida, nunca chumbada** — do `styles.css`/`utilities.css`
+  instalado (ou do `src/styles/` quando a CLI roda de dentro do repo do SDK). Uma cópia
+  dentro da CLI derivaria no primeiro token novo e passaria a acusar o código correto do
+  app, que é pior do que não checar.
+- **`var()` com fallback nunca é reportado** — `var(--tempest-card-padding, …)` é o
+  idioma de knob do próprio SDK, e o fallback garante que renderiza. Essa única regra
+  derrubou 43 falsos positivos quando a análise rodou no CSS do SDK.
+
+- **`CodeBlock` — amostra de código com realce, número de linha e botão de copiar.**
+  Dez gramáticas (`ts`, `js`, `tsx`, `json`, `css`, `html`, `bash`, `python`, `sql` e
+  apelidos). O realce é **scanner de padrões, não parser**: reconhece comentário,
+  string, número, palavra-chave e pontuação, e não sabe nada de escopo ou tipo. É teto
+  escolhido — parser de verdade por linguagem é dependência do tamanho do resto do SDK.
+  Onde não tem certeza, emite texto normal em vez de emitir errado; linguagem
+  desconhecida vira bloco sem cor, que é resultado normal e nunca erro.
+- **Tokens de sintaxe próprios, `--tempest-code-*`** — e essa foi a correção que só
+  apareceu medindo no browser. A primeira versão reaproveitava a rampa de chart com o
+  argumento de que ela "já é validada nos dois modos". Ela é — pro piso de **marca**
+  (3:1). Cor de sintaxe é **texto** e precisa de **4,5:1**: medida como texto, uma
+  palavra-chave em `--tempest-chart-1` deu 3,47:1 no escuro e uma string em
+  `--tempest-chart-3` deu 2,03:1 no claro. Os dez tokens novos foram resolvidos em
+  OKLCH contra **os dois fundos** em que podem cair — a superfície do bloco e a linha
+  marcada depois que o realce compõe sobre ela; resolver só contra a superfície deixava
+  uma palavra-chave em 4,17:1 na linha marcada.
+- `src/styles/colors.contrast.test.ts` lê o `colors.css` e reafere cada token nos dois
+  modos contra os dois fundos, pra que uma edição futura de rampa não volte a baixar
+  disso em silêncio.
+- **O `<pre>` é sempre focável**, ao contrário dos outros contêineres de rolagem do SDK,
+  onde a parada de tabulação é condicional. Um bloco de código não tem nada focável
+  dentro e existe pra ser alcançado, lido e selecionado por conta própria.
+- Número de linha é `aria-hidden` + `user-select: none`: selecionar o bloco no mouse e
+  copiar devolve a fonte, sem os números. Verificado no browser lendo a seleção.
+- O `\n` que separa as linhas é caractere de verdade e fica **fora** da caixa da linha.
+  Dentro dela — a linha é `inline-block` — ele é consumido pelo próprio box e as dez
+  linhas do exemplo foram parar lado a lado numa fileira só. Também só apareceu no
+  browser.
+
+- **`QRCode` — símbolo QR codificado no browser, sem dependência.** Um gerador
+  remoto entregaria o conteúdo — link de pagamento, token de sessão, convite — a um
+  terceiro; o encoder inteiro custa **3,2 KB brotli** importando `{ QRCode }`.
+  Implementação completa da ISO/IEC 18004: seleção de modo, versões 1–40, os quatro
+  níveis de correção, Reed-Solomon sobre GF(256), intercalação de blocos e os 8
+  padrões de máscara com a função de penalidade da norma.
+- **Validado contra um decoder independente, não contra si mesmo.** As tabelas da
+  norma são transcritas à mão e uma entrada errada gera um símbolo perfeitamente
+  plausível que escaneia como nada — comparar o encoder com ele mesmo confirmaria o
+  erro de digitação. Os testes codificam e mandam o resultado pro `jsqr` (devDep):
+  11 round-trips cobrindo URL, os quatro níveis, os três modos, UTF-8 com acento,
+  emoji, payload com vários blocos de ECC e versão ≥ 7. No browser real, os 8
+  símbolos da seção do gallery foram rasterizados em canvas e decodificados.
+- **Preto no branco nos dois temas, de propósito** — a única parte do SDK que ignora
+  os tokens. Leitor de QR espera escuro sobre claro; ligar os módulos em
+  `--tempest-text` inverteria eles no dark mode e deixaria símbolo claro sobre fundo
+  branco, que não lê como nada.
+- Desenhado em **SVG num único path** com as corridas horizontais fundidas: um
+  símbolo versão 10 tem 3 481 módulos, e um elemento por módulo custa tempo de pintura
+  de verdade. Fica nítido em qualquer tamanho e imprime na resolução da impressora.
+- `aria-label` default **nomeia o conteúdo** (`QR code: https://…`) — leitor de tela
+  não escaneia, então o dado tem que chegar como texto.
+- Conteúdo que não cabe nem na versão 40 lança `QRCapacityError` em vez de desenhar
+  um símbolo truncado que escaneia errado.
+- `encodeQR` e `matrixToPath` são exportados pra quem precisa desenhar por conta —
+  canvas, PDF, etiqueta térmica.
+- **`Sparkline` — mini-gráfico inline, na entrada raiz e sem recharts.** Uma coluna de
+  tendência numa tabela não deveria obrigar o app a instalar uma biblioteca de gráfico
+  inteira: são ~40 linhas de SVG. Três variantes (`line`, `area`, `bar`), tamanho e cor
+  livres, ponto no último valor com anel na cor da superfície pra continuar legível em
+  cima da linha.
+- **`min`/`max` fixam o eixo, e é o que torna várias linhas comparáveis.** Sem eles cada
+  sparkline se normaliza contra os próprios extremos — uma linha de 2 a 4 e outra de 200
+  a 400 desenham exatamente a mesma forma. O erro não gera aviso nenhum: os gráficos
+  ficam bonitos e mentem. A seção do gallery mostra as duas colunas lado a lado.
+- **`role="img"` com a série descrita em palavras** (quantidade de pontos, direção,
+  pontas, extremos). Um sparkline não tem eixo nem legenda pra servir de apoio: sem essa
+  frase o leitor de tela chega nele e não lê nada. `valueFormatter` entra na descrição;
+  `label` substitui quando o texto ao redor já diz o que está plotado.
+- Valores não-finitos são filtrados antes de projetar — um `NaN` dentro de um atributo
+  `d` anula o path inteiro **em silêncio**, e o gráfico some sem erro. Série achatada
+  fica centrada em vez de colada numa borda, que é a leitura honesta de "não variou" e
+  evita dividir por um domínio de altura zero.
+
 - **Escalas contínuas de data viz — `sequentialScale` e `divergingScale`.** As 8 cores
   de série codificam **identidade**; heatmap e choropleth codificam **quanto**, e isso
   pede _um_ hue escalonado por claridade. Era a última lacuna da fatia de CSS no
@@ -38,6 +156,13 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **Quatro tokens inexistentes no CSS do próprio SDK**, achados pela análise nova — todos
+  `var()` **sem** fallback, ou seja, propriedade que resolvia pra nada em runtime:
+  `--tempest-duration-normal` na transição do `Carousel` (não existe; virou
+  `--tempest-duration-base`), `--tempest-primary-solid` e `--tempest-primary-on` no
+  `.navbar.primary` (viraram `--tempest-primary` e `--tempest-primary-foreground`) e
+  `--tempest-danger-on` no badge do `BottomNavigation` (ganhou o fallback `#fff` que o
+  `NavigationRail` já usava, mantendo o knob).
 - **`Table`, `VirtualList` e `ScrollArea` viraram alcançáveis por teclado enquanto rolam.**
   Um contêiner de rolagem cujo conteúdo não tem nada focável dentro é inacessível pelo
   teclado: o foco nunca pousa onde as setas rolariam, então quem navega assim **vê** a

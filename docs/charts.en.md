@@ -28,6 +28,12 @@ import { BarChart, LineChart, AreaChart } from "tempest-react-sdk/charts";
     `tempest-react-sdk/charts` **pay nothing**: the app bundler's tree-shaking
     strips it all.
 
+!!! tip "Only want the shape of the series? You don't need a chart"
+    An inline mini-chart — a trend in a table cell, next to a KPI — is
+    [`Sparkline`](./components/data.en.md#sparkline), which lives on the **root
+    entry** and is plain SVG. No `recharts` involved. Use the charts on this page
+    when the reader needs to **read values off an axis**.
+
 This is the same **caller injects the heavy dependency** pattern the SDK already
 uses in its telemetry adapters (Sentry/PostHog) and feature-flags adapters
 (GrowthBook/LaunchDarkly): the SDK describes the integration, but the real

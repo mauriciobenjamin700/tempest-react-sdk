@@ -240,6 +240,8 @@ export type {
 
 export { ImageCropper } from "./ImageCropper";
 export type { ImageCropperHandle, ImageCropperProps } from "./ImageCropper";
+export { Sparkline } from "./Sparkline";
+export type { SparklineProps, SparklineVariant } from "./Sparkline";
 export { Scheduler } from "./Scheduler";
 export type { DayWindow, PlacedEvent, SchedulerEvent, SchedulerProps } from "./Scheduler";
 export { NotificationCenter, useNotificationInbox } from "./NotificationCenter";
@@ -258,8 +260,12 @@ export type {
     VirtualTableSort,
     VirtualTableSortDirection,
 } from "./VirtualTable";
+export { QRCode, encodeQR, matrixToPath, selectMode, QRCapacityError } from "./QRCode";
+export type { QRCodeProps, QRErrorCorrection, QRMatrix, QRMode, QREncodeOptions } from "./QRCode";
 
 // Generic display
+export { CodeBlock, tokenize, tokenizeLines, resolveLanguage } from "./CodeBlock";
+export type { CodeBlockProps, CodeLanguage, Token, TokenKind } from "./CodeBlock";
 export { CopyButton } from "./CopyButton";
 export type { CopyButtonProps } from "./CopyButton";
 

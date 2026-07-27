@@ -1479,6 +1479,12 @@ import { BarChart, LineChart, AreaChart } from "tempest-react-sdk/charts";
     `tempest-react-sdk/charts` **não pagam nada**: o tree-shaking do bundler do
     app remove tudo.
 
+!!! tip "Só quer a forma da série? Não precisa de chart"
+    Um mini-gráfico inline — tendência numa célula de tabela, ao lado de um KPI —
+    é o [`Sparkline`](./components/data.md#sparkline), que mora na **entrada
+    raiz** e é SVG puro. Nenhum `recharts` envolvido. Use os charts desta página
+    quando o leitor precisa **ler valores no eixo**.
+
 Isso é o mesmo padrão do **caller injeta a dependência pesada** que o SDK já usa
 nos adapters de telemetria (Sentry/PostHog) e feature flags
 (GrowthBook/LaunchDarkly): o SDK descreve a integração, mas a biblioteca de
@@ -2009,6 +2015,16 @@ Integration
   [✓] vite.config.ts uses createViteConfig
   [✓] src/main.tsx imports styles.css
 
+Stylesheets
+  [i] 34 stylesheet(s) · 210 rules · 806 declarations
+  [✗] src/pages/Dashboard.module.css:12 — a `;` está faltando: o valor de
+      `padding` engole as declarações abaixo, e o browser derruba todas
+  [!] src/components/Card.module.css:8 — `bacground-color` não é propriedade
+      CSS — você quis dizer `background-color`?
+  [i] src/components/Row.module.css:4 — 7 rules em 6 arquivo(s) declaram as
+      mesmas 3 propriedades — uma classe global bate 7 cópias locais
+  [i] 2 finding(s) are auto-fixable — rode `tempest fix`
+
 Tooling
   [✓] ESLint config present
   [✓] eslint installed
@@ -2071,29 +2087,184 @@ Tooling
 
 **Integration** — `vite.config.*` usando `createViteConfig`; **`@vitejs/plugin-react`** instalado (JSX/Fast Refresh); import do `styles.css` no entry (e aviso se importado **mais de uma vez**).
 
+**Stylesheets** — análise de **sintaxe e semântica** de todo `.css` do projeto (CSS Modules incluídos): CSS que o browser derruba, declaração morta, nome que não existe, e bloco repetido que pede uma classe global. É a seção detalhada na próxima seção deste guia — [Análise de CSS](#analise-de-css). Aqui o `doctor` mostra no máximo **6 achados por severidade** e diz quantos ficaram de fora; a lista completa sai no `tempest fix --dry-run`.
+
 **Tooling** — config + binários de ESLint e Prettier; **lockfile** presente, único (npm/yarn/pnpm misturados dessincronizam) e **não desatualizado** (`package.json` mais novo que o lock → `npm install`).
 
 **Env & secrets** — **`.env` no `.gitignore`** (senão segredos vazam no commit); variáveis usadas via `import.meta.env.*` **sem prefixo `VITE_`** (o Vite não expõe pro browser → `undefined` em runtime); `.env` vs `.env.example`.
 
+## Análise de CSS
+
+O ESLint não lê `.css` e o Prettier só reformata: entre os dois, **CSS quebrado
+passa batido**. O `tempest` analisa cada folha do projeto — inclusive CSS Modules
+— em duas frentes, e o resultado alimenta os dois comandos: o `doctor` mostra o
+resumo, o `fix` remove a parte que é comprovadamente morta.
+
+```bash
+npx tempest doctor                 # resumo, na seção Stylesheets
+npx tempest fix --dry-run          # lista completa, sem escrever nada
+npx tempest fix                    # remove o que é morto de verdade
+npx tempest fix src/components     # só um caminho
+npx tempest fix --no-css           # pula a passada de CSS
+```
+
+### Sintaxe — o que o browser derruba
+
+Erros (`✗`) são coisas que o browser **descarta em silêncio**. Nenhuma delas
+quebra o build do Vite, e é justamente isso que as torna caras:
+
+| Achado | Exemplo |
+| -- | -- |
+| `;` faltando entre declarações | `padding: 8px⏎margin: 0;` → **as duas** morrem |
+| declaração sem `:` | `color red;` |
+| valor vazio | `color: ;` |
+| bloco nunca fechado / `}` sobrando | `.a { color: red;` |
+| comentário, string ou `(` sem fechar | `/* pra sempre`, `content: "ops` |
+| declaração fora de qualquer regra | `color: red;` no topo do arquivo |
+| `{` sem seletor antes | `{ color: red; }` |
+
+!!! danger "O `;` que falta é o pior deles"
+    `padding: 8px` seguido de `margin: 0;` sem ponto e vírgula no meio é **uma**
+    declaração sintaticamente válida com valor `8px margin: 0` — o browser
+    derruba as duas, sem aviso no console, e o layout fica errado num lugar que
+    você não escreveu. É o achado que paga a análise inteira.
+
+### Semântica — CSS válido que está errado
+
+Avisos (`!`) são folhas que o browser aceita e que ainda assim não fazem o que o
+autor quis:
+
+- **Declaração duplicada** — `color` duas vezes com o **mesmo** valor: a primeira
+  é morta. Auto-fixável.
+- **Declaração sobrescrita** — `color` duas vezes com valores **diferentes** na
+  mesma regra: uma das duas é um engano. Não é fixável — escolher qual valor você
+  quis é palpite dentro do design de alguém.
+- **Seletor declarado duas vezes** — no mesmo contexto de `@media`; diz quais
+  propriedades a segunda regra mata e pede o merge. Quando as duas regras são
+  idênticas declaração por declaração, é auto-fixável.
+- **Propriedade que não existe** — `bacground-color`, `dispaly`, `paddign`. Só
+  reporta quando existe uma propriedade real a **até 2 edições** de distância,
+  então uma propriedade nova que a tabela não conhece nunca é acusada.
+- **`@at-rule` inexistente** — `@medai`, `@suports`: o browser pula o bloco todo.
+- **Token `--tempest-*` que não existe** — comparado com a tabela lida do
+  `styles.css` **instalado**, nunca com uma cópia chumbada na CLI.
+- **`var(--x)` que ninguém define** e não tem fallback — resolve pra nada.
+- **Regra vazia** — código morto. Em `.module.css` é reportada e **nunca**
+  removida: pode ser a classe-marcador que o seu JS referencia via `styles.x`.
+
+!!! info "Um `var()` com fallback nunca é reportado"
+    `var(--tempest-card-padding, var(--tempest-space-5))` é o **idioma de knob**
+    do SDK: o nome não é um token, é um gancho que o app pode sobrescrever. Como
+    o fallback garante que renderiza, a checagem fica calada. Sem fallback o
+    mesmo `var()` resolve pra nada — aí é defeito e é reportado.
+
+    Foi essa regra que derrubou 43 falsos positivos quando a análise rodou no CSS
+    do próprio SDK — e deixou de pé **4 bugs reais** (`--tempest-duration-normal`,
+    `--tempest-primary-solid`, `--tempest-primary-on`, `--tempest-danger-on` sem
+    fallback), corrigidos no mesmo commit que trouxe a análise.
+
+### Sugestão (`i`) — quando o global bate o local repetido
+
+É a checagem que o CSS Modules **não pode** fazer por você: o escopo garante que
+`.card` de um módulo nunca colide com `.card` de outro, e o preço é que nada te
+conta que os dois são idênticos. A duplicação é invisível por design.
+
+```text
+[i] src/br/MapLegend.module.css:32 — 39 rules em 31 arquivo(s) re-implementam
+    `.tempest-stack` do utilities.css — importe "tempest-react-sdk/utilities.css"
+    uma vez e use a classe
+[i] src/components/Row.module.css:4 — 7 rules em 6 arquivo(s) declaram as mesmas
+    4 propriedades (display: flex; align-items: center; gap: 8px; …+1) — uma
+    classe global bate 7 cópias locais
+```
+
+Duas formas do mesmo achado:
+
+- **`global-candidate`** — bloco com **≥ 3 declarações** repetido em **≥ 3
+  regras** e **≥ 2 arquivos** (dentro de um único arquivo, exige a 4ª cópia).
+  Agrupa por declaração, não por nome de classe: `.row`, `.line` e `.bar` com o
+  mesmo corpo contam como três cópias.
+- **`utility-candidate`** — quando o bloco repetido é um idioma que o
+  [`utilities.css`](./styles.md) já entrega: `.tempest-row`, `.tempest-stack`,
+  `.tempest-center`, `.tempest-cluster`, `.tempest-spread`, `.tempest-truncate`,
+  `.tempest-grid-auto`, `.tempest-card`. O casamento ignora o valor do `gap`, e
+  distingue vizinhos (uma coluna é `stack`, não `row`).
+
+Além disso, `hardcoded-token-value` aponta valor literal que é **exatamente** o
+de um token (`gap: 8px` → `var(--tempest-space-2)`) — e só quando **um único**
+token tem aquele valor, porque `4px` é o valor de vários e mandar você usar
+`--tempest-space-1` onde você quis uma borda é um palpite dito com confiança.
+
+!!! tip "Sugestão nunca reprova o comando"
+    `i` é conselho: pode não valer a pena, e transformar cinco blocos iguais em
+    uma classe global é uma decisão de **acoplamento entre telas** que a CLI não
+    tem competência pra tomar. Ela mostra o número e sai da frente.
+
+### O que o `fix` remove — e o que ele nunca toca
+
+A passada de CSS remove **três** coisas, todas comprovadamente mortas:
+
+1. declaração repetida com valor idêntico na mesma regra;
+2. regra que repete uma anterior declaração por declaração;
+3. regra vazia em folha comum (**não** em `.module.css`).
+
+```console
+$ npx tempest fix
+→ css (dedupe declarations · drop dead rules)
+  src/components/Card.module.css 2
+    12: removed duplicate `color` — line 14 declares the same value
+    31: removed `.title` — line 40 repeats it exactly
+  ✓ removed 2 dead declaration(s)/rule(s) in 1 file(s)
+```
+
+!!! warning "Sempre a cópia **anterior**, nunca a de baixo"
+    CSS é last-wins: remover a declaração de baixo mudaria o resultado sempre que
+    algo entre as duas mexer na mesma propriedade. Remover a de cima não muda
+    nada do que o browser computa — é o que faz a operação segura.
+
+!!! note "Folha com erro de sintaxe não é escrita"
+    Offset tirado de uma folha pela qual o parser teve que adivinhar caminho não
+    é offset pra fazer splice. O `fix` reporta o erro, deixa o arquivo intacto e
+    sai com código **1**: conserte a sintaxe e rode de novo.
+
+    O `fix` também **não** reescreve valor pra token, não faz merge de seletor
+    duplicado e não converte bloco repetido em classe global. Tudo isso é edição
+    de design, não limpeza.
+
+!!! info "O que a análise deixa de fora, de propósito"
+    Folha **minificada** (`*.min.css` ou densidade alta de bytes por linha),
+    arquivo acima de **512 KB**, e as pastas `node_modules/`, `dist/`, `build/`,
+    `coverage/`, `public/`, `vendor/`. Acima de **600 folhas** o `doctor` avisa
+    que bateu o teto em vez de truncar em silêncio. A varredura roda em ~0,3 s
+    nas 200+ folhas do próprio SDK.
+
 ## `tempest fix`
 
-Arruma o código de uma vez: **converte import relativo pra `@/`**, **organiza
-imports**, **remove imports não usados**, **limpa linhas em branco extras e
-espaços no fim**, e roda o **Prettier**.
+Arruma o código de uma vez: **converte import relativo pra `@/`**, **remove CSS
+morto**, **organiza imports**, **remove imports não usados**, **limpa linhas em
+branco extras e espaços no fim**, e roda o **Prettier**.
 
 ```bash
 npx tempest fix              # o projeto inteiro
 npx tempest fix src/app      # só um caminho
 npx tempest fix --dry-run    # mostra o que mudaria, não escreve
-npx tempest fix --no-alias    # pula a conversão de import (só ESLint + Prettier)
+npx tempest fix --no-alias   # pula a conversão de import
+npx tempest fix --no-css     # pula a passada de CSS
 ```
 
-São três passadas, nessa ordem: a conversão de alias, `eslint --fix` (com as
-regras `simple-import-sort`, `unused-imports/no-unused-imports`,
+São quatro passadas, nessa ordem: a conversão de alias, a
+[análise de CSS](#analise-de-css), `eslint --fix` (com as regras
+`simple-import-sort`, `unused-imports/no-unused-imports`,
 `no-multiple-empty-lines`, `no-trailing-spaces`, `eol-last`) e `prettier --write`.
 A conversão vem **primeiro** de propósito: trocar `../../services/api` por
 `@/services/api` muda o grupo de ordenação do `simple-import-sort`, então rodar o
-ESLint depois deixa tudo ordenado num único `fix`.
+ESLint depois deixa tudo ordenado num único `fix`. O CSS vem antes do Prettier
+pelo mesmo motivo: o que a remoção deixa torto, o Prettier arruma na sequência.
+
+!!! tip "`--dry-run` é a superfície de revisão do CSS"
+    O `doctor` mostra 6 achados por severidade; o `--dry-run` lista **todos** os
+    erros e avisos (só a cauda de sugestões é limitada a 10) e não escreve nada.
+    É o que você lê antes de deixar a ferramenta mexer.
 
 ### A conversão de import
 
@@ -2197,7 +2368,8 @@ npx tempest --version
 
 - O `bin` **`tempest`** vem dentro do SDK — `npx tempest <comando>`.
 - **`doctor`** diagnostica o projeto (estilo `flutter doctor`), sai com código 1 em problemas bloqueantes.
-- **`fix`** converte import relativo pra `@/` + organiza imports + remove imports mortos + limpa espaçamento + Prettier. `--dry-run` pra revisar, `--no-alias` pra pular a conversão.
+- **`fix`** converte import relativo pra `@/` + remove CSS morto + organiza imports + remove imports mortos + limpa espaçamento + Prettier. `--dry-run` pra revisar, `--no-alias`/`--no-css` pra pular uma passada.
+- A **[análise de CSS](#analise-de-css)** acha sintaxe que o browser derruba, declaração/regra duplicada, nome que não existe e bloco repetido que pede uma classe global. O `doctor` resume, o `--dry-run` lista tudo, o `fix` remove só o que é morto.
 - **`lint`** reporta; **`format`** só formata.
 - Veja também: [Scaffold](./scaffold.md) · [Arquitetura](./architecture.md).
 
@@ -3194,7 +3366,7 @@ const columns: TableColumn<Order>[] = [
     key: "total",
     header: "Total",
     align: "right",
-    render: (row) => formatCurrency(row.total, "BRL"),
+    render: (row) => formatCurrency(row.total),
     priority: "always",
   },
   {
@@ -3515,6 +3687,93 @@ export function PermissoesDoPapel() {
 !!! info "O chevron não é um botão"
     Ele é decoração (`aria-hidden`): a linha já carrega `aria-expanded`, então um segundo controle focável ali só adicionaria ruído no leitor de tela, duplicando uma ação que o teclado já tem. Clique nele funciona (com o evento parado, então expande sem selecionar).
 
+## `Sparkline`
+
+> **Quando usar**: mostrar a **forma** de uma série ao lado do número que ela explica — uma célula de tabela, um card de métrica, uma linha de lista. Não é substituto de gráfico: se o leitor precisa ler valores no eixo, use [`LineChart`](../charts.md).
+
+Um sparkline é SVG puro na entrada raiz, **sem recharts**. Uma coluna de tendência numa tabela não deveria obrigar o app a instalar uma biblioteca de gráfico inteira.
+
+```tsx
+import { formatCurrency, Sparkline, Table } from "tempest-react-sdk";
+
+const produtos = [
+  { nome: "Plano Pro", receita: 48200, serie: [12, 18, 15, 24, 22, 31, 29] },
+  { nome: "Plano Base", receita: 19400, serie: [22, 19, 20, 17, 14, 13, 11] },
+];
+
+export function TendenciaPorProduto() {
+  return (
+    <Table
+      data={produtos}
+      columns={[
+        { key: "nome", header: "Produto" },
+        {
+          key: "serie",
+          header: "7 dias",
+          render: (linha) => (
+            <Sparkline data={linha.serie} label={`Tendência de ${linha.nome}`} />
+          ),
+        },
+        { key: "receita", header: "Receita", render: (l) => formatCurrency(l.receita) },
+      ]}
+      rowKey={(linha) => linha.nome}
+    />
+  );
+}
+```
+
+### Variantes
+
+```tsx
+<Sparkline data={serie} />                        {/* linha (default) */}
+<Sparkline data={serie} variant="area" />         {/* linha + preenchimento lavado */}
+<Sparkline data={serie} variant="bar" />          {/* uma barra por ponto */}
+```
+
+| Prop             | Tipo                              | Default                    | O que faz                                                        |
+| ---------------- | --------------------------------- | -------------------------- | ---------------------------------------------------------------- |
+| `data`           | `readonly number[]`               | —                          | A série, em ordem. Entradas não-finitas são descartadas.          |
+| `variant`        | `"line" \| "area" \| "bar"`       | `"line"`                   | Qual marca desenhar.                                              |
+| `width`          | `number`                          | `88`                       | Largura de desenho em px.                                         |
+| `height`         | `number`                          | `24`                       | Altura de desenho em px.                                          |
+| `color`          | `string`                          | `var(--tempest-chart-1)`   | Qualquer cor CSS.                                                 |
+| `showEnd`        | `boolean`                         | `true` (exceto em `"bar"`) | Marca o último ponto com um ponto.                                |
+| `min` / `max`    | `number`                          | extremos da série          | Fixa o eixo de valor — é o que torna várias linhas comparáveis.   |
+| `valueFormatter` | `(value: number) => string`       | `String`                   | Como renderizar um valor na descrição acessível.                  |
+| `label`          | `string`                          | descrição gerada           | Nome acessível.                                                   |
+
+### Comparar linhas exige eixo compartilhado
+
+Por padrão cada sparkline se normaliza contra os próprios extremos. Numa coluna de tabela isso é uma armadilha: uma linha que vai de 2 a 4 e outra que vai de 200 a 400 desenham **exatamente a mesma forma**.
+
+```tsx
+const teto = Math.max(...produtos.flatMap((p) => p.serie));
+
+<Sparkline data={linha.serie} min={0} max={teto} />;
+```
+
+!!! warning "Sem `min`/`max`, a forma é relativa — nunca comparável"
+    Passe os dois quando os sparklines aparecem empilhados. É o erro mais comum com esse componente, e ele não gera nenhum aviso: os gráficos ficam bonitos e mentem.
+
+### Acessibilidade
+
+O componente carrega `role="img"` e um `aria-label` que **descreve a série em palavras**: quantidade de pontos, direção, extremos e as pontas.
+
+```text
+"7 pontos, subindo. Início 12, fim 29. Mínimo 12, máximo 31."
+```
+
+Um sparkline não tem eixo nem legenda para servir de apoio — sem essa frase ele é uma imagem sem nome, e o leitor de tela chega nele e não lê nada. Passe `label` quando o texto ao redor já diz o que está plotado.
+
+!!! tip "A forma é contexto, nunca o único caminho pro valor"
+    Sempre coloque o sparkline **ao lado do número** que ele anota. Ele responde "está subindo?", não "quanto?".
+
+!!! info "Séries com buraco não apagam o gráfico"
+    Um `NaN` no meio de um atributo `d` anula o path inteiro silenciosamente — o gráfico some sem erro nenhum. Valores não-finitos são filtrados antes de projetar.
+
+!!! note "Série achatada fica centralizada"
+    Uma série sem variação é desenhada no meio da caixa, não colada numa borda. É a leitura honesta de "não variou" e evita dividir por um domínio de altura zero.
+
 ## Resumo
 
 | Componente    | Use para                                    | Volume típico      |
@@ -3526,6 +3785,7 @@ export function PermissoesDoPapel() {
 | `Accordion`   | Seções expansíveis sob demanda (FAQ, steps) | poucas seções      |
 | `Timeline`    | Sequência de eventos no tempo               | qualquer           |
 | `TreeView`    | Hierarquia navegável (categorias, permissões) | dezenas a centenas |
+| `Sparkline`   | Forma de uma série ao lado do número que ela explica | 5 a ~100 pontos |
 
 Pontos-chave de acessibilidade:
 
@@ -3534,6 +3794,7 @@ Pontos-chave de acessibilidade:
 - `VirtualTable`: continua uma `<table>` real (espaçadoras em vez de posicionamento absoluto), com `aria-rowcount`/`aria-rowindex` carregando os índices reais e não os da janela; cabeçalho ordenável expõe `aria-sort`.
 - `Accordion`: ↑↓ trocam o item focado, Home/End pulam pro primeiro/último.
 - `Timeline`: ordem semântica via `<ol>`; cada item é `<li>`.
+- `Sparkline`: `role="img"` com uma frase descrevendo direção, pontas e extremos — sem eixo nem legenda, é a única leitura possível fora da visão.
 - `TreeView`: `role="tree"` + roving tabindex (uma parada de tab só); `aria-level` reporta a profundidade e nós desabilitados são pulados na navegação.
 
 Relacionados: [identity](./identity.md) (`Card flush` para hospedar a `Table`) · [feedback](./feedback.md) (`Badge` dentro de células) · [actions](./actions.md) (botões de linha).
@@ -5890,13 +6151,104 @@ import { DescriptionList } from "tempest-react-sdk";
 
 `DescriptionListItem = { term: ReactNode; description: ReactNode }`. Estende `HTMLAttributes<HTMLDListElement>`.
 
+### `CodeBlock`
+
+Amostra de código somente leitura: cores de sintaxe, número de linha opcional, botão de copiar.
+
+```tsx
+import { CodeBlock } from "tempest-react-sdk";
+
+<CodeBlock code={snippet} language="ts" filename="src/api.ts" showLineNumbers />
+<CodeBlock code={log} language="bash" maxHeight={280} />
+```
+
+| Prop              | Tipo                | Default | Notas                                                       |
+| ----------------- | ------------------- | ------- | ----------------------------------------------------------- |
+| `code`            | `string`            | —       | A fonte. Linhas em branco nas pontas são aparadas.           |
+| `language`        | `string`            | —       | Gramática ou apelido. Desconhecido renderiza como texto.     |
+| `filename`        | `ReactNode`         | —       | Mostrado no cabeçalho.                                       |
+| `showLineNumbers` | `boolean`           | `false` | Numera as linhas.                                            |
+| `highlightLines`  | `number[]`          | —       | Linhas 1-based marcadas como o ponto do trecho.              |
+| `copyable`        | `boolean`           | `true`  | Botão de copiar no cabeçalho.                                |
+| `maxHeight`       | `number \| string`  | —       | Limita a altura; o corpo rola.                               |
+| `wrap`            | `boolean`           | `false` | Quebra linha em vez de rolar na horizontal.                  |
+| `label`           | `string`            | —       | Nome acessível da região.                                    |
+
+Gramáticas: `typescript` · `javascript` · `tsx` · `jsx` · `json` · `css` · `html` · `bash` · `python` · `sql`, com apelidos (`ts`, `js`, `sh`, `py`, `scss`, `xml`, `shell`, `zsh`, `jsonc`…).
+
+!!! warning "É um scanner, não um parser — e isso é um teto escolhido"
+    O realce reconhece comentário, string, número, palavra-chave e pontuação **por padrão de texto**. Ele não sabe nada de escopo, tipo ou gramática. Um parser de verdade por linguagem é uma dependência do tamanho do resto do SDK, e o ganho — acertar os cantos raros de um trecho de documentação — é pequeno. Onde não tem certeza ele emite `plain`, que sai como texto normal em vez de sair **errado**. Linguagem desconhecida vira um bloco sem cor, que é resultado normal e nunca erro.
+
+!!! info "O `<pre>` é sempre focável"
+    Um bloco de código rola e não tem nada focável dentro. Sem parada de tabulação, quem navega por teclado vê a barra de rolagem e não tem como movê-la — o foco nunca pousa onde as setas rolariam. É o único contêiner de rolagem do SDK onde a parada é incondicional em vez de medida: um trecho de código existe pra ser alcançado, lido e selecionado por conta própria. Os outros ([`Table`](./data.md), `VirtualList`, `ScrollArea`) só ganham a parada enquanto de fato transbordam.
+
+!!! tip "Número de linha é decoração — e some do clipboard"
+    Ele é `aria-hidden` (um leitor anunciando "um const dois import" não ajuda) e `user-select: none`. Selecionar o bloco com o mouse e copiar devolve a fonte, sem os números. Verificado no browser: a seleção do `<code>` inteiro sai idêntica ao original.
+
+!!! note "As cores de sintaxe têm tokens próprios, não a rampa de chart"
+    `--tempest-code-*`. A rampa de chart é validada pro piso de **marca** (3:1); isso aqui é texto e precisa de **4,5:1**. Medindo a rampa como texto ela falha nos dois modos — uma palavra-chave deu 3,47:1 na superfície escura, uma string 2,03:1 na clara. Cada token de código foi resolvido em OKLCH contra **os dois fundos** em que pode cair: a superfície do bloco e a linha marcada depois que o realce compõe sobre ela. Ver [tokens de estilo](../styles.md).
+
+### `QRCode`
+
+Um símbolo QR codificado **no browser** e desenhado em SVG. Sem dependência e sem ida a serviço de imagem — um gerador remoto entregaria o conteúdo (link de pagamento, token de sessão, convite) a um terceiro.
+
+```tsx
+import { QRCode } from "tempest-react-sdk";
+
+<QRCode value="https://tempest.dev" />
+<QRCode value={pixPayload} level="H" size={220} label="QR do Pix — R$ 42,00" />
+```
+
+| Prop         | Tipo                        | Default            | Notas                                                     |
+| ------------ | --------------------------- | ------------------ | --------------------------------------------------------- |
+| `value`      | `string`                    | —                  | O conteúdo. UTF-8 quando não é só dígito ou caixa alta.    |
+| `size`       | `number`                    | `160`              | Lado renderizado em px, zona de silêncio incluída.         |
+| `level`      | `"L" \| "M" \| "Q" \| "H"`  | `"M"`              | Correção de erro: ~7% · ~15% · ~25% · ~30% recuperável.    |
+| `margin`     | `number`                    | `4`                | Zona de silêncio em módulos.                               |
+| `color`      | `string`                    | `#000000`          | Cor dos módulos.                                           |
+| `background` | `string`                    | `#ffffff`          | Cor do fundo.                                              |
+| `label`      | `string`                    | `QR code: {value}` | Nome acessível.                                            |
+
+!!! danger "Preto no branco nos dois temas — de propósito"
+    É a única parte do SDK que **ignora os tokens de tema**. Leitor de QR espera escuro sobre claro, e os que lidam com símbolo invertido fazem isso devagar e sem confiança. Ligar os módulos em `--tempest-text` inverteria eles no dark mode e deixaria um símbolo claro sobre o fundo branco — que não lê como nada. Um QR que combina com a página escura e escaneia na terceira tentativa é pior que um que parece colado por cima. Só mexa em `color`/`background` com um leitor na mão pra testar.
+
+!!! tip "O modo muda o tamanho do símbolo, e o tamanho muda a facilidade de leitura"
+    O encoder escolhe automaticamente o modo mais denso que o conteúdo permite: **numérico** empacota 3 dígitos em 10 bits, **alfanumérico** 2 caracteres em 11, **byte** gasta 8 bits por byte. Um telefone em dígitos puros cabe num símbolo visivelmente mais grosso que o mesmo número em bytes — e módulo maior é módulo mais fácil de escanear. Se você controla o formato do payload, caixa alta e sem acento vale tamanho de símbolo.
+
+!!! warning "Zona de silêncio abaixo de 4 módulos é onde leitor começa a errar"
+    O `margin` default segue a norma. Diminuir pra ganhar espaço na tela é a otimização que mais custa taxa de leitura.
+
+!!! info "Nível de correção não é qualidade — é tolerância a dano"
+    `L` basta pra QR de tela, que ninguém amassa. `Q`/`H` valem quando o símbolo vai pra papel, adesivo, vitrine ou crachá: recuperam ~25%/~30% dos codewords, então rasgo, dobra e sujeira ainda leem. O custo é um símbolo maior pro mesmo conteúdo.
+
+!!! note "Leitor de tela não escaneia"
+    Por isso o `aria-label` default **nomeia o conteúdo** (`QR code: https://…`) em vez de dizer só "QR code". Quando o payload é opaco — um BR Code do Pix, por exemplo — passe `label` descrevendo o que ele faz, e ofereça o mesmo dado em texto ou botão de copiar ao lado.
+
+#### Conteúdo grande demais
+
+Um payload que não cabe nem numa versão 40 lança `QRCapacityError` em vez de desenhar um símbolo truncado que escaneia errado. É erro de programação, não estado a renderizar — se o conteúdo vem do usuário, valide antes ou embrulhe num [`ErrorBoundary`](../error-boundary.md).
+
+```tsx
+import { encodeQR, QRCapacityError } from "tempest-react-sdk";
+
+try {
+  encodeQR(payload, { level: "H" });
+} catch (error) {
+  if (error instanceof QRCapacityError) {
+    // error.length (bytes) e error.level
+  }
+}
+```
+
+`encodeQR(value, { level, minVersion })` devolve a matriz crua (`modules`, `size`, `version`, `mode`, `mask`) pra quem precisa desenhar por conta própria — canvas, PDF, etiqueta térmica. `matrixToPath(matrix, margin)` gera o mesmo `d` que o componente usa.
+
 ---
 
 ## Recap
 
 - **Display**: `CopyButton` (clipboard + estado transiente), `RelativeTime` (`<time>` relativo), `Money` (centavos → moeda), `TruncateText` (line-clamp), `VisuallyHidden` (sr-only).
 - **Headless/lógicos**: `Portal` (SSR-safe), `ClickOutside`, `ConditionalWrapper`, `For` (lista tipada com fallback), `ErrorText` (erro de campo `role="alert"`).
-- **Mídia/conteúdo**: `Image` (lazy + fallback), `DataList` (`<ul>` genérico), `DescriptionList` (`<dl>` termo/valor).
+- **Mídia/conteúdo**: `Image` (lazy + fallback), `DataList` (`<ul>` genérico), `DescriptionList` (`<dl>` termo/valor), `CodeBlock` (amostra de código com realce), `QRCode` (símbolo QR em SVG, codificado no browser).
 - Componentes "display" e "conteúdo" usam tokens `--tempest-*`; os headless não trazem CSS — você fornece a marcação.
 
 ## Veja também
@@ -13205,6 +13557,18 @@ applyTheme(createTheme({ primary: "#7c3aed", radius: "lg" }));
 Isso emite os mesmos tokens desta página — é açúcar sobre a API de token, não um segundo sistema de tema. Guia completo em [Tema › `createTheme`](theme.md#createtheme-a-marca-inteira-a-partir-de-uma-cor).
 
 ---
+
+
+### Cores de sintaxe (`--tempest-code-*`)
+
+`CodeBlock` pinta com dez tokens próprios: `comment` · `punctuation` · `string` · `number` · `keyword` · `literal` · `function` · `tag` · `attribute` · `property`.
+
+!!! danger "Não reaproveite a rampa de chart pra texto"
+    É tentador — as oito cores de série já existem e já são validadas. Mas elas são validadas pro piso de **marca**: 3:1, que é o que a WCAG pede pra um elemento gráfico. Cor de sintaxe é **texto**, e texto precisa de **4,5:1**. Medindo a rampa como texto no browser, uma palavra-chave em `--tempest-chart-1` deu **3,47:1** na superfície escura e uma string em `--tempest-chart-3` deu **2,03:1** na clara. As duas passam como marca e reprovam como texto.
+
+Cada token de código foi resolvido em OKLCH: fixa a matiz, e busca a claridade mais alta (no dark, a mais baixa) que ainda passa AA contra **os dois fundos** em que o token pode cair — a superfície do bloco e a linha marcada, depois que o realce de 10% do primary compõe sobre ela. Resolver só contra a superfície não basta: o realce move o chão, e uma palavra-chave chegou a medir 4,17:1 em cima dele.
+
+`src/styles/colors.contrast.test.ts` lê o `colors.css` e reafere cada token nos dois modos contra os dois fundos. Se você sobrescrever esses tokens no seu app, refaça essa conta.
 
 ## Tipografia
 

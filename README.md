@@ -1105,7 +1105,7 @@ export function PushToggle() {
   const push = usePushSubscription({
     vapidPublicKey: import.meta.env.VITE_VAPID_PUBLIC_KEY,
     onSubscribe: (subscription) => api.post("/webpush/subscribe", { body: subscription }),
-    onUnsubscribe: () => api.delete("/webpush/my"),
+    onUnsubscribe: (sub) => api.delete("/webpush/subscribe", { body: { endpoint: sub.endpoint } }),
   });
 
   if (!push.supported) return <p>Push não suportado neste navegador.</p>;
@@ -1130,7 +1130,7 @@ import { WebPushClient } from "tempest-react-sdk";
 const push = new WebPushClient({
   vapidPublicKey: VAPID_PUBLIC_KEY,
   onSubscribe: (sub) => api.post("/webpush/subscribe", { body: sub }),
-  onUnsubscribe: () => api.delete("/webpush/my"),
+  onUnsubscribe: (sub) => api.delete("/webpush/subscribe", { body: { endpoint: sub.endpoint } }),
 });
 
 await push.subscribe();

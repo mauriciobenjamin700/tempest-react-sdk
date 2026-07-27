@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.29.0] — 2026-07-27
+
 ### Adicionado
 
 - **`tempest fix --extract-css` — o bloco repetido vira classe global, e o TSX é

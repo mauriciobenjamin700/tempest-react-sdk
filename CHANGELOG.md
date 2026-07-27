@@ -163,6 +163,22 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `.navbar.primary` (viraram `--tempest-primary` e `--tempest-primary-foreground`) e
   `--tempest-danger-on` no badge do `BottomNavigation` (ganhou o fallback `#fff` que o
   `NavigationRail` já usava, mantendo o knob).
+- **`Table`, `VirtualList` e `ScrollArea` viraram alcançáveis por teclado enquanto rolam.**
+  Um contêiner de rolagem cujo conteúdo não tem nada focável dentro é inacessível pelo
+  teclado: o foco nunca pousa onde as setas rolariam, então quem navega assim **vê** a
+  barra de rolagem e não tem como movê-la. Os três caíam nisso — tabela larga, lista
+  virtual (linhas posicionadas em absoluto) e área de rolagem com texto puro.
+- A parada de tabulação (`tabIndex={0}` + `role`/`aria-label`) aparece **só enquanto o
+  transbordo é real** e some quando o conteúdo cabe. Colocá-la sempre poluiria a ordem
+  de tabulação com um stop por contêiner na página, inclusive nos que não rolam.
+  Verificado no browser: no `Table`, encolher pra 390 px cria a parada e as setas passam
+  a rolar de fato (`scrollLeft` 0 → 80); voltar pra 1400 px remove.
+- Novo hook público `useScrollOverflow(ref, axis?)` com a medição. Observa **a caixa e o
+  conteúdo**: conteúdo cresce dentro de caixa parada e caixa encolhe em volta de conteúdo
+  parado, e olhar só um perde metade das transições. Diferença de 1 px é arredondamento
+  de layout, não transbordo.
+- Nomes novos: `Table.scrollLabel`, `ScrollArea.scrollLabel` (default `"Área rolável"`) e
+  `VirtualList.label`. Uma parada de foco que não anuncia nada é pior que parada nenhuma.
 
 - **As duas fontes do mesmo token discordavam da direção no modo escuro.** O
   `colors.css` declara token 1 = passo mais escuro no dark (o que recua pra superfície

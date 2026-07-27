@@ -52,6 +52,11 @@
     outline-offset: -2px;
 }
 
+.scroll:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: 2px;
+}
+
 .alignRight {
     text-align: right;
 }

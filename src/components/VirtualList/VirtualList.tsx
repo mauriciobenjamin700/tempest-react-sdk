@@ -17,6 +17,12 @@ export interface VirtualListProps<T> {
     getKey?: (item: T, index: number) => string | number;
     className?: string;
     style?: CSSProperties;
+    /**
+     * Accessible name for the list. Worth setting when the list scrolls: it
+     * then carries a tab stop of its own, and a focus stop that announces
+     * nothing is worse than no focus stop.
+     */
+    label?: string;
 }
 
 /**
@@ -35,6 +41,7 @@ export function VirtualList<T>({
     getKey,
     className,
     style,
+    label,
 }: VirtualListProps<T>) {
     const containerRef = useRef<HTMLDivElement>(null);
     const [scrollTop, setScrollTop] = useState<number>(0);
@@ -51,6 +58,14 @@ export function VirtualList<T>({
     }, []);
 
     const totalHeight = items.length * itemHeight;
+    /*
+     * Rows are absolutely positioned inside the spacer, so nothing in a
+     * virtual list is focusable by default: a keyboard user can see the
+     * scrollbar and has no way to move it. The tab stop only appears while
+     * there is something past the fold — measured from the numbers already at
+     * hand rather than from the DOM.
+     */
+    const scrollable = viewport > 0 && totalHeight - viewport > 1;
     const start = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan);
     const visibleCount = Math.ceil(viewport / itemHeight) + overscan * 2;
     const end = Math.min(items.length, start + visibleCount);
@@ -62,6 +77,8 @@ export function VirtualList<T>({
             style={{ height, ...style }}
             onScroll={(event) => setScrollTop((event.target as HTMLDivElement).scrollTop)}
             role="list"
+            aria-label={label}
+            tabIndex={scrollable ? 0 : undefined}
         >
             <div className={styles.spacer} style={{ height: totalHeight }}>
                 {items.slice(start, end).map((item, offset) => {

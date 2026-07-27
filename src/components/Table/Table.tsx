@@ -1,5 +1,7 @@
+import { useRef } from "react";
 import type { ReactNode } from "react";
 import { cn } from "@/utils/cn";
+import { useScrollOverflow } from "@/hooks/use-scroll-overflow";
 import styles from "./Table.module.css";
 
 export type TableAlign = "left" | "right" | "center";
@@ -32,6 +34,12 @@ export interface TableProps<T> {
      * Better than horizontal scroll when each row has 3+ columns of dense data.
      */
     stackOnMobile?: boolean;
+    /**
+     * Accessible name for the scrollable region, used only while the table is
+     * actually wider than its box. A focus stop that announces nothing is worse
+     * than no focus stop, so name the table when the page holds several.
+     */
+    scrollLabel?: string;
 }
 
 function priorityClass(priority: TablePriority | undefined): string | undefined {
@@ -55,9 +63,19 @@ export function Table<T>({
     emptyMessage = "Nenhum registro encontrado.",
     className,
     stackOnMobile = false,
+    scrollLabel = "Tabela rolável horizontalmente",
 }: TableProps<T>) {
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const scrollable = useScrollOverflow(scrollRef, "horizontal");
+
     return (
-        <div className={cn(styles.scroll, stackOnMobile && styles.stackable, className)}>
+        <div
+            ref={scrollRef}
+            className={cn(styles.scroll, stackOnMobile && styles.stackable, className)}
+            tabIndex={scrollable ? 0 : undefined}
+            role={scrollable ? "group" : undefined}
+            aria-label={scrollable ? scrollLabel : undefined}
+        >
             <table className={styles.table}>
                 <thead className={cn(stackOnMobile && styles.stackableHead)}>
                     <tr>

@@ -32,6 +32,7 @@ granulares, testados e independentes — importe só o que precisar.
 | `useDocumentVisibility()`                         | `document.visibilityState` reativo.                                                                          |
 | `useIntersectionObserver(ref, opts?)`             | `IntersectionObserverEntry` ou `null`.                                                                       |
 | `useResizeObserver(ref)`                          | `{ width, height }` da referência.                                                                           |
+| `useScrollOverflow(ref, axis?)`                    | `true` enquanto o conteúdo transborda a caixa — use pra dar ponto de tabulação a um contêiner de rolagem só quando há o que rolar. |
 | `useScrollLock(active)`                           | Lock de `body.overflow`.                                                                                     |
 | `useFocusTrap(ref, active)`                       | Confina Tab dentro do container.                                                                             |
 | `useHover(ref)` / `useLongPress(handler, opts?)`  | Gestos de ponteiro (hover reativo / long-press).                                                             |

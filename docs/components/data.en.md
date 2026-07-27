@@ -448,6 +448,7 @@ A sparkline has no axis and no legend to fall back on — without that sentence 
 Key accessibility points:
 
 - `Table` uses `<th scope="col">` (already included); `onRowClick` applies `role="button"` + `tabIndex={0}`.
+- `Table` and `VirtualList` take a **tab stop of their own while they scroll** (`role="group"`/`role="list"` + `tabIndex={0}`), and drop it once the content fits. Without it the container holds nothing focusable and a keyboard user can see the scrollbar with no way to move it. Name it with `scrollLabel` (Table) or `label` (VirtualList) when the page holds several.
 - `VirtualList`: items outside the viewport are not rendered — `Ctrl+F` only finds the visible window.
 - `VirtualTable`: stays a real `<table>` (spacer rows instead of absolute positioning), with `aria-rowcount`/`aria-rowindex` carrying real indices rather than window indices; sortable headers expose `aria-sort`.
 - `Accordion`: ↑↓ switch the focused item, Home/End jump to the first/last.

@@ -264,6 +264,8 @@ export { QRCode, encodeQR, matrixToPath, selectMode, QRCapacityError } from "./Q
 export type { QRCodeProps, QRErrorCorrection, QRMatrix, QRMode, QREncodeOptions } from "./QRCode";
 
 // Generic display
+export { CodeBlock, tokenize, tokenizeLines, resolveLanguage } from "./CodeBlock";
+export type { CodeBlockProps, CodeLanguage, Token, TokenKind } from "./CodeBlock";
 export { CopyButton } from "./CopyButton";
 export type { CopyButtonProps } from "./CopyButton";
 

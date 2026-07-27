@@ -1,0 +1,159 @@
+.wrapper {
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-lg);
+    background-color: var(--tempest-surface);
+    overflow: hidden;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--tempest-space-2);
+    padding: var(--tempest-space-2) var(--tempest-space-3);
+    border-bottom: 1px solid var(--tempest-border);
+    background-color: var(--tempest-bg);
+}
+
+.filename {
+    font-family: var(--tempest-font-mono);
+    font-size: var(--tempest-text-xs);
+    color: var(--tempest-text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.copy {
+    flex-shrink: 0;
+}
+
+.pre {
+    margin: 0;
+    padding: var(--tempest-space-3) 0;
+    overflow: auto;
+    font-family: var(--tempest-font-mono);
+    font-size: var(--tempest-text-sm);
+    line-height: 1.6;
+    tab-size: 4;
+}
+
+.pre:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: -2px;
+}
+
+.code {
+    display: block;
+    font: inherit;
+    min-width: max-content;
+}
+
+.wrap .code {
+    min-width: 0;
+}
+
+.wrap .lineContent {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+/*
+ * `inline-block` with a full-width box, not `flex`: the line break comes from
+ * the real newline character inside the line, and a flex item would wrap on it
+ * and render every line twice as tall. Full width is what lets the marked-line
+ * background span the whole row rather than stopping at the last character.
+ */
+.line {
+    display: inline-block;
+    width: 100%;
+    padding-inline: var(--tempest-space-3);
+}
+
+/*
+ * The marked line is called out with a left bar and a tinted ground rather than
+ * a different text colour: the syntax colours already carry meaning, and
+ * recolouring the text would collide with them.
+ *
+ * The tint is a thin wash of the primary rather than `--tempest-primary-soft`,
+ * because it sits *behind text*. The soft token is a solid ground and moved the
+ * effective background far enough to drop a keyword to 3.94:1 in dark mode —
+ * the syntax colours are solved against the code surface, so the highlight has
+ * to leave that surface roughly where it was. The bar carries the emphasis.
+ */
+.marked {
+    background-color: color-mix(in srgb, var(--tempest-primary) 10%, transparent);
+    box-shadow: inset 2px 0 0 var(--tempest-primary);
+}
+
+/*
+ * The gutter wears the comment colour, not `--tempest-text-subtle`: subtle is
+ * tuned to recede against the page and measures 4.04:1 on the dark code
+ * surface, which is below AA. The comment token recedes the same way and is
+ * solved for that surface.
+ */
+.lineNumber {
+    display: inline-block;
+    width: 2.5ch;
+    margin-right: var(--tempest-space-3);
+    text-align: right;
+    color: var(--tempest-code-comment);
+    user-select: none;
+}
+
+.lineContent {
+    white-space: pre;
+}
+
+/*
+ * Syntax colours come from their own `--tempest-code-*` tokens, not from the
+ * chart ramp. The ramp is validated for marks, where the contrast floor is 3:1;
+ * this is text and needs 4.5:1, and measuring the ramp as text fails in both
+ * modes (a keyword came out at 3.47 on the dark surface, a string at 2.03 on
+ * the light one). The code tokens are solved for that floor instead.
+ */
+.comment {
+    color: var(--tempest-code-comment);
+    font-style: italic;
+}
+
+.string {
+    color: var(--tempest-code-string);
+}
+
+.number {
+    color: var(--tempest-code-number);
+}
+
+.keyword {
+    color: var(--tempest-code-keyword);
+    font-weight: 600;
+}
+
+.literal {
+    color: var(--tempest-code-literal);
+}
+
+.function {
+    color: var(--tempest-code-function);
+}
+
+.tag {
+    color: var(--tempest-code-tag);
+}
+
+.attribute {
+    color: var(--tempest-code-attribute);
+}
+
+.property {
+    color: var(--tempest-code-property);
+}
+
+.punctuation {
+    color: var(--tempest-code-punctuation);
+}
+
+.plain {
+    color: var(--tempest-text);
+}

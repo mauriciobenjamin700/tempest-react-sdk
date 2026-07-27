@@ -157,6 +157,18 @@ Isso emite os mesmos tokens desta página — é açúcar sobre a API de token, 
 
 ---
 
+
+### Cores de sintaxe (`--tempest-code-*`)
+
+`CodeBlock` pinta com dez tokens próprios: `comment` · `punctuation` · `string` · `number` · `keyword` · `literal` · `function` · `tag` · `attribute` · `property`.
+
+!!! danger "Não reaproveite a rampa de chart pra texto"
+    É tentador — as oito cores de série já existem e já são validadas. Mas elas são validadas pro piso de **marca**: 3:1, que é o que a WCAG pede pra um elemento gráfico. Cor de sintaxe é **texto**, e texto precisa de **4,5:1**. Medindo a rampa como texto no browser, uma palavra-chave em `--tempest-chart-1` deu **3,47:1** na superfície escura e uma string em `--tempest-chart-3` deu **2,03:1** na clara. As duas passam como marca e reprovam como texto.
+
+Cada token de código foi resolvido em OKLCH: fixa a matiz, e busca a claridade mais alta (no dark, a mais baixa) que ainda passa AA contra **os dois fundos** em que o token pode cair — a superfície do bloco e a linha marcada, depois que o realce de 10% do primary compõe sobre ela. Resolver só contra a superfície não basta: o realce move o chão, e uma palavra-chave chegou a medir 4,17:1 em cima dele.
+
+`src/styles/colors.contrast.test.ts` lê o `colors.css` e reafere cada token nos dois modos contra os dois fundos. Se você sobrescrever esses tokens no seu app, refaça essa conta.
+
 ## Tipografia
 
 ### Famílias

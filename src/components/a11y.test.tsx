@@ -27,6 +27,7 @@ import { SearchBar } from "./SearchBar";
 import { SegmentedControl } from "./SegmentedControl";
 import { Select } from "./Select";
 import { Sparkline } from "./Sparkline";
+import { CodeBlock } from "./CodeBlock";
 import { QRCode } from "./QRCode";
 import { Spinner } from "./Spinner";
 import { Switch } from "./Switch";
@@ -155,6 +156,7 @@ const CASES: [name: string, ui: ReactElement][] = [
     ],
     ["Sparkline", <Sparkline data={[4, 8, 6, 12, 9, 15]} />],
     ["QRCode", <QRCode value="https://tempest.dev" />],
+    ["CodeBlock", <CodeBlock code={"const a = 1;\n// x"} language="ts" filename="a.ts" />],
     ["Accordion", <Accordion items={[{ id: "a", title: "Seção A", children: <p>Corpo A</p> }]} />],
     [
         "Table",

@@ -222,6 +222,30 @@
     --tempest-chart-grid: var(--tempest-gray-200);
     --tempest-chart-axis: var(--tempest-gray-500);
 
+    /*
+     * Syntax colours for `CodeBlock`.
+     *
+     * These are text, so they need 4.5:1 against the code surface — the chart
+     * ramp does not qualify: it is tuned for marks, where the floor is 3:1, and
+     * measuring it as text fails in both modes. Each hue below was solved in
+     * OKLCH for the lightest (dark mode: darkest) value that still clears AA
+     * against *both* grounds a token can land on: the plain code surface, and a
+     * highlighted line after its wash of the primary composites over that
+     * surface. Solving against the surface alone is not enough — the highlight
+     * moves the ground, and a keyword measured 4.17:1 there.
+     * `styles/colors.contrast.test.ts` re-checks every one of them.
+     */
+    --tempest-code-comment: #5f666e;
+    --tempest-code-punctuation: #5d6671;
+    --tempest-code-string: #327243;
+    --tempest-code-number: #9d5035;
+    --tempest-code-keyword: #625baf;
+    --tempest-code-literal: #9f4c4f;
+    --tempest-code-function: #1a6c94;
+    --tempest-code-tag: #974d72;
+    --tempest-code-attribute: #127171;
+    --tempest-code-property: #127171;
+
     /* ============================================================
      * Safe-area insets (iOS notch / Android gesture area) — fall back
      * to 0 when not supported. Use to keep fixed-position elements
@@ -340,4 +364,16 @@
 
     --tempest-chart-grid: var(--tempest-gray-300);
     --tempest-chart-axis: var(--tempest-gray-600);
+
+    /* Syntax colours, solved against the dark surface. See the light block. */
+    --tempest-code-comment: #838b93;
+    --tempest-code-punctuation: #818b95;
+    --tempest-code-string: #589866;
+    --tempest-code-number: #c57558;
+    --tempest-code-keyword: #8580d8;
+    --tempest-code-literal: #c87172;
+    --tempest-code-function: #2893c6;
+    --tempest-code-tag: #c07197;
+    --tempest-code-attribute: #349897;
+    --tempest-code-property: #349897;
 }

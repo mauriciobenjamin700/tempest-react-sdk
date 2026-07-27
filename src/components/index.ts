@@ -405,3 +405,6 @@ export { Markdown } from "./Markdown";
 export type { MarkdownProps } from "./Markdown";
 export { parseMarkdown, safeLinkUrl } from "./Markdown";
 export type { MarkdownAlign, MarkdownBlock, MarkdownInline } from "./Markdown";
+
+export { Tour } from "./Tour";
+export type { TourPlacement, TourProps, TourStep } from "./Tour";

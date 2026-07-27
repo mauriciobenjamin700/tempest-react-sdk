@@ -8,14 +8,14 @@ SDK público da Tempest com componentes React, hooks e integrações reutilizáv
 
 - **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 30 tags publicadas (0.1.0 → 0.23.0) com signed provenance via OIDC. Histórico completo em `RELEASES.md` (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
 - **Testes**: 2488 testes em 377 arquivos, ~36 s sob `vitest + jsdom + fake-indexeddb`. Cobertura 98.5% linhas / 97.1% statements / 96.6% funções / 95.0% branches; pisos do CI em 98/97/96/94.
-- **Superfície**: 34 módulos em `src/`, 115 componentes, 46 hooks (+ `useNotificationInbox`, que mora junto do `NotificationCenter`), 384 exports na entrada raiz.
+- **Superfície**: 34 módulos em `src/`, 116 componentes, 46 hooks (+ `useNotificationInbox`, que mora junto do `NotificationCenter`), 384 exports na entrada raiz.
 - **Empacotamento (v0.25.0)**: `dist/` preserva o grafo de módulos (`preserveModules`). O que o app paga de fato (brotli): `{ cn }` 153 B · `{ Button }` 794 B · app típico 6.83 KB · offline/PWA 4.44 KB · `styles.css` 21.68 KB · `utilities.css` 1.13 KB (opt-in). Teto sem tree-shaking: 70.21 KB ESM / 85.52 KB CJS. Budgets do `size-limit` são **por fatia importada**, não pelo barrel.
 - **Subpaths** (11): `.`, `/testing` (MSW), `/vite` (`createViteConfig` + plugins), `/sw` (helpers de contexto SW), `/charts` (recharts peer), `/editor` (tiptap peer), `/vision` (onnxruntime-web peer), `/br` (dataset BR + mapa clicável), `/icons` (ícone por slug, 25 shards lazy), `/icons/virtual` (declaração ambiente do módulo do plugin), `/styles.css`, `/utilities.css` (camada de layout opt-in).
 - **CLIs** (`bin/`): `create-tempest-app` (scaffold — invocado como `npx -p tempest-react-sdk create-tempest-app .`; **não** existe pacote `create-tempest-app` no npm, então `npm create tempest-app` dá 404) com templates `template/` e `template-pwa/`; `tempest` (project CLI: `doctor`, `lint`, `fix`, `format`, `gen api <openapi>` → Zod + types + services, `gen icons` → registry estático de ícone).
 - **Style modules**: `colors.css` + `typography.css` + `motion.css` + `density.css` + `reset.css` + `responsive.css` + `print.css`; `utilities.css` fica **fora** do bundle (opt-in, copiado pra `dist/` no build).
 - **Tooling**: Prettier 3, Husky pre-commit (lint-staged), `Makefile` + `scripts/release.sh` (tag-push pipeline) + `scripts/changelog.mjs` (notes/close) + `scripts/sync-github-releases.sh` (backfill de Releases), 5 workflows — `ci.yml` (PR, matriz node 20/22), `release-npm.yml` (tag push → guard de versão + publish OIDC + read-back do registry + GitHub Release), `size-limit.yml`, `e2e.yml` (gallery), `docs.yml` (Pages).
 - **Docs**: 44 páginas base em `docs/` (88 arquivos com as traduções `.en.md`) + 10 páginas de componentes por categoria + tutorial de 6 páginas + 3 diagramas drawio + `llms.txt`/`llms-full.txt` (`npm run docs:llms`).
-- **Demo vivo**: app Vite em `examples/gallery` (38 sections) consome o SDK via `file:../..`.
+- **Demo vivo**: app Vite em `examples/gallery` (39 sections) consome o SDK via `file:../..`.
 
 ### Adapter design pattern (consolidado v0.1.3+)
 
@@ -54,7 +54,7 @@ tempest-react-sdk/
 │   ├── auth/           createAuthStore, AuthGuard, decodeJWT, lazyWithRetry, createRefreshQueue, createTempestAuth
 │   ├── br/          ⇢  dataset de estados/municípios + mapa UF clicável + centroides (chunks lazy)
 │   ├── charts/      ⇢  wrappers recharts
-│   ├── components/     115 componentes UI
+│   ├── components/     116 componentes UI
 │   ├── data/           createDataProvider, <TempestDataProvider>, useDataProvider (CRUD por recurso)
 │   ├── editor/      ⇢  RichTextEditor (tiptap)
 │   ├── error-boundary/ ErrorBoundary, useErrorHandler
@@ -89,7 +89,7 @@ tempest-react-sdk/
 ├── template/           scaffold Vite+React+TS
 ├── template-pwa/       scaffold PWA (SW próprio + vite.sw.config.ts)
 ├── docs/               44 páginas base (+ .en.md) + components/ + tutorial/ + diagrams/ + llms.txt
-├── examples/gallery/   app Vite com 38 sections consumindo o SDK (file:../..)
+├── examples/gallery/   app Vite com 39 sections consumindo o SDK (file:../..)
 ├── test/setup.ts       jsdom + jest-dom + fake-indexeddb auto
 ├── Makefile            release / validate / bump / releases-md / releases-check / releases-sync alvos
 ├── scripts/            release.sh (tag-push), changelog.mjs, sync-github-releases.sh, gen-llms.mjs, gen-br-geodata.mjs, vendor-vision.mjs
@@ -103,7 +103,7 @@ tempest-react-sdk/
 
 ## Backlog priorizado
 
-Entregue e fora do backlog: **`Sparkline`** (mini-gráfico inline, sem recharts), **escala contínua de data viz** (`sequentialScale`/`divergingScale`), **`NotificationCenter`** (inbox de push), **`VirtualTable`**, **ícone por slug (`/icons`, issue #37)**, **`tempest fix` convertendo import relativo pra `@/` (issue #56)**, release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`), sweep `axe` em jsdom + smoke Playwright do gallery (`e2e.yml`), coverage gateando o CI (pisos 98/97/96/94), política de versionamento de tokens CSS (`docs/styles.md`).
+Entregue e fora do backlog: **`QRCode`** (encoder ISO 18004 próprio, 3,2 KB br), **`Sparkline`** (mini-gráfico inline, sem recharts), **escala contínua de data viz** (`sequentialScale`/`divergingScale`), **`NotificationCenter`** (inbox de push), **`VirtualTable`**, **ícone por slug (`/icons`, issue #37)**, **`tempest fix` convertendo import relativo pra `@/` (issue #56)**, release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`), sweep `axe` em jsdom + smoke Playwright do gallery (`e2e.yml`), coverage gateando o CI (pisos 98/97/96/94), política de versionamento de tokens CSS (`docs/styles.md`).
 
 ### P1 — componentes
 
@@ -113,7 +113,7 @@ de componente passa a ser a lista P2 abaixo.
 
 ### P2 — componentes
 
-`Chat`/thread de comentários · `Transfer` (dual list) · `FilterBar`/QueryBuilder · `Masonry` · `Tour`/coachmarks · `QRCode` · `CodeBlock` · `Markdown`.
+`Chat`/thread de comentários · `Transfer` (dual list) · `FilterBar`/QueryBuilder · `Masonry` · `Tour`/coachmarks · `CodeBlock` · `Markdown`.
 
 ### P2 — CSS pronto (o que sobrou da fatia)
 

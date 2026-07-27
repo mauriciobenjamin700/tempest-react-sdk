@@ -260,6 +260,8 @@ export type {
     VirtualTableSort,
     VirtualTableSortDirection,
 } from "./VirtualTable";
+export { QRCode, encodeQR, matrixToPath, selectMode, QRCapacityError } from "./QRCode";
+export type { QRCodeProps, QRErrorCorrection, QRMatrix, QRMode, QREncodeOptions } from "./QRCode";
 
 // Generic display
 export { CopyButton } from "./CopyButton";

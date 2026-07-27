@@ -15,6 +15,7 @@ import { TableSection } from "./TableSection";
 import { DataTableSection } from "./DataTableSection";
 import { DataVizScalesSection } from "./DataVizScalesSection";
 import { ImageCropperSection } from "./ImageCropperSection";
+import { QRCodeSection } from "./QRCodeSection";
 import { SchedulerSection } from "./SchedulerSection";
 import { SparklineSection } from "./SparklineSection";
 import { VirtualTableSection } from "./VirtualTableSection";
@@ -251,6 +252,14 @@ export const SECTIONS: SectionEntry[] = [
             "sparkline mini grafico inline tendencia serie linha area barra tabela kpi sem eixo svg",
         group: "Componentes",
         Component: SparklineSection,
+    },
+    {
+        id: "qrcode",
+        label: "QRCode",
+        keywords:
+            "qrcode qr code pix boleto link convite svg encoder reed-solomon nivel correcao L M Q H",
+        group: "Componentes",
+        Component: QRCodeSection,
     },
     {
         id: "material",

@@ -6,6 +6,32 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`QRCode` — símbolo QR codificado no browser, sem dependência.** Um gerador
+  remoto entregaria o conteúdo — link de pagamento, token de sessão, convite — a um
+  terceiro; o encoder inteiro custa **3,2 KB brotli** importando `{ QRCode }`.
+  Implementação completa da ISO/IEC 18004: seleção de modo, versões 1–40, os quatro
+  níveis de correção, Reed-Solomon sobre GF(256), intercalação de blocos e os 8
+  padrões de máscara com a função de penalidade da norma.
+- **Validado contra um decoder independente, não contra si mesmo.** As tabelas da
+  norma são transcritas à mão e uma entrada errada gera um símbolo perfeitamente
+  plausível que escaneia como nada — comparar o encoder com ele mesmo confirmaria o
+  erro de digitação. Os testes codificam e mandam o resultado pro `jsqr` (devDep):
+  11 round-trips cobrindo URL, os quatro níveis, os três modos, UTF-8 com acento,
+  emoji, payload com vários blocos de ECC e versão ≥ 7. No browser real, os 8
+  símbolos da seção do gallery foram rasterizados em canvas e decodificados.
+- **Preto no branco nos dois temas, de propósito** — a única parte do SDK que ignora
+  os tokens. Leitor de QR espera escuro sobre claro; ligar os módulos em
+  `--tempest-text` inverteria eles no dark mode e deixaria símbolo claro sobre fundo
+  branco, que não lê como nada.
+- Desenhado em **SVG num único path** com as corridas horizontais fundidas: um
+  símbolo versão 10 tem 3 481 módulos, e um elemento por módulo custa tempo de pintura
+  de verdade. Fica nítido em qualquer tamanho e imprime na resolução da impressora.
+- `aria-label` default **nomeia o conteúdo** (`QR code: https://…`) — leitor de tela
+  não escaneia, então o dado tem que chegar como texto.
+- Conteúdo que não cabe nem na versão 40 lança `QRCapacityError` em vez de desenhar
+  um símbolo truncado que escaneia errado.
+- `encodeQR` e `matrixToPath` são exportados pra quem precisa desenhar por conta —
+  canvas, PDF, etiqueta térmica.
 - **`Sparkline` — mini-gráfico inline, na entrada raiz e sem recharts.** Uma coluna de
   tendência numa tabela não deveria obrigar o app a instalar uma biblioteca de gráfico
   inteira: são ~40 linhas de SVG. Três variantes (`line`, `area`, `bar`), tamanho e cor

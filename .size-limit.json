@@ -154,9 +154,9 @@
     ]
   },
   {
-    "name": "ceiling: full barrel ESM (nobody imports this — tree-shaking is the real cost)",
+    "name": "ceiling: full barrel ESM (nobody imports this \u2014 tree-shaking is the real cost)",
     "path": "dist/tempest-react-sdk.js",
-    "limit": "80 KB",
+    "limit": "83 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -173,9 +173,9 @@
     ]
   },
   {
-    "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
+    "name": "ceiling: full barrel CJS (no tree-shaking \u2014 worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "97 KB",
+    "limit": "100 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -222,13 +222,13 @@
     "ignore": ["onnxruntime-web"]
   },
   {
-    "name": "br entry — full opt-in surface incl. ALL lazy UF/municipality/centroid chunks",
+    "name": "br entry \u2014 full opt-in surface incl. ALL lazy UF/municipality/centroid chunks",
     "path": "dist/br.js",
     "limit": "500 KB",
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
-    "name": "slice: icons — no-shard surface (`{ IconProvider, createIconRegistry }`)",
+    "name": "slice: icons \u2014 no-shard surface (`{ IconProvider, createIconRegistry }`)",
     "path": "dist/icons.js",
     "import": {
       "./dist/icons.js": "{ IconProvider, createIconRegistry }"
@@ -237,13 +237,13 @@
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
-    "name": "ceiling: largest icon shard (`s`) — the real cost of ONE lazy fetch",
+    "name": "ceiling: largest icon shard (`s`) \u2014 the real cost of ONE lazy fetch",
     "path": "dist/icons/generated/shard-s.js",
     "limit": "22 KB",
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
-    "name": "ceiling: icons — `{ Icon }` incl. ALL 25 lazy shards (lucide MEASURED)",
+    "name": "ceiling: icons \u2014 `{ Icon }` incl. ALL 25 lazy shards (lucide MEASURED)",
     "path": "dist/icons.js",
     "import": {
       "./dist/icons.js": "{ Icon }"
@@ -252,10 +252,32 @@
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
-    "name": "ceiling: icons — full surface incl. the 1997-slug list and every shard",
+    "name": "ceiling: icons \u2014 full surface incl. the 1997-slug list and every shard",
     "path": "dist/icons.js",
     "limit": "145 KB",
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
+  },
+  {
+    "name": "slice: QRCode (ISO 18004 encoder + SVG, no dependency)",
+    "path": "dist/tempest-react-sdk.js",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ QRCode }"
+    },
+    "limit": "4 KB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router",
+      "fflate"
+    ]
   },
   {
     "name": "styles.css",

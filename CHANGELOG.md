@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.28.0] — 2026-07-27
+
 ### Adicionado
 
 - **Análise de CSS no `tempest doctor` e no `tempest fix`.** O ESLint não lê `.css` e o

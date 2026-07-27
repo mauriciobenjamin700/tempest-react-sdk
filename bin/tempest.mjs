@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 import { aliasImports } from "./lib/alias/index.mjs";
 import { loadTypeScript } from "./lib/alias/typescript.mjs";
 import { readTsconfig } from "./lib/alias/tsconfig.mjs";
-import { analyzeCss, applyCssFixes } from "./lib/css/index.mjs";
+import { analyzeCss, applyCssFixes, applyExtraction, planExtraction } from "./lib/css/index.mjs";
 import { checkLucide } from "./lib/doctor/lucide.mjs";
 import { generateRegistry, loadIconTables } from "./lib/icons/generate.mjs";
 import { generate } from "./lib/openapi/generate.mjs";
@@ -814,7 +814,36 @@ function lint(args) {
 }
 
 /** Flags `fix` owns itself; anything else is rejected rather than forwarded. */
-const FIX_FLAGS = new Set(["--no-alias", "--no-css", "--dry-run"]);
+const FIX_FLAGS = new Set(["--no-alias", "--no-css", "--dry-run", "--extract-css"]);
+
+/** Flags of `fix` that consume the next argument as their value. */
+const FIX_VALUE_FLAGS = new Set(["--css-target", "--css-prefix"]);
+
+/**
+ * Split the `fix` argv into flags, flag values and positional paths.
+ *
+ * `splitArgs` cannot do this: it classifies by leading `-`, so the value of
+ * `--css-target src/index.css` would land in the path list and `fix` would run
+ * against a single stylesheet instead of the project.
+ *
+ * @param {string[]} args
+ * @returns {{ flags: string[], values: Record<string, string>, paths: string[] }}
+ */
+function parseFixArgs(args) {
+    const flags = [];
+    const values = {};
+    const paths = [];
+    for (let i = 0; i < args.length; i += 1) {
+        const arg = args[i];
+        if (FIX_VALUE_FLAGS.has(arg)) {
+            values[arg] = args[i + 1] ?? "";
+            i += 1;
+            continue;
+        }
+        (arg.startsWith("-") ? flags : paths).push(arg);
+    }
+    return { flags, values, paths };
+}
 
 /**
  * Print the alias pass result.
@@ -875,9 +904,12 @@ function severityMark(severity) {
  * @param {object} params
  * @param {string[]} params.targets - Positional paths from the command line.
  * @param {boolean} params.dryRun
+ * @param {boolean} [params.extract] - Run the opt-in cross-file extraction codemod.
+ * @param {string} [params.target] - Global stylesheet to extract into.
+ * @param {string} [params.prefix] - Prefix for the extracted class names.
  * @returns {number} Exit status contribution.
  */
-function cssPass({ targets, dryRun }) {
+function cssPass({ targets, dryRun, extract = false, target, prefix }) {
     console.log(
         `${c.dim}→ css (dedupe declarations · drop dead rules)${dryRun ? " [dry-run]" : ""}${c.reset}`,
     );
@@ -939,20 +971,95 @@ function cssPass({ targets, dryRun }) {
             `  ${c.red}✗ ${analysis.counts.error} CSS syntax error(s)${c.reset} ${c.dim}— those files were not touched; fix them and run again${c.reset}`,
         );
     }
-    return result.errors.length || analysis.counts.error ? 1 : 0;
+
+    const extractStatus = extract
+        ? extractPass({ targets, dryRun, target, prefix, dedupedFiles: result.files.length })
+        : 0;
+
+    return result.errors.length || analysis.counts.error || extractStatus ? 1 : 0;
+}
+
+/**
+ * The opt-in extraction codemod: a block repeated across CSS Modules becomes one
+ * class in the project's global stylesheet, and the `styles.x` that pointed at
+ * the local copies become the new class name.
+ *
+ * The analysis is re-run from disk rather than reused: the dedupe pass that just
+ * finished may have rewritten these same files, and every edit here is a splice at
+ * a recorded offset. Reusing the stale parse would splice at positions that no
+ * longer exist.
+ *
+ * @param {object} params
+ * @param {string[]} params.targets
+ * @param {boolean} params.dryRun
+ * @param {string} [params.target]
+ * @param {string} [params.prefix]
+ * @param {number} params.dedupedFiles - Files the dedupe pass touched, for the re-read note.
+ * @returns {number} Exit status contribution.
+ */
+function extractPass({ targets, dryRun, target, prefix, dedupedFiles }) {
+    console.log(
+        `${c.dim}→ css extract (bloco repetido → classe global)${dryRun ? " [dry-run]" : ""}${c.reset}`,
+    );
+    let plan;
+    try {
+        const fresh = analyzeCss({ root: ROOT, targets, selfDir: SELF_DIR });
+        if (dedupedFiles > 0 && !dryRun) {
+            console.log(`  ${c.dim}re-analisado depois da passada de dedupe${c.reset}`);
+        }
+        plan = planExtraction({ analysis: fresh, root: ROOT, target, prefix });
+    } catch (err) {
+        console.log(
+            `  ${c.red}✗ extraction failed${c.reset} ${c.dim}${err?.message ?? err}${c.reset}`,
+        );
+        return 1;
+    }
+
+    if (plan.status !== "ok") {
+        console.log(`  ${c.yellow}! ${plan.message}${c.reset}`);
+        return 0;
+    }
+    for (const refusal of plan.refusals) {
+        console.log(
+            `  [${c.yellow}!${c.reset}] ${refusal.file}:${refusal.line} ${c.dim}não extraído — ${refusal.reason}${c.reset}`,
+        );
+    }
+    if (plan.groups.length === 0) {
+        console.log(`  ${c.dim}nada a extrair${c.reset}`);
+        return 0;
+    }
+
+    const result = applyExtraction({ plan, dryRun });
+    for (const file of result.files) {
+        console.log(`  ${file.file} ${c.dim}${file.changes.length}${c.reset}`);
+        for (const change of file.changes) console.log(`    ${c.dim}${change}${c.reset}`);
+    }
+    for (const err of result.errors) {
+        console.log(`  ${c.red}✗ ${err.file}${c.reset} ${c.dim}${err.message}${c.reset}`);
+    }
+    const verb = dryRun ? "moveria" : "movidas";
+    console.log(
+        `  ${c.green}✓${c.reset} ${verb} ${result.moved} regra(s) local(is) para ${result.rules} classe(s) em ${plan.target.file}`,
+    );
+    return result.errors.length ? 1 : 0;
 }
 
 function fix(args) {
-    const { flags, paths } = splitArgs(args);
+    const { flags, values, paths } = parseFixArgs(args);
     const unknown = flags.filter((f) => !FIX_FLAGS.has(f));
     if (unknown.length) {
         console.error(
-            `${c.red}✗ Unknown flag for fix: ${unknown.join(", ")}${c.reset} — supported: ${[...FIX_FLAGS].join(", ")}`,
+            `${c.red}✗ Unknown flag for fix: ${unknown.join(", ")}${c.reset} — supported: ${[...FIX_FLAGS, ...FIX_VALUE_FLAGS].join(", ")}`,
         );
         return 1;
     }
     const targets = paths.length ? paths : ["."];
     const dryRun = flags.includes("--dry-run");
+    const extract = flags.includes("--extract-css");
+    if (!extract && (values["--css-target"] || values["--css-prefix"])) {
+        console.error(`${c.red}✗ --css-target/--css-prefix só valem com --extract-css.${c.reset}`);
+        return 1;
+    }
 
     let aliasStatus = 0;
     if (!flags.includes("--no-alias")) {
@@ -962,7 +1069,15 @@ function fix(args) {
         aliasStatus = result.status === "error" ? 1 : 0;
     }
 
-    const cssStatus = flags.includes("--no-css") ? 0 : cssPass({ targets, dryRun });
+    const cssStatus = flags.includes("--no-css")
+        ? 0
+        : cssPass({
+              targets,
+              dryRun,
+              extract,
+              target: values["--css-target"],
+              prefix: values["--css-prefix"],
+          });
 
     if (dryRun) return aliasStatus || cssStatus;
 
@@ -1125,6 +1240,13 @@ ${c.bold}fix options${c.reset}
                     write nothing
   --no-alias        Skip the alias pass
   --no-css          Skip the CSS pass (analysis and dead-code removal)
+  --extract-css     Move a declaration block repeated across CSS Modules into the
+                    project's global stylesheet and rewrite the styles.x reads that
+                    pointed at the local copies (opt-in — it changes what couples
+                    to what). Refuses anything it cannot prove safe, with a reason
+  --css-target <f>  Global stylesheet to extract into (default: the first of
+                    src/styles/globals.css, src/globals.css, src/index.css, …)
+  --css-prefix <p>  Prefix for extracted class names (default: u-)
 
 ${c.bold}Options${c.reset}
   -h, --help        Show this help

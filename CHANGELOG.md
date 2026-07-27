@@ -4,6 +4,39 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`tempest fix --extract-css` — o bloco repetido vira classe global, e o TSX é
+  reescrito junto** (fecha a [#73](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/73)).
+  A análise da 0.28.0 já apontava o caso; agora existe quem execute. A regra sai dos N
+  CSS Modules, entra na folha global do projeto, e **cada `styles.x` que apontava pras
+  cópias locais passa a apontar pra classe nova** — `className={styles.row}` vira
+  `className="u-row"`, e dentro de um `cn(...)` vira `cn("u-row", …)`.
+- **Continua opt-in, e é isso que ele é.** As outras passadas do `fix` removem o que
+  está comprovadamente morto; esta decide que N telas passam a compartilhar uma classe
+  e portanto **mudam juntas**. Decisão de acoplamento entre telas não é limpeza, então
+  só roda com a flag — e o `--dry-run` mostra o plano inteiro antes de escrever.
+- **Recusa-primeiro, sempre com motivo impresso.** Uma ocorrência só é movida quando:
+  o seletor é uma classe sozinha fora de `@media` (mover pra fora mudaria **quando** a
+  regra vale); nenhuma outra regra da folha menciona a classe (um `.row:hover` ficaria
+  sem sujeito); o módulo continua com outra regra (senão o import vira morto, o ESLint
+  o remove e as regras restantes **param de carregar**); a classe é lida só como
+  `styles.row`/`styles["row"]` (`styles[key]` ou `Object.keys(styles)` tornam o módulo
+  **opaco** e nada nele é extraído); a folha global existe **e** alguém a importa
+  (escrever numa folha que ninguém carrega é no-op silencioso); e o nome novo não colide.
+- **As chamadas são achadas com o `typescript` do projeto**, não com regex — `styles.row`
+  dentro de comentário, template literal ou string não é uso, e regex não sabe a
+  diferença. O alias do `tsconfig` é respeitado, então `@/components/Card.module.css`
+  resolve igual. Sem `typescript` instalado, a passada avisa e não escreve nada.
+- Flags novas: `--extract-css`, `--css-target <arquivo>` (default: a primeira de
+  `src/styles/globals.css`, `src/globals.css`, `src/index.css`, …) e `--css-prefix <p>`
+  (default `u-`). O parser de argumentos do `fix` passou a entender flag com valor —
+  antes o valor cairia na lista de caminhos posicionais e o comando rodaria contra um
+  arquivo só.
+- **A análise é refeita do disco antes de extrair**, depois da passada de dedupe: cada
+  edição aqui é um splice em offset gravado, e reusar o parse velho faria splice em
+  posição que já não existe.
+
 ## [0.28.1] — 2026-07-27
 
 ### Corrigido

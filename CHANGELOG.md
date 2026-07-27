@@ -4,6 +4,54 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`urlBase64ToUint8Array` estourava `ReferenceError` dentro do service worker.** Ela
+  chamava `window.atob`, e não existe `window` em escopo de worker — então a única
+  função que o SDK expõe justamente pra quem monta um fluxo de inscrição próprio
+  quebrava no lugar onde esse fluxo mais precisa dela: o handler de
+  `pushsubscriptionchange`, que re-inscreve o dispositivo quando o navegador rotaciona
+  a inscrição por conta própria. Agora chama `atob` como global, que existe nos dois
+  escopos. Achado escrevendo a documentação de adoção, não em revisão de código; tem
+  teste que decodifica com `window` stubado como `undefined`.
+
+### Documentação
+
+- **`docs/push.md` (+ `.en.md`) reescrita pra quem já tem app rodando.** A página
+  ensinava o caminho felizes de um projeto novo e deixava de fora tudo que o adotante
+  encontra primeiro. Novo: seção **"Adotando num app que já existe"** com checklist de 6
+  passos e **três cenários de service worker** em abas (nenhum SW — com o
+  `vite.sw.config.ts` do build separado; `vite-plugin-pwa` — só `injectManifest` deixa
+  escrever o SW; SW próprio — duas linhas, e o aviso de que dois handlers de `push`
+  mostram duas notificações).
+- **Escopo do SW ganhou aviso `danger`** — SW com hash em `/assets/` não controla a
+  home, então `navigator.serviceWorker.ready` nunca resolve e o `subscribe()` fica
+  pendurado **sem erro no console**. É o modo de falhar mais comum ao ligar push num app
+  com bundler, e a doc não citava.
+- **Contrato com o backend documentado**: o JSON exato que chega no `onSubscribe`, as
+  duas rotas, e a regra que faltava — **a chave natural é o `endpoint`**, não o usuário.
+  Um usuário tem uma inscrição por navegador; backend que guarda uma por usuário
+  desliga o desktop quando o celular se inscreve, em silêncio.
+- **Seção de desinscrição, que era uma linha.** Ordem das chamadas (`onUnsubscribe`
+  antes do `unsubscribe()` do navegador, pra não perder o `endpoint` se o backend
+  falhar), **apagar pelo `endpoint`** — os exemplos ensinavam `api.delete("/webpush/my")`
+  ignorando o argumento, o que só funciona com um dispositivo —, e as duas coisas que
+  ninguém espera: `unsubscribe()` **não** revoga a permissão (`granted` ≠ inscrito), e
+  **logout sem desinscrever entrega as notificações da conta anterior pro próximo
+  usuário do mesmo navegador**.
+- **"Manter a inscrição viva"**: handler de `pushsubscriptionchange` (o SDK não tem
+  helper — são 15 linhas no seu `sw.ts`), `404`/`410` do push service como "apague a
+  linha", e a armadilha da rotação de chave VAPID — como `subscribe()` reusa a inscrição
+  existente, chamar ele depois de trocar a chave reenvia a inscrição velha e os envios
+  seguem falhando com `403`.
+- **`subscribed` começa `false`** (a checagem é assíncrona, o primeiro render não pode
+  saber) e **`refresh()`** serve pro estado que muda fora do app — dois comportamentos
+  reais que a doc não explicava e que produzem "bug" de botão piscando.
+- Tabela de **troubleshooting** por sintoma, requisito de **HTTPS/localhost**, e o
+  detalhe do iOS: sem `manifest.json` instalável, `isPushSupported()` dá `false` mesmo
+  no Safari atual.
+- `README.md`: a receita de Web Push passou a apagar pelo `endpoint` também.
+
 ## [0.28.0] — 2026-07-27
 
 ### Adicionado

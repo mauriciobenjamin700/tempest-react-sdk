@@ -2,13 +2,18 @@
  * Convert a base64url-encoded VAPID public key into the `Uint8Array` format
  * required by `PushManager.subscribe({ applicationServerKey })`.
  *
+ * Calls `atob` as a bare global rather than `window.atob` because this runs in a
+ * **service worker** too: re-subscribing from a `pushsubscriptionchange` handler
+ * needs the same conversion, and there is no `window` in a worker scope — the
+ * qualified call threw `ReferenceError` there while working fine on the page.
+ *
  * @param base64String - VAPID public key (URL-safe base64).
  * @returns The decoded key as bytes.
  */
 export function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
     const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
     const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-    const rawData = window.atob(base64);
+    const rawData = atob(base64);
     const buffer = new ArrayBuffer(rawData.length);
     const output = new Uint8Array(buffer);
     for (let i = 0; i < rawData.length; i++) {

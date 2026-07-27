@@ -271,6 +271,79 @@ $ npx tempest fix
     duplicated selector, and does not turn a repeated block into a global class.
     All of that is design editing, not cleanup.
 
+### `--extract-css`: move the repeated block into a global class
+
+Plain `fix` **reports** a repeated block and leaves it alone. With the flag it acts:
+the block moves to the project's global stylesheet, the local rules go away, and
+**the `styles.x` reads in your TSX start pointing at the new class**.
+
+```bash
+npx tempest fix --extract-css --dry-run          # review the plan, write nothing
+npx tempest fix --extract-css                    # apply
+npx tempest fix --extract-css --css-target src/styles/globals.css
+npx tempest fix --extract-css --css-prefix shared-
+```
+
+```console
+$ npx tempest fix --extract-css
+→ css extract (bloco repetido → classe global)
+  src/components/Card.module.css 1
+    removida `.row` (linha 1) → `.u-row` em src/index.css
+  src/components/Card.tsx 1
+    `styles.row` → `"u-row"` (linha 5)
+  src/components/List.module.css 1
+    removida `.line` (linha 1) → `.u-row` em src/index.css
+  src/components/List.tsx 1
+    `styles.line` → `"u-row"` (linha 5)
+  ✓ movidas 2 regra(s) local(is) para 1 classe(s) em src/index.css
+```
+
+What it rewrites in the TSX:
+
+```tsx
+// before                                   // after
+<div className={styles.row} />              <div className="u-row" />
+<li className={cn(styles.line, on && x)} /> <li className={cn("u-row", on && x)} />
+<div className={styles["bar"]} />           <div className="u-row" />
+```
+
+!!! danger "It is opt-in because it is a design decision, not cleanup"
+    The other passes remove what is **provably dead**. This one decides that N
+    screens now share a class — and therefore **change together**. That is a call
+    about coupling between screens; the CLI executes it, it does not make it. Which
+    is why it never runs without the flag, and why `--dry-run` exists.
+
+!!! check "It refuses anything it cannot prove safe — and says why"
+    No refusal is silent. An occurrence moves only when **all** of these hold:
+
+    | Condition | Why |
+    | -- | -- |
+    | the selector is a lone class (`.row`), outside `@media` | moving out of a `@media` would change **when** the rule applies |
+    | no other rule in the sheet mentions the class | a `.row:hover` or `.row .child` would be left without its subject |
+    | the module keeps at least one other rule | otherwise the import becomes dead code, ESLint removes it, and the remaining rules **stop loading** |
+    | the class is only read as `styles.row` / `styles["row"]` | `styles[key]` or `Object.keys(styles)` make the module **opaque**: nothing in it is extracted |
+    | the global sheet exists **and** something imports it | appending to a stylesheet nobody loads is a silent no-op |
+    | the new name collides with nothing in the global sheet | use `--css-prefix` |
+
+    ```console
+    [!] src/components/Card.module.css:1 não extraído — outra regra na mesma folha
+        usa `.row` (linha 12) e ficaria sem sujeito
+    ```
+
+!!! info "The call sites are found by **your** project's compiler"
+    The sweep uses the `typescript` installed in the project, not a regex:
+    `styles.row` inside a comment, a template literal or a string is not a use, and
+    a regex cannot tell them apart. With no `typescript` installed the pass says so
+    and writes nothing. The `tsconfig` alias is honored, so
+    `@/components/Card.module.css` resolves the same way.
+
+!!! tip "The name of the new class"
+    It is the local name your code uses most (by module first, then by call-site
+    count), with the `u-` prefix. A tie is the normal case — the copies live in
+    different modules precisely because nobody agreed on a name — and then the
+    order of the occurrences decides, which keeps runs reproducible. The chosen
+    name is printed **before** anything is written, under `--dry-run`.
+
 !!! info "What the analysis leaves out, on purpose"
     A **minified** sheet (`*.min.css`, or a high bytes-per-line density), a file
     over **512 KB**, and the `node_modules/`, `dist/`, `build/`, `coverage/`,
@@ -290,6 +363,7 @@ npx tempest fix src/app      # a single path
 npx tempest fix --dry-run    # show what would change, write nothing
 npx tempest fix --no-alias   # skip the import conversion
 npx tempest fix --no-css     # skip the CSS pass
+npx tempest fix --extract-css  # opt-in: repeated block → one global class
 ```
 
 Four passes, in this order: the alias conversion, the

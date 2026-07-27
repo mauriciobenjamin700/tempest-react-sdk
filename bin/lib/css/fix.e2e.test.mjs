@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -95,5 +96,95 @@ describe("tempest fix — the CSS pass", () => {
         const { out, code } = fix(["--no-such-flag"]);
         expect(out).toContain("Unknown flag for fix");
         expect(code).toBe(1);
+    });
+});
+
+const TYPESCRIPT_DIR = dirname(createRequire(import.meta.url).resolve("typescript/package.json"));
+
+/**
+ * A fixture with two modules declaring the same block, each read from its own
+ * component, plus the global sheet the entry imports and the project's own
+ * TypeScript — everything `--extract-css` refuses to work without.
+ */
+function extractableProject() {
+    const rule =
+        ".row {\n    display: flex;\n    align-items: center;\n    gap: 8px;\n}\n.title {\n    font-weight: 600;\n}\n";
+    writeFileSync(
+        join(root, "package.json"),
+        JSON.stringify({ name: "fixture", devDependencies: { typescript: "^5" } }),
+    );
+    write(
+        "tsconfig.json",
+        JSON.stringify({ compilerOptions: { baseUrl: ".", paths: { "@/*": ["./src/*"] } } }),
+    );
+    write("src/index.css", ":root {\n    --brand: #0d6efd;\n}\n");
+    write("src/main.tsx", 'import "./index.css";\n');
+    write("src/components/Card.module.css", rule);
+    write(
+        "src/components/Card.tsx",
+        'import styles from "./Card.module.css";\n\nexport const Card = () => (\n  <div className={styles.row}>\n    <b className={styles.title} />\n  </div>\n);\n',
+    );
+    write("src/components/List.module.css", rule.replace(".row", ".line"));
+    write(
+        "src/components/List.tsx",
+        'import styles from "@/components/List.module.css";\n\nexport const List = () => (\n  <li className={styles.line}>\n    <b className={styles.title} />\n  </li>\n);\n',
+    );
+    mkdirSync(join(root, "node_modules"), { recursive: true });
+    symlinkSync(TYPESCRIPT_DIR, join(root, "node_modules", "typescript"), "dir");
+}
+
+describe("tempest fix --extract-css", () => {
+    it("moves the repeated block into the global sheet and rewrites the JSX", () => {
+        extractableProject();
+        const { out } = fix(["--extract-css"]);
+        expect(out).toContain("css extract");
+        expect(out).toContain("movidas 2 regra(s)");
+        expect(readFileSync(join(root, "src/index.css"), "utf8")).toContain(".u-row {");
+        expect(readFileSync(join(root, "src/components/Card.tsx"), "utf8")).toContain(
+            'className="u-row"',
+        );
+        expect(readFileSync(join(root, "src/components/Card.module.css"), "utf8")).not.toContain(
+            ".row",
+        );
+    });
+
+    it("writes nothing under --dry-run", () => {
+        extractableProject();
+        const before = readFileSync(join(root, "src/components/Card.tsx"), "utf8");
+        const { out } = fix(["--extract-css", "--dry-run"]);
+        expect(out).toContain("moveria 2 regra(s)");
+        expect(readFileSync(join(root, "src/components/Card.tsx"), "utf8")).toBe(before);
+    });
+
+    it("honors --css-prefix without treating its value as a path", () => {
+        extractableProject();
+        fix(["--extract-css", "--css-prefix", "shared-"]);
+        expect(readFileSync(join(root, "src/index.css"), "utf8")).toContain(".shared-row {");
+    });
+
+    it("does nothing extra when the flag is absent", () => {
+        extractableProject();
+        const { out } = fix([]);
+        expect(out).not.toContain("css extract");
+        expect(readFileSync(join(root, "src/index.css"), "utf8")).not.toContain(".u-row");
+    });
+
+    it("rejects --css-target without --extract-css", () => {
+        extractableProject();
+        const { out, code } = fix(["--css-target", "src/index.css"]);
+        expect(out).toContain("só valem com --extract-css");
+        expect(code).toBe(1);
+    });
+
+    it("reports the reason instead of extracting what it cannot prove safe", () => {
+        extractableProject();
+        write(
+            "src/components/Card.module.css",
+            ".row {\n    display: flex;\n    align-items: center;\n    gap: 8px;\n}\n.row:hover {\n    opacity: 0.8;\n}\n.title {\n    font-weight: 600;\n}\n",
+        );
+        const { out } = fix(["--extract-css"]);
+        expect(out).toContain("não extraído");
+        expect(out).toContain("nada a extrair");
+        expect(readFileSync(join(root, "src/index.css"), "utf8")).not.toContain(".u-row");
     });
 });

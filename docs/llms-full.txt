@@ -2231,6 +2231,79 @@ $ npx tempest fix
     duplicado e não converte bloco repetido em classe global. Tudo isso é edição
     de design, não limpeza.
 
+### `--extract-css`: mover o bloco repetido pra classe global
+
+O `fix` normal **reporta** bloco repetido e não mexe. Com a flag, ele executa: o
+bloco vai pra folha global do projeto, as regras locais somem e **os `styles.x`
+no TSX passam a apontar pra classe nova**.
+
+```bash
+npx tempest fix --extract-css --dry-run          # revisa o plano, não escreve
+npx tempest fix --extract-css                    # aplica
+npx tempest fix --extract-css --css-target src/styles/globals.css
+npx tempest fix --extract-css --css-prefix shared-
+```
+
+```console
+$ npx tempest fix --extract-css
+→ css extract (bloco repetido → classe global)
+  src/components/Card.module.css 1
+    removida `.row` (linha 1) → `.u-row` em src/index.css
+  src/components/Card.tsx 1
+    `styles.row` → `"u-row"` (linha 5)
+  src/components/List.module.css 1
+    removida `.line` (linha 1) → `.u-row` em src/index.css
+  src/components/List.tsx 1
+    `styles.line` → `"u-row"` (linha 5)
+  ✓ movidas 2 regra(s) local(is) para 1 classe(s) em src/index.css
+```
+
+O que ele reescreve no TSX:
+
+```tsx
+// antes                                    // depois
+<div className={styles.row} />              <div className="u-row" />
+<li className={cn(styles.line, on && x)} /> <li className={cn("u-row", on && x)} />
+<div className={styles["bar"]} />           <div className="u-row" />
+```
+
+!!! danger "É opt-in porque é decisão de design, não limpeza"
+    As outras passadas removem o que está **comprovadamente morto**. Esta decide
+    que N telas passam a compartilhar uma classe — e portanto **mudam juntas**. É
+    uma decisão de acoplamento entre telas; a CLI executa, não escolhe. Por isso
+    nunca roda sem a flag, e por isso o `--dry-run` existe.
+
+!!! check "Ela recusa tudo que não consegue provar seguro — e diz o motivo"
+    Nenhuma recusa é silenciosa. Uma ocorrência só é movida quando **todas** valem:
+
+    | Condição | Por que |
+    | -- | -- |
+    | seletor é uma classe sozinha (`.row`), fora de `@media` | mover pra fora de um `@media` mudaria **quando** a regra vale |
+    | nenhuma outra regra da folha menciona a classe | um `.row:hover` ou `.row .child` ficaria sem sujeito |
+    | o módulo continua com pelo menos outra regra | senão o import vira código morto, o ESLint remove, e as regras que sobraram **param de carregar** |
+    | a classe é lida só como `styles.row` / `styles["row"]` | `styles[key]` ou `Object.keys(styles)` tornam o módulo **opaco**: nada nele é extraído |
+    | a folha global existe **e** alguém a importa | escrever numa folha que ninguém carrega é no-op silencioso |
+    | o nome novo não colide na folha global | use `--css-prefix` |
+
+    ```console
+    [!] src/components/Card.module.css:1 não extraído — outra regra na mesma folha
+        usa `.row` (linha 12) e ficaria sem sujeito
+    ```
+
+!!! info "As chamadas são achadas pelo compilador do **seu** projeto"
+    A varredura usa o `typescript` instalado no projeto, não regex: `styles.row`
+    dentro de comentário, template literal ou string não é uso, e regex não sabe
+    diferenciar. Sem `typescript` instalado, a passada avisa e não escreve nada.
+    O alias do `tsconfig` é respeitado, então `@/components/Card.module.css`
+    resolve igual.
+
+!!! tip "O nome da classe nova"
+    É o nome local que o seu código mais usa (por módulo, e depois por número de
+    chamadas), com o prefixo `u-`. Empate é o caso normal — as cópias moram em
+    módulos diferentes justamente porque ninguém combinou um nome —, e aí a ordem
+    das ocorrências decide, o que mantém o resultado igual entre execuções. O nome
+    escolhido aparece **antes** de qualquer escrita, no `--dry-run`.
+
 !!! info "O que a análise deixa de fora, de propósito"
     Folha **minificada** (`*.min.css` ou densidade alta de bytes por linha),
     arquivo acima de **512 KB**, e as pastas `node_modules/`, `dist/`, `build/`,
@@ -2250,6 +2323,7 @@ npx tempest fix src/app      # só um caminho
 npx tempest fix --dry-run    # mostra o que mudaria, não escreve
 npx tempest fix --no-alias   # pula a conversão de import
 npx tempest fix --no-css     # pula a passada de CSS
+npx tempest fix --extract-css  # opt-in: bloco repetido → uma classe global
 ```
 
 São quatro passadas, nessa ordem: a conversão de alias, a

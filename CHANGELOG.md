@@ -4,6 +4,29 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`tempest doctor` quebrava com stack trace em qualquer projeto no TypeScript 7.** O 7 é
+  o port nativo: instala com o mesmo nome de pacote, mas o export `.` é um stub de versão
+  — a API JS foi pra `typescript/unstable/*`, com outra forma. A CLI resolvia o módulo,
+  concluía "tenho TypeScript" e chamava `ts.readConfigFile`, que não existe:
+  `TypeError: ts.readConfigFile is not a function` e exit por exceção, no comando que as
+  pessoas rodam primeiro. O `tempest fix` morria igual, na passada de alias.
+- A detecção agora é por **feature**, não por resolução: o módulo só conta como usável
+  quando expõe `readConfigFile`, `createSourceFile` e `forEachChild`. Achado num smoke
+  install do pacote publicado, não em revisão — o repo do SDK tem TypeScript 6 e nunca
+  exercitava esse caminho.
+- **O `doctor` não perde as checagens de tsconfig no TS 7**: o `readTsconfig` ganhou
+  parser JSONC tolerante (comentário de linha, comentário de bloco, vírgula sobrando)
+  pro caso em que a API do compilador não está disponível. Sem isso, um tsconfig gerado
+  pelo Vite — que vem com comentário — derrubaria `strict`/`jsx`/`moduleResolution` pra
+  fora do relatório em silêncio. Marcador de comentário **dentro de string** é
+  preservado, porque `paths` e `extends` legitimamente têm `//`.
+- **Mensagens que dizem a verdade**: "typescript não instalado" era mentira sobre um
+  pacote que está ali. Agora as passadas distinguem ausente de API indisponível, citam a
+  versão, e o `doctor` ganhou uma linha `[i]` explicando que só os codemods (alias e
+  `--extract-css`) ficam de fora — todo o resto do comando roda normal.
+
 ## [0.29.0] — 2026-07-27
 
 ### Adicionado

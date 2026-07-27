@@ -7,18 +7,61 @@ import { dirname, isAbsolute, join, resolve } from "node:path";
 const MAX_EXTENDS_DEPTH = 16;
 
 /**
+ * Strip the JSONC a tsconfig is allowed to contain: `//` and block comments, and
+ * a trailing comma before `}` or `]`.
+ *
+ * Needed because `ts.readConfigFile` is not always available — TypeScript 7 does
+ * not ship the classic API — and a plain `JSON.parse` chokes on the comments
+ * every Vite-generated tsconfig has. Losing the whole config to a comment would
+ * silently drop the `strict`/`jsx`/`paths` checks.
+ *
+ * Comment markers inside a string are left alone, which matters: `"paths"` and
+ * `"extends"` values legitimately hold `//` (a URL, a Windows share).
+ *
+ * @param {string} text
+ * @returns {string} Plain JSON.
+ */
+export function stripJsonc(text) {
+    let out = "";
+    let i = 0;
+    while (i < text.length) {
+        const ch = text[i];
+        if (ch === '"') {
+            let j = i + 1;
+            while (j < text.length && text[j] !== '"') j += text[j] === "\\" ? 2 : 1;
+            out += text.slice(i, Math.min(j + 1, text.length));
+            i = j + 1;
+            continue;
+        }
+        if (ch === "/" && text[i + 1] === "/") {
+            const end = text.indexOf("\n", i);
+            i = end < 0 ? text.length : end;
+            continue;
+        }
+        if (ch === "/" && text[i + 1] === "*") {
+            const end = text.indexOf("*/", i + 2);
+            i = end < 0 ? text.length : end + 2;
+            continue;
+        }
+        out += ch;
+        i += 1;
+    }
+    return out.replace(/,(\s*[}\]])/g, "$1");
+}
+
+/**
  * Parse one tsconfig file into its raw JSON object.
  *
- * Prefers `ts.readConfigFile`, which accepts the JSONC dialect `tsc` accepts
- * (comments, trailing commas). Falls back to `JSON.parse` so a project without
- * TypeScript installed still gets the previous behavior instead of nothing.
+ * Prefers `ts.readConfigFile`, which accepts the exact dialect `tsc` accepts.
+ * Falls back to a JSONC-tolerant parse so a project without the classic
+ * TypeScript API still gets its config read instead of nothing.
  *
  * @param {string} path - Absolute path to a tsconfig file.
  * @param {object | null} ts - The `typescript` module, or `null`.
  * @returns {object | null} The raw config object, or `null` when unreadable.
  */
 function parseConfigFile(path, ts) {
-    if (ts) {
+    if (ts && typeof ts.readConfigFile === "function") {
         const { config, error } = ts.readConfigFile(path, (p) => {
             try {
                 return readFileSync(p, "utf8");
@@ -29,7 +72,7 @@ function parseConfigFile(path, ts) {
         return error || !config ? null : config;
     }
     try {
-        return JSON.parse(readFileSync(path, "utf8"));
+        return JSON.parse(stripJsonc(readFileSync(path, "utf8")));
     } catch {
         return null;
     }

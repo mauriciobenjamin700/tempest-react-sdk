@@ -25,7 +25,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 import { discoverAlias } from "../alias/discover.mjs";
-import { loadTypeScript } from "../alias/typescript.mjs";
+import { loadTypeScript, typeScriptUnavailableReason } from "../alias/typescript.mjs";
 import { collectSources, indexClassUses, resolveSpecifier } from "./references.mjs";
 import { parseCss } from "./parse.mjs";
 import { declSignature } from "./semantic.mjs";
@@ -192,8 +192,7 @@ export function planExtraction({ analysis, root, target, prefix = "u-" }) {
     if (!ts) {
         return {
             status: "no-typescript",
-            message:
-                "typescript não instalado — a reescrita do TSX precisa do compilador do projeto",
+            message: `a reescrita do TSX precisa do compilador do projeto: ${typeScriptUnavailableReason(root)}`,
             groups: [],
             refusals: [],
         };

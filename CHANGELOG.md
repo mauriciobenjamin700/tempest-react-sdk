@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.30.0] — 2026-07-27
+
 ### Adicionado
 
 - **`Markdown` — renderizar texto que veio de gente**, com parser próprio e **zero

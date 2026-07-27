@@ -273,13 +273,67 @@ import { DescriptionList } from "tempest-react-sdk";
 
 `DescriptionListItem = { term: ReactNode; description: ReactNode }`. Estende `HTMLAttributes<HTMLDListElement>`.
 
+### `QRCode`
+
+Um símbolo QR codificado **no browser** e desenhado em SVG. Sem dependência e sem ida a serviço de imagem — um gerador remoto entregaria o conteúdo (link de pagamento, token de sessão, convite) a um terceiro.
+
+```tsx
+import { QRCode } from "tempest-react-sdk";
+
+<QRCode value="https://tempest.dev" />
+<QRCode value={pixPayload} level="H" size={220} label="QR do Pix — R$ 42,00" />
+```
+
+| Prop         | Tipo                        | Default            | Notas                                                     |
+| ------------ | --------------------------- | ------------------ | --------------------------------------------------------- |
+| `value`      | `string`                    | —                  | O conteúdo. UTF-8 quando não é só dígito ou caixa alta.    |
+| `size`       | `number`                    | `160`              | Lado renderizado em px, zona de silêncio incluída.         |
+| `level`      | `"L" \| "M" \| "Q" \| "H"`  | `"M"`              | Correção de erro: ~7% · ~15% · ~25% · ~30% recuperável.    |
+| `margin`     | `number`                    | `4`                | Zona de silêncio em módulos.                               |
+| `color`      | `string`                    | `#000000`          | Cor dos módulos.                                           |
+| `background` | `string`                    | `#ffffff`          | Cor do fundo.                                              |
+| `label`      | `string`                    | `QR code: {value}` | Nome acessível.                                            |
+
+!!! danger "Preto no branco nos dois temas — de propósito"
+    É a única parte do SDK que **ignora os tokens de tema**. Leitor de QR espera escuro sobre claro, e os que lidam com símbolo invertido fazem isso devagar e sem confiança. Ligar os módulos em `--tempest-text` inverteria eles no dark mode e deixaria um símbolo claro sobre o fundo branco — que não lê como nada. Um QR que combina com a página escura e escaneia na terceira tentativa é pior que um que parece colado por cima. Só mexa em `color`/`background` com um leitor na mão pra testar.
+
+!!! tip "O modo muda o tamanho do símbolo, e o tamanho muda a facilidade de leitura"
+    O encoder escolhe automaticamente o modo mais denso que o conteúdo permite: **numérico** empacota 3 dígitos em 10 bits, **alfanumérico** 2 caracteres em 11, **byte** gasta 8 bits por byte. Um telefone em dígitos puros cabe num símbolo visivelmente mais grosso que o mesmo número em bytes — e módulo maior é módulo mais fácil de escanear. Se você controla o formato do payload, caixa alta e sem acento vale tamanho de símbolo.
+
+!!! warning "Zona de silêncio abaixo de 4 módulos é onde leitor começa a errar"
+    O `margin` default segue a norma. Diminuir pra ganhar espaço na tela é a otimização que mais custa taxa de leitura.
+
+!!! info "Nível de correção não é qualidade — é tolerância a dano"
+    `L` basta pra QR de tela, que ninguém amassa. `Q`/`H` valem quando o símbolo vai pra papel, adesivo, vitrine ou crachá: recuperam ~25%/~30% dos codewords, então rasgo, dobra e sujeira ainda leem. O custo é um símbolo maior pro mesmo conteúdo.
+
+!!! note "Leitor de tela não escaneia"
+    Por isso o `aria-label` default **nomeia o conteúdo** (`QR code: https://…`) em vez de dizer só "QR code". Quando o payload é opaco — um BR Code do Pix, por exemplo — passe `label` descrevendo o que ele faz, e ofereça o mesmo dado em texto ou botão de copiar ao lado.
+
+#### Conteúdo grande demais
+
+Um payload que não cabe nem numa versão 40 lança `QRCapacityError` em vez de desenhar um símbolo truncado que escaneia errado. É erro de programação, não estado a renderizar — se o conteúdo vem do usuário, valide antes ou embrulhe num [`ErrorBoundary`](../error-boundary.md).
+
+```tsx
+import { encodeQR, QRCapacityError } from "tempest-react-sdk";
+
+try {
+  encodeQR(payload, { level: "H" });
+} catch (error) {
+  if (error instanceof QRCapacityError) {
+    // error.length (bytes) e error.level
+  }
+}
+```
+
+`encodeQR(value, { level, minVersion })` devolve a matriz crua (`modules`, `size`, `version`, `mode`, `mask`) pra quem precisa desenhar por conta própria — canvas, PDF, etiqueta térmica. `matrixToPath(matrix, margin)` gera o mesmo `d` que o componente usa.
+
 ---
 
 ## Recap
 
 - **Display**: `CopyButton` (clipboard + estado transiente), `RelativeTime` (`<time>` relativo), `Money` (centavos → moeda), `TruncateText` (line-clamp), `VisuallyHidden` (sr-only).
 - **Headless/lógicos**: `Portal` (SSR-safe), `ClickOutside`, `ConditionalWrapper`, `For` (lista tipada com fallback), `ErrorText` (erro de campo `role="alert"`).
-- **Mídia/conteúdo**: `Image` (lazy + fallback), `DataList` (`<ul>` genérico), `DescriptionList` (`<dl>` termo/valor).
+- **Mídia/conteúdo**: `Image` (lazy + fallback), `DataList` (`<ul>` genérico), `DescriptionList` (`<dl>` termo/valor), `QRCode` (símbolo QR em SVG, codificado no browser).
 - Componentes "display" e "conteúdo" usam tokens `--tempest-*`; os headless não trazem CSS — você fornece a marcação.
 
 ## Veja também

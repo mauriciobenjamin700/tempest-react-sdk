@@ -24,6 +24,16 @@ function classNames(css: string): string[] {
     return Array.from(new Set(Array.from(matches, (match) => match[1])));
 }
 
+/** Rules inside a `@container` block, flattened to their selectors. */
+function containerScopedClasses(css: string): string[] {
+    const blocks = css.matchAll(/@container[^{]*\{([\s\S]*?)\n\}/g);
+    const names: string[] = [];
+    for (const block of blocks) {
+        for (const match of block[1].matchAll(/\.([a-zA-Z][\w-]*)/g)) names.push(match[1]);
+    }
+    return Array.from(new Set(names));
+}
+
 describe("utilities.css contract", () => {
     it("declares at least a couple dozen utilities", () => {
         expect(classNames(UTILITIES).length).toBeGreaterThanOrEqual(24);
@@ -104,5 +114,54 @@ describe("utilities.css contract", () => {
         expect(UTILITIES).toContain("var(--tempest-grid-min,");
         expect(UTILITIES).toContain("var(--tempest-sidebar-width,");
         expect(UTILITIES).toContain("var(--tempest-container-width,");
+    });
+});
+
+describe("dashboard layer", () => {
+    it("declares the widget grid and the widget frame", () => {
+        for (const name of [
+            "tempest-dashboard",
+            "tempest-widget",
+            "tempest-widget-frame",
+            "tempest-widget-header",
+            "tempest-widget-body",
+            "tempest-stat-row",
+        ]) {
+            expect(classNames(UTILITIES)).toContain(name);
+        }
+    });
+
+    it("makes the grid a size container, so the spans key on it and not the viewport", () => {
+        // A media query would give a 320px-wide panel the desktop span.
+        expect(UTILITIES).toMatch(/\.tempest-dashboard\s*\{[^}]*container-type:\s*inline-size/);
+        expect(UTILITIES).toMatch(/container-name:\s*tempest-dashboard/);
+    });
+
+    it("puts every span behind a container query, never a media query", () => {
+        const scoped = containerScopedClasses(UTILITIES);
+        for (const name of [
+            "tempest-widget-half",
+            "tempest-widget-third",
+            "tempest-widget-quarter",
+            "tempest-widget-two-thirds",
+        ]) {
+            expect(scoped).toContain(name);
+        }
+    });
+
+    it("starts a widget full width, which is the state it spends most of its life in", () => {
+        expect(UTILITIES).toMatch(/\.tempest-widget\s*\{[^}]*grid-column:\s*1 \/ -1/);
+    });
+
+    it("keeps the widget body shrinkable, so a chart fits its row", () => {
+        // A grid child defaults to `min-height: auto`, and a canvas reporting a tall
+        // intrinsic size would push the row and grow a scrollbar nobody asked for.
+        expect(UTILITIES).toMatch(/\.tempest-widget-body\s*\{[^}]*min-height:\s*0/);
+    });
+
+    it("drives the grid from tokens with an override hook", () => {
+        expect(UTILITIES).toContain("--tempest-dashboard-columns");
+        expect(UTILITIES).toContain("--tempest-dashboard-gap");
+        expect(UTILITIES).toContain("--tempest-stat-min");
     });
 });

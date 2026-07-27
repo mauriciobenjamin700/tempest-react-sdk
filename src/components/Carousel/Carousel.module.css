@@ -16,7 +16,7 @@
 
 .track {
     display: flex;
-    transition: transform var(--tempest-duration-normal) var(--tempest-ease-out);
+    transition: transform var(--tempest-duration-base) var(--tempest-ease-out);
 }
 
 .slide {

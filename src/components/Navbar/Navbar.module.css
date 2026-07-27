@@ -15,8 +15,8 @@
 }
 
 .navbar.primary {
-    background: var(--tempest-primary-solid);
-    color: var(--tempest-primary-on);
+    background: var(--tempest-primary);
+    color: var(--tempest-primary-foreground);
 }
 
 .navbar.transparent {

@@ -1,0 +1,163 @@
+.wrapper {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: var(--tempest-space-3);
+    align-items: stretch;
+    font-family: var(--tempest-font-sans);
+}
+
+/*
+ * The move controls sit between the panes in the grid, but come **last** in the
+ * DOM: a keyboard reaching the buttons before it has seen what they act on has to
+ * go back, and a screen reader reads "move checked to the right" with no idea what
+ * is checked. Order 2 puts them back in the middle visually.
+ */
+.controls {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--tempest-space-2);
+    order: 2;
+}
+
+.pane {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-space-2);
+    min-width: 0;
+    padding: var(--tempest-space-3);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-lg);
+    background-color: var(--tempest-bg);
+}
+
+.pane:first-of-type {
+    order: 1;
+}
+
+.pane:last-of-type {
+    order: 3;
+}
+
+.paneHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--tempest-space-2);
+    min-width: 0;
+}
+
+.paneTitle {
+    display: flex;
+    align-items: center;
+    gap: var(--tempest-space-2);
+    min-width: 0;
+}
+
+.title {
+    margin: 0;
+    overflow: hidden;
+    color: var(--tempest-text);
+    font-size: var(--tempest-text-sm);
+    font-weight: var(--tempest-weight-semibold);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.count {
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-xs);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.search {
+    width: 100%;
+    min-width: 0;
+    padding: var(--tempest-space-2) var(--tempest-space-3);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-md);
+    background-color: var(--tempest-bg);
+    color: inherit;
+    font: inherit;
+    font-size: var(--tempest-text-sm);
+}
+
+.search:focus-visible {
+    outline: 2px solid var(--tempest-primary);
+    outline-offset: -1px;
+}
+
+.list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-space-1);
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    list-style: none;
+}
+
+.row {
+    padding: var(--tempest-space-1) var(--tempest-space-2);
+    border-radius: var(--tempest-radius-sm);
+    font-size: var(--tempest-text-sm);
+}
+
+.row:hover {
+    background-color: var(--tempest-surface);
+}
+
+.empty {
+    padding: var(--tempest-space-4) var(--tempest-space-2);
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-sm);
+    text-align: center;
+}
+
+.control {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--tempest-control-height-sm);
+    height: var(--tempest-control-height-sm);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-md);
+    background-color: var(--tempest-bg);
+    color: var(--tempest-text);
+    font-size: var(--tempest-text-base);
+    line-height: 1;
+    cursor: pointer;
+}
+
+.control:hover:not(:disabled) {
+    border-color: var(--tempest-primary);
+    color: var(--tempest-primary);
+}
+
+.control:focus-visible {
+    outline: 2px solid var(--tempest-primary);
+    outline-offset: 1px;
+}
+
+.control:disabled {
+    color: var(--tempest-text-subtle);
+    cursor: not-allowed;
+}
+
+/*
+ * Below the md breakpoint the panes stack and the controls turn horizontal: two
+ * 16rem lists side by side on a phone leave each about 150px wide, where a role
+ * name wraps to three lines.
+ */
+@media (max-width: 640px) {
+    .wrapper {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .controls {
+        flex-direction: row;
+        justify-content: center;
+    }
+}

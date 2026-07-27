@@ -6,6 +6,23 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`Transfer` — dual list pra escolher um subconjunto** (permissões de um perfil, cidades de
+  uma rota, colunas de um relatório). Dois painéis, quatro controles, busca em cada lado.
+- **Estado é só os ids do lado direito; os painéis são derivados.** Guardar duas listas
+  parece mais simples e deriva no primeiro momento em que o catálogo muda por baixo — uma
+  permissão removida no servidor fica pendurada no painel que a tinha, e um id nos dois
+  lados é um bug que ninguém vê.
+- **"Mover todos" respeita o filtro ativo** — move o que você está vendo, não o painel
+  inteiro. Era um bug real, pego por teste antes do merge: filtrar por `sao` e clicar
+  movia as dez linhas.
+- **Busca dobra acento nos dois sentidos** (`sao` acha "São Paulo" e vice-versa). Pra
+  público PT-BR isso não é refinamento; um `includes` cru falharia na metade das buscas.
+- Linha `disabled` não se move por **nenhum** caminho: a checagem vive no `applyMove`, não
+  em cada um dos quatro botões. Marcações são limpas depois de mover, senão o próximo
+  clique no botão oposto manda tudo de volta.
+- A11y: controles ficam no meio pela grade mas **por último no DOM** (teclado vê o que
+  move antes de poder mover), cada painel é uma `region` nomeada pelo título, e cada
+  movimento é anunciado num `role="status"`. Entrou no sweep do `axe`.
 - **`Chat` — thread de mensagens, e a mesma coisa serve de thread de comentários.** Primeiro
   item da lista P2. Agrupa por autor e por dia, marca o lado do usuário atual, mostra
   estado de entrega, quem está digitando, e traz o composer quando recebe `onSend`.
@@ -40,6 +57,9 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   tingida usa o foreground da própria bolha (`--tempest-primary-on-soft`). O que
   de-enfatiza ali é o **tamanho**; a cor ainda tem que passar. Mesma armadilha dos tokens
   de sintaxe do `CodeBlock`.
+- Tetos do barrel no `size-limit` subiram com os dois componentes novos: ESM 86 → 88 kB,
+  CJS 104 → 107 kB. São **tetos explícitos** de "ninguém importa isso" — o que o app paga
+  de verdade continua medido por fatia importada, e nenhuma fatia mudou.
 - Budget do `styles.css` no `size-limit` subiu de 24 kB pra 25 kB: o CSS do `Chat` custa
   ~0,5 kB brotli na folha única, e o teto existia justamente pra essa subida ser uma
   decisão e não uma surpresa.

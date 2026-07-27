@@ -3383,6 +3383,69 @@ export function CadastroEmEtapas() {
 !!! note "`clickableSteps` é `false` de propósito"
     Um wizard existe porque a **ordem importa**. Com `clickableSteps`, pular pra trás é livre (voltar nunca bloqueia), mas pular pra frente valida **cada passo atravessado** — o primeiro gate que reprovar interrompe o salto ali.
 
+### `Transfer`
+
+> **Quando usar**: escolher um **subconjunto** de um catálogo — permissões de um perfil, cidades de uma rota, membros de um grupo, colunas de um relatório.
+
+Dois painéis, quatro controles de mover, busca em cada lado. Controlado pelos **ids do lado direito**; os dois painéis são derivados.
+
+```tsx
+import { Transfer, type TransferItem } from "tempest-react-sdk";
+import { useState } from "react";
+
+const PERMISSOES: TransferItem[] = [
+  { id: "pedidos.ler", label: "Ler pedidos" },
+  { id: "pedidos.criar", label: "Criar pedidos" },
+  { id: "auditoria.ler", label: "Ler auditoria", disabled: true },
+];
+
+export function PermissoesDoPerfil() {
+  const [permissoes, setPermissoes] = useState<string[]>([]);
+
+  return (
+    <Transfer
+      items={PERMISSOES}
+      value={permissoes}
+      onChange={setPermissoes}
+      sourceTitle="Disponíveis"
+      targetTitle="Do perfil"
+    />
+  );
+}
+```
+
+| Prop | Tipo | Default | O que faz |
+| --- | --- | --- | --- |
+| `items` | `TransferItem[]` | — | O catálogo inteiro. Os dois painéis saem dele. |
+| `value` | `string[]` | — | Ids do lado direito. **Controlado.** |
+| `onChange` | `(value: string[]) => void` | — | Próximo valor, sempre na ordem do catálogo. |
+| `sourceTitle` / `targetTitle` | `ReactNode` | `"Disponíveis"` / `"Selecionados"` | Título de cada painel. |
+| `searchable` | `boolean` | `true` acima de 8 itens | Caixa de busca em cada painel. |
+| `renderItem` | `(item, side) => ReactNode` | `item.label` | Corpo customizado da linha. |
+| `height` | `string` | `"16rem"` | Altura da área de rolagem de cada painel. |
+| `locale` | `"pt-BR" \| "en"` | `"pt-BR"` | Rótulos e anúncios. |
+| `disabled` | `boolean` | `false` | Bloqueia todo movimento. |
+
+`TransferItem = { id, label, searchText?, disabled?, data? }`
+
+!!! info "Só os ids do lado direito são estado — os painéis são derivados"
+    Guardar duas listas parece mais simples e **deriva** no primeiro momento em que o catálogo muda por baixo: uma permissão removida no servidor fica pendurada no painel que a tinha, e um id que aparece nos dois lados é um bug que ninguém vê. Com um `value` só, `items` manda: o que saiu do catálogo simplesmente desaparece dos dois lados.
+
+!!! check "O botão de mover todos respeita o filtro"
+    Filtrar por `sao` e clicar em "mover todos" move **o que você está vendo**, não o painel inteiro. Mover as linhas que o filtro escondeu é o tipo de surpresa que faz a pessoa parar de confiar no botão — e foi um bug real, pego por teste antes do merge.
+
+!!! check "Busca dobra acento, nos dois sentidos"
+    `sao` acha "São Paulo" e `são` também. Para um público PT-BR isso não é refinamento: um `includes` cru falharia na metade das buscas.
+
+!!! warning "Linha `disabled` não se move por nenhum caminho"
+    A checagem vive no `applyMove`, não em cada um dos quatro botões — é uma permissão obrigatória, um assento travado. Por isso o `»` move "todos os movíveis", não "todos".
+
+!!! info "Depois de mover, as marcações são limpas"
+    Senão o próximo clique no botão oposto manda tudo de volta, e o componente parece estar se desfazendo.
+
+!!! info "Os controles ficam no meio pela grade, mas por último no DOM"
+    Um teclado que chegasse nos botões antes de ver o que eles movem teria que voltar; e um leitor de tela leria "mover marcados pra direita" sem ideia do que está marcado. Cada painel é uma `region` nomeada pelo título, e cada movimento é anunciado num `role="status"`.
+
 ### `Chat`
 
 > **Quando usar**: uma thread de mensagens — suporte, chat interno, comentário de documento, histórico de atendimento.

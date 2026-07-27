@@ -16,6 +16,7 @@ import { DataTableSection } from "./DataTableSection";
 import { DataVizScalesSection } from "./DataVizScalesSection";
 import { ImageCropperSection } from "./ImageCropperSection";
 import { ChatSection } from "./ChatSection";
+import { TransferSection } from "./TransferSection";
 import { CodeBlockSection } from "./CodeBlockSection";
 import { QRCodeSection } from "./QRCodeSection";
 import { SchedulerSection } from "./SchedulerSection";
@@ -270,6 +271,14 @@ export const SECTIONS: SectionEntry[] = [
             "chat thread conversa mensagem comentario comments bolha bubble typing digitando composer enviar retry falhou",
         group: "Componentes",
         Component: ChatSection,
+    },
+    {
+        id: "transfer",
+        label: "Transfer",
+        keywords:
+            "transfer dual list duas listas mover permissao papel selecionar subconjunto busca acento",
+        group: "Componentes",
+        Component: TransferSection,
     },
     {
         id: "codeblock",

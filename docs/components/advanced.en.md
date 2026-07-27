@@ -582,6 +582,69 @@ export function SteppedSignup() {
 !!! note "`clickableSteps` is `false` on purpose"
     A wizard exists because **order matters**. With `clickableSteps`, jumping back is free (going back never blocks), but jumping forward validates **every step crossed** — the first gate that fails stops the jump right there.
 
+### `Transfer`
+
+> **When to use**: picking a **subset** of a catalogue — a profile's permissions, cities on a route, members of a group, columns of a report.
+
+Two panes, four move controls, a search box on each side. Controlled by the **ids on the right**; both panes are derived.
+
+```tsx
+import { Transfer, type TransferItem } from "tempest-react-sdk";
+import { useState } from "react";
+
+const PERMISSIONS: TransferItem[] = [
+  { id: "orders.read", label: "Read orders" },
+  { id: "orders.create", label: "Create orders" },
+  { id: "audit.read", label: "Read audit log", disabled: true },
+];
+
+export function ProfilePermissions() {
+  const [permissions, setPermissions] = useState<string[]>([]);
+
+  return (
+    <Transfer
+      items={PERMISSIONS}
+      value={permissions}
+      onChange={setPermissions}
+      sourceTitle="Available"
+      targetTitle="On the profile"
+    />
+  );
+}
+```
+
+| Prop | Type | Default | What it does |
+| --- | --- | --- | --- |
+| `items` | `TransferItem[]` | — | The whole catalogue. Both panes come from it. |
+| `value` | `string[]` | — | Ids on the right. **Controlled.** |
+| `onChange` | `(value: string[]) => void` | — | Next value, always in catalogue order. |
+| `sourceTitle` / `targetTitle` | `ReactNode` | `"Disponíveis"` / `"Selecionados"` | Each pane's heading. |
+| `searchable` | `boolean` | `true` past 8 items | A search box on each pane. |
+| `renderItem` | `(item, side) => ReactNode` | `item.label` | Custom row body. |
+| `height` | `string` | `"16rem"` | Height of each pane's scroll area. |
+| `locale` | `"pt-BR" \| "en"` | `"pt-BR"` | Labels and announcements. |
+| `disabled` | `boolean` | `false` | Blocks every move. |
+
+`TransferItem = { id, label, searchText?, disabled?, data? }`
+
+!!! info "Only the right-hand ids are state — the panes are derived"
+    Storing two lists looks simpler and **drifts** the first time the catalogue changes underneath: a permission removed on the server lingers in whichever pane held it, and an id present on both sides is a bug nobody can see. With a single `value`, `items` is in charge: anything that left the catalogue simply disappears from both panes.
+
+!!! check "The move-all button respects the filter"
+    Filtering by `sao` and clicking "move all" moves **what you are looking at**, not the whole pane. Moving the rows the filter hid is the kind of surprise that makes people stop trusting the button — and it was a real bug, caught by a test before the merge.
+
+!!! check "Search folds accents, both ways"
+    `sao` finds "São Paulo" and so does `são`. For a PT-BR audience that is not a refinement: a plain `includes` would miss half the searches.
+
+!!! warning "A `disabled` row does not move by any path"
+    The check lives in `applyMove`, not in each of the four buttons — it is a mandatory permission, a locked seat. Which is why `»` moves "everything movable", not "everything".
+
+!!! info "Checks are cleared after a move"
+    Otherwise the next click on the opposite button sends it all back, and the component looks like it is undoing itself.
+
+!!! info "The controls sit in the middle by grid order, but come last in the DOM"
+    A keyboard reaching the buttons before it has seen what they move would have to go back; a screen reader would read "move checked to the right" with no idea what is checked. Each pane is a `region` named by its heading, and each move is announced in a `role="status"`.
+
 ### `Chat`
 
 > **When to use**: a message thread — support, internal chat, document comments, a service history.

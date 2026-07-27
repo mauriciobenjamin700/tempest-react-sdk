@@ -393,3 +393,7 @@ export type {
     ChatSection,
 } from "./Chat";
 export { chatStrings, dayLabel, groupMessages, timeLabel, typingLabel } from "./Chat";
+
+export { Transfer } from "./Transfer";
+export type { TransferItem, TransferProps, TransferSide } from "./Transfer";
+export { applyMove as applyTransferMove, splitSides as splitTransferSides } from "./Transfer";

@@ -36,6 +36,7 @@ import { Table } from "./Table";
 import { Tabs } from "./Tabs";
 import { SignaturePad } from "./SignaturePad";
 import { Textarea } from "./Textarea";
+import { Transfer } from "./Transfer";
 import { TreeView } from "./TreeView";
 import { VirtualTable } from "./VirtualTable";
 import { Wizard } from "./Wizard";
@@ -189,6 +190,19 @@ const CASES: [name: string, ui: ReactElement][] = [
         <Modal open onClose={() => undefined} title="Confirmar">
             Tem certeza?
         </Modal>,
+    ],
+    [
+        "Transfer",
+        <Transfer
+            items={[
+                { id: "a", label: "Administrador" },
+                { id: "b", label: "Financeiro", disabled: true },
+                { id: "c", label: "Suporte" },
+            ]}
+            value={["c"]}
+            onChange={() => {}}
+            searchable
+        />,
     ],
     [
         "TreeView",

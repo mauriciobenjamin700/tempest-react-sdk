@@ -11,6 +11,7 @@ import { Banner } from "./Banner";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { Button } from "./Button";
 import { Card } from "./Card";
+import { Chat } from "./Chat";
 import { Checkbox } from "./Checkbox";
 import { EmptyState } from "./EmptyState";
 import { ImageCropper } from "./ImageCropper";
@@ -218,6 +219,34 @@ const CASES: [name: string, ui: ReactElement][] = [
         />,
     ],
     ["SignaturePad", <SignaturePad label="Assinatura do cliente" />],
+    [
+        "Chat",
+        <Chat
+            messages={[
+                {
+                    id: "1",
+                    body: "Bom dia",
+                    authorId: "ana",
+                    authorName: "Ana",
+                    sentAt: 1_772_000_000_000,
+                },
+                {
+                    id: "2",
+                    body: "Tudo certo",
+                    authorId: "me",
+                    authorName: "Eu",
+                    sentAt: 1_772_000_060_000,
+                    status: "read",
+                },
+            ]}
+            currentUserId="me"
+            typing={["Ana"]}
+            header={<h2>Suporte</h2>}
+            onSend={() => {}}
+            onRetry={() => {}}
+            now={1_772_000_120_000}
+        />,
+    ],
     [
         "Kanban",
         <Kanban

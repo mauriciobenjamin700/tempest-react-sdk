@@ -1,0 +1,248 @@
+.panel {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    height: var(--tempest-chat-height, 100%);
+    background-color: var(--tempest-bg);
+    color: var(--tempest-text);
+    font-family: var(--tempest-font-sans);
+}
+
+.header {
+    flex: 0 0 auto;
+    padding: var(--tempest-space-3) var(--tempest-space-4);
+    border-bottom: 1px solid var(--tempest-border);
+}
+
+.thread {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: var(--tempest-space-3);
+    min-height: 0;
+    padding: var(--tempest-space-4);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.thread:focus-visible {
+    outline: 2px solid var(--tempest-primary);
+    outline-offset: -2px;
+}
+
+.day {
+    display: flex;
+    align-items: center;
+    gap: var(--tempest-space-3);
+}
+
+.day::before,
+.day::after {
+    flex: 1 1 auto;
+    height: 1px;
+    background-color: var(--tempest-border);
+    content: "";
+}
+
+.dayLabel {
+    color: var(--tempest-text-subtle);
+    font-size: var(--tempest-text-xs);
+    text-transform: capitalize;
+}
+
+.run {
+    display: flex;
+    gap: var(--tempest-space-3);
+    align-items: flex-start;
+    max-width: 100%;
+}
+
+/*
+ * Own messages mirror the row instead of moving to a second column: the avatar,
+ * the name and the bubbles keep the same source order, so a screen reader still
+ * reads "who, then what" while the eye reads it from the other side.
+ */
+.ownRun {
+    flex-direction: row-reverse;
+}
+
+.avatar {
+    flex: 0 0 auto;
+}
+
+.runBody {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-space-1);
+    min-width: 0;
+    max-width: min(78%, 42rem);
+}
+
+.ownRun .runBody {
+    align-items: flex-end;
+}
+
+.author {
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-xs);
+    font-weight: var(--tempest-weight-medium);
+}
+
+.bubbles {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-space-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.bubbleRow {
+    display: flex;
+    align-items: center;
+    gap: var(--tempest-space-2);
+}
+
+.ownRun .bubbleRow {
+    flex-direction: row-reverse;
+}
+
+.bubble {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-space-1);
+    min-width: 0;
+    padding: var(--tempest-space-2) var(--tempest-space-3);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-lg);
+    background-color: var(--tempest-surface);
+    font-size: var(--tempest-text-sm);
+    line-height: var(--tempest-leading-normal);
+}
+
+.ownBubble {
+    border-color: transparent;
+    background-color: var(--tempest-primary-soft);
+    color: var(--tempest-primary-on-soft);
+}
+
+/*
+ * A failed message keeps its text readable and states the failure at the border
+ * and in the meta row. Tinting the whole bubble danger-red would make the message
+ * itself hard to read — and re-reading it is exactly what somebody does before
+ * deciding to retry.
+ */
+.failedBubble {
+    border-color: var(--tempest-danger);
+    background-color: var(--tempest-danger-bg);
+    color: var(--tempest-text);
+}
+
+.body {
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.meta {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--tempest-space-2);
+    color: var(--tempest-text-subtle);
+    font-size: var(--tempest-text-2xs);
+    font-variant-numeric: tabular-nums;
+}
+
+.status {
+    display: inline-flex;
+    align-items: center;
+}
+
+.statusFailed {
+    color: var(--tempest-danger);
+    font-weight: var(--tempest-weight-bold);
+}
+
+.retry {
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--tempest-danger);
+    font: inherit;
+    font-size: var(--tempest-text-xs);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.typing {
+    flex: 0 0 auto;
+    margin: 0;
+    padding: 0 var(--tempest-space-4) var(--tempest-space-2);
+    color: var(--tempest-text-subtle);
+    font-size: var(--tempest-text-xs);
+}
+
+.composer {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: flex-end;
+    gap: var(--tempest-space-2);
+    padding: var(--tempest-space-3) var(--tempest-space-4);
+    border-top: 1px solid var(--tempest-border);
+}
+
+.field {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: var(--tempest-space-2) var(--tempest-space-3);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-md);
+    background-color: var(--tempest-bg);
+    color: inherit;
+    font: inherit;
+    font-size: var(--tempest-text-sm);
+    line-height: var(--tempest-leading-normal);
+    resize: none;
+}
+
+.field:focus-visible {
+    outline: 2px solid var(--tempest-primary);
+    outline-offset: -1px;
+}
+
+.field:disabled {
+    background-color: var(--tempest-surface-2);
+    color: var(--tempest-text-subtle);
+    cursor: not-allowed;
+}
+
+.composerActions {
+    display: flex;
+    align-items: center;
+    gap: var(--tempest-space-2);
+}
+
+.send {
+    padding: var(--tempest-space-2) var(--tempest-space-4);
+    border: none;
+    border-radius: var(--tempest-radius-md);
+    background-color: var(--tempest-primary);
+    color: var(--tempest-primary-foreground);
+    font: inherit;
+    font-size: var(--tempest-text-sm);
+    font-weight: var(--tempest-weight-medium);
+    cursor: pointer;
+}
+
+.send:disabled {
+    background-color: var(--tempest-surface-3);
+    color: var(--tempest-text-subtle);
+    cursor: not-allowed;
+}
+
+@media (max-width: 480px) {
+    .runBody {
+        max-width: 88%;
+    }
+}

@@ -381,3 +381,15 @@ export { Lightbox } from "./Lightbox";
 export type { LightboxItem, LightboxProps } from "./Lightbox";
 export { SignaturePad } from "./SignaturePad";
 export type { SignaturePadHandle, SignaturePadProps } from "./SignaturePad";
+
+export { Chat, ChatComposer } from "./Chat";
+export type {
+    ChatComposerHandle,
+    ChatComposerProps,
+    ChatDay,
+    ChatMessage,
+    ChatProps,
+    ChatRun,
+    ChatSection,
+} from "./Chat";
+export { chatStrings, dayLabel, groupMessages, timeLabel, typingLabel } from "./Chat";

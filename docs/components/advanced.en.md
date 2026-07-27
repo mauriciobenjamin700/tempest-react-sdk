@@ -582,6 +582,96 @@ export function SteppedSignup() {
 !!! note "`clickableSteps` is `false` on purpose"
     A wizard exists because **order matters**. With `clickableSteps`, jumping back is free (going back never blocks), but jumping forward validates **every step crossed** — the first gate that fails stops the jump right there.
 
+### `Chat`
+
+> **When to use**: a message thread — support, internal chat, document comments, a service history.
+
+Groups by author and by day, marks the current user's side, shows delivery state and who is typing, and brings the composer along when you pass `onSend`.
+
+```tsx
+import { Chat, Avatar, type ChatMessage } from "tempest-react-sdk";
+import { useState } from "react";
+
+export function Support({ me }: { me: { id: string } }) {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+
+  /** Optimistic insert: the message shows up before the server confirms. */
+  const send = async (text: string) => {
+    const id = crypto.randomUUID();
+    setMessages((current) => [
+      ...current,
+      { id, body: text, authorId: me.id, sentAt: Date.now(), status: "sending" },
+    ]);
+    await api.post("/messages", { body: { id, text } });
+    setMessages((current) =>
+      current.map((m) => (m.id === id ? { ...m, status: "sent" } : m)),
+    );
+  };
+
+  return (
+    <Chat
+      messages={messages}
+      currentUserId={me.id}
+      onSend={send}
+      onRetry={(m) => resend(m.id)}
+      renderAvatar={(m) => <Avatar name={m.authorName ?? m.authorId} size="sm" />}
+    />
+  );
+}
+```
+
+| Prop | Type | Default | What it does |
+| --- | --- | --- | --- |
+| `messages` | `ChatMessage[]` | — | The thread, **oldest first**. Never reordered. |
+| `currentUserId` | `string` | — | Author treated as "own": side, colour, delivery ticks. |
+| `onSend` | `(text: string) => void \| Promise<void>` | — | Renders the composer. Receives the trimmed text. |
+| `onRetry` | `(message: ChatMessage) => void` | — | Enables the retry control on a `"failed"` message. |
+| `onSendError` | `(error: unknown) => void` | — | Called when `onSend` rejects. The draft stays in the field. |
+| `typing` | `string[]` | `[]` | Who is typing. One, two or a count is phrased for you. |
+| `renderAvatar` | `(message) => ReactNode` | — | Avatar for the **first** message of each run. |
+| `header` | `ReactNode` | — | Bar above the thread, inside the panel. |
+| `groupWindowMs` | `number` | `300000` | Gap that still keeps messages in one run. |
+| `locale` | `"pt-BR" \| "en"` | `"pt-BR"` | Labels ("Today", "You", "Sending"…). |
+| `emptyState` | `ReactNode` | `<EmptyState/>` | Empty thread. |
+| `composerDisabled` | `boolean` | `false` | No permission, archived thread, offline. |
+
+`ChatMessage = { id, body, authorId, authorName?, sentAt, status?, data? }` · `status` ∈ `"sending" | "sent" | "read" | "failed"`.
+
+The component is **presentational and controlled**, like the rest of the SDK: it takes a list and emits intent. Where messages come from (REST, the SDK's `createWebSocket`, an SSE stream) and how the optimistic insert is done stay with the app, because those differ per backend.
+
+!!! tip "It only jumps to the bottom if you were already at the bottom"
+    A thread that always scrolls to the newest message yanks whoever is reading history, every time anyone types. So the jump happens only when the reader was already down there (with 48px of slack for a partially visible last row) — the rule every chat app converges on. Verified in the browser: reading history at the top, three messages arrived and the position did not move.
+
+!!! info "A run breaks on author, on day **and** on a gap"
+    Repeating the avatar and the name on every line of a five-message burst turns a conversation into a list of receipts. But a reply an hour later is a new beat even when nobody else spoke — joining it to the earlier burst would put one timestamp on messages an hour apart. `groupWindowMs` is that limit.
+
+!!! warning "Failure state is not decoration"
+    Without `"failed"` + `onRetry`, the user re-types what is already on screen. The failed bubble keeps its **text readable** (border and meta in red, not the whole background) precisely because re-reading the message is what somebody does before deciding to resend.
+
+!!! info "The thread is `role=\"log\"` with `aria-live=\"polite\"`, and keyboard-reachable"
+    A new message is announced without stealing focus. The container has `tabIndex={0}` because a scroll area with nothing focusable inside is unreachable by keyboard — the same problem the [scroll fix](./data.md) solved for `Table`. Delivery state is text (`VisuallyHidden`), not just a glyph: "✓✓" is not read out.
+
+!!! tip "It doubles as a comment thread"
+    Same component **without** `currentUserId` and without `typing`: everyone on one side, a name per run. That is why "who am I" is a prop rather than an `own` field on every message — in a document comment thread nobody wants to annotate 200 messages.
+
+#### `ChatComposer`
+
+Exported separately for a custom layout (a composer pinned to the footer of a route, say). A textarea that grows with its content, `Enter` sends, `Shift+Enter` breaks the line.
+
+| Prop | Type | Default | What it does |
+| --- | --- | --- | --- |
+| `onSend` | `(text: string) => void \| Promise<void>` | — | Receives the trimmed text. Clears the field only if it does not reject. |
+| `onError` | `(error: unknown) => void` | — | Error from `onSend`. The draft is preserved either way. |
+| `actions` | `ReactNode` | — | Before the send button — attach, emoji. |
+| `maxRows` | `number` | `6` | Largest height, in lines. |
+| `sendLabel` | `string` | locale | Button label. |
+
+!!! warning "It is **uncontrolled**, on purpose"
+    A chat draft changes on every keystroke, and lifting that into app state re-renders the whole thread per character — the one place where "controlled by default" costs something visible. Apps that need the draft (a persisted composer, a slash-command menu) read it from `onChange` or drive it through the ref (`focus()`, `setValue()`).
+
+!!! danger "IME: `Enter` while composing does not send"
+    While composing Japanese or Korean, `Enter` confirms the candidate word. Sending there posts half a word and eats the confirmation — hence the `isComposing` check.
+
 ### `Kanban`
 
 > **When to use it**: a board of columns whose cards move between stages — backlog, sales pipeline, work orders by status.

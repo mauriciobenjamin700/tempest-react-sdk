@@ -113,7 +113,7 @@ de componente passa a ser a lista P2 abaixo.
 
 ### P2 — componentes
 
-`Chat`/thread de comentários · `Transfer` (dual list) · `FilterBar`/QueryBuilder · `Masonry` · `Tour`/coachmarks · `Markdown`.
+`Transfer` (dual list) · `FilterBar`/QueryBuilder · `Masonry` · `Tour`/coachmarks · `Markdown`. (**`Chat`** saiu da lista — thread + `ChatComposer`, com agrupamento por autor/dia, estado de entrega e a regra de rolagem "só pula se já estava no fim".)
 
 ### P2 — CSS pronto (o que sobrou da fatia)
 

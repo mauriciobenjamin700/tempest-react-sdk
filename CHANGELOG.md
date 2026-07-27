@@ -4,6 +4,48 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`Chat` — thread de mensagens, e a mesma coisa serve de thread de comentários.** Primeiro
+  item da lista P2. Agrupa por autor e por dia, marca o lado do usuário atual, mostra
+  estado de entrega, quem está digitando, e traz o composer quando recebe `onSend`.
+  Apresentacional e controlado como o resto do SDK: de onde vêm as mensagens (REST,
+  `createWebSocket`, SSE) e como o insert otimista é feito ficam com o app.
+- **A rolagem só pula pro fim quando o leitor já estava no fim.** Uma thread que sempre
+  rola pra mensagem nova arranca quem está lendo o histórico, toda vez que qualquer
+  pessoa digita. Verificado no browser real: lendo o topo, três mensagens chegaram e a
+  posição não se moveu.
+- **Bloco quebra por autor, por dia e por intervalo (`groupWindowMs`, 5 min).** Repetir
+  avatar e nome em cada linha de uma rajada vira lista de recibos; juntar uma resposta de
+  uma hora depois colocaria um timestamp só em mensagens separadas por uma hora.
+- **Estado de falha com retry.** A bolha que falhou mantém o **texto legível** — borda e
+  meta em vermelho, não o fundo inteiro — porque reler a mensagem é o que a pessoa faz
+  antes de decidir reenviar. Sem isso, o usuário redigita o que já está na tela.
+- **`ChatComposer` exportado à parte**, e **não controlado de propósito**: rascunho de
+  chat muda a cada tecla, e subir isso pro estado do app re-renderiza a thread inteira
+  por caractere. `Enter` envia, `Shift+Enter` quebra linha, e `Enter` **durante composição
+  de IME não envia** — compondo japonês ou coreano essa tecla confirma a palavra
+  candidata, e enviar ali publica meia palavra.
+- **`onSend` que rejeita não vira unhandled rejection.** Re-lançar de dentro de um handler
+  de evento DOM apareceria como rejeição não tratada — ruído no console e hit no crash
+  reporter, sem nada que o usuário possa fazer. O rascunho fica no campo (o sinal visível)
+  e o erro vai pro `onError`/`onSendError`.
+- A11y: thread é `role="log"` + `aria-live="polite"`, com `tabIndex={0}` porque área que
+  rola sem nada focável dentro é inalcançável por teclado; estado de entrega vai em texto
+  via `VisuallyHidden`, não só no glifo ("✓✓" não é lido). Entrou no sweep do `axe`.
+- **O timestamp na bolha própria reprovava contraste — pego pela CI, não em revisão.** A
+  `--tempest-text-subtle` é resolvida contra o fundo da página e da superfície; sobre
+  `--tempest-primary-soft` ela é outro composto, e o browser real mediu abaixo do piso de
+  **texto** (4,5:1). A meta row passou pra `--tempest-text-muted`, e dentro da bolha
+  tingida usa o foreground da própria bolha (`--tempest-primary-on-soft`). O que
+  de-enfatiza ali é o **tamanho**; a cor ainda tem que passar. Mesma armadilha dos tokens
+  de sintaxe do `CodeBlock`.
+- Budget do `styles.css` no `size-limit` subiu de 24 kB pra 25 kB: o CSS do `Chat` custa
+  ~0,5 kB brotli na folha única, e o teto existia justamente pra essa subida ser uma
+  decisão e não uma surpresa.
+- Gallery ganhou a section `Chat` com três exemplos: thread viva (insert otimista +
+  digitando + resposta), mensagem que falhou, e thread de comentários.
+
 ## [0.29.1] — 2026-07-27
 
 ### Corrigido

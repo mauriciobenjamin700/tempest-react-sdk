@@ -33,6 +33,13 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - A11y: thread é `role="log"` + `aria-live="polite"`, com `tabIndex={0}` porque área que
   rola sem nada focável dentro é inalcançável por teclado; estado de entrega vai em texto
   via `VisuallyHidden`, não só no glifo ("✓✓" não é lido). Entrou no sweep do `axe`.
+- **O timestamp na bolha própria reprovava contraste — pego pela CI, não em revisão.** A
+  `--tempest-text-subtle` é resolvida contra o fundo da página e da superfície; sobre
+  `--tempest-primary-soft` ela é outro composto, e o browser real mediu abaixo do piso de
+  **texto** (4,5:1). A meta row passou pra `--tempest-text-muted`, e dentro da bolha
+  tingida usa o foreground da própria bolha (`--tempest-primary-on-soft`). O que
+  de-enfatiza ali é o **tamanho**; a cor ainda tem que passar. Mesma armadilha dos tokens
+  de sintaxe do `CodeBlock`.
 - Budget do `styles.css` no `size-limit` subiu de 24 kB pra 25 kB: o CSS do `Chat` custa
   ~0,5 kB brotli na folha única, e o teto existia justamente pra essa subida ser uma
   decisão e não uma surpresa.

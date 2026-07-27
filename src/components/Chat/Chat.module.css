@@ -144,14 +144,27 @@
     white-space: pre-wrap;
 }
 
+/*
+ * The timestamp uses the muted token, not the subtle one, and switches to the
+ * bubble's own foreground when the bubble is tinted.
+ *
+ * `--tempest-text-subtle` is solved against the page and surface backgrounds. On
+ * `--tempest-primary-soft` it is a different composite, and the real browser
+ * measured it below the 4.5:1 text floor — the same trap the syntax tokens hit.
+ * Size is what de-emphasises the meta row here; colour still has to pass.
+ */
 .meta {
     display: flex;
     align-items: center;
     justify-content: flex-end;
     gap: var(--tempest-space-2);
-    color: var(--tempest-text-subtle);
+    color: var(--tempest-text-muted);
     font-size: var(--tempest-text-2xs);
     font-variant-numeric: tabular-nums;
+}
+
+.ownBubble .meta {
+    color: var(--tempest-primary-on-soft);
 }
 
 .status {

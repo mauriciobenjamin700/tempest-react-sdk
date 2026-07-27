@@ -17,6 +17,7 @@ import { EmptyState } from "./EmptyState";
 import { ImageCropper } from "./ImageCropper";
 import { Input } from "./Input";
 import { Kanban } from "./Kanban";
+import { Masonry } from "./Masonry";
 import { Modal } from "./Modal";
 import { NotificationCenter } from "./NotificationCenter";
 import { Pagination } from "./Pagination";
@@ -184,6 +185,12 @@ const CASES: [name: string, ui: ReactElement][] = [
             height={200}
             rowKey={(row) => row.id}
         />,
+    ],
+    [
+        "Masonry",
+        <Masonry items={["a", "b", "c"]} columns={2}>
+            {(item) => <p>{item}</p>}
+        </Masonry>,
     ],
     [
         "Modal",

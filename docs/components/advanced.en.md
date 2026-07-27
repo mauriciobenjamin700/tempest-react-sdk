@@ -582,6 +582,43 @@ export function SteppedSignup() {
 !!! note "`clickableSteps` is `false` on purpose"
     A wizard exists because **order matters**. With `clickableSteps`, jumping back is free (going back never blocks), but jumping forward validates **every step crossed** — the first gate that fails stops the jump right there.
 
+### `Masonry`
+
+> **When to use**: cards of **uneven height** with no order between them — a notes wall, a photo gallery, dashboard cards.
+
+Measures the cards and deals each one into the shortest column, so the bottom edge is as even as the content allows.
+
+```tsx
+import { Masonry, Card } from "tempest-react-sdk";
+
+<Masonry items={notes} itemKey={(note) => note.id} columns={{ 0: 1, 640: 2, 1024: 3 }}>
+  {(note) => <Card title={note.title}>{note.body}</Card>}
+</Masonry>;
+```
+
+| Prop | Type | Default | What it does |
+| --- | --- | --- | --- |
+| `items` | `T[]` | — | What to lay out. |
+| `children` | `(item: T, index: number) => ReactNode` | — | Renders one card. |
+| `columns` | `number \| Record<number, number>` | `{ 0: 1, 640: 2, 1024: 3 }` | A fixed number, or a **width → columns** map. |
+| `itemKey` | `(item: T, index: number) => string \| number` | index | Stable key per item. |
+| `gap` | `string` | `--tempest-space-4` | Space between cards. |
+
+!!! info "Why this is not one line of CSS"
+    CSS `columns` **breaks a card** across the column boundary, and `grid-auto-flow: dense` keeps every row at the height of its tallest cell — which is exactly the ragged bottom edge people reach for masonry to avoid. Both are one line of CSS and neither does this job.
+
+!!! warning "Reading order goes down the column, not across the row"
+    Card 2 sits **below** card 1, not beside it. Which is why this layout is for **independent** items: a list where item 2 must follow item 1 wants a grid, not this. If order matters to your content, do not use masonry — not here, not in plain CSS.
+
+!!! check "The breakpoint map is about the container, not the viewport"
+    A masonry inside a drawer or a two-column page is narrower than the window, and a media query would give it three columns at 300px wide. A `ResizeObserver` is what makes `{ 0: 1, 640: 2 }` mean "of this container", which is the only useful reading.
+
+!!! info "Shortest column, not round-robin"
+    `index % columns` is the obvious approach and produces ragged columns the moment items differ in height — which is the only reason to use masonry at all.
+
+!!! tip "An image that loads later is re-measured"
+    Every card is observed individually: a height measured at mount is wrong in exactly the case of an image still downloading. The first paint weights every card as 1 (so it is never blank) and the measured pass re-deals.
+
 ### `Transfer`
 
 > **When to use**: picking a **subset** of a catalogue — a profile's permissions, cities on a route, members of a group, columns of a report.

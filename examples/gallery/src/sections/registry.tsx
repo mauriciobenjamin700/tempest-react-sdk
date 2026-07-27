@@ -16,6 +16,7 @@ import { DataTableSection } from "./DataTableSection";
 import { DataVizScalesSection } from "./DataVizScalesSection";
 import { ImageCropperSection } from "./ImageCropperSection";
 import { ChatSection } from "./ChatSection";
+import { MasonrySection } from "./MasonrySection";
 import { TransferSection } from "./TransferSection";
 import { CodeBlockSection } from "./CodeBlockSection";
 import { QRCodeSection } from "./QRCodeSection";
@@ -271,6 +272,13 @@ export const SECTIONS: SectionEntry[] = [
             "chat thread conversa mensagem comentario comments bolha bubble typing digitando composer enviar retry falhou",
         group: "Componentes",
         Component: ChatSection,
+    },
+    {
+        id: "masonry",
+        label: "Masonry",
+        keywords: "masonry mosaico colunas altura desigual cards pinterest grid coluna curta",
+        group: "Componentes",
+        Component: MasonrySection,
     },
     {
         id: "transfer",

@@ -397,3 +397,6 @@ export { chatStrings, dayLabel, groupMessages, timeLabel, typingLabel } from "./
 export { Transfer } from "./Transfer";
 export type { TransferItem, TransferProps, TransferSide } from "./Transfer";
 export { applyMove as applyTransferMove, splitSides as splitTransferSides } from "./Transfer";
+
+export { Masonry } from "./Masonry";
+export type { MasonryProps } from "./Masonry";

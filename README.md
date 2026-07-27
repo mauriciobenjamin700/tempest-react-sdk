@@ -31,6 +31,7 @@ The goal is to start every new React frontend with the same opinionated foundati
   - [CSS import](#css-import)
 - [What's inside](#whats-inside)
 - [Scaffold a new app](#scaffold-a-new-app)
+- [Project CLI — `tempest` (doctor, fix, CSS analysis)](#project-cli--tempest)
 - [App foundation (routing, state, providers, Vite)](#app-foundation)
 - [Architecture overview](#architecture-overview)
 - [Quickstart — wiring the app providers](#quickstart--wiring-the-app-providers)
@@ -338,6 +339,29 @@ my-app/
 ```
 
 Each generated file demonstrates one SDK capability. Full walkthrough: **[scaffold docs (PT)](https://mauriciobenjamin700.github.io/tempest-react-sdk/scaffold/)** · **[EN](https://mauriciobenjamin700.github.io/tempest-react-sdk/en/scaffold/)**.
+
+---
+
+## Project CLI — `tempest`
+
+The package ships a second `bin`, **`tempest`**, for day-to-day project health — it needs no config and works on any React + Vite app, SDK or not:
+
+```bash
+npx tempest doctor           # health-check: deps, TypeScript, Vite, tooling, env, CSS
+npx tempest fix              # relative imports → @/ · dead CSS · ESLint --fix · Prettier
+npx tempest fix --dry-run    # the full report, writing nothing
+npx tempest lint             # ESLint, report only
+npx tempest gen api <spec>   # Zod schemas + types + service classes from OpenAPI
+npx tempest gen icons        # static icon registry from the slugs your source uses
+```
+
+**CSS is analyzed too** — ESLint does not read `.css` and Prettier only reformats it, so broken CSS normally goes through untouched. `doctor` and `fix` parse every stylesheet (CSS Modules included) and report:
+
+- **syntax the browser silently drops** — a missing `;` that swallows the next declarations, `color: ;`, an unclosed block, an unterminated comment or string;
+- **valid CSS that is still wrong** — a declaration the next one kills, a selector declared twice, `bacground-color`, `@medai`, a `--tempest-*` token that does not exist, a `var()` nobody defines and that has no fallback;
+- **when a global class beats the repeated local one** — the same declaration block in N CSS Modules, including the cases `utilities.css` already covers (`.tempest-row`, `.tempest-stack`, …). CSS Modules cannot see this for you: scoping makes the duplication invisible by design.
+
+`tempest fix` removes only what is provably dead (a declaration repeated with the identical value, a rule that repeats an earlier one exactly, an empty rule in a plain sheet) — always the **earlier** copy, since CSS is last-wins. Everything else is reported and left to you. Details: **[CLI docs (PT)](https://mauriciobenjamin700.github.io/tempest-react-sdk/cli/)** · **[EN](https://mauriciobenjamin700.github.io/tempest-react-sdk/en/cli/)**.
 
 ---
 

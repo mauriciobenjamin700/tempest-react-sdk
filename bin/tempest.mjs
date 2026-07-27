@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import { aliasImports } from "./lib/alias/index.mjs";
 import { loadTypeScript } from "./lib/alias/typescript.mjs";
 import { readTsconfig } from "./lib/alias/tsconfig.mjs";
+import { analyzeCss, applyCssFixes } from "./lib/css/index.mjs";
 import { checkLucide } from "./lib/doctor/lucide.mjs";
 import { generateRegistry, loadIconTables } from "./lib/icons/generate.mjs";
 import { generate } from "./lib/openapi/generate.mjs";
@@ -249,6 +250,74 @@ const STATEFUL_DEPS = [
     "react-router",
     "react-router-dom",
 ];
+
+/**
+ * Doctor rows for the CSS analysis.
+ *
+ * Findings are capped per severity because a report nobody reads to the end is a
+ * report that hides its own first line. The cap is stated, and the pointer to the
+ * uncapped list (`tempest fix --dry-run`) goes with it — a silent truncation
+ * would read as "that is all of them".
+ *
+ * @param {number} [limit] - Findings shown per severity.
+ * @returns {Array<[status: string, label: string, detail?: string]>} Check rows.
+ */
+function cssChecks(limit = 6) {
+    let analysis;
+    try {
+        analysis = analyzeCss({ root: ROOT, targets: ["."], selfDir: SELF_DIR });
+    } catch (err) {
+        return [["warn", "CSS analysis failed", String(err?.message ?? err)]];
+    }
+    if (analysis.stats.files === 0) return [];
+
+    const rows = [["section", "Stylesheets"]];
+    rows.push([
+        "info",
+        `${analysis.stats.files} stylesheet(s) · ${analysis.stats.rules} rules · ${analysis.stats.declarations} declarations`,
+        analysis.tokens.source ? "" : "SDK token table not found — token checks skipped",
+    ]);
+    if (analysis.truncated) {
+        rows.push([
+            "info",
+            "file cap reached",
+            "only the first 600 stylesheets were analyzed — narrow the run with `tempest fix <path> --dry-run`",
+        ]);
+    }
+
+    const status = { error: "fail", warn: "warn", info: "info" };
+    let hidden = 0;
+    for (const severity of ["error", "warn", "info"]) {
+        const group = analysis.findings.filter((f) => f.severity === severity);
+        for (const f of group.slice(0, limit)) {
+            rows.push([status[severity], `${f.file}:${f.line}`, f.message]);
+        }
+        hidden += Math.max(0, group.length - limit);
+    }
+    if (hidden > 0) {
+        rows.push([
+            "info",
+            `${hidden} more CSS finding(s) not shown`,
+            "run `tempest fix --dry-run` for the full list",
+        ]);
+    }
+    if (analysis.findings.length === 0) {
+        rows.push(["ok", "no CSS problems found"]);
+    } else {
+        const fixable = analysis.findings.filter((f) => f.fixable).length;
+        if (fixable > 0) {
+            rows.push([
+                "info",
+                `${fixable} finding(s) are auto-fixable`,
+                "run `tempest fix` — it removes only what is provably dead",
+            ]);
+        }
+    }
+    for (const skip of analysis.skipped.slice(0, 3)) {
+        rows.push(["info", `skipped ${skip.file}`, skip.reason]);
+    }
+    return rows;
+}
 
 function doctor() {
     const checks = [];
@@ -581,6 +650,9 @@ function doctor() {
         ]);
     }
 
+    // ── Stylesheets ───────────────────────────────────────────────────────────
+    checks.push(...cssChecks());
+
     // ── Tooling ────────────────────────────────────────────────────────────────
     checks.push(["section", "Tooling"]);
     checks.push(
@@ -742,7 +814,7 @@ function lint(args) {
 }
 
 /** Flags `fix` owns itself; anything else is rejected rather than forwarded. */
-const FIX_FLAGS = new Set(["--no-alias", "--dry-run"]);
+const FIX_FLAGS = new Set(["--no-alias", "--no-css", "--dry-run"]);
 
 /**
  * Print the alias pass result.
@@ -785,6 +857,91 @@ function reportAlias(result, dryRun) {
     );
 }
 
+/** Prefix for a finding line: red for a browser-visible defect, yellow otherwise. */
+function severityMark(severity) {
+    if (severity === "error") return `${c.red}✗${c.reset}`;
+    return severity === "warn" ? `${c.yellow}!${c.reset}` : `${c.cyan}i${c.reset}`;
+}
+
+/**
+ * The CSS pass of `fix`: report what the analysis found, then remove the subset
+ * that is provably dead.
+ *
+ * Findings that need a human are printed in full here rather than capped, because
+ * `--dry-run` is the review surface — `doctor` is the summary, this is the list
+ * you read before letting the tool write. Only the advisory (`info`) tail is
+ * capped, since "this could be a token" scales with the size of the project.
+ *
+ * @param {object} params
+ * @param {string[]} params.targets - Positional paths from the command line.
+ * @param {boolean} params.dryRun
+ * @returns {number} Exit status contribution.
+ */
+function cssPass({ targets, dryRun }) {
+    console.log(
+        `${c.dim}→ css (dedupe declarations · drop dead rules)${dryRun ? " [dry-run]" : ""}${c.reset}`,
+    );
+    let analysis;
+    try {
+        analysis = analyzeCss({ root: ROOT, targets, selfDir: SELF_DIR });
+    } catch (err) {
+        console.log(
+            `  ${c.red}✗ analysis failed${c.reset} ${c.dim}${err?.message ?? err}${c.reset}`,
+        );
+        return 1;
+    }
+    if (analysis.stats.files === 0) {
+        console.log(`  ${c.dim}no stylesheets found${c.reset}`);
+        return 0;
+    }
+
+    const manual = analysis.findings.filter((f) => !f.fixable);
+    const infoLimit = 10;
+    let shownInfo = 0;
+    let hiddenInfo = 0;
+    for (const f of manual) {
+        if (f.severity === "info") {
+            if (shownInfo >= infoLimit) {
+                hiddenInfo += 1;
+                continue;
+            }
+            shownInfo += 1;
+        }
+        console.log(
+            `  [${severityMark(f.severity)}] ${f.file}:${f.line} ${c.dim}${f.message}${c.reset}`,
+        );
+    }
+    if (hiddenInfo > 0) {
+        console.log(`  ${c.dim}…+${hiddenInfo} more suggestion(s)${c.reset}`);
+    }
+
+    const result = applyCssFixes({ analysis, dryRun });
+    for (const file of result.files) {
+        console.log(`  ${file.file} ${c.dim}${file.changes.length}${c.reset}`);
+        for (const change of file.changes) {
+            console.log(`    ${c.dim}${change.line}:${c.reset} ${change.message}`);
+        }
+    }
+    for (const err of result.errors) {
+        console.log(`  ${c.red}✗ ${err.file}${c.reset} ${c.dim}${err.message}${c.reset}`);
+    }
+
+    if (result.total === 0) {
+        console.log(`  ${c.dim}nothing to remove${c.reset}`);
+    } else {
+        const verb = dryRun ? "would remove" : "removed";
+        console.log(
+            `  ${c.green}✓${c.reset} ${verb} ${result.total} dead declaration(s)/rule(s) in ${result.files.length} file(s)`,
+        );
+    }
+    if (analysis.counts.error > 0) {
+        console.log(
+            `  ${c.red}✗ ${analysis.counts.error} CSS syntax error(s)${c.reset} ${c.dim}— those files were not touched; fix them and run again${c.reset}`,
+        );
+    }
+    return result.errors.length || analysis.counts.error ? 1 : 0;
+}
+
 function fix(args) {
     const { flags, paths } = splitArgs(args);
     const unknown = flags.filter((f) => !FIX_FLAGS.has(f));
@@ -804,7 +961,10 @@ function fix(args) {
         reportAlias(result, dryRun);
         aliasStatus = result.status === "error" ? 1 : 0;
     }
-    if (dryRun) return aliasStatus;
+
+    const cssStatus = flags.includes("--no-css") ? 0 : cssPass({ targets, dryRun });
+
+    if (dryRun) return aliasStatus || cssStatus;
 
     console.log(`${c.dim}→ eslint --fix (sort imports · drop unused · tidy whitespace)${c.reset}`);
     const eslintStatus = run(requireBin("eslint"), [...targets, "--fix"]);
@@ -816,7 +976,7 @@ function fix(args) {
     } else {
         console.log(`${c.yellow}! prettier not installed — skipping format pass${c.reset}`);
     }
-    return aliasStatus || eslintStatus || prettierStatus;
+    return aliasStatus || cssStatus || eslintStatus || prettierStatus;
 }
 
 function format(args) {
@@ -952,8 +1112,8 @@ ${c.bold}Usage${c.reset}
 ${c.bold}Commands${c.reset}
   ${c.bold}doctor${c.reset}            Health-check the current project
   ${c.bold}lint${c.reset} [paths]      Run ESLint (report only)
-  ${c.bold}fix${c.reset} [paths]       Alias imports (../ → @/) + ESLint --fix (sort imports, remove
-                    unused, tidy whitespace) + Prettier
+  ${c.bold}fix${c.reset} [paths]       Alias imports (../ → @/) + CSS dead-code removal + ESLint --fix
+                    (sort imports, remove unused, tidy whitespace) + Prettier
   ${c.bold}format${c.reset} [paths]    Prettier --write
   ${c.bold}gen api${c.reset} <src>    Generate Zod schemas + types + service classes from an OpenAPI spec
                     (e.g. tempest gen api http://127.0.0.1:8000/openapi.json --out src/api)
@@ -961,8 +1121,10 @@ ${c.bold}Commands${c.reset}
                     (e.g. tempest gen icons --out src/icons.generated.ts --dir src)
 
 ${c.bold}fix options${c.reset}
-  --dry-run         List the imports that would be rewritten; write nothing
-  --no-alias        Skip the alias pass (ESLint + Prettier only)
+  --dry-run         List every CSS finding and the imports that would be rewritten;
+                    write nothing
+  --no-alias        Skip the alias pass
+  --no-css          Skip the CSS pass (analysis and dead-code removal)
 
 ${c.bold}Options${c.reset}
   -h, --help        Show this help

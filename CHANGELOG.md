@@ -6,6 +6,51 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **Análise de CSS no `tempest doctor` e no `tempest fix`.** O ESLint não lê `.css` e o
+  Prettier só reformata: entre os dois, CSS quebrado passava batido. Agora as duas
+  ferramentas leem cada folha do projeto (CSS Modules incluídos) com um **scanner
+  próprio, sem dependência** — nem postcss, nem stylelint — e reportam três classes de
+  problema.
+- **Sintaxe que o browser derruba em silêncio** (`✗`, reprova o `doctor`): `;` faltando
+  entre declarações — que é o pior deles, porque `padding: 8px⏎margin: 0;` é **uma**
+  declaração válida com valor `8px margin: 0` e o browser mata as duas sem dizer nada —,
+  declaração sem `:`, valor vazio, bloco nunca fechado, `}` sobrando, comentário/string/`(`
+  sem fechar, declaração fora de regra, `{` sem seletor. Nada disso quebra o build do
+  Vite, e é exatamente por isso que custa uma tarde.
+- **Semântica: CSS válido que ainda está errado** (`!`): declaração duplicada com o mesmo
+  valor (a primeira é morta), declaração sobrescrita com valor diferente na mesma regra,
+  seletor declarado duas vezes no mesmo contexto de `@media`, propriedade inexistente com
+  sugestão da mais próxima (`bacground-color` → `background-color`), `@at-rule`
+  inexistente, token `--tempest-*` que não existe, `var()` que ninguém define e não tem
+  fallback, e regra vazia.
+- **Sugestão de global sobre local repetido** (`i`) — a checagem que o CSS Modules **não
+  pode** fazer por você: o escopo garante que `.card` de um módulo nunca colide com o de
+  outro, e o preço é que nada te conta que os dois são idênticos. Bloco de ≥ 3 declarações
+  repetido em ≥ 3 regras e ≥ 2 arquivos vira `global-candidate`; quando o bloco é um
+  idioma que o `utilities.css` já entrega (`.tempest-row`, `.tempest-stack`,
+  `.tempest-center`, `.tempest-cluster`, `.tempest-spread`, `.tempest-truncate`,
+  `.tempest-grid-auto`, `.tempest-card`) o achado nomeia a classe. Agrupa por declaração,
+  não por nome de classe. Também aponta valor literal que é **exatamente** o de um token
+  — e só quando **um único** token tem aquele valor, porque `4px` é o valor de vários.
+- **O `fix` remove três coisas, todas comprovadamente mortas**: declaração repetida com
+  valor idêntico, regra que repete uma anterior declaração por declaração, e regra vazia
+  em folha comum. Sempre a cópia **anterior** — CSS é last-wins, então remover a de baixo
+  mudaria o resultado quando algo no meio mexe na mesma propriedade; remover a de cima não
+  muda nada do que o browser computa. Em `.module.css` regra vazia é reportada e **nunca**
+  removida: pode ser a classe-marcador que o JS referencia via `styles.x`. Folha com erro
+  de sintaxe não é escrita — offset tirado de um parse adivinhado não serve pra splice.
+- Novas flags e superfície: `tempest fix --no-css` pula a passada; `--dry-run` lista
+  **todos** os erros e avisos (a cauda de sugestão fica limitada a 10) e virou a
+  superfície de revisão do CSS; o `doctor` ganhou a seção **Stylesheets** com no máximo 6
+  achados por severidade e o número do que ficou de fora.
+- **A tabela de tokens é lida, nunca chumbada** — do `styles.css`/`utilities.css`
+  instalado (ou do `src/styles/` quando a CLI roda de dentro do repo do SDK). Uma cópia
+  dentro da CLI derivaria no primeiro token novo e passaria a acusar o código correto do
+  app, que é pior do que não checar.
+- **`var()` com fallback nunca é reportado** — `var(--tempest-card-padding, …)` é o
+  idioma de knob do próprio SDK, e o fallback garante que renderiza. Essa única regra
+  derrubou 43 falsos positivos quando a análise rodou no CSS do SDK.
+
 - **`CodeBlock` — amostra de código com realce, número de linha e botão de copiar.**
   Dez gramáticas (`ts`, `js`, `tsx`, `json`, `css`, `html`, `bash`, `python`, `sql` e
   apelidos). O realce é **scanner de padrões, não parser**: reconhece comentário,

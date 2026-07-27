@@ -155,6 +155,50 @@ describe("tempest doctor — generic findings still surface", () => {
     });
 });
 
+describe("tempest doctor — a project on TypeScript 7", () => {
+    /**
+     * TypeScript 7 is the native port: same package name, and no classic compiler
+     * API — it moved to `typescript/unstable/*`. Before this was detected, `doctor`
+     * died with `ts.readConfigFile is not a function` on any such project, which is
+     * the worst possible failure for the command people run first.
+     */
+    beforeEach(() => {
+        thirdPartyApp();
+        write("node_modules/typescript/package.json", {
+            name: "typescript",
+            version: "7.0.2",
+            main: "index.js",
+        });
+        write(
+            "node_modules/typescript/index.js",
+            'module.exports = { version: "7.0.2", versionMajorMinor: "7.0" };',
+        );
+    });
+
+    it("does not crash, and still reports the tsconfig checks", () => {
+        const { out, code } = doctor();
+        expect(out).not.toContain("is not a function");
+        expect(out).toContain("moduleResolution: bundler");
+        expect(code).toBe(0);
+    });
+
+    it("says the codemods are unavailable, and why", () => {
+        const { out } = doctor();
+        expect(out).toContain("no classic compiler API");
+        expect(out).toContain("every other pass runs");
+    });
+
+    it("reads a tsconfig with comments through the fallback parser", () => {
+        writeFileSync(
+            join(root, "tsconfig.json"),
+            '{\n  // vite default\n  "compilerOptions": { "strict": true, "jsx": "react-jsx", "moduleResolution": "bundler" },\n}\n',
+        );
+        const { out } = doctor();
+        expect(out).toContain("strict mode on");
+        expect(out).not.toContain("strict mode off");
+    });
+});
+
 describe("tempest doctor — stylesheets", () => {
     beforeEach(thirdPartyApp);
 

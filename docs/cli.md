@@ -454,6 +454,25 @@ E em arquivo `.css` (o Vite resolve alias em CSS também):
     profunda (funções/exports órfãos) — isso exige análise dedicada e é
     arriscado automatizar. Para isso, use uma ferramenta como `knip` à parte.
 
+!!! warning "TypeScript 7 não tem a API que os codemods usam"
+    O 7 é o **port nativo**: instala com o mesmo nome de pacote, mas publica a API JS
+    só em `typescript/unstable/*`, com outra forma — o `ts.readConfigFile`/
+    `ts.createSourceFile` clássicos não existem lá. Como as duas passadas de codemod
+    (a conversão de alias e o `--extract-css`) precisam do AST, elas **saem do
+    caminho** e dizem por quê:
+
+    ```console
+    ! alias pass skipped — typescript 7.0.2 não expõe a API clássica do compilador…
+    ```
+
+    Todo o resto continua: a análise de CSS, o dedupe, o ESLint, o Prettier, e as
+    checagens de tsconfig do `doctor` (que caem num parser JSONC próprio). Pra usar os
+    codemods, tenha o TypeScript 6 instalado no projeto.
+
+    Antes da 0.29.1 isso não era um aviso: a CLI resolvia o pacote, concluía que tinha
+    TypeScript e chamava a API — `tempest doctor` morria com
+    `ts.readConfigFile is not a function`.
+
 !!! note "Precisa de ESLint + Prettier no projeto"
     Apps gerados pelo `create-tempest-app` já vêm com tudo configurado. Em um
     projeto pelado, instale: `npm i -D eslint prettier eslint-plugin-simple-import-sort eslint-plugin-unused-imports`.

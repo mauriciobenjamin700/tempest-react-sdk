@@ -12,7 +12,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { aliasImports } from "./lib/alias/index.mjs";
-import { loadTypeScript } from "./lib/alias/typescript.mjs";
+import { describeTypeScript, loadTypeScript } from "./lib/alias/typescript.mjs";
 import { readTsconfig } from "./lib/alias/tsconfig.mjs";
 import { analyzeCss, applyCssFixes, applyExtraction, planExtraction } from "./lib/css/index.mjs";
 import { checkLucide } from "./lib/doctor/lucide.mjs";
@@ -535,6 +535,21 @@ function doctor() {
     const tsc = readTsconfig({ root: ROOT, ts: loadTypeScript(ROOT) });
     if (tsc) {
         checks.push(["section", "TypeScript"]);
+        /*
+         * TypeScript 7 installs under the same package name and does not ship the
+         * classic compiler API — it lives behind `typescript/unstable/*` with a
+         * different shape. The tsconfig checks below keep working (they fall back to
+         * a JSONC-tolerant parse), but the codemods cannot run, and saying so here is
+         * better than each pass reporting it as if TypeScript were missing.
+         */
+        const tsInstall = describeTypeScript(ROOT);
+        if (tsInstall.status === "api-unavailable") {
+            checks.push([
+                "info",
+                `typescript ${tsInstall.version} has no classic compiler API`,
+                "`tempest fix` skips the alias and --extract-css codemods — they need the TypeScript 6 API; every other pass runs",
+            ]);
+        }
         const co = tsc.compilerOptions;
         // The `@/*` alias is the SDK's convention, not a health property: a project
         // that has not adopted the SDK is not wrong for lacking it.
@@ -855,7 +870,7 @@ function parseFixArgs(args) {
 function reportAlias(result, dryRun) {
     if (result.status === "no-typescript") {
         console.log(
-            `${c.yellow}! typescript not installed — skipping alias pass${c.reset} ${c.dim}(npm i -D typescript)${c.reset}`,
+            `${c.yellow}! alias pass skipped${c.reset} ${c.dim}— ${result.reason ?? "typescript não instalado"}${c.reset}`,
         );
         return;
     }

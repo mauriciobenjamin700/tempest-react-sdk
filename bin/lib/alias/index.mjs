@@ -7,7 +7,7 @@ import { collectFiles } from "./collect.mjs";
 import { discoverAlias } from "./discover.mjs";
 import { rewriteCss } from "./rewrite-css.mjs";
 import { rewriteSource } from "./rewrite.mjs";
-import { loadTypeScript } from "./typescript.mjs";
+import { loadTypeScript, typeScriptUnavailableReason } from "./typescript.mjs";
 
 export { collectFiles } from "./collect.mjs";
 export { discoverAlias } from "./discover.mjs";
@@ -15,7 +15,7 @@ export { rewriteCss } from "./rewrite-css.mjs";
 export { rewriteSource } from "./rewrite.mjs";
 export { isInsideBase, toAlias } from "./specifier.mjs";
 export { readTsconfig } from "./tsconfig.mjs";
-export { loadTypeScript } from "./typescript.mjs";
+export { describeTypeScript, loadTypeScript, typeScriptUnavailableReason } from "./typescript.mjs";
 
 /**
  * Convert relative imports that climb out of their directory into alias imports.
@@ -42,7 +42,13 @@ export function aliasImports({ root, targets, dryRun = false }) {
     const empty = { files: [], total: 0, errors: [] };
 
     const ts = loadTypeScript(root);
-    if (!ts) return { status: "no-typescript", ...empty };
+    if (!ts) {
+        return {
+            status: "no-typescript",
+            reason: typeScriptUnavailableReason(root),
+            ...empty,
+        };
+    }
 
     const alias = discoverAlias({ root, ts });
     if (!alias) return { status: "no-alias", ...empty };

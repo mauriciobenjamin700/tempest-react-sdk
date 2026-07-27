@@ -113,7 +113,9 @@ de componente passa a ser a lista P2 abaixo.
 
 ### P2 — componentes
 
-`FilterBar`/QueryBuilder. (**`Chat`**, **`Transfer`**, **`Masonry`** **`Markdown`** e **`Tour`** saíram da lista — thread + `ChatComposer`, com agrupamento por autor/dia, estado de entrega e a regra de rolagem "só pula se já estava no fim".)
+Lista **concluída**. Entregues: `Chat`, `Transfer`, `Masonry`, `Markdown`, `Tour` e
+`FilterBar`. O próximo alvo de componente precisa de uma lista nova — o que sobrou de
+backlog é a fatia de CSS (P2) e a cauda de cobertura (P3).
 
 ### P2 — CSS pronto (o que sobrou da fatia)
 

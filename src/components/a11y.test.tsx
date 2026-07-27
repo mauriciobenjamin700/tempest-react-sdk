@@ -15,6 +15,7 @@ import { Chat } from "./Chat";
 import { Checkbox } from "./Checkbox";
 import { EmptyState } from "./EmptyState";
 import { ImageCropper } from "./ImageCropper";
+import { FilterBar } from "./FilterBar";
 import { Input } from "./Input";
 import { Kanban } from "./Kanban";
 import { Markdown } from "./Markdown";
@@ -65,6 +66,22 @@ const ROWS: Row[] = [
 const CASES: [name: string, ui: ReactElement][] = [
     ["Button", <Button>Salvar</Button>],
     ["Button (icon-only)", <Button aria-label="Fechar">×</Button>],
+    [
+        "FilterBar",
+        <FilterBar
+            fields={[
+                { name: "titulo", label: "Título", type: "text" },
+                {
+                    name: "status",
+                    label: "Status",
+                    type: "select",
+                    options: [{ value: "paid", label: "Pago" }],
+                },
+            ]}
+            value={[{ field: "status", operator: "eq", value: "paid" }]}
+            onChange={() => {}}
+        />,
+    ],
     ["Input", <Input label="E-mail" name="email" />],
     ["Input (error)", <Input label="CPF" name="cpf" error="CPF inválido" />],
     ["Textarea", <Textarea label="Descrição" name="description" />],

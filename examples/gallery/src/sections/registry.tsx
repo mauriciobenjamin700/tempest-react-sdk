@@ -16,6 +16,7 @@ import { DataTableSection } from "./DataTableSection";
 import { DataVizScalesSection } from "./DataVizScalesSection";
 import { ImageCropperSection } from "./ImageCropperSection";
 import { ChatSection } from "./ChatSection";
+import { FilterBarSection } from "./FilterBarSection";
 import { MarkdownSection } from "./MarkdownSection";
 import { MasonrySection } from "./MasonrySection";
 import { TourSection } from "./TourSection";
@@ -274,6 +275,14 @@ export const SECTIONS: SectionEntry[] = [
             "chat thread conversa mensagem comentario comments bolha bubble typing digitando composer enviar retry falhou",
         group: "Componentes",
         Component: ChatSection,
+    },
+    {
+        id: "filterbar",
+        label: "FilterBar",
+        keywords:
+            "filterbar filtro filtros query builder chip condicao operador url searchparams lista",
+        group: "Componentes",
+        Component: FilterBarSection,
     },
     {
         id: "markdown",

@@ -781,6 +781,82 @@ export function ProfilePermissions() {
 !!! info "The controls sit in the middle by grid order, but come last in the DOM"
     A keyboard reaching the buttons before it has seen what they move would have to go back; a screen reader would read "move checked to the right" with no idea what is checked. Each pane is a `region` named by its heading, and each move is announced in a `role="status"`.
 
+### `FilterBar`
+
+> **When to use**: filtering an admin list — orders by status and period, users by role, invoices by due date.
+
+Chips for the applied filters, plus a small editor to add another. Filters are combined with **AND**, flat.
+
+```tsx
+import {
+  FilterBar,
+  filtersFromSearchParams,
+  filtersToSearchParams,
+  type Filter,
+  type FilterField,
+} from "tempest-react-sdk";
+
+const FIELDS: FilterField[] = [
+  { name: "title", label: "Title", type: "text" },
+  { name: "total", label: "Total", type: "number" },
+  { name: "createdAt", label: "Created", type: "date" },
+  {
+    name: "status",
+    label: "Status",
+    type: "select",
+    options: [
+      { value: "paid", label: "Paid" },
+      { value: "sent", label: "Sent" },
+    ],
+  },
+];
+
+export function Orders() {
+  // The set comes from the URL, so a shared link opens with the same filters.
+  const [filters, setFilters] = useState<Filter[]>(() =>
+    filtersFromSearchParams(new URLSearchParams(location.search), FIELDS),
+  );
+
+  const { data } = useQuery({
+    queryKey: ["orders", filters],
+    queryFn: () => api.get(`/orders?${filtersToSearchParams(filters)}`),
+  });
+
+  return <FilterBar fields={FIELDS} value={filters} onChange={setFilters} />;
+}
+```
+
+| Prop | Type | Default | What it does |
+| --- | --- | --- | --- |
+| `fields` | `FilterField[]` | — | Fields that can be filtered. |
+| `value` | `Filter[]` | — | Applied filters. **Controlled.** |
+| `onChange` | `(filters: Filter[]) => void` | — | Next set, combined with AND. |
+| `actions` | `ReactNode` | — | Next to the controls — "save this view", a counter. |
+| `locale` | `"pt-BR" \| "en"` | `"pt-BR"` | Labels and descriptions. |
+
+`FilterField = { name, label, type, options?, operators?, placeholder? }` · `type` ∈ `"text" | "number" | "date" | "select" | "boolean"`
+`Filter = { field, operator, value? }` · `operator` ∈ `eq · ne · contains · gt · gte · lt · lte · between · in · empty · notEmpty`
+
+**Exported helpers**: `filtersToSearchParams`, `filtersFromSearchParams`, `describeFilter`, `operatorsFor`.
+
+!!! warning "Flat **AND**, not a tree with OR — and that is the chosen ceiling"
+    Nested groups (`(a OR b) AND c`) are a different component: they need a tree UI with a per-node operator and a different serialization. Trying to be both produces a builder that is clumsy at the 95% case — "status is paid, created after March, title contains nota". If you need nested OR, what you want is a real query builder, and it does not fit behind this API.
+
+!!! check "The filter set fits in the URL — and comes back from it"
+    `filtersToSearchParams` writes `status=eq:paid&total=between:10|90`; `filtersFromSearchParams` reads it back, and there is a **round-trip** test. A filter set that cannot survive a reload is one people re-enter every time they open a link somebody sent them.
+
+!!! danger "Whatever does not parse is **dropped**, not guessed at"
+    A hand-edited URL is the normal way this input arrives. An operator the field does not offer (`total=contains:1`), an unknown field, a `between` with one end — all discarded. Rendering a chip the backend cannot evaluate would show a list that does not match what the chip claims.
+
+!!! check "The chip reads in words, and it is the same text a screen reader hears"
+    "Status is Paid" — with the option's **label**, not its key (`paid`). The remove button uses the same sentence in its `aria-label` ("Remove filter: Status is Paid"), because a chip that says one thing to a sighted user and another to a screen reader is two different truths.
+
+!!! info "The input follows the **field**, not the operator"
+    A date field gets a date picker even under `between` (two of them). Typing a date into a text box is the fastest way to produce a filter the backend cannot parse.
+
+!!! tip "An incomplete filter only disables Apply"
+    It is not an error to shout about — it is a half-filled form. Changing the operator clears the value, because a value carried across operators produces filters nobody meant to write.
+
 ### `Chat`
 
 > **When to use**: a message thread — support, internal chat, document comments, a service history.

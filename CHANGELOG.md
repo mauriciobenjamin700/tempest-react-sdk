@@ -6,6 +6,20 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`Masonry` — cards de altura desigual empacotados em colunas** com a borda de baixo o
+  mais reta que o conteúdo permite. Mede os cards e joga cada um na **coluna mais curta**;
+  `index % colunas` produz colunas desiguais no primeiro momento em que as alturas
+  divergem, que é o único motivo pra usar masonry.
+- **Não é uma linha de CSS de propósito**: `columns` do CSS quebra o card na fronteira da
+  coluna, e `grid-auto-flow: dense` mantém cada linha na altura da célula mais alta — a
+  borda serrilhada que se usa masonry pra evitar.
+- **Breakpoints são do contêiner, não do viewport** (`ResizeObserver`): um masonry dentro
+  de drawer é mais estreito que a janela, e media query daria três colunas com 300px.
+- Cada card é observado individualmente, então **imagem que carrega depois re-distribui** —
+  altura medida na montagem erra exatamente nesse caso. O primeiro paint usa peso 1 pra
+  todos, então nunca aparece vazio.
+- A ordem de leitura desce a coluna, e a doc diz isso na cara: é layout pra item
+  **independente**; se o item 2 precisa vir depois do 1, o que se quer é grid.
 - **`Transfer` — dual list pra escolher um subconjunto** (permissões de um perfil, cidades de
   uma rota, colunas de um relatório). Dois painéis, quatro controles, busca em cada lado.
 - **Estado é só os ids do lado direito; os painéis são derivados.** Guardar duas listas

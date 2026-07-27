@@ -589,6 +589,43 @@ export function CadastroEmEtapas() {
 !!! note "`clickableSteps` é `false` de propósito"
     Um wizard existe porque a **ordem importa**. Com `clickableSteps`, pular pra trás é livre (voltar nunca bloqueia), mas pular pra frente valida **cada passo atravessado** — o primeiro gate que reprovar interrompe o salto ali.
 
+### `Masonry`
+
+> **Quando usar**: cards de **altura desigual** que não têm ordem entre si — mural de notas, galeria de fotos, cartões de dashboard.
+
+Mede os cards e joga cada um na coluna mais curta, então a borda de baixo fica o mais reta que o conteúdo permite.
+
+```tsx
+import { Masonry, Card } from "tempest-react-sdk";
+
+<Masonry items={notas} itemKey={(nota) => nota.id} columns={{ 0: 1, 640: 2, 1024: 3 }}>
+  {(nota) => <Card title={nota.titulo}>{nota.corpo}</Card>}
+</Masonry>;
+```
+
+| Prop | Tipo | Default | O que faz |
+| --- | --- | --- | --- |
+| `items` | `T[]` | — | O que distribuir. |
+| `children` | `(item: T, index: number) => ReactNode` | — | Render de um card. |
+| `columns` | `number \| Record<number, number>` | `{ 0: 1, 640: 2, 1024: 3 }` | Número fixo, ou mapa **largura → colunas**. |
+| `itemKey` | `(item: T, index: number) => string \| number` | índice | Chave estável por item. |
+| `gap` | `string` | `--tempest-space-4` | Espaço entre cards. |
+
+!!! info "Por que não é uma linha de CSS"
+    `columns` do CSS **quebra o card** na fronteira da coluna, e `grid-auto-flow: dense` mantém cada linha na altura da célula mais alta — que é exatamente a borda serrilhada que se usa masonry pra evitar. As duas são uma linha de CSS e nenhuma faz este trabalho.
+
+!!! warning "A ordem de leitura desce a coluna, não atravessa a linha"
+    Card 2 fica **embaixo** do card 1, não ao lado. É por isso que este layout serve pra itens **independentes**: uma lista em que o item 2 precisa vir depois do 1 quer um grid, não isto. Se a ordem importa pro seu conteúdo, não use masonry — nem aqui, nem em CSS puro.
+
+!!! check "O mapa de breakpoints é sobre o contêiner, não sobre o viewport"
+    Um masonry dentro de um drawer ou de uma página de duas colunas é mais estreito que a janela, e uma media query daria a ele três colunas com 300px de largura. Um `ResizeObserver` é o que faz `{ 0: 1, 640: 2 }` significar "deste contêiner", que é a única leitura útil.
+
+!!! info "Coluna mais curta, não round-robin"
+    `index % colunas` é o caminho óbvio e produz colunas desiguais no primeiro momento em que os itens têm alturas diferentes — que é o único motivo pra usar masonry.
+
+!!! tip "Imagem que carrega depois é re-medida"
+    Cada card é observado individualmente: altura medida na montagem erra justamente no caso da imagem que ainda estava baixando. O primeiro paint usa peso 1 pra todos (nunca aparece vazio) e o passe medido redistribui.
+
 ### `Transfer`
 
 > **Quando usar**: escolher um **subconjunto** de um catálogo — permissões de um perfil, cidades de uma rota, membros de um grupo, colunas de um relatório.

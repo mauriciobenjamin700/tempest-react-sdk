@@ -16,7 +16,7 @@ const columns: TableColumn<Order>[] = [
     key: "total",
     header: "Total",
     align: "right",
-    render: (row) => formatCurrency(row.total, "BRL"),
+    render: (row) => formatCurrency(row.total),
     priority: "always",
   },
   {
@@ -337,6 +337,93 @@ export function PermissoesDoPapel() {
 !!! info "O chevron não é um botão"
     Ele é decoração (`aria-hidden`): a linha já carrega `aria-expanded`, então um segundo controle focável ali só adicionaria ruído no leitor de tela, duplicando uma ação que o teclado já tem. Clique nele funciona (com o evento parado, então expande sem selecionar).
 
+## `Sparkline`
+
+> **Quando usar**: mostrar a **forma** de uma série ao lado do número que ela explica — uma célula de tabela, um card de métrica, uma linha de lista. Não é substituto de gráfico: se o leitor precisa ler valores no eixo, use [`LineChart`](../charts.md).
+
+Um sparkline é SVG puro na entrada raiz, **sem recharts**. Uma coluna de tendência numa tabela não deveria obrigar o app a instalar uma biblioteca de gráfico inteira.
+
+```tsx
+import { formatCurrency, Sparkline, Table } from "tempest-react-sdk";
+
+const produtos = [
+  { nome: "Plano Pro", receita: 48200, serie: [12, 18, 15, 24, 22, 31, 29] },
+  { nome: "Plano Base", receita: 19400, serie: [22, 19, 20, 17, 14, 13, 11] },
+];
+
+export function TendenciaPorProduto() {
+  return (
+    <Table
+      data={produtos}
+      columns={[
+        { key: "nome", header: "Produto" },
+        {
+          key: "serie",
+          header: "7 dias",
+          render: (linha) => (
+            <Sparkline data={linha.serie} label={`Tendência de ${linha.nome}`} />
+          ),
+        },
+        { key: "receita", header: "Receita", render: (l) => formatCurrency(l.receita) },
+      ]}
+      rowKey={(linha) => linha.nome}
+    />
+  );
+}
+```
+
+### Variantes
+
+```tsx
+<Sparkline data={serie} />                        {/* linha (default) */}
+<Sparkline data={serie} variant="area" />         {/* linha + preenchimento lavado */}
+<Sparkline data={serie} variant="bar" />          {/* uma barra por ponto */}
+```
+
+| Prop             | Tipo                              | Default                    | O que faz                                                        |
+| ---------------- | --------------------------------- | -------------------------- | ---------------------------------------------------------------- |
+| `data`           | `readonly number[]`               | —                          | A série, em ordem. Entradas não-finitas são descartadas.          |
+| `variant`        | `"line" \| "area" \| "bar"`       | `"line"`                   | Qual marca desenhar.                                              |
+| `width`          | `number`                          | `88`                       | Largura de desenho em px.                                         |
+| `height`         | `number`                          | `24`                       | Altura de desenho em px.                                          |
+| `color`          | `string`                          | `var(--tempest-chart-1)`   | Qualquer cor CSS.                                                 |
+| `showEnd`        | `boolean`                         | `true` (exceto em `"bar"`) | Marca o último ponto com um ponto.                                |
+| `min` / `max`    | `number`                          | extremos da série          | Fixa o eixo de valor — é o que torna várias linhas comparáveis.   |
+| `valueFormatter` | `(value: number) => string`       | `String`                   | Como renderizar um valor na descrição acessível.                  |
+| `label`          | `string`                          | descrição gerada           | Nome acessível.                                                   |
+
+### Comparar linhas exige eixo compartilhado
+
+Por padrão cada sparkline se normaliza contra os próprios extremos. Numa coluna de tabela isso é uma armadilha: uma linha que vai de 2 a 4 e outra que vai de 200 a 400 desenham **exatamente a mesma forma**.
+
+```tsx
+const teto = Math.max(...produtos.flatMap((p) => p.serie));
+
+<Sparkline data={linha.serie} min={0} max={teto} />;
+```
+
+!!! warning "Sem `min`/`max`, a forma é relativa — nunca comparável"
+    Passe os dois quando os sparklines aparecem empilhados. É o erro mais comum com esse componente, e ele não gera nenhum aviso: os gráficos ficam bonitos e mentem.
+
+### Acessibilidade
+
+O componente carrega `role="img"` e um `aria-label` que **descreve a série em palavras**: quantidade de pontos, direção, extremos e as pontas.
+
+```text
+"7 pontos, subindo. Início 12, fim 29. Mínimo 12, máximo 31."
+```
+
+Um sparkline não tem eixo nem legenda para servir de apoio — sem essa frase ele é uma imagem sem nome, e o leitor de tela chega nele e não lê nada. Passe `label` quando o texto ao redor já diz o que está plotado.
+
+!!! tip "A forma é contexto, nunca o único caminho pro valor"
+    Sempre coloque o sparkline **ao lado do número** que ele anota. Ele responde "está subindo?", não "quanto?".
+
+!!! info "Séries com buraco não apagam o gráfico"
+    Um `NaN` no meio de um atributo `d` anula o path inteiro silenciosamente — o gráfico some sem erro nenhum. Valores não-finitos são filtrados antes de projetar.
+
+!!! note "Série achatada fica centralizada"
+    Uma série sem variação é desenhada no meio da caixa, não colada numa borda. É a leitura honesta de "não variou" e evita dividir por um domínio de altura zero.
+
 ## Resumo
 
 | Componente    | Use para                                    | Volume típico      |
@@ -348,6 +435,7 @@ export function PermissoesDoPapel() {
 | `Accordion`   | Seções expansíveis sob demanda (FAQ, steps) | poucas seções      |
 | `Timeline`    | Sequência de eventos no tempo               | qualquer           |
 | `TreeView`    | Hierarquia navegável (categorias, permissões) | dezenas a centenas |
+| `Sparkline`   | Forma de uma série ao lado do número que ela explica | 5 a ~100 pontos |
 
 Pontos-chave de acessibilidade:
 
@@ -356,6 +444,7 @@ Pontos-chave de acessibilidade:
 - `VirtualTable`: continua uma `<table>` real (espaçadoras em vez de posicionamento absoluto), com `aria-rowcount`/`aria-rowindex` carregando os índices reais e não os da janela; cabeçalho ordenável expõe `aria-sort`.
 - `Accordion`: ↑↓ trocam o item focado, Home/End pulam pro primeiro/último.
 - `Timeline`: ordem semântica via `<ol>`; cada item é `<li>`.
+- `Sparkline`: `role="img"` com uma frase descrevendo direção, pontas e extremos — sem eixo nem legenda, é a única leitura possível fora da visão.
 - `TreeView`: `role="tree"` + roving tabindex (uma parada de tab só); `aria-level` reporta a profundidade e nós desabilitados são pulados na navegação.
 
 Relacionados: [identity](./identity.md) (`Card flush` para hospedar a `Table`) · [feedback](./feedback.md) (`Badge` dentro de células) · [actions](./actions.md) (botões de linha).

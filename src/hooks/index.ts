@@ -101,3 +101,5 @@ export type {
     UseSortableOptions,
     UseSortableResult,
 } from "./use-sortable";
+export { useScrollOverflow } from "./use-scroll-overflow";
+export type { ScrollOverflowAxis } from "./use-scroll-overflow";

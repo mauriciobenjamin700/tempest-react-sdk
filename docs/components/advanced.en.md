@@ -223,9 +223,13 @@ import { ScrollArea } from "tempest-react-sdk";
 | Prop          | Type                                   | Default      | Description                         |
 | ------------- | -------------------------------------- | ------------ | ----------------------------------- |
 | `maxHeight`   | `number \| string`                     | —            | Caps the height; numbers are pixels |
-| `orientation` | `"vertical" \| "horizontal" \| "both"` | `"vertical"` | Which axis scrolls                  |
+| `orientation` | `"vertical" \| "horizontal" \| "both"` | `"vertical"`     | Which axis scrolls                  |
+| `scrollLabel` | `string`                               | `"Área rolável"` | Accessible name for the scroll region |
 
 Remaining `<div>` props are forwarded.
+
+!!! info "While it overflows, it becomes a focusable group"
+    An area whose content is plain text holds nothing focusable. Without a tab stop of its own, a keyboard user can see the scrollbar and has no way to move it — focus never lands anywhere the arrow keys would scroll. So the area takes `tabIndex={0}` + `role="group"` + `aria-label` **only while the content actually overflows**, and loses it again once it fits. An area that does not scroll never adds a tab stop. A caller-supplied `role` or `tabIndex` still wins.
 
 ### `Resizable`
 

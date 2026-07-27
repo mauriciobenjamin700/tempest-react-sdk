@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { createRef } from "react";
+import { afterEach, describe, expect, it } from "vitest";
 import { ScrollArea } from "./ScrollArea";
 
 describe("ScrollArea", () => {
@@ -55,5 +56,90 @@ describe("ScrollArea", () => {
             />,
         );
         expect(node).toBeInstanceOf(HTMLDivElement);
+    });
+});
+
+/**
+ * jsdom performs no layout, so nothing ever looks overflowing. These stubs
+ * stand in for the browser measurement.
+ */
+function stubBox(scrollHeight: number, clientHeight: number) {
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+        configurable: true,
+        get: () => scrollHeight,
+    });
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+        configurable: true,
+        get: () => clientHeight,
+    });
+}
+
+describe("ScrollArea — keyboard reach", () => {
+    afterEach(() => {
+        Reflect.deleteProperty(HTMLElement.prototype, "scrollHeight");
+        Reflect.deleteProperty(HTMLElement.prototype, "clientHeight");
+    });
+
+    it("adds no tab stop while the content fits", () => {
+        stubBox(200, 200);
+        const { container } = render(
+            <ScrollArea>
+                <p>curto</p>
+            </ScrollArea>,
+        );
+        expect(container.firstElementChild).not.toHaveAttribute("tabindex");
+    });
+
+    it("becomes a named, focusable group once the content overflows", () => {
+        stubBox(2000, 200);
+        render(
+            <ScrollArea>
+                <p>longo</p>
+            </ScrollArea>,
+        );
+        const region = screen.getByRole("group");
+        expect(region).toHaveAttribute("tabindex", "0");
+        expect(region).toHaveAccessibleName("Área rolável");
+    });
+
+    it("takes a caller-supplied name", () => {
+        stubBox(2000, 200);
+        render(
+            <ScrollArea scrollLabel="Termos de uso">
+                <p>longo</p>
+            </ScrollArea>,
+        );
+        expect(screen.getByRole("group")).toHaveAccessibleName("Termos de uso");
+    });
+
+    it("ignores vertical overflow when only the horizontal axis scrolls", () => {
+        stubBox(2000, 200);
+        const { container } = render(
+            <ScrollArea orientation="horizontal">
+                <p>longo</p>
+            </ScrollArea>,
+        );
+        expect(container.firstElementChild).not.toHaveAttribute("tabindex");
+    });
+
+    it("still forwards the caller's ref while measuring internally", () => {
+        stubBox(2000, 200);
+        const ref = createRef<HTMLDivElement>();
+        render(
+            <ScrollArea ref={ref}>
+                <p>longo</p>
+            </ScrollArea>,
+        );
+        expect(ref.current).toBe(screen.getByRole("group"));
+    });
+
+    it("lets the caller override the role it would otherwise take", () => {
+        stubBox(2000, 200);
+        render(
+            <ScrollArea role="log">
+                <p>longo</p>
+            </ScrollArea>,
+        );
+        expect(screen.getByRole("log")).toHaveAttribute("tabindex", "0");
     });
 });

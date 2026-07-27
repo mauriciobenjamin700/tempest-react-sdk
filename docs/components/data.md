@@ -352,6 +352,7 @@ export function PermissoesDoPapel() {
 Pontos-chave de acessibilidade:
 
 - `Table` usa `<th scope="col">` (já incluso); `onRowClick` aplica `role="button"` + `tabIndex={0}`.
+- `Table` e `VirtualList` ganham **ponto de tabulação próprio enquanto rolam** (`role="group"`/`role="list"` + `tabIndex={0}`), e o perdem quando o conteúdo cabe. Sem isso o contêiner não tem nada focável dentro e quem usa teclado vê a barra de rolagem sem conseguir movê-la. Nomeie com `scrollLabel` (Table) ou `label` (VirtualList) quando a página tiver vários.
 - `VirtualList`: itens fora da viewport não são renderizados — `Ctrl+F` só acha o visível.
 - `VirtualTable`: continua uma `<table>` real (espaçadoras em vez de posicionamento absoluto), com `aria-rowcount`/`aria-rowindex` carregando os índices reais e não os da janela; cabeçalho ordenável expõe `aria-sort`.
 - `Accordion`: ↑↓ trocam o item focado, Home/End pulam pro primeiro/último.

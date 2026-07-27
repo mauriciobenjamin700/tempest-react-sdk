@@ -32,6 +32,7 @@ browser-guarded and independent hooks — import only what you need.
 | `useDocumentVisibility()`                         | Reactive `document.visibilityState`.                                                                          |
 | `useIntersectionObserver(ref, opts?)`             | `IntersectionObserverEntry` or `null`.                                                                        |
 | `useResizeObserver(ref)`                          | `{ width, height }` of the reference.                                                                         |
+| `useScrollOverflow(ref, axis?)`                    | `true` while the content overflows its box — use it to give a scroll container a tab stop only when there is something to scroll. |
 | `useScrollLock(active)`                           | Locks `body.overflow`.                                                                                        |
 | `useFocusTrap(ref, active)`                       | Confines Tab within the container.                                                                            |
 | `useHover(ref)` / `useLongPress(handler, opts?)`  | Pointer gestures (reactive hover / long-press).                                                               |

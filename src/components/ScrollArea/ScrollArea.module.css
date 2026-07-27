@@ -27,3 +27,8 @@
         background-color: var(--tempest-text-muted);
     }
 }
+
+.root:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: 2px;
+}

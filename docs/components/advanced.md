@@ -229,9 +229,13 @@ import { ScrollArea } from "tempest-react-sdk";
 | Prop          | Tipo                                   | Default      | Descrição                             |
 | ------------- | -------------------------------------- | ------------ | ------------------------------------- |
 | `maxHeight`   | `number \| string`                     | —            | Limita a altura; números viram pixels |
-| `orientation` | `"vertical" \| "horizontal" \| "both"` | `"vertical"` | Qual eixo rola                        |
+| `orientation` | `"vertical" \| "horizontal" \| "both"` | `"vertical"`   | Qual eixo rola                        |
+| `scrollLabel` | `string`                               | `"Área rolável"` | Nome acessível da região rolável    |
 
 Demais props de `<div>` são repassadas.
+
+!!! info "Enquanto transborda, vira um grupo focável"
+    Uma área cujo conteúdo é texto puro não tem nada focável dentro. Sem um ponto de tabulação próprio, quem navega por teclado vê a barra de rolagem e não tem como movê-la — o foco nunca pousa onde as setas rolariam. Por isso a área recebe `tabIndex={0}` + `role="group"` + `aria-label` **só enquanto o conteúdo de fato transborda**, e o perde de volta quando cabe. Uma área que não rola nunca adiciona parada de tab. `role` e `tabIndex` passados pelo chamador continuam vencendo.
 
 ### `Resizable`
 

@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Table, type TableColumn } from "./Table";
 
 type Row = { id: string; name: string };
@@ -104,5 +104,63 @@ describe("Table — alignment, priority and column chrome", () => {
             />,
         );
         expect((container.querySelector("th") as HTMLElement).style.width).toBe("120px");
+    });
+});
+
+/**
+ * jsdom performs no layout, so a table never looks wider than its box. These
+ * stubs stand in for the measurement a browser would do.
+ */
+function stubWidths(scroll: number, client: number) {
+    Object.defineProperty(HTMLElement.prototype, "scrollWidth", {
+        configurable: true,
+        get: () => scroll,
+    });
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+        configurable: true,
+        get: () => client,
+    });
+}
+
+describe("Table — the scrollable region", () => {
+    afterEach(() => {
+        Reflect.deleteProperty(HTMLElement.prototype, "scrollWidth");
+        Reflect.deleteProperty(HTMLElement.prototype, "clientWidth");
+    });
+
+    it("adds no tab stop while the table fits", () => {
+        stubWidths(400, 400);
+        const { container } = render(
+            <Table columns={columns} data={rows} rowKey={(row) => row.id} />,
+        );
+        const scroll = container.firstElementChild as HTMLElement;
+        expect(scroll).not.toHaveAttribute("tabindex");
+        expect(scroll).not.toHaveAttribute("role");
+    });
+
+    it("becomes focusable once it overflows, so a keyboard user can scroll it", () => {
+        stubWidths(900, 400);
+        render(<Table columns={columns} data={rows} rowKey={(row) => row.id} />);
+        const region = screen.getByRole("group");
+        expect(region).toHaveAttribute("tabindex", "0");
+    });
+
+    it("names that region — a focus stop announcing nothing is worse than none", () => {
+        stubWidths(900, 400);
+        render(<Table columns={columns} data={rows} rowKey={(row) => row.id} />);
+        expect(screen.getByRole("group")).toHaveAccessibleName(/rolável/i);
+    });
+
+    it("takes a caller-supplied name, for a page holding several tables", () => {
+        stubWidths(900, 400);
+        render(
+            <Table
+                columns={columns}
+                data={rows}
+                rowKey={(row) => row.id}
+                scrollLabel="Pedidos do mês"
+            />,
+        );
+        expect(screen.getByRole("group")).toHaveAccessibleName("Pedidos do mês");
     });
 });

@@ -37,8 +37,8 @@ function installed(name, version, extra = {}) {
  * that matters most — it decides whether a project "fails" the audit. Only running
  * it the way a user does tests that.
  */
-function doctor() {
-    const result = spawnSync(process.execPath, [CLI, "doctor"], {
+function doctor(...args) {
+    const result = spawnSync(process.execPath, [CLI, "doctor", ...args], {
         cwd: root,
         encoding: "utf8",
         env: { ...process.env, NO_COLOR: "1", FORCE_COLOR: "0" },
@@ -286,5 +286,82 @@ describe("tempest doctor — a project that does use the SDK", () => {
         expect(out).toContain("tempest-react-sdk not in dependencies");
         // Undeclared-but-present is a warning, not a blocking failure.
         expect(code).toBe(0);
+    });
+});
+
+describe("tempest doctor — design analysis", () => {
+    beforeEach(thirdPartyApp);
+
+    it("reports nothing about design for a well-shaped app", () => {
+        const { out, code } = doctor();
+        expect(out).toContain("Design");
+        expect(out).toContain("no design problems found");
+        expect(code).toBe(0);
+    });
+
+    it("names the file and the line of each finding", () => {
+        write(
+            "src/pages/Bad.tsx",
+            ["export function Bad() {", "  fetch('/api/orders');", "  return null;", "}"].join(
+                "\n",
+            ),
+        );
+        const { out } = doctor();
+        expect(out).toContain("src/pages/Bad.tsx:2");
+        expect(out).toContain("must not call the network");
+    });
+
+    it("warns without failing the audit — the limits are heuristics", () => {
+        write(
+            "src/Big.tsx",
+            [
+                "export function Big() {",
+                ...Array.from({ length: 200 }, (_, i) => `  const v${i} = ${i};`),
+                "  return null;",
+                "}",
+            ].join("\n"),
+        );
+        const { out, code } = doctor();
+        expect(out).toContain("lines of code (limit 150)");
+        expect(code).toBe(0);
+    });
+
+    it("honours a written @tempest-limits waiver and says how many there are", () => {
+        write(
+            "src/Big.tsx",
+            [
+                "/**",
+                " * Cropper.",
+                " *",
+                " * @tempest-limits file-lines — drag, zoom and canvas export share one",
+                " * piece of geometry state.",
+                " */",
+                "export function Big() {",
+                ...Array.from({ length: 200 }, (_, i) => `  const v${i} = ${i};`),
+                "  return null;",
+                "}",
+            ].join("\n"),
+        );
+        const { out } = doctor();
+        expect(out).not.toContain("lines of code (limit 150)");
+        expect(out).toContain("1 limit(s) waived with a written reason");
+    });
+
+    it("reports a waiver that carries no reason", () => {
+        write("src/Big.tsx", "// @tempest-limits file-lines\nexport const a = 1;");
+        expect(doctor().out).toContain("has no reason");
+    });
+
+    it("skips the whole pass with --no-design", () => {
+        write("src/pages/Bad.tsx", "export function Bad() {\n  fetch('/x');\n  return null;\n}");
+        const { out } = doctor("--no-design");
+        expect(out).not.toContain("must not call the network");
+        expect(out).not.toMatch(/^Design$/m);
+    });
+
+    it("skips the CSS pass with --no-css", () => {
+        write("src/app.css", "a { colr: red; }");
+        const { out } = doctor("--no-css");
+        expect(out).not.toMatch(/^Stylesheets$/m);
     });
 });

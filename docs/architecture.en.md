@@ -4,6 +4,13 @@
 what you use; everything is externalized in the SDK bundle, so your app's bundler
 tree-shakes whatever isn't referenced.
 
+!!! info "This page is the **package** architecture"
+    Here you learn how the SDK itself is put together — layers, dependencies,
+    subpaths, bundle. If what you want is how to organize **your app** (layers,
+    folders, where each kind of state lives, file size limits), the page is
+    [Frontend app layers](./design/architecture.md), under the
+    [Software Design](./design/index.md) tab.
+
 !!! tip "Import only what you use"
     There's no penalty for the SDK being large. Each layer (HTTP, auth, query,
     forms…) is independent — if you never import `createOfflineStore`, `dexie`
@@ -113,6 +120,7 @@ Budget monitored by `size-limit` in CI.
 
 ## See also
 
+- [Software Design — your app's layers](./design/architecture.md)
 - [Scaffold — `create-tempest-app`](./scaffold.md)
 - [HTTP — request flow](./http.md)
 - Diagram: [architecture.drawio](./diagrams/architecture.drawio)

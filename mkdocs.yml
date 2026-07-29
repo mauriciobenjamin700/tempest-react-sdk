@@ -3,27 +3,56 @@ site_description: Blocos React/TypeScript compartilhados da Tempest — componen
 site_url: https://mauriciobenjamin700.github.io/tempest-react-sdk/
 repo_url: https://github.com/mauriciobenjamin700/tempest-react-sdk
 repo_name: mauriciobenjamin700/tempest-react-sdk
+edit_uri: edit/main/docs/
+copyright: Copyright &copy; 2026 Mauricio Benjamin — MIT License
 docs_dir: docs
 
 theme:
     name: material
     language: pt-BR
     palette:
+        - media: "(prefers-color-scheme)"
+          toggle:
+              icon: material/brightness-auto
+              name: Usar tema claro
         - media: "(prefers-color-scheme: light)"
           scheme: default
-          toggle: { icon: material/weather-night, name: Tema escuro }
+          primary: indigo
+          accent: indigo
+          toggle:
+              icon: material/brightness-7
+              name: Usar tema escuro
         - media: "(prefers-color-scheme: dark)"
           scheme: slate
-          toggle: { icon: material/weather-sunny, name: Tema claro }
+          primary: indigo
+          accent: indigo
+          toggle:
+              icon: material/brightness-4
+              name: Seguir preferência do sistema
     features:
-        - navigation.tracking
-        - navigation.sections
-        - navigation.top
-        - navigation.indexes
+        - announce.dismiss
+        - content.action.edit
+        - content.action.view
+        - content.code.annotate
         - content.code.copy
-        - search.suggest
+        - content.tabs.link
+        - content.tooltips
+        - navigation.footer
+        - navigation.indexes
+        - navigation.path
+        - navigation.sections
+        - navigation.tabs
+        - navigation.tabs.sticky
+        - navigation.top
+        - navigation.tracking
         - search.highlight
+        - search.share
+        - search.suggest
         - toc.follow
+    icon:
+        repo: fontawesome/brands/github
+        edit: material/pencil
+        view: material/eye
 
 plugins:
     - search
@@ -52,7 +81,9 @@ plugins:
                     Visão geral: Overview
                     Arquitetura: Architecture
                     Gallery (demo): Gallery (demo)
+                    Ferramentas: Tooling
                     Estrutura de aplicação: App foundation
+                    Fundação de app: App foundation
                     Scaffold (create-tempest-app): Scaffold (create-tempest-app)
                     CLI tempest: tempest CLI
                     OpenAPI (codegen): OpenAPI (codegen)
@@ -74,6 +105,23 @@ plugins:
                     Identidade & micro: Identity & micro
                     Utilitários & headless: Utility & headless
                     Overlays & avançados: Overlays & advanced
+                    Design de Software: Software Design
+                    Por que design importa: Why design matters
+                    Desenho do sistema: System design
+                    Camadas de um app frontend: Frontend app layers
+                    Estrutura de pastas: Folder structure
+                    Fluxo de dados: Data flow
+                    Onde mora cada estado: Where each state lives
+                    Escrevendo o código: Writing the code
+                    Pensando em componentes: Thinking in components
+                    Limites objetivos: Hard limits
+                    Tipagem forte: Strong typing
+                    Sustentando: Sustaining it
+                    Estratégia de testes: Testing strategy
+                    Anti-padrões: Anti-patterns
+                    Checklist de revisão: Review checklist
+                    Módulos: Modules
+                    Visão geral do pacote: Package overview
                     Hooks: Hooks
                     Hooks utilitários: Utility hooks
                     Integrações: Integrations
@@ -111,36 +159,59 @@ markdown_extensions:
     - def_list
     - tables
     - pymdownx.details
-    - pymdownx.superfences
+    - pymdownx.superfences:
+          custom_fences:
+              - name: mermaid
+                class: mermaid
+                format: !!python/name:pymdownx.superfences.fence_code_format
     - pymdownx.highlight
     - pymdownx.inlinehilite
-    - pymdownx.tabbed
+    - pymdownx.tabbed:
+          alternate_style: true
     - pymdownx.emoji
 
 validation:
     nav: { omitted_files: ignore }
     links: { absolute_links: ignore }
 
+extra:
+    social:
+        - icon: fontawesome/brands/github
+          link: https://github.com/mauriciobenjamin700/tempest-react-sdk
+        - icon: fontawesome/brands/npm
+          link: https://www.npmjs.com/package/tempest-react-sdk
+
 nav:
     - Início: index.md
-    - Tutorial:
-          - Comece aqui: tutorial/index.md
-          - Roteamento: tutorial/routing.md
-          - Estado: tutorial/state.md
-          - Buscando dados: tutorial/data-fetching.md
-          - Formulários: tutorial/forms.md
-          - Fluxo de autenticação: tutorial/auth-flow.md
-    - Guia:
-          - Visão geral: architecture.md
-          - Gallery (demo): gallery.md
-    - Estrutura de aplicação:
-          - Scaffold (create-tempest-app): scaffold.md
-          - CLI tempest: cli.md
-          - OpenAPI (codegen): openapi.md
-          - Vite & alias: vite-config.md
-          - Roteamento: routing.md
-          - Estado (Zustand): state.md
-          - Providers: app-providers.md
+    - Comece aqui:
+          - Tutorial:
+                - Comece aqui: tutorial/index.md
+                - Roteamento: tutorial/routing.md
+                - Estado: tutorial/state.md
+                - Buscando dados: tutorial/data-fetching.md
+                - Formulários: tutorial/forms.md
+                - Fluxo de autenticação: tutorial/auth-flow.md
+          - Ferramentas:
+                - Scaffold (create-tempest-app): scaffold.md
+                - CLI tempest: cli.md
+                - Vite & alias: vite-config.md
+                - OpenAPI (codegen): openapi.md
+                - Gallery (demo): gallery.md
+    - Design de Software:
+          - design/index.md
+          - Desenho do sistema:
+                - Camadas de um app frontend: design/architecture.md
+                - Estrutura de pastas: design/folders.md
+                - Fluxo de dados: design/data-flow.md
+                - Onde mora cada estado: design/state.md
+          - Escrevendo o código:
+                - Pensando em componentes: design/components.md
+                - Limites objetivos: design/limits.md
+                - Tipagem forte: design/typing.md
+          - Sustentando:
+                - Estratégia de testes: design/testing.md
+                - Anti-padrões: design/anti-patterns.md
+                - Checklist de revisão: design/checklist.md
     - Componentes:
           - Catálogo de componentes: components.md
           - Ícones por slug: icons.md
@@ -154,39 +225,45 @@ nav:
           - Identidade & micro: components/identity.md
           - Utilitários & headless: components/utility.md
           - Overlays & avançados: components/advanced.md
-    - Hooks:
-          - Hooks utilitários: hooks.md
-    - Integrações:
-          - HTTP: http.md
-          - Auth: auth.md
-          - OAuth (Google): oauth.md
-          - Access Control (RBAC): access-control.md
-          - Query (TanStack): query.md
-          - Data Provider (CRUD): data-provider.md
-          - SSE: sse.md
-          - WebSocket: websocket.md
-          - Geolocalização: geo.md
-          - Mapa do Brasil (br): br.md
-          - Web Push: push.md
-          - Offline: offline.md
-          - PWA & Offline-First: pwa.md
-          - Web Share: share.md
-          - Áudio: audio.md
-          - Vision (ONNX): vision.md
-          - Charts (recharts): charts.md
-          - Rich Text Editor (tiptap): editor.md
-    - Formulários:
-          - Forms (zod): forms.md
-          - Forms BR: forms-br.md
-    - Estilo & Tema:
-          - Estilos & Design Tokens: styles.md
-          - Tema: theme.md
-          - i18n: i18n.md
-    - Observabilidade:
-          - Telemetry: telemetry.md
-          - Feature Flags: feature-flags.md
-          - Logger: logger.md
-          - Error Boundary: error-boundary.md
+    - Módulos:
+          - Visão geral do pacote: architecture.md
+          - Fundação de app:
+                - Roteamento: routing.md
+                - Estado (Zustand): state.md
+                - Providers: app-providers.md
+          - Hooks:
+                - Hooks utilitários: hooks.md
+          - Integrações:
+                - HTTP: http.md
+                - Auth: auth.md
+                - OAuth (Google): oauth.md
+                - Access Control (RBAC): access-control.md
+                - Query (TanStack): query.md
+                - Data Provider (CRUD): data-provider.md
+                - SSE: sse.md
+                - WebSocket: websocket.md
+                - Geolocalização: geo.md
+                - Mapa do Brasil (br): br.md
+                - Web Push: push.md
+                - Offline: offline.md
+                - PWA & Offline-First: pwa.md
+                - Web Share: share.md
+                - Áudio: audio.md
+                - Vision (ONNX): vision.md
+                - Charts (recharts): charts.md
+                - Rich Text Editor (tiptap): editor.md
+          - Formulários:
+                - Forms (zod): forms.md
+                - Forms BR: forms-br.md
+          - Estilo & Tema:
+                - Estilos & Design Tokens: styles.md
+                - Tema: theme.md
+                - i18n: i18n.md
+          - Observabilidade:
+                - Telemetry: telemetry.md
+                - Feature Flags: feature-flags.md
+                - Logger: logger.md
+                - Error Boundary: error-boundary.md
     - Receitas:
           - Cookbook: cookbook.md
           - Integração FastAPI (full-stack): integration-fastapi.md

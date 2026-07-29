@@ -472,6 +472,13 @@ O `tempest-react-sdk` é um pacote único com camadas independentes. O consumido
 importa só o que usa; tudo é externalizado no bundle do SDK, então o bundler do
 app faz tree-shake do que não é referenciado.
 
+!!! info "Esta página é a arquitetura **do pacote**"
+    Aqui você aprende como o SDK é montado — camadas, dependências, subpaths,
+    bundle. Se o que você quer é como organizar o **seu app** (camadas, pastas,
+    onde mora cada estado, limites de arquivo), a página é
+    [Camadas de um app frontend](./design/architecture.md), na aba
+    [Design de Software](./design/index.md).
+
 !!! tip "Importe só o que usa"
     Não existe penalidade por o SDK ser grande. Cada camada (HTTP, auth, query,
     forms…) é independente — se você nunca importa `createOfflineStore`, o `dexie`
@@ -582,6 +589,7 @@ Orçamento monitorado por `size-limit` no CI.
 
 ## Veja também
 
+- [Design de Software — camadas do seu app](./design/architecture.md)
 - [Scaffold — `create-tempest-app`](./scaffold.md)
 - [HTTP — fluxo de request](./http.md)
 - Diagrama: [architecture.drawio](./diagrams/architecture.drawio)
@@ -2025,6 +2033,15 @@ Stylesheets
       mesmas 3 propriedades — uma classe global bate 7 cópias locais
   [i] 2 finding(s) are auto-fixable — rode `tempest fix`
 
+Design
+  [i] 42 source file(s) · 1830 lines of code · median 38 — largest:
+      src/pages/Orders.tsx (204)
+  [!] src/pages/Orders.tsx:1 — 204 lines of code (limit 150) — extract a
+      sub-component, a hook or a pure function
+  [!] src/pages/Orders.tsx:31 — a component must not call the network — move it
+      to a service and read it with useQuery
+  [i] 2 limit(s) waived with a written reason — @tempest-limits markers
+
 Tooling
   [✓] ESLint config present
   [✓] eslint installed
@@ -2088,6 +2105,8 @@ Tooling
 **Integration** — `vite.config.*` usando `createViteConfig`; **`@vitejs/plugin-react`** instalado (JSX/Fast Refresh); import do `styles.css` no entry (e aviso se importado **mais de uma vez**).
 
 **Stylesheets** — análise de **sintaxe e semântica** de todo `.css` do projeto (CSS Modules incluídos): CSS que o browser derruba, declaração morta, nome que não existe, e bloco repetido que pede uma classe global. É a seção detalhada na próxima seção deste guia — [Análise de CSS](#analise-de-css). Aqui o `doctor` mostra no máximo **6 achados por severidade** e diz quantos ficaram de fora; a lista completa sai no `tempest fix --dry-run`.
+
+**Design** — os limites e anti-padrões de [Design de Software](./design/limits.md) medidos no seu código: arquivo/função/hook acima do limite, `<X>Props` com props demais, `any` e `@ts-ignore`, `fetch` dentro de um `.tsx`, `catch` vazio e cor literal em `style={{ … }}`. Mostra **6 achados por severidade** e a mediana de linhas do projeto. Todo achado é `warn` — limite é heurística com saída de emergência escrita (`@tempest-limits <regra> — <motivo>`), então a seção **nunca** derruba o exit code. Pule com `--no-design`.
 
 **Tooling** — config + binários de ESLint e Prettier; **lockfile** presente, único (npm/yarn/pnpm misturados dessincronizam) e **não desatualizado** (`package.json` mais novo que o lock → `npm install`).
 
@@ -2463,6 +2482,7 @@ npx tempest --version
 - **`doctor`** diagnostica o projeto (estilo `flutter doctor`), sai com código 1 em problemas bloqueantes.
 - **`fix`** converte import relativo pra `@/` + remove CSS morto + organiza imports + remove imports mortos + limpa espaçamento + Prettier. `--dry-run` pra revisar, `--no-alias`/`--no-css` pra pular uma passada.
 - A **[análise de CSS](#analise-de-css)** acha sintaxe que o browser derruba, declaração/regra duplicada, nome que não existe e bloco repetido que pede uma classe global. O `doctor` resume, o `--dry-run` lista tudo, o `fix` remove só o que é morto.
+- A **[análise de design](./design/limits.md)** mede limite de arquivo/função/hook, contagem de props, `any`, `fetch` em componente, `catch` vazio e cor literal inline — sempre como aviso, com `@tempest-limits <regra> — <motivo>` como saída de emergência escrita.
 - **`lint`** reporta; **`format`** só formata.
 - Veja também: [Scaffold](./scaffold.md) · [Arquitetura](./architecture.md).
 
@@ -3387,7 +3407,7 @@ export function CadastroEmEtapas() {
 
 > **Quando usar**: renderizar texto que veio de gente — comentário, descrição de ticket, release notes, corpo de mensagem.
 
-Subconjunto de Markdown: headings, parágrafos, listas (aninhadas e numeradas), citação, código cercado (via [`CodeBlock`](#codeblock)), regra, tabela GFM com alinhamento, e o inline usual (`**forte**`, `*itálico*`, `` `código` ``, `~~riscado~~`, link, imagem, autolink, quebra forçada).
+Subconjunto de Markdown: headings, parágrafos, listas (aninhadas e numeradas), citação, código cercado (via [`CodeBlock`](utility.md#codeblock)), regra, tabela GFM com alinhamento, e o inline usual (`**forte**`, `*itálico*`, `` `código` ``, `~~riscado~~`, link, imagem, autolink, quebra forçada).
 
 ```tsx
 import { Markdown } from "tempest-react-sdk";
@@ -7513,6 +7533,2629 @@ export function EditPost({ id }: { id: string }) {
 
 ---
 
+# design/anti-patterns.md
+
+# Anti-padrões
+
+As páginas anteriores dizem o que fazer. Esta diz o que você vai **encontrar** —
+num app existente, ou num PR seu de sexta-feira à noite.
+
+Cada entrada tem o mesmo formato: como reconhecer, por que dói, e o refactor.
+
+## 1. O componente Deus
+
+**Reconhecer:** um `.tsx` com 400+ linhas, `useState` misturado com `fetch`,
+formatação, validação e JSX.
+
+**Dói porque:** cinco motivos de mudança num arquivo — toda alteração tem chance
+de quebrar algo não relacionado, e ninguém lê o arquivo inteiro antes de editar.
+
+**Refactor:** três cortes, nesta ordem.
+
+1. `fetch` → [serviço](data-flow.md).
+2. Estado + handlers → [hook](components.md#logic-to-hook).
+3. Blocos de JSX → sub-componentes.
+
+Sempre nessa ordem: tirar a rede primeiro é o que torna o resto testável.
+
+## 2. `fetch` dentro do componente
+
+**Reconhecer:**
+
+```tsx
+useEffect(() => {
+  fetch(`/api/orders?page=${page}`)
+    .then((r) => r.json())
+    .then(setOrders);
+}, [page]);
+```
+
+**Dói porque:** intestável sem servidor, sem cache, sem dedupe, sem tratamento de
+erro, sem cancelamento — e o mesmo endpoint chamado em duas telas dispara dois
+requests.
+
+**Refactor:** serviço + `useQuery`. Vira uma linha no componente:
+
+```tsx
+const { data = [], isLoading } = useOrders(page);
+```
+
+Ver [Fluxo de dados](data-flow.md).
+
+## 3. `useEffect` de sincronização
+
+**Reconhecer:** `useEffect` cujo corpo só chama `setState` a partir de outro
+estado ou prop.
+
+```tsx
+useEffect(() => {
+  setFullName(`${first} ${last}`);
+}, [first, last]);
+```
+
+**Dói porque:** render extra, uma janela em que o valor está velho, e uma segunda
+fonte de verdade.
+
+**Refactor:** calcule.
+
+```tsx
+const fullName = `${first} ${last}`;
+```
+
+Ver [Onde mora cada estado](state.md#derived).
+
+## 4. Estado de servidor duplicado no store
+
+**Reconhecer:** `useOrdersStore` com um array de pedidos que vem da API, mais um
+`fetchOrders()` que preenche o array.
+
+**Dói porque:** você reimplementou cache — mas sem invalidação, sem revalidação,
+sem `staleTime`. O sintoma é sempre "a tela não atualiza depois do POST".
+
+**Refactor:** dado de servidor → [Query](../query.md). O store fica só com o que é
+de cliente (sessão, tema, carrinho).
+
+## 5. Prop drilling de 4 níveis
+
+**Reconhecer:** a mesma prop atravessando componentes que não a usam, só pra
+chegar no neto do neto.
+
+**Dói porque:** todo componente do caminho conhece um dado que não é dele, e
+adicionar um campo mexe em cinco arquivos.
+
+**Refactor:** três opções, na ordem:
+
+1. **Composição** — passe `children` já montado, em vez de dados pro filho montar.
+2. **Contexto** — quando é realmente global (tema, sessão, i18n).
+3. **Store** — quando é global **e** muda com frequência.
+
+!!! warning "Contexto não é a primeira resposta"
+    Contexto re-renderiza todo consumidor quando o valor muda. Composição resolve
+    a maioria dos casos de drilling sem custo nenhum de render.
+
+## 6. Pass-through {#passthrough}
+
+**Reconhecer:** função, hook ou componente cujo corpo só repassa os argumentos.
+
+```ts
+// ❌ camada sem lógica nenhuma
+export async function listCustomers(params: GetListParams) {
+  return dataProvider.getList<Customer>("customers", params);
+}
+```
+
+**Dói porque:** é uma indireção a mais pra ler, um arquivo a mais pra abrir, e
+zero comportamento adicionado. E quando a assinatura de baixo muda, você mexe em
+dois lugares.
+
+**Refactor:** apague e chame direto — `useList<Customer>("customers", params)`.
+
+Exceções legítimas: fronteira de abstração intencional (fachada pública sobre
+implementação privada, hook de framework, implementação de interface). Se for o
+caso, o JSDoc diz que é.
+
+## 7. Cerimônia {#cerimonia}
+
+**Reconhecer:** camada criada por simetria, não por necessidade — `types/`,
+`constants/`, `mappers/` com um arquivo de duas linhas cada, um `mapper` que copia
+campo por campo sem transformar nada.
+
+```ts
+// ❌ mapeia A em A
+export function toOrder(dto: OrderDto): Order {
+  return { id: dto.id, code: dto.code, status: dto.status };
+}
+```
+
+**Dói porque:** cada camada vazia é mais um lugar pra procurar e mais um pra
+manter em sincronia, em troca de nada.
+
+**Refactor:** delete. Estrutura se adiciona quando o segundo caso aparece, não
+antes.
+
+## 8. Barrel gigante no app
+
+**Reconhecer:** um `src/index.ts` (ou `components/index.ts`) reexportando tudo, e
+imports do tipo `import { X } from "@/components"`.
+
+**Dói porque:** ciclo de import (A → barrel → B → barrel → A), e o Vite
+reprocessa a árvore inteira a cada edição — o dev server fica lento sem motivo
+aparente.
+
+**Refactor:** barrel só na **fronteira de feature** (`features/orders/index.ts`).
+Dentro da feature e dentro de `components/`, caminho direto.
+
+!!! note "No SDK é diferente — de propósito"
+    Um pacote publicado precisa do barrel: é o contrato de import do consumidor. O
+    custo é pago com `preserveModules` no build, que preserva o grafo de módulos
+    para o bundler do app tree-shakear. App não publica nada, então não tem esse
+    problema pra resolver.
+
+## 9. `any` e `as` pra calar o compilador
+
+**Reconhecer:** `as any`, `@ts-ignore`, `props: any`, `!` espalhado.
+
+**Dói porque:** o erro não desaparece — ele muda de lugar, pra runtime, longe da
+causa.
+
+**Refactor:** `unknown` + validação na borda, union discriminada, early return. Ver
+[Tipagem forte](typing.md).
+
+## 10. Booleana como variante
+
+**Reconhecer:** `<Alert error warning info small />`.
+
+**Dói porque:** representa estados impossíveis (`error warning` juntos) e a
+precedência fica escondida no CSS.
+
+**Refactor:** `union` de string — `<Alert variant="error" size="sm" />`.
+
+## 11. Teste acoplado à implementação
+
+**Reconhecer:** `container.querySelector(".tempest_card_1a2b")`, snapshot de 400
+linhas, assert de que `useState` foi chamado.
+
+**Dói porque:** falha quando o CSS muda e passa quando o comportamento quebra.
+Confiança falsa é pior que nenhum teste.
+
+**Refactor:** consulte por papel (`getByRole`) e verifique comportamento
+observável. Ver [Estratégia de testes](testing.md).
+
+## 12. `catch` silencioso
+
+**Reconhecer:**
+
+```ts
+try {
+  await payOrder(id);
+} catch {
+  // ignora
+}
+```
+
+**Dói porque:** troca um erro visível por um comportamento errado invisível. O
+usuário clica, nada acontece, e não existe log.
+
+**Refactor:** trate (mensagem específica), ou **não capture** — deixe subir pro
+[ErrorBoundary](../error-boundary.md) e registre no [logger](../logger.md).
+
+## 13. Hardcode de string mágica
+
+**Reconhecer:** `if (status === "paid")` em sete arquivos; `["orders", "list", page]`
+montado à mão na query e na invalidação.
+
+**Dói porque:** o typo não é erro de compilação. `"payed"` num dos sete arquivos
+é um `if` que nunca entra.
+
+**Refactor:** union + constante derivada. Query key via
+[`createQueryKeys`](../query.md); rótulo via tabela `satisfies Record<Status, string>`
+([Tipagem](typing.md#satisfies)).
+
+## 14. Estilo inline em vez de token
+
+**Reconhecer:** `style={{ color: "#2563eb", padding: 12 }}`.
+
+**Dói porque:** não respeita tema dark, não respeita densidade, não tem estado
+(`:hover`/`:focus-visible`) e vira 40 tons de azul diferentes pelo app.
+
+**Refactor:** CSS Module + tokens `--tempest-*`:
+
+```css
+.card {
+  color: var(--tempest-text);
+  background: var(--tempest-surface);
+  padding: var(--tempest-space-3);
+}
+```
+
+Ver [Estilos & Design Tokens](../styles.md).
+
+!!! tip "`tempest doctor` acha parte disso"
+    O CLI analisa o CSS do projeto: propriedade e token inexistentes, declaração
+    duplicada, sintaxe que o browser derruba, bloco repetido que pede classe
+    utilitária.
+
+    ```bash
+    npx tempest doctor
+    npx tempest fix --dry-run
+    ```
+
+## 15. Reimplementar o que o SDK tem
+
+**Reconhecer:** um `Modal` próprio, um `useDebounce` próprio, um `formatCurrency`
+próprio, uma máscara de CPF própria.
+
+**Dói porque:** foco-trap, `Esc`, restauração de foco, `aria-modal`, scroll lock e
+portal são seis detalhes que a versão caseira não tem — e cada um é um bug de
+acessibilidade.
+
+**Refactor:** procure primeiro. São 117 componentes, 46 hooks, utilitários BR
+(CPF/CNPJ/CEP/telefone/moeda) e 384 exports na raiz. Ver
+[catálogo de componentes](../components.md), [hooks](../hooks.md),
+[utilitários](../utilities.md).
+
+## O ranking, se você só puder atacar três
+
+| Prioridade | Anti-padrão                       | Por quê                                         |
+| ---------- | --------------------------------- | ----------------------------------------------- |
+| 🔴 1       | `fetch` no componente             | bloqueia teste, cache e reuso de uma vez        |
+| 🔴 2       | Estado de servidor duplicado      | causa direta de "tela com dado velho"           |
+| 🔴 3       | `any` / `as` pra calar erro       | move o bug pra produção                         |
+| 🟡 4       | Componente Deus                   | doloroso, mas melhora incremental funciona      |
+| 🟡 5       | `catch` silencioso                | barato de corrigir, alto retorno                |
+| 🟢 6       | Cerimônia / pass-through          | irritante, não perigoso                         |
+
+## Recap
+
+- Os três caros: **`fetch` no componente**, **estado de servidor duplicado**,
+  **`any` pra calar o compilador**.
+- Componente Deus se resolve em ordem: rede → lógica → JSX.
+- `useEffect` que só faz `setState` é estado derivado disfarçado.
+- Pass-through e cerimônia são custo sem retorno — delete.
+- Antes de escrever primitivo, procure no SDK.
+
+Próxima: [Checklist de revisão](checklist.md) — a versão de uma página.
+
+---
+
+# design/architecture.md
+
+# Camadas de um app frontend
+
+Backend tem um desenho de camadas que todo mundo reconhece: router → controller →
+service → repository. Frontend tem o mesmo problema e quase nunca o mesmo
+cuidado — o resultado é o componente que valida CPF, monta a URL, faz `fetch`,
+trata erro, formata data e renderiza tabela. Seis motivos de mudança num arquivo.
+
+Esta página define as camadas de um app Tempest e a **única regra** que faz elas
+valerem algo.
+
+## As seis camadas
+
+```mermaid
+flowchart TD
+    subgraph borda["Borda do app"]
+        BOOT["main.tsx — bootstrap"]
+        PROV["providers — composition root"]
+        ROUTES["routes.tsx — mapa de URLs"]
+    end
+    subgraph tela["Tela"]
+        PAGE["pages/ — orquestração"]
+        FEAT["features/ — domínio + UI do domínio"]
+        UI["components/ + SDK — UI sem domínio"]
+    end
+    subgraph dados["Dados"]
+        SVC["services/ — fala com o backend"]
+        INFRA["lib/ — apiClient, storage, logger"]
+    end
+
+    BOOT --> PROV --> ROUTES --> PAGE
+    PAGE --> FEAT
+    FEAT --> UI
+    FEAT --> SVC
+    SVC --> INFRA
+```
+
+| #   | Camada         | Responsabilidade                                                                | Nunca faz                                        |
+| --- | -------------- | ------------------------------------------------------------------------------- | ------------------------------------------------ |
+| 1   | **Bootstrap**  | `createRoot`, importar o CSS, montar `<App />`                                   | lógica de qualquer tipo                          |
+| 2   | **Providers**  | Compor contexto global (query, tema, i18n, auth, flags, telemetria)             | conhecer feature nenhuma                         |
+| 3   | **Rotas**      | Mapear URL → página, guardas, code splitting                                    | buscar dados                                     |
+| 4   | **Páginas**    | Ler params da URL, compor features, definir layout da tela                      | regra de negócio, `fetch`, formatação            |
+| 5   | **Features**   | Um domínio: seus componentes, hooks, tipos e serviços                           | importar outra feature por dentro                |
+| 6   | **UI**         | Renderizar props, emitir eventos, acessibilidade, estilo                        | saber o que é um "pedido"                        |
+| 7   | **Serviços**   | Chamar endpoint, validar resposta, devolver tipo do domínio                     | tocar em React                                   |
+| 8   | **Infra**      | `apiClient`, storage, logger, telemetria — o "como", não o "o quê"              | saber nome de recurso do domínio                 |
+
+!!! note "Oito linhas, seis camadas"
+    Bootstrap/providers/rotas são a **borda** — código que existe uma vez no app.
+    As camadas que você edita todo dia são páginas, features, UI, serviços.
+
+## A regra da seta única
+
+> **Uma camada só importa camadas abaixo dela. Nunca ao contrário.**
+
+Isso é a coisa toda. Sem essa regra, "camada" é só um nome de pasta.
+
+=== "✅ Certo"
+
+    ```tsx
+    // features/orders/OrderList.tsx
+    import { DataTable } from "tempest-react-sdk";
+
+    import { useOrders } from "./use-orders";
+    ```
+
+    Feature importa UI (abaixo) e o próprio hook. Seta pra baixo.
+
+=== "❌ Errado"
+
+    ```tsx
+    // components/StatusBadge.tsx
+    import { useOrders } from "@/features/orders/use-orders";
+    ```
+
+    UI importando feature. Agora `StatusBadge` só funciona onde existe pedido,
+    não dá pra reusar em faturas, e o teste dele precisa de servidor.
+
+Consequências práticas de respeitar a seta:
+
+- **Testar é barato.** Serviço testa com `fetch` mockado, sem React. UI testa com
+  props, sem servidor.
+- **Mover código é barato.** Um componente de UI sem domínio sobe pro SDK sem
+  reescrita.
+- **Apagar feature é barato.** Deletar `features/orders/` não deixa buraco em
+  `components/`.
+
+!!! danger "O import que fura a camada é o começo de todo emaranhado"
+    Nenhum app apodrece de uma vez. Apodrece com um import "só esse aqui" que
+    ninguém remove. Trate import de camada errada como **erro**, não como
+    detalhe de estilo — o `tempest lint` e a revisão existem pra isso.
+
+## Como cada camada fica, em código
+
+Um exemplo completo: a tela de pedidos. Oito arquivos, nenhum com mais de 40
+linhas.
+
+### 1. Infra — o cliente HTTP existe uma vez
+
+```ts
+// src/lib/api.ts
+import { createApiClient } from "tempest-react-sdk";
+
+import { useAuth } from "@/stores/auth";
+
+/**
+ * Single HTTP client for the app. Every service goes through it, so bearer
+ * token, request id and 401 handling are configured in exactly one place.
+ */
+export const api = createApiClient({
+  baseURL: import.meta.env.VITE_API_URL,
+  getToken: () => useAuth.getState().token,
+  onUnauthorized: () => useAuth.getState().logout(),
+});
+```
+
+### 2. Serviço — fala com o backend e devolve tipo do domínio
+
+```ts
+// src/features/orders/orders.service.ts
+import { parseResponse } from "tempest-react-sdk";
+
+import { api } from "@/lib/api";
+
+import { orderListSchema, orderSchema } from "./orders.schema";
+import type { Order } from "./orders.schema";
+
+/**
+ * Read the paginated order list. The raw payload is validated against the
+ * schema, so every consumer downstream can trust the shape.
+ */
+export async function listOrders(page: number): Promise<Order[]> {
+  const raw = await api.get<unknown>("/orders", { params: { page } });
+  return parseResponse(orderListSchema, raw, "listOrders");
+}
+
+/** Advance an order to the paid state. */
+export async function payOrder(id: string): Promise<Order> {
+  const raw = await api.post<unknown>(`/orders/${id}/pay`);
+  return parseResponse(orderSchema, raw, "payOrder");
+}
+```
+
+### 3. Hook da feature — cola serviço com React
+
+```ts
+// src/features/orders/use-orders.ts
+import { useQuery } from "@tanstack/react-query";
+import { createQueryKeys } from "tempest-react-sdk";
+
+import { listOrders } from "./orders.service";
+
+export const orderKeys = createQueryKeys("orders", {
+  list: (page: number) => ["list", page] as const,
+  detail: (id: string) => ["detail", id] as const,
+});
+
+/** Order list for a page, cached by TanStack Query. */
+export function useOrders(page: number) {
+  return useQuery({
+    queryKey: orderKeys.list(page),
+    queryFn: () => listOrders(page),
+  });
+}
+```
+
+### 4. Componente da feature — sabe o que é pedido, não sabe HTTP
+
+```tsx
+// src/features/orders/OrderTable.tsx
+import { Badge, Button, DataTable, type DataTableColumn } from "tempest-react-sdk";
+
+import type { Order } from "./orders.schema";
+
+interface OrderTableProps {
+  orders: Order[];
+  onPay: (id: string) => void;
+}
+
+/**
+ * Presentational table for orders. Receives data, emits intent — no fetching,
+ * no mutation, no knowledge of where the rows came from.
+ */
+export function OrderTable({ orders, onPay }: OrderTableProps) {
+  const columns: DataTableColumn<Order>[] = [
+    { key: "code", header: "Código", sortable: true },
+    { key: "status", header: "Status", render: (o) => <Badge>{o.status}</Badge> },
+    {
+      key: "id",
+      header: "",
+      align: "right",
+      render: (o) => (
+        <Button size="sm" onClick={() => onPay(o.id)}>
+          Pagar
+        </Button>
+      ),
+    },
+  ];
+
+  return <DataTable data={orders} columns={columns} rowKey={(o) => o.id} searchable />;
+}
+```
+
+!!! note "`key` é `keyof T` — de propósito"
+    A coluna de ações reusa `key: "id"` porque o tipo obriga a apontar pra um
+    campo real da linha. Isso impede a coluna fantasma (`key: "actions"`) que
+    quebra silenciosamente quando o campo muda de nome — é
+    [tipagem cobrando o desenho](typing.md).
+
+### 5. Página — orquestra, não implementa
+
+```tsx
+// src/pages/Orders.tsx
+import { Page, Spinner, useSearchParams } from "tempest-react-sdk";
+
+import { OrderTable } from "@/features/orders/OrderTable";
+import { useOrders } from "@/features/orders/use-orders";
+import { usePayOrder } from "@/features/orders/use-pay-order";
+
+/** Orders screen: reads the page from the URL and wires the feature together. */
+export function Orders() {
+  const [params] = useSearchParams();
+  const page = Number(params.get("page") ?? 1);
+
+  const { data = [], isLoading } = useOrders(page);
+  const { mutate: pay } = usePayOrder();
+
+  return (
+    <Page title="Pedidos">
+      {isLoading ? <Spinner /> : <OrderTable orders={data} onPay={pay} />}
+    </Page>
+  );
+}
+```
+
+Repare no que a página **não** tem: nenhuma URL de API, nenhum `useState` de
+dado remoto, nenhuma formatação, nenhuma regra. Ela lê a URL, chama a feature e
+posiciona. É o teto de complexidade de uma página bem desenhada.
+
+## Tabela de importações permitidas
+
+Cole isso na revisão de código:
+
+| De ↓ / Pode importar →   | Infra | Serviços | UI  | Features | Páginas | Rotas |
+| ------------------------ | ----- | -------- | --- | -------- | ------- | ----- |
+| **Infra** (`lib/`)       | ✅    | ❌       | ❌  | ❌       | ❌      | ❌    |
+| **Serviços**             | ✅    | ⚠️        | ❌  | ❌       | ❌      | ❌    |
+| **UI** (`components/`)   | ❌    | ❌       | ✅  | ❌       | ❌      | ❌    |
+| **Features**             | ✅    | ✅       | ✅  | ⚠️        | ❌      | ❌    |
+| **Páginas**              | ⚠️     | ❌       | ✅  | ✅       | ❌      | ❌    |
+| **Rotas / Providers**    | ✅    | ❌       | ✅  | ⚠️        | ✅      | ✅    |
+
+- ✅ livre.
+- ⚠️ com critério: serviço pode compor outro serviço; feature importa outra
+  feature **só pelo `index.ts` dela**; página pode ler infra pra coisas globais
+  (logger, flags).
+- ❌ é erro. Sem exceção "temporária".
+
+!!! tip "UI não importa nada do app — nem `lib/`"
+    Um componente de `components/` que importe `@/lib/api` deixou de ser UI. Se
+    ele precisa de dado, ele recebe por prop. É esse rigor que faz o componente
+    virar candidato a subir pro SDK depois.
+
+## Onde o SDK entra
+
+Você não implementa as camadas 1–3 e 8 na mão:
+
+| Camada    | Use                                                                              |
+| --------- | -------------------------------------------------------------------------------- |
+| Providers | [`<AppProviders>`](../app-providers.md)                                          |
+| Rotas     | [`defineRoutes` + `<AppRouter>` + `<RouteGuard>`](../routing.md)                  |
+| Serviços  | [`createApiClient` + `parseResponse`](../http.md)                                 |
+| CRUD puro | [`createDataProvider` + `useList`/`useOne`/`useCreate`](../data-provider.md)      |
+| UI        | [Catálogo de componentes](../components.md)                                      |
+| Infra     | [Logger](../logger.md), [Telemetry](../telemetry.md), [Feature Flags](../feature-flags.md) |
+
+E o [`create-tempest-app`](../scaffold.md) já gera o app com `lib/`, `stores/`,
+`layouts/`, `pages/` e `routes.tsx` no lugar.
+
+!!! info "CRUD sem regra? Pule o serviço"
+    Quando o recurso é REST previsível e não tem transformação nenhuma, o
+    [Data Provider](../data-provider.md) substitui o par serviço+hook. Escrever
+    um serviço que só repassa é um [pass-through](anti-patterns.md#passthrough) —
+    indireção sem lógica.
+
+## Recap
+
+- Oito papéis, seis camadas que você edita: **página → feature → UI** de um lado,
+  **serviço → infra** do outro.
+- A **regra da seta única** é o que transforma nome de pasta em arquitetura.
+- Página orquestra e nada mais; UI não conhece domínio; serviço não conhece React.
+- Import de camada errada é **erro de revisão**, não detalhe.
+- O SDK entrega borda (providers/rotas), serviços (HTTP) e UI — você mantém as
+  fronteiras.
+
+Próxima: [Estrutura de pastas](folders.md) — onde cada uma dessas camadas mora no
+disco.
+
+---
+
+# design/checklist.md
+
+# Checklist de revisão
+
+Toda a seção em uma página. Use antes de abrir o PR e durante a revisão do PR de
+outra pessoa.
+
+!!! tip "Copie pro seu repositório"
+    Vale colar esta lista em `.github/pull_request_template.md`. Checklist que
+    aparece sozinho no formulário do PR é usado; checklist que mora num wiki não é.
+
+## Antes de abrir o PR
+
+### Camadas
+
+- [ ] Nenhum componente chama `fetch`/`apiClient` direto.
+- [ ] Nenhum import de camada de cima (UI não importa feature, feature não importa
+      página).
+- [ ] Feature importada de fora só pelo `index.ts` dela.
+- [ ] Nenhum `../../../` — só `@/` ou irmão (`./`).
+- [ ] Arquivo está na pasta da **feature**, não numa pasta por tipo de arquivo.
+
+### Estado
+
+- [ ] Nada que dê pra calcular está em `useState`.
+- [ ] Nenhum `useEffect` cujo corpo só chama `setState`.
+- [ ] Dado de servidor está no Query, não em `useState`/store.
+- [ ] Filtro/página/aba estão na URL, não duplicados em `useState`.
+- [ ] Campo de formulário está no `useZodForm`, não em `useState`.
+
+### Tipos
+
+- [ ] Zero `any`. Zero `@ts-ignore`.
+- [ ] Nenhum `as` novo (fora `as const` e estreitamento pós-guard).
+- [ ] Tipo do domínio derivado do schema (`z.infer`), não redigitado.
+- [ ] Resposta de rede passa por `parseResponse`/schema.
+- [ ] Estado com mais de um caso é **union discriminada**, não flags booleanas.
+- [ ] Variante de componente é `union` de string, não booleana.
+- [ ] Coleção vazia é `[]`, não `null`.
+- [ ] `npx tsc -b --noEmit` passa.
+
+### Tamanho
+
+- [ ] `.tsx` ≤ 150 linhas de código — ou JSDoc explicando o motivo de estourar.
+- [ ] Função/componente ≤ 80 linhas.
+- [ ] Hook ≤ 100 linhas.
+- [ ] ≤ 7 props por componente.
+- [ ] Aninhamento de JSX ≤ 4.
+
+### Componente
+
+- [ ] Antes de escrever, procurei no [catálogo](../components.md) e nos
+      [hooks](../hooks.md) do SDK.
+- [ ] Componente de apresentação não conhece domínio nenhum.
+- [ ] `...rest` tipado via `HTMLAttributes<T>`, e `className` do chamador entra por
+      último no `cn(...)`.
+- [ ] Ação é `<button>`, navegação é `<a>` — nunca `<div onClick>`.
+- [ ] Todo campo tem `label` associado.
+- [ ] Overlay novo: `Esc` fecha, foco preso dentro, foco volta pro gatilho.
+
+### Estilo
+
+- [ ] Nenhum valor de cor/espaço hardcoded — tokens `--tempest-*`.
+- [ ] Nenhum `style={{...}}` com o que deveria ser CSS Module.
+- [ ] Testado em tema **claro e escuro**.
+- [ ] Testado em ≤ 430px e ≥ 1024px.
+- [ ] Texto sobre superfície tingida usa o foreground daquela superfície
+      (ex. `--tempest-primary-on-soft`), não `--tempest-text-subtle`.
+
+### Erro
+
+- [ ] Nenhum `catch` vazio ou que só faz `console.log`.
+- [ ] Erro que a feature não trata **sobe** (não vira toast genérico).
+- [ ] A tela tem estado de erro e estado vazio, não só o de sucesso.
+
+### Testes
+
+- [ ] Todo teste novo responde "que bug isso pegaria?".
+- [ ] Consulta por papel (`getByRole`), não por classe CSS.
+- [ ] Serviço novo tem teste com payload **inválido**, não só o feliz.
+- [ ] Nenhum snapshot grande novo.
+- [ ] `npm run test:run` e `npm run lint` passam.
+
+### Visual
+
+- [ ] Mudança de UI foi vista **no browser**, não só no `expect`.
+- [ ] Console do browser sem erro novo.
+
+## Durante a revisão do PR de outra pessoa
+
+Cinco perguntas que pegam a maior parte dos problemas reais:
+
+1. **Onde esse dado nasce e onde ele morre?** Se a resposta atravessa camadas na
+   ordem errada, é aí.
+2. **Esse estado tem duas fontes?** Procure `useState` que espelha URL, prop ou
+   resposta de API.
+3. **O que acontece quando a rede falha?** Se não há resposta no diff, falta
+   estado de erro.
+4. **Esse teste falharia se eu quebrasse o comportamento?** Se ele só falha com
+   mudança de CSS, não é teste.
+5. **Isso já existe no SDK?** `Modal`, `useDebounce`, máscara de CPF, formatação
+   de moeda — quase sempre sim.
+
+!!! warning "Revisão não é caça a `nit:`"
+    Formatação é trabalho do Prettier; ordem de import é do ESLint. Se um
+    comentário de revisão pode ser resolvido por ferramenta, configure a
+    ferramenta em vez de escrever o comentário. Revisão humana serve pro que
+    ferramenta não vê: desenho, fronteira, estado duplicado, caso não tratado.
+
+## Os comandos
+
+```bash
+npx tsc -b --noEmit      # tipos, incluindo testes
+npx tempest lint         # ESLint
+npx tempest fix          # imports (../ → @/), ordem, import morto, CSS morto
+npx tempest doctor       # config, env, deps, análise de CSS
+npm run test:run         # suíte
+npm run test:coverage    # pisos de cobertura
+```
+
+Rodar isso antes do push é mais rápido que descobrir no CI.
+
+## Recap
+
+- O checklist é o resumo executável de tudo na seção: camadas, estado, tipos,
+  tamanho, componente, estilo, erro, testes, visual.
+- Cole no template de PR do repositório — é onde ele é lido.
+- Na revisão do outro, as cinco perguntas valem mais que a lista inteira.
+- `nit:` de formatação é bug de configuração de ferramenta, não de revisão.
+
+Voltar ao começo: [Design de Software Frontend](index.md).
+
+---
+
+# design/components.md
+
+# Pensando em componentes
+
+Componente é a unidade de reuso do React, e é onde a maior parte dos apps
+acumula dívida. Não porque as pessoas escrevem componente ruim — porque escrevem
+**um** componente onde havia três.
+
+Esta página é sobre encontrar as juntas.
+
+## Duas espécies, e não misture
+
+| Espécie             | Sabe o quê                          | Recebe                     | Testa como           |
+| ------------------- | ----------------------------------- | -------------------------- | -------------------- |
+| **De apresentação** | como algo **parece**                 | props                      | render + props       |
+| **De domínio**      | o que é um "pedido"                  | props + hooks da feature   | render + mock do hook |
+
+O componente de apresentação não sabe de onde vem o dado. O de domínio sabe o
+domínio, mas não sabe HTTP (isso é [serviço](data-flow.md)).
+
+```tsx
+// Apresentação: reusável em qualquer app, qualquer domínio.
+export function StatusBadge({ tone, children }: StatusBadgeProps) {
+  return <Badge variant={tone}>{children}</Badge>;
+}
+
+// Domínio: traduz "pedido" para "aparência".
+export function OrderStatusBadge({ status }: { status: OrderStatus }) {
+  return <StatusBadge tone={STATUS_TONE[status]}>{STATUS_LABEL[status]}</StatusBadge>;
+}
+```
+
+O de apresentação é candidato a subir pro SDK. O de domínio nunca sobe — ele é
+do seu app, e está certo assim.
+
+!!! tip "Antes de escrever um componente de apresentação, procure no SDK"
+    São 117 componentes. `Badge`, `DataTable`, `Modal`, `Combobox`, `Stepper`,
+    `EmptyState`, `Skeleton`, `Toast`… Veja o
+    [catálogo](../components.md). Reescrever `Modal` com foco-trap correto é uma
+    semana que você não precisa gastar.
+
+## Quando quebrar um componente
+
+Não quebre por tamanho — quebre por **motivo de mudança**. Os quatro sinais:
+
+### 1. O nome tem "e"
+
+`UserCardAndActions`, `TableWithFilters`, `FormAndPreview`. O nome está te
+contando que são dois.
+
+### 2. Um pedaço muda por outro motivo
+
+Se o `<header>` da tela muda quando o design muda e a `<table>` muda quando a
+API muda, são duas responsabilidades num arquivo.
+
+### 3. Um pedaço se repete
+
+Duas vezes: talvez coincidência. Três: extraia.
+
+### 4. Você precisa de um `if` grande no JSX
+
+```tsx
+// ❌ três telas num componente
+{isLoading ? <Spinner /> : error ? <ErrorState … /> : orders.length === 0 ? <EmptyState … /> : <table>…</table>}
+```
+
+Isso pede um componente de estado ou um `switch` num sub-componente.
+
+!!! warning "Quebrar cedo demais também custa"
+    Um componente de 6 linhas usado em um lugar só, com 5 props, é indireção sem
+    ganho. A pergunta não é "dá pra quebrar?" — é "**esse pedaço tem vida
+    própria?**".
+
+## Props: desenhe a interface, não a passagem de dados
+
+Props são a API pública do componente. As regras que mais economizam dor:
+
+### Máximo 7 props — e conte de verdade
+
+Passar de 7 é o sinal mais confiável de que existem dois componentes ali. A saída
+não é "agrupar em um objeto" (isso só esconde), é dividir.
+
+### Prop booleana não escala
+
+=== "❌ Errado"
+
+    ```tsx
+    <Button primary secondary danger small large />
+    ```
+
+    Oito combinações inválidas representáveis. O que acontece com
+    `primary danger`?
+
+=== "✅ Certo"
+
+    ```tsx
+    <Button variant="danger" size="sm" />
+    ```
+
+    Union de string: o compilador só aceita o que existe. É como todo componente
+    do SDK é desenhado.
+
+Regra: **três ou mais booleanas mutuamente exclusivas → vira `union`.**
+
+### Passe `children`, não `content`
+
+```tsx
+// ✅ composição: quem chama decide o que vai dentro
+<Card>
+  <OrderSummary order={order} />
+</Card>
+
+// ❌ configuração: o Card precisa conhecer todos os casos
+<Card contentType="order-summary" order={order} />
+```
+
+Composição é o que evita o componente que cresce uma prop por caso de uso.
+
+### Slots quando precisa de mais de um lugar
+
+```tsx
+interface PageProps {
+  title: ReactNode;
+  actions?: ReactNode; // slot: botão, menu, o que o chamador quiser
+  toolbar?: ReactNode;
+  children: ReactNode;
+}
+```
+
+`ReactNode` em slot é melhor que `string`: quem chama pode passar texto, ícone,
+ou um componente inteiro, sem que `Page` mude.
+
+### Nunca `...props` sem tipo
+
+```tsx
+// ✅ estende o elemento nativo — herda aria-*, data-*, onClick, className
+interface CardProps extends HTMLAttributes<HTMLDivElement> {
+  elevated?: boolean;
+}
+
+export function Card({ elevated, className, ...rest }: CardProps) {
+  return <div className={cn(styles.card, elevated && styles.elevated, className)} {...rest} />;
+}
+```
+
+Estender `HTMLAttributes<T>` dá acessibilidade e composição de graça, com
+autocomplete. `props: any` dá nada.
+
+!!! info "`cn` é o utilitário pra isso"
+    `cn(...)` do SDK junta classes ignorando `false`/`undefined`, e a `className`
+    do chamador entra **por último** — então quem consome consegue sobrescrever.
+    Veja [Utilitários](../utilities.md).
+
+## Extraia lógica pra hook, não pra componente {#logic-to-hook}
+
+Quando o componente está grande por causa de **lógica**, o corte não é vertical
+(dois componentes) — é horizontal (componente + hook):
+
+=== "Antes — 180 linhas"
+
+    ```tsx
+    export function OrderTable({ orders }: OrderTableProps) {
+      const [sort, setSort] = useState<Sort>({ field: "code", order: "asc" });
+      const [selected, setSelected] = useState<Set<string>>(new Set());
+      const [page, setPage] = useState(1);
+
+      const toggle = (id: string) => { /* 12 linhas */ };
+      const sorted = /* 20 linhas */;
+      const paged = /* 8 linhas */;
+
+      return <table>{/* 110 linhas de JSX */}</table>;
+    }
+    ```
+
+=== "Depois — 40 + 60 linhas"
+
+    ```tsx
+    // use-order-table.ts — a lógica, testável sem DOM
+    export function useOrderTable(orders: Order[]) {
+      const [sort, setSort] = useState<Sort>({ field: "code", order: "asc" });
+      const [selected, setSelected] = useState<Set<string>>(new Set());
+      const [page, setPage] = useState(1);
+
+      const rows = useMemo(() => paginate(sortBy(orders, sort), page), [orders, sort, page]);
+
+      return { rows, sort, setSort, selected, toggle, page, setPage };
+    }
+
+    // OrderTable.tsx — só a marcação
+    export function OrderTable({ orders }: OrderTableProps) {
+      const { rows, sort, setSort, selected, toggle } = useOrderTable(orders);
+      return <table>{/* JSX enxuto */}</table>;
+    }
+    ```
+
+O hook testa com `renderHook` — sem DOM, sem `screen.getByRole`, rápido. O
+componente testa o que importa nele: o que aparece na tela.
+
+!!! tip "O hook customizado é o 'service' do frontend"
+    É onde a lógica de tela mora. Mas ele tem [limite](limits.md) também: hook de
+    250 linhas é serviço disfarçado — quebre em hooks menores ou mova a parte pura
+    pra uma função em `lib/`.
+
+## `React.memo`, `useMemo`, `useCallback`: por medição
+
+React re-renderiza rápido. `memo` em tudo custa comparação de props em cada
+render e complica o código com `useCallback` em cascata.
+
+Use quando:
+
+- O componente renderiza **listas grandes** (centenas de itens).
+- O profiler mostra um render caro — não "parece caro".
+- A prop é objeto/array recriado a cada render **e** o filho é `memo`.
+
+!!! note "Antes de otimizar render, olhe o desenho"
+    Lista de 5.000 itens não precisa de `memo` — precisa de
+    [`VirtualList`/`VirtualTable`](../components/data.md). O ganho de virtualizar é
+    ordens de magnitude maior que qualquer memoização.
+
+## Acessibilidade é parte do componente, não polimento
+
+Um componente interativo sem isso está incompleto:
+
+- Elemento certo: `<button>` pra ação, `<a>` pra navegação. `<div onClick>` não
+  recebe foco nem responde a Enter.
+- `label` associado a todo campo (`<Label htmlFor>` ou `aria-label`).
+- Foco visível — nunca `outline: none` sem substituto.
+- Overlay (modal, drawer, popover): foco preso dentro, `Esc` fecha, foco volta pro
+  gatilho ao sair.
+
+Os componentes do SDK já implementam isso; o que você escreve por cima é que
+precisa de atenção. O CI roda `axe` no gallery — veja
+[Estratégia de testes](testing.md).
+
+## Recap
+
+- Duas espécies: **apresentação** (não sabe domínio) e **domínio** (não sabe HTTP).
+- Quebre por **motivo de mudança**, não por linha: nome com "e", pedaço repetido,
+  `if` grande no JSX.
+- ≤ 7 props; booleana exclusiva vira `union`; `children` e slots antes de
+  configuração.
+- `...rest` tipado via `HTMLAttributes<T>` — acessibilidade e composição de graça.
+- Componente grande por **lógica** → extraia **hook**, não outro componente.
+- Memoize por medição; lista grande é virtualização, não `memo`.
+
+Próxima: [Limites objetivos](limits.md) — os números.
+
+---
+
+# design/data-flow.md
+
+# Fluxo de dados
+
+Toda tela é a mesma pergunta: **como o dado do servidor chega no pixel, e como a
+intenção do usuário volta pro servidor.** Se cada tela responde isso do seu jeito,
+o app tem N arquiteturas.
+
+Esta página fixa **um** caminho, nos dois sentidos.
+
+## O caminho de leitura
+
+```mermaid
+flowchart LR
+    BE[("Backend")] -->|JSON cru| AC["apiClient<br/>(infra)"]
+    AC -->|unknown| SVC["service<br/>+ parseResponse"]
+    SVC -->|tipo do domínio| HOOK["useQuery<br/>(cache)"]
+    HOOK -->|data| PAGE["página"]
+    PAGE -->|props| UI["componente"]
+```
+
+Cinco paradas, e cada uma tem exatamente um trabalho:
+
+| Parada         | Entrada           | Saída               | Trabalho                                    |
+| -------------- | ----------------- | ------------------- | ------------------------------------------- |
+| `apiClient`    | path + params     | `unknown`           | URL, headers, bearer, 401, request id       |
+| `service`      | `unknown`         | tipo do domínio     | **validar** e mapear DTO → domínio          |
+| `useQuery`     | função + key      | `data`/`error`      | cache, dedupe, revalidação, loading         |
+| página         | `data`            | props               | orquestrar, ler URL                         |
+| componente     | props             | DOM                 | renderizar, emitir eventos                  |
+
+!!! danger "A única regra que não tem exceção"
+    **Componente não chama `fetch`, `axios`, nem `apiClient`.** Nem "só nesse
+    caso". Um componente que busca dado é intestável sem servidor, irreusável em
+    outro contexto e invisível pro cache.
+
+### `unknown` na entrada, tipo estreito na saída
+
+O `apiClient` devolve `unknown` de propósito:
+
+```ts
+const raw = await api.get<unknown>("/orders", { params: { page } });
+return parseResponse(orderListSchema, raw, "listOrders");
+```
+
+Por que não `api.get<Order[]>` direto? Porque `get<Order[]>` é uma **promessa
+sua**, não uma verificação. Se o backend renomear `total_amount` pra `amount`, o
+TypeScript continua feliz e o app quebra em produção, num `.toFixed()` de
+`undefined`, três telas depois.
+
+O `parseResponse` transforma isso num erro **na borda**, com contexto:
+
+```text
+[listOrders] resposta inválida: total_amount — Required
+```
+
+!!! tip "Valide na borda, confie no miolo"
+    Esse é o ponto todo. Uma validação na fronteira compra o direito de escrever
+    o resto do app sem `if (order?.total_amount != null)` em cada linha. Sem ela,
+    a checagem defensiva vaza pra dentro de cada componente. Veja
+    [Tipagem forte](typing.md).
+
+### DTO e tipo do domínio não são a mesma coisa
+
+Backend fala `snake_case`, manda data como string ISO, manda dinheiro como
+centavos. Nada disso precisa vazar pra dentro do app:
+
+```ts
+// src/features/orders/orders.schema.ts
+import { z } from "zod";
+
+/** Wire format, exactly as the backend sends it. */
+const orderDtoSchema = z.object({
+  id: z.string().uuid(),
+  code: z.string(),
+  status: z.enum(["pending", "paid", "shipped", "delivered", "cancelled"]),
+  total_cents: z.number().int(),
+  created_at: z.string().datetime(),
+});
+
+/**
+ * Domain shape used everywhere inside the app: camelCase, real Date, money in
+ * a single unit. The transform is the only place that knows the wire format.
+ */
+export const orderSchema = orderDtoSchema.transform((dto) => ({
+  id: dto.id,
+  code: dto.code,
+  status: dto.status,
+  totalCents: dto.total_cents,
+  createdAt: new Date(dto.created_at),
+}));
+
+export const orderListSchema = z.array(orderSchema);
+
+export type Order = z.infer<typeof orderSchema>;
+export type OrderStatus = Order["status"];
+```
+
+Ganhos concretos:
+
+- `createdAt` já é `Date` — nenhum componente faz `new Date(...)`.
+- `snake_case` morre no schema; o app é `camelCase` inteiro.
+- Trocar o backend de campo é editar **um** arquivo.
+
+!!! warning "Não transforme o que você não precisa"
+    Se o DTO já está no formato que você quer, não invente `transform` só pra ter
+    uma camada. Mapeamento sem propósito é [cerimônia](anti-patterns.md#cerimonia),
+    e cerimônia é custo sem retorno.
+
+## O caminho de escrita
+
+```mermaid
+flowchart LR
+    UI["componente"] -->|onPay id| PAGE["página"]
+    PAGE -->|mutate| MUT["useMutation"]
+    MUT --> SVC["service"]
+    SVC --> AC["apiClient"] --> BE[("Backend")]
+    MUT -.->|invalidateQueries| HOOK["cache de leitura"]
+```
+
+O componente **não** decide o que acontece — ele avisa a intenção (`onPay(id)`).
+Quem sabe o efeito é o hook de mutation:
+
+```ts
+// src/features/orders/use-pay-order.ts
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "tempest-react-sdk";
+
+import { payOrder } from "./orders.service";
+import { orderKeys } from "./use-orders";
+
+/**
+ * Pay an order and refresh every cached order query. Invalidating `all`
+ * (instead of a single page key) is intentional: paying changes counters and
+ * list ordering, so any cached page may now be stale.
+ */
+export function usePayOrder() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: payOrder,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: orderKeys.all });
+      toast.success("Pedido pago.");
+    },
+  });
+}
+```
+
+O `orderKeys.all` vem de graça no
+[`createQueryKeys`](../query.md) — é a key mais ampla do domínio.
+
+!!! tip "Key montada à mão é bug esperando"
+    `["orders", "list", page]` escrito na query e `["order", "list", page]`
+    escrito na invalidação não dão erro de compilação — dão uma tela que não
+    atualiza. Centralizar em `createQueryKeys` fecha essa porta.
+
+## Tratando erro uma vez, não em toda tela
+
+O cliente HTTP joga `TempestApiError` com `status`, `detail`, `code` e
+`requestId`. Três níveis de tratamento, e cada erro cai em um só:
+
+| Nível          | Onde                                            | Trata                                        |
+| -------------- | ----------------------------------------------- | -------------------------------------------- |
+| **Global**     | `createApiClient({ onUnauthorized })`           | 401 → logout/refresh                         |
+| **Da feature** | `onError` do `useMutation`                      | regra de negócio (`code === "STOCK_EMPTY"`)  |
+| **Da tela**    | `<ErrorState>` / `isError` do `useQuery`        | "não deu, tente de novo"                     |
+
+```ts
+import { isApiError } from "tempest-react-sdk";
+
+onError: (error: unknown) => {
+  if (isApiError(error) && error.code === "STOCK_EMPTY") {
+    toast.error("Sem estoque para esse pedido.");
+    return;
+  }
+  throw error;
+},
+```
+
+O `throw error` no final não é descuido: erro que a feature não sabe tratar sobe
+pro [ErrorBoundary](../error-boundary.md) em vez de virar um `toast` genérico que
+esconde o problema.
+
+!!! danger "`catch {}` vazio é a pior linha de código que existe"
+    Um catch silencioso troca um erro visível por um comportamento errado
+    silencioso. Se você não sabe o que fazer com o erro, **não capture** — deixe
+    o [ErrorBoundary](../error-boundary.md) e o [logger](../logger.md) fazerem o
+    trabalho.
+
+## Atalho: CRUD sem serviço
+
+Recurso REST previsível, sem transformação nem regra? O
+[Data Provider](../data-provider.md) já é o serviço:
+
+```tsx
+import { useList } from "tempest-react-sdk";
+
+const { data, isLoading } = useList<Customer>("customers", {
+  pagination: { page: 1, pageSize: 20 },
+  sort: { field: "name", order: "asc" },
+});
+```
+
+Escrever um `customers.service.ts` que só repassa esses argumentos é
+[pass-through](anti-patterns.md#passthrough). Escreva o serviço quando existir
+**alguma** das três coisas: validação com transform, composição de endpoints, ou
+regra de negócio.
+
+## Offline: a mesma mutation, com outbox
+
+Em app PWA a escrita pode acontecer sem rede. Não muda o desenho — muda o hook:
+
+```ts
+import { useOfflineMutation } from "tempest-react-sdk";
+
+import { orderKeys } from "./use-orders";
+import { ordersSync } from "./orders.sync";
+import type { Order } from "./orders.schema";
+
+/** Pay an order even offline: the write goes to the outbox and syncs later. */
+export function usePayOrderOffline(page: number) {
+  return useOfflineMutation<string, Order[], { paid: true }>({
+    sync: ordersSync,
+    queryKey: orderKeys.list(page),
+    toEntry: (id) => ({ op: "update", recordId: id, payload: { paid: true } }),
+    applyOptimistic: (current = [], id) =>
+      current.map((o) => (o.id === id ? { ...o, status: "paid" } : o)),
+  });
+}
+```
+
+A mutation continua na feature, a UI continua só emitindo intenção. Detalhes em
+[PWA & Offline-First](../pwa.md) e [Offline Sync](../offline-sync.md).
+
+## Recap
+
+- Leitura: `apiClient` → `service` (+`parseResponse`) → `useQuery` → página → UI.
+- Escrita: UI emite **intenção** → mutation na feature → serviço → invalidação.
+- `unknown` entra, tipo do domínio sai. Validar na **borda** paga o resto do app.
+- DTO ≠ domínio: `snake_case`, ISO e centavos morrem no schema.
+- Erro tem três níveis, cada um com um dono. `catch {}` vazio nunca.
+- CRUD trivial: use o [Data Provider](../data-provider.md) e não escreva serviço.
+
+Próxima: [Onde mora cada estado](state.md).
+
+---
+
+# design/folders.md
+
+# Estrutura de pastas
+
+As [camadas](architecture.md) são um conceito. Pasta é onde o conceito encosta no
+disco — e é onde a maioria dos apps escorrega, porque a estrutura mais óbvia
+(`components/`, `hooks/`, `services/`, `types/`) é a que envelhece pior.
+
+## Por tipo de arquivo não escala
+
+Comece com a estrutura que todo tutorial mostra:
+
+```text
+src/
+├── components/     ← 84 arquivos
+├── hooks/          ← 31 arquivos
+├── services/       ← 22 arquivos
+└── types/          ← 19 arquivos
+```
+
+Agora responda: **quais desses arquivos formam a tela de pedidos?**
+
+Você não sabe. Pra mexer em pedidos você abre quatro pastas, cada uma com dezenas
+de vizinhos irrelevantes. Pra apagar pedidos você caça arquivo por arquivo e
+deixa três órfãos.
+
+!!! danger "O sintoma é o `git status`"
+    Se um PR de uma única feature toca arquivos em 4 pastas diferentes e nenhuma
+    delas se chama como a feature, a estrutura está agrupando pela coisa errada.
+
+O problema é que `components/`, `hooks/` e `services/` agrupam por **como o
+arquivo foi escrito**. Você nunca precisa "de todos os hooks". Você precisa
+"de tudo que é pedido".
+
+## Agrupe por feature
+
+```text
+src/
+├── main.tsx                      # bootstrap
+├── App.tsx                       # providers + router
+├── routes.tsx                    # mapa de URLs
+│
+├── lib/                          # INFRA — existe uma vez no app
+│   ├── api.ts                    # createApiClient
+│   ├── logger.ts                 # createLogger
+│   └── storage.ts
+│
+├── stores/                       # estado global de cliente
+│   └── auth.ts                   # createAuthStore
+│
+├── layouts/                      # cascas de tela
+│   └── RootLayout.tsx
+│
+├── components/                   # UI DO APP sem domínio (raro — o SDK cobre)
+│   └── MoneyInput/
+│
+├── features/                     # ⭐ o corpo do app
+│   ├── orders/
+│   │   ├── index.ts              # API pública da feature
+│   │   ├── orders.schema.ts      # zod + tipos do domínio
+│   │   ├── orders.service.ts     # fala com o backend
+│   │   ├── use-orders.ts         # hooks de query/mutation
+│   │   ├── use-orders.test.ts
+│   │   ├── OrderTable.tsx
+│   │   ├── OrderTable.test.tsx
+│   │   ├── OrderStatusBadge.tsx
+│   │   └── OrderTable.module.css
+│   └── customers/
+│       └── …
+│
+└── pages/                        # uma tela por rota
+    ├── Orders.tsx
+    └── OrderDetail.tsx
+```
+
+O `create-tempest-app` já gera `lib/`, `stores/`, `layouts/`, `pages/` e
+`routes.tsx` — veja [Scaffold](../scaffold.md). `features/` é o que **você**
+adiciona quando a primeira feature aparece.
+
+!!! tip "Teste mora ao lado do arquivo testado"
+    `OrderTable.test.tsx` fica junto de `OrderTable.tsx`, não numa árvore
+    `__tests__/` paralela. Duas razões: você vê num `ls` se algo tem teste, e
+    mover a feature move os testes com ela.
+
+## `index.ts`: a API pública da feature
+
+Uma feature é uma caixa. O `index.ts` é o que sai da caixa:
+
+```ts
+// src/features/orders/index.ts
+
+/**
+ * Public surface of the orders feature. Anything not re-exported here is an
+ * internal detail — other features and pages must not import it directly.
+ */
+export { OrderTable } from "./OrderTable";
+export { useOrders } from "./use-orders";
+export { usePayOrder } from "./use-pay-order";
+export type { Order, OrderStatus } from "./orders.schema";
+```
+
+E o consumo:
+
+=== "✅ Certo"
+
+    ```tsx
+    import { OrderTable, useOrders } from "@/features/orders";
+    ```
+
+=== "❌ Errado"
+
+    ```tsx
+    import { OrderTable } from "@/features/orders/OrderTable";
+    import { buildOrderQuery } from "@/features/orders/internal/query-builder";
+    ```
+
+    O segundo import amarra outra parte do app a um detalhe interno. Renomear
+    `query-builder.ts` agora é breaking change.
+
+!!! info "Duas regras de barrel, e elas parecem contraditórias"
+    **Fora da feature**, importe sempre pelo `index.ts` — é o contrato.
+    **Dentro da feature**, importe o caminho direto (`./orders.service`), nunca
+    o próprio barrel — barrel interno cria ciclo de import e faz o Vite
+    reprocessar a feature inteira a cada edição.
+
+## Quando criar uma pasta de feature
+
+Não crie `features/` no primeiro dia. O gatilho é objetivo:
+
+| Situação                                                           | Onde vai                                        |
+| ------------------------------------------------------------------ | ----------------------------------------------- |
+| Um componente, usado numa página só, sem serviço                   | fica na própria página ou em `components/`       |
+| Dois ou mais arquivos que compartilham o mesmo tipo de domínio     | **cria `features/<domínio>/`**                   |
+| Tem serviço (fala com backend) + componente                        | **cria `features/<domínio>/`**                   |
+| Componente sem nenhum tipo de domínio, reusado em 2+ features      | `components/` — ou candidato a subir pro SDK     |
+
+O nome da pasta é o **domínio**, não a tela: `orders`, não `orders-page`;
+`billing`, não `billing-tab`.
+
+!!! warning "Feature não importa o miolo de outra feature"
+    `features/billing` pode importar `features/orders` — **pelo `index.ts`**.
+    Quando duas features começam a puxar detalhe uma da outra toda hora, elas
+    eram uma feature só, ou existe um terceiro conceito compartilhado que
+    ninguém extraiu ainda (aí sim: `features/shared/` ou `lib/`).
+
+## Convenção de nomes
+
+Nome previsível economiza mais tempo que qualquer ferramenta de busca.
+
+| Tipo de arquivo         | Padrão                | Exemplo                    |
+| ----------------------- | --------------------- | -------------------------- |
+| Componente              | `PascalCase.tsx`      | `OrderTable.tsx`           |
+| Teste                   | `<arquivo>.test.tsx`  | `OrderTable.test.tsx`      |
+| CSS Module              | `<Componente>.module.css` | `OrderTable.module.css` |
+| Hook                    | `use-<coisa>.ts`      | `use-orders.ts`            |
+| Serviço                 | `<domínio>.service.ts` | `orders.service.ts`       |
+| Schema/tipos do domínio | `<domínio>.schema.ts` | `orders.schema.ts`         |
+| Store Zustand           | `<domínio>.ts` em `stores/` | `stores/auth.ts`     |
+| Utilitário              | `kebab-case.ts`       | `format-invoice.ts`        |
+
+O identificador **exportado** é sempre `PascalCase` pra componente e
+`camelCase` pra função — o `kebab-case` é só do nome de arquivo, o que evita
+conflito de case em filesystem case-insensitive (macOS) contra Linux no CI.
+
+## Import com `@/`, sempre
+
+O alias `@` → `src` vem configurado pelo
+[`createViteConfig`](../vite-config.md). Use ele pra tudo que cruza pasta:
+
+=== "✅ Certo"
+
+    ```ts
+    import { api } from "@/lib/api";
+    import { useOrders } from "@/features/orders";
+
+    import { OrderRow } from "./OrderRow";
+    ```
+
+=== "❌ Errado"
+
+    ```ts
+    import { api } from "../../../lib/api";
+    ```
+
+Relativo (`./`) só entre irmãos do mesmo diretório. `../../../` é sinal de que
+você está furando uma fronteira **ou** de que o arquivo está na pasta errada.
+
+!!! tip "`tempest fix` converte isso pra você"
+    ```bash
+    npx tempest fix --dry-run   # lista o que seria reescrito
+    npx tempest fix             # aplica: ../../../ → @/, ordena imports, remove import morto
+    ```
+    Detalhes em [CLI tempest](../cli.md).
+
+## Ordem dos imports
+
+Três blocos, separados por linha em branco — é o que o
+`simple-import-sort` do template já impõe:
+
+```ts
+import { useState } from "react";                    // 1. externos
+import { Button, DataTable } from "tempest-react-sdk";
+
+import { api } from "@/lib/api";                     // 2. do app (@/)
+import { useOrders } from "@/features/orders";
+
+import { OrderRow } from "./OrderRow";               // 3. relativos
+import styles from "./OrderTable.module.css";
+```
+
+Não é frescura: com ordem fixa, o diff de um import novo é uma linha, não uma
+reorganização do bloco inteiro.
+
+## Recap
+
+- Agrupar por **tipo de arquivo** não escala; agrupar por **feature** escala.
+- Feature é caixa: `index.ts` é o contrato, o resto é interno.
+- Dentro da feature use caminho direto; de fora use só o barrel.
+- Gatilho pra criar feature: **2+ arquivos com o mesmo domínio**, ou serviço +
+  componente.
+- Nome de arquivo `PascalCase` pra componente, `kebab-case` pro resto; `@/` pra
+  cruzar pasta e `tempest fix` pra manter isso.
+
+Próxima: [Fluxo de dados](data-flow.md) — quem tem permissão de falar com o
+backend.
+
+---
+
+# design/index.md
+
+# Design de Software Frontend
+
+O SDK te dá as **peças**. Esta seção ensina a **arrumar** as peças.
+
+Um app React quebra por motivos previsíveis: o componente que era pequeno virou
+um arquivo de 900 linhas, o `fetch` que era um só virou dezoito espalhados, o
+estado que era um `useState` virou seis fontes de verdade que discordam entre si.
+Nada disso é falta de biblioteca — é falta de **desenho**.
+
+!!! tip "Você não precisa saber tudo antes de começar"
+    Cada página aqui é curta e assume só as anteriores. Comece na primeira,
+    aplique no seu app, volte pra próxima. Nada aqui exige refatorar tudo de uma
+    vez.
+
+## O problema, em uma frase
+
+> Todo app frontend cresce. O que decide se ele fica agradável ou insuportável é
+> **quantas coisas você precisa ter na cabeça pra mudar uma linha**.
+
+Design de software é o trabalho de manter esse número baixo. As técnicas são
+sempre as mesmas três:
+
+1. **Separar** o que muda por motivos diferentes (camadas).
+2. **Limitar** o tamanho de cada peça (limites objetivos).
+3. **Deixar o compilador cobrar** o que você não quer revisar à mão (tipagem).
+
+## As quatro perguntas
+
+Quando você abre um arquivo e não sabe se aquele código deveria estar ali, é
+sempre uma dessas quatro:
+
+| Pergunta                          | Onde a resposta mora                                       |
+| --------------------------------- | ---------------------------------------------------------- |
+| **Em que camada isso vive?**      | [Camadas de um app frontend](architecture.md)              |
+| **Em que arquivo/pasta isso vai?** | [Estrutura de pastas](folders.md)                          |
+| **Quem sabe falar com o backend?** | [Fluxo de dados](data-flow.md)                             |
+| **Onde esse estado deveria morar?** | [Onde mora cada estado](state.md)                          |
+
+E quando o arquivo já existe e você precisa decidir se ele está bom:
+
+| Pergunta                            | Onde a resposta mora                       |
+| ----------------------------------- | ------------------------------------------ |
+| **Esse componente está grande demais?** | [Limites objetivos](limits.md)         |
+| **Como quebro sem virar sopa de props?** | [Pensando em componentes](components.md) |
+| **Como o tipo impede o bug?**       | [Tipagem forte](typing.md)                 |
+| **O que eu testo disso?**           | [Estratégia de testes](testing.md)         |
+
+## O caminho recomendado
+
+```mermaid
+flowchart LR
+    A[Camadas] --> B[Pastas]
+    B --> C[Fluxo de dados]
+    C --> D[Estado]
+    D --> E[Componentes]
+    E --> F[Limites]
+    F --> G[Tipagem]
+    G --> H[Testes]
+    H --> I[Anti-padrões]
+    I --> J[Checklist]
+```
+
+**Desenho do sistema** (as quatro primeiras) responde _onde as coisas moram_.
+**Escrevendo o código** (as três do meio) responde _como cada peça é escrita_.
+**Sustentando** (as três últimas) responde _como isso continua verdade em seis
+meses_.
+
+## O resumo de tudo, numa tabela
+
+Se você só ler uma coisa desta seção, leia esta tabela. Todo o resto é a
+justificativa dela.
+
+| Regra                                                               | Por quê                                                        | Página                          |
+| ------------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------- |
+| Arquivo `.tsx` de componente: **≤ 150 linhas**                      | Acima disso ninguém lê o arquivo inteiro antes de editar        | [Limites](limits.md)            |
+| Hook customizado: **≤ 100 linhas**, uma responsabilidade            | Hook grande é serviço disfarçado                                | [Limites](limits.md)            |
+| Props de um componente: **≤ 7**                                     | Mais que isso é sinal de dois componentes num só                | [Componentes](components.md)    |
+| **Zero `any`**. `unknown` na borda, tipo estreito depois            | `any` desliga o compilador exatamente onde você mais precisa    | [Tipagem](typing.md)            |
+| Toda resposta de rede passa por **schema zod**                      | Backend muda sem avisar; a borda é o único lugar de validar     | [Fluxo de dados](data-flow.md)  |
+| Componente **nunca** chama `fetch` direto                           | Amarra UI a transporte e mata o teste                           | [Fluxo de dados](data-flow.md)  |
+| Dado de servidor vive no **TanStack Query**, não em `useState`      | Cache, revalidação e loading de graça, sem sincronizar à mão    | [Estado](state.md)              |
+| Filtro/paginação/aba vivem na **URL**                               | Link compartilhável, botão voltar funcionando                   | [Estado](state.md)              |
+| Camada de baixo **não importa** camada de cima                      | A seta única é o que permite testar e mover código              | [Camadas](architecture.md)      |
+| Uma pasta por **feature**, não por tipo de arquivo                  | Você edita features, não "todos os hooks do app"                | [Pastas](folders.md)            |
+
+!!! warning "Regra não é dogma — é default"
+    Cada limite aqui tem uma saída de emergência documentada na página dele.
+    Passar de 150 linhas num arquivo de tabela com 30 colunas pode ser a escolha
+    certa. O que **não** é aceitável é passar sem perceber.
+
+## Como isso se conecta ao SDK
+
+O `tempest-react-sdk` já implementa a maior parte da infraestrutura que este
+desenho pede. Você não constrói as camadas do zero:
+
+| Camada             | O que o SDK já entrega                                                                     |
+| ------------------ | ------------------------------------------------------------------------------------------ |
+| Bootstrap/providers | [`<AppProviders>`](../app-providers.md) — ErrorBoundary → Query → Theme → i18n num bloco  |
+| Rotas              | [`defineRoutes`, `<AppRouter>`, `<RouteGuard>`](../routing.md)                              |
+| Serviços/HTTP      | [`createApiClient`, `parseResponse`](../http.md), [`createDataProvider`](../data-provider.md) |
+| Estado de servidor | [`QueryProvider`, `createQueryKeys`, `usePaginatedQuery`](../query.md)                       |
+| Estado de cliente  | [`createStore`, `createSelectors`](../state.md)                                              |
+| Formulários        | [`useZodForm`, `<FormField>`](../forms.md)                                                   |
+| UI                 | [117 componentes](../components.md) com tokens `--tempest-*`                                 |
+| Ferramenta         | [`tempest doctor` / `lint` / `fix`](../cli.md)                                                |
+
+## Recap
+
+- Design existe pra manter baixo o **número de coisas na cabeça** por mudança.
+- Três alavancas: **separar** por motivo de mudança, **limitar** tamanho, **tipar**
+  pra o compilador cobrar.
+- A tabela de regras acima é o contrato; cada página explica o porquê e a saída
+  de emergência.
+- O SDK já implementa as camadas — seu trabalho é **não furar** as fronteiras.
+
+Próxima página: [Camadas de um app frontend](architecture.md) 🚀
+
+---
+
+# design/limits.md
+
+# Limites objetivos
+
+"Mantenha os componentes pequenos" é um conselho que ninguém consegue aplicar,
+porque não é verificável. Duas pessoas discordam sobre "pequeno" e a discussão
+morre no gosto.
+
+Limite com **número** resolve isso. O número não precisa ser perfeito — precisa
+ser combinado.
+
+## A tabela
+
+| O que                            | Limite      | Ação ao estourar                             |
+| -------------------------------- | ----------- | -------------------------------------------- |
+| Arquivo `.tsx` de componente     | **150**     | extrai sub-componente ou hook                |
+| Corpo de uma função/componente   | **80**      | extrai função pura ou hook                   |
+| Hook customizado                 | **100**     | quebra em hooks menores                      |
+| Props de um componente           | **7**       | provavelmente são dois componentes           |
+| Profundidade de aninhamento JSX  | **4**       | extrai sub-componente                        |
+| Complexidade ciclomática         | **10**      | tabela de lookup ou early return             |
+| Parâmetros de função             | **3**       | vira um objeto nomeado                       |
+| Arquivo `.ts` de serviço/util    | **200**     | separa por responsabilidade                  |
+
+!!! info "Por que 150 e não 200 ou 100?"
+    150 linhas é o que cabe em duas telas de editor. É o ponto em que você ainda
+    consegue **ler o arquivo inteiro** antes de mudar uma linha — e ler o arquivo
+    inteiro é o que evita a mudança que quebra outra parte dele. Acima disso você
+    passa a editar por busca, não por compreensão.
+
+## O que o número mede de verdade
+
+Linha é um **proxy**. O que você está de fato limitando é:
+
+| Sintoma                            | Consequência real                                    |
+| ---------------------------------- | ---------------------------------------------------- |
+| Arquivo longo                      | ninguém lê inteiro → mudança de efeito imprevisto    |
+| Função longa                       | não cabe na cabeça → bug de estado intermediário     |
+| Muitas props                       | muitos casos → combinação inválida representável     |
+| JSX profundo                       | não se enxerga a estrutura → CSS/layout quebra        |
+| Complexidade alta                  | caminhos não testados → bug em branch raro           |
+
+Por isso vale contar **linhas de código**, não do arquivo: JSDoc e a `interface`
+de props não custam carga cognitiva — ajudam.
+
+## Dogfood: onde o próprio SDK fica
+
+Números reais deste repositório (157 arquivos `.tsx` de produção, contando só
+linhas de código):
+
+| Métrica                       | Valor    |
+| ----------------------------- | -------- |
+| Mediana de linhas por arquivo | **65**   |
+| Arquivos acima de 150         | **28**   |
+| Maior arquivo                 | `FilterBar.tsx` — 279 |
+
+Ou seja: **o limite não é obedecido em 100% dos casos, de propósito.** A mediana
+é 65 porque a regra funciona; os 28 que estouram são widgets de comportamento
+irredutível — `ImageCropper` (arrasto + zoom + recorte em canvas), `Calendar`
+(grade + teclado + intervalo), `BrazilMap` (SVG + hit-testing).
+
+## A saída de emergência: `@tempest-limits`
+
+Estourar o limite é aceitável quando você **escreve o motivo**. O marcador é
+`@tempest-limits <regra> — <motivo>` num comentário do arquivo:
+
+```tsx
+/**
+ * Interactive image cropper.
+ *
+ * @tempest-limits file-lines — pointer drag, wheel zoom, aspect-ratio clamping
+ * and canvas export share one piece of geometry state. Splitting them would mean
+ * threading that state through props and duplicating the clamp maths.
+ */
+```
+
+- A **regra** é o id da tabela abaixo (`file-lines`, `props-count`, …), várias
+  separadas por vírgula, ou `*` para todas.
+- O **motivo** vem depois de `—`, `-` ou `:`. Menos de 12 caracteres não conta
+  como motivo: o `tempest doctor` reporta o marcador vazio, porque waiver sem
+  explicação é exatamente o que ele existe pra evitar.
+
+!!! tip "O que não é aceitável é estourar sem perceber"
+    O marcador não é burocracia — é o que transforma "esse arquivo é grande" de
+    acidente em decisão. Quem ler daqui a seis meses sabe se pode quebrar.
+
+!!! info "`eslint-disable` também vale"
+    Um `// eslint-disable-next-line @typescript-eslint/no-explicit-any` já
+    silencia o `any` daquela linha no `doctor` — o mecanismo padrão ganha, sem
+    precisar de um segundo marcador.
+
+## `tempest doctor` já cobra isso
+
+O [CLI](../cli.md) tem uma seção **Design** que mede o projeto e reporta cada
+estouro com arquivo e linha:
+
+```bash
+npx tempest doctor              # inclui a análise de design
+npx tempest doctor --no-design  # pula a seção
+```
+
+```text
+Design
+  [i] 42 source file(s) · 1830 lines of code · median 38 — largest: src/pages/Orders.tsx (204)
+  [!] src/pages/Orders.tsx:1 — 204 lines of code (limit 150) — extract a sub-component, a hook or a pure function
+  [!] src/pages/Orders.tsx:31 — a component must not call the network — move it to a service and read it with useQuery
+  [!] src/features/orders/OrderTable.tsx:12 — OrderTableProps has 9 props (limit 7) — likely two components in one
+  [i] 2 limit(s) waived with a written reason — @tempest-limits markers — nothing to do
+```
+
+As regras, e o id de cada uma pro marcador:
+
+| Id                     | O que mede                                                       |
+| ---------------------- | ---------------------------------------------------------------- |
+| `file-lines`           | linhas de código do arquivo (150 `.tsx` / 200 `.ts`)             |
+| `function-lines`       | corpo de função/componente (80)                                  |
+| `hook-lines`           | corpo de hook `use*` (100)                                       |
+| `props-count`          | membros de `<X>Props` ou props desestruturadas (7)               |
+| `param-count`          | parâmetros de função **exportada** (3)                           |
+| `explicit-any`         | `any` em posição de tipo, `as any`                               |
+| `ts-ignore`            | `@ts-ignore` / `@ts-nocheck`                                     |
+| `fetch-in-component`   | `fetch(`/`axios` num `.tsx`                                      |
+| `empty-catch`          | `catch` de corpo vazio                                           |
+| `inline-style-literal` | cor literal dentro de `style={{ … }}`                            |
+
+!!! note "A seção Design nunca falha o exit code"
+    Todos os achados são `warn` ou nota. Limite é heurística com saída de
+    emergência escrita — falhar o CI por heurística é o caminho mais rápido pra
+    alguém silenciar a ferramenta. Os gates duros continuam onde devem estar:
+    `no-explicit-any` como `error` no ESLint e `tsc --noEmit`.
+
+!!! info "O que o doctor **não** mede"
+    Profundidade de aninhamento JSX e complexidade ciclomática. As duas precisam
+    de um parser de verdade pra não gerar falso positivo com quebra de linha do
+    Prettier — ficam com o ESLint (`max-depth`, `complexity`) e com a revisão.
+
+## Como fazer o linter cobrar também
+
+Adicione ao `eslint.config.js` do seu app (o
+[template do scaffold](../scaffold.md) traz a base; isto é a camada de design):
+
+```js
+{
+    files: ["**/*.{ts,tsx}"],
+    rules: {
+        "max-lines": [
+            "warn",
+            { max: 150, skipBlankLines: true, skipComments: true },
+        ],
+        "max-lines-per-function": [
+            "warn",
+            { max: 80, skipBlankLines: true, skipComments: true },
+        ],
+        "max-depth": ["warn", 4],
+        "max-params": ["warn", 3],
+        complexity: ["warn", 10],
+        "@typescript-eslint/no-explicit-any": "error",
+    },
+},
+{
+    // Testes descrevem cenários; contá-los como código de produção só produz
+    // ruído e incentiva teste menos legível.
+    files: ["**/*.test.{ts,tsx}"],
+    rules: {
+        "max-lines": "off",
+        "max-lines-per-function": "off",
+    },
+},
+```
+
+!!! warning "`warn` nos limites, `error` na tipagem"
+    Limite de tamanho é heurística — `error` transforma cada exceção legítima num
+    `eslint-disable`, e `eslint-disable` espalhado é pior que arquivo grande.
+    `warn` aparece no PR e alguém decide. Já `no-explicit-any` é `error`: não tem
+    caso legítimo que valha o silêncio (veja [Tipagem forte](typing.md)).
+
+Rodando:
+
+```bash
+npx tempest lint                      # ESLint com a config do projeto
+npx tempest lint --max-warnings 0     # no CI, quando quiser o limite duro
+```
+
+Detalhes do CLI em [CLI tempest](../cli.md).
+
+## Encontrando os estouros hoje
+
+Antes de ligar a regra, veja o tamanho do problema:
+
+```bash
+# Top 15 arquivos por linhas de código (ignora blank, // e blocos /* */)
+find src -name "*.tsx" ! -name "*.test.tsx" | while read -r f; do
+  n=$(grep -vcE '^\s*($|//|/\*|\*|\*/)' "$f")
+  echo "$n $f"
+done | sort -rn | head -15
+```
+
+Se aparecerem 3 arquivos acima do limite, corrija hoje. Se aparecerem 60, ligue a
+regra como `warn` e resolva o que você já ia tocar — refatoração em massa gera PR
+irrevisável e nenhum ganho imediato.
+
+## Os três cortes que resolvem 90% dos casos
+
+### 1. Sub-componente por bloco de JSX
+
+O `.tsx` de 300 linhas quase sempre é 4 blocos visuais num arquivo. Cada bloco
+com nome próprio:
+
+```text
+OrderDetail.tsx (300)
+└── OrderDetail.tsx (60) + OrderHeader.tsx (50) + OrderItems.tsx (70) + OrderTotals.tsx (40)
+```
+
+### 2. Hook pra lógica
+
+Estado + efeitos + handlers saem pro `use-<coisa>.ts`. O `.tsx` fica só com
+marcação. Exemplo completo em
+[Pensando em componentes](components.md#logic-to-hook).
+
+### 3. Função pura pra fora do React
+
+`sortBy`, `paginate`, `formatInvoice`, `buildQuery` não precisam de React —
+vão pra `lib/` ou pro arquivo da feature, e ganham teste unitário barato.
+
+!!! danger "Corte que não vale: mover o JSX pra uma função no mesmo arquivo"
+    ```tsx
+    function renderHeader() { … }   // ❌ não é componente, não é reusável
+    ```
+    Isso reduz a contagem de linhas da função e não reduz nada do que importa: o
+    arquivo continua do mesmo tamanho e o "componente interno" não pode ser
+    memoizado, testado nem reusado. Extraia de verdade.
+
+## Recap
+
+- Limite vira número pra parar de ser discussão de gosto: **150** arquivo, **80**
+  função, **100** hook, **7** props, **4** aninhamento, **10** complexidade.
+- Linha é proxy de **carga cognitiva** — conte linhas de código, não JSDoc.
+- O SDK tem mediana 65 e 28 estouros conscientes; a saída de emergência é
+  `@tempest-limits <regra> — <motivo>`, nunca o silêncio.
+- `npx tempest doctor` mede e reporta com arquivo e linha (sempre `warn`); o
+  ESLint cobra com `max-lines` e `no-explicit-any` como `error`.
+- Três cortes resolvem quase tudo: sub-componente, hook, função pura.
+
+Próxima: [Tipagem forte](typing.md).
+
+---
+
+# design/state.md
+
+# Onde mora cada estado
+
+Quase todo bug difícil de app frontend é a mesma coisa: **duas fontes de verdade
+pro mesmo dado**. A lista veio do servidor e também está num `useState`; o filtro
+está na URL e também num store; o total é campo e também é soma. Uma das duas
+sempre fica velha.
+
+A cura não é uma biblioteca melhor. É decidir, pra cada pedaço de estado, **um**
+lugar onde ele mora.
+
+## Cinco lugares, cinco perguntas
+
+```mermaid
+flowchart TD
+    Q1{"Dá pra calcular<br/>do que já existe?"} -->|sim| DER["Não é estado.<br/>Calcule no render."]
+    Q1 -->|não| Q2{"Veio do servidor?"}
+    Q2 -->|sim| SRV["TanStack Query"]
+    Q2 -->|não| Q3{"Deve sobreviver a<br/>reload / link compartilhado?"}
+    Q3 -->|sim| URL["URL (searchParams)"]
+    Q3 -->|não| Q4{"É campo de formulário?"}
+    Q4 -->|sim| FORM["react-hook-form"]
+    Q4 -->|não| Q5{"Mais de uma tela<br/>precisa disso?"}
+    Q5 -->|sim| GLB["Store Zustand"]
+    Q5 -->|não| LOC["useState local"]
+```
+
+| Tipo de estado             | Mora em                              | Exemplo                             |
+| -------------------------- | ------------------------------------ | ----------------------------------- |
+| **Derivado**               | nada — calcule                       | total, `isValid`, contagem, label   |
+| **De servidor**            | [TanStack Query](../query.md)         | lista de pedidos, perfil            |
+| **De navegação**           | URL (`useSearchParams`)              | página, filtro, aba, busca          |
+| **De formulário**          | [`useZodForm`](../forms.md)           | campos, erros, `isSubmitting`       |
+| **Global de cliente**      | [`createStore`](../state.md)          | sessão, tema, carrinho, preferência |
+| **Local de UI**            | `useState`                           | modal aberto, hover, acordeão       |
+| **Offline persistido**     | [`createOfflineStore`](../offline.md) | outbox, cache Dexie                 |
+
+## 1. Derivado não é estado {#derived}
+
+O erro mais comum e o mais barato de corrigir:
+
+=== "❌ Errado"
+
+    ```tsx
+    const [orders, setOrders] = useState<Order[]>([]);
+    const [total, setTotal] = useState(0);
+
+    useEffect(() => {
+      setTotal(orders.reduce((sum, o) => sum + o.totalCents, 0));
+    }, [orders]);
+    ```
+
+    Duas fontes, um `useEffect` de sincronização e uma janela de render em que
+    `total` está errado.
+
+=== "✅ Certo"
+
+    ```tsx
+    const [orders, setOrders] = useState<Order[]>([]);
+    const total = orders.reduce((sum, o) => sum + o.totalCents, 0);
+    ```
+
+    Uma fonte. Impossível divergir.
+
+!!! tip "`useEffect` que só chama `setState` é quase sempre estado derivado"
+    Procure por esse padrão no seu app — é o achado com melhor relação
+    esforço/ganho que existe. E não, você não precisa de `useMemo` pra isso:
+    memoize quando **medir** que o cálculo é caro, não por reflexo.
+
+## 2. Dado de servidor não vive em `useState`
+
+=== "❌ Errado"
+
+    ```tsx
+    const [orders, setOrders] = useState<Order[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<Error | null>(null);
+
+    useEffect(() => {
+      let alive = true;
+      listOrders(page)
+        .then((data) => alive && setOrders(data))
+        .catch((e) => alive && setError(e))
+        .finally(() => alive && setIsLoading(false));
+      return () => {
+        alive = false;
+      };
+    }, [page]);
+    ```
+
+=== "✅ Certo"
+
+    ```tsx
+    const { data: orders = [], isLoading, error } = useOrders(page);
+    ```
+
+O primeiro tem 3 estados pra manter em sincronia, uma flag `alive` pra evitar
+setState depois do unmount, zero cache, zero dedupe entre componentes, zero
+revalidação ao voltar pra aba. O segundo tem tudo isso — porque **estado de
+servidor é cache**, e cache é um problema resolvido.
+
+!!! info "Foco no que a Query já faz por você"
+    Dedupe de requests simultâneos, `staleTime`, refetch em foco/reconexão,
+    retry, mutation otimista, invalidação por key, persistência offline. Cada uma
+    dessas linhas é um bug que você não escreve. Veja [Query](../query.md).
+
+## 3. Estado de navegação mora na URL
+
+Filtro, página, ordenação, aba ativa, termo de busca: se o usuário puder querer
+**mandar o link pra alguém**, o estado é da URL.
+
+```tsx
+import { useSearchParams } from "tempest-react-sdk";
+
+/**
+ * Orders screen. Page and status live in the query string, so the browser back
+ * button, refresh and a shared link all restore the same view.
+ */
+export function Orders() {
+  const [params, setParams] = useSearchParams();
+
+  const page = Number(params.get("page") ?? 1);
+  const status = params.get("status") ?? "all";
+
+  const setStatus = (next: string) => {
+    setParams({ status: next, page: "1" });
+  };
+
+  const { data = [], isLoading } = useOrders({ page, status });
+  // …
+}
+```
+
+Repare: nenhum `useState`. Nenhum `useEffect` sincronizando URL com estado. A URL
+**é** o estado.
+
+!!! warning "Duplicar a URL num `useState` é o clássico"
+    `const [page, setPage] = useState(Number(params.get("page")))` cria a segunda
+    fonte de verdade na hora: o botão voltar muda a URL e não muda o `useState`.
+    Leia da URL a cada render — é barato e sempre correto.
+
+## 4. Formulário tem dono próprio
+
+Campo controlado por `useState` é `onChange` re-renderizando a tela inteira a cada
+tecla, validação escrita à mão e erro fora de sincronia:
+
+```tsx
+import { FormField, Input, useZodForm } from "tempest-react-sdk";
+import { z } from "zod";
+
+const schema = z.object({
+  name: z.string().min(3, "Mínimo 3 caracteres"),
+  email: z.string().email("E-mail inválido"),
+});
+
+/** Customer form: one schema drives types, validation and error messages. */
+export function CustomerForm({ onSave }: { onSave: (v: z.infer<typeof schema>) => void }) {
+  const form = useZodForm(schema);
+
+  return (
+    <form onSubmit={form.handleSubmit(onSave)}>
+      <FormField name="name" label="Nome" control={form.control}>
+        <Input />
+      </FormField>
+      <FormField name="email" label="E-mail" control={form.control}>
+        <Input type="email" />
+      </FormField>
+      <button type="submit" disabled={form.formState.isSubmitting}>
+        Salvar
+      </button>
+    </form>
+  );
+}
+```
+
+Um schema gera **três** coisas: o tipo TypeScript, a validação em runtime e a
+mensagem de erro. Detalhes em [Forms (zod)](../forms.md).
+
+## 5. Global de cliente: store, e só o necessário
+
+Store é pra estado que **não** vem do servidor e **várias** telas precisam:
+sessão, tema, carrinho, preferências, wizard multi-etapa.
+
+```ts
+// src/stores/cart.ts
+import { createSelectors, createStore } from "tempest-react-sdk";
+
+interface CartState {
+  items: string[];
+  add: (id: string) => void;
+  clear: () => void;
+}
+
+/**
+ * Cart slice. Only `items` is persisted — the actions are recreated on load,
+ * so writing them to storage would just bloat the payload.
+ */
+export const useCart = createSelectors(
+  createStore<CartState>(
+    (set) => ({
+      items: [],
+      add: (id) => set((s) => ({ items: [...s.items, id] })),
+      clear: () => set({ items: [] }),
+    }),
+    { persist: { name: "cart", partialize: (s) => ({ items: s.items }) } },
+  ),
+);
+```
+
+O `createSelectors` gera `useCart.use.items()` — o componente assina **um campo**
+em vez do store inteiro, e não re-renderiza quando outro campo muda.
+
+!!! danger "Store não é cache de servidor"
+    Colocar a lista de pedidos num Zustand store recria à mão tudo que a Query já
+    faz — e sem invalidação, sem revalidação, sem dedupe. O sintoma é sempre o
+    mesmo: a tela mostra dado velho depois de um POST.
+
+## 6. Local de UI: `useState` sem culpa
+
+Modal aberto, item em hover, acordeão expandido, índice do carrossel. Nada disso
+precisa de biblioteca:
+
+```tsx
+const [isOpen, setIsOpen] = useState(false);
+```
+
+Se só **um** componente e seus filhos diretos precisam, `useState` é a resposta
+certa. Subir isso pra store global é acoplamento gratuito.
+
+## O teste dos 10 segundos
+
+Olhe um `useState` do seu app e pergunte, nessa ordem:
+
+1. Consigo **calcular** isso? → apague.
+2. Isso **veio da rede**? → Query.
+3. Faz sentido no **link**? → URL.
+4. É **campo**? → form.
+5. **Outra tela** precisa? → store.
+6. Nenhuma? → fica onde está. Está certo.
+
+## Recap
+
+- Bug de estado é quase sempre **duas fontes de verdade**.
+- Derivado não é estado: calcule no render, não sincronize com `useEffect`.
+- Servidor → **Query**. Navegação → **URL**. Campo → **form**. Compartilhado →
+  **store**. Só aqui → **`useState`**.
+- `createSelectors` faz o componente assinar um campo, não o store inteiro.
+- Store nunca substitui cache de servidor.
+
+Próxima: [Pensando em componentes](components.md).
+
+---
+
+# design/testing.md
+
+# Estratégia de testes
+
+Teste de frontend tem uma armadilha própria: é fácil escrever muitos testes que
+não protegem nada. Eles verificam que o componente renderiza o texto que o
+componente renderiza, quebram a cada refatoração e passam mesmo quando o app está
+quebrado.
+
+A pergunta que separa teste bom de teste ruim é sempre a mesma: **que bug esse
+teste teria pegado?** Se não tem resposta, apague.
+
+## O que testar em cada camada
+
+As [camadas](architecture.md) definem o tipo de teste. Não é a mesma técnica em
+todas:
+
+| Camada        | Técnica                          | O que verifica                                | Quantidade |
+| ------------- | -------------------------------- | --------------------------------------------- | ---------- |
+| Função pura   | teste unitário                    | entrada → saída, incluindo borda              | muitos     |
+| Serviço       | unitário com `fetch` mockado      | monta request, valida resposta, mapeia erro   | muitos     |
+| Hook          | `renderHook`                      | transição de estado, efeito, cleanup          | muitos     |
+| Componente UI | `render` + `screen` por **papel** | o que o usuário vê e consegue fazer           | médio      |
+| Página        | render com provider + MSW         | a tela junta as peças                         | poucos     |
+| Fluxo         | Playwright                        | o caminho crítico ponta a ponta               | pouquíssimos |
+
+```mermaid
+flowchart TD
+    A["Funções puras + serviços + hooks<br/>(rápidos, muitos)"] --> B["Componentes<br/>(médios)"]
+    B --> C["Páginas com MSW<br/>(poucos)"]
+    C --> D["E2E Playwright<br/>(caminho crítico só)"]
+```
+
+!!! tip "Teste barato primeiro"
+    Um teste de função pura roda em milissegundos e nunca fica instável. Um E2E
+    roda em segundos e quebra por timing. Empurre a verificação pro nível mais
+    barato que consegue provar a coisa — e é a arquitetura em camadas que dá essa
+    opção.
+
+## Ferramenta: o que o SDK usa
+
+```bash
+npm test              # vitest watch
+npm run test:run      # uma passada
+npm run test:coverage
+npm run typecheck     # tsc -b --noEmit (inclui os testes)
+```
+
+Stack: **Vitest** + **@testing-library/react** + **jsdom**, com
+`fake-indexeddb/auto` no setup pra Dexie funcionar em Node. O
+[template do scaffold](../scaffold.md) já vem com isso.
+
+Números deste repositório, como referência do que é sustentável: **3283 testes em
+414 arquivos, ~29 s**. Os pisos de cobertura que gateiam o CI:
+
+| Métrica    | Piso |
+| ---------- | ---- |
+| lines      | 98%  |
+| statements | 97%  |
+| functions  | 96%  |
+| branches   | 94%  |
+
+!!! warning "Cobertura é piso, não meta"
+    100% de cobertura com asserts fracos protege menos que 80% com asserts que
+    checam comportamento. O piso serve pra impedir código **não exercitado
+    nenhuma vez** — ele não mede qualidade de teste.
+
+## Componente: consulte por papel, não por classe
+
+A regra que decide se o teste vai sobreviver a uma refatoração:
+
+=== "✅ Certo"
+
+    ```tsx
+    it("dispara onPay ao clicar em Pagar", async () => {
+      const onPay = vi.fn();
+      const user = userEvent.setup();
+
+      render(<OrderTable orders={[order]} onPay={onPay} />);
+      await user.click(screen.getByRole("button", { name: "Pagar" }));
+
+      expect(onPay).toHaveBeenCalledWith(order.id);
+    });
+    ```
+
+=== "❌ Errado"
+
+    ```tsx
+    it("renderiza a tabela", () => {
+      const { container } = render(<OrderTable orders={[order]} onPay={vi.fn()} />);
+      expect(container.querySelector(".tempest_table_3f9a")).toBeTruthy();
+    });
+    ```
+
+O primeiro teste falha quando o comportamento muda. O segundo falha quando o
+**CSS** muda — e passa mesmo se o botão parar de funcionar. Ele é pior que
+nenhum teste, porque dá confiança falsa.
+
+Ordem de preferência de consulta:
+
+1. `getByRole` (com `name`) — é o que o usuário e o leitor de tela veem.
+2. `getByLabelText` — campos de formulário.
+3. `getByText` — conteúdo visível.
+4. `getByTestId` — último recurso, quando não existe papel nem texto estável.
+
+!!! info "Consultar por papel testa acessibilidade de graça"
+    Se `getByRole("button", { name: "Pagar" })` não acha, é porque você usou
+    `<div onClick>` ou esqueceu o nome acessível. O teste te avisa de um problema
+    real de a11y sem você escrever um teste de a11y.
+
+## Serviço: mocke `fetch`, não o serviço
+
+```ts
+import { describe, expect, it, vi } from "vitest";
+
+import { listOrders } from "./orders.service";
+
+describe("listOrders", () => {
+  it("valida a resposta e converte createdAt em Date", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify([
+            {
+              id: "3f2a…",
+              code: "PED-1",
+              status: "paid",
+              total_cents: 1990,
+              created_at: "2026-07-28T12:00:00Z",
+            },
+          ]),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+    );
+
+    const orders = await listOrders(1);
+
+    expect(orders[0].createdAt).toBeInstanceOf(Date);
+    expect(orders[0].totalCents).toBe(1990);
+  });
+
+  it("rejeita payload fora do schema", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(JSON.stringify([{ id: 1 }]), { status: 200 })),
+    );
+
+    await expect(listOrders(1)).rejects.toThrow();
+  });
+});
+```
+
+O segundo teste é o que justifica o `parseResponse` existir. Sem ele, o schema é
+decoração.
+
+## Página: MSW com `createMockHandlers`
+
+Teste de página verifica que as peças se encaixam — não repete o que o teste do
+componente já cobriu:
+
+```ts
+import { createMockHandlers } from "tempest-react-sdk/testing";
+
+export const orderHandlers = createMockHandlers([
+  { method: "GET", path: "/orders", body: [{ id: "1", code: "PED-1", status: "paid" }] },
+  { method: "POST", path: "/orders/1/pay", status: 200, body: { id: "1", status: "paid" } },
+  { method: "GET", path: "/orders/999", status: 404, body: { detail: "Not found" } },
+]);
+```
+
+Um handler por cenário, incluindo o de erro — a tela de erro é a que ninguém testa
+e a que o usuário mais vê. Detalhes em [Testing helpers](../testing.md).
+
+## Hook: `renderHook` sem DOM
+
+```ts
+import { renderHook } from "@testing-library/react";
+import { act } from "react";
+
+it("alterna a seleção de uma linha", () => {
+  const { result } = renderHook(() => useOrderTable([order]));
+
+  act(() => result.current.toggle(order.id));
+  expect(result.current.selected.has(order.id)).toBe(true);
+
+  act(() => result.current.toggle(order.id));
+  expect(result.current.selected.has(order.id)).toBe(false);
+});
+```
+
+É por isso que [extrair lógica pra hook](components.md#logic-to-hook)
+compensa: você testa a regra sem montar tabela, sem procurar botão, sem esperar
+render.
+
+## O que **não** testar
+
+| Não teste                                    | Porque                                            |
+| -------------------------------------------- | ------------------------------------------------- |
+| Que o componente do SDK funciona             | ele já tem 3283 testes                            |
+| Classe CSS, estrutura de DOM, snapshot grande | quebra em refatoração, não pega bug               |
+| Implementação interna (`useState` chamado)   | você testou o código, não o comportamento         |
+| Getter/setter trivial                        | não existe bug possível ali                       |
+| Que `zod` valida                             | é a lib; teste **o seu schema** com payload errado |
+
+!!! danger "Snapshot grande é dívida disfarçada de cobertura"
+    Um `toMatchSnapshot()` de 400 linhas passa a ser atualizado com `-u` sem
+    ninguém ler o diff. Ele deixa de ser teste e vira ruído no PR. Snapshot vale
+    pra saída pequena e estável (uma string formatada, um objeto de config).
+
+## Acessibilidade e pixel
+
+Duas coisas que teste em jsdom **não** pega:
+
+- **Contraste de cor.** O `axe` desliga a regra `color-contrast` em jsdom porque
+  não há paint. Esse bug só aparece em browser real — aconteceu duas vezes neste
+  repositório com token de texto sobre superfície tingida.
+- **Layout.** jsdom não calcula layout: `offsetParent` é sempre `null`, altura é
+  sempre 0.
+
+Por isso o CI tem um smoke Playwright no [gallery](../gallery.md) além do sweep
+`axe` em jsdom. Para o seu app: mudança visual se valida em browser, não em
+`expect`.
+
+## Recap
+
+- Todo teste responde "**que bug isso pegaria?**". Sem resposta, apague.
+- Camada define técnica: função/serviço/hook unitário (muitos) → componente
+  (médio) → página com MSW (poucos) → E2E (pouquíssimos).
+- Consulte por **papel**, nunca por classe CSS — e ganhe verificação de a11y de
+  graça.
+- Serviço testa com `fetch` mockado, **incluindo payload inválido**.
+- Cobertura é piso (98/97/96/94 aqui), não meta.
+- Contraste e layout só se validam em **browser real**.
+
+Próxima: [Anti-padrões](anti-patterns.md).
+
+---
+
+# design/typing.md
+
+# Tipagem forte
+
+TypeScript não é "JavaScript com autocomplete". É a única ferramenta que verifica
+o desenho do seu app **sem rodar o app**. Quanto mais estreito o tipo, mais bug
+ele pega de graça.
+
+O objetivo desta página: fazer o compilador recusar o estado errado, em vez de
+você revisar o estado errado.
+
+## Regra zero: zero `any`
+
+```js
+"@typescript-eslint/no-explicit-any": "error"
+```
+
+`any` desliga o compilador. Pior: ele **vaza** — uma variável `any` contamina
+tudo que toca nela, e o erro aparece três arquivos depois, em runtime.
+
+Não existe caso legítimo. Existem dois substitutos:
+
+| Situação                                 | Use                                        |
+| ---------------------------------------- | ------------------------------------------ |
+| Não sei o que é (resposta de rede, `JSON.parse`) | **`unknown`** + validação            |
+| Aceito qualquer objeto                   | `Record<string, unknown>`                  |
+| Genérico de verdade                      | `<T>` com constraint                        |
+
+```ts
+// ❌ any: o erro vai aparecer em outro arquivo
+function handle(payload: any) {
+  return payload.user.name.toUpperCase();
+}
+
+// ✅ unknown: o compilador exige que você prove a forma antes de usar
+function handle(payload: unknown): string {
+  const parsed = userSchema.parse(payload);
+  return parsed.name.toUpperCase();
+}
+```
+
+!!! danger "`as` é `any` com outro nome"
+    `payload as User` não verifica nada — é você prometendo. `as` só é aceitável
+    em três lugares: `as const`, estreitar `unknown` **depois** de um type guard,
+    e contornar limitação conhecida de tipagem de lib (com JSDoc explicando).
+    Fora disso, `as` é onde os bugs entram.
+
+## Tipo derivado do schema, nunca escrito duas vezes
+
+O erro mais comum em app com zod: escrever a `interface` e o schema
+separados.
+
+=== "❌ Errado"
+
+    ```ts
+    interface Order {
+      id: string;
+      status: string;
+      totalCents: number;
+    }
+
+    const orderSchema = z.object({
+      id: z.string(),
+      status: z.string(),
+      total_cents: z.number(), // ⚠️ divergiu e ninguém percebe
+    });
+    ```
+
+=== "✅ Certo"
+
+    ```ts
+    export const orderSchema = z.object({
+      id: z.string().uuid(),
+      status: z.enum(["pending", "paid", "shipped", "delivered", "cancelled"]),
+      totalCents: z.number().int().nonnegative(),
+    });
+
+    export type Order = z.infer<typeof orderSchema>;
+    export type OrderStatus = Order["status"];
+    ```
+
+Uma fonte de verdade. Mudar o schema muda o tipo, e o compilador aponta cada lugar
+que precisa acompanhar. Veja [Fluxo de dados](data-flow.md).
+
+!!! tip "`z.enum` em vez de `z.string()`"
+    `status: z.string()` aceita `"banana"`. `z.enum([...])` faz o `switch` no
+    componente ficar exaustivo e o backend inventando valor novo virar erro na
+    borda, não tela em branco.
+
+## Union discriminada: o estado impossível deixa de existir
+
+Este é o ganho mais alto de tipagem em app React, e o mais ignorado.
+
+=== "❌ Errado — 8 combinações, 5 inválidas"
+
+    ```ts
+    interface OrderState {
+      isLoading: boolean;
+      data?: Order;
+      error?: Error;
+    }
+    ```
+
+    `{ isLoading: true, data: order, error: err }` compila. O que a tela mostra?
+
+=== "✅ Certo — 3 estados, todos válidos"
+
+    ```ts
+    type OrderState =
+      | { status: "loading" }
+      | { status: "success"; data: Order }
+      | { status: "error"; error: Error };
+    ```
+
+    ```tsx
+    switch (state.status) {
+      case "loading":
+        return <Spinner />;
+      case "success":
+        return <OrderCard order={state.data} />; // `data` existe aqui, garantido
+      case "error":
+        return <ErrorState message={state.error.message} />;
+    }
+    ```
+
+Dentro de cada `case`, o TypeScript sabe exatamente quais campos existem. Não tem
+`state.data!`, não tem `if (!state.data) return null` defensivo.
+
+### Exaustividade que o compilador cobra
+
+```ts
+/** Fails to compile when a new OrderState variant is added and not handled. */
+function assertNever(value: never): never {
+  throw new Error(`Unhandled variant: ${JSON.stringify(value)}`);
+}
+
+switch (state.status) {
+  case "loading":
+    return <Spinner />;
+  case "success":
+    return <OrderCard order={state.data} />;
+  case "error":
+    return <ErrorState message={state.error.message} />;
+  default:
+    return assertNever(state);
+}
+```
+
+Adicione `{ status: "empty" }` na union e o build **quebra** no `assertNever`,
+apontando o lugar exato. É a diferença entre descobrir na compilação e descobrir
+em produção.
+
+## Props: modele o que é válido
+
+O mesmo raciocínio nas props de componente:
+
+```tsx
+// ❌ permite `variant="link"` sem `href`, e `href` com onClick
+interface ButtonProps {
+  variant?: string;
+  href?: string;
+  onClick?: () => void;
+}
+
+// ✅ ou é link com href, ou é botão com onClick — nunca os dois
+type ButtonProps =
+  | { as: "link"; href: string; children: ReactNode }
+  | { as?: "button"; onClick: () => void; children: ReactNode };
+```
+
+E para variantes, `union` de string em vez de booleanas — o padrão de todo
+componente do SDK:
+
+```ts
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+export type ButtonSize = "xs" | "sm" | "md" | "lg" | "xl";
+```
+
+O autocomplete mostra as opções, o typo não compila, e não existe
+`primary danger`.
+
+## Os utilitários que valem decorar
+
+```ts
+type Order = { id: string; code: string; status: OrderStatus; totalCents: number };
+
+type OrderPreview = Pick<Order, "id" | "code">;          // só esses campos
+type OrderDraft = Omit<Order, "id">;                      // tudo menos id
+type OrderPatch = Partial<Order>;                         // tudo opcional
+type FullOrder = Required<OrderDraft>;                    // tudo obrigatório
+type OrderReadonly = Readonly<Order>;                     // sem mutação
+type OrdersById = Record<string, Order>;                  // mapa
+type OrderStatus2 = Order["status"];                      // acesso indexado
+type ListResult = Awaited<ReturnType<typeof listOrders>>; // tipo do retorno async
+```
+
+O padrão: **derive**, não redigite. Um `OrderDraft` escrito à mão sai de sincronia
+com `Order` na primeira mudança; `Omit<Order, "id">` não sai nunca.
+
+## `satisfies`: valida sem alargar {#satisfies}
+
+```ts
+// ❌ o tipo da const vira Record<string, string> — perde as chaves exatas
+const STATUS_LABEL: Record<OrderStatus, string> = {
+  pending: "Pendente",
+  paid: "Pago",
+  shipped: "Enviado",
+  delivered: "Entregue",
+  cancelled: "Cancelado",
+};
+
+// ✅ valida que cobre todo OrderStatus E mantém as chaves literais
+const STATUS_LABEL = {
+  pending: "Pendente",
+  paid: "Pago",
+  shipped: "Enviado",
+  delivered: "Entregue",
+  cancelled: "Cancelado",
+} satisfies Record<OrderStatus, string>;
+```
+
+Com `satisfies` você ganha as duas coisas: se faltar um status, erro de
+compilação; e `typeof STATUS_LABEL` continua sabendo as chaves exatas para
+autocomplete e para derivar tipos.
+
+!!! tip "Tabela de lookup mata `switch` gigante"
+    `STATUS_LABEL[status]` substitui cinco `case`. E com `satisfies`, adicionar um
+    status novo à union **obriga** a preencher a tabela. Esse par
+    (`union` + `satisfies Record<>`) é o jeito mais barato de fazer o compilador
+    cobrar completude.
+
+## Genérico com constraint, não genérico solto
+
+```ts
+// ❌ T não garante nada — `item.id` pode não existir
+function indexById<T>(items: T[]): Record<string, T> {
+  return Object.fromEntries(items.map((i) => [i.id, i])); // erro ou any
+}
+
+// ✅ a constraint documenta o requisito e o compilador cobra
+function indexById<T extends { id: string }>(items: T[]): Record<string, T> {
+  return Object.fromEntries(items.map((item) => [item.id, item]));
+}
+```
+
+Constraint é documentação executável: quem chamar com `{ uuid: string }[]` recebe
+erro na chamada, com a mensagem certa.
+
+## Nulo explícito
+
+`undefined` implícito é o `NullPointerException` do TypeScript. Deixe `strict`
+ligado (o template já deixa) e trate na borda:
+
+```ts
+// ✅ o tipo diz que pode não achar; quem chama é obrigado a tratar
+export async function findOrder(id: string): Promise<Order | null> {
+  const raw = await api.get<unknown>(`/orders/${id}`).catch(() => null);
+  return raw === null ? null : parseResponse(orderSchema, raw, "findOrder");
+}
+```
+
+E do lado que usa, prefira early return a `?.` em cascata:
+
+```tsx
+if (!order) return <EmptyState title="Pedido não encontrado" />;
+// daqui pra baixo `order` é Order, sem `?.` em nenhuma linha
+```
+
+!!! warning "`!` (non-null assertion) é promessa, não verificação"
+    `order!.code` é você garantindo ao compilador algo que ele não conseguiu
+    provar. Quando você estiver certo, funciona; quando estiver errado, é
+    `undefined` em produção. Use early return.
+
+## Coleção vazia é `[]`, não `null`
+
+```ts
+// ✅
+function listOrders(): Promise<Order[]>;          // sem resultado → []
+interface OrderResponse { items: Order[] }         // default: []
+
+// ❌
+function listOrders(): Promise<Order[] | null>;    // agora todo caller checa null
+```
+
+"Nenhum resultado" é um resultado bem-sucedido. Devolver `[]` faz o `.map()` do
+componente funcionar sem `if`, e é a convenção que o backend Tempest também segue.
+
+## Onde checar
+
+```bash
+npx tsc -b --noEmit     # inclui os testes — bug de tipo em teste também é bug
+npx tempest lint
+npx tempest doctor      # checa tsconfig strict, alias, env, CSS
+```
+
+O `typecheck` é o gate mais barato do CI: roda em segundos e pega o que nenhum
+teste pegaria sem escrever o caso.
+
+## Recap
+
+- **Zero `any`.** `unknown` na borda + validação; `as` só em três casos raros.
+- Tipo **derivado** do schema zod (`z.infer`), nunca escrito duas vezes.
+- **Union discriminada** apaga o estado impossível; `assertNever` cobra
+  exaustividade no build.
+- Props modelam o que é válido: `union` de string, não booleana; variantes
+  mutuamente exclusivas em union de objetos.
+- Derive com `Pick`/`Omit`/`Partial`/`ReturnType`; valide com `satisfies`.
+- Genérico com **constraint**; nulo explícito com early return; coleção vazia é
+  `[]`.
+
+Próxima: [Estratégia de testes](testing.md).
+
+---
+
 # editor.md
 
 # Rich Text Editor (`tempest-react-sdk/editor`)
@@ -10356,6 +12999,11 @@ Os dois modos e cada pedaço do comando estão explicados em [Scaffold](scaffold
 Novo por aqui? Siga o **[Tutorial — Guia do Usuário](tutorial/index.md)**: do
 scaffold ao app completo, um conceito por página.
 
+Já sabe usar o SDK e quer saber **como organizar o app**? A aba
+**[Design de Software](design/index.md)** ensina o desenho: camadas, estrutura de
+pastas, onde mora cada estado, tipagem forte, limites objetivos (`.tsx` ≤ 150
+linhas) e o checklist de revisão.
+
 ## Instalação manual
 
 Em um projeto Vite + React + TS existente:
@@ -10383,6 +13031,7 @@ bundle (seu bundler faz tree-shake do que não usar). Detalhes em
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Tutorial**               | [Comece aqui](tutorial/index.md) · [Roteamento](tutorial/routing.md) · [Estado](tutorial/state.md) · [Buscando dados](tutorial/data-fetching.md) · [Formulários](tutorial/forms.md) · [Fluxo de auth](tutorial/auth-flow.md)                                                                                                                                                                     |
 | **Estrutura de aplicação** | [Scaffold](scaffold.md), [Vite & alias](vite-config.md), [Roteamento](routing.md), [Estado (Zustand)](state.md), [Providers](app-providers.md)                                                                                                                                                                                                                                                   |
+| **Design de Software**     | [Mapa](design/index.md) — [Camadas](design/architecture.md), [Pastas](design/folders.md), [Fluxo de dados](design/data-flow.md), [Estado](design/state.md), [Componentes](design/components.md), [Limites](design/limits.md), [Tipagem](design/typing.md), [Testes](design/testing.md), [Anti-padrões](design/anti-patterns.md), [Checklist](design/checklist.md) |
 | **Guia**                   | [Arquitetura](architecture.md), [Gallery (demo)](gallery.md)                                                                                                                                                                                                                                                                                                                                     |
 | **Componentes**            | [Catálogo](components.md) — [Entrada](components/inputs.md), [Ação](components/actions.md), [Navegação](components/navigation.md), [Overlay](components/overlay.md), [Layout](components/layout.md), [Dados](components/data.md), [Feedback](components/feedback.md), [Identidade](components/identity.md), [Utilitários](components/utility.md), [Overlays & avançados](components/advanced.md) |
 | **Hooks**                  | [Hooks utilitários](hooks.md)                                                                                                                                                                                                                                                                                                                                                                    |

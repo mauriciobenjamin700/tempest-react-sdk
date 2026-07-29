@@ -4,6 +4,13 @@ O `tempest-react-sdk` é um pacote único com camadas independentes. O consumido
 importa só o que usa; tudo é externalizado no bundle do SDK, então o bundler do
 app faz tree-shake do que não é referenciado.
 
+!!! info "Esta página é a arquitetura **do pacote**"
+    Aqui você aprende como o SDK é montado — camadas, dependências, subpaths,
+    bundle. Se o que você quer é como organizar o **seu app** (camadas, pastas,
+    onde mora cada estado, limites de arquivo), a página é
+    [Camadas de um app frontend](./design/architecture.md), na aba
+    [Design de Software](./design/index.md).
+
 !!! tip "Importe só o que usa"
     Não existe penalidade por o SDK ser grande. Cada camada (HTTP, auth, query,
     forms…) é independente — se você nunca importa `createOfflineStore`, o `dexie`
@@ -114,6 +121,7 @@ Orçamento monitorado por `size-limit` no CI.
 
 ## Veja também
 
+- [Design de Software — camadas do seu app](./design/architecture.md)
 - [Scaffold — `create-tempest-app`](./scaffold.md)
 - [HTTP — fluxo de request](./http.md)
 - Diagrama: [architecture.drawio](./diagrams/architecture.drawio)

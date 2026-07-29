@@ -14,6 +14,17 @@
 - [CLI `tempest`](https://mauriciobenjamin700.github.io/tempest-react-sdk/cli/): Além da CLI de scaffolding create-tempest-app, o pacote
 - [Cookbook — Receitas](https://mauriciobenjamin700.github.io/tempest-react-sdk/cookbook/): Esta página é um livro de receitas: cada seção responde a um "eu quero fazer X"
 - [Data Provider (CRUD)](https://mauriciobenjamin700.github.io/tempest-react-sdk/data-provider/): Camada de CRUD no estilo Refine fiada nas convenções de paginação e endpoints do tempest-fastapi-sdk.
+- [Anti-padrões](https://mauriciobenjamin700.github.io/tempest-react-sdk/design/anti-patterns/): As páginas anteriores dizem o que fazer. Esta diz o que você vai encontrar —
+- [Camadas de um app frontend](https://mauriciobenjamin700.github.io/tempest-react-sdk/design/architecture/): Backend tem um desenho de camadas que todo mundo reconhece: router → controller →
+- [Checklist de revisão](https://mauriciobenjamin700.github.io/tempest-react-sdk/design/checklist/): Toda a seção em uma página. Use antes de abrir o PR e durante a revisão do PR de
+- [Pensando em componentes](https://mauriciobenjamin700.github.io/tempest-react-sdk/design/components/): Componente é a unidade de reuso do React, e é onde a maior parte dos apps
+- [Fluxo de dados](https://mauriciobenjamin700.github.io/tempest-react-sdk/design/data-flow/): Toda tela é a mesma pergunta: **como o dado do servidor chega no pixel, e como a
+- [Estrutura de pastas](https://mauriciobenjamin700.github.io/tempest-react-sdk/design/folders/): As camadas são um conceito. Pasta é onde o conceito encosta no
+- [Design de Software Frontend](https://mauriciobenjamin700.github.io/tempest-react-sdk/design/index/): O SDK te dá as peças. Esta seção ensina a arrumar as peças.
+- [Limites objetivos](https://mauriciobenjamin700.github.io/tempest-react-sdk/design/limits/): "Mantenha os componentes pequenos" é um conselho que ninguém consegue aplicar,
+- [Onde mora cada estado](https://mauriciobenjamin700.github.io/tempest-react-sdk/design/state/): Quase todo bug difícil de app frontend é a mesma coisa: **duas fontes de verdade
+- [Estratégia de testes](https://mauriciobenjamin700.github.io/tempest-react-sdk/design/testing/): Teste de frontend tem uma armadilha própria: é fácil escrever muitos testes que
+- [Tipagem forte](https://mauriciobenjamin700.github.io/tempest-react-sdk/design/typing/): TypeScript não é "JavaScript com autocomplete".
 - [Rich Text Editor (`tempest-react-sdk/editor`)](https://mauriciobenjamin700.github.io/tempest-react-sdk/editor/): Editor WYSIWYG controlado, construído sobre tiptap.
 - [Error Boundary](https://mauriciobenjamin700.github.io/tempest-react-sdk/error-boundary/): ErrorBoundary captura erros lançados durante o render de qualquer descendente e mostra um fallback no lugar de uma tela branca.
 - [Feature Flags](https://mauriciobenjamin700.github.io/tempest-react-sdk/feature-flags/): Feature flags ligam e desligam funcionalidades sem novo deploy: rollouts graduais (new-checkout para 10% dos usuários), kill-switches (disable_payments quando o gateway cai), experimentos A/B.

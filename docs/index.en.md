@@ -40,6 +40,11 @@ every piece of the command, are explained in [Scaffold](scaffold.md).
 New here? Follow the **[Tutorial — User Guide](tutorial/index.md)**: from
 scaffold to a complete app, one concept per page.
 
+Already know the SDK and want to know **how to organize the app**? The
+**[Software Design](design/index.md)** tab teaches the design: layers, folder
+structure, where each kind of state lives, strong typing, hard limits (`.tsx` ≤ 150
+lines) and the review checklist.
+
 ## Manual install
 
 In an existing Vite + React + TS project:
@@ -67,6 +72,7 @@ in the bundle (your bundler tree-shakes what you don't use). Details in
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Tutorial**       | [Start here](tutorial/index.md) · [Routing](tutorial/routing.md) · [State](tutorial/state.md) · [Data fetching](tutorial/data-fetching.md) · [Forms](tutorial/forms.md) · [Auth flow](tutorial/auth-flow.md)                                                                                                                                                                                     |
 | **App foundation** | [Scaffold](scaffold.md), [Vite & alias](vite-config.md), [Routing](routing.md), [State (Zustand)](state.md), [Providers](app-providers.md)                                                                                                                                                                                                                                                       |
+| **Software Design** | [Map](design/index.md) — [Layers](design/architecture.md), [Folders](design/folders.md), [Data flow](design/data-flow.md), [State](design/state.md), [Components](design/components.md), [Limits](design/limits.md), [Typing](design/typing.md), [Testing](design/testing.md), [Anti-patterns](design/anti-patterns.md), [Checklist](design/checklist.md) |
 | **Guide**          | [Architecture](architecture.md), [Gallery (demo)](gallery.md)                                                                                                                                                                                                                                                                                                                                    |
 | **Components**     | [Catalogue](components.md) — [Data entry](components/inputs.md), [Actions](components/actions.md), [Navigation](components/navigation.md), [Overlay](components/overlay.md), [Layout](components/layout.md), [Data](components/data.md), [Feedback](components/feedback.md), [Identity](components/identity.md), [Utility](components/utility.md), [Overlays & advanced](components/advanced.md) |
 | **Hooks**          | [Utility hooks](hooks.md)                                                                                                                                                                                                                                                                                                                                                                        |

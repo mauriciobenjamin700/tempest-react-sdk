@@ -4,6 +4,53 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **Aba "Design de Software" na documentação** — 11 páginas bilíngues ensinando o
+  desenho do app que consome o SDK: camadas de um app frontend e a regra da seta
+  única, estrutura de pastas por feature, fluxo de dados (`apiClient` → serviço →
+  Query → página → UI), onde mora cada estado, pensando em componentes, limites
+  objetivos, tipagem forte, estratégia de testes, 15 anti-padrões com refactor e
+  um checklist de revisão. Estilo tiangolo: motiva → código completo → explica →
+  Recap.
+- **Nav em 7 abas de topo** (`navigation.tabs` + `tabs.sticky`) com paridade de
+  tema com o `tempest-fastapi-sdk`: paleta indigo de 3 estados, botões de
+  editar/ver a página, `content.tabs.link`, `navigation.path`, diagramas mermaid
+  nativos. As 12 entradas raiz antigas viravam 12 abas e lotavam o header.
+- **Seção `Design` no `tempest doctor`** — a doc deixou de ser só doutrina. O CLI
+  mede o projeto e reporta com arquivo e linha: arquivo acima de 150 (`.tsx`) /
+  200 (`.ts`) linhas de código, corpo de função acima de 80, hook acima de 100,
+  `<X>Props` com mais de 7 membros, função **exportada** com mais de 3
+  parâmetros, `any` em posição de tipo, `@ts-ignore`, `fetch`/`axios` dentro de um
+  `.tsx`, `catch` de corpo vazio e cor literal em `style={{ … }}`. Escaneia sem
+  parser de TypeScript (o `doctor` roda em projeto que ainda não instalou nada):
+  um mask que apaga comentário, string e regex mantendo offset e linha, e brace
+  matching por cima dele.
+- **Marcador `@tempest-limits <regra> — <motivo>`** como saída de emergência
+  escrita. Estourar um limite é permitido; estourar em silêncio não. O `doctor`
+  suprime a regra citada, conta os waivers, e **reporta o marcador sem motivo** —
+  waiver sem explicação é exatamente o que ele existe pra evitar. Um
+  `eslint-disable` de `no-explicit-any` já vale como waiver daquela linha: o
+  mecanismo padrão ganha.
+- **`tempest doctor --no-design` e `--no-css`** pra pular uma passada.
+
+### Notas
+
+- A seção `Design` **nunca** derruba o exit code do `doctor`: todo achado é
+  `warn` ou nota. Limite é heurística, e reprovar CI por heurística é o caminho
+  mais curto pra alguém silenciar a ferramenta — os gates duros continuam sendo
+  `no-explicit-any` como `error` no ESLint e `tsc --noEmit`.
+- Aninhamento de JSX e complexidade ciclomática **ficaram de fora** de propósito:
+  as duas precisam de parser de verdade pra não acusar quebra de linha do
+  Prettier. Continuam com o ESLint (`max-depth`, `complexity`).
+- Calibrado no dogfood, e as duas primeiras versões das regras erravam: contar
+  `className`/`children`/`...rest` como prop fazia todo primitivo do SDK parecer
+  dois componentes, e `param-count` em helper privado pedia objeto nomeado pra
+  função de loop apertado. Depois do ajuste, o app que o
+  `create-tempest-app` gera sai com **zero achados**.
+- O link morto `#codeblock` em `docs/components/advanced.md` foi corrigido —
+  MkDocs só reporta anchor inexistente como `INFO`, então `--strict` passava.
+
 ## [0.31.1] — 2026-07-27
 
 ### Adicionado

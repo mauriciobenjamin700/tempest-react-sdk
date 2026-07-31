@@ -2,6 +2,7 @@
 // tempest — project CLI shipped inside tempest-react-sdk.
 //
 //   tempest doctor          health-check the current project (à la flutter doctor)
+//                           [--no-css] [--no-design] skip an analysis pass
 //   tempest lint [paths…]    run ESLint (report only)
 //   tempest fix [paths…]     alias imports (../ → @/) + ESLint --fix + Prettier
 //   tempest format [paths…]  Prettier --write
@@ -15,6 +16,7 @@ import { aliasImports } from "./lib/alias/index.mjs";
 import { describeTypeScript, loadTypeScript } from "./lib/alias/typescript.mjs";
 import { readTsconfig } from "./lib/alias/tsconfig.mjs";
 import { analyzeCss, applyCssFixes, applyExtraction, planExtraction } from "./lib/css/index.mjs";
+import { analyzeDesign } from "./lib/design/index.mjs";
 import { checkLucide } from "./lib/doctor/lucide.mjs";
 import { generateRegistry, loadIconTables } from "./lib/icons/generate.mjs";
 import { generate } from "./lib/openapi/generate.mjs";
@@ -319,7 +321,77 @@ function cssChecks(limit = 6) {
     return rows;
 }
 
-function doctor() {
+/**
+ * Doctor rows for the design analysis — the limits and anti-patterns documented
+ * under docs/design.
+ *
+ * Every row is a warning or a note, never a failure: the limits are heuristics
+ * with a written escape hatch (`@tempest-limits <rule> — reason`), and failing the
+ * exit code on a heuristic is how a tool gets silenced. The hard gates stay with
+ * ESLint (`no-explicit-any`) and `tsc --noEmit`.
+ *
+ * Findings are capped per severity for the same reason as the CSS pass: a report
+ * nobody reads to the end hides its own first line. The cap is stated, and the
+ * pointer to the full list goes with it.
+ *
+ * @param {number} [limit] - Findings shown per severity.
+ * @returns {Array<[status: string, label: string, detail?: string]>} Check rows.
+ */
+function designChecks(limit = 6) {
+    let analysis;
+    try {
+        analysis = analyzeDesign({ root: ROOT });
+    } catch (err) {
+        return [["warn", "design analysis failed", String(err?.message ?? err)]];
+    }
+    if (analysis.stats.files === 0) return [];
+
+    const { files, codeLines, medianLines, largest } = analysis.stats;
+    const rows = [["section", "Design"]];
+    rows.push([
+        "info",
+        `${files} source file(s) · ${codeLines} lines of code · median ${medianLines}`,
+        largest ? `largest: ${largest.file} (${largest.lines})` : "",
+    ]);
+    if (analysis.truncated) {
+        rows.push(["info", "file cap reached", "only the first 1200 source files were analyzed"]);
+    }
+
+    let hidden = 0;
+    for (const severity of ["warn", "info"]) {
+        const group = analysis.findings.filter((f) => f.severity === severity);
+        for (const f of group.slice(0, limit)) {
+            rows.push([severity === "warn" ? "warn" : "info", `${f.file}:${f.line}`, f.message]);
+        }
+        hidden += Math.max(0, group.length - limit);
+    }
+    if (hidden > 0) {
+        rows.push([
+            "info",
+            `${hidden} more design finding(s) not shown`,
+            "the limits and the escape hatch are documented at /design/limits/",
+        ]);
+    }
+    if (analysis.findings.length === 0) {
+        rows.push(["ok", "no design problems found"]);
+    }
+    if (analysis.waivers.length > 0) {
+        rows.push([
+            "info",
+            `${analysis.waivers.length} limit(s) waived with a written reason`,
+            "@tempest-limits markers — nothing to do",
+        ]);
+    }
+    return rows;
+}
+
+/**
+ * Health-check the project.
+ *
+ * @param {string[]} [args] - Argv tail. `--no-css` and `--no-design` skip a pass.
+ * @returns {number} Exit code: 1 when a check failed, 0 otherwise.
+ */
+function doctor(args = []) {
     const checks = [];
     const pkg = readJSON(join(ROOT, "package.json"));
 
@@ -666,7 +738,10 @@ function doctor() {
     }
 
     // ── Stylesheets ───────────────────────────────────────────────────────────
-    checks.push(...cssChecks());
+    if (!args.includes("--no-css")) checks.push(...cssChecks());
+
+    // ── Design ────────────────────────────────────────────────────────────────
+    if (!args.includes("--no-design")) checks.push(...designChecks());
 
     // ── Tooling ────────────────────────────────────────────────────────────────
     checks.push(["section", "Tooling"]);
@@ -1250,6 +1325,11 @@ ${c.bold}Commands${c.reset}
   ${c.bold}gen icons${c.reset}         Write a static icon registry from the slugs your source uses
                     (e.g. tempest gen icons --out src/icons.generated.ts --dir src)
 
+${c.bold}doctor options${c.reset}
+  --no-css          Skip the CSS analysis
+  --no-design       Skip the design analysis (file/function size, props count,
+                    \`any\`, transport in a component, swallowed errors)
+
 ${c.bold}fix options${c.reset}
   --dry-run         List every CSS finding and the imports that would be rewritten;
                     write nothing
@@ -1281,7 +1361,7 @@ if (!cmd || cmd === "-h" || cmd === "--help" || cmd === "help") {
 }
 
 const commands = {
-    doctor: () => doctor(),
+    doctor: () => doctor(rest),
     lint: () => lint(rest),
     fix: () => fix(rest),
     format: () => format(rest),

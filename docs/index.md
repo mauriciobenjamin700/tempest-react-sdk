@@ -39,6 +39,11 @@ Os dois modos e cada pedaço do comando estão explicados em [Scaffold](scaffold
 Novo por aqui? Siga o **[Tutorial — Guia do Usuário](tutorial/index.md)**: do
 scaffold ao app completo, um conceito por página.
 
+Já sabe usar o SDK e quer saber **como organizar o app**? A aba
+**[Design de Software](design/index.md)** ensina o desenho: camadas, estrutura de
+pastas, onde mora cada estado, tipagem forte, limites objetivos (`.tsx` ≤ 150
+linhas) e o checklist de revisão.
+
 ## Instalação manual
 
 Em um projeto Vite + React + TS existente:
@@ -66,6 +71,7 @@ bundle (seu bundler faz tree-shake do que não usar). Detalhes em
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Tutorial**               | [Comece aqui](tutorial/index.md) · [Roteamento](tutorial/routing.md) · [Estado](tutorial/state.md) · [Buscando dados](tutorial/data-fetching.md) · [Formulários](tutorial/forms.md) · [Fluxo de auth](tutorial/auth-flow.md)                                                                                                                                                                     |
 | **Estrutura de aplicação** | [Scaffold](scaffold.md), [Vite & alias](vite-config.md), [Roteamento](routing.md), [Estado (Zustand)](state.md), [Providers](app-providers.md)                                                                                                                                                                                                                                                   |
+| **Design de Software**     | [Mapa](design/index.md) — [Camadas](design/architecture.md), [Pastas](design/folders.md), [Fluxo de dados](design/data-flow.md), [Estado](design/state.md), [Componentes](design/components.md), [Limites](design/limits.md), [Tipagem](design/typing.md), [Testes](design/testing.md), [Anti-padrões](design/anti-patterns.md), [Checklist](design/checklist.md) |
 | **Guia**                   | [Arquitetura](architecture.md), [Gallery (demo)](gallery.md)                                                                                                                                                                                                                                                                                                                                     |
 | **Componentes**            | [Catálogo](components.md) — [Entrada](components/inputs.md), [Ação](components/actions.md), [Navegação](components/navigation.md), [Overlay](components/overlay.md), [Layout](components/layout.md), [Dados](components/data.md), [Feedback](components/feedback.md), [Identidade](components/identity.md), [Utilitários](components/utility.md), [Overlays & avançados](components/advanced.md) |
 | **Hooks**                  | [Hooks utilitários](hooks.md)                                                                                                                                                                                                                                                                                                                                                                    |

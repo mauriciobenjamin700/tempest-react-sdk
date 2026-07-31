@@ -62,6 +62,15 @@ Stylesheets
       properties — one global class beats 7 local copies
   [i] 2 finding(s) are auto-fixable — run `tempest fix`
 
+Design
+  [i] 42 source file(s) · 1830 lines of code · median 38 — largest:
+      src/pages/Orders.tsx (204)
+  [!] src/pages/Orders.tsx:1 — 204 lines of code (limit 150) — extract a
+      sub-component, a hook or a pure function
+  [!] src/pages/Orders.tsx:31 — a component must not call the network — move it
+      to a service and read it with useQuery
+  [i] 2 limit(s) waived with a written reason — @tempest-limits markers
+
 Tooling
   [✓] ESLint config present
   [✓] eslint installed
@@ -125,6 +134,8 @@ Tooling
 **Integration** — `vite.config.*` using `createViteConfig`; **`@vitejs/plugin-react`** installed (JSX/Fast Refresh); `styles.css` import in the entry (and a warning if imported **more than once**).
 
 **Stylesheets** — **syntax and semantic** analysis of every `.css` in the project (CSS Modules included): CSS the browser drops, dead declarations, names that do not exist, and a repeated block that wants to be one global class. Detailed in the next section — [CSS analysis](#css-analysis). Here `doctor` shows at most **6 findings per severity** and says how many it left out; the full list comes from `tempest fix --dry-run`.
+
+**Design** — the limits and anti-patterns from [Software Design](./design/limits.md), measured against your code: files/functions/hooks over the limit, `<X>Props` with too many props, `any` and `@ts-ignore`, `fetch` inside a `.tsx`, an empty `catch`, and a literal colour in `style={{ … }}`. Shows **6 findings per severity** plus the project's median line count. Every finding is a `warn` — a limit is a heuristic with a written escape hatch (`@tempest-limits <rule> — <reason>`), so the section **never** fails the exit code. Skip it with `--no-design`.
 
 **Tooling** — ESLint and Prettier config + binaries; **lockfile** present, single (mixed npm/yarn/pnpm drift out of sync) and **not stale** (`package.json` newer than the lock → `npm install`).
 
@@ -503,5 +514,6 @@ npx tempest --version
 - **`doctor`** diagnoses the project (à la `flutter doctor`), exits 1 on blocking problems.
 - **`fix`** converts relative imports to `@/` + removes dead CSS + organizes imports + removes dead imports + tidies whitespace + Prettier. `--dry-run` to review, `--no-alias`/`--no-css` to skip a pass.
 - The **[CSS analysis](#css-analysis)** finds syntax the browser drops, duplicated declarations and rules, names that do not exist, and repeated blocks that want one global class. `doctor` summarizes, `--dry-run` lists everything, `fix` removes only what is dead.
+- The **[design analysis](./design/limits.md)** measures file/function/hook size, prop counts, `any`, `fetch` in a component, empty `catch` and literal inline colours — always as a warning, with `@tempest-limits <rule> — <reason>` as the written escape hatch.
 - **`lint`** reports; **`format`** only formats.
 - See also: [Scaffold](./scaffold.md) · [Architecture](./architecture.md).

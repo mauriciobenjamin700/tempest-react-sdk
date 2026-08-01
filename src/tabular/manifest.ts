@@ -55,6 +55,24 @@ export interface ManifestOutput {
     readonly classes: readonly string[];
 }
 
+/**
+ * Where the packaged model came from, when it came from an existing
+ * artifact.
+ *
+ * Present when the package was built with `edge_pipeline_from_pickle`: the
+ * `.pkl` never reaches the browser (a pickle is a Python program, not
+ * data), but its name and digest travel in the manifest, so a model
+ * answering in a tab can be traced back to the file that produced it.
+ */
+export interface ManifestSource {
+    readonly file: string;
+    readonly kind: string;
+    readonly sha256: string;
+    readonly bytes: number;
+    readonly sklearn_version: string;
+    readonly warnings: readonly string[];
+}
+
 /** The package manifest, as written by `edge_pipeline`. */
 export interface EdgeManifest {
     readonly schema_version: number;
@@ -67,6 +85,8 @@ export interface EdgeManifest {
     readonly input: ManifestInput;
     readonly output: ManifestOutput;
     readonly verified: boolean | null;
+    /** Absent on packages built straight from a fitted estimator. */
+    readonly source?: ManifestSource;
     readonly baseline_file: string | null;
     readonly baseline_samples: number;
 }

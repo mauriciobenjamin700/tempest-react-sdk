@@ -139,6 +139,20 @@ console.log(pkg.explain(probabilities[0]!));
     montar a linha a partir do seu formulário, em vez de confiar que a ordem
     do `<form>` bate com a do `DataFrame` de seis meses atrás.
 
+!!! info "Modelo que nasceu de um `.pkl`"
+    Se o pacote foi gerado por `edge_pipeline_from_pickle`, o manifesto traz
+    `source` — nome, SHA-256 e a versão do scikit-learn que converteu:
+
+    ```tsx
+    const manifest = await fetchEdgeManifest("/models/risk/");
+    console.log(manifest.source?.file, manifest.source?.sha256.slice(0, 12));
+    ```
+
+    O `.pkl` **não** viaja para o navegador, e não é limitação: pickle é
+    programa Python, não dado. O que viaja é o ONNX mais o carimbo de qual
+    arquivo o produziu — o suficiente para rastrear um modelo rodando numa
+    aba de volta até a esteira, seis meses depois.
+
 ### Checar versão sem baixar o modelo
 
 ```tsx

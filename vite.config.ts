@@ -41,6 +41,10 @@ export default defineConfig({
                 charts: resolve(__dirname, "src/charts/index.ts"),
                 // Rich text editor — tiptap is an optional peer, externalized.
                 editor: resolve(__dirname, "src/editor/index.ts"),
+                // Browser image processing for PWAs — canvas only, no deps.
+                // Kept off the root entry so an app that never touches photos
+                // does not pay for it.
+                imaging: resolve(__dirname, "src/imaging/index.ts"),
                 // Tabular inference — scikit-learn models exported to ONNX and
                 // run in the browser. Shares the optional `onnxruntime-web`
                 // peer with `vision`, externalized the same way.

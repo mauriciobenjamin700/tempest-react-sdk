@@ -216,6 +216,12 @@
     ]
   },
   {
+    "name": "imaging entry (canvas only, no deps)",
+    "path": "dist/imaging.js",
+    "limit": "5 KB",
+    "ignore": ["react", "react-dom", "react/jsx-runtime"]
+  },
+  {
     "name": "tabular entry (onnxruntime-web external)",
     "path": "dist/tabular.js",
     "limit": "6 KB",

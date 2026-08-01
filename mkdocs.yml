@@ -137,6 +137,7 @@ plugins:
                     Web Share: Web Share
                     Áudio: Audio
                     Tabular (scikit-learn): Tabular (scikit-learn)
+                    Imagens (processamento): Imaging (processing)
                     Formulários: Forms
                     Forms (zod): Forms (zod)
                     Forms BR: Forms BR
@@ -252,6 +253,7 @@ nav:
                 - Áudio: audio.md
                 - Vision (ONNX): vision.md
                 - Tabular (scikit-learn): tabular.md
+                - Imagens (processamento): imaging.md
                 - Charts (recharts): charts.md
                 - Rich Text Editor (tiptap): editor.md
           - Formulários:

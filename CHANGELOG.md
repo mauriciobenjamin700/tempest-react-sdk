@@ -6,6 +6,38 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`tempest-react-sdk/imaging` — processamento de imagem no navegador, para
+  PWA em borda.** Sem dependência: é `createImageBitmap` mais canvas, com as
+  armadilhas resolvidas. `resizeImage` (fit `contain`/`cover`/`fill`/`pad`,
+  sem ampliar por padrão), `cropImage` (retângulo limitado à imagem),
+  `rotateImage` (múltiplos de 90), `flipImage`, `compressToTarget` (busca
+  binária de qualidade até caber num orçamento de bytes, e **reporta** quando
+  não cabe em vez de lançar), `createThumbnails` (vários tamanhos numa
+  decodificação só — decodificar é o custo, não escalar), `decodeImage`/
+  `readImageInfo`, `encodeImage`, `supportsImageType`/`bestSupportedType`, e
+  os hooks `useImagePreview` (revoga o object URL) / `useImageProcessing`
+  (não escreve estado depois do unmount). Novo subpath `./imaging`, budget de
+  5 KB.
+
+  **Três achados medidos em Chromium e Firefox:**
+
+  1. Foto de celular vem deitada — retrato gravado como paisagem mais etiqueta
+     de rotação. O módulo decodifica com `imageOrientation: "from-image"`;
+     medido: JPEG 120x60 com `Orientation=6` sai 60x120.
+  2. Pedir AVIF onde não há encoder **devolve `image/png` sem erro**, nos dois
+     motores. Por isso todo retorno traz o formato produzido, não o pedido.
+  3. **A redução em passos foi implementada e depois apagada.** Xadrez de
+     512 px reduzido para 32 px deu resultado idêntico ao `drawImage` único
+     com `imageSmoothingQuality = "high"` (desvio padrão 0,0 nos dois),
+     enquanto o caminho em passos custou 39,19 ms contra 0,13 ms numa foto
+     4000x3000 — 300x mais, com três canvas intermediários. Benefício não
+     mensurável a 300x o custo não é garantia, é peso morto.
+
+  Os testes de pixel rodam em Chromium de verdade (`e2e/imaging.spec.ts`,
+  10 casos contra o `dist` construído), incluindo um JPEG com segmento EXIF
+  montado à mão para provar a orientação e a remoção do metadado no
+  reencode. Os unitários em jsdom cobrem a geometria e os erros.
+
 - **`tempest-react-sdk/tabular` — modelos de scikit-learn rodando no navegador,
   offline.** Contraparte da camada de borda do `tempest-fastapi-sdk`: o mesmo
   `.onnx` que `export_sklearn_to_onnx` produz, servido como asset estático e

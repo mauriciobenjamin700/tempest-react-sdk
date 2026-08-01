@@ -13,3 +13,7 @@ src/br/data
 # MkDocs content: prettier flattens `!!!` admonition bodies (4-space indent),
 # breaking Material rendering. The docs site owns its own markdown formatting.
 docs
+
+# Fixtures are produced by tempest-fastapi-sdk; reformatting them would
+# make the test data stop being what the writer actually emits.
+src/**/__fixtures__/

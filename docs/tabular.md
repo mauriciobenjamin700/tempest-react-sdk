@@ -88,6 +88,67 @@ cancelamento quando o componente desmonta antes de terminar, e liberação da
 sessão (`release()`) — o heap do WebAssembly não encolhe sozinho no garbage
 collector.
 
+## Pacote de borda: o manifesto que vem do Python
+
+Do lado do Python, `edge_pipeline` publica um **diretório**, não um arquivo:
+
+```text
+dist/risk/
+├── risk.onnx          o grafo
+├── risk.onnx.gz       o mesmo, ~10% do tamanho
+├── baseline.json      referência de deriva
+└── manifest.json      o contrato
+```
+
+Sirva esse diretório como asset estático e o navegador lê o mesmo contrato:
+
+```tsx
+import { loadEdgePackage } from "tempest-react-sdk/tabular";
+
+const pkg = await loadEdgePackage("/models/risk/");
+
+console.log(pkg.featureNames); // ["age", "income", "tenure", "score"]
+console.log(pkg.classes);      // ["0", "1", "2"]
+
+const { probabilities } = await pkg.predictor.predict([[41, 5200, 3, 0.82]]);
+console.log(pkg.explain(probabilities[0]!));
+```
+
+```text
+[{ name: "2", score: 0.7484 }, { name: "0", score: 0.1564 }, { name: "1", score: 0.0952 }]
+```
+
+!!! danger "A ordem das colunas é o campo que salva você"
+    Modelo alimentado com as features certas **na ordem errada** responde com
+    confiança e errado. Não existe checagem em runtime que pegue isso — o
+    tensor tem a largura certa, os números são plausíveis, e a resposta é
+    lixo.
+
+    `featureNames` vem do treino, gravado pelo `edge_pipeline`. Use-o para
+    montar a linha a partir do seu formulário, em vez de confiar que a ordem
+    do `<form>` bate com a do `DataFrame` de seis meses atrás.
+
+### Checar versão sem baixar o modelo
+
+```tsx
+import { fetchEdgeManifest } from "tempest-react-sdk/tabular";
+
+const manifest = await fetchEdgeManifest("/models/risk/");
+if (manifest.version !== localStorage.getItem("risk-version")) {
+  // modelo novo publicado — vale baixar
+}
+```
+
+O manifesto tem algumas centenas de bytes. A `version` é derivada do
+conteúdo, então republicar os mesmos bytes **não** parece versão nova.
+
+!!! info "Compatibilidade é explícita"
+    O `schema_version` é conferido. Pacote escrito por um SDK mais novo do
+    que este leitor entende é **recusado**, com a instrução de atualizar —
+    ler assim mesmo arriscaria interpretar errado justamente o campo de
+    ordem das colunas. Campos desconhecidos, ao contrário, são ignorados: um
+    acréscimo compatível não quebra nada.
+
 ## Instalação
 
 `onnxruntime-web` é **peer dependency opcional**: só quem usa esse subpath
@@ -206,6 +267,8 @@ Todos herdam de `TabularError`, então dá pra pegar a família inteira. O
 | `predictor.info` | Entrada, nº de features, saídas, providers em uso |
 | `predictor.dispose()` | Libera a sessão |
 | `useTabularPredictor(source, options?)` | Hook com `status`/`isReady`/`predict`/`reload` |
+| `loadEdgePackage(directoryUrl, options?)` | Carrega um pacote publicado pelo `edge_pipeline` |
+| `fetchEdgeManifest(directoryUrl)` | Só o manifesto — versão, colunas, classes |
 | `fetchModelBytes(url, options?)` | Bytes do cache, com rede como fallback |
 | `isModelCached(url)` / `cacheModelBytes` / `clearModelCache` | Gestão do cache |
 | `configureOrtAssets(basePath)` / `ortAssetUrls(basePath)` / `ORT_WASM_ASSETS` | Assets do runtime |

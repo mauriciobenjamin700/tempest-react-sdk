@@ -30,6 +30,18 @@ export {
     TabularError,
     UnsupportedGraphError,
 } from "./exceptions";
+export {
+    type EdgeManifest,
+    type LoadEdgePackageOptions,
+    type LoadedEdgePackage,
+    MANIFEST_FILENAME,
+    type ManifestInput,
+    type ManifestModelFile,
+    type ManifestOutput,
+    SUPPORTED_MANIFEST_SCHEMA,
+    fetchEdgeManifest,
+    loadEdgePackage,
+} from "./manifest";
 export { DEFAULT_TABULAR_PROVIDERS, TabularPredictor } from "./predictor";
 export type {
     FeatureRow,

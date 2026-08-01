@@ -33,6 +33,17 @@ failed)`. Daí `ortAssetUrls` existir para o precache.
   - Export do `skl2onnx` com ZipMap (o default dele) devolve sequência de mapas,
     que o runtime web recusa ler; o erro aponta `export_sklearn_to_onnx`.
 
+  **Pacote de borda (contrato entre os dois SDKs):** `loadEdgePackage` e
+  `fetchEdgeManifest` leem o diretório que o `edge_pipeline` do
+  `tempest-fastapi-sdk` publica (grafo + gzip + baseline + `manifest.json`).
+  Trazem a **ordem das colunas do treino** — o campo que evita o erro que
+  nenhuma checagem de runtime pega, features certas na ordem errada
+  respondendo com confiança e errado — mais as classes por coluna de score e
+  uma `version` derivada do conteúdo, para checar novidade sem baixar o
+  modelo. `schema_version` mais novo que o leitor é recusado com instrução;
+  campo desconhecido é ignorado. A fixture dos testes foi **gerada pelo
+  próprio `edge_pipeline`**, não escrita à mão.
+
   Os testes do predictor rodam contra **modelos reais** exportados pelo
   `tempest-fastapi-sdk` (fixtures de ~1,5 KB) e conferem rótulo e probabilidade
   contra o que o scikit-learn prevê — mock testaria o contrato que eu escrevi, não

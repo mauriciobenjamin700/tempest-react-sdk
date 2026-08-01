@@ -87,6 +87,68 @@ The hook owns what every component gets wrong the same way: the async load,
 cancellation when the component unmounts mid-flight, and releasing the
 session — the WebAssembly heap does not shrink on garbage collection alone.
 
+## Edge package: the manifest that comes from Python
+
+On the Python side, `edge_pipeline` publishes a **directory**, not a file:
+
+```text
+dist/risk/
+├── risk.onnx          the graph
+├── risk.onnx.gz       the same, at ~10% of the size
+├── baseline.json      drift reference
+└── manifest.json      the contract
+```
+
+Serve that directory as static assets and the browser reads the same
+contract:
+
+```tsx
+import { loadEdgePackage } from "tempest-react-sdk/tabular";
+
+const pkg = await loadEdgePackage("/models/risk/");
+
+console.log(pkg.featureNames); // ["age", "income", "tenure", "score"]
+console.log(pkg.classes);      // ["0", "1", "2"]
+
+const { probabilities } = await pkg.predictor.predict([[41, 5200, 3, 0.82]]);
+console.log(pkg.explain(probabilities[0]!));
+```
+
+```text
+[{ name: "2", score: 0.7484 }, { name: "0", score: 0.1564 }, { name: "1", score: 0.0952 }]
+```
+
+!!! danger "The column order is the field that saves you"
+    A model fed the right features **in the wrong order** answers
+    confidently and wrongly. No runtime check catches it — the tensor has
+    the right width, the numbers are plausible, and the answer is garbage.
+
+    `featureNames` comes from training, recorded by `edge_pipeline`. Use it
+    to build the row from your form, instead of trusting that the `<form>`
+    order still matches the `DataFrame` from six months ago.
+
+### Check the version without downloading the model
+
+```tsx
+import { fetchEdgeManifest } from "tempest-react-sdk/tabular";
+
+const manifest = await fetchEdgeManifest("/models/risk/");
+if (manifest.version !== localStorage.getItem("risk-version")) {
+  // a new model was published — worth downloading
+}
+```
+
+The manifest is a few hundred bytes. Its `version` is derived from the
+content, so republishing identical bytes does **not** look like a new
+version.
+
+!!! info "Compatibility is explicit"
+    `schema_version` is checked. A package written by an SDK newer than this
+    reader understands is **refused**, with instructions to upgrade —
+    reading it anyway would risk misreading precisely the column-order
+    field. Unknown fields, by contrast, are ignored: a compatible addition
+    breaks nothing.
+
 ## Installation
 
 `onnxruntime-web` is an **optional peer dependency**: only users of this
@@ -206,6 +268,8 @@ reported `error.name === "t"` before that was fixed.
 | `predictor.info` | Input, feature count, outputs, providers in use |
 | `predictor.dispose()` | Releases the session |
 | `useTabularPredictor(source, options?)` | Hook with `status`/`isReady`/`predict`/`reload` |
+| `loadEdgePackage(directoryUrl, options?)` | Loads a package published by `edge_pipeline` |
+| `fetchEdgeManifest(directoryUrl)` | The manifest alone — version, columns, classes |
 | `fetchModelBytes(url, options?)` | Bytes from cache, network as fallback |
 | `isModelCached(url)` / `cacheModelBytes` / `clearModelCache` | Cache management |
 | `configureOrtAssets(basePath)` / `ortAssetUrls(basePath)` / `ORT_WASM_ASSETS` | Runtime assets |

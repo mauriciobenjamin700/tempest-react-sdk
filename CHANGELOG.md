@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.32.1] — 2026-08-01
+
 ## [0.32.0] — 2026-08-01
 
 ### Adicionado

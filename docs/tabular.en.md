@@ -31,6 +31,17 @@ Measured in Chromium: **0.2 ms** for a 3-row batch on a logistic regression,
 about 0.05 ms per row on a 10-tree forest. The win is not compute — it is the
 network round trip that stops existing.
 
+!!! tip "What you save is the trip, not the computation"
+    Measured on the server side with `tempest-fastapi-sdk`: a single-row
+    prediction costs **0.0075 ms of inference inside 1.22 ms of HTTP** —
+    160x more transport than model, and that with an in-process client, no
+    network at all.
+
+    In the browser that 1.22 ms simply does not exist: the same prediction
+    lands in about 0.05 ms, locally. So the criteria in the table above are
+    about **model freshness and size**, not about compute speed — the speed
+    you already won by removing the network.
+
 ## The whole loop, end to end
 
 ### 1. Export (Python)

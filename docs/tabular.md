@@ -32,6 +32,17 @@ Latência medida no Chromium: **0,2 ms** para um lote de 3 linhas numa
 regressão logística; ~0,05 ms por linha numa floresta de 10 árvores. A conta
 não é sobre computação — é sobre a viagem de rede que deixa de existir.
 
+!!! tip "O que você economiza é a viagem, não o cálculo"
+    Medido no lado do servidor com o `tempest-fastapi-sdk`: uma predição de
+    uma linha custa **0,0075 ms de inferência dentro de 1,22 ms de HTTP** —
+    160x mais transporte que modelo, e isso com cliente em processo, sem
+    rede.
+
+    No navegador esse 1,22 ms simplesmente não existe: a mesma predição sai
+    em ~0,05 ms, local. Por isso o critério da tabela acima é sobre
+    **frescor do modelo e tamanho**, não sobre velocidade de cálculo — a
+    velocidade você já ganhou tirando a rede do caminho.
+
 ## O ciclo completo, de ponta a ponta
 
 ### 1. Exportar (Python)

@@ -38,6 +38,7 @@ export {
     type ManifestInput,
     type ManifestModelFile,
     type ManifestOutput,
+    type ManifestSource,
     SUPPORTED_MANIFEST_SCHEMA,
     fetchEdgeManifest,
     loadEdgePackage,

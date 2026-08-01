@@ -138,6 +138,21 @@ console.log(pkg.explain(probabilities[0]!));
     to build the row from your form, instead of trusting that the `<form>`
     order still matches the `DataFrame` from six months ago.
 
+!!! info "A model that started life as a `.pkl`"
+    If the package was produced by `edge_pipeline_from_pickle`, the manifest
+    carries `source` — the name, SHA-256 and the scikit-learn version that
+    converted it:
+
+    ```tsx
+    const manifest = await fetchEdgeManifest("/models/risk/");
+    console.log(manifest.source?.file, manifest.source?.sha256.slice(0, 12));
+    ```
+
+    The `.pkl` itself does **not** travel to the browser, and that is not a
+    limitation: a pickle is a Python program, not data. What travels is the
+    ONNX plus a stamp naming the file that produced it — enough to trace a
+    model running in a tab back to the pipeline, six months later.
+
 ### Check the version without downloading the model
 
 ```tsx

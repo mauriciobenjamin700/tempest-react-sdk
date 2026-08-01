@@ -8,6 +8,15 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **Manifesto lê a procedência (`source`).** Pacote gerado pelo
+  `edge_pipeline_from_pickle` do `tempest-fastapi-sdk` (v0.193.0) carrega o
+  nome, o SHA-256 e a versão do scikit-learn que converteu o `.pkl`. Campo
+  **opcional**, `schema_version` continua `1`: pacote sem ele carrega igual.
+  O `.pkl` não viaja para o navegador — pickle é programa Python, não dado —
+  mas o carimbo de origem viaja, e é o que rastreia um modelo numa aba de
+  volta até a esteira de treino. A fixture dos testes passou a ser gerada
+  por esse caminho.
+
 - **`tempest-react-sdk/imaging` — processamento de imagem no navegador, para
   PWA em borda.** Sem dependência: é `createImageBitmap` mais canvas, com as
   armadilhas resolvidas. `resizeImage` (fit `contain`/`cover`/`fill`/`pad`,

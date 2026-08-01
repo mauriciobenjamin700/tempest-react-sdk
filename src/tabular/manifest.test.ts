@@ -60,6 +60,33 @@ describe("tabular · manifest", () => {
         expect(manifest.input.features).toBe(4);
     });
 
+    it("carries the provenance of a package built from a pickle", async () => {
+        /**
+         * The fixture is produced by `edge_pipeline_from_pickle`, so this
+         * asserts the field a browser can use to trace a running model back
+         * to the training artifact — the `.pkl` itself never ships.
+         */
+        servePackage();
+        const manifest = await fetchEdgeManifest("/models/risk/");
+        expect(manifest.source?.kind).toBe("pickle");
+        expect(manifest.source?.file).toMatch(/\.pkl$/);
+        expect(manifest.source?.sha256).toHaveLength(64);
+        expect(manifest.source?.sklearn_version).toMatch(/^\d+\./);
+    });
+
+    it("loads a package with no provenance block at all", async () => {
+        const manifest = JSON.parse(packageFile("manifest.json").toString()) as Record<
+            string,
+            unknown
+        >;
+        delete manifest.source;
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(async () => new Response(JSON.stringify(manifest))),
+        );
+        expect((await fetchEdgeManifest("/models/risk/")).source).toBeUndefined();
+    });
+
     it("carries the classes behind each probability column", async () => {
         servePackage();
         const manifest = await fetchEdgeManifest("/models/risk/");

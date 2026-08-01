@@ -70,6 +70,11 @@
       "import": "./dist/editor.js",
       "require": "./dist/editor.cjs"
     },
+    "./imaging": {
+      "types": "./dist/imaging.d.ts",
+      "import": "./dist/imaging.js",
+      "require": "./dist/imaging.cjs"
+    },
     "./tabular": {
       "types": "./dist/tabular.d.ts",
       "import": "./dist/tabular.js",

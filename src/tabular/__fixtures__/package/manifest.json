@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "name": "risk",
+  "version": "test-1",
+  "created_at": "2026-08-01T20:40:51.501096+00:00",
+  "sdk_version": "0.191.0",
+  "estimator": "Pipeline",
+  "model": {
+    "file": "risk.onnx",
+    "sha256": "8ea5a0b66f7bc9b46a3202e8c1cf8dda58f56ae90ec4671eb6cd1381fdb029bc",
+    "bytes": 631,
+    "gzip_file": "risk.onnx.gz",
+    "gzip_bytes": 490,
+    "opset": 15,
+    "dtype": "float32"
+  },
+  "input": {
+    "name": "input",
+    "features": 4,
+    "feature_names": ["age", "income", "tenure", "score"]
+  },
+  "output": {
+    "is_classifier": true,
+    "label_output": "label",
+    "probability_output": "probabilities",
+    "classes": ["0", "1", "2"]
+  },
+  "verified": true,
+  "verification": {
+    "passed": true,
+    "n_samples": 400,
+    "max_abs_diff": 2.4481157767652917e-7,
+    "label_agreement": 1.0,
+    "mismatched": 0,
+    "detail": "every sample kept its predicted class"
+  },
+  "baseline_file": "baseline.json",
+  "baseline_samples": 400
+}

@@ -136,6 +136,7 @@ plugins:
                     PWA & Offline-First: PWA & Offline-First
                     Web Share: Web Share
                     Áudio: Audio
+                    Tabular (scikit-learn): Tabular (scikit-learn)
                     Formulários: Forms
                     Forms (zod): Forms (zod)
                     Forms BR: Forms BR
@@ -250,6 +251,7 @@ nav:
                 - Web Share: share.md
                 - Áudio: audio.md
                 - Vision (ONNX): vision.md
+                - Tabular (scikit-learn): tabular.md
                 - Charts (recharts): charts.md
                 - Rich Text Editor (tiptap): editor.md
           - Formulários:

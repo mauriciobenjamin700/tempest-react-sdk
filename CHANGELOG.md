@@ -6,6 +6,42 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`tempest-react-sdk/tabular` — modelos de scikit-learn rodando no navegador,
+  offline.** Contraparte da camada de borda do `tempest-fastapi-sdk`: o mesmo
+  `.onnx` que `export_sklearn_to_onnx` produz, servido como asset estático e
+  executado no cliente. `TabularPredictor` (resolve nome de entrada e qual
+  saída é rótulo/score, valida largura da linha antes do runtime, `dispose()`),
+  `useTabularPredictor` (carga assíncrona, cancelamento no unmount, liberação da
+  sessão, `isReady`/`reload`), cache de modelo em Cache Storage
+  (`fetchModelBytes` cache-first, `isModelCached`, `cacheModelBytes`,
+  `clearModelCache`) e assets do runtime (`configureOrtAssets`, `ortAssetUrls`,
+  `ORT_WASM_ASSETS`). `onnxruntime-web` continua peer opcional; novo subpath
+  `./tabular` com budget de 6 KB.
+
+  **Quatro achados medidos em browser real, não deduzidos** — cada um vira erro
+  com instrução em vez de mensagem crua do runtime:
+
+  - Importar `onnxruntime-web/webgpu` carrega um WebAssembly **sem o domínio
+    `ai.onnx.ml`**, e a sessão nem abre (`No Op registered for
+TreeEnsembleClassifier`). Modelos sklearn são feitos desses operadores, então
+    o default é `["wasm"]` e o caso vira `UnsupportedGraphError`.
+  - O ONNX Runtime Web **não embute o `.wasm`**, nem nos builds `.bundle`: sem os
+    binários ao lado, falha com `Aborted(both async and sync fetching of the wasm
+failed)`. Daí `ortAssetUrls` existir para o precache.
+  - Rótulo int64 chega como `bigint` — `label === 1` dá `false` em silêncio e
+    `JSON.stringify` lança. Convertido para `number`.
+  - Export do `skl2onnx` com ZipMap (o default dele) devolve sequência de mapas,
+    que o runtime web recusa ler; o erro aponta `export_sklearn_to_onnx`.
+
+  Os testes do predictor rodam contra **modelos reais** exportados pelo
+  `tempest-fastapi-sdk` (fixtures de ~1,5 KB) e conferem rótulo e probabilidade
+  contra o que o scikit-learn prevê — mock testaria o contrato que eu escrevi, não
+  o que o ONNX Runtime tem. O `dist` construído foi verificado num Chromium real,
+  incluindo o caminho offline com `fetch` derrubado.
+
+  `error.name` é string literal em toda a hierarquia: com `new.target.name` o
+  build minificado reportava `error.name === "t"`.
+
 - **Aba "Design de Software" na documentação** — 11 páginas bilíngues ensinando o
   desenho do app que consome o SDK: camadas de um app frontend e a regra da seta
   única, estrutura de pastas por feature, fluxo de dados (`apiClient` → serviço →

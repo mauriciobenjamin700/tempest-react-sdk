@@ -41,6 +41,10 @@ export default defineConfig({
                 charts: resolve(__dirname, "src/charts/index.ts"),
                 // Rich text editor — tiptap is an optional peer, externalized.
                 editor: resolve(__dirname, "src/editor/index.ts"),
+                // Tabular inference — scikit-learn models exported to ONNX and
+                // run in the browser. Shares the optional `onnxruntime-web`
+                // peer with `vision`, externalized the same way.
+                tabular: resolve(__dirname, "src/tabular/index.ts"),
                 // Vision inference (vendored ort-vision-sdk-web) — onnxruntime-web
                 // is an optional peer, externalized. Entry is `public.ts`, which
                 // re-exports the vendored `index.ts` plus the SDK camera/luminance

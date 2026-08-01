@@ -216,6 +216,12 @@
     ]
   },
   {
+    "name": "tabular entry (onnxruntime-web external)",
+    "path": "dist/tabular.js",
+    "limit": "6 KB",
+    "ignore": ["onnxruntime-web", "react", "react-dom", "react/jsx-runtime"]
+  },
+  {
     "name": "vision entry (onnxruntime-web external)",
     "path": "dist/vision.js",
     "limit": "15 KB",

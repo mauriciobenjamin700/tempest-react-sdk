@@ -1191,7 +1191,37 @@ Numa conversa vazia as sugestões aparecem no rodapé da área de transcript; cl
     O único botão embaixo do dedo é sempre o que você quer a seguir: enviar quando está parado, abortar quando a resposta está vindo. Dois botões lado a lado significariam acertar o certo no meio do stream.
 
 !!! warning "Ação escondida em `:hover` é ação inexistente no touch"
-    A linha de ações aparece no hover e no foco de teclado, e fica **sempre** visível onde não existe hover (`@media (hover: none)`). Sem isso, num celular o primeiro toque cairia no que estiver embaixo.
+    A linha de ações aparece no hover e no foco de teclado, e fica **sempre** visível onde não existe hover (`@media (hover: none)`). Sem isso, num celular o primeiro toque cairia no que estiver embaixo. Verificado com device de toque emulado: `hover: none` e `pointer: coarse` verdadeiros, linha com `opacity: 1`.
+
+    Os botões medem 28×28 — acima do piso de 24×24 da WCAG 2.5.8, abaixo dos 44×44 da 2.5.5, e são **quatro** lado a lado. Em `pointer: coarse` um hit-slop de `::after` leva o alvo real a **44×44** sem mover um pixel do que se vê, o mesmo truque que o [`Button`](actions.md#button) usa nos tamanhos icon-only. Aumentar o `padding` em vez disso espalharia a linha no desktop, onde o ponteiro é preciso e a linha deve ficar quieta.
+
+#### Responsivo: de celular a TV
+
+Medido no browser em 360×640, 390×844, 740×360 (celular em paisagem), 768×1024, 1440×900, 1920×1080 e 3840×2160. Em **toda** largura: zero overflow horizontal na página e no transcript, composer sempre visível, tabela e bloco de código rolando **na própria caixa**.
+
+O que muda com a largura:
+
+| Faixa | O que acontece |
+| --- | --- |
+| até 480px | `gap` e `padding` do transcript encurtam, bolha do usuário e editor vão a `max-width: 100%` |
+| 480px – 768px | a coluna de leitura acompanha a largura disponível |
+| 768px e acima | a coluna trava em `48rem` e **centraliza**; a sobra fica de margem |
+
+!!! tip "A largura da coluna é um knob: `--tempest-ai-chat-width`"
+    Coluna limitada é a resposta certa do celular até um desktop 1920 — texto passando de ~90 caracteres por linha é mensuravelmente mais difícil de rastrear de volta ao começo da linha seguinte, e deixar a resposta correr a tela toda de um monitor largo piora, não ajuda.
+
+    De 2560 pra cima a troca se inverte: 768px no meio de uma tela de sala é quase só espaço vazio, e **só o app sabe** a que distância a pessoa está sentada. Por isso é knob e não constante:
+
+    ```css
+    :root {
+      --tempest-ai-chat-width: 72rem; /* default 48rem */
+    }
+    ```
+
+    Um valor só move os turnos, o indicador de "pensando", as sugestões **e** o composer juntos.
+
+!!! warning "Tamanho de tipo não é resolvido aqui"
+    A fonte é a mesma em 360px e em 4K. Escalar tipo pra TV é decisão de `typography.css` e `density.css` — uma rampa de fonte local ao componente brigaria com os tokens que todo app tematiza. Se você mira TV, suba `--tempest-text-*` no `:root` (ou use `[data-tempest-density="spacious"]`) junto com `--tempest-ai-chat-width`.
 
 #### `AIChatComposer` e `AIChatTurn`
 

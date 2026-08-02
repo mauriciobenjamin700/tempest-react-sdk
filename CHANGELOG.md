@@ -51,6 +51,36 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   celular é ação inexistente: o primeiro toque cairia no que estiver
   embaixo.
 
+### Responsivo
+
+- **Medido no browser em 360×640, 390×844, 740×360 (celular em
+  paisagem), 768×1024, 1440×900, 1920×1080 e 3840×2160.** Em toda
+  largura: zero overflow horizontal na página e no transcript, composer
+  sempre visível, tabela e bloco de código rolando na própria caixa.
+
+- **A largura da coluna de leitura virou knob:
+  `--tempest-ai-chat-width`** (default `48rem`), no lugar de `48rem`
+  fixo em cinco regras. Coluna limitada é a resposta certa do celular
+  até um desktop 1920, mas de 2560 pra cima a troca se inverte — 768px
+  no meio de uma tela de sala é quase só espaço vazio, e só o app sabe a
+  que distância a pessoa está sentada. Um valor move os turnos, o
+  indicador de "pensando", as sugestões e o composer juntos.
+
+  Tamanho de tipo **não** é resolvido no componente: escalar fonte pra
+  TV é decisão de `typography.css`/`density.css`, e uma rampa local
+  brigaria com os tokens que todo app tematiza.
+
+- **Alvo de toque das ações do turno vai a 44×44 em `pointer: coarse`**,
+  via hit-slop de `::after` que não move um pixel do que se vê — o mesmo
+  truque que o `Button` usa nos tamanhos icon-only. 28×28 passa o piso
+  de 24×24 da WCAG 2.5.8 mas fica abaixo dos 44×44 da 2.5.5, e são
+  quatro botões lado a lado. Mesmo tratamento no botão de voltar ao fim
+  do transcript.
+
+  Confirmado com device de toque emulado (`pointer: coarse` e
+  `hover: none` verdadeiros): a linha de ações fica com `opacity: 1` e o
+  alvo efetivo mede 44×44.
+
 ### Performance
 
 - **Só o turno que cresce re-parseia Markdown.** O elemento

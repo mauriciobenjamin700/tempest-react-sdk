@@ -77,14 +77,40 @@
     outline-offset: 2px;
 }
 
+/* Same 44×44 hit-slop as the turn actions: 2rem is a small target for a thumb. */
+@media (pointer: coarse) {
+    .jump::after {
+        content: "";
+        position: absolute;
+        inset: -6px;
+    }
+}
+
 /* --- turn ------------------------------------------------------------------ */
 
+/*
+ * Turns, the thinking row, the suggestions and the composer all share one reading
+ * column — `--tempest-ai-chat-width`, 48rem by default — centred in whatever width
+ * the panel got.
+ *
+ * A capped column is the right answer from a phone up to a 1920 desktop: prose past
+ * roughly 90 characters per line is measurably harder to track back to the start of
+ * the next line, and letting an answer run the full width of a wide monitor makes it
+ * worse, not more useful. It is deliberately a **knob** rather than a constant
+ * because at 2560 and above the trade flips — a 768px ribbon in the middle of a
+ * living-room screen is mostly empty room, and only the app knows how far away its
+ * user is sitting. Widen it at the root: `--tempest-ai-chat-width: 72rem`.
+ *
+ * Type size is **not** solved here. Scaling the font for a TV is a decision for
+ * `typography.css` and `density.css` — a component-local font ramp would fight the
+ * tokens every app themes through.
+ */
 .turn {
     display: flex;
     flex-direction: column;
     gap: var(--tempest-space-2);
     min-width: 0;
-    max-width: 48rem;
+    max-width: var(--tempest-ai-chat-width, 48rem);
     width: 100%;
     margin-inline: auto;
 }
@@ -259,7 +285,7 @@
     display: flex;
     align-items: center;
     gap: var(--tempest-space-2);
-    max-width: 48rem;
+    max-width: var(--tempest-ai-chat-width, 48rem);
     width: 100%;
     margin: 0 auto;
     color: var(--tempest-text-muted);
@@ -414,6 +440,7 @@
  * regardless of the order the two CSS modules land in `styles.css`.
  */
 .actions .action {
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -426,6 +453,24 @@
     color: var(--tempest-text-muted);
     cursor: pointer;
     transition: var(--tempest-transition-color);
+}
+
+/*
+ * Touch hit-slop — grows the tap target to 44×44 on a coarse pointer without moving
+ * a pixel of the visible button, the same trick `Button` uses for its icon-only
+ * sizes.
+ *
+ * 28×28 clears the 24×24 floor of WCAG 2.5.8 but sits well under the 44×44 of 2.5.5,
+ * and four of these sit side by side: on a phone, "copy" and "thumbs down" are two
+ * thumb-widths apart. Padding the button instead would space the row out on desktop,
+ * where the pointer is precise and the row should stay quiet.
+ */
+@media (pointer: coarse) {
+    .actions .action::after {
+        content: "";
+        position: absolute;
+        inset: -8px;
+    }
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -522,7 +567,7 @@
     flex-direction: column;
     align-items: flex-start;
     gap: var(--tempest-space-2);
-    max-width: 48rem;
+    max-width: var(--tempest-ai-chat-width, 48rem);
     width: 100%;
     margin: auto auto 0;
 }
@@ -576,7 +621,7 @@
     display: flex;
     align-items: flex-end;
     gap: var(--tempest-space-2);
-    max-width: 48rem;
+    max-width: var(--tempest-ai-chat-width, 48rem);
     width: 100%;
     margin-inline: auto;
     padding: var(--tempest-space-2);
@@ -619,7 +664,7 @@
 }
 
 .composerFooter {
-    max-width: 48rem;
+    max-width: var(--tempest-ai-chat-width, 48rem);
     width: 100%;
     margin-inline: auto;
     padding-inline: var(--tempest-space-2);

@@ -1182,7 +1182,37 @@ On an empty conversation the suggestions sit at the bottom of the transcript are
     The one button under your thumb is always the one you want next: send while idle, abort while the answer is coming. Two buttons side by side would mean aiming at the right one mid-stream.
 
 !!! warning "An action hidden behind `:hover` does not exist on touch"
-    The action row appears on hover and on keyboard focus, and is **always** visible where there is no hover at all (`@media (hover: none)`). Without that, on a phone the first tap would land on whatever is underneath.
+    The action row appears on hover and on keyboard focus, and is **always** visible where there is no hover at all (`@media (hover: none)`). Without that, on a phone the first tap would land on whatever is underneath. Verified with an emulated touch device: `hover: none` and `pointer: coarse` both true, row at `opacity: 1`.
+
+    The buttons measure 28×28 — above the 24×24 floor of WCAG 2.5.8, below the 44×44 of 2.5.5, and there are **four** of them side by side. Under `pointer: coarse` an `::after` hit-slop takes the real target to **44×44** without moving a pixel of what you see, the same trick [`Button`](actions.md#button) uses for its icon-only sizes. Growing the `padding` instead would space the row out on desktop, where the pointer is precise and the row should stay quiet.
+
+#### Responsive: from a phone to a TV
+
+Measured in a browser at 360×640, 390×844, 740×360 (phone in landscape), 768×1024, 1440×900, 1920×1080 and 3840×2160. At **every** width: zero horizontal overflow on the page and in the transcript, composer always visible, tables and code blocks scrolling **inside their own box**.
+
+What changes with width:
+
+| Range | What happens |
+| --- | --- |
+| up to 480px | transcript `gap` and `padding` tighten, the user bubble and the editor go to `max-width: 100%` |
+| 480px – 768px | the reading column follows the available width |
+| 768px and up | the column caps at `48rem` and **centres**; the rest becomes margin |
+
+!!! tip "The column width is a knob: `--tempest-ai-chat-width`"
+    A capped column is the right answer from a phone up to a 1920 desktop — prose past roughly 90 characters per line is measurably harder to track back to the start of the next line, and letting an answer run the full width of a wide monitor makes it worse, not more useful.
+
+    From 2560 up the trade flips: 768px in the middle of a living-room screen is mostly empty room, and **only the app knows** how far away its user is sitting. Hence a knob rather than a constant:
+
+    ```css
+    :root {
+      --tempest-ai-chat-width: 72rem; /* default 48rem */
+    }
+    ```
+
+    One value moves the turns, the thinking row, the suggestions **and** the composer together.
+
+!!! warning "Type size is not solved here"
+    The font is the same at 360px and at 4K. Scaling type for a TV is a decision for `typography.css` and `density.css` — a component-local font ramp would fight the tokens every app themes through. If you target TVs, raise `--tempest-text-*` at the root (or use `[data-tempest-density="spacious"]`) alongside `--tempest-ai-chat-width`.
 
 #### `AIChatComposer` and `AIChatTurn`
 

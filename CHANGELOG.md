@@ -4,6 +4,30 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.33.1] - 2026-08-02
+
+### Corrigido
+
+- **A rota compacta exigia `onnxruntime-web` instalado — o oposto do que ela
+  promete.** `src/tabular/assets.ts` importava o runtime no topo do módulo,
+  então importar `tempest-react-sdk/tabular` num projeto sem o peer lançava
+  `ERR_MODULE_NOT_FOUND`, mesmo para quem só ia usar o `CompactPredictor`.
+
+  O runtime passou a entrar por `import()` **dinâmico**, dentro do
+  `TabularPredictor.create` — o primeiro momento em que ele realmente
+  existe para ser usado. `configureOrtAssets` guarda o caminho e o predictor
+  o aplica na criação da sessão, então a API pública não mudou.
+
+  Sem o peer, a rota ONNX agora falha com `ModelLoadError` dizendo
+  `npm install onnxruntime-web` e apontando a alternativa compacta — em vez
+  de um erro de resolução de módulo.
+
+  **Achado instalando o pacote publicado num projeto vazio.** Nenhum teste
+  pegou: todos importavam módulos folha diretamente, e a árvore de
+  desenvolvimento sempre tem o peer instalado. Agora há guard
+  (`peer-independence.test.ts`) travando import estático nos módulos que o
+  barril alcança.
+
 ## [0.33.0] — 2026-08-02
 
 ## [0.32.1] — 2026-08-01

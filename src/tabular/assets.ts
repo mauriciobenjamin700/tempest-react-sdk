@@ -9,9 +9,14 @@
  *
  * So an offline app has to ship those binaries and precache them. This
  * module names them and points the runtime at a local directory.
+ *
+ * It does **not** import `onnxruntime-web`. An app on the compact route
+ * (`CompactPredictor`) has no runtime at all, and a module that imported
+ * one at load time would force every consumer of this subpath to install
+ * the peer — which is exactly the cost that route exists to avoid. The
+ * configured path is remembered here and applied by the ONNX predictor,
+ * which imports the runtime only when it actually loads a model.
  */
-
-import * as ort from "onnxruntime-web";
 
 /**
  * The WebAssembly binaries ONNX Runtime Web may request.
@@ -26,6 +31,8 @@ export const ORT_WASM_ASSETS: readonly string[] = [
     "ort-wasm-simd-threaded.jsep.wasm",
     "ort-wasm-simd-threaded.jsep.mjs",
 ];
+
+let configuredPath: string | undefined;
 
 /**
  * Point ONNX Runtime Web at locally served WebAssembly binaries.
@@ -43,7 +50,19 @@ export const ORT_WASM_ASSETS: readonly string[] = [
  *   `node_modules/onnxruntime-web/dist/`.
  */
 export function configureOrtAssets(basePath: string): void {
-    ort.env.wasm.wasmPaths = basePath.endsWith("/") ? basePath : `${basePath}/`;
+    configuredPath = basePath.endsWith("/") ? basePath : `${basePath}/`;
+}
+
+/**
+ * Where the runtime's binaries were said to live.
+ *
+ * Read by the ONNX predictor just before it creates a session, which is
+ * the first moment the runtime exists to be configured.
+ *
+ * @returns The configured directory, or `undefined` when none was set.
+ */
+export function configuredOrtAssetPath(): string | undefined {
+    return configuredPath;
 }
 
 /**

@@ -19,8 +19,9 @@
  *   position works until the day you deploy the other kind.
  */
 
-import * as ort from "onnxruntime-web";
+import type * as ort from "onnxruntime-web";
 
+import { configuredOrtAssetPath } from "./assets";
 import {
     FeatureShapeError,
     InferenceError,
@@ -35,6 +36,32 @@ import type {
     TabularPredictorInfo,
     TabularPredictorOptions,
 } from "./types";
+
+/**
+ * Import ONNX Runtime Web, only when a model is actually being loaded.
+ *
+ * Static import would make every consumer of this subpath install the peer,
+ * including apps that only ever touch `CompactPredictor` — whose whole
+ * point is not needing a runtime. Found by installing the published
+ * package into an empty project, which is the only place the difference
+ * shows.
+ *
+ * @returns The runtime module.
+ * @throws {@link ModelLoadError} when the peer is not installed, naming it.
+ */
+async function loadRuntime(): Promise<typeof ort> {
+    try {
+        return (await import("onnxruntime-web")) as typeof ort;
+    } catch (error) {
+        throw new ModelLoadError(
+            "The ONNX route needs the optional peer dependency: " +
+                "npm install onnxruntime-web. For a model with no runtime at " +
+                "all, export it with edge_pipeline(compact=True) and load it " +
+                "through CompactPredictor.",
+            { cause: error },
+        );
+    }
+}
 
 /**
  * Execution providers used when the caller does not choose.
@@ -163,6 +190,7 @@ function asRunError(error: unknown): Error {
  */
 export class TabularPredictor {
     private constructor(
+        private readonly runtime: typeof ort,
         private readonly session: ort.InferenceSession,
         /** What is loaded and how it is configured. */
         public readonly info: TabularPredictorInfo,
@@ -183,9 +211,13 @@ export class TabularPredictor {
         options: TabularPredictorOptions = {},
     ): Promise<TabularPredictor> {
         const providers = options.providers ?? DEFAULT_TABULAR_PROVIDERS;
+        const runtime = await loadRuntime();
+        const assets = configuredOrtAssetPath();
+        if (assets !== undefined) runtime.env.wasm.wasmPaths = assets;
+
         let session: ort.InferenceSession;
         try {
-            session = await ort.InferenceSession.create(source as never, {
+            session = await runtime.InferenceSession.create(source as never, {
                 ...(options.sessionOptions ?? {}),
                 executionProviders:
                     providers as ort.InferenceSession.SessionOptions["executionProviders"],
@@ -201,7 +233,7 @@ export class TabularPredictor {
             outputNames.find((name) => name !== probabilityOutput) ??
             (outputNames[0] as string);
 
-        const predictor = new TabularPredictor(session, {
+        const predictor = new TabularPredictor(runtime, session, {
             inputName: session.inputNames[0] as string,
             numFeatures: declaredFeatures(session),
             outputNames,
@@ -273,7 +305,7 @@ export class TabularPredictor {
         for (let index = 0; index < rows.length; index += 1) {
             flat.set(rows[index] as number[], index * width);
         }
-        const tensor = new ort.Tensor("float32", flat, [rows.length, width]);
+        const tensor = new this.runtime.Tensor("float32", flat, [rows.length, width]);
 
         const started = performance.now();
         let outputs: ort.InferenceSession.OnnxValueMapType;

@@ -69,6 +69,17 @@ approximate.
     The file is **data, never code**: no generated JavaScript, no `eval`,
     nothing a strict CSP forbids.
 
+!!! check "Works with `onnxruntime-web` not installed at all"
+    Verified by packing the SDK and installing it into an empty project with
+    no peer: the barrel imports, `CompactPredictor` predicts, and it matches
+    scikit-learn. Asking for the ONNX route there fails with an error naming
+    `npm install onnxruntime-web` and pointing at the compact alternative.
+
+    This broke in 0.33.0 — the assets module imported the runtime at the top,
+    so an app that only wanted route A had to install 25.6 MB of wasm anyway.
+    Fixed in 0.33.1: the runtime is behind a dynamic `import()`, reached only
+    when an ONNX model is loaded. A guard test pins it.
+
 ### B — Minimal runtime (`.ort` plus your own build)
 
 ```tsx

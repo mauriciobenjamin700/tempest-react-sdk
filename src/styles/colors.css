@@ -21,6 +21,23 @@
     --tempest-primary-soft: var(--tempest-primary-50);
     --tempest-primary-soft-hover: var(--tempest-primary-100);
     --tempest-primary-foreground: #ffffff;
+
+    /* Text that sits ON a saturated status fill.
+     *
+     * `#ffffff` is not universally safe here and never was. Measured against the
+     * light theme's own fills: white on `--tempest-success-solid` is 3.30:1 and on
+     * `--tempest-warning-solid` 3.19:1 — both under the 4.5:1 floor for text, in the
+     * DEFAULT theme. Mid-green and amber simply cannot carry white text; every design
+     * system that ships them puts dark text on top.
+     *
+     * So the foreground is a token per status instead of a hardcoded white, and the
+     * ink is a near-black tinted toward its own hue rather than pure black, which
+     * reads as part of the swatch instead of a hole in it. Verified for base, hover
+     * and active of each status, in both themes — worst case 4.83:1. */
+    --tempest-danger-on-solid: #ffffff;
+    --tempest-info-on-solid: #ffffff;
+    --tempest-success-on-solid: #1f0606;
+    --tempest-warning-on-solid: #1f0606;
     /* Text/icon color for content sitting on --tempest-primary-soft. The plain
        --tempest-primary only reaches 4.37:1 over that tint, which fails WCAG AA
        for body text; the 600 shade lands at ~6.2:1. */
@@ -274,8 +291,15 @@
     --tempest-primary-900: #dbeafe;
 
     --tempest-primary: var(--tempest-primary-500);
-    --tempest-primary-hover: var(--tempest-primary-400);
-    --tempest-primary-active: var(--tempest-primary-300);
+    /* Hover and active go LIGHTER here, not darker.
+     *
+     * This scale is inverted for the dark theme — 300 is the darkest step, 900 the
+     * lightest — so reaching for 400/300 on hover made a button get *darker* under the
+     * pointer, which is the light-theme gesture applied to a dark surface. It also made
+     * the fill outrun its own text: no single foreground cleared 4.5:1 against
+     * #3b82f6, #2563eb and #1a4399 at once. Going up the ramp fixes both. */
+    --tempest-primary-hover: var(--tempest-primary-600);
+    --tempest-primary-active: var(--tempest-primary-700);
     --tempest-primary-soft: var(--tempest-primary-100);
     --tempest-primary-soft-hover: var(--tempest-primary-200);
     /* Dark theme inverts the ramp: the tint is dark, so the readable text is a
@@ -291,6 +315,19 @@
     --tempest-text: #f1f3f8;
     --tempest-text-muted: #aab2c0;
     --tempest-text-subtle: #6f7889;
+
+    /* Dark theme uses lighter fills, so every status carries dark ink — including
+     * primary and danger, which could still take white in the light theme.
+     *
+     * `--tempest-primary-foreground` is the "on primary" token and always was: all 16
+     * uses of it in the SDK sit on `--tempest-primary`. White there measures 3.68:1
+     * against the dark theme's #3b82f6, so it is overridden rather than duplicated by
+     * a new name. */
+    --tempest-primary-foreground: #1f0606;
+    --tempest-danger-on-solid: #1f0606;
+    --tempest-info-on-solid: #1f0606;
+    --tempest-success-on-solid: #1f0606;
+    --tempest-warning-on-solid: #1f0606;
 
     --tempest-success-fg: #4ade80;
     --tempest-success-bg: #052e16;
@@ -309,7 +346,8 @@
     --tempest-danger-border: #7f1d1d;
     --tempest-danger-solid: #ef4444;
     --tempest-danger: #f87171;
-    --tempest-danger-hover: #ef4444;
+    /* Lighter than the base fill, matching the primary ramp above. */
+    --tempest-danger-hover: #f87171;
 
     --tempest-info-fg: #60a5fa;
     --tempest-info-bg: #0a1730;

@@ -8,7 +8,6 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 - **Captura de áudio: gravação, permissão, dispositivos e saída de som.**
   Fatia inteira em **5,50 KB brotli**, sem uma dependência nova.
-
   | Export                                                                      | O que resolve                                                                                 |
   | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
   | `AudioRecorder`                                                             | nota de voz completa: permissão, medidor de nível, relógio, pausar/continuar, revisão, retake |
@@ -23,42 +22,44 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   | `classifyMediaError` · `missingCaptureApiError` · `isMediaCaptureSupported` | a taxonomia de erro, reusável                                                                 |
   | `formatDuration`                                                            | `mm:ss`, e `--:--` pra duração desconhecida                                                   |
   | `AUDIO_MIME_CANDIDATES` · `pickAudioMimeType` · `isAudioRecordingSupported` | negociação de container                                                                       |
-
-  **O prompt de permissão não dispara no mount.** Um prompt que o usuário
-  não provocou é a forma mais confiável de ganhar um Block permanente, e
-  depois disso o `getUserMedia` rejeita sem nunca mais perguntar. O
-  microfone abre no primeiro toque em Gravar, e o toque sobrevive ao
-  round-trip — o componente arma a gravação e começa quando o stream
-  chega, porque esperar um segundo clique faria o primeiro parecer
-  quebrado. Quando a permissão já está `denied`, o componente diz isso e
-  como resolver, em vez de oferecer um botão que não pode funcionar.
-
-  **O relógio é nosso, não do `MediaRecorder`.** Ele não reporta duração,
-  e o WebM que ele escreve não traz duração no header — daí `<audio>`
-  mostrar `Infinity` numa gravação fresca. O relógio também **desconta
-  pausa**: um que contasse wall-clock reportaria uma nota de 30 s como
-  dois minutos. O `AudioPlayer` aceita `durationMs` por isso, e sem ele
-  aplica o único contorno que existe (buscar além do fim pra forçar o
-  demux até o último frame).
-
-  **Codec:** default negocia `webm;codecs=opus` → `webm` → `ogg;opus` →
-  `mp4;mp4a.40.2` → `mp4`, e `AudioRecording.mimeType` é o que o browser
-  reportou, não o que foi pedido. `MediaRecorder` **não** produz MP3 nem
-  WAV em navegador nenhum: WAV virou `blobToWav` no cliente (decodifica
-  com o decoder do próprio browser, reencoda RIFF/PCM 16-bit — zero
-  dependência; `{ mono: true, sampleRate: 16000 }` leva 500 KB pra
-  ~80 KB), e MP3 ficou de fora com motivo escrito na doc: um encoder WASM
-  de ~150 KB no bundle de **todo** consumidor pra servir um formato é a
-  troca que este SDK não faz. Transcodifique no servidor.
-
-  **`useMicrophone().stop()` não é opcional.** Soltar a referência de um
-  `MediaStream` não desliga o microfone: cada track tem que ser parada à
-  mão, senão o indicador de gravação do browser fica aceso, o SO mantém o
-  dispositivo ocupado, e o próximo `getUserMedia` falha com
-  `NotReadableError`. O hook para as tracks no `stop()`, no unmount e
-  antes de reabrir. O gravador **não** é dono do stream: `stop()` deixa o
-  microfone aberto de propósito, pra um retake não precisar de outro
-  round-trip de permissão.
+  | **O prompt de permissão não dispara no mount.** Um prompt que o usuário     |
+  | não provocou é a forma mais confiável de ganhar um Block permanente, e      |
+  | depois disso o `getUserMedia` rejeita sem nunca mais perguntar. O           |
+  | microfone abre no primeiro toque em Gravar, e o toque sobrevive ao          |
+  | round-trip — o componente arma a gravação e começa quando o stream          |
+  | chega, porque esperar um segundo clique faria o primeiro parecer            |
+  | quebrado. Quando a permissão já está `denied`, o componente diz isso e      |
+  | como resolver, em vez de oferecer um botão que não pode funcionar.          |
+  | **O relógio é nosso, não do `MediaRecorder`.** Ele não reporta duração,     |
+  | e o WebM que ele escreve não traz duração no header — daí `<audio>`         |
+  | mostrar `Infinity` numa gravação fresca. O relógio também **desconta        |
+  | pausa**: um que contasse wall-clock reportaria uma nota de 30 s como        |
+  | dois minutos. O `AudioPlayer` aceita `durationMs` por isso, e sem ele       |
+  | aplica o único contorno que existe (buscar além do fim pra forçar o         |
+  | demux até o último frame).                                                  |
+  | **Codec:** default negocia `webm;codecs=opus` → `webm` → `ogg;opus` →       |
+  | `mp4;mp4a.40.2` → `mp4`, e `AudioRecording.mimeType` é o que o browser      |
+  | reportou, não o que foi pedido. `MediaRecorder` **não** produz MP3 nem      |
+  | WAV em navegador nenhum: WAV virou `blobToWav` no cliente (decodifica       |
+  | com o decoder do próprio browser, reencoda RIFF/PCM 16-bit — zero           |
+  | dependência; `{ mono: true, sampleRate: 16000 }` leva 500 KB pra            |
+  | ~80 KB), e MP3 ficou de fora com motivo escrito na doc: um encoder WASM     |
+  | de ~150 KB no bundle de **todo** consumidor pra servir um formato é a       |
+  | troca que este SDK não faz. Transcodifique no servidor.                     |
+  | **`useMicrophone().stop()` não é opcional.** Soltar a referência de um      |
+  | `MediaStream` não desliga o microfone: cada track tem que ser parada à      |
+  | mão, senão o indicador de gravação do browser fica aceso, o SO mantém o     |
+  | dispositivo ocupado, e o próximo `getUserMedia` falha com                   |
+  | `NotReadableError`. O hook para as tracks no `stop()`, no unmount e         |
+  | antes de reabrir. O gravador **não** é dono do stream: `stop()` deixa o     |
+  | microfone aberto de propósito, pra um retake não precisar de outro          |
+  | round-trip de permissão.                                                    |
+- **`src/styles/contrast.test.ts` — guard de contraste que calcula a razão de
+  cada par (texto, fundo) direto do `colors.css`, nos dois temas.** É a peça que
+  impede a classe inteira de voltar: o `axe` do jsdom desliga `color-contrast`
+  porque não há paint, então isso passava por todo o CI verde e só aparecia no
+  browser de alguém. Verifiquei que o guard **reprova** quando o bug antigo é
+  reintroduzido, nos dois temas — guard que não exercita o caso é decorativo.
 
 ### Corrigido
 
@@ -70,11 +71,9 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `--tempest-danger-bg` passa nos dois temas (8,2:1 light, 6,57:1 dark),
   e é o par usado, com borda em `--tempest-danger` pra o controle
   continuar inconfundível.
-
   O `Button variant="danger"` do SDK usa o par sólido e mede o mesmo
   3,76:1 em dark — **defeito pré-existente**, fora do escopo deste PR,
   registrado aqui porque a medição saiu daqui.
-
 - **`useMicrophone` reportava `unknown` quando o `navigator.mediaDevices`
   não existe em contexto seguro.** Deveria ser `unsupported`: um
   `mediaDevices` ausente é quase nunca "este navegador não faz áudio" — é
@@ -82,6 +81,39 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   opostas (uma URL vs. outro navegador). Virou
   `missingCaptureApiError()`, que checa contexto seguro primeiro. Pego por
   teste.
+- **`#ffffff` sobre preenchimento de status reprovava o contraste de texto —
+  inclusive no tema claro, que é o default.** Medido a partir do próprio
+  `colors.css`:
+  | Par                                                                             | Light    | Dark     |
+  | ------------------------------------------------------------------------------- | -------- | -------- |
+  | branco / `--tempest-primary`                                                    | 4,83     | **3,68** |
+  | branco / `--tempest-danger-solid`                                               | 4,83     | **3,76** |
+  | branco / `--tempest-info-solid`                                                 | 5,17     | **3,68** |
+  | branco / `--tempest-success-solid`                                              | **3,30** | **2,28** |
+  | branco / `--tempest-warning-solid`                                              | **3,19** | **2,15** |
+  | Verde médio e âmbar não carregam texto branco em tema nenhum — é por isso que   |
+  | todo design system que os embarca põe texto escuro em cima. Entram              |
+  | `--tempest-danger-on-solid`, `--tempest-success-on-solid`,                      |
+  | `--tempest-warning-on-solid` e `--tempest-info-on-solid`, e o                   |
+  | `--tempest-primary-foreground` (que já era o "on primary": **todos** os 16 usos |
+  | dele no SDK ficam sobre `--tempest-primary`) ganhou valor próprio no dark. A    |
+  | tinta escura é um quase-preto puxado pro matiz (`#1f0606`), não preto puro.     |
+  | Atinge `Button` (`primary`, `danger`, `success`), `Alert` e `Badge` nas         |
+  | variantes `solid`, e os badges de `NavigationRail` e `BottomNavigation` — que   |
+  | pediam `var(--tempest-danger-on, #fff)`, um token que **nunca existiu** e caía  |
+  | no fallback branco.                                                             |
+- **No tema escuro, `--tempest-primary-hover` e `-active` escureciam em vez de
+  clarear.** A escala é invertida no dark (300 é o passo mais escuro), então
+  pegar 400/300 aplicava o gesto do tema claro numa superfície escura — e fazia o
+  preenchimento fugir do próprio texto: nenhum foreground único passava 4,5:1
+  contra `#3b82f6`, `#2563eb` e `#1a4399` ao mesmo tempo. Agora sobem a rampa
+  (600/700). `--tempest-danger-hover` no dark, que era igual ao próprio
+  `danger-solid`, também clareia.
+- **Texto sobre `--tempest-primary-soft` usava `--tempest-primary-active`, um
+  token de preenchimento.** No dark isso era azul escuro sobre azul escuro:
+  **1,65:1**. Corrigido para `--tempest-primary-on-soft` em `Badge`, `Button`,
+  `Combobox`, `DateRangePicker` e `MultiSelect` — a regra que o `docs/styles.md`
+  já documentava e o código não seguia.
 
 ### Alterado
 
@@ -90,11 +122,9 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   devolvido por `createAudioPlayer()` sempre foi um handle — alinha com
   `ChatComposerHandle` e `SignaturePadHandle`, que o SDK já usa.
   Migração: `import type { AudioPlayerHandle } from "tempest-react-sdk"`.
-
 - **`playAudio` e `createAudioPlayer` aceitam `sinkId`**, aplicado antes
   do `play()` — aplicar num elemento já tocando reinicia o pipeline de
   áudio e corta os primeiros milissegundos.
-
 - **Budgets do `size-limit`**: nova fatia `slice: audio capture` com teto
   de 7 KB (mede 5,50 KB). Tetos do barrel subiram: ESM 98 → 103 kB, CJS
   118 → 124 kB.
@@ -108,10 +138,16 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   nível não é enfeite — entrada mutada no SO grava silêncio **com
   sucesso**, e sem nível visível o usuário só descobre depois de terminar
   de falar.
-
 - **`AudioRecorder` e `AudioPlayer` no gallery** numa seção que grava de
   verdade — nada mockado, porque um gravador falso esconde exatamente os
   estados que valem olhar.
+- **`styles` ganhou a seção `*-on-solid`** (PT-BR + EN-US) com os números
+  medidos, a explicação da rampa invertida do dark e o ponteiro pro guard.
+- **Gallery: o rótulo da amostra de paleta saiu de dentro da cor.** Escolher a
+  cor do rótulo por número de passo (`step >= 500 ? "#fff"`) não pode funcionar
+  com a escala invertida do dark, onde ≥500 é a metade **clara** — media 3,14:1.
+  O rótulo agora fica embaixo da amostra, o que remove a questão em vez de
+  ajustá-la.
 
 ## [0.35.0] — 2026-08-02
 

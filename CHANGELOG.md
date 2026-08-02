@@ -10,6 +10,39 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **Três rotas para rodar sklearn no navegador, à escolha do app.** O custo
+  não é o modelo: `onnxruntime-web` são **25,6 MB de WebAssembly** (6,0 MB
+  gzipped) antes da primeira predição, contra 20 KB de uma floresta em ONNX.
+
+  - **A — `CompactPredictor`, sem runtime nenhum.** Lê o formato `.tmc` que o
+    `export_sklearn_to_compact` do `tempest-fastapi-sdk` escreve. Modelo
+    linear é produto escalar, árvore é comparação encadeada: ~2 KB de leitor
+    no lugar de 6 MB gzipped. Cobre linear, árvore, floresta, extra-trees,
+    seus regressores e `StandardScaler`/`MinMaxScaler` em Pipeline; o que não
+    cobre, **recusa exportar** em vez de aproximar.
+  - **B — `.ort` com build mínimo do ORT.** Testado: o bundle padrão carrega
+    `.ort` normalmente, então dá para preparar a rota antes de compilar o
+    runtime sob medida. Documentado com a medição que evita a ilusão — o
+    `.ort` **aumenta** o arquivo (526 B → 2.360 B); quem encolhe é o binário
+    do runtime.
+  - **C — ONNX padrão.** Continua igual, e é a escolha certa quando o app já
+    carrega `onnxruntime-web` para outra coisa: custo marginal zero,
+    cobertura total.
+
+  `loadEdgePackage(url, { runtime: "auto" | "compact" | "onnx" })` escolhe.
+  `"auto"` prefere a compacta quando o pacote a carrega. Pedir `"compact"`
+  num pacote sem ela **dá erro dizendo isso**, em vez de baixar 25 MB de
+  WebAssembly em silêncio.
+
+  **As duas rotas devolvem o mesmo objeto, inclusive o tipo do rótulo.** O
+  teste que fechou isso pegou uma divergência real: a rota compacta devolvia
+  `"0"` onde o ONNX devolve `0`. O formato passou a gravar o dtype das
+  classes do scikit-learn, e trocar de rota deixou de mexer no código do app.
+
+  Testes cross-language: as fixtures são geradas pelo Python junto das saídas
+  do scikit-learn, e o leitor JS reproduz rótulos idênticos e probabilidades
+  em 5 casas nas 7 famílias.
+
 - **Manifesto lê a procedência (`source`).** Pacote gerado pelo
   `edge_pipeline_from_pickle` do `tempest-fastapi-sdk` (v0.193.0) carrega o
   nome, o SHA-256 e a versão do scikit-learn que converteu o `.pkl`. Campo

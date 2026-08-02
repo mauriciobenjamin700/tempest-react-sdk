@@ -20,6 +20,110 @@ console.log(labels[0], probabilities[0]);
 0 [0.6662, 0.1061, 0.2277]
 ```
 
+## Três rotas, você escolhe
+
+Rodar sklearn no navegador tem um custo que não é o modelo. Medido:
+
+| | Tamanho |
+| --- | --- |
+| Runtime `onnxruntime-web` (`.wasm`) | **25,6 MB** — 6,0 MB gzipped |
+| Floresta de 12 árvores em ONNX | 20 KB |
+| A mesma em formato compacto | 9,6 KB |
+| O leitor compacto (código do SDK) | **1,49 KB** brotli |
+
+O modelo é ruído. **O runtime é a conta.** Daí existirem três caminhos, e o
+certo depender do que o seu app já carrega.
+
+### A — Sem runtime (`CompactPredictor`)
+
+```python
+# Python, no build
+package = edge_pipeline(model, X_train, "dist/risk", labels=y_train, compact=True)
+```
+
+```tsx
+import { loadEdgePackage } from "tempest-react-sdk/tabular";
+
+const pkg = await loadEdgePackage("/models/risk/");
+console.log(pkg.runtime); // "compact"
+```
+
+Sem WebAssembly, sem `onnxruntime-web`, sem peer dependency. Modelo linear é
+produto escalar; árvore é comparação encadeada — isso cabe em 1,49 KB de
+JavaScript (medido, brotli).
+
+**Cobre** linear (logística, linear, ridge, SGD, SVC linear), árvore,
+floresta, extra-trees, regressores dos mesmos, e `StandardScaler`/
+`MinMaxScaler` dentro de Pipeline.
+**Não cobre** gradient boosting, MLP, ou qualquer transformação que não seja
+`(x - offset) / escala` — e **recusa exportar** em vez de aproximar.
+
+!!! check "Verificado contra o scikit-learn, não contra a minha ideia do formato"
+    O exportador compara o arquivo escrito com as predições do próprio
+    estimador e **se recusa a gravar** se discordarem. Do lado do navegador,
+    os testes rodam contra fixtures geradas pelo Python junto das saídas do
+    scikit-learn — 7 famílias, rótulos idênticos e probabilidades batendo em
+    5 casas.
+
+    O arquivo é **dado, nunca código**: nada de JavaScript gerado, nada de
+    `eval`, nada que uma CSP estrita proíba.
+
+### B — Runtime mínimo (`.ort` + build próprio)
+
+```tsx
+import { configureOrtAssets, TabularPredictor } from "tempest-react-sdk/tabular";
+
+configureOrtAssets("/ort-minimal/");
+const predictor = await TabularPredictor.create("/models/classifier.ort");
+```
+
+O `export_onnx_to_ort` do `tempest-fastapi-sdk` gera o `.ort` **e** o
+`required_operators.config`, que é o que permite compilar um ONNX Runtime só
+com os operadores do seu modelo. Aponte `configureOrtAssets` para esse build.
+
+!!! warning "O `.ort` sozinho não economiza — ele aumenta"
+    Medido: 526 B de ONNX viram **2.360 B** de `.ort`; uma floresta de 266 KB
+    vira 650 KB. O `.ort` é formato de carregamento, não de compressão.
+
+    Quem encolhe é o **runtime compilado sob medida**, e isso custa
+    compilar o ORT do zero (Docker, horas) e manter esse build. O bundle
+    padrão lê `.ort` normalmente — testado — então dá para preparar a rota
+    antes de ter o build.
+
+### C — ONNX padrão (`TabularPredictor`)
+
+```tsx
+const pkg = await loadEdgePackage("/models/risk/", { runtime: "onnx" });
+```
+
+O caminho de sempre. **Custo marginal zero se o app já carrega
+`onnxruntime-web`** — por exemplo se usa `tempest-react-sdk/vision`. Aí o
+runtime já foi pago e o ONNX cobre qualquer estimador.
+
+### Como decidir
+
+| Situação | Rota |
+| --- | --- |
+| PWA só com modelo tabular | **A** — 6 MB gzipped a menos |
+| App já roda visão/ONNX | **C** — custo marginal zero, cobertura total |
+| Precisa de gradient boosting, MLP, pipeline complexo | **C** |
+| Precisa de cobertura ampla **e** binário pequeno | **B** |
+| Modelo muda toda semana e o time só publica `.pkl` | Qualquer uma — a esteira é a mesma |
+
+!!! tip "A escolha não vaza para o seu código"
+    As duas rotas devolvem o mesmo objeto: `predict(rows)` com `labels`,
+    `probabilities`, `numRows` e `ms` — **inclusive o tipo do rótulo**
+    (`0`, não `"0"`, quando o scikit-learn usou inteiro). Trocar de rota é
+    mudar uma opção, não reescrever a tela.
+
+    ```tsx
+    const pkg = await loadEdgePackage("/models/risk/", { runtime: "auto" });
+    ```
+
+    `"auto"` pega a compacta quando o pacote tem, e ONNX quando não tem.
+    Pedir `"compact"` num pacote que não a carrega dá erro dizendo isso —
+    em vez de baixar 25 MB de WebAssembly em silêncio.
+
 ## Quando isso vale a pena
 
 | Vale | Não vale |

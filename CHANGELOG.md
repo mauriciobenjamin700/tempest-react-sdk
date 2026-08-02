@@ -4,6 +4,115 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **Captura de áudio: gravação, permissão, dispositivos e saída de som.**
+  Fatia inteira em **5,50 KB brotli**, sem uma dependência nova.
+
+  | Export                                                                      | O que resolve                                                                                 |
+  | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+  | `AudioRecorder`                                                             | nota de voz completa: permissão, medidor de nível, relógio, pausar/continuar, revisão, retake |
+  | `AudioPlayer`                                                               | transporte pra um clipe; aceita `Blob`, com `sinkId` e revoke automático do object URL        |
+  | `useMediaPermission`                                                        | estado da permissão **sem** disparar o prompt                                                 |
+  | `useMediaDevices`                                                           | mics e saídas, reage a `devicechange`, expõe `labelsAvailable`                                |
+  | `useMicrophone`                                                             | stream + erro classificado + release correto das tracks                                       |
+  | `useAudioRecorder`                                                          | status, relógio que desconta pausa, nível, `maxDurationMs`, chunks                            |
+  | `createAudioRecorder` · `createLevelMeter`                                  | as duas peças imperativas, sem React                                                          |
+  | `blobToWav` · `encodeWav`                                                   | WAV 16-bit sem dependência, com `mono`/`sampleRate`                                           |
+  | `setAudioOutput` · `isAudioOutputSelectionSupported`                        | roteamento de saída (`setSinkId`)                                                             |
+  | `classifyMediaError` · `missingCaptureApiError` · `isMediaCaptureSupported` | a taxonomia de erro, reusável                                                                 |
+  | `formatDuration`                                                            | `mm:ss`, e `--:--` pra duração desconhecida                                                   |
+  | `AUDIO_MIME_CANDIDATES` · `pickAudioMimeType` · `isAudioRecordingSupported` | negociação de container                                                                       |
+
+  **O prompt de permissão não dispara no mount.** Um prompt que o usuário
+  não provocou é a forma mais confiável de ganhar um Block permanente, e
+  depois disso o `getUserMedia` rejeita sem nunca mais perguntar. O
+  microfone abre no primeiro toque em Gravar, e o toque sobrevive ao
+  round-trip — o componente arma a gravação e começa quando o stream
+  chega, porque esperar um segundo clique faria o primeiro parecer
+  quebrado. Quando a permissão já está `denied`, o componente diz isso e
+  como resolver, em vez de oferecer um botão que não pode funcionar.
+
+  **O relógio é nosso, não do `MediaRecorder`.** Ele não reporta duração,
+  e o WebM que ele escreve não traz duração no header — daí `<audio>`
+  mostrar `Infinity` numa gravação fresca. O relógio também **desconta
+  pausa**: um que contasse wall-clock reportaria uma nota de 30 s como
+  dois minutos. O `AudioPlayer` aceita `durationMs` por isso, e sem ele
+  aplica o único contorno que existe (buscar além do fim pra forçar o
+  demux até o último frame).
+
+  **Codec:** default negocia `webm;codecs=opus` → `webm` → `ogg;opus` →
+  `mp4;mp4a.40.2` → `mp4`, e `AudioRecording.mimeType` é o que o browser
+  reportou, não o que foi pedido. `MediaRecorder` **não** produz MP3 nem
+  WAV em navegador nenhum: WAV virou `blobToWav` no cliente (decodifica
+  com o decoder do próprio browser, reencoda RIFF/PCM 16-bit — zero
+  dependência; `{ mono: true, sampleRate: 16000 }` leva 500 KB pra
+  ~80 KB), e MP3 ficou de fora com motivo escrito na doc: um encoder WASM
+  de ~150 KB no bundle de **todo** consumidor pra servir um formato é a
+  troca que este SDK não faz. Transcodifique no servidor.
+
+  **`useMicrophone().stop()` não é opcional.** Soltar a referência de um
+  `MediaStream` não desliga o microfone: cada track tem que ser parada à
+  mão, senão o indicador de gravação do browser fica aceso, o SO mantém o
+  dispositivo ocupado, e o próximo `getUserMedia` falha com
+  `NotReadableError`. O hook para as tracks no `stop()`, no unmount e
+  antes de reabrir. O gravador **não** é dono do stream: `stop()` deixa o
+  microfone aberto de propósito, pra um retake não precisar de outro
+  round-trip de permissão.
+
+### Corrigido
+
+- **`AudioRecorder`: o botão Parar não usa vermelho sólido com texto
+  branco.** Medido no browser real: branco sobre `--tempest-danger-solid`
+  dá **3,76:1** no tema dark, abaixo do piso de 4,5:1 para texto — e todas
+  as variantes sólidas reprovam lá (`--tempest-danger` dá 2,77:1 contra
+  branco em dark, `-hover` 3,76:1). Só `--tempest-danger-fg` sobre
+  `--tempest-danger-bg` passa nos dois temas (8,2:1 light, 6,57:1 dark),
+  e é o par usado, com borda em `--tempest-danger` pra o controle
+  continuar inconfundível.
+
+  O `Button variant="danger"` do SDK usa o par sólido e mede o mesmo
+  3,76:1 em dark — **defeito pré-existente**, fora do escopo deste PR,
+  registrado aqui porque a medição saiu daqui.
+
+- **`useMicrophone` reportava `unknown` quando o `navigator.mediaDevices`
+  não existe em contexto seguro.** Deveria ser `unsupported`: um
+  `mediaDevices` ausente é quase nunca "este navegador não faz áudio" — é
+  uma página em HTTP, e a distinção importa porque as correções são
+  opostas (uma URL vs. outro navegador). Virou
+  `missingCaptureApiError()`, que checa contexto seguro primeiro. Pego por
+  teste.
+
+### Alterado
+
+- **O tipo `AudioPlayer` virou `AudioPlayerHandle`** (breaking, só de
+  tipo). O nome `AudioPlayer` passou a ser o componente, e o tipo
+  devolvido por `createAudioPlayer()` sempre foi um handle — alinha com
+  `ChatComposerHandle` e `SignaturePadHandle`, que o SDK já usa.
+  Migração: `import type { AudioPlayerHandle } from "tempest-react-sdk"`.
+
+- **`playAudio` e `createAudioPlayer` aceitam `sinkId`**, aplicado antes
+  do `play()` — aplicar num elemento já tocando reinicia o pipeline de
+  áudio e corta os primeiros milissegundos.
+
+- **Budgets do `size-limit`**: nova fatia `slice: audio capture` com teto
+  de 7 KB (mede 5,50 KB). Tetos do barrel subiram: ESM 98 → 103 kB, CJS
+  118 → 124 kB.
+
+### Documentação
+
+- **`audio` deixou de ser só reprodução.** A página ganhou a metade de
+  captura em PT-BR e EN-US, no padrão tutorial: componente primeiro,
+  depois os hooks, com tabela de estados de permissão, taxonomia de erro
+  classificado, o que dá e o que não dá em formato, e por que medidor de
+  nível não é enfeite — entrada mutada no SO grava silêncio **com
+  sucesso**, e sem nível visível o usuário só descobre depois de terminar
+  de falar.
+
+- **`AudioRecorder` e `AudioPlayer` no gallery** numa seção que grava de
+  verdade — nada mockado, porque um gravador falso esconde exatamente os
+  estados que valem olhar.
+
 ## [0.35.0] — 2026-08-02
 
 ### Adicionado

@@ -1,0 +1,109 @@
+.player {
+    display: flex;
+    align-items: center;
+    gap: var(--tempest-space-3);
+    min-width: 0;
+    padding: var(--tempest-space-2) var(--tempest-space-3);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-lg);
+    background-color: var(--tempest-surface);
+    color: var(--tempest-text);
+    font-family: var(--tempest-font-sans);
+}
+
+.transport {
+    position: relative;
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    border: none;
+    border-radius: var(--tempest-radius-full);
+    background-color: var(--tempest-primary);
+    color: var(--tempest-primary-foreground);
+    cursor: pointer;
+    transition: var(--tempest-transition-color);
+}
+
+.transport:disabled {
+    background-color: var(--tempest-surface-3);
+    color: var(--tempest-text-subtle);
+    cursor: not-allowed;
+}
+
+.transport:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .transport {
+        transition: none;
+    }
+}
+
+/*
+ * The track is drawn on the input itself rather than with a wrapper and an overlay:
+ * the native element already carries the keyboard behaviour and the value semantics,
+ * and the only thing missing is the look.
+ */
+.seek {
+    flex: 1 1 auto;
+    min-width: 3rem;
+    height: 1.25rem;
+    margin: 0;
+    background: none;
+    accent-color: var(--tempest-primary);
+    cursor: pointer;
+}
+
+.seek:disabled {
+    accent-color: var(--tempest-surface-3);
+    cursor: not-allowed;
+}
+
+.seek:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: 2px;
+    border-radius: var(--tempest-radius-sm);
+}
+
+/*
+ * Tabular figures, so the elapsed time does not shift the seek bar sideways as the
+ * digits change — a proportional `1` is narrower than a `0`, and at 10 updates a
+ * second the whole row visibly jitters.
+ */
+.time {
+    display: inline-flex;
+    flex: 0 0 auto;
+    gap: var(--tempest-space-1);
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-xs);
+    font-variant-numeric: tabular-nums;
+}
+
+.actions {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: var(--tempest-space-1);
+}
+
+/* Touch hit-slop — 44×44 without changing the visual footprint, as `Button` does. */
+@media (pointer: coarse) {
+    .transport::after {
+        content: "";
+        position: absolute;
+        inset: -4px;
+    }
+}
+
+@media (max-width: 480px) {
+    .player {
+        gap: var(--tempest-space-2);
+        padding: var(--tempest-space-2);
+    }
+}

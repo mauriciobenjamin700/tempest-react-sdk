@@ -17,6 +17,7 @@ import { DataVizScalesSection } from "./DataVizScalesSection";
 import { ImageCropperSection } from "./ImageCropperSection";
 import { ChatSection } from "./ChatSection";
 import { AIChatSection } from "./AIChatSection";
+import { AudioCaptureSection } from "./AudioCaptureSection";
 import { DashboardLayoutSection } from "./DashboardLayoutSection";
 import { FilterBarSection } from "./FilterBarSection";
 import { MarkdownSection } from "./MarkdownSection";
@@ -285,6 +286,14 @@ export const SECTIONS: SectionEntry[] = [
             "aichat ai chat llm gpt claude deepseek copiloto assistente streaming stream token cursor caret raciocinio reasoning thinking parar stop regenerar regenerate feedback thumbs markdown prompt",
         group: "Componentes",
         Component: AIChatSection,
+    },
+    {
+        id: "audio-capture",
+        label: "Áudio (gravação)",
+        keywords:
+            "audio gravar gravacao recorder microfone microphone mic permissao permission getusermedia mediarecorder nivel level meter wav opus webm mp4 saida output sinkid dispositivo device player reproducao",
+        group: "Componentes",
+        Component: AudioCaptureSection,
     },
     {
         id: "dashboard-layout",

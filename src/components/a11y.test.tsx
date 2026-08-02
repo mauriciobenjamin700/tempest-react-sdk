@@ -12,6 +12,7 @@ import { Breadcrumbs } from "./Breadcrumbs";
 import { Button } from "./Button";
 import { Card } from "./Card";
 import { AIChat } from "./AIChat";
+import { AudioPlayer } from "./AudioPlayer";
 import { Chat } from "./Chat";
 import { Checkbox } from "./Checkbox";
 import { EmptyState } from "./EmptyState";
@@ -332,6 +333,14 @@ const CASES: [name: string, ui: ReactElement][] = [
             onFeedback={() => {}}
             onRetry={() => {}}
             composerFooter={<small>Pode errar.</small>}
+        />,
+    ],
+    [
+        "AudioPlayer",
+        <AudioPlayer
+            src="/nota.webm"
+            durationMs={7000}
+            actions={<button type="button">Baixar</button>}
         />,
     ],
     [

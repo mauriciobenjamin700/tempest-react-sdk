@@ -394,6 +394,12 @@ export type {
 } from "./Chat";
 export { chatStrings, dayLabel, groupMessages, timeLabel, typingLabel } from "./Chat";
 
+export { AudioPlayer } from "./AudioPlayer";
+export type { AudioPlayerProps } from "./AudioPlayer";
+
+export { AudioRecorder } from "./AudioRecorder";
+export type { AudioRecorderProps } from "./AudioRecorder";
+
 export { AIChat, AIChatComposer, AIChatTurn } from "./AIChat";
 export type {
     AIChatAttachment,

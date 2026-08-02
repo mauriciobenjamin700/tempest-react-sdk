@@ -249,6 +249,24 @@
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
+    "name": "slice: Pix (BR Code payload + CRC16 + QR component)",
+    "path": "dist/br.js",
+    "import": {
+      "./dist/br.js": "{ pixPayload, parsePixPayload, PixQRCode }"
+    },
+    "limit": "6.5 KB",
+    "ignore": ["react", "react-dom", "react/jsx-runtime"]
+  },
+  {
+    "name": "slice: BR payment rails (Pix + boleto + chave NFe + feriados)",
+    "path": "dist/br.js",
+    "import": {
+      "./dist/br.js": "{ pixPayload, parsePixPayload, PixQRCode, parseLinhaDigitavel, parseCodigoBarras, validateBoleto, parseChaveNFe, validateChaveNFe, holidaysFor, isBusinessDay, addBusinessDays }"
+    },
+    "limit": "10 KB",
+    "ignore": ["react", "react-dom", "react/jsx-runtime"]
+  },
+  {
     "name": "slice: icons — no-shard surface (`{ IconProvider, createIconRegistry }`)",
     "path": "dist/icons.js",
     "import": {

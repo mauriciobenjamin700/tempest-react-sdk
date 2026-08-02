@@ -52,6 +52,7 @@ import { QueryRecipeSection } from "./QueryRecipeSection";
 import { RealtimeRecipeSection } from "./RealtimeRecipeSection";
 import { GeoSection } from "./GeoSection";
 import { BrazilMapSection } from "./BrazilMapSection";
+import { BRPaymentsSection } from "./BRPaymentsSection";
 import { ThemeFactorySection } from "./ThemeFactorySection";
 import { IconsSection } from "./IconsSection";
 import { UtilitiesCssSection } from "./UtilitiesCssSection";
@@ -442,6 +443,14 @@ export const SECTIONS: SectionEntry[] = [
             "brazilmap mapa brasil estados cidades uf geojson choropleth brazilstatecityselect citiesbyuf ufchoices liststates getstate ibge municipios locations",
         group: "Receitas",
         Component: BrazilMapSection,
+    },
+    {
+        id: "br-payments",
+        label: "Pagamentos BR (Pix · boleto · NFe)",
+        keywords:
+            "pix pixqrcode pixpayload brcode emv crc16 copia e cola boleto linha digitavel codigo de barras febraban arrecadacao fator de vencimento chave nfe nfce cte feriados dias uteis pascoa carnaval",
+        group: "Receitas",
+        Component: BRPaymentsSection,
     },
     {
         id: "recipe-auth",

@@ -91,6 +91,7 @@ plugins:
                     Roteamento: Routing
                     Geolocalização: Geolocation
                     Mapa do Brasil (br): Brazil map (br)
+                    "Pagamentos & fiscal BR": "BR payments & fiscal"
                     Estado (Zustand): State (Zustand)
                     Providers: Providers
                     Componentes: Components
@@ -247,6 +248,7 @@ nav:
                 - WebSocket: websocket.md
                 - Geolocalização: geo.md
                 - Mapa do Brasil (br): br.md
+                - "Pagamentos & fiscal BR": br-pagamentos.md
                 - Web Push: push.md
                 - Offline: offline.md
                 - PWA & Offline-First: pwa.md

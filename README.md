@@ -17,7 +17,7 @@
 
 > 💡 `pip install -r docs/requirements.txt && mkdocs serve` é só para preview local — em produção use as URLs do GitHub Pages acima. / For local preview only — in production use the GitHub Pages URLs above.
 
-Shared React/TypeScript building blocks used across Tempest frontends: UI components, hooks, HTTP client, auth store, query keys, forms (zod), real-time transports (SSE / WebSocket / Web Push / Service Worker), self-hosted geolocation (tile-free maps, trajectory tracking, distance/estimate math), a clickable Brazil map + states/cities dataset (`/br`), theme, i18n, telemetry, feature flags, offline storage, error boundary, and a curated set of utilities (`cn`, `formatCurrency`, `formatCPF`, etc.).
+Shared React/TypeScript building blocks used across Tempest frontends: UI components, hooks, HTTP client, auth store, query keys, forms (zod), real-time transports (SSE / WebSocket / Web Push / Service Worker), self-hosted geolocation (tile-free maps, trajectory tracking, distance/estimate math), a clickable Brazil map + states/cities dataset + BR payment/fiscal rails — Pix BR Code, boleto, NFe access key, national holidays (`/br`), theme, i18n, telemetry, feature flags, offline storage, error boundary, and a curated set of utilities (`cn`, `formatCurrency`, `formatCPF`, etc.).
 
 The goal is to start every new React frontend with the same opinionated foundation already in place — no copy-pasting `Button`/`Input` styles, no rewriting the same auth Zustand store, no re-inventing the SSE reconnect loop. The patterns here are a distillation of what was consolidated in **alofans-frontend** and **transport-admin-system** — apps that consume the SDK gain consistency without paying for boilerplate.
 

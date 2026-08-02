@@ -6,6 +6,52 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **Trilhos de pagamento e fiscal BR no subpath `/br`: Pix, boleto, chave de acesso
+  da NFe e feriados/dias úteis — zero dependência nova.** Fatia inteira em
+  **9,22 KB brotli**; só Pix (payload + CRC + `PixQRCode`) em **6,10 KB**.
+  Nenhuma das quatro é difícil de escrever — são todas difíceis de escrever
+  **certo**, e cada uma tem um detalhe que só aparece em produção:
+  - **Pix (`pixPayload`, `parsePixPayload`, `pixCrc16`, `pixKeyType`,
+    `normalizePixKey`, `PixQRCode`).** O CRC-16/CCITT-FALSE da tag 63 cobre os
+    literais **`6304`** — o cabeçalho da própria tag. Errar isso produz um QR que
+    abre no app e falha na leitura, e é o erro mais repetido em implementação de
+    Pix. O checksum está fixado contra o check value publicado do CRC
+    (`"123456789"` → `29B1`) e contra uma segunda implementação, table-driven,
+    escrita no teste. `parsePixPayload` é **tolerante com tag desconhecida** (PSP
+    adiciona template próprio; leitor que rejeita não serve em produção) e
+    **intolerante com CRC divergente** — payload corrompido não aponta mais pra
+    conta que o recebedor publicou, então lança em vez de devolver dado. E
+    `PixQRCode` renderiza o símbolo **junto** com a copia-e-cola: num checkout
+    mobile o QR aparece no mesmo aparelho que iria escaneá-lo, e sem a string
+    copiável o usuário fica travado.
+  - **Boleto (`parseLinhaDigitavel`, `parseCodigoBarras`, `validateBoleto`,
+    `formatLinhaDigitavel`, `boletoKind`, `boletoDueDate`, `fatorVencimento`,
+    `mod10Dac`, `mod11DacCobranca`, `mod11DacArrecadacao`).** Cobrança e
+    arrecadação têm **44 dígitos os dois** e nada em comum além disso: todo campo
+    muda de posição e de significado. O SDK devolve união discriminada e nunca lê
+    um com o layout do outro — posição 3 fora de `6-9` num `8…` é **rejeitada**,
+    não interpretada. Os dois módulos 11 também divergem: cobrança resolve resto
+    `0`/`1`/`10` pra **1**, arrecadação resolve `0`/`1` pra **0**; trocar um pelo
+    outro dá dígito errado 3 vezes em 11, o que passa em teste de amostra pequena.
+    E o **fator de vencimento tem duas bases** desde 22/02/2025 (o campo saturou
+    em 9999 em 21/02/2025 e reiniciou em 1000 sobre 29/05/2022, comunicado
+    FEBRABAN FB-009/2023): as duas leituras são genuinamente ambíguas, então
+    `"auto"` escolhe a mais próxima de `reference` e expõe em
+    `vencimentoEpoch` **qual** usou, em vez de fingir certeza.
+  - **Chave NFe (`parseChaveNFe`, `validateChaveNFe`, `chaveNFeCheckDigit`,
+    `formatChaveNFe`).** O `cUF` resolve no **tipo `UF` do próprio módulo** — a
+    tabela de siglas não é duplicada, só os códigos IBGE. Modelo ou `tpEmis` fora
+    da tabela vem `null` em vez de chute; `cUF` inexistente é erro.
+  - **Feriados (`holidaysFor`, `isHoliday`, `isBusinessDay`, `nextBusinessDay`,
+    `addBusinessDays`, `easterSunday`).** Carnaval, Sexta-feira da Paixão e Corpus
+    Christi **não são feriados nacionais por lei**, mas a Resolução CMN 4.880/2020
+    fecha os bancos nos quatro dias — então eles vêm marcados `kind: "banking"`,
+    contam no default (é o calendário que quebra dinheiro) e saem com
+    `kinds: ["national"]`. Feriado estadual e municipal ficam **de fora com motivo
+    escrito**: são 5 570 municípios livres pra declarar os seus, nenhuma tabela
+    fica completa — entram por `extra`. Os quatro dias móveis derivam do _computus_
+    gregoriano (Meeus/Jones/Butcher), aritmética inteira, sem tabela e sem
+    dependência.
 - **Captura de áudio: gravação, permissão, dispositivos e saída de som.**
   Fatia inteira em **5,50 KB brotli**, sem uma dependência nova.
   | Export                                                                      | O que resolve                                                                                 |

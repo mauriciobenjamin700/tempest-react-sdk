@@ -1,0 +1,68 @@
+.pix {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--tempest-space-3);
+    font-family: var(--tempest-font-sans);
+}
+
+.symbol {
+    /* The QR stays black on white in both themes — see the note on `QRCode`. A
+       white plate under it keeps the quiet zone intact on a dark page. */
+    padding: var(--tempest-space-2);
+    background: #ffffff;
+    border-radius: var(--tempest-radius-md);
+    border: 1px solid var(--tempest-border);
+}
+
+.copy {
+    display: flex;
+    align-items: center;
+    gap: var(--tempest-space-2);
+    width: 100%;
+    max-width: 320px;
+}
+
+.payload {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    padding: var(--tempest-space-1) var(--tempest-space-2);
+    background: var(--tempest-surface-2);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-sm);
+    color: var(--tempest-text-muted);
+    font-family: var(--tempest-font-mono);
+    font-size: var(--tempest-text-xs);
+    line-height: var(--tempest-leading-snug);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* The copy button renders both labels and CSS picks one, because `CopyButton`
+   keeps the copied flag in `data-copied` and renders its children unchanged in
+   both states. Swapping the text node also keeps the button's accessible name in
+   sync, which an `aria-label` would not. */
+.copyDone {
+    display: none;
+}
+
+.copy button[data-copied] .copyIdle {
+    display: none;
+}
+
+.copy button[data-copied] .copyDone {
+    display: inline;
+}
+
+.amount {
+    color: var(--tempest-text);
+    font-size: var(--tempest-text-lg);
+    font-weight: var(--tempest-weight-semibold);
+}
+
+.payee {
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-sm);
+    text-align: center;
+}

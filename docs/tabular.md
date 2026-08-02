@@ -68,6 +68,17 @@ floresta, extra-trees, regressores dos mesmos, e `StandardScaler`/
     O arquivo é **dado, nunca código**: nada de JavaScript gerado, nada de
     `eval`, nada que uma CSP estrita proíba.
 
+!!! check "Sem `onnxruntime-web` instalado, mesmo assim funciona"
+    Verificado empacotando o SDK e instalando num projeto vazio, sem o peer:
+    o barril importa, `CompactPredictor` prediz e bate com o scikit-learn.
+    Pedir a rota ONNX ali dá erro nomeando o `npm install onnxruntime-web` e
+    a alternativa compacta.
+
+    Isso quebrou na v0.33.0 — o módulo de assets importava o runtime no topo,
+    então quem só queria a rota A precisava instalar 25,6 MB de wasm assim
+    mesmo. Corrigido na v0.33.1: o runtime entra por `import()` dinâmico, só
+    quando um modelo ONNX é carregado. Tem guard de teste travando isso.
+
 ### B — Runtime mínimo (`.ort` + build próprio)
 
 ```tsx

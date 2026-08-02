@@ -13,7 +13,12 @@
  * has no `ai.onnx.ml` kernels and cannot load these models at all.
  */
 
-export { ORT_WASM_ASSETS, configureOrtAssets, ortAssetUrls } from "./assets";
+export {
+    ORT_WASM_ASSETS,
+    configureOrtAssets,
+    configuredOrtAssetPath,
+    ortAssetUrls,
+} from "./assets";
 export {
     DEFAULT_MODEL_CACHE,
     type ModelCacheOptions,

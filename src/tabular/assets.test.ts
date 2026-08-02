@@ -6,12 +6,10 @@
  * them fails offline with an error that never names the missing file.
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-vi.mock("onnxruntime-web", () => ({ env: { wasm: { wasmPaths: undefined } } }));
-
-const ort = await import("onnxruntime-web");
-const { ORT_WASM_ASSETS, configureOrtAssets, ortAssetUrls } = await import("./assets");
+const { ORT_WASM_ASSETS, configureOrtAssets, configuredOrtAssetPath, ortAssetUrls } =
+    await import("./assets");
 
 describe("tabular · runtime assets", () => {
     it("lists the binaries the runtime may request", () => {
@@ -19,14 +17,20 @@ describe("tabular · runtime assets", () => {
         expect(ORT_WASM_ASSETS.every((asset) => asset.startsWith("ort-wasm"))).toBe(true);
     });
 
-    it("points the runtime at a local directory", () => {
+    it("remembers where the binaries live", () => {
+        /**
+         * Remembered rather than pushed into the runtime, because this
+         * module must not import `onnxruntime-web`: an app on the compact
+         * route has no runtime, and a static import here would force it to
+         * install the peer anyway.
+         */
         configureOrtAssets("/ort/");
-        expect(ort.env.wasm.wasmPaths).toBe("/ort/");
+        expect(configuredOrtAssetPath()).toBe("/ort/");
     });
 
     it("tolerates a missing trailing slash", () => {
         configureOrtAssets("/assets/ort");
-        expect(ort.env.wasm.wasmPaths).toBe("/assets/ort/");
+        expect(configuredOrtAssetPath()).toBe("/assets/ort/");
     });
 
     it("builds precache URLs for every binary", () => {

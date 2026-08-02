@@ -60,11 +60,42 @@ action color.
 Aliases:
 
 - `--tempest-primary` = primary-500
-- `--tempest-primary-hover` = primary-600
+- `--tempest-primary-hover` = primary-600 in light, primary-**600** in dark (the dark ramp is inverted, so 600 is **lighter** than 500)
 - `--tempest-primary-active` = primary-700
 - `--tempest-primary-soft` = primary-50 (tinted background for soft buttons/badges)
-- `--tempest-primary-foreground` = `#ffffff` (text color over the primary)
+- `--tempest-primary-foreground` = `#ffffff` in light, `#1f0606` in dark (text color **on top of** primary)
 - `--tempest-primary-on-soft` = primary-600 in light, primary-700 in dark (text/icon color **on top of** `--tempest-primary-soft`)
+
+### Text on a saturated fill: `*-on-solid`
+
+- `--tempest-danger-on-solid` · `--tempest-info-on-solid` = `#ffffff` in light, `#1f0606` in dark
+- `--tempest-success-on-solid` · `--tempest-warning-on-solid` = `#1f0606` in **both** themes
+
+!!! danger "`#ffffff` on a status fill is not safe, and never was"
+    Measured against the **light** theme's own fills — the default — white on
+    `--tempest-success-solid` is **3.30:1** and on `--tempest-warning-solid`
+    **3.19:1**. Mid-green and amber simply cannot carry white text; every design
+    system that ships them puts dark text on top. In the dark theme, where the fills
+    are lighter, **all** of them fail: `primary` 3.68:1, `danger` 3.76:1, `info`
+    3.68:1, `success` 2.28:1, `warning` 2.15:1.
+
+    So the text colour is a token per status rather than a hardcoded `#ffffff`. The
+    dark ink is a near-black tinted toward its own hue (`#1f0606`), not pure black —
+    it reads as part of the swatch instead of a hole in it.
+
+!!! info "In dark, `hover` and `active` go **lighter**"
+    The primary scale is inverted for the dark theme (300 is the darkest step, 900
+    the lightest), so reaching for 400/300 on hover made the button get **darker**
+    under the pointer — the light-theme gesture applied to a dark surface. It also
+    made the fill outrun its own text: no single foreground cleared 4.5:1 against
+    `#3b82f6`, `#2563eb` and `#1a4399` at once. Going up the ramp fixes both.
+
+!!! check "A test holds this"
+    `src/styles/contrast.test.ts` computes the ratio of **every** (text, fill) pair
+    the SDK renders, straight from `colors.css`, in both themes. Redefine the palette
+    and drop a pair below 4.5:1 and the test fails — instead of the problem showing
+    up in someone's product. jsdom's `axe` does **not** catch this: it disables
+    `color-contrast` because there is no paint.
 
 !!! warning "Text on `primary-soft` uses `primary-on-soft`, not `primary`"
     `--tempest-primary` over `--tempest-primary-soft` yields 4.37:1 — WCAG AA

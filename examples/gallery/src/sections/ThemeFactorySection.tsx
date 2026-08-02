@@ -96,24 +96,27 @@ theme.dark["--tempest-primary-500"];  // ramp invertido`}
             >
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                     {[50, 100, 200, 300, 400, 500, 600, 700, 800, 900].map((step) => (
+                        // The label sits under the swatch, not inside it. Picking a
+                        // label colour by step number cannot work: the dark theme
+                        // inverts this scale, so `step >= 500` is the *light* half
+                        // there and white on it measured 3.14:1.
                         <div
                             key={step}
                             title={`--tempest-primary-${step}`}
-                            style={{
-                                width: 64,
-                                height: 48,
-                                borderRadius: "var(--tempest-radius-sm)",
-                                background: `var(--tempest-primary-${step})`,
-                                border: "1px solid var(--tempest-border)",
-                                display: "flex",
-                                alignItems: "flex-end",
-                                justifyContent: "center",
-                                fontSize: 10,
-                                color: step >= 500 ? "#fff" : "var(--tempest-text)",
-                                paddingBottom: 2,
-                            }}
+                            style={{ display: "grid", gap: 2, justifyItems: "center" }}
                         >
-                            {step}
+                            <div
+                                style={{
+                                    width: 64,
+                                    height: 48,
+                                    borderRadius: "var(--tempest-radius-sm)",
+                                    background: `var(--tempest-primary-${step})`,
+                                    border: "1px solid var(--tempest-border)",
+                                }}
+                            />
+                            <span style={{ fontSize: 10, color: "var(--tempest-text-muted)" }}>
+                                {step}
+                            </span>
                         </div>
                     ))}
                 </div>

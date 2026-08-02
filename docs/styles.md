@@ -57,11 +57,43 @@ Scale `50` (mais claro) → `900` (mais escuro). Use `--tempest-primary` como co
 Aliases:
 
 - `--tempest-primary` = primary-500
-- `--tempest-primary-hover` = primary-600
+- `--tempest-primary-hover` = primary-600 no claro, primary-**600** no escuro (a rampa do escuro é invertida, então 600 é mais **claro** que 500)
 - `--tempest-primary-active` = primary-700
 - `--tempest-primary-soft` = primary-50 (fundo tinted para soft buttons/badges)
-- `--tempest-primary-foreground` = `#ffffff` (cor do texto sobre a primary)
+- `--tempest-primary-foreground` = `#ffffff` no claro, `#1f0606` no escuro (cor do texto **sobre** a primary)
 - `--tempest-primary-on-soft` = primary-600 no claro, primary-700 no escuro (cor do texto/ícone **sobre** `--tempest-primary-soft`)
+
+### Texto sobre preenchimento saturado: `*-on-solid`
+
+- `--tempest-danger-on-solid` · `--tempest-info-on-solid` = `#ffffff` no claro, `#1f0606` no escuro
+- `--tempest-success-on-solid` · `--tempest-warning-on-solid` = `#1f0606` nos **dois** temas
+
+!!! danger "`#ffffff` sobre preenchimento de status não é seguro, e nunca foi"
+    Medido contra os preenchimentos do **tema claro**, o default: branco sobre
+    `--tempest-success-solid` dá **3,30:1** e sobre `--tempest-warning-solid`
+    **3,19:1**. Verde médio e âmbar simplesmente não carregam texto branco — todo
+    design system que os embarca põe texto escuro em cima. No tema escuro, onde os
+    preenchimentos são mais claros, **todos** falham: `primary` 3,68:1, `danger`
+    3,76:1, `info` 3,68:1, `success` 2,28:1, `warning` 2,15:1.
+
+    Por isso a cor do texto é um token por status em vez de um `#ffffff` cravado. A
+    tinta escura é um quase-preto puxado pro próprio matiz (`#1f0606`), não preto
+    puro — lê como parte da amostra, não como um buraco nela.
+
+!!! info "No escuro, `hover` e `active` vão pro **claro**"
+    A escala de primary é invertida no tema escuro (300 é o passo mais escuro, 900 o
+    mais claro), então pegar 400/300 no hover fazia o botão **escurecer** sob o
+    ponteiro — o gesto do tema claro aplicado numa superfície escura. Também fazia o
+    preenchimento fugir do próprio texto: nenhum foreground único passava 4,5:1
+    contra `#3b82f6`, `#2563eb` e `#1a4399` ao mesmo tempo. Subir a rampa resolve os
+    dois.
+
+!!! check "Um teste segura isso"
+    `src/styles/contrast.test.ts` calcula a razão de **cada** par (texto, fundo) que
+    o SDK renderiza, direto do `colors.css`, nos dois temas. Se você redefinir a
+    paleta e um par cair abaixo de 4,5:1, o teste falha — em vez de o problema
+    aparecer no produto de alguém. O `axe` do jsdom **não** pega isso: ele desliga
+    `color-contrast` porque não há paint.
 
 !!! warning "Texto sobre `primary-soft` usa `primary-on-soft`, não `primary`"
     `--tempest-primary` sobre `--tempest-primary-soft` dá 4.37:1 de contraste — o

@@ -92,7 +92,7 @@
 
 .option.active {
     background-color: var(--tempest-primary-soft);
-    color: var(--tempest-primary-active);
+    color: var(--tempest-primary-on-soft);
 }
 
 .option.selected {

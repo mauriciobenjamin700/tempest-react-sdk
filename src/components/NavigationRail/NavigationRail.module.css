@@ -101,7 +101,7 @@
     padding: 0 4px;
     border-radius: var(--tempest-radius-full);
     background: var(--tempest-danger-solid);
-    color: var(--tempest-danger-on, #fff);
+    color: var(--tempest-danger-on-solid);
     font-size: 10px;
     line-height: 14px;
     text-align: center;

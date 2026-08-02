@@ -66,7 +66,7 @@
 }
 .success.solid {
     background-color: var(--tempest-success-solid);
-    color: #ffffff;
+    color: var(--tempest-success-on-solid);
 }
 .success.outline {
     background-color: transparent;
@@ -81,7 +81,7 @@
 }
 .warning.solid {
     background-color: var(--tempest-warning-solid);
-    color: #ffffff;
+    color: var(--tempest-warning-on-solid);
 }
 .warning.outline {
     background-color: transparent;
@@ -96,7 +96,7 @@
 }
 .danger.solid {
     background-color: var(--tempest-danger-solid);
-    color: #ffffff;
+    color: var(--tempest-danger-on-solid);
 }
 .danger.outline {
     background-color: transparent;
@@ -111,7 +111,7 @@
 }
 .info.solid {
     background-color: var(--tempest-info-solid);
-    color: #ffffff;
+    color: var(--tempest-info-on-solid);
 }
 .info.outline {
     background-color: transparent;
@@ -122,7 +122,7 @@
 /* Primary */
 .primary {
     background-color: var(--tempest-primary-soft);
-    color: var(--tempest-primary-active);
+    color: var(--tempest-primary-on-soft);
 }
 .primary.solid {
     background-color: var(--tempest-primary);

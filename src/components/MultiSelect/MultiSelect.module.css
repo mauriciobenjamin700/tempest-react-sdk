@@ -46,7 +46,7 @@
     padding: 2px 4px 2px 8px;
     border-radius: var(--tempest-radius-full);
     background-color: var(--tempest-primary-soft);
-    color: var(--tempest-primary-active);
+    color: var(--tempest-primary-on-soft);
     font-size: var(--tempest-text-xs);
     font-weight: var(--tempest-weight-medium);
     line-height: 1.4;
@@ -133,7 +133,7 @@
 
 .option.active {
     background-color: var(--tempest-primary-soft);
-    color: var(--tempest-primary-active);
+    color: var(--tempest-primary-on-soft);
 }
 
 .option.selected {

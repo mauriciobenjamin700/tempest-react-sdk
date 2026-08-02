@@ -129,7 +129,7 @@
 
 .inRange {
     background-color: var(--tempest-primary-soft);
-    color: var(--tempest-primary-active);
+    color: var(--tempest-primary-on-soft);
     border-radius: 0;
 }
 

@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.34.0] — 2026-08-02
+
 ### Corrigido
 
 - **O cliente WebSocket não respondia ao `ping` do servidor Tempest — os

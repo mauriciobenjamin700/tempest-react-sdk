@@ -46,9 +46,18 @@ describe("SyncStatusBadge", () => {
         expect(screen.getByText("Enviando")).toBeInTheDocument();
     });
 
-    it("omits the label when iconOnly", () => {
-        render(<SyncStatusBadge tone="idle" iconOnly />);
-        expect(screen.queryByText("Sincronizado")).not.toBeInTheDocument();
+    /**
+     * `iconOnly` hides the label visually but must keep it in the accessibility
+     * tree: the badge is a `role="status"` live region, so dropping the text
+     * altogether left a region whose content never changed — a switch to `offline`
+     * or `error` was then announced as nothing at all.
+     */
+    it("hides the label visually but keeps it announceable when iconOnly", () => {
+        const { container } = render(<SyncStatusBadge tone="idle" iconOnly />);
+        const label = screen.getByText("Sincronizado");
+        expect(label).toBeInTheDocument();
+        expect(label.className).toContain("hidden");
+        expect(container.querySelector("[class*='label']")).toBeNull();
         expect(screen.getByRole("status")).toBeInTheDocument();
     });
 

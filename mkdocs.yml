@@ -128,6 +128,7 @@ plugins:
                     Integrações: Integrations
                     HTTP: HTTP
                     Auth: Auth
+                    Passkeys (WebAuthn): Passkeys (WebAuthn)
                     OAuth (Google): OAuth (Google)
                     Query (TanStack): Query (TanStack)
                     SSE: SSE
@@ -136,6 +137,7 @@ plugins:
                     Offline: Offline
                     PWA & Offline-First: PWA & Offline-First
                     Web Share: Web Share
+                    Upload resumível (tus): Resumable upload (tus)
                     Áudio: Audio
                     Captura de dispositivo: Device capture
                     Tabular (scikit-learn): Tabular (scikit-learn)
@@ -241,6 +243,7 @@ nav:
           - Integrações:
                 - HTTP: http.md
                 - Auth: auth.md
+                - Passkeys (WebAuthn): passkeys.md
                 - OAuth (Google): oauth.md
                 - Access Control (RBAC): access-control.md
                 - Query (TanStack): query.md
@@ -254,6 +257,7 @@ nav:
                 - Offline: offline.md
                 - PWA & Offline-First: pwa.md
                 - Web Share: share.md
+                - Upload resumível (tus): resumable-upload.md
                 - Áudio: audio.md
                 - Captura de dispositivo: device-capture.md
                 - Vision (ONNX): vision.md

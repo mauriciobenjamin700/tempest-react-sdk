@@ -13,6 +13,8 @@ import { NavigationSection } from "./NavigationSection";
 import { AdvancedComponentsSection } from "./AdvancedComponentsSection";
 import { TableSection } from "./TableSection";
 import { DataTableSection } from "./DataTableSection";
+import { PasskeysSection } from "./PasskeysSection";
+import { ResumableUploadSection } from "./ResumableUploadSection";
 import { DataVizScalesSection } from "./DataVizScalesSection";
 import { ImageCropperSection } from "./ImageCropperSection";
 import { ChatSection } from "./ChatSection";
@@ -237,7 +239,8 @@ export const SECTIONS: SectionEntry[] = [
     {
         id: "data-table",
         label: "DataTable",
-        keywords: "datatable sort",
+        keywords:
+            "datatable sort editable edicao inline oncellchange validate otimista rollback useannounce",
         group: "Componentes",
         Component: DataTableSection,
     },
@@ -421,6 +424,22 @@ export const SECTIONS: SectionEntry[] = [
             "createapiclient parseresponse uploadwithprogress retry usepoll idempotency http fetch",
         group: "Receitas",
         Component: HttpRecipeSection,
+    },
+    {
+        id: "recipe-resumable-upload",
+        label: "Upload resumível (tus)",
+        keywords:
+            "createresumableupload tus resumable chunk retomar pause resume abort idempotency upload offset",
+        group: "Receitas",
+        Component: ResumableUploadSection,
+    },
+    {
+        id: "recipe-passkeys",
+        label: "Passkeys (WebAuthn)",
+        keywords:
+            "passkey webauthn createpasskeyclient usepasskeyregistration usepasskeysignin conditional autofill biometria faceid hello credentials",
+        group: "Receitas",
+        Component: PasskeysSection,
     },
     {
         id: "recipe-query",

@@ -44,6 +44,7 @@ granulares, testados e independentes — importe só o que precisar.
 | `useClickOutside(handler)`                        | Retorna um ref; chama `handler` em `mousedown`/`touchstart` fora do elemento. safe sem `window`.                      |
 | `useDocumentTitle(title)`                         | Seta `document.title` enquanto montado, restaurando o anterior no unmount. safe sem `window`.                         |
 | `useFavicon(href)`                                | Troca o favicon via `<link rel="icon">` (cria o elemento se faltar). safe sem `window`.                               |
+| `useAnnounce()`                                   | Devolve `announce(mensagem, politeness?)` — fala pro leitor de tela por uma região viva compartilhada. Pares puros: `announce`, `clearAnnouncer`. |
 
 ### Entrada / interação
 
@@ -271,6 +272,65 @@ function CustomModal({ open }: { open: boolean }) {
     contrato de diálogo: marque `role="dialog"` + `aria-modal="true"`, devolva o foco
     ao gatilho ao fechar e trate o Escape. O componente `Modal` do SDK já faz tudo
     isso — só recorra a este hook em overlays caseiros.
+
+### Falar com o leitor de tela — `useAnnounce`
+
+Algo aconteceu que quem vê a tela percebe e quem usa leitor de tela não: um filtro
+reduziu a lista, uma linha salvou, uma cópia deu certo. `useAnnounce` devolve uma
+função estável que anuncia isso.
+
+```tsx
+import { useAnnounce, useClientFilter } from "tempest-react-sdk";
+import { useEffect, useState } from "react";
+
+export function ListaFiltrada({ items }: { items: string[] }) {
+  const [termo, setTermo] = useState("");
+  const visiveis = useClientFilter(items, termo, (item, q) => item.includes(q));
+  const announce = useAnnounce();
+
+  useEffect(() => {
+    announce(`${visiveis.length} resultados`);
+  }, [visiveis.length, announce]);
+
+  return (
+    <>
+      <input value={termo} onChange={(e) => setTermo(e.target.value)} aria-label="Buscar" />
+      <ul>{visiveis.map((item) => <li key={item}>{item}</li>)}</ul>
+    </>
+  );
+}
+```
+
+`announce(mensagem)` é polido por padrão; `announce(mensagem, "assertive")` interrompe
+o que estiver sendo lido — reserve pra erro que exige ação.
+
+!!! info "Duas regiões, uma polida e uma assertiva — de propósito"
+    Politeness é propriedade **da região**, lida quando a tecnologia assistiva a
+    registra. Trocar `aria-live` depois é honrado por alguns leitores, ignorado por
+    outros e às vezes perde o anúncio. Duas regiões que nunca mudam é a única versão
+    que se comporta igual em todo lugar. E são **compartilhadas**: várias regiões vivas
+    mutando ao mesmo tempo é como anúncio se perde ou sai duplicado.
+
+!!! warning "A mesma string duas vezes normalmente não anuncia de novo"
+    O leitor anuncia quando o **conteúdo muda** — escrever o mesmo texto não é
+    mudança, então "Item removido" duas vezes seguidas é lido uma. Em vez de mexer no
+    texto, cada chamada troca o **elemento filho** da região: a mutação é real mesmo
+    com a string idêntica, e o leitor ouve exatamente a sua mensagem, sem caractere de
+    padding pendurado.
+
+!!! danger "Nunca embrulhe texto em streaming numa região viva"
+    Uma região viva sobre texto que cresce token a token faz o leitor recomeçar a
+    resposta inteira a cada token. Anuncie as **bordas** — "gerando resposta",
+    "resposta concluída" — e deixe a transcrição num `role="log"` comum, lido no ritmo
+    da pessoa. É o que o `AIChat` faz.
+
+E o que **não** mandar pro announce: conteúdo que já está na tela dentro de uma região
+com papel — um `SyncStatusBadge` (`role="status"`), um toast, um erro de campo ligado
+ao input. Anunciar de novo lê duas vezes.
+
+Fora do React, `announce(mensagem, politeness?)` é a mesma função e cria a região no
+primeiro uso. `clearAnnouncer()` remove as regiões — serve pra teardown de teste e pra
+micro-frontend saindo de uma página que não é dele.
 
 ### Toggle — `useToggle`
 

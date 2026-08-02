@@ -3,6 +3,7 @@ import { AlertTriangle, Check, CloudOff, RefreshCw, UploadCloud } from "lucide-r
 import { cn } from "@/utils/cn";
 import type { OfflineSync, SyncTone } from "@/offline";
 import { useSyncStatus } from "@/offline/use-offline-sync";
+import { VisuallyHidden } from "../VisuallyHidden";
 import styles from "./SyncStatusBadge.module.css";
 
 const DEFAULT_LABELS: Record<SyncTone, string> = {
@@ -44,6 +45,20 @@ export interface SyncStatusBadgeProps extends Omit<HTMLAttributes<HTMLSpanElemen
 
 type PresentationalProps = Omit<SyncStatusBadgeProps, "sync">;
 
+/**
+ * The badge itself: a persistent `role="status"` region.
+ *
+ * Left as its own live region rather than routed through `useAnnounce`, on purpose.
+ * The badge is not a transient message — it is a piece of state that stays on
+ * screen, which is exactly what `role="status"` describes, and a reader can go back
+ * and re-read it. Announcing it *again* from the shared announcer would read every
+ * tone change twice.
+ *
+ * `iconOnly` used to break that, though: dropping the label left a live region whose
+ * content never changed, so a switch to `offline` or `error` was announced as
+ * nothing at all. The label is now always rendered — visually hidden when
+ * `iconOnly`, since `title` is not content and is not announced on a change.
+ */
 function PresentationalBadge({
     tone = "idle",
     pending = 0,
@@ -69,7 +84,11 @@ function PresentationalBadge({
                 size={14}
                 aria-hidden="true"
             />
-            {!iconOnly && <span className={styles.label}>{label}</span>}
+            {iconOnly ? (
+                <VisuallyHidden>{label}</VisuallyHidden>
+            ) : (
+                <span className={styles.label}>{label}</span>
+            )}
             {showCount && <span className={styles.count}>{pending}</span>}
         </span>
     );

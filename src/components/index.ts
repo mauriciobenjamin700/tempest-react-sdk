@@ -359,7 +359,15 @@ export { Carousel } from "./Carousel";
 export type { CarouselProps } from "./Carousel";
 
 export { DataTable } from "./DataTable";
-export type { DataTableColumn, DataTableProps, DataTableSort, SortDirection } from "./DataTable";
+export type {
+    DataTableCellChange,
+    DataTableColumn,
+    DataTableEditLabels,
+    DataTableEditorType,
+    DataTableProps,
+    DataTableSort,
+    SortDirection,
+} from "./DataTable";
 
 export { ListTile } from "./ListTile";
 export type { ListTileProps } from "./ListTile";

@@ -182,6 +182,141 @@ Column: `{ key, header, render?, sortable?, align?, width? }`.
 
 Both sort with the same comparator (`compareValues`), so "sorted" means the same thing in each — numbers numerically, dates by timestamp, strings via `localeCompare` with `numeric: true`.
 
+## `DataTable<T>` — inline editing
+
+> **When to use**: an admin screen. You already list the records with `DataTable`; now
+> somebody needs to fix a name without opening a modal per row.
+
+Mark the column `editable` and give the table an `onCellChange`. Without both, nothing
+changes — editing is strictly opt-in, and a `DataTable` with no editable column renders
+exactly what it rendered before.
+
+```tsx
+import { DataTable, type DataTableColumn } from "tempest-react-sdk";
+import { api } from "@/lib/api";
+
+interface Employee {
+  id: number;
+  name: string;
+  email: string;
+  salary: number;
+}
+
+const columns: DataTableColumn<Employee>[] = [
+  {
+    key: "name",
+    header: "Name",
+    editable: true,
+    validate: (value) => (String(value).trim().length < 3 ? "At least 3 letters." : null),
+  },
+  {
+    key: "salary",
+    header: "Salary",
+    align: "right",
+    editable: true,
+    editorType: "number",
+    validate: (value) => (Number(value) <= 0 ? "Must be positive." : null),
+  },
+  { key: "email", header: "E-mail" },
+];
+
+export function Team({ people }: { people: Employee[] }) {
+  return (
+    <DataTable
+      data={people}
+      columns={columns}
+      rowKey={(row) => row.id}
+      onCellChange={({ row, key, value }) =>
+        api.patch(`/api/employees/${row.id}`, { body: { [key]: value } })
+      }
+    />
+  );
+}
+```
+
+Piece by piece:
+
+- **`editable: true`** turns the cell into a button carrying the value. Clicking it (or
+  pressing `Enter`) opens an `<input>`.
+- **`editorType`** is the input's `type` (`"text"` by default; `"number"`, `"date"`,
+  `"email"`, `"tel"`, `"url"`).
+- **`validate`** returns a message to reject, or `null` to accept.
+- **`onCellChange`** persists. Returning a promise is what switches the optimistic
+  behaviour on.
+
+### Keyboard
+
+| Key | What it does |
+| --- | --- |
+| `Enter` | Commit and close; focus returns to the cell's button |
+| `Escape` | Discard the draft and close |
+| `Tab` | Commit and open the **next** editable cell (row by row) |
+| `Shift+Tab` | Commit and open the previous one |
+| click away | Commit — losing what was typed is the bug users report as "the table ate my edit" |
+
+`Tab` is intercepted on purpose: the natural order would walk into the next row's
+button, and in a table being edited, moving cell to cell is what people expect.
+
+### Optimistic, with a **visible** rollback
+
+An accepted edit shows immediately and `onCellChange` runs in the background
+(`aria-busy` on the button meanwhile). If the promise rejects, the cell returns to the
+old value **and** shows the reason in a `role="alert"` tied to it via
+`aria-describedby`.
+
+```tsx
+onCellChange={async ({ row, key, value }) => {
+  const res = await fetch(`/api/employees/${row.id}`, { /* … */ });
+  if (!res.ok) throw new Error("That e-mail is already taken.");
+}}
+```
+
+The message of the `Error` you throw is what shows in the cell. With no message, the
+default text is used (`editLabels.saveFailed`).
+
+!!! danger "A silent revert is worse than no optimistic update"
+    The user watched the edit appear and has no reason to doubt it. If the server
+    refused and the cell just goes back to the old value saying nothing, they leave
+    believing it saved. That is why the error stays in the cell instead of becoming a
+    toast that disappears.
+
+### Accessibility
+
+- Closed, the cell is a `<button>` whose name comes from its **own contents**: an
+  invisible `Editar {column}:` in front of whatever the column rendered. An
+  `aria-label` built from the raw value would read "850000" on a cell showing
+  `R$ 8.500,00` — that fails WCAG 2.5.3 (Label in Name) and leaves voice control
+  unable to address the cell by what it says. A `<td>` with an `onClick` would be
+  invisible to a keyboard and role-less to a screen reader.
+- Open, the `<input>` has the `aria-label` `{column}, linha {n}`.
+- A validation error sets `aria-invalid` and links the message via `aria-describedby`.
+- A successful save is announced through [`useAnnounce`](../hooks.md#speaking-to-a-screen-reader-useannounce)
+  (`"{column} salvo"`), because it is the only event here with no on-screen
+  representation. The failure is **not** announced twice: the cell's `role="alert"`
+  already does it.
+- On a coarse pointer (touch), the button's hit area grows to cover the whole `<td>` —
+  44px without spilling into the neighbouring row, which a symmetric hit-slop would do.
+
+### Editing props
+
+| Prop | Type | Where |
+| --- | --- | --- |
+| `editable` | `boolean` | column |
+| `editorType` | `"text" \| "number" \| "date" \| "email" \| "tel" \| "url"` | column |
+| `formatEdit` | `(row: T) => string` | column — the text the editor opens with |
+| `parse` | `(raw: string, row: T) => unknown` | column — string → stored value |
+| `validate` | `(value: unknown, row: T) => string \| null` | column |
+| `onCellChange` | `(change: DataTableCellChange<T>) => void \| Promise<void>` | table |
+| `editLabels` | `Partial<DataTableEditLabels>` | table — the PT-BR copy |
+
+`DataTableCellChange<T>` carries `{ row, key, value, previous, rowIndex }`, where
+`rowIndex` is the index in the **full dataset**, not in the page.
+
+!!! tip "A column with `render` keeps working"
+    A column rendering `<Money cents={row.salary} />` receives the row with the
+    optimistic value already applied, so the new number shows correctly formatted while
+    the save is still in flight.
+
 ## `ListTile`
 
 > **When to use**: the canonical Material list row — an item with a leading slot (icon/avatar), a title with an optional subtitle, and a trailing slot (icon, switch, meta). Ideal for settings lists, contacts, or menus.

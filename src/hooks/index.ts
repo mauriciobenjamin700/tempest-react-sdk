@@ -33,6 +33,8 @@ export { useGeolocation } from "./use-geolocation";
 export type { GeolocationState, UseGeolocationOptions } from "./use-geolocation";
 export { useScrollLock } from "./use-scroll-lock";
 export { useFocusTrap } from "./use-focus-trap";
+export { announce, clearAnnouncer, useAnnounce } from "./use-announce";
+export type { AnnouncePoliteness } from "./use-announce";
 export { useStableCallback } from "./use-stable-callback";
 export { useDeepMemo } from "./use-deep-memo";
 

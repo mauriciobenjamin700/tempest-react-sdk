@@ -3,6 +3,22 @@ export { TempestApiError, isApiError, buildApiError } from "./errors";
 export { parseResponse } from "./parse-response";
 export { uploadWithProgress } from "./upload-with-progress";
 export type { UploadProgressEvent, UploadWithProgressOptions } from "./upload-with-progress";
+export {
+    createLocalUploadStorage,
+    createResumableUpload,
+    DEFAULT_CHUNK_SIZE,
+    TUS_VERSION,
+    uploadFingerprint,
+} from "./resumable-upload";
+export type {
+    ResumableUpload,
+    ResumableUploadOptions,
+    ResumableUploadProgress,
+    ResumableUploadRecord,
+    ResumableUploadResult,
+    ResumableUploadState,
+    ResumableUploadStorage,
+} from "./resumable-upload";
 export { retry } from "./retry";
 export type { RetryOptions } from "./retry";
 export { generateIdempotencyKey } from "./idempotency";

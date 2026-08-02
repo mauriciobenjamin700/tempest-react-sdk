@@ -10,6 +10,7 @@ cara, e a foto pode ter GPS embutido que ninguém pediu para enviar.
 ```tsx
 import { compressToTarget } from "tempest-react-sdk/imaging";
 
+// `file` é o que um <input type="file"> entrega: event.target.files[0]
 const upload = await compressToTarget(file, {
   maxBytes: 1_000_000,
   width: 1600,

@@ -4,6 +4,37 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.33.2] - 2026-08-02
+
+### Corrigido
+
+- **O leitor compacto roteava diferente do scikit-learn quando um valor caía
+  exatamente no limiar de um corte.** O `sklearn.tree` converte a entrada
+  para float32 antes de percorrer a árvore, então um limiar guardado como
+  `5.099999904632568` — um valor float32 alargado — e uma entrada `5.1`
+  comparam **iguais** lá e vão para a esquerda. Comparando em float64, a
+  linha vai para a direita.
+
+  Numa floresta de 20 árvores sobre o iris isso trocava o voto de uma árvore
+  em 2 de 105 linhas: probabilidade errada por exatamente 0,05. A comparação
+  agora usa `Math.fround`, igual ao Python.
+
+  A fixture `iris_forest` foi escolhida deliberadamente entre as linhas que
+  caem no limiar — verifiquei que ela **de fato** separa as duas regras
+  (0,05 de diferença), porque fixture que não exercita o caso é guard
+  decorativo.
+
+### Documentação
+
+- **"Antes de tudo: de onde vem o modelo"** abre a página `tabular`, com
+  diagrama do fluxo e as duas metades — o Python que escreve a pasta e o
+  React que a lê — ambas rodando como estão. Antes o primeiro exemplo já
+  usava `/models/classifier.onnx` sem dizer de onde o arquivo saía, e o
+  passo em Python só aparecia na terceira seção.
+- Duplicação removida: o passo de export era ensinado duas vezes, com
+  exemplos diferentes.
+- `imaging`: o primeiro exemplo agora diz de onde vem o `file`.
+
 ## [0.33.1] - 2026-08-02
 
 ### Corrigido

@@ -19,6 +19,81 @@ console.log(labels[0], probabilities[0]);
 0 [0.6662, 0.1061, 0.2277]
 ```
 
+## First things first: where the model comes from
+
+This module **trains nothing**. It runs a model that was already trained —
+in Python, by your data team — and exported to a format a browser can read.
+
+The whole path has two halves:
+
+```mermaid
+flowchart LR
+    A[Python: trained model] -->|edge_pipeline| B[a model folder]
+    B -->|you publish it with the app| C[public/models/risk/]
+    C -->|loadEdgePackage| D[React: prediction in the browser]
+```
+
+**Half 1 — Python, once per model version** (runs as is; the dataset ships
+with scikit-learn):
+
+```python
+from sklearn.datasets import load_iris
+from sklearn.ensemble import RandomForestClassifier
+
+from tempest_fastapi_sdk.modelops import edge_pipeline
+
+data = load_iris()
+model = RandomForestClassifier(n_estimators=20, max_depth=4, random_state=0)
+model.fit(data.data, data.target)
+
+edge_pipeline(
+    model,
+    data.data,
+    "public/models/flowers",    # inside your React app
+    name="flowers",
+    labels=data.target,
+    feature_names=list(data.feature_names),
+    compact=True,               # the version that needs no runtime
+)
+```
+
+That writes a **folder**, not a file:
+
+```text
+public/models/flowers/
+├── flowers.onnx       the model as ONNX
+├── flowers.tmc        the same model, compact format
+├── baseline.json      reference for the training data
+└── manifest.json      what is in here
+```
+
+**Half 2 — React, in the browser.** If the package carries the compact
+form (`compact=True` above), there is **nothing to install** beyond the SDK
+itself:
+
+```tsx
+import { loadEdgePackage } from "tempest-react-sdk/tabular";
+
+const pkg = await loadEdgePackage("/models/flowers/");
+
+console.log(pkg.featureNames);
+// ["sepal length (cm)", "sepal width (cm)", "petal length (cm)", "petal width (cm)"]
+
+const { labels, probabilities } = await pkg.predictor.predict([[5.1, 3.5, 1.4, 0.2]]);
+console.log(labels[0], probabilities[0]);
+```
+
+!!! tip "The column order travels with it"
+    `pkg.featureNames` tells you which order the values go in. Use it to
+    build the row from your form — a model fed the right numbers **in the
+    wrong order** answers confidently and wrongly, and no runtime check
+    catches that.
+
+!!! info "I only have a loose `.onnx`, no folder"
+    That works too — `TabularPredictor.create("/models/classifier.onnx")`.
+    You lose what the manifest carries (column order, class names, version),
+    and you now need `onnxruntime-web`.
+
 ## Three routes, you choose
 
 Running scikit-learn in the browser has a cost, and it is not the model.
@@ -181,37 +256,14 @@ network round trip that stops existing.
     about **model freshness and size**, not about compute speed — the speed
     you already won by removing the network.
 
-## The whole loop, end to end
+## In a React component
 
-### 1. Export (Python)
-
-```python
-from tempest_fastapi_sdk.modelops import export_sklearn_to_onnx
-
-export = export_sklearn_to_onnx(model, X_train[:100], "dist/classifier.onnx")
-print(export.path, export.size_bytes)
-```
-
-!!! danger "Exporting with raw `skl2onnx` breaks in the browser"
-    Measured: skl2onnx's default leaves **ZipMap** enabled, which makes the
-    probability output a *sequence of maps*. ONNX Runtime Web refuses
-    non-tensor values — `Reading data from non-tensor typed value is not
-    supported` — and the prediction dies at runtime, not at build time.
-
-    `export_sklearn_to_onnx` disables ZipMap and exports float32 for exactly
-    that reason. If your `.onnx` comes from somewhere else, this module
-    detects the case and the error tells you what to do instead of repeating
-    the runtime's message.
-
-### 2. Serve the file
-
-The `.onnx` is a static asset. Put it in `public/models/` and version the
-name (`classifier-v3.onnx`), so a browser cache can never quietly serve a
-stale model.
-
-### 3. Predict (React)
+The hook owns what every component gets wrong the same way: the async load,
+cancellation when the component unmounts mid-flight, and releasing the
+session.
 
 ```tsx
+import { useState } from "react";
 import { useTabularPredictor } from "tempest-react-sdk/tabular";
 
 function RiskWidget() {
@@ -233,9 +285,23 @@ function RiskWidget() {
 }
 ```
 
-The hook owns what every component gets wrong the same way: the async load,
-cancellation when the component unmounts mid-flight, and releasing the
-session — the WebAssembly heap does not shrink on garbage collection alone.
+!!! tip "Version the filename"
+    `classifier-v3.onnx`, not `classifier.onnx`. A browser cache has no way
+    to know the content changed, and a stale model served from cache is the
+    kind of bug nobody connects to last week's deploy. With a package
+    (`loadEdgePackage`) this is already handled: the manifest's `version` is
+    derived from the content.
+
+!!! danger "Exporting with raw `skl2onnx` breaks in the browser"
+    Measured: skl2onnx's default leaves **ZipMap** enabled, which makes the
+    probability output a *sequence of maps*. ONNX Runtime Web refuses
+    non-tensor values — `Reading data from non-tensor typed value is not
+    supported` — and the prediction dies at runtime, not at build time.
+
+    Use `export_sklearn_to_onnx` (or `edge_pipeline`), which disables
+    ZipMap. If the `.onnx` came from somewhere else, this module detects the
+    case and the error tells you what to do instead of repeating the
+    runtime's message.
 
 ## Edge package: the manifest that comes from Python
 

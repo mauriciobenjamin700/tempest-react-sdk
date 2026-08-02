@@ -40,7 +40,12 @@ const expected = JSON.parse(new TextDecoder().decode(fixture("expected.json"))) 
     Expectation
 >;
 
-const CLASSIFIERS = ["logreg_multi", "logreg_binary", "pipeline", "tree", "forest"];
+/**
+ * `iris_forest` is here because it caught the routing rule: one of its rows
+ * lands exactly on a split threshold, where scikit-learn's float32
+ * comparison goes left and a float64 one goes right.
+ */
+const CLASSIFIERS = ["logreg_multi", "logreg_binary", "pipeline", "tree", "forest", "iris_forest"];
 const REGRESSORS = ["regressor", "forest_regressor"];
 
 describe("compact · agreement with scikit-learn", () => {

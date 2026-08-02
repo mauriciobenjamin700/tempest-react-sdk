@@ -82,6 +82,76 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
     fica completa — entram por `extra`. Os quatro dias móveis derivam do _computus_
     gregoriano (Meeus/Jones/Butcher), aritmética inteira, sem tabela e sem
     dependência.
+
+- **Passkeys (WebAuthn) em `auth`.** `createPasskeyClient` (sem framework) +
+  `usePasskeyRegistration` / `usePasskeySignIn` / `usePasskeyCapabilities`, mais
+  `isPasskeySupported`, `isPlatformAuthenticatorAvailable`,
+  `isConditionalMediationAvailable`, `base64UrlToBytes` / `bytesToBase64Url` e
+  `classifyPasskeyError` / `PasskeyError`. **2,20 KB brotli, zero dependência** — o
+  encanamento base64url ↔ `ArrayBuffer` é o que todo integrador reimplementa errado
+  (base64 puro no `atob` come o último byte), e uma dependência pra dez linhas seria
+  absurda. Três decisões que valem por si:
+  - **`isPlatformAuthenticatorAvailable()` é obrigatória, não enfeite.** Oferecer
+    "entrar com passkey" num aparelho sem autenticador manda a pessoa pra uma folha
+    que só dá cancelar. `platformAvailable === null` significa "o sondador ainda não
+    respondeu" — não renderize nada de passkey nesse estado.
+  - **Mediação condicional (autofill) é suportada** e documentada com o que ela
+    exige do seu HTML: sem `autocomplete="username webauthn"` no campo a lista
+    **nunca** aparece e nenhum erro é emitido, então é o tipo de falha que ninguém
+    debuga sozinho.
+  - **O erro é classificado como em `classifyMediaError`.** `cancelled` cobre
+    `NotAllowedError`, que é "cancelou **ou** expirou" — indistinguíveis **por
+    design**, porque dizer qual vazaria a existência da conta. `already-registered`
+    (`InvalidStateError`) é _sucesso disfarçado_: o aparelho já tem passkey dessa
+    conta. `rp-mismatch` (`SecurityError`) é o erro de integração nº 1 e a mensagem
+    diz exatamente isso: `rp.id` tem que ser o domínio da página ou um pai
+    registrável dele.
+- **`createResumableUpload` em `http`, falando tus 1.0.0.** 2,58 KB brotli.
+  `uploadWithProgress` faz **uma** request, o que quebra nas gravações longas que o
+  `useAudioRecorder` agora produz: chunks de 5 MiB, `onProgress`, `pause()`,
+  `resume()`, `abort({ discard })`, retomada depois de queda de rede **e** depois de
+  reload.
+  - **Protocolo publicado, não inventado.** tus (core + creation + termination) tem
+    servidor de estante (`tusd`, `tus-node-server`, `py-tus`), então o backend não é
+    obrigatoriamente nosso. A tabela do que o servidor precisa implementar está em
+    `docs/resumable-upload.md`.
+  - **A falha que importa é o chunk que o servidor gravou e cuja resposta se
+    perdeu.** Resolvida em duas frentes: escrita **endereçada** (todo `PATCH` declara
+    seu offset, então repetir leva `409`) e um `HEAD` de ressincronização antes de
+    **qualquer** retentativa. A criação — a única request que o tus não torna
+    idempotente — leva `Idempotency-Key` (de `generateIdempotencyKey`), gravado
+    **antes** da primeira tentativa, senão um `201` perdido deixa upload órfão.
+  - **Backoff é o `retry` do SDK**, não um segundo. Estado de retomada em
+    `localStorage` por padrão (`createLocalUploadStorage`) — quatro campos e uma URL
+    não justificam arrastar IndexedDB pro bundle de quem só envia arquivo; quem já
+    tem Dexie aberto passa o próprio `storage`.
+- **`useAnnounce` em `hooks`** — 382 B. Região viva compartilhada, com `announce`
+  puro pra fora do React e `clearAnnouncer` pra teardown.
+  - **Duas regiões, uma polida e uma assertiva.** Politeness é propriedade **da
+    região**, lida quando a tecnologia assistiva a registra; trocar `aria-live`
+    depois é honrado por alguns leitores, ignorado por outros e às vezes perde o
+    anúncio.
+  - **A mesma string duas vezes anuncia duas vezes.** O leitor reage a _mudança de
+    conteúdo_, então reescrever o mesmo texto não anuncia — a falha silenciosa
+    clássica desse tipo de utilitário. Cada chamada troca o **elemento filho** da
+    região: a mutação é real mesmo com string idêntica, e o leitor ouve a mensagem
+    exata, sem caractere de padding pendurado.
+  - As regiões nascem no mount, antes da primeira mensagem: região inserida no mesmo
+    frame do primeiro conteúdo costuma perder aquele anúncio.
+- **Edição inline no `DataTable`** — opt-in por `editable` na coluna +
+  `onCellChange` na tabela. `Enter` confirma, `Escape` descarta, `Tab`/`Shift+Tab`
+  andam célula a célula (row-major), blur confirma. `validate` por coluna bloqueia o
+  commit e mantém o editor aberto com `aria-invalid` + mensagem ligada por
+  `aria-describedby`. `editorType`, `parse` e `formatEdit` cobrem coluna numérica,
+  data e valor formatado.
+  - **Otimista com rollback _visível_.** A célula mostra o valor novo na hora
+    (`aria-busy` enquanto salva) e, se a promessa rejeitar, volta ao antigo **e**
+    mostra o motivo num `role="alert"`. Reverter em silêncio é pior do que não ser
+    otimista: a pessoa viu a edição aparecer e não tem motivo pra desconfiar.
+  - **Sem coluna `editable` (ou sem `onCellChange`) o markup é o de antes** — a API
+    publicada não muda, e há teste afirmando que a tabela read-only não ganha nem um
+    `<button>`.
+
 - **Captura de áudio: gravação, permissão, dispositivos e saída de som.**
   Fatia inteira em **5,50 KB brotli**, sem uma dependência nova.
   | Export                                                                      | O que resolve                                                                                 |
@@ -276,6 +346,24 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - **Budgets do `size-limit`**: nova fatia `slice: audio capture` com teto
   de 7 KB (mede 5,50 KB). Tetos do barrel subiram: ESM 98 → 103 kB, CJS
   118 → 124 kB.
+- **`SyncStatusBadge` com `iconOnly` agora mantém o rótulo no acessível.** O badge é
+  uma região `role="status"`; deixar de renderizar o texto deixava uma região viva
+  cujo conteúdo nunca mudava, então virar `offline` ou `error` era anunciado como
+  nada. O rótulo passou a ser sempre renderizado, invisível quando `iconOnly` —
+  `title` não é conteúdo e não é anunciado numa mudança. Fica **fora** do
+  `useAnnounce` de propósito: é estado persistente na tela, que é exatamente o que
+  `role="status"` descreve, e anunciar de novo leria cada mudança duas vezes.
+- **A pilha do `Toast` deixou de ser `aria-atomic="true"`** e os itens deixaram de
+  ter `role="status"` próprio. Com atomic o leitor relia a **pilha inteira** a cada
+  toast (o terceiro de uma rajada era anunciado como os três) e uma região viva
+  dentro de outra é anunciada duas vezes em parte dos leitores. Continua sendo a
+  própria pilha a região viva, e não o `useAnnounce`: rotear por lá colocaria o mesmo
+  texto duas vezes no documento e todo `getByText("Salvo")` de app consumidor passaria
+  a casar dois nós.
+- **Budgets do `size-limit`**: quatro fatias novas — passkeys (2,20 KB, teto 2,5),
+  upload resumível (2,58 KB, teto 2,9), `useAnnounce` (382 B, teto 600 B) e
+  `DataTable` com edição (4,80 KB, teto 5,2). Tetos do barrel subiram de novo: ESM
+  103 → 108 kB, CJS 124 → 130 kB.
 
 ### Documentação
 
@@ -296,6 +384,37 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   com a escala invertida do dark, onde ≥500 é a metade **clara** — media 3,14:1.
   O rótulo agora fica embaixo da amostra, o que remove a questão em vez de
   ajustá-la.
+- **Duas páginas novas, PT-BR + EN-US:** `passkeys` (as duas cerimônias, os
+  sondadores, a tabela `kind` → o que a UI faz, e as **quatro rotas que o backend
+  precisa implementar** — um cliente WebAuthn que documenta só a própria metade é
+  inútil) e `resumable-upload` (a tabela do protocolo tus, a falha da resposta
+  perdida, onde mora o estado de retomada).
+- **`hooks` ganhou `useAnnounce`** e **`components/data` ganhou a seção de edição
+  inline do `DataTable`** (teclado, rollback visível, acessibilidade, props), nos dois
+  idiomas.
+- **Gallery: duas seções novas** (`Passkeys (WebAuthn)` e `Upload resumível (tus)`) e
+  um exemplo de `DataTable` editável cujo backend de mentira **recusa** um valor que
+  você pode digitar — é o único jeito de ver rollback e estado de erro de verdade no
+  browser. Na seção de passkey as cerimônias são reais: o &ldquo;servidor&rdquo; mora
+  na página, mas o `navigator.credentials` é o do navegador, então o erro que aparece
+  é o classificado de verdade.
+
+### Acessibilidade
+
+- **O nome acessível da célula editável sai do conteúdo dela, não do valor cru.**
+  Achado no browser real: com `aria-label` montado a partir do valor, uma coluna
+  `<Money cents={850000} />` era anunciada como "Editar Salário: 850000" sobre uma
+  célula que **mostra** `R$ 8.500,00` — reprova o WCAG 2.5.3 (Label in Name) e deixa
+  controle por voz sem como chamar a célula pelo que ela diz. Agora um
+  `Editar {coluna}:` invisível precede o que a coluna renderizou, e o nome passa a ser
+  "Editar Salário: R$ 8.500,00". O `axe` do jsdom não pega isso (a regra de
+  label-in-name é experimental e desligada).
+- **Célula editável tem afordância em repouso**, não só no hover: um sublinhado
+  tracejado fraco. Em tela de toque não existe hover, então célula editável idêntica à
+  read-only é indescobrível. Hover e foco promovem pra caixa inteira.
+- **Alvo de toque da célula cresce até o `<td>` inteiro** sob `pointer: coarse`
+  (`::after` com o inset exatamente igual ao padding da célula). Passa dos 44px sem
+  invadir a linha vizinha, que é o que um hit-slop simétrico faria numa tabela densa.
 
 ## [0.35.0] — 2026-08-02
 

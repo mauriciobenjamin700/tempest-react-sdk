@@ -229,13 +229,15 @@ try {
 - `createApiClient({ baseURL, getToken, onUnauthorized, refresh, ... })` creates a typed client; instantiate it once and export it.
 - 401 with `refresh` → tries to renew and retries once; without refresh or on failure → `onUnauthorized` + `ApiError`.
 - `parseResponse(schema, raw, context)` validates the payload with zod and points at the divergent field in dev.
-- `uploadWithProgress` uses XHR to report byte-level progress.
+- `uploadWithProgress` uses XHR to report byte-level progress; for a large file, `createResumableUpload` chunks and resumes — see [Resumable upload](./resumable-upload.md).
 - `retry` (exponential backoff + `shouldRetry`) and `usePoll` (interval with overlap guard) cover flaky operations and job tracking.
 - `generateIdempotencyKey` — generate once per operation, reuse across retries.
 
 ## See also
 
 - [Auth + Guard](./auth.md)
+- [Passkeys](./passkeys.md) — passwordless sign-in on top of the same client
+- [Resumable upload (tus)](./resumable-upload.md) — when one request is not enough
 - [Query](./query.md) — powers your `queryFn`s
 - [SSE](./sse.md) — uses `withCredentials` just like the client
 - Diagram: [request-flow.drawio](./diagrams/request-flow.drawio)

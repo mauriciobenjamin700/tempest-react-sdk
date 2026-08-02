@@ -229,13 +229,15 @@ try {
 - `createApiClient({ baseURL, getToken, onUnauthorized, refresh, ... })` cria um cliente tipado; instancie uma vez e exporte.
 - 401 com `refresh` → tenta renovar e repete 1x; sem refresh ou falhando → `onUnauthorized` + `ApiError`.
 - `parseResponse(schema, raw, context)` valida o payload com zod e aponta o campo divergente em dev.
-- `uploadWithProgress` usa XHR pra reportar progresso byte a byte.
+- `uploadWithProgress` usa XHR pra reportar progresso byte a byte; para arquivo grande, `createResumableUpload` divide em chunks e retoma — veja [Upload resumível](./resumable-upload.md).
 - `retry` (backoff exponencial + `shouldRetry`) e `usePoll` (intervalo com guarda de overlap) cobrem operações instáveis e acompanhamento de jobs.
 - `generateIdempotencyKey` — gere uma vez por operação, reutilize nos retries.
 
 ## Veja também
 
 - [Auth + Guard](./auth.md)
+- [Passkeys](./passkeys.md) — login sem senha em cima do mesmo client
+- [Upload resumível (tus)](./resumable-upload.md) — quando uma request só não basta
 - [Query](./query.md) — alimenta as `queryFn`
 - [SSE](./sse.md) — usa `withCredentials` igual ao client
 - Diagrama: [request-flow.drawio](./diagrams/request-flow.drawio)

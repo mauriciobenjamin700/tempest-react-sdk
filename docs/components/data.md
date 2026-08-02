@@ -174,6 +174,139 @@ Coluna: `{ key, header, render?, sortable?, align?, width? }`.
 
 Os dois ordenam com o mesmo comparador (`compareValues`), então "ordenado" quer dizer a mesma coisa nos dois — número numericamente, data por timestamp, string com `localeCompare` e `numeric: true`.
 
+## `DataTable<T>` — edição inline
+
+> **Quando usar**: tela de admin. Você já lista os registros com `DataTable`; agora
+> alguém precisa corrigir um nome sem abrir um modal por linha.
+
+Marque a coluna com `editable` e dê um `onCellChange` à tabela. Sem as duas coisas
+nada muda — a edição é estritamente opt-in, e um `DataTable` sem coluna editável
+renderiza exatamente o que renderizava antes.
+
+```tsx
+import { DataTable, type DataTableColumn } from "tempest-react-sdk";
+import { api } from "@/lib/api";
+
+interface Colaborador {
+  id: number;
+  nome: string;
+  email: string;
+  salario: number;
+}
+
+const columns: DataTableColumn<Colaborador>[] = [
+  {
+    key: "nome",
+    header: "Nome",
+    editable: true,
+    validate: (value) => (String(value).trim().length < 3 ? "Mínimo de 3 letras." : null),
+  },
+  {
+    key: "salario",
+    header: "Salário",
+    align: "right",
+    editable: true,
+    editorType: "number",
+    validate: (value) => (Number(value) <= 0 ? "Precisa ser positivo." : null),
+  },
+  { key: "email", header: "E-mail" },
+];
+
+export function Equipe({ pessoas }: { pessoas: Colaborador[] }) {
+  return (
+    <DataTable
+      data={pessoas}
+      columns={columns}
+      rowKey={(row) => row.id}
+      onCellChange={({ row, key, value }) =>
+        api.patch(`/api/colaboradores/${row.id}`, { body: { [key]: value } })
+      }
+    />
+  );
+}
+```
+
+Pedaço por pedaço:
+
+- **`editable: true`** transforma a célula num botão com o valor dentro. Clicar (ou
+  `Enter`) abre um `<input>`.
+- **`editorType`** é o `type` do input (`"text"` por padrão; `"number"`, `"date"`,
+  `"email"`, `"tel"`, `"url"`).
+- **`validate`** devolve mensagem pra recusar, ou `null` pra aceitar.
+- **`onCellChange`** persiste. Devolver uma promessa é o que liga o comportamento
+  otimista.
+
+### Teclado
+
+| Tecla | O que faz |
+| --- | --- |
+| `Enter` | Confirma e fecha; o foco volta pro botão da célula |
+| `Escape` | Descarta o rascunho e fecha |
+| `Tab` | Confirma e abre a **próxima** célula editável (linha a linha) |
+| `Shift+Tab` | Confirma e abre a anterior |
+| clique fora | Confirma — perder o que foi digitado é o bug que os usuários reportam como "a tabela comeu minha edição" |
+
+`Tab` é interceptado de propósito: a ordem natural levaria pro botão da linha
+seguinte, e numa tabela em edição andar de célula em célula é o que se espera.
+
+### Otimista, com rollback **visível**
+
+Uma edição aceita aparece na hora e o `onCellChange` roda em segundo plano
+(`aria-busy` no botão enquanto isso). Se a promessa rejeitar, a célula volta ao valor
+antigo **e** mostra o motivo num `role="alert"` amarrado a ela por `aria-describedby`.
+
+```tsx
+onCellChange={async ({ row, key, value }) => {
+  const res = await fetch(`/api/colaboradores/${row.id}`, { /* … */ });
+  if (!res.ok) throw new Error("Este e-mail já está em uso.");
+}}
+```
+
+A mensagem do `Error` que você lançar é a que aparece na célula. Sem mensagem, entra o
+texto padrão (`editLabels.saveFailed`).
+
+!!! danger "Reverter em silêncio é pior do que não ser otimista"
+    A pessoa viu a edição aparecer e não tem motivo nenhum pra desconfiar. Se o
+    servidor recusou e a célula só voltar ao valor antigo sem dizer nada, ela vai
+    embora achando que salvou. É por isso que o erro fica na célula em vez de virar um
+    toast que desaparece.
+
+### Acessibilidade
+
+- Fechada, a célula é um `<button>` cujo nome sai do **próprio conteúdo**: um
+  `Editar {coluna}:` invisível na frente do que a coluna renderizou. Um `aria-label`
+  montado com o valor cru leria "850000" numa célula que mostra `R$ 8.500,00` — isso
+  reprova o WCAG 2.5.3 (Label in Name) e deixa controle por voz sem como chamar a
+  célula pelo que ela diz. Um `<td>` com `onClick` seria invisível pro teclado e sem
+  papel pro leitor de tela.
+- Aberta, o `<input>` tem `aria-label` `{coluna}, linha {n}`.
+- Erro de validação marca `aria-invalid` e liga a mensagem por `aria-describedby`.
+- Um save bem-sucedido é anunciado por [`useAnnounce`](../hooks.md#falar-com-o-leitor-de-tela-useannounce)
+  (`"{coluna} salvo"`), porque é o único evento aqui que não tem representação na tela.
+  A falha **não** é anunciada duas vezes: o `role="alert"` da célula já faz isso.
+- Em ponteiro grosso (toque), a área de toque do botão cresce até cobrir o `<td>`
+  inteiro — 44px sem invadir a linha vizinha, que um hit-slop simétrico invadiria.
+
+### Props de edição
+
+| Prop | Tipo | Onde |
+| --- | --- | --- |
+| `editable` | `boolean` | coluna |
+| `editorType` | `"text" \| "number" \| "date" \| "email" \| "tel" \| "url"` | coluna |
+| `formatEdit` | `(row: T) => string` | coluna — texto com que o editor abre |
+| `parse` | `(raw: string, row: T) => unknown` | coluna — string → valor guardado |
+| `validate` | `(value: unknown, row: T) => string \| null` | coluna |
+| `onCellChange` | `(change: DataTableCellChange<T>) => void \| Promise<void>` | tabela |
+| `editLabels` | `Partial<DataTableEditLabels>` | tabela — a cópia PT-BR |
+
+`DataTableCellChange<T>` traz `{ row, key, value, previous, rowIndex }`, com `rowIndex`
+no **dataset completo**, não na página.
+
+!!! tip "Coluna com `render` continua funcionando"
+    Uma coluna que renderiza `<Money cents={row.salario} />` recebe a linha com o valor
+    otimista já aplicado, então o número novo aparece formatado do jeito certo enquanto
+    o save está em voo.
+
 ## `ListTile`
 
 > **Quando usar**: a linha canônica de lista do Material — um item com slot à esquerda (ícone/avatar), título com subtítulo opcional e slot à direita (ícone, switch, meta). Ideal para listas de configurações, contatos ou menus.

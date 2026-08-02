@@ -20,6 +20,81 @@ console.log(labels[0], probabilities[0]);
 0 [0.6662, 0.1061, 0.2277]
 ```
 
+## Antes de tudo: de onde vem o modelo
+
+Este módulo **não treina** nada. Ele executa um modelo que já foi treinado —
+em Python, pela sua equipe de dados — e exportado para um formato que o
+navegador consegue ler.
+
+O caminho inteiro tem duas metades:
+
+```mermaid
+flowchart LR
+    A[Python: modelo treinado] -->|edge_pipeline| B[pasta com o modelo]
+    B -->|você publica junto do app| C[public/models/risco/]
+    C -->|loadEdgePackage| D[React: predição no navegador]
+```
+
+**Metade 1 — Python, uma vez por versão do modelo** (roda como está, o
+dataset vem no scikit-learn):
+
+```python
+from sklearn.datasets import load_iris
+from sklearn.ensemble import RandomForestClassifier
+
+from tempest_fastapi_sdk.modelops import edge_pipeline
+
+data = load_iris()
+model = RandomForestClassifier(n_estimators=20, max_depth=4, random_state=0)
+model.fit(data.data, data.target)
+
+edge_pipeline(
+    model,
+    data.data,
+    "public/models/flores",     # dentro do seu app React
+    name="flores",
+    labels=data.target,
+    feature_names=list(data.feature_names),
+    compact=True,               # a versão que dispensa runtime
+)
+```
+
+Isso escreve uma **pasta**, não um arquivo:
+
+```text
+public/models/flores/
+├── flores.onnx        o modelo em ONNX
+├── flores.tmc         o mesmo modelo, formato compacto
+├── baseline.json      referência dos dados de treino
+└── manifest.json      o que tem aí dentro
+```
+
+**Metade 2 — React, no navegador.** Se o pacote tem a versão compacta
+(`compact=True` acima), **não há nada a instalar** além do próprio SDK:
+
+```tsx
+import { loadEdgePackage } from "tempest-react-sdk/tabular";
+
+const pkg = await loadEdgePackage("/models/flores/");
+
+console.log(pkg.featureNames);
+// ["sepal length (cm)", "sepal width (cm)", "petal length (cm)", "petal width (cm)"]
+
+const { labels, probabilities } = await pkg.predictor.predict([[5.1, 3.5, 1.4, 0.2]]);
+console.log(labels[0], probabilities[0]);
+```
+
+!!! tip "A ordem das colunas vem junto"
+    `pkg.featureNames` diz em que ordem os valores têm que entrar. Use isso
+    para montar a linha a partir do seu formulário — modelo alimentado com
+    os números certos **na ordem errada** responde com confiança e errado, e
+    não existe checagem em runtime que pegue.
+
+!!! info "Só tenho um `.onnx` solto, sem pasta"
+    Funciona também — `TabularPredictor.create("/models/classifier.onnx")`.
+    Você perde o que o manifesto carrega (ordem das colunas, nomes das
+    classes, versão), e passa a precisar do `onnxruntime-web`.
+
 ## Três rotas, você escolhe
 
 Rodar sklearn no navegador tem um custo que não é o modelo. Medido:
@@ -178,36 +253,14 @@ não é sobre computação — é sobre a viagem de rede que deixa de existir.
     **frescor do modelo e tamanho**, não sobre velocidade de cálculo — a
     velocidade você já ganhou tirando a rede do caminho.
 
-## O ciclo completo, de ponta a ponta
+## Num componente React
 
-### 1. Exportar (Python)
-
-```python
-from tempest_fastapi_sdk.modelops import export_sklearn_to_onnx
-
-export = export_sklearn_to_onnx(model, X_train[:100], "dist/classifier.onnx")
-print(export.path, export.size_bytes)
-```
-
-!!! danger "Exportar com `skl2onnx` na mão quebra no navegador"
-    Medido: o default do `skl2onnx` deixa o **ZipMap** ligado, e a saída de
-    probabilidade vira uma *sequência de mapas*. O ONNX Runtime Web recusa
-    valores que não são tensor — `Reading data from non-tensor typed value is
-    not supported` — e a predição morre em runtime, não no build.
-
-    `export_sklearn_to_onnx` desliga o ZipMap e exporta em float32 por
-    isso. Se você tiver um `.onnx` de outra origem, o módulo detecta e o erro
-    diz o que fazer em vez de repetir a mensagem do runtime.
-
-### 2. Servir o arquivo
-
-O `.onnx` é um asset estático. Coloque em `public/models/` e versione o nome
-(`classifier-v3.onnx`) — assim o cache do navegador nunca serve um modelo
-velho por engano.
-
-### 3. Prever (React)
+O hook cuida do que todo componente erra igual: carregamento assíncrono,
+cancelamento quando o componente desmonta antes de terminar, e liberação da
+sessão.
 
 ```tsx
+import { useState } from "react";
 import { useTabularPredictor } from "tempest-react-sdk/tabular";
 
 function RiskWidget() {
@@ -229,10 +282,22 @@ function RiskWidget() {
 }
 ```
 
-O hook cuida do que todo componente erra igual: carregamento assíncrono,
-cancelamento quando o componente desmonta antes de terminar, e liberação da
-sessão (`release()`) — o heap do WebAssembly não encolhe sozinho no garbage
-collector.
+!!! tip "Versione o nome do arquivo"
+    `classifier-v3.onnx`, não `classifier.onnx`. O cache do navegador não
+    tem como saber que o conteúdo mudou, e um modelo velho servido do cache
+    é o tipo de bug que ninguém liga ao deploy da semana passada. Com o
+    pacote (`loadEdgePackage`) isso vem resolvido: a `version` do manifesto
+    é derivada do conteúdo.
+
+!!! danger "Exportar com `skl2onnx` na mão quebra no navegador"
+    Medido: o default do `skl2onnx` deixa o **ZipMap** ligado, e a saída de
+    probabilidade vira uma *sequência de mapas*. O ONNX Runtime Web recusa
+    valores que não são tensor — `Reading data from non-tensor typed value is
+    not supported` — e a predição morre em runtime, não no build.
+
+    Use `export_sklearn_to_onnx` (ou `edge_pipeline`), que desliga o ZipMap.
+    Se o `.onnx` veio de outra origem, o módulo detecta e o erro diz o que
+    fazer em vez de repetir a mensagem do runtime.
 
 ## Pacote de borda: o manifesto que vem do Python
 

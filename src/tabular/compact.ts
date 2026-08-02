@@ -245,6 +245,13 @@ export class CompactPredictor {
      * its slot in the value array — so the walk needs no second lookup and
      * the file stores values only for leaves.
      *
+     * **The comparison runs in float32** (`Math.fround`), because that is
+     * what scikit-learn does: it casts its input to float32 before
+     * traversing, so a threshold like 5.099999904632568 — a float32 value
+     * widened for storage — and an input of 5.1 compare *equal* and go
+     * left. Comparing in float64 sends that row right instead, which on an
+     * iris forest changed one tree's vote and moved a probability by 0.05.
+     *
      * @param row The prepared feature values.
      * @returns One averaged score per output.
      */
@@ -264,7 +271,7 @@ export class CompactPredictor {
             let column = feature[node] as number;
             while (column >= 0) {
                 node =
-                    (row[column] as number) <= (threshold[node] as number)
+                    Math.fround(row[column] as number) <= (threshold[node] as number)
                         ? (left[node] as number)
                         : (right[node] as number);
                 column = feature[node] as number;

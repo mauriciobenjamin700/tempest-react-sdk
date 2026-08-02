@@ -399,6 +399,29 @@ plenty for UX).
     return previewUrl ? <img src={previewUrl} alt="Preview" /> : null;
     ```
 
+## How long it took
+
+Every envelope carries a `speed` breakdown of the `predict()` call, in
+milliseconds:
+
+```typescript
+const results = await detector.predict(blob);
+console.log(results[0].speed);
+// { load: 84.2, preprocess: 11.7, inference: 118.9, postprocess: 6.4 }
+```
+
+`preprocess` / `inference` / `postprocess` are the same three keys Ultralytics
+reports, measured over the same boundaries. `load` is the fetch/decode
+`predict()` performs internally when you hand it a URL or `Blob` — on a cold
+cache it is usually the largest slice of the call. Creating the task
+(`Detector.create`) is **not** included: that is startup cost, paid once.
+
+To measure your whole app pipeline — including what happens *between* two
+`predict()` calls — use the [`perf` module](perf.md), and fold `speed` into the
+report with `profiler.mark("forward-pass", results[0].speed.inference)`.
+`SpeedTimer` is exported from here too, for code that wants the SDK's exact
+boundaries.
+
 ## Parity with the Python `ort-vision-sdk`
 
 This API deliberately mirrors the Python

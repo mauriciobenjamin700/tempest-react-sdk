@@ -397,6 +397,29 @@ mais que suficiente pra UX).
     return previewUrl ? <img src={previewUrl} alt="Prévia" /> : null;
     ```
 
+## Quanto tempo levou
+
+Todo envelope traz um `speed` com o tempo de cada etapa do `predict()`, em
+milissegundos:
+
+```typescript
+const results = await detector.predict(blob);
+console.log(results[0].speed);
+// { load: 84.2, preprocess: 11.7, inference: 118.9, postprocess: 6.4 }
+```
+
+`preprocess` / `inference` / `postprocess` são as mesmas três chaves do
+Ultralytics, medidas nas mesmas fronteiras. `load` é o fetch/decode que o
+`predict()` faz por dentro quando você passa uma URL ou `Blob` — com cache
+frio costuma ser a maior fatia da chamada. Criar a tarefa
+(`Detector.create`) **não** entra: é custo de inicialização, pago uma vez.
+
+Para medir o pipeline inteiro do app — incluindo o que acontece *entre* dois
+`predict()` — use o [módulo `perf`](perf.md), e dobre o `speed` para dentro do
+relatório com `profiler.mark("forward-pass", results[0].speed.inference)`.
+O `SpeedTimer` também é exportado daqui, para quem quiser as mesmas fronteiras
+do SDK em código próprio.
+
 ## Paridade com o `ort-vision-sdk` em Python
 
 Essa API espelha de propósito a do pacote Python

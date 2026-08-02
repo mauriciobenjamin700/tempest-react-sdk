@@ -4,6 +4,64 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.35.0] — 2026-08-02
+
+### Adicionado
+
+- **Módulo `perf` — quanto custou rodar inferência no dispositivo do
+  usuário.** Quando o modelo roda no navegador, não existe gráfico de
+  servidor: o que chega é "o app está lento no celular do fulano", e sem
+  número isso pode ser três coisas que pedem correções opostas — download de
+  modelo, forward pass pesado, ou NMS com threshold baixo demais.
+
+  ```typescript
+  import { createInferenceProfiler } from "tempest-react-sdk";
+  import { Detector } from "tempest-react-sdk/vision";
+
+  const profiler = createInferenceProfiler();
+  const detector = await profiler.stage("load-model", () => Detector.create("/models/detect.onnx"));
+  const results = await profiler.stage("detect", () => detector.predict(blob));
+  profiler.mark("forward-pass", results[0].speed.inference);
+
+  const report = await profiler.report({
+    models: [{ name: "detector", cacheName: "app-models", url: "/models/detect.onnx" }],
+  });
+  // { timings, totalMs, device, models, measuredAt }
+  ```
+
+  `stage` / `stageSync` / `mark` alimentam o relatório; nomes repetidos
+  acumulam, e uma etapa que lança ainda é medida (registro no `finally`) antes
+  de repropagar. As etapas são medidas de forma **independente**, não como um
+  ladrilhamento da execução: duas iniciadas juntas recebem cada uma o seu span
+  inteiro, então a soma pode passar do `totalMs` — a leitura honesta para um
+  pipeline que decodifica a imagem enquanto as sessões carregam.
+
+  Junto vêm `readDeviceProfile()` (`hardwareConcurrency`, `deviceMemory`,
+  `performance.memory` — os dois últimos só no Chromium, `null` no resto e em
+  SSR), `cachedResponseBytes()` (tamanho de um asset no Cache Storage lido do
+  `Content-Length`, porque materializar o blob traria dezenas de MB de pesos
+  para a memória a cada medição) e `formatDurationMs()` (`"<1 ms"` em vez de
+  `"0 ms"`, que se leria como "não medido").
+
+  O navegador não expõe joules nem FLOPs. Tudo que a plataforma não reporta
+  vem `null`, para a UI mostrar "—" em vez de um número inventado.
+
+- **`tempest-react-sdk/vision`: `predict()` agora reporta o tempo de cada
+  etapa.** Re-vendorizado do `@mauriciobenjamin700/ort-vision-sdk-web@0.3.0`.
+  Os envelopes de resultado sempre tiveram um campo `speed` — e ele sempre
+  esteve vazio, porque nenhuma tarefa o preenchia. Agora `results[0].speed`
+  traz `{ load, preprocess, inference, postprocess }` em milissegundos, e
+  `Speed`/`SpeedTimer` estão exportados do subpath.
+
+### Alterado
+
+- `Results.speed` (subpath `/vision`) passou de `Readonly<Record<string,
+number>>` para `Readonly<Speed>`, então `speed.inference` é `number` e não
+  `number | undefined`.
+- O aviso de depreciação de `decodeYoloV8` / `decodeYoloV8Anchors` /
+  `decodeYoloV8Seg` agora aponta para a `0.4.0` do pacote vendorizado. Os
+  aliases seguem exportados aqui.
+
 ## [0.34.0] — 2026-08-02
 
 ### Corrigido

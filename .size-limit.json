@@ -156,7 +156,7 @@
   {
     "name": "ceiling: full barrel ESM (nobody imports this — tree-shaking is the real cost)",
     "path": "dist/tempest-react-sdk.js",
-    "limit": "103 kB",
+    "limit": "107 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -175,7 +175,7 @@
   {
     "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "124 kB",
+    "limit": "129 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -369,6 +369,28 @@
       "./dist/tempest-react-sdk.js": "{ AudioRecorder, AudioPlayer, useMicrophone, useAudioRecorder, useMediaDevices, useMediaPermission, blobToWav, setAudioOutput }"
     },
     "limit": "7 KB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router",
+      "fflate"
+    ]
+  },
+  {
+    "name": "slice: device capture (barcode + video + screen + speech, no dependency)",
+    "path": "dist/tempest-react-sdk.js",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ BarcodeScanner, useBarcodeScanner, useVideoRecorder, useScreenCapture, useSpeechRecognition, useTorch, createVideoRecorder }"
+    },
+    "limit": "5.75 KB",
     "ignore": [
       "react",
       "react-dom",

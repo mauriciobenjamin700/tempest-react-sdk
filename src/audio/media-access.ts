@@ -1,5 +1,11 @@
-/** Which capture device a media error is about. */
-export type MediaDeviceKindLabel = "microphone" | "camera";
+/**
+ * What a media error is about.
+ *
+ * `"screen"` is not a device in the `getUserMedia` sense — it is what
+ * `getDisplayMedia` captures — but it fails through the same `DOMException` names, so
+ * it is classified by the same function rather than by a second copy of the table.
+ */
+export type MediaDeviceKindLabel = "microphone" | "camera" | "screen";
 
 /** Classified reason a capture device could not be acquired. */
 export type MediaAccessErrorKind =
@@ -15,6 +21,7 @@ export interface MediaAccessError {
 const NOUN: Record<MediaDeviceKindLabel, string> = {
     microphone: "Microphone",
     camera: "Camera",
+    screen: "Screen",
 };
 
 /**

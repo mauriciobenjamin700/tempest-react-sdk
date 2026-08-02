@@ -18,6 +18,7 @@ import { ImageCropperSection } from "./ImageCropperSection";
 import { ChatSection } from "./ChatSection";
 import { AIChatSection } from "./AIChatSection";
 import { AudioCaptureSection } from "./AudioCaptureSection";
+import { DeviceCaptureSection } from "./DeviceCaptureSection";
 import { DashboardLayoutSection } from "./DashboardLayoutSection";
 import { FilterBarSection } from "./FilterBarSection";
 import { MarkdownSection } from "./MarkdownSection";
@@ -295,6 +296,14 @@ export const SECTIONS: SectionEntry[] = [
             "audio gravar gravacao recorder microfone microphone mic permissao permission getusermedia mediarecorder nivel level meter wav opus webm mp4 saida output sinkid dispositivo device player reproducao",
         group: "Componentes",
         Component: AudioCaptureSection,
+    },
+    {
+        id: "device-capture",
+        label: "Captura de dispositivo",
+        keywords:
+            "barcode codigo de barras ean13 qr code128 scanner leitor barcodedetector camera lanterna torch video gravar tela screen getdisplaymedia compartilhar fala voz speech ditar dictation reconhecimento webspeech",
+        group: "Componentes",
+        Component: DeviceCaptureSection,
     },
     {
         id: "dashboard-layout",

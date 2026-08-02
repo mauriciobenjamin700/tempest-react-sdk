@@ -250,4 +250,61 @@ describe("useCameraStream — lifecycle races", () => {
         await waitFor(() => expect(stop).toHaveBeenCalled());
         expect(observed.status).toBe("loading");
     });
+
+    it("exposes the live stream, for whatever needs the track itself", async () => {
+        vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
+        const { stream } = makeFakeStream();
+        setMediaDevices(vi.fn().mockResolvedValue(stream));
+        let live: MediaStream | null = null;
+
+        function WithStream(): React.JSX.Element {
+            const api = useCameraStream();
+            live = api.stream;
+            return <video ref={api.videoRef} />;
+        }
+
+        render(<WithStream />);
+        await waitFor(() => expect(live).toBe(stream));
+    });
+
+    it("does not prompt at all while disabled", async () => {
+        const getUserMedia = vi.fn();
+        setMediaDevices(getUserMedia);
+        let status: CameraStreamStatus = "loading";
+
+        function Disabled(): React.JSX.Element {
+            const api = useCameraStream({ enabled: false });
+            status = api.status;
+            return <video ref={api.videoRef} />;
+        }
+
+        render(<Disabled />);
+        await waitFor(() => expect(status).toBe("idle"));
+        // A prompt the user did not provoke is how an app earns a permanent block.
+        expect(getUserMedia).not.toHaveBeenCalled();
+    });
+
+    it("releases the camera when it is disabled again", async () => {
+        vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
+        const { stream, stop } = makeFakeStream();
+        setMediaDevices(vi.fn().mockResolvedValue(stream));
+
+        function Toggle({ enabled }: { enabled: boolean }): React.JSX.Element {
+            const api = useCameraStream({ enabled });
+            observed = {
+                status: api.status,
+                error: api.error,
+                retry: api.retry,
+                video: api.videoRef.current,
+            };
+            return <video ref={api.videoRef} />;
+        }
+
+        const view = render(<Toggle enabled />);
+        await waitFor(() => expect(observed.status).toBe("ready"));
+
+        view.rerender(<Toggle enabled={false} />);
+        await waitFor(() => expect(observed.status).toBe("idle"));
+        expect(stop).toHaveBeenCalled();
+    });
 });

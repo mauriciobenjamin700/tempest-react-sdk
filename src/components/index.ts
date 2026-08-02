@@ -400,6 +400,9 @@ export type { AudioPlayerProps } from "./AudioPlayer";
 export { AudioRecorder } from "./AudioRecorder";
 export type { AudioRecorderProps } from "./AudioRecorder";
 
+export { BarcodeScanner } from "./BarcodeScanner";
+export type { BarcodeScannerProps } from "./BarcodeScanner";
+
 export { AIChat, AIChatComposer, AIChatTurn } from "./AIChat";
 export type {
     AIChatAttachment,

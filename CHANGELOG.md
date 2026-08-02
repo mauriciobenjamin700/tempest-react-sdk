@@ -106,6 +106,78 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   porque não há paint, então isso passava por todo o CI verde e só aparecia no
   browser de alguém. Verifiquei que o guard **reprova** quando o bug antigo é
   reintroduzido, nos dois temas — guard que não exercita o caso é decorativo.
+- **Captura de dispositivo: código de barras, vídeo, tela e fala.** Novo módulo
+  `capture` + componente `BarcodeScanner`, em **5,40 KB brotli** e sem uma
+  dependência nova — as quatro são APIs que o navegador já tem.
+  | Export                                                                                 | O que resolve                                                                     |
+  | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+  | `BarcodeScanner`                                                                       | leitor completo: visor, mira, lanterna, supressão de repetição, erro classificado |
+  | `useBarcodeScanner`                                                                    | a metade de decodificação sobre o `useCameraStream`, com loop que não se sobrepõe |
+  | `useTorch`                                                                             | a lanterna da câmera, que é constraint de track viva e não dispositivo            |
+  | `isBarcodeDetectionSupported` · `getSupportedBarcodeFormats` · `createBarcodeDetector` | detecção de suporte honesta e a lista de formatos **da plataforma**               |
+  | `useVideoRecorder` · `createVideoRecorder`                                             | gravar câmera, tela ou canvas, com `videoBitsPerSecond` e `timesliceMs`           |
+  | `useScreenCapture`                                                                     | `getDisplayMedia` com os três estados que importam                                |
+  | `useSpeechRecognition`                                                                 | ditado com interim/final e erros classificados                                    |
+  | `createMediaRecorder` · `pickRecordingMimeType`                                        | o motor de gravação, agora compartilhado entre áudio e vídeo                      |
+  | **Por que não existe fallback de decodificação embutido.** `BarcodeDetector` é         |
+  | Chromium-only: não existe no Firefox, em nenhum navegador do iOS (todos são            |
+  | WebKit) nem no Chromium de Windows/Linux — confirmado no Chrome headless deste         |
+  | CI, onde `"BarcodeDetector" in window` é `false`. Embutir um decodificador             |
+  | significaria um build WASM (Reed–Solomon + correção de perspectiva + busca de          |
+  | padrão) no bundle de **todo** consumidor do SDK pra servir uma feature — a             |
+  | mesma troca que já foi recusada pro encoder de MP3. Então a saída é a costura:         |
+  | `supported` é público, `unsupported` é um slot do componente, e `detector`             |
+  | aceita qualquer `BarcodeDetectorLike` (o polyfill `barcode-detector`, um               |
+  | wrapper de `zxing-wasm`). Um teste passa um decodificador **de verdade** por           |
+  | essa costura e fecha o ciclo com o `QRCode` do próprio SDK — a limitação está          |
+  | documentada, e a alternativa está provada, não prometida.                              |
+  | **Um motor de gravação, dois dispositivos.** `createAudioRecorder` virou uma           |
+  | fachada sobre `createMediaRecorder`, que é o mesmo relógio que desconta pausa,         |
+  | o mesmo `stop()` que resolve no `onstop` com todos os chunks na mão e a mesma          |
+  | negociação de container — o que difere de verdade entre áudio e vídeo é a lista        |
+  | de candidatos, e só ela ficou nos dois lados. Duplicar as ~80 linhas deixaria a        |
+  | parte sutil (o relógio) em dois lugares pra corrigir. **Nada quebrou:**                |
+  | `AudioRecorderHandle`, `AudioRecording`, `AudioRecorderOptions`,                       |
+  | `createAudioRecorder`, `pickAudioMimeType` e `useAudioRecorder` mantêm nome,           |
+  | forma e mensagens de erro — os 277 testes de áudio passam sem uma linha                |
+  | alterada, que é a prova. Custo medido: a fatia de áudio vai de **5,65 KB para          |
+  | 5,72 KB brotli** (+70 B, o módulo extra no grafo preservado).                          |
+  | **`ended` é o único sinal de que o compartilhamento de tela acabou.** Quando o         |
+  | usuário aperta "Parar compartilhamento" na barra do próprio navegador, nenhuma         |
+  | promise rejeita e nada na sua UI foi clicado — sem esse listener o app fica            |
+  | exibindo "gravando" sobre um stream morto. E fechar o seletor **não é erro**:          |
+  | produz o mesmo `NotAllowedError` que um bloqueio por política, mas um prompt de        |
+  | captura de tela é sempre iniciado pelo usuário, então a causa provável é "mudei        |
+  | de ideia" e um toast vermelho pune quem usou o seletor. Vai para `onCancelled`         |
+  | com a rejeição crua, não para `error`.                                                 |
+  | **O reconhecimento de fala manda o áudio para um servidor do Google.** No              |
+  | Chromium, a cada `start()`, sem configuração que mude e sem nada na API dizendo        |
+  | isso. Está na doc como `!!! danger`, não como nota de pé, porque é um fato de          |
+  | privacidade que o consumidor precisa saber **antes** de embarcar. Também não há        |
+  | auto-restart quando o motor encerra a sessão no silêncio: um loop de reinício é        |
+  | como um app acaba segurando o microfone — e transmitindo áudio para terceiros —        |
+  | indefinidamente.                                                                       |
+  | **O `AIChat` continua sem saber o que é fala.** O ditado entra pelo                    |
+  | `composerRef` (novo) mais o `getValue()` (novo, no `AIChatComposerHandle`): o          |
+  | botão que você põe em `composerActions` lê o rascunho e escreve nele. Acoplar o        |
+  | reconhecimento ao componente faria todo consumidor do `AIChat` pagar por uma           |
+  | API que manda áudio pra terceiros.                                                     |
+
+### Mudado
+
+- **`useCameraStream` expõe `stream` e aceita `enabled`.** Adições, não
+  quebras. O `stream` é pra quem precisa da **track** e não da imagem (lanterna,
+  tamanho real do frame, gravar o que a câmera vê). O `enabled` existe porque
+  abrir a câmera pra depois dizer "este navegador não decodifica códigos" gasta
+  um prompt em nada — e uma recusa é permanente, então gasta também a próxima
+  feature que precisar da câmera. O `useBarcodeScanner` passa
+  `enabled: supported`.
+- **A classificação de erro de câmera deixou de ser uma segunda cópia.** O
+  `useCameraStream` agora delega pro `classifyMediaError` do módulo de áudio e só
+  renomeia um `kind` (`not-found` → `no-camera`, que é o nome já publicado nessa
+  superfície). As mensagens e os `kind` continuam idênticos; `MediaDeviceKindLabel`
+  ganhou `"screen"` pro `getDisplayMedia` usar a mesma tabela em vez de uma
+  terceira cópia.
 
 ### Corrigido
 

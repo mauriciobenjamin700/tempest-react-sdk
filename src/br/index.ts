@@ -60,6 +60,74 @@ export type { MapMarkersProps } from "./MapMarkers";
 export { MapLegend } from "./MapLegend";
 export type { MapLegendProps, LegendItem } from "./MapLegend";
 
+// Pix — BR Code (EMV MPM) payload + the QR that carries it.
+export {
+    normalizePixKey,
+    parsePixPayload,
+    PixError,
+    pixCrc16,
+    pixKeyType,
+    pixPayload,
+} from "./pix";
+export type {
+    NormalizedPixKey,
+    ParsePixOptions,
+    PixData,
+    PixDynamicInput,
+    PixField,
+    PixInput,
+    PixKeyType,
+    PixStaticInput,
+} from "./pix";
+export { PixQRCode } from "./PixQRCode";
+export type { PixQRCodeLabels, PixQRCodeProps } from "./PixQRCode";
+
+// Boleto — 47/48-digit typed line, 44-digit barcode, FEBRABAN check digits.
+export {
+    boletoDueDate,
+    BoletoError,
+    boletoKind,
+    codigoBarrasToLinhaDigitavel,
+    fatorVencimento,
+    formatLinhaDigitavel,
+    linhaDigitavelToCodigoBarras,
+    mod10Dac,
+    mod11DacArrecadacao,
+    mod11DacCobranca,
+    parseCodigoBarras,
+    parseLinhaDigitavel,
+    validateBoleto,
+} from "./boleto";
+export type {
+    Boleto,
+    BoletoArrecadacao,
+    BoletoBanco,
+    BoletoEpoch,
+    BoletoKind,
+    BoletoOptions,
+} from "./boleto";
+
+// NF-e / NFC-e / CT-e access key.
+export {
+    chaveNFeCheckDigit,
+    ChaveNFeError,
+    formatChaveNFe,
+    parseChaveNFe,
+    validateChaveNFe,
+} from "./nfe";
+export type { ChaveNFe } from "./nfe";
+
+// National holidays + business-day arithmetic.
+export {
+    addBusinessDays,
+    easterSunday,
+    holidaysFor,
+    isBusinessDay,
+    isHoliday,
+    nextBusinessDay,
+} from "./holidays";
+export type { BusinessDayOptions, DateInput, Holiday, HolidayKind } from "./holidays";
+
 // Color scales + palettes for choropleths.
 export {
     interpolatePalette,

@@ -14,7 +14,15 @@ export interface UseWebSocketOptions<T> extends Omit<CreateWebSocketOptions<T>, 
 
 export interface UseWebSocketResult<T> {
     status: WebSocketStatus;
-    /** Last decoded frame received. */
+    /**
+     * Last decoded frame received.
+     *
+     * A snapshot, not a stream: two frames arriving in the same tick collapse
+     * into a single render and only the later one is ever visible. One server
+     * action often emits several frames in a row, so anything that must see
+     * every message has to use `onMessage`, which fires once per frame. Read
+     * `lastMessage` for "what is the current state" rendering only.
+     */
     lastMessage: WebSocketMessage<T> | null;
     /** Send a payload through the active connection. Returns false when not open. */
     send: (payload: string | Blob | BufferSource) => boolean;
@@ -22,23 +30,55 @@ export interface UseWebSocketResult<T> {
     reconnect: () => void;
 }
 
+/** Mirror of `createWebSocket`'s default parser: JSON, raw string on failure. */
+function defaultParse<T>(raw: string): T {
+    try {
+        return JSON.parse(raw) as T;
+    } catch {
+        return raw as unknown as T;
+    }
+}
+
 /**
  * React hook around {@link createWebSocket}. Manages the connection lifecycle
  * for the host component and tears it down on unmount.
+ *
+ * Every callback is read through a ref, so `onOpen` / `onMessage` / `onClose` /
+ * `onError` always run the latest closure — an inline arrow function is fine
+ * and never reopens the socket. Connection-shaping options (`protocols`,
+ * `maxRetries`, `initialBackoff`, `maxBackoff`, `pingInterval`,
+ * `queueWhileClosed`) are baked into the connection, so changing one reopens
+ * it with the new value rather than being silently ignored.
+ *
+ * @param url - Full ws:// or wss:// URL.
+ * @param options - Connection configuration and callbacks.
+ * @returns Status, last frame, and the `send` / `reconnect` controls.
  */
 export function useWebSocket<T = unknown>(
     url: string,
     options: UseWebSocketOptions<T> = {},
 ): UseWebSocketResult<T> {
-    const { enabled = true, onMessage, ...rest } = options;
+    const {
+        enabled = true,
+        protocols,
+        maxRetries,
+        initialBackoff,
+        maxBackoff,
+        pingInterval,
+        respondToPing,
+        queueWhileClosed,
+        maxQueuedMessages,
+    } = options;
     const [status, setStatus] = useState<WebSocketStatus>("idle");
     const [lastMessage, setLastMessage] = useState<WebSocketMessage<T> | null>(null);
     const controllerRef = useRef<WebSocketController | null>(null);
 
-    const onMessageRef = useRef(onMessage);
+    const optionsRef = useRef(options);
     useEffect(() => {
-        onMessageRef.current = onMessage;
-    }, [onMessage]);
+        optionsRef.current = options;
+    });
+
+    const protocolsKey = Array.isArray(protocols) ? protocols.join(",") : (protocols ?? "");
 
     useEffect(() => {
         if (!enabled || !url) {
@@ -47,11 +87,24 @@ export function useWebSocket<T = unknown>(
         }
 
         const controller = createWebSocket<T>(url, {
-            ...rest,
+            protocols: optionsRef.current.protocols,
+            maxRetries,
+            initialBackoff,
+            maxBackoff,
+            pingInterval,
+            pingPayload: optionsRef.current.pingPayload,
+            respondToPing,
+            pongPayload: optionsRef.current.pongPayload,
+            queueWhileClosed,
+            maxQueuedMessages,
+            parser: (raw) => (optionsRef.current.parser ?? defaultParse<T>)(raw),
             onStatusChange: setStatus,
+            onOpen: (event) => optionsRef.current.onOpen?.(event),
+            onClose: (event) => optionsRef.current.onClose?.(event),
+            onError: (event) => optionsRef.current.onError?.(event),
             onMessage: (message) => {
                 setLastMessage(message);
-                onMessageRef.current?.(message);
+                optionsRef.current.onMessage?.(message);
             },
         });
         controllerRef.current = controller;
@@ -60,8 +113,18 @@ export function useWebSocket<T = unknown>(
             controller.close();
             controllerRef.current = null;
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [url, enabled]);
+    }, [
+        url,
+        enabled,
+        protocolsKey,
+        maxRetries,
+        initialBackoff,
+        maxBackoff,
+        pingInterval,
+        respondToPing,
+        queueWhileClosed,
+        maxQueuedMessages,
+    ]);
 
     const send = useCallback((payload: string | Blob | BufferSource): boolean => {
         return controllerRef.current?.send(payload) ?? false;

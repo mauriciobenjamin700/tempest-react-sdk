@@ -4,7 +4,58 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **O cliente WebSocket não respondia ao `ping` do servidor Tempest — os
+  dois SDKs não se falavam.** O `tempest-fastapi-sdk` emite
+  `{"type":"ping"}` e espera `{"type":"pong"}`; o `createWebSocket` não
+  tratava ping recebido, e o que existia era o oposto — um `pingInterval`
+  que **envia** `{"type":"ping"}` ao servidor, frame que o servidor
+  Tempest não conhece. Heartbeats incompatíveis nas duas direções, e a
+  partir da v0.197.0 do SDK Python isso vira desconexão com código `4408`
+  a cada timeout.
+
+  Novo `respondToPing` (default `true`) responde `pongPayload` a todo
+  ping recebido, antes do `onMessage`. `pingInterval` segue `0` por
+  default — contra um servidor Tempest ele deve ficar desligado.
+
+- **`onOpen` / `onClose` / `onError` ficavam presos no primeiro render.**
+  Só `onMessage` era guardado em ref; os demais entravam no
+  `createWebSocket` dentro de um `useEffect` com deps `[url, enabled]`,
+  capturavam a closure inicial e liam estado velho para sempre. Agora
+  todos passam por ref. Pelo mesmo motivo, `protocols`, `maxRetries`,
+  `initialBackoff`, `maxBackoff`, `pingInterval` e `queueWhileClosed`
+  entraram no dep array: mudar uma reabre a conexão com o valor novo em
+  vez de ser ignorada.
+
+- **`close()` durante `CONNECTING` poluía o console de todo app em dev.**
+  O `ws.close()` era chamado sem olhar o `readyState`, e com o StrictMode
+  do React (monta → desmonta → monta) o primeiro socket sempre morre no
+  meio do handshake — `WebSocket is closed before the connection is
+established` em **toda** sessão de desenvolvimento. O fechamento agora
+  é adiado para o `onopen` quando o socket ainda está conectando.
+
 ### Adicionado
+
+- **`queueWhileClosed` + `maxQueuedMessages` em `createWebSocket` /
+  `useWebSocket`.** Sem fila, uma ação enviada durante o backoff de
+  reconexão sumia em silêncio e a UI não distinguia "não enviou" de
+  "enviou e o servidor ignorou". Com a opção ligada o `send()` bufferiza
+  (teto de 100 por default, descartando o mais antigo) e drena no `open`
+  seguinte, mais antigo primeiro. Um `close()` explícito limpa a fila.
+
+- **`configureApiAuth` no template do `create-tempest-app`.** O
+  `src/lib/api.ts` nascia importando `@/stores/auth`, então um projeto
+  sem contas precisava editar os dois arquivos ou carregar um store
+  morto. A dependência agora aponta ao contrário: o cliente não sabe nada
+  de auth e o store é que se registra nele — apagar `@/stores/auth` deixa
+  o cliente funcionando sem autenticação.
+
+- **`lastMessage` documentado como foto, não fila.** Cada frame é um
+  `setState`, então dois no mesmo tick colapsam num render e só o último
+  fica visível — e uma ação no servidor costuma emitir vários frames em
+  sequência. Quem precisa de todos os eventos usa `onMessage`; o JSDoc e
+  a receita agora dizem isso onde a API é lida.
 
 - **`AIChat` — conversa com um modelo, no formato que ChatGPT, Claude e
   DeepSeek convergiram.** Turnos por papel (`user` / `assistant` /

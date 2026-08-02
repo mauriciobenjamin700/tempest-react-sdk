@@ -5,6 +5,7 @@ const OPEN = 1;
 
 class WSMock {
     static instances: WSMock[] = [];
+    static CONNECTING = 0;
     static OPEN = OPEN;
     onopen: ((event: Event) => void) | null = null;
     onmessage: ((event: MessageEvent) => void) | null = null;

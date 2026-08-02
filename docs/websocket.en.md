@@ -53,10 +53,17 @@ Backoff: 1s → 2s → 4s → ... (capped at 30s), up to maxRetries (default 10)
 
 - Exponential reconnect, same as SSE (default `maxRetries: 10`).
 - `pingInterval` (ms) sends `pingPayload` periodically — default `JSON.stringify({ type: "ping" })`. Pass `0` (default) to disable.
+- `respondToPing` (default `true`) answers `pongPayload` to every **inbound** `{"type":"ping"}` frame. That is the heartbeat `tempest-fastapi-sdk` expects: without the `pong` it closes the socket with code `4408` once `WS_HEARTBEAT_TIMEOUT_SECONDS` passes.
+- `queueWhileClosed` (default `false`) buffers whatever you send while the socket is down and drains it on the next open, oldest first, capped at `maxQueuedMessages` (default 100).
 - **Reconnect only fires on `close.wasClean === false`.** Clean closes (`socket.close()` or a normal server close) do **not** try to reopen.
 
 !!! warning "`send()` is a no-op when the socket isn't open"
     If you call `send()` before the status becomes `"open"` (or after a `close`), nothing is sent and the return value is `false`. Always check `status === "open"` (or the returned boolean) before assuming the message went out.
+
+    Turn on `queueWhileClosed: true` when the action **must not** vanish: `send()` then buffers during the backoff and returns `true`, and the queue drains on the next open. The queue dies on `close()` — nothing survives an explicit shutdown.
+
+!!! danger "Against a Tempest server, leave `pingInterval` off"
+    `tempest-fastapi-sdk` **sends** the ping and wants the `pong` back. A client-originated `{"type":"ping"}` is an unknown frame to it — a strict handler rejects it. Keep `pingInterval: 0` (the default) and let `respondToPing` handle the heartbeat.
 
 ## Hook — `useWebSocket`
 
@@ -105,7 +112,11 @@ export function Chat({ enabled }: { enabled: boolean }) {
 ```
 
 - The hook returns `{ status, lastMessage, send, reconnect }`.
-- `enabled: false` does not open the socket; changing the URL reopens; changing `onMessage` does not (internal ref).
+- `enabled: false` does not open the socket; changing the URL reopens. **Every** callback (`onOpen`, `onMessage`, `onClose`, `onError`) goes through a ref: an inline arrow function is safe, always runs the latest closure, and never reopens the socket.
+- Connection-shaping options (`protocols`, `maxRetries`, `initialBackoff`, `maxBackoff`, `pingInterval`, `queueWhileClosed`) are part of the handshake — changing one **reopens** the socket with the new value instead of being silently ignored.
+
+!!! warning "`lastMessage` is a snapshot, not a queue"
+    Every frame is a `setState`, so two arriving in the same tick collapse into one render and you only ever see the later one. A single server action often emits several frames in a row. For **streams** use `onMessage`, which fires once per frame; `lastMessage` is for rendering current state.
 - `send` is stable (`useCallback`) — safe to put in deps without reopening anything.
 - Automatic cleanup on unmount (clean close, no reconnect attempts).
 

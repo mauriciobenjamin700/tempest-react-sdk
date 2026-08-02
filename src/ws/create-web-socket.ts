@@ -19,10 +19,36 @@ export interface CreateWebSocketOptions<T> {
     /**
      * Ping interval (ms). When set, the client sends `pingPayload` periodically
      * to keep the socket alive. Default: 0 (disabled).
+     *
+     * Leave it off against a `tempest-fastapi-sdk` server: that server pings on
+     * its own and answers a client-sent `{"type":"ping"}` with nothing, while a
+     * strict handler rejects the unknown frame. What it needs from the client
+     * is the `pong` reply, which `respondToPing` sends for you.
      */
     pingInterval?: number;
     /** Payload sent on each ping. Default: `JSON.stringify({ type: "ping" })`. */
     pingPayload?: string | Blob | BufferSource;
+    /**
+     * Reply to a server `{"type":"ping"}` with `pongPayload`. Default: true.
+     *
+     * `tempest-fastapi-sdk` closes a socket with code `4408` when no `pong`
+     * arrives within `WS_HEARTBEAT_TIMEOUT_SECONDS`, so a client that stays
+     * silent is dropped once per timeout. The ping is still forwarded to
+     * `onMessage` — the reply is sent before your handler runs.
+     */
+    respondToPing?: boolean;
+    /** Payload sent in reply to a server ping. Default: `JSON.stringify({ type: "pong" })`. */
+    pongPayload?: string | Blob | BufferSource;
+    /**
+     * Buffer payloads sent while the socket is not open and flush them on the
+     * next `open`. Default: false — `send()` returns false and drops.
+     *
+     * Without it, an action fired during reconnect backoff vanishes and the UI
+     * cannot tell "never sent" from "sent and ignored".
+     */
+    queueWhileClosed?: boolean;
+    /** Cap on buffered payloads when `queueWhileClosed` is on. Default: 100. */
+    maxQueuedMessages?: number;
     /** Parse incoming frames. Default: JSON with raw-string fallback. */
     parser?: (raw: string) => T;
     onOpen?: (event: Event) => void;
@@ -70,6 +96,10 @@ export function createWebSocket<T = unknown>(
         maxBackoff = 30000,
         pingInterval = 0,
         pingPayload = JSON.stringify({ type: "ping" }),
+        respondToPing = true,
+        pongPayload = JSON.stringify({ type: "pong" }),
+        queueWhileClosed = false,
+        maxQueuedMessages = 100,
         parser = defaultParser<T>,
         onOpen,
         onMessage,
@@ -84,6 +114,23 @@ export function createWebSocket<T = unknown>(
     let retries = 0;
     let status: WebSocketStatus = "idle";
     let closed = false;
+    const outbox: Array<string | Blob | BufferSource> = [];
+
+    /** True for a decoded frame that is the server's heartbeat ping. */
+    function isServerPing(data: unknown): boolean {
+        return (
+            typeof data === "object" &&
+            data !== null &&
+            (data as { type?: unknown }).type === "ping"
+        );
+    }
+
+    /** Send everything buffered while the socket was down, oldest first. */
+    function flushOutbox(ws: WebSocket): void {
+        while (outbox.length > 0 && ws.readyState === WebSocket.OPEN) {
+            ws.send(outbox.shift()!);
+        }
+    }
 
     function setStatus(next: WebSocketStatus): void {
         if (status === next) return;
@@ -122,11 +169,12 @@ export function createWebSocket<T = unknown>(
     function connect(): void {
         if (closed) return;
         if (socket) {
-            socket.onopen = null;
-            socket.onmessage = null;
-            socket.onclose = null;
-            socket.onerror = null;
-            socket.close();
+            const previous = socket;
+            previous.onmessage = null;
+            previous.onclose = null;
+            previous.onerror = null;
+            if (previous.readyState !== WebSocket.CONNECTING) previous.onopen = null;
+            closeSocket(previous);
         }
         setStatus("connecting");
 
@@ -137,15 +185,17 @@ export function createWebSocket<T = unknown>(
             retries = 0;
             setStatus("open");
             startPing();
+            flushOutbox(ws);
             onOpen?.(event);
         };
 
         ws.onmessage = (event) => {
             const raw = typeof event.data === "string" ? event.data : "";
-            onMessage?.({
-                data: parser(raw),
-                raw: event,
-            });
+            const data = parser(raw);
+            if (respondToPing && isServerPing(data) && ws.readyState === WebSocket.OPEN) {
+                ws.send(pongPayload);
+            }
+            onMessage?.({ data, raw: event });
         };
 
         ws.onerror = (event) => {
@@ -164,8 +214,13 @@ export function createWebSocket<T = unknown>(
     }
 
     function send(payload: string | Blob | BufferSource): boolean {
-        if (socket?.readyState !== WebSocket.OPEN) return false;
-        socket.send(payload);
+        if (socket?.readyState === WebSocket.OPEN) {
+            socket.send(payload);
+            return true;
+        }
+        if (!queueWhileClosed || closed) return false;
+        if (outbox.length >= maxQueuedMessages) outbox.shift();
+        outbox.push(payload);
         return true;
     }
 
@@ -177,12 +232,35 @@ export function createWebSocket<T = unknown>(
         }
         clearPing();
         retries = 0;
+        outbox.length = 0;
         if (socket) {
             setStatus("closing");
-            socket.close(code, reason);
+            closeSocket(socket, code, reason);
             socket = null;
         }
         setStatus("closed");
+    }
+
+    /**
+     * Close a socket without the "closed before the connection is established"
+     * console warning.
+     *
+     * A socket still in `CONNECTING` cannot be closed cleanly — the browser
+     * logs that warning on every attempt. React's StrictMode mounts, unmounts
+     * and remounts each component in development, so the first socket is
+     * always torn down mid-handshake and the message shows up in every dev
+     * session of every app using the hook. Deferring the close to `onopen`
+     * costs one round trip and keeps the console usable.
+     */
+    function closeSocket(ws: WebSocket, code?: number, reason?: string): void {
+        if (ws.readyState === WebSocket.CONNECTING) {
+            ws.onopen = () => ws.close(code, reason);
+            ws.onmessage = null;
+            ws.onerror = null;
+            ws.onclose = null;
+            return;
+        }
+        ws.close(code, reason);
     }
 
     function reconnect(): void {

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { useWebSocket } from "./use-web-socket";
 
 class WSMock {
+    static CONNECTING = 0;
     static OPEN = 1;
     onopen: ((event: Event) => void) | null = null;
     onmessage: ((event: MessageEvent) => void) | null = null;

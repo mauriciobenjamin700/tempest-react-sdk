@@ -6,6 +6,7 @@ import {
     useState,
     type HTMLAttributes,
     type ReactNode,
+    type Ref,
 } from "react";
 
 import { cn } from "@/utils/cn";
@@ -75,6 +76,16 @@ export interface AIChatProps extends Omit<HTMLAttributes<HTMLDivElement>, Overri
     placeholder?: string;
     /** Extra controls inside the composer, before the send button. */
     composerActions?: ReactNode;
+    /**
+     * Reach the composer imperatively — `focus()`, `getValue()`, `setValue()`.
+     *
+     * What makes dictation (or a slash-command menu, or "edit and resend") possible
+     * without this component knowing anything about them: pair it with
+     * `composerActions` and the button you put in the composer can write into the
+     * field. Speech recognition is **not** wired in here on purpose — it would make
+     * every consumer of `AIChat` pay for an API that streams audio to a third party.
+     */
+    composerRef?: Ref<AIChatComposerHandle>;
     /** Under the composer field — token count, model name, a disclaimer. */
     composerFooter?: ReactNode;
     /** Disable the composer — no credits, conversation archived, offline. */
@@ -141,6 +152,7 @@ export function AIChat({
     locale = "pt-BR",
     placeholder,
     composerActions,
+    composerRef,
     composerFooter,
     composerDisabled,
     maxRows,
@@ -308,7 +320,7 @@ export function AIChat({
 
             {onSend && (
                 <AIChatComposer
-                    ref={composer}
+                    ref={composerRef ?? composer}
                     onSend={onSend}
                     onStop={onStop}
                     generating={generating}

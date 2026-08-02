@@ -1,5 +1,11 @@
-/** Lifecycle of a recording. */
-export type AudioRecorderStatus = "idle" | "recording" | "paused" | "stopped";
+import {
+    createMediaRecorder,
+    pickRecordingMimeType,
+    type MediaRecorderStatus,
+} from "@/capture/media-recorder";
+
+/** Lifecycle of a recording. Shared with the video recorder — the states are the same. */
+export type AudioRecorderStatus = MediaRecorderStatus;
 
 /**
  * Container/codec candidates, best first.
@@ -98,26 +104,19 @@ export function isAudioRecordingSupported(): boolean {
 export function pickAudioMimeType(
     preferred: readonly string[] = AUDIO_MIME_CANDIDATES,
 ): string | null {
-    if (typeof MediaRecorder === "undefined") return null;
-    // Older WebViews ship `MediaRecorder` without the static probe. Assume the first
-    // candidate rather than refusing outright — the constructor will tell us.
-    if (typeof MediaRecorder.isTypeSupported !== "function") return preferred[0] ?? null;
-    return preferred.find((type) => MediaRecorder.isTypeSupported(type)) ?? null;
+    return pickRecordingMimeType(preferred);
 }
 
 /**
  * Wrap a `MediaStream` in a recorder with a real state machine and an honest clock.
  *
- * Two things `MediaRecorder` does not give you:
- *
- * - **A duration.** It reports none, and the `Blob` has no reliable one either —
- *   WebM written by `MediaRecorder` carries no duration in its header, which is why
- *   `<audio>` shows `Infinity` for a fresh recording. So the clock is kept here, and
- *   it subtracts paused time: a recorder that counts wall-clock through a pause
- *   reports a 30-second note as two minutes.
- * - **A promise from `stop()`.** The last chunk arrives *after* `stop()` returns, in
- *   a `dataavailable` event that fires before `onstop`. Assembling the blob in
- *   `onstop` is the only point where every chunk is in hand.
+ * The engine is shared with the video recorder (`createMediaRecorder`), because the
+ * subtle parts are not audio-specific: `MediaRecorder` reports **no duration** (WebM
+ * it writes carries none in its header, which is why `<audio>` shows `Infinity` for a
+ * fresh recording) so the clock is kept by hand and subtracts paused time; and
+ * `stop()` returns *before* the last `dataavailable` event, so the blob can only be
+ * assembled in `onstop`. What stays here is the part that genuinely differs — the
+ * container list.
  *
  * The stream is **not** owned here: `stop()` leaves the microphone open so a retake
  * does not need a second permission round-trip. Release it with the owning
@@ -132,117 +131,13 @@ export function createAudioRecorder(
     stream: MediaStream,
     options: AudioRecorderOptions = {},
 ): AudioRecorderHandle {
-    const { mimeType: forced, audioBitsPerSecond, timesliceMs, onChunk, onError } = options;
-
-    if (typeof MediaRecorder === "undefined") {
-        throw new Error("MediaRecorder is not available in this environment.");
-    }
-    const negotiated = forced ?? pickAudioMimeType();
-    if (negotiated === null) {
-        throw new Error("This browser cannot record any supported audio container.");
-    }
-    if (
-        forced !== undefined &&
-        typeof MediaRecorder.isTypeSupported === "function" &&
-        !MediaRecorder.isTypeSupported(forced)
-    ) {
-        throw new Error(`This browser cannot record "${forced}".`);
-    }
-
-    const recorder = new MediaRecorder(stream, {
-        mimeType: negotiated,
-        ...(audioBitsPerSecond !== undefined ? { audioBitsPerSecond } : {}),
+    return createMediaRecorder(stream, {
+        candidates: AUDIO_MIME_CANDIDATES,
+        kind: "audio",
+        mimeType: options.mimeType,
+        audioBitsPerSecond: options.audioBitsPerSecond,
+        timesliceMs: options.timesliceMs,
+        onChunk: options.onChunk,
+        onError: options.onError,
     });
-
-    let chunks: Blob[] = [];
-    let status: AudioRecorderStatus = "idle";
-    let accumulatedMs = 0;
-    let segmentStart = 0;
-    let settle: ((recording: AudioRecording) => void) | null = null;
-    let discard = false;
-
-    const elapsed = (): number =>
-        accumulatedMs + (status === "recording" ? Date.now() - segmentStart : 0);
-
-    recorder.ondataavailable = (event: BlobEvent): void => {
-        if (event.data.size === 0) return;
-        if (discard) return;
-        chunks.push(event.data);
-        onChunk?.(event.data);
-    };
-
-    recorder.onerror = (event: Event): void => {
-        onError?.((event as unknown as { error?: unknown }).error ?? event);
-    };
-
-    recorder.onstop = (): void => {
-        const durationMs = elapsed();
-        status = "stopped";
-        const resolve = settle;
-        settle = null;
-        if (discard) {
-            chunks = [];
-            return;
-        }
-        // `recorder.mimeType` is the source of truth: a browser handed
-        // `audio/webm;codecs=opus` may report plain `audio/webm` back.
-        const type = recorder.mimeType || negotiated;
-        resolve?.({ blob: new Blob(chunks, { type }), mimeType: type, durationMs });
-        chunks = [];
-    };
-
-    return {
-        mimeType: negotiated,
-        status: () => status,
-        durationMs: elapsed,
-
-        start(): void {
-            if (status === "recording" || status === "paused") return;
-            chunks = [];
-            accumulatedMs = 0;
-            discard = false;
-            segmentStart = Date.now();
-            status = "recording";
-            if (timesliceMs !== undefined) recorder.start(timesliceMs);
-            else recorder.start();
-        },
-
-        pause(): void {
-            if (status !== "recording") return;
-            accumulatedMs += Date.now() - segmentStart;
-            status = "paused";
-            recorder.pause();
-        },
-
-        resume(): void {
-            if (status !== "paused") return;
-            segmentStart = Date.now();
-            status = "recording";
-            recorder.resume();
-        },
-
-        stop(): Promise<AudioRecording> {
-            if (status === "idle" || status === "stopped") {
-                return Promise.resolve({
-                    blob: new Blob([], { type: negotiated }),
-                    mimeType: negotiated,
-                    durationMs: 0,
-                });
-            }
-            // Stopping while paused needs no clock fix-up: `pause()` already folded
-            // the last segment into `accumulatedMs`, and `elapsed()` adds nothing
-            // while the status is not `"recording"`.
-            return new Promise<AudioRecording>((resolve) => {
-                settle = resolve;
-                recorder.stop();
-            });
-        },
-
-        cancel(): void {
-            if (status === "idle" || status === "stopped") return;
-            discard = true;
-            settle = null;
-            recorder.stop();
-        },
-    };
 }

@@ -52,11 +52,20 @@ export interface AIChatComposerProps extends Omit<
     onError?: (error: unknown) => void;
 }
 
-/** Imperative handle, so a thread can focus or refill the field. */
+/** Imperative handle, so a thread can focus, read or refill the field. */
 export interface AIChatComposerHandle {
     focus: () => void;
     /** Replace the draft — used to put a prompt back in the field. */
     setValue: (text: string) => void;
+    /**
+     * The current draft.
+     *
+     * The counterpart `setValue` needs to be usable for anything **additive**. The
+     * field is uncontrolled, so without this the only way to append to a draft — a
+     * dictated phrase, a picked slash-command, a pasted citation — is to shadow the
+     * whole value in app state through `onChange` and hope the two never drift.
+     */
+    getValue: () => string;
 }
 
 /**
@@ -109,6 +118,7 @@ export const AIChatComposer = forwardRef<AIChatComposerHandle, AIChatComposerPro
                 setValue(text);
                 textarea.current?.focus();
             },
+            getValue: () => value,
         }));
 
         /**

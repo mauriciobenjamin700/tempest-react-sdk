@@ -48,6 +48,9 @@ export * from "./sw";
 // Audio
 export * from "./audio";
 
+// Device capture (barcode scanning, video recording, screen share, speech-to-text)
+export * from "./capture";
+
 // Offline (IndexedDB via Dexie — optional peer dep)
 export * from "./offline";
 

@@ -136,6 +136,7 @@ plugins:
                     PWA & Offline-First: PWA & Offline-First
                     Web Share: Web Share
                     Áudio: Audio
+                    Captura de dispositivo: Device capture
                     Tabular (scikit-learn): Tabular (scikit-learn)
                     Imagens (processamento): Imaging (processing)
                     Formulários: Forms
@@ -252,6 +253,7 @@ nav:
                 - PWA & Offline-First: pwa.md
                 - Web Share: share.md
                 - Áudio: audio.md
+                - Captura de dispositivo: device-capture.md
                 - Vision (ONNX): vision.md
                 - Tabular (scikit-learn): tabular.md
                 - Imagens (processamento): imaging.md

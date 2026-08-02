@@ -1,0 +1,203 @@
+.scanner {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-space-2);
+    min-width: 0;
+    color: var(--tempest-text);
+    font-family: var(--tempest-font-sans);
+}
+
+/*
+ * The viewport is a fixed-ratio box and the video fills it with `object-fit: cover`,
+ * because a camera hands back whatever aspect ratio the device felt like: letting the
+ * element size itself makes the layout jump the moment the stream arrives, which on a
+ * phone pushes the button the user was aiming at off the screen.
+ */
+.viewport {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-lg);
+    background-color: var(--tempest-surface-3);
+}
+
+.video {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/*
+ * Corner brackets: they tell the user where to aim without hiding the frame, which a
+ * full border or a dimming mask would. Eight background layers — a horizontal and a
+ * vertical bar per corner — because a `linear-gradient` cannot draw an L.
+ */
+.frame {
+    position: absolute;
+    inset: 12%;
+    background-image:
+        linear-gradient(var(--tempest-primary) 0 0), linear-gradient(var(--tempest-primary) 0 0),
+        linear-gradient(var(--tempest-primary) 0 0), linear-gradient(var(--tempest-primary) 0 0),
+        linear-gradient(var(--tempest-primary) 0 0), linear-gradient(var(--tempest-primary) 0 0),
+        linear-gradient(var(--tempest-primary) 0 0), linear-gradient(var(--tempest-primary) 0 0);
+    background-repeat: no-repeat;
+    background-size:
+        22% 3px,
+        3px 22%,
+        22% 3px,
+        3px 22%,
+        22% 3px,
+        3px 22%,
+        22% 3px,
+        3px 22%;
+    background-position:
+        left top,
+        left top,
+        right top,
+        right top,
+        left bottom,
+        left bottom,
+        right bottom,
+        right bottom;
+    pointer-events: none;
+}
+
+.laser {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 2px;
+    background-color: var(--tempest-primary);
+    opacity: 0.35;
+}
+
+.laserActive {
+    opacity: 0.9;
+    animation: tempest-barcode-sweep 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes tempest-barcode-sweep {
+    from {
+        top: 0;
+    }
+    to {
+        top: calc(100% - 2px);
+    }
+}
+
+/*
+ * A sweeping line is the one animation here, and it is the first thing to drop: the
+ * indicator that matters is the `role="status"` text, so with reduced motion the line
+ * simply sits still at the top of the frame.
+ */
+@media (prefers-reduced-motion: reduce) {
+    .laserActive {
+        animation: none;
+    }
+}
+
+.torch {
+    position: absolute;
+    top: var(--tempest-space-2);
+    right: var(--tempest-space-2);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--tempest-space-2);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-full);
+    background-color: var(--tempest-surface);
+    color: var(--tempest-text);
+    cursor: pointer;
+    transition: var(--tempest-transition-color);
+}
+
+.torch[aria-pressed="true"] {
+    border-color: var(--tempest-warning);
+    background-color: var(--tempest-warning-bg);
+    color: var(--tempest-warning-fg);
+}
+
+.torch:focus-visible,
+.retry:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .torch {
+        transition: none;
+    }
+}
+
+/* Touch hit-slop — 44×44 without changing the visual footprint, as `Button` does. */
+@media (pointer: coarse) {
+    .torch::after {
+        content: "";
+        position: absolute;
+        inset: -8px;
+    }
+}
+
+.overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--tempest-space-2);
+    padding: var(--tempest-space-3);
+    background-color: var(--tempest-surface);
+    text-align: center;
+}
+
+.overlayText {
+    margin: 0;
+    color: var(--tempest-text);
+    font-size: var(--tempest-text-sm);
+}
+
+.retry {
+    padding: var(--tempest-space-2) var(--tempest-space-3);
+    border: 1px solid transparent;
+    border-radius: var(--tempest-radius-md);
+    background-color: var(--tempest-primary);
+    color: var(--tempest-primary-foreground);
+    font: inherit;
+    font-size: var(--tempest-text-sm);
+    font-weight: var(--tempest-weight-medium);
+    cursor: pointer;
+}
+
+.status {
+    display: flex;
+    align-items: center;
+    gap: var(--tempest-space-1);
+    margin: 0;
+    min-height: 1.25em;
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-xs);
+}
+
+.statusIcon {
+    flex: 0 0 auto;
+}
+
+.notice {
+    margin: 0;
+    padding: var(--tempest-space-3);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-lg);
+    background-color: var(--tempest-surface);
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-sm);
+}
+
+.footer {
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-xs);
+}

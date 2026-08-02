@@ -206,6 +206,19 @@ describe("AIChatComposer", () => {
         expect(field).toHaveFocus();
     });
 
+    it("reads the draft back, so a dictated phrase can be appended to it", async () => {
+        const ref = createRef<AIChatComposerHandle>();
+        render(<AIChatComposer ref={ref} onSend={vi.fn()} />);
+
+        await userEvent.type(screen.getByRole("textbox"), "resumir o");
+        expect(ref.current?.getValue()).toBe("resumir o");
+
+        // The field is uncontrolled; without `getValue` an append would have to shadow
+        // the whole draft in app state and hope the two never drift.
+        act(() => ref.current?.setValue(`${ref.current.getValue()} relatório`));
+        expect(screen.getByRole("textbox")).toHaveValue("resumir o relatório");
+    });
+
     it("grows the field with its content, capped by maxRows", async () => {
         render(<AIChatComposer onSend={vi.fn()} maxRows={2} />);
         const field = screen.getByRole("textbox") as HTMLTextAreaElement;

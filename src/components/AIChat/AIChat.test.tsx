@@ -1,8 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { createRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AIChat } from "./AIChat";
+import type { AIChatComposerHandle } from "./AIChatComposer";
 import type { AIChatMessage } from "./ai-chat-turns";
 
 const THREAD: AIChatMessage[] = [
@@ -251,6 +253,35 @@ describe("AIChat", () => {
         expect(screen.getByText("Assistente de operações")).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Anexar" })).toBeInTheDocument();
         expect(screen.getByText("Pode errar")).toBeInTheDocument();
+    });
+
+    it("hands the composer over through composerRef, for dictation and the like", () => {
+        const composer = createRef<AIChatComposerHandle>();
+        render(
+            <AIChat
+                messages={THREAD}
+                onSend={vi.fn()}
+                composerRef={composer}
+                composerActions={
+                    <button
+                        type="button"
+                        onClick={() =>
+                            composer.current?.setValue(
+                                `${composer.current.getValue()} ditado`.trim(),
+                            )
+                        }
+                    >
+                        Ditar
+                    </button>
+                }
+            />,
+        );
+
+        // The whole point: the button inside the composer can write into the field, and
+        // `AIChat` knows nothing about speech.
+        fireEvent.click(screen.getByRole("button", { name: "Ditar" }));
+
+        expect(screen.getByRole("textbox")).toHaveValue("ditado");
     });
 
     it("disables the composer when asked", () => {

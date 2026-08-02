@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.36.0] — 2026-08-02
+
 ### Corrigido
 
 - **O hover do `Button variant="outline"` deixava o rótulo mais difícil de ler

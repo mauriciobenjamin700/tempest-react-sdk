@@ -116,8 +116,24 @@
     border-color: var(--tempest-primary);
     box-shadow: none;
 }
+/*
+ * The text colour has to move with the background.
+ *
+ * `.outline` sets `color: var(--tempest-primary)` over a transparent background,
+ * where it is fine. This rule tints the background to `--tempest-primary-soft` and,
+ * without restating the colour, leaves the fill token sitting on the tint: **4.38:1 in
+ * the light theme and 4.28:1 in dark**, both under the 4.5:1 floor for text — so the
+ * label got harder to read at the exact moment the pointer was on it.
+ *
+ * `--tempest-primary-on-soft` is the token for this ground (6.18:1 / 8.72:1) and
+ * `docs/styles.md` has documented the rule all along. A rule that changes only the
+ * background of a coloured element is the shape of this bug; the other eight places in
+ * the SDK that tint a background inherit `--tempest-text`, `--tempest-text-muted` or
+ * `--tempest-primary-on-soft` and are fine.
+ */
 .outline:hover:not(:disabled) {
     background-color: var(--tempest-primary-soft);
+    color: var(--tempest-primary-on-soft);
 }
 
 /* link — text-only, underline on hover */

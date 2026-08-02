@@ -96,7 +96,8 @@ Aliases:
     `color-contrast` porque não há paint.
 
 !!! warning "Texto sobre `primary-soft` usa `primary-on-soft`, não `primary`"
-    `--tempest-primary` sobre `--tempest-primary-soft` dá 4.37:1 de contraste — o
+    `--tempest-primary` sobre `--tempest-primary-soft` dá **4,38:1** no tema claro e
+    **4,28:1** no escuro — o
     WCAG AA pede 4.5:1 pra texto. Por isso existe o `--tempest-primary-on-soft`
     (~6:1). Se você redefinir a paleta, redefina os dois: trocar só o
     `--tempest-primary` deixa os estados selecionados (Toggle, ToggleGroup,

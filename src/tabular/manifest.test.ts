@@ -23,6 +23,26 @@ function packageFile(name: string): Buffer {
     return readFileSync(fileURLToPath(new URL(`./__fixtures__/package/${name}`, import.meta.url)));
 }
 
+/** Read a file from the dual-runtime fixture package. */
+function dualFile(name: string): Buffer {
+    return readFileSync(fileURLToPath(new URL(`./__fixtures__/dual/${name}`, import.meta.url)));
+}
+
+/** Serve the dual-runtime package, which carries ONNX and compact. */
+function serveDual(): void {
+    vi.stubGlobal(
+        "fetch",
+        vi.fn(async (url: string) => {
+            const name = url.split("/").pop() as string;
+            try {
+                return new Response(new Uint8Array(dualFile(name)));
+            } catch {
+                return new Response("missing", { status: 404, statusText: "Not Found" });
+            }
+        }),
+    );
+}
+
 /** Serve the fixture package over a stubbed `fetch`. */
 function servePackage(): void {
     vi.stubGlobal(
@@ -210,5 +230,62 @@ describe("tabular · loadEdgePackage", () => {
                 .map((entry) => entry.name)
                 .sort(),
         ).toEqual(["0", "1"]);
+    });
+});
+
+describe("tabular · runtime selection", () => {
+    /**
+     * The dual fixture carries the same forest twice: as ONNX and as the
+     * runtime-free compact form. Rows and expectations come from
+     * scikit-learn, so whichever route runs has to agree with it.
+     */
+    const ROWS = [
+        [1.178408, -0.616418, -0.680701, -0.551637],
+        [-0.210347, 0.500824, 1.592113, -1.745454],
+        [0.494376, -2.122893, -0.611244, -0.647187],
+    ];
+    const LABELS = [0, 1, 0];
+
+    it("prefers the compact form, which needs no WebAssembly", async () => {
+        serveDual();
+        const pkg = await loadEdgePackage("/models/risk/");
+        expect(pkg.runtime).toBe("compact");
+
+        const { labels } = await pkg.predictor.predict(ROWS);
+        expect(labels).toEqual(LABELS);
+    });
+
+    it("serves the same answers through ONNX when asked", async () => {
+        serveDual();
+        const pkg = await loadEdgePackage("/models/risk/", { runtime: "onnx" });
+        expect(pkg.runtime).toBe("onnx");
+
+        const { labels, probabilities } = await pkg.predictor.predict(ROWS);
+        expect(labels).toEqual(LABELS);
+        expect(probabilities[0]?.[0]).toBeCloseTo(0.964212, 4);
+    });
+
+    it("lists both runtimes with their sizes", async () => {
+        serveDual();
+        const manifest = await fetchEdgeManifest("/models/risk/");
+        const kinds = (manifest.runtimes ?? []).map((entry) => entry.kind);
+        expect(kinds).toEqual(["onnx", "compact"]);
+
+        const compact = manifest.runtimes?.find((entry) => entry.kind === "compact");
+        const onnx = manifest.runtimes?.find((entry) => entry.kind === "onnx");
+        expect(compact!.bytes).toBeLessThan(onnx!.bytes);
+    });
+
+    it("says so when the compact form was never written", async () => {
+        servePackage();
+        await expect(loadEdgePackage("/models/risk/", { runtime: "compact" })).rejects.toThrow(
+            /no compact model/,
+        );
+    });
+
+    it("falls back to ONNX for a package with no runtimes block", async () => {
+        servePackage();
+        const pkg = await loadEdgePackage("/models/risk/");
+        expect(pkg.runtime).toBe("onnx");
     });
 });

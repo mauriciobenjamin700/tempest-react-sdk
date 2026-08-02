@@ -44,6 +44,20 @@ export class UnsupportedGraphError extends TabularError {
     }
 }
 
+/**
+ * The bytes are not a compact model, or use a newer layout.
+ *
+ * Separate from {@link ModelLoadError} because the fix is different: a
+ * `.onnx` file handed to the compact reader is a wiring mistake, not a
+ * broken model.
+ */
+export class CompactFormatError extends TabularError {
+    constructor(message: string, options?: ErrorOptions) {
+        super(message, options);
+        this.name = "CompactFormatError";
+    }
+}
+
 /** The rows do not match what the model expects. */
 export class FeatureShapeError extends TabularError {
     constructor(message: string, options?: ErrorOptions) {

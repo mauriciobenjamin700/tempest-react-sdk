@@ -1,0 +1,67 @@
+{
+ "schema_version": 1,
+ "name": "risk",
+ "version": "dual-1",
+ "created_at": "2026-08-01T23:56:18.762794+00:00",
+ "sdk_version": "0.193.0",
+ "estimator": "RandomForestClassifier",
+ "model": {
+  "file": "risk.onnx",
+  "sha256": "7ee5787fb53032756d7550650c15d8d7fce83f3d2f35f8399d648a2e0a6d7fb8",
+  "bytes": 19941,
+  "gzip_file": null,
+  "gzip_bytes": null,
+  "opset": 15,
+  "dtype": "float32"
+ },
+ "input": {
+  "name": "input",
+  "features": 4,
+  "feature_names": [
+   "age",
+   "income",
+   "tenure",
+   "score"
+  ]
+ },
+ "output": {
+  "is_classifier": true,
+  "label_output": "label",
+  "probability_output": "probabilities",
+  "classes": [
+   "0",
+   "1",
+   "2"
+  ]
+ },
+ "verified": true,
+ "verification": {
+  "passed": true,
+  "n_samples": 600,
+  "max_abs_diff": 1.0021729257569945e-7,
+  "label_agreement": 1.0,
+  "mismatched": 0,
+  "detail": "every sample kept its predicted class"
+ },
+ "runtimes": [
+  {
+   "kind": "onnx",
+   "file": "risk.onnx",
+   "bytes": 19941,
+   "gzip_file": null,
+   "gzip_bytes": null,
+   "sha256": "7ee5787fb53032756d7550650c15d8d7fce83f3d2f35f8399d648a2e0a6d7fb8"
+  },
+  {
+   "kind": "compact",
+   "file": "risk.tmc",
+   "bytes": 9608,
+   "gzip_file": null,
+   "gzip_bytes": null,
+   "sha256": "dc780cce9391b3d72c9b35aa6bb7c5752d7c0ad58d1a17291c46c67f361e079f"
+  }
+ ],
+ "source": null,
+ "baseline_file": "baseline.json",
+ "baseline_samples": 600
+}

@@ -17,9 +17,10 @@
  */
 
 import { fetchModelBytes, type ModelCacheOptions } from "./cache";
+import { CompactPredictor } from "./compact";
 import { ModelFetchError } from "./exceptions";
 import { TabularPredictor } from "./predictor";
-import type { TabularPredictorOptions } from "./types";
+import type { FeatureRow, TabularPrediction, TabularPredictorOptions } from "./types";
 
 /** Manifest schema version this reader was written against. */
 export const SUPPORTED_MANIFEST_SCHEMA = 1;
@@ -73,6 +74,23 @@ export interface ManifestSource {
     readonly warnings: readonly string[];
 }
 
+/**
+ * One file in the package a runtime can load.
+ *
+ * A package may carry the same model twice — as ONNX, which any runtime
+ * reads at the cost of a 25.6 MB WebAssembly download, and as the compact
+ * format, which needs no runtime. The list is what lets the browser pick
+ * by what it already ships.
+ */
+export interface ManifestRuntime {
+    readonly kind: "onnx" | "compact" | string;
+    readonly file: string;
+    readonly bytes: number;
+    readonly gzip_file: string | null;
+    readonly gzip_bytes: number | null;
+    readonly sha256: string;
+}
+
 /** The package manifest, as written by `edge_pipeline`. */
 export interface EdgeManifest {
     readonly schema_version: number;
@@ -85,18 +103,25 @@ export interface EdgeManifest {
     readonly input: ManifestInput;
     readonly output: ManifestOutput;
     readonly verified: boolean | null;
+    /** Every file a runtime can load. Absent on packages written before v0.194. */
+    readonly runtimes?: readonly ManifestRuntime[];
     /** Absent on packages built straight from a fitted estimator. */
     readonly source?: ManifestSource;
     readonly baseline_file: string | null;
     readonly baseline_samples: number;
 }
 
+/** Which reader served the package. */
+export type TabularRuntime = "onnx" | "compact";
+
 /** A package loaded and ready to answer. */
 export interface LoadedEdgePackage {
     /** What was published. */
     readonly manifest: EdgeManifest;
-    /** The running model. */
-    readonly predictor: TabularPredictor;
+    /** The running model, whichever runtime read it. */
+    readonly predictor: PredictorLike;
+    /** Which reader was used. */
+    readonly runtime: TabularRuntime;
     /** Column order the rows must follow. */
     readonly featureNames: readonly string[];
     /** Class names behind each probability column. */
@@ -110,10 +135,31 @@ export interface LoadedEdgePackage {
     readonly explain: (probabilities: readonly number[]) => { name: string; score: number }[];
 }
 
+/**
+ * The shape both readers share.
+ *
+ * `TabularPredictor` (ONNX) and `CompactPredictor` (runtime-free) answer
+ * with the same object, so an app can switch routes without touching a
+ * line of its own code.
+ */
+export interface PredictorLike {
+    predict(rows: readonly FeatureRow[]): Promise<TabularPrediction>;
+    dispose(): Promise<void>;
+}
+
 /** Options for {@link loadEdgePackage}. */
 export interface LoadEdgePackageOptions extends TabularPredictorOptions {
     /** Cache the model bytes for offline use. `true` by default. */
     readonly cache?: boolean | ModelCacheOptions;
+    /**
+     * Which reader to use.
+     *
+     * `"auto"` (the default) takes the compact form when the package has
+     * one, because it answers without downloading a WebAssembly runtime.
+     * Force `"onnx"` when the app already ships ONNX for something else —
+     * then the runtime is already paid for and ONNX covers more estimators.
+     */
+    readonly runtime?: TabularRuntime | "auto";
 }
 
 /**
@@ -195,7 +241,9 @@ export async function loadEdgePackage(
 ): Promise<LoadedEdgePackage> {
     const manifest = await fetchEdgeManifest(directoryUrl);
     const base = directoryUrl.endsWith("/") ? directoryUrl : `${directoryUrl}/`;
-    const modelUrl = `${base}${manifest.model.file}`;
+    const runtime = chooseRuntime(manifest, options.runtime ?? "auto");
+    const file = fileFor(manifest, runtime);
+    const modelUrl = `${base}${file}`;
 
     const cache = options.cache ?? true;
     const source =
@@ -203,16 +251,20 @@ export async function loadEdgePackage(
             ? modelUrl
             : await fetchModelBytes(modelUrl, typeof cache === "object" ? cache : {});
 
-    const predictor = await TabularPredictor.create(source, {
-        providers: options.providers,
-        warmup: options.warmup,
-        sessionOptions: options.sessionOptions,
-    });
+    const predictor: PredictorLike =
+        runtime === "compact"
+            ? await CompactPredictor.create(source)
+            : await TabularPredictor.create(source, {
+                  providers: options.providers,
+                  warmup: options.warmup,
+                  sessionOptions: options.sessionOptions,
+              });
 
     const classes = manifest.output.classes;
     return {
         manifest,
         predictor,
+        runtime,
         featureNames: manifest.input.feature_names,
         classes,
         explain: (probabilities: readonly number[]) =>
@@ -223,6 +275,43 @@ export async function loadEdgePackage(
                 }))
                 .sort((a, b) => b.score - a.score),
     };
+}
+
+/**
+ * Decide which reader serves this package.
+ *
+ * @param manifest The package manifest.
+ * @param requested What the caller asked for.
+ * @returns The runtime to use.
+ * @throws {@link ModelFetchError} when the package does not carry the
+ *   requested form — asking for a compact model that was never written
+ *   should say so, not silently download 25 MB of WebAssembly instead.
+ */
+function chooseRuntime(manifest: EdgeManifest, requested: TabularRuntime | "auto"): TabularRuntime {
+    const available = manifest.runtimes ?? [];
+    const hasCompact = available.some((entry) => entry.kind === "compact");
+
+    if (requested === "auto") return hasCompact ? "compact" : "onnx";
+    if (requested === "compact" && !hasCompact) {
+        throw new ModelFetchError(
+            `This package carries no compact model (${manifest.name} lists ` +
+                `${available.map((entry) => entry.kind).join(", ") || "onnx"}). ` +
+                "Re-export it with edge_pipeline(compact=True), or load it as ONNX.",
+        );
+    }
+    return requested;
+}
+
+/**
+ * Find the file a runtime reads.
+ *
+ * @param manifest The package manifest.
+ * @param runtime The chosen runtime.
+ * @returns The filename inside the package directory.
+ */
+function fileFor(manifest: EdgeManifest, runtime: TabularRuntime): string {
+    const entry = (manifest.runtimes ?? []).find((item) => item.kind === runtime);
+    return entry?.file ?? manifest.model.file;
 }
 
 /**

@@ -212,3 +212,30 @@ describe("tabular · options", () => {
         await predictor.dispose();
     });
 });
+
+describe("tabular · the .ort format", () => {
+    /**
+     * Route B: a minimal ONNX Runtime build reads `.ort` rather than
+     * `.onnx`, and shrinking that runtime is the reason to go there — the
+     * `.ort` file itself is *larger* (measured: 526 B of ONNX becomes
+     * 2360 B). The stock build reads it too, which is what makes the route
+     * testable here without compiling a runtime.
+     */
+    it("loads a model in ORT format", async () => {
+        const predictor = await TabularPredictor.create(fixture("classifier.ort"));
+        expect(predictor.info.numFeatures).toBe(4);
+        expect(predictor.info.isClassifier).toBe(true);
+        await predictor.dispose();
+    });
+
+    it("answers exactly as the same model in ONNX format", async () => {
+        const rows = [
+            [-0.227505, -2.541008, 0.619261, -1.447352],
+            [0.076133, -1.20832, 0.694123, -0.795562],
+        ];
+        const predictor = await TabularPredictor.create(fixture("classifier.ort"));
+        const { labels } = await predictor.predict(rows);
+        expect(labels).toEqual([2, 2]);
+        await predictor.dispose();
+    });
+});

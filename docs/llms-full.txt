@@ -1207,6 +1207,450 @@ O fluxo: o login chama `setSession`, persistindo `user` + `token`. O `ProtectedL
 
 ---
 
+# br-pagamentos.md
+
+# Pagamentos & fiscal BR
+
+Os quatro trilhos que todo produto brasileiro acaba precisando: **Pix**, **boleto**, **chave de acesso da NFe** e **feriados / dias úteis**. Tudo puro TypeScript, **sem nenhuma dependência nova** — a fatia inteira mede **9,22 KB brotli**, e só Pix (payload + CRC + componente de QR) mede **6,1 KB**.
+
+!!! info "Import pelo subpath `tempest-react-sdk/br`"
+    Igual ao resto do módulo BR, estes helpers vivem em `tempest-react-sdk/br` — não na raiz. Quem não importa, não paga.
+
+    ```ts
+    import { pixPayload, parseLinhaDigitavel, parseChaveNFe, isBusinessDay } from "tempest-react-sdk/br";
+    ```
+
+!!! warning "O SDK não fala com banco nenhum"
+    Nada aqui consulta o Bacen, a SEFAZ ou uma API de PSP. São **codificadores e validadores locais**: eles montam a string certa, conferem os dígitos verificadores e leem os campos. Se um boleto existe, está registrado ou já foi pago — só o banco responde. Se uma NF-e foi autorizada — só a SEFAZ.
+
+---
+
+## Parte 1 — Pix
+
+### O problema
+
+Um QR de Pix não é um QR "de link". É um payload **EMV MPM** (o mesmo padrão da EMVCo que o Bacen adotou no "Manual de Padrões para Iniciação do Pix"): uma lista de triplas `ID + tamanho de 2 dígitos + valor`, terminada por um CRC-16.
+
+Escrever isso na mão dá errado sempre no mesmo lugar — o checksum. Ele é CRC-16/CCITT-FALSE (polinômio `0x1021`, valor inicial `0xFFFF`) calculado sobre **todo o payload anterior mais os literais `6304`**, ou seja, incluindo o cabeçalho da própria tag 63. Errar isso produz um QR que abre no app e falha na leitura.
+
+### O caminho curto: `<PixQRCode>`
+
+```tsx
+import { PixQRCode } from "tempest-react-sdk/br";
+
+export function CheckoutPix() {
+  return (
+    <PixQRCode
+      pix={{
+        key: "loja@tempest.dev",
+        merchantName: "Loja Tempest",
+        merchantCity: "São Paulo",
+        amount: 25.5,
+        txid: "PEDIDO123",
+      }}
+      amountLabel="R$ 25,50"
+      payeeLabel="Loja Tempest"
+    />
+  );
+}
+```
+
+Isso renderiza o símbolo **e** a linha copia-e-cola com botão de copiar. As duas coisas juntas não é enfeite:
+
+!!! tip "Nunca mostre só o QR"
+    Num checkout mobile, o QR aparece **no mesmo aparelho** que iria escaneá-lo. Sem a string copiável, o usuário fica travado. É o erro mais comum de tela de Pix.
+
+O payload é montado no navegador e o QR é desenhado pelo encoder próprio do SDK (o mesmo do [`QRCode`](./components/utility.md#qrcode)). Chave, valor e txid **não saem da página** — um serviço de imagem de QR receberia os três.
+
+Quando o payload vem pronto do PSP (cobrança dinâmica assinada), passe direto:
+
+```tsx
+<PixQRCode payload={charge.brcode} level="Q" size={220} />
+```
+
+!!! warning "`pix` e `payload` são mutuamente exclusivos"
+    Passar os dois lança `PixError`. Prefira `payload` para cobrança dinâmica: aquela string foi o PSP que emitiu, e remontá-la aqui só cria um jeito de errar.
+
+### `pixPayload` — a string, sem UI
+
+```ts
+import { pixPayload } from "tempest-react-sdk/br";
+
+const payload = pixPayload({
+  key: "12345678909",
+  merchantName: "Loja Tempest",
+  merchantCity: "Sao Paulo",
+  amount: 25.5,
+  txid: "PEDIDO123",
+});
+
+// 00020101021126330014br.gov.bcb.pix0111123456789095204000053039865405
+// 25.505802BR5912Loja Tempest6009Sao Paulo62130509PEDIDO1236304D68C
+```
+
+Campos aceitos:
+
+| Campo | Tag | Obrigatório | Nota |
+| --- | --- | --- | --- |
+| `key` | 26 / 01 | ✅ | CPF, CNPJ, e-mail, telefone ou EVP. Validada e normalizada. |
+| `merchantName` | 59 | ✅ | Máx. **25** caracteres. Acima disso, erro. |
+| `merchantCity` | 60 | ✅ | Máx. **15** caracteres. |
+| `amount` | 54 | — | Reais. Omita para o pagador digitar o valor. |
+| `txid` | 62 / 05 | — | `[A-Za-z0-9]{1,25}`. Default `***`. |
+| `description` | 26 / 02 | — | Texto livre que alguns apps mostram. |
+| `postalCode` | 61 | — | CEP, só dígitos. |
+| `oneTime` | 01 | — | `true` → tag `12` (uso único) em vez de `11`. |
+
+### Estático × dinâmico
+
+A distinção **muda o que liquida**, então não é cosmética:
+
+=== "Estático"
+
+    A tag 26 carrega a **chave**. O QR é autocontido, pode ser impresso e reusado. Se `amount` for omitido, liquida com o valor que o pagador digitou.
+
+    ```ts
+    pixPayload({
+      key: "loja@tempest.dev",
+      merchantName: "Tempest",
+      merchantCity: "Belo Horizonte",
+    });
+    ```
+
+=== "Dinâmico"
+
+    A tag 26 carrega uma **URL** (`payloadLocation`), e a carteira busca valor e recebedor no PSP. Liquida com o que o PSP serviu. Default: uso único.
+
+    ```ts
+    pixPayload({
+      kind: "dynamic",
+      url: "pix.example.com/qr/v2/abc123",
+      merchantName: "Tempest",
+      merchantCity: "Recife",
+    });
+    ```
+
+!!! tip "Cobrança que precisa reconciliar centavo a centavo pede dinâmico"
+    Um QR estático sem valor liquida o que o pagador digitou — inclusive R$ 1,00 numa fatura de R$ 100,00.
+
+### Chaves: validação e a armadilha dos 11 dígitos
+
+```ts
+import { normalizePixKey, pixKeyType } from "tempest-react-sdk/br";
+
+pixKeyType("123.456.789-09"); // "cpf"
+pixKeyType("11.222.333/0001-81"); // "cnpj"
+pixKeyType("loja@tempest.dev"); // "email"
+pixKeyType("+5511987654321"); // "phone"
+pixKeyType("123e4567-e89b-12d3-a456-426614174000"); // "evp"
+pixKeyType("não é chave"); // null
+
+normalizePixKey("(11) 98765-4321"); // { type: "phone", value: "+5511987654321" }
+```
+
+CPF e CNPJ passam por `validateCPF` / `validateCNPJ` (os mesmos de [Forms BR](./forms-br.md)) — chave com dígito verificador errado é rejeitada com `PixError`.
+
+!!! danger "CPF e celular nacional têm os dois 11 dígitos"
+    `"11987654321"` é um celular válido **e** poderia ser um CPF. O desempate é o dígito verificador: 11 dígitos com DV válido viram `"cpf"`, o resto vira `"phone"`. Passe telefone como `+5511987654321` e a ambiguidade desaparece.
+
+### Acentos
+
+O conjunto de caracteres do BR Code não tem acento. O SDK **remove os diacríticos** e rejeita o que sobrar fora do ASCII imprimível:
+
+```ts
+pixPayload({ key: "…", merchantName: "Padaria Açúcar", merchantCity: "São Paulo" });
+// → "5914Padaria Acucar" … "6009Sao Paulo"
+
+pixPayload({ key: "…", merchantName: "Loja ✅", merchantCity: "Recife" });
+// → PixError: merchantName has characters the BR Code cannot carry
+```
+
+!!! note "Por que remover em vez de lançar"
+    "São Paulo" é o nome real da cidade e o payload não pode carregá-lo. Um QR que não escaneia é pior do que um nome sem cedilha. Já um emoji é erro de quem chamou, e esse aparece.
+
+### Lendo um payload de volta
+
+```ts
+import { parsePixPayload } from "tempest-react-sdk/br";
+
+const data = parsePixPayload(colado);
+data.key; // "12345678909"
+data.amount; // 25.5
+data.txid; // "PEDIDO123"
+data.crcValid; // true
+data.fields; // toda TLV, na ordem, inclusive as desconhecidas
+```
+
+É **tolerante com tag desconhecida** — PSPs adicionam templates próprios, e um leitor que rejeita isso não serve em produção. O que **não** é tolerado: frame quebrado (tamanho que passa do fim, `6304` ausente) e **CRC divergente**, que lança. Para inspecionar um payload que você já sabe estar corrompido:
+
+```ts
+parsePixPayload(colado, { requireCrc: false }); // crcValid: false, sem lançar
+```
+
+!!! danger "CRC divergente não é aviso"
+    Um BR Code com checksum errado foi corrompido no caminho, e a conta que ele aponta agora **não é** a conta que o recebedor publicou. Por isso o default lança.
+
+### `pixCrc16`, se você precisa do checksum sozinho
+
+```ts
+import { pixCrc16 } from "tempest-react-sdk/br";
+
+pixCrc16("123456789"); // "29B1" — o check value publicado do CRC-16/CCITT-FALSE
+pixCrc16(payload.slice(0, -4)); // os 4 hex que fecham o payload
+```
+
+---
+
+## Parte 2 — Boleto
+
+### Dois layouts, o mesmo tamanho
+
+O código de barras tem 44 dígitos nos dois casos, e é aí que mora o bug:
+
+| | Primeiro dígito | Linha digitável | Uso |
+| --- | --- | --- | --- |
+| **Cobrança** (`"banco"`) | ≠ 8 | 47 dígitos | Boleto de banco contra uma fatura |
+| **Arrecadação** (`"arrecadacao"`) | `8` | 48 dígitos | Concessionária, tributo, multa |
+
+Não são variantes de um formato: **todo campo muda de posição e de significado**. O SDK detecta pelo primeiro dígito e devolve uma união discriminada — estreite por `kind` antes de ler.
+
+### Ler o que o leitor de código de barras entregou
+
+```ts
+import { parseCodigoBarras, parseLinhaDigitavel } from "tempest-react-sdk/br";
+
+const boleto = parseCodigoBarras("34191157000001234560000123456789012345678901");
+
+if (boleto.kind === "banco") {
+  boleto.banco; // "341"
+  boleto.valor; // 1234.56
+  boleto.vencimento; // Date — 2026-09-15
+  boleto.linhaDigitavel; // 47 dígitos, já com os DVs
+} else {
+  boleto.segmentoLabel; // "Órgãos governamentais"
+  boleto.valor; // reais, ou null quando o campo é referência
+  boleto.empresa; // código FEBRABAN, ou prefixo do CNPJ no segmento 6
+}
+```
+
+`parseLinhaDigitavel` faz o caminho inverso e aceita as duas linhas (47 ou 48). Os dois parsers **conferem todos os dígitos verificadores** que o layout permite conferir: os 3 (banco) ou 4 (arrecadação) DVs de bloco, mais o DV geral. Qualquer um errado lança `BoletoError` dizendo qual.
+
+Conversão explícita, quando você só quer a outra representação:
+
+```ts
+import { codigoBarrasToLinhaDigitavel, linhaDigitavelToCodigoBarras } from "tempest-react-sdk/br";
+
+linhaDigitavelToCodigoBarras("34190000172345678901723456789017115700000123456");
+// "34191157000001234560000123456789012345678901"
+```
+
+### Validar entrada digitada
+
+```ts
+import { formatLinhaDigitavel, validateBoleto } from "tempest-react-sdk/br";
+
+validateBoleto(input); // true / false, sem lançar
+formatLinhaDigitavel(input);
+// "34190.00017 23456.789017 23456.789017 1 15700000123456"
+```
+
+`formatLinhaDigitavel` é helper de **exibição**: entrada que não tem 47 nem 48 dígitos volta intacta.
+
+### A virada do fator de vencimento (fev/2025)
+
+O vencimento não está no boleto como data — está como **fator de vencimento**, quatro dígitos contando dias desde uma data-base. E essa data-base **mudou**:
+
+- Base original **07/10/1997**. O campo saturou em `9999` no dia **21/02/2025**.
+- A partir de **22/02/2025** o contador reiniciou em `1000` sobre a nova base **29/05/2022** (comunicado FEBRABAN FB-009/2023).
+
+!!! danger "As duas leituras são genuinamente ambíguas"
+    Todo fator entre 1000 e 9999 tem uma leitura em cada base — a antiga cai em `2000-07-03 … 2025-02-21`, a nova em `2025-02-22 … 2049-10-14`. **Nada no código de barras diz qual.**
+
+    O default `"auto"` escolhe a que cai mais perto de `reference` (hoje, por default). Isso acerta o caso que importa — um boleto sendo pago agora — e erra numa varredura de arquivo histórico. Quando você sabe, diga:
+
+    ```ts
+    parseCodigoBarras(barcode, { epoch: "current" }); // base 29/05/2022
+    parseCodigoBarras(barcode, { epoch: "legacy" }); // base 07/10/1997
+    parseCodigoBarras(barcode, { reference: new Date(2025, 5, 1) });
+    ```
+
+O campo resolvido vem acompanhado de qual base foi usada, então a UI pode avisar:
+
+```ts
+const boleto = parseCodigoBarras(barcode);
+if (boleto.kind === "banco") {
+  boleto.fatorVencimento; // 1570
+  boleto.vencimentoEpoch; // "current"
+  boleto.vencimento; // Date, ou null quando o fator é 0 (boleto sem vencimento)
+}
+```
+
+Para emitir, o inverso:
+
+```ts
+import { fatorVencimento } from "tempest-react-sdk/br";
+
+fatorVencimento(new Date(2025, 1, 22)); // 1000 — base atual
+fatorVencimento(new Date(2025, 1, 21), "legacy"); // 9999
+fatorVencimento(new Date(2020, 0, 1)); // BoletoError — nenhum fator representa isso
+```
+
+### Arrecadação: o que é lido e o que não é
+
+A posição 3 diz duas coisas ao mesmo tempo — se o valor é dinheiro e qual módulo calcula o DV geral:
+
+| Posição 3 | Valor | DV geral |
+| --- | --- | --- |
+| `6` | Reais | módulo 10 |
+| `7` | Quantidade de moeda / referência | módulo 10 |
+| `8` | Reais | módulo 11 |
+| `9` | Quantidade de moeda / referência | módulo 11 |
+
+Com `7` ou `9`, `valor` vem `null` e o campo cru fica em `valorRaw` — o SDK **não** finge que uma referência é dinheiro. Posição 3 fora de `6-9` é rejeitada em vez de lida errado.
+
+!!! warning "`vencimentoCampoLivre` é pista, não data de liquidação"
+    O layout diz que uma data de vencimento, **se existir**, ocupa os 8 primeiros dígitos do campo livre como `AAAAMMDD`. Mas o campo é opcional e nada marca sua presença, então um campo livre que só *parece* data também cai ali. Use na UI; nunca para liquidar.
+
+### Os três dígitos verificadores, exportados
+
+Aparecem em qualquer integração FEBRABAN, então estão no barrel:
+
+```ts
+import { mod10Dac, mod11DacArrecadacao, mod11DacCobranca } from "tempest-react-sdk/br";
+
+mod10Dac("01230067896"); // 3 — o exemplo resolvido do layout FEBRABAN v7
+```
+
+!!! danger "Módulo 11 de cobrança ≠ módulo 11 de arrecadação"
+    Mesmos pesos, mesma subtração — e regras **diferentes** para os restos degenerados. Cobrança resolve resto `0`, `1` e `10` para **`1`**; arrecadação resolve resto `0` e `1` para **`0`**. Usar um no layout do outro dá dígito errado exatamente 3 vezes em 11, o que passa em teste feito com uma amostra pequena. São funções separadas por isso.
+
+---
+
+## Parte 3 — Chave de acesso da NFe
+
+Os 44 dígitos que identificam qualquer documento fiscal eletrônico:
+
+```text
+35 2601 12345678000195 55 001 000000123 1 12345678 5
+cUF AAMM CNPJ           mod série nNF    tp cNF     cDV
+```
+
+```ts
+import { formatChaveNFe, parseChaveNFe, validateChaveNFe } from "tempest-react-sdk/br";
+
+validateChaveNFe(input); // true / false
+
+const chave = parseChaveNFe("35260112345678000195550010000001231123456785");
+chave.uf; // "SP" — o tipo UF do próprio módulo br
+chave.ano; // 2026
+chave.mes; // 1
+chave.cnpj; // "12345678000195"
+chave.modeloLabel; // "NF-e"
+chave.serie; // "001"
+chave.numero; // "000000123"
+chave.tipoEmissaoLabel; // "Normal"
+
+chave.dv; // "5"
+
+formatChaveNFe("35260112345678000195550010000001231123456785");
+// "3526 0112 3456 7800 0195 5500 1000 0001 2311 2345 6785"
+```
+
+`validateChaveNFe` confere três coisas: 44 dígitos, `cUF` que é uma UF de verdade, e DV que recalcula (módulo 11, pesos 2–9 da direita para a esquerda, resto `0` ou `1` → dígito `0`).
+
+!!! note "O layout é compartilhado — `modelo` é o que diz o que você tem na mão"
+    NF-e (`55`), NFC-e (`65`), CT-e (`57`), MDF-e (`58`), BP-e (`63`), NF3e (`66`)… todos usam a mesma chave de 44 dígitos. Modelo fora da tabela vem com `modeloLabel: null` em vez de um chute.
+
+!!! tip "O `cUF` vira o tipo `UF`"
+    `chave.uf` é o mesmo union `UF` que `citiesByUf`, `getState` e o `BrazilMap` usam — dá para encadear direto com o resto do módulo BR.
+
+---
+
+## Parte 4 — Feriados e dias úteis
+
+### O que está na tabela
+
+```ts
+import { holidaysFor } from "tempest-react-sdk/br";
+
+holidaysFor(2026);
+// 13 entradas: 9 feriados nacionais + 4 dias móveis do sistema financeiro
+```
+
+Cada entrada traz `date` (`YYYY-MM-DD`), `name`, `movable` e um `kind`:
+
+- **`"national"`** — feriado nacional em lei federal. 9 datas fixas (Lei 662/1949 com a redação da Lei 10.607/2002, Lei 6.802/1980 para 12 de outubro, Lei 14.759/2023 para 20 de novembro).
+- **`"banking"`** — não é feriado em lei, mas o sistema financeiro não opera: **Carnaval (segunda e terça)**, **Sexta-feira da Paixão** e **Corpus Christi**. Agência fechada, compensação parada — um boleto ou uma TED datada aí liquida depois.
+
+!!! info "Por que os dois tipos existem"
+    Carnaval e Corpus Christi **não são feriados nacionais por lei** — mas a Resolução CMN 4.880/2020 fecha os bancos nos quatro dias. Se você calcula prazo de pagamento, os dois contam; se você calcula obrigação trabalhista, só `"national"` conta. O default é o calendário bancário, porque é o que quebra dinheiro:
+
+    ```ts
+    isBusinessDay("2026-04-03"); // false — Sexta-feira da Paixão
+    isBusinessDay("2026-04-03", { kinds: ["national"] }); // true
+    ```
+
+### O que **não** está, e não vai estar
+
+!!! danger "Feriado estadual e municipal não estão cobertos"
+    A data magna varia por estado e cada um dos 5 570 municípios pode declarar os seus, incluindo até quatro dias religiosos. Nenhuma tabela fica completa e atualizada. Passe pelo `extra`:
+
+    ```ts
+    const SAO_PAULO = ["2026-01-25", "2026-07-09", "2026-11-20"];
+    isBusinessDay("2026-07-09", { extra: SAO_PAULO }); // false
+    ```
+
+Também de fora, de propósito:
+
+- **Ponto facultativo.** Decreto que libera servidor público não é feriado e não muda prazo de ninguém.
+- **História pré-2002.** A tabela codifica a lei como está hoje. Pedir 1998 devolve o conjunto de hoje deslocado para 1998, não o que valia então. A única exceção modelada é 20 de novembro, que só aparece **a partir de 2024**.
+
+### Aritmética de dia útil
+
+```ts
+import { addBusinessDays, isBusinessDay, isHoliday, nextBusinessDay } from "tempest-react-sdk/br";
+
+isHoliday("2026-11-20"); // true
+isBusinessDay("2026-08-03"); // true — segunda-feira comum
+
+nextBusinessDay("2026-12-24"); // 2026-12-28 — pula o Natal e o fim de semana
+addBusinessDays("2026-04-01", 2); // 2026-04-06 — pula a Paixão e o fim de semana
+addBusinessDays("2026-04-06", -2); // 2026-04-01 — negativo anda para trás
+```
+
+Aceitam `Date` ou `"YYYY-MM-DD"` e devolvem `Date` na **meia-noite local**.
+
+!!! warning "Tudo é calendário local, nunca UTC"
+    "Hoje é feriado?" é pergunta sobre o calendário de quem está olhando. Os helpers usam `getFullYear/getMonth/getDate` e constroem com `new Date(y, m, d)`; passar por `toISOString()` deslocaria o dia para todo viewer a leste de Greenwich.
+
+!!! note "`addBusinessDays(date, 0)` devolve o dia intacto"
+    Mesmo quando não é dia útil. Ajustar em silêncio esconderia justo o caso que você precisa ver.
+
+### Onde a Páscoa entra
+
+Os quatro dias móveis são derivados do domingo de Páscoa, não listados:
+
+```ts
+import { easterSunday } from "tempest-react-sdk/br";
+
+easterSunday(2026); // 2026-04-05
+```
+
+É o *computus* gregoriano anônimo (Meeus/Jones/Butcher): aritmética inteira sobre o ano, sem tabela e sem dependência — exato para qualquer ano gregoriano.
+
+---
+
+## Recapitulando
+
+- **Pix** — `pixPayload` monta o BR Code EMV com o CRC-16/CCITT-FALSE certo (incluindo os literais `6304`); `parsePixPayload` lê de volta, tolerante com tag desconhecida e intolerante com checksum errado; `<PixQRCode>` desenha o símbolo **e** a copia-e-cola, porque num celular só o QR não serve.
+- **Boleto** — `parseLinhaDigitavel` / `parseCodigoBarras` convertem 47↔44 e 48↔44 conferindo todo DV; cobrança e arrecadação são layouts diferentes e o SDK nunca confunde os dois; o fator de vencimento tem **duas** bases desde fev/2025 e a escolha é explícita.
+- **NFe** — `parseChaveNFe` abre os 44 dígitos e resolve o `cUF` no tipo `UF` do módulo; `validateChaveNFe` confere tamanho, UF e DV.
+- **Feriados** — `holidaysFor` devolve os 9 feriados nacionais + os 4 dias bancários móveis, marcados; estado e município entram por `extra`; `isBusinessDay` / `nextBusinessDay` / `addBusinessDays` fazem a conta no calendário local.
+
+Nada disso fala com banco. Para o lado servidor (registrar boleto, criar cobrança Pix, autorizar NF-e), veja [Integração FastAPI](./integration-fastapi.md).
+
+---
+
 # br.md
 
 # Mapa do Brasil & localidades
@@ -4529,6 +4973,139 @@ Coluna: `{ key, header, render?, sortable?, align?, width? }`.
 | Controle total do markup, poucas linhas         | `Table`        |
 
 Os dois ordenam com o mesmo comparador (`compareValues`), então "ordenado" quer dizer a mesma coisa nos dois — número numericamente, data por timestamp, string com `localeCompare` e `numeric: true`.
+
+## `DataTable<T>` — edição inline
+
+> **Quando usar**: tela de admin. Você já lista os registros com `DataTable`; agora
+> alguém precisa corrigir um nome sem abrir um modal por linha.
+
+Marque a coluna com `editable` e dê um `onCellChange` à tabela. Sem as duas coisas
+nada muda — a edição é estritamente opt-in, e um `DataTable` sem coluna editável
+renderiza exatamente o que renderizava antes.
+
+```tsx
+import { DataTable, type DataTableColumn } from "tempest-react-sdk";
+import { api } from "@/lib/api";
+
+interface Colaborador {
+  id: number;
+  nome: string;
+  email: string;
+  salario: number;
+}
+
+const columns: DataTableColumn<Colaborador>[] = [
+  {
+    key: "nome",
+    header: "Nome",
+    editable: true,
+    validate: (value) => (String(value).trim().length < 3 ? "Mínimo de 3 letras." : null),
+  },
+  {
+    key: "salario",
+    header: "Salário",
+    align: "right",
+    editable: true,
+    editorType: "number",
+    validate: (value) => (Number(value) <= 0 ? "Precisa ser positivo." : null),
+  },
+  { key: "email", header: "E-mail" },
+];
+
+export function Equipe({ pessoas }: { pessoas: Colaborador[] }) {
+  return (
+    <DataTable
+      data={pessoas}
+      columns={columns}
+      rowKey={(row) => row.id}
+      onCellChange={({ row, key, value }) =>
+        api.patch(`/api/colaboradores/${row.id}`, { body: { [key]: value } })
+      }
+    />
+  );
+}
+```
+
+Pedaço por pedaço:
+
+- **`editable: true`** transforma a célula num botão com o valor dentro. Clicar (ou
+  `Enter`) abre um `<input>`.
+- **`editorType`** é o `type` do input (`"text"` por padrão; `"number"`, `"date"`,
+  `"email"`, `"tel"`, `"url"`).
+- **`validate`** devolve mensagem pra recusar, ou `null` pra aceitar.
+- **`onCellChange`** persiste. Devolver uma promessa é o que liga o comportamento
+  otimista.
+
+### Teclado
+
+| Tecla | O que faz |
+| --- | --- |
+| `Enter` | Confirma e fecha; o foco volta pro botão da célula |
+| `Escape` | Descarta o rascunho e fecha |
+| `Tab` | Confirma e abre a **próxima** célula editável (linha a linha) |
+| `Shift+Tab` | Confirma e abre a anterior |
+| clique fora | Confirma — perder o que foi digitado é o bug que os usuários reportam como "a tabela comeu minha edição" |
+
+`Tab` é interceptado de propósito: a ordem natural levaria pro botão da linha
+seguinte, e numa tabela em edição andar de célula em célula é o que se espera.
+
+### Otimista, com rollback **visível**
+
+Uma edição aceita aparece na hora e o `onCellChange` roda em segundo plano
+(`aria-busy` no botão enquanto isso). Se a promessa rejeitar, a célula volta ao valor
+antigo **e** mostra o motivo num `role="alert"` amarrado a ela por `aria-describedby`.
+
+```tsx
+onCellChange={async ({ row, key, value }) => {
+  const res = await fetch(`/api/colaboradores/${row.id}`, { /* … */ });
+  if (!res.ok) throw new Error("Este e-mail já está em uso.");
+}}
+```
+
+A mensagem do `Error` que você lançar é a que aparece na célula. Sem mensagem, entra o
+texto padrão (`editLabels.saveFailed`).
+
+!!! danger "Reverter em silêncio é pior do que não ser otimista"
+    A pessoa viu a edição aparecer e não tem motivo nenhum pra desconfiar. Se o
+    servidor recusou e a célula só voltar ao valor antigo sem dizer nada, ela vai
+    embora achando que salvou. É por isso que o erro fica na célula em vez de virar um
+    toast que desaparece.
+
+### Acessibilidade
+
+- Fechada, a célula é um `<button>` cujo nome sai do **próprio conteúdo**: um
+  `Editar {coluna}:` invisível na frente do que a coluna renderizou. Um `aria-label`
+  montado com o valor cru leria "850000" numa célula que mostra `R$ 8.500,00` — isso
+  reprova o WCAG 2.5.3 (Label in Name) e deixa controle por voz sem como chamar a
+  célula pelo que ela diz. Um `<td>` com `onClick` seria invisível pro teclado e sem
+  papel pro leitor de tela.
+- Aberta, o `<input>` tem `aria-label` `{coluna}, linha {n}`.
+- Erro de validação marca `aria-invalid` e liga a mensagem por `aria-describedby`.
+- Um save bem-sucedido é anunciado por [`useAnnounce`](../hooks.md#falar-com-o-leitor-de-tela-useannounce)
+  (`"{coluna} salvo"`), porque é o único evento aqui que não tem representação na tela.
+  A falha **não** é anunciada duas vezes: o `role="alert"` da célula já faz isso.
+- Em ponteiro grosso (toque), a área de toque do botão cresce até cobrir o `<td>`
+  inteiro — 44px sem invadir a linha vizinha, que um hit-slop simétrico invadiria.
+
+### Props de edição
+
+| Prop | Tipo | Onde |
+| --- | --- | --- |
+| `editable` | `boolean` | coluna |
+| `editorType` | `"text" \| "number" \| "date" \| "email" \| "tel" \| "url"` | coluna |
+| `formatEdit` | `(row: T) => string` | coluna — texto com que o editor abre |
+| `parse` | `(raw: string, row: T) => unknown` | coluna — string → valor guardado |
+| `validate` | `(value: unknown, row: T) => string \| null` | coluna |
+| `onCellChange` | `(change: DataTableCellChange<T>) => void \| Promise<void>` | tabela |
+| `editLabels` | `Partial<DataTableEditLabels>` | tabela — a cópia PT-BR |
+
+`DataTableCellChange<T>` traz `{ row, key, value, previous, rowIndex }`, com `rowIndex`
+no **dataset completo**, não na página.
+
+!!! tip "Coluna com `render` continua funcionando"
+    Uma coluna que renderiza `<Money cents={row.salario} />` recebe a linha com o valor
+    otimista já aplicado, então o número novo aparece formatado do jeito certo enquanto
+    o save está em voo.
 
 ## `ListTile`
 
@@ -10680,6 +11257,480 @@ Próxima: [Estratégia de testes](testing.md).
 
 ---
 
+# device-capture.md
+
+# Captura de dispositivo
+
+Quatro APIs do navegador que não custam dependência nenhuma: a **câmera lendo códigos**
+(`BarcodeScanner`, `useBarcodeScanner`), **vídeo gravado** (`useVideoRecorder`), a **tela
+compartilhada** (`useScreenCapture`) e **fala virando texto** (`useSpeechRecognition`).
+
+A fatia inteira mede **5,40 KB brotli** — e cada uma dessas quatro coisas é uma API que o
+navegador já tem, não uma biblioteca que o SDK embarcou.
+
+!!! tip "Se você só quer ler um código de barras, pule para [Ler códigos](#ler-codigos-comece-pelo-componente)"
+    O resto da página é vídeo, tela e fala, e a camada de baixo de cada uma.
+
+!!! info "A captura de **áudio** mora em outra página"
+    Microfone, gravação de voz, medidor de nível e WAV estão em [Áudio](./audio.md). As
+    duas páginas compartilham o mesmo motor de gravação e a mesma taxonomia de erro — o
+    que muda é o dispositivo.
+
+## Ler códigos: comece pelo componente
+
+O SDK já tinha o [`QRCode`](./components/utility.md), que **só codifica**. O
+`BarcodeScanner` fecha o ciclo:
+
+```tsx
+import { BarcodeScanner } from "tempest-react-sdk";
+
+export function LeitorDeProdutos({ onProduto }: { onProduto: (gtin: string) => void }) {
+  return (
+    <BarcodeScanner
+      formats={["ean_13", "qr_code", "code_128"]}
+      onScan={({ rawValue, format }) => {
+        if (format === "ean_13") onProduto(rawValue);
+      }}
+      footer={<small>Aponte para o código de barras da embalagem.</small>}
+      unsupported={<CampoDigitarCodigo onSubmit={onProduto} />}
+    />
+  );
+}
+```
+
+O que você ganha sem escrever nada:
+
+| Você fez | O componente faz |
+| --- | --- |
+| nada | Visor de proporção fixa, cantos de mira e um indicador de varredura |
+| nada | Loop de detecção que **não se sobrepõe** — nunca enfileira uma leitura sobre a anterior |
+| nada | Suprime a repetição do mesmo código; um valor **diferente** passa na hora |
+| nada | Lanterna, quando a câmera tem uma |
+| nada | Erro de câmera classificado, com um botão de tentar de novo |
+| `unsupported` | Onde não há decodificador, mostra o seu caminho alternativo em vez de uma tela preta |
+
+!!! danger "Montar o leitor abre a câmera — monte só quando o usuário pedir"
+    O `useCameraStream` adquire no mount, então renderizar o scanner **é** disparar o
+    prompt. Um prompt que o usuário não provocou é a forma mais confiável de ganhar um
+    **Block permanente** — e depois disso o `getUserMedia` rejeita sem nunca mais
+    perguntar, o que também queima a *próxima* feature que precisar da câmera. O padrão é
+    um botão que revela o leitor:
+
+    ```tsx
+    const [lendo, setLendo] = useState(false);
+
+    return lendo ? (
+      <BarcodeScanner onScan={aceitar} />
+    ) : (
+      <Button onClick={() => setLendo(true)}>Ler código</Button>
+    );
+    ```
+
+### `BarcodeDetector` não existe em metade dos navegadores
+
+Essa é a parte que decide o desenho da sua tela, então está aqui e não numa nota de pé:
+
+| Motor | Tem `BarcodeDetector`? |
+| --- | --- |
+| Chromium no Android e ChromeOS | **sim** |
+| Chromium no macOS | em geral sim |
+| Chromium no Windows e Linux | **não** |
+| Firefox (qualquer sistema) | **não** |
+| Qualquer navegador no iOS (todos são WebKit por baixo, Chrome incluído) | **não** |
+
+O SDK **não embarca decodificador nenhum**, e isso é uma escolha, não uma lacuna: um
+leitor de QR é correção de erro Reed–Solomon mais correção de perspectiva mais busca de
+padrão de localização, e as opções honestas eram um build WASM que **todo** consumidor
+deste SDK carregaria, ou nada. Então o que existe é a costura:
+
+```tsx
+import { BarcodeDetector } from "barcode-detector/pure"; // ou seu wrapper de zxing-wasm
+import { BarcodeScanner } from "tempest-react-sdk";
+
+<BarcodeScanner
+  detector={new BarcodeDetector({ formats: ["qr_code", "ean_13"] })}
+  onScan={aceitar}
+/>;
+```
+
+Qualquer objeto com um `detect(source)` que resolva com `{ rawValue }` serve — é o que a
+interface `BarcodeDetectorLike` diz, e é o que os testes do SDK exercitam com um
+decodificador de verdade.
+
+!!! check "Você não precisa de decodificador nenhum para o caso mais comum"
+    Em telas de operação (conferência de carga, PDV, inventário) o alvo é um celular
+    Android, onde a API existe. `unsupported` cobre o desktop do escritório com um campo
+    de digitar — que costuma ser o que o operador prefere de teclado, aliás.
+
+### Props
+
+| Prop | Tipo | Default | O que faz |
+| --- | --- | --- | --- |
+| `onScan` | `(result: BarcodeScanResult) => void` | — | Cada leitura aceita. |
+| `formats` | `BarcodeFormat[]` | `["qr_code","ean_13","code_128"]` | Cada símbolo extra é trabalho por frame. |
+| `paused` | `boolean` | `false` | Para de procurar **sem** soltar a câmera. |
+| `detector` | `BarcodeDetectorLike` | — | Polyfill injetado. |
+| `intervalMs` | `number` | `200` | Frequência com que um frame é examinado. |
+| `repeatDelayMs` | `number` | `2500` | Janela em que o mesmo valor não dispara de novo. |
+| `torch` | `boolean` | `true` | Oferece a lanterna quando a câmera tem uma. |
+| `aspectRatio` | `number` | `4 / 3` | Proporção do visor. |
+| `locale` | `"pt-BR" \| "en"` | `"pt-BR"` | Rótulos. |
+| `footer` · `unsupported` | `ReactNode` | — | Instrução e caminho alternativo. |
+| `onError` | `(error: unknown) => void` | — | Frame que o motor recusou (rotineiro). |
+
+`BarcodeScanResult = { rawValue, format, boundingBox, cornerPoints }` — `boundingBox` é
+`null` e `cornerPoints` é `[]` quando o motor não reporta geometria.
+
+### Os formatos que importam aqui
+
+Três carregam o peso no Brasil: **`ean_13`** é o código de barras de todo produto
+embalado, **`qr_code`** é onde viaja um "copia e cola" do Pix, e **`code_128`** é a
+etiqueta de uma remessa. O default é exatamente esses três.
+
+!!! warning "Pedir um formato que o motor não tem faz o construtor lançar"
+    `NotSupportedError`, que parece bug no seu código. A lista de formatos é do
+    decodificador **da plataforma**, não do navegador, então dois Chromium em dois
+    sistemas respondem diferente. O hook resolve isso pedindo a interseção — e você pode
+    olhar antes:
+
+    ```tsx
+    import { getSupportedBarcodeFormats } from "tempest-react-sdk";
+
+    const formatos = await getSupportedBarcodeFormats(); // [] onde não há decodificador
+    ```
+
+### Supressão de repetição não é detalhe
+
+Um símbolo fica em quadro enquanto o usuário mantém a câmera ali. Sem supressão, o mesmo
+código dispara cinco vezes por segundo — e ligado em "adicionar ao carrinho" isso é um bug
+que o cliente paga. `repeatDelayMs` (2,5 s por padrão) é a janela em que **o mesmo** valor
+é ignorado; um valor diferente nunca é.
+
+Se a sua tela abre uma confirmação depois da leitura, use `paused` enquanto ela estiver
+aberta — para de procurar sem soltar a câmera, então fechar a confirmação não custa outro
+round-trip de permissão.
+
+### Lanterna
+
+```tsx
+import { useTorch } from "tempest-react-sdk";
+
+const torch = useTorch(stream);
+{torch.supported && <button onClick={() => void torch.toggle()}>Lanterna</button>}
+```
+
+!!! info "A lanterna não é um dispositivo — é uma constraint numa track viva"
+    Não há o que controlar antes de existir stream de câmera, e ela desaparece quando o
+    stream é liberado. É por isso que `supported` só pode ser respondido depois: o mesmo
+    código dá `true` na câmera traseira de um Android e `false` na frontal do mesmo
+    aparelho. Onde nem `getCapabilities()` nem `getSettings()` mencionam `torch`, o hook
+    diz `false` em vez de oferecer um botão que não faz nada.
+
+### Montando você mesmo: `useBarcodeScanner`
+
+```tsx
+import { useBarcodeScanner } from "tempest-react-sdk";
+
+export function LeitorProprio() {
+  const scanner = useBarcodeScanner({
+    formats: ["ean_13"],
+    onScan: ({ rawValue }) => console.log(rawValue),
+  });
+
+  if (!scanner.supported) return <p>Este navegador não decodifica códigos.</p>;
+
+  return (
+    <>
+      <video ref={scanner.videoRef} muted playsInline style={{ width: "100%" }} />
+      <p>{scanner.scanning ? "Procurando…" : scanner.status}</p>
+      {scanner.error && <p role="alert">{scanner.error.message}</p>}
+    </>
+  );
+}
+```
+
+O loop se re-agenda **depois** que cada `detect()` resolve, não num `setInterval`:
+decodificar às vezes leva mais que o intervalo, e um intervalo enfileiraria chamadas mais
+rápido do que o motor as drena até a aba travar.
+
+## Gravar vídeo
+
+`useVideoRecorder` é o `useAudioRecorder` com uma track de vídeo e `videoBitsPerSecond` —
+o relógio que **desconta pausa**, o `stop()` que resolve com todos os chunks na mão e a
+negociação de container são os mesmos, porque são o mesmo motor.
+
+```tsx
+import { useScreenCapture, useVideoRecorder } from "tempest-react-sdk";
+
+export function GravadorDeTela() {
+  const screen = useScreenCapture({ preferCurrentTab: true });
+  const rec = useVideoRecorder(screen.stream, {
+    maxDurationMs: 120_000,
+    videoBitsPerSecond: 2_500_000,
+    onRecorded: ({ blob, durationMs }) => enviar(blob, durationMs),
+  });
+
+  return (
+    <>
+      <button onClick={screen.start}>Compartilhar tela</button>
+      <button disabled={!rec.ready} onClick={rec.start}>Gravar</button>
+      <button disabled={rec.status !== "recording"} onClick={() => void rec.stop()}>
+        Parar
+      </button>
+      <span>{(rec.durationMs / 1000).toFixed(1)} s</span>
+    </>
+  );
+}
+```
+
+`ready` fica `false` até existir stream, então a UI inteira pode ser renderizada
+desabilitada enquanto o usuário ainda não escolheu a tela.
+
+!!! warning "O container que sai não é o que você pediu"
+    `VideoRecording.mimeType` é o que o navegador **reportou**, não o que foi negociado:
+    entregamos `video/webm;codecs=vp9,opus` e o Chromium responde `video/webm;codecs=vp9`
+    quando não há áudio. Use o valor que voltou para nomear o arquivo e para o
+    `Content-Type` do upload. A ordem de preferência é VP9 → VP8 → WebM → MP4/H.264 (o
+    último existe para o Safari, que não produz outra coisa).
+
+!!! danger "Vídeo enche a memória uma ordem de magnitude mais rápido que áudio"
+    Um minuto de 1080p a 2,5 Mbps é cerca de **19 MB** parados na memória até o `stop()`.
+    Em qualquer captura que possa passar de alguns minutos, use `timesliceMs` e mande os
+    pedaços embora:
+
+    ```tsx
+    useVideoRecorder(stream, {
+      timesliceMs: 5_000,
+      onChunk: (chunk) => void upload(chunk),
+    });
+    ```
+
+    Os chunks **não** são tocáveis isoladamente: só o conjunto forma um arquivo válido.
+
+!!! info "Não há medidor de nível aqui, e é de propósito"
+    Medir nível num compartilhamento de tela significa abrir um `AudioContext` sobre um
+    stream que quase sempre não tem track de áudio, e navegadores limitam contextos vivos
+    (o Chrome permite ~6). Se você grava uma câmera **e** quer nível, rode o
+    [`createLevelMeter`](./audio.md#nivel-de-gravacao) no mesmo stream.
+
+O gravador **não** é dono do stream: parar a gravação deixa o compartilhamento vivo, porque
+um fluxo de suporte normalmente grava, para, deixa a pessoa olhar e grava de novo.
+
+## Compartilhar a tela
+
+```tsx
+import { useScreenCapture } from "tempest-react-sdk";
+
+export function BotaoDeCompartilhar() {
+  const screen = useScreenCapture({
+    preferCurrentTab: true,
+    audio: true,
+    onCancelled: () => setDica("Você fechou o seletor — nada foi compartilhado."),
+    onEnded: () => salvarEFechar(),
+  });
+
+  return (
+    <>
+      <button onClick={screen.start} disabled={screen.status === "sharing"}>
+        Compartilhar tela
+      </button>
+      {screen.status === "sharing" && (
+        <p>
+          Compartilhando {screen.surface} · áudio: {screen.hasAudio ? "sim" : "não"}
+        </p>
+      )}
+      {screen.error && <p role="alert">{screen.error.message}</p>}
+    </>
+  );
+}
+```
+
+Três estados decidem se isso parece certo, e dois deles são fáceis de perder:
+
+| Estado | O que aconteceu | O que o hook faz |
+| --- | --- | --- |
+| **Seletor fechado** | o usuário desistiu | volta para `idle`, `error` fica `null`, chama `onCancelled` |
+| **Parou pela barra do navegador** | nada na sua UI foi clicado | limpa o stream, volta para `idle`, chama `onEnded` |
+| **Compartilhando** | escolheu algo | `surface` diz o quê, `hasAudio` diz se veio áudio |
+
+!!! danger "O evento `ended` é o único sinal de que o usuário parou de compartilhar"
+    O Chrome mostra uma barra própria com "Parar compartilhamento". Quando ela é usada,
+    **nenhuma promise rejeita** e nada na sua UI foi clicado — o único aviso é o evento
+    `ended` da track de vídeo. Sem esse listener, o app fica exibindo "gravando" sobre um
+    stream que já morreu. O hook escuta e limpa; você só precisa do `onEnded` se tiver algo
+    a salvar.
+
+!!! warning "Seletor fechado não é erro — e não existe exceção própria para ele"
+    Fechar o seletor produz o mesmo `NotAllowedError` que um bloqueio por política, e
+    algumas versões reportam `AbortError`. O hook trata os dois como **cancelamento**,
+    porque um prompt de captura de tela é **sempre** iniciado pelo usuário — nada consegue
+    abri-lo por trás — então a causa esmagadoramente provável é "mudei de ideia", e um
+    toast vermelho para isso pune quem usou o seletor. A rejeição crua vai para
+    `onCancelled`, se você precisar distinguir um bloqueio de sistema (permissão de
+    gravação de tela do macOS).
+
+### Dicas para o seletor
+
+| Opção | Efeito |
+| --- | --- |
+| `displaySurface` | `"monitor"`, `"window"` ou `"browser"` (uma aba) primeiro na lista |
+| `preferCurrentTab` | põe **esta** aba no topo — o certo para "grave o que você está vendo" |
+| `selfBrowserSurface: "exclude"` | evita a captura em espelho infinito |
+| `surfaceSwitching: "include"` | deixa trocar de superfície no meio, sem novo prompt |
+| `systemAudio` | áudio do sistema quando a tela inteira é compartilhada |
+| `audio: true` | pede o áudio da aba |
+
+!!! warning "Tudo aí é dica, nunca garantia"
+    O usuário pode escolher outra coisa, o Firefox ignora as dicas e o áudio de exibição só
+    existe para **aba** no Chromium (o Safari não tem nenhum). Por isso o hook devolve
+    `surface` e `hasAudio`: leia o que aconteceu, não o que você pediu.
+
+## Fala → texto
+
+```tsx
+import { useSpeechRecognition } from "tempest-react-sdk";
+
+export function CampoDitado({ onTexto }: { onTexto: (texto: string) => void }) {
+  const speech = useSpeechRecognition({
+    lang: "pt-BR",
+    continuous: true,
+    onFinal: (texto) => onTexto(texto),
+  });
+
+  if (!speech.supported) return null;
+
+  return (
+    <>
+      <button onClick={speech.listening ? speech.stop : speech.start}>
+        {speech.listening ? "Parar" : "Ditar"}
+      </button>
+      <p>
+        {speech.transcript}
+        <em>{speech.interim}</em>
+      </p>
+      {speech.error && <p role="alert">{speech.error.message}</p>}
+    </>
+  );
+}
+```
+
+!!! danger "O reconhecimento não é local: o Chromium manda o áudio para um servidor do Google"
+    Nada na API diz isso, não existe configuração que mude, e acontece a **cada**
+    `start()`. Tudo o que o usuário falar enquanto a sessão está aberta sai do aparelho.
+    Não coloque isso num campo de anotação clínica, de credencial ou de dado financeiro de
+    cliente sem avisar antes — e se o dado não pode sair da sua infraestrutura, esta API é a
+    ferramenta errada e um modelo self-hosted é a certa. Colocar o aviso na interface, ao
+    lado do botão, é o mínimo.
+
+### Interim e final
+
+`transcript` acumula as frases que o motor **fechou**; `interim` é o palpite que ele ainda
+está revisando e é substituído inteiro a cada evento. Renderizar `transcript + interim` dá
+o efeito de legenda ao vivo; renderizar só `transcript` dá o texto confirmado.
+
+| Opção | Default | O que faz |
+| --- | --- | --- |
+| `lang` | `"pt-BR"` | Tag BCP-47. |
+| `continuous` | `false` | Continua depois da primeira frase fechar. |
+| `interimResults` | `true` | Publica o palpite em andamento. |
+| `maxAlternatives` | `1` | Quantas leituras por frase pedir. |
+| `onResult` · `onFinal` · `onError` · `onEnd` | — | Cada atualização, só o texto fechado, falha classificada, fim da sessão. |
+| `factory` | — | Construa o reconhecedor você mesmo — outro motor, ou um stub em teste. |
+
+### Erros classificados
+
+| `kind` | Causa | O que a UI deve fazer |
+| --- | --- | --- |
+| `unsupported` | Firefox e todo motor não-Chromium | esconda o botão |
+| `not-allowed` | microfone negado (inclui `service-not-allowed`) | instrução para as configurações do site |
+| `no-speech` | ninguém falou | **rotineiro** — não é falha para reportar |
+| `audio-capture` | nenhum microfone no aparelho | diga isso |
+| `network` | o serviço de reconhecimento não respondeu | ofereça digitar |
+| `aborted` | cancelado | rotineiro |
+| `language-not-supported` | o serviço não fala esse idioma | caia para `pt-BR` ou `en-US` |
+
+!!! info "Não existe auto-restart, de propósito"
+    Mesmo com `continuous: true` o motor encerra a sessão sozinho depois de um trecho de
+    silêncio — é timeout do servidor, não bug. Um loop de reinício é como um app acaba
+    segurando o microfone para sempre e, no Chromium, transmitindo áudio para terceiros
+    para sempre. Mostre que parou de ouvir e deixe a pessoa apertar de novo.
+
+### Ditando no `AIChat`
+
+O `AIChat` **não** conhece o reconhecimento de fala, e não vai conhecer: isso faria todo
+consumidor do componente pagar por uma API que manda áudio para terceiros. O que existe é o
+`composerRef` — o botão que você põe dentro do composer escreve no campo:
+
+```tsx
+import { useRef } from "react";
+import {
+  AIChat,
+  Button,
+  useSpeechRecognition,
+  type AIChatComposerHandle,
+} from "tempest-react-sdk";
+
+export function ChatComDitado({ messages, onSend }: ChatProps) {
+  const composer = useRef<AIChatComposerHandle>(null);
+  const speech = useSpeechRecognition({
+    continuous: true,
+    onFinal: (texto) =>
+      composer.current?.setValue(`${composer.current.getValue()} ${texto}`.trim()),
+  });
+
+  return (
+    <AIChat
+      messages={messages}
+      onSend={onSend}
+      composerRef={composer}
+      composerActions={
+        <Button
+          size="sm"
+          variant={speech.listening ? "primary" : "soft"}
+          disabled={!speech.supported}
+          onClick={speech.listening ? speech.stop : speech.start}
+        >
+          {speech.listening ? "Ouvindo…" : "Ditar"}
+        </Button>
+      }
+      composerFooter={<small>O áudio ditado sai do dispositivo.</small>}
+    />
+  );
+}
+```
+
+!!! tip "`getValue()` é o que torna qualquer coisa **aditiva** possível"
+    O composer é não-controlado de propósito (uma tecla por render do transcrito inteiro
+    seria caro), então sem ler o rascunho a única forma de **acrescentar** — uma frase
+    ditada, um comando de barra, uma citação colada — seria espelhar o valor inteiro no
+    estado do app e torcer para os dois não divergirem.
+
+## Recap
+
+- `BarcodeScanner` — leitor completo: visor, mira, lanterna, supressão de repetição, erro
+  classificado. Montar abre a câmera, então monte quando o usuário pedir.
+- `BarcodeDetector` é Chromium-only. O SDK não embarca decodificador; `unsupported` cobre
+  quem não tem, e `detector` aceita um polyfill.
+- `useBarcodeScanner` — a metade de decodificação, sobre `useCameraStream`; loop que não se
+  sobrepõe, `formats` resolvidos pela interseção com o motor.
+- `useTorch` — a lanterna é constraint de track viva, não dispositivo; `supported` só vale
+  depois do stream.
+- `useVideoRecorder` — mesmo motor do áudio: relógio que desconta pausa, `stop()` com todos
+  os chunks, container negociado. Use `timesliceMs` para captura longa.
+- `useScreenCapture` — seletor fechado é cancelamento (não erro); `ended` é o **único**
+  sinal de que o usuário parou; `surface`/`hasAudio` dizem o que aconteceu de fato.
+- `useSpeechRecognition` — interim vs final, erros classificados, sem auto-restart. **O
+  áudio sai do dispositivo no Chromium.**
+- `AIChat` + `composerRef` — ditado sem o componente conhecer a API de fala.
+
+## Veja também
+
+- [Áudio](./audio.md) — microfone, gravação de voz, WAV, saída de som
+- [Componentes utilitários](./components/utility.md) — o `QRCode`, que codifica
+- [Vision (ONNX)](./vision.md) — o `useCameraStream` que este módulo reaproveita
+
+---
+
 # editor.md
 
 # Rich Text Editor (`tempest-react-sdk/editor`)
@@ -12145,6 +13196,7 @@ granulares, testados e independentes — importe só o que precisar.
 | `useClickOutside(handler)`                        | Retorna um ref; chama `handler` em `mousedown`/`touchstart` fora do elemento. safe sem `window`.                      |
 | `useDocumentTitle(title)`                         | Seta `document.title` enquanto montado, restaurando o anterior no unmount. safe sem `window`.                         |
 | `useFavicon(href)`                                | Troca o favicon via `<link rel="icon">` (cria o elemento se faltar). safe sem `window`.                               |
+| `useAnnounce()`                                   | Devolve `announce(mensagem, politeness?)` — fala pro leitor de tela por uma região viva compartilhada. Pares puros: `announce`, `clearAnnouncer`. |
 
 ### Entrada / interação
 
@@ -12372,6 +13424,65 @@ function CustomModal({ open }: { open: boolean }) {
     contrato de diálogo: marque `role="dialog"` + `aria-modal="true"`, devolva o foco
     ao gatilho ao fechar e trate o Escape. O componente `Modal` do SDK já faz tudo
     isso — só recorra a este hook em overlays caseiros.
+
+### Falar com o leitor de tela — `useAnnounce`
+
+Algo aconteceu que quem vê a tela percebe e quem usa leitor de tela não: um filtro
+reduziu a lista, uma linha salvou, uma cópia deu certo. `useAnnounce` devolve uma
+função estável que anuncia isso.
+
+```tsx
+import { useAnnounce, useClientFilter } from "tempest-react-sdk";
+import { useEffect, useState } from "react";
+
+export function ListaFiltrada({ items }: { items: string[] }) {
+  const [termo, setTermo] = useState("");
+  const visiveis = useClientFilter(items, termo, (item, q) => item.includes(q));
+  const announce = useAnnounce();
+
+  useEffect(() => {
+    announce(`${visiveis.length} resultados`);
+  }, [visiveis.length, announce]);
+
+  return (
+    <>
+      <input value={termo} onChange={(e) => setTermo(e.target.value)} aria-label="Buscar" />
+      <ul>{visiveis.map((item) => <li key={item}>{item}</li>)}</ul>
+    </>
+  );
+}
+```
+
+`announce(mensagem)` é polido por padrão; `announce(mensagem, "assertive")` interrompe
+o que estiver sendo lido — reserve pra erro que exige ação.
+
+!!! info "Duas regiões, uma polida e uma assertiva — de propósito"
+    Politeness é propriedade **da região**, lida quando a tecnologia assistiva a
+    registra. Trocar `aria-live` depois é honrado por alguns leitores, ignorado por
+    outros e às vezes perde o anúncio. Duas regiões que nunca mudam é a única versão
+    que se comporta igual em todo lugar. E são **compartilhadas**: várias regiões vivas
+    mutando ao mesmo tempo é como anúncio se perde ou sai duplicado.
+
+!!! warning "A mesma string duas vezes normalmente não anuncia de novo"
+    O leitor anuncia quando o **conteúdo muda** — escrever o mesmo texto não é
+    mudança, então "Item removido" duas vezes seguidas é lido uma. Em vez de mexer no
+    texto, cada chamada troca o **elemento filho** da região: a mutação é real mesmo
+    com a string idêntica, e o leitor ouve exatamente a sua mensagem, sem caractere de
+    padding pendurado.
+
+!!! danger "Nunca embrulhe texto em streaming numa região viva"
+    Uma região viva sobre texto que cresce token a token faz o leitor recomeçar a
+    resposta inteira a cada token. Anuncie as **bordas** — "gerando resposta",
+    "resposta concluída" — e deixe a transcrição num `role="log"` comum, lido no ritmo
+    da pessoa. É o que o `AIChat` faz.
+
+E o que **não** mandar pro announce: conteúdo que já está na tela dentro de uma região
+com papel — um `SyncStatusBadge` (`role="status"`), um toast, um erro de campo ligado
+ao input. Anunciar de novo lê duas vezes.
+
+Fora do React, `announce(mensagem, politeness?)` é a mesma função e cria a região no
+primeiro uso. `clearAnnouncer()` remove as regiões — serve pra teardown de teste e pra
+micro-frontend saindo de uma página que não é dele.
 
 ### Toggle — `useToggle`
 
@@ -12955,13 +14066,15 @@ try {
 - `createApiClient({ baseURL, getToken, onUnauthorized, refresh, ... })` cria um cliente tipado; instancie uma vez e exporte.
 - 401 com `refresh` → tenta renovar e repete 1x; sem refresh ou falhando → `onUnauthorized` + `ApiError`.
 - `parseResponse(schema, raw, context)` valida o payload com zod e aponta o campo divergente em dev.
-- `uploadWithProgress` usa XHR pra reportar progresso byte a byte.
+- `uploadWithProgress` usa XHR pra reportar progresso byte a byte; para arquivo grande, `createResumableUpload` divide em chunks e retoma — veja [Upload resumível](./resumable-upload.md).
 - `retry` (backoff exponencial + `shouldRetry`) e `usePoll` (intervalo com guarda de overlap) cobrem operações instáveis e acompanhamento de jobs.
 - `generateIdempotencyKey` — gere uma vez por operação, reutilize nos retries.
 
 ## Veja também
 
 - [Auth + Guard](./auth.md)
+- [Passkeys](./passkeys.md) — login sem senha em cima do mesmo client
+- [Upload resumível (tus)](./resumable-upload.md) — quando uma request só não basta
 - [Query](./query.md) — alimenta as `queryFn`
 - [SSE](./sse.md) — usa `withCredentials` igual ao client
 - Diagrama: [request-flow.drawio](./diagrams/request-flow.drawio)
@@ -15090,6 +16203,236 @@ function UserList() {
 
 ---
 
+# passkeys.md
+
+# Passkeys (WebAuthn)
+
+Login sem senha, com a biometria que o usuário já usa pra desbloquear o aparelho.
+
+O SDK cobre **a metade do cliente**: as duas cerimônias (`navigator.credentials.create` e `.get`), a conversão base64url ↔ `ArrayBuffer` que todo mundo reimplementa errado, os sondadores de capacidade e a classificação de erro. A outra metade é o seu backend — e esta página diz exatamente o que ele precisa mandar e receber, porque um cliente WebAuthn que documenta só o próprio lado é inútil.
+
+!!! info "Por que passkey e não senha"
+    A chave privada nunca sai do aparelho, então não existe base de senhas pra vazar, nem phishing que funcione: o navegador só assina para o domínio que registrou a credencial. Pro usuário é um toque no sensor.
+
+## A superfície
+
+| Símbolo | Para quê |
+| --- | --- |
+| `createPasskeyClient` | Cliente sem framework: `register` + `authenticate` + sondadores |
+| `usePasskeyRegistration` | Hook do fluxo "criar passkey" |
+| `usePasskeySignIn` | Hook do fluxo "entrar com passkey", com autofill opcional |
+| `usePasskeyCapabilities` | Só os três sondadores, quando você quer decidir a UI antes |
+| `isPasskeySupported` | O navegador tem WebAuthn |
+| `isPlatformAuthenticatorAvailable` | **Este aparelho** tem Face ID / Hello / digital |
+| `isConditionalMediationAvailable` | O autofill de passkey está disponível |
+| `classifyPasskeyError` / `PasskeyError` | Erro com `kind` no qual a UI faz `switch` |
+| `base64UrlToBytes` / `bytesToBase64Url` | O encanamento, exposto porque você vai precisar |
+
+## Comece pelo hook
+
+Dois botões, dois hooks. Este é o cadastro, na tela de conta:
+
+```tsx
+import { usePasskeyRegistration } from "tempest-react-sdk";
+
+import { api } from "../lib/api";
+
+export function CriarPasskey() {
+  const passkey = usePasskeyRegistration({
+    getOptions: () => api.post("/api/webauthn/register/begin"),
+    verify: (credential) =>
+      api.post("/api/webauthn/register/finish", { body: credential }),
+  });
+
+  if (passkey.platformAvailable === null) return null;
+
+  if (passkey.error?.kind === "already-registered") {
+    return <p>Este aparelho já tem uma passkey da sua conta. 👍</p>;
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => void passkey.register()}
+        disabled={passkey.status === "prompting" || passkey.status === "verifying"}
+      >
+        {passkey.status === "prompting" ? "Confirme no aparelho…" : "Criar passkey"}
+      </button>
+      {passkey.error && <p role="alert">{passkey.error.message}</p>}
+      {passkey.status === "success" && <p>Passkey criada. ✅</p>}
+    </>
+  );
+}
+```
+
+Peça por peça:
+
+- **`getOptions`** é a sua rota `begin`. O servidor sorteia o desafio e devolve as opções.
+- **`verify`** é a sua rota `finish`. Recebe o JSON que o SDK serializou.
+- **`platformAvailable === null`** significa "ainda não sei" — o sondador é assíncrono. Não renderize nada de passkey nesse estado.
+- **`register()` resolve, nunca rejeita.** Toda falha já é estado (`status`, `error.kind`) que a UI precisa desenhar; obrigar um `try/catch` num handler de botão só duplicaria o que o hook guarda.
+
+!!! warning "`platformAvailable === false` não é "sem passkey""
+    Significa "sem autenticador embutido **aqui**". O usuário ainda pode usar o celular por QR/hybrid. Ofereça como "usar meu celular", não como um toque.
+
+## O login, e o autofill que faz a diferença
+
+```tsx
+import { usePasskeySignIn } from "tempest-react-sdk";
+
+import { api } from "../lib/api";
+import { useAuthStore } from "../store/auth";
+
+export function LoginForm() {
+  const passkey = usePasskeySignIn({
+    conditional: true,
+    getOptions: () => api.post("/api/webauthn/signin/begin"),
+    verify: (assertion) =>
+      api.post<{ access_token: string }>("/api/webauthn/signin/finish", {
+        body: assertion,
+      }),
+    onSuccess: ({ access_token }) => useAuthStore.getState().setToken(access_token),
+  });
+
+  return (
+    <form>
+      <label htmlFor="email">E-mail</label>
+      <input id="email" name="email" autoComplete="username webauthn" />
+
+      <button type="button" onClick={() => void passkey.signIn()}>
+        Entrar com passkey
+      </button>
+      {passkey.error && <p role="alert">{passkey.error.message}</p>}
+    </form>
+  );
+}
+```
+
+`conditional: true` liga o fluxo de **autofill**: nenhum modal aparece; o navegador lista as passkeys **dentro do campo de e-mail**. O usuário toca em uma e está dentro, sem digitar nada.
+
+!!! danger "`autocomplete="username webauthn"` não é opcional"
+    Sem esse atributo no input, a lista **nunca** aparece — e não há erro nenhum, o pedido só fica pendurado. O hook não pode fazer essa parte por você: quem sabe qual campo é o de identificação é a sua tela.
+
+Duas outras regras do modo condicional:
+
+- **Um por página.** Um segundo pedido condicional simultâneo derruba o primeiro.
+- **Abortar não é erro.** Se o usuário digitar a senha em vez de escolher a passkey, ou a tela desmontar, o pedido é abortado e o hook **não** marca erro — nada falhou, a pessoa escolheu outra porta.
+
+## Os erros, e o que fazer com cada um
+
+`error.kind` é o que a UI olha. `error.message` é texto em inglês, seguro de mostrar, mas o normal é você escrever a sua cópia por `kind`:
+
+| `kind` | Causa | O que a UI faz |
+| --- | --- | --- |
+| `cancelled` | `NotAllowedError` | Nada de vermelho. Volte ao estado inicial |
+| `already-registered` | `InvalidStateError` | **Sucesso disfarçado**: "já configurado neste aparelho" |
+| `rp-mismatch` | `SecurityError` | Bug seu: `rp.id` não bate com a origem |
+| `not-supported` | `NotSupportedError` | Nenhum autenticador aceita os algoritmos pedidos |
+| `invalid-options` | `TypeError` | O `begin` mandou base64url quebrado |
+| `insecure` | Página em HTTP | Sirva por HTTPS |
+| `unsupported` | Navegador sem WebAuthn | Esconda a opção |
+| `aborted` | Seu `signal` abortou | Silencie |
+| `unknown` | O resto | Log + mensagem genérica |
+
+!!! danger "`cancelled` é "cancelou **ou** expirou" — e é impossível saber qual"
+    `NotAllowedError` cobre os dois casos **por design**: dizer ao site "essa conta não tem credencial aqui" vazaria a existência da conta. Trate como um só evento e nunca escreva "você cancelou" com certeza.
+
+!!! tip "`rp-mismatch` é o erro de integração nº 1"
+    `rp.id` tem que ser o domínio da página ou um **pai registrável** dele. `app.acme.com` pode usar `acme.com`; `acme.com` **não** pode usar `app.acme.com`. Em `localhost` deixe `rp.id` de fora.
+
+## Sem React: `createPasskeyClient`
+
+Os hooks são uma casca. O cliente é o que faz o trabalho, e serve num formulário puro, num worker ou num teste:
+
+```ts
+import { createPasskeyClient } from "tempest-react-sdk";
+
+const passkeys = createPasskeyClient({ rpId: "acme.com", timeoutMs: 60_000 });
+
+const options = await fetch("/api/webauthn/signin/begin", { method: "POST" }).then((r) =>
+  r.json(),
+);
+const assertion = await passkeys.authenticate(options);
+await fetch("/api/webauthn/signin/finish", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(assertion),
+});
+```
+
+`rpId` e `timeoutMs` são só **defaults**: o que vier do servidor sempre ganha.
+
+??? info "Injetando um `credentials` falso (testes)"
+    `createPasskeyClient({ credentials })` aceita qualquer objeto com `create` e `get` — a interface `CredentialsContainerLike`. É assim que o próprio SDK testa as cerimônias, já que o jsdom não tem `navigator.credentials`.
+
+## O que o seu backend precisa implementar
+
+Quatro rotas. O SDK não fala com nenhuma delas por conta própria: você passa `getOptions` e `verify`.
+
+### 1. `POST /webauthn/register/begin` → opções
+
+Devolva um `PasskeyCreationOptionsJSON`. Todo campo binário é **base64url**:
+
+```json
+{
+  "challenge": "9WVvY2..._Q",
+  "rp": { "name": "Acme", "id": "acme.com" },
+  "user": { "id": "dXNlci0x", "name": "ada@acme.com", "displayName": "Ada Lovelace" },
+  "pubKeyCredParams": [{ "type": "public-key", "alg": -7 }],
+  "excludeCredentials": [{ "id": "AQID", "type": "public-key" }],
+  "authenticatorSelection": { "residentKey": "required", "userVerification": "preferred" }
+}
+```
+
+- `challenge`: ≥16 bytes aleatórios, **guardados na sessão**, uso único.
+- `user.id`: identificador opaco e estável. **Nunca** o e-mail — ele muda e fica gravado no autenticador.
+- `excludeCredentials`: as credenciais que o usuário já tem. É o que faz o autenticador responder `InvalidStateError` (→ `already-registered`) em vez de criar uma duplicada.
+- `pubKeyCredParams` pode ser omitido: o SDK oferece `-8` (Ed25519), `-7` (ES256) e `-257` (RS256).
+- `residentKey: "required"` é o que torna a passkey **descobrível** — pré-requisito do login sem digitar nada.
+
+### 2. `POST /webauthn/register/finish` ← credencial
+
+Recebe um `PasskeyRegistrationJSON`. No servidor:
+
+1. Decodifique `response.clientDataJSON` e confira `type === "webauthn.create"`, o `challenge` guardado e o `origin`.
+2. Parseie `response.attestationObject`, extraia a chave pública e o contador de assinatura.
+3. Grave `id`, chave pública, contador e `response.transports` (ajuda o login depois).
+
+### 3. `POST /webauthn/signin/begin` → opções
+
+Um `PasskeyRequestOptionsJSON` com um desafio novo. **Omita `allowCredentials`** para login sem identificação prévia e para o autofill — é o que deixa o navegador oferecer qualquer passkey do domínio.
+
+### 4. `POST /webauthn/signin/finish` ← assertion
+
+Recebe um `PasskeyAuthenticationJSON`:
+
+1. Ache a credencial por `id` (ou por `response.userHandle`, que vem preenchido em credencial descobrível).
+2. Confira o `clientDataJSON` como no passo 2, agora com `type === "webauthn.get"`.
+3. Verifique `response.signature` sobre `authenticatorData || sha256(clientDataJSON)` com a chave pública guardada.
+4. **Rejeite contador que não cresceu** — indica credencial clonada.
+5. Só então emita o token de sessão.
+
+!!! tip "Do lado do FastAPI"
+    Uma biblioteca de servidor (`py_webauthn`, por exemplo) faz os passos 1–4. O que ela **não** faz é o que está nesta página: guardar o desafio na sessão, escolher o `user.id` e montar o `excludeCredentials`.
+
+## Resumo
+
+- **`createPasskeyClient`** — duas cerimônias, encanamento base64url, um tipo de erro. Sem framework.
+- **`usePasskeyRegistration` / `usePasskeySignIn`** — estado (`status`, `error`, `data`) + a ação. Resolvem `null` em falha.
+- **`isPlatformAuthenticatorAvailable()`** decide se o botão aparece; `platformAvailable === null` é "ainda não sei".
+- **`conditional: true` + `autocomplete="username webauthn"`** é o login de um toque. O atributo é obrigatório.
+- **`kind: "already-registered"` é sucesso**, `"cancelled"` é ambíguo por design, `"rp-mismatch"` é bug seu.
+- O servidor faz 4 rotas; o cliente não inventa nenhuma delas.
+
+### Veja também
+
+- [Auth](./auth.md) — onde guardar o token que o `finish` devolveu
+- [HTTP](./http.md) — o `api` dos exemplos
+- [Access Control (RBAC)](./access-control.md) — o que a sessão pode fazer depois
+
+---
+
 # perf.md
 
 # Custo de inferência on-device
@@ -16686,6 +18029,193 @@ Veja [`RELEASES.md`](https://github.com/mauriciobenjamin700/tempest-react-sdk/bl
 
 ---
 
+# resumable-upload.md
+
+# Upload resumível (tus)
+
+`uploadWithProgress` faz **uma** request. Isso funciona até o arquivo ficar grande: um áudio de 40 minutos gravado com `useAudioRecorder`, um vídeo, um dump. Aí um 4G que oscila por três segundos joga fora 300 MB já enviados, e recarregar a página joga fora tudo de novo.
+
+`createResumableUpload` divide o arquivo em chunks, guarda onde parou e continua — depois de uma queda de rede **ou** de um reload.
+
+!!! info "Protocolo: tus 1.0.0, não um esquema nosso"
+    O cliente fala [tus](https://tus.io) (core + as extensões *creation* e *termination*). Isso é deliberado: um cliente resumível de formato próprio obriga o backend a ser sempre nosso. Com tus você pode apontar para `tusd`, `tus-node-server` ou `py-tus` sem escrever servidor nenhum — e a seção [O que o backend precisa implementar](#o-que-o-backend-precisa-implementar) cabe numa tabela.
+
+## O exemplo mínimo
+
+```tsx
+import { createResumableUpload, type ResumableUpload } from "tempest-react-sdk";
+import { useRef, useState } from "react";
+
+export function EnviarGravacao({ file }: { file: File }) {
+  const upload = useRef<ResumableUpload | null>(null);
+  const [percent, setPercent] = useState(0);
+  const [state, setState] = useState("idle");
+
+  async function start() {
+    upload.current ??= createResumableUpload({
+      endpoint: "/api/uploads",
+      file,
+      metadata: { filename: file.name },
+      onProgress: ({ fraction }) => setPercent(Math.round(fraction * 100)),
+      onStateChange: setState,
+    });
+
+    const done = await upload.current.start();
+    if (done) await fetch(`/api/gravacoes?url=${encodeURIComponent(done.url)}`, { method: "POST" });
+  }
+
+  return (
+    <>
+      <progress value={percent} max={100} />
+      <button type="button" onClick={() => void start()}>Enviar</button>
+      <button type="button" onClick={() => upload.current?.pause()}>Pausar</button>
+      <button type="button" onClick={() => void upload.current?.resume()}>Continuar</button>
+      <button type="button" onClick={() => void upload.current?.abort({ discard: true })}>
+        Cancelar
+      </button>
+      <p>{state}</p>
+    </>
+  );
+}
+```
+
+O que acontece: um `POST` cria o upload, uma sequência de `PATCH` empurra 5 MiB por vez, `onProgress` recebe cada tick de bytes, e no fim `start()` resolve com `{ url, size }` — a URL tus, que você grava junto do registro.
+
+!!! tip "`start()` resolve `null` quando você pausou ou cancelou"
+    Só uma **falha** rejeita. `pause()` e `abort()` não são falhas, então a promessa resolve `null` e você não precisa de `try/catch` em volta de um botão de pausar.
+
+## Estados
+
+`upload.state` (e o `onStateChange`) passa por:
+
+| Estado | Significado |
+| --- | --- |
+| `idle` | Nada começou |
+| `creating` | O `POST` de criação está em voo |
+| `uploading` | Chunks indo |
+| `paused` | `pause()` — o ponto de retomada **fica** guardado |
+| `done` | Terminou; o registro persistido foi apagado |
+| `error` | As tentativas acabaram; `start()` rejeitou |
+| `aborted` | `abort()` — com `discard: true`, o registro foi apagado |
+
+## Retomar depois de um reload
+
+É o motivo de existir. O cliente guarda `{ url, offset, size, idempotencyKey }` sob uma **chave de retomada** e, no próximo `start()`, reencontra o upload:
+
+```ts
+const upload = createResumableUpload({ endpoint: "/api/uploads", file });
+// Recarregou a página, o usuário escolheu o mesmo arquivo, chamou start() de novo:
+// → HEAD no upload antigo, offset volta em 312 MB, os PATCH continuam de lá.
+```
+
+A chave padrão é uma impressão digital de `endpoint + nome + tamanho + tipo + lastModified` — o mesmo critério dos clientes tus de referência. Barato (não hasheia 400 MB) e muda sempre que o arquivo muda, que é a propriedade importante: retomar dentro do arquivo errado corromperia os dois.
+
+!!! warning "Um `Blob` sem nome tem impressão digital fraca"
+    `Blob` não tem `name` nem `lastModified`, então dois blobs do mesmo tamanho e tipo colidem. Passe `key` explícito quando o que você envia não é um `File`.
+
+### Onde o estado mora
+
+Por padrão, `localStorage`, via `createLocalUploadStorage()`. **Não** IndexedDB, e isso é escolha: o registro tem quatro campos e uma URL, o requisito é só sobreviver a um reload, e puxar Dexie pra isso colocaria IndexedDB no bundle de todo app que envia um arquivo.
+
+Se o seu app já tem um banco Dexie aberto, plugue o seu:
+
+```ts
+import { createOfflineStore, createResumableUpload } from "tempest-react-sdk";
+
+const store = createOfflineStore<{ id: string; record: unknown }, string>({
+  databaseName: "Uploads",
+  version: 1,
+  tableName: "resume",
+  indexes: "&id",
+});
+
+createResumableUpload({
+  endpoint: "/api/uploads",
+  file,
+  storage: {
+    get: async (key) => ((await store.get(key))?.record ?? null) as never,
+    set: (key, record) => store.put({ id: key, record }),
+    delete: (key) => store.delete(key),
+  },
+});
+```
+
+`storage: null` desliga a persistência: aí a retomada sobrevive a uma queda de rede, mas não a um reload.
+
+## A falha que realmente acontece
+
+Não é o chunk que se perde. É o chunk que o **servidor gravou e cuja resposta não voltou**. O cliente não distingue isso de um chunk perdido, e reenviar às cegas duplicaria bytes.
+
+Duas coisas impedem:
+
+**1. Escritas são endereçadas, não anexadas.** Todo `PATCH` declara o offset em que escreve (`Upload-Offset`). Se a resposta se perdeu e o cliente repetir, ele está pedindo pra escrever bytes que o servidor já tem — e leva `409`. Em **qualquer** retentativa, o cliente relê a verdade com `HEAD` antes de escrever e continua de onde o servidor realmente está.
+
+**2. A criação leva `Idempotency-Key`.** O tus não tem criação idempotente; sem isso, um `201` perdido deixaria um upload órfão no servidor e o cliente criaria um segundo. A chave (de `generateIdempotencyKey`) é gravada **antes** da primeira tentativa e reusada na retentativa. Backend que honra o header devolve o mesmo `Location`; backend que ignora funciona igual, só fica com o órfão.
+
+!!! tip "O backoff é o `retry` do SDK"
+    Não existe um segundo backoff aqui: cada chunk roda dentro do [`retry`](./http.md#retry-backoff-exponencial) — exponencial, com `Retry-After` respeitado. Ajuste por `retry: { retries, initialDelay, shouldRetry }`.
+
+## O que o backend precisa implementar
+
+Toda request leva `Tus-Resumable: 1.0.0`.
+
+| Passo | Request | Resposta esperada |
+| --- | --- | --- |
+| Criar | `POST {endpoint}` + `Upload-Length`, `Upload-Metadata`, `Idempotency-Key` | `201` + `Location` (URL do upload, absoluta ou relativa) |
+| Sondar | `HEAD {uploadUrl}` | `200`/`204` + `Upload-Offset` |
+| Escrever | `PATCH {uploadUrl}` + `Upload-Offset`, `Content-Type: application/offset+octet-stream`, corpo = chunk | `204` + o novo `Upload-Offset`; `409` quando o offset não bate |
+| Descartar | `DELETE {uploadUrl}` | `204` |
+
+Detalhes que costumam morder:
+
+- **`Location` pode ser relativo.** O cliente resolve contra a página, então `/api/uploads/abc` serve.
+- **`Upload-Metadata`** é `chave base64(valor)` separado por vírgula, com o valor em **UTF-8 antes** do base64 — é assim que `nota-ação.webm` sobrevive a um header HTTP.
+- **`HEAD` respondendo `404`/`410`** é lido como "o servidor esqueceu esse upload": o cliente recria do zero em vez de travar.
+- **`Upload-Offset` ausente num `PATCH` bem-sucedido** é tolerado — o cliente assume o fim do chunk —, mas mandar é melhor.
+- Reflita o `Idempotency-Key` numa tabela de chaves se quiser evitar órfãos.
+
+!!! info "Servidor pronto"
+    `tusd` (Go), `tus-node-server` (Node) e `tuspy`/`py-tus` (Python) já implementam a tabela. Num FastAPI próprio são quatro rotas.
+
+## Progresso e pausa, com precisão
+
+```ts
+const upload = createResumableUpload({
+  endpoint: "/api/uploads",
+  file,
+  chunkSize: 1024 * 1024, // 1 MiB: tick mais fino, mais round-trips
+  getToken: () => auth.getToken(),
+  withCredentials: true,
+  retry: { retries: 8, initialDelay: 500 },
+  onProgress: ({ loaded, total, fraction, resumedFrom }) => {
+    console.log(`${loaded}/${total} (${Math.round(fraction * 100)}%), retomou em ${resumedFrom}`);
+  },
+});
+```
+
+- `onProgress` recebe **bytes do arquivo inteiro**, não do chunk. `resumedFrom` diz quantos já estavam no servidor quando esta execução começou — útil pra não anunciar "0%" num upload que retomou em 80%.
+- `pause()` derruba o chunk em voo; o offset persistido continua o do último chunk **confirmado**. O `resume()` faz `HEAD` primeiro, então bytes parciais que o servidor aceitou não se perdem.
+- `abort({ discard: true })` manda `DELETE` e apaga o registro; sem `discard`, o ponto de retomada fica.
+
+!!! warning "`XMLHttpRequest`, não `fetch`"
+    Como em `uploadWithProgress`: `fetch` ainda não reporta progresso de **upload** em navegador nenhum. Aqui há um segundo motivo — o tus devolve o novo offset num **header de resposta**, e `uploadWithProgress` só entrega corpo parseado, então não dava pra reaproveitar.
+
+## Resumo
+
+- **`createResumableUpload({ endpoint, file })`** — chunks de 5 MiB, retomada por rede e por reload, protocolo tus 1.0.0.
+- **`start()` / `pause()` / `resume()` / `abort({ discard })`**; `start()` resolve `null` quando você parou de propósito.
+- O ponto de retomada mora em `localStorage` por padrão; troque por `storage`, desligue com `null`.
+- Resposta perdida é resolvida por **offset endereçado + `HEAD` antes de cada retentativa**, e a criação por **`Idempotency-Key`**.
+- Backoff é o `retry` do SDK — não existe um segundo.
+
+### Veja também
+
+- [HTTP](./http.md) — `uploadWithProgress` (uma request), `retry`, `generateIdempotencyKey`
+- [Áudio](./audio.md) — `useAudioRecorder`, que produz os arquivos longos que motivaram isso
+- [Offline](./offline.md) — `createOfflineStore`, se você preferir IndexedDB pro estado de retomada
+
+---
+
 # routing.md
 
 # Routing
@@ -18010,7 +19540,8 @@ Aliases:
     `color-contrast` porque não há paint.
 
 !!! warning "Texto sobre `primary-soft` usa `primary-on-soft`, não `primary`"
-    `--tempest-primary` sobre `--tempest-primary-soft` dá 4.37:1 de contraste — o
+    `--tempest-primary` sobre `--tempest-primary-soft` dá **4,38:1** no tema claro e
+    **4,28:1** no escuro — o
     WCAG AA pede 4.5:1 pra texto. Por isso existe o `--tempest-primary-on-soft`
     (~6:1). Se você redefinir a paleta, redefina os dois: trocar só o
     `--tempest-primary` deixa os estados selecionados (Toggle, ToggleGroup,

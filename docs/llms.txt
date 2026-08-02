@@ -9,6 +9,7 @@
 - [Arquitetura](https://mauriciobenjamin700.github.io/tempest-react-sdk/architecture/): O tempest-react-sdk é um pacote único com camadas independentes.
 - [Áudio](https://mauriciobenjamin700.github.io/tempest-react-sdk/audio/): Áudio no navegador, nas duas direções.
 - [Auth](https://mauriciobenjamin700.github.io/tempest-react-sdk/auth/): Autenticação no front-end é sempre o mesmo punhado de problemas: onde guardar a sessão, como proteger uma rota, como ler o que tem dentro do token e o que fazer quando ele expira no meio de um deploy.
+- [Pagamentos & fiscal BR](https://mauriciobenjamin700.github.io/tempest-react-sdk/br-pagamentos/): Os quatro trilhos que todo produto brasileiro acaba precisando: Pix, boleto, chave de acesso da NFe e feriados / dias úteis.
 - [Mapa do Brasil & localidades](https://mauriciobenjamin700.github.io/tempest-react-sdk/br/): Mapa nacional clicável das 27 unidades federativas + dataset de estados e cidades — sem nenhuma API paga ou externa.
 - [Charts (recharts)](https://mauriciobenjamin700.github.io/tempest-react-sdk/charts/): Gráficos transformam números em forma: uma tendência que sobe, uma fatia que
 - [CLI `tempest`](https://mauriciobenjamin700.github.io/tempest-react-sdk/cli/): Além da CLI de scaffolding create-tempest-app, o pacote
@@ -25,6 +26,7 @@
 - [Onde mora cada estado](https://mauriciobenjamin700.github.io/tempest-react-sdk/design/state/): Quase todo bug difícil de app frontend é a mesma coisa: **duas fontes de verdade
 - [Estratégia de testes](https://mauriciobenjamin700.github.io/tempest-react-sdk/design/testing/): Teste de frontend tem uma armadilha própria: é fácil escrever muitos testes que
 - [Tipagem forte](https://mauriciobenjamin700.github.io/tempest-react-sdk/design/typing/): TypeScript não é "JavaScript com autocomplete".
+- [Captura de dispositivo](https://mauriciobenjamin700.github.io/tempest-react-sdk/device-capture/): Quatro APIs do navegador que não custam dependência nenhuma: a câmera lendo códigos
 - [Rich Text Editor (`tempest-react-sdk/editor`)](https://mauriciobenjamin700.github.io/tempest-react-sdk/editor/): Editor WYSIWYG controlado, construído sobre tiptap.
 - [Error Boundary](https://mauriciobenjamin700.github.io/tempest-react-sdk/error-boundary/): ErrorBoundary captura erros lançados durante o render de qualquer descendente e mostra um fallback no lugar de uma tela branca.
 - [Feature Flags](https://mauriciobenjamin700.github.io/tempest-react-sdk/feature-flags/): Feature flags ligam e desligam funcionalidades sem novo deploy: rollouts graduais (new-checkout para 10% dos usuários), kill-switches (disable_payments quando o gateway cai), experimentos A/B.
@@ -43,10 +45,12 @@
 - [Offline Sync com `tempest-fastapi-sdk`](https://mauriciobenjamin700.github.io/tempest-react-sdk/offline-sync/): Esta receita liga o frontend (tempest-react-sdk) ao backend (tempest-fastapi-sdk) num fluxo offline-first completo: o app continua usável sem rede, grava localmente, e sincroniza com o servidor quando a conexão volta — sem perder nada e sem duplicar.
 - [Offline (IndexedDB)](https://mauriciobenjamin700.github.io/tempest-react-sdk/offline/): createOfflineStore empacota o Dexie com scoping opcional por owner.
 - [Gerar serviços do OpenAPI (`tempest gen api`)](https://mauriciobenjamin700.github.io/tempest-react-sdk/openapi/): Se o seu backend é FastAPI (ou qualquer API que exponha um OpenAPI 3.x), o
+- [Passkeys (WebAuthn)](https://mauriciobenjamin700.github.io/tempest-react-sdk/passkeys/): Login sem senha, com a biometria que o usuário já usa pra desbloquear o aparelho.
 - [Custo de inferência on-device](https://mauriciobenjamin700.github.io/tempest-react-sdk/perf/): Quando a inferência roda no dispositivo do usuário, você perde o gráfico do
 - [Web Push + Service Worker](https://mauriciobenjamin700.github.io/tempest-react-sdk/push/): Notificações push no navegador têm duas metades que conversam: a main thread (sua UI pede permissão e cria a inscrição) e a worker thread (o service worker recebe o push e desenha a notificação, mesmo com a aba fechada).
 - [PWA & Offline-First](https://mauriciobenjamin700.github.io/tempest-react-sdk/pwa/): O tempest-react-sdk traz tudo que um app Tempest precisa pra virar um PWA offline-first — sem depender de Workbox nem de vite-plugin-pwa.
 - [Query (TanStack Query)](https://mauriciobenjamin700.github.io/tempest-react-sdk/query/): Wrappers finos pra padronizar tempos de cache, chaves de query e o QueryClient.
+- [Upload resumível (tus)](https://mauriciobenjamin700.github.io/tempest-react-sdk/resumable-upload/): uploadWithProgress faz uma request. Isso funciona até o arquivo ficar grande: um áudio de 40 minutos gravado com useAudioRecorder, um vídeo, um dump. Aí um 4G que oscila por três segundos joga fora 300 MB já enviados, e recarregar a página joga fora tudo de novo.
 - [Routing](https://mauriciobenjamin700.github.io/tempest-react-sdk/routing/): O módulo routing do tempest-react-sdk embrulha o React Router v8 (modo declarativo) e devolve uma superfície única de import: você declara sua árvore de rotas com defineRoutes, monta tudo com um único <AppRouter> e importa cada primitivo (Link, Outlet, useNavigate, …) direto do SDK — nunca do react-router.
 - [Scaffold — `create-tempest-app`](https://mauriciobenjamin700.github.io/tempest-react-sdk/scaffold/): create-tempest-app é a CLI oficial de scaffolding da Tempest.
 - [Web Share](https://mauriciobenjamin700.github.io/tempest-react-sdk/share/): share() é um wrapper sobre a Web Share API (navigator.share) que devolve um resultado uniforme em vez de lançar exceções.

@@ -11,6 +11,7 @@ import { Banner } from "./Banner";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { Button } from "./Button";
 import { Card } from "./Card";
+import { AIChat } from "./AIChat";
 import { Chat } from "./Chat";
 import { Checkbox } from "./Checkbox";
 import { EmptyState } from "./EmptyState";
@@ -304,6 +305,33 @@ const CASES: [name: string, ui: ReactElement][] = [
             onSend={() => {}}
             onRetry={() => {}}
             now={1_772_000_120_000}
+        />,
+    ],
+    [
+        "AIChat",
+        <AIChat
+            messages={[
+                { id: "s", role: "system", content: "Responda em português." },
+                { id: "u1", role: "user", content: "Quantos pedidos atrasaram?" },
+                {
+                    id: "a1",
+                    role: "assistant",
+                    content: "**12 pedidos** atrasaram.\n\n```sql\nSELECT 1;\n```",
+                    reasoning: "Contei os pedidos com entrega vencida.",
+                    model: "opus-5",
+                    createdAt: 1_772_000_060_000,
+                    error: "A conexão caiu no meio.",
+                },
+            ]}
+            showSystem
+            header={<h2>Assistente de operações</h2>}
+            onSend={() => {}}
+            onStop={() => {}}
+            onRegenerate={() => {}}
+            onEditSubmit={() => {}}
+            onFeedback={() => {}}
+            onRetry={() => {}}
+            composerFooter={<small>Pode errar.</small>}
         />,
     ],
     [

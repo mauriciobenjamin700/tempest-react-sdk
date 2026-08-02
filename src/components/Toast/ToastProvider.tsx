@@ -145,13 +145,27 @@ function positionClass(position: ToastPosition): string {
     }
 }
 
+/**
+ * The portalled stack, and the page's live region for toasts.
+ *
+ * `aria-atomic="false"` matters: with `"true"` a screen reader re-reads the
+ * **entire** stack on every change, so the third toast of a batch is announced as
+ * all three, and dismissing one re-announces the survivors. `"false"` announces only
+ * the node that was added, which is what the user needs.
+ *
+ * The stack stays the live region rather than delegating to `useAnnounce`, because
+ * routing it through the shared announcer would put the same text in the document
+ * twice — once visible, once hidden — and every `getByText("Salvo")` in a consuming
+ * app's test suite would start matching two nodes. The announcer is for messages
+ * that have no on-screen home; a toast has one.
+ */
 function ToastContainer({ toasts, onDismiss, position }: ContainerProps) {
     if (typeof document === "undefined") return null;
     return createPortal(
         <div
             className={cn(styles.container, positionClass(position))}
             aria-live="polite"
-            aria-atomic="true"
+            aria-atomic="false"
         >
             {toasts.map((toast) => (
                 <ToastItem key={toast.id} toast={toast} onDismiss={onDismiss} />
@@ -166,6 +180,13 @@ interface ItemProps {
     onDismiss: (id: string) => void;
 }
 
+/**
+ * One toast.
+ *
+ * No `role="status"` of its own: it already lives inside the container's live
+ * region, and a live region nested in a live region is announced twice by some
+ * screen readers.
+ */
 function ToastItem({ toast, onDismiss }: ItemProps) {
     useEffect(() => {
         if (!toast.duration) return;
@@ -174,7 +195,7 @@ function ToastItem({ toast, onDismiss }: ItemProps) {
     }, [toast.id, toast.duration, onDismiss]);
 
     return (
-        <div className={cn(styles.toast, styles[toast.variant])} role="status">
+        <div className={cn(styles.toast, styles[toast.variant])}>
             <div>
                 {toast.title && <p className={styles.title}>{toast.title}</p>}
                 {toast.description && <p className={styles.description}>{toast.description}</p>}

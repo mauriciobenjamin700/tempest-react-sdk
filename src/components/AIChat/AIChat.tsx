@@ -9,10 +9,10 @@ import {
     type Ref,
 } from "react";
 
+import { useAnnounce } from "@/hooks/use-announce";
 import { cn } from "@/utils/cn";
 
 import { EmptyState } from "../EmptyState";
-import { VisuallyHidden } from "../VisuallyHidden";
 import {
     aiChatStrings,
     isGenerating,
@@ -171,7 +171,7 @@ export function AIChat({
     const stuckToBottom = useRef(true);
     const wasGenerating = useRef(false);
     const [atBottom, setAtBottom] = useState(true);
-    const [announcement, setAnnouncement] = useState("");
+    const announce = useAnnounce();
 
     /**
      * Remember whether the reader is at the bottom, before the next tokens land.
@@ -215,20 +215,23 @@ export function AIChat({
      *
      * The transcript is a `role="log"` **without** `aria-live`: a live region over
      * streaming text makes a screen reader read the answer again on every token,
-     * which is unusable. The two moments that matter are announced here instead, and
-     * the finished answer is read from the log at the reader's own pace.
+     * which is unusable. The two moments that matter are announced here instead —
+     * through the shared `useAnnounce` region rather than a private one, so a page
+     * holding a chat plus a table plus toasts still has exactly one live region per
+     * politeness — and the finished answer is read from the log at the reader's own
+     * pace.
      */
     useEffect(() => {
         if (generating) {
-            setAnnouncement(strings.generating);
+            announce(strings.generating);
             wasGenerating.current = true;
             return;
         }
         if (wasGenerating.current) {
-            setAnnouncement(strings.done);
+            announce(strings.done);
             wasGenerating.current = false;
         }
-    }, [generating, strings.generating, strings.done]);
+    }, [generating, strings.generating, strings.done, announce]);
 
     const showSuggestions = turns.length === 0 && suggestions.length > 0 && onSend !== undefined;
     const detached = !atBottom && turns.length > 0;
@@ -311,12 +314,6 @@ export function AIChat({
                     </button>
                 )}
             </div>
-
-            <VisuallyHidden>
-                <div role="status" aria-live="polite">
-                    {announcement}
-                </div>
-            </VisuallyHidden>
 
             {onSend && (
                 <AIChatComposer

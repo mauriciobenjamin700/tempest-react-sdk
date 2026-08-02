@@ -35,6 +35,7 @@
 - [HTTP](https://mauriciobenjamin700.github.io/tempest-react-sdk/http/): Camada de fetch tipada com tratamento de 401 + refresh, parse JSON automático e upload com progresso.
 - [i18n](https://mauriciobenjamin700.github.io/tempest-react-sdk/i18n/): i18n minimalista (≈ 1.5KB gzip) embutido no SDK.
 - [Ícones por slug](https://mauriciobenjamin700.github.io/tempest-react-sdk/icons/): Todo componente do SDK que aceita ícone aceita um ReactNode:
+- [Imaging (processamento de imagem no navegador)](https://mauriciobenjamin700.github.io/tempest-react-sdk/imaging/): Foto tirada no celular, tratada no aparelho: redimensiona, corta, gira,
 - [tempest-react-sdk](https://mauriciobenjamin700.github.io/tempest-react-sdk/): Blocos de construção React/TypeScript compartilhados pelos frontends da Tempest:
 - [Integração full-stack Tempest (React ⇄ FastAPI)](https://mauriciobenjamin700.github.io/tempest-react-sdk/integration-fastapi/): Você tem um backend feito com o tempest-fastapi-sdk e um frontend feito com este SDK.
 - [Logger](https://mauriciobenjamin700.github.io/tempest-react-sdk/logger/): createLogger é um logger nivelado com sinks plugáveis.
@@ -51,6 +52,7 @@
 - [Server-Sent Events](https://mauriciobenjamin700.github.io/tempest-react-sdk/sse/): Wrapper sobre EventSource com reconnect exponencial, heartbeat opt-in e parsing JSON.
 - [State (Zustand)](https://mauriciobenjamin700.github.io/tempest-react-sdk/state/): Toda aplicação precisa guardar estado que vive fora de um único componente: o carrinho de compras, as preferências do usuário, o passo atual de um wizard, a sessão de autenticação.
 - [Estilos & Design Tokens](https://mauriciobenjamin700.github.io/tempest-react-sdk/styles/): O SDK expõe um conjunto de CSS Custom Properties (--tempest-*) que controlam toda a aparência dos componentes.
+- [Tabular (scikit-learn no navegador)](https://mauriciobenjamin700.github.io/tempest-react-sdk/tabular/): Modelo de scikit-learn respondendo no navegador, sem servidor de
 - [Telemetry](https://mauriciobenjamin700.github.io/tempest-react-sdk/telemetry/): Toda app precisa de telemetria — identificar usuários, rastrear eventos, capturar exceções — mas você não quer espalhar chamadas de Sentry.captureException ou posthog.capture por todo o código.
 - [Testing helpers (`tempest-react-sdk/testing`)](https://mauriciobenjamin700.github.io/tempest-react-sdk/testing/): Subpath bundle separado, opt-in via tempest-react-sdk/testing.
 - [Tema (dark / light)](https://mauriciobenjamin700.github.io/tempest-react-sdk/theme/): ThemeProvider decide o tema efetivo e escreve data-tempest-theme="dark" (ou "light") em <html>.

@@ -1,0 +1,735 @@
+.panel {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    height: var(--tempest-ai-chat-height, 100%);
+    background-color: var(--tempest-bg);
+    color: var(--tempest-text);
+    font-family: var(--tempest-font-sans);
+}
+
+.header {
+    flex: 0 0 auto;
+    padding: var(--tempest-space-3) var(--tempest-space-4);
+    border-bottom: 1px solid var(--tempest-border);
+}
+
+/*
+ * The wrapper exists only so the jump-to-latest button can be positioned against
+ * the scroll area without being scrolled away with it.
+ */
+.threadWrapper {
+    position: relative;
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+}
+
+/*
+ * `min-width: 0` is load-bearing, not defensive.
+ *
+ * A flex item defaults to `min-width: auto`, which means "at least as wide as my
+ * content wants". An answer carrying a wide table or a long line of SQL would make
+ * the scroll area itself grow past the panel — and the table's own `overflow-x`
+ * inside `Markdown` never gets a chance to kick in, because it is already as wide as
+ * it asked to be. Zeroing the floor here is what pushes the overflow back down to
+ * the table and the code block, where it scrolls in its own box.
+ */
+.thread {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: var(--tempest-space-5);
+    min-width: 0;
+    min-height: 0;
+    padding: var(--tempest-space-4);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.thread:focus-visible {
+    outline: 2px solid var(--tempest-primary);
+    outline-offset: -2px;
+}
+
+.jump {
+    position: absolute;
+    right: var(--tempest-space-4);
+    bottom: var(--tempest-space-3);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-full);
+    background-color: var(--tempest-surface);
+    color: var(--tempest-text);
+    box-shadow: var(--tempest-shadow-md);
+    cursor: pointer;
+}
+
+.jump:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: 2px;
+}
+
+/* Same 44×44 hit-slop as the turn actions: 2rem is a small target for a thumb. */
+@media (pointer: coarse) {
+    .jump::after {
+        content: "";
+        position: absolute;
+        inset: -6px;
+    }
+}
+
+/* --- turn ------------------------------------------------------------------ */
+
+/*
+ * Turns, the thinking row, the suggestions and the composer all share one reading
+ * column — `--tempest-ai-chat-width`, 48rem by default — centred in whatever width
+ * the panel got.
+ *
+ * A capped column is the right answer from a phone up to a 1920 desktop: prose past
+ * roughly 90 characters per line is measurably harder to track back to the start of
+ * the next line, and letting an answer run the full width of a wide monitor makes it
+ * worse, not more useful. It is deliberately a **knob** rather than a constant
+ * because at 2560 and above the trade flips — a 768px ribbon in the middle of a
+ * living-room screen is mostly empty room, and only the app knows how far away its
+ * user is sitting. Widen it at the root: `--tempest-ai-chat-width: 72rem`.
+ *
+ * Type size is **not** solved here. Scaling the font for a TV is a decision for
+ * `typography.css` and `density.css` — a component-local font ramp would fight the
+ * tokens every app themes through.
+ */
+.turn {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-space-2);
+    min-width: 0;
+    max-width: var(--tempest-ai-chat-width, 48rem);
+    width: 100%;
+    margin-inline: auto;
+}
+
+/*
+ * An assistant turn is full width with no bubble, a user turn is a narrow bubble
+ * pushed to the end of the row.
+ *
+ * That asymmetry is the whole reading model of an LLM transcript: the answer is the
+ * document being read, and wrapping it in a bubble would cap its width, fight the
+ * code blocks and tables inside it, and make a long answer look like a shouted
+ * message. The prompt is short and needs to be told apart at a glance, which a
+ * bubble does better than anything else.
+ */
+.userTurn {
+    align-items: flex-end;
+}
+
+.systemTurn {
+    padding: var(--tempest-space-2) var(--tempest-space-3);
+    border: 1px dashed var(--tempest-border);
+    border-radius: var(--tempest-radius-md);
+    background-color: var(--tempest-surface);
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-sm);
+}
+
+.turnHeader {
+    display: flex;
+    align-items: center;
+    gap: var(--tempest-space-2);
+    min-width: 0;
+}
+
+.avatar {
+    display: inline-flex;
+    flex: 0 0 auto;
+}
+
+.role {
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-xs);
+    font-weight: var(--tempest-weight-semibold);
+}
+
+/*
+ * The role of a user turn is announced but not drawn: the bubble on the other side
+ * already says who wrote it, and a "Você" label over every prompt is noise. Screen
+ * readers still get it, because side and colour are not information for them.
+ */
+.visuallyHiddenRole {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+/*
+ * The meta row uses the muted token, not the subtle one.
+ *
+ * `--tempest-text-subtle` at `--tempest-text-2xs` measures **4.37:1** against
+ * `--tempest-bg` in the dark theme — under the 4.5:1 floor for text. Measured in a
+ * real browser; jsdom's `axe` turns `color-contrast` off because nothing is painted.
+ * Size is what de-emphasises this row; colour still has to pass.
+ */
+.model,
+.time {
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-2xs);
+    font-variant-numeric: tabular-nums;
+}
+
+.body {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.userTurn .body {
+    padding: var(--tempest-space-2) var(--tempest-space-3);
+    border-radius: var(--tempest-radius-lg);
+    background-color: var(--tempest-primary-soft);
+    color: var(--tempest-primary-on-soft);
+    font-size: var(--tempest-text-sm);
+    line-height: var(--tempest-leading-normal);
+    max-width: min(85%, 36rem);
+}
+
+.plain {
+    white-space: pre-wrap;
+}
+
+.markdownRoot {
+    font-size: var(--tempest-text-sm);
+    line-height: var(--tempest-leading-relaxed);
+}
+
+/*
+ * The caret rides the last block of the answer, so it sits at the end of the text
+ * instead of on a line of its own.
+ *
+ * `::after` on the final child is inline content, which is exactly the behaviour
+ * wanted: it flows after the last word and moves with it as more text arrives. When
+ * the answer starts with a fenced block the caret lands inside the code area — which
+ * is where the text is actually being appended, so it is still telling the truth.
+ */
+.streamingBody > .markdownRoot > :last-child::after {
+    content: "▍";
+    margin-left: 0.125em;
+    color: var(--tempest-primary);
+    animation: caretBlink 1s steps(2, jump-none) infinite;
+}
+
+@keyframes caretBlink {
+    to {
+        opacity: 0.2;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .streamingBody > .markdownRoot > :last-child::after {
+        animation: none;
+    }
+}
+
+.dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.dots > span {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background-color: var(--tempest-text-subtle);
+    animation: dotPulse 1.2s var(--tempest-ease-in-out) infinite;
+}
+
+.dots > span:nth-child(2) {
+    animation-delay: 0.15s;
+}
+
+.dots > span:nth-child(3) {
+    animation-delay: 0.3s;
+}
+
+@keyframes dotPulse {
+    0%,
+    60%,
+    100% {
+        opacity: 0.25;
+    }
+
+    30% {
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dots > span {
+        animation: none;
+        opacity: 0.6;
+    }
+}
+
+.thinking {
+    display: flex;
+    align-items: center;
+    gap: var(--tempest-space-2);
+    max-width: var(--tempest-ai-chat-width, 48rem);
+    width: 100%;
+    margin: 0 auto;
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-sm);
+}
+
+/* --- reasoning ------------------------------------------------------------- */
+
+.reasoning {
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-md);
+    background-color: var(--tempest-surface);
+}
+
+/*
+ * Class plus attribute, so this beats `Collapsible`'s own single-class `.trigger`
+ * rule whatever order the two modules land in the built stylesheet.
+ */
+.reasoning button[aria-expanded] {
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-xs);
+    font-weight: var(--tempest-weight-medium);
+}
+
+.reasoning button[aria-expanded="true"] .reasoningChevron {
+    transform: rotate(90deg);
+}
+
+.reasoningChevron {
+    flex: 0 0 auto;
+    transition: transform var(--tempest-duration-fast) var(--tempest-ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .reasoningChevron {
+        transition: none;
+    }
+}
+
+.reasoningBody {
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-xs);
+    line-height: var(--tempest-leading-relaxed);
+    white-space: pre-wrap;
+}
+
+/* --- attachments ----------------------------------------------------------- */
+
+.attachments {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--tempest-space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.attachment {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tempest-space-2);
+    max-width: 16rem;
+    padding: var(--tempest-space-1) var(--tempest-space-2);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-md);
+    background-color: var(--tempest-surface);
+    font-size: var(--tempest-text-xs);
+}
+
+.attachmentName {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.attachmentMeta {
+    flex: 0 0 auto;
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-xs);
+}
+
+.thumb {
+    display: block;
+    width: 4rem;
+    height: 4rem;
+    border-radius: var(--tempest-radius-sm);
+    object-fit: cover;
+}
+
+/* --- error ----------------------------------------------------------------- */
+
+.error {
+    display: flex;
+    align-items: center;
+    gap: var(--tempest-space-2);
+    margin: 0;
+    padding: var(--tempest-space-2) var(--tempest-space-3);
+    border: 1px solid var(--tempest-danger);
+    border-radius: var(--tempest-radius-md);
+    background-color: var(--tempest-danger-bg);
+    color: var(--tempest-text);
+    font-size: var(--tempest-text-sm);
+}
+
+.retry {
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--tempest-danger);
+    font: inherit;
+    font-weight: var(--tempest-weight-medium);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+/* --- actions --------------------------------------------------------------- */
+
+.actions {
+    display: flex;
+    align-items: center;
+    gap: var(--tempest-space-1);
+    opacity: 0;
+    transition: opacity var(--tempest-duration-fast) var(--tempest-ease-out);
+}
+
+/*
+ * The row is revealed on hover and on keyboard focus, and is **always** visible
+ * where there is no hover at all.
+ *
+ * Hiding a control behind `:hover` on a touch screen hides it for good — there is no
+ * hover event to trigger it, and the first tap would land on whatever is underneath.
+ */
+.turn:hover .actions,
+.actions:focus-within {
+    opacity: 1;
+}
+
+@media (hover: none) {
+    .actions {
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .actions {
+        transition: none;
+    }
+}
+
+/*
+ * Two classes so the ghost styling wins over `CopyButton`'s own `.button` rule
+ * regardless of the order the two CSS modules land in `styles.css`.
+ */
+.actions .action {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    border: none;
+    border-radius: var(--tempest-radius-sm);
+    background: none;
+    color: var(--tempest-text-muted);
+    cursor: pointer;
+    transition: var(--tempest-transition-color);
+}
+
+/*
+ * Touch hit-slop — grows the tap target to 44×44 on a coarse pointer without moving
+ * a pixel of the visible button, the same trick `Button` uses for its icon-only
+ * sizes.
+ *
+ * 28×28 clears the 24×24 floor of WCAG 2.5.8 but sits well under the 44×44 of 2.5.5,
+ * and four of these sit side by side: on a phone, "copy" and "thumbs down" are two
+ * thumb-widths apart. Padding the button instead would space the row out on desktop,
+ * where the pointer is precise and the row should stay quiet.
+ */
+@media (pointer: coarse) {
+    .actions .action::after {
+        content: "";
+        position: absolute;
+        inset: -8px;
+    }
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .actions .action:hover {
+        background-color: var(--tempest-surface-2);
+        color: var(--tempest-text);
+    }
+}
+
+.actions .action:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: 1px;
+}
+
+.actions .action[data-copied],
+.actions .actionActive {
+    background: none;
+    color: var(--tempest-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .actions .action {
+        transition: none;
+    }
+}
+
+/* --- edit ------------------------------------------------------------------ */
+
+.editor {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-space-2);
+    width: 100%;
+    max-width: min(85%, 36rem);
+}
+
+.editField {
+    width: 100%;
+    padding: var(--tempest-space-2) var(--tempest-space-3);
+    border: 1px solid var(--tempest-primary);
+    border-radius: var(--tempest-radius-lg);
+    background-color: var(--tempest-bg);
+    color: var(--tempest-text);
+    font: inherit;
+    font-size: var(--tempest-text-sm);
+    line-height: var(--tempest-leading-normal);
+    resize: vertical;
+}
+
+.editField:focus-visible {
+    outline: 2px solid var(--tempest-primary);
+    outline-offset: -1px;
+}
+
+.editActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--tempest-space-2);
+}
+
+.ghost {
+    padding: var(--tempest-space-1) var(--tempest-space-3);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-md);
+    background-color: transparent;
+    color: var(--tempest-text);
+    font: inherit;
+    font-size: var(--tempest-text-sm);
+    cursor: pointer;
+}
+
+.primary {
+    padding: var(--tempest-space-1) var(--tempest-space-3);
+    border: none;
+    border-radius: var(--tempest-radius-md);
+    background-color: var(--tempest-primary);
+    color: var(--tempest-primary-foreground);
+    font: inherit;
+    font-size: var(--tempest-text-sm);
+    font-weight: var(--tempest-weight-medium);
+    cursor: pointer;
+}
+
+.primary:disabled {
+    background-color: var(--tempest-surface-3);
+    color: var(--tempest-text-subtle);
+    cursor: not-allowed;
+}
+
+/* --- suggestions ----------------------------------------------------------- */
+
+.suggestions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--tempest-space-2);
+    max-width: var(--tempest-ai-chat-width, 48rem);
+    width: 100%;
+    margin: auto auto 0;
+}
+
+.suggestionsTitle {
+    margin: 0;
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-sm);
+}
+
+.suggestion {
+    padding: var(--tempest-space-2) var(--tempest-space-3);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-md);
+    background-color: var(--tempest-surface);
+    color: var(--tempest-text);
+    font: inherit;
+    font-size: var(--tempest-text-sm);
+    text-align: left;
+    cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .suggestion:hover {
+        background-color: var(--tempest-surface-2);
+    }
+}
+
+.suggestion:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: 2px;
+}
+
+/* --- composer -------------------------------------------------------------- */
+
+.composer {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    gap: var(--tempest-space-1);
+    padding: var(--tempest-space-3) var(--tempest-space-4);
+    border-top: 1px solid var(--tempest-border);
+}
+
+/*
+ * The field and the buttons share one bordered box, and the border is drawn here
+ * rather than on the textarea: that is what makes the attach control and the send
+ * button read as part of the prompt instead of a toolbar next to it.
+ */
+.composerBox {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--tempest-space-2);
+    max-width: var(--tempest-ai-chat-width, 48rem);
+    width: 100%;
+    margin-inline: auto;
+    padding: var(--tempest-space-2);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-lg);
+    background-color: var(--tempest-surface);
+}
+
+.composerBox:focus-within {
+    border-color: var(--tempest-primary);
+}
+
+.field {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: var(--tempest-space-1) var(--tempest-space-2);
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-size: var(--tempest-text-sm);
+    line-height: var(--tempest-leading-normal);
+    resize: none;
+}
+
+.field:focus-visible {
+    outline: none;
+}
+
+.field:disabled {
+    color: var(--tempest-text-subtle);
+    cursor: not-allowed;
+}
+
+.composerActions {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: var(--tempest-space-2);
+}
+
+.composerFooter {
+    max-width: var(--tempest-ai-chat-width, 48rem);
+    width: 100%;
+    margin-inline: auto;
+    padding-inline: var(--tempest-space-2);
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-xs);
+}
+
+.send {
+    padding: var(--tempest-space-2) var(--tempest-space-4);
+    border: none;
+    border-radius: var(--tempest-radius-md);
+    background-color: var(--tempest-primary);
+    color: var(--tempest-primary-foreground);
+    font: inherit;
+    font-size: var(--tempest-text-sm);
+    font-weight: var(--tempest-weight-medium);
+    cursor: pointer;
+}
+
+.send:disabled {
+    background-color: var(--tempest-surface-3);
+    color: var(--tempest-text-subtle);
+    cursor: not-allowed;
+}
+
+/*
+ * Stop replaces send in the same slot, so the one button under the thumb is always
+ * the one that does the thing you want next — send while idle, abort while the answer
+ * is coming. Two buttons side by side would mean aiming at the right one mid-stream.
+ */
+.stop {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tempest-space-2);
+    padding: var(--tempest-space-2) var(--tempest-space-4);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-md);
+    background-color: var(--tempest-surface-2);
+    color: var(--tempest-text);
+    font: inherit;
+    font-size: var(--tempest-text-sm);
+    font-weight: var(--tempest-weight-medium);
+    cursor: pointer;
+}
+
+.stopGlyph {
+    display: inline-block;
+    width: 0.625rem;
+    height: 0.625rem;
+    border-radius: 2px;
+    background-color: currentColor;
+}
+
+@media (max-width: 480px) {
+    .thread {
+        gap: var(--tempest-space-4);
+        padding: var(--tempest-space-3);
+    }
+
+    .userTurn .body,
+    .editor {
+        max-width: 100%;
+    }
+
+    .composer {
+        padding: var(--tempest-space-2) var(--tempest-space-3);
+    }
+}

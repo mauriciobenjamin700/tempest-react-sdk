@@ -394,6 +394,28 @@ export type {
 } from "./Chat";
 export { chatStrings, dayLabel, groupMessages, timeLabel, typingLabel } from "./Chat";
 
+export { AIChat, AIChatComposer, AIChatTurn } from "./AIChat";
+export type {
+    AIChatAttachment,
+    AIChatComposerHandle,
+    AIChatComposerProps,
+    AIChatMessage,
+    AIChatProps,
+    AIChatRole,
+    AIChatStrings,
+    AIChatTurnProps,
+    AIChatVote,
+} from "./AIChat";
+export {
+    aiChatStrings,
+    isGenerating,
+    lastAssistantId,
+    roleLabel,
+    tailSignature,
+    turnTime,
+    visibleTurns,
+} from "./AIChat";
+
 export { Transfer } from "./Transfer";
 export type { TransferItem, TransferProps, TransferSide } from "./Transfer";
 export { applyMove as applyTransferMove, splitSides as splitTransferSides } from "./Transfer";

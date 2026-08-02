@@ -16,6 +16,7 @@ import { DataTableSection } from "./DataTableSection";
 import { DataVizScalesSection } from "./DataVizScalesSection";
 import { ImageCropperSection } from "./ImageCropperSection";
 import { ChatSection } from "./ChatSection";
+import { AIChatSection } from "./AIChatSection";
 import { DashboardLayoutSection } from "./DashboardLayoutSection";
 import { FilterBarSection } from "./FilterBarSection";
 import { MarkdownSection } from "./MarkdownSection";
@@ -276,6 +277,14 @@ export const SECTIONS: SectionEntry[] = [
             "chat thread conversa mensagem comentario comments bolha bubble typing digitando composer enviar retry falhou",
         group: "Componentes",
         Component: ChatSection,
+    },
+    {
+        id: "aichat",
+        label: "AIChat",
+        keywords:
+            "aichat ai chat llm gpt claude deepseek copiloto assistente streaming stream token cursor caret raciocinio reasoning thinking parar stop regenerar regenerate feedback thumbs markdown prompt",
+        group: "Componentes",
+        Component: AIChatSection,
     },
     {
         id: "dashboard-layout",

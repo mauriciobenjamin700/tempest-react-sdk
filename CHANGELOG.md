@@ -4,6 +4,117 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`AIChat` — conversa com um modelo, no formato que ChatGPT, Claude e
+  DeepSeek convergiram.** Turnos por papel (`user` / `assistant` /
+  `system`), resposta em Markdown (reusa `Markdown` + `CodeBlock`),
+  raciocínio em bloco colapsável, cursor de streaming, ações por turno
+  (copiar, gerar de novo, editar-e-reenviar, 👍/👎) e um composer que
+  troca **Enviar** por **Parar** enquanto a resposta chega. 9,41 KB
+  brotli na fatia importada.
+
+  É um componente **novo**, não um `variant` do `Chat`. Uma thread humana
+  é endereçada por autor e se preocupa com estado de entrega; um
+  transcript de modelo é endereçado por papel, não tem estado de entrega
+  nenhum, e precisa de três coisas que uma thread humana nunca precisa:
+  saída parcial, raciocínio separado da resposta e re-perguntar. Um
+  `variant` misturaria dois modelos de dados no mesmo `props` e deixaria
+  `authorId`/ticks mortos no caminho LLM.
+
+  O transporte fica com o app — "como eu faço streaming do meu backend"
+  tem resposta diferente por provider. O contrato é reescrever o
+  `content` do último turno e manter `streaming: true` nele; o
+  `AbortController` que o app passa pro `onStop` é dele.
+
+  Exporta também `AIChatComposer` e `AIChatTurn` (pra layout próprio) e
+  os helpers `visibleTurns`, `isGenerating`, `lastAssistantId`,
+  `tailSignature`, `aiChatStrings`, `roleLabel`, `turnTime`.
+
+- **`onEditError` no `AIChatTurn`, ligado ao `onSendError` do painel.**
+  Uma edição de prompt que rejeita preserva o rascunho no editor e
+  reporta o erro, em vez de virar unhandled rejection — a mesma regra
+  que o composer já seguia.
+
+### Acessibilidade
+
+- **O transcript é `role="log"` _sem_ `aria-live`.** Região viva sobre
+  texto em streaming faz o leitor de tela reler a resposta a cada token.
+  Os dois momentos que importam ("Gerando resposta", "Resposta
+  concluída") são anunciados por um `role="status"` separado; o turno em
+  andamento leva `aria-busy` e a resposta pronta é lida do log no ritmo
+  de quem lê. O `axe` do jsdom não pega essa classe de erro — foi
+  decisão de projeto, verificada no browser.
+
+- **A linha de ações do turno fica sempre visível onde não existe
+  hover** (`@media (hover: none)`). Ação escondida atrás de `:hover` num
+  celular é ação inexistente: o primeiro toque cairia no que estiver
+  embaixo.
+
+### Responsivo
+
+- **Medido no browser em 360×640, 390×844, 740×360 (celular em
+  paisagem), 768×1024, 1440×900, 1920×1080 e 3840×2160.** Em toda
+  largura: zero overflow horizontal na página e no transcript, composer
+  sempre visível, tabela e bloco de código rolando na própria caixa.
+
+- **A largura da coluna de leitura virou knob:
+  `--tempest-ai-chat-width`** (default `48rem`), no lugar de `48rem`
+  fixo em cinco regras. Coluna limitada é a resposta certa do celular
+  até um desktop 1920, mas de 2560 pra cima a troca se inverte — 768px
+  no meio de uma tela de sala é quase só espaço vazio, e só o app sabe a
+  que distância a pessoa está sentada. Um valor move os turnos, o
+  indicador de "pensando", as sugestões e o composer juntos.
+
+  Tamanho de tipo **não** é resolvido no componente: escalar fonte pra
+  TV é decisão de `typography.css`/`density.css`, e uma rampa local
+  brigaria com os tokens que todo app tematiza.
+
+- **Alvo de toque das ações do turno vai a 44×44 em `pointer: coarse`**,
+  via hit-slop de `::after` que não move um pixel do que se vê — o mesmo
+  truque que o `Button` usa nos tamanhos icon-only. 28×28 passa o piso
+  de 24×24 da WCAG 2.5.8 mas fica abaixo dos 44×44 da 2.5.5, e são
+  quatro botões lado a lado. Mesmo tratamento no botão de voltar ao fim
+  do transcript.
+
+  Confirmado com device de toque emulado (`pointer: coarse` e
+  `hover: none` verdadeiros): a linha de ações fica com `opacity: 1` e o
+  alvo efetivo mede 44×44.
+
+### Performance
+
+- **Só o turno que cresce re-parseia Markdown.** O elemento
+  `<Markdown>` de cada turno é memoizado por `content`, e o React
+  descarta o re-render de um filho referencialmente idêntico. Sem isso,
+  um transcript de cinquenta turnos re-parsearia toda resposta já pronta
+  a cada token da mais nova.
+
+- **A dependência do efeito de rolagem não é a lista, é
+  `tailSignature()`.** Streaming acrescenta ao _último_ turno; um app
+  que mutasse esse objeto no lugar manteria a mesma dependência
+  enquanto o texto cresce, e a visão pararia de seguir a resposta.
+  Tamanho da lista + identidade do último turno + tamanho do texto dele
+  cobrem as duas formas.
+
+### Alterado
+
+- **Budgets do `size-limit` acompanharam a nova superfície**:
+  `styles.css` 26 → 28 kB, teto do barrel ESM 94 → 98 kB, CJS 113 →
+  118 kB. Nova fatia medida: `{ AIChat }` com teto de 11 KB.
+
+### Documentação
+
+- **`AIChat` documentado em `components/advanced`** (PT-BR + EN-US), no
+  padrão tutorial: mínimo funcional primeiro, streaming do zero com o
+  laço de `fetch` + `ReadableStream` completo, tabela "você fez / o
+  componente faz", raciocínio, ações por turno, sugestões, props e as
+  decisões de projeto (resposta é Markdown / prompt é texto puro,
+  resposta é documento e não bolha, por que o log não é `aria-live`).
+
+- **Números medidos do README atualizados** — 3969 testes / 451
+  arquivos, fatias e tetos remedidos com `npm run size`, incluindo a
+  fatia do `AIChat`.
+
 ## [0.33.2] - 2026-08-02
 
 ### Corrigido

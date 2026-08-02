@@ -1,0 +1,166 @@
+.recorder {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-space-2);
+    min-width: 0;
+    padding: var(--tempest-space-3);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-lg);
+    background-color: var(--tempest-bg);
+    color: var(--tempest-text);
+    font-family: var(--tempest-font-sans);
+}
+
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tempest-space-2);
+    min-width: 0;
+}
+
+.record,
+.stop,
+.secondary {
+    position: relative;
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: var(--tempest-space-2);
+    padding: var(--tempest-space-2) var(--tempest-space-3);
+    border: 1px solid transparent;
+    border-radius: var(--tempest-radius-md);
+    font: inherit;
+    font-size: var(--tempest-text-sm);
+    font-weight: var(--tempest-weight-medium);
+    cursor: pointer;
+    transition: var(--tempest-transition-color);
+}
+
+.record {
+    background-color: var(--tempest-primary);
+    color: var(--tempest-primary-foreground);
+}
+
+.record:disabled {
+    background-color: var(--tempest-surface-3);
+    color: var(--tempest-text-subtle);
+    cursor: not-allowed;
+}
+
+/*
+ * Stop reads as the danger control — while recording it is the one
+ * irreversible-feeling thing on screen and has to be what the eye lands on without
+ * reading labels — but it uses the **soft** danger pair, not solid red with white.
+ *
+ * Measured in a real browser: white on `--tempest-danger-solid` is 4.83:1 in the light
+ * theme and **3.76:1** in dark, under the 4.5:1 floor for text. Every solid variant
+ * fails there (`--tempest-danger` is 2.77:1 against white in dark, `-hover` 3.76:1);
+ * only `--tempest-danger-fg` on `--tempest-danger-bg` clears it in both — 8.2:1 light,
+ * 6.57:1 dark. The border keeps the control unmistakably red at a glance.
+ */
+.stop {
+    border-color: var(--tempest-danger);
+    background-color: var(--tempest-danger-bg);
+    color: var(--tempest-danger-fg);
+}
+
+.secondary {
+    border-color: var(--tempest-border);
+    background-color: var(--tempest-surface);
+    color: var(--tempest-text);
+    padding-inline: var(--tempest-space-2);
+}
+
+.record:focus-visible,
+.stop:focus-visible,
+.secondary:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .record,
+    .stop,
+    .secondary {
+        transition: none;
+    }
+}
+
+/* Touch hit-slop — 44×44 without changing the visual footprint, as `Button` does. */
+@media (pointer: coarse) {
+    .secondary::after {
+        content: "";
+        position: absolute;
+        inset: -6px;
+    }
+}
+
+/*
+ * The meter is transform-driven, not width-driven: `transform` is composited, so a
+ * value arriving 10 times a second does not force layout on the whole row.
+ */
+.meter {
+    flex: 1 1 6rem;
+    min-width: 3rem;
+    height: 0.5rem;
+    overflow: hidden;
+    border-radius: var(--tempest-radius-full);
+    background-color: var(--tempest-surface-2);
+}
+
+.meterFill {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background-color: var(--tempest-success);
+    transform-origin: left center;
+    transform: scaleX(0);
+    transition: transform 80ms linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .meterFill {
+        transition: none;
+    }
+}
+
+.clock {
+    flex: 0 0 auto;
+    color: var(--tempest-text);
+    font-size: var(--tempest-text-sm);
+    font-variant-numeric: tabular-nums;
+}
+
+.max {
+    color: var(--tempest-text-muted);
+}
+
+.status {
+    margin: 0;
+    min-height: 1.25em;
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-xs);
+}
+
+.notice {
+    margin: 0;
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-sm);
+}
+
+.footer {
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-xs);
+}
+
+@media (max-width: 480px) {
+    .recorder {
+        padding: var(--tempest-space-2);
+    }
+
+    .meter {
+        flex-basis: 100%;
+        order: 1;
+    }
+}

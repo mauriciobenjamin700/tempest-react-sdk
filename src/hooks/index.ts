@@ -103,3 +103,12 @@ export type {
 } from "./use-sortable";
 export { useScrollOverflow } from "./use-scroll-overflow";
 export type { ScrollOverflowAxis } from "./use-scroll-overflow";
+
+export { useMediaPermission } from "./use-media-permission";
+export type {
+    MediaPermissionName,
+    MediaPermissionState,
+    UseMediaPermissionResult,
+} from "./use-media-permission";
+export { useMediaDevices } from "./use-media-devices";
+export type { MediaDeviceOption, UseMediaDevicesResult } from "./use-media-devices";

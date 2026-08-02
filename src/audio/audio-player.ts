@@ -1,3 +1,5 @@
+import { setAudioOutput } from "./audio-output";
+
 export interface PlayAudioOptions {
     /** Volume between 0 and 1. Default: 1. */
     volume?: number;
@@ -7,13 +9,27 @@ export interface PlayAudioOptions {
     autoplay?: boolean;
     /** Stop the previous clip managed by this player. Default: false. */
     stopPrevious?: boolean;
+    /**
+     * Output device to play on, from `useMediaDevices().audioOutputs`.
+     *
+     * Ignored where the browser has no output routing (everything but Chromium) —
+     * the clip still plays, on the system default. Useful for a chime that must land
+     * on a headset while the call audio stays on the speakers.
+     */
+    sinkId?: string;
     /** Fired when playback ends naturally. */
     onEnded?: () => void;
     /** Fired on playback error. */
     onError?: (error: unknown) => void;
 }
 
-export interface AudioPlayer {
+/**
+ * Imperative handle over one "current" clip.
+ *
+ * Named `*Handle` like the SDK's other imperative handles (`ChatComposerHandle`,
+ * `SignaturePadHandle`) — it is a control surface, not the `<AudioPlayer>` component.
+ */
+export interface AudioPlayerHandle {
     /** Play `src`. Returns the underlying element, or `null` when the browser blocked autoplay. */
     play: (src: string, options?: PlayAudioOptions) => Promise<HTMLAudioElement | null>;
     /** Stop the currently-playing clip and rewind it. */
@@ -27,7 +43,7 @@ export interface AudioPlayer {
  * Multiple players coexist independently; use this when several layers of UI
  * need their own playback state.
  */
-export function createAudioPlayer(): AudioPlayer {
+export function createAudioPlayer(): AudioPlayerHandle {
     let current: HTMLAudioElement | null = null;
 
     async function play(
@@ -37,6 +53,7 @@ export function createAudioPlayer(): AudioPlayer {
             loop = false,
             autoplay = true,
             stopPrevious = false,
+            sinkId,
             onEnded,
             onError,
         }: PlayAudioOptions = {},
@@ -53,6 +70,9 @@ export function createAudioPlayer(): AudioPlayer {
             if (onEnded) audio.onended = onEnded;
             if (onError) audio.onerror = (event) => onError(event);
             current = audio;
+            // Routed before `play()`: applying a sink to an element that is already
+            // playing restarts its audio pipeline and clips the first few ms.
+            if (sinkId !== undefined) await setAudioOutput(audio, sinkId);
             if (autoplay) await audio.play();
             return audio;
         } catch (error) {
@@ -70,15 +90,15 @@ export function createAudioPlayer(): AudioPlayer {
     return { play, stop, current: () => current };
 }
 
-let defaultPlayer: AudioPlayer | null = null;
+let defaultPlayer: AudioPlayerHandle | null = null;
 
-function getDefaultPlayer(): AudioPlayer {
+function getDefaultPlayer(): AudioPlayerHandle {
     if (!defaultPlayer) defaultPlayer = createAudioPlayer();
     return defaultPlayer;
 }
 
 /**
- * Convenience wrapper around a shared {@link AudioPlayer}. Use this for
+ * Convenience wrapper around a shared {@link AudioPlayerHandle}. Use this for
  * one-off notification sounds. For more complex flows (e.g. several
  * simultaneous channels), build a dedicated player with {@link createAudioPlayer}.
  */

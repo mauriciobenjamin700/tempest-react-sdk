@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { createAudioPlayer, type AudioPlayer, type PlayAudioOptions } from "./audio-player";
+import { createAudioPlayer, type AudioPlayerHandle, type PlayAudioOptions } from "./audio-player";
 
 export interface UseAudioResult {
     /** Play `src` on the hook's private player. */
@@ -20,11 +20,11 @@ export interface UseAudioResult {
  * fine and the value is non-null from the first render.
  *
  * Hook-managed audio player. Each component instance gets its own
- * {@link AudioPlayer}, so unmounting cleanly stops playback. Useful for
+ * {@link AudioPlayerHandle}, so unmounting cleanly stops playback. Useful for
  * notification chimes, UI feedback sounds, and per-component soundtracks.
  */
 export function useAudio(): UseAudioResult {
-    const [player] = useState<AudioPlayer>(() => createAudioPlayer());
+    const [player] = useState<AudioPlayerHandle>(() => createAudioPlayer());
     const [unlocked, setUnlocked] = useState<boolean>(false);
 
     useEffect(() => {

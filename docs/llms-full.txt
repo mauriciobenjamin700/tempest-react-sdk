@@ -14848,6 +14848,172 @@ function UserList() {
 
 ---
 
+# perf.md
+
+# Custo de inferência on-device
+
+Quando a inferência roda no dispositivo do usuário, você perde o gráfico do
+servidor. O que chega é um relato: *"o app está lento no celular do fulano"*.
+E sem número, "lento" pode ser três coisas diferentes que pedem correções
+opostas. 🤔
+
+O módulo `perf` mede o que o navegador **realmente** consegue observar sobre
+uma execução: quanto tempo cada etapa levou, o que o dispositivo diz sobre si
+mesmo, e o tamanho dos pesos que você precachou.
+
+!!! info "Não existe contador de energia no navegador"
+    Nenhuma API web reporta joules ou FLOPs. "Custo computacional" aqui é
+    montado com o que dá para observar de dentro da página. O que a
+    plataforma não expõe vem `null` — nunca um número inventado.
+
+## Cronometrando um pipeline
+
+```typescript
+import { createInferenceProfiler } from "tempest-react-sdk";
+import { Detector } from "tempest-react-sdk/vision";
+
+const profiler = createInferenceProfiler();
+
+const detector = await profiler.stage("load-model", () =>
+    Detector.create("/models/detect.onnx"),
+);
+const results = await profiler.stage("detect", () => detector.predict(blob));
+
+const report = await profiler.report();
+console.log(report.timings); // { "load-model": 1840.5, detect: 118.9 }
+console.log(report.totalMs); // 1959.4
+```
+
+Três formas de registrar tempo:
+
+| Método | Para |
+| --- | --- |
+| `stage(nome, fn)` | Trabalho assíncrono — o valor resolvido passa direto |
+| `stageSync(nome, fn)` | Trabalho síncrono — idem, sem `await` |
+| `mark(nome, ms)` | Duração que **você já tem** medida em outro lugar |
+
+Nomes repetidos **acumulam**, então duas passadas da mesma natureza somam numa
+linha só.
+
+!!! tip "Uma etapa que lança ainda é medida"
+    O `stage()` registra a duração no `finally` e repropaga o erro. Um pipeline
+    que falhou também tem uma história de tempo para contar — geralmente a mais
+    interessante.
+
+## ⚠️ Etapas concorrentes não fatiam o total
+
+Etapas são medidas de forma **independente**, não como um ladrilhamento da
+execução. Duas etapas iniciadas juntas recebem cada uma o seu span de relógio
+inteiro:
+
+```typescript
+const profiler = createInferenceProfiler();
+
+const [modelo, imagem] = await Promise.all([
+    profiler.stage("models", () => Detector.create("/models/detect.onnx")),
+    profiler.stage("decode", () => createImageBitmap(blob)),
+]);
+
+const report = await profiler.report();
+// timings.models + timings.decode > report.totalMs — e está certo:
+// as duas rodaram ao mesmo tempo.
+```
+
+Isso é a leitura honesta para um pipeline que decodifica a imagem enquanto as
+sessões carregam. Só cuide de **não** desenhar as barras como se fossem uma
+divisão do total — diga na interface que são frações indicativas.
+
+## Aproveitando o `speed` do `/vision`
+
+Cada `predict()` do subpath `/vision` já devolve o próprio detalhamento em
+`results[0].speed` (`load`, `preprocess`, `inference`, `postprocess`). Dobre o
+que interessa para dentro do relatório com `mark`:
+
+```typescript
+const results = await profiler.stage("detect", () => detector.predict(blob));
+profiler.mark("forward-pass", results[0].speed.inference);
+```
+
+Agora o relatório tem o custo da chamada inteira **e** o do kernel — e a
+diferença entre os dois é exatamente quanto pré/pós-processamento você está
+pagando.
+
+## O perfil do dispositivo
+
+```typescript
+import { readDeviceProfile } from "tempest-react-sdk";
+
+const device = readDeviceProfile();
+// { hardwareConcurrency: 8, deviceMemoryGb: 8, jsHeapUsedMb: 137.4 }
+```
+
+| Campo | Origem | Disponível em |
+| --- | --- | --- |
+| `hardwareConcurrency` | `navigator.hardwareConcurrency` | Todos os navegadores modernos |
+| `deviceMemoryGb` | `navigator.deviceMemory` | Chromium apenas |
+| `jsHeapUsedMb` | `performance.memory` | Chromium apenas (não padronizado) |
+
+Em Firefox e Safari os dois últimos vêm `null`. O `report()` já inclui esse
+perfil, então normalmente você não precisa chamar direto — a função existe para
+quando você quer o dado fora de uma execução.
+
+!!! note "Seguro em SSR"
+    Sem `navigator`, todos os campos vêm `null` em vez de estourar.
+
+## Quanto pesam os modelos
+
+Modelos que você baixa e precacha em Cache Storage são o maior custo fixo de um
+app de inferência on-device. O `report()` mede quem você listar:
+
+```typescript
+const report = await profiler.report({
+    models: [
+        { name: "detector", cacheName: "app-models", url: "/models/detect.onnx" },
+        { name: "classifier", cacheName: "app-models", url: "/models/classify.onnx" },
+    ],
+});
+
+console.log(report.models);
+// [ { name: "detector", bytes: 12582912 }, { name: "classifier", bytes: null } ]
+```
+
+`bytes: null` significa uma de três coisas: o modelo não está em cache, o
+Cache Storage não está disponível, ou a resposta guardada não tem
+`Content-Length` (transferência chunked).
+
+!!! warning "Por que o header e não o corpo"
+    Ler `(await response.blob()).size` traria dezenas de megabytes de pesos
+    para a memória só para descobrir o comprimento — a cada medição. O
+    `cachedResponseBytes` lê só o `Content-Length`.
+
+## Renderizando
+
+`formatDurationMs` cobre a faixa que interessa aqui: milissegundos para um
+forward pass, segundos para um cold start.
+
+```typescript
+import { formatBytes, formatDurationMs } from "tempest-react-sdk";
+
+formatDurationMs(0.04); // "<1 ms"   — medido, mas rápido demais
+formatDurationMs(142.6); // "143 ms"
+formatDurationMs(4321); // "4.32 s"
+formatDurationMs(NaN); // "—"
+
+formatBytes(12582912); // "12 MB"
+```
+
+O `"<1 ms"` existe de propósito: `"0 ms"` seria lido como "não medido".
+
+## Recap
+
+- `createInferenceProfiler()` → `stage` / `stageSync` / `mark` → `report()`. ✅
+- Etapas concorrentes somam mais que o `totalMs` — mostre isso na interface.
+- `results[0].speed` do `/vision` entra no relatório via `mark`.
+- Campos que a plataforma não expõe vêm `null`, para a UI mostrar "—".
+- `formatDurationMs` + `formatBytes` para exibir.
+
+---
+
 # push.md
 
 # Web Push + Service Worker
@@ -21853,6 +22019,29 @@ mais que suficiente pra UX).
     return previewUrl ? <img src={previewUrl} alt="Prévia" /> : null;
     ```
 
+## Quanto tempo levou
+
+Todo envelope traz um `speed` com o tempo de cada etapa do `predict()`, em
+milissegundos:
+
+```typescript
+const results = await detector.predict(blob);
+console.log(results[0].speed);
+// { load: 84.2, preprocess: 11.7, inference: 118.9, postprocess: 6.4 }
+```
+
+`preprocess` / `inference` / `postprocess` são as mesmas três chaves do
+Ultralytics, medidas nas mesmas fronteiras. `load` é o fetch/decode que o
+`predict()` faz por dentro quando você passa uma URL ou `Blob` — com cache
+frio costuma ser a maior fatia da chamada. Criar a tarefa
+(`Detector.create`) **não** entra: é custo de inicialização, pago uma vez.
+
+Para medir o pipeline inteiro do app — incluindo o que acontece *entre* dois
+`predict()` — use o [módulo `perf`](perf.md), e dobre o `speed` para dentro do
+relatório com `profiler.mark("forward-pass", results[0].speed.inference)`.
+O `SpeedTimer` também é exportado daqui, para quem quiser as mesmas fronteiras
+do SDK em código próprio.
+
 ## Paridade com o `ort-vision-sdk` em Python
 
 Essa API espelha de propósito a do pacote Python
@@ -22151,10 +22340,17 @@ Backoff: 1s → 2s → 4s → ... (limitado em 30s), até maxRetries (default 10
 
 - Reconnect exponencial igual ao SSE (default `maxRetries: 10`).
 - `pingInterval` (ms) envia `pingPayload` periodicamente — default `JSON.stringify({ type: "ping" })`. Passe `0` (default) pra desativar.
+- `respondToPing` (default `true`) responde `pongPayload` a todo frame `{"type":"ping"}` que **chega**. É esse o heartbeat que o `tempest-fastapi-sdk` espera: sem o `pong` ele fecha o socket com o código `4408` ao estourar `WS_HEARTBEAT_TIMEOUT_SECONDS`.
+- `queueWhileClosed` (default `false`) guarda o que você tentar enviar enquanto o socket está caído e drena na próxima abertura, mais antigo primeiro, com teto em `maxQueuedMessages` (default 100).
 - **Reconnect só dispara em `close.wasClean === false`.** Fechamentos limpos (`socket.close()` ou um close normal do servidor) **não** tentam reabrir.
 
 !!! warning "`send()` é no-op quando o socket não está aberto"
     Se você chamar `send()` antes do status virar `"open"` (ou após um `close`), nada é enviado e o retorno é `false`. Sempre confira `status === "open"` (ou o boolean de retorno) antes de assumir que a mensagem saiu.
+
+    Ligue `queueWhileClosed: true` quando a ação **não pode** sumir: aí o `send()` bufferiza durante o backoff e devolve `true`, e a fila é despejada no `open` seguinte. A fila morre no `close()` — nada sobrevive a um fechamento explícito.
+
+!!! danger "Contra o servidor Tempest, não ligue `pingInterval`"
+    O `tempest-fastapi-sdk` **manda** o ping e quer o `pong` de volta. Um `{"type":"ping"}` vindo do cliente é frame desconhecido pra ele — um handler estrito recusa. Deixe `pingInterval: 0` (default) e o `respondToPing` cuida do heartbeat.
 
 ## Hook — `useWebSocket`
 
@@ -22203,7 +22399,11 @@ export function Chat({ enabled }: { enabled: boolean }) {
 ```
 
 - O hook devolve `{ status, lastMessage, send, reconnect }`.
-- `enabled: false` não abre o socket; mudar a URL reabre; mudar `onMessage` não (ref interna).
+- `enabled: false` não abre o socket; mudar a URL reabre. **Todos** os callbacks (`onOpen`, `onMessage`, `onClose`, `onError`) passam por ref: arrow function inline é seguro, sempre roda a closure atual e nunca reabre o socket.
+- Opções que moldam a conexão (`protocols`, `maxRetries`, `initialBackoff`, `maxBackoff`, `pingInterval`, `queueWhileClosed`) fazem parte do handshake — mudar uma **reabre** o socket com o valor novo, em vez de ser ignorada em silêncio.
+
+!!! warning "`lastMessage` é foto, não fila"
+    Cada frame vira um `setState`, então dois que cheguem no mesmo tick colapsam num render só e você enxerga apenas o último. Uma única ação no servidor costuma emitir vários frames em sequência. Para **stream** use `onMessage`, que dispara uma vez por frame; `lastMessage` serve pra renderizar estado atual.
 - `send` é estável (`useCallback`) — pode ir em deps sem reabrir nada.
 - Cleanup automático no unmount (fechamento limpo, não tenta reconectar).
 

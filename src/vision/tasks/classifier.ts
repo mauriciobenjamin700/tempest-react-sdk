@@ -5,6 +5,7 @@
 import type * as ort from "onnxruntime-web";
 
 import { type ModelSource, type OrtSessionOptions, OrtSession } from "../core/session";
+import { SpeedTimer } from "../core/timing";
 import { type ImageInput, loadImage } from "../io/image";
 import { type LabelSpec, resolveLabels } from "../labels";
 import { softmax, topK } from "../postprocess/classification";
@@ -128,10 +129,14 @@ export class Classifier extends VisionTask {
         image: ImageInput,
         options: ClassifierPredictOptions = {},
     ): Promise<ClassificationResults[]> {
+        const timer = new SpeedTimer();
         const path = typeof image === "string" ? image : null;
         const original = await loadImage(image);
+        timer.stage("load");
         const tensor = this._preprocess(original);
+        timer.stage("preprocess");
         const outputs = await this._session.run({ [this._session.inputName]: tensor });
+        timer.stage("inference");
         const firstOutputName = this._session.outputNames[0];
         if (firstOutputName === undefined) {
             throw new Error("Classifier model has no outputs.");
@@ -175,14 +180,17 @@ export class Classifier extends VisionTask {
         };
 
         const orig: readonly [number, number] = [original.height, original.width];
+        const probs = new Probs(fullProbs);
+        timer.stage("postprocess");
         return [
             new ClassificationResults(
-                new Probs(fullProbs),
+                probs,
                 result,
                 this._names,
                 original,
                 orig,
                 path,
+                timer.speed(),
             ),
         ];
     }

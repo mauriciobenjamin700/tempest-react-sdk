@@ -147,6 +147,7 @@ plugins:
                     i18n: i18n
                     Observabilidade: Observability
                     Telemetry: Telemetry
+                    Custo de inferência (perf): Inference cost (perf)
                     Feature Flags: Feature Flags
                     Logger: Logger
                     Error Boundary: Error Boundary
@@ -265,6 +266,7 @@ nav:
                 - i18n: i18n.md
           - Observabilidade:
                 - Telemetry: telemetry.md
+                - Custo de inferência (perf): perf.md
                 - Feature Flags: feature-flags.md
                 - Logger: logger.md
                 - Error Boundary: error-boundary.md

@@ -8,7 +8,7 @@ SDK público da Tempest com componentes React, hooks e integrações reutilizáv
 
 - **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 30 tags publicadas (0.1.0 → 0.23.0) com signed provenance via OIDC. Histórico completo em `RELEASES.md` (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
 - **Testes**: 3283 testes em 414 arquivos, ~29 s sob `vitest + jsdom + fake-indexeddb`. Cobertura 98.5% linhas / 97.1% statements / 96.6% funções / 95.0% branches; pisos do CI em 98/97/96/94.
-- **Superfície**: 34 módulos em `src/`, 117 componentes, 46 hooks (+ `useNotificationInbox`, que mora junto do `NotificationCenter`), 384 exports na entrada raiz.
+- **Superfície**: 35 módulos em `src/`, 117 componentes, 46 hooks (+ `useNotificationInbox`, que mora junto do `NotificationCenter`), 384 exports na entrada raiz.
 - **Empacotamento (v0.25.0)**: `dist/` preserva o grafo de módulos (`preserveModules`). O que o app paga de fato (brotli): `{ cn }` 153 B · `{ Button }` 794 B · app típico 6.83 KB · offline/PWA 4.44 KB · `styles.css` 21.68 KB · `utilities.css` 1.13 KB (opt-in). Teto sem tree-shaking: 70.21 KB ESM / 85.52 KB CJS. Budgets do `size-limit` são **por fatia importada**, não pelo barrel.
 - **Subpaths** (11): `.`, `/testing` (MSW), `/vite` (`createViteConfig` + plugins), `/sw` (helpers de contexto SW), `/charts` (recharts peer), `/editor` (tiptap peer), `/vision` (onnxruntime-web peer), `/br` (dataset BR + mapa clicável), `/icons` (ícone por slug, 25 shards lazy), `/icons/virtual` (declaração ambiente do módulo do plugin), `/styles.css`, `/utilities.css` (camada de layout opt-in).
 - **CLIs** (`bin/`): `create-tempest-app` (scaffold — invocado como `npx -p tempest-react-sdk create-tempest-app .`; **não** existe pacote `create-tempest-app` no npm, então `npm create tempest-app` dá 404) com templates `template/` e `template-pwa/`; `tempest` (project CLI: `doctor`, `lint`, `fix`, `format`, `gen api <openapi>` → Zod + types + services, `gen icons` → registry estático de ícone). `doctor` e `fix` também fazem **análise de CSS** (`bin/lib/css/`, scanner próprio sem dep): sintaxe que o browser derruba, declaração/regra duplicada, propriedade e token inexistentes, e bloco repetido que pede classe global/utility. `fix` remove só o comprovadamente morto (sempre a cópia **anterior** — last-wins); `--no-css` pula, `--dry-run` é a superfície de revisão.
@@ -47,7 +47,7 @@ SDKs externos para adapters (não declarados — caller injeta instância):
 
 ```text
 tempest-react-sdk/
-├── src/                                     (34 módulos — subpath marcado com ⇢)
+├── src/                                     (35 módulos — subpath marcado com ⇢)
 │   ├── access/         useCan, <Can>, permissionsFromToken (RBAC)
 │   ├── app/            <AppProviders> (ErrorBoundary → Query → Theme → i18n)
 │   ├── audio/          createAudioPlayer, useAudio, playAudio
@@ -67,6 +67,7 @@ tempest-react-sdk/
 │   ├── i18n/           createI18n, I18nProvider, useI18n, useTranslate
 │   ├── logger/         createLogger leveled + plug sinks
 │   ├── oauth/          <GoogleSignIn>, useOAuthCallback
+│   ├── perf/           createInferenceProfiler, readDeviceProfile, cachedResponseBytes, formatDurationMs (custo de inferência on-device)
 │   ├── offline/        createOfflineStore (Dexie), createOfflineSync (outbox+pull+watermark), useOfflineSync, resolvers de conflito
 │   ├── push/           usePushSubscription, urlBase64ToUint8Array, isPushSupported
 │                        (inbox: <NotificationCenter> + useNotificationInbox em components/)

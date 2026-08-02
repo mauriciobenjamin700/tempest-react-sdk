@@ -101,4 +101,5 @@ export type {
     DivergingScaleOptions,
     SequentialScaleOptions,
 } from "./charts/scales";
+export * from "./perf";
 export * from "./utils";

@@ -954,6 +954,257 @@ Exportado à parte pra quem monta o próprio layout (composer fixo no rodapé de
 !!! danger "IME: `Enter` durante composição não envia"
     Compondo japonês ou coreano, `Enter` confirma a palavra candidata. Enviar ali publica meia palavra e come a confirmação — daí a checagem de `isComposing`.
 
+### `AIChat`
+
+> **Quando usar**: conversa com um **modelo** — copiloto do seu app, assistente de suporte, busca conversacional. É a forma que o ChatGPT, o Claude e o DeepSeek convergiram.
+
+Turnos por papel (`user` / `assistant` / `system`), resposta em Markdown com bloco de código, raciocínio em bloco separado, cursor de streaming, ações por turno (copiar, gerar de novo, editar, 👍/👎) e um composer que **vira botão de parar** enquanto a resposta chega.
+
+!!! info "`AIChat` e [`Chat`](#chat) são componentes diferentes, não variantes"
+    Uma thread humana é endereçada por **autor** e se preocupa com estado de entrega. Um transcript de modelo é endereçado por **papel**, não tem estado de entrega nenhum, e precisa de três coisas que uma thread humana nunca precisa: saída parcial, raciocínio separado da resposta e re-perguntar. Encaixar os dois num `variant` misturaria dois modelos de dados no mesmo `props` e deixaria `authorId`/ticks mortos no caminho LLM.
+
+Comece com o mínimo — uma lista e um `onSend`:
+
+```tsx
+import { AIChat, type AIChatMessage } from "tempest-react-sdk";
+import { useState } from "react";
+
+export function Copiloto() {
+  const [turnos, setTurnos] = useState<AIChatMessage[]>([]);
+
+  const perguntar = async (texto: string) => {
+    setTurnos((atual) => [
+      ...atual,
+      { id: crypto.randomUUID(), role: "user", content: texto },
+    ]);
+    const resposta = await fetch("/api/ask", {
+      method: "POST",
+      body: JSON.stringify({ prompt: texto }),
+    }).then((r) => r.json());
+    setTurnos((atual) => [
+      ...atual,
+      { id: crypto.randomUUID(), role: "assistant", content: resposta.text },
+    ]);
+  };
+
+  return <AIChat messages={turnos} onSend={perguntar} />;
+}
+```
+
+Isso já te dá o transcript, o Markdown, o composer, o `Enter`/`Shift+Enter`, a rolagem que segue a resposta e a ação de copiar. O que falta é o **streaming** — e é aí que o componente ganha a cara de produto.
+
+#### Streaming, do zero
+
+O SDK **não** faz a chamada por você: "como eu faço streaming do meu backend" tem resposta diferente por provider. O que ele faz é renderizar o estado. O contrato é simples — vá reescrevendo o `content` do **último** turno e mantenha `streaming: true` nele até acabar:
+
+```tsx
+import { AIChat, type AIChatMessage } from "tempest-react-sdk";
+import { useRef, useState } from "react";
+
+export function CopilotoStreaming() {
+  const [turnos, setTurnos] = useState<AIChatMessage[]>([]);
+  const [pendente, setPendente] = useState(false);
+  const abortar = useRef<AbortController | null>(null);
+
+  /** Reescreve o último turno a cada chunk — o componente segue o texto sozinho. */
+  const escrever = (id: string, texto: string) =>
+    setTurnos((atual) =>
+      atual.map((t) => (t.id === id ? { ...t, content: texto } : t)),
+    );
+
+  const perguntar = async (prompt: string) => {
+    const idResposta = crypto.randomUUID();
+    setTurnos((atual) => [
+      ...atual,
+      { id: crypto.randomUUID(), role: "user", content: prompt },
+    ]);
+    setPendente(true);
+
+    abortar.current = new AbortController();
+    const resposta = await fetch("/api/stream", {
+      method: "POST",
+      body: JSON.stringify({ prompt }),
+      signal: abortar.current.signal,
+    });
+
+    setPendente(false);
+    setTurnos((atual) => [
+      ...atual,
+      { id: idResposta, role: "assistant", content: "", streaming: true },
+    ]);
+
+    const leitor = resposta.body!.pipeThrough(new TextDecoderStream()).getReader();
+    let acumulado = "";
+    try {
+      while (true) {
+        const { value, done } = await leitor.read();
+        if (done) break;
+        acumulado += value;
+        escrever(idResposta, acumulado);
+      }
+    } catch (erro) {
+      if ((erro as Error).name !== "AbortError") throw erro;
+    } finally {
+      setTurnos((atual) =>
+        atual.map((t) =>
+          t.id === idResposta ? { ...t, streaming: false } : t,
+        ),
+      );
+    }
+  };
+
+  return (
+    <AIChat
+      messages={turnos}
+      pending={pendente}
+      onSend={perguntar}
+      onStop={() => abortar.current?.abort()}
+      composerFooter={<small>Pode errar — confira números antes de decidir.</small>}
+    />
+  );
+}
+```
+
+O que você ganha de graça nesse trecho:
+
+| Você fez | O componente faz |
+| --- | --- |
+| `pending` enquanto a request está no ar | Mostra os três pontinhos e já troca **Enviar** por **Parar** |
+| `streaming: true` no último turno | Desenha o cursor `▍` no fim do texto e esconde as ações daquele turno |
+| Reescreve `content` a cada chunk | Rola pra acompanhar — **só se** o leitor já estava embaixo |
+| `onStop` | Botão de parar no lugar do enviar, e `Escape` no campo também aborta |
+| `streaming: false` no fim | Cursor sai, ações voltam, e o leitor de tela anuncia "Resposta concluída" |
+
+!!! tip "Se seu backend fala SSE, use o `createEventStream` do SDK"
+    O laço acima é `fetch` + `ReadableStream` porque é o caminho comum de APIs de LLM. Pra um endpoint `text/event-stream` de verdade, o [`sse`](../sse.md) do SDK já cuida de reconexão e `Last-Event-ID` — o loop de `escrever()` é o mesmo.
+
+#### Raciocínio (extended thinking / R1)
+
+Um turno com `reasoning` ganha um bloco colapsável **acima** da resposta:
+
+```tsx
+{
+  id: "a1",
+  role: "assistant",
+  content: "São 12 pedidos.",
+  reasoning: "Filtrei por data de entrega vencida e status != entregue…",
+}
+```
+
+!!! info "Enquanto só o raciocínio chegou, o bloco abre sozinho"
+    Se o turno está com `streaming: true` e o `content` ainda está vazio, o bloco de raciocínio monta **aberto** — é o único conteúdo que existe, e escondê-lo deixaria a tela parada com um cursor piscando no vácuo. Terminou, ele continua aberto (quem quiser fecha); usar `defaultReasoningOpen` abre **todos**, o que serve pra uma tela de auditoria.
+
+#### Ações por turno
+
+| Ação | Aparece em | Prop que liga |
+| --- | --- | --- |
+| Copiar | todo turno | sempre (copia o Markdown **cru**, não o HTML) |
+| Gerar de novo | **só** o turno de assistente mais novo | `onRegenerate` |
+| 👍 / 👎 | turno de assistente | `onFeedback` |
+| Editar | turno de usuário | `onEditSubmit` |
+| Tentar de novo | turno com `error` | `onRetry` |
+
+```tsx
+<AIChat
+  messages={turnos}
+  onRegenerate={(turno) => reperguntar(turno)}
+  onFeedback={(turno, voto) => track("answer_rated", { id: turno.id, voto })}
+  onEditSubmit={(turno, texto) => {
+    truncarAPartirDe(turno.id);   // seu app decide o que cai
+    return perguntar(texto);
+  }}
+  votes={votosSalvos}             // opcional: votos que vieram do banco
+/>
+```
+
+!!! warning "Gerar de novo aparece só no último turno de assistente — de propósito"
+    Re-perguntar um turno do meio joga fora **todo** turno depois dele. Isso é uma operação diferente ("ramificar aqui") e precisa da própria confirmação; oferecer o mesmo botão nos dois casos convida a perder metade da conversa num clique.
+
+!!! info "Editar não decide o que apagar"
+    O `onEditSubmit` te entrega o turno e o texto novo. Quem trunca o transcript é o app, porque "apagar tudo depois" e "criar uma ramificação" são produtos diferentes e o SDK não deve escolher por você.
+
+#### Prompts sugeridos e estado vazio
+
+```tsx
+<AIChat
+  messages={[]}
+  onSend={perguntar}
+  suggestions={["Resuma o último relatório", "Quais pedidos atrasaram?"]}
+/>
+```
+
+Numa conversa vazia as sugestões aparecem no rodapé da área de transcript; clicar em uma envia direto. Somem no primeiro turno. Sem `onSend` elas não são renderizadas (não haveria pra onde mandar) e cai no `EmptyState` — ou no seu `emptyState`.
+
+#### Props
+
+| Prop | Tipo | Default | O que faz |
+| --- | --- | --- | --- |
+| `messages` | `AIChatMessage[]` | — | O transcript, **mais antigo primeiro**. Nunca reordenado. |
+| `onSend` | `(text: string) => void \| Promise<void>` | — | Renderiza o composer. Recebe o prompt já trimado. |
+| `onStop` | `() => void` | — | Aborta o turno no ar. Troca enviar por parar; `Escape` também aborta. |
+| `pending` | `boolean` | `false` | Request no ar, nada de volta ainda. |
+| `onRegenerate` | `(message) => void` | — | Liga o "gerar de novo" no último turno de assistente. |
+| `onEditSubmit` | `(message, text) => void \| Promise<void>` | — | Liga o "editar" nos turnos de usuário. |
+| `onFeedback` | `(message, vote) => void` | — | Liga 👍/👎. `vote` ∈ `"up" \| "down"`. |
+| `onRetry` | `(message) => void` | — | Liga o retry num turno com `error`. |
+| `onSendError` | `(error: unknown) => void` | — | Erro do `onSend` **ou** do `onEditSubmit`. Rascunho preservado. |
+| `votes` | `Record<string, AIChatVote>` | — | Votos que o app guarda. Sem isso o estado pressionado é local. |
+| `suggestions` | `string[]` | `[]` | Prompts oferecidos numa conversa vazia. |
+| `renderAvatar` | `(message) => ReactNode` | — | Avatar por turno. |
+| `renderContent` | `(message) => ReactNode` | — | Substitui o corpo — card de tool-call, gráfico, lista de citações. |
+| `showSystem` | `boolean` | `false` | Mostra turnos `"system"`. |
+| `defaultReasoningOpen` | `boolean` | `false` | Abre todos os blocos de raciocínio. |
+| `showLineNumbers` | `boolean` | `false` | Numera linha em bloco de código. |
+| `header` | `ReactNode` | — | Barra acima do transcript, dentro do painel. |
+| `composerActions` | `ReactNode` | — | Antes do botão de enviar — anexo, seletor de modelo. |
+| `composerFooter` | `ReactNode` | — | Abaixo do campo — contagem de token, disclaimer. |
+| `composerDisabled` | `boolean` | `false` | Sem crédito, conversa arquivada, offline. |
+| `maxRows` | `number` | `8` | Altura máxima do composer, em linhas. |
+| `locale` | `"pt-BR" \| "en"` | `"pt-BR"` | Rótulos ("Parar", "Raciocínio", "Você"…). |
+| `emptyState` | `ReactNode` | `<EmptyState/>` | Conversa vazia. |
+
+`AIChatMessage = { id, role, content, reasoning?, streaming?, error?, createdAt?, model?, attachments?, data? }` · `role` ∈ `"user" \| "assistant" \| "system"`.
+
+`AIChatAttachment = { id, name, size?, url?, mimeType? }` — com `url` vira miniatura, sem `url` vira chip com nome e tamanho.
+
+#### Decisões que valem saber
+
+!!! info "Resposta é Markdown, prompt é texto puro"
+    Um modelo emite Markdown por contrato. Uma pessoa que digitou `calcule 2 * 3 * 4` não quis abrir um span de ênfase — e ver o próprio prompt reescrito é desconcertante. Por isso o turno de usuário é `white-space: pre-wrap` e o de assistente passa pelo [`Markdown`](#markdown) (que já usa o [`CodeBlock`](utility.md#codeblock) nos blocos cercados). Quer Markdown no prompt também? `renderContent`.
+
+!!! tip "A resposta é o documento, não uma bolha"
+    Turno de assistente ocupa a largura toda, sem bolha; turno de usuário é uma bolha estreita encostada no fim da linha. Envolver a resposta numa bolha limitaria a largura dela, brigaria com as tabelas e blocos de código dentro, e faria resposta longa parecer mensagem gritada. O prompt é curto e precisa ser distinguido num relance, o que a bolha faz melhor que qualquer outra coisa.
+
+!!! danger "O transcript **não** é `aria-live` — e isso é acessibilidade, não descuido"
+    Uma região viva sobre texto em streaming faz o leitor de tela reler a resposta a cada token: inutilizável. Então o `role="log"` fica sem `aria-live`, e os dois momentos que importam ("Gerando resposta", "Resposta concluída") são anunciados por um `role="status"` separado. O turno em andamento leva `aria-busy`, e a resposta pronta é lida do log no ritmo de quem lê. O `axe` do jsdom não pega esse tipo de erro — foi decisão de projeto, verificada no browser.
+
+!!! tip "A rolagem só segue a resposta se você já estava no fim"
+    Mesma regra do [`Chat`](#chat), e aqui ela pesa mais: um transcript que sempre pula pro texto novo arrancaria o leitor **dezenas de vezes por segundo** durante o streaming. Quando você não está no fim, aparece um botão redondo pra voltar — o pulo nunca acontece sem você pedir.
+
+!!! warning "A dependência do efeito de rolagem não é a lista"
+    Streaming acrescenta ao **último** turno. Um app que mutasse esse objeto no lugar — ou que re-renderizasse de uma store guardando o mesmo array — manteria a mesma dependência enquanto o texto cresce, e a visão pararia de seguir a resposta. É por isso que existe `tailSignature()` (exportado): tamanho da lista + identidade do último turno + tamanho do texto dele cobrem as duas formas.
+
+!!! info "Só o turno que cresce re-parseia"
+    O `Markdown` parseia no próprio render, e o React não re-renderiza um filho cujo elemento é referencialmente o mesmo. Segurar esse elemento entre renders é o que impede um transcript de cinquenta turnos de re-parsear toda resposta já pronta a cada token da mais nova.
+
+!!! tip "Parar ocupa o lugar do enviar, não um botão ao lado"
+    O único botão embaixo do dedo é sempre o que você quer a seguir: enviar quando está parado, abortar quando a resposta está vindo. Dois botões lado a lado significariam acertar o certo no meio do stream.
+
+!!! warning "Ação escondida em `:hover` é ação inexistente no touch"
+    A linha de ações aparece no hover e no foco de teclado, e fica **sempre** visível onde não existe hover (`@media (hover: none)`). Sem isso, num celular o primeiro toque cairia no que estiver embaixo.
+
+#### `AIChatComposer` e `AIChatTurn`
+
+Exportados à parte pra quem monta o próprio layout — um composer fixo no rodapé de uma rota, um diff lado a lado de duas respostas. Mesmas props relevantes do painel, e o `AIChatComposer` é **não controlado** pelo mesmo motivo do [`ChatComposer`](#chatcomposer): rascunho muda a cada tecla, e subir isso pro estado do app re-renderiza o transcript inteiro por caractere — com uma resposta em streaming em cima, isso é visível.
+
+| Helper exportado | Pra que serve |
+| --- | --- |
+| `visibleTurns({ messages, showSystem })` | A lista que o painel realmente renderiza. |
+| `isGenerating(messages)` | Algum turno está em streaming. |
+| `lastAssistantId(messages)` | Qual turno recebe o "gerar de novo". |
+| `tailSignature(messages)` | Dependência de efeito que muda quando a cauda cresce. |
+| `aiChatStrings(locale)` · `roleLabel(role, strings)` · `turnTime(ts, locale)` | Rótulos, pra reusar num layout próprio. |
+
 ### `Kanban`
 
 > **Quando usar**: quadro de colunas com cards que mudam de estágio — backlog, pipeline de vendas, ordens de serviço por status.
@@ -1010,4 +1261,5 @@ export function QuadroDoBacklog() {
 - **Layout & UX**: `ScrollArea` para rolagem estilizada, `Resizable` para painéis divididos e `Calendar` para seleção de datas sem dependências externas.
 - **Navegação & conteúdo**: `NavigationMenu` e `Menubar` para navegação com dropdowns, `Carousel` para sliders.
 - **Dados**: `DataTable<T>` envolve o `Table` headless com busca, ordenação e paginação client-side.
+- **Conversa**: `Chat` para thread entre pessoas (autor, entrega, digitando) e `AIChat` para conversa com um modelo (papel, streaming, raciocínio, re-perguntar). São componentes diferentes, não variantes.
 - Todos seguem os mesmos padrões controlado/não-controlado, expõem A11y por teclado e importam de `tempest-react-sdk`.

@@ -3768,6 +3768,257 @@ Exportado à parte pra quem monta o próprio layout (composer fixo no rodapé de
 !!! danger "IME: `Enter` durante composição não envia"
     Compondo japonês ou coreano, `Enter` confirma a palavra candidata. Enviar ali publica meia palavra e come a confirmação — daí a checagem de `isComposing`.
 
+### `AIChat`
+
+> **Quando usar**: conversa com um **modelo** — copiloto do seu app, assistente de suporte, busca conversacional. É a forma que o ChatGPT, o Claude e o DeepSeek convergiram.
+
+Turnos por papel (`user` / `assistant` / `system`), resposta em Markdown com bloco de código, raciocínio em bloco separado, cursor de streaming, ações por turno (copiar, gerar de novo, editar, 👍/👎) e um composer que **vira botão de parar** enquanto a resposta chega.
+
+!!! info "`AIChat` e [`Chat`](#chat) são componentes diferentes, não variantes"
+    Uma thread humana é endereçada por **autor** e se preocupa com estado de entrega. Um transcript de modelo é endereçado por **papel**, não tem estado de entrega nenhum, e precisa de três coisas que uma thread humana nunca precisa: saída parcial, raciocínio separado da resposta e re-perguntar. Encaixar os dois num `variant` misturaria dois modelos de dados no mesmo `props` e deixaria `authorId`/ticks mortos no caminho LLM.
+
+Comece com o mínimo — uma lista e um `onSend`:
+
+```tsx
+import { AIChat, type AIChatMessage } from "tempest-react-sdk";
+import { useState } from "react";
+
+export function Copiloto() {
+  const [turnos, setTurnos] = useState<AIChatMessage[]>([]);
+
+  const perguntar = async (texto: string) => {
+    setTurnos((atual) => [
+      ...atual,
+      { id: crypto.randomUUID(), role: "user", content: texto },
+    ]);
+    const resposta = await fetch("/api/ask", {
+      method: "POST",
+      body: JSON.stringify({ prompt: texto }),
+    }).then((r) => r.json());
+    setTurnos((atual) => [
+      ...atual,
+      { id: crypto.randomUUID(), role: "assistant", content: resposta.text },
+    ]);
+  };
+
+  return <AIChat messages={turnos} onSend={perguntar} />;
+}
+```
+
+Isso já te dá o transcript, o Markdown, o composer, o `Enter`/`Shift+Enter`, a rolagem que segue a resposta e a ação de copiar. O que falta é o **streaming** — e é aí que o componente ganha a cara de produto.
+
+#### Streaming, do zero
+
+O SDK **não** faz a chamada por você: "como eu faço streaming do meu backend" tem resposta diferente por provider. O que ele faz é renderizar o estado. O contrato é simples — vá reescrevendo o `content` do **último** turno e mantenha `streaming: true` nele até acabar:
+
+```tsx
+import { AIChat, type AIChatMessage } from "tempest-react-sdk";
+import { useRef, useState } from "react";
+
+export function CopilotoStreaming() {
+  const [turnos, setTurnos] = useState<AIChatMessage[]>([]);
+  const [pendente, setPendente] = useState(false);
+  const abortar = useRef<AbortController | null>(null);
+
+  /** Reescreve o último turno a cada chunk — o componente segue o texto sozinho. */
+  const escrever = (id: string, texto: string) =>
+    setTurnos((atual) =>
+      atual.map((t) => (t.id === id ? { ...t, content: texto } : t)),
+    );
+
+  const perguntar = async (prompt: string) => {
+    const idResposta = crypto.randomUUID();
+    setTurnos((atual) => [
+      ...atual,
+      { id: crypto.randomUUID(), role: "user", content: prompt },
+    ]);
+    setPendente(true);
+
+    abortar.current = new AbortController();
+    const resposta = await fetch("/api/stream", {
+      method: "POST",
+      body: JSON.stringify({ prompt }),
+      signal: abortar.current.signal,
+    });
+
+    setPendente(false);
+    setTurnos((atual) => [
+      ...atual,
+      { id: idResposta, role: "assistant", content: "", streaming: true },
+    ]);
+
+    const leitor = resposta.body!.pipeThrough(new TextDecoderStream()).getReader();
+    let acumulado = "";
+    try {
+      while (true) {
+        const { value, done } = await leitor.read();
+        if (done) break;
+        acumulado += value;
+        escrever(idResposta, acumulado);
+      }
+    } catch (erro) {
+      if ((erro as Error).name !== "AbortError") throw erro;
+    } finally {
+      setTurnos((atual) =>
+        atual.map((t) =>
+          t.id === idResposta ? { ...t, streaming: false } : t,
+        ),
+      );
+    }
+  };
+
+  return (
+    <AIChat
+      messages={turnos}
+      pending={pendente}
+      onSend={perguntar}
+      onStop={() => abortar.current?.abort()}
+      composerFooter={<small>Pode errar — confira números antes de decidir.</small>}
+    />
+  );
+}
+```
+
+O que você ganha de graça nesse trecho:
+
+| Você fez | O componente faz |
+| --- | --- |
+| `pending` enquanto a request está no ar | Mostra os três pontinhos e já troca **Enviar** por **Parar** |
+| `streaming: true` no último turno | Desenha o cursor `▍` no fim do texto e esconde as ações daquele turno |
+| Reescreve `content` a cada chunk | Rola pra acompanhar — **só se** o leitor já estava embaixo |
+| `onStop` | Botão de parar no lugar do enviar, e `Escape` no campo também aborta |
+| `streaming: false` no fim | Cursor sai, ações voltam, e o leitor de tela anuncia "Resposta concluída" |
+
+!!! tip "Se seu backend fala SSE, use o `createEventStream` do SDK"
+    O laço acima é `fetch` + `ReadableStream` porque é o caminho comum de APIs de LLM. Pra um endpoint `text/event-stream` de verdade, o [`sse`](../sse.md) do SDK já cuida de reconexão e `Last-Event-ID` — o loop de `escrever()` é o mesmo.
+
+#### Raciocínio (extended thinking / R1)
+
+Um turno com `reasoning` ganha um bloco colapsável **acima** da resposta:
+
+```tsx
+{
+  id: "a1",
+  role: "assistant",
+  content: "São 12 pedidos.",
+  reasoning: "Filtrei por data de entrega vencida e status != entregue…",
+}
+```
+
+!!! info "Enquanto só o raciocínio chegou, o bloco abre sozinho"
+    Se o turno está com `streaming: true` e o `content` ainda está vazio, o bloco de raciocínio monta **aberto** — é o único conteúdo que existe, e escondê-lo deixaria a tela parada com um cursor piscando no vácuo. Terminou, ele continua aberto (quem quiser fecha); usar `defaultReasoningOpen` abre **todos**, o que serve pra uma tela de auditoria.
+
+#### Ações por turno
+
+| Ação | Aparece em | Prop que liga |
+| --- | --- | --- |
+| Copiar | todo turno | sempre (copia o Markdown **cru**, não o HTML) |
+| Gerar de novo | **só** o turno de assistente mais novo | `onRegenerate` |
+| 👍 / 👎 | turno de assistente | `onFeedback` |
+| Editar | turno de usuário | `onEditSubmit` |
+| Tentar de novo | turno com `error` | `onRetry` |
+
+```tsx
+<AIChat
+  messages={turnos}
+  onRegenerate={(turno) => reperguntar(turno)}
+  onFeedback={(turno, voto) => track("answer_rated", { id: turno.id, voto })}
+  onEditSubmit={(turno, texto) => {
+    truncarAPartirDe(turno.id);   // seu app decide o que cai
+    return perguntar(texto);
+  }}
+  votes={votosSalvos}             // opcional: votos que vieram do banco
+/>
+```
+
+!!! warning "Gerar de novo aparece só no último turno de assistente — de propósito"
+    Re-perguntar um turno do meio joga fora **todo** turno depois dele. Isso é uma operação diferente ("ramificar aqui") e precisa da própria confirmação; oferecer o mesmo botão nos dois casos convida a perder metade da conversa num clique.
+
+!!! info "Editar não decide o que apagar"
+    O `onEditSubmit` te entrega o turno e o texto novo. Quem trunca o transcript é o app, porque "apagar tudo depois" e "criar uma ramificação" são produtos diferentes e o SDK não deve escolher por você.
+
+#### Prompts sugeridos e estado vazio
+
+```tsx
+<AIChat
+  messages={[]}
+  onSend={perguntar}
+  suggestions={["Resuma o último relatório", "Quais pedidos atrasaram?"]}
+/>
+```
+
+Numa conversa vazia as sugestões aparecem no rodapé da área de transcript; clicar em uma envia direto. Somem no primeiro turno. Sem `onSend` elas não são renderizadas (não haveria pra onde mandar) e cai no `EmptyState` — ou no seu `emptyState`.
+
+#### Props
+
+| Prop | Tipo | Default | O que faz |
+| --- | --- | --- | --- |
+| `messages` | `AIChatMessage[]` | — | O transcript, **mais antigo primeiro**. Nunca reordenado. |
+| `onSend` | `(text: string) => void \| Promise<void>` | — | Renderiza o composer. Recebe o prompt já trimado. |
+| `onStop` | `() => void` | — | Aborta o turno no ar. Troca enviar por parar; `Escape` também aborta. |
+| `pending` | `boolean` | `false` | Request no ar, nada de volta ainda. |
+| `onRegenerate` | `(message) => void` | — | Liga o "gerar de novo" no último turno de assistente. |
+| `onEditSubmit` | `(message, text) => void \| Promise<void>` | — | Liga o "editar" nos turnos de usuário. |
+| `onFeedback` | `(message, vote) => void` | — | Liga 👍/👎. `vote` ∈ `"up" \| "down"`. |
+| `onRetry` | `(message) => void` | — | Liga o retry num turno com `error`. |
+| `onSendError` | `(error: unknown) => void` | — | Erro do `onSend` **ou** do `onEditSubmit`. Rascunho preservado. |
+| `votes` | `Record<string, AIChatVote>` | — | Votos que o app guarda. Sem isso o estado pressionado é local. |
+| `suggestions` | `string[]` | `[]` | Prompts oferecidos numa conversa vazia. |
+| `renderAvatar` | `(message) => ReactNode` | — | Avatar por turno. |
+| `renderContent` | `(message) => ReactNode` | — | Substitui o corpo — card de tool-call, gráfico, lista de citações. |
+| `showSystem` | `boolean` | `false` | Mostra turnos `"system"`. |
+| `defaultReasoningOpen` | `boolean` | `false` | Abre todos os blocos de raciocínio. |
+| `showLineNumbers` | `boolean` | `false` | Numera linha em bloco de código. |
+| `header` | `ReactNode` | — | Barra acima do transcript, dentro do painel. |
+| `composerActions` | `ReactNode` | — | Antes do botão de enviar — anexo, seletor de modelo. |
+| `composerFooter` | `ReactNode` | — | Abaixo do campo — contagem de token, disclaimer. |
+| `composerDisabled` | `boolean` | `false` | Sem crédito, conversa arquivada, offline. |
+| `maxRows` | `number` | `8` | Altura máxima do composer, em linhas. |
+| `locale` | `"pt-BR" \| "en"` | `"pt-BR"` | Rótulos ("Parar", "Raciocínio", "Você"…). |
+| `emptyState` | `ReactNode` | `<EmptyState/>` | Conversa vazia. |
+
+`AIChatMessage = { id, role, content, reasoning?, streaming?, error?, createdAt?, model?, attachments?, data? }` · `role` ∈ `"user" \| "assistant" \| "system"`.
+
+`AIChatAttachment = { id, name, size?, url?, mimeType? }` — com `url` vira miniatura, sem `url` vira chip com nome e tamanho.
+
+#### Decisões que valem saber
+
+!!! info "Resposta é Markdown, prompt é texto puro"
+    Um modelo emite Markdown por contrato. Uma pessoa que digitou `calcule 2 * 3 * 4` não quis abrir um span de ênfase — e ver o próprio prompt reescrito é desconcertante. Por isso o turno de usuário é `white-space: pre-wrap` e o de assistente passa pelo [`Markdown`](#markdown) (que já usa o [`CodeBlock`](utility.md#codeblock) nos blocos cercados). Quer Markdown no prompt também? `renderContent`.
+
+!!! tip "A resposta é o documento, não uma bolha"
+    Turno de assistente ocupa a largura toda, sem bolha; turno de usuário é uma bolha estreita encostada no fim da linha. Envolver a resposta numa bolha limitaria a largura dela, brigaria com as tabelas e blocos de código dentro, e faria resposta longa parecer mensagem gritada. O prompt é curto e precisa ser distinguido num relance, o que a bolha faz melhor que qualquer outra coisa.
+
+!!! danger "O transcript **não** é `aria-live` — e isso é acessibilidade, não descuido"
+    Uma região viva sobre texto em streaming faz o leitor de tela reler a resposta a cada token: inutilizável. Então o `role="log"` fica sem `aria-live`, e os dois momentos que importam ("Gerando resposta", "Resposta concluída") são anunciados por um `role="status"` separado. O turno em andamento leva `aria-busy`, e a resposta pronta é lida do log no ritmo de quem lê. O `axe` do jsdom não pega esse tipo de erro — foi decisão de projeto, verificada no browser.
+
+!!! tip "A rolagem só segue a resposta se você já estava no fim"
+    Mesma regra do [`Chat`](#chat), e aqui ela pesa mais: um transcript que sempre pula pro texto novo arrancaria o leitor **dezenas de vezes por segundo** durante o streaming. Quando você não está no fim, aparece um botão redondo pra voltar — o pulo nunca acontece sem você pedir.
+
+!!! warning "A dependência do efeito de rolagem não é a lista"
+    Streaming acrescenta ao **último** turno. Um app que mutasse esse objeto no lugar — ou que re-renderizasse de uma store guardando o mesmo array — manteria a mesma dependência enquanto o texto cresce, e a visão pararia de seguir a resposta. É por isso que existe `tailSignature()` (exportado): tamanho da lista + identidade do último turno + tamanho do texto dele cobrem as duas formas.
+
+!!! info "Só o turno que cresce re-parseia"
+    O `Markdown` parseia no próprio render, e o React não re-renderiza um filho cujo elemento é referencialmente o mesmo. Segurar esse elemento entre renders é o que impede um transcript de cinquenta turnos de re-parsear toda resposta já pronta a cada token da mais nova.
+
+!!! tip "Parar ocupa o lugar do enviar, não um botão ao lado"
+    O único botão embaixo do dedo é sempre o que você quer a seguir: enviar quando está parado, abortar quando a resposta está vindo. Dois botões lado a lado significariam acertar o certo no meio do stream.
+
+!!! warning "Ação escondida em `:hover` é ação inexistente no touch"
+    A linha de ações aparece no hover e no foco de teclado, e fica **sempre** visível onde não existe hover (`@media (hover: none)`). Sem isso, num celular o primeiro toque cairia no que estiver embaixo.
+
+#### `AIChatComposer` e `AIChatTurn`
+
+Exportados à parte pra quem monta o próprio layout — um composer fixo no rodapé de uma rota, um diff lado a lado de duas respostas. Mesmas props relevantes do painel, e o `AIChatComposer` é **não controlado** pelo mesmo motivo do [`ChatComposer`](#chatcomposer): rascunho muda a cada tecla, e subir isso pro estado do app re-renderiza o transcript inteiro por caractere — com uma resposta em streaming em cima, isso é visível.
+
+| Helper exportado | Pra que serve |
+| --- | --- |
+| `visibleTurns({ messages, showSystem })` | A lista que o painel realmente renderiza. |
+| `isGenerating(messages)` | Algum turno está em streaming. |
+| `lastAssistantId(messages)` | Qual turno recebe o "gerar de novo". |
+| `tailSignature(messages)` | Dependência de efeito que muda quando a cauda cresce. |
+| `aiChatStrings(locale)` · `roleLabel(role, strings)` · `turnTime(ts, locale)` | Rótulos, pra reusar num layout próprio. |
+
 ### `Kanban`
 
 > **Quando usar**: quadro de colunas com cards que mudam de estágio — backlog, pipeline de vendas, ordens de serviço por status.
@@ -3824,6 +4075,7 @@ export function QuadroDoBacklog() {
 - **Layout & UX**: `ScrollArea` para rolagem estilizada, `Resizable` para painéis divididos e `Calendar` para seleção de datas sem dependências externas.
 - **Navegação & conteúdo**: `NavigationMenu` e `Menubar` para navegação com dropdowns, `Carousel` para sliders.
 - **Dados**: `DataTable<T>` envolve o `Table` headless com busca, ordenação e paginação client-side.
+- **Conversa**: `Chat` para thread entre pessoas (autor, entrega, digitando) e `AIChat` para conversa com um modelo (papel, streaming, raciocínio, re-perguntar). São componentes diferentes, não variantes.
 - Todos seguem os mesmos padrões controlado/não-controlado, expõem A11y por teclado e importam de `tempest-react-sdk`.
 
 ---
@@ -12956,6 +13208,227 @@ Veja rodando na [gallery](./gallery.md), seção **Ícones por slug**.
 
 ---
 
+# imaging.md
+
+# Imaging (processamento de imagem no navegador)
+
+Foto tirada no celular, tratada **no aparelho**: redimensiona, corta, gira,
+troca de formato e cabe num orçamento de bytes — sem servidor, sem
+dependência, sem a imagem do usuário viajar antes da hora.
+
+É o que um PWA de campo precisa. Pode estar offline, a conexão pode ser
+cara, e a foto pode ter GPS embutido que ninguém pediu para enviar.
+
+```tsx
+import { compressToTarget } from "tempest-react-sdk/imaging";
+
+// `file` é o que um <input type="file"> entrega: event.target.files[0]
+const upload = await compressToTarget(file, {
+  maxBytes: 1_000_000,
+  width: 1600,
+  type: "image/webp",
+});
+
+console.log(upload.bytes, upload.quality, upload.withinBudget);
+```
+
+```text
+192512 0.86 true
+```
+
+## O que ele resolve por você
+
+### Foto de celular vem deitada
+
+Retrato é gravado como paisagem mais uma etiqueta de rotação. Quem decodifica
+sem honrar a etiqueta mostra **toda** foto vertical de lado — o bug mais
+reportado em fluxo de upload.
+
+```tsx
+import { decodeImage } from "tempest-react-sdk/imaging";
+
+const { width, height } = await decodeImage(file); // já na orientação certa
+```
+
+Medido no Chromium: JPEG 120x60 com `Orientation=6` decodifica como 60x120.
+
+### Formato não suportado falha em silêncio
+
+```tsx
+import { bestSupportedType, supportsImageType } from "tempest-react-sdk/imaging";
+
+const type = await bestSupportedType(["image/avif", "image/webp", "image/jpeg"]);
+```
+
+!!! danger "Pedir AVIF onde não há encoder devolve PNG, sem erro"
+    Medido em Chromium **e** Firefox: `convertToBlob({ type: "image/avif" })`
+    não lança — devolve `image/png`. Um app que confiou no pedido sobe
+    megabytes onde planejou centenas de kilobytes.
+
+    Por isso todo retorno traz `type` — o formato **produzido**, não o
+    pedido — e `supportsImageType` responde antes.
+
+### Reencodar apaga o EXIF
+
+Redimensionar passa pelo canvas, e o canvas não carrega metadado. GPS,
+número de série da câmera e horário **não sobrevivem**. Para app que lida
+com foto de usuário isso costuma ser exatamente o que se quer — e vale saber
+que acontece.
+
+## Medições reais
+
+Foto sintética de 3000x2000 (731 KB), Chromium:
+
+| Operação | Resultado |
+| --- | --- |
+| Redimensionar para 1200 px, JPEG q0.85 | 124 KB em 66 ms |
+| Mesma coisa em WebP q0.85 | 75 KB (40% menor) |
+| `compressToTarget` para 200 KB | 192 KB, q0.86, 7 encodes, 313 ms |
+
+!!! info "O que foi removido depois de medir"
+    A receita clássica para reduzir muito num canvas é **dividir por dois
+    repetidamente**, porque um `drawImage` único supostamente aliasa. Isso
+    chegou a ser implementado aqui, e aí foi medido: xadrez de 512 px
+    reduzido para 32 px deu resultado **idêntico** (desvio padrão 0,0 nos
+    dois) em Chromium e Firefox, enquanto o caminho em passos custou
+    **39,19 ms contra 0,13 ms** numa foto 4000x3000 — 300 vezes mais, além
+    de três canvas intermediários num aparelho que talvez não tenha memória.
+
+    Motor moderno honra `imageSmoothingQuality = "high"`, que é o que o
+    módulo liga. O código foi apagado em vez de mantido "por garantia":
+    benefício não mensurável a 300x o custo não é garantia, é peso morto.
+
+## Redimensionar
+
+```tsx
+import { resizeImage } from "tempest-react-sdk/imaging";
+
+const thumb = await resizeImage(file, { width: 320, height: 320, fit: "cover" });
+```
+
+| `fit` | O que faz |
+| --- | --- |
+| `contain` (padrão) | Cabe dentro da caixa; resultado pode ser menor num lado |
+| `cover` | Preenche a caixa; sobra é cortada, centralizada |
+| `fill` | Estica para a caixa, mudando a proporção |
+| `pad` | Como `contain`, mas completa a caixa com `background` |
+
+Nunca aumenta por padrão (`withoutEnlargement`): ampliar não cria detalhe e
+multiplica bytes.
+
+!!! tip "JPEG não tem alpha"
+    Encodar PNG transparente como JPEG pinta os pixels transparentes de
+    preto. O módulo preenche de branco antes — passe `background` para outra
+    cor.
+
+## Cortar, girar, espelhar
+
+```tsx
+import { cropImage, flipImage, rotateImage } from "tempest-react-sdk/imaging";
+
+const badge = await cropImage(file, { x: 120, y: 80, width: 400, height: 400 });
+const upright = await rotateImage(file, 90);
+const selfie = await flipImage(capture, { horizontal: true });
+```
+
+O retângulo é limitado à imagem, então corte arrastado além da borda produz
+resultado menor em vez de borda transparente. `rotateImage` aceita só
+múltiplos de 90 — ângulo livre exige decidir o que fazer com os cantos, e
+isso é design do seu app, não default de utilitário.
+
+## Várias miniaturas de uma decodificação
+
+```tsx
+import { createThumbnails } from "tempest-react-sdk/imaging";
+
+const [thumb, card] = await createThumbnails(file, [
+  { name: "thumb", size: 96 },
+  { name: "card", size: 480 },
+]);
+```
+
+Três chamadas separadas de `resizeImage` decodificariam a mesma foto três
+vezes — e numa imagem de 12 megapixels a decodificação é o custo, não a
+escala. `size` é a **maior aresta**, então retrato e paisagem cabem na mesma
+célula de grid sem conta separada.
+
+## No React
+
+```tsx
+import { useImagePreview, useImageProcessing } from "tempest-react-sdk/imaging";
+
+function PhotoUpload() {
+  const [file, setFile] = useState<File | null>(null);
+  const { url } = useImagePreview(file);
+  const { compress, isWorking } = useImageProcessing();
+
+  async function send() {
+    if (file === null) return;
+    const ready = await compress(file, { maxBytes: 1_000_000, width: 1600 });
+    await fetch("/api/photos", { method: "POST", body: ready.blob });
+  }
+
+  return (
+    <>
+      {url !== null && <img src={url} alt="" />}
+      <button disabled={isWorking || file === null} onClick={send}>Enviar</button>
+    </>
+  );
+}
+```
+
+`useImagePreview` revoga o object URL quando a fonte muda ou o componente
+desmonta — sem isso o blob inteiro fica na memória pelo resto da vida da
+página. `useImageProcessing` não escreve estado depois do unmount, o caso de
+uma foto grande que termina depois do usuário sair da tela.
+
+## Fora da main thread
+
+Todas as funções usam `OffscreenCanvas` quando existe, então rodam dentro de
+um worker sem alteração:
+
+```ts
+// worker.ts
+import { compressToTarget } from "tempest-react-sdk/imaging";
+
+self.onmessage = async (event: MessageEvent<File>) => {
+  const result = await compressToTarget(event.data, { maxBytes: 1_000_000 });
+  self.postMessage(result.blob);
+};
+```
+
+Vale a pena: redimensionar foto de 12 megapixels na main thread congela a UI
+por dezenas de milissegundos por imagem.
+
+## API
+
+| Símbolo | O que é |
+| --- | --- |
+| `resizeImage(source, options?)` | Redimensiona e reencoda |
+| `cropImage(source, rect, options?)` | Corta em pixels da origem |
+| `rotateImage(source, degrees, options?)` | Gira em múltiplos de 90 |
+| `flipImage(source, axes, options?)` | Espelha |
+| `compressToTarget(source, options)` | Busca binária de qualidade até caber |
+| `createThumbnails(source, specs, options?)` | Vários tamanhos, uma decodificação |
+| `decodeImage(source)` / `readImageInfo(blob)` | Pixels orientados / dimensões e tamanho |
+| `encodeImage(surface, options?)` | Canvas para bytes |
+| `supportsImageType(type)` / `bestSupportedType(list)` | O que este navegador encoda mesmo |
+| `createSurface` / `getContext` / `drawScaled` | Primitivas de canvas |
+| `useImagePreview(blob)` / `useImageProcessing()` | Hooks |
+
+Erros: `ImagingError` na raiz, com `ImageDecodeError`, `ImageEncodeError`,
+`UnsupportedImageTypeError` e `ImagingUnavailableError`.
+
+## Recapitulando
+
+- Decodifique com `decodeImage` — orientação de celular já resolvida.
+- Cheque o formato com `supportsImageType`; confie no `type` do retorno.
+- `compressToTarget` para orçamento de bytes; `withoutEnlargement` fica ligado.
+- Reencodar apaga EXIF — é a etapa de privacidade, além da de banda.
+- Rode num worker: `OffscreenCanvas` é usado sozinho quando existe.
+
+---
+
 # index.md
 
 # tempest-react-sdk
@@ -17867,6 +18340,519 @@ Tokens são **API pública**. Mudanças quebram apps consumidores. Política:
   do app nem com Tailwind/Stitches/Linaria.
 - Tokens são **API pública** sob semver — adições bumpam minor, renames/removals
   bumpam major.
+
+---
+
+# tabular.md
+
+# Tabular (scikit-learn no navegador)
+
+Modelo de scikit-learn respondendo **no navegador**, sem servidor de
+inferência e sem enviar os dados do usuário pra lugar nenhum. O subpath
+`tempest-react-sdk/tabular` roda o `.onnx` que o
+[`tempest-fastapi-sdk`](https://mauriciobenjamin700.github.io/tempest-fastapi-sdk/recipes/modelops/)
+exporta — mesmo arquivo, mesmo contrato, no cliente em vez de num
+dispositivo.
+
+```tsx
+import { TabularPredictor } from "tempest-react-sdk/tabular";
+
+const predictor = await TabularPredictor.create("/models/classifier.onnx");
+const { labels, probabilities } = await predictor.predict([[5.1, 3.5, 1.4, 0.2]]);
+
+console.log(labels[0], probabilities[0]);
+```
+
+```text
+0 [0.6662, 0.1061, 0.2277]
+```
+
+## Antes de tudo: de onde vem o modelo
+
+Este módulo **não treina** nada. Ele executa um modelo que já foi treinado —
+em Python, pela sua equipe de dados — e exportado para um formato que o
+navegador consegue ler.
+
+O caminho inteiro tem duas metades:
+
+```mermaid
+flowchart LR
+    A[Python: modelo treinado] -->|edge_pipeline| B[pasta com o modelo]
+    B -->|você publica junto do app| C[public/models/risco/]
+    C -->|loadEdgePackage| D[React: predição no navegador]
+```
+
+**Metade 1 — Python, uma vez por versão do modelo** (roda como está, o
+dataset vem no scikit-learn):
+
+```python
+from sklearn.datasets import load_iris
+from sklearn.ensemble import RandomForestClassifier
+
+from tempest_fastapi_sdk.modelops import edge_pipeline
+
+data = load_iris()
+model = RandomForestClassifier(n_estimators=20, max_depth=4, random_state=0)
+model.fit(data.data, data.target)
+
+edge_pipeline(
+    model,
+    data.data,
+    "public/models/flores",     # dentro do seu app React
+    name="flores",
+    labels=data.target,
+    feature_names=list(data.feature_names),
+    compact=True,               # a versão que dispensa runtime
+)
+```
+
+Isso escreve uma **pasta**, não um arquivo:
+
+```text
+public/models/flores/
+├── flores.onnx        o modelo em ONNX
+├── flores.tmc         o mesmo modelo, formato compacto
+├── baseline.json      referência dos dados de treino
+└── manifest.json      o que tem aí dentro
+```
+
+**Metade 2 — React, no navegador.** Se o pacote tem a versão compacta
+(`compact=True` acima), **não há nada a instalar** além do próprio SDK:
+
+```tsx
+import { loadEdgePackage } from "tempest-react-sdk/tabular";
+
+const pkg = await loadEdgePackage("/models/flores/");
+
+console.log(pkg.featureNames);
+// ["sepal length (cm)", "sepal width (cm)", "petal length (cm)", "petal width (cm)"]
+
+const { labels, probabilities } = await pkg.predictor.predict([[5.1, 3.5, 1.4, 0.2]]);
+console.log(labels[0], probabilities[0]);
+```
+
+!!! tip "A ordem das colunas vem junto"
+    `pkg.featureNames` diz em que ordem os valores têm que entrar. Use isso
+    para montar a linha a partir do seu formulário — modelo alimentado com
+    os números certos **na ordem errada** responde com confiança e errado, e
+    não existe checagem em runtime que pegue.
+
+!!! info "Só tenho um `.onnx` solto, sem pasta"
+    Funciona também — `TabularPredictor.create("/models/classifier.onnx")`.
+    Você perde o que o manifesto carrega (ordem das colunas, nomes das
+    classes, versão), e passa a precisar do `onnxruntime-web`.
+
+## Três rotas, você escolhe
+
+Rodar sklearn no navegador tem um custo que não é o modelo. Medido:
+
+| | Tamanho |
+| --- | --- |
+| Runtime `onnxruntime-web` (`.wasm`) | **25,6 MB** — 6,0 MB gzipped |
+| Floresta de 12 árvores em ONNX | 20 KB |
+| A mesma em formato compacto | 9,6 KB |
+| O leitor compacto (código do SDK) | **1,49 KB** brotli |
+
+O modelo é ruído. **O runtime é a conta.** Daí existirem três caminhos, e o
+certo depender do que o seu app já carrega.
+
+### A — Sem runtime (`CompactPredictor`)
+
+```python
+# Python, no build
+package = edge_pipeline(model, X_train, "dist/risk", labels=y_train, compact=True)
+```
+
+```tsx
+import { loadEdgePackage } from "tempest-react-sdk/tabular";
+
+const pkg = await loadEdgePackage("/models/risk/");
+console.log(pkg.runtime); // "compact"
+```
+
+Sem WebAssembly, sem `onnxruntime-web`, sem peer dependency. Modelo linear é
+produto escalar; árvore é comparação encadeada — isso cabe em 1,49 KB de
+JavaScript (medido, brotli).
+
+**Cobre** linear (logística, linear, ridge, SGD, SVC linear), árvore,
+floresta, extra-trees, regressores dos mesmos, e `StandardScaler`/
+`MinMaxScaler` dentro de Pipeline.
+**Não cobre** gradient boosting, MLP, ou qualquer transformação que não seja
+`(x - offset) / escala` — e **recusa exportar** em vez de aproximar.
+
+!!! check "Verificado contra o scikit-learn, não contra a minha ideia do formato"
+    O exportador compara o arquivo escrito com as predições do próprio
+    estimador e **se recusa a gravar** se discordarem. Do lado do navegador,
+    os testes rodam contra fixtures geradas pelo Python junto das saídas do
+    scikit-learn — 7 famílias, rótulos idênticos e probabilidades batendo em
+    5 casas.
+
+    O arquivo é **dado, nunca código**: nada de JavaScript gerado, nada de
+    `eval`, nada que uma CSP estrita proíba.
+
+!!! check "Sem `onnxruntime-web` instalado, mesmo assim funciona"
+    Verificado empacotando o SDK e instalando num projeto vazio, sem o peer:
+    o barril importa, `CompactPredictor` prediz e bate com o scikit-learn.
+    Pedir a rota ONNX ali dá erro nomeando o `npm install onnxruntime-web` e
+    a alternativa compacta.
+
+    Isso quebrou na v0.33.0 — o módulo de assets importava o runtime no topo,
+    então quem só queria a rota A precisava instalar 25,6 MB de wasm assim
+    mesmo. Corrigido na v0.33.1: o runtime entra por `import()` dinâmico, só
+    quando um modelo ONNX é carregado. Tem guard de teste travando isso.
+
+### B — Runtime mínimo (`.ort` + build próprio)
+
+```tsx
+import { configureOrtAssets, TabularPredictor } from "tempest-react-sdk/tabular";
+
+configureOrtAssets("/ort-minimal/");
+const predictor = await TabularPredictor.create("/models/classifier.ort");
+```
+
+O `export_onnx_to_ort` do `tempest-fastapi-sdk` gera o `.ort` **e** o
+`required_operators.config`, que é o que permite compilar um ONNX Runtime só
+com os operadores do seu modelo. Aponte `configureOrtAssets` para esse build.
+
+!!! warning "O `.ort` sozinho não economiza — ele aumenta"
+    Medido: 526 B de ONNX viram **2.360 B** de `.ort`; uma floresta de 266 KB
+    vira 650 KB. O `.ort` é formato de carregamento, não de compressão.
+
+    Quem encolhe é o **runtime compilado sob medida**, e isso custa
+    compilar o ORT do zero (Docker, horas) e manter esse build. O bundle
+    padrão lê `.ort` normalmente — testado — então dá para preparar a rota
+    antes de ter o build.
+
+### C — ONNX padrão (`TabularPredictor`)
+
+```tsx
+const pkg = await loadEdgePackage("/models/risk/", { runtime: "onnx" });
+```
+
+O caminho de sempre. **Custo marginal zero se o app já carrega
+`onnxruntime-web`** — por exemplo se usa `tempest-react-sdk/vision`. Aí o
+runtime já foi pago e o ONNX cobre qualquer estimador.
+
+### Medido no navegador, com o `dist` construído
+
+Chromium, mesma floresta de 10 árvores servida nas duas rotas, wasm servido
+localmente (ou seja, **sem latência de rede** — o piso):
+
+| | Compacta | ONNX |
+| --- | --- | --- |
+| Carga até poder responder | **6,0 ms** | 579,6 ms |
+| Predição (lote de 3 linhas) | **0,0035 ms** | 0,0575 ms |
+| `.wasm` baixado | **nenhum** | 25,6 MB |
+
+A carga é 97x mais rápida, e a predição 16x — o leitor não aloca tensor nem
+atravessa a fronteira do WebAssembly, que nesse tamanho de modelo é o custo
+inteiro.
+
+A suíte `e2e/tabular.spec.ts` prova as três coisas em Chromium de verdade:
+que a rota compacta **não busca nenhum `.wasm`** (lendo a timeline de recursos
+da própria página), que ela responde igual ao scikit-learn nas 7 famílias, e
+que continua respondendo com o `fetch` derrubado.
+
+### Como decidir
+
+| Situação | Rota |
+| --- | --- |
+| PWA só com modelo tabular | **A** — 6 MB gzipped a menos |
+| App já roda visão/ONNX | **C** — custo marginal zero, cobertura total |
+| Precisa de gradient boosting, MLP, pipeline complexo | **C** |
+| Precisa de cobertura ampla **e** binário pequeno | **B** |
+| Modelo muda toda semana e o time só publica `.pkl` | Qualquer uma — a esteira é a mesma |
+
+!!! tip "A escolha não vaza para o seu código"
+    As duas rotas devolvem o mesmo objeto: `predict(rows)` com `labels`,
+    `probabilities`, `numRows` e `ms` — **inclusive o tipo do rótulo**
+    (`0`, não `"0"`, quando o scikit-learn usou inteiro). Trocar de rota é
+    mudar uma opção, não reescrever a tela.
+
+    ```tsx
+    const pkg = await loadEdgePackage("/models/risk/", { runtime: "auto" });
+    ```
+
+    `"auto"` pega a compacta quando o pacote tem, e ONNX quando não tem.
+    Pedir `"compact"` num pacote que não a carrega dá erro dizendo isso —
+    em vez de baixar 25 MB de WebAssembly em silêncio.
+
+## Quando isso vale a pena
+
+| Vale | Não vale |
+| --- | --- |
+| Score que precisa aparecer enquanto o usuário digita | Modelo que muda de hora em hora |
+| Dado sensível que não deve sair do dispositivo | Modelo grande (deep learning pesado) |
+| App que precisa funcionar sem rede | Predição que exige dados que só o servidor tem |
+
+Latência medida no Chromium: **0,2 ms** para um lote de 3 linhas numa
+regressão logística; ~0,05 ms por linha numa floresta de 10 árvores. A conta
+não é sobre computação — é sobre a viagem de rede que deixa de existir.
+
+!!! tip "O que você economiza é a viagem, não o cálculo"
+    Medido no lado do servidor com o `tempest-fastapi-sdk`: uma predição de
+    uma linha custa **0,0075 ms de inferência dentro de 1,22 ms de HTTP** —
+    160x mais transporte que modelo, e isso com cliente em processo, sem
+    rede.
+
+    No navegador esse 1,22 ms simplesmente não existe: a mesma predição sai
+    em ~0,05 ms, local. Por isso o critério da tabela acima é sobre
+    **frescor do modelo e tamanho**, não sobre velocidade de cálculo — a
+    velocidade você já ganhou tirando a rede do caminho.
+
+## Num componente React
+
+O hook cuida do que todo componente erra igual: carregamento assíncrono,
+cancelamento quando o componente desmonta antes de terminar, e liberação da
+sessão.
+
+```tsx
+import { useState } from "react";
+import { useTabularPredictor } from "tempest-react-sdk/tabular";
+
+function RiskWidget() {
+  const { predict, isReady, error } = useTabularPredictor("/models/risk-v3.onnx");
+  const [score, setScore] = useState<number | null>(null);
+
+  async function onScore(features: number[]) {
+    const { probabilities } = await predict([features]);
+    setScore(probabilities[0]?.[1] ?? null);
+  }
+
+  if (error) return <p>Modelo indisponível: {error.message}</p>;
+
+  return (
+    <button disabled={!isReady} onClick={() => onScore([1, 2, 3, 4])}>
+      {isReady ? "Calcular score" : "Carregando modelo..."}
+    </button>
+  );
+}
+```
+
+!!! tip "Versione o nome do arquivo"
+    `classifier-v3.onnx`, não `classifier.onnx`. O cache do navegador não
+    tem como saber que o conteúdo mudou, e um modelo velho servido do cache
+    é o tipo de bug que ninguém liga ao deploy da semana passada. Com o
+    pacote (`loadEdgePackage`) isso vem resolvido: a `version` do manifesto
+    é derivada do conteúdo.
+
+!!! danger "Exportar com `skl2onnx` na mão quebra no navegador"
+    Medido: o default do `skl2onnx` deixa o **ZipMap** ligado, e a saída de
+    probabilidade vira uma *sequência de mapas*. O ONNX Runtime Web recusa
+    valores que não são tensor — `Reading data from non-tensor typed value is
+    not supported` — e a predição morre em runtime, não no build.
+
+    Use `export_sklearn_to_onnx` (ou `edge_pipeline`), que desliga o ZipMap.
+    Se o `.onnx` veio de outra origem, o módulo detecta e o erro diz o que
+    fazer em vez de repetir a mensagem do runtime.
+
+## Pacote de borda: o manifesto que vem do Python
+
+Do lado do Python, `edge_pipeline` publica um **diretório**, não um arquivo:
+
+```text
+dist/risk/
+├── risk.onnx          o grafo
+├── risk.onnx.gz       o mesmo, ~10% do tamanho
+├── baseline.json      referência de deriva
+└── manifest.json      o contrato
+```
+
+Sirva esse diretório como asset estático e o navegador lê o mesmo contrato:
+
+```tsx
+import { loadEdgePackage } from "tempest-react-sdk/tabular";
+
+const pkg = await loadEdgePackage("/models/risk/");
+
+console.log(pkg.featureNames); // ["age", "income", "tenure", "score"]
+console.log(pkg.classes);      // ["0", "1", "2"]
+
+const { probabilities } = await pkg.predictor.predict([[41, 5200, 3, 0.82]]);
+console.log(pkg.explain(probabilities[0]!));
+```
+
+```text
+[{ name: "2", score: 0.7484 }, { name: "0", score: 0.1564 }, { name: "1", score: 0.0952 }]
+```
+
+!!! danger "A ordem das colunas é o campo que salva você"
+    Modelo alimentado com as features certas **na ordem errada** responde com
+    confiança e errado. Não existe checagem em runtime que pegue isso — o
+    tensor tem a largura certa, os números são plausíveis, e a resposta é
+    lixo.
+
+    `featureNames` vem do treino, gravado pelo `edge_pipeline`. Use-o para
+    montar a linha a partir do seu formulário, em vez de confiar que a ordem
+    do `<form>` bate com a do `DataFrame` de seis meses atrás.
+
+!!! info "Modelo que nasceu de um `.pkl`"
+    Se o pacote foi gerado por `edge_pipeline_from_pickle`, o manifesto traz
+    `source` — nome, SHA-256 e a versão do scikit-learn que converteu:
+
+    ```tsx
+    const manifest = await fetchEdgeManifest("/models/risk/");
+    console.log(manifest.source?.file, manifest.source?.sha256.slice(0, 12));
+    ```
+
+    O `.pkl` **não** viaja para o navegador, e não é limitação: pickle é
+    programa Python, não dado. O que viaja é o ONNX mais o carimbo de qual
+    arquivo o produziu — o suficiente para rastrear um modelo rodando numa
+    aba de volta até a esteira, seis meses depois.
+
+### Checar versão sem baixar o modelo
+
+```tsx
+import { fetchEdgeManifest } from "tempest-react-sdk/tabular";
+
+const manifest = await fetchEdgeManifest("/models/risk/");
+if (manifest.version !== localStorage.getItem("risk-version")) {
+  // modelo novo publicado — vale baixar
+}
+```
+
+O manifesto tem algumas centenas de bytes. A `version` é derivada do
+conteúdo, então republicar os mesmos bytes **não** parece versão nova.
+
+!!! info "Compatibilidade é explícita"
+    O `schema_version` é conferido. Pacote escrito por um SDK mais novo do
+    que este leitor entende é **recusado**, com a instrução de atualizar —
+    ler assim mesmo arriscaria interpretar errado justamente o campo de
+    ordem das colunas. Campos desconhecidos, ao contrário, são ignorados: um
+    acréscimo compatível não quebra nada.
+
+## Instalação
+
+`onnxruntime-web` é **peer dependency opcional**: só quem usa esse subpath
+instala.
+
+```bash
+npm install onnxruntime-web
+```
+
+!!! danger "Importe o pacote padrão, nunca `onnxruntime-web/webgpu`"
+    Medido no Chromium: o build WebGPU carrega um binário WebAssembly **sem o
+    domínio `ai.onnx.ml`**, e a sessão nem chega a abrir —
+    `No Op registered for TreeEnsembleClassifier`.
+
+    Modelos de scikit-learn são feitos desses operadores
+    (`TreeEnsembleClassifier`, `LinearClassifier`, `Scaler`), então não há
+    velocidade sobrando pra buscar na GPU: o backend `wasm` é o único que os
+    implementa, e é o default do módulo. Quando o erro acontece, ele vira
+    `UnsupportedGraphError` com a instrução de trocar o import.
+
+## Offline de verdade
+
+São **duas** coisas que precisam estar no dispositivo, e esquecer a segunda é
+o erro clássico.
+
+### O modelo
+
+Fica em Cache Storage na primeira visita:
+
+```tsx
+import { fetchModelBytes, isModelCached } from "tempest-react-sdk/tabular";
+
+const bytes = await fetchModelBytes("/models/classifier-v3.onnx");
+const predictor = await TabularPredictor.create(bytes);
+
+console.log(await isModelCached("/models/classifier-v3.onnx")); // true
+```
+
+Cache-first, não network-first: um arquivo de modelo é imutável para uma dada
+versão, então revalidar a cada carga gasta uma ida à rede pra não aprender
+nada. Publique versão nova sob URL nova (ou passe `revalidate: true`).
+
+O hook faz isso sozinho quando a fonte é uma URL — `cache: false` desliga.
+
+### O runtime
+
+```tsx
+import { configureOrtAssets, ortAssetUrls } from "tempest-react-sdk/tabular";
+
+configureOrtAssets("/ort/");
+```
+
+!!! warning "O ONNX Runtime Web não embute o WebAssembly — nem nos builds `.bundle`"
+    Medido: servindo o app sem os `.wasm` ao lado, a criação da sessão falha
+    com `Aborted(both async and sync fetching of the wasm failed)` — uma
+    mensagem que não diz qual arquivo faltou. No Chromium o arquivo buscado
+    foi `ort-wasm-simd-threaded.jsep.wasm`.
+
+    Copie os binários de `node_modules/onnxruntime-web/dist/` para o seu
+    diretório público no build, e precache junto:
+
+    ```ts
+    import { installPrecache } from "tempest-react-sdk/sw";
+    import { ortAssetUrls } from "tempest-react-sdk/tabular";
+
+    installPrecache([...ortAssetUrls("/ort/"), "/index.html"]);
+    ```
+
+    Qual binário é buscado depende do suporte a threads e SIMD do navegador,
+    então um app que precisa funcionar em todo lugar leva todos —
+    `ORT_WASM_ASSETS` tem a lista.
+
+## Detalhes que o módulo resolve por você
+
+!!! info "Rótulo int64 chega como `bigint`"
+    O ONNX Runtime Web devolve o tensor de rótulo como `BigInt64Array`. Quem
+    compara `label === 1` recebe `false` em silêncio, e `JSON.stringify`
+    lança. O módulo converte para `number` — índice de classe nunca chega
+    perto de `Number.MAX_SAFE_INTEGER`.
+
+!!! info "Qual saída é qual"
+    Classificador devolve `label` + `probabilities`; regressor devolve um
+    único `variable`. Indexar por posição funciona até o dia em que você
+    publica o outro tipo. `predictor.info` diz o que foi carregado:
+
+    ```ts
+    console.log(predictor.info);
+    // { inputName: "input", numFeatures: 4, isClassifier: true, ... }
+    ```
+
+!!! info "Linha de largura errada falha antes do runtime"
+    `FeatureShapeError` nomeando a expectativa (`o modelo espera 4 features
+    por linha, recebeu 2`), em vez de um erro opaco vindo do WebAssembly.
+    Lote irregular também: o erro diz **qual linha**.
+
+## Erros
+
+Todos herdam de `TabularError`, então dá pra pegar a família inteira. O
+`name` é literal — o minificador renomeia classes, e um build real reportava
+`error.name === "t"` antes disso ser corrigido.
+
+| Erro | Quando |
+| --- | --- |
+| `UnsupportedGraphError` | Runtime sem os operadores `ai.onnx.ml` (build WebGPU) |
+| `ModelLoadError` | Bytes não viraram sessão |
+| `ModelFetchError` | Offline e nada em cache — problema de deploy, não de modelo |
+| `FeatureShapeError` | Lote vazio, irregular ou da largura errada |
+| `InferenceError` | Rodou mas a saída não é legível (export com ZipMap) |
+
+## API
+
+| Símbolo | O que é |
+| --- | --- |
+| `TabularPredictor.create(source, options?)` | Carrega um modelo (URL ou bytes) |
+| `predictor.predict(rows)` | Prediz um lote; devolve `labels`, `probabilities`, `ms` |
+| `predictor.info` | Entrada, nº de features, saídas, providers em uso |
+| `predictor.dispose()` | Libera a sessão |
+| `useTabularPredictor(source, options?)` | Hook com `status`/`isReady`/`predict`/`reload` |
+| `loadEdgePackage(directoryUrl, options?)` | Carrega um pacote publicado pelo `edge_pipeline` |
+| `fetchEdgeManifest(directoryUrl)` | Só o manifesto — versão, colunas, classes |
+| `fetchModelBytes(url, options?)` | Bytes do cache, com rede como fallback |
+| `isModelCached(url)` / `cacheModelBytes` / `clearModelCache` | Gestão do cache |
+| `configureOrtAssets(basePath)` / `ortAssetUrls(basePath)` / `ORT_WASM_ASSETS` | Assets do runtime |
+| `DEFAULT_TABULAR_PROVIDERS` | `["wasm"]`, pelo motivo acima |
+
+## Recapitulando
+
+- Exporte com `export_sklearn_to_onnx` — ZipMap ligado não roda no navegador.
+- Importe `onnxruntime-web`, **não** o subpath `/webgpu`.
+- Sirva o `.onnx` como asset versionado; o cache cuida do resto.
+- Copie e precache os `.wasm`, senão "offline" só funciona online.
+- Use o hook em componente; a classe direto em worker ou fora do React.
 
 ---
 

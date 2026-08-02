@@ -25,3 +25,108 @@
     font-size: 0.75em;
     opacity: 0.7;
 }
+
+/* ── Inline editing ─────────────────────────────────────────────────────────── */
+
+.cellWrap {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-space-1, 0.25rem);
+    align-items: stretch;
+    width: 100%;
+}
+
+.cellButton {
+    position: relative;
+    display: block;
+    width: 100%;
+    margin: calc(-1 * var(--tempest-space-1, 0.25rem)) calc(-1 * var(--tempest-space-2, 0.5rem));
+    padding: var(--tempest-space-1, 0.25rem) var(--tempest-space-2, 0.5rem);
+    border: 1px dashed transparent;
+    border-radius: var(--tempest-radius-sm, 0.25rem);
+    background: none;
+    font: inherit;
+    color: inherit;
+    text-align: inherit;
+    cursor: pointer;
+}
+
+/*
+ * A resting affordance, not only a hover one: on a touch screen there is no hover,
+ * so an editable cell that looks exactly like a read-only one is undiscoverable.
+ * The dashed underline is the weakest mark that still says "this is editable"; hover
+ * and focus then promote it to a full box.
+ */
+.cellButton {
+    border-bottom-color: var(--tempest-border-strong);
+}
+
+.cellButton:hover {
+    border-color: var(--tempest-border-strong);
+    background-color: var(--tempest-surface-2);
+}
+
+.cellButton:focus-visible {
+    outline: none;
+    border-color: transparent;
+    box-shadow: 0 0 0 var(--tempest-focus-ring-width) var(--tempest-focus-ring-color);
+}
+
+.cellButtonInvalid {
+    border-color: var(--tempest-danger-border);
+}
+
+/*
+ * Touch: grow the hit area to the cell's own padding — exactly `--tempest-space-3`
+ * vertically and `--tempest-space-4` horizontally in `Table.module.css` — so the
+ * whole `<td>` is tappable and the target clears 44px without spilling into the
+ * neighbouring row, which a symmetric slop would do in a dense table.
+ */
+@media (pointer: coarse) {
+    .cellButton::after {
+        content: "";
+        position: absolute;
+        inset-block: calc(-1 * var(--tempest-space-3, 0.75rem));
+        inset-inline: calc(-1 * var(--tempest-space-4, 1rem));
+    }
+}
+
+.cellButton[aria-busy="true"] {
+    opacity: 0.6;
+}
+
+.cellEditor {
+    width: 100%;
+    min-width: 0;
+    margin: calc(-1 * var(--tempest-space-1, 0.25rem)) calc(-1 * var(--tempest-space-2, 0.5rem));
+    padding: var(--tempest-space-1, 0.25rem) var(--tempest-space-2, 0.5rem);
+    border: 1px solid var(--tempest-border-strong);
+    border-radius: var(--tempest-radius-sm, 0.25rem);
+    background-color: var(--tempest-bg);
+    font: inherit;
+    color: var(--tempest-text);
+}
+
+.cellEditor:focus {
+    outline: none;
+    box-shadow: 0 0 0 var(--tempest-focus-ring-width) var(--tempest-focus-ring-color);
+}
+
+.cellEditorInvalid {
+    border-color: var(--tempest-danger-border);
+}
+
+/*
+ * The message sits on a tinted fill because `--tempest-danger-fg` over
+ * `--tempest-danger-bg` is a pair `contrast.test.ts` verifies in both themes;
+ * danger text straight onto the table background is not.
+ */
+.cellError {
+    padding: 0.125rem var(--tempest-space-2, 0.5rem);
+    border-radius: var(--tempest-radius-sm, 0.25rem);
+    background-color: var(--tempest-danger-bg);
+    color: var(--tempest-danger-fg);
+    font-size: var(--tempest-font-size-sm, 0.8125rem);
+    line-height: 1.4;
+    white-space: normal;
+}

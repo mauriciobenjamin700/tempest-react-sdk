@@ -43,6 +43,13 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   do scikit-learn, e o leitor JS reproduz rótulos idênticos e probabilidades
   em 5 casas nas 7 famílias.
 
+  **Validado em Chromium real** (`e2e/tabular.spec.ts`, 5 casos contra o
+  `dist`): a rota compacta **não busca nenhum `.wasm`** — provado pela
+  timeline de recursos da página —, responde igual ao scikit-learn nas 7
+  famílias e segue respondendo com o `fetch` derrubado. Medido lá: carga de
+  **6,0 ms contra 579,6 ms** do ONNX e predição de **0,0035 ms contra
+  0,0575 ms**, com o wasm servido localmente (sem rede, o piso).
+
 - **Manifesto lê a procedência (`source`).** Pacote gerado pelo
   `edge_pipeline_from_pickle` do `tempest-fastapi-sdk` (v0.193.0) carrega o
   nome, o SHA-256 e a versão do scikit-learn que converteu o `.pkl`. Campo

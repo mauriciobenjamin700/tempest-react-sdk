@@ -103,6 +103,26 @@ The usual path. **Zero marginal cost if the app already loads
 `tempest-react-sdk/vision`. Then the runtime is already paid for and ONNX
 covers every estimator.
 
+### Measured in the browser, against the built `dist`
+
+Chromium, the same 10-tree forest served through both routes, with the wasm
+served locally — that is, **no network latency**, the floor:
+
+| | Compact | ONNX |
+| --- | --- | --- |
+| Load until it can answer | **6.0 ms** | 579.6 ms |
+| Predict (batch of 3 rows) | **0.0035 ms** | 0.0575 ms |
+| `.wasm` downloaded | **none** | 25.6 MB |
+
+Loading is 97x faster and predicting 16x — the reader allocates no tensors
+and never crosses the WebAssembly boundary, which at this model size is the
+entire cost.
+
+The `e2e/tabular.spec.ts` suite proves all three in a real Chromium: that the
+compact route **fetches no `.wasm` at all** (reading the page's own resource
+timeline), that it answers exactly as scikit-learn across 7 families, and
+that it keeps answering with `fetch` taken away.
+
 ### How to decide
 
 | Situation | Route |

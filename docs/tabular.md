@@ -100,6 +100,26 @@ O caminho de sempre. **Custo marginal zero se o app já carrega
 `onnxruntime-web`** — por exemplo se usa `tempest-react-sdk/vision`. Aí o
 runtime já foi pago e o ONNX cobre qualquer estimador.
 
+### Medido no navegador, com o `dist` construído
+
+Chromium, mesma floresta de 10 árvores servida nas duas rotas, wasm servido
+localmente (ou seja, **sem latência de rede** — o piso):
+
+| | Compacta | ONNX |
+| --- | --- | --- |
+| Carga até poder responder | **6,0 ms** | 579,6 ms |
+| Predição (lote de 3 linhas) | **0,0035 ms** | 0,0575 ms |
+| `.wasm` baixado | **nenhum** | 25,6 MB |
+
+A carga é 97x mais rápida, e a predição 16x — o leitor não aloca tensor nem
+atravessa a fronteira do WebAssembly, que nesse tamanho de modelo é o custo
+inteiro.
+
+A suíte `e2e/tabular.spec.ts` prova as três coisas em Chromium de verdade:
+que a rota compacta **não busca nenhum `.wasm`** (lendo a timeline de recursos
+da própria página), que ela responde igual ao scikit-learn nas 7 famílias, e
+que continua respondendo com o `fetch` derrubado.
+
 ### Como decidir
 
 | Situação | Rota |

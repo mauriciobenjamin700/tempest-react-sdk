@@ -139,6 +139,38 @@ describe.each(["light", "dark"] as const)("%s theme contrast", (theme) => {
     });
 });
 
+/**
+ * Tripwire for the pairs that are known-bad.
+ *
+ * The suite above proves the pairs the SDK *uses* are safe. This one proves the pairs it
+ * must never use are still unsafe — because the reason `--tempest-primary-on-soft`
+ * exists is invisible from the token list alone, and a future palette edit that made
+ * `--tempest-primary` readable on the tint would quietly turn the on-soft token into
+ * apparent dead weight for someone to delete.
+ *
+ * If one of these starts passing, the token is genuinely redundant and this test should
+ * be removed along with it — deliberately, not by accident.
+ *
+ * Note what a token-level guard cannot do: it cannot see that a component *used* the
+ * wrong token. `Button`'s `.outline:hover` tinted its background without restating its
+ * colour and sat at 4.38:1 in the light theme while every pair in this file passed. The
+ * browser sweep is what catches that class; this file catches palette drift.
+ */
+describe.each(["light", "dark"] as const)("%s theme known-bad pairs", (theme) => {
+    const map = themes()[theme];
+
+    it("primary as text on primary-soft stays below the floor", () => {
+        expect(
+            contrast(value(map, "--tempest-primary"), value(map, "--tempest-primary-soft")),
+        ).toBeLessThan(TEXT_FLOOR);
+    });
+
+    it("white on the success and warning fills stays below the floor", () => {
+        expect(contrast("#ffffff", value(map, "--tempest-success-solid"))).toBeLessThan(TEXT_FLOOR);
+        expect(contrast("#ffffff", value(map, "--tempest-warning-solid"))).toBeLessThan(TEXT_FLOOR);
+    });
+});
+
 describe("contrast helpers", () => {
     it("computes the reference ratios from WCAG", () => {
         expect(contrast("#ffffff", "#000000")).toBeCloseTo(21, 5);

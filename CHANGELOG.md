@@ -4,6 +4,36 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **O hover do `Button variant="outline"` deixava o rótulo mais difícil de ler
+  no momento exato em que o ponteiro estava nele.** A regra tingia o fundo com
+  `--tempest-primary-soft` sem repetir a cor, então o `--tempest-primary` que o
+  `.outline` define sobre fundo transparente ficava sobre o tingido: **4,38:1 no
+  tema claro e 4,28:1 no escuro**, ambos abaixo do piso de 4,5:1 para texto.
+  Passou a usar `--tempest-primary-on-soft` (6,18:1 / 8,72:1) — a regra que o
+  `docs/styles.md` já documentava.
+
+  **Varri as outras oito regras do SDK que tingem fundo sem declarar cor** —
+  `FileUpload`, `Kanban`, `ListTile`, `Toggle`, `ToggleGroup` e
+  `MunicipalitySearch`. Todas herdam `--tempest-text` (16,07:1 / 14,17:1),
+  `--tempest-text-muted` (6,96:1 / 7,37:1) ou `--tempest-primary-on-soft`, e
+  passam. Esta era a única.
+
+  O guard de token do `src/styles/contrast.test.ts` **não pega essa classe** e
+  não pegaria: ele valida os pares que o SDK usa, e aqui o defeito era um
+  componente usando o token errado. Ficou escrito no arquivo, junto de um
+  tripwire novo que afirma que os pares proibidos continuam reprovando — se
+  `--tempest-primary` algum dia passar sobre `primary-soft`, o
+  `--tempest-primary-on-soft` virou peso morto e a remoção passa a ser
+  deliberada em vez de acidental.
+
+### Documentação
+
+- **`styles` corrigiu um número que carregava desde antes**: o par
+  `primary`/`primary-soft` é 4,38:1 no claro e 4,28:1 no escuro, não 4,37:1
+  sem tema.
+
 ### Adicionado
 
 - **Trilhos de pagamento e fiscal BR no subpath `/br`: Pix, boleto, chave de acesso

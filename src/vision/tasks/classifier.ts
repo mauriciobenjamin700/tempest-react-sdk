@@ -6,6 +6,7 @@ import type * as ort from "onnxruntime-web";
 
 import { type ModelSource, type OrtSessionOptions, OrtSession } from "../core/session";
 import { SpeedTimer } from "../core/timing";
+import { resolveInputSize } from "../core/graph";
 import { type ImageInput, loadImage } from "../io/image";
 import { type LabelSpec, resolveLabels } from "../labels";
 import { softmax, topK } from "../postprocess/classification";
@@ -25,7 +26,13 @@ export interface ClassifierOptions extends OrtSessionOptions {
      * or when you want to validate that the supplied labels match the model.
      */
     readonly numClasses?: number;
-    /** Model input `[width, height]` in pixels. Defaults to `[224, 224]`. */
+    /**
+     * Model input `[width, height]` in pixels.
+     *
+     * Only used when the model's graph leaves its spatial axes dynamic: a graph
+     * that declares a static size always wins, since that is the only shape ONNX
+     * Runtime will accept. Defaults to `[224, 224]`.
+     */
     readonly inputSize?: readonly [number, number];
     /** Per-channel RGB mean used for normalization. Defaults to ImageNet. */
     readonly mean?: readonly [number, number, number];
@@ -94,7 +101,11 @@ export class Classifier extends VisionTask {
             session,
             labels,
             names,
-            options.inputSize ?? [224, 224],
+            resolveInputSize({
+                graphShape: session.inputShape,
+                requested: options.inputSize,
+                fallback: [224, 224],
+            }),
             options.mean ?? IMAGENET_MEAN,
             options.std ?? IMAGENET_STD,
             options.applySoftmax ?? true,
@@ -109,6 +120,17 @@ export class Classifier extends VisionTask {
     /** Class id → class name dict (matches Ultralytics' `model.names`). */
     get names(): Readonly<Record<number, string>> {
         return this._names;
+    }
+
+    /**
+     * The `[width, height]` this task preprocesses to.
+     *
+     * Resolved at creation time from the model's graph when it declares a static
+     * input, so reading it back tells you the resolution inference really runs at
+     * — not merely what was requested.
+     */
+    get inputSize(): readonly [number, number] {
+        return this._inputSize;
     }
 
     /** Number of classes the model can predict. */

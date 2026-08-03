@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.37.0] — 2026-08-03
+
 ### Adicionado
 
 - **`tempest-react-sdk/vision` agora pré-processa na resolução que o grafo
@@ -41,6 +43,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - **`declaredShapesFrom`, `spatialInputSize`, `resolveInputSize`** (+ tipos
   `DeclaredShape` / `DeclaredDim`): os helpers puros da precedência
   grafo → chamador → default, exportados para quem monta o próprio pipeline.
+
+## [0.36.0] — 2026-08-02
 
 ### Corrigido
 

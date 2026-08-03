@@ -4,6 +4,44 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`tempest-react-sdk/vision` agora pré-processa na resolução que o grafo
+  `.onnx` declara, em vez de acreditar na configuração** (vendorado de
+  `ort-vision-sdk-web@0.4.0`). A resolução que uma sessão aceita é propriedade
+  do export: um `-cls` do Ultralytics sai em 224×224 e um detector em 640×640,
+  então alimentar o tamanho errado fazia o ORT abortar a run com
+
+  ```text
+  Inference failed: failed to call OrtRun(). ERROR_CODE: 2, ERROR_MESSAGE: Got
+  invalid dimensions for input: images ... Got: 640 Expected: 224
+  ```
+
+  que chegava ao usuário final como uma falha genérica de análise. O número só
+  existe dentro do arquivo, então nenhuma constante ou manifest ao lado dele
+  podia acertar sozinho — agora é lido de lá.
+
+  ```tsx
+  const clf = await Classifier.create("/models/classify.onnx", { labels: LABELS });
+  console.log(clf.inputSize); // [224, 224] — do grafo, não configurado
+  ```
+
+  `inputSize` passa a ser fallback, usado só quando o grafo deixa os eixos
+  espaciais dinâmicos. Um valor que contradiz um grafo estático emite aviso no
+  console e é ignorado (o ORT rejeitaria de qualquer forma).
+
+- **`inputSize` em `Classifier`/`Detector`/`Segmenter`**, para ler de volta a
+  resolução em que a inferência realmente rodou — não a que foi pedida.
+
+- **`OrtSession.inputShape` / `.inputShapes`** expõem os shapes declarados pelo
+  grafo (eixos dinâmicos como `null`), e **`OrtSession.release()`** libera a
+  sessão nativa. Antes, ambos exigiam alcançar `session.raw` e importar tipos do
+  `onnxruntime-web` no código da aplicação.
+
+- **`declaredShapesFrom`, `spatialInputSize`, `resolveInputSize`** (+ tipos
+  `DeclaredShape` / `DeclaredDim`): os helpers puros da precedência
+  grafo → chamador → default, exportados para quem monta o próprio pipeline.
+
 ### Corrigido
 
 - **O hover do `Button variant="outline"` deixava o rótulo mais difícil de ler

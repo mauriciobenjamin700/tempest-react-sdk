@@ -169,13 +169,16 @@ const result = (
 ```
 
 Os defaults (definidos no `create()`) são `confThreshold: 0.25`,
-`iouThreshold: 0.45`, `maxDetections: 300` e `inputSize: [640, 640]`.
+`iouThreshold: 0.45`, `maxDetections: 300` e `inputSize: [640, 640]` — este
+último só entra em cena quando o modelo não declara resolução (ver
+[A resolução vem do modelo](#a-resolucao-vem-do-modelo)).
 
 ## Classifier — que imagem é essa
 
-`Classifier` aplica pré-processamento estilo ImageNet (224×224, normalização com
-média/desvio do ImageNet) e devolve a distribuição de probabilidades. Aqui
-`labels` é **obrigatório** (não há preset de ImageNet embutido):
+`Classifier` aplica pré-processamento estilo ImageNet (224×224 por padrão,
+normalização com média/desvio do ImageNet) e devolve a distribuição de
+probabilidades. Aqui `labels` é **obrigatório** (não há preset de ImageNet
+embutido):
 
 ```tsx
 import { Classifier } from "tempest-react-sdk/vision";
@@ -242,6 +245,43 @@ Cada `SegmentationResult` carrega os mesmos campos da detecção (`cls`/`conf`/
 
 - `mask` — a máscara binária (`Mask`, valores `0`/`255`, recortada na caixa).
 - `segmentedImage` — o recorte original com o fundo zerado (pronto pra exibir).
+
+## A resolução vem do modelo
+
+`inputSize` é opcional e serve de **fallback**. A resolução em que a task
+pré-processa é lida do shape que o grafo `.onnx` declara:
+
+```tsx
+const clf = await Classifier.create("/models/classify.onnx", { labels: LABELS });
+console.log(clf.inputSize); // [224, 224] — lido do arquivo, não configurado
+```
+
+!!! danger "Por que isso não podia ficar na configuração"
+    Um export `-cls` do Ultralytics sai em 224×224; um detector, em 640×640.
+    Alimentar o grafo com o tamanho errado faz o ORT abortar a run com
+    `Got invalid dimensions for input: images ... Got: 640 Expected: 224` — e o
+    número só existe dentro do `.onnx`, então nenhuma constante, manifest ou env
+    var ao lado dele podia acertar sozinha.
+
+Passar um `inputSize` que contradiz um grafo estático emite um aviso no console
+e é ignorado: obedecer ali só trocaria um problema corrigível por uma execução
+que falha. Em modelos com eixo dinâmico o seu valor vale, e o default da task é
+o último recurso.
+
+A sessão também expõe o que leu, e agora sabe se liberar:
+
+```tsx
+console.log(clf.session.inputShape); // [1, 3, 224, 224] — null em eixo dinâmico
+await clf.session.release(); // libera a sessão nativa
+```
+
+!!! tip "Telemetria honesta"
+    `task.inputSize` é a resolução que a inferência **realmente** usou. Reportar
+    o valor configurado esconde justamente o bug que você está caçando.
+
+Os helpers puros por trás disso (`spatialInputSize`, `resolveInputSize`,
+`declaredShapesFrom`) também são exportados, para quem monta o próprio pipeline
+sem precisar importar tipos do `onnxruntime-web`.
 
 ## Rótulos: presets, listas e dicts
 

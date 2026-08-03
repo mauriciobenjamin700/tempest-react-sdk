@@ -170,13 +170,15 @@ const result = (
 ```
 
 The defaults (set at `create()`) are `confThreshold: 0.25`, `iouThreshold: 0.45`,
-`maxDetections: 300`, and `inputSize: [640, 640]`.
+`maxDetections: 300`, and `inputSize: [640, 640]` — the last one only kicks in
+when the model declares no resolution (see
+[The resolution comes from the model](#the-resolution-comes-from-the-model)).
 
 ## Classifier — what is this image
 
-`Classifier` applies ImageNet-style preprocessing (224×224, normalization with
-ImageNet mean/std) and returns the probability distribution. Here `labels` is
-**required** (there is no built-in ImageNet preset):
+`Classifier` applies ImageNet-style preprocessing (224×224 by default,
+normalization with ImageNet mean/std) and returns the probability distribution.
+Here `labels` is **required** (there is no built-in ImageNet preset):
 
 ```tsx
 import { Classifier } from "tempest-react-sdk/vision";
@@ -243,6 +245,43 @@ Each `SegmentationResult` carries the same fields as a detection (`cls`/`conf`/
 - `mask` — the binary mask (`Mask`, values `0`/`255`, cropped to the box).
 - `segmentedImage` — the original crop with the background zeroed out (ready to
   display).
+
+## The resolution comes from the model
+
+`inputSize` is optional and acts as a **fallback**. The resolution a task
+preprocesses to is read from the shape the `.onnx` graph declares:
+
+```tsx
+const clf = await Classifier.create("/models/classify.onnx", { labels: LABELS });
+console.log(clf.inputSize); // [224, 224] — read from the file, not configured
+```
+
+!!! danger "Why this could not live in configuration"
+    An Ultralytics `-cls` export comes out at 224×224; a detector, at 640×640.
+    Feeding the graph the wrong size makes ORT abort the run with
+    `Got invalid dimensions for input: images ... Got: 640 Expected: 224` — and
+    the number only exists inside the `.onnx`, so no constant, manifest or env
+    var beside it could get it right on its own.
+
+Passing an `inputSize` that contradicts a static graph logs a warning and is
+ignored: obeying it there would only trade a fixable problem for a failed run.
+On dynamic-axis models your value stands, and the task default is the last
+resort.
+
+The session also exposes what it read, and now knows how to free itself:
+
+```tsx
+console.log(clf.session.inputShape); // [1, 3, 224, 224] — null on a dynamic axis
+await clf.session.release(); // frees the native session
+```
+
+!!! tip "Honest telemetry"
+    `task.inputSize` is the resolution inference **actually** used. Reporting the
+    configured value hides exactly the bug you are hunting.
+
+The pure helpers behind this (`spatialInputSize`, `resolveInputSize`,
+`declaredShapesFrom`) are exported too, for anyone assembling their own pipeline
+without importing `onnxruntime-web` types.
 
 ## Labels: presets, lists, and dicts
 

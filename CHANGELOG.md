@@ -4,6 +4,51 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.38.0] — 2026-08-04
+
+### Adicionado
+
+- **`tempest-react-sdk/vision` lê os nomes das classes e a contagem de classes
+  do próprio modelo** (vendorado de `ort-vision-sdk-web@0.5.0`). `labels` passa a
+  ser opcional: sem ele valem os `names` que o export gravou no `.onnx` — o
+  Ultralytics escreve `{0: 'deworm', 1: 'not_deworm'}` nos metadados — e só um
+  modelo sem `names` cai no preset COCO (detecção/segmentação) ou em
+  `class_<id>` (classificação). Passar `labels` continua ganhando.
+
+  ```tsx
+  const det = await Detector.create("/models/detect.onnx");
+  console.log(det.labels); // ["ocular-mucosa"] — do modelo, não de um preset
+  console.log(det.numClasses); // 1 — deduzido do shape de saída
+  ```
+
+  Uma lista de rótulos mantida à mão do lado do modelo é o pior tipo de
+  configuração para errar: nada falha, as predições só trocam de classe.
+
+  Isso também conserta um tropeço: um detector de **uma** classe **falhava** sem
+  `labels` explícito, porque o default COCO de 80 nomes discordava da contagem
+  de classes do modelo.
+
+- **`numClasses` é deduzido do shape de saída declarado** — `(B, 4 + nc, N)`
+  numa cabeça YOLO, `(B, nc)` num classificador. Passar o valor continua
+  validando os rótulos contra o modelo.
+
+- **`OrtSession.metadata`** expõe o mapa de metadados do modelo (`names`,
+  `task`, `imgsz`, …), e **`OrtSession.outputShapes` / `.outputShape`** os shapes
+  declarados para as saídas, com eixos dinâmicos como `null`.
+
+- **`readModelMetadata`, `modelNames`, `detectionNumClasses`,
+  `classificationNumClasses`** — os helpers puros por trás do acima.
+
+### Mudado
+
+- **Um modelo informado por URL passa a ser baixado pelo SDK**, não pelo ORT: o
+  `onnxruntime-web` não expõe o mapa de metadados do modelo (diferente do
+  `custom_metadata_map` do Python), então os `metadata_props` são lidos dos
+  próprios bytes do `.onnx`. É o mesmo download único, e
+  `readMetadata: false` nas opções da sessão restaura o caminho anterior. Um
+  fetch que falha ainda entrega a URL ao ORT, para não transformar perda de
+  metadados em falha de carregamento.
+
 ## [0.37.0] — 2026-08-03
 
 ### Adicionado

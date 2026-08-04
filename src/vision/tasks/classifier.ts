@@ -6,8 +6,9 @@ import type * as ort from "onnxruntime-web";
 
 import { type ModelSource, type OrtSessionOptions, OrtSession } from "../core/session";
 import { SpeedTimer } from "../core/timing";
-import { resolveInputSize } from "../core/graph";
 import { type ImageInput, loadImage } from "../io/image";
+import { classificationNumClasses, resolveInputSize } from "../core/graph";
+import { modelNames } from "../core/metadata";
 import { type LabelSpec, resolveLabels } from "../labels";
 import { softmax, topK } from "../postprocess/classification";
 import { normalize, resize, toCHW, toFloat32Tensor } from "../preprocess/image";
@@ -19,11 +20,20 @@ const IMAGENET_MEAN: readonly [number, number, number] = [0.485, 0.456, 0.406];
 const IMAGENET_STD: readonly [number, number, number] = [0.229, 0.224, 0.225];
 
 export interface ClassifierOptions extends OrtSessionOptions {
-    /** Class label spec — see {@link resolveLabels}. */
-    readonly labels: LabelSpec;
     /**
-     * Number of classes the model can predict. Required when `labels` is `null`
-     * or when you want to validate that the supplied labels match the model.
+     * Class label spec — see {@link resolveLabels}.
+     *
+     * Optional: when omitted, the names the export baked into the model are used
+     * (Ultralytics writes them as `names` in the metadata map). Only when the
+     * model carries none does this fall back to generated `class_<id>` labels.
+     * Passing a spec always wins, for a model whose names are wrong or absent.
+     */
+    readonly labels?: LabelSpec;
+    /**
+     * Number of classes the model can predict.
+     *
+     * Optional: inferred from the classification head's declared output shape
+     * `(B, nc)`. Pass it to validate that the supplied labels match the model.
      */
     readonly numClasses?: number;
     /**
@@ -90,9 +100,13 @@ export class Classifier extends VisionTask {
     }
 
     /** Load the model and resolve labels. */
-    static async create(model: ModelSource, options: ClassifierOptions): Promise<Classifier> {
+    static async create(model: ModelSource, options: ClassifierOptions = {}): Promise<Classifier> {
         const session = await OrtSession.create(model, options);
-        const labels = resolveLabels(options.labels, { numClasses: options.numClasses });
+        const numClasses =
+            options.numClasses ?? classificationNumClasses(session.outputShape) ?? undefined;
+        const labels = resolveLabels(options.labels ?? modelNames(session.metadata), {
+            numClasses,
+        });
         const names: Record<number, string> = {};
         for (let i = 0; i < labels.length; i++) {
             names[i] = labels[i] as string;

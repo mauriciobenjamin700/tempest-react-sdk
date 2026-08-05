@@ -17,3 +17,8 @@ docs
 # Fixtures are produced by tempest-fastapi-sdk; reformatting them would
 # make the test data stop being what the writer actually emits.
 src/**/__fixtures__/
+
+# Agent scratch space: `.claude/worktrees/` holds git worktrees of this repo, so
+# `prettier --check .` walks a second copy of src/ and fails on files that are
+# ignored in their own tree. Never exists in CI, always exists locally.
+.claude

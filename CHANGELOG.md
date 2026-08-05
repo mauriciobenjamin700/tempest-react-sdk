@@ -4,6 +4,38 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.38.1] — 2026-08-05
+
+### Corrigido
+
+- **Um modelo não custa mais o dobro do seu tamanho no pico da criação da
+  sessão** (vendorado de `ort-vision-sdk-web@0.5.1`). Ler o mapa de metadados
+  (0.38.0) baixa um modelo informado por URL para um `Uint8Array`, e essa leitura
+  ficava **depois** do `InferenceSession.create` — então o buffer do lado
+  JavaScript continuava alcançável enquanto o ORT copiava o modelo para o heap
+  WASM e alocava grafo e pesos em cima da cópia. Um `.onnx` de 5 MB segurava 5 MB
+  de heap JS + 5 MB de heap WASM + os pesos no mesmo instante. Num celular
+  carregando dois modelos isso bastava para o alocador do ORT desistir com
+  `Can't create a session. failed to allocate a buffer of size 5355557`.
+
+  Os metadados passam a ser lidos **antes** de a sessão ser construída, então o
+  buffer é coletável assim que o ORT termina de copiá-lo. `src/vision/session.test.ts`
+  fixa a ordem (falha com a sequência antiga).
+
+  `readMetadata: false` continua sendo a saída para um aparelho que não pode
+  pagar os bytes de jeito nenhum: o ORT carrega direto da URL e nada no SDK
+  segura o modelo. Só os nomes das classes se perdem — o tamanho de entrada
+  continua vindo do grafo — então essa rota precisa passar `labels`.
+
+### Documentação
+
+- **`docs/vision.md` ganhou a seção "Rótulos vêm do modelo"**, que o 0.38.0
+  deveria ter trazido: as duas línguas ainda ensinavam `labels` **obrigatório** no
+  `Classifier` e o preset COCO como único default. Agora documentam a precedência
+  real (o que você passa → `names` do modelo → preset), `det.labels`/
+  `det.numClasses`, `session.metadata`/`outputShape`, os helpers puros, o download
+  do modelo feito pelo SDK e o orçamento de memória num celular apertado.
+
 ## [0.38.0] — 2026-08-04
 
 ### Adicionado

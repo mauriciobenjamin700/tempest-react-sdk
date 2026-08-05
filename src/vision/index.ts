@@ -2,7 +2,7 @@
  * `tempest-react-sdk/vision` — browser computer-vision inference with ONNX
  * Runtime Web (classification, detection, segmentation).
  *
- * Vendored from `@mauriciobenjamin700/ort-vision-sdk-web@0.5.0` (MIT, same
+ * Vendored from `@mauriciobenjamin700/ort-vision-sdk-web@0.5.1` (MIT, same
  * author) so it ships inside this SDK without an extra package install.
  * `onnxruntime-web` stays an optional peer dependency — install it (and ship
  * the matching `.wasm` files) only when you use this subpath.
@@ -114,4 +114,4 @@ export {
     Segmenter,
 } from "./tasks/segmenter";
 
-export const VERSION: string = "0.5.0";
+export const VERSION: string = "0.5.1";

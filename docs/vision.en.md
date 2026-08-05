@@ -178,7 +178,10 @@ when the model declares no resolution (see
 
 `Classifier` applies ImageNet-style preprocessing (224×224 by default,
 normalization with ImageNet mean/std) and returns the probability distribution.
-Here `labels` is **required** (there is no built-in ImageNet preset):
+`labels` is optional: when omitted, the `names` the exporter baked into the
+`.onnx` are used (see [Labels come from the model](#labels-come-from-the-model)).
+An off-the-shelf ImageNet ResNet usually carries **no** `names`, so there you do
+pass the list:
 
 ```tsx
 import { Classifier } from "tempest-react-sdk/vision";
@@ -279,9 +282,68 @@ await clf.session.release(); // frees the native session
     `task.inputSize` is the resolution inference **actually** used. Reporting the
     configured value hides exactly the bug you are hunting.
 
+!!! warning "Low-memory phones: `release()` is not optional"
+    ORT copies the `.onnx` into its WASM heap and allocates the graph and the
+    weights **on top of** that copy. Meanwhile the bytes the SDK fetched to read the
+    metadata are alive in the JS heap too — a 5 MB model costs 5 MB + 5 MB + weights
+    at the same instant. The SDK reads the metadata **before** building the session
+    so that buffer dies as early as possible (since v0.38.1; before that it survived
+    the whole build).
+
+    When the numbers do not add up, ORT gives up with `Can't create a session.
+    failed to allocate a buffer of size N`. In order: **load one model at a time**
+    (two concurrent `create` calls double the peak), call `session.release()` on
+    whatever goes out of use — dropping the JS reference does **not** free the native
+    session — and decode the photo already downscaled, which on a phone weighs more
+    than both models together. If that is still not enough, `readMetadata: false`
+    **with explicit `labels`** takes the SDK out of the path: ORT fetches the model
+    itself and nothing here holds the bytes (the input size still comes from the
+    graph; only the class names are lost).
+
 The pure helpers behind this (`spatialInputSize`, `resolveInputSize`,
 `declaredShapesFrom`) are exported too, for anyone assembling their own pipeline
 without importing `onnxruntime-web` types.
+
+## Labels come from the model
+
+`labels` is optional on all three tasks. When omitted, the `names` the exporter
+baked into the `.onnx` metadata are used — Ultralytics writes them as
+`{0: 'deworm', 1: 'not_deworm'}` — and only a model carrying none falls back to
+the COCO preset (detection/segmentation) or to `class_<id>` (classification):
+
+```tsx
+const det = await Detector.create("/models/detect.onnx");
+
+console.log(det.labels); // ["ocular-mucosa"] — from the model, not a preset
+console.log(det.numClasses); // 1 — inferred from the (B, 4 + nc, N) output shape
+```
+
+Precedence matches the Python `ort-vision-sdk`: what you pass wins, then the
+model's `names`, then the preset. Passing `numClasses` still validates the labels
+against the model (`LabelMapError` if they disagree).
+
+!!! danger "A hand-kept label list is the worst kind of configuration"
+    It does not fail when it is wrong — the predictions just swap classes, and you
+    find out by reading results. This also fixed a real stumble: a **single**-class
+    detector **failed** without an explicit `labels`, because the 80-name COCO
+    default disagreed with the model's class count.
+
+The session exposes what it read off the file, for whoever wants the raw data:
+
+```tsx
+console.log(det.session.metadata.task); // "detect" — the map the exporter wrote
+console.log(det.session.outputShape); // [1, 5, 8400] — null on a dynamic axis
+```
+
+The pure helpers are exported too: `readModelMetadata`, `modelNames`,
+`detectionNumClasses`, and `classificationNumClasses`.
+
+!!! info "A model given as a URL is downloaded by the SDK"
+    `onnxruntime-web` exposes no equivalent of Python's `custom_metadata_map`, so
+    `metadata_props` is read from the `.onnx`'s own bytes. That is the same single
+    download either way, and `readMetadata: false` in the session options restores
+    the previous path (ORT fetches the URL). A fetch that fails still hands the URL
+    to ORT, so losing the metadata never becomes a load failure.
 
 ## Labels: presets, lists, and dicts
 
@@ -301,11 +363,13 @@ COCO_CLASSES; // the readonly array of 80 classes, in canonical order
 ```
 
 !!! note "Label default per task"
-    `Detector` and `Segmenter` assume the **`"coco"`** preset when you omit
-    `labels` — after all, the most common YOLO weights are trained on COCO. The
-    `Classifier` has **no** default: `labels` is required, because there's no
-    built-in ImageNet preset. Passing `numClasses` validates that the label count
-    matches the model (`LabelMapError` if they disagree).
+    Omitting `labels` first tries the model's own `names`
+    ([Labels come from the model](#labels-come-from-the-model)). Only when the
+    `.onnx` carries none do `Detector` and `Segmenter` assume the **`"coco"`**
+    preset — after all, the most common YOLO weights are trained on COCO — and the
+    `Classifier` generates `class_<id>` from the class count read off the output
+    shape. Passing `numClasses` validates that the label count matches the model
+    (`LabelMapError` if they disagree).
 
 ## Camera and luminance hooks
 
@@ -490,8 +554,9 @@ model with almost no friction.
   (`HTMLCanvasElement`/`OffscreenCanvas`), `ImageBitmap`, `ImageData`, and
   `RGBImage`.
 - Labels via `resolveLabels` / `COCO_CLASSES`: the `"coco"` preset, an array, a
-  sparse dict, or auto-generated. `Detector`/`Segmenter` assume `"coco"`;
-  `Classifier` requires `labels`.
+  sparse dict, or auto-generated. `labels` is **optional** on all three tasks —
+  when omitted, the `.onnx`'s own `names` win, and only a model carrying none
+  falls back to the `"coco"` preset (det/seg) or to `class_<id>` (classification).
 - The API mirrors the Python `ort-vision-sdk` — the same mental model on both
   sides.
 - To **capture** the frame: `useCameraStream` (rear camera by default, stable

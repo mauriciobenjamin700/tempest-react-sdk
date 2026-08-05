@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits props-count — value/onChange/min/max/step is the numeric contract,
+ * format renders it, labels names the increment and decrement buttons for screen
+ * readers, and size/disabled/label/className are the field. The button labels cannot
+ * be defaulted: they are the only text those buttons have.
+ */
 import { forwardRef } from "react";
 import type { ReactNode } from "react";
 import { clamp } from "@/utils/numbers";

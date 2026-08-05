@@ -67,6 +67,12 @@ export interface EstimateTravelOptions {
  *   { latitude: -23.5629, longitude: -46.6544 },
  *   "car",
  * ); // { mode: "car", distance_km: …, duration_minutes: …, source: "heuristic" }
+ *
+ * @tempest-limits param-count — `(origin, destination, mode)` is the shape every
+ * routing API uses, and the fourth argument is already the named-options object the
+ * rule asks for. Folding origin and destination into it would hide that the pair is
+ * ordered, and this function is re-exported from the package root, so the change
+ * would break every caller to satisfy a count.
  */
 export function estimateTravel(
     origin: Coordinate,

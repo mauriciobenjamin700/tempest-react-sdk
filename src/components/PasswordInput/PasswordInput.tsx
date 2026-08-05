@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits props-count — on top of the SDK's shared field props,
+ * showStrength/strength/strengthLabels are the meter and toggleLabels is the
+ * show/hide button's accessible name — both need their copy from the app, since
+ * neither can be translated by the SDK.
+ */
 import { forwardRef, useId, useState } from "react";
 import type { InputHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/utils/cn";

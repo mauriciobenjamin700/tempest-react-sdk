@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits file-lines, function-lines — the body builds the tiptap editor,
+ * its toolbar state and the change plumbing: every toolbar button reads
+ * `editor.isActive`, so the toolbar cannot be lifted out without passing the editor
+ * instance back down.
+ */
 import { useEffect } from "react";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";

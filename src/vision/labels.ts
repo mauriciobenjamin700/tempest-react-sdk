@@ -1,3 +1,4 @@
+/** @generated Vendored from @mauriciobenjamin700/ort-vision-sdk-web. Do not hand-edit — regenerate with `npm run vendor:vision`. */
 /**
  * Class label resolution: presets, lists, dicts, or auto-generated.
  *

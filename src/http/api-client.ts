@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits function-lines — createApiClient is three lines over the limit and
+ * every one of them is a request-lifecycle concern the client cannot delegate: base
+ * URL joining, the auth header, the retry loop, the timeout signal and the response
+ * parsing that turns a failure into a typed error.
+ */
 import { randomId } from "../utils";
 import { buildApiError, TempestApiError } from "./errors";
 import type { ApiClient, ApiClientConfig, RequestOptions } from "./types";

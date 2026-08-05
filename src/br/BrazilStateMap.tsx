@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits file-lines, props-count, function-lines — the municipality-level
+ * twin of BrazilMap, prop for prop, plus the `uf` that selects which state's
+ * geometry to load. Splitting it differently from BrazilMap would mean two maps with
+ * two shapes for the same job.
+ */
 import { useEffect, useMemo, useRef, useState, type HTMLAttributes, type ReactNode } from "react";
 import { cn } from "@/utils/cn";
 import { fitProjection } from "@/geo/projection";

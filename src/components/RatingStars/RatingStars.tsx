@@ -1,3 +1,8 @@
+/**
+ * @tempest-limits props-count — value, max, onChange, size, readonly, disabled,
+ * label, className — a rating is a radio group drawn as stars, and readonly and
+ * disabled are genuinely different (a shown rating versus a control you cannot use).
+ */
 import { useState } from "react";
 import { cn } from "@/utils/cn";
 import styles from "./RatingStars.module.css";

@@ -1,4 +1,10 @@
 /**
+ * @tempest-limits file-lines — precache, runtime strategies (cache-first, network-
+ * first, stale-while-revalidate), expiry and the inspect/clear helpers all address
+ * the same Cache Storage namespace, and the naming scheme that keeps them from
+ * evicting each other is the file's whole contract.
+ */
+/**
  * Service-worker caching helpers — a small, dependency-free subset of what
  * Workbox provides: precaching of the build's app shell (so the app launches
  * offline) plus runtime caching strategies for fonts, APIs and images.

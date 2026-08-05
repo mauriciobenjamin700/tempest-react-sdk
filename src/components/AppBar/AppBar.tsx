@@ -1,3 +1,11 @@
+/**
+ * @tempest-limits props-count — a top bar is a slot layout: leading (leading,
+ * showBack, onBack, backLabel, backIcon, brand), centre (title, centered) and
+ * trailing (actions), plus the chrome it sits in (sticky, tone, bordered, safeArea).
+ * Every one of those is a real decision an app makes per screen, and the alternative
+ * to accepting them is the app rebuilding the bar around the parts it wanted to
+ * change.
+ */
 import type { HTMLAttributes, ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { cn } from "@/utils/cn";

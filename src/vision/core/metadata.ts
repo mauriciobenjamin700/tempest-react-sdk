@@ -1,3 +1,4 @@
+/** @generated Vendored from @mauriciobenjamin700/ort-vision-sdk-web. Do not hand-edit — regenerate with `npm run vendor:vision`. */
 /**
  * Read the metadata an exporter baked into a `.onnx` file.
  *

@@ -174,6 +174,11 @@ export function findPropsTypes(masked) {
     const re = /\b(?:interface|type)\s+([A-Za-z_$][\w$]*Props)\b([^{;]*)/g;
     let match;
     while ((match = re.exec(masked))) {
+        // The body has to be this declaration's own. `type OverriddenDomProps =
+        // "children" | "onSubmit";` ends at the semicolon, and searching forward for a
+        // brace found the *next* interface — so a two-member string union was reported
+        // with the member count of whatever came after it.
+        if (!/^\s*\{/.test(masked.slice(match.index + match[0].length))) continue;
         const open = masked.indexOf("{", match.index + match[0].length - 1);
         if (open === -1) continue;
         const close = matchPair(masked, open, "{", "}");

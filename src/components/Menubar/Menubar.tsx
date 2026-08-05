@@ -1,3 +1,8 @@
+/**
+ * @tempest-limits function-lines — a menubar has two keyboard planes — arrow keys
+ * move between menus, arrows inside one move between items — and the body owns both
+ * because a key press is routed by which plane is open.
+ */
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/utils/cn";

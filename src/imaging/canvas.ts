@@ -91,6 +91,11 @@ export function getContext(surface: Surface, background?: string): SurfaceContex
  * @param target Destination surface.
  * @param box Where to draw inside the destination.
  * @param background Fill painted before drawing.
+ *
+ * @tempest-limits param-count — source, destination, destination geometry, and an
+ * optional background: the same four things `CanvasRenderingContext2D.drawImage`
+ * takes, in the same order. Public surface, and a wrapper over a browser primitive
+ * reads best when it keeps that primitive's shape.
  */
 export function drawScaled(
     bitmap: ImageBitmap,

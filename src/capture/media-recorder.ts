@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits function-lines — the engine behind both the audio and the video
+ * recorder: MIME negotiation, the state machine MediaRecorder does not give you, and
+ * the clock kept by hand because a fresh WebM reports no duration. The clock has to
+ * pause and resume with the state machine, so they are one closure.
+ */
 /** Lifecycle of a recording. */
 export type MediaRecorderStatus = "idle" | "recording" | "paused" | "stopped";
 

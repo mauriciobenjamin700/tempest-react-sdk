@@ -127,6 +127,26 @@ As regras, e o id de cada uma pro marcador:
     alguém silenciar a ferramenta. Os gates duros continuam onde devem estar:
     `no-explicit-any` como `error` no ESLint e `tsc --noEmit`.
 
+!!! info "O que a análise **não** julga"
+    Três classes de arquivo saem antes de qualquer regra rodar, porque a resposta
+    para um achado nelas não está no arquivo:
+
+    - **Código gerado ou vendorado** — qualquer arquivo cujo cabeçalho traga
+      `@generated` ou `Do not hand-edit`. É a forma que o upstream escolheu, e uma
+      edição aqui morre na próxima regeneração. O `src/vision/` deste SDK é assim:
+      cada arquivo sai carimbado do `npm run vendor:vision`.
+    - **Barrel** — arquivo que só re-exporta. Um `index.ts` de 350 linhas de
+      `export { X } from "./x"` é uma listagem de diretório, e "extraia um
+      sub-componente" não quer dizer nada ali.
+    - **Arquivo de teste** — para as regras de tamanho. Um teste longo é
+      normalmente um teste completo.
+
+!!! note "Uma contagem de props, não duas"
+    Quando o componente desestrutura exatamente as props que o `<Nome>Props`
+    declara, o achado sai **uma** vez, no tipo. Duas linhas para o mesmo fato leem
+    como dois problemas. A desestruturação só vira achado próprio quando passa do
+    que o tipo declara — aí ela está recebendo props de outro lugar.
+
 !!! info "O que o doctor **não** mede"
     Profundidade de aninhamento JSX e complexidade ciclomática. As duas precisam
     de um parser de verdade pra não gerar falso positivo com quebra de linha do

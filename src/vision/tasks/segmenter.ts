@@ -1,3 +1,4 @@
+/** @generated Vendored from @mauriciobenjamin700/ort-vision-sdk-web. Do not hand-edit — regenerate with `npm run vendor:vision`. */
 /**
  * Instance-segmentation task using YOLO seg ONNX models (v8-seg / v11-seg / ...).
  */

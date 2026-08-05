@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits file-lines, props-count, function-lines — drag-and-drop needs an
+ * accessible twin: cardRoleDescription and label exist so the keyboard path
+ * announces what the pointer path shows, and renderCard/emptyLabel are the slots.
+ * The body is the move calculation shared by both paths.
+ */
 /* eslint-disable react-hooks/refs -- `getItemProps` is called during render and its
    handlers close over `useSortable`'s mirror refs, so the rule reports the call site
    here. The refs are only written from event handlers and read from a window

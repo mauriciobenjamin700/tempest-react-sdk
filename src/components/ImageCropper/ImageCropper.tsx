@@ -1,3 +1,10 @@
+/**
+ * @tempest-limits file-lines, props-count, function-lines — pointer drag, wheel
+ * zoom, aspect clamping and canvas export share one piece of geometry state, and the
+ * props are the two halves of that: the frame (aspect, shape, maxZoom, label) and
+ * the export (maxSize, outputType, outputQuality, onCropChange, ref). Threading the
+ * geometry through props would duplicate the clamp maths.
+ */
 import {
     type HTMLAttributes,
     type KeyboardEvent,

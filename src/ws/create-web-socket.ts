@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits file-lines, function-lines — reconnect with backoff, heartbeat,
+ * the send queue that survives a disconnect and the listener set that must be re-
+ * attached to each new socket — one connection's lifetime, one closure. The queue
+ * and the reconnect timer are the same decision seen twice.
+ */
 export type WebSocketStatus = "idle" | "connecting" | "open" | "closing" | "closed" | "error";
 
 export interface WebSocketMessage<T> {

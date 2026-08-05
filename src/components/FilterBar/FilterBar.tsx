@@ -1,3 +1,8 @@
+/**
+ * @tempest-limits file-lines, function-lines — a filter bar renders a different
+ * editor per filter kind — select, multi-select, range, date range, text — and the
+ * body is that dispatch plus the chip summary, both reading the same value map.
+ */
 import { useId, useState, type HTMLAttributes, type ReactNode } from "react";
 
 import { cn } from "@/utils/cn";

@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits props-count, function-lines — an inbox has four actions the app
+ * must implement (onSelect, onMarkRead, onMarkAllRead, onDismiss) over one list,
+ * plus the presentation it needs to render a readable feed: renderIcon, locale, now
+ * for relative timestamps, emptyState and title.
+ */
 import type { HTMLAttributes, ReactNode } from "react";
 
 import { cn } from "@/utils/cn";

@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits props-count — trigger and children are the two halves, placement
+ * is where it lands, and open/onOpenChange/defaultOpen is the standard controlled-
+ * or-not pair. closeOnEsc and closeOnOutsideClick are separate because a popover
+ * holding a form wants one and not the other.
+ */
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
 import { cn } from "@/utils/cn";

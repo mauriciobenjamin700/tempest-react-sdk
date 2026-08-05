@@ -1,3 +1,10 @@
+/**
+ * @tempest-limits file-lines, function-lines — outbox drain, pull-with-watermark,
+ * conflict resolution and the single-flight guard are one loop by necessity: a pull
+ * that lands mid-drain must not advance the watermark past records the outbox has
+ * not pushed yet. Splitting the phases hands that ordering to whoever calls them in
+ * the right sequence.
+ */
 import { randomId } from "../utils/ids";
 import { createOfflineStore } from "./create-offline-store";
 

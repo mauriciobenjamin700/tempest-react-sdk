@@ -1,3 +1,8 @@
+/**
+ * @tempest-limits hook-lines — the scan loop, the repeat suppression window and the
+ * torch control share the same track and the same interval handle; splitting them
+ * would leave a timer running against a track another hook stopped.
+ */
 import { useEffect, useRef, useState, type RefObject } from "react";
 
 import { useStableCallback } from "@/hooks/use-stable-callback";

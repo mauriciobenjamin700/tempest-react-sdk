@@ -1,3 +1,10 @@
+/**
+ * @tempest-limits file-lines, props-count, function-lines — the SVG plot (points,
+ * current, height, padding, showGrid, showScale, strokeColor, label), the optional
+ * leaflet tile layer (tileUrl, tileAttribution) and the overlay (markers,
+ * onMarkerClick). The body projects the path, fits the bounds and hands the same
+ * bounds to the tile layer when there is one.
+ */
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type HTMLAttributes } from "react";
 import { cn } from "@/utils/cn";
 import { boundingBox, expandBounds } from "./bounds";

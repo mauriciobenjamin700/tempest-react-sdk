@@ -1,6 +1,12 @@
 /**
  * Typed wrapper around `localStorage` that JSON-encodes values and
  * silently handles environments where storage is unavailable (SSR, private mode).
+ *
+ * @tempest-limits empty-catch — every method here is best-effort by contract:
+ * `localStorage` throws on quota exhaustion, in Safari private mode, and when a
+ * cross-origin frame has storage blocked. A caller persisting a preference has no
+ * recovery to run and no user-facing message to show, so the write is dropped and
+ * the app keeps the value in memory for the session.
  */
 export const storage = {
     get<T>(key: string, fallback: T): T {
@@ -17,7 +23,7 @@ export const storage = {
         try {
             window.localStorage.setItem(key, JSON.stringify(value));
         } catch {
-            /* ignore quota errors */
+            /* empty */
         }
     },
     remove(key: string): void {
@@ -25,7 +31,7 @@ export const storage = {
         try {
             window.localStorage.removeItem(key);
         } catch {
-            /* ignore */
+            /* empty */
         }
     },
 };

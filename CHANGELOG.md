@@ -4,7 +4,58 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
-## [0.38.2] — 2026-08-05
+### Corrigido
+
+- **`tempest doctor` parou de reportar coisa que não existe.** Quatro falsos
+  positivos, todos vazando para o app consumidor e não só para o dogfood:
+
+  - Peer marcada como `optional` em `peerDependenciesMeta` era reportada como
+    não satisfeita — ou seja, todo pacote publicado ganhava um aviso permanente
+    sobre peers que seus consumidores nunca deveriam instalar.
+  - As checagens de uso liam **comentário** como código: um `@example` com
+    `import "tempest-react-sdk/styles.css"` virava "styles.css importado 2×", e
+    um docstring com `<TrajectoryMap tileUrl=…>` passava a exigir `leaflet`.
+    Agora os comentários são removidos antes da busca, e arquivos de teste saem
+    do corpus — um teste que renderiza um componente para provar como ele
+    degrada **sem** o peer opcional não é o projeto pedindo aquele peer.
+  - `type OverriddenDomProps = "children" | "onSubmit"` (união de duas strings)
+    era contada como interface de props e herdava a contagem da interface
+    seguinte: o `AIChat` reportava "OverriddenDomProps has 25 props".
+  - O mesmo excesso de props saía duas vezes quando o componente
+    desestruturava exatamente o que o `<Nome>Props` declara. Agora sai uma, no
+    tipo; a desestruturação só vira achado próprio quando passa do tipo.
+
+- **O resumo do `doctor` contava as linhas exibidas, não os achados.** A seção
+  Design imprime no máximo 6 por severidade, então um projeto com 245 avisos de
+  design fechava com `! 6 warning(s)` — e 6 é um número que ninguém trata. O
+  rodapé passa a somar o que a lista teve de cortar.
+
+- **Erro engolido em 4 pontos de teste.** `use-push-subscription.error.test.tsx`
+  e `lazy-with-retry.fail.test.tsx` embrulhavam a chamada em `try/catch` vazio e
+  depois asseriam o efeito colateral; se a promise parasse de rejeitar, o teste
+  continuava passando. Viraram `await expect(...).rejects.toThrow()`.
+
+- **`.cellButton` do `DataTable` era declarado duas vezes** no mesmo arquivo, com
+  a segunda regra só acrescentando `border-bottom-color`. Fundido num bloco.
+
+### Mudado
+
+- **A análise de design não julga mais três classes de arquivo**: código gerado
+  ou vendorado (cabeçalho com `@generated` ou `Do not hand-edit`), barrel (arquivo
+  que só re-exporta) e teste (para as regras de tamanho). O `src/vision/` deste
+  SDK é vendorado do `ort-vision-sdk-web` e agora sai carimbado do
+  `npm run vendor:vision` arquivo a arquivo — uma edição ali morre na próxima
+  regeneração, então reportá-la ensina o leitor a ignorar o relatório.
+
+- **Os 245 avisos de design do próprio SDK foram triados**: 17 `empty-catch` e 12
+  `param-count` viraram correção ou marcador escrito, 12 saíram com o vendorado,
+  65 eram os falsos positivos acima, e os 181 restantes ganharam um
+  `@tempest-limits <regra> — <motivo>` que diz, arquivo por arquivo, por que o
+  limite não cabe ali. `npx tempest doctor` no repo fecha em zero.
+
+- **`buildRamp(hue, mode, { steps, peakChroma })`** — os dois últimos parâmetros
+  posicionais viraram um objeto nomeado. Função interna do `theme`, não exportada
+  no barrel: nenhum consumidor é afetado.
 
 ### Adicionado
 

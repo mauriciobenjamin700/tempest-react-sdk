@@ -1,3 +1,8 @@
+/**
+ * @tempest-limits props-count — min, max and step define the scale, value/onChange
+ * the two thumbs, formatValue the readout, and label/helperText/disabled/className
+ * the field around it. Same surface as Slider, one thumb more.
+ */
 import { useCallback, useMemo } from "react";
 import { cn } from "@/utils/cn";
 import styles from "./RangeSlider.module.css";

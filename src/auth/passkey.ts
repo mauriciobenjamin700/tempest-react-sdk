@@ -1,4 +1,12 @@
 /**
+ * @tempest-limits file-lines, function-lines — the WebAuthn client half: the JSON
+ * shapes both ceremonies exchange with a backend, base64url ↔ ArrayBuffer, the
+ * capability probes and the error classifier. The two ceremonies are near-mirrors
+ * that must not drift — register and authenticate encode the same credential fields
+ * in the same order — and the file's docstring is also the specification of the four
+ * backend routes it expects.
+ */
+/**
  * Classified reason a passkey ceremony did not produce a credential.
  *
  * The kinds group the raw `DOMException.name` values the way a UI has to branch

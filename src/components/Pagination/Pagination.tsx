@@ -1,3 +1,10 @@
+/**
+ * @tempest-limits props-count — page/totalPages/onPageChange is the pager,
+ * pageSize/onPageSizeChange/ pageSizeOptions is the size control that sits in the
+ * same bar, and totalItems plus siblingCount decide the copy and how many page
+ * buttons are rendered. They ship together because a footer that pages but cannot
+ * resize is half a footer.
+ */
 import { useMemo } from "react";
 import { cn } from "@/utils/cn";
 import styles from "./Pagination.module.css";

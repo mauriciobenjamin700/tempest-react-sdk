@@ -62,6 +62,11 @@ export function isApiError(error: unknown): error is ApiError {
  * @param headers - The response headers (for the `X-Request-ID` fallback).
  * @param sentRequestId - The id the client sent on the request, if any.
  * @returns A fully-populated `ApiError`.
+ *
+ * @tempest-limits param-count — the arguments are the response as it arrives
+ * (`status`, `body`, `headers`) plus the id the request was sent with, and they are
+ * passed at exactly one place: the client's response path. Exported from the package
+ * root, so the rewrite would be breaking for callers that build their own errors.
  */
 export function buildApiError(
     status: number,

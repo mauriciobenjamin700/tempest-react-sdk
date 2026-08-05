@@ -182,7 +182,15 @@ export function tempestIcons(options: TempestIconsOptions = {}): TempestVitePlug
     const slugs = new Set<string>(include.filter((slug) => known.has(slug)));
     let root = process.cwd();
 
-    /** Rescan the source tree, keeping the explicitly included slugs. */
+    /**
+     * Rescan the source tree, keeping the explicitly included slugs.
+     *
+     * @tempest-limits empty-catch — the scan races the editor and the file system:
+     * a file listed a moment ago can be renamed, deleted, or held by another process
+     * by the time it is read. An unreadable file contributes no slugs and the build
+     * continues; failing the whole scan would break `vite dev` over a temp file that
+     * no longer exists.
+     */
     const rescan = async (): Promise<void> => {
         const files = await collectSourceFiles(resolve(root, dir), skip);
         for (const file of files) {
@@ -190,7 +198,7 @@ export function tempestIcons(options: TempestIconsOptions = {}): TempestVitePlug
                 const code = await readFile(file, "utf8");
                 for (const slug of scanIconSlugs(code, known)) slugs.add(slug);
             } catch {
-                /* an unreadable file just contributes nothing */
+                /* empty */
             }
         }
     };

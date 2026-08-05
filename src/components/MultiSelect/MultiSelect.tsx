@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits file-lines, props-count, function-lines — options/value/onChange
+ * plus the shared field contract, and the three knobs that make it multi: maxItems,
+ * filter, emptyMessage. The body is the listbox with chip removal, type-ahead and
+ * the ARIA active-descendant wiring reading one active index.
+ */
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { cn } from "@/utils/cn";
 import styles from "./MultiSelect.module.css";

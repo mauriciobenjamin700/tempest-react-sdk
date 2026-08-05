@@ -36,6 +36,12 @@
     width: 100%;
 }
 
+/*
+ * The dashed bottom edge is a resting affordance, not only a hover one: on a touch
+ * screen there is no hover, so an editable cell that looks exactly like a read-only
+ * one is undiscoverable. It is the weakest mark that still says "this is editable";
+ * hover and focus then promote it to a full box.
+ */
 .cellButton {
     position: relative;
     display: block;
@@ -43,22 +49,13 @@
     margin: calc(-1 * var(--tempest-space-1, 0.25rem)) calc(-1 * var(--tempest-space-2, 0.5rem));
     padding: var(--tempest-space-1, 0.25rem) var(--tempest-space-2, 0.5rem);
     border: 1px dashed transparent;
+    border-bottom-color: var(--tempest-border-strong);
     border-radius: var(--tempest-radius-sm, 0.25rem);
     background: none;
     font: inherit;
     color: inherit;
     text-align: inherit;
     cursor: pointer;
-}
-
-/*
- * A resting affordance, not only a hover one: on a touch screen there is no hover,
- * so an editable cell that looks exactly like a read-only one is undiscoverable.
- * The dashed underline is the weakest mark that still says "this is editable"; hover
- * and focus then promote it to a full box.
- */
-.cellButton {
-    border-bottom-color: var(--tempest-border-strong);
 }
 
 .cellButton:hover {

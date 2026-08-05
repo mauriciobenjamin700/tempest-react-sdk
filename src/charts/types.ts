@@ -1,4 +1,12 @@
 /**
+ * @tempest-limits props-count — these are the recharts wrapper's surface, and each
+ * prop maps to one recharts element the wrapper renders: data/index/categories to
+ * the series, colors to Cell, showLegend/showGrid/showTooltip to
+ * Legend/CartesianGrid/Tooltip, valueFormatter to the tick and tooltip formatters.
+ * Cutting the list means the caller drops to raw recharts for whatever was cut,
+ * which is the thing the wrapper exists to avoid.
+ */
+/**
  * Tabular data consumed by every chart: an array of rows, where each row maps a
  * column key to a string (label) or number (value).
  */

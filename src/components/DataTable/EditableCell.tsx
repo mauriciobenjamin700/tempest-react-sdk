@@ -1,3 +1,10 @@
+/**
+ * @tempest-limits props-count, function-lines — an editable cell has to be announced
+ * as well as rendered: columnLabel and rowNumber build the accessible name, labels
+ * holds the button copy, and error/errorId wire the message to the input. The rest
+ * is the edit lifecycle (editing, refocus, saving, onOpen, onCommit, onCancel) that
+ * DataTable drives from outside.
+ */
 import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
 import { cn } from "@/utils/cn";

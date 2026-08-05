@@ -37,6 +37,30 @@ function isTypePosition(masked, index) {
 }
 
 /**
+ * True when the file only re-exports: a barrel.
+ *
+ * The file-lines limit measures how much a reader has to hold in their head before
+ * changing a line, and a barrel asks for none of that — a 350-line index of
+ * `export { X } from "./x"` is a directory listing, and the advice to "extract a
+ * sub-component" is meaningless there. Judging it also punishes exactly the layout
+ * this SDK asks projects to use: one re-export per public symbol.
+ *
+ * @param {string} masked - Source with comments and string bodies blanked.
+ * @returns {boolean}
+ */
+function isBarrel(masked) {
+    const lines = masked
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean);
+    if (lines.length === 0) return false;
+    const reexport = lines.filter((line) =>
+        /^(export|import)\b|^[\w$,{}*\s]+$|^} from |^};?$|^from /.test(line),
+    ).length;
+    return reexport / lines.length >= 0.95;
+}
+
+/**
  * Analyze one already-read source file.
  *
  * @param {object} params
@@ -70,7 +94,7 @@ export function scanFile({ file, source, limits = {} }) {
     }
 
     const codeLines = countCodeLines(masked);
-    if (!isTest) {
+    if (!isTest && !isBarrel(masked)) {
         const fileMax = isTsx ? max.componentFileLines : max.moduleFileLines;
         if (codeLines > fileMax) {
             push(
@@ -114,7 +138,15 @@ export function scanFile({ file, source, limits = {} }) {
                     `${fn.name} takes ${fn.params.length} parameters (limit ${max.params}) — pass one named object`,
                 );
             }
-            if (fn.kind === "component" && fn.destructuredProps > max.props) {
+            // The destructuring is only news when it disagrees with the type: a
+            // component that spreads its own `<Name>Props` reports the same excess
+            // twice, and two lines for one fact reads as two problems.
+            const declared = propsTypes.get(`${fn.name}Props`)?.count;
+            if (
+                fn.kind === "component" &&
+                fn.destructuredProps > max.props &&
+                fn.destructuredProps !== declared
+            ) {
                 push(
                     "props-count",
                     fn.line,

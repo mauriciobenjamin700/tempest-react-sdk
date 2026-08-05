@@ -1,3 +1,11 @@
+/**
+ * @tempest-limits file-lines, props-count, function-lines — options/value/onChange
+ * plus the shared field contract (label, placeholder, helperText, error, disabled,
+ * className) and the three combobox-specific knobs: filter, emptyMessage. The body
+ * is the listbox — open state, active descendant, type-ahead and the ARIA wiring —
+ * and those cannot be separated without passing the same active index back and
+ * forth.
+ */
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { cn } from "@/utils/cn";
 import styles from "./Combobox.module.css";

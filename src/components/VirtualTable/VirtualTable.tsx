@@ -1,3 +1,10 @@
+/**
+ * @tempest-limits file-lines, props-count — windowing needs its own measurements
+ * (rowHeight, height, overscan, scrollToIndex) on top of everything a table already
+ * takes (data, columns, rowKey, initialSort, onRowClick, emptyMessage, caption). The
+ * caption is not optional chrome — a virtualised grid without one is unreadable to a
+ * screen reader.
+ */
 import {
     type HTMLAttributes,
     type ReactNode,

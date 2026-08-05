@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits file-lines, function-lines — the body owns placement, outside-
+ * click, Escape, and roving focus over items that can be disabled or separators —
+ * one keyboard model that has to see the whole item list to know where the next stop
+ * is.
+ */
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
 import { cn } from "@/utils/cn";

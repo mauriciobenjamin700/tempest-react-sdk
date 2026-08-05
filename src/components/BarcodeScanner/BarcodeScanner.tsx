@@ -1,3 +1,10 @@
+/**
+ * @tempest-limits file-lines, props-count, function-lines — the scan loop is tuned
+ * by the caller because the right values depend on the symbology and the device:
+ * formats, intervalMs, repeatDelayMs, detector, paused, torch, aspectRatio. The rest
+ * are the surfaces to fill when the API is missing (unsupported, footer, locale) and
+ * the two outputs (onScan, onError).
+ */
 import { Flashlight, FlashlightOff, ScanLine } from "lucide-react";
 import { type HTMLAttributes, type ReactNode } from "react";
 

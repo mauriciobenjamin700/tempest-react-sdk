@@ -1,3 +1,10 @@
+/**
+ * @tempest-limits props-count, function-lines — placement plus mobilePlacement is
+ * the whole point — a drawer that comes from the side on desktop and from the bottom
+ * on a phone — and the rest is the dialog contract the SDK's Modal also has (open,
+ * onClose, title, children, footer, closeOnBackdrop, closeOnEsc, hideCloseButton)
+ * plus showHandle for the sheet affordance.
+ */
 import { useEffect } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";

@@ -95,6 +95,11 @@ function readStored(storageKey: string | null): ThemeMode | null {
  *
  * Pair with `themeInitScript()` in the HTML head to prevent the flash of
  * incorrect theme on first paint.
+ *
+ * @tempest-limits empty-catch — the theme is applied to the DOM before it is
+ * persisted, so a `localStorage` write refused by quota or private mode leaves the
+ * user with the theme they just picked and only forfeits it on the next load.
+ * Throwing from the setter would break the switch that already worked.
  */
 export function ThemeProvider({
     children,
@@ -152,7 +157,7 @@ export function ThemeProvider({
                 try {
                     window.localStorage.setItem(storageKey, next);
                 } catch {
-                    /* ignore quota errors */
+                    /* empty */
                 }
             }
         },

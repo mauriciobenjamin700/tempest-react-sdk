@@ -1,3 +1,10 @@
+/**
+ * @tempest-limits file-lines, hook-lines — drag-and-drop with a keyboard path that
+ * has to produce the same moves as the pointer path: pointer capture, auto-scroll
+ * near the edges, the drop-index maths and the live-region announcements all read
+ * one drag state. Two hooks would mean two copies of the index arithmetic, and the
+ * two paths silently disagreeing is the bug this exists to prevent.
+ */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
 

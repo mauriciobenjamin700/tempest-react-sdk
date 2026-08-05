@@ -80,6 +80,17 @@ Tooling
 ! 3 warning(s) — usable, but worth fixing.
 ```
 
+!!! info "O que conta como uso, e o que não conta"
+    As checagens que perguntam "esse projeto usa X?" leem o **código**, não a prosa:
+    comentários saem antes da busca, então um `@example` mostrando
+    `import "tempest-react-sdk/styles.css"` não vira um segundo import, e um docstring
+    com `<TrajectoryMap tileUrl=…>` não passa a exigir o `leaflet`. Arquivos de teste
+    também ficam de fora — um teste que renderiza um componente justamente para provar
+    como ele degrada **sem** o peer opcional não é o projeto pedindo aquele peer.
+
+    Peer marcada como `optional` em `peerDependenciesMeta` nunca é reportada como não
+    satisfeita: é exatamente o que "opcional" quer dizer.
+
 !!! success "Funciona em projeto que ainda não usa o SDK"
     Se o `tempest-react-sdk` não está nas suas dependências, o `doctor` roda em
     **modo genérico**: audita a saúde de um app React + Vite qualquer e **não** reprova

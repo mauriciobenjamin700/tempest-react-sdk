@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits file-lines — the hook wraps both ceremonies with the status
+ * machine the UI needs (`prompting` and `verifying` are separate because they need
+ * different copy) and the capability probes that decide whether to offer the button
+ * at all.
+ */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useStableCallback } from "../hooks/use-stable-callback";

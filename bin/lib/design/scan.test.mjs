@@ -12,6 +12,84 @@ const bigComponent = (lines) =>
         "}",
     ].join("\n");
 
+describe("scanFile — what is not a props type", () => {
+    it("does not read a string union named *Props as a props type", () => {
+        const source = [
+            'type OverriddenDomProps = "children" | "onSubmit";',
+            "",
+            "export interface CardProps {",
+            ...Array.from({ length: 12 }, (_, i) => `  prop${i}?: string;`),
+            "}",
+            "",
+            "export function Card(props: CardProps) {",
+            "  return props;",
+            "}",
+        ].join("\n");
+        const result = scanFile({ file: "src/Card.tsx", source });
+        const propsFindings = result.findings.filter((f) => f.code === "props-count");
+        expect(propsFindings).toHaveLength(1);
+        expect(propsFindings[0].message).toContain("CardProps");
+        expect(propsFindings[0].message).not.toContain("OverriddenDomProps");
+    });
+
+    it("reports the type once, not again for the destructuring that mirrors it", () => {
+        const props = Array.from({ length: 9 }, (_, i) => `prop${i}`);
+        const source = [
+            "export interface PanelProps {",
+            ...props.map((p) => `  ${p}?: string;`),
+            "}",
+            "",
+            `export function Panel({ ${props.join(", ")} }: PanelProps) {`,
+            `  return ${props[0]};`,
+            "}",
+        ].join("\n");
+        const propsFindings = scanFile({ file: "src/Panel.tsx", source }).findings.filter(
+            (f) => f.code === "props-count",
+        );
+        expect(propsFindings).toHaveLength(1);
+        expect(propsFindings[0].message).toContain("PanelProps has 9 props");
+    });
+
+    it("still reports a destructuring that goes past its own type", () => {
+        const source = [
+            "export interface WideProps {",
+            "  a?: string;",
+            "}",
+            "",
+            "export function Wide({ a, b, c, d, e, f, g, h, i }: WideProps & Extra) {",
+            "  return a;",
+            "}",
+        ].join("\n");
+        const messages = scanFile({ file: "src/Wide.tsx", source })
+            .findings.filter((f) => f.code === "props-count")
+            .map((f) => f.message);
+        expect(messages.some((m) => m.includes("destructures 9 props"))).toBe(true);
+    });
+});
+
+describe("scanFile — barrels", () => {
+    it("does not size-check a file that only re-exports", () => {
+        const source = Array.from(
+            { length: 260 },
+            (_, i) => `export { Thing${i}, type Thing${i}Props } from "./thing-${i}";`,
+        ).join("\n");
+        expect(codes(scanFile({ file: "src/components/index.ts", source }))).not.toContain(
+            "file-lines",
+        );
+    });
+
+    it("still size-checks a file that re-exports and also holds logic", () => {
+        const source = [
+            ...Array.from({ length: 200 }, (_, i) => `export { T${i} } from "./t-${i}";`),
+            "export function helper() {",
+            ...Array.from({ length: 40 }, (_, i) => `  const v${i} = ${i};`),
+            "  return 1;",
+            "}",
+        ].join("\n");
+        expect(codes(scanFile({ file: "src/mixed.ts", source }))).toContain("file-lines");
+    });
+});
+
 describe("scanFile — size", () => {
     it("reports a .tsx over the component limit", () => {
         const result = scanFile({ file: "src/Big.tsx", source: bigComponent(200) });

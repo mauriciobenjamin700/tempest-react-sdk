@@ -1,3 +1,15 @@
+/**
+ * @tempest-limits file-lines, props-count, function-lines — the widest surface in
+ * the SDK on purpose: it is a whole chat page, and its 25 props are four groups —
+ * the transcript (messages, votes, pending, showSystem), the turn actions an app has
+ * to own (onSend, onStop, onRegenerate, onEditSubmit, onFeedback, onRetry,
+ * onSendError), render slots (renderAvatar, renderContent, header, emptyState,
+ * suggestions, composerActions, composerFooter) and composer settings (composerRef,
+ * composerDisabled, maxRows, placeholder, locale, defaultReasoningOpen,
+ * showLineNumbers). The parts already are separate components — AIChatTurn and
+ * AIChatComposer are exported — and this is the assembly whose entire job is to
+ * accept the union of their configuration.
+ */
 import { ArrowDown } from "lucide-react";
 import {
     useEffect,

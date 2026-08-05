@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits file-lines, function-lines — a command palette is a filtered
+ * listbox with its own keyboard contract: the body holds the query, the flattened
+ * result list, the active index and the Escape/Enter handling, all of which read
+ * each other on every keystroke.
+ */
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";

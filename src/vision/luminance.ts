@@ -1,3 +1,4 @@
+/** @generated Vendored from @mauriciobenjamin700/ort-vision-sdk-web. Do not hand-edit — regenerate with `npm run vendor:vision`. */
 /**
  * Frame-brightness helpers — measure the mean luminance of an already-decoded
  * frame (`<img>`, `<video>`, `<canvas>`, `ImageBitmap` or `OffscreenCanvas`) so

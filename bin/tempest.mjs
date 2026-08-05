@@ -112,8 +112,64 @@ function nestedDupe(name) {
 }
 
 /**
+ * Drop comment bodies, keeping string contents and line count intact.
+ *
+ * Every usage check below asks "does this project do X?" of raw source text, and
+ * a JSDoc `@example` showing X is not the project doing X — a docstring telling
+ * you to `import "tempest-react-sdk/styles.css"`, or one rendering a
+ * `<TrajectoryMap tileUrl=…>`, used to be read as a second import and as a
+ * leaflet dependency. Strings survive because the checks match import paths,
+ * which live inside them; the design rules use `maskSource` instead, which blanks
+ * both.
+ *
+ * @param {string} source - Raw file contents.
+ * @returns {string} The same text with `//` and block comments blanked.
+ */
+function stripComments(source) {
+    let out = "";
+    let i = 0;
+    while (i < source.length) {
+        const ch = source[i];
+        const next = source[i + 1];
+        if (ch === "/" && next === "/") {
+            const end = source.indexOf("\n", i);
+            i = end === -1 ? source.length : end;
+            continue;
+        }
+        if (ch === "/" && next === "*") {
+            const end = source.indexOf("*/", i + 2);
+            const stop = end === -1 ? source.length : end + 2;
+            out += source.slice(i, stop).replace(/[^\n]/g, " ");
+            i = stop;
+            continue;
+        }
+        if (ch === '"' || ch === "'" || ch === "`") {
+            const quote = ch;
+            let j = i + 1;
+            while (j < source.length && source[j] !== quote) {
+                if (source[j] === "\\") j += 1;
+                if (source[j] === "\n" && quote !== "`") break;
+                j += 1;
+            }
+            out += source.slice(i, Math.min(j + 1, source.length));
+            i = j + 1;
+            continue;
+        }
+        out += ch;
+        i += 1;
+    }
+    return out;
+}
+
+/**
  * Recursively collect source text (bounded) to scan for import usage, and note
  * whether any test file exists. Returns `{ text, hasTests }`.
+ *
+ * The text comes back with comments stripped (see {@link stripComments}), since
+ * every caller is asking what the code does, not what its docs say. Test files
+ * are counted (`hasTests`) but kept out of it for the same reason: a test that
+ * renders a component precisely to assert how it degrades **without** an optional
+ * peer would otherwise be read as a project needing that peer installed.
  */
 function scanSources() {
     const roots = ["src", "app"].map((d) => join(ROOT, d)).filter(existsSync);
@@ -136,9 +192,12 @@ function scanSources() {
             if (e.isDirectory()) walk(full);
             else if (exts.has(e.name.slice(e.name.lastIndexOf(".")))) {
                 budget -= 1;
-                if (/\.(test|spec)\./.test(e.name)) hasTests = true;
+                if (/\.(test|spec)\./.test(e.name)) {
+                    hasTests = true;
+                    continue;
+                }
                 try {
-                    text += readFileSync(full, "utf8");
+                    text += stripComments(readFileSync(full, "utf8"));
                 } catch {
                     /* ignore */
                 }
@@ -372,6 +431,13 @@ function designChecks(limit = 6) {
             "the limits and the escape hatch are documented at /design/limits/",
         ]);
     }
+    // Carried to the summary so a capped list still reports its real size. Never
+    // printed: the reporter skips any row whose severity it does not know.
+    const hiddenWarns = Math.max(
+        0,
+        analysis.findings.filter((f) => f.severity === "warn").length - limit,
+    );
+    if (hiddenWarns > 0) rows.push(["hidden-warns", hiddenWarns]);
     if (analysis.findings.length === 0) {
         rows.push(["ok", "no design problems found"]);
     }
@@ -552,8 +618,14 @@ function doctor(args = []) {
         checks.push(["ok", "all declared dependencies installed"]);
     }
 
-    // App's own peerDependencies unmet.
-    const peerDeps = Object.keys(pkg.peerDependencies ?? {});
+    // App's own peerDependencies unmet. A peer flagged `optional` in
+    // peerDependenciesMeta is not missing when absent — that is the whole point of
+    // declaring it optional, and reporting it turns every published package into a
+    // permanent warning about peers its consumers were never meant to install.
+    const peerMeta = pkg.peerDependenciesMeta ?? {};
+    const peerDeps = Object.keys(pkg.peerDependencies ?? {}).filter(
+        (name) => peerMeta[name]?.optional !== true,
+    );
     const unmetPeers = peerDeps.filter((name) => !installedVersion(name));
     if (unmetPeers.length > 0) {
         checks.push([
@@ -728,7 +800,12 @@ function doctor(args = []) {
         }
     }
     // styles.css should be imported once — duplicates re-inject the whole sheet.
-    const stylesImports = (src.match(/tempest-react-sdk\/styles\.css/g) ?? []).length;
+    // Only an actual import statement counts: the path also shows up in prose (a
+    // JSDoc telling you to import it, a comment explaining what the sheet covers),
+    // and counting those reports a duplicate that does not exist.
+    const stylesImports = (
+        src.match(/(?:^|[\s;])import\s+["']tempest-react-sdk\/styles\.css["']/g) ?? []
+    ).length;
     if (stylesImports > 1) {
         checks.push([
             "warn",
@@ -846,6 +923,7 @@ function report(checks) {
             console.log(`\n${c.bold}${entry[1]}${c.reset}`);
             continue;
         }
+        if (entry[0] === "hidden-warns") continue;
         if (entry[0] === "info") {
             console.log(
                 `  [${c.cyan}i${c.reset}] ${entry[1]}${entry[2] ? ` ${c.dim}— ${entry[2]}${c.reset}` : ""}`,
@@ -855,7 +933,13 @@ function report(checks) {
         console.log(fmt(entry[0], entry[1], entry[2]));
     }
     const fails = checks.filter((x) => x[0] === "fail").length;
-    const warns = checks.filter((x) => x[0] === "warn").length;
+    // The design section prints at most `limit` findings per severity, so counting the
+    // printed rows under-reports it — a project with 245 design warnings used to close
+    // with "6 warning(s)", and a number that small is a number nobody acts on.
+    const hiddenWarns = checks
+        .filter((x) => x[0] === "hidden-warns")
+        .reduce((sum, x) => sum + x[1], 0);
+    const warns = checks.filter((x) => x[0] === "warn").length + hiddenWarns;
     console.log("");
     if (fails)
         console.log(

@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits props-count — title, description, installLabel and dismissLabel
+ * are four strings the app has to write, icon and className the look, storageKey the
+ * dismissal memory and onResult the outcome. An install prompt with SDK-authored
+ * copy is the one thing nobody ships.
+ */
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
@@ -44,6 +50,11 @@ function readDismissed(storageKey?: string): boolean {
  * platforms that never fire `beforeinstallprompt` (e.g. iOS Safari) it stays
  * hidden and you can surface manual instructions elsewhere.
  *
+ * @tempest-limits empty-catch — persisting the dismissal is a courtesy, not the
+ * feature. When `localStorage` refuses the write (quota, private mode) the banner
+ * still hides for this session; the worst case is that it comes back next visit,
+ * which beats an error thrown out of a click handler that only closed a banner.
+ *
  * @example
  * <InstallBanner
  *     title="Instale o FAMACHApp"
@@ -72,7 +83,7 @@ export function InstallBanner({
             try {
                 window.localStorage.setItem(storageKey, "1");
             } catch {
-                /* ignore quota errors */
+                /* empty */
             }
         }
     };

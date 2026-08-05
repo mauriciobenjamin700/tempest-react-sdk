@@ -13,6 +13,13 @@ const defaultDeserialize = <T>(raw: string): T => JSON.parse(raw) as T;
  * provided default; the stored value is hydrated after mount. Updates to the
  * same key in other tabs are picked up via the `storage` event.
  *
+ * @tempest-limits empty-catch — the three swallows here are the hook's contract.
+ * A write that hits the quota (or Safari private mode) still updates React state,
+ * so the session keeps working and only persistence is lost; a `storage` event
+ * carrying a value this tab cannot deserialize is another tab's bug, and the
+ * useful response is to keep the value already rendered rather than tear the
+ * component down over a foreign write.
+ *
  * @param key - localStorage key.
  * @param defaultValue - value used when nothing is stored or in SSR.
  * @param options - custom `serialize` / `deserialize` (default JSON).
@@ -53,7 +60,7 @@ export function useLocalStorage<T>(
                         window.localStorage.setItem(key, serialize(resolved));
                     }
                 } catch {
-                    /* swallow quota/exceptions */
+                    /* empty */
                 }
                 return resolved;
             });
@@ -67,7 +74,7 @@ export function useLocalStorage<T>(
                 window.localStorage.removeItem(key);
             }
         } catch {
-            /* ignore */
+            /* empty */
         }
         setStored(defaultValue);
     }, [key, defaultValue]);
@@ -83,7 +90,7 @@ export function useLocalStorage<T>(
             try {
                 setStored(deserialize(event.newValue));
             } catch {
-                /* ignore malformed remote value */
+                /* empty */
             }
         };
         window.addEventListener("storage", onStorage);

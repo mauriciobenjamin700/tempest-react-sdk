@@ -1,3 +1,10 @@
+/**
+ * @tempest-limits file-lines, props-count, function-lines — the grid is defined by
+ * anchor, days, startHour, endHour and snapMinutes; the content by events,
+ * renderEvent, onEventClick and onSlotClick; the reading by locale, showCurrentTime
+ * and now. The body lays out overlapping events into columns, which needs the whole
+ * day's events at once.
+ */
 import { type HTMLAttributes, type ReactNode, useEffect, useMemo, useState } from "react";
 
 import { cn } from "@/utils/cn";

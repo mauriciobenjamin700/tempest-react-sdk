@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits props-count — items, itemHeight, height and overscan are the
+ * window maths; renderItem and getKey the row contract; label the accessible name of
+ * a scroll region. Nine props is what windowing costs — the alternative is the app
+ * doing the maths.
+ */
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { cn } from "@/utils/cn";

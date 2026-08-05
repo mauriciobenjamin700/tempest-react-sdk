@@ -35,7 +35,7 @@ describe("hueOf", () => {
 describe("buildRamp", () => {
     it("emits the requested number of steps", () => {
         expect(buildRamp(BLUE, "light")).toHaveLength(SEQUENTIAL_STEPS);
-        expect(buildRamp(BLUE, "light", 5)).toHaveLength(5);
+        expect(buildRamp(BLUE, "light", { steps: 5 })).toHaveLength(5);
     });
 
     it("returns token order: index 0 is the near-zero end, per mode", () => {

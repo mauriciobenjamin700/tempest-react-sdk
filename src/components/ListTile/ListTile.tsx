@@ -1,3 +1,8 @@
+/**
+ * @tempest-limits props-count — leading, title, subtitle and trailing are the four
+ * slots of a list row, and onClick/disabled/selected are what make it a row you can
+ * pick. That is the whole component — there is no second one inside it.
+ */
 import type { ReactNode } from "react";
 import { cn } from "@/utils/cn";
 import styles from "./ListTile.module.css";

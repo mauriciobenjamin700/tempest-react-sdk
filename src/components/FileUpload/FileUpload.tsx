@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits file-lines, props-count, function-lines — the picker (accept,
+ * multiple, maxSize, onReject) and the list of chosen files (value, onChange,
+ * disabled) are one control, and title/subtitle/label exist because the empty state
+ * is the biggest part of the surface.
+ */
 import { useRef, useState } from "react";
 import type { DragEvent } from "react";
 import { cn } from "@/utils/cn";

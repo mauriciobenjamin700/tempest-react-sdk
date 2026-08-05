@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits hook-lines — the hook is the recorder's lifecycle seen from React:
+ * permission, the recorder handle, the clock, the level meter and the auto-stop
+ * timer, all of which have to be torn down together on unmount. A second hook would
+ * own half the teardown.
+ */
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useStableCallback } from "@/hooks/use-stable-callback";

@@ -1,3 +1,10 @@
+/**
+ * @tempest-limits file-lines, hook-lines — the Web Speech API restarts itself on
+ * silence, reports interim and final results on the same event, and reports `no-
+ * speech` as an error that is not one. The hook is that reconciliation plus the
+ * continuous-mode restart loop, and its length is mostly the vendor quirks the
+ * docstring warns about.
+ */
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useStableCallback } from "@/hooks/use-stable-callback";

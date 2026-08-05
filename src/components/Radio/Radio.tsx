@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits props-count — RadioGroup carries the group semantics (name, value,
+ * defaultValue, onChange, disabled) and its layout (horizontal, className,
+ * children). The individual Radio is a separate component already — this is the
+ * group, and a group needs the group's props.
+ */
 import { createContext, forwardRef, useContext, useId, useState } from "react";
 import type { ChangeEvent, InputHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/utils/cn";

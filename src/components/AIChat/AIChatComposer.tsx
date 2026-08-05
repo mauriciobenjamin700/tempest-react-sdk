@@ -1,3 +1,11 @@
+/**
+ * @tempest-limits props-count, function-lines — a textarea that grows, submits on
+ * Enter, offers a stop button while a turn is generating and clears only when onSend
+ * resolves. The eight props are that contract (onSend, onStop, generating, onError)
+ * plus its slots (actions, footer) and shape (maxRows, locale); the body is the
+ * autosize measurement and the key handling, which both need the same ref and cannot
+ * be lifted out of it.
+ */
 import {
     forwardRef,
     useImperativeHandle,

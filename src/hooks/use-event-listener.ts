@@ -10,6 +10,11 @@ type AnyEventTarget = EventTarget | { current: EventTarget | null } | null | und
  * - `target` defaults to `window`. Accepts a raw `EventTarget` (window, document,
  *   element) OR a ref pointing at one.
  * - Returns nothing — cleanup is automatic on unmount or when `eventName`/`target` change.
+ *
+ * @tempest-limits param-count — deliberately the same positional shape as
+ * `addEventListener(type, listener, options)`, with the target inserted where React
+ * needs it. A hook that mirrors a DOM API is read by everyone who already knows the
+ * DOM API; a bespoke options bag would make the familiar call unfamiliar.
  */
 export function useEventListener<K extends keyof WindowEventMap>(
     eventName: K,

@@ -1,3 +1,10 @@
+/**
+ * @tempest-limits file-lines, props-count, function-lines — steps plus the
+ * controlled-or-not pair (activeIndex, defaultActiveIndex, onStepChange,
+ * onComplete), the four strings it renders (nextLabel, backLabel, finishLabel,
+ * optionalLabel) and the two behaviours (clickableSteps, renderActions). The labels
+ * are props because a wizard's buttons are the most translated text in an app.
+ */
 import { useCallback, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { cn } from "@/utils/cn";

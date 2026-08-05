@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits props-count — component, theme, text, shape, size and width are
+ * Google's own button parameters, passed through with their names intact so the
+ * reader can match them to Google's documentation;
+ * onSuccess/onError/locale/disableOneTap are the wrapper's.
+ */
 import type { CSSProperties, ReactNode } from "react";
 import type { OAuthCredential, OAuthError } from "./types";
 

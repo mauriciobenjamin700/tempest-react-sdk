@@ -1,3 +1,11 @@
+/**
+ * @tempest-limits file-lines, props-count, function-lines — expansion and selection
+ * are two independent controlled states, each with its uncontrolled twin
+ * (expandedIds/defaultExpandedIds/onExpandedChange, selectedId/
+ * defaultSelectedId/onSelect), plus toggleOnSelect for the case where they should
+ * move together. The body is the flattened visible list and the roving focus over
+ * it.
+ */
 import { ChevronRight } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";

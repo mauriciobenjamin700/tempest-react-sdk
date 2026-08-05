@@ -1,4 +1,10 @@
 /**
+ * @tempest-limits file-lines — one pass that emits the whole token set — surfaces,
+ * text, borders, states, the chart ramps — for both modes, with every value checked
+ * against the surface it will sit on. The checks are what make the length: each
+ * token is derived and then verified against the same background table.
+ */
+/**
  * Theme factory: turns a handful of brand colors into the full set of
  * `--tempest-*` token overrides, for both light and dark.
  *

@@ -1,3 +1,11 @@
+/**
+ * @tempest-limits file-lines, props-count, function-lines — the table does four jobs
+ * a caller turns on independently — paging (pageSize), search (searchable,
+ * searchKeys), sort (initialSort) and inline edit (onCellChange, editLabels) — over
+ * one row model (data, columns, rowKey, emptyMessage). The body is long because
+ * those four share the derived-rows pipeline: filter, then sort, then page, then map
+ * to cells, in that order and off the same memo.
+ */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/utils/cn";

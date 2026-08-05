@@ -48,6 +48,12 @@ export const consoleSink: LoggerSink = ({ level, message, context }) => {
 /**
  * Create a structured leveled logger. Plug arbitrary sinks (Sentry, Datadog,
  * remote ingestion) by implementing the `LoggerSink` interface.
+ *
+ * @tempest-limits empty-catch — a sink that throws must not take the app with it,
+ * and it must not stop the sinks after it in the list either. Logging is the thing
+ * you reach for when something is already going wrong; a transport failure that
+ * propagates would turn a diagnostic into the outage. Nothing here can report the
+ * failure without recursing into the logger that just failed.
  */
 export function createLogger(options: CreateLoggerOptions = {}): Logger {
     const threshold = options.level ?? "info";
@@ -66,7 +72,7 @@ export function createLogger(options: CreateLoggerOptions = {}): Logger {
             try {
                 sink(entry);
             } catch {
-                /* never let a sink break the app */
+                /* empty */
             }
         }
     }

@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits hook-lines — getDisplayMedia's cancellation is indistinguishable
+ * from a policy block, so the hook holds the classification, the track's own `ended`
+ * event (the user can stop sharing from the browser's bar) and the stop path in one
+ * place — all three end the same session.
+ */
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {

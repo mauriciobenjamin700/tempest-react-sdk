@@ -1,3 +1,8 @@
+/**
+ * @tempest-limits function-lines — the body is the SSE line protocol — accumulate
+ * `data:` lines until a blank line, track `id:` for Last-Event-ID, honour `retry:` —
+ * plus the reconnect that uses the id it just tracked.
+ */
 export type EventStreamStatus = "idle" | "connecting" | "open" | "closed" | "error";
 
 export interface EventStreamMessage<T> {

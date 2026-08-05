@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits file-lines, function-lines — the plugin generates every icon size,
+ * the maskable variants, the favicon and the Apple touch icons from one source
+ * image, and wires them into the manifest it also writes. The sizes and the manifest
+ * entries are the same list read twice, so they are produced together.
+ */
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { Plugin } from "vite";

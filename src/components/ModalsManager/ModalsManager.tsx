@@ -1,3 +1,8 @@
+/**
+ * @tempest-limits file-lines — the imperative API (open, close, confirm, prompt) and
+ * the stack that renders it live in one file so the returned promise and the mounted
+ * element cannot drift apart.
+ */
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";

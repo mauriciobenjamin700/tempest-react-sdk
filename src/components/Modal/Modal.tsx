@@ -1,3 +1,10 @@
+/**
+ * @tempest-limits props-count, function-lines — size, fullscreen and
+ * fullscreenOnMobile are three distinct decisions (a fixed width, always full, full
+ * only on a phone), and the rest is the dialog contract: open, onClose, title,
+ * children, footer, closeOnBackdrop, closeOnEsc, hideCloseButton. The body is the
+ * focus trap and the scroll lock, which must be installed and torn down together.
+ */
 import { useEffect, useId } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";

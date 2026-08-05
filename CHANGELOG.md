@@ -4,6 +4,35 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.38.2] — 2026-08-05
+
+### Adicionado
+
+- **`computeImageLuminance` aceita `ImageBitmap` e `OffscreenCanvas`**
+  (`LuminanceSource`). A lista passa a seguir o que o `drawImage` realmente
+  aceita e de onde se lê um tamanho — que é tudo que a função precisa. Em runtime
+  já funcionava; o tipo era o que barrava.
+
+  Isso destrava o caminho de decodificação reduzida, que é como um app evita
+  materializar uma foto de celular inteira: uma de 12 MP vira ~48 MB de RGBA, mais
+  que dois modelos ONNX somados, e é o pico onde o ORT começa a recusar sessão.
+
+  ```tsx
+  const frame = await createImageBitmap(photoBlob, {
+    resizeWidth: 1280,
+    resizeQuality: "high",
+  });
+  const luminance = computeImageLuminance(frame); // sem um segundo decode
+  const result = (await det.predict(frame))[0]; // o mesmo frame
+  frame.close();
+  ```
+
+  O frame medido é o frame inferido — as tasks já aceitavam `ImageBitmap` em
+  `predict()`, só a luminância ficava de fora e forçava um `<img>` full-res só
+  para a checagem de brilho. `sourceSize` agora ramifica por
+  `HTMLImageElement` explicitamente em vez de tratar todo não-vídeo como imagem
+  via `naturalWidth || width`.
+
 ## [0.38.1] — 2026-08-05
 
 ### Corrigido

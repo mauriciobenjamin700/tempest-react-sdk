@@ -436,11 +436,11 @@ O `error.kind` é um enum estável — mapeie-o pra UI, não pra `error.message`
 ### `computeImageLuminance` + `useLiveLuminance` — medir o brilho
 
 `computeImageLuminance` calcula a **luminância média BT.709**
-(`0.2126*R + 0.7152*G + 0.0722*B`, escala `0..255`) de um `<img>`, `<video>` ou
-`<canvas>` já decodificado. Faz downsample até no máximo
-`LUMINANCE_SAMPLE_MAX_EDGE` (256px) antes de ler os pixels — estatisticamente
-equivalente pra um threshold e ordens de magnitude mais rápido que ler o frame
-inteiro.
+(`0.2126*R + 0.7152*G + 0.0722*B`, escala `0..255`) de um frame já
+decodificado — `<img>`, `<video>`, `<canvas>`, `ImageBitmap` ou
+`OffscreenCanvas`. Faz downsample até no máximo `LUMINANCE_SAMPLE_MAX_EDGE`
+(256px) antes de ler os pixels — estatisticamente equivalente pra um threshold e
+ordens de magnitude mais rápido que ler o frame inteiro.
 
 ```tsx
 import {
@@ -461,6 +461,26 @@ if (!isLuminanceAcceptable(luminance, 70)) {
     foi treinado e da taxa de rejeição aceitável. O SDK não crava um default.
     `LowLuminanceError` carrega `.luminance` e `.threshold` pra você mostrar
     feedback acionável.
+
+!!! tip "Foto de celular: decodifique reduzido e meça o mesmo frame"
+    Uma foto de 12 MP virá a ~48 MB de RGBA se você decodificar inteira — mais que
+    os dois modelos somados, e o pico onde o ORT começa a recusar sessão. Peça o
+    frame já reduzido e trabalhe nele; `ImageBitmap` é aceito tanto aqui quanto no
+    `predict()` das tasks, então o frame que você mede é o frame que você infere:
+
+    ```tsx
+    const frame = await createImageBitmap(photoBlob, {
+      resizeWidth: 1280,
+      resizeQuality: "high",
+    });
+    const luminance = computeImageLuminance(frame); // 0..255, sem outro decode
+    const result = (await det.predict(frame))[0];
+    frame.close(); // libera na hora, sem esperar o GC
+    ```
+
+    As caixas voltam no espaço do frame reduzido — multiplique pelo fator de
+    escala se você persiste coordenadas na resolução original. E `close()` importa:
+    é a única forma determinística de devolver a memória.
 
 Pra feedback **ao vivo** (barra de brilho, borda que muda de cor enquanto a
 câmera está aberta), `useLiveLuminance` amostra o `<video>` num laço de

@@ -133,6 +133,30 @@ describe("computeImageLuminance — source shapes", () => {
         expect(computeImageLuminance(makeSource(4), target)).toBe(0);
     });
 
+    it("reads an ImageBitmap from its width/height", () => {
+        const bitmap = { width: 4, height: 4, close: () => undefined } as ImageBitmap;
+        expect(computeImageLuminance(bitmap, makeSolidCanvas(255, 255, 255, 4))).toBeCloseTo(
+            255,
+            0,
+        );
+    });
+
+    it("returns 0 for a closed (zero-sized) ImageBitmap", () => {
+        const bitmap = { width: 0, height: 0, close: () => undefined } as ImageBitmap;
+        expect(computeImageLuminance(bitmap)).toBe(0);
+    });
+
+    it("reads a real <img> natural size ahead of its layout size", () => {
+        const img = document.createElement("img");
+        Object.defineProperties(img, {
+            naturalWidth: { value: 4 },
+            naturalHeight: { value: 4 },
+        });
+        img.width = 999;
+        img.height = 999;
+        expect(computeImageLuminance(img, makeSolidCanvas(0, 0, 0, 4))).toBe(0);
+    });
+
     it("allocates its own canvas when none is passed", () => {
         const created: HTMLCanvasElement[] = [];
         const realCreate = document.createElement.bind(document);

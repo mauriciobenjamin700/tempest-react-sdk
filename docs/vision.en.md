@@ -438,10 +438,10 @@ const cam = useCameraStream({
 
 `computeImageLuminance` computes the **mean BT.709 luminance**
 (`0.2126*R + 0.7152*G + 0.0722*B`, on a `0..255` scale) of an already-decoded
-`<img>`, `<video>`, or `<canvas>`. It downsamples to at most
-`LUMINANCE_SAMPLE_MAX_EDGE` (256px) before reading pixels — statistically
-equivalent for a threshold and orders of magnitude faster than reading the whole
-frame.
+frame — `<img>`, `<video>`, `<canvas>`, `ImageBitmap`, or `OffscreenCanvas`. It
+downsamples to at most `LUMINANCE_SAMPLE_MAX_EDGE` (256px) before reading
+pixels — statistically equivalent for a threshold and orders of magnitude faster
+than reading the whole frame.
 
 ```tsx
 import {
@@ -462,6 +462,27 @@ if (!isLuminanceAcceptable(luminance, 70)) {
     it was trained on, and your acceptable reject rate. The SDK bakes in no
     default. `LowLuminanceError` carries `.luminance` and `.threshold` so you can
     surface actionable feedback.
+
+!!! tip "Phone photos: decode downscaled and measure that same frame"
+    A 12 MP photo decodes to ~48 MB of RGBA if you take it whole — more than both
+    models together, and the peak where ORT starts refusing to create a session.
+    Ask for the frame already downscaled and work on it; `ImageBitmap` is accepted
+    both here and by the tasks' `predict()`, so the frame you measure is the frame
+    you infer on:
+
+    ```tsx
+    const frame = await createImageBitmap(photoBlob, {
+      resizeWidth: 1280,
+      resizeQuality: "high",
+    });
+    const luminance = computeImageLuminance(frame); // 0..255, no second decode
+    const result = (await det.predict(frame))[0];
+    frame.close(); // hands the memory back now, not whenever the GC runs
+    ```
+
+    Boxes come back in the downscaled frame's space — multiply by the scale factor
+    if you persist coordinates at the original resolution. And `close()` matters:
+    it is the only deterministic way to release that memory.
 
 For **live** feedback (a brightness bar, a border that changes color while the
 camera is open), `useLiveLuminance` samples the `<video>` on a

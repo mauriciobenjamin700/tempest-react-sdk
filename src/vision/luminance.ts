@@ -1,7 +1,8 @@
 /**
  * Frame-brightness helpers — measure the mean luminance of an already-decoded
- * `<img>`, `<video>` or `<canvas>` so a UI can reject underexposed captures
- * before paying the cost of downstream inference.
+ * frame (`<img>`, `<video>`, `<canvas>`, `ImageBitmap` or `OffscreenCanvas`) so
+ * a UI can reject underexposed captures before paying the cost of downstream
+ * inference.
  *
  * These are framework-agnostic pure functions; {@link useLiveLuminance} wires
  * {@link computeImageLuminance} into a React `requestAnimationFrame` loop for
@@ -16,26 +17,43 @@
  */
 export const LUMINANCE_SAMPLE_MAX_EDGE = 256;
 
-/** Drawable source we can sample luminance from — image, video, or canvas. */
-export type LuminanceSource = HTMLImageElement | HTMLVideoElement | HTMLCanvasElement;
+/**
+ * Drawable source we can sample luminance from.
+ *
+ * The list tracks what `CanvasRenderingContext2D.drawImage` accepts and we can
+ * read a pixel size off, which is what the implementation actually needs.
+ * `ImageBitmap` matters for the decode-downscaled path: `createImageBitmap(blob,
+ * { resizeWidth })` is how a caller avoids materialising a full-resolution
+ * phone photo, and the frame it hands back is the frame whose brightness has to
+ * be checked.
+ */
+export type LuminanceSource =
+    HTMLImageElement | HTMLVideoElement | HTMLCanvasElement | ImageBitmap | OffscreenCanvas;
 
-/** Natural pixel size of the source (`0`/`0` while it is still unloaded). */
+/**
+ * Natural pixel size of the source (`0`/`0` while it is still unloaded).
+ *
+ * `ImageBitmap` and `OffscreenCanvas` both expose plain `width`/`height`, so
+ * they fall through to the same branch as a canvas — but they are named
+ * explicitly rather than left to the `naturalWidth || width` fallback, which
+ * only reads as intentional for an `<img>`.
+ */
 function sourceSize(source: LuminanceSource): { width: number; height: number } {
     if (source instanceof HTMLVideoElement) {
         return { width: source.videoWidth, height: source.videoHeight };
     }
-    if (source instanceof HTMLCanvasElement) {
-        return { width: source.width, height: source.height };
+    if (source instanceof HTMLImageElement) {
+        return {
+            width: source.naturalWidth || source.width,
+            height: source.naturalHeight || source.height,
+        };
     }
-    return {
-        width: source.naturalWidth || source.width,
-        height: source.naturalHeight || source.height,
-    };
+    return { width: source.width, height: source.height };
 }
 
 /**
- * Mean BT.709 luminance (`0.2126*R + 0.7152*G + 0.0722*B`) of a decoded
- * `<img>`, `<video>` or `<canvas>`, scaled to `0..255`.
+ * Mean BT.709 luminance (`0.2126*R + 0.7152*G + 0.0722*B`) of a decoded frame,
+ * scaled to `0..255`. See {@link LuminanceSource} for what counts as one.
  *
  * The source is downsampled so its longest edge is at most
  * {@link LUMINANCE_SAMPLE_MAX_EDGE} before pixels are read. The 2D context is
@@ -45,7 +63,7 @@ function sourceSize(source: LuminanceSource): { width: number; height: number } 
  * Pass `reusableCanvas` to avoid allocating a fresh canvas every frame in a hot
  * loop; when omitted a one-shot detached canvas is created.
  *
- * @param source - the image/video/canvas to sample.
+ * @param source - the decoded frame to sample.
  * @param reusableCanvas - optional canvas reused across frames to avoid GC churn.
  * @returns The mean luminance in `0..255`, or `0` when the source is unloaded
  *   (zero-sized) or a 2D context is unavailable.

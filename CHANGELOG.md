@@ -6,6 +6,18 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **`cachedResponseBytes` conta o corpo quando não há `Content-Length`.** O
+  leitor só olhava o header, e um `null` no relatório é indistinguível de "esse
+  modelo ninguém mediu". Não é caso raro: transferência chunked derruba o header,
+  proxy que re-codifica derruba, e resposta cross-origin só o expõe sob regras de
+  CORS. O FAMACHApp acumulou 12 execuções de campo com as duas colunas de tamanho
+  de modelo vazias por isso (IAgro-Solutions/famachapp-pwa#23).
+
+  A contagem lê o stream por chunks e descarta cada um — nunca materializa o
+  arquivo, que é o motivo de o header ser preferido quando existe.
+
+### Corrigido
+
 - **`tempest doctor` parou de reportar coisa que não existe.** Quatro falsos
   positivos, todos vazando para o app consumidor e não só para o dogfood:
 

@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits props-count — label, helperText and error are the three states of
+ * one message slot that every input in this SDK shares; removing them pushes the
+ * scaffolding back into the app. DatePicker adds min, max and mode on top, which are
+ * the field's own semantics.
+ */
 import { forwardRef } from "react";
 import type { InputHTMLAttributes } from "react";
 import { Input } from "@/components/Input";

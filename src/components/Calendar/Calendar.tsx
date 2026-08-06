@@ -1,3 +1,10 @@
+/**
+ * @tempest-limits file-lines, props-count, function-lines — a date grid is
+ * controlled two ways at once — the selected day (value, defaultValue, onChange) and
+ * the visible month (month, onMonthChange) — inside the bounds (minDate, maxDate,
+ * weekStartsOn). The body builds the grid and owns roving focus and keyboard
+ * navigation, which read the same cursor date.
+ */
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { HTMLAttributes, KeyboardEvent } from "react";
 import { cn } from "@/utils/cn";

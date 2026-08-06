@@ -1,3 +1,10 @@
+/**
+ * @tempest-limits file-lines, props-count, function-lines — the canvas (width,
+ * height, penColor, penWidth), the lifecycle an app needs to enable its save button
+ * (onBegin, onEnd, onEmptyChange) and the built-in actions with their copy
+ * (showActions, clearLabel, undoLabel, label). The body is the stroke buffer plus
+ * undo history, which are the same array.
+ */
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { cn } from "@/utils/cn";

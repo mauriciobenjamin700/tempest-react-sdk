@@ -37,6 +37,31 @@ function header(version) {
  */`;
 }
 
+/**
+ * Banner stamped on every vendored file except the entry barrel, which carries the
+ * full provenance header instead.
+ *
+ * `tempest doctor` skips a file that declares itself generated, and the vendored
+ * tree has to say so in each file: a reader who opens `tasks/detector.ts` directly
+ * sees nothing that tells them an edit here is lost on the next `vendor:vision`,
+ * and the design rules would otherwise report upstream's shape as this project's
+ * debt.
+ */
+const BANNER =
+    "/** @generated Vendored from @mauriciobenjamin700/ort-vision-sdk-web. Do not hand-edit — regenerate with `npm run vendor:vision`. */\n";
+
+/**
+ * True for a file this repo owns rather than copies — kept when it is not present
+ * upstream (the camera hooks, the SDK's own tests) and therefore not regenerated.
+ *
+ * @param {string} file - Absolute path inside `src/vision`.
+ * @returns {boolean}
+ */
+function isPreserved(file) {
+    const name = file.slice(file.lastIndexOf("/") + 1);
+    return /\.(test|spec)\.tsx?$/.test(name) || name.startsWith("use-");
+}
+
 /** Recursively copy every file under `srcDir` into `dstDir` (overwriting). */
 async function copyTree(srcDir, dstDir) {
     await mkdir(dstDir, { recursive: true });
@@ -77,6 +102,8 @@ async function main() {
         if (file === join(DST, "index.ts")) {
             code = code.replace(/^\/\*\*[\s\S]*?\*\/\s*/, "");
             code = `${header(version)}\n\n${code}`;
+        } else if (!isPreserved(file) && !code.startsWith(BANNER)) {
+            code = `${BANNER}${code}`;
         }
         await writeFile(file, code);
     }

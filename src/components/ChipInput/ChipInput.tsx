@@ -1,3 +1,11 @@
+/**
+ * @tempest-limits props-count — the eight or so props that repeat across every input
+ * in the SDK are one contract, not a bag: label, helperText and error are the three
+ * states of the same message slot, and dropping any of them pushes the app back to
+ * building the label/help/error scaffolding by hand around a bare control. Beyond
+ * those, ChipInput adds only commitKeys and normalize, which are what make it a chip
+ * input rather than a text field.
+ */
 import { useId, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { cn } from "@/utils/cn";

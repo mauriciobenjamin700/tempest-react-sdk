@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits file-lines, function-lines — a range is two dates whose validity
+ * depends on each other, so the body keeps both ends, the hovered preview end and
+ * the open panel in one place; splitting the halves would mean each one reaching
+ * into the other's state to clamp itself.
+ */
 import { useCallback, useMemo, useState } from "react";
 import type { HTMLAttributes } from "react";
 import { cn } from "@/utils/cn";

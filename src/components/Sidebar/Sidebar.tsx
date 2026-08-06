@@ -1,3 +1,8 @@
+/**
+ * @tempest-limits props-count — header, items, footer are the three regions,
+ * value/onChange the selection, and collapsed/width/collapsedWidth the two layout
+ * modes it switches between.
+ */
 import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/utils/cn";
 import styles from "./Sidebar.module.css";

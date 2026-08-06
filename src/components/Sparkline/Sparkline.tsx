@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits props-count — an inline chart with no chart library: data plus its
+ * scale (min, max), its box (width, height), its look (variant, color, showEnd) and
+ * its accessibility (valueFormatter, label). The formatter and label matter because
+ * a sparkline has no axes to read.
+ */
 import type { HTMLAttributes } from "react";
 
 import { cn } from "@/utils/cn";

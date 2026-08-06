@@ -277,6 +277,65 @@ describe("tempest doctor — a project that does use the SDK", () => {
         expect(doctor().out).not.toContain("Adopting the SDK (optional)");
     });
 
+    it("does not count a styles.css mentioned in a docstring as a second import", () => {
+        write("src/main.tsx", 'import "tempest-react-sdk/styles.css";\nexport const main = 1;');
+        write(
+            "src/theme.ts",
+            '/**\n * Theming notes.\n *\n * The app imports "tempest-react-sdk/styles.css" once, in the entry.\n */\nexport const theme = 1;',
+        );
+        const { out } = doctor();
+        expect(out).not.toContain("styles.css imported");
+    });
+
+    it("still catches a styles.css imported twice for real", () => {
+        write("src/main.tsx", 'import "tempest-react-sdk/styles.css";\nexport const main = 1;');
+        write("src/late.ts", 'import "tempest-react-sdk/styles.css";\nexport const late = 1;');
+        expect(doctor().out).toContain("styles.css imported 2×");
+    });
+
+    it("keeps quiet about an optional peer the project never uses", () => {
+        write("package.json", {
+            name: "sdk-lib",
+            type: "module",
+            dependencies: { "tempest-react-sdk": "^0.26.1" },
+            peerDependencies: { react: "^19.0.0", leaflet: ">=1.9.0" },
+            peerDependenciesMeta: { leaflet: { optional: true } },
+        });
+        const { out } = doctor();
+        expect(out).not.toContain("peerDependency(ies) unmet");
+    });
+
+    it("still reports a required peer that is not installed", () => {
+        write("package.json", {
+            name: "sdk-lib",
+            type: "module",
+            dependencies: { "tempest-react-sdk": "^0.26.1" },
+            peerDependencies: { react: "^19.0.0", leaflet: ">=1.9.0" },
+        });
+        const { out } = doctor();
+        expect(out).toContain("peerDependency(ies) unmet");
+        expect(out).toContain("leaflet");
+    });
+
+    it("does not demand an optional peer a test only renders to prove it degrades", () => {
+        write(
+            "src/TileMap.test.tsx",
+            'import { TrajectoryMap } from "tempest-react-sdk";\n' +
+                'export const t = <TrajectoryMap points={[]} tileUrl="https://t/{z}/{x}/{y}.png" />;',
+        );
+        const { out } = doctor();
+        expect(out).not.toContain("leaflet missing");
+    });
+
+    it("still demands the optional peer when production code uses it", () => {
+        write(
+            "src/TileMap.tsx",
+            'import { TrajectoryMap } from "tempest-react-sdk";\n' +
+                'export const T = () => <TrajectoryMap points={[]} tileUrl="https://t/{z}/{x}/{y}.png" />;',
+        );
+        expect(doctor().out).toContain("leaflet missing");
+    });
+
     it("warns when the SDK is installed but undeclared", () => {
         write("package.json", {
             name: "sdk-app",
@@ -286,6 +345,32 @@ describe("tempest doctor — a project that does use the SDK", () => {
         expect(out).toContain("tempest-react-sdk not in dependencies");
         // Undeclared-but-present is a warning, not a blocking failure.
         expect(code).toBe(0);
+    });
+});
+
+describe("tempest doctor — the summary count", () => {
+    beforeEach(thirdPartyApp);
+
+    it("counts design findings the list had to cap", () => {
+        for (let i = 0; i < 12; i += 1) {
+            write(
+                `src/Comp${i}.tsx`,
+                [
+                    `export function Comp${i}() {`,
+                    ...Array.from({ length: 210 }, (_, j) => `  const v${j} = ${j};`),
+                    "  return null;",
+                    "}",
+                ].join("\n"),
+            );
+        }
+        const { out } = doctor();
+        const hidden = /(\d+) more design finding\(s\) not shown/.exec(out);
+        const summary = /! (\d+) warning\(s\)/.exec(out);
+        expect(hidden).not.toBeNull();
+        expect(summary).not.toBeNull();
+        // The summary has to be at least the findings that were hidden plus the ones
+        // printed; before this it counted only the printed rows.
+        expect(Number(summary[1])).toBeGreaterThan(Number(hidden[1]));
     });
 });
 

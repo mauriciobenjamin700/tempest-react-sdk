@@ -1,4 +1,9 @@
 /**
+ * @tempest-limits file-lines — the compact model format: the header, the column
+ * dictionary, the quantised weights and the decoder that reads them back. Writer and
+ * reader in one file because a format whose two halves live apart drifts.
+ */
+/**
  * Running a model with no inference runtime at all.
  *
  * ONNX in the browser costs a **25.6 MB WebAssembly runtime** (6.0 MB

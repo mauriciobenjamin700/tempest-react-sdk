@@ -1,3 +1,10 @@
+/**
+ * @tempest-limits file-lines, props-count, function-lines — closeLabel,
+ * previousLabel and nextLabel are three separate strings an app has to translate,
+ * showThumbnails/showCounter/loop are the chrome, and items/index/
+ * onIndexChange/open/onClose are the controlled contract. The body is the focus
+ * trap, the key handling and the swipe, which all move the same index.
+ */
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFocusTrap } from "@/hooks/use-focus-trap";

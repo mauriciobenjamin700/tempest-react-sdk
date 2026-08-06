@@ -1,3 +1,8 @@
+/**
+ * @tempest-limits function-lines — pull-to-refresh is a gesture with a threshold, a
+ * rubber-band offset and a release animation, and the body is those three reading
+ * one pointer delta.
+ */
 import { useRef, useState, type ReactNode, type TouchEvent } from "react";
 import { Spinner } from "@/components/Spinner";
 import { cn } from "@/utils/cn";

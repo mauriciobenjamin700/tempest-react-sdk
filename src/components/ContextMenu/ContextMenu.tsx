@@ -1,3 +1,8 @@
+/**
+ * @tempest-limits function-lines — the body positions the menu against the pointer,
+ * flips it inside the viewport, and owns roving focus for the keyboard path — one
+ * geometry computed from one anchor point.
+ */
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { cn } from "@/utils/cn";

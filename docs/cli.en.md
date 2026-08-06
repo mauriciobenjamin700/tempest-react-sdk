@@ -79,6 +79,17 @@ Tooling
 ! 3 warning(s) — usable, but worth fixing.
 ```
 
+!!! info "What counts as usage, and what does not"
+    The checks that ask "does this project use X?" read the **code**, not the prose:
+    comments are stripped before the search, so an `@example` showing
+    `import "tempest-react-sdk/styles.css"` is not a second import, and a docstring with
+    `<TrajectoryMap tileUrl=…>` does not start demanding `leaflet`. Test files are left
+    out too — a test that renders a component precisely to prove how it degrades
+    **without** an optional peer is not the project asking for that peer.
+
+    A peer marked `optional` in `peerDependenciesMeta` is never reported as unmet: that
+    is exactly what optional means.
+
 !!! success "It works on a project that does not use the SDK yet"
     When `tempest-react-sdk` is not among your dependencies, `doctor` runs in **generic
     mode**: it audits the health of any React + Vite app and does **not** fail you for

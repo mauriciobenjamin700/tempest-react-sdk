@@ -1,4 +1,12 @@
 /**
+ * @tempest-limits file-lines — the FEBRABAN spec in one file: the 47-digit linha
+ * digitável, the 44-digit barcode, the two layouts (bank slips and arrecadação),
+ * modulo-10 and modulo-11 check digits, the base date the due date counts from, and
+ * the value scaling. Every piece cross-checks another — the conversion between the
+ * two forms is what proves the check digits — so splitting it hides the one property
+ * the file exists to guarantee.
+ */
+/**
  * A boleto string could not be read, or failed a check digit.
  *
  * Its own class so a scanner screen can tell "this is not a boleto" apart from a

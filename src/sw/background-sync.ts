@@ -184,6 +184,12 @@ function matches(
  * is serialized to IndexedDB and a sync is registered; the original fetch still
  * rejects (so your app can show an offline state), and the request is replayed
  * later when the network returns.
+ *
+ * @tempest-limits empty-catch — `registration.sync.register` is unavailable on
+ * every non-Chromium browser and fails on a revoked background-sync permission.
+ * The entry is already durable in IndexedDB at that point, and the queue is also
+ * drained opportunistically on the next successful request, so losing the OS-level
+ * wakeup degrades *when* the replay happens, not *whether* it happens.
  */
 export function installBackgroundSync(options: InstallBackgroundSyncOptions = {}): void {
     const sw = getSwScope();
@@ -209,7 +215,7 @@ export function installBackgroundSync(options: InstallBackgroundSyncOptions = {}
                 try {
                     await sw.registration.sync?.register(queueName);
                 } catch {
-                    // Background Sync API unavailable — opportunistic replay covers it.
+                    /* empty */
                 }
                 throw error;
             }),

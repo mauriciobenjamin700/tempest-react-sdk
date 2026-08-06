@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits file-lines, props-count, function-lines — minuteStep and
+ * use12Hours change both the list of options and how a typed value parses, so the
+ * body holds parsing, formatting and the option list together; the remaining props
+ * are the shared field contract.
+ */
 import { useId, useMemo } from "react";
 import { cn } from "@/utils/cn";
 import styles from "./TimePicker.module.css";

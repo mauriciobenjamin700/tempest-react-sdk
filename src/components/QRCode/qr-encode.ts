@@ -1,3 +1,11 @@
+/**
+ * @tempest-limits file-lines — ISO/IEC 18004 end to end with no dependency: mode
+ * selection, the version and error-correction tables, Reed-Solomon over GF(256),
+ * interleaving, the module placement with its function patterns, all eight masks and
+ * the penalty scoring that picks between them. These are stages of one pipeline
+ * defined by the standard; a file boundary between them would only move where the
+ * reader has to look up a table.
+ */
 import {
     ALPHANUMERIC_CHARS,
     alignmentPatternPositions,

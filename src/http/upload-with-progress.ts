@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits function-lines — XMLHttpRequest is used instead of fetch precisely
+ * because it reports upload progress, and its API is event-based: the body wires
+ * load, error, abort, timeout and progress against one request object, plus the
+ * AbortSignal bridge.
+ */
 import { randomId } from "../utils";
 import { buildApiError, TempestApiError } from "./errors";
 

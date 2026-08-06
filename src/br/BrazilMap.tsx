@@ -1,3 +1,13 @@
+/**
+ * @tempest-limits file-lines, props-count, function-lines — the 17 props are five
+ * independent axes of one map — choropleth (values, minColor, maxColor, colorScale,
+ * colorByRegion), selection (selected, onSelect), overlay (markers, onMarkerClick,
+ * zoomable), framing (height, padding, showLabels, label, loadingContent) and
+ * tooltip (showTooltip, renderTooltip). None of them is mutually exclusive with
+ * another, so there is no second component hiding here; the body is long for the
+ * same reason it cannot be split, since the projected paths, the hit-testing and the
+ * zoom transform all read the same viewBox state.
+ */
 import { useEffect, useMemo, useRef, useState, type HTMLAttributes, type ReactNode } from "react";
 import { cn } from "@/utils/cn";
 import { fitProjection } from "@/geo/projection";

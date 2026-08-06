@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits props-count — `pix` and `payload` are the two ways to supply the
+ * same code (build it, or bring one already built), `size`/`level` are the symbol,
+ * and amountLabel/payeeLabel/labels exist so the surrounding copy can be translated
+ * without wrapping the component.
+ */
 import type { HTMLAttributes } from "react";
 import { useMemo } from "react";
 

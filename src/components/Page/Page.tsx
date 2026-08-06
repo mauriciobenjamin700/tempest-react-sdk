@@ -1,3 +1,8 @@
+/**
+ * @tempest-limits props-count — a page shell is slots: eyebrow, title, description,
+ * actions, toolbar, footer and children, with padded as the one behavioural switch.
+ * Slots are the component.
+ */
 import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/utils/cn";
 import styles from "./Page.module.css";

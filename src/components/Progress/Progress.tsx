@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits props-count — value, max, indeterminate, size, tone, label,
+ * showValue and className: a progress bar is one element with eight independent
+ * presentation choices, and the destructuring counts them all because none has a
+ * sensible sub-object.
+ */
 import { cn } from "@/utils/cn";
 import styles from "./Progress.module.css";
 

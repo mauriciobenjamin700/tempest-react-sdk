@@ -1,3 +1,10 @@
+/**
+ * @tempest-limits file-lines, function-lines — a Markdown block parser is a state
+ * machine over line kinds: paragraph, heading, fence, list, quote, table and
+ * thematic break each need to see the lines around them to know where they end.
+ * parseBlocks is that loop, and cutting it into per-kind functions would hand each
+ * one the same lookahead cursor.
+ */
 // A small Markdown parser for the subset an app actually renders from untrusted
 // text: comments, ticket bodies, release notes, a product description.
 //

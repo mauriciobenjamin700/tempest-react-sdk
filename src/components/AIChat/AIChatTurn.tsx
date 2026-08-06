@@ -1,3 +1,11 @@
+/**
+ * @tempest-limits file-lines, props-count, function-lines — one turn renders six
+ * things that each have their own state: Markdown body, collapsible reasoning,
+ * attachments, streaming caret, inline edit form and the action row. The 13 props
+ * are the callbacks those actions need plus the render slots, and the body is long
+ * because the edit form and the action row share the turn's message and its pending
+ * state.
+ */
 import { ChevronRight, Copy, Pencil, RefreshCw, ThumbsDown, ThumbsUp } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 

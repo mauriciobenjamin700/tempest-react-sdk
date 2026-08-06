@@ -1,3 +1,10 @@
+/**
+ * @tempest-limits file-lines, props-count, function-lines — two lists that hand
+ * items to each other: items and value are the model, onChange the move,
+ * sourceTitle/targetTitle/renderItem/locale/height the presentation, and
+ * searchable/disabled the behaviour. The body keeps both selections and the filter
+ * query, and every move reads all three.
+ */
 import { useId, useMemo, useState, type HTMLAttributes, type ReactNode } from "react";
 
 import { cn } from "@/utils/cn";

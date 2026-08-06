@@ -1,3 +1,11 @@
+/**
+ * @tempest-limits file-lines, props-count, function-lines — recording has three
+ * separate configurations that a caller genuinely picks between: the capture
+ * (deviceId, audioBitsPerSecond, maxDurationMs), the output (format, wavOptions) and
+ * the review step (review, footer, locale). The body holds permission, recording,
+ * review and error as one state machine; splitting it would thread the same recorder
+ * handle through props.
+ */
 import { Mic, Pause, Play, RotateCcw, Square } from "lucide-react";
 import { useEffect, useState, type HTMLAttributes, type ReactNode } from "react";
 

@@ -39,6 +39,13 @@ function chromaDome(t: number): number {
     return 0.35 + 0.65 * (1 - Math.abs(2 * t - 1) ** 1.6);
 }
 
+export interface BuildRampOptions {
+    /** How many steps to emit. Defaults to {@link SEQUENTIAL_STEPS}. */
+    steps?: number;
+    /** Chroma at the middle of the ramp. */
+    peakChroma?: number;
+}
+
 /**
  * Build a single-hue ramp with evenly spaced perceptual lightness.
  *
@@ -55,15 +62,14 @@ function chromaDome(t: number): number {
  *
  * @param hue - OKLCH hue in degrees.
  * @param mode - Which lightness band to span.
- * @param steps - How many steps to emit.
- * @param peakChroma - Chroma at the middle of the ramp.
+ * @param options - Shape of the ramp: `steps` (how many to emit) and `peakChroma`
+ *   (chroma at the middle).
  * @returns Hex steps, near-zero end first.
  */
 export function buildRamp(
     hue: number,
     mode: "light" | "dark",
-    steps = SEQUENTIAL_STEPS,
-    peakChroma = 0.19,
+    { steps = SEQUENTIAL_STEPS, peakChroma = 0.19 }: BuildRampOptions = {},
 ): string[] {
     const band = BAND[mode];
     const out: string[] = [];

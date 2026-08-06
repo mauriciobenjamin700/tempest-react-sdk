@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits file-lines — the provider is the queue: enqueue, dedupe, auto-
+ * dismiss timers, pause on hover and the portal that renders them. Splitting the
+ * queue from the renderer would put a timer in one file and the element it dismisses
+ * in another.
+ */
 import {
     createContext,
     useCallback,

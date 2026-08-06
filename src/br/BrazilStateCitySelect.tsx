@@ -1,3 +1,10 @@
+/**
+ * @tempest-limits props-count — two dependent selects in one control, so every knob
+ * comes in pairs: stateLabel and cityLabel, statePlaceholder and cityPlaceholder,
+ * defaultUf and defaultCity. The pairing is the feature — the city list is derived
+ * from the chosen UF, which is exactly what a caller wiring two separate selects has
+ * to reimplement.
+ */
 import { useMemo, useState, type ReactElement } from "react";
 import { Select } from "@/components/Select";
 import { cityChoices, listStates, normalizeUf, type UF } from "./locations";

@@ -127,6 +127,25 @@ The rules, and each one's id for the marker:
     silenced. The hard gates stay where they belong: `no-explicit-any` as an ESLint
     `error` and `tsc --noEmit`.
 
+!!! info "What the analysis does **not** judge"
+    Three classes of file drop out before any rule runs, because the answer to a
+    finding in them is not in the file:
+
+    - **Generated or vendored code** — any file whose head carries `@generated` or
+      `Do not hand-edit`. That shape is upstream's, and an edit here dies at the next
+      regeneration. This SDK's `src/vision/` is one: every file comes out of
+      `npm run vendor:vision` already stamped.
+    - **Barrels** — a file that only re-exports. A 350-line `index.ts` of
+      `export { X } from "./x"` is a directory listing, and "extract a sub-component"
+      means nothing there.
+    - **Test files** — for the size rules. A long test is usually a thorough one.
+
+!!! note "One props count, not two"
+    When a component destructures exactly the props its `<Name>Props` declares, the
+    finding is reported **once**, on the type. Two lines for one fact read as two
+    problems. The destructuring only earns its own finding when it goes past what the
+    type declares — that is when it is taking props from somewhere else.
+
 !!! info "What doctor does **not** measure"
     JSX nesting depth and cyclomatic complexity. Both need a real parser to avoid
     false positives on Prettier line wrapping — they stay with ESLint (`max-depth`,

@@ -1,3 +1,10 @@
+/**
+ * @tempest-limits file-lines, function-lines — a resumable upload is one long-lived
+ * state machine: chunk the file, negotiate the offset the server already has, upload
+ * with retry and backoff, honour pause, resume and abort, and report progress
+ * throughout. Every stage reads the same cursor and the same abort signal, and
+ * createResumableUpload is the closure that owns them.
+ */
 import { buildApiError, TempestApiError } from "./errors";
 import { generateIdempotencyKey } from "./idempotency";
 import { retry, type RetryOptions } from "./retry";

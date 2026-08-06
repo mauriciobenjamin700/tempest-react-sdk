@@ -1,3 +1,8 @@
+/**
+ * @tempest-limits function-lines — the body owns the scroll snap position, the
+ * swipe, the autoplay timer that must pause on interaction and the dot indicators
+ * that read the same index.
+ */
 import { useCallback, useState } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/utils/cn";

@@ -41,6 +41,16 @@ export interface LevelMeter {
  * of live contexts (Chrome allows around six), so a meter left running on unmount
  * eventually breaks every later one on the page.
  *
+ * `level()` applies instant attack and eased release: a value above the current one
+ * is taken as is, a lower one decays by `decay`. A meter that fell as fast as it rose
+ * reads as noise instead of as loudness.
+ *
+ * @tempest-limits empty-catch — `stop()` disconnects nodes whose context may already
+ * be closed (the tab was backgrounded, the stream's track ended, `stop()` raced an
+ * unmount), and a disconnect on a dead graph throws. There is nothing to report and
+ * nothing to retry: the resource this call would have released is already gone, and
+ * the `context.close()` right after it is what actually matters.
+ *
  * @param stream - A live audio stream.
  * @param options - See {@link LevelMeterOptions}.
  * @returns A `level()` reader and a `stop()`.
@@ -80,7 +90,6 @@ export function createLevelMeter(
             sum += samples[index] * samples[index];
         }
         const rms = Math.sqrt(sum / samples.length);
-        // Instant attack, eased release.
         smoothed = rms > smoothed ? rms : smoothed * decay + rms * (1 - decay);
         return Math.min(1, smoothed);
     };
@@ -94,7 +103,7 @@ export function createLevelMeter(
                 source.disconnect();
                 analyser.disconnect();
             } catch {
-                // Already torn down with the context — nothing to release.
+                /* empty */
             }
             void context.close().catch(() => undefined);
         },

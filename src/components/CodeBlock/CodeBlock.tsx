@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits props-count — code and language drive the scanner; filename,
+ * showLineNumbers, highlightLines, maxHeight and wrap are the presentation a docs
+ * page picks per block, and copyable plus label are the affordance and its
+ * accessible name. All independent, all used in the SDK's own docs gallery.
+ */
 import { Fragment, useMemo } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
 

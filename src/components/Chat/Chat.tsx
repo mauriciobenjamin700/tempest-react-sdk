@@ -1,3 +1,10 @@
+/**
+ * @tempest-limits file-lines, props-count, function-lines — message grouping needs
+ * more context than a list does: currentUserId to decide sides, groupWindowMs and
+ * now to decide where a bubble group breaks, typing for the indicator. The remaining
+ * props are the composer's (placeholder, composerActions, composerDisabled, onSend,
+ * onSendError) and the slots (renderAvatar, header, emptyState).
+ */
 import { useEffect, useLayoutEffect, useRef, type HTMLAttributes, type ReactNode } from "react";
 
 import { cn } from "@/utils/cn";

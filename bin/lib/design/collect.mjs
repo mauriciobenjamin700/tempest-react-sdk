@@ -37,6 +37,25 @@ export function isExcluded(path) {
     );
 }
 
+/** How far into a file the generated banner is looked for. */
+const BANNER_BYTES = 800;
+
+/**
+ * True when the file says, in its own head, that it is not hand-written.
+ *
+ * A generated or vendored file is upstream's shape, not this project's: the fix
+ * for a 300-line function in it is a change in the generator or in the package it
+ * was copied from, and any edit made here is undone by the next regeneration.
+ * Reporting it teaches the reader to skim the report, which is how a linter dies.
+ *
+ * @param {string} source - File contents.
+ * @returns {boolean}
+ */
+export function declaresGenerated(source) {
+    const head = source.slice(0, BANNER_BYTES);
+    return /@generated\b/.test(head) || /\bDo not hand-edit\b/i.test(head);
+}
+
 /**
  * Collect the project's own source files.
  *

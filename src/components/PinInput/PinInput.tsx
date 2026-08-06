@@ -1,3 +1,10 @@
+/**
+ * @tempest-limits props-count, function-lines — one input per digit, so length,
+ * type, masked and autoFocus shape the boxes while
+ * value/defaultValue/onChange/onComplete drive them as a single value. The body owns
+ * the per-box refs, paste distribution and backspace traversal, which only make
+ * sense with the whole array in scope.
+ */
 import { forwardRef, useEffect, useId, useRef, useState } from "react";
 import type { ChangeEvent, ClipboardEvent, KeyboardEvent } from "react";
 import { cn } from "@/utils/cn";

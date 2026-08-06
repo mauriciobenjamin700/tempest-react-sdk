@@ -1,3 +1,10 @@
+/**
+ * @tempest-limits file-lines, props-count, function-lines — a product tour is a
+ * controlled sequence (steps, index, onIndexChange, open, onClose, onFinish) drawn
+ * over someone else's DOM (spotlightPadding, locale, className). The body measures
+ * the target element, positions the spotlight and the card against it, and re-
+ * measures on scroll and resize — one geometry, three triggers.
+ */
 import {
     useCallback,
     useEffect,

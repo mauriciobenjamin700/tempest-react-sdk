@@ -1,4 +1,10 @@
 /**
+ * @tempest-limits file-lines — OKLCH ↔ sRGB with the gamut mapping in between: the
+ * transfer function, the LMS matrices, the chroma search that finds the nearest in-
+ * gamut colour and the contrast ratio used to check it. Matrices split across files
+ * are matrices that get edited one half at a time.
+ */
+/**
  * Color math behind {@link createTheme} — OKLab/OKLCH conversions, tint scale
  * generation and WCAG contrast picking.
  *

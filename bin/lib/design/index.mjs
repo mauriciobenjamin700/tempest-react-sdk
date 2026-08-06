@@ -5,7 +5,7 @@
 import { readFileSync } from "node:fs";
 import { relative } from "node:path";
 
-import { collectSources } from "./collect.mjs";
+import { collectSources, declaresGenerated } from "./collect.mjs";
 import { countBySeverity, LIMITS, sortFindings } from "./findings.mjs";
 import { scanFile } from "./scan.mjs";
 
@@ -42,6 +42,7 @@ export function analyzeDesign({ root, targets, limits = {}, maxFiles } = {}) {
     const findings = [];
     const waivers = [];
     const lineCounts = [];
+    const skipped = [...collected.skipped];
     let largest = null;
     let codeLines = 0;
 
@@ -51,6 +52,10 @@ export function analyzeDesign({ root, targets, limits = {}, maxFiles } = {}) {
         try {
             source = readFileSync(path, "utf8");
         } catch {
+            continue;
+        }
+        if (declaresGenerated(source)) {
+            skipped.push({ path, reason: "declares itself generated or vendored" });
             continue;
         }
         const result = scanFile({ file, source, limits });
@@ -69,12 +74,12 @@ export function analyzeDesign({ root, targets, limits = {}, maxFiles } = {}) {
         waivers,
         counts: countBySeverity(sorted),
         stats: {
-            files: collected.files.length,
+            files: collected.files.length - (skipped.length - collected.skipped.length),
             codeLines,
             medianLines: median(lineCounts),
             largest,
         },
-        skipped: collected.skipped.map((s) => ({ file: relative(root, s.path), reason: s.reason })),
+        skipped: skipped.map((s) => ({ file: relative(root, s.path), reason: s.reason })),
         truncated: collected.truncated,
     };
 }

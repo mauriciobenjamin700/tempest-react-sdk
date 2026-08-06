@@ -1,3 +1,8 @@
+/**
+ * @tempest-limits function-lines — the body owns the pointer capture, the min/max
+ * clamp and the keyboard resize step; all three write the same size and must agree
+ * on the bounds.
+ */
 import { useCallback, useRef, useState } from "react";
 import type { HTMLAttributes, KeyboardEvent, PointerEvent, ReactNode } from "react";
 import { cn } from "@/utils/cn";

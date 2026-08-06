@@ -37,6 +37,10 @@ function readStored(storageKey: string | null, available: string[]): string | nu
 /**
  * React provider for the SDK's lightweight i18n. Exposes the translation
  * helpers and a `setLocale` setter to children.
+ *
+ * @tempest-limits empty-catch — remembering the chosen locale is best-effort. The
+ * switch itself is React state and already happened by the time the write runs, so
+ * a storage failure costs the preference on the next load and nothing in this one.
  */
 export function I18nProvider({
     children,
@@ -63,7 +67,7 @@ export function I18nProvider({
                 try {
                     window.localStorage.setItem(storageKey, next);
                 } catch {
-                    /* ignore quota errors */
+                    /* empty */
                 }
             }
         },

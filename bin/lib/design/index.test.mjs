@@ -21,6 +21,37 @@ afterEach(() => {
     rmSync(root, { recursive: true, force: true });
 });
 
+describe("analyzeDesign — generated and vendored code", () => {
+    it("skips a file that declares itself generated", () => {
+        write(
+            "src/vendored/detector.ts",
+            [
+                "/** @generated Vendored from upstream. Do not hand-edit. */",
+                "export function detect() {",
+                ...Array.from({ length: 300 }, (_, i) => `  const v${i} = ${i};`),
+                "  return 1;",
+                "}",
+            ].join("\n"),
+        );
+        const result = analyzeDesign({ root });
+        expect(result.findings).toHaveLength(0);
+        expect(result.skipped.map((s) => s.file)).toContain("src/vendored/detector.ts");
+    });
+
+    it("still judges the same file once the banner is gone", () => {
+        write(
+            "src/owned/detector.ts",
+            [
+                "export function detect() {",
+                ...Array.from({ length: 300 }, (_, i) => `  const v${i} = ${i};`),
+                "  return 1;",
+                "}",
+            ].join("\n"),
+        );
+        expect(analyzeDesign({ root }).findings.length).toBeGreaterThan(0);
+    });
+});
+
 describe("analyzeDesign", () => {
     it("reports nothing for a well-shaped project", () => {
         write(

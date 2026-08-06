@@ -1,3 +1,8 @@
+/**
+ * @tempest-limits hook-lines — the same lifecycle as the audio recorder —
+ * permission, recorder, clock, auto-stop — over a stream that also carries video,
+ * with the preview element to attach and release.
+ */
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useStableCallback } from "@/hooks/use-stable-callback";

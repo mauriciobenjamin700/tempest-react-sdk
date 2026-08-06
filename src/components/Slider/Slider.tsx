@@ -1,3 +1,8 @@
+/**
+ * @tempest-limits props-count — min, max, step, value, onChange, formatValue plus
+ * the field chrome (label, helperText, disabled, className). Every one is used by
+ * the range variant too — the pair is deliberately the same API.
+ */
 import { useCallback, useMemo } from "react";
 import { cn } from "@/utils/cn";
 import styles from "./Slider.module.css";

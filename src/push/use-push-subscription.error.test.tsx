@@ -34,11 +34,7 @@ describe("usePushSubscription error paths", () => {
             }),
         );
         await act(async () => {
-            try {
-                await result.current.subscribe();
-            } catch {
-                /* expected */
-            }
+            await expect(result.current.subscribe()).rejects.toThrow();
         });
         expect(result.current.error).toBeInstanceOf(Error);
     });
@@ -69,11 +65,7 @@ describe("usePushSubscription error paths", () => {
             }),
         );
         await act(async () => {
-            try {
-                await result.current.unsubscribe();
-            } catch {
-                /* expected */
-            }
+            await expect(result.current.unsubscribe()).rejects.toThrow();
         });
         expect(result.current.error).toBeInstanceOf(Error);
     });
@@ -139,11 +131,7 @@ describe("usePushSubscription — non-Error rejections and refresh", () => {
             }),
         );
         await act(async () => {
-            try {
-                await result.current.subscribe();
-            } catch {
-                /* expected */
-            }
+            await expect(result.current.subscribe()).rejects.toThrow();
         });
         expect(result.current.error?.message).toBe("nope");
         expect(result.current.loading).toBe(false);
@@ -209,11 +197,7 @@ describe("usePushSubscription — unsubscribe paths", () => {
             }),
         );
         await act(async () => {
-            try {
-                await result.current.unsubscribe();
-            } catch {
-                /* expected */
-            }
+            await expect(result.current.unsubscribe()).rejects.toThrow();
         });
         expect(result.current.error?.message).toBe("nope");
         expect(result.current.loading).toBe(false);

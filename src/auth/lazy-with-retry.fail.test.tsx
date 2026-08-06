@@ -15,14 +15,12 @@ describe("lazyWithRetry final failure", () => {
             initialDelay: 1,
             reloadOnFinalFailure: true,
         });
-        // trigger the lazy resolver
         const inner = (Lazy as unknown as { _payload: { _result: () => Promise<unknown> } })
             ._payload;
-        try {
-            await inner._result();
-        } catch {
-            /* expected */
-        }
+
+        await expect(inner._result()).rejects.toThrow("chunk");
+
+        expect(factory).toHaveBeenCalledTimes(2);
         expect(reload).toHaveBeenCalled();
         Object.defineProperty(window, "location", {
             configurable: true,

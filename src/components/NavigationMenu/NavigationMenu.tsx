@@ -1,3 +1,8 @@
+/**
+ * @tempest-limits function-lines — the body resolves the active item from the
+ * current path, owns the open submenu and the hover-intent delay, all of which
+ * decide the same highlighted row.
+ */
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/utils/cn";

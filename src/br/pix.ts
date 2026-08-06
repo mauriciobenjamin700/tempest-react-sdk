@@ -1,3 +1,10 @@
+/**
+ * @tempest-limits file-lines — EMV®QRCPS-MPM for Pix: the TLV writer, the
+ * CRC16-CCITT, the field catalogue with its nesting, key-type detection and the
+ * parser that has to accept what other banks emit. Reader and writer live together
+ * because each one is the other's test — a payload this file builds is a payload it
+ * must parse back.
+ */
 import { validateCNPJ, validateCPF } from "@/forms/br-validators";
 
 /**

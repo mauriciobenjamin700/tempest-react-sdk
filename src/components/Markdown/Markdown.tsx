@@ -1,3 +1,8 @@
+/**
+ * @tempest-limits file-lines — the renderer maps every block and inline node the
+ * parser can emit to an element, and the length is that mapping — one arm per node
+ * kind, no branching to extract.
+ */
 import { Fragment, useMemo, useRef, type HTMLAttributes, type ReactNode } from "react";
 
 import { useScrollOverflow } from "@/hooks/use-scroll-overflow";

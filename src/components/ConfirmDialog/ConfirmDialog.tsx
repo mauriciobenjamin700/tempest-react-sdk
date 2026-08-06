@@ -1,3 +1,10 @@
+/**
+ * @tempest-limits props-count — a confirmation is a question (title, description),
+ * two buttons whose copy the app must own (confirmLabel, cancelLabel), a
+ * destructive-or-not tone (variant), and the async state of the answer (loading,
+ * onConfirm, onCancel, open). Fewer props means the app writes the dialog again
+ * around a Modal.
+ */
 import type { ReactNode } from "react";
 import { Button } from "@/components/Button";
 import { Modal } from "@/components/Modal";

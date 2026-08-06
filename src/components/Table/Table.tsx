@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits props-count — columns, data and rowKey are the model; onRowClick
+ * and emptyMessage the interaction and the empty state; stackOnMobile and
+ * scrollLabel are the two ways a table survives a phone, and the label is required
+ * because a scroll region needs an accessible name.
+ */
 import { useRef } from "react";
 import type { ReactNode } from "react";
 import { cn } from "@/utils/cn";

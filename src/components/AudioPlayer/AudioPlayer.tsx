@@ -1,3 +1,11 @@
+/**
+ * @tempest-limits props-count, function-lines — src accepts a URL or a Blob, and
+ * everything else is a facet of playing it: durationMs (because MediaRecorder WebM
+ * carries none), sinkId (output device), autoPlay/loop, onEnded/onError, plus the
+ * actions slot and locale for the labels. The body is the transport state machine —
+ * object-URL lifecycle, seek, and the rAF-free time updates — which shares one audio
+ * element ref throughout.
+ */
 import { Pause, Play } from "lucide-react";
 import { useEffect, useRef, useState, type HTMLAttributes } from "react";
 

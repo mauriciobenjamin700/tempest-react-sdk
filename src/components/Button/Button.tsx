@@ -1,3 +1,10 @@
+/**
+ * @tempest-limits props-count — this is the design system's button: variant, size,
+ * loading, fullWidth, iconOnly, pill, leftIcon and rightIcon are the whole
+ * vocabulary every screen composes from. Eight orthogonal knobs on the most-used
+ * component is the API working — the count rule is looking for two components fused
+ * together, and there is only one here.
+ */
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/utils/cn";
 import styles from "./Button.module.css";

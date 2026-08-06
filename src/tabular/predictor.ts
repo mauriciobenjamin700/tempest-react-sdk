@@ -251,8 +251,13 @@ export class TabularPredictor {
      * Run one throwaway inference so the first real call is not the slow one.
      *
      * Skipped when the graph does not declare a feature count, since there
-     * is no shape to synthesise. Failures are swallowed: a warm-up that
-     * cannot run is not a reason to refuse to serve.
+     * is no shape to synthesise.
+     *
+     * @tempest-limits empty-catch — a warm-up that cannot run is not a reason to
+     * refuse to serve. The synthetic all-zero row can be rejected by a graph that
+     * expects a different dtype or a categorical encoding, and that says nothing
+     * about the real rows the caller will send; the only cost of the failure is
+     * that the first real inference pays the lazy-init it would have paid anyway.
      */
     async warmUp(): Promise<void> {
         const features = this.info.numFeatures;
@@ -260,7 +265,7 @@ export class TabularPredictor {
         try {
             await this.predict([new Array<number>(features).fill(0)]);
         } catch {
-            /* a failed warm-up must not prevent serving */
+            /* empty */
         }
     }
 

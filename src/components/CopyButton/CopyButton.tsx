@@ -22,6 +22,12 @@ export interface CopyButtonProps extends ButtonHTMLAttributes<HTMLButtonElement>
  * label toggles between "Copy" and "Copied". The reset timer is cleared on
  * unmount to avoid setting state on an unmounted component.
  *
+ * @tempest-limits empty-catch — `navigator.clipboard.writeText` rejects when the
+ * page is not a secure context, when the document is not focused, or when the user
+ * denied the permission. None of those are recoverable here and none deserve an
+ * error surface: the button simply never enters the "copied" state, which is the
+ * feedback the user needs.
+ *
  * @example
  * <CopyButton value="npm i tempest-react-sdk" />
  */
@@ -53,7 +59,7 @@ export function CopyButton({
                 if (timerRef.current !== null) clearTimeout(timerRef.current);
                 timerRef.current = setTimeout(() => setCopied(false), timeout);
             } catch {
-                /* clipboard unavailable — silently ignore */
+                /* empty */
             }
         },
         [value, timeout, onCopied, onClick],

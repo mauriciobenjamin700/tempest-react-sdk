@@ -1,3 +1,10 @@
+/**
+ * @tempest-limits props-count — FormFieldChildProps is not a component's props — it
+ * is the contract handed to whatever control the field wraps, and it is exactly what
+ * react-hook-form's register returns (name, value, onChange, onBlur, ref) plus what
+ * the field adds around it (error, label, helperText, required, id). Trimming it
+ * breaks the wiring it exists to describe.
+ */
 import { cloneElement, isValidElement } from "react";
 import type { ReactElement, ReactNode } from "react";
 import {

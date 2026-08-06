@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits props-count, function-lines — accept, multiple and maxSize are
+ * validation the component must apply before it can call onDrop or onReject, and
+ * drag state, keyboard activation and the hidden input all live in the body because
+ * they resolve to the same file list.
+ */
 import { useRef, useState } from "react";
 import type { DragEvent, KeyboardEvent, ReactNode } from "react";
 import { cn } from "@/utils/cn";

@@ -84,6 +84,11 @@ export interface FitProjectionOptions {
  * @param height - Viewport height in pixels.
  * @param options - Padding tuning.
  * @returns A {@link FittedProjection} with a `project(coord)` mapper.
+ *
+ * @tempest-limits param-count — `(bounds, width, height)` is the viewport the caller
+ * measured, usually straight out of a `getBoundingClientRect()`, and the fourth
+ * argument is already the options object. Public surface via the package root:
+ * renaming these into one bag breaks callers and buys a count, not clarity.
  */
 export function fitProjection(
     bounds: GeoBounds,

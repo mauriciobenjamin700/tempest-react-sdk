@@ -117,9 +117,40 @@ describe("cachedResponseBytes", () => {
         expect(await cachedResponseBytes("app", "/m.onnx")).toBeNull();
     });
 
-    it("returns null when the response has no Content-Length", async () => {
+    it("returns null when the entry has neither header nor body", async () => {
         stubCaches({ "/m.onnx": new Response(null) });
         expect(await cachedResponseBytes("app", "/m.onnx")).toBeNull();
+    });
+
+    it("counts the body when Content-Length is missing", async () => {
+        stubCaches({ "/m.onnx": new Response(new Uint8Array(4096)) });
+        expect(await cachedResponseBytes("app", "/m.onnx")).toBe(4096);
+    });
+
+    it("counts a chunked body across reads", async () => {
+        const stream = new ReadableStream<Uint8Array>({
+            start(controller) {
+                controller.enqueue(new Uint8Array(1000));
+                controller.enqueue(new Uint8Array(24));
+                controller.close();
+            },
+        });
+        stubCaches({ "/m.onnx": new Response(stream) });
+        expect(await cachedResponseBytes("app", "/m.onnx")).toBe(1024);
+    });
+
+    it("prefers the header over the body it could have counted", async () => {
+        stubCaches({
+            "/m.onnx": new Response(new Uint8Array(9), {
+                headers: { "Content-Length": "4096" },
+            }),
+        });
+        expect(await cachedResponseBytes("app", "/m.onnx")).toBe(4096);
+    });
+
+    it("returns null when the entry is absent", async () => {
+        stubCaches({});
+        expect(await cachedResponseBytes("app", "/missing.onnx")).toBeNull();
     });
 
     it("returns null when the cache lookup throws", async () => {

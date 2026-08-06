@@ -18,8 +18,6 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   A contagem lê o stream por chunks e descarta cada um — nunca materializa o
   arquivo, que é o motivo de o header ser preferido quando existe.
 
-### Corrigido
-
 - **`tempest doctor` parou de reportar coisa que não existe.** Quatro falsos
   positivos, todos vazando para o app consumidor e não só para o dogfood:
 

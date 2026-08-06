@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.38.3] — 2026-08-05
+
 ### Corrigido
 
 - **`tempest doctor` parou de reportar coisa que não existe.** Quatro falsos
@@ -56,6 +58,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - **`buildRamp(hue, mode, { steps, peakChroma })`** — os dois últimos parâmetros
   posicionais viraram um objeto nomeado. Função interna do `theme`, não exportada
   no barrel: nenhum consumidor é afetado.
+
+## [0.38.2] — 2026-08-05
 
 ### Adicionado
 

@@ -4,6 +4,45 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`Classifier.warmup(runs = 1)`** — a quarta tarefa de visão finalmente tem o
+  aquecimento que as outras três ganharam na 0.39.0. O custo que ele desloca é o
+  mesmo (WebGPU compilando shaders, o backend WASM materializando arenas), e ele
+  pesa mais aqui: num app que detecta e depois classifica com **dois modelos
+  separados**, dava pra aquecer o detector e não o classificador — deixando a
+  primeira inferência inevitável exatamente no instante antes de a resposta
+  aparecer na tela.
+
+  ```tsx
+  await Promise.all([detector.warmup(), classifier.warmup()]);
+  ```
+
+- **`ResizePipeline` e `resizeToTensorData`, exportados do `/vision`** (mais
+  `writePlanarFloat32`, o laço planar que as duas pipelines compartilham). É a
+  contraparte do `LetterboxPipeline` para classificação: estica direto até a
+  entrada do modelo, sem padding e sem escala pra inverter depois, já
+  normalizando com `mean`/`std` na mesma passada.
+
+### Alterado
+
+- **O pré-processamento do `Classifier` não aloca mais por frame.** Era a única
+  tarefa ainda na rota composta (`resize` → `normalize` → `toCHW`), que aloca um
+  `RGBImage` e dois `Float32Array` e varre cada um de ponta a ponta: ~1,4 MB de
+  lixo novo por `predict()` a 224×224, gerado justamente quando um celular perto
+  do teto de memória do ORT menos aguenta. Agora passa pela `ResizePipeline` —
+  um `drawImage` e um laço escrevendo float32 planar num buffer reusado entre
+  chamadas.
+
+  **A saída é bit-idêntica** à do caminho anterior, verificada valor a valor
+  contra `normalize` → `toCHW` (incluindo a configuração `mean=[0,0,0]`,
+  `std=[1,1,1]` de um export `-cls` do Ultralytics, em que a rota antiga varria
+  o buffer inteiro e alocava outro para não mudar nenhum valor).
+
+- **`src/vision/` re-vendorizado de `ort-vision-sdk-web@0.7.0`** (era `0.6.1`),
+  que é onde as duas mudanças acima foram implementadas — o subpath aqui é uma
+  cópia gerada, não um fork editável.
+
 ## [0.40.0] — 2026-08-08
 
 ### Adicionado

@@ -651,10 +651,20 @@ await det.warmup(); // still on the loading screen
 const result = (await det.predict(frame))[0];
 ```
 
-Available on `Detector`, `Segmenter`, and `DetectClassify`. `warmup(2)` runs it
-twice — one is enough for WASM, and WebGPU sometimes settles on the second. It
-pays off most on `DetectClassify`: two models plus the bridge compile together on
-that first inference.
+Available on **all four** tasks. `warmup(2)` runs it twice — one is enough for
+WASM, and WebGPU sometimes settles on the second. It pays off most on
+`DetectClassify`: two models plus the bridge compile together on that first
+inference.
+
+!!! tip "Warm both stages of an analysis, not just the first"
+    In an app that detects and then classifies with **two separate models**,
+    each session pays its own first inference. Warming only the detector leaves
+    the classifier's cost exactly where it shows most: in the instant between
+    the user finishing their wait and the answer appearing.
+
+    ```tsx
+    await Promise.all([detector.warmup(), classifier.warmup()]);
+    ```
 
 ## How long it took
 
@@ -680,15 +690,29 @@ report with `profiler.mark("forward-pass", results[0].speed.inference)`.
 boundaries.
 
 !!! tip "Today's `preprocess` is ~2x faster than it used to be"
-    Tasks preprocess through `LetterboxPipeline`: a single `drawImage` resizes
-    **and** positions the content inside the padded target, plus one loop that
-    reads the resulting RGBA and writes planar float32 into a buffer reused
+    All four tasks preprocess through a fused pipeline: a single `drawImage`
+    resizes (and, where there is padding, positions) the content, plus one loop
+    that reads the resulting RGBA and writes planar float32 into a buffer reused
     across frames. Measured in Chromium, letterboxing into 640×640: 19.8 → 10.7
     ms (1920×1080), 13.8 → 7.8 ms (1280×720), 6.8 → 3.1 ms (640×480) — with
-    **bit-identical** output to the old path. The primitives (`letterbox`,
-    `resize`, `toCHW`, `toFloat32`, …) are still exported; code that wants the
-    fused path of its own uses `LetterboxPipeline` (or `letterboxToTensorData`,
-    the one-shot form).
+    **bit-identical** output to the old path.
+
+    There are two pipelines because the tasks want different things:
+    `LetterboxPipeline` preserves aspect ratio and pads the rest (detection and
+    segmentation have to undo that geometry afterwards), while `ResizePipeline`
+    stretches straight to the model's input and normalizes with `mean`/`std` in
+    the same pass — what `Classifier` does, since it maps nothing back onto the
+    original image. The primitives (`letterbox`, `resize`, `normalize`, `toCHW`,
+    …) are still exported; code that wants the fused path of its own uses the
+    pipeline (or `letterboxToTensorData`/`resizeToTensorData`, the one-shot
+    forms).
+
+!!! warning "Classifying was the expensive path until 0.41.0"
+    `Classifier` was the one task still on the composable route
+    (`resize` → `normalize` → `toCHW`): three scans and three allocations per
+    `predict()`, ~1.4 MB of fresh garbage per 224×224 image. On a device near
+    ORT's memory ceiling that landed at the worst possible moment. If you pinned
+    an older version over this, that is the release that fixes it.
 
 ## Reference: what else the subpath exports
 
@@ -700,6 +724,7 @@ does not know, or need to handle one specific failure.
 | --------------- | ----------------------------------------------------------------------------------------------------- |
 | Session         | `OrtSession` (loads the `.onnx`, exposes `metadata`/`inputName`), `resolveProviders`, `DEFAULT_PROVIDERS`, `VisionTask` (task base class), `VERSION` |
 | Input           | `loadImage` (any `ImageInput` → `RGBImage`), `normalize`, `toTensor`, `toFloat32Tensor`, `zeroTensorData`, `fromCv2`/`toCv2` (BGR ↔ RGB) |
+| Fused preprocess | `LetterboxPipeline` + `letterboxToTensorData` (detect/segment), `ResizePipeline` + `resizeToTensorData` (classify), `writePlanarFloat32` (the shared planar write) |
 | Decoding        | `decodeYolo` (anchor-free head, v8→v12), `decodeYoloAnchors` (anchor-based head), `decodeYoloSeg`, `nms`, `batchedNms` |
 | Labels          | `resolveLabels`, `defaultLabels`, `parseNames`, `modelNames`, `readModelMetadata`, `COCO_CLASSES`        |
 | Bulk views      | `Boxes`, `Masks`, `Probs` — the "numpy-style" collections behind `result.boxes`/`.masks`/`.probs`        |

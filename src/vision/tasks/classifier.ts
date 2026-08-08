@@ -12,7 +12,8 @@ import { classificationNumClasses, resolveInputSize } from "../core/graph";
 import { modelNames } from "../core/metadata";
 import { type LabelSpec, resolveLabels } from "../labels";
 import { softmax, topK } from "../postprocess/classification";
-import { normalize, resize, toCHW, toFloat32Tensor } from "../preprocess/image";
+import { toFloat32Tensor } from "../preprocess/image";
+import { ResizePipeline, zeroTensorData } from "../preprocess/pipeline";
 import { ClassificationResults, Probs } from "../results";
 import { VisionTask } from "./base";
 import { type ClassProbability, type ClassificationResult, type RGBImage } from "../types";
@@ -100,6 +101,43 @@ export class Classifier extends VisionTask {
         super(session);
     }
 
+    private _pipelineCache: ResizePipeline | null = null;
+
+    /**
+     * Run the model once on a zero tensor, paying one-time costs up front.
+     *
+     * The first inference of a session is not representative: WebGPU compiles its
+     * shaders on it and the WASM backend faults in its arenas. Calling this while
+     * a loading spinner is still up moves that cost somewhere the user is already
+     * waiting — which matters most for a classifier running as the last step of
+     * an on-device analysis, where the delay lands right before the answer shows.
+     *
+     * @param runs How many warm-up inferences to run. One is enough for WASM;
+     *   WebGPU sometimes settles on the second.
+     */
+    async warmup(runs: number = 1): Promise<void> {
+        const [tw, th] = this._inputSize;
+        for (let i = 0; i < runs; i++) {
+            const tensor = toFloat32Tensor(zeroTensorData(tw, th), [1, 3, th, tw]);
+            await this._session.run({ [this._session.inputName]: tensor });
+        }
+    }
+
+    /**
+     * The fused preprocessing pipeline, built on first use.
+     *
+     * Lazily, because constructing it reserves the output buffer: a task built in
+     * an environment without a canvas implementation stays constructible, and only
+     * fails if it is actually asked to preprocess something.
+     */
+    private get _pipeline(): ResizePipeline {
+        if (this._pipelineCache === null) {
+            const [tw, th] = this._inputSize;
+            this._pipelineCache = new ResizePipeline(tw, th, this._mean, this._std);
+        }
+        return this._pipelineCache;
+    }
+
     /** Load the model and resolve labels. */
     static async create(model: ModelSource, options: ClassifierOptions = {}): Promise<Classifier> {
         const session = await OrtSession.create(model, options);
@@ -173,6 +211,7 @@ export class Classifier extends VisionTask {
         const tensor = this._preprocess(original);
         timer.stage("preprocess");
         const outputs = await this._session.run({ [this._session.inputName]: tensor });
+        this._pipeline.release();
         timer.stage("inference");
         const firstOutputName = this._session.outputNames[0];
         if (firstOutputName === undefined) {
@@ -234,10 +273,8 @@ export class Classifier extends VisionTask {
 
     private _preprocess(image: RGBImage): ort.Tensor {
         const [tw, th] = this._inputSize;
-        const resized = resize(image, tw, th);
-        const normalized = normalize(resized, this._mean, this._std);
-        const chw = toCHW(normalized, resized.width, resized.height, 3);
-        return toFloat32Tensor(chw, [1, 3, resized.height, resized.width]);
+        const { data } = this._pipeline.run(image);
+        return toFloat32Tensor(data, [1, 3, th, tw]);
     }
 
     private _postprocess(raw: Float32Array): Float32Array {

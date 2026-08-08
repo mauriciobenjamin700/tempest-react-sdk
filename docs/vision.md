@@ -652,10 +652,19 @@ await det.warmup(); // ainda na tela de carregamento
 const result = (await det.predict(frame))[0];
 ```
 
-Disponível em `Detector`, `Segmenter` e `DetectClassify`. `warmup(2)` roda duas
-vezes — uma basta pro WASM, e o WebGPU às vezes só assenta na segunda. Em
-`DetectClassify` é onde mais rende: dois modelos e a ponte compilam juntos na
-primeira inferência.
+Disponível nas **quatro** tarefas. `warmup(2)` roda duas vezes — uma basta pro
+WASM, e o WebGPU às vezes só assenta na segunda. Em `DetectClassify` é onde mais
+rende: dois modelos e a ponte compilam juntos na primeira inferência.
+
+!!! tip "Aqueça as duas etapas de uma análise, não só a primeira"
+    Num app que detecta e depois classifica com **dois modelos separados**, cada
+    sessão paga a sua própria primeira inferência. Aquecer só o detector deixa o
+    custo do classificador exatamente onde ele mais aparece: no instante entre o
+    usuário terminar de esperar e a resposta surgir.
+
+    ```tsx
+    await Promise.all([detector.warmup(), classifier.warmup()]);
+    ```
 
 ## Quanto tempo levou
 
@@ -681,15 +690,29 @@ O `SpeedTimer` também é exportado daqui, para quem quiser as mesmas fronteiras
 do SDK em código próprio.
 
 !!! tip "O `preprocess` de hoje é ~2x mais rápido que o de antes"
-    As tarefas pré-processam pela `LetterboxPipeline`: um único `drawImage`
-    redimensiona **e** posiciona o conteúdo dentro do alvo com padding, e um
+    As quatro tarefas pré-processam por uma pipeline fundida: um único
+    `drawImage` redimensiona (e, quando há padding, posiciona) o conteúdo, e um
     laço só lê o RGBA resultante escrevendo float32 planar num buffer reusado
     entre frames. Medido no Chromium, letterbox pra 640×640: 19,8 → 10,7 ms
     (1920×1080), 13,8 → 7,8 ms (1280×720), 6,8 → 3,1 ms (640×480) — com saída
-    **bit-idêntica** à do caminho antigo. Os primitivos (`letterbox`, `resize`,
-    `toCHW`, `toFloat32`, …) continuam exportados; quem quiser o caminho fundido
-    em código próprio usa a `LetterboxPipeline` (ou `letterboxToTensorData`, a
-    forma de uma chamada só).
+    **bit-idêntica** à do caminho antigo.
+
+    São duas pipelines porque as tarefas querem coisas diferentes:
+    `LetterboxPipeline` preserva a proporção e preenche o resto (detecção e
+    segmentação precisam desfazer essa geometria depois), e `ResizePipeline`
+    estica direto até a entrada do modelo já normalizando com `mean`/`std` — o
+    que o `Classifier` faz, já que ele não mapeia nada de volta pra imagem
+    original. Os primitivos (`letterbox`, `resize`, `normalize`, `toCHW`, …)
+    continuam exportados; quem quiser o caminho fundido em código próprio usa a
+    pipeline (ou `letterboxToTensorData`/`resizeToTensorData`, as formas de uma
+    chamada só).
+
+!!! warning "Classificar era o caminho caro até a 0.41.0"
+    O `Classifier` era a única tarefa ainda na rota composta
+    (`resize` → `normalize` → `toCHW`): três varreduras e três alocações por
+    `predict()`, ~1,4 MB de lixo novo a cada imagem 224×224. Num aparelho perto
+    do teto de memória do ORT, isso era gerado no pior momento possível. Se você
+    fixou uma versão anterior por causa disso, esta é a que resolve.
 
 ## Referência: o que mais o subpath exporta
 
@@ -701,6 +724,7 @@ SDK não conhece, ou precisa tratar uma falha específica.
 | ----------------- | --------------------------------------------------------------------------------------------------- |
 | Sessão            | `OrtSession` (carrega o `.onnx`, expõe `metadata`/`inputName`), `resolveProviders`, `DEFAULT_PROVIDERS`, `VisionTask` (base das tarefas), `VERSION` |
 | Entrada           | `loadImage` (qualquer `ImageInput` → `RGBImage`), `normalize`, `toTensor`, `toFloat32Tensor`, `zeroTensorData`, `fromCv2`/`toCv2` (BGR ↔ RGB) |
+| Preprocess fundido | `LetterboxPipeline` + `letterboxToTensorData` (detecção/segmentação), `ResizePipeline` + `resizeToTensorData` (classificação), `writePlanarFloat32` (o laço planar compartilhado) |
 | Decodificação     | `decodeYolo` (cabeça anchor-free, v8→v12), `decodeYoloAnchors` (cabeça com âncoras), `decodeYoloSeg`, `nms`, `batchedNms` |
 | Rótulos           | `resolveLabels`, `defaultLabels`, `parseNames`, `modelNames`, `readModelMetadata`, `COCO_CLASSES`      |
 | Views em massa    | `Boxes`, `Masks`, `Probs` — as coleções "numpy-style" por trás de `result.boxes`/`.masks`/`.probs`    |

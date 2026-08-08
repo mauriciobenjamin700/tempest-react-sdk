@@ -4,9 +4,18 @@ import { Input, type InputProps } from "@/components/Input";
 import { formatCEP, formatCNPJ } from "./br-validators";
 import { formatCPF, formatPhone } from "@/utils/format";
 
+/**
+ * Props of every masked input.
+ *
+ * `value` and `onChange` are optional because the primary documented usage is
+ * inside `<FormField>`, which supplies both through `cloneElement` — declaring
+ * them required made `<FormField name="cpf"><CPFInput /></FormField>` fail to
+ * type-check while working perfectly at runtime. Standalone usage still passes
+ * both; an uncontrolled input without `onChange` simply reports nothing.
+ */
 type MaskedFieldProps = Omit<InputProps, "value" | "onChange"> & {
-    value: string;
-    onChange: (value: string) => void;
+    value?: string;
+    onChange?: (value: string) => void;
 };
 
 function maskedInput(
@@ -23,7 +32,7 @@ function maskedInput(
                 ref={ref}
                 value={mask(value ?? "")}
                 inputMode={inputMode}
-                onChange={(event) => onChange(mask(event.target.value))}
+                onChange={(event) => onChange?.(mask(event.target.value))}
             />
         );
     });

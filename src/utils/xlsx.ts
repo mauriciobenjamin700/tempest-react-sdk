@@ -93,7 +93,10 @@ const WORKBOOK_RELS_XML =
  *
  * @param headers - Column headers written as the first row.
  * @param rows - Data rows; each value is a string, a number, or `null` (empty).
- * @returns The `.xlsx` file contents as a `Uint8Array`.
+ * @returns The `.xlsx` file contents, backed by a plain `ArrayBuffer` so the
+ *   bytes go straight into `new Blob([...])` — the default `Uint8Array` is
+ *   `Uint8Array<ArrayBufferLike>`, which `BlobPart` rejects because it also
+ *   admits `SharedArrayBuffer`.
  *
  * @example
  * const bytes = writeXlsx(
@@ -107,7 +110,7 @@ const WORKBOOK_RELS_XML =
 export function writeXlsx(
     headers: readonly string[],
     rows: readonly (readonly (string | number | null)[])[],
-): Uint8Array {
+): Uint8Array<ArrayBuffer> {
     const headerRow: Cell[] = headers.map((h) => ({ v: h, t: "s" }));
     const dataRows: Cell[][] = rows.map((row) => row.map(toCell));
     const allRows: Cell[][] = [headerRow, ...dataRows];

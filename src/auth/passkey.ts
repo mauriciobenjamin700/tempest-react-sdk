@@ -283,7 +283,7 @@ function publicKeyCredentialStatics(): PublicKeyCredentialStatics | undefined {
  * @param value - Base64url text, with or without `=` padding.
  * @returns The decoded bytes.
  */
-export function base64UrlToBytes(value: string): Uint8Array {
+export function base64UrlToBytes(value: string): Uint8Array<ArrayBuffer> {
     const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
     const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
     const binary = atob(padded);

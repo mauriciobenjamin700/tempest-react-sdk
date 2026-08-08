@@ -4,6 +4,7 @@ export { parseResponse } from "./parse-response";
 export { uploadWithProgress } from "./upload-with-progress";
 export type { UploadProgressEvent, UploadWithProgressOptions } from "./upload-with-progress";
 export {
+    DEFAULT_CHUNK_SIZE,
     createLocalUploadStorage,
     createResumableUpload,
     uploadFingerprint,

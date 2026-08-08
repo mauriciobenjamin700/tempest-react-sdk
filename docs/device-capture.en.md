@@ -108,7 +108,7 @@ real decoder.
 | Prop | Type | Default | What it does |
 | --- | --- | --- | --- |
 | `onScan` | `(result: BarcodeScanResult) => void` | — | Every accepted read. |
-| `formats` | `BarcodeFormat[]` | `["qr_code","ean_13","code_128"]` | Every extra symbology is work per frame. |
+| `formats` | `BarcodeFormat[]` | `DEFAULT_BARCODE_FORMATS` = `["qr_code","ean_13","code_128"]` | Every extra symbology is work per frame. `ALL_BARCODE_FORMATS` carries the whole domain, for building a picker. |
 | `paused` | `boolean` | `false` | Stops looking **without** releasing the camera. |
 | `detector` | `BarcodeDetectorLike` | — | Injected polyfill. |
 | `intervalMs` | `number` | `200` | How often a frame is examined. |

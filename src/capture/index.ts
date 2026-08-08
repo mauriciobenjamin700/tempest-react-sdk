@@ -8,6 +8,8 @@
  */
 
 export {
+    ALL_BARCODE_FORMATS,
+    DEFAULT_BARCODE_FORMATS,
     createBarcodeDetector,
     getSupportedBarcodeFormats,
     isBarcodeDetectionSupported,

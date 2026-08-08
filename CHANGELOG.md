@@ -81,7 +81,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Removido
 
-- **46 internals deixaram de ser exportados.** Os barrels usam `export *`, então
+- **32 internals deixaram de ser exportados.** Os barrels usam `export *`, então
   tudo que um módulo expõe ao vizinho virava API pública do pacote — e metade
   disso ninguém escolheu publicar. Renomear `groupMessages` (um helper do
   `Chat`) ou `tokenize` (do `CodeBlock`) era, tecnicamente, uma quebra de
@@ -94,21 +94,26 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
     `typingLabel`, `tokenize`, `tokenizeLines`, `safeLinkUrl`, `parseMarkdown`,
     `applyTransferMove`, `splitTransferSides`, `selectMode`
   - **Captura/áudio**: `classifyMediaError`, `missingCaptureApiError`,
-    `pickRecordingMimeType`, `VIDEO_MIME_CANDIDATES`, `ALL_BARCODE_FORMATS`,
-    `DEFAULT_BARCODE_FORMATS`
-  - **Geo**: `durationFactor`, `MERCATOR_MAX_LATITUDE`, `DEFAULT_CAR_SPEED_KMH`,
-    `DEFAULT_CIRCUITY_FACTOR`, `DEFAULT_MODE_DURATION_FACTORS`
-  - **HTTP/auth/tema/i18n**: `buildApiError`, `DEFAULT_CHUNK_SIZE`,
-    `TUS_VERSION`, `DEFAULT_PUB_KEY_CRED_PARAMS`, `THEME_STYLE_ID`,
+    `pickRecordingMimeType`, `VIDEO_MIME_CANDIDATES`
+  - **Geo**: `durationFactor`, `MERCATOR_MAX_LATITUDE`
+  - **HTTP/auth/tema/i18n**: `buildApiError`, `TUS_VERSION`, `THEME_STYLE_ID`,
     `resolveLanguage`
   - **Subpaths**: `MapMarkers`, `interpolatePalette` (`/br`),
-    `CHART_COLOR_TOKEN_COUNT` (`/charts`), os seis `DEFAULT_*` e o
-    `resetImageTypeSupportCache` (`/imaging`), `DEFAULT_MODEL_CACHE`,
-    `MANIFEST_FILENAME`, `SUPPORTED_COMPACT_SCHEMA`, `SUPPORTED_MANIFEST_SCHEMA`
-    (`/tabular`), `TEMPEST_ICONS_ID`, `buildIconsModule`, `scanIconSlugs`
-    (`/vite`)
+    `CHART_COLOR_TOKEN_COUNT` (`/charts`), `resetImageTypeSupportCache`
+    (`/imaging`), `MANIFEST_FILENAME`, `SUPPORTED_COMPACT_SCHEMA`,
+    `SUPPORTED_MANIFEST_SCHEMA` (`/tabular`), `TEMPEST_ICONS_ID`,
+    `buildIconsModule`, `scanIconSlugs` (`/vite`)
 
-  **Não há substituto público para nenhum deles** — é o ponto. Se você importava
+  **Os `DEFAULT_*` de opções públicas ficaram**, ao contrário do que a primeira
+  versão desta mudança fez. O `examples/gallery` quebrou no CI ao perder
+  `DEFAULT_CHUNK_SIZE`, que ele usa para **exibir** o padrão de `chunkSize` na
+  tabela de props — evidência de que o default de uma opção documentada é
+  informação que o app consome, não detalhe de implementação. Voltaram por esse
+  critério, agora documentados: `DEFAULT_CHUNK_SIZE`, os seis do `/imaging`, os
+  três do geo, `DEFAULT_PUB_KEY_CRED_PARAMS`, `ALL_BARCODE_FORMATS`,
+  `DEFAULT_BARCODE_FORMATS` e `DEFAULT_MODEL_CACHE`.
+
+  **Não há substituto público para os que saíram** — é o ponto. Se você importava
   algum, abra uma issue dizendo para quê: ou vira API de verdade, com
   documentação, ou o seu caso tem uma resposta melhor.
 
@@ -122,6 +127,21 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   teste lê os dois de volta contra as tabelas, então um bump de lucide que
   regenere uma coisa e não a outra falha em vez de publicar uma referência que
   rejeita ícone válido.
+
+- **Vinte e cinco exports que sobreviveram ao corte agora estão documentados**, porque
+  formam par ou família com API que já era pública: `boundsCenter`,
+  `expandBounds`, `unprojectMercator`, `EARTH_RADIUS_KM` e `toRadians` (geo),
+  `relativeLuminance`, `readableForeground` e `rgbToHex` (tema),
+  `isMediaCaptureSupported` (captura), `CompactFormatError` e
+  `configuredOrtAssetPath` (tabular).
+
+- **Guard de superfície pública** (`test/public-surface.test.ts`): todo export de
+  runtime, em cada um dos 11 entrypoints, precisa aparecer na documentação. A
+  regra que ele fixa é a que motivou a limpeza — **se é exportado, é
+  documentado** — e a correção para uma falha é uma decisão, não um remendo:
+  documentar, se for API; ou tirar do barrel, se for internal.
+
+  Hoje o número de exports não documentados é **zero**, nos 11 entrypoints.
 
 ## [0.41.0] — 2026-08-08
 

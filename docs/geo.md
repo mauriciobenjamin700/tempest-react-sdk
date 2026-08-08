@@ -107,6 +107,10 @@ estimateTravel(sp, rio, "car", { circuityFactor: 1.4, carSpeedKmh: 60 });
 !!! tip "Fatores padrão"
     `circuityFactor = 1.3` (a estrada é ~30% maior que a reta), `carSpeedKmh = 50`, multiplicadores de duração `car: 1.0 · motorcycle: 0.95 · bus: 1.6`.
 
+    Eles também são exportados — `DEFAULT_CIRCUITY_FACTOR`, `DEFAULT_CAR_SPEED_KMH`
+    e `DEFAULT_MODE_DURATION_FACTORS` — para uma tela de ajustes mostrar o valor
+    que está prestes a sobrescrever, em vez de repeti-lo e sair de sincronia.
+
 ## Rota real (opt-in) — `createOSRMBackend`
 
 Quando você **hospeda um OSRM** e quer rota por ruas de verdade, construa um backend injetando a URL do **seu** servidor. É o único ponto que faz request — e só quando você o cria.

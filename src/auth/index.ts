@@ -8,6 +8,7 @@ export { lazyWithRetry } from "./lazy-with-retry";
 export type { LazyWithRetryOptions } from "./lazy-with-retry";
 export { createRefreshQueue } from "./refresh-queue";
 export {
+    DEFAULT_PUB_KEY_CRED_PARAMS,
     base64UrlToBytes,
     bytesToBase64Url,
     classifyPasskeyError,

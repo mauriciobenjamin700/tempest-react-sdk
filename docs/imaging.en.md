@@ -207,6 +207,13 @@ Errors: `ImagingError` at the root, with `ImageDecodeError`,
 `ImageEncodeError`, `UnsupportedImageTypeError` and
 `ImagingUnavailableError`.
 
+Each option's default is exported too, so a settings screen can show the value it
+is about to override instead of restating it: `DEFAULT_QUALITY` (0.85),
+`DEFAULT_TYPE` (`image/jpeg`), `DEFAULT_BACKGROUND` (`#ffffff`, the background
+that replaces transparency on the way to JPEG) and, for `compressToTarget`'s
+search, `DEFAULT_MIN_QUALITY` (0.4), `DEFAULT_MAX_QUALITY` (0.92) and
+`DEFAULT_COMPRESS_STEPS` (6 iterations).
+
 ## Recap
 
 - Decode with `decodeImage` — phone orientation is already handled.

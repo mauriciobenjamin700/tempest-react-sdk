@@ -423,7 +423,9 @@ version, so revalidating on every load spends a round trip to learn nothing.
 Publish a new version under a new URL (or pass `revalidate: true`).
 
 The hook does this for you when the source is a URL — `cache: false` opts
-out.
+out. The Cache Storage name it uses is `DEFAULT_MODEL_CACHE`,
+exported so a "clear downloaded models" button can delete exactly what the SDK
+created.
 
 ### The runtime
 

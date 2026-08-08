@@ -19,7 +19,12 @@ export {
 export { EARTH_RADIUS_KM, toRadians, haversineKm, pathLengthKm, bearingDeg } from "./distance";
 
 // Offline travel estimate
-export { estimateTravel } from "./estimate";
+export {
+    DEFAULT_CIRCUITY_FACTOR,
+    DEFAULT_CAR_SPEED_KMH,
+    DEFAULT_MODE_DURATION_FACTORS,
+    estimateTravel,
+} from "./estimate";
 export type { EstimateTravelOptions } from "./estimate";
 
 // Bounding box helpers

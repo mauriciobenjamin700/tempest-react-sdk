@@ -11529,7 +11529,7 @@ decodificador de verdade.
 | Prop | Tipo | Default | O que faz |
 | --- | --- | --- | --- |
 | `onScan` | `(result: BarcodeScanResult) => void` | — | Cada leitura aceita. |
-| `formats` | `BarcodeFormat[]` | `["qr_code","ean_13","code_128"]` | Cada símbolo extra é trabalho por frame. |
+| `formats` | `BarcodeFormat[]` | `DEFAULT_BARCODE_FORMATS` = `["qr_code","ean_13","code_128"]` | Cada símbolo extra é trabalho por frame. `ALL_BARCODE_FORMATS` traz o domínio inteiro, para montar um seletor. |
 | `paused` | `boolean` | `false` | Para de procurar **sem** soltar a câmera. |
 | `detector` | `BarcodeDetectorLike` | — | Polyfill injetado. |
 | `intervalMs` | `number` | `200` | Frequência com que um frame é examinado. |
@@ -13327,6 +13327,10 @@ estimateTravel(sp, rio, "car", { circuityFactor: 1.4, carSpeedKmh: 60 });
 
 !!! tip "Fatores padrão"
     `circuityFactor = 1.3` (a estrada é ~30% maior que a reta), `carSpeedKmh = 50`, multiplicadores de duração `car: 1.0 · motorcycle: 0.95 · bus: 1.6`.
+
+    Eles também são exportados — `DEFAULT_CIRCUITY_FACTOR`, `DEFAULT_CAR_SPEED_KMH`
+    e `DEFAULT_MODE_DURATION_FACTORS` — para uma tela de ajustes mostrar o valor
+    que está prestes a sobrescrever, em vez de repeti-lo e sair de sincronia.
 
 ## Rota real (opt-in) — `createOSRMBackend`
 
@@ -15133,6 +15137,13 @@ por dezenas de milissegundos por imagem.
 Erros: `ImagingError` na raiz, com `ImageDecodeError`, `ImageEncodeError`,
 `UnsupportedImageTypeError` e `ImagingUnavailableError`.
 
+Os defaults de cada opção também saem exportados, para uma tela de ajustes
+exibir o valor que está prestes a sobrescrever em vez de repeti-lo:
+`DEFAULT_QUALITY` (0.85), `DEFAULT_TYPE` (`image/jpeg`), `DEFAULT_BACKGROUND`
+(`#ffffff`, o fundo que substitui a transparência ao ir para JPEG) e, na busca do
+`compressToTarget`, `DEFAULT_MIN_QUALITY` (0.4), `DEFAULT_MAX_QUALITY` (0.92) e
+`DEFAULT_COMPRESS_STEPS` (6 iterações).
+
 ## Recapitulando
 
 - Decodifique com `decodeImage` — orientação de celular já resolvida.
@@ -16747,7 +16758,7 @@ Devolva um `PasskeyCreationOptionsJSON`. Todo campo binário é **base64url**:
 - `challenge`: ≥16 bytes aleatórios, **guardados na sessão**, uso único.
 - `user.id`: identificador opaco e estável. **Nunca** o e-mail — ele muda e fica gravado no autenticador.
 - `excludeCredentials`: as credenciais que o usuário já tem. É o que faz o autenticador responder `InvalidStateError` (→ `already-registered`) em vez de criar uma duplicada.
-- `pubKeyCredParams` pode ser omitido: o SDK oferece `-8` (Ed25519), `-7` (ES256) e `-257` (RS256).
+- `pubKeyCredParams` pode ser omitido: o SDK oferece `-8` (Ed25519), `-7` (ES256) e `-257` (RS256) — a lista exata está exportada como `DEFAULT_PUB_KEY_CRED_PARAMS`, para o backend declarar o mesmo conjunto sem repetir os números.
 - `residentKey: "required"` é o que torna a passkey **descobrível** — pré-requisito do login sem digitar nada.
 
 ### 2. `POST /webauthn/register/finish` ← credencial
@@ -18553,6 +18564,7 @@ const upload = createResumableUpload({
   endpoint: "/api/uploads",
   file,
   chunkSize: 1024 * 1024, // 1 MiB: tick mais fino, mais round-trips
+  // o padrão é DEFAULT_CHUNK_SIZE (5 MiB), exportado para uma tela de ajustes exibir
   getToken: () => auth.getToken(),
   withCredentials: true,
   retry: { retries: 8, initialDelay: 500 },
@@ -21133,7 +21145,9 @@ Cache-first, não network-first: um arquivo de modelo é imutável para uma dada
 versão, então revalidar a cada carga gasta uma ida à rede pra não aprender
 nada. Publique versão nova sob URL nova (ou passe `revalidate: true`).
 
-O hook faz isso sozinho quando a fonte é uma URL — `cache: false` desliga.
+O hook faz isso sozinho quando a fonte é uma URL — `cache: false` desliga. O
+nome do Cache Storage usado é `DEFAULT_MODEL_CACHE`, exportado para um botão de
+"limpar modelos baixados" apagar exatamente o que o SDK criou.
 
 ### O runtime
 

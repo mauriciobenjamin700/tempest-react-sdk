@@ -20,6 +20,7 @@ export {
     ortAssetUrls,
 } from "./assets";
 export {
+    DEFAULT_MODEL_CACHE,
     type ModelCacheOptions,
     cacheModelBytes,
     clearModelCache,

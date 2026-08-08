@@ -416,7 +416,9 @@ Cache-first, não network-first: um arquivo de modelo é imutável para uma dada
 versão, então revalidar a cada carga gasta uma ida à rede pra não aprender
 nada. Publique versão nova sob URL nova (ou passe `revalidate: true`).
 
-O hook faz isso sozinho quando a fonte é uma URL — `cache: false` desliga.
+O hook faz isso sozinho quando a fonte é uma URL — `cache: false` desliga. O
+nome do Cache Storage usado é `DEFAULT_MODEL_CACHE`, exportado para um botão de
+"limpar modelos baixados" apagar exatamente o que o SDK criou.
 
 ### O runtime
 

@@ -107,6 +107,10 @@ estimateTravel(sp, rio, "car", { circuityFactor: 1.4, carSpeedKmh: 60 });
 !!! tip "Default factors"
     `circuityFactor = 1.3` (roads are ~30% longer than the straight line), `carSpeedKmh = 50`, duration multipliers `car: 1.0 · motorcycle: 0.95 · bus: 1.6`.
 
+    They are exported too — `DEFAULT_CIRCUITY_FACTOR`, `DEFAULT_CAR_SPEED_KMH` and
+    `DEFAULT_MODE_DURATION_FACTORS` — so a settings screen can show the value it
+    is about to override instead of restating it and drifting.
+
 ## Real routing (opt-in) — `createOSRMBackend`
 
 When you **host an OSRM** and want real street routing, build a backend injecting **your** server URL. It is the only piece that makes a request — and only when you create it.

@@ -55,7 +55,6 @@ export type { BrazilStateCitySelectProps, BrazilStateCitySelection } from "./Bra
 export { MunicipalitySearch } from "./MunicipalitySearch";
 export type { MunicipalitySearchProps } from "./MunicipalitySearch";
 export type { GeoMarker } from "@/geo/types";
-export { MapMarkers } from "./MapMarkers";
 export type { MapMarkersProps } from "./MapMarkers";
 export { MapLegend } from "./MapLegend";
 export type { MapLegendProps, LegendItem } from "./MapLegend";
@@ -130,7 +129,6 @@ export type { BusinessDayOptions, DateInput, Holiday, HolidayKind } from "./holi
 
 // Color scales + palettes for choropleths.
 export {
-    interpolatePalette,
     sequentialScale,
     quantizeScale,
     thresholdScale,

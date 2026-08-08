@@ -49,6 +49,44 @@ pathLengthKm([sp, { latitude: -23.2, longitude: -45 }, rio]);
 bearingDeg(sp, rio); // ≈ 65 (nordeste)
 ```
 
+### Enquadrar um conjunto de pontos — `boundingBox`, `boundsCenter`, `expandBounds`
+
+Para centralizar um mapa numa trajetória, ou decidir o zoom que a cobre:
+
+```ts
+import { boundingBox, boundsCenter, expandBounds } from "tempest-react-sdk";
+
+const bounds = boundingBox([sp, rio]); // { north, south, east, west } | null
+
+if (bounds) {
+  boundsCenter(bounds); // o ponto médio, para centralizar
+  expandBounds(bounds, 0.1); // 10% de folga, para a rota não colar na borda
+}
+```
+
+O `boundingBox` devolve `null` para lista vazia — não existe moldura em volta
+de ponto nenhum, e devolver uma caixa zerada jogaria o mapa no Atlântico.
+
+`expandBounds` existe porque enquadrar exatamente nos extremos encosta o primeiro
+e o último ponto na moldura — a margem é o que faz o traçado caber visualmente.
+
+### A matemática crua
+
+`haversineKm` é a fórmula pronta, mas as duas peças dela saem avulsas para quem
+monta um cálculo próprio: `EARTH_RADIUS_KM` (6371, o raio médio que a fórmula
+assume) e `toRadians(graus)`. E `unprojectMercator` é o par de
+`projectMercator` — converte de volta de coordenada de tela para lat/long, que é
+o que um clique no mapa precisa.
+
+```ts
+import { EARTH_RADIUS_KM, projectMercator, toRadians, unprojectMercator } from "tempest-react-sdk";
+
+const xy = projectMercator({ latitude: -23.55, longitude: -46.63 });
+unprojectMercator(xy); // de volta ao par lat/long
+
+EARTH_RADIUS_KM * toRadians(1); // ≈ 111.2 km por grau de latitude
+```
+
 ## Estimativa de viagem offline — `estimateTravel`
 
 Sem rede: distância grande-círculo × fator de sinuosidade, duração por velocidade média ajustada ao modo. Espelha `estimate_travel` do FastAPI SDK.

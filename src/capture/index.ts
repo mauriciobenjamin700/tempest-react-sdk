@@ -8,8 +8,6 @@
  */
 
 export {
-    ALL_BARCODE_FORMATS,
-    DEFAULT_BARCODE_FORMATS,
     createBarcodeDetector,
     getSupportedBarcodeFormats,
     isBarcodeDetectionSupported,
@@ -23,7 +21,7 @@ export type {
     DetectedBarcodeLike,
 } from "./barcode";
 
-export { createMediaRecorder, pickRecordingMimeType } from "./media-recorder";
+export { createMediaRecorder } from "./media-recorder";
 export type {
     MediaRecorderHandle,
     MediaRecorderStatus,
@@ -33,7 +31,6 @@ export type {
 } from "./media-recorder";
 
 export {
-    VIDEO_MIME_CANDIDATES,
     createVideoRecorder,
     isVideoRecordingSupported,
     pickVideoMimeType,

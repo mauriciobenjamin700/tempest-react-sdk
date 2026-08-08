@@ -26,6 +26,21 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   rótulo sem relação. Uma declaração que deixa de ser necessária **também**
   reprova, para a lista não virar ficção.
 
+- **Onze exports que sobreviveram ao corte agora estão documentados**, porque
+  formam par ou família com API que já era pública: `boundsCenter`,
+  `expandBounds`, `unprojectMercator`, `EARTH_RADIUS_KM` e `toRadians` (geo),
+  `relativeLuminance`, `readableForeground` e `rgbToHex` (tema),
+  `isMediaCaptureSupported` (captura), `CompactFormatError` e
+  `configuredOrtAssetPath` (tabular).
+
+- **Guard de superfície pública** (`test/public-surface.test.ts`): todo export de
+  runtime, em cada um dos 11 entrypoints, precisa aparecer na documentação. A
+  regra que ele fixa é a que motivou a limpeza — **se é exportado, é
+  documentado** — e a correção para uma falha é uma decisão, não um remendo:
+  documentar, se for API; ou tirar do barrel, se for internal.
+
+  Hoje o número de exports não documentados é **zero**, nos 11 entrypoints.
+
 ### Alterado
 
 - **O suporte a Node 20 acabou; o mínimo agora é 22.12.** O Node 20 chegou ao
@@ -63,6 +78,39 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   propósito: compilar um trecho de três linhas no meio da prosa só reportaria os
   nomes que a página estabeleceu ao redor — ruído vestido de achado. O critério
   agora é o `import`, que é o que separa um programa de um excerto.
+
+### Removido
+
+- **46 internals deixaram de ser exportados.** Os barrels usam `export *`, então
+  tudo que um módulo expõe ao vizinho virava API pública do pacote — e metade
+  disso ninguém escolheu publicar. Renomear `groupMessages` (um helper do
+  `Chat`) ou `tokenize` (do `CodeBlock`) era, tecnicamente, uma quebra de
+  contrato.
+
+  Saíram do barrel, continuando importáveis **dentro** do `src/` pelo caminho
+  relativo:
+
+  - **Componentes**: `groupMessages`, `chatStrings`, `dayLabel`, `timeLabel`,
+    `typingLabel`, `tokenize`, `tokenizeLines`, `safeLinkUrl`, `parseMarkdown`,
+    `applyTransferMove`, `splitTransferSides`, `selectMode`
+  - **Captura/áudio**: `classifyMediaError`, `missingCaptureApiError`,
+    `pickRecordingMimeType`, `VIDEO_MIME_CANDIDATES`, `ALL_BARCODE_FORMATS`,
+    `DEFAULT_BARCODE_FORMATS`
+  - **Geo**: `durationFactor`, `MERCATOR_MAX_LATITUDE`, `DEFAULT_CAR_SPEED_KMH`,
+    `DEFAULT_CIRCUITY_FACTOR`, `DEFAULT_MODE_DURATION_FACTORS`
+  - **HTTP/auth/tema/i18n**: `buildApiError`, `DEFAULT_CHUNK_SIZE`,
+    `TUS_VERSION`, `DEFAULT_PUB_KEY_CRED_PARAMS`, `THEME_STYLE_ID`,
+    `resolveLanguage`
+  - **Subpaths**: `MapMarkers`, `interpolatePalette` (`/br`),
+    `CHART_COLOR_TOKEN_COUNT` (`/charts`), os seis `DEFAULT_*` e o
+    `resetImageTypeSupportCache` (`/imaging`), `DEFAULT_MODEL_CACHE`,
+    `MANIFEST_FILENAME`, `SUPPORTED_COMPACT_SCHEMA`, `SUPPORTED_MANIFEST_SCHEMA`
+    (`/tabular`), `TEMPEST_ICONS_ID`, `buildIconsModule`, `scanIconSlugs`
+    (`/vite`)
+
+  **Não há substituto público para nenhum deles** — é o ponto. Se você importava
+  algum, abra uma issue dizendo para quê: ou vira API de verdade, com
+  documentação, ou o seu caso tem uma resposta melhor.
 
 ### Documentação
 

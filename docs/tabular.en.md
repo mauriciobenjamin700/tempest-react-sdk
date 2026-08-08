@@ -505,6 +505,7 @@ reported `error.name === "t"` before that was fixed.
 | `ModelFetchError` | Offline with nothing cached — a deployment problem, not a model problem |
 | `FeatureShapeError` | Empty, ragged, or wrong-width batch |
 | `InferenceError` | It ran but the output is unreadable (ZipMap export) |
+| `CompactFormatError` | A compact-format package whose header the reader does not recognise |
 
 ## API
 
@@ -516,6 +517,7 @@ reported `error.name === "t"` before that was fixed.
 | `predictor.dispose()` | Releases the session |
 | `useTabularPredictor(source, options?)` | Hook with `status`/`isReady`/`predict`/`reload` |
 | `loadEdgePackage(directoryUrl, options?)` | Loads a package published by `edge_pipeline` |
+| `configureOrtAssets(path)` / `configuredOrtAssetPath()` | Sets where the ORT `.wasm` files are served from, and reads back what is in effect |
 | `fetchEdgeManifest(directoryUrl)` | The manifest alone — version, columns, classes |
 | `fetchModelBytes(url, options?)` | Bytes from cache, network as fallback |
 | `isModelCached(url)` / `cacheModelBytes` / `clearModelCache` | Cache management |

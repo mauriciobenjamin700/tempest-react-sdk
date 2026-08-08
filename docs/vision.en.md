@@ -723,7 +723,7 @@ does not know, or need to handle one specific failure.
 | Group           | Exports                                                                                               |
 | --------------- | ----------------------------------------------------------------------------------------------------- |
 | Session         | `OrtSession` (loads the `.onnx`, exposes `metadata`/`inputName`), `resolveProviders`, `DEFAULT_PROVIDERS`, `VisionTask` (task base class), `VERSION` |
-| Input           | `loadImage` (any `ImageInput` → `RGBImage`), `normalize`, `toTensor`, `toFloat32Tensor`, `zeroTensorData`, `fromCv2`/`toCv2` (BGR ↔ RGB) |
+| Input           | `loadImage` (any `ImageInput` → `RGBImage`), `normalize`, `toTensor`, `toFloat32`/`toFloat32Tensor`, `zeroTensorData`, `fromCv2`/`toCv2` (BGR ↔ RGB) |
 | Fused preprocess | `LetterboxPipeline` + `letterboxToTensorData` (detect/segment), `ResizePipeline` + `resizeToTensorData` (classify), `writePlanarFloat32` (the shared planar write) |
 | Decoding        | `decodeYolo` (anchor-free head, v8→v12), `decodeYoloAnchors` (anchor-based head), `decodeYoloSeg`, `nms`, `batchedNms` |
 | Labels          | `resolveLabels`, `defaultLabels`, `parseNames`, `modelNames`, `readModelMetadata`, `COCO_CLASSES`        |

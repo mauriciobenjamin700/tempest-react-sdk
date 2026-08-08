@@ -12,7 +12,6 @@ export {
     bytesToBase64Url,
     classifyPasskeyError,
     createPasskeyClient,
-    DEFAULT_PUB_KEY_CRED_PARAMS,
     isConditionalMediationAvailable,
     isPasskeySupported,
     isPlatformAuthenticatorAvailable,

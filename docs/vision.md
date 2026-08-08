@@ -723,7 +723,7 @@ SDK não conhece, ou precisa tratar uma falha específica.
 | Grupo             | Exports                                                                                             |
 | ----------------- | --------------------------------------------------------------------------------------------------- |
 | Sessão            | `OrtSession` (carrega o `.onnx`, expõe `metadata`/`inputName`), `resolveProviders`, `DEFAULT_PROVIDERS`, `VisionTask` (base das tarefas), `VERSION` |
-| Entrada           | `loadImage` (qualquer `ImageInput` → `RGBImage`), `normalize`, `toTensor`, `toFloat32Tensor`, `zeroTensorData`, `fromCv2`/`toCv2` (BGR ↔ RGB) |
+| Entrada           | `loadImage` (qualquer `ImageInput` → `RGBImage`), `normalize`, `toTensor`, `toFloat32`/`toFloat32Tensor`, `zeroTensorData`, `fromCv2`/`toCv2` (BGR ↔ RGB) |
 | Preprocess fundido | `LetterboxPipeline` + `letterboxToTensorData` (detecção/segmentação), `ResizePipeline` + `resizeToTensorData` (classificação), `writePlanarFloat32` (o laço planar compartilhado) |
 | Decodificação     | `decodeYolo` (cabeça anchor-free, v8→v12), `decodeYoloAnchors` (cabeça com âncoras), `decodeYoloSeg`, `nms`, `batchedNms` |
 | Rótulos           | `resolveLabels`, `defaultLabels`, `parseNames`, `modelNames`, `readModelMetadata`, `COCO_CLASSES`      |

@@ -25,22 +25,9 @@
  */
 
 export { type Surface, type SurfaceContext, createSurface, drawScaled, getContext } from "./canvas";
-export {
-    DEFAULT_COMPRESS_STEPS,
-    DEFAULT_MAX_QUALITY,
-    DEFAULT_MIN_QUALITY,
-    type CompressedImage,
-    compressToTarget,
-} from "./compress";
+export { type CompressedImage, compressToTarget } from "./compress";
 export { decodeImage, readImageInfo } from "./decode";
-export {
-    DEFAULT_QUALITY,
-    DEFAULT_TYPE,
-    bestSupportedType,
-    encodeImage,
-    resetImageTypeSupportCache,
-    supportsImageType,
-} from "./encode";
+export { bestSupportedType, encodeImage, supportsImageType } from "./encode";
 export {
     ImageDecodeError,
     ImageEncodeError,
@@ -49,7 +36,7 @@ export {
     UnsupportedImageTypeError,
 } from "./exceptions";
 export { type Thumbnail, type ThumbnailSpec, createThumbnails } from "./thumbnails";
-export { DEFAULT_BACKGROUND, cropImage, flipImage, resizeImage, rotateImage } from "./transform";
+export { cropImage, flipImage, resizeImage, rotateImage } from "./transform";
 export type {
     CompressOptions,
     CropRect,

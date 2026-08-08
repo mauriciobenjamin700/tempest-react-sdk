@@ -1,6 +1,6 @@
 export { ThemeProvider, useTheme } from "./ThemeProvider";
 export type { ThemeContextValue, ThemeProviderProps } from "./ThemeProvider";
-export { applyTheme, readThemeToken, THEME_STYLE_ID } from "./apply-theme";
+export { applyTheme, readThemeToken } from "./apply-theme";
 export type { ApplyThemeOptions } from "./apply-theme";
 export {
     contrastRatio,

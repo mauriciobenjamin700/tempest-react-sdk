@@ -967,6 +967,7 @@ negociado.
 | ------------------------------------ | ------------------------------------------------------------------------- |
 | `createAudioRecorder(stream, opts)`  | O gravador por trás do hook. Não é dono do stream — pare o mic você mesmo. |
 | `isAudioRecordingSupported()`        | `MediaRecorder` existe **e** algum container é produzível.                 |
+| `isMediaCaptureSupported()`          | A mesma pergunta para captura em geral (`getUserMedia` + `MediaRecorder`) — use antes de oferecer qualquer botão de gravar. |
 | `pickAudioMimeType(preferred?)`      | Primeiro container da lista que o browser realmente produz, ou `null`.     |
 | `AUDIO_MIME_CANDIDATES`              | A ordem que o SDK negocia: Opus (WebM/Ogg) → AAC (MP4).                    |
 | `encodeWav({ channels, sampleRate })`| RIFF/PCM 16-bit a partir de canais Float32 — o motor do `blobToWav`.       |
@@ -13269,6 +13270,44 @@ pathLengthKm([sp, { latitude: -23.2, longitude: -45 }, rio]);
 bearingDeg(sp, rio); // ≈ 65 (nordeste)
 ```
 
+### Enquadrar um conjunto de pontos — `boundingBox`, `boundsCenter`, `expandBounds`
+
+Para centralizar um mapa numa trajetória, ou decidir o zoom que a cobre:
+
+```ts
+import { boundingBox, boundsCenter, expandBounds } from "tempest-react-sdk";
+
+const bounds = boundingBox([sp, rio]); // { north, south, east, west } | null
+
+if (bounds) {
+  boundsCenter(bounds); // o ponto médio, para centralizar
+  expandBounds(bounds, 0.1); // 10% de folga, para a rota não colar na borda
+}
+```
+
+O `boundingBox` devolve `null` para lista vazia — não existe moldura em volta
+de ponto nenhum, e devolver uma caixa zerada jogaria o mapa no Atlântico.
+
+`expandBounds` existe porque enquadrar exatamente nos extremos encosta o primeiro
+e o último ponto na moldura — a margem é o que faz o traçado caber visualmente.
+
+### A matemática crua
+
+`haversineKm` é a fórmula pronta, mas as duas peças dela saem avulsas para quem
+monta um cálculo próprio: `EARTH_RADIUS_KM` (6371, o raio médio que a fórmula
+assume) e `toRadians(graus)`. E `unprojectMercator` é o par de
+`projectMercator` — converte de volta de coordenada de tela para lat/long, que é
+o que um clique no mapa precisa.
+
+```ts
+import { EARTH_RADIUS_KM, projectMercator, toRadians, unprojectMercator } from "tempest-react-sdk";
+
+const xy = projectMercator({ latitude: -23.55, longitude: -46.63 });
+unprojectMercator(xy); // de volta ao par lat/long
+
+EARTH_RADIUS_KM * toRadians(1); // ≈ 111.2 km por grau de latitude
+```
+
 ## Estimativa de viagem offline — `estimateTravel`
 
 Sem rede: distância grande-círculo × fator de sinuosidade, duração por velocidade média ajustada ao modo. Espelha `estimate_travel` do FastAPI SDK.
@@ -21175,6 +21214,7 @@ Todos herdam de `TabularError`, então dá pra pegar a família inteira. O
 | `ModelFetchError` | Offline e nada em cache — problema de deploy, não de modelo |
 | `FeatureShapeError` | Lote vazio, irregular ou da largura errada |
 | `InferenceError` | Rodou mas a saída não é legível (export com ZipMap) |
+| `CompactFormatError` | Pacote em formato compacto cujo cabeçalho o leitor não reconhece |
 
 ## API
 
@@ -21186,6 +21226,7 @@ Todos herdam de `TabularError`, então dá pra pegar a família inteira. O
 | `predictor.dispose()` | Libera a sessão |
 | `useTabularPredictor(source, options?)` | Hook com `status`/`isReady`/`predict`/`reload` |
 | `loadEdgePackage(directoryUrl, options?)` | Carrega um pacote publicado pelo `edge_pipeline` |
+| `configureOrtAssets(path)` / `configuredOrtAssetPath()` | Define de onde os `.wasm` do ORT são servidos, e lê de volta o que está valendo |
 | `fetchEdgeManifest(directoryUrl)` | Só o manifesto — versão, colunas, classes |
 | `fetchModelBytes(url, options?)` | Bytes do cache, com rede como fallback |
 | `isModelCached(url)` / `cacheModelBytes` / `clearModelCache` | Gestão do cache |
@@ -21905,6 +21946,17 @@ oklchToHex({ l: l + 0.1, c, h }); // 10% mais claro, mesma matiz e saturação
 
 hexToRgbaString("#7c3aed", 0.12); // "rgb(124 58 237 / 0.12)" — overlay/hover
 hexToRgb("#7c3aed"); // { r, g, b } em 0–1, para cálculo próprio
+rgbToHex({ r: 0.49, g: 0.23, b: 0.93 }); // de volta para "#7c3aed"
+```
+
+Duas outras vêm do lado do contraste, e são as que o `createTheme` usa para
+escolher um foreground legível em vez de fixar branco:
+
+```ts
+import { readableForeground, relativeLuminance } from "tempest-react-sdk";
+
+relativeLuminance("#fde047"); // 0.83 — luminância relativa WCAG, a entrada do contrastRatio
+readableForeground("#fde047"); // o foreground escuro: branco nesse amarelo é ilegível
 ```
 
 !!! info "Por que OKLCH e não HSL"
@@ -24527,7 +24579,7 @@ SDK não conhece, ou precisa tratar uma falha específica.
 | Grupo             | Exports                                                                                             |
 | ----------------- | --------------------------------------------------------------------------------------------------- |
 | Sessão            | `OrtSession` (carrega o `.onnx`, expõe `metadata`/`inputName`), `resolveProviders`, `DEFAULT_PROVIDERS`, `VisionTask` (base das tarefas), `VERSION` |
-| Entrada           | `loadImage` (qualquer `ImageInput` → `RGBImage`), `normalize`, `toTensor`, `toFloat32Tensor`, `zeroTensorData`, `fromCv2`/`toCv2` (BGR ↔ RGB) |
+| Entrada           | `loadImage` (qualquer `ImageInput` → `RGBImage`), `normalize`, `toTensor`, `toFloat32`/`toFloat32Tensor`, `zeroTensorData`, `fromCv2`/`toCv2` (BGR ↔ RGB) |
 | Preprocess fundido | `LetterboxPipeline` + `letterboxToTensorData` (detecção/segmentação), `ResizePipeline` + `resizeToTensorData` (classificação), `writePlanarFloat32` (o laço planar compartilhado) |
 | Decodificação     | `decodeYolo` (cabeça anchor-free, v8→v12), `decodeYoloAnchors` (cabeça com âncoras), `decodeYoloSeg`, `nms`, `batchedNms` |
 | Rótulos           | `resolveLabels`, `defaultLabels`, `parseNames`, `modelNames`, `readModelMetadata`, `COCO_CLASSES`      |

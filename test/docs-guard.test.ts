@@ -7,13 +7,19 @@
  *    is reachable from the `nav`. A missing mirror silently falls back to the
  *    other language on the built site, and a page outside the nav is a page
  *    nobody finds.
- * 2. **Every documented example compiles against the real SDK.** Each fenced
- *    `tsx`/`ts` block that imports `tempest-react-sdk` is handed to the
- *    TypeScript compiler with the subpaths mapped to `src/`. This is what
- *    catches the defects `mkdocs build` cannot see: an import of a symbol that
- *    was renamed or never shipped, a prop the component does not accept, an
- *    option key that does not exist on the options interface. Every one of
- *    those was found in the docs the first time this ran.
+ * 2. **Every documented example compiles.** Each fenced `tsx`/`ts` block that
+ *    carries an `import` is handed to the TypeScript compiler with the SDK's
+ *    subpaths mapped to `src/`. This is what catches the defects `mkdocs build`
+ *    cannot see: an import of a symbol that was renamed or never shipped, a
+ *    prop the component does not accept, an option key that does not exist on
+ *    the options interface. Every one of those was found in the docs the first
+ *    time this ran.
+ *
+ *    The `import` is the line between a program and a fragment, which is why it
+ *    is the filter: a block importing anything — the SDK, `react`, `vite` — is
+ *    something a reader saves to a file and runs. A block without one is an
+ *    excerpt in the middle of the prose or a type shown for reading, and
+ *    compiling those reports only the names the surrounding page established.
  * 3. Both run over the PT pages only. The EN mirrors carry the same code
  *    blocks, and checking them twice doubles the runtime to re-prove the same
  *    thing — the parity check above is what keeps the mirror in step.
@@ -119,7 +125,16 @@ interface DocBlock {
     code: string;
 }
 
-/** Every fenced TS/TSX block, across the PT pages, that imports from the SDK. */
+/**
+ * Every fenced TS/TSX block, across the PT pages, that carries an `import`.
+ *
+ * The import is what separates a program from a fragment. A block importing
+ * anything — the SDK, `react`, `vite`, `zod` — is something a reader saves to a
+ * file and runs, so it has to compile. A block without one is the three-line
+ * excerpt in the middle of the prose, or a type shown for reading; compiling
+ * those would only ever report the names the surrounding page established, which
+ * is noise dressed as a finding.
+ */
 function collectBlocks(): DocBlock[] {
     const fence = /```(tsx|ts|typescript)\n([\s\S]*?)```/g;
     const blocks: DocBlock[] = [];
@@ -130,7 +145,7 @@ function collectBlocks(): DocBlock[] {
         for (const match of text.matchAll(fence)) {
             index += 1;
             const code = match[2];
-            if (!/from\s+"tempest-react-sdk/.test(code)) continue;
+            if (!/^\s*import\s/m.test(code)) continue;
             blocks.push({
                 page,
                 index,
@@ -216,8 +231,13 @@ function compileBlocks(blocks: DocBlock[]): string[] {
 describe("docs examples", () => {
     const blocks = collectBlocks();
 
-    it("collects the SDK examples across the documentation", () => {
-        expect(blocks.length).toBeGreaterThan(300);
+    /**
+     * A floor, not a count: it fails when a refactor silently stops collecting
+     * examples — a broken fence regex would otherwise turn this whole suite
+     * green by having nothing to check.
+     */
+    it("collects the runnable examples across the documentation", () => {
+        expect(blocks.length).toBeGreaterThan(400);
     });
 
     it("every example compiles against the SDK", { timeout: 120_000 }, () => {

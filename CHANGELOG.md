@@ -4,16 +4,27 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
-### Documentação
+### Adicionado
 
-- **Lista de slugs de ícone publicada com a doc** — `docs/assets/icon-slugs.txt`
-  (os 1749 canônicos) e `docs/assets/icon-slugs.csv` (os 1997, com `status` e o
-  canônico correspondente), emitidos pelo `scripts/gen-icons.mjs` no mesmo passo
-  que gera as tabelas. Serve quem grava o slug fora do app — seed de categoria,
-  admin, validação de backend — e que não tem como importar `iconNames`. Um
-  teste lê os dois de volta contra as tabelas, então um bump de lucide que
-  regenere uma coisa e não a outra falha em vez de publicar uma referência que
-  rejeita ícone válido.
+- **Guard de paridade entre classes irmãs** (`test/sibling-parity.test.ts`): um
+  membro público presente em todos os irmãos **menos um** reprova a suíte. É a
+  falha que a #125 documentou — o `warmup()` entrou em três das quatro tarefas
+  de visão e levou duas releases e um app real batendo no teto de memória para
+  alguém notar, enquanto a documentação afirmava o tempo todo que as quatro
+  tinham. Rodado contra a árvore da v0.40.0, o guard acusa exatamente
+  `warmup — missing from Classifier`.
+
+  Cobre **apenas as tarefas de visão**, e a medição é o motivo: os adapters de
+  telemetria e de feature flags são factories tipadas por uma interface comum
+  (`TelemetryAdapter`, `FeatureFlagsAdapter`), então um membro faltando ali já é
+  erro de compilação — um segundo guard seria redundante. As tarefas de visão
+  são o caso sem contrato: estendem `VisionTask`, que só carrega a sessão, e
+  nada força a simetria.
+
+  Assimetria deliberada é declarada com o motivo escrito — hoje uma só, o
+  `numClasses` que o `DetectClassify` não tem porque carrega dois espaços de
+  rótulo sem relação. Uma declaração que deixa de ser necessária **também**
+  reprova, para a lista não virar ficção.
 
 ### Alterado
 
@@ -52,6 +63,17 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   propósito: compilar um trecho de três linhas no meio da prosa só reportaria os
   nomes que a página estabeleceu ao redor — ruído vestido de achado. O critério
   agora é o `import`, que é o que separa um programa de um excerto.
+
+### Documentação
+
+- **Lista de slugs de ícone publicada com a doc** — `docs/assets/icon-slugs.txt`
+  (os 1749 canônicos) e `docs/assets/icon-slugs.csv` (os 1997, com `status` e o
+  canônico correspondente), emitidos pelo `scripts/gen-icons.mjs` no mesmo passo
+  que gera as tabelas. Serve quem grava o slug fora do app — seed de categoria,
+  admin, validação de backend — e que não tem como importar `iconNames`. Um
+  teste lê os dois de volta contra as tabelas, então um bump de lucide que
+  regenere uma coisa e não a outra falha em vez de publicar uma referência que
+  rejeita ícone válido.
 
 ## [0.41.0] — 2026-08-08
 

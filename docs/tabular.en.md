@@ -442,11 +442,27 @@ configureOrtAssets("/ort/");
     Copy the binaries from `node_modules/onnxruntime-web/dist/` into your
     public directory at build time, and precache them:
 
+    The `.wasm` files live in `public/`, so Vite never emits them into the
+    bundle and they do not reach the precache manifest on their own. List them
+    under `additionalUrls`, in `vite.config.ts`:
+
     ```ts
-    import { installPrecache } from "tempest-react-sdk/sw";
+    import { defineConfig } from "vite";
+    import { tempestPwaManifest } from "tempest-react-sdk/vite";
     import { ortAssetUrls } from "tempest-react-sdk/tabular";
 
-    installPrecache([...ortAssetUrls("/ort/"), "/index.html"]);
+    export default defineConfig({
+      plugins: [tempestPwaManifest({ additionalUrls: ortAssetUrls("/ort/") })],
+    });
+    ```
+
+    The service worker then precaches everything from the manifest, with no
+    duplicated list:
+
+    ```ts
+    import { installPrecache } from "tempest-react-sdk/sw";
+
+    installPrecache();
     ```
 
     Which binary is fetched depends on the browser's threading and SIMD

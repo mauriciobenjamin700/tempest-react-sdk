@@ -87,9 +87,13 @@ Por padrão, `localStorage`, via `createLocalUploadStorage()`. **Não** IndexedD
 Se o seu app já tem um banco Dexie aberto, plugue o seu:
 
 ```ts
-import { createOfflineStore, createResumableUpload } from "tempest-react-sdk";
+import {
+  createOfflineStore,
+  createResumableUpload,
+  type ResumableUploadRecord,
+} from "tempest-react-sdk";
 
-const store = createOfflineStore<{ id: string; record: unknown }, string>({
+const store = createOfflineStore<{ id: string; record: ResumableUploadRecord }, string>({
   databaseName: "Uploads",
   version: 1,
   tableName: "resume",
@@ -100,9 +104,13 @@ createResumableUpload({
   endpoint: "/api/uploads",
   file,
   storage: {
-    get: async (key) => ((await store.get(key))?.record ?? null) as never,
-    set: (key, record) => store.put({ id: key, record }),
-    delete: (key) => store.delete(key),
+    get: async (key) => (await store.get(key))?.record ?? null,
+    set: async (key, record) => {
+      await store.put({ id: key, record });
+    },
+    delete: async (key) => {
+      await store.delete(key);
+    },
   },
 });
 ```

@@ -318,6 +318,40 @@ const wav = await blobToWav(recording.blob, { mono: true, sampleRate: 16000 });
 
 Se o backend só aceita **MP3**: transcodifique no servidor. Um encoder MP3 no cliente significa um build WASM da ordem de 150 KB no bundle de **todo** consumidor do SDK pra servir um formato — é a troca que este SDK não faz.
 
+## Fora do React: os primitivos
+
+`useAudioRecorder` é uma casca fina em cima de um gravador que não sabe nada de
+React. Quando a gravação acontece longe de um componente — num store, num
+worker, numa máquina de estados — use o primitivo direto:
+
+```ts
+import { createAudioRecorder, isAudioRecordingSupported } from "tempest-react-sdk";
+
+if (!isAudioRecordingSupported()) throw new Error("Este navegador não grava áudio");
+
+const rec = createAudioRecorder(stream, { audioBitsPerSecond: 48_000 });
+rec.start();
+// ...
+const recording = await rec.stop(); // { blob, mimeType, durationMs }
+```
+
+O handle expõe `start`, `pause`, `resume`, `stop`, `cancel`, mais os leitores
+`status()` e `durationMs()` (que descontam o tempo pausado) e o `mimeType`
+negociado.
+
+| Símbolo                              | O que é                                                                   |
+| ------------------------------------ | ------------------------------------------------------------------------- |
+| `createAudioRecorder(stream, opts)`  | O gravador por trás do hook. Não é dono do stream — pare o mic você mesmo. |
+| `isAudioRecordingSupported()`        | `MediaRecorder` existe **e** algum container é produzível.                 |
+| `pickAudioMimeType(preferred?)`      | Primeiro container da lista que o browser realmente produz, ou `null`.     |
+| `AUDIO_MIME_CANDIDATES`              | A ordem que o SDK negocia: Opus (WebM/Ogg) → AAC (MP4).                    |
+| `encodeWav({ channels, sampleRate })`| RIFF/PCM 16-bit a partir de canais Float32 — o motor do `blobToWav`.       |
+
+!!! tip "`isAudioRecordingSupported()` responde a pergunta certa"
+    Checar só `typeof MediaRecorder !== "undefined"` deixa passar o motor que
+    tem a API e não produz nenhum dos containers — a falha aparece no
+    `start()`, com o usuário já esperando. Esta função checa as duas coisas.
+
 ## Upload longo: chunks
 
 ```tsx

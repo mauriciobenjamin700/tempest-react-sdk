@@ -76,7 +76,7 @@ interface ApiError {
 ```tsx
 import { createApiClient, createLogger } from "tempest-react-sdk";
 
-const log = createLogger({ name: "app" });
+const log = createLogger({ namespace: "app" });
 
 const api = createApiClient({
     baseURL: import.meta.env.VITE_API_URL,
@@ -195,6 +195,30 @@ The opaque `next_cursor` is fed straight back as the next cursor; the loop stops
 !!! tip "The cursor is opaque"
     Never try to interpret `next_cursor` — it's the backend's base64/JSON. Just return the value you received.
 
+### Telling which envelope arrived
+
+An endpoint that answers in both shapes (or generic code that accepts either)
+has to tell them apart at runtime. The type guards do that, and narrow the type
+while they're at it:
+
+```ts
+import { emptyOffsetPage, isCursorPage, isOffsetPage } from "tempest-react-sdk";
+
+const payload: unknown = await api.get("/api/items");
+
+if (isOffsetPage<Item>(payload)) {
+    console.log(payload.total, payload.pages);
+} else if (isCursorPage<Item>(payload)) {
+    console.log(payload.next_cursor, payload.has_more);
+}
+```
+
+`isOffsetPage` requires `items` + `total` + `pages`; `isCursorPage` requires
+`items` + `has_more` + the `next_cursor` key. For the first render before any
+response, `emptyOffsetPage<Item>(25)` returns a zeroed envelope ready for
+`placeholderData`/`initialData` — which spares you the `items?.map` sprinkled
+across the screen.
+
 ---
 
 ## 5. Turn-key authentication — `createTempestAuth`
@@ -229,11 +253,18 @@ auth.logout();
 The store is the same persisted `createAuthStore`, so it works with `<AuthGuard>`:
 
 ```tsx
+import { Navigate } from "react-router";
 import { AuthGuard } from "tempest-react-sdk";
 
-<AuthGuard store={auth.useAuthStore} fallback={<Navigate to="/login" />}>
-    <Dashboard />
-</AuthGuard>;
+function ProtectedDashboard() {
+    const isAuthenticated = auth.useAuthStore((state) => state.isAuthenticated);
+
+    return (
+        <AuthGuard isAuthenticated={isAuthenticated} fallback={<Navigate to="/login" />}>
+            <Dashboard />
+        </AuthGuard>
+    );
+}
 ```
 
 !!! info "Refresh token: body or cookie"

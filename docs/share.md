@@ -102,7 +102,7 @@ O caso mais comum de `files` é "gerei um artefato, agora entrega pro usuário":
 ```ts
 import { shareOrDownloadBlob } from "tempest-react-sdk";
 
-async function exportReport(bytes: Uint8Array) {
+async function exportReport(bytes: Uint8Array<ArrayBuffer>) {
   const zip = new Blob([bytes], { type: "application/zip" });
   await shareOrDownloadBlob(zip, "relatorio.zip");
 }

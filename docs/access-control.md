@@ -143,6 +143,30 @@ import { Can } from "tempest-react-sdk";
 </Can>;
 ```
 
+## `useAccessControl` — a estratégia crua
+
+Quando você precisa da estratégia em si (chamar `can` fora de render, checar
+várias permissões num loop, decidir uma rota antes de montar a árvore),
+`useAccessControl()` devolve o `AccessControl` do contexto — ou `null` quando
+não há provider:
+
+```tsx
+import { useAccessControl } from "tempest-react-sdk";
+
+function useBulkPermissions(ids: string[]) {
+  const control = useAccessControl();
+
+  return ids.filter((id) => control?.can({ action: "delete", resource: "posts", params: { id } }) ?? true);
+}
+```
+
+!!! danger "`null` significa **permitir**, não negar"
+    Sem provider na árvore, `useAccessControl()` devolve `null` — e a convenção
+    do SDK é tratar isso como "libera tudo", igual ao `useCan`/`<Can>`. Escrever
+    `control?.can(...) ?? false` inverte a regra e trava o app inteiro em
+    qualquer ambiente que ainda não montou o provider. O `?? true` do exemplo
+    não é descuido.
+
 ## Exemplo completo — botão "Excluir" protegido
 
 Tudo junto: deriva permissões do JWT, configura a estratégia, e protege a ação de excluir tanto por render (`<Can>`) quanto por estado desabilitado (`useCan`):

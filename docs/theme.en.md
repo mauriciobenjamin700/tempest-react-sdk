@@ -251,6 +251,30 @@ contrastRatio(scale[500], "#ffffff");  // assert it in your own test if the bran
 
 `--tempest-primary-foreground` (and `--tempest-text-on-primary`) is picked by measured contrast between white and the dark gray — hardcoding white would produce unreadable buttons for light brands (yellow, lime, cyan).
 
+### The color conversions, on their own
+
+`createTheme` does the whole job, but the conversions it uses internally are
+exported for when you need just one — lightening a badge, building an overlay,
+comparing two colors in a test of your own:
+
+```ts
+import { hexToOklch, hexToRgb, hexToRgbaString, oklchToHex } from "tempest-react-sdk";
+
+const { l, c, h } = hexToOklch("#7c3aed"); // lightness, chroma, hue
+oklchToHex({ l: l + 0.1, c, h }); // 10% lighter, same hue and saturation
+
+hexToRgbaString("#7c3aed", 0.12); // "rgb(124 58 237 / 0.12)" — overlay/hover
+hexToRgb("#7c3aed"); // { r, g, b } in 0–1, for your own math
+```
+
+!!! info "Why OKLCH and not HSL"
+    Lightening in HSL changes the perceived color: `hsl(240 100% 50%)` and
+    `hsl(60 100% 50%)` declare the same "lightness" and look nothing alike in
+    brightness. OKLCH is perceptually uniform, so `l + 0.1` lightens by the same
+    amount at any hue — which is why `createTheme`'s scale comes out even
+    instead of collapsing in the yellows. `oklchToHex` also walks chroma down
+    until the color fits the sRGB gamut, rather than handing back a clipped hex.
+
 ## App CSS integration + `theme-color`
 
 SDK components read `data-tempest-theme`. If your **app's own CSS** already keys the theme off a different attribute (e.g. `[data-theme="dark"]`), you don't need a sync effect — pass an array to `attribute` and the provider writes the resolved theme to **all** of them:

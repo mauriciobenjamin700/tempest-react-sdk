@@ -318,6 +318,41 @@ const wav = await blobToWav(recording.blob, { mono: true, sampleRate: 16000 });
 
 If the backend only takes **MP3**: transcode on the server. An MP3 encoder in the client means a WASM build of the order of 150 KB in **every** SDK consumer's bundle to serve one format — the trade this SDK does not make.
 
+## Outside React: the primitives
+
+`useAudioRecorder` is a thin shell over a recorder that knows nothing about
+React. When recording happens away from a component — in a store, a worker, a
+state machine — reach for the primitive directly:
+
+```ts
+import { createAudioRecorder, isAudioRecordingSupported } from "tempest-react-sdk";
+
+if (!isAudioRecordingSupported()) throw new Error("This browser cannot record audio");
+
+const rec = createAudioRecorder(stream, { audioBitsPerSecond: 48_000 });
+rec.start();
+// ...
+const recording = await rec.stop(); // { blob, mimeType, durationMs }
+```
+
+The handle exposes `start`, `pause`, `resume`, `stop`, `cancel`, plus the
+readers `status()` and `durationMs()` (both discounting paused time) and the
+negotiated `mimeType`.
+
+| Symbol                               | What it is                                                                  |
+| ------------------------------------ | --------------------------------------------------------------------------- |
+| `createAudioRecorder(stream, opts)`  | The recorder behind the hook. It does not own the stream — stop the mic yourself. |
+| `isAudioRecordingSupported()`        | `MediaRecorder` exists **and** some container is producible.                 |
+| `pickAudioMimeType(preferred?)`      | First container in the list the browser actually produces, or `null`.        |
+| `AUDIO_MIME_CANDIDATES`              | The order the SDK negotiates: Opus (WebM/Ogg) → AAC (MP4).                   |
+| `encodeWav({ channels, sampleRate })`| RIFF/PCM 16-bit from Float32 channels — the engine behind `blobToWav`.       |
+
+!!! tip "`isAudioRecordingSupported()` asks the right question"
+    Checking only `typeof MediaRecorder !== "undefined"` lets through the engine
+    that has the API and produces none of the containers — the failure then
+    surfaces at `start()`, with the user already waiting. This function checks
+    both.
+
 ## Long uploads: chunks
 
 ```tsx

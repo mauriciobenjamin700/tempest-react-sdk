@@ -88,8 +88,8 @@ const fixtures = createMockHandlers([
   { method: "POST", path: "/login", status: 401, body: { detail: "bad creds" } },
 ]);
 
-global.fetch = vi.fn(async (input: RequestInfo, init?: RequestInit) => {
-  const url = typeof input === "string" ? input : input.url;
+global.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+  const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
   const method = (init?.method ?? "GET").toUpperCase();
   const match = fixtures.find((f) => url.endsWith(f.path) && f.method === method);
   if (!match) return new Response(null, { status: 404 });
@@ -141,7 +141,7 @@ beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
-const api = createApiClient({ baseUrl: "https://api.test" });
+const api = createApiClient({ baseURL: "https://api.test" });
 
 it("resolves the happy path", async () => {
   const me = await api.get("/users/me");

@@ -4,6 +4,75 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **Guard de documentação: todo exemplo das docs é compilado contra o SDK de
+  verdade** (`test/docs-guard.test.ts`, na suíte que gateia o CI). Os 432 blocos
+  ` ```tsx `/` ```ts ` que importam de `tempest-react-sdk` são entregues ao
+  compilador com os subpaths apontando para `src/`, e o teste falha em import de
+  símbolo inexistente, prop que o componente não aceita e chave de options que
+  não existe — a classe de defeito que o `mkdocs build` não enxerga. Junto vão
+  as checagens estruturais: toda página existe nos dois idiomas e é alcançável
+  pelo `nav`.
+
+  Fragmento deliberado continua passando: um bloco que importa de `@/lib/api` ou
+  usa uma variável do app do leitor levanta "cannot find module"/"cannot find
+  name", e esses códigos são ignorados com o motivo escrito no arquivo.
+
+### Corrigido
+
+- **Quinze exemplos da documentação estavam quebrados** — todos encontrados pelo
+  guard acima na primeira execução, e todos do tipo que só falha na mão de quem
+  copia:
+
+  - `docs/hooks.md` importava `UserCard` de `tempest-react-sdk`, que o SDK nunca
+    exportou, e usava `useClientFilter` sobre `string[]` quando o hook exige
+    objetos.
+  - `docs/integration-fastapi.md` passava `<AuthGuard store={…}>` (a prop é
+    `isAuthenticated`) e `createLogger({ name })` (é `namespace`).
+  - `docs/cookbook.md` chamava `api.post("/auth/login", { email, password })`,
+    onde o segundo argumento é `RequestOptions` — o request sairia **sem corpo**.
+    O correto é `{ body: { email, password } }`.
+  - `docs/testing.md` usava `createApiClient({ baseUrl })` em vez de `baseURL`.
+  - `docs/tabular.md` chamava `installPrecache([...urls])`, que recebe
+    `InstallPrecacheOptions` e lê o manifest — a receita virou
+    `tempestPwaManifest({ additionalUrls })` no `vite.config.ts`.
+  - Mais oito ajustes menores de tipo em `auth`, `push`, `resumable-upload`,
+    `share`, `utilities`, `passkeys` e `forms-br`.
+
+- **`CPFInput`/`CNPJInput`/`CEPInput`/`PhoneInput` agora type-checkam dentro de
+  `<FormField>`.** `value` e `onChange` eram obrigatórios, mas o uso primário —
+  e documentado — é dentro do `FormField`, que injeta os dois via
+  `cloneElement`: `<FormField name="cpf"><CPFInput /></FormField>` funcionava em
+  runtime e falhava no compilador. Passaram a ser opcionais; quem já passava os
+  dois não muda nada.
+
+- **`zodResolver` encaixa em `useForm` sem cast.** O retorno era um tipo
+  `Resolver` local, estruturalmente parecido com o do `react-hook-form` e
+  rejeitado exatamente onde um resolver é usado — tanto que o próprio
+  `useZodForm` precisava de um `as unknown as` para passar. Agora o retorno é o
+  `Resolver` do react-hook-form.
+
+- **`writeXlsx` e `base64UrlToBytes` devolvem `Uint8Array<ArrayBuffer>`.** Com o
+  `Uint8Array` genérico default, `new Blob([writeXlsx(...)])` não compila:
+  `BlobPart` recusa `ArrayBufferLike` porque ele também admite
+  `SharedArrayBuffer`. `urlBase64ToUint8Array` já fazia certo; as duas ficaram
+  iguais a ela.
+
+### Alterado
+
+- **Documentação: 59 exports públicos que nenhuma página citava agora estão
+  documentados.** Entre eles os primitivos de gravação sem React
+  (`createAudioRecorder`, `isAudioRecordingSupported`, `pickAudioMimeType`,
+  `AUDIO_MIME_CANDIDATES`, `encodeWav`), as chaves de cache do data provider
+  (`listQueryKey`/`oneQueryKey`), os type guards de paginação
+  (`isOffsetPage`/`isCursorPage`/`emptyOffsetPage`), as conversões de cor
+  (`hexToOklch`/`oklchToHex`/`hexToRgb`/`hexToRgbaString`), `BREAKPOINTS`,
+  `useAccessControl`, os re-exports do react-hook-form (`useFieldArray`,
+  `useFormContext`, `useWatch`, `useFormState`), o grupo fiscal BR
+  (`chaveNFeCheckDigit`, `ChaveNFeError`, `boletoKind`, `boletoDueDate`) e uma
+  tabela de referência completa do subpath `/vision` (35 símbolos).
+
 ## [0.39.1] — 2026-08-08
 
 ### Alterado

@@ -147,6 +147,30 @@ import { Can } from "tempest-react-sdk";
 </Can>;
 ```
 
+## `useAccessControl` — a estratégia crua
+
+Quando você precisa da estratégia em si (chamar `can` fora de render, checar
+várias permissões num loop, decidir uma rota antes de montar a árvore),
+`useAccessControl()` devolve o `AccessControl` do contexto — ou `null` quando
+não há provider:
+
+```tsx
+import { useAccessControl } from "tempest-react-sdk";
+
+function useBulkPermissions(ids: string[]) {
+  const control = useAccessControl();
+
+  return ids.filter((id) => control?.can({ action: "delete", resource: "posts", params: { id } }) ?? true);
+}
+```
+
+!!! danger "`null` significa **permitir**, não negar"
+    Sem provider na árvore, `useAccessControl()` devolve `null` — e a convenção
+    do SDK é tratar isso como "libera tudo", igual ao `useCan`/`<Can>`. Escrever
+    `control?.can(...) ?? false` inverte a regra e trava o app inteiro em
+    qualquer ambiente que ainda não montou o provider. O `?? true` do exemplo
+    não é descuido.
+
 ## Exemplo completo — botão "Excluir" protegido
 
 Tudo junto: deriva permissões do JWT, configura a estratégia, e protege a ação de excluir tanto por render (`<Can>`) quanto por estado desabilitado (`useCan`):
@@ -918,6 +942,40 @@ const wav = await blobToWav(recording.blob, { mono: true, sampleRate: 16000 });
 
 Se o backend só aceita **MP3**: transcodifique no servidor. Um encoder MP3 no cliente significa um build WASM da ordem de 150 KB no bundle de **todo** consumidor do SDK pra servir um formato — é a troca que este SDK não faz.
 
+## Fora do React: os primitivos
+
+`useAudioRecorder` é uma casca fina em cima de um gravador que não sabe nada de
+React. Quando a gravação acontece longe de um componente — num store, num
+worker, numa máquina de estados — use o primitivo direto:
+
+```ts
+import { createAudioRecorder, isAudioRecordingSupported } from "tempest-react-sdk";
+
+if (!isAudioRecordingSupported()) throw new Error("Este navegador não grava áudio");
+
+const rec = createAudioRecorder(stream, { audioBitsPerSecond: 48_000 });
+rec.start();
+// ...
+const recording = await rec.stop(); // { blob, mimeType, durationMs }
+```
+
+O handle expõe `start`, `pause`, `resume`, `stop`, `cancel`, mais os leitores
+`status()` e `durationMs()` (que descontam o tempo pausado) e o `mimeType`
+negociado.
+
+| Símbolo                              | O que é                                                                   |
+| ------------------------------------ | ------------------------------------------------------------------------- |
+| `createAudioRecorder(stream, opts)`  | O gravador por trás do hook. Não é dono do stream — pare o mic você mesmo. |
+| `isAudioRecordingSupported()`        | `MediaRecorder` existe **e** algum container é produzível.                 |
+| `pickAudioMimeType(preferred?)`      | Primeiro container da lista que o browser realmente produz, ou `null`.     |
+| `AUDIO_MIME_CANDIDATES`              | A ordem que o SDK negocia: Opus (WebM/Ogg) → AAC (MP4).                    |
+| `encodeWav({ channels, sampleRate })`| RIFF/PCM 16-bit a partir de canais Float32 — o motor do `blobToWav`.       |
+
+!!! tip "`isAudioRecordingSupported()` responde a pergunta certa"
+    Checar só `typeof MediaRecorder !== "undefined"` deixa passar o motor que
+    tem a API e não produz nenhum dos containers — a falha aparece no
+    `start()`, com o usuário já esperando. Esta função checa as duas coisas.
+
 ## Upload longo: chunks
 
 ```tsx
@@ -975,7 +1033,7 @@ São cinco peças, todas desacopladas entre si:
 
 O SDK **não é dono do seu modelo de usuário**. Você passa o `TUser` e ganha um store Zustand tipado, já com `persist` configurado.
 
-```ts
+```tsx
 import { createAuthStore } from "tempest-react-sdk";
 
 type SessionUser = { id: string; name: string; is_admin: boolean };
@@ -985,9 +1043,17 @@ export const useAuthStore = createAuthStore<SessionUser>({
   storage: "local",
 });
 
-// uso
-const { user, token, isAuthenticated, setSession, setUser, setToken, logout } = useAuthStore();
-useAuthStore.getState().setSession({ user, token });
+// dentro de um componente: leia o estado (re-renderiza quando muda)
+function Header() {
+  const { user, isAuthenticated, logout } = useAuthStore();
+  return isAuthenticated ? <button onClick={logout}>Sair de {user?.name}</button> : null;
+}
+
+// fora do React: escreva pelo getState()
+useAuthStore.getState().setSession({
+  user: { id: "u1", name: "Ana", is_admin: false },
+  token: "eyJhbGciOi…",
+});
 useAuthStore.getState().logout();
 ```
 
@@ -1456,6 +1522,36 @@ formatLinhaDigitavel(input);
 
 `formatLinhaDigitavel` é helper de **exibição**: entrada que não tem 47 nem 48 dígitos volta intacta.
 
+### Só o layout, sem parsear: `boletoKind`
+
+Para ramificar a UI antes de validar (mostrar o campo certo, escolher o ícone),
+`boletoKind` diz o layout a partir do tamanho e do primeiro dígito, e devolve
+`null` para entrada que não é boleto — sem lançar:
+
+```ts
+import { boletoKind } from "tempest-react-sdk/br";
+
+boletoKind("34191157000001234560000123456789012345678901"); // "banco"
+boletoKind("848900000017..."); // "arrecadacao"
+boletoKind("123"); // null
+```
+
+E `boletoDueDate(fator, options?)` resolve o fator de vencimento isolado — útil
+quando o fator veio de outro sistema e você não tem o código de barras inteiro.
+Devolve `{ date, epoch }` (dizendo **qual** base foi usada) ou `null` quando o
+fator é `0`, que é o valor de "sem vencimento":
+
+```ts
+import { boletoDueDate } from "tempest-react-sdk/br";
+
+boletoDueDate(1000, { epoch: "legacy" }); // { date: 2000-07-03, epoch: "legacy" }
+boletoDueDate(1000, { epoch: "current" }); // { date: 2025-02-22, epoch: "current" }
+boletoDueDate(0); // null
+```
+
+O `epoch` de volta importa: ele diz qual das duas leituras ambíguas (abaixo)
+saiu, o que é a diferença entre exibir a data e exibir a data **certa**.
+
 ### A virada do fator de vencimento (fev/2025)
 
 O vencimento não está no boleto como data — está como **fator de vencimento**, quatro dígitos contando dias desde uma data-base. E essa data-base **mudou**:
@@ -1563,6 +1659,29 @@ formatChaveNFe("35260112345678000195550010000001231123456785");
 
 !!! tip "O `cUF` vira o tipo `UF`"
     `chave.uf` é o mesmo union `UF` que `citiesByUf`, `getState` e o `BrazilMap` usam — dá para encadear direto com o resto do módulo BR.
+
+### Emitindo: calcular o DV e tratar o erro
+
+Quem **monta** a chave (em vez de só ler uma pronta) precisa do dígito
+verificador dos 43 primeiros dígitos. `chaveNFeCheckDigit` faz esse cálculo
+isolado, e lança `ChaveNFeError` quando o corpo não tem exatamente 43 dígitos:
+
+```ts
+import { ChaveNFeError, chaveNFeCheckDigit } from "tempest-react-sdk/br";
+
+const corpo = "3526011234567800019555001000000123112345678"; // 43 dígitos
+
+try {
+  const dv = chaveNFeCheckDigit(corpo); // 5
+  const chave = `${corpo}${dv}`;
+} catch (err) {
+  if (err instanceof ChaveNFeError) console.error(err.message);
+}
+```
+
+`ChaveNFeError` é a única exceção do grupo NFe — `validateChaveNFe` continua
+devolvendo `false` em vez de lançar, porque validar entrada de usuário não é
+caso excepcional.
 
 ---
 
@@ -7917,8 +8036,7 @@ export function Login() {
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     const { user, token } = await api.post<{ user: User; token: string }>("/auth/login", {
-      email,
-      password,
+      body: { email, password },
     });
     setSession({ user, token });
     navigate("/dashboard");
@@ -8485,6 +8603,26 @@ As mutations já invalidam o cache certo no sucesso:
 
 !!! tip "Você ainda passa opções do TanStack Query"
     Cada hook aceita um último argumento `options` que é repassado para o `useQuery`/`useMutation` por baixo (menos `queryKey`/`queryFn`/`mutationFn`, que o SDK controla). Então `staleTime`, `placeholderData`, `onError`, `onSuccess` (chamado **depois** da invalidação do SDK) continuam funcionando normalmente.
+
+### As chaves de cache, quando você precisa delas
+
+Os hooks montam as próprias chaves, mas invalidar de fora — depois de um
+WebSocket avisar que um registro mudou, por exemplo — exige a mesma chave que
+eles usaram. `listQueryKey` e `oneQueryKey` são exatamente essas:
+
+```ts
+import { useQueryClient } from "@tanstack/react-query";
+import { listQueryKey, oneQueryKey } from "tempest-react-sdk";
+
+const queryClient = useQueryClient();
+
+queryClient.invalidateQueries({ queryKey: listQueryKey("posts") });
+queryClient.invalidateQueries({ queryKey: oneQueryKey("posts", 42) });
+```
+
+`listQueryKey(resource, params?)` devolve `["data", <recurso>, "list", params]`
+e `oneQueryKey(resource, id)` devolve `["data", <recurso>, "one", id]`. Montar
+esse array à mão funciona até o dia em que o formato mudar — as funções não.
 
 ### O envelope `OffsetPage<T>`
 
@@ -12836,6 +12974,39 @@ Como as peças se encaixam:
     `.refine()` no schema com `path: ["campo"]` — assim o erro aparece atribuído ao
     campo certo no `formState.errors`.
 
+## O react-hook-form sai pelo mesmo barrel
+
+O SDK re-exporta os hooks do `react-hook-form` que você usaria junto com
+`useZodForm`, então um arquivo de formulário tem **um** import só:
+
+```tsx
+import {
+  FormProvider,
+  useFieldArray,
+  useFormContext,
+  useFormState,
+  useWatch,
+  useZodForm,
+} from "tempest-react-sdk";
+```
+
+| Hook              | Para que serve                                                                    |
+| ----------------- | --------------------------------------------------------------------------------- |
+| `useFieldArray`   | Lista dinâmica de campos (itens de um pedido, telefones) com `append`/`remove`.   |
+| `useFormContext`  | Alcança o form de dentro de um componente-filho, sem passar `control` por prop.    |
+| `useWatch`        | Observa um campo re-renderizando **só** quem observa, não o formulário inteiro.    |
+| `useFormState`    | Lê `errors`/`isDirty`/`isSubmitting` com a mesma granularidade de subscrição.      |
+
+São os hooks do `react-hook-form`, sem casca: a documentação deles vale
+literalmente, e importar direto de `react-hook-form` funciona igual. O
+re-export existe para o app não precisar declarar a dependência que o SDK já
+traz.
+
+!!! tip "`useWatch` e `useFormState` existem por performance"
+    `form.watch("campo")` e `form.formState.errors` re-renderizam o componente
+    que segura o form — num formulário grande, isso é a tela inteira a cada
+    tecla. Os hooks assinam só o pedaço observado, no componente que observa.
+
 ## Padrão de schema
 
 Mantenha schemas em `src/schemas/<dominio>.ts`, exporte o `z.infer` em `src/types/<dominio>.ts` via `declare global` quando quiser tipos globais. Convenção herdada do alofans-frontend.
@@ -13306,7 +13477,7 @@ granulares, testados e independentes — importe só o que precisar.
 | Hook                                              | O que faz                                                                                                       |
 | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | `usePagination(initialPage?, initialSize?)`       | `{ page, size, setPage, setSize, reset }`.                                                                      |
-| `useClientFilter(items, search, keysOrPredicate)` | Filtro client-side por keys ou predicado (memoizado).                                                           |
+| `useClientFilter(items, search, keysOrPredicate)` | Filtro client-side por keys ou predicado (memoizado). Os itens são objetos (`T extends Record<string, unknown>`). |
 | `useLocalStorage<T>(key, default)`                | State persistido em localStorage + sincronizado cross-tab via `storage` event. safe sem `window`.                        |
 | `useToggle(initial?)`                             | `[value, { toggle, setTrue, setFalse, set }]` — açúcar pra boolean state.                                       |
 | `useAsync<T>(fn, deps?, { immediate? })`          | Track `idle/pending/success/error`. `{ status, data, error, run, reset }`. Distinto de React Query (sem cache). |
@@ -13437,6 +13608,17 @@ function Hero() {
 `bp.above("lg")` / `bp.below("md")` cobrem comparações arbitrárias além dos atalhos
 `isMobile` / `isTablet` / `isDesktop`.
 
+Os limites são os do `BREAKPOINTS`, exportado para quando o mesmo corte precisa
+existir fora do React — numa media query montada em JS, num teste, num cálculo
+de layout:
+
+```ts
+import { BREAKPOINTS } from "tempest-react-sdk";
+
+BREAKPOINTS; // { xs: 480, sm: 640, md: 768, lg: 1024, xl: 1280, "2xl": 1536 }
+window.matchMedia(`(min-width: ${BREAKPOINTS.lg}px)`);
+```
+
 ### Persisted state — `useLocalStorage`
 
 ```tsx
@@ -13459,10 +13641,15 @@ Multi-tab: outras abas recebem update via `window.addEventListener("storage", ..
 ### Async — `useAsync`
 
 ```tsx
-import { useAsync, Spinner, ErrorState, UserCard } from "tempest-react-sdk";
+import { useAsync, Spinner, ErrorState } from "tempest-react-sdk";
+
+interface User {
+  id: string;
+  name: string;
+}
 
 function UserPanel({ id }: { id: string }) {
-  const { status, data, error, run } = useAsync(
+  const { status, data, error, run } = useAsync<User>(
     () => fetch(`/api/users/${id}`).then((r) => r.json()),
     [id],
     { immediate: true },
@@ -13470,7 +13657,7 @@ function UserPanel({ id }: { id: string }) {
 
   if (status === "pending") return <Spinner />;
   if (status === "error") return <ErrorState description={String(error)} onRetry={run} />;
-  return <UserCard user={data} />;
+  return <p>{data?.name}</p>;
 }
 ```
 
@@ -13529,9 +13716,14 @@ função estável que anuncia isso.
 import { useAnnounce, useClientFilter } from "tempest-react-sdk";
 import { useEffect, useState } from "react";
 
-export function ListaFiltrada({ items }: { items: string[] }) {
+interface Produto extends Record<string, unknown> {
+  id: string;
+  nome: string;
+}
+
+export function ListaFiltrada({ items }: { items: Produto[] }) {
   const [termo, setTermo] = useState("");
-  const visiveis = useClientFilter(items, termo, (item, q) => item.includes(q));
+  const visiveis = useClientFilter(items, termo, ["nome"]);
   const announce = useAnnounce();
 
   useEffect(() => {
@@ -13541,7 +13733,11 @@ export function ListaFiltrada({ items }: { items: string[] }) {
   return (
     <>
       <input value={termo} onChange={(e) => setTermo(e.target.value)} aria-label="Buscar" />
-      <ul>{visiveis.map((item) => <li key={item}>{item}</li>)}</ul>
+      <ul>
+        {visiveis.map((item) => (
+          <li key={item.id}>{item.nome}</li>
+        ))}
+      </ul>
     </>
   );
 }
@@ -15105,7 +15301,7 @@ O `createApiClient` envia um header `X-Request-ID` único por requisição. O `R
 ```tsx
 import { createApiClient, createLogger } from "tempest-react-sdk";
 
-const log = createLogger({ name: "app" });
+const log = createLogger({ namespace: "app" });
 
 const api = createApiClient({
     baseURL: import.meta.env.VITE_API_URL,
@@ -15224,6 +15420,29 @@ O `next_cursor` opaco é repassado literalmente como próximo cursor; o loop par
 !!! tip "Cursor é opaco"
     Nunca tente interpretar o `next_cursor` — ele é base64/JSON do backend. Só devolva o valor recebido.
 
+### Descobrir qual envelope veio
+
+Endpoint que responde os dois formatos (ou código genérico que aceita
+qualquer um) precisa distinguir em runtime. Os type guards fazem isso e já
+estreitam o tipo:
+
+```ts
+import { emptyOffsetPage, isCursorPage, isOffsetPage } from "tempest-react-sdk";
+
+const payload: unknown = await api.get("/api/items");
+
+if (isOffsetPage<Item>(payload)) {
+    console.log(payload.total, payload.pages);
+} else if (isCursorPage<Item>(payload)) {
+    console.log(payload.next_cursor, payload.has_more);
+}
+```
+
+`isOffsetPage` exige `items` + `total` + `pages`; `isCursorPage` exige `items` +
+`has_more` + a chave `next_cursor`. Para o primeiro render antes de qualquer
+resposta, `emptyOffsetPage<Item>(25)` devolve um envelope zerado pronto para
+`placeholderData`/`initialData` — evita o `items?.map` espalhado pela tela.
+
 ---
 
 ## 5. Autenticação turn-key — `createTempestAuth`
@@ -15258,11 +15477,18 @@ auth.logout();
 O store é o mesmo `createAuthStore` (persistido), então funciona com o `<AuthGuard>`:
 
 ```tsx
+import { Navigate } from "react-router";
 import { AuthGuard } from "tempest-react-sdk";
 
-<AuthGuard store={auth.useAuthStore} fallback={<Navigate to="/login" />}>
-    <Dashboard />
-</AuthGuard>;
+function ProtectedDashboard() {
+    const isAuthenticated = auth.useAuthStore((state) => state.isAuthenticated);
+
+    return (
+        <AuthGuard isAuthenticated={isAuthenticated} fallback={<Navigate to="/login" />}>
+            <Dashboard />
+        </AuthGuard>
+    );
+}
 ```
 
 !!! info "Refresh token: corpo ou cookie"
@@ -16379,7 +16605,7 @@ import { api } from "../lib/api";
 import { useAuthStore } from "../store/auth";
 
 export function LoginForm() {
-  const passkey = usePasskeySignIn({
+  const passkey = usePasskeySignIn<{ access_token: string }>({
     conditional: true,
     getOptions: () => api.post("/api/webauthn/signin/begin"),
     verify: (assertion) =>
@@ -17298,7 +17524,9 @@ import { WebPushClient } from "tempest-react-sdk";
 
 const client = new WebPushClient({
   vapidPublicKey: import.meta.env.VITE_VAPID_PUBLIC_KEY,
-  onSubscribe: (sub) => fetch("/webpush/subscribe", { method: "POST", body: JSON.stringify(sub) }),
+  onSubscribe: async (sub) => {
+    await fetch("/webpush/subscribe", { method: "POST", body: JSON.stringify(sub) });
+  },
 });
 
 if (WebPushClient.isSupported()) {
@@ -18214,9 +18442,13 @@ Por padrão, `localStorage`, via `createLocalUploadStorage()`. **Não** IndexedD
 Se o seu app já tem um banco Dexie aberto, plugue o seu:
 
 ```ts
-import { createOfflineStore, createResumableUpload } from "tempest-react-sdk";
+import {
+  createOfflineStore,
+  createResumableUpload,
+  type ResumableUploadRecord,
+} from "tempest-react-sdk";
 
-const store = createOfflineStore<{ id: string; record: unknown }, string>({
+const store = createOfflineStore<{ id: string; record: ResumableUploadRecord }, string>({
   databaseName: "Uploads",
   version: 1,
   tableName: "resume",
@@ -18227,9 +18459,13 @@ createResumableUpload({
   endpoint: "/api/uploads",
   file,
   storage: {
-    get: async (key) => ((await store.get(key))?.record ?? null) as never,
-    set: (key, record) => store.put({ id: key, record }),
-    delete: (key) => store.delete(key),
+    get: async (key) => (await store.get(key))?.record ?? null,
+    set: async (key, record) => {
+      await store.put({ id: key, record });
+    },
+    delete: async (key) => {
+      await store.delete(key);
+    },
   },
 });
 ```
@@ -19162,7 +19398,7 @@ O caso mais comum de `files` é "gerei um artefato, agora entrega pro usuário":
 ```ts
 import { shareOrDownloadBlob } from "tempest-react-sdk";
 
-async function exportReport(bytes: Uint8Array) {
+async function exportReport(bytes: Uint8Array<ArrayBuffer>) {
   const zip = new Blob([bytes], { type: "application/zip" });
   await shareOrDownloadBlob(zip, "relatorio.zip");
 }
@@ -20877,11 +21113,26 @@ configureOrtAssets("/ort/");
     Copie os binários de `node_modules/onnxruntime-web/dist/` para o seu
     diretório público no build, e precache junto:
 
+    Os `.wasm` moram em `public/`, então o Vite não os emite no bundle e eles
+    não entram sozinhos no manifest de precache. Liste-os em `additionalUrls`,
+    no `vite.config.ts`:
+
     ```ts
-    import { installPrecache } from "tempest-react-sdk/sw";
+    import { defineConfig } from "vite";
+    import { tempestPwaManifest } from "tempest-react-sdk/vite";
     import { ortAssetUrls } from "tempest-react-sdk/tabular";
 
-    installPrecache([...ortAssetUrls("/ort/"), "/index.html"]);
+    export default defineConfig({
+      plugins: [tempestPwaManifest({ additionalUrls: ortAssetUrls("/ort/") })],
+    });
+    ```
+
+    O service worker então precacheia tudo pelo manifest, sem lista repetida:
+
+    ```ts
+    import { installPrecache } from "tempest-react-sdk/sw";
+
+    installPrecache();
     ```
 
     Qual binário é buscado depende do suporte a threads e SIMD do navegador,
@@ -21297,8 +21548,8 @@ const fixtures = createMockHandlers([
   { method: "POST", path: "/login", status: 401, body: { detail: "bad creds" } },
 ]);
 
-global.fetch = vi.fn(async (input: RequestInfo, init?: RequestInit) => {
-  const url = typeof input === "string" ? input : input.url;
+global.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+  const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
   const method = (init?.method ?? "GET").toUpperCase();
   const match = fixtures.find((f) => url.endsWith(f.path) && f.method === method);
   if (!match) return new Response(null, { status: 404 });
@@ -21350,7 +21601,7 @@ beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
-const api = createApiClient({ baseUrl: "https://api.test" });
+const api = createApiClient({ baseURL: "https://api.test" });
 
 it("resolves the happy path", async () => {
   const me = await api.get("/users/me");
@@ -21639,6 +21890,31 @@ contrastRatio(scale[500], "#ffffff");  // asserte no seu teste, se a marca é re
 ```
 
 `--tempest-primary-foreground` (e `--tempest-text-on-primary`) é escolhido por contraste medido entre branco e o cinza escuro — hardcodar branco produziria botões ilegíveis em marcas claras (amarelo, lima, ciano).
+
+### As conversões de cor, avulsas
+
+O `createTheme` faz o trabalho todo, mas as conversões que ele usa por dentro
+são exportadas para quando você precisa de uma só — clarear um badge, gerar um
+overlay, comparar duas cores no seu próprio teste:
+
+```ts
+import { hexToOklch, hexToRgb, hexToRgbaString, oklchToHex } from "tempest-react-sdk";
+
+const { l, c, h } = hexToOklch("#7c3aed"); // luminosidade, croma, matiz
+oklchToHex({ l: l + 0.1, c, h }); // 10% mais claro, mesma matiz e saturação
+
+hexToRgbaString("#7c3aed", 0.12); // "rgb(124 58 237 / 0.12)" — overlay/hover
+hexToRgb("#7c3aed"); // { r, g, b } em 0–1, para cálculo próprio
+```
+
+!!! info "Por que OKLCH e não HSL"
+    Clarear em HSL muda a cor percebida: `hsl(240 100% 50%)` e
+    `hsl(60 100% 50%)` têm a mesma "luminosidade" declarada e brilhos
+    completamente diferentes aos olhos. OKLCH é perceptualmente uniforme, então
+    `l + 0.1` clareia o mesmo tanto em qualquer matiz — é por isso que a escala
+    do `createTheme` sai regular em vez de embolar nos amarelos.
+    `oklchToHex` ainda reduz o croma até a cor caber no gamut sRGB, em vez de
+    devolver um hex recortado.
 
 ## Integração com o CSS do app + `theme-color`
 
@@ -23287,7 +23563,14 @@ pick({ id: 1, name: "Ana", age: 30 }, ["id", "name"]);
 omit({ id: 1, name: "Ana", age: 30 }, ["age"]);
 // { id: 1, name: "Ana" }
 
-deepMerge({ a: 1, nested: { x: 1, y: 2 } }, { nested: { y: 20, z: 30 } });
+interface Settings {
+  a: number;
+  nested: { x: number; y: number; z?: number };
+}
+
+const base: Settings = { a: 1, nested: { x: 1, y: 2 } };
+
+deepMerge(base, { nested: { x: 1, y: 20, z: 30 } });
 // { a: 1, nested: { x: 1, y: 20, z: 30 } }
 
 isEmpty(0); // false — números nunca são "vazios"
@@ -24211,6 +24494,36 @@ do SDK em código próprio.
     `toCHW`, `toFloat32`, …) continuam exportados; quem quiser o caminho fundido
     em código próprio usa a `LetterboxPipeline` (ou `letterboxToTensorData`, a
     forma de uma chamada só).
+
+## Referência: o que mais o subpath exporta
+
+As tarefas cobrem o caminho comum. Abaixo está o resto da superfície — o que
+você usa quando monta um pipeline próprio, roda um modelo com uma cabeça que o
+SDK não conhece, ou precisa tratar uma falha específica.
+
+| Grupo             | Exports                                                                                             |
+| ----------------- | --------------------------------------------------------------------------------------------------- |
+| Sessão            | `OrtSession` (carrega o `.onnx`, expõe `metadata`/`inputName`), `resolveProviders`, `DEFAULT_PROVIDERS`, `VisionTask` (base das tarefas), `VERSION` |
+| Entrada           | `loadImage` (qualquer `ImageInput` → `RGBImage`), `normalize`, `toTensor`, `toFloat32Tensor`, `zeroTensorData`, `fromCv2`/`toCv2` (BGR ↔ RGB) |
+| Decodificação     | `decodeYolo` (cabeça anchor-free, v8→v12), `decodeYoloAnchors` (cabeça com âncoras), `decodeYoloSeg`, `nms`, `batchedNms` |
+| Rótulos           | `resolveLabels`, `defaultLabels`, `parseNames`, `modelNames`, `readModelMetadata`, `COCO_CLASSES`      |
+| Views em massa    | `Boxes`, `Masks`, `Probs` — as coleções "numpy-style" por trás de `result.boxes`/`.masks`/`.probs`    |
+| Erros             | `OrtVisionError` (base), `ModelLoadError`, `ImageLoadError`, `InferenceError`, `LabelMapError`, `ProviderNotAvailableError`, `NoDetectionsError`, `FusionError` |
+| Contrato de fusão | `readFusionSpec`, `FusionSpec`, `CropSource`, `INPUT_IMAGE`/`INPUT_SOURCE`/`INPUT_SCALE`/`INPUT_PAD`, `OUTPUT_BOXES`/`OUTPUT_SCORES`/`OUTPUT_CLASSES`/`OUTPUT_PROBS`/`OUTPUT_NUM_DETECTIONS`, `METADATA_PREFIX`, `FUSION_KIND_DETECT_CLASSIFY` |
+| Auxiliares        | `requireDetections` (a checagem por trás do `raiseOnEmpty`), `SpeedTimer`, `softmax`, `topK`          |
+
+!!! tip "Cabeça com âncoras: `decodeYoloAnchors`"
+    `decodeYolo` cobre as cabeças anchor-free (o padrão de v8 em diante).
+    Um modelo mais antigo — YOLOv5/v7, ou um export customizado que mantém as
+    âncoras — decodifica com `decodeYoloAnchors`. Passar a saída errada pra
+    função errada não dá erro: dá caixa em lugar nenhum.
+
+!!! info "Todos os erros descendem de `OrtVisionError`"
+    Um `catch (err) { if (err instanceof OrtVisionError) … }` pega tudo que o
+    subpath lança, e as subclasses separam o que dá pra tratar: `ModelLoadError`
+    (URL errada, 404, arquivo corrompido) pede outra URL,
+    `ProviderNotAvailableError` pede outro provider, `LabelMapError` é
+    configuração sua, e `InferenceError` é o modelo recusando a entrada.
 
 ## Paridade com o `ort-vision-sdk` em Python
 

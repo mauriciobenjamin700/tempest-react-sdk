@@ -20,7 +20,7 @@ São cinco peças, todas desacopladas entre si:
 
 O SDK **não é dono do seu modelo de usuário**. Você passa o `TUser` e ganha um store Zustand tipado, já com `persist` configurado.
 
-```ts
+```tsx
 import { createAuthStore } from "tempest-react-sdk";
 
 type SessionUser = { id: string; name: string; is_admin: boolean };
@@ -30,9 +30,17 @@ export const useAuthStore = createAuthStore<SessionUser>({
   storage: "local",
 });
 
-// uso
-const { user, token, isAuthenticated, setSession, setUser, setToken, logout } = useAuthStore();
-useAuthStore.getState().setSession({ user, token });
+// dentro de um componente: leia o estado (re-renderiza quando muda)
+function Header() {
+  const { user, isAuthenticated, logout } = useAuthStore();
+  return isAuthenticated ? <button onClick={logout}>Sair de {user?.name}</button> : null;
+}
+
+// fora do React: escreva pelo getState()
+useAuthStore.getState().setSession({
+  user: { id: "u1", name: "Ana", is_admin: false },
+  token: "eyJhbGciOi…",
+});
 useAuthStore.getState().logout();
 ```
 

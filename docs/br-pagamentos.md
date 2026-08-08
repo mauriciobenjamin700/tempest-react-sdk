@@ -245,6 +245,36 @@ formatLinhaDigitavel(input);
 
 `formatLinhaDigitavel` é helper de **exibição**: entrada que não tem 47 nem 48 dígitos volta intacta.
 
+### Só o layout, sem parsear: `boletoKind`
+
+Para ramificar a UI antes de validar (mostrar o campo certo, escolher o ícone),
+`boletoKind` diz o layout a partir do tamanho e do primeiro dígito, e devolve
+`null` para entrada que não é boleto — sem lançar:
+
+```ts
+import { boletoKind } from "tempest-react-sdk/br";
+
+boletoKind("34191157000001234560000123456789012345678901"); // "banco"
+boletoKind("848900000017..."); // "arrecadacao"
+boletoKind("123"); // null
+```
+
+E `boletoDueDate(fator, options?)` resolve o fator de vencimento isolado — útil
+quando o fator veio de outro sistema e você não tem o código de barras inteiro.
+Devolve `{ date, epoch }` (dizendo **qual** base foi usada) ou `null` quando o
+fator é `0`, que é o valor de "sem vencimento":
+
+```ts
+import { boletoDueDate } from "tempest-react-sdk/br";
+
+boletoDueDate(1000, { epoch: "legacy" }); // { date: 2000-07-03, epoch: "legacy" }
+boletoDueDate(1000, { epoch: "current" }); // { date: 2025-02-22, epoch: "current" }
+boletoDueDate(0); // null
+```
+
+O `epoch` de volta importa: ele diz qual das duas leituras ambíguas (abaixo)
+saiu, o que é a diferença entre exibir a data e exibir a data **certa**.
+
 ### A virada do fator de vencimento (fev/2025)
 
 O vencimento não está no boleto como data — está como **fator de vencimento**, quatro dígitos contando dias desde uma data-base. E essa data-base **mudou**:
@@ -352,6 +382,29 @@ formatChaveNFe("35260112345678000195550010000001231123456785");
 
 !!! tip "O `cUF` vira o tipo `UF`"
     `chave.uf` é o mesmo union `UF` que `citiesByUf`, `getState` e o `BrazilMap` usam — dá para encadear direto com o resto do módulo BR.
+
+### Emitindo: calcular o DV e tratar o erro
+
+Quem **monta** a chave (em vez de só ler uma pronta) precisa do dígito
+verificador dos 43 primeiros dígitos. `chaveNFeCheckDigit` faz esse cálculo
+isolado, e lança `ChaveNFeError` quando o corpo não tem exatamente 43 dígitos:
+
+```ts
+import { ChaveNFeError, chaveNFeCheckDigit } from "tempest-react-sdk/br";
+
+const corpo = "3526011234567800019555001000000123112345678"; // 43 dígitos
+
+try {
+  const dv = chaveNFeCheckDigit(corpo); // 5
+  const chave = `${corpo}${dv}`;
+} catch (err) {
+  if (err instanceof ChaveNFeError) console.error(err.message);
+}
+```
+
+`ChaveNFeError` é a única exceção do grupo NFe — `validateChaveNFe` continua
+devolvendo `false` em vez de lançar, porque validar entrada de usuário não é
+caso excepcional.
 
 ---
 

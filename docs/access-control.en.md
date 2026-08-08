@@ -143,6 +143,30 @@ import { Can } from "tempest-react-sdk";
 </Can>;
 ```
 
+## `useAccessControl` — the raw strategy
+
+When you need the strategy itself (calling `can` outside render, checking many
+permissions in a loop, deciding a route before mounting the tree),
+`useAccessControl()` returns the `AccessControl` from context — or `null` when
+no provider is present:
+
+```tsx
+import { useAccessControl } from "tempest-react-sdk";
+
+function useBulkPermissions(ids: string[]) {
+  const control = useAccessControl();
+
+  return ids.filter((id) => control?.can({ action: "delete", resource: "posts", params: { id } }) ?? true);
+}
+```
+
+!!! danger "`null` means **allow**, not deny"
+    With no provider in the tree, `useAccessControl()` returns `null` — and the
+    SDK convention is to read that as "allow everything", same as `useCan`/`<Can>`.
+    Writing `control?.can(...) ?? false` inverts the rule and locks the whole app
+    in any environment that has not mounted the provider yet. The `?? true` above
+    is not an oversight.
+
 ## Complete example — a gated "Delete" button
 
 Everything together: derive permissions from the JWT, configure the strategy, and gate the delete action both by render (`<Can>`) and by disabled state (`useCan`):

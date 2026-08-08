@@ -60,7 +60,7 @@ browser-guarded and independent hooks — import only what you need.
 | Hook                                              | What it does                                                                                                      |
 | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `usePagination(initialPage?, initialSize?)`       | `{ page, size, setPage, setSize, reset }`.                                                                        |
-| `useClientFilter(items, search, keysOrPredicate)` | Client-side filter by keys or predicate (memoized).                                                               |
+| `useClientFilter(items, search, keysOrPredicate)` | Client-side filter by keys or predicate (memoized). Items are objects (`T extends Record<string, unknown>`).       |
 | `useLocalStorage<T>(key, default)`                | State persisted to localStorage + synced cross-tab via the `storage` event. browser-guarded.                             |
 | `useToggle(initial?)`                             | `[value, { toggle, setTrue, setFalse, set }]` — sugar for boolean state.                                          |
 | `useAsync<T>(fn, deps?, { immediate? })`          | Tracks `idle/pending/success/error`. `{ status, data, error, run, reset }`. Distinct from React Query (no cache). |
@@ -191,6 +191,17 @@ function Hero() {
 `bp.above("lg")` / `bp.below("md")` cover arbitrary comparisons beyond the
 `isMobile` / `isTablet` / `isDesktop` shortcuts.
 
+The thresholds come from `BREAKPOINTS`, exported for when the same cut has to
+exist outside React — in a media query built in JS, in a test, in a layout
+calculation:
+
+```ts
+import { BREAKPOINTS } from "tempest-react-sdk";
+
+BREAKPOINTS; // { xs: 480, sm: 640, md: 768, lg: 1024, xl: 1280, "2xl": 1536 }
+window.matchMedia(`(min-width: ${BREAKPOINTS.lg}px)`);
+```
+
 ### Persisted state — `useLocalStorage`
 
 ```tsx
@@ -214,10 +225,15 @@ Multi-tab: other tabs receive the update through an internal
 ### Async — `useAsync`
 
 ```tsx
-import { useAsync, Spinner, ErrorState, UserCard } from "tempest-react-sdk";
+import { useAsync, Spinner, ErrorState } from "tempest-react-sdk";
+
+interface User {
+  id: string;
+  name: string;
+}
 
 function UserPanel({ id }: { id: string }) {
-  const { status, data, error, run } = useAsync(
+  const { status, data, error, run } = useAsync<User>(
     () => fetch(`/api/users/${id}`).then((r) => r.json()),
     [id],
     { immediate: true },
@@ -225,7 +241,7 @@ function UserPanel({ id }: { id: string }) {
 
   if (status === "pending") return <Spinner />;
   if (status === "error") return <ErrorState description={String(error)} onRetry={run} />;
-  return <UserCard user={data} />;
+  return <p>{data?.name}</p>;
 }
 ```
 
@@ -284,9 +300,14 @@ function that says so.
 import { useAnnounce, useClientFilter } from "tempest-react-sdk";
 import { useEffect, useState } from "react";
 
-export function FilteredList({ items }: { items: string[] }) {
+interface Product extends Record<string, unknown> {
+  id: string;
+  name: string;
+}
+
+export function FilteredList({ items }: { items: Product[] }) {
   const [term, setTerm] = useState("");
-  const visible = useClientFilter(items, term, (item, q) => item.includes(q));
+  const visible = useClientFilter(items, term, ["name"]);
   const announce = useAnnounce();
 
   useEffect(() => {
@@ -296,7 +317,11 @@ export function FilteredList({ items }: { items: string[] }) {
   return (
     <>
       <input value={term} onChange={(e) => setTerm(e.target.value)} aria-label="Search" />
-      <ul>{visible.map((item) => <li key={item}>{item}</li>)}</ul>
+      <ul>
+        {visible.map((item) => (
+          <li key={item.id}>{item.name}</li>
+        ))}
+      </ul>
     </>
   );
 }

@@ -380,6 +380,40 @@ How the pieces fit together:
     `.refine()` on the schema with `path: ["field"]` — that way the error shows up
     attached to the right field in `formState.errors`.
 
+## react-hook-form comes out of the same barrel
+
+The SDK re-exports the `react-hook-form` hooks you would reach for alongside
+`useZodForm`, so a form file has **one** import:
+
+```tsx
+import {
+  FormProvider,
+  useFieldArray,
+  useFormContext,
+  useFormState,
+  useWatch,
+  useZodForm,
+} from "tempest-react-sdk";
+```
+
+| Hook              | What it is for                                                                    |
+| ----------------- | --------------------------------------------------------------------------------- |
+| `useFieldArray`   | Dynamic list of fields (order lines, phone numbers) with `append`/`remove`.        |
+| `useFormContext`  | Reaches the form from inside a child component, with no `control` prop threading.  |
+| `useWatch`        | Watches a field re-rendering **only** the watcher, not the whole form.             |
+| `useFormState`    | Reads `errors`/`isDirty`/`isSubmitting` with the same subscription granularity.    |
+
+These are the `react-hook-form` hooks, unwrapped: their documentation applies
+literally, and importing straight from `react-hook-form` behaves identically.
+The re-export exists so your app need not declare a dependency the SDK already
+ships.
+
+!!! tip "`useWatch` and `useFormState` exist for performance"
+    `form.watch("field")` and `form.formState.errors` re-render the component
+    holding the form — on a large form that is the whole screen on every
+    keystroke. These hooks subscribe to just the watched slice, in the component
+    that watches it.
+
 ## Schema pattern
 
 Keep schemas in `src/schemas/<domain>.ts`, export the `z.infer` in

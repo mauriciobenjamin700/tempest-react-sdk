@@ -251,6 +251,31 @@ contrastRatio(scale[500], "#ffffff");  // asserte no seu teste, se a marca é re
 
 `--tempest-primary-foreground` (e `--tempest-text-on-primary`) é escolhido por contraste medido entre branco e o cinza escuro — hardcodar branco produziria botões ilegíveis em marcas claras (amarelo, lima, ciano).
 
+### As conversões de cor, avulsas
+
+O `createTheme` faz o trabalho todo, mas as conversões que ele usa por dentro
+são exportadas para quando você precisa de uma só — clarear um badge, gerar um
+overlay, comparar duas cores no seu próprio teste:
+
+```ts
+import { hexToOklch, hexToRgb, hexToRgbaString, oklchToHex } from "tempest-react-sdk";
+
+const { l, c, h } = hexToOklch("#7c3aed"); // luminosidade, croma, matiz
+oklchToHex({ l: l + 0.1, c, h }); // 10% mais claro, mesma matiz e saturação
+
+hexToRgbaString("#7c3aed", 0.12); // "rgb(124 58 237 / 0.12)" — overlay/hover
+hexToRgb("#7c3aed"); // { r, g, b } em 0–1, para cálculo próprio
+```
+
+!!! info "Por que OKLCH e não HSL"
+    Clarear em HSL muda a cor percebida: `hsl(240 100% 50%)` e
+    `hsl(60 100% 50%)` têm a mesma "luminosidade" declarada e brilhos
+    completamente diferentes aos olhos. OKLCH é perceptualmente uniforme, então
+    `l + 0.1` clareia o mesmo tanto em qualquer matiz — é por isso que a escala
+    do `createTheme` sai regular em vez de embolar nos amarelos.
+    `oklchToHex` ainda reduz o croma até a cor caber no gamut sRGB, em vez de
+    devolver um hex recortado.
+
 ## Integração com o CSS do app + `theme-color`
 
 Os componentes do SDK leem `data-tempest-theme`. Se o **CSS próprio do seu app** já chaveia o tema em outro atributo (ex.: `[data-theme="dark"]`), você não precisa de um effect de sincronização — passe um array em `attribute` e o provider escreve o tema resolvido em **todos**:

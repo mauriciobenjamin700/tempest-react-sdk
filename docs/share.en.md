@@ -102,7 +102,7 @@ The most common use of `files` is "I generated an artifact, now hand it to the u
 ```ts
 import { shareOrDownloadBlob } from "tempest-react-sdk";
 
-async function exportReport(bytes: Uint8Array) {
+async function exportReport(bytes: Uint8Array<ArrayBuffer>) {
   const zip = new Blob([bytes], { type: "application/zip" });
   await shareOrDownloadBlob(zip, "report.zip");
 }

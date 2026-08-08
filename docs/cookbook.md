@@ -68,8 +68,7 @@ export function Login() {
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     const { user, token } = await api.post<{ user: User; token: string }>("/auth/login", {
-      email,
-      password,
+      body: { email, password },
     });
     setSession({ user, token });
     navigate("/dashboard");

@@ -70,7 +70,14 @@ pick({ id: 1, name: "Ana", age: 30 }, ["id", "name"]);
 omit({ id: 1, name: "Ana", age: 30 }, ["age"]);
 // { id: 1, name: "Ana" }
 
-deepMerge({ a: 1, nested: { x: 1, y: 2 } }, { nested: { y: 20, z: 30 } });
+interface Settings {
+  a: number;
+  nested: { x: number; y: number; z?: number };
+}
+
+const base: Settings = { a: 1, nested: { x: 1, y: 2 } };
+
+deepMerge(base, { nested: { x: 1, y: 20, z: 30 } });
 // { a: 1, nested: { x: 1, y: 20, z: 30 } }
 
 isEmpty(0); // false — números nunca são "vazios"

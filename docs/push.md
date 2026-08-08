@@ -601,7 +601,9 @@ import { WebPushClient } from "tempest-react-sdk";
 
 const client = new WebPushClient({
   vapidPublicKey: import.meta.env.VITE_VAPID_PUBLIC_KEY,
-  onSubscribe: (sub) => fetch("/webpush/subscribe", { method: "POST", body: JSON.stringify(sub) }),
+  onSubscribe: async (sub) => {
+    await fetch("/webpush/subscribe", { method: "POST", body: JSON.stringify(sub) });
+  },
 });
 
 if (WebPushClient.isSupported()) {

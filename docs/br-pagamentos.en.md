@@ -245,6 +245,37 @@ formatLinhaDigitavel(input);
 
 `formatLinhaDigitavel` is a **display** helper: input that is neither 47 nor 48 digits comes back untouched.
 
+### Layout only, without parsing: `boletoKind`
+
+To branch the UI before validating (show the right field, pick the icon),
+`boletoKind` reports the layout from the length and the first digit, and returns
+`null` for input that is not a slip — without throwing:
+
+```ts
+import { boletoKind } from "tempest-react-sdk/br";
+
+boletoKind("34191157000001234560000123456789012345678901"); // "banco"
+boletoKind("848900000017..."); // "arrecadacao"
+boletoKind("123"); // null
+```
+
+And `boletoDueDate(fator, options?)` resolves the due-date factor on its own —
+useful when the factor arrived from another system and you do not hold the whole
+barcode. It returns `{ date, epoch }` (telling you **which** base was used) or
+`null` when the factor is `0`, which is the "no due date" value:
+
+```ts
+import { boletoDueDate } from "tempest-react-sdk/br";
+
+boletoDueDate(1000, { epoch: "legacy" }); // { date: 2000-07-03, epoch: "legacy" }
+boletoDueDate(1000, { epoch: "current" }); // { date: 2025-02-22, epoch: "current" }
+boletoDueDate(0); // null
+```
+
+The returned `epoch` matters: it says which of the two ambiguous readings
+(below) came out, which is the difference between showing the date and showing
+the **right** date.
+
 ### The February 2025 due-date rollover
 
 The due date is not stored as a date. It is a **fator de vencimento**: four digits counting days from a base date. And that base date **changed**:
@@ -351,6 +382,29 @@ formatChaveNFe("35260112345678000195550010000001231123456785");
 
 !!! tip "The `cUF` resolves into the `UF` type"
     `chave.uf` is the same `UF` union that `citiesByUf`, `getState` and `BrazilMap` use, so it chains straight into the rest of the BR module.
+
+### Issuing: computing the check digit and handling the error
+
+Code that **builds** a key (rather than reading a finished one) needs the check
+digit over the first 43 digits. `chaveNFeCheckDigit` does that calculation on
+its own, and throws `ChaveNFeError` when the body is not exactly 43 digits:
+
+```ts
+import { ChaveNFeError, chaveNFeCheckDigit } from "tempest-react-sdk/br";
+
+const body = "3526011234567800019555001000000123112345678"; // 43 digits
+
+try {
+  const dv = chaveNFeCheckDigit(body); // 5
+  const chave = `${body}${dv}`;
+} catch (err) {
+  if (err instanceof ChaveNFeError) console.error(err.message);
+}
+```
+
+`ChaveNFeError` is the NFe group's only exception — `validateChaveNFe` still
+returns `false` instead of throwing, because validating user input is not an
+exceptional case.
 
 ---
 

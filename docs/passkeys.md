@@ -78,7 +78,7 @@ import { api } from "../lib/api";
 import { useAuthStore } from "../store/auth";
 
 export function LoginForm() {
-  const passkey = usePasskeySignIn({
+  const passkey = usePasskeySignIn<{ access_token: string }>({
     conditional: true,
     getOptions: () => api.post("/api/webauthn/signin/begin"),
     verify: (assertion) =>

@@ -369,6 +369,39 @@ Como as peças se encaixam:
     `.refine()` no schema com `path: ["campo"]` — assim o erro aparece atribuído ao
     campo certo no `formState.errors`.
 
+## O react-hook-form sai pelo mesmo barrel
+
+O SDK re-exporta os hooks do `react-hook-form` que você usaria junto com
+`useZodForm`, então um arquivo de formulário tem **um** import só:
+
+```tsx
+import {
+  FormProvider,
+  useFieldArray,
+  useFormContext,
+  useFormState,
+  useWatch,
+  useZodForm,
+} from "tempest-react-sdk";
+```
+
+| Hook              | Para que serve                                                                    |
+| ----------------- | --------------------------------------------------------------------------------- |
+| `useFieldArray`   | Lista dinâmica de campos (itens de um pedido, telefones) com `append`/`remove`.   |
+| `useFormContext`  | Alcança o form de dentro de um componente-filho, sem passar `control` por prop.    |
+| `useWatch`        | Observa um campo re-renderizando **só** quem observa, não o formulário inteiro.    |
+| `useFormState`    | Lê `errors`/`isDirty`/`isSubmitting` com a mesma granularidade de subscrição.      |
+
+São os hooks do `react-hook-form`, sem casca: a documentação deles vale
+literalmente, e importar direto de `react-hook-form` funciona igual. O
+re-export existe para o app não precisar declarar a dependência que o SDK já
+traz.
+
+!!! tip "`useWatch` e `useFormState` existem por performance"
+    `form.watch("campo")` e `form.formState.errors` re-renderizam o componente
+    que segura o form — num formulário grande, isso é a tela inteira a cada
+    tecla. Os hooks assinam só o pedaço observado, no componente que observa.
+
 ## Padrão de schema
 
 Mantenha schemas em `src/schemas/<dominio>.ts`, exporte o `z.infer` em `src/types/<dominio>.ts` via `declare global` quando quiser tipos globais. Convenção herdada do alofans-frontend.

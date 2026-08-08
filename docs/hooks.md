@@ -60,7 +60,7 @@ granulares, testados e independentes — importe só o que precisar.
 | Hook                                              | O que faz                                                                                                       |
 | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | `usePagination(initialPage?, initialSize?)`       | `{ page, size, setPage, setSize, reset }`.                                                                      |
-| `useClientFilter(items, search, keysOrPredicate)` | Filtro client-side por keys ou predicado (memoizado).                                                           |
+| `useClientFilter(items, search, keysOrPredicate)` | Filtro client-side por keys ou predicado (memoizado). Os itens são objetos (`T extends Record<string, unknown>`). |
 | `useLocalStorage<T>(key, default)`                | State persistido em localStorage + sincronizado cross-tab via `storage` event. safe sem `window`.                        |
 | `useToggle(initial?)`                             | `[value, { toggle, setTrue, setFalse, set }]` — açúcar pra boolean state.                                       |
 | `useAsync<T>(fn, deps?, { immediate? })`          | Track `idle/pending/success/error`. `{ status, data, error, run, reset }`. Distinto de React Query (sem cache). |
@@ -191,6 +191,17 @@ function Hero() {
 `bp.above("lg")` / `bp.below("md")` cobrem comparações arbitrárias além dos atalhos
 `isMobile` / `isTablet` / `isDesktop`.
 
+Os limites são os do `BREAKPOINTS`, exportado para quando o mesmo corte precisa
+existir fora do React — numa media query montada em JS, num teste, num cálculo
+de layout:
+
+```ts
+import { BREAKPOINTS } from "tempest-react-sdk";
+
+BREAKPOINTS; // { xs: 480, sm: 640, md: 768, lg: 1024, xl: 1280, "2xl": 1536 }
+window.matchMedia(`(min-width: ${BREAKPOINTS.lg}px)`);
+```
+
 ### Persisted state — `useLocalStorage`
 
 ```tsx
@@ -213,10 +224,15 @@ Multi-tab: outras abas recebem update via `window.addEventListener("storage", ..
 ### Async — `useAsync`
 
 ```tsx
-import { useAsync, Spinner, ErrorState, UserCard } from "tempest-react-sdk";
+import { useAsync, Spinner, ErrorState } from "tempest-react-sdk";
+
+interface User {
+  id: string;
+  name: string;
+}
 
 function UserPanel({ id }: { id: string }) {
-  const { status, data, error, run } = useAsync(
+  const { status, data, error, run } = useAsync<User>(
     () => fetch(`/api/users/${id}`).then((r) => r.json()),
     [id],
     { immediate: true },
@@ -224,7 +240,7 @@ function UserPanel({ id }: { id: string }) {
 
   if (status === "pending") return <Spinner />;
   if (status === "error") return <ErrorState description={String(error)} onRetry={run} />;
-  return <UserCard user={data} />;
+  return <p>{data?.name}</p>;
 }
 ```
 
@@ -283,9 +299,14 @@ função estável que anuncia isso.
 import { useAnnounce, useClientFilter } from "tempest-react-sdk";
 import { useEffect, useState } from "react";
 
-export function ListaFiltrada({ items }: { items: string[] }) {
+interface Produto extends Record<string, unknown> {
+  id: string;
+  nome: string;
+}
+
+export function ListaFiltrada({ items }: { items: Produto[] }) {
   const [termo, setTermo] = useState("");
-  const visiveis = useClientFilter(items, termo, (item, q) => item.includes(q));
+  const visiveis = useClientFilter(items, termo, ["nome"]);
   const announce = useAnnounce();
 
   useEffect(() => {
@@ -295,7 +316,11 @@ export function ListaFiltrada({ items }: { items: string[] }) {
   return (
     <>
       <input value={termo} onChange={(e) => setTermo(e.target.value)} aria-label="Buscar" />
-      <ul>{visiveis.map((item) => <li key={item}>{item}</li>)}</ul>
+      <ul>
+        {visiveis.map((item) => (
+          <li key={item.id}>{item.nome}</li>
+        ))}
+      </ul>
     </>
   );
 }

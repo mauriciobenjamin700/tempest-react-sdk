@@ -690,6 +690,36 @@ boundaries.
     fused path of its own uses `LetterboxPipeline` (or `letterboxToTensorData`,
     the one-shot form).
 
+## Reference: what else the subpath exports
+
+The tasks cover the common path. Below is the rest of the surface — what you
+reach for when you build a pipeline of your own, run a model with a head the SDK
+does not know, or need to handle one specific failure.
+
+| Group           | Exports                                                                                               |
+| --------------- | ----------------------------------------------------------------------------------------------------- |
+| Session         | `OrtSession` (loads the `.onnx`, exposes `metadata`/`inputName`), `resolveProviders`, `DEFAULT_PROVIDERS`, `VisionTask` (task base class), `VERSION` |
+| Input           | `loadImage` (any `ImageInput` → `RGBImage`), `normalize`, `toTensor`, `toFloat32Tensor`, `zeroTensorData`, `fromCv2`/`toCv2` (BGR ↔ RGB) |
+| Decoding        | `decodeYolo` (anchor-free head, v8→v12), `decodeYoloAnchors` (anchor-based head), `decodeYoloSeg`, `nms`, `batchedNms` |
+| Labels          | `resolveLabels`, `defaultLabels`, `parseNames`, `modelNames`, `readModelMetadata`, `COCO_CLASSES`        |
+| Bulk views      | `Boxes`, `Masks`, `Probs` — the "numpy-style" collections behind `result.boxes`/`.masks`/`.probs`        |
+| Errors          | `OrtVisionError` (base), `ModelLoadError`, `ImageLoadError`, `InferenceError`, `LabelMapError`, `ProviderNotAvailableError`, `NoDetectionsError`, `FusionError` |
+| Fusion contract | `readFusionSpec`, `FusionSpec`, `CropSource`, `INPUT_IMAGE`/`INPUT_SOURCE`/`INPUT_SCALE`/`INPUT_PAD`, `OUTPUT_BOXES`/`OUTPUT_SCORES`/`OUTPUT_CLASSES`/`OUTPUT_PROBS`/`OUTPUT_NUM_DETECTIONS`, `METADATA_PREFIX`, `FUSION_KIND_DETECT_CLASSIFY` |
+| Helpers         | `requireDetections` (the check behind `raiseOnEmpty`), `SpeedTimer`, `softmax`, `topK`                   |
+
+!!! tip "Anchor-based head: `decodeYoloAnchors`"
+    `decodeYolo` covers anchor-free heads (the default from v8 onward). An older
+    model — YOLOv5/v7, or a custom export that keeps its anchors — decodes with
+    `decodeYoloAnchors`. Feeding the wrong output to the wrong function does not
+    raise: it puts boxes nowhere.
+
+!!! info "Every error descends from `OrtVisionError`"
+    One `catch (err) { if (err instanceof OrtVisionError) … }` catches
+    everything the subpath throws, and the subclasses separate what you can act
+    on: `ModelLoadError` (wrong URL, 404, corrupt file) wants another URL,
+    `ProviderNotAvailableError` wants another provider, `LabelMapError` is your
+    configuration, and `InferenceError` is the model rejecting the input.
+
 ## Parity with the Python `ort-vision-sdk`
 
 This API deliberately mirrors the Python

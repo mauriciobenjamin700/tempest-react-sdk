@@ -115,6 +115,26 @@ As mutations já invalidam o cache certo no sucesso:
 !!! tip "Você ainda passa opções do TanStack Query"
     Cada hook aceita um último argumento `options` que é repassado para o `useQuery`/`useMutation` por baixo (menos `queryKey`/`queryFn`/`mutationFn`, que o SDK controla). Então `staleTime`, `placeholderData`, `onError`, `onSuccess` (chamado **depois** da invalidação do SDK) continuam funcionando normalmente.
 
+### As chaves de cache, quando você precisa delas
+
+Os hooks montam as próprias chaves, mas invalidar de fora — depois de um
+WebSocket avisar que um registro mudou, por exemplo — exige a mesma chave que
+eles usaram. `listQueryKey` e `oneQueryKey` são exatamente essas:
+
+```ts
+import { useQueryClient } from "@tanstack/react-query";
+import { listQueryKey, oneQueryKey } from "tempest-react-sdk";
+
+const queryClient = useQueryClient();
+
+queryClient.invalidateQueries({ queryKey: listQueryKey("posts") });
+queryClient.invalidateQueries({ queryKey: oneQueryKey("posts", 42) });
+```
+
+`listQueryKey(resource, params?)` devolve `["data", <recurso>, "list", params]`
+e `oneQueryKey(resource, id)` devolve `["data", <recurso>, "one", id]`. Montar
+esse array à mão funciona até o dia em que o formato mudar — as funções não.
+
 ### O envelope `OffsetPage<T>`
 
 `useList` resolve com o envelope de paginação offset do `tempest-fastapi-sdk` — você não mapeia nada à mão:

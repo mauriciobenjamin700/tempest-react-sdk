@@ -1,6 +1,6 @@
 {
   "name": "tempest-react-sdk",
-  "version": "0.38.3",
+  "version": "0.39.0",
   "description": "SDK público da Tempest com componentes, hooks e integrações para projetos React.",
   "type": "module",
   "license": "MIT",

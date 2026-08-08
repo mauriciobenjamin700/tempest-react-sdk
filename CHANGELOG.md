@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.39.0] — 2026-08-08
+
 ### Adicionado
 
 - **`DetectClassify` — detectar e classificar num `.onnx` só.** O caso de duas

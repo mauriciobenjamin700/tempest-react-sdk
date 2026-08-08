@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.40.0] — 2026-08-08
+
 ### Adicionado
 
 - **Guard de documentação: todo exemplo das docs é compilado contra o SDK de

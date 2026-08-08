@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.41.0] — 2026-08-08
+
 ### Adicionado
 
 - **`Classifier.warmup(runs = 1)`** — a quarta tarefa de visão finalmente tem o

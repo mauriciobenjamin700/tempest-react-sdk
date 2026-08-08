@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.39.1] — 2026-08-08
+
 ### Alterado
 
 - **Vistoria de dependências: 0 vulnerabilidades em todo o repositório.** Três

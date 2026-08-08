@@ -20,8 +20,24 @@ Use os dois juntos ou separados — o `Form` component **não** se acopla a nenh
 Substitui o padrão `<form><Stack>` boilerplate quando você quer um wrapper opinionado por layout.
 
 ```tsx
-import { Form, FormSection, FormRow, FormActions, Input, Button } from "tempest-react-sdk";
+import { Form, FormSection, FormRow, FormActions, Input, Select, Button } from "tempest-react-sdk";
 ```
+
+!!! note "De onde vem o `form` dos exemplos"
+    Os trechos desta seção são sobre **layout**, então mostram só o JSX. O `form`
+    que aparece neles (`form.register`, `form.handleSubmit`, `form.formState`) é o
+    retorno do `react-hook-form`, criado uma vez no topo do componente:
+
+    ```tsx
+    const form = useZodForm(schema, { defaultValues: { name: "", email: "" } });
+    ```
+
+    O primeiro exemplo abaixo — [Stacked](#stacked) — está completo, com schema,
+    imports e componente. Veja [`useZodForm`](#3-usezodform-tudo-em-um) para o hook
+    e [Exemplo completo](#exemplo-completo-schema-provider-fields-submit) para um
+    form ponta-a-ponta. Se você já usa `useForm` direto, `const form = useForm({
+    resolver: zodResolver(schema) })` serve igual — o `Form` não se acopla a
+    nenhuma form library.
 
 ### Variantes de `layout`
 
@@ -37,25 +53,66 @@ import { Form, FormSection, FormRow, FormActions, Input, Button } from "tempest-
 
 ### Stacked
 
+O default: uma coluna, um campo por linha. Este exemplo está completo — copie,
+cole e rode.
+
 ```tsx
-<Form layout="stack" gap={4} onSubmit={form.handleSubmit(onSubmit)}>
-  <Input label="Nome" {...form.register("name")} />
-  <Input label="Email" type="email" {...form.register("email")} />
-  <Input label="Senha" type="password" {...form.register("password")} />
-  <FormActions align="end">
-    <Button type="submit">Criar conta</Button>
-  </FormActions>
-</Form>
+import { Form, FormActions, Input, Button, useZodForm } from "tempest-react-sdk";
+import { z } from "zod";
+
+const signupSchema = z.object({
+  name: z.string().min(2, "Informe seu nome"),
+  email: z.string().email("Email inválido"),
+  password: z.string().min(8, "Mínimo de 8 caracteres"),
+});
+
+type SignupValues = z.infer<typeof signupSchema>;
+
+export function SignupForm() {
+  const form = useZodForm(signupSchema, {
+    defaultValues: { name: "", email: "", password: "" },
+  });
+
+  const onSubmit = async (values: SignupValues) => {
+    await api.post("/signup", values);
+  };
+
+  return (
+    <Form layout="stack" gap={4} onSubmit={form.handleSubmit(onSubmit)}>
+      <Input label="Nome" {...form.register("name")} error={form.formState.errors.name?.message} />
+      <Input
+        label="Email"
+        type="email"
+        {...form.register("email")}
+        error={form.formState.errors.email?.message}
+      />
+      <Input
+        label="Senha"
+        type="password"
+        {...form.register("password")}
+        error={form.formState.errors.password?.message}
+      />
+      <FormActions align="end">
+        <Button type="submit" loading={form.formState.isSubmitting}>
+          Criar conta
+        </Button>
+      </FormActions>
+    </Form>
+  );
+}
 ```
+
+Os exemplos seguintes mostram só o JSX do `Form` — o `form` e o `onSubmit` vêm do
+mesmo lugar que aqui.
 
 ### Grid
 
 ```tsx
 <Form layout="grid" columns={2} gap={4} onSubmit={form.handleSubmit(onSubmit)}>
-  <Input label="Nome" {...register("name")} />
-  <Input label="Sobrenome" {...register("last_name")} />
-  <Input label="Email" type="email" {...register("email")} />
-  <Input label="Telefone" {...register("phone")} />
+  <Input label="Nome" {...form.register("name")} />
+  <Input label="Sobrenome" {...form.register("last_name")} />
+  <Input label="Email" type="email" {...form.register("email")} />
+  <Input label="Telefone" {...form.register("phone")} />
   <FormActions align="end" style={{ gridColumn: "1 / -1" }}>
     <Button type="submit">Salvar</Button>
   </FormActions>
@@ -68,12 +125,26 @@ import { Form, FormSection, FormRow, FormActions, Input, Button } from "tempest-
 
 ### Inline
 
+Filter bar não precisa de form library nenhuma — `onSubmit` aqui é o handler
+nativo do `<form>`, que o `Form` repassa direto.
+
 ```tsx
-<Form layout="inline" gap={2} onSubmit={onSubmit}>
-  <Input label="Buscar" placeholder="nome…" />
-  <Select label="Status" options={statusOptions} />
+const statusOptions = [
+  { value: "active", label: "Ativo" },
+  { value: "archived", label: "Arquivado" },
+];
+
+function handleFilter(event: React.FormEvent<HTMLFormElement>) {
+  event.preventDefault();
+  const data = new FormData(event.currentTarget);
+  setFilters({ q: String(data.get("q") ?? ""), status: String(data.get("status") ?? "") });
+}
+
+<Form layout="inline" gap={2} onSubmit={handleFilter}>
+  <Input name="q" label="Buscar" placeholder="nome…" />
+  <Select name="status" label="Status" options={statusOptions} />
   <Button type="submit">Filtrar</Button>
-</Form>
+</Form>;
 ```
 
 Filter bars típicos: `align-items: flex-end` faz os botões ficarem alinhados com o baseline dos inputs.
@@ -82,13 +153,13 @@ Filter bars típicos: `align-items: flex-end` faz os botões ficarem alinhados c
 
 ```tsx
 <Form layout="stack" gap={5}>
-  <Input label="Email" {...register("email")} />
+  <Input label="Email" {...form.register("email")} />
 
   <FormSection title="Endereço" description="Usado para entrega" layout="grid" columns={3} gap={3}>
-    <Input label="CEP" {...register("cep")} />
-    <Input label="Cidade" {...register("city")} />
-    <Input label="UF" {...register("state")} />
-    <Input label="Rua" style={{ gridColumn: "1 / -1" }} {...register("street")} />
+    <Input label="CEP" {...form.register("cep")} />
+    <Input label="Cidade" {...form.register("city")} />
+    <Input label="UF" {...form.register("state")} />
+    <Input label="Rua" style={{ gridColumn: "1 / -1" }} {...form.register("street")} />
   </FormSection>
 
   <FormActions align="end">

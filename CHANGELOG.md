@@ -4,6 +4,78 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`DetectClassify` — detectar e classificar num `.onnx` só.** O caso de duas
+  etapas (achar o objeto, depois dizer qual sub-categoria ele é) custava, no
+  navegador, dois downloads, duas inicializações de sessão WASM/WebGPU e uma
+  ida-e-volta pelo JavaScript por recorte — cortar, redimensionar e reempilhar
+  as regiões antes do segundo modelo ver qualquer coisa. Um pipeline fundido
+  pelo `ort_vision_sdk.compose` do SDK Python traz os dois modelos mais a ponte
+  de crop-and-resize no mesmo grafo: um download, uma sessão, nenhuma
+  ida-e-volta.
+
+  ```tsx
+  import { DetectClassify } from "tempest-react-sdk/vision";
+
+  const pipeline = await DetectClassify.create("/models/pipeline.onnx");
+  for (const d of (await pipeline.predict("/images/flock.jpg"))[0]) {
+    console.log(d.name, d.conf, d.classification?.name);
+  }
+  ```
+
+  Nada é reconfigurado do lado do JavaScript — resolução do letterbox, tamanho
+  do crop, se a saída ainda precisa de softmax e os nomes de classe das duas
+  etapas saem do metadata `ovs.*` que a fusão gravou. Um `.onnx` comum lança
+  `FusionError`. Junto vieram `DetectClassifyResults` (com `names` e
+  `classifierNames` separados, porque as duas etapas têm espaços de rótulo sem
+  relação), `DetectionResult.classification`, `readFusionSpec` e o contrato de
+  fusão (`FusionSpec`, `CropSource`, `INPUT_*`/`OUTPUT_*`, `METADATA_PREFIX`,
+  `FUSION_KIND_DETECT_CLASSIFY`), `FusionError` e `parseNames`.
+
+- **`warmup()` em `Detector`, `Segmenter` e `DetectClassify`.** A primeira
+  inferência de uma sessão não é representativa: o WebGPU compila os shaders
+  nela e o backend WASM materializa suas arenas, então num celular o primeiro
+  frame leva segundos enquanto os seguintes levam dezenas de milissegundos.
+  `await det.warmup()` roda o modelo uma vez num tensor de zeros, movendo esse
+  custo pra onde o usuário já está olhando um spinner.
+
+- **`raiseOnEmpty` — tratar resultado vazio como erro.** Espelha o SDK Python:
+  por padrão os três continuam resolvendo com envelope vazio (olhar e não achar
+  é inferência bem-sucedida), e com a flag ligada lançam `NoDetectionsError`.
+  Disponível na construção e como override por chamada, com a mensagem nomeando
+  o threshold aplicado — formatado igual nos dois runtimes — mais a imagem e o
+  filtro de classes quando algum estreitou a busca.
+
+- **`LetterboxPipeline` e `letterboxToTensorData`, exportados** (mais
+  `zeroTensorData` e o tipo `FusedLetterboxResult`), pra quem quiser o mesmo
+  caminho de pré-processamento em código próprio. Também `defaultLabels` e
+  `requireDetections`.
+
+### Alterado
+
+- **`src/vision/` re-vendorizado de `ort-vision-sdk-web@0.6.1`** (era `0.5.1`).
+
+- **Pré-processamento ~2x mais rápido, sem alocar por frame.** As tarefas agora
+  passam pela `LetterboxPipeline`: um único `drawImage` redimensiona **e**
+  posiciona o conteúdo dentro do alvo com padding, e um laço só lê o RGBA
+  resultante escrevendo float32 planar num buffer reusado entre frames — no
+  lugar de onze passadas de buffer inteiro e seis alocações grandes. Medido no
+  Chromium, letterbox pra 640×640: 19,8 → 10,7 ms (1920×1080), 13,8 → 7,8 ms
+  (1280×720), 6,8 → 3,1 ms (640×480), com saída **bit-idêntica** à do caminho
+  antigo.
+
+### Removido
+
+- **Os aliases `decodeYoloV8`, `decodeYoloV8Anchors` e `decodeYoloV8Seg` saíram
+  do subpath `/vision`** (mais os tipos `DecodeYoloV8Options`,
+  `DecodeYoloV8AnchorsOptions` e `DecodeYoloV8SegOptions`). Eram apelidos
+  depreciados upstream desde a 0.2.0 — o nome carregava uma versão de modelo que
+  nunca descreveu o que a função faz: o mesmo decoder cobre a cabeça anchor-free
+  de v8 a v12. Troque por `decodeYolo`, `decodeYoloAnchors` e `decodeYoloSeg`,
+  com `DecodeYoloOptions`, `DecodeYoloAnchorsOptions` e `DecodeYoloSegOptions` —
+  mesmo código, mesma assinatura.
+
 ## [0.38.3] — 2026-08-05
 
 ### Corrigido

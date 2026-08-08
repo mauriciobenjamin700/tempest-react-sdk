@@ -2,7 +2,7 @@
  * `tempest-react-sdk/vision` — browser computer-vision inference with ONNX
  * Runtime Web (classification, detection, segmentation).
  *
- * Vendored from `@mauriciobenjamin700/ort-vision-sdk-web@0.5.1` (MIT, same
+ * Vendored from `@mauriciobenjamin700/ort-vision-sdk-web@0.6.1` (MIT, same
  * author) so it ships inside this SDK without an extra package install.
  * `onnxruntime-web` stays an optional peer dependency — install it (and ship
  * the matching `.wasm` files) only when you use this subpath.
@@ -23,19 +23,28 @@ export {
 export {
     Boxes,
     ClassificationResults,
+    DetectClassifyResults,
     DetectionResults,
     Masks,
     Probs,
     SegmentationResults,
 } from "./results";
 
-export { COCO_CLASSES, type LabelSpec, type ResolveLabelsOptions, resolveLabels } from "./labels";
+export {
+    COCO_CLASSES,
+    type LabelSpec,
+    type ResolveLabelsOptions,
+    defaultLabels,
+    resolveLabels,
+} from "./labels";
 
 export {
+    FusionError,
     ImageLoadError,
     InferenceError,
     LabelMapError,
     ModelLoadError,
+    NoDetectionsError,
     OrtVisionError,
     ProviderNotAvailableError,
 } from "./core/exceptions";
@@ -51,11 +60,28 @@ export {
     resolveInputSize,
     spatialInputSize,
 } from "./core/graph";
-export { modelNames, readModelMetadata } from "./core/metadata";
+export { modelNames, parseNames, readModelMetadata } from "./core/metadata";
 export { DEFAULT_PROVIDERS, resolveProviders } from "./core/providers";
 export { type Speed, SpeedTimer } from "./core/timing";
 
 export { type ImageInput, loadImage } from "./io/image";
+
+export {
+    FUSION_KIND_DETECT_CLASSIFY,
+    INPUT_IMAGE,
+    INPUT_PAD,
+    INPUT_SCALE,
+    INPUT_SOURCE,
+    METADATA_PREFIX,
+    OUTPUT_BOXES,
+    OUTPUT_CLASSES,
+    OUTPUT_NUM_DETECTIONS,
+    OUTPUT_PROBS,
+    OUTPUT_SCORES,
+    type CropSource,
+    type FusionSpec,
+    readFusionSpec,
+} from "./fusion";
 
 export {
     type LetterboxResult,
@@ -70,37 +96,43 @@ export {
     toTensor,
 } from "./preprocess/image";
 
+export {
+    type FusedLetterboxResult,
+    LetterboxPipeline,
+    letterboxToTensorData,
+    zeroTensorData,
+} from "./preprocess/pipeline";
+
 export { type TopKResult, softmax, topK } from "./postprocess/classification";
 
 export {
     type DecodeYoloAnchorsOptions,
     type DecodeYoloOptions,
-    type DecodeYoloV8AnchorsOptions,
-    type DecodeYoloV8Options,
     type DecodedAnchors,
     type DecodedDetection,
     batchedNms,
     decodeYolo,
     decodeYoloAnchors,
-    decodeYoloV8,
-    decodeYoloV8Anchors,
     nms,
 } from "./postprocess/detection";
 
 export {
     type DecodeYoloSegOptions,
-    type DecodeYoloV8SegOptions,
     type DecodedSegmentation,
     decodeYoloSeg,
-    decodeYoloV8Seg,
 } from "./postprocess/segmentation";
 
-export { VisionTask } from "./tasks/base";
+export { VisionTask, requireDetections } from "./tasks/base";
 export {
     type ClassifierOptions,
     type ClassifierPredictOptions,
     Classifier,
 } from "./tasks/classifier";
+export {
+    type DetectClassifyOptions,
+    type DetectClassifyPredictOptions,
+    DetectClassify,
+} from "./tasks/detectClassify";
 export {
     type DetectorHead,
     type DetectorOptions,
@@ -114,4 +146,4 @@ export {
     Segmenter,
 } from "./tasks/segmenter";
 
-export const VERSION: string = "0.5.1";
+export const VERSION: string = "0.6.1";

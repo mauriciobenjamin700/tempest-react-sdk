@@ -4,11 +4,12 @@ Visão computacional **no dispositivo** — direto no navegador, sem servidor de
 inferência, sem upload da imagem pra lugar nenhum. O subpath
 `tempest-react-sdk/vision` roda três tarefas clássicas em modelos ONNX:
 **classificação** (que imagem é essa?), **detecção** (onde estão os objetos?) e
-**segmentação de instâncias** (qual o contorno exato de cada objeto?).
+**segmentação de instâncias** (qual o contorno exato de cada objeto?) — mais o
+pipeline fundido **detect→classify** num arquivo só.
 
-A API é a mesma para as três tarefas: você cria um objeto com
+A API é a mesma para todas: você cria um objeto com
 `await Tarefa.create(modelo, opções)`, chama `predict(imagem)` e recebe um array
-de resultados — um por imagem. Aprende uma, sabe as três.
+de resultados — um por imagem. Aprende uma, sabe as quatro.
 
 ```tsx
 import { Detector } from "tempest-react-sdk/vision";
@@ -173,6 +174,44 @@ Os defaults (definidos no `create()`) são `confThreshold: 0.25`,
 último só entra em cena quando o modelo não declara resolução (ver
 [A resolução vem do modelo](#a-resolucao-vem-do-modelo)).
 
+### `raiseOnEmpty` — quando "não achei nada" é erro
+
+Por padrão, uma run que não encontra nada resolve com um envelope **vazio**:
+olhar e não achar é uma inferência bem-sucedida. Quando o vazio deve **parar** o
+fluxo em volta (um wizard que exige ao menos um documento na foto, por exemplo),
+ligue `raiseOnEmpty` e trate o `NoDetectionsError`:
+
+```tsx
+import { Detector, NoDetectionsError } from "tempest-react-sdk/vision";
+
+const det = await Detector.create("/models/yolov8n.onnx", {
+  confThreshold: 0.7,
+  raiseOnEmpty: true,
+});
+
+try {
+  const result = (await det.predict("/images/doc.jpg"))[0];
+  console.log(result.length); // sempre ≥ 1 aqui
+} catch (err) {
+  if (err instanceof NoDetectionsError) {
+    // NoDetectionsError: No detections in /images/doc.jpg: nothing cleared
+    // confThreshold=0.7.
+    console.warn(err.message);
+  }
+}
+```
+
+A flag existe no `create()` e como override por chamada
+(`det.predict(img, { raiseOnEmpty: false })`). Vale para `Detector`, `Segmenter`
+e [`DetectClassify`](#detectclassify-detectar-e-classificar-num-modelo-so) — os
+três compartilham a mesma mensagem, que nomeia o threshold aplicado e, quando
+existirem, a imagem e o filtro de classes que estreitaram a busca.
+
+!!! note "Vazio continua sendo o default — de propósito"
+    Coleção vazia não é erro (é a mesma regra dos endpoints de listagem do
+    SDK). `raiseOnEmpty` é opt-in porque só quem conhece o fluxo em volta sabe
+    se zero linhas é resultado ou falha.
+
 ## Classifier — que imagem é essa
 
 `Classifier` aplica pré-processamento estilo ImageNet (224×224 por padrão,
@@ -247,6 +286,83 @@ Cada `SegmentationResult` carrega os mesmos campos da detecção (`cls`/`conf`/
 
 - `mask` — a máscara binária (`Mask`, valores `0`/`255`, recortada na caixa).
 - `segmentedImage` — o recorte original com o fundo zerado (pronto pra exibir).
+
+## DetectClassify — detectar e classificar num modelo só
+
+O caso clássico de duas etapas: um detector acha os objetos, e um classificador
+diz **qual sub-categoria** cada objeto é ("tem um pássaro aqui" → "é um
+bem-te-vi"). Fazer isso com dois `.onnx` custa dois downloads, duas
+inicializações de sessão (WASM/WebGPU) e uma ida-e-volta pelo JavaScript por
+recorte — cortar, redimensionar e reempilhar as regiões antes do segundo modelo
+ver qualquer coisa.
+
+`DetectClassify` roda um `.onnx` **fundido**: os dois modelos mais a ponte de
+crop-and-resize entre eles vivem no mesmo grafo. Um download, uma sessão,
+nenhuma ida-e-volta.
+
+```tsx
+import { DetectClassify } from "tempest-react-sdk/vision";
+
+const pipeline = await DetectClassify.create("/models/birds-pipeline.onnx");
+
+const result = (await pipeline.predict("/images/flock.jpg"))[0];
+
+for (const d of result) {
+  console.log(d.name, d.conf.toFixed(2)); // o que o detector viu
+  console.log(d.classification?.name, d.classification?.conf); // a espécie
+}
+```
+
+!!! info "O arquivo fundido é construído em Python"
+    A fusão é um passo de build do `ort-vision-sdk` em Python
+    (`ort_vision_sdk.compose.fuse_detect_classify`, 0.7.0+). O navegador só
+    **roda** o pipeline pronto. Carregar um `.onnx` comum aqui lança
+    `FusionError` com a mensagem apontando o caminho certo (usar
+    `Detector`/`Classifier`, ou fundir antes).
+
+Nada é reconfigurado do lado do JavaScript: a resolução do letterbox, o tamanho
+do crop, se a saída do classificador ainda precisa de softmax e os nomes de
+classe **das duas etapas** são lidos do metadata `ovs.*` que a fusão gravou no
+arquivo. Por isso um pipeline fundido uma vez se comporta igual nos dois
+runtimes. Pra inspecionar isso na mão, `readFusionSpec(session.metadata)` devolve
+o `FusionSpec`, e a task expõe o seu em `pipeline.spec`.
+
+### O envelope tem dois espaços de rótulo
+
+`DetectClassifyResults` é iterável como o do `Detector`, e cada item é uma
+`DetectionResult` normal (`cls`/`conf`/`name`/`box` + aliases, `croppedImage`)
+com um campo a mais:
+
+| Acesso                     | Tipo                          | O que é                                        |
+| -------------------------- | ----------------------------- | ---------------------------------------------- |
+| `d.classification`         | `ClassificationResult \| null`| o que o classificador disse **daquele recorte** |
+| `result.names`             | `Record<number, string>`      | rótulos da etapa de **detecção**                |
+| `result.classifierNames`   | `Record<number, string>`      | rótulos da etapa de **classificação**           |
+| `result.boxes`             | `Boxes`                       | a mesma view em massa do `Detector`             |
+
+Os dois mapas são separados porque as duas etapas respondem perguntas
+diferentes, com espaços de classe sem relação entre si — colapsar num só perderia
+uma das respostas. Para sobrescrever, `labels` vale pra detecção e
+`classifierLabels` pra classificação.
+
+### Filtros do pipeline
+
+```tsx
+const result = (
+  await pipeline.predict(img, {
+    confThreshold: 0.5, // filtra **além** do NMS já fixado na fusão
+    classes: [14], // só a classe 14 do detector
+    topK: 3, // trunca d.classification.probabilities
+    raiseOnEmpty: true, // vazio vira NoDetectionsError
+  })
+)[0];
+```
+
+!!! warning "O threshold da fusão é um piso, não um teto"
+    O NMS e o `confThreshold` do grafo foram fixados **no momento da fusão**.
+    `confThreshold` aqui só filtra mais — não dá pra afrouxar pra baixo do que
+    o arquivo já decidiu. Precisa de um piso menor? Refunda o pipeline em
+    Python.
 
 ## A resolução vem do modelo
 
@@ -520,6 +636,27 @@ mais que suficiente pra UX).
     return previewUrl ? <img src={previewUrl} alt="Prévia" /> : null;
     ```
 
+## `warmup()` — a primeira inferência não é representativa
+
+A primeira run de uma sessão paga custos que nenhuma das seguintes paga: o
+WebGPU compila os shaders nela, e o backend WASM materializa suas arenas. Num
+celular isso vira "o primeiro frame demorou segundos, os outros levam dezenas de
+milissegundos". `warmup()` roda o modelo uma vez num tensor de zeros, movendo
+esse custo pra onde o usuário já está olhando um spinner:
+
+```tsx
+const det = await Detector.create("/models/yolov8n.onnx", { labels: "coco" });
+await det.warmup(); // ainda na tela de carregamento
+
+// a partir daqui, cada predict() é tempo de inferência de verdade
+const result = (await det.predict(frame))[0];
+```
+
+Disponível em `Detector`, `Segmenter` e `DetectClassify`. `warmup(2)` roda duas
+vezes — uma basta pro WASM, e o WebGPU às vezes só assenta na segunda. Em
+`DetectClassify` é onde mais rende: dois modelos e a ponte compilam juntos na
+primeira inferência.
+
 ## Quanto tempo levou
 
 Todo envelope traz um `speed` com o tempo de cada etapa do `predict()`, em
@@ -543,6 +680,17 @@ relatório com `profiler.mark("forward-pass", results[0].speed.inference)`.
 O `SpeedTimer` também é exportado daqui, para quem quiser as mesmas fronteiras
 do SDK em código próprio.
 
+!!! tip "O `preprocess` de hoje é ~2x mais rápido que o de antes"
+    As tarefas pré-processam pela `LetterboxPipeline`: um único `drawImage`
+    redimensiona **e** posiciona o conteúdo dentro do alvo com padding, e um
+    laço só lê o RGBA resultante escrevendo float32 planar num buffer reusado
+    entre frames. Medido no Chromium, letterbox pra 640×640: 19,8 → 10,7 ms
+    (1920×1080), 13,8 → 7,8 ms (1280×720), 6,8 → 3,1 ms (640×480) — com saída
+    **bit-idêntica** à do caminho antigo. Os primitivos (`letterbox`, `resize`,
+    `toCHW`, `toFloat32`, …) continuam exportados; quem quiser o caminho fundido
+    em código próprio usa a `LetterboxPipeline` (ou `letterboxToTensorData`, a
+    forma de uma chamada só).
+
 ## Paridade com o `ort-vision-sdk` em Python
 
 Essa API espelha de propósito a do pacote Python
@@ -553,6 +701,12 @@ resultado por imagem, e os mesmos nomes idiomáticos do Ultralytics
 visão entre o backend Python e o frontend TypeScript reaproveita o modelo mental
 quase sem atrito.
 
+A paridade vai além da forma da API: o `raiseOnEmpty` existe dos dois lados com
+a **mesma mensagem** (inclusive o threshold formatado igual — `conf_threshold=1`
+não vira `1.0` de um lado só), e um pipeline fundido pelo `compose` do Python é
+lido aqui a partir do metadata que ele mesmo gravou. Fundir uma vez, rodar nos
+dois runtimes, com o mesmo resultado.
+
 ## Recap
 
 - Importe de **`tempest-react-sdk/vision`** — subpath dedicado. O código é
@@ -561,9 +715,17 @@ quase sem atrito.
 - O **`onnxruntime-web` é peer dep opcional**: rode `npm i onnxruntime-web` e
   **sirva os `.wasm` da mesma versão**. Quem não importa do `/vision` não paga o
   peso. Providers: **WebGPU → WASM** (`DEFAULT_PROVIDERS`).
-- Três tarefas, mesma forma: `await Tarefa.create(modelo, opções)` →
+- Quatro tarefas, mesma forma: `await Tarefa.create(modelo, opções)` →
   `(await tarefa.predict(imagem))[0]`. O `predict` sempre devolve um array de
   **1 elemento** (um envelope por imagem).
+- **`DetectClassify`** roda detector + classificador num `.onnx` **fundido**
+  (construído pelo `compose` do SDK Python): um download, uma sessão, e a
+  sub-categoria de cada objeto em `d.classification`. Modelo sem metadata de
+  fusão → `FusionError`.
+- **`warmup()`** paga a compilação de shader / arenas antes do usuário —
+  chame na tela de carregamento. **`raiseOnEmpty`** transforma resultado vazio
+  em `NoDetectionsError` quando zero linhas deve parar o fluxo (default:
+  envelope vazio).
 - Itere o envelope com `for...of` pra resultados por-instância:
   `d.name`/`d.className`, `d.confidence`/`d.conf`, `d.box`/`d.bbox` (com
   `.xyxy`/`.xywh`/`.asXywh()`/`.xyxyn()`). Ou use a view em massa `result.boxes`

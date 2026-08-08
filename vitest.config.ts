@@ -30,6 +30,7 @@ export default defineConfig({
                 // Only the SDK's own additions there — `public.ts`, the camera
                 // and luminance hooks — stay measured.
                 "src/vision/core/**",
+                "src/vision/fusion.ts",
                 "src/vision/io/**",
                 "src/vision/postprocess/**",
                 "src/vision/preprocess/**",

@@ -11,11 +11,12 @@ import { SpeedTimer } from "../core/timing";
 import { type ImageInput, loadImage } from "../io/image";
 import { detectionNumClasses, resolveInputSize } from "../core/graph";
 import { modelNames } from "../core/metadata";
-import { type LabelSpec, resolveLabels } from "../labels";
+import { type LabelSpec, defaultLabels, resolveLabels } from "../labels";
 import { decodeYoloSeg } from "../postprocess/segmentation";
-import { letterbox, toCHW, toFloat32, toFloat32Tensor } from "../preprocess/image";
+import { toFloat32Tensor } from "../preprocess/image";
+import { LetterboxPipeline, zeroTensorData } from "../preprocess/pipeline";
 import { Boxes, Masks, SegmentationResults } from "../results";
-import { VisionTask } from "./base";
+import { VisionTask, requireDetections } from "./base";
 import { type BoundingBox, type SegmentationResult, Mask, RGBImage } from "../types";
 
 /**
@@ -54,6 +55,14 @@ export interface SegmenterOptions extends OrtSessionOptions {
     readonly iouThreshold?: number;
     /** Maximum number of instances per image. */
     readonly maxDetections?: number;
+    /**
+     * If `true`, a run that finds nothing throws {@link NoDetectionsError}
+     * instead of returning an empty envelope. Default `false`, because looking
+     * and finding nothing is a successful inference. Turn it on when an empty
+     * result means the surrounding pipeline should stop rather than carry on with
+     * zero rows. Can be overridden per `predict` call.
+     */
+    readonly raiseOnEmpty?: boolean;
     /** Probability cutoff applied to soft masks. Defaults to `0.5`. */
     readonly maskThreshold?: number;
 }
@@ -66,6 +75,8 @@ export interface SegmenterPredictOptions {
      * Mirrors Ultralytics' `model.predict(img, classes=[0, 16])`.
      */
     readonly classes?: readonly number[];
+    /** Override the constructor's `raiseOnEmpty` setting for this call. */
+    readonly raiseOnEmpty?: boolean;
 }
 
 /**
@@ -104,8 +115,45 @@ export class Segmenter extends VisionTask {
         private readonly _iouThreshold: number,
         private readonly _maxDetections: number,
         private readonly _maskThreshold: number,
+        private readonly _raiseOnEmpty: boolean,
     ) {
         super(session);
+    }
+
+    private _pipelineCache: LetterboxPipeline | null = null;
+
+    /**
+     * Run the model once on a zero-filled tensor, paying one-time costs up front.
+     *
+     * The first inference of a session is not representative: WebGPU compiles its
+     * shaders on it and the WASM backend faults in its arenas, which on a phone
+     * can turn the first frame into seconds while every later frame is tens of
+     * milliseconds. Calling this while a loading spinner is still up moves that
+     * cost somewhere the user is already waiting.
+     *
+     * @param runs How many warm-up inferences to run. One is enough for WASM;
+     *   WebGPU sometimes settles on the second.
+     */
+    async warmup(runs: number = 1): Promise<void> {
+        const [tw, th] = this._inputSize;
+        for (let i = 0; i < runs; i++) {
+            const tensor = toFloat32Tensor(zeroTensorData(tw, th), [1, 3, th, tw]);
+            await this._session.run({ [this._session.inputName]: tensor });
+        }
+    }
+
+    /**
+     * The fused preprocessing pipeline, built on first use.
+     *
+     * Lazily, because constructing it allocates canvases: a task built in an
+     * environment without a canvas implementation stays constructible, and only
+     * fails if it is actually asked to preprocess something.
+     */
+    private get _pipeline(): LetterboxPipeline {
+        if (this._pipelineCache === null) {
+            this._pipelineCache = new LetterboxPipeline(this._inputSize[0], this._inputSize[1]);
+        }
+        return this._pipelineCache;
     }
 
     /** Load the model and resolve labels. */
@@ -115,9 +163,12 @@ export class Segmenter extends VisionTask {
             throw new Error(`Unsupported segmenter head '${head}'. Supported: 'yolo-seg'.`);
         }
         const session = await OrtSession.create(model, options);
-        const labels = resolveLabels(options.labels ?? modelNames(session.metadata) ?? "coco", {
-            numClasses: options.numClasses ?? detectionNumClasses(session.outputShape) ?? undefined,
-        });
+        const numClasses =
+            options.numClasses ?? detectionNumClasses(session.outputShape) ?? undefined;
+        const labels = resolveLabels(
+            options.labels ?? modelNames(session.metadata) ?? defaultLabels(numClasses),
+            { numClasses },
+        );
         const names: Record<number, string> = {};
         for (let i = 0; i < labels.length; i++) {
             names[i] = labels[i] as string;
@@ -136,6 +187,7 @@ export class Segmenter extends VisionTask {
             options.iouThreshold ?? 0.45,
             options.maxDetections ?? 300,
             options.maskThreshold ?? 0.5,
+            options.raiseOnEmpty ?? false,
         );
     }
 
@@ -190,10 +242,12 @@ export class Segmenter extends VisionTask {
         const { tensor, scale, padLeft, padTop } = this._preprocess(original);
         timer.stage("preprocess");
         const outputs = await this._session.run({ [this._session.inputName]: tensor });
+        this._pipeline.release();
         timer.stage("inference");
 
         const { perAnchor, prototypes } = this._splitOutputs(outputs);
 
+        const threshold = options.confThreshold ?? this._confThreshold;
         const decodedAll = decodeYoloSeg(
             perAnchor.data as Float32Array,
             perAnchor.dims,
@@ -208,7 +262,7 @@ export class Segmenter extends VisionTask {
                 padLeft,
                 padTop,
                 scale,
-                confThreshold: options.confThreshold ?? this._confThreshold,
+                confThreshold: threshold,
                 iouThreshold: options.iouThreshold ?? this._iouThreshold,
                 maxDetections: this._maxDetections,
                 maskThreshold: this._maskThreshold,
@@ -222,6 +276,13 @@ export class Segmenter extends VisionTask {
                       return decodedAll.filter((d) => allowed.has(d.classId));
                   })()
                 : decodedAll;
+
+        requireDetections(decoded.length, {
+            raiseOnEmpty: options.raiseOnEmpty ?? this._raiseOnEmpty,
+            confThreshold: threshold,
+            classes: options.classes,
+            path,
+        });
 
         const detections = decoded.map((d) =>
             this._buildResult(original, d.bbox, d.classId, d.confidence, d.mask),
@@ -252,14 +313,12 @@ export class Segmenter extends VisionTask {
         padTop: number;
     } {
         const [tw, th] = this._inputSize;
-        const lb = letterbox(image, tw, th);
-        const f32 = toFloat32(lb.image);
-        const chw = toCHW(f32, lb.image.width, lb.image.height, 3);
+        const fused = this._pipeline.run(image);
         return {
-            tensor: toFloat32Tensor(chw, [1, 3, lb.image.height, lb.image.width]),
-            scale: lb.scale,
-            padLeft: lb.padLeft,
-            padTop: lb.padTop,
+            tensor: toFloat32Tensor(fused.data, [1, 3, th, tw]),
+            scale: fused.scale,
+            padLeft: fused.padLeft,
+            padTop: fused.padTop,
         };
     }
 

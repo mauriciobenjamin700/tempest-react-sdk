@@ -464,18 +464,18 @@ function doctor(args = []) {
     // ── Environment ─────────────────────────────────────────────────────────
     checks.push(["section", "Environment"]);
     const [maj, min] = process.versions.node.split(".").map(Number);
-    const nodeOk = maj > 20 || (maj === 20 && min >= 19);
+    const nodeOk = maj > 22 || (maj === 22 && min >= 12);
     checks.push([
         nodeOk ? "ok" : "fail",
         `Node ${process.versions.node}`,
-        nodeOk ? "" : "requires >= 20.19",
+        nodeOk ? "" : "requires >= 22.12 (Node 20 reached end of life on 2026-04-30)",
     ]);
     // Even majors are Node LTS lines; odd majors (21, 23…) aren't — avoid in prod.
     if (nodeOk && maj % 2 === 1) {
         checks.push([
             "warn",
             `Node ${maj} is not an LTS line`,
-            "odd majors aren't LTS — prefer an even major (20, 22…) for production",
+            "odd majors aren't LTS — prefer an even major (22, 24…) for production",
         ]);
     }
     checks.push(["info", `tempest CLI v${selfVersion()}`]);

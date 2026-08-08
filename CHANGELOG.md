@@ -15,6 +15,28 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   regenere uma coisa e não a outra falha em vez de publicar uma referência que
   rejeita ícone válido.
 
+### Alterado
+
+- **O suporte a Node 20 acabou; o mínimo agora é 22.12.** O Node 20 chegou ao
+  fim da vida em **30/04/2026** e o SDK continuava testando nele e prometendo
+  suporte a ele no `engines`. A matriz do CI passa a ser `["22", "24"]` — o LTS
+  ativo e o próximo, em vez do morto e do atual — e o `tempest doctor` cobra
+  `>= 22.12`, citando a data do EOL quando reprova.
+
+  **Quem ainda roda Node 20 precisa subir de runtime para instalar esta
+  versão.** Os quatro outros workflows do repositório já fixavam Node 22, então
+  isso não muda como o pacote é publicado.
+
+- **`jsdom` 29 → 30**, que era o que o Node 20 bloqueava: ele exige
+  `^22.22.2 || ^24.15.0 || >=26`. Ambiente de teste apenas — nada do que é
+  publicado muda.
+
+  Uma asserção precisou mudar junto, e a diferença é uma **melhoria** do jsdom:
+  ele passou a resolver unidades de viewport, então `getComputedStyle` devolve
+  `384px` para um `max-height: 50vh` no viewport padrão de 768px, em vez de
+  repetir a string. O teste do `ScrollArea` agora afere o estilo **inline**, que
+  é o que o componente de fato promete — resolver a unidade é trabalho do motor.
+
 ## [0.41.0] — 2026-08-08
 
 ### Adicionado

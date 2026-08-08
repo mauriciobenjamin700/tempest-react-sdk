@@ -12,23 +12,16 @@ props, examples, and accessibility notes.
 
 ## Categories
 
-- **[Data entry](./components/inputs.md)** — Input, Textarea, Select, Combobox, MultiSelect, Checkbox, Radio, Switch, ChipInput, SearchBar, DatePicker, DateRangePicker, FileUpload, Slider, RangeSlider, RatingStars, PinInput, PasswordInput, StepperInput, Form\*
-- **[Actions](./components/actions.md)** — Button, Tooltip, DropdownMenu, Popover, ConfirmDialog
-- **[Navigation](./components/navigation.md)** — Navbar, Sidebar, BottomNavigation, Tabs, Stepper, Breadcrumbs, Pagination, SegmentedControl
-- **[Data entry](./components/inputs.md)** — Input, Textarea, Select, Combobox, Checkbox, Radio, Switch, ChipInput, SearchBar, DatePicker, TimePicker, FileUpload, RangeSlider, RatingStars, PinInput, PasswordInput, StepperInput, Form\*
-- **[Actions](./components/actions.md)** — Button, FloatingActionButton, Tooltip, DropdownMenu, Popover, ConfirmDialog
-- **[Navigation](./components/navigation.md)** — Navbar, Sidebar, NavigationRail, BottomNavigation, Tabs, Stepper, Breadcrumbs, Pagination, SegmentedControl
-- **[Overlay](./components/overlay.md)** — Modal, Drawer, BottomSheet
+- **[Data entry](./components/inputs.md)** — Input, Textarea, Select, Combobox, MultiSelect, Checkbox, Radio/RadioGroup, Switch, ChipInput, SearchBar, DatePicker, DateRangePicker, TimePicker, FileUpload, Dropzone, Slider, RangeSlider, RatingStars, PinInput, PasswordInput, StepperInput, Form\*, ImageCropper, SignaturePad
+- **[Actions](./components/actions.md)** — Button, FloatingActionButton, Tooltip, DropdownMenu, Popover, ConfirmDialog, InstallButton, InstallBanner
+- **[Navigation](./components/navigation.md)** — Navbar, AppBar, Sidebar, NavigationRail, BottomNavigation, Tabs, Stepper, Breadcrumbs, Pagination, SegmentedControl
+- **[Overlay](./components/overlay.md)** — Modal, Drawer, BottomSheet, ModalsManager, Lightbox
 - **[Layout](./components/layout.md)** — AppShell, Page, Container, Stack, Grid, Divider, Spacer, Center, AspectRatio, SafeArea, Show, Hide
-- **[Data](./components/data.md)** — Table, VirtualList, ListTile, Accordion, Timeline, TreeView
-- **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, Spinner, Skeleton, RefreshIndicator, Toast, EmptyState, ErrorState
-- **[Data entry](./components/inputs.md)** — Input, Textarea, Select, Combobox, Checkbox, Radio, Switch, ChipInput, SearchBar, DatePicker, FileUpload, Dropzone, RangeSlider, RatingStars, PinInput, PasswordInput, StepperInput, Form\*
-- **[Actions](./components/actions.md)** — Button, Tooltip, DropdownMenu, Popover, ConfirmDialog
-- **[Navigation](./components/navigation.md)** — Navbar, Sidebar, BottomNavigation, Tabs, Stepper, Breadcrumbs, Pagination, SegmentedControl
-- **[Overlay](./components/overlay.md)** — Modal, Drawer, BottomSheet, ModalsManager
-- **[Layout](./components/layout.md)** — AppShell, Page, Container, Stack, Grid, Divider, Spacer, Center, AspectRatio, SafeArea, Show, Hide
-- **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, NProgress, Spinner, Skeleton, Toast, EmptyState, ErrorState
+- **[Data](./components/data.md)** — Table, VirtualList, VirtualTable, DataTable, ListTile, Accordion, Timeline, TreeView, Sparkline
+- **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, NProgress, Spinner, Skeleton, RefreshIndicator, Toast, EmptyState, ErrorState, OfflineIndicator, SyncStatusBadge, UpdatePrompt
 - **[Identity & micro](./components/identity.md)** — Avatar, AvatarGroup, Card, Kbd
+- **[Utilities & headless](./components/utility.md)** — CopyButton, RelativeTime, Money, TruncateText, VisuallyHidden, Portal, ClickOutside, ConditionalWrapper, For, ErrorText, Image, DataList, DescriptionList, CodeBlock, QRCode
+- **[Overlays & advanced](./components/advanced.md)** — Toggle, ToggleGroup, Label, Collapsible, ContextMenu, HoverCard, Command, ScrollArea, Resizable, Calendar, Scheduler, NavigationMenu, Menubar, Carousel, Wizard, Markdown, Masonry, Tour, Transfer, FilterBar, Chat, AIChat, Kanban
 
 ## Global conventions
 

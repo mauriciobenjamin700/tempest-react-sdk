@@ -4,6 +4,33 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Alterado
+
+- **Vistoria de dependências: 0 vulnerabilidades em todo o repositório.** Três
+  avisos `high` viviam em dependências transitivas de ferramenta — `brace-expansion`
+  (DoS) sob o `minimatch` do `api-extractor` e do `eslint`, `fast-uri` (host
+  confusion) sob o `ajv` do `api-extractor`, e `nanoid` (loop infinito com
+  `size` zero) sob o `postcss` do Vite. Nenhuma delas alcançava quem instala o
+  SDK, porque a árvore de produção não passa por nenhum desses pacotes — o
+  `npm audit --omit=dev` já dava zero antes. Ainda assim foram corrigidas, junto
+  com a mesma `nanoid` no lockfile do `examples/gallery`.
+
+- **20 dependências de desenvolvimento atualizadas dentro dos ranges** — entre
+  elas Vite 8.2.1, ESLint 10.8.1, typescript-eslint 8.66, `@tiptap/*` 3.29.2,
+  axe-core 4.13 e lucide-react 1.30. Nenhum range de `dependencies` ou
+  `peerDependencies` mudou: o `latest` de cada dep de runtime e de cada peer já
+  cai dentro do range publicado, então nenhum consumidor fica preso a um major
+  antigo.
+
+- **`eslint-plugin-simple-import-sort` 12 → 14**, no SDK e no `template/` do
+  scaffold, para os dois lint-arem sob a mesma regra de ordenação. A subida não
+  reordenou nenhum import do repositório.
+
+  Dois majors ficaram de fora com motivo: **TypeScript 7** porque o
+  `typescript-eslint` ainda declara `typescript: ">=4.8.4 <6.1.0"` e subir
+  quebraria o lint; **jsdom 30** porque exige Node `^22.22.2 || ^24.15.0 || >=26`
+  e o CI roda a matriz 20/22 com `engines.node >=20.19`.
+
 ## [0.39.0] — 2026-08-08
 
 ### Adicionado

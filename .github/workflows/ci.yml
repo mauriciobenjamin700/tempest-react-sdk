@@ -32,6 +32,16 @@ jobs:
             - name: Install dependencies
               run: npm ci
 
+            # The icon tables are generated from the installed lucide-react. A
+            # lucide bump that regenerates nothing leaves the committed tables
+            # describing a version nobody has, and the skew only surfaces later
+            # as `X is not exported by lucide-react` in a consuming app's build.
+            # Re-running the generator here makes that a red CI, not a surprise.
+            - name: Icon tables match the installed lucide
+              run: |
+                  npm run gen:icons
+                  git diff --exit-code -- src/icons/generated docs/assets
+
             - name: Format check
               run: npm run format:check
 

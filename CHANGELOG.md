@@ -6,6 +6,21 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **Guard de CI: as tabelas de ícone precisam bater com o `lucide-react`
+  instalado.** O passo roda `npm run gen:icons` e reprova se `git diff` sair
+  não-vazio. Era o defeito que a #135 documentou: o `package.json` declarava
+  `^1.26.0`, o instalado já era 1.30, e as tabelas geradas na 1.26 nunca tinham
+  sido regeneradas — um clone limpo saía com 29 arquivos modificados só de rodar
+  o script. O skew não aparece no repositório; aparece no build de **quem
+  consome**, como `X is not exported by lucide-react` apontando pra dentro do
+  SDK.
+
+  O guard só é possível porque o `scripts/gen-icons.mjs` passou a formatar cada
+  módulo com o prettier do repositório antes de escrever. Antes, a saída crua
+  deixava `git diff` sujo em toda execução — o guard seria ruído, não sinal, e a
+  primeira regeneração desta release gastou 2396 linhas de diff falso para
+  provar isso.
+
 - **Guard de paridade entre classes irmãs** (`test/sibling-parity.test.ts`): um
   membro público presente em todos os irmãos **menos um** reprova a suíte. É a
   falha que a #125 documentou — o `warmup()` entrou em três das quatro tarefas

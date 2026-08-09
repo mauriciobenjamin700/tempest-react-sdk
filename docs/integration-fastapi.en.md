@@ -267,6 +267,35 @@ function ProtectedDashboard() {
 }
 ```
 
+### When the session is genuinely dead
+
+A `refresh()` that resolves is no proof the session is alive — the backend can hand back a token it then refuses (a revoked refresh token, a permission taken away, a race between tabs). The preset **clears the session anyway**: `isAuthenticated` flips to `false`, the stored token goes, and the `<AuthGuard>` above starts rendering its `fallback`. The app never sits on a store claiming "authenticated" while every request 401s.
+
+That is enough for most apps, because the guard already navigates. When the expiry can happen **outside** any guarded subtree, pass `redirectTo` and the preset navigates itself:
+
+```tsx
+export const auth = createTempestAuth<User>({
+    baseURL: import.meta.env.VITE_API_URL,
+    redirectTo: "/login", // hard navigation, only when the guard cannot cover it
+});
+```
+
+!!! tip "Prefer the guard over `redirectTo`"
+    `redirectTo` uses `window.location.assign`, which reloads the whole application and discards the router's history. The declarative path (`<RouteGuard when={isAuthenticated} redirectTo="/login">`) keeps the SPA alive and needs no option at all — the internal `logout()` already triggers the navigation.
+
+    `redirectTo` does **not** fire on an explicit `auth.logout()`: there the caller usually navigates already, and two competing navigations are worse than none.
+
+### Retries
+
+The `auth.api` client takes the same `retry` option as [`createApiClient`](./http.md#built-in-retries) — off by default, and conservative when on (idempotent methods only, network/`5xx`/`429` failures only):
+
+```tsx
+export const auth = createTempestAuth<User>({
+    baseURL: import.meta.env.VITE_API_URL,
+    retry: true,
+});
+```
+
 !!! info "Refresh token: body or cookie"
     By default, if login returns `refresh_token`, it's stored and sent as `{ refresh_token }` on refresh. If your backend uses an httpOnly cookie, pass `withCredentials: true` and refresh goes body-less, relying on the cookie.
 

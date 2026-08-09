@@ -1,5 +1,5 @@
 import { createApiClient } from "../http";
-import type { ApiClient } from "../http";
+import type { ApiClient, RetryOptions } from "../http";
 import { createAuthStore } from "./create-auth-store";
 import type { AuthState } from "./create-auth-store";
 import { createRefreshQueue } from "./refresh-queue";
@@ -43,6 +43,23 @@ export interface CreateTempestAuthOptions<TUser> {
      * refresh token is stored, else `undefined` (cookie-based refresh).
      */
     refreshBody?: (refreshToken: string | null) => unknown;
+    /**
+     * Retry policy for `api`, forwarded to {@link createApiClient}. Off by
+     * default; `true` enables the conservative built-in policy, which never
+     * replays a write.
+     */
+    retry?: boolean | RetryOptions;
+    /**
+     * Where to send the browser when the session ends — a hard navigation via
+     * `window.location.assign`, after the store is cleared.
+     *
+     * **Prefer leaving this unset.** `logout()` already clears the store, so a
+     * `<RouteGuard when={isAuthenticated} redirectTo="/login">` wrapped around
+     * the protected area navigates on its own, which keeps the SPA alive and the
+     * router history intact. Reach for this only when the expiry can happen
+     * outside any guarded subtree and a full reload is acceptable.
+     */
+    redirectTo?: string;
 }
 
 export interface TempestAuth<TUser, TCredentials> {
@@ -69,8 +86,13 @@ function defaultParseTokens(data: unknown): { token: string; refreshToken?: stri
  * Turn-key auth preset wiring `createAuthStore` + `createRefreshQueue` +
  * `createApiClient` to the Tempest FastAPI SDK auth contract: login returns
  * `{ access_token, token_type }`, requests carry `Authorization: Bearer`, and a
- * `401` triggers a single deduplicated refresh + retry. Logout (or a failed
- * refresh) clears the session.
+ * `401` triggers a single deduplicated refresh + replay.
+ *
+ * The session is cleared whenever that path ends unauthorized anyway — the
+ * refresh threw, or the replay came back `401` — so a refresh token that the
+ * backend has revoked cannot leave the app holding a dead session. With
+ * `redirectTo` set, the browser also leaves the page; without it, clearing the
+ * store is enough for a `<RouteGuard>` to navigate on its own.
  *
  * @example
  * const auth = createTempestAuth<User, { email: string; password: string }>({
@@ -100,6 +122,8 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
         parseTokens = defaultParseTokens,
         parseUser,
         refreshBody = (rt) => (rt ? { refresh_token: rt } : undefined),
+        retry,
+        redirectTo,
     } = options;
 
     const useAuthStore = createAuthStore<TUser>({ name: storeName, storage });
@@ -156,6 +180,20 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
         writeRefreshToken(null);
     }
 
+    /**
+     * Clear the session and, when `redirectTo` is set, leave the page.
+     *
+     * Separate from `logout` so an explicit sign-out stays a pure state change:
+     * a caller that already navigates itself would otherwise get a second,
+     * competing navigation.
+     */
+    function endSession(): void {
+        logout();
+        if (redirectTo && typeof window !== "undefined") {
+            window.location.assign(redirectTo);
+        }
+    }
+
     const refresh = createRefreshQueue(async () => {
         const data = await bareApi.post<unknown>(refreshPath, {
             body: refreshBody(readRefreshToken()),
@@ -171,7 +209,8 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
         fetcher,
         getToken,
         refresh,
-        onUnauthorized: () => logout(),
+        retry,
+        onUnauthorized: () => endSession(),
     });
 
     return { useAuthStore, api, login, logout, refresh, getToken };

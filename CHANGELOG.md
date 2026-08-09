@@ -4,7 +4,52 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **Uma sessão morta deixava de ser encerrada quando o `refresh()` dava certo mas
+  a requisição repetida voltava 401.** O `createApiClient` só chamava
+  `onUnauthorized` quando o próprio `refresh()` rejeitava; se ele resolvia e o
+  backend recusava o token novo assim mesmo, o cliente lançava o erro e ia
+  embora — sem limpar a sessão.
+
+  O resultado é o pior tipo de estado inconsistente: o store continua dizendo
+  `isAuthenticated: true` enquanto **toda** requisição dá 401, nenhum
+  `<AuthGuard>` ou `<RouteGuard>` reage, e o usuário fica num erro genérico sem
+  caminho de volta pro login. Acontece sempre que o refresh token é revogado do
+  lado do servidor, uma permissão é retirada, ou duas abas correm pelo refresh.
+
+  A documentação **já descrevia o comportamento correto** desde sempre
+  (`docs/http.md`: "se o `refresh()` rodar mas o retry ainda devolver 401, o
+  cliente desiste, chama `onUnauthorized` e lança") — era o código que não
+  cumpria. Dos três caminhos de 401, dois tinham teste e justamente esse não.
+
 ### Adicionado
+
+- **`retry` no `createApiClient`** — retentativa com backoff exponencial dentro
+  do próprio cliente, em vez de só no helper `retry()` avulso.
+
+  **Vem desligada**, então nada muda para quem não pedir. Ligada com `true`, a
+  política embutida é conservadora de propósito: só `GET`/`HEAD`/`OPTIONS`, e só
+  falha de rede, `408`, `425`, `429` ou `5xx`. **Escrita nunca repete sozinha** —
+  um `POST` repetido cobra duas vezes, e `PUT`/`DELETE` ficam de fora também
+  porque um backend que registra ou fatura por chamada continua vendo duas.
+  Repetir `400` ou `403` não conserta payload nem permissão: só gasta o tempo do
+  usuário pra mostrar o mesmo erro.
+
+  Um `shouldRetry` próprio substitui a política inteira, checagem de método
+  incluída — é o escape para repetir uma escrita que você tornou idempotente com
+  `generateIdempotencyKey`. A retentativa envolve a requisição inteira, refresh
+  incluído, e cada tentativa carrega o seu próprio `X-Request-ID`.
+
+- **`redirectTo` e `retry` no `createTempestAuth`.** O `retry` é repassado ao
+  cliente; o `redirectTo` navega via `window.location.assign` depois de limpar a
+  sessão.
+
+  A documentação recomenda **não** usar o `redirectTo`: limpar o store já basta
+  para um `<RouteGuard>` navegar, mantendo a SPA viva e o histórico do router
+  intacto. Ele existe para o caso em que a expiração acontece fora de qualquer
+  subárvore guardada. Não dispara num `logout()` explícito, porque ali quem
+  chamou normalmente já navega e duas navegações competindo é pior que nenhuma.
 
 - **Ponte de Material Symbols → lucide, para backend que grava `icon_code`**
   (`fromMaterialSymbol`, `materialToLucide`, `MATERIAL_SYMBOL_FALLBACK` em
@@ -46,8 +91,6 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   os dados.
 
 ## [0.42.0] — 2026-08-09
-
-### Adicionado
 
 - **Guard de CI: as tabelas de ícone precisam bater com o `lucide-react`
   instalado.** O passo roda `npm run gen:icons` e reprova se `git diff` sair

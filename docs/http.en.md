@@ -39,8 +39,9 @@ Options (everything except `baseURL` is optional):
 
 - `baseURL` — prefix for every request. **Required.**
 - `getToken()` — called per request; returning a string injects `Authorization: Bearer <token>`.
-- `onUnauthorized(response)` — fired on 401. Use it to log out.
+- `onUnauthorized(response)` — fired whenever the request ends up unauthorized: a 401 with no `refresh`, a `refresh()` that rejected, or a replay that came back 401 again. Use it to log out.
 - `refresh()` — when present and the request returns 401, the client awaits `refresh()` and retries the request **once**.
+- `retry` — `true` or `RetryOptions`. **Off by default.** See [Built-in retries](#built-in-retries).
 - `withCredentials` — send cookies on cross-origin requests (default `false`).
 - `headers` — default headers merged into every request.
 - `fetcher` — alternative `fetch` implementation (default `globalThis.fetch`) — handy in tests.
@@ -73,6 +74,56 @@ Behavior:
 
 !!! warning "`refresh` retries only once"
     If `refresh()` runs but the retry still returns 401, the client gives up, calls `onUnauthorized` and throws. This avoids an infinite refresh loop when the session has truly expired.
+
+    **That second 401 is the case that matters.** A `refresh()` that resolves is no proof the session is alive: the backend can hand back a token it then refuses — a revoked refresh token, a permission taken away, a race between tabs. Without `onUnauthorized` firing there, the app would sit on a store claiming "authenticated" while every request 401s, and the user would see a generic error with no way back to the login screen.
+
+## Built-in retries
+
+`retry` turns on automatic replays inside the client itself, using the same exponential backoff as the standalone `retry()` helper:
+
+```ts
+const api = createApiClient({
+  baseURL: import.meta.env.VITE_API_URL,
+  retry: true, // built-in policy
+});
+
+const users = await api.get<User[]>("/users"); // replays itself on a 503
+```
+
+**It ships off**, and turning it on is not required: without `retry`, the client fails on the first attempt, exactly as before.
+
+The built-in policy is conservative on purpose:
+
+| Replays | Does not replay |
+| ------- | --------------- |
+| `GET`, `HEAD`, `OPTIONS` | `POST`, `PUT`, `PATCH`, `DELETE` |
+| Network failure (status `0`), `408`, `425`, `429`, any `5xx` | `400`, `401`, `403`, `404`, `422` — any other `4xx` |
+
+!!! danger "Writes never replay on their own"
+    A replayed `POST` can charge twice, create two orders, fire two webhooks. `PUT` and `DELETE` are idempotent on paper, but a backend that logs or bills per call still sees two — so they stay out as well.
+
+    To replay a write, make it idempotent with [`generateIdempotencyKey`](#generateidempotencykey) and pass your own `shouldRetry`:
+
+    ```ts
+    const key = generateIdempotencyKey(); // once, outside the loop
+
+    const api = createApiClient({
+      baseURL,
+      headers: { "Idempotency-Key": key },
+      retry: { shouldRetry: (error) => isApiError(error) && error.status >= 500 },
+    });
+    ```
+
+    Your `shouldRetry` **replaces the whole policy**, method check included — that is the escape hatch.
+
+Replaying a `400` or a `403` cannot fix a bad payload or a permission the user does not have; it only spends their time before showing the same error. That is why the cut is by status rather than "any thrown error".
+
+Worth knowing:
+
+- A retry wraps the **whole** request, refresh included. One attempt that spends the full 401 → refresh → replay cycle counts as a single attempt.
+- Each attempt carries its own `X-Request-ID`, so the backend can tell the attempts apart in its logs.
+- `Retry-After` (on `429`/`503`) is honoured and overrides the backoff for that attempt.
+- Need retries on one specific call rather than the whole client? The [`retry`](#retry--exponential-backoff) helper is still there and unchanged.
 
 ## `parseResponse`
 
@@ -227,7 +278,8 @@ try {
 ## Recap
 
 - `createApiClient({ baseURL, getToken, onUnauthorized, refresh, ... })` creates a typed client; instantiate it once and export it.
-- 401 with `refresh` → tries to renew and retries once; without refresh or on failure → `onUnauthorized` + `ApiError`.
+- 401 with `refresh` → tries to renew and retries once. `onUnauthorized` fires on every unauthorized outcome — no refresh, a refresh that rejected, or a replay that came back 401.
+- `retry: true` turns on replays inside the client: idempotent methods only, network/`408`/`425`/`429`/`5xx` only. Writes never replay on their own.
 - `parseResponse(schema, raw, context)` validates the payload with zod and points at the divergent field in dev.
 - `uploadWithProgress` uses XHR to report byte-level progress; for a large file, `createResumableUpload` chunks and resumes — see [Resumable upload](./resumable-upload.md).
 - `retry` (exponential backoff + `shouldRetry`) and `usePoll` (interval with overlap guard) cover flaky operations and job tracking.

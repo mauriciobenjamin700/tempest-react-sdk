@@ -39,8 +39,9 @@ Opções (todas exceto `baseURL` são opcionais):
 
 - `baseURL` — prefixo de toda requisição. **Obrigatório.**
 - `getToken()` — chamado a cada request; retornar string injeta `Authorization: Bearer <token>`.
-- `onUnauthorized(response)` — disparado em 401. Use pra deslogar.
+- `onUnauthorized(response)` — disparado sempre que a requisição termina sem autorização: 401 sem `refresh`, `refresh()` que rejeitou, ou repetição que voltou 401 de novo. Use pra deslogar.
 - `refresh()` — quando presente e o request der 401, o cliente aguarda `refresh()` e repete a requisição **uma vez**.
+- `retry` — `true` ou `RetryOptions`. **Desligado por default.** Ver [Retentativa embutida](#retentativa-embutida).
 - `withCredentials` — envia cookies em cross-origin (default `false`).
 - `headers` — headers default mesclados em toda request.
 - `fetcher` — implementação de `fetch` alternativa (default `globalThis.fetch`) — útil em testes.
@@ -73,6 +74,56 @@ Comportamento:
 
 !!! warning "`refresh` só repete uma vez"
     Se o `refresh()` rodar mas o retry ainda devolver 401, o cliente desiste, chama `onUnauthorized` e lança. Isso evita loop infinito de refresh quando a sessão realmente expirou.
+
+    **Esse segundo 401 é o caso que importa.** Um `refresh()` que resolve não prova que a sessão está viva: o backend pode devolver um token que ele mesmo recusa — refresh token revogado, permissão retirada, corrida entre abas. Sem `onUnauthorized` aí, o app ficaria com um store dizendo "autenticado" enquanto toda requisição dá 401, e o usuário veria um erro genérico sem caminho de volta pro login.
+
+## Retentativa embutida
+
+`retry` liga a repetição automática dentro do próprio cliente, com o mesmo backoff exponencial do helper `retry()`:
+
+```ts
+const api = createApiClient({
+  baseURL: import.meta.env.VITE_API_URL,
+  retry: true, // política embutida
+});
+
+const users = await api.get<User[]>("/users"); // repete sozinho se der 503
+```
+
+**Vem desligado**, e ligar não é obrigatório: sem `retry`, o cliente falha na primeira tentativa, exatamente como antes.
+
+A política embutida é conservadora de propósito:
+
+| Repete | Não repete |
+| ------ | ---------- |
+| `GET`, `HEAD`, `OPTIONS` | `POST`, `PUT`, `PATCH`, `DELETE` |
+| Falha de rede (status `0`), `408`, `425`, `429`, qualquer `5xx` | `400`, `401`, `403`, `404`, `422` — qualquer outro `4xx` |
+
+!!! danger "Escrita nunca repete sozinha"
+    Um `POST` repetido pode cobrar duas vezes, criar dois pedidos, disparar dois webhooks. `PUT` e `DELETE` são idempotentes no papel, mas um backend que registra ou fatura por chamada ainda vê duas — por isso ficam de fora também.
+
+    Para repetir uma escrita, torne-a idempotente com [`generateIdempotencyKey`](#generateidempotencykey) e passe seu próprio `shouldRetry`:
+
+    ```ts
+    const key = generateIdempotencyKey(); // uma vez, fora do loop
+
+    const api = createApiClient({
+      baseURL,
+      headers: { "Idempotency-Key": key },
+      retry: { shouldRetry: (error) => isApiError(error) && error.status >= 500 },
+    });
+    ```
+
+    Um `shouldRetry` seu **substitui a política inteira**, checagem de método incluída — é esse o ponto de escape.
+
+Repetir um `400` ou um `403` não conserta payload errado nem permissão que o usuário não tem: só gasta o tempo dele pra mostrar o mesmo erro. Por isso o corte é por status, não "qualquer erro".
+
+Detalhes que valem saber:
+
+- A retentativa envolve a requisição **inteira**, refresh incluído. Uma tentativa que gasta o ciclo de 401 → refresh → repetição conta como uma tentativa só.
+- Cada tentativa carrega o seu próprio `X-Request-ID`, então o backend consegue distinguir as tentativas nos logs.
+- `Retry-After` (em `429`/`503`) é respeitado e sobrepõe o backoff daquela tentativa.
+- Precisa de retentativa em uma chamada específica, não no cliente todo? O helper [`retry`](#retry--backoff-exponencial) continua ali e não foi alterado.
 
 ## `parseResponse`
 
@@ -227,7 +278,8 @@ try {
 ## Recap
 
 - `createApiClient({ baseURL, getToken, onUnauthorized, refresh, ... })` cria um cliente tipado; instancie uma vez e exporte.
-- 401 com `refresh` → tenta renovar e repete 1x; sem refresh ou falhando → `onUnauthorized` + `ApiError`.
+- 401 com `refresh` → tenta renovar e repete 1x. `onUnauthorized` dispara em todo desfecho sem autorização — sem refresh, refresh que rejeitou, ou repetição que voltou 401.
+- `retry: true` liga a retentativa dentro do cliente: só método idempotente, só falha de rede/`408`/`425`/`429`/`5xx`. Escrita nunca repete sozinha.
 - `parseResponse(schema, raw, context)` valida o payload com zod e aponta o campo divergente em dev.
 - `uploadWithProgress` usa XHR pra reportar progresso byte a byte; para arquivo grande, `createResumableUpload` divide em chunks e retoma — veja [Upload resumível](./resumable-upload.md).
 - `retry` (backoff exponencial + `shouldRetry`) e `usePoll` (intervalo com guarda de overlap) cobrem operações instáveis e acompanhamento de jobs.

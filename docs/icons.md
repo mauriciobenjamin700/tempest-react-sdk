@@ -297,6 +297,44 @@ export function IconPicker({ onPick }: { onPick: (slug: string) => void }) {
 
 Veja rodando na [gallery](./gallery.md), seção **Ícones por slug**.
 
+## Lista completa, para consultar fora do app
+
+O backend que grava o slug — o seed de categorias, a tabela do admin, a
+validação do Pydantic — não consegue importar `iconNames`. Para esses casos a
+lista sai publicada junto com esta documentação, gerada pelo mesmo script que
+gera as tabelas do SDK, então ela nunca fica atrasada em relação ao que o
+`<Icon>` aceita:
+
+| Arquivo                                     | O que tem                                                    |
+| ------------------------------------------- | ------------------------------------------------------------ |
+| [`icon-slugs.txt`](assets/icon-slugs.txt)   | Os 1749 slugs **canônicos**, um por linha                     |
+| [`icon-slugs.csv`](assets/icon-slugs.csv)   | Os 1997 slugs com `status` (`canonical`/`deprecated`) e o canônico correspondente |
+
+Use o `.txt` para o que **valida escrita** — é a lista do que pode ser gravado
+hoje. Use o `.csv` para o que **lê dado antigo**: a coluna `canonical` diz para
+onde cada nome depreciado resolve, que é a mesma resolução que o `<Icon>` faz em
+runtime.
+
+!!! tip "Validando no backend Python"
+    ```python
+    from pathlib import Path
+
+    ICON_SLUGS: frozenset[str] = frozenset(
+        Path("icon-slugs.txt").read_text().split()
+    )
+
+    if category.icon_code not in ICON_SLUGS:
+        raise ValueError(f"{category.icon_code!r} is not a lucide icon slug")
+    ```
+
+!!! warning "Vocabulário: é lucide, não Material Symbols"
+    Se o seu seed veio de um app Android/Flutter, os códigos são Material Symbols
+    em `snake_case` (`format_paint`, `electrical_services`) e **nenhum** deles é
+    um slug lucide. Pior: um punhado colide por acidente (`settings`, `code`,
+    `key`, `lock`, `shield`, `tv`) e renderiza certo em ~10% das linhas, o que
+    faz o problema parecer "sumiram alguns ícones". Converta o vocabulário antes
+    de gravar.
+
 ## Referência
 
 | Export               | O que faz                                                              |

@@ -4,6 +4,17 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Documentação
+
+- **Lista de slugs de ícone publicada com a doc** — `docs/assets/icon-slugs.txt`
+  (os 1749 canônicos) e `docs/assets/icon-slugs.csv` (os 1997, com `status` e o
+  canônico correspondente), emitidos pelo `scripts/gen-icons.mjs` no mesmo passo
+  que gera as tabelas. Serve quem grava o slug fora do app — seed de categoria,
+  admin, validação de backend — e que não tem como importar `iconNames`. Um
+  teste lê os dois de volta contra as tabelas, então um bump de lucide que
+  regenere uma coisa e não a outra falha em vez de publicar uma referência que
+  rejeita ícone válido.
+
 ## [0.41.0] — 2026-08-08
 
 ### Adicionado

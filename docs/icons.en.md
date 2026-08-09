@@ -296,6 +296,43 @@ export function IconPicker({ onPick }: { onPick: (slug: string) => void }) {
 
 See it running in the [gallery](./gallery.md), section **Ícones por slug**.
 
+## The full list, for use outside the app
+
+The backend that stores the slug — a category seed, an admin table, a Pydantic
+validator — cannot import `iconNames`. For those cases the list is published
+alongside this documentation, emitted by the same script that generates the
+SDK's tables, so it never lags behind what `<Icon>` accepts:
+
+| File                                        | What's in it                                                  |
+| ------------------------------------------- | ------------------------------------------------------------- |
+| [`icon-slugs.txt`](assets/icon-slugs.txt)   | The 1749 **canonical** slugs, one per line                     |
+| [`icon-slugs.csv`](assets/icon-slugs.csv)   | All 1997 slugs with a `status` (`canonical`/`deprecated`) and the canonical name |
+
+Use the `.txt` for anything that **validates writes** — it is the list of what
+may be stored today. Use the `.csv` for anything that **reads old data**: the
+`canonical` column says where each deprecated name resolves to, which is the
+same resolution `<Icon>` performs at runtime.
+
+!!! tip "Validating in a Python backend"
+    ```python
+    from pathlib import Path
+
+    ICON_SLUGS: frozenset[str] = frozenset(
+        Path("icon-slugs.txt").read_text().split()
+    )
+
+    if category.icon_code not in ICON_SLUGS:
+        raise ValueError(f"{category.icon_code!r} is not a lucide icon slug")
+    ```
+
+!!! warning "The vocabulary is lucide, not Material Symbols"
+    If your seed came from an Android/Flutter app, the codes are Material
+    Symbols in `snake_case` (`format_paint`, `electrical_services`) and **none**
+    of them is a lucide slug. Worse: a handful collide by accident (`settings`,
+    `code`, `key`, `lock`, `shield`, `tv`) and render correctly on ~10% of the
+    rows, which makes the problem look like "a few icons went missing". Convert
+    the vocabulary before storing it.
+
 ## Reference
 
 | Export               | What it does                                                              |

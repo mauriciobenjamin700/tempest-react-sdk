@@ -416,7 +416,9 @@ Cache-first, não network-first: um arquivo de modelo é imutável para uma dada
 versão, então revalidar a cada carga gasta uma ida à rede pra não aprender
 nada. Publique versão nova sob URL nova (ou passe `revalidate: true`).
 
-O hook faz isso sozinho quando a fonte é uma URL — `cache: false` desliga.
+O hook faz isso sozinho quando a fonte é uma URL — `cache: false` desliga. O
+nome do Cache Storage usado é `DEFAULT_MODEL_CACHE`, exportado para um botão de
+"limpar modelos baixados" apagar exatamente o que o SDK criou.
 
 ### O runtime
 
@@ -497,6 +499,7 @@ Todos herdam de `TabularError`, então dá pra pegar a família inteira. O
 | `ModelFetchError` | Offline e nada em cache — problema de deploy, não de modelo |
 | `FeatureShapeError` | Lote vazio, irregular ou da largura errada |
 | `InferenceError` | Rodou mas a saída não é legível (export com ZipMap) |
+| `CompactFormatError` | Pacote em formato compacto cujo cabeçalho o leitor não reconhece |
 
 ## API
 
@@ -508,6 +511,7 @@ Todos herdam de `TabularError`, então dá pra pegar a família inteira. O
 | `predictor.dispose()` | Libera a sessão |
 | `useTabularPredictor(source, options?)` | Hook com `status`/`isReady`/`predict`/`reload` |
 | `loadEdgePackage(directoryUrl, options?)` | Carrega um pacote publicado pelo `edge_pipeline` |
+| `configureOrtAssets(path)` / `configuredOrtAssetPath()` | Define de onde os `.wasm` do ORT são servidos, e lê de volta o que está valendo |
 | `fetchEdgeManifest(directoryUrl)` | Só o manifesto — versão, colunas, classes |
 | `fetchModelBytes(url, options?)` | Bytes do cache, com rede como fallback |
 | `isModelCached(url)` / `cacheModelBytes` / `clearModelCache` | Gestão do cache |

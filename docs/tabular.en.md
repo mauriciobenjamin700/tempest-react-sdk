@@ -423,7 +423,9 @@ version, so revalidating on every load spends a round trip to learn nothing.
 Publish a new version under a new URL (or pass `revalidate: true`).
 
 The hook does this for you when the source is a URL — `cache: false` opts
-out.
+out. The Cache Storage name it uses is `DEFAULT_MODEL_CACHE`,
+exported so a "clear downloaded models" button can delete exactly what the SDK
+created.
 
 ### The runtime
 
@@ -505,6 +507,7 @@ reported `error.name === "t"` before that was fixed.
 | `ModelFetchError` | Offline with nothing cached — a deployment problem, not a model problem |
 | `FeatureShapeError` | Empty, ragged, or wrong-width batch |
 | `InferenceError` | It ran but the output is unreadable (ZipMap export) |
+| `CompactFormatError` | A compact-format package whose header the reader does not recognise |
 
 ## API
 
@@ -516,6 +519,7 @@ reported `error.name === "t"` before that was fixed.
 | `predictor.dispose()` | Releases the session |
 | `useTabularPredictor(source, options?)` | Hook with `status`/`isReady`/`predict`/`reload` |
 | `loadEdgePackage(directoryUrl, options?)` | Loads a package published by `edge_pipeline` |
+| `configureOrtAssets(path)` / `configuredOrtAssetPath()` | Sets where the ORT `.wasm` files are served from, and reads back what is in effect |
 | `fetchEdgeManifest(directoryUrl)` | The manifest alone — version, columns, classes |
 | `fetchModelBytes(url, options?)` | Bytes from cache, network as fallback |
 | `isModelCached(url)` / `cacheModelBytes` / `clearModelCache` | Cache management |

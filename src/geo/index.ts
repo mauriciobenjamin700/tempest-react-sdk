@@ -23,7 +23,6 @@ export {
     DEFAULT_CIRCUITY_FACTOR,
     DEFAULT_CAR_SPEED_KMH,
     DEFAULT_MODE_DURATION_FACTORS,
-    durationFactor,
     estimateTravel,
 } from "./estimate";
 export type { EstimateTravelOptions } from "./estimate";
@@ -32,12 +31,7 @@ export type { EstimateTravelOptions } from "./estimate";
 export { boundingBox, boundsCenter, expandBounds } from "./bounds";
 
 // Web Mercator projection (tile-free plotting core)
-export {
-    MERCATOR_MAX_LATITUDE,
-    projectMercator,
-    unprojectMercator,
-    fitProjection,
-} from "./projection";
+export { projectMercator, unprojectMercator, fitProjection } from "./projection";
 export type {
     MercatorPoint,
     PixelPoint,

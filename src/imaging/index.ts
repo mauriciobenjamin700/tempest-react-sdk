@@ -38,7 +38,6 @@ export {
     DEFAULT_TYPE,
     bestSupportedType,
     encodeImage,
-    resetImageTypeSupportCache,
     supportsImageType,
 } from "./encode";
 export {

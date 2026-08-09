@@ -49,6 +49,44 @@ pathLengthKm([sp, { latitude: -23.2, longitude: -45 }, rio]);
 bearingDeg(sp, rio); // ≈ 65 (north-east)
 ```
 
+### Framing a set of points — `boundingBox`, `boundsCenter`, `expandBounds`
+
+To center a map on a track, or decide the zoom that covers it:
+
+```ts
+import { boundingBox, boundsCenter, expandBounds } from "tempest-react-sdk";
+
+const bounds = boundingBox([sp, rio]); // { north, south, east, west } | null
+
+if (bounds) {
+  boundsCenter(bounds); // the midpoint, to center on
+  expandBounds(bounds, 0.1); // 10% of slack, so the route does not touch the edge
+}
+```
+
+`boundingBox` returns `null` for an empty list — there is no frame around no
+points, and returning a zeroed box would put the map in the Atlantic.
+
+`expandBounds` exists because framing exactly on the extremes puts the first and
+last point against the frame — the margin is what makes the path fit visually.
+
+### The raw math
+
+`haversineKm` is the ready-made formula, but its two pieces come out on their
+own for callers building a calculation of their own: `EARTH_RADIUS_KM` (6371,
+the mean radius the formula assumes) and `toRadians(degrees)`. And
+`unprojectMercator` is `projectMercator`'s counterpart — it converts screen
+coordinates back to lat/long, which is what a click on the map needs.
+
+```ts
+import { EARTH_RADIUS_KM, projectMercator, toRadians, unprojectMercator } from "tempest-react-sdk";
+
+const xy = projectMercator({ latitude: -23.55, longitude: -46.63 });
+unprojectMercator(xy); // back to the lat/long pair
+
+EARTH_RADIUS_KM * toRadians(1); // ≈ 111.2 km per degree of latitude
+```
+
 ## Offline travel estimate — `estimateTravel`
 
 No network: great-circle distance × circuity factor, duration from a mode-adjusted average speed. Mirrors `estimate_travel` from the FastAPI SDK.
@@ -68,6 +106,10 @@ estimateTravel(sp, rio, "car", { circuityFactor: 1.4, carSpeedKmh: 60 });
 
 !!! tip "Default factors"
     `circuityFactor = 1.3` (roads are ~30% longer than the straight line), `carSpeedKmh = 50`, duration multipliers `car: 1.0 · motorcycle: 0.95 · bus: 1.6`.
+
+    They are exported too — `DEFAULT_CIRCUITY_FACTOR`, `DEFAULT_CAR_SPEED_KMH` and
+    `DEFAULT_MODE_DURATION_FACTORS` — so a settings screen can show the value it
+    is about to override instead of restating it and drifting.
 
 ## Real routing (opt-in) — `createOSRMBackend`
 

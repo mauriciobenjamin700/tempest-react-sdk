@@ -343,6 +343,7 @@ negotiated `mimeType`.
 | ------------------------------------ | --------------------------------------------------------------------------- |
 | `createAudioRecorder(stream, opts)`  | The recorder behind the hook. It does not own the stream — stop the mic yourself. |
 | `isAudioRecordingSupported()`        | `MediaRecorder` exists **and** some container is producible.                 |
+| `isMediaCaptureSupported()`          | The same question for capture as a whole (`getUserMedia` + `MediaRecorder`) — use it before offering a record button of any kind. |
 | `pickAudioMimeType(preferred?)`      | First container in the list the browser actually produces, or `null`.        |
 | `AUDIO_MIME_CANDIDATES`              | The order the SDK negotiates: Opus (WebM/Ogg) → AAC (MP4).                   |
 | `encodeWav({ channels, sampleRate })`| RIFF/PCM 16-bit from Float32 channels — the engine behind `blobToWav`.       |

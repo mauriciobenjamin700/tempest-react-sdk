@@ -207,6 +207,13 @@ por dezenas de milissegundos por imagem.
 Erros: `ImagingError` na raiz, com `ImageDecodeError`, `ImageEncodeError`,
 `UnsupportedImageTypeError` e `ImagingUnavailableError`.
 
+Os defaults de cada opção também saem exportados, para uma tela de ajustes
+exibir o valor que está prestes a sobrescrever em vez de repeti-lo:
+`DEFAULT_QUALITY` (0.85), `DEFAULT_TYPE` (`image/jpeg`), `DEFAULT_BACKGROUND`
+(`#ffffff`, o fundo que substitui a transparência ao ir para JPEG) e, na busca do
+`compressToTarget`, `DEFAULT_MIN_QUALITY` (0.4), `DEFAULT_MAX_QUALITY` (0.92) e
+`DEFAULT_COMPRESS_STEPS` (6 iterações).
+
 ## Recapitulando
 
 - Decodifique com `decodeImage` — orientação de celular já resolvida.

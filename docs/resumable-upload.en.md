@@ -159,6 +159,7 @@ const upload = createResumableUpload({
   endpoint: "/api/uploads",
   file,
   chunkSize: 1024 * 1024, // 1 MiB: finer ticks, more round-trips
+  // the default is DEFAULT_CHUNK_SIZE (5 MiB), exported so a settings UI can show it
   getToken: () => auth.getToken(),
   withCredentials: true,
   retry: { retries: 8, initialDelay: 500 },

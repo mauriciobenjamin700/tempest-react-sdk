@@ -265,6 +265,17 @@ oklchToHex({ l: l + 0.1, c, h }); // 10% mais claro, mesma matiz e saturação
 
 hexToRgbaString("#7c3aed", 0.12); // "rgb(124 58 237 / 0.12)" — overlay/hover
 hexToRgb("#7c3aed"); // { r, g, b } em 0–1, para cálculo próprio
+rgbToHex({ r: 0.49, g: 0.23, b: 0.93 }); // de volta para "#7c3aed"
+```
+
+Duas outras vêm do lado do contraste, e são as que o `createTheme` usa para
+escolher um foreground legível em vez de fixar branco:
+
+```ts
+import { readableForeground, relativeLuminance } from "tempest-react-sdk";
+
+relativeLuminance("#fde047"); // 0.83 — luminância relativa WCAG, a entrada do contrastRatio
+readableForeground("#fde047"); // o foreground escuro: branco nesse amarelo é ilegível
 ```
 
 !!! info "Por que OKLCH e não HSL"

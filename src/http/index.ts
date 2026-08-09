@@ -1,13 +1,12 @@
 export { createApiClient } from "./api-client";
-export { TempestApiError, isApiError, buildApiError } from "./errors";
+export { TempestApiError, isApiError } from "./errors";
 export { parseResponse } from "./parse-response";
 export { uploadWithProgress } from "./upload-with-progress";
 export type { UploadProgressEvent, UploadWithProgressOptions } from "./upload-with-progress";
 export {
+    DEFAULT_CHUNK_SIZE,
     createLocalUploadStorage,
     createResumableUpload,
-    DEFAULT_CHUNK_SIZE,
-    TUS_VERSION,
     uploadFingerprint,
 } from "./resumable-upload";
 export type {

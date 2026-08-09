@@ -260,11 +260,11 @@ export type {
     VirtualTableSort,
     VirtualTableSortDirection,
 } from "./VirtualTable";
-export { QRCode, encodeQR, matrixToPath, selectMode, QRCapacityError } from "./QRCode";
+export { QRCode, encodeQR, matrixToPath, QRCapacityError } from "./QRCode";
 export type { QRCodeProps, QRErrorCorrection, QRMatrix, QRMode, QREncodeOptions } from "./QRCode";
 
 // Generic display
-export { CodeBlock, tokenize, tokenizeLines, resolveLanguage } from "./CodeBlock";
+export { CodeBlock } from "./CodeBlock";
 export type { CodeBlockProps, CodeLanguage, Token, TokenKind } from "./CodeBlock";
 export { CopyButton } from "./CopyButton";
 export type { CopyButtonProps } from "./CopyButton";
@@ -400,7 +400,6 @@ export type {
     ChatRun,
     ChatSection,
 } from "./Chat";
-export { chatStrings, dayLabel, groupMessages, timeLabel, typingLabel } from "./Chat";
 
 export { AudioPlayer } from "./AudioPlayer";
 export type { AudioPlayerProps } from "./AudioPlayer";
@@ -435,14 +434,12 @@ export {
 
 export { Transfer } from "./Transfer";
 export type { TransferItem, TransferProps, TransferSide } from "./Transfer";
-export { applyMove as applyTransferMove, splitSides as splitTransferSides } from "./Transfer";
 
 export { Masonry } from "./Masonry";
 export type { MasonryProps } from "./Masonry";
 
 export { Markdown } from "./Markdown";
 export type { MarkdownProps } from "./Markdown";
-export { parseMarkdown, safeLinkUrl } from "./Markdown";
 export type { MarkdownAlign, MarkdownBlock, MarkdownInline } from "./Markdown";
 
 export { Tour } from "./Tour";

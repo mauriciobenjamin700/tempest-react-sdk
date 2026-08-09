@@ -5,11 +5,7 @@ export type { UseAudioResult } from "./use-audio";
 
 export { isAudioOutputSelectionSupported, setAudioOutput } from "./audio-output";
 
-export {
-    classifyMediaError,
-    isMediaCaptureSupported,
-    missingCaptureApiError,
-} from "./media-access";
+export { isMediaCaptureSupported } from "./media-access";
 export type { MediaAccessError, MediaAccessErrorKind, MediaDeviceKindLabel } from "./media-access";
 
 export { useMicrophone } from "./use-microphone";

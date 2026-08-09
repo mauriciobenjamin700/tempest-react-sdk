@@ -27,12 +27,7 @@ export {
     fetchModelBytes,
     isModelCached,
 } from "./cache";
-export {
-    type CompactKind,
-    CompactPredictor,
-    type CompactPredictorInfo,
-    SUPPORTED_COMPACT_SCHEMA,
-} from "./compact";
+export { type CompactKind, CompactPredictor, type CompactPredictorInfo } from "./compact";
 export {
     CompactFormatError,
     FeatureShapeError,
@@ -46,7 +41,6 @@ export {
     type EdgeManifest,
     type LoadEdgePackageOptions,
     type LoadedEdgePackage,
-    MANIFEST_FILENAME,
     type ManifestInput,
     type ManifestModelFile,
     type ManifestOutput,
@@ -54,7 +48,6 @@ export {
     type ManifestSource,
     type PredictorLike,
     type TabularRuntime,
-    SUPPORTED_MANIFEST_SCHEMA,
     fetchEdgeManifest,
     loadEdgePackage,
 } from "./manifest";

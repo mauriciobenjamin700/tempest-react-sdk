@@ -181,7 +181,7 @@ Return a `PasskeyCreationOptionsJSON`. Every binary field is **base64url**:
 - `challenge`: ≥16 random bytes, **stored against the session**, single use.
 - `user.id`: an opaque, stable identifier. **Never** the e-mail — it changes, and it is burned into the authenticator.
 - `excludeCredentials`: the credentials the user already has. This is what makes the authenticator answer `InvalidStateError` (→ `already-registered`) instead of creating a duplicate.
-- `pubKeyCredParams` may be omitted: the SDK offers `-8` (Ed25519), `-7` (ES256) and `-257` (RS256).
+- `pubKeyCredParams` may be omitted: the SDK offers `-8` (Ed25519), `-7` (ES256) and `-257` (RS256) — the exact list is exported as `DEFAULT_PUB_KEY_CRED_PARAMS`, so the backend can declare the same set without restating the numbers.
 - `residentKey: "required"` is what makes the passkey **discoverable** — a prerequisite for signing in without typing anything.
 
 ### 2. `POST /webauthn/register/finish` ← credential

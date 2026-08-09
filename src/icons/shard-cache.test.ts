@@ -8,8 +8,8 @@ import { iconStatus, loadIcon, peekIcon, preloadIcons, resolveIconAlias } from "
 
 describe("generated tables", () => {
     it("covers every lucide slug, canonical plus alias", () => {
-        expect(iconNames.length).toBe(1997);
-        expect(Object.keys(iconAliases).length).toBe(248);
+        expect(iconNames.length).toBe(2024);
+        expect(Object.keys(iconAliases).length).toBe(257);
     });
     it("has one shard loader per initial letter, and lucide has no y icon", () => {
         const letters = Object.keys(shardLoaders).sort().join("");

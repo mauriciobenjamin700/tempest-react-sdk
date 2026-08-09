@@ -43,6 +43,18 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Alterado
 
+- **`lucide-react` `^1.26.0` → `^1.31.0`, e o registro de ícones regenerado: 1997
+  → 2024 slugs endereçáveis** (1767 canônicos + 257 aliases depreciados). Vinte e
+  sete ícones novos entram — `broom`, `mosque`, `shield-lock`, `user-shield`, a
+  família `face-*`, a família `layer(s)-arrow-*`, entre outros.
+
+  **Nenhum slug parou de resolver.** Nove nomes que eram canônicos viraram alias
+  no lucide (`angry` → `face-angry`, `smile` → `face-slightly-smiling`, `history`
+  → `rotate-ccw-clock`, `podcast` → `mic-signal`, e mais cinco), e o SDK carrega
+  exatamente esse mapa: `<Icon name="history" />` continua renderizando, agora
+  pelo canônico novo. É por isso que a mudança não é breaking — a promessa do
+  módulo sempre foi "slug gravado no banco anos atrás continua desenhando".
+
 - **O suporte a Node 20 acabou; o mínimo agora é 22.12.** O Node 20 chegou ao
   fim da vida em **30/04/2026** e o SDK continuava testando nele e prometendo
   suporte a ele no `engines`. A matriz do CI passa a ser `["22", "24"]` — o LTS
@@ -118,6 +130,13 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   documentação, ou o seu caso tem uma resposta melhor.
 
 ### Documentação
+
+- **A mediana de shard de ícone em `docs/icons.md` estava errada por um fator de
+  dois.** A página afirmava `~2,4 KB brotli`; medindo os 25 shards com o mesmo
+  método que produziu o número vizinho do maior shard (`size-limit`, com as
+  dependências dentro), a mediana é **~5,1 KB**. O número grande estava certo —
+  só a mediana vinha de outra medição. Corrigido nas duas línguas, junto com o
+  custo da lista completa de slugs (`~6` → `~7 KB`), que cresceu com o bump.
 
 - **Lista de slugs de ícone publicada com a doc** — `docs/assets/icon-slugs.txt`
   (os 1749 canônicos) e `docs/assets/icon-slugs.csv` (os 1997, com `status` e o

@@ -40,8 +40,7 @@ ampersand
 ampersands
 amphora
 anchor
-angry
-annoyed
+angle
 antenna
 anvil
 aperture
@@ -100,6 +99,7 @@ astroid
 at-sign
 atom
 audio-lines
+audio-lines-x
 audio-waveform
 award
 axe
@@ -242,6 +242,8 @@ briefcase-conveyor-belt
 briefcase-medical
 bring-to-front
 broccoli
+broom
+broom-sparkles
 brush
 brush-cleaning
 bubbles
@@ -575,6 +577,7 @@ eclipse
 egg
 egg-fried
 egg-off
+eject
 ellipse
 ellipsis
 ellipsis-vertical
@@ -591,6 +594,13 @@ eye
 eye-closed
 eye-dashed
 eye-off
+face-angry
+face-expressionless
+face-grinning
+face-neutral
+face-slightly-frowning
+face-slightly-smiling
+face-slightly-smiling-plus
 factory
 fan
 fast-forward
@@ -716,7 +726,6 @@ forklift
 form
 forward
 frame
-frown
 fuel
 fullscreen
 funnel
@@ -819,7 +828,6 @@ heater
 helicopter
 hexagon
 highlighter
-history
 hop
 hop-off
 hospital
@@ -876,12 +884,16 @@ laptop-minimal
 laptop-minimal-check
 lasso
 lasso-select
-laugh
+layer-arrow-down
+layer-arrow-up
 layers
 layers-2
+layers-arrow-down
+layers-arrow-up
 layers-minus
 layers-plus
 layout-dashboard
+layout-freeform
 layout-grid
 layout-list
 layout-panel-left
@@ -944,6 +956,7 @@ lollipop
 luggage
 magnet
 mail
+mail-badge
 mail-check
 mail-minus
 mail-open
@@ -979,7 +992,6 @@ maximize-2
 medal
 megaphone
 megaphone-off
-meh
 memory-stick
 menu
 merge
@@ -1015,7 +1027,9 @@ message-square-x
 messages-square
 metronome
 mic
+mic-audio-lines
 mic-off
+mic-signal
 mic-vocal
 microchip
 microscope
@@ -1044,6 +1058,7 @@ monitor-up
 monitor-x
 moon
 moon-star
+mosque
 motorbike
 mountain
 mountain-snow
@@ -1189,7 +1204,6 @@ plug-2
 plug-zap
 plus
 pocket-knife
-podcast
 podium
 pointer
 pointer-off
@@ -1263,9 +1277,11 @@ roller-coaster
 rose
 rotate-3d
 rotate-ccw
+rotate-ccw-clock
 rotate-ccw-key
 rotate-ccw-square
 rotate-cw
+rotate-cw-fading-clock
 rotate-cw-square
 route
 route-off
@@ -1301,6 +1317,7 @@ scan-heart
 scan-line
 scan-qr-code
 scan-search
+scan-square
 scan-text
 school
 scissors
@@ -1344,6 +1361,7 @@ shield-cog-corner
 shield-ellipsis
 shield-half
 shield-keyhole
+shield-lock
 shield-minus
 shield-off
 shield-plus
@@ -1383,8 +1401,6 @@ sliders-vertical
 smartphone
 smartphone-charging
 smartphone-nfc
-smile
-smile-plus
 snail
 snowflake
 soap-dispenser-droplet
@@ -1452,6 +1468,7 @@ square-m
 square-menu
 square-minus
 square-mouse-pointer
+square-off
 square-parking
 square-parking-off
 square-pause
@@ -1659,6 +1676,7 @@ user-round-plus
 user-round-search
 user-round-x
 user-search
+user-shield
 user-star
 user-x
 users

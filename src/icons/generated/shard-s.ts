@@ -26,6 +26,7 @@ import {
     ScanLine,
     ScanQrCode,
     ScanSearch,
+    ScanSquare,
     ScanText,
     School,
     Scissors,
@@ -69,6 +70,7 @@ import {
     ShieldEllipsis,
     ShieldHalf,
     ShieldKeyhole,
+    ShieldLock,
     ShieldMinus,
     ShieldOff,
     ShieldPlus,
@@ -108,8 +110,6 @@ import {
     Smartphone,
     SmartphoneCharging,
     SmartphoneNfc,
-    Smile,
-    SmilePlus,
     Snail,
     Snowflake,
     SoapDispenserDroplet,
@@ -177,6 +177,7 @@ import {
     SquareMenu,
     SquareMinus,
     SquareMousePointer,
+    SquareOff,
     SquareParking,
     SquareParkingOff,
     SquarePause,
@@ -252,7 +253,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** The 247 lucide icons whose slug starts with "s". */
+/** The 248 lucide icons whose slug starts with "s". */
 const shard: Record<string, LucideIcon> = {
     sailboat: Sailboat,
     salad: Salad,
@@ -278,6 +279,7 @@ const shard: Record<string, LucideIcon> = {
     "scan-line": ScanLine,
     "scan-qr-code": ScanQrCode,
     "scan-search": ScanSearch,
+    "scan-square": ScanSquare,
     "scan-text": ScanText,
     school: School,
     scissors: Scissors,
@@ -321,6 +323,7 @@ const shard: Record<string, LucideIcon> = {
     "shield-ellipsis": ShieldEllipsis,
     "shield-half": ShieldHalf,
     "shield-keyhole": ShieldKeyhole,
+    "shield-lock": ShieldLock,
     "shield-minus": ShieldMinus,
     "shield-off": ShieldOff,
     "shield-plus": ShieldPlus,
@@ -360,8 +363,6 @@ const shard: Record<string, LucideIcon> = {
     smartphone: Smartphone,
     "smartphone-charging": SmartphoneCharging,
     "smartphone-nfc": SmartphoneNfc,
-    smile: Smile,
-    "smile-plus": SmilePlus,
     snail: Snail,
     snowflake: Snowflake,
     "soap-dispenser-droplet": SoapDispenserDroplet,
@@ -429,6 +430,7 @@ const shard: Record<string, LucideIcon> = {
     "square-menu": SquareMenu,
     "square-minus": SquareMinus,
     "square-mouse-pointer": SquareMousePointer,
+    "square-off": SquareOff,
     "square-parking": SquareParking,
     "square-parking-off": SquareParkingOff,
     "square-pause": SquarePause,

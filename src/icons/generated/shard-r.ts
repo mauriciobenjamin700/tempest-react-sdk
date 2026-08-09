@@ -57,9 +57,11 @@ import {
     Rose,
     Rotate3d,
     RotateCcw,
+    RotateCcwClock,
     RotateCcwKey,
     RotateCcwSquare,
     RotateCw,
+    RotateCwFadingClock,
     RotateCwSquare,
     Route,
     RouteOff,
@@ -74,7 +76,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** The 69 lucide icons whose slug starts with "r". */
+/** The 71 lucide icons whose slug starts with "r". */
 const shard: Record<string, LucideIcon> = {
     rabbit: Rabbit,
     radar: Radar,
@@ -131,9 +133,11 @@ const shard: Record<string, LucideIcon> = {
     rose: Rose,
     "rotate-3d": Rotate3d,
     "rotate-ccw": RotateCcw,
+    "rotate-ccw-clock": RotateCcwClock,
     "rotate-ccw-key": RotateCcwKey,
     "rotate-ccw-square": RotateCcwSquare,
     "rotate-cw": RotateCw,
+    "rotate-cw-fading-clock": RotateCwFadingClock,
     "rotate-cw-square": RotateCwSquare,
     route: Route,
     "route-off": RouteOff,

@@ -140,6 +140,8 @@ import {
     BriefcaseMedical,
     BringToFront,
     Broccoli,
+    Broom,
+    BroomSparkles,
     Brush,
     BrushCleaning,
     Bubbles,
@@ -153,7 +155,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** The 148 lucide icons whose slug starts with "b". */
+/** The 150 lucide icons whose slug starts with "b". */
 const shard: Record<string, LucideIcon> = {
     baby: Baby,
     backpack: Backpack,
@@ -293,6 +295,8 @@ const shard: Record<string, LucideIcon> = {
     "briefcase-medical": BriefcaseMedical,
     "bring-to-front": BringToFront,
     broccoli: Broccoli,
+    broom: Broom,
+    "broom-sparkles": BroomSparkles,
     brush: Brush,
     "brush-cleaning": BrushCleaning,
     bubbles: Bubbles,

@@ -46,7 +46,6 @@ import {
     Helicopter,
     Hexagon,
     Highlighter,
-    History,
     Hop,
     HopOff,
     Hospital,
@@ -60,7 +59,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** The 55 lucide icons whose slug starts with "h". */
+/** The 54 lucide icons whose slug starts with "h". */
 const shard: Record<string, LucideIcon> = {
     ham: Ham,
     hamburger: Hamburger,
@@ -106,7 +105,6 @@ const shard: Record<string, LucideIcon> = {
     helicopter: Helicopter,
     hexagon: Hexagon,
     highlighter: Highlighter,
-    history: History,
     hop: Hop,
     "hop-off": HopOff,
     hospital: Hospital,

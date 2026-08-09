@@ -16,12 +16,16 @@ import {
     LaptopMinimalCheck,
     Lasso,
     LassoSelect,
-    Laugh,
+    LayerArrowDown,
+    LayerArrowUp,
     Layers,
     Layers2,
+    LayersArrowDown,
+    LayersArrowUp,
     LayersMinus,
     LayersPlus,
     LayoutDashboard,
+    LayoutFreeform,
     LayoutGrid,
     LayoutList,
     LayoutPanelLeft,
@@ -85,7 +89,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** The 80 lucide icons whose slug starts with "l". */
+/** The 84 lucide icons whose slug starts with "l". */
 const shard: Record<string, LucideIcon> = {
     lamp: Lamp,
     "lamp-ceiling": LampCeiling,
@@ -101,12 +105,16 @@ const shard: Record<string, LucideIcon> = {
     "laptop-minimal-check": LaptopMinimalCheck,
     lasso: Lasso,
     "lasso-select": LassoSelect,
-    laugh: Laugh,
+    "layer-arrow-down": LayerArrowDown,
+    "layer-arrow-up": LayerArrowUp,
     layers: Layers,
     "layers-2": Layers2,
+    "layers-arrow-down": LayersArrowDown,
+    "layers-arrow-up": LayersArrowUp,
     "layers-minus": LayersMinus,
     "layers-plus": LayersPlus,
     "layout-dashboard": LayoutDashboard,
+    "layout-freeform": LayoutFreeform,
     "layout-grid": LayoutGrid,
     "layout-list": LayoutList,
     "layout-panel-left": LayoutPanelLeft,

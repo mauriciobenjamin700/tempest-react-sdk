@@ -379,7 +379,7 @@
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
-    "name": "ceiling: icons — full surface incl. the 1997-slug list and every shard",
+    "name": "ceiling: icons — full surface incl. the 2024-slug list and every shard",
     "path": "dist/icons.js",
     "limit": "145 KB",
     "ignore": ["react", "react-dom", "react/jsx-runtime"]

@@ -10,6 +10,7 @@ import {
     Egg,
     EggFried,
     EggOff,
+    Eject,
     Ellipse,
     Ellipsis,
     EllipsisVertical,
@@ -29,7 +30,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** The 24 lucide icons whose slug starts with "e". */
+/** The 25 lucide icons whose slug starts with "e". */
 const shard: Record<string, LucideIcon> = {
     ear: Ear,
     "ear-off": EarOff,
@@ -39,6 +40,7 @@ const shard: Record<string, LucideIcon> = {
     egg: Egg,
     "egg-fried": EggFried,
     "egg-off": EggOff,
+    eject: Eject,
     ellipse: Ellipse,
     ellipsis: Ellipsis,
     "ellipsis-vertical": EllipsisVertical,

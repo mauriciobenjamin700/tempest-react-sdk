@@ -2,6 +2,13 @@
 // Run `npm run gen:icons` after bumping lucide-react.
 
 import {
+    FaceAngry,
+    FaceExpressionless,
+    FaceGrinning,
+    FaceNeutral,
+    FaceSlightlyFrowning,
+    FaceSlightlySmiling,
+    FaceSlightlySmilingPlus,
     Factory,
     Fan,
     FastForward,
@@ -127,7 +134,6 @@ import {
     Form,
     Forward,
     Frame,
-    Frown,
     Fuel,
     Fullscreen,
     Funnel,
@@ -136,8 +142,15 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** The 131 lucide icons whose slug starts with "f". */
+/** The 137 lucide icons whose slug starts with "f". */
 const shard: Record<string, LucideIcon> = {
+    "face-angry": FaceAngry,
+    "face-expressionless": FaceExpressionless,
+    "face-grinning": FaceGrinning,
+    "face-neutral": FaceNeutral,
+    "face-slightly-frowning": FaceSlightlyFrowning,
+    "face-slightly-smiling": FaceSlightlySmiling,
+    "face-slightly-smiling-plus": FaceSlightlySmilingPlus,
     factory: Factory,
     fan: Fan,
     "fast-forward": FastForward,
@@ -263,7 +276,6 @@ const shard: Record<string, LucideIcon> = {
     form: Form,
     forward: Forward,
     frame: Frame,
-    frown: Frown,
     fuel: Fuel,
     fullscreen: Fullscreen,
     funnel: Funnel,

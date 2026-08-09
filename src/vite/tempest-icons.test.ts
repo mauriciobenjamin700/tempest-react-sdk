@@ -78,13 +78,13 @@ export const staticIcons = {
             buildIconsModule(["save", "trash-2"], iconAliases),
         );
     });
-    it("derives only export names lucide really has, for all 1997 slugs", async () => {
+    it("derives only export names lucide really has, for all 2024 slugs", async () => {
         const lucide = (await import("lucide-react")) as unknown as Record<string, unknown>;
         const out = buildIconsModule([...iconNames], iconAliases);
         const named = /^import \{ (.+) \} from "lucide-react";$/m.exec(out)?.[1].split(", ") ?? [];
         const imported = named.map((entry) => entry.split(" as ")[0]);
 
-        expect(imported.length).toBe(1749);
+        expect(imported.length).toBe(1767);
         const missing = imported.filter((name) => lucide[name] === undefined);
         expect(missing).toEqual([]);
     });

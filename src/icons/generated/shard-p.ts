@@ -92,7 +92,6 @@ import {
     PlugZap,
     Plus,
     PocketKnife,
-    Podcast,
     Podium,
     Pointer,
     PointerOff,
@@ -112,7 +111,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** The 107 lucide icons whose slug starts with "p". */
+/** The 106 lucide icons whose slug starts with "p". */
 const shard: Record<string, LucideIcon> = {
     package: Package,
     "package-2": Package2,
@@ -204,7 +203,6 @@ const shard: Record<string, LucideIcon> = {
     "plug-zap": PlugZap,
     plus: Plus,
     "pocket-knife": PocketKnife,
-    podcast: Podcast,
     podium: Podium,
     pointer: Pointer,
     "pointer-off": PointerOff,

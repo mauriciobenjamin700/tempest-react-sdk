@@ -52,8 +52,9 @@ ampersand,canonical,ampersand
 ampersands,canonical,ampersands
 amphora,canonical,amphora
 anchor,canonical,anchor
-angry,canonical,angry
-annoyed,canonical,annoyed
+angle,canonical,angle
+angry,deprecated,face-angry
+annoyed,deprecated,face-expressionless
 antenna,canonical,antenna
 anvil,canonical,anvil
 aperture,canonical,aperture
@@ -141,6 +142,7 @@ asterisk,canonical,asterisk
 astroid,canonical,astroid
 at-sign,canonical,at-sign
 atom,canonical,atom
+audio-lines-x,canonical,audio-lines-x
 audio-lines,canonical,audio-lines
 audio-waveform,canonical,audio-waveform
 award,canonical,award
@@ -297,6 +299,8 @@ briefcase-medical,canonical,briefcase-medical
 briefcase,canonical,briefcase
 bring-to-front,canonical,bring-to-front
 broccoli,canonical,broccoli
+broom-sparkles,canonical,broom-sparkles
+broom,canonical,broom
 brush-cleaning,canonical,brush-cleaning
 brush,canonical,brush
 bubbles,canonical,bubbles
@@ -660,6 +664,7 @@ edit,deprecated,square-pen
 egg-fried,canonical,egg-fried
 egg-off,canonical,egg-off
 egg,canonical,egg
+eject,canonical,eject
 ellipse,canonical,ellipse
 ellipsis-vertical,canonical,ellipsis-vertical
 ellipsis,canonical,ellipsis
@@ -677,6 +682,13 @@ eye-closed,canonical,eye-closed
 eye-dashed,canonical,eye-dashed
 eye-off,canonical,eye-off
 eye,canonical,eye
+face-angry,canonical,face-angry
+face-expressionless,canonical,face-expressionless
+face-grinning,canonical,face-grinning
+face-neutral,canonical,face-neutral
+face-slightly-frowning,canonical,face-slightly-frowning
+face-slightly-smiling-plus,canonical,face-slightly-smiling-plus
+face-slightly-smiling,canonical,face-slightly-smiling
 factory,canonical,factory
 fan,canonical,fan
 fast-forward,canonical,fast-forward
@@ -838,7 +850,7 @@ form-input,deprecated,rectangle-ellipsis
 form,canonical,form
 forward,canonical,forward
 frame,canonical,frame
-frown,canonical,frown
+frown,deprecated,face-slightly-frowning
 fuel,canonical,fuel
 fullscreen,canonical,fullscreen
 function-square,deprecated,square-function
@@ -956,7 +968,7 @@ help-circle,deprecated,circle-question-mark
 helping-hand,deprecated,hand-helping
 hexagon,canonical,hexagon
 highlighter,canonical,highlighter
-history,canonical,history
+history,deprecated,rotate-ccw-clock
 home,deprecated,house
 hop-off,canonical,hop-off
 hop,canonical,hop
@@ -1023,13 +1035,18 @@ laptop-minimal,canonical,laptop-minimal
 laptop,canonical,laptop
 lasso-select,canonical,lasso-select
 lasso,canonical,lasso
-laugh,canonical,laugh
+laugh,deprecated,face-grinning
+layer-arrow-down,canonical,layer-arrow-down
+layer-arrow-up,canonical,layer-arrow-up
 layers-2,canonical,layers-2
 layers-3,deprecated,layers
+layers-arrow-down,canonical,layers-arrow-down
+layers-arrow-up,canonical,layers-arrow-up
 layers-minus,canonical,layers-minus
 layers-plus,canonical,layers-plus
 layers,canonical,layers
 layout-dashboard,canonical,layout-dashboard
+layout-freeform,canonical,layout-freeform
 layout-grid,canonical,layout-grid
 layout-list,canonical,layout-list
 layout-panel-left,canonical,layout-panel-left
@@ -1098,6 +1115,7 @@ lollipop,canonical,lollipop
 luggage,canonical,luggage
 m-square,deprecated,square-m
 magnet,canonical,magnet
+mail-badge,canonical,mail-badge
 mail-check,canonical,mail-check
 mail-minus,canonical,mail-minus
 mail-open,canonical,mail-open
@@ -1135,7 +1153,7 @@ maximize,canonical,maximize
 medal,canonical,medal
 megaphone-off,canonical,megaphone-off
 megaphone,canonical,megaphone
-meh,canonical,meh
+meh,deprecated,face-neutral
 memory-stick,canonical,memory-stick
 menu-square,deprecated,square-menu
 menu,canonical,menu
@@ -1173,7 +1191,9 @@ message-square,canonical,message-square
 messages-square,canonical,messages-square
 metronome,canonical,metronome
 mic-2,deprecated,mic-vocal
+mic-audio-lines,canonical,mic-audio-lines
 mic-off,canonical,mic-off
+mic-signal,canonical,mic-signal
 mic-vocal,canonical,mic-vocal
 mic,canonical,mic
 microchip,canonical,microchip
@@ -1207,6 +1227,7 @@ moon-star,canonical,moon-star
 moon,canonical,moon
 more-horizontal,deprecated,ellipsis
 more-vertical,deprecated,ellipsis-vertical
+mosque,canonical,mosque
 motorbike,canonical,motorbike
 mountain-snow,canonical,mountain-snow
 mountain,canonical,mountain
@@ -1382,7 +1403,7 @@ plus-circle,deprecated,circle-plus
 plus-square,deprecated,square-plus
 plus,canonical,plus
 pocket-knife,canonical,pocket-knife
-podcast,canonical,podcast
+podcast,deprecated,mic-signal
 podium,canonical,podium
 pointer-off,canonical,pointer-off
 pointer,canonical,pointer
@@ -1458,9 +1479,11 @@ roller-coaster,canonical,roller-coaster
 rose,canonical,rose
 rotate-3-d,deprecated,rotate-3d
 rotate-3d,canonical,rotate-3d
+rotate-ccw-clock,canonical,rotate-ccw-clock
 rotate-ccw-key,canonical,rotate-ccw-key
 rotate-ccw-square,canonical,rotate-ccw-square
 rotate-ccw,canonical,rotate-ccw
+rotate-cw-fading-clock,canonical,rotate-cw-fading-clock
 rotate-cw-square,canonical,rotate-cw-square
 rotate-cw,canonical,rotate-cw
 route-off,canonical,route-off
@@ -1498,6 +1521,7 @@ scan-heart,canonical,scan-heart
 scan-line,canonical,scan-line
 scan-qr-code,canonical,scan-qr-code
 scan-search,canonical,scan-search
+scan-square,canonical,scan-square
 scan-text,canonical,scan-text
 scan,canonical,scan
 scatter-chart,deprecated,chart-scatter
@@ -1547,6 +1571,7 @@ shield-cog,canonical,shield-cog
 shield-ellipsis,canonical,shield-ellipsis
 shield-half,canonical,shield-half
 shield-keyhole,canonical,shield-keyhole
+shield-lock,canonical,shield-lock
 shield-minus,canonical,shield-minus
 shield-off,canonical,shield-off
 shield-plus,canonical,shield-plus
@@ -1594,8 +1619,8 @@ sliders,deprecated,sliders-vertical
 smartphone-charging,canonical,smartphone-charging
 smartphone-nfc,canonical,smartphone-nfc
 smartphone,canonical,smartphone
-smile-plus,canonical,smile-plus
-smile,canonical,smile
+smile-plus,deprecated,face-slightly-smiling-plus
+smile,deprecated,face-slightly-smiling
 snail,canonical,snail
 snowflake,canonical,snowflake
 soap-dispenser-droplet,canonical,soap-dispenser-droplet
@@ -1667,6 +1692,7 @@ square-m,canonical,square-m
 square-menu,canonical,square-menu
 square-minus,canonical,square-minus
 square-mouse-pointer,canonical,square-mouse-pointer
+square-off,canonical,square-off
 square-parking-off,canonical,square-parking-off
 square-parking,canonical,square-parking
 square-pause,canonical,square-pause
@@ -1895,6 +1921,7 @@ user-round-search,canonical,user-round-search
 user-round-x,canonical,user-round-x
 user-round,canonical,user-round
 user-search,canonical,user-search
+user-shield,canonical,user-shield
 user-square-2,deprecated,square-user-round
 user-square,deprecated,square-user
 user-star,canonical,user-star

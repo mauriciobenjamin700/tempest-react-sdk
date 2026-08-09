@@ -333,7 +333,80 @@ runtime.
     um slug lucide. Pior: um punhado colide por acidente (`settings`, `code`,
     `key`, `lock`, `shield`, `tv`) e renderiza certo em ~10% das linhas, o que
     faz o problema parecer "sumiram alguns ícones". Converta o vocabulário antes
-    de gravar.
+    de gravar — ou use a ponte da próxima seção, se não puder mexer no seed.
+
+## Backend que grava Material Symbols
+
+A saída mais limpa é o backend passar a gravar slug lucide direto: um vocabulário
+só, ponta a ponta, e nada para traduzir. Quando isso não é possível — o seed é
+antigo, tem um app Flutter lendo o mesmo banco, ou você herdou os dados — o SDK
+oferece a ponte:
+
+```tsx
+import { Icon, fromMaterialSymbol } from "tempest-react-sdk/icons";
+
+export function CategoryTile({ category }: { category: Category }) {
+    return (
+        <li>
+            <Icon name={fromMaterialSymbol(category.icon_code)} size={20} />
+            <span>{category.name}</span>
+        </li>
+    );
+}
+```
+
+`fromMaterialSymbol` **nunca** devolve `undefined`. Um código que a tabela não
+conhece cai num glifo neutro (`circle-question-mark`), porque uma categoria criada
+no admin com um código novo ainda tem que desenhar alguma coisa em vez de abrir
+buraco no grid. Passe o segundo argumento quando o seu domínio tiver um padrão
+melhor:
+
+```tsx
+<Icon name={fromMaterialSymbol(category.icon_code, "folder")} size={20} />
+```
+
+### A tabela é uma semente, não o vocabulário inteiro
+
+Material Symbols tem ~3600 nomes e quase nenhum vai aparecer num `icon_code`
+nosso. `materialToLucide` cobre a interseção útil e **cresce sob demanda**, com
+cada par escrito à mão — mapa gerado por heurística de nome erra feio, a começar
+por `build`, que em Material Symbols é uma chave inglesa e não tem nada a ver com
+construção.
+
+| Material Symbol                              | lucide           | Observação                        |
+| -------------------------------------------- | ---------------- | --------------------------------- |
+| `build`, `handyman`, `hardware`              | `wrench`         | Aproximação — três para um        |
+| `format_paint`                               | `paint-roller`   |                                   |
+| `electrical_services`                        | `plug-zap`       |                                   |
+| `plumbing`                                   | `shower-head`    | Aproximação — lucide não tem cano |
+| `pedal_bike`, `two_wheeler`, `delivery_dining` | `bike`         | Aproximação — três para um        |
+| `settings`, `code`, `key`, `lock`, `shield`, `brush`, `tv`, `smartphone`, `mic`, `palette`, `router`, `gavel`, `warehouse` | (o mesmo nome) | Colidem por acidente |
+
+!!! info "Por que as colisões estão na tabela"
+    Esses treze já renderizam hoje, porque o nome bate nos dois vocabulários. Se
+    ficassem de fora, `fromMaterialSymbol` os mandaria para o fallback e a ponte
+    seria uma **regressão** justamente para os códigos que funcionavam.
+
+!!! warning "Passe a tabela no `include` do plugin"
+    Slug resolvido em runtime puxa o shard da letra inicial. Um catálogo com ~130
+    categorias toca quase todas as 25 letras, então o ganho de DX vira ~20
+    requisições se você não avisar o build:
+
+    ```ts
+    import { defineConfig } from "vite";
+    import { tempestIcons } from "tempest-react-sdk/vite";
+    import { materialToLucide } from "tempest-react-sdk/icons";
+
+    export default defineConfig({
+        plugins: [tempestIcons({ include: Object.values(materialToLucide) })],
+    });
+    ```
+
+!!! tip "Faltou um código?"
+    Abra uma issue com os `icon_code` que o seu seed usa. Cada par entra escrito
+    à mão e um teste trava a tabela inteira contra a lista real de slugs, então
+    uma entrada apontando para ícone inexistente reprova a suíte em vez de
+    chegar no seu grid.
 
 ## Referência
 
@@ -349,6 +422,9 @@ runtime.
 | `loadIcon`           | Carrega o shard de um slug                                              |
 | `resolveIconAlias`   | Slug depreciado → slug canônico                                        |
 | `isIconName`         | Type guard contra a lista real (importa a lista)                        |
+| `fromMaterialSymbol` | Código Material Symbols → slug lucide, sempre devolvendo um             |
+| `materialToLucide`   | A tabela de pares, para passar no `include` do plugin                   |
+| `MATERIAL_SYMBOL_FALLBACK` | O glifo neutro que um código desconhecido usa                    |
 | `iconNames`          | Os 2024 slugs, ordenados (~7 KB brotli)                                 |
 | `iconAliases`        | Os 257 pares alias → canônico                                          |
 | `IconName`           | União de tipo com todos os slugs (só tipo, custo zero)                  |

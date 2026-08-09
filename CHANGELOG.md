@@ -4,6 +4,47 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **Ponte de Material Symbols → lucide, para backend que grava `icon_code`**
+  (`fromMaterialSymbol`, `materialToLucide`, `MATERIAL_SYMBOL_FALLBACK` em
+  `tempest-react-sdk/icons`). Todo backend Python nosso guarda ícone de categoria
+  como Material Symbol (`build`, `format_paint`, `electrical_services`) — o
+  vocabulário que o Flutter/Android e os seeds administrativos já falam. O SDK
+  fala lucide em kebab-case, e as duas listas não se encontram.
+
+  O pior caso não é a tela vazia: treze códigos colidem por acidente
+  (`settings`, `code`, `key`, `lock`, `shield`, `tv`, entre outros) e desenham o
+  ícone certo em ~10% das linhas, o que faz o bug parecer "só alguns ícones
+  sumiram". É por isso que as colisões **estão** na tabela, mapeadas para si
+  mesmas — deixá-las de fora mandaria justamente os códigos que funcionavam para
+  o fallback, e a ponte seria uma regressão.
+
+  `fromMaterialSymbol` nunca devolve `undefined`: código desconhecido cai em
+  `circle-question-mark`, ou no que o segundo argumento disser. **A tabela é uma
+  semente de 22 pares, não o vocabulário inteiro** — Material Symbols tem ~3600
+  nomes, e ela cresce sob demanda com cada par escrito à mão. Mapa gerado por
+  heurística de nome erra feio, a começar por `build`, que em Material Symbols é
+  uma chave inglesa e não tem nada a ver com construção.
+
+  As aproximações estão documentadas porque não são 1:1: `plumbing` →
+  `shower-head` (lucide não tem cano), `build`/`handyman`/`hardware` → `wrench`,
+  `pedal_bike`/`two_wheeler`/`delivery_dining` → `bike`.
+
+  Módulo próprio dentro de `/icons`, importado só por quem chama — nada no
+  `Icon.tsx` o toca, então quem não grava Material Symbols não paga os bytes. Um
+  teste trava a **imagem inteira** da tabela contra `iconNames`: toda entrada
+  precisa apontar para slug existente **e canônico**, então um bump de lucide que
+  renomeie um alvo reprova a suíte em vez de chegar no grid de alguém.
+
+  O fallback é `circle-question-mark`, e não o `circle-help` que a issue propôs —
+  no lucide 1.31 `circle-help` é alias depreciado, e a ponte não deve emitir um
+  nome que o lucide já renomeou.
+
+  **A saída mais limpa continua sendo o backend gravar slug lucide direto**; isto
+  atende quem não pode mexer no seed, tem app Flutter no mesmo banco, ou herdou
+  os dados.
+
 ## [0.42.0] — 2026-08-09
 
 ### Adicionado

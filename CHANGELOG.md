@@ -41,13 +41,6 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   rótulo sem relação. Uma declaração que deixa de ser necessária **também**
   reprova, para a lista não virar ficção.
 
-- **Onze exports que sobreviveram ao corte agora estão documentados**, porque
-  formam par ou família com API que já era pública: `boundsCenter`,
-  `expandBounds`, `unprojectMercator`, `EARTH_RADIUS_KM` e `toRadians` (geo),
-  `relativeLuminance`, `readableForeground` e `rgbToHex` (tema),
-  `isMediaCaptureSupported` (captura), `CompactFormatError` e
-  `configuredOrtAssetPath` (tabular).
-
 - **Guard de superfície pública** (`test/public-surface.test.ts`): todo export de
   runtime, em cada um dos 11 entrypoints, precisa aparecer na documentação. A
   regra que ele fixa é a que motivou a limpeza — **se é exportado, é
@@ -162,20 +155,13 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   regenere uma coisa e não a outra falha em vez de publicar uma referência que
   rejeita ícone válido.
 
-- **Vinte e cinco exports que sobreviveram ao corte agora estão documentados**, porque
+- **Onze exports que sobreviveram ao corte agora estão documentados**, porque
   formam par ou família com API que já era pública: `boundsCenter`,
   `expandBounds`, `unprojectMercator`, `EARTH_RADIUS_KM` e `toRadians` (geo),
   `relativeLuminance`, `readableForeground` e `rgbToHex` (tema),
   `isMediaCaptureSupported` (captura), `CompactFormatError` e
-  `configuredOrtAssetPath` (tabular).
-
-- **Guard de superfície pública** (`test/public-surface.test.ts`): todo export de
-  runtime, em cada um dos 11 entrypoints, precisa aparecer na documentação. A
-  regra que ele fixa é a que motivou a limpeza — **se é exportado, é
-  documentado** — e a correção para uma falha é uma decisão, não um remendo:
-  documentar, se for API; ou tirar do barrel, se for internal.
-
-  Hoje o número de exports não documentados é **zero**, nos 11 entrypoints.
+  `configuredOrtAssetPath` (tabular). Com os catorze `DEFAULT_*` que voltaram
+  ao barrel (ver **Removido**), são vinte e cinco no total.
 
 ## [0.41.0] — 2026-08-08
 

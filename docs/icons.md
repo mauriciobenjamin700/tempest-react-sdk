@@ -115,8 +115,8 @@ GET .../icons/generated/shard-c.js   200
 … uma por letra usada, no máximo 25
 ```
 
-O maior shard (`s`, com 248 ícones) pesa **19,1 KB brotli**; a mediana fica em
-~5,1 KB. E `{ Icon }` sozinho custa **2,95 KB brotli** no bundle inicial.
+O maior shard (`s`, com 175 ícones) pesa **18,7 KB brotli**; a mediana fica em
+**5,0 KB**. O runtime do `<Icon>`, sem shard nenhum, custa **~1 KB brotli**.
 
 ## Custo zero de requisição para os slugs que você escreveu
 
@@ -431,13 +431,25 @@ construção.
 
 ### Custos medidos
 
-| O que                                       | Brotli    |
-| ------------------------------------------- | --------- |
-| `{ Icon }` no bundle inicial                | 2,95 KB   |
-| `+ { iconNames }`                           | +5,7 KB   |
-| Maior shard (`s`, 247 ícones), sob demanda  | 19,2 KB   |
-| Shard mediano (`w`, 40 ícones), sob demanda | ~2,4 KB   |
-| Todos os 25 shards somados (teto absoluto)  | ~124,5 KB |
+| O que                                            | Brotli    |
+| ------------------------------------------------ | --------- |
+| Runtime do `<Icon>`, antes de qualquer shard     | ~1,0 KB   |
+| Menor shard (`x`, 1 ícone), sob demanda          | 1,1 KB    |
+| Shard mediano (`g`, 39 ícones), sob demanda      | 5,0 KB    |
+| Maior shard (`s`, 175 ícones), sob demanda       | 18,7 KB   |
+| `{ iconNames }` — a lista dos 2024 slugs         | 7,0 KB    |
+| Runtime + os 25 shards juntos (teto absoluto)    | 128,9 KB  |
+
+!!! info "Como isso foi medido"
+    Os shards e a lista saem do `size-limit` **com o `lucide-react` dentro da
+    medição** — é o que a rede realmente transfere, já que um shard só
+    re-exporta os ícones. Medir o arquivo emitido sozinho daria ~22 KB para os
+    25 e seria uma mentira confortável. O runtime é o brotli dos quatro módulos
+    que carregam antes do primeiro ícone (`Icon`, `shard-cache`, `use-icon`,
+    `icon-context`), que não puxam lucide nenhum.
+
+    Reproduza com `npm run build` seguido de `npx size-limit`, cujas entradas de
+    ícone estão em `.size-limit.json`.
 
 ## Recap
 

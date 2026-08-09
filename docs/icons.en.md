@@ -112,8 +112,8 @@ GET .../icons/generated/shard-c.js   200
 … one per letter used, 25 at most
 ```
 
-The largest shard (`s`, 248 icons) weighs **19.1 KB brotli**; the median sits around
-5.1 KB. And `{ Icon }` alone costs **2.95 KB brotli** in the initial bundle.
+The largest shard (`s`, 175 icons) weighs **18.7 KB brotli**; the median sits at
+**5.0 KB**. The `<Icon>` runtime, before any shard, costs **~1 KB brotli**.
 
 ## Zero extra requests for the slugs you wrote
 
@@ -430,13 +430,25 @@ Material Symbols and has nothing to do with construction.
 
 ### Measured costs
 
-| What                                        | Brotli    |
-| ------------------------------------------- | --------- |
-| `{ Icon }` in the initial bundle            | 2.95 KB   |
-| `+ { iconNames }`                           | +5.7 KB   |
-| Largest shard (`s`, 247 icons), on demand   | 19.2 KB   |
-| Median shard (`w`, 40 icons), on demand     | ~2.4 KB   |
-| All 25 shards summed (absolute ceiling)     | ~124.5 KB |
+| What                                             | Brotli    |
+| ------------------------------------------------ | --------- |
+| `<Icon>` runtime, before any shard               | ~1.0 KB   |
+| Smallest shard (`x`, 1 icon), on demand          | 1.1 KB    |
+| Median shard (`g`, 39 icons), on demand          | 5.0 KB    |
+| Largest shard (`s`, 175 icons), on demand        | 18.7 KB   |
+| `{ iconNames }` — the list of 2024 slugs         | 7.0 KB    |
+| Runtime plus all 25 shards (absolute ceiling)    | 128.9 KB  |
+
+!!! info "How this was measured"
+    Shards and the slug list come from `size-limit` **with `lucide-react` inside
+    the measurement** — that is what the network actually transfers, since a
+    shard only re-exports the icons. Measuring the emitted file on its own would
+    report ~22 KB for all 25, which is a comfortable lie. The runtime figure is
+    the brotli size of the four modules that load before the first icon (`Icon`,
+    `shard-cache`, `use-icon`, `icon-context`), none of which pull lucide in.
+
+    Reproduce it with `npm run build` followed by `npx size-limit`; the icon
+    entries live in `.size-limit.json`.
 
 ## Recap
 

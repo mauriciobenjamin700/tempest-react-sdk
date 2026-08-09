@@ -33,7 +33,7 @@ const listeners = new Set<() => void>();
 /**
  * Map a slug to the canonical slug that owns the icon.
  *
- * Lucide keeps 248 deprecated aliases (`alert-circle` → `circle-alert`), and a
+ * Lucide keeps 257 deprecated aliases (`alert-circle` → `circle-alert`), and a
  * slug persisted in a database years ago is exactly the case this feature exists
  * for, so an alias must keep resolving after a lucide bump renames it.
  *

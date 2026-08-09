@@ -8,9 +8,16 @@
 // The tables re-export from `lucide-react` instead of vendoring icon path data,
 // so the icons a consuming app renders always come from the lucide version that
 // app installed.
+//
+// Every emitted module goes through prettier with the repo's own config before
+// it is written. That is what lets `.github/workflows/ci.yml` run this script
+// and fail on a non-empty `git diff`: unformatted output would make the diff
+// non-empty on every run, and the guard would be noise instead of a signal.
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { format, resolveConfig } from "prettier";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ICONS_DIR = join(ROOT, "node_modules", "lucide-react", "dist", "esm", "icons");
@@ -279,8 +286,10 @@ async function main() {
     await mkdir(OUT_DIR, { recursive: true });
 
     const written = [];
+    const prettierOptions = await resolveConfig(join(OUT_DIR, "any.ts"));
     const write = async (name, contents) => {
-        await writeFile(join(OUT_DIR, name), contents);
+        const path = join(OUT_DIR, name);
+        await writeFile(path, await format(contents, { ...prettierOptions, filepath: path }));
         written.push(name);
     };
 

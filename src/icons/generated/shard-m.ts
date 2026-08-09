@@ -4,6 +4,7 @@
 import {
     Magnet,
     Mail,
+    MailBadge,
     MailCheck,
     MailMinus,
     MailOpen,
@@ -39,7 +40,6 @@ import {
     Medal,
     Megaphone,
     MegaphoneOff,
-    Meh,
     MemoryStick,
     Menu,
     Merge,
@@ -75,7 +75,9 @@ import {
     MessagesSquare,
     Metronome,
     Mic,
+    MicAudioLines,
     MicOff,
+    MicSignal,
     MicVocal,
     Microchip,
     Microscope,
@@ -104,6 +106,7 @@ import {
     MonitorX,
     Moon,
     MoonStar,
+    Mosque,
     Motorbike,
     Mountain,
     MountainSnow,
@@ -137,10 +140,11 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** The 132 lucide icons whose slug starts with "m". */
+/** The 135 lucide icons whose slug starts with "m". */
 const shard: Record<string, LucideIcon> = {
     magnet: Magnet,
     mail: Mail,
+    "mail-badge": MailBadge,
     "mail-check": MailCheck,
     "mail-minus": MailMinus,
     "mail-open": MailOpen,
@@ -176,7 +180,6 @@ const shard: Record<string, LucideIcon> = {
     medal: Medal,
     megaphone: Megaphone,
     "megaphone-off": MegaphoneOff,
-    meh: Meh,
     "memory-stick": MemoryStick,
     menu: Menu,
     merge: Merge,
@@ -212,7 +215,9 @@ const shard: Record<string, LucideIcon> = {
     "messages-square": MessagesSquare,
     metronome: Metronome,
     mic: Mic,
+    "mic-audio-lines": MicAudioLines,
     "mic-off": MicOff,
+    "mic-signal": MicSignal,
     "mic-vocal": MicVocal,
     microchip: Microchip,
     microscope: Microscope,
@@ -241,6 +246,7 @@ const shard: Record<string, LucideIcon> = {
     "monitor-x": MonitorX,
     moon: Moon,
     "moon-star": MoonStar,
+    mosque: Mosque,
     motorbike: Motorbike,
     mountain: Mountain,
     "mountain-snow": MountainSnow,

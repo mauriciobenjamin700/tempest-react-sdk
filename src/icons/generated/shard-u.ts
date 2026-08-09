@@ -36,6 +36,7 @@ import {
     UserRoundSearch,
     UserRoundX,
     UserSearch,
+    UserShield,
     UserStar,
     UserX,
     Users,
@@ -46,7 +47,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** The 41 lucide icons whose slug starts with "u". */
+/** The 42 lucide icons whose slug starts with "u". */
 const shard: Record<string, LucideIcon> = {
     umbrella: Umbrella,
     "umbrella-off": UmbrellaOff,
@@ -82,6 +83,7 @@ const shard: Record<string, LucideIcon> = {
     "user-round-search": UserRoundSearch,
     "user-round-x": UserRoundX,
     "user-search": UserSearch,
+    "user-shield": UserShield,
     "user-star": UserStar,
     "user-x": UserX,
     users: Users,

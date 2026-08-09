@@ -2,7 +2,7 @@
 // Run `npm run gen:icons` after bumping lucide-react.
 
 /**
- * Lucide's 248 deprecated slugs, mapped to the canonical slug that
+ * Lucide's 257 deprecated slugs, mapped to the canonical slug that
  * replaced them (`alert-circle` → `circle-alert`).
  *
  * Kept so a name stored in a database years ago keeps rendering after a lucide
@@ -21,6 +21,8 @@ export const iconAliases: Record<string, string> = {
     "align-justify": "text-align-justify",
     "align-left": "text-align-start",
     "align-right": "text-align-end",
+    angry: "face-angry",
+    annoyed: "face-expressionless",
     "area-chart": "chart-area",
     "arrow-down-01": "arrow-down-0-1",
     "arrow-down-10": "arrow-down-1-0",
@@ -131,6 +133,7 @@ export const iconAliases: Record<string, string> = {
     "fork-knife": "utensils",
     "fork-knife-crossed": "utensils-crossed",
     "form-input": "rectangle-ellipsis",
+    frown: "face-slightly-frowning",
     "function-square": "square-function",
     "gantt-chart": "chart-no-axes-gantt",
     "gantt-chart-square": "square-chart-gantt",
@@ -146,6 +149,7 @@ export const iconAliases: Record<string, string> = {
     "grid-3-x-3": "grid-3x3",
     "help-circle": "circle-question-mark",
     "helping-hand": "hand-helping",
+    history: "rotate-ccw-clock",
     home: "house",
     "ice-cream": "ice-cream-cone",
     "ice-cream-2": "ice-cream-bowl",
@@ -156,6 +160,7 @@ export const iconAliases: Record<string, string> = {
     "kanban-square": "square-kanban",
     "kanban-square-dashed": "square-dashed-kanban",
     "laptop-2": "laptop-minimal",
+    laugh: "face-grinning",
     "layers-3": "layers",
     layout: "panels-top-left",
     "letter-text": "text-initial",
@@ -165,6 +170,7 @@ export const iconAliases: Record<string, string> = {
     "location-edit": "map-pin-pen",
     "m-square": "square-m",
     "mail-question": "mail-question-mark",
+    meh: "face-neutral",
     "menu-square": "square-menu",
     "message-circle-question": "message-circle-question-mark",
     "mic-2": "mic-vocal",
@@ -202,6 +208,7 @@ export const iconAliases: Record<string, string> = {
     "plug-zap-2": "plug-zap",
     "plus-circle": "circle-plus",
     "plus-square": "square-plus",
+    podcast: "mic-signal",
     "power-circle": "circle-power",
     "power-square": "square-power",
     "rotate-3-d": "rotate-3d",
@@ -220,6 +227,8 @@ export const iconAliases: Record<string, string> = {
     "sigma-square": "square-sigma",
     "slash-square": "square-slash",
     sliders: "sliders-vertical",
+    smile: "face-slightly-smiling",
+    "smile-plus": "face-slightly-smiling-plus",
     "sort-asc": "arrow-up-narrow-wide",
     "sort-desc": "arrow-down-wide-narrow",
     "split-square-horizontal": "square-split-horizontal",

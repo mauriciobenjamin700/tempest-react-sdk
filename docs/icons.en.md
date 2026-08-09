@@ -31,7 +31,7 @@ export function Toolbar() {
 }
 ```
 
-That's it — no provider, no configuration. All **1997 lucide slugs** work this way,
+That's it — no provider, no configuration. All **2024 lucide slugs** work this way,
 including a name that only exists at runtime:
 
 ```tsx
@@ -59,7 +59,7 @@ npm uninstall lucide-react
     1. **Duplicated bytes** in the bundle — your app imports from its copy, the SDK
        from its own, and neither is tree-shaken against the other.
     2. **Version skew**: the `/icons` slug tables are **generated** against the
-       version the SDK declares (`^1.26.0`). An older second copy may lack exports
+       version the SDK declares (`^1.31.0`). An older second copy may lack exports
        the tables reference, and the error then surfaces in your app's build as
        `X is not exported by lucide-react` — pointing inside the SDK, which makes
        the cause hard to find.
@@ -77,7 +77,7 @@ npm uninstall lucide-react
       the recommended path.
     - **pnpm** (strict isolation) — an app cannot see a dependency it did not
       declare, so you **must** declare it. In that case use **the SDK's own range**
-      (`"lucide-react": "^1.26.0"`) so there is still only one copy.
+      (`"lucide-react": "^1.31.0"`) so there is still only one copy.
 
 !!! tip "Confirm only one survived"
     ```bash
@@ -94,8 +94,8 @@ carries a cost that makes it unusable:
 
 !!! danger "`DynamicIcon` creates ~2000 chunk boundaries"
     The map it uses (`dynamicIconImports`) is a **116 KB** module holding one
-    `import()` call for **each** of the 1997 icons. Any bundler that sees that
-    module must create a chunk per icon: in a production build that becomes ~1997
+    `import()` call for **each** of the 2024 icons. Any bundler that sees that
+    module must create a chunk per icon: in a production build that becomes ~2024
     tiny files, and in development it becomes a flood of browser requests.
 
     It also resolves the icon **after** render (in a `useEffect`), so the first frame
@@ -112,8 +112,8 @@ GET .../icons/generated/shard-c.js   200
 … one per letter used, 25 at most
 ```
 
-The largest shard (`s`, 247 icons) weighs **19 KB brotli**; the median sits around
-2.4 KB. And `{ Icon }` alone costs **2.95 KB brotli** in the initial bundle.
+The largest shard (`s`, 248 icons) weighs **19.1 KB brotli**; the median sits around
+5.1 KB. And `{ Icon }` alone costs **2.95 KB brotli** in the initial bundle.
 
 ## Zero extra requests for the slugs you wrote
 
@@ -210,13 +210,13 @@ genuinely unknown — never while a valid icon is still loading.
     const slug = isIconName(row.icon) ? row.icon : "circle-help";
     ```
 
-    `isIconName` imports the full slug list (~6 KB brotli). `<Icon>` does **not**
+    `isIconName` imports the full slug list (~7 KB brotli). `<Icon>` does **not**
     import that list — only pay for it where you need to validate or enumerate.
 
 ## Old slugs keep working
 
 Lucide renamed several icons (`alert-circle` → `circle-alert`, `alert-triangle` →
-`triangle-alert`) and keeps the 248 old names as aliases. The SDK carries that map,
+`triangle-alert`) and keeps the 257 old names as aliases. The SDK carries that map,
 so a slug stored in a database two years ago still renders:
 
 ```tsx
@@ -305,8 +305,8 @@ SDK's tables, so it never lags behind what `<Icon>` accepts:
 
 | File                                        | What's in it                                                  |
 | ------------------------------------------- | ------------------------------------------------------------- |
-| [`icon-slugs.txt`](assets/icon-slugs.txt)   | The 1749 **canonical** slugs, one per line                     |
-| [`icon-slugs.csv`](assets/icon-slugs.csv)   | All 1997 slugs with a `status` (`canonical`/`deprecated`) and the canonical name |
+| [`icon-slugs.txt`](assets/icon-slugs.txt)   | The 1767 **canonical** slugs, one per line                     |
+| [`icon-slugs.csv`](assets/icon-slugs.csv)   | All 2024 slugs with a `status` (`canonical`/`deprecated`) and the canonical name |
 
 Use the `.txt` for anything that **validates writes** — it is the list of what
 may be stored today. Use the `.csv` for anything that **reads old data**: the
@@ -347,8 +347,8 @@ same resolution `<Icon>` performs at runtime.
 | `loadIcon`           | Loads the shard owning a slug                                             |
 | `resolveIconAlias`   | Deprecated slug → canonical slug                                          |
 | `isIconName`         | Type guard against the real list (imports the list)                       |
-| `iconNames`          | The 1997 slugs, sorted (~6 KB brotli)                                     |
-| `iconAliases`        | The 248 alias → canonical pairs                                           |
+| `iconNames`          | The 2024 slugs, sorted (~7 KB brotli)                                     |
+| `iconAliases`        | The 257 alias → canonical pairs                                           |
 | `IconName`           | Type union of every slug (types only, zero cost)                          |
 
 ### Measured costs
@@ -363,14 +363,14 @@ same resolution `<Icon>` performs at runtime.
 
 ## Recap
 
-- `<Icon name="save" />` resolves any of lucide's **1997 slugs**, with no setup.
+- `<Icon name="save" />` resolves any of lucide's **2024 slugs**, with no setup.
 - A **literal** slug becomes a static import via `tempestIcons()` (on by default in
   `createViteConfig`) → **zero extra requests**.
 - A **runtime** slug loads **one shard per initial letter** — 25 requests at most,
   never one per icon.
 - An unknown name renders `fallback` (nothing, by default) and **never throws**;
   `console.warn` in dev only.
-- Lucide's 248 old **aliases** keep resolving.
+- Lucide's 257 old **aliases** keep resolving.
 - `iconNames` stays **outside** what `<Icon>` costs — import it only to enumerate or
   validate.
 - **Do not declare `lucide-react` in your app**: it ships with the SDK, and a second

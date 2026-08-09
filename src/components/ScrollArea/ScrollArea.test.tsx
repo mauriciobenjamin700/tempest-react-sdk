@@ -18,9 +18,15 @@ describe("ScrollArea", () => {
         expect(screen.getByTestId("sa")).toHaveStyle({ maxHeight: "240px" });
     });
 
+    /**
+     * Asserted on the inline style, not the computed one: jsdom 30 resolves
+     * viewport units, so `getComputedStyle` reports `384px` for a 768px-tall
+     * default viewport. What this component promises is that the string reaches
+     * the element untouched — resolving it is the engine's job.
+     */
     it("applies a string maxHeight verbatim", () => {
         render(<ScrollArea maxHeight="50vh" data-testid="sa" />);
-        expect(screen.getByTestId("sa")).toHaveStyle({ maxHeight: "50vh" });
+        expect(screen.getByTestId("sa").style.maxHeight).toBe("50vh");
     });
 
     it("defaults to vertical overflow", () => {

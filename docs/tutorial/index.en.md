@@ -187,7 +187,7 @@ that's the route guard in action, which you'll learn in [Routing](routing.md).
 | `✗ Directory "my-app" exists and is not empty.`  | New-folder mode against an already populated folder.             | `cd my-app && npx -p tempest-react-sdk create-tempest-app .` — the `.` mode preserves your files. |
 | `Skipped N existing file(s)`                     | Not an error: the CLI **did not overwrite** files of yours.      | Check the list; to take the template version, delete the file and run again.                    |
 | Components render unstyled                       | The CSS import is missing.                                       | `import "tempest-react-sdk/styles.css"` in `src/main.tsx` (**no** `/dist/`).                     |
-| Syntax/engine error while running `npx`          | Old Node.                                                        | The SDK requires **Node >= 20.19**. Check with `node -v`.                                       |
+| Syntax/engine error while running `npx`          | Old Node.                                                        | The SDK requires **Node >= 22.12**. Check with `node -v`.                                       |
 | `VITE_API_URL` undefined at runtime              | Missing `.env`.                                                  | `cp .env.example .env` and point it at your backend.                                            |
 
 ## Recap

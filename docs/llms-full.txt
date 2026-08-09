@@ -2902,7 +2902,7 @@ Tooling
 
 ### O que ele verifica
 
-**Environment** — Node ≥ 20.19 (e aviso se for uma linha **não-LTS**, major ímpar); versão da CLI; versões do **TypeScript** (≥5) e **Vite** (≥5); `engines.node` do `package.json` satisfeito.
+**Environment** — Node ≥ 22.12 (e aviso se for uma linha **não-LTS**, major ímpar); versão da CLI; versões do **TypeScript** (≥5) e **Vite** (≥5); `engines.node` do `package.json` satisfeito.
 
 **Project** — `tempest-react-sdk` declarado e instalado (com versão); `react`/`react-dom` presentes; **React major** ≥ 18.
 
@@ -22834,7 +22834,7 @@ esse é o guard de rota em ação, que você vai entender em [Roteamento](routin
 | `✗ Directory "my-app" exists and is not empty.`                    | Modo pasta-nova com pasta já populada.                               | `cd my-app && npx -p tempest-react-sdk create-tempest-app .` — o modo `.` preserva seus arquivos. |
 | `Skipped N existing file(s)`                                       | Não é erro: a CLI **não sobrescreveu** arquivos seus.                | Confira a lista; se quiser a versão do template, remova o arquivo e rode de novo.               |
 | Componentes aparecem sem estilo                                    | Falta o import do CSS.                                               | `import "tempest-react-sdk/styles.css"` em `src/main.tsx` (**sem** `/dist/`).                    |
-| Erro de sintaxe/engine ao rodar o `npx`                            | Node antigo.                                                         | O SDK exige **Node >= 20.19**. Confira com `node -v`.                                           |
+| Erro de sintaxe/engine ao rodar o `npx`                            | Node antigo.                                                         | O SDK exige **Node >= 22.12**. Confira com `node -v`.                                           |
 | `VITE_API_URL` undefined em runtime                                | Faltou o `.env`.                                                     | `cp .env.example .env` e ajuste a URL do backend.                                               |
 
 ## Recap

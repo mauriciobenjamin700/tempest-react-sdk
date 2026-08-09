@@ -126,7 +126,7 @@ Tooling
 
 ### What it checks
 
-**Environment** — Node ≥ 20.19 (and a warning if it's a **non-LTS** line, odd major); CLI version; **TypeScript** (≥5) and **Vite** (≥5) versions; `package.json` `engines.node` satisfied.
+**Environment** — Node ≥ 22.12 (and a warning if it's a **non-LTS** line, odd major); CLI version; **TypeScript** (≥5) and **Vite** (≥5) versions; `package.json` `engines.node` satisfied.
 
 **Project** — `tempest-react-sdk` declared and installed (with version); `react`/`react-dom` present; **React major** ≥ 18.
 

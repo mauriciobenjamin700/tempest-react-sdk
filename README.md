@@ -155,7 +155,7 @@ Via `package.json`:
 }
 ```
 
-Requires React `>=18` and Node `>=20.19` to build.
+Requires React `>=18` and Node `>=22.12` to build.
 
 ### Peer & bundled dependencies
 

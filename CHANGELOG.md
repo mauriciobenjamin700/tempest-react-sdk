@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.42.0] — 2026-08-09
+
 ### Adicionado
 
 - **Guard de CI: as tabelas de ícone precisam bater com o `lucide-react`

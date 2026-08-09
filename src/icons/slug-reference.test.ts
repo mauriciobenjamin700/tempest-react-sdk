@@ -49,7 +49,7 @@ describe("docs/assets slug reference", () => {
 
     it("resolves every deprecated row to a slug that exists", () => {
         const rows = readAsset("icon-slugs.csv").slice(1);
-        const known = new Set(canonical);
+        const known = new Set<string>(canonical);
 
         for (const row of rows) {
             const [, status, target] = row.split(",");

@@ -1,12 +1,59 @@
 /**
- * @tempest-limits function-lines — createApiClient is three lines over the limit and
- * every one of them is a request-lifecycle concern the client cannot delegate: base
- * URL joining, the auth header, the retry loop, the timeout signal and the response
+ * @tempest-limits function-lines — createApiClient is over the limit and every line
+ * is a request-lifecycle concern the client cannot delegate: base URL joining, the
+ * auth header, the 401 refresh-and-replay, the opt-in retry wrapper and the response
  * parsing that turns a failure into a typed error.
  */
 import { randomId } from "../utils";
 import { buildApiError, TempestApiError } from "./errors";
+import { retry as retryWithBackoff } from "./retry";
+import type { RetryOptions } from "./retry";
 import type { ApiClient, ApiClientConfig, RequestOptions } from "./types";
+
+/**
+ * Methods the built-in retry policy will replay.
+ *
+ * `PUT` and `DELETE` are idempotent on paper but stay out: a backend that logs,
+ * bills, or fires a webhook per call still sees two, so replaying them is a
+ * decision the caller makes through `shouldRetry`, not a default.
+ */
+const IDEMPOTENT_METHODS: ReadonlySet<string> = new Set(["GET", "HEAD", "OPTIONS"]);
+
+/**
+ * Sub-500 statuses worth a second attempt: a network failure (status `0`), a
+ * request timeout, a too-early replay, and a rate limit — which usually carries
+ * the `Retry-After` the backoff already honours.
+ */
+const RETRIABLE_STATUSES: ReadonlySet<number> = new Set([0, 408, 425, 429]);
+
+/**
+ * The built-in retry policy, used when `retry` is `true` or is options carrying
+ * no `shouldRetry` of their own.
+ *
+ * Conservative on purpose. Replaying a write can duplicate it, and replaying a
+ * `400` or a `403` cannot fix a bad payload or a permission the caller does not
+ * have — it only spends the user's time before showing the same error.
+ *
+ * @param error - Whatever the attempt threw.
+ * @param method - The upper-cased HTTP method of the request.
+ * @returns Whether the client should try again.
+ */
+function isRetriableFailure(error: unknown, method: string): boolean {
+    if (!IDEMPOTENT_METHODS.has(method)) return false;
+    if (!(error instanceof TempestApiError)) return false;
+    return RETRIABLE_STATUSES.has(error.status) || error.status >= 500;
+}
+
+/**
+ * Normalize the `retry` config into options, or `null` when retrying is off.
+ *
+ * @param config - The `retry` field as the caller wrote it.
+ * @returns Retry options to use, or `null` to run a single attempt.
+ */
+function resolveRetry(config: boolean | RetryOptions | undefined): RetryOptions | null {
+    if (!config) return null;
+    return config === true ? {} : config;
+}
 
 function buildUrl(baseURL: string, path: string, params?: RequestOptions["params"]): string {
     const url = new URL(path, baseURL.endsWith("/") ? baseURL : `${baseURL}/`);
@@ -43,9 +90,29 @@ async function parseError(response: Response, sentRequestId?: string): Promise<T
 /**
  * Create a typed HTTP client backed by `fetch`.
  *
- * Handles JSON serialization, query params, bearer auth via `getToken`,
- * automatic refresh + retry on 401 when `refresh` is supplied, and uploads
- * via `FormData`. Throws an `ApiError` on non-2xx responses.
+ * Handles JSON serialization, query params, bearer auth via `getToken`, uploads
+ * via `FormData`, and throws a typed `ApiError` on any non-2xx response.
+ *
+ * **Expired sessions.** A `401` with `refresh` configured awaits the refresh and
+ * replays the request once. `onUnauthorized` fires whenever that path ends
+ * unauthorized anyway — the refresh threw, or the replay came back `401` — which
+ * is the signal to clear the session. Without `refresh`, the first `401` calls
+ * it directly.
+ *
+ * **Retries** are off unless you set `retry`. See {@link ApiClientConfig.retry}
+ * for the built-in policy; it never replays a write.
+ *
+ * @example
+ * const api = createApiClient({
+ *     baseURL: import.meta.env.VITE_API_URL,
+ *     getToken: () => useAuthStore.getState().token,
+ *     refresh,
+ *     onUnauthorized: () => useAuthStore.getState().logout(),
+ *     retry: true,
+ * });
+ *
+ * @param config - Base URL plus the optional auth, retry and fetch hooks.
+ * @returns A client with `request`/`get`/`post`/`put`/`patch`/`delete`/`upload`.
  */
 export function createApiClient(config: ApiClientConfig): ApiClient {
     const fetcher = config.fetcher ?? globalThis.fetch.bind(globalThis);
@@ -86,7 +153,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         return fetcher(buildUrl(config.baseURL, path, params), init);
     }
 
-    async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+    async function attempt<T>(path: string, options: RequestOptions): Promise<T> {
         const requestId = config.requestId ? config.requestId() : randomId();
         let response = await rawRequest(path, options, requestId);
 
@@ -98,6 +165,9 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
                 } catch {
                     await config.onUnauthorized?.(response);
                     throw await parseError(response, requestId);
+                }
+                if (response.status === 401) {
+                    await config.onUnauthorized?.(response);
                 }
             } else {
                 await config.onUnauthorized?.(response);
@@ -117,6 +187,18 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
             return (await response.json()) as T;
         }
         return (await response.text()) as unknown as T;
+    }
+
+    async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+        const retryOptions = resolveRetry(config.retry);
+        if (!retryOptions) return attempt<T>(path, options);
+
+        const method = (options.method ?? "GET").toUpperCase();
+        return retryWithBackoff(() => attempt<T>(path, options), {
+            ...retryOptions,
+            shouldRetry:
+                retryOptions.shouldRetry ?? ((error: unknown) => isRetriableFailure(error, method)),
+        });
     }
 
     async function upload<T>(

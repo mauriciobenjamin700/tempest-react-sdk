@@ -266,6 +266,35 @@ function ProtectedDashboard() {
 }
 ```
 
+### Quando a sessão morre de verdade
+
+Um `refresh()` que resolve não prova que a sessão está viva — o backend pode devolver um token que ele mesmo recusa (refresh token revogado, permissão retirada, corrida entre abas). Nesse caso o preset **limpa a sessão do mesmo jeito**: `isAuthenticated` vira `false`, o token guardado some, e o `<AuthGuard>` acima passa a renderizar o `fallback`. O app nunca fica preso num store que diz "autenticado" enquanto toda requisição dá 401.
+
+Isso basta na maioria dos apps, porque o guard já navega. Quando a expiração pode acontecer **fora** de qualquer subárvore guardada, passe `redirectTo` e o preset navega ele mesmo:
+
+```tsx
+export const auth = createTempestAuth<User>({
+    baseURL: import.meta.env.VITE_API_URL,
+    redirectTo: "/login", // navegação dura, só quando o guard não dá conta
+});
+```
+
+!!! tip "Prefira o guard ao `redirectTo`"
+    `redirectTo` usa `window.location.assign`, o que recarrega a aplicação inteira e descarta o histórico do router. O caminho declarativo (`<RouteGuard when={isAuthenticated} redirectTo="/login">`) mantém a SPA viva e não precisa de opção nenhuma — o `logout()` interno já dispara a navegação.
+
+    `redirectTo` **não** dispara num `auth.logout()` explícito: ali quem chamou normalmente já navega, e duas navegações competindo é pior que nenhuma.
+
+### Retentativa
+
+O cliente de `auth.api` aceita a mesma opção `retry` do [`createApiClient`](./http.md#retentativa-embutida) — desligada por default, e conservadora quando ligada (só método idempotente, só falha de rede/`5xx`/`429`):
+
+```tsx
+export const auth = createTempestAuth<User>({
+    baseURL: import.meta.env.VITE_API_URL,
+    retry: true,
+});
+```
+
 !!! info "Refresh token: corpo ou cookie"
     Por padrão, se o login devolver `refresh_token`, ele é guardado e enviado como `{ refresh_token }` no refresh. Se o seu backend usa cookie httpOnly, passe `withCredentials: true` e o refresh vai sem corpo, confiando no cookie.
 

@@ -37,6 +37,22 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   repetir a string. O teste do `ScrollArea` agora afere o estilo **inline**, que
   é o que o componente de fato promete — resolver a unidade é trabalho do motor.
 
+- **O guard de documentação passou a compilar todo exemplo com `import`, não só
+  os que importam do SDK** — de 442 para 480 blocos. Os 38 novos são programas
+  completos que só não citavam `tempest-react-sdk`: um `vite.config.ts` de
+  exemplo, um setup de teste, um componente que usa apenas React. Ninguém
+  verificava se ainda compilavam, e é justamente o tipo de página que envelhece
+  calada quando a assinatura de um plugin muda.
+
+  Nenhum defeito novo apareceu — os 38 já estavam corretos. O valor é a
+  regressão que deixa de passar: um símbolo inexistente num `import { … } from
+"vite"` agora reprova a suíte (verificado por mutação).
+
+  Fragmento puro (169 blocos) e declaração solta (74) seguem de fora, de
+  propósito: compilar um trecho de três linhas no meio da prosa só reportaria os
+  nomes que a página estabeleceu ao redor — ruído vestido de achado. O critério
+  agora é o `import`, que é o que separa um programa de um excerto.
+
 ## [0.41.0] — 2026-08-08
 
 ### Adicionado

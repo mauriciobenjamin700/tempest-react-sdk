@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.42.1] — 2026-08-14
+
 ### Corrigido
 
 - **`vision`: um buffer de pré-processamento que o consumidor transferiu agora é

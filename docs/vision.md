@@ -666,6 +666,52 @@ rende: dois modelos e a ponte compilam juntos na primeira inferência.
     await Promise.all([detector.warmup(), classifier.warmup()]);
     ```
 
+## Saindo da main thread (`env.wasm.proxy`)
+
+O backend WASM roda na thread que chamou ele — e essa é a main thread. Então
+criar a sessão e cada `predict()` **travam a interface** enquanto rodam. Medido
+num desktop de 32 núcleos: um `warmup()` de detector + classificador congelou a
+página por **805 ms**. Num celular de 4 núcleos / 2 GB, uma análise leva 50 a
+103 s.
+
+O ONNX Runtime tem uma flag pra isso. Com `env.wasm.proxy` ligada, ele cria um
+Web Worker próprio (`onnxruntime-web-proxy-worker`) e manda create, run e release
+por `postMessage`. O mesmo warmup medido acima: pior frame de **18 ms**, zero
+frames acima de 50 ms.
+
+Ligue **uma vez, antes da primeira sessão**:
+
+```tsx
+import { env } from "onnxruntime-web";
+import { Detector } from "tempest-react-sdk/vision";
+
+env.wasm.proxy = true; // antes do primeiro Detector.create
+
+const det = await Detector.create("/models/yolov8n.onnx", { labels: "coco" });
+await det.warmup(); // agora aquece sem travar a tela de carregamento
+const result = (await det.predict(frame))[0];
+```
+
+!!! warning "Antes da primeira sessão, não depois"
+    O ORT lê `env.wasm` quando inicializa o runtime WASM, e isso acontece dentro
+    do primeiro `InferenceSession.create`. Setar a flag depois disso é ignorado em
+    silêncio — a inferência volta pra main thread sem nada avisar. Num app com
+    sessões lazy, o lugar seguro é o começo da função que constrói a sessão, não
+    um hook de boot que um refactor pode reordenar.
+
+!!! note "O worker não deixa nada mais barato"
+    Ele muda *onde* o custo é pago, não o quanto. O heap WASM e a reserva de
+    memória compartilhada do build pthread apenas mudam de thread: um aparelho que
+    não consegue criar a sessão na main thread também não consegue no worker.
+
+!!! info "Precisa do `onnxruntime-web` >= 1.17 e desta versão do SDK"
+    O proxy posta os tensores de entrada com os `ArrayBuffer`s na *transfer list*,
+    o que **destaca** o buffer deste lado. As pipelines de pré-processamento
+    reusam um `Float32Array` entre chamadas, e até a 0.42.0 reentregavam o buffer
+    destacado — o ORT rejeitava com
+    `Tensor's size(1228800) does not match data length(0).` a cada duas
+    inferências. Corrigido nesta versão (vision vendorada `0.7.1`).
+
 ## Quanto tempo levou
 
 Todo envelope traz um `speed` com o tempo de cada etapa do `predict()`, em

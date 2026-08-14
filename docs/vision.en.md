@@ -666,6 +666,53 @@ inference.
     await Promise.all([detector.warmup(), classifier.warmup()]);
     ```
 
+## Getting off the main thread (`env.wasm.proxy`)
+
+The WASM backend runs on whichever thread called it — and that thread is the main
+one. So creating the session and every `predict()` **block the UI** while they
+run. Measured on a 32-core desktop: one detector + classifier `warmup()` froze the
+page for **805 ms**. On a 4-core / 2 GB phone, a single analysis takes 50 to
+103 s.
+
+ONNX Runtime has a flag for this. With `env.wasm.proxy` on, it creates its own Web
+Worker (`onnxruntime-web-proxy-worker`) and forwards create, run and release over
+`postMessage`. Same warmup as above: worst frame **18 ms**, zero frames over
+50 ms.
+
+Turn it on **once, before the first session**:
+
+```tsx
+import { env } from "onnxruntime-web";
+import { Detector } from "tempest-react-sdk/vision";
+
+env.wasm.proxy = true; // before the first Detector.create
+
+const det = await Detector.create("/models/yolov8n.onnx", { labels: "coco" });
+await det.warmup(); // now it warms up without freezing the loading screen
+const result = (await det.predict(frame))[0];
+```
+
+!!! warning "Before the first session, not after"
+    ORT reads `env.wasm` when it initialises the WASM runtime, which happens
+    inside the first `InferenceSession.create`. Setting the flag after that is
+    silently ignored — inference goes back to the main thread with nothing to say
+    so. In an app with lazy sessions, the safe place is the top of the function
+    that builds the session, not a boot hook a later refactor can reorder.
+
+!!! note "The worker makes nothing cheaper"
+    It changes *where* the cost is paid, not how much it is. The WASM heap and the
+    pthread build's shared-memory reservation simply move threads: a device that
+    cannot create the session on the main thread cannot create it in the worker
+    either.
+
+!!! info "Needs `onnxruntime-web` >= 1.17 and this SDK version"
+    The proxy posts the input tensors with their `ArrayBuffer`s in the transfer
+    list, which **detaches** them on this side. The preprocessing pipelines reuse
+    one `Float32Array` across calls, and up to 0.42.0 they handed the detached
+    buffer back — ORT rejected it with
+    `Tensor's size(1228800) does not match data length(0).` on every other
+    inference. Fixed in this version (vendored vision `0.7.1`).
+
 ## How long it took
 
 Every envelope carries a `speed` breakdown of the `predict()` call, in

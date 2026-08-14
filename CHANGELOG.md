@@ -6,6 +6,44 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **`vision`: um buffer de pré-processamento que o consumidor transferiu agora é
+  substituído, em vez de reescrito.** `LetterboxPipeline` e `ResizePipeline`
+  guardam um `Float32Array` e reentregam o mesmo a cada `run()` — é isso que as
+  torna livres de alocação por frame. Mas com `ort.env.wasm.proxy = true` (ONNX
+  Runtime num Web Worker, a única forma de tirar a inferência da main thread) o
+  ORT posta os tensores de entrada com os `ArrayBuffer`s na _transfer list_, o que
+  **destaca** o buffer deste lado.
+
+  Um `Float32Array` destacado tem `length === 0` em silêncio: as escritas não vão
+  a lugar nenhum e o `InferenceSession.run` seguinte rejeita com
+
+  ```text
+  Tensor's size(1228800) does not match data length(0).
+  ```
+
+  a cada **duas** chamadas — o buffer destacado lança, o lançamento deixa o claim
+  pendente, e a chamada seguinte aloca um array novo e passa. Medido no Chromium
+  contra um detector YOLO 640×640: run 1 ok (195 ms), run 2 rejeitada, run 3 ok
+  (206 ms). O classificador quebrava igual, com `Tensor's size(150528)`.
+
+  Na prática isso deixava `env.wasm.proxy` inutilizável com `Detector`,
+  `Classifier`, `Segmenter` e `DetectClassify` — e é a flag que decide se a
+  inferência trava a interface ou não: medido num desktop de 32 núcleos, um
+  `warmup()` de detector + classificador congelou a página por **805 ms** na main
+  thread, contra **18 ms** de pior frame pelo worker.
+
+  As duas pipelines passam a compartilhar um detentor de buffer que trata um
+  `length` que não bate mais com o alvo como gasto e aloca um substituto. Custo de
+  um transfer: **uma** alocação, em vez de uma falha a cada duas inferências. Para
+  quem copia o tensor em vez de transferir, o reuso continua idêntico, e a forma
+  pública não muda — `run()` segue reportando `reused: true` quando os dados são o
+  buffer da própria pipeline. Vision re-vendorada do
+  `@mauriciobenjamin700/ort-vision-sdk-web@0.7.1`.
+
+  Ver `docs/vision.md` → "Saindo da main thread (`env.wasm.proxy`)" para como
+  ligar (a flag tem que ser setada **antes** da primeira sessão; depois disso o
+  ORT ignora em silêncio).
+
 - **Uma sessão morta deixava de ser encerrada quando o `refresh()` dava certo mas
   a requisição repetida voltava 401.** O `createApiClient` só chamava
   `onUnauthorized` quando o próprio `refresh()` rejeitava; se ele resolvia e o

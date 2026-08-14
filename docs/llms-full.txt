@@ -14209,8 +14209,9 @@ Opções (todas exceto `baseURL` são opcionais):
 
 - `baseURL` — prefixo de toda requisição. **Obrigatório.**
 - `getToken()` — chamado a cada request; retornar string injeta `Authorization: Bearer <token>`.
-- `onUnauthorized(response)` — disparado em 401. Use pra deslogar.
+- `onUnauthorized(response)` — disparado sempre que a requisição termina sem autorização: 401 sem `refresh`, `refresh()` que rejeitou, ou repetição que voltou 401 de novo. Use pra deslogar.
 - `refresh()` — quando presente e o request der 401, o cliente aguarda `refresh()` e repete a requisição **uma vez**.
+- `retry` — `true` ou `RetryOptions`. **Desligado por default.** Ver [Retentativa embutida](#retentativa-embutida).
 - `withCredentials` — envia cookies em cross-origin (default `false`).
 - `headers` — headers default mesclados em toda request.
 - `fetcher` — implementação de `fetch` alternativa (default `globalThis.fetch`) — útil em testes.
@@ -14243,6 +14244,56 @@ Comportamento:
 
 !!! warning "`refresh` só repete uma vez"
     Se o `refresh()` rodar mas o retry ainda devolver 401, o cliente desiste, chama `onUnauthorized` e lança. Isso evita loop infinito de refresh quando a sessão realmente expirou.
+
+    **Esse segundo 401 é o caso que importa.** Um `refresh()` que resolve não prova que a sessão está viva: o backend pode devolver um token que ele mesmo recusa — refresh token revogado, permissão retirada, corrida entre abas. Sem `onUnauthorized` aí, o app ficaria com um store dizendo "autenticado" enquanto toda requisição dá 401, e o usuário veria um erro genérico sem caminho de volta pro login.
+
+## Retentativa embutida
+
+`retry` liga a repetição automática dentro do próprio cliente, com o mesmo backoff exponencial do helper `retry()`:
+
+```ts
+const api = createApiClient({
+  baseURL: import.meta.env.VITE_API_URL,
+  retry: true, // política embutida
+});
+
+const users = await api.get<User[]>("/users"); // repete sozinho se der 503
+```
+
+**Vem desligado**, e ligar não é obrigatório: sem `retry`, o cliente falha na primeira tentativa, exatamente como antes.
+
+A política embutida é conservadora de propósito:
+
+| Repete | Não repete |
+| ------ | ---------- |
+| `GET`, `HEAD`, `OPTIONS` | `POST`, `PUT`, `PATCH`, `DELETE` |
+| Falha de rede (status `0`), `408`, `425`, `429`, qualquer `5xx` | `400`, `401`, `403`, `404`, `422` — qualquer outro `4xx` |
+
+!!! danger "Escrita nunca repete sozinha"
+    Um `POST` repetido pode cobrar duas vezes, criar dois pedidos, disparar dois webhooks. `PUT` e `DELETE` são idempotentes no papel, mas um backend que registra ou fatura por chamada ainda vê duas — por isso ficam de fora também.
+
+    Para repetir uma escrita, torne-a idempotente com [`generateIdempotencyKey`](#generateidempotencykey) e passe seu próprio `shouldRetry`:
+
+    ```ts
+    const key = generateIdempotencyKey(); // uma vez, fora do loop
+
+    const api = createApiClient({
+      baseURL,
+      headers: { "Idempotency-Key": key },
+      retry: { shouldRetry: (error) => isApiError(error) && error.status >= 500 },
+    });
+    ```
+
+    Um `shouldRetry` seu **substitui a política inteira**, checagem de método incluída — é esse o ponto de escape.
+
+Repetir um `400` ou um `403` não conserta payload errado nem permissão que o usuário não tem: só gasta o tempo dele pra mostrar o mesmo erro. Por isso o corte é por status, não "qualquer erro".
+
+Detalhes que valem saber:
+
+- A retentativa envolve a requisição **inteira**, refresh incluído. Uma tentativa que gasta o ciclo de 401 → refresh → repetição conta como uma tentativa só.
+- Cada tentativa carrega o seu próprio `X-Request-ID`, então o backend consegue distinguir as tentativas nos logs.
+- `Retry-After` (em `429`/`503`) é respeitado e sobrepõe o backoff daquela tentativa.
+- Precisa de retentativa em uma chamada específica, não no cliente todo? O helper [`retry`](#retry--backoff-exponencial) continua ali e não foi alterado.
 
 ## `parseResponse`
 
@@ -14397,7 +14448,8 @@ try {
 ## Recap
 
 - `createApiClient({ baseURL, getToken, onUnauthorized, refresh, ... })` cria um cliente tipado; instancie uma vez e exporte.
-- 401 com `refresh` → tenta renovar e repete 1x; sem refresh ou falhando → `onUnauthorized` + `ApiError`.
+- 401 com `refresh` → tenta renovar e repete 1x. `onUnauthorized` dispara em todo desfecho sem autorização — sem refresh, refresh que rejeitou, ou repetição que voltou 401.
+- `retry: true` liga a retentativa dentro do cliente: só método idempotente, só falha de rede/`408`/`425`/`429`/`5xx`. Escrita nunca repete sozinha.
 - `parseResponse(schema, raw, context)` valida o payload com zod e aponta o campo divergente em dev.
 - `uploadWithProgress` usa XHR pra reportar progresso byte a byte; para arquivo grande, `createResumableUpload` divide em chunks e retoma — veja [Upload resumível](./resumable-upload.md).
 - `retry` (backoff exponencial + `shouldRetry`) e `usePoll` (intervalo com guarda de overlap) cobrem operações instáveis e acompanhamento de jobs.
@@ -14695,8 +14747,8 @@ GET .../icons/generated/shard-c.js   200
 … uma por letra usada, no máximo 25
 ```
 
-O maior shard (`s`, com 248 ícones) pesa **19,1 KB brotli**; a mediana fica em
-~5,1 KB. E `{ Icon }` sozinho custa **2,95 KB brotli** no bundle inicial.
+O maior shard (`s`, com 175 ícones) pesa **18,7 KB brotli**; a mediana fica em
+**5,0 KB**. O runtime do `<Icon>`, sem shard nenhum, custa **~1 KB brotli**.
 
 ## Custo zero de requisição para os slugs que você escreveu
 
@@ -14913,7 +14965,80 @@ runtime.
     um slug lucide. Pior: um punhado colide por acidente (`settings`, `code`,
     `key`, `lock`, `shield`, `tv`) e renderiza certo em ~10% das linhas, o que
     faz o problema parecer "sumiram alguns ícones". Converta o vocabulário antes
-    de gravar.
+    de gravar — ou use a ponte da próxima seção, se não puder mexer no seed.
+
+## Backend que grava Material Symbols
+
+A saída mais limpa é o backend passar a gravar slug lucide direto: um vocabulário
+só, ponta a ponta, e nada para traduzir. Quando isso não é possível — o seed é
+antigo, tem um app Flutter lendo o mesmo banco, ou você herdou os dados — o SDK
+oferece a ponte:
+
+```tsx
+import { Icon, fromMaterialSymbol } from "tempest-react-sdk/icons";
+
+export function CategoryTile({ category }: { category: Category }) {
+    return (
+        <li>
+            <Icon name={fromMaterialSymbol(category.icon_code)} size={20} />
+            <span>{category.name}</span>
+        </li>
+    );
+}
+```
+
+`fromMaterialSymbol` **nunca** devolve `undefined`. Um código que a tabela não
+conhece cai num glifo neutro (`circle-question-mark`), porque uma categoria criada
+no admin com um código novo ainda tem que desenhar alguma coisa em vez de abrir
+buraco no grid. Passe o segundo argumento quando o seu domínio tiver um padrão
+melhor:
+
+```tsx
+<Icon name={fromMaterialSymbol(category.icon_code, "folder")} size={20} />
+```
+
+### A tabela é uma semente, não o vocabulário inteiro
+
+Material Symbols tem ~3600 nomes e quase nenhum vai aparecer num `icon_code`
+nosso. `materialToLucide` cobre a interseção útil e **cresce sob demanda**, com
+cada par escrito à mão — mapa gerado por heurística de nome erra feio, a começar
+por `build`, que em Material Symbols é uma chave inglesa e não tem nada a ver com
+construção.
+
+| Material Symbol                              | lucide           | Observação                        |
+| -------------------------------------------- | ---------------- | --------------------------------- |
+| `build`, `handyman`, `hardware`              | `wrench`         | Aproximação — três para um        |
+| `format_paint`                               | `paint-roller`   |                                   |
+| `electrical_services`                        | `plug-zap`       |                                   |
+| `plumbing`                                   | `shower-head`    | Aproximação — lucide não tem cano |
+| `pedal_bike`, `two_wheeler`, `delivery_dining` | `bike`         | Aproximação — três para um        |
+| `settings`, `code`, `key`, `lock`, `shield`, `brush`, `tv`, `smartphone`, `mic`, `palette`, `router`, `gavel`, `warehouse` | (o mesmo nome) | Colidem por acidente |
+
+!!! info "Por que as colisões estão na tabela"
+    Esses treze já renderizam hoje, porque o nome bate nos dois vocabulários. Se
+    ficassem de fora, `fromMaterialSymbol` os mandaria para o fallback e a ponte
+    seria uma **regressão** justamente para os códigos que funcionavam.
+
+!!! warning "Passe a tabela no `include` do plugin"
+    Slug resolvido em runtime puxa o shard da letra inicial. Um catálogo com ~130
+    categorias toca quase todas as 25 letras, então o ganho de DX vira ~20
+    requisições se você não avisar o build:
+
+    ```ts
+    import { defineConfig } from "vite";
+    import { tempestIcons } from "tempest-react-sdk/vite";
+    import { materialToLucide } from "tempest-react-sdk/icons";
+
+    export default defineConfig({
+        plugins: [tempestIcons({ include: Object.values(materialToLucide) })],
+    });
+    ```
+
+!!! tip "Faltou um código?"
+    Abra uma issue com os `icon_code` que o seu seed usa. Cada par entra escrito
+    à mão e um teste trava a tabela inteira contra a lista real de slugs, então
+    uma entrada apontando para ícone inexistente reprova a suíte em vez de
+    chegar no seu grid.
 
 ## Referência
 
@@ -14929,19 +15054,34 @@ runtime.
 | `loadIcon`           | Carrega o shard de um slug                                              |
 | `resolveIconAlias`   | Slug depreciado → slug canônico                                        |
 | `isIconName`         | Type guard contra a lista real (importa a lista)                        |
+| `fromMaterialSymbol` | Código Material Symbols → slug lucide, sempre devolvendo um             |
+| `materialToLucide`   | A tabela de pares, para passar no `include` do plugin                   |
+| `MATERIAL_SYMBOL_FALLBACK` | O glifo neutro que um código desconhecido usa                    |
 | `iconNames`          | Os 2024 slugs, ordenados (~7 KB brotli)                                 |
 | `iconAliases`        | Os 257 pares alias → canônico                                          |
 | `IconName`           | União de tipo com todos os slugs (só tipo, custo zero)                  |
 
 ### Custos medidos
 
-| O que                                       | Brotli    |
-| ------------------------------------------- | --------- |
-| `{ Icon }` no bundle inicial                | 2,95 KB   |
-| `+ { iconNames }`                           | +5,7 KB   |
-| Maior shard (`s`, 247 ícones), sob demanda  | 19,2 KB   |
-| Shard mediano (`w`, 40 ícones), sob demanda | ~2,4 KB   |
-| Todos os 25 shards somados (teto absoluto)  | ~124,5 KB |
+| O que                                            | Brotli    |
+| ------------------------------------------------ | --------- |
+| Runtime do `<Icon>`, antes de qualquer shard     | ~1,0 KB   |
+| Menor shard (`x`, 1 ícone), sob demanda          | 1,1 KB    |
+| Shard mediano (`g`, 39 ícones), sob demanda      | 5,0 KB    |
+| Maior shard (`s`, 175 ícones), sob demanda       | 18,7 KB   |
+| `{ iconNames }` — a lista dos 2024 slugs         | 7,0 KB    |
+| Runtime + os 25 shards juntos (teto absoluto)    | 128,9 KB  |
+
+!!! info "Como isso foi medido"
+    Os shards e a lista saem do `size-limit` **com o `lucide-react` dentro da
+    medição** — é o que a rede realmente transfere, já que um shard só
+    re-exporta os ícones. Medir o arquivo emitido sozinho daria ~22 KB para os
+    25 e seria uma mentira confortável. O runtime é o brotli dos quatro módulos
+    que carregam antes do primeiro ícone (`Icon`, `shard-cache`, `use-icon`,
+    `icon-context`), que não puxam lucide nenhum.
+
+    Reproduza com `npm run build` seguido de `npx size-limit`, cujas entradas de
+    ícone estão em `.size-limit.json`.
 
 ## Recap
 
@@ -15577,6 +15717,35 @@ function ProtectedDashboard() {
         </AuthGuard>
     );
 }
+```
+
+### Quando a sessão morre de verdade
+
+Um `refresh()` que resolve não prova que a sessão está viva — o backend pode devolver um token que ele mesmo recusa (refresh token revogado, permissão retirada, corrida entre abas). Nesse caso o preset **limpa a sessão do mesmo jeito**: `isAuthenticated` vira `false`, o token guardado some, e o `<AuthGuard>` acima passa a renderizar o `fallback`. O app nunca fica preso num store que diz "autenticado" enquanto toda requisição dá 401.
+
+Isso basta na maioria dos apps, porque o guard já navega. Quando a expiração pode acontecer **fora** de qualquer subárvore guardada, passe `redirectTo` e o preset navega ele mesmo:
+
+```tsx
+export const auth = createTempestAuth<User>({
+    baseURL: import.meta.env.VITE_API_URL,
+    redirectTo: "/login", // navegação dura, só quando o guard não dá conta
+});
+```
+
+!!! tip "Prefira o guard ao `redirectTo`"
+    `redirectTo` usa `window.location.assign`, o que recarrega a aplicação inteira e descarta o histórico do router. O caminho declarativo (`<RouteGuard when={isAuthenticated} redirectTo="/login">`) mantém a SPA viva e não precisa de opção nenhuma — o `logout()` interno já dispara a navegação.
+
+    `redirectTo` **não** dispara num `auth.logout()` explícito: ali quem chamou normalmente já navega, e duas navegações competindo é pior que nenhuma.
+
+### Retentativa
+
+O cliente de `auth.api` aceita a mesma opção `retry` do [`createApiClient`](./http.md#retentativa-embutida) — desligada por default, e conservadora quando ligada (só método idempotente, só falha de rede/`5xx`/`429`):
+
+```tsx
+export const auth = createTempestAuth<User>({
+    baseURL: import.meta.env.VITE_API_URL,
+    retry: true,
+});
 ```
 
 !!! info "Refresh token: corpo ou cookie"
@@ -24573,6 +24742,52 @@ rende: dois modelos e a ponte compilam juntos na primeira inferência.
     ```tsx
     await Promise.all([detector.warmup(), classifier.warmup()]);
     ```
+
+## Saindo da main thread (`env.wasm.proxy`)
+
+O backend WASM roda na thread que chamou ele — e essa é a main thread. Então
+criar a sessão e cada `predict()` **travam a interface** enquanto rodam. Medido
+num desktop de 32 núcleos: um `warmup()` de detector + classificador congelou a
+página por **805 ms**. Num celular de 4 núcleos / 2 GB, uma análise leva 50 a
+103 s.
+
+O ONNX Runtime tem uma flag pra isso. Com `env.wasm.proxy` ligada, ele cria um
+Web Worker próprio (`onnxruntime-web-proxy-worker`) e manda create, run e release
+por `postMessage`. O mesmo warmup medido acima: pior frame de **18 ms**, zero
+frames acima de 50 ms.
+
+Ligue **uma vez, antes da primeira sessão**:
+
+```tsx
+import { env } from "onnxruntime-web";
+import { Detector } from "tempest-react-sdk/vision";
+
+env.wasm.proxy = true; // antes do primeiro Detector.create
+
+const det = await Detector.create("/models/yolov8n.onnx", { labels: "coco" });
+await det.warmup(); // agora aquece sem travar a tela de carregamento
+const result = (await det.predict(frame))[0];
+```
+
+!!! warning "Antes da primeira sessão, não depois"
+    O ORT lê `env.wasm` quando inicializa o runtime WASM, e isso acontece dentro
+    do primeiro `InferenceSession.create`. Setar a flag depois disso é ignorado em
+    silêncio — a inferência volta pra main thread sem nada avisar. Num app com
+    sessões lazy, o lugar seguro é o começo da função que constrói a sessão, não
+    um hook de boot que um refactor pode reordenar.
+
+!!! note "O worker não deixa nada mais barato"
+    Ele muda *onde* o custo é pago, não o quanto. O heap WASM e a reserva de
+    memória compartilhada do build pthread apenas mudam de thread: um aparelho que
+    não consegue criar a sessão na main thread também não consegue no worker.
+
+!!! info "Precisa do `onnxruntime-web` >= 1.17 e desta versão do SDK"
+    O proxy posta os tensores de entrada com os `ArrayBuffer`s na *transfer list*,
+    o que **destaca** o buffer deste lado. As pipelines de pré-processamento
+    reusam um `Float32Array` entre chamadas, e até a 0.42.0 reentregavam o buffer
+    destacado — o ORT rejeitava com
+    `Tensor's size(1228800) does not match data length(0).` a cada duas
+    inferências. Corrigido nesta versão (vision vendorada `0.7.1`).
 
 ## Quanto tempo levou
 

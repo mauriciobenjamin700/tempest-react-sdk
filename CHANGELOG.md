@@ -4,6 +4,41 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`AppBar`: aviso em desenvolvimento quando o CSS do app impede o sticky de
+  grudar.** `body { overflow-x: hidden }` — o jeito mais comum de impedir que um
+  filho largo demais arraste a página na horizontal — força o `overflow-y`
+  computado a virar `auto` (regra do CSS Overflow 3, não bug de browser) e com
+  isso transforma o `body` num **scroll container**. Todo elemento sticky passa
+  a se prender ao scrollport do `body` em vez do viewport, e esse scrollport
+  rola junto com o documento: medido no Chromium a 390px numa página longa, a
+  barra ficou em `top: -900px` depois de rolar 900px.
+
+  O modo de falha é invisível do lado do app — a barra continua com
+  `position: sticky` no DevTools, o markup não muda, e no desktop as telas
+  costumam caber sem rolagem. Aparece no Chrome Android, onde a barra de URL que
+  encolhe transforma qualquer tela em tela longa, e chega reportado como "a app
+  bar quebrou".
+
+  O SDK não tem como corrigir isso de dentro do componente: um elemento sticky
+  não tem como abrir mão do seu scroll container, e uma regra que o reset do SDK
+  trouxesse perderia para a folha de estilo do app, importada depois. O que dá
+  para fazer é nomear a causa — uma linha no console, uma vez por página, só em
+  dev, e só quando a barra é sticky:
+
+  ```text
+  [tempest-react-sdk] <AppBar sticky /> will not stick: `document.body` has
+  `overflow-x: hidden` … Fix: `html, body { overflow-x: clip }`, on both
+  elements, since neither clamps alone.
+  ```
+
+  A checagem lê o `overflow-x` do `body` em vez de caminhar pelos ancestrais,
+  porque é essa declaração isolada que constitui a falha: um app que quer mesmo
+  o `body` rolando escreve `overflow-y: auto`, e aí o sticky se comporta como
+  esperado. O que nunca é intencional é ganhar esse scroll container de brinde
+  ao clampar o outro eixo.
+
 ## [0.42.1] — 2026-08-14
 
 ### Corrigido

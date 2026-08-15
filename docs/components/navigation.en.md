@@ -117,6 +117,30 @@ router, pass `onBack={() => navigate(-1)}`.
     icon/menu on the right, pass any node to `actions`; to replace the whole left
     side (e.g. an avatar instead of the back button), use `leading`.
 
+!!! warning "Bar scrolling away?"
+    It is almost never the `AppBar` — it is one line of your app's global CSS:
+
+    ```css
+    /* ❌ the horizontal clamp that kills sticky */
+    body {
+        overflow-x: hidden;
+    }
+
+    /* ✅ same clamp, no scroll container */
+    html,
+    body {
+        overflow-x: clip;
+    }
+    ```
+
+    `overflow-x: hidden` on the body forces the computed `overflow-y` to `auto` — a CSS rule, not a browser bug — which makes the body a **scroll container**. Every sticky element then pins to the body's scrollport instead of the viewport, and that scrollport travels with the document. Measured in Chromium at 390px on a long page: the bar sat at `top: -900px` after scrolling 900px. Off screen.
+
+    On desktop the symptom barely shows, because screens usually fit without scrolling. On Chrome Android the collapsing URL bar turns every screen into a scrolling screen — and then it is gone every time.
+
+    `clip` has to be on **both** elements: with it on only `html`, or only `body`, the document still pans sideways.
+
+    In development the `AppBar` itself warns in the console when it detects this CSS. 💡
+
 ## `Sidebar`
 
 Desktop side nav. `items: SidebarItem[]`, `header`/`footer` slots, a `collapsed`

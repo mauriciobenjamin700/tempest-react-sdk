@@ -6,6 +6,49 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`describeApiError` e `useDescribeApiError` — do erro tipado para a frase da
+  tela.** O SDK dava `TempestApiError` e `isApiError` e nada que virasse a frase
+  exibível, então todo app escrevia o mesmo funil e errava no mesmo ponto: a
+  requisição que **não chegou** ao servidor tem `status === 0`, e sem tratamento
+  ela vira "erro 0" na tela.
+
+  A ordem é: requisição que não chegou (`status === 0`, ou erro qualquer com o
+  browser se declarando offline) → `detail` do backend → `fallback` do chamador
+  com `(HTTP <status>)` anexado. O `detail` sintético que `buildApiError` produz
+  quando a resposta não tem corpo (`Erro <status>`) é reconhecido e perde para o
+  `fallback`, porque "Erro 500" diz estritamente menos que "Não foi possível
+  carregar os pedidos".
+
+  As duas superfícies saíram porque resolvem **onde** o código roda, não gosto:
+  `describeApiError` é pura e funciona em interceptor, logger e fora da árvore
+  React; `useDescribeApiError` é o mesmo funil com a frase fixa resolvida pelo
+  `I18nProvider` ativo — e chama a função pura, sem duplicar a lógica. Sem
+  provider, ou com catálogo que não define `tempest.error.offline`, cai no default
+  pt-BR em vez de estourar ou imprimir a chave crua (que é o que `t` devolve num
+  miss). Para isso o i18n ganhou `useOptionalI18n`, que devolve `null` fora do
+  provider em vez de lançar como `useI18n`.
+
+- **`shouldRetryQuery`**, a política de retentativa que o `QueryProvider` agora
+  usa por padrão, exportada para quem monta o próprio `QueryClient`.
+
+### Alterado
+
+- **`QueryProvider` parou de retentar 4xx.** O default era `retry: 1` chapado, e
+  ele replicava um 403 numa listagem admin-only e um 404 de registro apagado — o
+  servidor recusou de propósito nos dois casos, então a segunda tentativa devolve
+  a mesma resposta, dobra o log de rede e segura o spinner por mais um round
+  trip.
+
+  O novo default retenta uma vez só o que pode mudar sozinho: falha de rede
+  (`status === 0`), `5xx`, `408`, `429` — que é uma recusa cujo significado
+  literal é "mais tarde" — e erro de formato desconhecido, que pode ser falha de
+  transporte. Todo o resto do 4xx falha de primeira.
+
+  **Migração:** quem dependia de retry em 4xx (fluxo de refresh de token feito na
+  mão, por exemplo) restaura o comportamento antigo com
+  `<QueryProvider defaultOptions={{ queries: { retry: 1 } }}>`. Um `client`
+  próprio nunca foi afetado — ele já ignora os defaults do SDK.
+
 - **`formatDateForInput` e `percentOf` — os dois utilitários que todo painel
   reescreve.** `formatDate` produz `dd/MM/yyyy`, que um `<input type="date">`
   rejeita: ele exige `yyyy-MM-dd`. O recorte que cada formulário reescreve é

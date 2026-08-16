@@ -275,6 +275,52 @@ try {
 }
 ```
 
+### Do erro tipado para a frase na tela — `describeApiError`
+
+O `try/catch` acima escreve a frase à mão, e todo app escreve o mesmo funil — errando sempre no mesmo lugar: a requisição que **não chegou** ao servidor tem `status === 0`, e sem tratamento ela vira "erro 0" na tela.
+
+```ts
+import { describeApiError } from "tempest-react-sdk";
+
+try {
+  await api.get("/pedidos");
+} catch (error) {
+  toast.error(describeApiError(error, "Não foi possível carregar os pedidos"));
+}
+```
+
+A ordem do funil:
+
+1. **Requisição que não chegou** — `status === 0`, ou um erro qualquer com o browser se declarando offline → frase de offline.
+2. **`detail` do backend** — o texto mais específico disponível, e já escrito para uma pessoa.
+3. **`fallback`**, com `(HTTP <status>)` anexado quando há status — o print no chamado de suporte carrega o único dado que o dev precisa.
+
+Duas superfícies, mesmo funil:
+
+| | Quando usar |
+| --- | --- |
+| `describeApiError(error, fallback, strings?)` | Função pura. Roda em interceptor, logger, qualquer lugar fora da árvore React. |
+| `useDescribeApiError()` | Hook. Resolve a frase fixa pelo `I18nProvider` ativo; devolve `(error, fallback) => string`. |
+
+```tsx
+import { useDescribeApiError } from "tempest-react-sdk";
+
+const describe = useDescribeApiError();
+const { mutate } = useMutation({
+  mutationFn: salvar,
+  onError: (error) => toast.error(describe(error, "Não foi possível salvar")),
+});
+```
+
+!!! info "O hook não duplica o funil — ele só entrega as strings"
+    `useDescribeApiError` chama a função pura. Existir nos dois formatos é sobre **onde** o código roda: contexto React não é alcançável de um interceptor, e passar tradução na mão em todo componente é o que o hook evita.
+
+!!! check "Funciona sem `I18nProvider`, e sem a chave no catálogo"
+    i18n é opt-in no SDK. Sem provider, ou com um catálogo que nunca definiu `tempest.error.offline`, a frase cai no default em pt-BR — em vez de estourar ou de imprimir a chave crua na cara do usuário (que é o que `t` devolve quando não encontra).
+
+!!! warning "`detail` sintético não vence o seu `fallback`"
+    Quando a resposta não traz corpo, `buildApiError` sintetiza `Erro <status>`. `describeApiError` reconhece esse texto e prefere o seu `fallback` — "Erro 500" diz estritamente menos que "Não foi possível carregar os pedidos".
+
 ## Recap
 
 - `createApiClient({ baseURL, getToken, onUnauthorized, refresh, ... })` cria um cliente tipado; instancie uma vez e exporte.
@@ -284,6 +330,7 @@ try {
 - `uploadWithProgress` usa XHR pra reportar progresso byte a byte; para arquivo grande, `createResumableUpload` divide em chunks e retoma — veja [Upload resumível](./resumable-upload.md).
 - `retry` (backoff exponencial + `shouldRetry`) e `usePoll` (intervalo com guarda de overlap) cobrem operações instáveis e acompanhamento de jobs.
 - `generateIdempotencyKey` — gere uma vez por operação, reutilize nos retries.
+- `describeApiError(error, fallback)` (puro) e `useDescribeApiError()` (com i18n) transformam o erro tipado na frase da tela, tratando `status === 0` como offline em vez de "erro 0".
 
 ## Veja também
 

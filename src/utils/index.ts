@@ -10,6 +10,12 @@ export {
     formatPercent,
 } from "./format";
 export { storage } from "./storage";
+export {
+    compressToString,
+    compressedStorage,
+    compressedStorageCodec,
+    decompressFromString,
+} from "./compressed-storage";
 export { slugify, truncate, capitalize, camelCase, kebabCase, pluralize } from "./strings";
 export { clamp, formatBytes, formatCompactNumber, percentOf } from "./numbers";
 export { relativeTime } from "./relative-time";

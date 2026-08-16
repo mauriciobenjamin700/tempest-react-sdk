@@ -76,17 +76,20 @@ granulares, testados e independentes — importe só o que precisar.
 
 ### Timers
 
-| Hook                           | O que faz                                         |
-| ------------------------------ | ------------------------------------------------- |
-| `useInterval(callback, delay)` | `setInterval` declarativo; `delay = null` pausa.  |
-| `useTimeout(callback, delay)`  | `setTimeout` declarativo; `delay = null` cancela. |
+| Hook                                                | O que faz                                                                                                    |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `useInterval(callback, delay)`                       | `setInterval` declarativo; `delay = null` pausa.                                                              |
+| `useTimeout(callback, delay)`                        | `setTimeout` declarativo; `delay = null` cancela.                                                             |
+| `useCountdown(durationMs, startedAt, { tickMs })`    | Tempo restante de uma janela, recalculado do relógio a cada tick. Trava em `0` e para o interval.             |
+| `useTypewriter(text, speedMs)`                       | `{ displayedText, isComplete, skip }` — revela o texto letra a letra. `speedMs <= 0` renderiza tudo de uma vez. |
 
 ### Performance
 
-| Hook                    | O que faz                               |
-| ----------------------- | --------------------------------------- |
-| `useStableCallback(fn)` | Ref estável que chama o callback atual. |
-| `useDeepMemo(value)`    | Memoização com igualdade estrutural.    |
+| Hook                     | O que faz                                                        |
+| ------------------------ | ---------------------------------------------------------------- |
+| `useStableCallback(fn)`  | Ref estável que chama o callback atual.                          |
+| `useLatestRef(value)`    | Ref estável cujo `current` é sempre o último `value` recebido.    |
+| `useDeepMemo(value)`     | Memoização com igualdade estrutural.                             |
 
 !!! tip "safe sem `window` por padrão"
     Os hooks que tocam APIs do browser (`useMediaQuery`, `useBreakpoint`,
@@ -398,6 +401,67 @@ function Tracker({ onSelect }: { onSelect: (id: string) => void }) {
     quando o callback muda de identidade. Já valores derivados (`useDebounce`,
     `useAsync` com `deps`) devem entrar nas deps normalmente — omiti-los gera bugs de
     valor obsoleto. Regra geral: confie no `eslint-plugin-react-hooks`.
+
+### Valor fresco dentro de um effect que roda uma vez — `useLatestRef`
+
+Um effect montado uma única vez — um interval, uma subscription, um listener — fica preso ao render que criou o closure. Listar o valor nas dependências desmonta e remonta o effect a cada mudança; omitir congela o valor. `useLatestRef` é a terceira saída:
+
+```tsx
+import { useEffect } from "react";
+import { useLatestRef } from "tempest-react-sdk";
+
+function Poller({ options }: { options: PollOptions }) {
+  const optionsRef = useLatestRef(options);
+
+  useEffect(() => {
+    const id = setInterval(() => poll(optionsRef.current), 5_000);
+    return () => clearInterval(id);
+  }, [optionsRef]); // o interval sobrevive a toda mudança de options — e lê a última
+
+  return null;
+}
+```
+
+!!! note "`useLatestRef` ou `useStableCallback`?"
+    Se o valor é uma **função que você quer chamar**, use `useStableCallback`: ele devolve algo chamável com identidade estável, sem obrigar cada call site a passar por `.current`. `useLatestRef` é para todo o resto — objetos de config, state, props.
+
+### Cooldown — `useCountdown`
+
+```tsx
+import { useCountdown } from "tempest-react-sdk";
+
+function ResendButton({ lastSentAt }: { lastSentAt: number }) {
+  const remaining = useCountdown(60_000, lastSentAt);
+
+  return (
+    <button disabled={remaining > 0}>
+      {remaining > 0 ? `Reenviar em ${Math.ceil(remaining / 1000)}s` : "Reenviar código"}
+    </button>
+  );
+}
+```
+
+O hook é escrito em cima de um **timestamp**, não de um contador que decrementa. O restante é recalculado de `Date.now()` a cada tick, então aba em background throttlada, frame lento ou `setInterval` que derrapa não fazem a contagem discordar do relógio — e remontar o componente retoma no valor certo em vez de reiniciar. O interval para ao chegar em zero, em vez de continuar rodando atrás de um clamp.
+
+Passe `{ tickMs: 50 }` quando o valor alimenta uma barra de progresso; o padrão de `1000` serve pro rótulo "tente de novo em Ns".
+
+### Texto revelado letra a letra — `useTypewriter`
+
+```tsx
+import { useMediaQuery, useTypewriter } from "tempest-react-sdk";
+
+function Dialogue({ line }: { line: string }) {
+  const reduced = useMediaQuery("(prefers-reduced-motion: reduce)");
+  const { displayedText, isComplete, skip } = useTypewriter(line, reduced ? 0 : 30);
+
+  return <p onClick={skip}>{displayedText}{isComplete ? "" : "▌"}</p>;
+}
+```
+
+Trocar `text` reinicia a revelação. O reset acontece **durante o render**, não num effect, então a string nova nunca pisca inteira por um frame antes da animação assumir.
+
+!!! warning "Sempre dê saída ao leitor"
+    Uma animação que não pode ser pulada é imposto sobre quem relê ou lê rápido. Ligue `skip` a um clique ou tecla — e trate `prefers-reduced-motion` passando `speedMs = 0`, que renderiza tudo de uma vez sem ramo condicional no componente.
 
 ### Disclosure — `useDisclosure`
 

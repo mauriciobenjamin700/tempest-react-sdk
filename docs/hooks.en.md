@@ -80,13 +80,16 @@ browser-guarded and independent hooks — import only what you need.
 | ------------------------------ | ------------------------------------------------- |
 | `useInterval(callback, delay)` | Declarative `setInterval`; `delay = null` pauses. |
 | `useTimeout(callback, delay)`  | Declarative `setTimeout`; `delay = null` cancels. |
+| `useCountdown(durationMs, startedAt, { tickMs })` | Time left on a window, recomputed from the clock each tick. Clamps at `0` and stops the interval. |
+| `useTypewriter(text, speedMs)` | `{ displayedText, isComplete, skip }` — reveals text character by character. `speedMs <= 0` renders it all at once. |
 
 ### Performance
 
-| Hook                    | What it does                                |
-| ----------------------- | ------------------------------------------- |
-| `useStableCallback(fn)` | Stable ref that calls the current callback. |
-| `useDeepMemo(value)`    | Memoization with structural equality.       |
+| Hook                    | What it does                                             |
+| ----------------------- | -------------------------------------------------------- |
+| `useStableCallback(fn)` | Stable ref that calls the current callback.              |
+| `useLatestRef(value)`   | Stable ref whose `current` is always the newest `value`. |
+| `useDeepMemo(value)`    | Memoization with structural equality.                    |
 
 !!! tip "browser-guarded by default"
     The hooks that touch browser APIs (`useMediaQuery`, `useBreakpoint`,
@@ -400,6 +403,67 @@ function Tracker({ onSelect }: { onSelect: (id: string) => void }) {
     the callback's identity changes. Derived values (`useDebounce`, `useAsync` with
     `deps`) should still go into the deps normally — omitting them causes stale-value
     bugs. Rule of thumb: trust `eslint-plugin-react-hooks`.
+
+### A fresh value inside a run-once effect — `useLatestRef`
+
+An effect mounted once — an interval, a subscription, a listener — is stuck with the render that created its closure. Listing the value in the dependencies tears the effect down and back up on every change; omitting it freezes the value. `useLatestRef` is the third way out:
+
+```tsx
+import { useEffect } from "react";
+import { useLatestRef } from "tempest-react-sdk";
+
+function Poller({ options }: { options: PollOptions }) {
+  const optionsRef = useLatestRef(options);
+
+  useEffect(() => {
+    const id = setInterval(() => poll(optionsRef.current), 5_000);
+    return () => clearInterval(id);
+  }, [optionsRef]); // the interval survives every options change — and still reads the latest
+
+  return null;
+}
+```
+
+!!! note "`useLatestRef` or `useStableCallback`?"
+    When the value is a **function you want to call**, use `useStableCallback`: it hands back something callable with a stable identity, instead of making every call site reach through `.current`. `useLatestRef` covers everything else — config objects, state, props.
+
+### Cooldown — `useCountdown`
+
+```tsx
+import { useCountdown } from "tempest-react-sdk";
+
+function ResendButton({ lastSentAt }: { lastSentAt: number }) {
+  const remaining = useCountdown(60_000, lastSentAt);
+
+  return (
+    <button disabled={remaining > 0}>
+      {remaining > 0 ? `Resend in ${Math.ceil(remaining / 1000)}s` : "Resend code"}
+    </button>
+  );
+}
+```
+
+The hook is built around a **timestamp**, not a counter that decrements. The remaining time is recomputed from `Date.now()` on every tick, so a throttled background tab, a slow frame or a drifting `setInterval` cannot make the countdown disagree with the clock — and remounting the component resumes at the right value instead of restarting. The interval stops at zero rather than running on behind a clamp.
+
+Pass `{ tickMs: 50 }` when the value drives a progress bar; the `1000` default suits a "try again in Ns" label.
+
+### Text revealed character by character — `useTypewriter`
+
+```tsx
+import { useMediaQuery, useTypewriter } from "tempest-react-sdk";
+
+function Dialogue({ line }: { line: string }) {
+  const reduced = useMediaQuery("(prefers-reduced-motion: reduce)");
+  const { displayedText, isComplete, skip } = useTypewriter(line, reduced ? 0 : 30);
+
+  return <p onClick={skip}>{displayedText}{isComplete ? "" : "▌"}</p>;
+}
+```
+
+Changing `text` restarts the reveal. The reset happens **during render**, not in an effect, so the new string never flashes in full for one frame before the animation takes over.
+
+!!! warning "Always give the reader a way out"
+    An animation that cannot be skipped is a tax on anyone re-reading or moving fast. Wire `skip` to a click or a key — and handle `prefers-reduced-motion` by passing `speedMs = 0`, which renders everything at once with no conditional branch in the component.
 
 ### Disclosure — `useDisclosure`
 

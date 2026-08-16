@@ -6,6 +6,29 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`useLatestRef(value)`** — ref estável cujo `current` é sempre o último valor
+  recebido. É a saída para ler state fresco dentro de algo que não pode ser
+  recriado quando esse state muda: um interval, uma subscription, um listener
+  registrado uma vez no mount. Listar o valor nas dependências desmonta e
+  remonta o effect; omitir congela o valor do render que criou o closure. A
+  escrita acontece **durante o render**, pelo mesmo motivo já documentado no
+  `useStableCallback` — um effect abriria uma janela de obsolescência de um
+  commit.
+
+- **`useCountdown(durationMs, startedAt, { tickMs })`** — tempo restante de uma
+  janela, em ms, travado em `0`. Escrito em cima de um **timestamp** em vez de
+  um contador que decrementa: o restante é recalculado de `Date.now()` a cada
+  tick, então aba throttlada, frame lento ou `setInterval` que derrapa não fazem
+  a contagem discordar do relógio, e remontar retoma no valor correto. O
+  interval para ao chegar em zero, em vez de continuar rodando atrás do clamp.
+
+- **`useTypewriter(text, speedMs)`** — revela uma string letra a letra,
+  devolvendo `{ displayedText, isComplete, skip }`. Trocar `text` reinicia a
+  revelação, e o reset acontece durante o render, então a string nova não pisca
+  inteira por um frame antes da animação assumir. `speedMs <= 0` renderiza tudo
+  de uma vez, que é a forma sem ramo condicional de honrar
+  `prefers-reduced-motion`.
+
 - **`compressedStorage`, `compressedStorageCodec`, `compressToString` e
   `decompressFromString`** — `localStorage` gzipado, sobre o `fflate` que o SDK
   já traz. `localStorage` dá ~5 MB por origem e cobra dois bytes por caractere;

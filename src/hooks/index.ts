@@ -36,6 +36,7 @@ export { useFocusTrap } from "./use-focus-trap";
 export { announce, clearAnnouncer, useAnnounce } from "./use-announce";
 export type { AnnouncePoliteness } from "./use-announce";
 export { useStableCallback } from "./use-stable-callback";
+export { useLatestRef } from "./use-latest-ref";
 export { useDeepMemo } from "./use-deep-memo";
 
 export { usePrevious } from "./use-previous";
@@ -54,6 +55,10 @@ export { useListState } from "./use-list-state";
 export type { ListStateHandlers, ReorderPayload } from "./use-list-state";
 export { useCounter } from "./use-counter";
 export type { CounterHandlers, UseCounterOptions } from "./use-counter";
+export { useCountdown } from "./use-countdown";
+export type { UseCountdownOptions } from "./use-countdown";
+export { useTypewriter } from "./use-typewriter";
+export type { UseTypewriterResult } from "./use-typewriter";
 export { useDocumentTitle } from "./use-document-title";
 export { useFavicon } from "./use-favicon";
 export { useMap } from "./use-map";

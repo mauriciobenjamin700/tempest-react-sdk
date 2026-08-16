@@ -48,6 +48,18 @@ installPrecache(); // app shell + offline navigation
 !!! note "Where the manifest comes from"
     `installPrecache` reads `precache-manifest.json`, emitted by the `tempestPwaManifest()` plugin from the `tempest-react-sdk/vite` subpath. See [Vite config](./vite-config.md).
 
+!!! warning "Deploying to a subpath (GitHub Pages and friends)"
+    `tempestPwaManifest()` prefixes the URLs with Vite's `base`, but `installPrecache` runs inside the worker and **cannot** see that config. When your `base` is not `/`, point both path options inside it:
+
+    ```ts
+    installPrecache({
+      manifestUrl: "/my-app/precache-manifest.json",
+      navigateFallback: "/my-app/index.html",
+    });
+    ```
+
+    With the defaults (`/precache-manifest.json` and `/index.html`) the worker installs, fetches a manifest that 404s, and offline navigation never resolves.
+
 ## 3. Background sync + periodic sync
 
 `installBackgroundSync` queues mutating requests (`POST`/`PUT`/`PATCH`/`DELETE`) that fail offline and replays them when the network returns — via the Background Sync API, with an opportunistic fallback for browsers without it (Safari).

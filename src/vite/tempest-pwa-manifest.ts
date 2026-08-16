@@ -14,6 +14,10 @@ export interface TempestPwaManifestOptions {
     /**
      * Extra URLs to precache that Vite doesn't emit into the bundle — typically
      * `public/` assets like the web manifest and icons. Default `[]`.
+     *
+     * Write these relative to the site root (`/icon.svg`); the resolved Vite
+     * `base` is prefixed for you. An entry that already carries the base is
+     * left alone, so spelling it out by hand is still correct.
      */
     additionalUrls?: string[];
     /** Emitted files matching this are skipped. Default `/\.map$/` (source maps). */
@@ -24,6 +28,9 @@ export interface TempestPwaManifestOptions {
      * App-shell document always added to the manifest, even if Vite emits it
      * after this plugin runs. Must match `installPrecache`'s `navigateFallback`
      * so offline navigations resolve. Pass `false` to disable. Default `/index.html`.
+     *
+     * Like {@link TempestPwaManifestOptions.additionalUrls}, this is prefixed
+     * with the resolved Vite `base`.
      */
     appShell?: string | false;
 }
@@ -31,6 +38,20 @@ export interface TempestPwaManifestOptions {
 function joinBase(base: string, file: string): string {
     const prefix = base.endsWith("/") ? base : `${base}/`;
     return `${prefix}${file}`.replace(/([^:]\/)\/+/g, "$1");
+}
+
+/**
+ * Prefix a caller-supplied, root-absolute URL with the resolved Vite `base`.
+ *
+ * Idempotent: a URL that already starts with the base is returned untouched,
+ * so configs written before this was applied — spelling the base out by hand —
+ * keep producing the same manifest instead of gaining a doubled prefix.
+ */
+function withBase(base: string, url: string): string {
+    const prefix = base.endsWith("/") ? base : `${base}/`;
+    if (prefix === "/") return url.startsWith("/") ? url : `/${url}`;
+    if (url.startsWith(prefix)) return url;
+    return `${prefix}${url.replace(/^\//, "")}`;
 }
 
 /** Deterministic djb2 hash → hex. Stable across rebuilds with the same assets. */
@@ -75,9 +96,9 @@ export function tempestPwaManifest(options: TempestPwaManifestOptions = {}): Tem
             base = config.base ?? "/";
         },
         generateBundle(_outputOptions, bundle) {
-            const urls = new Set<string>(additionalUrls);
+            const urls = new Set<string>(additionalUrls.map((url) => withBase(base, url)));
             // Vite may emit index.html after this hook, so guarantee the shell.
-            if (appShell) urls.add(appShell);
+            if (appShell) urls.add(withBase(base, appShell));
             for (const file of Object.keys(bundle)) {
                 if (file === fileName) continue;
                 if (exclude.test(file)) continue;

@@ -32,13 +32,6 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   mais de uma linha. A aritmética sai exportada como `buildBarListRows`, para quem
   quer o mesmo cálculo com outro desenho.
 
-### Alterado
-
-- **Budget de `size-limit` do `DataTable` subiu de 5,2 KB para 5,6 KB** — o modo
-  servidor custou 192 B brotli na fatia importada. Fatias novas entraram no
-  arquivo: `BarList` (1,2 KB) e "admin plumbing" (`applyFilters`,
-  `filtersToQueryParams`, `toCsv`, `downloadCsv`, `describeApiError`, 3 KB).
-
 - **`DataTable` ganhou modo servidor** — `totalItems`, `page`, `onPageChange`,
   `manualSort`, `onSortChange`, `manualSearch`, `onSearchChange` e `loading`. O
   componente era documentado como "Full, unfiltered dataset. Sorting/filtering/
@@ -97,24 +90,6 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 - **`shouldRetryQuery`**, a política de retentativa que o `QueryProvider` agora
   usa por padrão, exportada para quem monta o próprio `QueryClient`.
-
-### Alterado
-
-- **`QueryProvider` parou de retentar 4xx.** O default era `retry: 1` chapado, e
-  ele replicava um 403 numa listagem admin-only e um 404 de registro apagado — o
-  servidor recusou de propósito nos dois casos, então a segunda tentativa devolve
-  a mesma resposta, dobra o log de rede e segura o spinner por mais um round
-  trip.
-
-  O novo default retenta uma vez só o que pode mudar sozinho: falha de rede
-  (`status === 0`), `5xx`, `408`, `429` — que é uma recusa cujo significado
-  literal é "mais tarde" — e erro de formato desconhecido, que pode ser falha de
-  transporte. Todo o resto do 4xx falha de primeira.
-
-  **Migração:** quem dependia de retry em 4xx (fluxo de refresh de token feito na
-  mão, por exemplo) restaura o comportamento antigo com
-  `<QueryProvider defaultOptions={{ queries: { retry: 1 } }}>`. Um `client`
-  próprio nunca foi afetado — ele já ignora os defaults do SDK.
 
 - **`formatDateForInput` e `percentOf` — os dois utilitários que todo painel
   reescreve.** `formatDate` produz `dd/MM/yyyy`, que um `<input type="date">`
@@ -192,6 +167,90 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   default de campo de texto. Também há um caso especial: a coluna `name`, que o
   backend trata como `ILIKE %valor%` quando vem sem sufixo, recebe `name__iexact`
   no `eq`, senão o chip diria "é" e a query perguntaria "contém".
+
+- **`AppBar`: aviso em desenvolvimento quando o CSS do app impede o sticky de
+  grudar.** `body { overflow-x: hidden }` — o jeito mais comum de impedir que um
+  filho largo demais arraste a página na horizontal — força o `overflow-y`
+  computado a virar `auto` (regra do CSS Overflow 3, não bug de browser) e com
+  isso transforma o `body` num **scroll container**. Todo elemento sticky passa
+  a se prender ao scrollport do `body` em vez do viewport, e esse scrollport
+  rola junto com o documento: medido no Chromium a 390px numa página longa, a
+  barra ficou em `top: -900px` depois de rolar 900px.
+
+  O modo de falha é invisível do lado do app — a barra continua com
+  `position: sticky` no DevTools, o markup não muda, e no desktop as telas
+  costumam caber sem rolagem. Aparece no Chrome Android, onde a barra de URL que
+  encolhe transforma qualquer tela em tela longa, e chega reportado como "a app
+  bar quebrou".
+
+  O SDK não tem como corrigir isso de dentro do componente: um elemento sticky
+  não tem como abrir mão do seu scroll container, e uma regra que o reset do SDK
+  trouxesse perderia para a folha de estilo do app, importada depois. O que dá
+  para fazer é nomear a causa — uma linha no console, uma vez por página, só em
+  dev, e só quando a barra é sticky:
+
+  ```text
+  [tempest-react-sdk] <AppBar sticky /> will not stick: `document.body` has
+  `overflow-x: hidden` … Fix: `html, body { overflow-x: clip }`, on both
+  elements, since neither clamps alone.
+  ```
+
+  A checagem lê o `overflow-x` do `body` em vez de caminhar pelos ancestrais,
+  porque é essa declaração isolada que constitui a falha: um app que quer mesmo
+  o `body` rolando escreve `overflow-y: auto`, e aí o sticky se comporta como
+  esperado. O que nunca é intencional é ganhar esse scroll container de brinde
+  ao clampar o outro eixo.
+
+### Alterado
+
+- **Budget de `size-limit` do `DataTable` subiu de 5,2 KB para 5,6 KB** — o modo
+  servidor custou 192 B brotli na fatia importada. Fatias novas entraram no
+  arquivo: `BarList` (1,2 KB) e "admin plumbing" (`applyFilters`,
+  `filtersToQueryParams`, `toCsv`, `downloadCsv`, `describeApiError`, 3 KB).
+
+- **`QueryProvider` parou de retentar 4xx.** O default era `retry: 1` chapado, e
+  ele replicava um 403 numa listagem admin-only e um 404 de registro apagado — o
+  servidor recusou de propósito nos dois casos, então a segunda tentativa devolve
+  a mesma resposta, dobra o log de rede e segura o spinner por mais um round
+  trip.
+
+  O novo default retenta uma vez só o que pode mudar sozinho: falha de rede
+  (`status === 0`), `5xx`, `408`, `429` — que é uma recusa cujo significado
+  literal é "mais tarde" — e erro de formato desconhecido, que pode ser falha de
+  transporte. Todo o resto do 4xx falha de primeira.
+
+  **Migração:** quem dependia de retry em 4xx (fluxo de refresh de token feito na
+  mão, por exemplo) restaura o comportamento antigo com
+  `<QueryProvider defaultOptions={{ queries: { retry: 1 } }}>`. Um `client`
+  próprio nunca foi afetado — ele já ignora os defaults do SDK.
+
+### Corrigido
+
+- **`tempestPwaManifest()` ignorava o `base` do Vite em `appShell` e
+  `additionalUrls`.** Só os arquivos emitidos pelo bundle passavam por
+  `joinBase`; o app shell (default `/index.html`) e as URLs extras entravam
+  literais. Em qualquer app com `base` diferente de `/` — todo deploy em
+  GitHub Pages, para começar — o `precache-manifest.json` saía com o shell
+  apontando para fora da base. O worker instala, tenta cachear `/index.html`
+  onde só existe `/meu-app/index.html`, e o `navigateFallback` nunca resolve:
+  o app não abre offline, sem erro visível no build.
+
+  Agora as duas opções recebem o mesmo prefixo dos assets. A aplicação é
+  **idempotente**: uma URL que já começa com o `base` é devolvida intacta, para
+  que configs escritas contornando o bug — soletrando o prefixo à mão — sigam
+  produzindo exatamente o mesmo manifest em vez de ganharem `/app/app/…`.
+
+- **`tempestPwaDevSw()` só casava o caminho sem `base`.** O middleware comparava
+  `req.url` com `swUrl`/`manifestUrl` por igualdade exata, então um projeto
+  servido de um subpath pedia `/meu-app/sw.js` e caía no passthrough — sem
+  service worker em dev, que é justamente o buraco que o plugin existe para
+  tapar. O match agora aceita tanto o caminho puro quanto o prefixado com o
+  `base` resolvido.
+
+- **Documentado o `installPrecache` sob subpath.** O plugin de build enxerga o
+  `base`, mas o worker não: `manifestUrl` e `navigateFallback` continuam sendo
+  responsabilidade de quem escreve o `sw.ts`. As páginas de PWA (PT + EN) agora
+  trazem o aviso e o exemplo.
 
 ## [0.43.0] — 2026-08-16
 

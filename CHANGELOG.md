@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.44.0] — 2026-08-16
+
 ### Adicionado
 
 - **`BarList` — a distribuição ranqueada que o SDK mandava escrever à mão.**

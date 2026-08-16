@@ -201,6 +201,76 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   esperado. O que nunca é intencional é ganhar esse scroll container de brinde
   ao clampar o outro eixo.
 
+- **`createSfxPool` e `useSfxPool`** no módulo `audio` — pool de elementos
+  `<audio>` preallocados para efeitos sonoros curtos. `new Audio(src)` a cada
+  disparo aloca um elemento e re-entra na pilha de rede por um arquivo que o
+  navegador já tem, o que é a forma errada para um som que toca dezenas de
+  vezes por minuto. O módulo tinha `createAudioPlayer` (um clipe atual, com
+  loop e roteamento de saída — o caso de música de fundo) e nada para o caso
+  oposto: muitas fontes, todas curtas, dispara-e-esquece.
+
+  `voices` decide entre reiniciar o clipe (default `1`, o que um blip de menu
+  quer) e deixá-lo se sobrepor. `setVolume` reescala o que já está soando
+  **pelo ganho de cada clipe**, então um som iniciado a meio volume não é
+  puxado para o master. `useSfxPool` troca o volume no pool existente em vez de
+  recriá-lo — recriar jogaria fora todo elemento já baixado, exatamente o custo
+  que o pool evita.
+
+- **`lazyWithRetry` ganhou `.preload()`** (e o tipo `PreloadableLazy`). Chamar
+  no momento em que a rota fica provável — hover do link, abertura do menu,
+  fim do passo anterior — aquece o chunk antes do usuário decidir, e o
+  `Suspense` fallback não aparece. O trabalho é compartilhado com o caminho de
+  render: quem disparar primeiro faz o único fetch e o outro espera a mesma
+  promise, então chamar repetido é seguro.
+
+  A promise devolvida rejeita quando todos os retries falharam, mas a rejeição
+  já é tratada internamente — um preload especulativo que ninguém aguarda não
+  vira `unhandledrejection`. O mesmo `catch` limpa o memo, então um componente
+  que falhou não fica envenenado: uma tentativa posterior, depois que o error
+  boundary resetar, busca de novo. Mudança aditiva, sem quebra.
+
+- **`useLatestRef(value)`** — ref estável cujo `current` é sempre o último valor
+  recebido. É a saída para ler state fresco dentro de algo que não pode ser
+  recriado quando esse state muda: um interval, uma subscription, um listener
+  registrado uma vez no mount. Listar o valor nas dependências desmonta e
+  remonta o effect; omitir congela o valor do render que criou o closure. A
+  escrita acontece **durante o render**, pelo mesmo motivo já documentado no
+  `useStableCallback` — um effect abriria uma janela de obsolescência de um
+  commit.
+
+- **`useCountdown(durationMs, startedAt, { tickMs })`** — tempo restante de uma
+  janela, em ms, travado em `0`. Escrito em cima de um **timestamp** em vez de
+  um contador que decrementa: o restante é recalculado de `Date.now()` a cada
+  tick, então aba throttlada, frame lento ou `setInterval` que derrapa não fazem
+  a contagem discordar do relógio, e remontar retoma no valor correto. O
+  interval para ao chegar em zero, em vez de continuar rodando atrás do clamp.
+
+- **`useTypewriter(text, speedMs)`** — revela uma string letra a letra,
+  devolvendo `{ displayedText, isComplete, skip }`. Trocar `text` reinicia a
+  revelação, e o reset acontece durante o render, então a string nova não pisca
+  inteira por um frame antes da animação assumir. `speedMs <= 0` renderiza tudo
+  de uma vez, que é a forma sem ramo condicional de honrar
+  `prefers-reduced-motion`.
+
+- **`compressedStorage`, `compressedStorageCodec`, `compressToString` e
+  `decompressFromString`** — `localStorage` gzipado, sobre o `fflate` que o SDK
+  já traz. `localStorage` dá ~5 MB por origem e cobra dois bytes por caractere;
+  um app offline-first que guarda estado de verdade bate nesse teto e descobre
+  pelo `QuotaExceededError` no meio de uma escrita.
+
+  O formato é **autodescritivo**: todo valor gravado leva o prefixo `~tgz1:`, e
+  uma leitura sem o marcador cai no `JSON.parse` normal. Ligar compressão numa
+  chave que já existe portanto não exige migração nem órfã os dados já
+  gravados. O mesmo caminho cobre a escrita degradada — se a compressão falhar,
+  o valor vai como JSON puro em vez de ser descartado.
+
+  Mora em `src/utils/compressed-storage.ts`, não dentro de `storage.ts`, para
+  que importar o wrapper tipado simples continue sem arrastar `fflate`.
+
+  Não há um `useCompressedStorage`: `useLocalStorage` já aceita
+  `serialize`/`deserialize`, então `compressedStorageCodec` entra direto e um
+  hook novo seria só um wrapper repassando argumentos.
+
 ### Alterado
 
 - **Budget de `size-limit` do `DataTable` subiu de 5,2 KB para 5,6 KB** — o modo

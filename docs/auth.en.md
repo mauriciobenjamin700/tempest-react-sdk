@@ -137,6 +137,27 @@ export function SettingsRoute() {
 }
 ```
 
+### Warming the chunk — `preload()`
+
+The returned component carries a `preload()`. Call it when the route becomes **likely**, not when it is needed — hovering the link, opening the menu that holds it, finishing the step before it — and the chunk arrives before the user commits. The `Suspense` fallback simply never shows.
+
+```tsx
+<a href="/settings" onMouseEnter={() => void Settings.preload()}>
+  Settings
+</a>
+```
+
+The work is shared with the render path: whichever fires first performs the single fetch and the other awaits the same promise. Calling it repeatedly is safe.
+
+!!! tip "Warming several routes at once"
+    `preload()` returns the promise, so you can await a set of them:
+
+    ```ts
+    await Promise.all([Settings.preload(), Profile.preload()]);
+    ```
+
+    Or fire and forget — the rejection is already handled internally, so a speculative preload nobody awaits never becomes an `unhandledrejection`.
+
 ## Refresh queue — `createRefreshQueue`
 
 Coalesces N concurrent refresh calls into **1** request. While one refresh is in flight, every extra call gets the **same** promise; when it resolves, they all resume together.

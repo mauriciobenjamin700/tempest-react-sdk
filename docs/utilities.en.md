@@ -358,12 +358,56 @@ await downloadCsv(users, COLUMNS, "users.csv"); // hand it to the user
 
 ---
 
+## Compressed storage — `compressedStorage`
+
+`localStorage` gives you roughly **5 MB per origin** and bills **two bytes per character**. An offline-first app that stores real state — a game save, a long draft, a catalogue cache — hits that ceiling sooner than you would guess, and the symptom is a `QuotaExceededError` in the middle of a write, not a warning.
+
+`compressedStorage` is the same typed wrapper as `storage`, except it gzips what it writes:
+
+```ts
+import { compressedStorage } from "tempest-react-sdk";
+
+compressedStorage.set("save", { level: 12, inventory: items });
+
+const save = compressedStorage.get("save", null);
+```
+
+- `get<T>(key, fallback)` — decompresses and parses. A missing, unreadable or corrupt key returns `fallback`; it never throws.
+- `set<T>(key, value)` — compresses and writes.
+
+### The format is self-describing
+
+Every value written carries a `~tgz1:` prefix. That solves the annoying part of turning compression on for a key that already exists: a read without the marker falls through to a plain `JSON.parse`, so **data already stored stays readable**. No migration, no orphaned save.
+
+The same path covers a degraded write: if compression fails, the value is stored as plain JSON rather than dropped — a bigger record still loads, an absent one does not.
+
+!!! note "Why base64 rather than packing into UTF-16"
+    Base64 costs a third more characters than the raw compressed bytes, and `localStorage` still bills two bytes per character on top of that. Packing the bytes straight into UTF-16 code units would be denser, but lone surrogates survive neither every storage implementation nor a JSON round-trip — and a save that decodes to garbage is far worse than one that is bigger. Even with that slack, a typical JSON document lands well under a third of its original size.
+
+### With `useLocalStorage`
+
+For React state, pass the codec instead of using the imperative API — you get the hook's cross-tab sync and SSR guard for free:
+
+```ts
+import { compressedStorageCodec, useLocalStorage } from "tempest-react-sdk";
+
+const [save, setSave] = useLocalStorage("save", EMPTY_SAVE, compressedStorageCodec);
+```
+
+`compressToString` / `decompressFromString` are exported standalone too, for when the destination is not `localStorage` (a backup `POST`, an `IndexedDB` record).
+
+!!! warning "Not for everything"
+    Compression costs CPU on both ends. For a theme preference or a boolean flag, use plain `storage` — the gain is zero and the cost is not. `compressedStorage` starts paying off at payloads in the tens of KB.
+
+---
+
 ## Recap
 
 - Import any helper straight from `tempest-react-sdk` — they are all named, pure, tree-shakable exports.
 - **Spreadsheets**: `writeXlsx(headers, rows)` builds a single-sheet UTF-8 `.xlsx` as a `Uint8Array` (no CSV BOM drama).
 - **CSV**: `toCsv(rows, columns)` writes the file with RFC 4180 escaping and a BOM; `downloadCsv(...)` hands it straight to the user.
 - **Dates and percentages**: `formatDateForInput` gives the `yyyy-MM-dd` an `<input type="date">` insists on (from local parts, without the UTC shift); `percentOf` returns `0` instead of `NaN` when the base is zero.
+- **Compressed storage**: `compressedStorage.get/set` gzips what it writes; the self-describing format (`~tgz1:`) reads older values with no migration. In React, `useLocalStorage(key, def, compressedStorageCodec)`.
 - **Arrays/Objects**: `groupBy`, `uniqueBy`, `chunk`, `range`, `pick`, `omit`, `deepMerge`, `isEmpty` — always immutable; `deepMerge` replaces arrays instead of merging them.
 - **Guards**: `isDefined`, `isString`, `isNumber`, `isPlainObject`, `assertNever` — safe narrowing + `switch` exhaustiveness.
 - **Functions**: `debounce`/`throttle` (with `.cancel()`), `once`, `memoizeOne` to control execution.

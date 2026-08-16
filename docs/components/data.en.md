@@ -317,6 +317,183 @@ default text is used (`editLabels.saveFailed`).
     optimistic value already applied, so the new number shows correctly formatted while
     the save is still in flight.
 
+## `DataTable<T>` — server-side pagination
+
+> **When to use**: the ordinary admin listing. The backend paginates, filters and
+> sorts; the browser gets one page at a time and cannot answer "how many rows are
+> there" or "which one is first alphabetically" on its own.
+
+By default `DataTable` takes the **whole** dataset and does everything in memory.
+Pass `totalItems` and it switches modes: `data` becomes the current page, the page
+count comes from that number, and sorting and searching are delegated to you.
+
+```tsx
+import { useState } from "react";
+import {
+  DataTable,
+  usePaginatedQuery,
+  type DataTableColumn,
+  type DataTableSort,
+} from "tempest-react-sdk";
+
+type Person = { id: number; name: string; role: string };
+
+const COLUMNS: DataTableColumn<Person>[] = [
+  { key: "name", header: "Name", sortable: true },
+  { key: "role", header: "Role", sortable: true },
+];
+
+export function People() {
+  const [sort, setSort] = useState<DataTableSort<Person> | null>(null);
+  const [term, setTerm] = useState("");
+
+  const { items, total, pageNumber, setPage, isFetching } = usePaginatedQuery<Person>({
+    queryKey: ["people", sort, term],
+    queryFn: ({ page, size }) =>
+      fetch(`/api/people?page=${page}&size=${size}&q=${term}`).then((r) => r.json()),
+    pageSize: 20,
+  });
+
+  return (
+    <DataTable
+      data={items}
+      columns={COLUMNS}
+      rowKey={(row) => row.id}
+      pageSize={20}
+      totalItems={total}
+      page={pageNumber}
+      onPageChange={setPage}
+      onSortChange={(next) => {
+        setSort(next);
+        setPage(1);
+      }}
+      searchable
+      onSearchChange={(next) => {
+        setTerm(next);
+        setPage(1);
+      }}
+      loading={isFetching}
+    />
+  );
+}
+```
+
+!!! check "`usePaginatedQuery` is already the other half"
+    It owns the page and returns `items`, `total`, `pageNumber` and `setPage` — exactly the four props server mode asks for. No `useState` for the page; the state that remains is the sort and the term, because those belong to the **query key**.
+
+| Prop | Type | What it does |
+| --- | --- | --- |
+| `totalItems` | `number` | Turns on server mode and drives the page count. |
+| `page` | `number` | Controlled page, 1-based. |
+| `onPageChange` | `(page: number) => void` | Next page requested by the pager. |
+| `manualSort` | `boolean` | Delegates sorting. Implied by `totalItems`. |
+| `onSortChange` | `(sort: DataTableSort<T> \| null) => void` | `asc` → `desc` → `null`. |
+| `manualSearch` | `boolean` | Delegates searching. Implied by `totalItems`. |
+| `onSearchChange` | `(term: string) => void` | The typed term; debouncing is yours. |
+| `loading` | `boolean` | A request is in flight. |
+
+!!! danger "Search and sort **must** come along — filtering the page lies"
+    `searchable` on its own filters `data` in memory, and in server mode `data` is
+    only the current page. The user types, everything not on page 3 disappears, and
+    the table looks like it is saying "no such thing". That is why `totalItems`
+    already implies `manualSearch` and `manualSort`: sorting five rows while
+    claiming to have sorted 23 is the same kind of lie.
+
+!!! tip "`manualSort` and `manualSearch` are useful without server pagination too"
+    A full list in memory but ordered by the backend (by relevance, by a computed
+    field) is a legitimate case: pass `manualSort` without `totalItems`.
+
+!!! check "Loading and empty are different screens"
+    With rows on screen, `loading` dims them and marks `aria-busy` — the old rows
+    stay, so pagination does not jump under the cursor between pages. With no rows
+    yet, it draws placeholders at the real height instead of `emptyMessage`, because
+    "I am fetching" and "there is nothing" are not the same sentence.
+
+!!! warning "An incomplete combination warns in dev"
+    `totalItems` without a controlled `page`, `page` without `onPageChange`,
+    delegated sorting without `onSortChange` — each renders a screen that looks like
+    it works and does not (the header sorts and nothing moves). None of them is a
+    type error, so the warning goes to the `console` in development.
+
+!!! info "Client mode did not change a line"
+    Without `totalItems`, `manualSort`, `manualSearch` or `loading`, the markup and
+    the behaviour are exactly what they were — including the page clamp when the
+    dataset shrinks, which server mode deliberately turns off (the page is yours,
+    and a clamp against a `totalItems` that has not caught up would send the user to
+    a page they never asked for, mid-fetch).
+
+## `BarList`
+
+> **When to use**: a ranked distribution — users per plan, errors per endpoint,
+> sales per category. The most common chart on a panel, and the one usually written
+> four times in the same dashboard, each with its own CSS and its own `.sort()`.
+
+Label, proportional bar, value and (optionally) the share of the total. No recharts —
+it is a `div` with a percentage width, like `Sparkline`.
+
+```tsx
+import { BarList } from "tempest-react-sdk";
+
+<BarList
+  items={[
+    { label: "Free", value: 128 },
+    { label: "Pro", value: 32 },
+    { label: "Team", value: 16 },
+  ]}
+  valueFormatter={(n) => `${n} active`}
+  showPercentage
+  max={5}
+  otherLabel="Others"
+/>;
+```
+
+| Prop | Type | Default | What it does |
+| --- | --- | --- | --- |
+| `items` | `BarListItem[]` | — | `{ label, value, color? }`. Non-finite values are dropped. |
+| `valueFormatter` | `(value: number) => string` | — | How the number reads. |
+| `showPercentage` | `boolean` | `false` | Shows the share of the total next to the value. |
+| `sort` | `"desc" \| "asc" \| "none"` | `"desc"` | Ordering — `"none"` keeps the given order. |
+| `max` | `number` | — | Keeps at most N rows. |
+| `otherLabel` | `string` | — | Aggregates what `max` cut into a single row. |
+
+!!! info "Width and percentage are **different** numbers, on purpose"
+    Width is relative to the **largest** row, so the biggest bar fills the track. The
+    percentage is the share of the **total**. Scaling width by the total leaves every
+    bar short in a list of many small values — the chart stops being readable exactly
+    when it has the most rows.
+
+!!! check "It is a list, not a picture"
+    `<ul>`/`<li>` with the value written as **text**, and the bar `aria-hidden`
+    behind it. A screen reader reads "Free, 128, 62%" because that text is there, not
+    because an `aria-label` narrates a drawing.
+
+!!! danger "The label never sits on top of the bar"
+    Text over a tinted fill has to be re-verified against that fill — and the
+    `--tempest-chart-*` ramp is a **brand** ramp (3:1), which fails as text. The SDK
+    has been caught by this twice, and both times it only showed up in a real
+    browser, because `axe` under jsdom disables `color-contrast` with no paint. This
+    layout avoids the whole class of problem.
+
+!!! warning "A negative value draws no bar but stays in the list"
+    A bar of negative width does not exist: the width becomes 0 and the percentage
+    becomes 0, but the number is still shown. Dropping the row would be worse than
+    showing an odd one. For the same reason the total counts positive values only,
+    or the shares would not add up.
+
+!!! tip "A zero total shows zero, not `NaN%`"
+    The percentage goes through `percentOf`, so a freshly created panel shows `0%`
+    instead of the `NaN%` that `(part / total) * 100` would produce.
+
+!!! note "`otherLabel` only aggregates when more than one row was cut"
+    Collapsing a single row into "Others" would hide its name for nothing — in that
+    case it appears under its own name.
+
+!!! tip "The arithmetic is exported: `buildBarListRows`"
+    `buildBarListRows(items, sort, max, otherLabel)` returns the rows already
+    ordered, truncated and measured (`percentage`, `width`, `index`) without
+    rendering anything. Use it when you want the same maths behind a different
+    drawing — a legend, a table, an export.
+
 ## `ListTile`
 
 > **When to use**: the canonical Material list row — an item with a leading slot (icon/avatar), a title with an optional subtitle, and a trailing slot (icon, switch, meta). Ideal for settings lists, contacts, or menus.

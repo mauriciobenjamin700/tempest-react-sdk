@@ -837,7 +837,66 @@ export function Orders() {
 `FilterField = { name, label, type, options?, operators?, placeholder? }` · `type` ∈ `"text" | "number" | "date" | "select" | "boolean"`
 `Filter = { field, operator, value? }` · `operator` ∈ `eq · ne · contains · gt · gte · lt · lte · between · in · empty · notEmpty`
 
-**Exported helpers**: `filtersToSearchParams`, `filtersFromSearchParams`, `describeFilter`, `operatorsFor`.
+**Exported helpers**: `applyFilters`, `filtersToQueryParams`, `filtersToSearchParams`, `filtersFromSearchParams`, `describeFilter`, `operatorsFor`.
+
+#### Applying the filters
+
+`FilterBar` **produces** `Filter[]`; evaluating them is yours. The SDK ships both ends, and you pick one by list size, not by taste.
+
+**Whole list in memory** — `applyFilters` runs the eleven operators:
+
+```tsx
+import { FilterBar, applyFilters, type Filter } from "tempest-react-sdk";
+
+export function Orders({ orders }: { orders: Order[] }) {
+  const [filters, setFilters] = useState<Filter[]>([]);
+  const visible = useMemo(() => applyFilters(orders, filters), [orders, filters]);
+
+  return (
+    <>
+      <FilterBar fields={FIELDS} value={filters} onChange={setFilters} />
+      <DataTable data={visible} columns={COLUMNS} />
+    </>
+  );
+}
+```
+
+**Server-paginated listing** — `filtersToQueryParams`, which speaks the `tempest-fastapi-sdk` dialect:
+
+```tsx
+const params = filtersToQueryParams(filters);
+params.set("page", String(page));
+params.set("page_size", "20");
+
+const { data } = useQuery({
+  queryKey: ["orders", filters, page],
+  queryFn: () => api.get(`/orders?${params}`),
+});
+```
+
+| Operator | Param sent |
+| --- | --- |
+| `eq` | `field` (or `field__iexact` on the `name` column) |
+| `ne` | `field__ne` |
+| `contains` | `field__icontains` |
+| `gt` `gte` `lt` `lte` | `field__gt` … `field__lte` |
+| `between` | `field__between` twice, low value first |
+| `in` | `field__in`, once per value |
+| `empty` / `notEmpty` | `field__isnull=true` / `=false` |
+
+!!! danger "The backend must **declare** every key, or the filter fails silently"
+    `BasePaginationFilterSchema.get_conditions()` only forwards fields the subclass declares. A `status__ne` the schema never mentions is dropped by FastAPI before the repository sees it — no error, no filtering, and the full list comes back looking like "the filter didn't take". Declare `status__ne: str | None = None` on the filter schema for every operator the screen offers.
+
+!!! warning "`applyFilters` and the backend disagree on two points, deliberately"
+    **`ne` matches rows with no value.** In SQL, `column <> 'x'` is `NULL` for a `NULL` column and the row drops out. On the client, "is not paid" also shows the orders with no status at all — which is what the chip promises.
+    **`empty` matches blank text.** `__isnull` on the server only matches `NULL`; a column storing `""` instead of `NULL` answers differently on each side.
+    If one screen alternates between both modes, pick one per field and stay there.
+
+!!! info "`eq` is case-sensitive; `contains` is not"
+    That is the alignment with the server: `eq` becomes `WHERE column = value`, and a case-insensitive client would quietly disagree with it. `contains` becomes `icontains` and is insensitive on both sides — and since it is the **default** operator for text fields, the friendly behaviour is what you get without asking.
+
+!!! tip "Dates compare by **day**, and `between` is inclusive at both ends"
+    A row stamped `2026-03-05T13:00:00Z` matches `eq 2026-03-05`, and an inverted `between` (later date first) is **normalised** instead of matching nothing — someone who picked the end date first meant the range, not an empty list.
 
 !!! warning "Flat **AND**, not a tree with OR — and that is the chosen ceiling"
     Nested groups (`(a OR b) AND c`) are a different component: they need a tree UI with a per-node operator and a different serialization. Trying to be both produces a builder that is clumsy at the 95% case — "status is paid, created after March, title contains nota". If you need nested OR, what you want is a real query builder, and it does not fit behind this API.

@@ -1,6 +1,7 @@
 export { STALE_TIME, CACHE_TIME, REFETCH_TIME } from "./constants";
 export { createQueryKeys } from "./create-query-keys";
 export { QueryProvider } from "./QueryProvider";
+export { shouldRetryQuery } from "./retry-policy";
 export type { QueryProviderProps } from "./QueryProvider";
 export { isOffsetPage, isCursorPage, emptyOffsetPage } from "./pagination";
 export type { OffsetPage, CursorPage, OffsetParams, CursorParams } from "./pagination";

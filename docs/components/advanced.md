@@ -844,7 +844,66 @@ export function Pedidos() {
 `FilterField = { name, label, type, options?, operators?, placeholder? }` · `type` ∈ `"text" | "number" | "date" | "select" | "boolean"`
 `Filter = { field, operator, value? }` · `operator` ∈ `eq · ne · contains · gt · gte · lt · lte · between · in · empty · notEmpty`
 
-**Helpers exportados**: `filtersToSearchParams`, `filtersFromSearchParams`, `describeFilter`, `operatorsFor`.
+**Helpers exportados**: `applyFilters`, `filtersToQueryParams`, `filtersToSearchParams`, `filtersFromSearchParams`, `describeFilter`, `operatorsFor`.
+
+#### Aplicando os filtros
+
+O `FilterBar` **produz** `Filter[]`; quem avalia é você. O SDK dá as duas saídas, e você escolhe uma pelo tamanho da lista, não pelo gosto.
+
+**Lista inteira na memória** — `applyFilters` roda os onze operadores:
+
+```tsx
+import { FilterBar, applyFilters, type Filter } from "tempest-react-sdk";
+
+export function Pedidos({ pedidos }: { pedidos: Pedido[] }) {
+  const [filtros, setFiltros] = useState<Filter[]>([]);
+  const visiveis = useMemo(() => applyFilters(pedidos, filtros), [pedidos, filtros]);
+
+  return (
+    <>
+      <FilterBar fields={CAMPOS} value={filtros} onChange={setFiltros} />
+      <DataTable data={visiveis} columns={COLUNAS} />
+    </>
+  );
+}
+```
+
+**Listagem paginada no servidor** — `filtersToQueryParams`, que fala o dialeto do `tempest-fastapi-sdk`:
+
+```tsx
+const params = filtersToQueryParams(filtros);
+params.set("page", String(pagina));
+params.set("page_size", "20");
+
+const { data } = useQuery({
+  queryKey: ["pedidos", filtros, pagina],
+  queryFn: () => api.get(`/pedidos?${params}`),
+});
+```
+
+| Operador | Param enviado |
+| --- | --- |
+| `eq` | `campo` (ou `campo__iexact` na coluna `name`) |
+| `ne` | `campo__ne` |
+| `contains` | `campo__icontains` |
+| `gt` `gte` `lt` `lte` | `campo__gt` … `campo__lte` |
+| `between` | `campo__between` duas vezes, menor primeiro |
+| `in` | `campo__in`, uma vez por valor |
+| `empty` / `notEmpty` | `campo__isnull=true` / `=false` |
+
+!!! danger "O backend precisa **declarar** cada chave, senão o filtro falha calado"
+    `BasePaginationFilterSchema.get_conditions()` só repassa campos que a subclasse declara. Um `status__ne` que o schema não menciona é descartado pelo FastAPI antes do repositório ver — sem erro, sem filtro, e a lista volta inteira parecendo que "o filtro não pegou". Declare `status__ne: str | None = None` no schema de filtro para cada operador que a tela oferece.
+
+!!! warning "`applyFilters` e o backend discordam em dois pontos, de propósito"
+    **`ne` casa linha sem valor.** No SQL, `coluna <> 'x'` é `NULL` quando a coluna é `NULL` e a linha some. No cliente, "não é pago" mostra também os pedidos sem status — que é o que o chip promete.
+    **`empty` casa texto em branco.** `__isnull` no servidor só casa `NULL`; coluna que guarda `""` em vez de `NULL` responde diferente dos dois lados.
+    Se a mesma tela alterna entre os dois modos, escolha um e fique nele por campo.
+
+!!! info "`eq` é sensível a maiúscula; `contains` não é"
+    É o alinhamento com o servidor: `eq` vira `WHERE coluna = valor`, e um cliente insensível discordaria dele. `contains` vira `icontains` e é insensível dos dois lados — e como é o operador **default** de campo de texto, o comportamento amigável é o que se ganha sem pedir.
+
+!!! tip "Data compara por **dia**, e `between` é inclusivo nas duas pontas"
+    Linha carimbada `2026-03-05T13:00:00Z` casa `eq 2026-03-05`, e um `between` invertido (data maior primeiro) é **normalizado** em vez de não casar nada — quem escolheu a data final primeiro quis o intervalo, não uma lista vazia.
 
 !!! warning "É **E** achatado, não árvore com OU — e isso é o teto escolhido"
     Grupos aninhados (`(a OU b) E c`) são outro componente: exigem UI de árvore com operador por nó e outra serialização. Tentar ser os dois produz um builder desengonçado justamente no caso de 95% — "status é pago, criado depois de março, título contém nota". Se você precisa de OU aninhado, o que você quer é um query builder de verdade, e ele não cabe atrás desta API.

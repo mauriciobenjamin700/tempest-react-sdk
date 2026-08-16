@@ -454,8 +454,10 @@ export type {
     FilterOperator,
 } from "./FilterBar";
 export {
+    applyFilters,
     describeFilter,
     filtersFromSearchParams,
+    filtersToQueryParams,
     filtersToSearchParams,
     operatorsFor,
 } from "./FilterBar";

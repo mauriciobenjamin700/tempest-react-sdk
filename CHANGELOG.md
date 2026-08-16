@@ -4,6 +4,44 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`applyFilters` e `filtersToQueryParams` — a metade que faltava do modelo de
+  filtro** (`tempest-react-sdk`, exportados junto do `FilterBar`). O modelo era
+  completo em tudo menos **aplicar**: `operatorsFor`, `describeFilter`,
+  `isComplete`, `filtersToSearchParams` e `filtersFromSearchParams` já existiam, e
+  o docstring deste último até admitia o buraco ao falar em "rendering a filter
+  the app cannot evaluate". Resultado prático: o `FilterBar` produzia `Filter[]` e
+  cada app reescrevia o match dos onze operadores.
+
+  `applyFilters(items, filters)` roda o conjunto em memória, combinando com **E**
+  e ignorando filtro incompleto (formulário meio preenchido não esvazia a tabela
+  embaixo dele). A comparação segue o tipo da **linha**, não o do filtro — que
+  sempre chega como texto, vindo de input e de URL: número compara
+  numericamente, data compara **por dia** (linha carimbada
+  `2026-03-05T13:00:00Z` casa `eq 2026-03-05`), e o resto compara como texto com
+  `numeric: true`. `between` é inclusivo nas duas pontas e **normaliza** o par
+  invertido, porque quem escolheu a data final primeiro quis o intervalo, não uma
+  lista vazia.
+
+  `filtersToQueryParams(filters)` é a mesma coisa do lado servidor, encodada no
+  dialeto que o `tempest-fastapi-sdk` já lê — o sufixo `<coluna>__<op>` de
+  `build_filter_condition` (`tempest_fastapi_sdk/db/expressions.py`): `ne` →
+  `__ne`, `contains` → `__icontains`, `between` → `__between` repetido, `in` →
+  `__in` por valor, `empty`/`notEmpty` → `__isnull=true`/`=false`. Devolve
+  `URLSearchParams` e **não** `Record<string, string>`, porque `between` carrega
+  um par e `in` carrega uma lista: um objeto guardaria só o último valor e
+  estreitaria o filtro em silêncio.
+
+  Duas divergências entre os dois modos são deliberadas e estão documentadas:
+  `ne` casa linha sem valor no cliente (no SQL, `coluna <> 'x'` com `NULL` derruba
+  a linha) e `empty` casa texto em branco no cliente (o `__isnull` do servidor só
+  casa `NULL`). `eq` ficou **sensível a maiúscula** justamente para não discordar
+  do `WHERE coluna = valor` — o operador insensível é o `contains`, que já é o
+  default de campo de texto. Também há um caso especial: a coluna `name`, que o
+  backend trata como `ILIKE %valor%` quando vem sem sufixo, recebe `name__iexact`
+  no `eq`, senão o chip diria "é" e a query perguntaria "contém".
+
 ## [0.43.0] — 2026-08-16
 
 ### Alterado

@@ -4,6 +4,74 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Alterado
+
+- **`react-router` virou peer dependency (`^7 || ^8`), em vez de dependência
+  direta fixada em `^8.3.0`.** É a única exceção à regra "só `react` e
+  `react-dom` são peers", e a razão é a mesma que vale para o próprio React:
+  `react-router` guarda contexto. Como dependência direta, um app que já tivesse
+  `react-router` numa versão fora do range do SDK ganhava uma **cópia aninhada**
+  em `tempest-react-sdk/node_modules` — um `<Router>` diferente do que o app
+  renderiza. Aí todo hook do SDK que alcança esse contexto estoura com
+
+  ```text
+  useNavigate() may be used only in the context of a <Router> component.
+  ```
+
+  Isso não é regressão de bundle size, é crash de runtime — e o próprio
+  `tempest doctor` já listava `react-router` entre as libs cujas cópias
+  duplicadas ele acusa (`STATEFUL_DEPS`), enquanto o `package.json` continuava
+  criando exatamente essa duplicação. Os outros direct deps (`zod`, `dexie`,
+  `lucide-react`, …) não têm o problema: duas cópias custam bytes, não correção.
+
+  O range abriu para `^7 || ^8` porque a superfície que o SDK usa e re-exporta é
+  idêntica nos dois majors — `BrowserRouter`/`HashRouter`/`MemoryRouter`,
+  `Routes`/`Route`, `Navigate`, os hooks, `redirect`, `useRouteError` — e nenhum
+  dos dois usa `react-router-dom` (os bindings de DOM vêm no próprio
+  `react-router` desde a v7). Validado rodando `npm run typecheck` e a suíte de
+  `src/router` contra `react-router@7.18.2` e `@8.3.0`: 12 testes verdes e
+  typecheck limpo nas duas.
+
+  **Migração:** apps que instalam via `npm` (v7+) não precisam fazer nada — o npm
+  instala peers automaticamente. Em `pnpm` com `strict-peer-dependencies`, ou em
+  qualquer setup que não auto-instale peers, adicione ao seu `package.json`:
+
+  ```bash
+  npm install react-router
+  ```
+
+  Apps que já dependiam de `react-router` diretamente passam a ter **uma** cópia
+  em vez de duas, sem mudar nenhum import.
+
+### Corrigido
+
+- **Doc drift no `react-router` e no `lucide-react`.** O README anunciava
+  `react-router` (`^7`) e `lucide-react` (`>=0.400`) enquanto o `package.json`
+  fixava `^8.3.0` e `^1.31.0`. As tabelas de dependência do README e de
+  `docs/architecture` foram reconciliadas com o manifesto.
+- **Docstrings do módulo `router` divergentes entre si.** `src/router/index.ts`
+  dizia "v8, declarative mode" e `AppRouter` dizia "v7, declarative mode", na
+  mesma release. Ambas agora declaram `^7 || ^8` e registram por que o pacote é
+  peer.
+- **Duas âncoras mortas em `docs/http.md` / `docs/http.en.md`.** Os links para o
+  helper `retry` usavam `#retry--backoff-exponencial` (hífen duplo) enquanto o
+  slug real é `#retry-backoff-exponencial`. O `mkdocs build --strict` **não**
+  pega isso: âncora inexistente sai como `INFO`, e `--strict` só promove
+  `WARNING` a erro. Corrigidos, e agora cobertos por
+  `test/docs-anchors.test.ts` — que valida as 163 âncoras internas das duas
+  línguas, portando o `slugify` do `toc` do Python-Markdown e espelhando a
+  reescrita de link do `mkdocs-static-i18n` (uma página `.en.md` que linka
+  `theme.md` cai no mirror EN, não na página PT).
+- **`template/package.json` fixava `tempest-react-sdk: ^0.27.0`**, 15 minors
+  atrás. O valor nunca chegava ao app gerado — `create-tempest-app` carimba a
+  versão viva por cima em todos os caminhos de escrita — então era só um número
+  morto que envelhecia e enganava quem lia o arquivo. A chave saiu, o porquê
+  ficou registrado no docstring de `readSdkVersion`, e
+  `test/scaffold-template.test.ts` agora trava o contrato dos dois consumidores
+  internos: `template/` e `examples/gallery/` precisam declarar **todo** peer
+  obrigatório do SDK, e o template não pode voltar a fixar o SDK. É o guard que
+  teria apontado os três lugares que a mudança de peer do `react-router` exigiu.
+
 ## [0.42.1] — 2026-08-14
 
 ### Corrigido

@@ -67,7 +67,16 @@ async function isEmptyDir(dir) {
     return entries.filter((e) => e !== ".git").length === 0;
 }
 
-/** Read the SDK's own version so the generated app pins a matching range. */
+/**
+ * Read the SDK's own version so the generated app pins a matching range.
+ *
+ * This is why `template/package.json` deliberately does **not** list
+ * `tempest-react-sdk` in its dependencies: every write path below stamps the
+ * live version over whatever is there, so a literal range in the template is a
+ * dead value that only drifts (it sat at `^0.27.0` fifteen minors after the
+ * fact) and misleads whoever reads the file. `test/scaffold-template.test.ts`
+ * keeps it out.
+ */
 async function readSdkVersion() {
     try {
         const pkg = JSON.parse(await readFile(join(PKG_ROOT, "package.json"), "utf8"));

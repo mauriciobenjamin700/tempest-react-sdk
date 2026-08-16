@@ -1,19 +1,28 @@
 # Routing
 
-O módulo `routing` do `tempest-react-sdk` embrulha o **React Router v8 (modo declarativo)** e devolve uma superfície única de import: você declara sua árvore de rotas com `defineRoutes`, monta tudo com um único `<AppRouter>` e importa cada primitivo (`Link`, `Outlet`, `useNavigate`, …) direto do SDK — nunca do `react-router`. Em cima do v8, o SDK adiciona o que todo app Tempest repete na mão: code-splitting com retry automático em chunk velho, guards declarativos de rota e um `<Suspense>` já pronto. Esta página te leva do zero a uma árvore com layout aninhado, lazy loading e rotas protegidas.
+O módulo `routing` do `tempest-react-sdk` embrulha o **React Router em modo declarativo** (`^7 || ^8`) e devolve uma superfície única de import: você declara sua árvore de rotas com `defineRoutes`, monta tudo com um único `<AppRouter>` e importa cada primitivo (`Link`, `Outlet`, `useNavigate`, …) direto do SDK. Em cima disso, o SDK adiciona o que todo app Tempest repete na mão: code-splitting com retry automático em chunk velho, guards declarativos de rota e um `<Suspense>` já pronto. Esta página te leva do zero a uma árvore com layout aninhado, lazy loading e rotas protegidas.
+
+!!! warning "`react-router` é peer dependency — instale no seu app"
+    ```bash
+    npm install react-router
+    ```
+
+    O SDK **não** empacota o `react-router` junto, porque ele guarda contexto React: uma cópia aninhada em `tempest-react-sdk/node_modules` seria um `<Router>` diferente do seu, e todo hook do SDK estouraria com `useNavigate() may be used only in the context of a <Router>`. O range aceito é `^7 || ^8` — a superfície re-exportada aqui é idêntica nos dois majors, e nenhum deles usa `react-router-dom` (os bindings de DOM vêm no próprio `react-router`).
 
 ## Por que o SDK é dono do roteamento agora
 
-Antes, cada app instalava `react-router`, criava seu próprio `<Suspense>`, escrevia o seu helper de guard e reinventava o retry de chunk. Isso gerava divergência entre os apps Tempest e import paths espalhados.
+Antes, cada app criava seu próprio `<Suspense>`, escrevia o seu helper de guard e reinventava o retry de chunk. Isso gerava divergência entre os apps Tempest e import paths espalhados.
 
 Com o módulo `routing` você ganha:
 
-- **Uma só superfície de import.** Tudo vem de `"tempest-react-sdk"` — componentes, hooks e os primitivos re-exportados do React Router. Seu app nunca importa de `react-router`.
-- **v8 declarativo.** Você descreve _o que_ são as rotas (uma árvore de objetos), não _como_ montá-las imperativamente.
+- **Uma só superfície de import.** Tudo vem de `"tempest-react-sdk"` — componentes, hooks e os primitivos re-exportados do React Router. Seu app instala o `react-router` (peer), mas importa de um lugar só.
+- **Declarativo.** Você descreve _o que_ são as rotas (uma árvore de objetos), não _como_ montá-las imperativamente.
 - **Baterias inclusas.** `<AppRouter>` já constrói o router, o `<Suspense>` e as `<Routes>`. `defineRoutes` te dá tipagem. Guards e lazy loading são campos da própria rota.
 
 !!! info "Primitivos re-exportados"
     O SDK re-exporta os primitivos declarativos do React Router para você importar tudo do mesmo lugar: `BrowserRouter`, `HashRouter`, `MemoryRouter`, `Routes`, `Route`, `Outlet`, `Navigate`, `Link`, `NavLink`, `useNavigate`, `useParams`, `useSearchParams`, `useLocation`, `useMatch`, `useRouteError` e `redirect`.
+
+    Importar direto de `react-router` também funciona e resolve para a mesma cópia — o re-export existe por conveniência, não por isolamento. Isso torna a adoção incremental possível: um app que já usa `react-router` direto pode passar a usar o SDK sem reescrever import nenhum.
 
 ## Construindo a árvore com `defineRoutes`
 

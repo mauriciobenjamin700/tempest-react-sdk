@@ -102,7 +102,8 @@ export interface AppRouterProps {
 }
 
 /**
- * Render a full React Router (v7, declarative mode) from a {@link defineRoutes}
+ * Render a full React Router (v7 or v8, declarative mode) from a
+ * {@link defineRoutes}
  * tree: picks the history strategy, wraps everything in a `<Suspense>` boundary
  * for `lazy` routes, and applies per-route `guard` redirects. This is the
  * single entry point apps mount at their root.

@@ -159,27 +159,29 @@ Requires React `>=18` and Node `>=22.12` to build.
 
 ### Peer & bundled dependencies
 
-Only **react** and **react-dom** are peer dependencies — those must come from the host app so a single React copy lives in the tree.
+**react**, **react-dom** and **react-router** are peer dependencies — those must come from the host app, because a second copy is not just wasted bytes, it is a second _instance_ of a React context and it breaks at runtime.
 
-Everything else (`zod`, `zustand`, `dexie`, `react-hook-form`, `@tanstack/react-query`, `react-router`, `lucide-react`) is a **direct dependency** of the SDK, installed automatically by `npm install tempest-react-sdk`. You never need to install them manually.
+Everything else (`zod`, `zustand`, `dexie`, `react-hook-form`, `@tanstack/react-query`, `lucide-react`) is a **direct dependency** of the SDK, installed automatically by `npm install tempest-react-sdk`. You never need to install them manually.
 
 | Package                               | Status              | Used by                                                                 |
 | ------------------------------------- | ------------------- | ----------------------------------------------------------------------- |
 | `react`, `react-dom` (`^18 \|\| ^19`) | **Peer (required)** | Everything                                                              |
+| `react-router` (`^7 \|\| ^8`)         | **Peer (required)** | `AppRouter`, `defineRoutes`, `RouteGuard`, routing re-exports           |
 | `@tanstack/react-query` (`^5`)        | Direct dep (auto)   | `QueryProvider`, `createQueryKeys`, `AppProviders`                      |
 | `zod` (`^3.23 \|\| ^4`)               | Direct dep (auto)   | `parseResponse`, `validateForm`, `zodResolver`, `useZodForm`            |
 | `zustand` (`^4 \|\| ^5`)              | Direct dep (auto)   | `createAuthStore`, `createStore`, `createSelectors`                     |
-| `react-router` (`^7`)                 | Direct dep (auto)   | `AppRouter`, `defineRoutes`, `RouteGuard`, routing re-exports           |
 | `dexie` (`^4.4`)                      | Direct dep (auto)   | `createOfflineStore`                                                    |
 | `react-hook-form` (`^7.76`)           | Direct dep (auto)   | `zodResolver`, `useZodForm`, masked inputs                              |
-| `lucide-react` (`>=0.400`)            | Direct dep (auto)   | Component icons (`leftIcon`/`rightIcon` on `Input`, `Button`, etc.)     |
+| `lucide-react` (`^1.31`)              | Direct dep (auto)   | Component icons (`leftIcon`/`rightIcon` on `Input`, `Button`, etc.)     |
 | `vite`, `@vitejs/plugin-react`        | **Optional peer**   | `createViteConfig` (`tempest-react-sdk/vite`) — already in any Vite app |
 
 The minimum install is just:
 
 ```bash
-npm install tempest-react-sdk react react-dom
+npm install tempest-react-sdk react react-dom react-router
 ```
+
+**Why `react-router` is a peer and not a bundled dep.** It holds React context. A copy nested under `tempest-react-sdk/node_modules` is a _different_ `<Router>` context than the one your app renders, so any SDK hook reaching for it throws `useNavigate() may be used only in the context of a <Router>` — a runtime crash, not a size regression. That is the same reason `react` itself is a peer, and it is why `react-router` is the one exception to the "everything is a direct dep" rule. The `^7 || ^8` range means an app on either major installs one copy and the SDK adapts to it: the re-exported surface is identical across both, and both ship the DOM bindings inside `react-router` (there is no separate `react-router-dom`).
 
 **Bundle impact**: every bundled dep is externalised in the SDK's Rollup config, and `dist/` ships with the module graph preserved (one file per source module), so your bundler drops what you don't import instead of inheriting one opaque blob — importing `cn` alone costs **153 B** brotli, a full app shell around **6.8 KB**. Your app's bundler (Vite / webpack / Rspack) resolves the deps from `node_modules` and tree-shakes them the same way — if you never call `createOfflineStore`, Dexie never enters your final bundle.
 

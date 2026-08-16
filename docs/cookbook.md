@@ -10,7 +10,7 @@ fluxos que apps Tempest repetem o tempo todo. 🚀
     entrypoint do app:
 
     ```bash
-    npm install tempest-react-sdk
+    npm install tempest-react-sdk react react-dom react-router
     ```
 
     ```tsx
@@ -18,9 +18,10 @@ fluxos que apps Tempest repetem o tempo todo. 🚀
     import "tempest-react-sdk/styles.css";
     ```
 
-    Apenas `react` e `react-dom` são **peer dependencies** — o resto (`zod`,
-    `zustand`, `dexie`, `react-hook-form`, `@tanstack/react-query`, `lucide-react`,
-    `react-router`) é instalado junto como dependência direta. A versão publicada
+    `react`, `react-dom` e `react-router` (`^7 || ^8`) são **peer dependencies** —
+    os três carregam contexto React, então precisam vir do app em uma cópia só. O
+    resto (`zod`, `zustand`, `dexie`, `react-hook-form`, `@tanstack/react-query`,
+    `lucide-react`) é instalado junto como dependência direta. A versão publicada
     mais recente está na [página do npm](https://www.npmjs.com/package/tempest-react-sdk).
 
 ## Fluxo de autenticação completo

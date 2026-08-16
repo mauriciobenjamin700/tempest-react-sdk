@@ -65,15 +65,17 @@ A base opinativa que monta um app React inteiro. É o que a CLI
 
 ## Dependências
 
-Apenas **`react`** + **`react-dom`** são **peer dependencies** (regra de uma
-única instância do React). Todo o resto é **dependência direta** — instalada
-automaticamente por `npm install tempest-react-sdk` e externalizada no bundle
-(o bundler do app resolve do `node_modules` e faz tree-shake).
+**`react`**, **`react-dom`** e **`react-router`** são **peer dependencies** — os
+três carregam contexto React, e uma segunda cópia não é peso extra no bundle, é
+uma segunda *instância* que quebra em runtime. Todo o resto é **dependência
+direta** — instalada automaticamente por `npm install tempest-react-sdk` e
+externalizada no bundle (o bundler do app resolve do `node_modules` e faz
+tree-shake).
 
 | Pacote                         | Status              | Usado por                                                                                |
 | ------------------------------ | ------------------- | ---------------------------------------------------------------------------------------- |
 | `react`, `react-dom`           | **Peer (obrigat.)** | Tudo                                                                                     |
-| `react-router@8`           | Dep direta          | `AppRouter`, `defineRoutes`, `RouteGuard`, re-exports                                    |
+| `react-router` (`^7 \|\| ^8`)  | **Peer (obrigat.)** | `AppRouter`, `defineRoutes`, `RouteGuard`, re-exports                                    |
 | `zustand`                      | Dep direta          | `createStore`, `createSelectors`, `createAuthStore`                                      |
 | `@tanstack/react-query`        | Dep direta          | `QueryProvider`, `createQueryKeys`, `AppProviders`                                       |
 | `zod`                          | Dep direta          | `parseResponse`, `validateForm`, `zodResolver`, `useZodForm`                             |
@@ -82,11 +84,22 @@ automaticamente por `npm install tempest-react-sdk` e externalizada no bundle
 | `lucide-react`                 | Dep direta          | Ícones (`leftIcon`/`rightIcon`)                                                          |
 | `vite`, `@vitejs/plugin-react` | **Peer opcional**   | `createViteConfig` (subpath `tempest-react-sdk/vite`) — já presente em qualquer app Vite |
 
-!!! note "Apenas `react` e `react-dom` são peers"
-    A regra de uma única instância do React obriga esses dois a serem peer deps.
-    Todo o resto (`zustand`, `zod`, `dexie`, `react-hook-form`,
-    `@tanstack/react-query`, `lucide-react`) é dependência direta — `npm install
-    tempest-react-sdk` já traz tudo, sem você listar nada à mão.
+!!! warning "Por que `react-router` é peer, e não dep direta"
+    Ele guarda contexto React. Uma cópia aninhada em
+    `tempest-react-sdk/node_modules` é um `<Router>` **diferente** do que o seu
+    app renderiza, então qualquer hook do SDK que alcance esse contexto estoura
+    com `useNavigate() may be used only in the context of a <Router>` — crash de
+    runtime, não regressão de tamanho. É a mesma razão de `react` ser peer, e é a
+    única exceção à regra "todo o resto é dep direta". O range `^7 || ^8` deixa o
+    app em qualquer um dos dois majors instalar uma cópia só: a superfície
+    re-exportada é idêntica nas duas versões, e ambas entregam os bindings de DOM
+    dentro do próprio `react-router` (não existe `react-router-dom` separado).
+
+!!! note "O resto continua dep direta"
+    `zustand`, `zod`, `dexie`, `react-hook-form`, `@tanstack/react-query` e
+    `lucide-react` são dependências diretas — `npm install tempest-react-sdk` já
+    traz tudo, sem você listar nada à mão. Duas cópias dessas custam bytes, não
+    correção.
 
 Adapters de SDKs externos (Sentry, PostHog, GrowthBook, LaunchDarkly) **não**
 são declarados — o caller injeta a instância na factory.

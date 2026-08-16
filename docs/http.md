@@ -318,6 +318,12 @@ const { mutate } = useMutation({
 !!! check "Funciona sem `I18nProvider`, e sem a chave no catálogo"
     i18n é opt-in no SDK. Sem provider, ou com um catálogo que nunca definiu `tempest.error.offline`, a frase cai no default em pt-BR — em vez de estourar ou de imprimir a chave crua na cara do usuário (que é o que `t` devolve quando não encontra).
 
+!!! note "As duas constantes que acompanham"
+    `DEFAULT_API_ERROR_STRINGS` é a frase pt-BR usada quando nada mais responde — útil
+    pra escrever a sua a partir dela. `API_ERROR_OFFLINE_KEY` é a chave
+    (`"tempest.error.offline"`) que o hook procura no catálogo; defina-a no seu
+    `messages` para traduzir a frase de offline.
+
 !!! warning "`detail` sintético não vence o seu `fallback`"
     Quando a resposta não traz corpo, `buildApiError` sintetiza `Erro <status>`. `describeApiError` reconhece esse texto e prefere o seu `fallback` — "Erro 500" diz estritamente menos que "Não foi possível carregar os pedidos".
 

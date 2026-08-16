@@ -445,6 +445,10 @@ export type { MarkdownAlign, MarkdownBlock, MarkdownInline } from "./Markdown";
 export { Tour } from "./Tour";
 export type { TourPlacement, TourProps, TourStep } from "./Tour";
 
+export { BarList } from "./BarList";
+export type { BarListItem, BarListProps, BarListSort, BarListRow } from "./BarList";
+export { buildBarListRows } from "./BarList";
+
 export { FilterBar } from "./FilterBar";
 export type {
     Filter,

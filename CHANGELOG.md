@@ -6,6 +6,39 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`BarList` — a distribuição ranqueada que o SDK mandava escrever à mão.**
+  Rótulo, barra proporcional, valor e (opcional) a fatia do total. Existiam
+  `Progress` (uma barra isolada) e `Sparkline` (série temporal) e nada para o
+  gráfico mais comum de painel — no dashboard que motivou a issue o mesmo bloco
+  aparecia quatro vezes, cada uma com seu CSS e seu `.sort()`. Sem recharts: é
+  `div` com largura percentual, 762 B brotli na fatia importada.
+
+  Largura e percentual são números **diferentes**, de propósito: a largura é
+  relativa à **maior** linha (a maior barra preenche a trilha) e o percentual é a
+  fatia do **total**. Escalar a largura pelo total deixa toda barra curta numa
+  lista de muitos valores pequenos, ou seja, o gráfico para de ser legível
+  exatamente quando tem mais linhas.
+
+  É **lista, não figura**: `<ul>`/`<li>` com o valor escrito como texto e a barra
+  `aria-hidden` atrás. E o rótulo nunca fica em cima da barra — texto sobre
+  preenchimento tingido precisa ser reverificado contra aquele preenchimento, a
+  rampa `--tempest-chart-*` é de marca (3:1) e reprova como texto, e o `axe` em
+  jsdom não pega isso porque desliga `color-contrast` sem paint. O layout evita a
+  classe inteira do problema.
+
+  Cantos resolvidos: soma zero mostra `0%` (via `percentOf`) em vez de `NaN%`;
+  valor negativo não desenha barra mas continua na lista com seu número, e fica
+  fora do total para as fatias fecharem; `otherLabel` só agrega quando `max` cortou
+  mais de uma linha. A aritmética sai exportada como `buildBarListRows`, para quem
+  quer o mesmo cálculo com outro desenho.
+
+### Alterado
+
+- **Budget de `size-limit` do `DataTable` subiu de 5,2 KB para 5,6 KB** — o modo
+  servidor custou 192 B brotli na fatia importada. Fatias novas entraram no
+  arquivo: `BarList` (1,2 KB) e "admin plumbing" (`applyFilters`,
+  `filtersToQueryParams`, `toCsv`, `downloadCsv`, `describeApiError`, 3 KB).
+
 - **`DataTable` ganhou modo servidor** — `totalItems`, `page`, `onPageChange`,
   `manualSort`, `onSortChange`, `manualSearch`, `onSearchChange` e `loading`. O
   componente era documentado como "Full, unfiltered dataset. Sorting/filtering/

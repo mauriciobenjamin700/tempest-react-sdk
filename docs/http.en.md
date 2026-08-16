@@ -318,6 +318,12 @@ const { mutate } = useMutation({
 !!! check "Works with no `I18nProvider`, and with no key in the catalog"
     i18n is opt-in in this SDK. With no provider — or a catalog that never defined `tempest.error.offline` — the sentence falls back to the pt-BR default, instead of crashing or printing the raw key at the user (which is what `t` returns on a miss).
 
+!!! note "The two constants that come with it"
+    `DEFAULT_API_ERROR_STRINGS` is the pt-BR sentence used when nothing else answers —
+    handy as the base for your own. `API_ERROR_OFFLINE_KEY` is the key
+    (`"tempest.error.offline"`) the hook looks up; define it in your `messages` to
+    translate the offline sentence.
+
 !!! warning "A synthetic `detail` does not beat your `fallback`"
     When the response carries no body, `buildApiError` synthesises `Erro <status>`. `describeApiError` recognises that text and prefers your `fallback` — "Erro 500" says strictly less than "Could not load the orders".
 

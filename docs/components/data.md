@@ -318,27 +318,40 @@ Por padrão o `DataTable` recebe o **dataset inteiro** e faz tudo em memória. P
 páginas vem desse número, e ordenação e busca são delegadas a você.
 
 ```tsx
-import { DataTable, usePaginatedQuery, filtersToQueryParams } from "tempest-react-sdk";
 import { useState } from "react";
+import {
+  DataTable,
+  usePaginatedQuery,
+  type DataTableColumn,
+  type DataTableSort,
+} from "tempest-react-sdk";
+
+type Pessoa = { id: number; nome: string; cargo: string };
+
+const COLUNAS: DataTableColumn<Pessoa>[] = [
+  { key: "nome", header: "Nome", sortable: true },
+  { key: "cargo", header: "Cargo", sortable: true },
+];
 
 export function Pessoas() {
-  const [page, setPage] = useState(1);
   const [sort, setSort] = useState<DataTableSort<Pessoa> | null>(null);
-  const [term, setTerm] = useState("");
+  const [termo, setTermo] = useState("");
 
-  const { data, isFetching } = usePaginatedQuery<Pessoa>({
-    queryKey: ["pessoas", page, sort, term],
-    queryFn: () => api.get(`/pessoas?${params(page, sort, term)}`),
+  const { items, total, pageNumber, setPage, isFetching } = usePaginatedQuery<Pessoa>({
+    queryKey: ["pessoas", sort, termo],
+    queryFn: ({ page, size }) =>
+      fetch(`/api/pessoas?page=${page}&size=${size}&q=${termo}`).then((r) => r.json()),
+    pageSize: 20,
   });
 
   return (
     <DataTable
-      data={data?.items ?? []}
+      data={items}
       columns={COLUNAS}
       rowKey={(row) => row.id}
       pageSize={20}
-      totalItems={data?.total ?? 0}
-      page={page}
+      totalItems={total}
+      page={pageNumber}
       onPageChange={setPage}
       onSortChange={(next) => {
         setSort(next);
@@ -346,7 +359,7 @@ export function Pessoas() {
       }}
       searchable
       onSearchChange={(next) => {
-        setTerm(next);
+        setTermo(next);
         setPage(1);
       }}
       loading={isFetching}
@@ -354,6 +367,9 @@ export function Pessoas() {
   );
 }
 ```
+
+!!! check "`usePaginatedQuery` já é a outra metade"
+    Ele mantém a página, devolve `items`, `total`, `pageNumber` e `setPage` — exatamente as quatro props que o modo servidor pede. Não precisa de `useState` para a página; o `useState` que sobra é o da ordenação e o do termo, porque eles fazem parte da **query key**.
 
 | Prop | Tipo | O que faz |
 | --- | --- | --- |
@@ -395,6 +411,77 @@ export function Pessoas() {
     dataset encolhe, que no modo servidor é desligado de propósito (a página é sua,
     e um clamp contra um `totalItems` que ainda não chegou mandaria o usuário pra
     uma página que ele não pediu, no meio do fetch).
+
+## `BarList`
+
+> **Quando usar**: distribuição ranqueada — usuários por plano, erros por endpoint,
+> vendas por categoria. É o gráfico mais comum de painel, e o único que costuma ser
+> reescrito quatro vezes no mesmo dashboard, cada vez com seu CSS e seu `.sort()`.
+
+Rótulo, barra proporcional, valor e (opcionalmente) a fatia do total. Sem recharts —
+é `div` com largura percentual, igual ao `Sparkline`.
+
+```tsx
+import { BarList } from "tempest-react-sdk";
+
+<BarList
+  items={[
+    { label: "Free", value: 128 },
+    { label: "Pro", value: 32 },
+    { label: "Team", value: 16 },
+  ]}
+  valueFormatter={(n) => `${n} ativos`}
+  showPercentage
+  max={5}
+  otherLabel="Outros"
+/>;
+```
+
+| Prop | Tipo | Default | O que faz |
+| --- | --- | --- | --- |
+| `items` | `BarListItem[]` | — | `{ label, value, color? }`. Valor não-finito é descartado. |
+| `valueFormatter` | `(value: number) => string` | — | Como o número aparece. |
+| `showPercentage` | `boolean` | `false` | Mostra a fatia do total ao lado do valor. |
+| `sort` | `"desc" \| "asc" \| "none"` | `"desc"` | Ordenação — `"none"` respeita a ordem dada. |
+| `max` | `number` | — | Mantém no máximo N linhas. |
+| `otherLabel` | `string` | — | Agrega o que `max` cortou numa linha só. |
+
+!!! info "Largura e percentual são números **diferentes**, de propósito"
+    A largura é relativa à **maior** linha, então a maior barra preenche a trilha. O
+    percentual é a fatia do **total**. Escalar a largura pelo total deixa toda barra
+    curta numa lista de muitos valores pequenos — o gráfico para de ser legível
+    exatamente quando tem mais linhas.
+
+!!! check "É lista, não figura"
+    `<ul>`/`<li>` com o valor escrito como **texto**, e a barra `aria-hidden` atrás.
+    O leitor de tela lê "Free, 128, 62%" porque isso está escrito, não porque um
+    `aria-label` narra um desenho.
+
+!!! danger "O rótulo nunca fica em cima da barra"
+    Texto sobre preenchimento tingido precisa ser reverificado contra aquele
+    preenchimento — e a rampa `--tempest-chart-*` é de **marca** (3:1), reprovando
+    como texto. O SDK já foi pego por isso duas vezes, e as duas só apareceram em
+    browser real, porque o `axe` em jsdom desliga `color-contrast` sem paint. Este
+    layout evita a classe inteira do problema.
+
+!!! warning "Valor negativo não desenha barra, mas continua na lista"
+    Barra de largura negativa não existe: a largura vira 0 e o percentual vira 0,
+    mas o número aparece. Some da lista seria pior do que aparecer estranho. Pela
+    mesma razão o total conta só os valores positivos, senão as fatias não fecham.
+
+!!! tip "Soma zero mostra zero, não `NaN%`"
+    O percentual passa por `percentOf`, então painel recém-criado exibe `0%` em vez
+    do `NaN%` que `(parte / total) * 100` produziria.
+
+!!! note "`otherLabel` só agrega quando sobra mais de uma linha"
+    Colapsar uma única linha em "Outros" esconderia o nome dela à toa — nesse caso
+    ela aparece com o próprio nome.
+
+!!! tip "A aritmética é exportada: `buildBarListRows`"
+    `buildBarListRows(items, sort, max, otherLabel)` devolve as linhas já ordenadas,
+    cortadas e medidas (`percentage`, `width`, `index`) sem renderizar nada. Serve
+    pra quem quer o mesmo cálculo com outro desenho — uma legenda, uma tabela, um
+    export.
 
 ## `ListTile`
 

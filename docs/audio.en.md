@@ -83,6 +83,42 @@ console.log(sfx.current()); // HTMLAudioElement | null
 
 Each player tracks **one** current clip. `stopPrevious: true` in `play()` stops that same player's previous clip before playing the new one.
 
+## `createSfxPool` / `useSfxPool` — short sound effects
+
+`new Audio(src)` on every play allocates an element and re-enters the network stack for a file the browser already has. For a sound that fires dozens of times a minute — a menu blip, a hit, a pickup — that is the wrong shape. The pool allocates once per source and replays.
+
+```ts
+import { useSfxPool } from "tempest-react-sdk";
+
+function Menu({ sfxVolume }: { sfxVolume: number }) {
+  const sfx = useSfxPool({ volume: sfxVolume / 100, baseUrl: import.meta.env.BASE_URL });
+
+  useEffect(() => {
+    sfx.preload(["sfx/move.mp3", "sfx/select.mp3", "sfx/back.mp3"]);
+  }, [sfx]);
+
+  return <button onClick={() => sfx.play("sfx/select.mp3")}>Confirm</button>;
+}
+```
+
+- `play(src, { volume })` — the per-play volume is multiplied by the pool's master.
+- `preload(src | src[])` — fetch ahead of the first play, so it is not silent while the file downloads.
+- `setVolume(v)` — also applies to whatever is already sounding, **rescaled by each clip's own gain**: one that started at half volume is not yanked up.
+- `stop(src?)` — stop one source, or all of them.
+- `dispose()` — release everything. `useSfxPool` calls it on unmount.
+
+!!! note "`voices`: restart or overlap"
+    The default (`voices: 1`) **restarts** the clip on every play, which is what a menu blip wants. Raise it to let the sound overlap itself — a hit landing while the previous one still rings:
+
+    ```ts
+    const hits = createSfxPool({ voices: 3 });
+    ```
+
+!!! tip "Not the same as `createAudioPlayer`"
+    `createAudioPlayer` tracks **one** current clip, with loop, output routing and lifecycle callbacks — what background music needs. Effects are the opposite case: many sources, all short, fire-and-forget, and the only thing that matters is that firing one is cheap.
+
+Changing `volume` on `useSfxPool` calls `setVolume` on the existing pool rather than rebuilding it — rebuilding would throw away every element the user has already downloaded, which is exactly the cost the pool exists to avoid. `baseUrl`, `voices` and `maxSources` are read once, at creation.
+
 ## Autoplay policy
 
 Browsers block playback before the user's first interaction. `playAudio` / `play()` return `null` when blocked (and call `onError` if provided) — instead of throwing.

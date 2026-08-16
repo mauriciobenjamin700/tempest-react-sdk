@@ -201,6 +201,34 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   esperado. O que nunca é intencional é ganhar esse scroll container de brinde
   ao clampar o outro eixo.
 
+- **`createSfxPool` e `useSfxPool`** no módulo `audio` — pool de elementos
+  `<audio>` preallocados para efeitos sonoros curtos. `new Audio(src)` a cada
+  disparo aloca um elemento e re-entra na pilha de rede por um arquivo que o
+  navegador já tem, o que é a forma errada para um som que toca dezenas de
+  vezes por minuto. O módulo tinha `createAudioPlayer` (um clipe atual, com
+  loop e roteamento de saída — o caso de música de fundo) e nada para o caso
+  oposto: muitas fontes, todas curtas, dispara-e-esquece.
+
+  `voices` decide entre reiniciar o clipe (default `1`, o que um blip de menu
+  quer) e deixá-lo se sobrepor. `setVolume` reescala o que já está soando
+  **pelo ganho de cada clipe**, então um som iniciado a meio volume não é
+  puxado para o master. `useSfxPool` troca o volume no pool existente em vez de
+  recriá-lo — recriar jogaria fora todo elemento já baixado, exatamente o custo
+  que o pool evita.
+
+- **`lazyWithRetry` ganhou `.preload()`** (e o tipo `PreloadableLazy`). Chamar
+  no momento em que a rota fica provável — hover do link, abertura do menu,
+  fim do passo anterior — aquece o chunk antes do usuário decidir, e o
+  `Suspense` fallback não aparece. O trabalho é compartilhado com o caminho de
+  render: quem disparar primeiro faz o único fetch e o outro espera a mesma
+  promise, então chamar repetido é seguro.
+
+  A promise devolvida rejeita quando todos os retries falharam, mas a rejeição
+  já é tratada internamente — um preload especulativo que ninguém aguarda não
+  vira `unhandledrejection`. O mesmo `catch` limpa o memo, então um componente
+  que falhou não fica envenenado: uma tentativa posterior, depois que o error
+  boundary resetar, busca de novo. Mudança aditiva, sem quebra.
+
 - **`useLatestRef(value)`** — ref estável cujo `current` é sempre o último valor
   recebido. É a saída para ler state fresco dentro de algo que não pode ser
   recriado quando esse state muda: um interval, uma subscription, um listener

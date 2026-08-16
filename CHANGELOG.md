@@ -4,6 +4,27 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`compressedStorage`, `compressedStorageCodec`, `compressToString` e
+  `decompressFromString`** — `localStorage` gzipado, sobre o `fflate` que o SDK
+  já traz. `localStorage` dá ~5 MB por origem e cobra dois bytes por caractere;
+  um app offline-first que guarda estado de verdade bate nesse teto e descobre
+  pelo `QuotaExceededError` no meio de uma escrita.
+
+  O formato é **autodescritivo**: todo valor gravado leva o prefixo `~tgz1:`, e
+  uma leitura sem o marcador cai no `JSON.parse` normal. Ligar compressão numa
+  chave que já existe portanto não exige migração nem órfã os dados já
+  gravados. O mesmo caminho cobre a escrita degradada — se a compressão falhar,
+  o valor vai como JSON puro em vez de ser descartado.
+
+  Mora em `src/utils/compressed-storage.ts`, não dentro de `storage.ts`, para
+  que importar o wrapper tipado simples continue sem arrastar `fflate`.
+
+  Não há um `useCompressedStorage`: `useLocalStorage` já aceita
+  `serialize`/`deserialize`, então `compressedStorageCodec` entra direto e um
+  hook novo seria só um wrapper repassando argumentos.
+
 ### Corrigido
 
 - **`tempestPwaManifest()` ignorava o `base` do Vite em `appShell` e

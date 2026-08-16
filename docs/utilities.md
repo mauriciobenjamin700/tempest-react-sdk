@@ -291,10 +291,54 @@ O XML é enxuto de propósito: strings inline (sem tabela de shared-strings), se
 
 ---
 
+## Storage comprimido — `compressedStorage`
+
+`localStorage` dá cerca de **5 MB por origem** e cobra **dois bytes por caractere**. Um app offline-first que guarda estado de verdade — um save de jogo, um rascunho longo, um cache de catálogo — bate nesse teto antes do que parece, e o sintoma é um `QuotaExceededError` no meio de uma escrita, não um aviso.
+
+`compressedStorage` é o mesmo wrapper tipado do `storage`, só que gzipando o que escreve:
+
+```ts
+import { compressedStorage } from "tempest-react-sdk";
+
+compressedStorage.set("save", { level: 12, inventory: items });
+
+const save = compressedStorage.get("save", null);
+```
+
+- `get<T>(key, fallback)` — descomprime e faz parse. Chave ausente, ilegível ou corrompida devolve `fallback`; nunca lança.
+- `set<T>(key, value)` — comprime e grava.
+
+### O formato é autodescritivo
+
+Cada valor gravado leva o prefixo `~tgz1:`. Isso resolve o problema chato de ligar compressão numa chave que já existe: uma leitura sem o marcador cai no `JSON.parse` normal, então **os dados que já estavam lá continuam legíveis**. Nada de migração, nada de save órfão.
+
+O mesmo caminho cobre a escrita degradada: se a compressão falhar, o valor é gravado como JSON puro em vez de descartado — um registro maior ainda carrega, um ausente não.
+
+!!! note "Por que base64, e não empacotar em UTF-16"
+    Base64 gasta um terço a mais de caracteres que os bytes comprimidos, e o `localStorage` ainda cobra dois bytes por caractere em cima disso. Empacotar os bytes direto em code units UTF-16 seria mais denso, mas surrogates soltos não sobrevivem a toda implementação de storage nem a um round-trip de JSON — e um save que decodifica em lixo é muito pior que um save maior. Mesmo com essa folga, um JSON típico fica bem abaixo de um terço do tamanho original.
+
+### Com `useLocalStorage`
+
+Para estado React, passe o codec em vez de usar a API imperativa — você ganha a sincronia entre abas e o guard de SSR do hook de graça:
+
+```ts
+import { compressedStorageCodec, useLocalStorage } from "tempest-react-sdk";
+
+const [save, setSave] = useLocalStorage("save", EMPTY_SAVE, compressedStorageCodec);
+```
+
+`compressToString` / `decompressFromString` também são exportados soltos, para quando o destino não é `localStorage` (um `POST` de backup, um `IndexedDB`).
+
+!!! warning "Não é para tudo"
+    Comprimir custa CPU nas duas pontas. Para uma preferência de tema ou um flag booleano, use o `storage` normal — o ganho é zero e o custo não. `compressedStorage` vale a partir de payloads na casa das dezenas de KB.
+
+---
+
 ## Recap
 
 - Importe qualquer helper direto de `tempest-react-sdk` — todos são exports nomeados, puros e tree-shakable.
 - **Planilhas**: `writeXlsx(headers, rows)` gera um `.xlsx` UTF-8 de uma aba como `Uint8Array` (sem drama de BOM do CSV).
+- **Storage comprimido**: `compressedStorage.get/set` gzipa o que grava; formato autodescritivo (`~tgz1:`) lê valores antigos sem migração. Com React, `useLocalStorage(key, def, compressedStorageCodec)`.
 - **Arrays/Objetos**: `groupBy`, `uniqueBy`, `chunk`, `range`, `pick`, `omit`, `deepMerge`, `isEmpty` — sempre imutáveis; `deepMerge` substitui arrays em vez de fundir.
 - **Guards**: `isDefined`, `isString`, `isNumber`, `isPlainObject`, `assertNever` — narrowing seguro + exaustividade em `switch`.
 - **Funções**: `debounce`/`throttle` (com `.cancel()`), `once`, `memoizeOne` para controlar execução.

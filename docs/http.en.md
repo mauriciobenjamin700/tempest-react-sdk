@@ -123,7 +123,7 @@ Worth knowing:
 - A retry wraps the **whole** request, refresh included. One attempt that spends the full 401 → refresh → replay cycle counts as a single attempt.
 - Each attempt carries its own `X-Request-ID`, so the backend can tell the attempts apart in its logs.
 - `Retry-After` (on `429`/`503`) is honoured and overrides the backoff for that attempt.
-- Need retries on one specific call rather than the whole client? The [`retry`](#retry--exponential-backoff) helper is still there and unchanged.
+- Need retries on one specific call rather than the whole client? The [`retry`](#retry-exponential-backoff) helper is still there and unchanged.
 
 ## `parseResponse`
 

@@ -9,6 +9,7 @@
 import type { HTMLAttributes, ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { cn } from "@/utils/cn";
+import { useStickyBodyWarning } from "./use-sticky-body-warning";
 import styles from "./AppBar.module.css";
 
 export type AppBarTone = "surface" | "primary" | "transparent";
@@ -38,7 +39,14 @@ export interface AppBarProps extends Omit<HTMLAttributes<HTMLElement>, "title"> 
     actions?: ReactNode;
     /** Center the title (three-column grid). Default `false` (left-aligned). */
     centered?: boolean;
-    /** Stick to the top of the scroll container. Default `true`. */
+    /**
+     * Stick to the top of the scroll container. Default `true`.
+     *
+     * The page has to leave the body out of the scrolling: `body { overflow-x:
+     * hidden }` makes the body a scroll container and the bar scrolls away with
+     * the content. Use `overflow-x: clip` on `html` and `body` instead — in
+     * development the bar says so in the console when it detects it.
+     */
     sticky?: boolean;
     /** Visual tone. Default `"surface"`. */
     tone?: AppBarTone;
@@ -86,6 +94,8 @@ export function AppBar({
     className,
     ...props
 }: AppBarProps) {
+    useStickyBodyWarning(sticky);
+
     const handleBack = onBack ?? (() => window.history.back());
 
     const leadingContent = leading ?? (

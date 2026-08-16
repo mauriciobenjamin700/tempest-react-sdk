@@ -97,6 +97,30 @@ Layout em grade: slot **leading** (botão voltar + marca) · **título** (`<h1>`
 !!! tip "Customização visual"
     O SDK entrega só o layout + comportamento. Cor, altura e tipografia saem dos tokens `--tempest-*` (sobrescreva no `:root`). Para um ícone/menu customizado no lado direito, passe qualquer node em `actions`; para substituir o lado esquerdo inteiro (ex.: avatar no lugar do voltar), use `leading`.
 
+!!! warning "A barra some ao rolar?"
+    Quase nunca é a `AppBar` — é uma linha do CSS global do seu app:
+
+    ```css
+    /* ❌ o clamp horizontal que mata o sticky */
+    body {
+        overflow-x: hidden;
+    }
+
+    /* ✅ clampa igual, sem virar scroll container */
+    html,
+    body {
+        overflow-x: clip;
+    }
+    ```
+
+    `overflow-x: hidden` no `body` força o `overflow-y` computado a virar `auto` — regra do CSS, não bug de browser — e com isso o `body` vira **scroll container**. Todo elemento sticky passa a se prender ao scrollport do `body` em vez do viewport, e esse scrollport rola junto com o documento. Medido no Chromium a 390px, numa página longa: a barra ficou em `top: -900px` depois de rolar 900px. Ou seja, fora da tela.
+
+    No desktop o sintoma quase não aparece, porque as telas costumam caber sem rolagem. No Chrome Android a barra de URL que encolhe transforma qualquer tela em tela longa — e aí some sempre.
+
+    O `clip` precisa estar nos **dois** elementos: com ele só no `html`, ou só no `body`, o documento continua arrastando na horizontal.
+
+    Em desenvolvimento a própria `AppBar` avisa no console quando detecta esse CSS. 💡
+
 ## `Sidebar`
 
 Side nav desktop. `items: SidebarItem[]`, slots `header`/`footer`, modo `collapsed` (apenas ícones).

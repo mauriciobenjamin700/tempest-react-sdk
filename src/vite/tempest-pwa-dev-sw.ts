@@ -6,9 +6,19 @@ import type { TempestVitePlugin } from "./tempest-pwa-manifest";
 export interface TempestPwaDevSwOptions {
     /** Service-worker entry, relative to the project root. Default `src/sw.ts`. */
     swSrc?: string;
-    /** URL the worker is served at (must match `registerServiceWorker`). Default `/sw.js`. */
+    /**
+     * URL the worker is served at (must match `registerServiceWorker`).
+     * Default `/sw.js`.
+     *
+     * Write it relative to the site root; requests are matched against both the
+     * bare path and the path prefixed with the resolved Vite `base`, so a
+     * project served from a subpath is handled without extra configuration.
+     */
     swUrl?: string;
-    /** Dev URL of the precache manifest. Default `/precache-manifest.json`. */
+    /**
+     * Dev URL of the precache manifest. Default `/precache-manifest.json`.
+     * Matched the same way as {@link TempestPwaDevSwOptions.swUrl}.
+     */
     manifestUrl?: string;
     /** Serve the worker in dev. Default `true`; set `false` to opt out. */
     enabled?: boolean;
@@ -39,19 +49,36 @@ export function tempestPwaDevSw(options: TempestPwaDevSwOptions = {}): TempestVi
     } = options;
 
     let root = process.cwd();
+    let base = "/";
+
+    /**
+     * Whether a request path addresses `target`.
+     *
+     * Both the bare path and the base-prefixed one are accepted. Which of the
+     * two arrives depends on where this middleware lands relative to Vite's own
+     * base handling, and a project served from a subpath would otherwise never
+     * match — the browser asks for `/app/sw.js` while the option says `/sw.js`.
+     */
+    function matches(url: string, target: string): boolean {
+        if (url === target) return true;
+        const prefix = base.endsWith("/") ? base : `${base}/`;
+        if (prefix === "/") return false;
+        return url === `${prefix}${target.replace(/^\//, "")}`;
+    }
 
     const plugin: Plugin = {
         name: "tempest-pwa-dev-sw",
         apply: "serve",
         configResolved(config) {
             root = config.root ?? process.cwd();
+            base = config.base ?? "/";
         },
         configureServer(server) {
             if (!enabled) return;
             server.middlewares.use(async (req, res, next) => {
                 const url = (req.url ?? "").split("?")[0];
 
-                if (url === swUrl) {
+                if (matches(url, swUrl)) {
                     try {
                         const esbuild = await import("esbuild");
                         const result = await esbuild.build({
@@ -75,7 +102,7 @@ export function tempestPwaDevSw(options: TempestPwaDevSwOptions = {}): TempestVi
                     return;
                 }
 
-                if (url === manifestUrl) {
+                if (matches(url, manifestUrl)) {
                     res.setHeader("Content-Type", "application/json");
                     res.setHeader("Cache-Control", "no-cache");
                     res.end(JSON.stringify({ version: "dev", urls: [] }));

@@ -35,7 +35,7 @@ describe("tempestPwaManifest", () => {
         plugin.generateBundle.call({ emitFile }, {}, { "assets/x.js": {} });
 
         const payload = JSON.parse(emitFile.mock.calls[0][0].source);
-        expect(payload.urls).toContain("/manifest.webmanifest");
+        expect(payload.urls).toContain("/app/manifest.webmanifest");
         expect(payload.urls).toContain("/app/assets/x.js");
     });
 });
@@ -91,6 +91,48 @@ describe("tempestPwaManifest — options and base handling", () => {
         expect(manifest?.fileName).toBe("pc.json");
         expect(manifest?.urls).not.toContain("/assets/a.css");
         expect(manifest?.urls).not.toContain("/pc.json");
+    });
+
+    it("prefixes the app shell with a non-root base", () => {
+        const manifest = emit({}, { "assets/a.js": {} }, "/app/");
+        expect(manifest?.urls).toContain("/app/index.html");
+        expect(manifest?.urls).not.toContain("/index.html");
+    });
+
+    it("prefixes a custom app shell and additionalUrls alike", () => {
+        const manifest = emit(
+            { appShell: "/shell.html", additionalUrls: ["/icon.svg", "favicon.ico"] },
+            { "assets/a.js": {} },
+            "/app/",
+        );
+        expect(manifest?.urls).toContain("/app/shell.html");
+        expect(manifest?.urls).toContain("/app/icon.svg");
+        expect(manifest?.urls).toContain("/app/favicon.ico");
+    });
+
+    it("leaves an already-prefixed url alone instead of doubling the base", () => {
+        const manifest = emit(
+            { appShell: "/app/index.html", additionalUrls: ["/app/icon.svg"] },
+            { "assets/a.js": {} },
+            "/app/",
+        );
+        expect(manifest?.urls).toContain("/app/index.html");
+        expect(manifest?.urls).toContain("/app/icon.svg");
+        expect(manifest?.urls).not.toContain("/app/app/index.html");
+        expect(manifest?.urls).not.toContain("/app/app/icon.svg");
+        expect(manifest?.urls.filter((u: string) => u.endsWith("index.html"))).toHaveLength(1);
+    });
+
+    it("prefixes against a base with no trailing slash", () => {
+        const manifest = emit({ additionalUrls: ["/icon.svg"] }, { "assets/a.js": {} }, "/app");
+        expect(manifest?.urls).toContain("/app/icon.svg");
+        expect(manifest?.urls).toContain("/app/index.html");
+    });
+
+    it("leaves urls untouched at the root base", () => {
+        const manifest = emit({ additionalUrls: ["/icon.svg"] }, { "assets/a.js": {} });
+        expect(manifest?.urls).toContain("/icon.svg");
+        expect(manifest?.urls).toContain("/index.html");
     });
 
     it("produces a stable version for the same asset list and a new one otherwise", () => {
@@ -211,6 +253,57 @@ describe("tempestPwaDevSw", () => {
 
         const next = vi.fn();
         await handler({}, { setHeader: vi.fn(), end: vi.fn() }, next);
+        expect(next).toHaveBeenCalled();
+    });
+
+    it("serves the dev manifest under a non-root base", async () => {
+        const plugin = tempestPwaDevSw() as any;
+        plugin.configResolved({ root: process.cwd(), base: "/app/" });
+        let handler: any;
+        plugin.configureServer({ middlewares: { use: (fn: any) => (handler = fn) } });
+
+        const ended: string[] = [];
+        const res = { setHeader: vi.fn(), end: (body: string) => ended.push(body) };
+        await handler({ url: "/app/precache-manifest.json" }, res, vi.fn());
+        expect(JSON.parse(ended[0])).toEqual({ version: "dev", urls: [] });
+    });
+
+    it("still matches the bare path under a non-root base", async () => {
+        const plugin = tempestPwaDevSw() as any;
+        plugin.configResolved({ root: process.cwd(), base: "/app/" });
+        let handler: any;
+        plugin.configureServer({ middlewares: { use: (fn: any) => (handler = fn) } });
+
+        const ended: string[] = [];
+        const res = { setHeader: vi.fn(), end: (body: string) => ended.push(body) };
+        await handler({ url: "/precache-manifest.json" }, res, vi.fn());
+        expect(JSON.parse(ended[0]).version).toBe("dev");
+    });
+
+    it("accepts an option already spelled with the base", async () => {
+        const plugin = tempestPwaDevSw({ manifestUrl: "/app/precache-manifest.json" }) as any;
+        plugin.configResolved({ root: process.cwd(), base: "/app/" });
+        let handler: any;
+        plugin.configureServer({ middlewares: { use: (fn: any) => (handler = fn) } });
+
+        const ended: string[] = [];
+        const res = { setHeader: vi.fn(), end: (body: string) => ended.push(body) };
+        await handler({ url: "/app/precache-manifest.json" }, res, vi.fn());
+        expect(JSON.parse(ended[0]).version).toBe("dev");
+    });
+
+    it("does not swallow an unrelated path that merely shares the suffix", async () => {
+        const plugin = tempestPwaDevSw() as any;
+        plugin.configResolved({ root: process.cwd(), base: "/app/" });
+        let handler: any;
+        plugin.configureServer({ middlewares: { use: (fn: any) => (handler = fn) } });
+
+        const next = vi.fn();
+        await handler(
+            { url: "/other/precache-manifest.json" },
+            { setHeader: vi.fn(), end: vi.fn() },
+            next,
+        );
         expect(next).toHaveBeenCalled();
     });
 

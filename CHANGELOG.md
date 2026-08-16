@@ -4,6 +4,34 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`tempestPwaManifest()` ignorava o `base` do Vite em `appShell` e
+  `additionalUrls`.** Só os arquivos emitidos pelo bundle passavam por
+  `joinBase`; o app shell (default `/index.html`) e as URLs extras entravam
+  literais. Em qualquer app com `base` diferente de `/` — todo deploy em
+  GitHub Pages, para começar — o `precache-manifest.json` saía com o shell
+  apontando para fora da base. O worker instala, tenta cachear `/index.html`
+  onde só existe `/meu-app/index.html`, e o `navigateFallback` nunca resolve:
+  o app não abre offline, sem erro visível no build.
+
+  Agora as duas opções recebem o mesmo prefixo dos assets. A aplicação é
+  **idempotente**: uma URL que já começa com o `base` é devolvida intacta, para
+  que configs escritas contornando o bug — soletrando o prefixo à mão — sigam
+  produzindo exatamente o mesmo manifest em vez de ganharem `/app/app/…`.
+
+- **`tempestPwaDevSw()` só casava o caminho sem `base`.** O middleware comparava
+  `req.url` com `swUrl`/`manifestUrl` por igualdade exata, então um projeto
+  servido de um subpath pedia `/meu-app/sw.js` e caía no passthrough — sem
+  service worker em dev, que é justamente o buraco que o plugin existe para
+  tapar. O match agora aceita tanto o caminho puro quanto o prefixado com o
+  `base` resolvido.
+
+- **Documentado o `installPrecache` sob subpath.** O plugin de build enxerga o
+  `base`, mas o worker não: `manifestUrl` e `navigateFallback` continuam sendo
+  responsabilidade de quem escreve o `sw.ts`. As páginas de PWA (PT + EN) agora
+  trazem o aviso e o exemplo.
+
 ## [0.43.0] — 2026-08-16
 
 ### Alterado

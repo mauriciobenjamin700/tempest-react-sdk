@@ -1,5 +1,11 @@
-import { useState } from "react";
-import { DataTable, Money, useAnnounce, type DataTableColumn } from "tempest-react-sdk";
+import { useEffect, useState } from "react";
+import {
+    DataTable,
+    Money,
+    useAnnounce,
+    type DataTableColumn,
+    type DataTableSort,
+} from "tempest-react-sdk";
 import { Example } from "../Example";
 
 type Row = { id: number; name: string; role: string; salary: number };
@@ -47,9 +53,80 @@ const editableColumns: DataTableColumn<Row>[] = [
     },
 ];
 
+/** Rows the fake backend owns, so a page can be sliced out of them. */
+const serverRows: Row[] = Array.from({ length: 23 }, (_, index) => ({
+    id: index + 1,
+    name: `Pessoa ${String(index + 1).padStart(2, "0")}`,
+    role: ["Backend", "Frontend", "Data", "Produto"][index % 4] ?? "Backend",
+    salary: 700000 + index * 13000,
+}));
+
+/**
+ * A paginated endpoint, faked with a delay.
+ *
+ * Sorting and searching happen here, over the whole collection — which is the
+ * entire point of the server mode: the browser only ever sees one page, so it
+ * cannot answer either question itself.
+ */
+async function fetchPage(params: {
+    page: number;
+    pageSize: number;
+    sort: DataTableSort<Row> | null;
+    term: string;
+}): Promise<{ items: Row[]; total: number }> {
+    await new Promise((resolve) => setTimeout(resolve, 450));
+
+    const term = params.term.trim().toLowerCase();
+    let rowsForQuery = term
+        ? serverRows.filter((row) => `${row.name} ${row.role}`.toLowerCase().includes(term))
+        : serverRows;
+
+    if (params.sort) {
+        const { key, direction } = params.sort;
+        const factor = direction === "asc" ? 1 : -1;
+        rowsForQuery = [...rowsForQuery].sort((a, b) =>
+            a[key] > b[key] ? factor : a[key] < b[key] ? -factor : 0,
+        );
+    }
+
+    const start = (params.page - 1) * params.pageSize;
+    return {
+        items: rowsForQuery.slice(start, start + params.pageSize),
+        total: rowsForQuery.length,
+    };
+}
+
 export function DataTableSection() {
     const [editable, setEditable] = useState<Row[]>(rows.slice(0, 4));
     const announce = useAnnounce();
+
+    const [page, setPage] = useState(1);
+    const [sort, setSort] = useState<DataTableSort<Row> | null>(null);
+    const [term, setTerm] = useState("");
+    const [pageData, setPageData] = useState<{ items: Row[]; total: number }>({
+        items: [],
+        total: 0,
+    });
+    const [loading, setLoading] = useState(true);
+
+    /**
+     * Refetch whenever the query changes, ignoring a response that lost the race.
+     *
+     * `usePaginatedQuery` does this for a real app; the gallery consumes no
+     * backend, so the state is wired by hand to keep the example self-contained.
+     */
+    useEffect(() => {
+        let current = true;
+        setLoading(true);
+        fetchPage({ page, pageSize: 5, sort, term }).then((result) => {
+            if (!current) return;
+            setPageData(result);
+            setLoading(false);
+        });
+        return () => {
+            current = false;
+        };
+    }, [page, sort, term]);
 
     /**
      * Fake backend: slow, and it refuses the literal name "erro".
@@ -104,6 +181,82 @@ export function DataTableSection() {
                     searchable
                     searchKeys={["name", "role"]}
                     pageSize={5}
+                />
+            </Example>
+
+            <Example
+                id="data-table-server"
+                title="Paginação no servidor — página, ordenação e busca controladas"
+                note="A tabela recebe só a página atual. totalItems manda no número de páginas, e clicar num cabeçalho ou digitar na busca reporta pra fora em vez de mexer nas linhas que já estão na tela — ordenar a página seria ordenar cinco linhas alegando ter ordenado 23. Entre páginas as linhas antigas ficam esmaecidas; no primeiro carregamento aparecem placeholders."
+                code={`const { data, isFetching } = usePaginatedQuery({
+  queryKey: ["pessoas", page, sort, term],
+  queryFn: () => api.get(\`/pessoas?\${filtersToQueryParams(filtros)}\`),
+});
+
+<DataTable
+  data={data?.items ?? []}
+  columns={columns}
+  rowKey={(row) => row.id}
+  pageSize={5}
+  totalItems={data?.total ?? 0}
+  page={page}
+  onPageChange={setPage}
+  onSortChange={setSort}
+  searchable
+  onSearchChange={setTerm}
+  loading={isFetching}
+/>`}
+                props={[
+                    {
+                        name: "totalItems",
+                        type: "number",
+                        description:
+                            "Liga o modo servidor. Conta as páginas por esse número, não por data.length.",
+                    },
+                    {
+                        name: "page / onPageChange",
+                        type: "number / (page: number) => void",
+                        description: "Página controlada. Obrigatória no modo servidor.",
+                    },
+                    {
+                        name: "onSortChange",
+                        type: "(sort: DataTableSort<T> | null) => void",
+                        description:
+                            "Cabeçalho reporta asc → desc → null. As linhas não são reordenadas.",
+                    },
+                    {
+                        name: "onSearchChange",
+                        type: "(term: string) => void",
+                        description: "Busca delegada. Debounce, se quiser, é seu.",
+                    },
+                    {
+                        name: "loading",
+                        type: "boolean",
+                        default: "false",
+                        description:
+                            "Com linhas na tela, esmaece e marca aria-busy; sem linhas, desenha placeholders.",
+                    },
+                ]}
+            >
+                <DataTable<Row>
+                    data={pageData.items}
+                    columns={columns}
+                    rowKey={(row) => row.id}
+                    pageSize={5}
+                    totalItems={pageData.total}
+                    page={page}
+                    onPageChange={setPage}
+                    onSortChange={(next) => {
+                        setSort(next);
+                        setPage(1);
+                    }}
+                    searchable
+                    onSearchChange={(next) => {
+                        setTerm(next);
+                        setPage(1);
+                    }}
+                    loading={loading}
+                    emptyMessage="Nada encontrado para essa busca."
                 />
             </Example>
 

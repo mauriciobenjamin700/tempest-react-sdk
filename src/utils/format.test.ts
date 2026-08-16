@@ -3,6 +3,7 @@ import {
     formatCPF,
     formatCurrency,
     formatDate,
+    formatDateForInput,
     formatDateTime,
     formatPercent,
     formatPhone,
@@ -76,5 +77,31 @@ describe("formatPercent", () => {
 
     it("formats zero", () => {
         expect(formatPercent(0)).toBe("0,0%");
+    });
+});
+
+describe("formatDateForInput", () => {
+    it("formats a Date as the yyyy-MM-dd an input accepts", () => {
+        expect(formatDateForInput(new Date(2026, 4, 16))).toBe("2026-05-16");
+    });
+
+    it("pads single-digit months and days", () => {
+        expect(formatDateForInput(new Date(2026, 0, 5))).toBe("2026-01-05");
+    });
+
+    it("keeps the local day for a time that UTC would push to the next one", () => {
+        expect(formatDateForInput(new Date(2026, 5, 30, 23, 30))).toBe("2026-06-30");
+    });
+
+    it("returns a plain yyyy-MM-dd string untouched, which UTC parsing would shift back a day", () => {
+        expect(formatDateForInput("2026-05-16")).toBe("2026-05-16");
+    });
+
+    it("reads a full ISO timestamp in local time", () => {
+        expect(formatDateForInput(new Date(2026, 4, 16, 12).toISOString())).toBe("2026-05-16");
+    });
+
+    it("returns an empty string for an invalid date, which the input reads as no value", () => {
+        expect(formatDateForInput("not-a-date")).toBe("");
     });
 });

@@ -24,6 +24,37 @@ export function formatDate(value: string | Date): string {
 }
 
 /**
+ * Format an ISO date or Date instance as `yyyy-MM-dd`, the value an
+ * `<input type="date">` accepts.
+ *
+ * Built from the **local** calendar parts rather than `toISOString().slice(0, 10)`,
+ * which is the reflex and which is wrong: `toISOString` converts to UTC first, so
+ * anything after 21:00 in UTC-3 reports the next day and the form opens on the
+ * wrong date. `formatDate` cannot fill this role because a date input rejects
+ * `dd/MM/yyyy` outright.
+ *
+ * A value that is already `yyyy-MM-dd` is returned untouched, and that shortcut
+ * is load-bearing rather than an optimisation: `new Date("2026-05-16")` is parsed
+ * as **UTC** midnight, which in UTC-3 is the 15th at 21:00, so round-tripping the
+ * exact value a backend sent would move it back a day.
+ *
+ * @example
+ * <input type="date" defaultValue={formatDateForInput(order.createdAt)} />
+ *
+ * @param value - ISO string or Date.
+ * @returns The `yyyy-MM-dd` value, or an empty string when the input is invalid —
+ *   which is what a date input reads as "no value", unlike `"Invalid Date"`.
+ */
+export function formatDateForInput(value: string | Date): string {
+    if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+    const date = typeof value === "string" ? new Date(value) : value;
+    if (Number.isNaN(date.getTime())) return "";
+    const month = `${date.getMonth() + 1}`.padStart(2, "0");
+    const day = `${date.getDate()}`.padStart(2, "0");
+    return `${date.getFullYear()}-${month}-${day}`;
+}
+
+/**
  * Format an ISO date or Date instance as `dd/MM/yyyy HH:mm`.
  *
  * @param value - ISO string or Date.

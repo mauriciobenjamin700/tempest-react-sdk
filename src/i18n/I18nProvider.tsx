@@ -92,6 +92,20 @@ export function useI18n(): I18nContextValue {
 }
 
 /**
+ * Access translation helpers when there may be no {@link I18nProvider} above.
+ *
+ * Returns `null` instead of throwing, which is what a piece of the SDK needs
+ * when it wants to be translated where a catalog exists and still work where one
+ * does not — i18n is opt-in in this SDK, and a helper that demanded a provider
+ * would turn "you did not configure translations" into a crash.
+ *
+ * @returns The context value, or `null` outside a provider.
+ */
+export function useOptionalI18n(): I18nContextValue | null {
+    return useContext(I18nContext);
+}
+
+/**
  * Shortcut for components that only need the `t` function — avoids destructuring.
  */
 export function useTranslate(): I18nContextValue["t"] {

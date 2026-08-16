@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clamp, formatBytes, formatCompactNumber } from "./numbers";
+import { clamp, formatBytes, formatCompactNumber, percentOf } from "./numbers";
 
 describe("clamp", () => {
     it("returns the value when in range", () => {
@@ -66,5 +66,42 @@ describe("formatCompactNumber", () => {
         // separate them with a non-breaking space, so normalize whitespace.
         const result = formatCompactNumber(1234, "pt-BR").replace(/\s+/g, " ");
         expect(result).toBe("1,2 mil");
+    });
+});
+
+describe("percentOf", () => {
+    it("returns the share as a 0-100 number", () => {
+        expect(percentOf(3, 4)).toBe(75);
+    });
+
+    it("returns 0 for an empty base instead of NaN", () => {
+        expect(percentOf(5, 0)).toBe(0);
+    });
+
+    it("returns 0 when the base is zero and so is the part", () => {
+        expect(percentOf(0, 0)).toBe(0);
+    });
+
+    it("returns 0 rather than Infinity or NaN for non-finite inputs", () => {
+        expect(percentOf(Number.NaN, 10)).toBe(0);
+        expect(percentOf(10, Number.NaN)).toBe(0);
+        expect(percentOf(Number.POSITIVE_INFINITY, 10)).toBe(0);
+        expect(percentOf(10, Number.POSITIVE_INFINITY)).toBe(0);
+    });
+
+    it("does not clamp above 100, because exceeding a target is real data", () => {
+        expect(percentOf(12, 8)).toBe(150);
+    });
+
+    it("keeps the sign of a negative part", () => {
+        expect(percentOf(-2, 8)).toBe(-25);
+    });
+
+    it("handles a negative base", () => {
+        expect(percentOf(2, -8)).toBe(-25);
+    });
+
+    it("pairs with formatPercent through a division by 100", () => {
+        expect(percentOf(1, 8) / 100).toBeCloseTo(0.125);
     });
 });

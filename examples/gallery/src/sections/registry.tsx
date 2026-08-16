@@ -30,6 +30,7 @@ import { TransferSection } from "./TransferSection";
 import { CodeBlockSection } from "./CodeBlockSection";
 import { QRCodeSection } from "./QRCodeSection";
 import { SchedulerSection } from "./SchedulerSection";
+import { BarListSection } from "./BarListSection";
 import { SparklineSection } from "./SparklineSection";
 import { VirtualTableSection } from "./VirtualTableSection";
 import { NotificationCenterSection } from "./NotificationCenterSection";
@@ -259,6 +260,14 @@ export const SECTIONS: SectionEntry[] = [
             "scheduler agenda calendario evento hora grade semana dia sobreposicao overlap allday dia-inteiro",
         group: "Componentes",
         Component: SchedulerSection,
+    },
+    {
+        id: "bar-list",
+        label: "BarList (distribuição ranqueada)",
+        keywords:
+            "barlist bar list distribuicao ranking barra proporcional percentual top-n outros plano categoria dashboard",
+        group: "Componentes",
+        Component: BarListSection,
     },
     {
         id: "sparkline",

@@ -557,15 +557,17 @@ A base opinativa que monta um app React inteiro. É o que a CLI
 
 ## Dependências
 
-Apenas **`react`** + **`react-dom`** são **peer dependencies** (regra de uma
-única instância do React). Todo o resto é **dependência direta** — instalada
-automaticamente por `npm install tempest-react-sdk` e externalizada no bundle
-(o bundler do app resolve do `node_modules` e faz tree-shake).
+**`react`**, **`react-dom`** e **`react-router`** são **peer dependencies** — os
+três carregam contexto React, e uma segunda cópia não é peso extra no bundle, é
+uma segunda *instância* que quebra em runtime. Todo o resto é **dependência
+direta** — instalada automaticamente por `npm install tempest-react-sdk` e
+externalizada no bundle (o bundler do app resolve do `node_modules` e faz
+tree-shake).
 
 | Pacote                         | Status              | Usado por                                                                                |
 | ------------------------------ | ------------------- | ---------------------------------------------------------------------------------------- |
 | `react`, `react-dom`           | **Peer (obrigat.)** | Tudo                                                                                     |
-| `react-router@8`           | Dep direta          | `AppRouter`, `defineRoutes`, `RouteGuard`, re-exports                                    |
+| `react-router` (`^7 \|\| ^8`)  | **Peer (obrigat.)** | `AppRouter`, `defineRoutes`, `RouteGuard`, re-exports                                    |
 | `zustand`                      | Dep direta          | `createStore`, `createSelectors`, `createAuthStore`                                      |
 | `@tanstack/react-query`        | Dep direta          | `QueryProvider`, `createQueryKeys`, `AppProviders`                                       |
 | `zod`                          | Dep direta          | `parseResponse`, `validateForm`, `zodResolver`, `useZodForm`                             |
@@ -574,11 +576,22 @@ automaticamente por `npm install tempest-react-sdk` e externalizada no bundle
 | `lucide-react`                 | Dep direta          | Ícones (`leftIcon`/`rightIcon`)                                                          |
 | `vite`, `@vitejs/plugin-react` | **Peer opcional**   | `createViteConfig` (subpath `tempest-react-sdk/vite`) — já presente em qualquer app Vite |
 
-!!! note "Apenas `react` e `react-dom` são peers"
-    A regra de uma única instância do React obriga esses dois a serem peer deps.
-    Todo o resto (`zustand`, `zod`, `dexie`, `react-hook-form`,
-    `@tanstack/react-query`, `lucide-react`) é dependência direta — `npm install
-    tempest-react-sdk` já traz tudo, sem você listar nada à mão.
+!!! warning "Por que `react-router` é peer, e não dep direta"
+    Ele guarda contexto React. Uma cópia aninhada em
+    `tempest-react-sdk/node_modules` é um `<Router>` **diferente** do que o seu
+    app renderiza, então qualquer hook do SDK que alcance esse contexto estoura
+    com `useNavigate() may be used only in the context of a <Router>` — crash de
+    runtime, não regressão de tamanho. É a mesma razão de `react` ser peer, e é a
+    única exceção à regra "todo o resto é dep direta". O range `^7 || ^8` deixa o
+    app em qualquer um dos dois majors instalar uma cópia só: a superfície
+    re-exportada é idêntica nas duas versões, e ambas entregam os bindings de DOM
+    dentro do próprio `react-router` (não existe `react-router-dom` separado).
+
+!!! note "O resto continua dep direta"
+    `zustand`, `zod`, `dexie`, `react-hook-form`, `@tanstack/react-query` e
+    `lucide-react` são dependências diretas — `npm install tempest-react-sdk` já
+    traz tudo, sem você listar nada à mão. Duas cópias dessas custam bytes, não
+    correção.
 
 Adapters de SDKs externos (Sentry, PostHog, GrowthBook, LaunchDarkly) **não**
 são declarados — o caller injeta a instância na factory.
@@ -4467,7 +4480,66 @@ export function Pedidos() {
 `FilterField = { name, label, type, options?, operators?, placeholder? }` · `type` ∈ `"text" | "number" | "date" | "select" | "boolean"`
 `Filter = { field, operator, value? }` · `operator` ∈ `eq · ne · contains · gt · gte · lt · lte · between · in · empty · notEmpty`
 
-**Helpers exportados**: `filtersToSearchParams`, `filtersFromSearchParams`, `describeFilter`, `operatorsFor`.
+**Helpers exportados**: `applyFilters`, `filtersToQueryParams`, `filtersToSearchParams`, `filtersFromSearchParams`, `describeFilter`, `operatorsFor`.
+
+#### Aplicando os filtros
+
+O `FilterBar` **produz** `Filter[]`; quem avalia é você. O SDK dá as duas saídas, e você escolhe uma pelo tamanho da lista, não pelo gosto.
+
+**Lista inteira na memória** — `applyFilters` roda os onze operadores:
+
+```tsx
+import { FilterBar, applyFilters, type Filter } from "tempest-react-sdk";
+
+export function Pedidos({ pedidos }: { pedidos: Pedido[] }) {
+  const [filtros, setFiltros] = useState<Filter[]>([]);
+  const visiveis = useMemo(() => applyFilters(pedidos, filtros), [pedidos, filtros]);
+
+  return (
+    <>
+      <FilterBar fields={CAMPOS} value={filtros} onChange={setFiltros} />
+      <DataTable data={visiveis} columns={COLUNAS} />
+    </>
+  );
+}
+```
+
+**Listagem paginada no servidor** — `filtersToQueryParams`, que fala o dialeto do `tempest-fastapi-sdk`:
+
+```tsx
+const params = filtersToQueryParams(filtros);
+params.set("page", String(pagina));
+params.set("page_size", "20");
+
+const { data } = useQuery({
+  queryKey: ["pedidos", filtros, pagina],
+  queryFn: () => api.get(`/pedidos?${params}`),
+});
+```
+
+| Operador | Param enviado |
+| --- | --- |
+| `eq` | `campo` (ou `campo__iexact` na coluna `name`) |
+| `ne` | `campo__ne` |
+| `contains` | `campo__icontains` |
+| `gt` `gte` `lt` `lte` | `campo__gt` … `campo__lte` |
+| `between` | `campo__between` duas vezes, menor primeiro |
+| `in` | `campo__in`, uma vez por valor |
+| `empty` / `notEmpty` | `campo__isnull=true` / `=false` |
+
+!!! danger "O backend precisa **declarar** cada chave, senão o filtro falha calado"
+    `BasePaginationFilterSchema.get_conditions()` só repassa campos que a subclasse declara. Um `status__ne` que o schema não menciona é descartado pelo FastAPI antes do repositório ver — sem erro, sem filtro, e a lista volta inteira parecendo que "o filtro não pegou". Declare `status__ne: str | None = None` no schema de filtro para cada operador que a tela oferece.
+
+!!! warning "`applyFilters` e o backend discordam em dois pontos, de propósito"
+    **`ne` casa linha sem valor.** No SQL, `coluna <> 'x'` é `NULL` quando a coluna é `NULL` e a linha some. No cliente, "não é pago" mostra também os pedidos sem status — que é o que o chip promete.
+    **`empty` casa texto em branco.** `__isnull` no servidor só casa `NULL`; coluna que guarda `""` em vez de `NULL` responde diferente dos dois lados.
+    Se a mesma tela alterna entre os dois modos, escolha um e fique nele por campo.
+
+!!! info "`eq` é sensível a maiúscula; `contains` não é"
+    É o alinhamento com o servidor: `eq` vira `WHERE coluna = valor`, e um cliente insensível discordaria dele. `contains` vira `icontains` e é insensível dos dois lados — e como é o operador **default** de campo de texto, o comportamento amigável é o que se ganha sem pedir.
+
+!!! tip "Data compara por **dia**, e `between` é inclusivo nas duas pontas"
+    Linha carimbada `2026-03-05T13:00:00Z` casa `eq 2026-03-05`, e um `between` invertido (data maior primeiro) é **normalizado** em vez de não casar nada — quem escolheu a data final primeiro quis o intervalo, não uma lista vazia.
 
 !!! warning "É **E** achatado, não árvore com OU — e isso é o teto escolhido"
     Grupos aninhados (`(a OU b) E c`) são outro componente: exigem UI de árvore com operador por nó e outra serialização. Tentar ser os dois produz um builder desengonçado justamente no caso de 95% — "status é pago, criado depois de março, título contém nota". Se você precisa de OU aninhado, o que você quer é um query builder de verdade, e ele não cabe atrás desta API.
@@ -5229,6 +5301,182 @@ no **dataset completo**, não na página.
     Uma coluna que renderiza `<Money cents={row.salario} />` recebe a linha com o valor
     otimista já aplicado, então o número novo aparece formatado do jeito certo enquanto
     o save está em voo.
+
+## `DataTable<T>` — paginação no servidor
+
+> **Quando usar**: a listagem normal de admin. O backend pagina, filtra e ordena; o
+> navegador recebe uma página por vez e não tem como responder sozinho "quantas
+> linhas existem" nem "qual é a primeira em ordem alfabética".
+
+Por padrão o `DataTable` recebe o **dataset inteiro** e faz tudo em memória. Passe
+`totalItems` e ele troca de modo: `data` passa a ser a página atual, a contagem de
+páginas vem desse número, e ordenação e busca são delegadas a você.
+
+```tsx
+import { useState } from "react";
+import {
+  DataTable,
+  usePaginatedQuery,
+  type DataTableColumn,
+  type DataTableSort,
+} from "tempest-react-sdk";
+
+type Pessoa = { id: number; nome: string; cargo: string };
+
+const COLUNAS: DataTableColumn<Pessoa>[] = [
+  { key: "nome", header: "Nome", sortable: true },
+  { key: "cargo", header: "Cargo", sortable: true },
+];
+
+export function Pessoas() {
+  const [sort, setSort] = useState<DataTableSort<Pessoa> | null>(null);
+  const [termo, setTermo] = useState("");
+
+  const { items, total, pageNumber, setPage, isFetching } = usePaginatedQuery<Pessoa>({
+    queryKey: ["pessoas", sort, termo],
+    queryFn: ({ page, size }) =>
+      fetch(`/api/pessoas?page=${page}&size=${size}&q=${termo}`).then((r) => r.json()),
+    pageSize: 20,
+  });
+
+  return (
+    <DataTable
+      data={items}
+      columns={COLUNAS}
+      rowKey={(row) => row.id}
+      pageSize={20}
+      totalItems={total}
+      page={pageNumber}
+      onPageChange={setPage}
+      onSortChange={(next) => {
+        setSort(next);
+        setPage(1);
+      }}
+      searchable
+      onSearchChange={(next) => {
+        setTermo(next);
+        setPage(1);
+      }}
+      loading={isFetching}
+    />
+  );
+}
+```
+
+!!! check "`usePaginatedQuery` já é a outra metade"
+    Ele mantém a página, devolve `items`, `total`, `pageNumber` e `setPage` — exatamente as quatro props que o modo servidor pede. Não precisa de `useState` para a página; o `useState` que sobra é o da ordenação e o do termo, porque eles fazem parte da **query key**.
+
+| Prop | Tipo | O que faz |
+| --- | --- | --- |
+| `totalItems` | `number` | Liga o modo servidor e manda na contagem de páginas. |
+| `page` | `number` | Página controlada, 1-based. |
+| `onPageChange` | `(page: number) => void` | Próxima página pedida pelo paginador. |
+| `manualSort` | `boolean` | Delega a ordenação. Implícito com `totalItems`. |
+| `onSortChange` | `(sort: DataTableSort<T> \| null) => void` | `asc` → `desc` → `null`. |
+| `manualSearch` | `boolean` | Delega a busca. Implícito com `totalItems`. |
+| `onSearchChange` | `(term: string) => void` | Termo digitado; debounce é seu. |
+| `loading` | `boolean` | Requisição em voo. |
+
+!!! danger "Busca e ordenação **precisam** ir junto — filtrar a página mente"
+    `searchable` sozinho filtra `data` em memória, e no modo servidor `data` é só a
+    página atual. O usuário digita, some tudo que não está na página 3 e a tabela
+    parece dizer "não existe". Por isso `totalItems` já implica `manualSearch` e
+    `manualSort`: ordenar cinco linhas alegando ter ordenado 23 é o mesmo tipo de
+    mentira.
+
+!!! tip "`manualSort` e `manualSearch` também servem sem paginação de servidor"
+    Lista inteira na memória mas ordenada pelo backend (por relevância, por um
+    campo calculado) é um caso legítimo: passe `manualSort` sem `totalItems`.
+
+!!! check "Carregando e vazio são telas diferentes"
+    Com linhas na tela, `loading` esmaece e marca `aria-busy` — as linhas antigas
+    ficam, então a paginação não salta sob o cursor entre páginas. Sem linhas ainda,
+    desenha placeholders na altura real em vez do `emptyMessage`, porque "estou
+    buscando" e "não há nada" não são a mesma frase.
+
+!!! warning "Combinação incompleta avisa em dev"
+    `totalItems` sem `page` controlada, `page` sem `onPageChange`, ordenação
+    delegada sem `onSortChange` — cada um renderiza uma tela que parece funcionar e
+    não funciona (o cabeçalho ordena e nada se move). Nenhum é erro de tipo, então
+    o aviso sai no `console` em desenvolvimento.
+
+!!! info "O modo cliente não mudou uma linha"
+    Sem `totalItems`, `manualSort`, `manualSearch` ou `loading`, o markup e o
+    comportamento são exatamente os de antes — inclusive o clamp de página quando o
+    dataset encolhe, que no modo servidor é desligado de propósito (a página é sua,
+    e um clamp contra um `totalItems` que ainda não chegou mandaria o usuário pra
+    uma página que ele não pediu, no meio do fetch).
+
+## `BarList`
+
+> **Quando usar**: distribuição ranqueada — usuários por plano, erros por endpoint,
+> vendas por categoria. É o gráfico mais comum de painel, e o único que costuma ser
+> reescrito quatro vezes no mesmo dashboard, cada vez com seu CSS e seu `.sort()`.
+
+Rótulo, barra proporcional, valor e (opcionalmente) a fatia do total. Sem recharts —
+é `div` com largura percentual, igual ao `Sparkline`.
+
+```tsx
+import { BarList } from "tempest-react-sdk";
+
+<BarList
+  items={[
+    { label: "Free", value: 128 },
+    { label: "Pro", value: 32 },
+    { label: "Team", value: 16 },
+  ]}
+  valueFormatter={(n) => `${n} ativos`}
+  showPercentage
+  max={5}
+  otherLabel="Outros"
+/>;
+```
+
+| Prop | Tipo | Default | O que faz |
+| --- | --- | --- | --- |
+| `items` | `BarListItem[]` | — | `{ label, value, color? }`. Valor não-finito é descartado. |
+| `valueFormatter` | `(value: number) => string` | — | Como o número aparece. |
+| `showPercentage` | `boolean` | `false` | Mostra a fatia do total ao lado do valor. |
+| `sort` | `"desc" \| "asc" \| "none"` | `"desc"` | Ordenação — `"none"` respeita a ordem dada. |
+| `max` | `number` | — | Mantém no máximo N linhas. |
+| `otherLabel` | `string` | — | Agrega o que `max` cortou numa linha só. |
+
+!!! info "Largura e percentual são números **diferentes**, de propósito"
+    A largura é relativa à **maior** linha, então a maior barra preenche a trilha. O
+    percentual é a fatia do **total**. Escalar a largura pelo total deixa toda barra
+    curta numa lista de muitos valores pequenos — o gráfico para de ser legível
+    exatamente quando tem mais linhas.
+
+!!! check "É lista, não figura"
+    `<ul>`/`<li>` com o valor escrito como **texto**, e a barra `aria-hidden` atrás.
+    O leitor de tela lê "Free, 128, 62%" porque isso está escrito, não porque um
+    `aria-label` narra um desenho.
+
+!!! danger "O rótulo nunca fica em cima da barra"
+    Texto sobre preenchimento tingido precisa ser reverificado contra aquele
+    preenchimento — e a rampa `--tempest-chart-*` é de **marca** (3:1), reprovando
+    como texto. O SDK já foi pego por isso duas vezes, e as duas só apareceram em
+    browser real, porque o `axe` em jsdom desliga `color-contrast` sem paint. Este
+    layout evita a classe inteira do problema.
+
+!!! warning "Valor negativo não desenha barra, mas continua na lista"
+    Barra de largura negativa não existe: a largura vira 0 e o percentual vira 0,
+    mas o número aparece. Some da lista seria pior do que aparecer estranho. Pela
+    mesma razão o total conta só os valores positivos, senão as fatias não fecham.
+
+!!! tip "Soma zero mostra zero, não `NaN%`"
+    O percentual passa por `percentOf`, então painel recém-criado exibe `0%` em vez
+    do `NaN%` que `(parte / total) * 100` produziria.
+
+!!! note "`otherLabel` só agrega quando sobra mais de uma linha"
+    Colapsar uma única linha em "Outros" esconderia o nome dela à toa — nesse caso
+    ela aparece com o próprio nome.
+
+!!! tip "A aritmética é exportada: `buildBarListRows`"
+    `buildBarListRows(items, sort, max, otherLabel)` devolve as linhas já ordenadas,
+    cortadas e medidas (`percentage`, `width`, `index`) sem renderizar nada. Serve
+    pra quem quer o mesmo cálculo com outro desenho — uma legenda, uma tabela, um
+    export.
 
 ## `ListTile`
 
@@ -8003,7 +8251,7 @@ fluxos que apps Tempest repetem o tempo todo. 🚀
     entrypoint do app:
 
     ```bash
-    npm install tempest-react-sdk
+    npm install tempest-react-sdk react react-dom react-router
     ```
 
     ```tsx
@@ -8011,9 +8259,10 @@ fluxos que apps Tempest repetem o tempo todo. 🚀
     import "tempest-react-sdk/styles.css";
     ```
 
-    Apenas `react` e `react-dom` são **peer dependencies** — o resto (`zod`,
-    `zustand`, `dexie`, `react-hook-form`, `@tanstack/react-query`, `lucide-react`,
-    `react-router`) é instalado junto como dependência direta. A versão publicada
+    `react`, `react-dom` e `react-router` (`^7 || ^8`) são **peer dependencies** —
+    os três carregam contexto React, então precisam vir do app em uma cópia só. O
+    resto (`zod`, `zustand`, `dexie`, `react-hook-form`, `@tanstack/react-query`,
+    `lucide-react`) é instalado junto como dependência direta. A versão publicada
     mais recente está na [página do npm](https://www.npmjs.com/package/tempest-react-sdk).
 
 ## Fluxo de autenticação completo
@@ -14317,7 +14566,7 @@ Detalhes que valem saber:
 - A retentativa envolve a requisição **inteira**, refresh incluído. Uma tentativa que gasta o ciclo de 401 → refresh → repetição conta como uma tentativa só.
 - Cada tentativa carrega o seu próprio `X-Request-ID`, então o backend consegue distinguir as tentativas nos logs.
 - `Retry-After` (em `429`/`503`) é respeitado e sobrepõe o backoff daquela tentativa.
-- Precisa de retentativa em uma chamada específica, não no cliente todo? O helper [`retry`](#retry--backoff-exponencial) continua ali e não foi alterado.
+- Precisa de retentativa em uma chamada específica, não no cliente todo? O helper [`retry`](#retry-backoff-exponencial) continua ali e não foi alterado.
 
 ## `parseResponse`
 
@@ -14469,6 +14718,58 @@ try {
 }
 ```
 
+### Do erro tipado para a frase na tela — `describeApiError`
+
+O `try/catch` acima escreve a frase à mão, e todo app escreve o mesmo funil — errando sempre no mesmo lugar: a requisição que **não chegou** ao servidor tem `status === 0`, e sem tratamento ela vira "erro 0" na tela.
+
+```ts
+import { describeApiError } from "tempest-react-sdk";
+
+try {
+  await api.get("/pedidos");
+} catch (error) {
+  toast.error(describeApiError(error, "Não foi possível carregar os pedidos"));
+}
+```
+
+A ordem do funil:
+
+1. **Requisição que não chegou** — `status === 0`, ou um erro qualquer com o browser se declarando offline → frase de offline.
+2. **`detail` do backend** — o texto mais específico disponível, e já escrito para uma pessoa.
+3. **`fallback`**, com `(HTTP <status>)` anexado quando há status — o print no chamado de suporte carrega o único dado que o dev precisa.
+
+Duas superfícies, mesmo funil:
+
+| | Quando usar |
+| --- | --- |
+| `describeApiError(error, fallback, strings?)` | Função pura. Roda em interceptor, logger, qualquer lugar fora da árvore React. |
+| `useDescribeApiError()` | Hook. Resolve a frase fixa pelo `I18nProvider` ativo; devolve `(error, fallback) => string`. |
+
+```tsx
+import { useDescribeApiError } from "tempest-react-sdk";
+
+const describe = useDescribeApiError();
+const { mutate } = useMutation({
+  mutationFn: salvar,
+  onError: (error) => toast.error(describe(error, "Não foi possível salvar")),
+});
+```
+
+!!! info "O hook não duplica o funil — ele só entrega as strings"
+    `useDescribeApiError` chama a função pura. Existir nos dois formatos é sobre **onde** o código roda: contexto React não é alcançável de um interceptor, e passar tradução na mão em todo componente é o que o hook evita.
+
+!!! check "Funciona sem `I18nProvider`, e sem a chave no catálogo"
+    i18n é opt-in no SDK. Sem provider, ou com um catálogo que nunca definiu `tempest.error.offline`, a frase cai no default em pt-BR — em vez de estourar ou de imprimir a chave crua na cara do usuário (que é o que `t` devolve quando não encontra).
+
+!!! note "As duas constantes que acompanham"
+    `DEFAULT_API_ERROR_STRINGS` é a frase pt-BR usada quando nada mais responde — útil
+    pra escrever a sua a partir dela. `API_ERROR_OFFLINE_KEY` é a chave
+    (`"tempest.error.offline"`) que o hook procura no catálogo; defina-a no seu
+    `messages` para traduzir a frase de offline.
+
+!!! warning "`detail` sintético não vence o seu `fallback`"
+    Quando a resposta não traz corpo, `buildApiError` sintetiza `Erro <status>`. `describeApiError` reconhece esse texto e prefere o seu `fallback` — "Erro 500" diz estritamente menos que "Não foi possível carregar os pedidos".
+
 ## Recap
 
 - `createApiClient({ baseURL, getToken, onUnauthorized, refresh, ... })` cria um cliente tipado; instancie uma vez e exporte.
@@ -14478,6 +14779,7 @@ try {
 - `uploadWithProgress` usa XHR pra reportar progresso byte a byte; para arquivo grande, `createResumableUpload` divide em chunks e retoma — veja [Upload resumível](./resumable-upload.md).
 - `retry` (backoff exponencial + `shouldRetry`) e `usePoll` (intervalo com guarda de overlap) cobrem operações instáveis e acompanhamento de jobs.
 - `generateIdempotencyKey` — gere uma vez por operação, reutilize nos retries.
+- `describeApiError(error, fallback)` (puro) e `useDescribeApiError()` (com i18n) transformam o erro tipado na frase da tela, tratando `status === 0` como offline em vez de "erro 0".
 
 ## Veja também
 
@@ -14587,6 +14889,14 @@ function NavHome() {
 
 !!! warning "`useI18n` exige o provider"
     Chamar `useI18n()` (ou `useTranslate()`) fora de um `<I18nProvider>` lança `useI18n must be used inside an <I18nProvider>`. Mantenha o provider acima de qualquer componente que traduza.
+
+!!! tip "`useOptionalI18n()` para código que precisa funcionar sem catálogo"
+    Devolve `null` fora do provider em vez de lançar. É o que uma peça reutilizável usa quando quer ser traduzida onde existe catálogo e continuar funcionando onde não existe — i18n é opt-in neste SDK, e exigir o provider transformaria "você não configurou tradução" em crash. O `useDescribeApiError` do módulo `http` é exatamente esse caso.
+
+    ```tsx
+    const i18n = useOptionalI18n();
+    const titulo = i18n?.t("dashboard.title") ?? "Painel";
+    ```
 
 ## Interpolação
 
@@ -15418,12 +15728,12 @@ Importe o CSS uma vez no entrypoint do app:
 import "tempest-react-sdk/styles.css";
 ```
 
-Apenas **`react`** e **`react-dom`** são peer dependencies (regra de uma única
-instância do React). Todo o resto — `react-router`, `zustand`,
-`@tanstack/react-query`, `zod`, `react-hook-form`, `dexie`, `lucide-react` — é
-**dependência direta**, instalada automaticamente com o SDK e externalizada no
-bundle (seu bundler faz tree-shake do que não usar). Detalhes em
-[Arquitetura](architecture.md).
+**`react`**, **`react-dom`** e **`react-router`** (`^7 || ^8`) são peer
+dependencies — os três carregam contexto React, e uma segunda cópia quebra em
+runtime. Todo o resto — `zustand`, `@tanstack/react-query`, `zod`,
+`react-hook-form`, `dexie`, `lucide-react` — é **dependência direta**, instalada
+automaticamente com o SDK e externalizada no bundle (seu bundler faz tree-shake
+do que não usar). Detalhes em [Arquitetura](architecture.md).
 
 ## O que tem dentro
 
@@ -18092,6 +18402,18 @@ installPrecache(); // app shell + navegação offline
 !!! note "De onde vem o manifest"
     `installPrecache` lê `precache-manifest.json`, emitido pelo plugin `tempestPwaManifest()` do subpath `tempest-react-sdk/vite`. Veja [Vite config](./vite-config.md).
 
+!!! warning "Deploy em subpath (GitHub Pages e afins)"
+    O `tempestPwaManifest()` prefixa as URLs com o `base` do Vite, mas o `installPrecache` roda no worker e **não** enxerga essa config. Se o seu `base` não é `/`, aponte as duas opções de caminho para dentro dele:
+
+    ```ts
+    installPrecache({
+      manifestUrl: "/meu-app/precache-manifest.json",
+      navigateFallback: "/meu-app/index.html",
+    });
+    ```
+
+    Com os defaults (`/precache-manifest.json` e `/index.html`), o worker instala, busca um manifest que responde 404 e a navegação offline nunca resolve.
+
 ## 3. Background sync + periodic sync
 
 `installBackgroundSync` enfileira mutações (`POST`/`PUT`/`PATCH`/`DELETE`) que falham offline e as reenvia quando a rede volta — via Background Sync API, com fallback oportunista para navegadores sem ela (Safari).
@@ -18246,8 +18568,15 @@ Defaults aplicados quando você **não** passa um `client`:
 
 - `staleTime`: 5 min (`STALE_TIME.DEFAULT`)
 - `gcTime`: 30 min (`CACHE_TIME.DEFAULT`)
-- `retry`: 1 (queries) / 0 (mutations)
+- `retry`: `shouldRetryQuery` (queries) / 0 (mutations)
 - `refetchOnWindowFocus`: false
+
+!!! danger "4xx **não** é retentado — e isso mudou"
+    O default era `retry: 1` chapado, que replicava um 403 numa listagem admin-only e um 404 de registro apagado. O servidor recusou de propósito nos dois casos: a segunda tentativa devolve a mesma resposta, dobra o log de rede e segura o spinner na tela por mais um round trip.
+
+    `shouldRetryQuery` retenta uma vez apenas o que pode mudar sozinho: falha de rede (`status === 0`), `5xx`, `408` e `429` (que é uma recusa cujo significado literal é "mais tarde"), e erro de formato desconhecido — que pode ser falha de transporte. Todo o resto do 4xx falha de primeira.
+
+    Se o seu app dependia de retry em 4xx, o override é o de sempre: `defaultOptions={{ queries: { retry: 1 } }}`.
 
 Para sobrescrever, passe `defaultOptions` (mesclado por cima dos defaults) ou um `client` pronto (ignora os defaults do SDK):
 
@@ -18832,20 +19161,29 @@ const upload = createResumableUpload({
 
 # Routing
 
-O módulo `routing` do `tempest-react-sdk` embrulha o **React Router v8 (modo declarativo)** e devolve uma superfície única de import: você declara sua árvore de rotas com `defineRoutes`, monta tudo com um único `<AppRouter>` e importa cada primitivo (`Link`, `Outlet`, `useNavigate`, …) direto do SDK — nunca do `react-router`. Em cima do v8, o SDK adiciona o que todo app Tempest repete na mão: code-splitting com retry automático em chunk velho, guards declarativos de rota e um `<Suspense>` já pronto. Esta página te leva do zero a uma árvore com layout aninhado, lazy loading e rotas protegidas.
+O módulo `routing` do `tempest-react-sdk` embrulha o **React Router em modo declarativo** (`^7 || ^8`) e devolve uma superfície única de import: você declara sua árvore de rotas com `defineRoutes`, monta tudo com um único `<AppRouter>` e importa cada primitivo (`Link`, `Outlet`, `useNavigate`, …) direto do SDK. Em cima disso, o SDK adiciona o que todo app Tempest repete na mão: code-splitting com retry automático em chunk velho, guards declarativos de rota e um `<Suspense>` já pronto. Esta página te leva do zero a uma árvore com layout aninhado, lazy loading e rotas protegidas.
+
+!!! warning "`react-router` é peer dependency — instale no seu app"
+    ```bash
+    npm install react-router
+    ```
+
+    O SDK **não** empacota o `react-router` junto, porque ele guarda contexto React: uma cópia aninhada em `tempest-react-sdk/node_modules` seria um `<Router>` diferente do seu, e todo hook do SDK estouraria com `useNavigate() may be used only in the context of a <Router>`. O range aceito é `^7 || ^8` — a superfície re-exportada aqui é idêntica nos dois majors, e nenhum deles usa `react-router-dom` (os bindings de DOM vêm no próprio `react-router`).
 
 ## Por que o SDK é dono do roteamento agora
 
-Antes, cada app instalava `react-router`, criava seu próprio `<Suspense>`, escrevia o seu helper de guard e reinventava o retry de chunk. Isso gerava divergência entre os apps Tempest e import paths espalhados.
+Antes, cada app criava seu próprio `<Suspense>`, escrevia o seu helper de guard e reinventava o retry de chunk. Isso gerava divergência entre os apps Tempest e import paths espalhados.
 
 Com o módulo `routing` você ganha:
 
-- **Uma só superfície de import.** Tudo vem de `"tempest-react-sdk"` — componentes, hooks e os primitivos re-exportados do React Router. Seu app nunca importa de `react-router`.
-- **v8 declarativo.** Você descreve _o que_ são as rotas (uma árvore de objetos), não _como_ montá-las imperativamente.
+- **Uma só superfície de import.** Tudo vem de `"tempest-react-sdk"` — componentes, hooks e os primitivos re-exportados do React Router. Seu app instala o `react-router` (peer), mas importa de um lugar só.
+- **Declarativo.** Você descreve _o que_ são as rotas (uma árvore de objetos), não _como_ montá-las imperativamente.
 - **Baterias inclusas.** `<AppRouter>` já constrói o router, o `<Suspense>` e as `<Routes>`. `defineRoutes` te dá tipagem. Guards e lazy loading são campos da própria rota.
 
 !!! info "Primitivos re-exportados"
     O SDK re-exporta os primitivos declarativos do React Router para você importar tudo do mesmo lugar: `BrowserRouter`, `HashRouter`, `MemoryRouter`, `Routes`, `Route`, `Outlet`, `Navigate`, `Link`, `NavLink`, `useNavigate`, `useParams`, `useSearchParams`, `useLocation`, `useMatch`, `useRouteError` e `redirect`.
+
+    Importar direto de `react-router` também funciona e resolve para a mesma cópia — o re-export existe por conveniência, não por isolamento. Isso torna a adoção incremental possível: um app que já usa `react-router` direto pode passar a usar o SDK sem reescrever import nenhum.
 
 ## Construindo a árvore com `defineRoutes`
 
@@ -24032,6 +24370,7 @@ pluralize(2, "person", "people"); // "people"
 | ---------------------------------- | ---------------------------------------------- | ---------------------------------------------------------- |
 | `formatBytes(bytes, decimals?)`    | `(bytes: number, decimals?: number) => string` | Tamanho legível em B/KB/MB/GB/TB (base 1024).              |
 | `formatCompactNumber(value, loc?)` | `(value: number, locale?: string) => string`   | Notação compacta (`1.2K`, `3.4M`) via `Intl.NumberFormat`. |
+| `percentOf(part, total)`           | `(part: number, total: number) => number`      | Percentual 0–100, com base zero devolvendo `0`.            |
 
 ```ts
 import { formatBytes, formatCompactNumber, clamp } from "tempest-react-sdk";
@@ -24047,6 +24386,31 @@ formatCompactNumber(1234, "pt-BR"); // "1,2 mil"
 
 !!! note "Pré-existente — `clamp`"
     `clamp(value, min, max)` prende um número no intervalo `[min, max]` (e tolera `min > max`, trocando os limites). `clamp(120, 0, 100)` → `100`.
+
+!!! danger "`percentOf` existe pelo `NaN%`, não pela divisão"
+    `(ativos / total) * 100` com `total === 0` produz `NaN`, e `NaN%` no painel vazio é a forma mais comum de um dashboard anunciar que ainda não tem dado. `percentOf(5, 0)` é `0`; não-finito também vira `0`.
+    Ele **não** limita em 100 — 150% de uma meta é dado real que alguém quer ver.
+    Cuidado com o par: `formatPercent` recebe **fração** (0–1), então é `formatPercent(percentOf(a, b) / 100)`.
+
+---
+
+## Data para `<input type="date">` — `formatDateForInput`
+
+`formatDate` produz `dd/MM/yyyy`, que um `<input type="date">` rejeita — ele exige `yyyy-MM-dd`. Todo formulário com data reescreve esse recorte, e reescreve errado.
+
+```ts
+import { formatDateForInput } from "tempest-react-sdk";
+
+formatDateForInput(new Date(2026, 4, 16)); // "2026-05-16"
+formatDateForInput("2026-05-16"); // "2026-05-16"
+formatDateForInput("não é data"); // "" — o input lê como "sem valor"
+```
+
+!!! danger "`toISOString().slice(0, 10)` erra o dia, e erra só à noite"
+    É o reflexo de todo mundo, e `toISOString` converte pra UTC antes: em UTC-3, qualquer horário depois das 21h reporta o **dia seguinte**. O formulário abre na data errada só pra quem mexe à noite, que é o pior tipo de bug pra reproduzir. `formatDateForInput` monta a data pelas partes **locais**.
+
+!!! warning "String `yyyy-MM-dd` volta intacta — e isso é essencial, não atalho"
+    `new Date("2026-05-16")` é meia-noite **UTC**, que em UTC-3 é dia 15 às 21h. Sem esse desvio, devolver ao input exatamente o valor que o backend mandou o moveria um dia pra trás.
 
 ---
 
@@ -24081,10 +24445,53 @@ O XML é enxuto de propósito: strings inline (sem tabela de shared-strings), se
 
 ---
 
+## CSV — `toCsv` e `downloadCsv`
+
+O `.xlsx` é o formato certo pra quem vai **abrir** a planilha. CSV é o formato certo pra quem vai **importar** o arquivo em outro sistema — e é o que quase todo painel acaba escrevendo na mão, errando sempre nos mesmos dois pontos: um nome com vírgula parte a linha, e um nome com aspas quebra justamente a proteção que as aspas deveriam dar.
+
+```ts
+import { toCsv, downloadCsv, type CsvColumn } from "tempest-react-sdk";
+
+const COLUNAS: CsvColumn<Usuario>[] = [
+  { key: "nome", header: "Nome" },
+  { key: "email", header: "E-mail" },
+  { key: "plano", header: "Plano", csv: (u) => u.plano?.label ?? "" },
+];
+
+const texto = toCsv(usuarios, COLUNAS); // string pronta
+await downloadCsv(usuarios, COLUNAS, "usuarios.csv"); // entrega ao usuário
+```
+
+| Assinatura | O que faz |
+| --- | --- |
+| `toCsv(rows, columns, options?)` | Devolve o arquivo inteiro como `string`. |
+| `downloadCsv(rows, columns, fileName?, options?)` | Monta o blob `text/csv;charset=utf-8` e passa pro `shareOrDownloadBlob`. |
+| `CsvColumn<T>` | `{ key, header, csv? }` |
+| `CsvOptions` | `{ delimiter?: "," \| ";", bom?: boolean }` — defaults `","` e `true`. |
+
+!!! danger "A coluna do `DataTable` **não** serve direto quando tem `render`"
+    `DataTableColumn.render` devolve `ReactNode`. Exportar isso escreve `[object Object]` justamente na coluna que tem badge, link ou data formatada — a mais importante da tabela. Uma coluna **sem** `render` é estruturalmente compatível e pode ser reaproveitada; com `render`, dê o acessor `csv`.
+
+!!! check "Escaping RFC 4180, e o BOM que o Excel pt-BR exige"
+    Campo com o delimitador, com aspas ou com quebra de linha vira campo citado, e cada aspas interna é duplicada. O arquivo termina as linhas com `\r\n`. O BOM vem por padrão porque sem ele o Excel em pt-BR lê UTF-8 como Latin-1 e todo acento vira mojibake.
+
+!!! tip "Delimitador `;` é o certo em locale pt-BR"
+    Onde o separador decimal é a vírgula, o Excel abre um CSV separado por vírgula **em uma coluna só**. `{ delimiter: ";" }` resolve — e o escaping acompanha, citando o campo que contém `;` em vez do que contém `,`.
+
+!!! info "`0` e `false` são exportados; `null` e `undefined` viram campo vazio"
+    Vazio é ausência, não falsidade. Tratar `0` como vazio é como um relatório passa a sub-reportar toda linha que legitimamente vale zero. `Date` sai em ISO, que qualquer sistema reimporta sem adivinhar formato.
+
+!!! note "Lista vazia gera o cabeçalho, não um arquivo vazio"
+    Quem abre precisa ver quais colunas pediu. Arquivo de zero byte parece erro de exportação.
+
+---
+
 ## Recap
 
 - Importe qualquer helper direto de `tempest-react-sdk` — todos são exports nomeados, puros e tree-shakable.
 - **Planilhas**: `writeXlsx(headers, rows)` gera um `.xlsx` UTF-8 de uma aba como `Uint8Array` (sem drama de BOM do CSV).
+- **CSV**: `toCsv(rows, columns)` escreve o arquivo com escaping RFC 4180 e BOM; `downloadCsv(...)` entrega direto ao usuário.
+- **Datas e percentuais**: `formatDateForInput` dá o `yyyy-MM-dd` que o `<input type="date">` exige (pelas partes locais, sem o desvio de UTC); `percentOf` devolve `0` em vez de `NaN` quando a base é zero.
 - **Arrays/Objetos**: `groupBy`, `uniqueBy`, `chunk`, `range`, `pick`, `omit`, `deepMerge`, `isEmpty` — sempre imutáveis; `deepMerge` substitui arrays em vez de fundir.
 - **Guards**: `isDefined`, `isString`, `isNumber`, `isPlainObject`, `assertNever` — narrowing seguro + exaustividade em `switch`.
 - **Funções**: `debounce`/`throttle` (com `.cancel()`), `once`, `memoizeOne` para controlar execução.

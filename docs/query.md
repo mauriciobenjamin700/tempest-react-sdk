@@ -29,8 +29,15 @@ Defaults aplicados quando você **não** passa um `client`:
 
 - `staleTime`: 5 min (`STALE_TIME.DEFAULT`)
 - `gcTime`: 30 min (`CACHE_TIME.DEFAULT`)
-- `retry`: 1 (queries) / 0 (mutations)
+- `retry`: `shouldRetryQuery` (queries) / 0 (mutations)
 - `refetchOnWindowFocus`: false
+
+!!! danger "4xx **não** é retentado — e isso mudou"
+    O default era `retry: 1` chapado, que replicava um 403 numa listagem admin-only e um 404 de registro apagado. O servidor recusou de propósito nos dois casos: a segunda tentativa devolve a mesma resposta, dobra o log de rede e segura o spinner na tela por mais um round trip.
+
+    `shouldRetryQuery` retenta uma vez apenas o que pode mudar sozinho: falha de rede (`status === 0`), `5xx`, `408` e `429` (que é uma recusa cujo significado literal é "mais tarde"), e erro de formato desconhecido — que pode ser falha de transporte. Todo o resto do 4xx falha de primeira.
+
+    Se o seu app dependia de retry em 4xx, o override é o de sempre: `defaultOptions={{ queries: { retry: 1 } }}`.
 
 Para sobrescrever, passe `defaultOptions` (mesclado por cima dos defaults) ou um `client` pronto (ignora os defaults do SDK):
 

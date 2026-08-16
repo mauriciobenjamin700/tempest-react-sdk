@@ -220,12 +220,12 @@
     ]
   },
   {
-    "name": "slice: DataTable with inline editing",
+    "name": "slice: DataTable with inline editing + server mode",
     "path": "dist/tempest-react-sdk.js",
     "import": {
       "./dist/tempest-react-sdk.js": "{ DataTable }"
     },
-    "limit": "5.2 KB",
+    "limit": "5.6 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -242,7 +242,51 @@
     ]
   },
   {
-    "name": "ceiling: full barrel ESM (nobody imports this — tree-shaking is the real cost)",
+    "name": "slice: BarList (ranked distribution, no chart library)",
+    "path": "dist/tempest-react-sdk.js",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ BarList }"
+    },
+    "limit": "1.2 KB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router",
+      "fflate"
+    ]
+  },
+  {
+    "name": "slice: admin plumbing (filters + CSV + error copy)",
+    "path": "dist/tempest-react-sdk.js",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ applyFilters, filtersToQueryParams, toCsv, downloadCsv, describeApiError }"
+    },
+    "limit": "3 KB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router",
+      "fflate"
+    ]
+  },
+  {
+    "name": "ceiling: full barrel ESM (nobody imports this \u2014 tree-shaking is the real cost)",
     "path": "dist/tempest-react-sdk.js",
     "limit": "116 kB",
     "ignore": [
@@ -261,7 +305,7 @@
     ]
   },
   {
-    "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
+    "name": "ceiling: full barrel CJS (no tree-shaking \u2014 worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
     "limit": "139 kB",
     "ignore": [
@@ -310,7 +354,7 @@
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
-    "name": "slice: tabular — compact reader alone (no onnxruntime-web at all)",
+    "name": "slice: tabular \u2014 compact reader alone (no onnxruntime-web at all)",
     "path": "dist/tabular.js",
     "import": {
       "./dist/tabular.js": "{ CompactPredictor }"
@@ -331,7 +375,7 @@
     "ignore": ["onnxruntime-web"]
   },
   {
-    "name": "br entry — full opt-in surface incl. ALL lazy UF/municipality/centroid chunks",
+    "name": "br entry \u2014 full opt-in surface incl. ALL lazy UF/municipality/centroid chunks",
     "path": "dist/br.js",
     "limit": "500 KB",
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
@@ -355,7 +399,7 @@
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
-    "name": "slice: icons — no-shard surface (`{ IconProvider, createIconRegistry }`)",
+    "name": "slice: icons \u2014 no-shard surface (`{ IconProvider, createIconRegistry }`)",
     "path": "dist/icons.js",
     "import": {
       "./dist/icons.js": "{ IconProvider, createIconRegistry }"
@@ -364,13 +408,13 @@
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
-    "name": "ceiling: largest icon shard (`s`) — the real cost of ONE lazy fetch",
+    "name": "ceiling: largest icon shard (`s`) \u2014 the real cost of ONE lazy fetch",
     "path": "dist/icons/generated/shard-s.js",
     "limit": "22 KB",
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
-    "name": "ceiling: icons — `{ Icon }` incl. ALL 25 lazy shards (lucide MEASURED)",
+    "name": "ceiling: icons \u2014 `{ Icon }` incl. ALL 25 lazy shards (lucide MEASURED)",
     "path": "dist/icons.js",
     "import": {
       "./dist/icons.js": "{ Icon }"
@@ -379,7 +423,7 @@
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
-    "name": "ceiling: icons — full surface incl. the 2024-slug list and every shard",
+    "name": "ceiling: icons \u2014 full surface incl. the 2024-slug list and every shard",
     "path": "dist/icons.js",
     "limit": "145 KB",
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
@@ -429,7 +473,7 @@
     ]
   },
   {
-    "name": "slice: AIChat (LLM transcript — pulls Markdown + CodeBlock)",
+    "name": "slice: AIChat (LLM transcript \u2014 pulls Markdown + CodeBlock)",
     "path": "dist/tempest-react-sdk.js",
     "import": {
       "./dist/tempest-react-sdk.js": "{ AIChat }"

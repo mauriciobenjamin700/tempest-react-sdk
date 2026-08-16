@@ -1,0 +1,74 @@
+.list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-space-3, 0.75rem);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-space-1, 0.25rem);
+}
+
+.line {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--tempest-space-3, 0.75rem);
+    font-size: var(--tempest-font-size-sm, 0.8125rem);
+}
+
+/*
+ * The label truncates instead of wrapping: a plan name long enough to wrap would
+ * push its own bar down and break the alignment the list exists to show.
+ */
+.label {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--tempest-text);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.value {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--tempest-space-2, 0.5rem);
+    color: var(--tempest-text);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/*
+ * The share is de-emphasised by size, and only then by colour — and the colour it
+ * uses is resolved against the page background, which is where this text actually
+ * sits. Putting the label on top of the bar would need the fill's own foreground
+ * re-verified per series, which is the trap this layout avoids entirely.
+ */
+.percentage {
+    color: var(--tempest-text-subtle);
+    font-size: var(--tempest-font-size-xs, 0.75rem);
+}
+
+.track {
+    overflow: hidden;
+    width: 100%;
+    height: 0.5rem;
+    border-radius: var(--tempest-radius-sm, 0.25rem);
+    background-color: var(--tempest-surface-2);
+}
+
+.fill {
+    height: 100%;
+    border-radius: inherit;
+    transition: width var(--tempest-duration-normal, 200ms) ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fill {
+        transition: none;
+    }
+}

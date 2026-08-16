@@ -242,6 +242,7 @@ pluralize(2, "person", "people"); // "people"
 | ---------------------------------- | ---------------------------------------------- | ---------------------------------------------------------- |
 | `formatBytes(bytes, decimals?)`    | `(bytes: number, decimals?: number) => string` | Human-readable size in B/KB/MB/GB/TB (base 1024).          |
 | `formatCompactNumber(value, loc?)` | `(value: number, locale?: string) => string`   | Compact notation (`1.2K`, `3.4M`) via `Intl.NumberFormat`. |
+| `percentOf(part, total)`           | `(part: number, total: number) => number`      | 0–100 percentage, with a zero base returning `0`.          |
 
 ```ts
 import { formatBytes, formatCompactNumber, clamp } from "tempest-react-sdk";
@@ -257,6 +258,31 @@ formatCompactNumber(1234, "pt-BR"); // "1,2 mil"
 
 !!! note "Pre-existing — `clamp`"
     `clamp(value, min, max)` pins a number to the `[min, max]` range (and tolerates `min > max`, swapping the bounds). `clamp(120, 0, 100)` → `100`.
+
+!!! danger "`percentOf` exists because of `NaN%`, not because of the division"
+    `(active / total) * 100` with `total === 0` produces `NaN`, and `NaN%` on an empty panel is the most common way a dashboard announces that it has no data yet. `percentOf(5, 0)` is `0`; non-finite inputs are `0` too.
+    It does **not** cap at 100 — 150% of a target is real data somebody wants to see.
+    Mind the pairing: `formatPercent` takes a **fraction** (0–1), so it reads `formatPercent(percentOf(a, b) / 100)`.
+
+---
+
+## Dates for `<input type="date">` — `formatDateForInput`
+
+`formatDate` produces `dd/MM/yyyy`, which an `<input type="date">` rejects — it insists on `yyyy-MM-dd`. Every form with a date rewrites that slice, and rewrites it wrong.
+
+```ts
+import { formatDateForInput } from "tempest-react-sdk";
+
+formatDateForInput(new Date(2026, 4, 16)); // "2026-05-16"
+formatDateForInput("2026-05-16"); // "2026-05-16"
+formatDateForInput("not a date"); // "" — the input reads it as "no value"
+```
+
+!!! danger "`toISOString().slice(0, 10)` gets the day wrong, and only in the evening"
+    It is everyone's reflex, and `toISOString` converts to UTC first: in UTC-3, anything after 21:00 reports the **next** day. The form opens on the wrong date only for people working at night, which is the worst kind of bug to reproduce. `formatDateForInput` builds the date from **local** parts.
+
+!!! warning "A `yyyy-MM-dd` string comes back untouched — load-bearing, not a shortcut"
+    `new Date("2026-05-16")` is **UTC** midnight, which in UTC-3 is the 15th at 21:00. Without that bypass, handing the input the exact value the backend sent would move it back a day.
 
 ---
 
@@ -337,6 +363,7 @@ await downloadCsv(users, COLUMNS, "users.csv"); // hand it to the user
 - Import any helper straight from `tempest-react-sdk` — they are all named, pure, tree-shakable exports.
 - **Spreadsheets**: `writeXlsx(headers, rows)` builds a single-sheet UTF-8 `.xlsx` as a `Uint8Array` (no CSV BOM drama).
 - **CSV**: `toCsv(rows, columns)` writes the file with RFC 4180 escaping and a BOM; `downloadCsv(...)` hands it straight to the user.
+- **Dates and percentages**: `formatDateForInput` gives the `yyyy-MM-dd` an `<input type="date">` insists on (from local parts, without the UTC shift); `percentOf` returns `0` instead of `NaN` when the base is zero.
 - **Arrays/Objects**: `groupBy`, `uniqueBy`, `chunk`, `range`, `pick`, `omit`, `deepMerge`, `isEmpty` — always immutable; `deepMerge` replaces arrays instead of merging them.
 - **Guards**: `isDefined`, `isString`, `isNumber`, `isPlainObject`, `assertNever` — safe narrowing + `switch` exhaustiveness.
 - **Functions**: `debounce`/`throttle` (with `.cancel()`), `once`, `memoizeOne` to control execution.

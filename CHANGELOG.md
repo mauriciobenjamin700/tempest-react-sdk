@@ -6,6 +6,25 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`formatDateForInput` e `percentOf` — os dois utilitários que todo painel
+  reescreve.** `formatDate` produz `dd/MM/yyyy`, que um `<input type="date">`
+  rejeita: ele exige `yyyy-MM-dd`. O recorte que cada formulário reescreve é
+  `toISOString().slice(0, 10)`, e ele **erra o dia** — `toISOString` converte pra
+  UTC antes, então em UTC-3 qualquer horário depois das 21h reporta o dia
+  seguinte, e o formulário abre na data errada só pra quem mexe à noite.
+  `formatDateForInput` monta a data pelas partes locais, devolve `""` (que o
+  input lê como "sem valor") para entrada inválida, e deixa passar intacta uma
+  string que já é `yyyy-MM-dd` — desvio necessário, porque
+  `new Date("2026-05-16")` é meia-noite **UTC** e devolver ao input o valor exato
+  que o backend mandou o moveria um dia pra trás.
+
+  `percentOf(part, total)` devolve `0` quando a base é zero, em vez do `NaN` que
+  `(part / total) * 100` produz — `NaN%` num painel vazio é a forma mais comum de
+  um dashboard anunciar que ainda não tem dado. Entrada não-finita também vira
+  `0`. Não limita em 100, porque 150% de uma meta é dado real. Devolve **0–100**;
+  `formatPercent` recebe fração, então o par é
+  `formatPercent(percentOf(a, b) / 100)`.
+
 - **`toCsv` e `downloadCsv` — exportação em CSV que sobrevive a dado real.** O
   SDK tinha `writeXlsx` e nada de CSV, então cada painel escrevia o arquivo por
   concatenação e errava sempre nos mesmos dois pontos: valor com o delimitador

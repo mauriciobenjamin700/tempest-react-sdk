@@ -16,6 +16,8 @@ import { Table, type TableAlign, type TableColumn, type TablePriority } from "..
 import { Pagination } from "../Pagination";
 import { SearchBar } from "../SearchBar";
 import { EditableCell } from "./EditableCell";
+import { LoadingRows } from "./LoadingRows";
+import { useDevWarnings } from "./use-dev-warnings";
 import { DEFAULT_EDIT_LABELS, type CellCommitMove, type DataTableEditLabels } from "./edit-labels";
 import styles from "./DataTable.module.css";
 
@@ -82,7 +84,13 @@ export interface DataTableColumn<T> {
 }
 
 export interface DataTableProps<T> extends HTMLAttributes<HTMLDivElement> {
-    /** Full, unfiltered dataset. Sorting/filtering/pagination happen client-side. */
+    /**
+     * The rows to work with.
+     *
+     * By default this is the **full** dataset and sorting, searching and paging
+     * all happen in memory. Pass `totalItems` and it becomes the current page as
+     * the server returned it, with those three delegated to the caller.
+     */
     data: T[];
     /** Column definitions. */
     columns: DataTableColumn<T>[];
@@ -109,6 +117,51 @@ export interface DataTableProps<T> extends HTMLAttributes<HTMLDivElement> {
     onCellChange?: (change: DataTableCellChange<T>) => void | Promise<void>;
     /** Override the PT-BR copy of the editing affordances. */
     editLabels?: Partial<DataTableEditLabels>;
+    /**
+     * Total row count across every page — the `total` of a paginated envelope.
+     *
+     * Passing it switches the table to **server mode**: `data` is read as the
+     * current page, the page count comes from this number instead of
+     * `data.length`, and sorting and searching are delegated to the caller
+     * (see `manualSort` / `manualSearch`, which are implied here). Pair it with
+     * `page` and `onPageChange`.
+     */
+    totalItems?: number;
+    /** Current page, 1-based. Controlled — required in server mode. */
+    page?: number;
+    /** Called with the next page. Required whenever `page` is controlled. */
+    onPageChange?: (page: number) => void;
+    /**
+     * Sorting is the caller's job: clicking a header reports through
+     * `onSortChange` and the rows are left in the order they arrived.
+     *
+     * Implied by `totalItems`, because sorting the page in memory would sort
+     * *that page only* while the header claims the whole table is ordered.
+     */
+    manualSort?: boolean;
+    /** Called with the next sort state — `null` when the header cycles back to unsorted. */
+    onSortChange?: (sort: DataTableSort<T> | null) => void;
+    /**
+     * Searching is the caller's job: typing reports through `onSearchChange` and
+     * the rows are left as they arrived.
+     *
+     * Implied by `totalItems`. Filtering the current page would hide the rows
+     * that do not match *on this page* and show nothing for a term that only
+     * matches on page three — an empty table that looks like "no results".
+     */
+    manualSearch?: boolean;
+    /** Called with the current search term (debouncing, if any, is the caller's). */
+    onSearchChange?: (term: string) => void;
+    /**
+     * A fetch is in flight.
+     *
+     * With rows already on screen they stay put, dimmed and `aria-busy`, so the
+     * page does not jump under the cursor between pages. With no rows yet it
+     * renders placeholder lines at full height, which is a different statement
+     * from `emptyMessage`: "loading" and "there is nothing" are not the same
+     * screen.
+     */
+    loading?: boolean;
 }
 
 /** Identity of one cell, stable across re-renders and pagination. */
@@ -160,13 +213,36 @@ export function DataTable<T>({
     emptyMessage,
     onCellChange,
     editLabels,
+    totalItems,
+    page: controlledPage,
+    onPageChange,
+    manualSort,
+    onSortChange,
+    manualSearch,
+    onSearchChange,
+    loading = false,
     className,
     ...rest
 }: DataTableProps<T>) {
     const [search, setSearch] = useState<string>("");
     const [sort, setSort] = useState<DataTableSort<T> | null>(initialSort ?? null);
-    const { page, setPage } = usePagination(1, pageSize);
+    const { page: internalPage, setPage: setInternalPage } = usePagination(1, pageSize);
     const announce = useAnnounce();
+
+    const serverMode = totalItems !== undefined;
+    const sortIsManual = manualSort ?? serverMode;
+    const searchIsManual = manualSearch ?? serverMode;
+    const page = controlledPage ?? internalPage;
+
+    const setPage = useCallback(
+        (next: number) => {
+            if (controlledPage === undefined) setInternalPage(next);
+            onPageChange?.(next);
+        },
+        [controlledPage, setInternalPage, onPageChange],
+    );
+
+    useDevWarnings({ serverMode, controlledPage, onPageChange, sortIsManual, onSortChange });
 
     const [editing, setEditing] = useState<string | null>(null);
     const [refocus, setRefocus] = useState<string | null>(null);
@@ -193,40 +269,52 @@ export function DataTable<T>({
 
     const filtered = useMemo<T[]>(() => {
         const term = search.trim().toLowerCase();
-        if (!term || !searchable) return data;
+        if (!term || !searchable || searchIsManual) return data;
         return data.filter((row) =>
             effectiveSearchKeys.some((key) => {
                 const value = row[key];
                 return value != null && String(value).toLowerCase().includes(term);
             }),
         );
-    }, [data, search, searchable, effectiveSearchKeys]);
+    }, [data, search, searchable, searchIsManual, effectiveSearchKeys]);
 
     const sorted = useMemo<T[]>(() => {
-        if (!sort) return filtered;
+        if (!sort || sortIsManual) return filtered;
         const factor = sort.direction === "asc" ? 1 : -1;
         return [...filtered].sort((a, b) => compareValues(a[sort.key], b[sort.key]) * factor);
-    }, [filtered, sort]);
+    }, [filtered, sort, sortIsManual]);
 
-    const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+    const rowCount = totalItems ?? sorted.length;
+    const totalPages = Math.max(1, Math.ceil(rowCount / pageSize));
 
-    // Clamp the current page when the dataset shrinks (e.g. after filtering).
+    /**
+     * Clamp the current page when the dataset shrinks (e.g. after filtering).
+     *
+     * Skipped in server mode: `page` belongs to the caller there, and a clamp
+     * fired against a `totalItems` that has not caught up with the new filter
+     * yet would send them a page they did not ask for, mid-fetch.
+     */
     useEffect(() => {
-        if (page > totalPages) setPage(totalPages);
-    }, [page, totalPages, setPage]);
+        if (!serverMode && page > totalPages) setPage(totalPages);
+    }, [serverMode, page, totalPages, setPage]);
 
-    const safePage = Math.min(page, totalPages);
+    const safePage = serverMode ? page : Math.min(page, totalPages);
     const pageRows = useMemo<T[]>(() => {
+        if (serverMode) return sorted;
         const start = (safePage - 1) * pageSize;
         return sorted.slice(start, start + pageSize);
-    }, [sorted, safePage, pageSize]);
+    }, [serverMode, sorted, safePage, pageSize]);
 
     function toggleSort(key: keyof T): void {
-        setSort((current) => {
-            if (!current || current.key !== key) return { key, direction: "asc" };
-            if (current.direction === "asc") return { key, direction: "desc" };
-            return null;
-        });
+        const current = sort;
+        const next: DataTableSort<T> | null =
+            !current || current.key !== key
+                ? { key, direction: "asc" }
+                : current.direction === "asc"
+                  ? { key, direction: "desc" }
+                  : null;
+        setSort(next);
+        onSortChange?.(next);
     }
 
     const absoluteIndex = useCallback(
@@ -476,6 +564,8 @@ export function DataTable<T>({
         ],
     );
 
+    const showSkeleton = loading && pageRows.length === 0;
+
     return (
         <div className={cn(styles.wrapper, className)} {...rest}>
             {searchable && (
@@ -484,22 +574,33 @@ export function DataTable<T>({
                     onChange={(value) => {
                         setSearch(value);
                         setPage(1);
+                        onSearchChange?.(value);
                     }}
                     wrapperClassName={styles.search}
                 />
             )}
-            <Table
-                columns={tableColumns}
-                data={pageRows}
-                rowKey={(row, index) => rowKey(row, absoluteIndex(index))}
-                emptyMessage={emptyMessage}
-            />
+            <div
+                className={cn(loading && !showSkeleton && styles.pending)}
+                aria-busy={loading || undefined}
+                data-testid="tempest-datatable-body"
+            >
+                {showSkeleton ? (
+                    <LoadingRows columns={tableColumns.length} rows={Math.min(pageSize, 8)} />
+                ) : (
+                    <Table
+                        columns={tableColumns}
+                        data={pageRows}
+                        rowKey={(row, index) => rowKey(row, absoluteIndex(index))}
+                        emptyMessage={emptyMessage}
+                    />
+                )}
+            </div>
             {totalPages > 1 && (
                 <Pagination
                     page={safePage}
                     totalPages={totalPages}
                     onPageChange={setPage}
-                    totalItems={sorted.length}
+                    totalItems={rowCount}
                 />
             )}
         </div>

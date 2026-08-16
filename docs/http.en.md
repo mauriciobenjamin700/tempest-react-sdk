@@ -123,7 +123,7 @@ Worth knowing:
 - A retry wraps the **whole** request, refresh included. One attempt that spends the full 401 → refresh → replay cycle counts as a single attempt.
 - Each attempt carries its own `X-Request-ID`, so the backend can tell the attempts apart in its logs.
 - `Retry-After` (on `429`/`503`) is honoured and overrides the backoff for that attempt.
-- Need retries on one specific call rather than the whole client? The [`retry`](#retry--exponential-backoff) helper is still there and unchanged.
+- Need retries on one specific call rather than the whole client? The [`retry`](#retry-exponential-backoff) helper is still there and unchanged.
 
 ## `parseResponse`
 
@@ -275,6 +275,58 @@ try {
 }
 ```
 
+### From a typed error to the sentence on screen — `describeApiError`
+
+The `try/catch` above writes the sentence by hand, and every app writes the same funnel — getting the same step wrong: a request that **never reached** the server has `status === 0`, and without special handling it renders as "erro 0".
+
+```ts
+import { describeApiError } from "tempest-react-sdk";
+
+try {
+  await api.get("/orders");
+} catch (error) {
+  toast.error(describeApiError(error, "Could not load the orders"));
+}
+```
+
+The funnel, in order:
+
+1. **A request that never left** — `status === 0`, or any error while the browser reports itself offline → the offline sentence.
+2. **The backend's `detail`** — the most specific text available, already written for a person.
+3. **`fallback`**, with `(HTTP <status>)` appended when a status is known — the screenshot in the support ticket then carries the one fact a developer needs.
+
+Two surfaces, one funnel:
+
+| | When to use |
+| --- | --- |
+| `describeApiError(error, fallback, strings?)` | Pure function. Runs in an interceptor, a logger, anywhere outside the React tree. |
+| `useDescribeApiError()` | Hook. Resolves the fixed sentence through the active `I18nProvider`; returns `(error, fallback) => string`. |
+
+```tsx
+import { useDescribeApiError } from "tempest-react-sdk";
+
+const describe = useDescribeApiError();
+const { mutate } = useMutation({
+  mutationFn: save,
+  onError: (error) => toast.error(describe(error, "Could not save")),
+});
+```
+
+!!! info "The hook does not duplicate the funnel — it only supplies the strings"
+    `useDescribeApiError` calls the pure function. Both exist because of **where** the code runs: React context is unreachable from an interceptor, and passing translations by hand through every component is what the hook avoids.
+
+!!! check "Works with no `I18nProvider`, and with no key in the catalog"
+    i18n is opt-in in this SDK. With no provider — or a catalog that never defined `tempest.error.offline` — the sentence falls back to the pt-BR default, instead of crashing or printing the raw key at the user (which is what `t` returns on a miss).
+
+!!! note "The two constants that come with it"
+    `DEFAULT_API_ERROR_STRINGS` is the pt-BR sentence used when nothing else answers —
+    handy as the base for your own. `API_ERROR_OFFLINE_KEY` is the key
+    (`"tempest.error.offline"`) the hook looks up; define it in your `messages` to
+    translate the offline sentence.
+
+!!! warning "A synthetic `detail` does not beat your `fallback`"
+    When the response carries no body, `buildApiError` synthesises `Erro <status>`. `describeApiError` recognises that text and prefers your `fallback` — "Erro 500" says strictly less than "Could not load the orders".
+
 ## Recap
 
 - `createApiClient({ baseURL, getToken, onUnauthorized, refresh, ... })` creates a typed client; instantiate it once and export it.
@@ -284,6 +336,7 @@ try {
 - `uploadWithProgress` uses XHR to report byte-level progress; for a large file, `createResumableUpload` chunks and resumes — see [Resumable upload](./resumable-upload.md).
 - `retry` (exponential backoff + `shouldRetry`) and `usePoll` (interval with overlap guard) cover flaky operations and job tracking.
 - `generateIdempotencyKey` — generate once per operation, reuse across retries.
+- `describeApiError(error, fallback)` (pure) and `useDescribeApiError()` (i18n-aware) turn the typed error into the sentence on screen, treating `status === 0` as offline instead of "erro 0".
 
 ## See also
 

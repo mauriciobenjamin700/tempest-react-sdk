@@ -85,10 +85,14 @@ jobs:
                   mkdir -p /tmp/sdk-smoke && cd /tmp/sdk-smoke
                   npm init -y >/dev/null
                   npm pkg set type=module >/dev/null
-                  # Only react + react-dom needed manually — the SDK bundles
-                  # zod / zustand / dexie / react-hook-form / @tanstack/react-query /
-                  # lucide-react as direct dependencies (auto-resolved by npm install).
-                  npm install --silent "$GITHUB_WORKSPACE/$TARBALL" react@^19 react-dom@^19
+                  # react + react-dom + react-router are the required peers. They go in
+                  # explicitly so the smoke never rides on npm's peer auto-install —
+                  # the barrel re-exports ./router, so a missing react-router is an
+                  # ERR_MODULE_NOT_FOUND at import time, not a lazy failure.
+                  # The SDK still bundles zod / zustand / dexie / react-hook-form /
+                  # @tanstack/react-query / lucide-react as direct dependencies
+                  # (auto-resolved by npm install).
+                  npm install --silent "$GITHUB_WORKSPACE/$TARBALL" react@^19 react-dom@^19 react-router@^8
                   PKG_NAME="$PKG_NAME" node -e "import(process.env.PKG_NAME).then(m => { \
                     const required = ['Button','Input','Modal','ToastProvider','useDebounce','createApiClient','createAuthStore','ThemeProvider','I18nProvider','QueryProvider','ErrorBoundary','createOfflineStore','createEventStream','createWebSocket','WebPushClient','registerServiceWorker','playAudio','share','cn','formatCurrency']; \
                     const missing = required.filter(k => !(k in m)); \

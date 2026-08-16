@@ -124,6 +124,7 @@ export default tseslint.config(
                         "useFlagValue",
                         "useI18n",
                         "useModals",
+                        "useOptionalI18n",
                         "useTelemetry",
                         "useTheme",
                         "useToast",

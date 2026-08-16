@@ -58,12 +58,12 @@ Importe o CSS uma vez no entrypoint do app:
 import "tempest-react-sdk/styles.css";
 ```
 
-Apenas **`react`** e **`react-dom`** são peer dependencies (regra de uma única
-instância do React). Todo o resto — `react-router`, `zustand`,
-`@tanstack/react-query`, `zod`, `react-hook-form`, `dexie`, `lucide-react` — é
-**dependência direta**, instalada automaticamente com o SDK e externalizada no
-bundle (seu bundler faz tree-shake do que não usar). Detalhes em
-[Arquitetura](architecture.md).
+**`react`**, **`react-dom`** e **`react-router`** (`^7 || ^8`) são peer
+dependencies — os três carregam contexto React, e uma segunda cópia quebra em
+runtime. Todo o resto — `zustand`, `@tanstack/react-query`, `zod`,
+`react-hook-form`, `dexie`, `lucide-react` — é **dependência direta**, instalada
+automaticamente com o SDK e externalizada no bundle (seu bundler faz tree-shake
+do que não usar). Detalhes em [Arquitetura](architecture.md).
 
 ## O que tem dentro
 

@@ -35,7 +35,7 @@ Para qualquer wrapper futuro (Datadog, Amplitude, Mixpanel, Unleash, Cloudflare)
 - ESLint 10 + typescript-eslint 8 + Prettier 3
 - Husky 9 + lint-staged 17 (formatters em staged files)
 
-Apenas `react` + `react-dom` são peer deps **obrigatórios** (regra de uma instância React). Deps diretas (instaladas junto): `@tanstack/react-query`, `zod`, `zustand`, `dexie`, `react-hook-form`, `lucide-react`, `react-router`, `fflate`. Todas externalizadas no `vite.config.ts` pro bundler do app tree-shakear.
+Peer deps **obrigatórios**: `react` + `react-dom` (`^18 || ^19`) e `react-router` (`^7 || ^8`) — os três carregam contexto React, e uma cópia aninhada vira uma segunda instância que quebra em runtime. Deps diretas (instaladas junto): `@tanstack/react-query`, `zod`, `zustand`, `dexie`, `react-hook-form`, `lucide-react`, `fflate`. Todas externalizadas no `vite.config.ts` pro bundler do app tree-shakear.
 
 Peers **opcionais** (`peerDependenciesMeta.optional`), só quem usa o módulo instala: `recharts` (`/charts`), `@tiptap/react` + `@tiptap/starter-kit` (`/editor`), `leaflet` (tile layer do `geo`), `onnxruntime-web` (`/vision`), `vite` + `@vitejs/plugin-react` (`/vite`).
 
@@ -72,7 +72,7 @@ tempest-react-sdk/
 │   ├── push/           usePushSubscription, urlBase64ToUint8Array, isPushSupported
 │                        (inbox: <NotificationCenter> + useNotificationInbox em components/)
 │   ├── query/          QueryProvider, createQueryKeys, paginação, useOfflineMutation, persistQueryClientOffline
-│   ├── router/         defineRoutes, <AppRouter>, <RouteGuard> (React Router v8 declarativo)
+│   ├── router/         defineRoutes, <AppRouter>, <RouteGuard> (React Router declarativo, peer ^7 || ^8)
 │   ├── share/          share, isShareSupported, shareOrDownloadBlob
 │   ├── sse/            createEventStream, useEventStream
 │   ├── store/          createStore, createSelectors (Zustand)
@@ -168,7 +168,9 @@ npm run dev               # http://127.0.0.1:5173
 
 - **CSS Modules com prefix `tempest_`, e só isso** — é a única estratégia de estilo do SDK. Não existe (nem entra no backlog) modo "headless"/`data-tempest-classname` para Tailwind, Stitches ou Linaria: manter um segundo caminho de estilo dobraria a superfície de cada componente e diluiria os tokens. Um app que use Tailwind pode conviver com o SDK lado a lado (o prefixo evita colisão), mas os componentes continuam estilizados por CSS Modules + tokens `--tempest-*`.
 - **Tokens CSS via `--tempest-*`** — única forma de tema. Apps customizam sobrescrevendo no `:root`.
-- **Direct deps + react peer** (v0.2.0+) — apenas `react` + `react-dom` como peer; demais (`zod`, `zustand`, `dexie`, `react-hook-form`, `@tanstack/react-query`, `lucide-react`) viram `dependencies` instaladas junto. Continuam externalizadas no Rollup config (bundle do SDK não cresce). Apps que não usam um módulo ainda não pagam — Vite/webpack tree-shake. Decisão original v0.1.x era "peer deps opcionais", revertida em v0.2.0 a pedido do usuário pra simplificar onboarding.
+- **Direct deps + peers de contexto** (v0.2.0+, revisado pós-v0.42.1) — `react`, `react-dom` e `react-router` são peers; demais (`zod`, `zustand`, `dexie`, `react-hook-form`, `@tanstack/react-query`, `lucide-react`) são `dependencies` instaladas junto. Todas continuam externalizadas no Rollup config (bundle do SDK não cresce). Apps que não usam um módulo ainda não pagam — Vite/webpack tree-shake. Decisão original v0.1.x era "peer deps opcionais", revertida em v0.2.0 a pedido do usuário pra simplificar onboarding.
+  - **O critério é contexto React, não popularidade.** Duas cópias de `zod`/`dexie`/`lucide-react` custam bytes; duas cópias de uma lib com contexto custam **correção** — `useNavigate() may be used only in the context of a <Router>`. Por isso `react-router` saiu de `dependencies` e virou peer `^7 || ^8`: como dep direta ele gerava cópia aninhada em todo app que já tivesse react-router fora do range fixado. Sintoma exato que o próprio `tempest doctor` acusa via `STATEFUL_DEPS` em `bin/tempest.mjs`.
+  - **Dívida conhecida:** `@tanstack/react-query`, `zustand` e `react-hook-form` também estão em `STATEFUL_DEPS` e continuam como dep direta. Não é inconsistência acidental — a duplicação deles é rara na prática (o SDK aceita ranges largos: `^5`, `^4 || ^5`, `^7.76`) e o onboarding pesa mais. Se um app real colidir, o caminho é o mesmo aplicado ao router: peer com range largo + entrada de CHANGELOG explicando o crash que evita.
 - **Adapters injetam SDK** — Sentry/PostHog/GrowthBook/LaunchDarkly **não** são peer deps. Caller passa a instância. Pattern aplicável pra Datadog/Mixpanel/Unleash/etc.
 - **Client-side only, PWA offline-first** — o SDK **não** vai para SSR/RSC. Nada de `"use client"`, nada de suporte ao App Router do Next: o alvo é SPA Vite que roda offline (service worker, IndexedDB, outbox, install prompt). Isso é escopo escolhido, não lacuna: um SDK que precisa funcionar nos dois mundos paga em cada API (dois caminhos de render, hidratação, `window` proibido no módulo) e o offline-first fica pior. Os guards `typeof window === "undefined"` que existem nos hooks **continuam** — eles servem pra não explodir fora do browser (testes, contexto de service worker, plugin de build), não pra prometer render no servidor.
 - **Sem Storybook** — docs em markdown + `examples/gallery` (app Vite real) cumprem o papel.

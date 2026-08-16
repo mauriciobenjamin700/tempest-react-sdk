@@ -10,7 +10,7 @@ into flows that Tempest apps repeat all the time. 🚀
     app entrypoint:
 
     ```bash
-    npm install tempest-react-sdk
+    npm install tempest-react-sdk react react-dom react-router
     ```
 
     ```tsx
@@ -18,10 +18,11 @@ into flows that Tempest apps repeat all the time. 🚀
     import "tempest-react-sdk/styles.css";
     ```
 
-    Only `react` and `react-dom` are **peer dependencies** — everything else
-    (`zod`, `zustand`, `dexie`, `react-hook-form`, `@tanstack/react-query`,
-    `lucide-react`, `react-router`) is installed alongside as a direct
-    dependency. The latest published version is on the
+    `react`, `react-dom` and `react-router` (`^7 || ^8`) are **peer
+    dependencies** — all three carry React context, so they must come from the
+    app as a single copy. Everything else (`zod`, `zustand`, `dexie`,
+    `react-hook-form`, `@tanstack/react-query`, `lucide-react`) is installed
+    alongside as a direct dependency. The latest published version is on the
     [npm page](https://www.npmjs.com/package/tempest-react-sdk).
 
 ## Full authentication flow

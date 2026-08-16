@@ -242,6 +242,7 @@ pluralize(2, "person", "people"); // "people"
 | ---------------------------------- | ---------------------------------------------- | ---------------------------------------------------------- |
 | `formatBytes(bytes, decimals?)`    | `(bytes: number, decimals?: number) => string` | Tamanho legível em B/KB/MB/GB/TB (base 1024).              |
 | `formatCompactNumber(value, loc?)` | `(value: number, locale?: string) => string`   | Notação compacta (`1.2K`, `3.4M`) via `Intl.NumberFormat`. |
+| `percentOf(part, total)`           | `(part: number, total: number) => number`      | Percentual 0–100, com base zero devolvendo `0`.            |
 
 ```ts
 import { formatBytes, formatCompactNumber, clamp } from "tempest-react-sdk";
@@ -257,6 +258,31 @@ formatCompactNumber(1234, "pt-BR"); // "1,2 mil"
 
 !!! note "Pré-existente — `clamp`"
     `clamp(value, min, max)` prende um número no intervalo `[min, max]` (e tolera `min > max`, trocando os limites). `clamp(120, 0, 100)` → `100`.
+
+!!! danger "`percentOf` existe pelo `NaN%`, não pela divisão"
+    `(ativos / total) * 100` com `total === 0` produz `NaN`, e `NaN%` no painel vazio é a forma mais comum de um dashboard anunciar que ainda não tem dado. `percentOf(5, 0)` é `0`; não-finito também vira `0`.
+    Ele **não** limita em 100 — 150% de uma meta é dado real que alguém quer ver.
+    Cuidado com o par: `formatPercent` recebe **fração** (0–1), então é `formatPercent(percentOf(a, b) / 100)`.
+
+---
+
+## Data para `<input type="date">` — `formatDateForInput`
+
+`formatDate` produz `dd/MM/yyyy`, que um `<input type="date">` rejeita — ele exige `yyyy-MM-dd`. Todo formulário com data reescreve esse recorte, e reescreve errado.
+
+```ts
+import { formatDateForInput } from "tempest-react-sdk";
+
+formatDateForInput(new Date(2026, 4, 16)); // "2026-05-16"
+formatDateForInput("2026-05-16"); // "2026-05-16"
+formatDateForInput("não é data"); // "" — o input lê como "sem valor"
+```
+
+!!! danger "`toISOString().slice(0, 10)` erra o dia, e erra só à noite"
+    É o reflexo de todo mundo, e `toISOString` converte pra UTC antes: em UTC-3, qualquer horário depois das 21h reporta o **dia seguinte**. O formulário abre na data errada só pra quem mexe à noite, que é o pior tipo de bug pra reproduzir. `formatDateForInput` monta a data pelas partes **locais**.
+
+!!! warning "String `yyyy-MM-dd` volta intacta — e isso é essencial, não atalho"
+    `new Date("2026-05-16")` é meia-noite **UTC**, que em UTC-3 é dia 15 às 21h. Sem esse desvio, devolver ao input exatamente o valor que o backend mandou o moveria um dia pra trás.
 
 ---
 
@@ -291,10 +317,53 @@ O XML é enxuto de propósito: strings inline (sem tabela de shared-strings), se
 
 ---
 
+## CSV — `toCsv` e `downloadCsv`
+
+O `.xlsx` é o formato certo pra quem vai **abrir** a planilha. CSV é o formato certo pra quem vai **importar** o arquivo em outro sistema — e é o que quase todo painel acaba escrevendo na mão, errando sempre nos mesmos dois pontos: um nome com vírgula parte a linha, e um nome com aspas quebra justamente a proteção que as aspas deveriam dar.
+
+```ts
+import { toCsv, downloadCsv, type CsvColumn } from "tempest-react-sdk";
+
+const COLUNAS: CsvColumn<Usuario>[] = [
+  { key: "nome", header: "Nome" },
+  { key: "email", header: "E-mail" },
+  { key: "plano", header: "Plano", csv: (u) => u.plano?.label ?? "" },
+];
+
+const texto = toCsv(usuarios, COLUNAS); // string pronta
+await downloadCsv(usuarios, COLUNAS, "usuarios.csv"); // entrega ao usuário
+```
+
+| Assinatura | O que faz |
+| --- | --- |
+| `toCsv(rows, columns, options?)` | Devolve o arquivo inteiro como `string`. |
+| `downloadCsv(rows, columns, fileName?, options?)` | Monta o blob `text/csv;charset=utf-8` e passa pro `shareOrDownloadBlob`. |
+| `CsvColumn<T>` | `{ key, header, csv? }` |
+| `CsvOptions` | `{ delimiter?: "," \| ";", bom?: boolean }` — defaults `","` e `true`. |
+
+!!! danger "A coluna do `DataTable` **não** serve direto quando tem `render`"
+    `DataTableColumn.render` devolve `ReactNode`. Exportar isso escreve `[object Object]` justamente na coluna que tem badge, link ou data formatada — a mais importante da tabela. Uma coluna **sem** `render` é estruturalmente compatível e pode ser reaproveitada; com `render`, dê o acessor `csv`.
+
+!!! check "Escaping RFC 4180, e o BOM que o Excel pt-BR exige"
+    Campo com o delimitador, com aspas ou com quebra de linha vira campo citado, e cada aspas interna é duplicada. O arquivo termina as linhas com `\r\n`. O BOM vem por padrão porque sem ele o Excel em pt-BR lê UTF-8 como Latin-1 e todo acento vira mojibake.
+
+!!! tip "Delimitador `;` é o certo em locale pt-BR"
+    Onde o separador decimal é a vírgula, o Excel abre um CSV separado por vírgula **em uma coluna só**. `{ delimiter: ";" }` resolve — e o escaping acompanha, citando o campo que contém `;` em vez do que contém `,`.
+
+!!! info "`0` e `false` são exportados; `null` e `undefined` viram campo vazio"
+    Vazio é ausência, não falsidade. Tratar `0` como vazio é como um relatório passa a sub-reportar toda linha que legitimamente vale zero. `Date` sai em ISO, que qualquer sistema reimporta sem adivinhar formato.
+
+!!! note "Lista vazia gera o cabeçalho, não um arquivo vazio"
+    Quem abre precisa ver quais colunas pediu. Arquivo de zero byte parece erro de exportação.
+
+---
+
 ## Recap
 
 - Importe qualquer helper direto de `tempest-react-sdk` — todos são exports nomeados, puros e tree-shakable.
 - **Planilhas**: `writeXlsx(headers, rows)` gera um `.xlsx` UTF-8 de uma aba como `Uint8Array` (sem drama de BOM do CSV).
+- **CSV**: `toCsv(rows, columns)` escreve o arquivo com escaping RFC 4180 e BOM; `downloadCsv(...)` entrega direto ao usuário.
+- **Datas e percentuais**: `formatDateForInput` dá o `yyyy-MM-dd` que o `<input type="date">` exige (pelas partes locais, sem o desvio de UTC); `percentOf` devolve `0` em vez de `NaN` quando a base é zero.
 - **Arrays/Objetos**: `groupBy`, `uniqueBy`, `chunk`, `range`, `pick`, `omit`, `deepMerge`, `isEmpty` — sempre imutáveis; `deepMerge` substitui arrays em vez de fundir.
 - **Guards**: `isDefined`, `isString`, `isNumber`, `isPlainObject`, `assertNever` — narrowing seguro + exaustividade em `switch`.
 - **Funções**: `debounce`/`throttle` (com `.cancel()`), `once`, `memoizeOne` para controlar execução.

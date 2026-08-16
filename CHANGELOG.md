@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.43.0] — 2026-08-16
+
 ### Alterado
 
 - **`react-router` virou peer dependency (`^7 || ^8`), em vez de dependência

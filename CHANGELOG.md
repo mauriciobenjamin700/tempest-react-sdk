@@ -6,6 +6,201 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`BarList` — a distribuição ranqueada que o SDK mandava escrever à mão.**
+  Rótulo, barra proporcional, valor e (opcional) a fatia do total. Existiam
+  `Progress` (uma barra isolada) e `Sparkline` (série temporal) e nada para o
+  gráfico mais comum de painel — no dashboard que motivou a issue o mesmo bloco
+  aparecia quatro vezes, cada uma com seu CSS e seu `.sort()`. Sem recharts: é
+  `div` com largura percentual, 762 B brotli na fatia importada.
+
+  Largura e percentual são números **diferentes**, de propósito: a largura é
+  relativa à **maior** linha (a maior barra preenche a trilha) e o percentual é a
+  fatia do **total**. Escalar a largura pelo total deixa toda barra curta numa
+  lista de muitos valores pequenos, ou seja, o gráfico para de ser legível
+  exatamente quando tem mais linhas.
+
+  É **lista, não figura**: `<ul>`/`<li>` com o valor escrito como texto e a barra
+  `aria-hidden` atrás. E o rótulo nunca fica em cima da barra — texto sobre
+  preenchimento tingido precisa ser reverificado contra aquele preenchimento, a
+  rampa `--tempest-chart-*` é de marca (3:1) e reprova como texto, e o `axe` em
+  jsdom não pega isso porque desliga `color-contrast` sem paint. O layout evita a
+  classe inteira do problema.
+
+  Cantos resolvidos: soma zero mostra `0%` (via `percentOf`) em vez de `NaN%`;
+  valor negativo não desenha barra mas continua na lista com seu número, e fica
+  fora do total para as fatias fecharem; `otherLabel` só agrega quando `max` cortou
+  mais de uma linha. A aritmética sai exportada como `buildBarListRows`, para quem
+  quer o mesmo cálculo com outro desenho.
+
+- **`DataTable` ganhou modo servidor** — `totalItems`, `page`, `onPageChange`,
+  `manualSort`, `onSortChange`, `manualSearch`, `onSearchChange` e `loading`. O
+  componente era documentado como "Full, unfiltered dataset. Sorting/filtering/
+  pagination happen client-side" e paginava sobre `sorted.length`, então na
+  listagem paginada no servidor — o caso normal de admin — ele ficava inutilizável
+  e o app montava `Table` + `Pagination` na mão, reimplementando cabeçalho
+  ordenável, estado de página e empty state. As duas pontas já existiam
+  (`usePaginatedQuery` e `Pagination`); faltava o meio.
+
+  Passar `totalItems` troca o modo: `data` vira a página atual, a contagem de
+  páginas vem desse número, e ordenação e busca passam a ser delegadas — as duas
+  **implicitamente**, e isso não é conveniência. `searchable` filtra `data` em
+  memória, e no modo servidor `data` é só a página atual: o usuário digita, some
+  tudo que não está na página 3, e a tabela parece dizer "não existe". Ordenar
+  cinco linhas alegando ter ordenado 23 é a mesma mentira. `manualSort` e
+  `manualSearch` continuam disponíveis sozinhos, para quem tem a lista inteira mas
+  ordena/filtra no backend.
+
+  `loading` separa duas telas que costumam ser tratadas como uma: com linhas
+  visíveis, esmaece e marca `aria-busy` mantendo as linhas antigas, então a
+  paginação não salta sob o cursor; sem linhas ainda, desenha placeholders na
+  altura real em vez do `emptyMessage`, porque "estou buscando" e "não há nada"
+  são frases diferentes.
+
+  Combinação incompleta (`totalItems` sem `page`, `page` sem `onPageChange`,
+  ordenação delegada sem `onSortChange`) avisa no `console` em desenvolvimento:
+  nenhuma delas é erro de tipo, e todas renderizam uma tela que parece funcionar.
+
+  **Modo cliente intocado** — sem as props novas, markup e comportamento são
+  exatamente os de antes, inclusive o clamp de página quando o dataset encolhe,
+  que no modo servidor é desligado de propósito (a página pertence ao chamador, e
+  um clamp contra um `totalItems` defasado o mandaria para uma página que ele não
+  pediu, no meio do fetch).
+
+- **`describeApiError` e `useDescribeApiError` — do erro tipado para a frase da
+  tela.** O SDK dava `TempestApiError` e `isApiError` e nada que virasse a frase
+  exibível, então todo app escrevia o mesmo funil e errava no mesmo ponto: a
+  requisição que **não chegou** ao servidor tem `status === 0`, e sem tratamento
+  ela vira "erro 0" na tela.
+
+  A ordem é: requisição que não chegou (`status === 0`, ou erro qualquer com o
+  browser se declarando offline) → `detail` do backend → `fallback` do chamador
+  com `(HTTP <status>)` anexado. O `detail` sintético que `buildApiError` produz
+  quando a resposta não tem corpo (`Erro <status>`) é reconhecido e perde para o
+  `fallback`, porque "Erro 500" diz estritamente menos que "Não foi possível
+  carregar os pedidos".
+
+  As duas superfícies saíram porque resolvem **onde** o código roda, não gosto:
+  `describeApiError` é pura e funciona em interceptor, logger e fora da árvore
+  React; `useDescribeApiError` é o mesmo funil com a frase fixa resolvida pelo
+  `I18nProvider` ativo — e chama a função pura, sem duplicar a lógica. Sem
+  provider, ou com catálogo que não define `tempest.error.offline`, cai no default
+  pt-BR em vez de estourar ou imprimir a chave crua (que é o que `t` devolve num
+  miss). Para isso o i18n ganhou `useOptionalI18n`, que devolve `null` fora do
+  provider em vez de lançar como `useI18n`.
+
+- **`shouldRetryQuery`**, a política de retentativa que o `QueryProvider` agora
+  usa por padrão, exportada para quem monta o próprio `QueryClient`.
+
+- **`formatDateForInput` e `percentOf` — os dois utilitários que todo painel
+  reescreve.** `formatDate` produz `dd/MM/yyyy`, que um `<input type="date">`
+  rejeita: ele exige `yyyy-MM-dd`. O recorte que cada formulário reescreve é
+  `toISOString().slice(0, 10)`, e ele **erra o dia** — `toISOString` converte pra
+  UTC antes, então em UTC-3 qualquer horário depois das 21h reporta o dia
+  seguinte, e o formulário abre na data errada só pra quem mexe à noite.
+  `formatDateForInput` monta a data pelas partes locais, devolve `""` (que o
+  input lê como "sem valor") para entrada inválida, e deixa passar intacta uma
+  string que já é `yyyy-MM-dd` — desvio necessário, porque
+  `new Date("2026-05-16")` é meia-noite **UTC** e devolver ao input o valor exato
+  que o backend mandou o moveria um dia pra trás.
+
+  `percentOf(part, total)` devolve `0` quando a base é zero, em vez do `NaN` que
+  `(part / total) * 100` produz — `NaN%` num painel vazio é a forma mais comum de
+  um dashboard anunciar que ainda não tem dado. Entrada não-finita também vira
+  `0`. Não limita em 100, porque 150% de uma meta é dado real. Devolve **0–100**;
+  `formatPercent` recebe fração, então o par é
+  `formatPercent(percentOf(a, b) / 100)`.
+
+- **`toCsv` e `downloadCsv` — exportação em CSV que sobrevive a dado real.** O
+  SDK tinha `writeXlsx` e nada de CSV, então cada painel escrevia o arquivo por
+  concatenação e errava sempre nos mesmos dois pontos: valor com o delimitador
+  parte a linha, e valor com aspas quebra justamente a citação que deveria
+  protegê-lo. Junto vinham a repetição do BOM (o Excel em pt-BR lê UTF-8 sem BOM
+  como Latin-1 e transforma todo acento em mojibake) e mais um `<a download>` na
+  mão, sendo que `shareOrDownloadBlob` já existe — e é por ele que `downloadCsv`
+  entrega o arquivo, abrindo a folha nativa no celular.
+
+  Escaping RFC 4180 completo: campo com delimitador, aspas ou quebra de linha é
+  citado, aspas internas são duplicadas, e as linhas terminam em `\r\n`.
+  `CsvOptions` cobre os dois desvios que o Excel pt-BR exige — `delimiter: ";"`
+  (num locale de vírgula decimal, o CSV separado por vírgula abre em uma coluna
+  só) e `bom` ligado por padrão.
+
+  `CsvColumn<T>` ganhou acessor próprio (`csv?`) em vez de reaproveitar
+  `DataTableColumn` inteira: `render` devolve `ReactNode`, que serializado vira
+  `[object Object]` justamente na coluna com badge, link ou data formatada. Uma
+  coluna sem `render` continua estruturalmente compatível. `0` e `false` são
+  exportados (vazio é ausência, não falsidade), `Date` sai em ISO, e lista vazia
+  gera o cabeçalho em vez de um arquivo de zero byte que parece erro.
+
+- **`applyFilters` e `filtersToQueryParams` — a metade que faltava do modelo de
+  filtro** (`tempest-react-sdk`, exportados junto do `FilterBar`). O modelo era
+  completo em tudo menos **aplicar**: `operatorsFor`, `describeFilter`,
+  `isComplete`, `filtersToSearchParams` e `filtersFromSearchParams` já existiam, e
+  o docstring deste último até admitia o buraco ao falar em "rendering a filter
+  the app cannot evaluate". Resultado prático: o `FilterBar` produzia `Filter[]` e
+  cada app reescrevia o match dos onze operadores.
+
+  `applyFilters(items, filters)` roda o conjunto em memória, combinando com **E**
+  e ignorando filtro incompleto (formulário meio preenchido não esvazia a tabela
+  embaixo dele). A comparação segue o tipo da **linha**, não o do filtro — que
+  sempre chega como texto, vindo de input e de URL: número compara
+  numericamente, data compara **por dia** (linha carimbada
+  `2026-03-05T13:00:00Z` casa `eq 2026-03-05`), e o resto compara como texto com
+  `numeric: true`. `between` é inclusivo nas duas pontas e **normaliza** o par
+  invertido, porque quem escolheu a data final primeiro quis o intervalo, não uma
+  lista vazia.
+
+  `filtersToQueryParams(filters)` é a mesma coisa do lado servidor, encodada no
+  dialeto que o `tempest-fastapi-sdk` já lê — o sufixo `<coluna>__<op>` de
+  `build_filter_condition` (`tempest_fastapi_sdk/db/expressions.py`): `ne` →
+  `__ne`, `contains` → `__icontains`, `between` → `__between` repetido, `in` →
+  `__in` por valor, `empty`/`notEmpty` → `__isnull=true`/`=false`. Devolve
+  `URLSearchParams` e **não** `Record<string, string>`, porque `between` carrega
+  um par e `in` carrega uma lista: um objeto guardaria só o último valor e
+  estreitaria o filtro em silêncio.
+
+  Duas divergências entre os dois modos são deliberadas e estão documentadas:
+  `ne` casa linha sem valor no cliente (no SQL, `coluna <> 'x'` com `NULL` derruba
+  a linha) e `empty` casa texto em branco no cliente (o `__isnull` do servidor só
+  casa `NULL`). `eq` ficou **sensível a maiúscula** justamente para não discordar
+  do `WHERE coluna = valor` — o operador insensível é o `contains`, que já é o
+  default de campo de texto. Também há um caso especial: a coluna `name`, que o
+  backend trata como `ILIKE %valor%` quando vem sem sufixo, recebe `name__iexact`
+  no `eq`, senão o chip diria "é" e a query perguntaria "contém".
+
+- **`AppBar`: aviso em desenvolvimento quando o CSS do app impede o sticky de
+  grudar.** `body { overflow-x: hidden }` — o jeito mais comum de impedir que um
+  filho largo demais arraste a página na horizontal — força o `overflow-y`
+  computado a virar `auto` (regra do CSS Overflow 3, não bug de browser) e com
+  isso transforma o `body` num **scroll container**. Todo elemento sticky passa
+  a se prender ao scrollport do `body` em vez do viewport, e esse scrollport
+  rola junto com o documento: medido no Chromium a 390px numa página longa, a
+  barra ficou em `top: -900px` depois de rolar 900px.
+
+  O modo de falha é invisível do lado do app — a barra continua com
+  `position: sticky` no DevTools, o markup não muda, e no desktop as telas
+  costumam caber sem rolagem. Aparece no Chrome Android, onde a barra de URL que
+  encolhe transforma qualquer tela em tela longa, e chega reportado como "a app
+  bar quebrou".
+
+  O SDK não tem como corrigir isso de dentro do componente: um elemento sticky
+  não tem como abrir mão do seu scroll container, e uma regra que o reset do SDK
+  trouxesse perderia para a folha de estilo do app, importada depois. O que dá
+  para fazer é nomear a causa — uma linha no console, uma vez por página, só em
+  dev, e só quando a barra é sticky:
+
+  ```text
+  [tempest-react-sdk] <AppBar sticky /> will not stick: `document.body` has
+  `overflow-x: hidden` … Fix: `html, body { overflow-x: clip }`, on both
+  elements, since neither clamps alone.
+  ```
+
+  A checagem lê o `overflow-x` do `body` em vez de caminhar pelos ancestrais,
+  porque é essa declaração isolada que constitui a falha: um app que quer mesmo
+  o `body` rolando escreve `overflow-y: auto`, e aí o sticky se comporta como
+  esperado. O que nunca é intencional é ganhar esse scroll container de brinde
+  ao clampar o outro eixo.
+
 - **`useLatestRef(value)`** — ref estável cujo `current` é sempre o último valor
   recebido. É a saída para ler state fresco dentro de algo que não pode ser
   recriado quando esse state muda: um interval, uma subscription, um listener
@@ -47,6 +242,29 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   Não há um `useCompressedStorage`: `useLocalStorage` já aceita
   `serialize`/`deserialize`, então `compressedStorageCodec` entra direto e um
   hook novo seria só um wrapper repassando argumentos.
+
+### Alterado
+
+- **Budget de `size-limit` do `DataTable` subiu de 5,2 KB para 5,6 KB** — o modo
+  servidor custou 192 B brotli na fatia importada. Fatias novas entraram no
+  arquivo: `BarList` (1,2 KB) e "admin plumbing" (`applyFilters`,
+  `filtersToQueryParams`, `toCsv`, `downloadCsv`, `describeApiError`, 3 KB).
+
+- **`QueryProvider` parou de retentar 4xx.** O default era `retry: 1` chapado, e
+  ele replicava um 403 numa listagem admin-only e um 404 de registro apagado — o
+  servidor recusou de propósito nos dois casos, então a segunda tentativa devolve
+  a mesma resposta, dobra o log de rede e segura o spinner por mais um round
+  trip.
+
+  O novo default retenta uma vez só o que pode mudar sozinho: falha de rede
+  (`status === 0`), `5xx`, `408`, `429` — que é uma recusa cujo significado
+  literal é "mais tarde" — e erro de formato desconhecido, que pode ser falha de
+  transporte. Todo o resto do 4xx falha de primeira.
+
+  **Migração:** quem dependia de retry em 4xx (fluxo de refresh de token feito na
+  mão, por exemplo) restaura o comportamento antigo com
+  `<QueryProvider defaultOptions={{ queries: { retry: 1 } }}>`. Um `client`
+  próprio nunca foi afetado — ele já ignora os defaults do SDK.
 
 ### Corrigido
 

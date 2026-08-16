@@ -6,6 +6,19 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`lazyWithRetry` ganhou `.preload()`** (e o tipo `PreloadableLazy`). Chamar
+  no momento em que a rota fica provável — hover do link, abertura do menu,
+  fim do passo anterior — aquece o chunk antes do usuário decidir, e o
+  `Suspense` fallback não aparece. O trabalho é compartilhado com o caminho de
+  render: quem disparar primeiro faz o único fetch e o outro espera a mesma
+  promise, então chamar repetido é seguro.
+
+  A promise devolvida rejeita quando todos os retries falharam, mas a rejeição
+  já é tratada internamente — um preload especulativo que ninguém aguarda não
+  vira `unhandledrejection`. O mesmo `catch` limpa o memo, então um componente
+  que falhou não fica envenenado: uma tentativa posterior, depois que o error
+  boundary resetar, busca de novo. Mudança aditiva, sem quebra.
+
 - **`useLatestRef(value)`** — ref estável cujo `current` é sempre o último valor
   recebido. É a saída para ler state fresco dentro de algo que não pode ser
   recriado quando esse state muda: um interval, uma subscription, um listener

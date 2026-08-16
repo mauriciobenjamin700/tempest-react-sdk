@@ -136,6 +136,27 @@ export function SettingsRoute() {
 }
 ```
 
+### Aquecendo o chunk — `preload()`
+
+O componente devolvido carrega um `preload()`. Chame no momento em que a rota fica **provável**, não quando ela é necessária — o hover do link, a abertura do menu que contém ela, o fim do passo anterior — e o chunk chega antes do usuário decidir. O `Suspense` fallback simplesmente não aparece.
+
+```tsx
+<a href="/settings" onMouseEnter={() => void Settings.preload()}>
+  Configurações
+</a>
+```
+
+O trabalho é compartilhado com o caminho de render: quem disparar primeiro faz o único fetch, e o outro espera a mesma promise. Chamar várias vezes é seguro.
+
+!!! tip "Aquecer várias rotas de uma vez"
+    `preload()` devolve a promise, então dá para esperar por um conjunto:
+
+    ```ts
+    await Promise.all([Settings.preload(), Profile.preload()]);
+    ```
+
+    Ou dispare e esqueça — a rejeição já é tratada internamente, então um preload especulativo que ninguém aguarda nunca vira `unhandledrejection`.
+
 ## Refresh queue — `createRefreshQueue`
 
 Coalesce N chamadas de refresh concorrentes em **1** request. Enquanto um refresh está em voo, toda chamada extra recebe a **mesma** promise; quando ela resolve, todas retomam juntas.

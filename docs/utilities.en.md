@@ -291,10 +291,52 @@ The XML is deliberately lean: inline strings (no shared-string table), no styles
 
 ---
 
+## CSV — `toCsv` and `downloadCsv`
+
+`.xlsx` is the right format for someone who will **open** the spreadsheet. CSV is the right format for someone who will **import** the file into another system — and it is what nearly every admin panel ends up writing by hand, getting the same two things wrong every time: a name with a comma splits the row, and a name with a quote breaks the very quoting that was supposed to protect it.
+
+```ts
+import { toCsv, downloadCsv, type CsvColumn } from "tempest-react-sdk";
+
+const COLUMNS: CsvColumn<User>[] = [
+  { key: "name", header: "Name" },
+  { key: "email", header: "E-mail" },
+  { key: "plan", header: "Plan", csv: (u) => u.plan?.label ?? "" },
+];
+
+const text = toCsv(users, COLUMNS); // ready-made string
+await downloadCsv(users, COLUMNS, "users.csv"); // hand it to the user
+```
+
+| Signature | What it does |
+| --- | --- |
+| `toCsv(rows, columns, options?)` | Returns the whole file as a `string`. |
+| `downloadCsv(rows, columns, fileName?, options?)` | Builds the `text/csv;charset=utf-8` blob and passes it to `shareOrDownloadBlob`. |
+| `CsvColumn<T>` | `{ key, header, csv? }` |
+| `CsvOptions` | `{ delimiter?: "," \| ";", bom?: boolean }` — defaults `","` and `true`. |
+
+!!! danger "A `DataTable` column does **not** work as-is once it has `render`"
+    `DataTableColumn.render` returns a `ReactNode`. Exporting that writes `[object Object]` in exactly the column that holds a badge, a link or a formatted date — the table's most important one. A column **without** `render` is structurally compatible and can be reused; with `render`, give it the `csv` accessor.
+
+!!! check "RFC 4180 escaping, plus the BOM Excel pt-BR insists on"
+    A field containing the delimiter, a quote or a line break becomes a quoted field, and each inner quote is doubled. Rows terminate with `\r\n`. The BOM is on by default because without it Excel on a pt-BR install reads UTF-8 as Latin-1 and every accent turns into mojibake.
+
+!!! tip "`;` is the right delimiter in a pt-BR locale"
+    Where the decimal separator is the comma, Excel opens a comma-separated CSV **in a single column**. `{ delimiter: ";" }` fixes it — and the escaping follows, quoting the field that contains `;` instead of the one that contains `,`.
+
+!!! info "`0` and `false` are exported; `null` and `undefined` become empty fields"
+    Empty means absent, not falsy. Treating `0` as empty is how a report starts under-reporting every row that legitimately holds a zero. A `Date` is written as ISO, which any system re-imports without guessing a format.
+
+!!! note "An empty list still writes the header, not an empty file"
+    Whoever opens it needs to see which columns they asked for. A zero-byte file looks like a failed export.
+
+---
+
 ## Recap
 
 - Import any helper straight from `tempest-react-sdk` — they are all named, pure, tree-shakable exports.
 - **Spreadsheets**: `writeXlsx(headers, rows)` builds a single-sheet UTF-8 `.xlsx` as a `Uint8Array` (no CSV BOM drama).
+- **CSV**: `toCsv(rows, columns)` writes the file with RFC 4180 escaping and a BOM; `downloadCsv(...)` hands it straight to the user.
 - **Arrays/Objects**: `groupBy`, `uniqueBy`, `chunk`, `range`, `pick`, `omit`, `deepMerge`, `isEmpty` — always immutable; `deepMerge` replaces arrays instead of merging them.
 - **Guards**: `isDefined`, `isString`, `isNumber`, `isPlainObject`, `assertNever` — safe narrowing + `switch` exhaustiveness.
 - **Functions**: `debounce`/`throttle` (with `.cancel()`), `once`, `memoizeOne` to control execution.

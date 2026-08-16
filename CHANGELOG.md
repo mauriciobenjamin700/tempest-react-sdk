@@ -6,6 +6,28 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`toCsv` e `downloadCsv` — exportação em CSV que sobrevive a dado real.** O
+  SDK tinha `writeXlsx` e nada de CSV, então cada painel escrevia o arquivo por
+  concatenação e errava sempre nos mesmos dois pontos: valor com o delimitador
+  parte a linha, e valor com aspas quebra justamente a citação que deveria
+  protegê-lo. Junto vinham a repetição do BOM (o Excel em pt-BR lê UTF-8 sem BOM
+  como Latin-1 e transforma todo acento em mojibake) e mais um `<a download>` na
+  mão, sendo que `shareOrDownloadBlob` já existe — e é por ele que `downloadCsv`
+  entrega o arquivo, abrindo a folha nativa no celular.
+
+  Escaping RFC 4180 completo: campo com delimitador, aspas ou quebra de linha é
+  citado, aspas internas são duplicadas, e as linhas terminam em `\r\n`.
+  `CsvOptions` cobre os dois desvios que o Excel pt-BR exige — `delimiter: ";"`
+  (num locale de vírgula decimal, o CSV separado por vírgula abre em uma coluna
+  só) e `bom` ligado por padrão.
+
+  `CsvColumn<T>` ganhou acessor próprio (`csv?`) em vez de reaproveitar
+  `DataTableColumn` inteira: `render` devolve `ReactNode`, que serializado vira
+  `[object Object]` justamente na coluna com badge, link ou data formatada. Uma
+  coluna sem `render` continua estruturalmente compatível. `0` e `false` são
+  exportados (vazio é ausência, não falsidade), `Date` sai em ISO, e lista vazia
+  gera o cabeçalho em vez de um arquivo de zero byte que parece erro.
+
 - **`applyFilters` e `filtersToQueryParams` — a metade que faltava do modelo de
   filtro** (`tempest-react-sdk`, exportados junto do `FilterBar`). O modelo era
   completo em tudo menos **aplicar**: `operatorsFor`, `describeFilter`,

@@ -20,3 +20,5 @@ export { debounce, throttle, once, memoizeOne } from "./functions";
 export { sleep, withTimeout } from "./promises";
 export { randomId } from "./ids";
 export { writeXlsx } from "./xlsx";
+export { downloadCsv, toCsv } from "./csv";
+export type { CsvColumn, CsvOptions } from "./csv";

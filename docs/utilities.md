@@ -291,10 +291,52 @@ O XML é enxuto de propósito: strings inline (sem tabela de shared-strings), se
 
 ---
 
+## CSV — `toCsv` e `downloadCsv`
+
+O `.xlsx` é o formato certo pra quem vai **abrir** a planilha. CSV é o formato certo pra quem vai **importar** o arquivo em outro sistema — e é o que quase todo painel acaba escrevendo na mão, errando sempre nos mesmos dois pontos: um nome com vírgula parte a linha, e um nome com aspas quebra justamente a proteção que as aspas deveriam dar.
+
+```ts
+import { toCsv, downloadCsv, type CsvColumn } from "tempest-react-sdk";
+
+const COLUNAS: CsvColumn<Usuario>[] = [
+  { key: "nome", header: "Nome" },
+  { key: "email", header: "E-mail" },
+  { key: "plano", header: "Plano", csv: (u) => u.plano?.label ?? "" },
+];
+
+const texto = toCsv(usuarios, COLUNAS); // string pronta
+await downloadCsv(usuarios, COLUNAS, "usuarios.csv"); // entrega ao usuário
+```
+
+| Assinatura | O que faz |
+| --- | --- |
+| `toCsv(rows, columns, options?)` | Devolve o arquivo inteiro como `string`. |
+| `downloadCsv(rows, columns, fileName?, options?)` | Monta o blob `text/csv;charset=utf-8` e passa pro `shareOrDownloadBlob`. |
+| `CsvColumn<T>` | `{ key, header, csv? }` |
+| `CsvOptions` | `{ delimiter?: "," \| ";", bom?: boolean }` — defaults `","` e `true`. |
+
+!!! danger "A coluna do `DataTable` **não** serve direto quando tem `render`"
+    `DataTableColumn.render` devolve `ReactNode`. Exportar isso escreve `[object Object]` justamente na coluna que tem badge, link ou data formatada — a mais importante da tabela. Uma coluna **sem** `render` é estruturalmente compatível e pode ser reaproveitada; com `render`, dê o acessor `csv`.
+
+!!! check "Escaping RFC 4180, e o BOM que o Excel pt-BR exige"
+    Campo com o delimitador, com aspas ou com quebra de linha vira campo citado, e cada aspas interna é duplicada. O arquivo termina as linhas com `\r\n`. O BOM vem por padrão porque sem ele o Excel em pt-BR lê UTF-8 como Latin-1 e todo acento vira mojibake.
+
+!!! tip "Delimitador `;` é o certo em locale pt-BR"
+    Onde o separador decimal é a vírgula, o Excel abre um CSV separado por vírgula **em uma coluna só**. `{ delimiter: ";" }` resolve — e o escaping acompanha, citando o campo que contém `;` em vez do que contém `,`.
+
+!!! info "`0` e `false` são exportados; `null` e `undefined` viram campo vazio"
+    Vazio é ausência, não falsidade. Tratar `0` como vazio é como um relatório passa a sub-reportar toda linha que legitimamente vale zero. `Date` sai em ISO, que qualquer sistema reimporta sem adivinhar formato.
+
+!!! note "Lista vazia gera o cabeçalho, não um arquivo vazio"
+    Quem abre precisa ver quais colunas pediu. Arquivo de zero byte parece erro de exportação.
+
+---
+
 ## Recap
 
 - Importe qualquer helper direto de `tempest-react-sdk` — todos são exports nomeados, puros e tree-shakable.
 - **Planilhas**: `writeXlsx(headers, rows)` gera um `.xlsx` UTF-8 de uma aba como `Uint8Array` (sem drama de BOM do CSV).
+- **CSV**: `toCsv(rows, columns)` escreve o arquivo com escaping RFC 4180 e BOM; `downloadCsv(...)` entrega direto ao usuário.
 - **Arrays/Objetos**: `groupBy`, `uniqueBy`, `chunk`, `range`, `pick`, `omit`, `deepMerge`, `isEmpty` — sempre imutáveis; `deepMerge` substitui arrays em vez de fundir.
 - **Guards**: `isDefined`, `isString`, `isNumber`, `isPlainObject`, `assertNever` — narrowing seguro + exaustividade em `switch`.
 - **Funções**: `debounce`/`throttle` (com `.cancel()`), `once`, `memoizeOne` para controlar execução.

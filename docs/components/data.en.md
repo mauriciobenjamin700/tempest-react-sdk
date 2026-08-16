@@ -317,6 +317,95 @@ default text is used (`editLabels.saveFailed`).
     optimistic value already applied, so the new number shows correctly formatted while
     the save is still in flight.
 
+## `DataTable<T>` — server-side pagination
+
+> **When to use**: the ordinary admin listing. The backend paginates, filters and
+> sorts; the browser gets one page at a time and cannot answer "how many rows are
+> there" or "which one is first alphabetically" on its own.
+
+By default `DataTable` takes the **whole** dataset and does everything in memory.
+Pass `totalItems` and it switches modes: `data` becomes the current page, the page
+count comes from that number, and sorting and searching are delegated to you.
+
+```tsx
+import { DataTable, usePaginatedQuery, filtersToQueryParams } from "tempest-react-sdk";
+import { useState } from "react";
+
+export function People() {
+  const [page, setPage] = useState(1);
+  const [sort, setSort] = useState<DataTableSort<Person> | null>(null);
+  const [term, setTerm] = useState("");
+
+  const { data, isFetching } = usePaginatedQuery<Person>({
+    queryKey: ["people", page, sort, term],
+    queryFn: () => api.get(`/people?${params(page, sort, term)}`),
+  });
+
+  return (
+    <DataTable
+      data={data?.items ?? []}
+      columns={COLUMNS}
+      rowKey={(row) => row.id}
+      pageSize={20}
+      totalItems={data?.total ?? 0}
+      page={page}
+      onPageChange={setPage}
+      onSortChange={(next) => {
+        setSort(next);
+        setPage(1);
+      }}
+      searchable
+      onSearchChange={(next) => {
+        setTerm(next);
+        setPage(1);
+      }}
+      loading={isFetching}
+    />
+  );
+}
+```
+
+| Prop | Type | What it does |
+| --- | --- | --- |
+| `totalItems` | `number` | Turns on server mode and drives the page count. |
+| `page` | `number` | Controlled page, 1-based. |
+| `onPageChange` | `(page: number) => void` | Next page requested by the pager. |
+| `manualSort` | `boolean` | Delegates sorting. Implied by `totalItems`. |
+| `onSortChange` | `(sort: DataTableSort<T> \| null) => void` | `asc` → `desc` → `null`. |
+| `manualSearch` | `boolean` | Delegates searching. Implied by `totalItems`. |
+| `onSearchChange` | `(term: string) => void` | The typed term; debouncing is yours. |
+| `loading` | `boolean` | A request is in flight. |
+
+!!! danger "Search and sort **must** come along — filtering the page lies"
+    `searchable` on its own filters `data` in memory, and in server mode `data` is
+    only the current page. The user types, everything not on page 3 disappears, and
+    the table looks like it is saying "no such thing". That is why `totalItems`
+    already implies `manualSearch` and `manualSort`: sorting five rows while
+    claiming to have sorted 23 is the same kind of lie.
+
+!!! tip "`manualSort` and `manualSearch` are useful without server pagination too"
+    A full list in memory but ordered by the backend (by relevance, by a computed
+    field) is a legitimate case: pass `manualSort` without `totalItems`.
+
+!!! check "Loading and empty are different screens"
+    With rows on screen, `loading` dims them and marks `aria-busy` — the old rows
+    stay, so pagination does not jump under the cursor between pages. With no rows
+    yet, it draws placeholders at the real height instead of `emptyMessage`, because
+    "I am fetching" and "there is nothing" are not the same sentence.
+
+!!! warning "An incomplete combination warns in dev"
+    `totalItems` without a controlled `page`, `page` without `onPageChange`,
+    delegated sorting without `onSortChange` — each renders a screen that looks like
+    it works and does not (the header sorts and nothing moves). None of them is a
+    type error, so the warning goes to the `console` in development.
+
+!!! info "Client mode did not change a line"
+    Without `totalItems`, `manualSort`, `manualSearch` or `loading`, the markup and
+    the behaviour are exactly what they were — including the page clamp when the
+    dataset shrinks, which server mode deliberately turns off (the page is yours,
+    and a clamp against a `totalItems` that has not caught up would send the user to
+    a page they never asked for, mid-fetch).
+
 ## `ListTile`
 
 > **When to use**: the canonical Material list row — an item with a leading slot (icon/avatar), a title with an optional subtitle, and a trailing slot (icon, switch, meta). Ideal for settings lists, contacts, or menus.

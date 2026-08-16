@@ -307,6 +307,95 @@ no **dataset completo**, não na página.
     otimista já aplicado, então o número novo aparece formatado do jeito certo enquanto
     o save está em voo.
 
+## `DataTable<T>` — paginação no servidor
+
+> **Quando usar**: a listagem normal de admin. O backend pagina, filtra e ordena; o
+> navegador recebe uma página por vez e não tem como responder sozinho "quantas
+> linhas existem" nem "qual é a primeira em ordem alfabética".
+
+Por padrão o `DataTable` recebe o **dataset inteiro** e faz tudo em memória. Passe
+`totalItems` e ele troca de modo: `data` passa a ser a página atual, a contagem de
+páginas vem desse número, e ordenação e busca são delegadas a você.
+
+```tsx
+import { DataTable, usePaginatedQuery, filtersToQueryParams } from "tempest-react-sdk";
+import { useState } from "react";
+
+export function Pessoas() {
+  const [page, setPage] = useState(1);
+  const [sort, setSort] = useState<DataTableSort<Pessoa> | null>(null);
+  const [term, setTerm] = useState("");
+
+  const { data, isFetching } = usePaginatedQuery<Pessoa>({
+    queryKey: ["pessoas", page, sort, term],
+    queryFn: () => api.get(`/pessoas?${params(page, sort, term)}`),
+  });
+
+  return (
+    <DataTable
+      data={data?.items ?? []}
+      columns={COLUNAS}
+      rowKey={(row) => row.id}
+      pageSize={20}
+      totalItems={data?.total ?? 0}
+      page={page}
+      onPageChange={setPage}
+      onSortChange={(next) => {
+        setSort(next);
+        setPage(1);
+      }}
+      searchable
+      onSearchChange={(next) => {
+        setTerm(next);
+        setPage(1);
+      }}
+      loading={isFetching}
+    />
+  );
+}
+```
+
+| Prop | Tipo | O que faz |
+| --- | --- | --- |
+| `totalItems` | `number` | Liga o modo servidor e manda na contagem de páginas. |
+| `page` | `number` | Página controlada, 1-based. |
+| `onPageChange` | `(page: number) => void` | Próxima página pedida pelo paginador. |
+| `manualSort` | `boolean` | Delega a ordenação. Implícito com `totalItems`. |
+| `onSortChange` | `(sort: DataTableSort<T> \| null) => void` | `asc` → `desc` → `null`. |
+| `manualSearch` | `boolean` | Delega a busca. Implícito com `totalItems`. |
+| `onSearchChange` | `(term: string) => void` | Termo digitado; debounce é seu. |
+| `loading` | `boolean` | Requisição em voo. |
+
+!!! danger "Busca e ordenação **precisam** ir junto — filtrar a página mente"
+    `searchable` sozinho filtra `data` em memória, e no modo servidor `data` é só a
+    página atual. O usuário digita, some tudo que não está na página 3 e a tabela
+    parece dizer "não existe". Por isso `totalItems` já implica `manualSearch` e
+    `manualSort`: ordenar cinco linhas alegando ter ordenado 23 é o mesmo tipo de
+    mentira.
+
+!!! tip "`manualSort` e `manualSearch` também servem sem paginação de servidor"
+    Lista inteira na memória mas ordenada pelo backend (por relevância, por um
+    campo calculado) é um caso legítimo: passe `manualSort` sem `totalItems`.
+
+!!! check "Carregando e vazio são telas diferentes"
+    Com linhas na tela, `loading` esmaece e marca `aria-busy` — as linhas antigas
+    ficam, então a paginação não salta sob o cursor entre páginas. Sem linhas ainda,
+    desenha placeholders na altura real em vez do `emptyMessage`, porque "estou
+    buscando" e "não há nada" não são a mesma frase.
+
+!!! warning "Combinação incompleta avisa em dev"
+    `totalItems` sem `page` controlada, `page` sem `onPageChange`, ordenação
+    delegada sem `onSortChange` — cada um renderiza uma tela que parece funcionar e
+    não funciona (o cabeçalho ordena e nada se move). Nenhum é erro de tipo, então
+    o aviso sai no `console` em desenvolvimento.
+
+!!! info "O modo cliente não mudou uma linha"
+    Sem `totalItems`, `manualSort`, `manualSearch` ou `loading`, o markup e o
+    comportamento são exatamente os de antes — inclusive o clamp de página quando o
+    dataset encolhe, que no modo servidor é desligado de propósito (a página é sua,
+    e um clamp contra um `totalItems` que ainda não chegou mandaria o usuário pra
+    uma página que ele não pediu, no meio do fetch).
+
 ## `ListTile`
 
 > **Quando usar**: a linha canônica de lista do Material — um item com slot à esquerda (ícone/avatar), título com subtítulo opcional e slot à direita (ícone, switch, meta). Ideal para listas de configurações, contatos ou menus.

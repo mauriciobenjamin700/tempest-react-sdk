@@ -6,6 +6,40 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`DataTable` ganhou modo servidor** — `totalItems`, `page`, `onPageChange`,
+  `manualSort`, `onSortChange`, `manualSearch`, `onSearchChange` e `loading`. O
+  componente era documentado como "Full, unfiltered dataset. Sorting/filtering/
+  pagination happen client-side" e paginava sobre `sorted.length`, então na
+  listagem paginada no servidor — o caso normal de admin — ele ficava inutilizável
+  e o app montava `Table` + `Pagination` na mão, reimplementando cabeçalho
+  ordenável, estado de página e empty state. As duas pontas já existiam
+  (`usePaginatedQuery` e `Pagination`); faltava o meio.
+
+  Passar `totalItems` troca o modo: `data` vira a página atual, a contagem de
+  páginas vem desse número, e ordenação e busca passam a ser delegadas — as duas
+  **implicitamente**, e isso não é conveniência. `searchable` filtra `data` em
+  memória, e no modo servidor `data` é só a página atual: o usuário digita, some
+  tudo que não está na página 3, e a tabela parece dizer "não existe". Ordenar
+  cinco linhas alegando ter ordenado 23 é a mesma mentira. `manualSort` e
+  `manualSearch` continuam disponíveis sozinhos, para quem tem a lista inteira mas
+  ordena/filtra no backend.
+
+  `loading` separa duas telas que costumam ser tratadas como uma: com linhas
+  visíveis, esmaece e marca `aria-busy` mantendo as linhas antigas, então a
+  paginação não salta sob o cursor; sem linhas ainda, desenha placeholders na
+  altura real em vez do `emptyMessage`, porque "estou buscando" e "não há nada"
+  são frases diferentes.
+
+  Combinação incompleta (`totalItems` sem `page`, `page` sem `onPageChange`,
+  ordenação delegada sem `onSortChange`) avisa no `console` em desenvolvimento:
+  nenhuma delas é erro de tipo, e todas renderizam uma tela que parece funcionar.
+
+  **Modo cliente intocado** — sem as props novas, markup e comportamento são
+  exatamente os de antes, inclusive o clamp de página quando o dataset encolhe,
+  que no modo servidor é desligado de propósito (a página pertence ao chamador, e
+  um clamp contra um `totalItems` defasado o mandaria para uma página que ele não
+  pediu, no meio do fetch).
+
 - **`describeApiError` e `useDescribeApiError` — do erro tipado para a frase da
   tela.** O SDK dava `TempestApiError` e `isApiError` e nada que virasse a frase
   exibível, então todo app escrevia o mesmo funil e errava no mesmo ponto: a

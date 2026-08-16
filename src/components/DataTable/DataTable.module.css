@@ -8,6 +8,32 @@
     max-width: 20rem;
 }
 
+/*
+ * A page swap keeps the rows it already has, dimmed. Replacing them with a
+ * spinner would collapse the table to nothing and bounce whatever sits below it
+ * back up, which is the jump the user's cursor was resting on.
+ */
+.pending {
+    opacity: 0.6;
+    transition: opacity var(--tempest-duration-fast, 120ms) ease;
+    pointer-events: none;
+}
+
+.loading {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-space-3, 0.75rem);
+    padding: var(--tempest-space-3, 0.75rem) 0;
+}
+
+.loadingRow {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: var(--tempest-space-4, 1rem);
+    align-items: center;
+}
+
 .sortButton {
     display: inline-flex;
     align-items: center;

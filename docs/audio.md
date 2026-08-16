@@ -83,6 +83,42 @@ console.log(sfx.current()); // HTMLAudioElement | null
 
 Cada player rastreia **um** clipe atual. `stopPrevious: true` no `play()` para o clipe anterior daquele mesmo player antes de tocar o novo.
 
+## `createSfxPool` / `useSfxPool` — efeitos sonoros curtos
+
+`new Audio(src)` a cada disparo aloca um elemento e re-entra na pilha de rede por um arquivo que o navegador já tem. Para um som que toca dezenas de vezes por minuto — um blip de menu, um hit, um pickup — é a forma errada. O pool aloca uma vez por fonte e reproduz.
+
+```ts
+import { useSfxPool } from "tempest-react-sdk";
+
+function Menu({ sfxVolume }: { sfxVolume: number }) {
+  const sfx = useSfxPool({ volume: sfxVolume / 100, baseUrl: import.meta.env.BASE_URL });
+
+  useEffect(() => {
+    sfx.preload(["sfx/move.mp3", "sfx/select.mp3", "sfx/back.mp3"]);
+  }, [sfx]);
+
+  return <button onClick={() => sfx.play("sfx/select.mp3")}>Confirmar</button>;
+}
+```
+
+- `play(src, { volume })` — o volume por play é multiplicado pelo master do pool.
+- `preload(src | src[])` — busca antes do primeiro disparo, pra ele não sair mudo enquanto o arquivo baixa.
+- `setVolume(v)` — aplica também no que já está soando, **reescalando pelo ganho de cada um**: um clipe que começou a meio volume não é puxado pra cima.
+- `stop(src?)` — para uma fonte, ou todas.
+- `dispose()` — libera tudo. O `useSfxPool` já chama no unmount.
+
+!!! note "`voices`: repetir ou sobrepor"
+    O default (`voices: 1`) **reinicia** o clipe a cada play, que é o que um blip de menu quer. Suba pra deixar o som se sobrepor — um hit tocando enquanto o anterior ainda ressoa:
+
+    ```ts
+    const hits = createSfxPool({ voices: 3 });
+    ```
+
+!!! tip "Não confunda com `createAudioPlayer`"
+    `createAudioPlayer` rastreia **um** clipe atual, com loop, roteamento de saída e callbacks de ciclo de vida — é o que música de fundo precisa. Efeitos são o caso oposto: muitas fontes, todas curtas, dispara-e-esquece, e o que importa é que disparar seja barato.
+
+Mudar `volume` no `useSfxPool` chama `setVolume` no pool existente em vez de recriá-lo — recriar jogaria fora todo elemento que o usuário já baixou, que é exatamente o custo que o pool existe pra evitar. `baseUrl`, `voices` e `maxSources` são lidos uma vez, na criação.
+
 ## Autoplay policy
 
 Navegadores bloqueiam playback antes da primeira interação do usuário. `playAudio` / `play()` retornam `null` quando bloqueado (e chamam `onError` se passado) — em vez de lançar.

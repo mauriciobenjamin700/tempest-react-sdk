@@ -3,6 +3,10 @@ export type { AudioPlayerHandle, PlayAudioOptions } from "./audio-player";
 export { useAudio } from "./use-audio";
 export type { UseAudioResult } from "./use-audio";
 
+export { createSfxPool } from "./sfx-pool";
+export type { PlaySfxOptions, SfxPool, SfxPoolOptions } from "./sfx-pool";
+export { useSfxPool } from "./use-sfx-pool";
+
 export { isAudioOutputSelectionSupported, setAudioOutput } from "./audio-output";
 
 export { isMediaCaptureSupported } from "./media-access";

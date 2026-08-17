@@ -720,6 +720,42 @@ console.log(sfx.current()); // HTMLAudioElement | null
 
 Cada player rastreia **um** clipe atual. `stopPrevious: true` no `play()` para o clipe anterior daquele mesmo player antes de tocar o novo.
 
+## `createSfxPool` / `useSfxPool` — efeitos sonoros curtos
+
+`new Audio(src)` a cada disparo aloca um elemento e re-entra na pilha de rede por um arquivo que o navegador já tem. Para um som que toca dezenas de vezes por minuto — um blip de menu, um hit, um pickup — é a forma errada. O pool aloca uma vez por fonte e reproduz.
+
+```ts
+import { useSfxPool } from "tempest-react-sdk";
+
+function Menu({ sfxVolume }: { sfxVolume: number }) {
+  const sfx = useSfxPool({ volume: sfxVolume / 100, baseUrl: import.meta.env.BASE_URL });
+
+  useEffect(() => {
+    sfx.preload(["sfx/move.mp3", "sfx/select.mp3", "sfx/back.mp3"]);
+  }, [sfx]);
+
+  return <button onClick={() => sfx.play("sfx/select.mp3")}>Confirmar</button>;
+}
+```
+
+- `play(src, { volume })` — o volume por play é multiplicado pelo master do pool.
+- `preload(src | src[])` — busca antes do primeiro disparo, pra ele não sair mudo enquanto o arquivo baixa.
+- `setVolume(v)` — aplica também no que já está soando, **reescalando pelo ganho de cada um**: um clipe que começou a meio volume não é puxado pra cima.
+- `stop(src?)` — para uma fonte, ou todas.
+- `dispose()` — libera tudo. O `useSfxPool` já chama no unmount.
+
+!!! note "`voices`: repetir ou sobrepor"
+    O default (`voices: 1`) **reinicia** o clipe a cada play, que é o que um blip de menu quer. Suba pra deixar o som se sobrepor — um hit tocando enquanto o anterior ainda ressoa:
+
+    ```ts
+    const hits = createSfxPool({ voices: 3 });
+    ```
+
+!!! tip "Não confunda com `createAudioPlayer`"
+    `createAudioPlayer` rastreia **um** clipe atual, com loop, roteamento de saída e callbacks de ciclo de vida — é o que música de fundo precisa. Efeitos são o caso oposto: muitas fontes, todas curtas, dispara-e-esquece, e o que importa é que disparar seja barato.
+
+Mudar `volume` no `useSfxPool` chama `setVolume` no pool existente em vez de recriá-lo — recriar jogaria fora todo elemento que o usuário já baixou, que é exatamente o custo que o pool existe pra evitar. `baseUrl`, `voices` e `maxSources` são lidos uma vez, na criação.
+
 ## Autoplay policy
 
 Navegadores bloqueiam playback antes da primeira interação do usuário. `playAudio` / `play()` retornam `null` quando bloqueado (e chamam `onError` se passado) — em vez de lançar.
@@ -1162,6 +1198,27 @@ export function SettingsRoute() {
   );
 }
 ```
+
+### Aquecendo o chunk — `preload()`
+
+O componente devolvido carrega um `preload()`. Chame no momento em que a rota fica **provável**, não quando ela é necessária — o hover do link, a abertura do menu que contém ela, o fim do passo anterior — e o chunk chega antes do usuário decidir. O `Suspense` fallback simplesmente não aparece.
+
+```tsx
+<a href="/settings" onMouseEnter={() => void Settings.preload()}>
+  Configurações
+</a>
+```
+
+O trabalho é compartilhado com o caminho de render: quem disparar primeiro faz o único fetch, e o outro espera a mesma promise. Chamar várias vezes é seguro.
+
+!!! tip "Aquecer várias rotas de uma vez"
+    `preload()` devolve a promise, então dá para esperar por um conjunto:
+
+    ```ts
+    await Promise.all([Settings.preload(), Profile.preload()]);
+    ```
+
+    Ou dispare e esqueça — a rejeição já é tratada internamente, então um preload especulativo que ninguém aguarda nunca vira `unhandledrejection`.
 
 ## Refresh queue — `createRefreshQueue`
 
@@ -13809,17 +13866,20 @@ granulares, testados e independentes — importe só o que precisar.
 
 ### Timers
 
-| Hook                           | O que faz                                         |
-| ------------------------------ | ------------------------------------------------- |
-| `useInterval(callback, delay)` | `setInterval` declarativo; `delay = null` pausa.  |
-| `useTimeout(callback, delay)`  | `setTimeout` declarativo; `delay = null` cancela. |
+| Hook                                                | O que faz                                                                                                    |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `useInterval(callback, delay)`                       | `setInterval` declarativo; `delay = null` pausa.                                                              |
+| `useTimeout(callback, delay)`                        | `setTimeout` declarativo; `delay = null` cancela.                                                             |
+| `useCountdown(durationMs, startedAt, { tickMs })`    | Tempo restante de uma janela, recalculado do relógio a cada tick. Trava em `0` e para o interval.             |
+| `useTypewriter(text, speedMs)`                       | `{ displayedText, isComplete, skip }` — revela o texto letra a letra. `speedMs <= 0` renderiza tudo de uma vez. |
 
 ### Performance
 
-| Hook                    | O que faz                               |
-| ----------------------- | --------------------------------------- |
-| `useStableCallback(fn)` | Ref estável que chama o callback atual. |
-| `useDeepMemo(value)`    | Memoização com igualdade estrutural.    |
+| Hook                     | O que faz                                                        |
+| ------------------------ | ---------------------------------------------------------------- |
+| `useStableCallback(fn)`  | Ref estável que chama o callback atual.                          |
+| `useLatestRef(value)`    | Ref estável cujo `current` é sempre o último `value` recebido.    |
+| `useDeepMemo(value)`     | Memoização com igualdade estrutural.                             |
 
 !!! tip "safe sem `window` por padrão"
     Os hooks que tocam APIs do browser (`useMediaQuery`, `useBreakpoint`,
@@ -14131,6 +14191,67 @@ function Tracker({ onSelect }: { onSelect: (id: string) => void }) {
     quando o callback muda de identidade. Já valores derivados (`useDebounce`,
     `useAsync` com `deps`) devem entrar nas deps normalmente — omiti-los gera bugs de
     valor obsoleto. Regra geral: confie no `eslint-plugin-react-hooks`.
+
+### Valor fresco dentro de um effect que roda uma vez — `useLatestRef`
+
+Um effect montado uma única vez — um interval, uma subscription, um listener — fica preso ao render que criou o closure. Listar o valor nas dependências desmonta e remonta o effect a cada mudança; omitir congela o valor. `useLatestRef` é a terceira saída:
+
+```tsx
+import { useEffect } from "react";
+import { useLatestRef } from "tempest-react-sdk";
+
+function Poller({ options }: { options: PollOptions }) {
+  const optionsRef = useLatestRef(options);
+
+  useEffect(() => {
+    const id = setInterval(() => poll(optionsRef.current), 5_000);
+    return () => clearInterval(id);
+  }, [optionsRef]); // o interval sobrevive a toda mudança de options — e lê a última
+
+  return null;
+}
+```
+
+!!! note "`useLatestRef` ou `useStableCallback`?"
+    Se o valor é uma **função que você quer chamar**, use `useStableCallback`: ele devolve algo chamável com identidade estável, sem obrigar cada call site a passar por `.current`. `useLatestRef` é para todo o resto — objetos de config, state, props.
+
+### Cooldown — `useCountdown`
+
+```tsx
+import { useCountdown } from "tempest-react-sdk";
+
+function ResendButton({ lastSentAt }: { lastSentAt: number }) {
+  const remaining = useCountdown(60_000, lastSentAt);
+
+  return (
+    <button disabled={remaining > 0}>
+      {remaining > 0 ? `Reenviar em ${Math.ceil(remaining / 1000)}s` : "Reenviar código"}
+    </button>
+  );
+}
+```
+
+O hook é escrito em cima de um **timestamp**, não de um contador que decrementa. O restante é recalculado de `Date.now()` a cada tick, então aba em background throttlada, frame lento ou `setInterval` que derrapa não fazem a contagem discordar do relógio — e remontar o componente retoma no valor certo em vez de reiniciar. O interval para ao chegar em zero, em vez de continuar rodando atrás de um clamp.
+
+Passe `{ tickMs: 50 }` quando o valor alimenta uma barra de progresso; o padrão de `1000` serve pro rótulo "tente de novo em Ns".
+
+### Texto revelado letra a letra — `useTypewriter`
+
+```tsx
+import { useMediaQuery, useTypewriter } from "tempest-react-sdk";
+
+function Dialogue({ line }: { line: string }) {
+  const reduced = useMediaQuery("(prefers-reduced-motion: reduce)");
+  const { displayedText, isComplete, skip } = useTypewriter(line, reduced ? 0 : 30);
+
+  return <p onClick={skip}>{displayedText}{isComplete ? "" : "▌"}</p>;
+}
+```
+
+Trocar `text` reinicia a revelação. O reset acontece **durante o render**, não num effect, então a string nova nunca pisca inteira por um frame antes da animação assumir.
+
+!!! warning "Sempre dê saída ao leitor"
+    Uma animação que não pode ser pulada é imposto sobre quem relê ou lê rápido. Ligue `skip` a um clique ou tecla — e trate `prefers-reduced-motion` passando `speedMs = 0`, que renderiza tudo de uma vez sem ramo condicional no componente.
 
 ### Disclosure — `useDisclosure`
 
@@ -14480,7 +14601,8 @@ export const api = createApiClient({
 
 Opções (todas exceto `baseURL` são opcionais):
 
-- `baseURL` — prefixo de toda requisição. **Obrigatório.**
+- `baseURL` — prefixo de toda requisição. **Obrigatório.** Pode carregar caminho (`https://api.exemplo.com/api`) e pode ser relativo (`"/api"`, resolvido contra a origem atual). Ver [Base URL e prefixo](#base-url-e-prefixo).
+- `prefix` — segmento sob o qual toda requisição fica aninhada, tipo `"/api"`. Ver [Base URL e prefixo](#base-url-e-prefixo).
 - `getToken()` — chamado a cada request; retornar string injeta `Authorization: Bearer <token>`.
 - `onUnauthorized(response)` — disparado sempre que a requisição termina sem autorização: 401 sem `refresh`, `refresh()` que rejeitou, ou repetição que voltou 401 de novo. Use pra deslogar.
 - `refresh()` — quando presente e o request der 401, o cliente aguarda `refresh()` e repete a requisição **uma vez**.
@@ -14519,6 +14641,62 @@ Comportamento:
     Se o `refresh()` rodar mas o retry ainda devolver 401, o cliente desiste, chama `onUnauthorized` e lança. Isso evita loop infinito de refresh quando a sessão realmente expirou.
 
     **Esse segundo 401 é o caso que importa.** Um `refresh()` que resolve não prova que a sessão está viva: o backend pode devolver um token que ele mesmo recusa — refresh token revogado, permissão retirada, corrida entre abas. Sem `onUnauthorized` aí, o app ficaria com um store dizendo "autenticado" enquanto toda requisição dá 401, e o usuário veria um erro genérico sem caminho de volta pro login.
+
+## Base URL e prefixo
+
+Um serviço FastAPI da Tempest quase nunca fica na raiz do host: ele é montado sob um `root_path`, tipicamente `/api`. Você diz isso ao cliente de duas formas equivalentes — escrevendo o caminho no `baseURL`, ou passando `prefix`:
+
+```ts
+// as duas chegam em https://api.exemplo.com/api/auth/login
+createApiClient({ baseURL: "https://api.exemplo.com/api" });
+createApiClient({ baseURL: "https://api.exemplo.com", prefix: "/api" });
+
+await api.post("/auth/login", { body: credentials });
+```
+
+!!! tip "Quando preferir `prefix`"
+    Quando a variável de ambiente é usada por mais coisa que o cliente HTTP — um endpoint SSE, um host de mídia, um link que você mostra na tela. Deixe `VITE_API_URL` sendo a origem pura e ponha o prefixo só no cliente; nada mais precisa saber dele.
+
+A barra inicial no caminho da chamada é indiferente — `"/auth/login"` e `"auth/login"` chegam no mesmo lugar:
+
+```ts
+const api = createApiClient({ baseURL: "https://api.exemplo.com", prefix: "/api" });
+
+await api.get("/orders"); // https://api.exemplo.com/api/orders
+await api.get("orders"); //  https://api.exemplo.com/api/orders
+```
+
+!!! warning "Isso mudou na v0.45.0"
+    Até a v0.44.0 o cliente resolvia o caminho com `new URL(path, baseURL)`. Pela spec de URL, um caminho iniciado por `/` é absoluto **contra a origem**, então ele descartava em silêncio o caminho do `baseURL`: um cliente em `https://api.exemplo.com/api` pedindo `"/auth/login"` batia em `https://api.exemplo.com/auth/login` e tomava 404 em toda requisição, sem nada na config parecendo errado. O único jeito de acertar era escrever todo caminho sem a barra inicial.
+
+    Se o seu app fez isso — caminhos relativos por causa do bug —, nada quebra: eles continuam resolvendo igual. Você pode voltar a escrever `/auth/login` quando quiser.
+
+O prefixo é aplicado **no máximo uma vez**. Um caminho que já começa com ele passa direto, então dá pra migrar as chamadas aos poucos:
+
+```ts
+const api = createApiClient({ baseURL: "https://api.exemplo.com", prefix: "/api" });
+
+await api.get("/api/orders"); // https://api.exemplo.com/api/orders — não vira /api/api
+await api.get("/api-keys"); //  https://api.exemplo.com/api/api-keys — comparação por segmento
+```
+
+Duas escapadas úteis:
+
+- **Caminho absoluto vence tudo.** `api.get("https://cdn.exemplo.com/arquivo")` ignora `baseURL` e `prefix` — é assim que se alcança um segundo host (upload assinado, CDN) sem criar um segundo cliente.
+- **`baseURL` relativo** (`"/api"`) resolve contra a origem atual, que é a forma certa atrás do proxy do dev server ou de um reverse proxy servindo app e API do mesmo host. Fora do browser (sem `location`) isso lança um `TypeError` dizendo qual config corrigir, em vez de um `Invalid base URL` genérico.
+
+Para montar a mesma URL fora do cliente — um `EventSource` de SSE, um `<img>` — o helper é exportado:
+
+```ts
+import { buildApiUrl } from "tempest-react-sdk";
+
+const stream = new EventSource(
+  buildApiUrl(import.meta.env.VITE_API_URL, "/sse/events", {
+    prefix: "/api",
+    params: { access_token: token },
+  }),
+);
+```
 
 ## Retentativa embutida
 
@@ -14773,6 +14951,7 @@ const { mutate } = useMutation({
 ## Recap
 
 - `createApiClient({ baseURL, getToken, onUnauthorized, refresh, ... })` cria um cliente tipado; instancie uma vez e exporte.
+- `baseURL` pode carregar caminho (`https://host/api`) ou ser relativo (`"/api"`), e `prefix: "/api"` diz a mesma coisa deixando a env var como origem pura. A barra inicial na chamada é indiferente; o prefixo nunca é aplicado duas vezes. `buildApiUrl` monta a mesma URL fora do cliente.
 - 401 com `refresh` → tenta renovar e repete 1x. `onUnauthorized` dispara em todo desfecho sem autorização — sem refresh, refresh que rejeitou, ou repetição que voltou 401.
 - `retry: true` liga a retentativa dentro do cliente: só método idempotente, só falha de rede/`408`/`425`/`429`/`5xx`. Escrita nunca repete sozinha.
 - `parseResponse(schema, raw, context)` valida o payload com zod e aponta o campo divergente em dev.
@@ -16021,6 +16200,21 @@ export const auth = createTempestAuth<User, { email: string; password: string }>
     mePath: "/api/auth/me", // opcional: busca o usuário após o login
 });
 ```
+
+!!! tip "`prefix`: o `root_path` em um lugar só"
+    Se o serviço está montado sob `root_path="/api"` — o normal com o `tempest-fastapi-sdk` —, passe `prefix: "/api"` e escreva os caminhos sem ele. Vale para o preset e para qualquer `createApiClient`; detalhes em [HTTP → Base URL e prefixo](./http.md#base-url-e-prefixo).
+
+    ```tsx
+    export const auth = createTempestAuth<User>({
+        baseURL: import.meta.env.VITE_API_URL, // https://api.exemplo.com
+        prefix: "/api",
+        mePath: "/auth/me",
+    });
+
+    await auth.api.get("/orders"); // https://api.exemplo.com/api/orders
+    ```
+
+    Os defaults `loginPath`/`refreshPath` continuam com `/api` escrito e **não** duplicam sob o prefixo — ele é aplicado no máximo uma vez.
 
 Use em qualquer lugar:
 
@@ -24486,12 +24680,56 @@ await downloadCsv(usuarios, COLUNAS, "usuarios.csv"); // entrega ao usuário
 
 ---
 
+## Storage comprimido — `compressedStorage`
+
+`localStorage` dá cerca de **5 MB por origem** e cobra **dois bytes por caractere**. Um app offline-first que guarda estado de verdade — um save de jogo, um rascunho longo, um cache de catálogo — bate nesse teto antes do que parece, e o sintoma é um `QuotaExceededError` no meio de uma escrita, não um aviso.
+
+`compressedStorage` é o mesmo wrapper tipado do `storage`, só que gzipando o que escreve:
+
+```ts
+import { compressedStorage } from "tempest-react-sdk";
+
+compressedStorage.set("save", { level: 12, inventory: items });
+
+const save = compressedStorage.get("save", null);
+```
+
+- `get<T>(key, fallback)` — descomprime e faz parse. Chave ausente, ilegível ou corrompida devolve `fallback`; nunca lança.
+- `set<T>(key, value)` — comprime e grava.
+
+### O formato é autodescritivo
+
+Cada valor gravado leva o prefixo `~tgz1:`. Isso resolve o problema chato de ligar compressão numa chave que já existe: uma leitura sem o marcador cai no `JSON.parse` normal, então **os dados que já estavam lá continuam legíveis**. Nada de migração, nada de save órfão.
+
+O mesmo caminho cobre a escrita degradada: se a compressão falhar, o valor é gravado como JSON puro em vez de descartado — um registro maior ainda carrega, um ausente não.
+
+!!! note "Por que base64, e não empacotar em UTF-16"
+    Base64 gasta um terço a mais de caracteres que os bytes comprimidos, e o `localStorage` ainda cobra dois bytes por caractere em cima disso. Empacotar os bytes direto em code units UTF-16 seria mais denso, mas surrogates soltos não sobrevivem a toda implementação de storage nem a um round-trip de JSON — e um save que decodifica em lixo é muito pior que um save maior. Mesmo com essa folga, um JSON típico fica bem abaixo de um terço do tamanho original.
+
+### Com `useLocalStorage`
+
+Para estado React, passe o codec em vez de usar a API imperativa — você ganha a sincronia entre abas e o guard de SSR do hook de graça:
+
+```ts
+import { compressedStorageCodec, useLocalStorage } from "tempest-react-sdk";
+
+const [save, setSave] = useLocalStorage("save", EMPTY_SAVE, compressedStorageCodec);
+```
+
+`compressToString` / `decompressFromString` também são exportados soltos, para quando o destino não é `localStorage` (um `POST` de backup, um `IndexedDB`).
+
+!!! warning "Não é para tudo"
+    Comprimir custa CPU nas duas pontas. Para uma preferência de tema ou um flag booleano, use o `storage` normal — o ganho é zero e o custo não. `compressedStorage` vale a partir de payloads na casa das dezenas de KB.
+
+---
+
 ## Recap
 
 - Importe qualquer helper direto de `tempest-react-sdk` — todos são exports nomeados, puros e tree-shakable.
 - **Planilhas**: `writeXlsx(headers, rows)` gera um `.xlsx` UTF-8 de uma aba como `Uint8Array` (sem drama de BOM do CSV).
 - **CSV**: `toCsv(rows, columns)` escreve o arquivo com escaping RFC 4180 e BOM; `downloadCsv(...)` entrega direto ao usuário.
 - **Datas e percentuais**: `formatDateForInput` dá o `yyyy-MM-dd` que o `<input type="date">` exige (pelas partes locais, sem o desvio de UTC); `percentOf` devolve `0` em vez de `NaN` quando a base é zero.
+- **Storage comprimido**: `compressedStorage.get/set` gzipa o que grava; formato autodescritivo (`~tgz1:`) lê valores antigos sem migração. Com React, `useLocalStorage(key, def, compressedStorageCodec)`.
 - **Arrays/Objetos**: `groupBy`, `uniqueBy`, `chunk`, `range`, `pick`, `omit`, `deepMerge`, `isEmpty` — sempre imutáveis; `deepMerge` substitui arrays em vez de fundir.
 - **Guards**: `isDefined`, `isString`, `isNumber`, `isPlainObject`, `assertNever` — narrowing seguro + exaustividade em `switch`.
 - **Funções**: `debounce`/`throttle` (com `.cancel()`), `once`, `memoizeOne` para controlar execução.

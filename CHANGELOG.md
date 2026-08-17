@@ -4,6 +4,48 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.45.0] — 2026-08-17
+
+### Corrigido
+
+- **`createApiClient` descartava o caminho do `baseURL`, e todo request virava 404.** A URL era montada com `new URL(path, baseURL)`. Pela spec de URL, um
+  caminho iniciado por `/` é absoluto **contra a origem**, então o caminho que o
+  `baseURL` carregava sumia: um cliente em `https://api.exemplo.com/api` pedindo
+  `"/auth/login"` batia em `https://api.exemplo.com/auth/login`. Como serviço
+  Tempest FastAPI é montado sob `root_path="/api"`, isso atinge todo app que
+  aponta a env var para o prefixo — e o sintoma é o pior possível: 404 em toda
+  chamada, com a config e os call sites parecendo corretos, e o único conserto
+  sendo reescrever todo caminho sem a barra inicial.
+
+  O caminho agora resolve contra o **caminho** do base, não contra a origem.
+  `"/auth/login"` e `"auth/login"` chegam no mesmo lugar. Quem escrevia caminho
+  relativo por causa do bug não quebra: continua resolvendo igual.
+
+- **`baseURL` relativo (`"/api"`) lançava `Invalid base URL`.** É a forma certa
+  atrás do proxy do dev server ou de um reverse proxy servindo app e API do mesmo
+  host — e era o que a própria doc de auth mostrava no exemplo completo, que
+  portanto não rodava. Agora resolve contra a origem atual; fora do browser
+  (sem `location`) lança um `TypeError` nomeando a config a corrigir.
+
+### Adicionado
+
+- **`prefix` em `createApiClient` e `createTempestAuth`** — o segmento sob o qual
+  o serviço está montado (`"/api"`), declarado uma vez no cliente em vez de
+  repetido em todo call site. É a opção a preferir quando a env var é usada por
+  mais coisa que o cliente HTTP (endpoint SSE, host de mídia): `VITE_API_URL`
+  segue sendo a origem pura e só o cliente sabe do prefixo.
+
+  Aplicado **no máximo uma vez** — um caminho que já abre com ele passa direto,
+  então dá para migrar os call sites aos poucos, e os defaults
+  `loginPath`/`refreshPath` do `createTempestAuth` (que já trazem `/api` escrito)
+  continuam corretos sob um `prefix: "/api"`. A comparação é por segmento, então
+  `/api-keys` não é confundido com caminho já prefixado.
+
+- **`buildApiUrl(baseURL, path, { prefix, params })`** exportado — o mesmo join
+  que o cliente usa, para montar URL fora dele: um `EventSource` de SSE, um
+  `<img>`, um link. Sem isso, todo app que usa SSE reimplementa a concatenação e
+  erra o prefixo de novo.
+
 ## [0.44.0] — 2026-08-16
 
 ### Adicionado

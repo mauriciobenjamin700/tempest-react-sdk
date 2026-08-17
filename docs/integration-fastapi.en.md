@@ -236,6 +236,21 @@ export const auth = createTempestAuth<User, { email: string; password: string }>
 });
 ```
 
+!!! tip "`prefix`: the `root_path` in one place"
+    When the service is mounted under `root_path="/api"` — the norm with `tempest-fastapi-sdk` — pass `prefix: "/api"` and write the paths without it. Works for the preset and for any `createApiClient`; details in [HTTP → Base URL and prefix](./http.md#base-url-and-prefix).
+
+    ```tsx
+    export const auth = createTempestAuth<User>({
+        baseURL: import.meta.env.VITE_API_URL, // https://api.example.com
+        prefix: "/api",
+        mePath: "/auth/me",
+    });
+
+    await auth.api.get("/orders"); // https://api.example.com/api/orders
+    ```
+
+    The `loginPath`/`refreshPath` defaults keep their written `/api` and do **not** double under the prefix — it is applied at most once.
+
 Use it anywhere:
 
 ```tsx

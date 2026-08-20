@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.46.0] — 2026-08-20
+
 ### Adicionado
 
 - **`logger` em `createApiClient` — observabilidade do client sem `console` na

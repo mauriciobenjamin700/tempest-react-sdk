@@ -4,6 +4,51 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`buildApiError` estourava a pilha num `detail` profundamente aninhado.** A
+  leitura recursiva de `detail` não tinha teto: um corpo com
+  `{"detail":{"detail":…}}` 20 mil níveis fundo (220 KB) lançava
+  `RangeError: Maximum call stack size exceeded` — e lançava **construindo o
+  erro**, o que é pior que o erro: o `catch` do chamador deixa de receber um
+  `TempestApiError`, então `isApiError` dá false, `describeApiError` não tem o
+  que ler e o tratamento de 401 não roda. Corpo de resposta é entrada não
+  confiável, inclusive no caminho de falha. Teto de 4 níveis — envelope real usa
+  dois ou três — e o que passa disso cai no `Erro <status>`.
+
+- **Erro lançado dentro do `onUnauthorized` não toma mais o lugar do erro da
+  requisição.** O cliente aguarda o hook, e um `throw` lá dentro subia no lugar
+  do `ApiError` original: o caso real é `onUnauthorized` chamando um `logout()`
+  que faz `POST /auth/logout` com o token que o backend acabou de recusar, o
+  logout volta 422, e o console mostra dois erros onde havia um — o segundo sem
+  relação com a requisição que falhou. Agora o hook é chamado dentro de
+  `try/catch` e quem chamou recebe sempre o erro da resposta. Com `logger`
+  configurado, a falha do hook sai como `warn`
+  (`onUnauthorized threw — keeping the original response error`) em vez de
+  desaparecer.
+
+- **A duração no log do cliente vem de `performance.now()`**, não de
+  `Date.now()`. Medir intervalo com relógio de parede dá número negativo quando
+  o relógio anda de lado no meio da requisição (correção de NTP, VM retomando,
+  usuário mexendo na hora).
+
+### Adicionado
+
+- **`scripts/check-dist-guards.mjs`, rodando como `postbuild`** — o guard que
+  faltava na correção da #164. Duas invariantes verificadas **no artefato**,
+  onde essa classe de bug é a única visível (no fonte a forma errada é idêntica
+  à certa; na suíte de testes o bundler ainda não dobrou nada):
+  `dist/utils/dev-mode.js` continua lendo `process.env.NODE_ENV`, e todo arquivo
+  que chama `console.*` ou passa por `isDevBuild()` ou está numa allowlist com o
+  motivo escrito (`consoleSink`, adapter de telemetria, os dois avisos
+  vendorizados do ort-vision-sdk). Ambos os ramos foram testados falhando contra
+  a forma exata do defeito antes de entrar.
+
+### Interno
+
+- `endSession` virou `notifyUnauthorized` no cliente HTTP — o nome antigo
+  prometia encerrar sessão e só logava antes de delegar.
+
 ## [0.47.0] — 2026-08-20
 
 ### Corrigido

@@ -105,6 +105,7 @@
   "scripts": {
     "dev": "vite build --watch",
     "build": "tsc -b tsconfig.build.json && node --max-old-space-size=6144 ./node_modules/vite/bin/vite.js build && node scripts/copy-css-assets.mjs",
+    "postbuild": "node scripts/check-dist-guards.mjs",
     "typecheck": "tsc -b tsconfig.json --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",

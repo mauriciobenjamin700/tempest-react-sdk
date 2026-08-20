@@ -87,6 +87,28 @@ describe("buildApiError — Tempest envelope", () => {
         expect(buildApiError(400, { detail: false }).detail).toBe("false");
     });
 
+    it("reads a nested detail down to the depth cap, then gives up", () => {
+        expect(buildApiError(400, { detail: { detail: { msg: "três níveis" } } }).detail).toBe(
+            "três níveis",
+        );
+        expect(
+            buildApiError(400, {
+                detail: { detail: { detail: { detail: { detail: { msg: "fundo" } } } } },
+            }).detail,
+        ).toBe("Erro 400");
+    });
+
+    it("survives a hostile deeply nested detail instead of overflowing the stack", () => {
+        const depth = 20_000;
+        const raw = '{"detail":'.repeat(depth) + '{"msg":"x"}' + "}".repeat(depth);
+        const body: unknown = JSON.parse(raw);
+
+        const err = buildApiError(422, body);
+
+        expect(err.status).toBe(422);
+        expect(err.detail).toBe("Erro 422");
+    });
+
     it("falls back to the X-Request-ID header then the sent id", () => {
         const headers = new Headers({ "X-Request-ID": "from-header" });
         expect(buildApiError(400, {}, headers).requestId).toBe("from-header");

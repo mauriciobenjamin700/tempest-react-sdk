@@ -146,6 +146,27 @@ describe("createApiClient — logger", () => {
         );
     });
 
+    it("warns and keeps the response error when onUnauthorized throws", async () => {
+        const logger = fakeLogger();
+        const failure = new Error("logout POST came back 422");
+        const fetcher = vi
+            .fn()
+            .mockResolvedValue(jsonResponse({ detail: "expired" }, { status: 401 }));
+        const api = createApiClient({
+            baseURL: "https://api.example.com",
+            onUnauthorized: () => Promise.reject(failure),
+            logger,
+            fetcher,
+        });
+
+        await expect(api.get("/me")).rejects.toThrow("expired");
+
+        expect(logger.warn).toHaveBeenCalledWith(
+            "onUnauthorized threw — keeping the original response error",
+            expect.objectContaining({ error: failure, status: 401 }),
+        );
+    });
+
     it("logs every retry attempt", async () => {
         const logger = fakeLogger();
         const fetcher = vi

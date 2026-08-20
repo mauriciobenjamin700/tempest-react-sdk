@@ -43,6 +43,7 @@ Options (everything except `baseURL` is optional):
 - `onUnauthorized(response)` — fired whenever the request ends up unauthorized: a 401 with no `refresh`, a `refresh()` that rejected, or a replay that came back 401 again. Use it to log out.
 - `refresh()` — when present and the request returns 401, the client awaits `refresh()` and retries the request **once**.
 - `retry` — `true` or `RetryOptions`. **Off by default.** See [Built-in retries](#built-in-retries).
+- `logger` — where the client reports every request it finished. **Off by default.** See [Request logging](#request-logging).
 - `withCredentials` — send cookies on cross-origin requests (default `false`).
 - `headers` — default headers merged into every request.
 - `fetcher` — alternative `fetch` implementation (default `globalThis.fetch`) — handy in tests.
@@ -138,6 +139,45 @@ const stream = new EventSource(
   }),
 );
 ```
+
+## Request logging
+
+The client writes to no console of its own. Pass a `logger` and every finished attempt becomes one line:
+
+```ts
+import { createApiClient, createLogger } from "tempest-react-sdk";
+
+const log = createLogger({ level: import.meta.env.DEV ? "debug" : "warn" });
+
+export const api = createApiClient({
+  baseURL: import.meta.env.VITE_API_URL,
+  logger: log.child("http"),
+});
+
+await api.get("/orders");
+// [http] GET /orders → 200  { requestId: "8f2c…", status: 200, ms: 143 }
+```
+
+What comes out:
+
+| Event | Level | Line |
+| --- | --- | --- |
+| Response under 400 | `debug` | `GET /orders → 200` |
+| Response 400 or above | `warn` | `GET /admin → 403` |
+| Request that got no response | `warn` | `GET /orders → no response` (the context carries the `error`) |
+| `onUnauthorized` firing | `warn` | `unauthorized — calling onUnauthorized` |
+
+Each line's context carries `requestId`, `status` and the elapsed `ms`. It is **one line per attempt**, so the replay after a `refresh` and every retry show up — that is how you read "401, refreshed, 200" off the log.
+
+!!! info "It is `logger`, not `debug: true`"
+    A boolean flag would be a single switch for the whole SDK: all or nothing, always on `console`, and the strings would sit in the bundle even when it is off. With `logger` the **level** lives in the logger (`createLogger({ level })`), the **destination** lives in the sink (console in dev, Sentry in production, an array in a test) and the **scope** lives in the namespace — `log.child("http")` keeps two clients in the same app apart.
+
+    Any object with `debug` and `warn` works (the exported type is `ApiClientLogger`), so it does not have to be the SDK logger.
+
+!!! warning "What the log never carries"
+    Body, headers and query string are left out on purpose: `Authorization` is a bearer token, a login body is a password, and an `access_token` query param would end up written to the sink alongside. What is logged is the method, the path as the call site wrote it, and the numbers.
+
+    If you need the payload to debug, wrap the `fetcher` in your app — then logging a secret is your call, explicitly, and it does not reach production by accident.
 
 ## Built-in retries
 
@@ -416,6 +456,7 @@ const { mutate } = useMutation({
 - `baseURL` may carry a path (`https://host/api`) or be relative (`"/api"`), and `prefix: "/api"` says the same thing while leaving the env var a bare origin. The leading slash at the call site makes no difference, and the prefix is never applied twice. `buildApiUrl` builds the same URL outside the client.
 - 401 with `refresh` → tries to renew and retries once. `onUnauthorized` fires on every unauthorized outcome — no refresh, a refresh that rejected, or a replay that came back 401.
 - `retry: true` turns on replays inside the client: idempotent methods only, network/`408`/`425`/`429`/`5xx` only. Writes never replay on their own.
+- `logger` is opt-in and the client writes to no console without it: one line per attempt (`debug` under 400, `warn` from 400 up) carrying `requestId`, `status` and `ms`, never a body/header/query string.
 - `parseResponse(schema, raw, context)` validates the payload with zod and points at the divergent field in dev.
 - `uploadWithProgress` uses XHR to report byte-level progress; for a large file, `createResumableUpload` chunks and resumes — see [Resumable upload](./resumable-upload.md).
 - `retry` (exponential backoff + `shouldRetry`) and `usePoll` (interval with overlap guard) cover flaky operations and job tracking.
@@ -427,6 +468,7 @@ const { mutate } = useMutation({
 - [Auth + Guard](./auth.md)
 - [Passkeys](./passkeys.md) — passwordless sign-in on top of the same client
 - [Resumable upload (tus)](./resumable-upload.md) — when one request is not enough
+- [Logger](./logger.md) — the `logger` the client accepts
 - [Query](./query.md) — powers your `queryFn`s
 - [SSE](./sse.md) — uses `withCredentials` just like the client
 - Diagram: [request-flow.drawio](./diagrams/request-flow.drawio)

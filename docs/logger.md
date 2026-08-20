@@ -122,5 +122,6 @@ export const log = createLogger({ level: "info", sinks: [sentrySink] });
 
 ## Veja também
 
+- [HTTP client](./http.md#log-de-requisicao) — passe o logger em `createApiClient({ logger })`
 - [Telemetry](./telemetry.md) — para eventos de produto, não logs
 - [Error Boundary](./error-boundary.md) — encaminhe `onError` para um sink/telemetria

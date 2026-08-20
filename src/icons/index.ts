@@ -1,16 +1,18 @@
 export { Icon } from "./Icon";
 export type { IconProps } from "./Icon";
+export { DEFAULT_ICON_PICKER_MESSAGE, IconPicker, validateIconName } from "./IconPicker";
+export type { IconPickerProps } from "./IconPicker";
 export { IconProvider } from "./IconProvider";
 export type { IconProviderProps } from "./IconProvider";
 export { createIconRegistry } from "./icon-context";
 export type { IconRegistry } from "./icon-context";
+export { resolveIconAlias } from "./alias";
 export {
     iconStatus,
     loadIcon,
     peekIcon,
     preloadIcons,
     registerIcons,
-    resolveIconAlias,
     subscribeToIconErrors,
 } from "./shard-cache";
 export type { IconLoadError } from "./shard-cache";

@@ -6,6 +6,16 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Alterado
 
+- **`resolveIconAlias` saiu do `shard-cache` para o módulo próprio
+  `src/icons/alias.ts`.** Tudo que só **nomeia** um ícone — `normalizeIconName`,
+  `validateIconName`, um formulário conferindo valor antes de submeter — passava
+  pelo `shard-cache`, e com isso dependia estaticamente do índice dos 45 shards que
+  existem para _renderizar_. O `dist` confirma a limpeza:
+  `normalize-icon-name.js` alcança 3 módulos e nenhum é o `loaders.js` (antes ia
+  até ele). **Não economizou byte** — o esbuild já podava — mas a aresta falsa
+  deixou de existir, e o `postbuild` agora falha se ela voltar. `resolveIconAlias`
+  continua exportado do mesmo lugar (`tempest-react-sdk/icons`).
+
 - **O `postbuild` passou a garantir que o `<Icon>` não alcance a lista de 2024
   slugs.** `scripts/check-dist-guards.mjs` percorre o grafo de imports estáticos do
   `dist` a partir do `Icon.js` e falha o build se `generated/icon-names.js`
@@ -77,6 +87,18 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   usuário mexendo na hora).
 
 ### Adicionado
+
+- **`<IconPicker>`** — campo de ícone com autocomplete nativo sobre os 2024 slugs,
+  preview do escolhido, e validação ligada ao form nativo via `setCustomValidity`.
+  Todo painel reescrevia essa tela (no `servus-frontend` foram ~87 linhas no form de
+  categoria), e o passo que mais falta é o último: sem barrar o submit, o slug
+  inválido chega no banco e só aparece como ícone faltando em toda tela que rende
+  aquele registro. Sugestões cortadas em 40 por default, porque montar 2024
+  `<option>` a cada tecla trava o datalist. Entrada legada é aceita e o `onChange`
+  emite sempre o slug canônico. `validateIconName` sai como export para
+  react-hook-form/zod não duplicarem a regra — vazio **passa**, porque "não escolheu"
+  é pergunta do `required`, não erro de grafia. Construído sobre `<datalist>` de
+  propósito: teclado, leitor de tela e comportamento mobile vêm da plataforma.
 
 - **`<Icon>` normaliza `icon_code` por default, e `normalizeIconName` saiu como
   export.** Backend que grava ícone grava sujo — `snake_case` de formulário antigo,

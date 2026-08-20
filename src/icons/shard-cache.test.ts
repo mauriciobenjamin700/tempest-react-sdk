@@ -4,7 +4,8 @@ import { iconAliases } from "./generated/aliases";
 import { iconShards } from "./generated/loaders";
 import { iconNames } from "./generated/icon-names";
 import { isIconName } from "./is-icon-name";
-import { iconStatus, loadIcon, peekIcon, preloadIcons, resolveIconAlias } from "./shard-cache";
+import { resolveIconAlias } from "./alias";
+import { iconStatus, loadIcon, peekIcon, preloadIcons } from "./shard-cache";
 
 describe("generated tables", () => {
     it("covers every lucide slug, canonical plus alias", () => {

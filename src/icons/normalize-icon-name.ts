@@ -1,4 +1,4 @@
-import { resolveIconAlias } from "./shard-cache";
+import { resolveIconAlias } from "./alias";
 
 /**
  * Clean up an icon code and resolve it to the slug lucide actually ships.

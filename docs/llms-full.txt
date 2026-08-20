@@ -15661,15 +15661,84 @@ Re-rode depois de adicionar ícones novos. Um slug que o scan não vê (nome mon
 por concatenação, por exemplo) continua funcionando pelo shard — só não ganha o
 caminho estático.
 
-## Montando um seletor de ícone
+## Seletor de ícone pronto
 
-`iconNames` é a lista completa, ordenada:
+Todo painel que deixa alguém escolher um ícone reescrevia a mesma tela: filtrar a
+lista, cortar em N sugestões, montar o `<datalist>` e barrar o submit quando o
+slug não existe. Esse último passo é o que importa — sem ele o valor inválido
+chega no banco e só aparece como ícone faltando em toda tela que rende aquele
+registro.
+
+```tsx
+import { useState } from "react";
+import { IconPicker } from "tempest-react-sdk/icons";
+
+export function CategoryForm({ onSave }: { onSave: (icon: string) => void }) {
+    const [icon, setIcon] = useState("");
+
+    return (
+        <form
+            onSubmit={(event) => {
+                event.preventDefault();
+                onSave(icon);
+            }}
+        >
+            <label htmlFor="icon">Ícone</label>
+            <IconPicker id="icon" value={icon} onChange={setIcon} required />
+            <button type="submit">Salvar</button>
+        </form>
+    );
+}
+```
+
+O que você ganha:
+
+- **autocomplete nativo** sobre os 2024 slugs, via `<datalist>` — teclado, leitor de
+  tela e o comportamento mobile vêm da plataforma;
+- **preview** do ícone escolhido ao lado do campo;
+- **validação no form nativo**: o input carrega `setCustomValidity`, então um
+  `<form>` comum se recusa a submeter e o browser aponta pro campo;
+- **entrada legada aceita, slug canônico emitido** — digitou `Shopping_Cart`, o
+  `onChange` recebe `shopping-cart`; digitou `alert-circle`, recebe `circle-alert`.
+
+!!! tip "Sugestões são cortadas por default"
+    `limit` é **40**. Montar 2024 `<option>` a cada tecla travava o datalist — é o
+    motivo da prop existir, em vez de um default "mostra tudo".
+
+!!! warning "Usa react-hook-form ou zod? A regra é exportada"
+    Não duplique a validação — é assim que as duas divergem:
+
+    ```tsx
+    import { validateIconName } from "tempest-react-sdk/icons";
+
+    // react-hook-form
+    register("icon", { validate: (value) => validateIconName(value) ?? true });
+
+    // zod
+    z.string().refine((value) => !validateIconName(value), {
+        message: "Ícone inexistente",
+    });
+    ```
+
+    Vazio **passa** em `validateIconName`: "não escolheu ícone" é pergunta do
+    `required`, não erro de grafia — juntar as duas tornaria o campo impossível de
+    limpar.
+
+!!! info "Custa a lista inteira, e só aqui"
+    O `IconPicker` importa `iconNames` (~7 KB brotli), porque um seletor precisa da
+    lista. O `<Icon>` **não** — veja [O que cada import
+    custa](#o-que-cada-import-custa). E o estilo vem do `styles.css` do SDK, como
+    todo componente.
+
+### Prefere montar o seu?
+
+A lista é pública e ordenada:
 
 ```tsx
 import { useMemo, useState } from "react";
 import { Icon, iconNames } from "tempest-react-sdk/icons";
 
-export function IconPicker({ onPick }: { onPick: (slug: string) => void }) {
+export function OwnPicker({ onPick }: { onPick: (slug: string) => void }) {
     const [query, setQuery] = useState("");
     const matches = useMemo(
         () => iconNames.filter((name) => name.includes(query.trim().toLowerCase())),
@@ -15824,6 +15893,9 @@ construção.
 | `resolveIconAlias`   | Slug depreciado → slug canônico                                        |
 | `isIconName`         | Type guard contra a lista real (importa a lista)                        |
 | `normalizeIconName`  | `icon_code` sujo → slug canônico (trim, lower, `_`→`-`, alias)          |
+| `IconPicker`         | Campo de ícone: autocomplete + preview + validação nativa               |
+| `validateIconName`   | A regra de validação do picker, para react-hook-form/zod                |
+| `DEFAULT_ICON_PICKER_MESSAGE` | A mensagem default de slug inexistente                         |
 | `fromMaterialSymbol` | Código Material Symbols → slug lucide, sempre devolvendo um             |
 | `materialToLucide`   | A tabela de pares, para passar no `include` do plugin                   |
 | `MATERIAL_SYMBOL_FALLBACK` | O glifo neutro que um código desconhecido usa                    |
@@ -15907,6 +15979,9 @@ ou seja, o que o **SDK** adiciona ao seu bundle:
 - `icon_code` do banco renderiza sujo: `shopping_cart`, `" Save"` e alias antigo são
   normalizados antes do lookup. `normalize={false}` para lookup estrito, e
   `normalizeIconName` sozinho para validar no formulário.
+- `<IconPicker value onChange />` é o campo pronto: autocomplete nativo, preview e
+  `setCustomValidity` para o form recusar slug inexistente. `validateIconName` para
+  react-hook-form/zod.
 - `iconNames` fica **fora** do custo do `<Icon>` — importe só se for listar ou
   validar.
 - **Não declare `lucide-react` no seu app**: ele já vem com o SDK, e uma segunda

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Badge, Button, Input } from "tempest-react-sdk";
-import { Icon, iconNames, preloadIcons } from "tempest-react-sdk/icons";
+import { Icon, IconPicker, iconNames, preloadIcons } from "tempest-react-sdk/icons";
 import { Example } from "../Example";
 
 /** Icons rendered as literals, so the plugin's static path is exercised too. */
@@ -27,6 +27,7 @@ const PAGE_SIZE = 120;
 export function IconsSection() {
     const [query, setQuery] = useState("");
     const [page, setPage] = useState(0);
+    const [picked, setPicked] = useState("shopping-cart");
 
     const matches = useMemo(() => {
         const q = query.trim().toLowerCase();
@@ -41,8 +42,69 @@ export function IconsSection() {
             <p className="description">
                 Os {iconNames.length} slugs do lucide endereçáveis por nome, sem o custo do{" "}
                 <code>DynamicIcon</code> (que força ~2000 fronteiras de chunk). Slug literal resolve
-                estático; slug de runtime carrega <strong>um</strong> shard por letra inicial.
+                estático; slug de runtime carrega <strong>um</strong> shard da faixa dele.
             </p>
+
+            <Example
+                title="IconPicker"
+                id="ex-icon-picker"
+                note="Campo de ícone com autocomplete nativo, preview e validação: digite Shopping_Cart ou alert-circle e veja o slug canônico sair; digite um nome inexistente e o submit é barrado pelo browser."
+                code={`const [icon, setIcon] = useState("");
+
+<form onSubmit={save}>
+    <IconPicker id="icon" value={icon} onChange={setIcon} required />
+    <button type="submit">Salvar</button>
+</form>`}
+                props={[
+                    { name: "value", type: "string", description: "O slug escolhido, canônico." },
+                    {
+                        name: "onChange",
+                        type: "(slug: string) => void",
+                        description:
+                            "Dispara com o slug canônico — entrada legada (snake_case, maiúscula, alias) já normalizada.",
+                    },
+                    {
+                        name: "limit",
+                        type: "number",
+                        default: "40",
+                        description:
+                            "Quantas sugestões renderizar. 2024 <option> a cada tecla travam o datalist.",
+                    },
+                    {
+                        name: "previewSize",
+                        type: "number",
+                        default: "20",
+                        description: "Tamanho do glifo de preview, em px.",
+                    },
+                    {
+                        name: "invalidMessage",
+                        type: "string",
+                        description: "Sobrescreve a mensagem de slug inexistente.",
+                    },
+                ]}
+            >
+                <form
+                    className="gallery-stack"
+                    onSubmit={(event) => event.preventDefault()}
+                    style={{ display: "grid", gap: 12, maxWidth: 420 }}
+                >
+                    <label htmlFor="gallery-icon-picker">Ícone da categoria</label>
+                    <IconPicker
+                        id="gallery-icon-picker"
+                        value={picked}
+                        onChange={setPicked}
+                        required
+                    />
+                    <div className="gallery-toolbar">
+                        <Button size="sm" type="submit">
+                            Salvar
+                        </Button>
+                        <span>
+                            Vai pro banco: <code>{picked || "—"}</code>
+                        </span>
+                    </div>
+                </form>
+            </Example>
 
             <Example
                 title="Slug literal"

@@ -16,7 +16,8 @@
  * 2. Every file that calls `console.*` either routes through `isDevBuild()` or
  *    is listed below with a reason. An ungated console call is either noise in
  *    someone's production console or, if it was meant to be gated, dead code.
- * 3. `<Icon>` does not reach the 2024-slug list (issue #173). That the runtime
+ * 3. `<Icon>` does not reach the 2024-slug list, and naming an icon does not
+ *    reach the shard loader index (issue #173). That the runtime
  *    and the catalogue are separable is only true because no module on the
  *    `Icon` path imports `generated/icon-names.js` — one convenience import
  *    inside `use-icon` or `shard-cache` would add ~6 KB brotli to every app that
@@ -33,6 +34,9 @@ const LIVE_GUARD = "process.env.NODE_ENV";
 
 /** The catalogue module that must stay off the `<Icon>` path. */
 const SLUG_LIST = "icons/generated/icon-names.js";
+
+/** The shard loader index, which naming an icon must not require. */
+const SHARD_INDEX = "icons/generated/loaders.js";
 
 /**
  * `import … from "x"`, `export … from "x"`, and the bare `import "x"`.
@@ -173,6 +177,17 @@ if (!validatorGraph.has(SLUG_LIST)) {
     problems.push(
         `dist/icons/is-icon-name.js no longer reaches ${SLUG_LIST}, so the check above ` +
             "proves nothing. Point SLUG_LIST at wherever the slug list moved.",
+    );
+}
+
+const namingGraph = staticGraph(join(DIST, "icons", "normalize-icon-name.js"));
+
+if (namingGraph.has(SHARD_INDEX)) {
+    problems.push(
+        `dist/icons/normalize-icon-name.js now reaches ${SHARD_INDEX}. Cleaning up a ` +
+            "slug is what a form does before submitting, and it must not depend on the " +
+            "45 shard modules that exist to *render* one. Keep alias resolution in " +
+            "icons/alias.js, which is why that module was split out of shard-cache.",
     );
 }
 

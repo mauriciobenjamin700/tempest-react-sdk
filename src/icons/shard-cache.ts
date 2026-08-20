@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 
 import { isDevBuild } from "../utils/dev-mode";
-import { iconAliases } from "./generated/aliases";
+import { resolveIconAlias } from "./alias";
 import { iconShards, type IconShard } from "./generated/loaders";
 
 /**
@@ -96,21 +96,6 @@ const errorListeners = new Set<(detail: IconLoadError) => void>();
 
 /** Callbacks to run after a shard lands, so mounted `<Icon>`s re-render. */
 const listeners = new Set<() => void>();
-
-/**
- * Map a slug to the canonical slug that owns the icon.
- *
- * Lucide keeps 257 deprecated aliases (`alert-circle` → `circle-alert`), and a
- * slug persisted in a database years ago is exactly the case this feature exists
- * for, so an alias must keep resolving after a lucide bump renames it. Resolution
- * happens before the shard lookup, since only canonical slugs are sharded.
- *
- * @param slug - Any icon slug, canonical or deprecated.
- * @returns The canonical slug.
- */
-export function resolveIconAlias(slug: string): string {
-    return iconAliases[slug] ?? slug;
-}
 
 /**
  * Make icon components resolvable by slug, with no provider and no plugin.

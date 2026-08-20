@@ -115,6 +115,73 @@ GET .../icons/generated/shard-c.js   200
 The largest shard (`s`, 175 icons) weighs **18.7 KB brotli**; the median sits at
 **5.0 KB**. The `<Icon>` runtime, before any shard, costs **~1 KB brotli**.
 
+## A closed catalog: `registerIcons`
+
+An admin panel usually has twenty icons and not one more. That case needs neither a
+plugin nor a provider — register once from the entrypoint:
+
+```tsx
+// src/main.tsx
+import { createRoot } from "react-dom/client";
+import { registerIcons } from "tempest-react-sdk/icons";
+import { House, Save, Settings, Trash2, Users } from "lucide-react";
+import { App } from "@/App";
+
+registerIcons({
+    house: House,
+    save: Save,
+    settings: Settings,
+    "trash-2": Trash2,
+    users: Users,
+});
+
+createRoot(document.getElementById("root")!).render(<App />);
+```
+
+That is it: every `<Icon name="save" />` in the tree resolves **on the first frame,
+with no request**. The imports are static, so the bundler keeps exactly those five
+icons and drops the rest.
+
+!!! tip "It also takes your own artwork"
+    The key does not have to be a lucide slug. `registerIcons({ "my-brand": Brand })`
+    makes `<Icon name="my-brand" />` work — same call site, same `size` default, no
+    `if` in the component.
+
+!!! info "A deprecated slug goes in under its canonical name"
+    `registerIcons({ "alert-circle": AlertCircle })` stores it as `circle-alert`, so
+    both spellings resolve. It is the same alias map `<Icon>` uses.
+
+`registerIcons` is additive and idempotent: call it from as many modules as you
+like, and registering the same pair twice costs no render. Registering **after** the
+tree has already rendered works too — every mounted `<Icon>` sitting on its fallback
+is notified and re-renders.
+
+### Already holding the component? Pass it
+
+```tsx
+import { Icon } from "tempest-react-sdk/icons";
+import { Wrench } from "lucide-react";
+
+<Icon icon={Wrench} />
+```
+
+No lookup, no registry, no shard. It exists so a screen mixing literal icons with
+data-driven ones can use **one** component for both — which is what makes
+`IconProvider`'s `size`/`strokeWidth` defaults apply to both. `name` and `icon` are
+mutually exclusive: passing both is a type error.
+
+### When `IconProvider` still earns its place
+
+After `registerIcons`, what is left for the provider is what is genuinely
+**tree-scoped**:
+
+- `size` / `strokeWidth` defaults for a subtree;
+- a registry that has to **win** over the global one right there (an alternate
+  theme, an icon preview inside a modal).
+
+Precedence is: provider registry → global registry (`registerIcons` plus shards
+already fetched) → shard fetch.
+
 ## Zero extra requests for the slugs you wrote
 
 An `<Icon name="save" />` written in your code needs no shard at all: the slug is
@@ -152,7 +219,7 @@ export default defineConfig({
 // src/main.tsx
 import { createRoot } from "react-dom/client";
 import { IconProvider } from "tempest-react-sdk/icons";
-import { staticIcons } from "virtual:tempest-icons";
+import { staticIcons } from "tempest-react-sdk/icons/virtual";
 import { App } from "@/App";
 
 createRoot(document.getElementById("root")!).render(
@@ -162,12 +229,21 @@ createRoot(document.getElementById("root")!).render(
 );
 ```
 
-### 3. Declare the virtual module's types
+!!! info "No type declaration needed"
+    `tempest-react-sdk/icons/virtual` is a **real** module in the package: its types
+    come from `exports`, and it resolves **without** the plugin too — to an empty
+    registry. That is what lets the same file load under vitest without the plugin,
+    under `tsx`, in a Storybook with its own builder, or in any Node script that
+    imports the app's tree. Before it,
+    `import { staticIcons } from "virtual:tempest-icons"` outside a Vite build with
+    the plugin did not leave **one icon** missing: it took down the whole module.
 
-```ts
-// src/vite-env.d.ts
-/// <reference types="tempest-react-sdk/icons/virtual" />
-```
+!!! warning "The old spelling keeps working"
+    `import { staticIcons } from "virtual:tempest-icons"` still resolves with the
+    plugin installed, and the
+    `/// <reference types="tempest-react-sdk/icons/virtual" />` already sitting in
+    your `vite-env.d.ts` stays valid — you may delete it, you do not have to. Just do
+    not reach for that spelling in new code: it is the one that fails outside Vite.
 
 With that in place, every literal slug in your code resolves **on the first frame,
 with no extra request**. A runtime slug still goes through the shard path — the
@@ -411,7 +487,9 @@ Material Symbols and has nothing to do with construction.
 
 | Export               | What it does                                                              |
 | -------------------- | ------------------------------------------------------------------------- |
-| `Icon`               | Renders by slug. Props: `name`, `size`, `strokeWidth`, `fallback` + SVG    |
+| `Icon`               | Renders by slug (`name`) or by component (`icon`), + `size`, `strokeWidth`, `fallback` and SVG props |
+| `registerIcons`      | Registers slug → component globally, with no provider and no plugin       |
+| `staticIcons`        | The registry the plugin generates, at `tempest-react-sdk/icons/virtual`   |
 | `IconProvider`       | Static registry + `size`/`strokeWidth` defaults                           |
 | `createIconRegistry` | Builds a registry from imported lucide components                         |
 | `useIcon`            | Resolves a slug to its component (what `Icon` uses internally)             |
@@ -455,6 +533,11 @@ Material Symbols and has nothing to do with construction.
 - `<Icon name="save" />` resolves any of lucide's **2024 slugs**, with no setup.
 - A **literal** slug becomes a static import via `tempestIcons()` (on by default in
   `createViteConfig`) → **zero extra requests**.
+- Closed catalog? `registerIcons({ save: Save })` in the entrypoint gives you the same
+  static path with **no plugin and no provider**. Already holding the component?
+  `<Icon icon={Save} />`.
+- `tempest-react-sdk/icons/virtual` is a real module: it resolves **without** the
+  plugin (empty registry), so vitest, `tsx` and Storybook load the same file.
 - A **runtime** slug loads **one shard per initial letter** — 25 requests at most,
   never one per icon.
 - An unknown name renders `fallback` (nothing, by default) and **never throws**;

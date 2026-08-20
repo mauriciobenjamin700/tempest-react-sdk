@@ -6,10 +6,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { iconAliases } from "@/icons/generated/aliases";
 import { iconNames } from "@/icons/generated/icon-names";
 
-import { buildIconsModule, scanIconSlugs, TEMPEST_ICONS_ID, tempestIcons } from "./tempest-icons";
+import {
+    buildIconsModule,
+    scanIconSlugs,
+    TEMPEST_ICONS_ID,
+    TEMPEST_ICONS_VIRTUAL_ID,
+    tempestIcons,
+} from "./tempest-icons";
 
 /** The id the plugin resolves `virtual:tempest-icons` to (Rollup's `\0` convention). */
-const RESOLVED_VIRTUAL_ID = `\0${TEMPEST_ICONS_ID}`;
+const RESOLVED_VIRTUAL_ID = `\0${TEMPEST_ICONS_VIRTUAL_ID}`;
 
 const known = new Set<string>(iconNames);
 
@@ -189,6 +195,20 @@ describe("tempestIcons — plugin", () => {
         };
         expect(plugin.resolveId("react")).toBeNull();
         expect(plugin.load("react")).toBeNull();
+    });
+
+    it("claims the package subpath, so the shipped stub never wins", () => {
+        const plugin = tempestIcons() as unknown as {
+            resolveId: (id: string) => string | null;
+        };
+        expect(plugin.resolveId("tempest-react-sdk/icons/virtual")).toBe(RESOLVED_VIRTUAL_ID);
+    });
+
+    it("still claims the legacy virtual id", () => {
+        const plugin = tempestIcons() as unknown as {
+            resolveId: (id: string) => string | null;
+        };
+        expect(plugin.resolveId("virtual:tempest-icons")).toBe(RESOLVED_VIRTUAL_ID);
     });
 });
 

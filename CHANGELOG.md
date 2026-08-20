@@ -34,6 +34,32 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`registerIcons(record)`** — registro estático de ícone sem provider e sem
+  plugin. Uma chamada no entrypoint e todo `<Icon name>` da árvore resolve no
+  primeiro frame, com import estático que o bundler poda. O caminho anterior para
+  catálogo fechado (painel com vinte ícones, caso comum) exigia o plugin do Vite
+  **e** o `IconProvider` no topo, e um teste unitário de componente com `<Icon>`
+  precisava montar o provider para não cair no caminho assíncrono. A chave não
+  precisa ser slug do lucide, então arte própria entra no mesmo call site; slug
+  depreciado é gravado sob o nome canônico. Chamada tardia avisa os `<Icon>` já
+  montados, que re-renderizam.
+
+- **`<Icon icon={Wrench} />`** — aceita o componente direto, para a tela que
+  mistura ícone literal com ícone vindo de dados usar **um** componente nos dois
+  casos e os defaults de `size`/`strokeWidth` do provider valerem para os dois.
+  `name` e `icon` são mutuamente exclusivos no tipo.
+
+- **`tempest-react-sdk/icons/virtual`** — o registro estático virou subpath com
+  módulo **de verdade** (`staticIcons = {}`), que o `tempestIcons()` sobrescreve
+  quando está instalado. Antes o subpath exportava só tipos, então
+  `import { staticIcons } from "virtual:tempest-icons"` só resolvia dentro de um
+  build Vite com o plugin: vitest sem o plugin no config de teste, `tsx`, Storybook
+  com builder próprio ou script Node que importasse a árvore da app falhavam na
+  **resolução** — e a falha não era um ícone faltando, era o módulo inteiro não
+  carregando. `dist/icons.d.ts` e `dist/icons-virtual.d.ts` referenciam a
+  declaração do id legado, então o `/// <reference types=…>` no `vite-env.d.ts`
+  deixou de ser necessário (continua válido).
+
 - **`error.fields` no envelope de erro** — as entradas de um `422` indexadas pelo
   caminho do campo (`{ email: "Field required", "items.0.price": "Input should be
 greater than 0" }`), que é a forma que um formulário consome. Antes o caminho

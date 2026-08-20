@@ -15340,6 +15340,72 @@ GET .../icons/generated/shard-c.js   200
 O maior shard (`s`, com 175 ícones) pesa **18,7 KB brotli**; a mediana fica em
 **5,0 KB**. O runtime do `<Icon>`, sem shard nenhum, custa **~1 KB brotli**.
 
+## Catálogo fechado: `registerIcons`
+
+Painel administrativo costuma ter vinte ícones e nenhum a mais. Para esse caso não
+precisa de plugin nem de provider — registre uma vez no entrypoint:
+
+```tsx
+// src/main.tsx
+import { createRoot } from "react-dom/client";
+import { registerIcons } from "tempest-react-sdk/icons";
+import { House, Save, Settings, Trash2, Users } from "lucide-react";
+import { App } from "@/App";
+
+registerIcons({
+    house: House,
+    save: Save,
+    settings: Settings,
+    "trash-2": Trash2,
+    users: Users,
+});
+
+createRoot(document.getElementById("root")!).render(<App />);
+```
+
+Pronto: qualquer `<Icon name="save" />` na árvore resolve **no primeiro frame, sem
+requisição**. Os imports são estáticos, então o bundler mantém exatamente esses
+cinco ícones e joga o resto fora.
+
+!!! tip "Serve também para arte própria"
+    A chave não precisa ser um slug do lucide. `registerIcons({ "minha-marca": Marca })`
+    faz `<Icon name="minha-marca" />` funcionar — mesmo call site, mesmo default de
+    `size`, sem `if` no componente.
+
+!!! info "Slug depreciado entra pelo nome canônico"
+    `registerIcons({ "alert-circle": AlertCircle })` grava sob `circle-alert`, então
+    as duas grafias resolvem. É o mesmo mapa de alias que o `<Icon>` usa.
+
+`registerIcons` é acumulativo e idempotente: chame de quantos módulos quiser, e
+registrar o mesmo par duas vezes não custa render. Registrar **depois** de a árvore
+já ter renderizado também funciona — todo `<Icon>` montado no fallback é avisado e
+re-renderiza.
+
+### Já tem o componente na mão? Passe direto
+
+```tsx
+import { Icon } from "tempest-react-sdk/icons";
+import { Wrench } from "lucide-react";
+
+<Icon icon={Wrench} />
+```
+
+Sem lookup, sem registro, sem shard. Existe para a tela que mistura ícone literal
+com ícone vindo de dados poder usar **um** componente nos dois casos — e assim os
+defaults de `size`/`strokeWidth` do `IconProvider` valerem para os dois. `name` e
+`icon` são mutuamente exclusivos: passar os dois é erro de tipo.
+
+### Quando ainda vale o `IconProvider`
+
+Depois do `registerIcons`, sobra para o provider o que é **escopo de árvore**:
+
+- default de `size` / `strokeWidth` para uma subárvore;
+- um registro que precisa **ganhar** do global só ali (tema alternativo, preview de
+  ícone dentro de um modal).
+
+A precedência é: registro do provider → registro global (`registerIcons` e shards já
+baixados) → busca do shard.
+
 ## Custo zero de requisição para os slugs que você escreveu
 
 Um `<Icon name="save" />` escrito no código não precisa de shard nenhum: o slug é
@@ -15376,7 +15442,7 @@ export default defineConfig({
 // src/main.tsx
 import { createRoot } from "react-dom/client";
 import { IconProvider } from "tempest-react-sdk/icons";
-import { staticIcons } from "virtual:tempest-icons";
+import { staticIcons } from "tempest-react-sdk/icons/virtual";
 import { App } from "@/App";
 
 createRoot(document.getElementById("root")!).render(
@@ -15386,12 +15452,20 @@ createRoot(document.getElementById("root")!).render(
 );
 ```
 
-### 3. Declare o tipo do módulo virtual
+!!! info "Não precisa declarar tipo nenhum"
+    `tempest-react-sdk/icons/virtual` é um módulo **de verdade** do pacote: os tipos
+    vêm pelo `exports`, e ele resolve mesmo **sem** o plugin — para um registro
+    vazio. É o que faz o mesmo arquivo carregar no vitest sem o plugin, no `tsx`, num
+    Storybook com builder próprio ou em qualquer script Node que importe a árvore da
+    app. Antes disso, `import { staticIcons } from "virtual:tempest-icons"` fora de um
+    build Vite com o plugin não deixava **um ícone** faltando: derrubava o módulo
+    inteiro.
 
-```ts
-// src/vite-env.d.ts
-/// <reference types="tempest-react-sdk/icons/virtual" />
-```
+!!! warning "A grafia antiga continua funcionando"
+    `import { staticIcons } from "virtual:tempest-icons"` segue resolvendo quando o
+    plugin está instalado, e o `/// <reference types="tempest-react-sdk/icons/virtual" />`
+    que você já tem no `vite-env.d.ts` continua válido — pode apagar, não precisa.
+    Só não use essa grafia em código novo: ela é a que não resolve fora do Vite.
 
 Feito isso, todo slug literal do seu código resolve **no primeiro frame, sem
 requisição extra**. Slug de runtime continua caindo no shard — o comportamento não
@@ -15634,7 +15708,9 @@ construção.
 
 | Export               | O que faz                                                              |
 | -------------------- | ---------------------------------------------------------------------- |
-| `Icon`               | Renderiza por slug. Props: `name`, `size`, `strokeWidth`, `fallback` + SVG |
+| `Icon`               | Renderiza por slug (`name`) ou por componente (`icon`), + `size`, `strokeWidth`, `fallback` e props de SVG |
+| `registerIcons`      | Registra slug → componente global, sem provider e sem plugin            |
+| `staticIcons`        | O registro que o plugin gera, em `tempest-react-sdk/icons/virtual`       |
 | `IconProvider`       | Registro estático + defaults de `size`/`strokeWidth`                    |
 | `createIconRegistry` | Monta um registro a partir de componentes lucide importados             |
 | `useIcon`            | Resolve um slug pro componente (o que o `Icon` usa por dentro)          |
@@ -15679,6 +15755,10 @@ construção.
   configuração.
 - Slug **literal** vira import estático via `tempestIcons()` (ligado por default no
   `createViteConfig`) → **zero requisição extra**.
+- Catálogo fechado? `registerIcons({ save: Save })` no entrypoint dá o mesmo caminho
+  estático **sem plugin e sem provider**. Já tem o componente? `<Icon icon={Save} />`.
+- `tempest-react-sdk/icons/virtual` é módulo real: resolve **sem** o plugin (registro
+  vazio), então vitest, `tsx` e Storybook carregam o mesmo arquivo.
 - Slug de **runtime** carrega **um shard por letra inicial** — no máximo 25
   requisições, nunca uma por ícone.
 - Nome inexistente renderiza `fallback` (nada, por default) e **nunca lança**;

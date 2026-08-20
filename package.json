@@ -96,7 +96,9 @@
       "require": "./dist/icons.cjs"
     },
     "./icons/virtual": {
-      "types": "./dist/icons-virtual.d.ts"
+      "types": "./dist/icons-virtual.d.ts",
+      "import": "./dist/icons-virtual.js",
+      "require": "./dist/icons-virtual.cjs"
     },
     "./styles.css": "./dist/styles.css",
     "./package.json": "./package.json",

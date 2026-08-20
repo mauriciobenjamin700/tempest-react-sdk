@@ -206,29 +206,6 @@ randomId("user"); // "user-9f1c2b3a-..."
 
 ---
 
-## Modo de desenvolvimento — `isDevBuild`
-
-| Função         | Assinatura          | O que faz                                                       |
-| -------------- | ------------------- | --------------------------------------------------------------- |
-| `isDevBuild()` | `() => boolean`     | `true` quando o **app** foi buildado para desenvolvimento.      |
-
-```ts
-import { isDevBuild } from "tempest-react-sdk";
-
-if (isDevBuild()) {
-  console.warn("[meu-app] essa combinação de props não faz nada");
-}
-```
-
-!!! danger "Em pacote publicado, `import.meta.env.DEV` é uma constante — não um teste"
-    Escrever `if (import.meta.env.DEV)` dentro de uma biblioteca parece equivalente e não é: o Vite substitui essa expressão **enquanto builda a biblioteca**, então o artefato publicado carrega `false` fixo e o `if` inteiro vira código morto. O dev server do app consumidor não tem como religar — a decisão já foi tomada, em outra máquina, em outro build.
-
-    `process.env.NODE_ENV` é o que os bundlers substituem **no build do app**, e é por isso que `isDevBuild()` lê essa expressão, escrita por extenso e com o erro capturado em vez de evitado por um `typeof process`. O guard pareceria mais cuidadoso e reintroduziria o bug: o bundler troca a expressão `process.env.NODE_ENV` e mais nada, então no browser — onde o identificador `process` não existe — o `typeof` retornaria cedo com o literal logo abaixo já substituído por `"development"`.
-
-    Ambiente que não define nenhum dos dois (service worker cru, `<script type="module">`) devolve `false`: aviso de dev que não consegue provar que está em dev fica calado, em vez de gritar no console de produção de alguém.
-
----
-
 ## Strings
 
 | Função                            | Assinatura                                                     | O que faz                                                     |
@@ -435,7 +412,6 @@ const [save, setSave] = useLocalStorage("save", EMPTY_SAVE, compressedStorageCod
 - **Guards**: `isDefined`, `isString`, `isNumber`, `isPlainObject`, `assertNever` — narrowing seguro + exaustividade em `switch`.
 - **Funções**: `debounce`/`throttle` (com `.cancel()`), `once`, `memoizeOne` para controlar execução.
 - **Promises/IDs/Strings/Números**: `sleep`, `withTimeout`, `randomId`, `capitalize`/`camelCase`/`kebabCase`/`pluralize`, `formatBytes`/`formatCompactNumber`.
-- **`isDevBuild()`**: aviso só em dev sem cair na armadilha do `import.meta.env.DEV`, que num pacote publicado é constante resolvida no build da **biblioteca**, não do app.
 
 ## Veja também
 

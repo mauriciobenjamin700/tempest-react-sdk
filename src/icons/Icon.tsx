@@ -4,7 +4,7 @@ import type { IconName } from "./generated/icon-name";
 import { useIconContext } from "./icon-context";
 import { iconStatus } from "./shard-cache";
 import { useIcon } from "./use-icon";
-import { isDevBuild } from "../utils";
+import { isDevBuild } from "../utils/dev-mode";
 
 export interface IconProps extends Omit<SVGProps<SVGSVGElement>, "ref"> {
     /**

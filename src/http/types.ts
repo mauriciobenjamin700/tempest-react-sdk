@@ -28,6 +28,17 @@ export interface ApiError {
      * header (commonly on `429`/`503`). Honored by {@link retry}.
      */
     retryAfter?: number;
+    /**
+     * Field-level messages from a validation response, keyed by the field path
+     * the backend named (`"email"`, `"items.0.price"`).
+     *
+     * Present only when the body carried a validation list — a FastAPI `422`
+     * answers with `detail: [{ loc, msg, type }]`. This is the shape a form
+     * needs: `detail` is one line for a log or a developer, and pulling the
+     * fields back out of it means parsing prose. The first message wins when a
+     * field appears twice, because a field shows one error at a time.
+     */
+    fields?: Record<string, string>;
     /** The raw parsed error body, when available. */
     body?: unknown;
 }

@@ -21,6 +21,7 @@ export class TempestApiError extends Error implements ApiError {
     readonly detail: string;
     readonly code?: string;
     readonly requestId?: string;
+    readonly fields?: Record<string, string>;
     readonly body?: unknown;
 
     constructor(init: ApiError) {
@@ -30,6 +31,7 @@ export class TempestApiError extends Error implements ApiError {
         this.detail = init.detail;
         this.code = init.code;
         this.requestId = init.requestId;
+        this.fields = init.fields;
         this.body = init.body;
     }
 }
@@ -86,6 +88,35 @@ function formatLoc(loc: unknown): string | undefined {
  * has nothing to read and the `401` handling never runs.
  */
 const MAX_DETAIL_DEPTH = 4;
+
+/**
+ * Pull field-level messages out of a validation `detail` list.
+ *
+ * FastAPI's `422` body is `detail: [{ loc, msg, type }]`, which is exactly what
+ * a form needs and exactly what the flattened `detail` string destroys. Only the
+ * top level is read: a validation error names one field per entry, and following
+ * nesting here would invent paths the backend never sent.
+ *
+ * @param raw - The `detail` value from the error body.
+ * @returns Field path to message, or undefined when the body is not a
+ *     validation list (or carries no entry naming a field).
+ */
+function collectFields(raw: unknown): Record<string, string> | undefined {
+    if (!Array.isArray(raw)) return undefined;
+
+    const fields: Record<string, string> = {};
+    for (const entry of raw) {
+        if (typeof entry !== "object" || entry === null) continue;
+        const record = entry as Record<string, unknown>;
+        const field = formatLoc(record.loc);
+        if (field === undefined || field in fields) continue;
+        const message = normalizeDetail(record.msg) ?? normalizeDetail(record.message);
+        if (message === undefined) continue;
+        fields[field] = message;
+    }
+
+    return Object.keys(fields).length > 0 ? fields : undefined;
+}
 
 /**
  * Collapse a backend `detail` of any shape into a single readable line.
@@ -145,8 +176,13 @@ function normalizeDetail(raw: unknown, depth: number = 0): string | undefined {
  *
  * A `422` from FastAPI carries `detail` as a list of `{ loc, msg, type }`
  * entries, so it is flattened to `"<field>: <msg>; <field>: <msg>"` instead of
- * being stringified into `"[object Object]"`. The untouched list stays on
- * `body` for callers that map errors onto form fields.
+ * being stringified into `"[object Object]"`, and the same entries are indexed
+ * on `fields` (`{ email: "Field required" }`) for a form to consume without
+ * parsing that line back apart. The untouched body stays on `body`.
+ *
+ * That flattened `detail` is developer-facing: it carries the backend's field
+ * paths and the validator's own wording. `describeApiError` knows not to show it
+ * to a person when `fields` is set.
  *
  * @param status - HTTP status code.
  * @param body - The parsed error body (object, string, or null).
@@ -186,6 +222,7 @@ export function buildApiError(
         code,
         requestId: requestId ?? undefined,
         retryAfter: parseRetryAfter(headers?.get("Retry-After")),
+        fields: collectFields(obj?.detail),
         body,
     };
 }

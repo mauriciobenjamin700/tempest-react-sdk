@@ -4,6 +4,7 @@ export type { BuildApiUrlOptions } from "./build-url";
 export { TempestApiError, isApiError } from "./errors";
 export {
     API_ERROR_OFFLINE_KEY,
+    API_ERROR_VALIDATION_KEY,
     DEFAULT_API_ERROR_STRINGS,
     describeApiError,
 } from "./describe-api-error";

@@ -23,6 +23,40 @@ describe("describeApiError", () => {
         );
     });
 
+    it("says to check the fields instead of showing the assembled 422 line", () => {
+        const error = new TempestApiError({
+            status: 422,
+            detail: "email: Field required; items.0.price: Input should be greater than 0",
+            fields: {
+                email: "Field required",
+                "items.0.price": "Input should be greater than 0",
+            },
+        });
+
+        const sentence = describeApiError(error, FALLBACK);
+
+        expect(sentence).toBe(DEFAULT_API_ERROR_STRINGS.validation);
+        expect(sentence).not.toContain("items.0.price");
+        expect(sentence).not.toContain("Field required");
+    });
+
+    it("takes an override for the validation sentence", () => {
+        const error = new TempestApiError({
+            status: 422,
+            detail: "email: Field required",
+            fields: { email: "Field required" },
+        });
+        expect(describeApiError(error, FALLBACK, { validation: "Revise o formulário" })).toBe(
+            "Revise o formulário",
+        );
+    });
+
+    it("still prefers detail when the 422 carried no field entries", () => {
+        expect(describeApiError(apiError(422, "CPF já cadastrado"), FALLBACK)).toBe(
+            "CPF já cadastrado",
+        );
+    });
+
     it("says the request never left, instead of rendering 'erro 0'", () => {
         expect(describeApiError(apiError(0, "Network request failed"), FALLBACK)).toBe(
             DEFAULT_API_ERROR_STRINGS.offline,

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-import { isDevBuild } from "../../utils";
+import { isDevBuild } from "../../utils/dev-mode";
 
 /** What {@link useDevWarnings} needs to judge the prop combination. */
 export interface DataTableDevWarningsInput {

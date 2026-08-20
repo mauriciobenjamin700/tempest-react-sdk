@@ -378,10 +378,11 @@ try {
 }
 ```
 
-!!! info "422 do FastAPI: `detail` é lista, não texto"
-    Um erro de validação do FastAPI chega como `detail: [{ loc, msg, type }]`. O cliente achata isso em uma linha legível — `"email: Field required; items.0.price: Input should be greater than 0"` — em vez de deixar `String()` transformar a lista em `[object Object]`, que é o que aparecia na tela e no log. O prefixo de `loc` que só nomeia a parte da requisição (`body`, `query`, `path`, `header`, `cookie`) é descartado, então o caminho lido é o do campo.
+!!! info "422 do FastAPI: `detail` é lista, e `error.fields` é o que o formulário quer"
+    Um erro de validação do FastAPI chega como `detail: [{ loc, msg, type }]`. O cliente monta duas coisas dessa lista:
 
-    A lista crua continua em `error.body` — é de lá que você mapeia erro por campo do formulário:
+    - **`error.fields`** — `{ email: "Field required", "items.0.price": "Input should be greater than 0" }`, indexado pelo caminho do campo, que é o que um formulário precisa. O prefixo de `loc` que só nomeia a parte da requisição (`body`, `query`, `path`, `header`, `cookie`) é descartado. Campo repetido mantém a primeira mensagem — input mostra um erro por vez.
+    - **`error.detail`** — a mesma coisa achatada numa linha, para log. Carrega caminho de campo e a redação do validador; é texto de desenvolvedor.
 
     ```ts
     import { isApiError } from "tempest-react-sdk";
@@ -389,15 +390,19 @@ try {
     try {
       await api.post("/users", { body: form });
     } catch (err) {
-      if (isApiError(err) && err.status === 422) {
-        const entries = (err.body as { detail?: { loc?: unknown[]; msg?: string }[] }).detail ?? [];
-        for (const entry of entries) {
-          const field = String(entry.loc?.at(-1) ?? "");
-          if (field) setError(field, { message: entry.msg });
+      if (isApiError(err) && err.fields) {
+        for (const [field, message] of Object.entries(err.fields)) {
+          setError(field, { message });
         }
       }
+      toast.error(describeApiError(err, "Não foi possível salvar"));
     }
     ```
+
+    Sem `fields` isso exigia varrer `error.body` com um cast — parsear de volta a linha que o próprio SDK montou.
+
+!!! warning "Não jogue o `detail` de um 422 na tela"
+    `"items.0.price: Input should be greater than 0"` numa interface em pt-BR é meia frase em inglês nomeando estrutura interna. É por isso que o `describeApiError` **não** repassa o `detail` quando `fields` está preenchido: ele devolve a frase de validação ("Confira os campos destacados e tente de novo.", traduzível por `tempest.error.validation`), e as mensagens por campo ficam onde servem — nos inputs.
 
 ### Do erro tipado para a frase na tela — `describeApiError`
 
@@ -416,8 +421,9 @@ try {
 A ordem do funil:
 
 1. **Requisição que não chegou** — `status === 0`, ou um erro qualquer com o browser se declarando offline → frase de offline.
-2. **`detail` do backend** — o texto mais específico disponível, e já escrito para uma pessoa.
-3. **`fallback`**, com `(HTTP <status>)` anexado quando há status — o print no chamado de suporte carrega o único dado que o dev precisa.
+2. **Rejeição de validação** — `error.fields` preenchido → frase de validação, **não** o `detail` (que é técnico). As mensagens por campo continuam em `fields`.
+3. **`detail` do backend** — o texto mais específico disponível, e já escrito para uma pessoa.
+4. **`fallback`**, com `(HTTP <status>)` anexado quando há status — o print no chamado de suporte carrega o único dado que o dev precisa.
 
 Duas superfícies, mesmo funil:
 
@@ -442,11 +448,12 @@ const { mutate } = useMutation({
 !!! check "Funciona sem `I18nProvider`, e sem a chave no catálogo"
     i18n é opt-in no SDK. Sem provider, ou com um catálogo que nunca definiu `tempest.error.offline`, a frase cai no default em pt-BR — em vez de estourar ou de imprimir a chave crua na cara do usuário (que é o que `t` devolve quando não encontra).
 
-!!! note "As duas constantes que acompanham"
-    `DEFAULT_API_ERROR_STRINGS` é a frase pt-BR usada quando nada mais responde — útil
-    pra escrever a sua a partir dela. `API_ERROR_OFFLINE_KEY` é a chave
-    (`"tempest.error.offline"`) que o hook procura no catálogo; defina-a no seu
-    `messages` para traduzir a frase de offline.
+!!! note "As constantes que acompanham"
+    `DEFAULT_API_ERROR_STRINGS` traz as frases pt-BR usadas quando nada mais responde
+    (`offline` e `validation`) — útil pra escrever as suas a partir delas.
+    `API_ERROR_OFFLINE_KEY` (`"tempest.error.offline"`) e
+    `API_ERROR_VALIDATION_KEY` (`"tempest.error.validation"`) são as chaves que o hook
+    procura no catálogo; defina-as no seu `messages` para traduzir cada frase.
 
 !!! warning "`detail` sintético não vence o seu `fallback`"
     Quando a resposta não traz corpo, `buildApiError` sintetiza `Erro <status>`. `describeApiError` reconhece esse texto e prefere o seu `fallback` — "Erro 500" diz estritamente menos que "Não foi possível carregar os pedidos".
@@ -462,7 +469,8 @@ const { mutate } = useMutation({
 - `uploadWithProgress` usa XHR pra reportar progresso byte a byte; para arquivo grande, `createResumableUpload` divide em chunks e retoma — veja [Upload resumível](./resumable-upload.md).
 - `retry` (backoff exponencial + `shouldRetry`) e `usePoll` (intervalo com guarda de overlap) cobrem operações instáveis e acompanhamento de jobs.
 - `generateIdempotencyKey` — gere uma vez por operação, reutilize nos retries.
-- `describeApiError(error, fallback)` (puro) e `useDescribeApiError()` (com i18n) transformam o erro tipado na frase da tela, tratando `status === 0` como offline em vez de "erro 0".
+- `describeApiError(error, fallback)` (puro) e `useDescribeApiError()` (com i18n) transformam o erro tipado na frase da tela, tratando `status === 0` como offline em vez de "erro 0" e um 422 com `fields` como frase de validação em vez do `detail` técnico.
+- `error.fields` indexa as mensagens do 422 por caminho de campo — é o que vai direto pro `setError` do formulário.
 
 ## Veja também
 

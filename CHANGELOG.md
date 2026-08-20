@@ -4,88 +4,6 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
-### Alterado
-
-- **`resolveIconAlias` saiu do `shard-cache` para o módulo próprio
-  `src/icons/alias.ts`.** Tudo que só **nomeia** um ícone — `normalizeIconName`,
-  `validateIconName`, um formulário conferindo valor antes de submeter — passava
-  pelo `shard-cache`, e com isso dependia estaticamente do índice dos 45 shards que
-  existem para _renderizar_. O `dist` confirma a limpeza:
-  `normalize-icon-name.js` alcança 3 módulos e nenhum é o `loaders.js` (antes ia
-  até ele). **Não economizou byte** — o esbuild já podava — mas a aresta falsa
-  deixou de existir, e o `postbuild` agora falha se ela voltar. `resolveIconAlias`
-  continua exportado do mesmo lugar (`tempest-react-sdk/icons`).
-
-- **O `postbuild` passou a garantir que o `<Icon>` não alcance a lista de 2024
-  slugs.** `scripts/check-dist-guards.mjs` percorre o grafo de imports estáticos do
-  `dist` a partir do `Icon.js` e falha o build se `generated/icon-names.js`
-  aparecer — com `preserveModules`, os imports estáticos de um módulo **são** as
-  dependências reais dele, então a resposta é exata. A separação entre runtime e
-  catálogo já acontecia por tree-shaking (medido: `{ Icon }` ~2,5 KB brotli sem a
-  lista; `{ isIconName }` 7,20 KB com ela), mas era propriedade acidental: um
-  `import { iconNames }` de conveniência dentro do `use-icon` custaria ~6 KB a todo
-  app que renderiza um ícone, e nada no source pareceria errado. O guard checa
-  também que o `is-icon-name.js` **continua** alcançando a lista, para a primeira
-  checagem não passar a provar nada se o arquivo mudar de lugar.
-
-- **Shard de ícone deixou de ser particionado por letra inicial.** Os nomes do
-  lucide são fortemente enviesados — `c` tem 284 slugs, `q` tem 4 — então a
-  inicial era a pior chave possível: desenhar **um** ícone de categoria começando
-  com `c` baixava 284 ícones, **19,10 KB brotli** para um glifo de meio KB, fator
-  de desperdício de ~130x. Medido em app de produção (`servus-frontend`, SDK
-  0.45.0): `shard-s` 71,19 kB / gzip 19,00 kB, `shard-c` 66,40 kB / gzip 17,58 kB.
-  Agora são **45 faixas alfabéticas contíguas de até 40 ícones**, e o pior caso de
-  uma requisição caiu para **4,78 KB brotli** (mediana 4,19 KB, menor 1,52 KB). A
-  faixa dona de um slug sai de uma **busca binária** sobre 45 limites, não de um
-  mapa de 2024 entradas — que é o custo que torna o `dynamicIconImports` do próprio
-  lucide inviável (120 KB no chunk principal). O gerador aceita `--shard-size=N` e
-  se recusa a emitir faixas que a busca binária não navegaria; o comparador do
-  gerador passou a ser o **de code unit**, o mesmo que o `<` do runtime usa —
-  `localeCompare` pesa hífen por outra regra, e uma divergência mandaria o slug pro
-  shard errado, sumindo com o ícone sem erro nenhum. Nenhuma mudança de API
-  pública: `<Icon name>` é idêntico.
-
-### Corrigido
-
-- **Falha de carga de shard de ícone virava fallback permanente, sem retry e sem
-  sinal.** Chunk de shard tem hash no nome, e o hash muda a cada deploy: em aba
-  longa o `import()` volta 404, o cache marcava o estado como falho e o ícone ficava
-  no fallback para sempre naquela aba — sem nada para o usuário nem para o
-  observability. Agora há (1) **2 retries** curtos (100 ms, 400 ms), que cobrem a
-  falha transitória; (2) separação entre "chunk não chegou" e "slug não existe" —
-  `iconStatus` ganhou o estado `"error"`, e com isso o `<Icon>` parou de avisar "no
-  such lucide icon" sobre nome válido; o estado não é permanente, um render
-  posterior tenta de novo atrás de um cooldown de 10 s para chunk morto não virar
-  laço de requisição; e (3) **`subscribeToIconErrors`**, para o app mandar pro
-  Sentry e disparar o reload de chunk stale. Sem ninguém assinando, build de dev
-  avisa no console uma vez por shard — falha silenciosa era o problema.
-
-- **`buildApiError` estourava a pilha num `detail` profundamente aninhado.** A
-  leitura recursiva de `detail` não tinha teto: um corpo com
-  `{"detail":{"detail":…}}` 20 mil níveis fundo (220 KB) lançava
-  `RangeError: Maximum call stack size exceeded` — e lançava **construindo o
-  erro**, o que é pior que o erro: o `catch` do chamador deixa de receber um
-  `TempestApiError`, então `isApiError` dá false, `describeApiError` não tem o
-  que ler e o tratamento de 401 não roda. Corpo de resposta é entrada não
-  confiável, inclusive no caminho de falha. Teto de 4 níveis — envelope real usa
-  dois ou três — e o que passa disso cai no `Erro <status>`.
-
-- **Erro lançado dentro do `onUnauthorized` não toma mais o lugar do erro da
-  requisição.** O cliente aguarda o hook, e um `throw` lá dentro subia no lugar
-  do `ApiError` original: o caso real é `onUnauthorized` chamando um `logout()`
-  que faz `POST /auth/logout` com o token que o backend acabou de recusar, o
-  logout volta 422, e o console mostra dois erros onde havia um — o segundo sem
-  relação com a requisição que falhou. Agora o hook é chamado dentro de
-  `try/catch` e quem chamou recebe sempre o erro da resposta. Com `logger`
-  configurado, a falha do hook sai como `warn`
-  (`onUnauthorized threw — keeping the original response error`) em vez de
-  desaparecer.
-
-- **A duração no log do cliente vem de `performance.now()`**, não de
-  `Date.now()`. Medir intervalo com relógio de parede dá número negativo quando
-  o relógio anda de lado no meio da requisição (correção de NTP, VM retomando,
-  usuário mexendo na hora).
-
 ### Adicionado
 
 - **`Sidebar` agora descreve seções.** `items` passou a aceitar
@@ -199,11 +117,98 @@ greater than 0" }`), que é a forma que um formulário consome. Antes o caminho
 
 ### Alterado
 
+- **`TEMPEST_ICONS_ID` mudou de valor** — de `"virtual:tempest-icons"` para
+  `"tempest-react-sdk/icons/virtual"`, junto com o subpath que virou módulo real.
+  A grafia antiga continua como `TEMPEST_ICONS_VIRTUAL_ID`, e o plugin reivindica
+  as duas no `resolveId`, então nenhum import quebra. Quebra só quem **comparava
+  a constante** com um id de módulo — caso raro, mas é mudança de valor de export
+  público.
+
+- **`resolveIconAlias` saiu do `shard-cache` para o módulo próprio
+  `src/icons/alias.ts`.** Tudo que só **nomeia** um ícone — `normalizeIconName`,
+  `validateIconName`, um formulário conferindo valor antes de submeter — passava
+  pelo `shard-cache`, e com isso dependia estaticamente do índice dos 45 shards que
+  existem para _renderizar_. O `dist` confirma a limpeza:
+  `normalize-icon-name.js` alcança 3 módulos e nenhum é o `loaders.js` (antes ia
+  até ele). **Não economizou byte** — o esbuild já podava — mas a aresta falsa
+  deixou de existir, e o `postbuild` agora falha se ela voltar. `resolveIconAlias`
+  continua exportado do mesmo lugar (`tempest-react-sdk/icons`).
+
+- **O `postbuild` passou a garantir que o `<Icon>` não alcance a lista de 2024
+  slugs.** `scripts/check-dist-guards.mjs` percorre o grafo de imports estáticos do
+  `dist` a partir do `Icon.js` e falha o build se `generated/icon-names.js`
+  aparecer — com `preserveModules`, os imports estáticos de um módulo **são** as
+  dependências reais dele, então a resposta é exata. A separação entre runtime e
+  catálogo já acontecia por tree-shaking (medido: `{ Icon }` ~2,5 KB brotli sem a
+  lista; `{ isIconName }` 7,20 KB com ela), mas era propriedade acidental: um
+  `import { iconNames }` de conveniência dentro do `use-icon` custaria ~6 KB a todo
+  app que renderiza um ícone, e nada no source pareceria errado. O guard checa
+  também que o `is-icon-name.js` **continua** alcançando a lista, para a primeira
+  checagem não passar a provar nada se o arquivo mudar de lugar.
+
+- **Shard de ícone deixou de ser particionado por letra inicial.** Os nomes do
+  lucide são fortemente enviesados — `c` tem 284 slugs, `q` tem 4 — então a
+  inicial era a pior chave possível: desenhar **um** ícone de categoria começando
+  com `c` baixava 284 ícones, **19,10 KB brotli** para um glifo de meio KB, fator
+  de desperdício de ~130x. Medido em app de produção (`servus-frontend`, SDK
+  0.45.0): `shard-s` 71,19 kB / gzip 19,00 kB, `shard-c` 66,40 kB / gzip 17,58 kB.
+  Agora são **45 faixas alfabéticas contíguas de até 40 ícones**, e o pior caso de
+  uma requisição caiu para **4,78 KB brotli** (mediana 4,19 KB, menor 1,52 KB). A
+  faixa dona de um slug sai de uma **busca binária** sobre 45 limites, não de um
+  mapa de 2024 entradas — que é o custo que torna o `dynamicIconImports` do próprio
+  lucide inviável (120 KB no chunk principal). O gerador aceita `--shard-size=N` e
+  se recusa a emitir faixas que a busca binária não navegaria; o comparador do
+  gerador passou a ser o **de code unit**, o mesmo que o `<` do runtime usa —
+  `localeCompare` pesa hífen por outra regra, e uma divergência mandaria o slug pro
+  shard errado, sumindo com o ícone sem erro nenhum. Nenhuma mudança de API
+  pública: `<Icon name>` é idêntico.
+
 - **Três budgets do `size-limit` subiram**, porque o custo é o `fields` + a frase
   de validação: `http client` 3 → 3,1 KB (medido 3,01), `resumable upload`
   2,9 → 3 KB (2,92) e `DataTable` 5,6 → 5,7 KB (5,62). O terceiro não vem do
   `fields`: sair do barrel para o import por caminho do `dev-mode` (abaixo)
   custou 24 B naquela fatia, porque pelo barrel o Rollup dobrava a referência.
+
+### Corrigido
+
+- **Falha de carga de shard de ícone virava fallback permanente, sem retry e sem
+  sinal.** Chunk de shard tem hash no nome, e o hash muda a cada deploy: em aba
+  longa o `import()` volta 404, o cache marcava o estado como falho e o ícone ficava
+  no fallback para sempre naquela aba — sem nada para o usuário nem para o
+  observability. Agora há (1) **2 retries** curtos (100 ms, 400 ms), que cobrem a
+  falha transitória; (2) separação entre "chunk não chegou" e "slug não existe" —
+  `iconStatus` ganhou o estado `"error"`, e com isso o `<Icon>` parou de avisar "no
+  such lucide icon" sobre nome válido; o estado não é permanente, um render
+  posterior tenta de novo atrás de um cooldown de 10 s para chunk morto não virar
+  laço de requisição; e (3) **`subscribeToIconErrors`**, para o app mandar pro
+  Sentry e disparar o reload de chunk stale. Sem ninguém assinando, build de dev
+  avisa no console uma vez por shard — falha silenciosa era o problema.
+
+- **`buildApiError` estourava a pilha num `detail` profundamente aninhado.** A
+  leitura recursiva de `detail` não tinha teto: um corpo com
+  `{"detail":{"detail":…}}` 20 mil níveis fundo (220 KB) lançava
+  `RangeError: Maximum call stack size exceeded` — e lançava **construindo o
+  erro**, o que é pior que o erro: o `catch` do chamador deixa de receber um
+  `TempestApiError`, então `isApiError` dá false, `describeApiError` não tem o
+  que ler e o tratamento de 401 não roda. Corpo de resposta é entrada não
+  confiável, inclusive no caminho de falha. Teto de 4 níveis — envelope real usa
+  dois ou três — e o que passa disso cai no `Erro <status>`.
+
+- **Erro lançado dentro do `onUnauthorized` não toma mais o lugar do erro da
+  requisição.** O cliente aguarda o hook, e um `throw` lá dentro subia no lugar
+  do `ApiError` original: o caso real é `onUnauthorized` chamando um `logout()`
+  que faz `POST /auth/logout` com o token que o backend acabou de recusar, o
+  logout volta 422, e o console mostra dois erros onde havia um — o segundo sem
+  relação com a requisição que falhou. Agora o hook é chamado dentro de
+  `try/catch` e quem chamou recebe sempre o erro da resposta. Com `logger`
+  configurado, a falha do hook sai como `warn`
+  (`onUnauthorized threw — keeping the original response error`) em vez de
+  desaparecer.
+
+- **A duração no log do cliente vem de `performance.now()`**, não de
+  `Date.now()`. Medir intervalo com relógio de parede dá número negativo quando
+  o relógio anda de lado no meio da requisição (correção de NTP, VM retomando,
+  usuário mexendo na hora).
 
 ### Removido
 

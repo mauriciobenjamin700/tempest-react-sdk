@@ -3,38 +3,74 @@
 
 import type { LucideIcon } from "lucide-react";
 
+/** One lazily fetched range of icons. */
+export interface IconShard {
+    /** The chunk's module id — what shows up in a bundle and in a 404. */
+    id: string;
+    /** First slug in the range, in sort order. Its lower bound. */
+    from: string;
+    /** How many icons the range holds. */
+    size: number;
+    /** The dynamic import for the chunk. */
+    load: () => Promise<{ default: Record<string, LucideIcon> }>;
+}
+
 /**
- * One dynamic import per initial letter.
+ * Every shard, in slug order.
  *
  * These are the only references to the shard modules, which is what keeps them
  * out of whatever chunk imports `Icon`: a bundler that sees no static edge to a
  * shard emits it as an async chunk fetched on first use.
+ *
+ * Sorted by `from`, so the owning shard for a slug is a binary search over this
+ * array — 45 comparisons' worth of index instead of the 2000-entry
+ * slug→chunk map that makes lucide's own `dynamicIconImports` cost 120 KB in the
+ * main chunk.
  */
-export const shardLoaders: Record<string, () => Promise<{ default: Record<string, LucideIcon> }>> =
-    {
-        a: () => import("./shard-a"),
-        b: () => import("./shard-b"),
-        c: () => import("./shard-c"),
-        d: () => import("./shard-d"),
-        e: () => import("./shard-e"),
-        f: () => import("./shard-f"),
-        g: () => import("./shard-g"),
-        h: () => import("./shard-h"),
-        i: () => import("./shard-i"),
-        j: () => import("./shard-j"),
-        k: () => import("./shard-k"),
-        l: () => import("./shard-l"),
-        m: () => import("./shard-m"),
-        n: () => import("./shard-n"),
-        o: () => import("./shard-o"),
-        p: () => import("./shard-p"),
-        q: () => import("./shard-q"),
-        r: () => import("./shard-r"),
-        s: () => import("./shard-s"),
-        t: () => import("./shard-t"),
-        u: () => import("./shard-u"),
-        v: () => import("./shard-v"),
-        w: () => import("./shard-w"),
-        x: () => import("./shard-x"),
-        z: () => import("./shard-z"),
-    };
+export const iconShards: readonly IconShard[] = [
+    { id: "shard-00", from: "a-arrow-down", size: 40, load: () => import("./shard-00") },
+    { id: "shard-01", from: "amphora", size: 40, load: () => import("./shard-01") },
+    { id: "shard-02", from: "arrow-right-left", size: 40, load: () => import("./shard-02") },
+    { id: "shard-03", from: "badge-pound-sterling", size: 40, load: () => import("./shard-03") },
+    { id: "shard-04", from: "bell-electric", size: 40, load: () => import("./shard-04") },
+    { id: "shard-05", from: "book-image", size: 40, load: () => import("./shard-05") },
+    { id: "shard-06", from: "briefcase-conveyor-belt", size: 40, load: () => import("./shard-06") },
+    { id: "shard-07", from: "calendar-x", size: 40, load: () => import("./shard-07") },
+    { id: "shard-08", from: "chart-line", size: 40, load: () => import("./shard-08") },
+    { id: "shard-09", from: "circle-alert", size: 40, load: () => import("./shard-09") },
+    { id: "shard-10", from: "circle-small", size: 40, load: () => import("./shard-10") },
+    { id: "shard-11", from: "clock-fading", size: 40, load: () => import("./shard-11") },
+    { id: "shard-12", from: "concierge-bell", size: 40, load: () => import("./shard-12") },
+    { id: "shard-13", from: "database-arrow-up", size: 40, load: () => import("./shard-13") },
+    { id: "shard-14", from: "download", size: 40, load: () => import("./shard-14") },
+    { id: "shard-15", from: "face-slightly-frowning", size: 40, load: () => import("./shard-15") },
+    { id: "shard-16", from: "file-pen", size: 40, load: () => import("./shard-16") },
+    { id: "shard-17", from: "flashlight-off", size: 40, load: () => import("./shard-17") },
+    { id: "shard-18", from: "folder-up", size: 40, load: () => import("./shard-18") },
+    { id: "shard-19", from: "git-pull-request-closed", size: 40, load: () => import("./shard-19") },
+    { id: "shard-20", from: "hard-drive-download", size: 40, load: () => import("./shard-20") },
+    { id: "shard-21", from: "ice-cream-bowl", size: 40, load: () => import("./shard-21") },
+    { id: "shard-22", from: "languages", size: 40, load: () => import("./shard-22") },
+    { id: "shard-23", from: "list-checks", size: 40, load: () => import("./shard-23") },
+    { id: "shard-24", from: "mail-minus", size: 40, load: () => import("./shard-24") },
+    { id: "shard-25", from: "message-circle-dashed", size: 40, load: () => import("./shard-25") },
+    { id: "shard-26", from: "minimize-2", size: 40, load: () => import("./shard-26") },
+    { id: "shard-27", from: "move-horizontal", size: 40, load: () => import("./shard-27") },
+    { id: "shard-28", from: "package-open", size: 40, load: () => import("./shard-28") },
+    { id: "shard-29", from: "pen", size: 40, load: () => import("./shard-29") },
+    { id: "shard-30", from: "play-off", size: 40, load: () => import("./shard-30") },
+    { id: "shard-31", from: "receipt-japanese-yen", size: 40, load: () => import("./shard-31") },
+    { id: "shard-32", from: "rotate-ccw-key", size: 40, load: () => import("./shard-32") },
+    { id: "shard-33", from: "scan-text", size: 40, load: () => import("./shard-33") },
+    { id: "shard-34", from: "shield-ellipsis", size: 40, load: () => import("./shard-34") },
+    { id: "shard-35", from: "smartphone", size: 40, load: () => import("./shard-35") },
+    { id: "shard-36", from: "square-arrow-up-right", size: 40, load: () => import("./shard-36") },
+    { id: "shard-37", from: "square-power", size: 40, load: () => import("./shard-37") },
+    { id: "shard-38", from: "sticky-note-x", size: 40, load: () => import("./shard-38") },
+    { id: "shard-39", from: "tally-3", size: 40, load: () => import("./shard-39") },
+    { id: "shard-40", from: "timer-reset", size: 40, load: () => import("./shard-40") },
+    { id: "shard-41", from: "tv-minimal", size: 40, load: () => import("./shard-41") },
+    { id: "shard-42", from: "user-x", size: 40, load: () => import("./shard-42") },
+    { id: "shard-43", from: "waves-ladder", size: 40, load: () => import("./shard-43") },
+    { id: "shard-44", from: "zodiac-pisces", size: 7, load: () => import("./shard-44") },
+];

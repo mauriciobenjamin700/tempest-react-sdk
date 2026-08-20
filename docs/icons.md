@@ -105,18 +105,29 @@ tem um custo que inviabiliza o uso:
     `throw`, derrubando a árvore React — justamente no caso em que o nome vem de
     fora.
 
-O `<Icon>` do SDK troca isso por **um chunk por letra inicial**. Renderizar 130
-ícones diferentes pede 9 requisições, não 130:
+O `<Icon>` do SDK troca isso por **um chunk por faixa de 40 ícones**. Renderizar
+130 ícones diferentes pede algumas requisições, não 130:
 
 ```console
-GET .../icons/generated/shard-s.js   200
-GET .../icons/generated/shard-t.js   200
-GET .../icons/generated/shard-c.js   200
-… uma por letra usada, no máximo 25
+GET .../icons/generated/shard-09.js   200
+GET .../icons/generated/shard-21.js   200
+GET .../icons/generated/shard-36.js   200
+… uma por faixa tocada, no máximo 45
 ```
 
-O maior shard (`s`, com 175 ícones) pesa **18,7 KB brotli**; a mediana fica em
-**5,0 KB**. O runtime do `<Icon>`, sem shard nenhum, custa **~1 KB brotli**.
+O maior shard pesa **4,78 KB brotli**, a mediana **4,19 KB** e o menor **1,52 KB**.
+O runtime do `<Icon>`, sem shard nenhum, custa **~0,1 KB brotli**.
+
+!!! info "Por que faixa e não letra inicial"
+    A primeira letra é a pior chave de particionamento possível, porque os nomes do
+    lucide são fortemente enviesados: `c` tem 284 slugs e `q` tem 4. Desenhar **um**
+    ícone de categoria que começasse com `c` baixava 284 ícones — 19,10 KB brotli
+    para um glifo de meio KB, fator de desperdício de ~130x.
+
+    As faixas são contíguas e ordenadas, então o SDK acha o shard dono de um slug com
+    uma **busca binária** sobre 45 limites — em vez de embarcar o mapa de 2024
+    entradas slug→chunk que faz o `dynamicIconImports` do próprio lucide custar 120 KB
+    no chunk principal.
 
 ## Catálogo fechado: `registerIcons`
 
@@ -342,6 +353,55 @@ SDK carrega esse mapa, então um slug gravado no banco há dois anos ainda rende
 O alias resolve pro nome canônico **antes** de escolher o shard, então
 `alert-circle` puxa o shard `c`, não o `a`.
 
+## Quando o shard não chega
+
+Slug de runtime baixa um chunk, chunk tem hash no nome, e o hash muda a cada
+deploy. Isso monta um cenário rotineiro em SPA de aba longa:
+
+1. o usuário abre o app, e o shard daquela faixa ainda não foi baixado;
+2. sai um deploy, e os assets antigos somem do CDN;
+3. o usuário navega pra uma tela que precisa daquele ícone;
+4. o `import()` rejeita — 404.
+
+O SDK trata isso em três partes:
+
+**Retry curto.** Duas tentativas extras, 100 ms e 400 ms, porque a falha que
+retry conserta é a transitória: conexão instável, edge de CDN atrasado. Se uma
+delas passar, o ícone aparece e ninguém fica sabendo.
+
+**Falha de carga não é nome errado.** `iconStatus` ganhou um quarto estado:
+
+```tsx
+iconStatus("save");  // "ready" | "loading" | "missing" | "error"
+```
+
+`"missing"` só sai quando isso é de fato sabível — o shard **chegou** e o slug não
+estava nele. Shard que falhou responde `"error"`, e por isso o `<Icon>` para de
+avisar "no such lucide icon" sobre um nome perfeitamente válido. O estado também
+não é permanente: um render posterior tenta de novo, respeitando um cooldown de
+10 s para um chunk realmente morto não virar laço de requisição.
+
+**Sinal para o observability.** Retry não conserta 404 de deploy; o que conserta é
+o app saber:
+
+```tsx
+import { subscribeToIconErrors } from "tempest-react-sdk/icons";
+
+subscribeToIconErrors(({ shard, slug, attempts, error }) => {
+    Sentry.captureException(error, { tags: { iconShard: shard, slug, attempts } });
+    promptReloadForStaleChunks();
+});
+```
+
+Chame uma vez no entrypoint. O callback roda uma vez por shard que desistiu, com
+o shard, o slug que pediu, quantas tentativas houve e a última rejeição.
+
+!!! tip "Sem ninguém assinando, dev avisa no console"
+    Falha silenciosa foi justamente o problema — então em build de desenvolvimento
+    sai um `console.warn` por shard, dizendo que a causa mais comum é deploy que
+    rotacionou nome de chunk com a aba aberta. Assinou? O console fica quieto, e o
+    relato é seu.
+
 ## Aquecendo os shards
 
 Antes de abrir um menu grande ou um seletor de ícone, dá pra carregar os shards
@@ -503,8 +563,8 @@ construção.
     seria uma **regressão** justamente para os códigos que funcionavam.
 
 !!! warning "Passe a tabela no `include` do plugin"
-    Slug resolvido em runtime puxa o shard da letra inicial. Um catálogo com ~130
-    categorias toca quase todas as 25 letras, então o ganho de DX vira ~20
+    Slug resolvido em runtime puxa o shard da faixa dele. Um catálogo com ~130
+    categorias espalha por dezenas de faixas, então o ganho de DX vira dezenas de
     requisições se você não avisar o build:
 
     ```ts
@@ -534,7 +594,9 @@ construção.
 | `createIconRegistry` | Monta um registro a partir de componentes lucide importados             |
 | `useIcon`            | Resolve um slug pro componente (o que o `Icon` usa por dentro)          |
 | `preloadIcons`       | Aquece os shards de uma lista de slugs                                  |
-| `iconStatus`         | `"ready"` / `"loading"` / `"missing"` para um slug                      |
+| `iconStatus`         | `"ready"` / `"loading"` / `"missing"` / `"error"` para um slug           |
+| `subscribeToIconErrors` | Assina falha de carga de shard (Sentry, reload de chunk stale)        |
+| `IconLoadError`      | O payload da falha: `shard`, `slug`, `attempts`, `error`                 |
 | `peekIcon`           | Lê do cache sem disparar carregamento                                   |
 | `loadIcon`           | Carrega o shard de um slug                                              |
 | `resolveIconAlias`   | Slug depreciado → slug canônico                                        |
@@ -551,18 +613,19 @@ construção.
 
 | O que                                            | Brotli    |
 | ------------------------------------------------ | --------- |
-| Runtime do `<Icon>`, antes de qualquer shard     | ~1,0 KB   |
-| Menor shard (`x`, 1 ícone), sob demanda          | 1,1 KB    |
-| Shard mediano (`g`, 39 ícones), sob demanda      | 5,0 KB    |
-| Maior shard (`s`, 175 ícones), sob demanda       | 18,7 KB   |
-| `{ iconNames }` — a lista dos 2024 slugs         | 7,0 KB    |
-| Runtime + os 25 shards juntos (teto absoluto)    | 128,9 KB  |
+| Runtime do `<Icon>`, antes de qualquer shard     | ~0,1 KB   |
+| Menor shard (7 ícones), sob demanda              | 1,52 KB   |
+| Shard mediano (40 ícones), sob demanda           | 4,19 KB   |
+| Maior shard (40 ícones), sob demanda             | 4,78 KB   |
+| Maior shard **antes** do rebalanceamento (`s`)   | 19,10 KB  |
+| `{ iconNames }` — a lista dos 2024 slugs         | 6,1 KB    |
+| Runtime + os 45 shards juntos (teto absoluto)    | 130,0 KB  |
 
 !!! info "Como isso foi medido"
     Os shards e a lista saem do `size-limit` **com o `lucide-react` dentro da
     medição** — é o que a rede realmente transfere, já que um shard só
-    re-exporta os ícones. Medir o arquivo emitido sozinho daria ~22 KB para os
-    25 e seria uma mentira confortável. O runtime é o brotli dos quatro módulos
+    re-exporta os ícones. Medir o arquivo emitido sozinho daria ~2 KB por shard
+    e seria uma mentira confortável. O runtime é o brotli dos quatro módulos
     que carregam antes do primeiro ícone (`Icon`, `shard-cache`, `use-icon`,
     `icon-context`), que não puxam lucide nenhum.
 
@@ -579,10 +642,13 @@ construção.
   estático **sem plugin e sem provider**. Já tem o componente? `<Icon icon={Save} />`.
 - `tempest-react-sdk/icons/virtual` é módulo real: resolve **sem** o plugin (registro
   vazio), então vitest, `tsx` e Storybook carregam o mesmo arquivo.
-- Slug de **runtime** carrega **um shard por letra inicial** — no máximo 25
-  requisições, nunca uma por ícone.
+- Slug de **runtime** carrega **um shard da faixa dele** — faixas de 40 ícones
+  achadas por busca binária, no máximo 4,78 KB brotli por requisição.
 - Nome inexistente renderiza `fallback` (nada, por default) e **nunca lança**;
   `console.warn` só em dev.
+- Shard que não chega ganha **2 retries curtos**, responde `iconStatus` `"error"`
+  (não `"missing"`) e é reportado por `subscribeToIconErrors` — deploy que rotaciona
+  chunk deixou de virar fallback permanente e silencioso.
 - Os 257 **aliases** antigos do lucide continuam resolvendo.
 - `icon_code` do banco renderiza sujo: `shopping_cart`, `" Save"` e alias antigo são
   normalizados antes do lookup. `normalize={false}` para lookup estrito, e

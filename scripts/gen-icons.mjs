@@ -94,25 +94,94 @@ async function readIconModules() {
 }
 
 /**
- * Bucket canonical icons by the first character of their slug.
+ * How many icons go in one shard.
  *
- * One shard per initial letter is the compromise the module graph allows: a
- * single chunk with every icon would cost every app the whole set, and a chunk
- * per icon is the ~2000-request problem this module exists to avoid. Lucide
- * currently spans 25 letters (there is no `y` icon), and the largest bucket is
- * around 10 KB brotli.
+ * Measured cost per icon in a production build is 230–250 bytes, so 40 icons is a
+ * ~10 KB chunk — small enough that fetching one to draw one icon is not absurd.
+ *
+ * Override with `--shard-size=N` when experimenting; the default is what the
+ * committed output was generated with, and CI regenerates to compare.
+ */
+const DEFAULT_SHARD_SIZE = 40;
+
+/**
+ * Split canonical icons into contiguous, evenly sized alphabetical ranges.
+ *
+ * The initial letter is the worst possible partitioning key, because lucide's
+ * names are heavily skewed: `c` holds 284 slugs and `q` holds 4. Drawing one
+ * category icon that happens to start with `c` used to fetch 284 icons — 66 KB for
+ * one 480-byte glyph, a ~130x waste factor.
+ *
+ * Fixed-count ranges keep the lookup index tiny (one boundary slug per shard,
+ * ~45 entries) while capping the worst case at `size` icons. The ranges are
+ * contiguous and sorted, so the runtime finds the owning shard with a binary
+ * search over the boundaries instead of shipping a 2000-entry slug→chunk map,
+ * which is the cost that makes lucide's own `dynamicIconImports` unusable.
  *
  * @param {Map<string, string>} canonical - slug → PascalCase export name.
- * @returns {Map<string, Map<string, string>>} letter → (slug → export name).
+ * @param {number} size - Icons per shard.
+ * @returns {Array<{ id: string, from: string, to: string, entries: Map<string, string> }>}
+ *   Shards in sort order.
  */
-function shard(canonical) {
-    const shards = new Map();
-    for (const [slug, name] of [...canonical].sort(([a], [b]) => a.localeCompare(b))) {
-        const letter = slug[0];
-        if (!shards.has(letter)) shards.set(letter, new Map());
-        shards.get(letter).set(slug, name);
+function shard(canonical, size) {
+    const sorted = [...canonical].sort(([a], [b]) => byCodeUnit(a, b));
+    const shards = [];
+
+    for (let start = 0; start < sorted.length; start += size) {
+        const slice = sorted.slice(start, start + size);
+        const index = shards.length;
+        shards.push({
+            id: `shard-${String(index).padStart(2, "0")}`,
+            from: slice[0][0],
+            to: slice[slice.length - 1][0],
+            entries: new Map(slice),
+        });
     }
-    return new Map([...shards].sort(([a], [b]) => a.localeCompare(b)));
+    assertSearchable(shards);
+    return shards;
+}
+
+/**
+ * Compare two slugs the way the runtime's `<` does.
+ *
+ * `localeCompare` is **not** interchangeable here. The shard lookup is a binary
+ * search using `<`, which compares UTF-16 code units, and a collator orders
+ * punctuation by different rules — `a-arrow-down` vs `aarrow` is decided by how
+ * the hyphen is weighted. The two orders happen to agree on lucide's current
+ * 2024 names, which is luck, not a guarantee: one divergence would route a slug
+ * to a shard that does not contain it, and the icon would go missing with no
+ * error anywhere.
+ *
+ * @param {string} a - First slug.
+ * @param {string} b - Second slug.
+ * @returns {number} Negative, zero or positive.
+ */
+function byCodeUnit(a, b) {
+    if (a < b) return -1;
+    return a > b ? 1 : 0;
+}
+
+/**
+ * Refuse to emit shards a binary search cannot navigate.
+ *
+ * Guards the one invariant the runtime lookup depends on: lower bounds strictly
+ * ascending in code-unit order. A lucide release that broke it would otherwise
+ * produce a table that looks fine and silently loses icons.
+ *
+ * @param {Array<{ id: string, from: string }>} shards - Shards in emission order.
+ */
+function assertSearchable(shards) {
+    for (let index = 1; index < shards.length; index += 1) {
+        const previous = shards[index - 1];
+        const current = shards[index];
+        if (byCodeUnit(previous.from, current.from) >= 0) {
+            throw new Error(
+                `gen-icons: shard bounds are not ascending — ${previous.id} starts at ` +
+                    `"${previous.from}" and ${current.id} at "${current.from}". The runtime ` +
+                    `lookup is a binary search and would misroute slugs.`,
+            );
+        }
+    }
 }
 
 /**
@@ -144,7 +213,7 @@ function localName(name) {
  * instead of ~1 KB. Named imports are what lets each shard carry only its own
  * letter.
  */
-function shardModule(letter, entries) {
+function shardModule({ from, to, entries }) {
     const imports = [...entries.values()]
         .sort()
         .map((name) => (localName(name) === name ? name : `${name} as ${localName(name)}`));
@@ -155,7 +224,7 @@ function shardModule(letter, entries) {
 import { ${imports.join(", ")} } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** The ${entries.size} lucide icons whose slug starts with "${letter}". */
+/** The ${entries.size} lucide icons from "${from}" through "${to}", inclusive. */
 const shard: Record<string, LucideIcon> = {
 ${table}
 };
@@ -165,26 +234,43 @@ export default shard;
 }
 
 /** Serialize the lazy loader table — the only place shards are referenced. */
-function loadersModule(letters) {
-    const table = letters
-        .map((letter) => `    ${letter}: () => import("./shard-${letter}"),`)
+function loadersModule(shards) {
+    const table = shards
+        .map(
+            ({ id, from, entries }) =>
+                `    { id: "${id}", from: "${from}", size: ${entries.size}, load: () => import("./${id}") },`,
+        )
         .join("\n");
     return `${BANNER}
 import type { LucideIcon } from "lucide-react";
 
+/** One lazily fetched range of icons. */
+export interface IconShard {
+    /** The chunk's module id — what shows up in a bundle and in a 404. */
+    id: string;
+    /** First slug in the range, in sort order. Its lower bound. */
+    from: string;
+    /** How many icons the range holds. */
+    size: number;
+    /** The dynamic import for the chunk. */
+    load: () => Promise<{ default: Record<string, LucideIcon> }>;
+}
+
 /**
- * One dynamic import per initial letter.
+ * Every shard, in slug order.
  *
  * These are the only references to the shard modules, which is what keeps them
  * out of whatever chunk imports \`Icon\`: a bundler that sees no static edge to a
  * shard emits it as an async chunk fetched on first use.
+ *
+ * Sorted by \`from\`, so the owning shard for a slug is a binary search over this
+ * array — ${shards.length} comparisons' worth of index instead of the 2000-entry
+ * slug→chunk map that makes lucide's own \`dynamicIconImports\` cost 120 KB in the
+ * main chunk.
  */
-export const shardLoaders: Record<
-    string,
-    () => Promise<{ default: Record<string, LucideIcon> }>
-> = {
+export const iconShards: readonly IconShard[] = [
 ${table}
-};
+];
 `;
 }
 
@@ -277,9 +363,25 @@ function slugReference(canonical, aliases) {
     };
 }
 
+/**
+ * Read the shard size from the command line.
+ *
+ * @returns {number} Icons per shard.
+ */
+function shardSizeFromArgv() {
+    const flag = process.argv.find((arg) => arg.startsWith("--shard-size="));
+    if (!flag) return DEFAULT_SHARD_SIZE;
+    const size = Number.parseInt(flag.slice("--shard-size=".length), 10);
+    if (!Number.isInteger(size) || size < 1) {
+        throw new Error(`gen-icons: --shard-size must be a positive integer, got "${flag}"`);
+    }
+    return size;
+}
+
 async function main() {
     const { canonical, aliases } = await readIconModules();
-    const shards = shard(canonical);
+    const shardSize = shardSizeFromArgv();
+    const shards = shard(canonical, shardSize);
     const slugs = [...canonical.keys(), ...aliases.keys()].sort((a, b) => a.localeCompare(b));
 
     await rm(OUT_DIR, { recursive: true, force: true });
@@ -293,10 +395,10 @@ async function main() {
         written.push(name);
     };
 
-    for (const [letter, entries] of shards) {
-        await write(`shard-${letter}.ts`, shardModule(letter, entries));
+    for (const entry of shards) {
+        await write(`${entry.id}.ts`, shardModule(entry));
     }
-    await write("loaders.ts", loadersModule([...shards.keys()]));
+    await write("loaders.ts", loadersModule(shards));
     await write("aliases.ts", aliasesModule(aliases));
     await write("icon-name.ts", iconNameModule(slugs));
     await write("icon-names.ts", iconNamesModule(slugs));
@@ -310,7 +412,11 @@ async function main() {
         `gen-icons: ${canonical.size} canonical + ${aliases.size} alias = ${slugs.length} slugs`,
     );
     console.log("gen-icons: wrote icon-slugs.csv + icon-slugs.txt to docs/assets/");
-    console.log(`gen-icons: ${shards.size} shards (${[...shards.keys()].join("")})`);
+    const largest = shards.reduce((a, b) => (b.entries.size > a.entries.size ? b : a));
+    console.log(
+        `gen-icons: ${shards.length} shards of up to ${shardSize} icons ` +
+            `(largest ${largest.id}: ${largest.entries.size}, "${largest.from}"…"${largest.to}")`,
+    );
     console.log(`gen-icons: wrote ${written.length} files to src/icons/generated/`);
 }
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { iconAliases } from "./generated/aliases";
-import { shardLoaders } from "./generated/loaders";
+import { iconShards } from "./generated/loaders";
 import { iconNames } from "./generated/icon-names";
 import { isIconName } from "./is-icon-name";
 import { iconStatus, loadIcon, peekIcon, preloadIcons, resolveIconAlias } from "./shard-cache";
@@ -11,9 +11,22 @@ describe("generated tables", () => {
         expect(iconNames.length).toBe(2024);
         expect(Object.keys(iconAliases).length).toBe(257);
     });
-    it("has one shard loader per initial letter, and lucide has no y icon", () => {
-        const letters = Object.keys(shardLoaders).sort().join("");
-        expect(letters).toBe("abcdefghijklmnopqrstuvwxz");
+    it("splits the icons into balanced shards instead of by initial letter", () => {
+        expect(iconShards.length).toBe(45);
+        for (const shard of iconShards) expect(shard.size).toBeLessThanOrEqual(40);
+        expect(iconShards.reduce((total, shard) => total + shard.size, 0)).toBe(1767);
+    });
+
+    it("keeps the shard bounds ascending in the order the lookup compares them", () => {
+        /**
+         * The lookup is a binary search using `<`, which is UTF-16 code-unit order.
+         * A generator sorting with `localeCompare` would weight the hyphen
+         * differently, and one divergence routes a slug to a shard that does not
+         * hold it — a missing icon with no error anywhere.
+         */
+        for (let index = 1; index < iconShards.length; index += 1) {
+            expect(iconShards[index - 1].from < iconShards[index].from).toBe(true);
+        }
     });
     it("maps every alias to a canonical slug that is itself not an alias", () => {
         for (const [alias, canonical] of Object.entries(iconAliases)) {
@@ -22,10 +35,25 @@ describe("generated tables", () => {
             expect(alias).not.toBe(canonical);
         }
     });
-    it("has a loader for the initial letter of every slug", () => {
-        for (const slug of iconNames) {
-            expect(shardLoaders[resolveIconAlias(slug)[0]]).toBeTypeOf("function");
+    it("covers every canonical slug exactly once, in contiguous ranges", async () => {
+        const seen = new Set<string>();
+
+        for (const [index, shard] of iconShards.entries()) {
+            const slugs = Object.keys((await shard.load()).default);
+            const nextBound = iconShards[index + 1]?.from;
+
+            expect(slugs.length).toBe(shard.size);
+            expect(slugs[0]).toBe(shard.from);
+            for (const slug of slugs) {
+                expect(slug >= shard.from).toBe(true);
+                if (nextBound !== undefined) expect(slug < nextBound).toBe(true);
+                expect(seen.has(slug)).toBe(false);
+                seen.add(slug);
+            }
         }
+
+        expect(seen.size).toBe(1767);
+        for (const slug of iconNames) expect(seen.has(resolveIconAlias(slug))).toBe(true);
     });
 });
 
@@ -56,16 +84,22 @@ describe("loadIcon / peekIcon / iconStatus", () => {
         expect(peekIcon("alert-octagon")).toBe(peekIcon("octagon-alert"));
     });
 
-    it("brings in every sibling of a loaded shard", async () => {
-        await loadIcon("quote");
-        expect(peekIcon("qr-code")).toBeTypeOf("object");
-    });
-
     it("collapses concurrent loads of one shard into a single import", async () => {
-        const first = loadIcon("gauge");
-        const second = loadIcon("gift");
+        const first = loadIcon(iconShards[20].from);
+        const second = loadIcon(iconShards[20].from);
         expect(second).toBe(first);
         await first;
+    });
+
+    it("brings in the whole range around a slug, not just that icon", async () => {
+        const shard = iconShards[30];
+        const slugs = Object.keys((await shard.load()).default);
+        await loadIcon(shard.from);
+        expect(peekIcon(slugs[slugs.length - 1])).toBeTypeOf("object");
+    });
+
+    it("reports missing without a fetch for a slug that sorts before every icon", () => {
+        expect(iconStatus("0-not-an-icon")).toBe("missing");
     });
 
     it("resolves without error for a slug that does not exist", async () => {

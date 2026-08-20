@@ -48,11 +48,13 @@ describe("Icon — normalization", () => {
     beforeEach(async () => {
         warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
         /**
-         * The `d` shard is warmed on purpose: `iconStatus` only reports
-         * `"missing"` once the shard that would own the slug has settled, so
-         * without it the unknown-name case is still `"loading"` and never warns.
+         * The unknown name is loaded on purpose: `iconStatus` only reports
+         * `"missing"` once the shard that *would* own the slug has settled, so
+         * without this the unknown-name case is still `"loading"` and never warns.
+         * Loading the slug itself settles the right shard whatever the current
+         * range boundaries are.
          */
-        await preloadIcons(["save", "trash-2", "download"]);
+        await preloadIcons(["save", "trash-2", "definitely-not-an-icon"]);
     });
 
     afterEach(() => {

@@ -4,7 +4,39 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Alterado
+
+- **Shard de ícone deixou de ser particionado por letra inicial.** Os nomes do
+  lucide são fortemente enviesados — `c` tem 284 slugs, `q` tem 4 — então a
+  inicial era a pior chave possível: desenhar **um** ícone de categoria começando
+  com `c` baixava 284 ícones, **19,10 KB brotli** para um glifo de meio KB, fator
+  de desperdício de ~130x. Medido em app de produção (`servus-frontend`, SDK
+  0.45.0): `shard-s` 71,19 kB / gzip 19,00 kB, `shard-c` 66,40 kB / gzip 17,58 kB.
+  Agora são **45 faixas alfabéticas contíguas de até 40 ícones**, e o pior caso de
+  uma requisição caiu para **4,78 KB brotli** (mediana 4,19 KB, menor 1,52 KB). A
+  faixa dona de um slug sai de uma **busca binária** sobre 45 limites, não de um
+  mapa de 2024 entradas — que é o custo que torna o `dynamicIconImports` do próprio
+  lucide inviável (120 KB no chunk principal). O gerador aceita `--shard-size=N` e
+  se recusa a emitir faixas que a busca binária não navegaria; o comparador do
+  gerador passou a ser o **de code unit**, o mesmo que o `<` do runtime usa —
+  `localeCompare` pesa hífen por outra regra, e uma divergência mandaria o slug pro
+  shard errado, sumindo com o ícone sem erro nenhum. Nenhuma mudança de API
+  pública: `<Icon name>` é idêntico.
+
 ### Corrigido
+
+- **Falha de carga de shard de ícone virava fallback permanente, sem retry e sem
+  sinal.** Chunk de shard tem hash no nome, e o hash muda a cada deploy: em aba
+  longa o `import()` volta 404, o cache marcava o estado como falho e o ícone ficava
+  no fallback para sempre naquela aba — sem nada para o usuário nem para o
+  observability. Agora há (1) **2 retries** curtos (100 ms, 400 ms), que cobrem a
+  falha transitória; (2) separação entre "chunk não chegou" e "slug não existe" —
+  `iconStatus` ganhou o estado `"error"`, e com isso o `<Icon>` parou de avisar "no
+  such lucide icon" sobre nome válido; o estado não é permanente, um render
+  posterior tenta de novo atrás de um cooldown de 10 s para chunk morto não virar
+  laço de requisição; e (3) **`subscribeToIconErrors`**, para o app mandar pro
+  Sentry e disparar o reload de chunk stale. Sem ninguém assinando, build de dev
+  avisa no console uma vez por shard — falha silenciosa era o problema.
 
 - **`buildApiError` estourava a pilha num `detail` profundamente aninhado.** A
   leitura recursiva de `detail` não tinha teto: um corpo com

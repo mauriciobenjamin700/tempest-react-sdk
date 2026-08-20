@@ -34,6 +34,25 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`Sidebar` agora descreve seções.** `items` passou a aceitar
+  `SidebarEntry[]` — item, `{ type: "section", key, label }` e
+  `{ type: "separator", key }` no mesmo array, seguindo o formato que o
+  `DropdownMenu` já usa, para o SDK ter **um** jeito de descrever lista com
+  seções. `type` é opcional no ramo do item, então `SidebarItem[]` continua
+  válido e nenhum call site muda. Uma seção abre um `role="group"` nomeado por
+  `aria-labelledby` — o leitor de tela anuncia "Monitoramento, grupo, 3 itens" em
+  vez do "botão indisponível" que um `disabled: true` estilizado de rótulo
+  anuncia. No modo `collapsed` o rótulo sai de vista (`clip-path: inset(50%)`) e o
+  grupo ganha linha divisória, mas o `aria-labelledby` continua apontando pra ele.
+  Medido no Chromium: rótulo em 7,32:1 no tema claro e 8,42:1 no escuro.
+
+- **`SidebarItem.href` finalmente renderiza.** O campo era declarado e ignorado; o
+  item com `href` sai como `<a>`, então middle-click, ctrl-click e "copiar
+  endereço do link" funcionam e o leitor de tela anuncia link. `onChange`
+  continua disparando. Item `disabled` ignora o `href` e segue `<button
+disabled>` — âncora não tem estado desabilitado, e tirar o `href` pra simular um
+  deixaria um link que se anuncia acionável e não é.
+
 - **`error.fields` no envelope de erro** — as entradas de um `422` indexadas pelo
   caminho do campo (`{ email: "Field required", "items.0.price": "Input should be
 greater than 0" }`), que é a forma que um formulário consome. Antes o caminho

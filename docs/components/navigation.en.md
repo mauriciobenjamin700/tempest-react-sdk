@@ -143,8 +143,8 @@ router, pass `onBack={() => navigate(-1)}`.
 
 ## `Sidebar`
 
-Desktop side nav. `items: SidebarItem[]`, `header`/`footer` slots, a `collapsed`
-mode (icons only).
+Desktop side nav. `items: SidebarEntry[]` (items, sections and separators),
+`header`/`footer` slots, a `collapsed` mode (icons only).
 
 ```tsx
 const [tab, setTab] = useState("home");
@@ -169,7 +169,7 @@ const [collapsed, setCollapsed] = useState(false);
 | Prop             | Type                           | Default |
 | ---------------- | ------------------------------ | ------- |
 | `header`         | `ReactNode`                    | —       |
-| `items`          | `SidebarItem[]`                | —       |
+| `items`          | `SidebarEntry[]`               | —       |
 | `value`          | `string`                       | —       |
 | `onChange`       | `(key: string) => void`        | —       |
 | `footer`         | `ReactNode`                    | —       |
@@ -177,7 +177,105 @@ const [collapsed, setCollapsed] = useState(false);
 | `width`          | `number \| string` (px or CSS) | `240`   |
 | `collapsedWidth` | `number \| string`             | `64`    |
 
-Type `SidebarItem = { key, label, icon?, badge?, disabled?, href? }`.
+```ts
+type SidebarItem = { key, label, icon?, badge?, disabled?, href? };
+
+type SidebarEntry =
+  | ({ type?: "item" } & SidebarItem)
+  | { type: "section"; key: string; label: ReactNode }
+  | { type: "separator"; key: string };
+```
+
+`type` is optional on the item branch, so **a `SidebarItem[]` is still a valid
+`SidebarEntry[]`** — no existing call site changes a line.
+
+### Grouping into sections
+
+A flat list works up to about 8 items. Past that it is a wall: 16 screens with no
+headings leave "Diagnostics" visually glued to "Campaigns", and the admin loses the
+anchor that told them which part of the panel they are in.
+
+A section opens a group, and the items after it belong to it **until the next
+section or separator**:
+
+```tsx
+import { useState } from "react";
+import { Sidebar } from "tempest-react-sdk";
+import { Activity, BarChart3, FileText, Settings, Users } from "lucide-react";
+
+function AdminNav() {
+  const [tab, setTab] = useState("overview");
+
+  return (
+    <Sidebar
+      items={[
+        { type: "section", key: "monitoring", label: "Monitoring" },
+        { key: "overview", label: "Overview", icon: <BarChart3 /> },
+        { key: "activity", label: "Activity", icon: <Activity /> },
+        { key: "reports", label: "Reports", icon: <FileText /> },
+
+        { type: "section", key: "users", label: "User management" },
+        { key: "users", label: "Users", icon: <Users /> },
+
+        { type: "separator", key: "before-admin" },
+        { key: "settings", label: "Settings", icon: <Settings /> },
+      ]}
+      value={tab}
+      onChange={setTab}
+    />
+  );
+}
+```
+
+What comes out in the HTML:
+
+```html
+<nav aria-label="Navegação lateral">
+  <div role="group" aria-labelledby="…-monitoring">
+    <div id="…-monitoring" role="presentation">Monitoring</div>
+    <!-- Overview, Activity, Reports -->
+  </div>
+  <div role="group" aria-labelledby="…-users">…</div>
+  <hr />
+  <div><!-- Settings, loose --></div>
+</nav>
+```
+
+!!! info "Why `role="group"` and not a styled item"
+    Using `disabled: true` as a heading renders `<button disabled>`: it passes
+    visually with some CSS, but a screen reader announces **"button
+    unavailable"** instead of a heading, and the entry stays in the navigation
+    tree. With `role="group"` + `aria-labelledby` the announcement is "Monitoring,
+    group, 3 items" — without inventing a button that does not exist.
+
+!!! tip "Items before the first section stay loose"
+    That is the behaviour you already had. An app that uses no sections sees no
+    `role="group"` in the HTML — the list comes out exactly as before.
+
+!!! warning "In `collapsed` mode the label leaves the view, not the tree"
+    64px does not fit "User management", so the label becomes
+    `clip-path: inset(50%)` and the group gains a divider on top. The
+    `aria-labelledby` **still** points at it, so a screen reader does not lose the
+    structure when the admin collapses the column.
+
+### An item that is a link
+
+`href` renders an `<a>` instead of a `<button>`, and `onChange` still fires on
+click:
+
+```tsx
+<Sidebar
+  items={[{ key: "overview", label: "Overview", href: "/overview" }]}
+  value={tab}
+  onChange={setTab}
+/>
+```
+
+With that, middle-click opens a new tab, ctrl-click works, "copy link address"
+shows up in the context menu, and a screen reader announces a link rather than a
+button. A `disabled` item ignores `href` and stays a `<button disabled>`: an
+anchor has no disabled state, and dropping the `href` to fake one leaves a link
+that announces itself as actionable and is not.
 
 **Mobile**: hide it with `<Show above="md">` and expose it via `<Drawer>` in the
 hamburger menu.

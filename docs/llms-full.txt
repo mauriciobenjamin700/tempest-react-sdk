@@ -14607,6 +14607,7 @@ Opções (todas exceto `baseURL` são opcionais):
 - `onUnauthorized(response)` — disparado sempre que a requisição termina sem autorização: 401 sem `refresh`, `refresh()` que rejeitou, ou repetição que voltou 401 de novo. Use pra deslogar.
 - `refresh()` — quando presente e o request der 401, o cliente aguarda `refresh()` e repete a requisição **uma vez**.
 - `retry` — `true` ou `RetryOptions`. **Desligado por default.** Ver [Retentativa embutida](#retentativa-embutida).
+- `logger` — para onde o cliente reporta cada requisição que terminou. **Desligado por default.** Ver [Log de requisição](#log-de-requisicao).
 - `withCredentials` — envia cookies em cross-origin (default `false`).
 - `headers` — headers default mesclados em toda request.
 - `fetcher` — implementação de `fetch` alternativa (default `globalThis.fetch`) — útil em testes.
@@ -14702,6 +14703,45 @@ const stream = new EventSource(
   }),
 );
 ```
+
+## Log de requisição
+
+O cliente não escreve em console nenhum por conta própria. Passe um `logger` e cada tentativa que termina vira uma linha:
+
+```ts
+import { createApiClient, createLogger } from "tempest-react-sdk";
+
+const log = createLogger({ level: import.meta.env.DEV ? "debug" : "warn" });
+
+export const api = createApiClient({
+  baseURL: import.meta.env.VITE_API_URL,
+  logger: log.child("http"),
+});
+
+await api.get("/orders");
+// [http] GET /orders → 200  { requestId: "8f2c…", status: 200, ms: 143 }
+```
+
+O que sai:
+
+| Evento | Nível | Linha |
+| --- | --- | --- |
+| Resposta abaixo de 400 | `debug` | `GET /orders → 200` |
+| Resposta 400 ou acima | `warn` | `GET /admin → 403` |
+| Requisição que não teve resposta | `warn` | `GET /orders → no response` (contexto carrega o `error`) |
+| `onUnauthorized` disparando | `warn` | `unauthorized — calling onUnauthorized` |
+
+O contexto de cada linha traz `requestId`, `status` e o `ms` decorrido. É **uma linha por tentativa**, então a repetição depois do `refresh` e cada retry aparecem — é assim que se lê "401, renovou, 200" no log.
+
+!!! info "É `logger`, não `debug: true`"
+    Uma flag booleana daria um botão só para o SDK inteiro: ou tudo ou nada, sempre no `console`, e as strings ficariam no bundle mesmo desligada. Com `logger` o **nível** mora no logger (`createLogger({ level })`), o **destino** mora no sink (console em dev, Sentry em produção, array no teste) e o **escopo** mora no namespace — `log.child("http")` separa dois clientes no mesmo app.
+
+    Qualquer objeto com `debug` e `warn` serve (o tipo exportado é `ApiClientLogger`), então não precisa ser o logger do SDK.
+
+!!! warning "O que o log nunca carrega"
+    Body, header e query string ficam de fora, de propósito: o `Authorization` é bearer token, o body do login é senha, e um `access_token` em query param acabaria escrito no sink junto. O que é logado é o método, o caminho como o call site escreveu, e os números.
+
+    Se você precisa do payload para depurar, envolva o `fetcher` no seu app — aí a decisão de logar segredo é sua, explícita, e não vai para produção por descuido.
 
 ## Retentativa embutida
 
@@ -14980,6 +15020,7 @@ const { mutate } = useMutation({
 - `baseURL` pode carregar caminho (`https://host/api`) ou ser relativo (`"/api"`), e `prefix: "/api"` diz a mesma coisa deixando a env var como origem pura. A barra inicial na chamada é indiferente; o prefixo nunca é aplicado duas vezes. `buildApiUrl` monta a mesma URL fora do cliente.
 - 401 com `refresh` → tenta renovar e repete 1x. `onUnauthorized` dispara em todo desfecho sem autorização — sem refresh, refresh que rejeitou, ou repetição que voltou 401.
 - `retry: true` liga a retentativa dentro do cliente: só método idempotente, só falha de rede/`408`/`425`/`429`/`5xx`. Escrita nunca repete sozinha.
+- `logger` é opt-in e o client não escreve em console sem ele: uma linha por tentativa (`debug` abaixo de 400, `warn` de 400 pra cima) com `requestId`, `status` e `ms`, nunca body/header/query.
 - `parseResponse(schema, raw, context)` valida o payload com zod e aponta o campo divergente em dev.
 - `uploadWithProgress` usa XHR pra reportar progresso byte a byte; para arquivo grande, `createResumableUpload` divide em chunks e retoma — veja [Upload resumível](./resumable-upload.md).
 - `retry` (backoff exponencial + `shouldRetry`) e `usePoll` (intervalo com guarda de overlap) cobrem operações instáveis e acompanhamento de jobs.
@@ -14991,6 +15032,7 @@ const { mutate } = useMutation({
 - [Auth + Guard](./auth.md)
 - [Passkeys](./passkeys.md) — login sem senha em cima do mesmo client
 - [Upload resumível (tus)](./resumable-upload.md) — quando uma request só não basta
+- [Logger](./logger.md) — o `logger` que o client aceita
 - [Query](./query.md) — alimenta as `queryFn`
 - [SSE](./sse.md) — usa `withCredentials` igual ao client
 - Diagrama: [request-flow.drawio](./diagrams/request-flow.drawio)
@@ -16511,6 +16553,7 @@ export const log = createLogger({ level: "info", sinks: [sentrySink] });
 
 ## Veja também
 
+- [HTTP client](./http.md#log-de-requisicao) — passe o logger em `createApiClient({ logger })`
 - [Telemetry](./telemetry.md) — para eventos de produto, não logs
 - [Error Boundary](./error-boundary.md) — encaminhe `onError` para um sink/telemetria
 

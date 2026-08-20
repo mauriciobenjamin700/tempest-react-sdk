@@ -1,4 +1,12 @@
+import type { Logger } from "../logger";
 import type { RetryOptions } from "./retry";
+
+/**
+ * The slice of {@link Logger} the client writes to: `debug` for a request that
+ * came back under 400, `warn` for everything else. Structural, so the SDK
+ * logger fits without adapting and so does any object with those two methods.
+ */
+export type ApiClientLogger = Pick<Logger, "debug" | "warn">;
 
 export interface ApiError {
     /** HTTP status code (0 for network failures). */
@@ -66,6 +74,26 @@ export interface ApiClientConfig {
      * after a refresh that resolved. Use it to end the session.
      */
     onUnauthorized?: (response: Response) => void | Promise<void>;
+    /**
+     * Where the client reports each request it finished. Off when absent — the
+     * client writes to no console of its own.
+     *
+     * One entry per attempt (so a refresh replay and every retry show up), at
+     * `debug` under 400 and at `warn` from 400 up, carrying `requestId`,
+     * `status` and the elapsed `ms`. Firing `onUnauthorized` gets its own `warn`,
+     * which is what a session dying mid-session looks like in the log.
+     *
+     * Deliberately **not** a `debug: boolean`: the level lives in the logger you
+     * pass, so `createLogger({ level })` decides what survives, the sink decides
+     * where it goes (console in dev, Sentry in production, an array in a test),
+     * and one namespace per client keeps two clients apart.
+     *
+     * Never logs a body, a header, or the query string — a bearer token in
+     * `Authorization`, a password in a login payload and an `access_token` query
+     * param would all end up in whatever the sink writes to. What is logged is
+     * the method, the path as the call site wrote it, and the numbers.
+     */
+    logger?: ApiClientLogger;
     /**
      * Optional refresh hook. When provided and the original request returns 401,
      * the client awaits `refresh()` then retries the request once.

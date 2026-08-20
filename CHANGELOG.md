@@ -4,6 +4,33 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`logger` em `createApiClient` — observabilidade do client sem `console` na
+  biblioteca.** Não havia como ver o que o cliente fez: a única saída era
+  envolver o `fetcher` à mão em cada app. Com `logger`, cada tentativa que
+  termina vira uma linha — `debug` abaixo de 400, `warn` de 400 pra cima, mais
+  um `warn` quando `onUnauthorized` dispara — carregando `requestId`, `status` e
+  o `ms` decorrido. É **uma linha por tentativa**, então a repetição depois do
+  `refresh` e cada retry aparecem: "401, renovou, 200" fica legível no log.
+
+  Fica **desligado por default** e o client continua sem escrever em console
+  nenhum por conta própria. O tipo exportado é `ApiClientLogger`
+  (`Pick<Logger, "debug" | "warn">`), estrutural — o logger do SDK serve sem
+  adaptador, e qualquer objeto com esses dois métodos também.
+
+  **É `logger`, não `debug: true`.** Uma flag booleana daria um botão só para o
+  SDK inteiro (ou tudo ou nada), fixaria o destino no `console` e deixaria as
+  strings no bundle mesmo desligada. Aqui o nível mora no logger
+  (`createLogger({ level })`), o destino mora no sink (console em dev, Sentry em
+  produção, array no teste) e o escopo mora no namespace — `log.child("http")`
+  separa dois clients no mesmo app.
+
+  **Nunca loga body, header nem query string**, de propósito: `Authorization` é
+  bearer token, body de login é senha, e um `access_token` em query param
+  acabaria escrito no sink junto. Sai o método, o caminho como o call site
+  escreveu, e os números.
+
 ## [0.45.1] — 2026-08-20
 
 ### Corrigido

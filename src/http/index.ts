@@ -32,4 +32,10 @@ export type { RetryOptions } from "./retry";
 export { generateIdempotencyKey } from "./idempotency";
 export { usePoll } from "./use-poll";
 export type { UsePollOptions, UsePollResult } from "./use-poll";
-export type { ApiClient, ApiClientConfig, ApiError, RequestOptions } from "./types";
+export type {
+    ApiClient,
+    ApiClientConfig,
+    ApiClientLogger,
+    ApiError,
+    RequestOptions,
+} from "./types";

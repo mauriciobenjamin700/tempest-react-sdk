@@ -91,12 +91,19 @@ async function parseError(response: Response, sentRequestId?: string): Promise<T
  * **Retries** are off unless you set `retry`. See {@link ApiClientConfig.retry}
  * for the built-in policy; it never replays a write.
  *
+ * **Logging** is off unless you pass a `logger`. With one, every finished attempt
+ * writes a line — `debug` under 400, `warn` from 400 up, plus a `warn` when
+ * `onUnauthorized` fires — carrying `requestId`, `status` and elapsed `ms`, and
+ * never a body, header or query string. The level and the destination belong to
+ * the logger, not to a boolean here.
+ *
  * @example
  * const api = createApiClient({
  *     baseURL: import.meta.env.VITE_API_URL,
  *     getToken: () => useAuthStore.getState().token,
  *     refresh,
  *     onUnauthorized: () => useAuthStore.getState().logout(),
+ *     logger: createLogger({ level: import.meta.env.DEV ? "debug" : "warn" }).child("http"),
  *     retry: true,
  * });
  *
@@ -142,24 +149,60 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         return fetcher(buildApiUrl(config.baseURL, path, { prefix: config.prefix, params }), init);
     }
 
+    async function send(
+        path: string,
+        options: RequestOptions,
+        requestId: string,
+        method: string,
+    ): Promise<Response> {
+        const log = config.logger;
+        if (!log) return rawRequest(path, options, requestId);
+
+        const startedAt = Date.now();
+        try {
+            const response = await rawRequest(path, options, requestId);
+            const entry = { requestId, status: response.status, ms: Date.now() - startedAt };
+            const line = `${method} ${path} → ${response.status}`;
+            if (response.status >= 400) log.warn(line, entry);
+            else log.debug(line, entry);
+            return response;
+        } catch (error) {
+            log.warn(`${method} ${path} → no response`, {
+                requestId,
+                ms: Date.now() - startedAt,
+                error,
+            });
+            throw error;
+        }
+    }
+
+    async function endSession(response: Response, requestId: string): Promise<void> {
+        config.logger?.warn(`unauthorized — calling onUnauthorized`, {
+            requestId,
+            status: response.status,
+        });
+        await config.onUnauthorized?.(response);
+    }
+
     async function attempt<T>(path: string, options: RequestOptions): Promise<T> {
         const requestId = config.requestId ? config.requestId() : randomId();
-        let response = await rawRequest(path, options, requestId);
+        const method = (options.method ?? "GET").toUpperCase();
+        let response = await send(path, options, requestId, method);
 
         if (response.status === 401) {
             if (config.refresh) {
                 try {
                     await config.refresh();
-                    response = await rawRequest(path, options, requestId);
+                    response = await send(path, options, requestId, method);
                 } catch {
-                    await config.onUnauthorized?.(response);
+                    await endSession(response, requestId);
                     throw await parseError(response, requestId);
                 }
                 if (response.status === 401) {
-                    await config.onUnauthorized?.(response);
+                    await endSession(response, requestId);
                 }
             } else {
-                await config.onUnauthorized?.(response);
+                await endSession(response, requestId);
             }
         }
 

@@ -5,6 +5,7 @@
  * parsing that turns a failure into a typed error.
  */
 import { randomId } from "../utils";
+import { buildApiUrl } from "./build-url";
 import { buildApiError, TempestApiError } from "./errors";
 import { retry as retryWithBackoff } from "./retry";
 import type { RetryOptions } from "./retry";
@@ -53,18 +54,6 @@ function isRetriableFailure(error: unknown, method: string): boolean {
 function resolveRetry(config: boolean | RetryOptions | undefined): RetryOptions | null {
     if (!config) return null;
     return config === true ? {} : config;
-}
-
-function buildUrl(baseURL: string, path: string, params?: RequestOptions["params"]): string {
-    const url = new URL(path, baseURL.endsWith("/") ? baseURL : `${baseURL}/`);
-    if (params) {
-        for (const [key, value] of Object.entries(params)) {
-            if (value !== undefined && value !== null) {
-                url.searchParams.set(key, String(value));
-            }
-        }
-    }
-    return url.toString();
 }
 
 function isFormData(body: unknown): body is FormData {
@@ -150,7 +139,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
                       : JSON.stringify(body),
         };
 
-        return fetcher(buildUrl(config.baseURL, path, params), init);
+        return fetcher(buildApiUrl(config.baseURL, path, { prefix: config.prefix, params }), init);
     }
 
     async function attempt<T>(path: string, options: RequestOptions): Promise<T> {

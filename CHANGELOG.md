@@ -4,6 +4,74 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.45.1] — 2026-08-20
+
+### Corrigido
+
+- **`ApiError.detail` de um 422 do FastAPI parava em `[object Object]`.** O
+  backend responde erro de validação com `detail` como **lista** de
+  `{ loc, msg, type }`, e `buildApiError` fazia `String(detail)` — o que
+  transforma a lista em `[object Object]`. Era o texto que chegava ao `toast`,
+  ao `console.error` e ao `describeApiError`: um erro que não dizia nem qual
+  campo falhou nem por quê. Agora a lista é achatada em
+  `"email: Field required; items.0.price: Input should be greater than 0"`, com
+  o prefixo de `loc` que só nomeia a parte da requisição (`body`, `query`,
+  `path`, `header`, `cookie`) descartado, e a lista crua continua em
+  `error.body` para mapear erro por campo de formulário. `detail` como objeto
+  aninhado é lido por `msg`/`message`/`detail`; corpo sem nada legível cai no
+  `Erro <status>` de sempre.
+
+### Documentação
+
+- **`onUnauthorized` não faz requisição** (`docs/http.md`). O cliente
+  **aguarda** o hook antes de lançar, então um `throw` lá dentro toma o lugar
+  do 401 original — o caso real é `onUnauthorized` chamando um `logout()` que
+  faz `POST /auth/logout` com o token que o backend já recusou, o logout volta
+  422 e esse erro sobe no lugar do 401. O hook é local (limpar store, storage,
+  cache); a chamada de rede pertence ao logout explícito do usuário.
+
+## [0.45.0] — 2026-08-17
+
+### Corrigido
+
+- **`createApiClient` descartava o caminho do `baseURL`, e todo request virava 404.** A URL era montada com `new URL(path, baseURL)`. Pela spec de URL, um
+  caminho iniciado por `/` é absoluto **contra a origem**, então o caminho que o
+  `baseURL` carregava sumia: um cliente em `https://api.exemplo.com/api` pedindo
+  `"/auth/login"` batia em `https://api.exemplo.com/auth/login`. Como serviço
+  Tempest FastAPI é montado sob `root_path="/api"`, isso atinge todo app que
+  aponta a env var para o prefixo — e o sintoma é o pior possível: 404 em toda
+  chamada, com a config e os call sites parecendo corretos, e o único conserto
+  sendo reescrever todo caminho sem a barra inicial.
+
+  O caminho agora resolve contra o **caminho** do base, não contra a origem.
+  `"/auth/login"` e `"auth/login"` chegam no mesmo lugar. Quem escrevia caminho
+  relativo por causa do bug não quebra: continua resolvendo igual.
+
+- **`baseURL` relativo (`"/api"`) lançava `Invalid base URL`.** É a forma certa
+  atrás do proxy do dev server ou de um reverse proxy servindo app e API do mesmo
+  host — e era o que a própria doc de auth mostrava no exemplo completo, que
+  portanto não rodava. Agora resolve contra a origem atual; fora do browser
+  (sem `location`) lança um `TypeError` nomeando a config a corrigir.
+
+### Adicionado
+
+- **`prefix` em `createApiClient` e `createTempestAuth`** — o segmento sob o qual
+  o serviço está montado (`"/api"`), declarado uma vez no cliente em vez de
+  repetido em todo call site. É a opção a preferir quando a env var é usada por
+  mais coisa que o cliente HTTP (endpoint SSE, host de mídia): `VITE_API_URL`
+  segue sendo a origem pura e só o cliente sabe do prefixo.
+
+  Aplicado **no máximo uma vez** — um caminho que já abre com ele passa direto,
+  então dá para migrar os call sites aos poucos, e os defaults
+  `loginPath`/`refreshPath` do `createTempestAuth` (que já trazem `/api` escrito)
+  continuam corretos sob um `prefix: "/api"`. A comparação é por segmento, então
+  `/api-keys` não é confundido com caminho já prefixado.
+
+- **`buildApiUrl(baseURL, path, { prefix, params })`** exportado — o mesmo join
+  que o cliente usa, para montar URL fora dele: um `EventSource` de SSE, um
+  `<img>`, um link. Sem isso, todo app que usa SSE reimplementa a concatenação e
+  erra o prefixo de novo.
+
 ## [0.44.0] — 2026-08-16
 
 ### Adicionado

@@ -51,11 +51,86 @@ export function isApiError(error: unknown): error is ApiError {
 }
 
 /**
+ * Location prefixes FastAPI puts at the head of a validation error's `loc`,
+ * naming the part of the request rather than the field. Dropped from the
+ * rendered path, so `["body", "email"]` reads as `email`.
+ */
+const LOC_ROOTS: ReadonlySet<string> = new Set(["body", "query", "path", "header", "cookie"]);
+
+/**
+ * Render a FastAPI validation error's `loc` tuple as a dotted field path.
+ *
+ * @param loc - The raw `loc` value from one validation error entry.
+ * @returns The dotted path (`"items.0.price"`), or undefined when `loc` carries
+ *     nothing addressable.
+ */
+function formatLoc(loc: unknown): string | undefined {
+    if (!Array.isArray(loc)) return undefined;
+    const parts = loc
+        .filter(
+            (part): part is string | number => typeof part === "string" || typeof part === "number",
+        )
+        .filter((part, index) => !(index === 0 && LOC_ROOTS.has(String(part))));
+    return parts.length > 0 ? parts.join(".") : undefined;
+}
+
+/**
+ * Collapse a backend `detail` of any shape into a single readable line.
+ *
+ * FastAPI answers a `422` with `detail` as a **list** of
+ * `{ loc, msg, type }` entries, not a string. Passing that through `String()`
+ * yields `"[object Object]"` — an error message that tells the user nothing and
+ * hides which field failed. Each entry becomes `"<field>: <msg>"` and the
+ * entries are joined with `"; "`; a nested object is read through its
+ * `msg`/`message`/`detail` string.
+ *
+ * @param raw - The `detail` (or `message`) value from the error body.
+ * @returns The rendered message, or undefined when nothing readable is there —
+ *     letting the caller fall back to the synthetic `Erro <status>`.
+ */
+function normalizeDetail(raw: unknown): string | undefined {
+    if (raw === null || raw === undefined) return undefined;
+    if (typeof raw === "string") return raw === "" ? undefined : raw;
+    if (typeof raw === "number" || typeof raw === "boolean") return String(raw);
+
+    if (Array.isArray(raw)) {
+        const lines = raw
+            .map((entry) => {
+                const message = normalizeDetail(entry);
+                if (message === undefined) return undefined;
+                const field =
+                    typeof entry === "object" && entry !== null
+                        ? formatLoc((entry as Record<string, unknown>).loc)
+                        : undefined;
+                return field === undefined ? message : `${field}: ${message}`;
+            })
+            .filter((line): line is string => line !== undefined);
+        return lines.length > 0 ? lines.join("; ") : undefined;
+    }
+
+    if (typeof raw === "object") {
+        const entry = raw as Record<string, unknown>;
+        return (
+            normalizeDetail(entry.msg) ??
+            normalizeDetail(entry.message) ??
+            normalizeDetail(entry.detail)
+        );
+    }
+
+    return undefined;
+}
+
+/**
  * Parse an error body + response into the Tempest {@link ApiError} envelope.
  *
  * Reads `detail`/`message`, the programmatic `code`, and the correlation id
  * from `details.request_id` (falling back to the `X-Request-ID` header, then
  * the id the client sent).
+ *
+ * A `422` from FastAPI carries `detail` as a list of `{ loc, msg, type }`
+ * entries, so it is flattened to `"<field>: <msg>; <field>: <msg>"` instead of
+ * being stringified into `"[object Object]"`. The untouched list stays on
+ * `body` for callers that map errors onto form fields.
  *
  * @param status - HTTP status code.
  * @param body - The parsed error body (object, string, or null).
@@ -76,7 +151,8 @@ export function buildApiError(
 ): ApiError {
     const obj =
         typeof body === "object" && body !== null ? (body as Record<string, unknown>) : null;
-    const detail = obj?.detail ?? obj?.message ?? `Erro ${status}`;
+    const detail =
+        normalizeDetail(obj?.detail) ?? normalizeDetail(obj?.message) ?? `Erro ${status}`;
     const code = typeof obj?.code === "string" ? obj.code : undefined;
     const details =
         typeof obj?.details === "object" && obj.details !== null
@@ -90,7 +166,7 @@ export function buildApiError(
 
     return {
         status,
-        detail: String(detail),
+        detail,
         code,
         requestId: requestId ?? undefined,
         retryAfter: parseRetryAfter(headers?.get("Retry-After")),

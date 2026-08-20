@@ -17,6 +17,16 @@ export interface TempestTokenResponse {
 export interface CreateTempestAuthOptions<TUser> {
     /** Base URL of the API. Required. */
     baseURL: string;
+    /**
+     * Path segment the API is mounted under, such as `"/api"`, forwarded to
+     * every client this preset builds — see the `prefix` option of
+     * `createApiClient`.
+     *
+     * Safe to combine with the default paths below: the prefix is applied at
+     * most once, so `"/api/auth/login"` under a `"/api"` prefix stays
+     * `"/api/auth/login"`.
+     */
+    prefix?: string;
     /** Login route (`POST`). Default: `"/api/auth/login"`. */
     loginPath?: string;
     /** Refresh route (`POST`). Default: `"/api/auth/refresh"`. */
@@ -112,6 +122,7 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
 ): TempestAuth<TUser, TCredentials> {
     const {
         baseURL,
+        prefix,
         loginPath = "/api/auth/login",
         refreshPath = "/api/auth/refresh",
         mePath,
@@ -147,13 +158,14 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
     const getToken = (): string | null => state().token;
 
     // Bare client (no auth/refresh) used for the login + refresh calls themselves.
-    const bareApi = createApiClient({ baseURL, withCredentials, fetcher });
+    const bareApi = createApiClient({ baseURL, prefix, withCredentials, fetcher });
 
     async function fetchUser(): Promise<TUser | null> {
         if (!mePath) return state().user;
         const token = getToken();
         const user = await createApiClient({
             baseURL,
+            prefix,
             withCredentials,
             fetcher,
             getToken: () => token,
@@ -205,6 +217,7 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
 
     const api = createApiClient({
         baseURL,
+        prefix,
         withCredentials,
         fetcher,
         getToken,

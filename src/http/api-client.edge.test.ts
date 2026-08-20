@@ -80,6 +80,42 @@ describe("createApiClient — url building, credentials and response shapes", ()
         expect(String(fetcher.mock.calls[0]![0])).toBe("https://api.test/v1/orders");
     });
 
+    it("keeps the baseURL path when the call site writes a leading slash", async () => {
+        const fetcher = vi.fn(
+            async (_input: RequestInfo | URL, _init?: RequestInit) =>
+                new Response(null, { status: 204 }),
+        );
+        const api = createApiClient({ baseURL: "https://api.test/api", fetcher });
+        await api.get("/orders");
+        expect(String(fetcher.mock.calls[0]![0])).toBe("https://api.test/api/orders");
+    });
+
+    it("nests requests under the configured prefix", async () => {
+        const fetcher = vi.fn(
+            async (_input: RequestInfo | URL, _init?: RequestInit) =>
+                new Response(null, { status: 204 }),
+        );
+        const api = createApiClient({ baseURL: "https://api.test", prefix: "/api", fetcher });
+        await api.post("/auth/login", { body: { email: "a@b.c" } });
+        expect(String(fetcher.mock.calls[0]![0])).toBe("https://api.test/api/auth/login");
+    });
+
+    it("keeps the prefix on the replay after a refresh", async () => {
+        const fetcher = vi
+            .fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>()
+            .mockResolvedValueOnce(new Response(null, { status: 401 }))
+            .mockResolvedValueOnce(new Response(null, { status: 204 }));
+        const api = createApiClient({
+            baseURL: "https://api.test",
+            prefix: "/api",
+            fetcher,
+            refresh: async () => {},
+        });
+        await api.get("/orders");
+        expect(fetcher).toHaveBeenCalledTimes(2);
+        expect(String(fetcher.mock.calls[1]![0])).toBe("https://api.test/api/orders");
+    });
+
     it("skips null and undefined query params", async () => {
         const fetcher = vi.fn(
             async (_input: RequestInfo | URL, _init?: RequestInit) =>

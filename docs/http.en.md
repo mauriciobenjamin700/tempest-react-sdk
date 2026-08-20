@@ -37,7 +37,8 @@ export const api = createApiClient({
 
 Options (everything except `baseURL` is optional):
 
-- `baseURL` — prefix for every request. **Required.**
+- `baseURL` — prefix for every request. **Required.** May carry a path (`https://api.example.com/api`) and may be relative (`"/api"`, resolved against the current origin). See [Base URL and prefix](#base-url-and-prefix).
+- `prefix` — path segment every request is nested under, such as `"/api"`. See [Base URL and prefix](#base-url-and-prefix).
 - `getToken()` — called per request; returning a string injects `Authorization: Bearer <token>`.
 - `onUnauthorized(response)` — fired whenever the request ends up unauthorized: a 401 with no `refresh`, a `refresh()` that rejected, or a replay that came back 401 again. Use it to log out.
 - `refresh()` — when present and the request returns 401, the client awaits `refresh()` and retries the request **once**.
@@ -76,6 +77,67 @@ Behavior:
     If `refresh()` runs but the retry still returns 401, the client gives up, calls `onUnauthorized` and throws. This avoids an infinite refresh loop when the session has truly expired.
 
     **That second 401 is the case that matters.** A `refresh()` that resolves is no proof the session is alive: the backend can hand back a token it then refuses — a revoked refresh token, a permission taken away, a race between tabs. Without `onUnauthorized` firing there, the app would sit on a store claiming "authenticated" while every request 401s, and the user would see a generic error with no way back to the login screen.
+
+!!! danger "`onUnauthorized` makes no request"
+    The client **awaits** your hook before it throws, so a `throw` in there takes the place of the original 401. The concrete case: `onUnauthorized` calls a `logout()` that does `POST /auth/logout` — with the very token the backend already refused. The logout comes back 422, that error surfaces instead of the 401, and the console shows two errors where there was one, the second unrelated to the request that failed.
+
+    The hook's job is **local**: clear the store, the storage, the cache. `POST /auth/logout` belongs to the user's explicit logout, while the token is still valid. If your logout really must hit the network here, wrap it in `try/catch` so the 401 stays the error the caller receives.
+
+## Base URL and prefix
+
+A Tempest FastAPI service almost never sits at the root of its host: it is mounted under a `root_path`, typically `/api`. You tell the client about it in either of two equivalent ways — write the path into `baseURL`, or pass `prefix`:
+
+```ts
+// both reach https://api.example.com/api/auth/login
+createApiClient({ baseURL: "https://api.example.com/api" });
+createApiClient({ baseURL: "https://api.example.com", prefix: "/api" });
+
+await api.post("/auth/login", { body: credentials });
+```
+
+!!! tip "When to prefer `prefix`"
+    When the environment variable is used by more than the HTTP client — an SSE endpoint, a media host, a link you render. Keep `VITE_API_URL` a bare origin and put the prefix on the client alone; nothing else has to know about it.
+
+The leading slash on a call-site path makes no difference — `"/auth/login"` and `"auth/login"` land in the same place:
+
+```ts
+const api = createApiClient({ baseURL: "https://api.example.com", prefix: "/api" });
+
+await api.get("/orders"); // https://api.example.com/api/orders
+await api.get("orders"); //  https://api.example.com/api/orders
+```
+
+!!! warning "This changed in v0.45.0"
+    Through v0.44.0 the client resolved paths with `new URL(path, baseURL)`. Per the URL spec a path starting with `/` is absolute **against the origin**, so it silently dropped the path the `baseURL` carried: a client on `https://api.example.com/api` asking for `"/auth/login"` hit `https://api.example.com/auth/login` and 404'd on every request, with nothing in the config that looked wrong. The only way through was writing every path without its leading slash.
+
+    If your app did that — relative paths because of the bug — nothing breaks: they still resolve identically. You can go back to writing `/auth/login` whenever you like.
+
+The prefix is applied **at most once**. A path that already opens with it passes straight through, so call sites can migrate one at a time:
+
+```ts
+const api = createApiClient({ baseURL: "https://api.example.com", prefix: "/api" });
+
+await api.get("/api/orders"); // https://api.example.com/api/orders — not /api/api
+await api.get("/api-keys"); //  https://api.example.com/api/api-keys — compared per segment
+```
+
+Two useful escape hatches:
+
+- **An absolute path wins over everything.** `api.get("https://cdn.example.com/file")` ignores `baseURL` and `prefix` — that is how you reach a second host (a signed upload, a CDN) without a second client.
+- **A relative `baseURL`** (`"/api"`) resolves against the current origin, which is the right shape behind a dev-server proxy or a reverse proxy serving app and API from one host. Outside the browser (no `location`) it throws a `TypeError` naming the config to fix, rather than a bare `Invalid base URL`.
+
+To build the same URL outside the client — an SSE `EventSource`, an `<img>` — the helper is exported:
+
+```ts
+import { buildApiUrl } from "tempest-react-sdk";
+
+const stream = new EventSource(
+  buildApiUrl(import.meta.env.VITE_API_URL, "/sse/events", {
+    prefix: "/api",
+    params: { access_token: token },
+  }),
+);
+```
 
 ## Built-in retries
 
@@ -275,6 +337,27 @@ try {
 }
 ```
 
+!!! info "FastAPI 422: `detail` is a list, not text"
+    A FastAPI validation error arrives as `detail: [{ loc, msg, type }]`. The client flattens that into one readable line — `"email: Field required; items.0.price: Input should be greater than 0"` — instead of letting `String()` turn the list into `[object Object]`, which is what used to reach the screen and the log. The `loc` prefix that only names the request part (`body`, `query`, `path`, `header`, `cookie`) is dropped, so the path you read is the field's.
+
+    The raw list stays on `error.body` — that is where you map per-field form errors from:
+
+    ```ts
+    import { isApiError } from "tempest-react-sdk";
+
+    try {
+      await api.post("/users", { body: form });
+    } catch (err) {
+      if (isApiError(err) && err.status === 422) {
+        const entries = (err.body as { detail?: { loc?: unknown[]; msg?: string }[] }).detail ?? [];
+        for (const entry of entries) {
+          const field = String(entry.loc?.at(-1) ?? "");
+          if (field) setError(field, { message: entry.msg });
+        }
+      }
+    }
+    ```
+
 ### From a typed error to the sentence on screen — `describeApiError`
 
 The `try/catch` above writes the sentence by hand, and every app writes the same funnel — getting the same step wrong: a request that **never reached** the server has `status === 0`, and without special handling it renders as "erro 0".
@@ -330,6 +413,7 @@ const { mutate } = useMutation({
 ## Recap
 
 - `createApiClient({ baseURL, getToken, onUnauthorized, refresh, ... })` creates a typed client; instantiate it once and export it.
+- `baseURL` may carry a path (`https://host/api`) or be relative (`"/api"`), and `prefix: "/api"` says the same thing while leaving the env var a bare origin. The leading slash at the call site makes no difference, and the prefix is never applied twice. `buildApiUrl` builds the same URL outside the client.
 - 401 with `refresh` → tries to renew and retries once. `onUnauthorized` fires on every unauthorized outcome — no refresh, a refresh that rejected, or a replay that came back 401.
 - `retry: true` turns on replays inside the client: idempotent methods only, network/`408`/`425`/`429`/`5xx` only. Writes never replay on their own.
 - `parseResponse(schema, raw, context)` validates the payload with zod and points at the divergent field in dev.

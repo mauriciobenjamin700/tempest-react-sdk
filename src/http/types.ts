@@ -30,8 +30,28 @@ export interface RequestOptions extends Omit<RequestInit, "body"> {
 }
 
 export interface ApiClientConfig {
-    /** Base URL for every request. Required. */
+    /**
+     * Base URL for every request. Required.
+     *
+     * May carry a path (`https://api.example.com/api`) — it is kept, and a
+     * request for `"/auth/login"` lands on `/api/auth/login`. May also be
+     * relative (`"/api"`), which resolves against the current origin and is the
+     * shape to use behind a dev-server or reverse proxy.
+     */
     baseURL: string;
+    /**
+     * Path segment every request is nested under, such as `"/api"` — the
+     * `root_path` a Tempest FastAPI service is usually mounted on.
+     *
+     * The alternative to writing it into `baseURL`, and the better one when the
+     * base comes from an environment variable that other things also use (an
+     * SSE endpoint, a media host): the variable stays the bare origin and only
+     * the client carries the prefix.
+     *
+     * Applied at most once — a path that already opens with the prefix is left
+     * alone, so call sites can migrate one at a time.
+     */
+    prefix?: string;
     /** Returns the current bearer token (or null/undefined). Called per request. */
     getToken?: () => string | null | undefined;
     /**

@@ -71,7 +71,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ createApiClient, parseResponse, uploadWithProgress, retry, usePoll }"
     },
-    "limit": "3 KB",
+    "limit": "3.1 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -181,7 +181,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ createResumableUpload, createLocalUploadStorage, uploadFingerprint }"
     },
-    "limit": "2.9 KB",
+    "limit": "3 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -225,7 +225,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ DataTable }"
     },
-    "limit": "5.6 KB",
+    "limit": "5.7 KB",
     "ignore": [
       "react",
       "react-dom",

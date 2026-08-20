@@ -1,4 +1,12 @@
 /**
+ * Internal, and imported by path (`../utils/dev-mode`) rather than through the
+ * `utils` barrel: re-exporting it would make a one-line env read part of the
+ * package's public API, with the semver weight that carries, for something no
+ * consumer asked for. The three call sites are `<Icon>`, `useStickyBodyWarning`
+ * and the `DataTable` dev warnings.
+ */
+
+/**
  * Whether the consuming app was built for development.
  *
  * Reads `process.env.NODE_ENV`, which every supported bundler (Vite, webpack,

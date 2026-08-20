@@ -1,6 +1,5 @@
 export { cn } from "./cn";
 export { compareValues } from "./compare-values";
-export { isDevBuild } from "./dev-mode";
 export {
     formatCurrency,
     formatDate,

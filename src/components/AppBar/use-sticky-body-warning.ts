@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-import { isDevBuild } from "../../utils";
+import { isDevBuild } from "../../utils/dev-mode";
 
 /**
  * The one line of the app's own CSS that silently defeats `sticky`.

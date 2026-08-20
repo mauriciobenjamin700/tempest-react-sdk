@@ -34,6 +34,23 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`error.fields` no envelope de erro** — as entradas de um `422` indexadas pelo
+  caminho do campo (`{ email: "Field required", "items.0.price": "Input should be
+greater than 0" }`), que é a forma que um formulário consome. Antes o caminho
+  era varrer `error.body` atrás de um cast, ou seja, parsear de volta a linha que
+  o próprio SDK acabou de montar. Campo repetido mantém a primeira mensagem —
+  input mostra um erro por vez. `TempestApiError` carrega o campo também.
+
+- **`describeApiError` deixou de mostrar o `detail` de um 422.** Com `fields`
+  preenchido ele devolve a frase de validação (default
+  "Confira os campos destacados e tente de novo.", chave i18n
+  `tempest.error.validation`, override por `strings.validation`). O `detail`
+  achatado carrega caminho de campo e a redação do validador —
+  `"items.0.price: Input should be greater than 0"` numa tela em pt-BR é meia
+  frase em inglês nomeando estrutura interna. Ele continua ali para log; o que
+  chega ao usuário agora é frase, e as mensagens por campo vão para os inputs.
+  Novo export `API_ERROR_VALIDATION_KEY`.
+
 - **`scripts/check-dist-guards.mjs`, rodando como `postbuild`** — o guard que
   faltava na correção da #164. Duas invariantes verificadas **no artefato**,
   onde essa classe de bug é a única visível (no fonte a forma errada é idêntica
@@ -43,6 +60,25 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   motivo escrito (`consoleSink`, adapter de telemetria, os dois avisos
   vendorizados do ort-vision-sdk). Ambos os ramos foram testados falhando contra
   a forma exata do defeito antes de entrar.
+
+### Alterado
+
+- **Três budgets do `size-limit` subiram**, porque o custo é o `fields` + a frase
+  de validação: `http client` 3 → 3,1 KB (medido 3,01), `resumable upload`
+  2,9 → 3 KB (2,92) e `DataTable` 5,6 → 5,7 KB (5,62). O terceiro não vem do
+  `fields`: sair do barrel para o import por caminho do `dev-mode` (abaixo)
+  custou 24 B naquela fatia, porque pelo barrel o Rollup dobrava a referência.
+
+### Removido
+
+- **`isDevBuild` saiu da API pública** (entrou na v0.47.0, sai na próxima —
+  janela de um release). Continua funcionando: virou módulo interno, importado
+  por caminho (`../utils/dev-mode`) pelos três call sites que precisam dele
+  (`<Icon>`, `useStickyBodyWarning`, avisos de dev do `DataTable`). Re-exportar
+  uma leitura de env var de uma linha punha peso de semver numa conveniência que
+  nenhum consumidor pediu. Quem precisa do mesmo comportamento no app escreve
+  `process.env.NODE_ENV !== "production"` direto — no build do app essa
+  expressão é substituída, que é justamente o que a lib não conseguia fazer.
 
 ### Interno
 

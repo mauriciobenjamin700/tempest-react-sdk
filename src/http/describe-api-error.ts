@@ -5,10 +5,17 @@
 
 import { isApiError } from "./errors";
 
-/** The two fixed sentences {@link describeApiError} may need. */
+/** The fixed sentences {@link describeApiError} may need. */
 export interface ApiErrorStrings {
     /** Shown when the request never reached the server. */
     offline: string;
+    /**
+     * Shown when the backend rejected the payload field by field.
+     *
+     * The per-field messages are on `error.fields`, to be attached to the inputs
+     * themselves; this sentence is what the toast says.
+     */
+    validation: string;
 }
 
 /**
@@ -20,6 +27,7 @@ export interface ApiErrorStrings {
  */
 export const DEFAULT_API_ERROR_STRINGS: ApiErrorStrings = {
     offline: "Sem conexão com o servidor. Verifique sua internet e tente de novo.",
+    validation: "Confira os campos destacados e tente de novo.",
 };
 
 /**
@@ -31,6 +39,12 @@ export const DEFAULT_API_ERROR_STRINGS: ApiErrorStrings = {
  * than printing pt-BR at them.
  */
 export const API_ERROR_OFFLINE_KEY = "tempest.error.offline";
+
+/**
+ * Translation key for the validation sentence, looked up the same way as
+ * {@link API_ERROR_OFFLINE_KEY}.
+ */
+export const API_ERROR_VALIDATION_KEY = "tempest.error.validation";
 
 /**
  * Detail text `buildApiError` synthesises when the response body carries none.
@@ -69,9 +83,16 @@ function browserIsOffline(): boolean {
  *    error thrown while the browser reports itself offline — produces the
  *    offline sentence. This is the step apps skip, and skipping it renders
  *    "erro 0" or a raw `TypeError` at the user.
- * 2. The backend's own `detail`, which is the most specific thing available and
+ * 2. A validation rejection — `error.fields` is set — produces the validation
+ *    sentence, **not** `detail`. On a `422` the `detail` line is assembled from
+ *    the backend's field paths and the validator's own wording
+ *    (`"items.0.price: Input should be greater than 0"`), which is right for a
+ *    log and wrong for a person: it is half English in a pt-BR screen and it
+ *    names internals. The per-field messages stay on `fields`, where a form can
+ *    attach them to the inputs that failed.
+ * 3. The backend's own `detail`, which is the most specific thing available and
  *    is already written for a person.
- * 3. `fallback`, with `(HTTP <status>)` appended when a status is known, so the
+ * 4. `fallback`, with `(HTTP <status>)` appended when a status is known, so the
  *    screenshot in the support ticket carries the one fact a developer needs.
  *
  * Pure on purpose: it works in an interceptor, in a logger and anywhere outside
@@ -97,6 +118,9 @@ export function describeApiError(
 
     if (isApiError(error)) {
         if (error.status === 0) return offline;
+        if (error.fields && Object.keys(error.fields).length > 0) {
+            return strings?.validation ?? DEFAULT_API_ERROR_STRINGS.validation;
+        }
         const detail = error.detail.trim();
         if (detail !== "" && detail !== syntheticDetail(error.status)) return detail;
         return `${fallback} (HTTP ${error.status})`;

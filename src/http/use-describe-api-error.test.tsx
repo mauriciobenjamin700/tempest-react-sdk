@@ -9,6 +9,12 @@ import { useDescribeApiError } from "./use-describe-api-error";
 
 const OFFLINE = new TempestApiError({ status: 0, detail: "Network request failed" });
 
+const VALIDATION = new TempestApiError({
+    status: 422,
+    detail: "email: Field required",
+    fields: { email: "Field required" },
+});
+
 const withCatalog =
     (messages: Record<string, Record<string, string>>, locale = "en") =>
     ({ children }: { children: ReactNode }) => (
@@ -21,6 +27,22 @@ describe("useDescribeApiError", () => {
     it("works with no provider at all, since i18n is opt-in", () => {
         const { result } = renderHook(() => useDescribeApiError());
         expect(result.current(OFFLINE, "fallback")).toBe(DEFAULT_API_ERROR_STRINGS.offline);
+    });
+
+    it("translates the validation sentence through the catalog", () => {
+        const { result } = renderHook(() => useDescribeApiError(), {
+            wrapper: withCatalog({
+                en: { "tempest.error.validation": "Check the highlighted fields." },
+            }),
+        });
+        expect(result.current(VALIDATION, "fallback")).toBe("Check the highlighted fields.");
+    });
+
+    it("falls back to pt-BR when the catalog never defined the validation key", () => {
+        const { result } = renderHook(() => useDescribeApiError(), {
+            wrapper: withCatalog({ en: { "some.other.key": "nope" } }),
+        });
+        expect(result.current(VALIDATION, "fallback")).toBe(DEFAULT_API_ERROR_STRINGS.validation);
     });
 
     it("uses the catalog sentence when the key is defined", () => {

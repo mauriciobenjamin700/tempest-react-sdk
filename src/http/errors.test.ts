@@ -42,6 +42,47 @@ describe("buildApiError — Tempest envelope", () => {
         expect(err.detail).not.toContain("[object Object]");
     });
 
+    it("indexes the validation entries on fields, keyed by the field path", () => {
+        const err = buildApiError(422, {
+            detail: [
+                { type: "missing", loc: ["body", "email"], msg: "Field required" },
+                {
+                    type: "greater_than",
+                    loc: ["body", "items", 0, "price"],
+                    msg: "Input should be greater than 0",
+                },
+            ],
+        });
+        expect(err.fields).toEqual({
+            email: "Field required",
+            "items.0.price": "Input should be greater than 0",
+        });
+    });
+
+    it("keeps the first message when a field fails twice", () => {
+        const err = buildApiError(422, {
+            detail: [
+                { loc: ["body", "email"], msg: "primeira" },
+                { loc: ["body", "email"], msg: "segunda" },
+            ],
+        });
+        expect(err.fields).toEqual({ email: "primeira" });
+    });
+
+    it("leaves fields undefined when the body is not a validation list", () => {
+        expect(buildApiError(409, { detail: "Email já cadastrado" }).fields).toBeUndefined();
+        expect(buildApiError(422, { detail: [{ msg: "sem loc" }] }).fields).toBeUndefined();
+        expect(buildApiError(422, { detail: [{ loc: ["body", "email"] }] }).fields).toBeUndefined();
+    });
+
+    it("carries fields onto the thrown TempestApiError", () => {
+        const err = new TempestApiError(
+            buildApiError(422, { detail: [{ loc: ["body", "email"], msg: "Field required" }] }),
+        );
+        expect(err.fields).toEqual({ email: "Field required" });
+        expect(err).toBeInstanceOf(Error);
+    });
+
     it("keeps the raw validation list on body for field-level mapping", () => {
         const detail = [{ loc: ["body", "email"], msg: "Field required", type: "missing" }];
         expect(buildApiError(422, { detail }).body).toEqual({ detail });

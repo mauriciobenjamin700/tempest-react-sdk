@@ -133,7 +133,7 @@ export function NavExtraSection() {
             <Example
                 title="Sidebar"
                 id="ex-sidebar"
-                note="Navegação lateral de desktop com item ativo controlado e modo colapsado (só ícones)."
+                note="Navegação lateral de desktop com seções nomeadas, separador, item ativo controlado e modo colapsado (só ícones)."
                 code={`const [tab, setTab] = useState("dashboard");
 const [collapsed, setCollapsed] = useState(false);
 
@@ -141,9 +141,14 @@ const [collapsed, setCollapsed] = useState(false);
     collapsed={collapsed}
     header={<strong>Tempest</strong>}
     items={[
+        { type: "section", key: "s-monitor", label: "Monitoramento" },
         { key: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
-        { key: "users", label: "Usuários", icon: <Users size={18} />, badge: 12 },
         { key: "reports", label: "Relatórios", icon: <BarChart3 size={18} /> },
+
+        { type: "section", key: "s-people", label: "Gestão de Usuários" },
+        { key: "users", label: "Usuários", icon: <Users size={18} />, badge: 12 },
+
+        { type: "separator", key: "sep" },
         { key: "settings", label: "Ajustes", icon: <Settings size={18} /> },
     ]}
     value={tab}
@@ -152,9 +157,9 @@ const [collapsed, setCollapsed] = useState(false);
                 props={[
                     {
                         name: "items",
-                        type: "SidebarItem[]",
+                        type: "SidebarEntry[]",
                         description:
-                            "Itens de navegação (key, label, icon?, badge?, disabled?, href?).",
+                            'Itens (key, label, icon?, badge?, disabled?, href?), seções ({ type: "section", key, label }) e separadores ({ type: "separator", key }). Item sem type continua valendo.',
                     },
                     { name: "value", type: "string", description: "Key do item ativo." },
                     {
@@ -218,10 +223,21 @@ const [collapsed, setCollapsed] = useState(false);
                             collapsed={collapsed}
                             header={!collapsed ? <strong>Tempest</strong> : undefined}
                             items={[
+                                { type: "section", key: "s-monitor", label: "Monitoramento" },
                                 {
                                     key: "dashboard",
                                     label: "Dashboard",
                                     icon: <LayoutDashboard size={18} />,
+                                },
+                                {
+                                    key: "reports",
+                                    label: "Relatórios",
+                                    icon: <BarChart3 size={18} />,
+                                },
+                                {
+                                    type: "section",
+                                    key: "s-people",
+                                    label: "Gestão de Usuários",
                                 },
                                 {
                                     key: "users",
@@ -229,11 +245,7 @@ const [collapsed, setCollapsed] = useState(false);
                                     icon: <Users size={18} />,
                                     badge: 12,
                                 },
-                                {
-                                    key: "reports",
-                                    label: "Relatórios",
-                                    icon: <BarChart3 size={18} />,
-                                },
+                                { type: "separator", key: "sep" },
                                 {
                                     key: "settings",
                                     label: "Ajustes",

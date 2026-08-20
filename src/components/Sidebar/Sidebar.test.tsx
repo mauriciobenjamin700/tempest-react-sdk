@@ -93,3 +93,116 @@ describe("Sidebar — widths, icons, badges and disabled items", () => {
         expect((container.firstChild as HTMLElement).style.width).toBe("10px");
     });
 });
+
+describe("Sidebar — sections and separators", () => {
+    const grouped = [
+        { type: "section" as const, key: "monitoring", label: "Monitoramento" },
+        { key: "overview", label: "Visão Geral" },
+        { key: "activity", label: "Atividade" },
+        { type: "section" as const, key: "admin", label: "Administração" },
+        { key: "settings", label: "Configurações" },
+    ];
+
+    it("keeps a plain item list working, with no group wrapper needed", () => {
+        render(<Sidebar items={items} />);
+        expect(screen.queryAllByRole("group")).toHaveLength(0);
+        expect(screen.getByText("Home")).toBeInTheDocument();
+    });
+
+    it("names each group with its section label", () => {
+        render(<Sidebar items={grouped} />);
+        const groups = screen.getAllByRole("group");
+        expect(groups).toHaveLength(2);
+        expect(groups[0]).toHaveAccessibleName("Monitoramento");
+        expect(groups[1]).toHaveAccessibleName("Administração");
+    });
+
+    it("puts each item inside the group its section opened", () => {
+        render(<Sidebar items={grouped} />);
+        const [monitoring, administration] = screen.getAllByRole("group");
+        expect(monitoring).toContainElement(screen.getByText("Atividade"));
+        expect(administration).toContainElement(screen.getByText("Configurações"));
+        expect(monitoring).not.toContainElement(screen.getByText("Configurações"));
+    });
+
+    it("keeps items clickable inside a group", async () => {
+        const onChange = vi.fn();
+        render(<Sidebar items={grouped} onChange={onChange} />);
+        await userEvent.click(screen.getByText("Configurações"));
+        expect(onChange).toHaveBeenCalledWith("settings");
+    });
+
+    it("leaves items before the first section outside any group", () => {
+        render(<Sidebar items={[{ key: "home", label: "Home" }, ...grouped]} />);
+        for (const group of screen.getAllByRole("group")) {
+            expect(group).not.toContainElement(screen.getByText("Home"));
+        }
+    });
+
+    it("keeps the group named when collapsed, with the label out of sight", () => {
+        render(<Sidebar items={grouped} collapsed />);
+        const groups = screen.getAllByRole("group");
+        expect(groups[0]).toHaveAccessibleName("Monitoramento");
+        expect(screen.getByText("Monitoramento").className).toContain("sectionCollapsed");
+    });
+
+    it("renders a separator that no user can focus", async () => {
+        render(
+            <Sidebar
+                items={[
+                    { key: "home", label: "Home" },
+                    { type: "separator", key: "div" },
+                    { key: "settings", label: "Settings" },
+                ]}
+            />,
+        );
+        const separator = screen.getByRole("separator");
+        expect(separator.tagName).toBe("HR");
+        await userEvent.tab();
+        await userEvent.tab();
+        expect(document.activeElement).toBe(screen.getByText("Settings").closest("button"));
+    });
+
+    it("closes the open section, so items after a separator are loose again", () => {
+        render(
+            <Sidebar
+                items={[
+                    { type: "section", key: "monitoring", label: "Monitoramento" },
+                    { key: "overview", label: "Visão Geral" },
+                    { type: "separator", key: "div" },
+                    { key: "logout", label: "Sair" },
+                ]}
+            />,
+        );
+        const [group] = screen.getAllByRole("group");
+        expect(group).not.toContainElement(screen.getByText("Sair"));
+    });
+});
+
+describe("Sidebar — href", () => {
+    it("renders an anchor when the item carries an href", () => {
+        render(<Sidebar items={[{ key: "docs", label: "Docs", href: "/docs" }]} />);
+        const link = screen.getByRole("link", { name: "Docs" });
+        expect(link).toHaveAttribute("href", "/docs");
+    });
+
+    it("still reports the selection through onChange", async () => {
+        const onChange = vi.fn();
+        render(
+            <Sidebar items={[{ key: "docs", label: "Docs", href: "/docs" }]} onChange={onChange} />,
+        );
+        await userEvent.click(screen.getByRole("link", { name: "Docs" }));
+        expect(onChange).toHaveBeenCalledWith("docs");
+    });
+
+    it("marks the active link with aria-current=page", () => {
+        render(<Sidebar items={[{ key: "docs", label: "Docs", href: "/docs" }]} value="docs" />);
+        expect(screen.getByRole("link", { name: "Docs" })).toHaveAttribute("aria-current", "page");
+    });
+
+    it("stays a disabled button when the item is disabled", () => {
+        render(<Sidebar items={[{ key: "docs", label: "Docs", href: "/docs", disabled: true }]} />);
+        expect(screen.queryByRole("link")).toBeNull();
+        expect(screen.getByRole("button", { name: "Docs" })).toBeDisabled();
+    });
+});

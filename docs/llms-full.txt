@@ -7402,7 +7402,8 @@ Layout em grade: slot **leading** (botão voltar + marca) · **título** (`<h1>`
 
 ## `Sidebar`
 
-Side nav desktop. `items: SidebarItem[]`, slots `header`/`footer`, modo `collapsed` (apenas ícones).
+Side nav desktop. `items: SidebarEntry[]` (itens, seções e separadores), slots
+`header`/`footer`, modo `collapsed` (apenas ícones).
 
 ```tsx
 const [tab, setTab] = useState("home");
@@ -7427,7 +7428,7 @@ const [collapsed, setCollapsed] = useState(false);
 | Prop             | Tipo                           | Default |
 | ---------------- | ------------------------------ | ------- |
 | `header`         | `ReactNode`                    | —       |
-| `items`          | `SidebarItem[]`                | —       |
+| `items`          | `SidebarEntry[]`               | —       |
 | `value`          | `string`                       | —       |
 | `onChange`       | `(key: string) => void`        | —       |
 | `footer`         | `ReactNode`                    | —       |
@@ -7435,7 +7436,105 @@ const [collapsed, setCollapsed] = useState(false);
 | `width`          | `number \| string` (px ou CSS) | `240`   |
 | `collapsedWidth` | `number \| string`             | `64`    |
 
-Tipo `SidebarItem = { key, label, icon?, badge?, disabled?, href? }`.
+```ts
+type SidebarItem = { key, label, icon?, badge?, disabled?, href? };
+
+type SidebarEntry =
+  | ({ type?: "item" } & SidebarItem)
+  | { type: "section"; key: string; label: ReactNode }
+  | { type: "separator"; key: string };
+```
+
+`type` é opcional no ramo do item, então **um `SidebarItem[]` continua sendo um
+`SidebarEntry[]` válido** — nenhum call site existente muda uma linha.
+
+### Agrupando em seções
+
+Lista corrida funciona até uns 8 itens. Acima disso vira parede: 16 telas sem
+rótulo deixam "Diagnósticos" visualmente colado em "Campanhas", e o admin perde a
+âncora que dizia em que parte do painel ele está.
+
+Uma seção abre um grupo, e os itens seguintes pertencem a ele **até a próxima
+seção ou separador**:
+
+```tsx
+import { useState } from "react";
+import { Sidebar } from "tempest-react-sdk";
+import { Activity, BarChart3, FileText, Settings, Users } from "lucide-react";
+
+function AdminNav() {
+  const [tab, setTab] = useState("overview");
+
+  return (
+    <Sidebar
+      items={[
+        { type: "section", key: "monitoring", label: "Monitoramento" },
+        { key: "overview", label: "Visão Geral", icon: <BarChart3 /> },
+        { key: "activity", label: "Atividade", icon: <Activity /> },
+        { key: "reports", label: "Relatórios", icon: <FileText /> },
+
+        { type: "section", key: "users", label: "Gestão de Usuários" },
+        { key: "users", label: "Usuários", icon: <Users /> },
+
+        { type: "separator", key: "before-admin" },
+        { key: "settings", label: "Configurações", icon: <Settings /> },
+      ]}
+      value={tab}
+      onChange={setTab}
+    />
+  );
+}
+```
+
+O que sai no HTML:
+
+```html
+<nav aria-label="Navegação lateral">
+  <div role="group" aria-labelledby="…-monitoring">
+    <div id="…-monitoring" role="presentation">Monitoramento</div>
+    <!-- Visão Geral, Atividade, Relatórios -->
+  </div>
+  <div role="group" aria-labelledby="…-users">…</div>
+  <hr />
+  <div><!-- Configurações, solto --></div>
+</nav>
+```
+
+!!! info "Por que `role="group"` e não um item estilizado"
+    Usar `disabled: true` como rótulo renderiza `<button disabled>`: passa
+    visualmente com CSS, mas o leitor de tela anuncia **"botão indisponível"** no
+    lugar de um cabeçalho, e a entrada continua na árvore de navegação. Com
+    `role="group"` + `aria-labelledby`, o anúncio é "Monitoramento, grupo, 3
+    itens" — sem inventar um botão que não existe.
+
+!!! tip "Itens antes da primeira seção ficam soltos"
+    É o comportamento de sempre. Quem não usa seção nenhuma não vê `role="group"`
+    no HTML — a lista sai exatamente como saía antes.
+
+!!! warning "No modo `collapsed` o rótulo sai de vista, não da árvore"
+    64px não cabe "Gestão de Usuários", então o rótulo vira `clip-path: inset(50%)`
+    e o grupo ganha uma linha divisória no topo. O `aria-labelledby` **continua**
+    apontando pra ele, para o leitor de tela não perder a estrutura quando o admin
+    recolhe a coluna.
+
+### Item que é link
+
+`href` renderiza um `<a>` em vez de `<button>`, e `onChange` continua disparando
+no clique:
+
+```tsx
+<Sidebar
+  items={[{ key: "overview", label: "Visão Geral", href: "/overview" }]}
+  value={tab}
+  onChange={setTab}
+/>
+```
+
+Com isso o middle-click abre em outra aba, o ctrl-click funciona, "copiar endereço
+do link" aparece no menu de contexto, e o leitor de tela anuncia link em vez de
+botão. Item `disabled` ignora o `href` e continua `<button disabled>`: âncora não
+tem estado desabilitado, e tirar o `href` pra simular um deixaria um link que se
+anuncia acionável e não é.
 
 **Mobile**: esconda com `<Show above="md">` e exponha via `<Drawer>` no menu hambúrguer.
 

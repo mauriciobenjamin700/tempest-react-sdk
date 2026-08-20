@@ -188,7 +188,13 @@ export { Select } from "./Select";
 export type { SelectOption, SelectProps } from "./Select";
 
 export { Sidebar } from "./Sidebar";
-export type { SidebarItem, SidebarProps } from "./Sidebar";
+export type {
+    SidebarEntry,
+    SidebarItem,
+    SidebarProps,
+    SidebarSection,
+    SidebarSeparator,
+} from "./Sidebar";
 
 export { Skeleton } from "./Skeleton";
 export type { SkeletonProps } from "./Skeleton";

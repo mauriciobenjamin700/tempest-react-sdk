@@ -45,6 +45,43 @@ export function resolveIconAlias(slug: string): string {
 }
 
 /**
+ * Make icon components resolvable by slug, with no provider and no plugin.
+ *
+ * Call it once from an entrypoint. The icons land in the same table a fetched
+ * shard fills, so every `<Icon>` below — including one that renders before the
+ * call, since registering notifies subscribers — resolves them synchronously and
+ * never issues a request.
+ *
+ * This is the whole setup for a closed catalog: an admin panel with twenty known
+ * icons pays two lines instead of a build plugin plus a provider. `IconProvider`
+ * stays for what is genuinely tree-scoped — the `size`/`strokeWidth` defaults and
+ * a registry that must override the global one for one subtree.
+ *
+ * A slug lucide does not ship is registered as-is, which is how an app adds its
+ * own artwork to the same `<Icon name>` call site.
+ *
+ * @example
+ * import { registerIcons } from "tempest-react-sdk/icons";
+ * import { Save, Trash2 } from "lucide-react";
+ *
+ * registerIcons({ save: Save, "trash-2": Trash2 });
+ *
+ * @param icons - Slug → icon component. Deprecated slugs are stored under the
+ *   canonical name, so both spellings resolve.
+ */
+export function registerIcons(icons: Readonly<Record<string, LucideIcon>>): void {
+    let changed = false;
+    for (const [slug, icon] of Object.entries(icons)) {
+        const canonical = resolveIconAlias(slug);
+        if (resolved.get(canonical) === icon) continue;
+        resolved.set(canonical, icon);
+        changed = true;
+    }
+    if (!changed) return;
+    for (const listener of listeners) listener();
+}
+
+/**
  * Read an icon out of the cache without triggering a fetch.
  *
  * @param slug - Any icon slug, canonical or deprecated.

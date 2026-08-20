@@ -7,9 +7,19 @@ import { iconNames } from "@/icons/generated/icon-names";
 import type { TempestVitePlugin } from "./tempest-pwa-manifest";
 
 /** The module id an app imports to get its static registry. */
-export const TEMPEST_ICONS_ID = "virtual:tempest-icons";
+export const TEMPEST_ICONS_ID = "tempest-react-sdk/icons/virtual";
 
-const RESOLVED_ID = `\0${TEMPEST_ICONS_ID}`;
+/**
+ * The original virtual id, still honoured.
+ *
+ * Published as the documented import before the subpath existed, so apps have it
+ * written in their entrypoints. It resolves to the same generated module — but it
+ * only ever resolves *with the plugin*, which is the reason the subpath above
+ * replaced it: that one also resolves without it, to an empty stub.
+ */
+export const TEMPEST_ICONS_VIRTUAL_ID = "virtual:tempest-icons";
+
+const RESOLVED_ID = `\0${TEMPEST_ICONS_VIRTUAL_ID}`;
 
 /**
  * Slugs written as a literal `name` prop or a literal `name:` field.
@@ -169,7 +179,7 @@ async function collectSourceFiles(dir: string, skip: ReadonlySet<string>): Promi
  * @example
  * // src/main.tsx
  * import { IconProvider } from "tempest-react-sdk/icons";
- * import { staticIcons } from "virtual:tempest-icons";
+ * import { staticIcons } from "tempest-react-sdk/icons/virtual";
  *
  * <IconProvider registry={staticIcons}>
  *     <App />
@@ -215,8 +225,15 @@ export function tempestIcons(options: TempestIconsOptions = {}): TempestVitePlug
             await rescan();
         },
 
+        /**
+         * Claim both spellings of the registry module.
+         *
+         * The subpath is a real file in the installed package, so returning the
+         * virtual id here is what overrides the empty stub with the generated
+         * table. Letting Vite resolve it normally would silently ship the stub.
+         */
         resolveId(id: string) {
-            return id === TEMPEST_ICONS_ID ? RESOLVED_ID : null;
+            return id === TEMPEST_ICONS_ID || id === TEMPEST_ICONS_VIRTUAL_ID ? RESOLVED_ID : null;
         },
 
         load(id: string) {

@@ -4,7 +4,14 @@ export { IconProvider } from "./IconProvider";
 export type { IconProviderProps } from "./IconProvider";
 export { createIconRegistry } from "./icon-context";
 export type { IconRegistry } from "./icon-context";
-export { iconStatus, loadIcon, peekIcon, preloadIcons, resolveIconAlias } from "./shard-cache";
+export {
+    iconStatus,
+    loadIcon,
+    peekIcon,
+    preloadIcons,
+    registerIcons,
+    resolveIconAlias,
+} from "./shard-cache";
 export { useIcon } from "./use-icon";
 export { isIconName } from "./is-icon-name";
 export { fromMaterialSymbol, materialToLucide, MATERIAL_SYMBOL_FALLBACK } from "./material-symbols";

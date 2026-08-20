@@ -613,6 +613,38 @@ Material Symbols and has nothing to do with construction.
 | `iconAliases`        | The 257 alias → canonical pairs                                           |
 | `IconName`           | Type union of every slug (types only, zero cost)                          |
 
+### What each import costs
+
+Measured with `esbuild --bundle --minify` plus brotli, `react` and `lucide-react`
+external — that is, what the **SDK** adds to your bundle:
+
+| You import             | Brotli   | Pulls the 2024-slug list? |
+| ---------------------- | -------- | ------------------------- |
+| `{ Icon }`             | ~2.5 KB  | **No**                    |
+| `{ resolveIconAlias }` | 2.06 KB  | No                        |
+| `{ normalizeIconName }`| 2.09 KB  | No                        |
+| `{ isIconName }`       | 7.20 KB  | Yes (it is what it reads) |
+| `{ iconNames }`        | 7.17 KB  | Yes                       |
+
+!!! info "There is no `/icons/catalog` subpath — and none is needed"
+    Runtime and catalogue are **already** separate, by tree-shaking: no module on
+    the `<Icon>` path imports the list, so a bundler simply leaves it out. A
+    separate subpath would move the same code somewhere else, break the import for
+    everyone using `iconNames` today, and save **zero bytes**.
+
+    What went in instead is a **guard**: `postbuild`
+    (`scripts/check-dist-guards.mjs`) walks the static import graph of `dist` from
+    `Icon.js` and fails the build if the list turns up there. With
+    `preserveModules`, a module's static imports **are** its real dependencies, so
+    that is an exact answer rather than an estimate. One convenience
+    `import { iconNames }` inside `use-icon` would cost ~6 KB to every app that
+    renders a single icon, and nothing in the source would look wrong.
+
+    What **is** eager on the `<Icon>` path is the 257-alias table (~2 KB): it has to
+    resolve **before** a shard is chosen, so deferring it would mean a second
+    network round trip for every old slug. 2 KB is the price of an `icon_code`
+    stored two years ago still rendering.
+
 ### Measured costs
 
 | What                                             | Brotli    |

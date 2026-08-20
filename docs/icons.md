@@ -609,6 +609,38 @@ construção.
 | `iconAliases`        | Os 257 pares alias → canônico                                          |
 | `IconName`           | União de tipo com todos os slugs (só tipo, custo zero)                  |
 
+### O que cada import custa
+
+Medido com `esbuild --bundle --minify` + brotli, `react` e `lucide-react` externos —
+ou seja, o que o **SDK** adiciona ao seu bundle:
+
+| Você importa           | Brotli   | Puxa a lista de 2024 slugs? |
+| ---------------------- | -------- | --------------------------- |
+| `{ Icon }`             | ~2,5 KB  | **Não**                     |
+| `{ resolveIconAlias }` | 2,06 KB  | Não                         |
+| `{ normalizeIconName }`| 2,09 KB  | Não                         |
+| `{ isIconName }`       | 7,20 KB  | Sim (é o que ela consulta)  |
+| `{ iconNames }`        | 7,17 KB  | Sim                         |
+
+!!! info "Não existe subpath `/icons/catalog` — e não precisa"
+    A separação entre runtime e catálogo **já acontece**, por tree-shaking: nenhum
+    módulo do caminho do `<Icon>` importa a lista, então o bundler simplesmente não
+    a inclui. Um subpath separado moveria o mesmo código de lugar, quebraria o
+    import de quem usa `iconNames` hoje e economizaria **zero byte**.
+
+    O que ficou no lugar disso é um **guard**: o `postbuild`
+    (`scripts/check-dist-guards.mjs`) percorre o grafo de imports estáticos do
+    `dist` a partir do `Icon.js` e falha o build se a lista aparecer ali. Com
+    `preserveModules`, os imports estáticos de um módulo **são** as dependências
+    reais dele, então isso é uma resposta exata, não uma estimativa. Um
+    `import { iconNames }` de conveniência dentro do `use-icon` custaria ~6 KB a
+    todo app que renderiza um ícone, e nada no source pareceria errado.
+
+    O que **é** eager no caminho do `<Icon>` é a tabela de 257 aliases (~2 KB): ela
+    tem que resolver **antes** de escolher o shard, então não dá pra adiar sem uma
+    segunda ida à rede para todo slug antigo. 2 KB é o preço de um `icon_code`
+    gravado há dois anos continuar renderizando.
+
 ### Custos medidos
 
 | O que                                            | Brotli    |

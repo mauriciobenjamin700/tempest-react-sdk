@@ -6,6 +6,18 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Alterado
 
+- **O `postbuild` passou a garantir que o `<Icon>` não alcance a lista de 2024
+  slugs.** `scripts/check-dist-guards.mjs` percorre o grafo de imports estáticos do
+  `dist` a partir do `Icon.js` e falha o build se `generated/icon-names.js`
+  aparecer — com `preserveModules`, os imports estáticos de um módulo **são** as
+  dependências reais dele, então a resposta é exata. A separação entre runtime e
+  catálogo já acontecia por tree-shaking (medido: `{ Icon }` ~2,5 KB brotli sem a
+  lista; `{ isIconName }` 7,20 KB com ela), mas era propriedade acidental: um
+  `import { iconNames }` de conveniência dentro do `use-icon` custaria ~6 KB a todo
+  app que renderiza um ícone, e nada no source pareceria errado. O guard checa
+  também que o `is-icon-name.js` **continua** alcançando a lista, para a primeira
+  checagem não passar a provar nada se o arquivo mudar de lugar.
+
 - **Shard de ícone deixou de ser particionado por letra inicial.** Os nomes do
   lucide são fortemente enviesados — `c` tem 284 slugs, `q` tem 4 — então a
   inicial era a pior chave possível: desenhar **um** ícone de categoria começando

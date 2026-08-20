@@ -1,12 +1,24 @@
 export { Icon } from "./Icon";
 export type { IconProps } from "./Icon";
+export { DEFAULT_ICON_PICKER_MESSAGE, IconPicker, validateIconName } from "./IconPicker";
+export type { IconPickerProps } from "./IconPicker";
 export { IconProvider } from "./IconProvider";
 export type { IconProviderProps } from "./IconProvider";
 export { createIconRegistry } from "./icon-context";
 export type { IconRegistry } from "./icon-context";
-export { iconStatus, loadIcon, peekIcon, preloadIcons, resolveIconAlias } from "./shard-cache";
+export { resolveIconAlias } from "./alias";
+export {
+    iconStatus,
+    loadIcon,
+    peekIcon,
+    preloadIcons,
+    registerIcons,
+    subscribeToIconErrors,
+} from "./shard-cache";
+export type { IconLoadError } from "./shard-cache";
 export { useIcon } from "./use-icon";
 export { isIconName } from "./is-icon-name";
+export { normalizeIconName } from "./normalize-icon-name";
 export { fromMaterialSymbol, materialToLucide, MATERIAL_SYMBOL_FALLBACK } from "./material-symbols";
 export { iconAliases } from "./generated/aliases";
 export { iconNames } from "./generated/icon-names";

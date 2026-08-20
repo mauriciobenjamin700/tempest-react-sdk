@@ -4,7 +4,61 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Alterado
+
+- **`resolveIconAlias` saiu do `shard-cache` para o módulo próprio
+  `src/icons/alias.ts`.** Tudo que só **nomeia** um ícone — `normalizeIconName`,
+  `validateIconName`, um formulário conferindo valor antes de submeter — passava
+  pelo `shard-cache`, e com isso dependia estaticamente do índice dos 45 shards que
+  existem para _renderizar_. O `dist` confirma a limpeza:
+  `normalize-icon-name.js` alcança 3 módulos e nenhum é o `loaders.js` (antes ia
+  até ele). **Não economizou byte** — o esbuild já podava — mas a aresta falsa
+  deixou de existir, e o `postbuild` agora falha se ela voltar. `resolveIconAlias`
+  continua exportado do mesmo lugar (`tempest-react-sdk/icons`).
+
+- **O `postbuild` passou a garantir que o `<Icon>` não alcance a lista de 2024
+  slugs.** `scripts/check-dist-guards.mjs` percorre o grafo de imports estáticos do
+  `dist` a partir do `Icon.js` e falha o build se `generated/icon-names.js`
+  aparecer — com `preserveModules`, os imports estáticos de um módulo **são** as
+  dependências reais dele, então a resposta é exata. A separação entre runtime e
+  catálogo já acontecia por tree-shaking (medido: `{ Icon }` ~2,5 KB brotli sem a
+  lista; `{ isIconName }` 7,20 KB com ela), mas era propriedade acidental: um
+  `import { iconNames }` de conveniência dentro do `use-icon` custaria ~6 KB a todo
+  app que renderiza um ícone, e nada no source pareceria errado. O guard checa
+  também que o `is-icon-name.js` **continua** alcançando a lista, para a primeira
+  checagem não passar a provar nada se o arquivo mudar de lugar.
+
+- **Shard de ícone deixou de ser particionado por letra inicial.** Os nomes do
+  lucide são fortemente enviesados — `c` tem 284 slugs, `q` tem 4 — então a
+  inicial era a pior chave possível: desenhar **um** ícone de categoria começando
+  com `c` baixava 284 ícones, **19,10 KB brotli** para um glifo de meio KB, fator
+  de desperdício de ~130x. Medido em app de produção (`servus-frontend`, SDK
+  0.45.0): `shard-s` 71,19 kB / gzip 19,00 kB, `shard-c` 66,40 kB / gzip 17,58 kB.
+  Agora são **45 faixas alfabéticas contíguas de até 40 ícones**, e o pior caso de
+  uma requisição caiu para **4,78 KB brotli** (mediana 4,19 KB, menor 1,52 KB). A
+  faixa dona de um slug sai de uma **busca binária** sobre 45 limites, não de um
+  mapa de 2024 entradas — que é o custo que torna o `dynamicIconImports` do próprio
+  lucide inviável (120 KB no chunk principal). O gerador aceita `--shard-size=N` e
+  se recusa a emitir faixas que a busca binária não navegaria; o comparador do
+  gerador passou a ser o **de code unit**, o mesmo que o `<` do runtime usa —
+  `localeCompare` pesa hífen por outra regra, e uma divergência mandaria o slug pro
+  shard errado, sumindo com o ícone sem erro nenhum. Nenhuma mudança de API
+  pública: `<Icon name>` é idêntico.
+
 ### Corrigido
+
+- **Falha de carga de shard de ícone virava fallback permanente, sem retry e sem
+  sinal.** Chunk de shard tem hash no nome, e o hash muda a cada deploy: em aba
+  longa o `import()` volta 404, o cache marcava o estado como falho e o ícone ficava
+  no fallback para sempre naquela aba — sem nada para o usuário nem para o
+  observability. Agora há (1) **2 retries** curtos (100 ms, 400 ms), que cobrem a
+  falha transitória; (2) separação entre "chunk não chegou" e "slug não existe" —
+  `iconStatus` ganhou o estado `"error"`, e com isso o `<Icon>` parou de avisar "no
+  such lucide icon" sobre nome válido; o estado não é permanente, um render
+  posterior tenta de novo atrás de um cooldown de 10 s para chunk morto não virar
+  laço de requisição; e (3) **`subscribeToIconErrors`**, para o app mandar pro
+  Sentry e disparar o reload de chunk stale. Sem ninguém assinando, build de dev
+  avisa no console uma vez por shard — falha silenciosa era o problema.
 
 - **`buildApiError` estourava a pilha num `detail` profundamente aninhado.** A
   leitura recursiva de `detail` não tinha teto: um corpo com
@@ -52,6 +106,69 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   continua disparando. Item `disabled` ignora o `href` e segue `<button
 disabled>` — âncora não tem estado desabilitado, e tirar o `href` pra simular um
   deixaria um link que se anuncia acionável e não é.
+
+- **`materialToLucide` cresceu de 22 para 130 pares.** A semente cobria só ofícios
+  (`plumbing`, `handyman`, `electrical_services`); entrou o vocabulário que um
+  painel administrativo realmente usa — navegação, dinheiro, datas, mídia,
+  comunicação — e mais categorias de serviço (`carpenter`, `construction`,
+  `cleaning_services`, `local_laundry_service`, `content_cut`, `pest_control`,
+  `medical_services`, `dentistry`, `car_repair`, `local_shipping`,
+  `fitness_center`, `spa`, `child_care`, `school`). Todo par escrito à mão, e o
+  lado lucide conferido pelos testes de guarda existentes contra a lista real de
+  slugs — que é o que pegou dois pares apontando para **alias depreciado**
+  (`smile` → hoje `face-slightly-smiling`, `history` → `rotate-ccw-clock`). Cada
+  aproximação está na tabela da doc, nas duas línguas. `window` ficou de fora de
+  propósito: o `app-window` do lucide é janela de interface, não de parede, e par
+  errado é pior que fallback.
+
+- **`<IconPicker>`** — campo de ícone com autocomplete nativo sobre os 2024 slugs,
+  preview do escolhido, e validação ligada ao form nativo via `setCustomValidity`.
+  Todo painel reescrevia essa tela (no `servus-frontend` foram ~87 linhas no form de
+  categoria), e o passo que mais falta é o último: sem barrar o submit, o slug
+  inválido chega no banco e só aparece como ícone faltando em toda tela que rende
+  aquele registro. Sugestões cortadas em 40 por default, porque montar 2024
+  `<option>` a cada tecla trava o datalist. Entrada legada é aceita e o `onChange`
+  emite sempre o slug canônico. `validateIconName` sai como export para
+  react-hook-form/zod não duplicarem a regra — vazio **passa**, porque "não escolheu"
+  é pergunta do `required`, não erro de grafia. Construído sobre `<datalist>` de
+  propósito: teclado, leitor de tela e comportamento mobile vêm da plataforma.
+
+- **`<Icon>` normaliza `icon_code` por default, e `normalizeIconName` saiu como
+  export.** Backend que grava ícone grava sujo — `snake_case` de formulário antigo,
+  espaço e maiúscula de valor digitado à mão, slug que o lucide depreciou desde
+  então — e cada app reescrevia a mesma cola de três passos em volta de
+  `resolveIconAlias` e `isIconName`, que já eram do SDK. Agora o componente faz
+  `trim` → minúsculas → `_`→`-` → alias antes do lookup; `normalize={false}` pede
+  lookup estrito. A função sozinha existe porque o formulário precisa dela **antes
+  de submeter**, para gravar o slug canônico em vez de limpar em toda leitura. O
+  aviso de dev passou a citar o nome **como foi escrito**, não o normalizado — quem
+  lê o console é quem digitou.
+
+- **`registerIcons(record)`** — registro estático de ícone sem provider e sem
+  plugin. Uma chamada no entrypoint e todo `<Icon name>` da árvore resolve no
+  primeiro frame, com import estático que o bundler poda. O caminho anterior para
+  catálogo fechado (painel com vinte ícones, caso comum) exigia o plugin do Vite
+  **e** o `IconProvider` no topo, e um teste unitário de componente com `<Icon>`
+  precisava montar o provider para não cair no caminho assíncrono. A chave não
+  precisa ser slug do lucide, então arte própria entra no mesmo call site; slug
+  depreciado é gravado sob o nome canônico. Chamada tardia avisa os `<Icon>` já
+  montados, que re-renderizam.
+
+- **`<Icon icon={Wrench} />`** — aceita o componente direto, para a tela que
+  mistura ícone literal com ícone vindo de dados usar **um** componente nos dois
+  casos e os defaults de `size`/`strokeWidth` do provider valerem para os dois.
+  `name` e `icon` são mutuamente exclusivos no tipo.
+
+- **`tempest-react-sdk/icons/virtual`** — o registro estático virou subpath com
+  módulo **de verdade** (`staticIcons = {}`), que o `tempestIcons()` sobrescreve
+  quando está instalado. Antes o subpath exportava só tipos, então
+  `import { staticIcons } from "virtual:tempest-icons"` só resolvia dentro de um
+  build Vite com o plugin: vitest sem o plugin no config de teste, `tsx`, Storybook
+  com builder próprio ou script Node que importasse a árvore da app falhavam na
+  **resolução** — e a falha não era um ícone faltando, era o módulo inteiro não
+  carregando. `dist/icons.d.ts` e `dist/icons-virtual.d.ts` referenciam a
+  declaração do id legado, então o `/// <reference types=…>` no `vite-env.d.ts`
+  deixou de ser necessário (continua válido).
 
 - **`error.fields` no envelope de erro** — as entradas de um `422` indexadas pelo
   caminho do campo (`{ email: "Field required", "items.0.price": "Input should be

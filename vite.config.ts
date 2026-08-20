@@ -63,6 +63,11 @@ export default defineConfig({
                 // chunks in the consuming app instead of dragging ~2000 named
                 // lucide imports into whatever imports `Icon`.
                 icons: resolve(__dirname, "src/icons/index.ts"),
+                // The static-registry module. Ships as a real, empty module so
+                // `tempest-react-sdk/icons/virtual` resolves in every runner;
+                // the `tempestIcons()` plugin overrides it with the generated
+                // table when it is installed.
+                "icons-virtual": resolve(__dirname, "src/icons/virtual.ts"),
             },
             name: "TempestReactSdk",
             formats: ["es", "cjs"],

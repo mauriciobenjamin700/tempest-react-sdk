@@ -102,18 +102,97 @@ carries a cost that makes it unusable:
     never has an icon and the layout shifts. And an unknown name **throws**, taking
     down the React tree — precisely in the case where the name comes from outside.
 
-The SDK's `<Icon>` trades that for **one chunk per initial letter**. Rendering 130
-different icons asks for 9 requests, not 130:
+The SDK's `<Icon>` trades that for **one chunk per range of 40 icons**. Rendering
+130 different icons asks for a handful of requests, not 130:
 
 ```console
-GET .../icons/generated/shard-s.js   200
-GET .../icons/generated/shard-t.js   200
-GET .../icons/generated/shard-c.js   200
-… one per letter used, 25 at most
+GET .../icons/generated/shard-09.js   200
+GET .../icons/generated/shard-21.js   200
+GET .../icons/generated/shard-36.js   200
+… one per range touched, 45 at most
 ```
 
-The largest shard (`s`, 175 icons) weighs **18.7 KB brotli**; the median sits at
-**5.0 KB**. The `<Icon>` runtime, before any shard, costs **~1 KB brotli**.
+The largest shard weighs **4.78 KB brotli**, the median **4.19 KB** and the
+smallest **1.52 KB**. The `<Icon>` runtime, before any shard, costs
+**~0.1 KB brotli**.
+
+!!! info "Why ranges and not the initial letter"
+    The first letter is the worst possible partitioning key, because lucide's names
+    are heavily skewed: `c` holds 284 slugs and `q` holds 4. Drawing **one** category
+    icon that happened to start with `c` fetched 284 icons — 19.10 KB brotli for a
+    half-KB glyph, a ~130x waste factor.
+
+    The ranges are contiguous and sorted, so the SDK finds the shard owning a slug
+    with a **binary search** over 45 bounds — instead of shipping the 2000-entry
+    slug→chunk map that makes lucide's own `dynamicIconImports` cost 120 KB in a main
+    chunk.
+
+## A closed catalog: `registerIcons`
+
+An admin panel usually has twenty icons and not one more. That case needs neither a
+plugin nor a provider — register once from the entrypoint:
+
+```tsx
+// src/main.tsx
+import { createRoot } from "react-dom/client";
+import { registerIcons } from "tempest-react-sdk/icons";
+import { House, Save, Settings, Trash2, Users } from "lucide-react";
+import { App } from "@/App";
+
+registerIcons({
+    house: House,
+    save: Save,
+    settings: Settings,
+    "trash-2": Trash2,
+    users: Users,
+});
+
+createRoot(document.getElementById("root")!).render(<App />);
+```
+
+That is it: every `<Icon name="save" />` in the tree resolves **on the first frame,
+with no request**. The imports are static, so the bundler keeps exactly those five
+icons and drops the rest.
+
+!!! tip "It also takes your own artwork"
+    The key does not have to be a lucide slug. `registerIcons({ "my-brand": Brand })`
+    makes `<Icon name="my-brand" />` work — same call site, same `size` default, no
+    `if` in the component.
+
+!!! info "A deprecated slug goes in under its canonical name"
+    `registerIcons({ "alert-circle": AlertCircle })` stores it as `circle-alert`, so
+    both spellings resolve. It is the same alias map `<Icon>` uses.
+
+`registerIcons` is additive and idempotent: call it from as many modules as you
+like, and registering the same pair twice costs no render. Registering **after** the
+tree has already rendered works too — every mounted `<Icon>` sitting on its fallback
+is notified and re-renders.
+
+### Already holding the component? Pass it
+
+```tsx
+import { Icon } from "tempest-react-sdk/icons";
+import { Wrench } from "lucide-react";
+
+<Icon icon={Wrench} />
+```
+
+No lookup, no registry, no shard. It exists so a screen mixing literal icons with
+data-driven ones can use **one** component for both — which is what makes
+`IconProvider`'s `size`/`strokeWidth` defaults apply to both. `name` and `icon` are
+mutually exclusive: passing both is a type error.
+
+### When `IconProvider` still earns its place
+
+After `registerIcons`, what is left for the provider is what is genuinely
+**tree-scoped**:
+
+- `size` / `strokeWidth` defaults for a subtree;
+- a registry that has to **win** over the global one right there (an alternate
+  theme, an icon preview inside a modal).
+
+Precedence is: provider registry → global registry (`registerIcons` plus shards
+already fetched) → shard fetch.
 
 ## Zero extra requests for the slugs you wrote
 
@@ -152,7 +231,7 @@ export default defineConfig({
 // src/main.tsx
 import { createRoot } from "react-dom/client";
 import { IconProvider } from "tempest-react-sdk/icons";
-import { staticIcons } from "virtual:tempest-icons";
+import { staticIcons } from "tempest-react-sdk/icons/virtual";
 import { App } from "@/App";
 
 createRoot(document.getElementById("root")!).render(
@@ -162,12 +241,21 @@ createRoot(document.getElementById("root")!).render(
 );
 ```
 
-### 3. Declare the virtual module's types
+!!! info "No type declaration needed"
+    `tempest-react-sdk/icons/virtual` is a **real** module in the package: its types
+    come from `exports`, and it resolves **without** the plugin too — to an empty
+    registry. That is what lets the same file load under vitest without the plugin,
+    under `tsx`, in a Storybook with its own builder, or in any Node script that
+    imports the app's tree. Before it,
+    `import { staticIcons } from "virtual:tempest-icons"` outside a Vite build with
+    the plugin did not leave **one icon** missing: it took down the whole module.
 
-```ts
-// src/vite-env.d.ts
-/// <reference types="tempest-react-sdk/icons/virtual" />
-```
+!!! warning "The old spelling keeps working"
+    `import { staticIcons } from "virtual:tempest-icons"` still resolves with the
+    plugin installed, and the
+    `/// <reference types="tempest-react-sdk/icons/virtual" />` already sitting in
+    your `vite-env.d.ts` stays valid — you may delete it, you do not have to. Just do
+    not reach for that spelling in new code: it is the one that fails outside Vite.
 
 With that in place, every literal slug in your code resolves **on the first frame,
 with no extra request**. A runtime slug still goes through the shard path — the
@@ -177,6 +265,48 @@ behavior does not change, it just gets cheaper where it can.
     `size` and `strokeWidth` on `IconProvider` apply to the whole subtree, so you
     stop repeating `size={18}` at every call site. An explicit prop on `<Icon>`
     always wins over the default.
+
+## An `icon_code` from the database arrives dirty — and still renders
+
+Every backend that stores an icon stores it dirty. `snake_case` left over from an
+old form, a space and a capital from a hand-typed value, and slugs lucide has
+deprecated since. `<Icon>` cleans the name before looking it up, so all three
+render:
+
+```tsx
+<Icon name="shopping_cart" />   {/* → shopping-cart */}
+<Icon name="  Save " />         {/* → save */}
+<Icon name="alert-circle" />    {/* → circle-alert (alias) */}
+<Icon name=" Alert_Circle " />  {/* → circle-alert (all three at once) */}
+```
+
+The normalization is: `trim` → lower-case → `_` becomes `-` → `resolveIconAlias`.
+In that order, and it is the same function you can call yourself:
+
+```tsx
+import { normalizeIconName } from "tempest-react-sdk/icons";
+
+normalizeIconName(" Alert_Circle ");  // "circle-alert"
+```
+
+It is exported on its own because the **form needs it before submitting**, not only
+to render: you store the canonical slug in the database instead of keeping the mess
+and cleaning it on every read.
+
+!!! warning "Normalizing is not validating"
+    `normalizeIconName` returns the canonical spelling, not a guarantee that the
+    icon exists: `normalizeIconName("Not_An_Icon")` is `"not-an-icon"`. What to do
+    with an unknown name is yours to decide — `isIconName` answers, and `<Icon>`
+    renders its `fallback`.
+
+!!! tip "Strict lookup when you want to see the mistake"
+    `normalize={false}` turns the cleanup off for that call site. Use it when an
+    unexpected spelling **should** surface as a missing icon rather than be quietly
+    repaired.
+
+The dev warning names the code **as written**, not the normalized slug: the reader
+is whoever typed it, and `name="CircleAlert"` is far more useful in the console
+than the `"circlealert"` it normalizes to.
 
 ## A name that does not exist
 
@@ -226,6 +356,56 @@ so a slug stored in a database two years ago still renders:
 The alias resolves to its canonical name **before** the shard is chosen, so
 `alert-circle` pulls shard `c`, not `a`.
 
+## When a shard does not arrive
+
+A runtime slug fetches a chunk, the chunk has a hash in its name, and the hash
+changes on every deploy. That sets up a routine scenario in a long-lived SPA tab:
+
+1. the user opens the app, and that range's shard has not been fetched yet;
+2. a deploy ships, and the old assets leave the CDN;
+3. the user navigates to a screen that needs that icon;
+4. the `import()` rejects — 404.
+
+The SDK handles it in three parts:
+
+**A short retry.** Two extra attempts, at 100 ms and 400 ms, because the failure
+retrying fixes is the transient one: a flaky connection, a CDN edge that has not
+caught up. If one of them lands, the icon shows and nobody finds out.
+
+**A load failure is not a wrong name.** `iconStatus` gained a fourth state:
+
+```tsx
+iconStatus("save");  // "ready" | "loading" | "missing" | "error"
+```
+
+`"missing"` is only reported when that is actually knowable — the shard **arrived**
+and the slug was not in it. A shard that failed answers `"error"`, which is why
+`<Icon>` stops warning "no such lucide icon" about a perfectly valid name. The
+state is not permanent either: a later render tries again, behind a 10 s cooldown
+so a genuinely dead chunk cannot turn into a request loop.
+
+**A signal for observability.** Retrying does not fix a deploy 404; the app
+knowing does:
+
+```tsx
+import { subscribeToIconErrors } from "tempest-react-sdk/icons";
+
+subscribeToIconErrors(({ shard, slug, attempts, error }) => {
+    Sentry.captureException(error, { tags: { iconShard: shard, slug, attempts } });
+    promptReloadForStaleChunks();
+});
+```
+
+Call it once from the entrypoint. The callback runs once per shard that gave up,
+with the shard, the slug that asked for it, how many attempts were made and the
+last rejection.
+
+!!! tip "With nobody subscribed, dev warns on the console"
+    Failing silently was the problem in the first place — so a development build
+    logs one `console.warn` per shard, saying the usual cause is a deploy that
+    rotated chunk names while the tab was open. Subscribed? The console stays
+    quiet, and the reporting is yours.
+
 ## Warming the shards
 
 Before opening a large menu or an icon picker, you can load the shards while the
@@ -263,15 +443,86 @@ Re-run it after adding new icons. A slug the scan cannot see (a name built by
 concatenation, say) still works through the shard path — it just does not get the
 static route.
 
-## Building an icon picker
+## The icon picker, already built
 
-`iconNames` is the full, sorted list:
+Every panel that lets someone choose an icon was rewriting the same screen:
+filter the list, cap it at N suggestions, build the `<datalist>`, and block submit
+when the slug does not exist. That last step is the one that matters — without it
+the invalid value reaches the database and only shows up as a missing icon on
+every screen that renders the record.
+
+```tsx
+import { useState } from "react";
+import { IconPicker } from "tempest-react-sdk/icons";
+
+export function CategoryForm({ onSave }: { onSave: (icon: string) => void }) {
+    const [icon, setIcon] = useState("");
+
+    return (
+        <form
+            onSubmit={(event) => {
+                event.preventDefault();
+                onSave(icon);
+            }}
+        >
+            <label htmlFor="icon">Icon</label>
+            <IconPicker id="icon" value={icon} onChange={setIcon} required />
+            <button type="submit">Save</button>
+        </form>
+    );
+}
+```
+
+What you get:
+
+- **native autocomplete** over all 2024 slugs, through `<datalist>` — keyboard,
+  screen reader and mobile behaviour come from the platform;
+- a **preview** of the chosen icon next to the field;
+- **native form validation**: the input carries `setCustomValidity`, so a plain
+  `<form>` refuses to submit and the browser points at the field;
+- **legacy input accepted, canonical slug emitted** — type `Shopping_Cart` and
+  `onChange` receives `shopping-cart`; type `alert-circle` and it receives
+  `circle-alert`.
+
+!!! tip "Suggestions are capped by default"
+    `limit` is **40**. Building 2024 `<option>` elements on every keystroke froze
+    the datalist — that is why the prop exists instead of a "show everything"
+    default.
+
+!!! warning "Using react-hook-form or zod? The rule is exported"
+    Do not duplicate the validation — that is how the two drift apart:
+
+    ```tsx
+    import { validateIconName } from "tempest-react-sdk/icons";
+
+    // react-hook-form
+    register("icon", { validate: (value) => validateIconName(value) ?? true });
+
+    // zod
+    z.string().refine((value) => !validateIconName(value), {
+        message: "No such icon",
+    });
+    ```
+
+    Empty **passes** `validateIconName`: "no icon chosen" is a `required` question,
+    not a spelling mistake — conflating them would make the field impossible to
+    clear.
+
+!!! info "It costs the whole list, and only here"
+    `IconPicker` imports `iconNames` (~7 KB brotli), because a picker needs the
+    list. `<Icon>` does **not** — see [What each import
+    costs](#what-each-import-costs). Styling comes from the SDK's `styles.css`, like
+    every component.
+
+### Prefer to build your own?
+
+The list is public and sorted:
 
 ```tsx
 import { useMemo, useState } from "react";
 import { Icon, iconNames } from "tempest-react-sdk/icons";
 
-export function IconPicker({ onPick }: { onPick: (slug: string) => void }) {
+export function OwnPicker({ onPick }: { onPick: (slug: string) => void }) {
     const [query, setQuery] = useState("");
     const matches = useMemo(
         () => iconNames.filter((name) => name.includes(query.trim().toLowerCase())),
@@ -294,7 +545,7 @@ export function IconPicker({ onPick }: { onPick: (slug: string) => void }) {
 }
 ```
 
-See it running in the [gallery](./gallery.md), section **Ícones por slug**.
+See it running in the [gallery](./gallery.md), section **Icons by slug**.
 
 ## The full list, for use outside the app
 
@@ -367,29 +618,93 @@ default:
 ### The table is a seed, not the whole vocabulary
 
 Material Symbols ships ~3600 names and almost none of them will ever appear in an
-`icon_code` of ours. `materialToLucide` covers the useful intersection and
-**grows on demand**, one hand-written pair at a time — a map generated by name
-heuristics gets it badly wrong, starting with `build`, which is a wrench in
+`icon_code` of ours. `materialToLucide` holds **130 pairs** today — the trades lot
+it started as, plus the vocabulary an administrative panel actually uses:
+navigation, money, dates, media, and the service categories a seed tends to carry.
+And it **grows on demand**, one hand-written pair at a time — a map generated by
+name heuristics gets it badly wrong, starting with `build`, which is a wrench in
 Material Symbols and has nothing to do with construction.
 
-| Material Symbol                                | lucide           | Note                             |
-| ---------------------------------------------- | ---------------- | -------------------------------- |
-| `build`, `handyman`, `hardware`                | `wrench`         | Approximation — three to one     |
-| `format_paint`                                 | `paint-roller`   |                                  |
-| `electrical_services`                          | `plug-zap`       |                                  |
-| `plumbing`                                     | `shower-head`    | Approximation — lucide has no pipe |
-| `pedal_bike`, `two_wheeler`, `delivery_dining` | `bike`           | Approximation — three to one     |
-| `settings`, `code`, `key`, `lock`, `shield`, `brush`, `tv`, `smartphone`, `mic`, `palette`, `router`, `gavel`, `warehouse` | (the same name) | Collide by accident |
+The lucide side of **every** pair is checked by a test against the real slug list,
+so a pair pointing at a name lucide does not ship — or at one it has since
+deprecated — fails the suite instead of reaching your grid. What no test can check
+is whether the chosen icon is the right **metaphor**: that is why pairs go in by
+hand.
+
+| Material Symbol                                | lucide                   | Note                                   |
+| ---------------------------------------------- | ------------------------ | -------------------------------------- |
+| `build`, `handyman`, `hardware`                | `wrench`                 | Approximation — three to one           |
+| `carpenter`                                    | `hammer`                 |                                        |
+| `format_paint`                                 | `paint-roller`           |                                        |
+| `electrical_services`                          | `plug-zap`               |                                        |
+| `plumbing`                                     | `shower-head`            | Approximation — lucide has no pipe     |
+| `roofing`                                      | `house`                  | Approximation — same glyph as `home`   |
+| `construction`                                 | `hard-hat`               |                                        |
+| `cleaning_services`                            | `spray-can`              | Approximation — the activity, not the tool |
+| `iron`                                         | `shirt`                  | Approximation — lucide has no iron     |
+| `local_laundry_service`                        | `washing-machine`        |                                        |
+| `dentistry`                                    | `face-slightly-smiling`  | Approximation — lucide ships no tooth  |
+| `medical_services`                             | `stethoscope`            |                                        |
+| `vaccines`                                     | `syringe`                |                                        |
+| `content_cut`                                  | `scissors`               | Barbers, in a seed vocabulary          |
+| `spa`                                          | `flower-2`               |                                        |
+| `local_florist`                                | `flower`                 |                                        |
+| `yard`                                         | `trees`                  |                                        |
+| `grass`                                        | `sprout`                 |                                        |
+| `pest_control`                                 | `bug`                    |                                        |
+| `pedal_bike`, `two_wheeler`, `delivery_dining` | `bike`                   | Approximation — three to one           |
+| `car_repair`, `directions_car`                 | `car`                    | Approximation — lucide has no car+wrench |
+| `local_taxi`                                   | `car-taxi-front`         |                                        |
+| `local_shipping`                               | `truck`                  |                                        |
+| `local_gas_station`                            | `fuel`                   |                                        |
+| `group`, `groups`                              | `users`                  | Approximation — two to one             |
+| `store`, `storefront`                          | `store`                  | Approximation — two to one             |
+| `home`                                         | `house`                  |                                        |
+| `person`                                       | `user`                   |                                        |
+| `payments`                                     | `banknote`               |                                        |
+| `account_balance`                              | `landmark`               |                                        |
+| `savings`                                      | `piggy-bank`             |                                        |
+| `receipt_long`                                 | `receipt`                |                                        |
+| `dashboard`                                    | `layout-dashboard`       |                                        |
+| `bar_chart`, `pie_chart`                       | `chart-column`, `chart-pie` |                                     |
+| `description`                                  | `file-text`              |                                        |
+| `event`, `today`, `schedule`                   | `calendar`, `calendar-days`, `clock` |                            |
+| `location_on`                                  | `map-pin`                |                                        |
+| `chat`, `forum`                                | `message-circle`, `messages-square` |                             |
+| `campaign`                                     | `megaphone`              |                                        |
+| `support_agent`                                | `headset`                |                                        |
+| `notifications`                                | `bell`                   |                                        |
+| `favorite`                                     | `heart`                  |                                        |
+| `visibility`                                   | `eye`                    |                                        |
+| `edit`, `delete`                               | `pencil`, `trash-2`      |                                        |
+| `help`, `info`, `warning`, `error`             | `circle-question-mark`, `info`, `triangle-alert`, `circle-x` |     |
+| `verified`                                     | `badge-check`            |                                        |
+| `security`                                     | `shield-check`           |                                        |
+| `history`                                      | `rotate-ccw-clock`       |                                        |
+| `sync`                                         | `refresh-cw`             |                                        |
+| `translate`                                    | `languages`              |                                        |
+| `balance`                                      | `scale`                  |                                        |
+| `computer`                                     | `monitor`                |                                        |
+| `photo_camera`, `videocam`, `music_note`       | `camera`, `video`, `music` |                                      |
+| `school`, `work`                               | `graduation-cap`, `briefcase` |                                   |
+| `child_care`, `pets`                           | `baby`, `paw-print`      |                                        |
+| `restaurant`, `local_cafe`, `local_bar`        | `utensils`, `coffee`, `wine` |                                    |
+| `fitness_center`                               | `dumbbell`               |                                        |
+| `hotel`, `flight`                              | `bed-double`, `plane`    |                                        |
+| `soap`                                         | `soap-dispenser-droplet` |                                        |
+| `kitchen`, `chair`, `door_front`               | `refrigerator`, `armchair`, `door-open` |                         |
+| `water_drop`, `bolt`, `ac_unit`                | `droplet`, `zap`, `snowflake` |                                   |
+| `settings`, `code`, `key`, `lock`, `shield`, `brush`, `tv`, `smartphone`, `mic`, `palette`, `router`, `gavel`, `warehouse`, `search`, `store`, `map`, `mail`, `phone`, `menu`, `check`, `star`, `folder`, `image`, `cloud`, `wifi`, `bluetooth`, `laptop`, `cake`, `info`, `upload`, `download` | (the same name) | Collide by accident |
 
 !!! info "Why the collisions are in the table"
-    Those thirteen already render today, because the name matches in both
+    Those 31 already render today, because the name matches in both
     vocabularies. Leaving them out would send them to the fallback and make the
     bridge a **regression** for exactly the codes that used to work.
 
 !!! warning "Pass the table to the plugin's `include`"
-    A slug resolved at runtime pulls the shard of its initial letter. A catalogue
-    of ~130 categories touches nearly all 25 letters, so the DX win turns into
-    ~20 requests unless you tell the build:
+    A slug resolved at runtime pulls the shard of its range. A catalogue of ~130
+    categories spreads across dozens of ranges, so the DX win turns into dozens of
+    requests unless you tell the build:
 
     ```ts
     import { defineConfig } from "vite";
@@ -411,16 +726,24 @@ Material Symbols and has nothing to do with construction.
 
 | Export               | What it does                                                              |
 | -------------------- | ------------------------------------------------------------------------- |
-| `Icon`               | Renders by slug. Props: `name`, `size`, `strokeWidth`, `fallback` + SVG    |
+| `Icon`               | Renders by slug (`name`) or by component (`icon`), + `size`, `strokeWidth`, `fallback` and SVG props |
+| `registerIcons`      | Registers slug → component globally, with no provider and no plugin       |
+| `staticIcons`        | The registry the plugin generates, at `tempest-react-sdk/icons/virtual`   |
 | `IconProvider`       | Static registry + `size`/`strokeWidth` defaults                           |
 | `createIconRegistry` | Builds a registry from imported lucide components                         |
 | `useIcon`            | Resolves a slug to its component (what `Icon` uses internally)             |
 | `preloadIcons`       | Warms the shards for a list of slugs                                      |
-| `iconStatus`         | `"ready"` / `"loading"` / `"missing"` for a slug                           |
+| `iconStatus`         | `"ready"` / `"loading"` / `"missing"` / `"error"` for a slug               |
+| `subscribeToIconErrors` | Subscribes to shard load failures (Sentry, stale-chunk reload)          |
+| `IconLoadError`      | The failure payload: `shard`, `slug`, `attempts`, `error`                  |
 | `peekIcon`           | Reads the cache without triggering a load                                 |
 | `loadIcon`           | Loads the shard owning a slug                                             |
 | `resolveIconAlias`   | Deprecated slug → canonical slug                                          |
 | `isIconName`         | Type guard against the real list (imports the list)                       |
+| `normalizeIconName`  | Dirty `icon_code` → canonical slug (trim, lower, `_`→`-`, alias)          |
+| `IconPicker`         | Icon field: autocomplete + preview + native validation                    |
+| `validateIconName`   | The picker's validation rule, for react-hook-form/zod                     |
+| `DEFAULT_ICON_PICKER_MESSAGE` | The default message for a slug that does not exist               |
 | `fromMaterialSymbol` | Material Symbols code → lucide slug, always returning one                 |
 | `materialToLucide`   | The pair table, to pass to the plugin's `include`                         |
 | `MATERIAL_SYMBOL_FALLBACK` | The neutral glyph an unknown code uses                              |
@@ -428,16 +751,49 @@ Material Symbols and has nothing to do with construction.
 | `iconAliases`        | The 257 alias → canonical pairs                                           |
 | `IconName`           | Type union of every slug (types only, zero cost)                          |
 
+### What each import costs
+
+Measured with `esbuild --bundle --minify` plus brotli, `react` and `lucide-react`
+external — that is, what the **SDK** adds to your bundle:
+
+| You import             | Brotli   | Pulls the 2024-slug list? |
+| ---------------------- | -------- | ------------------------- |
+| `{ Icon }`             | ~2.5 KB  | **No**                    |
+| `{ resolveIconAlias }` | 2.06 KB  | No                        |
+| `{ normalizeIconName }`| 2.09 KB  | No                        |
+| `{ isIconName }`       | 7.20 KB  | Yes (it is what it reads) |
+| `{ iconNames }`        | 7.17 KB  | Yes                       |
+
+!!! info "There is no `/icons/catalog` subpath — and none is needed"
+    Runtime and catalogue are **already** separate, by tree-shaking: no module on
+    the `<Icon>` path imports the list, so a bundler simply leaves it out. A
+    separate subpath would move the same code somewhere else, break the import for
+    everyone using `iconNames` today, and save **zero bytes**.
+
+    What went in instead is a **guard**: `postbuild`
+    (`scripts/check-dist-guards.mjs`) walks the static import graph of `dist` from
+    `Icon.js` and fails the build if the list turns up there. With
+    `preserveModules`, a module's static imports **are** its real dependencies, so
+    that is an exact answer rather than an estimate. One convenience
+    `import { iconNames }` inside `use-icon` would cost ~6 KB to every app that
+    renders a single icon, and nothing in the source would look wrong.
+
+    What **is** eager on the `<Icon>` path is the 257-alias table (~2 KB): it has to
+    resolve **before** a shard is chosen, so deferring it would mean a second
+    network round trip for every old slug. 2 KB is the price of an `icon_code`
+    stored two years ago still rendering.
+
 ### Measured costs
 
 | What                                             | Brotli    |
 | ------------------------------------------------ | --------- |
-| `<Icon>` runtime, before any shard               | ~1.0 KB   |
-| Smallest shard (`x`, 1 icon), on demand          | 1.1 KB    |
-| Median shard (`g`, 39 icons), on demand          | 5.0 KB    |
-| Largest shard (`s`, 175 icons), on demand        | 18.7 KB   |
-| `{ iconNames }` — the list of 2024 slugs         | 7.0 KB    |
-| Runtime plus all 25 shards (absolute ceiling)    | 128.9 KB  |
+| `<Icon>` runtime, before any shard               | ~0.1 KB   |
+| Smallest shard (7 icons), on demand              | 1.52 KB   |
+| Median shard (40 icons), on demand               | 4.19 KB   |
+| Largest shard (40 icons), on demand              | 4.78 KB   |
+| Largest shard **before** the rebalance (`s`)     | 19.10 KB  |
+| `{ iconNames }` — the list of 2024 slugs         | 6.1 KB    |
+| Runtime plus all 45 shards (absolute ceiling)    | 130.0 KB  |
 
 !!! info "How this was measured"
     Shards and the slug list come from `size-limit` **with `lucide-react` inside
@@ -455,11 +811,25 @@ Material Symbols and has nothing to do with construction.
 - `<Icon name="save" />` resolves any of lucide's **2024 slugs**, with no setup.
 - A **literal** slug becomes a static import via `tempestIcons()` (on by default in
   `createViteConfig`) → **zero extra requests**.
-- A **runtime** slug loads **one shard per initial letter** — 25 requests at most,
-  never one per icon.
+- Closed catalog? `registerIcons({ save: Save })` in the entrypoint gives you the same
+  static path with **no plugin and no provider**. Already holding the component?
+  `<Icon icon={Save} />`.
+- `tempest-react-sdk/icons/virtual` is a real module: it resolves **without** the
+  plugin (empty registry), so vitest, `tsx` and Storybook load the same file.
+- A **runtime** slug loads **the shard of its range** — ranges of 40 icons found by
+  binary search, 4.78 KB brotli per request at most.
 - An unknown name renders `fallback` (nothing, by default) and **never throws**;
   `console.warn` in dev only.
+- A shard that does not arrive gets **2 short retries**, answers `iconStatus`
+  `"error"` (not `"missing"`) and is reported through `subscribeToIconErrors` — a
+  deploy that rotates chunk names no longer ends in a silent, permanent fallback.
 - Lucide's 257 old **aliases** keep resolving.
+- An `icon_code` from the database renders dirty: `shopping_cart`, `" Save"` and an
+  old alias are normalized before the lookup. `normalize={false}` for a strict
+  lookup, and `normalizeIconName` on its own to validate in a form.
+- `<IconPicker value onChange />` is the field, already built: native autocomplete,
+  a preview, and `setCustomValidity` so the form refuses a non-existent slug.
+  `validateIconName` for react-hook-form/zod.
 - `iconNames` stays **outside** what `<Icon>` costs — import it only to enumerate or
   validate.
 - **Do not declare `lucide-react` in your app**: it ships with the SDK, and a second

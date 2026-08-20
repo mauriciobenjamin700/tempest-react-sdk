@@ -9,13 +9,19 @@
  * like the right one, and invisible to the test suite, which runs before the
  * bundler folds anything. It is only visible here, in `dist`.
  *
- * Two invariants, checked after every build:
+ * Three invariants, checked after every build:
  *
  * 1. `dist/utils/dev-mode.js` still contains the live `process.env.NODE_ENV`
  *    read — the expression the *consumer's* bundler replaces.
  * 2. Every file that calls `console.*` either routes through `isDevBuild()` or
  *    is listed below with a reason. An ungated console call is either noise in
  *    someone's production console or, if it was meant to be gated, dead code.
+ * 3. `<Icon>` does not reach the 2024-slug list, and naming an icon does not
+ *    reach the shard loader index (issue #173). That the runtime
+ *    and the catalogue are separable is only true because no module on the
+ *    `Icon` path imports `generated/icon-names.js` — one convenience import
+ *    inside `use-icon` or `shard-cache` would add ~6 KB brotli to every app that
+ *    renders a single icon, and nothing in the source would look wrong.
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -25,6 +31,24 @@ const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const DIST = join(ROOT, "dist");
 const DEV_MODE_FILE = join(DIST, "utils", "dev-mode.js");
 const LIVE_GUARD = "process.env.NODE_ENV";
+
+/** The catalogue module that must stay off the `<Icon>` path. */
+const SLUG_LIST = "icons/generated/icon-names.js";
+
+/** The shard loader index, which naming an icon must not require. */
+const SHARD_INDEX = "icons/generated/loaders.js";
+
+/**
+ * `import … from "x"`, `export … from "x"`, and the bare `import "x"`.
+ *
+ * The middle is `[^'"]*` rather than `[\s\S]*?` on purpose: a lazy catch-all
+ * walks past a bare import's own specifier to find the `from` of the *next*
+ * statement, swallowing the bare import whole. Refusing to cross a quote keeps
+ * each match inside one statement — which is what makes the side-effect import
+ * form visible at all.
+ */
+const STATIC_IMPORT =
+    /\b(?:import|export)\b[^'"]*?\bfrom\s*['"]([^'"]+)['"]|\bimport\s*['"]([^'"]+)['"]/g;
 
 /**
  * Files whose `console` calls are the product, not a dev-time diagnostic.
@@ -101,10 +125,79 @@ for (const file of collect(DIST)) {
     );
 }
 
+/**
+ * The static import graph reachable from one dist module.
+ *
+ * `preserveModules` keeps one output file per source module, so a module's
+ * static imports *are* its real dependencies — no bundler needed to answer what
+ * a given export drags in. Dynamic imports are deliberately not followed: an
+ * icon shard is a separate chunk fetched on demand, which is the whole design.
+ *
+ * @param {string} entry - Absolute path of the dist module to start from.
+ * @returns {Set<string>} Dist-relative paths, POSIX separators, entry included.
+ */
+function staticGraph(entry) {
+    const seen = new Set();
+    const queue = [entry];
+
+    while (queue.length > 0) {
+        const file = queue.pop();
+        const key = relative(DIST, file).replace(/\\/g, "/");
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        let source;
+        try {
+            source = readFileSync(file, "utf8");
+        } catch {
+            continue;
+        }
+        for (const match of source.matchAll(STATIC_IMPORT)) {
+            const specifier = match[1] ?? match[2];
+            if (specifier === undefined || !specifier.startsWith(".")) continue;
+            queue.push(join(file, "..", specifier));
+        }
+    }
+    return seen;
+}
+
+const iconGraph = staticGraph(join(DIST, "icons", "Icon.js"));
+const validatorGraph = staticGraph(join(DIST, "icons", "is-icon-name.js"));
+
+if (iconGraph.has(SLUG_LIST)) {
+    problems.push(
+        `dist/icons/Icon.js now reaches ${SLUG_LIST} through static imports. ` +
+            "That list is ~6 KB brotli of catalogue data only a picker needs, and it " +
+            "would land in every app that renders one icon. Reach it from a module the " +
+            "runtime does not import, the way is-icon-name.js does.",
+    );
+}
+
+if (!validatorGraph.has(SLUG_LIST)) {
+    problems.push(
+        `dist/icons/is-icon-name.js no longer reaches ${SLUG_LIST}, so the check above ` +
+            "proves nothing. Point SLUG_LIST at wherever the slug list moved.",
+    );
+}
+
+const namingGraph = staticGraph(join(DIST, "icons", "normalize-icon-name.js"));
+
+if (namingGraph.has(SHARD_INDEX)) {
+    problems.push(
+        `dist/icons/normalize-icon-name.js now reaches ${SHARD_INDEX}. Cleaning up a ` +
+            "slug is what a form does before submitting, and it must not depend on the " +
+            "45 shard modules that exist to *render* one. Keep alias resolution in " +
+            "icons/alias.js, which is why that module was split out of shard-cache.",
+    );
+}
+
 if (problems.length > 0) {
     console.error("check-dist-guards: FAIL");
     for (const problem of problems) console.error(`  - ${problem}`);
     process.exit(1);
 }
 
-console.log("check-dist-guards: ok (live dev guard present, no ungated console calls)");
+console.log(
+    "check-dist-guards: ok (live dev guard present, no ungated console calls, " +
+        `Icon reaches ${iconGraph.size} modules and none is the slug list)`,
+);

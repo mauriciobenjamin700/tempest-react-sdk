@@ -78,6 +78,11 @@ Behavior:
 
     **That second 401 is the case that matters.** A `refresh()` that resolves is no proof the session is alive: the backend can hand back a token it then refuses — a revoked refresh token, a permission taken away, a race between tabs. Without `onUnauthorized` firing there, the app would sit on a store claiming "authenticated" while every request 401s, and the user would see a generic error with no way back to the login screen.
 
+!!! danger "`onUnauthorized` makes no request"
+    The client **awaits** your hook before it throws, so a `throw` in there takes the place of the original 401. The concrete case: `onUnauthorized` calls a `logout()` that does `POST /auth/logout` — with the very token the backend already refused. The logout comes back 422, that error surfaces instead of the 401, and the console shows two errors where there was one, the second unrelated to the request that failed.
+
+    The hook's job is **local**: clear the store, the storage, the cache. `POST /auth/logout` belongs to the user's explicit logout, while the token is still valid. If your logout really must hit the network here, wrap it in `try/catch` so the 401 stays the error the caller receives.
+
 ## Base URL and prefix
 
 A Tempest FastAPI service almost never sits at the root of its host: it is mounted under a `root_path`, typically `/api`. You tell the client about it in either of two equivalent ways — write the path into `baseURL`, or pass `prefix`:
@@ -331,6 +336,27 @@ try {
   else toast.error(error.detail);
 }
 ```
+
+!!! info "FastAPI 422: `detail` is a list, not text"
+    A FastAPI validation error arrives as `detail: [{ loc, msg, type }]`. The client flattens that into one readable line — `"email: Field required; items.0.price: Input should be greater than 0"` — instead of letting `String()` turn the list into `[object Object]`, which is what used to reach the screen and the log. The `loc` prefix that only names the request part (`body`, `query`, `path`, `header`, `cookie`) is dropped, so the path you read is the field's.
+
+    The raw list stays on `error.body` — that is where you map per-field form errors from:
+
+    ```ts
+    import { isApiError } from "tempest-react-sdk";
+
+    try {
+      await api.post("/users", { body: form });
+    } catch (err) {
+      if (isApiError(err) && err.status === 422) {
+        const entries = (err.body as { detail?: { loc?: unknown[]; msg?: string }[] }).detail ?? [];
+        for (const entry of entries) {
+          const field = String(entry.loc?.at(-1) ?? "");
+          if (field) setError(field, { message: entry.msg });
+        }
+      }
+    }
+    ```
 
 ### From a typed error to the sentence on screen — `describeApiError`
 

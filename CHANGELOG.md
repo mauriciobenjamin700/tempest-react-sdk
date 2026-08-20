@@ -4,6 +4,30 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`ApiError.detail` de um 422 do FastAPI parava em `[object Object]`.** O
+  backend responde erro de validação com `detail` como **lista** de
+  `{ loc, msg, type }`, e `buildApiError` fazia `String(detail)` — o que
+  transforma a lista em `[object Object]`. Era o texto que chegava ao `toast`,
+  ao `console.error` e ao `describeApiError`: um erro que não dizia nem qual
+  campo falhou nem por quê. Agora a lista é achatada em
+  `"email: Field required; items.0.price: Input should be greater than 0"`, com
+  o prefixo de `loc` que só nomeia a parte da requisição (`body`, `query`,
+  `path`, `header`, `cookie`) descartado, e a lista crua continua em
+  `error.body` para mapear erro por campo de formulário. `detail` como objeto
+  aninhado é lido por `msg`/`message`/`detail`; corpo sem nada legível cai no
+  `Erro <status>` de sempre.
+
+### Documentação
+
+- **`onUnauthorized` não faz requisição** (`docs/http.md`). O cliente
+  **aguarda** o hook antes de lançar, então um `throw` lá dentro toma o lugar
+  do 401 original — o caso real é `onUnauthorized` chamando um `logout()` que
+  faz `POST /auth/logout` com o token que o backend já recusou, o logout volta
+  422 e esse erro sobe no lugar do 401. O hook é local (limpar store, storage,
+  cache); a chamada de rede pertence ao logout explícito do usuário.
+
 ## [0.45.0] — 2026-08-17
 
 ### Corrigido

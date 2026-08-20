@@ -3,6 +3,7 @@ import type { LucideIcon } from "lucide-react";
 
 import type { IconName } from "./generated/icon-name";
 import { useIconContext } from "./icon-context";
+import { normalizeIconName } from "./normalize-icon-name";
 import { iconStatus } from "./shard-cache";
 import { useIcon } from "./use-icon";
 import { isDevBuild } from "../utils/dev-mode";
@@ -21,6 +22,18 @@ interface IconBaseProps extends Omit<SVGProps<SVGSVGElement>, "ref" | "name"> {
      * this — it resolves during render.
      */
     fallback?: ReactNode;
+    /**
+     * Clean up `name` before looking it up. Default `true`.
+     *
+     * A stored `icon_code` arrives dirty — `shopping_cart`, `" Save"`, a slug
+     * lucide deprecated two releases ago — and normalizing is what makes those
+     * render instead of falling back. `false` asks for a strict lookup, for the
+     * case where you want an unexpected spelling to be visible rather than
+     * quietly repaired.
+     *
+     * Ignored when the icon is passed as a component.
+     */
+    normalize?: boolean;
 }
 
 /**
@@ -64,6 +77,10 @@ export type IconProps = IconByNameProps | IconByComponentProps;
  * An unknown slug renders `fallback` (nothing, by default) and warns in dev only
  * — it never throws, because a bad name from an API must not take down the tree.
  *
+ * `name` is normalized before the lookup, so a stored `icon_code` renders whether
+ * it was written `shopping_cart`, `" Save"` or under a slug lucide has since
+ * deprecated. Pass `normalize={false}` for a strict lookup.
+ *
  * @example
  * <Icon name="save" size={18} />
  * <Icon name={row.iconSlug} fallback={<span className="skeleton" />} />
@@ -75,15 +92,17 @@ export function Icon({
     size,
     strokeWidth,
     fallback = null,
+    normalize = true,
     ...rest
 }: IconProps): ReactNode {
     const context = useIconContext();
-    const fromSlug = useIcon(name);
+    const slug = name === undefined ? undefined : normalize ? normalizeIconName(name) : name;
+    const fromSlug = useIcon(slug);
     const resolved = icon ?? fromSlug;
 
     if (!resolved) {
-        if (isDevBuild() && name !== undefined && iconStatus(name) === "missing") {
-            warnUnknownIcon(name);
+        if (isDevBuild() && name !== undefined && slug !== undefined) {
+            if (iconStatus(slug) === "missing") warnUnknownIcon(name);
         }
         return fallback;
     }
@@ -104,7 +123,11 @@ const warnedSlugs = new Set<string>();
  * console; the set is never cleared, since a slug that does not exist will not
  * start existing within the life of the page.
  *
- * @param name - The slug that resolved to nothing.
+ * Reports the name **as written**, not the normalized slug: the reader is the
+ * developer who typed it, and `"CircleAlert"` is a far more useful thing to see in
+ * the console than the `"circlealert"` it normalizes to.
+ *
+ * @param name - The slug that resolved to nothing, as passed.
  */
 function warnUnknownIcon(name: string): void {
     if (warnedSlugs.has(name)) return;

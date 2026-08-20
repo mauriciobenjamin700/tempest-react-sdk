@@ -102,18 +102,30 @@ carries a cost that makes it unusable:
     never has an icon and the layout shifts. And an unknown name **throws**, taking
     down the React tree — precisely in the case where the name comes from outside.
 
-The SDK's `<Icon>` trades that for **one chunk per initial letter**. Rendering 130
-different icons asks for 9 requests, not 130:
+The SDK's `<Icon>` trades that for **one chunk per range of 40 icons**. Rendering
+130 different icons asks for a handful of requests, not 130:
 
 ```console
-GET .../icons/generated/shard-s.js   200
-GET .../icons/generated/shard-t.js   200
-GET .../icons/generated/shard-c.js   200
-… one per letter used, 25 at most
+GET .../icons/generated/shard-09.js   200
+GET .../icons/generated/shard-21.js   200
+GET .../icons/generated/shard-36.js   200
+… one per range touched, 45 at most
 ```
 
-The largest shard (`s`, 175 icons) weighs **18.7 KB brotli**; the median sits at
-**5.0 KB**. The `<Icon>` runtime, before any shard, costs **~1 KB brotli**.
+The largest shard weighs **4.78 KB brotli**, the median **4.19 KB** and the
+smallest **1.52 KB**. The `<Icon>` runtime, before any shard, costs
+**~0.1 KB brotli**.
+
+!!! info "Why ranges and not the initial letter"
+    The first letter is the worst possible partitioning key, because lucide's names
+    are heavily skewed: `c` holds 284 slugs and `q` holds 4. Drawing **one** category
+    icon that happened to start with `c` fetched 284 icons — 19.10 KB brotli for a
+    half-KB glyph, a ~130x waste factor.
+
+    The ranges are contiguous and sorted, so the SDK finds the shard owning a slug
+    with a **binary search** over 45 bounds — instead of shipping the 2000-entry
+    slug→chunk map that makes lucide's own `dynamicIconImports` cost 120 KB in a main
+    chunk.
 
 ## A closed catalog: `registerIcons`
 
@@ -254,6 +266,48 @@ behavior does not change, it just gets cheaper where it can.
     stop repeating `size={18}` at every call site. An explicit prop on `<Icon>`
     always wins over the default.
 
+## An `icon_code` from the database arrives dirty — and still renders
+
+Every backend that stores an icon stores it dirty. `snake_case` left over from an
+old form, a space and a capital from a hand-typed value, and slugs lucide has
+deprecated since. `<Icon>` cleans the name before looking it up, so all three
+render:
+
+```tsx
+<Icon name="shopping_cart" />   {/* → shopping-cart */}
+<Icon name="  Save " />         {/* → save */}
+<Icon name="alert-circle" />    {/* → circle-alert (alias) */}
+<Icon name=" Alert_Circle " />  {/* → circle-alert (all three at once) */}
+```
+
+The normalization is: `trim` → lower-case → `_` becomes `-` → `resolveIconAlias`.
+In that order, and it is the same function you can call yourself:
+
+```tsx
+import { normalizeIconName } from "tempest-react-sdk/icons";
+
+normalizeIconName(" Alert_Circle ");  // "circle-alert"
+```
+
+It is exported on its own because the **form needs it before submitting**, not only
+to render: you store the canonical slug in the database instead of keeping the mess
+and cleaning it on every read.
+
+!!! warning "Normalizing is not validating"
+    `normalizeIconName` returns the canonical spelling, not a guarantee that the
+    icon exists: `normalizeIconName("Not_An_Icon")` is `"not-an-icon"`. What to do
+    with an unknown name is yours to decide — `isIconName` answers, and `<Icon>`
+    renders its `fallback`.
+
+!!! tip "Strict lookup when you want to see the mistake"
+    `normalize={false}` turns the cleanup off for that call site. Use it when an
+    unexpected spelling **should** surface as a missing icon rather than be quietly
+    repaired.
+
+The dev warning names the code **as written**, not the normalized slug: the reader
+is whoever typed it, and `name="CircleAlert"` is far more useful in the console
+than the `"circlealert"` it normalizes to.
+
 ## A name that does not exist
 
 Never throws. Without `fallback`, it renders nothing:
@@ -301,6 +355,56 @@ so a slug stored in a database two years ago still renders:
 
 The alias resolves to its canonical name **before** the shard is chosen, so
 `alert-circle` pulls shard `c`, not `a`.
+
+## When a shard does not arrive
+
+A runtime slug fetches a chunk, the chunk has a hash in its name, and the hash
+changes on every deploy. That sets up a routine scenario in a long-lived SPA tab:
+
+1. the user opens the app, and that range's shard has not been fetched yet;
+2. a deploy ships, and the old assets leave the CDN;
+3. the user navigates to a screen that needs that icon;
+4. the `import()` rejects — 404.
+
+The SDK handles it in three parts:
+
+**A short retry.** Two extra attempts, at 100 ms and 400 ms, because the failure
+retrying fixes is the transient one: a flaky connection, a CDN edge that has not
+caught up. If one of them lands, the icon shows and nobody finds out.
+
+**A load failure is not a wrong name.** `iconStatus` gained a fourth state:
+
+```tsx
+iconStatus("save");  // "ready" | "loading" | "missing" | "error"
+```
+
+`"missing"` is only reported when that is actually knowable — the shard **arrived**
+and the slug was not in it. A shard that failed answers `"error"`, which is why
+`<Icon>` stops warning "no such lucide icon" about a perfectly valid name. The
+state is not permanent either: a later render tries again, behind a 10 s cooldown
+so a genuinely dead chunk cannot turn into a request loop.
+
+**A signal for observability.** Retrying does not fix a deploy 404; the app
+knowing does:
+
+```tsx
+import { subscribeToIconErrors } from "tempest-react-sdk/icons";
+
+subscribeToIconErrors(({ shard, slug, attempts, error }) => {
+    Sentry.captureException(error, { tags: { iconShard: shard, slug, attempts } });
+    promptReloadForStaleChunks();
+});
+```
+
+Call it once from the entrypoint. The callback runs once per shard that gave up,
+with the shard, the slug that asked for it, how many attempts were made and the
+last rejection.
+
+!!! tip "With nobody subscribed, dev warns on the console"
+    Failing silently was the problem in the first place — so a development build
+    logs one `console.warn` per shard, saying the usual cause is a deploy that
+    rotated chunk names while the tab was open. Subscribed? The console stays
+    quiet, and the reporting is yours.
 
 ## Warming the shards
 
@@ -463,9 +567,9 @@ Material Symbols and has nothing to do with construction.
     bridge a **regression** for exactly the codes that used to work.
 
 !!! warning "Pass the table to the plugin's `include`"
-    A slug resolved at runtime pulls the shard of its initial letter. A catalogue
-    of ~130 categories touches nearly all 25 letters, so the DX win turns into
-    ~20 requests unless you tell the build:
+    A slug resolved at runtime pulls the shard of its range. A catalogue of ~130
+    categories spreads across dozens of ranges, so the DX win turns into dozens of
+    requests unless you tell the build:
 
     ```ts
     import { defineConfig } from "vite";
@@ -494,11 +598,14 @@ Material Symbols and has nothing to do with construction.
 | `createIconRegistry` | Builds a registry from imported lucide components                         |
 | `useIcon`            | Resolves a slug to its component (what `Icon` uses internally)             |
 | `preloadIcons`       | Warms the shards for a list of slugs                                      |
-| `iconStatus`         | `"ready"` / `"loading"` / `"missing"` for a slug                           |
+| `iconStatus`         | `"ready"` / `"loading"` / `"missing"` / `"error"` for a slug               |
+| `subscribeToIconErrors` | Subscribes to shard load failures (Sentry, stale-chunk reload)          |
+| `IconLoadError`      | The failure payload: `shard`, `slug`, `attempts`, `error`                  |
 | `peekIcon`           | Reads the cache without triggering a load                                 |
 | `loadIcon`           | Loads the shard owning a slug                                             |
 | `resolveIconAlias`   | Deprecated slug → canonical slug                                          |
 | `isIconName`         | Type guard against the real list (imports the list)                       |
+| `normalizeIconName`  | Dirty `icon_code` → canonical slug (trim, lower, `_`→`-`, alias)          |
 | `fromMaterialSymbol` | Material Symbols code → lucide slug, always returning one                 |
 | `materialToLucide`   | The pair table, to pass to the plugin's `include`                         |
 | `MATERIAL_SYMBOL_FALLBACK` | The neutral glyph an unknown code uses                              |
@@ -510,12 +617,13 @@ Material Symbols and has nothing to do with construction.
 
 | What                                             | Brotli    |
 | ------------------------------------------------ | --------- |
-| `<Icon>` runtime, before any shard               | ~1.0 KB   |
-| Smallest shard (`x`, 1 icon), on demand          | 1.1 KB    |
-| Median shard (`g`, 39 icons), on demand          | 5.0 KB    |
-| Largest shard (`s`, 175 icons), on demand        | 18.7 KB   |
-| `{ iconNames }` — the list of 2024 slugs         | 7.0 KB    |
-| Runtime plus all 25 shards (absolute ceiling)    | 128.9 KB  |
+| `<Icon>` runtime, before any shard               | ~0.1 KB   |
+| Smallest shard (7 icons), on demand              | 1.52 KB   |
+| Median shard (40 icons), on demand               | 4.19 KB   |
+| Largest shard (40 icons), on demand              | 4.78 KB   |
+| Largest shard **before** the rebalance (`s`)     | 19.10 KB  |
+| `{ iconNames }` — the list of 2024 slugs         | 6.1 KB    |
+| Runtime plus all 45 shards (absolute ceiling)    | 130.0 KB  |
 
 !!! info "How this was measured"
     Shards and the slug list come from `size-limit` **with `lucide-react` inside
@@ -538,11 +646,17 @@ Material Symbols and has nothing to do with construction.
   `<Icon icon={Save} />`.
 - `tempest-react-sdk/icons/virtual` is a real module: it resolves **without** the
   plugin (empty registry), so vitest, `tsx` and Storybook load the same file.
-- A **runtime** slug loads **one shard per initial letter** — 25 requests at most,
-  never one per icon.
+- A **runtime** slug loads **the shard of its range** — ranges of 40 icons found by
+  binary search, 4.78 KB brotli per request at most.
 - An unknown name renders `fallback` (nothing, by default) and **never throws**;
   `console.warn` in dev only.
+- A shard that does not arrive gets **2 short retries**, answers `iconStatus`
+  `"error"` (not `"missing"`) and is reported through `subscribeToIconErrors` — a
+  deploy that rotates chunk names no longer ends in a silent, permanent fallback.
 - Lucide's 257 old **aliases** keep resolving.
+- An `icon_code` from the database renders dirty: `shopping_cart`, `" Save"` and an
+  old alias are normalized before the lookup. `normalize={false}` for a strict
+  lookup, and `normalizeIconName` on its own to validate in a form.
 - `iconNames` stays **outside** what `<Icon>` costs — import it only to enumerate or
   validate.
 - **Do not declare `lucide-react` in your app**: it ships with the SDK, and a second

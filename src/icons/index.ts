@@ -11,9 +11,12 @@ export {
     preloadIcons,
     registerIcons,
     resolveIconAlias,
+    subscribeToIconErrors,
 } from "./shard-cache";
+export type { IconLoadError } from "./shard-cache";
 export { useIcon } from "./use-icon";
 export { isIconName } from "./is-icon-name";
+export { normalizeIconName } from "./normalize-icon-name";
 export { fromMaterialSymbol, materialToLucide, MATERIAL_SYMBOL_FALLBACK } from "./material-symbols";
 export { iconAliases } from "./generated/aliases";
 export { iconNames } from "./generated/icon-names";

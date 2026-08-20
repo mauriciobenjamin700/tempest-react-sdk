@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Icon } from "./Icon";
 import { createIconRegistry } from "./icon-context";
 import { IconProvider } from "./IconProvider";
+import { iconShards } from "./generated/loaders";
 import { preloadIcons } from "./shard-cache";
 
 /**
@@ -89,12 +90,21 @@ describe("Icon — lazy shard path", () => {
     });
 
     it("renders a second icon from an already-loaded shard on its first frame", async () => {
-        const { unmount } = render(<Icon name="save" />);
-        await waitFor(() => expect(svg()).toHaveClass("lucide-save"));
+        /**
+         * The two slugs are read off one shard rather than hard-coded: shards are
+         * balanced ranges regenerated on every lucide bump, so a hard-coded pair
+         * would silently stop testing the same-shard path the day the boundary
+         * moved between them.
+         */
+        const shard = iconShards[25];
+        const [first, second] = Object.keys((await shard.load()).default);
+
+        const { unmount } = render(<Icon name={first} />);
+        await waitFor(() => expect(svg()).toHaveClass(`lucide-${first}`));
         unmount();
 
-        render(<Icon name="search" />);
-        expect(svg()).toHaveClass("lucide-search");
+        render(<Icon name={second} />);
+        expect(svg()).toHaveClass(`lucide-${second}`);
     });
 
     it("renders the fallback while the shard is in flight", async () => {

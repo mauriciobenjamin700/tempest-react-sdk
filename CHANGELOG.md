@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.47.0] — 2026-08-20
+
 ### Corrigido
 
 - **Aviso de dev do `<Icon>` e do `<AppBar sticky>` era código morto no

@@ -4,6 +4,41 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **Aviso de dev do `<Icon>` e do `<AppBar sticky>` era código morto no
+  artefato publicado** (issue #164). Os dois guardavam o `console.warn` com
+  `Boolean(import.meta.env?.DEV)`, e o Vite resolve essa expressão **no build do
+  SDK** — o `dist` saía com `function a() { return !1 }`, então o aviso não
+  disparava nem no `npm run dev` do app consumidor.
+
+  Custava caro no `<Icon>`, que por desenho não lança em slug desconhecido: o
+  aviso era o único canal informando o erro, e sem ele um `icon_code` inválido
+  vindo de API/CMS falha 100% silencioso — renderiza o `fallback` (nada, por
+  default) e ninguém nota até alguém olhar a tela.
+
+  Os dois passaram a usar `isDevBuild()`, e o `DataTable` (que já usava a forma
+  certa à mão) foi junto para haver um só lugar com essa decisão.
+
+- **A declaração `ImportMeta` de `src/types.d.ts` saiu**, o que transforma a
+  regressão em erro de compilação: sem ela, `import.meta.env` em código do
+  `src/` falha o `tsc` com `Property 'env' does not exist on type 'ImportMeta'`.
+  O guard vale mais que o conserto — o bug não é ninguém ter errado, é a forma
+  errada parecer idêntica à certa.
+
+### Adicionado
+
+- **`isDevBuild()`** exportado da raiz — `true` quando o **app** foi buildado
+  para desenvolvimento. Lê `process.env.NODE_ENV`, que é o que os bundlers
+  substituem no build do app, escrito por extenso e com o erro capturado em vez
+  de evitado por um `typeof process`: esse guard pareceria mais cuidadoso e
+  reintroduziria o bug, porque o bundler troca a expressão
+  `process.env.NODE_ENV` e mais nada — no browser, onde o identificador
+  `process` não existe, o `typeof` retornaria cedo com o literal logo abaixo já
+  substituído. Ambiente que não define nenhum dos dois devolve `false`: aviso de
+  dev que não consegue provar que está em dev fica calado em vez de gritar no
+  console de produção de alguém.
+
 ## [0.46.0] — 2026-08-20
 
 ### Adicionado

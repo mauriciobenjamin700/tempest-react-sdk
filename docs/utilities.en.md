@@ -206,6 +206,29 @@ randomId("user"); // "user-9f1c2b3a-..."
 
 ---
 
+## Development mode — `isDevBuild`
+
+| Function       | Signature       | What it does                                                |
+| -------------- | --------------- | ----------------------------------------------------------- |
+| `isDevBuild()` | `() => boolean` | `true` when the **app** was built for development.          |
+
+```ts
+import { isDevBuild } from "tempest-react-sdk";
+
+if (isDevBuild()) {
+  console.warn("[my-app] this prop combination does nothing");
+}
+```
+
+!!! danger "In a published package, `import.meta.env.DEV` is a constant — not a test"
+    Writing `if (import.meta.env.DEV)` inside a library looks equivalent and is not: Vite replaces that expression **while building the library**, so the published artifact carries a fixed `false` and the whole `if` becomes dead code. The consuming app's dev server cannot switch it back on — the decision was already made, on another machine, in another build.
+
+    `process.env.NODE_ENV` is what bundlers replace **in the app's build**, which is why `isDevBuild()` reads that expression, written out in full and with the failure caught rather than guarded against. A `typeof process` guard would read as the careful version and reintroduce the bug: bundlers substitute the member expression `process.env.NODE_ENV` and nothing else, so in a browser — where the identifier `process` does not exist — the guard would return early with the literal right below it already replaced by `"development"`.
+
+    An environment that defines neither symbol (a raw service worker, a plain `<script type="module">`) gets `false`: a dev-only warning that cannot prove it is in development stays quiet instead of shouting in someone's production console.
+
+---
+
 ## Strings
 
 | Function                          | Signature                                                      | What it does                                            |
@@ -412,6 +435,7 @@ const [save, setSave] = useLocalStorage("save", EMPTY_SAVE, compressedStorageCod
 - **Guards**: `isDefined`, `isString`, `isNumber`, `isPlainObject`, `assertNever` — safe narrowing + `switch` exhaustiveness.
 - **Functions**: `debounce`/`throttle` (with `.cancel()`), `once`, `memoizeOne` to control execution.
 - **Promises/IDs/Strings/Numbers**: `sleep`, `withTimeout`, `randomId`, `capitalize`/`camelCase`/`kebabCase`/`pluralize`, `formatBytes`/`formatCompactNumber`.
+- **`isDevBuild()`**: dev-only warnings without the `import.meta.env.DEV` trap, which in a published package is a constant resolved while building the **library**, not the app.
 
 ## See also
 

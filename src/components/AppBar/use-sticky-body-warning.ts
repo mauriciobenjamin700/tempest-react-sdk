@@ -1,5 +1,7 @@
 import { useEffect } from "react";
 
+import { isDevBuild } from "../../utils";
+
 /**
  * The one line of the app's own CSS that silently defeats `sticky`.
  *
@@ -36,16 +38,6 @@ const MESSAGE =
     "Fix: `html, body { overflow-x: clip }`, on both elements, since neither clamps alone. " +
     "Pass `sticky={false}` if the bar is meant to scroll away.";
 
-/**
- * Whether the bundle was built for development.
- *
- * Guarded because the SDK also runs where `import.meta.env` does not exist — a
- * service-worker context, a Node test runner, a build-time script.
- */
-function isDev(): boolean {
-    return Boolean(import.meta.env?.DEV);
-}
-
 /** Set once the warning has been printed, so re-renders do not bury the console. */
 let warned = false;
 
@@ -73,7 +65,7 @@ export function resetStickyBodyWarning(): void {
  */
 export function useStickyBodyWarning(enabled: boolean): void {
     useEffect(() => {
-        if (!enabled || warned || !isDev()) return;
+        if (!enabled || warned || !isDevBuild()) return;
         if (typeof document === "undefined" || !document.body) return;
         if (getComputedStyle(document.body).overflowX !== "hidden") return;
         warned = true;

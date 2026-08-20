@@ -4,6 +4,7 @@ import type { IconName } from "./generated/icon-name";
 import { useIconContext } from "./icon-context";
 import { iconStatus } from "./shard-cache";
 import { useIcon } from "./use-icon";
+import { isDevBuild } from "../utils";
 
 export interface IconProps extends Omit<SVGProps<SVGSVGElement>, "ref"> {
     /**
@@ -51,7 +52,7 @@ export function Icon({ name, size, strokeWidth, fallback = null, ...rest }: Icon
     const resolved = useIcon(name);
 
     if (!resolved) {
-        if (isDev() && iconStatus(name) === "missing") warnUnknownIcon(name);
+        if (isDevBuild() && iconStatus(name) === "missing") warnUnknownIcon(name);
         return fallback;
     }
 
@@ -60,16 +61,6 @@ export function Icon({ name, size, strokeWidth, fallback = null, ...rest }: Icon
         strokeWidth: strokeWidth ?? context?.strokeWidth,
         ...rest,
     });
-}
-
-/**
- * Whether the bundle was built for development.
- *
- * Guarded because the SDK also runs where `import.meta.env` does not exist — a
- * service-worker context, a Node test runner, a build-time script.
- */
-function isDev(): boolean {
-    return Boolean(import.meta.env?.DEV);
 }
 
 const warnedSlugs = new Set<string>();

@@ -1,5 +1,7 @@
 import { useEffect } from "react";
 
+import { isDevBuild } from "../../utils";
+
 /** What {@link useDevWarnings} needs to judge the prop combination. */
 export interface DataTableDevWarningsInput {
     /** Whether `totalItems` was passed. */
@@ -33,7 +35,7 @@ export function useDevWarnings({
     onSortChange,
 }: DataTableDevWarningsInput): void {
     useEffect(() => {
-        if (process.env.NODE_ENV === "production") return;
+        if (!isDevBuild()) return;
 
         if (serverMode && controlledPage === undefined) {
             console.warn(

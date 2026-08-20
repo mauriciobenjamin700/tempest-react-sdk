@@ -88,6 +88,20 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`materialToLucide` cresceu de 22 para 130 pares.** A semente cobria só ofícios
+  (`plumbing`, `handyman`, `electrical_services`); entrou o vocabulário que um
+  painel administrativo realmente usa — navegação, dinheiro, datas, mídia,
+  comunicação — e mais categorias de serviço (`carpenter`, `construction`,
+  `cleaning_services`, `local_laundry_service`, `content_cut`, `pest_control`,
+  `medical_services`, `dentistry`, `car_repair`, `local_shipping`,
+  `fitness_center`, `spa`, `child_care`, `school`). Todo par escrito à mão, e o
+  lado lucide conferido pelos testes de guarda existentes contra a lista real de
+  slugs — que é o que pegou dois pares apontando para **alias depreciado**
+  (`smile` → hoje `face-slightly-smiling`, `history` → `rotate-ccw-clock`). Cada
+  aproximação está na tabela da doc, nas duas línguas. `window` ficou de fora de
+  propósito: o `app-window` do lucide é janela de interface, não de parede, e par
+  errado é pior que fallback.
+
 - **`<IconPicker>`** — campo de ícone com autocomplete nativo sobre os 2024 slugs,
   preview do escolhido, e validação ligada ao form nativo via `setCustomValidity`.
   Todo painel reescrevia essa tela (no `servus-frontend` foram ~87 linhas no form de

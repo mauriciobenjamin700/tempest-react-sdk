@@ -75,6 +75,19 @@ function formatLoc(loc: unknown): string | undefined {
 }
 
 /**
+ * How deep {@link normalizeDetail} follows a nested `detail` before giving up.
+ *
+ * A real envelope needs two or three levels: the list, an entry, the entry's
+ * own `detail`. The cap exists because the body is untrusted input arriving on
+ * the error path — a response nesting `{"detail":{"detail":…}}` twenty thousand
+ * deep (a 220 KB body) overflowed the stack, and a `RangeError` thrown while
+ * *building* the error is worse than the error: the caller's `catch` stops
+ * receiving a `TempestApiError`, so `isApiError` is false, `describeApiError`
+ * has nothing to read and the `401` handling never runs.
+ */
+const MAX_DETAIL_DEPTH = 4;
+
+/**
  * Collapse a backend `detail` of any shape into a single readable line.
  *
  * FastAPI answers a `422` with `detail` as a **list** of
@@ -85,18 +98,21 @@ function formatLoc(loc: unknown): string | undefined {
  * `msg`/`message`/`detail` string.
  *
  * @param raw - The `detail` (or `message`) value from the error body.
+ * @param depth - Current nesting level. Past {@link MAX_DETAIL_DEPTH} the value
+ *     is treated as unreadable instead of followed further.
  * @returns The rendered message, or undefined when nothing readable is there —
  *     letting the caller fall back to the synthetic `Erro <status>`.
  */
-function normalizeDetail(raw: unknown): string | undefined {
+function normalizeDetail(raw: unknown, depth: number = 0): string | undefined {
     if (raw === null || raw === undefined) return undefined;
     if (typeof raw === "string") return raw === "" ? undefined : raw;
     if (typeof raw === "number" || typeof raw === "boolean") return String(raw);
+    if (depth >= MAX_DETAIL_DEPTH) return undefined;
 
     if (Array.isArray(raw)) {
         const lines = raw
             .map((entry) => {
-                const message = normalizeDetail(entry);
+                const message = normalizeDetail(entry, depth + 1);
                 if (message === undefined) return undefined;
                 const field =
                     typeof entry === "object" && entry !== null
@@ -111,9 +127,9 @@ function normalizeDetail(raw: unknown): string | undefined {
     if (typeof raw === "object") {
         const entry = raw as Record<string, unknown>;
         return (
-            normalizeDetail(entry.msg) ??
-            normalizeDetail(entry.message) ??
-            normalizeDetail(entry.detail)
+            normalizeDetail(entry.msg, depth + 1) ??
+            normalizeDetail(entry.message, depth + 1) ??
+            normalizeDetail(entry.detail, depth + 1)
         );
     }
 

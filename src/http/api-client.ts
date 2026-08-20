@@ -60,6 +60,21 @@ function isFormData(body: unknown): body is FormData {
     return typeof FormData !== "undefined" && body instanceof FormData;
 }
 
+/**
+ * Milliseconds since a `performance.now()` reading, rounded.
+ *
+ * `performance.now()` rather than `Date.now()` because this measures a
+ * duration: the wall clock can step sideways mid-request (an NTP correction, a
+ * VM resuming, the user changing the clock) and turn a 40 ms call into a
+ * negative number. The monotonic clock cannot.
+ *
+ * @param startedAt - The reading taken before the work started.
+ * @returns Whole milliseconds elapsed.
+ */
+function elapsedMs(startedAt: number): number {
+    return Math.round(performance.now() - startedAt);
+}
+
 async function parseError(response: Response, sentRequestId?: string): Promise<TempestApiError> {
     let body: unknown;
     try {
@@ -158,10 +173,10 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         const log = config.logger;
         if (!log) return rawRequest(path, options, requestId);
 
-        const startedAt = Date.now();
+        const startedAt = performance.now();
         try {
             const response = await rawRequest(path, options, requestId);
-            const entry = { requestId, status: response.status, ms: Date.now() - startedAt };
+            const entry = { requestId, status: response.status, ms: elapsedMs(startedAt) };
             const line = `${method} ${path} → ${response.status}`;
             if (response.status >= 400) log.warn(line, entry);
             else log.debug(line, entry);
@@ -169,19 +184,28 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         } catch (error) {
             log.warn(`${method} ${path} → no response`, {
                 requestId,
-                ms: Date.now() - startedAt,
+                ms: elapsedMs(startedAt),
                 error,
             });
             throw error;
         }
     }
 
-    async function endSession(response: Response, requestId: string): Promise<void> {
+    async function notifyUnauthorized(response: Response, requestId: string): Promise<void> {
+        if (!config.onUnauthorized) return;
         config.logger?.warn(`unauthorized — calling onUnauthorized`, {
             requestId,
             status: response.status,
         });
-        await config.onUnauthorized?.(response);
+        try {
+            await config.onUnauthorized(response);
+        } catch (error) {
+            config.logger?.warn(`onUnauthorized threw — keeping the original response error`, {
+                requestId,
+                status: response.status,
+                error,
+            });
+        }
     }
 
     async function attempt<T>(path: string, options: RequestOptions): Promise<T> {
@@ -195,14 +219,14 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
                     await config.refresh();
                     response = await send(path, options, requestId, method);
                 } catch {
-                    await endSession(response, requestId);
+                    await notifyUnauthorized(response, requestId);
                     throw await parseError(response, requestId);
                 }
                 if (response.status === 401) {
-                    await endSession(response, requestId);
+                    await notifyUnauthorized(response, requestId);
                 }
             } else {
-                await endSession(response, requestId);
+                await notifyUnauthorized(response, requestId);
             }
         }
 

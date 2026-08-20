@@ -79,10 +79,10 @@ Comportamento:
 
     **Esse segundo 401 é o caso que importa.** Um `refresh()` que resolve não prova que a sessão está viva: o backend pode devolver um token que ele mesmo recusa — refresh token revogado, permissão retirada, corrida entre abas. Sem `onUnauthorized` aí, o app ficaria com um store dizendo "autenticado" enquanto toda requisição dá 401, e o usuário veria um erro genérico sem caminho de volta pro login.
 
-!!! danger "`onUnauthorized` não faz requisição"
-    O cliente **aguarda** o seu hook antes de lançar o erro, então um `throw` lá dentro toma o lugar do 401 original. O caso concreto: `onUnauthorized` chama um `logout()` que faz `POST /auth/logout` — com o token que o backend já recusou. O logout volta 422, esse erro sobe no lugar do 401, e o console mostra dois erros onde havia um, o segundo sem relação com a requisição que falhou.
+!!! warning "`onUnauthorized` não deveria fazer requisição"
+    O trabalho do hook é **local**: limpar store, storage e cache. `POST /auth/logout` pertence ao logout explícito do usuário, quando o token ainda vale — chamar de dentro do `onUnauthorized` é mandar a requisição com o token que o backend acabou de recusar, e ela volta 401/422.
 
-    O trabalho do hook é **local**: limpar store, storage e cache. `POST /auth/logout` pertence ao logout explícito do usuário, quando o token ainda vale. Se o seu logout precisa mesmo ir na rede aqui, envolva em `try/catch` para o 401 continuar sendo o erro que o chamador recebe.
+    **O erro do hook não vaza mais.** O cliente aguarda o `onUnauthorized` e captura o que ele lançar, então quem chamou continua recebendo o `ApiError` da requisição original — antes da v0.48.0 o throw do hook tomava o lugar do 401, e o console mostrava dois erros onde havia um, o segundo sem relação com a requisição que falhou. Com um `logger` configurado, a falha do hook sai como `warn` em vez de desaparecer.
 
 ## Base URL e prefixo
 
@@ -166,6 +166,7 @@ O que sai:
 | Resposta 400 ou acima | `warn` | `GET /admin → 403` |
 | Requisição que não teve resposta | `warn` | `GET /orders → no response` (contexto carrega o `error`) |
 | `onUnauthorized` disparando | `warn` | `unauthorized — calling onUnauthorized` |
+| `onUnauthorized` lançando | `warn` | `onUnauthorized threw — keeping the original response error` (contexto com o `error`) |
 
 O contexto de cada linha traz `requestId`, `status` e o `ms` decorrido. É **uma linha por tentativa**, então a repetição depois do `refresh` e cada retry aparecem — é assim que se lê "401, renovou, 200" no log.
 

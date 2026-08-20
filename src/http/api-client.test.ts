@@ -13,6 +13,28 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 describe("createApiClient", () => {
     afterEach(() => vi.restoreAllMocks());
 
+    it("keeps the original error when onUnauthorized throws", async () => {
+        const fetcher = vi.fn().mockResolvedValue(
+            new Response(JSON.stringify({ detail: "sessão expirada", code: "TOKEN_EXPIRED" }), {
+                status: 401,
+                headers: { "content-type": "application/json" },
+            }),
+        );
+        const onUnauthorized = vi.fn(() => Promise.reject(new Error("logout POST returned 422")));
+        const api = createApiClient({
+            baseURL: "https://api.example.com",
+            onUnauthorized,
+            fetcher,
+        });
+
+        await expect(api.get("/me")).rejects.toMatchObject({
+            status: 401,
+            detail: "sessão expirada",
+            code: "TOKEN_EXPIRED",
+        });
+        expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    });
+
     it("merges baseURL + path + params", async () => {
         const fetcher = vi.fn().mockResolvedValue(jsonResponse({ ok: true }));
         const api = createApiClient({ baseURL: "https://api.example.com", fetcher });

@@ -79,10 +79,10 @@ Behavior:
 
     **That second 401 is the case that matters.** A `refresh()` that resolves is no proof the session is alive: the backend can hand back a token it then refuses — a revoked refresh token, a permission taken away, a race between tabs. Without `onUnauthorized` firing there, the app would sit on a store claiming "authenticated" while every request 401s, and the user would see a generic error with no way back to the login screen.
 
-!!! danger "`onUnauthorized` makes no request"
-    The client **awaits** your hook before it throws, so a `throw` in there takes the place of the original 401. The concrete case: `onUnauthorized` calls a `logout()` that does `POST /auth/logout` — with the very token the backend already refused. The logout comes back 422, that error surfaces instead of the 401, and the console shows two errors where there was one, the second unrelated to the request that failed.
+!!! warning "`onUnauthorized` should make no request"
+    The hook's job is **local**: clear the store, the storage, the cache. `POST /auth/logout` belongs to the user's explicit logout, while the token is still valid — calling it from inside `onUnauthorized` sends the request with the very token the backend just refused, and it comes back 401/422.
 
-    The hook's job is **local**: clear the store, the storage, the cache. `POST /auth/logout` belongs to the user's explicit logout, while the token is still valid. If your logout really must hit the network here, wrap it in `try/catch` so the 401 stays the error the caller receives.
+    **A throwing hook no longer leaks.** The client awaits `onUnauthorized` and catches whatever it throws, so the caller still receives the original request's `ApiError` — before v0.48.0 the hook's throw took the place of the 401, and the console showed two errors where there was one, the second unrelated to the request that failed. With a `logger` configured, the hook's failure surfaces as a `warn` instead of vanishing.
 
 ## Base URL and prefix
 
@@ -166,6 +166,7 @@ What comes out:
 | Response 400 or above | `warn` | `GET /admin → 403` |
 | Request that got no response | `warn` | `GET /orders → no response` (the context carries the `error`) |
 | `onUnauthorized` firing | `warn` | `unauthorized — calling onUnauthorized` |
+| `onUnauthorized` throwing | `warn` | `onUnauthorized threw — keeping the original response error` (the context carries the `error`) |
 
 Each line's context carries `requestId`, `status` and the elapsed `ms`. It is **one line per attempt**, so the replay after a `refresh` and every retry show up — that is how you read "401, refreshed, 200" off the log.
 

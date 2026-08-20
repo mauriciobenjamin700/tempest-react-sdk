@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.45.1] — 2026-08-20
+
 ### Corrigido
 
 - **`ApiError.detail` de um 422 do FastAPI parava em `[object Object]`.** O

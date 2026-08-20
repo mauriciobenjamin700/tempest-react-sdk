@@ -254,6 +254,48 @@ behavior does not change, it just gets cheaper where it can.
     stop repeating `size={18}` at every call site. An explicit prop on `<Icon>`
     always wins over the default.
 
+## An `icon_code` from the database arrives dirty — and still renders
+
+Every backend that stores an icon stores it dirty. `snake_case` left over from an
+old form, a space and a capital from a hand-typed value, and slugs lucide has
+deprecated since. `<Icon>` cleans the name before looking it up, so all three
+render:
+
+```tsx
+<Icon name="shopping_cart" />   {/* → shopping-cart */}
+<Icon name="  Save " />         {/* → save */}
+<Icon name="alert-circle" />    {/* → circle-alert (alias) */}
+<Icon name=" Alert_Circle " />  {/* → circle-alert (all three at once) */}
+```
+
+The normalization is: `trim` → lower-case → `_` becomes `-` → `resolveIconAlias`.
+In that order, and it is the same function you can call yourself:
+
+```tsx
+import { normalizeIconName } from "tempest-react-sdk/icons";
+
+normalizeIconName(" Alert_Circle ");  // "circle-alert"
+```
+
+It is exported on its own because the **form needs it before submitting**, not only
+to render: you store the canonical slug in the database instead of keeping the mess
+and cleaning it on every read.
+
+!!! warning "Normalizing is not validating"
+    `normalizeIconName` returns the canonical spelling, not a guarantee that the
+    icon exists: `normalizeIconName("Not_An_Icon")` is `"not-an-icon"`. What to do
+    with an unknown name is yours to decide — `isIconName` answers, and `<Icon>`
+    renders its `fallback`.
+
+!!! tip "Strict lookup when you want to see the mistake"
+    `normalize={false}` turns the cleanup off for that call site. Use it when an
+    unexpected spelling **should** surface as a missing icon rather than be quietly
+    repaired.
+
+The dev warning names the code **as written**, not the normalized slug: the reader
+is whoever typed it, and `name="CircleAlert"` is far more useful in the console
+than the `"circlealert"` it normalizes to.
+
 ## A name that does not exist
 
 Never throws. Without `fallback`, it renders nothing:
@@ -499,6 +541,7 @@ Material Symbols and has nothing to do with construction.
 | `loadIcon`           | Loads the shard owning a slug                                             |
 | `resolveIconAlias`   | Deprecated slug → canonical slug                                          |
 | `isIconName`         | Type guard against the real list (imports the list)                       |
+| `normalizeIconName`  | Dirty `icon_code` → canonical slug (trim, lower, `_`→`-`, alias)          |
 | `fromMaterialSymbol` | Material Symbols code → lucide slug, always returning one                 |
 | `materialToLucide`   | The pair table, to pass to the plugin's `include`                         |
 | `MATERIAL_SYMBOL_FALLBACK` | The neutral glyph an unknown code uses                              |
@@ -543,6 +586,9 @@ Material Symbols and has nothing to do with construction.
 - An unknown name renders `fallback` (nothing, by default) and **never throws**;
   `console.warn` in dev only.
 - Lucide's 257 old **aliases** keep resolving.
+- An `icon_code` from the database renders dirty: `shopping_cart`, `" Save"` and an
+  old alias are normalized before the lookup. `normalize={false}` for a strict
+  lookup, and `normalizeIconName` on its own to validate in a form.
 - `iconNames` stays **outside** what `<Icon>` costs — import it only to enumerate or
   validate.
 - **Do not declare `lucide-react` in your app**: it ships with the SDK, and a second

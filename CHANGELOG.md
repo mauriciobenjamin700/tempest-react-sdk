@@ -34,6 +34,17 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`<Icon>` normaliza `icon_code` por default, e `normalizeIconName` saiu como
+  export.** Backend que grava ícone grava sujo — `snake_case` de formulário antigo,
+  espaço e maiúscula de valor digitado à mão, slug que o lucide depreciou desde
+  então — e cada app reescrevia a mesma cola de três passos em volta de
+  `resolveIconAlias` e `isIconName`, que já eram do SDK. Agora o componente faz
+  `trim` → minúsculas → `_`→`-` → alias antes do lookup; `normalize={false}` pede
+  lookup estrito. A função sozinha existe porque o formulário precisa dela **antes
+  de submeter**, para gravar o slug canônico em vez de limpar em toda leitura. O
+  aviso de dev passou a citar o nome **como foi escrito**, não o normalizado — quem
+  lê o console é quem digitou.
+
 - **`registerIcons(record)`** — registro estático de ícone sem provider e sem
   plugin. Uma chamada no entrypoint e todo `<Icon name>` da árvore resolve no
   primeiro frame, com import estático que o bundler poda. O caminho anterior para

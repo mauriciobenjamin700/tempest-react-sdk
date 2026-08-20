@@ -254,6 +254,47 @@ muda, só fica mais barato onde dá.
     para de repetir `size={18}` em cada chamada. Prop explícita no `<Icon>` sempre
     ganha do default.
 
+## `icon_code` do banco chega sujo — e renderiza
+
+Todo backend que grava ícone grava sujo. `snake_case` de formulário antigo, espaço
+e maiúscula de valor digitado à mão, e slug que o lucide depreciou desde então. O
+`<Icon>` limpa antes de procurar, então os três casos renderizam:
+
+```tsx
+<Icon name="shopping_cart" />   {/* → shopping-cart */}
+<Icon name="  Save " />         {/* → save */}
+<Icon name="alert-circle" />    {/* → circle-alert (alias) */}
+<Icon name=" Alert_Circle " />  {/* → circle-alert (os três de uma vez) */}
+```
+
+A normalização é: `trim` → minúsculas → `_` vira `-` → `resolveIconAlias`. Nessa
+ordem, e é a mesma função que você pode chamar sozinho:
+
+```tsx
+import { normalizeIconName } from "tempest-react-sdk/icons";
+
+normalizeIconName(" Alert_Circle ");  // "circle-alert"
+```
+
+Exporta sozinho porque o **formulário precisa dela antes de submeter**, não só para
+renderizar: você grava o slug canônico no banco em vez de guardar a sujeira e
+limpar em toda leitura.
+
+!!! warning "Normalizar não é validar"
+    `normalizeIconName` devolve a grafia canônica, não a garantia de que o ícone
+    existe: `normalizeIconName("Not_An_Icon")` é `"not-an-icon"`. Quem decide o que
+    fazer com um nome desconhecido é você — `isIconName` responde, e o `<Icon>`
+    renderiza o `fallback`.
+
+!!! tip "Lookup estrito quando você quer ver o erro"
+    `normalize={false}` desliga a limpeza para aquele call site. Serve para quando
+    uma grafia inesperada **deve** aparecer como ícone faltando em vez de ser
+    consertada em silêncio.
+
+O aviso de dev cita o nome **como foi escrito**, não o normalizado: quem lê o
+console é quem digitou, e `name="CircleAlert"` é bem mais útil ali do que o
+`"circlealert"` que aquilo normaliza.
+
 ## Nome que não existe
 
 Nunca lança. Sem `fallback`, não renderiza nada:
@@ -498,6 +539,7 @@ construção.
 | `loadIcon`           | Carrega o shard de um slug                                              |
 | `resolveIconAlias`   | Slug depreciado → slug canônico                                        |
 | `isIconName`         | Type guard contra a lista real (importa a lista)                        |
+| `normalizeIconName`  | `icon_code` sujo → slug canônico (trim, lower, `_`→`-`, alias)          |
 | `fromMaterialSymbol` | Código Material Symbols → slug lucide, sempre devolvendo um             |
 | `materialToLucide`   | A tabela de pares, para passar no `include` do plugin                   |
 | `MATERIAL_SYMBOL_FALLBACK` | O glifo neutro que um código desconhecido usa                    |
@@ -542,6 +584,9 @@ construção.
 - Nome inexistente renderiza `fallback` (nada, por default) e **nunca lança**;
   `console.warn` só em dev.
 - Os 257 **aliases** antigos do lucide continuam resolvendo.
+- `icon_code` do banco renderiza sujo: `shopping_cart`, `" Save"` e alias antigo são
+  normalizados antes do lookup. `normalize={false}` para lookup estrito, e
+  `normalizeIconName` sozinho para validar no formulário.
 - `iconNames` fica **fora** do custo do `<Icon>` — importe só se for listar ou
   validar.
 - **Não declare `lucide-react` no seu app**: ele já vem com o SDK, e uma segunda

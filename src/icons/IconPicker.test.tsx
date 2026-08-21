@@ -3,7 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { DEFAULT_ICON_PICKER_MESSAGE, IconPicker, validateIconName } from "./IconPicker";
+import { IconPicker } from "./IconPicker";
+import { DEFAULT_ICON_PICKER_MESSAGE, validateIconName } from "./validate-icon-name";
 
 /** A controlled host, since the picker always emits the canonical slug. */
 function Host({ initial = "", ...rest }: { initial?: string; limit?: number; required?: boolean }) {

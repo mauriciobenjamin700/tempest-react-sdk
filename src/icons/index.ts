@@ -1,6 +1,7 @@
 export { Icon } from "./Icon";
 export type { IconProps } from "./Icon";
-export { DEFAULT_ICON_PICKER_MESSAGE, IconPicker, validateIconName } from "./IconPicker";
+export { IconPicker } from "./IconPicker";
+export { DEFAULT_ICON_PICKER_MESSAGE, validateIconName } from "./validate-icon-name";
 export type { IconPickerProps } from "./IconPicker";
 export { IconProvider } from "./IconProvider";
 export type { IconProviderProps } from "./IconProvider";

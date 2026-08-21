@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.48.0] — 2026-08-21
+
 ### Adicionado
 
 - **`Sidebar` agora descreve seções.** `items` passou a aceitar

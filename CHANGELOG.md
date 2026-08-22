@@ -47,6 +47,29 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`createJsonStorage(codec)`, e `compressedStorage` finalmente ganha
+  `remove()`.** A docstring do `compressedStorage` prometia que ele e o `storage`
+  eram "interchangeable at the call site". Não eram: o `storage` tem `remove()`, o
+  comprimido não tinha. Quem seguisse a promessa quebrava na primeira chamada — e
+  o comprimido ainda era uma cópia escrita à mão das mesmas guardas de
+  `typeof window` e dos mesmos `try/catch`.
+
+  Os dois passam a ser a mesma função: `createJsonStorage()` e
+  `createJsonStorage(compressedStorageCodec)`. Superfície idêntica por construção,
+  e codec próprio virou caminho de primeira classe:
+
+  ```ts
+  const secrets = createJsonStorage({
+    serialize: (value) => encrypt(JSON.stringify(value)),
+    deserialize: (raw) => JSON.parse(decrypt(raw)),
+  });
+  ```
+
+  O degradê que o comprimido já tinha virou contrato do factory: codec que
+  **lança** cai para JSON puro em vez de perder a escrita — registro maior ainda
+  carrega, registro ausente não. Só valor que nem JSON representa (referência
+  circular) perde. `StorageCodec` e `JsonStorage` são exportados.
+
 - **`t` e `plural` aceitam um texto default por chave.** Sem isso, um miss devolve
   a própria chave, e quem quisesse texto próprio tinha que **detectar** o miss de
   fora — o que na prática significa comparar o resultado com a chave que acabou de

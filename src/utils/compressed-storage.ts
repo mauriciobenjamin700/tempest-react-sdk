@@ -1,5 +1,7 @@
 import { gunzipSync, gzipSync } from "fflate";
 
+import { createJsonStorage, type JsonStorage, type StorageCodec } from "./storage";
+
 /**
  * Gzip-backed `localStorage`, for payloads that would otherwise eat the quota.
  *
@@ -96,7 +98,7 @@ export function decompressFromString<T>(raw: string): T {
  * @example
  * const [save, setSave] = useLocalStorage("save", EMPTY_SAVE, compressedStorageCodec);
  */
-export const compressedStorageCodec = {
+export const compressedStorageCodec: StorageCodec = {
     serialize: compressToString,
     deserialize: decompressFromString,
 };
@@ -104,52 +106,14 @@ export const compressedStorageCodec = {
 /**
  * Typed `localStorage` wrapper that gzips what it writes.
  *
- * Mirrors {@link storage} so the two are interchangeable at the call site; the
- * difference is only in how the value is encoded.
+ * {@link createJsonStorage} with {@link compressedStorageCodec}, so it is the
+ * same implementation as {@link storage} and genuinely interchangeable with it —
+ * `get`, `set` and `remove`, differing only in how the value is encoded. It used
+ * to be a hand-written copy that had no `remove`, which made that promise false
+ * for anybody who took the docstring at its word.
+ *
+ * When compression itself fails the value is written as plain JSON rather than
+ * dropped: a slightly larger record still loads, an absent one does not. Only a
+ * storage-level failure — quota, blocked storage — loses the write.
  */
-export const compressedStorage = {
-    /**
-     * Read and decompress a key.
-     *
-     * @typeParam T - The expected value shape.
-     * @param key - Storage key.
-     * @param fallback - Returned when the key is absent, unreadable, or corrupt.
-     * @returns The stored value, or `fallback`.
-     */
-    get<T>(key: string, fallback: T): T {
-        if (typeof window === "undefined") return fallback;
-        try {
-            const raw = window.localStorage.getItem(key);
-            return raw === null ? fallback : decompressFromString<T>(raw);
-        } catch {
-            return fallback;
-        }
-    },
-
-    /**
-     * Compress and write a key.
-     *
-     * When compression itself fails the value is written as plain JSON rather
-     * than dropped: a slightly larger record still loads, an absent one does
-     * not. Only a storage-level failure — quota, blocked storage — loses the
-     * write.
-     *
-     * @typeParam T - The value being stored.
-     * @param key - Storage key.
-     * @param value - Any JSON-serializable value.
-     */
-    set<T>(key: string, value: T): void {
-        if (typeof window === "undefined") return;
-        let encoded: string;
-        try {
-            encoded = compressToString(value);
-        } catch {
-            encoded = JSON.stringify(value);
-        }
-        try {
-            window.localStorage.setItem(key, encoded);
-        } catch {
-            /* empty */
-        }
-    },
-};
+export const compressedStorage: JsonStorage = createJsonStorage(compressedStorageCodec);

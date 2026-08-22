@@ -374,6 +374,31 @@ const save = compressedStorage.get("save", null);
 
 - `get<T>(key, fallback)` — descomprime e faz parse. Chave ausente, ilegível ou corrompida devolve `fallback`; nunca lança.
 - `set<T>(key, value)` — comprime e grava.
+- `remove(key)` — apaga a chave.
+
+!!! tip "Mesma implementação dos dois, via `createJsonStorage`"
+    `storage` e `compressedStorage` são a **mesma** função por baixo —
+    `createJsonStorage(codec)` — então a superfície dos dois não pode divergir. Até
+    a v0.44.0 o comprimido era uma cópia escrita à mão das mesmas guardas, e **não
+    tinha `remove`**, enquanto a docstring dele prometia que os dois eram
+    intercambiáveis no call site. Quem seguiu a promessa quebrou no primeiro
+    `remove`.
+
+    Codec próprio é o mesmo caminho:
+
+    ```ts
+    import { createJsonStorage } from "tempest-react-sdk";
+
+    // Um store que cifra antes de gravar.
+    const secrets = createJsonStorage({
+      serialize: (value) => encrypt(JSON.stringify(value)),
+      deserialize: (raw) => JSON.parse(decrypt(raw)),
+    });
+    ```
+
+    Se o codec **lançar**, o valor é gravado como JSON puro em vez de descartado:
+    registro maior ainda carrega, registro ausente não. Só um valor que nem JSON
+    representa (referência circular) perde a escrita.
 
 ### O formato é autodescritivo
 

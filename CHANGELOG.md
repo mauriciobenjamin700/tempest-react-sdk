@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.49.0] — 2026-08-22
+
 ### Breaking
 
 - **As props do `DataTable` viraram união discriminada.** Três combinações que

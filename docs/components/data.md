@@ -477,6 +477,19 @@ import { BarList } from "tempest-react-sdk";
     Colapsar uma única linha em "Outros" esconderia o nome dela à toa — nesse caso
     ela aparece com o próprio nome.
 
+!!! tip "A paleta respeita `--tempest-chart-count`"
+    A cor de cada linha vem de `useChartColors`, o mesmo resolvedor que todo chart
+    do SDK usa, então um tema que declara **menos** de oito séries cicla dentro da
+    própria paleta. Um tema de marca com 6 cores repete a 1ª e a 2ª nas linhas 7 e 8,
+    em vez de cair no azul e no teal default do SDK.
+
+    Até a v0.44.0 a cor era lida por `var(--tempest-chart-N)` com `N = index % 8`.
+    O CSS não consegue usar `--tempest-chart-count` como módulo, então o `8` era
+    fixo e a marca perdia as duas últimas linhas. `palette.ts` não importa nada,
+    então isso não puxa biblioteca de gráfico pra fatia.
+
+    `color` por item continua ganhando de tudo.
+
 !!! tip "A aritmética é exportada: `buildBarListRows`"
     `buildBarListRows(items, sort, max, otherLabel)` devolve as linhas já ordenadas,
     cortadas e medidas (`percentage`, `width`, `index`) sem renderizar nada. Serve

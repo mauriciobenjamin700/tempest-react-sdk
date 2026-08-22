@@ -488,6 +488,19 @@ import { BarList } from "tempest-react-sdk";
     Collapsing a single row into "Others" would hide its name for nothing — in that
     case it appears under its own name.
 
+!!! tip "The palette honours `--tempest-chart-count`"
+    Each row's colour comes from `useChartColors`, the same resolver every chart in
+    the SDK uses, so a theme declaring **fewer** than eight series cycles within its
+    own palette. A 6-colour brand theme repeats its 1st and 2nd on rows 7 and 8
+    instead of falling back to the SDK's default blue and teal.
+
+    Through v0.44.0 the colour was read as `var(--tempest-chart-N)` with
+    `N = index % 8`. CSS cannot use `--tempest-chart-count` as a modulus, so the `8`
+    was hardcoded and a brand lost its last two rows. `palette.ts` imports nothing,
+    so this pulls no chart library into the slice.
+
+    A per-item `color` still wins over everything.
+
 !!! tip "The arithmetic is exported: `buildBarListRows`"
     `buildBarListRows(items, sort, max, otherLabel)` returns the rows already
     ordered, truncated and measured (`percentage`, `width`, `index`) without

@@ -6,6 +6,24 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **`BarList` ignorava `--tempest-chart-count`, e um tema de marca perdia as duas
+  últimas cores.** A cor de cada linha era `var(--tempest-chart-${index % 8 + 1})`,
+  com o `8` fixo. `--tempest-chart-count` existe justamente para o leitor da rampa
+  parar na contagem que o tema declara em vez de acolchoar com os defaults do SDK —
+  `createTheme` escreve o token, `resolveChartColors` o respeita, e o `BarList` era
+  o primeiro leitor da rampa que não. Um tema de 6 cores recebia o azul e o teal
+  default do SDK nas linhas 7 e 8.
+
+  O `8` não dava para consertar em CSS: `var()` não usa `--tempest-chart-count`
+  como módulo. Então a cor passa a vir de `useChartColors`, o mesmo resolvedor de
+  todo chart do SDK, que também já reage a troca de tema. `palette.ts` não importa
+  nada, então a fatia do `BarList` continua sem biblioteca de gráfico — medido em
+  1,18 KB brotli, dentro do budget de 1,2 KB que já existia.
+
+  Invisível no tema default, onde ciclar em `8` e ciclar na contagem declarada dão
+  a mesma resposta — motivo pelo qual passou. O teste novo declara a paleta menor
+  explicitamente.
+
 - **Aviso de desenvolvimento nunca disparava no app consumidor.** `isDev()` lia
   `import.meta.env.DEV`, que o Vite resolve quando **este pacote** é buildado: em
   `dist` a função virava literalmente `return !1`. Então o aviso de `<Icon>`

@@ -1,6 +1,6 @@
 import { useMemo, type HTMLAttributes } from "react";
 
-import { CHART_COLOR_TOKEN_COUNT } from "@/charts/palette";
+import { useChartColors } from "@/charts/use-chart-colors";
 import { cn } from "@/utils/cn";
 
 import { buildBarListRows, type BarListItem, type BarListSort } from "./bar-list-model";
@@ -49,6 +49,15 @@ export interface BarListProps extends Omit<HTMLAttributes<HTMLUListElement>, "ch
  * numbers on purpose: a width scaled by the total leaves every bar short in a
  * long list, which is when the chart is needed most.
  *
+ * Colors come from {@link useChartColors}, the same resolver every chart in the
+ * SDK uses, so a theme that declares fewer series than the eight
+ * `--tempest-chart-*` slots cycles within its own palette. Reading the tokens
+ * through CSS `var()` could not do that: the count lives in
+ * `--tempest-chart-count`, which CSS cannot use as a modulus, so a six-color
+ * brand palette got the SDK's leftover defaults in rows seven and eight — the
+ * exact regression that token exists to prevent. `palette.ts` imports nothing,
+ * so this pulls no chart library into the slice.
+ *
  * @example
  * <BarList
  *     items={[{ label: "Free", value: 128 }, { label: "Pro", value: 32 }]}
@@ -75,6 +84,7 @@ export function BarList({
         () => buildBarListRows(items, sort, max, otherLabel),
         [items, sort, max, otherLabel],
     );
+    const palette = useChartColors();
 
     return (
         <ul className={cn(styles.list, className)} {...rest}>
@@ -96,9 +106,7 @@ export function BarList({
                             className={styles.fill}
                             style={{
                                 width: `${row.width}%`,
-                                backgroundColor:
-                                    row.color ??
-                                    `var(--tempest-chart-${(row.index % CHART_COLOR_TOKEN_COUNT) + 1})`,
+                                backgroundColor: row.color ?? palette[row.index % palette.length],
                             }}
                         />
                     </div>

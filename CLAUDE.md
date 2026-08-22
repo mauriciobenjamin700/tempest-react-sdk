@@ -4,17 +4,17 @@ SDK público da Tempest com componentes React, hooks e integrações reutilizáv
 
 > Este arquivo é o guia operacional do SDK. Padrões globais (PR template PT-BR, conventional commits, `gh pr edit` workaround) vêm de `~/.claude/CLAUDE.md` e continuam valendo.
 
-## Estado atual (snapshot pós-v0.47.0 — `[Unreleased]` no CHANGELOG aguardando a tag v0.48.0)
+## Estado atual (snapshot pós-v0.50.0 — `[Unreleased]` no CHANGELOG aguardando a tag v0.51.0)
 
-- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 67 tags publicadas (0.1.0 → 0.47.0) com signed provenance via OIDC. Histórico completo em `RELEASES.md` (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
-- **Testes**: 5170 testes em 520 arquivos, ~48 s sob `vitest + jsdom + fake-indexeddb`. Cobertura 98.5% linhas / 97.1% statements / 96.6% funções / 95.0% branches; pisos do CI em 98/97/96/94.
-- **Superfície**: 39 módulos em `src/`, 128 componentes, 54 hooks (+ `useNotificationInbox`, que mora junto do `NotificationCenter`), 527 exports na entrada raiz e 21 em `/icons`.
-- **Empacotamento (v0.25.0)**: `dist/` preserva o grafo de módulos (`preserveModules`). O que o app paga de fato (brotli): `{ cn }` 153 B · `{ Button }` 794 B · app típico 6.83 KB · offline/PWA 4.44 KB · `styles.css` 21.68 KB · `utilities.css` 1.13 KB (opt-in). Teto sem tree-shaking: 70.21 KB ESM / 85.52 KB CJS. Budgets do `size-limit` são **por fatia importada**, não pelo barrel.
+- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 70 tags publicadas (0.1.0 → 0.50.0) com signed provenance via OIDC. Histórico completo em `RELEASES.md` (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
+- **Testes**: 5246 testes em 525 arquivos, ~48 s sob `vitest + jsdom + fake-indexeddb`. Cobertura 98,76% linhas / 97,48% statements / 97,18% funções / 94,71% branches; pisos do CI em 98/97/96/94 — **branches com folga de 0,71 ponto**, rastreado em [#209](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/209).
+- **Superfície**: 39 módulos em `src/`, 128 componentes, 52 hooks (+ `useNotificationInbox`, que mora junto do `NotificationCenter`), 529 exports na entrada raiz e 21 em `/icons`.
+- **Empacotamento (v0.25.0)**: `dist/` preserva o grafo de módulos (`preserveModules`). O que o app paga de fato (brotli): `{ cn }` 153 B · `{ Button }` 794 B · app típico 8.61 KB · offline/PWA 4.55 KB · `styles.css` 28.68 KB · `utilities.css` 1.36 KB (opt-in). Teto sem tree-shaking: 116.24 KB ESM / 139.29 KB CJS. Budgets do `size-limit` são **por fatia importada**, não pelo barrel.
 - **Subpaths** (15): `.`, `/testing` (MSW), `/vite` (`createViteConfig` + plugins), `/sw` (helpers de contexto SW), `/charts` (recharts peer), `/editor` (tiptap peer), `/vision` (onnxruntime-web peer), `/br` (dataset BR + mapa clicável), `/icons` (ícone por slug, 45 shards lazy balanceados), `/icons/virtual` (módulo real: `staticIcons = {}` que o plugin sobrescreve — resolve fora do Vite também), `/styles.css`, `/utilities.css` (camada de layout opt-in).
 - **CLIs** (`bin/`): `create-tempest-app` (scaffold — invocado como `npx -p tempest-react-sdk create-tempest-app .`; **não** existe pacote `create-tempest-app` no npm, então `npm create tempest-app` dá 404) com templates `template/` e `template-pwa/`; `tempest` (project CLI: `doctor`, `lint`, `fix`, `format`, `gen api <openapi>` → Zod + types + services, `gen icons` → registry estático de ícone). `doctor` e `fix` também fazem **análise de CSS** (`bin/lib/css/`, scanner próprio sem dep): sintaxe que o browser derruba, declaração/regra duplicada, propriedade e token inexistentes, e bloco repetido que pede classe global/utility. `fix` remove só o comprovadamente morto (sempre a cópia **anterior** — last-wins); `--no-css` pula, `--dry-run` é a superfície de revisão.
 - **Style modules**: `colors.css` (inclui `--tempest-code-*`, resolvidos pro piso de **texto** 4,5:1 — a rampa de chart é de **marca**, 3:1, e reprova como texto) + `typography.css` + `motion.css` + `density.css` + `reset.css` + `responsive.css` + `print.css`; `utilities.css` fica **fora** do bundle (opt-in, copiado pra `dist/` no build).
 - **Tooling**: Prettier 3, Husky pre-commit (lint-staged), `Makefile` + `scripts/release.sh` (tag-push pipeline) + `scripts/changelog.mjs` (notes/close) + `scripts/sync-github-releases.sh` (backfill de Releases), 5 workflows — `ci.yml` (PR, matriz node 22/24), `release-npm.yml` (tag push → guard de versão + publish OIDC + read-back do registry + GitHub Release), `size-limit.yml`, `e2e.yml` (gallery), `docs.yml` (Pages).
-- **Docs**: 53 páginas base em `docs/` (106 arquivos com as traduções `.en.md`) + 10 páginas de componentes por categoria + tutorial de 6 páginas + 3 diagramas drawio + `llms.txt`/`llms-full.txt` (`npm run docs:llms`).
+- **Docs**: 53 páginas base em `docs/` (106 arquivos com as traduções `.en.md`) + 15 páginas de componentes por categoria + tutorial de 6 páginas + 3 diagramas drawio + `llms.txt`/`llms-full.txt` (`npm run docs:llms`).
 - **Demo vivo**: app Vite em `examples/gallery` (64 sections) consome o SDK via `file:../..`.
 
 ### Adapter design pattern (consolidado v0.1.3+)
@@ -47,21 +47,21 @@ SDKs externos para adapters (não declarados — caller injeta instância):
 
 ```text
 tempest-react-sdk/
-├── src/                                     (35 módulos — subpath marcado com ⇢)
+├── src/                                     (39 módulos — subpath marcado com ⇢)
 │   ├── access/         useCan, <Can>, permissionsFromToken (RBAC)
 │   ├── app/            <AppProviders> (ErrorBoundary → Query → Theme → i18n)
 │   ├── audio/          createAudioPlayer, useAudio, playAudio
 │   ├── auth/           createAuthStore, AuthGuard, decodeJWT, lazyWithRetry, createRefreshQueue, createTempestAuth
 │   ├── br/          ⇢  dataset de estados/municípios + mapa UF clicável + centroides (chunks lazy)
 │   ├── charts/      ⇢  wrappers recharts
-│   ├── components/     117 componentes UI
+│   ├── components/     128 componentes UI
 │   ├── data/           createDataProvider, <TempestDataProvider>, useDataProvider (CRUD por recurso)
 │   ├── editor/      ⇢  RichTextEditor (tiptap)
 │   ├── error-boundary/ ErrorBoundary, useErrorHandler
 │   ├── feature-flags/  Provider + InMemory + GrowthBook + LaunchDarkly adapters
 │   ├── forms/          FormField, validateForm, zodResolver, useZodForm, inputs mascarados BR, useViaCEP
 │   ├── geo/            mapas sem tile, createPositionTracker, OSRM backend, haversine/bounds
-│   ├── hooks/          46 hooks (useDebounce, useBreakpoint, useInstallPrompt, useServiceWorkerUpdate, …)
+│   ├── hooks/          52 hooks (useDebounce, useBreakpoint, useInstallPrompt, useServiceWorkerUpdate, …)
 │   ├── icons/       ⇢  <Icon name> por slug + IconProvider + 45 shards gerados (generated/)
 │   ├── http/           createApiClient, parseResponse, uploadWithProgress, retry, usePoll, idempotency
 │   ├── i18n/           createI18n, I18nProvider, useI18n, useTranslate
@@ -85,18 +85,18 @@ tempest-react-sdk/
 │   ├── vision/      ⇢  inferência ONNX (ort-vision-sdk-web vendorizado) + hooks de câmera
 │   ├── vite/        ⇢  createViteConfig
 │   ├── ws/             createWebSocket, useWebSocket
-│   └── index.ts        barrel raiz (384 exports)
+│   └── index.ts        barrel raiz (529 exports)
 ├── bin/                create-tempest-app.mjs + tempest.mjs (doctor/lint/fix/format/gen api)
 ├── template/           scaffold Vite+React+TS
 ├── template-pwa/       scaffold PWA (SW próprio + vite.sw.config.ts)
-├── docs/               44 páginas base (+ .en.md) + components/ + tutorial/ + diagrams/ + llms.txt
-├── examples/gallery/   app Vite com 40 sections consumindo o SDK (file:../..)
+├── docs/               53 páginas base (+ .en.md) + components/ + tutorial/ + diagrams/ + llms.txt
+├── examples/gallery/   app Vite com 64 sections consumindo o SDK (file:../..)
 ├── test/setup.ts       jsdom + jest-dom + fake-indexeddb auto
 ├── Makefile            release / validate / bump / releases-md / releases-check / releases-sync alvos
 ├── scripts/            release.sh (tag-push), changelog.mjs, sync-github-releases.sh, gen-llms.mjs, gen-br-geodata.mjs, vendor-vision.mjs
 ├── RELEASES.md         auto-gerado por `make releases-md`
 └── .github/workflows/
-    ├── ci.yml          PR — format + lint + typecheck + test + build (node 20/22)
+    ├── ci.yml          PR — format + lint + typecheck + test + build (node 22/24)
     ├── size-limit.yml  budgets por fatia importada
     ├── docs.yml        MkDocs bilíngue → GitHub Pages
     └── release-npm.yml tag push v*.*.* → smoke install + publish --provenance
@@ -110,11 +110,10 @@ viva.
 
 Aberto hoje, em ordem de valor:
 
-| #                                                                           | Frente                                  | Por que importa                                                                                                                                                  |
-| --------------------------------------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [#201](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/201) | Ordem por registro no outbox            | Perda silenciosa de dado: `create` que falha + `update` entregue = servidor cria pelo payload do update e o `create` reenviado sobrescreve com o snapshot antigo |
-| [#199](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/199) | `resumable-upload` e o default de retry | Última cópia da política permissiva. **Cuidado:** `resync.needed` e o `404` de sessão expirada mudam a resposta por status                                       |
-| [#200](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/200) | `manualSearch` sem `onSearchChange`     | A quarta implicação da família, que nem o tipo nem o aviso cobrem                                                                                                |
+| #                                                                           | Frente                              | Por que importa                                                                                                                                                       |
+| --------------------------------------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [#209](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/209) | Margem de branch coverage           | 94,71% sobre piso de 94: o próximo PR que raspar reprova o CI **por cobertura**, não pelo defeito real. Sem alvo gordo — cauda de 2-4 branches em dezenas de arquivos |
+| [#210](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/210) | `STATEFUL_DEPS` ainda em dep direta | `@tanstack/react-query`, `zustand` e `react-hook-form` carregam contexto React. Duas cópias custam **correção**, não bytes. Rastreado pra não redescobrir o racional  |
 
 Lição que vale mais que a lista: **conferir a `main` antes de começar.** Duas
 frentes desta rodada foram resolvidas em paralelo por outra máquina — o gate de
@@ -156,12 +155,17 @@ a lista de slugs fora do caminho do `<Icon>` (#173, que **contestou** a issue: o
 subpath `/icons/catalog` pedido economizaria zero, porque o tree-shaking já
 separava).
 
-O que sobra: **#145** (crescer `materialToLucide` além dos 130 pares atuais) —
-bloqueada em dado, não em código. Precisa da lista de `icon_code` do seed real.
+Fechada também a **#145**: `materialToLucide` foi de 130 para **263 pares**, montados
+da lista oficial de nomes de Material Symbols em vez de esperar o seed real. A regra de
+desempate ficou escrita — prefira o mapeamento que mantém **dois nomes distintos de
+Material Symbols distintos em lucide**, porque colidir dois códigos no mesmo ícone perde
+a informação que o painel usava pra diferenciar.
 
 ### P3 — cauda de cobertura
 
-1. **Branches 95% → mais alto**: a cauda restante está espalhada em dezenas de arquivos com ~2-4 branches cada. Sem alvo gordo; só vale com objetivo específico.
+Virou issue: **[#209](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/209)**. Ela carrega o número atual, o racional de por que não
+há alvo gordo, e as **duas** saídas aceitáveis — recuperar margem até 95,5% ou baixar o
+piso com decisão escrita. Piso que ninguém decidiu é piso que vai ser raspado de novo.
 
 ## Como retomar
 
@@ -202,7 +206,7 @@ npm run dev               # http://127.0.0.1:5173
 - **Tokens CSS via `--tempest-*`** — única forma de tema. Apps customizam sobrescrevendo no `:root`.
 - **Direct deps + peers de contexto** (v0.2.0+, revisado pós-v0.42.1) — `react`, `react-dom` e `react-router` são peers; demais (`zod`, `zustand`, `dexie`, `react-hook-form`, `@tanstack/react-query`, `lucide-react`) são `dependencies` instaladas junto. Todas continuam externalizadas no Rollup config (bundle do SDK não cresce). Apps que não usam um módulo ainda não pagam — Vite/webpack tree-shake. Decisão original v0.1.x era "peer deps opcionais", revertida em v0.2.0 a pedido do usuário pra simplificar onboarding.
   - **O critério é contexto React, não popularidade.** Duas cópias de `zod`/`dexie`/`lucide-react` custam bytes; duas cópias de uma lib com contexto custam **correção** — `useNavigate() may be used only in the context of a <Router>`. Por isso `react-router` saiu de `dependencies` e virou peer `^7 || ^8`: como dep direta ele gerava cópia aninhada em todo app que já tivesse react-router fora do range fixado. Sintoma exato que o próprio `tempest doctor` acusa via `STATEFUL_DEPS` em `bin/tempest.mjs`.
-  - **Dívida conhecida:** `@tanstack/react-query`, `zustand` e `react-hook-form` também estão em `STATEFUL_DEPS` e continuam como dep direta. Não é inconsistência acidental — a duplicação deles é rara na prática (o SDK aceita ranges largos: `^5`, `^4 || ^5`, `^7.76`) e o onboarding pesa mais. Se um app real colidir, o caminho é o mesmo aplicado ao router: peer com range largo + entrada de CHANGELOG explicando o crash que evita.
+  - **Dívida conhecida** ([#210](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/210)): `@tanstack/react-query`, `zustand` e `react-hook-form` também estão em `STATEFUL_DEPS` e continuam como dep direta. Não é inconsistência acidental — a duplicação deles é rara na prática (o SDK aceita ranges largos: `^5`, `^4 || ^5`, `^7.76`) e o onboarding pesa mais. Se um app real colidir, o caminho é o mesmo aplicado ao router: peer com range largo + entrada de CHANGELOG explicando o crash que evita.
 - **Adapters injetam SDK** — Sentry/PostHog/GrowthBook/LaunchDarkly **não** são peer deps. Caller passa a instância. Pattern aplicável pra Datadog/Mixpanel/Unleash/etc.
 - **Client-side only, PWA offline-first** — o SDK **não** vai para SSR/RSC. Nada de `"use client"`, nada de suporte ao App Router do Next: o alvo é SPA Vite que roda offline (service worker, IndexedDB, outbox, install prompt). Isso é escopo escolhido, não lacuna: um SDK que precisa funcionar nos dois mundos paga em cada API (dois caminhos de render, hidratação, `window` proibido no módulo) e o offline-first fica pior. Os guards `typeof window === "undefined"` que existem nos hooks **continuam** — eles servem pra não explodir fora do browser (testes, contexto de service worker, plugin de build), não pra prometer render no servidor.
 - **Sem Storybook** — docs em markdown + `examples/gallery` (app Vite real) cumprem o papel.

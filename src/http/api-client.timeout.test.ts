@@ -33,12 +33,17 @@ describe("createApiClient — timeout", () => {
 
     it("abandons a hanging request after the default 15s", async () => {
         const api = createApiClient({ baseURL: "https://x.test", fetcher: hangs() });
-        const pending = api.get("/slow");
+        // O handler entra antes de avançar o relógio: a rejeição acontece dentro
+        // do `advanceTimersByTimeAsync`, e sem handler anexado ela fica órfã e o
+        // vitest reporta unhandled rejection mesmo com o teste passando.
+        const pending = api.get("/slow").catch((error: unknown) => error);
 
         await vi.advanceTimersByTimeAsync(14_999);
-        await vi.advanceTimersByTimeAsync(2);
+        const early = await Promise.race([pending, Promise.resolve("ainda em voo")]);
+        expect(early).toBe("ainda em voo");
 
-        await expect(pending).rejects.toMatchObject({ status: 0 });
+        await vi.advanceTimersByTimeAsync(2);
+        expect(await pending).toMatchObject({ status: 0 });
     });
 
     it("reports the timeout as an ApiError with status 0, so retry already knows it", async () => {

@@ -76,7 +76,12 @@
 
 - [Componentes UI](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/): O catálogo foi dividido por categoria para facilitar navegação.
 - [Ação](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/actions/): Componentes de ação são o ponto onde o usuário dispara algo: clicar, escolher numa lista, confirmar.
-- [Overlays & avançados](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/advanced/): Componentes em paridade com a shadcn/ui: toggles, label, regiões expansíveis, menus contextuais, paleta de comandos, áreas roláveis, painéis redimensionáveis, calendário, menus de navegação e uma tabela de dados stateful.
+- [Avançados: conversa](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/advanced-chat/): Chat para thread entre pessoas e AIChat para conversa com um modelo.
+- [Avançados: dados](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/advanced-data/): Tabela stateful, assistente em passos, markdown, mural, tour guiado, transferência entre listas, barra de filtros e kanban.
+- [Avançados: essenciais](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/advanced-essentials/): Toggles, label, regiões expansíveis, menus disparados por interação e a paleta de comandos.
+- [Avançados: layout & UX](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/advanced-layout/): Rolagem estilizada, painéis redimensionáveis, calendário e agenda.
+- [Avançados: navegação & conteúdo](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/advanced-navigation/): Navegação com dropdowns, barra de menus e carrossel.
+- [Overlays & avançados](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/advanced/): Componentes em paridade com a shadcn/ui, agrupados por para o que servem.
 - [Dados](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/data/): Componentes de dados apresentam coleções — várias entidades do mesmo tipo — de forma legível e navegável.
 - [Status & feedback](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/feedback/): Sinalizar estado, sucesso, erro, atividade.
 - [Identidade & micro](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/identity/): Componentes de identidade representam _quem_ ou _o quê_ na interface: a pessoa por trás de uma conta (Avatar), um bloco de conteúdo agrupado e reconhecível (Card) e a tipografia semântica de uma tecla de atalho (Kbd).

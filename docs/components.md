@@ -20,7 +20,12 @@ O catálogo foi dividido por categoria para facilitar navegação. Cada arquivo 
 - **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, NProgress, Spinner, Skeleton, RefreshIndicator, Toast, EmptyState, ErrorState, OfflineIndicator, SyncStatusBadge, UpdatePrompt
 - **[Identidade & micro](./components/identity.md)** — Avatar, AvatarGroup, Card, Kbd
 - **[Utilitários & headless](./components/utility.md)** — CopyButton, RelativeTime, Money, TruncateText, VisuallyHidden, Portal, ClickOutside, ConditionalWrapper, For, ErrorText, Image, DataList, DescriptionList, CodeBlock, QRCode
-- **[Overlays & avançados](./components/advanced.md)** — Toggle, ToggleGroup, Label, Collapsible, ContextMenu, HoverCard, Command, ScrollArea, Resizable, Calendar, Scheduler, NavigationMenu, Menubar, Carousel, Wizard, Markdown, Masonry, Tour, Transfer, FilterBar, Chat, AIChat, Kanban
+- **Overlays & avançados** — os componentes em paridade com a shadcn/ui, em cinco páginas ([visão geral](./components/advanced.md)):
+    - **[Essenciais](./components/advanced-essentials.md)** — Toggle, ToggleGroup, Label, Collapsible, ContextMenu, HoverCard, Command
+    - **[Layout & UX](./components/advanced-layout.md)** — ScrollArea, Resizable, Calendar, Scheduler
+    - **[Navegação & conteúdo](./components/advanced-navigation.md)** — NavigationMenu, Menubar, Carousel
+    - **[Dados](./components/advanced-data.md)** — DataTable, Wizard, Markdown, Masonry, Tour, Transfer, FilterBar, Kanban
+    - **[Conversa](./components/advanced-chat.md)** — Chat, AIChat
 
 ## Convenções globais
 

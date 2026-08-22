@@ -21,7 +21,12 @@ props, examples, and accessibility notes.
 - **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, NProgress, Spinner, Skeleton, RefreshIndicator, Toast, EmptyState, ErrorState, OfflineIndicator, SyncStatusBadge, UpdatePrompt
 - **[Identity & micro](./components/identity.md)** — Avatar, AvatarGroup, Card, Kbd
 - **[Utilities & headless](./components/utility.md)** — CopyButton, RelativeTime, Money, TruncateText, VisuallyHidden, Portal, ClickOutside, ConditionalWrapper, For, ErrorText, Image, DataList, DescriptionList, CodeBlock, QRCode
-- **[Overlays & advanced](./components/advanced.md)** — Toggle, ToggleGroup, Label, Collapsible, ContextMenu, HoverCard, Command, ScrollArea, Resizable, Calendar, Scheduler, NavigationMenu, Menubar, Carousel, Wizard, Markdown, Masonry, Tour, Transfer, FilterBar, Chat, AIChat, Kanban
+- **Overlays & advanced** — the components at parity with shadcn/ui, across five pages ([overview](./components/advanced.md)):
+    - **[Essentials](./components/advanced-essentials.md)** — Toggle, ToggleGroup, Label, Collapsible, ContextMenu, HoverCard, Command
+    - **[Layout & UX](./components/advanced-layout.md)** — ScrollArea, Resizable, Calendar, Scheduler
+    - **[Navigation & content](./components/advanced-navigation.md)** — NavigationMenu, Menubar, Carousel
+    - **[Data](./components/advanced-data.md)** — DataTable, Wizard, Markdown, Masonry, Tour, Transfer, FilterBar, Kanban
+    - **[Chat](./components/advanced-chat.md)** — Chat, AIChat
 
 ## Global conventions
 

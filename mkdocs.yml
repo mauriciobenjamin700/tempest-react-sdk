@@ -106,6 +106,12 @@ plugins:
                     Identidade & micro: Identity & micro
                     Utilitários & headless: Utility & headless
                     Overlays & avançados: Overlays & advanced
+                    Visão geral: Overview
+                    Essenciais: Essentials
+                    Layout & UX: Layout & UX
+                    Navegação & conteúdo: Navigation & content
+                    Dados avançados: Advanced data
+                    Conversa: Chat
                     Design de Software: Software Design
                     Por que design importa: Why design matters
                     Desenho do sistema: System design
@@ -231,7 +237,13 @@ nav:
           - Status & feedback: components/feedback.md
           - Identidade & micro: components/identity.md
           - Utilitários & headless: components/utility.md
-          - Overlays & avançados: components/advanced.md
+          - Overlays & avançados:
+                - Visão geral: components/advanced.md
+                - Essenciais: components/advanced-essentials.md
+                - Layout & UX: components/advanced-layout.md
+                - Navegação & conteúdo: components/advanced-navigation.md
+                - Dados avançados: components/advanced-data.md
+                - Conversa: components/advanced-chat.md
     - Módulos:
           - Visão geral do pacote: architecture.md
           - Fundação de app:

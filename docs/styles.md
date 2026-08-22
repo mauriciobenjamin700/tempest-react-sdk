@@ -678,7 +678,7 @@ Hooks: `--tempest-dashboard-columns` (12), `--tempest-dashboard-gap`, `--tempest
     Filho de grid tem `min-height: auto` por default, então um canvas que reporta altura intrínseca grande empurra a linha em vez de caber nela — e o dashboard ganha uma barra de rolagem que ninguém pediu.
 
 !!! tip "Widget redimensionável pelo usuário é outra coisa"
-    Arrastar a borda de um widget briga com a grade: os tracks vêm do grid, e uma largura em pixel vinda do drag não pode conviver com isso. Se você precisa disso, use o [`Resizable`](./components/advanced.md#resizable) numa área livre, ou guarde o span escolhido por widget e aplique a classe correspondente — que é a versão que sobrevive a um reload e cabe na URL.
+    Arrastar a borda de um widget briga com a grade: os tracks vêm do grid, e uma largura em pixel vinda do drag não pode conviver com isso. Se você precisa disso, use o [`Resizable`](./components/advanced-layout.md#resizable) numa área livre, ou guarde o span escolhido por widget e aplique a classe correspondente — que é a versão que sobrevive a um reload e cabe na URL.
 
 ### Form de duas colunas
 

@@ -690,7 +690,7 @@ Hooks: `--tempest-dashboard-columns` (12), `--tempest-dashboard-gap`, `--tempest
     A grid child defaults to `min-height: auto`, so a canvas reporting a tall intrinsic size pushes the row instead of fitting it — and the dashboard grows a scrollbar nobody asked for.
 
 !!! tip "A user-resizable widget is a different thing"
-    Dragging a widget's edge fights the grid: the tracks come from the grid, and a pixel width from a drag cannot coexist with that. If you need it, use [`Resizable`](./components/advanced.md#resizable) in a free-form area, or store the chosen span per widget and apply the matching class — which is the version that survives a reload and fits in a URL.
+    Dragging a widget's edge fights the grid: the tracks come from the grid, and a pixel width from a drag cannot coexist with that. If you need it, use [`Resizable`](./components/advanced-layout.md#resizable) in a free-form area, or store the chosen span per widget and apply the matching class — which is the version that survives a reload and fits in a URL.
 
 ### Two-column form
 

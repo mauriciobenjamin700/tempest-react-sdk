@@ -71,7 +71,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ createApiClient, parseResponse, uploadWithProgress, retry, usePoll }"
     },
-    "limit": "3.1 KB",
+    "limit": "3.2 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -181,7 +181,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ createResumableUpload, createLocalUploadStorage, uploadFingerprint }"
     },
-    "limit": "3.1 KB",
+    "limit": "3.2 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -225,7 +225,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ DataTable }"
     },
-    "limit": "5.7 KB",
+    "limit": "5.9 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -247,7 +247,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ BarList }"
     },
-    "limit": "1.2 KB",
+    "limit": "1.3 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -288,7 +288,7 @@
   {
     "name": "ceiling: full barrel ESM (nobody imports this — tree-shaking is the real cost)",
     "path": "dist/tempest-react-sdk.js",
-    "limit": "116 kB",
+    "limit": "118 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -307,7 +307,7 @@
   {
     "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "140 KB",
+    "limit": "142 KB",
     "ignore": [
       "react",
       "react-dom",

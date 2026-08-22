@@ -104,6 +104,27 @@ tempest-react-sdk/
 
 ## Backlog priorizado
 
+**O backlog vive nas issues do GitHub, não aqui.** Esta seção guarda só o que já
+saiu e a leitura de prioridade; o estado corrente de cada frente está na issue.
+`gh issue list` para a lista viva.
+
+Aberto hoje, em ordem de valor:
+
+| #                                                                           | Frente                                       | Por que importa                                                                                                                                                   |
+| --------------------------------------------------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [#185](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/185) | Unificar a política de retry                 | `api-client` retenta `{0,408,425,429}+5xx`, `retry-policy` retenta `{408,429}` — mesmo app, dois comportamentos, e `retry()` ainda tem `shouldRetry = () => true` |
+| [#194](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/194) | `BarList` honrar `--tempest-chart-count`     | Tema de 6 cores recebe o default do SDK nas linhas 7 e 8 — a regressão que o token existe para evitar                                                             |
+| [#187](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/187) | Props do `DataTable` como união discriminada | Combinação inválida é pega em `console.warn` de dev onde o `tsc` do consumidor pegaria                                                                            |
+| [#186](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/186) | Dialeto de query configurável                | `SUBSTRING_COLUMN = "name"` hardcoded num encoder genérico                                                                                                        |
+| [#191](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/191) | Default por chave em `t()`                   | A primeira string interna traduzível define o padrão; hoje o miss é re-derivado por comparação de string                                                          |
+| [#188](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/188) | Extrair bytes↔base64                         | Três implementações, duas públicas. Atenção: a "correção mínima" óbvia é um downgrade de performance                                                              |
+| [#190](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/190) | Adotar `useLatestRef`                        | 10 sites ainda com a versão inline que a docstring do hook novo chama de inferior                                                                                 |
+| [#189](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/189) | `createJsonStorage(codec)`                   | `compressedStorage` promete ser intercambiável com `storage` e não tem `remove()`                                                                                 |
+| [#193](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/193) | `esbuild.context()` no dev SW                | Um build a frio por request de `/sw.js`                                                                                                                           |
+| [#192](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/192) | `describeApiError` sem bag de um campo       | Barato agora, quando a API tem ~zero consumidor                                                                                                                   |
+| [#145](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/145) | Crescer `materialToLucide`                   | **Bloqueada por desenho** — cresce quando um app real trouxer os `icon_code`                                                                                      |
+| [#195](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/195) | Cortar v0.44.1                               | O fix de dev-warning está em `[Unreleased]` esperando tag                                                                                                         |
+
 Entregue e fora do backlog: **`CodeBlock`** (realce por scanner + tokens `--tempest-code-*`), **`QRCode`** (encoder ISO 18004 próprio, 3,2 KB br), **`Sparkline`** (mini-gráfico inline, sem recharts), **escala contínua de data viz** (`sequentialScale`/`divergingScale`), **`NotificationCenter`** (inbox de push), **`VirtualTable`**, **ícone por slug (`/icons`, issue #37)**, **`tempest fix` convertendo import relativo pra `@/` (issue #56)**, release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`), sweep `axe` em jsdom + smoke Playwright do gallery (`e2e.yml`), coverage gateando o CI (pisos 98/97/96/94), política de versionamento de tokens CSS (`docs/styles.md`).
 
 ### P1 — componentes

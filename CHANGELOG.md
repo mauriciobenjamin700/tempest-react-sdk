@@ -4,6 +4,53 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Breaking
+
+- **`manualSearch` sem `onSearchChange` virou erro de build.** Era a quarta
+  implicação da mesma família das três que o release anterior tipou, e nem o tipo
+  nem o aviso cobriam: a caixa de busca renderiza, o usuário digita, nada filtra
+  (correto — a busca é delegada) e ninguém é avisado. `DataTableSearchProps` entra
+  como quarto eixo, e `manualSearch`/`onSearchChange` saem do
+  `DataTableBaseProps`.
+
+  **Migração:** igual à dos outros três — se o build quebrar, ele já renderizava um
+  input inerte; adicione o callback.
+
+  **Um caso ficou de fora, de propósito.** `totalItems` já _implica_
+  `manualSearch`, então `searchable` sem `onSearchChange` no modo servidor é a mesma
+  caixa inerte sem ninguém escrever `manualSearch`. Fechar isso exigiria o eixo de
+  busca ler o eixo de paginação, cruzando duas uniões de três membros em nove e
+  transformando qualquer erro num paredão de formas candidatas. Esse caso ganhou o
+  **quarto aviso de runtime** — e é o único dos quatro que sobrevive a um caller
+  tipado, o que é a resposta para "por que o hook de avisos ainda existe".
+
+### Corrigido
+
+- **O loop de chunk do `createResumableUpload` retentava tudo, cinco vezes.** Era
+  a última cópia do default permissivo (`?? true`) depois da unificação da política
+  de retry, e custava cinco round trips para mostrar uma resposta que a primeira
+  tentativa já tinha dado.
+
+  Duas decisões aqui são **específicas do protocolo de retomada** e nenhuma delas
+  sai da política geral:
+
+  - **`409`/`412` continuam retentando**, mesmo sendo 4xx que `isRetriableStatus`
+    recusa. Eles significam "seu offset está errado", e o `resync` existe
+    justamente para o `HEAD` da próxima tentativa corrigir isso.
+  - **`404`/`410` param de retentar**, mesmo parecendo transitórios. O `probe()`
+    os traduz para "O upload expirou no servidor" e recriar o upload só acontece no
+    `ensureUpload`, no attach — nunca dentro do loop. Retentar era sondar um
+    recurso morto cinco vezes, com o backoff somado, para chegar na mesma resposta.
+
+  Erro sem forma de erro de API continua retentando: falha de transporte não tem
+  status para julgar, e perder um upload grande por uma conexão caída é o desfecho
+  que este módulo existe para evitar.
+
+  O `resync` passa a ser armado **só** quando a tentativa vai acontecer de fato — a
+  flag descreve o que a _próxima_ tentativa deve fazer, então armá-la para uma
+  tentativa que não vem descreve nada. Um `shouldRetry` do caller continua
+  decidindo, e continua armando o resync quando diz sim.
+
 ## [0.49.0] — 2026-08-22
 
 ### Breaking

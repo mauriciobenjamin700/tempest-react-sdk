@@ -391,16 +391,27 @@ export function Pessoas() {
     | `totalItems` sem `page`/`onPageChange` | O paginador andaria a página interna enquanto `data` segue mostrando a página 1 |
     | `page` sem `onPageChange` | Página controlada sem ninguém para trocá-la |
     | `manualSort` sem `onSortChange` | A seta do header gira e mais nada acontece |
+    | `manualSearch` sem `onSearchChange` | A caixa de busca não filtra nada e não avisa ninguém |
 
     Até a v0.44.0 cada prop era opcional por conta própria, então isso só aparecia
     como `console.warn` em dev, no browser, com o componente montado — o `tsc` do
     seu CI nunca via. Os avisos de runtime continuam, para os callers que o tipo não
     alcança (JavaScript puro, ou props chegando por spread tipado `any`).
 
-    Os tipos das duas metades são exportados quando você precisa deles:
-    `DataTableBaseProps`, `DataTablePagingProps` e `DataTableSortProps`. `Partial`
-    de união não funciona — para variar só a metade compartilhada num helper de
-    teste, use `Partial<DataTableBaseProps<T>>`.
+    Os tipos das metades são exportados quando você precisa deles:
+    `DataTableBaseProps`, `DataTablePagingProps`, `DataTableSortProps` e
+    `DataTableSearchProps`. `Partial` de união não funciona — para variar só a
+    metade compartilhada num helper de teste, use `Partial<DataTableBaseProps<T>>`.
+
+!!! warning "Um caso o tipo **não** pega: busca implícita no modo servidor"
+    `totalItems` já **implica** `manualSearch`. Então `searchable` sem
+    `onSearchChange` numa tabela em modo servidor é a mesma caixa inerte — sem que
+    ninguém escreva `manualSearch`, e portanto sem o eixo de busca ter como ver.
+
+    Fechar isso exigiria o eixo de busca ler o eixo de paginação, cruzando duas
+    uniões de três membros em nove e transformando qualquer erro num paredão de
+    formas candidatas. Esse caso continua sendo **aviso de dev em runtime** — é o
+    único dos quatro em que runtime é de fato a checagem mais barata.
 
 !!! danger "Busca e ordenação **precisam** ir junto — filtrar a página mente"
     `searchable` sozinho filtra `data` em memória, e no modo servidor `data` é só a

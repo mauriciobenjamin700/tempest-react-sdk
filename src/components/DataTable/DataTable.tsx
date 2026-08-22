@@ -125,17 +125,6 @@ export interface DataTableBaseProps<T> extends HTMLAttributes<HTMLDivElement> {
     /** Override the PT-BR copy of the editing affordances. */
     editLabels?: Partial<DataTableEditLabels>;
     /**
-     * Searching is the caller's job: typing reports through `onSearchChange` and
-     * the rows are left as they arrived.
-     *
-     * Implied by `totalItems`. Filtering the current page would hide the rows
-     * that do not match *on this page* and show nothing for a term that only
-     * matches on page three — an empty table that looks like "no results".
-     */
-    manualSearch?: boolean;
-    /** Called with the current search term (debouncing, if any, is the caller's). */
-    onSearchChange?: (term: string) => void;
-    /**
      * A fetch is in flight.
      *
      * With rows already on screen they stay put, dimmed and `aria-busy`, so the
@@ -227,12 +216,50 @@ export type DataTableSortProps<T> =
       };
 
 /**
+ * Searching: delegated, and therefore reported, or neither.
+ *
+ * `manualSearch` without `onSearchChange` renders a search box that filters
+ * nothing and tells nobody — the same shape of lie as a header arrow that turns
+ * without sorting.
+ *
+ * Independent of the paging axis on purpose, and that leaves one gap this type
+ * does not close: `totalItems` *implies* `manualSearch`, so a server-mode table
+ * with `searchable` and no `onSearchChange` falls into the same hole without ever
+ * writing `manualSearch`. Closing it means the search axis has to read the paging
+ * axis, which crosses two three-member unions into nine and turns every mismatch
+ * into a wall of candidate shapes. That case is a dev warning instead — the one
+ * spot where runtime really is the cheaper check, and `use-dev-warnings.ts` says
+ * so at the call site.
+ */
+export type DataTableSearchProps =
+    | {
+          /** The table filters the rows it has. */
+          manualSearch?: false;
+          /** Called with the current search term (debouncing, if any, is the caller's). */
+          onSearchChange?: (term: string) => void;
+      }
+    | {
+          /**
+           * Searching is the caller's job: typing reports through `onSearchChange`
+           * and the rows are left as they arrived.
+           *
+           * Implied by `totalItems`. Filtering the current page would hide the rows
+           * that do not match *on this page* and show nothing for a term that only
+           * matches on page three — an empty table that looks like "no results".
+           */
+          manualSearch: true;
+          /** Where the typing goes. Required, since nothing else acts on it. */
+          onSearchChange: (term: string) => void;
+      };
+
+/**
  * The table's props: the shared half, plus one valid paging shape and one valid
  * sorting shape.
  */
 export type DataTableProps<T> = DataTableBaseProps<T> &
     DataTablePagingProps &
-    DataTableSortProps<T>;
+    DataTableSortProps<T> &
+    DataTableSearchProps;
 
 /** Identity of one cell, stable across re-renders and pagination. */
 function cellId(rowKeyValue: string | number, columnKey: PropertyKey): string {
@@ -312,7 +339,15 @@ export function DataTable<T>({
         [controlledPage, setInternalPage, onPageChange],
     );
 
-    useDevWarnings({ serverMode, controlledPage, onPageChange, sortIsManual, onSortChange });
+    useDevWarnings({
+        serverMode,
+        controlledPage,
+        onPageChange,
+        sortIsManual,
+        onSortChange,
+        searchable,
+        onSearchChange,
+    });
 
     const [editing, setEditing] = useState<string | null>(null);
     const [refocus, setRefocus] = useState<string | null>(null);

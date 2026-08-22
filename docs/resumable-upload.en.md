@@ -130,6 +130,28 @@ Two things prevent that:
 !!! tip "The backoff is the SDK's `retry`"
     There is no second backoff here: every chunk runs inside [`retry`](./http.md#retry-exponential-backoff) — exponential, honouring `Retry-After`. Tune it with `retry: { retries, initialDelay, shouldRetry }`.
 
+!!! check "What the chunk loop retries, and what it does not"
+    Two of these decisions are **specific to the resume protocol** and do not
+    follow the SDK's general policy:
+
+    | Answer | Retried? | Why |
+    | --- | --- | --- |
+    | network failure, `408`, `425`, `429`, `5xx` | **yes** | the standard policy: it can change on its own |
+    | `409`, `412` | **yes** | the offset-divergence signal — the replay *is* the fix, and the resync `HEAD` performs it |
+    | `404`, `410` | **no** | the upload is gone from the server. Recreating one only happens at attach, never inside the loop |
+    | `400`, `403`, `413`, `415`, `422` | **no** | a deliberate refusal; the 5th attempt gets the same answer |
+
+    `409` is the interesting case: the SDK's general policy refuses 4xx, and it is
+    right to — but here it means "your offset is wrong", which is exactly what the
+    retry fixes.
+
+    `404` is the inverse. A resource that vanished *looks* transient, but the
+    resync `HEAD` hits the same `404`, so retrying meant probing a dead resource
+    five times before reporting "the upload expired" — with the backoff stacked on
+    top. Start a fresh upload for that one.
+
+    Your own `shouldRetry` **replaces** this policy entirely, in both directions.
+
 ## What your backend must implement
 
 Every request carries `Tus-Resumable: 1.0.0`.

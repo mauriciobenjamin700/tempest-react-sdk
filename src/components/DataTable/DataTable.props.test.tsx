@@ -70,4 +70,24 @@ describe("DataTableProps", () => {
         // @ts-expect-error totalItems + page still require onPageChange
         expect(<DataTable data={data} columns={columns} totalItems={40} page={1} />).toBeTruthy();
     });
+    it("accepts delegated searching paired with its callback", () => {
+        expect(
+            <DataTable
+                data={data}
+                columns={columns}
+                searchable
+                manualSearch
+                onSearchChange={() => {}}
+            />,
+        ).toBeTruthy();
+    });
+
+    it("rejects delegated searching with nowhere to report it", () => {
+        // @ts-expect-error manualSearch requires onSearchChange
+        expect(<DataTable data={data} columns={columns} searchable manualSearch />).toBeTruthy();
+    });
+
+    it("still accepts a search box the table filters itself", () => {
+        expect(<DataTable data={data} columns={columns} searchable />).toBeTruthy();
+    });
 });

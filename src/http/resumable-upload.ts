@@ -6,7 +6,7 @@
  * createResumableUpload is the closure that owns them.
  */
 import { bytesToBase64 } from "@/utils/base64";
-import { buildApiError, TempestApiError } from "./errors";
+import { buildApiError, isApiError, isRetriableStatus, TempestApiError } from "./errors";
 import { generateIdempotencyKey } from "./idempotency";
 import { retry, type RetryOptions } from "./retry";
 
@@ -320,6 +320,46 @@ function parseErrorBody(text: string): unknown {
  * @param detail - Message to use when the body carries none.
  * @returns The error to throw.
  */
+/**
+ * The two statuses a chunk retry fixes that the shared policy cannot know about.
+ *
+ * `409` and `412` are the offset-divergence answers, and they are the entire
+ * reason `resync` exists: the next attempt re-reads the server's offset with
+ * `HEAD` and writes from there. They are 4xx refusals a replay genuinely fixes,
+ * which is the one thing {@link isRetriableStatus} has no way to tell — from
+ * outside this protocol they look like any other deliberate rejection.
+ */
+const RESYNCABLE_STATUSES: ReadonlySet<number> = new Set([409, 412]);
+
+/**
+ * Whether a chunk failure is worth another attempt.
+ *
+ * The default used to be `true` for everything, which cost five round trips
+ * before surfacing an answer the first one already gave. Two groups matter here
+ * and both are specific to the resume protocol:
+ *
+ * - **`409`/`412` retry**, even though the shared policy rejects 4xx: they mean
+ *   "your offset is wrong", and `resync` is how the next attempt fixes it.
+ * - **`404`/`410` do not**, even though a lost resource can look transient.
+ *   `probe()` turns them into "O upload expirou no servidor. Comece de novo." and
+ *   recreating the upload only happens in `ensureUpload`, at attach time — never
+ *   inside the chunk loop. So a retry here re-runs `HEAD` against a resource that
+ *   is gone, five times, and then reports the same thing with the backoff added
+ *   on top.
+ *
+ * Anything with no API shape still retries: a transport failure has no status to
+ * judge, and losing a large upload to one dropped connection is the outcome this
+ * whole module exists to avoid.
+ *
+ * @param error - Whatever the attempt threw.
+ * @returns Whether the chunk loop should try again.
+ */
+function isRetriableChunkFailure(error: unknown): boolean {
+    if (!isApiError(error)) return true;
+    if (RESYNCABLE_STATUSES.has(error.status)) return true;
+    return isRetriableStatus(error.status);
+}
+
 function failed(response: RawResponse, detail: string): TempestApiError {
     const body = parseErrorBody(response.text);
     const envelope = buildApiError(response.status, body, { get: response.header });
@@ -591,6 +631,14 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
      * failure, whatever the cause, and after any failure the client's idea of the
      * offset is exactly what cannot be trusted.
      *
+     * `resync` is armed only when the attempt is actually going to happen. A
+     * caller's own `shouldRetry` still wins the decision, and still arms the
+     * resync when it says yes — the flag describes what the *next* attempt must
+     * do, so setting it for an attempt that never comes describes nothing.
+     * {@link isRetriableChunkFailure} is the default, and it is where `409`/`412`
+     * earn a retry the shared policy would refuse and `404`/`410` lose one it
+     * would have granted.
+     *
      * @returns The result, or `null` when `pause`/`abort` stopped the run.
      */
     async function run(): Promise<ResumableUploadResult | null> {
@@ -609,8 +657,11 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
                 shouldRetry: (error, attempt) => {
                     if (stopping) return false;
                     if (error instanceof DOMException && error.name === "AbortError") return false;
-                    resync.needed = true;
-                    return retryOptions?.shouldRetry?.(error, attempt) ?? true;
+                    const again =
+                        retryOptions?.shouldRetry?.(error, attempt) ??
+                        isRetriableChunkFailure(error);
+                    if (again) resync.needed = true;
+                    return again;
                 },
             });
         }

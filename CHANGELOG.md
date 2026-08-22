@@ -47,6 +47,26 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`t` e `plural` aceitam um texto default por chave.** Sem isso, um miss devolve
+  a própria chave, e quem quisesse texto próprio tinha que **detectar** o miss de
+  fora — o que na prática significa comparar o resultado com a chave que acabou de
+  passar. Essa heurística erra num catálogo que mapeia legitimamente chave→chave
+  (`{ "cart.empty": "cart.empty" }`, o que catálogo gerado por máquina produz), e
+  nesse caso o default vence uma tradução que existia.
+
+  ```ts
+  t("cart.count", { n: 3 }, { default: "{n} itens" }); // "3 itens"
+  ```
+
+  O default é interpolado como qualquer outra mensagem, então não é cidadão de
+  segunda classe. `TranslateOptions` é exportado.
+
+  Isso conserta a primeira string interna traduzível do SDK:
+  `useDescribeApiError` re-derivava o miss por comparação de string. Era o padrão
+  que toda próxima string interna ia copiar, então valia arrumar agora e não na
+  décima. `useOptionalI18n` cobriu "pode não haver provider"; isto é a irmã, "pode
+  não haver a chave".
+
 - **`filtersToQueryParams` aceita `options`, então o dialeto do backend deixa de
   ser uma parede.** O encoder tinha as convenções do `tempest-fastapi-sdk`
   fechadas em constante de módulo: a tabela de sufixos e, pior, o

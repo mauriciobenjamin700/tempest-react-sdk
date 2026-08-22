@@ -107,3 +107,56 @@ describe("createI18n — interpolation, plural fallback and formatters", () => {
         expect(en.t("onlyEnglish")).toBe("English only");
     });
 });
+
+/**
+ * A miss has to be reportable by the layer that knows about it.
+ *
+ * `t` returning the key on a miss threw that information away, so a caller who
+ * wanted its own text had to detect the miss from outside — in practice by
+ * comparing the result against the key it had just passed in. That heuristic
+ * misreads a catalog which legitimately maps a key to itself, and it was about to
+ * become the pattern for every translatable string the SDK ships.
+ */
+describe("createI18n — default per key", () => {
+    const catalog = createI18n({
+        locale: "pt-BR",
+        fallbackLocale: "en",
+        messages: {
+            "pt-BR": { greet: "Olá, {name}", "self.mapped": "self.mapped" },
+            en: { onlyEn: "English only" },
+        },
+    });
+
+    it("uses the default when neither locale defines the key", () => {
+        expect(catalog.t("cart.empty", undefined, { default: "Carrinho vazio" })).toBe(
+            "Carrinho vazio",
+        );
+    });
+
+    it("prefers the catalog over the default", () => {
+        expect(catalog.t("greet", { name: "Mau" }, { default: "ignorado" })).toBe("Olá, Mau");
+    });
+
+    it("prefers the fallback locale over the default", () => {
+        expect(catalog.t("onlyEn", undefined, { default: "ignorado" })).toBe("English only");
+    });
+
+    it("interpolates the default, so it is not second-class", () => {
+        expect(catalog.t("cart.count", { n: 3 }, { default: "{n} itens" })).toBe("3 itens");
+    });
+
+    it("still returns the key when no default is given", () => {
+        expect(catalog.t("cart.empty")).toBe("cart.empty");
+    });
+
+    it("treats a key mapped to itself as a hit, which the old heuristic could not", () => {
+        expect(catalog.t("self.mapped", undefined, { default: "nunca" })).toBe("self.mapped");
+    });
+
+    it("applies the default to plural too, after both suffixed lookups", () => {
+        expect(catalog.plural("boxes", 2, undefined, { default: "{count} caixas" })).toBe(
+            "2 caixas",
+        );
+        expect(catalog.plural("alos", 3)).toBe("alos");
+    });
+});

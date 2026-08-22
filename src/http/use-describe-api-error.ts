@@ -21,6 +21,11 @@ import {
  * provider — or a catalog that never defined `tempest.error.offline` — falls
  * back to the pt-BR default rather than crashing or printing the raw key.
  *
+ * The catalog miss is reported by the i18n layer, through `t`'s `default`. It
+ * used to be re-derived here by comparing the result against the key that was
+ * passed in, which is wrong for a catalog that maps a key to itself — and it was
+ * the pattern every future translatable SDK string would have copied.
+ *
  * @example
  * const describe = useDescribeApiError();
  * const { mutate } = useMutation({
@@ -36,11 +41,10 @@ export function useDescribeApiError(): (error: unknown, fallback: string) => str
 
     return useCallback(
         (error: unknown, fallback: string) => {
-            const translated = translate?.(API_ERROR_OFFLINE_KEY);
             const offline =
-                translated && translated !== API_ERROR_OFFLINE_KEY
-                    ? translated
-                    : DEFAULT_API_ERROR_STRINGS.offline;
+                translate?.(API_ERROR_OFFLINE_KEY, undefined, {
+                    default: DEFAULT_API_ERROR_STRINGS.offline,
+                }) ?? DEFAULT_API_ERROR_STRINGS.offline;
             return describeApiError(error, fallback, { offline });
         },
         [translate],

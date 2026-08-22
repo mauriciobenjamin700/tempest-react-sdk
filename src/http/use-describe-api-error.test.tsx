@@ -57,3 +57,25 @@ describe("useDescribeApiError", () => {
         expect(result.current).toBe(first);
     });
 });
+
+/**
+ * The miss is the i18n layer's answer now, not a guess from out here.
+ *
+ * The hook used to decide "the catalog does not define this" by comparing `t`'s
+ * result against the key it had just passed in. A catalog that maps
+ * `tempest.error.offline` to the literal string `tempest.error.offline` — which is
+ * what a machine-generated or placeholder catalog does — was therefore read as a
+ * miss, and the app got pt-BR while its catalog had answered.
+ */
+describe("useDescribeApiError — catalog that maps a key to itself", () => {
+    it("uses the catalog's answer instead of reading it as a miss", () => {
+        const { result } = renderHook(() => useDescribeApiError(), {
+            wrapper: withCatalog({
+                en: { "tempest.error.offline": "tempest.error.offline" },
+            }),
+        });
+
+        expect(result.current(OFFLINE, "Falhou")).toBe("tempest.error.offline");
+        expect(result.current(OFFLINE, "Falhou")).not.toBe(DEFAULT_API_ERROR_STRINGS.offline);
+    });
+});

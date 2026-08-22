@@ -112,6 +112,26 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Alterado
 
+- **O plugin de SW em dev deixa de bundlear a frio a cada requisição.**
+  `tempestPwaDevSw` chamava `esbuild.build()` do zero por request, com
+  `write: false` e sem cache. E não é um request por sessão: o
+  `Cache-Control: no-cache` garante um por page load, e o Chrome rebusca o script
+  do worker em toda navegação e nas checagens de update dele. Cada um pagava um
+  bundle completo do grafo do worker na thread principal do dev server, com a
+  página esperando o `register()`.
+
+  Agora é **um** contexto incremental (`esbuild.context()`), criado na primeira
+  requisição que precisa dele, com `rebuild()` por request — reaproveita o grafo e
+  só refaz o que mudou no disco. Requisições concorrentes colapsam num rebuild só
+  (single-flight): elas pediram o mesmo arquivo no mesmo instante, e o esbuild não
+  promete nada sobre `rebuild()` concorrente no mesmo contexto.
+
+  O contexto é liberado quando o dev server fecha, pelos dois caminhos
+  (`buildEnd` do plugin e o `close` do `httpServer`), com dispose idempotente —
+  sem isso, cada restart do dev server deixaria um processo do esbuild pendurado.
+  Falha de bundle continua respondendo 500 com o erro legível no corpo, e o
+  contexto não fica envenenado: a requisição seguinte tenta de novo.
+
 - **A política de retry passa a ter uma dona só, e a divergência que ela escondia
   era um bug.** `createApiClient({ retry: true })` retentava
   `{0, 408, 425, 429}` mais qualquer `5xx`; o default de query em

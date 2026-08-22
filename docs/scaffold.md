@@ -239,7 +239,7 @@ installNotificationClickHandler();
 installSkipWaitingListener();
 ```
 
-O `vite.sw.config.ts` empacota esse arquivo (e os helpers que ele importa) num **service worker clássico** em `dist/sw.js`, e o `main.tsx` registra ele via `registerServiceWorker`. Em **dev**, o plugin `tempestPwaDevSw()` compila o `sw.ts` na hora e serve em `/sw.js` — então push e cache funcionam também no `npm run dev` (sem ele, o SW só existiria no build). Veja os detalhes dos helpers em [Web Push](./push.md).
+O `vite.sw.config.ts` empacota esse arquivo (e os helpers que ele importa) num **service worker clássico** em `dist/sw.js`, e o `main.tsx` registra ele via `registerServiceWorker`. Em **dev**, o plugin `tempestPwaDevSw()` compila o `sw.ts` na hora e serve em `/sw.js` — então push e cache funcionam também no `npm run dev` (sem ele, o SW só existiria no build). A compilação passa por **um** contexto incremental do esbuild, criado na primeira requisição: o browser rebusca o script do worker a cada navegação e nas checagens de update dele, então bundle a frio por requisição seria bundle a frio o dia inteiro. Veja os detalhes dos helpers em [Web Push](./push.md).
 
 #### 3. Web push → `usePushSubscription`
 

@@ -4,6 +4,33 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **O loop de chunk do `createResumableUpload` retentava tudo, cinco vezes.** Era
+  a última cópia do default permissivo (`?? true`) depois da unificação da política
+  de retry, e custava cinco round trips para mostrar uma resposta que a primeira
+  tentativa já tinha dado.
+
+  Duas decisões aqui são **específicas do protocolo de retomada** e nenhuma delas
+  sai da política geral:
+
+  - **`409`/`412` continuam retentando**, mesmo sendo 4xx que `isRetriableStatus`
+    recusa. Eles significam "seu offset está errado", e o `resync` existe
+    justamente para o `HEAD` da próxima tentativa corrigir isso.
+  - **`404`/`410` param de retentar**, mesmo parecendo transitórios. O `probe()`
+    os traduz para "O upload expirou no servidor" e recriar o upload só acontece no
+    `ensureUpload`, no attach — nunca dentro do loop. Retentar era sondar um
+    recurso morto cinco vezes, com o backoff somado, para chegar na mesma resposta.
+
+  Erro sem forma de erro de API continua retentando: falha de transporte não tem
+  status para julgar, e perder um upload grande por uma conexão caída é o desfecho
+  que este módulo existe para evitar.
+
+  O `resync` passa a ser armado **só** quando a tentativa vai acontecer de fato — a
+  flag descreve o que a _próxima_ tentativa deve fazer, então armá-la para uma
+  tentativa que não vem descreve nada. Um `shouldRetry` do caller continua
+  decidindo, e continua armando o resync quando diz sim.
+
 ## [0.49.0] — 2026-08-22
 
 ### Breaking

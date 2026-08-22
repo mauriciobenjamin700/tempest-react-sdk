@@ -718,3 +718,116 @@ describe("createResumableUpload — pause, resume and abort", () => {
         expect(creation.headers.Authorization).toBe("Basic abc");
     });
 });
+
+/**
+ * The chunk loop retried everything, five times, including answers the first
+ * attempt had already settled.
+ *
+ * Two groups are specific to this protocol and neither is obvious from outside
+ * it: `409`/`412` are the offset-divergence answers, so a replay *is* the fix and
+ * `resync` exists to make it work — the shared `isRetriableStatus` refuses them
+ * along with every other 4xx. And `404`/`410` are terminal here even though a
+ * missing resource can look transient: `probe()` turns them into "the upload
+ * expired", and recreating one only happens in `ensureUpload`, at attach time.
+ * Retrying meant re-running `HEAD` against a resource that is gone, with the
+ * backoff piling up before the same answer surfaced.
+ */
+describe("createResumableUpload — chunk retry policy", () => {
+    /**
+     * Count how many times the server saw a method while the upload failed.
+     *
+     * @param status - Status the first PATCH answers with.
+     * @param patchReplies - How many queued replies to arm, so a retry hits them.
+     * @returns The recorded requests, per method.
+     */
+    async function runFailing(
+        status: number,
+        patchReplies = 6,
+    ): Promise<{ patches: number; heads: number }> {
+        server = acceptingServer(4);
+        server.queue(
+            "PATCH",
+            ...Array.from({ length: patchReplies }, () => ({ status, text: "" })),
+        );
+        installXhr();
+
+        await expect(
+            createResumableUpload({
+                endpoint: "/api/uploads",
+                file: blobOf(4),
+                storage: null,
+                retry: { retries: 5, initialDelay: 0 },
+            }).start(),
+        ).rejects.toMatchObject({ status });
+
+        return {
+            patches: server.requests.filter((r) => r.method === "PATCH").length,
+            heads: server.requests.filter((r) => r.method === "HEAD").length,
+        };
+    }
+
+    it("stops after one attempt on a deliberate refusal", async () => {
+        for (const status of [400, 403, 422]) {
+            const { patches } = await runFailing(status);
+            expect(patches, `status ${status}`).toBe(1);
+        }
+    });
+
+    it("stops after one attempt when the upload is gone, instead of probing a dead resource", async () => {
+        for (const status of [404, 410]) {
+            const { patches, heads } = await runFailing(status);
+            expect(patches, `status ${status}`).toBe(1);
+            expect(heads, `status ${status} — no resync against a gone upload`).toBe(0);
+        }
+    });
+
+    it("still replays a server failure and a rate limit", async () => {
+        for (const status of [500, 503, 429]) {
+            const { patches } = await runFailing(status);
+            expect(patches, `status ${status}`).toBeGreaterThan(1);
+        }
+    });
+
+    it("replays an offset divergence, which is what resync is for", async () => {
+        for (const status of [409, 412]) {
+            const { patches, heads } = await runFailing(status);
+            expect(patches, `status ${status}`).toBeGreaterThan(1);
+            expect(heads, `status ${status} — resync re-reads the offset`).toBeGreaterThan(0);
+        }
+    });
+
+    it("recovers when the divergence clears, writing from the server's offset", async () => {
+        server = acceptingServer(4);
+        server.queue("PATCH", { status: 409, text: "" });
+        installXhr();
+
+        const result = await createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(4),
+            storage: null,
+            retry: { retries: 5, initialDelay: 0 },
+        }).start();
+
+        expect(result).not.toBeNull();
+        expect(server.requests.some((r) => r.method === "HEAD")).toBe(true);
+    });
+
+    it("lets a caller's shouldRetry override the policy in both directions", async () => {
+        server = acceptingServer(4);
+        server.queue("PATCH", ...Array.from({ length: 4 }, () => ({ status: 403, text: "" })));
+        installXhr();
+
+        const shouldRetry = vi.fn(() => true);
+        await expect(
+            createResumableUpload({
+                endpoint: "/api/uploads",
+                file: blobOf(4),
+                storage: null,
+                retry: { retries: 3, initialDelay: 0, shouldRetry },
+            }).start(),
+        ).rejects.toMatchObject({ status: 403 });
+
+        expect(shouldRetry).toHaveBeenCalled();
+        expect(server.requests.filter((r) => r.method === "PATCH").length).toBeGreaterThan(1);
+    });
+});

@@ -130,6 +130,28 @@ Duas coisas impedem:
 !!! tip "O backoff é o `retry` do SDK"
     Não existe um segundo backoff aqui: cada chunk roda dentro do [`retry`](./http.md#retry-backoff-exponencial) — exponencial, com `Retry-After` respeitado. Ajuste por `retry: { retries, initialDelay, shouldRetry }`.
 
+!!! check "O que o loop de chunk retenta, e o que não"
+    Duas decisões são **específicas do protocolo de retomada** e não seguem a
+    política geral do SDK:
+
+    | Resposta | Retenta? | Por quê |
+    | --- | --- | --- |
+    | falha de rede, `408`, `425`, `429`, `5xx` | **sim** | política padrão: pode mudar sozinho |
+    | `409`, `412` | **sim** | é o sinal de offset divergente — o replay *é* a correção, e o `HEAD` de resync a executa |
+    | `404`, `410` | **não** | o upload sumiu do servidor. Recriar só acontece no attach, nunca dentro do loop |
+    | `400`, `403`, `413`, `415`, `422` | **não** | recusa deliberada; a 5ª tentativa recebe a mesma resposta |
+
+    O `409` é o caso interessante: a política geral do SDK recusa 4xx, e com razão
+    — mas aqui ele significa "seu offset está errado", que é exatamente o que a
+    retentativa conserta.
+
+    O `404` é o inverso. Recurso que desapareceu *parece* transitório, mas o
+    `HEAD` de resync bate no mesmo `404`, então retentar era sondar um recurso
+    morto cinco vezes e só então mostrar "o upload expirou" — com o backoff somado
+    em cima. Nesse caso, comece um upload novo.
+
+    Um `shouldRetry` seu **substitui** essa política inteira, nas duas direções.
+
 ## O que o backend precisa implementar
 
 Toda request leva `Tus-Resumable: 1.0.0`.

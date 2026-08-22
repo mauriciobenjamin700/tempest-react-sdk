@@ -1,5 +1,5 @@
 export { createApiClient } from "./api-client";
-export { TempestApiError, isApiError } from "./errors";
+export { TempestApiError, isApiError, isRetriableStatus } from "./errors";
 export {
     API_ERROR_OFFLINE_KEY,
     DEFAULT_API_ERROR_STRINGS,

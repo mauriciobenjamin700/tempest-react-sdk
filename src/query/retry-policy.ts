@@ -1,14 +1,4 @@
-import { isApiError } from "../http/errors";
-
-/**
- * Statuses in the 4xx range that are still worth replaying.
- *
- * `429` is a refusal that explicitly means "later", and `408` is the server
- * saying the request itself timed out — both describe a condition that changes on
- * its own. Every other 4xx is the server refusing on purpose, and repeating it
- * changes nothing.
- */
-const RETRIABLE_CLIENT_STATUSES: ReadonlySet<number> = new Set([408, 429]);
+import { isApiError, isRetriableStatus } from "../http/errors";
 
 /** How many times a retriable failure is replayed. */
 const MAX_RETRIES = 1;
@@ -23,6 +13,11 @@ const MAX_RETRIES = 1;
  * of another round trip. A network failure or a 5xx is a different thing: it may
  * well succeed on the next try, so those keep the previous behaviour.
  *
+ * The status list is {@link isRetriableStatus}, shared with the client's own
+ * policy. It used to be a second copy here, and the copy was missing `425` — so
+ * a `425 Too Early` was replayed by `createApiClient({ retry: true })` and not
+ * by a query, for the same error in the same app.
+ *
  * @example
  * new QueryClient({ defaultOptions: { queries: { retry: shouldRetryQuery } } });
  *
@@ -33,9 +28,5 @@ const MAX_RETRIES = 1;
 export function shouldRetryQuery(failureCount: number, error: unknown): boolean {
     if (failureCount >= MAX_RETRIES) return false;
     if (!isApiError(error)) return true;
-    if (error.status === 0) return true;
-    if (error.status >= 400 && error.status < 500) {
-        return RETRIABLE_CLIENT_STATUSES.has(error.status);
-    }
-    return true;
+    return isRetriableStatus(error.status);
 }

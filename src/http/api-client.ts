@@ -5,7 +5,7 @@
  * parsing that turns a failure into a typed error.
  */
 import { randomId } from "../utils";
-import { buildApiError, TempestApiError } from "./errors";
+import { buildApiError, isRetriableStatus, TempestApiError } from "./errors";
 import { retry as retryWithBackoff } from "./retry";
 import type { RetryOptions } from "./retry";
 import type { ApiClient, ApiClientConfig, RequestOptions } from "./types";
@@ -20,19 +20,18 @@ import type { ApiClient, ApiClientConfig, RequestOptions } from "./types";
 const IDEMPOTENT_METHODS: ReadonlySet<string> = new Set(["GET", "HEAD", "OPTIONS"]);
 
 /**
- * Sub-500 statuses worth a second attempt: a network failure (status `0`), a
- * request timeout, a too-early replay, and a rate limit — which usually carries
- * the `Retry-After` the backoff already honours.
- */
-const RETRIABLE_STATUSES: ReadonlySet<number> = new Set([0, 408, 425, 429]);
-
-/**
  * The built-in retry policy, used when `retry` is `true` or is options carrying
  * no `shouldRetry` of their own.
  *
  * Conservative on purpose. Replaying a write can duplicate it, and replaying a
  * `400` or a `403` cannot fix a bad payload or a permission the caller does not
  * have — it only spends the user's time before showing the same error.
+ *
+ * The status list itself lives in {@link isRetriableStatus}; what this adds is
+ * the method check, which is the part specific to a real request. The
+ * `instanceof` stays strict rather than going through `isApiError`: the client
+ * only ever throws its own error type, so a duck-typed match here would widen
+ * the policy for no caller.
  *
  * @param error - Whatever the attempt threw.
  * @param method - The upper-cased HTTP method of the request.
@@ -41,7 +40,7 @@ const RETRIABLE_STATUSES: ReadonlySet<number> = new Set([0, 408, 425, 429]);
 function isRetriableFailure(error: unknown, method: string): boolean {
     if (!IDEMPOTENT_METHODS.has(method)) return false;
     if (!(error instanceof TempestApiError)) return false;
-    return RETRIABLE_STATUSES.has(error.status) || error.status >= 500;
+    return isRetriableStatus(error.status);
 }
 
 /**

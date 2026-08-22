@@ -29,6 +29,41 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Alterado
 
+- **A política de retry passa a ter uma dona só, e a divergência que ela escondia
+  era um bug.** `createApiClient({ retry: true })` retentava
+  `{0, 408, 425, 429}` mais qualquer `5xx`; o default de query em
+  `retry-policy.ts` retentava `{408, 429}` — **sem o `425`**; e o helper `retry()`
+  tinha `shouldRetry = () => true`, replicando `403` e `404`. Três listas, escritas
+  independentes, e nenhum teste pegava porque cada arquivo conferia contra a
+  própria cópia.
+
+  Consequência concreta: um backend que responde `425 Too Early` (replay
+  protection, comum atrás de proxy com TLS 1.3 early data) era retentado pelo
+  cliente e **não** era retentado pelo `useQuery`. Mesmo erro, mesmo app, dois
+  comportamentos. O contrato documentado em `http/types.ts` sempre disse
+  `{0, 408, 425, 429}` + `5xx`, então o cliente cumpria e a query não.
+
+  Agora `isRetriableStatus(status)` é exportado de `tempest-react-sdk` e é a única
+  dona da classificação. As três superfícies leem dela, e um teste novo afirma o
+  **acordo** entre elas em vez de três imagens separadas, para a divergência não
+  voltar em silêncio.
+
+  Duas mudanças de comportamento vêm disso:
+
+  - `useQuery` passa a retentar `425`. Um status `3xx` que chegue como erro de API
+    deixa de ser retentado (o caminho antigo caía no `return true` final).
+  - `retry()` sem `shouldRetry` deixa de replicar erro de API que é recusa
+    deliberada (`400`, `403`, `404`, `422`). Erro **sem** forma de erro de API
+    continua sendo replicado — falha de transporte não tem status pra julgar.
+    Quem dependia do default permissivo passa `shouldRetry: () => true`.
+
+  `isRetriableStatus` é deliberadamente sobre o status e mais nada: se um erro
+  não-API vale replay, e se o método da requisição pode ser replayado, seguem
+  decisões de cada caller. O `createApiClient` continua recusando método não
+  idempotente, e o `resumable-upload` continua com o `shouldRetry` próprio dele,
+  porque o protocolo de retomada tem regra de resync que a lista de status não
+  descreve.
+
 - **Comparação de texto deixa de construir um `Intl.Collator` por chamada.**
   `localeCompare(other, undefined, { numeric: true })` opta fora do fast path de
   collator default do engine e constrói um a cada comparação. Medido em 200k

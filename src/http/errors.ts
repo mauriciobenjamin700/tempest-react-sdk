@@ -51,6 +51,42 @@ export function isApiError(error: unknown): error is ApiError {
 }
 
 /**
+ * Statuses worth a second attempt, as a set for the sub-500 cases.
+ *
+ * A network failure (status `0`), a request timeout, a too-early replay, and a
+ * rate limit — which usually carries the `Retry-After` the backoff honours.
+ * Everything else below 500 is the server refusing on purpose.
+ */
+const RETRIABLE_STATUSES: ReadonlySet<number> = new Set([0, 408, 425, 429]);
+
+/**
+ * Whether an HTTP status describes a condition a replay can plausibly fix.
+ *
+ * The single owner of that decision. It used to be spelled out in three places —
+ * the client's own policy, the react-query default and the bare `retry()` helper
+ * — and they had already drifted: the query default was missing `425`, so the
+ * same `425 Too Early` was replayed through `createApiClient({ retry: true })`
+ * and not replayed through `useQuery`. Same app, same error, two behaviours, and
+ * no test caught it because each file asserted against its own copy.
+ *
+ * Deliberately about the status and nothing else. Whether a *non*-API error is
+ * worth replaying, and whether the request's method may be replayed at all, are
+ * the caller's calls: {@link createApiClient} refuses a non-idempotent method,
+ * while a bare `retry()` has no method to inspect.
+ *
+ * @example
+ * await api.get("/report", {
+ *     retry: { shouldRetry: (error) => isApiError(error) && isRetriableStatus(error.status) },
+ * });
+ *
+ * @param status - The HTTP status, where `0` means the request never landed.
+ * @returns Whether a retry is worth attempting.
+ */
+export function isRetriableStatus(status: number): boolean {
+    return RETRIABLE_STATUSES.has(status) || status >= 500;
+}
+
+/**
  * Parse an error body + response into the Tempest {@link ApiError} envelope.
  *
  * Reads `detail`/`message`, the programmatic `code`, and the correlation id

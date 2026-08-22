@@ -68,6 +68,21 @@ export function isApiError(error: unknown): error is ApiError {
  * passed at exactly one place: the client's response path. Exported from the package
  * root, so the rewrite would be breaking for callers that build their own errors.
  */
+/**
+ * Detail text synthesised when a response body carries none.
+ *
+ * Exported because {@link describeApiError} has to recognise it: a detail the
+ * server never sent says strictly less than the caller's own fallback, so the
+ * funnel drops it. Comparing against a copied literal would silently stop
+ * matching the day this sentence is reworded — no type error, no failing test.
+ *
+ * @param status - The HTTP status of the error.
+ * @returns The synthetic detail for that status.
+ */
+export function syntheticDetail(status: number): string {
+    return `Erro ${status}`;
+}
+
 export function buildApiError(
     status: number,
     body: unknown,
@@ -76,7 +91,7 @@ export function buildApiError(
 ): ApiError {
     const obj =
         typeof body === "object" && body !== null ? (body as Record<string, unknown>) : null;
-    const detail = obj?.detail ?? obj?.message ?? `Erro ${status}`;
+    const detail = obj?.detail ?? obj?.message ?? syntheticDetail(status);
     const code = typeof obj?.code === "string" ? obj.code : undefined;
     const details =
         typeof obj?.details === "object" && obj.details !== null

@@ -3,7 +3,7 @@
 // The case everyone forgets is the request that never reached the server, which
 // without special handling renders as the nonsense "erro 0".
 
-import { isApiError } from "./errors";
+import { isApiError, syntheticDetail } from "./errors";
 
 /** The two fixed sentences {@link describeApiError} may need. */
 export interface ApiErrorStrings {
@@ -31,20 +31,6 @@ export const DEFAULT_API_ERROR_STRINGS: ApiErrorStrings = {
  * than printing pt-BR at them.
  */
 export const API_ERROR_OFFLINE_KEY = "tempest.error.offline";
-
-/**
- * Detail text `buildApiError` synthesises when the response body carries none.
- *
- * Ported from `buildApiError` in `errors.ts`, which falls back to `Erro ${status}`.
- * Recognising it here is what lets the caller's `fallback` win: "Erro 500" says
- * strictly less than "Não foi possível carregar os pedidos".
- *
- * @param status - The HTTP status of the error.
- * @returns The synthetic detail for that status.
- */
-function syntheticDetail(status: number): string {
-    return `Erro ${status}`;
-}
 
 /**
  * Whether the browser currently reports itself as offline.

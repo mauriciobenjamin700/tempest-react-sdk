@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useInterval } from "./use-interval";
 
 /** Options for {@link useCountdown}. */
 export interface UseCountdownOptions {
@@ -19,7 +20,8 @@ export interface UseCountdownOptions {
  * which a counter held in state cannot do.
  *
  * The interval stops once it reaches zero instead of ticking forever behind a
- * clamp.
+ * clamp — `useInterval` pauses on a `null` delay, so reaching zero is what tears
+ * the timer down.
  *
  * @param durationMs - Length of the window.
  * @param startedAt - Epoch ms the window opened (`Date.now()` when it started).
@@ -48,18 +50,10 @@ export function useCountdown(
     const [remaining, setRemaining] = useState(compute);
 
     useEffect(() => {
-        const initial = compute();
-        setRemaining(initial);
-        if (initial <= 0) return;
+        setRemaining(compute());
+    }, [compute]);
 
-        const id = setInterval(() => {
-            const next = compute();
-            setRemaining(next);
-            if (next <= 0) clearInterval(id);
-        }, tickMs);
-
-        return () => clearInterval(id);
-    }, [compute, tickMs]);
+    useInterval(() => setRemaining(compute()), remaining > 0 ? tickMs : null);
 
     return remaining;
 }

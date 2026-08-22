@@ -5,6 +5,12 @@
  * one row model (data, columns, rowKey, emptyMessage). The body is long because
  * those four share the derived-rows pipeline: filter, then sort, then page, then map
  * to cells, in that order and off the same memo.
+ *
+ * Each of the four also runs in a second mode, where the caller owns the work and
+ * the table only reports intent: totalItems/page/onPageChange, onSearchChange,
+ * manualSort/onSortChange, loading/loadingRows. That doubles the props without
+ * adding a fifth job — every manual prop short-circuits one stage of the same
+ * pipeline.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
@@ -257,6 +263,7 @@ export function DataTable<T>({
     const editingEnabled = onCellChange !== undefined && columns.some((column) => column.editable);
 
     const effectiveSearchKeys = useMemo<(keyof T)[]>(() => {
+        if (!searchable || searchIsManual) return [];
         if (searchKeys && searchKeys.length > 0) return searchKeys;
         return columns
             .filter((column) => {
@@ -265,7 +272,7 @@ export function DataTable<T>({
                 return typeof value === "string" || typeof value === "number";
             })
             .map((column) => column.key);
-    }, [searchKeys, columns, data]);
+    }, [searchable, searchIsManual, searchKeys, columns, data]);
 
     const filtered = useMemo<T[]>(() => {
         const term = search.trim().toLowerCase();

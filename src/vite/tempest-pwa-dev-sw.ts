@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import type { Plugin } from "vite";
+import { basePrefix } from "./base-url";
 import type { TempestVitePlugin } from "./tempest-pwa-manifest";
 
 /** Options for {@link tempestPwaDevSw}. */
@@ -61,7 +62,7 @@ export function tempestPwaDevSw(options: TempestPwaDevSwOptions = {}): TempestVi
      */
     function matches(url: string, target: string): boolean {
         if (url === target) return true;
-        const prefix = base.endsWith("/") ? base : `${base}/`;
+        const prefix = basePrefix(base);
         if (prefix === "/") return false;
         return url === `${prefix}${target.replace(/^\//, "")}`;
     }

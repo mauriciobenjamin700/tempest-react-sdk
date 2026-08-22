@@ -11,7 +11,9 @@ import { createSfxPool, type SfxPool, type SfxPoolOptions } from "./sfx-pool";
  * `volume` is tracked separately: changing it calls `setVolume` on the existing
  * pool rather than rebuilding it, which would throw away every clip the user
  * has already downloaded — exactly the cost the pool exists to avoid.
- * `baseUrl`, `voices` and `maxSources` are read once, at creation.
+ * `baseUrl`, `voices` and `maxSources` are read once, at creation. The options
+ * object is forwarded whole rather than rebuilt field by field, so a field added
+ * to {@link SfxPoolOptions} does not silently stop reaching the pool.
  *
  * @param options - Passed through to {@link createSfxPool}.
  * @returns A stable pool handle.
@@ -24,9 +26,9 @@ import { createSfxPool, type SfxPool, type SfxPoolOptions } from "./sfx-pool";
  * <button onClick={() => sfx.play("sfx/select.mp3")}>Confirmar</button>
  */
 export function useSfxPool(options: SfxPoolOptions = {}): SfxPool {
-    const { volume = 1, baseUrl, voices, maxSources } = options;
+    const { volume = 1 } = options;
 
-    const [pool] = useState(() => createSfxPool({ baseUrl, voices, maxSources, volume }));
+    const [pool] = useState(() => createSfxPool(options));
 
     useEffect(() => {
         pool.setVolume(volume);

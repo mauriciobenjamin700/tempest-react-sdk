@@ -1,5 +1,6 @@
-import type { HTMLAttributes } from "react";
+import { useMemo, type HTMLAttributes } from "react";
 
+import { CHART_COLOR_TOKEN_COUNT } from "@/charts/palette";
 import { cn } from "@/utils/cn";
 
 import { buildBarListRows, type BarListItem, type BarListSort } from "./bar-list-model";
@@ -70,7 +71,10 @@ export function BarList({
     className,
     ...rest
 }: BarListProps) {
-    const rows = buildBarListRows(items, sort, max, otherLabel);
+    const rows = useMemo(
+        () => buildBarListRows(items, sort, max, otherLabel),
+        [items, sort, max, otherLabel],
+    );
 
     return (
         <ul className={cn(styles.list, className)} {...rest}>
@@ -93,7 +97,8 @@ export function BarList({
                             style={{
                                 width: `${row.width}%`,
                                 backgroundColor:
-                                    row.color ?? `var(--tempest-chart-${(row.index % 8) + 1})`,
+                                    row.color ??
+                                    `var(--tempest-chart-${(row.index % CHART_COLOR_TOKEN_COUNT) + 1})`,
                             }}
                         />
                     </div>

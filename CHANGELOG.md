@@ -27,6 +27,56 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   imprime **uma vez por chave** em vez de a cada dependência que muda, e o prefixo
   é `[tempest-react-sdk]` em todos.
 
+### Alterado
+
+- **Comparação de texto deixa de construir um `Intl.Collator` por chamada.**
+  `localeCompare(other, undefined, { numeric: true })` opta fora do fast path de
+  collator default do engine e constrói um a cada comparação. Medido em 200k
+  comparações: 453 ms contra 25 ms com o collator hasteado no módulo — ~18x. O
+  custo caía uma vez por linha por filtro em `applyFilters` (≈23 ms de main
+  thread por tecla numa lista de 10k, já que a doc envolve a chamada num `useMemo`
+  ligado ao filtro) e O(n log n) por sort em `compareValues`, o comparador de
+  `DataTable` e `VirtualTable`. `equals` também ganhou atalho para strings
+  idênticas.
+
+- **`applyFilters` normaliza cada filtro uma vez, antes da varredura.** A aridade,
+  a ordenação do `between` e o array de valores dependem só do filtro, então
+  derivá-los dentro do predicado multiplicava esse trabalho pelo número de linhas
+  — inclusive um `orderRange` por linha, que numa faixa de texto é outra
+  comparação de collator.
+
+- **`preload()` do `createSfxPool` não reinicia mais o download do que já está no
+  pool.** `acquire` cria o elemento com `preload = "auto"`, o que já começa o
+  fetch; o `load()` que vinha depois **aborta a requisição em voo e descarta o que
+  já estava bufferizado**, por definição do algoritmo de load do elemento de
+  mídia. Como a doc do `useSfxPool` põe `preload` num effect de mount, isso
+  acontecia a cada tela montada — exatamente o custo que o pool existe para
+  evitar. Agora só os elementos recém-criados recebem `load()`.
+
+- **Menos trabalho por render em `DataTable` e `BarList`.** O memo de
+  `effectiveSearchKeys` varria o dataset (`find` por coluna) mesmo com a busca
+  desligada ou delegada ao servidor, onde o resultado não é lido; agora sai antes,
+  pelo mesmo gate que `filtered` usa. `buildBarListRows` (filter + sort + 2 slices
+  - map) rodava a cada render e passou a ser memoizado.
+
+- **`useCountdown` e `useTypewriter` passam a compor `useInterval`.** Os dois
+  montavam `setInterval`/`clearInterval` na mão, e o typewriter chamava
+  `clearInterval` **de dentro do updater do `setCount`** — efeito colateral numa
+  função de redução, que o StrictMode pode invocar duas vezes. O quanto foi
+  revelado virou valor derivado, então `speedMs = 0` lê como "tudo" sem escrita de
+  estado. `useStableCallback` passou a se apoiar em `useLatestRef`, que estava
+  publicado sem nenhum consumidor.
+
+- **Duplicação removida sem mudança de comportamento.** `dayKey` no `FilterBar`
+  era uma segunda cópia de `formatDateForInput` (mesmo regex, mesmo `padStart`,
+  mesmo parágrafo de docstring sobre `toISOString`); `syntheticDetail` passou a
+  ser exportado de `http/errors.ts` em vez de ter o literal `Erro ${status}`
+  copiado em `describe-api-error.ts`, onde uma reescrita da frase quebraria o
+  reconhecimento em silêncio; a regra de prefixo do `base` dos plugins Vite tinha
+  três cópias e virou `basePrefix` — manifest e dev server têm de concordar por
+  definição, e a divergência só apareceria em deploy com subpath; e o `8` fixo da
+  rampa de cores do `BarList` virou `CHART_COLOR_TOKEN_COUNT`.
+
 ## [0.44.0] — 2026-08-16
 
 ### Adicionado

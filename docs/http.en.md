@@ -226,6 +226,67 @@ Worth knowing:
 - A retry wraps the **whole** request, refresh included. One attempt that spends the full 401 → refresh → replay cycle counts as a single attempt.
 - Each attempt carries its own `X-Request-ID`, so the backend can tell the attempts apart in its logs.
 - `Retry-After` (on `429`/`503`) is honoured and overrides the backoff for that attempt.
+## Timeout and cancellation
+
+The client abandons a request after **15 s** by default, and after **5 min** when the body is `FormData`.
+
+```ts
+const api = createApiClient({
+  baseURL: import.meta.env.VITE_API_URL,
+  timeout: 15_000, // default
+  uploadTimeout: 300_000, // default, applied when the body is FormData
+});
+
+// Per-call override, for the endpoint that fits neither default.
+const report = await api.get("/heavy-report", { timeout: 60_000 });
+
+// `null` turns it off — for a stream or a long poll.
+const stream = await api.get("/events", { timeout: null });
+```
+
+!!! danger "Before this there was no timeout at all"
+    A TCP connection that dies without a FIN **never answers**: the browser holds
+    the request for minutes, or forever. With no floor, the symptom is a spinner
+    that never resolves, on exactly the bad network an offline-first SDK exists to
+    survive.
+
+!!! tip "Why uploads get their own timeout"
+    A binary upload is not a slow request, it is a different kind of request. A
+    single timeout forces a choice between short enough to protect a normal call
+    and long enough to finish a file — and 15 s cuts the upload mid-body, which
+    the server then has to interpret as a truncated payload.
+
+    Detection is the body being `FormData`, the same test that already decides the
+    `Content-Type`.
+
+### A timeout becomes `status: 0`; an abort stays an abort
+
+A timeout arrives as an `ApiError` with `status: 0` — the shape the client already used for "never reached the server". That is not an implementation detail: it is what lets the retry policy replay a timeout with **no special case**, since `isRetriableStatus(0)` is `true`.
+
+An abort **you** asked for propagates as a `DOMException`, and is therefore never retried — the built-in `shouldRetry` requires a `TempestApiError`.
+
+```ts
+const controller = new AbortController();
+const pending = api.get("/slow", { signal: controller.signal });
+controller.abort(); // rejects with DOMException, no retry
+```
+
+!!! check "`signal` always worked — it just was not documented"
+    `RequestOptions` extends `Omit<RequestInit, "body">`, so `signal` has always
+    been accepted and forwarded to `fetch`. Nobody could discover that: it did not
+    appear on the interface and was in no doc. It is now declared explicitly,
+    which is redundant for the compiler and not for the reader.
+
+    The case this unlocks is react-query: pass the `signal` the `queryFn` receives
+    and the request is cancelled on unmount and on refetch.
+
+    ```tsx
+    useQuery({
+      queryKey: ["orders"],
+      queryFn: ({ signal }) => api.get("/orders", { signal }),
+    });
+    ```
+
 - Need retries on one specific call rather than the whole client? The [`retry`](#retry-exponential-backoff) helper is still there, and now uses the **same** status classification.
 
 ## `parseResponse`

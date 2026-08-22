@@ -55,6 +55,66 @@ function resolveRetry(config: boolean | RetryOptions | undefined): RetryOptions 
     return config === true ? {} : config;
 }
 
+/** Default milliseconds before a request is abandoned. */
+const DEFAULT_TIMEOUT = 15_000;
+
+/** Default milliseconds before a `FormData` request is abandoned. */
+const DEFAULT_UPLOAD_TIMEOUT = 300_000;
+
+/** A signal to hand `fetch`, plus how to read the outcome and clean up. */
+interface TimedSignal {
+    /** Pass this to `fetch`. */
+    signal: AbortSignal | undefined;
+    /** Whether the abort came from the timeout rather than the caller. */
+    timedOut: () => boolean;
+    /** Clear the timer and drop the listener. Always call it. */
+    dispose: () => void;
+}
+
+/**
+ * Compose the caller's signal with a timeout, tracking which one fires.
+ *
+ * Written with an explicit flag rather than `AbortSignal.timeout()`, whose
+ * `TimeoutError` reason would tell the two apart for free. Two reasons: this
+ * needs no `AbortSignal.any`, which is Baseline 2024 and would raise the
+ * package's support floor for one line of convenience, and the flag is read
+ * directly instead of through a reason string that a polyfill could reshape.
+ *
+ * A caller signal that is already aborted aborts immediately, so a request never
+ * goes out for a query react-query has already cancelled.
+ *
+ * @param signal - The caller's signal, if any.
+ * @param ms - Timeout in milliseconds, or `null` to only forward the signal.
+ * @returns The composed signal, the outcome reader, and the cleanup.
+ */
+function withTimeout(signal: AbortSignal | null | undefined, ms: number | null): TimedSignal {
+    if (ms === null) {
+        return { signal: signal ?? undefined, timedOut: () => false, dispose: () => {} };
+    }
+
+    const controller = new AbortController();
+    let timedOut = false;
+    const timer = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+    }, ms);
+    const onAbort = (): void => controller.abort();
+
+    if (signal) {
+        if (signal.aborted) controller.abort();
+        else signal.addEventListener("abort", onAbort, { once: true });
+    }
+
+    return {
+        signal: controller.signal,
+        timedOut: () => timedOut,
+        dispose: () => {
+            clearTimeout(timer);
+            signal?.removeEventListener("abort", onAbort);
+        },
+    };
+}
+
 function isFormData(body: unknown): body is FormData {
     return typeof FormData !== "undefined" && body instanceof FormData;
 }
@@ -137,8 +197,12 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         options: RequestOptions,
         requestId?: string,
     ): Promise<Response> {
-        const { body, params, headers, ...rest } = options;
+        const { body, params, headers, signal, timeout, ...rest } = options;
         const isForm = isFormData(body);
+        const configured = isForm ? config.uploadTimeout : config.timeout;
+        const fallback = isForm ? DEFAULT_UPLOAD_TIMEOUT : DEFAULT_TIMEOUT;
+        const limit =
+            timeout !== undefined ? timeout : configured !== undefined ? configured : fallback;
 
         const finalHeaders: Record<string, string> = {
             ...(isForm ? {} : { "Content-Type": "application/json" }),
@@ -148,8 +212,10 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
             ...(headers as Record<string, string> | undefined),
         };
 
+        const timed = withTimeout(signal, limit);
         const init: RequestInit = {
             ...rest,
+            signal: timed.signal,
             headers: finalHeaders,
             credentials: config.withCredentials ? "include" : rest.credentials,
             body:
@@ -160,7 +226,20 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
                       : JSON.stringify(body),
         };
 
-        return fetcher(buildApiUrl(config.baseURL, path, { prefix: config.prefix, params }), init);
+        const url = buildApiUrl(config.baseURL, path, { prefix: config.prefix, params });
+        try {
+            return await fetcher(url, init);
+        } catch (cause) {
+            if (timed.timedOut()) {
+                throw new TempestApiError({
+                    status: 0,
+                    detail: `A requisição excedeu ${limit}ms e foi abandonada.`,
+                });
+            }
+            throw cause;
+        } finally {
+            timed.dispose();
+        }
     }
 
     async function send(
@@ -260,8 +339,9 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         path: string,
         formData: FormData,
         method: "POST" | "PUT" | "PATCH" = "POST",
+        options?: Omit<RequestOptions, "body" | "method">,
     ): Promise<T> {
-        return request<T>(path, { method, body: formData });
+        return request<T>(path, { ...options, method, body: formData });
     }
 
     return {

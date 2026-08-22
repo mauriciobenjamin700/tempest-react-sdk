@@ -4,6 +4,40 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`createApiClient` ganhou timeout.** Antes não havia nenhum, e a falha que isso
+  deixava aberta não é um erro: conexão TCP que morre sem FIN **não responde**, e
+  o browser segura a requisição por minutos ou para sempre. Num SDK offline-first
+  esse é o pior lugar para não ter piso — o spinner eterno cai exatamente na rede
+  ruim que o pacote existe para sobreviver.
+
+  `timeout` default `15_000`, e **`uploadTimeout` default `300_000` para body
+  `FormData`**. Upload binário não é requisição lenta, é outro tipo de
+  requisição: um timeout único obriga a escolher entre curto o bastante para
+  proteger uma chamada normal e longo o bastante para terminar um arquivo, e 15 s
+  corta o upload no meio do body. `options.timeout` sobrepõe por chamada, e `null`
+  desliga (stream, long poll).
+
+  Timeout chega como `ApiError` com `status: 0` — a mesma forma que o cliente já
+  usava para "não chegou ao servidor". Isso é o que faz a política de retry
+  existente replicar um timeout **sem caso especial**, já que
+  `isRetriableStatus(0)` é `true`. Abort que o caller pediu continua propagando
+  como `DOMException`, e portanto nunca é retentado.
+
+- **`client.upload()` aceita `options`**, então o caminho de `FormData` passa a
+  poder ser cancelado e a ter timeout próprio por chamada. Era o único caminho do
+  módulo sem isso, e é o mais longo — justamente o que alguém quer poder cancelar.
+
+### Alterado
+
+- **`RequestOptions` declara `signal` explicitamente.** Ele já funcionava, por
+  herança de `Omit<RequestInit, "body">`, e já era repassado ao `fetch`. Mas não
+  aparecia na interface nem em doc nenhuma — capacidade indescobrível vale quase o
+  mesmo que capacidade ausente. Agora está declarado, com o caso que ela resolve
+  documentado: passar o `signal` que a `queryFn` do react-query recebe cancela a
+  requisição em unmount e em refetch.
+
 ## [0.50.0] — 2026-08-22
 
 ### Breaking

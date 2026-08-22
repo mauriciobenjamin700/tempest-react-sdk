@@ -46,6 +46,24 @@ export interface ApiError {
 export interface RequestOptions extends Omit<RequestInit, "body"> {
     body?: unknown;
     params?: Record<string, string | number | boolean | undefined | null>;
+    /**
+     * Abort this request.
+     *
+     * Inherited from `RequestInit` and forwarded to `fetch`, so it has always
+     * worked — but nothing said so, which made it a capability nobody could find.
+     * Declared here for that reason alone. Pass the `signal` react-query hands to
+     * a `queryFn` and the request is cancelled on unmount and on refetch.
+     */
+    signal?: AbortSignal | null;
+    /**
+     * Override the client's timeout for this request, in milliseconds. `null`
+     * disables it, which is the escape hatch for a stream or a long poll.
+     *
+     * Composed with `signal`, not replacing it: whichever fires first wins, and
+     * the two are told apart — a timeout surfaces as an {@link ApiError} with
+     * `status: 0`, while an abort you asked for propagates as an abort.
+     */
+    timeout?: number | null;
 }
 
 export interface ApiClientConfig {
@@ -131,6 +149,35 @@ export interface ApiClientConfig {
      */
     retry?: boolean | RetryOptions;
     /** Whether to send cookies on cross-origin requests (default: false). */
+    /**
+     * Milliseconds before a request is abandoned. Default `15_000`. `null` turns
+     * it off.
+     *
+     * There was no timeout at all before, and the failure it leaves open is not
+     * an error: a TCP connection that dies without a FIN never answers, so the
+     * browser can hold the request for minutes or forever. In an offline-first
+     * SDK that is the wrong place to have no floor — the eternal spinner lands
+     * exactly on the bad network this package exists to survive.
+     *
+     * A timeout surfaces as an {@link ApiError} with `status: 0`, the same shape
+     * the client already uses for "never reached the server", so the built-in
+     * retry policy replays it without a special case.
+     */
+    timeout?: number | null;
+    /**
+     * Milliseconds before a `FormData` request is abandoned. Default `300_000`.
+     * `null` turns it off.
+     *
+     * A binary upload is not a slow request, it is a different kind of request. A
+     * single timeout forces a choice between one short enough to protect a normal
+     * call and one long enough to finish a file, and 15 seconds cuts an upload
+     * mid-body — which the server then has to interpret as a truncated payload.
+     *
+     * Detected from the body being `FormData`, the same test that already decides
+     * the `Content-Type`. Override per request with `options.timeout` when a
+     * particular call does not fit either default.
+     */
+    uploadTimeout?: number | null;
     withCredentials?: boolean;
     /** Default headers merged into every request. */
     headers?: Record<string, string>;
@@ -145,5 +192,10 @@ export interface ApiClient {
     put<T>(path: string, options?: RequestOptions): Promise<T>;
     patch<T>(path: string, options?: RequestOptions): Promise<T>;
     delete<T>(path: string, options?: RequestOptions): Promise<T>;
-    upload<T>(path: string, formData: FormData, method?: "POST" | "PUT" | "PATCH"): Promise<T>;
+    upload<T>(
+        path: string,
+        formData: FormData,
+        method?: "POST" | "PUT" | "PATCH",
+        options?: Omit<RequestOptions, "body" | "method">,
+    ): Promise<T>;
 }

@@ -3,7 +3,12 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetDevWarnings } from "@/utils/dev-warn";
 
-import { DataTable, type DataTableColumn, type DataTableSort } from "./DataTable";
+import {
+    DataTable,
+    type DataTableColumn,
+    type DataTableProps,
+    type DataTableSort,
+} from "./DataTable";
 
 type Person = { id: number; name: string; age: number };
 
@@ -275,35 +280,51 @@ describe("DataTable — loading", () => {
     });
 });
 
+/**
+ * Render a prop combination the types now reject.
+ *
+ * Every cast in this suite marks a combination that is a **build error** for a
+ * TypeScript caller since the props became a union of the valid shapes. The
+ * runtime warnings are what is left for the callers types cannot reach — plain
+ * JavaScript, a `@ts-expect-error`, or props arriving through an `any`-typed
+ * spread — and this is the only way left to exercise them.
+ *
+ * @param props - The invalid combination.
+ * @returns Whatever `render` returns.
+ */
+const renderInvalid = (props: Record<string, unknown>) =>
+    render(<DataTable {...(props as unknown as DataTableProps<Person>)} />);
+
 describe("DataTable — development warnings", () => {
     it("warns when server mode has no controlled page", () => {
-        render(
-            <DataTable
-                data={pageOne}
-                columns={columns}
-                rowKey={(row) => row.id}
-                totalItems={7}
-                onSortChange={vi.fn()}
-            />,
-        );
+        renderInvalid({
+            data: pageOne,
+            columns,
+            rowKey: (row: Person) => row.id,
+            totalItems: 7,
+            onSortChange: vi.fn(),
+        });
         expect(warn).toHaveBeenCalledWith(expect.stringContaining("controlled `page`"));
     });
 
     it("warns when a controlled page has no onPageChange", () => {
-        render(
-            <DataTable
-                data={pageOne}
-                columns={columns}
-                rowKey={(row) => row.id}
-                page={1}
-                onSortChange={vi.fn()}
-            />,
-        );
+        renderInvalid({
+            data: pageOne,
+            columns,
+            rowKey: (row: Person) => row.id,
+            page: 1,
+            onSortChange: vi.fn(),
+        });
         expect(warn).toHaveBeenCalledWith(expect.stringContaining("`onPageChange` is missing"));
     });
 
     it("warns when sorting is delegated with nowhere to report it", () => {
-        render(<DataTable data={pageOne} columns={columns} rowKey={(row) => row.id} manualSort />);
+        renderInvalid({
+            data: pageOne,
+            columns,
+            rowKey: (row: Person) => row.id,
+            manualSort: true,
+        });
         expect(warn).toHaveBeenCalledWith(expect.stringContaining("`onSortChange` is missing"));
     });
 

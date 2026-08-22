@@ -2,7 +2,12 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { findA11yViolations, formatA11yViolations } from "../../../test/a11y";
-import { DataTable, type DataTableCellChange, type DataTableColumn } from "./DataTable";
+import {
+    DataTable,
+    type DataTableBaseProps,
+    type DataTableCellChange,
+    type DataTableColumn,
+} from "./DataTable";
 
 interface Person {
     id: number;
@@ -25,8 +30,18 @@ function editableColumns(
     ];
 }
 
+/**
+ * Props this suite is allowed to override.
+ *
+ * Narrower than `Partial<DataTableProps>` on purpose: the props are a union of
+ * the valid paging and sorting shapes, and `Partial` of a union flattens into
+ * something none of its members accept. Editing has nothing to do with either
+ * axis, so this suite only ever varies the shared half.
+ */
+type EditTableOverrides = Partial<DataTableBaseProps<Person>>;
+
 function renderTable(
-    props: Partial<React.ComponentProps<typeof DataTable<Person>>> = {},
+    props: EditTableOverrides = {},
     columns: DataTableColumn<Person>[] = editableColumns(),
 ) {
     const onCellChange = vi.fn<(change: DataTableCellChange<Person>) => Promise<void>>(

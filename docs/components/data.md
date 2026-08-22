@@ -382,6 +382,26 @@ export function Pessoas() {
 | `onSearchChange` | `(term: string) => void` | Termo digitado; debounce é seu. |
 | `loading` | `boolean` | Requisição em voo. |
 
+!!! check "O compilador agora recusa a combinação inválida"
+    As props são uma **união** das formas que funcionam, então três erros que antes
+    compilavam viraram erro de build no seu call site:
+
+    | Você escreveu | Por que não compila |
+    | --- | --- |
+    | `totalItems` sem `page`/`onPageChange` | O paginador andaria a página interna enquanto `data` segue mostrando a página 1 |
+    | `page` sem `onPageChange` | Página controlada sem ninguém para trocá-la |
+    | `manualSort` sem `onSortChange` | A seta do header gira e mais nada acontece |
+
+    Até a v0.44.0 cada prop era opcional por conta própria, então isso só aparecia
+    como `console.warn` em dev, no browser, com o componente montado — o `tsc` do
+    seu CI nunca via. Os avisos de runtime continuam, para os callers que o tipo não
+    alcança (JavaScript puro, ou props chegando por spread tipado `any`).
+
+    Os tipos das duas metades são exportados quando você precisa deles:
+    `DataTableBaseProps`, `DataTablePagingProps` e `DataTableSortProps`. `Partial`
+    de união não funciona — para variar só a metade compartilhada num helper de
+    teste, use `Partial<DataTableBaseProps<T>>`.
+
 !!! danger "Busca e ordenação **precisam** ir junto — filtrar a página mente"
     `searchable` sozinho filtra `data` em memória, e no modo servidor `data` é só a
     página atual. O usuário digita, some tudo que não está na página 3 e a tabela

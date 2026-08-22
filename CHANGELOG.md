@@ -4,6 +4,35 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Breaking
+
+- **As props do `DataTable` viraram união discriminada, então três combinações
+  inválidas passaram a ser erro de build.** Antes cada prop era opcional por conta
+  própria, e o próprio hook de aviso admitia na docstring: _"They are not type
+  errors — every prop is optional on its own — so the only place to catch them is
+  at runtime"_. Mas **podiam** ser:
+
+  | Combinação                             | O que ela renderizava                                                |
+  | -------------------------------------- | -------------------------------------------------------------------- |
+  | `totalItems` sem `page`/`onPageChange` | Paginador andando a página interna enquanto `data` segue na página 1 |
+  | `page` sem `onPageChange`              | Página controlada sem ninguém para trocá-la                          |
+  | `manualSort` sem `onSortChange`        | Seta do header girando e nada mais                                   |
+
+  O consumidor só descobria rodando em dev, no browser, com o componente montado —
+  nunca no `tsc` do CI dele. `DataTableProps<T>` agora é
+  `DataTableBaseProps<T> & DataTablePagingProps & DataTableSortProps<T>`, com os
+  três tipos exportados.
+
+  **Migração:** se o seu build quebrar, ele estava quebrado antes — a tabela mentia
+  em runtime. Adicione a prop que falta. Um caso não-obvio: `Partial<DataTableProps<T>>`
+  não funciona mais (`Partial` de união achata para algo que membro nenhum aceita).
+  Para variar só a metade compartilhada, use `Partial<DataTableBaseProps<T>>`.
+
+  Os avisos de runtime **continuam**, para os callers que o tipo não alcança —
+  JavaScript puro, ou props chegando por spread tipado `any`. Deixar de tê-los
+  seria trocar uma rede por outra em vez de somar; o teste deles agora usa cast
+  explícito, que é o único jeito de construir as combinações.
+
 ### Corrigido
 
 - **`BarList` ignorava `--tempest-chart-count`, e um tema de marca perdia as duas

@@ -360,11 +360,14 @@ export type { CarouselProps } from "./Carousel";
 
 export { DataTable } from "./DataTable";
 export type {
+    DataTableBaseProps,
     DataTableCellChange,
     DataTableColumn,
     DataTableEditLabels,
     DataTableEditorType,
+    DataTablePagingProps,
     DataTableProps,
+    DataTableSortProps,
     DataTableSort,
     SortDirection,
 } from "./DataTable";

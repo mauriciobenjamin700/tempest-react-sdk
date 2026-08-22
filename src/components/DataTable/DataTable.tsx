@@ -89,7 +89,8 @@ export interface DataTableColumn<T> {
     validate?: (value: unknown, row: T) => string | null;
 }
 
-export interface DataTableProps<T> extends HTMLAttributes<HTMLDivElement> {
+/** Everything a table needs regardless of who owns paging, sorting and searching. */
+export interface DataTableBaseProps<T> extends HTMLAttributes<HTMLDivElement> {
     /**
      * The rows to work with.
      *
@@ -124,30 +125,6 @@ export interface DataTableProps<T> extends HTMLAttributes<HTMLDivElement> {
     /** Override the PT-BR copy of the editing affordances. */
     editLabels?: Partial<DataTableEditLabels>;
     /**
-     * Total row count across every page — the `total` of a paginated envelope.
-     *
-     * Passing it switches the table to **server mode**: `data` is read as the
-     * current page, the page count comes from this number instead of
-     * `data.length`, and sorting and searching are delegated to the caller
-     * (see `manualSort` / `manualSearch`, which are implied here). Pair it with
-     * `page` and `onPageChange`.
-     */
-    totalItems?: number;
-    /** Current page, 1-based. Controlled — required in server mode. */
-    page?: number;
-    /** Called with the next page. Required whenever `page` is controlled. */
-    onPageChange?: (page: number) => void;
-    /**
-     * Sorting is the caller's job: clicking a header reports through
-     * `onSortChange` and the rows are left in the order they arrived.
-     *
-     * Implied by `totalItems`, because sorting the page in memory would sort
-     * *that page only* while the header claims the whole table is ordered.
-     */
-    manualSort?: boolean;
-    /** Called with the next sort state — `null` when the header cycles back to unsorted. */
-    onSortChange?: (sort: DataTableSort<T> | null) => void;
-    /**
      * Searching is the caller's job: typing reports through `onSearchChange` and
      * the rows are left as they arrived.
      *
@@ -169,6 +146,93 @@ export interface DataTableProps<T> extends HTMLAttributes<HTMLDivElement> {
      */
     loading?: boolean;
 }
+
+/**
+ * Paging, as one of the three shapes that actually work.
+ *
+ * These used to be three optional props, so the compiler accepted
+ * `totalItems` with no `page` — a table whose pager moves an internal page while
+ * `data` keeps showing page one. Every prop was optional on its own, so the only
+ * place left to catch it was a `console.warn` in dev, in the browser, with the
+ * component mounted. As a union the same mistake is a build error at the call
+ * site, for free, everywhere.
+ */
+export type DataTablePagingProps =
+    | {
+          /** Not server mode. */
+          totalItems?: never;
+          /** The table owns the page. */
+          page?: never;
+          /** Nothing to report to. */
+          onPageChange?: never;
+      }
+    | {
+          /**
+           * Total row count across every page — the `total` of a paginated envelope.
+           *
+           * Passing it switches the table to **server mode**: `data` is read as the
+           * current page, the page count comes from this number instead of
+           * `data.length`, and sorting and searching are delegated to the caller
+           * (see `manualSort` / `manualSearch`, which are implied here). Pair it with
+           * `page` and `onPageChange`.
+           */
+          totalItems?: never;
+          /** Current page, 1-based. Controlled — required in server mode. */
+          page: number;
+          /** Called with the next page. Required whenever `page` is controlled. */
+          onPageChange: (page: number) => void;
+      }
+    | {
+          /**
+           * Total row count across every page — the `total` of a paginated envelope.
+           *
+           * Passing it switches the table to **server mode**: `data` is read as the
+           * current page, the page count comes from this number instead of
+           * `data.length`, and sorting and searching are delegated to the caller
+           * (see `manualSort` / `manualSearch`, which are implied here). `page` and
+           * `onPageChange` come with it — the type says so, because a server-mode
+           * table without them silently shows page one forever.
+           */
+          totalItems: number;
+          /** Current page, 1-based. Controlled, and required in server mode. */
+          page: number;
+          /** Called with the next page. */
+          onPageChange: (page: number) => void;
+      };
+
+/**
+ * Sorting: delegated, and therefore reported, or neither.
+ *
+ * `manualSort` without `onSortChange` renders a header that moves its arrow and
+ * changes nothing else — the arrow is a lie the compiler can now catch.
+ */
+export type DataTableSortProps<T> =
+    | {
+          /** The table sorts the rows it has. */
+          manualSort?: false;
+          /** Called with the next sort state — `null` when the header cycles back to unsorted. */
+          onSortChange?: (sort: DataTableSort<T> | null) => void;
+      }
+    | {
+          /**
+           * Sorting is the caller's job: clicking a header reports through
+           * `onSortChange` and the rows are left in the order they arrived.
+           *
+           * Implied by `totalItems`, because sorting the page in memory would sort
+           * *that page only* while the header claims the whole table is ordered.
+           */
+          manualSort: true;
+          /** Where the click goes. Required, since nothing else acts on it. */
+          onSortChange: (sort: DataTableSort<T> | null) => void;
+      };
+
+/**
+ * The table's props: the shared half, plus one valid paging shape and one valid
+ * sorting shape.
+ */
+export type DataTableProps<T> = DataTableBaseProps<T> &
+    DataTablePagingProps &
+    DataTableSortProps<T>;
 
 /** Identity of one cell, stable across re-renders and pagination. */
 function cellId(rowKeyValue: string | number, columnKey: PropertyKey): string {

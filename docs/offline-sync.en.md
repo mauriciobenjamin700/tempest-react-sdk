@@ -86,6 +86,21 @@ sync.clearOutbox();
 !!! info "Failed deliveries stay queued"
     If `deliver` throws, the entry **stays** in the outbox with its `attempts` bumped and `lastError` recorded — the next flush retries it. Pair it with `installBackgroundSync` in the service worker to replay even with the app closed.
 
+!!! danger "Per-record order survives a failure — it did not before"
+    When an entry fails, the **remaining entries for that same record** are left
+    untried for this pass and come back in their original order on the next one.
+    They show up as `summary.deferred`, counted apart from `summary.failed`,
+    because they were never sent.
+
+    This matters because `deliver` is usually a `PUT` upsert. Without the rule, a
+    failing `create` followed by an `update` for the same record delivered the
+    **update first**: the server created the record from the update payload, and
+    the replayed `create` then overwrote it with the **older** snapshot. The user's
+    edit vanished with nothing reported.
+
+    The block is **per record, not per pass**: a record the server keeps rejecting
+    does not hold up any other record's changes.
+
 The sections below show **what the engine does under the hood** (and how to wire it by hand when you need fine-grained control — multiple stores, per-field merges, etc.).
 
 ## Prerequisites

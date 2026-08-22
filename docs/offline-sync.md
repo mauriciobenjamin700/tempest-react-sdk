@@ -86,6 +86,21 @@ sync.clearOutbox();
 !!! info "Entregas que falham ficam na fila"
     Se `deliver` lança, a entrada **permanece** na outbox com `attempts` incrementado e `lastError` gravado — o próximo flush tenta de novo. Combine com `installBackgroundSync` no service worker para reenviar mesmo com o app fechado.
 
+!!! danger "A ordem por registro é preservada na falha — e antes não era"
+    Quando uma entrada falha, as **demais entradas daquele mesmo registro** ficam
+    sem ser tentadas nesta passada, e voltam na próxima na ordem original. Elas
+    aparecem em `summary.deferred`, separadas de `summary.failed`, porque nunca
+    foram enviadas.
+
+    Isso importa porque `deliver` normalmente é um `PUT` upsert. Sem a regra, um
+    `create` que falha seguido de um `update` do mesmo registro entregava o
+    **update primeiro**: o servidor criava o registro pelo payload do update, e o
+    `create` reenviado depois sobrescrevia com o snapshot **mais antigo**. A edição
+    do usuário desaparecia sem erro em lugar nenhum.
+
+    O bloqueio é **por registro, não por passada**: um registro que o servidor está
+    recusando não segura as mutações de nenhum outro.
+
 As seções abaixo mostram **o que o motor faz por baixo** (e como montar à mão quando você precisa de controle fino — múltiplos stores, merge por campo, etc.).
 
 ## Pré-requisitos

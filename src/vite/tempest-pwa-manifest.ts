@@ -1,4 +1,5 @@
 import type { Plugin } from "vite";
+import { basePrefix } from "./base-url";
 
 /**
  * A Vite plugin object. Typed loosely so the SDK's published declarations stay
@@ -36,8 +37,7 @@ export interface TempestPwaManifestOptions {
 }
 
 function joinBase(base: string, file: string): string {
-    const prefix = base.endsWith("/") ? base : `${base}/`;
-    return `${prefix}${file}`.replace(/([^:]\/)\/+/g, "$1");
+    return `${basePrefix(base)}${file}`.replace(/([^:]\/)\/+/g, "$1");
 }
 
 /**
@@ -48,7 +48,7 @@ function joinBase(base: string, file: string): string {
  * keep producing the same manifest instead of gaining a doubled prefix.
  */
 function withBase(base: string, url: string): string {
-    const prefix = base.endsWith("/") ? base : `${base}/`;
+    const prefix = basePrefix(base);
     if (prefix === "/") return url.startsWith("/") ? url : `/${url}`;
     if (url.startsWith(prefix)) return url;
     return `${prefix}${url.replace(/^\//, "")}`;

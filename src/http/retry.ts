@@ -1,3 +1,5 @@
+import { isApiError, isRetriableStatus } from "./errors";
+
 export interface RetryOptions {
     /** Max attempts (including the first). Default: 3. */
     retries?: number;
@@ -14,13 +16,32 @@ export interface RetryOptions {
     respectRetryAfter?: boolean;
     /**
      * Return false to stop retrying for a specific error.
-     * Default: retry on any thrown error.
+     *
+     * Default: replay anything that is not a recognisable API error — a
+     * transport failure has no status to judge — and, for one that is, only the
+     * statuses {@link isRetriableStatus} accepts. A `403` on an admin-only
+     * endpoint and a `404` for a deleted record are the server's final answer;
+     * repeating them spends the caller's time to show the same error twice.
      */
     shouldRetry?: (error: unknown, attempt: number) => boolean;
     /** Called before each retry with the upcoming delay. */
     onRetry?: (info: { attempt: number; delay: number; error: unknown }) => void;
     /** Cancel pending retries. */
     signal?: AbortSignal;
+}
+
+/**
+ * The default {@link RetryOptions.shouldRetry}.
+ *
+ * Permissive about what it cannot classify and strict about what it can: an
+ * error with no API shape may well be a transport failure, while an API error
+ * carrying a deliberate refusal will answer the same on every attempt.
+ *
+ * @param error - Whatever the attempt threw.
+ * @returns Whether the helper should try again.
+ */
+function defaultShouldRetry(error: unknown): boolean {
+    return !isApiError(error) || isRetriableStatus(error.status);
 }
 
 function wait(ms: number, signal?: AbortSignal): Promise<void> {
@@ -55,7 +76,7 @@ export async function retry<T>(factory: () => Promise<T>, options: RetryOptions 
         initialDelay = 300,
         maxDelay = 10_000,
         respectRetryAfter = true,
-        shouldRetry = () => true,
+        shouldRetry = defaultShouldRetry,
         onRetry,
         signal,
     } = options;

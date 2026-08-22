@@ -64,21 +64,17 @@ export function buildBarListRows(
             ? [...usable]
             : [...usable].sort((a, b) => (sort === "asc" ? a.value - b.value : b.value - a.value));
 
-    const kept = max !== undefined && max > 0 ? ordered.slice(0, max) : ordered;
-    const cut = max !== undefined && max > 0 ? ordered.slice(max) : [];
+    const limit = max !== undefined && max > 0 ? max : ordered.length;
+    const kept = ordered.slice(0, limit);
+    const cut = otherLabel === undefined ? [] : ordered.slice(limit);
 
     const shown: BarListItem[] =
         otherLabel !== undefined && cut.length > 1
             ? [
                   ...kept,
-                  {
-                      label: otherLabel,
-                      value: cut.reduce((sum, item) => sum + item.value, 0),
-                  },
+                  { label: otherLabel, value: cut.reduce((sum, item) => sum + item.value, 0) },
               ]
-            : otherLabel !== undefined && cut.length === 1
-              ? [...kept, ...cut]
-              : kept;
+            : [...kept, ...cut];
 
     const largest = shown.reduce((high, item) => Math.max(high, item.value), 0);
 

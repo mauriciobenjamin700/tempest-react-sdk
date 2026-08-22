@@ -4584,6 +4584,28 @@ const { data } = useQuery({
 | `in` | `campo__in`, uma vez por valor |
 | `empty` / `notEmpty` | `campo__isnull=true` / `=false` |
 
+!!! tip "O dialeto é o **default**, não uma lei"
+    A tabela acima é o dialeto do `tempest-fastapi-sdk`. Backend diferente passa
+    `options` em vez de reescrever o encoder:
+
+    ```tsx
+    // A coluna pesquisável é `razao_social`, e `ne` se escreve à moda Django.
+    const params = filtersToQueryParams(filtros, {
+      substringColumns: ["razao_social"],
+      operatorSuffix: { ne: "__exclude" },
+    });
+    ```
+
+    - `substringColumns` — as colunas cujo `eq` sai como `coluna__iexact`. Default
+      `["name"]`, que é o caso especial de `build_filter_condition`. Passe `[]` se o
+      seu backend não trata nenhuma coluna assim e um `eq` deve sair puro.
+    - `operatorSuffix` — mesclado **sobre** o default, então o override nomeia só os
+      operadores que diferem.
+
+    Até a v0.44.0 os dois eram constantes fechadas no módulo. Quem tinha a coluna
+    chamada `nome` ou `titulo` não conseguia o tratamento, e quem não tinha o caso
+    especial recebia um `__iexact` que ninguém pediu.
+
 !!! danger "O backend precisa **declarar** cada chave, senão o filtro falha calado"
     `BasePaginationFilterSchema.get_conditions()` só repassa campos que a subclasse declara. Um `status__ne` que o schema não menciona é descartado pelo FastAPI antes do repositório ver — sem erro, sem filtro, e a lista volta inteira parecendo que "o filtro não pegou". Declare `status__ne: str | None = None` no schema de filtro para cada operador que a tela oferece.
 
@@ -5434,6 +5456,26 @@ export function Pessoas() {
 | `onSearchChange` | `(term: string) => void` | Termo digitado; debounce é seu. |
 | `loading` | `boolean` | Requisição em voo. |
 
+!!! check "O compilador agora recusa a combinação inválida"
+    As props são uma **união** das formas que funcionam, então três erros que antes
+    compilavam viraram erro de build no seu call site:
+
+    | Você escreveu | Por que não compila |
+    | --- | --- |
+    | `totalItems` sem `page`/`onPageChange` | O paginador andaria a página interna enquanto `data` segue mostrando a página 1 |
+    | `page` sem `onPageChange` | Página controlada sem ninguém para trocá-la |
+    | `manualSort` sem `onSortChange` | A seta do header gira e mais nada acontece |
+
+    Até a v0.44.0 cada prop era opcional por conta própria, então isso só aparecia
+    como `console.warn` em dev, no browser, com o componente montado — o `tsc` do
+    seu CI nunca via. Os avisos de runtime continuam, para os callers que o tipo não
+    alcança (JavaScript puro, ou props chegando por spread tipado `any`).
+
+    Os tipos das duas metades são exportados quando você precisa deles:
+    `DataTableBaseProps`, `DataTablePagingProps` e `DataTableSortProps`. `Partial`
+    de união não funciona — para variar só a metade compartilhada num helper de
+    teste, use `Partial<DataTableBaseProps<T>>`.
+
 !!! danger "Busca e ordenação **precisam** ir junto — filtrar a página mente"
     `searchable` sozinho filtra `data` em memória, e no modo servidor `data` é só a
     página atual. O usuário digita, some tudo que não está na página 3 e a tabela
@@ -5528,6 +5570,19 @@ import { BarList } from "tempest-react-sdk";
 !!! note "`otherLabel` só agrega quando sobra mais de uma linha"
     Colapsar uma única linha em "Outros" esconderia o nome dela à toa — nesse caso
     ela aparece com o próprio nome.
+
+!!! tip "A paleta respeita `--tempest-chart-count`"
+    A cor de cada linha vem de `useChartColors`, o mesmo resolvedor que todo chart
+    do SDK usa, então um tema que declara **menos** de oito séries cicla dentro da
+    própria paleta. Um tema de marca com 6 cores repete a 1ª e a 2ª nas linhas 7 e 8,
+    em vez de cair no azul e no teal default do SDK.
+
+    Até a v0.44.0 a cor era lida por `var(--tempest-chart-N)` com `N = index % 8`.
+    O CSS não consegue usar `--tempest-chart-count` como módulo, então o `8` era
+    fixo e a marca perdia as duas últimas linhas. `palette.ts` não importa nada,
+    então isso não puxa biblioteca de gráfico pra fatia.
+
+    `color` por item continua ganhando de tudo.
 
 !!! tip "A aritmética é exportada: `buildBarListRows`"
     `buildBarListRows(items, sort, max, otherLabel)` devolve as linhas já ordenadas,
@@ -14889,7 +14944,7 @@ Detalhes que valem saber:
 - A retentativa envolve a requisição **inteira**, refresh incluído. Uma tentativa que gasta o ciclo de 401 → refresh → repetição conta como uma tentativa só.
 - Cada tentativa carrega o seu próprio `X-Request-ID`, então o backend consegue distinguir as tentativas nos logs.
 - `Retry-After` (em `429`/`503`) é respeitado e sobrepõe o backoff daquela tentativa.
-- Precisa de retentativa em uma chamada específica, não no cliente todo? O helper [`retry`](#retry-backoff-exponencial) continua ali e não foi alterado.
+- Precisa de retentativa em uma chamada específica, não no cliente todo? O helper [`retry`](#retry-backoff-exponencial) continua ali, e agora usa a **mesma** classificação de status.
 
 ## `parseResponse`
 
@@ -14969,8 +15024,30 @@ const data = await retry(() => api.get("/flaky-endpoint"), {
 });
 ```
 
-!!! note "`shouldRetry` evita retentar o que não vai melhorar"
-    Um 403 ou 422 vai falhar igual na 5ª vez. Filtre por `status >= 500` (ou erros de rede) pra não desperdiçar tentativas em erros determinísticos.
+!!! note "O default já evita retentar o que não vai melhorar"
+    Você **não precisa** escrever o `shouldRetry` do exemplo acima. Sem ele, o
+    default replica qualquer erro que não tenha forma de erro de API — falha de
+    transporte não tem status pra julgar — e, para os que têm, só os status que
+    `isRetriableStatus` aceita: falha de rede (`0`), `408`, `425`, `429` e qualquer
+    `5xx`. Um 403 ou 422 falha de primeira.
+
+!!! tip "`isRetriableStatus` — a política, reutilizável"
+    A lista é exportada, então um `shouldRetry` seu estende a política em vez de
+    reescrevê-la:
+
+    ```ts
+    import { isApiError, isRetriableStatus, retry } from "tempest-react-sdk";
+
+    const data = await retry(() => api.post("/import", { body }), {
+      shouldRetry: (error) =>
+        isApiError(error) &&
+        (isRetriableStatus(error.status) || error.code === "IMPORT_LOCKED"),
+    });
+    ```
+
+    Ela é a **única** dona dessa decisão: o cliente, o default das queries e este
+    helper leem daqui. Eram três listas, e a das queries estava sem o `425` — o
+    mesmo `425 Too Early` era retentado por um caminho e não pelo outro.
 
 ## `usePoll` — polling com guarda de overlap
 
@@ -15262,6 +15339,38 @@ t("greet", { name: "Ana" }); // "Olá, Ana"
 t("greet"); // "Olá, {name}"  (sem params → placeholder literal)
 t("inexistente"); // "inexistente" (sem fallback → a própria chave)
 ```
+
+## Texto default por chave
+
+Quando a chave não existe em nenhum dos locales, `t` devolve a própria chave — o que é ótimo para achar string esquecida em desenvolvimento e péssimo para o usuário, que lê `cart.empty` na tela. O terceiro argumento resolve:
+
+```tsx
+t("cart.empty", undefined, { default: "Seu carrinho está vazio" });
+// catálogo definiu  → a tradução
+// catálogo não definiu → "Seu carrinho está vazio"
+```
+
+O default é **interpolado como qualquer outra mensagem**, então carrega placeholders:
+
+```tsx
+t("cart.count", { n: 3 }, { default: "{n} itens" }); // "3 itens"
+```
+
+`plural` aceita o mesmo, depois das duas buscas com sufixo:
+
+```tsx
+plural("boxes", 2, undefined, { default: "{count} caixas" }); // "2 caixas"
+```
+
+!!! danger "Não detecte o miss comparando com a chave"
+    A tentação é `const v = t(k); const texto = v === k ? meuDefault : v;`. Isso está
+    **errado** para um catálogo que mapeia legitimamente a chave para ela mesma —
+    `{ "cart.empty": "cart.empty" }`, o que catálogo gerado por máquina ou catálogo
+    placeholder faz — e nesse caso o seu default vence uma tradução que existia.
+
+    Só a camada de i18n sabe se houve miss, porque só ela viu o catálogo. Passe
+    `default` e deixe ela responder. Este é o caminho que as strings internas do
+    próprio SDK usam (`tempest.error.offline`, em `useDescribeApiError`).
 
 ## Plurais
 
@@ -15932,13 +16041,26 @@ melhor:
 
 ### A tabela é uma semente, não o vocabulário inteiro
 
-Material Symbols tem ~3600 nomes e quase nenhum vai aparecer num `icon_code`
-nosso. `materialToLucide` tem hoje **130 pares** — o lote de ofícios com que
-começou, mais o vocabulário que um painel administrativo realmente usa: navegação,
-dinheiro, datas, mídia e as categorias de serviço que um seed costuma carregar. E
-**cresce sob demanda**, com cada par escrito à mão — mapa gerado por heurística de
-nome erra feio, a começar por `build`, que em Material Symbols é uma chave inglesa
-e não tem nada a ver com construção.
+Material Symbols publica ~6100 nomes e quase nenhum vai aparecer num `icon_code`
+nosso. `materialToLucide` tem hoje **261 pares** — o lote de ofícios com que
+começou, mais a **cabeça do ranking de popularidade publicado pelo próprio Google**
+(`fonts.google.com/metadata/icons`), que é uso medido e não chute sobre quais nomes
+um seed vai conter. E **cresce sob demanda**, com cada par escrito à mão — mapa
+gerado por heurística de nome erra feio, a começar por `build`, que em Material
+Symbols é uma chave inglesa e não tem nada a ver com construção.
+
+!!! info "Quando dois lotes discordaram do mesmo código"
+    Seis chaves apareceram nos dois lotes com destinos diferentes. O critério de
+    desempate foi **preferir o mapeamento que mantém dois nomes distintos do
+    Material Symbols distintos no lucide**:
+
+    | Código | Ficou | Porque |
+    | --- | --- | --- |
+    | `error` | `circle-alert` | `cancel` já é `circle-x` |
+    | `payments` | `banknote` | `account_balance_wallet` já é `wallet` |
+    | `receipt_long` | `receipt-text` | `receipt` já é `receipt` |
+    | `construction` | `construction` | `engineering` já é `hard-hat` |
+    | `today` / `event` | `calendar` / `calendar-days` | separa os nomes genéricos de calendário do datado |
 
 O lado lucide de **todo** par é conferido por teste contra a lista real de slugs,
 então par apontando para nome que o lucide não envia — ou que ele já depreciou —
@@ -19306,7 +19428,9 @@ Defaults aplicados quando você **não** passa um `client`:
 !!! danger "4xx **não** é retentado — e isso mudou"
     O default era `retry: 1` chapado, que replicava um 403 numa listagem admin-only e um 404 de registro apagado. O servidor recusou de propósito nos dois casos: a segunda tentativa devolve a mesma resposta, dobra o log de rede e segura o spinner na tela por mais um round trip.
 
-    `shouldRetryQuery` retenta uma vez apenas o que pode mudar sozinho: falha de rede (`status === 0`), `5xx`, `408` e `429` (que é uma recusa cujo significado literal é "mais tarde"), e erro de formato desconhecido — que pode ser falha de transporte. Todo o resto do 4xx falha de primeira.
+    `shouldRetryQuery` retenta uma vez apenas o que pode mudar sozinho: falha de rede (`status === 0`), `5xx`, `408`, `425` e `429` (que é uma recusa cujo significado literal é "mais tarde"), e erro de formato desconhecido — que pode ser falha de transporte. Todo o resto do 4xx falha de primeira.
+
+    A classificação vem de `isRetriableStatus`, a mesma que `createApiClient({ retry: true })` e o helper `retry()` usam. Até a v0.44.0 era uma cópia própria aqui, **sem o `425`** — então o mesmo `425 Too Early` era retentado pelo cliente e não pela query.
 
     Se o seu app dependia de retry em 4xx, o override é o de sempre: `defaultOptions={{ queries: { retry: 1 } }}`.
 
@@ -20449,7 +20573,7 @@ installNotificationClickHandler();
 installSkipWaitingListener();
 ```
 
-O `vite.sw.config.ts` empacota esse arquivo (e os helpers que ele importa) num **service worker clássico** em `dist/sw.js`, e o `main.tsx` registra ele via `registerServiceWorker`. Em **dev**, o plugin `tempestPwaDevSw()` compila o `sw.ts` na hora e serve em `/sw.js` — então push e cache funcionam também no `npm run dev` (sem ele, o SW só existiria no build). Veja os detalhes dos helpers em [Web Push](./push.md).
+O `vite.sw.config.ts` empacota esse arquivo (e os helpers que ele importa) num **service worker clássico** em `dist/sw.js`, e o `main.tsx` registra ele via `registerServiceWorker`. Em **dev**, o plugin `tempestPwaDevSw()` compila o `sw.ts` na hora e serve em `/sw.js` — então push e cache funcionam também no `npm run dev` (sem ele, o SW só existiria no build). A compilação passa por **um** contexto incremental do esbuild, criado na primeira requisição: o browser rebusca o script do worker a cada navegação e nas checagens de update dele, então bundle a frio por requisição seria bundle a frio o dia inteiro. Veja os detalhes dos helpers em [Web Push](./push.md).
 
 #### 3. Web push → `usePushSubscription`
 
@@ -25234,6 +25358,31 @@ const save = compressedStorage.get("save", null);
 
 - `get<T>(key, fallback)` — descomprime e faz parse. Chave ausente, ilegível ou corrompida devolve `fallback`; nunca lança.
 - `set<T>(key, value)` — comprime e grava.
+- `remove(key)` — apaga a chave.
+
+!!! tip "Mesma implementação dos dois, via `createJsonStorage`"
+    `storage` e `compressedStorage` são a **mesma** função por baixo —
+    `createJsonStorage(codec)` — então a superfície dos dois não pode divergir. Até
+    a v0.44.0 o comprimido era uma cópia escrita à mão das mesmas guardas, e **não
+    tinha `remove`**, enquanto a docstring dele prometia que os dois eram
+    intercambiáveis no call site. Quem seguiu a promessa quebrou no primeiro
+    `remove`.
+
+    Codec próprio é o mesmo caminho:
+
+    ```ts
+    import { createJsonStorage } from "tempest-react-sdk";
+
+    // Um store que cifra antes de gravar.
+    const secrets = createJsonStorage({
+      serialize: (value) => encrypt(JSON.stringify(value)),
+      deserialize: (raw) => JSON.parse(decrypt(raw)),
+    });
+    ```
+
+    Se o codec **lançar**, o valor é gravado como JSON puro em vez de descartado:
+    registro maior ainda carrega, registro ausente não. Só um valor que nem JSON
+    representa (referência circular) perde a escrita.
 
 ### O formato é autodescritivo
 

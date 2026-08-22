@@ -611,13 +611,26 @@ melhor:
 
 ### A tabela é uma semente, não o vocabulário inteiro
 
-Material Symbols tem ~3600 nomes e quase nenhum vai aparecer num `icon_code`
-nosso. `materialToLucide` tem hoje **130 pares** — o lote de ofícios com que
-começou, mais o vocabulário que um painel administrativo realmente usa: navegação,
-dinheiro, datas, mídia e as categorias de serviço que um seed costuma carregar. E
-**cresce sob demanda**, com cada par escrito à mão — mapa gerado por heurística de
-nome erra feio, a começar por `build`, que em Material Symbols é uma chave inglesa
-e não tem nada a ver com construção.
+Material Symbols publica ~6100 nomes e quase nenhum vai aparecer num `icon_code`
+nosso. `materialToLucide` tem hoje **261 pares** — o lote de ofícios com que
+começou, mais a **cabeça do ranking de popularidade publicado pelo próprio Google**
+(`fonts.google.com/metadata/icons`), que é uso medido e não chute sobre quais nomes
+um seed vai conter. E **cresce sob demanda**, com cada par escrito à mão — mapa
+gerado por heurística de nome erra feio, a começar por `build`, que em Material
+Symbols é uma chave inglesa e não tem nada a ver com construção.
+
+!!! info "Quando dois lotes discordaram do mesmo código"
+    Seis chaves apareceram nos dois lotes com destinos diferentes. O critério de
+    desempate foi **preferir o mapeamento que mantém dois nomes distintos do
+    Material Symbols distintos no lucide**:
+
+    | Código | Ficou | Porque |
+    | --- | --- | --- |
+    | `error` | `circle-alert` | `cancel` já é `circle-x` |
+    | `payments` | `banknote` | `account_balance_wallet` já é `wallet` |
+    | `receipt_long` | `receipt-text` | `receipt` já é `receipt` |
+    | `construction` | `construction` | `engineering` já é `hard-hat` |
+    | `today` / `event` | `calendar` / `calendar-days` | separa os nomes genéricos de calendário do datado |
 
 O lado lucide de **todo** par é conferido por teste contra a lista real de slugs,
 então par apontando para nome que o lucide não envia — ou que ele já depreciou —

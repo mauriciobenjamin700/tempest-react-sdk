@@ -382,6 +382,26 @@ export function Pessoas() {
 | `onSearchChange` | `(term: string) => void` | Termo digitado; debounce é seu. |
 | `loading` | `boolean` | Requisição em voo. |
 
+!!! check "O compilador agora recusa a combinação inválida"
+    As props são uma **união** das formas que funcionam, então três erros que antes
+    compilavam viraram erro de build no seu call site:
+
+    | Você escreveu | Por que não compila |
+    | --- | --- |
+    | `totalItems` sem `page`/`onPageChange` | O paginador andaria a página interna enquanto `data` segue mostrando a página 1 |
+    | `page` sem `onPageChange` | Página controlada sem ninguém para trocá-la |
+    | `manualSort` sem `onSortChange` | A seta do header gira e mais nada acontece |
+
+    Até a v0.44.0 cada prop era opcional por conta própria, então isso só aparecia
+    como `console.warn` em dev, no browser, com o componente montado — o `tsc` do
+    seu CI nunca via. Os avisos de runtime continuam, para os callers que o tipo não
+    alcança (JavaScript puro, ou props chegando por spread tipado `any`).
+
+    Os tipos das duas metades são exportados quando você precisa deles:
+    `DataTableBaseProps`, `DataTablePagingProps` e `DataTableSortProps`. `Partial`
+    de união não funciona — para variar só a metade compartilhada num helper de
+    teste, use `Partial<DataTableBaseProps<T>>`.
+
 !!! danger "Busca e ordenação **precisam** ir junto — filtrar a página mente"
     `searchable` sozinho filtra `data` em memória, e no modo servidor `data` é só a
     página atual. O usuário digita, some tudo que não está na página 3 e a tabela
@@ -476,6 +496,19 @@ import { BarList } from "tempest-react-sdk";
 !!! note "`otherLabel` só agrega quando sobra mais de uma linha"
     Colapsar uma única linha em "Outros" esconderia o nome dela à toa — nesse caso
     ela aparece com o próprio nome.
+
+!!! tip "A paleta respeita `--tempest-chart-count`"
+    A cor de cada linha vem de `useChartColors`, o mesmo resolvedor que todo chart
+    do SDK usa, então um tema que declara **menos** de oito séries cicla dentro da
+    própria paleta. Um tema de marca com 6 cores repete a 1ª e a 2ª nas linhas 7 e 8,
+    em vez de cair no azul e no teal default do SDK.
+
+    Até a v0.44.0 a cor era lida por `var(--tempest-chart-N)` com `N = index % 8`.
+    O CSS não consegue usar `--tempest-chart-count` como módulo, então o `8` era
+    fixo e a marca perdia as duas últimas linhas. `palette.ts` não importa nada,
+    então isso não puxa biblioteca de gráfico pra fatia.
+
+    `color` por item continua ganhando de tudo.
 
 !!! tip "A aritmética é exportada: `buildBarListRows`"
     `buildBarListRows(items, sort, max, otherLabel)` devolve as linhas já ordenadas,

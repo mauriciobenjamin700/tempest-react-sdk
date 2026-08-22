@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
+import { useLatestRef } from "./use-latest-ref";
 
 /**
  * Run a callback after `delay` ms. Pass `null` to disable. Resets when
@@ -8,14 +9,11 @@ import { useEffect, useRef } from "react";
  * useTimeout(() => setShow(false), show ? 3000 : null);
  */
 export function useTimeout(fn: () => void, delay: number | null): void {
-    const fnRef = useRef(fn);
-    useEffect(() => {
-        fnRef.current = fn;
-    }, [fn]);
+    const fnRef = useLatestRef(fn);
 
     useEffect(() => {
         if (delay === null) return;
         const id = setTimeout(() => fnRef.current(), delay);
         return () => clearTimeout(id);
-    }, [delay]);
+    }, [delay, fnRef]);
 }

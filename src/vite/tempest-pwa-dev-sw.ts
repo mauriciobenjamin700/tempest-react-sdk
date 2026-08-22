@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import type { Plugin } from "vite";
+import { basePrefix } from "./base-url";
 import type { TempestVitePlugin } from "./tempest-pwa-manifest";
 
 /** Options for {@link tempestPwaDevSw}. */
@@ -29,8 +30,8 @@ export interface TempestPwaDevSwOptions {
  *
  * The production worker is bundled at build time (`vite.sw.config.ts`), so in
  * dev there is no `/sw.js` to register. This plugin compiles `swSrc` on the fly
- * with esbuild and serves it as a classic worker, plus an empty
- * `precache-manifest.json` (there are no hashed build assets to precache in
+ * with esbuild — through one incremental context, not a cold build per request —
+ * and serves it as a classic worker, plus an empty `precache-manifest.json` (there are no hashed build assets to precache in
  * dev — push and runtime caching still work). It closes the "SW in dev" gap
  * that otherwise only `vite-plugin-pwa`'s `devOptions` covered.
  *
@@ -61,40 +62,128 @@ export function tempestPwaDevSw(options: TempestPwaDevSwOptions = {}): TempestVi
      */
     function matches(url: string, target: string): boolean {
         if (url === target) return true;
-        const prefix = base.endsWith("/") ? base : `${base}/`;
+        const prefix = basePrefix(base);
         if (prefix === "/") return false;
         return url === `${prefix}${target.replace(/^\//, "")}`;
+    }
+
+    /**
+     * The slice of esbuild's incremental API this plugin uses.
+     *
+     * Typed structurally rather than imported: `esbuild` is not a dependency of
+     * this package. It is resolved at runtime from the app's own tree, where Vite
+     * already brings it, so importing its types would add a build-time dependency
+     * the runtime does not have.
+     */
+    interface BuildContext {
+        rebuild(): Promise<{ outputFiles?: readonly { text: string }[] }>;
+        dispose(): Promise<void>;
+    }
+
+    let context: BuildContext | null = null;
+    let pending: Promise<string> | null = null;
+
+    /**
+     * The incremental build context, created on the first request that needs it.
+     *
+     * Lazy because a project that never registers a worker should not pay for an
+     * esbuild child process, and because `apply: "serve"` still loads this module
+     * in a build.
+     *
+     * @returns The context, reused across requests.
+     */
+    async function ensureContext(): Promise<BuildContext> {
+        if (context) return context;
+        const esbuild = (await import("esbuild")) as unknown as {
+            context(options: Record<string, unknown>): Promise<BuildContext>;
+        };
+        context = await esbuild.context({
+            entryPoints: [resolve(root, swSrc)],
+            bundle: true,
+            format: "iife",
+            platform: "browser",
+            target: "es2020",
+            write: false,
+            absWorkingDir: root,
+            logLevel: "silent",
+        });
+        return context;
+    }
+
+    /**
+     * Bundle the worker, reusing the previous graph.
+     *
+     * `esbuild.build()` per request was a cold bundle every time, and the request
+     * count is not one per session: `Cache-Control: no-cache` guarantees one per
+     * page load, and Chrome re-fetches the worker script on every navigation and
+     * on its own update checks. `rebuild()` reuses the graph and only redoes what
+     * changed on disk.
+     *
+     * Single-flight, because those requests arrive in bursts and esbuild does not
+     * promise anything about concurrent `rebuild()` calls on one context. Callers
+     * that land while a bundle is in flight share its result, which is the right
+     * answer anyway — they asked for the same file at the same moment.
+     *
+     * @returns The bundled worker source.
+     */
+    function buildWorker(): Promise<string> {
+        if (pending) return pending;
+
+        const run = (async (): Promise<string> => {
+            const ctx = await ensureContext();
+            const result = await ctx.rebuild();
+            const text = result.outputFiles?.[0]?.text;
+            if (text === undefined) throw new Error("esbuild produced no service-worker output");
+            return text;
+        })();
+
+        pending = run;
+        const clear = (): void => {
+            pending = null;
+        };
+        run.then(clear, clear);
+        return run;
+    }
+
+    /**
+     * Tear the context down, releasing esbuild's child process.
+     *
+     * Idempotent, because it is wired to both the dev server closing and the
+     * plugin's `buildEnd`. Without it, restarting the dev server leaks one esbuild
+     * process per restart.
+     */
+    async function disposeContext(): Promise<void> {
+        const current = context;
+        context = null;
+        pending = null;
+        await current?.dispose();
     }
 
     const plugin: Plugin = {
         name: "tempest-pwa-dev-sw",
         apply: "serve",
+        async buildEnd() {
+            await disposeContext();
+        },
         configResolved(config) {
             root = config.root ?? process.cwd();
             base = config.base ?? "/";
         },
         configureServer(server) {
             if (!enabled) return;
+
+            server.httpServer?.once("close", () => void disposeContext());
+
             server.middlewares.use(async (req, res, next) => {
                 const url = (req.url ?? "").split("?")[0];
 
                 if (matches(url, swUrl)) {
                     try {
-                        const esbuild = await import("esbuild");
-                        const result = await esbuild.build({
-                            entryPoints: [resolve(root, swSrc)],
-                            bundle: true,
-                            format: "iife",
-                            platform: "browser",
-                            target: "es2020",
-                            write: false,
-                            absWorkingDir: root,
-                            logLevel: "silent",
-                        });
+                        const source = await buildWorker();
                         res.setHeader("Content-Type", "application/javascript");
                         res.setHeader("Service-Worker-Allowed", "/");
                         res.setHeader("Cache-Control", "no-cache");
-                        res.end(result.outputFiles[0].text);
+                        res.end(source);
                     } catch (error) {
                         res.statusCode = 500;
                         res.end(`// SW dev build failed:\n// ${String(error)}`);

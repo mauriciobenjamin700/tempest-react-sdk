@@ -226,7 +226,7 @@ Detalhes que valem saber:
 - A retentativa envolve a requisição **inteira**, refresh incluído. Uma tentativa que gasta o ciclo de 401 → refresh → repetição conta como uma tentativa só.
 - Cada tentativa carrega o seu próprio `X-Request-ID`, então o backend consegue distinguir as tentativas nos logs.
 - `Retry-After` (em `429`/`503`) é respeitado e sobrepõe o backoff daquela tentativa.
-- Precisa de retentativa em uma chamada específica, não no cliente todo? O helper [`retry`](#retry-backoff-exponencial) continua ali e não foi alterado.
+- Precisa de retentativa em uma chamada específica, não no cliente todo? O helper [`retry`](#retry-backoff-exponencial) continua ali, e agora usa a **mesma** classificação de status.
 
 ## `parseResponse`
 
@@ -306,8 +306,30 @@ const data = await retry(() => api.get("/flaky-endpoint"), {
 });
 ```
 
-!!! note "`shouldRetry` evita retentar o que não vai melhorar"
-    Um 403 ou 422 vai falhar igual na 5ª vez. Filtre por `status >= 500` (ou erros de rede) pra não desperdiçar tentativas em erros determinísticos.
+!!! note "O default já evita retentar o que não vai melhorar"
+    Você **não precisa** escrever o `shouldRetry` do exemplo acima. Sem ele, o
+    default replica qualquer erro que não tenha forma de erro de API — falha de
+    transporte não tem status pra julgar — e, para os que têm, só os status que
+    `isRetriableStatus` aceita: falha de rede (`0`), `408`, `425`, `429` e qualquer
+    `5xx`. Um 403 ou 422 falha de primeira.
+
+!!! tip "`isRetriableStatus` — a política, reutilizável"
+    A lista é exportada, então um `shouldRetry` seu estende a política em vez de
+    reescrevê-la:
+
+    ```ts
+    import { isApiError, isRetriableStatus, retry } from "tempest-react-sdk";
+
+    const data = await retry(() => api.post("/import", { body }), {
+      shouldRetry: (error) =>
+        isApiError(error) &&
+        (isRetriableStatus(error.status) || error.code === "IMPORT_LOCKED"),
+    });
+    ```
+
+    Ela é a **única** dona dessa decisão: o cliente, o default das queries e este
+    helper leem daqui. Eram três listas, e a das queries estava sem o `425` — o
+    mesmo `425 Too Early` era retentado por um caminho e não pelo outro.
 
 ## `usePoll` — polling com guarda de overlap
 

@@ -1,5 +1,9 @@
 import { gunzipSync, gzipSync } from "fflate";
 
+import { base64ToBytes, bytesToBase64 } from "./base64";
+
+import { createJsonStorage, type JsonStorage, type StorageCodec } from "./storage";
+
 /**
  * Gzip-backed `localStorage`, for payloads that would otherwise eat the quota.
  *
@@ -23,32 +27,6 @@ import { gunzipSync, gzipSync } from "fflate";
  * JSON document, so the two cases can never be confused.
  */
 const MARKER = "~tgz1:";
-
-/**
- * Base64-encode bytes without splatting the whole array into `fromCharCode`.
- *
- * `String.fromCharCode(...bytes)` overflows the argument limit somewhere around
- * a hundred thousand entries, which a compressed save reaches easily, so the
- * conversion walks the buffer in 32 KiB windows instead.
- */
-function bytesToBase64(bytes: Uint8Array): string {
-    let binary = "";
-    const chunkSize = 0x8000;
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-    }
-    return btoa(binary);
-}
-
-/** Inverse of {@link bytesToBase64}. */
-function base64ToBytes(base64: string): Uint8Array {
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i += 1) {
-        bytes[i] = binary.charCodeAt(i);
-    }
-    return bytes;
-}
 
 /**
  * Serialize a value to a gzipped, base64 string carrying the format marker.
@@ -96,7 +74,7 @@ export function decompressFromString<T>(raw: string): T {
  * @example
  * const [save, setSave] = useLocalStorage("save", EMPTY_SAVE, compressedStorageCodec);
  */
-export const compressedStorageCodec = {
+export const compressedStorageCodec: StorageCodec = {
     serialize: compressToString,
     deserialize: decompressFromString,
 };
@@ -104,52 +82,14 @@ export const compressedStorageCodec = {
 /**
  * Typed `localStorage` wrapper that gzips what it writes.
  *
- * Mirrors {@link storage} so the two are interchangeable at the call site; the
- * difference is only in how the value is encoded.
+ * {@link createJsonStorage} with {@link compressedStorageCodec}, so it is the
+ * same implementation as {@link storage} and genuinely interchangeable with it —
+ * `get`, `set` and `remove`, differing only in how the value is encoded. It used
+ * to be a hand-written copy that had no `remove`, which made that promise false
+ * for anybody who took the docstring at its word.
+ *
+ * When compression itself fails the value is written as plain JSON rather than
+ * dropped: a slightly larger record still loads, an absent one does not. Only a
+ * storage-level failure — quota, blocked storage — loses the write.
  */
-export const compressedStorage = {
-    /**
-     * Read and decompress a key.
-     *
-     * @typeParam T - The expected value shape.
-     * @param key - Storage key.
-     * @param fallback - Returned when the key is absent, unreadable, or corrupt.
-     * @returns The stored value, or `fallback`.
-     */
-    get<T>(key: string, fallback: T): T {
-        if (typeof window === "undefined") return fallback;
-        try {
-            const raw = window.localStorage.getItem(key);
-            return raw === null ? fallback : decompressFromString<T>(raw);
-        } catch {
-            return fallback;
-        }
-    },
-
-    /**
-     * Compress and write a key.
-     *
-     * When compression itself fails the value is written as plain JSON rather
-     * than dropped: a slightly larger record still loads, an absent one does
-     * not. Only a storage-level failure — quota, blocked storage — loses the
-     * write.
-     *
-     * @typeParam T - The value being stored.
-     * @param key - Storage key.
-     * @param value - Any JSON-serializable value.
-     */
-    set<T>(key: string, value: T): void {
-        if (typeof window === "undefined") return;
-        let encoded: string;
-        try {
-            encoded = compressToString(value);
-        } catch {
-            encoded = JSON.stringify(value);
-        }
-        try {
-            window.localStorage.setItem(key, encoded);
-        } catch {
-            /* empty */
-        }
-    },
-};
+export const compressedStorage: JsonStorage = createJsonStorage(compressedStorageCodec);

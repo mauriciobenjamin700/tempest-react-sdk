@@ -21,6 +21,17 @@ import { useRef, type RefObject } from "react";
  * want to *call* — it hands back a callable with a stable identity, rather than
  * making every call site reach through `.current`.
  *
+ * **List the returned ref in your effect's dependencies.** It is a stable object,
+ * so the effect never re-runs because of it, but `react-hooks/exhaustive-deps`
+ * cannot prove that for a custom hook the way it does for a bare `useRef`.
+ * Listing it lets the rule verify the array instead of taking an omission on
+ * trust.
+ *
+ * **Not for holding the previous value.** The write happens during render, so
+ * `.current` is already the current value by the time any effect reads it. A hook
+ * that wants the value from the *previous* commit — `usePrevious` — needs the
+ * effect-based write, and swapping it for this would make it return the present.
+ *
  * @typeParam T - The tracked value.
  * @param value - The value to track. Written on every render.
  * @returns A stable ref whose `current` holds the latest `value`.

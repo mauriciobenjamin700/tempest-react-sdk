@@ -891,6 +891,28 @@ const { data } = useQuery({
 | `in` | `campo__in`, uma vez por valor |
 | `empty` / `notEmpty` | `campo__isnull=true` / `=false` |
 
+!!! tip "O dialeto é o **default**, não uma lei"
+    A tabela acima é o dialeto do `tempest-fastapi-sdk`. Backend diferente passa
+    `options` em vez de reescrever o encoder:
+
+    ```tsx
+    // A coluna pesquisável é `razao_social`, e `ne` se escreve à moda Django.
+    const params = filtersToQueryParams(filtros, {
+      substringColumns: ["razao_social"],
+      operatorSuffix: { ne: "__exclude" },
+    });
+    ```
+
+    - `substringColumns` — as colunas cujo `eq` sai como `coluna__iexact`. Default
+      `["name"]`, que é o caso especial de `build_filter_condition`. Passe `[]` se o
+      seu backend não trata nenhuma coluna assim e um `eq` deve sair puro.
+    - `operatorSuffix` — mesclado **sobre** o default, então o override nomeia só os
+      operadores que diferem.
+
+    Até a v0.44.0 os dois eram constantes fechadas no módulo. Quem tinha a coluna
+    chamada `nome` ou `titulo` não conseguia o tratamento, e quem não tinha o caso
+    especial recebia um `__iexact` que ninguém pediu.
+
 !!! danger "O backend precisa **declarar** cada chave, senão o filtro falha calado"
     `BasePaginationFilterSchema.get_conditions()` só repassa campos que a subclasse declara. Um `status__ne` que o schema não menciona é descartado pelo FastAPI antes do repositório ver — sem erro, sem filtro, e a lista volta inteira parecendo que "o filtro não pegou". Declare `status__ne: str | None = None` no schema de filtro para cada operador que a tela oferece.
 

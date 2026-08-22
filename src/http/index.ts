@@ -1,7 +1,7 @@
 export { createApiClient } from "./api-client";
 export { buildApiUrl } from "./build-url";
 export type { BuildApiUrlOptions } from "./build-url";
-export { TempestApiError, isApiError } from "./errors";
+export { TempestApiError, isApiError, isRetriableStatus } from "./errors";
 export {
     API_ERROR_OFFLINE_KEY,
     API_ERROR_VALIDATION_KEY,

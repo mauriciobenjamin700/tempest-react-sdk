@@ -366,12 +366,15 @@ export type { CarouselProps } from "./Carousel";
 
 export { DataTable } from "./DataTable";
 export type {
+    DataTableBaseProps,
     DataTableCellChange,
     DataTableColumn,
     DataTableEditLabels,
     DataTableEditorType,
+    DataTablePagingProps,
     DataTableProps,
     DataTableSort,
+    DataTableSortProps,
     SortDirection,
 } from "./DataTable";
 
@@ -462,6 +465,7 @@ export type {
     FilterField,
     FilterFieldType,
     FilterOperator,
+    FiltersToQueryParamsOptions,
 } from "./FilterBar";
 export {
     applyFilters,

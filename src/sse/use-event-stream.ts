@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useLatestRef } from "@/hooks/use-latest-ref";
 import {
     createEventStream,
     type CreateEventStreamOptions,
@@ -43,10 +44,7 @@ export function useEventStream<T = unknown>(
     const [lastMessage, setLastMessage] = useState<EventStreamMessage<T> | null>(null);
     const reconnectRef = useRef<(() => void) | null>(null);
 
-    const onMessageRef = useRef(onMessage);
-    useEffect(() => {
-        onMessageRef.current = onMessage;
-    }, [onMessage]);
+    const onMessageRef = useLatestRef(onMessage);
 
     useEffect(() => {
         if (!enabled || !url) {

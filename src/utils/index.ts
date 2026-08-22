@@ -9,7 +9,8 @@ export {
     formatCPF,
     formatPercent,
 } from "./format";
-export { storage } from "./storage";
+export { createJsonStorage, storage } from "./storage";
+export type { JsonStorage, StorageCodec } from "./storage";
 export {
     compressToString,
     compressedStorage,

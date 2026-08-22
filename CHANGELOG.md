@@ -4,6 +4,35 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **O outbox entregava fora de ordem quando uma entrada falhava, e isso perdia
+  dado.** O motor gasta código para garantir FIFO — `nextEnqueuedAt` avança 1ms no
+  empate — e a docstring dele diz exatamente por quê: _"a `create` could be
+  delivered after the `update` that depends on it"_. O `push` furava isso no
+  instante em que qualquer coisa falhava: seguia para a próxima entrada sem olhar
+  de que registro ela era.
+
+  O caminho ruim é o que a doc do motor chama de usual, `deliver` como `PUT`
+  upsert: `create x` falha com 500 → `update x` é entregue → o servidor **cria** o
+  registro pelo payload do update → o flush seguinte reenvia o `create x` e
+  sobrescreve com o snapshot **mais antigo**. A edição do usuário desaparece, o
+  `summary.failed` volta a 0 e o `phase` volta a `idle`: o app reporta sucesso.
+
+  Agora, quando uma entrada falha, as demais **daquele registro** ficam sem ser
+  tentadas nesta passada e voltam na próxima na ordem original. O bloqueio é por
+  registro, não por passada — um registro que o servidor recusa não segura mais
+  ninguém.
+
+### Adicionado
+
+- **`SyncRunSummary.deferred`** — quantas entradas ficaram sem ser tentadas porque
+  uma anterior do mesmo registro falhou. Contada à parte de `failed` porque nunca
+  foram enviadas: reportá-las como falha culparia o servidor por uma decisão do
+  motor, e somá-las junto faria `succeeded + failed` parar de fechar com a fila.
+  Campo novo em objeto de retorno — aditivo para quem lê, breaking só para quem
+  constrói um `SyncRunSummary` à mão (mock de teste é o caso realista).
+
 ## [0.48.0] — 2026-08-21
 
 ### Adicionado

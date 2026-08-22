@@ -17,6 +17,7 @@ function fakeSync(overrides: Partial<OfflineSync<Note>> = {}): OfflineSync<Note>
             trigger: "after-mutation",
             succeeded: 1,
             failed: 0,
+            deferred: 0,
             durationMs: 0,
             skipped: false,
             lastError: null,

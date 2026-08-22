@@ -78,6 +78,16 @@ export interface SyncRunSummary {
     succeeded: number;
     /** Entries that failed and stay queued for the next run. */
     failed: number;
+    /**
+     * Entries left untried because an earlier entry for the **same record**
+     * failed this run.
+     *
+     * They stay queued and are attempted next run, in order. Counted apart from
+     * `failed` because they were never sent: reporting them as failures would
+     * blame the server for a decision this engine made, and folding them in would
+     * make `succeeded + failed` stop accounting for the queue.
+     */
+    deferred: number;
     /** Total wall-clock milliseconds the run took. */
     durationMs: number;
     /** `true` when the run was skipped because the device was offline. */
@@ -355,9 +365,31 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
         setState({ pending: await outbox.count() });
     }
 
+    /**
+     * Drain the outbox in `enqueuedAt` order, one record at a time.
+     *
+     * Once an entry for a record fails, the remaining entries **for that record**
+     * are left untried this run. `enqueuedAt` is a FIFO guarantee the engine goes
+     * out of its way to keep (see `nextEnqueuedAt`), precisely because delivering
+     * an `update` before the `create` it depends on is wrong — and continuing past
+     * a failure broke exactly that guarantee. With a `PUT` upsert `deliver`, which
+     * is the usual shape, the server would create the record from the *update*
+     * payload and the retried `create` would then overwrite it with the older
+     * snapshot: the user's edit disappears with nothing reported.
+     *
+     * Skipping is per record, not per run. Records are independent, so a record
+     * the server is rejecting must not hold up every other pending change.
+     *
+     * @param summary - Mutated with the per-entry outcome counts.
+     */
     async function push(summary: SyncRunSummary): Promise<void> {
         const entries = await outbox.list(undefined, { orderBy: "enqueuedAt" });
+        const blocked = new Set<string>();
         for (const entry of entries) {
+            if (blocked.has(entry.recordId)) {
+                summary.deferred += 1;
+                continue;
+            }
             try {
                 await config.deliver(entry);
                 await outbox.delete(entry.id);
@@ -370,6 +402,7 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
                     lastError: message,
                 } as Partial<OutboxEntry<TPayload>>);
                 await config.onEntryFailed?.(entry, cause);
+                blocked.add(entry.recordId);
                 summary.failed += 1;
                 summary.lastError = message;
             }
@@ -397,6 +430,7 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
             trigger,
             succeeded: 0,
             failed: 0,
+            deferred: 0,
             durationMs: 0,
             skipped: false,
             lastError: null,
@@ -439,6 +473,7 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
                 trigger,
                 succeeded: 0,
                 failed: 0,
+                deferred: 0,
                 durationMs: 0,
                 skipped: false,
                 lastError: null,

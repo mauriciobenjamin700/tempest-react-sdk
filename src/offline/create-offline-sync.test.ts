@@ -338,3 +338,81 @@ describe("createOfflineSync — environment guards", () => {
         expect(sync.getState().pending).not.toBe(99);
     });
 });
+
+/**
+ * FIFO per record is a guarantee this engine spends code to keep.
+ *
+ * `nextEnqueuedAt` advances by 1ms on a tie precisely so a `create` is never
+ * delivered after the `update` that depends on it. `push` used to break that the
+ * moment anything failed: it moved on to the next entry regardless of which
+ * record it belonged to.
+ *
+ * The damage needs a `PUT` upsert `deliver`, which the engine's own docs name as
+ * the usual shape: the server creates the record from the *update* payload, and
+ * the retried `create` then overwrites it with the older snapshot. The user's
+ * edit is gone, and nothing reports it — `failed` goes back to 0 on the next run.
+ */
+describe("createOfflineSync — per-record delivery order", () => {
+    it("leaves later entries for a record untried once one of them fails", async () => {
+        const delivered: string[] = [];
+        const { sync } = makeSync({
+            deliver: vi.fn(async (entry: OutboxEntry<{ id: string }>) => {
+                if (entry.op === "create") throw new Error("500 from server");
+                delivered.push(`${entry.op}:${entry.recordId}`);
+            }),
+        });
+
+        await sync.enqueue("create", "x", { id: "x" });
+        await sync.enqueue("update", "x", { id: "x" });
+        const summary = await sync.flush();
+
+        expect(delivered).toEqual([]);
+        expect(summary.failed).toBe(1);
+        expect(summary.deferred).toBe(1);
+        expect(await sync.pendingCount()).toBe(2);
+    });
+
+    it("does not let one blocked record hold up another", async () => {
+        const delivered: string[] = [];
+        const { sync } = makeSync({
+            deliver: vi.fn(async (entry: OutboxEntry<{ id: string }>) => {
+                if (entry.recordId === "x") throw new Error("rejected");
+                delivered.push(entry.recordId);
+            }),
+        });
+
+        await sync.enqueue("create", "x", { id: "x" });
+        await sync.enqueue("create", "y", { id: "y" });
+        await sync.enqueue("update", "x", { id: "x" });
+        await sync.enqueue("update", "y", { id: "y" });
+        const summary = await sync.flush();
+
+        expect(delivered).toEqual(["y", "y"]);
+        expect(summary.succeeded).toBe(2);
+        expect(summary.failed).toBe(1);
+        expect(summary.deferred).toBe(1);
+    });
+
+    it("delivers the queue in order once the failure clears", async () => {
+        const delivered: string[] = [];
+        let failing = true;
+        const { sync } = makeSync({
+            deliver: vi.fn(async (entry: OutboxEntry<{ id: string }>) => {
+                if (failing && entry.op === "create") throw new Error("500 from server");
+                delivered.push(`${entry.op}:${entry.recordId}`);
+            }),
+        });
+
+        await sync.enqueue("create", "x", { id: "x" });
+        await sync.enqueue("update", "x", { id: "x" });
+        await sync.flush();
+        expect(delivered).toEqual([]);
+
+        failing = false;
+        const second = await sync.flush();
+
+        expect(delivered).toEqual(["create:x", "update:x"]);
+        expect(second.deferred).toBe(0);
+        expect(await sync.pendingCount()).toBe(0);
+    });
+});

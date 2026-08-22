@@ -226,6 +226,67 @@ Detalhes que valem saber:
 - A retentativa envolve a requisição **inteira**, refresh incluído. Uma tentativa que gasta o ciclo de 401 → refresh → repetição conta como uma tentativa só.
 - Cada tentativa carrega o seu próprio `X-Request-ID`, então o backend consegue distinguir as tentativas nos logs.
 - `Retry-After` (em `429`/`503`) é respeitado e sobrepõe o backoff daquela tentativa.
+## Timeout e cancelamento
+
+O cliente abandona uma requisição depois de **15 s** por default, e depois de **5 min** quando o body é `FormData`.
+
+```ts
+const api = createApiClient({
+  baseURL: import.meta.env.VITE_API_URL,
+  timeout: 15_000, // default
+  uploadTimeout: 300_000, // default, aplicado quando o body é FormData
+});
+
+// Override por chamada, para o endpoint que não cabe em nenhum dos dois.
+const report = await api.get("/relatorio-pesado", { timeout: 60_000 });
+
+// `null` desliga — para stream ou long poll.
+const stream = await api.get("/eventos", { timeout: null });
+```
+
+!!! danger "Antes disso não havia timeout nenhum"
+    Uma conexão TCP que morre sem FIN **não devolve erro**: o browser segura a
+    requisição por minutos, ou para sempre. Sem piso, o sintoma é spinner eterno
+    exatamente na rede ruim que um SDK offline-first existe para sobreviver.
+
+!!! tip "Por que upload tem timeout próprio"
+    Upload binário não é uma requisição lenta, é outro tipo de requisição. Um
+    timeout único obriga a escolher entre curto o bastante para proteger uma
+    chamada normal e longo o bastante para terminar um arquivo — e 15 s corta o
+    upload no meio do body, que o servidor precisa então interpretar como payload
+    truncado.
+
+    A detecção é o body ser `FormData`, o mesmo teste que já decide o
+    `Content-Type`.
+
+### Timeout vira `status: 0`, abort continua abort
+
+Timeout chega como `ApiError` com `status: 0` — a mesma forma que o cliente já usava para "não chegou ao servidor". Isso não é detalhe de implementação, é o que faz a política de retry replicar um timeout **sem caso especial**: `isRetriableStatus(0)` é `true`.
+
+Já um `abort` que **você** pediu propaga como `DOMException`, e portanto nunca é retentado — o `shouldRetry` embutido exige `TempestApiError`.
+
+```ts
+const controller = new AbortController();
+const pending = api.get("/lento", { signal: controller.signal });
+controller.abort(); // rejeita com DOMException, sem retentar
+```
+
+!!! check "`signal` sempre funcionou — só não estava documentado"
+    `RequestOptions` estende `Omit<RequestInit, "body">`, então `signal` era aceito
+    e repassado ao `fetch` desde sempre. Ninguém tinha como descobrir: não
+    aparecia na interface e não estava em nenhuma doc. Agora está declarado
+    explicitamente, o que para o compilador é redundante e para quem lê não é.
+
+    O caso que isso resolve é o react-query: passe o `signal` que a `queryFn`
+    recebe e a requisição é cancelada em unmount e em refetch.
+
+    ```tsx
+    useQuery({
+      queryKey: ["pedidos"],
+      queryFn: ({ signal }) => api.get("/pedidos", { signal }),
+    });
+    ```
+
 - Precisa de retentativa em uma chamada específica, não no cliente todo? O helper [`retry`](#retry-backoff-exponencial) continua ali, e agora usa a **mesma** classificação de status.
 
 ## `parseResponse`

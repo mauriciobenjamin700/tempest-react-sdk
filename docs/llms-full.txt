@@ -720,6 +720,42 @@ console.log(sfx.current()); // HTMLAudioElement | null
 
 Cada player rastreia **um** clipe atual. `stopPrevious: true` no `play()` para o clipe anterior daquele mesmo player antes de tocar o novo.
 
+## `createSfxPool` / `useSfxPool` — efeitos sonoros curtos
+
+`new Audio(src)` a cada disparo aloca um elemento e re-entra na pilha de rede por um arquivo que o navegador já tem. Para um som que toca dezenas de vezes por minuto — um blip de menu, um hit, um pickup — é a forma errada. O pool aloca uma vez por fonte e reproduz.
+
+```ts
+import { useSfxPool } from "tempest-react-sdk";
+
+function Menu({ sfxVolume }: { sfxVolume: number }) {
+  const sfx = useSfxPool({ volume: sfxVolume / 100, baseUrl: import.meta.env.BASE_URL });
+
+  useEffect(() => {
+    sfx.preload(["sfx/move.mp3", "sfx/select.mp3", "sfx/back.mp3"]);
+  }, [sfx]);
+
+  return <button onClick={() => sfx.play("sfx/select.mp3")}>Confirmar</button>;
+}
+```
+
+- `play(src, { volume })` — o volume por play é multiplicado pelo master do pool.
+- `preload(src | src[])` — busca antes do primeiro disparo, pra ele não sair mudo enquanto o arquivo baixa.
+- `setVolume(v)` — aplica também no que já está soando, **reescalando pelo ganho de cada um**: um clipe que começou a meio volume não é puxado pra cima.
+- `stop(src?)` — para uma fonte, ou todas.
+- `dispose()` — libera tudo. O `useSfxPool` já chama no unmount.
+
+!!! note "`voices`: repetir ou sobrepor"
+    O default (`voices: 1`) **reinicia** o clipe a cada play, que é o que um blip de menu quer. Suba pra deixar o som se sobrepor — um hit tocando enquanto o anterior ainda ressoa:
+
+    ```ts
+    const hits = createSfxPool({ voices: 3 });
+    ```
+
+!!! tip "Não confunda com `createAudioPlayer`"
+    `createAudioPlayer` rastreia **um** clipe atual, com loop, roteamento de saída e callbacks de ciclo de vida — é o que música de fundo precisa. Efeitos são o caso oposto: muitas fontes, todas curtas, dispara-e-esquece, e o que importa é que disparar seja barato.
+
+Mudar `volume` no `useSfxPool` chama `setVolume` no pool existente em vez de recriá-lo — recriar jogaria fora todo elemento que o usuário já baixou, que é exatamente o custo que o pool existe pra evitar. `baseUrl`, `voices` e `maxSources` são lidos uma vez, na criação.
+
 ## Autoplay policy
 
 Navegadores bloqueiam playback antes da primeira interação do usuário. `playAudio` / `play()` retornam `null` quando bloqueado (e chamam `onError` se passado) — em vez de lançar.
@@ -1162,6 +1198,27 @@ export function SettingsRoute() {
   );
 }
 ```
+
+### Aquecendo o chunk — `preload()`
+
+O componente devolvido carrega um `preload()`. Chame no momento em que a rota fica **provável**, não quando ela é necessária — o hover do link, a abertura do menu que contém ela, o fim do passo anterior — e o chunk chega antes do usuário decidir. O `Suspense` fallback simplesmente não aparece.
+
+```tsx
+<a href="/settings" onMouseEnter={() => void Settings.preload()}>
+  Configurações
+</a>
+```
+
+O trabalho é compartilhado com o caminho de render: quem disparar primeiro faz o único fetch, e o outro espera a mesma promise. Chamar várias vezes é seguro.
+
+!!! tip "Aquecer várias rotas de uma vez"
+    `preload()` devolve a promise, então dá para esperar por um conjunto:
+
+    ```ts
+    await Promise.all([Settings.preload(), Profile.preload()]);
+    ```
+
+    Ou dispare e esqueça — a rejeição já é tratada internamente, então um preload especulativo que ninguém aguarda nunca vira `unhandledrejection`.
 
 ## Refresh queue — `createRefreshQueue`
 
@@ -4527,6 +4584,28 @@ const { data } = useQuery({
 | `in` | `campo__in`, uma vez por valor |
 | `empty` / `notEmpty` | `campo__isnull=true` / `=false` |
 
+!!! tip "O dialeto é o **default**, não uma lei"
+    A tabela acima é o dialeto do `tempest-fastapi-sdk`. Backend diferente passa
+    `options` em vez de reescrever o encoder:
+
+    ```tsx
+    // A coluna pesquisável é `razao_social`, e `ne` se escreve à moda Django.
+    const params = filtersToQueryParams(filtros, {
+      substringColumns: ["razao_social"],
+      operatorSuffix: { ne: "__exclude" },
+    });
+    ```
+
+    - `substringColumns` — as colunas cujo `eq` sai como `coluna__iexact`. Default
+      `["name"]`, que é o caso especial de `build_filter_condition`. Passe `[]` se o
+      seu backend não trata nenhuma coluna assim e um `eq` deve sair puro.
+    - `operatorSuffix` — mesclado **sobre** o default, então o override nomeia só os
+      operadores que diferem.
+
+    Até a v0.44.0 os dois eram constantes fechadas no módulo. Quem tinha a coluna
+    chamada `nome` ou `titulo` não conseguia o tratamento, e quem não tinha o caso
+    especial recebia um `__iexact` que ninguém pediu.
+
 !!! danger "O backend precisa **declarar** cada chave, senão o filtro falha calado"
     `BasePaginationFilterSchema.get_conditions()` só repassa campos que a subclasse declara. Um `status__ne` que o schema não menciona é descartado pelo FastAPI antes do repositório ver — sem erro, sem filtro, e a lista volta inteira parecendo que "o filtro não pegou". Declare `status__ne: str | None = None` no schema de filtro para cada operador que a tela oferece.
 
@@ -5377,6 +5456,26 @@ export function Pessoas() {
 | `onSearchChange` | `(term: string) => void` | Termo digitado; debounce é seu. |
 | `loading` | `boolean` | Requisição em voo. |
 
+!!! check "O compilador agora recusa a combinação inválida"
+    As props são uma **união** das formas que funcionam, então três erros que antes
+    compilavam viraram erro de build no seu call site:
+
+    | Você escreveu | Por que não compila |
+    | --- | --- |
+    | `totalItems` sem `page`/`onPageChange` | O paginador andaria a página interna enquanto `data` segue mostrando a página 1 |
+    | `page` sem `onPageChange` | Página controlada sem ninguém para trocá-la |
+    | `manualSort` sem `onSortChange` | A seta do header gira e mais nada acontece |
+
+    Até a v0.44.0 cada prop era opcional por conta própria, então isso só aparecia
+    como `console.warn` em dev, no browser, com o componente montado — o `tsc` do
+    seu CI nunca via. Os avisos de runtime continuam, para os callers que o tipo não
+    alcança (JavaScript puro, ou props chegando por spread tipado `any`).
+
+    Os tipos das duas metades são exportados quando você precisa deles:
+    `DataTableBaseProps`, `DataTablePagingProps` e `DataTableSortProps`. `Partial`
+    de união não funciona — para variar só a metade compartilhada num helper de
+    teste, use `Partial<DataTableBaseProps<T>>`.
+
 !!! danger "Busca e ordenação **precisam** ir junto — filtrar a página mente"
     `searchable` sozinho filtra `data` em memória, e no modo servidor `data` é só a
     página atual. O usuário digita, some tudo que não está na página 3 e a tabela
@@ -5471,6 +5570,19 @@ import { BarList } from "tempest-react-sdk";
 !!! note "`otherLabel` só agrega quando sobra mais de uma linha"
     Colapsar uma única linha em "Outros" esconderia o nome dela à toa — nesse caso
     ela aparece com o próprio nome.
+
+!!! tip "A paleta respeita `--tempest-chart-count`"
+    A cor de cada linha vem de `useChartColors`, o mesmo resolvedor que todo chart
+    do SDK usa, então um tema que declara **menos** de oito séries cicla dentro da
+    própria paleta. Um tema de marca com 6 cores repete a 1ª e a 2ª nas linhas 7 e 8,
+    em vez de cair no azul e no teal default do SDK.
+
+    Até a v0.44.0 a cor era lida por `var(--tempest-chart-N)` com `N = index % 8`.
+    O CSS não consegue usar `--tempest-chart-count` como módulo, então o `8` era
+    fixo e a marca perdia as duas últimas linhas. `palette.ts` não importa nada,
+    então isso não puxa biblioteca de gráfico pra fatia.
+
+    `color` por item continua ganhando de tudo.
 
 !!! tip "A aritmética é exportada: `buildBarListRows`"
     `buildBarListRows(items, sort, max, otherLabel)` devolve as linhas já ordenadas,
@@ -13809,17 +13921,20 @@ granulares, testados e independentes — importe só o que precisar.
 
 ### Timers
 
-| Hook                           | O que faz                                         |
-| ------------------------------ | ------------------------------------------------- |
-| `useInterval(callback, delay)` | `setInterval` declarativo; `delay = null` pausa.  |
-| `useTimeout(callback, delay)`  | `setTimeout` declarativo; `delay = null` cancela. |
+| Hook                                                | O que faz                                                                                                    |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `useInterval(callback, delay)`                       | `setInterval` declarativo; `delay = null` pausa.                                                              |
+| `useTimeout(callback, delay)`                        | `setTimeout` declarativo; `delay = null` cancela.                                                             |
+| `useCountdown(durationMs, startedAt, { tickMs })`    | Tempo restante de uma janela, recalculado do relógio a cada tick. Trava em `0` e para o interval.             |
+| `useTypewriter(text, speedMs)`                       | `{ displayedText, isComplete, skip }` — revela o texto letra a letra. `speedMs <= 0` renderiza tudo de uma vez. |
 
 ### Performance
 
-| Hook                    | O que faz                               |
-| ----------------------- | --------------------------------------- |
-| `useStableCallback(fn)` | Ref estável que chama o callback atual. |
-| `useDeepMemo(value)`    | Memoização com igualdade estrutural.    |
+| Hook                     | O que faz                                                        |
+| ------------------------ | ---------------------------------------------------------------- |
+| `useStableCallback(fn)`  | Ref estável que chama o callback atual.                          |
+| `useLatestRef(value)`    | Ref estável cujo `current` é sempre o último `value` recebido.    |
+| `useDeepMemo(value)`     | Memoização com igualdade estrutural.                             |
 
 !!! tip "safe sem `window` por padrão"
     Os hooks que tocam APIs do browser (`useMediaQuery`, `useBreakpoint`,
@@ -14131,6 +14246,67 @@ function Tracker({ onSelect }: { onSelect: (id: string) => void }) {
     quando o callback muda de identidade. Já valores derivados (`useDebounce`,
     `useAsync` com `deps`) devem entrar nas deps normalmente — omiti-los gera bugs de
     valor obsoleto. Regra geral: confie no `eslint-plugin-react-hooks`.
+
+### Valor fresco dentro de um effect que roda uma vez — `useLatestRef`
+
+Um effect montado uma única vez — um interval, uma subscription, um listener — fica preso ao render que criou o closure. Listar o valor nas dependências desmonta e remonta o effect a cada mudança; omitir congela o valor. `useLatestRef` é a terceira saída:
+
+```tsx
+import { useEffect } from "react";
+import { useLatestRef } from "tempest-react-sdk";
+
+function Poller({ options }: { options: PollOptions }) {
+  const optionsRef = useLatestRef(options);
+
+  useEffect(() => {
+    const id = setInterval(() => poll(optionsRef.current), 5_000);
+    return () => clearInterval(id);
+  }, [optionsRef]); // o interval sobrevive a toda mudança de options — e lê a última
+
+  return null;
+}
+```
+
+!!! note "`useLatestRef` ou `useStableCallback`?"
+    Se o valor é uma **função que você quer chamar**, use `useStableCallback`: ele devolve algo chamável com identidade estável, sem obrigar cada call site a passar por `.current`. `useLatestRef` é para todo o resto — objetos de config, state, props.
+
+### Cooldown — `useCountdown`
+
+```tsx
+import { useCountdown } from "tempest-react-sdk";
+
+function ResendButton({ lastSentAt }: { lastSentAt: number }) {
+  const remaining = useCountdown(60_000, lastSentAt);
+
+  return (
+    <button disabled={remaining > 0}>
+      {remaining > 0 ? `Reenviar em ${Math.ceil(remaining / 1000)}s` : "Reenviar código"}
+    </button>
+  );
+}
+```
+
+O hook é escrito em cima de um **timestamp**, não de um contador que decrementa. O restante é recalculado de `Date.now()` a cada tick, então aba em background throttlada, frame lento ou `setInterval` que derrapa não fazem a contagem discordar do relógio — e remontar o componente retoma no valor certo em vez de reiniciar. O interval para ao chegar em zero, em vez de continuar rodando atrás de um clamp.
+
+Passe `{ tickMs: 50 }` quando o valor alimenta uma barra de progresso; o padrão de `1000` serve pro rótulo "tente de novo em Ns".
+
+### Texto revelado letra a letra — `useTypewriter`
+
+```tsx
+import { useMediaQuery, useTypewriter } from "tempest-react-sdk";
+
+function Dialogue({ line }: { line: string }) {
+  const reduced = useMediaQuery("(prefers-reduced-motion: reduce)");
+  const { displayedText, isComplete, skip } = useTypewriter(line, reduced ? 0 : 30);
+
+  return <p onClick={skip}>{displayedText}{isComplete ? "" : "▌"}</p>;
+}
+```
+
+Trocar `text` reinicia a revelação. O reset acontece **durante o render**, não num effect, então a string nova nunca pisca inteira por um frame antes da animação assumir.
+
+!!! warning "Sempre dê saída ao leitor"
+    Uma animação que não pode ser pulada é imposto sobre quem relê ou lê rápido. Ligue `skip` a um clique ou tecla — e trate `prefers-reduced-motion` passando `speedMs = 0`, que renderiza tudo de uma vez sem ramo condicional no componente.
 
 ### Disclosure — `useDisclosure`
 
@@ -14566,7 +14742,7 @@ Detalhes que valem saber:
 - A retentativa envolve a requisição **inteira**, refresh incluído. Uma tentativa que gasta o ciclo de 401 → refresh → repetição conta como uma tentativa só.
 - Cada tentativa carrega o seu próprio `X-Request-ID`, então o backend consegue distinguir as tentativas nos logs.
 - `Retry-After` (em `429`/`503`) é respeitado e sobrepõe o backoff daquela tentativa.
-- Precisa de retentativa em uma chamada específica, não no cliente todo? O helper [`retry`](#retry-backoff-exponencial) continua ali e não foi alterado.
+- Precisa de retentativa em uma chamada específica, não no cliente todo? O helper [`retry`](#retry-backoff-exponencial) continua ali, e desde a v0.44.1 usa a **mesma** classificação de status.
 
 ## `parseResponse`
 
@@ -14640,14 +14816,40 @@ const data = await retry(() => api.get("/flaky-endpoint"), {
   retries: 5,
   initialDelay: 300,
   maxDelay: 10_000,
-  // Não retentar erros de cliente (4xx) — só falhas transitórias
+  // Opcional: o default já faz isso. Ver a nota abaixo.
   shouldRetry: (error) => (error as ApiError).status >= 500,
   onRetry: ({ attempt, delay }) => console.warn(`Tentativa ${attempt} em ${delay}ms`),
 });
 ```
 
-!!! note "`shouldRetry` evita retentar o que não vai melhorar"
-    Um 403 ou 422 vai falhar igual na 5ª vez. Filtre por `status >= 500` (ou erros de rede) pra não desperdiçar tentativas em erros determinísticos.
+!!! note "O default já evita retentar o que não vai melhorar"
+    Você **não precisa** escrever o `shouldRetry` do exemplo acima. Sem ele, o
+    default replica qualquer erro que não tenha forma de erro de API — uma falha
+    de transporte não tem status pra julgar — e, para os que têm, só os status que
+    `isRetriableStatus` aceita: falha de rede (`0`), `408`, `425`, `429` e qualquer
+    `5xx`. Um 403 ou 422 falha de primeira.
+
+    Escreva o seu só quando quiser algo **diferente** disso.
+
+!!! tip "`isRetriableStatus` — a política, reutilizável"
+    A lista de status é exportada, então um `shouldRetry` seu pode estender a
+    política em vez de reescrevê-la:
+
+    ```ts
+    import { isApiError, isRetriableStatus, retry } from "tempest-react-sdk";
+
+    const data = await retry(() => api.post("/import", { body }), {
+      retries: 3,
+      // A política de sempre, mais um caso que só este endpoint tem.
+      shouldRetry: (error) =>
+        (isApiError(error) && isRetriableStatus(error.status)) ||
+        (isApiError(error) && error.code === "IMPORT_LOCKED"),
+    });
+    ```
+
+    Ela é a **única** dona dessa decisão: o cliente, o default das queries e este
+    helper leem todos daqui. Antes eram três listas, e a das queries estava sem o
+    `425` — o mesmo `425 Too Early` era retentado por um caminho e não pelo outro.
 
 ## `usePoll` — polling com guarda de overlap
 
@@ -14907,6 +15109,38 @@ t("greet", { name: "Ana" }); // "Olá, Ana"
 t("greet"); // "Olá, {name}"  (sem params → placeholder literal)
 t("inexistente"); // "inexistente" (sem fallback → a própria chave)
 ```
+
+## Texto default por chave
+
+Quando a chave não existe em nenhum dos locales, `t` devolve a própria chave — o que é ótimo para achar string esquecida em desenvolvimento e péssimo para o usuário, que lê `cart.empty` na tela. O terceiro argumento resolve:
+
+```tsx
+t("cart.empty", undefined, { default: "Seu carrinho está vazio" });
+// catálogo definiu  → a tradução
+// catálogo não definiu → "Seu carrinho está vazio"
+```
+
+O default é **interpolado como qualquer outra mensagem**, então carrega placeholders:
+
+```tsx
+t("cart.count", { n: 3 }, { default: "{n} itens" }); // "3 itens"
+```
+
+`plural` aceita o mesmo, depois das duas buscas com sufixo:
+
+```tsx
+plural("boxes", 2, undefined, { default: "{count} caixas" }); // "2 caixas"
+```
+
+!!! danger "Não detecte o miss comparando com a chave"
+    A tentação é `const v = t(k); const texto = v === k ? meuDefault : v;`. Isso está
+    **errado** para um catálogo que mapeia legitimamente a chave para ela mesma —
+    `{ "cart.empty": "cart.empty" }`, o que catálogo gerado por máquina ou catálogo
+    placeholder faz — e nesse caso o seu default vence uma tradução que existia.
+
+    Só a camada de i18n sabe se houve miss, porque só ela viu o catálogo. Passe
+    `default` e deixe ela responder. Este é o caminho que as strings internas do
+    próprio SDK usam (`tempest.error.offline`, em `useDescribeApiError`).
 
 ## Plurais
 
@@ -15331,27 +15565,49 @@ melhor:
 <Icon name={fromMaterialSymbol(category.icon_code, "folder")} size={20} />
 ```
 
-### A tabela é uma semente, não o vocabulário inteiro
+### O que a tabela cobre, e como ela foi escolhida
 
-Material Symbols tem ~3600 nomes e quase nenhum vai aparecer num `icon_code`
-nosso. `materialToLucide` cobre a interseção útil e **cresce sob demanda**, com
-cada par escrito à mão — mapa gerado por heurística de nome erra feio, a começar
-por `build`, que em Material Symbols é uma chave inglesa e não tem nada a ver com
+`materialToLucide` tem **214 pares**. Material Symbols publica ~6100 nomes, e a
+tabela é a **cabeça dessa lista pelo ranking de popularidade do próprio Google**
+(`fonts.google.com/metadata/icons`) — dado de uso real, não chute sobre quais
+nomes um seed vai conter. Cada chave foi conferida contra aquele vocabulário e
+cada destino contra os slugs canônicos do lucide; os testes desta pasta afirmam as
+duas coisas sobre a tabela inteira, então um rename do lucide falha no CI e não no
+grid do usuário.
+
+Continua sendo semente, não o vocabulário inteiro: cresce do mesmo jeito, um par
+escrito à mão por vez. Mapa gerado por heurística de nome erra feio, a começar por
+`build`, que em Material Symbols é uma chave inglesa e não tem nada a ver com
 construção.
 
-| Material Symbol                              | lucide           | Observação                        |
-| -------------------------------------------- | ---------------- | --------------------------------- |
-| `build`, `handyman`, `hardware`              | `wrench`         | Aproximação — três para um        |
-| `format_paint`                               | `paint-roller`   |                                   |
-| `electrical_services`                        | `plug-zap`       |                                   |
-| `plumbing`                                   | `shower-head`    | Aproximação — lucide não tem cano |
-| `pedal_bike`, `two_wheeler`, `delivery_dining` | `bike`         | Aproximação — três para um        |
-| `settings`, `code`, `key`, `lock`, `shield`, `brush`, `tv`, `smartphone`, `mic`, `palette`, `router`, `gavel`, `warehouse` | (o mesmo nome) | Colidem por acidente |
+#### Onde os dois vocabulários não batem um-para-um
 
-!!! info "Por que as colisões estão na tabela"
-    Esses treze já renderizam hoje, porque o nome bate nos dois vocabulários. Se
-    ficassem de fora, `fromMaterialSymbol` os mandaria para o fallback e a ponte
-    seria uma **regressão** justamente para os códigos que funcionavam.
+Três padrões, todos deliberados:
+
+| Padrão | Exemplo | O que acontece |
+| --- | --- | --- |
+| **Outline e filled são um glifo** | `favorite` / `favorite_border`, `check_circle` / `check_circle_outline`, `person` / `person_outline` | No lucide, preenchido vs. contorno é decisão de render num ícone só, então o par cai no mesmo slug |
+| **Distinção de variante colapsa** | `build` / `handyman` / `hardware` → `wrench`; `view_list` / `list_alt` / `format_list_bulleted` / `reorder` → `list`; os chevrons iOS → chevron comum | Material Symbols separa, lucide não |
+| **Alguns perdem significado** | veja abaixo | Passe slug explícito onde isso importa |
+
+Os que realmente mudam de sentido — vale conhecer:
+
+| Material Symbol | lucide | O que se perde |
+| --- | --- | --- |
+| `delete_forever` | `trash-2` | O "permanente" |
+| `add_shopping_cart` | `shopping-cart` | O "adicionar" |
+| `picture_as_pdf` | `file-text` | lucide não tem glifo de PDF |
+| `face` | `face-slightly-smiling` | Rosto neutro vira rosto sorrindo |
+| `history` | `rotate-ccw-clock` | Relógio com seta, não lista de eventos passados |
+| `payments` | `wallet` | Pilha de cartões vira carteira |
+| `category` | `shapes` | Formas genéricas |
+| `plumbing` | `shower-head` | lucide não tem cano |
+
+!!! info "Por que os 37 pares de identidade estão na tabela"
+    Nomes como `settings`, `code`, `search`, `menu`, `star`, `map` e `folder` batem
+    nos dois vocabulários, então já renderizam hoje. Se ficassem de fora,
+    `fromMaterialSymbol` os mandaria para o fallback e a ponte seria uma
+    **regressão** justamente para os códigos que funcionavam.
 
 !!! warning "Passe a tabela no `include` do plugin"
     Slug resolvido em runtime puxa o shard da letra inicial. Um catálogo com ~130
@@ -18574,7 +18830,9 @@ Defaults aplicados quando você **não** passa um `client`:
 !!! danger "4xx **não** é retentado — e isso mudou"
     O default era `retry: 1` chapado, que replicava um 403 numa listagem admin-only e um 404 de registro apagado. O servidor recusou de propósito nos dois casos: a segunda tentativa devolve a mesma resposta, dobra o log de rede e segura o spinner na tela por mais um round trip.
 
-    `shouldRetryQuery` retenta uma vez apenas o que pode mudar sozinho: falha de rede (`status === 0`), `5xx`, `408` e `429` (que é uma recusa cujo significado literal é "mais tarde"), e erro de formato desconhecido — que pode ser falha de transporte. Todo o resto do 4xx falha de primeira.
+    `shouldRetryQuery` retenta uma vez apenas o que pode mudar sozinho: falha de rede (`status === 0`), `5xx`, `408`, `425` e `429` (que é uma recusa cujo significado literal é "mais tarde"), e erro de formato desconhecido — que pode ser falha de transporte. Todo o resto do 4xx falha de primeira.
+
+    A classificação vem de `isRetriableStatus`, a mesma que `createApiClient({ retry: true })` e o helper `retry()` usam. Até a v0.44.0 era uma cópia própria aqui, **sem o `425`** — então o mesmo `425 Too Early` era retentado pelo cliente e não pela query.
 
     Se o seu app dependia de retry em 4xx, o override é o de sempre: `defaultOptions={{ queries: { retry: 1 } }}`.
 
@@ -19717,7 +19975,7 @@ installNotificationClickHandler();
 installSkipWaitingListener();
 ```
 
-O `vite.sw.config.ts` empacota esse arquivo (e os helpers que ele importa) num **service worker clássico** em `dist/sw.js`, e o `main.tsx` registra ele via `registerServiceWorker`. Em **dev**, o plugin `tempestPwaDevSw()` compila o `sw.ts` na hora e serve em `/sw.js` — então push e cache funcionam também no `npm run dev` (sem ele, o SW só existiria no build). Veja os detalhes dos helpers em [Web Push](./push.md).
+O `vite.sw.config.ts` empacota esse arquivo (e os helpers que ele importa) num **service worker clássico** em `dist/sw.js`, e o `main.tsx` registra ele via `registerServiceWorker`. Em **dev**, o plugin `tempestPwaDevSw()` compila o `sw.ts` na hora e serve em `/sw.js` — então push e cache funcionam também no `npm run dev` (sem ele, o SW só existiria no build). A compilação passa por **um** contexto incremental do esbuild, criado na primeira requisição: o browser rebusca o script do worker a cada navegação e nas checagens de update dele, então bundle a frio por requisição seria bundle a frio o dia inteiro. Veja os detalhes dos helpers em [Web Push](./push.md).
 
 #### 3. Web push → `usePushSubscription`
 
@@ -24486,12 +24744,81 @@ await downloadCsv(usuarios, COLUNAS, "usuarios.csv"); // entrega ao usuário
 
 ---
 
+## Storage comprimido — `compressedStorage`
+
+`localStorage` dá cerca de **5 MB por origem** e cobra **dois bytes por caractere**. Um app offline-first que guarda estado de verdade — um save de jogo, um rascunho longo, um cache de catálogo — bate nesse teto antes do que parece, e o sintoma é um `QuotaExceededError` no meio de uma escrita, não um aviso.
+
+`compressedStorage` é o mesmo wrapper tipado do `storage`, só que gzipando o que escreve:
+
+```ts
+import { compressedStorage } from "tempest-react-sdk";
+
+compressedStorage.set("save", { level: 12, inventory: items });
+
+const save = compressedStorage.get("save", null);
+```
+
+- `get<T>(key, fallback)` — descomprime e faz parse. Chave ausente, ilegível ou corrompida devolve `fallback`; nunca lança.
+- `set<T>(key, value)` — comprime e grava.
+- `remove(key)` — apaga a chave.
+
+!!! tip "Mesma implementação dos dois, via `createJsonStorage`"
+    `storage` e `compressedStorage` são a **mesma** função por baixo —
+    `createJsonStorage(codec)` — então a superfície dos dois não pode divergir. Até
+    a v0.44.0 o comprimido era uma cópia escrita à mão das mesmas guardas, e **não
+    tinha `remove`**, enquanto a docstring dele prometia que os dois eram
+    intercambiáveis no call site. Quem seguiu a promessa quebrou no primeiro
+    `remove`.
+
+    Codec próprio é o mesmo caminho:
+
+    ```ts
+    import { createJsonStorage } from "tempest-react-sdk";
+
+    // Um store que cifra antes de gravar.
+    const secrets = createJsonStorage({
+      serialize: (value) => encrypt(JSON.stringify(value)),
+      deserialize: (raw) => JSON.parse(decrypt(raw)),
+    });
+    ```
+
+    Se o codec **lançar**, o valor é gravado como JSON puro em vez de descartado:
+    registro maior ainda carrega, registro ausente não. Só um valor que nem JSON
+    representa (referência circular) perde a escrita.
+
+### O formato é autodescritivo
+
+Cada valor gravado leva o prefixo `~tgz1:`. Isso resolve o problema chato de ligar compressão numa chave que já existe: uma leitura sem o marcador cai no `JSON.parse` normal, então **os dados que já estavam lá continuam legíveis**. Nada de migração, nada de save órfão.
+
+O mesmo caminho cobre a escrita degradada: se a compressão falhar, o valor é gravado como JSON puro em vez de descartado — um registro maior ainda carrega, um ausente não.
+
+!!! note "Por que base64, e não empacotar em UTF-16"
+    Base64 gasta um terço a mais de caracteres que os bytes comprimidos, e o `localStorage` ainda cobra dois bytes por caractere em cima disso. Empacotar os bytes direto em code units UTF-16 seria mais denso, mas surrogates soltos não sobrevivem a toda implementação de storage nem a um round-trip de JSON — e um save que decodifica em lixo é muito pior que um save maior. Mesmo com essa folga, um JSON típico fica bem abaixo de um terço do tamanho original.
+
+### Com `useLocalStorage`
+
+Para estado React, passe o codec em vez de usar a API imperativa — você ganha a sincronia entre abas e o guard de SSR do hook de graça:
+
+```ts
+import { compressedStorageCodec, useLocalStorage } from "tempest-react-sdk";
+
+const [save, setSave] = useLocalStorage("save", EMPTY_SAVE, compressedStorageCodec);
+```
+
+`compressToString` / `decompressFromString` também são exportados soltos, para quando o destino não é `localStorage` (um `POST` de backup, um `IndexedDB`).
+
+!!! warning "Não é para tudo"
+    Comprimir custa CPU nas duas pontas. Para uma preferência de tema ou um flag booleano, use o `storage` normal — o ganho é zero e o custo não. `compressedStorage` vale a partir de payloads na casa das dezenas de KB.
+
+---
+
 ## Recap
 
 - Importe qualquer helper direto de `tempest-react-sdk` — todos são exports nomeados, puros e tree-shakable.
 - **Planilhas**: `writeXlsx(headers, rows)` gera um `.xlsx` UTF-8 de uma aba como `Uint8Array` (sem drama de BOM do CSV).
 - **CSV**: `toCsv(rows, columns)` escreve o arquivo com escaping RFC 4180 e BOM; `downloadCsv(...)` entrega direto ao usuário.
 - **Datas e percentuais**: `formatDateForInput` dá o `yyyy-MM-dd` que o `<input type="date">` exige (pelas partes locais, sem o desvio de UTC); `percentOf` devolve `0` em vez de `NaN` quando a base é zero.
+- **Storage comprimido**: `compressedStorage.get/set` gzipa o que grava; formato autodescritivo (`~tgz1:`) lê valores antigos sem migração. Com React, `useLocalStorage(key, def, compressedStorageCodec)`.
 - **Arrays/Objetos**: `groupBy`, `uniqueBy`, `chunk`, `range`, `pick`, `omit`, `deepMerge`, `isEmpty` — sempre imutáveis; `deepMerge` substitui arrays em vez de fundir.
 - **Guards**: `isDefined`, `isString`, `isNumber`, `isPlainObject`, `assertNever` — narrowing seguro + exaustividade em `switch`.
 - **Funções**: `debounce`/`throttle` (com `.cancel()`), `once`, `memoizeOne` para controlar execução.

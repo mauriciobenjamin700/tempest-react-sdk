@@ -6,6 +6,7 @@ export type {
     DataTableEditorType,
     DataTablePagingProps,
     DataTableProps,
+    DataTableSearchProps,
     DataTableSortProps,
     DataTableSort,
     SortDirection,

@@ -5465,16 +5465,27 @@ export function Pessoas() {
     | `totalItems` sem `page`/`onPageChange` | O paginador andaria a página interna enquanto `data` segue mostrando a página 1 |
     | `page` sem `onPageChange` | Página controlada sem ninguém para trocá-la |
     | `manualSort` sem `onSortChange` | A seta do header gira e mais nada acontece |
+    | `manualSearch` sem `onSearchChange` | A caixa de busca não filtra nada e não avisa ninguém |
 
     Até a v0.44.0 cada prop era opcional por conta própria, então isso só aparecia
     como `console.warn` em dev, no browser, com o componente montado — o `tsc` do
     seu CI nunca via. Os avisos de runtime continuam, para os callers que o tipo não
     alcança (JavaScript puro, ou props chegando por spread tipado `any`).
 
-    Os tipos das duas metades são exportados quando você precisa deles:
-    `DataTableBaseProps`, `DataTablePagingProps` e `DataTableSortProps`. `Partial`
-    de união não funciona — para variar só a metade compartilhada num helper de
-    teste, use `Partial<DataTableBaseProps<T>>`.
+    Os tipos das metades são exportados quando você precisa deles:
+    `DataTableBaseProps`, `DataTablePagingProps`, `DataTableSortProps` e
+    `DataTableSearchProps`. `Partial` de união não funciona — para variar só a
+    metade compartilhada num helper de teste, use `Partial<DataTableBaseProps<T>>`.
+
+!!! warning "Um caso o tipo **não** pega: busca implícita no modo servidor"
+    `totalItems` já **implica** `manualSearch`. Então `searchable` sem
+    `onSearchChange` numa tabela em modo servidor é a mesma caixa inerte — sem que
+    ninguém escreva `manualSearch`, e portanto sem o eixo de busca ter como ver.
+
+    Fechar isso exigiria o eixo de busca ler o eixo de paginação, cruzando duas
+    uniões de três membros em nove e transformando qualquer erro num paredão de
+    formas candidatas. Esse caso continua sendo **aviso de dev em runtime** — é o
+    único dos quatro em que runtime é de fato a checagem mais barata.
 
 !!! danger "Busca e ordenação **precisam** ir junto — filtrar a página mente"
     `searchable` sozinho filtra `data` em memória, e no modo servidor `data` é só a
@@ -17413,6 +17424,21 @@ sync.clearOutbox();
 !!! info "Entregas que falham ficam na fila"
     Se `deliver` lança, a entrada **permanece** na outbox com `attempts` incrementado e `lastError` gravado — o próximo flush tenta de novo. Combine com `installBackgroundSync` no service worker para reenviar mesmo com o app fechado.
 
+!!! danger "A ordem por registro é preservada na falha — e antes não era"
+    Quando uma entrada falha, as **demais entradas daquele mesmo registro** ficam
+    sem ser tentadas nesta passada, e voltam na próxima na ordem original. Elas
+    aparecem em `summary.deferred`, separadas de `summary.failed`, porque nunca
+    foram enviadas.
+
+    Isso importa porque `deliver` normalmente é um `PUT` upsert. Sem a regra, um
+    `create` que falha seguido de um `update` do mesmo registro entregava o
+    **update primeiro**: o servidor criava o registro pelo payload do update, e o
+    `create` reenviado depois sobrescrevia com o snapshot **mais antigo**. A edição
+    do usuário desaparecia sem erro em lugar nenhum.
+
+    O bloqueio é **por registro, não por passada**: um registro que o servidor está
+    recusando não segura as mutações de nenhum outro.
+
 As seções abaixo mostram **o que o motor faz por baixo** (e como montar à mão quando você precisa de controle fino — múltiplos stores, merge por campo, etc.).
 
 ## Pré-requisitos
@@ -19950,6 +19976,28 @@ Duas coisas impedem:
 
 !!! tip "O backoff é o `retry` do SDK"
     Não existe um segundo backoff aqui: cada chunk roda dentro do [`retry`](./http.md#retry-backoff-exponencial) — exponencial, com `Retry-After` respeitado. Ajuste por `retry: { retries, initialDelay, shouldRetry }`.
+
+!!! check "O que o loop de chunk retenta, e o que não"
+    Duas decisões são **específicas do protocolo de retomada** e não seguem a
+    política geral do SDK:
+
+    | Resposta | Retenta? | Por quê |
+    | --- | --- | --- |
+    | falha de rede, `408`, `425`, `429`, `5xx` | **sim** | política padrão: pode mudar sozinho |
+    | `409`, `412` | **sim** | é o sinal de offset divergente — o replay *é* a correção, e o `HEAD` de resync a executa |
+    | `404`, `410` | **não** | o upload sumiu do servidor. Recriar só acontece no attach, nunca dentro do loop |
+    | `400`, `403`, `413`, `415`, `422` | **não** | recusa deliberada; a 5ª tentativa recebe a mesma resposta |
+
+    O `409` é o caso interessante: a política geral do SDK recusa 4xx, e com razão
+    — mas aqui ele significa "seu offset está errado", que é exatamente o que a
+    retentativa conserta.
+
+    O `404` é o inverso. Recurso que desapareceu *parece* transitório, mas o
+    `HEAD` de resync bate no mesmo `404`, então retentar era sondar um recurso
+    morto cinco vezes e só então mostrar "o upload expirou" — com o backoff somado
+    em cima. Nesse caso, comece um upload novo.
+
+    Um `shouldRetry` seu **substitui** essa política inteira, nas duas direções.
 
 ## O que o backend precisa implementar
 

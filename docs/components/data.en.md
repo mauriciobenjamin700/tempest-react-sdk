@@ -401,6 +401,7 @@ export function People() {
     | `totalItems` without `page`/`onPageChange` | The pager would move the internal page while `data` keeps showing page one |
     | `page` without `onPageChange` | A controlled page with nobody to change it |
     | `manualSort` without `onSortChange` | The header arrow turns and nothing else happens |
+    | `manualSearch` without `onSearchChange` | The search box filters nothing and tells nobody |
 
     Through v0.44.0 each prop was optional on its own, so this only ever showed up
     as a `console.warn` in dev, in the browser, with the component mounted — your
@@ -408,10 +409,20 @@ export function People() {
     cannot reach (plain JavaScript, or props arriving through an `any`-typed
     spread).
 
-    Both halves are exported when you need them: `DataTableBaseProps`,
-    `DataTablePagingProps` and `DataTableSortProps`. `Partial` of a union does not
-    work — to vary only the shared half in a test helper, use
-    `Partial<DataTableBaseProps<T>>`.
+    The halves are exported when you need them: `DataTableBaseProps`,
+    `DataTablePagingProps`, `DataTableSortProps` and `DataTableSearchProps`.
+    `Partial` of a union does not work — to vary only the shared half in a test
+    helper, use `Partial<DataTableBaseProps<T>>`.
+
+!!! warning "One case the type does **not** catch: implicit server-mode search"
+    `totalItems` already **implies** `manualSearch`. So `searchable` with no
+    `onSearchChange` on a server-mode table is the same inert box — without anybody
+    writing `manualSearch`, and therefore with nothing for the search axis to see.
+
+    Closing that would mean the search axis reading the paging axis, crossing two
+    three-member unions into nine and turning any mismatch into a wall of candidate
+    shapes. That case stays a **runtime dev warning** — the only one of the four
+    where runtime genuinely is the cheaper check.
 
 !!! danger "Search and sort **must** come along — filtering the page lies"
     `searchable` on its own filters `data` in memory, and in server mode `data` is

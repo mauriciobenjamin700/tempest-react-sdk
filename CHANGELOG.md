@@ -4,6 +4,26 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Breaking
+
+- **`manualSearch` sem `onSearchChange` virou erro de build.** Era a quarta
+  implicação da mesma família das três que o release anterior tipou, e nem o tipo
+  nem o aviso cobriam: a caixa de busca renderiza, o usuário digita, nada filtra
+  (correto — a busca é delegada) e ninguém é avisado. `DataTableSearchProps` entra
+  como quarto eixo, e `manualSearch`/`onSearchChange` saem do
+  `DataTableBaseProps`.
+
+  **Migração:** igual à dos outros três — se o build quebrar, ele já renderizava um
+  input inerte; adicione o callback.
+
+  **Um caso ficou de fora, de propósito.** `totalItems` já _implica_
+  `manualSearch`, então `searchable` sem `onSearchChange` no modo servidor é a mesma
+  caixa inerte sem ninguém escrever `manualSearch`. Fechar isso exigiria o eixo de
+  busca ler o eixo de paginação, cruzando duas uniões de três membros em nove e
+  transformando qualquer erro num paredão de formas candidatas. Esse caso ganhou o
+  **quarto aviso de runtime** — e é o único dos quatro que sobrevive a um caller
+  tipado, o que é a resposta para "por que o hook de avisos ainda existe".
+
 ### Corrigido
 
 - **O loop de chunk do `createResumableUpload` retentava tudo, cinco vezes.** Era

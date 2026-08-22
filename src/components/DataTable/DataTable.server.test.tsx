@@ -326,6 +326,30 @@ describe("DataTable — development warnings", () => {
         expect(warn).toHaveBeenCalledWith(expect.stringContaining("`onSortChange` is missing"));
     });
 
+    /**
+     * The one warning here that survives a typed caller.
+     *
+     * No cast: this combination **compiles**, and that is the point. `totalItems`
+     * implies `manualSearch`, so the search is delegated without anybody writing
+     * `manualSearch` — and the search axis would have to read the paging axis to
+     * see it, crossing two three-member unions into nine. The other three warnings
+     * are unreachable from TypeScript now; this one is why the hook still exists.
+     */
+    it("warns when server mode renders a search box with nowhere to report it", () => {
+        render(
+            <DataTable
+                data={pageOne}
+                columns={columns}
+                rowKey={(row) => row.id}
+                totalItems={7}
+                page={1}
+                onPageChange={vi.fn()}
+                searchable
+            />,
+        );
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining("`onSearchChange`"));
+    });
+
     it("stays quiet for a fully wired server table", () => {
         render(
             <DataTable

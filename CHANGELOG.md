@@ -45,6 +45,28 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   imprime **uma vez por chave** em vez de a cada dependência que muda, e o prefixo
   é `[tempest-react-sdk]` em todos.
 
+### Adicionado
+
+- **`filtersToQueryParams` aceita `options`, então o dialeto do backend deixa de
+  ser uma parede.** O encoder tinha as convenções do `tempest-fastapi-sdk`
+  fechadas em constante de módulo: a tabela de sufixos e, pior, o
+  `SUBSTRING_COLUMN = "name"` — um encoder genérico tratando literalmente a coluna
+  chamada `name` de forma especial, para qualquer app. Quem tinha o campo chamado
+  `nome`, `titulo` ou `razao_social` não conseguia o tratamento e não tinha como
+  pedir; quem não tinha o caso especial no backend recebia um `__iexact` que
+  ninguém pediu.
+
+  ```ts
+  filtersToQueryParams(filters, {
+    substringColumns: ["razao_social"],
+    operatorSuffix: { ne: "__exclude" },
+  });
+  ```
+
+  `substringColumns` default `["name"]` e `operatorSuffix` mesclado **sobre** o
+  dialeto Tempest, então nada muda para quem já usava — é aditivo, não breaking.
+  `FiltersToQueryParamsOptions` é exportado.
+
 ### Alterado
 
 - **A política de retry passa a ter uma dona só, e a divergência que ela escondia

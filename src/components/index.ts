@@ -456,6 +456,7 @@ export type {
     FilterField,
     FilterFieldType,
     FilterOperator,
+    FiltersToQueryParamsOptions,
 } from "./FilterBar";
 export {
     applyFilters,

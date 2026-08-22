@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { filtersToQueryParams } from "./filter-query";
+import type { FiltersToQueryParamsOptions } from "./filter-query";
 import type { Filter } from "./filter-model";
 
-const encode = (filters: Filter[]): string => filtersToQueryParams(filters).toString();
+const encode = (filters: Filter[], options?: FiltersToQueryParamsOptions): string =>
+    filtersToQueryParams(filters, options).toString();
 
 describe("filtersToQueryParams", () => {
     it("sends eq as the bare column, which the backend reads as equality", () => {
@@ -86,6 +88,55 @@ describe("filtersToQueryParams", () => {
     it("percent-encodes a value that would otherwise break the query string", () => {
         expect(encode([{ field: "titulo", operator: "contains", value: "a&b=c" }])).toBe(
             "titulo__icontains=a%26b%3Dc",
+        );
+    });
+});
+
+/**
+ * The dialect is a default, not a law.
+ *
+ * The encoder shipped with `tempest-fastapi-sdk`'s conventions hardcoded — the
+ * `name` column special case and the whole suffix table. That is right for the
+ * Tempest stack and a wall for anybody else: a backend whose searchable column is
+ * `razao_social` could not get the treatment, and one with no such special case
+ * got an `__iexact` nobody asked for.
+ */
+describe("filtersToQueryParams — dialect overrides", () => {
+    const eq = (field: string): Filter[] => [{ field, operator: "eq", value: "acme" }];
+
+    it("special-cases the caller's substring columns instead of only `name`", () => {
+        const options = { substringColumns: ["razao_social"] };
+
+        expect(encode(eq("razao_social"), options)).toBe("razao_social__iexact=acme");
+        expect(encode(eq("name"), options)).toBe("name=acme");
+    });
+
+    it("turns the special case off entirely with an empty list", () => {
+        expect(encode(eq("name"), { substringColumns: [] })).toBe("name=acme");
+    });
+
+    it("keeps `name` special when no override is given", () => {
+        expect(encode(eq("name"))).toBe("name__iexact=acme");
+    });
+
+    it("merges an operator override over the default table", () => {
+        const options = { operatorSuffix: { ne: "__exclude" } };
+
+        expect(encode([{ field: "status", operator: "ne", value: "pago" }], options)).toBe(
+            "status__exclude=pago",
+        );
+        expect(encode([{ field: "titulo", operator: "contains", value: "nota" }], options)).toBe(
+            "titulo__icontains=nota",
+        );
+    });
+
+    it("leaves the module default untouched by a previous override", () => {
+        encode([{ field: "status", operator: "ne", value: "pago" }], {
+            operatorSuffix: { ne: "__exclude" },
+        });
+
+        expect(encode([{ field: "status", operator: "ne", value: "pago" }])).toBe(
+            "status__ne=pago",
         );
     });
 });

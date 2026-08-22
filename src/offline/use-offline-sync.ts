@@ -1,4 +1,5 @@
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
+import { useLatestRef } from "@/hooks/use-latest-ref";
 import type {
     OfflineSync,
     OutboxOp,
@@ -72,14 +73,11 @@ export function useOfflineSync<TPayload>(
 
     const state = useSyncExternalStore(sync.subscribe, sync.getState, sync.getState);
 
-    const flushRef = useRef(sync.flush);
-    useEffect(() => {
-        flushRef.current = sync.flush;
-    }, [sync.flush]);
+    const flushRef = useLatestRef(sync.flush);
 
     useEffect(() => {
         if (flushOnMount) void flushRef.current("boot");
-    }, [flushOnMount]);
+    }, [flushOnMount, flushRef]);
 
     useEffect(() => {
         if (!flushOnOnline || typeof window === "undefined") return;
@@ -88,7 +86,7 @@ export function useOfflineSync<TPayload>(
         };
         window.addEventListener("online", handleOnline);
         return () => window.removeEventListener("online", handleOnline);
-    }, [flushOnOnline]);
+    }, [flushOnOnline, flushRef]);
 
     useEffect(() => {
         if (intervalMs <= 0 || typeof window === "undefined") return;
@@ -96,7 +94,7 @@ export function useOfflineSync<TPayload>(
             void flushRef.current("interval");
         }, intervalMs);
         return () => window.clearInterval(id);
-    }, [intervalMs]);
+    }, [intervalMs, flushRef]);
 
     return {
         ...state,

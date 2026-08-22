@@ -1,13 +1,6 @@
-import {
-    createContext,
-    useCallback,
-    useContext,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { useLatestRef } from "@/hooks/use-latest-ref";
 import type { ResolvedTheme, ThemeMode } from "./types";
 
 export interface ThemeContextValue {
@@ -114,16 +107,10 @@ export function ThemeProvider({
     );
     const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => resolve(theme));
 
-    const targetRef = useRef<typeof target>(target);
-    useEffect(() => {
-        targetRef.current = target;
-    }, [target]);
+    const targetRef = useLatestRef(target);
 
     const attributeKey = Array.isArray(attribute) ? attribute.join(",") : attribute;
-    const themeColorRef = useRef(themeColor);
-    useEffect(() => {
-        themeColorRef.current = themeColor;
-    }, [themeColor]);
+    const themeColorRef = useLatestRef(themeColor);
 
     useEffect(() => {
         const element = targetRef.current?.() ?? document.documentElement;

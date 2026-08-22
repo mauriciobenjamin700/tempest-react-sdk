@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { useLatestRef } from "./use-latest-ref";
 
 /**
  * Options for {@link useOnline}. Omit them for the cheap `navigator.onLine`
@@ -42,10 +43,7 @@ export function useOnline(options: UseOnlineOptions = {}): boolean {
     );
     const [reachable, setReachable] = useState<boolean>(true);
 
-    const optionsRef = useRef({ pingUrl, timeoutMs });
-    useEffect(() => {
-        optionsRef.current = { pingUrl, timeoutMs };
-    }, [pingUrl, timeoutMs]);
+    const optionsRef = useLatestRef({ pingUrl, timeoutMs });
 
     useEffect(() => {
         if (typeof window === "undefined") return;
@@ -95,7 +93,7 @@ export function useOnline(options: UseOnlineOptions = {}): boolean {
             window.removeEventListener("online", onWake);
             document.removeEventListener("visibilitychange", onWake);
         };
-    }, [pingUrl, intervalMs]);
+    }, [pingUrl, intervalMs, optionsRef]);
 
     return pingUrl ? navOnline && reachable : navOnline;
 }

@@ -181,7 +181,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ createResumableUpload, createLocalUploadStorage, uploadFingerprint }"
     },
-    "limit": "3 KB",
+    "limit": "3.1 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -307,7 +307,7 @@
   {
     "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "139 kB",
+    "limit": "140 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -405,6 +405,15 @@
       "./dist/icons.js": "{ IconProvider, createIconRegistry }"
     },
     "limit": "1 KB",
+    "ignore": ["react", "react-dom", "react/jsx-runtime"]
+  },
+  {
+    "name": "slice: icons — the Material Symbols bridge",
+    "path": "dist/icons.js",
+    "import": {
+      "./dist/icons.js": "{ fromMaterialSymbol }"
+    },
+    "limit": "2.6 KB",
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {

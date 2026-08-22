@@ -1,5 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { BarList } from "./BarList";
 import { buildBarListRows } from "./bar-list-model";
@@ -217,12 +217,64 @@ describe("buildBarListRows", () => {
         expect(rows.map((row) => row.label)).toEqual(["b"]);
     });
 
-    it("cycles the palette index across eight series", () => {
+    it("numbers the rows in render order, which is what the palette cycles on", () => {
         const items = Array.from({ length: 10 }, (_, index) => ({
             label: `s${index}`,
             value: 10 - index,
         }));
         const rows = buildBarListRows(items, "desc", undefined, undefined);
-        expect(rows.map((row) => row.index % 8)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 0, 1]);
+        expect(rows.map((row) => row.index)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    });
+});
+
+const series = (count: number) =>
+    Array.from({ length: count }, (_, index) => ({ label: `s${index}`, value: count - index }));
+
+const fillColor = (index: number): string => {
+    const item = screen.getAllByRole("listitem")[index];
+    const fill = item?.querySelector("div > div") as HTMLElement;
+    return fill.style.backgroundColor;
+};
+
+/**
+ * The bug this covers is invisible in the default theme.
+ *
+ * With all eight `--tempest-chart-*` slots set, cycling on a hardcoded `8` and
+ * cycling on the declared count give the same answer — so nothing looks wrong
+ * until a brand declares fewer series, and then rows seven and eight quietly
+ * come back in the SDK's own blue and teal. `--tempest-chart-count` exists to
+ * prevent exactly that, and `BarList` was the first reader of the ramp that
+ * ignored it.
+ */
+describe("BarList — palette", () => {
+    afterEach(() => {
+        document.documentElement.style.removeProperty("--tempest-chart-count");
+        for (let index = 1; index <= 8; index += 1) {
+            document.documentElement.style.removeProperty(`--tempest-chart-${index}`);
+        }
+    });
+
+    it("cycles within a brand palette smaller than the eight slots", () => {
+        const brand = ["#111111", "#222222", "#333333"];
+        brand.forEach((value, index) => {
+            document.documentElement.style.setProperty(`--tempest-chart-${index + 1}`, value);
+        });
+        document.documentElement.style.setProperty("--tempest-chart-count", "3");
+
+        render(<BarList items={series(5)} />);
+
+        expect(fillColor(0)).toBe("rgb(17, 17, 17)");
+        expect(fillColor(2)).toBe("rgb(51, 51, 51)");
+        expect(fillColor(3)).toBe("rgb(17, 17, 17)");
+        expect(fillColor(4)).toBe("rgb(34, 34, 34)");
+    });
+
+    it("still lets a per-item colour win over the palette", () => {
+        document.documentElement.style.setProperty("--tempest-chart-1", "#111111");
+        document.documentElement.style.setProperty("--tempest-chart-count", "1");
+
+        render(<BarList items={[{ label: "a", value: 1, color: "#ff0000" }]} />);
+
+        expect(fillColor(0)).toBe("rgb(255, 0, 0)");
     });
 });

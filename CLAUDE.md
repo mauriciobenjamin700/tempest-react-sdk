@@ -104,6 +104,24 @@ tempest-react-sdk/
 
 ## Backlog priorizado
 
+**O backlog vive nas issues do GitHub, não aqui.** Esta seção guarda só o que já
+saiu; o estado corrente de cada frente está na issue. `gh issue list` para a lista
+viva.
+
+Aberto hoje, em ordem de valor:
+
+| #                                                                           | Frente                                  | Por que importa                                                                                                                                                  |
+| --------------------------------------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [#201](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/201) | Ordem por registro no outbox            | Perda silenciosa de dado: `create` que falha + `update` entregue = servidor cria pelo payload do update e o `create` reenviado sobrescreve com o snapshot antigo |
+| [#199](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/199) | `resumable-upload` e o default de retry | Última cópia da política permissiva. **Cuidado:** `resync.needed` e o `404` de sessão expirada mudam a resposta por status                                       |
+| [#200](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/200) | `manualSearch` sem `onSearchChange`     | A quarta implicação da família, que nem o tipo nem o aviso cobrem                                                                                                |
+
+Lição que vale mais que a lista: **conferir a `main` antes de começar.** Duas
+frentes desta rodada foram resolvidas em paralelo por outra máquina — o gate de
+dev-mode (`src/utils/dev-mode.ts`) e o crescimento do `materialToLucide` — e a
+versão de lá do dev-mode estava **certa** onde a minha estava errada. `git fetch`
+e comparar antes de investir horas.
+
 Entregue e fora do backlog: **`CodeBlock`** (realce por scanner + tokens `--tempest-code-*`), **`QRCode`** (encoder ISO 18004 próprio, 3,2 KB br), **`Sparkline`** (mini-gráfico inline, sem recharts), **escala contínua de data viz** (`sequentialScale`/`divergingScale`), **`NotificationCenter`** (inbox de push), **`VirtualTable`**, **ícone por slug (`/icons`, issue #37)**, **`tempest fix` convertendo import relativo pra `@/` (issue #56)**, release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`), sweep `axe` em jsdom + smoke Playwright do gallery (`e2e.yml`), coverage gateando o CI (pisos 98/97/96/94), política de versionamento de tokens CSS (`docs/styles.md`).
 
 ### P1 — componentes

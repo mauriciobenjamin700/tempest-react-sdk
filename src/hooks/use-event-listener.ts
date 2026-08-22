@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
+import { useLatestRef } from "./use-latest-ref";
 
 type AnyEventTarget = EventTarget | { current: EventTarget | null } | null | undefined;
 
@@ -40,10 +41,7 @@ export function useEventListener(
     target?: AnyEventTarget,
     options?: AddEventListenerOptions | boolean,
 ): void {
-    const handlerRef = useRef(handler);
-    useEffect(() => {
-        handlerRef.current = handler;
-    }, [handler]);
+    const handlerRef = useLatestRef(handler);
 
     useEffect(() => {
         const resolvedTarget: EventTarget | null =
@@ -60,5 +58,5 @@ export function useEventListener(
         const listener: EventListener = (event) => handlerRef.current(event);
         resolvedTarget.addEventListener(eventName, listener, options);
         return () => resolvedTarget.removeEventListener(eventName, listener, options);
-    }, [eventName, target, options]);
+    }, [eventName, target, options, handlerRef]);
 }

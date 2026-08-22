@@ -392,6 +392,27 @@ export function People() {
 | `onSearchChange` | `(term: string) => void` | The typed term; debouncing is yours. |
 | `loading` | `boolean` | A request is in flight. |
 
+!!! check "The compiler now rejects the invalid combination"
+    The props are a **union** of the shapes that work, so three mistakes that used
+    to compile are now build errors at your call site:
+
+    | What you wrote | Why it does not compile |
+    | --- | --- |
+    | `totalItems` without `page`/`onPageChange` | The pager would move the internal page while `data` keeps showing page one |
+    | `page` without `onPageChange` | A controlled page with nobody to change it |
+    | `manualSort` without `onSortChange` | The header arrow turns and nothing else happens |
+
+    Through v0.44.0 each prop was optional on its own, so this only ever showed up
+    as a `console.warn` in dev, in the browser, with the component mounted — your
+    CI's `tsc` never saw it. The runtime warnings remain, for the callers types
+    cannot reach (plain JavaScript, or props arriving through an `any`-typed
+    spread).
+
+    Both halves are exported when you need them: `DataTableBaseProps`,
+    `DataTablePagingProps` and `DataTableSortProps`. `Partial` of a union does not
+    work — to vary only the shared half in a test helper, use
+    `Partial<DataTableBaseProps<T>>`.
+
 !!! danger "Search and sort **must** come along — filtering the page lies"
     `searchable` on its own filters `data` in memory, and in server mode `data` is
     only the current page. The user types, everything not on page 3 disappears, and
@@ -487,6 +508,19 @@ import { BarList } from "tempest-react-sdk";
 !!! note "`otherLabel` only aggregates when more than one row was cut"
     Collapsing a single row into "Others" would hide its name for nothing — in that
     case it appears under its own name.
+
+!!! tip "The palette honours `--tempest-chart-count`"
+    Each row's colour comes from `useChartColors`, the same resolver every chart in
+    the SDK uses, so a theme declaring **fewer** than eight series cycles within its
+    own palette. A 6-colour brand theme repeats its 1st and 2nd on rows 7 and 8
+    instead of falling back to the SDK's default blue and teal.
+
+    Through v0.44.0 the colour was read as `var(--tempest-chart-N)` with
+    `N = index % 8`. CSS cannot use `--tempest-chart-count` as a modulus, so the `8`
+    was hardcoded and a brand lost its last two rows. `palette.ts` imports nothing,
+    so this pulls no chart library into the slice.
+
+    A per-item `color` still wins over everything.
 
 !!! tip "The arithmetic is exported: `buildBarListRows`"
     `buildBarListRows(items, sort, max, otherLabel)` returns the rows already

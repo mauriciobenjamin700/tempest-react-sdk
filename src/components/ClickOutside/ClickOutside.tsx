@@ -1,4 +1,5 @@
 import { useEffect, useRef, type HTMLAttributes, type ReactNode } from "react";
+import { useLatestRef } from "@/hooks/use-latest-ref";
 
 export interface ClickOutsideProps extends HTMLAttributes<HTMLDivElement> {
     /** Called when a pointer event lands outside the wrapped subtree. */
@@ -19,10 +20,7 @@ export interface ClickOutsideProps extends HTMLAttributes<HTMLDivElement> {
  */
 export function ClickOutside({ onOutside, children, ...props }: ClickOutsideProps): ReactNode {
     const ref = useRef<HTMLDivElement>(null);
-    const handlerRef = useRef(onOutside);
-    useEffect(() => {
-        handlerRef.current = onOutside;
-    }, [onOutside]);
+    const handlerRef = useLatestRef(onOutside);
 
     useEffect(() => {
         if (typeof document === "undefined") {
@@ -43,7 +41,7 @@ export function ClickOutside({ onOutside, children, ...props }: ClickOutsideProp
             document.removeEventListener("mousedown", handle);
             document.removeEventListener("touchstart", handle);
         };
-    }, []);
+    }, [handlerRef]);
 
     return (
         <div ref={ref} {...props}>

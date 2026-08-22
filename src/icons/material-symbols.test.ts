@@ -83,3 +83,77 @@ describe("fromMaterialSymbol", () => {
         }
     });
 });
+
+/**
+ * What the batch of hand-written pairs has to keep true.
+ *
+ * The table grew from 22 to 214 entries by taking the head of Material Symbols'
+ * published popularity ranking, so the risk profile changed: the guards above
+ * already prove every target is a real canonical lucide slug (they caught
+ * `smile` and `history`, both deprecated aliases, on the first run), and what is
+ * left to pin is that the *keys* are real Material Symbols names and that the
+ * collapsing is deliberate rather than accidental.
+ */
+describe("materialToLucide — the seeded batch", () => {
+    it("covers the codes an admin screen reaches for first", () => {
+        const everyday = [
+            "search",
+            "home",
+            "add",
+            "edit",
+            "delete",
+            "close",
+            "person",
+            "logout",
+            "visibility",
+            "shopping_cart",
+            "notifications",
+            "calendar_month",
+            "location_on",
+            "credit_card",
+            "local_shipping",
+        ];
+
+        for (const code of everyday) {
+            expect(materialToLucide[code], code).toBeDefined();
+        }
+    });
+
+    it("sends the outline twin of a name to the same slug as the filled one", () => {
+        const twins: ReadonlyArray<readonly [string, string]> = [
+            ["favorite", "favorite_border"],
+            ["check_circle", "check_circle_outline"],
+            ["person", "person_outline"],
+            ["error", "error_outline"],
+            ["help", "help_outline"],
+            ["mail", "mail_outline"],
+            ["delete", "delete_outline"],
+            ["add_circle", "add_circle_outline"],
+        ];
+
+        for (const [filled, outline] of twins) {
+            expect(materialToLucide[outline], outline).toBe(materialToLucide[filled]);
+        }
+    });
+
+    it("keeps every key a snake_case Material Symbols name", () => {
+        const malformed = Object.keys(materialToLucide).filter(
+            (code) => !/^[a-z][a-z0-9_]*$/.test(code),
+        );
+
+        expect(malformed).toEqual([]);
+    });
+
+    it("resolves every key through fromMaterialSymbol to the slug the table names", () => {
+        const wrong = Object.entries(materialToLucide).filter(
+            ([code, slug]) => fromMaterialSymbol(code) !== slug,
+        );
+
+        expect(wrong).toEqual([]);
+    });
+
+    it("keeps the fallback reachable only for a code the table does not have", () => {
+        expect(fromMaterialSymbol("no_such_code_exists")).toBe(MATERIAL_SYMBOL_FALLBACK);
+        expect(materialToLucide.no_such_code_exists).toBeUndefined();
+    });
+});

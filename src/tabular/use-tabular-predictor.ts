@@ -7,7 +7,8 @@
  * `status` and `predict`.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useLatestRef } from "@/hooks/use-latest-ref";
 
 import { fetchModelBytes, type ModelCacheOptions } from "./cache";
 import { TabularPredictor } from "./predictor";
@@ -86,11 +87,7 @@ export function useTabularPredictor(
     const [error, setError] = useState<Error | null>(null);
     const [attempt, setAttempt] = useState(0);
 
-    const optionsRef = useRef(options);
-
-    useEffect(() => {
-        optionsRef.current = options;
-    });
+    const optionsRef = useLatestRef(options);
 
     useEffect(() => {
         if (source === null) {
@@ -137,7 +134,7 @@ export function useTabularPredictor(
             setPredictor(null);
             void loaded?.dispose();
         };
-    }, [source, attempt]);
+    }, [source, attempt, optionsRef]);
 
     const predict = useCallback(
         async (rows: readonly FeatureRow[]): Promise<TabularPrediction> => {

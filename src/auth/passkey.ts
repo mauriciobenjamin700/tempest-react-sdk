@@ -6,6 +6,9 @@
  * in the same order — and the file's docstring is also the specification of the four
  * backend routes it expects.
  */
+
+import { base64ToBytes, bytesToBase64 } from "@/utils/base64";
+
 /**
  * Classified reason a passkey ceremony did not produce a credential.
  *
@@ -280,31 +283,28 @@ function publicKeyCredentialStatics(): PublicKeyCredentialStatics | undefined {
  * `atob` and losing the last byte — is the classic broken-WebAuthn bug, which is
  * why the SDK owns it instead of leaving it to each app.
  *
+ * This is the WebAuthn-facing name for {@link base64ToBytes}; the codec itself is
+ * shared, so the padding rule has one implementation rather than three.
+ *
  * @param value - Base64url text, with or without `=` padding.
  * @returns The decoded bytes.
  */
 export function base64UrlToBytes(value: string): Uint8Array<ArrayBuffer> {
-    const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
-    const binary = atob(padded);
-    const bytes = new Uint8Array(binary.length);
-    for (let index = 0; index < binary.length; index += 1) {
-        bytes[index] = binary.charCodeAt(index);
-    }
-    return bytes;
+    return base64ToBytes(value);
 }
 
 /**
  * Encode bytes as an unpadded base64url string.
+ *
+ * Normalises `ArrayBuffer` to a view — which is what the WebAuthn response
+ * fields hand over — and delegates the encoding to {@link bytesToBase64}.
  *
  * @param value - Bytes to encode, as a view or a raw buffer.
  * @returns Base64url text, safe to put in JSON and in a URL.
  */
 export function bytesToBase64Url(value: ArrayBuffer | Uint8Array): string {
     const bytes = value instanceof Uint8Array ? value : new Uint8Array(value);
-    let binary = "";
-    for (const byte of bytes) binary += String.fromCharCode(byte);
-    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    return bytesToBase64(bytes, { urlSafe: true });
 }
 
 /**

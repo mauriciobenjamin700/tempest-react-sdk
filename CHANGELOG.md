@@ -4,6 +4,119 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Breaking
+
+- **As props do `DataTable` viraram união discriminada.** Três combinações que
+  compilavam passaram a ser erro de build: `totalItems` sem `page`/`onPageChange`,
+  `page` sem `onPageChange`, e `manualSort` sem `onSortChange`. O hook de aviso
+  admitia na docstring que _"the only place to catch them is at runtime"_ — mas
+  podiam ser tipo, e o consumidor só descobria rodando em dev, no browser, com o
+  componente montado.
+
+  `DataTableProps<T>` agora é
+  `DataTableBaseProps<T> & DataTablePagingProps & DataTableSortProps<T>`, os três
+  exportados. **Migração:** se o build quebrar, ele já estava quebrado — a tabela
+  mentia em runtime; adicione a prop que falta. O caso não-óbvio é
+  `Partial<DataTableProps<T>>`, que não funciona mais (`Partial` de união achata
+  para algo que membro nenhum aceita) — use `Partial<DataTableBaseProps<T>>`.
+
+  Os avisos de runtime **ficam**, para os callers que o tipo não alcança
+  (JavaScript puro, props por spread `any`).
+
+### Corrigido
+
+- **A política de retry tinha três donos e já havia divergido.**
+  `createApiClient({ retry: true })` retentava `{0, 408, 425, 429}` + `5xx`, o
+  default de query retentava `{408, 429}` — **sem o `425`** — e `retry()` tinha
+  `shouldRetry = () => true`, replicando `403` e `404`. O contrato em
+  `http/types.ts` sempre disse `{0, 408, 425, 429}` + `5xx`. Nenhum teste pegava,
+  porque cada arquivo conferia contra a própria cópia.
+
+  `isRetriableStatus(status)` é exportado e é a única dona da classificação; o
+  teste novo afirma o **acordo** entre as três superfícies. Duas mudanças de
+  comportamento, ambas na direção do contrato: `useQuery` passa a retentar `425`,
+  e `retry()` sem `shouldRetry` para de replicar recusa deliberada (quem dependia
+  do default permissivo passa `shouldRetry: () => true`).
+
+- **`BarList` ignorava `--tempest-chart-count`.** Um tema de marca com 6 cores
+  recebia o azul e o teal default do SDK nas linhas 7 e 8 — a regressão que o token
+  existe para evitar. O `8` fixo não dava para consertar em CSS (`var()` não usa o
+  token como módulo), então a cor passa a vir de `useChartColors`. Confirmado em
+  browser real: com `--tempest-chart-count: 3`, as linhas 4 e 5 voltam para a 1ª e
+  a 2ª cor da marca.
+
+- **`compressedStorage` prometia ser intercambiável com `storage` e não tinha
+  `remove()`.** Os dois passam a ser `createJsonStorage(codec)` — superfície
+  idêntica por construção.
+
+- **A heurística de miss no i18n errava em catálogo que mapeia chave→chave.**
+  `resolve()` no `useDescribeApiError` comparava o retorno de `t` com a chave para
+  decidir "o catálogo não definiu isso", o que trata
+  `{ "tempest.error.offline": "tempest.error.offline" }` como miss e faz o default
+  pt-BR vencer uma tradução que existia. Agora quem responde é a camada de i18n,
+  via o `default` do `t`.
+
+### Adicionado
+
+- **`isRetriableStatus`** — a política de retry, reutilizável num `shouldRetry`
+  próprio.
+- **`t(key, params, { default })` e `plural(..., { default })`** — texto default por
+  chave, interpolado como qualquer outra mensagem. `TranslateOptions` exportado.
+- **`createJsonStorage(codec)`** + `StorageCodec` / `JsonStorage`.
+- **`filtersToQueryParams(filters, options)`** — `substringColumns` e
+  `operatorSuffix` deixam de ser constante fechada. O `SUBSTRING_COLUMN = "name"`
+  era um encoder genérico tratando literalmente a coluna chamada `name` de forma
+  especial, para qualquer app. Aditivo: os defaults preservam o comportamento.
+
+### Alterado
+
+- **`materialToLucide` foi de 130 para 261 pares**, unindo o lote de ofícios com a
+  cabeça do ranking de popularidade publicado pelo Google
+  (`fonts.google.com/metadata/icons`) — uso medido, não chute. Seis chaves
+  apareciam nos dois lotes com destinos diferentes; o desempate foi preferir o
+  mapeamento que mantém dois nomes distintos do Material Symbols distintos no
+  lucide (`error` → `circle-alert` porque `cancel` já é `circle-x`, e assim por
+  diante). Custo medido e com fatia própria no `size-limit`; nada em `/icons`
+  importa o módulo, então quem não guarda Material Symbols não paga.
+
+- **Comparação de texto deixa de construir um `Intl.Collator` por chamada.**
+  Medido em 200k comparações: 453 ms contra 25 ms com o collator hasteado.
+  Caía uma vez por linha por filtro em `applyFilters` (~23 ms de main thread por
+  tecla numa lista de 10k) e O(n log n) por sort em `compareValues`.
+
+- **`applyFilters` normaliza cada filtro uma vez**, antes da varredura, em vez de
+  por linha.
+
+- **`preload()` do `createSfxPool` não reinicia mais o download do que já está no
+  pool.** O `load()` abortava a requisição em voo e descartava o buffer, e a doc do
+  `useSfxPool` põe `preload` num effect de mount — acontecia a cada tela montada.
+
+- **Menos trabalho por render em `DataTable` e `BarList`** — o memo de
+  `effectiveSearchKeys` varria o dataset com a busca desligada ou delegada;
+  `buildBarListRows` rodava a cada render.
+
+- **`useCountdown` e `useTypewriter` compõem `useInterval`.** O typewriter chamava
+  `clearInterval` de dentro do updater do `setCount` — efeito colateral numa função
+  de redução, que o StrictMode pode invocar duas vezes.
+
+- **`useLatestRef` deixou de ser API publicada sem consumidor** — 19 instâncias em
+  18 arquivos migradas. `usePrevious` fica de fora de propósito: ele quer o valor do
+  commit **anterior**, então depende da escrita em effect.
+
+- **Um codec bytes↔base64 em vez de três.** A versão compartilhada é a **chunked**;
+  a "correção mínima" óbvia (adotar o loop byte-a-byte) seria downgrade de
+  performance no payload de centenas de KB. O teste usa o loop como oráculo e
+  afirma que os dois concordam byte a byte, inclusive na fronteira de janela.
+
+- **O plugin de SW em dev deixa de bundlear a frio a cada requisição** — um
+  `esbuild.context()` incremental, com `dispose()` nos dois caminhos de shutdown
+  (sem ele, cada restart do dev server deixaria um processo do esbuild pendurado).
+
+- **Duplicação removida sem mudança de comportamento**: `dayKey` delegando a
+  `formatDateForInput`, `syntheticDetail` exportado de `http/errors.ts` em vez de
+  ter o literal `Erro ${status}` copiado, e a regra de prefixo do `base` dos plugins
+  Vite com três cópias virando `basePrefix`.
+
 ## [0.48.0] — 2026-08-21
 
 ### Adicionado

@@ -6,7 +6,7 @@
  */
 import { randomId } from "../utils";
 import { buildApiUrl } from "./build-url";
-import { buildApiError, TempestApiError } from "./errors";
+import { buildApiError, TempestApiError, isRetriableStatus } from "./errors";
 import { retry as retryWithBackoff } from "./retry";
 import type { RetryOptions } from "./retry";
 import type { ApiClient, ApiClientConfig, RequestOptions } from "./types";
@@ -25,7 +25,6 @@ const IDEMPOTENT_METHODS: ReadonlySet<string> = new Set(["GET", "HEAD", "OPTIONS
  * request timeout, a too-early replay, and a rate limit — which usually carries
  * the `Retry-After` the backoff already honours.
  */
-const RETRIABLE_STATUSES: ReadonlySet<number> = new Set([0, 408, 425, 429]);
 
 /**
  * The built-in retry policy, used when `retry` is `true` or is options carrying
@@ -42,7 +41,7 @@ const RETRIABLE_STATUSES: ReadonlySet<number> = new Set([0, 408, 425, 429]);
 function isRetriableFailure(error: unknown, method: string): boolean {
     if (!IDEMPOTENT_METHODS.has(method)) return false;
     if (!(error instanceof TempestApiError)) return false;
-    return RETRIABLE_STATUSES.has(error.status) || error.status >= 500;
+    return isRetriableStatus(error.status);
 }
 
 /**

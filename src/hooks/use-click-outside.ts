@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useLatestRef } from "./use-latest-ref";
 import type { RefObject } from "react";
 
 /**
@@ -13,10 +14,7 @@ export function useClickOutside<T extends HTMLElement = HTMLElement>(
     handler: () => void,
 ): RefObject<T | null> {
     const ref = useRef<T>(null);
-    const handlerRef = useRef(handler);
-    useEffect(() => {
-        handlerRef.current = handler;
-    }, [handler]);
+    const handlerRef = useLatestRef(handler);
 
     useEffect(() => {
         if (typeof document === "undefined") return;
@@ -33,7 +31,7 @@ export function useClickOutside<T extends HTMLElement = HTMLElement>(
             document.removeEventListener("mousedown", listener);
             document.removeEventListener("touchstart", listener);
         };
-    }, []);
+    }, [handlerRef]);
 
     return ref;
 }

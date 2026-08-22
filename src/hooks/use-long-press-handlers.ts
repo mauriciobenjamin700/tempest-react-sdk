@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useRef } from "react";
+import { useLatestRef } from "./use-latest-ref";
 import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from "react";
 
 /**
@@ -73,10 +74,7 @@ export function useLongPressHandlers(
     const { delayMs = 500, disabled = false } = options;
     const timerRef = useRef<number | null>(null);
     const firedRef = useRef<boolean>(false);
-    const callbackRef = useRef<() => void>(onLongPress);
-    useEffect(() => {
-        callbackRef.current = onLongPress;
-    }, [onLongPress]);
+    const callbackRef = useLatestRef(onLongPress);
 
     const clear = useCallback((): void => {
         if (timerRef.current !== null) {
@@ -93,7 +91,7 @@ export function useLongPressHandlers(
             firedRef.current = true;
             callbackRef.current();
         }, delayMs);
-    }, [disabled, clear, delayMs]);
+    }, [disabled, clear, delayMs, callbackRef]);
 
     const onContextMenu = useCallback(
         (event: ReactMouseEvent): void => {
@@ -102,7 +100,7 @@ export function useLongPressHandlers(
             firedRef.current = true;
             callbackRef.current();
         },
-        [disabled],
+        [disabled, callbackRef],
     );
 
     return {

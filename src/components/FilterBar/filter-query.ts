@@ -21,7 +21,7 @@ import { orderRange } from "./filter-apply";
  * `LIKE` wildcards) and both emptiness operators map to `isnull`, whose value
  * carries the direction.
  */
-const OPERATOR_SUFFIX: Record<FilterOperator, string> = {
+const DEFAULT_OPERATOR_SUFFIX: Record<FilterOperator, string> = {
     eq: "",
     ne: "__ne",
     contains: "__icontains",
@@ -36,15 +36,41 @@ const OPERATOR_SUFFIX: Record<FilterOperator, string> = {
 };
 
 /**
- * Column name the backend treats as a substring search when it carries no
- * operator suffix.
+ * Columns the backend treats as a substring search when they carry no operator
+ * suffix.
  *
  * Ported from `build_filter_condition`, which special-cases a string `name` into
  * `ILIKE %value%`. Sending a bare `name=` for an `eq` filter would therefore ask
- * for "contains" while the chip says "is", so `eq` on this column is emitted as
+ * for "contains" while the chip says "is", so `eq` on such a column is emitted as
  * `name__iexact` instead.
  */
-const SUBSTRING_COLUMN = "name";
+const DEFAULT_SUBSTRING_COLUMNS: ReadonlySet<string> = new Set(["name"]);
+
+/** Overrides for the backend dialect {@link filtersToQueryParams} encodes into. */
+export interface FiltersToQueryParamsOptions {
+    /**
+     * Columns whose `eq` is emitted as `<column>__iexact` rather than as the bare
+     * column name. Default `["name"]`, which is what `build_filter_condition`
+     * special-cases.
+     *
+     * Pass the columns **your** backend treats that way — `nome`, `titulo`,
+     * `razao_social` — or `[]` when it treats none of them specially and a bare
+     * `eq` should stay bare.
+     */
+    substringColumns?: readonly string[];
+    /**
+     * Operator suffixes, merged over the `tempest-fastapi-sdk` dialect, so an
+     * override names only the operators that differ.
+     *
+     * @example
+     * // A DRF-style backend
+     * filtersToQueryParams(filters, {
+     *     substringColumns: [],
+     *     operatorSuffix: { contains: "__icontains", ne: "__exclude" },
+     * });
+     */
+    operatorSuffix?: Partial<Record<FilterOperator, string>>;
+}
 
 /**
  * Encode filters as query params for a paginated backend.
@@ -81,23 +107,47 @@ const SUBSTRING_COLUMN = "name";
  *   will not answer an `empty` filter, while {@link applyFilters} treats blank
  *   text as empty.
  *
+ * The defaults are that dialect, not a universal truth. A backend that names its
+ * substring column something other than `name`, or that spells its operators
+ * differently, passes `options` — the alternative was an encoder whose special
+ * cases were a wall for anyone not on the Tempest stack.
+ *
  * @example
  * const params = filtersToQueryParams(filters);
  * params.set("page", String(page));
  * const data = await api.get(`/orders?${params}`);
  *
+ * @example
+ * // A backend whose searchable column is `razao_social` and that spells `ne`
+ * // the Django way.
+ * const params = filtersToQueryParams(filters, {
+ *     substringColumns: ["razao_social"],
+ *     operatorSuffix: { ne: "__exclude" },
+ * });
+ *
  * @param filters - Applied filters; incomplete ones are ignored.
+ * @param options - Dialect overrides. Defaults to the `tempest-fastapi-sdk` one.
  * @returns Params ready to append to a request URL.
  */
-export function filtersToQueryParams(filters: readonly Filter[]): URLSearchParams {
+export function filtersToQueryParams(
+    filters: readonly Filter[],
+    options: FiltersToQueryParamsOptions = {},
+): URLSearchParams {
+    const suffixes = options.operatorSuffix
+        ? { ...DEFAULT_OPERATOR_SUFFIX, ...options.operatorSuffix }
+        : DEFAULT_OPERATOR_SUFFIX;
+    const substringColumns = options.substringColumns
+        ? new Set(options.substringColumns)
+        : DEFAULT_SUBSTRING_COLUMNS;
+
     const params = new URLSearchParams();
 
     for (const filter of filters) {
         if (!isComplete(filter)) continue;
 
-        const suffix = OPERATOR_SUFFIX[filter.operator];
+        const suffix = suffixes[filter.operator];
         const key =
-            filter.operator === "eq" && filter.field === SUBSTRING_COLUMN
+            filter.operator === "eq" && substringColumns.has(filter.field)
                 ? `${filter.field}__iexact`
                 : `${filter.field}${suffix}`;
 

@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 
+import type { I18n } from "../i18n/create-i18n";
 import { useOptionalI18n } from "../i18n/I18nProvider";
 import {
     API_ERROR_OFFLINE_KEY,
@@ -34,9 +35,13 @@ import {
 /**
  * Look one sentence up in the active catalog, falling back to the pt-BR default.
  *
- * `t` returns the key itself on a miss, so the identity check is what separates
- * "the catalog answered" from "the catalog has no such key" — printing
- * `tempest.error.validation` at a user is worse than printing pt-BR at them.
+ * The miss is the i18n layer's answer, through `t`'s `default`. It used to be
+ * re-derived here by comparing the result against the key that had just been
+ * passed in, which is wrong for a catalog that maps a key to itself —
+ * `{ "tempest.error.offline": "tempest.error.offline" }`, which is what a
+ * machine-generated or placeholder catalog produces. There the app's own
+ * translation lost to the pt-BR default. Only the catalog's owner can answer
+ * "was this key defined", and `lookup()` already knows.
  *
  * @param translate - The active catalog's `t`, if any provider is mounted.
  * @param key - The translation key to look up.
@@ -44,12 +49,12 @@ import {
  * @returns The sentence to hand to `describeApiError`.
  */
 function resolve(
-    translate: ((key: string) => string) | undefined,
+    translate: I18n["t"] | undefined,
     key: string,
     fallbackKey: keyof typeof DEFAULT_API_ERROR_STRINGS,
 ): string {
-    const translated = translate?.(key);
-    return translated && translated !== key ? translated : DEFAULT_API_ERROR_STRINGS[fallbackKey];
+    const fallback = DEFAULT_API_ERROR_STRINGS[fallbackKey];
+    return translate?.(key, undefined, { default: fallback }) ?? fallback;
 }
 
 export function useDescribeApiError(): (error: unknown, fallback: string) => string {

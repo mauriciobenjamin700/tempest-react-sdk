@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLatestRef } from "@/hooks/use-latest-ref";
 import {
     createWebSocket,
     type CreateWebSocketOptions,
@@ -73,10 +74,7 @@ export function useWebSocket<T = unknown>(
     const [lastMessage, setLastMessage] = useState<WebSocketMessage<T> | null>(null);
     const controllerRef = useRef<WebSocketController | null>(null);
 
-    const optionsRef = useRef(options);
-    useEffect(() => {
-        optionsRef.current = options;
-    });
+    const optionsRef = useLatestRef(options);
 
     const protocolsKey = Array.isArray(protocols) ? protocols.join(",") : (protocols ?? "");
 
@@ -124,6 +122,7 @@ export function useWebSocket<T = unknown>(
         respondToPing,
         queueWhileClosed,
         maxQueuedMessages,
+        optionsRef,
     ]);
 
     const send = useCallback((payload: string | Blob | BufferSource): boolean => {

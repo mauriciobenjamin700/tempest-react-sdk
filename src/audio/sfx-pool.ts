@@ -78,6 +78,14 @@ function clampVolume(value: number): number {
  *
  * <button onClick={() => sfx.play("sfx/select.mp3")}>Confirmar</button>
  */
+/** One source's voices plus the round-robin cursor over them. */
+interface SourceEntry {
+    /** The audio elements sharing this source. */
+    elements: HTMLAudioElement[];
+    /** Index of the element the next play claims. */
+    next: number;
+}
+
 export function createSfxPool(options: SfxPoolOptions = {}): SfxPool {
     const { baseUrl = "", voices = 1, maxSources = 48 } = options;
 
@@ -88,7 +96,7 @@ export function createSfxPool(options: SfxPoolOptions = {}): SfxPool {
      * Insertion-ordered by last play, so evicting the first key drops the
      * least recently used source.
      */
-    const sources = new Map<string, { elements: HTMLAudioElement[]; next: number }>();
+    const sources = new Map<string, SourceEntry>();
 
     /**
      * Per-play gain of whatever each element last played at.
@@ -112,19 +120,33 @@ export function createSfxPool(options: SfxPoolOptions = {}): SfxPool {
         }
     }
 
-    function acquire(src: string): { elements: HTMLAudioElement[]; next: number } | null {
+    /**
+     * The pool entry for a source, creating and admitting it when it is new.
+     *
+     * Re-inserts an existing entry so the map order stays "least recently used
+     * first", which is what makes evicting the first key correct.
+     *
+     * `created` is reported because assigning `src` on an element whose `preload`
+     * is `"auto"` already starts the fetch: calling `load()` on an entry that was
+     * merely looked up would abort that fetch and discard whatever is already
+     * buffered, per the media element load algorithm.
+     *
+     * @param src - Raw source, resolved against `baseUrl`.
+     * @returns The entry and whether this call created it, or `null` where
+     *   `Audio` does not exist.
+     */
+    function acquire(src: string): { entry: SourceEntry; created: boolean } | null {
         if (typeof Audio === "undefined") return null;
 
         const url = resolve(src);
         const existing = sources.get(url);
         if (existing) {
-            // Re-insert so the map order stays "least recently played first".
             sources.delete(url);
             sources.set(url, existing);
-            return existing;
+            return { entry: existing, created: false };
         }
 
-        const entry = {
+        const entry: SourceEntry = {
             elements: Array.from({ length: voiceCount }, () => {
                 const element = new Audio(url);
                 element.preload = "auto";
@@ -143,14 +165,15 @@ export function createSfxPool(options: SfxPoolOptions = {}): SfxPool {
             }
         }
 
-        return entry;
+        return { entry, created: true };
     }
 
     return {
         play(src, playOptions = {}) {
-            const entry = acquire(src);
-            if (!entry) return;
+            const acquired = acquire(src);
+            if (!acquired) return;
 
+            const entry = acquired.entry;
             const element = entry.elements[entry.next];
             entry.next = (entry.next + 1) % entry.elements.length;
 
@@ -165,7 +188,9 @@ export function createSfxPool(options: SfxPoolOptions = {}): SfxPool {
 
         preload(src) {
             for (const one of Array.isArray(src) ? src : [src]) {
-                acquire(one)?.elements.forEach((element) => element.load());
+                const acquired = acquire(one);
+                if (!acquired?.created) continue;
+                for (const element of acquired.entry.elements) element.load();
             }
         },
 

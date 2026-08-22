@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useInterval } from "./use-interval";
 
 /** State returned by {@link useTypewriter}. */
 export interface UseTypewriterResult {
@@ -19,6 +20,11 @@ export interface UseTypewriterResult {
  *
  * Always give the reader a way out: an animation that cannot be skipped is a
  * tax on anyone re-reading or moving fast, which is what `skip` is for.
+ *
+ * How far the reveal got is derived rather than stored: a `speedMs` of `0` reads
+ * as "all of it" without a state write, and `useInterval` pausing on a `null`
+ * delay is what stops the timer at the end. Both used to need an effect that
+ * cleared its own interval from inside a state updater.
  *
  * @param text - The full string to reveal. Nullish is treated as empty.
  * @param speedMs - Delay between characters. `0` or less renders instantly,
@@ -43,31 +49,18 @@ export function useTypewriter(text: string, speedMs: number): UseTypewriterResul
         setCount(initialCount);
     }
 
-    useEffect(() => {
-        if (speedMs <= 0 || safeText.length === 0) {
-            setCount(safeText.length);
-            return;
-        }
+    const revealed = speedMs > 0 ? Math.min(count, safeText.length) : safeText.length;
 
-        const id = setInterval(() => {
-            setCount((current) => {
-                const next = current + 1;
-                if (next >= safeText.length) {
-                    clearInterval(id);
-                    return safeText.length;
-                }
-                return next;
-            });
-        }, speedMs);
-
-        return () => clearInterval(id);
-    }, [safeText, speedMs]);
+    useInterval(
+        () => setCount((current) => current + 1),
+        speedMs > 0 && revealed < safeText.length ? speedMs : null,
+    );
 
     const skip = useCallback(() => setCount(safeText.length), [safeText.length]);
 
     return {
-        displayedText: safeText.slice(0, count),
-        isComplete: count >= safeText.length,
+        displayedText: safeText.slice(0, revealed),
+        isComplete: revealed >= safeText.length,
         skip,
     };
 }

@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/refs -- the ref is read inside deferred callbacks, not during render */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useLatestRef } from "@/hooks/use-latest-ref";
 import { WebPushClient, type WebPushClientConfig } from "./web-push-client";
 import { isPushSupported } from "./utils";
 
@@ -35,10 +36,7 @@ export interface UsePushSubscriptionResult {
  * });
  */
 export function usePushSubscription(config: WebPushClientConfig): UsePushSubscriptionResult {
-    const configRef = useRef(config);
-    useEffect(() => {
-        configRef.current = config;
-    }, [config]);
+    const configRef = useLatestRef(config);
 
     const client = useMemo(
         () =>
@@ -48,7 +46,7 @@ export function usePushSubscription(config: WebPushClientConfig): UsePushSubscri
                 onUnsubscribe: (sub) => configRef.current.onUnsubscribe?.(sub),
                 getRegistration: config.getRegistration,
             }),
-        [config.vapidPublicKey, config.getRegistration],
+        [config.vapidPublicKey, config.getRegistration, configRef],
     );
 
     const [supported] = useState<boolean>(() => isPushSupported());

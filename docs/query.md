@@ -35,7 +35,9 @@ Defaults aplicados quando você **não** passa um `client`:
 !!! danger "4xx **não** é retentado — e isso mudou"
     O default era `retry: 1` chapado, que replicava um 403 numa listagem admin-only e um 404 de registro apagado. O servidor recusou de propósito nos dois casos: a segunda tentativa devolve a mesma resposta, dobra o log de rede e segura o spinner na tela por mais um round trip.
 
-    `shouldRetryQuery` retenta uma vez apenas o que pode mudar sozinho: falha de rede (`status === 0`), `5xx`, `408` e `429` (que é uma recusa cujo significado literal é "mais tarde"), e erro de formato desconhecido — que pode ser falha de transporte. Todo o resto do 4xx falha de primeira.
+    `shouldRetryQuery` retenta uma vez apenas o que pode mudar sozinho: falha de rede (`status === 0`), `5xx`, `408`, `425` e `429` (que é uma recusa cujo significado literal é "mais tarde"), e erro de formato desconhecido — que pode ser falha de transporte. Todo o resto do 4xx falha de primeira.
+
+    A classificação vem de `isRetriableStatus`, a mesma que `createApiClient({ retry: true })` e o helper `retry()` usam. Até a v0.44.0 era uma cópia própria aqui, **sem o `425`** — então o mesmo `425 Too Early` era retentado pelo cliente e não pela query.
 
     Se o seu app dependia de retry em 4xx, o override é o de sempre: `defaultOptions={{ queries: { retry: 1 } }}`.
 

@@ -226,7 +226,7 @@ Worth knowing:
 - A retry wraps the **whole** request, refresh included. One attempt that spends the full 401 → refresh → replay cycle counts as a single attempt.
 - Each attempt carries its own `X-Request-ID`, so the backend can tell the attempts apart in its logs.
 - `Retry-After` (on `429`/`503`) is honoured and overrides the backoff for that attempt.
-- Need retries on one specific call rather than the whole client? The [`retry`](#retry-exponential-backoff) helper is still there and unchanged.
+- Need retries on one specific call rather than the whole client? The [`retry`](#retry-exponential-backoff) helper is still there, and now uses the **same** status classification.
 
 ## `parseResponse`
 
@@ -306,8 +306,31 @@ const data = await retry(() => api.get("/flaky-endpoint"), {
 });
 ```
 
-!!! note "`shouldRetry` avoids retrying what won't improve"
-    A 403 or 422 will fail the same way on the 5th try. Filter by `status >= 500` (or network errors) so you don't waste attempts on deterministic errors.
+!!! note "The default already avoids retrying what won't improve"
+    You do **not** need the `shouldRetry` in the example above. Without it, the
+    default replays anything with no API-error shape — a transport failure has no
+    status to judge — and, for the ones that do, only the statuses
+    `isRetriableStatus` accepts: a network failure (`0`), `408`, `425`, `429` and
+    any `5xx`. A 403 or 422 fails on the first try.
+
+!!! tip "`isRetriableStatus` — the policy, reusable"
+    The list is exported, so your own `shouldRetry` extends the policy instead of
+    reimplementing it:
+
+    ```ts
+    import { isApiError, isRetriableStatus, retry } from "tempest-react-sdk";
+
+    const data = await retry(() => api.post("/import", { body }), {
+      shouldRetry: (error) =>
+        isApiError(error) &&
+        (isRetriableStatus(error.status) || error.code === "IMPORT_LOCKED"),
+    });
+    ```
+
+    It is the **single** owner of that decision: the client, the query default and
+    this helper all read from it. There were three lists, and the query one was
+    missing `425` — the same `425 Too Early` was replayed through one path and not
+    the other.
 
 ## `usePoll` — polling with overlap guard
 

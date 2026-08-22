@@ -35,7 +35,9 @@ Defaults applied when you do **not** pass a `client`:
 !!! danger "4xx is **not** retried — and this changed"
     The default used to be a flat `retry: 1`, which replayed a 403 on an admin-only listing and a 404 for a deleted record. The server refused on purpose in both cases: the second attempt returns the same answer, doubles the network log and holds the spinner for another round trip.
 
-    `shouldRetryQuery` retries once only what can change on its own: a network failure (`status === 0`), `5xx`, `408` and `429` (a refusal whose literal meaning is "later"), and an error of unknown shape — which may be a transport failure. Every other 4xx fails on the first try.
+    `shouldRetryQuery` retries once only what can change on its own: a network failure (`status === 0`), `5xx`, `408`, `425` and `429` (a refusal whose literal meaning is "later"), and an error of unknown shape — which may be a transport failure. Every other 4xx fails on the first try.
+
+    The classification comes from `isRetriableStatus`, the same one `createApiClient({ retry: true })` and the `retry()` helper use. Through v0.44.0 this was a local copy **missing `425`** — so the same `425 Too Early` was replayed by the client and not by the query.
 
     If your app relied on retrying 4xx, the override is the usual one: `defaultOptions={{ queries: { retry: 1 } }}`.
 

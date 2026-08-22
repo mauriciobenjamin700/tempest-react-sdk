@@ -112,6 +112,26 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Alterado
 
+- **O par bytes↔base64 tinha três implementações e agora tem uma.**
+  `compressed-storage` (encode em janelas de 32 KiB), `auth/passkey` (loop
+  byte-a-byte, alfabeto base64url) e `http/resumable-upload` (terceira cópia da
+  metade de encode) escreviam o mesmo primitivo de formas diferentes — e duas
+  delas são API pública (`base64UrlToBytes` / `bytesToBase64Url`).
+
+  A versão compartilhada é a **chunked**, não a do `passkey`. Isso importa: a
+  correção "mínima" óbvia seria dropar o chunking e usar o loop byte-a-byte, que é
+  bem mais lento no payload de centenas de KB para o qual o `compressedStorage`
+  existe. O teste novo usa o loop byte-a-byte como oráculo e afirma que os dois
+  concordam byte a byte, inclusive em cima da fronteira de janela — é isso que
+  torna a forma rápida segura de adotar em todo lugar.
+
+  O decoder não tem flag de alfabeto: traduzir `-`/`_` e restaurar o padding são
+  no-ops em base64 padrão, então um decoder permissivo está correto para os dois
+  formatos. `base64UrlToBytes` e `bytesToBase64Url` seguem sendo a face pública
+  (assinatura idêntica, incluindo a normalização de `ArrayBuffer`); o codec
+  compartilhado é interno, para não somar dois nomes públicos ao problema que a
+  mudança resolve.
+
 - **O plugin de SW em dev deixa de bundlear a frio a cada requisição.**
   `tempestPwaDevSw` chamava `esbuild.build()` do zero por request, com
   `write: false` e sem cache. E não é um request por sessão: o

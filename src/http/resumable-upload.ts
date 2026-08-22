@@ -5,6 +5,7 @@
  * throughout. Every stage reads the same cursor and the same abort signal, and
  * createResumableUpload is the closure that owns them.
  */
+import { bytesToBase64 } from "@/utils/base64";
 import { buildApiError, TempestApiError } from "./errors";
 import { generateIdempotencyKey } from "./idempotency";
 import { retry, type RetryOptions } from "./retry";
@@ -150,16 +151,14 @@ interface RawResponse {
  *
  * `Upload-Metadata` carries base64 values precisely so a filename with accents
  * survives an HTTP header, so the UTF-8 step is not optional: `btoa` alone throws
- * on any code point above U+00FF.
+ * on any code point above U+00FF. Only that step is specific here — the
+ * bytes-to-text half is {@link bytesToBase64}.
  *
  * @param value - Text to encode.
  * @returns Padded base64.
  */
 function base64Utf8(value: string): string {
-    const bytes = new TextEncoder().encode(value);
-    let binary = "";
-    for (const byte of bytes) binary += String.fromCharCode(byte);
-    return btoa(binary);
+    return bytesToBase64(new TextEncoder().encode(value));
 }
 
 /**

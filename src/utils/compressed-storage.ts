@@ -1,5 +1,7 @@
 import { gunzipSync, gzipSync } from "fflate";
 
+import { base64ToBytes, bytesToBase64 } from "./base64";
+
 import { createJsonStorage, type JsonStorage, type StorageCodec } from "./storage";
 
 /**
@@ -25,32 +27,6 @@ import { createJsonStorage, type JsonStorage, type StorageCodec } from "./storag
  * JSON document, so the two cases can never be confused.
  */
 const MARKER = "~tgz1:";
-
-/**
- * Base64-encode bytes without splatting the whole array into `fromCharCode`.
- *
- * `String.fromCharCode(...bytes)` overflows the argument limit somewhere around
- * a hundred thousand entries, which a compressed save reaches easily, so the
- * conversion walks the buffer in 32 KiB windows instead.
- */
-function bytesToBase64(bytes: Uint8Array): string {
-    let binary = "";
-    const chunkSize = 0x8000;
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-    }
-    return btoa(binary);
-}
-
-/** Inverse of {@link bytesToBase64}. */
-function base64ToBytes(base64: string): Uint8Array {
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i += 1) {
-        bytes[i] = binary.charCodeAt(i);
-    }
-    return bytes;
-}
 
 /**
  * Serialize a value to a gzipped, base64 string carrying the format marker.

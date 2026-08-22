@@ -408,6 +408,15 @@
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
+    "name": "slice: icons — the Material Symbols bridge (214-pair table)",
+    "path": "dist/icons.js",
+    "import": {
+      "./dist/icons.js": "{ fromMaterialSymbol }"
+    },
+    "limit": "2.2 KB",
+    "ignore": ["react", "react-dom", "react/jsx-runtime"]
+  },
+  {
     "name": "ceiling: largest icon shard (`s`) — the real cost of ONE lazy fetch",
     "path": "dist/icons/generated/shard-s.js",
     "limit": "22 KB",

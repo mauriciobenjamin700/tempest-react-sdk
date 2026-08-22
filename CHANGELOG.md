@@ -112,6 +112,32 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Alterado
 
+- **`materialToLucide` cresceu de 22 para 214 pares, e a escolha dos códigos
+  deixou de ser palpite.** A issue original travava em "os 124 `icon_code` do seed
+  não estão neste repositório". A saída não foi esperar por eles: Material Symbols
+  publica ~6100 nomes **com ranking de popularidade** em
+  `fonts.google.com/metadata/icons`, que é dado de uso real. A tabela agora é a
+  cabeça dessa lista.
+
+  Cada par continua escrito à mão — a revisão é o valor da tabela — mas agora
+  verificado nas duas pontas por script antes de entrar: chave existe no
+  vocabulário do Google, destino existe no lucide e é canônico. Os guards que já
+  existiam pegaram dois na primeira rodada: `face → smile` e `history → history`,
+  ambos aliases depreciados do lucide (canônicos: `face-slightly-smiling` e
+  `rotate-ccw-clock`). Exatamente o bug que esses testes existem para pegar, e que
+  passaria batido numa revisão a olho.
+
+  Custo: **1,64 KB brotli**, e só para quem importa `fromMaterialSymbol` — nada
+  em `/icons` importa esse módulo, então um app que não guarda Material Symbols
+  não paga. Ganhou fatia própria no `.size-limit.json` para o crescimento futuro
+  ficar medido em vez de percebido.
+
+  As aproximações estão documentadas por **classe** em vez de linha por linha
+  (outline/filled colapsando num glifo, variantes de ferramenta colapsando), com
+  tabela explícita só para as oito que realmente mudam de sentido — `delete_forever`
+  perde o "permanente", `add_shopping_cart` perde o "adicionar", `picture_as_pdf`
+  não tem glifo de PDF no lucide.
+
 - **O par bytes↔base64 tinha três implementações e agora tem uma.**
   `compressed-storage` (encode em janelas de 32 KiB), `auth/passkey` (loop
   byte-a-byte, alfabeto base64url) e `http/resumable-upload` (terceira cópia da

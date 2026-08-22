@@ -365,27 +365,49 @@ melhor:
 <Icon name={fromMaterialSymbol(category.icon_code, "folder")} size={20} />
 ```
 
-### A tabela é uma semente, não o vocabulário inteiro
+### O que a tabela cobre, e como ela foi escolhida
 
-Material Symbols tem ~3600 nomes e quase nenhum vai aparecer num `icon_code`
-nosso. `materialToLucide` cobre a interseção útil e **cresce sob demanda**, com
-cada par escrito à mão — mapa gerado por heurística de nome erra feio, a começar
-por `build`, que em Material Symbols é uma chave inglesa e não tem nada a ver com
+`materialToLucide` tem **214 pares**. Material Symbols publica ~6100 nomes, e a
+tabela é a **cabeça dessa lista pelo ranking de popularidade do próprio Google**
+(`fonts.google.com/metadata/icons`) — dado de uso real, não chute sobre quais
+nomes um seed vai conter. Cada chave foi conferida contra aquele vocabulário e
+cada destino contra os slugs canônicos do lucide; os testes desta pasta afirmam as
+duas coisas sobre a tabela inteira, então um rename do lucide falha no CI e não no
+grid do usuário.
+
+Continua sendo semente, não o vocabulário inteiro: cresce do mesmo jeito, um par
+escrito à mão por vez. Mapa gerado por heurística de nome erra feio, a começar por
+`build`, que em Material Symbols é uma chave inglesa e não tem nada a ver com
 construção.
 
-| Material Symbol                              | lucide           | Observação                        |
-| -------------------------------------------- | ---------------- | --------------------------------- |
-| `build`, `handyman`, `hardware`              | `wrench`         | Aproximação — três para um        |
-| `format_paint`                               | `paint-roller`   |                                   |
-| `electrical_services`                        | `plug-zap`       |                                   |
-| `plumbing`                                   | `shower-head`    | Aproximação — lucide não tem cano |
-| `pedal_bike`, `two_wheeler`, `delivery_dining` | `bike`         | Aproximação — três para um        |
-| `settings`, `code`, `key`, `lock`, `shield`, `brush`, `tv`, `smartphone`, `mic`, `palette`, `router`, `gavel`, `warehouse` | (o mesmo nome) | Colidem por acidente |
+#### Onde os dois vocabulários não batem um-para-um
 
-!!! info "Por que as colisões estão na tabela"
-    Esses treze já renderizam hoje, porque o nome bate nos dois vocabulários. Se
-    ficassem de fora, `fromMaterialSymbol` os mandaria para o fallback e a ponte
-    seria uma **regressão** justamente para os códigos que funcionavam.
+Três padrões, todos deliberados:
+
+| Padrão | Exemplo | O que acontece |
+| --- | --- | --- |
+| **Outline e filled são um glifo** | `favorite` / `favorite_border`, `check_circle` / `check_circle_outline`, `person` / `person_outline` | No lucide, preenchido vs. contorno é decisão de render num ícone só, então o par cai no mesmo slug |
+| **Distinção de variante colapsa** | `build` / `handyman` / `hardware` → `wrench`; `view_list` / `list_alt` / `format_list_bulleted` / `reorder` → `list`; os chevrons iOS → chevron comum | Material Symbols separa, lucide não |
+| **Alguns perdem significado** | veja abaixo | Passe slug explícito onde isso importa |
+
+Os que realmente mudam de sentido — vale conhecer:
+
+| Material Symbol | lucide | O que se perde |
+| --- | --- | --- |
+| `delete_forever` | `trash-2` | O "permanente" |
+| `add_shopping_cart` | `shopping-cart` | O "adicionar" |
+| `picture_as_pdf` | `file-text` | lucide não tem glifo de PDF |
+| `face` | `face-slightly-smiling` | Rosto neutro vira rosto sorrindo |
+| `history` | `rotate-ccw-clock` | Relógio com seta, não lista de eventos passados |
+| `payments` | `wallet` | Pilha de cartões vira carteira |
+| `category` | `shapes` | Formas genéricas |
+| `plumbing` | `shower-head` | lucide não tem cano |
+
+!!! info "Por que os 37 pares de identidade estão na tabela"
+    Nomes como `settings`, `code`, `search`, `menu`, `star`, `map` e `folder` batem
+    nos dois vocabulários, então já renderizam hoje. Se ficassem de fora,
+    `fromMaterialSymbol` os mandaria para o fallback e a ponte seria uma
+    **regressão** justamente para os códigos que funcionavam.
 
 !!! warning "Passe a tabela no `include` do plugin"
     Slug resolvido em runtime puxa o shard da letra inicial. Um catálogo com ~130

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLatestRef } from "./use-latest-ref";
 
 export type AsyncStatus = "idle" | "pending" | "success" | "error";
 
@@ -38,10 +39,7 @@ export function useAsync<T>(
         error: unknown;
     }>({ status: "idle", data: undefined, error: undefined });
 
-    const fnRef = useRef(asyncFn);
-    useEffect(() => {
-        fnRef.current = asyncFn;
-    }, [asyncFn]);
+    const fnRef = useLatestRef(asyncFn);
     const callIdRef = useRef<number>(0);
     const mountedRef = useRef<boolean>(true);
 
@@ -67,7 +65,7 @@ export function useAsync<T>(
             }
             throw error;
         }
-    }, []);
+    }, [fnRef]);
 
     const reset = useCallback((): void => {
         callIdRef.current++;

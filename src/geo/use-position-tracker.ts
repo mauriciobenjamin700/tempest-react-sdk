@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLatestRef } from "@/hooks/use-latest-ref";
 import {
     createPositionTracker,
     type CreatePositionTrackerOptions,
@@ -61,10 +62,7 @@ export function usePositionTracker(
     const [status, setStatus] = useState<TrackerStatus>("idle");
 
     const trackerRef = useRef<PositionTracker | null>(null);
-    const onErrorRef = useRef(onError);
-    useEffect(() => {
-        onErrorRef.current = onError;
-    }, [onError]);
+    const onErrorRef = useLatestRef(onError);
 
     useEffect(() => {
         const tracker = createPositionTracker({

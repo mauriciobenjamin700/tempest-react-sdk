@@ -128,6 +128,13 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `mounted` (`useAsync`, `useImageProcessing`) e o `activeGroupRef` do
   `useSortable`, que é escrito num callback e não num effect de sincronia.
 
+  Um segundo lote cobriu os oito sites que a issue não tinha listado e que o
+  mesmo padrão alcançava — `useEventListener`, `useClickOutside`, o componente
+  `ClickOutside`, `useOnline`, `useEventStream`, `usePositionTracker`,
+  `usePushSubscription` e o `fnRef` do `useAsync`. Depois dos dois lotes não
+  sobrou nenhuma ocorrência do idioma antigo no `src/`, fora as três exclusões
+  deliberadas acima.
+
   Efeito colateral visível na revisão: cada effect afetado passou a listar o ref
   nas dependências. O ref é estável, então nada re-executa por causa dele — mas o
   `react-hooks/exhaustive-deps` não consegue provar isso para hook custom como

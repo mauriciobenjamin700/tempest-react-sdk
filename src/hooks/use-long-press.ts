@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
+import { useLatestRef } from "./use-latest-ref";
 import type { RefObject } from "react";
 
 export interface UseLongPressOptions {
@@ -23,10 +24,7 @@ export function useLongPress<T extends HTMLElement>(
     options: UseLongPressOptions = {},
 ): void {
     const { delay = 500, moveThreshold = 10 } = options;
-    const fnRef = useRef(fn);
-    useEffect(() => {
-        fnRef.current = fn;
-    }, [fn]);
+    const fnRef = useLatestRef(fn);
 
     useEffect(() => {
         const node = ref.current;
@@ -72,5 +70,5 @@ export function useLongPress<T extends HTMLElement>(
             node.removeEventListener("pointercancel", cancel);
             node.removeEventListener("pointerleave", cancel);
         };
-    }, [ref, delay, moveThreshold]);
+    }, [ref, delay, moveThreshold, fnRef]);
 }

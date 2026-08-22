@@ -112,6 +112,28 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Alterado
 
+- **`useLatestRef` deixou de ser API publicada sem consumidor.** A v0.44.0
+  publicou o hook e documentou a versão inline em effect como inferior — janela de
+  staleness de um commit — sem migrar nenhum dos sites que a usavam. Onze
+  instâncias em dez arquivos (`useTimeout`, `useInterval`, `useLongPress`,
+  `useLongPressHandlers`, `useServiceWorkerUpdate`, `useWebSocket`,
+  `useOfflineSync`, `useTabularPredictor`, `useCameraStream` e as duas do
+  `ThemeProvider`) passam a usar o hook.
+
+  Verificado antes de mexer: cada um dos onze refs tinha **exatamente uma**
+  escrita — o effect de sincronia que saiu. Onde há mais de uma escrita a migração
+  não é mecânica, e é por isso que `usePrevious` fica de fora **de propósito**: ele
+  quer o valor do commit **anterior**, então depende da escrita em effect. Trocar
+  faria ele devolver o valor presente. Ficam de fora pela mesma razão os flags de
+  `mounted` (`useAsync`, `useImageProcessing`) e o `activeGroupRef` do
+  `useSortable`, que é escrito num callback e não num effect de sincronia.
+
+  Efeito colateral visível na revisão: cada effect afetado passou a listar o ref
+  nas dependências. O ref é estável, então nada re-executa por causa dele — mas o
+  `react-hooks/exhaustive-deps` não consegue provar isso para hook custom como
+  prova para um `useRef` cru, e listar deixa a regra verificar em vez de confiar na
+  omissão. A convenção está escrita na docstring do hook.
+
 - **`materialToLucide` cresceu de 22 para 214 pares, e a escolha dos códigos
   deixou de ser palpite.** A issue original travava em "os 124 `icon_code` do seed
   não estão neste repositório". A saída não foi esperar por eles: Material Symbols

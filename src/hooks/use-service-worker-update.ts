@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLatestRef } from "./use-latest-ref";
 import {
     registerServiceWorker,
     skipWaiting,
@@ -56,10 +57,7 @@ export function useServiceWorkerUpdate(
     const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
     const waitingRef = useRef<ServiceWorker | null>(null);
 
-    const optionsRef = useRef(options);
-    useEffect(() => {
-        optionsRef.current = options;
-    }, [options]);
+    const optionsRef = useLatestRef(options);
 
     useEffect(() => {
         let cancelled = false;
@@ -85,7 +83,7 @@ export function useServiceWorkerUpdate(
         return () => {
             cancelled = true;
         };
-    }, [options.url]);
+    }, [options.url, optionsRef]);
 
     const applyUpdate = useCallback(() => {
         const waiting = waitingRef.current;

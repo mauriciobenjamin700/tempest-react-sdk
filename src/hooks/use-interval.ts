@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
+import { useLatestRef } from "./use-latest-ref";
 
 /**
  * Reactive `setInterval`. Pass `null` as `delay` to pause. `fn` is stored in
@@ -8,14 +9,11 @@ import { useEffect, useRef } from "react";
  * useInterval(() => poll(), enabled ? 5000 : null);
  */
 export function useInterval(fn: () => void, delay: number | null): void {
-    const fnRef = useRef(fn);
-    useEffect(() => {
-        fnRef.current = fn;
-    }, [fn]);
+    const fnRef = useLatestRef(fn);
 
     useEffect(() => {
         if (delay === null) return;
         const id = setInterval(() => fnRef.current(), delay);
         return () => clearInterval(id);
-    }, [delay]);
+    }, [delay, fnRef]);
 }

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
+import { useLatestRef } from "@/hooks/use-latest-ref";
 
 import {
     classifyMediaError,
@@ -125,12 +126,7 @@ export function useCameraStream(options: UseCameraStreamOptions = {}): UseCamera
     const [live, setLive] = useState<MediaStream | null>(null);
     const [retryToken, setRetryToken] = useState(0);
     const videoRef = useRef<HTMLVideoElement | null>(null);
-    const constraintsRef = useRef<MediaStreamConstraints>(
-        options.constraints ?? DEFAULT_CONSTRAINTS,
-    );
-    useEffect(() => {
-        constraintsRef.current = options.constraints ?? DEFAULT_CONSTRAINTS;
-    }, [options.constraints]);
+    const constraintsRef = useLatestRef(options.constraints ?? DEFAULT_CONSTRAINTS);
 
     const enabled = options.enabled ?? true;
 
@@ -196,7 +192,7 @@ export function useCameraStream(options: UseCameraStreamOptions = {}): UseCamera
             }
             setLive(null);
         };
-    }, [retryToken, enabled]);
+    }, [retryToken, enabled, constraintsRef]);
 
     return {
         status,

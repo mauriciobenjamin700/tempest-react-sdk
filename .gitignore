@@ -29,3 +29,8 @@ blob-report/
 # capture runs into the megabytes and nothing in the build reads them.
 /*.png
 !docs/**/*.png
+
+# Claude Code: the agent definitions are shared with the team; worktrees and
+# any other local session state are not.
+.claude/*
+!.claude/agents/

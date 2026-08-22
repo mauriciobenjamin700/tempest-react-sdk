@@ -24,3 +24,8 @@ test-results/
 playwright-report/
 blob-report/
 .playwright/
+
+# Screenshots from the visual-verification step. Kept out of git: a full-page
+# capture runs into the megabytes and nothing in the build reads them.
+/*.png
+!docs/**/*.png

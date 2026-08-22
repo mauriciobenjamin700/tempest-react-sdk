@@ -4,6 +4,29 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **Aviso de desenvolvimento nunca disparava no app consumidor.** `isDev()` lia
+  `import.meta.env.DEV`, que o Vite resolve quando **este pacote** é buildado: em
+  `dist` a função virava literalmente `return !1`. Então o aviso de `<Icon>`
+  (slug que não existe) e o de `<AppBar sticky>` (`body { overflow-x: hidden }`
+  derrubando o sticky, o bug que só aparece no Chrome Android) estavam mortos em
+  todo app que instalou o SDK — a feature inteira era código que nunca rodava.
+
+  O sinal que reflete o modo do **consumidor** é `process.env.NODE_ENV`: ele
+  sobrevive ao build da lib e é substituído pelo bundler dele.
+  `import.meta.env.DEV` fica como fallback, para quem consome o `src` direto.
+  Ambos guardados por `typeof process !== "undefined"`, porque o SDK também roda
+  onde nenhum dos dois existe — contexto de service worker, página ESM sem
+  bundler, script de build. Mesmo idioma que `parse-response.ts` já usava.
+
+  Os avisos do `<DataTable>` funcionavam por acidente: liam `process.env.NODE_ENV`
+  cru — a única ocorrência de `process.env` no `src/`, e sem guard é
+  `ReferenceError` em ESM. Os três sites agora passam por um único
+  `src/utils/dev-warn.ts` (`isDev()` + `warnOnce(key, message)`), então cada aviso
+  imprime **uma vez por chave** em vez de a cada dependência que muda, e o prefixo
+  é `[tempest-react-sdk]` em todos.
+
 ## [0.44.0] — 2026-08-16
 
 ### Adicionado

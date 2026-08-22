@@ -1,5 +1,6 @@
 import { createElement, type ReactNode, type SVGProps } from "react";
 
+import { isDev, warnOnce } from "@/utils/dev-warn";
 import type { IconName } from "./generated/icon-name";
 import { useIconContext } from "./icon-context";
 import { iconStatus } from "./shard-cache";
@@ -63,30 +64,16 @@ export function Icon({ name, size, strokeWidth, fallback = null, ...rest }: Icon
 }
 
 /**
- * Whether the bundle was built for development.
- *
- * Guarded because the SDK also runs where `import.meta.env` does not exist — a
- * service-worker context, a Node test runner, a build-time script.
- */
-function isDev(): boolean {
-    return Boolean(import.meta.env?.DEV);
-}
-
-const warnedSlugs = new Set<string>();
-
-/**
  * Warn once per unknown slug.
  *
- * Once, because `<Icon>` re-renders and a warning per render would bury the
- * console; the set is never cleared, since a slug that does not exist will not
- * start existing within the life of the page.
+ * Keyed by slug rather than latched globally, so a screen with two bad names
+ * reports both — while `<Icon>` re-rendering with the same bad name stays quiet.
  *
  * @param name - The slug that resolved to nothing.
  */
 function warnUnknownIcon(name: string): void {
-    if (warnedSlugs.has(name)) return;
-    warnedSlugs.add(name);
-    console.warn(
+    warnOnce(
+        `icon-unknown-slug:${name}`,
         `[tempest-react-sdk] <Icon name="${name}" /> — no such lucide icon. ` +
             `Slugs are kebab-case ("circle-alert", not "CircleAlert"); check against \`iconNames\`.`,
     );

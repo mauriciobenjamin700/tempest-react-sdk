@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { isDev, warnOnce } from "@/utils/dev-warn";
 
 /**
  * The one line of the app's own CSS that silently defeats `sticky`.
@@ -37,27 +38,6 @@ const MESSAGE =
     "Pass `sticky={false}` if the bar is meant to scroll away.";
 
 /**
- * Whether the bundle was built for development.
- *
- * Guarded because the SDK also runs where `import.meta.env` does not exist — a
- * service-worker context, a Node test runner, a build-time script.
- */
-function isDev(): boolean {
-    return Boolean(import.meta.env?.DEV);
-}
-
-/** Set once the warning has been printed, so re-renders do not bury the console. */
-let warned = false;
-
-/**
- * Reset the warn-once latch. Test-only — the latch is module state, and a suite
- * that renders more than one bar would otherwise see the warning only once.
- */
-export function resetStickyBodyWarning(): void {
-    warned = false;
-}
-
-/**
  * Warn once, in development, when the page's own CSS will keep a sticky bar
  * from sticking.
  *
@@ -73,10 +53,9 @@ export function resetStickyBodyWarning(): void {
  */
 export function useStickyBodyWarning(enabled: boolean): void {
     useEffect(() => {
-        if (!enabled || warned || !isDev()) return;
+        if (!enabled || !isDev()) return;
         if (typeof document === "undefined" || !document.body) return;
         if (getComputedStyle(document.body).overflowX !== "hidden") return;
-        warned = true;
-        console.warn(MESSAGE);
+        warnOnce("appbar-sticky-body-overflow", MESSAGE);
     }, [enabled]);
 }

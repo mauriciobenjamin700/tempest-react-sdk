@@ -1,6 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { resetDevWarnings } from "@/utils/dev-warn";
 
 import { DataTable, type DataTableColumn, type DataTableSort } from "./DataTable";
 
@@ -25,6 +26,7 @@ const firstRowText = (): string => {
 let warn: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
+    resetDevWarnings();
     warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 });
 

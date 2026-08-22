@@ -1,7 +1,7 @@
 import { render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppBar } from "./AppBar";
-import { resetStickyBodyWarning } from "./use-sticky-body-warning";
+import { resetDevWarnings } from "@/utils/dev-warn";
 
 /**
  * What the development warning has to get right.
@@ -18,7 +18,7 @@ describe("AppBar — sticky body warning", () => {
     let warn: ReturnType<typeof vi.spyOn>;
 
     beforeEach(() => {
-        resetStickyBodyWarning();
+        resetDevWarnings();
         warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     });
 

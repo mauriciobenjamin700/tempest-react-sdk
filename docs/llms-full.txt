@@ -1227,14 +1227,22 @@ Coalesce N chamadas de refresh concorrentes em **1** request. Enquanto um refres
 ```ts
 import { createRefreshQueue } from "tempest-react-sdk";
 
-const refresh = createRefreshQueue(async () => {
-  const { token } = await api.post<{ token: string }>("/auth/refresh");
-  useAuthStore.getState().setToken(token);
-});
+const refresh = createRefreshQueue(
+  async () => {
+    const { token } = await api.post<{ token: string }>("/auth/refresh");
+    useAuthStore.getState().setToken(token);
+  },
+  { getToken: () => useAuthStore.getState().token },
+);
 
 // 5 requests com 401 simultâneos → 1 único refresh, todos retomam:
 await Promise.all([refresh(), refresh(), refresh(), refresh(), refresh()]);
 ```
+
+!!! warning "Compartilhar a promise sozinho não colapsa uma rajada — passe o `getToken`"
+    Uma página que dispara várias requests de uma vez recebe vários 401 de volta, mas eles **não chegam na mesma janela**: os retardatários resolvem depois do primeiro refresh já ter terminado, não encontram promise nenhuma pra entrar, e cada um começa outra — rotacionando um token que já está novo. Medido contra um backend de mentira, cinco requests expiradas concorrentes gastaram **dois** refreshes, não um.
+
+    O `getToken` fecha essa brecha: a fila lembra qual token o último refresh instalou, e uma chamada que encontra esse mesmo token ainda no lugar retorna na hora, porque o refresh que ela ia fazer já aconteceu. Aí as mesmas cinco requests gastam exatamente um refresh — e vinte também.
 
 !!! tip "Plugue direto no `createApiClient`"
     Passe a fila como `refresh` no cliente HTTP — ele a chama em todo 401 e a coalescência acontece de graça, evitando uma tempestade de refreshes paralelos derrubando seu endpoint de auth.
@@ -13057,6 +13065,20 @@ Use antes de enviar pro backend, que normalmente espera dígitos crus. Também
 existem `formatCEP` e `formatCNPJ` exportados se você precisar mascarar uma string
 fora de um input controlado.
 
+### Campo só de celular — `formatPhone({ mobile: true })`
+
+Por padrão o agrupamento é decidido pelo **tamanho**, que é o certo pra um campo que aceita fixo e celular. Num campo que só aceita celular ele erra enquanto o usuário digita: qualquer valor até dez dígitos é lido como fixo e o hífen cai depois do quarto dígito do assinante.
+
+```ts
+import { formatPhone } from "tempest-react-sdk";
+
+formatPhone("1191234");                      // "(11) 9123-4"   ← hífen cedo demais
+formatPhone("1191234", { mobile: true });    // "(11) 91234"    ← separador no lugar
+formatPhone("1112345678", { mobile: true }); // "(11) 91234-5678" ← insere o 9
+```
+
+Os dois concordam quando os 11 dígitos entram; a diferença aparece **durante** a digitação, onde o hífen do modo padrão salta pra trás ao chegar o décimo primeiro dígito. O `mobile` também insere o `9` obrigatório, então um número de dez dígitos é corrigido em vez de mascarado como fixo.
+
 ## ViaCEP
 
 `useViaCEP` consulta o serviço público ViaCEP e devolve os campos de endereço — sem
@@ -15298,17 +15320,44 @@ try {
 
 A ordem do funil:
 
-1. **Requisição que não chegou** — `status === 0`, ou um erro qualquer com o browser se declarando offline → frase de offline.
-2. **Rejeição de validação** — `error.fields` preenchido → frase de validação, **não** o `detail` (que é técnico). As mensagens por campo continuam em `fields`.
-3. **`detail` do backend** — o texto mais específico disponível, e já escrito para uma pessoa.
-4. **`fallback`**, com `(HTTP <status>)` anexado quando há status — o print no chamado de suporte carrega o único dado que o dev precisa.
+1. **`codes[error.code]`** — a frase que **você** escreveu pra aquele caso do backend. Ganha de todo o resto: nada que o funil deduz bate uma frase escrita por quem conhecia o contrato e a tela.
+2. **Requisição que não chegou** — `status === 0`, ou um erro qualquer com o browser se declarando offline → frase de offline.
+3. **Rejeição de validação** — `error.fields` preenchido → frase de validação, **não** o `detail` (que é técnico). As mensagens por campo continuam em `fields`.
+4. **`detail` do backend** — o texto mais específico disponível, e já escrito para uma pessoa.
+5. **`fallback`**, com `(HTTP <status>)` anexado quando há status — o print no chamado de suporte carrega o único dado que o dev precisa.
+
+### `codes` — o `switch` que todo app reescrevia
+
+O cliente já entrega o `code` do backend no `ApiError`, mas sem um lugar pra ele cada app escreve o mesmo `switch` pra virar frase no idioma dele:
+
+```ts
+import { describeApiError } from "tempest-react-sdk";
+
+try {
+  await api.post("/services/1/candidates", { body: payload });
+} catch (error) {
+  toast.error(
+    describeApiError(error, "Não foi possível se candidatar", {
+      codes: {
+        SERVICE_FULL: "Este serviço atingiu o limite de vagas.",
+        CANDIDATE_ALREADY_EXISTS: "Você já se candidatou a este serviço.",
+      },
+    }),
+  );
+}
+```
+
+Código que o catálogo não conhece simplesmente segue o funil. Sem `codes`, nada muda.
+
+!!! tip "`useDetail: false` quando o `detail` é pra desenvolvedor"
+    Alguns backends escrevem o `detail` pro log, não pra tela — ou ele ecoa interno. Com `useDetail: false` o passo 4 é pulado e o resultado é sempre uma frase sua, a de offline, a de validação, ou o `fallback` com `(HTTP <status>)`. As frases de offline e validação continuam valendo: elas são do SDK, não do backend.
 
 Duas superfícies, mesmo funil:
 
 | | Quando usar |
 | --- | --- |
-| `describeApiError(error, fallback, strings?)` | Função pura. Roda em interceptor, logger, qualquer lugar fora da árvore React. |
-| `useDescribeApiError()` | Hook. Resolve a frase fixa pelo `I18nProvider` ativo; devolve `(error, fallback) => string`. |
+| `describeApiError(error, fallback, options?)` | Função pura. Roda em interceptor, logger, qualquer lugar fora da árvore React. |
+| `useDescribeApiError()` | Hook. Resolve a frase fixa pelo `I18nProvider` ativo; devolve `(error, fallback, options?) => string`, com as mesmas opções da função pura. |
 
 ```tsx
 import { useDescribeApiError } from "tempest-react-sdk";
@@ -17936,6 +17985,43 @@ useQuery({
   queryFn: () => notificationsStore.list(userId, { orderBy: "created_at", reverse: true }),
 });
 ```
+
+## `createOfflineDatabase` — várias tabelas numa base
+
+`createOfflineStore` dá a cada store uma base só dela, que é a forma certa pra um cache isolado. Deixa de ser assim no instante em que as tabelas pertencem uma à outra: chats e suas mensagens, uma entidade e seus rascunhos, qualquer coisa que você leria ou limparia como uma unidade. Separá-las em bases diferentes custa a transação de verdade — o Dexie só roda uma atomicamente **dentro** de uma mesma base — e ainda espalha o bump de versão de uma mudança relacionada por dois lugares.
+
+```ts
+import { createOfflineDatabase } from "tempest-react-sdk";
+
+type Chat = { id: string; service_id: string; updated_at: string };
+type Message = { id: string; service_chat_id: string; created_at: string };
+
+const database = createOfflineDatabase<{ chats: Chat; messages: Message }>({
+  databaseName: "ChatDatabase",
+  version: 1,
+  tables: {
+    chats: { indexes: "&id, service_id, updated_at" },
+    messages: { indexes: "&id, service_chat_id, created_at" },
+  },
+});
+
+const chats = database.store<Chat>("chats");
+const messages = database.store<Message>("messages");
+
+// As duas tabelas numa transação só — impossível entre bases separadas.
+await database.db.transaction("rw", chats.raw, messages.raw, async () => {
+  await chats.put(chat);
+  await messages.bulkPut(pending);
+});
+```
+
+Cada store tem exatamente a mesma superfície de `createOfflineStore` (`put`, `list`, `update`, `clear`, `count`, `raw`, …); só muda quem é dono da base. O `ownerField` é configurado **por tabela**, porque é comum uma base misturar dado por usuário com dado compartilhado.
+
+!!! note "Por que o tipo vai na chamada, e não no schema"
+    `database.store<Chat>("chats")` repete o tipo que o schema já declara. Não é gosto: o `Table<T>` do Dexie expande `UpdateSpec<T>` sobre as chaves de `T`, e derivar isso de um `TSchema[K]` ainda genérico faz o TypeScript desistir com `TS2589` ("excessively deep"). O **nome** continua checado contra o schema — errar a tabela é erro de tipo, e em runtime a chamada lança listando as disponíveis.
+
+!!! warning "Uma base, uma versão"
+    Mudou o índice de qualquer tabela, sobe o `version` da base inteira. É o preço de tê-las juntas — e é justamente o que evita duas bases relacionadas saírem de sincronia.
 
 ## Migrations
 

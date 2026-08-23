@@ -504,17 +504,44 @@ try {
 
 The funnel, in order:
 
-1. **A request that never left** — `status === 0`, or any error while the browser reports itself offline → the offline sentence.
-2. **A validation rejection** — `error.fields` is set → the validation sentence, **not** `detail` (which is technical). The per-field messages stay on `fields`.
-3. **The backend's `detail`** — the most specific text available, already written for a person.
-4. **`fallback`**, with `(HTTP <status>)` appended when a status is known — the screenshot in the support ticket then carries the one fact a developer needs.
+1. **`codes[error.code]`** — the sentence **you** wrote for that backend case. It beats every other step: nothing the funnel derives can match a sentence written by someone who knew both the contract and the screen.
+2. **A request that never left** — `status === 0`, or any error while the browser reports itself offline → the offline sentence.
+3. **A validation rejection** — `error.fields` is set → the validation sentence, **not** `detail` (which is technical). The per-field messages stay on `fields`.
+4. **The backend's `detail`** — the most specific text available, already written for a person.
+5. **`fallback`**, with `(HTTP <status>)` appended when a status is known — the screenshot in the support ticket then carries the one fact a developer needs.
+
+### `codes` — the switch every app rewrote
+
+The client already surfaces the backend's `code` on `ApiError`, but with nowhere to put it every app writes the same switch to turn it into a sentence in its own language:
+
+```ts
+import { describeApiError } from "tempest-react-sdk";
+
+try {
+  await api.post("/services/1/candidates", { body: payload });
+} catch (error) {
+  toast.error(
+    describeApiError(error, "Could not apply", {
+      codes: {
+        SERVICE_FULL: "This service is full.",
+        CANDIDATE_ALREADY_EXISTS: "You have already applied.",
+      },
+    }),
+  );
+}
+```
+
+A code the catalog does not know simply continues down the funnel. With no `codes`, nothing changes.
+
+!!! tip "`useDetail: false` when `detail` is written for developers"
+    Some backends write `detail` for the log rather than the screen, or it echoes internals. With `useDetail: false` step 4 is skipped, and the result is always a sentence of yours, the offline one, the validation one, or `fallback` with `(HTTP <status>)`. Offline and validation still apply: they belong to the SDK, not to the backend.
 
 Two surfaces, one funnel:
 
 | | When to use |
 | --- | --- |
-| `describeApiError(error, fallback, strings?)` | Pure function. Runs in an interceptor, a logger, anywhere outside the React tree. |
-| `useDescribeApiError()` | Hook. Resolves the fixed sentence through the active `I18nProvider`; returns `(error, fallback) => string`. |
+| `describeApiError(error, fallback, options?)` | Pure function. Runs in an interceptor, a logger, anywhere outside the React tree. |
+| `useDescribeApiError()` | Hook. Resolves the fixed sentence through the active `I18nProvider`; returns `(error, fallback, options?) => string`, taking the same options as the pure function. |
 
 ```tsx
 import { useDescribeApiError } from "tempest-react-sdk";

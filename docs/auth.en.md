@@ -165,14 +165,22 @@ Coalesces N concurrent refresh calls into **1** request. While one refresh is in
 ```ts
 import { createRefreshQueue } from "tempest-react-sdk";
 
-const refresh = createRefreshQueue(async () => {
-  const { token } = await api.post<{ token: string }>("/auth/refresh");
-  useAuthStore.getState().setToken(token);
-});
+const refresh = createRefreshQueue(
+  async () => {
+    const { token } = await api.post<{ token: string }>("/auth/refresh");
+    useAuthStore.getState().setToken(token);
+  },
+  { getToken: () => useAuthStore.getState().token },
+);
 
 // 5 simultaneous 401 requests → 1 single refresh, all resume:
 await Promise.all([refresh(), refresh(), refresh(), refresh(), refresh()]);
 ```
+
+!!! warning "Sharing the promise alone does not collapse a burst — pass `getToken`"
+    A page that fires several requests at once gets several 401s back, but they **do not land inside one window**: the stragglers resolve after the first refresh already finished, find no promise to join, and each starts another one — rotating a token that is already fresh. Measured against a mock backend, five concurrent expired requests took **two** refreshes, not one.
+
+    `getToken` closes that gap: the queue remembers the token its last refresh installed, and a call that finds that same token still in place returns immediately, because the refresh it was about to perform has already happened. The same five requests then take exactly one refresh, and so do twenty.
 
 !!! tip "Plug it straight into `createApiClient`"
     Pass the queue as `refresh` on the HTTP client — it calls it on every 401 and the coalescing happens for free, avoiding a storm of parallel refreshes hammering your auth endpoint.

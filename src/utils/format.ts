@@ -69,18 +69,62 @@ export function formatDateTime(value: string | Date): string {
     }).format(date);
 }
 
+export interface FormatPhoneOptions {
+    /**
+     * Treat the number as a mobile line: insert the mandatory `9` after the area
+     * code when it is missing, and group the subscriber part `5+4` from the
+     * first digit typed instead of waiting for the eleventh.
+     *
+     * Default `false`, which keeps the length-based behaviour: `4+4` up to ten
+     * digits, `5+4` at eleven.
+     */
+    mobile?: boolean;
+}
+
 /**
  * Apply the Brazilian phone mask `(XX) XXXXX-XXXX` or `(XX) XXXX-XXXX`.
  *
+ * By default the grouping is decided by **length**, which is what a field
+ * accepting both landlines and mobiles needs.
+ *
+ * `mobile: true` is for a field that only accepts mobile numbers, and it exists
+ * because the default is wrong as an as-you-type mask there. Reading anything up
+ * to ten digits as a landline puts the hyphen after the fourth subscriber digit,
+ * so a half-typed mobile renders `(11) 9123-4`; it only becomes `(11) 91234-5`
+ * once the eleventh digit lands. The separator visibly jumps backwards while the
+ * user is still typing. With `mobile`, the same input reads `(11) 91234` and the
+ * hyphen never moves. It also inserts the leading `9` every Brazilian mobile
+ * carries, so a ten-digit number gets corrected rather than masked as a landline.
+ *
  * @param value - Raw digits or partially masked string.
+ * @param options - Masking options.
  * @returns Masked phone string.
+ *
+ * @example
+ * formatPhone("1191234");                      // "(11) 9123-4"
+ * formatPhone("1191234", { mobile: true });    // "(11) 91234"
+ * formatPhone("1112345678", { mobile: true }); // "(11) 91234-5678" — 9 inserted
  */
-export function formatPhone(value: string): string {
+export function formatPhone(value: string, options: FormatPhoneOptions = {}): string {
     const digits = value.replace(/\D/g, "").slice(0, 11);
-    if (digits.length <= 10) {
-        return digits.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{4})(\d)/, "$1-$2");
+
+    if (!options.mobile) {
+        if (digits.length <= 10) {
+            return digits.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{4})(\d)/, "$1-$2");
+        }
+        return digits.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d)/, "$1-$2");
     }
-    return digits.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d)/, "$1-$2");
+
+    if (digits.length <= 2) return digits;
+
+    const area = digits.slice(0, 2);
+    let subscriber = digits.slice(2);
+    if (subscriber[0] !== "9") subscriber = `9${subscriber}`;
+    subscriber = subscriber.slice(0, 9);
+
+    const prefix = subscriber.slice(0, 5);
+    const suffix = subscriber.slice(5);
+    return suffix ? `(${area}) ${prefix}-${suffix}` : `(${area}) ${prefix}`;
 }
 
 /**

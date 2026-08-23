@@ -9,6 +9,7 @@ export {
     describeApiError,
 } from "./describe-api-error";
 export type { ApiErrorStrings } from "./describe-api-error";
+export type { DescribeApiErrorOptions } from "./describe-api-error";
 export { useDescribeApiError } from "./use-describe-api-error";
 export { parseResponse } from "./parse-response";
 export { uploadWithProgress } from "./upload-with-progress";

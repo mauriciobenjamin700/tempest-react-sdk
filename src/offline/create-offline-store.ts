@@ -94,10 +94,29 @@ class GenericDb<TItem, TKey extends string | number> extends Dexie {
 export function createOfflineStore<TItem, TKey extends string | number = string>(
     config: OfflineStoreConfig<TItem>,
 ): OfflineStore<TItem, TKey> {
-    const { databaseName, version, tableName, indexes, keyPath = "id", ownerField } = config;
-
+    const { databaseName, version, tableName, indexes } = config;
     const db = new GenericDb<TItem, TKey>(databaseName, version, tableName, indexes);
-    const table = db.store;
+    return buildStore<TItem, TKey>(db, db.store, config);
+}
+
+/**
+ * Wrap an existing Dexie table in the {@link OfflineStore} surface.
+ *
+ * Split out so a store can be built over a table this function did not create,
+ * which is what lets {@link createOfflineDatabase} place several stores on one
+ * database rather than one database per table.
+ *
+ * @param db - The Dexie instance owning the table.
+ * @param table - The table to wrap.
+ * @param config - Key path and owner scoping for this table.
+ * @returns The store surface bound to that table.
+ */
+export function buildStore<TItem, TKey extends string | number = string>(
+    db: Dexie,
+    table: Table<TItem, TKey>,
+    config: Pick<OfflineStoreConfig<TItem>, "keyPath" | "ownerField">,
+): OfflineStore<TItem, TKey> {
+    const { keyPath = "id", ownerField } = config;
 
     function withOwner(item: TItem, owner?: string): TItem {
         if (!ownerField || !owner) return item;

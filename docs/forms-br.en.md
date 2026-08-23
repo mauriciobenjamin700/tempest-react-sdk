@@ -97,6 +97,20 @@ Use it before sending to the backend, which usually expects raw digits.
 `formatCEP` and `formatCNPJ` are also exported if you need to mask a string
 outside a controlled input.
 
+### Mobile-only field — `formatPhone({ mobile: true })`
+
+By default the grouping is decided by **length**, which is right for a field that takes both landlines and mobiles. In a mobile-only field it is wrong as you type: anything up to ten digits reads as a landline and the hyphen lands after the fourth subscriber digit.
+
+```ts
+import { formatPhone } from "tempest-react-sdk";
+
+formatPhone("1191234");                      // "(11) 9123-4"     ← hyphen too early
+formatPhone("1191234", { mobile: true });    // "(11) 91234"      ← separator in place
+formatPhone("1112345678", { mobile: true }); // "(11) 91234-5678" ← inserts the 9
+```
+
+Both agree once all 11 digits are in; the difference shows **while** typing, where the default's hyphen jumps backwards as the eleventh digit lands. `mobile` also inserts the mandatory `9`, so a ten-digit number is corrected rather than masked as a landline.
+
 ## ViaCEP
 
 `useViaCEP` queries the public ViaCEP service and returns the address fields — no

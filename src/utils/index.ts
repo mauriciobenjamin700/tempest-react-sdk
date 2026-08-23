@@ -9,6 +9,7 @@ export {
     formatCPF,
     formatPercent,
 } from "./format";
+export type { FormatPhoneOptions } from "./format";
 export { createJsonStorage, storage } from "./storage";
 export type { JsonStorage, StorageCodec } from "./storage";
 export {

@@ -134,6 +134,43 @@ useQuery({
 });
 ```
 
+## `createOfflineDatabase` — several tables in one database
+
+`createOfflineStore` gives each store a database of its own, which is the right shape for one isolated cache. It stops being right the moment the tables belong together: chats and their messages, an entity and its drafts, anything you would read or clear as a unit. Splitting those across databases costs the real transaction — Dexie runs one atomically only **within** a single database — and it scatters the version bump for a related change across two places.
+
+```ts
+import { createOfflineDatabase } from "tempest-react-sdk";
+
+type Chat = { id: string; service_id: string; updated_at: string };
+type Message = { id: string; service_chat_id: string; created_at: string };
+
+const database = createOfflineDatabase<{ chats: Chat; messages: Message }>({
+  databaseName: "ChatDatabase",
+  version: 1,
+  tables: {
+    chats: { indexes: "&id, service_id, updated_at" },
+    messages: { indexes: "&id, service_chat_id, created_at" },
+  },
+});
+
+const chats = database.store<Chat>("chats");
+const messages = database.store<Message>("messages");
+
+// Both tables in one transaction — impossible across separate databases.
+await database.db.transaction("rw", chats.raw, messages.raw, async () => {
+  await chats.put(chat);
+  await messages.bulkPut(pending);
+});
+```
+
+Each store has exactly the surface of `createOfflineStore` (`put`, `list`, `update`, `clear`, `count`, `raw`, …); only ownership of the database changes. `ownerField` is configured **per table**, because a database commonly mixes per-user data with shared data.
+
+!!! note "Why the type goes on the call, not the schema"
+    `database.store<Chat>("chats")` repeats a type the schema already declares. That is not a preference: Dexie's `Table<T>` expands `UpdateSpec<T>` over the keys of `T`, and deriving that from a still-generic `TSchema[K]` makes TypeScript give up with `TS2589` ("excessively deep"). The **name** is still checked against the schema — a wrong table is a type error, and at runtime the call throws listing the available ones.
+
+!!! warning "One database, one version"
+    Change any table's indexes and you bump the version of the whole database. That is the cost of keeping them together — and precisely what stops two related databases from drifting apart.
+
 ## Migrations
 
 Bump `version` when you change `indexes`. Dexie runs migrations in-place. For a field rename or data shift, register an upgrader via the exposed Dexie instance:

@@ -91,8 +91,35 @@ describe("FormField", () => {
                     <ControlledInput />
                 </FormField>,
             );
-        }).toThrow(/FormField requires/);
+        }).toThrow(/FormField found no form to bind to/);
         console.error = original;
+    });
+
+    /**
+     * The throw cannot tell "no provider" from "a provider on the other copy of
+     * react-hook-form", so the message has to name both. Pinned because the second
+     * cause is the one nobody guesses: the developer is looking at a `<FormProvider>`
+     * they can see while being told none exists, and without this sentence there is
+     * nothing pointing at `node_modules`.
+     */
+    it("names the duplicate-copy cause too, since the throw cannot tell them apart", () => {
+        const original = console.error;
+        console.error = () => {};
+        let message = "";
+        try {
+            render(
+                <FormField name="email">
+                    <ControlledInput />
+                </FormField>,
+            );
+        } catch (error) {
+            message = (error as Error).message;
+        }
+        console.error = original;
+
+        expect(message).toMatch(/two copies of react-hook-form/i);
+        expect(message).toMatch(/npm dedupe/);
+        expect(message).toMatch(/tempest doctor/);
     });
 
     it("accepts explicit control prop without FormProvider", () => {

@@ -62,6 +62,17 @@ const client = new QueryClient();
 !!! warning "One `QueryClient` per app"
     Do not nest two `QueryProvider`s without passing the same `client`. Each provider creates an isolated cache, and queries from different subtrees stop sharing data. For multiple roots, create the `QueryClient` once and pass it via the `client` prop.
 
+!!! danger "\"No QueryClient set\" with the provider mounted = two copies of react-query"
+    The `client` you pass is the one place the app's copy and the SDK's copy touch. If `npm` nested a second copy of `@tanstack/react-query` under the SDK, `QueryClientProvider` publishes your client on **that** copy's context — and every `useQuery` in the app reads the other copy's, finds nothing, and throws:
+
+    ```text
+    No QueryClient set, use QueryClientProvider to set one
+    ```
+
+    With the provider plainly mounted three lines up. Nothing in that message points at the duplicate, which is why it costs an afternoon.
+
+    From v0.52.1 the SDK detects it and warns in development: a client from the other copy duck-types perfectly while failing `instanceof`, which is exactly the right discriminator. The fix is `npm dedupe`, and `npx tempest doctor` lists every duplicated dependency.
+
 ## Time presets
 
 ```ts

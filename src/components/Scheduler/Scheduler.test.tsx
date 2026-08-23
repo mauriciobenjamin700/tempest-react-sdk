@@ -88,8 +88,34 @@ describe("Scheduler — events", () => {
             events: [at("mon", 9, 10), at("wed", 9, 10, 2)],
         });
         const boxes = eventBoxes(container);
-        expect(boxes.find((b) => b.name?.includes("mon"))?.column).toBe("1");
-        expect(boxes.find((b) => b.name?.includes("wed"))?.column).toBe("3");
+        expect(boxes.find((b) => b.name?.includes("mon"))?.column).toBe("1 / span 1");
+        expect(boxes.find((b) => b.name?.includes("wed"))?.column).toBe("3 / span 1");
+    });
+
+    /**
+     * The end line is the whole fix for the week view, and it reads like noise, so
+     * it gets an assertion that names it.
+     *
+     * `.event` is `position: absolute` inside the grid. For an absolutely positioned
+     * child of a grid container an `auto` side does not mean "span 1": CSS Grid §9.2
+     * resolves it to the container's padding edge. A bare `grid-column: 3` therefore
+     * runs from column 3 to the end of the week, and every event covers all seven
+     * days. Day view hides it, because there "column 1 to the edge" is one column —
+     * which is why the defect shipped.
+     */
+    it("closes the end line, so an event cannot bleed across the week", () => {
+        const { container } = renderScheduler({
+            days: 7,
+            events: [at("sun", 14, 15, 6)],
+        });
+        const [box] = eventBoxes(container);
+        expect(box.column).toBe("7 / span 1");
+        expect(box.column).toMatch(/\/\s*span\s*1$/);
+    });
+
+    it("closes the end line in day view too, where the bug was invisible", () => {
+        const { container } = renderScheduler({ days: 1 });
+        expect(eventBoxes(container)[0].column).toBe("1 / span 1");
     });
 
     it("splits overlapping events into side-by-side columns", () => {

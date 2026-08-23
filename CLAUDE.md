@@ -7,7 +7,7 @@ SDK público da Tempest com componentes React, hooks e integrações reutilizáv
 ## Estado atual (snapshot pós-v0.50.0 — `[Unreleased]` no CHANGELOG aguardando a tag v0.51.0)
 
 - **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 70 tags publicadas (0.1.0 → 0.50.0) com signed provenance via OIDC. Histórico completo em `RELEASES.md` (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
-- **Testes**: 5246 testes em 525 arquivos, ~48 s sob `vitest + jsdom + fake-indexeddb`. Cobertura 98,76% linhas / 97,48% statements / 97,18% funções / 94,71% branches; pisos do CI em 98/97/96/94 — **branches com folga de 0,71 ponto**, rastreado em [#209](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/209).
+- **Testes**: 5299 testes em 525 arquivos, ~48 s sob `vitest + jsdom + fake-indexeddb`. Cobertura 98,96% linhas / 97,83% statements / 97,28% funções / 95,51% branches; pisos do CI em 98/97/96/94 — **branches com folga de 1,51 ponto** depois da varredura da [#209](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/209). Os pisos ficam onde estão de propósito: subi-los recria a margem fina que a issue existia pra tirar.
 - **Superfície**: 39 módulos em `src/`, 128 componentes, 52 hooks (+ `useNotificationInbox`, que mora junto do `NotificationCenter`), 529 exports na entrada raiz e 21 em `/icons`.
 - **Empacotamento (v0.25.0)**: `dist/` preserva o grafo de módulos (`preserveModules`). O que o app paga de fato (brotli): `{ cn }` 153 B · `{ Button }` 794 B · app típico 8.61 KB · offline/PWA 4.55 KB · `styles.css` 28.68 KB · `utilities.css` 1.36 KB (opt-in). Teto sem tree-shaking: 116.24 KB ESM / 139.29 KB CJS. Budgets do `size-limit` são **por fatia importada**, não pelo barrel.
 - **Subpaths** (15): `.`, `/testing` (MSW), `/vite` (`createViteConfig` + plugins), `/sw` (helpers de contexto SW), `/charts` (recharts peer), `/editor` (tiptap peer), `/vision` (onnxruntime-web peer), `/br` (dataset BR + mapa clicável), `/icons` (ícone por slug, 45 shards lazy balanceados), `/icons/virtual` (módulo real: `staticIcons = {}` que o plugin sobrescreve — resolve fora do Vite também), `/styles.css`, `/utilities.css` (camada de layout opt-in).
@@ -110,10 +110,9 @@ viva.
 
 Aberto hoje, em ordem de valor:
 
-| #                                                                           | Frente                              | Por que importa                                                                                                                                                       |
-| --------------------------------------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [#209](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/209) | Margem de branch coverage           | 94,71% sobre piso de 94: o próximo PR que raspar reprova o CI **por cobertura**, não pelo defeito real. Sem alvo gordo — cauda de 2-4 branches em dezenas de arquivos |
-| [#210](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/210) | `STATEFUL_DEPS` ainda em dep direta | `@tanstack/react-query`, `zustand` e `react-hook-form` carregam contexto React. Duas cópias custam **correção**, não bytes. Rastreado pra não redescobrir o racional  |
+| #                                                                           | Frente                              | Por que importa                                                                                                                                                      |
+| --------------------------------------------------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [#210](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/210) | `STATEFUL_DEPS` ainda em dep direta | `@tanstack/react-query`, `zustand` e `react-hook-form` carregam contexto React. Duas cópias custam **correção**, não bytes. Rastreado pra não redescobrir o racional |
 
 Lição que vale mais que a lista: **conferir a `main` antes de começar.** Duas
 frentes desta rodada foram resolvidas em paralelo por outra máquina — o gate de
@@ -161,11 +160,28 @@ desempate ficou escrita — prefira o mapeamento que mantém **dois nomes distin
 Material Symbols distintos em lucide**, porque colidir dois códigos no mesmo ícone perde
 a informação que o painel usava pra diferenciar.
 
-### P3 — cauda de cobertura
+### P3 — cauda de cobertura (fechada)
 
-Virou issue: **[#209](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/209)**. Ela carrega o número atual, o racional de por que não
-há alvo gordo, e as **duas** saídas aceitáveis — recuperar margem até 95,5% ou baixar o
-piso com decisão escrita. Piso que ninguém decidiu é piso que vai ser raspado de novo.
+A [#209](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/209) saiu pela
+primeira saída: branch coverage de 94,71% para **95,51%** (8458/8855), 53 testes novos em
+20 arquivos, folga sobre o piso de 0,71 → 1,51 ponto. Um bug real caiu junto — a quebra
+forçada de dois espaços do `Markdown`, que a doc prometia e o `line.trim()` do montador
+de parágrafo apagava.
+
+O que sobra da cauda é, em boa parte, **inalcançável por construção** — e saber disso vale
+mais que o número:
+
+- **Guarda de SSR dentro de componente/hook React não é testável.**
+  `vi.stubGlobal("window", undefined)` derruba o `react-dom` (`resolveUpdatePriority` lê
+  `window.event`) antes de qualquer asserção. Em módulo sem React o mesmo stub funciona —
+  foi assim que `charts/palette` e `theme/apply-theme` chegaram a 100%.
+- **Default defensivo atrás de validação** (`values[0] ?? ""` em `filter-apply`, chamado
+  só depois de `isComplete`) e **`default:` de switch sobre união fechada** completam o
+  grupo.
+
+Corolário prático: a próxima vez que a margem apertar, o ganho vem de módulo **sem React**
+e de caminho de erro de protocolo (foi onde `resumable-upload` deu 13 ramos de uma vez),
+não de varrer componente.
 
 ## Como retomar
 

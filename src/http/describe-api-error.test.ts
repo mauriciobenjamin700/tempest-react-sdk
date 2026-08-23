@@ -115,3 +115,108 @@ describe("describeApiError — values that are not API errors", () => {
         expect(describeApiError(null, FALLBACK)).toBe(FALLBACK);
     });
 });
+
+describe("describeApiError — catálogo de codes", () => {
+    const CODES = {
+        SERVICE_FULL: "Este serviço atingiu o limite de vagas.",
+        EMAIL_TAKEN: "Este e-mail já está em uso.",
+    } as const;
+
+    const coded = (overrides: Partial<ConstructorParameters<typeof TempestApiError>[0]> = {}) =>
+        new TempestApiError({ status: 409, detail: "conflict", ...overrides });
+
+    it("maps a known code to the sentence written for it", () => {
+        setOnline(true);
+        expect(describeApiError(coded({ code: "SERVICE_FULL" }), FALLBACK, { codes: CODES })).toBe(
+            CODES.SERVICE_FULL,
+        );
+    });
+
+    it("prefers the mapped sentence over the backend detail", () => {
+        setOnline(true);
+        const error = coded({ code: "EMAIL_TAKEN", detail: "email already registered" });
+        expect(describeApiError(error, FALLBACK, { codes: CODES })).toBe(CODES.EMAIL_TAKEN);
+    });
+
+    it("wins over the offline sentence, which cannot carry a code anyway", () => {
+        setOnline(false);
+        const error = new TempestApiError({ status: 0, detail: "", code: "SERVICE_FULL" });
+        expect(describeApiError(error, FALLBACK, { codes: CODES })).toBe(CODES.SERVICE_FULL);
+    });
+
+    it("wins over the validation sentence", () => {
+        setOnline(true);
+        const error = coded({
+            status: 422,
+            code: "EMAIL_TAKEN",
+            fields: { email: "Field required" },
+        });
+        expect(describeApiError(error, FALLBACK, { codes: CODES })).toBe(CODES.EMAIL_TAKEN);
+    });
+
+    it("falls through to detail for a code the catalog does not know", () => {
+        setOnline(true);
+        const error = coded({ code: "UNKNOWN_CODE", detail: "algo deu errado" });
+        expect(describeApiError(error, FALLBACK, { codes: CODES })).toBe("algo deu errado");
+    });
+
+    it("ignores an error that carries no code at all", () => {
+        setOnline(true);
+        expect(describeApiError(coded({ detail: "conflito" }), FALLBACK, { codes: CODES })).toBe(
+            "conflito",
+        );
+    });
+
+    it("keeps the previous behaviour when no catalog is given", () => {
+        setOnline(true);
+        expect(describeApiError(coded({ code: "SERVICE_FULL" }), FALLBACK)).toBe("conflict");
+    });
+});
+
+describe("describeApiError — useDetail", () => {
+    it("hides a developer-facing detail and says the status instead", () => {
+        setOnline(true);
+        const error = new TempestApiError({ status: 500, detail: "stack trace interno" });
+        expect(describeApiError(error, FALLBACK, { useDetail: false })).toBe(
+            `${FALLBACK} (HTTP 500)`,
+        );
+    });
+
+    it("still answers with a mapped code, which the app wrote itself", () => {
+        setOnline(true);
+        const error = new TempestApiError({
+            status: 409,
+            detail: "stack trace interno",
+            code: "SERVICE_FULL",
+        });
+        expect(
+            describeApiError(error, FALLBACK, {
+                useDetail: false,
+                codes: { SERVICE_FULL: "Sem vagas." },
+            }),
+        ).toBe("Sem vagas.");
+    });
+
+    it("still answers offline and validation, which are not the backend's detail", () => {
+        setOnline(false);
+        const offline = new TempestApiError({ status: 0, detail: "Failed to fetch" });
+        expect(describeApiError(offline, FALLBACK, { useDetail: false })).toBe(
+            DEFAULT_API_ERROR_STRINGS.offline,
+        );
+
+        const invalid = new TempestApiError({
+            status: 422,
+            detail: "body.email: Field required",
+            fields: { email: "Field required" },
+        });
+        expect(describeApiError(invalid, FALLBACK, { useDetail: false })).toBe(
+            DEFAULT_API_ERROR_STRINGS.validation,
+        );
+    });
+
+    it("shows the detail when useDetail is left at its default", () => {
+        setOnline(true);
+        const error = new TempestApiError({ status: 500, detail: "algo deu errado" });
+        expect(describeApiError(error, FALLBACK)).toBe("algo deu errado");
+    });
+});

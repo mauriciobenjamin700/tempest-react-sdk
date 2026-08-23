@@ -1,5 +1,13 @@
 export { createOfflineStore } from "./create-offline-store";
 export type { ListOptions, OfflineStore, OfflineStoreConfig } from "./create-offline-store";
+export { createOfflineDatabase } from "./create-offline-database";
+export type {
+    OfflineDatabase,
+    OfflineDatabaseConfig,
+    OfflineSchema,
+    OfflineTableConfig,
+    OfflineTablesConfig,
+} from "./create-offline-database";
 export { createOfflineSync } from "./create-offline-sync";
 export type {
     OfflineSync,

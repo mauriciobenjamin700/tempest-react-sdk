@@ -47,6 +47,33 @@ export const API_ERROR_OFFLINE_KEY = "tempest.error.offline";
 export const API_ERROR_VALIDATION_KEY = "tempest.error.validation";
 
 /**
+ * Everything {@link describeApiError} accepts beyond the error and the fallback.
+ *
+ * Extends the fixed sentences rather than sitting beside them, so a caller that
+ * already passed `{ offline, validation }` keeps compiling untouched.
+ */
+export interface DescribeApiErrorOptions extends Partial<ApiErrorStrings> {
+    /**
+     * Maps the backend's programmatic `code` to a sentence in your language.
+     *
+     * The client already surfaces `code` on `ApiError`, but without this every
+     * app writes the same `switch` over it. A hit here wins over every other
+     * step: it is the only sentence written for that exact case, by someone who
+     * knew both the backend contract and the screen it lands on.
+     */
+    codes?: Readonly<Record<string, string>>;
+    /**
+     * Whether the backend's `detail` may be shown when no `code` matched.
+     * Default `true`.
+     *
+     * Set it to `false` when `detail` is written for developers rather than
+     * users, or when it could echo internals — the result is then always either
+     * a sentence you wrote or the fallback.
+     */
+    useDetail?: boolean;
+}
+
+/**
  * Whether the browser currently reports itself as offline.
  *
  * `fetch` rejects a network failure with a plain `TypeError` whose message
@@ -65,6 +92,9 @@ function browserIsOffline(): boolean {
  *
  * The funnel, in order:
  *
+ * 0. `codes[error.code]` — the sentence you wrote for that exact backend case.
+ *    Checked first because nothing the funnel derives can beat it, and because a
+ *    request that never landed carries no `code` for it to shadow.
  * 1. A request that never reached the server — `status === 0`, or a non-API
  *    error thrown while the browser reports itself offline — produces the
  *    offline sentence. This is the step apps skip, and skipping it renders
@@ -77,7 +107,8 @@ function browserIsOffline(): boolean {
  *    names internals. The per-field messages stay on `fields`, where a form can
  *    attach them to the inputs that failed.
  * 3. The backend's own `detail`, which is the most specific thing available and
- *    is already written for a person.
+ *    is already written for a person — unless `useDetail: false` says that text
+ *    is for developers.
  * 4. `fallback`, with `(HTTP <status>)` appended when a status is known, so the
  *    screenshot in the support ticket carries the one fact a developer needs.
  *
@@ -90,25 +121,47 @@ function browserIsOffline(): boolean {
  *     toast(describeApiError(error, "Não foi possível salvar o pedido"));
  * }
  *
+ * @example
+ * catch (error) {
+ *     toast(
+ *         describeApiError(error, "Não foi possível se candidatar", {
+ *             codes: {
+ *                 SERVICE_FULL: "Este serviço atingiu o limite de vagas.",
+ *                 CANDIDATE_ALREADY_EXISTS: "Você já se candidatou a este serviço.",
+ *             },
+ *             useDetail: false,
+ *         }),
+ *     );
+ * }
+ *
  * @param error - The caught value, of any shape.
  * @param fallback - What to say when the error carries nothing better.
- * @param strings - Overrides for the fixed sentences.
+ * @param options - A `codes` catalog, `useDetail`, and overrides for the fixed
+ *     sentences.
  * @returns A sentence to show the user.
  */
 export function describeApiError(
     error: unknown,
     fallback: string,
-    strings?: Partial<ApiErrorStrings>,
+    options?: DescribeApiErrorOptions,
 ): string {
-    const offline = strings?.offline ?? DEFAULT_API_ERROR_STRINGS.offline;
+    const offline = options?.offline ?? DEFAULT_API_ERROR_STRINGS.offline;
 
     if (isApiError(error)) {
+        const mapped = error.code === undefined ? undefined : options?.codes?.[error.code];
+        if (mapped !== undefined) return mapped;
         if (error.status === 0) return offline;
         if (error.fields && Object.keys(error.fields).length > 0) {
-            return strings?.validation ?? DEFAULT_API_ERROR_STRINGS.validation;
+            return options?.validation ?? DEFAULT_API_ERROR_STRINGS.validation;
         }
         const detail = error.detail.trim();
-        if (detail !== "" && detail !== syntheticDetail(error.status)) return detail;
+        if (
+            options?.useDetail !== false &&
+            detail !== "" &&
+            detail !== syntheticDetail(error.status)
+        ) {
+            return detail;
+        }
         return `${fallback} (HTTP ${error.status})`;
     }
 

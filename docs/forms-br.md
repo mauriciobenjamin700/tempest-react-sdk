@@ -95,6 +95,20 @@ Use antes de enviar pro backend, que normalmente espera dígitos crus. Também
 existem `formatCEP` e `formatCNPJ` exportados se você precisar mascarar uma string
 fora de um input controlado.
 
+### Campo só de celular — `formatPhone({ mobile: true })`
+
+Por padrão o agrupamento é decidido pelo **tamanho**, que é o certo pra um campo que aceita fixo e celular. Num campo que só aceita celular ele erra enquanto o usuário digita: qualquer valor até dez dígitos é lido como fixo e o hífen cai depois do quarto dígito do assinante.
+
+```ts
+import { formatPhone } from "tempest-react-sdk";
+
+formatPhone("1191234");                      // "(11) 9123-4"   ← hífen cedo demais
+formatPhone("1191234", { mobile: true });    // "(11) 91234"    ← separador no lugar
+formatPhone("1112345678", { mobile: true }); // "(11) 91234-5678" ← insere o 9
+```
+
+Os dois concordam quando os 11 dígitos entram; a diferença aparece **durante** a digitação, onde o hífen do modo padrão salta pra trás ao chegar o décimo primeiro dígito. O `mobile` também insere o `9` obrigatório, então um número de dez dígitos é corrigido em vez de mascarado como fixo.
+
 ## ViaCEP
 
 `useViaCEP` consulta o serviço público ViaCEP e devolve os campos de endereço — sem

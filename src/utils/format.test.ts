@@ -105,3 +105,52 @@ describe("formatDateForInput", () => {
         expect(formatDateForInput("not-a-date")).toBe("");
     });
 });
+
+describe("formatPhone — mobile mode", () => {
+    it("groups 5+4 from the first subscriber digit, so the hyphen never moves", () => {
+        // The default reads <=10 digits as a landline and hyphenates after the
+        // fourth subscriber digit, which makes the separator jump backwards
+        // while the user is still typing. Mobile mode keeps it in place.
+        expect(formatPhone("1191234")).toBe("(11) 9123-4");
+        expect(formatPhone("1191234", { mobile: true })).toBe("(11) 91234");
+    });
+
+    it("inserts the mandatory leading 9 when it is missing", () => {
+        expect(formatPhone("1112345678", { mobile: true })).toBe("(11) 91234-5678");
+    });
+
+    it("does not duplicate a 9 that is already there", () => {
+        expect(formatPhone("11912345678", { mobile: true })).toBe("(11) 91234-5678");
+    });
+
+    it("agrees with the default once all 11 digits are in", () => {
+        expect(formatPhone("11987654321", { mobile: true })).toBe(formatPhone("11987654321"));
+    });
+
+    it("masks progressively without a hyphen until the sixth subscriber digit", () => {
+        const typed = ["1", "11", "119", "1191", "11912", "119123", "1191234", "11912345"];
+        expect(typed.map((v) => formatPhone(v, { mobile: true }))).toEqual([
+            "1",
+            "11",
+            "(11) 9",
+            "(11) 91",
+            "(11) 912",
+            "(11) 9123",
+            "(11) 91234",
+            "(11) 91234-5",
+        ]);
+    });
+
+    it("accepts an already-masked value and stays stable", () => {
+        expect(formatPhone("(11) 91234-5678", { mobile: true })).toBe("(11) 91234-5678");
+    });
+
+    it("ignores digits past the eleventh", () => {
+        expect(formatPhone("119123456789999", { mobile: true })).toBe("(11) 91234-5678");
+    });
+
+    it("leaves the default behaviour untouched", () => {
+        expect(formatPhone("1132654321")).toBe("(11) 3265-4321");
+        expect(formatPhone("11987654321")).toBe("(11) 98765-4321");
+    });
+});

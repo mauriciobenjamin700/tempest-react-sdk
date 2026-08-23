@@ -503,17 +503,44 @@ try {
 
 A ordem do funil:
 
-1. **Requisição que não chegou** — `status === 0`, ou um erro qualquer com o browser se declarando offline → frase de offline.
-2. **Rejeição de validação** — `error.fields` preenchido → frase de validação, **não** o `detail` (que é técnico). As mensagens por campo continuam em `fields`.
-3. **`detail` do backend** — o texto mais específico disponível, e já escrito para uma pessoa.
-4. **`fallback`**, com `(HTTP <status>)` anexado quando há status — o print no chamado de suporte carrega o único dado que o dev precisa.
+1. **`codes[error.code]`** — a frase que **você** escreveu pra aquele caso do backend. Ganha de todo o resto: nada que o funil deduz bate uma frase escrita por quem conhecia o contrato e a tela.
+2. **Requisição que não chegou** — `status === 0`, ou um erro qualquer com o browser se declarando offline → frase de offline.
+3. **Rejeição de validação** — `error.fields` preenchido → frase de validação, **não** o `detail` (que é técnico). As mensagens por campo continuam em `fields`.
+4. **`detail` do backend** — o texto mais específico disponível, e já escrito para uma pessoa.
+5. **`fallback`**, com `(HTTP <status>)` anexado quando há status — o print no chamado de suporte carrega o único dado que o dev precisa.
+
+### `codes` — o `switch` que todo app reescrevia
+
+O cliente já entrega o `code` do backend no `ApiError`, mas sem um lugar pra ele cada app escreve o mesmo `switch` pra virar frase no idioma dele:
+
+```ts
+import { describeApiError } from "tempest-react-sdk";
+
+try {
+  await api.post("/services/1/candidates", { body: payload });
+} catch (error) {
+  toast.error(
+    describeApiError(error, "Não foi possível se candidatar", {
+      codes: {
+        SERVICE_FULL: "Este serviço atingiu o limite de vagas.",
+        CANDIDATE_ALREADY_EXISTS: "Você já se candidatou a este serviço.",
+      },
+    }),
+  );
+}
+```
+
+Código que o catálogo não conhece simplesmente segue o funil. Sem `codes`, nada muda.
+
+!!! tip "`useDetail: false` quando o `detail` é pra desenvolvedor"
+    Alguns backends escrevem o `detail` pro log, não pra tela — ou ele ecoa interno. Com `useDetail: false` o passo 4 é pulado e o resultado é sempre uma frase sua, a de offline, a de validação, ou o `fallback` com `(HTTP <status>)`. As frases de offline e validação continuam valendo: elas são do SDK, não do backend.
 
 Duas superfícies, mesmo funil:
 
 | | Quando usar |
 | --- | --- |
-| `describeApiError(error, fallback, strings?)` | Função pura. Roda em interceptor, logger, qualquer lugar fora da árvore React. |
-| `useDescribeApiError()` | Hook. Resolve a frase fixa pelo `I18nProvider` ativo; devolve `(error, fallback) => string`. |
+| `describeApiError(error, fallback, options?)` | Função pura. Roda em interceptor, logger, qualquer lugar fora da árvore React. |
+| `useDescribeApiError()` | Hook. Resolve a frase fixa pelo `I18nProvider` ativo; devolve `(error, fallback, options?) => string`, com as mesmas opções da função pura. |
 
 ```tsx
 import { useDescribeApiError } from "tempest-react-sdk";

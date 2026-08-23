@@ -164,14 +164,22 @@ Coalesce N chamadas de refresh concorrentes em **1** request. Enquanto um refres
 ```ts
 import { createRefreshQueue } from "tempest-react-sdk";
 
-const refresh = createRefreshQueue(async () => {
-  const { token } = await api.post<{ token: string }>("/auth/refresh");
-  useAuthStore.getState().setToken(token);
-});
+const refresh = createRefreshQueue(
+  async () => {
+    const { token } = await api.post<{ token: string }>("/auth/refresh");
+    useAuthStore.getState().setToken(token);
+  },
+  { getToken: () => useAuthStore.getState().token },
+);
 
 // 5 requests com 401 simultâneos → 1 único refresh, todos retomam:
 await Promise.all([refresh(), refresh(), refresh(), refresh(), refresh()]);
 ```
+
+!!! warning "Compartilhar a promise sozinho não colapsa uma rajada — passe o `getToken`"
+    Uma página que dispara várias requests de uma vez recebe vários 401 de volta, mas eles **não chegam na mesma janela**: os retardatários resolvem depois do primeiro refresh já ter terminado, não encontram promise nenhuma pra entrar, e cada um começa outra — rotacionando um token que já está novo. Medido contra um backend de mentira, cinco requests expiradas concorrentes gastaram **dois** refreshes, não um.
+
+    O `getToken` fecha essa brecha: a fila lembra qual token o último refresh instalou, e uma chamada que encontra esse mesmo token ainda no lugar retorna na hora, porque o refresh que ela ia fazer já aconteceu. Aí as mesmas cinco requests gastam exatamente um refresh — e vinte também.
 
 !!! tip "Plugue direto no `createApiClient`"
     Passe a fila como `refresh` no cliente HTTP — ele a chama em todo 401 e a coalescência acontece de graça, evitando uma tempestade de refreshes paralelos derrubando seu endpoint de auth.

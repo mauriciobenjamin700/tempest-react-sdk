@@ -134,6 +134,43 @@ useQuery({
 });
 ```
 
+## `createOfflineDatabase` — várias tabelas numa base
+
+`createOfflineStore` dá a cada store uma base só dela, que é a forma certa pra um cache isolado. Deixa de ser assim no instante em que as tabelas pertencem uma à outra: chats e suas mensagens, uma entidade e seus rascunhos, qualquer coisa que você leria ou limparia como uma unidade. Separá-las em bases diferentes custa a transação de verdade — o Dexie só roda uma atomicamente **dentro** de uma mesma base — e ainda espalha o bump de versão de uma mudança relacionada por dois lugares.
+
+```ts
+import { createOfflineDatabase } from "tempest-react-sdk";
+
+type Chat = { id: string; service_id: string; updated_at: string };
+type Message = { id: string; service_chat_id: string; created_at: string };
+
+const database = createOfflineDatabase<{ chats: Chat; messages: Message }>({
+  databaseName: "ChatDatabase",
+  version: 1,
+  tables: {
+    chats: { indexes: "&id, service_id, updated_at" },
+    messages: { indexes: "&id, service_chat_id, created_at" },
+  },
+});
+
+const chats = database.store<Chat>("chats");
+const messages = database.store<Message>("messages");
+
+// As duas tabelas numa transação só — impossível entre bases separadas.
+await database.db.transaction("rw", chats.raw, messages.raw, async () => {
+  await chats.put(chat);
+  await messages.bulkPut(pending);
+});
+```
+
+Cada store tem exatamente a mesma superfície de `createOfflineStore` (`put`, `list`, `update`, `clear`, `count`, `raw`, …); só muda quem é dono da base. O `ownerField` é configurado **por tabela**, porque é comum uma base misturar dado por usuário com dado compartilhado.
+
+!!! note "Por que o tipo vai na chamada, e não no schema"
+    `database.store<Chat>("chats")` repete o tipo que o schema já declara. Não é gosto: o `Table<T>` do Dexie expande `UpdateSpec<T>` sobre as chaves de `T`, e derivar isso de um `TSchema[K]` ainda genérico faz o TypeScript desistir com `TS2589` ("excessively deep"). O **nome** continua checado contra o schema — errar a tabela é erro de tipo, e em runtime a chamada lança listando as disponíveis.
+
+!!! warning "Uma base, uma versão"
+    Mudou o índice de qualquer tabela, sobe o `version` da base inteira. É o preço de tê-las juntas — e é justamente o que evita duas bases relacionadas saírem de sincronia.
+
 ## Migrations
 
 Bump `version` quando mudar `indexes`. Dexie roda migrações in-place. Pra rename de campo ou data shift, registre um upgrader via a instância Dexie exposta:

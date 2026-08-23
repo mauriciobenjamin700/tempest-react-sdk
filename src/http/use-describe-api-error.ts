@@ -2,6 +2,7 @@ import { useCallback } from "react";
 
 import type { I18n } from "../i18n/create-i18n";
 import { useOptionalI18n } from "../i18n/I18nProvider";
+import type { DescribeApiErrorOptions } from "./describe-api-error";
 import {
     API_ERROR_OFFLINE_KEY,
     API_ERROR_VALIDATION_KEY,
@@ -23,6 +24,10 @@ import {
  * provider — or a catalog that never defined `tempest.error.offline` — falls
  * back to the pt-BR default rather than crashing or printing the raw key.
  *
+ * The per-call options are the pure function's, so a screen that knows the
+ * backend codes it can hit passes them at the call site while the translated
+ * sentences keep coming from the provider.
+ *
  * @example
  * const describe = useDescribeApiError();
  * const { mutate } = useMutation({
@@ -30,7 +35,7 @@ import {
  *     onError: (error) => toast(describe(error, t("orders.saveFailed"))),
  * });
  *
- * @returns A stable `(error, fallback) => string` function.
+ * @returns A stable `(error, fallback, options?) => string` function.
  */
 /**
  * Look one sentence up in the active catalog, falling back to the pt-BR default.
@@ -57,15 +62,20 @@ function resolve(
     return translate?.(key, undefined, { default: fallback }) ?? fallback;
 }
 
-export function useDescribeApiError(): (error: unknown, fallback: string) => string {
+export function useDescribeApiError(): (
+    error: unknown,
+    fallback: string,
+    options?: DescribeApiErrorOptions,
+) => string {
     const i18n = useOptionalI18n();
     const translate = i18n?.t;
 
     return useCallback(
-        (error: unknown, fallback: string) => {
+        (error: unknown, fallback: string, options?: DescribeApiErrorOptions) => {
             return describeApiError(error, fallback, {
                 offline: resolve(translate, API_ERROR_OFFLINE_KEY, "offline"),
                 validation: resolve(translate, API_ERROR_VALIDATION_KEY, "validation"),
+                ...options,
             });
         },
         [translate],

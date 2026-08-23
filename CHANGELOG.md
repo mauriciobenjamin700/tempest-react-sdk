@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.52.0] — 2026-08-23
+
 ### Adicionado
 
 - **`formatPhone(value, { mobile: true })` — máscara pra campo que só aceita

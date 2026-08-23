@@ -66,6 +66,26 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   então nada quebra — mas a documentação que prometia "5 requests → 1 refresh"
   estava errada e foi corrigida.
 
+### Corrigido
+
+- **Evento do `Scheduler` não atravessa mais a semana inteira.** Na visão de sete
+  dias **todo** evento era desenhado da sua coluna até a borda direita do grid: um
+  agendamento de domingo às 14:00 ocupava a largura da semana, o que deixava a
+  visão de semana inutilizável com mais de zero eventos
+  ([#216](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/216)).
+
+  A causa não é bug de browser, é a spec. `.event` é `position: absolute` dentro
+  do grid, e para um filho absolutamente posicionado de um grid container um lado
+  `auto` **não** resolve em "span 1" — o CSS Grid §9.2 resolve na borda de padding
+  do container. O componente emitia `grid-column: 3`, que significa "da linha 3
+  até o fim do grid". Agora emite `3 / span 1`.
+
+  O defeito passou porque a visão de **um** dia parece correta por coincidência:
+  com uma coluna só, "coluna 1 até a borda" _é_ uma coluna. E o teste que existia
+  fixava exatamente o valor com defeito (`gridColumn` igual a `"3"`), então a
+  suíte estava verde sobre o bug. O teste foi corrigido e ganhou dois guards que
+  falham sem a linha final — um na visão de semana, um na de dia.
+
 ## [0.51.0] — 2026-08-23
 
 ### Breaking

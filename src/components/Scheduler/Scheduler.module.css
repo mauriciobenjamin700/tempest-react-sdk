@@ -136,6 +136,14 @@
  * their column by percentage. Being siblings of the columns rather than children is
  * what lets an event overlay the hour lines without clipping.
  */
+/*
+ * Absolutely positioned, so the inline `grid-column` it is placed with must name
+ * BOTH lines. For an abspos child of a grid container an `auto` side does not
+ * mean "span 1" — CSS Grid §9.2 resolves it to the container's padding edge, so
+ * a bare `grid-column: 3` runs from column 3 to the end of the week and every
+ * event covers the whole view. A one-day scheduler hides it: there, "column 1 to
+ * the edge" happens to be one column. Hence `N / span 1` in Scheduler.tsx.
+ */
 .event {
     position: absolute;
     grid-row: 1;

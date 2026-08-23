@@ -267,7 +267,7 @@ export function Scheduler({
                             type="button"
                             className={styles.event}
                             style={{
-                                gridColumn: item.dayIndex + 1,
+                                gridColumn: `${item.dayIndex + 1} / span 1`,
                                 top: `${item.top * 100}%`,
                                 height: `${item.height * 100}%`,
                                 left: `${(item.column / item.columns) * 100}%`,

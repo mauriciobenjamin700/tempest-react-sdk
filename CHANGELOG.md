@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.51.0] — 2026-08-23
+
 ### Breaking
 
 - **`buildBarListRows` recebe um objeto.** Era

@@ -4,13 +4,13 @@ SDK público da Tempest com componentes React, hooks e integrações reutilizáv
 
 > Este arquivo é o guia operacional do SDK. Padrões globais (PR template PT-BR, conventional commits, `gh pr edit` workaround) vêm de `~/.claude/CLAUDE.md` e continuam valendo.
 
-## Estado atual (snapshot pós-v0.50.0 — `[Unreleased]` no CHANGELOG aguardando a tag v0.51.0)
+## Estado atual (snapshot pós-v0.51.0 — `[Unreleased]` no CHANGELOG vazio, aguardando o próximo ciclo)
 
-- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 70 tags publicadas (0.1.0 → 0.50.0) com signed provenance via OIDC. Histórico completo em `RELEASES.md` (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
+- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 71 tags publicadas (0.1.0 → 0.51.0) com signed provenance via OIDC. Histórico completo em `RELEASES.md` (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
 - **Testes**: 5403 testes em 531 arquivos, ~50 s sob `vitest + jsdom + fake-indexeddb`. Cobertura **99,87% linhas / 98,97% statements / 99,93% funções / 96,01% branches**; pisos do CI em **99/98/99/95**, ~1 ponto de folga em cada eixo. O que sobra descoberto — 2 funções e 13 linhas — é **inalcançável por construção** (ver `### P3` abaixo).
 - **Superfície**: 39 módulos em `src/`, 128 componentes, 52 hooks (+ `useNotificationInbox`, que mora junto do `NotificationCenter`), 529 exports na entrada raiz e 21 em `/icons`.
 - **Empacotamento (v0.25.0)**: `dist/` preserva o grafo de módulos (`preserveModules`). O que o app paga de fato (brotli): `{ cn }` 153 B · `{ Button }` 794 B · app típico 8.61 KB · offline/PWA 4.55 KB · `styles.css` 28.68 KB · `utilities.css` 1.36 KB (opt-in). Teto sem tree-shaking: 116.24 KB ESM / 139.29 KB CJS. Budgets do `size-limit` são **por fatia importada**, não pelo barrel.
-- **Subpaths** (15): `.`, `/testing` (MSW), `/vite` (`createViteConfig` + plugins), `/sw` (helpers de contexto SW), `/charts` (recharts peer), `/editor` (tiptap peer), `/vision` (onnxruntime-web peer), `/br` (dataset BR + mapa clicável), `/icons` (ícone por slug, 45 shards lazy balanceados), `/icons/virtual` (módulo real: `staticIcons = {}` que o plugin sobrescreve — resolve fora do Vite também), `/styles.css`, `/utilities.css` (camada de layout opt-in).
+- **Subpaths** (15, a lista é o campo `exports` do `package.json`): `.`, `/testing` (MSW), `/vite` (`createViteConfig` + plugins), `/sw` (helpers de contexto SW), `/charts` (recharts peer), `/editor` (tiptap peer), `/imaging` (decode/encode/resize/crop/compress em canvas, sem dep), `/tabular` (`TabularPredictor` ONNX + cache de modelo, onnxruntime-web peer), `/vision` (onnxruntime-web peer), `/br` (dataset BR + mapa clicável), `/icons` (ícone por slug, 45 shards lazy balanceados), `/icons/virtual` (módulo real: `staticIcons = {}` que o plugin sobrescreve — resolve fora do Vite também), `/styles.css`, `/utilities.css` (camada de layout opt-in), `/package.json`.
 - **CLIs** (`bin/`): `create-tempest-app` (scaffold — invocado como `npx -p tempest-react-sdk create-tempest-app .`; **não** existe pacote `create-tempest-app` no npm, então `npm create tempest-app` dá 404) com templates `template/` e `template-pwa/`; `tempest` (project CLI: `doctor`, `lint`, `fix`, `format`, `gen api <openapi>` → Zod + types + services, `gen icons` → registry estático de ícone). `doctor` e `fix` também fazem **análise de CSS** (`bin/lib/css/`, scanner próprio sem dep): sintaxe que o browser derruba, declaração/regra duplicada, propriedade e token inexistentes, e bloco repetido que pede classe global/utility. `fix` remove só o comprovadamente morto (sempre a cópia **anterior** — last-wins); `--no-css` pula, `--dry-run` é a superfície de revisão.
 - **Style modules**: `colors.css` (inclui `--tempest-code-*`, resolvidos pro piso de **texto** 4,5:1 — a rampa de chart é de **marca**, 3:1, e reprova como texto) + `typography.css` + `motion.css` + `density.css` + `reset.css` + `responsive.css` + `print.css`; `utilities.css` fica **fora** do bundle (opt-in, copiado pra `dist/` no build).
 - **Tooling**: Prettier 3, Husky pre-commit (lint-staged), `Makefile` + `scripts/release.sh` (tag-push pipeline) + `scripts/changelog.mjs` (notes/close) + `scripts/sync-github-releases.sh` (backfill de Releases), 5 workflows — `ci.yml` (PR, matriz node 22/24), `release-npm.yml` (tag push → guard de versão + publish OIDC + read-back do registry + GitHub Release), `size-limit.yml`, `e2e.yml` (gallery), `docs.yml` (Pages).
@@ -53,6 +53,7 @@ tempest-react-sdk/
 │   ├── audio/          createAudioPlayer, useAudio, playAudio
 │   ├── auth/           createAuthStore, AuthGuard, decodeJWT, lazyWithRetry, createRefreshQueue, createTempestAuth
 │   ├── br/          ⇢  dataset de estados/municípios + mapa UF clicável + centroides (chunks lazy)
+│   ├── capture/        createMediaRecorder, useVideoRecorder, useBarcodeScanner, useScreenCapture, useSpeechRecognition
 │   ├── charts/      ⇢  wrappers recharts
 │   ├── components/     128 componentes UI
 │   ├── data/           createDataProvider, <TempestDataProvider>, useDataProvider (CRUD por recurso)
@@ -63,8 +64,9 @@ tempest-react-sdk/
 │   ├── geo/            mapas sem tile, createPositionTracker, OSRM backend, haversine/bounds
 │   ├── hooks/          52 hooks (useDebounce, useBreakpoint, useInstallPrompt, useServiceWorkerUpdate, …)
 │   ├── icons/       ⇢  <Icon name> por slug + IconProvider + 45 shards gerados (generated/)
-│   ├── http/           createApiClient, parseResponse, uploadWithProgress, retry, usePoll, idempotency
+│   ├── http/           createApiClient (timeout + uploadTimeout), parseResponse, uploadWithProgress, retry, usePoll, idempotency
 │   ├── i18n/           createI18n, I18nProvider, useI18n, useTranslate
+│   ├── imaging/     ⇢  decodeImage/encodeImage, resize/crop/rotate/flip, compressToTarget, createThumbnails, useImageProcessing
 │   ├── logger/         createLogger leveled + plug sinks
 │   ├── oauth/          <GoogleSignIn>, useOAuthCallback
 │   ├── perf/           createInferenceProfiler, readDeviceProfile, cachedResponseBytes, formatDurationMs (custo de inferência on-device)
@@ -78,6 +80,7 @@ tempest-react-sdk/
 │   ├── store/          createStore, createSelectors (Zustand)
 │   ├── styles/         colors + density + motion + typography + reset + responsive + print + index.css
 │   ├── sw/          ⇢  registerServiceWorker, installPrecache, installBackgroundSync, inspectCaches/clearCaches
+│   ├── tabular/     ⇢  TabularPredictor/CompactPredictor (ONNX), cache de modelo, useTabularPredictor
 │   ├── telemetry/      Provider + console + Sentry + PostHog adapters
 │   ├── testing/     ⇢  createMockHandlers (MSW-shaped)
 │   ├── theme/          ThemeProvider, useTheme, themeInitScript (no-flash)

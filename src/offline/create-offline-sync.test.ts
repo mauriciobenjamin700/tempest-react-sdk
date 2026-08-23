@@ -316,6 +316,37 @@ describe("createOfflineSync — environment guards", () => {
         Object.defineProperty(navigator, "onLine", { configurable: true, value: original });
     });
 
+    it("treats a missing navigator as online, and skips the cross-tab lock", async () => {
+        vi.stubGlobal("navigator", undefined);
+        const deliver = vi.fn(async () => undefined);
+        const { sync } = makeSync({ isOnline: undefined, crossTab: true, deliver });
+
+        await sync.enqueue("create", "r1", { id: "r1" });
+        const summary = await sync.flush();
+
+        expect(summary.skipped).toBe(false);
+        expect(deliver).toHaveBeenCalledTimes(1);
+        vi.unstubAllGlobals();
+    });
+
+    it("keeps the watermark in memory when there is no localStorage to hold it", async () => {
+        vi.stubGlobal("localStorage", undefined);
+        const { sync } = makeSync({
+            watermark: { storageKey: "sync:wm" },
+            pullPage: vi.fn(async () => ({
+                items: [],
+                nextCursor: null,
+                serverTime: "2026-01-01",
+            })),
+        });
+
+        const summary = await sync.flush();
+        sync.resetWatermark();
+
+        expect(summary.skipped).toBe(false);
+        vi.unstubAllGlobals();
+    });
+
     it("ignores a broadcast arriving after dispose", async () => {
         const channelName = `chan-${Math.random().toString(36).slice(2)}`;
         const { sync } = makeSync({ crossTab: true, broadcastChannelName: channelName });

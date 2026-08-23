@@ -38,6 +38,40 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   documentado: passar o `signal` que a `queryFn` do react-query recebe cancela a
   requisição em unmount e em refetch.
 
+### Corrigido
+
+- **A quebra forçada de dois espaços no `Markdown` finalmente funciona.** O
+  parser sempre teve a regra inline `/^ {2,}\n/`, e a doc sempre prometeu
+  "quebra forçada" — mas o montador do parágrafo fazia `line.trim()` antes de
+  entregar o texto ao parser inline, então os dois espaços que marcam a quebra
+  eram apagados justamente pela linha que precisava deles. A regra era código
+  morto e a sintaxe mais comum de hard break do CommonMark caía em silêncio (só
+  a barra invertida no fim da linha funcionava).
+
+  A flag agora é lida **antes** do trim e o marcador é recolocado ao rejuntar o
+  parágrafo, em toda linha menos a última — quebrar depois da última linha
+  quebraria para o nada. Descoberto ao cobrir o ramo, que é o valor de perseguir
+  ramo descoberto: o que não é executado por teste nenhum às vezes não é
+  executado por ninguém.
+
+### Testes
+
+- **Cobertura de branch subiu de 94,71% para 95,51%** (8458/8855), com 53 testes
+  novos em 20 arquivos — a folga sobre o piso de 94 do CI vai de 0,71 para 1,51
+  ponto ([#209](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/209)).
+  Statements 97,48 → 97,83; funções 97,18 → 97,28; linhas 98,76 → 98,96. Os pisos
+  do `vitest.config.ts` **não** subiram: subi-los agora recriaria na hora o
+  problema que a issue descreve, que é margem fina, não número baixo.
+
+  O que a varredura ensinou sobre a cauda que sobra: boa parte dela é
+  **inalcançável por construção**, não esquecida. Guarda de SSR
+  (`typeof window === "undefined"`) dentro de hook renderizado por React não tem
+  como ser exercitada — `vi.stubGlobal("window", undefined)` derruba o próprio
+  `react-dom` (`resolveUpdatePriority` lê `window.event`) antes de a asserção
+  rodar. Default defensivo atrás de validação (`values[0] ?? ""` em
+  `filter-apply`, que só é chamado depois de `isComplete`) e `default:` de switch
+  sobre união fechada são as outras duas famílias.
+
 ## [0.50.0] — 2026-08-22
 
 ### Breaking

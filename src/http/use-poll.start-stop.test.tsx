@@ -23,3 +23,44 @@ describe("usePoll start/stop", () => {
         expect(factory).toHaveBeenCalled();
     });
 });
+
+describe("usePoll — a tick that should not happen", () => {
+    it("ignores a start() that lands while a request is still in flight", async () => {
+        let release: ((value: string) => void) | null = null;
+        const factory = vi.fn(
+            () =>
+                new Promise<string>((resolve) => {
+                    release = resolve;
+                }),
+        );
+        const { result } = renderHook(() => usePoll(factory, { interval: 5 }));
+        await waitFor(() => expect(factory).toHaveBeenCalledTimes(1));
+
+        act(() => result.current.stop());
+        act(() => result.current.start());
+
+        expect(factory, "the in-flight request is not doubled").toHaveBeenCalledTimes(1);
+        await act(async () => {
+            release?.("x");
+        });
+    });
+
+    it("drops the answer to a request the caller stopped mid-flight", async () => {
+        let release: ((value: string) => void) | null = null;
+        const factory = vi.fn(
+            () =>
+                new Promise<string>((resolve) => {
+                    release = resolve;
+                }),
+        );
+        const { result } = renderHook(() => usePoll(factory, { interval: 100_000 }));
+        await waitFor(() => expect(factory).toHaveBeenCalledTimes(1));
+
+        act(() => result.current.stop());
+        await act(async () => {
+            release?.("tarde demais");
+        });
+
+        expect(result.current.data).toBeNull();
+    });
+});

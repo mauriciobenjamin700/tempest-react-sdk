@@ -201,3 +201,42 @@ describe("Transfer", () => {
         expect(screen.getByRole("region", { name: "Do usuário" })).toBeInTheDocument();
     });
 });
+
+describe("Transfer — the paths a mouse takes", () => {
+    it("moves a row with a double click, in both directions", async () => {
+        const onChange = vi.fn();
+        render(<Harness onChange={onChange} />);
+
+        await userEvent.dblClick(row("Administrador"));
+        expect(onChange).toHaveBeenLastCalledWith(["a"]);
+
+        await userEvent.dblClick(row("Administrador"));
+        expect(onChange).toHaveBeenLastCalledWith([]);
+    });
+
+    it("ignores a double click while the whole control is disabled", async () => {
+        const onChange = vi.fn();
+        render(<Harness onChange={onChange} disabled />);
+
+        await userEvent.dblClick(row("Administrador"));
+
+        expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it("unchecks a row that was already checked", async () => {
+        render(<Harness />);
+
+        await userEvent.click(row("Administrador"));
+        expect(row("Administrador")).toBeChecked();
+
+        await userEvent.click(row("Administrador"));
+        expect(row("Administrador")).not.toBeChecked();
+    });
+
+    it("labels the pane controls by side when the title is not text", async () => {
+        render(<Harness searchable sourceTitle={<strong>Papéis</strong>} />);
+
+        expect(screen.getByRole("checkbox", { name: "source" })).toBeInTheDocument();
+        expect(screen.getByRole("searchbox", { name: /source/ })).toBeInTheDocument();
+    });
+});

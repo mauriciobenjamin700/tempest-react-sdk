@@ -153,3 +153,31 @@ describe("memoizeOne", () => {
         expect(fn).toHaveBeenCalledTimes(1);
     });
 });
+
+describe("throttle — a trailing call the next leading edge overtakes", () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it("drops the pending trailing call when the window has already elapsed", () => {
+        const fn = vi.fn();
+        const throttled = throttle(fn, 100);
+
+        throttled("a");
+        throttled("b");
+        expect(fn).toHaveBeenCalledTimes(1);
+
+        vi.setSystemTime(Date.now() + 150);
+        throttled("c");
+
+        expect(fn).toHaveBeenCalledTimes(2);
+        expect(fn).toHaveBeenLastCalledWith("c");
+
+        vi.advanceTimersByTime(500);
+        expect(fn, "the overtaken trailing call never fires").toHaveBeenCalledTimes(2);
+    });
+});

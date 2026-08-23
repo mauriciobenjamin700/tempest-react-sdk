@@ -7,6 +7,9 @@ import { moveItem, useSortable } from "./use-sortable";
 
 const ROW_HEIGHT = 40;
 
+/** Where the stubbed rect of an empty group's drop area sits, clear of every row. */
+const EMPTY_TOP = 500;
+
 /**
  * jsdom gives every element a zero-sized rect, so hit-testing would never match.
  * Faking rects by row index is what lets the pointer path be exercised at all —
@@ -14,6 +17,16 @@ const ROW_HEIGHT = 40;
  */
 function stubRects(): void {
     Element.prototype.getBoundingClientRect = function getBoundingClientRect(this: Element) {
+        if ((this as HTMLElement).dataset?.sortableEmpty !== undefined) {
+            return {
+                top: EMPTY_TOP,
+                bottom: EMPTY_TOP + ROW_HEIGHT,
+                left: 0,
+                right: 200,
+                width: 200,
+                height: ROW_HEIGHT,
+            } as DOMRect;
+        }
         const index = Number((this as HTMLElement).dataset?.sortableIndex ?? NaN);
         if (Number.isNaN(index)) {
             return { top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0 } as DOMRect;
@@ -280,7 +293,7 @@ describe("useSortable — keyboard", () => {
         render(<List />);
 
         screen.getByText("Alfa").focus();
-        await userEvent.keyboard("{ArrowDown}");
+        await userEvent.keyboard("{ArrowDown}{ArrowUp}{ArrowLeft}{ArrowRight}");
 
         expect(screen.getByTestId("estado")).toHaveTextContent("null/null");
     });
@@ -381,5 +394,106 @@ describe("useSortable — lifecycle", () => {
 
         expect(second).toHaveBeenCalledTimes(1);
         expect(first).not.toHaveBeenCalled();
+    });
+});
+
+describe("useSortable — what the hit test finds, and what it does not", () => {
+    it("ignores a move while no container was ever attached", () => {
+        function Loose() {
+            const [items, setItems] = useState(["Alfa", "Bravo", "Charlie"]);
+            const sortable = useSortable({
+                itemCount: items.length,
+                roleDescription: "Item reordenável",
+                onReorder: ({ from, to }) => setItems((current) => moveItem(current, from, to)),
+            });
+            return (
+                <>
+                    <ul {...sortable.getListProps()} aria-label="Solta">
+                        {items.map((item, index) => (
+                            <li key={item} {...sortable.getItemProps(index)}>
+                                {item}
+                            </li>
+                        ))}
+                    </ul>
+                    <output data-testid="ordem">{items.join(",")}</output>
+                </>
+            );
+        }
+
+        render(<Loose />);
+        fireEvent.pointerDown(screen.getByText("Alfa"), { pointerId: 1, ...pointOf(0) });
+        fireEvent.pointerMove(window, { pointerId: 1, ...pointOf(2) });
+        fireEvent.pointerUp(window, { pointerId: 1 });
+
+        expect(screen.getByTestId("ordem")).toHaveTextContent("Alfa,Bravo,Charlie");
+    });
+
+    it("ignores a row whose index is not a number", () => {
+        function Strange() {
+            const [items, setItems] = useState(["Alfa", "Bravo"]);
+            const sortable = useSortable({
+                itemCount: items.length,
+                roleDescription: "Item reordenável",
+                onReorder: ({ from, to }) => setItems((current) => moveItem(current, from, to)),
+            });
+            return (
+                <>
+                    <ul
+                        {...sortable.getListProps()}
+                        aria-label="Estranha"
+                        ref={sortable.setContainer}
+                    >
+                        <li data-sortable-index="não é número">Intruso</li>
+                        {items.map((item, index) => (
+                            <li key={item} {...sortable.getItemProps(index)}>
+                                {item}
+                            </li>
+                        ))}
+                    </ul>
+                    <output data-testid="ordem">{items.join(",")}</output>
+                </>
+            );
+        }
+
+        render(<Strange />);
+        fireEvent.pointerDown(screen.getByText("Alfa"), { pointerId: 1, ...pointOf(0) });
+        fireEvent.pointerMove(window, { pointerId: 1, clientX: 0, clientY: 0 });
+        fireEvent.pointerUp(window, { pointerId: 1 });
+
+        expect(screen.getByTestId("ordem")).toHaveTextContent("Alfa,Bravo");
+    });
+
+    it("drops into an empty group's area when no row is under the pointer", () => {
+        const onReorder = vi.fn();
+
+        function Board() {
+            const sortable = useSortable({
+                itemCount: 2,
+                roleDescription: "Item reordenável",
+                onReorder,
+            });
+            return (
+                <ul {...sortable.getListProps()} aria-label="Quadro" ref={sortable.setContainer}>
+                    {["Alfa", "Bravo"].map((item, index) => (
+                        <li key={item} {...sortable.getItemProps(index, "fazendo")}>
+                            {item}
+                        </li>
+                    ))}
+                    <li {...sortable.getEmptyGroupProps("feito")} data-testid="vazia" />
+                </ul>
+            );
+        }
+
+        render(<Board />);
+        fireEvent.pointerDown(screen.getByText("Alfa"), { pointerId: 1, ...pointOf(0) });
+        fireEvent.pointerMove(window, { pointerId: 1, clientX: 100, clientY: EMPTY_TOP + 10 });
+        fireEvent.pointerUp(window, { pointerId: 1 });
+
+        expect(onReorder).toHaveBeenCalledWith({
+            from: 0,
+            to: 0,
+            fromGroup: "fazendo",
+            toGroup: "feito",
+        });
     });
 });

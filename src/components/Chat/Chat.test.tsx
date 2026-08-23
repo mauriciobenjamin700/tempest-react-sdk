@@ -1,6 +1,6 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Chat } from "./Chat";
 import type { ChatMessage } from "./chat-groups";
@@ -152,5 +152,59 @@ describe("Chat", () => {
     it("forwards the rest of the DOM props", () => {
         render(<Chat messages={THREAD} data-testid="thread" id="chat-1" now={NOON} />);
         expect(screen.getByTestId("thread")).toHaveAttribute("id", "chat-1");
+    });
+});
+
+describe("Chat — the scroll position the reader chose", () => {
+    /**
+     * jsdom does no layout, so the thread would always measure as "at the bottom".
+     * These stubs stand in for the geometry the component reads.
+     */
+    function stubScroll(distanceFromBottom: number): void {
+        Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+            configurable: true,
+            get: () => 1000,
+        });
+        Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+            configurable: true,
+            get: () => 400,
+        });
+        Object.defineProperty(HTMLElement.prototype, "scrollTop", {
+            configurable: true,
+            get: () => 600 - distanceFromBottom,
+            set: () => undefined,
+        });
+    }
+
+    afterEach(() => {
+        for (const name of ["scrollHeight", "clientHeight", "scrollTop"]) {
+            Reflect.deleteProperty(HTMLElement.prototype, name);
+        }
+    });
+
+    it("does not yank a reader who scrolled up back to the newest message", () => {
+        stubScroll(300);
+        const { rerender } = render(<Chat messages={THREAD} currentUserId="me" now={NOON} />);
+        const thread = screen.getByRole("log");
+
+        fireEvent.scroll(thread);
+        rerender(
+            <Chat
+                messages={[
+                    ...THREAD,
+                    {
+                        id: "4",
+                        body: "Chegou depois",
+                        authorId: "ana",
+                        authorName: "Ana",
+                        sentAt: NOON + 3 * MINUTE,
+                    },
+                ]}
+                currentUserId="me"
+                now={NOON}
+            />,
+        );
+
+        expect(screen.getByText("Chegou depois")).toBeInTheDocument();
     });
 });

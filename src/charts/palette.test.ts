@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
     CHART_COLOR_TOKEN_COUNT,
@@ -110,5 +110,26 @@ describe("resolveChartChrome", () => {
         expect(resolveChartChrome("grid", host)).toBe("#101010");
 
         host.remove();
+    });
+});
+
+describe("palette — outside a browser", () => {
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it("answers with the defaults when there is no window", () => {
+        vi.stubGlobal("window", undefined);
+
+        expect(resolveChartColors()).toEqual(DEFAULT_CHART_COLORS);
+        expect(resolveChartChrome("grid")).toBe("#e4e7ec");
+        expect(resolveChartChrome("axis")).toBe("#667085");
+    });
+
+    it("answers with the defaults when the document has no root element", () => {
+        vi.stubGlobal("document", { documentElement: null });
+
+        expect(resolveChartColors()).toEqual(DEFAULT_CHART_COLORS);
+        expect(resolveChartChrome("axis", undefined, "#123456")).toBe("#123456");
     });
 });

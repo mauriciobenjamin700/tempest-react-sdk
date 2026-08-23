@@ -272,3 +272,31 @@ describe("orderRange", () => {
         expect(orderRange(["a"])).toEqual(["", "a"]);
     });
 });
+
+describe("applyFilters — values that cannot be compared as dates", () => {
+    it("matches nothing when the row holds an invalid Date", () => {
+        const rows = [{ criadoEm: new Date(Number.NaN) }];
+        const filter: Filter = {
+            field: "criadoEm",
+            operator: "gte",
+            value: "2026-03-05",
+        };
+        expect(applyFilters(rows, [filter])).toEqual([]);
+    });
+
+    it("matches nothing when the row value is neither a Date nor text", () => {
+        const rows = [{ criadoEm: { quando: "ontem" } }];
+        const filter: Filter = {
+            field: "criadoEm",
+            operator: "gte",
+            value: "2026-03-05",
+        };
+        expect(applyFilters(rows, [filter])).toEqual([]);
+    });
+});
+
+describe("orderRange — text already in order", () => {
+    it("keeps a pair the collator already reads as ascending", () => {
+        expect(orderRange(["item 2", "item 10"])).toEqual(["item 2", "item 10"]);
+    });
+});

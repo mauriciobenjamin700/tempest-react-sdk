@@ -224,6 +224,14 @@ describe("createLocalUploadStorage", () => {
         localStorage.setItem("p:bad", "{not json");
         expect(await storage.get("bad")).toBeNull();
     });
+
+    it("no-ops when there is no localStorage to write to", async () => {
+        const storage = createLocalUploadStorage();
+        vi.stubGlobal("localStorage", undefined);
+        await storage.set("fp", record);
+        expect(await storage.get("fp")).toBeNull();
+        await storage.delete("fp");
+    });
 });
 
 describe("createResumableUpload — the happy path", () => {
@@ -829,5 +837,209 @@ describe("createResumableUpload — chunk retry policy", () => {
 
         expect(shouldRetry).toHaveBeenCalled();
         expect(server.requests.filter((r) => r.method === "PATCH").length).toBeGreaterThan(1);
+    });
+});
+
+describe("createResumableUpload — the edges the protocol still has to survive", () => {
+    it("keeps the fraction at 1 for an empty file instead of dividing by zero", async () => {
+        server = acceptingServer(0);
+        installXhr();
+        const seen: number[] = [];
+        await createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(0),
+            storage: null,
+            onProgress: ({ fraction }) => seen.push(fraction),
+        }).start();
+        expect(seen).not.toHaveLength(0);
+        expect(seen.every((fraction) => fraction === 1)).toBe(true);
+    });
+
+    it("starts over when the server answers HEAD with an offset that is not a number", async () => {
+        server = acceptingServer(4);
+        server.queue("HEAD", { status: 200, headers: { "Upload-Offset": "quase-lá" } });
+        installXhr();
+        const storage = memoryStorage({
+            url: "/api/uploads/abc",
+            offset: 2,
+            size: 4,
+            idempotencyKey: "k",
+            updatedAt: 1,
+        });
+        await createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(4),
+            storage,
+            key: "fp",
+        }).start();
+        expect(server.countOf("POST")).toBe(1);
+    });
+
+    it("keeps the server's message when the error envelope carries no detail", async () => {
+        server = acceptingServer(4);
+        server.queue("PATCH", { status: 400, text: JSON.stringify({ message: "chunk torto" }) });
+        installXhr();
+        await expect(
+            createResumableUpload({
+                endpoint: "/api/uploads",
+                file: blobOf(4),
+                storage: null,
+                retry: { retries: 1, initialDelay: 0 },
+            }).start(),
+        ).rejects.toMatchObject({ status: 400, detail: "chunk torto" });
+    });
+
+    it("replays a failure that carries no status at all, because a transport error has none", async () => {
+        server = acceptingServer(4);
+        installXhr();
+        const storage: ResumableUploadStorage = {
+            get: () => null,
+            set: (_key, record) => {
+                if (record.offset > 0) throw new Error("disco cheio");
+            },
+            delete: () => undefined,
+        };
+
+        await expect(
+            createResumableUpload({
+                endpoint: "/api/uploads",
+                file: blobOf(4),
+                storage,
+                key: "fp",
+                retry: { retries: 2, initialDelay: 0 },
+            }).start(),
+        ).rejects.toThrow("disco cheio");
+        expect(server.countOf("HEAD"), "a failure with no status still earns a resync").toBe(1);
+    });
+
+    it("stops writing when the resync finds the server already holds the whole file", async () => {
+        let stored = 0;
+        let lostResponse = true;
+        server = new FakeTusServer((request): Reply => {
+            if (request.method === "POST") {
+                return { status: 201, headers: { Location: "/api/uploads/abc" } };
+            }
+            if (request.method === "HEAD") {
+                return { status: 200, headers: { "Upload-Offset": String(stored) } };
+            }
+            stored = Math.min(stored + request.bodySize, 4);
+            if (lostResponse) {
+                lostResponse = false;
+                return { status: 0, networkError: true };
+            }
+            return { status: 204, headers: { "Upload-Offset": String(stored) } };
+        });
+        installXhr();
+
+        const upload = createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(4),
+            storage: null,
+            retry: { retries: 2, initialDelay: 0 },
+        });
+
+        await expect(upload.start()).resolves.toMatchObject({ size: 4 });
+        expect(upload.offset).toBe(4);
+        expect(
+            server.countOf("PATCH"),
+            "the bytes the server already had are not written twice",
+        ).toBe(1);
+        expect(server.countOf("HEAD")).toBe(1);
+    });
+
+    it("resolves a relative Location as-is when there is no page to resolve against", async () => {
+        server = acceptingServer(4);
+        installXhr();
+        vi.stubGlobal("window", undefined);
+        const upload = createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(4),
+            storage: null,
+        });
+        await upload.start();
+        expect(upload.url).toBe("/api/uploads/abc");
+    });
+});
+
+describe("createResumableUpload — stopping between chunks, not inside one", () => {
+    /**
+     * A storage whose `set` stops the upload once, so the loop is interrupted
+     * between two chunks rather than mid-request.
+     *
+     * Pausing while a `PATCH` is open aborts the request and lands in the
+     * `guarded` catch; the loop's own stop check is only reached when nothing is
+     * in flight, which is exactly what a `set` running after a completed chunk
+     * gives us.
+     *
+     * @param stop - What to call on the first persisted chunk.
+     * @returns A storage that keeps nothing.
+     */
+    function stoppingStorage(stop: () => void): ResumableUploadStorage {
+        let stopped = false;
+        return {
+            get: () => null,
+            set: (_key, record) => {
+                if (record.offset > 0 && !stopped) {
+                    stopped = true;
+                    stop();
+                }
+            },
+            delete: () => undefined,
+        };
+    }
+
+    it("pauses between chunks and reports the paused state", async () => {
+        server = acceptingServer(12);
+        installXhr();
+        const upload = createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(12),
+            chunkSize: 4,
+            storage: stoppingStorage(() => upload.pause()),
+            key: "fp",
+        });
+
+        await expect(upload.start()).resolves.toBeNull();
+        expect(upload.state).toBe("paused");
+        expect(server.countOf("PATCH")).toBe(1);
+    });
+
+    it("aborts between chunks and reports the aborted state", async () => {
+        server = acceptingServer(12);
+        installXhr();
+        const upload = createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(12),
+            chunkSize: 4,
+            storage: stoppingStorage(() => void upload.abort()),
+            key: "fp",
+        });
+
+        await expect(upload.start()).resolves.toBeNull();
+        expect(upload.state).toBe("aborted");
+        expect(server.countOf("PATCH")).toBe(1);
+    });
+
+    it("treats an abort nobody asked for as a pause, and does not retry it", async () => {
+        server = acceptingServer(12);
+        installXhr();
+        const upload = createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(12),
+            chunkSize: 4,
+            storage: null,
+            retry: { retries: 5, initialDelay: 0 },
+        });
+
+        server.onOpen = () => {
+            if (server.countOf("PATCH") === 1) {
+                server.onOpen = null;
+                server.open?.abort();
+            }
+        };
+
+        await expect(upload.start()).resolves.toBeNull();
+        expect(upload.state).toBe("paused");
+        expect(server.countOf("PATCH"), "an abort is never replayed").toBe(1);
     });
 });

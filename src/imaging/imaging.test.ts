@@ -529,3 +529,15 @@ describe("imaging · errors", () => {
         FakeOffscreenCanvas.prototype.convertToBlob = original;
     });
 });
+
+describe("imaging · a bitmap with no height", () => {
+    it("reports a zero aspect ratio instead of dividing by zero", async () => {
+        state.bitmapSize = { width: 400, height: 0 };
+        const { readImageInfo } = await import("./decode");
+
+        const info = await readImageInfo(source);
+
+        expect(info.aspectRatio).toBe(0);
+        expect(info.height).toBe(0);
+    });
+});

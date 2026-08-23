@@ -261,3 +261,26 @@ describe("VirtualTable — scrollToIndex", () => {
         expect((container.firstElementChild as HTMLElement).scrollTop).toBe(9 * 20);
     });
 });
+
+describe("VirtualTable — the column shapes the defaults cover", () => {
+    it("centres a column, keys rows by position and renders an absent cell as nothing", () => {
+        vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(200);
+        const sparse = [{ id: 1, name: "Único" }] as Row[];
+
+        const { container } = render(
+            <VirtualTable<Row>
+                data={sparse}
+                columns={[
+                    { key: "name", header: "Nome", align: "center" },
+                    { key: "total", header: "Total" },
+                ]}
+                rowHeight={20}
+                height={200}
+            />,
+        );
+
+        const cells = container.querySelectorAll("tbody tr:not([aria-hidden]) td");
+        expect(cells[0].className).toContain("alignCenter");
+        expect(cells[1]).toBeEmptyDOMElement();
+    });
+});

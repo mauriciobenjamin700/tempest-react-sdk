@@ -223,3 +223,19 @@ describe("Tour", () => {
         );
     });
 });
+
+describe("Tour — a step that points at nothing in particular", () => {
+    it("centres the card when the step names no target", () => {
+        const steps: TourStep[] = [
+            { title: "Bem-vindo", body: "Este passo fala do produto, não de um botão." },
+        ];
+        render(
+            <Page>
+                <Tour steps={steps} open onClose={() => undefined} />
+            </Page>,
+        );
+
+        expect(screen.getByRole("dialog")).toHaveTextContent("Bem-vindo");
+        expect(document.querySelector("[data-tour-spotlight]")).toBeNull();
+    });
+});

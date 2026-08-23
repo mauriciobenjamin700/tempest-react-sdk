@@ -364,3 +364,15 @@ describe("SignaturePad", () => {
         expect(container.firstElementChild).toHaveClass("mine");
     });
 });
+
+describe("SignaturePad — the handle after the canvas is gone", () => {
+    it("hands back an empty data URL once the pad has unmounted", () => {
+        const ref = createRef<SignaturePadHandle>();
+        const { unmount } = render(<SignaturePad ref={ref} />);
+        const handle = ref.current;
+
+        unmount();
+
+        expect(handle?.toDataURL()).toBe("");
+    });
+});

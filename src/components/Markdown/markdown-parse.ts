@@ -55,6 +55,7 @@ const RULE = /^\s{0,3}([-*_])\s*(?:\1\s*){2,}$/;
 const QUOTE = /^\s{0,3}>\s?(.*)$/;
 const BULLET = /^(\s*)([-*+])\s+(.*)$/;
 const ORDERED = /^(\s*)(\d{1,9})[.)]\s+(.*)$/;
+const HARD_BREAK = / {2,}$/;
 /**
  * A table's delimiter row.
  *
@@ -155,6 +156,7 @@ function parseBlocks(lines: string[]): MarkdownBlock[] {
         }
 
         const paragraph: string[] = [];
+        const hardBreaks: boolean[] = [];
         while (i < lines.length && lines[i].trim() !== "") {
             const current = lines[i];
             if (
@@ -168,14 +170,39 @@ function parseBlocks(lines: string[]): MarkdownBlock[] {
                 break;
             }
             paragraph.push(current.trim());
+            hardBreaks.push(HARD_BREAK.test(current));
             i += 1;
         }
         if (paragraph.length > 0) {
-            blocks.push({ type: "paragraph", children: parseInline(paragraph.join("\n")) });
+            blocks.push({
+                type: "paragraph",
+                children: parseInline(joinParagraph(paragraph, hardBreaks)),
+            });
         }
     }
 
     return blocks;
+}
+
+/**
+ * Re-join the lines of a paragraph, keeping the two-space hard break.
+ *
+ * Every line is trimmed before it is parsed, because leading indentation is not
+ * content and a trailing space is invisible noise in almost every line. The one
+ * exception is the CommonMark hard break: two or more trailing spaces mean
+ * "break the line here", so trimming first would delete the only mark that says
+ * so and the `  \n` inline rule could never match. The flag is recorded before
+ * the trim and the marker put back here, on every line but the last — a break
+ * after the final line of a paragraph would break into nothing.
+ *
+ * @param lines - The trimmed lines, in order.
+ * @param hardBreaks - Whether each line ended in two or more spaces.
+ * @returns The paragraph source the inline parser reads.
+ */
+function joinParagraph(lines: readonly string[], hardBreaks: readonly boolean[]): string {
+    return lines
+        .map((line, index) => (hardBreaks[index] && index < lines.length - 1 ? `${line}  ` : line))
+        .join("\n");
 }
 
 /**

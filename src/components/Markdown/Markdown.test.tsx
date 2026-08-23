@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { Markdown } from "./Markdown";
 
@@ -107,5 +107,88 @@ describe("Markdown", () => {
     it("forwards the rest of the DOM props", () => {
         render(<Markdown source="oi" data-testid="md" aria-label="Comentário" />);
         expect(screen.getByTestId("md")).toHaveAttribute("aria-label", "Comentário");
+    });
+});
+
+describe("Markdown — the inline nodes the first pass missed", () => {
+    it("renders emphasis, strikethrough and a hard break", () => {
+        const { container } = render(
+            <Markdown source={"*ênfase* e ~~riscado~~\n\nlinha um  \nlinha dois"} />,
+        );
+        expect(screen.getByText("ênfase").tagName).toBe("EM");
+        expect(screen.getByText("riscado").tagName).toBe("DEL");
+        expect(container.querySelector("br")).toBeInTheDocument();
+    });
+
+    it("keeps an image whose src normalizes to nothing as its alt text", () => {
+        render(<Markdown source={"![sem fonte](\u0001)"} />);
+        expect(screen.getByText("sem fonte")).toBeInTheDocument();
+        expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    });
+
+    it("starts an ordered list at the number it was written with", () => {
+        const { container } = render(<Markdown source={"3. três\n4. quatro"} />);
+        expect(container.querySelector("ol")).toHaveAttribute("start", "3");
+    });
+
+    it("keeps the ordered list unnumbered when it starts at one", () => {
+        const { container } = render(<Markdown source={"1. um\n2. dois"} />);
+        expect(container.querySelector("ol")).not.toHaveAttribute("start");
+    });
+
+    it("highlights a fence that names no language", () => {
+        render(<Markdown source={"```\nsem linguagem\n```"} />);
+        expect(screen.getByText(/sem linguagem/)).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /copy/i })).toBeInTheDocument();
+    });
+
+    it("leaves a table without a delimiter alignment unstyled", () => {
+        render(<Markdown source={"| a | b |\n| --- | --- |\n| 1 | 2 |"} />);
+        const header = screen.getByRole("columnheader", { name: "a" });
+        expect(header.style.textAlign).toBe("");
+    });
+
+    it("renders a row wider than the alignment row without styling the extra cell", () => {
+        render(<Markdown source={"| a | b |\n| :-- | --: |\n| 1 | 2 | 3 |"} />);
+        const cells = screen.getAllByRole("cell");
+        expect(cells).toHaveLength(3);
+        expect(cells[2].style.textAlign).toBe("");
+    });
+});
+
+/**
+ * jsdom performs no layout, so a table never looks wider than its box. These
+ * stubs stand in for the measurement a browser would do.
+ */
+function stubWidths(scroll: number, client: number) {
+    Object.defineProperty(HTMLElement.prototype, "scrollWidth", {
+        configurable: true,
+        get: () => scroll,
+    });
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+        configurable: true,
+        get: () => client,
+    });
+}
+
+describe("Markdown — the table's scrollable region", () => {
+    afterEach(() => {
+        Reflect.deleteProperty(HTMLElement.prototype, "scrollWidth");
+        Reflect.deleteProperty(HTMLElement.prototype, "clientWidth");
+    });
+
+    it("becomes a labelled tab stop only while the table overflows", () => {
+        stubWidths(900, 300);
+        render(<Markdown source={"| a | b |\n| :-- | --: |\n| 1 | 2 |"} />);
+        const region = screen.getByRole("region", { name: "Tabela rolável" });
+        expect(region).toHaveAttribute("tabindex", "0");
+    });
+
+    it("adds no tab stop while the table fits", () => {
+        stubWidths(300, 300);
+        const { container } = render(<Markdown source={"| a | b |\n| :-- | --: |\n| 1 | 2 |"} />);
+        const scroll = container.firstElementChild?.firstElementChild as HTMLElement;
+        expect(scroll).not.toHaveAttribute("tabindex");
+        expect(scroll).not.toHaveAttribute("role");
     });
 });

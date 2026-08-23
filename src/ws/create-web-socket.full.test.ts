@@ -223,3 +223,36 @@ describe("createWebSocket — handlers after close", () => {
         vi.unstubAllGlobals();
     });
 });
+
+describe("createWebSocket — reconnecting over a live socket", () => {
+    function install(): void {
+        WSMock.instances = [];
+        vi.stubGlobal("WebSocket", WSMock as unknown as typeof WebSocket);
+    }
+
+    it("detaches the open handler of the socket it replaces", () => {
+        install();
+        const controller = createWebSocket("wss://x");
+        const first = WSMock.instances[0];
+        first.readyState = OPEN;
+        first.onopen?.(new Event("open"));
+
+        controller.reconnect();
+
+        expect(WSMock.instances.length).toBe(2);
+        expect(first.onopen).toBeNull();
+    });
+
+    it("cancels a pending retry before opening the fresh socket", async () => {
+        vi.useFakeTimers();
+        install();
+        const controller = createWebSocket("wss://x", { initialBackoff: 50 });
+        WSMock.instances[0].onclose?.({ wasClean: false } as CloseEvent);
+
+        controller.reconnect();
+        await vi.advanceTimersByTimeAsync(200);
+
+        expect(WSMock.instances.length, "the cancelled retry never opened a third socket").toBe(2);
+        vi.useRealTimers();
+    });
+});

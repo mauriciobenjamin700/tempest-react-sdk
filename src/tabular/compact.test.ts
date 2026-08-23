@@ -14,7 +14,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { CompactPredictor, SUPPORTED_COMPACT_SCHEMA } from "./compact";
 import { CompactFormatError, FeatureShapeError } from "./exceptions";
@@ -178,5 +178,16 @@ describe("compact · failures", () => {
         await expect(CompactPredictor.create("/models/missing.tmc")).rejects.toThrow(
             /Could not download/,
         );
+    });
+
+    it("names the status code when the server refuses the model", async () => {
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(async () => new Response("nada aqui", { status: 404, statusText: "Not Found" })),
+        );
+        await expect(CompactPredictor.create("https://cdn.exemplo/modelo.tmc")).rejects.toThrow(
+            /404 Not Found/,
+        );
+        vi.unstubAllGlobals();
     });
 });

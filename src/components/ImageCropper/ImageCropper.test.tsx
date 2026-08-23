@@ -376,3 +376,42 @@ describe("ImageCropper — an image with no intrinsic size", () => {
         await expect(ref.current!.crop()).resolves.toBeNull();
     });
 });
+
+describe("ImageCropper — before the image reports its size", () => {
+    it("ignores a zoom key, because there is nothing to scale yet", () => {
+        render(<ImageCropper src="/photo.jpg" />);
+
+        fireEvent.keyDown(frame(), { key: "+" });
+
+        const image = screen.getByRole("presentation", { hidden: true });
+        expect(image.style.width).toBe("");
+    });
+
+    it("ignores a pointer drag, because there is nothing to pan yet", () => {
+        const { container } = render(<ImageCropper src="/photo.jpg" />);
+        const image = container.querySelector("img") as HTMLImageElement;
+
+        fireEvent.pointerDown(frame(), { pointerId: 1, clientX: 0, clientY: 0 });
+        fireEvent.pointerMove(frame(), { pointerId: 1, clientX: 40, clientY: 0 });
+
+        expect(image.style.transform).not.toContain("translate(40px");
+    });
+});
+
+describe("ImageCropper — the drag that is not ours", () => {
+    it("ignores a release from a pointer that never started the drag", () => {
+        const { image } = renderCropper();
+
+        fireEvent.pointerDown(frame(), { pointerId: 1, clientX: 0, clientY: 0 });
+        fireEvent.pointerUp(frame(), { pointerId: 2 });
+        fireEvent.pointerMove(frame(), { pointerId: 1, clientX: -40, clientY: 0 });
+
+        expect(offsetOf(image).x, "the original drag is still live").toBeLessThan(0);
+    });
+
+    it("renders a round frame when asked for one", () => {
+        const { container } = render(<ImageCropper src="/photo.jpg" shape="circle" />);
+        const region = container.querySelector('[role="group"]') as HTMLElement;
+        expect(region.className).toContain("circle");
+    });
+});

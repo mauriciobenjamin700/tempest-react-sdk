@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { applyTheme, readThemeToken, THEME_STYLE_ID } from "./apply-theme";
 import { createTheme } from "./create-theme";
@@ -98,5 +98,32 @@ describe("readThemeToken", () => {
 
     it("returns an empty string when the element is null", () => {
         expect(readThemeToken("--tempest-primary", null)).toBe("");
+    });
+});
+
+describe("apply-theme — outside a browser", () => {
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it("installs nothing and hands back a disposer that does nothing", () => {
+        vi.stubGlobal("document", undefined);
+
+        const dispose = applyTheme(":root { --tempest-primary: #123456; }");
+
+        expect(dispose).toBeInstanceOf(Function);
+        expect(() => dispose()).not.toThrow();
+    });
+
+    it("reads no token without a window", () => {
+        vi.stubGlobal("window", undefined);
+
+        expect(readThemeToken("--tempest-primary")).toBe("");
+    });
+
+    it("reads no token when the document has no root element", () => {
+        vi.stubGlobal("document", { documentElement: null });
+
+        expect(readThemeToken("--tempest-primary")).toBe("");
     });
 });

@@ -4,6 +4,7 @@ import {
     defaultOperator,
     describeFilter,
     filtersFromSearchParams,
+    filterStrings,
     filtersToSearchParams,
     isComplete,
     isMulti,
@@ -233,5 +234,17 @@ describe("filtersFromSearchParams", () => {
 
     it("returns nothing for empty params", () => {
         expect(filtersFromSearchParams(new URLSearchParams(), FIELDS)).toEqual([]);
+    });
+});
+
+describe("filterStrings", () => {
+    it("counts one active filter in the singular, in both locales", () => {
+        expect(filterStrings("pt-BR").active(1)).toBe("1 filtro ativo");
+        expect(filterStrings("en").active(1)).toBe("1 active filter");
+    });
+
+    it("counts more than one in the plural, in both locales", () => {
+        expect(filterStrings("pt-BR").active(3)).toBe("3 filtros ativos");
+        expect(filterStrings("en").active(3)).toBe("3 active filters");
     });
 });

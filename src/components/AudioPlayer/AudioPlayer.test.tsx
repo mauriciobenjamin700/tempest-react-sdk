@@ -251,4 +251,18 @@ describe("AudioPlayer", () => {
         view.rerender(<AudioPlayer src="/b.webm" durationMs={9_000} />);
         expect(screen.getByText("0:00")).toBeInTheDocument();
     });
+
+    it("follows a pause that came from the element itself", () => {
+        const restore = installMediaElement();
+        const { container } = render(<AudioPlayer src="/nota.webm" durationMs={4000} />);
+        const audio = container.querySelector("audio") as HTMLAudioElement;
+
+        fireEvent.play(audio);
+        expect(screen.getByRole("button", { name: "Pausar" })).toBeInTheDocument();
+
+        fireEvent.pause(audio);
+        expect(screen.getByRole("button", { name: "Tocar" })).toBeInTheDocument();
+
+        restore();
+    });
 });

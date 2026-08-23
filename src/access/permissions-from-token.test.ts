@@ -43,4 +43,9 @@ describe("permissionsFromToken", () => {
         const token = encode({ sub: "u1" });
         expect(permissionsFromToken(token)).toEqual([]);
     });
+
+    it("does not fall back to scopes when the caller named the claim", () => {
+        const token = encode({ scopes: ["orders:read"], roles_perms: [] });
+        expect(permissionsFromToken(token, { claim: "roles_perms" })).toEqual([]);
+    });
 });

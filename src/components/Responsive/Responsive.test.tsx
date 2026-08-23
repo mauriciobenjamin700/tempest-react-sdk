@@ -55,4 +55,10 @@ describe("Responsive Show/Hide", () => {
         const { queryByText } = render(<Hide above="md">x</Hide>);
         expect(queryByText("x")).toBeInTheDocument();
     });
+
+    it("Hide removes the children when the condition matches", () => {
+        setWindowWidth(500);
+        const { queryByText } = render(<Hide below="md">x</Hide>);
+        expect(queryByText("x")).toBeNull();
+    });
 });

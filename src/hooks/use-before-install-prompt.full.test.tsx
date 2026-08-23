@@ -40,4 +40,33 @@ describe("useBeforeInstallPrompt full", () => {
         const { result } = renderHook(() => useBeforeInstallPrompt());
         expect(result.current.isStandalone).toBe(false);
     });
+
+    it("re-reads standalone when the display mode changes", () => {
+        let displayModeHandler: (() => void) | null = null;
+        let standalone = false;
+        Object.defineProperty(window, "matchMedia", {
+            configurable: true,
+            writable: true,
+            value: (query: string) => ({
+                matches: query.includes("standalone") ? standalone : false,
+                media: query,
+                onchange: null,
+                addListener: () => undefined,
+                removeListener: () => undefined,
+                addEventListener: (_name: string, fn: () => void) => {
+                    displayModeHandler = fn;
+                },
+                removeEventListener: () => undefined,
+                dispatchEvent: () => false,
+            }),
+        });
+
+        const { result } = renderHook(() => useBeforeInstallPrompt());
+        expect(result.current.isStandalone).toBe(false);
+
+        standalone = true;
+        act(() => displayModeHandler?.());
+
+        expect(result.current.isStandalone).toBe(true);
+    });
 });

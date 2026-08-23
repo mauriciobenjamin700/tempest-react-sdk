@@ -66,4 +66,32 @@ describe("audio-player callbacks", () => {
         expect(instance.pause).toHaveBeenCalled();
         vi.unstubAllGlobals();
     });
+
+    it("hands an element error to the caller", async () => {
+        AudioMock.instances = [];
+        vi.stubGlobal("Audio", AudioMock);
+        const onError = vi.fn();
+        const player = createAudioPlayer();
+        await player.play("/x.mp3", { onError });
+
+        AudioMock.instances[0]!.onerror?.(new Event("error"));
+
+        expect(onError).toHaveBeenCalled();
+        vi.unstubAllGlobals();
+    });
+
+    it("routes the clip to a chosen output device before playing", async () => {
+        AudioMock.instances = [];
+        const setSinkId = vi.fn().mockResolvedValue(undefined);
+        class RoutableAudio extends AudioMock {
+            setSinkId = setSinkId;
+        }
+        vi.stubGlobal("Audio", RoutableAudio);
+
+        const player = createAudioPlayer();
+        await player.play("/x.mp3", { sinkId: "fone-usb" });
+
+        expect(setSinkId).toHaveBeenCalledWith("fone-usb");
+        vi.unstubAllGlobals();
+    });
 });

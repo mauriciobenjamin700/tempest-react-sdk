@@ -648,6 +648,31 @@ describe("createResumableUpload — pause, resume and abort", () => {
         expect(storage.records.size).toBe(0);
     });
 
+    it("forgets the record even when the server refuses the DELETE", async () => {
+        server = acceptingServer(12);
+        installXhr();
+        const storage = memoryStorage();
+        const upload = createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(12),
+            chunkSize: 4,
+            storage,
+            key: "fp",
+        });
+
+        server.onOpen = () => {
+            if (server.countOf("PATCH") === 1) {
+                server.onOpen = null;
+                server.queue("DELETE", { status: 0, networkError: true });
+                void upload.abort({ discard: true });
+            }
+        };
+
+        await expect(upload.start()).resolves.toBeNull();
+        await vi.waitFor(() => expect(storage.records.size).toBe(0));
+        expect(server.countOf("DELETE")).toBe(1);
+    });
+
     it("aborting without discard keeps the resume point", async () => {
         server = acceptingServer(12);
         installXhr();

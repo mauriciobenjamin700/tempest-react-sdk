@@ -157,3 +157,11 @@ describe("typingLabel", () => {
         expect(typingLabel(["Ana", "Bruno", "Cida"], "en")).toBe("3 people are typing…");
     });
 });
+
+describe("typingLabel — en", () => {
+    it("phrases one, two and many typists", () => {
+        expect(typingLabel(["Ana"], "en")).toBe("Ana is typing…");
+        expect(typingLabel(["Ana", "Bruno"], "en")).toBe("Ana and Bruno are typing…");
+        expect(typingLabel(["Ana", "Bruno", "Caio"], "en")).toBe("3 people are typing…");
+    });
+});

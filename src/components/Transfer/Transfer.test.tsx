@@ -233,6 +233,15 @@ describe("Transfer — the paths a mouse takes", () => {
         expect(row("Administrador")).not.toBeChecked();
     });
 
+    it("moves every movable row back to the source with the bulk control", async () => {
+        const onChange = vi.fn();
+        render(<Harness initial={["a", "b", "d"]} onChange={onChange} />);
+
+        await userEvent.click(screen.getByRole("button", { name: "Mover todos para a esquerda" }));
+
+        expect(onChange).toHaveBeenCalledWith([]);
+    });
+
     it("labels the pane controls by side when the title is not text", async () => {
         render(<Harness searchable sourceTitle={<strong>Papéis</strong>} />);
 

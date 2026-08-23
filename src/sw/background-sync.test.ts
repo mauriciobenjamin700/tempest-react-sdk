@@ -339,3 +339,140 @@ describe("installBackgroundSync — defaults and entry guards", () => {
         expect(await countQueue("tempest-bg-sync")).toBe(0);
     });
 });
+
+describe("installBackgroundSync — the fallback for browsers without Background Sync", () => {
+    /** Drive the *second* fetch listener, which is the opportunistic drainer. */
+    function dispatchFallbackFetch(request: Request): Promise<unknown> | undefined {
+        let drained: Promise<unknown> | undefined;
+        listeners.fetch[1]?.({
+            request,
+            respondWith: () => undefined,
+            waitUntil: (p: Promise<unknown>) => (drained = p),
+        });
+        return drained;
+    }
+
+    it("drains the queue on a successful GET when the browser has no sync API", async () => {
+        stubSw(false);
+        const queue = "test-q-fallback";
+        installBackgroundSync({ queueName: queue });
+
+        fetchMock.mockRejectedValueOnce(new Error("offline"));
+        await dispatchFetch(
+            new Request("https://app.test/api/orders", { method: "POST", body: "x" }),
+        );
+        expect(await countQueue(queue)).toBe(1);
+
+        fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+        await dispatchFallbackFetch(new Request("https://app.test/api/orders"));
+
+        expect(await countQueue(queue)).toBe(0);
+    });
+
+    it("leaves the draining to the native sync where it exists", async () => {
+        const queue = "test-q-native";
+        installBackgroundSync({ queueName: queue });
+
+        fetchMock.mockRejectedValueOnce(new Error("offline"));
+        await dispatchFetch(
+            new Request("https://app.test/api/orders", { method: "POST", body: "x" }),
+        );
+
+        expect(dispatchFallbackFetch(new Request("https://app.test/api/orders"))).toBeUndefined();
+        expect(await countQueue(queue)).toBe(1);
+    });
+
+    it("ignores a non-GET in the fallback, which the queueing listener already handled", async () => {
+        stubSw(false);
+        const queue = "test-q-fallback-post";
+        installBackgroundSync({ queueName: queue });
+
+        expect(
+            dispatchFallbackFetch(
+                new Request("https://app.test/api/orders", { method: "POST", body: "x" }),
+            ),
+        ).toBeUndefined();
+    });
+});
+
+describe("installBackgroundSync — when IndexedDB itself refuses", () => {
+    it("rejects the queue write instead of hanging when the transaction aborts", async () => {
+        const queue = "test-q-constraint";
+        await new Promise<void>((resolve, reject) => {
+            const open = indexedDB.open(queue, 1);
+            open.onupgradeneeded = () => {
+                const store = open.result.createObjectStore("requests", {
+                    keyPath: "id",
+                    autoIncrement: true,
+                });
+                store.createIndex("url", "url", { unique: true });
+            };
+            open.onsuccess = () => {
+                open.result.close();
+                resolve();
+            };
+            open.onerror = () => reject(open.error);
+        });
+
+        installBackgroundSync({ queueName: queue });
+        fetchMock.mockRejectedValue(new Error("offline"));
+
+        const request = () =>
+            dispatchFetch(
+                new Request("https://app.test/api/orders", { method: "POST", body: "x" }),
+            );
+        await request();
+        await request();
+
+        expect(await countQueue(queue), "the second write was refused, not queued").toBe(1);
+    });
+
+    it("swallows a replay the fallback listener could not even open", async () => {
+        const queue = "test-q-fallback-broken";
+        await new Promise<void>((resolve, reject) => {
+            const open = indexedDB.open(queue, 2);
+            open.onupgradeneeded = () => open.result.createObjectStore("requests");
+            open.onsuccess = () => {
+                open.result.close();
+                resolve();
+            };
+            open.onerror = () => reject(open.error);
+        });
+
+        stubSw(false);
+        installBackgroundSync({ queueName: queue });
+
+        let drained: Promise<unknown> | undefined;
+        listeners.fetch[1]?.({
+            request: new Request("https://app.test/api/orders"),
+            respondWith: () => undefined,
+            waitUntil: (p: Promise<unknown>) => (drained = p),
+        });
+
+        await expect(drained).resolves.toBeUndefined();
+    });
+
+    it("rejects when the database cannot be opened at the version it wants", async () => {
+        const queue = "test-q-newer-db";
+        await new Promise<void>((resolve, reject) => {
+            const open = indexedDB.open(queue, 2);
+            open.onupgradeneeded = () => open.result.createObjectStore("requests");
+            open.onsuccess = () => {
+                open.result.close();
+                resolve();
+            };
+            open.onerror = () => reject(open.error);
+        });
+
+        installBackgroundSync({ queueName: queue });
+        fetchMock.mockRejectedValue(new Error("offline"));
+
+        await dispatchFetch(
+            new Request("https://app.test/api/orders", { method: "POST", body: "x" }),
+        );
+
+        let drained: Promise<unknown> | undefined;
+        listeners.sync[0]?.({ tag: queue, waitUntil: (p: Promise<unknown>) => (drained = p) });
+        await expect(drained).rejects.toBeTruthy();
+    });
+});

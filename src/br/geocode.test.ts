@@ -128,3 +128,26 @@ describe("geocode — centroid lookups and edges", () => {
         expect(second).toBe(first);
     });
 });
+
+describe("reverseGeocode — enclaves", () => {
+    /**
+     * Two municipalities in the dataset are drawn with a hole: Corumbá (MS)
+     * around Ladário, and Pelotas (RS) around Arroio do Padre. A point in the
+     * hole must resolve to the municipality that fills it, which is the only
+     * check that the inner rings are treated as holes rather than as more
+     * territory.
+     */
+    it("resolves a point inside a hole to the municipality that fills it", async () => {
+        const ladario = await reverseGeocode(
+            { latitude: -19.1178, longitude: -57.5907 },
+            { uf: "MS" },
+        );
+        expect(ladario?.name).toBe("Ladário");
+
+        const arroio = await reverseGeocode(
+            { latitude: -31.4343, longitude: -52.4037 },
+            { uf: "RS" },
+        );
+        expect(arroio?.name).toBe("Arroio do Padre");
+    });
+});

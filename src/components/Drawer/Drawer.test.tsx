@@ -111,4 +111,17 @@ describe("Drawer — placement, handle and backdrop", () => {
         );
         expect(screen.queryByRole("button", { name: /fechar/i })).not.toBeInTheDocument();
     });
+
+    it("closes on Escape by default", () => {
+        const onClose = vi.fn();
+        render(
+            <Drawer open onClose={onClose}>
+                conteúdo
+            </Drawer>,
+        );
+
+        fireEvent.keyDown(window, { key: "Escape" });
+
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
 });

@@ -183,4 +183,14 @@ describe("blobToWav", () => {
             (globalThis as { OfflineAudioContext?: unknown }).OfflineAudioContext = previous;
         }
     });
+
+    it("survives a context that refuses to close after decoding", async () => {
+        FakeAudioContext.decoded = fakeAudioBuffer([new Float32Array([0.5, 0.5])], 48000);
+        const original = FakeAudioContext.prototype.close;
+        FakeAudioContext.prototype.close = () => Promise.reject(new Error("audio device gone"));
+
+        await expect(blobToWav(new Blob([new Uint8Array(4)]))).resolves.toBeInstanceOf(Blob);
+
+        FakeAudioContext.prototype.close = original;
+    });
 });

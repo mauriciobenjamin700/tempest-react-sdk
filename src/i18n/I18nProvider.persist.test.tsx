@@ -52,4 +52,20 @@ describe("I18nProvider persistence", () => {
         );
         expect(document.documentElement.getAttribute("lang")).toBe("en");
     });
+
+    it("falls back to the given locale when reading storage throws", () => {
+        const getItem = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+            throw new Error("blocked");
+        });
+        const wrapper = ({ children }: { children: ReactNode }) => (
+            <I18nProvider locale="pt-BR" messages={messages} storageKey="loc">
+                {children}
+            </I18nProvider>
+        );
+
+        const { result } = renderHook(() => useI18n(), { wrapper });
+
+        expect(result.current.locale).toBe("pt-BR");
+        getItem.mockRestore();
+    });
 });

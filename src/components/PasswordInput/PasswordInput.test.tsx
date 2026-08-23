@@ -61,4 +61,10 @@ describe("PasswordInput", () => {
         const helperId = withHelper.getAttribute("aria-describedby");
         expect(document.getElementById(helperId!)).toHaveTextContent("mínimo 8 caracteres");
     });
+
+    it("counts the extra length of a long passphrase", () => {
+        expect(estimatePasswordStrength("abcdefgh")).toBeLessThan(
+            estimatePasswordStrength("abcdefghijkl"),
+        );
+    });
 });

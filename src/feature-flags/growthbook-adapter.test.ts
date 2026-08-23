@@ -71,4 +71,15 @@ describe("createGrowthBookFeatureFlagsAdapter", () => {
         const listener = vi.fn();
         expect(() => adapter.onChange!(listener)).not.toThrow();
     });
+
+    it("falls back to the caller's default when isOn answers with no boolean", () => {
+        const growthbook = {
+            isOn: () => undefined as unknown as boolean,
+            getFeatureValue: (_key: string, fallback: unknown) => fallback,
+        };
+        const adapter = createGrowthBookFeatureFlagsAdapter({ growthbook } as never);
+
+        expect(adapter.isEnabled("checkout-v2")).toBe(false);
+        expect(adapter.isEnabled("checkout-v2", true)).toBe(true);
+    });
 });

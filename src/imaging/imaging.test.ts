@@ -541,3 +541,50 @@ describe("imaging · a bitmap with no height", () => {
         expect(info.height).toBe(0);
     });
 });
+
+describe("imaging · the source that needs no decoding", () => {
+    it("passes an ImageBitmap straight through", async () => {
+        class FakeImageBitmap {
+            width = 40;
+            height = 20;
+            close(): void {}
+        }
+        vi.stubGlobal("ImageBitmap", FakeImageBitmap);
+        const decodeSpy = vi.fn();
+        vi.stubGlobal("createImageBitmap", decodeSpy);
+
+        const { readImageInfo } = await import("./decode");
+        const info = await readImageInfo(new FakeImageBitmap() as unknown as Blob);
+
+        expect(info.width).toBe(40);
+        expect(decodeSpy, "an ImageBitmap is already decoded").not.toHaveBeenCalled();
+    });
+});
+
+describe("imaging · probing format support", () => {
+    it("takes the first preference the platform actually encodes", async () => {
+        const { bestSupportedType, resetImageTypeSupportCache } = await import("./encode");
+        resetImageTypeSupportCache();
+
+        expect(await bestSupportedType(["image/webp", "image/jpeg"])).toBe("image/webp");
+
+        resetImageTypeSupportCache();
+    });
+
+    it("answers unsupported when the surface cannot be created at all", async () => {
+        const { resetImageTypeSupportCache, supportsImageType } = await import("./encode");
+        resetImageTypeSupportCache();
+        vi.stubGlobal(
+            "OffscreenCanvas",
+            class {
+                constructor() {
+                    throw new Error("sem canvas");
+                }
+            },
+        );
+
+        expect(await supportsImageType("image/webp")).toBe(false);
+
+        resetImageTypeSupportCache();
+    });
+});

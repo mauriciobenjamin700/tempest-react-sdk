@@ -1,5 +1,5 @@
-import { act, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { InstallButton } from "./InstallButton";
 
 function fireBeforeInstallPrompt(): void {
@@ -22,5 +22,15 @@ describe("InstallButton", () => {
         render(<InstallButton label="Instalar app" />);
         act(() => fireBeforeInstallPrompt());
         expect(screen.getByRole("button", { name: "Instalar app" })).toBeInTheDocument();
+    });
+
+    it("reports the user's answer to the caller", async () => {
+        const onResult = vi.fn();
+        render(<InstallButton label="Instalar app" onResult={onResult} />);
+        act(() => fireBeforeInstallPrompt());
+
+        fireEvent.click(screen.getByRole("button", { name: "Instalar app" }));
+
+        await waitFor(() => expect(onResult).toHaveBeenCalledWith("accepted"));
     });
 });

@@ -39,4 +39,23 @@ describe("useCursorQuery", () => {
         expect(queryFn).toHaveBeenNthCalledWith(1, expect.objectContaining({ cursor: null }));
         expect(queryFn).toHaveBeenNthCalledWith(2, expect.objectContaining({ cursor: "c2" }));
     });
+
+    it("refetches the walk from the first batch on demand", async () => {
+        const queryFn = vi.fn(async () => ({
+            items: [{ id: 1 }],
+            next_cursor: null,
+            has_more: false,
+            limit: 10,
+        }));
+
+        const { result } = renderHook(
+            () => useCursorQuery<{ id: number }>({ queryKey: ["feed"], queryFn }),
+            { wrapper: wrapper() },
+        );
+        await waitFor(() => expect(result.current.items).toHaveLength(1));
+
+        act(() => result.current.refetch());
+
+        await waitFor(() => expect(queryFn).toHaveBeenCalledTimes(2));
+    });
 });

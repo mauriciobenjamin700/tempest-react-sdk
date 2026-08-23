@@ -112,4 +112,46 @@ describe("createOfflineStore — list ordering and slicing", () => {
 
         await store.db.delete();
     });
+
+    it("stamps the owner only where a store was given one", async () => {
+        const owned = createOfflineStore<Note>({
+            databaseName: `t-${Math.random()}`,
+            version: 1,
+            tableName: "n",
+            indexes: "&id, owner_id",
+            ownerField: "owner_id",
+        });
+        await owned.put({ id: "1", text: "a" } as Note, "ana");
+        expect((await owned.get("1"))?.owner_id).toBe("ana");
+
+        const plain = createOfflineStore<Note>({
+            databaseName: `t-${Math.random()}`,
+            version: 1,
+            tableName: "n",
+            indexes: "&id, owner_id",
+        });
+        await plain.put({ id: "1", text: "a" } as Note, "ana");
+        expect((await plain.get("1"))?.owner_id).toBeUndefined();
+
+        await owned.db.delete();
+        await plain.db.delete();
+    });
+
+    it("updates every row when no owner scopes the change", async () => {
+        const store = createOfflineStore<Note>({
+            databaseName: `t-${Math.random()}`,
+            version: 1,
+            tableName: "n",
+            indexes: "&id, owner_id",
+        });
+        await store.put({ id: "1", owner_id: "u", text: "a" });
+        await store.put({ id: "2", owner_id: "u", text: "b" });
+
+        const changed = await store.updateMany(undefined, { read: true });
+
+        expect(changed).toBe(2);
+        expect((await store.get("2"))?.read).toBe(true);
+
+        await store.db.delete();
+    });
 });

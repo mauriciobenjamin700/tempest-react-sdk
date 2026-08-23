@@ -50,15 +50,24 @@ export default defineConfig({
                 "src/icons/generated/**",
             ],
             /**
-             * Floors set just under the current numbers so a regression fails
-             * the build while ordinary churn does not. Raise them when coverage
-             * climbs — never lower them to make a red build green.
+             * Floors set about a point under the current numbers so a regression
+             * fails the build while ordinary churn does not. Raise them when
+             * coverage climbs — never lower them to make a red build green.
+             *
+             * A point of slack is the whole design: a floor pressed against the
+             * current number turns the next honest PR red for coverage instead of
+             * for its own defect, which is the failure mode issue #209 existed to
+             * remove. Functions and lines sit near 100 because what is left there
+             * is unreachable by construction — SSR guards inside React-rendered
+             * hooks (stubbing `window` away takes `react-dom` down with it),
+             * defensive defaults behind validation, and `default:` arms over
+             * closed unions.
              */
             thresholds: {
-                lines: 98,
-                statements: 97,
-                functions: 96,
-                branches: 94,
+                lines: 99,
+                statements: 98,
+                functions: 99,
+                branches: 95,
             },
         },
     },

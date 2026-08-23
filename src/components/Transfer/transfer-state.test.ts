@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
     applyMove,
+    transferStrings,
     filterItems,
     movableIds,
     searchTextOf,
@@ -110,5 +111,17 @@ describe("searchTextOf", () => {
         expect(searchTextOf({ id: "1", label: "L", searchText: "S" })).toBe("S");
         expect(searchTextOf({ id: "1", label: "L" })).toBe("L");
         expect(searchTextOf({ id: "1", label: null })).toBe("");
+    });
+});
+
+describe("transferStrings", () => {
+    it("counts one moved item in the singular, in both locales", () => {
+        expect(transferStrings("pt-BR").moved(1, "destino")).toBe("1 item movido para destino");
+        expect(transferStrings("en").moved(1, "target")).toBe("1 item moved to target");
+    });
+
+    it("counts more than one in the plural, in both locales", () => {
+        expect(transferStrings("pt-BR").moved(3, "origem")).toBe("3 itens movidos para origem");
+        expect(transferStrings("en").moved(3, "source")).toBe("3 items moved to source");
     });
 });

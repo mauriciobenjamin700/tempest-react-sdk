@@ -190,4 +190,27 @@ describe("compact · failures", () => {
         );
         vi.unstubAllGlobals();
     });
+
+    it("downloads the model when the source is a URL, and disposes of nothing", async () => {
+        const bytes = fixture("logreg_multi.tmc");
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(async () => new Response(bytes.slice().buffer as ArrayBuffer, { status: 200 })),
+        );
+
+        const predictor = await CompactPredictor.create("https://cdn.exemplo/modelo.tmc");
+
+        expect(predictor.info.classes.length).toBeGreaterThan(0);
+        await expect(predictor.dispose()).resolves.toBeUndefined();
+        vi.unstubAllGlobals();
+    });
+
+    it("accepts the bytes already in hand, as an ArrayBuffer", async () => {
+        const bytes = fixture("logreg_multi.tmc");
+        const buffer = bytes.slice().buffer as ArrayBuffer;
+
+        const predictor = await CompactPredictor.create(buffer);
+
+        expect(predictor.info.classes.length).toBeGreaterThan(0);
+    });
 });

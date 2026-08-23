@@ -127,3 +127,16 @@ describe("DateRangePicker — maxDate boundary", () => {
         expect(onChangeSpy).toHaveBeenCalled();
     });
 });
+
+describe("DateRangePicker — walking the months", () => {
+    it("steps forward and back through the calendar", () => {
+        render(<Harness />);
+        expect(screen.getByText(/June 2026/)).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("button", { name: "Next month" }));
+        expect(screen.getByText(/July 2026/)).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("button", { name: "Previous month" }));
+        expect(screen.getByText(/June 2026/)).toBeInTheDocument();
+    });
+});

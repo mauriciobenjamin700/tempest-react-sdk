@@ -4,14 +4,20 @@ import { usePositionTracker } from "./use-position-tracker";
 
 function installGeolocation(): {
     emit: (latitude: number, longitude: number) => void;
+    fail: (error: GeolocationPositionError) => void;
     clearWatch: ReturnType<typeof vi.fn>;
 } {
     let success: PositionCallback | null = null;
+    let failure: PositionErrorCallback | null = null;
     const clearWatch = vi.fn();
     Object.assign(navigator, {
         geolocation: {
-            watchPosition: (onSuccess: PositionCallback) => {
+            watchPosition: (
+                onSuccess: PositionCallback,
+                onError?: PositionErrorCallback | null,
+            ) => {
                 success = onSuccess;
+                failure = onError ?? null;
                 return 7;
             },
             clearWatch,
@@ -32,6 +38,7 @@ function installGeolocation(): {
                 },
                 timestamp: 0,
             } as unknown as GeolocationPosition),
+        fail: (error) => failure?.(error),
         clearWatch,
     };
 }
@@ -79,5 +86,27 @@ describe("usePositionTracker", () => {
         act(() => result.current.clear());
         expect(result.current.points).toHaveLength(0);
         expect(result.current.distanceKm).toBe(0);
+    });
+
+    it("starts on its own when asked, and stops on demand", () => {
+        installGeolocation();
+        const { result } = renderHook(() => usePositionTracker({ autoStart: true }));
+
+        expect(result.current.isTracking).toBe(true);
+
+        act(() => result.current.stop());
+        expect(result.current.isTracking).toBe(false);
+    });
+
+    it("hands a refusal to the caller instead of swallowing it", () => {
+        const geo = installGeolocation();
+        const onError = vi.fn();
+        const { result } = renderHook(() => usePositionTracker({ onError }));
+        act(() => result.current.start());
+
+        const denied = { code: 1, message: "User denied Geolocation" } as GeolocationPositionError;
+        act(() => geo.fail(denied));
+
+        expect(onError).toHaveBeenCalledWith(denied);
     });
 });

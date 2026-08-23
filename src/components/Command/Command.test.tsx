@@ -141,4 +141,14 @@ describe("Command — navigation guards, wrap and icons", () => {
         );
         expect(screen.getByTestId("cmd-icon")).toBeInTheDocument();
     });
+
+    it("closes when the click lands on the backdrop", () => {
+        const onOpenChange = vi.fn();
+        render(<Command open onOpenChange={onOpenChange} items={makeItems(() => {})} />);
+
+        const overlay = document.querySelector('[role="presentation"]') as HTMLElement;
+        fireEvent.click(overlay);
+
+        expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
 });

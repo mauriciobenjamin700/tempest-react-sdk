@@ -193,3 +193,22 @@ describe("TempestApiError + isApiError", () => {
         expect(isApiError(null)).toBe(false);
     });
 });
+
+describe("errors — the shapes the normaliser cannot read", () => {
+    it("reads Retry-After given as an HTTP date", () => {
+        const when = new Date(Date.now() + 120_000).toUTCString();
+
+        expect(parseRetryAfter(when)).toBeGreaterThan(100);
+        expect(parseRetryAfter(when)).toBeLessThanOrEqual(120);
+    });
+
+    it("never reports a negative wait for a date already in the past", () => {
+        expect(parseRetryAfter(new Date(Date.now() - 60_000).toUTCString())).toBe(0);
+    });
+
+    it("falls through to the synthetic detail when the body carries no readable one", () => {
+        const error = buildApiError(422, { detail: [{ loc: ["body"], ctx: { limit: 3 } }] });
+
+        expect(error.detail).toBe("Erro 422");
+    });
+});

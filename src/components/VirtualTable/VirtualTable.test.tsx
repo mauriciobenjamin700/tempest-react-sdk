@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { VirtualTable, type VirtualTableColumn } from "./VirtualTable";
 
@@ -282,5 +282,58 @@ describe("VirtualTable — the column shapes the defaults cover", () => {
         const cells = container.querySelectorAll("tbody tr:not([aria-hidden]) td");
         expect(cells[0].className).toContain("alignCenter");
         expect(cells[1]).toBeEmptyDOMElement();
+    });
+});
+
+describe("VirtualTable — measuring the viewport with a ResizeObserver", () => {
+    /**
+     * jsdom ships no `ResizeObserver`, so the component's observe branch never
+     * runs there and the viewport is measured once. This double records the
+     * subscription and hands the callback back, which is what lets a resize be
+     * simulated.
+     */
+    function stubResizeObserver(): { fire: () => void; disconnected: () => number } {
+        let callback: (() => void) | null = null;
+        let disconnects = 0;
+        class FakeResizeObserver {
+            constructor(handler: () => void) {
+                callback = handler;
+            }
+            observe(): void {}
+            unobserve(): void {}
+            disconnect(): void {
+                disconnects += 1;
+            }
+        }
+        vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+        return { fire: () => callback?.(), disconnected: () => disconnects };
+    }
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it("re-measures on resize and stops observing when it unmounts", () => {
+        const observer = stubResizeObserver();
+        let height = 200;
+        vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockImplementation(() => height);
+
+        const { container, unmount } = render(
+            <VirtualTable<Row>
+                data={rows(1000)}
+                columns={COLUMNS}
+                rowHeight={20}
+                height={200}
+                rowKey={(row) => row.id}
+            />,
+        );
+        const before = dataRows(container).length;
+
+        height = 800;
+        act(() => observer.fire());
+        expect(dataRows(container).length).toBeGreaterThan(before);
+
+        unmount();
+        expect(observer.disconnected()).toBe(1);
     });
 });

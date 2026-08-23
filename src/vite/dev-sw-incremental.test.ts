@@ -138,4 +138,28 @@ describe("tempestPwaDevSw — incremental rebuilds", () => {
         mocks.rebuild.mockResolvedValue({ outputFiles: [{ text: "// worker" }] });
         expect(await server.request()).toEqual(["// worker"]);
     });
+
+    it("tears the esbuild context down when the dev server closes", async () => {
+        const plugin = tempestPwaDevSw({ swSrc: "src/sw.ts" }) as unknown as {
+            configResolved: (config: { root: string }) => void;
+            configureServer: (server: {
+                middlewares: { use: (fn: Handler) => void };
+                httpServer: { once: (event: string, fn: () => void) => void };
+            }) => void;
+        };
+        plugin.configResolved({ root: process.cwd() });
+
+        let onClose: (() => void) | undefined;
+        plugin.configureServer({
+            middlewares: { use: () => undefined },
+            httpServer: {
+                once: (event, fn) => {
+                    if (event === "close") onClose = fn;
+                },
+            },
+        });
+
+        expect(onClose, "the plugin subscribes to the server shutdown").toBeTypeOf("function");
+        expect(() => onClose?.()).not.toThrow();
+    });
 });

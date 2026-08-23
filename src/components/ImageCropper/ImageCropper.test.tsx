@@ -415,3 +415,49 @@ describe("ImageCropper — the drag that is not ours", () => {
         expect(region.className).toContain("circle");
     });
 });
+
+describe("ImageCropper — measuring the frame with a ResizeObserver", () => {
+    /**
+     * jsdom ships no `ResizeObserver`, so the observe branch never runs there.
+     * This double records the subscription and exposes the callback, which is
+     * what lets a frame resize be simulated.
+     */
+    function stubResizeObserver(): { fire: () => void; disconnected: () => number } {
+        let callback: (() => void) | null = null;
+        let disconnects = 0;
+        class FakeResizeObserver {
+            constructor(handler: () => void) {
+                callback = handler;
+            }
+            observe(): void {}
+            unobserve(): void {}
+            disconnect(): void {
+                disconnects += 1;
+            }
+        }
+        vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+        return { fire: () => callback?.(), disconnected: () => disconnects };
+    }
+
+    it("re-measures the frame on resize and stops observing when it unmounts", () => {
+        const observer = stubResizeObserver();
+        const { image, unmount } = renderCropper();
+        const before = image.style.width;
+
+        act(() => observer.fire());
+        expect(image.style.width).toBe(before);
+
+        unmount();
+        expect(observer.disconnected()).toBe(1);
+        vi.unstubAllGlobals();
+    });
+
+    it("crops nothing when the frame has collapsed to no area", async () => {
+        vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(0);
+        vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(0);
+        const ref = createRef<ImageCropperHandle>();
+        renderCropper({ ref });
+
+        await expect(ref.current?.crop()).resolves.toBeNull();
+    });
+});

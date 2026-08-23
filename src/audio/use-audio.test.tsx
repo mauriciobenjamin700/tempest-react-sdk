@@ -28,4 +28,18 @@ describe("useAudio", () => {
         expect(result.current.unlocked).toBe(true);
         vi.unstubAllGlobals();
     });
+
+    it("stops the player on demand", async () => {
+        vi.stubGlobal("Audio", AudioMock);
+        const { result } = renderHook(() => useAudio());
+        await act(async () => {
+            await result.current.play("/x.mp3");
+        });
+        const playing = AudioMock.instances[AudioMock.instances.length - 1];
+
+        act(() => result.current.stop());
+
+        expect(playing.pause).toHaveBeenCalled();
+        vi.unstubAllGlobals();
+    });
 });

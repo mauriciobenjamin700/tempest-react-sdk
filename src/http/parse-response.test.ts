@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { parseResponse } from "./parse-response";
 
@@ -12,5 +12,17 @@ describe("parseResponse", () => {
 
     it("throws a detailed error in dev when contract drifts", () => {
         expect(() => parseResponse(schema, { id: "1" }, "GET /x")).toThrow(/parseResponse/);
+    });
+});
+
+describe("parseResponse — outside a dev build", () => {
+    it("hides the drift report behind a message a user can read", () => {
+        vi.stubEnv("NODE_ENV", "production");
+
+        expect(() =>
+            parseResponse(z.object({ id: z.number() }), { id: "x" }, "GET /pedidos"),
+        ).toThrow("Resposta inválida do servidor (GET /pedidos).");
+
+        vi.unstubAllEnvs();
     });
 });

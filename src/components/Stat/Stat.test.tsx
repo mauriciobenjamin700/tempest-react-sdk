@@ -28,4 +28,10 @@ describe("Stat", () => {
         render(<Stat label="x" value="1" hint="vs. last month" />);
         expect(screen.getByText("vs. last month")).toBeInTheDocument();
     });
+
+    it("infers no trend from a delta that carries no sign", () => {
+        const { container } = render(<Stat label="Pedidos" value="120" delta="estável" />);
+        expect(container.querySelector('[class*="up"]')).toBeNull();
+        expect(container.querySelector('[class*="down"]')).toBeNull();
+    });
 });

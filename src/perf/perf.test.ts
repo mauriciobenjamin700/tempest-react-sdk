@@ -127,6 +127,18 @@ describe("cachedResponseBytes", () => {
         expect(await cachedResponseBytes("app", "/m.onnx")).toBe(4096);
     });
 
+    it("returns null when the body errors mid-read", async () => {
+        const stream = new ReadableStream<Uint8Array>({
+            start(controller) {
+                controller.enqueue(new Uint8Array(512));
+                controller.error(new Error("cache corrompido"));
+            },
+        });
+        stubCaches({ "/m.onnx": new Response(stream) });
+
+        expect(await cachedResponseBytes("app", "/m.onnx")).toBeNull();
+    });
+
     it("counts a chunked body across reads", async () => {
         const stream = new ReadableStream<Uint8Array>({
             start(controller) {
@@ -184,6 +196,28 @@ describe("readDeviceProfile", () => {
 
         expect(profile.hardwareConcurrency).toBeNull();
         expect(profile.deviceMemoryGb).toBeNull();
+    });
+
+    it("reads the heap where Chromium exposes it", () => {
+        vi.stubGlobal("navigator", { hardwareConcurrency: 8, deviceMemory: 8 });
+        vi.stubGlobal("performance", { memory: { usedJSHeapSize: 12 * 1024 * 1024 } });
+
+        const profile = readDeviceProfile();
+
+        expect(profile.jsHeapUsedMb).toBe(12);
+        expect(profile.hardwareConcurrency).toBe(8);
+    });
+
+    it("reports nothing at all outside a browser", () => {
+        vi.stubGlobal("performance", undefined);
+        expect(readDeviceProfile().jsHeapUsedMb).toBeNull();
+
+        vi.stubGlobal("navigator", undefined);
+        expect(readDeviceProfile()).toEqual({
+            hardwareConcurrency: null,
+            deviceMemoryGb: null,
+            jsHeapUsedMb: null,
+        });
     });
 });
 

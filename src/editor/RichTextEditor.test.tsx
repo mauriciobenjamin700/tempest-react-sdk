@@ -150,3 +150,22 @@ describe("RichTextEditor — toolbar commands and value sync", () => {
         expect((container.firstChild as HTMLElement).className).toContain("mine");
     });
 });
+
+describe("RichTextEditor — undo and redo", () => {
+    it("walks the history back and forward once there is something to undo", async () => {
+        const onChange = vi.fn();
+        const { rerender } = render(<RichTextEditor value="<p>um</p>" onChange={onChange} />);
+        rerender(<RichTextEditor value="<p>dois</p>" onChange={onChange} />);
+
+        const undo = screen.getByRole("button", { name: "Desfazer" });
+        await waitFor(() => expect(undo).toBeEnabled());
+
+        fireEvent.click(undo);
+        await waitFor(() => expect(screen.getByText("um")).toBeInTheDocument());
+
+        const redo = screen.getByRole("button", { name: "Refazer" });
+        await waitFor(() => expect(redo).toBeEnabled());
+        fireEvent.click(redo);
+        await waitFor(() => expect(screen.getByText("dois")).toBeInTheDocument());
+    });
+});

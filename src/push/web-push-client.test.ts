@@ -43,4 +43,28 @@ describe("WebPushClient", () => {
         });
         await expect(client.subscribe()).rejects.toBeInstanceOf(WebPushPermissionDeniedError);
     });
+
+    it("reports support from the same probe the instance uses", async () => {
+        expect(WebPushClient.isSupported()).toBe(false);
+
+        Object.assign(globalThis, {
+            Notification: { permission: "granted" },
+            PushManager: class {},
+        });
+        Object.assign(navigator, {
+            serviceWorker: { ready: Promise.resolve({ pushManager: {} }) },
+        });
+
+        expect(WebPushClient.isSupported()).toBe(true);
+        delete (globalThis as { PushManager?: unknown }).PushManager;
+    });
+
+    it("refuses to reach the registration where push is unsupported", async () => {
+        const client = new WebPushClient({
+            vapidPublicKey: "k",
+            onSubscribe: async () => undefined,
+        });
+
+        await expect(client.unsubscribe()).rejects.toBeInstanceOf(WebPushUnsupportedError);
+    });
 });

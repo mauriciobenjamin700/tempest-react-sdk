@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { Scheduler } from "./Scheduler";
@@ -286,5 +286,49 @@ describe("Scheduler — the scroll region", () => {
         renderScheduler();
         // A named `region` is a landmark; duplicates trip axe's `landmark-unique`.
         expect(screen.queryByRole("region")).not.toBeInTheDocument();
+    });
+});
+
+describe("Scheduler — the clock and the clicks that are not slots", () => {
+    it("keeps the current-time line moving when no fixed now is given", () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(NOW);
+        const { container } = render(<Scheduler events={[]} anchor={NOW} />);
+        const before = container.querySelector('[class*="nowLine"]')?.getAttribute("style");
+
+        vi.setSystemTime(new Date(2026, 6, 27, 15, 30));
+        act(() => {
+            vi.advanceTimersByTime(60_000);
+        });
+
+        expect(container.querySelector('[class*="nowLine"]')?.getAttribute("style")).not.toBe(
+            before,
+        );
+        vi.useRealTimers();
+    });
+
+    it("calls onEventClick from the all-day lane too", () => {
+        const onEventClick = vi.fn();
+        const feriado: SchedulerEvent = {
+            id: "Feriado",
+            title: "Feriado",
+            start: new Date(2026, 6, 27),
+            end: new Date(2026, 6, 27, 23, 59),
+            allDay: true,
+        };
+        renderScheduler({ events: [feriado], onEventClick });
+
+        fireEvent.click(screen.getByRole("button", { name: /Feriado/ }));
+
+        expect(onEventClick).toHaveBeenCalledWith(expect.objectContaining({ id: "Feriado" }));
+    });
+
+    it("ignores a column click that landed on an event", () => {
+        const onSlotClick = vi.fn();
+        renderScheduler({ onSlotClick });
+
+        fireEvent.click(screen.getByRole("button", { name: /Reunião/ }));
+
+        expect(onSlotClick).not.toHaveBeenCalled();
     });
 });

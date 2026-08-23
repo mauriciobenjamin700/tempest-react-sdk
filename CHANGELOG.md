@@ -72,6 +72,30 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `filter-apply`, que só é chamado depois de `isComplete`) e `default:` de switch
   sobre união fechada são as outras duas famílias.
 
+- **Função e linha foram a 99,93% e 99,87%**, numa segunda passada com 116 testes
+  a mais (5287 → 5403). Statements 97,83 → 98,97; branch 95,51 → 96,01. Os pisos
+  do CI **subiram** com o ganho — 99 linhas / 98 statements / 99 funções / 95
+  branch — porque agora há folga real para segurá-los: ~1 ponto em cada eixo, que
+  é o desenho do gate.
+
+  O caminho foi ranquear por **descoberta em valor absoluto**, não por
+  percentual: `br/state-geo` sozinho tinha 23 funções descobertas (um loader
+  dinâmico por UF), e o teste que as cobre também é o único que garante que os 27
+  arquivos existem e que cada um pertence à UF que o pediu — erro que hoje só
+  apareceria como 404 em produção. Depois vieram os hooks sem cobertura de ciclo
+  de vida (`useWebSocket`, `useEventStream`, `useGeolocation`,
+  `usePositionTracker`, `useOnline`) e uma cauda de caminhos de erro reais:
+  `IndexedDB` recusando a escrita da fila de background sync, o peer
+  `onnxruntime-web` ausente, `AudioContext` que não fecha, `fetch` cujo corpo não
+  pode ser lido.
+
+  **O que sobra são 2 funções e 13 linhas, e todas são inalcançáveis por
+  construção**: guarda de SSR dentro de componente React, default defensivo atrás
+  de validação, `default:` de união fechada, e um ramo de `MultiPolygon` que o
+  dataset simplificado de municípios não contém. Chegar a 100% exigiria pragma
+  (`/* v8 ignore */`) ou apagar guarda que existe para contexto fora do browser —
+  as duas coisas pioram o código para melhorar o número.
+
 ## [0.50.0] — 2026-08-22
 
 ### Breaking

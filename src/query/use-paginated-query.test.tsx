@@ -141,4 +141,19 @@ describe("usePaginatedQuery — ordering and navigation clamps", () => {
         expect(result.current.hasNext).toBe(false);
         expect(result.current.hasPrev).toBe(false);
     });
+
+    it("refetches the current page on demand", async () => {
+        const queryFn = vi.fn(async (p: { page?: number; size?: number }) =>
+            pageOf(p.page ?? 1, p.size ?? 20, 45),
+        );
+        const { result } = renderHook(
+            () => usePaginatedQuery<{ id: number }>({ queryKey: ["x"], pageSize: 20, queryFn }),
+            { wrapper: wrapper() },
+        );
+        await waitFor(() => expect(result.current.items).toHaveLength(20));
+
+        act(() => result.current.refetch());
+
+        await waitFor(() => expect(queryFn).toHaveBeenCalledTimes(2));
+    });
 });

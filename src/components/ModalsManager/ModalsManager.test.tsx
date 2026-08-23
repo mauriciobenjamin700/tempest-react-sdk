@@ -89,4 +89,26 @@ describe("ModalsManager", () => {
         expect(() => render(<Bad />)).toThrow(/ModalsProvider/);
         spy.mockRestore();
     });
+
+    it("closing a content modal calls the caller's onClose and drops it from the stack", async () => {
+        const user = userEvent.setup();
+        const onClose = vi.fn();
+        render(
+            <ModalsProvider>
+                <Harness
+                    onReady={(api) =>
+                        api.open({ title: "Detalhes", children: "Conteúdo", onClose })
+                    }
+                />
+            </ModalsProvider>,
+        );
+
+        await user.click(screen.getByText("trigger"));
+        expect(screen.getByText("Detalhes")).toBeInTheDocument();
+
+        await user.click(screen.getByRole("button", { name: /fechar/i }));
+
+        expect(onClose).toHaveBeenCalledTimes(1);
+        await waitFor(() => expect(screen.queryByText("Detalhes")).not.toBeInTheDocument());
+    });
 });

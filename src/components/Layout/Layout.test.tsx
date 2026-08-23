@@ -214,4 +214,14 @@ describe("Grid — undefined values", () => {
             "repeat(3",
         );
     });
+
+    it("leaves gap and columns to CSS when a responsive object names no breakpoint", () => {
+        expect(firstChild(<Stack gap={{}}>x</Stack>).style.gap).toBe("");
+        expect(firstChild(<Grid columns={{}}>x</Grid>).style.gridTemplateColumns).toBe("");
+    });
+
+    it("resolves an alignment that was never given to nothing at all", () => {
+        const el = firstChild(<Stack>x</Stack>);
+        expect(el.className).not.toMatch(/align/);
+    });
 });

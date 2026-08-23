@@ -7,7 +7,7 @@ SDK público da Tempest com componentes React, hooks e integrações reutilizáv
 ## Estado atual (snapshot pós-v0.50.0 — `[Unreleased]` no CHANGELOG aguardando a tag v0.51.0)
 
 - **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 70 tags publicadas (0.1.0 → 0.50.0) com signed provenance via OIDC. Histórico completo em `RELEASES.md` (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
-- **Testes**: 5299 testes em 525 arquivos, ~48 s sob `vitest + jsdom + fake-indexeddb`. Cobertura 98,96% linhas / 97,83% statements / 97,28% funções / 95,51% branches; pisos do CI em 98/97/96/94 — **branches com folga de 1,51 ponto** depois da varredura da [#209](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/209). Os pisos ficam onde estão de propósito: subi-los recria a margem fina que a issue existia pra tirar.
+- **Testes**: 5403 testes em 531 arquivos, ~50 s sob `vitest + jsdom + fake-indexeddb`. Cobertura **99,87% linhas / 98,97% statements / 99,93% funções / 96,01% branches**; pisos do CI em **99/98/99/95**, ~1 ponto de folga em cada eixo. O que sobra descoberto — 2 funções e 13 linhas — é **inalcançável por construção** (ver `### P3` abaixo).
 - **Superfície**: 39 módulos em `src/`, 128 componentes, 52 hooks (+ `useNotificationInbox`, que mora junto do `NotificationCenter`), 529 exports na entrada raiz e 21 em `/icons`.
 - **Empacotamento (v0.25.0)**: `dist/` preserva o grafo de módulos (`preserveModules`). O que o app paga de fato (brotli): `{ cn }` 153 B · `{ Button }` 794 B · app típico 8.61 KB · offline/PWA 4.55 KB · `styles.css` 28.68 KB · `utilities.css` 1.36 KB (opt-in). Teto sem tree-shaking: 116.24 KB ESM / 139.29 KB CJS. Budgets do `size-limit` são **por fatia importada**, não pelo barrel.
 - **Subpaths** (15): `.`, `/testing` (MSW), `/vite` (`createViteConfig` + plugins), `/sw` (helpers de contexto SW), `/charts` (recharts peer), `/editor` (tiptap peer), `/vision` (onnxruntime-web peer), `/br` (dataset BR + mapa clicável), `/icons` (ícone por slug, 45 shards lazy balanceados), `/icons/virtual` (módulo real: `staticIcons = {}` que o plugin sobrescreve — resolve fora do Vite também), `/styles.css`, `/utilities.css` (camada de layout opt-in).
@@ -168,6 +168,15 @@ primeira saída: branch coverage de 94,71% para **95,51%** (8458/8855), 53 teste
 forçada de dois espaços do `Markdown`, que a doc prometia e o `line.trim()` do montador
 de parágrafo apagava.
 
+Uma segunda passada foi atrás de **função e linha**, e chegou a **99,93% / 99,87%** com
+mais 116 testes (5403 no total). O que funcionou: ranquear por descoberta em **valor
+absoluto**, não por percentual — `br/state-geo` sozinho tinha 23 funções (um loader
+dinâmico por UF, e o teste que as cobre é também o único guard de que os 27 arquivos
+existem e batem com a UF). Depois, hooks sem cobertura de ciclo de vida (`useWebSocket`,
+`useEventStream`, `useGeolocation`, `usePositionTracker`, `useOnline`) e caminhos de erro
+reais: `IndexedDB` recusando escrita, peer `onnxruntime-web` ausente, `AudioContext` que
+não fecha, corpo de `fetch` ilegível. Os pisos subiram junto (99/98/99/95).
+
 O que sobra da cauda é, em boa parte, **inalcançável por construção** — e saber disso vale
 mais que o número:
 
@@ -182,6 +191,12 @@ mais que o número:
 Corolário prático: a próxima vez que a margem apertar, o ganho vem de módulo **sem React**
 e de caminho de erro de protocolo (foi onde `resumable-upload` deu 13 ramos de uma vez),
 não de varrer componente.
+
+**100% não é alvo.** Restam 2 funções e 13 linhas, todas inalcançáveis por construção —
+guarda de SSR dentro de React, default defensivo atrás de validação, `default:` de união
+fechada, e um ramo de `MultiPolygon` que o dataset simplificado de municípios não contém.
+Fechar isso exigiria `/* v8 ignore */` ou apagar guarda que serve a contexto fora do
+browser (service worker, plugin de build): pioram o código para melhorar o número.
 
 ## Como retomar
 

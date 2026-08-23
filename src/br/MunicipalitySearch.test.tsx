@@ -21,4 +21,22 @@ describe("MunicipalitySearch", () => {
         await userEvent.type(screen.getByLabelText("Município"), "zzzznotacity");
         await waitFor(() => expect(screen.queryByRole("option")).toBeNull());
     });
+
+    it("closes the list on blur, but not before a click on a result lands", async () => {
+        const onSelect = vi.fn();
+        render(<MunicipalitySearch uf="SP" onSelect={onSelect} debounceMs={0} label="Município" />);
+
+        const input = screen.getByLabelText("Município");
+        await userEvent.type(input, "santos");
+        await screen.findByRole("option", { name: /Santos/i });
+
+        await userEvent.tab();
+        await waitFor(() => expect(screen.queryByRole("option")).toBeNull());
+
+        await userEvent.click(input);
+        const option = await screen.findByRole("option", { name: /Santos/i });
+        await userEvent.click(option);
+
+        expect(onSelect).toHaveBeenCalledTimes(1);
+    });
 });

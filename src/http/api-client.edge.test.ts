@@ -186,3 +186,21 @@ describe("createApiClient — url building, credentials and response shapes", ()
         expect(new Headers(init.headers).has("content-type")).toBe(false);
     });
 });
+
+describe("createApiClient — an error body that cannot be read at all", () => {
+    it("still throws the status when neither json nor text can be recovered", async () => {
+        const unreadable = {
+            ok: false,
+            status: 503,
+            statusText: "Service Unavailable",
+            headers: new Headers(),
+            clone: () => ({ json: () => Promise.reject(new Error("stream quebrado")) }),
+            text: () => Promise.reject(new Error("stream quebrado")),
+        };
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(unreadable));
+
+        const client = createApiClient({ baseURL: "https://api.exemplo" });
+
+        await expect(client.get("/pedidos")).rejects.toMatchObject({ status: 503, body: null });
+    });
+});

@@ -27,6 +27,20 @@ describe("ToastProvider + useToast", () => {
         expect(typeof id).toBe("string");
     });
 
+    it("renders each variant shortcut with its own styling", () => {
+        const { result } = renderHook(() => useToast(), { wrapper });
+
+        act(() => {
+            result.current.error("deu ruim");
+            result.current.warning("cuidado");
+            result.current.info("apenas um aviso");
+        });
+
+        expect(screen.getByText("deu ruim")).toBeInTheDocument();
+        expect(screen.getByText("cuidado")).toBeInTheDocument();
+        expect(screen.getByText("apenas um aviso")).toBeInTheDocument();
+    });
+
     it("throws outside provider", () => {
         expect(() => renderHook(() => useToast())).toThrow();
     });

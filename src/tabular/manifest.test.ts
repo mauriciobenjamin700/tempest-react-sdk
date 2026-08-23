@@ -288,4 +288,27 @@ describe("tabular · runtime selection", () => {
         const pkg = await loadEdgePackage("/models/risk/");
         expect(pkg.runtime).toBe("onnx");
     });
+
+    it("names the runtimes a package does carry when the compact one is missing", async () => {
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(async (url: string) => {
+                const name = url.split("/").pop() as string;
+                if (name === "manifest.json") {
+                    const manifest = JSON.parse(dualFile(name).toString("utf8")) as {
+                        runtimes?: { kind: string }[];
+                    };
+                    manifest.runtimes = (manifest.runtimes ?? []).filter(
+                        (entry) => entry.kind !== "compact",
+                    );
+                    return new Response(JSON.stringify(manifest));
+                }
+                return new Response(new Uint8Array(dualFile(name)));
+            }),
+        );
+
+        await expect(loadEdgePackage("/models/risk/", { runtime: "compact" })).rejects.toThrow(
+            /lists onnx/,
+        );
+    });
 });

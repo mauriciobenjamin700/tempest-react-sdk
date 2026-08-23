@@ -137,6 +137,17 @@ describe("FilterBar", () => {
         expect(screen.getByRole("option", { name: "Não" })).toBeInTheDocument();
     });
 
+    it("applies the yes/no a boolean field was set to", async () => {
+        const onChange = vi.fn();
+        render(<Harness onChange={onChange} />);
+        await openEditor();
+        await userEvent.selectOptions(screen.getByLabelText("Campo"), "ativo");
+        await userEvent.selectOptions(screen.getByLabelText("Valor"), "true");
+        await userEvent.click(screen.getByRole("button", { name: "Aplicar" }));
+
+        expect(onChange).toHaveBeenCalledWith([{ field: "ativo", operator: "eq", value: "true" }]);
+    });
+
     it("splits a comma-separated list for an in", async () => {
         const onChange = vi.fn();
         render(<Harness onChange={onChange} />);

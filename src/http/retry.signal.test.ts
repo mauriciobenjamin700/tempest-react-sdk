@@ -24,3 +24,50 @@ describe("retry — signal", () => {
         expect(onRetry).toHaveBeenCalled();
     });
 });
+
+describe("retry — abort during the backoff", () => {
+    it("rejects as soon as the signal fires, without waiting the delay out", async () => {
+        const controller = new AbortController();
+        const factory = vi.fn(async () => {
+            throw new Error("falhou");
+        });
+
+        const pending = retry(factory, {
+            retries: 5,
+            initialDelay: 10_000,
+            signal: controller.signal,
+        });
+        const settled = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+
+        await vi.waitFor(() => expect(factory).toHaveBeenCalledTimes(1));
+        controller.abort();
+
+        await settled;
+        expect(factory, "the aborted attempt never ran").toHaveBeenCalledTimes(1);
+    });
+
+    it("rejects with the last error when the caller allows no attempt at all", async () => {
+        const factory = vi.fn(async () => "nunca");
+
+        await expect(retry(factory, { retries: 0 })).rejects.toBeUndefined();
+        expect(factory).not.toHaveBeenCalled();
+    });
+
+    it("stops before the backoff even starts when the abort lands during onRetry", async () => {
+        const controller = new AbortController();
+        const factory = vi.fn(async () => {
+            throw new Error("falhou");
+        });
+
+        await expect(
+            retry(factory, {
+                retries: 5,
+                initialDelay: 10_000,
+                signal: controller.signal,
+                onRetry: () => controller.abort(),
+            }),
+        ).rejects.toMatchObject({ name: "AbortError" });
+
+        expect(factory).toHaveBeenCalledTimes(1);
+    });
+});

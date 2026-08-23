@@ -121,4 +121,17 @@ describe("ThemeProvider — storage and target edges", () => {
         act(() => result.current.toggle());
         expect(result.current.theme).toBe(before === "dark" ? "light" : "dark");
     });
+
+    it("falls back to the default when reading storage throws at any level", () => {
+        const getItem = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+            throw new Error("blocked");
+        });
+
+        const { result } = renderHook(() => useTheme(), {
+            wrapper: wrapperWith({ defaultTheme: "dark", storageKey: "t" }),
+        });
+
+        expect(result.current.theme).toBe("dark");
+        getItem.mockRestore();
+    });
 });

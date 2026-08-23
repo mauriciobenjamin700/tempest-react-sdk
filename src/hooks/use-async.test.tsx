@@ -47,4 +47,19 @@ describe("useAsync", () => {
         expect(result.current.status).toBe("idle");
         expect(result.current.data).toBeUndefined();
     });
+
+    it("captures an immediate run that rejects, without an unhandled rejection", async () => {
+        const { result } = renderHook(() =>
+            useAsync(
+                async () => {
+                    throw new Error("caiu no mount");
+                },
+                [],
+                { immediate: true },
+            ),
+        );
+
+        await waitFor(() => expect(result.current.status).toBe("error"));
+        expect((result.current.error as Error).message).toBe("caiu no mount");
+    });
 });

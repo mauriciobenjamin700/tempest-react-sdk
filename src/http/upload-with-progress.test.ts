@@ -153,3 +153,24 @@ describe("uploadWithProgress — headers, error bodies and request ids", () => {
         vi.unstubAllGlobals();
     });
 });
+
+describe("uploadWithProgress — a parser that refuses the body", () => {
+    it("rejects with the parser's own error instead of a half-parsed value", async () => {
+        class XHRJson extends XHRMock {
+            override responseText = JSON.stringify({ url: "/f/1" });
+        }
+        vi.stubGlobal("XMLHttpRequest", XHRJson);
+
+        await expect(
+            uploadWithProgress({
+                url: "/u",
+                body: new FormData(),
+                parser: () => {
+                    throw new Error("contrato quebrado");
+                },
+            }),
+        ).rejects.toThrow("contrato quebrado");
+
+        vi.unstubAllGlobals();
+    });
+});

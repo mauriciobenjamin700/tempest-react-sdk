@@ -29,4 +29,19 @@ describe("RatingStars", () => {
         expect(stars[2]).toHaveAttribute("aria-checked", "true");
         expect(stars[0]).toHaveAttribute("aria-checked", "false");
     });
+
+    it("previews on hover and drops the preview when the pointer leaves", async () => {
+        const user = userEvent.setup();
+        render(<RatingStars value={0} onChange={() => {}} max={5} />);
+        const stars = screen.getAllByRole("radio");
+        const third = stars[2];
+
+        await user.hover(third);
+        expect(third.className).toMatch(/filled/);
+
+        await user.unhover(third);
+        await user.unhover(screen.getByRole("radiogroup"));
+
+        expect(screen.getAllByRole("radio")[2].className).not.toMatch(/filled/);
+    });
 });

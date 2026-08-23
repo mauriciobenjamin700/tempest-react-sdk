@@ -76,4 +76,13 @@ describe("createLevelMeter", () => {
             undo();
         }
     });
+
+    it("swallows a context that refuses to close", () => {
+        const meter = createLevelMeter(fakeStream());
+        const context = FakeAudioContext.instances[0];
+        context.close = () => Promise.reject(new Error("audio device gone"));
+
+        expect(() => meter.stop()).not.toThrow();
+        expect(meter.level()).toBe(0);
+    });
 });

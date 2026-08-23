@@ -26,4 +26,21 @@ describe("useIdle", () => {
         });
         expect(result.current).toBe(false);
     });
+
+    it("goes idle again after the activity that woke it", () => {
+        const { result } = renderHook(() => useIdle(1000));
+
+        act(() => {
+            vi.advanceTimersByTime(1500);
+        });
+        act(() => {
+            window.dispatchEvent(new MouseEvent("mousemove"));
+        });
+        expect(result.current).toBe(false);
+
+        act(() => {
+            vi.advanceTimersByTime(1500);
+        });
+        expect(result.current, "the timer armed by the reset still fires").toBe(true);
+    });
 });

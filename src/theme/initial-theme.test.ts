@@ -65,4 +65,14 @@ describe("getInitialTheme — fallbacks", () => {
         window.localStorage.clear();
         expect(getInitialTheme({ defaultTheme: "dark" })).toBe("dark");
     });
+
+    it("ignores storage that throws on read, whatever object holds it", () => {
+        const getItem = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+            throw new Error("blocked");
+        });
+
+        expect(["dark", "light"]).toContain(getInitialTheme({ storageKey: "t:theme" }));
+
+        getItem.mockRestore();
+    });
 });

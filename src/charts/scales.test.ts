@@ -139,3 +139,13 @@ describe("scaleSteps", () => {
         expect(scaleSteps("diverging")[0]).toBe("var(--tempest-chart-diverging-1)");
     });
 });
+
+describe("divergingScale — a domain with no spread", () => {
+    it("keeps everything at the neutral centre when one arm has no range", () => {
+        const cool = divergingScale({ min: 0, max: 10, center: 0 });
+        expect(cool(-5)).toBe(cool(0));
+
+        const warm = divergingScale({ min: -10, max: 0, center: 0 });
+        expect(warm(5)).toBe(warm(0));
+    });
+});

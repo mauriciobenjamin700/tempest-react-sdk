@@ -123,4 +123,31 @@ describe("tabular · useTabularPredictor", () => {
         expect(fetchMock).not.toHaveBeenCalled();
         expect(createMock).toHaveBeenCalledWith("/models/m.onnx", expect.anything());
     });
+
+    it("releases a predictor that finished loading after the component left", async () => {
+        type Session = Awaited<ReturnType<typeof createMock>>;
+        let finish: ((session: Session) => void) | null = null;
+        createMock.mockImplementationOnce(
+            () =>
+                new Promise<Session>((resolve) => {
+                    finish = resolve;
+                }),
+        );
+
+        const { unmount } = renderHook(() => useTabularPredictor(MODEL_BYTES));
+        await waitFor(() => expect(createMock).toHaveBeenCalled());
+
+        unmount();
+        await act(async () => {
+            finish?.({
+                inputNames: ["input"],
+                outputNames: ["label", "probabilities"],
+                inputMetadata: [{ name: "input", isTensor: true, type: "float32", shape: [-1, 2] }],
+                run: runMock,
+                release: releaseMock,
+            });
+        });
+
+        await waitFor(() => expect(releaseMock).toHaveBeenCalled());
+    });
 });

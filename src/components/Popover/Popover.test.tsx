@@ -61,4 +61,20 @@ describe("Popover", () => {
         );
         expect(screen.getByText("panel")).toBeInTheDocument();
     });
+
+    it("stays open on an outside click when the caller turned that off", async () => {
+        const user = userEvent.setup();
+        render(
+            <Popover trigger={<button type="button">Abrir</button>} closeOnOutsideClick={false}>
+                <p>Conteúdo</p>
+            </Popover>,
+        );
+
+        await user.click(screen.getByRole("button", { name: "Abrir" }));
+        expect(screen.getByText("Conteúdo")).toBeInTheDocument();
+
+        await user.click(document.body);
+
+        expect(screen.getByText("Conteúdo")).toBeInTheDocument();
+    });
 });

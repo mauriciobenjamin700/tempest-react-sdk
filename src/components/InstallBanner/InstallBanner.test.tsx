@@ -1,5 +1,5 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { InstallBanner } from "./InstallBanner";
 
 function fireBeforeInstallPrompt(): void {
@@ -35,5 +35,27 @@ describe("InstallBanner", () => {
         fireEvent.click(screen.getByRole("button", { name: "Dispensar" }));
         expect(screen.queryByText("Instale")).not.toBeInTheDocument();
         expect(window.localStorage.getItem("t:install")).toBe("1");
+    });
+
+    it("reports the user's answer to the install prompt", async () => {
+        const onResult = vi.fn();
+        render(<InstallBanner title="Instale" onResult={onResult} />);
+        act(() => fireBeforeInstallPrompt());
+
+        fireEvent.click(screen.getByRole("button", { name: "Instalar" }));
+
+        await waitFor(() => expect(onResult).toHaveBeenCalledWith("dismissed"));
+    });
+
+    it("shows the banner when storage cannot be read at all", () => {
+        const getItem = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+            throw new Error("storage bloqueado");
+        });
+
+        render(<InstallBanner title="Instale" storageKey="t:install" />);
+        act(() => fireBeforeInstallPrompt());
+
+        expect(screen.getByText("Instale")).toBeInTheDocument();
+        getItem.mockRestore();
     });
 });

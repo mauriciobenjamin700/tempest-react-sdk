@@ -148,4 +148,25 @@ describe("Combobox — keyboard, outside click and chrome", () => {
         await userEvent.click(input);
         expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     });
+
+    it("refuses a disabled option, keeping the list open", async () => {
+        const onChange = vi.fn();
+        const user = userEvent.setup();
+        render(
+            <Combobox
+                options={[
+                    { value: "a", label: "Ativo" },
+                    { value: "b", label: "Bloqueado", disabled: true },
+                ]}
+                value=""
+                onChange={onChange}
+                label="Status"
+            />,
+        );
+
+        await user.click(screen.getByRole("combobox"));
+        await user.click(screen.getByRole("option", { name: "Bloqueado" }));
+
+        expect(onChange).not.toHaveBeenCalled();
+    });
 });

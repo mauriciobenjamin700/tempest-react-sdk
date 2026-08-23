@@ -81,7 +81,7 @@ export function BarList({
     ...rest
 }: BarListProps) {
     const rows = useMemo(
-        () => buildBarListRows(items, sort, max, otherLabel),
+        () => buildBarListRows({ items, sort, max, otherLabel }),
         [items, sort, max, otherLabel],
     );
     const palette = useChartColors();

@@ -6,6 +6,7 @@
 import { useId, type HTMLAttributes, type ReactNode } from "react";
 import { cn } from "@/utils/cn";
 import styles from "./Sidebar.module.css";
+import { SidebarEntry } from "./SidebarEntry";
 
 export interface SidebarItem {
     key: string;
@@ -179,55 +180,6 @@ export function Sidebar({
               ? collapsedWidth
               : width;
 
-    /**
-     * Render one navigation entry.
-     *
-     * @param item - The entry to render.
-     * @returns The button, or the anchor when the entry carries an `href`.
-     */
-    const renderItem = (item: SidebarItem): ReactNode => {
-        const active = item.key === value;
-        const title = collapsed && typeof item.label === "string" ? item.label : undefined;
-        const body = (
-            <>
-                {item.icon && <span className={styles.icon}>{item.icon}</span>}
-                {!collapsed && <span className={styles.label}>{item.label}</span>}
-                {!collapsed && item.badge !== undefined && (
-                    <span className={styles.badge}>{item.badge}</span>
-                )}
-            </>
-        );
-
-        if (item.href && !item.disabled) {
-            return (
-                <a
-                    key={item.key}
-                    href={item.href}
-                    className={cn(styles.item, active && styles.active)}
-                    aria-current={active ? "page" : undefined}
-                    onClick={() => onChange?.(item.key)}
-                    title={title}
-                >
-                    {body}
-                </a>
-            );
-        }
-
-        return (
-            <button
-                key={item.key}
-                type="button"
-                className={cn(styles.item, active && styles.active)}
-                aria-current={active ? "page" : undefined}
-                disabled={item.disabled}
-                onClick={() => onChange?.(item.key)}
-                title={title}
-            >
-                {body}
-            </button>
-        );
-    };
-
     return (
         <aside
             className={cn(styles.sidebar, collapsed && styles.collapsed, className)}
@@ -243,7 +195,15 @@ export function Sidebar({
                     if (!block.section) {
                         return (
                             <div key={block.key} className={styles.group}>
-                                {block.items.map(renderItem)}
+                                {block.items.map((item) => (
+                                    <SidebarEntry
+                                        key={item.key}
+                                        item={item}
+                                        active={item.key === value}
+                                        collapsed={collapsed}
+                                        onSelect={onChange}
+                                    />
+                                ))}
                             </div>
                         );
                     }
@@ -262,7 +222,15 @@ export function Sidebar({
                             >
                                 {block.section.label}
                             </div>
-                            {block.items.map(renderItem)}
+                            {block.items.map((item) => (
+                                <SidebarEntry
+                                    key={item.key}
+                                    item={item}
+                                    active={item.key === value}
+                                    collapsed={collapsed}
+                                    onSelect={onChange}
+                                />
+                            ))}
                         </div>
                     );
                 })}

@@ -9,6 +9,7 @@ import { buildApiUrl } from "./build-url";
 import { buildApiError, TempestApiError, isRetriableStatus } from "./errors";
 import { retry as retryWithBackoff } from "./retry";
 import type { RetryOptions } from "./retry";
+import { withTimeout } from "./timeout";
 import type { ApiClient, ApiClientConfig, RequestOptions } from "./types";
 
 /**
@@ -60,60 +61,6 @@ const DEFAULT_TIMEOUT = 15_000;
 
 /** Default milliseconds before a `FormData` request is abandoned. */
 const DEFAULT_UPLOAD_TIMEOUT = 300_000;
-
-/** A signal to hand `fetch`, plus how to read the outcome and clean up. */
-interface TimedSignal {
-    /** Pass this to `fetch`. */
-    signal: AbortSignal | undefined;
-    /** Whether the abort came from the timeout rather than the caller. */
-    timedOut: () => boolean;
-    /** Clear the timer and drop the listener. Always call it. */
-    dispose: () => void;
-}
-
-/**
- * Compose the caller's signal with a timeout, tracking which one fires.
- *
- * Written with an explicit flag rather than `AbortSignal.timeout()`, whose
- * `TimeoutError` reason would tell the two apart for free. Two reasons: this
- * needs no `AbortSignal.any`, which is Baseline 2024 and would raise the
- * package's support floor for one line of convenience, and the flag is read
- * directly instead of through a reason string that a polyfill could reshape.
- *
- * A caller signal that is already aborted aborts immediately, so a request never
- * goes out for a query react-query has already cancelled.
- *
- * @param signal - The caller's signal, if any.
- * @param ms - Timeout in milliseconds, or `null` to only forward the signal.
- * @returns The composed signal, the outcome reader, and the cleanup.
- */
-function withTimeout(signal: AbortSignal | null | undefined, ms: number | null): TimedSignal {
-    if (ms === null) {
-        return { signal: signal ?? undefined, timedOut: () => false, dispose: () => {} };
-    }
-
-    const controller = new AbortController();
-    let timedOut = false;
-    const timer = setTimeout(() => {
-        timedOut = true;
-        controller.abort();
-    }, ms);
-    const onAbort = (): void => controller.abort();
-
-    if (signal) {
-        if (signal.aborted) controller.abort();
-        else signal.addEventListener("abort", onAbort, { once: true });
-    }
-
-    return {
-        signal: controller.signal,
-        timedOut: () => timedOut,
-        dispose: () => {
-            clearTimeout(timer);
-            signal?.removeEventListener("abort", onAbort);
-        },
-    };
-}
 
 function isFormData(body: unknown): body is FormData {
     return typeof FormData !== "undefined" && body instanceof FormData;

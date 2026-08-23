@@ -402,6 +402,19 @@ traz.
     que segura o form — num formulário grande, isso é a tela inteira a cada
     tecla. Os hooks assinam só o pedaço observado, no componente que observa.
 
+!!! danger "\"FormField found no form to bind to\" com um `<FormProvider>` visível acima"
+    Quando isso acontece com o provider montado logo acima, a causa não é o que a
+    frase sugere: o app e o SDK estão resolvendo **duas cópias** do
+    `react-hook-form`. O `<FormProvider>` publica no contexto de uma cópia e o
+    `useFormContext` de dentro do `<FormField>` lê o da outra, que está vazio.
+
+    É o mesmo mecanismo do `useNavigate() may be used only in the context of a
+    <Router>`, e passa despercebido pela mesma razão: ninguém vai olhar
+    `node_modules` enquanto está olhando pro provider na tela. Por isso a mensagem
+    de erro do SDK nomeia as duas causas desde a v0.52.1.
+
+    Conserto: `npm dedupe`, ou `npx tempest doctor` para listar as duplicadas.
+
 ## Padrão de schema
 
 Mantenha schemas em `src/schemas/<dominio>.ts`, exporte o `z.infer` em `src/types/<dominio>.ts` via `declare global` quando quiser tipos globais. Convenção herdada do alofans-frontend.

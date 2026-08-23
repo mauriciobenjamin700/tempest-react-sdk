@@ -414,6 +414,19 @@ ships.
     keystroke. These hooks subscribe to just the watched slice, in the component
     that watches it.
 
+!!! danger "\"FormField found no form to bind to\" with a `<FormProvider>` visible above it"
+    When this happens with the provider mounted right above, the cause is not what
+    the sentence suggests: the app and the SDK are resolving **two copies** of
+    `react-hook-form`. `<FormProvider>` publishes on one copy's context and the
+    `useFormContext` inside `<FormField>` reads the other's, which is empty.
+
+    Same mechanism as `useNavigate() may be used only in the context of a
+    <Router>`, and it goes unnoticed for the same reason: nobody looks in
+    `node_modules` while looking at the provider on screen. That is why the SDK's
+    error message names both causes as of v0.52.1.
+
+    Fix: `npm dedupe`, or `npx tempest doctor` to list the duplicates.
+
 ## Schema pattern
 
 Keep schemas in `src/schemas/<domain>.ts`, export the `z.infer` in

@@ -16,6 +16,8 @@ import {
     type FieldValues,
 } from "react-hook-form";
 
+import { DUPLICATE_COPY_REMEDY } from "../utils/duplicate-instance";
+
 export interface FormFieldChildProps {
     name: string;
     value: unknown;
@@ -74,6 +76,25 @@ export interface FormFieldProps<
  *     </Form>
  * </FormProvider>;
  */
+/**
+ * What is thrown when no `control` can be resolved.
+ *
+ * It names **two** causes, because the throw cannot tell them apart and the
+ * second one is the expensive one. The obvious reading — no provider, no prop —
+ * is usually right. But the identical throw happens with a `<FormProvider>`
+ * mounted directly above, when the app and the SDK resolve two different copies
+ * of `react-hook-form`: the provider publishes on the app copy's context and
+ * `useFormContext` here reads the SDK copy's, which is empty. Someone looking at
+ * a provider they can see, being told it is missing, does not go looking at
+ * `node_modules` — so the message has to send them there.
+ */
+const NO_CONTROL_MESSAGE =
+    "FormField found no form to bind to. Either pass a `control` prop, or mount a " +
+    "<FormProvider> above it. If a <FormProvider> IS mounted above it, the app and the " +
+    "SDK are resolving two copies of react-hook-form: the provider publishes on one " +
+    "copy's context and this field reads the other's. " +
+    DUPLICATE_COPY_REMEDY;
+
 export function FormField<
     TValues extends FieldValues = FieldValues,
     TName extends FieldPath<TValues> = FieldPath<TValues>,
@@ -81,9 +102,7 @@ export function FormField<
     const context = useFormContext<TValues>();
     const resolvedControl = control ?? context?.control;
     if (!resolvedControl) {
-        throw new Error(
-            "FormField requires either a `control` prop or a <FormProvider> in the tree.",
-        );
+        throw new Error(NO_CONTROL_MESSAGE);
     }
 
     return (

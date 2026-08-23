@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { DefaultOptions } from "@tanstack/react-query";
 import { STALE_TIME, CACHE_TIME } from "./constants";
 import { shouldRetryQuery } from "./retry-policy";
+import { warnOnForeignClient } from "./foreign-client-warning";
 
 export interface QueryProviderProps {
     children: ReactNode;
@@ -23,6 +24,8 @@ export interface QueryProviderProps {
  * the network log while the spinner keeps turning.
  */
 export function QueryProvider({ children, client, defaultOptions }: QueryProviderProps) {
+    warnOnForeignClient(client);
+
     const [internalClient] = useState<QueryClient>(
         () =>
             client ??

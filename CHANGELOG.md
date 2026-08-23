@@ -4,6 +4,40 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **Duas cópias de `react-query` ou de `react-hook-form` param de falhar em
+  silêncio.** As duas quebram do mesmo jeito e pelo mesmo motivo — contexto React
+  não atravessa cópias — e as duas mentiam sobre a causa
+  ([#210](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/210)).
+
+  No `<QueryProvider client={...} />`, o `client` é o **único** ponto onde a cópia
+  do app e a do SDK se encostam. Com uma segunda cópia aninhada, o
+  `QueryClientProvider` publica o seu client no contexto daquela cópia e todo
+  `useQuery` do app lê o da outra, não acha nada e lança
+  `No QueryClient set, use QueryClientProvider to set one` — com o provider
+  visivelmente montado três linhas acima. Agora o SDK detecta e avisa em
+  desenvolvimento, nomeando o erro que a pessoa vai ver a seguir. A discriminação é
+  `instanceof`: duas cópias definem duas classes `QueryClient` distintas, então um
+  client da outra cópia faz duck-type perfeito e falha a identidade. Um guard de
+  duck-type roda antes, para um objeto que não é client nenhum não ser acusado de
+  duplicata.
+
+  No `<FormField>`, o erro lançado dizia só `requires either a control prop or a
+<FormProvider> in the tree` — e o caso de duas cópias produz **exatamente esse
+  throw** com um `<FormProvider>` montado logo acima. A mensagem diagnosticava
+  errado justamente no caso caro: ninguém vai olhar `node_modules` enquanto olha
+  pro provider na tela. Agora ela nomeia as duas causas.
+
+  As duas mensagens terminam no mesmo remédio, que vive num lugar só para não
+  driftarem: `npm dedupe`, ou `npx tempest doctor` para listar as duplicadas.
+
+  `zustand` ficou de fora **de propósito**, e o motivo importa: o módulo `store/`
+  usa `create`, que devolve um hook sobre `useSyncExternalStore` — não há contexto
+  React próprio para atravessar, então duas cópias custam bytes e não correção. Os
+  três pacotes continuam em `dependencies`; promovê-los a peer é breaking e a
+  troca só se paga quando um app real colidir.
+
 ## [0.52.0] — 2026-08-23
 
 ### Adicionado

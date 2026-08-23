@@ -4,6 +4,22 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Breaking
+
+- **`buildBarListRows` recebe um objeto.** Era
+  `buildBarListRows(items, sort, max, otherLabel)` — quatro posicionais, os dois
+  últimos opcionais, e a chamada real saía como
+  `buildBarListRows(items, "desc", 5, "Outros")`: sem abrir o arquivo ninguém sabe
+  o que é `5` nem o que é `"Outros"`. Agora é
+  `buildBarListRows({ items, sort, max, otherLabel })`, com `items` como único
+  campo obrigatório e `sort` default `"desc"`.
+
+  **Migração:** envolva os argumentos em um objeto —
+  `buildBarListRows(vendas, "desc", 5, "Outros")` vira
+  `buildBarListRows({ items: vendas, sort: "desc", max: 5, otherLabel: "Outros" })`.
+  O tipo `BuildBarListRowsOptions` é exportado. `<BarList>` não muda: os props
+  continuam os mesmos.
+
 ### Adicionado
 
 - **`createApiClient` ganhou timeout.** Antes não havia nenhum, e a falha que isso
@@ -95,6 +111,19 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   dataset simplificado de municípios não contém. Chegar a 100% exigiria pragma
   (`/* v8 ignore */`) ou apagar guarda que existe para contexto fora do browser —
   as duas coisas pioram o código para melhorar o número.
+
+### Interno
+
+- **`tempest doctor` volta a passar limpo no próprio SDK** — 9 warnings → zero.
+  Um era defeito de verdade: `.item` declarado em dois blocos no
+  `Sidebar.module.css`, que é como uma regra some sem ninguém notar. Os outros
+  eram limite de design, resolvidos onde o corte melhora a leitura —
+  `SidebarEntry` virou componente próprio, o plumbing de timeout do
+  `createApiClient` saiu para `http/timeout.ts`, o middleware do plugin de dev SW
+  virou função nomeada, e `sfx-pool` teve os três helpers puros içados para o
+  escopo do módulo — e waived, com razão escrita, onde não melhora: a tabela de
+  ícones do Material Symbols (o comprimento é do vocabulário, não do código) e
+  `downloadCsv`, cuja chamada de três argumentos já lê como frase.
 
 ## [0.50.0] — 2026-08-22
 

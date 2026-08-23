@@ -157,63 +157,55 @@ describe("BarList — truncation", () => {
 
 describe("buildBarListRows", () => {
     it("returns nothing for an empty list", () => {
-        expect(buildBarListRows([], "desc", undefined, undefined)).toEqual([]);
+        expect(buildBarListRows({ items: [] })).toEqual([]);
     });
 
     it("reports 0% instead of NaN when everything is zero", () => {
-        const rows = buildBarListRows(
-            [
+        const rows = buildBarListRows({
+            items: [
                 { label: "a", value: 0 },
                 { label: "b", value: 0 },
             ],
-            "desc",
-            undefined,
-            undefined,
-        );
+            sort: "desc",
+        });
         expect(rows.map((row) => row.percentage)).toEqual([0, 0]);
         expect(rows.map((row) => row.width)).toEqual([0, 0]);
     });
 
     it("draws no bar for a negative value but keeps the row", () => {
-        const rows = buildBarListRows(
-            [
+        const rows = buildBarListRows({
+            items: [
                 { label: "a", value: 10 },
                 { label: "b", value: -4 },
             ],
-            "desc",
-            undefined,
-            undefined,
-        );
+            sort: "desc",
+        });
         expect(rows).toHaveLength(2);
         expect(rows[1]).toMatchObject({ label: "b", value: -4, width: 0, percentage: 0 });
     });
 
     it("excludes negatives from the total, so shares still add up", () => {
-        const rows = buildBarListRows(
-            [
+        const rows = buildBarListRows({
+            items: [
                 { label: "a", value: 30 },
                 { label: "b", value: 10 },
                 { label: "c", value: -5 },
             ],
-            "desc",
-            undefined,
-            undefined,
-        );
+            sort: "desc",
+        });
         expect(rows[0]?.percentage).toBe(75);
         expect(rows[1]?.percentage).toBe(25);
     });
 
     it("drops entries whose value is not finite", () => {
-        const rows = buildBarListRows(
-            [
+        const rows = buildBarListRows({
+            items: [
                 { label: "a", value: Number.NaN },
                 { label: "b", value: 5 },
                 { label: "c", value: Number.POSITIVE_INFINITY },
             ],
-            "desc",
-            undefined,
-            undefined,
-        );
+            sort: "desc",
+        });
         expect(rows.map((row) => row.label)).toEqual(["b"]);
     });
 
@@ -222,7 +214,7 @@ describe("buildBarListRows", () => {
             label: `s${index}`,
             value: 10 - index,
         }));
-        const rows = buildBarListRows(items, "desc", undefined, undefined);
+        const rows = buildBarListRows({ items, sort: "desc" });
         expect(rows.map((row) => row.index)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
     });
 });

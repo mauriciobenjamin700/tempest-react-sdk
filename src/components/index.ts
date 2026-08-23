@@ -456,7 +456,13 @@ export { Tour } from "./Tour";
 export type { TourPlacement, TourProps, TourStep } from "./Tour";
 
 export { BarList } from "./BarList";
-export type { BarListItem, BarListProps, BarListSort, BarListRow } from "./BarList";
+export type {
+    BarListItem,
+    BarListProps,
+    BarListSort,
+    BarListRow,
+    BuildBarListRowsOptions,
+} from "./BarList";
 export { buildBarListRows } from "./BarList";
 
 export { FilterBar } from "./FilterBar";

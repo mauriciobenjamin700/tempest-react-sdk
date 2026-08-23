@@ -534,10 +534,15 @@ import { BarList } from "tempest-react-sdk";
     A per-item `color` still wins over everything.
 
 !!! tip "The arithmetic is exported: `buildBarListRows`"
-    `buildBarListRows(items, sort, max, otherLabel)` returns the rows already
+    `buildBarListRows({ items, sort, max, otherLabel })` returns the rows already
     ordered, truncated and measured (`percentage`, `width`, `index`) without
     rendering anything. Use it when you want the same maths behind a different
-    drawing — a legend, a table, an export.
+    drawing — a legend, a table, an export. Only `items` is required; `sort`
+    defaults to `"desc"`.
+
+    ```typescript
+    const rows = buildBarListRows({ items: sales, max: 5, otherLabel: "Other" });
+    ```
 
 ## `ListTile`
 

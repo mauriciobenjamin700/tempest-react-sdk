@@ -27,6 +27,18 @@ export interface BarListRow extends BarListItem {
     index: number;
 }
 
+/** What {@link buildBarListRows} needs to reduce a list into rows. */
+export interface BuildBarListRowsOptions {
+    /** The rows as given. */
+    items: readonly BarListItem[];
+    /** Ordering to apply. `"none"` keeps the caller's order. Default `"desc"`. */
+    sort?: BarListSort;
+    /** Keep at most this many rows. */
+    max?: number;
+    /** Aggregate what `max` cut into one row with this label. */
+    otherLabel?: string;
+}
+
 /**
  * Order, truncate and measure the rows.
  *
@@ -44,18 +56,11 @@ export interface BarListRow extends BarListItem {
  * negative width does not exist) and reports 0%, but its number is still shown —
  * hiding the row would be worse than showing an odd one.
  *
- * @param items - The rows as given.
- * @param sort - Ordering to apply. `"none"` keeps the caller's order.
- * @param max - Keep at most this many rows.
- * @param otherLabel - Aggregate what `max` cut into one row with this label.
+ * @param options - The rows and how to reduce them.
  * @returns The rows to draw, in order.
  */
-export function buildBarListRows(
-    items: readonly BarListItem[],
-    sort: BarListSort,
-    max: number | undefined,
-    otherLabel: string | undefined,
-): BarListRow[] {
+export function buildBarListRows(options: BuildBarListRowsOptions): BarListRow[] {
+    const { items, sort = "desc", max, otherLabel } = options;
     const usable = items.filter((item) => Number.isFinite(item.value));
     const total = usable.reduce((sum, item) => sum + Math.max(item.value, 0), 0);
 

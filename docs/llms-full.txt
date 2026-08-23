@@ -5658,10 +5658,14 @@ import { BarList } from "tempest-react-sdk";
     `color` por item continua ganhando de tudo.
 
 !!! tip "A aritmética é exportada: `buildBarListRows`"
-    `buildBarListRows(items, sort, max, otherLabel)` devolve as linhas já ordenadas,
-    cortadas e medidas (`percentage`, `width`, `index`) sem renderizar nada. Serve
-    pra quem quer o mesmo cálculo com outro desenho — uma legenda, uma tabela, um
-    export.
+    `buildBarListRows({ items, sort, max, otherLabel })` devolve as linhas já
+    ordenadas, cortadas e medidas (`percentage`, `width`, `index`) sem renderizar
+    nada. Serve pra quem quer o mesmo cálculo com outro desenho — uma legenda, uma
+    tabela, um export. Só `items` é obrigatório; `sort` default é `"desc"`.
+
+    ```typescript
+    const rows = buildBarListRows({ items: vendas, max: 5, otherLabel: "Outros" });
+    ```
 
 ## `ListTile`
 

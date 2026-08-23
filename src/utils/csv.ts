@@ -1,3 +1,9 @@
+/**
+ * @tempest-limits param-count — `downloadCsv(rows, columns, "usuarios.csv")` reads
+ * in the order the sentence does, and its two trailing parameters have defaults,
+ * so the common call passes three. Wrapping them in an object would break every
+ * caller of a published export for no gain in what the call site says.
+ */
 // CSV that survives contact with real data. Every app writes this by hand and
 // every hand-written version gets the same two things wrong: a value containing
 // the delimiter splits the row, and a value containing a quote breaks the quoting

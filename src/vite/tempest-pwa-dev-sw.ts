@@ -26,6 +26,59 @@ export interface TempestPwaDevSwOptions {
 }
 
 /**
+ * The dev middleware: serve the compiled worker, and a placeholder manifest.
+ *
+ * Extracted from the plugin so the request handling reads on its own — the
+ * plugin body is then only wiring. The manifest is deliberately empty in dev:
+ * precaching a set of URLs Vite rewrites on every change would serve stale
+ * modules, and the worker's runtime routes still work without it.
+ *
+ * @param deps - The two URLs, the path matcher and the incremental build.
+ * @returns A connect-style middleware.
+ */
+function createDevSwMiddleware(deps: {
+    swUrl: string;
+    manifestUrl: string;
+    matches: (url: string, target: string) => boolean;
+    buildWorker: () => Promise<string>;
+}): (
+    req: { url?: string },
+    res: {
+        statusCode?: number;
+        setHeader: (name: string, value: string) => void;
+        end: (body: string) => void;
+    },
+    next: () => void,
+) => Promise<void> {
+    return async (req, res, next) => {
+        const url = (req.url ?? "").split("?")[0];
+
+        if (deps.matches(url, deps.swUrl)) {
+            try {
+                const source = await deps.buildWorker();
+                res.setHeader("Content-Type", "application/javascript");
+                res.setHeader("Service-Worker-Allowed", "/");
+                res.setHeader("Cache-Control", "no-cache");
+                res.end(source);
+            } catch (error) {
+                res.statusCode = 500;
+                res.end(`// SW dev build failed:\n// ${String(error)}`);
+            }
+            return;
+        }
+
+        if (deps.matches(url, deps.manifestUrl)) {
+            res.setHeader("Content-Type", "application/json");
+            res.setHeader("Cache-Control", "no-cache");
+            res.end(JSON.stringify({ version: "dev", urls: [] }));
+            return;
+        }
+
+        next();
+    };
+}
+
+/**
  * Dev-server plugin that makes the service worker available under `npm run dev`.
  *
  * The production worker is bundled at build time (`vite.sw.config.ts`), so in
@@ -174,32 +227,9 @@ export function tempestPwaDevSw(options: TempestPwaDevSwOptions = {}): TempestVi
 
             server.httpServer?.once("close", () => void disposeContext());
 
-            server.middlewares.use(async (req, res, next) => {
-                const url = (req.url ?? "").split("?")[0];
-
-                if (matches(url, swUrl)) {
-                    try {
-                        const source = await buildWorker();
-                        res.setHeader("Content-Type", "application/javascript");
-                        res.setHeader("Service-Worker-Allowed", "/");
-                        res.setHeader("Cache-Control", "no-cache");
-                        res.end(source);
-                    } catch (error) {
-                        res.statusCode = 500;
-                        res.end(`// SW dev build failed:\n// ${String(error)}`);
-                    }
-                    return;
-                }
-
-                if (matches(url, manifestUrl)) {
-                    res.setHeader("Content-Type", "application/json");
-                    res.setHeader("Cache-Control", "no-cache");
-                    res.end(JSON.stringify({ version: "dev", urls: [] }));
-                    return;
-                }
-
-                next();
-            });
+            server.middlewares.use(
+                createDevSwMiddleware({ swUrl, manifestUrl, matches, buildWorker }),
+            );
         },
     };
 

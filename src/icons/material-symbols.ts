@@ -1,3 +1,10 @@
+/**
+ * @tempest-limits file-lines — the file is one hand-written lookup table plus the
+ * two functions that read it. Splitting a table by row count would put pairs that
+ * belong together (`format_*`, `electrical_*`) in different files and make the
+ * next hand-written pair a question of which file it lands in; the length is the
+ * vocabulary's, not the code's.
+ */
 import type { IconName } from "./generated/icon-name";
 
 /**

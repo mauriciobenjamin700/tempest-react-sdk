@@ -86,6 +86,61 @@ interface SourceEntry {
     next: number;
 }
 
+/**
+ * Resolve a source against the pool's base URL.
+ *
+ * An absolute URL, a protocol-relative one and a `data:` URI are already
+ * addresses — prefixing them would produce a path that resolves to nothing.
+ *
+ * @param baseUrl - Pool base, possibly empty.
+ * @param src - Source as the caller wrote it.
+ * @returns The URL to load.
+ */
+function resolveSource(baseUrl: string, src: string): string {
+    if (!baseUrl || /^(https?:)?\/\//.test(src) || src.startsWith("data:")) return src;
+    return `${baseUrl.replace(/\/$/, "")}/${src.replace(/^\//, "")}`;
+}
+
+/**
+ * Stop every voice of an entry and let the browser drop its buffer.
+ *
+ * Removing `src` before `load()` is what frees the decoded audio: `load()` on an
+ * element that still has a source re-fetches it instead.
+ *
+ * @param entry - The entry being evicted.
+ */
+function releaseEntry(entry: { elements: HTMLAudioElement[] }): void {
+    for (const element of entry.elements) {
+        element.pause();
+        element.removeAttribute("src");
+        element.load();
+    }
+}
+
+/**
+ * Drop the least recently played source once the pool is over its cap.
+ *
+ * The map is insertion-ordered by last play, so the first key is the coldest.
+ * The source that was just admitted is never the one evicted, which would
+ * otherwise happen with a cap of one.
+ *
+ * @param sources - The live pool, mutated in place.
+ * @param keepUrl - The source that must survive this eviction.
+ * @param maxSources - How many sources the pool may hold.
+ */
+function evictLeastRecent(
+    sources: Map<string, SourceEntry>,
+    keepUrl: string,
+    maxSources: number,
+): void {
+    if (sources.size <= maxSources) return;
+    const oldest = sources.keys().next();
+    if (oldest.done || oldest.value === keepUrl) return;
+    const evicted = sources.get(oldest.value);
+    if (evicted) releaseEntry(evicted);
+    sources.delete(oldest.value);
+}
+
 export function createSfxPool(options: SfxPoolOptions = {}): SfxPool {
     const { baseUrl = "", voices = 1, maxSources = 48 } = options;
 
@@ -107,19 +162,6 @@ export function createSfxPool(options: SfxPoolOptions = {}): SfxPool {
      */
     const gains = new WeakMap<HTMLAudioElement, number>();
 
-    function resolve(src: string): string {
-        if (!baseUrl || /^(https?:)?\/\//.test(src) || src.startsWith("data:")) return src;
-        return `${baseUrl.replace(/\/$/, "")}/${src.replace(/^\//, "")}`;
-    }
-
-    function release(entry: { elements: HTMLAudioElement[] }): void {
-        for (const element of entry.elements) {
-            element.pause();
-            element.removeAttribute("src");
-            element.load();
-        }
-    }
-
     /**
      * The pool entry for a source, creating and admitting it when it is new.
      *
@@ -138,7 +180,7 @@ export function createSfxPool(options: SfxPoolOptions = {}): SfxPool {
     function acquire(src: string): { entry: SourceEntry; created: boolean } | null {
         if (typeof Audio === "undefined") return null;
 
-        const url = resolve(src);
+        const url = resolveSource(baseUrl, src);
         const existing = sources.get(url);
         if (existing) {
             sources.delete(url);
@@ -156,14 +198,7 @@ export function createSfxPool(options: SfxPoolOptions = {}): SfxPool {
         };
         sources.set(url, entry);
 
-        if (sources.size > maxSources) {
-            const oldest = sources.keys().next();
-            if (!oldest.done && oldest.value !== url) {
-                const evicted = sources.get(oldest.value);
-                if (evicted) release(evicted);
-                sources.delete(oldest.value);
-            }
-        }
+        evictLeastRecent(sources, url, maxSources);
 
         return { entry, created: true };
     }
@@ -205,7 +240,9 @@ export function createSfxPool(options: SfxPoolOptions = {}): SfxPool {
         },
 
         stop(src) {
-            const targets = src ? [sources.get(resolve(src))] : [...sources.values()];
+            const targets = src
+                ? [sources.get(resolveSource(baseUrl, src))]
+                : [...sources.values()];
             for (const entry of targets) {
                 if (!entry) continue;
                 for (const element of entry.elements) {
@@ -216,7 +253,7 @@ export function createSfxPool(options: SfxPoolOptions = {}): SfxPool {
         },
 
         dispose() {
-            for (const entry of sources.values()) release(entry);
+            for (const entry of sources.values()) releaseEntry(entry);
             sources.clear();
         },
     };

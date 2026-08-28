@@ -325,7 +325,24 @@ function Example() {
 | `helperText`  | `string`                      | —                        |
 | `disabled`    | `boolean`                     | `false`                  |
 | `formatValue` | `(value: number) => string`   | —                        |
+| `aria-label`  | `string`                      | —                        |
 | `className`   | `string`                      | —                        |
+
+!!! tip "Compact slider: an accessible name without the visible label"
+    Passing `label` renders a block above the track (label + value). Where that
+    block does not fit — a one-line footer, a table cell, a toolbar — use
+    `aria-label` on its own:
+
+    ```tsx
+    <Slider value={gain} onChange={setGain} aria-label={`${name}'s volume`} />
+    ```
+
+    Without it **every** slider on the page announces itself as `"Slider"` and a
+    screen reader cannot tell them apart. Precedence is
+    `aria-label` → `label` → `"Slider"`, so passing only `label` behaves exactly
+    as before. Wrapping the field in an outer `<label>` does **not** help: an
+    explicit `aria-label` on the input wins the accessible-name precedence order.
+
 ## `Dropzone`
 
 **When to use:** a lean drag-and-drop area when you only need to capture the
@@ -389,9 +406,13 @@ Dual-thumb slider with a `low ≤ high` clamp.
   step={10}
   value={range}
   onChange={setRange}
-  format={(n) => `R$ ${n}`}
+  formatValue={([lo, hi]) => `R$ ${lo} – R$ ${hi}`}
 />
 ```
+
+It takes `aria-label` for the same reason `Slider` does. Each thumb keeps its own
+name — `"Price range (mínimo)"` and `"Price range (máximo)"` — because someone
+moving between the two needs to know which end they are on.
 
 ## `RatingStars`
 

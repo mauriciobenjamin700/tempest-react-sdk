@@ -6,6 +6,24 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`Slider` e `RangeSlider` aceitam `aria-label`.** Sem ele, o nome acessível
+  saía de `label` — e `label` renderiza um bloco acima da track, que não cabe num
+  rodapé de uma linha, numa célula de tabela ou numa toolbar
+  ([#221](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/221)).
+
+  O sintoma é caro e silencioso: sem `label`, **todo** slider da página se
+  anuncia como `"Slider"`. Numa chamada de voz com volume por participante, o
+  leitor de tela lê `"Slider"` para cada tile e não há como saber de quem é o
+  volume sendo ajustado — o caso que levou um app a descartar o componente e
+  ficar com `<input type="range">` cru. Envolver o campo num `<label>` externo
+  não resolve, porque um `aria-label` explícito no input vence na ordem de
+  precedência do nome acessível.
+
+  A precedência agora é `aria-label` → `label` → `"Slider"`: quem passava só
+  `label` não muda em nada. No `RangeSlider` o nome vale para os dois thumbs,
+  cada um mantendo o próprio sufixo (`(mínimo)` / `(máximo)`), porque quem
+  navega de uma ponta à outra precisa saber onde está.
+
 - **Módulo `webrtc`: `tuneOpus`, `setTunedLocalDescription` e `setSenderBitrate`.**
   Áudio sobre WebRTC sai mono e estreito por padrão, e o único lugar onde isso se
   corrige é o SDP

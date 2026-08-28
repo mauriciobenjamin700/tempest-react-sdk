@@ -4,6 +4,44 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **Módulo `webrtc`: `tuneOpus`, `setTunedLocalDescription` e `setSenderBitrate`.**
+  Áudio sobre WebRTC sai mono e estreito por padrão, e o único lugar onde isso se
+  corrige é o SDP
+  ([#222](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/222)).
+
+  O sintoma mais comum é áudio de tela compartilhada soando como telefone: música
+  e vídeo herdam o perfil de fala — mono, ~32 kbps, FEC ligado, DTX gateando as
+  passagens quietas — e nenhuma API de alto nível deixa mudar isso.
+
+  `tuneOpus(sdp, profiles)` aceita um perfil por m-line de áudio (por índice ou
+  por `mid`) ou um perfil só para todas, e cuida das armadilhas que degradam **em
+  silêncio**, sem exceção nenhuma: `stereo` e `sprop-stereo` apontam para lados
+  opostos e são escritos juntos; o `fmtp` que o browser já emitiu é mesclado por
+  chave, para o `minptime` não ser descartado junto; o payload type sai do
+  `rtpmap` em vez de um `111` fixo, e todos os payloads Opus do bloco são
+  ajustados; um bloco sem `fmtp` ganha a linha inserida depois do `rtpmap`; e
+  m-line de vídeo nunca é tocada, com a contagem de índice ignorando-a.
+
+  **Deliberadamente sem tabela de presets embutida**: quais valores usar é decisão
+  do consumidor — voz numa mesh não quer o mesmo que áudio de sistema — e preset é
+  o tipo de coisa que não deve morar dentro de dependência. O que entra é o
+  parsing, o merge e o fallback.
+
+  `setTunedLocalDescription(pc, description, profiles)` tenta o SDP editado e cai
+  para o original quando o browser recusa — o Chrome vem apertando o que
+  `setLocalDescription` aceita, e sem fallback a chamada **morre** em vez de só
+  perder o perfil. O retorno diz qual dos dois entrou, porque `"original"`
+  significa perfil silenciosamente não aplicado.
+
+  `setSenderBitrate(sender, bps)` é a outra metade do par que confunde: o `fmtp`
+  descreve o que queremos **receber**, e este limita o que **enviamos** — numa
+  mesh é ele que importa, porque o uplink carrega uma cópia por participante. Faz
+  o read-modify-write que o browser exige (`setParameters` só aceita o objeto que
+  `getParameters` devolveu) e cria o encoding que um sender ainda não negociado
+  não reporta.
+
 ### Corrigido
 
 - **Duas cópias de `react-query` ou de `react-hook-form` param de falhar em

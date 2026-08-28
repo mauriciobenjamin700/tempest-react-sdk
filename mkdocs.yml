@@ -139,6 +139,7 @@ plugins:
                     Query (TanStack): Query (TanStack)
                     SSE: SSE
                     WebSocket: WebSocket
+                    WebRTC (áudio Opus): WebRTC (Opus audio)
                     Web Push: Web Push
                     Offline: Offline
                     PWA & Offline-First: PWA & Offline-First
@@ -262,6 +263,7 @@ nav:
                 - Data Provider (CRUD): data-provider.md
                 - SSE: sse.md
                 - WebSocket: websocket.md
+                - WebRTC (áudio Opus): webrtc.md
                 - Geolocalização: geo.md
                 - Mapa do Brasil (br): br.md
                 - "Pagamentos & fiscal BR": br-pagamentos.md

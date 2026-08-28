@@ -6,6 +6,24 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`Slider` e `RangeSlider` aceitam `aria-label`.** Sem ele, o nome acessível
+  saía de `label` — e `label` renderiza um bloco acima da track, que não cabe num
+  rodapé de uma linha, numa célula de tabela ou numa toolbar
+  ([#221](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/221)).
+
+  O sintoma é caro e silencioso: sem `label`, **todo** slider da página se
+  anuncia como `"Slider"`. Numa chamada de voz com volume por participante, o
+  leitor de tela lê `"Slider"` para cada tile e não há como saber de quem é o
+  volume sendo ajustado — o caso que levou um app a descartar o componente e
+  ficar com `<input type="range">` cru. Envolver o campo num `<label>` externo
+  não resolve, porque um `aria-label` explícito no input vence na ordem de
+  precedência do nome acessível.
+
+  A precedência agora é `aria-label` → `label` → `"Slider"`: quem passava só
+  `label` não muda em nada. No `RangeSlider` o nome vale para os dois thumbs,
+  cada um mantendo o próprio sufixo (`(mínimo)` / `(máximo)`), porque quem
+  navega de uma ponta à outra precisa saber onde está.
+
 - **`createWebSocket` sobrevive às três falhas que não disparam evento nenhum.**
   Reconexão montada só sobre `open`/`close`/`error` não cobre nenhuma delas, e
   cada serviço da casa vinha reimplementando um subconjunto diferente
@@ -51,8 +69,6 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   temporariamente fora (deploy, restart, sobrecarga); um `1000` limpo continua
   sendo despedida de propósito e não reabre. A leitura óbvia da faixa —
   "4400–4499 é fatal" — é exatamente o que tornaria permanente um pong perdido.
-
-### Corrigido
 
 - **Duas cópias de `react-query` ou de `react-hook-form` param de falhar em
   silêncio.** As duas quebram do mesmo jeito e pelo mesmo motivo — contexto React

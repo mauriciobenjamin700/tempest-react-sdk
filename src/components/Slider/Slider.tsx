@@ -20,6 +20,17 @@ export interface SliderProps {
     disabled?: boolean;
     /** Formatter for the value badge next to the label. Defaults to the raw number. */
     formatValue?: (value: number) => string;
+    /**
+     * Accessible name, for when the visible `label` block does not fit.
+     *
+     * A slider in a one-line footer, a table cell or a toolbar has no room for the
+     * label row above the track, and without this every such control announces
+     * itself as "Slider" — several on the same screen become indistinguishable to a
+     * screen reader. Takes precedence over `label`; wrapping the field in an outer
+     * `<label>` does not work, because an explicit `aria-label` on the input wins
+     * the accessible-name precedence order.
+     */
+    "aria-label"?: string;
     className?: string;
 }
 
@@ -38,6 +49,7 @@ export function Slider({
     helperText,
     disabled = false,
     formatValue,
+    "aria-label": ariaLabel,
     className,
 }: SliderProps) {
     const pct = useMemo(() => {
@@ -75,7 +87,7 @@ export function Slider({
                     value={value}
                     onChange={handleChange}
                     disabled={disabled}
-                    aria-label={label ?? "Slider"}
+                    aria-label={ariaLabel ?? label ?? "Slider"}
                     aria-valuetext={valueText}
                 />
             </div>

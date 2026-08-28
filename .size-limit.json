@@ -288,7 +288,7 @@
   {
     "name": "ceiling: full barrel ESM (nobody imports this — tree-shaking is the real cost)",
     "path": "dist/tempest-react-sdk.js",
-    "limit": "118 KB",
+    "limit": "121 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -307,7 +307,7 @@
   {
     "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "142 KB",
+    "limit": "146 KB",
     "ignore": [
       "react",
       "react-dom",

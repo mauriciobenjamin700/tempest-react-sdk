@@ -54,6 +54,33 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `controller.opened`, que resolve na primeira abertura e rejeita se o socket
   morrer sem nunca abrir — falhar ao entrar é evento diferente de cair no meio.
 
+- **`createAudioBus` / `useAudioBus`: ganho acima de 100%, limiter pós-soma e
+  `setSinkId`.** `element.volume` é clampado em `1`, então um participante que
+  fala baixo só podia ser **abaixado** — a única correção que ninguém precisa
+  ([#223](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/223)).
+
+  Subir acima de 100% exige grafo WebAudio, e montá-lo esbarra em três coisas
+  não-óbvias, todas embaladas aqui:
+
+  - **A âncora do crbug.687574.** Um `MediaStreamAudioSourceNode` sobre stream
+    **remoto** de WebRTC não produz amostras no Chrome a menos que o mesmo stream
+    esteja preso a um elemento de mídia. O grafo fica visivelmente correto e
+    completamente silencioso — sem conhecer o bug, é um dia de depuração.
+    `attach()` cria o `<audio muted autoplay>` de âncora, com o motivo escrito no
+    código para não ser removido como código morto no primeiro refactor.
+  - **Limiter depois da soma.** Clipping é propriedade da mistura: três fontes a
+    200% cada ficam limpas sozinhas e distorcem no instante em que tocam juntas.
+    Um limiter por fonte não enxerga isso; o do master enxerga.
+  - **`setSinkId` mora no elemento.** A mistura sai por
+    `MediaStreamAudioDestinationNode` → `<audio>`, que é o único caminho para
+    mandar o áudio ao fone enquanto o resto do sistema fica no alto-falante.
+    `canSelectOutput` diz se o motor permite — no Safari e em todo browser iOS o
+    picker deve ser escondido, não oferecido e ignorado.
+
+  Ganho é clampado em `0..maxGain` (default `3`) e `NaN` vira `1`, porque `NaN`
+  chega de campo numérico vazio e atribuí-lo a um `AudioParam` **lança**. Sem Web
+  Audio o barramento é inerte e `supported` é `false`, em vez de quebrar a página.
+
 ### Corrigido
 
 - **Um `4408` do `tempest-fastapi-sdk` reconecta em vez de encerrar a sessão.** O

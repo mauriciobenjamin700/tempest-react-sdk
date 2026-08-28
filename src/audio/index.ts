@@ -9,6 +9,10 @@ export { useSfxPool } from "./use-sfx-pool";
 
 export { isAudioOutputSelectionSupported, setAudioOutput } from "./audio-output";
 
+export { createAudioBus, DEFAULT_MAX_GAIN } from "./audio-bus";
+export type { AudioBus, AudioBusHandle, AudioBusOptions, LimiterSettings } from "./audio-bus";
+export { useAudioBus } from "./use-audio-bus";
+
 export { isMediaCaptureSupported } from "./media-access";
 export type { MediaAccessError, MediaAccessErrorKind, MediaDeviceKindLabel } from "./media-access";
 

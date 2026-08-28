@@ -905,6 +905,69 @@ if (!ok) toast("Este navegador não permite escolher a saída de som.");
 
 `playAudio` também aceita `sinkId`, útil pra um chime cair no fone enquanto o áudio da chamada fica no alto-falante.
 
+## Ganho acima de 100%: `createAudioBus`
+
+**Quando usar:** você precisa **subir** o volume de uma fonte, misturar várias e mandar tudo para um dispositivo escolhido. Chamada com volume por participante é o caso típico.
+
+`element.volume` é clampado em `1`. Ou seja, um participante que fala baixo só pode ser **abaixado** — a única correção que ninguém precisa. Subir acima de 100% exige um grafo WebAudio, e montá-lo direito esbarra em três coisas não-óbvias, que é o que este barramento embala.
+
+```tsx
+import { createAudioBus } from "tempest-react-sdk";
+
+const bus = createAudioBus({ maxGain: 3 });
+
+const handle = bus.attach(streamRemoto, { gain: 1 });
+handle.setGain(2.4); // acima de 1 — o ponto da coisa toda
+handle.stop();
+
+bus.setMasterGain(1.2);
+await bus.setOutputDevice(idDoFone); // "" = padrão do sistema
+bus.close();
+```
+
+No React, `useAudioBus` faz o mesmo e fecha o contexto no unmount:
+
+```tsx
+import { useAudioBus } from "tempest-react-sdk";
+import { useEffect } from "react";
+
+function Participante({ stream, volume }: { stream: MediaStream; volume: number }) {
+  const bus = useAudioBus({ maxGain: 3 });
+
+  useEffect(() => {
+    const handle = bus.attach(stream);
+    return () => handle.stop();
+  }, [bus, stream]);
+
+  return <Slider value={volume} onChange={(v) => bus.setMasterGain(v)} aria-label="Volume" />;
+}
+```
+
+### As três armadilhas que o barramento resolve
+
+!!! danger "O bug do Chrome que deixa o grafo mudo"
+    Um `MediaStreamAudioSourceNode` sobre um stream **remoto** de WebRTC não produz amostras no Chrome a menos que o mesmo stream esteja também preso a um elemento de mídia ([crbug.com/687574](https://crbug.com/687574)). O grafo fica visivelmente correto e **completamente silencioso** — sem conhecer o bug, é um dia de depuração. O `attach()` cria um `<audio muted autoplay>` de âncora para você. Ele parece código morto e **não é**: apagá-lo emudece a chamada inteira no Chrome.
+
+!!! warning "O limiter fica depois da soma, nunca por fonte"
+    Clipping é propriedade da **mistura**, não do participante: três pessoas a 200% cada ficam limpas sozinhas e distorcem no instante em que falam juntas. Um limiter por participante não enxerga isso; o do master enxerga. Ajuste com `limiter: { threshold: -3 }`, ou desligue com `limiter: false`.
+
+!!! info "`setSinkId` mora no elemento, não no contexto"
+    Mandar a chamada para o fone enquanto o resto do sistema fica no alto-falante só é alcançável saindo por `MediaStreamAudioDestinationNode` → `<audio>` → `setSinkId`. `AudioContext.setSinkId` tem suporte bem menor, então a mistura sai por um elemento real. `bus.canSelectOutput` diz se o motor permite: no Safari e em **todo** browser iOS a saída segue a rota do sistema, e o seletor deve ser **escondido**, não oferecido e ignorado.
+
+### Detalhes que evitam surpresa
+
+- **O teto é seu.** `maxGain` (default `DEFAULT_MAX_GAIN`, que é `3`) limita fonte e master. Acima de ~3 a fala já chega distorcida antes de ficar mais alta.
+- **Ganho é clampado, e `NaN` vira `1`.** `NaN` chega de um campo numérico vazio ou de um parse que falhou, e atribuí-lo a um `AudioParam` **lança** — perder o áudio por causa de um typo num input é um preço alto.
+- **Contexto é caro.** Browsers limitam quantos `AudioContext` vivem ao mesmo tempo (Chrome permite ~6). Passe `context` para reaproveitar o que a página já tem, e chame `close()` (ou use o hook) quando terminar.
+- **`resume()` para a autoplay policy.** Um contexto criado fora de um gesto do usuário nasce suspenso — e suspenso é silencioso sem erro nenhum. Chame `resume()` no clique que inicia a reprodução.
+- **Depois de `close()`, o barramento continua chamável.** `attach()` devolve um handle inerte em vez de lançar — não é gentileza: criar nó num `AudioContext` fechado lança `InvalidStateError`, e o stream que chega tarde é o caso **normal** (um `ontrack` de WebRTC disparando depois que o componente dono do bus saiu da tela).
+- **Sem Web Audio, o barramento é inerte, não explode.** `supported: false`, todos os métodos continuam chamáveis. Uma página sem som é melhor que uma página que quebra.
+
+!!! warning "`Progress` não serve como medidor de áudio"
+    O fill do `Progress` tem `transition: width`, então a barra reporta onde o nível **esteve** — a única coisa que um medidor não pode fazer. Para nível ao vivo, use `createLevelMeter` e escreva no DOM dentro de um `requestAnimationFrame`.
+
+    Duas armadilhas se você desenhar o seu: a escala precisa ser em **dB** (numa linear a fala normal fica espremida no primeiro quinto), e o gradiente de cor precisa ficar no **track** com uma máscara por cima — num elemento que cresce, o gradiente é reescalado junto e pinta vermelho na ponta de um sinal fraco, reportando clipping para quem está quase inaudível.
+
 ## Montando você mesmo: os hooks
 
 ```tsx
@@ -1052,6 +1115,7 @@ Sem `timesliceMs` a gravação inteira fica em memória até o `stop()` — ok p
 - `useAudioRecorder` — status, relógio que desconta pausa, nível, `maxDurationMs`, chunks.
 - `blobToWav` — WAV sem dependência, ~10× os bytes; MP3 fica no servidor.
 - `setAudioOutput` / `isAudioOutputSelectionSupported` — roteamento de saída, só Chromium.
+- `createAudioBus` / `useAudioBus` — ganho **acima de 100%**, limiter depois da soma e `setSinkId`; `attach()` traz a âncora do crbug.687574 que impede o grafo mudo no Chrome.
 
 ## Veja também
 

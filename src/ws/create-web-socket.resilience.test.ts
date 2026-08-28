@@ -77,6 +77,45 @@ describe("createWebSocket — handshake timeout", () => {
         expect(WSMock.instances[0].close).not.toHaveBeenCalled();
     });
 
+    it("drops the deadline of a socket that reconnect() replaced", async () => {
+        const onReconnecting = vi.fn();
+        install();
+        const controller = createWebSocket("wss://x", {
+            handshakeTimeout: 8000,
+            initialBackoff: 10,
+            jitter: 0,
+            onReconnecting,
+        });
+
+        await vi.advanceTimersByTimeAsync(5000);
+        controller.reconnect();
+        expect(WSMock.instances).toHaveLength(2);
+
+        await vi.advanceTimersByTimeAsync(3050);
+
+        expect(WSMock.instances).toHaveLength(2);
+        expect(onReconnecting).not.toHaveBeenCalled();
+    });
+
+    it("keeps its own deadline after replacing a hung socket", async () => {
+        install();
+        const controller = createWebSocket("wss://x", {
+            handshakeTimeout: 8000,
+            initialBackoff: 10,
+            jitter: 0,
+        });
+
+        await vi.advanceTimersByTimeAsync(5000);
+        controller.reconnect();
+
+        await vi.advanceTimersByTimeAsync(7999);
+        expect(WSMock.instances).toHaveLength(2);
+
+        await vi.advanceTimersByTimeAsync(1);
+        await vi.advanceTimersByTimeAsync(10);
+        expect(WSMock.instances).toHaveLength(3);
+    });
+
     it("can be disabled with 0", async () => {
         install();
         createWebSocket("wss://x", { handshakeTimeout: 0 });

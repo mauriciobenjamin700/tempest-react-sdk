@@ -432,9 +432,20 @@ export function createWebSocket<T = unknown>(
         onlineListener = null;
     }
 
+    /**
+     * Open a socket, replacing whatever is there.
+     *
+     * The handshake timer is cleared first because it belongs to the socket
+     * being replaced, and it holds a reference to it: left armed, it fires later
+     * against a connection nobody is waiting for, clears the *new* socket's
+     * timer on its way through, and schedules a retry that drops a connection
+     * still in flight. `reconnect()` on a hung socket is the path that reaches
+     * it.
+     */
     function connect(): void {
         if (closed) return;
         retryTimer = null;
+        clearHandshake();
         if (socket) {
             const previous = socket;
             previous.onmessage = null;

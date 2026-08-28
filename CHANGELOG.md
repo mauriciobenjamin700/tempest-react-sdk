@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.53.0] — 2026-08-28
+
 ### Adicionado
 
 - **`Slider` e `RangeSlider` aceitam `aria-label`.** Sem ele, o nome acessível

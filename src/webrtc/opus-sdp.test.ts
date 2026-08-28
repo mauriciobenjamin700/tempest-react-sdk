@@ -305,3 +305,74 @@ describe("setTunedLocalDescription", () => {
         ).rejects.toThrow("connection closed");
     });
 });
+
+describe("tuneOpus — a real Chrome offer", () => {
+    /**
+     * A fragment as Chrome actually emits it: eight payload types, `red` whose
+     * own `fmtp` refers to Opus by number, and a trailing CRLF.
+     */
+    const CHROME = [
+        "v=0",
+        "o=- 4611731400430051336 2 IN IP4 127.0.0.1",
+        "s=-",
+        "t=0 0",
+        "a=group:BUNDLE 0",
+        "m=audio 9 UDP/TLS/RTP/SAVPF 111 63 9 0 8 13 110 126",
+        "c=IN IP4 0.0.0.0",
+        "a=mid:0",
+        "a=sendrecv",
+        "a=rtpmap:111 opus/48000/2",
+        "a=rtcp-fb:111 transport-cc",
+        "a=fmtp:111 minptime=10;useinbandfec=1",
+        "a=rtpmap:63 red/48000/2",
+        "a=fmtp:63 111/111",
+        "a=rtpmap:9 G722/8000",
+        "a=rtpmap:126 telephone-event/8000",
+        "",
+    ].join("\r\n");
+
+    it("changes the Opus fmtp and nothing else", () => {
+        const tuned = tuneOpus(CHROME, { stereo: true, maxAverageBitrate: 128_000 });
+        const lines = tuned.split("\r\n");
+
+        expect(lines).toHaveLength(CHROME.split("\r\n").length);
+        expect(lines.filter((line) => line.startsWith("a=fmtp:111"))).toEqual([
+            "a=fmtp:111 minptime=10;useinbandfec=1;maxaveragebitrate=128000;stereo=1;sprop-stereo=1",
+        ]);
+        expect(lines).toContain("a=fmtp:63 111/111");
+        expect(lines).toContain("a=rtcp-fb:111 transport-cc");
+        expect(lines.at(-1)).toBe("");
+    });
+
+    it("is idempotent, so re-tuning a negotiated description is safe", () => {
+        const once = tuneOpus(CHROME, { stereo: true, dtx: false });
+
+        expect(tuneOpus(once, { stereo: true, dtx: false })).toBe(once);
+    });
+
+    it("merges an fmtp that precedes its rtpmap, which the RFC allows", () => {
+        const sdp = [
+            "m=audio 9 RTP 111",
+            "a=fmtp:111 minptime=10",
+            "a=rtpmap:111 opus/48000/2",
+        ].join("\r\n");
+
+        expect(tuneOpus(sdp, { stereo: true }).split("\r\n")).toEqual([
+            "m=audio 9 RTP 111",
+            "a=fmtp:111 minptime=10;stereo=1;sprop-stereo=1",
+            "a=rtpmap:111 opus/48000/2",
+        ]);
+    });
+
+    it("accepts an rtpmap with no channel count", () => {
+        const sdp = ["m=audio 9 RTP 111", "a=rtpmap:111 opus/48000"].join("\r\n");
+
+        expect(tuneOpus(sdp, { stereo: true })).toContain("a=fmtp:111 stereo=1;sprop-stereo=1");
+    });
+
+    it("tunes a recvonly answer too", () => {
+        const sdp = ["m=audio 9 RTP 111", "a=recvonly", "a=rtpmap:111 opus/48000/2"].join("\r\n");
+
+        expect(tuneOpus(sdp, { stereo: true })).toContain("a=fmtp:111 stereo=1;sprop-stereo=1");
+    });
+});

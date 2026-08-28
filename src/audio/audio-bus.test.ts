@@ -239,6 +239,47 @@ describe("createAudioBus — attaching and detaching", () => {
         expect(context().closed).toBe(true);
     });
 
+    it("hands back an inert handle after close, since a late stream is normal", () => {
+        const bus = createAudioBus();
+        bus.close();
+
+        const handle = bus.attach(fakeStream());
+        handle.setGain(2);
+
+        expect(handle.gain).toBe(1);
+        expect(context().sources).toHaveLength(0);
+        expect(() => handle.stop()).not.toThrow();
+    });
+
+    it("ignores a master gain set after close", () => {
+        const bus = createAudioBus();
+        bus.setMasterGain(2);
+        bus.close();
+
+        bus.setMasterGain(0.5);
+
+        expect(bus.masterGain).toBe(2);
+    });
+
+    it("closes once, however many times it is asked", () => {
+        const bus = createAudioBus();
+
+        bus.close();
+        bus.close();
+
+        expect(context().gains[0].disconnected).toBe(1);
+    });
+
+    it("releases the limiter too, which outlives an injected context", () => {
+        const shared = new FakeAudioContext() as unknown as AudioContext;
+        const bus = createAudioBus({ context: shared });
+
+        bus.close();
+
+        const limiter = (shared as unknown as FakeAudioContext).compressors[0];
+        expect(limiter.disconnected).toBe(1);
+    });
+
     it("survives a context that refuses to close", async () => {
         FakeAudioContext.closeShouldReject = true;
         const bus = createAudioBus();

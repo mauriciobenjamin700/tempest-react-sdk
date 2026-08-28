@@ -323,6 +323,7 @@ function Participante({ stream, volume }: { stream: MediaStream; volume: number 
 - **Ganho é clampado, e `NaN` vira `1`.** `NaN` chega de um campo numérico vazio ou de um parse que falhou, e atribuí-lo a um `AudioParam` **lança** — perder o áudio por causa de um typo num input é um preço alto.
 - **Contexto é caro.** Browsers limitam quantos `AudioContext` vivem ao mesmo tempo (Chrome permite ~6). Passe `context` para reaproveitar o que a página já tem, e chame `close()` (ou use o hook) quando terminar.
 - **`resume()` para a autoplay policy.** Um contexto criado fora de um gesto do usuário nasce suspenso — e suspenso é silencioso sem erro nenhum. Chame `resume()` no clique que inicia a reprodução.
+- **Depois de `close()`, o barramento continua chamável.** `attach()` devolve um handle inerte em vez de lançar — não é gentileza: criar nó num `AudioContext` fechado lança `InvalidStateError`, e o stream que chega tarde é o caso **normal** (um `ontrack` de WebRTC disparando depois que o componente dono do bus saiu da tela).
 - **Sem Web Audio, o barramento é inerte, não explode.** `supported: false`, todos os métodos continuam chamáveis. Uma página sem som é melhor que uma página que quebra.
 
 !!! warning "`Progress` não serve como medidor de áudio"

@@ -323,6 +323,7 @@ function Participant({ stream, volume }: { stream: MediaStream; volume: number }
 - **Gain is clamped, and `NaN` becomes `1`.** `NaN` arrives from an empty number field or a failed parse, and assigning it to an `AudioParam` **throws** — losing the audio to a typo in an input is a steep price.
 - **A context is expensive.** Browsers cap how many `AudioContext`s may live at once (Chrome allows ~6). Pass `context` to reuse the one the page already has, and call `close()` (or use the hook) when you are done.
 - **`resume()` for the autoplay policy.** A context created outside a user gesture starts suspended — and suspended is silent with no error anywhere. Call `resume()` from the click that starts playback.
+- **After `close()` the bus stays callable.** `attach()` returns an inert handle instead of throwing — not politeness: creating a node on a closed `AudioContext` throws `InvalidStateError`, and the stream that arrives late is the **normal** case (a WebRTC `ontrack` firing after the component that owned the bus left the screen).
 - **With no Web Audio the bus is inert, not broken.** `supported: false`, every method stays callable. A page without sound beats a page that throws.
 
 !!! warning "`Progress` is not an audio meter"

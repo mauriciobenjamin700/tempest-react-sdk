@@ -99,7 +99,15 @@ export interface AudioBus {
      * click that starts playback.
      */
     resume: () => Promise<void>;
-    /** Detach everything and close the context this bus created. */
+    /**
+     * Detach everything and close the context this bus created.
+     *
+     * Idempotent, and the bus stays callable afterwards: `attach` hands back an
+     * inert handle instead of throwing. That is not politeness — creating a node
+     * on a closed `AudioContext` throws `InvalidStateError`, and the stream that
+     * arrives late is the normal case (a WebRTC `ontrack` firing after the
+     * component that owned the bus went away).
+     */
     close: () => void;
     /** Whether this browser gave us a Web Audio graph at all. */
     readonly supported: boolean;
@@ -202,10 +210,12 @@ export function createAudioBus({
     const master = graph.createGain();
     const destination = graph.createMediaStreamDestination();
 
+    let limiterNode: DynamicsCompressorNode | null = null;
     if (limiterOptions === false) {
         master.connect(destination);
     } else {
         const limiter = graph.createDynamicsCompressor();
+        limiterNode = limiter;
         const settings = { ...DEFAULT_LIMITER, ...limiterOptions };
         limiter.threshold.value = settings.threshold;
         limiter.knee.value = settings.knee;
@@ -223,7 +233,13 @@ export function createAudioBus({
 
     let sinkId = "";
     let masterGain = 1;
+    let closed = false;
     const handles = new Set<AudioBusHandle>();
+
+    /** The handle a bus hands out when there is nothing to play through. */
+    function inertHandle(): AudioBusHandle {
+        return { setGain: () => undefined, gain: 1, stop: () => undefined };
+    }
 
     /**
      * Play one stream through the mix.
@@ -238,7 +254,7 @@ export function createAudioBus({
      */
     function attach(stream: MediaStream, { gain = 1 }: { gain?: number } = {}): AudioBusHandle {
         const track = stream.getAudioTracks()[0];
-        if (!track) return { setGain: () => undefined, gain: 1, stop: () => undefined };
+        if (closed || !track) return inertHandle();
 
         const anchor = new Audio();
         anchor.muted = true;
@@ -277,6 +293,7 @@ export function createAudioBus({
     return {
         attach,
         setMasterGain(gain: number): void {
+            if (closed) return;
             masterGain = clampGain(gain, maxGain);
             master.gain.value = masterGain;
         },
@@ -295,10 +312,13 @@ export function createAudioBus({
             await graph.resume?.().catch(() => undefined);
         },
         close(): void {
+            if (closed) return;
+            closed = true;
             for (const handle of [...handles]) handle.stop();
             element.srcObject = null;
             element.pause();
             master.disconnect();
+            limiterNode?.disconnect();
             if (ownsContext) void graph.close().catch(() => undefined);
         },
         supported: true,

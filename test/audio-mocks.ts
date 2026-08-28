@@ -238,10 +238,13 @@ export class FakeCompressor {
     attack = new FakeParam(0.003);
     release = new FakeParam(0.25);
     connectedTo: unknown[] = [];
+    disconnected = 0;
     connect(target: unknown): void {
         this.connectedTo.push(target);
     }
-    disconnect(): void {}
+    disconnect(): void {
+        this.disconnected += 1;
+    }
 }
 
 /** `MediaStreamAudioSourceNode`, which only ever gets connected and disconnected. */

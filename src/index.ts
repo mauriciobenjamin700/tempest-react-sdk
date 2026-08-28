@@ -63,6 +63,9 @@ export * from "./forms";
 // WebSocket
 export * from "./ws";
 
+// WebRTC (Opus SDP tuning, sender bitrate)
+export * from "./webrtc";
+
 // Geolocation (tile-free maps, trajectory tracking, distance/estimate math)
 export * from "./geo";
 

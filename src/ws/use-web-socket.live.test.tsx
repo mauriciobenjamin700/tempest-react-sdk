@@ -130,6 +130,55 @@ describe("useWebSocket — a socket that opens", () => {
         expect(WSMock.instances.length).toBe(before + 1);
     });
 
+    it("forwards the resilience callbacks through the latest-options ref", () => {
+        const onReconnecting = vi.fn();
+        const onReconnected = vi.fn();
+        const onLost = vi.fn();
+        vi.useFakeTimers();
+        renderHook(() =>
+            useWebSocket("ws://x", {
+                onReconnecting,
+                onReconnected,
+                onLost,
+                maxRetries: 1,
+                initialBackoff: 10,
+                jitter: 0,
+            }),
+        );
+        open();
+
+        act(() => socket().onclose?.({ code: 1006, wasClean: false } as CloseEvent));
+        expect(onReconnecting).toHaveBeenCalledWith(1, 1);
+
+        act(() => vi.advanceTimersByTime(10));
+        open();
+        expect(onReconnected).toHaveBeenCalledTimes(1);
+
+        act(() => socket().onclose?.({ code: 1006, wasClean: false } as CloseEvent));
+        act(() => vi.advanceTimersByTime(10));
+        act(() => socket().onclose?.({ code: 1006, wasClean: false } as CloseEvent));
+
+        expect(onLost).toHaveBeenCalledWith("exhausted");
+        vi.useRealTimers();
+    });
+
+    it("arms the silence watchdog with a window the server announced", () => {
+        vi.useFakeTimers();
+        const { result } = renderHook(() =>
+            useWebSocket("ws://x", { initialBackoff: 10, jitter: 0 }),
+        );
+        open();
+
+        act(() => result.current.setSilenceTimeout(1000));
+        const before = WSMock.instances.length;
+
+        act(() => vi.advanceTimersByTime(1000));
+        act(() => vi.advanceTimersByTime(10));
+
+        expect(WSMock.instances.length).toBe(before + 1);
+        vi.useRealTimers();
+    });
+
     it("closes the socket when the component goes away", () => {
         const { unmount } = renderHook(() => useWebSocket("ws://x"));
         open();

@@ -112,6 +112,19 @@ const [italic, setItalic] = useState(true);
             </Example>
 
             <Example
+                title="Slider compacto"
+                note="Sem label visível: o nome acessível vem de aria-label. Um leitor de tela lê “Volume de Ana”, não “Slider”."
+                code={`<Slider value={gain} onChange={setGain} aria-label="Volume de Ana" />`}
+            >
+                <div style={{ display: "flex", alignItems: "center", gap: 12, width: "100%" }}>
+                    <span style={{ minWidth: 64 }}>Ana</span>
+                    <div style={{ flex: 1 }}>
+                        <Slider value={volume} onChange={setVolume} aria-label="Volume de Ana" />
+                    </div>
+                </div>
+            </Example>
+
+            <Example
                 title="Combobox"
                 note="Input com lista filtrável — digite para buscar."
                 code={`const [fruit, setFruit] = useState("");

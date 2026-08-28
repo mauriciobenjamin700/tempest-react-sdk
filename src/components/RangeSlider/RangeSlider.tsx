@@ -20,6 +20,14 @@ export interface RangeSliderProps {
     disabled?: boolean;
     /** Formatter for the value badge next to the label. Defaults to `min – max`. */
     formatValue?: (value: RangeValue) => string;
+    /**
+     * Accessible name for the pair, for when the visible `label` block does not fit.
+     *
+     * Each thumb still gets its own suffixed name — `"Preço (mínimo)"` and
+     * `"Preço (máximo)"` — because a screen reader user moving between the two
+     * needs to know which end they are on. Takes precedence over `label`.
+     */
+    "aria-label"?: string;
     className?: string;
 }
 
@@ -38,6 +46,7 @@ export function RangeSlider({
     helperText,
     disabled = false,
     formatValue,
+    "aria-label": ariaLabel,
     className,
 }: RangeSliderProps) {
     const [low, high] = value;
@@ -47,6 +56,7 @@ export function RangeSlider({
     const fillRight = useMemo(() => ((high - min) / range) * 100, [high, min, range]);
 
     const valueText = formatValue?.(value) ?? `${low} – ${high}`;
+    const name = ariaLabel ?? label;
 
     const handleLow = useCallback(
         (event: React.ChangeEvent<HTMLInputElement>): void => {
@@ -87,7 +97,7 @@ export function RangeSlider({
                     value={low}
                     onChange={handleLow}
                     disabled={disabled}
-                    aria-label={label ? `${label} (mínimo)` : "Mínimo"}
+                    aria-label={name ? `${name} (mínimo)` : "Mínimo"}
                 />
                 <input
                     type="range"
@@ -98,7 +108,7 @@ export function RangeSlider({
                     value={high}
                     onChange={handleHigh}
                     disabled={disabled}
-                    aria-label={label ? `${label} (máximo)` : "Máximo"}
+                    aria-label={name ? `${name} (máximo)` : "Máximo"}
                 />
             </div>
             {helperText && <span className={styles.helper}>{helperText}</span>}

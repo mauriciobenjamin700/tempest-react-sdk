@@ -36,4 +36,21 @@ describe("RangeSlider", () => {
         expect(screen.getByText("Preço")).toBeInTheDocument();
         expect(screen.getByText("R$20 – R$80")).toBeInTheDocument();
     });
+
+    it("names both thumbs from aria-label when no visible label fits", () => {
+        render(<RangeSlider value={[10, 50]} onChange={vi.fn()} aria-label="Faixa de preço" />);
+        const inputs = screen.getAllByRole("slider");
+        expect(inputs[0]).toHaveAccessibleName("Faixa de preço (mínimo)");
+        expect(inputs[1]).toHaveAccessibleName("Faixa de preço (máximo)");
+        expect(screen.queryByText("Faixa de preço")).not.toBeInTheDocument();
+    });
+
+    it("lets aria-label win over the visible label", () => {
+        render(
+            <RangeSlider value={[10, 50]} onChange={vi.fn()} label="Preço" aria-label="Faixa" />,
+        );
+        const inputs = screen.getAllByRole("slider");
+        expect(inputs[0]).toHaveAccessibleName("Faixa (mínimo)");
+        expect(screen.getByText("Preço")).toBeInTheDocument();
+    });
 });

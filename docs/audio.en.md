@@ -268,6 +268,68 @@ if (!ok) toast("This browser cannot choose the sound output.");
 
 `playAudio` takes `sinkId` too, which is useful for a chime that must land on a headset while the call audio stays on the speakers.
 
+## Gain above 100%: `createAudioBus`
+
+**When to use:** you need to turn a source **up**, mix several of them, and send the result to a chosen device. A call with per-participant volume is the typical case.
+
+`element.volume` is clamped at `1`. A participant who speaks too quietly can only ever be turned **down** — the one correction nobody needs. Going above 100% takes a Web Audio graph, and building one correctly runs into three non-obvious things, which is what this bus packages.
+
+```tsx
+import { createAudioBus } from "tempest-react-sdk";
+
+const bus = createAudioBus({ maxGain: 3 });
+
+const handle = bus.attach(remoteStream, { gain: 1 });
+handle.setGain(2.4); // above 1 — the point of the whole thing
+handle.stop();
+
+bus.setMasterGain(1.2);
+await bus.setOutputDevice(headsetId); // "" = system default
+bus.close();
+```
+
+In React, `useAudioBus` does the same and closes the context on unmount:
+
+```tsx
+import { useAudioBus } from "tempest-react-sdk";
+import { useEffect } from "react";
+
+function Participant({ stream, volume }: { stream: MediaStream; volume: number }) {
+  const bus = useAudioBus({ maxGain: 3 });
+
+  useEffect(() => {
+    const handle = bus.attach(stream);
+    return () => handle.stop();
+  }, [bus, stream]);
+
+  return <Slider value={volume} onChange={(v) => bus.setMasterGain(v)} aria-label="Volume" />;
+}
+```
+
+### The three traps the bus handles
+
+!!! danger "The Chrome bug that leaves the graph silent"
+    A `MediaStreamAudioSourceNode` built over a **remote** WebRTC stream produces no samples in Chrome unless that same stream is also attached to a media element ([crbug.com/687574](https://crbug.com/687574)). The graph looks correct and is **completely silent** — without knowing the bug, that is a day of debugging. `attach()` creates a `<audio muted autoplay>` anchor for you. It looks like dead code and is **not**: deleting it mutes the entire call in Chrome.
+
+!!! warning "The limiter goes after the sum, never per source"
+    Clipping is a property of the **mix**, not of the participant: three people boosted to 200% each stay clean alone and distort the moment they talk over each other. A per-source limiter cannot see that; the master one can. Tune it with `limiter: { threshold: -3 }`, or turn it off with `limiter: false`.
+
+!!! info "`setSinkId` lives on the element, not on the context"
+    Sending the call to a headset while the rest of the system keeps the speakers is only reachable by leaving through `MediaStreamAudioDestinationNode` → `<audio>` → `setSinkId`. `AudioContext.setSinkId` has far thinner support, so the mix leaves through a real element. `bus.canSelectOutput` says whether the engine allows it: on Safari and on **every** iOS browser the output follows the system route, and the picker should be **hidden**, not offered and then ignored.
+
+### Details that avoid surprises
+
+- **The ceiling is yours.** `maxGain` (default `DEFAULT_MAX_GAIN`, which is `3`) caps both a source and the master. Past about 3, speech distorts before it gets louder.
+- **Gain is clamped, and `NaN` becomes `1`.** `NaN` arrives from an empty number field or a failed parse, and assigning it to an `AudioParam` **throws** — losing the audio to a typo in an input is a steep price.
+- **A context is expensive.** Browsers cap how many `AudioContext`s may live at once (Chrome allows ~6). Pass `context` to reuse the one the page already has, and call `close()` (or use the hook) when you are done.
+- **`resume()` for the autoplay policy.** A context created outside a user gesture starts suspended — and suspended is silent with no error anywhere. Call `resume()` from the click that starts playback.
+- **With no Web Audio the bus is inert, not broken.** `supported: false`, every method stays callable. A page without sound beats a page that throws.
+
+!!! warning "`Progress` is not an audio meter"
+    The `Progress` fill has `transition: width`, so the bar reports where the level **was** — the one thing a meter cannot do. For a live level use `createLevelMeter` and write to the DOM inside a `requestAnimationFrame`.
+
+    Two traps if you draw your own: the scale has to be in **dB** (on a linear one, normal speech is squeezed into the first fifth), and the color gradient has to live on the **track** with a mask on top — on an element that grows, the gradient is rescaled with it and paints red at the tip of a weak signal, reporting clipping to someone who is nearly inaudible.
+
 ## Building it yourself: the hooks
 
 ```tsx
@@ -416,6 +478,7 @@ Without `timesliceMs` the whole recording sits in memory until `stop()` — fine
 - `useAudioRecorder` — status, a clock that subtracts pauses, level, `maxDurationMs`, chunks.
 - `blobToWav` — WAV with no dependency, about 10× the bytes; MP3 stays on the server.
 - `setAudioOutput` / `isAudioOutputSelectionSupported` — output routing, Chromium only.
+- `createAudioBus` / `useAudioBus` — gain **above 100%**, a limiter after the sum and `setSinkId`; `attach()` brings the crbug.687574 anchor that keeps the graph from going silent in Chrome.
 
 ## See also
 

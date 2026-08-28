@@ -212,21 +212,98 @@ class FakeAnalyser {
     disconnect(): void {}
 }
 
-/** `AudioContext` with just the graph the level meter and the WAV encoder touch. */
+/** An `AudioParam`, which is a value behind a `.value` and nothing else here. */
+class FakeParam {
+    constructor(public value = 0) {}
+}
+
+/** `GainNode` that records what it was connected to, so the graph can be asserted. */
+export class FakeGain {
+    gain = new FakeParam(1);
+    connectedTo: unknown[] = [];
+    disconnected = 0;
+    connect(target: unknown): void {
+        this.connectedTo.push(target);
+    }
+    disconnect(): void {
+        this.disconnected += 1;
+    }
+}
+
+/** `DynamicsCompressorNode` with the five params a limiter sets. */
+export class FakeCompressor {
+    threshold = new FakeParam(-24);
+    knee = new FakeParam(30);
+    ratio = new FakeParam(12);
+    attack = new FakeParam(0.003);
+    release = new FakeParam(0.25);
+    connectedTo: unknown[] = [];
+    connect(target: unknown): void {
+        this.connectedTo.push(target);
+    }
+    disconnect(): void {}
+}
+
+/** `MediaStreamAudioSourceNode`, which only ever gets connected and disconnected. */
+export class FakeSourceNode {
+    connectedTo: unknown[] = [];
+    disconnected = 0;
+    constructor(public stream: unknown) {}
+    connect(target: unknown): void {
+        this.connectedTo.push(target);
+    }
+    disconnect(): void {
+        this.disconnected += 1;
+    }
+}
+
+/** `AudioContext` with just the graph the level meter, the WAV encoder and the bus touch. */
 export class FakeAudioContext {
     static instances: FakeAudioContext[] = [];
     static decoded: AudioBuffer | null = null;
     static decodeShouldReject = false;
+    /** Make `close()` reject, as a context torn down twice does. */
+    static closeShouldReject = false;
 
     closed = false;
+    resumed = 0;
     analyser = new FakeAnalyser();
+    /** Every gain node handed out, master first. */
+    gains: FakeGain[] = [];
+    compressors: FakeCompressor[] = [];
+    sources: FakeSourceNode[] = [];
+    destinations: { stream: MediaStream }[] = [];
 
     constructor() {
         FakeAudioContext.instances.push(this);
     }
 
-    createMediaStreamSource(): { connect: () => void; disconnect: () => void } {
-        return { connect: () => undefined, disconnect: () => undefined };
+    createMediaStreamSource(stream?: unknown): FakeSourceNode {
+        const node = new FakeSourceNode(stream);
+        this.sources.push(node);
+        return node;
+    }
+
+    createGain(): FakeGain {
+        const node = new FakeGain();
+        this.gains.push(node);
+        return node;
+    }
+
+    createDynamicsCompressor(): FakeCompressor {
+        const node = new FakeCompressor();
+        this.compressors.push(node);
+        return node;
+    }
+
+    createMediaStreamDestination(): { stream: MediaStream } {
+        const node = { stream: fakeStream() };
+        this.destinations.push(node);
+        return node;
+    }
+
+    async resume(): Promise<void> {
+        this.resumed += 1;
     }
 
     createAnalyser(): FakeAnalyser {
@@ -240,6 +317,7 @@ export class FakeAudioContext {
     }
 
     async close(): Promise<void> {
+        if (FakeAudioContext.closeShouldReject) throw new Error("already closed");
         this.closed = true;
     }
 
@@ -247,6 +325,7 @@ export class FakeAudioContext {
         FakeAudioContext.instances = [];
         FakeAudioContext.decoded = null;
         FakeAudioContext.decodeShouldReject = false;
+        FakeAudioContext.closeShouldReject = false;
     }
 }
 

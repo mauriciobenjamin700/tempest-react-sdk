@@ -110,21 +110,37 @@ jobs:
             # Registry read-back: npm must actually serve this version, and the
             # `latest` dist-tag must point at it — a publish that silently landed
             # under another tag would otherwise look like a green release.
+            #
+            # The window is minutes, not seconds. npm accepts the upload and then
+            # processes it asynchronously, printing "Your package is being
+            # processed and may take a few minutes to become available" — and this
+            # tarball is ~5 MB across ~2700 files, which is the slow end of that.
+            # v0.53.0 published fine and failed here after 50s, which skipped the
+            # GitHub Release step and left the three surfaces out of sync: exactly
+            # the drift this read-back exists to prevent.
+            #
+            # `npm view` is asked to skip its cache, so a negative answer from the
+            # first attempt is not replayed for the rest of the loop.
             - name: Verify the npm registry serves this version as latest
               run: |
                   VERSION="${{ steps.version.outputs.version }}"
                   PKG_NAME=$(node -p "require('./package.json').name")
-                  for attempt in 1 2 3 4 5; do
-                    PUBLISHED=$(npm view "${PKG_NAME}@${VERSION}" version 2>/dev/null || true)
+                  for attempt in $(seq 1 24); do
+                    PUBLISHED=$(npm view --prefer-online "${PKG_NAME}@${VERSION}" version 2>/dev/null || true)
                     [ -n "$PUBLISHED" ] && break
-                    echo "· registry has not caught up yet (attempt ${attempt}); retrying in 10s"
-                    sleep 10
+                    echo "· registry has not caught up yet (attempt ${attempt}/24); retrying in 15s"
+                    sleep 15
                   done
                   if [ "$PUBLISHED" != "$VERSION" ]; then
-                    echo "::error::npm does not serve ${PKG_NAME}@${VERSION} (got '${PUBLISHED}')"
+                    echo "::error::npm still does not serve ${PKG_NAME}@${VERSION} after 6 minutes (got '${PUBLISHED}'). The publish step above succeeded, so check https://www.npmjs.com/package/${PKG_NAME} before re-running: if the version is there, re-run this job to create the GitHub Release; do not re-publish."
                     exit 1
                   fi
-                  LATEST=$(npm view "${PKG_NAME}" dist-tags.latest 2>/dev/null || true)
+                  for attempt in $(seq 1 12); do
+                    LATEST=$(npm view --prefer-online "${PKG_NAME}" dist-tags.latest 2>/dev/null || true)
+                    [ "$LATEST" = "$VERSION" ] && break
+                    echo "· dist-tag latest is still '${LATEST}' (attempt ${attempt}/12); retrying in 15s"
+                    sleep 15
+                  done
                   if [ "$LATEST" != "$VERSION" ]; then
                     echo "::error::npm dist-tag latest is '${LATEST}', expected '${VERSION}'"
                     exit 1

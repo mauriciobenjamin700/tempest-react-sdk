@@ -24,7 +24,51 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   cada um mantendo o próprio sufixo (`(mínimo)` / `(máximo)`), porque quem
   navega de uma ponta à outra precisa saber onde está.
 
+- **`createWebSocket` sobrevive às três falhas que não disparam evento nenhum.**
+  Reconexão montada só sobre `open`/`close`/`error` não cobre nenhuma delas, e
+  cada serviço da casa vinha reimplementando um subconjunto diferente
+  ([#220](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/220)).
+
+  **Handshake pendurado.** Um `WebSocket` que não alcança o servidor não falha:
+  fica em `CONNECTING` calado — medido no Chrome com o backend fora, 12 s depois
+  o `readyState` ainda era `0` e a lista de eventos, vazia. A cadeia de retry
+  parava na primeira tentativa pendurada e nunca mais andava, justamente no
+  cenário para o qual a reconexão existe (link móvel ruim pendura, não recusa).
+  `handshakeTimeout` (default 8000 ms) abandona a tentativa e agenda a próxima.
+
+  **Link morto em voo.** O socket só reporta conexão que fecha limpo; um link que
+  morre no meio deixa `readyState` em `OPEN` com nada chegando nunca mais, então
+  silêncio é o único sintoma disponível. `silenceTimeout` (default `0`, desligado)
+  é rearmado por qualquer frame recebido, não só por pong, e
+  `controller.setSilenceTimeout(ms)` aceita o valor que o servidor anuncia no
+  handshake, para não ficar fixo nos dois lados.
+
+  **Rádio desligado.** Com `waitForOnline` (default `true`), enquanto
+  `navigator.onLine` for `false` o cronograma fica suspenso e o evento `online`
+  dispara a próxima tentativa — em vez de o celular esgotar o orçamento dentro do
+  túnel e desistir na saída dele.
+
+  Junto: `jitter` (default `0.3`) para a volta do servidor não virar estampida
+  sincronizada; `onReconnecting(attempt, total)` / `onReconnected()` /
+  `onLost(reason)`, separando o estado discreto do erro que merece UI; e
+  `controller.opened`, que resolve na primeira abertura e rejeita se o socket
+  morrer sem nunca abrir — falhar ao entrar é evento diferente de cair no meio.
+
 ### Corrigido
+
+- **Um `4408` do `tempest-fastapi-sdk` reconecta em vez de encerrar a sessão.** O
+  servidor fecha com esse código quando o `pong` não chega dentro de
+  `WS_HEARTBEAT_TIMEOUT_SECONDS` — é o **link** falhando, não o servidor
+  recusando o cliente. Como o fechamento vem limpo (`wasClean: true`), a regra
+  antiga ("só reabre em fechamento não-limpo") tratava um pong perdido como fim
+  de sessão e o socket nunca voltava.
+
+  A decisão agora sai do código de fechamento: `4400`–`4499` é recusa e para de
+  vez com `onLost("rejected")` — **menos o `4408`**, que reabre; `1001`, `1011`,
+  `1012` e `1013` reabrem mesmo vindo limpos, porque descrevem servidor
+  temporariamente fora (deploy, restart, sobrecarga); um `1000` limpo continua
+  sendo despedida de propósito e não reabre. A leitura óbvia da faixa —
+  "4400–4499 é fatal" — é exatamente o que tornaria permanente um pong perdido.
 
 - **Duas cópias de `react-query` ou de `react-hook-form` param de falhar em
   silêncio.** As duas quebram do mesmo jeito e pelo mesmo motivo — contexto React

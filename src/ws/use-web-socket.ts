@@ -29,6 +29,13 @@ export interface UseWebSocketResult<T> {
     send: (payload: string | Blob | BufferSource) => boolean;
     /** Force a reconnect, resetting the retry counter. */
     reconnect: () => void;
+    /**
+     * Change the silence watchdog at runtime, in ms. `0` disables it.
+     *
+     * For a server that announces its own heartbeat interval in the first frame,
+     * so the tolerated silence is not hard-coded on both ends.
+     */
+    setSilenceTimeout: (ms: number) => void;
 }
 
 /** Mirror of `createWebSocket`'s default parser: JSON, raw string on failure. */
@@ -45,11 +52,13 @@ function defaultParse<T>(raw: string): T {
  * for the host component and tears it down on unmount.
  *
  * Every callback is read through a ref, so `onOpen` / `onMessage` / `onClose` /
- * `onError` always run the latest closure — an inline arrow function is fine
- * and never reopens the socket. Connection-shaping options (`protocols`,
- * `maxRetries`, `initialBackoff`, `maxBackoff`, `pingInterval`,
- * `queueWhileClosed`) are baked into the connection, so changing one reopens
- * it with the new value rather than being silently ignored.
+ * `onError` / `onReconnecting` / `onReconnected` / `onLost` always run the
+ * latest closure — an inline arrow function is fine and never reopens the
+ * socket. Connection-shaping options (`protocols`, `maxRetries`,
+ * `initialBackoff`, `maxBackoff`, `jitter`, `handshakeTimeout`,
+ * `silenceTimeout`, `waitForOnline`, `pingInterval`, `queueWhileClosed`) are
+ * baked into the connection, so changing one reopens it with the new value
+ * rather than being silently ignored.
  *
  * @param url - Full ws:// or wss:// URL.
  * @param options - Connection configuration and callbacks.
@@ -65,6 +74,10 @@ export function useWebSocket<T = unknown>(
         maxRetries,
         initialBackoff,
         maxBackoff,
+        jitter,
+        handshakeTimeout,
+        silenceTimeout,
+        waitForOnline,
         pingInterval,
         respondToPing,
         queueWhileClosed,
@@ -89,6 +102,10 @@ export function useWebSocket<T = unknown>(
             maxRetries,
             initialBackoff,
             maxBackoff,
+            jitter,
+            handshakeTimeout,
+            silenceTimeout,
+            waitForOnline,
             pingInterval,
             pingPayload: optionsRef.current.pingPayload,
             respondToPing,
@@ -100,6 +117,9 @@ export function useWebSocket<T = unknown>(
             onOpen: (event) => optionsRef.current.onOpen?.(event),
             onClose: (event) => optionsRef.current.onClose?.(event),
             onError: (event) => optionsRef.current.onError?.(event),
+            onReconnecting: (attempt, total) => optionsRef.current.onReconnecting?.(attempt, total),
+            onReconnected: () => optionsRef.current.onReconnected?.(),
+            onLost: (reason) => optionsRef.current.onLost?.(reason),
             onMessage: (message) => {
                 setLastMessage(message);
                 optionsRef.current.onMessage?.(message);
@@ -118,6 +138,10 @@ export function useWebSocket<T = unknown>(
         maxRetries,
         initialBackoff,
         maxBackoff,
+        jitter,
+        handshakeTimeout,
+        silenceTimeout,
+        waitForOnline,
         pingInterval,
         respondToPing,
         queueWhileClosed,
@@ -133,5 +157,9 @@ export function useWebSocket<T = unknown>(
         controllerRef.current?.reconnect();
     }, []);
 
-    return { status, lastMessage, send, reconnect };
+    const setSilenceTimeout = useCallback((ms: number): void => {
+        controllerRef.current?.setSilenceTimeout(ms);
+    }, []);
+
+    return { status, lastMessage, send, reconnect, setSilenceTimeout };
 }

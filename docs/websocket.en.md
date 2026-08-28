@@ -51,11 +51,90 @@ socket.reconnect();
 Backoff: 1s → 2s → 4s → ... (capped at 30s), up to maxRetries (default 10)
 ```
 
-- Exponential reconnect, same as SSE (default `maxRetries: 10`).
+- Exponential reconnect, same as SSE (default `maxRetries: 10`), with 30% **jitter** (`jitter`, 0–1) added to each wait.
 - `pingInterval` (ms) sends `pingPayload` periodically — default `JSON.stringify({ type: "ping" })`. Pass `0` (default) to disable.
 - `respondToPing` (default `true`) answers `pongPayload` to every **inbound** `{"type":"ping"}` frame. That is the heartbeat `tempest-fastapi-sdk` expects: without the `pong` it closes the socket with code `4408` once `WS_HEARTBEAT_TIMEOUT_SECONDS` passes.
 - `queueWhileClosed` (default `false`) buffers whatever you send while the socket is down and drains it on the next open, oldest first, capped at `maxQueuedMessages` (default 100).
-- **Reconnect only fires on `close.wasClean === false`.** Clean closes (`socket.close()` or a normal server close) do **not** try to reopen.
+- **Which close reopens** depends on the code, not on `wasClean` alone — the table is in [Reconnect or not](#reconnect-or-not).
+
+!!! tip "Why jitter"
+    When the **server** is what went down, every client connected to it wakes on the same schedule and retries in the same millisecond — the box comes back up into a synchronized stampede and drops the connections again. Jitter only ever **adds** time (the floor stays predictable) and breaks the alignment. Pass `jitter: 0` when you want an exact schedule, in a test for instance.
+
+### Failures that fire no event
+
+Three failure modes produce no `open`, no `close` and no `error` — which is why a retry chain built on events alone gets stuck.
+
+**1. The handshake that hangs.** A `WebSocket` that cannot reach its server does **not** fail: it sits in `CONNECTING`, silent. Measured in Chrome with the backend down, 12 s later `readyState` was still `0` and the event list empty. A retry chain built only on events stops on its first hung attempt and never moves again — and hanging, rather than refusing, is exactly how a bad mobile link behaves, which is the very case reconnection exists for.
+
+`handshakeTimeout` (default **8000 ms**, `0` disables) abandons the attempt and schedules the next one.
+
+**2. The link that dies in flight.** The socket only reports a connection that closes cleanly. When the link dies mid-flight — the phone leaves coverage, an intermediary drops the connection — `readyState` stays `OPEN` on this side and nothing ever arrives again. **Silence is the only symptom available.**
+
+`silenceTimeout` (ms, default `0` = off) is the tolerated window. It is re-armed by **any** inbound frame, not just by a pong: traffic is traffic, and an exchange in progress already proves the link is carrying data. Use ~2.5× the server's ping interval, so one dropped ping is not mistaken for an outage.
+
+```ts
+const socket = createWebSocket(url, {
+  silenceTimeout: 75_000,
+  onMessage: ({ data }) => {
+    // the server announces its own heartbeat: don't hard-code it on both ends
+    if (data.type === "welcome") socket.setSilenceTimeout(data.heartbeat_seconds * 2500);
+  },
+});
+```
+
+**3. The radio that is switched off.** Burning retries against a radio that is off is how a phone exhausts its budget inside a tunnel and gives up right as it comes out the other side. With `waitForOnline` (default `true`), while `navigator.onLine` is `false` the schedule is **suspended** and the `online` event drives the next attempt.
+
+### Reconnect or not
+
+| Close | Reopens? | Why |
+| --- | --- | --- |
+| `wasClean: false` (any code) | ✅ | the connection **died**, it did not end |
+| `1001`, `1011`, `1012`, `1013` | ✅ | server going away for a reason that ends (deploy, restart, overload) |
+| `4408` | ✅ | `tempest-fastapi-sdk` heartbeat timeout — that is the **link** failing |
+| clean `1000` / `1005` | ❌ | a goodbye meant on purpose: session over, logout, stream finished |
+| `4400`–`4499` (minus `4408`) | ❌ → `onLost("rejected")` | refusal: invalid room, unauthorized, forbidden, full |
+
+The same classification is exported, for when your own code has to inspect a `CloseEvent`: `isRejectionCloseCode(code)` answers whether that close is a refusal, and `HEARTBEAT_CLOSE_CODE` is `4408` with a name.
+
+```ts
+import { HEARTBEAT_CLOSE_CODE, isRejectionCloseCode } from "tempest-react-sdk";
+
+onClose: (event) => {
+  if (isRejectionCloseCode(event.code)) showAccessDenied();
+  else if (event.code === HEARTBEAT_CLOSE_CODE) log("heartbeat lost");
+};
+```
+
+!!! danger "4408 lives inside the refusal range and is **not** one"
+    The obvious reading — "4400–4499 is fatal" — makes one dropped pong permanent. `tempest-fastapi-sdk` closes with `4408` when no `pong` arrived within `WS_HEARTBEAT_TIMEOUT_SECONDS`: that is the link failing, exactly the case reconnection exists for. The SDK carves out the exception for you.
+
+### Reconnecting ≠ error
+
+```ts
+const socket = createWebSocket(url, {
+  onReconnecting: (attempt, total) => setBanner(`Reconnecting ${attempt}/${total}…`),
+  onReconnected: () => refetchEverything(),
+  onLost: (reason) => setBanner(reason === "rejected" ? "Access denied" : "No connection"),
+});
+```
+
+- `onReconnecting(attempt, total)` — an attempt was **scheduled**. A quiet state, not an error: announcing every attempt puts "the connection dropped" in front of someone whose session is coming back on its own.
+- `onReconnected()` — back up after at least one attempt. Nothing is resumed for you: a server that keys state by connection sees a brand-new client, so this is where you re-subscribe, re-join or refetch whatever the gap invalidated.
+- `onLost(reason)` — it gave up. **This** is the one that deserves UI, because it is the only state the person can act on: offer a "try again" that calls `reconnect()`.
+
+### Joining is not dropping
+
+```ts
+const socket = createWebSocket(url, { maxRetries: 0 });
+
+try {
+  await socket.opened;
+} catch {
+  showJoinError();
+}
+```
+
+`opened` resolves on the first open and rejects when the socket dies **without ever having opened** (`websocket_rejected`, `websocket_exhausted` or `websocket_closed`). Failing to join is a different event from dropping mid-session: the first has to be reported, the second should reconnect quietly. Pair it with `maxRetries: 0` when the first attempt should fail fast instead of spending the whole schedule against a server that is not there.
 
 !!! warning "`send()` is a no-op when the socket isn't open"
     If you call `send()` before the status becomes `"open"` (or after a `close`), nothing is sent and the return value is `false`. Always check `status === "open"` (or the returned boolean) before assuming the message went out.
@@ -111,9 +190,9 @@ export function Chat({ enabled }: { enabled: boolean }) {
 }
 ```
 
-- The hook returns `{ status, lastMessage, send, reconnect }`.
-- `enabled: false` does not open the socket; changing the URL reopens. **Every** callback (`onOpen`, `onMessage`, `onClose`, `onError`) goes through a ref: an inline arrow function is safe, always runs the latest closure, and never reopens the socket.
-- Connection-shaping options (`protocols`, `maxRetries`, `initialBackoff`, `maxBackoff`, `pingInterval`, `queueWhileClosed`) are part of the handshake — changing one **reopens** the socket with the new value instead of being silently ignored.
+- The hook returns `{ status, lastMessage, send, reconnect, setSilenceTimeout }`.
+- `enabled: false` does not open the socket; changing the URL reopens. **Every** callback (`onOpen`, `onMessage`, `onClose`, `onError`, `onReconnecting`, `onReconnected`, `onLost`) goes through a ref: an inline arrow function is safe, always runs the latest closure, and never reopens the socket.
+- Connection-shaping options (`protocols`, `maxRetries`, `initialBackoff`, `maxBackoff`, `jitter`, `handshakeTimeout`, `silenceTimeout`, `waitForOnline`, `pingInterval`, `queueWhileClosed`) are part of the handshake — changing one **reopens** the socket with the new value instead of being silently ignored.
 
 !!! warning "`lastMessage` is a snapshot, not a queue"
     Every frame is a `setState`, so two arriving in the same tick collapse into one render and you only ever see the later one. A single server action often emits several frames in a row. For **streams** use `onMessage`, which fires once per frame; `lastMessage` is for rendering current state.
@@ -122,15 +201,18 @@ export function Chat({ enabled }: { enabled: boolean }) {
 
 ## Status
 
-`"idle" | "connecting" | "open" | "closing" | "closed" | "error"` — `error` means the socket exhausted `maxRetries` after non-clean closes.
+`"idle" | "connecting" | "open" | "closing" | "closed" | "error"` — `error` is terminal and arrives together with `onLost`: either the schedule ran out (`"exhausted"`) or the server refused the client (`"rejected"`). A reconnect in progress goes through `"connecting"`, not through `"error"`.
 
 ## Recap
 
-- `createWebSocket(url, options)` opens a bidirectional WebSocket; the controller exposes `send`, `close`, `reconnect`, and `status`.
+- `createWebSocket(url, options)` opens a bidirectional WebSocket; the controller exposes `send`, `close`, `reconnect`, `setSilenceTimeout`, `opened`, and `status`.
 - `send()` returns `false` (no-op) when the socket isn't open — always check first.
-- Exponential reconnect only fires on a **non-clean** close; clean closes do not reopen.
+- Three failures fire no event at all and each has its own knob: a hung handshake (`handshakeTimeout`), a link that died in flight (`silenceTimeout`), a radio that is off (`waitForOnline`).
+- Reopening depends on the close code, not on `wasClean` alone: `4400`–`4499` is a refusal (minus `4408`, the heartbeat, which **does** reopen); a clean `1000` is a goodbye.
+- `onReconnecting` is a quiet state; `onLost` is what deserves UI and a "try again" button.
+- `opened` separates "could not join" from "dropped mid-session" — the first is an error, the second reconnects on its own.
 - `pingInterval` + `pingPayload` keep the connection alive.
-- `useWebSocket` ties everything to the component and exposes `status`/`lastMessage`/`send`/`reconnect`.
+- `useWebSocket` ties everything to the component and exposes `status`/`lastMessage`/`send`/`reconnect`/`setSilenceTimeout`.
 
 ## See also
 

@@ -99,7 +99,12 @@ describe("createWebSocket — retries, ping and manual control", () => {
     it("caps the backoff at maxBackoff", async () => {
         vi.useFakeTimers();
         install();
-        createWebSocket("wss://x", { maxRetries: 5, initialBackoff: 1000, maxBackoff: 1500 });
+        createWebSocket("wss://x", {
+            maxRetries: 5,
+            initialBackoff: 1000,
+            maxBackoff: 1500,
+            jitter: 0,
+        });
 
         WSMock.instances[0].onclose?.({ wasClean: false } as CloseEvent);
         await vi.advanceTimersByTimeAsync(1000);

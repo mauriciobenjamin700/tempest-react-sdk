@@ -4,6 +4,12 @@
 
 ## `Chat`
 
+<!-- gallery:chat -->
+[![Chat na gallery](../assets/gallery/chat.webp)](../gallery.md)
+
+*Seção `chat` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: uma thread de mensagens — suporte, chat interno, comentário de documento, histórico de atendimento.
 
 Agrupa por autor e por dia, marca o lado do usuário atual, mostra estado de entrega, quem está digitando, e traz o composer quando você passa `onSend`.
@@ -93,6 +99,12 @@ Exportado à parte pra quem monta o próprio layout (composer fixo no rodapé de
     Compondo japonês ou coreano, `Enter` confirma a palavra candidata. Enviar ali publica meia palavra e come a confirmação — daí a checagem de `isComposing`.
 
 ## `AIChat`
+
+<!-- gallery:aichat -->
+[![AIChat na gallery](../assets/gallery/aichat.webp)](../gallery.md)
+
+*Seção `aichat` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: conversa com um **modelo** — copiloto do seu app, assistente de suporte, busca conversacional. É a forma que o ChatGPT, o Claude e o DeepSeek convergiram.
 

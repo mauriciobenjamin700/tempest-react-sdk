@@ -18,6 +18,12 @@ Componentes que **comunicam estado** ao usuário — o que aconteceu, o que est�
 
 ## `Alert`
 
+<!-- gallery:feedback-extra -->
+[![Alert · Timeline · BottomSheet na gallery](../assets/gallery/feedback-extra.webp)](../gallery.md)
+
+*Seção `feedback-extra` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 **Quando usar:** mensagem ligada a um contexto específico da tela (erro de formulário, resultado de uma operação numa seção). Fica visível até a condição mudar.
 
 Banner inline. Diferente de `Banner` (top-of-page) e `Toast` (transient).
@@ -52,6 +58,12 @@ Banner inline. Diferente de `Banner` (top-of-page) e `Toast` (transient).
 
 ## `Banner`
 
+<!-- gallery:data-display -->
+[![Stat · Tag · Money · Banner na gallery](../assets/gallery/data-display.webp)](../gallery.md)
+
+*Seção `data-display` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 Persistente, top-of-page. Use para environment indicators, manutenção, expiração.
 
 ```tsx
@@ -68,6 +80,12 @@ Persistente, top-of-page. Use para environment indicators, manutenção, expira�
 Mesmas variants do Alert.
 
 ## `Badge`
+
+<!-- gallery:feedback -->
+[![Badges · Cards · Skeleton na gallery](../assets/gallery/feedback.webp)](../gallery.md)
+
+*Seção `feedback` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 **Quando usar:** rótulo de status curto e somente-leitura ao lado de um item (status de pedido, contagem). Para um chip que o usuário remove, use `Tag`.
 
@@ -134,6 +152,12 @@ KPI card para dashboards.
 | `icon`  | `ReactNode`                | —                                    |
 
 ## `Progress`
+
+<!-- gallery:advanced -->
+[![Stepper · Progress · VirtualList na gallery](../assets/gallery/advanced.webp)](../gallery.md)
+
+*Seção `advanced` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 Barra de progresso.
 
@@ -246,6 +270,12 @@ Placeholder com shimmer enquanto data carrega.
 
 ## `RefreshIndicator`
 
+<!-- gallery:material -->
+[![Material (ListTile · FAB · Rail) na gallery](../assets/gallery/material.webp)](../gallery.md)
+
+*Seção `material` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 **Quando usar:** dar ao usuário um gesto de **pull-to-refresh** em listas/telas roláveis no mobile (touch) — feeds, caixas de entrada, dashboards. Envolve o conteúdo rolável e dispara `onRefresh` quando o usuário puxa além do limite e solta.
 
 É um gesto **de toque** — não há equivalente com mouse. O `Spinner` do SDK aparece enquanto puxa e durante a atualização.
@@ -313,6 +343,12 @@ toast.show({ title: "Sincronização", description: "Em andamento…", variant: 
 
 ## `EmptyState`
 
+<!-- gallery:table -->
+[![Table & Pagination na gallery](../assets/gallery/table.webp)](../gallery.md)
+
+*Seção `table` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 **Quando usar:** uma lista/coleção retornou **zero itens com sucesso** (sem pedidos ainda, busca sem resultados). Sempre ofereça uma ação de saída (criar o primeiro item, limpar filtros). Não confunda com erro — para falha use `ErrorState`.
 
 "Nada por aqui" centralizado.
@@ -347,6 +383,12 @@ Falha com botão de retry.
 `position`: `"top"` | `"bottom"` (default). Passe `children` pra substituir o corpo, ou `onlineFlashMs={0}` pra não piscar a confirmação. Veja [PWA & Offline-First](../pwa.md).
 
 ## `SyncStatusBadge`
+
+<!-- gallery:pwa -->
+[![PWA: Install · Push na gallery](../assets/gallery/pwa.webp)](../gallery.md)
+
+*Seção `pwa` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 **Quando usar:** mostrar o estado do motor offline (sincronizado / sincronizando / pendente / offline / erro). Dois modos: passe `sync` pra conectar direto no motor (zero fiação), ou passe `tone` explícito (apresentacional, testável sem IndexedDB).
 

@@ -14,6 +14,12 @@ The four rails every Brazilian product ends up needing: **Pix**, **boleto**, the
 
 ---
 
+<!-- gallery:br-payments -->
+[![Pagamentos BR (Pix · boleto · NFe) in the gallery](assets/gallery/br-payments.webp)](gallery.md)
+
+*Section `br-payments` of the [gallery](gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 ## Part 1 — Pix
 
 ### The problem

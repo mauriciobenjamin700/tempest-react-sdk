@@ -14,6 +14,12 @@ Os quatro trilhos que todo produto brasileiro acaba precisando: **Pix**, **bolet
 
 ---
 
+<!-- gallery:br-payments -->
+[![Pagamentos BR (Pix · boleto · NFe) na gallery](assets/gallery/br-payments.webp)](gallery.md)
+
+*Seção `br-payments` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## Parte 1 — Pix
 
 ### O problema

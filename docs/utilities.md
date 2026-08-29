@@ -11,6 +11,12 @@ import { groupBy, pick, debounce, formatBytes } from "tempest-react-sdk";
 
 ---
 
+<!-- gallery:utils -->
+[![Formatters na gallery](assets/gallery/utils.webp)](gallery.md)
+
+*Seção `utils` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## Arrays
 
 Helpers de coleção que **nunca mutam** a entrada — sempre devolvem um novo array (ou objeto).

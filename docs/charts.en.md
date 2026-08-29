@@ -11,6 +11,12 @@ You don't assemble `<XAxis>`/`<YAxis>`/`<Tooltip>` by hand: you pass `data`, say
 which key is the axis (`index`) and which keys become series (`categories`), and
 the component does the rest.
 
+<!-- gallery:dataviz-scales -->
+[![Escalas contínuas (heatmap) in the gallery](assets/gallery/dataviz-scales.webp)](gallery.md)
+
+*Section `dataviz-scales` of the [gallery](gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 ## Why a separate subpath
 
 The charts don't come from the main barrel. You import them from

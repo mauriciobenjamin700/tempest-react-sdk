@@ -4,6 +4,12 @@ Tabela stateful, assistente em passos, markdown, mural, tour guiado, transferên
 
 ## `DataTable<T>`
 
+<!-- gallery:data-table -->
+[![DataTable na gallery](../assets/gallery/data-table.webp)](../gallery.md)
+
+*Seção `data-table` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 Tabela de dados stateful construída sobre o `Table` headless. Adiciona busca client-side, ordenação por clique no cabeçalho e paginação, delegando toda a marcação à `Table` subjacente.
 
 ```tsx
@@ -50,6 +56,12 @@ const columns: DataTableColumn<User>[] = [
     Clicar um cabeçalho ordenável cicla asc → desc → sem ordenação. A busca combina substring case-insensitive nas `searchKeys` (ou em toda coluna string/number quando omitidas). A paginação some quando o resultado cabe em uma única página.
 
 ## `Wizard`
+
+<!-- gallery:hierarchy-flow -->
+[![TreeView · Wizard na gallery](../assets/gallery/hierarchy-flow.webp)](../gallery.md)
+
+*Seção `hierarchy-flow` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 Fluxo multi-passo: indicador, um corpo por vez e navegação que respeita **validação por passo**. O `Stepper` desenha o indicador; o `Wizard` é dono do que todo app reescrevia — índice ativo, gate assíncrono antes de avançar, botões desabilitados/pendentes e a chamada de conclusão.
 
@@ -139,6 +151,12 @@ export function CadastroEmEtapas() {
 
 ## `Markdown`
 
+<!-- gallery:markdown -->
+[![Markdown na gallery](../assets/gallery/markdown.webp)](../gallery.md)
+
+*Seção `markdown` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: renderizar texto que veio de gente — comentário, descrição de ticket, release notes, corpo de mensagem.
 
 Subconjunto de Markdown: headings, parágrafos, listas (aninhadas e numeradas), citação, código cercado (via [`CodeBlock`](utility.md#codeblock)), regra, tabela GFM com alinhamento, e o inline usual (`**forte**`, `*itálico*`, `` `código` ``, `~~riscado~~`, link, imagem, autolink, quebra forçada).
@@ -178,6 +196,12 @@ import { Markdown } from "tempest-react-sdk";
 
 ## `Masonry`
 
+<!-- gallery:masonry -->
+[![Masonry na gallery](../assets/gallery/masonry.webp)](../gallery.md)
+
+*Seção `masonry` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: cards de **altura desigual** que não têm ordem entre si — mural de notas, galeria de fotos, cartões de dashboard.
 
 Mede os cards e joga cada um na coluna mais curta, então a borda de baixo fica o mais reta que o conteúdo permite.
@@ -214,6 +238,12 @@ import { Masonry, Card } from "tempest-react-sdk";
     Cada card é observado individualmente: altura medida na montagem erra justamente no caso da imagem que ainda estava baixando. O primeiro paint usa peso 1 pra todos (nunca aparece vazio) e o passe medido redistribui.
 
 ## `Tour`
+
+<!-- gallery:tour -->
+[![Tour na gallery](../assets/gallery/tour.webp)](../gallery.md)
+
+*Seção `tour` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: apresentar uma tela nova — onboarding de primeiro acesso, um recurso que mudou de lugar, um fluxo que ninguém acha sozinho.
 
@@ -274,6 +304,12 @@ export function Pedidos() {
     O componente recebe `open` e emite `onClose`/`onFinish`. Gravar a flag é uma linha no app (`storage.set`) e seria um default errado aqui — a chave tem versão, escopo por usuário, e às vezes mora no backend.
 
 ## `Transfer`
+
+<!-- gallery:transfer -->
+[![Transfer na gallery](../assets/gallery/transfer.webp)](../gallery.md)
+
+*Seção `transfer` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: escolher um **subconjunto** de um catálogo — permissões de um perfil, cidades de uma rota, membros de um grupo, colunas de um relatório.
 
@@ -337,6 +373,12 @@ export function PermissoesDoPerfil() {
     Um teclado que chegasse nos botões antes de ver o que eles movem teria que voltar; e um leitor de tela leria "mover marcados pra direita" sem ideia do que está marcado. Cada painel é uma `region` nomeada pelo título, e cada movimento é anunciado num `role="status"`.
 
 ## `FilterBar`
+
+<!-- gallery:filterbar -->
+[![FilterBar na gallery](../assets/gallery/filterbar.webp)](../gallery.md)
+
+*Seção `filterbar` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: filtrar uma lista de admin — pedidos por status e período, usuários por papel, títulos por vencimento.
 

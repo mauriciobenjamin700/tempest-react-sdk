@@ -6,6 +6,12 @@ Reach for this page when you need the user to **do** something. For data entry (
 
 ## `Button`
 
+<!-- gallery:buttons -->
+[![Buttons in the gallery](../assets/gallery/buttons.webp)](../gallery.md)
+
+*Section `buttons` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 > **When to use**: the primary or secondary action of any screen — submit a form, open a modal, navigate. The default action trigger.
 
 Primary button with variants, sizes, and a loading state.
@@ -51,6 +57,12 @@ import { Plus, Trash } from "lucide-react";
 
 ## `FloatingActionButton`
 
+<!-- gallery:material -->
+[![Material (ListTile · FAB · Rail) in the gallery](../assets/gallery/material.webp)](../gallery.md)
+
+*Section `material` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 > **When to use**: the primary, persistent action of a screen (create, compose, add) that should always be reachable, floating over the content. Round when icon-only, or extended (pill) when given a `label`.
 
 By default it is fixed to the bottom-right corner; pass `position="none"` to place it inline (e.g. inside a `NavigationRail`). Spreads all native `<button>` props (`onClick`, `disabled`, etc.).
@@ -77,6 +89,12 @@ import { Plus } from "lucide-react";
 
 ## `Tooltip`
 
+<!-- gallery:navigation -->
+[![AppBar · Tabs · Tooltip · Drawer in the gallery](../assets/gallery/navigation.webp)](../gallery.md)
+
+*Section `navigation` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 > **When to use**: give extra context to a control whose meaning isn't obvious — typically `iconOnly` buttons. Never for critical information.
 
 A portaled hover tooltip. Shows on hover **and** on keyboard focus.
@@ -100,6 +118,12 @@ A portaled hover tooltip. Shows on hover **and** on keyboard focus.
     Touch users have no hover — they'll never see the content. A tooltip is reinforcement, not the only source of information needed to complete the task.
 
 ## `DropdownMenu`
+
+<!-- gallery:overlays -->
+[![Popover · Dropdown · HoverCard in the gallery](../assets/gallery/overlays.webp)](../gallery.md)
+
+*Section `overlays` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 > **When to use**: group secondary actions behind a single trigger ("More actions", a profile menu) when they don't fit the main bar.
 
@@ -164,6 +188,12 @@ A generic floating panel (anchor + outside-click + Esc dismiss). Works controlle
 
 ## `ConfirmDialog`
 
+<!-- gallery:modal -->
+[![Modal & Toast in the gallery](../assets/gallery/modal.webp)](../gallery.md)
+
+*Section `modal` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 > **When to use**: the last barrier before an irreversible or costly action (delete, overwrite, cancel). Always with `variant="danger"` when destructive.
 
 A pre-built destructive prompt on top of [`Modal`](./overlay.md) (text + 2 buttons).
@@ -204,6 +234,12 @@ A pre-built destructive prompt on top of [`Modal`](./overlay.md) (text + 2 butto
     `confirmLabel`/`cancelLabel` default to `"Confirmar"`/`"Cancelar"`. Pass explicit English strings in EN-locale apps.
 
 ## `InstallButton`
+
+<!-- gallery:pwa -->
+[![PWA: Install · Push in the gallery](../assets/gallery/pwa.webp)](../gallery.md)
+
+*Section `pwa` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 PWA install button wired to the `beforeinstallprompt` event ([`useBeforeInstallPrompt`](../hooks.md)). **Renders `null`** when the app can't be installed — no prompt captured yet, already installed, or running standalone — so you can drop it in without guarding visibility. Inherits every [`Button`](#button) prop.
 

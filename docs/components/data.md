@@ -6,6 +6,12 @@ Use esta página quando precisa **listar/comparar** registros. Para um único re
 
 ## `Table<T>`
 
+<!-- gallery:table -->
+[![Table & Pagination na gallery](../assets/gallery/table.webp)](../gallery.md)
+
+*Seção `table` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: comparar registros estruturados campo a campo em colunas — pedidos, usuários, transações. Tipada por `T`, com prioridade responsiva por coluna e stack opcional em mobile.
 
 ```tsx
@@ -85,6 +91,12 @@ const columns: TableColumn<Order>[] = [
 
 ## `VirtualList`
 
+<!-- gallery:advanced -->
+[![Stepper · Progress · VirtualList na gallery](../assets/gallery/advanced.webp)](../gallery.md)
+
+*Seção `advanced` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: rolar listas muito longas (500+ itens) de linhas com **altura fixa** sem inundar o DOM — chats, logs, feeds infinitos.
 
 Renderiza apenas a janela visível + um pequeno buffer de overscan. Cada linha precisa de altura fixa (`itemHeight`); o container precisa de uma altura (`height`).
@@ -116,6 +128,12 @@ Renderiza apenas a janela visível + um pequeno buffer de overscan. Cada linha p
     Itens fora da viewport não estão no DOM, então o `Ctrl+F` do navegador não os encontra. Abaixo de ~500 itens, prefira renderização normal: o ganho de perf é negligível e você mantém a busca nativa.
 
 ## `VirtualTable<T>`
+
+<!-- gallery:virtual-table -->
+[![VirtualTable (40k linhas) na gallery](../assets/gallery/virtual-table.webp)](../gallery.md)
+
+*Seção `virtual-table` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: uma tabela de **milhares de linhas** numa única grade rolável — extrato, log de auditoria, exportação bruta. O `Table` renderiza tudo o que recebe e o `DataTable` pagina pra manter esse número pequeno; nenhum dos dois responde "me mostre as 40 000 linhas de uma vez".
 
@@ -175,6 +193,12 @@ Coluna: `{ key, header, render?, sortable?, align?, width? }`.
 Os dois ordenam com o mesmo comparador (`compareValues`), então "ordenado" quer dizer a mesma coisa nos dois — número numericamente, data por timestamp, string com `localeCompare` e `numeric: true`.
 
 ## `DataTable<T>` — edição inline
+
+<!-- gallery:data-table -->
+[![DataTable na gallery](../assets/gallery/data-table.webp)](../gallery.md)
+
+*Seção `data-table` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: tela de admin. Você já lista os registros com `DataTable`; agora
 > alguém precisa corrigir um nome sem abrir um modal por linha.
@@ -445,6 +469,12 @@ export function Pessoas() {
 
 ## `BarList`
 
+<!-- gallery:bar-list -->
+[![BarList (distribuição ranqueada) na gallery](../assets/gallery/bar-list.webp)](../gallery.md)
+
+*Seção `bar-list` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: distribuição ranqueada — usuários por plano, erros por endpoint,
 > vendas por categoria. É o gráfico mais comum de painel, e o único que costuma ser
 > reescrito quatro vezes no mesmo dashboard, cada vez com seu CSS e seu `.sort()`.
@@ -533,6 +563,12 @@ import { BarList } from "tempest-react-sdk";
 
 ## `ListTile`
 
+<!-- gallery:material -->
+[![Material (ListTile · FAB · Rail) na gallery](../assets/gallery/material.webp)](../gallery.md)
+
+*Seção `material` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: a linha canônica de lista do Material — um item com slot à esquerda (ícone/avatar), título com subtítulo opcional e slot à direita (ícone, switch, meta). Ideal para listas de configurações, contatos ou menus.
 
 Renderiza como `<div>` estático por padrão; ao receber `onClick` vira um `<button>` de largura total, acessível por teclado.
@@ -573,6 +609,12 @@ function NotificationsRow() {
 
 ## `Accordion`
 
+<!-- gallery:disclosure -->
+[![Accordion · Collapsible · Scroll na gallery](../assets/gallery/disclosure.webp)](../gallery.md)
+
+*Seção `disclosure` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: condensar conteúdo seccionável que o usuário expande sob demanda — FAQs, formulários longos em etapas, painéis de configurações.
 
 Modo single (default) ou `multiple`. Controlado via `value` + `onChange`, ou não-controlado via `defaultValue`.
@@ -603,6 +645,12 @@ Modo single (default) ou `multiple`. Controlado via `value` + `onChange`, ou nã
 
 ## `Timeline`
 
+<!-- gallery:feedback-extra -->
+[![Alert · Timeline · BottomSheet na gallery](../assets/gallery/feedback-extra.webp)](../gallery.md)
+
+*Seção `feedback-extra` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: mostrar uma sequência de eventos no tempo — rastreio de pedido, log de auditoria, feed de atividade. Cada entrada tem marker colorido, título, descrição e meta opcionais.
 
 Feed vertical com markers coloridos. Renderiza como `<ol>` semântica (cada item é `<li>`).
@@ -632,6 +680,12 @@ Feed vertical com markers coloridos. Renderiza como `<ol>` semântica (cada item
 `TimelineItem = { id, title, description?, meta?, icon?, marker?: "primary" \| "success" \| "warning" \| "danger" \| "neutral" }`.
 
 ## `TreeView`
+
+<!-- gallery:hierarchy-flow -->
+[![TreeView · Wizard na gallery](../assets/gallery/hierarchy-flow.webp)](../gallery.md)
+
+*Seção `hierarchy-flow` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: dados **hierárquicos** — árvore de categorias, permissões por módulo, pastas, organograma. Quando o dado é uma lista plana, `Table` ou `ListTile` servem melhor.
 
@@ -695,6 +749,12 @@ export function PermissoesDoPapel() {
     Ele é decoração (`aria-hidden`): a linha já carrega `aria-expanded`, então um segundo controle focável ali só adicionaria ruído no leitor de tela, duplicando uma ação que o teclado já tem. Clique nele funciona (com o evento parado, então expande sem selecionar).
 
 ## `Sparkline`
+
+<!-- gallery:sparkline -->
+[![Sparkline (mini-gráfico inline) na gallery](../assets/gallery/sparkline.webp)](../gallery.md)
+
+*Seção `sparkline` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: mostrar a **forma** de uma série ao lado do número que ela explica — uma célula de tabela, um card de métrica, uma linha de lista. Não é substituto de gráfico: se o leitor precisa ler valores no eixo, use [`LineChart`](../charts.md).
 

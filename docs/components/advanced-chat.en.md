@@ -4,6 +4,12 @@
 
 ## `Chat`
 
+<!-- gallery:chat -->
+[![Chat in the gallery](../assets/gallery/chat.webp)](../gallery.md)
+
+*Section `chat` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 > **When to use**: a message thread — support, internal chat, document comments, a service history.
 
 Groups by author and by day, marks the current user's side, shows delivery state and who is typing, and brings the composer along when you pass `onSend`.
@@ -93,6 +99,12 @@ Exported separately for a custom layout (a composer pinned to the footer of a ro
     While composing Japanese or Korean, `Enter` confirms the candidate word. Sending there posts half a word and eats the confirmation — hence the `isComposing` check.
 
 ## `AIChat`
+
+<!-- gallery:aichat -->
+[![AIChat in the gallery](../assets/gallery/aichat.webp)](../gallery.md)
+
+*Section `aichat` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 > **When to use it**: a conversation with a **model** — a copilot inside your app, a support assistant, conversational search. This is the shape ChatGPT, Claude and DeepSeek converged on.
 

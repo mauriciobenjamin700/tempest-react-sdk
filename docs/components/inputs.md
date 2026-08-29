@@ -21,6 +21,12 @@ Esta página reúne todo o conjunto de **controles de formulário** do SDK — d
 
 ## `Input`
 
+<!-- gallery:form-fields -->
+[![Form fields na gallery](../assets/gallery/form-fields.webp)](../gallery.md)
+
+*Seção `form-fields` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 Texto single-line.
 
 ```tsx
@@ -73,6 +79,12 @@ Nativo `<select>`. Aceita `options` (lista) ou `<option>` children.
 
 ## `Combobox`
 
+<!-- gallery:inputs-advanced -->
+[![Toggle · Rating · Range · Combobox na gallery](../assets/gallery/inputs-advanced.webp)](../gallery.md)
+
+*Seção `inputs-advanced` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 **Quando usar:** uma opção entre muitas (dezenas+), onde o usuário precisa digitar para filtrar. Para poucas opções use `Select`.
 
 Select com busca + filtro. Keyboard nav (↑↓ Enter Esc).
@@ -88,6 +100,12 @@ Select com busca + filtro. Keyboard nav (↑↓ Enter Esc).
 ```
 
 ## `MultiSelect`
+
+<!-- gallery:inputs-extra -->
+[![Inputs avançados (Date · Pin · Slider) na gallery](../assets/gallery/inputs-extra.webp)](../gallery.md)
+
+*Seção `inputs-extra` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 **Quando usar:** várias opções entre muitas, com busca e chips removíveis. Para uma única opção use `Combobox`; para poucas opções booleanas use `Checkbox`.
 
@@ -126,6 +144,12 @@ function Example() {
 `MultiSelectOption` é `{ value: string; label: string; disabled?: boolean }`.
 
 ## `Checkbox`
+
+<!-- gallery:form-primitives -->
+[![Checkbox · Radio · Switch na gallery](../assets/gallery/form-primitives.webp)](../gallery.md)
+
+*Seção `form-primitives` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 Single checkbox. Suporta `indeterminate`.
 
@@ -219,6 +243,12 @@ function Example() {
 `DateRange` é `{ start: Date | null; end: Date | null }`.
 ## `TimePicker`
 
+<!-- gallery:material -->
+[![Material (ListTile · FAB · Rail) na gallery](../assets/gallery/material.webp)](../gallery.md)
+
+*Seção `material` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 **Quando usar:** escolher um horário em colunas roláveis (estilo "spinner" do Material) — agendamentos, lembretes, janelas de atendimento. Para um campo nativo simples, use o `DatePicker` com `mode="time"`.
 
 Sempre emite uma string 24h `"HH:MM"` via `onChange`, mesmo com `use12Hours` ligado. O `minuteStep` controla a granularidade da coluna de minutos.
@@ -256,6 +286,12 @@ function ScheduleField() {
     Mesmo com `use12Hours` (colunas 1–12 + AM/PM), o `onChange` continua emitindo `"HH:MM"` em 24h — o display 12h é só visual. Guarde e envie o valor de 24h direto.
 
 ## `FileUpload`
+
+<!-- gallery:advanced -->
+[![Stepper · Progress · VirtualList na gallery](../assets/gallery/advanced.webp)](../gallery.md)
+
+*Seção `advanced` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 Drag-and-drop + click-to-upload + lista de arquivos.
 
@@ -453,6 +489,12 @@ Helper exposto: `estimatePasswordStrength(value)` retorna `0-4` (length, case mi
 
 ## `Form` / `FormSection` / `FormRow` / `FormActions` / `FormField`
 
+<!-- gallery:forms -->
+[![Forms (zod) na gallery](../assets/gallery/forms.webp)](../gallery.md)
+
+*Seção `forms` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 Layout wrappers para forms (`stack`/`inline`/`grid`) + integração RHF.
 
 ```tsx
@@ -468,6 +510,12 @@ Layout wrappers para forms (`stack`/`inline`/`grid`) + integração RHF.
 Detalhes completos em [../forms.md](../forms.md).
 
 ## `ImageCropper`
+
+<!-- gallery:image-cropper -->
+[![ImageCropper (recorte) na gallery](../assets/gallery/image-cropper.webp)](../gallery.md)
+
+*Seção `image-cropper` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: par natural do [`FileUpload`](#fileupload) — foto de perfil, foto de documento, capa. O app decide a proporção de saída; o usuário só escolhe o que cai dentro dela.
 
@@ -553,6 +601,12 @@ O `ref` expõe `{ crop, reset }`. O `crop()` devolve `Promise<Blob | null>`.
     re-escolha de foto vazaria a anterior pelo resto da vida do documento.
 
 ## `SignaturePad`
+
+<!-- gallery:capture-media -->
+[![SignaturePad · Lightbox · AvatarGroup na gallery](../assets/gallery/capture-media.webp)](../gallery.md)
+
+*Seção `capture-media` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: coletar assinatura de próprio punho — comprovante de entrega, ordem de serviço, termo de aceite. Em campo, no celular, com o dedo.
 

@@ -27,6 +27,12 @@ screen (that's `Tabs`/`SegmentedControl`).
 
 ## `Navbar`
 
+<!-- gallery:nav-extra -->
+[![Navbar · Sidebar · Bottom nav in the gallery](../assets/gallery/nav-extra.webp)](../gallery.md)
+
+*Section `nav-extra` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 **When to use:** a persistent top bar with brand + global actions (search,
 avatar, notifications). It's the highest-level navigation.
 
@@ -65,6 +71,12 @@ Top app bar. Three slots (`logo` / `nav` / `actions`). Sticky by default.
 automatically.
 
 ## `AppBar`
+
+<!-- gallery:navigation -->
+[![AppBar · Tabs · Tooltip · Drawer in the gallery](../assets/gallery/navigation.webp)](../gallery.md)
+
+*Section `navigation` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 **When to use:** the **mobile-first PWA app bar** — the "back + title + action"
 pattern every detail screen repeats. Use `AppBar` for mobile/PWA apps; use
@@ -282,6 +294,12 @@ hamburger menu.
 
 ## `NavigationRail`
 
+<!-- gallery:material -->
+[![Material (ListTile · FAB · Rail) in the gallery](../assets/gallery/material.webp)](../gallery.md)
+
+*Section `material` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 **When to use:** a compact, vertical navigation column for desktop/tablet — a
 narrower alternative to `Sidebar` when you only need icons stacked over short
 labels. Each item stacks an icon over its label; the active one gets
@@ -389,6 +407,12 @@ variants via `variant` (`"underline"` default or `"pill"`).
 
 ## `Stepper`
 
+<!-- gallery:advanced -->
+[![Stepper · Progress · VirtualList in the gallery](../assets/gallery/advanced.webp)](../gallery.md)
+
+*Section `advanced` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 **When to use:** show progress through a linear multi-step flow (checkout,
 onboarding, wizard). It's a progress indicator, not a selector — drive `current`
 from your flow logic.
@@ -423,6 +447,12 @@ Hierarchical navigation.
 **A11y**: the last item is marked with `aria-current="page"`.
 
 ## `Pagination`
+
+<!-- gallery:table -->
+[![Table & Pagination in the gallery](../assets/gallery/table.webp)](../gallery.md)
+
+*Section `table` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 **When to use:** walk large lists in discrete pages (search results, tables).
 For continuous feeds prefer infinite scroll (`VirtualList` + `usePoll`/Query).

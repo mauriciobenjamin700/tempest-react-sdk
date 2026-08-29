@@ -7,6 +7,12 @@
 !!! info "Protocolo: tus 1.0.0, não um esquema nosso"
     O cliente fala [tus](https://tus.io) (core + as extensões *creation* e *termination*). Isso é deliberado: um cliente resumível de formato próprio obriga o backend a ser sempre nosso. Com tus você pode apontar para `tusd`, `tus-node-server` ou `py-tus` sem escrever servidor nenhum — e a seção [O que o backend precisa implementar](#o-que-o-backend-precisa-implementar) cabe numa tabela.
 
+<!-- gallery:recipe-resumable-upload -->
+[![Upload resumível (tus) na gallery](assets/gallery/recipe-resumable-upload.webp)](gallery.md)
+
+*Seção `recipe-resumable-upload` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## O exemplo mínimo
 
 ```tsx

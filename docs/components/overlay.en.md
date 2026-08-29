@@ -13,6 +13,12 @@ The three share the same engine (portal to `document.body` + backdrop + Esc + fo
 
 ## `Modal`
 
+<!-- gallery:modal -->
+[![Modal & Toast in the gallery](../assets/gallery/modal.webp)](../gallery.md)
+
+*Section `modal` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 > **When to use**: a central flow that pauses context — create/edit a record, a short wizard, a form that demands full attention.
 
 Portal + backdrop + Esc + focus trap + scroll lock.
@@ -59,6 +65,12 @@ close.
 
 ## `Drawer`
 
+<!-- gallery:navigation -->
+[![AppBar · Tabs · Tooltip · Drawer in the gallery](../assets/gallery/navigation.webp)](../gallery.md)
+
+*Section `navigation` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 > **When to use**: a persistent side panel that complements the background screen — filters, an item's details, secondary navigation. It hugs an edge instead of centering.
 
 Side drawer. `placement: left/right/top/bottom`. Auto-switches to a bottom-sheet
@@ -95,6 +107,12 @@ on mobile via `mobilePlacement`.
     Unlike `Modal`, `Drawer` has no `size` prop — its width/height follows the content (and the placement CSS). For a mobile-first full-width, height-capped panel, prefer `BottomSheet` or `mobilePlacement="bottom"`.
 
 ## `BottomSheet`
+
+<!-- gallery:feedback-extra -->
+[![Alert · Timeline · BottomSheet in the gallery](../assets/gallery/feedback-extra.webp)](../gallery.md)
+
+*Section `feedback-extra` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 > **When to use**: mobile-first actions or choices that rise from the bottom — a share menu, an item's options, a short picker. It's the native iOS/Android pattern.
 
@@ -199,6 +217,12 @@ function DeleteButton({ id }: { id: string }) {
 - **Backdrop**: clicks close it (`Modal`/`BottomSheet`: `dismissOnBackdrop={false}`; `Drawer`: `closeOnBackdrop={false}`).
 
 ## `Lightbox`
+
+<!-- gallery:capture-media -->
+[![SignaturePad · Lightbox · AvatarGroup in the gallery](../assets/gallery/capture-media.webp)](../gallery.md)
+
+*Section `capture-media` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 > **When to use it**: view a photo full-screen with navigation — a property gallery, the attachments of a ticket, inspection photos.
 

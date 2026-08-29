@@ -5,6 +5,12 @@ Wrappers finos pra padronizar tempos de cache, chaves de query e o `QueryClient`
 !!! info "Por que esses wrappers existem?"
     Sem padronização, cada tela escolhe um `staleTime` no chute e cada domínio escreve `queryKey: ["user", id]` à mão. Isso gera invalidações que não pegam (key montada diferente em dois lugares) e refetch agressivo demais. O SDK centraliza ambos: presets nomeados e um factory que garante a mesma key em todo lugar.
 
+<!-- gallery:recipe-query -->
+[![Data fetching (TanStack Query) na gallery](assets/gallery/recipe-query.webp)](gallery.md)
+
+*Seção `recipe-query` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## Provider
 
 Envolva a árvore do app uma única vez, normalmente no `main.tsx` (ou dentro de `<AppProviders>`):

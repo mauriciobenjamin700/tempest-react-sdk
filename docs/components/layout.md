@@ -17,6 +17,12 @@ Os componentes de layout não desenham conteúdo — eles **organizam o espaço*
 
 ## `AppShell`
 
+<!-- gallery:layout -->
+[![Layout (AppShell · Page · Container) na gallery](../assets/gallery/layout.webp)](../gallery.md)
+
+*Seção `layout` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 **Quando usar:** como a moldura raiz de um app com navegação persistente (dashboard, painel admin). Para uma landing page simples, um `Container` basta.
 
 Composer: navbar + sidebar (desktop) / bottomNav (mobile) + main + footer responsivo.
@@ -99,6 +105,12 @@ Max-width wrapper.
 | `"full"` | `100%`    |
 
 ## `Stack`
+
+<!-- gallery:advanced -->
+[![Stepper · Progress · VirtualList na gallery](../assets/gallery/advanced.webp)](../gallery.md)
+
+*Seção `advanced` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 **Quando usar:** o primitivo padrão para empilhar elementos em uma dimensão (coluna ou linha) com espaçamento uniforme. Para grade 2D use `Grid`.
 
@@ -208,6 +220,12 @@ Centraliza children horizontal/vertical/ambos.
 | `fullWidth` | `boolean`                              | `true`   |
 
 ## `AspectRatio`
+
+<!-- gallery:display-media -->
+[![Avatar · Image · Carousel na gallery](../assets/gallery/display-media.webp)](../gallery.md)
+
+*Seção `display-media` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 Preserva proporção pra media.
 

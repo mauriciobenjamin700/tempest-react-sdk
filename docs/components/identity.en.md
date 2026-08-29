@@ -6,6 +6,12 @@ Reach for this page when you need to **show** an entity or group content, not wh
 
 ## `Avatar`
 
+<!-- gallery:display-media -->
+[![Avatar · Image · Carousel in the gallery](../assets/gallery/display-media.webp)](../gallery.md)
+
+*Section `display-media` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 > **When to use**: visually represent a user/entity in lists, comments, headers — with a photo when available and colored initials as fallback.
 
 A user's photo with an automatic fallback to colored initials when there is no `src` or the image fails to load. Initials are derived from `name` (not from `alt`).
@@ -33,6 +39,12 @@ A user's photo with an automatic fallback to colored initials when there is no `
     When `src` is set, `alt` is what screen readers announce. Describe the person (the name), not the media — avoid `"photo of…"`.
 
 ## `Card`
+
+<!-- gallery:feedback -->
+[![Badges · Cards · Skeleton in the gallery](../assets/gallery/feedback.webp)](../gallery.md)
+
+*Section `feedback` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 > **When to use**: group related content into a block with visual elevation — a list item, a dashboard panel, a container for a table.
 
@@ -69,6 +81,12 @@ A container with header slots (`title` + `actions`) and a `footer`.
 
 ## `Kbd`
 
+<!-- gallery:inputs-extra -->
+[![Inputs avançados (Date · Pin · Slider) in the gallery](../assets/gallery/inputs-extra.webp)](../gallery.md)
+
+*Section `inputs-extra` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 > **When to use**: display a key or combination (shortcuts, command-palette hints) with the look of a physical key.
 
 A `<kbd>` styled for keyboard shortcuts.
@@ -86,6 +104,12 @@ A `<kbd>` styled for keyboard shortcuts.
     For combinations, repeat the component instead of merging it all into plain text: `<Kbd>Ctrl</Kbd>+<Kbd>K</Kbd>`. Each `<Kbd>` renders a semantic `<kbd>` element that screen readers announce individually.
 
 ## `AvatarGroup`
+
+<!-- gallery:capture-media -->
+[![SignaturePad · Lightbox · AvatarGroup in the gallery](../assets/gallery/capture-media.webp)](../gallery.md)
+
+*Section `capture-media` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 > **When to use it**: show several people in a small space — meeting participants, task assignees, team members.
 

@@ -12,6 +12,12 @@
 !!! info "Por que um wrapper em volta de `new Audio()`?"
     Tocar som no navegador esbarra na _autoplay policy_ e em vazamento de elementos `Audio`. O SDK encapsula: rastreia o clipe atual (pra dar `stop`), normaliza volume, trata o bloqueio de autoplay devolvendo `null` em vez de estourar, e limpa no unmount quando você usa o hook.
 
+<!-- gallery:audio-capture -->
+[![Áudio (gravação) na gallery](assets/gallery/audio-capture.webp)](gallery.md)
+
+*Seção `audio-capture` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## `playAudio` — one-off no player compartilhado
 
 Ideal pra um som disparado por um evento, sem estado de UI:

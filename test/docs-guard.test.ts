@@ -28,6 +28,7 @@
  * paths inside the repository so Node module resolution finds `react` and the
  * SDK's own dependencies, but nothing is ever written to disk.
  */
+import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import ts from "typescript";
@@ -242,5 +243,75 @@ describe("docs examples", () => {
 
     it("every example compiles against the SDK", { timeout: 120_000 }, () => {
         expect(compileBlocks(blocks)).toEqual([]);
+    });
+});
+
+/**
+ * Gallery captures the documentation points at.
+ *
+ * The screenshots are versioned rather than built, because the requirement is
+ * that the same image renders on the MkDocs site *and* in the `.md` as GitHub
+ * renders it — a build artifact satisfies only the first. Versioned files rot in
+ * their own way, which is what these three checks are for: an image referenced
+ * but absent, an image present but referenced by nobody, and a gallery section
+ * that never got captured.
+ */
+describe("docs gallery captures", () => {
+    const SHOTS = join(DOCS, "assets", "gallery");
+
+    /** Every image path referenced from any documentation page, page-relative. */
+    function referencedImages(): { page: string; target: string }[] {
+        const found: { page: string; target: string }[] = [];
+        for (const page of allPages) {
+            const text = readFileSync(join(DOCS, page), "utf8");
+            for (const match of text.matchAll(/!\[[^\]]*\]\(([^)]+)\)/g)) {
+                if (/^https?:/.test(match[1])) continue;
+                found.push({ page, target: match[1] });
+            }
+        }
+        return found;
+    }
+
+    it("every image the docs reference exists on disk", () => {
+        const missing = referencedImages().filter(
+            ({ page, target }) => !existsSync(resolve(join(DOCS, page), "..", target)),
+        );
+        expect(missing).toEqual([]);
+    });
+
+    it("every capture is referenced by at least one page", () => {
+        const referenced = new Set(referencedImages().map(({ target }) => target.split("/").pop()));
+        const orphans = readdirSync(SHOTS)
+            .filter((file) => file.endsWith(".webp"))
+            .filter((file) => !referenced.has(file));
+        expect(orphans).toEqual([]);
+    });
+
+    it("every gallery section has a capture", () => {
+        const registry = readFileSync(
+            join(ROOT, "examples", "gallery", "src", "sections", "registry.tsx"),
+            "utf8",
+        );
+        const body = registry.slice(registry.indexOf("export const SECTIONS"));
+        const ids = [...body.matchAll(/id:\s*"([^"]+)",\s*label:/g)].map((match) => match[1]);
+        const uncaptured = ids.filter((id) => !existsSync(join(SHOTS, `${id}.webp`)));
+        expect({ sections: ids.length, uncaptured }).toEqual({
+            sections: ids.length,
+            uncaptured: [],
+        });
+    });
+
+    it("the generated gallery blocks are up to date", () => {
+        const result = spawnSync(
+            process.execPath,
+            [join(ROOT, "scripts", "docs-gallery.mjs"), "--check"],
+            {
+                encoding: "utf8",
+            },
+        );
+        expect(`${result.stdout}${result.stderr}`.trim().split("\n").at(-1)).toContain(
+            "0 page(s) stale",
+        );
+        expect(result.status).toBe(0);
     });
 });

@@ -37,34 +37,107 @@ shows up in the gallery after a reload.
     ≥ 1024px (desktop) before calling a visual change done. Stack/Grid/Modal/
     Drawer/Table all have responsive behavior here.
 
+## Captures in the documentation pages
+
+Every gallery section has a versioned capture under `docs/assets/gallery/`, and
+that is what shows up on the component pages. Two commands keep it current:
+
+```bash
+npm run e2e:build          # build the SDK and the gallery (prerequisite)
+npm run docs:shots         # capture one image per section
+npm run docs:gallery       # place the images into the .md pages
+```
+
+`docs:shots` serves the gallery's production build, walks every
+`section.gallery-section[id]` and writes `docs/assets/gallery/<id>.webp`. The
+sections where the theme is the point also get an `<id>.dark.webp`.
+
+!!! tip "Re-running does not dirty the diff"
+    A file is only written when its bytes change. On an untouched gallery a
+    second run leaves `git status` clean — a diff shows up only when the
+    component actually changed.
+
+!!! note "Why versioned WebP instead of a build artifact"
+    The image has to render **on the MkDocs site and in the `.md` as GitHub
+    renders it**. An artifact produced only at publish time satisfies the first
+    and leaves the second with a broken image. WebP halves the bytes against PNG
+    and is encoded by Playwright's own Chromium, with no new dependency.
+
+`docs:gallery` inserts a marked block (`<!-- gallery:<id> -->`) under the first
+component of each section across `docs/components/`, in both languages. Pass
+`--check` to fail without writing — that is what the docs guard uses.
+
 ## Sections
 
 Each section is a file under [`examples/gallery/src/sections/`](https://github.com/mauriciobenjamin700/tempest-react-sdk/tree/main/examples/gallery/src/sections) and every example is wrapped by the [`<Example>`](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/examples/gallery/src/Example.tsx) helper (demo + code + copy button).
 
-| #   | Section                                | Components / Features                                                             |
-| --- | -------------------------------------- | -------------------------------------------------------------------------------- |
-| 1   | Buttons                                | `Button` (variants, sizes, loading, fullWidth)                                   |
-| 2   | Form fields                            | `Input`, `Select`, `Textarea`, `SearchBar`                                        |
-| 3   | Checkbox · Radio · Switch              | `Checkbox`, `RadioGroup`, `Switch`                                                |
-| 4   | Toggle · Rating · Range · Combobox     | `Toggle`, `ToggleGroup`, `RatingStars`, `RangeSlider`, `Combobox`, `Label`       |
-| 5   | Feedback                               | `Badge`, `Card`, `Spinner`, `Skeleton`                                            |
-| 6   | Stat · Tag · Money · Banner            | `Stat`, `Tag`, `Banner`, `Money`, `RelativeTime`, `TruncateText`, `DataList`, `DescriptionList`, `CopyButton` |
-| 7   | Avatar · Image · Carousel              | `Avatar`, `Image` (fallback), `AspectRatio`, `Carousel`                          |
-| 8   | Modal & Toast                          | `Modal`, `ConfirmDialog`, `ToastProvider`, `useToast`                            |
-| 9   | Overlays                               | `Popover`, `DropdownMenu`, `HoverCard`, `ContextMenu`, `Menubar`, `Command` (⌘K) |
-| 10  | Disclosure                             | `Accordion`, `Collapsible`, `ScrollArea`                                          |
-| 11  | Navigation                             | `Breadcrumbs`, `Tabs`, `Tooltip`, `Drawer`                                        |
-| 12  | Stepper · Progress · VirtualList       | `Stepper`, `Progress`, `ChipInput`, `FileUpload`, `VirtualList`                   |
-| 13  | Table & Pagination                     | `Table`, `Pagination`, `EmptyState`, `ErrorState`, `usePagination`               |
-| 14  | DataTable                              | `DataTable` (client-side search, sort, pagination)                               |
-| 15  | Forms (zod)                            | `useZodForm`, `zodResolver`                                                       |
-| 16  | BR Forms                               | `CPFInput`, `CNPJInput`, `PhoneInput`, `MoneyInput`, `CEPInput`, `useViaCEP`     |
-| 17  | Store (Zustand)                        | `createStore`, `createSelectors` (persisted counter)                             |
-| 18  | Theme + i18n                           | `ThemeProvider`, `useTheme`, `I18nProvider`, `useI18n`                           |
-| 19  | Network · Clipboard · Share            | `useOnline`, `useClipboard`, `share`, `useKeyboardShortcut`, `useIntersectionObserver` |
-| 20  | SSE · Push · Audio                     | `useEventStream` (live SSE), `isPushSupported`, `playAudio`                      |
-| 21  | PWA: Install · Push                    | `useBeforeInstallPrompt`, `usePushSubscription`, `isPushSupported`               |
-| 22  | Utils                                  | `formatCurrency`, `formatDate`, `formatPhone`, `formatCPF`, `formatPercent`      |
+<!-- gallery:sections -->
+| # | Section | Anchor | Group |
+| --- | --- | --- | --- |
+| 1 | Buttons | `#buttons` | Componentes |
+| 2 | Layout (AppShell · Page · Container) | `#layout` | Componentes |
+| 3 | Navbar · Sidebar · Bottom nav | `#nav-extra` | Componentes |
+| 4 | Inputs avançados (Date · Pin · Slider) | `#inputs-extra` | Componentes |
+| 5 | Alert · Timeline · BottomSheet | `#feedback-extra` | Componentes |
+| 6 | Headless & render-props | `#headless` | Componentes |
+| 7 | Form fields | `#form-fields` | Componentes |
+| 8 | Checkbox · Radio · Switch | `#form-primitives` | Componentes |
+| 9 | Toggle · Rating · Range · Combobox | `#inputs-advanced` | Componentes |
+| 10 | Badges · Cards · Skeleton | `#feedback` | Componentes |
+| 11 | Stat · Tag · Money · Banner | `#data-display` | Componentes |
+| 12 | Avatar · Image · Carousel | `#display-media` | Componentes |
+| 13 | Modal & Toast | `#modal` | Componentes |
+| 14 | Popover · Dropdown · HoverCard | `#overlays` | Componentes |
+| 15 | Accordion · Collapsible · Scroll | `#disclosure` | Componentes |
+| 16 | AppBar · Tabs · Tooltip · Drawer | `#navigation` | Componentes |
+| 17 | Stepper · Progress · VirtualList | `#advanced` | Componentes |
+| 18 | TreeView · Wizard | `#hierarchy-flow` | Componentes |
+| 19 | SignaturePad · Lightbox · AvatarGroup | `#capture-media` | Componentes |
+| 20 | ImageCropper (recorte) | `#image-cropper` | Componentes |
+| 21 | Table & Pagination | `#table` | Componentes |
+| 22 | DataTable | `#data-table` | Componentes |
+| 23 | VirtualTable (40k linhas) | `#virtual-table` | Componentes |
+| 24 | Scheduler (agenda) | `#scheduler` | Componentes |
+| 25 | BarList (distribuição ranqueada) | `#bar-list` | Componentes |
+| 26 | Sparkline (mini-gráfico inline) | `#sparkline` | Componentes |
+| 27 | QRCode | `#qrcode` | Componentes |
+| 28 | Chat | `#chat` | Componentes |
+| 29 | AIChat | `#aichat` | Componentes |
+| 30 | Áudio (gravação) | `#audio-capture` | Componentes |
+| 31 | Captura de dispositivo | `#device-capture` | Componentes |
+| 32 | Dashboard (CSS) | `#dashboard-layout` | Componentes |
+| 33 | FilterBar | `#filterbar` | Componentes |
+| 34 | Markdown | `#markdown` | Componentes |
+| 35 | Masonry | `#masonry` | Componentes |
+| 36 | Tour | `#tour` | Componentes |
+| 37 | Transfer | `#transfer` | Componentes |
+| 38 | CodeBlock | `#codeblock` | Componentes |
+| 39 | Material (ListTile · FAB · Rail) | `#material` | Componentes |
+| 40 | Forms (zod) | `#forms` | Componentes |
+| 41 | BR Forms (CPF/CNPJ/CEP) | `#br-forms` | Componentes |
+| 42 | Hooks — estado | `#hooks-state` | Hooks |
+| 43 | Hooks — DOM & timing | `#hooks-dom` | Hooks |
+| 44 | Network · Clipboard · Share | `#meta` | Hooks |
+| 45 | Formatters | `#utils` | Hooks |
+| 46 | HTTP client | `#recipe-http` | Receitas |
+| 47 | Upload resumível (tus) | `#recipe-resumable-upload` | Receitas |
+| 48 | Passkeys (WebAuthn) | `#recipe-passkeys` | Receitas |
+| 49 | Data fetching (TanStack Query) | `#recipe-query` | Receitas |
+| 50 | Tempo real (WebSocket) | `#recipe-realtime` | Receitas |
+| 51 | Geolocalização (mapas & trajetória) | `#geo` | Receitas |
+| 52 | Mapa do Brasil (UF + cidades) | `#brazil-map` | Receitas |
+| 53 | Pagamentos BR (Pix · boleto · NFe) | `#br-payments` | Receitas |
+| 54 | Auth & Access Control | `#recipe-auth` | Receitas |
+| 55 | SSE · Push · Audio | `#integrations` | Receitas |
+| 56 | NotificationCenter (inbox) | `#notification-center` | Receitas |
+| 57 | PWA: Install · Push | `#pwa` | Receitas |
+| 58 | Store (Zustand) | `#foundation` | Fundação |
+| 59 | Escalas contínuas (heatmap) | `#dataviz-scales` | Fundação |
+| 60 | createTheme · presets · tokens de gráfico | `#theme-factory` | Fundação |
+| 61 | Ícones por slug (/icons) | `#icons` | Fundação |
+| 62 | utilities.css (camada opt-in) | `#utilities-css` | Fundação |
+| 63 | Tema + i18n | `#theme-i18n` | Fundação |
+<!-- /gallery -->
 
 ## Variant matrix
 
@@ -134,37 +207,69 @@ Each section is a file under [`examples/gallery/src/sections/`](https://github.c
 Every example sits **next to its source code** (with a "Copy" button), so the
 gallery doubles as a copy-paste reference. Captures of the running app:
 
-### Overview
+<!-- gallery:screenshots -->
+Every section has its own capture next to the component it documents; the pairs below are the ones where the theme is the point. All 73 images are regenerated by `npm run docs:shots`.
 
-![Gallery overview](assets/gallery/gallery-overview.png)
+### Buttons
 
-### Avatar · Image · AspectRatio · Carousel
+![Buttons — light](assets/gallery/buttons.webp)
 
-![Media components](assets/gallery/gallery-display-media.png)
+![Buttons — dark](assets/gallery/buttons.dark.webp)
 
-### Stat · Tag · Banner · Money · lists
+### Badges · Cards · Skeleton
 
-![Data-display components](assets/gallery/gallery-data-display.png)
+![Badges · Cards · Skeleton — light](assets/gallery/feedback.webp)
 
-### Toggle · Rating · Range · Combobox · Calendar
+![Badges · Cards · Skeleton — dark](assets/gallery/feedback.dark.webp)
 
-![Advanced inputs](assets/gallery/gallery-inputs-advanced.png)
+### Stat · Tag · Money · Banner
 
-### Popover · Dropdown · HoverCard · ContextMenu · Menubar · Command
+![Stat · Tag · Money · Banner — light](assets/gallery/data-display.webp)
 
-![Overlays](assets/gallery/gallery-overlays.png)
+![Stat · Tag · Money · Banner — dark](assets/gallery/data-display.dark.webp)
+
+### Popover · Dropdown · HoverCard
+
+![Popover · Dropdown · HoverCard — light](assets/gallery/overlays.webp)
+
+![Popover · Dropdown · HoverCard — dark](assets/gallery/overlays.dark.webp)
 
 ### DataTable
 
-![DataTable with search, sort and pagination](assets/gallery/gallery-data-table.png)
+![DataTable — light](assets/gallery/data-table.webp)
 
-### Store (Zustand): createStore + createSelectors
+![DataTable — dark](assets/gallery/data-table.dark.webp)
 
-![Foundation / store](assets/gallery/gallery-foundation.png)
+### Dashboard (CSS)
 
-### PWA: install prompt + web push
+![Dashboard (CSS) — light](assets/gallery/dashboard-layout.webp)
 
-![PWA](assets/gallery/gallery-pwa.png)
+![Dashboard (CSS) — dark](assets/gallery/dashboard-layout.dark.webp)
+
+### CodeBlock
+
+![CodeBlock — light](assets/gallery/codeblock.webp)
+
+![CodeBlock — dark](assets/gallery/codeblock.dark.webp)
+
+### Store (Zustand)
+
+![Store (Zustand) — light](assets/gallery/foundation.webp)
+
+![Store (Zustand) — dark](assets/gallery/foundation.dark.webp)
+
+### createTheme · presets · tokens de gráfico
+
+![createTheme · presets · tokens de gráfico — light](assets/gallery/theme-factory.webp)
+
+![createTheme · presets · tokens de gráfico — dark](assets/gallery/theme-factory.dark.webp)
+
+### Tema + i18n
+
+![Tema + i18n — light](assets/gallery/theme-i18n.webp)
+
+![Tema + i18n — dark](assets/gallery/theme-i18n.dark.webp)
+<!-- /gallery -->
 
 ## Recap
 
@@ -172,9 +277,12 @@ gallery doubles as a copy-paste reference. Captures of the running app:
   it plays the role of Storybook.
 - Run it with `npm run build` at the root, then `npm run dev` in
   `examples/gallery` (port `5173`).
-- 22 sections cover components, overlays, media/images, advanced inputs,
+- 63 sections cover components, overlays, media/images, advanced inputs,
   DataTable, store, theme/i18n, live integrations, PWA and utils — each example
-  with copy-paste code next to it.
+  with copy-paste code next to it. The table above is generated from the
+  registry, so it cannot go stale.
+- Every section has a versioned capture under `docs/assets/gallery/`, refreshed
+  by `npm run docs:shots` and placed into the pages by `npm run docs:gallery`.
 - Use it to validate UI at the mobile and desktop breakpoints before closing out
   a visual change.
 

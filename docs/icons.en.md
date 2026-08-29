@@ -16,6 +16,12 @@ config table. There is nothing to import then — all you have is the string
 
 That is what the `tempest-react-sdk/icons` subpath is for. 🚀
 
+<!-- gallery:icons -->
+[![Ícones por slug (/icons) in the gallery](assets/gallery/icons.webp)](gallery.md)
+
+*Section `icons` of the [gallery](gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 ## The shortest path
 
 ```tsx

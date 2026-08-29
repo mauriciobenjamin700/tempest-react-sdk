@@ -15,6 +15,12 @@ navegador já tem, não uma biblioteca que o SDK embarcou.
     duas páginas compartilham o mesmo motor de gravação e a mesma taxonomia de erro — o
     que muda é o dispositivo.
 
+<!-- gallery:device-capture -->
+[![Captura de dispositivo na gallery](assets/gallery/device-capture.webp)](gallery.md)
+
+*Seção `device-capture` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## Ler códigos: comece pelo componente
 
 O SDK já tinha o [`QRCode`](./components/utility.md), que **só codifica**. O

@@ -6,6 +6,12 @@ Use esta página quando precisar **mostrar** uma entidade ou agrupar conteúdo, 
 
 ## `Avatar`
 
+<!-- gallery:display-media -->
+[![Avatar · Image · Carousel na gallery](../assets/gallery/display-media.webp)](../gallery.md)
+
+*Seção `display-media` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: representar visualmente um usuário/entidade em listas, comentários, headers — com foto quando disponível e iniciais coloridas como fallback.
 
 Foto de usuário com fallback automático para iniciais coloridas quando não há `src` ou a imagem falha ao carregar. As iniciais são derivadas de `name` (não de `alt`).
@@ -33,6 +39,12 @@ Foto de usuário com fallback automático para iniciais coloridas quando não h�
     Quando `src` está setado, `alt` é o texto que leitores de tela anunciam. Descreva a pessoa (o nome), não a mídia — evite `"foto de…"`.
 
 ## `Card`
+
+<!-- gallery:feedback -->
+[![Badges · Cards · Skeleton na gallery](../assets/gallery/feedback.webp)](../gallery.md)
+
+*Seção `feedback` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: agrupar conteúdo relacionado num bloco com elevação visual — um item de lista, um painel de dashboard, um container para tabela.
 
@@ -69,6 +81,12 @@ Container com slots de header (`title` + `actions`) e `footer`.
 
 ## `Kbd`
 
+<!-- gallery:inputs-extra -->
+[![Inputs avançados (Date · Pin · Slider) na gallery](../assets/gallery/inputs-extra.webp)](../gallery.md)
+
+*Seção `inputs-extra` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: exibir uma tecla ou combinação (atalhos, dicas de command palette) com a aparência de tecla física.
 
 `<kbd>` estilizado para atalhos de teclado.
@@ -86,6 +104,12 @@ Container com slots de header (`title` + `actions`) e `footer`.
     Para combinações, repita o componente em vez de juntar tudo em texto plano: `<Kbd>Ctrl</Kbd>+<Kbd>K</Kbd>`. Cada `<Kbd>` renderiza um elemento `<kbd>` semântico que leitores de tela anunciam individualmente.
 
 ## `AvatarGroup`
+
+<!-- gallery:capture-media -->
+[![SignaturePad · Lightbox · AvatarGroup na gallery](../assets/gallery/capture-media.webp)](../gallery.md)
+
+*Seção `capture-media` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: mostrar várias pessoas num espaço pequeno — participantes de uma reunião, responsáveis por uma tarefa, membros de um time.
 

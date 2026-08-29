@@ -4,6 +4,54 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **14 links da sidebar da gallery não iam a lugar nenhum.** As seções `chat`,
+  `aichat`, `markdown`, `masonry`, `tour`, `transfer`, `filterbar`, `codeblock`,
+  `qrcode`, `sparkline`, `bar-list`, `audio-capture`, `device-capture` e
+  `br-payments` renderizavam um fragmento React em vez do
+  `<section className="gallery-section" id="…">` que as outras 48 usam, então o
+  `#id` que o registry anuncia não existia no DOM e clicar no item não movia a
+  página. Cada uma passou a ter o elemento âncora e um `<h3>` com o rótulo do
+  registry — o que também torna a seção identificável numa captura. O mesmo vale
+  para `dashboard-layout`, cujo id vivia no `<Example>` interno.
+
+### Interno
+
+- **Captura de tela por seção da gallery, versionada e regenerável**
+  (`npm run docs:shots`). A documentação de um SDK de UI não mostrava nada: as
+  únicas 8 imagens do repositório eram de junho, feitas à mão, cobriam 22 das 63
+  seções e nenhuma página de componente tinha imagem alguma.
+
+  `scripts/docs-shots.mjs` sobe o build de produção da gallery, percorre cada
+  `section.gallery-section[id]` e escreve `docs/assets/gallery/<id>.webp` — 63
+  capturas claras e 10 pares claro/escuro nas seções em que o tema é o assunto.
+  A imagem entra no repositório em vez de ser artefato de build porque o
+  requisito é que ela apareça **no site MkDocs e no `.md` que o GitHub
+  renderiza**; um caminho relativo resolve nos dois.
+
+  WebP sem dependência nova: o Chromium do Playwright encoda por
+  `canvas.toDataURL("image/webp")`, o que corta ~50% dos bytes contra PNG
+  (as 73 imagens somam 3,9 MB; as 8 PNG antigas sozinhas somavam 1,3 MB).
+  Arquivo só é escrito quando o byte muda, então rodar de novo numa gallery
+  intocada deixa o `git status` limpo e não cria blob no histórico.
+
+- **As capturas entram nas páginas por geração, não à mão**
+  (`npm run docs:gallery`). `scripts/docs-gallery.mjs` insere um bloco marcado
+  sob o primeiro componente de cada seção em `docs/components/*.md` e no topo
+  das páginas de hook/receita, nas duas línguas. Os 140 componentes exportados
+  são resolvidos por `keywords` do registry, com 13 desempates explícitos e 8
+  isenções nomeadas — `Kanban` entre elas, que shippou na P1 e nunca ganhou
+  seção de gallery.
+
+  A tabela de seções e o bloco de screenshots de `docs/gallery.md` passaram a
+  sair do registry também: a versão mantida à mão dizia "22 seções" enquanto o
+  app tinha 63.
+
+- **Guard de captura em `test/docs-guard.test.ts`.** Três checagens que impedem
+  a rotina de apodrecer: imagem referenciada que não existe em disco, imagem em
+  disco que ninguém referencia, e seção da gallery sem captura.
+
 ## [0.53.0] — 2026-08-28
 
 ### Adicionado

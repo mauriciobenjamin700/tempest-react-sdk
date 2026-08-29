@@ -5,6 +5,12 @@ Camada de fetch tipada com tratamento de 401 + refresh, parse JSON automático e
 !!! info "Por que um factory em vez de um singleton global?"
     Cada app tem seu próprio `baseURL`, sua forma de guardar o token e sua estratégia de logout. Um factory deixa você criar o cliente uma vez, injetar essas dependências, e exportar uma instância pronta — sem `import` de estado global espalhado pelo código.
 
+<!-- gallery:recipe-http -->
+[![HTTP client na gallery](assets/gallery/recipe-http.webp)](gallery.md)
+
+*Seção `recipe-http` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## Quando usar
 
 - Toda chamada HTTP do app passa por `createApiClient`.

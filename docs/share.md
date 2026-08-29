@@ -5,6 +5,12 @@
 !!! info "Por que envolver `navigator.share`?"
     A API nativa rejeita a promise tanto quando o usuário cancela o diálogo quanto em erros reais, e nem todo browser a expõe. Tratar isso manualmente vira um `try/catch` cheio de checagens em cada call site. `share()` colapsa tudo num objeto `ShareResult` com booleanos claros (`shared` / `unsupported` / `cancelled`), então o seu código vira um `if` simples.
 
+<!-- gallery:meta -->
+[![Network · Clipboard · Share na gallery](assets/gallery/meta.webp)](gallery.md)
+
+*Seção `meta` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## Uso
 
 ```ts

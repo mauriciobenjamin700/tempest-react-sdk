@@ -5,6 +5,12 @@ Módulo de geolocalização **100% self-hosted**: coleta de latitude/longitude p
 !!! info "Por que tile-free?"
     Qualquer mapa com imagem (OpenStreetMap, Mapbox, Google) baixa _tiles_ de um servidor externo. Isso colide com o requisito de "nada externo". Por isso o `TrajectoryMap` desenha a trajetória projetada em SVG (Web Mercator) sem fundo — zero request. Se você **hospeda seu próprio** servidor de tiles, dá pra ligar a camada Leaflet opcional passando `tileUrl`.
 
+<!-- gallery:geo -->
+[![Geolocalização (mapas & trajetória) na gallery](assets/gallery/geo.webp)](gallery.md)
+
+*Seção `geo` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## Quando usar
 
 - Coletar a posição do usuário (uma vez ou contínua) via `navigator.geolocation`.

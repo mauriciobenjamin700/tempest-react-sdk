@@ -5,6 +5,12 @@ Typed fetch layer with 401 + refresh handling, automatic JSON parsing, and uploa
 !!! info "Why a factory instead of a global singleton?"
     Each app has its own `baseURL`, its own way to store the token, and its own logout strategy. A factory lets you create the client once, inject those dependencies, and export a ready instance — no global-state imports scattered across the code.
 
+<!-- gallery:recipe-http -->
+[![HTTP client in the gallery](assets/gallery/recipe-http.webp)](gallery.md)
+
+*Section `recipe-http` of the [gallery](gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 ## When to use
 
 - Every HTTP call in the app goes through `createApiClient`.

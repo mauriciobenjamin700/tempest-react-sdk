@@ -6,6 +6,12 @@ Small, focused components: some render bits of UI (`Money`, `RelativeTime`, `Cop
 
 ### `CopyButton`
 
+<!-- gallery:data-display -->
+[![Stat · Tag · Money · Banner in the gallery](../assets/gallery/data-display.webp)](../gallery.md)
+
+*Section `data-display` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 Button that copies a string to the clipboard and shows a transient "copied" state.
 
 ```tsx
@@ -82,6 +88,12 @@ import { TruncateText } from "tempest-react-sdk";
 Extends `HTMLAttributes<HTMLDivElement>`.
 
 ### `VisuallyHidden`
+
+<!-- gallery:headless -->
+[![Headless & render-props in the gallery](../assets/gallery/headless.webp)](../gallery.md)
+
+*Section `headless` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 Content hidden visually but available to screen readers — the `sr-only` pattern.
 
@@ -189,6 +201,12 @@ import { For } from "tempest-react-sdk";
 
 ### `ErrorText`
 
+<!-- gallery:inputs-extra -->
+[![Inputs avançados (Date · Pin · Slider) in the gallery](../assets/gallery/inputs-extra.webp)](../gallery.md)
+
+*Section `inputs-extra` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 A form-field error message as `<p role="alert">`. Renders `null` when there are no children — place it unconditionally below a field and it only appears when an error is present.
 
 ```tsx
@@ -209,6 +227,12 @@ Extends `HTMLAttributes<HTMLParagraphElement>`. Styled with the `--tempest-dange
 ## Media / content
 
 ### `Image`
+
+<!-- gallery:display-media -->
+[![Avatar · Image · Carousel in the gallery](../assets/gallery/display-media.webp)](../gallery.md)
+
+*Section `display-media` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 `<img>` with native lazy loading and a one-shot fallback.
 
@@ -275,6 +299,12 @@ import { DescriptionList } from "tempest-react-sdk";
 
 ### `CodeBlock`
 
+<!-- gallery:codeblock -->
+[![CodeBlock in the gallery](../assets/gallery/codeblock.webp)](../gallery.md)
+
+*Section `codeblock` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 A read-only code sample: syntax colours, optional line numbers, copy button.
 
 ```tsx
@@ -311,6 +341,12 @@ Grammars: `typescript` · `javascript` · `tsx` · `jsx` · `json` · `css` · `
     `--tempest-code-*`. The chart ramp is validated at the **mark** floor (3:1); this is text and needs **4.5:1**. Measured as text the ramp fails in both modes — a keyword came out at 3.47:1 on the dark surface and a string at 2.03:1 on the light one. Each code token was solved in OKLCH against **both grounds** it can land on: the block surface, and a highlighted line once the wash composites over it. See [style tokens](../styles.en.md).
 
 ### `QRCode`
+
+<!-- gallery:qrcode -->
+[![QRCode in the gallery](../assets/gallery/qrcode.webp)](../gallery.md)
+
+*Section `qrcode` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 A QR symbol encoded **in the browser** and drawn as SVG. No dependency and no image-service round trip — a remote generator would hand the payload (a payment link, a session token, an invite) to a third party.
 

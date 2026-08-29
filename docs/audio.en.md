@@ -12,6 +12,12 @@ Audio in the browser, both directions.
 !!! info "Why a wrapper around `new Audio()`?"
     Playing sound in the browser runs into the _autoplay policy_ and leaking `Audio` elements. The SDK encapsulates it: it tracks the current clip (so you can `stop` it), normalizes volume, handles the autoplay block by returning `null` instead of throwing, and cleans up on unmount when you use the hook.
 
+<!-- gallery:audio-capture -->
+[![Áudio (gravação) in the gallery](assets/gallery/audio-capture.webp)](gallery.md)
+
+*Section `audio-capture` of the [gallery](gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 ## `playAudio` — one-off on the shared player
 
 Ideal for a sound fired by an event, with no UI state:

@@ -16,6 +16,12 @@ São cinco peças, todas desacopladas entre si:
     primitivos compõem livremente: você usa o store sem o guard, o guard sem o
     JWT decoder, e por aí vai.
 
+<!-- gallery:recipe-auth -->
+[![Auth & Access Control na gallery](assets/gallery/recipe-auth.webp)](gallery.md)
+
+*Seção `recipe-auth` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## Store — `createAuthStore<TUser>`
 
 O SDK **não é dono do seu modelo de usuário**. Você passa o `TUser` e ganha um store Zustand tipado, já com `persist` configurado.

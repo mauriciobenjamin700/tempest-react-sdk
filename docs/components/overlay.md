@@ -13,6 +13,12 @@ Os três compartilham o mesmo motor (portal para `document.body` + backdrop + Es
 
 ## `Modal`
 
+<!-- gallery:modal -->
+[![Modal & Toast na gallery](../assets/gallery/modal.webp)](../gallery.md)
+
+*Seção `modal` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: um fluxo central que pausa o contexto — criar/editar um registro, um wizard curto, um form que exige atenção total.
 
 Portal + backdrop + Esc + focus trap + scroll lock.
@@ -57,6 +63,12 @@ const [open, setOpen] = useState(false);
 
 ## `Drawer`
 
+<!-- gallery:navigation -->
+[![AppBar · Tabs · Tooltip · Drawer na gallery](../assets/gallery/navigation.webp)](../gallery.md)
+
+*Seção `navigation` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: um painel lateral persistente que complementa a tela de fundo — filtros, detalhes de um item, navegação secundária. Encosta numa borda em vez de centralizar.
 
 Side drawer. `placement: left/right/top/bottom`. Auto-switch pra bottom-sheet em mobile via `mobilePlacement`.
@@ -92,6 +104,12 @@ Side drawer. `placement: left/right/top/bottom`. Auto-switch pra bottom-sheet em
     Diferente do `Modal`, o `Drawer` não tem prop `size` — a largura/altura segue o conteúdo (e o CSS do placement). Para um painel mobile-first com largura total e altura limitada, prefira `BottomSheet` ou `mobilePlacement="bottom"`.
 
 ## `BottomSheet`
+
+<!-- gallery:feedback-extra -->
+[![Alert · Timeline · BottomSheet na gallery](../assets/gallery/feedback-extra.webp)](../gallery.md)
+
+*Seção `feedback-extra` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: ações ou escolhas mobile-first que sobem do rodapé — menu de compartilhar, opções de um item, seletor curto. É o padrão nativo de iOS/Android.
 
@@ -176,6 +194,12 @@ function DeleteButton({ id }: { id: string }) {
     `useModals()` lança um erro se chamado fora de um `<ModalsProvider>`. Monte o provider uma única vez perto da raiz do app.
 
 ## `Lightbox`
+
+<!-- gallery:capture-media -->
+[![SignaturePad · Lightbox · AvatarGroup na gallery](../assets/gallery/capture-media.webp)](../gallery.md)
+
+*Seção `capture-media` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: visualizar foto em tela cheia com navegação — galeria de imóvel, anexos de uma ocorrência, fotos de vistoria.
 

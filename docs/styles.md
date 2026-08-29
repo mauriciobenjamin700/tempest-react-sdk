@@ -18,6 +18,12 @@ Pronto. Tudo o que está abaixo já está disponível na sua aplicação.
     [política de versionamento](#politica-de-versionamento-de-tokens) no fim da
     página antes de depender de um token específico.
 
+<!-- gallery:utilities-css -->
+[![utilities.css (camada opt-in) na gallery](assets/gallery/utilities-css.webp)](gallery.md)
+
+*Seção `utilities-css` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## Sumário
 
 - [Cor](#cor)

@@ -649,6 +649,12 @@ Orçamento monitorado por `size-limit` no CI.
 !!! info "Por que um wrapper em volta de `new Audio()`?"
     Tocar som no navegador esbarra na _autoplay policy_ e em vazamento de elementos `Audio`. O SDK encapsula: rastreia o clipe atual (pra dar `stop`), normaliza volume, trata o bloqueio de autoplay devolvendo `null` em vez de estourar, e limpa no unmount quando você usa o hook.
 
+<!-- gallery:audio-capture -->
+[![Áudio (gravação) na gallery](assets/gallery/audio-capture.webp)](gallery.md)
+
+*Seção `audio-capture` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## `playAudio` — one-off no player compartilhado
 
 Ideal pra um som disparado por um evento, sem estado de UI:
@@ -1143,6 +1149,12 @@ São cinco peças, todas desacopladas entre si:
     primitivos compõem livremente: você usa o store sem o guard, o guard sem o
     JWT decoder, e por aí vai.
 
+<!-- gallery:recipe-auth -->
+[![Auth & Access Control na gallery](assets/gallery/recipe-auth.webp)](gallery.md)
+
+*Seção `recipe-auth` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## Store — `createAuthStore<TUser>`
 
 O SDK **não é dono do seu modelo de usuário**. Você passa o `TUser` e ganha um store Zustand tipado, já com `persist` configurado.
@@ -1433,6 +1445,12 @@ Os quatro trilhos que todo produto brasileiro acaba precisando: **Pix**, **bolet
     Nada aqui consulta o Bacen, a SEFAZ ou uma API de PSP. São **codificadores e validadores locais**: eles montam a string certa, conferem os dígitos verificadores e leem os campos. Se um boleto existe, está registrado ou já foi pago — só o banco responde. Se uma NF-e foi autorizada — só a SEFAZ.
 
 ---
+
+<!-- gallery:br-payments -->
+[![Pagamentos BR (Pix · boleto · NFe) na gallery](assets/gallery/br-payments.webp)](gallery.md)
+
+*Seção `br-payments` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 ## Parte 1 — Pix
 
@@ -1926,6 +1944,12 @@ Mapa nacional **clicável** das 27 unidades federativas + dataset de estados e c
     import { BrazilMap, citiesByUf } from "tempest-react-sdk/br";
     ```
 
+<!-- gallery:brazil-map -->
+[![Mapa do Brasil (UF + cidades) na gallery](assets/gallery/brazil-map.webp)](gallery.md)
+
+*Seção `brazil-map` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## Quando usar
 
 - Um **mapa do Brasil clicável** pra selecionar um estado (dashboards, filtros regionais).
@@ -2417,6 +2441,12 @@ tooltip e cores pra você.
 Você não monta `<XAxis>`/`<YAxis>`/`<Tooltip>` na mão: passa `data`, diz qual
 chave é o eixo (`index`) e quais chaves virar séries (`categories`), e o
 componente faz o resto.
+
+<!-- gallery:dataviz-scales -->
+[![Escalas contínuas (heatmap) na gallery](assets/gallery/dataviz-scales.webp)](gallery.md)
+
+*Seção `dataviz-scales` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 ## Por que um subpath separado
 
@@ -3509,6 +3539,12 @@ Use esta página quando precisar que o usuário **faça** algo. Para entrada de 
 
 ## `Button`
 
+<!-- gallery:buttons -->
+[![Buttons na gallery](../assets/gallery/buttons.webp)](../gallery.md)
+
+*Seção `buttons` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: a ação primária ou secundária de qualquer tela — submeter um form, abrir um modal, navegar. É o gatilho de ação por padrão.
 
 Botão primário com variants, sizes, estado de loading.
@@ -3554,6 +3590,12 @@ import { Plus, Trash } from "lucide-react";
 
 ## `FloatingActionButton`
 
+<!-- gallery:material -->
+[![Material (ListTile · FAB · Rail) na gallery](../assets/gallery/material.webp)](../gallery.md)
+
+*Seção `material` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: a ação primária e persistente de uma tela (criar, compor, adicionar) que deve ficar sempre acessível, flutuando sobre o conteúdo. Redondo quando só tem ícone, ou estendido (pílula) quando tem `label`.
 
 Por padrão fica fixo no canto inferior direito; passe `position="none"` para posicioná-lo inline (ex.: dentro de um `NavigationRail`). Espalha todos os props nativos de `<button>` (`onClick`, `disabled`, etc.).
@@ -3580,6 +3622,12 @@ import { Plus } from "lucide-react";
 
 ## `Tooltip`
 
+<!-- gallery:navigation -->
+[![AppBar · Tabs · Tooltip · Drawer na gallery](../assets/gallery/navigation.webp)](../gallery.md)
+
+*Seção `navigation` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: dar contexto extra a um controle cujo significado não é óbvio — tipicamente botões `iconOnly`. Nunca para informação crítica.
 
 Hover tooltip portalado. Aparece no hover **e** no foco por teclado.
@@ -3603,6 +3651,12 @@ Hover tooltip portalado. Aparece no hover **e** no foco por teclado.
     Usuários de touch não têm hover — eles nunca verão o conteúdo. Tooltip é reforço, não a única fonte de uma informação necessária para concluir a tarefa.
 
 ## `DropdownMenu`
+
+<!-- gallery:overlays -->
+[![Popover · Dropdown · HoverCard na gallery](../assets/gallery/overlays.webp)](../gallery.md)
+
+*Seção `overlays` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: agrupar ações secundárias atrás de um único gatilho ("Mais ações", menu de perfil) quando elas não cabem na barra principal.
 
@@ -3667,6 +3721,12 @@ Painel flutuante genérico (anchor + outside-click + Esc dismiss). Funciona cont
 
 ## `ConfirmDialog`
 
+<!-- gallery:modal -->
+[![Modal & Toast na gallery](../assets/gallery/modal.webp)](../gallery.md)
+
+*Seção `modal` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: a última barreira antes de uma ação irreversível ou cara (excluir, sobrescrever, cancelar). Sempre com `variant="danger"` quando destrutiva.
 
 Prompt destrutivo pré-montado em cima do [`Modal`](./overlay.md) (texto + 2 botões).
@@ -3704,6 +3764,12 @@ Prompt destrutivo pré-montado em cima do [`Modal`](./overlay.md) (texto + 2 bot
     `onConfirm` aceita uma promise, mas o `ConfirmDialog` não gerencia o estado de loading sozinho — passe `loading={deleting}` controlado pelo seu estado para travar ambos os botões enquanto a ação assíncrona corre.
 
 ## `InstallButton`
+
+<!-- gallery:pwa -->
+[![PWA: Install · Push na gallery](../assets/gallery/pwa.webp)](../gallery.md)
+
+*Seção `pwa` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 Botão de instalação do PWA, ligado ao prompt `beforeinstallprompt` ([`useBeforeInstallPrompt`](../hooks.md)). **Renderiza `null`** quando o app não pode ser instalado — prompt ainda não capturado, já instalado, ou rodando standalone — então você o solta na UI sem guardar visibilidade. Herda todas as props do [`Button`](#button).
 
@@ -3773,6 +3839,12 @@ Relacionados: [overlay](./overlay.md) (`ConfirmDialog` é construído sobre `Mod
 `Chat` para thread entre pessoas e `AIChat` para conversa com um modelo. São componentes diferentes, não variantes — e é por isso que têm página própria.
 
 ## `Chat`
+
+<!-- gallery:chat -->
+[![Chat na gallery](../assets/gallery/chat.webp)](../gallery.md)
+
+*Seção `chat` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: uma thread de mensagens — suporte, chat interno, comentário de documento, histórico de atendimento.
 
@@ -3863,6 +3935,12 @@ Exportado à parte pra quem monta o próprio layout (composer fixo no rodapé de
     Compondo japonês ou coreano, `Enter` confirma a palavra candidata. Enviar ali publica meia palavra e come a confirmação — daí a checagem de `isComposing`.
 
 ## `AIChat`
+
+<!-- gallery:aichat -->
+[![AIChat na gallery](../assets/gallery/aichat.webp)](../gallery.md)
+
+*Seção `aichat` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: conversa com um **modelo** — copiloto do seu app, assistente de suporte, busca conversacional. É a forma que o ChatGPT, o Claude e o DeepSeek convergiram.
 
@@ -4158,6 +4236,12 @@ Tabela stateful, assistente em passos, markdown, mural, tour guiado, transferên
 
 ## `DataTable<T>`
 
+<!-- gallery:data-table -->
+[![DataTable na gallery](../assets/gallery/data-table.webp)](../gallery.md)
+
+*Seção `data-table` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 Tabela de dados stateful construída sobre o `Table` headless. Adiciona busca client-side, ordenação por clique no cabeçalho e paginação, delegando toda a marcação à `Table` subjacente.
 
 ```tsx
@@ -4204,6 +4288,12 @@ const columns: DataTableColumn<User>[] = [
     Clicar um cabeçalho ordenável cicla asc → desc → sem ordenação. A busca combina substring case-insensitive nas `searchKeys` (ou em toda coluna string/number quando omitidas). A paginação some quando o resultado cabe em uma única página.
 
 ## `Wizard`
+
+<!-- gallery:hierarchy-flow -->
+[![TreeView · Wizard na gallery](../assets/gallery/hierarchy-flow.webp)](../gallery.md)
+
+*Seção `hierarchy-flow` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 Fluxo multi-passo: indicador, um corpo por vez e navegação que respeita **validação por passo**. O `Stepper` desenha o indicador; o `Wizard` é dono do que todo app reescrevia — índice ativo, gate assíncrono antes de avançar, botões desabilitados/pendentes e a chamada de conclusão.
 
@@ -4293,6 +4383,12 @@ export function CadastroEmEtapas() {
 
 ## `Markdown`
 
+<!-- gallery:markdown -->
+[![Markdown na gallery](../assets/gallery/markdown.webp)](../gallery.md)
+
+*Seção `markdown` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: renderizar texto que veio de gente — comentário, descrição de ticket, release notes, corpo de mensagem.
 
 Subconjunto de Markdown: headings, parágrafos, listas (aninhadas e numeradas), citação, código cercado (via [`CodeBlock`](utility.md#codeblock)), regra, tabela GFM com alinhamento, e o inline usual (`**forte**`, `*itálico*`, `` `código` ``, `~~riscado~~`, link, imagem, autolink, quebra forçada).
@@ -4332,6 +4428,12 @@ import { Markdown } from "tempest-react-sdk";
 
 ## `Masonry`
 
+<!-- gallery:masonry -->
+[![Masonry na gallery](../assets/gallery/masonry.webp)](../gallery.md)
+
+*Seção `masonry` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: cards de **altura desigual** que não têm ordem entre si — mural de notas, galeria de fotos, cartões de dashboard.
 
 Mede os cards e joga cada um na coluna mais curta, então a borda de baixo fica o mais reta que o conteúdo permite.
@@ -4368,6 +4470,12 @@ import { Masonry, Card } from "tempest-react-sdk";
     Cada card é observado individualmente: altura medida na montagem erra justamente no caso da imagem que ainda estava baixando. O primeiro paint usa peso 1 pra todos (nunca aparece vazio) e o passe medido redistribui.
 
 ## `Tour`
+
+<!-- gallery:tour -->
+[![Tour na gallery](../assets/gallery/tour.webp)](../gallery.md)
+
+*Seção `tour` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: apresentar uma tela nova — onboarding de primeiro acesso, um recurso que mudou de lugar, um fluxo que ninguém acha sozinho.
 
@@ -4428,6 +4536,12 @@ export function Pedidos() {
     O componente recebe `open` e emite `onClose`/`onFinish`. Gravar a flag é uma linha no app (`storage.set`) e seria um default errado aqui — a chave tem versão, escopo por usuário, e às vezes mora no backend.
 
 ## `Transfer`
+
+<!-- gallery:transfer -->
+[![Transfer na gallery](../assets/gallery/transfer.webp)](../gallery.md)
+
+*Seção `transfer` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: escolher um **subconjunto** de um catálogo — permissões de um perfil, cidades de uma rota, membros de um grupo, colunas de um relatório.
 
@@ -4491,6 +4605,12 @@ export function PermissoesDoPerfil() {
     Um teclado que chegasse nos botões antes de ver o que eles movem teria que voltar; e um leitor de tela leria "mover marcados pra direita" sem ideia do que está marcado. Cada painel é uma `region` nomeada pelo título, e cada movimento é anunciado num `role="status"`.
 
 ## `FilterBar`
+
+<!-- gallery:filterbar -->
+[![FilterBar na gallery](../assets/gallery/filterbar.webp)](../gallery.md)
+
+*Seção `filterbar` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: filtrar uma lista de admin — pedidos por status e período, usuários por papel, títulos por vencimento.
 
@@ -4712,6 +4832,12 @@ Toggles, label, regiões expansíveis, menus disparados por interação e a pale
 
 ## `Toggle`
 
+<!-- gallery:form-primitives -->
+[![Checkbox · Radio · Switch na gallery](../assets/gallery/form-primitives.webp)](../gallery.md)
+
+*Seção `form-primitives` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 Botão de dois estados — como um checkbox estilizado de botão. Controlado (`pressed` + `onPressedChange`) ou não-controlado (`defaultPressed`).
 
 ```tsx
@@ -4741,6 +4867,12 @@ Demais props de `<button>` são repassadas.
     Renderiza um `<button type="button">` nativo expondo o estado via `aria-pressed` e `data-state="on"|"off"`.
 
 ## `ToggleGroup` (+ `ToggleGroupItem`)
+
+<!-- gallery:feedback-extra -->
+[![Alert · Timeline · BottomSheet na gallery](../assets/gallery/feedback-extra.webp)](../gallery.md)
+
+*Seção `feedback-extra` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 Conjunto de toggles que compartilham estado de seleção via contexto. Modo `single` (valor `string`) ou `multiple` (valor `string[]`).
 
@@ -4777,6 +4909,12 @@ import { ToggleGroup, ToggleGroupItem } from "tempest-react-sdk";
 
 ## `Label`
 
+<!-- gallery:inputs-extra -->
+[![Inputs avançados (Date · Pin · Slider) na gallery](../assets/gallery/inputs-extra.webp)](../gallery.md)
+
+*Seção `inputs-extra` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 Um `<label>` de formulário. Associe a um controle via `htmlFor`. Com `required`, anexa um asterisco decorativo (`aria-hidden`).
 
 ```tsx
@@ -4794,6 +4932,12 @@ import { Label } from "tempest-react-sdk";
 Demais props de `<label>` (incl. `htmlFor`) são repassadas.
 
 ## `Collapsible`
+
+<!-- gallery:disclosure -->
+[![Accordion · Collapsible · Scroll na gallery](../assets/gallery/disclosure.webp)](../gallery.md)
+
+*Seção `disclosure` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 Uma única região expandir/recolher — alternativa mais leve ao `Accordion` para um bloco. Controlado (`open` + `onOpenChange`) ou não-controlado (`defaultOpen`).
 
@@ -4817,6 +4961,12 @@ import { Collapsible } from "tempest-react-sdk";
     O gatilho é um `<button aria-expanded aria-controls>` ligado a uma `role="region"` de mesmo id; a região fica `hidden` enquanto fechada.
 
 ## `ContextMenu`
+
+<!-- gallery:overlays -->
+[![Popover · Dropdown · HoverCard na gallery](../assets/gallery/overlays.webp)](../gallery.md)
+
+*Seção `overlays` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 Menu de clique direito. Abre na posição do cursor via `onContextMenu` (menu nativo suprimido), renderizado por um `Portal`. Fecha no clique fora, Escape ou seleção.
 
@@ -4929,6 +5079,12 @@ Rolagem estilizada, painéis redimensionáveis, calendário e agenda. Dão forma
 
 ## `ScrollArea`
 
+<!-- gallery:disclosure -->
+[![Accordion · Collapsible · Scroll na gallery](../assets/gallery/disclosure.webp)](../gallery.md)
+
+*Seção `disclosure` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 Contêiner de rolagem estilizado que transborda no eixo escolhido e renderiza uma barra de rolagem fina (WebKit). Repassa `className`, `style` e `ref` ao `<div>`.
 
 ```tsx
@@ -4956,6 +5112,12 @@ Demais props de `<div>` são repassadas.
 
 ## `Resizable`
 
+<!-- gallery:headless -->
+[![Headless & render-props na gallery](../assets/gallery/headless.webp)](../gallery.md)
+
+*Seção `headless` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 Layout de dois painéis com divisor arrastável. O primeiro painel é dimensionado via `flex-basis` em porcentagem; o segundo preenche o resto. Arraste com o ponteiro ou foque o divisor e use as setas (passo de 2%).
 
 ```tsx
@@ -4979,6 +5141,12 @@ import { Resizable } from "tempest-react-sdk";
     `children` é uma tupla `[ReactNode, ReactNode]`. O tamanho é sempre fixado em `[min, max]`.
 
 ## `Calendar`
+
+<!-- gallery:inputs-extra -->
+[![Inputs avançados (Date · Pin · Slider) na gallery](../assets/gallery/inputs-extra.webp)](../gallery.md)
+
+*Seção `inputs-extra` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 Seletor de data em grade mensal. Cabeçalho com mês/ano + botões prev/next, linha de dias da semana e grade 6×7 de botões de dia. Seleção e mês visível controláveis ou não-controlados. Aritmética com `Date` puro — sem bibliotecas externas.
 
@@ -5006,6 +5174,12 @@ const [date, setDate] = useState<Date>();
     Setas movem o foco por dia (←/→) ou por semana (↑/↓); Enter/Espaço seleciona o dia focado.
 
 ## `Scheduler`
+
+<!-- gallery:scheduler -->
+[![Scheduler (agenda) na gallery](../assets/gallery/scheduler.webp)](../gallery.md)
+
+*Seção `scheduler` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 Agenda: eventos posicionados numa grade de tempo ao longo de dias consecutivos. O `Calendar` acima é um **seletor de data** — responde "qual dia?". Este responde "o que tem nesses dias, e quando", o que exige estrutura diferente: eixo vertical de tempo, evento dimensionado pela duração e eventos sobrepostos lado a lado.
 
@@ -5098,6 +5272,12 @@ Navegação com dropdowns, barra de menus e carrossel. Três formas de levar a p
 
 ## `NavigationMenu`
 
+<!-- gallery:nav-extra -->
+[![Navbar · Sidebar · Bottom nav na gallery](../assets/gallery/nav-extra.webp)](../gallery.md)
+
+*Seção `nav-extra` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 Menu de navegação horizontal com submenus dropdown via hover/clique/foco. Itens de topo em `<nav><ul>`; itens com `children` abrem um painel `role="menu"`. Apenas um painel aberto por vez.
 
 ```tsx
@@ -5128,6 +5308,12 @@ import { NavigationMenu } from "tempest-react-sdk";
 
 ## `Menubar`
 
+<!-- gallery:overlays -->
+[![Popover · Dropdown · HoverCard na gallery](../assets/gallery/overlays.webp)](../gallery.md)
+
+*Seção `overlays` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 Barra de menus de aplicação (estilo Arquivo / Editar). `role="menubar"`; cada menu é um botão que abre um dropdown. Setas ←/→ navegam entre menus (com wrap).
 
 ```tsx
@@ -5154,6 +5340,12 @@ import { Menubar } from "tempest-react-sdk";
 `MenubarMenu` = `{ label: ReactNode; items: MenubarItem[] }`. `MenubarItem` = `{ label: ReactNode; onSelect?: () => void; disabled?: boolean; shortcut?: string }` ou `{ separator: true }`.
 
 ## `Carousel`
+
+<!-- gallery:display-media -->
+[![Avatar · Image · Carousel na gallery](../assets/gallery/display-media.webp)](../gallery.md)
+
+*Seção `display-media` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 Slider horizontal de conteúdo mostrando um slide por vez. A track translada pelo índice ativo. Setas prev/next (desabilitadas nas pontas, salvo `loop`) e indicadores em dots. Controlado (`index`) ou não-controlado (`defaultIndex`).
 
@@ -5213,6 +5405,12 @@ Componentes de **dados** apresentam coleções — várias entidades do mesmo ti
 Use esta página quando precisa **listar/comparar** registros. Para um único registro use um [`Card`](./identity.md); para entrada de dados, [inputs](./inputs.md).
 
 ## `Table<T>`
+
+<!-- gallery:table -->
+[![Table & Pagination na gallery](../assets/gallery/table.webp)](../gallery.md)
+
+*Seção `table` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: comparar registros estruturados campo a campo em colunas — pedidos, usuários, transações. Tipada por `T`, com prioridade responsiva por coluna e stack opcional em mobile.
 
@@ -5293,6 +5491,12 @@ const columns: TableColumn<Order>[] = [
 
 ## `VirtualList`
 
+<!-- gallery:advanced -->
+[![Stepper · Progress · VirtualList na gallery](../assets/gallery/advanced.webp)](../gallery.md)
+
+*Seção `advanced` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: rolar listas muito longas (500+ itens) de linhas com **altura fixa** sem inundar o DOM — chats, logs, feeds infinitos.
 
 Renderiza apenas a janela visível + um pequeno buffer de overscan. Cada linha precisa de altura fixa (`itemHeight`); o container precisa de uma altura (`height`).
@@ -5324,6 +5528,12 @@ Renderiza apenas a janela visível + um pequeno buffer de overscan. Cada linha p
     Itens fora da viewport não estão no DOM, então o `Ctrl+F` do navegador não os encontra. Abaixo de ~500 itens, prefira renderização normal: o ganho de perf é negligível e você mantém a busca nativa.
 
 ## `VirtualTable<T>`
+
+<!-- gallery:virtual-table -->
+[![VirtualTable (40k linhas) na gallery](../assets/gallery/virtual-table.webp)](../gallery.md)
+
+*Seção `virtual-table` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: uma tabela de **milhares de linhas** numa única grade rolável — extrato, log de auditoria, exportação bruta. O `Table` renderiza tudo o que recebe e o `DataTable` pagina pra manter esse número pequeno; nenhum dos dois responde "me mostre as 40 000 linhas de uma vez".
 
@@ -5383,6 +5593,12 @@ Coluna: `{ key, header, render?, sortable?, align?, width? }`.
 Os dois ordenam com o mesmo comparador (`compareValues`), então "ordenado" quer dizer a mesma coisa nos dois — número numericamente, data por timestamp, string com `localeCompare` e `numeric: true`.
 
 ## `DataTable<T>` — edição inline
+
+<!-- gallery:data-table -->
+[![DataTable na gallery](../assets/gallery/data-table.webp)](../gallery.md)
+
+*Seção `data-table` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: tela de admin. Você já lista os registros com `DataTable`; agora
 > alguém precisa corrigir um nome sem abrir um modal por linha.
@@ -5653,6 +5869,12 @@ export function Pessoas() {
 
 ## `BarList`
 
+<!-- gallery:bar-list -->
+[![BarList (distribuição ranqueada) na gallery](../assets/gallery/bar-list.webp)](../gallery.md)
+
+*Seção `bar-list` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: distribuição ranqueada — usuários por plano, erros por endpoint,
 > vendas por categoria. É o gráfico mais comum de painel, e o único que costuma ser
 > reescrito quatro vezes no mesmo dashboard, cada vez com seu CSS e seu `.sort()`.
@@ -5741,6 +5963,12 @@ import { BarList } from "tempest-react-sdk";
 
 ## `ListTile`
 
+<!-- gallery:material -->
+[![Material (ListTile · FAB · Rail) na gallery](../assets/gallery/material.webp)](../gallery.md)
+
+*Seção `material` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: a linha canônica de lista do Material — um item com slot à esquerda (ícone/avatar), título com subtítulo opcional e slot à direita (ícone, switch, meta). Ideal para listas de configurações, contatos ou menus.
 
 Renderiza como `<div>` estático por padrão; ao receber `onClick` vira um `<button>` de largura total, acessível por teclado.
@@ -5781,6 +6009,12 @@ function NotificationsRow() {
 
 ## `Accordion`
 
+<!-- gallery:disclosure -->
+[![Accordion · Collapsible · Scroll na gallery](../assets/gallery/disclosure.webp)](../gallery.md)
+
+*Seção `disclosure` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: condensar conteúdo seccionável que o usuário expande sob demanda — FAQs, formulários longos em etapas, painéis de configurações.
 
 Modo single (default) ou `multiple`. Controlado via `value` + `onChange`, ou não-controlado via `defaultValue`.
@@ -5811,6 +6045,12 @@ Modo single (default) ou `multiple`. Controlado via `value` + `onChange`, ou nã
 
 ## `Timeline`
 
+<!-- gallery:feedback-extra -->
+[![Alert · Timeline · BottomSheet na gallery](../assets/gallery/feedback-extra.webp)](../gallery.md)
+
+*Seção `feedback-extra` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: mostrar uma sequência de eventos no tempo — rastreio de pedido, log de auditoria, feed de atividade. Cada entrada tem marker colorido, título, descrição e meta opcionais.
 
 Feed vertical com markers coloridos. Renderiza como `<ol>` semântica (cada item é `<li>`).
@@ -5840,6 +6080,12 @@ Feed vertical com markers coloridos. Renderiza como `<ol>` semântica (cada item
 `TimelineItem = { id, title, description?, meta?, icon?, marker?: "primary" \| "success" \| "warning" \| "danger" \| "neutral" }`.
 
 ## `TreeView`
+
+<!-- gallery:hierarchy-flow -->
+[![TreeView · Wizard na gallery](../assets/gallery/hierarchy-flow.webp)](../gallery.md)
+
+*Seção `hierarchy-flow` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: dados **hierárquicos** — árvore de categorias, permissões por módulo, pastas, organograma. Quando o dado é uma lista plana, `Table` ou `ListTile` servem melhor.
 
@@ -5903,6 +6149,12 @@ export function PermissoesDoPapel() {
     Ele é decoração (`aria-hidden`): a linha já carrega `aria-expanded`, então um segundo controle focável ali só adicionaria ruído no leitor de tela, duplicando uma ação que o teclado já tem. Clique nele funciona (com o evento parado, então expande sem selecionar).
 
 ## `Sparkline`
+
+<!-- gallery:sparkline -->
+[![Sparkline (mini-gráfico inline) na gallery](../assets/gallery/sparkline.webp)](../gallery.md)
+
+*Seção `sparkline` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: mostrar a **forma** de uma série ao lado do número que ela explica — uma célula de tabela, um card de métrica, uma linha de lista. Não é substituto de gráfico: se o leitor precisa ler valores no eixo, use [`LineChart`](../charts.md).
 
@@ -6039,6 +6291,12 @@ Componentes que **comunicam estado** ao usuário — o que aconteceu, o que est�
 
 ## `Alert`
 
+<!-- gallery:feedback-extra -->
+[![Alert · Timeline · BottomSheet na gallery](../assets/gallery/feedback-extra.webp)](../gallery.md)
+
+*Seção `feedback-extra` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 **Quando usar:** mensagem ligada a um contexto específico da tela (erro de formulário, resultado de uma operação numa seção). Fica visível até a condição mudar.
 
 Banner inline. Diferente de `Banner` (top-of-page) e `Toast` (transient).
@@ -6073,6 +6331,12 @@ Banner inline. Diferente de `Banner` (top-of-page) e `Toast` (transient).
 
 ## `Banner`
 
+<!-- gallery:data-display -->
+[![Stat · Tag · Money · Banner na gallery](../assets/gallery/data-display.webp)](../gallery.md)
+
+*Seção `data-display` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 Persistente, top-of-page. Use para environment indicators, manutenção, expiração.
 
 ```tsx
@@ -6089,6 +6353,12 @@ Persistente, top-of-page. Use para environment indicators, manutenção, expira�
 Mesmas variants do Alert.
 
 ## `Badge`
+
+<!-- gallery:feedback -->
+[![Badges · Cards · Skeleton na gallery](../assets/gallery/feedback.webp)](../gallery.md)
+
+*Seção `feedback` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 **Quando usar:** rótulo de status curto e somente-leitura ao lado de um item (status de pedido, contagem). Para um chip que o usuário remove, use `Tag`.
 
@@ -6155,6 +6425,12 @@ KPI card para dashboards.
 | `icon`  | `ReactNode`                | —                                    |
 
 ## `Progress`
+
+<!-- gallery:advanced -->
+[![Stepper · Progress · VirtualList na gallery](../assets/gallery/advanced.webp)](../gallery.md)
+
+*Seção `advanced` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 Barra de progresso.
 
@@ -6267,6 +6543,12 @@ Placeholder com shimmer enquanto data carrega.
 
 ## `RefreshIndicator`
 
+<!-- gallery:material -->
+[![Material (ListTile · FAB · Rail) na gallery](../assets/gallery/material.webp)](../gallery.md)
+
+*Seção `material` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 **Quando usar:** dar ao usuário um gesto de **pull-to-refresh** em listas/telas roláveis no mobile (touch) — feeds, caixas de entrada, dashboards. Envolve o conteúdo rolável e dispara `onRefresh` quando o usuário puxa além do limite e solta.
 
 É um gesto **de toque** — não há equivalente com mouse. O `Spinner` do SDK aparece enquanto puxa e durante a atualização.
@@ -6334,6 +6616,12 @@ toast.show({ title: "Sincronização", description: "Em andamento…", variant: 
 
 ## `EmptyState`
 
+<!-- gallery:table -->
+[![Table & Pagination na gallery](../assets/gallery/table.webp)](../gallery.md)
+
+*Seção `table` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 **Quando usar:** uma lista/coleção retornou **zero itens com sucesso** (sem pedidos ainda, busca sem resultados). Sempre ofereça uma ação de saída (criar o primeiro item, limpar filtros). Não confunda com erro — para falha use `ErrorState`.
 
 "Nada por aqui" centralizado.
@@ -6368,6 +6656,12 @@ Falha com botão de retry.
 `position`: `"top"` | `"bottom"` (default). Passe `children` pra substituir o corpo, ou `onlineFlashMs={0}` pra não piscar a confirmação. Veja [PWA & Offline-First](../pwa.md).
 
 ## `SyncStatusBadge`
+
+<!-- gallery:pwa -->
+[![PWA: Install · Push na gallery](../assets/gallery/pwa.webp)](../gallery.md)
+
+*Seção `pwa` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 **Quando usar:** mostrar o estado do motor offline (sincronizado / sincronizando / pendente / offline / erro). Dois modos: passe `sync` pra conectar direto no motor (zero fiação), ou passe `tone` explícito (apresentacional, testável sem IndexedDB).
 
@@ -6427,6 +6721,12 @@ Use esta página quando precisar **mostrar** uma entidade ou agrupar conteúdo, 
 
 ## `Avatar`
 
+<!-- gallery:display-media -->
+[![Avatar · Image · Carousel na gallery](../assets/gallery/display-media.webp)](../gallery.md)
+
+*Seção `display-media` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: representar visualmente um usuário/entidade em listas, comentários, headers — com foto quando disponível e iniciais coloridas como fallback.
 
 Foto de usuário com fallback automático para iniciais coloridas quando não há `src` ou a imagem falha ao carregar. As iniciais são derivadas de `name` (não de `alt`).
@@ -6454,6 +6754,12 @@ Foto de usuário com fallback automático para iniciais coloridas quando não h�
     Quando `src` está setado, `alt` é o texto que leitores de tela anunciam. Descreva a pessoa (o nome), não a mídia — evite `"foto de…"`.
 
 ## `Card`
+
+<!-- gallery:feedback -->
+[![Badges · Cards · Skeleton na gallery](../assets/gallery/feedback.webp)](../gallery.md)
+
+*Seção `feedback` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: agrupar conteúdo relacionado num bloco com elevação visual — um item de lista, um painel de dashboard, um container para tabela.
 
@@ -6490,6 +6796,12 @@ Container com slots de header (`title` + `actions`) e `footer`.
 
 ## `Kbd`
 
+<!-- gallery:inputs-extra -->
+[![Inputs avançados (Date · Pin · Slider) na gallery](../assets/gallery/inputs-extra.webp)](../gallery.md)
+
+*Seção `inputs-extra` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: exibir uma tecla ou combinação (atalhos, dicas de command palette) com a aparência de tecla física.
 
 `<kbd>` estilizado para atalhos de teclado.
@@ -6507,6 +6819,12 @@ Container com slots de header (`title` + `actions`) e `footer`.
     Para combinações, repita o componente em vez de juntar tudo em texto plano: `<Kbd>Ctrl</Kbd>+<Kbd>K</Kbd>`. Cada `<Kbd>` renderiza um elemento `<kbd>` semântico que leitores de tela anunciam individualmente.
 
 ## `AvatarGroup`
+
+<!-- gallery:capture-media -->
+[![SignaturePad · Lightbox · AvatarGroup na gallery](../assets/gallery/capture-media.webp)](../gallery.md)
+
+*Seção `capture-media` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: mostrar várias pessoas num espaço pequeno — participantes de uma reunião, responsáveis por uma tarefa, membros de um time.
 
@@ -6583,6 +6901,12 @@ Esta página reúne todo o conjunto de **controles de formulário** do SDK — d
 
 ## `Input`
 
+<!-- gallery:form-fields -->
+[![Form fields na gallery](../assets/gallery/form-fields.webp)](../gallery.md)
+
+*Seção `form-fields` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 Texto single-line.
 
 ```tsx
@@ -6635,6 +6959,12 @@ Nativo `<select>`. Aceita `options` (lista) ou `<option>` children.
 
 ## `Combobox`
 
+<!-- gallery:inputs-advanced -->
+[![Toggle · Rating · Range · Combobox na gallery](../assets/gallery/inputs-advanced.webp)](../gallery.md)
+
+*Seção `inputs-advanced` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 **Quando usar:** uma opção entre muitas (dezenas+), onde o usuário precisa digitar para filtrar. Para poucas opções use `Select`.
 
 Select com busca + filtro. Keyboard nav (↑↓ Enter Esc).
@@ -6650,6 +6980,12 @@ Select com busca + filtro. Keyboard nav (↑↓ Enter Esc).
 ```
 
 ## `MultiSelect`
+
+<!-- gallery:inputs-extra -->
+[![Inputs avançados (Date · Pin · Slider) na gallery](../assets/gallery/inputs-extra.webp)](../gallery.md)
+
+*Seção `inputs-extra` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 **Quando usar:** várias opções entre muitas, com busca e chips removíveis. Para uma única opção use `Combobox`; para poucas opções booleanas use `Checkbox`.
 
@@ -6688,6 +7024,12 @@ function Example() {
 `MultiSelectOption` é `{ value: string; label: string; disabled?: boolean }`.
 
 ## `Checkbox`
+
+<!-- gallery:form-primitives -->
+[![Checkbox · Radio · Switch na gallery](../assets/gallery/form-primitives.webp)](../gallery.md)
+
+*Seção `form-primitives` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 Single checkbox. Suporta `indeterminate`.
 
@@ -6781,6 +7123,12 @@ function Example() {
 `DateRange` é `{ start: Date | null; end: Date | null }`.
 ## `TimePicker`
 
+<!-- gallery:material -->
+[![Material (ListTile · FAB · Rail) na gallery](../assets/gallery/material.webp)](../gallery.md)
+
+*Seção `material` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 **Quando usar:** escolher um horário em colunas roláveis (estilo "spinner" do Material) — agendamentos, lembretes, janelas de atendimento. Para um campo nativo simples, use o `DatePicker` com `mode="time"`.
 
 Sempre emite uma string 24h `"HH:MM"` via `onChange`, mesmo com `use12Hours` ligado. O `minuteStep` controla a granularidade da coluna de minutos.
@@ -6818,6 +7166,12 @@ function ScheduleField() {
     Mesmo com `use12Hours` (colunas 1–12 + AM/PM), o `onChange` continua emitindo `"HH:MM"` em 24h — o display 12h é só visual. Guarde e envie o valor de 24h direto.
 
 ## `FileUpload`
+
+<!-- gallery:advanced -->
+[![Stepper · Progress · VirtualList na gallery](../assets/gallery/advanced.webp)](../gallery.md)
+
+*Seção `advanced` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 Drag-and-drop + click-to-upload + lista de arquivos.
 
@@ -7015,6 +7369,12 @@ Helper exposto: `estimatePasswordStrength(value)` retorna `0-4` (length, case mi
 
 ## `Form` / `FormSection` / `FormRow` / `FormActions` / `FormField`
 
+<!-- gallery:forms -->
+[![Forms (zod) na gallery](../assets/gallery/forms.webp)](../gallery.md)
+
+*Seção `forms` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 Layout wrappers para forms (`stack`/`inline`/`grid`) + integração RHF.
 
 ```tsx
@@ -7030,6 +7390,12 @@ Layout wrappers para forms (`stack`/`inline`/`grid`) + integração RHF.
 Detalhes completos em [../forms.md](../forms.md).
 
 ## `ImageCropper`
+
+<!-- gallery:image-cropper -->
+[![ImageCropper (recorte) na gallery](../assets/gallery/image-cropper.webp)](../gallery.md)
+
+*Seção `image-cropper` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: par natural do [`FileUpload`](#fileupload) — foto de perfil, foto de documento, capa. O app decide a proporção de saída; o usuário só escolhe o que cai dentro dela.
 
@@ -7115,6 +7481,12 @@ O `ref` expõe `{ crop, reset }`. O `crop()` devolve `Promise<Blob | null>`.
     re-escolha de foto vazaria a anterior pelo resto da vida do documento.
 
 ## `SignaturePad`
+
+<!-- gallery:capture-media -->
+[![SignaturePad · Lightbox · AvatarGroup na gallery](../assets/gallery/capture-media.webp)](../gallery.md)
+
+*Seção `capture-media` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: coletar assinatura de próprio punho — comprovante de entrega, ordem de serviço, termo de aceite. Em campo, no celular, com o dedo.
 
@@ -7218,6 +7590,12 @@ Os componentes de layout não desenham conteúdo — eles **organizam o espaço*
 
 ## `AppShell`
 
+<!-- gallery:layout -->
+[![Layout (AppShell · Page · Container) na gallery](../assets/gallery/layout.webp)](../gallery.md)
+
+*Seção `layout` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 **Quando usar:** como a moldura raiz de um app com navegação persistente (dashboard, painel admin). Para uma landing page simples, um `Container` basta.
 
 Composer: navbar + sidebar (desktop) / bottomNav (mobile) + main + footer responsivo.
@@ -7300,6 +7678,12 @@ Max-width wrapper.
 | `"full"` | `100%`    |
 
 ## `Stack`
+
+<!-- gallery:advanced -->
+[![Stepper · Progress · VirtualList na gallery](../assets/gallery/advanced.webp)](../gallery.md)
+
+*Seção `advanced` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 **Quando usar:** o primitivo padrão para empilhar elementos em uma dimensão (coluna ou linha) com espaçamento uniforme. Para grade 2D use `Grid`.
 
@@ -7409,6 +7793,12 @@ Centraliza children horizontal/vertical/ambos.
 | `fullWidth` | `boolean`                              | `true`   |
 
 ## `AspectRatio`
+
+<!-- gallery:display-media -->
+[![Avatar · Image · Carousel na gallery](../assets/gallery/display-media.webp)](../gallery.md)
+
+*Seção `display-media` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 Preserva proporção pra media.
 
@@ -7522,6 +7912,12 @@ Componentes que ajudam o usuário a **se localizar e se mover** pelo app. Eles s
 
 ## `Navbar`
 
+<!-- gallery:nav-extra -->
+[![Navbar · Sidebar · Bottom nav na gallery](../assets/gallery/nav-extra.webp)](../gallery.md)
+
+*Seção `nav-extra` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 **Quando usar:** barra superior persistente com marca + ações globais (busca, avatar, notificações). É a navegação de mais alto nível.
 
 App bar superior. Três slots (`logo` / `nav` / `actions`). Sticky por padrão.
@@ -7558,6 +7954,12 @@ App bar superior. Três slots (`logo` / `nav` / `actions`). Sticky por padrão.
 **Safe-area**: aplica `padding-top: max(space-3, env(safe-area-inset-top))` automático.
 
 ## `AppBar`
+
+<!-- gallery:navigation -->
+[![AppBar · Tabs · Tooltip · Drawer na gallery](../assets/gallery/navigation.webp)](../gallery.md)
+
+*Seção `navigation` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 **Quando usar:** app bar **mobile-first de PWA** — o padrão "voltar + título + ação" que toda tela de detalhe repete. Use `AppBar` em apps mobile/PWA; use `Navbar` quando precisar do nav horizontal de desktop (três slots).
 
@@ -7766,6 +8168,12 @@ anuncia acionável e não é.
 
 ## `NavigationRail`
 
+<!-- gallery:material -->
+[![Material (ListTile · FAB · Rail) na gallery](../assets/gallery/material.webp)](../gallery.md)
+
+*Seção `material` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 **Quando usar:** coluna de navegação vertical e compacta para desktop/tablet — uma alternativa mais estreita à `Sidebar` quando você só precisa de ícones empilhados sobre rótulos curtos. Cada item empilha ícone sobre o label; o ativo recebe `aria-current="page"`.
 
 `items: NavigationRailItem[]`, slots `header`/`footer` e controle de rótulos via `labelVisibility`.
@@ -7865,6 +8273,12 @@ Tabs controlled/uncontrolled. Fade-edge mask em overflow horizontal. Variantes v
 
 ## `Stepper`
 
+<!-- gallery:advanced -->
+[![Stepper · Progress · VirtualList na gallery](../assets/gallery/advanced.webp)](../gallery.md)
+
+*Seção `advanced` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 **Quando usar:** mostrar progresso em um fluxo linear de múltiplas etapas (checkout, onboarding, wizard). É indicador de progresso, não um seletor — controle o `current` pela lógica do fluxo.
 
 Wizard linear com steps numerados. `orientation` aceita `"horizontal"` (default) ou `"vertical"`.
@@ -7895,6 +8309,12 @@ Navegação hierárquica.
 **A11y**: último item é marcado com `aria-current="page"`.
 
 ## `Pagination`
+
+<!-- gallery:table -->
+[![Table & Pagination na gallery](../assets/gallery/table.webp)](../gallery.md)
+
+*Seção `table` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 **Quando usar:** percorrer listas grandes em páginas discretas (resultados de busca, tabelas). Para feeds contínuos, prefira scroll infinito (`VirtualList` + `usePoll`/Query).
 
@@ -7996,6 +8416,12 @@ Os três compartilham o mesmo motor (portal para `document.body` + backdrop + Es
 
 ## `Modal`
 
+<!-- gallery:modal -->
+[![Modal & Toast na gallery](../assets/gallery/modal.webp)](../gallery.md)
+
+*Seção `modal` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: um fluxo central que pausa o contexto — criar/editar um registro, um wizard curto, um form que exige atenção total.
 
 Portal + backdrop + Esc + focus trap + scroll lock.
@@ -8040,6 +8466,12 @@ const [open, setOpen] = useState(false);
 
 ## `Drawer`
 
+<!-- gallery:navigation -->
+[![AppBar · Tabs · Tooltip · Drawer na gallery](../assets/gallery/navigation.webp)](../gallery.md)
+
+*Seção `navigation` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: um painel lateral persistente que complementa a tela de fundo — filtros, detalhes de um item, navegação secundária. Encosta numa borda em vez de centralizar.
 
 Side drawer. `placement: left/right/top/bottom`. Auto-switch pra bottom-sheet em mobile via `mobilePlacement`.
@@ -8075,6 +8507,12 @@ Side drawer. `placement: left/right/top/bottom`. Auto-switch pra bottom-sheet em
     Diferente do `Modal`, o `Drawer` não tem prop `size` — a largura/altura segue o conteúdo (e o CSS do placement). Para um painel mobile-first com largura total e altura limitada, prefira `BottomSheet` ou `mobilePlacement="bottom"`.
 
 ## `BottomSheet`
+
+<!-- gallery:feedback-extra -->
+[![Alert · Timeline · BottomSheet na gallery](../assets/gallery/feedback-extra.webp)](../gallery.md)
+
+*Seção `feedback-extra` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: ações ou escolhas mobile-first que sobem do rodapé — menu de compartilhar, opções de um item, seletor curto. É o padrão nativo de iOS/Android.
 
@@ -8159,6 +8597,12 @@ function DeleteButton({ id }: { id: string }) {
     `useModals()` lança um erro se chamado fora de um `<ModalsProvider>`. Monte o provider uma única vez perto da raiz do app.
 
 ## `Lightbox`
+
+<!-- gallery:capture-media -->
+[![SignaturePad · Lightbox · AvatarGroup na gallery](../assets/gallery/capture-media.webp)](../gallery.md)
+
+*Seção `capture-media` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: visualizar foto em tela cheia com navegação — galeria de imóvel, anexos de uma ocorrência, fotos de vistoria.
 
@@ -8245,6 +8689,12 @@ Componentes pequenos e focados: alguns renderizam pedaços de UI (`Money`, `Rela
 
 ### `CopyButton`
 
+<!-- gallery:data-display -->
+[![Stat · Tag · Money · Banner na gallery](../assets/gallery/data-display.webp)](../gallery.md)
+
+*Seção `data-display` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 Botão que copia uma string pra clipboard e mostra um estado transiente de "copiado".
 
 ```tsx
@@ -8321,6 +8771,12 @@ import { TruncateText } from "tempest-react-sdk";
 Estende `HTMLAttributes<HTMLDivElement>`.
 
 ### `VisuallyHidden`
+
+<!-- gallery:headless -->
+[![Headless & render-props na gallery](../assets/gallery/headless.webp)](../gallery.md)
+
+*Seção `headless` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 Conteúdo escondido visualmente mas acessível a leitores de tela — o padrão `sr-only`.
 
@@ -8428,6 +8884,12 @@ import { For } from "tempest-react-sdk";
 
 ### `ErrorText`
 
+<!-- gallery:inputs-extra -->
+[![Inputs avançados (Date · Pin · Slider) na gallery](../assets/gallery/inputs-extra.webp)](../gallery.md)
+
+*Seção `inputs-extra` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 Mensagem de erro de campo de formulário como `<p role="alert">`. Renderiza `null` quando não há children — pode ficar fixo abaixo do campo e só aparece quando há erro.
 
 ```tsx
@@ -8448,6 +8910,12 @@ Estende `HTMLAttributes<HTMLParagraphElement>`. Estilizado com o token `--tempes
 ## Mídia / conteúdo
 
 ### `Image`
+
+<!-- gallery:display-media -->
+[![Avatar · Image · Carousel na gallery](../assets/gallery/display-media.webp)](../gallery.md)
+
+*Seção `display-media` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 `<img>` com lazy loading nativo e fallback de uma tentativa.
 
@@ -8514,6 +8982,12 @@ import { DescriptionList } from "tempest-react-sdk";
 
 ### `CodeBlock`
 
+<!-- gallery:codeblock -->
+[![CodeBlock na gallery](../assets/gallery/codeblock.webp)](../gallery.md)
+
+*Seção `codeblock` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 Amostra de código somente leitura: cores de sintaxe, número de linha opcional, botão de copiar.
 
 ```tsx
@@ -8550,6 +9024,12 @@ Gramáticas: `typescript` · `javascript` · `tsx` · `jsx` · `json` · `css` �
     `--tempest-code-*`. A rampa de chart é validada pro piso de **marca** (3:1); isso aqui é texto e precisa de **4,5:1**. Medindo a rampa como texto ela falha nos dois modos — uma palavra-chave deu 3,47:1 na superfície escura, uma string 2,03:1 na clara. Cada token de código foi resolvido em OKLCH contra **os dois fundos** em que pode cair: a superfície do bloco e a linha marcada depois que o realce compõe sobre ela. Ver [tokens de estilo](../styles.md).
 
 ### `QRCode`
+
+<!-- gallery:qrcode -->
+[![QRCode na gallery](../assets/gallery/qrcode.webp)](../gallery.md)
+
+*Seção `qrcode` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 Um símbolo QR codificado **no browser** e desenhado em SVG. Sem dependência e sem ida a serviço de imagem — um gerador remoto entregaria o conteúdo (link de pagamento, token de sessão, convite) a um terceiro.
 
@@ -12093,6 +12573,12 @@ navegador já tem, não uma biblioteca que o SDK embarcou.
     duas páginas compartilham o mesmo motor de gravação e a mesma taxonomia de erro — o
     que muda é o dispositivo.
 
+<!-- gallery:device-capture -->
+[![Captura de dispositivo na gallery](assets/gallery/device-capture.webp)](gallery.md)
+
+*Seção `device-capture` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## Ler códigos: comece pelo componente
 
 O SDK já tinha o [`QRCode`](./components/utility.md), que **só codifica**. O
@@ -13067,6 +13553,12 @@ entrada enquanto o usuário digita e preencher endereço a partir do CEP. Combin
     deixa passar `123.456.789-00` e qualquer sequência repetida. As funções abaixo
     rodam o algoritmo completo.
 
+<!-- gallery:br-forms -->
+[![BR Forms (CPF/CNPJ/CEP) na gallery](assets/gallery/br-forms.webp)](gallery.md)
+
+*Seção `br-forms` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## Validadores
 
 ```ts
@@ -13754,30 +14246,73 @@ npm run dev             # http://127.0.0.1:5173
 
 Cada seção é um arquivo em [`examples/gallery/src/sections/`](https://github.com/mauriciobenjamin700/tempest-react-sdk/tree/main/examples/gallery/src/sections) e cada exemplo é embrulhado pelo wrapper [`<Example>`](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/examples/gallery/src/Example.tsx) (demo + código + botão copiar).
 
-| #   | Seção                                  | Componentes / Features                                                            |
-| --- | -------------------------------------- | -------------------------------------------------------------------------------- |
-| 1   | Buttons                                | `Button` (variantes, tamanhos, loading, fullWidth)                               |
-| 2   | Form fields                            | `Input`, `Select`, `Textarea`, `SearchBar`                                        |
-| 3   | Checkbox · Radio · Switch              | `Checkbox`, `RadioGroup`, `Switch`                                                |
-| 4   | Toggle · Rating · Range · Combobox     | `Toggle`, `ToggleGroup`, `RatingStars`, `RangeSlider`, `Combobox`, `Label`       |
-| 5   | Feedback                               | `Badge`, `Card`, `Spinner`, `Skeleton`                                            |
-| 6   | Stat · Tag · Money · Banner            | `Stat`, `Tag`, `Banner`, `Money`, `RelativeTime`, `TruncateText`, `DataList`, `DescriptionList`, `CopyButton` |
-| 7   | Avatar · Image · Carousel              | `Avatar`, `Image` (fallback), `AspectRatio`, `Carousel`                          |
-| 8   | Modal & Toast                          | `Modal`, `ConfirmDialog`, `ToastProvider`, `useToast`                            |
-| 9   | Overlays                               | `Popover`, `DropdownMenu`, `HoverCard`, `ContextMenu`, `Menubar`, `Command` (⌘K) |
-| 10  | Disclosure                             | `Accordion`, `Collapsible`, `ScrollArea`                                          |
-| 11  | Navigation                             | `Breadcrumbs`, `Tabs`, `Tooltip`, `Drawer`                                        |
-| 12  | Stepper · Progress · VirtualList       | `Stepper`, `Progress`, `ChipInput`, `FileUpload`, `VirtualList`                   |
-| 13  | Table & Pagination                     | `Table`, `Pagination`, `EmptyState`, `ErrorState`, `usePagination`               |
-| 14  | DataTable                              | `DataTable` (busca, ordenação, paginação client-side)                            |
-| 15  | Forms (zod)                            | `useZodForm`, `zodResolver`                                                       |
-| 16  | BR Forms                               | `CPFInput`, `CNPJInput`, `PhoneInput`, `MoneyInput`, `CEPInput`, `useViaCEP`     |
-| 17  | Store (Zustand)                        | `createStore`, `createSelectors` (contador persistido)                           |
-| 18  | Tema + i18n                            | `ThemeProvider`, `useTheme`, `I18nProvider`, `useI18n`                           |
-| 19  | Network · Clipboard · Share            | `useOnline`, `useClipboard`, `share`, `useKeyboardShortcut`, `useIntersectionObserver` |
-| 20  | SSE · Push · Audio                     | `useEventStream` (SSE vivo), `isPushSupported`, `playAudio`                      |
-| 21  | PWA: Install · Push                    | `useBeforeInstallPrompt`, `usePushSubscription`, `isPushSupported`               |
-| 22  | Utils                                  | `formatCurrency`, `formatDate`, `formatPhone`, `formatCPF`, `formatPercent`      |
+<!-- gallery:sections -->
+| # | Seção | Âncora | Grupo |
+| --- | --- | --- | --- |
+| 1 | Buttons | `#buttons` | Componentes |
+| 2 | Layout (AppShell · Page · Container) | `#layout` | Componentes |
+| 3 | Navbar · Sidebar · Bottom nav | `#nav-extra` | Componentes |
+| 4 | Inputs avançados (Date · Pin · Slider) | `#inputs-extra` | Componentes |
+| 5 | Alert · Timeline · BottomSheet | `#feedback-extra` | Componentes |
+| 6 | Headless & render-props | `#headless` | Componentes |
+| 7 | Form fields | `#form-fields` | Componentes |
+| 8 | Checkbox · Radio · Switch | `#form-primitives` | Componentes |
+| 9 | Toggle · Rating · Range · Combobox | `#inputs-advanced` | Componentes |
+| 10 | Badges · Cards · Skeleton | `#feedback` | Componentes |
+| 11 | Stat · Tag · Money · Banner | `#data-display` | Componentes |
+| 12 | Avatar · Image · Carousel | `#display-media` | Componentes |
+| 13 | Modal & Toast | `#modal` | Componentes |
+| 14 | Popover · Dropdown · HoverCard | `#overlays` | Componentes |
+| 15 | Accordion · Collapsible · Scroll | `#disclosure` | Componentes |
+| 16 | AppBar · Tabs · Tooltip · Drawer | `#navigation` | Componentes |
+| 17 | Stepper · Progress · VirtualList | `#advanced` | Componentes |
+| 18 | TreeView · Wizard | `#hierarchy-flow` | Componentes |
+| 19 | SignaturePad · Lightbox · AvatarGroup | `#capture-media` | Componentes |
+| 20 | ImageCropper (recorte) | `#image-cropper` | Componentes |
+| 21 | Table & Pagination | `#table` | Componentes |
+| 22 | DataTable | `#data-table` | Componentes |
+| 23 | VirtualTable (40k linhas) | `#virtual-table` | Componentes |
+| 24 | Scheduler (agenda) | `#scheduler` | Componentes |
+| 25 | BarList (distribuição ranqueada) | `#bar-list` | Componentes |
+| 26 | Sparkline (mini-gráfico inline) | `#sparkline` | Componentes |
+| 27 | QRCode | `#qrcode` | Componentes |
+| 28 | Chat | `#chat` | Componentes |
+| 29 | AIChat | `#aichat` | Componentes |
+| 30 | Áudio (gravação) | `#audio-capture` | Componentes |
+| 31 | Captura de dispositivo | `#device-capture` | Componentes |
+| 32 | Dashboard (CSS) | `#dashboard-layout` | Componentes |
+| 33 | FilterBar | `#filterbar` | Componentes |
+| 34 | Markdown | `#markdown` | Componentes |
+| 35 | Masonry | `#masonry` | Componentes |
+| 36 | Tour | `#tour` | Componentes |
+| 37 | Transfer | `#transfer` | Componentes |
+| 38 | CodeBlock | `#codeblock` | Componentes |
+| 39 | Material (ListTile · FAB · Rail) | `#material` | Componentes |
+| 40 | Forms (zod) | `#forms` | Componentes |
+| 41 | BR Forms (CPF/CNPJ/CEP) | `#br-forms` | Componentes |
+| 42 | Hooks — estado | `#hooks-state` | Hooks |
+| 43 | Hooks — DOM & timing | `#hooks-dom` | Hooks |
+| 44 | Network · Clipboard · Share | `#meta` | Hooks |
+| 45 | Formatters | `#utils` | Hooks |
+| 46 | HTTP client | `#recipe-http` | Receitas |
+| 47 | Upload resumível (tus) | `#recipe-resumable-upload` | Receitas |
+| 48 | Passkeys (WebAuthn) | `#recipe-passkeys` | Receitas |
+| 49 | Data fetching (TanStack Query) | `#recipe-query` | Receitas |
+| 50 | Tempo real (WebSocket) | `#recipe-realtime` | Receitas |
+| 51 | Geolocalização (mapas & trajetória) | `#geo` | Receitas |
+| 52 | Mapa do Brasil (UF + cidades) | `#brazil-map` | Receitas |
+| 53 | Pagamentos BR (Pix · boleto · NFe) | `#br-payments` | Receitas |
+| 54 | Auth & Access Control | `#recipe-auth` | Receitas |
+| 55 | SSE · Push · Audio | `#integrations` | Receitas |
+| 56 | NotificationCenter (inbox) | `#notification-center` | Receitas |
+| 57 | PWA: Install · Push | `#pwa` | Receitas |
+| 58 | Store (Zustand) | `#foundation` | Fundação |
+| 59 | Escalas contínuas (heatmap) | `#dataviz-scales` | Fundação |
+| 60 | createTheme · presets · tokens de gráfico | `#theme-factory` | Fundação |
+| 61 | Ícones por slug (/icons) | `#icons` | Fundação |
+| 62 | utilities.css (camada opt-in) | `#utilities-css` | Fundação |
+| 63 | Tema + i18n | `#theme-i18n` | Fundação |
+<!-- /gallery -->
 
 ## Matriz de variantes
 
@@ -13847,37 +14382,69 @@ Cada seção é um arquivo em [`examples/gallery/src/sections/`](https://github.
 Cada exemplo aparece **lado a lado com o código-fonte** (botão "Copiar"), então a
 gallery é também uma referência copia-e-cola. Capturas do app rodando:
 
-### Visão geral
+<!-- gallery:screenshots -->
+Cada seção tem a própria captura ao lado do componente que documenta; os pares abaixo são aqueles em que o tema é o assunto. As 73 imagens são regeneradas por `npm run docs:shots`.
 
-![Visão geral da gallery](assets/gallery/gallery-overview.png)
+### Buttons
 
-### Avatar · Image · AspectRatio · Carousel
+![Buttons — claro](assets/gallery/buttons.webp)
 
-![Componentes de mídia](assets/gallery/gallery-display-media.png)
+![Buttons — escuro](assets/gallery/buttons.dark.webp)
 
-### Stat · Tag · Banner · Money · listas
+### Badges · Cards · Skeleton
 
-![Componentes de dados](assets/gallery/gallery-data-display.png)
+![Badges · Cards · Skeleton — claro](assets/gallery/feedback.webp)
 
-### Toggle · Rating · Range · Combobox · Calendar
+![Badges · Cards · Skeleton — escuro](assets/gallery/feedback.dark.webp)
 
-![Inputs avançados](assets/gallery/gallery-inputs-advanced.png)
+### Stat · Tag · Money · Banner
 
-### Popover · Dropdown · HoverCard · ContextMenu · Menubar · Command
+![Stat · Tag · Money · Banner — claro](assets/gallery/data-display.webp)
 
-![Overlays](assets/gallery/gallery-overlays.png)
+![Stat · Tag · Money · Banner — escuro](assets/gallery/data-display.dark.webp)
+
+### Popover · Dropdown · HoverCard
+
+![Popover · Dropdown · HoverCard — claro](assets/gallery/overlays.webp)
+
+![Popover · Dropdown · HoverCard — escuro](assets/gallery/overlays.dark.webp)
 
 ### DataTable
 
-![DataTable com busca, ordenação e paginação](assets/gallery/gallery-data-table.png)
+![DataTable — claro](assets/gallery/data-table.webp)
 
-### Store (Zustand): createStore + createSelectors
+![DataTable — escuro](assets/gallery/data-table.dark.webp)
 
-![Foundation / store](assets/gallery/gallery-foundation.png)
+### Dashboard (CSS)
 
-### PWA: install prompt + web push
+![Dashboard (CSS) — claro](assets/gallery/dashboard-layout.webp)
 
-![PWA](assets/gallery/gallery-pwa.png)
+![Dashboard (CSS) — escuro](assets/gallery/dashboard-layout.dark.webp)
+
+### CodeBlock
+
+![CodeBlock — claro](assets/gallery/codeblock.webp)
+
+![CodeBlock — escuro](assets/gallery/codeblock.dark.webp)
+
+### Store (Zustand)
+
+![Store (Zustand) — claro](assets/gallery/foundation.webp)
+
+![Store (Zustand) — escuro](assets/gallery/foundation.dark.webp)
+
+### createTheme · presets · tokens de gráfico
+
+![createTheme · presets · tokens de gráfico — claro](assets/gallery/theme-factory.webp)
+
+![createTheme · presets · tokens de gráfico — escuro](assets/gallery/theme-factory.dark.webp)
+
+### Tema + i18n
+
+![Tema + i18n — claro](assets/gallery/theme-i18n.webp)
+
+![Tema + i18n — escuro](assets/gallery/theme-i18n.dark.webp)
+<!-- /gallery -->
 
 ## Resumo
 
@@ -13885,9 +14452,12 @@ gallery é também uma referência copia-e-cola. Capturas do app rodando:
   o papel de Storybook.
 - Rode com `npm run build` na raiz, depois `npm run dev` em `examples/gallery`
   (porta `5173`).
-- 22 seções cobrem componentes, overlays, mídia/imagens, inputs avançados,
+- 63 seções cobrem componentes, overlays, mídia/imagens, inputs avançados,
   DataTable, store, tema/i18n, integrações ao vivo, PWA e utils — cada exemplo
-  com código copia-e-cola ao lado.
+  com código copia-e-cola ao lado. A tabela acima sai do registry, então não
+  envelhece.
+- Cada seção tem uma captura versionada em `docs/assets/gallery/`, regenerada
+  por `npm run docs:shots` e colocada nas páginas por `npm run docs:gallery`.
 - Use-a pra validar UI nos breakpoints mobile e desktop antes de fechar uma
   mudança visual.
 
@@ -13907,6 +14477,12 @@ Módulo de geolocalização **100% self-hosted**: coleta de latitude/longitude p
 
 !!! info "Por que tile-free?"
     Qualquer mapa com imagem (OpenStreetMap, Mapbox, Google) baixa _tiles_ de um servidor externo. Isso colide com o requisito de "nada externo". Por isso o `TrajectoryMap` desenha a trajetória projetada em SVG (Web Mercator) sem fundo — zero request. Se você **hospeda seu próprio** servidor de tiles, dá pra ligar a camada Leaflet opcional passando `tileUrl`.
+
+<!-- gallery:geo -->
+[![Geolocalização (mapas & trajetória) na gallery](assets/gallery/geo.webp)](gallery.md)
+
+*Seção `geo` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 ## Quando usar
 
@@ -14159,6 +14735,18 @@ granulares, testados e independentes — importe só o que precisar.
     Nenhum hook depende de outro nem de provider. `import { useDebounce } from "tempest-react-sdk"`
     e pronto — o bundler tree-shake o resto. Eles agrupam só por _propósito_ aqui na
     doc, não por acoplamento.
+
+<!-- gallery:hooks-state -->
+[![Hooks — estado na gallery](assets/gallery/hooks-state.webp)](gallery.md)
+
+*Seção `hooks-state` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
+<!-- gallery:hooks-dom -->
+[![Hooks — DOM & timing na gallery](assets/gallery/hooks-dom.webp)](gallery.md)
+
+*Seção `hooks-dom` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 ## Catálogo por propósito
 
@@ -14920,6 +15508,12 @@ Camada de fetch tipada com tratamento de 401 + refresh, parse JSON automático e
 
 !!! info "Por que um factory em vez de um singleton global?"
     Cada app tem seu próprio `baseURL`, sua forma de guardar o token e sua estratégia de logout. Um factory deixa você criar o cliente uma vez, injetar essas dependências, e exportar uma instância pronta — sem `import` de estado global espalhado pelo código.
+
+<!-- gallery:recipe-http -->
+[![HTTP client na gallery](assets/gallery/recipe-http.webp)](gallery.md)
+
+*Seção `recipe-http` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 ## Quando usar
 
@@ -15731,6 +16325,12 @@ CMS, uma tabela de configuração. Aí não há o que importar — só existe a 
 `"layout-dashboard"`.
 
 É pra isso que existe o subpath `tempest-react-sdk/icons`. 🚀
+
+<!-- gallery:icons -->
+[![Ícones por slug (/icons) na gallery](assets/gallery/icons.webp)](gallery.md)
+
+*Seção `icons` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 ## O caminho mais curto
 
@@ -18317,6 +18917,12 @@ O SDK cobre **a metade do cliente**: as duas cerimônias (`navigator.credentials
 !!! info "Por que passkey e não senha"
     A chave privada nunca sai do aparelho, então não existe base de senhas pra vazar, nem phishing que funcione: o navegador só assina para o domínio que registrou a credencial. Pro usuário é um toque no sensor.
 
+<!-- gallery:recipe-passkeys -->
+[![Passkeys (WebAuthn) na gallery](assets/gallery/recipe-passkeys.webp)](gallery.md)
+
+*Seção `recipe-passkeys` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## A superfície
 
 | Símbolo | Para quê |
@@ -18709,6 +19315,18 @@ O `"<1 ms"` existe de propósito: `"0 ms"` seria lido como "não medido".
 Notificações push no navegador têm duas metades que conversam: a **main thread** (sua UI pede permissão e cria a inscrição) e a **worker thread** (o service worker recebe o push e desenha a notificação, mesmo com a aba fechada). O módulo `push` do `tempest-react-sdk` cobre as duas metades — a parte browser (permissão, `pushManager.subscribe`, `notificationclick`) é do SDK; os endpoints de persistência e o envio do push são do seu app, via callbacks.
 
 > Diagrama editável: [push-flow.drawio](./diagrams/push-flow.drawio) (abra no [draw.io](https://app.diagrams.net)).
+
+<!-- gallery:notification-center -->
+[![NotificationCenter (inbox) na gallery](assets/gallery/notification-center.webp)](gallery.md)
+
+*Seção `notification-center` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
+<!-- gallery:integrations -->
+[![SSE · Push · Audio na gallery](assets/gallery/integrations.webp)](gallery.md)
+
+*Seção `integrations` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 ## Como o Web Push funciona (visão de 30 segundos)
 
@@ -19736,6 +20354,12 @@ Wrappers finos pra padronizar tempos de cache, chaves de query e o `QueryClient`
 !!! info "Por que esses wrappers existem?"
     Sem padronização, cada tela escolhe um `staleTime` no chute e cada domínio escreve `queryKey: ["user", id]` à mão. Isso gera invalidações que não pegam (key montada diferente em dois lugares) e refetch agressivo demais. O SDK centraliza ambos: presets nomeados e um factory que garante a mesma key em todo lugar.
 
+<!-- gallery:recipe-query -->
+[![Data fetching (TanStack Query) na gallery](assets/gallery/recipe-query.webp)](gallery.md)
+
+*Seção `recipe-query` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## Provider
 
 Envolva a árvore do app uma única vez, normalmente no `main.tsx` (ou dentro de `<AppProviders>`):
@@ -20176,6 +20800,12 @@ Veja [`RELEASES.md`](https://github.com/mauriciobenjamin700/tempest-react-sdk/bl
 
 !!! info "Protocolo: tus 1.0.0, não um esquema nosso"
     O cliente fala [tus](https://tus.io) (core + as extensões *creation* e *termination*). Isso é deliberado: um cliente resumível de formato próprio obriga o backend a ser sempre nosso. Com tus você pode apontar para `tusd`, `tus-node-server` ou `py-tus` sem escrever servidor nenhum — e a seção [O que o backend precisa implementar](#o-que-o-backend-precisa-implementar) cabe numa tabela.
+
+<!-- gallery:recipe-resumable-upload -->
+[![Upload resumível (tus) na gallery](assets/gallery/recipe-resumable-upload.webp)](gallery.md)
+
+*Seção `recipe-resumable-upload` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 ## O exemplo mínimo
 
@@ -21148,6 +21778,12 @@ Aprofunde em [Query](./query.md) e [HTTP](./http.md).
 !!! info "Por que envolver `navigator.share`?"
     A API nativa rejeita a promise tanto quando o usuário cancela o diálogo quanto em erros reais, e nem todo browser a expõe. Tratar isso manualmente vira um `try/catch` cheio de checagens em cada call site. `share()` colapsa tudo num objeto `ShareResult` com booleanos claros (`shared` / `unsupported` / `cancelled`), então o seu código vira um `if` simples.
 
+<!-- gallery:meta -->
+[![Network · Clipboard · Share na gallery](assets/gallery/meta.webp)](gallery.md)
+
+*Seção `meta` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## Uso
 
 ```ts
@@ -21286,6 +21922,12 @@ Wrapper sobre `EventSource` com reconnect exponencial, heartbeat opt-in e parsin
 
 !!! info "SSE vs WebSocket — qual escolher?"
     SSE é unidirecional (servidor → cliente), roda sobre HTTP comum, reconecta sozinho e autentica por cookie sem cerimônia. Se o cliente **não precisa enviar** mensagens, SSE é mais simples e barato. Pra tráfego bidirecional (chat, colaboração), use [WebSocket](./websocket.md).
+
+<!-- gallery:recipe-realtime -->
+[![Tempo real (WebSocket) na gallery](assets/gallery/recipe-realtime.webp)](gallery.md)
+
+*Seção `recipe-realtime` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 ## Quando usar
 
@@ -21638,6 +22280,12 @@ Pronto. Tudo o que está abaixo já está disponível na sua aplicação.
     Os nomes `--tempest-*` fazem parte do contrato semver do SDK. Veja a
     [política de versionamento](#politica-de-versionamento-de-tokens) no fim da
     página antes de depender de um token específico.
+
+<!-- gallery:utilities-css -->
+[![utilities.css (camada opt-in) na gallery](assets/gallery/utilities-css.webp)](gallery.md)
+
+*Seção `utilities-css` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 ## Sumário
 
@@ -25365,6 +26013,12 @@ import { groupBy, pick, debounce, formatBytes } from "tempest-react-sdk";
     Cada função é um export nomeado independente. Importe só o que usar — o bundler do seu app remove o resto.
 
 ---
+
+<!-- gallery:utils -->
+[![Formatters na gallery](assets/gallery/utils.webp)](gallery.md)
+
+*Seção `utils` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 ## Arrays
 

@@ -33,6 +33,12 @@ a number with increment (`StepperInput`), etc.
 
 ## `Input`
 
+<!-- gallery:form-fields -->
+[![Form fields in the gallery](../assets/gallery/form-fields.webp)](../gallery.md)
+
+*Section `form-fields` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 Single-line text.
 
 ```tsx
@@ -85,6 +91,12 @@ Native `<select>`. Accepts `options` (a list) or `<option>` children.
 
 ## `Combobox`
 
+<!-- gallery:inputs-advanced -->
+[![Toggle · Rating · Range · Combobox in the gallery](../assets/gallery/inputs-advanced.webp)](../gallery.md)
+
+*Section `inputs-advanced` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 **When to use:** one option out of many (dozens+), where the user needs to type
 to filter. For a few options use `Select`.
 
@@ -101,6 +113,12 @@ Select with search + filter. Keyboard nav (↑↓ Enter Esc).
 ```
 
 ## `MultiSelect`
+
+<!-- gallery:inputs-extra -->
+[![Inputs avançados (Date · Pin · Slider) in the gallery](../assets/gallery/inputs-extra.webp)](../gallery.md)
+
+*Section `inputs-extra` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 **When to use:** several options out of many, with search and removable chips.
 For a single option use `Combobox`; for a few boolean options use `Checkbox`.
@@ -141,6 +159,12 @@ function Example() {
 `MultiSelectOption` is `{ value: string; label: string; disabled?: boolean }`.
 
 ## `Checkbox`
+
+<!-- gallery:form-primitives -->
+[![Checkbox · Radio · Switch in the gallery](../assets/gallery/form-primitives.webp)](../gallery.md)
+
+*Section `form-primitives` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 A single checkbox. Supports `indeterminate`.
 
@@ -241,6 +265,12 @@ function Example() {
 `DateRange` is `{ start: Date | null; end: Date | null }`.
 ## `TimePicker`
 
+<!-- gallery:material -->
+[![Material (ListTile · FAB · Rail) in the gallery](../assets/gallery/material.webp)](../gallery.md)
+
+*Section `material` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 **When to use:** pick a time in scrollable columns (Material "spinner" style) —
 scheduling, reminders, service windows. For a plain native field, use
 `DatePicker` with `mode="time"`.
@@ -283,6 +313,12 @@ function ScheduleField() {
     directly.
 
 ## `FileUpload`
+
+<!-- gallery:advanced -->
+[![Stepper · Progress · VirtualList in the gallery](../assets/gallery/advanced.webp)](../gallery.md)
+
+*Section `advanced` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 Drag-and-drop + click-to-upload + file list.
 
@@ -488,6 +524,12 @@ mix, digits, symbols).
 
 ## `Form` / `FormSection` / `FormRow` / `FormActions` / `FormField`
 
+<!-- gallery:forms -->
+[![Forms (zod) in the gallery](../assets/gallery/forms.webp)](../gallery.md)
+
+*Section `forms` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 Layout wrappers for forms (`stack`/`inline`/`grid`) + RHF integration.
 
 ```tsx
@@ -503,6 +545,12 @@ Layout wrappers for forms (`stack`/`inline`/`grid`) + RHF integration.
 Full details in [../forms.md](../forms.md).
 
 ## `ImageCropper`
+
+<!-- gallery:image-cropper -->
+[![ImageCropper (recorte) in the gallery](../assets/gallery/image-cropper.webp)](../gallery.md)
+
+*Section `image-cropper` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 > **When to use**: the natural partner of [`FileUpload`](#fileupload) — a profile photo, a document photo, a cover image. The app decides the output ratio; the user only chooses what lands inside it.
 
@@ -588,6 +636,12 @@ The `ref` exposes `{ crop, reset }`. `crop()` resolves `Promise<Blob | null>`.
     re-pick would leak the previous one for the lifetime of the document.
 
 ## `SignaturePad`
+
+<!-- gallery:capture-media -->
+[![SignaturePad · Lightbox · AvatarGroup in the gallery](../assets/gallery/capture-media.webp)](../gallery.md)
+
+*Section `capture-media` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 > **When to use it**: capture a handwritten signature — a delivery receipt, a service order, a terms acceptance. In the field, on a phone, with a finger.
 

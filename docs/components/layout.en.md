@@ -25,6 +25,12 @@ construction, and keep spacing consistent across apps.
 
 ## `AppShell`
 
+<!-- gallery:layout -->
+[![Layout (AppShell · Page · Container) in the gallery](../assets/gallery/layout.webp)](../gallery.md)
+
+*Section `layout` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 **When to use:** as the root frame of an app with persistent navigation
 (dashboard, admin panel). For a simple landing page, a `Container` is enough.
 
@@ -110,6 +116,12 @@ Max-width wrapper.
 | `"full"` | `100%`    |
 
 ## `Stack`
+
+<!-- gallery:advanced -->
+[![Stepper · Progress · VirtualList in the gallery](../assets/gallery/advanced.webp)](../gallery.md)
+
+*Section `advanced` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 **When to use:** the default primitive for stacking elements in one dimension
 (column or row) with uniform spacing. For a 2D grid use `Grid`.
@@ -225,6 +237,12 @@ Centers children horizontally/vertically/both.
 | `fullWidth` | `boolean`                              | `true`   |
 
 ## `AspectRatio`
+
+<!-- gallery:display-media -->
+[![Avatar · Image · Carousel in the gallery](../assets/gallery/display-media.webp)](../gallery.md)
+
+*Section `display-media` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 Preserves the ratio for media.
 

@@ -28,6 +28,12 @@ feedback** — show `Spinner`/`Skeleton` during, `Toast`/`Alert` on completion.
 
 ## `Alert`
 
+<!-- gallery:feedback-extra -->
+[![Alert · Timeline · BottomSheet in the gallery](../assets/gallery/feedback-extra.webp)](../gallery.md)
+
+*Section `feedback-extra` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 **When to use:** a message tied to a specific context on the screen (form error,
 result of an operation in a section). Visible until the condition changes.
 
@@ -63,6 +69,12 @@ An inline banner. Different from `Banner` (top-of-page) and `Toast` (transient).
 
 ## `Banner`
 
+<!-- gallery:data-display -->
+[![Stat · Tag · Money · Banner in the gallery](../assets/gallery/data-display.webp)](../gallery.md)
+
+*Section `data-display` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 Persistent, top-of-page. Use it for environment indicators, maintenance,
 expiration.
 
@@ -80,6 +92,12 @@ expiration.
 Same variants as Alert.
 
 ## `Badge`
+
+<!-- gallery:feedback -->
+[![Badges · Cards · Skeleton in the gallery](../assets/gallery/feedback.webp)](../gallery.md)
+
+*Section `feedback` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 **When to use:** a short, read-only status label next to an item (order status,
 count). For a chip the user removes, use `Tag`.
@@ -148,6 +166,12 @@ A KPI card for dashboards.
 | `icon`  | `ReactNode`                | —                                         |
 
 ## `Progress`
+
+<!-- gallery:advanced -->
+[![Stepper · Progress · VirtualList in the gallery](../assets/gallery/advanced.webp)](../gallery.md)
+
+*Section `advanced` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 Progress bar.
 
@@ -271,6 +295,12 @@ A placeholder with shimmer while data loads.
 
 ## `RefreshIndicator`
 
+<!-- gallery:material -->
+[![Material (ListTile · FAB · Rail) in the gallery](../assets/gallery/material.webp)](../gallery.md)
+
+*Section `material` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 **When to use:** give the user a **pull-to-refresh** gesture on scrollable
 mobile lists/screens (touch) — feeds, inboxes, dashboards. It wraps the
 scrollable content and fires `onRefresh` when the user pulls past the threshold
@@ -349,6 +379,12 @@ toast.show({ title: "Sync", description: "In progress…", variant: "info" });
 
 ## `EmptyState`
 
+<!-- gallery:table -->
+[![Table & Pagination in the gallery](../assets/gallery/table.webp)](../gallery.md)
+
+*Section `table` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 **When to use:** a list/collection returned **zero items successfully** (no
 orders yet, search with no results). Always offer a way out (create the first
 item, clear filters). Don't confuse it with an error — for a failure use
@@ -387,6 +423,12 @@ A failure with a retry button.
 `position`: `"top"` | `"bottom"` (default). Pass `children` to replace the body, or `onlineFlashMs={0}` to skip the confirmation flash. See [PWA & Offline-First](../pwa.md).
 
 ## `SyncStatusBadge`
+
+<!-- gallery:pwa -->
+[![PWA: Install · Push in the gallery](../assets/gallery/pwa.webp)](../gallery.md)
+
+*Section `pwa` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 **When to use:** show the offline engine state (synced / syncing / pending / offline / error). Two modes: pass `sync` to connect straight to the engine (zero wiring), or pass an explicit `tone` (presentational, testable without IndexedDB).
 

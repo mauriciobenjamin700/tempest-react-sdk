@@ -4,6 +4,12 @@ Styled scrolling, resizable panes, calendar and scheduler. They shape the space 
 
 ## `ScrollArea`
 
+<!-- gallery:disclosure -->
+[![Accordion · Collapsible · Scroll in the gallery](../assets/gallery/disclosure.webp)](../gallery.md)
+
+*Section `disclosure` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 A styled scroll container that overflows on the chosen axis and renders a thin scrollbar (WebKit). Forwards `className`, `style`, and `ref` to the `<div>`.
 
 ```tsx
@@ -31,6 +37,12 @@ Remaining `<div>` props are forwarded.
 
 ## `Resizable`
 
+<!-- gallery:headless -->
+[![Headless & render-props in the gallery](../assets/gallery/headless.webp)](../gallery.md)
+
+*Section `headless` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 A two-pane split layout with a draggable divider. The first pane is sized via `flex-basis` as a percentage; the second fills the rest. Drag with a pointer, or focus the divider and use the arrow keys (2% steps).
 
 ```tsx
@@ -54,6 +66,12 @@ import { Resizable } from "tempest-react-sdk";
     `children` is a `[ReactNode, ReactNode]` tuple. The size is always clamped to `[min, max]`.
 
 ## `Calendar`
+
+<!-- gallery:inputs-extra -->
+[![Inputs avançados (Date · Pin · Slider) in the gallery](../assets/gallery/inputs-extra.webp)](../gallery.md)
+
+*Section `inputs-extra` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 A standalone month-grid date picker. Header with month/year + prev/next buttons, a weekday row, and a 6×7 grid of day buttons. Selection and visible month can each be controlled or uncontrolled. Uses plain `Date` math — no external date libraries.
 
@@ -81,6 +99,12 @@ const [date, setDate] = useState<Date>();
     Arrow keys move focus by day (←/→) or week (↑/↓); Enter/Space selects the focused day.
 
 ## `Scheduler`
+
+<!-- gallery:scheduler -->
+[![Scheduler (agenda) in the gallery](../assets/gallery/scheduler.webp)](../gallery.md)
+
+*Section `scheduler` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 An agenda: events placed on a time grid across consecutive days. The `Calendar` above is a date *picker* — it answers "which day?". This answers "what is on those days, and when", which needs a different structure: a vertical time axis, events sized by duration, and overlapping events side by side.
 

@@ -17,6 +17,12 @@ Componentes que ajudam o usuário a **se localizar e se mover** pelo app. Eles s
 
 ## `Navbar`
 
+<!-- gallery:nav-extra -->
+[![Navbar · Sidebar · Bottom nav na gallery](../assets/gallery/nav-extra.webp)](../gallery.md)
+
+*Seção `nav-extra` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 **Quando usar:** barra superior persistente com marca + ações globais (busca, avatar, notificações). É a navegação de mais alto nível.
 
 App bar superior. Três slots (`logo` / `nav` / `actions`). Sticky por padrão.
@@ -53,6 +59,12 @@ App bar superior. Três slots (`logo` / `nav` / `actions`). Sticky por padrão.
 **Safe-area**: aplica `padding-top: max(space-3, env(safe-area-inset-top))` automático.
 
 ## `AppBar`
+
+<!-- gallery:navigation -->
+[![AppBar · Tabs · Tooltip · Drawer na gallery](../assets/gallery/navigation.webp)](../gallery.md)
+
+*Seção `navigation` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 **Quando usar:** app bar **mobile-first de PWA** — o padrão "voltar + título + ação" que toda tela de detalhe repete. Use `AppBar` em apps mobile/PWA; use `Navbar` quando precisar do nav horizontal de desktop (três slots).
 
@@ -261,6 +273,12 @@ anuncia acionável e não é.
 
 ## `NavigationRail`
 
+<!-- gallery:material -->
+[![Material (ListTile · FAB · Rail) na gallery](../assets/gallery/material.webp)](../gallery.md)
+
+*Seção `material` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 **Quando usar:** coluna de navegação vertical e compacta para desktop/tablet — uma alternativa mais estreita à `Sidebar` quando você só precisa de ícones empilhados sobre rótulos curtos. Cada item empilha ícone sobre o label; o ativo recebe `aria-current="page"`.
 
 `items: NavigationRailItem[]`, slots `header`/`footer` e controle de rótulos via `labelVisibility`.
@@ -360,6 +378,12 @@ Tabs controlled/uncontrolled. Fade-edge mask em overflow horizontal. Variantes v
 
 ## `Stepper`
 
+<!-- gallery:advanced -->
+[![Stepper · Progress · VirtualList na gallery](../assets/gallery/advanced.webp)](../gallery.md)
+
+*Seção `advanced` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 **Quando usar:** mostrar progresso em um fluxo linear de múltiplas etapas (checkout, onboarding, wizard). É indicador de progresso, não um seletor — controle o `current` pela lógica do fluxo.
 
 Wizard linear com steps numerados. `orientation` aceita `"horizontal"` (default) ou `"vertical"`.
@@ -390,6 +414,12 @@ Navegação hierárquica.
 **A11y**: último item é marcado com `aria-current="page"`.
 
 ## `Pagination`
+
+<!-- gallery:table -->
+[![Table & Pagination na gallery](../assets/gallery/table.webp)](../gallery.md)
+
+*Seção `table` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 **Quando usar:** percorrer listas grandes em páginas discretas (resultados de busca, tabelas). Para feeds contínuos, prefira scroll infinito (`VirtualList` + `usePoll`/Query).
 

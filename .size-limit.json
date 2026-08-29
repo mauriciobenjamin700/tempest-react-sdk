@@ -375,9 +375,9 @@
     "ignore": ["onnxruntime-web"]
   },
   {
-    "name": "br entry — full opt-in surface incl. ALL lazy UF/municipality/centroid chunks",
+    "name": "br entry — full opt-in surface incl. ALL lazy UF/municipality/centroid chunks (5571 municipalities, IBGE intermediaria mesh)",
     "path": "dist/br.js",
-    "limit": "500 KB",
+    "limit": "515 KB",
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {

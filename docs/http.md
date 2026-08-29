@@ -473,11 +473,22 @@ try {
 }
 ```
 
-!!! info "422 do FastAPI: `detail` é lista, e `error.fields` é o que o formulário quer"
-    Um erro de validação do FastAPI chega como `detail: [{ loc, msg, type }]`. O cliente monta duas coisas dessa lista:
+!!! info "`error.fields` — o campo culpado, venha ele em lista ou em chave"
+    Um erro de validação **do FastAPI cru** chega como `detail: [{ loc, msg, type }]`, e o cliente monta duas coisas dessa lista:
 
     - **`error.fields`** — `{ email: "Field required", "items.0.price": "Input should be greater than 0" }`, indexado pelo caminho do campo, que é o que um formulário precisa. O prefixo de `loc` que só nomeia a parte da requisição (`body`, `query`, `path`, `header`, `cookie`) é descartado. Campo repetido mantém a primeira mensagem — input mostra um erro por vez.
     - **`error.detail`** — a mesma coisa achatada numa linha, para log. Carrega caminho de campo e a redação do validador; é texto de desenvolvedor.
+
+    Um backend em cima do [`tempest-fastapi-sdk`](https://mauriciobenjamin700.github.io/tempest-fastapi-sdk/) manda essa lista só enquanto não assume o handler. Assumindo, ele nomeia o campo numa **chave** ao lado da mensagem — e o `fields` também lê essas, nesta ordem:
+
+    | Onde o campo vem | Exemplo de corpo | Quem manda |
+    | --- | --- | --- |
+    | `detail[].loc` | `{ "detail": [{ "loc": ["body", "email"], "msg": "Field required" }] }` | FastAPI cru (`RequestValidationError` sem handler próprio) |
+    | `detail.field` | `{ "detail": { "detail": "Cidade não encontrada…", "field": "city" } }` | `AppException` / `ValidationException` com dict de mensagem |
+    | `field` | `{ "detail": "Value error, … for field 'phone' in 'body'", "field": "phone" }` | handler de `RequestValidationError` que achata a lista |
+    | `details.field` | `{ "detail": "Coluna inválida", "details": { "field": "criado_em" } }` | saco de contexto do `AppException` |
+
+    Quando o campo vem por chave, o valor em `fields` é **a mesma frase** que está em `error.detail` — o backend mandou uma mensagem só, e ela agora sabe a qual input pertence. A lista ganha de todas as chaves; `details` responde por último, porque é um saco de contexto genérico e o `field` dele pode ser sobre algo que nem existe na tela (uma coluna de ordenação, por exemplo).
 
     ```ts
     import { isApiError } from "tempest-react-sdk";
@@ -499,6 +510,8 @@ try {
 !!! warning "Não jogue o `detail` de um 422 na tela"
     `"items.0.price: Input should be greater than 0"` numa interface em pt-BR é meia frase em inglês nomeando estrutura interna. É por isso que o `describeApiError` **não** repassa o `detail` quando `fields` está preenchido: ele devolve a frase de validação ("Confira os campos destacados e tente de novo.", traduzível por `tempest.error.validation`), e as mensagens por campo ficam onde servem — nos inputs.
 
+    **Isso agora vale também para o erro de negócio que nomeia um campo**, cujo `detail` já era uma frase pronta em pt-BR. O toast troca "Cidade não encontrada para o estado informado." pela frase de validação; a sentença não se perde, ela vai para `error.fields.city` e aparece colada no input. Três saídas, em ordem de preferência: `codes: { VALIDATION_ERROR: "…" }` (que ganha do funil inteiro), `validation: error.detail` na chamada, ou ler `error.detail` você mesmo — ele continua intacto.
+
 ### Do erro tipado para a frase na tela — `describeApiError`
 
 O `try/catch` acima escreve a frase à mão, e todo app escreve o mesmo funil — errando sempre no mesmo lugar: a requisição que **não chegou** ao servidor tem `status === 0`, e sem tratamento ela vira "erro 0" na tela.
@@ -517,7 +530,7 @@ A ordem do funil:
 
 1. **`codes[error.code]`** — a frase que **você** escreveu pra aquele caso do backend. Ganha de todo o resto: nada que o funil deduz bate uma frase escrita por quem conhecia o contrato e a tela.
 2. **Requisição que não chegou** — `status === 0`, ou um erro qualquer com o browser se declarando offline → frase de offline.
-3. **Rejeição de validação** — `error.fields` preenchido → frase de validação, **não** o `detail` (que é técnico). As mensagens por campo continuam em `fields`.
+3. **Erro que nomeia campo** — `error.fields` preenchido → frase de validação, **não** o `detail`. Vale tanto para o 422 do FastAPI (cujo `detail` é técnico) quanto para o erro de negócio que apontou um campo. As mensagens por campo continuam em `fields`.
 4. **`detail` do backend** — o texto mais específico disponível, e já escrito para uma pessoa.
 5. **`fallback`**, com `(HTTP <status>)` anexado quando há status — o print no chamado de suporte carrega o único dado que o dev precisa.
 
@@ -591,8 +604,8 @@ const { mutate } = useMutation({
 - `uploadWithProgress` usa XHR pra reportar progresso byte a byte; para arquivo grande, `createResumableUpload` divide em chunks e retoma — veja [Upload resumível](./resumable-upload.md).
 - `retry` (backoff exponencial + `shouldRetry`) e `usePoll` (intervalo com guarda de overlap) cobrem operações instáveis e acompanhamento de jobs.
 - `generateIdempotencyKey` — gere uma vez por operação, reutilize nos retries.
-- `describeApiError(error, fallback)` (puro) e `useDescribeApiError()` (com i18n) transformam o erro tipado na frase da tela, tratando `status === 0` como offline em vez de "erro 0" e um 422 com `fields` como frase de validação em vez do `detail` técnico.
-- `error.fields` indexa as mensagens do 422 por caminho de campo — é o que vai direto pro `setError` do formulário.
+- `describeApiError(error, fallback)` (puro) e `useDescribeApiError()` (com i18n) transformam o erro tipado na frase da tela, tratando `status === 0` como offline em vez de "erro 0" e todo erro com `fields` como frase de validação em vez do `detail`.
+- `error.fields` indexa as mensagens por campo — da lista do 422 do FastAPI ou das chaves `detail.field` / `field` / `details.field` que um backend `tempest-fastapi-sdk` manda. É o que vai direto pro `setError` do formulário.
 
 ## Veja também
 

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_API_ERROR_STRINGS, describeApiError } from "./describe-api-error";
-import { TempestApiError } from "./errors";
+import { buildApiError, TempestApiError } from "./errors";
 
 const FALLBACK = "Não foi possível carregar os pedidos";
 
@@ -218,5 +218,47 @@ describe("describeApiError — useDetail", () => {
         setOnline(true);
         const error = new TempestApiError({ status: 500, detail: "algo deu errado" });
         expect(describeApiError(error, FALLBACK)).toBe("algo deu errado");
+    });
+});
+
+describe("describeApiError — erro de negócio que nomeia um campo", () => {
+    const businessError = (): TempestApiError =>
+        new TempestApiError(
+            buildApiError(422, {
+                detail: {
+                    detail: "Cidade não encontrada para o estado informado.",
+                    field: "city",
+                },
+                code: "VALIDATION_ERROR",
+                details: { field: "city" },
+            }),
+        );
+
+    it("responde a frase de validação, não mais a sentença do backend", () => {
+        expect(describeApiError(businessError(), FALLBACK)).toBe(
+            DEFAULT_API_ERROR_STRINGS.validation,
+        );
+    });
+
+    it("e a sentença específica continua no campo, para o input", () => {
+        expect(businessError().fields).toEqual({
+            city: "Cidade não encontrada para o estado informado.",
+        });
+    });
+
+    it("um codes catalogado ainda ganha da frase de validação", () => {
+        expect(
+            describeApiError(businessError(), FALLBACK, {
+                codes: { VALIDATION_ERROR: "Escolha uma cidade do estado selecionado." },
+            }),
+        ).toBe("Escolha uma cidade do estado selecionado.");
+    });
+
+    it("um erro de negócio que NÃO nomeia campo continua mostrando o detail", () => {
+        const error = new TempestApiError(
+            buildApiError(409, { detail: "Email já cadastrado", code: "EMAIL_TAKEN" }),
+        );
+
+        expect(describeApiError(error, FALLBACK)).toBe("Email já cadastrado");
     });
 });

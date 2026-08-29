@@ -113,6 +113,65 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   A união já era discriminada por `type`, então a variante é aditiva: nenhum
   consumidor quebra.
 
+- **`municipalitiesByUf`, `administrativeRegionsByUf`, `resolveMunicipality`,
+  `datasetVintage` e `pendingGeometryIds` em `/br`.** O código IBGE é o que se
+  guarda; o nome é o que se exibe.
+
+  ```ts
+  resolveMunicipality("RN", "Serra Caiada")?.id; // "2410306" — nome atual
+  resolveMunicipality("RN", "Presidente Juscelino")?.id; // "2410306" — nome antigo
+  resolveMunicipality("SP", "sao paulo")?.id; // "3550308" — sem acento
+  resolveMunicipality("DF", "Ceilândia")?.id; // "5300108" — região administrativa
+  ```
+
+  As 53 formas antigas não foram escritas à mão: o gerador as extrai comparando a
+  safra anterior com a nova pelo código que as duas compartilham, e acumula a
+  tabela a cada regeneração. É o que faz um endereço salvo há cinco anos continuar
+  apontando para o mesmo lugar.
+
+- **`municipalityId` na seleção do `BrazilStateCitySelect`.** Aditivo:
+  `onChange` passa a emitir `{ uf, city, municipalityId }`. Uma região
+  administrativa do DF emite o código de Brasília, então **toda** seleção
+  geocodifica.
+
+- **`datasetVintage()` e `pendingGeometryIds()` expõem a lacuna em vez de
+  escondê-la.** O IBGE publica município novo antes da malha dele: hoje Boa
+  Esperança do Norte (MT), instalado em 2023, é listado e selecionável e é o único
+  que `geocodeMunicipality` não posiciona. O teste fixa essa lista — quando ela
+  crescer sem alguém decidir, a build falha.
+
+- **`ApiError.fields` passou a ler o campo culpado dos envelopes que um backend
+  Tempest manda**
+  ([#252](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/252)).
+  O índice só se preenchia da lista `detail: [{ loc, msg }]` do FastAPI cru —
+  exatamente a forma que um backend sobre `tempest-fastapi-sdk` deixa de mandar
+  assim que assume os próprios handlers: ele nomeia o campo numa chave ao lado da
+  mensagem. Então os dois envelopes que este SDK existe para consumir acertavam a
+  mensagem e derrubavam o campo no chão, e todo formulário voltava a fazer cast
+  de `error.body` e a parsear prosa — que é exatamente o que `fields` foi criado
+  para acabar.
+
+  ```json
+  { "detail": "Value error, … for field 'phone' in 'body'", "field": "phone" }
+  { "detail": { "detail": "Cidade não encontrada…", "field": "city" },
+    "code": "VALIDATION_ERROR", "details": { "field": "city" } }
+  ```
+
+  As duas agora chegam em `fields`, com a mesma frase que vira `detail`.
+  Precedência: a lista primeiro e autoritativa (um app sem handler de
+  `RequestValidationError` ainda responde um 422 de schema com ela), depois
+  `detail.field`, `field` e `details.field` — `details` por último porque é saco
+  de contexto livre, cujo `field` pode não ser input nenhum na tela. Campo nomeado
+  sem mensagem legível não produz nada: o único texto restante ali seria o
+  sintético, e `{ phone: "Erro 422" }` num input é ruído, não mensagem de erro.
+
+  **Muda comportamento:** `describeApiError` suprime `detail` sempre que `fields`
+  está setado, então erro de negócio que nomeia campo passa a exibir a frase de
+  validação no toast em vez da própria frase pt-BR. Ela não se perde — vai para o
+  input de que fala, que é onde serve mais. Três saídas, em ordem de preferência:
+  `codes: { VALIDATION_ERROR: "…" }`, `validation: error.detail` no call site, ou
+  ler `error.detail`, que segue intocado.
+
 ### Corrigido
 
 - **14 links da sidebar da gallery não iam a lugar nenhum.** As seções `chat`,
@@ -228,6 +287,64 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `e2e/reset.spec.ts` fixa isso num browser real — jsdom não calcula layout e
   nunca veria. Revertido contra o CSS anterior, falha com `Received: 12`.
 
+- **Os quatro datasets de `br/` discordavam entre si — 79 municípios do seletor
+  não geocodificavam**
+  ([#249](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/249)).
+  O arquivo de nomes que alimenta `BrazilStateCitySelect` e o índice de
+  centroides que o geocoder lê vinham de safras diferentes do IBGE e eram unidos
+  por **nome**. Bastava uma renomeação para o par se perder: `Presidente
+Juscelino` (RN) virou `Serra Caiada` em 2013, `Embu` virou `Embu das Artes`,
+  `Campo de Santana` (PB) virou `Tacima`. O seletor oferecia o nome novo, o
+  centroide guardava o velho, e `geocodeMunicipality` respondia vazio sem que
+  componente nenhum tivesse como avisar.
+
+  Agora **tudo sai do IBGE numa geração só**, unido pelo código de 7 dígitos, que
+  sobrevive a renomeação:
+
+  | Arquivo                     | Antes                                              | Agora                                 |
+  | --------------------------- | -------------------------------------------------- | ------------------------------------- |
+  | `br-locations.json` (nomes) | 5.606, sem id                                      | **5.571**, com id                     |
+  | `br-centroids.json`         | 5.562                                              | **5.570** + 1 declarado sem geometria |
+  | `mun/<UF>.json`             | 5.562                                              | **5.570**                             |
+  | fonte                       | duas safras, `tbrugz/geodata-br` + arquivo à parte | `/localidades` + `/malhas` do IBGE    |
+
+  A divergência que sobrava — 79 nomes sem centroide, 30 centroides sem nome — é
+  **zero**, e um teste novo (`src/br/datasets.guard.test.ts`) compara os quatro
+  arquivos id a id, mais a safra declarada em cada um. Regeneração parcial passa
+  a falhar no teste em vez de embarcar.
+
+- **O Distrito Federal listava 35 regiões administrativas como se fossem
+  municípios.** O DF tem **um** município, Brasília; Ceilândia, Taguatinga e as
+  outras 33 são regiões administrativas dentro dele, sem código de município —
+  então nenhuma geocodificava. Elas continuam listadas e selecionáveis, agora num
+  campo próprio, e resolvem para Brasília:
+
+  ```ts
+  municipalitiesByUf("DF"); // [{ id: "5300108", name: "Brasília" }]
+  administrativeRegionsByUf("DF").length; // 35
+  resolveMunicipality("DF", "Ceilândia")?.id; // "5300108"
+  ```
+
+  Ignorá-las não era opção: ninguém no DF escreve "Brasília" num campo de
+  endereço. **`citiesByUf("DF")` passa a devolver só `["Brasília"]`** (eram 36) e
+  `isValidCity("DF", "Ceilândia")` passa a ser `false` — quem precisa aceitar RA
+  usa `resolveMunicipality`, que aceita, ou `administrativeRegionsByUf`. O
+  `BrazilStateCitySelect` já lista as duas coisas, então nenhum formulário perde
+  opção.
+
+- **Quatro municípios pequenos demais tinham sumido da malha.** Santa Cruz de
+  Minas (o menor do Brasil, 3,5 km²), Águas de São Pedro, Rio Grande da Serra e
+  Taboão da Serra desapareciam na simplificação: a tolerância fixa de ~2 km
+  engolia todos os vértices, o anel caía abaixo dos quatro pontos que um polígono
+  precisa e o município simplesmente não era escrito. A tolerância agora é
+  limitada a um vinte avos da diagonal do próprio anel.
+
+- **`reverseGeocode` respondia "Niterói" para o centro do Rio.** A malha `minima`
+  do IBGE desenha o Rio de Janeiro inteiro com 35 pontos, e o Centro fica **fora**
+  desse contorno. A camada municipal passou a vir de `intermediaria`, que mantém a
+  linha de costa que decide esse ponto; a simplificação continua trazendo o
+  tamanho de volta (`mun/` foi de 2,26 MB para 2,37 MB).
+
 - **O relatório de drift do `parseResponse` estava morto no browser**
   ([#250](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/250)).
   A decisão de "estou em desenvolvimento" era
@@ -312,6 +429,19 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `EmptyState` não é `ErrorState`; e `RadioGroup` não tem `label`.
 
 ### Interno
+
+- **O gerador de geodados passou a ser a fonte única de `src/br/data/`.**
+  `scripts/gen-br-geodata.mjs` buscava malha do `tbrugz/geodata-br` e o arquivo de
+  nomes vinha por fora, sem ninguém comparar os dois. Agora ele lê `/localidades`
+  e `/malhas` do IBGE e escreve os quatro arquivos numa passada, com as duas
+  safras (`roster` e `mesh`) gravadas dentro de cada um. `npm run gen:geodata`
+  continua sendo o comando.
+
+- **Teto do `/br` no `size-limit` foi de 500 kB para 515 kB.** A superfície
+  completa com **todos** os chunks lazy mede 501,66 kB brotli: a malha
+  `intermediaria` custa isso, e é ela que faz `reverseGeocode` acertar o centro
+  do Rio. Nenhum app paga esse número — o teto existe como limite explícito da
+  entrada inteira, e as fatias medidas por importação não mudaram.
 
 - **Captura de tela por seção da gallery, versionada e regenerável**
   (`npm run docs:shots`). A documentação de um SDK de UI não mostrava nada: as
@@ -709,8 +839,6 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   dataset simplificado de municípios não contém. Chegar a 100% exigiria pragma
   (`/* v8 ignore */`) ou apagar guarda que existe para contexto fora do browser —
   as duas coisas pioram o código para melhorar o número.
-
-### Interno
 
 - **`tempest doctor` volta a passar limpo no próprio SDK** — 9 warnings → zero.
   Um era defeito de verdade: `.item` declarado em dois blocos no

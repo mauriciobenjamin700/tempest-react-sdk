@@ -7,7 +7,15 @@
  */
 import { useMemo, useState, type ReactElement } from "react";
 import { Select } from "@/components/Select";
-import { cityChoices, listStates, normalizeUf, type UF } from "./locations";
+import {
+    administrativeRegionsByUf,
+    listStates,
+    municipalitiesByUf,
+    normalizeUf,
+    resolveMunicipality,
+    type Choice,
+    type UF,
+} from "./locations";
 
 /** Current selection emitted by {@link BrazilStateCitySelect}. */
 export interface BrazilStateCitySelection {
@@ -15,6 +23,15 @@ export interface BrazilStateCitySelection {
     uf: UF | null;
     /** Selected city, or `null` when none. */
     city: string | null;
+    /**
+     * IBGE code of the selected municipality, or `null` when none is selected.
+     *
+     * This is the value to store. It survives the renames `city` does not, and
+     * it is what `geocodeMunicipality` and every other dataset here join on. A
+     * DF administrative region carries Brasília's code, because that is the
+     * municipality it is part of.
+     */
+    municipalityId: string | null;
 }
 
 export interface BrazilStateCitySelectProps {
@@ -47,6 +64,26 @@ export interface BrazilStateCitySelectProps {
  * @example
  * <BrazilStateCitySelect onChange={({ uf, city }) => console.log(uf, city)} />
  */
+/**
+ * The pickable places of a federative unit: its municipalities, plus the DF's
+ * administrative regions.
+ *
+ * The DF has one municipality and nobody there writes "Brasília" in an address
+ * field — they write Ceilândia, Taguatinga, Gama. Offering only the municipality
+ * would be faithful to IBGE and useless in a form, so the 35 regions are listed
+ * beside it and every one of them resolves to Brasília's code.
+ *
+ * @param uf - The selected federative unit.
+ * @returns `{ value, label }` options, alphabetically, value === label.
+ */
+function placeChoices(uf: UF): Choice[] {
+    const names = [
+        ...municipalitiesByUf(uf).map((m) => m.name),
+        ...administrativeRegionsByUf(uf).map((r) => r.name),
+    ].sort((a, b) => a.localeCompare(b, "pt-BR"));
+    return names.map((name) => ({ value: name, label: name }));
+}
+
 export function BrazilStateCitySelect({
     defaultUf,
     defaultCity,
@@ -65,19 +102,23 @@ export function BrazilStateCitySelect({
         () => listStates().map((s) => ({ value: s.uf, label: s.name })),
         [],
     );
-    const cityOptions = useMemo(() => (uf ? cityChoices(uf) : []), [uf]);
+    const cityOptions = useMemo(() => (uf ? placeChoices(uf) : []), [uf]);
 
     function handleUf(next: string): void {
         const nextUf = normalizeUf(next);
         setUf(nextUf);
         setCity(null);
-        onChange?.({ uf: nextUf, city: null });
+        onChange?.({ uf: nextUf, city: null, municipalityId: null });
     }
 
     function handleCity(next: string): void {
         const nextCity = next || null;
         setCity(nextCity);
-        onChange?.({ uf, city: nextCity });
+        onChange?.({
+            uf,
+            city: nextCity,
+            municipalityId: uf && nextCity ? (resolveMunicipality(uf, nextCity)?.id ?? null) : null,
+        });
     }
 
     return (

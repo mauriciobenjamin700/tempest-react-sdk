@@ -252,13 +252,13 @@ export function tempestIcons(options: TempestIconsOptions = {}): TempestVitePlug
             file: string;
             read: () => Promise<string>;
             server: { moduleGraph: { getModuleById: (id: string) => unknown } };
-        }) {
-            if (!SOURCE_FILE.test(ctx.file)) return;
+        }): Promise<unknown[] | undefined> {
+            if (!SOURCE_FILE.test(ctx.file)) return undefined;
             const before = slugs.size;
             for (const slug of scanIconSlugs(await ctx.read(), known)) slugs.add(slug);
-            if (slugs.size === before) return;
+            if (slugs.size === before) return undefined;
             const mod = ctx.server.moduleGraph.getModuleById(RESOLVED_ID);
-            if (mod) return [mod];
+            return mod ? [mod] : undefined;
         },
     } as TempestVitePlugin;
 }

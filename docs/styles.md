@@ -40,6 +40,59 @@ Pronto. Tudo o que está abaixo já está disponível na sua aplicação.
 
 ---
 
+## Importar menos CSS
+
+`tempest-react-sdk/styles.css` traz os ~150 componentes. O JavaScript que você
+importa é tree-shaken; **o CSS não** — então um app que usa treze componentes
+baixa os outros cento e quarenta.
+
+Para pagar só pelo que monta, importe a fundação e as folhas que quiser:
+
+```ts
+import "tempest-react-sdk/styles/core.css";
+import "tempest-react-sdk/styles/Button.css";
+import "tempest-react-sdk/styles/Modal.css";
+```
+
+Medido num app Vite real, os mesmos doze componentes montados dos dois jeitos:
+
+| Import | raw | gzip |
+| --- | --- | --- |
+| `styles.css` | 236,71 kB | 35,38 kB |
+| `core.css` + 7 grupos | 155,43 kB | 23,38 kB |
+| `core.css` + 12 componentes | **38,94 kB** | **7,70 kB** |
+
+!!! danger "`core.css` não é opcional"
+    Ele carrega reset, tokens, tipografia, motion, densidade, responsividade e
+    impressão — **nenhuma** folha de componente repete isso. Importar
+    `Button.css` sem `core.css` dá um botão sem cor, sem espaçamento e sem fonte.
+
+### Três granularidades
+
+| Entrada | O que traz | Quando |
+| --- | --- | --- |
+| `styles.css` | tudo | uma linha só, e o peso não incomoda |
+| `styles/core.css` | fundação, zero componente | sempre, com qualquer das outras |
+| `styles/<Grupo>.css` | uma família inteira | você usa boa parte dela |
+| `styles/<Componente>.css` | um componente | você quer o mínimo |
+
+Grupos disponíveis: `actions`, `advanced`, `br`, `chat`, `data`, `editor`,
+`feedback`, `forms`, `geo`, `icons`, `identity`, `layout`, `media`,
+`navigation`, `overlay`, `utility`. O nome do arquivo de componente é o nome do
+componente — `styles/DataTable.css`, `styles/Slider.css`.
+
+!!! tip "Um componente por arquivo, com um caminho público só"
+    O `exports` do pacote publica isso como **um** padrão de subpath
+    (`"./styles/*.css"`), não como 125 entradas. Granularidade fina sem 125
+    caminhos presos por semver.
+
+!!! note "A divisão é exata, não uma poda"
+    Cada classe é hasheada por módulo CSS (`tempest_[local]_[hash]`), e cada
+    `dist/**/*.module.js` carrega o caminho de origem junto dos nomes que aquele
+    módulo declara — atribuir uma regra a um componente é consulta, não palpite.
+    O build **falha** se alguma regra nomear classes de dois módulos, que é o que
+    tornaria a divisão um palpite.
+
 ## Cor
 
 ### Brand — primary tints

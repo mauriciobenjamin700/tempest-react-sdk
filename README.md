@@ -202,6 +202,16 @@ This injects the design tokens (`--tempest-primary`, `--tempest-radius-md`, ...)
 
 The styles ship hashed under the `tempest_` namespace — they do **not** collide with Tailwind, Stitches, Linaria, or app-level CSS Modules.
 
+**Importing less.** The JavaScript you import is tree-shaken; the CSS is not, so `styles.css` carries all ~150 components whether you mount thirteen or all of them. Pay for what you use by taking the foundation plus the sheets you need:
+
+```ts
+import "tempest-react-sdk/styles/core.css"; // reset + tokens — always required
+import "tempest-react-sdk/styles/Button.css";
+import "tempest-react-sdk/styles/forms.css"; // or a whole family
+```
+
+Measured in a real Vite app mounting twelve components: **236.71 kB raw / 35.38 kB gzip** with `styles.css`, **38.94 kB / 7.70 kB** with `core.css` plus those twelve — 78% less. See [Styles](https://mauriciobenjamin700.github.io/tempest-react-sdk/styles/) for the full list of groups.
+
 **Rebranding.** The `--tempest-*` tokens are the only theming API, and `createTheme` writes them for you — `primary` alone yields the ten-step scale for **both** color schemes (dark inverts the ramp), plus the status families, the radius scale and the focus ring:
 
 ```ts

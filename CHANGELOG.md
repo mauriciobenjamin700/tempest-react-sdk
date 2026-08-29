@@ -4,6 +4,48 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **Entradas de CSS por componente e por grupo**
+  ([#239](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/239)).
+  O JavaScript que o consumidor importa é tree-shaken; **o CSS não**. Quem
+  importava `tempest-react-sdk/styles.css` baixava os ~150 componentes, usando
+  treze ou usando todos.
+
+  ```ts
+  import "tempest-react-sdk/styles/core.css"; // reset + tokens — sempre necessário
+  import "tempest-react-sdk/styles/Button.css";
+  import "tempest-react-sdk/styles/forms.css"; // ou uma família inteira
+  ```
+
+  Medido num app Vite real montando os mesmos doze componentes:
+
+  | Import                      | raw          | gzip        |
+  | --------------------------- | ------------ | ----------- |
+  | `styles.css`                | 236,71 kB    | 35,38 kB    |
+  | `core.css` + 7 grupos       | 155,43 kB    | 23,38 kB    |
+  | `core.css` + 12 componentes | **38,94 kB** | **7,70 kB** |
+
+  **−78%**, ou −27,7 kB gzip em todo primeiro carregamento — o número que o
+  relator mediu no PWA dele. A granularidade por grupo, medida no mesmo app,
+  recupera só 34%: o app usa 3 dos 25 inputs e pagaria os 25. As duas formas
+  ficam disponíveis; a fina é a que entrega.
+
+  Publicado como **um** padrão de subpath (`"./styles/*.css"`), não como 125
+  entradas — granularidade fina sem 125 caminhos presos por semver.
+  `styles.css` continua existindo, inalterado, para quem prefere uma linha só.
+
+  **A divisão é exata, não uma poda.** Cada classe é hasheada por módulo CSS
+  (`tempest_[local]_[hash]`) e cada `dist/**/*.module.js` carrega o caminho de
+  origem junto dos nomes que aquele módulo declara, então atribuir uma regra a um
+  componente é consulta, não palpite. Das 1632 regras da folha, **zero** nomeia
+  classes de dois módulos — e o build falha se alguma passar a nomear, ou se um
+  componente novo não cair em grupo nenhum.
+
+  `core.css` (3,1 kB brotli) traz reset, tokens, tipografia, motion, densidade,
+  responsividade e impressão. Nenhuma folha de componente repete isso, então ele
+  é obrigatório junto de qualquer outra.
+
 ## [0.53.0] — 2026-08-28
 
 ### Adicionado

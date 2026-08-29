@@ -46,6 +46,59 @@ Pronto. Tudo o que está abaixo já está disponível na sua aplicação.
 
 ---
 
+## Importar menos CSS
+
+`tempest-react-sdk/styles.css` traz os ~150 componentes. O JavaScript que você
+importa é tree-shaken; **o CSS não** — então um app que usa treze componentes
+baixa os outros cento e quarenta.
+
+Para pagar só pelo que monta, importe a fundação e as folhas que quiser:
+
+```ts
+import "tempest-react-sdk/styles/core.css";
+import "tempest-react-sdk/styles/Button.css";
+import "tempest-react-sdk/styles/Modal.css";
+```
+
+Medido num app Vite real, os mesmos doze componentes montados dos dois jeitos:
+
+| Import | raw | gzip |
+| --- | --- | --- |
+| `styles.css` | 236,71 kB | 35,38 kB |
+| `core.css` + 7 grupos | 155,43 kB | 23,38 kB |
+| `core.css` + 12 componentes | **38,94 kB** | **7,70 kB** |
+
+!!! danger "`core.css` não é opcional"
+    Ele carrega reset, tokens, tipografia, motion, densidade, responsividade e
+    impressão — **nenhuma** folha de componente repete isso. Importar
+    `Button.css` sem `core.css` dá um botão sem cor, sem espaçamento e sem fonte.
+
+### Três granularidades
+
+| Entrada | O que traz | Quando |
+| --- | --- | --- |
+| `styles.css` | tudo | uma linha só, e o peso não incomoda |
+| `styles/core.css` | fundação, zero componente | sempre, com qualquer das outras |
+| `styles/<Grupo>.css` | uma família inteira | você usa boa parte dela |
+| `styles/<Componente>.css` | um componente | você quer o mínimo |
+
+Grupos disponíveis: `actions`, `advanced`, `br`, `chat`, `data`, `editor`,
+`feedback`, `forms`, `geo`, `icons`, `identity`, `layout`, `media`,
+`navigation`, `overlay`, `utility`. O nome do arquivo de componente é o nome do
+componente — `styles/DataTable.css`, `styles/Slider.css`.
+
+!!! tip "Um componente por arquivo, com um caminho público só"
+    O `exports` do pacote publica isso como **um** padrão de subpath
+    (`"./styles/*.css"`), não como 125 entradas. Granularidade fina sem 125
+    caminhos presos por semver.
+
+!!! note "A divisão é exata, não uma poda"
+    Cada classe é hasheada por módulo CSS (`tempest_[local]_[hash]`), e cada
+    `dist/**/*.module.js` carrega o caminho de origem junto dos nomes que aquele
+    módulo declara — atribuir uma regra a um componente é consulta, não palpite.
+    O build **falha** se alguma regra nomear classes de dois módulos, que é o que
+    tornaria a divisão um palpite.
+
 ## Cor
 
 ### Brand — primary tints
@@ -318,6 +371,46 @@ Shadows são automaticamente mais escuros no tema dark.
 `@media (prefers-reduced-motion: reduce)` zera todas as durações de tokens automaticamente. Componentes que usam keyframes pesados (modal, drawer, toast, tooltip, skeleton) também detectam e desabilitam animações específicas.
 
 ---
+
+## O reset e o seu markup
+
+`styles.css` traz um reset moderno, e uma das regras dele alcança elementos que
+o SDK não desenha:
+
+```css
+img, svg, video, canvas, audio, iframe, embed, object {
+    display: block;
+    max-width: 100%;
+}
+```
+
+Deixar mídia em bloco evita o espaço fantasma abaixo de uma imagem inline, que é
+o motivo de a regra existir em todo reset moderno. Mas um `<button>` do
+user-agent centraliza o conteúdo com `text-align: center`, e `text-align` só
+alcança caixa inline — então um ícone sozinho num botão **seu** encostaria na
+borda esquerda.
+
+O SDK ships o contrapeso junto:
+
+```css
+:where(button, a, label, summary) > svg:only-child {
+    margin-inline: auto;
+}
+```
+
+!!! tip "Especificidade zero, de propósito"
+    `:where()` não soma especificidade, então **qualquer** regra sua ganha desta
+    sem `!important`. Centralizado é o default; outro alinhamento é uma
+    declaração normal:
+
+    ```css
+    .toolbar button > svg { margin-inline: 0; }
+    ```
+
+!!! note "Só vale para ícone sozinho"
+    `:only-child` mantém a regra restrita ao botão só-de-ícone. Ícone ao lado de
+    rótulo já vive num flex seu, onde `margin: auto` empurraria o texto — esse
+    caso continua com o alinhamento que você deu.
 
 ## Focus ring
 

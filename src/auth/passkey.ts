@@ -434,7 +434,7 @@ function toDescriptors(
 ): PublicKeyCredentialDescriptor[] | undefined {
     if (!list) return undefined;
     return list.map((item) => ({
-        id: base64UrlToBytes(item.id) as unknown as BufferSource,
+        id: base64UrlToBytes(item.id),
         type: item.type,
         transports: item.transports as AuthenticatorTransport[] | undefined,
     }));
@@ -495,10 +495,10 @@ export function createPasskeyClient(options: CreatePasskeyClientOptions = {}): P
     ): Promise<PasskeyRegistrationJSON> {
         const api = container();
         const publicKey: PublicKeyCredentialCreationOptions = {
-            challenge: base64UrlToBytes(json.challenge) as unknown as BufferSource,
+            challenge: base64UrlToBytes(json.challenge),
             rp: { name: json.rp.name, id: json.rp.id ?? rpId },
             user: {
-                id: base64UrlToBytes(json.user.id) as unknown as BufferSource,
+                id: base64UrlToBytes(json.user.id),
                 name: json.user.name,
                 displayName: json.user.displayName,
             },
@@ -549,7 +549,7 @@ export function createPasskeyClient(options: CreatePasskeyClientOptions = {}): P
     ): Promise<PasskeyAuthenticationJSON> {
         const api = container();
         const publicKey: PublicKeyCredentialRequestOptions = {
-            challenge: base64UrlToBytes(json.challenge) as unknown as BufferSource,
+            challenge: base64UrlToBytes(json.challenge),
             rpId: json.rpId ?? rpId,
             timeout: json.timeout ?? timeoutMs,
             allowCredentials: toDescriptors(json.allowCredentials),

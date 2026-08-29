@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/utils/cn";
 import styles from "./Modal.module.css";
+import { usePortalHost } from "../Portal/portal-host";
 
 export type ModalSize = "sm" | "md" | "lg" | "xl" | "2xl" | "3xl";
 
@@ -76,7 +77,9 @@ export function Modal({
         };
     }, [open, closeOnEsc, onClose]);
 
-    if (!open || typeof document === "undefined") return null;
+    const portalHost = usePortalHost();
+
+    if (!open || !portalHost) return null;
 
     return createPortal(
         <div
@@ -123,7 +126,7 @@ export function Modal({
                 {footer && <footer className={styles.footer}>{footer}</footer>}
             </div>
         </div>,
-        document.body,
+        portalHost,
     );
 }
 

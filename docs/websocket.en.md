@@ -199,6 +199,48 @@ export function Chat({ enabled }: { enabled: boolean }) {
 - `send` is stable (`useCallback`) — safe to put in deps without reopening anything.
 - Automatic cleanup on unmount (clean close, no reconnect attempts).
 
+## A frame that is not JSON
+
+Both transports `JSON.parse` the frame by default. When that fails — the server
+returned an error page, a plain-text `ping` arrived, a proxy injected something —
+the SDK delivers the **raw string announced as your type**. That is the historical
+behaviour and it stays, because changing it would break whoever relies on it; what
+changed is that it stopped being silent.
+
+```tsx
+import { createWebSocket } from "tempest-react-sdk";
+
+interface Event {
+    id: string;
+    kind: string;
+}
+
+const socket = createWebSocket<Event>("wss://api.example.com/events", {
+    onParseError: (error, raw) => {
+        console.error("unreadable frame, dropped:", raw.slice(0, 120), error);
+    },
+    onMessage: ({ data }) => {
+        console.log(data.id);
+    },
+});
+```
+
+With `onParseError` registered, the broken frame **does not reach** `onMessage` — a
+caller who asked to hear about failures did not ask to also receive the frame.
+Without it, the frame is delivered as before and a development build warns **once**
+per transport in the console.
+
+!!! warning "Why the old default is a trap"
+    `data` typed as `Event` while actually being a `string` does not blow up at the
+    parse — it blows up at the first `data.id`, far away, with nothing pointing at
+    the frame that caused it. The warning and `onParseError` exist so the error
+    shows up where it happens.
+
+!!! tip "`parser` still wins"
+    Passing `parser` switches all of this off: its result is always delivered,
+    because decoding text, base64 binary or a protocol of your own is exactly what
+    the option is for. `onParseError` only applies when there is no `parser`.
+
 ## Status
 
 `"idle" | "connecting" | "open" | "closing" | "closed" | "error"` — `error` is terminal and arrives together with `onLost`: either the schedule ran out (`"exhausted"`) or the server refused the client (`"rejected"`). A reconnect in progress goes through `"connecting"`, not through `"error"`.

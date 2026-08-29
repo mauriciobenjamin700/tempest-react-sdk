@@ -199,6 +199,48 @@ export function Chat({ enabled }: { enabled: boolean }) {
 - `send` é estável (`useCallback`) — pode ir em deps sem reabrir nada.
 - Cleanup automático no unmount (fechamento limpo, não tenta reconectar).
 
+## Frame que não é JSON
+
+Por padrão os dois transportes fazem `JSON.parse` do frame. Quando o parse falha —
+o servidor devolveu HTML de erro, um `ping` em texto puro, um proxy injetou algo —
+o SDK entrega a **string crua anunciada como o seu tipo**. É o comportamento
+histórico e ele continua, porque mudá-lo quebraria quem depende dele; o que mudou
+é que ele parou de ser silencioso.
+
+```tsx
+import { createWebSocket } from "tempest-react-sdk";
+
+interface Evento {
+    id: string;
+    tipo: string;
+}
+
+const socket = createWebSocket<Evento>("wss://api.exemplo.com/eventos", {
+    onParseError: (erro, raw) => {
+        console.error("frame ilegível, descartado:", raw.slice(0, 120), erro);
+    },
+    onMessage: ({ data }) => {
+        console.log(data.id);
+    },
+});
+```
+
+Com `onParseError` registrado, o frame quebrado **não chega** em `onMessage` — quem
+pediu para ouvir a falha não pediu para também receber o frame. Sem ele, o frame é
+entregue como antes e um build de desenvolvimento avisa **uma vez** por transporte
+no console.
+
+!!! warning "Por que o padrão antigo é uma armadilha"
+    `data` tipado como `Evento` sendo na verdade uma `string` não explode no
+    parse — explode no primeiro `data.id`, longe dali, sem nada apontando para o
+    frame que causou. O aviso e o `onParseError` existem para o erro aparecer onde
+    ele acontece.
+
+!!! tip "`parser` continua mandando"
+    Passar `parser` desliga tudo isso: o resultado dele é sempre entregue, porque
+    decodificar texto, binário em base64 ou um protocolo próprio é justamente o
+    propósito da opção. `onParseError` só entra em cena quando não há `parser`.
+
 ## Status
 
 `"idle" | "connecting" | "open" | "closing" | "closed" | "error"` — `error` é terminal e chega junto com `onLost`: ou o cronograma esgotou (`"exhausted"`), ou o servidor recusou o cliente (`"rejected"`). Uma reconexão em curso passa por `"connecting"`, não por `"error"`.

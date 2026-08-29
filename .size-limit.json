@@ -49,7 +49,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ Button, Input, Modal, Table, ToastProvider, AppProviders, AppRouter, createApiClient, createAuthStore, useDebounce }"
     },
-    "limit": "9 KB",
+    "limit": "9.5 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -569,6 +569,34 @@
     "name": "styles.css",
     "path": "dist/styles.css",
     "limit": "30 kB"
+  },
+  {
+    "name": "styles/core.css (foundation alone — no component)",
+    "path": "dist/styles/core.css",
+    "limit": "4 kB"
+  },
+  {
+    "name": "styles: a typical app (core + 12 components)",
+    "path": [
+      "dist/styles/core.css",
+      "dist/styles/Button.css",
+      "dist/styles/Card.css",
+      "dist/styles/EmptyState.css",
+      "dist/styles/Modal.css",
+      "dist/styles/Page.css",
+      "dist/styles/Select.css",
+      "dist/styles/Slider.css",
+      "dist/styles/Spinner.css",
+      "dist/styles/Layout.css",
+      "dist/styles/Switch.css",
+      "dist/styles/Tabs.css"
+    ],
+    "limit": "10 kB"
+  },
+  {
+    "name": "styles/forms.css (the largest group)",
+    "path": "dist/styles/forms.css",
+    "limit": "6 kB"
   },
   {
     "name": "utilities.css (opt-in layer)",

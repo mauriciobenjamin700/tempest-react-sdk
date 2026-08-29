@@ -4,7 +4,7 @@
  * a scroll region. Nine props is what windowing costs — the alternative is the app
  * doing the maths.
  */
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { cn } from "@/utils/cn";
 import styles from "./VirtualList.module.css";
@@ -30,6 +30,46 @@ export interface VirtualListProps<T> {
      */
     label?: string;
 }
+
+interface VirtualRowProps<T> {
+    item: T;
+    index: number;
+    top: number;
+    height: number;
+    render: (item: T, index: number) => ReactNode;
+}
+
+/**
+ * One windowed row, rendered on its own so React can skip it.
+ *
+ * Without this boundary every scroll event re-rendered the whole visible window
+ * rather than the one row that entered it: measured at 126 `renderItem` calls
+ * across twenty single-row scroll steps where twenty are needed, and the factor
+ * grows with the number of visible rows.
+ *
+ * `render` is part of the comparison on purpose. Reading it from a ref instead
+ * would let a row keep painting output from a stale closure — the row that shows
+ * the selected item would never notice the selection changed. Keeping it in the
+ * props means an app that wraps `renderItem` in `useCallback` gets the skip, and
+ * an app that passes an inline arrow gets exactly today's behaviour.
+ *
+ * @param props - The row's item, its position and the caller's renderer.
+ * @returns The positioned row element.
+ */
+function VirtualRowImpl<T>({ item, index, top, height, render }: VirtualRowProps<T>) {
+    return (
+        <div role="listitem" className={styles.row} style={{ top, height }}>
+            {render(item, index)}
+        </div>
+    );
+}
+
+/**
+ * `memo` erases the generic, so the memoised component is re-typed as the
+ * function it wraps. The runtime value is unchanged; only the signature is
+ * restored.
+ */
+const VirtualRow = memo(VirtualRowImpl) as typeof VirtualRowImpl;
 
 /**
  * Fixed-height virtual list. Renders only the visible window plus a small
@@ -89,16 +129,15 @@ export function VirtualList<T>({
             <div className={styles.spacer} style={{ height: totalHeight }}>
                 {items.slice(start, end).map((item, offset) => {
                     const index = start + offset;
-                    const key = getKey ? getKey(item, index) : index;
                     return (
-                        <div
-                            key={key}
-                            role="listitem"
-                            className={styles.row}
-                            style={{ top: index * itemHeight, height: itemHeight }}
-                        >
-                            {renderItem(item, index)}
-                        </div>
+                        <VirtualRow
+                            key={getKey ? getKey(item, index) : index}
+                            item={item}
+                            index={index}
+                            top={index * itemHeight}
+                            height={itemHeight}
+                            render={renderItem}
+                        />
                     );
                 })}
             </div>

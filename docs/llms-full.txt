@@ -2368,6 +2368,14 @@ const scale = sequentialScale(0, 1200, SEQUENTIAL_VIRIDIS);
 !!! note "Paleta da marca"
     As paletas são padrões públicos (ColorBrewer/Viridis). Troque por qualquer lista ordenada de hex da sua marca — os builders de escala aceitam qualquer `string[]`.
 
+!!! warning "Paleta vazia lança na construção"
+    `quantizeScale` e `thresholdScale` **lançam** quando a paleta não tem cor
+    alguma, em vez de devolver uma escala que responde `undefined` a cada valor.
+    Uma escala assim chega ao DOM como `fill="undefined"`: o mapa fica em branco e
+    nada é reportado. O erro agora acontece na linha que construiu a escala, que é
+    onde o engano está — normalmente uma paleta vinda de `.filter()` ou de um
+    `.slice()` com o índice errado.
+
 ---
 
 ## Parte 7 — Zoom, cor por região e busca de município
@@ -3729,16 +3737,71 @@ export function MaisAcoes({
 }
 ```
 
-| Entry type    | Campos                                                     |
-| ------------- | ---------------------------------------------------------- |
-| `"item"`      | `id`, `label`, `icon?`, `onSelect`, `disabled?`, `danger?` |
-| `"label"`     | `id`, `label`                                              |
-| `"separator"` | `id`                                                       |
+| Entry type    | Campos                                                                 |
+| ------------- | ---------------------------------------------------------------------- |
+| `"item"`      | `id`, `label`, `icon?`, `onSelect`, `disabled?`, `danger?`             |
+| `"checkbox"`  | `id`, `label`, `icon?`, `checked`, `onSelect`, `disabled?`             |
+| `"label"`     | `id`, `label`                                                          |
+| `"separator"` | `id`                                                                   |
 
 Props do componente: `trigger` (`ReactElement`), `items` (`DropdownMenuEntry[]`), `placement` (`"bottom-start" \| "bottom-end" \| "top-start" \| "top-end"`, default `"bottom-start"`).
 
-!!! note "Fecha após selecionar"
-    Selecionar um item dispara `onSelect` e fecha o menu. Para um painel que permanece aberto com múltiplas escolhas (checkboxes, filtros), use `Popover` em vez de `DropdownMenu`.
+### Item que liga e desliga
+
+`type: "checkbox"` renderiza `role="menuitemcheckbox"` com `aria-checked` — que é como um leitor de tela anuncia "marcado" em vez de deixar o estado invisível.
+
+```tsx
+import { useState } from "react";
+import { Button, DropdownMenu } from "tempest-react-sdk";
+
+export function MenuDaChamada({ alternarTema }: { alternarTema: () => void }) {
+    const [silencioso, setSilencioso] = useState(false);
+
+    return (
+        <DropdownMenu
+            trigger={<Button variant="ghost">Mais opções</Button>}
+            items={[
+                {
+                    type: "checkbox",
+                    id: "quiet",
+                    label: "Silenciar os sons da chamada",
+                    checked: silencioso,
+                    onSelect: () => setSilencioso((valor) => !valor),
+                },
+                { type: "separator", id: "s" },
+                { type: "item", id: "tema", label: "Alternar tema", onSelect: alternarTema },
+            ]}
+        />
+    );
+}
+```
+
+!!! note "Item comum fecha, checkbox não"
+    Selecionar um `"item"` dispara `onSelect` e fecha o menu. Um `"checkbox"`
+    alterna e **deixa o menu aberto**, porque ajustar duas preferências seguidas é
+    o caso comum e fechar após a primeira transformaria a segunda numa segunda
+    viagem.
+
+### Teclado
+
+`role="menu"` é uma promessa sobre o teclado, e o componente a cumpre — o padrão
+é o [APG Menu Button](https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/):
+
+| Tecla | No gatilho | No menu aberto |
+| --- | --- | --- |
+| `Enter` / `Space` | abre e foca o **primeiro** item | ativa o item focado |
+| `↓` | abre e foca o **primeiro** item | próximo, com wrap |
+| `↑` | abre e foca o **último** item | anterior, com wrap |
+| `Home` / `End` | — | primeiro / último |
+| `Esc` | — | fecha e **devolve o foco ao gatilho** |
+| `Tab` | segue a página | fecha e segue a página |
+
+!!! tip "Foco gerenciado — `Tab` não percorre o menu"
+    As entradas têm `tabIndex={-1}` e só a ativa tem `0`. Sem isso, `Tab` andaria
+    item a item e faria o papel que a seta deveria fazer — o que é pior que
+    inacessível, porque o widget parece funcionar e contradiz o que o
+    `role="menu"` anunciou. Entrada desabilitada, `label` e `separator` nunca são
+    parada.
 
 ## `Popover`
 
@@ -9645,6 +9708,49 @@ export function GaleriaDaVistoria({ fotos }: { fotos: { url: string; descricao: 
 
 !!! note "`loop` é `true` de propósito"
     Em visualizador de foto, esbarrar num fim morto na última imagem é lido como bug mais vezes do que como limite. Passe `loop={false}` quando a ordem tem significado (um passo-a-passo, por exemplo) — aí os botões de navegação desabilitam nas pontas.
+
+## Tela cheia
+
+Todo overlay do SDK monta por portal, e o alvo do portal segue o elemento em
+**tela cheia** quando existe um — `Modal`, `Drawer`, `BottomSheet`,
+`ToastProvider`, `Command` e o `<Portal>` genérico.
+
+Isso não é conveniência: é correção. Enquanto a página está em tela cheia, o
+browser pinta **apenas a subárvore do elemento em tela cheia**, e `document.body`
+está fora dela. Um overlay montado em `body` existe no DOM, tem caixa medida, e
+não é visto nem clicado — `elementFromPoint` no centro dele devolve o que está
+atrás. Nada lança e nada aparece no console.
+
+```tsx
+import { useRef, useState } from "react";
+import { Button, Modal } from "tempest-react-sdk";
+
+export function Chamada() {
+    const palco = useRef<HTMLDivElement>(null);
+    const [aberto, setAberto] = useState(false);
+
+    return (
+        <div ref={palco}>
+            <Button onClick={() => palco.current?.requestFullscreen()}>Tela cheia</Button>
+            <Button onClick={() => setAberto(true)}>Áudio e vídeo</Button>
+
+            <Modal open={aberto} onClose={() => setAberto(false)} title="Áudio e vídeo">
+                O diálogo aparece dentro do elemento em tela cheia.
+            </Modal>
+        </div>
+    );
+}
+```
+
+!!! tip "O alvo acompanha, não é lido uma vez"
+    Entrar ou sair de tela cheia com um diálogo já aberto **move** o diálogo: o
+    host é estado e escuta `fullscreenchange` (mais o `webkitfullscreenchange`
+    que o WebKit ainda emite). O diálogo continua montado e não perde estado.
+
+!!! note "`container` continua mandando"
+    `<Portal container={…}>` fixa o alvo e ignora a tela cheia. Use quando você
+    precisa de um destino específico — um root de layout, um nó fora de um
+    `overflow`.
 
 ## A11y geral
 
@@ -23049,6 +23155,48 @@ export function NotificationListener({ user }: { user: { id: string } | null }) 
 !!! warning "`error` significa que esgotou as tentativas"
     Quando o status chega em `"error"`, o stream desistiu sozinho. Ofereça um botão chamando `reconnect()` (que zera o contador) em vez de esperar uma reconexão automática que não vem mais.
 
+## Frame que não é JSON
+
+Por padrão os dois transportes fazem `JSON.parse` do frame. Quando o parse falha —
+o servidor devolveu HTML de erro, um `ping` em texto puro, um proxy injetou algo —
+o SDK entrega a **string crua anunciada como o seu tipo**. É o comportamento
+histórico e ele continua, porque mudá-lo quebraria quem depende dele; o que mudou
+é que ele parou de ser silencioso.
+
+```tsx
+import { createEventStream } from "tempest-react-sdk";
+
+interface Evento {
+    id: string;
+    tipo: string;
+}
+
+const socket = createEventStream<Evento>("https://api.exemplo.com/eventos", {
+    onParseError: (erro, raw) => {
+        console.error("frame ilegível, descartado:", raw.slice(0, 120), erro);
+    },
+    onMessage: ({ data }) => {
+        console.log(data.id);
+    },
+});
+```
+
+Com `onParseError` registrado, o frame quebrado **não chega** em `onMessage` — quem
+pediu para ouvir a falha não pediu para também receber o frame. Sem ele, o frame é
+entregue como antes e um build de desenvolvimento avisa **uma vez** por transporte
+no console.
+
+!!! warning "Por que o padrão antigo é uma armadilha"
+    `data` tipado como `Evento` sendo na verdade uma `string` não explode no
+    parse — explode no primeiro `data.id`, longe dali, sem nada apontando para o
+    frame que causou. O aviso e o `onParseError` existem para o erro aparecer onde
+    ele acontece.
+
+!!! tip "`parser` continua mandando"
+    Passar `parser` desliga tudo isso: o resultado dele é sempre entregue, porque
+    decodificar texto, binário em base64 ou um protocolo próprio é justamente o
+    propósito da opção. `onParseError` só entra em cena quando não há `parser`.
+
 ## Status
 
 `"idle" | "connecting" | "open" | "closed" | "error"`:
@@ -23329,6 +23477,59 @@ Pronto. Tudo o que está abaixo já está disponível na sua aplicação.
 
 ---
 
+## Importar menos CSS
+
+`tempest-react-sdk/styles.css` traz os ~150 componentes. O JavaScript que você
+importa é tree-shaken; **o CSS não** — então um app que usa treze componentes
+baixa os outros cento e quarenta.
+
+Para pagar só pelo que monta, importe a fundação e as folhas que quiser:
+
+```ts
+import "tempest-react-sdk/styles/core.css";
+import "tempest-react-sdk/styles/Button.css";
+import "tempest-react-sdk/styles/Modal.css";
+```
+
+Medido num app Vite real, os mesmos doze componentes montados dos dois jeitos:
+
+| Import | raw | gzip |
+| --- | --- | --- |
+| `styles.css` | 236,71 kB | 35,38 kB |
+| `core.css` + 7 grupos | 155,43 kB | 23,38 kB |
+| `core.css` + 12 componentes | **38,94 kB** | **7,70 kB** |
+
+!!! danger "`core.css` não é opcional"
+    Ele carrega reset, tokens, tipografia, motion, densidade, responsividade e
+    impressão — **nenhuma** folha de componente repete isso. Importar
+    `Button.css` sem `core.css` dá um botão sem cor, sem espaçamento e sem fonte.
+
+### Três granularidades
+
+| Entrada | O que traz | Quando |
+| --- | --- | --- |
+| `styles.css` | tudo | uma linha só, e o peso não incomoda |
+| `styles/core.css` | fundação, zero componente | sempre, com qualquer das outras |
+| `styles/<Grupo>.css` | uma família inteira | você usa boa parte dela |
+| `styles/<Componente>.css` | um componente | você quer o mínimo |
+
+Grupos disponíveis: `actions`, `advanced`, `br`, `chat`, `data`, `editor`,
+`feedback`, `forms`, `geo`, `icons`, `identity`, `layout`, `media`,
+`navigation`, `overlay`, `utility`. O nome do arquivo de componente é o nome do
+componente — `styles/DataTable.css`, `styles/Slider.css`.
+
+!!! tip "Um componente por arquivo, com um caminho público só"
+    O `exports` do pacote publica isso como **um** padrão de subpath
+    (`"./styles/*.css"`), não como 125 entradas. Granularidade fina sem 125
+    caminhos presos por semver.
+
+!!! note "A divisão é exata, não uma poda"
+    Cada classe é hasheada por módulo CSS (`tempest_[local]_[hash]`), e cada
+    `dist/**/*.module.js` carrega o caminho de origem junto dos nomes que aquele
+    módulo declara — atribuir uma regra a um componente é consulta, não palpite.
+    O build **falha** se alguma regra nomear classes de dois módulos, que é o que
+    tornaria a divisão um palpite.
+
 ## Cor
 
 ### Brand — primary tints
@@ -23601,6 +23802,46 @@ Shadows são automaticamente mais escuros no tema dark.
 `@media (prefers-reduced-motion: reduce)` zera todas as durações de tokens automaticamente. Componentes que usam keyframes pesados (modal, drawer, toast, tooltip, skeleton) também detectam e desabilitam animações específicas.
 
 ---
+
+## O reset e o seu markup
+
+`styles.css` traz um reset moderno, e uma das regras dele alcança elementos que
+o SDK não desenha:
+
+```css
+img, svg, video, canvas, audio, iframe, embed, object {
+    display: block;
+    max-width: 100%;
+}
+```
+
+Deixar mídia em bloco evita o espaço fantasma abaixo de uma imagem inline, que é
+o motivo de a regra existir em todo reset moderno. Mas um `<button>` do
+user-agent centraliza o conteúdo com `text-align: center`, e `text-align` só
+alcança caixa inline — então um ícone sozinho num botão **seu** encostaria na
+borda esquerda.
+
+O SDK ships o contrapeso junto:
+
+```css
+:where(button, a, label, summary) > svg:only-child {
+    margin-inline: auto;
+}
+```
+
+!!! tip "Especificidade zero, de propósito"
+    `:where()` não soma especificidade, então **qualquer** regra sua ganha desta
+    sem `!important`. Centralizado é o default; outro alinhamento é uma
+    declaração normal:
+
+    ```css
+    .toolbar button > svg { margin-inline: 0; }
+    ```
+
+!!! note "Só vale para ícone sozinho"
+    `:only-child` mantém a regra restrita ao botão só-de-ícone. Ícone ao lado de
+    rótulo já vive num flex seu, onde `margin: auto` empurraria o texto — esse
+    caso continua com o alinhamento que você deu.
 
 ## Focus ring
 
@@ -28619,6 +28860,121 @@ if (sender) await setSenderBitrate(sender, 48_000);
 
 Duas coisas fazem disto uma função em vez de duas linhas no seu código: `setParameters` só aceita **o mesmo objeto** que `getParameters` devolveu (um objeto novo é recusado), e um sender que ainda não negociou reporta **nenhum** encoding — escrever em `encodings[0]` sem checar lança exatamente na chamada que tenta fixar o cap antes da primeira offer. `null` levanta o cap; o retorno é `false` quando o browser recusa, e aí a chamada continua sem cap em vez de quebrar.
 
+## Medindo o link: `createLinkStatsSampler` e `useLinkStats`
+
+O badge que toda chamada mostra — `1,2 Mbps · 42 ms · 1080p60` — não vem pronto de lugar nenhum. `getStats()` devolve dezenas de entradas com contadores **cumulativos**, e transformar isso em três números é onde cada app reescreve os mesmos dois erros.
+
+### Em React
+
+```ts
+import { useLinkStats } from "tempest-react-sdk";
+
+function LinkBadge({ pc }: { pc: RTCPeerConnection | null }) {
+  const stats = useLinkStats(pc);
+
+  if (!stats) return <span>medindo…</span>;
+
+  return (
+    <span>
+      {stats.kbps} kbps · {stats.rttMs ?? "—"} ms · {stats.width}×{stats.height}
+      {stats.fps > 0 ? `@${stats.fps}` : ""}
+    </span>
+  );
+}
+```
+
+Amostra a cada 2 s, **só** enquanto `connectionState === "connected"`, e para de amostrar quando a aba vai para segundo plano.
+
+### Fora do React
+
+```ts
+import { createLinkStatsSampler } from "tempest-react-sdk";
+
+const sampler = createLinkStatsSampler();
+
+setInterval(async () => {
+  const stats = await sampler.sample(pc);
+  badge.textContent = `${stats.kbps} kbps`;
+}, 2000);
+```
+
+!!! warning "Um sampler por conexão"
+    A taxa é um **delta**, então o sampler guarda a leitura anterior. Compartilhar um sampler entre peers subtrai o contador de uma conexão do de outra e reporta bobagem. Uma mesh de 5 pessoas tem 4 samplers.
+
+Já tem o relatório em mãos? `sampler.read(report)` faz a redução sem buscar de novo — útil quando o mesmo `getStats()` alimenta mais de uma coisa.
+
+### Os dois erros que isto evita
+
+**1. RTT lido do par errado.** Uma conexão mantém vários pares de candidatos vivos ao mesmo tempo — host, server-reflexive, relayed — e só **um** carrega tráfego. Pegar o primeiro `candidate-pair` com `state: "succeeded"` faz o número saltar entre caminhos que não estão sendo percorridos: 8 ms do par host ocioso alternando com 180 ms do TURN que está trabalhando.
+
+O correto é o par que o `transport` nomeia em `selectedCandidatePairId`. `readRoundTripMs` faz isso, e é exportado sozinho porque é útil fora do sampler:
+
+```ts
+import { readRoundTripMs } from "tempest-react-sdk";
+
+const rttMs = readRoundTripMs(await pc.getStats());
+```
+
+**2. Vazão derivada sem delta.** `bytesSent` é cumulativo desde que a conexão abriu. Dividir pelo tempo de sessão dá a média histórica — um número que só desce e nunca mostra o que está acontecendo agora. A taxa é `(bytes − bytesAnterior) × 8 ÷ 1000 ÷ segundos`, e guardar o "anterior" é exatamente a parte que cada cópia refaz.
+
+### O que o sampler soma, e por quê
+
+| Campo | Vem de |
+| --- | --- |
+| `kbps` | soma de **todos** os senders que casam com `kind` |
+| `width` / `height` / `fps` | o stream de **maior área**, não o último reportado |
+| `rttMs` | o par de candidatos selecionado pelo transporte |
+
+Um peer publicando câmera e tela ao mesmo tempo ocupa **um** uplink com as duas — e o uplink é o que acaba. Por isso a soma. A resolução vem do maior porque é ele que domina essa banda e é nele que quem assiste está olhando.
+
+O padrão é contar só vídeo. `kind: "all"` inclui áudio quando o número precisa ser o custo real da conexão:
+
+```ts
+const sampler = createLinkStatsSampler({ kind: "all" });
+```
+
+### Pausa, retomada e `reset()`
+
+```ts
+const stats = useLinkStats(pc, {
+  intervalMs: 2000,       // getStats percorre todo o relatório; 2 s não é preguiça
+  pauseWhenHidden: true,  // default
+  kind: "video",          // default
+});
+```
+
+Voltar de segundo plano chama `reset()` antes da próxima amostra. Sem isso, o primeiro sample depois de cinco minutos de aba oculta divide cinco minutos de bytes por cinco minutos e reporta a média de um período que ninguém perguntou. Chame `sampler.reset()` na mão pelo mesmo motivo depois de um **ICE restart** ou uma reconexão.
+
+`reset()` limpa o baseline, não a tela: a próxima leitura volta com `kbps: 0` e mantém a resolução e o RTT que já estavam à mostra, para o badge não piscar.
+
+!!! tip "A última leitura sobrevive à pausa"
+    `useLinkStats` mantém o valor anterior enquanto está pausado, em vez de voltar a `null`. Um badge que apaga toda vez que a aba perde o foco é lido como conexão caída.
+
+### O que isto **não** mede
+
+Escrito aqui de propósito: cada item é uma pergunta que o relatório responde e este módulo não, para você saber onde procurar em vez de descobrir que o número estava mentindo.
+
+- **O que você recebe.** Só há `outbound-rtp` aqui. "O vídeo do outro está travando" é `inbound-rtp` (`bytesReceived`, `framesDecoded`, `packetsLost`), e a leitura tem forma diferente o bastante para não caber na mesma redução — ela responde sobre o **encoder do outro**, não sobre o seu uplink.
+- **Por que a taxa caiu.** `qualityLimitationReason` (`"bandwidth"`, `"cpu"`, `"none"`) está no mesmo `outbound-rtp` e distingue "a rede apertou" de "esta máquina não dá conta" — que levam a ações opostas. Leia direto do relatório quando precisar.
+- **Perda e jitter.** `packetsLost` e `jitter` existem, mas são interpretados contra o total enviado no mesmo intervalo; um contador cru de perdidos é um número sem denominador.
+- **A cadência, quando a aba está oculta.** Com `pauseWhenHidden: false` o timer continua, mas o browser afoga timers em segundo plano (Chrome vai para ≥ 1 min). Nenhuma API contorna isso — a amostragem simplesmente fica mais espaçada, e o delta continua correto porque é derivado do tempo medido, não do intervalo pedido.
+- **Comportamento de browser real.** Os testes deste módulo rodam em jsdom, que não tem WebRTC nenhum: eles provam a **redução** contra relatórios sintéticos, não a conexão. A forma do relatório foi conferida à parte, no Chromium, com dois `RTCPeerConnection` em loopback carregando um canvas 640×360@30 — o mesmo relatório traz `kind` **e** `mediaType`, `frameWidth`/`frameHeight`/`framesPerSecond` vêm preenchidos, `transport.selectedCandidatePairId` existe, e a primeira amostra vem a `0` kbps antes de estabilizar em ~350 kbps. Ainda assim, confirme na sua topologia antes de confiar num painel em produção: relay TURN, simulcast e mobile mudam o que aparece.
+
+!!! note "`rttMs: 0` não é `rttMs: null`"
+    Zero é uma leitura — foi o que o loopback local mediu. `null` significa que **nenhum** par reportou timing ainda, o que é o estado normal enquanto a conexão assenta. Uma UI que trata os dois igual mostra "0 ms" para uma chamada que ainda não conectou.
+
+### Quando o browser não colabora
+
+O módulo já cobre o que varia entre engines, e vale saber que varia:
+
+| Situação | O que acontece |
+| --- | --- |
+| Browser não preenche `selectedCandidatePairId` | cai para o primeiro par `succeeded` com timing |
+| Browser reporta `mediaType` em vez de `kind` (Chrome antigo) | os dois são lidos |
+| `framesPerSecond` ausente | `fps: 0`, e a última leitura boa é mantida |
+| Contador reinicia (ICE restart) | delta negativo vira `0` e o baseline se refaz |
+| Simulcast (várias camadas no mesmo track) | as camadas somam; a resolução vem da maior |
+
 ## Recap
 
 - `tuneOpus(sdp, profiles)` reescreve as m-lines de **áudio**: merge por chave, todos os payloads Opus, insere `fmtp` ausente, ignora vídeo.
@@ -28627,6 +28983,9 @@ Duas coisas fazem disto uma função em vez de duas linhas no seu código: `setP
 - Sem presets embutidos: os valores são decisão do consumidor.
 - `setTunedLocalDescription` tenta o SDP editado e cai para o original — perder o perfil é muito mais barato que perder a chamada.
 - `setSenderBitrate` limita o **envio**, que é o que satura o uplink numa mesh.
+- `useLinkStats(pc)` dá `kbps`, resolução, fps e RTT com pausa em aba oculta; `createLinkStatsSampler()` faz o mesmo fora do React, **um por conexão**.
+- `readRoundTripMs(report)` lê o par de candidatos **selecionado**, não o primeiro `succeeded` — é a diferença entre 42 ms e um número que pula.
+- Taxa é delta: `reset()` depois de ICE restart, reconexão ou pausa longa.
 
 ## Veja também
 
@@ -28837,6 +29196,48 @@ export function Chat({ enabled }: { enabled: boolean }) {
     Cada frame vira um `setState`, então dois que cheguem no mesmo tick colapsam num render só e você enxerga apenas o último. Uma única ação no servidor costuma emitir vários frames em sequência. Para **stream** use `onMessage`, que dispara uma vez por frame; `lastMessage` serve pra renderizar estado atual.
 - `send` é estável (`useCallback`) — pode ir em deps sem reabrir nada.
 - Cleanup automático no unmount (fechamento limpo, não tenta reconectar).
+
+## Frame que não é JSON
+
+Por padrão os dois transportes fazem `JSON.parse` do frame. Quando o parse falha —
+o servidor devolveu HTML de erro, um `ping` em texto puro, um proxy injetou algo —
+o SDK entrega a **string crua anunciada como o seu tipo**. É o comportamento
+histórico e ele continua, porque mudá-lo quebraria quem depende dele; o que mudou
+é que ele parou de ser silencioso.
+
+```tsx
+import { createWebSocket } from "tempest-react-sdk";
+
+interface Evento {
+    id: string;
+    tipo: string;
+}
+
+const socket = createWebSocket<Evento>("wss://api.exemplo.com/eventos", {
+    onParseError: (erro, raw) => {
+        console.error("frame ilegível, descartado:", raw.slice(0, 120), erro);
+    },
+    onMessage: ({ data }) => {
+        console.log(data.id);
+    },
+});
+```
+
+Com `onParseError` registrado, o frame quebrado **não chega** em `onMessage` — quem
+pediu para ouvir a falha não pediu para também receber o frame. Sem ele, o frame é
+entregue como antes e um build de desenvolvimento avisa **uma vez** por transporte
+no console.
+
+!!! warning "Por que o padrão antigo é uma armadilha"
+    `data` tipado como `Evento` sendo na verdade uma `string` não explode no
+    parse — explode no primeiro `data.id`, longe dali, sem nada apontando para o
+    frame que causou. O aviso e o `onParseError` existem para o erro aparecer onde
+    ele acontece.
+
+!!! tip "`parser` continua mandando"
+    Passar `parser` desliga tudo isso: o resultado dele é sempre entregue, porque
+    decodificar texto, binário em base64 ou um protocolo próprio é justamente o
+    propósito da opção. `onParseError` só entra em cena quando não há `parser`.
 
 ## Status
 

@@ -111,6 +111,48 @@ export function NotificationListener({ user }: { user: { id: string } | null }) 
 !!! warning "`error` significa que esgotou as tentativas"
     Quando o status chega em `"error"`, o stream desistiu sozinho. Ofereça um botão chamando `reconnect()` (que zera o contador) em vez de esperar uma reconexão automática que não vem mais.
 
+## Frame que não é JSON
+
+Por padrão os dois transportes fazem `JSON.parse` do frame. Quando o parse falha —
+o servidor devolveu HTML de erro, um `ping` em texto puro, um proxy injetou algo —
+o SDK entrega a **string crua anunciada como o seu tipo**. É o comportamento
+histórico e ele continua, porque mudá-lo quebraria quem depende dele; o que mudou
+é que ele parou de ser silencioso.
+
+```tsx
+import { createEventStream } from "tempest-react-sdk";
+
+interface Evento {
+    id: string;
+    tipo: string;
+}
+
+const socket = createEventStream<Evento>("https://api.exemplo.com/eventos", {
+    onParseError: (erro, raw) => {
+        console.error("frame ilegível, descartado:", raw.slice(0, 120), erro);
+    },
+    onMessage: ({ data }) => {
+        console.log(data.id);
+    },
+});
+```
+
+Com `onParseError` registrado, o frame quebrado **não chega** em `onMessage` — quem
+pediu para ouvir a falha não pediu para também receber o frame. Sem ele, o frame é
+entregue como antes e um build de desenvolvimento avisa **uma vez** por transporte
+no console.
+
+!!! warning "Por que o padrão antigo é uma armadilha"
+    `data` tipado como `Evento` sendo na verdade uma `string` não explode no
+    parse — explode no primeiro `data.id`, longe dali, sem nada apontando para o
+    frame que causou. O aviso e o `onParseError` existem para o erro aparecer onde
+    ele acontece.
+
+!!! tip "`parser` continua mandando"
+    Passar `parser` desliga tudo isso: o resultado dele é sempre entregue, porque
+    decodificar texto, binário em base64 ou um protocolo próprio é justamente o
+    propósito da opção. `onParseError` só entra em cena quando não há `parser`.
+
 ## Status
 
 `"idle" | "connecting" | "open" | "closed" | "error"`:

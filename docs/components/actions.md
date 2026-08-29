@@ -165,16 +165,71 @@ export function MaisAcoes({
 }
 ```
 
-| Entry type    | Campos                                                     |
-| ------------- | ---------------------------------------------------------- |
-| `"item"`      | `id`, `label`, `icon?`, `onSelect`, `disabled?`, `danger?` |
-| `"label"`     | `id`, `label`                                              |
-| `"separator"` | `id`                                                       |
+| Entry type    | Campos                                                                 |
+| ------------- | ---------------------------------------------------------------------- |
+| `"item"`      | `id`, `label`, `icon?`, `onSelect`, `disabled?`, `danger?`             |
+| `"checkbox"`  | `id`, `label`, `icon?`, `checked`, `onSelect`, `disabled?`             |
+| `"label"`     | `id`, `label`                                                          |
+| `"separator"` | `id`                                                                   |
 
 Props do componente: `trigger` (`ReactElement`), `items` (`DropdownMenuEntry[]`), `placement` (`"bottom-start" \| "bottom-end" \| "top-start" \| "top-end"`, default `"bottom-start"`).
 
-!!! note "Fecha após selecionar"
-    Selecionar um item dispara `onSelect` e fecha o menu. Para um painel que permanece aberto com múltiplas escolhas (checkboxes, filtros), use `Popover` em vez de `DropdownMenu`.
+### Item que liga e desliga
+
+`type: "checkbox"` renderiza `role="menuitemcheckbox"` com `aria-checked` — que é como um leitor de tela anuncia "marcado" em vez de deixar o estado invisível.
+
+```tsx
+import { useState } from "react";
+import { Button, DropdownMenu } from "tempest-react-sdk";
+
+export function MenuDaChamada({ alternarTema }: { alternarTema: () => void }) {
+    const [silencioso, setSilencioso] = useState(false);
+
+    return (
+        <DropdownMenu
+            trigger={<Button variant="ghost">Mais opções</Button>}
+            items={[
+                {
+                    type: "checkbox",
+                    id: "quiet",
+                    label: "Silenciar os sons da chamada",
+                    checked: silencioso,
+                    onSelect: () => setSilencioso((valor) => !valor),
+                },
+                { type: "separator", id: "s" },
+                { type: "item", id: "tema", label: "Alternar tema", onSelect: alternarTema },
+            ]}
+        />
+    );
+}
+```
+
+!!! note "Item comum fecha, checkbox não"
+    Selecionar um `"item"` dispara `onSelect` e fecha o menu. Um `"checkbox"`
+    alterna e **deixa o menu aberto**, porque ajustar duas preferências seguidas é
+    o caso comum e fechar após a primeira transformaria a segunda numa segunda
+    viagem.
+
+### Teclado
+
+`role="menu"` é uma promessa sobre o teclado, e o componente a cumpre — o padrão
+é o [APG Menu Button](https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/):
+
+| Tecla | No gatilho | No menu aberto |
+| --- | --- | --- |
+| `Enter` / `Space` | abre e foca o **primeiro** item | ativa o item focado |
+| `↓` | abre e foca o **primeiro** item | próximo, com wrap |
+| `↑` | abre e foca o **último** item | anterior, com wrap |
+| `Home` / `End` | — | primeiro / último |
+| `Esc` | — | fecha e **devolve o foco ao gatilho** |
+| `Tab` | segue a página | fecha e segue a página |
+
+!!! tip "Foco gerenciado — `Tab` não percorre o menu"
+    As entradas têm `tabIndex={-1}` e só a ativa tem `0`. Sem isso, `Tab` andaria
+    item a item e faria o papel que a seta deveria fazer — o que é pior que
+    inacessível, porque o widget parece funcionar e contradiz o que o
+    `role="menu"` anunciou. Entrada desabilitada, `label` e `separator` nunca são
+    parada.
 
 ## `Popover`
 

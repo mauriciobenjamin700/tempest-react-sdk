@@ -37,6 +37,29 @@ video {
     height: auto;
 }
 
+/*
+ * Counterweight to the rule above, for markup this stylesheet does not own.
+ *
+ * A user-agent `<button>` centres its content with `text-align: center`, which
+ * reaches inline boxes only. Turning every `svg` into a block therefore moves a
+ * lone icon flush against the content edge — measured at -12px in a 44px button
+ * holding a 20px icon, exactly (44 - 20) / 2. The sibling button holding a
+ * letter stays centred, so the symptom reads as a broken icon rather than as
+ * the reset.
+ *
+ * `:where()` carries zero specificity, so any rule the consumer writes beats
+ * this one with no `!important` and no fight: centred is the default, and a
+ * different alignment is one ordinary declaration away. `margin-inline` rather
+ * than a `display` change, because switching these elements to grid or
+ * inline-flex would relayout every icon button in every app that already
+ * compensated. `:only-child` keeps it to the icon-only case — an icon beside a
+ * label already sits in the consumer's flex row, where `auto` margins would
+ * shove the label.
+ */
+:where(button, a, label, summary) > svg:only-child {
+    margin-inline: auto;
+}
+
 /* Inherit fonts in form controls (Safari / Firefox). */
 button,
 input,

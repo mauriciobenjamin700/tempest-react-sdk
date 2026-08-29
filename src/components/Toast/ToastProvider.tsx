@@ -17,6 +17,7 @@ import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/utils/cn";
 import styles from "./Toast.module.css";
+import { usePortalHost } from "../Portal/portal-host";
 
 export type ToastVariant = "success" | "warning" | "error" | "info";
 
@@ -166,7 +167,9 @@ function positionClass(position: ToastPosition): string {
  * that have no on-screen home; a toast has one.
  */
 function ToastContainer({ toasts, onDismiss, position }: ContainerProps) {
-    if (typeof document === "undefined") return null;
+    const portalHost = usePortalHost();
+
+    if (!portalHost) return null;
     return createPortal(
         <div
             className={cn(styles.container, positionClass(position))}
@@ -177,7 +180,7 @@ function ToastContainer({ toasts, onDismiss, position }: ContainerProps) {
                 <ToastItem key={toast.id} toast={toast} onDismiss={onDismiss} />
             ))}
         </div>,
-        document.body,
+        portalHost,
     );
 }
 

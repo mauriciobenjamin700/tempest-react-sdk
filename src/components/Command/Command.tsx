@@ -10,6 +10,7 @@ import { createPortal } from "react-dom";
 import { cn } from "@/utils/cn";
 import { useFocusTrap } from "@/hooks/use-focus-trap";
 import styles from "./Command.module.css";
+import { usePortalHost } from "../Portal/portal-host";
 
 export interface CommandItem {
     /** Stable unique identifier for the item. */
@@ -127,7 +128,9 @@ export function Command({
         });
     }, [filtered.length]);
 
-    if (!open || typeof document === "undefined") return null;
+    const portalHost = usePortalHost();
+
+    if (!open || !portalHost) return null;
 
     function selectItem(item: CommandItem): void {
         item.onSelect();
@@ -227,7 +230,7 @@ export function Command({
                 </ul>
             </div>
         </div>,
-        document.body,
+        portalHost,
     );
 }
 

@@ -76,6 +76,26 @@ export function sequentialScale(
 }
 
 /**
+ * Reject an empty palette where a colour has to come out.
+ *
+ * `interpolatePalette` already guarded this and the two factories did not, so an
+ * empty array made them index at `-1` and return `undefined` announced as
+ * `string` — which reaches the DOM as `fill="undefined"` and paints nothing,
+ * with no error anywhere. Throwing at construction puts the failure on the line
+ * that built the scale instead of on every shape it colours.
+ *
+ * @param palette - The palette handed to a scale factory.
+ * @param factory - Name of the caller, used in the message.
+ * @throws {Error} When the palette has no entries.
+ * @returns Nothing.
+ */
+function assertPalette(palette: readonly string[], factory: string): void {
+    if (palette.length === 0) {
+        throw new Error(`${factory}: palette must have at least one colour`);
+    }
+}
+
+/**
  * Discrete scale: split `[min, max]` into `palette.length` equal buckets and
  * return the bucket's color (a classic choropleth "quantize" scale).
  */
@@ -84,11 +104,12 @@ export function quantizeScale(
     max: number,
     palette: readonly string[] = SEQUENTIAL_BLUES,
 ): ColorScale {
+    assertPalette(palette, "quantizeScale");
     const span = max - min || 1;
     const n = palette.length;
     return (value) => {
         const idx = Math.min(n - 1, Math.max(0, Math.floor(((value - min) / span) * n)));
-        return palette[idx];
+        return palette[idx] as string;
     };
 }
 
@@ -104,9 +125,10 @@ export function thresholdScale(
     thresholds: readonly number[],
     palette: readonly string[],
 ): ColorScale {
+    assertPalette(palette, "thresholdScale");
     return (value) => {
         let i = 0;
-        while (i < thresholds.length && value >= thresholds[i]) i += 1;
-        return palette[Math.min(i, palette.length - 1)];
+        while (i < thresholds.length && value >= (thresholds[i] as number)) i += 1;
+        return palette[Math.min(i, palette.length - 1)] as string;
     };
 }

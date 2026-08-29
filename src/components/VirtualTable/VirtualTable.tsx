@@ -8,6 +8,7 @@
 import {
     type HTMLAttributes,
     type ReactNode,
+    memo,
     useCallback,
     useEffect,
     useMemo,
@@ -81,6 +82,78 @@ function alignClass(align: TableAlign | undefined): string | undefined {
     if (align === "center") return styles.alignCenter;
     return undefined;
 }
+
+interface VirtualTableRowProps<T> {
+    row: T;
+    index: number;
+    rowHeight: number;
+    columns: VirtualTableColumn<T>[];
+    onRowClick: ((row: T, index: number) => void) | undefined;
+}
+
+/**
+ * One windowed table row, rendered on its own so React can skip it.
+ *
+ * Scrolling changes state that lives inside `VirtualTable`, so without this
+ * boundary every scroll event re-rendered every visible row and every cell in
+ * them — including whatever `column.render` builds — rather than the one row
+ * that entered the window.
+ *
+ * `columns` and `onRowClick` take part in the comparison because a cell renderer
+ * closes over the app's state: leaving them out would freeze a row showing a
+ * stale cell. An app that keeps its `columns` array stable (a module constant, or
+ * `useMemo`) therefore gets the skip, and one that rebuilds it every render gets
+ * exactly today's behaviour.
+ *
+ * @param props - The row, its position and the column contract.
+ * @returns The table row element.
+ */
+function VirtualTableRowImpl<T>({
+    row,
+    index,
+    rowHeight,
+    columns,
+    onRowClick,
+}: VirtualTableRowProps<T>) {
+    return (
+        <tr
+            aria-rowindex={index + 1}
+            className={cn(styles.tr, onRowClick && styles.clickable)}
+            style={{ height: rowHeight }}
+            tabIndex={onRowClick ? 0 : undefined}
+            onClick={onRowClick ? () => onRowClick(row, index) : undefined}
+            onKeyDown={
+                onRowClick
+                    ? (event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              onRowClick(row, index);
+                          }
+                      }
+                    : undefined
+            }
+        >
+            {columns.map((column) => (
+                <td
+                    key={String(column.key)}
+                    className={cn(styles.td, alignClass(column.align))}
+                    style={{ width: column.width }}
+                >
+                    {column.render
+                        ? column.render(row, index)
+                        : ((row[column.key] as ReactNode) ?? null)}
+                </td>
+            ))}
+        </tr>
+    );
+}
+
+/**
+ * `memo` erases the generic, so the memoised component is re-typed as the
+ * function it wraps. The runtime value is unchanged; only the signature is
+ * restored.
+ */
+const VirtualTableRow = memo(VirtualTableRowImpl) as typeof VirtualTableRowImpl;
 
 /**
  * A table that stays responsive at 10k+ rows by rendering only the visible window.
@@ -248,41 +321,14 @@ export function VirtualTable<T>({
                             {slice.map((row, offset) => {
                                 const index = start + offset;
                                 return (
-                                    <tr
+                                    <VirtualTableRow
                                         key={rowKey ? rowKey(row, index) : index}
-                                        aria-rowindex={index + 1}
-                                        className={cn(styles.tr, onRowClick && styles.clickable)}
-                                        style={{ height: rowHeight }}
-                                        tabIndex={onRowClick ? 0 : undefined}
-                                        onClick={
-                                            onRowClick ? () => onRowClick(row, index) : undefined
-                                        }
-                                        onKeyDown={
-                                            onRowClick
-                                                ? (event) => {
-                                                      if (
-                                                          event.key === "Enter" ||
-                                                          event.key === " "
-                                                      ) {
-                                                          event.preventDefault();
-                                                          onRowClick(row, index);
-                                                      }
-                                                  }
-                                                : undefined
-                                        }
-                                    >
-                                        {columns.map((column) => (
-                                            <td
-                                                key={String(column.key)}
-                                                className={cn(styles.td, alignClass(column.align))}
-                                                style={{ width: column.width }}
-                                            >
-                                                {column.render
-                                                    ? column.render(row, index)
-                                                    : ((row[column.key] as ReactNode) ?? null)}
-                                            </td>
-                                        ))}
-                                    </tr>
+                                        row={row}
+                                        index={index}
+                                        rowHeight={rowHeight}
+                                        columns={columns}
+                                        onRowClick={onRowClick}
+                                    />
                                 );
                             })}
                             {end < sorted.length && (

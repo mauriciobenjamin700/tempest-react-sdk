@@ -90,6 +90,121 @@ if (sender) await setSenderBitrate(sender, 48_000);
 
 Two things make this a function instead of two lines in your code: `setParameters` only accepts **the very object** `getParameters` returned (a freshly built one is refused), and a sender that has not negotiated yet reports **no** encodings — writing to `encodings[0]` without checking throws on exactly the call that sets the cap before the first offer. `null` lifts the cap; the return is `false` when the browser refuses, and the call then runs uncapped rather than breaking.
 
+## Measuring the link: `createLinkStatsSampler` and `useLinkStats`
+
+The badge every call shows — `1.2 Mbps · 42 ms · 1080p60` — comes ready-made from nowhere. `getStats()` returns dozens of entries holding **cumulative** counters, and turning that into three numbers is where every app rewrites the same two mistakes.
+
+### In React
+
+```ts
+import { useLinkStats } from "tempest-react-sdk";
+
+function LinkBadge({ pc }: { pc: RTCPeerConnection | null }) {
+  const stats = useLinkStats(pc);
+
+  if (!stats) return <span>measuring…</span>;
+
+  return (
+    <span>
+      {stats.kbps} kbps · {stats.rttMs ?? "—"} ms · {stats.width}×{stats.height}
+      {stats.fps > 0 ? `@${stats.fps}` : ""}
+    </span>
+  );
+}
+```
+
+Samples every 2 s, **only** while `connectionState === "connected"`, and stops sampling when the tab goes to the background.
+
+### Outside React
+
+```ts
+import { createLinkStatsSampler } from "tempest-react-sdk";
+
+const sampler = createLinkStatsSampler();
+
+setInterval(async () => {
+  const stats = await sampler.sample(pc);
+  badge.textContent = `${stats.kbps} kbps`;
+}, 2000);
+```
+
+!!! warning "One sampler per connection"
+    The rate is a **delta**, so the sampler keeps the previous reading. Sharing one across peers subtracts one connection's counter from another's and reports nonsense. A five-person mesh has four samplers.
+
+Already holding the report? `sampler.read(report)` runs the reduction without fetching again — useful when the same `getStats()` feeds more than one thing.
+
+### The two mistakes this avoids
+
+**1. Round trip read from the wrong pair.** A connection keeps several candidate pairs alive at once — host, server-reflexive, relayed — and only **one** carries traffic. Taking the first `candidate-pair` with `state: "succeeded"` makes the number jump between paths nobody is travelling: 8 ms from an idle host pair alternating with 180 ms from the TURN pair doing the work.
+
+The right one is the pair the `transport` names in `selectedCandidatePairId`. `readRoundTripMs` does that, and it is exported on its own because it is useful outside the sampler:
+
+```ts
+import { readRoundTripMs } from "tempest-react-sdk";
+
+const rttMs = readRoundTripMs(await pc.getStats());
+```
+
+**2. Throughput derived without a delta.** `bytesSent` is cumulative since the connection opened. Dividing it by the session length gives the historical average — a number that only falls and never shows what is happening now. The rate is `(bytes − previousBytes) × 8 ÷ 1000 ÷ seconds`, and keeping the "previous" is exactly the part every copy rewrites.
+
+### What the sampler sums, and why
+
+| Field | Comes from |
+| --- | --- |
+| `kbps` | the sum of **every** sender matching `kind` |
+| `width` / `height` / `fps` | the stream with the **largest area**, not the last one reported |
+| `rttMs` | the candidate pair the transport selected |
+
+A peer publishing a camera and a screen at the same time occupies **one** uplink with both — and the uplink is what runs out. Hence the sum. Resolution comes from the largest because that is the stream dominating that bandwidth, and the one a viewer is looking at.
+
+The default counts video only. `kind: "all"` folds audio in when the figure is meant to be the connection's real cost:
+
+```ts
+const sampler = createLinkStatsSampler({ kind: "all" });
+```
+
+### Pausing, resuming and `reset()`
+
+```ts
+const stats = useLinkStats(pc, {
+  intervalMs: 2000,       // getStats walks the whole report; 2 s is not laziness
+  pauseWhenHidden: true,  // default
+  kind: "video",          // default
+});
+```
+
+Coming back from the background calls `reset()` before the next sample. Without it, the first sample after five minutes hidden divides five minutes of bytes by five minutes and reports the average of a period nobody asked about. Call `sampler.reset()` by hand for the same reason after an **ICE restart** or a reconnect.
+
+`reset()` clears the baseline, not the screen: the next reading comes back at `kbps: 0` and keeps the resolution and round trip already on show, so the badge does not blink.
+
+!!! tip "The last reading survives the pause"
+    `useLinkStats` keeps the previous value while paused instead of dropping back to `null`. A badge that blanks every time the tab loses focus reads as a dropped connection.
+
+### What this does **not** measure
+
+Written down on purpose: each item is a question the report answers and this module does not, so you know where to look instead of finding out the number was lying.
+
+- **What you receive.** There is only `outbound-rtp` here. "Their video is stuttering" is `inbound-rtp` (`bytesReceived`, `framesDecoded`, `packetsLost`), and that reading has a different enough shape not to fit the same reduction — it answers about **their encoder**, not your uplink.
+- **Why the rate dropped.** `qualityLimitationReason` (`"bandwidth"`, `"cpu"`, `"none"`) lives in the same `outbound-rtp` and tells "the network tightened" apart from "this machine cannot keep up" — which call for opposite actions. Read it straight off the report when you need it.
+- **Loss and jitter.** `packetsLost` and `jitter` are there, but they are read against what was sent in the same interval; a raw lost-packet counter is a number without a denominator.
+- **The cadence while the tab is hidden.** With `pauseWhenHidden: false` the timer keeps going, but browsers throttle background timers (Chrome drops to ≥ 1 min). No API works around that — sampling simply spaces out, and the delta stays correct because it is derived from measured time, not from the interval you asked for.
+- **Real browser behaviour.** This module's tests run in jsdom, which ships no WebRTC at all: they prove the **reduction** against synthetic reports, not the connection. The report's shape was checked separately, in Chromium, with two loopback `RTCPeerConnection`s carrying a 640×360@30 canvas — the same report carries `kind` **and** `mediaType`, `frameWidth`/`frameHeight`/`framesPerSecond` come filled in, `transport.selectedCandidatePairId` is there, and the first sample lands at `0` kbps before settling around 350 kbps. Still, confirm on your own topology before trusting a production dashboard: TURN relaying, simulcast and mobile all change what shows up.
+
+!!! note "`rttMs: 0` is not `rttMs: null`"
+    Zero is a reading — it is what the local loopback measured. `null` means **no** pair has reported a timing yet, which is the normal state while the connection settles. A UI treating the two alike shows "0 ms" for a call that has not connected.
+
+### When the browser does not cooperate
+
+The module already covers what varies between engines, and it is worth knowing that it varies:
+
+| Situation | What happens |
+| --- | --- |
+| Browser leaves `selectedCandidatePairId` empty | falls back to the first `succeeded` pair with a timing |
+| Browser reports `mediaType` instead of `kind` (older Chrome) | both are read |
+| `framesPerSecond` missing | `fps: 0`, and the last good reading is kept |
+| Counter restarts (ICE restart) | a negative delta becomes `0` and the baseline is rebuilt |
+| Simulcast (several layers on one track) | the layers sum; resolution comes from the largest |
+
 ## Recap
 
 - `tuneOpus(sdp, profiles)` rewrites the **audio** m-lines: per-key merge, every Opus payload, inserts a missing `fmtp`, ignores video.
@@ -98,6 +213,9 @@ Two things make this a function instead of two lines in your code: `setParameter
 - No built-in presets: the values are the consumer's decision.
 - `setTunedLocalDescription` tries the edited SDP and falls back to the original — losing the profile is far cheaper than losing the call.
 - `setSenderBitrate` caps the **send** side, which is what saturates the uplink in a mesh.
+- `useLinkStats(pc)` gives `kbps`, resolution, fps and round trip, pausing while the tab is hidden; `createLinkStatsSampler()` does the same outside React, **one per connection**.
+- `readRoundTripMs(report)` reads the **selected** candidate pair, not the first `succeeded` one — that is the difference between 42 ms and a number that jumps.
+- The rate is a delta: call `reset()` after an ICE restart, a reconnect or a long pause.
 
 ## See also
 

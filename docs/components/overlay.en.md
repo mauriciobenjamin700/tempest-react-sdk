@@ -234,6 +234,50 @@ function DeleteButton({ id }: { id: string }) {
     `useModals()` throws if called outside a `<ModalsProvider>`. Mount the provider
     once near the app root.
 
+## Fullscreen
+
+Every SDK overlay mounts through a portal, and the portal target follows the
+**fullscreen** element whenever there is one — `Modal`, `Drawer`, `BottomSheet`,
+`ToastProvider`, `Command` and the generic `<Portal>`.
+
+This is not convenience, it is correctness. While the page is in fullscreen the
+browser paints **only the fullscreen element's subtree**, and `document.body` is
+outside it. An overlay mounted in `body` exists in the DOM, has a measured box,
+and is neither seen nor clicked — `elementFromPoint` at its centre returns
+whatever sits behind it. Nothing throws and nothing reaches the console.
+
+```tsx
+import { useRef, useState } from "react";
+import { Button, Modal } from "tempest-react-sdk";
+
+export function Call() {
+    const stage = useRef<HTMLDivElement>(null);
+    const [open, setOpen] = useState(false);
+
+    return (
+        <div ref={stage}>
+            <Button onClick={() => stage.current?.requestFullscreen()}>Fullscreen</Button>
+            <Button onClick={() => setOpen(true)}>Audio and video</Button>
+
+            <Modal open={open} onClose={() => setOpen(false)} title="Audio and video">
+                The dialog shows up inside the fullscreen element.
+            </Modal>
+        </div>
+    );
+}
+```
+
+!!! tip "The target follows, it is not read once"
+    Entering or leaving fullscreen with a dialog already open **moves** the
+    dialog: the host is state and listens for `fullscreenchange` (plus the
+    `webkitfullscreenchange` WebKit still emits). The dialog stays mounted and
+    keeps its state.
+
+!!! note "`container` still wins"
+    `<Portal container={…}>` pins the target and ignores fullscreen. Use it when
+    you need a specific destination — a layout root, a node outside an
+    `overflow`.
+
 ## General A11y
 
 - **Focus trap**: Tab cycles only inside the dialog. Restores focus to the trigger on close.

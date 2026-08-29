@@ -402,6 +402,14 @@ const scale = sequentialScale(0, 1200, SEQUENTIAL_VIRIDIS);
 !!! note "Paleta da marca"
     As paletas são padrões públicos (ColorBrewer/Viridis). Troque por qualquer lista ordenada de hex da sua marca — os builders de escala aceitam qualquer `string[]`.
 
+!!! warning "Paleta vazia lança na construção"
+    `quantizeScale` e `thresholdScale` **lançam** quando a paleta não tem cor
+    alguma, em vez de devolver uma escala que responde `undefined` a cada valor.
+    Uma escala assim chega ao DOM como `fill="undefined"`: o mapa fica em branco e
+    nada é reportado. O erro agora acontece na linha que construiu a escala, que é
+    onde o engano está — normalmente uma paleta vinda de `.filter()` ou de um
+    `.slice()` com o índice errado.
+
 ---
 
 ## Parte 7 — Zoom, cor por região e busca de município

@@ -1,3 +1,5 @@
+import { dateTimeFormat, numberFormat } from "@/utils/intl-cache";
+
 /**
  * Format a number as Brazilian Real currency.
  *
@@ -5,10 +7,7 @@
  * @returns A locale-formatted string, e.g. "R$ 1.234,56".
  */
 export function formatCurrency(value: number): string {
-    return new Intl.NumberFormat("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-    }).format(value);
+    return numberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 }
 
 /**
@@ -20,7 +19,7 @@ export function formatCurrency(value: number): string {
 export function formatDate(value: string | Date): string {
     const date = typeof value === "string" ? new Date(value) : value;
     if (Number.isNaN(date.getTime())) return "";
-    return new Intl.DateTimeFormat("pt-BR").format(date);
+    return dateTimeFormat("pt-BR").format(date);
 }
 
 /**
@@ -63,10 +62,7 @@ export function formatDateForInput(value: string | Date): string {
 export function formatDateTime(value: string | Date): string {
     const date = typeof value === "string" ? new Date(value) : value;
     if (Number.isNaN(date.getTime())) return "";
-    return new Intl.DateTimeFormat("pt-BR", {
-        dateStyle: "short",
-        timeStyle: "short",
-    }).format(date);
+    return dateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(date);
 }
 
 export interface FormatPhoneOptions {
@@ -149,7 +145,7 @@ export function formatCPF(value: string): string {
  * @returns Formatted percent string, e.g. "12,5%".
  */
 export function formatPercent(value: number): string {
-    return new Intl.NumberFormat("pt-BR", {
+    return numberFormat("pt-BR", {
         style: "percent",
         minimumFractionDigits: 1,
         maximumFractionDigits: 1,

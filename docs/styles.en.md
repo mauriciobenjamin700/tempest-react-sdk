@@ -48,6 +48,60 @@ Done. Everything below is already available in your application.
 
 ---
 
+## Importing less CSS
+
+`tempest-react-sdk/styles.css` carries all ~150 components. The JavaScript you
+import is tree-shaken; **the CSS is not** — so an app using thirteen components
+downloads the other hundred and forty.
+
+To pay only for what you mount, import the foundation plus the sheets you want:
+
+```ts
+import "tempest-react-sdk/styles/core.css";
+import "tempest-react-sdk/styles/Button.css";
+import "tempest-react-sdk/styles/Modal.css";
+```
+
+Measured in a real Vite app, the same twelve components mounted both ways:
+
+| Import | raw | gzip |
+| --- | --- | --- |
+| `styles.css` | 236.71 kB | 35.38 kB |
+| `core.css` + 7 groups | 155.43 kB | 23.38 kB |
+| `core.css` + 12 components | **38.94 kB** | **7.70 kB** |
+
+!!! danger "`core.css` is not optional"
+    It carries the reset, tokens, typography, motion, density, responsive and
+    print layers — **no** component sheet repeats any of it. Importing
+    `Button.css` without `core.css` gives you a button with no colour, no spacing
+    and no font.
+
+### Three granularities
+
+| Entry | What it carries | When |
+| --- | --- | --- |
+| `styles.css` | everything | one line, and the weight does not bother you |
+| `styles/core.css` | foundation, zero components | always, alongside any of the others |
+| `styles/<Group>.css` | a whole family | you use most of it |
+| `styles/<Component>.css` | one component | you want the minimum |
+
+Available groups: `actions`, `advanced`, `br`, `chat`, `data`, `editor`,
+`feedback`, `forms`, `geo`, `icons`, `identity`, `layout`, `media`,
+`navigation`, `overlay`, `utility`. A component file is named after the
+component — `styles/DataTable.css`, `styles/Slider.css`.
+
+!!! tip "One file per component, one public path"
+    The package `exports` publishes this as **one** subpath pattern
+    (`"./styles/*.css"`), not as 125 entries. Fine granularity without 125 paths
+    pinned by semver.
+
+!!! note "The split is exact, not a prune"
+    Every class is hashed per CSS module (`tempest_[local]_[hash]`), and every
+    `dist/**/*.module.js` carries its source path alongside the names that module
+    declares — attributing a rule to a component is a lookup, not a guess. The
+    build **fails** if any rule names classes from two modules, which is what
+    would make it one.
+
 ## Color
 
 ### Brand — primary tints
@@ -322,6 +376,46 @@ automatically. Components that use heavy keyframes (modal, drawer, toast,
 tooltip, skeleton) also detect it and disable their specific animations.
 
 ---
+
+## The reset and your markup
+
+`styles.css` ships a modern reset, and one of its rules reaches elements the SDK
+does not draw:
+
+```css
+img, svg, video, canvas, audio, iframe, embed, object {
+    display: block;
+    max-width: 100%;
+}
+```
+
+Making media block-level removes the phantom gap under an inline image, which is
+why every modern reset has this rule. But a user-agent `<button>` centres its
+content with `text-align: center`, and `text-align` only reaches inline boxes —
+so a lone icon inside a button of **yours** would sit flush against the left
+edge.
+
+The SDK ships the counterweight alongside it:
+
+```css
+:where(button, a, label, summary) > svg:only-child {
+    margin-inline: auto;
+}
+```
+
+!!! tip "Zero specificity, on purpose"
+    `:where()` adds no specificity, so **any** rule of yours beats this one
+    without `!important`. Centred is the default; a different alignment is one
+    ordinary declaration:
+
+    ```css
+    .toolbar button > svg { margin-inline: 0; }
+    ```
+
+!!! note "Only for a lone icon"
+    `:only-child` keeps the rule to the icon-only button. An icon beside a label
+    already lives in a flex row of yours, where `margin: auto` would shove the
+    text — that case keeps whatever alignment you gave it.
 
 ## Focus ring
 

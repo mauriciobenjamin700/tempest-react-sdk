@@ -150,8 +150,14 @@ async function startPreview() {
  * Freeze the sources of per-run variation before any application code runs.
  *
  * `Math.random` is seeded so demo data that is generated rather than fixed lands
- * on the same values every run. Without this every re-run rewrites half the
- * files and the diff stops meaning "the component changed".
+ * on the same values every run, and the clock is pinned so a section rendering
+ * `formatDateTime(new Date())` stops producing a new image every minute. Without
+ * both, a re-run rewrites files and the diff stops meaning "the component
+ * changed".
+ *
+ * Only the argument-less `Date` is frozen: parsing a literal has to keep working,
+ * because demo data is full of them. React schedules on `performance.now`, which
+ * is untouched.
  *
  * @param {import("@playwright/test").Page} page - The page to instrument.
  */
@@ -162,6 +168,17 @@ async function freezeEntropy(page) {
             seed = (seed * 1103515245 + 12345) & 0x7fffffff;
             return seed / 0x7fffffff;
         };
+
+        const FROZEN = Date.parse("2026-03-14T15:09:00Z");
+        const RealDate = Date;
+        const FakeDate = function (...args) {
+            return args.length === 0 ? new RealDate(FROZEN) : new RealDate(...args);
+        };
+        FakeDate.prototype = RealDate.prototype;
+        FakeDate.now = () => FROZEN;
+        FakeDate.parse = RealDate.parse;
+        FakeDate.UTC = RealDate.UTC;
+        globalThis.Date = FakeDate;
     });
 }
 

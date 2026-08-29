@@ -317,6 +317,46 @@ tooltip, skeleton) also detect it and disable their specific animations.
 
 ---
 
+## The reset and your markup
+
+`styles.css` ships a modern reset, and one of its rules reaches elements the SDK
+does not draw:
+
+```css
+img, svg, video, canvas, audio, iframe, embed, object {
+    display: block;
+    max-width: 100%;
+}
+```
+
+Making media block-level removes the phantom gap under an inline image, which is
+why every modern reset has this rule. But a user-agent `<button>` centres its
+content with `text-align: center`, and `text-align` only reaches inline boxes —
+so a lone icon inside a button of **yours** would sit flush against the left
+edge.
+
+The SDK ships the counterweight alongside it:
+
+```css
+:where(button, a, label, summary) > svg:only-child {
+    margin-inline: auto;
+}
+```
+
+!!! tip "Zero specificity, on purpose"
+    `:where()` adds no specificity, so **any** rule of yours beats this one
+    without `!important`. Centred is the default; a different alignment is one
+    ordinary declaration:
+
+    ```css
+    .toolbar button > svg { margin-inline: 0; }
+    ```
+
+!!! note "Only for a lone icon"
+    `:only-child` keeps the rule to the icon-only button. An icon beside a label
+    already lives in a flex row of yours, where `margin: auto` would shove the
+    text — that case keeps whatever alignment you gave it.
+
 ## Focus ring
 
 ```css

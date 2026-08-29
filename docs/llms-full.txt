@@ -21934,6 +21934,46 @@ Shadows são automaticamente mais escuros no tema dark.
 
 ---
 
+## O reset e o seu markup
+
+`styles.css` traz um reset moderno, e uma das regras dele alcança elementos que
+o SDK não desenha:
+
+```css
+img, svg, video, canvas, audio, iframe, embed, object {
+    display: block;
+    max-width: 100%;
+}
+```
+
+Deixar mídia em bloco evita o espaço fantasma abaixo de uma imagem inline, que é
+o motivo de a regra existir em todo reset moderno. Mas um `<button>` do
+user-agent centraliza o conteúdo com `text-align: center`, e `text-align` só
+alcança caixa inline — então um ícone sozinho num botão **seu** encostaria na
+borda esquerda.
+
+O SDK ships o contrapeso junto:
+
+```css
+:where(button, a, label, summary) > svg:only-child {
+    margin-inline: auto;
+}
+```
+
+!!! tip "Especificidade zero, de propósito"
+    `:where()` não soma especificidade, então **qualquer** regra sua ganha desta
+    sem `!important`. Centralizado é o default; outro alinhamento é uma
+    declaração normal:
+
+    ```css
+    .toolbar button > svg { margin-inline: 0; }
+    ```
+
+!!! note "Só vale para ícone sozinho"
+    `:only-child` mantém a regra restrita ao botão só-de-ícone. Ícone ao lado de
+    rótulo já vive num flex seu, onde `margin: auto` empurraria o texto — esse
+    caso continua com o alinhamento que você deu.
+
 ## Focus ring
 
 ```css

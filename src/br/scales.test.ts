@@ -87,3 +87,24 @@ describe("scales — degenerate palettes and ranges", () => {
         expect(scale(50)).toBe("#ffffff");
     });
 });
+
+describe("an empty palette fails where it was built", () => {
+    /*
+     * Before this guard both factories indexed at `-1` and returned `undefined`
+     * announced as `string`. That reaches the DOM as `fill="undefined"`, which
+     * paints nothing and reports nothing — the caller sees a blank map and no
+     * error to search for.
+     */
+    it("quantizeScale rejects it", () => {
+        expect(() => quantizeScale(0, 100, [])).toThrow(/at least one colour/);
+    });
+
+    it("thresholdScale rejects it", () => {
+        expect(() => thresholdScale([10, 50], [])).toThrow(/at least one colour/);
+    });
+
+    it("still accepts a single-colour palette", () => {
+        expect(quantizeScale(0, 100, ["#abc"])(50)).toBe("#abc");
+        expect(thresholdScale([10], ["#abc"])(999)).toBe("#abc");
+    });
+});

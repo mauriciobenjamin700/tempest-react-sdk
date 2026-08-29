@@ -1,3 +1,4 @@
+import { numberFormat } from "@/utils/intl-cache";
 /**
  * Clamp `value` between `min` and `max` (inclusive).
  *
@@ -89,7 +90,5 @@ export function percentOf(part: number, total: number): number {
  * formatCompactNumber(1234, "pt-BR");   // "1,2 mil"
  */
 export function formatCompactNumber(value: number, locale: string = "en-US"): string {
-    return new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 1 }).format(
-        value,
-    );
+    return numberFormat(locale, { notation: "compact", maximumFractionDigits: 1 }).format(value);
 }

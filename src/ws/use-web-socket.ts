@@ -38,15 +38,6 @@ export interface UseWebSocketResult<T> {
     setSilenceTimeout: (ms: number) => void;
 }
 
-/** Mirror of `createWebSocket`'s default parser: JSON, raw string on failure. */
-function defaultParse<T>(raw: string): T {
-    try {
-        return JSON.parse(raw) as T;
-    } catch {
-        return raw as unknown as T;
-    }
-}
-
 /**
  * React hook around {@link createWebSocket}. Manages the connection lifecycle
  * for the host component and tears it down on unmount.
@@ -97,6 +88,16 @@ export function useWebSocket<T = unknown>(
             return;
         }
 
+        /*
+         * Presence is read once, when the socket opens, and decides whether the
+         * forwarder is passed at all. A forwarder is always truthy, so wrapping
+         * an absent `parser` — or an absent `onParseError` — would tell
+         * `decodeFrame` the caller had supplied one and silently pick the wrong
+         * branch.
+         */
+        const hasParser = optionsRef.current.parser !== undefined;
+        const hasParseError = optionsRef.current.onParseError !== undefined;
+
         const controller = createWebSocket<T>(url, {
             protocols: optionsRef.current.protocols,
             maxRetries,
@@ -112,7 +113,10 @@ export function useWebSocket<T = unknown>(
             pongPayload: optionsRef.current.pongPayload,
             queueWhileClosed,
             maxQueuedMessages,
-            parser: (raw) => (optionsRef.current.parser ?? defaultParse<T>)(raw),
+            parser: hasParser ? (raw) => optionsRef.current.parser?.(raw) as T : undefined,
+            onParseError: hasParseError
+                ? (error, raw) => optionsRef.current.onParseError?.(error, raw)
+                : undefined,
             onStatusChange: setStatus,
             onOpen: (event) => optionsRef.current.onOpen?.(event),
             onClose: (event) => optionsRef.current.onClose?.(event),

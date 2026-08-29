@@ -1,3 +1,4 @@
+import { dateTimeFormat, numberFormat } from "@/utils/intl-cache";
 export type Messages = Record<string, string>;
 export type Catalog = Record<string, Messages>;
 export type InterpolationValues = Record<string, string | number>;
@@ -133,13 +134,13 @@ export function createI18n(options: CreateI18nOptions): I18n {
     }
 
     function formatNumber(value: number, opts?: Intl.NumberFormatOptions): string {
-        return new Intl.NumberFormat(locale, opts).format(value);
+        return numberFormat(locale, opts).format(value);
     }
 
     function formatDate(value: Date | string, opts?: Intl.DateTimeFormatOptions): string {
         const date = typeof value === "string" ? new Date(value) : value;
         if (Number.isNaN(date.getTime())) return "";
-        return new Intl.DateTimeFormat(locale, opts).format(date);
+        return dateTimeFormat(locale, opts).format(date);
     }
 
     return {

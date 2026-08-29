@@ -336,7 +336,8 @@ function HolidaysDemo(): ReactElement {
  */
 export function BRPaymentsSection() {
     return (
-        <>
+        <section className="gallery-section" id="br-payments">
+            <h3>Pagamentos BR (Pix · boleto · NFe)</h3>
             <Example
                 id="br-pix"
                 title="Pix — BR Code ao vivo"
@@ -428,6 +429,6 @@ addBusinessDays("2026-04-01", 2); // 2026-04-06`}
             >
                 <HolidaysDemo />
             </Example>
-        </>
+        </section>
     );
 }

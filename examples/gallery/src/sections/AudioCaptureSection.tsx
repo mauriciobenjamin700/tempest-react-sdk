@@ -26,7 +26,8 @@ export function AudioCaptureSection() {
     const outputSupported = isAudioOutputSelectionSupported();
 
     return (
-        <>
+        <section className="gallery-section" id="audio-capture">
+            <h3>Áudio (gravação)</h3>
             <Example
                 id="audio-recorder"
                 title="AudioRecorder — nota de voz completa"
@@ -191,6 +192,6 @@ if (!isAudioOutputSelectionSupported()) {
                     </label>
                 </div>
             </Example>
-        </>
+        </section>
     );
 }

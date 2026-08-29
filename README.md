@@ -1789,6 +1789,7 @@ if (result.unsupported) {
 | `useKeyboardShortcut(shortcut, handler)`      | `"Meta+K"` / `"Ctrl+Shift+P"` patterns.                                          |
 | `useBeforeInstallPrompt()`                    | Capture the PWA install prompt and trigger it later.                             |
 | `useIdle(timeout)`                            | `true` after `timeout` ms of no input.                                           |
+| `useFullscreen(ref?)`                         | Immersive mode driven by `fullscreenchange`, so `Esc`/F11 stay in sync.          |
 | `useGeolocation()`                            | One-shot or watch position with permission state.                                |
 | `useScrollLock(active)`                       | Lock body scroll while a modal is open.                                          |
 | `useFocusTrap(ref, active)`                   | Trap focus inside a container.                                                   |

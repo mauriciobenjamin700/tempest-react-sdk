@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useFullscreenElement } from "@/hooks/use-fullscreen-element";
 
 /**
  * The element a portal should render into.
@@ -11,50 +12,27 @@ import { useEffect, useState } from "react";
  * app is left holding a dialog nobody can see.
  *
  * The fullscreen element can appear and disappear while a portal is mounted, so
- * the host is state rather than a one-time read.
+ * the host is state rather than a one-time read. That subscription — the two
+ * events, standard and WebKit-prefixed — lives in `useFullscreenElement`, because
+ * `useFullscreen` needs the identical fact to answer a different question; this
+ * module only asks it where to mount.
  */
-
-/** Vendor-prefixed fullscreen members, still shipped by WebKit. */
-interface WebkitFullscreenDocument {
-    webkitFullscreenElement?: Element | null;
-}
-
-/**
- * Read the current fullscreen element, standard property first.
- *
- * @returns The element being presented fullscreen, or `null`.
- */
-function currentFullscreenElement(): Element | null {
-    if (typeof document === "undefined") return null;
-    const prefixed = document as Document & WebkitFullscreenDocument;
-    return document.fullscreenElement ?? prefixed.webkitFullscreenElement ?? null;
-}
 
 /**
  * Resolve where a portal should mount, following fullscreen changes.
  *
- * The first value is resolved during render rather than in the effect, so an
- * overlay that opens still mounts in the same commit it used to — the effect only
- * follows changes from there.
+ * The first value is resolved during render rather than in an effect, so an
+ * overlay that opens still mounts in the same commit it used to — the
+ * subscription only follows changes from there.
  *
  * @returns The fullscreen element while one is presented, otherwise
  * `document.body`; `null` in any environment without a `document`.
  */
 export function usePortalHost(): Element | null {
-    const [host, setHost] = useState<Element | null>(() =>
-        typeof document === "undefined" ? null : (currentFullscreenElement() ?? document.body),
+    const fullscreen = useFullscreenElement();
+    const [body] = useState<HTMLElement | null>(() =>
+        typeof document === "undefined" ? null : document.body,
     );
 
-    useEffect(() => {
-        const sync = (): void => setHost(currentFullscreenElement() ?? document.body);
-        sync();
-        document.addEventListener("fullscreenchange", sync);
-        document.addEventListener("webkitfullscreenchange", sync);
-        return () => {
-            document.removeEventListener("fullscreenchange", sync);
-            document.removeEventListener("webkitfullscreenchange", sync);
-        };
-    }, []);
-
-    return host;
+    return fullscreen ?? body;
 }

@@ -113,6 +113,36 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   A união já era discriminada por `type`, então a variante é aditiva: nenhum
   consumidor quebra.
 
+- **`useFullscreen` — estado dirigido pelo evento, não pela sua chamada**
+  ([#235](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/235)).
+  Flag de modo imersivo guardada em estado e virada dentro de `enter()`/`exit()`
+  erra na primeira vez que alguém aperta `Esc`. O browser também sai do fullscreen
+  pelo próprio botão e pelo F11 apertado no meio de uma sessão de API, e nenhum
+  desses caminhos passa pelo seu código — então o botão segue oferecendo "sair"
+  sobre uma página que já está em janela. O hook lê `fullscreenchange` (mais
+  `webkitfullscreenchange`, ainda o único par a que o Safari responde) e nunca
+  deixa os callbacks de ação tocarem o estado.
+
+  ```tsx
+  const { isFullscreen, supported, enter, exit, toggle } = useFullscreen(videoRef);
+  ```
+
+  `enter()` propaga a recusa do browser em vez de engoli-la: pedido fora de gesto
+  do usuário é rejeitado com `TypeError`, e um botão que não fez nada precisa
+  poder dizer por quê. `exit()` resolve quieto quando nada está apresentado,
+  porque o Chrome rejeita ali e um toggle correndo com um `Esc` não é erro sobre o
+  qual o caller possa agir. `supported` é checagem real de capacidade: documento
+  dentro de `<iframe>` sem `allowfullscreen` ships os métodos e recusa toda
+  chamada, o que só `fullscreenEnabled` reporta de antemão.
+
+  A assinatura do evento não é nova — `usePortalHost` já a abria para decidir onde
+  montar um overlay com fullscreen ligado. Ela mudou de casa para
+  `use-fullscreen-element.ts` e responde "qual elemento está apresentado" uma vez
+  só, em vez de manter duas cópias da dança de prefixo e dois lugares para
+  corrigir a próxima esquisitice. É módulo próprio, e não vizinho do hook, para o
+  grafo de `Modal`/`Drawer`/`Toast` não alcançar `useFullscreen` estaticamente —
+  nada que um bundler precise provar morto.
+
 ### Corrigido
 
 - **14 links da sidebar da gallery não iam a lugar nenhum.** As seções `chat`,

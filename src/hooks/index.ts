@@ -29,6 +29,8 @@ export type { KeyboardShortcut, UseKeyboardShortcutOptions } from "./use-keyboar
 export { useBeforeInstallPrompt } from "./use-before-install-prompt";
 export type { UseBeforeInstallPromptResult } from "./use-before-install-prompt";
 export { useIdle } from "./use-idle";
+export { isFullscreenSupported, useFullscreen } from "./use-fullscreen";
+export type { UseFullscreenResult } from "./use-fullscreen";
 export { useGeolocation } from "./use-geolocation";
 export type { GeolocationState, UseGeolocationOptions } from "./use-geolocation";
 export { useScrollLock } from "./use-scroll-lock";

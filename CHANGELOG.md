@@ -4,6 +4,53 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **Entrada `checkbox` no `DropdownMenu`**
+  ([#244](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/244)).
+  `type: "checkbox"` renderiza `role="menuitemcheckbox"` com `aria-checked`, que é
+  como um leitor de tela anuncia "marcado" em vez de deixar o estado invisível.
+  Antes não havia onde declarar estado: um item que liga/desliga algo virava
+  `"item"` comum, e o `aria-pressed` que o botão solto tinha se perdia na
+  migração para o menu.
+
+  Alternar **não fecha** o menu — ajustar duas preferências seguidas é o caso
+  comum, e fechar após a primeira transformaria a segunda numa segunda viagem.
+  `"item"` continua fechando, como sempre.
+
+  A união já era discriminada por `type`, então a variante é aditiva: nenhum
+  consumidor quebra.
+
+### Corrigido
+
+- **`role="menu"` sem o teclado que o papel promete**
+  ([#244](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/244)).
+  O menu abria e o foco ficava no gatilho; `ArrowDown` não movia nada. Quem usava
+  teclado descobria por tentativa que ali `Tab` fazia o papel da seta, porque as
+  entradas saíam com `tabIndex: 0`. Não era inacessível — era **fora do padrão**,
+  que é pior: o widget parece funcionar e contradiz o que anunciou.
+
+  O modelo agora é o
+  [APG Menu Button](https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/):
+  `Enter`/`Space`/`↓` abrem focando a primeira entrada e `↑` a última; `↑`/`↓`
+  percorrem com wrap; `Home`/`End` vão às pontas; `Esc` fecha e **devolve o foco
+  ao gatilho**; `Tab` fecha e deixa a ordem da página seguir. Foco gerenciado —
+  `tabIndex: -1` nas entradas, `0` na ativa.
+
+  **Por que as setas sumiam num app real:** o handler vivia num listener de
+  `keydown` no `window`, e qualquer `stopPropagation` no caminho o engolia. Agora
+  o teclado é tratado na própria lista, para onde o foco entrou — as teclas
+  chegam por bubbling e não há listener global a ser pré-empteado.
+
+  Os testes de seta que existiam **passavam com o componente quebrado**: eles
+  disparavam em `window`, o que pula a pergunta de se o foco chegou ao menu. Foram
+  reescritos para `userEvent.keyboard`, que envia a tecla a quem tem o foco. Nove
+  dos doze casos novos falham contra a implementação anterior.
+
+  O foco do gatilho é recuperado pelo `aria-haspopup` que o componente coloca
+  nele, não por `ref`: `ref` mora em lugares diferentes no React 18 e 19, e um
+  trigger custom não é obrigado a encaminhar um.
+
 ## [0.53.0] — 2026-08-28
 
 ### Adicionado

@@ -162,6 +162,137 @@ describe("buildApiError — Tempest envelope", () => {
     });
 });
 
+describe("buildApiError — os envelopes que um backend tempest-fastapi-sdk realmente manda", () => {
+    const flattenedValidation = {
+        detail: "Value error, Numero de telefone invalido for field 'phone' in 'body'",
+        field: "phone",
+        location: "body -> phone",
+        type: "value_error",
+    };
+
+    const businessError = {
+        detail: {
+            detail: "Cidade nao encontrada para o estado informado.",
+            field: "city",
+        },
+        code: "VALIDATION_ERROR",
+        details: { field: "city" },
+    };
+
+    it("mapeia o campo que um RequestValidationError achatado nomeia", () => {
+        const err = buildApiError(422, flattenedValidation);
+
+        expect(err.fields).toEqual({
+            phone: "Value error, Numero de telefone invalido for field 'phone' in 'body'",
+        });
+        expect(err.detail).toBe(
+            "Value error, Numero de telefone invalido for field 'phone' in 'body'",
+        );
+    });
+
+    it("mapeia o campo que um AppException põe dentro do detail", () => {
+        const err = buildApiError(422, businessError);
+
+        expect(err.fields).toEqual({ city: "Cidade nao encontrada para o estado informado." });
+        expect(err.detail).toBe("Cidade nao encontrada para o estado informado.");
+        expect(err.code).toBe("VALIDATION_ERROR");
+    });
+
+    it("lê o campo do saco de contexto details quando nada mais o nomeia", () => {
+        const err = buildApiError(422, {
+            detail: "Coluna de ordenação inválida",
+            code: "INVALID_SORT",
+            details: { field: "criado_em", allowed: ["created_at"] },
+        });
+
+        expect(err.fields).toEqual({ criado_em: "Coluna de ordenação inválida" });
+    });
+
+    it("prefere o field de dentro do detail a todos os outros", () => {
+        const err = buildApiError(422, {
+            detail: { detail: "msg", field: "de-dentro" },
+            field: "de-fora",
+            details: { field: "do-contexto" },
+        });
+
+        expect(err.fields).toEqual({ "de-dentro": "msg" });
+    });
+
+    it("prefere o field do topo ao do saco de contexto", () => {
+        const err = buildApiError(422, {
+            detail: "msg",
+            field: "de-fora",
+            details: { field: "do-contexto" },
+        });
+
+        expect(err.fields).toEqual({ "de-fora": "msg" });
+    });
+
+    it("deixa fields indefinido no erro de negócio que não nomeia campo nenhum", () => {
+        const err = buildApiError(409, {
+            detail: "Email já cadastrado",
+            code: "EMAIL_TAKEN",
+            details: { request_id: "req-1" },
+        });
+
+        expect(err.fields).toBeUndefined();
+        expect(err.requestId).toBe("req-1");
+    });
+
+    it("não deixa o detail sintético cair num input quando não há mensagem legível", () => {
+        for (const body of [
+            { field: "phone" },
+            { field: "phone", detail: [] },
+            { field: "phone", detail: null },
+        ]) {
+            const err = buildApiError(422, body);
+
+            expect(err.fields).toBeUndefined();
+            expect(err.detail).toBe("Erro 422");
+        }
+    });
+
+    it("ignora um field que não é string não-vazia", () => {
+        expect(buildApiError(422, { detail: "msg", field: "" }).fields).toBeUndefined();
+        expect(buildApiError(422, { detail: "msg", field: 42 }).fields).toBeUndefined();
+        expect(buildApiError(422, { detail: "msg", field: null }).fields).toBeUndefined();
+        expect(
+            buildApiError(422, { detail: "msg", details: { field: ["a"] } }).fields,
+        ).toBeUndefined();
+    });
+
+    it("a lista do FastAPI ganha de um field nomeado ao lado dela", () => {
+        const err = buildApiError(422, {
+            detail: [{ loc: ["body", "email"], msg: "Field required" }],
+            field: "phone",
+        });
+
+        expect(err.fields).toEqual({ email: "Field required" });
+    });
+
+    it("cai no field nomeado quando a lista não nomeia nenhum", () => {
+        const err = buildApiError(422, { detail: [{ msg: "sem loc" }], field: "phone" });
+
+        expect(err.fields).toEqual({ phone: "sem loc" });
+    });
+
+    it("tira a mensagem do campo de message quando não há detail", () => {
+        const err = buildApiError(422, { message: "boom", field: "phone" });
+
+        expect(err.fields).toEqual({ phone: "boom" });
+        expect(err.detail).toBe("boom");
+    });
+
+    it("carrega o campo nomeado até o TempestApiError lançado", () => {
+        const err = new TempestApiError(buildApiError(422, flattenedValidation));
+
+        expect(err.fields).toEqual({
+            phone: "Value error, Numero de telefone invalido for field 'phone' in 'body'",
+        });
+        expect(err).toBeInstanceOf(Error);
+    });
+});
+
 describe("parseRetryAfter", () => {
     it("parses integer seconds", () => {
         expect(parseRetryAfter("30")).toBe(30);

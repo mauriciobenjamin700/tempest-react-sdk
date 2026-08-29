@@ -140,6 +140,38 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   que `geocodeMunicipality` não posiciona. O teste fixa essa lista — quando ela
   crescer sem alguém decidir, a build falha.
 
+- **`ApiError.fields` passou a ler o campo culpado dos envelopes que um backend
+  Tempest manda**
+  ([#252](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/252)).
+  O índice só se preenchia da lista `detail: [{ loc, msg }]` do FastAPI cru —
+  exatamente a forma que um backend sobre `tempest-fastapi-sdk` deixa de mandar
+  assim que assume os próprios handlers: ele nomeia o campo numa chave ao lado da
+  mensagem. Então os dois envelopes que este SDK existe para consumir acertavam a
+  mensagem e derrubavam o campo no chão, e todo formulário voltava a fazer cast
+  de `error.body` e a parsear prosa — que é exatamente o que `fields` foi criado
+  para acabar.
+
+  ```json
+  { "detail": "Value error, … for field 'phone' in 'body'", "field": "phone" }
+  { "detail": { "detail": "Cidade não encontrada…", "field": "city" },
+    "code": "VALIDATION_ERROR", "details": { "field": "city" } }
+  ```
+
+  As duas agora chegam em `fields`, com a mesma frase que vira `detail`.
+  Precedência: a lista primeiro e autoritativa (um app sem handler de
+  `RequestValidationError` ainda responde um 422 de schema com ela), depois
+  `detail.field`, `field` e `details.field` — `details` por último porque é saco
+  de contexto livre, cujo `field` pode não ser input nenhum na tela. Campo nomeado
+  sem mensagem legível não produz nada: o único texto restante ali seria o
+  sintético, e `{ phone: "Erro 422" }` num input é ruído, não mensagem de erro.
+
+  **Muda comportamento:** `describeApiError` suprime `detail` sempre que `fields`
+  está setado, então erro de negócio que nomeia campo passa a exibir a frase de
+  validação no toast em vez da própria frase pt-BR. Ela não se perde — vai para o
+  input de que fala, que é onde serve mais. Três saídas, em ordem de preferência:
+  `codes: { VALIDATION_ERROR: "…" }`, `validation: error.detail` no call site, ou
+  ler `error.detail`, que segue intocado.
+
 ### Corrigido
 
 - **14 links da sidebar da gallery não iam a lugar nenhum.** As seções `chat`,

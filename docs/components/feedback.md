@@ -29,19 +29,32 @@ Componentes que **comunicam estado** ao usuário — o que aconteceu, o que est�
 Banner inline. Diferente de `Banner` (top-of-page) e `Toast` (transient).
 
 ```tsx
-<Alert variant="success" appearance="soft" title="Salvo">
-  Suas alterações foram aplicadas com sucesso.
-</Alert>;
+import { useState } from "react";
+import { Alert } from "tempest-react-sdk";
+import { AlertCircle } from "lucide-react";
 
-<Alert
-  variant="danger"
-  appearance="outline"
-  icon={<AlertCircle />}
-  dismissible
-  onDismiss={() => setOpen(false)}
->
-  Falha ao processar pagamento.
-</Alert>;
+export function Avisos() {
+    const [open, setOpen] = useState(true);
+
+    return (
+        <>
+            <Alert variant="success" appearance="soft" title="Salvo">
+                Suas alterações foram aplicadas com sucesso.
+            </Alert>
+
+            {open && (
+                <Alert
+                    variant="danger"
+                    appearance="outline"
+                    icon={<AlertCircle size={16} />}
+                    onClose={() => setOpen(false)}
+                >
+                    Falha ao processar pagamento.
+                </Alert>
+            )}
+        </>
+    );
+}
 ```
 
 | Prop          | Tipo                                                        | Default  |
@@ -50,9 +63,9 @@ Banner inline. Diferente de `Banner` (top-of-page) e `Toast` (transient).
 | `appearance`  | `"soft" \| "solid" \| "outline"`                            | `"soft"` |
 | `title`       | `ReactNode`                                                 | —        |
 | `icon`        | `ReactNode`                                                 | —        |
-| `action`      | `ReactNode`                                                 | —        |
-| `dismissible` | `boolean`                                                   | `false`  |
-| `onDismiss`   | `() => void`                                                | —        |
+| `description` | `ReactNode`                                                 | —        |
+| `onClose`     | `() => void` (renderiza o botão de fechar)                  | —        |
+| `closeLabel`  | `string`                                                    | —        |
 
 **A11y**: `role="status"` para info/success, `role="alert"` para warning/danger.
 
@@ -67,14 +80,24 @@ Banner inline. Diferente de `Banner` (top-of-page) e `Toast` (transient).
 Persistente, top-of-page. Use para environment indicators, manutenção, expiração.
 
 ```tsx
-<Banner
-  variant="warning"
-  dismissible
-  onDismiss={() => setOpen(false)}
-  action={<Button size="sm">Renovar</Button>}
->
-  Sua assinatura expira em 3 dias.
-</Banner>
+import { useState } from "react";
+import { Banner, Button } from "tempest-react-sdk";
+
+export function AvisoDeAssinatura() {
+    const [open, setOpen] = useState(true);
+    if (!open) return null;
+
+    return (
+        <Banner
+            variant="warning"
+            dismissible
+            onDismiss={() => setOpen(false)}
+            action={<Button size="sm">Renovar</Button>}
+        >
+            Sua assinatura expira em 3 dias.
+        </Banner>
+    );
+}
 ```
 
 Mesmas variants do Alert.
@@ -92,11 +115,25 @@ Mesmas variants do Alert.
 Status pill — não removível.
 
 ```tsx
-<Badge>Default</Badge>
-<Badge variant="success">Pago</Badge>
-<Badge variant="danger" appearance="solid">Atrasado</Badge>
-<Badge variant="warning" appearance="outline" shape="square">Pendente</Badge>
-<Badge variant="info" dot>3</Badge>
+import { Badge } from "tempest-react-sdk";
+
+export function Selos() {
+    return (
+        <>
+            <Badge>Default</Badge>
+            <Badge variant="success">Pago</Badge>
+            <Badge variant="danger" appearance="solid">
+                Atrasado
+            </Badge>
+            <Badge variant="warning" appearance="outline" shape="square">
+                Pendente
+            </Badge>
+            <Badge variant="info" dot>
+                3
+            </Badge>
+        </>
+    );
+}
 ```
 
 | Prop         | Tipo                                                                     | Default     |
@@ -112,8 +149,18 @@ Status pill — não removível.
 Chip removível. Use para filter tokens, applied filters, selected entities.
 
 ```tsx
-<Tag onRemove={() => removeFilter("sp")} variant="primary">São Paulo</Tag>
-<Tag size="sm">Em estoque</Tag>
+import { Tag } from "tempest-react-sdk";
+
+export function Filtros({ removeFilter }: { removeFilter: (key: string) => void }) {
+    return (
+        <>
+            <Tag onRemove={() => removeFilter("sp")} variant="primary">
+                São Paulo
+            </Tag>
+            <Tag size="sm">Em estoque</Tag>
+        </>
+    );
+}
 ```
 
 | Prop          | Tipo                                                                     | Default     |
@@ -130,16 +177,24 @@ Chip removível. Use para filter tokens, applied filters, selected entities.
 KPI card para dashboards.
 
 ```tsx
-<Stat
-  label="Receita"
-  value="R$ 12.345"
-  delta="+12,4%"
-  hint="vs. mês anterior"
-  icon={<TrendingUp />}
-/>;
+import { Stat } from "tempest-react-sdk";
+import { TrendingUp } from "lucide-react";
 
-<Stat label="Sessões" value="1.2k" delta="-3%" hint="últimos 7 dias" />;
-<Stat label="NPS" value="78" delta="0" trend="flat" />;
+export function Metricas() {
+    return (
+        <>
+            <Stat
+                label="Receita"
+                value="R$ 12.345"
+                delta="+12,4%"
+                hint="vs. mês anterior"
+                icon={<TrendingUp size={16} />}
+            />
+            <Stat label="Sessões" value="1.2k" delta="-3%" hint="últimos 7 dias" />
+            <Stat label="NPS" value="78" delta="0" trend="flat" />
+        </>
+    );
+}
 ```
 
 | Prop    | Tipo                       | Default                              |
@@ -162,9 +217,17 @@ KPI card para dashboards.
 Barra de progresso.
 
 ```tsx
-<Progress value={uploadProgress} max={100} variant="primary" />;
-<Progress value={100} variant="success" />;
-<Progress indeterminate variant="primary" />;
+import { Progress } from "tempest-react-sdk";
+
+export function Barras({ uploadProgress }: { uploadProgress: number }) {
+    return (
+        <>
+            <Progress value={uploadProgress} max={100} variant="primary" />
+            <Progress value={100} variant="success" />
+            <Progress indeterminate variant="primary" />
+        </>
+    );
+}
 ```
 
 | Prop            | Tipo                                 | Default     |
@@ -181,22 +244,25 @@ Barra de progresso.
 Controlador imperativo (`nprogress`) + a barra visual (`<NProgressBar>`). Monte a barra uma vez perto da raiz do app e dirija o controlador de qualquer lugar (transições de rota, interceptors de fetch).
 
 ```tsx
-import { NProgressBar, nprogress, Button } from "tempest-react-sdk";
+import { Button, NProgressBar, nprogress } from "tempest-react-sdk";
 
-// raiz do app — renderiza nada enquanto inativo
-<NProgressBar color="var(--tempest-primary)" height={3} />;
-
-// dispare de qualquer lugar
-async function loadPage() {
-  nprogress.start();
-  try {
-    await fetch("/api/data");
-  } finally {
-    nprogress.done();
-  }
+async function loadPage(): Promise<void> {
+    nprogress.start();
+    try {
+        await fetch("/api/data");
+    } finally {
+        nprogress.done();
+    }
 }
 
-<Button onClick={loadPage}>Carregar</Button>;
+export function Raiz() {
+    return (
+        <>
+            <NProgressBar color="var(--tempest-primary)" height={3} />
+            <Button onClick={loadPage}>Carregar</Button>
+        </>
+    );
+}
 ```
 
 | `nprogress` | Assinatura            | O que faz                                         |
@@ -222,10 +288,18 @@ async function loadPage() {
 Loader genérico.
 
 ```tsx
-<Spinner />;
-<Spinner size="lg" />;
-<Spinner size="lg" caption="Carregando…" />;
-<Spinner overlay caption="Carregando…" />; // fallback de Suspense/rota
+import { Spinner } from "tempest-react-sdk";
+
+export function Carregando() {
+    return (
+        <>
+            <Spinner />
+            <Spinner size="lg" />
+            <Spinner size="lg" caption="Carregando…" />
+            <Spinner overlay caption="Carregando…" />
+        </>
+    );
+}
 ```
 
 | Prop      | Tipo                                   | Default        | Descrição                                                       |
@@ -248,18 +322,21 @@ Placeholder com shimmer enquanto data carrega.
     Faça o skeleton ter as mesmas dimensões/proporções do conteúdo real — é isso que elimina o layout shift quando os dados chegam. Skeletons genéricos demais (um bloco só) confundem mais do que ajudam.
 
 ```tsx
-{
-  loading ? (
-    <Stack gap={2}>
-      <Skeleton variant="text" width="60%" />
-      <Skeleton variant="text" width="40%" />
-      <Skeleton variant="rect" height={120} />
-    </Stack>
-  ) : (
-    <ActualContent />
-  );
+import { Skeleton, Stack } from "tempest-react-sdk";
+
+export function Esqueleto({ loading }: { loading: boolean }) {
+    if (loading) {
+        return (
+            <Stack gap={2}>
+                <Skeleton variant="text" width="60%" />
+                <Skeleton variant="text" width="40%" />
+                <Skeleton variant="rect" height={120} />
+                <Skeleton variant="circle" width={40} height={40} />
+            </Stack>
+        );
+    }
+    return <p>Conteúdo carregado</p>;
 }
-<Skeleton variant="circle" width={40} height={40} />;
 ```
 
 | Prop      | Tipo                           | Default  |
@@ -283,16 +360,21 @@ Placeholder com shimmer enquanto data carrega.
 ```tsx
 import { RefreshIndicator } from "tempest-react-sdk";
 
-function Feed({ items, refetch }) {
-  return (
-    <RefreshIndicator onRefresh={async () => await refetch()}>
-      <ul>
-        {items.map((item) => (
-          <li key={item.id}>{item.title}</li>
-        ))}
-      </ul>
-    </RefreshIndicator>
-  );
+interface FeedItem {
+    id: string;
+    title: string;
+}
+
+export function Feed({ items, refetch }: { items: FeedItem[]; refetch: () => Promise<void> }) {
+    return (
+        <RefreshIndicator onRefresh={refetch}>
+            <ul>
+                {items.map((item) => (
+                    <li key={item.id}>{item.title}</li>
+                ))}
+            </ul>
+        </RefreshIndicator>
+    );
 }
 ```
 
@@ -316,16 +398,35 @@ Notificações transientes. Setup via `ToastProvider` + uso via `useToast()`.
     Toasts somem em poucos segundos — se o usuário precisar **agir** sobre a mensagem (corrigir um campo, tentar de novo), ela tem que persistir. Use `Toast` só para feedback descartável; erros acionáveis vão em `Alert`/`ErrorState`.
 
 ```tsx
-// app root
-<ToastProvider position="top-right" defaultDuration={4000}>
-  <App />
-</ToastProvider>;
+import { ToastProvider, useToast } from "tempest-react-sdk";
 
-// componentes
-const toast = useToast();
-toast.success("Salvo");
-toast.error("Falha ao processar pagamento", { duration: 8000 });
-toast.show({ title: "Sincronização", description: "Em andamento…", variant: "info" });
+function Salvar() {
+    const toast = useToast();
+
+    return (
+        <button
+            onClick={() => {
+                toast.success("Salvo");
+                toast.error("Falha ao processar pagamento.", { duration: 8000 });
+                toast.show({
+                    title: "Sincronização",
+                    description: "Em andamento…",
+                    variant: "info",
+                });
+            }}
+        >
+            Salvar
+        </button>
+    );
+}
+
+export function App() {
+    return (
+        <ToastProvider position="top-right" defaultDuration={4000}>
+            <Salvar />
+        </ToastProvider>
+    );
+}
 ```
 
 | `ToastApi` | Assinatura                                       |
@@ -354,12 +455,19 @@ toast.show({ title: "Sincronização", description: "Em andamento…", variant: 
 "Nada por aqui" centralizado.
 
 ```tsx
-<EmptyState
-  icon={<InboxIcon />}
-  title="Nenhum pedido"
-  description="Quando seus clientes fizerem pedidos, eles aparecem aqui."
-  action={<Button leftIcon={<Plus />}>Novo pedido</Button>}
-/>
+import { Button, EmptyState } from "tempest-react-sdk";
+import { Inbox, Plus } from "lucide-react";
+
+export function SemPedidos() {
+    return (
+        <EmptyState
+            icon={<Inbox size={32} />}
+            title="Nenhum pedido"
+            description="Quando seus clientes fizerem pedidos, eles aparecem aqui."
+            action={<Button leftIcon={<Plus size={16} />}>Novo pedido</Button>}
+        />
+    );
+}
 ```
 
 ## `ErrorState`
@@ -369,7 +477,23 @@ toast.show({ title: "Sincronização", description: "Em andamento…", variant: 
 Falha com botão de retry.
 
 ```tsx
-<ErrorState title="Não foi possível carregar" description={String(error)} onRetry={refetch} />
+import { ErrorState } from "tempest-react-sdk";
+
+export function FalhaAoCarregar({
+    error,
+    refetch,
+}: {
+    error: unknown;
+    refetch: () => void;
+}) {
+    return (
+        <ErrorState
+            title="Não foi possível carregar"
+            description={String(error)}
+            onRetry={refetch}
+        />
+    );
+}
 ```
 
 ## `OfflineIndicator`
@@ -377,7 +501,11 @@ Falha com botão de retry.
 **Quando usar:** avisar que o app está offline e confirmar quando a conexão volta. Guiado por `useOnline` — não renderiza nada online, então monte na raiz sem `if`.
 
 ```tsx
-<OfflineIndicator position="top" />
+import { OfflineIndicator } from "tempest-react-sdk";
+
+export function Raiz() {
+    return <OfflineIndicator position="top" />;
+}
 ```
 
 `position`: `"top"` | `"bottom"` (default). Passe `children` pra substituir o corpo, ou `onlineFlashMs={0}` pra não piscar a confirmação. Veja [PWA & Offline-First](../pwa.md).
@@ -393,12 +521,23 @@ Falha com botão de retry.
 **Quando usar:** mostrar o estado do motor offline (sincronizado / sincronizando / pendente / offline / erro). Dois modos: passe `sync` pra conectar direto no motor (zero fiação), ou passe `tone` explícito (apresentacional, testável sem IndexedDB).
 
 ```tsx
-// Conectado — auto-fia o motor:
-<SyncStatusBadge sync={notesSync} />;
+import { SyncStatusBadge, useSyncStatus, type OfflineSync } from "tempest-react-sdk";
 
-// Apresentacional — você controla o estado:
-const { tone, pending } = useSyncStatus(notesSync);
-<SyncStatusBadge tone={tone} pending={pending} />;
+interface Nota {
+    id: string;
+    body: string;
+}
+
+export function Status({ notesSync }: { notesSync: OfflineSync<Nota> }) {
+    const { tone, pending } = useSyncStatus(notesSync);
+
+    return (
+        <>
+            <SyncStatusBadge sync={notesSync} />
+            <SyncStatusBadge tone={tone} pending={pending} />
+        </>
+    );
+}
 ```
 
 `tone`: `"idle"` | `"syncing"` | `"pending"` | `"offline"` | `"error"`. `iconOnly` esconde o label; `labels` sobrescreve os textos por tom.
@@ -408,8 +547,13 @@ const { tone, pending } = useSyncStatus(notesSync);
 **Quando usar:** avisar que há uma versão nova do app (service worker) e deixar o usuário recarregar. Par de `useServiceWorkerUpdate`.
 
 ```tsx
-const { updateAvailable, applyUpdate } = useServiceWorkerUpdate({ url: "/sw.js" });
-<UpdatePrompt open={updateAvailable} onUpdate={applyUpdate} />;
+import { UpdatePrompt, useServiceWorkerUpdate } from "tempest-react-sdk";
+
+export function AvisoDeAtualizacao() {
+    const { updateAvailable, applyUpdate } = useServiceWorkerUpdate({ url: "/sw.js" });
+
+    return <UpdatePrompt open={updateAvailable} onUpdate={applyUpdate} />;
+}
 ```
 
 Renderiza nada com `open={false}`. `onDismiss` (opcional) mostra o botão de dispensar; `position` `"top"`/`"bottom"`.

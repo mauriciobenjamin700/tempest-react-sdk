@@ -28,17 +28,37 @@ Os componentes de layout não desenham conteúdo — eles **organizam o espaço*
 Composer: navbar + sidebar (desktop) / bottomNav (mobile) + main + footer responsivo.
 
 ```tsx
-<AppShell
-    navbar={<Navbar logo={<Brand />} actions={<UserMenu />} />}
-    sidebar={<Sidebar items={...} value={tab} onChange={setTab} />}
-    bottomNav={<BottomNavigation items={...} value={tab} onChange={setTab} />}
-    footer={<Footer />}
-    sidebarBreakpoint="md"
->
-    <Page title="Dashboard">
-        {content}
-    </Page>
-</AppShell>;
+import { useState } from "react";
+import {
+    AppShell,
+    BottomNavigation,
+    Navbar,
+    Page,
+    Sidebar,
+    type SidebarItem,
+} from "tempest-react-sdk";
+
+const NAV: SidebarItem[] = [
+    { key: "dashboard", label: "Dashboard" },
+    { key: "pedidos", label: "Pedidos", badge: 12 },
+    { key: "clientes", label: "Clientes" },
+];
+
+export function Shell() {
+    const [tab, setTab] = useState("dashboard");
+
+    return (
+        <AppShell
+            navbar={<Navbar logo={<strong>Tempest</strong>} actions={<button>Sair</button>} />}
+            sidebar={<Sidebar items={NAV} value={tab} onChange={setTab} />}
+            bottomNav={<BottomNavigation items={NAV} value={tab} onChange={setTab} />}
+            footer={<small>© 2026 Tempest</small>}
+            sidebarBreakpoint="md"
+        >
+            <Page title="Dashboard">Conteúdo da aba {tab}</Page>
+        </AppShell>
+    );
+}
 ```
 
 Comportamento responsivo:
@@ -59,21 +79,49 @@ Comportamento responsivo:
 Page wrapper com header (`eyebrow` + `title` + `description` + `actions`) + `toolbar` + `content` + `footer`.
 
 ```tsx
-<Page
-    eyebrow="Vendas"
-    title="Pedidos"
-    description="Acompanhe seus pedidos em tempo real"
-    actions={
-        <>
-            <Button variant="ghost" leftIcon={<Download />}>Exportar</Button>
-            <Button leftIcon={<Plus />}>Novo</Button>
-        </>
-    }
-    toolbar={<OrderFilters />}
-    footer={<Pagination ... />}
->
-    <Table {...} />
-</Page>;
+import { Button, Page, Pagination, Table } from "tempest-react-sdk";
+import { Download, Plus } from "lucide-react";
+
+const PEDIDOS = [
+    { id: "8421", cliente: "Ana Souza", total: "R$ 1.240,00" },
+    { id: "8422", cliente: "Bruno Lima", total: "R$ 380,00" },
+];
+
+export function PedidosPage() {
+    return (
+        <Page
+            eyebrow="Vendas"
+            title="Pedidos"
+            description="Acompanhe seus pedidos em tempo real"
+            actions={
+                <>
+                    <Button variant="ghost" leftIcon={<Download size={16} />}>
+                        Exportar
+                    </Button>
+                    <Button leftIcon={<Plus size={16} />}>Novo</Button>
+                </>
+            }
+            footer={
+                <Pagination
+                    page={1}
+                    totalPages={3}
+                    totalItems={PEDIDOS.length}
+                    onPageChange={() => {}}
+                />
+            }
+        >
+            <Table
+                data={PEDIDOS}
+                rowKey={(pedido) => pedido.id}
+                columns={[
+                    { key: "id", header: "Pedido" },
+                    { key: "cliente", header: "Cliente" },
+                    { key: "total", header: "Total" },
+                ]}
+            />
+        </Page>
+    );
+}
 ```
 
 | Prop          | Tipo        | Default |
@@ -91,9 +139,15 @@ Page wrapper com header (`eyebrow` + `title` + `description` + `actions`) + `too
 Max-width wrapper.
 
 ```tsx
-<Container size="lg">
-  <Page title="Settings">...</Page>
-</Container>
+import { Container, Page } from "tempest-react-sdk";
+
+export function Settings() {
+    return (
+        <Container size="lg">
+            <Page title="Configurações">Preferências da conta</Page>
+        </Container>
+    );
+}
 ```
 
 | `size`   | Max-width |
@@ -117,14 +171,25 @@ Max-width wrapper.
 Flex vertical ou horizontal com `gap`, `align`, `justify`, `wrap`. Aceita `ResponsiveValue` em `direction` e `gap`.
 
 ```tsx
-<Stack direction="vertical" gap={4}>
-  <Card>One</Card>
-  <Card>Two</Card>
-</Stack>;
+import { Card, Stack } from "tempest-react-sdk";
 
-<Stack direction={{ base: "vertical", md: "horizontal" }} gap={{ base: 2, md: 4 }}>
-  <Card>Mobile stacks, desktop side-by-side</Card>
-</Stack>;
+export function Empilhado() {
+    return (
+        <>
+            <Stack direction="vertical" gap={4}>
+                <Card>Um</Card>
+                <Card>Dois</Card>
+            </Stack>
+
+            <Stack
+                direction={{ mobile: "vertical", desktop: "horizontal" }}
+                gap={{ mobile: 2, desktop: 4 }}
+            >
+                <Card>No mobile empilha, no desktop fica lado a lado</Card>
+            </Stack>
+        </>
+    );
+}
 ```
 
 | Prop        | Tipo                                                | Default      |
@@ -142,22 +207,36 @@ Flex vertical ou horizontal com `gap`, `align`, `justify`, `wrap`. Aceita `Respo
 CSS Grid wrapper.
 
 ```tsx
-<Grid columns={3} gap={4}>
-  <Card>1</Card>
-  <Card>2</Card>
-  <Card>3</Card>
-</Grid>;
+import { Card, Grid, Stat } from "tempest-react-sdk";
 
-<Grid columns={{ base: 1, sm: 2, lg: 4 }} gap={3}>
-  {items.map((it) => (
-    <Stat key={it.id} {...it} />
-  ))}
-</Grid>;
+const METRICAS = [
+    { id: "receita", label: "Receita", value: "R$ 84.200" },
+    { id: "pedidos", label: "Pedidos", value: "1.204" },
+    { id: "ticket", label: "Ticket médio", value: "R$ 69,93" },
+];
 
-<Grid columns="2fr 1fr" gap={6}>
-  <Article />
-  <Sidebar />
-</Grid>;
+export function Painel() {
+    return (
+        <>
+            <Grid columns={3} gap={4}>
+                <Card>1</Card>
+                <Card>2</Card>
+                <Card>3</Card>
+            </Grid>
+
+            <Grid columns={{ mobile: 1, tablet: 2, desktop: 4 }} gap={3}>
+                {METRICAS.map((metrica) => (
+                    <Stat key={metrica.id} label={metrica.label} value={metrica.value} />
+                ))}
+            </Grid>
+
+            <Grid columns="2fr 1fr" gap={6}>
+                <article>Conteúdo</article>
+                <aside>Barra lateral</aside>
+            </Grid>
+        </>
+    );
+}
 ```
 
 | Prop      | Tipo                                      | Default |
@@ -168,23 +247,32 @@ CSS Grid wrapper.
 `columns` numérico → `repeat(N, minmax(0, 1fr))`. String passa direto pra `grid-template-columns`.
 
 !!! tip "Colunas responsivas sem media query"
-    `columns={{ base: 1, sm: 2, lg: 4 }}` é a forma idiomática de uma grade que vira lista no mobile e abre colunas no desktop. O `minmax(0, 1fr)` evita o overflow clássico de células com conteúdo largo (texto longo, `<pre>`).
+    `columns={{ mobile: 1, tablet: 2, desktop: 4 }}` é a forma idiomática de uma grade que vira lista no mobile e abre colunas no desktop. As chaves são **`mobile` · `tablet` · `desktop`** — `ResponsiveValue` não usa os nomes de breakpoint (`sm`/`md`/`lg`) que aparecem em `sidebarBreakpoint` e em `<Show above>`. O `minmax(0, 1fr)` evita o overflow clássico de células com conteúdo largo (texto longo, `<pre>`).
 
 ## `Divider`
 
 Separador horizontal/vertical com label opcional.
 
 ```tsx
-<Divider />;
-<Divider variant="dashed" />;
-<Divider orientation="vertical" />;
-<Divider align="center">OU</Divider>;
+import { Divider } from "tempest-react-sdk";
+
+export function Separadores() {
+    return (
+        <>
+            <Divider />
+            <Divider variant="dashed" />
+            <Divider orientation="vertical" />
+            <Divider label="OU" align="center" />
+        </>
+    );
+}
 ```
 
 | Prop          | Tipo                                   | Default        |
 | ------------- | -------------------------------------- | -------------- |
 | `orientation` | `"horizontal" \| "vertical"`           | `"horizontal"` |
 | `variant`     | `"solid" \| "dashed" \| "dotted"`      | `"solid"`      |
+| `label`       | `ReactNode` (só na horizontal)         | —              |
 | `align`       | `"start" \| "center" \| "end"` (label) | `"center"`     |
 
 ## `Spacer`
@@ -192,11 +280,17 @@ Separador horizontal/vertical com label opcional.
 Flex push.
 
 ```tsx
-<Stack direction="horizontal">
-  <Button>Cancelar</Button>
-  <Spacer />
-  <Button variant="primary">Salvar</Button>
-</Stack>
+import { Button, Spacer, Stack } from "tempest-react-sdk";
+
+export function AcoesDoFormulario() {
+    return (
+        <Stack direction="horizontal">
+            <Button variant="ghost">Cancelar</Button>
+            <Spacer />
+            <Button variant="primary">Salvar</Button>
+        </Stack>
+    );
+}
 ```
 
 | Prop   | Tipo                   | Default  |
@@ -208,9 +302,15 @@ Flex push.
 Centraliza children horizontal/vertical/ambos.
 
 ```tsx
-<Center axis="both" minHeight="100vh">
-  <Spinner />
-</Center>
+import { Center, Spinner } from "tempest-react-sdk";
+
+export function Carregando() {
+    return (
+        <Center axis="both" minHeight="100vh">
+            <Spinner />
+        </Center>
+    );
+}
 ```
 
 | Prop        | Tipo                                   | Default  |
@@ -230,13 +330,25 @@ Centraliza children horizontal/vertical/ambos.
 Preserva proporção pra media.
 
 ```tsx
-<AspectRatio ratio={16 / 9}>
-  <img src="/cover.jpg" alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-</AspectRatio>;
+import { AspectRatio } from "tempest-react-sdk";
 
-<AspectRatio ratio={1}>
-  <video src="/clip.mp4" autoPlay loop muted />
-</AspectRatio>;
+export function Midia() {
+    return (
+        <>
+            <AspectRatio ratio={16 / 9}>
+                <img
+                    src="/cover.jpg"
+                    alt="Capa do álbum"
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+            </AspectRatio>
+
+            <AspectRatio ratio={1}>
+                <video src="/clip.mp4" autoPlay loop muted />
+            </AspectRatio>
+        </>
+    );
+}
 ```
 
 | Prop    | Tipo     | Default  |
@@ -250,9 +362,15 @@ Usa CSS `aspect-ratio` nativo. Compatível com todos navegadores modernos.
 Padding por edge usando `env(safe-area-inset-*)`.
 
 ```tsx
-<SafeArea edges={["top", "bottom"]}>
-  <App />
-</SafeArea>
+import { SafeArea } from "tempest-react-sdk";
+
+export function Raiz() {
+    return (
+        <SafeArea edges={["top", "bottom"]}>
+            <main>Conteúdo que não some atrás do notch</main>
+        </SafeArea>
+    );
+}
 ```
 
 | Prop     | Tipo                                            | Default                           |
@@ -272,10 +390,26 @@ Componentes que já cuidam de safe-area automaticamente: `Navbar` (top), `Bottom
 Conditional render baseado em breakpoint. SSR-safe — primeiro render usa `xs` (mobile first), re-renderiza ao client.
 
 ```tsx
-<Show above="md"><DesktopNav /></Show>
-<Hide above="md"><MobileNav /></Hide>
-<Show below="lg"><Banner>Promo</Banner></Show>
-<Show only={["sm", "md"]}><TabletOnlyHint /></Show>
+import { Banner, Hide, Show } from "tempest-react-sdk";
+
+export function PorBreakpoint() {
+    return (
+        <>
+            <Show above="md">
+                <nav>Navegação de desktop</nav>
+            </Show>
+            <Hide above="md">
+                <nav>Navegação de mobile</nav>
+            </Hide>
+            <Show below="lg">
+                <Banner>Promoção de lançamento</Banner>
+            </Show>
+            <Show only={["sm", "md"]}>
+                <p>Dica que só aparece em tablet</p>
+            </Show>
+        </>
+    );
+}
 ```
 
 | Prop    | Tipo                              |
@@ -291,7 +425,7 @@ Conditional render baseado em breakpoint. SSR-safe — primeiro render usa `xs` 
 `Stack.direction`, `Grid.columns`, `Form.layout` aceitam `ResponsiveValue<T>`:
 
 ```ts
-type ResponsiveValue<T> = T | { base?: T; sm?: T; md?: T; lg?: T; xl?: T; "2xl"?: T };
+type ResponsiveValue<T> = T | { mobile?: T; tablet?: T; desktop?: T };
 ```
 
 Falls back para o último valor definido por breakpoint cascading.

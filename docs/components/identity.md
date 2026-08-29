@@ -17,10 +17,20 @@ Use esta página quando precisar **mostrar** uma entidade ou agrupar conteúdo, 
 Foto de usuário com fallback automático para iniciais coloridas quando não há `src` ou a imagem falha ao carregar. As iniciais são derivadas de `name` (não de `alt`).
 
 ```tsx
-<Avatar src={user.photo} name={user.name} alt={user.name} />;
-<Avatar size="lg" status="online" name="Ana" />;
-<Avatar name="João da Silva" />; // fallback gera iniciais "JS"
-<Avatar name="João" status="busy" size="sm" />;
+import { Avatar } from "tempest-react-sdk";
+
+const user = { name: "Ana Souza", photo: "/avatars/ana.jpg" };
+
+export function Identidades() {
+    return (
+        <>
+            <Avatar src={user.photo} name={user.name} alt={user.name} />
+            <Avatar size="lg" status="online" name="Ana" />
+            <Avatar name="João da Silva" />
+            <Avatar name="João" status="busy" size="sm" />
+        </>
+    );
+}
 ```
 
 | Prop      | Tipo                                        | Default |
@@ -51,17 +61,37 @@ Foto de usuário com fallback automático para iniciais coloridas quando não h�
 Container com slots de header (`title` + `actions`) e `footer`.
 
 ```tsx
-<Card title="Pedido #12345" actions={<Button variant="ghost">Editar</Button>}>
-    Conteúdo do card.
-</Card>;
+import { Button, Card, Pagination, Table } from "tempest-react-sdk";
 
-<Card elevation="raised" interactive onClick={() => navigate("/x")}>
-    Card clicável com hover effect.
-</Card>;
+const ITENS = [{ id: "1", produto: "Teclado", quantidade: 2 }];
 
-<Card flush footer={<Pagination ... />}>
-    <Table ... />
-</Card>;
+export function Cards({ navigate }: { navigate: (to: string) => void }) {
+    return (
+        <>
+            <Card title="Pedido #12345" actions={<Button variant="ghost">Editar</Button>}>
+                Conteúdo do card.
+            </Card>
+
+            <Card elevation="raised" interactive onClick={() => navigate("/pedidos/12345")}>
+                Card clicável com efeito de hover.
+            </Card>
+
+            <Card
+                flush
+                footer={<Pagination page={1} totalPages={4} onPageChange={() => {}} />}
+            >
+                <Table
+                    data={ITENS}
+                    rowKey={(item) => item.id}
+                    columns={[
+                        { key: "produto", header: "Produto" },
+                        { key: "quantidade", header: "Qtd." },
+                    ]}
+                />
+            </Card>
+        </>
+    );
+}
 ```
 
 | Prop          | Tipo                                                  | Default     |
@@ -92,8 +122,18 @@ Container com slots de header (`title` + `actions`) e `footer`.
 `<kbd>` estilizado para atalhos de teclado.
 
 ```tsx
-<p>Aperte <Kbd>Ctrl</Kbd>+<Kbd>K</Kbd> para abrir o command palette.</p>
-<Kbd size="lg">⌘</Kbd>
+import { Kbd } from "tempest-react-sdk";
+
+export function Atalho() {
+    return (
+        <>
+            <p>
+                Aperte <Kbd>Ctrl</Kbd>+<Kbd>K</Kbd> para abrir o command palette.
+            </p>
+            <Kbd size="lg">⌘</Kbd>
+        </>
+    );
+}
 ```
 
 | Prop   | Tipo                   | Default |
@@ -116,17 +156,31 @@ Container com slots de header (`title` + `actions`) e `footer`.
 Fileira de avatares sobrepostos com chip `+N` no fim.
 
 ```tsx
-<AvatarGroup
-  label="Participantes"
-  max={3}
-  items={[
-    { name: "Ada Lovelace", src: ada },
-    { name: "Grace Hopper" },
-    { name: "Alan Turing" },
-    { name: "Edsger Dijkstra" },
-  ]}
-  onOverflowClick={() => setDrawerAberto(true)}
-/>
+import { useState } from "react";
+import { AvatarGroup, Drawer } from "tempest-react-sdk";
+
+export function Participantes() {
+    const [aberto, setAberto] = useState(false);
+
+    return (
+        <>
+            <AvatarGroup
+                label="Participantes"
+                max={3}
+                items={[
+                    { name: "Ada Lovelace", src: "/avatars/ada.jpg" },
+                    { name: "Grace Hopper" },
+                    { name: "Alan Turing" },
+                    { name: "Edsger Dijkstra" },
+                ]}
+                onOverflowClick={() => setAberto(true)}
+            />
+            <Drawer open={aberto} onClose={() => setAberto(false)}>
+                Lista completa de participantes
+            </Drawer>
+        </>
+    );
+}
 ```
 
 | Prop              | Tipo                | Default | O que faz                                                    |

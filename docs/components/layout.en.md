@@ -38,17 +38,37 @@ Composer: navbar + sidebar (desktop) / bottomNav (mobile) + main + responsive
 footer.
 
 ```tsx
-<AppShell
-    navbar={<Navbar logo={<Brand />} actions={<UserMenu />} />}
-    sidebar={<Sidebar items={...} value={tab} onChange={setTab} />}
-    bottomNav={<BottomNavigation items={...} value={tab} onChange={setTab} />}
-    footer={<Footer />}
-    sidebarBreakpoint="md"
->
-    <Page title="Dashboard">
-        {content}
-    </Page>
-</AppShell>;
+import { useState } from "react";
+import {
+    AppShell,
+    BottomNavigation,
+    Navbar,
+    Page,
+    Sidebar,
+    type SidebarItem,
+} from "tempest-react-sdk";
+
+const NAV: SidebarItem[] = [
+    { key: "dashboard", label: "Dashboard" },
+    { key: "orders", label: "Orders", badge: 12 },
+    { key: "customers", label: "Customers" },
+];
+
+export function Shell() {
+    const [tab, setTab] = useState("dashboard");
+
+    return (
+        <AppShell
+            navbar={<Navbar logo={<strong>Tempest</strong>} actions={<button>Sign out</button>} />}
+            sidebar={<Sidebar items={NAV} value={tab} onChange={setTab} />}
+            bottomNav={<BottomNavigation items={NAV} value={tab} onChange={setTab} />}
+            footer={<small>© 2026 Tempest</small>}
+            sidebarBreakpoint="md"
+        >
+            <Page title="Dashboard">Content for the {tab} tab</Page>
+        </AppShell>
+    );
+}
 ```
 
 Responsive behavior:
@@ -70,21 +90,49 @@ Page wrapper with a header (`eyebrow` + `title` + `description` + `actions`) +
 `toolbar` + `content` + `footer`.
 
 ```tsx
-<Page
-    eyebrow="Sales"
-    title="Orders"
-    description="Track your orders in real time"
-    actions={
-        <>
-            <Button variant="ghost" leftIcon={<Download />}>Export</Button>
-            <Button leftIcon={<Plus />}>New</Button>
-        </>
-    }
-    toolbar={<OrderFilters />}
-    footer={<Pagination ... />}
->
-    <Table {...} />
-</Page>;
+import { Button, Page, Pagination, Table } from "tempest-react-sdk";
+import { Download, Plus } from "lucide-react";
+
+const ORDERS = [
+    { id: "8421", customer: "Ana Souza", total: "$ 1,240.00" },
+    { id: "8422", customer: "Bruno Lima", total: "$ 380.00" },
+];
+
+export function OrdersPage() {
+    return (
+        <Page
+            eyebrow="Sales"
+            title="Orders"
+            description="Track your orders in real time"
+            actions={
+                <>
+                    <Button variant="ghost" leftIcon={<Download size={16} />}>
+                        Export
+                    </Button>
+                    <Button leftIcon={<Plus size={16} />}>New</Button>
+                </>
+            }
+            footer={
+                <Pagination
+                    page={1}
+                    totalPages={3}
+                    totalItems={ORDERS.length}
+                    onPageChange={() => {}}
+                />
+            }
+        >
+            <Table
+                data={ORDERS}
+                rowKey={(order) => order.id}
+                columns={[
+                    { key: "id", header: "Order" },
+                    { key: "customer", header: "Customer" },
+                    { key: "total", header: "Total" },
+                ]}
+            />
+        </Page>
+    );
+}
 ```
 
 | Prop          | Type        | Default |
@@ -102,9 +150,15 @@ Page wrapper with a header (`eyebrow` + `title` + `description` + `actions`) +
 Max-width wrapper.
 
 ```tsx
-<Container size="lg">
-  <Page title="Settings">...</Page>
-</Container>
+import { Container, Page } from "tempest-react-sdk";
+
+export function Settings() {
+    return (
+        <Container size="lg">
+            <Page title="Settings">Account preferences</Page>
+        </Container>
+    );
+}
 ```
 
 | `size`   | Max-width |
@@ -130,14 +184,25 @@ Vertical or horizontal flex with `gap`, `align`, `justify`, `wrap`. Accepts
 `ResponsiveValue` for `direction` and `gap`.
 
 ```tsx
-<Stack direction="vertical" gap={4}>
-  <Card>One</Card>
-  <Card>Two</Card>
-</Stack>;
+import { Card, Stack } from "tempest-react-sdk";
 
-<Stack direction={{ base: "vertical", md: "horizontal" }} gap={{ base: 2, md: 4 }}>
-  <Card>Mobile stacks, desktop side-by-side</Card>
-</Stack>;
+export function Stacked() {
+    return (
+        <>
+            <Stack direction="vertical" gap={4}>
+                <Card>One</Card>
+                <Card>Two</Card>
+            </Stack>
+
+            <Stack
+                direction={{ mobile: "vertical", desktop: "horizontal" }}
+                gap={{ mobile: 2, desktop: 4 }}
+            >
+                <Card>Mobile stacks, desktop side-by-side</Card>
+            </Stack>
+        </>
+    );
+}
 ```
 
 | Prop        | Type                                                | Default      |
@@ -155,22 +220,36 @@ A numeric `gap` maps to the 4px scale (`2 → 8px`, `4 → 16px`).
 CSS Grid wrapper.
 
 ```tsx
-<Grid columns={3} gap={4}>
-  <Card>1</Card>
-  <Card>2</Card>
-  <Card>3</Card>
-</Grid>;
+import { Card, Grid, Stat } from "tempest-react-sdk";
 
-<Grid columns={{ base: 1, sm: 2, lg: 4 }} gap={3}>
-  {items.map((it) => (
-    <Stat key={it.id} {...it} />
-  ))}
-</Grid>;
+const METRICS = [
+    { id: "revenue", label: "Revenue", value: "$ 84,200" },
+    { id: "orders", label: "Orders", value: "1,204" },
+    { id: "ticket", label: "Average ticket", value: "$ 69.93" },
+];
 
-<Grid columns="2fr 1fr" gap={6}>
-  <Article />
-  <Sidebar />
-</Grid>;
+export function Overview() {
+    return (
+        <>
+            <Grid columns={3} gap={4}>
+                <Card>1</Card>
+                <Card>2</Card>
+                <Card>3</Card>
+            </Grid>
+
+            <Grid columns={{ mobile: 1, tablet: 2, desktop: 4 }} gap={3}>
+                {METRICS.map((metric) => (
+                    <Stat key={metric.id} label={metric.label} value={metric.value} />
+                ))}
+            </Grid>
+
+            <Grid columns="2fr 1fr" gap={6}>
+                <article>Content</article>
+                <aside>Sidebar</aside>
+            </Grid>
+        </>
+    );
+}
 ```
 
 | Prop      | Type                                      | Default |
@@ -182,26 +261,37 @@ A numeric `columns` → `repeat(N, minmax(0, 1fr))`. A string passes straight to
 `grid-template-columns`.
 
 !!! tip "Responsive columns with no media query"
-    `columns={{ base: 1, sm: 2, lg: 4 }}` is the idiomatic way to make a grid
-    that becomes a list on mobile and opens columns on desktop. The
-    `minmax(0, 1fr)` avoids the classic overflow of cells with wide content
-    (long text, `<pre>`).
+    `columns={{ mobile: 1, tablet: 2, desktop: 4 }}` is the idiomatic way to
+    make a grid that becomes a list on mobile and opens columns on desktop. The
+    keys are **`mobile` · `tablet` · `desktop`** — `ResponsiveValue` does not use
+    the breakpoint names (`sm`/`md`/`lg`) that `sidebarBreakpoint` and
+    `<Show above>` take. The `minmax(0, 1fr)` avoids the classic overflow of
+    cells with wide content (long text, `<pre>`).
 
 ## `Divider`
 
 Horizontal/vertical separator with an optional label.
 
 ```tsx
-<Divider />;
-<Divider variant="dashed" />;
-<Divider orientation="vertical" />;
-<Divider align="center">OR</Divider>;
+import { Divider } from "tempest-react-sdk";
+
+export function Separators() {
+    return (
+        <>
+            <Divider />
+            <Divider variant="dashed" />
+            <Divider orientation="vertical" />
+            <Divider label="OR" align="center" />
+        </>
+    );
+}
 ```
 
 | Prop          | Type                                   | Default        |
 | ------------- | -------------------------------------- | -------------- |
 | `orientation` | `"horizontal" \| "vertical"`           | `"horizontal"` |
 | `variant`     | `"solid" \| "dashed" \| "dotted"`      | `"solid"`      |
+| `label`       | `ReactNode` (horizontal only)          | —              |
 | `align`       | `"start" \| "center" \| "end"` (label) | `"center"`     |
 
 ## `Spacer`
@@ -209,11 +299,17 @@ Horizontal/vertical separator with an optional label.
 Flex push.
 
 ```tsx
-<Stack direction="horizontal">
-  <Button>Cancel</Button>
-  <Spacer />
-  <Button variant="primary">Save</Button>
-</Stack>
+import { Button, Spacer, Stack } from "tempest-react-sdk";
+
+export function FormActionsRow() {
+    return (
+        <Stack direction="horizontal">
+            <Button variant="ghost">Cancel</Button>
+            <Spacer />
+            <Button variant="primary">Save</Button>
+        </Stack>
+    );
+}
 ```
 
 | Prop   | Type                   | Default  |
@@ -225,9 +321,15 @@ Flex push.
 Centers children horizontally/vertically/both.
 
 ```tsx
-<Center axis="both" minHeight="100vh">
-  <Spinner />
-</Center>
+import { Center, Spinner } from "tempest-react-sdk";
+
+export function Loading() {
+    return (
+        <Center axis="both" minHeight="100vh">
+            <Spinner />
+        </Center>
+    );
+}
 ```
 
 | Prop        | Type                                   | Default  |
@@ -247,13 +349,25 @@ Centers children horizontally/vertically/both.
 Preserves the ratio for media.
 
 ```tsx
-<AspectRatio ratio={16 / 9}>
-  <img src="/cover.jpg" alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-</AspectRatio>;
+import { AspectRatio } from "tempest-react-sdk";
 
-<AspectRatio ratio={1}>
-  <video src="/clip.mp4" autoPlay loop muted />
-</AspectRatio>;
+export function Media() {
+    return (
+        <>
+            <AspectRatio ratio={16 / 9}>
+                <img
+                    src="/cover.jpg"
+                    alt="Album cover"
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+            </AspectRatio>
+
+            <AspectRatio ratio={1}>
+                <video src="/clip.mp4" autoPlay loop muted />
+            </AspectRatio>
+        </>
+    );
+}
 ```
 
 | Prop    | Type     | Default  |
@@ -267,9 +381,15 @@ Uses the native CSS `aspect-ratio`. Compatible with all modern browsers.
 Per-edge padding using `env(safe-area-inset-*)`.
 
 ```tsx
-<SafeArea edges={["top", "bottom"]}>
-  <App />
-</SafeArea>
+import { SafeArea } from "tempest-react-sdk";
+
+export function Root() {
+    return (
+        <SafeArea edges={["top", "bottom"]}>
+            <main>Content that stays clear of the notch</main>
+        </SafeArea>
+    );
+}
 ```
 
 | Prop     | Type                                             | Default                           |
@@ -296,10 +416,26 @@ Conditional render based on breakpoint. SSR-safe — the first render uses `xs`
 (mobile first), then re-renders on the client.
 
 ```tsx
-<Show above="md"><DesktopNav /></Show>
-<Hide above="md"><MobileNav /></Hide>
-<Show below="lg"><Banner>Promo</Banner></Show>
-<Show only={["sm", "md"]}><TabletOnlyHint /></Show>
+import { Banner, Hide, Show } from "tempest-react-sdk";
+
+export function ByBreakpoint() {
+    return (
+        <>
+            <Show above="md">
+                <nav>Desktop navigation</nav>
+            </Show>
+            <Hide above="md">
+                <nav>Mobile navigation</nav>
+            </Hide>
+            <Show below="lg">
+                <Banner>Launch promo</Banner>
+            </Show>
+            <Show only={["sm", "md"]}>
+                <p>Hint shown on tablets only</p>
+            </Show>
+        </>
+    );
+}
 ```
 
 | Prop    | Type                              |
@@ -315,7 +451,7 @@ Conditional render based on breakpoint. SSR-safe — the first render uses `xs`
 `Stack.direction`, `Grid.columns`, `Form.layout` accept `ResponsiveValue<T>`:
 
 ```ts
-type ResponsiveValue<T> = T | { base?: T; sm?: T; md?: T; lg?: T; xl?: T; "2xl"?: T };
+type ResponsiveValue<T> = T | { mobile?: T; tablet?: T; desktop?: T };
 ```
 
 Falls back to the last value defined per cascading breakpoint.

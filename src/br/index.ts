@@ -10,8 +10,20 @@ export {
     isValidCity,
     ufChoices,
     cityChoices,
+    municipalitiesByUf,
+    administrativeRegionsByUf,
+    resolveMunicipality,
+    datasetVintage,
+    pendingGeometryIds,
 } from "./locations";
-export type { UF, BrRegion, BrazilState, Choice } from "./locations";
+export type {
+    UF,
+    BrRegion,
+    BrazilState,
+    BrazilMunicipality,
+    BrazilAdministrativeRegion,
+    Choice,
+} from "./locations";
 
 // UF GeoJSON types (the geometry itself is lazy-loaded by BrazilMap).
 import type { BrUfFeatureCollection } from "./br-geo";

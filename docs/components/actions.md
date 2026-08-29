@@ -100,11 +100,18 @@ import { Plus } from "lucide-react";
 Hover tooltip portalado. Aparece no hover **e** no foco por teclado.
 
 ```tsx
-<Tooltip content="Excluir permanentemente" placement="bottom" openDelay={300}>
-  <Button variant="danger" iconOnly aria-label="Excluir">
-    <Trash />
-  </Button>
-</Tooltip>
+import { Button, Tooltip } from "tempest-react-sdk";
+import { Trash } from "lucide-react";
+
+export function ExcluirComDica() {
+    return (
+        <Tooltip content="Excluir permanentemente" placement="bottom" openDelay={300}>
+            <Button variant="danger" iconOnly aria-label="Excluir">
+                <Trash size={16} />
+            </Button>
+        </Tooltip>
+    );
+}
 ```
 
 | Prop        | Tipo                                     | Default |
@@ -130,15 +137,32 @@ Hover tooltip portalado. Aparece no hover **e** no foco por teclado.
 Menu suspenso de ações. Navegação por teclado (↑↓ Home End Esc). Cada entrada precisa de um `id` estável (usado como key do React).
 
 ```tsx
-<DropdownMenu
-  trigger={<Button variant="ghost">Mais ações</Button>}
-  items={[
-    { type: "label", id: "h", label: "Conta" },
-    { type: "item", id: "edit", label: "Editar perfil", onSelect: () => navigate("/profile") },
-    { type: "separator", id: "s1" },
-    { type: "item", id: "logout", label: "Sair", onSelect: logout, danger: true },
-  ]}
-/>
+import { Button, DropdownMenu } from "tempest-react-sdk";
+
+export function MaisAcoes({
+    navigate,
+    logout,
+}: {
+    navigate: (to: string) => void;
+    logout: () => void;
+}) {
+    return (
+        <DropdownMenu
+            trigger={<Button variant="ghost">Mais ações</Button>}
+            items={[
+                { type: "label", id: "h", label: "Conta" },
+                {
+                    type: "item",
+                    id: "edit",
+                    label: "Editar perfil",
+                    onSelect: () => navigate("/profile"),
+                },
+                { type: "separator", id: "s1" },
+                { type: "item", id: "logout", label: "Sair", onSelect: logout, danger: true },
+            ]}
+        />
+    );
+}
 ```
 
 | Entry type    | Campos                                                     |
@@ -159,18 +183,27 @@ Props do componente: `trigger` (`ReactElement`), `items` (`DropdownMenuEntry[]`)
 Painel flutuante genérico (anchor + outside-click + Esc dismiss). Funciona controlado (`open` + `onOpenChange`) ou não-controlado (`defaultOpen`).
 
 ```tsx
-<Popover
-  open={open}
-  onOpenChange={setOpen}
-  placement="bottom"
-  trigger={<Button>Filtros</Button>}
->
-  <Stack gap={3}>
-    <Checkbox label="Apenas ativos" />
-    <Checkbox label="Pago" />
-    <Button onClick={() => setOpen(false)}>Aplicar</Button>
-  </Stack>
-</Popover>
+import { useState } from "react";
+import { Button, Checkbox, Popover, Stack } from "tempest-react-sdk";
+
+export function Filtros() {
+    const [open, setOpen] = useState(false);
+
+    return (
+        <Popover
+            open={open}
+            onOpenChange={setOpen}
+            placement="bottom"
+            trigger={<Button>Filtros</Button>}
+        >
+            <Stack gap={3}>
+                <Checkbox label="Apenas ativos" />
+                <Checkbox label="Pago" />
+                <Button onClick={() => setOpen(false)}>Aplicar</Button>
+            </Stack>
+        </Popover>
+    );
+}
 ```
 
 | Prop                  | Tipo                                     | Default        |
@@ -199,20 +232,38 @@ Painel flutuante genérico (anchor + outside-click + Esc dismiss). Funciona cont
 Prompt destrutivo pré-montado em cima do [`Modal`](./overlay.md) (texto + 2 botões).
 
 ```tsx
-<ConfirmDialog
-  open={open}
-  title="Excluir usuário"
-  description={`Esta ação é permanente. Excluir ${user.name}?`}
-  confirmLabel="Sim, excluir"
-  cancelLabel="Cancelar"
-  variant="danger"
-  loading={deleting}
-  onConfirm={async () => {
-    await deleteUser(user.id);
-    setOpen(false);
-  }}
-  onCancel={() => setOpen(false)}
-/>
+import { useState } from "react";
+import { ConfirmDialog } from "tempest-react-sdk";
+
+export function ExcluirUsuario({
+    user,
+    deleteUser,
+}: {
+    user: { id: string; name: string };
+    deleteUser: (id: string) => Promise<void>;
+}) {
+    const [open, setOpen] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+
+    return (
+        <ConfirmDialog
+            open={open}
+            title="Excluir usuário"
+            description={`Esta ação é permanente. Excluir ${user.name}?`}
+            confirmLabel="Sim, excluir"
+            cancelLabel="Cancelar"
+            variant="danger"
+            loading={deleting}
+            onConfirm={async () => {
+                setDeleting(true);
+                await deleteUser(user.id);
+                setDeleting(false);
+                setOpen(false);
+            }}
+            onCancel={() => setOpen(false)}
+        />
+    );
+}
 ```
 
 | Prop           | Tipo                                                    | Default       |
@@ -258,11 +309,17 @@ import { Download } from "lucide-react";
 Banner inferior dispensável que convida a instalar o PWA. Aparece só quando há prompt capturado e o app **não** está standalone; em plataformas que nunca disparam `beforeinstallprompt` (iOS Safari) fica oculto — surfa instruções manuais em outro lugar. `storageKey` lembra a dispensa entre recarregamentos.
 
 ```tsx
-<InstallBanner
-  title="Instale o app"
-  description="Acesso offline e atalho na tela inicial."
-  storageKey="meu-app:install-dismissed"
-/>;
+import { InstallBanner } from "tempest-react-sdk";
+
+export function Instalar() {
+    return (
+        <InstallBanner
+            title="Instale o app"
+            description="Acesso offline e atalho na tela inicial."
+            storageKey="meu-app:install-dismissed"
+        />
+    );
+}
 ```
 
 | Prop           | Tipo                  | Default        |

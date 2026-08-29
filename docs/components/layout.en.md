@@ -84,6 +84,12 @@ Responsive behavior:
 | `footer`            | `ReactNode`                    | —       |
 | `sidebarBreakpoint` | `"sm" \| "md" \| "lg" \| "xl"` | `"md"`  |
 
+!!! warning "`sidebar` disappears below the breakpoint — that is not the same as being there"
+    Below `sidebarBreakpoint` the `AppShell` does **not** render the sidebar; it
+    expects you to pass `bottomNav`. If your primary navigation lives only in the
+    sidebar, the app has no navigation at all on mobile. Either pass `bottomNav`,
+    or open the same list in a `<Drawer>` from a button in the `Navbar`.
+
 ## `Page`
 
 Page wrapper with a header (`eyebrow` + `title` + `description` + `actions`) +
@@ -338,6 +344,12 @@ export function Loading() {
 | `minHeight` | `number \| string`                     | —        |
 | `fullWidth` | `boolean`                              | `true`   |
 
+!!! tip "Vertical centering needs a height"
+    `axis="both"` centers inside the space `Center` has. In a parent with no
+    height that space is the content's own height, and nothing appears to happen.
+    Pass `minHeight` (or give the parent a height) whenever vertical centering
+    matters.
+
 ## `AspectRatio`
 
 <!-- gallery:display-media -->
@@ -375,6 +387,12 @@ export function Media() {
 | `ratio` | `number` | `16 / 9` |
 
 Uses the native CSS `aspect-ratio`. Compatible with all modern browsers.
+
+!!! warning "`AspectRatio` reserves the space before the image arrives"
+    That is what prevents the layout jump: the box already has its final ratio, so
+    the text below does not move when the image loads. Which is why the child has
+    to fill the box — an `<img>` without `width: 100%; height: 100%` stays at its
+    natural size and the ratio stops applying to what you actually see.
 
 ## `SafeArea`
 
@@ -445,6 +463,15 @@ export function ByBreakpoint() {
 | `only`  | `Breakpoint \| Breakpoint[]`      |
 
 `only` overrides `above`/`below` when set.
+
+!!! warning "`Show`/`Hide` unmount — they do not hide with CSS"
+    The decision comes from `useBreakpoint`, which measures `window.innerWidth` in
+    JavaScript, so crossing the breakpoint **unmounts** the subtree and every bit
+    of local state inside it is lost: a half-filled input, an open accordion, a
+    scroll position. To hide while keeping state, use CSS (the `utilities.css`
+    layer ships the visibility classes). And because the initial width is `0`
+    outside the browser, a `<Show above="md">` renders `null` on the first pass
+    until the effect measures — correct for an SPA, and not server rendering.
 
 ## Responsive values
 

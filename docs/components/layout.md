@@ -74,6 +74,12 @@ Comportamento responsivo:
 | `footer`            | `ReactNode`                    | —       |
 | `sidebarBreakpoint` | `"sm" \| "md" \| "lg" \| "xl"` | `"md"`  |
 
+!!! warning "`sidebar` some abaixo do breakpoint — não é o mesmo que estar lá"
+    Abaixo de `sidebarBreakpoint` o `AppShell` **não renderiza** a sidebar; ele
+    espera que você passe `bottomNav`. Se a navegação principal só existe na
+    sidebar, no mobile o app fica sem navegação nenhuma. Ou passe `bottomNav`,
+    ou abra a mesma lista num `<Drawer>` a partir de um botão no `Navbar`.
+
 ## `Page`
 
 Page wrapper com header (`eyebrow` + `title` + `description` + `actions`) + `toolbar` + `content` + `footer`.
@@ -319,6 +325,12 @@ export function Carregando() {
 | `minHeight` | `number \| string`                     | —        |
 | `fullWidth` | `boolean`                              | `true`   |
 
+!!! tip "Centralizar na vertical precisa de altura"
+    `axis="both"` centraliza dentro do espaço que o `Center` tem. Num pai sem
+    altura definida esse espaço é a altura do próprio conteúdo, e nada parece
+    acontecer. Passe `minHeight` (ou dê altura ao pai) sempre que a centralização
+    vertical importar.
+
 ## `AspectRatio`
 
 <!-- gallery:display-media -->
@@ -356,6 +368,12 @@ export function Midia() {
 | `ratio` | `number` | `16 / 9` |
 
 Usa CSS `aspect-ratio` nativo. Compatível com todos navegadores modernos.
+
+!!! warning "`AspectRatio` reserva o espaço antes da imagem chegar"
+    É o que evita o salto de layout: a caixa já tem a proporção final, então o
+    texto abaixo não desce quando a imagem carrega. Por isso a criança precisa
+    preencher a caixa — uma `<img>` sem `width: 100%; height: 100%` fica no
+    tamanho natural dela e a proporção deixa de valer para o que se vê.
 
 ## `SafeArea`
 
@@ -419,6 +437,15 @@ export function PorBreakpoint() {
 | `only`  | `Breakpoint \| Breakpoint[]`      |
 
 `only` sobrescreve `above`/`below` quando setado.
+
+!!! warning "`Show`/`Hide` desmontam — não escondem com CSS"
+    A decisão vem de `useBreakpoint`, que mede `window.innerWidth` em JavaScript,
+    então atravessar o breakpoint **desmonta** a subárvore e todo estado local
+    dentro dela se perde: input meio preenchido, acordeão aberto, scroll. Para
+    esconder mantendo o estado, use CSS (a camada `utilities.css` tem as classes
+    de visibilidade). E como a largura inicial é `0` fora do browser, um
+    `<Show above="md">` renderiza `null` na primeira passada até o efeito medir —
+    o que é correto para um SPA e não é render de servidor.
 
 ## Responsive values
 

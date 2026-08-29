@@ -312,6 +312,13 @@ export function Carregando() {
 !!! note "Back-compat"
     `<Spinner />` sem `caption`/`overlay` continua um único `<span role="status">` — nada muda no uso antigo.
 
+!!! warning "`overlay` posiciona pelo ancestral posicionado mais próximo"
+    `overlay` aplica `position: absolute; inset: 0`, então ele cobre o primeiro
+    ancestral com `position` diferente de `static`. Se ninguém acima tiver
+    posição, o spinner escapa para o container posicionado mais acima — na
+    prática, a página inteira. Dê `position: relative` ao bloco que deve ficar
+    coberto.
+
 ## `Skeleton`
 
 **Quando usar:** carregamento de conteúdo cuja **forma** já é conhecida (cards, linhas de tabela, avatar). Reduz o salto de layout. Para carregamento sem forma definida (um botão processando), use `Spinner`.
@@ -344,6 +351,13 @@ export function Esqueleto({ loading }: { loading: boolean }) {
 | `variant` | `"rect" \| "text" \| "circle"` | `"rect"` |
 | `width`   | `number \| string`             | `"100%"` |
 | `height`  | `number \| string`             | —        |
+
+!!! tip "O esqueleto tem que ter a forma do conteúdo real"
+    O ganho do `Skeleton` não é a animação, é a **reserva de espaço**: se as
+    linhas fantasma têm largura e altura próximas do que vai entrar ali, o texto
+    não pula quando os dados chegam. Um bloco genérico de 200px que vira um card
+    de 340px troca o spinner por um salto de layout — que é o problema que o
+    esqueleto existia para resolver.
 
 ## `RefreshIndicator`
 
@@ -442,6 +456,11 @@ export function App() {
 
 **Safe-area aware**.
 
+!!! danger "`useToast` só existe sob um `<ToastProvider>`"
+    Fora dele o hook **lança** `useToast must be used inside a <ToastProvider>`.
+    O provider vai na raiz do app, acima do router — se ele estiver dentro de uma
+    rota, qualquer toast disparado de fora dela derruba a tela em vez de aparecer.
+
 ## `EmptyState`
 
 <!-- gallery:table -->
@@ -469,6 +488,12 @@ export function SemPedidos() {
     );
 }
 ```
+
+!!! tip "Estado vazio não é estado de erro"
+    `EmptyState` é para "a consulta funcionou e não há nada" — a ação sugerida
+    cria o primeiro registro. `ErrorState` é para "a consulta falhou", e a ação é
+    **tentar de novo**. Trocar um pelo outro faz o usuário criar um pedido
+    duplicado quando o que caiu foi a rede.
 
 ## `ErrorState`
 

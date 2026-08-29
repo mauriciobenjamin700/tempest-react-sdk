@@ -24,24 +24,31 @@ Os três compartilham o mesmo motor (portal para `document.body` + backdrop + Es
 Portal + backdrop + Esc + focus trap + scroll lock.
 
 ```tsx
-const [open, setOpen] = useState(false);
+import { useState } from "react";
+import { Button, FormActions, Modal } from "tempest-react-sdk";
 
-<Modal
-  open={open}
-  onClose={() => setOpen(false)}
-  title="Editar perfil"
-  size="md"
-  footer={
-    <FormActions>
-      <Button variant="ghost" onClick={() => setOpen(false)}>
-        Cancelar
-      </Button>
-      <Button onClick={save}>Salvar</Button>
-    </FormActions>
-  }
->
-  <ProfileForm />
-</Modal>;
+export function EditarPerfil({ save }: { save: () => void }) {
+    const [open, setOpen] = useState(false);
+
+    return (
+        <Modal
+            open={open}
+            onClose={() => setOpen(false)}
+            title="Editar perfil"
+            size="md"
+            footer={
+                <FormActions>
+                    <Button variant="ghost" onClick={() => setOpen(false)}>
+                        Cancelar
+                    </Button>
+                    <Button onClick={save}>Salvar</Button>
+                </FormActions>
+            }
+        >
+            <p>O formulário do perfil entra aqui.</p>
+        </Modal>
+    );
+}
 ```
 
 | Prop                 | Tipo                                             | Default |
@@ -74,17 +81,26 @@ const [open, setOpen] = useState(false);
 Side drawer. `placement: left/right/top/bottom`. Auto-switch pra bottom-sheet em mobile via `mobilePlacement`.
 
 ```tsx
-<Drawer
-  open={open}
-  onClose={() => setOpen(false)}
-  placement="right"
-  mobilePlacement="bottom" // vira bottom sheet em mobile
-  title="Filtros"
-  showHandle // drag indicator visual quando vira bottom-sheet
-  footer={<Button onClick={apply}>Aplicar</Button>}
->
-  <FilterForm />
-</Drawer>
+import { useState } from "react";
+import { Button, Drawer } from "tempest-react-sdk";
+
+export function GavetaDeFiltros({ apply }: { apply: () => void }) {
+    const [open, setOpen] = useState(false);
+
+    return (
+        <Drawer
+            open={open}
+            onClose={() => setOpen(false)}
+            placement="right"
+            mobilePlacement="bottom"
+            title="Filtros"
+            showHandle
+            footer={<Button onClick={apply}>Aplicar</Button>}
+        >
+            <p>O formulário do perfil entra aqui.</p>
+        </Drawer>
+    );
+}
 ```
 
 | Prop              | Tipo                                                          | Default   |
@@ -116,13 +132,23 @@ Side drawer. `placement: left/right/top/bottom`. Auto-switch pra bottom-sheet em
 Modal ancorado na borda inferior — slide-up via animation. Otimizado pra mobile.
 
 ```tsx
-<BottomSheet open={open} onClose={() => setOpen(false)} title="Compartilhar">
-  <Stack gap={3}>
-    <Button leftIcon={<MessageCircle />}>WhatsApp</Button>
-    <Button leftIcon={<Mail />}>Email</Button>
-    <Button leftIcon={<Link />}>Copiar link</Button>
-  </Stack>
-</BottomSheet>
+import { useState } from "react";
+import { BottomSheet, Button, Stack } from "tempest-react-sdk";
+import { Link, Mail, MessageCircle } from "lucide-react";
+
+export function Compartilhar() {
+    const [open, setOpen] = useState(false);
+
+    return (
+        <BottomSheet open={open} onClose={() => setOpen(false)} title="Compartilhar">
+            <Stack gap={3}>
+                <Button leftIcon={<MessageCircle size={16} />}>WhatsApp</Button>
+                <Button leftIcon={<Mail size={16} />}>Email</Button>
+                <Button leftIcon={<Link size={16} />}>Copiar link</Button>
+            </Stack>
+        </BottomSheet>
+    );
+}
 ```
 
 | Prop                | Tipo         | Default |

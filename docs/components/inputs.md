@@ -54,7 +54,11 @@ import { Search } from "lucide-react";
 Multi-linha. Mesma API do `Input` (sem `leftIcon`/`rightIcon`).
 
 ```tsx
-<Textarea label="Mensagem" rows={4} helperText="Máximo 500 caracteres" />
+import { Textarea } from "tempest-react-sdk";
+
+export function Mensagem() {
+    return <Textarea label="Mensagem" rows={4} helperText="Máximo 500 caracteres" />;
+}
 ```
 
 ## `Select`
@@ -62,13 +66,19 @@ Multi-linha. Mesma API do `Input` (sem `leftIcon`/`rightIcon`).
 Nativo `<select>`. Aceita `options` (lista) ou `<option>` children.
 
 ```tsx
-<Select
-  label="UF"
-  options={[
-    { value: "SP", label: "São Paulo" },
-    { value: "RJ", label: "Rio de Janeiro" },
-  ]}
-/>
+import { Select } from "tempest-react-sdk";
+
+export function Estado() {
+    return (
+        <Select
+            label="UF"
+            options={[
+                { value: "SP", label: "São Paulo" },
+                { value: "RJ", label: "Rio de Janeiro" },
+            ]}
+        />
+    );
+}
 ```
 
 | Prop      | Tipo             | Default |
@@ -90,13 +100,30 @@ Nativo `<select>`. Aceita `options` (lista) ou `<option>` children.
 Select com busca + filtro. Keyboard nav (↑↓ Enter Esc).
 
 ```tsx
-<Combobox
-  label="Cidade"
-  options={cities}
-  value={city}
-  onChange={setCity}
-  filter={(opt, query) => opt.label.toLowerCase().includes(query.toLowerCase())}
-/>
+import { useState } from "react";
+import { Combobox } from "tempest-react-sdk";
+
+const CIDADES = [
+    { value: "sp", label: "São Paulo" },
+    { value: "rj", label: "Rio de Janeiro" },
+    { value: "bh", label: "Belo Horizonte" },
+];
+
+export function Cidade() {
+    const [city, setCity] = useState("sp");
+
+    return (
+        <Combobox
+            label="Cidade"
+            options={CIDADES}
+            value={city}
+            onChange={setCity}
+            filter={(option, query) =>
+                String(option.label).toLowerCase().includes(query.toLowerCase())
+            }
+        />
+    );
+}
 ```
 
 ## `MultiSelect`
@@ -154,8 +181,22 @@ function Example() {
 Single checkbox. Suporta `indeterminate`.
 
 ```tsx
-<Checkbox label="Aceito os termos" />;
-<Checkbox label="Selecionar todos" indeterminate={someSelected && !allSelected} />;
+import { Checkbox } from "tempest-react-sdk";
+
+export function Selecao({
+    someSelected,
+    allSelected,
+}: {
+    someSelected: boolean;
+    allSelected: boolean;
+}) {
+    return (
+        <>
+            <Checkbox label="Aceito os termos" />
+            <Checkbox label="Selecionar todos" indeterminate={someSelected && !allSelected} />
+        </>
+    );
+}
 ```
 
 ## `Radio` / `RadioGroup`
@@ -163,12 +204,31 @@ Single checkbox. Suporta `indeterminate`.
 Radio standalone OU agrupado com value único.
 
 ```tsx
-<RadioGroup label="Plano" value={plan} onChange={setPlan}>
-  <Radio value="free" label="Grátis" />
-  <Radio value="pro" label="Pro" />
-  <Radio value="team" label="Team" />
-</RadioGroup>
+import { useState } from "react";
+import { Radio, RadioGroup } from "tempest-react-sdk";
+
+export function Plano() {
+    const [plan, setPlan] = useState("free");
+
+    return (
+        <fieldset>
+            <legend>Plano</legend>
+            <RadioGroup value={plan} onChange={setPlan}>
+                <Radio value="free" label="Grátis" />
+                <Radio value="pro" label="Pro" />
+                <Radio value="team" label="Team" />
+            </RadioGroup>
+        </fieldset>
+    );
+}
 ```
+
+!!! note "`RadioGroup` não tem `label` — o rótulo do grupo é seu"
+    O componente é o container de estado (`value`, `onChange`, `name`) e não
+    renderiza título nenhum. Um grupo de rádios sem rótulo é anunciado só pelas
+    opções, e o leitor de tela não diz *do que* elas são opções. Envolva num
+    `<fieldset>` com `<legend>`, como no exemplo — é o que o HTML já resolve,
+    e nenhum prop precisa existir para isso.
 
 ## `Switch`
 
@@ -177,11 +237,20 @@ Radio standalone OU agrupado com value único.
 Toggle on/off.
 
 ```tsx
-<Switch
-  label="Receber emails"
-  checked={subscribed}
-  onChange={(e) => setSubscribed(e.target.checked)}
-/>
+import { useState } from "react";
+import { Switch } from "tempest-react-sdk";
+
+export function Emails() {
+    const [subscribed, setSubscribed] = useState(false);
+
+    return (
+        <Switch
+            label="Receber emails"
+            checked={subscribed}
+            onChange={(event) => setSubscribed(event.target.checked)}
+        />
+    );
+}
 ```
 
 !!! note "Switch vs Checkbox — não são intercambiáveis"
@@ -192,7 +261,16 @@ Toggle on/off.
 Lista de chips com adição por Enter + dedup automático.
 
 ```tsx
-<ChipInput label="Tags" value={tags} onChange={setTags} placeholder="adicione e pressione Enter" />
+import { useState } from "react";
+import { ChipInput } from "tempest-react-sdk";
+
+export function Tags() {
+    const [tags, setTags] = useState<string[]>([]);
+
+    return (
+        <ChipInput label="Tags" value={tags} onChange={setTags} placeholder="adicione e pressione Enter" />
+    );
+}
 ```
 
 ## `SearchBar`
@@ -200,7 +278,14 @@ Lista de chips com adição por Enter + dedup automático.
 Input de busca com clear button + debounce opcional via `useDebounce`.
 
 ```tsx
-<SearchBar value={q} onChange={setQ} placeholder="O que você procura?" />
+import { useState } from "react";
+import { SearchBar } from "tempest-react-sdk";
+
+export function Busca() {
+    const [q, setQ] = useState("");
+
+    return <SearchBar value={q} onChange={setQ} placeholder="O que você procura?" />;
+}
 ```
 
 ## `DatePicker`
@@ -208,8 +293,31 @@ Input de busca com clear button + debounce opcional via `useDebounce`.
 `<input type="date">` (ou `time`, `datetime-local`, `month`) com label/error.
 
 ```tsx
-<DatePicker label="Data" value={date} onChange={setDate} mode="date" min="2025-01-01" />;
-<DatePicker label="Início" mode="datetime-local" value={start} onChange={setStart} />;
+import { useState } from "react";
+import { DatePicker } from "tempest-react-sdk";
+
+export function Datas() {
+    const [date, setDate] = useState("2026-01-15");
+    const [start, setStart] = useState("2026-01-15T09:00");
+
+    return (
+        <>
+            <DatePicker
+                label="Data"
+                value={date}
+                onChange={setDate}
+                mode="date"
+                min="2025-01-01"
+            />
+            <DatePicker
+                label="Início"
+                mode="datetime-local"
+                value={start}
+                onChange={setStart}
+            />
+        </>
+    );
+}
 ```
 
 ## `DateRangePicker`
@@ -296,13 +404,23 @@ function ScheduleField() {
 Drag-and-drop + click-to-upload + lista de arquivos.
 
 ```tsx
-<FileUpload
-  label="Anexar"
-  accept="image/*"
-  multiple
-  onFilesChange={(files) => setFiles(files)}
-  maxSize={5 * 1024 * 1024}
-/>
+import { useState } from "react";
+import { FileUpload } from "tempest-react-sdk";
+
+export function Anexos() {
+    const [files, setFiles] = useState<File[]>([]);
+
+    return (
+        <FileUpload
+            label="Anexar"
+            accept="image/*"
+            multiple
+            value={files}
+            onChange={setFiles}
+            maxSize={5 * 1024 * 1024}
+        />
+    );
+}
 ```
 
 ## `Slider`
@@ -408,15 +526,24 @@ function Uploader() {
 Dual-thumb slider com clamp `low ≤ high`.
 
 ```tsx
-<RangeSlider
-  label="Faixa de preço"
-  min={0}
-  max={1000}
-  step={10}
-  value={range}
-  onChange={setRange}
-  formatValue={([lo, hi]) => `R$ ${lo} – R$ ${hi}`}
-/>
+import { useState } from "react";
+import { RangeSlider } from "tempest-react-sdk";
+
+export function FaixaDePreco() {
+    const [range, setRange] = useState<[number, number]>([100, 800]);
+
+    return (
+        <RangeSlider
+            label="Faixa de preço"
+            min={0}
+            max={1000}
+            step={10}
+            value={range}
+            onChange={setRange}
+            formatValue={([lo, hi]) => `R$ ${lo} – R$ ${hi}`}
+        />
+    );
+}
 ```
 
 Aceita `aria-label` pelo mesmo motivo do `Slider`. Cada thumb continua com nome
@@ -428,8 +555,19 @@ quem navega de um para o outro precisa saber em qual ponta está.
 Radio group de estrelas.
 
 ```tsx
-<RatingStars value={rating} onChange={setRating} max={5} size="md" />;
-<RatingStars value={4.5} readonly size="lg" />;
+import { useState } from "react";
+import { RatingStars } from "tempest-react-sdk";
+
+export function Avaliacao() {
+    const [rating, setRating] = useState(4);
+
+    return (
+        <>
+            <RatingStars value={rating} onChange={setRating} max={5} size="md" />
+            <RatingStars value={4.5} readonly size="lg" />
+        </>
+    );
+}
 ```
 
 ## `PinInput`
@@ -442,8 +580,16 @@ OTP / one-time-code com N células. Paste, auto-advance, backspace flowback, arr
     O usuário pode colar `123456` em qualquer célula que o `PinInput` distribui os dígitos automaticamente — defina `type="numeric"` para que o teclado mobile abra no modo numérico.
 
 ```tsx
-<PinInput length={6} type="numeric" onComplete={(otp) => verify(otp)} />;
-<PinInput length={4} type="alphanumeric" masked autoFocus />;
+import { PinInput } from "tempest-react-sdk";
+
+export function Codigos({ verify }: { verify: (code: string) => void }) {
+    return (
+        <>
+            <PinInput length={6} type="numeric" onComplete={verify} />
+            <PinInput length={4} type="alphanumeric" masked autoFocus />
+        </>
+    );
+}
 ```
 
 | Prop           | Tipo                          | Default        |
@@ -463,7 +609,11 @@ OTP / one-time-code com N células. Paste, auto-advance, backspace flowback, arr
 Field tipo `password` com toggle de visibilidade + strength meter opcional (5 níveis).
 
 ```tsx
-<PasswordInput label="Senha" autoComplete="new-password" showStrength />
+import { PasswordInput } from "tempest-react-sdk";
+
+export function Senha() {
+    return <PasswordInput label="Senha" autoComplete="new-password" showStrength />;
+}
 ```
 
 Helper exposto: `estimatePasswordStrength(value)` retorna `0-4` (length, case mix, digits, symbols).
@@ -483,8 +633,25 @@ Helper exposto: `estimatePasswordStrength(value)` retorna `0-4` (length, case mi
 `+ / −` numeric com clamp em `min/max`.
 
 ```tsx
-<StepperInput value={qty} onChange={setQty} min={1} max={10} />;
-<StepperInput value={price} onChange={setPrice} step={5} format={(n) => `R$ ${n}`} />;
+import { useState } from "react";
+import { StepperInput } from "tempest-react-sdk";
+
+export function Quantidades() {
+    const [qty, setQty] = useState(1);
+    const [price, setPrice] = useState(50);
+
+    return (
+        <>
+            <StepperInput value={qty} onChange={setQty} min={1} max={10} />
+            <StepperInput
+                value={price}
+                onChange={setPrice}
+                step={5}
+                format={(value) => `R$ ${value}`}
+            />
+        </>
+    );
+}
 ```
 
 ## `Form` / `FormSection` / `FormRow` / `FormActions` / `FormField`
@@ -498,13 +665,19 @@ Helper exposto: `estimatePasswordStrength(value)` retorna `0-4` (length, case mi
 Layout wrappers para forms (`stack`/`inline`/`grid`) + integração RHF.
 
 ```tsx
-<Form layout="grid" columns={2} gap={4}>
-  <Input label="Nome" />
-  <Input label="Email" type="email" />
-  <FormActions style={{ gridColumn: "1 / -1" }}>
-    <Button type="submit">Salvar</Button>
-  </FormActions>
-</Form>
+import { Button, Form, FormActions, Input } from "tempest-react-sdk";
+
+export function Cadastro() {
+    return (
+        <Form layout="grid" columns={2} gap={4}>
+            <Input label="Nome" />
+            <Input label="Email" type="email" />
+            <FormActions align="end">
+                <Button type="submit">Salvar</Button>
+            </FormActions>
+        </Form>
+    );
+}
 ```
 
 Detalhes completos em [../forms.md](../forms.md).

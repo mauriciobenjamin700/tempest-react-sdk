@@ -125,6 +125,37 @@ function Menu({ sfxVolume }: { sfxVolume: number }) {
 
 Mudar `volume` no `useSfxPool` chama `setVolume` no pool existente em vez de recriá-lo — recriar jogaria fora todo elemento que o usuário já baixou, que é exatamente o custo que o pool existe pra evitar. `baseUrl`, `voices` e `maxSources` são lidos uma vez, na criação.
 
+## `AudioPlayer` — transporte visível
+
+**Quando usar:** quando o usuário precisa **controlar** a reprodução, não só
+ouvi-la — um áudio de mensagem, um take gravado, um anexo. `playAudio` dispara e
+esquece; `AudioPlayer` dá play/pause, barra arrastável e os tempos.
+
+```tsx
+import { AudioPlayer, Button } from "tempest-react-sdk";
+import { Trash } from "lucide-react";
+
+export function Gravacao({ blob, apagar }: { blob: Blob; apagar: () => void }) {
+    return (
+        <AudioPlayer
+            src={blob}
+            durationMs={12_400}
+            actions={
+                <Button variant="ghost" iconOnly aria-label="Apagar" onClick={apagar}>
+                    <Trash size={16} />
+                </Button>
+            }
+        />
+    );
+}
+```
+
+!!! tip "Passe `durationMs` quando você já souber a duração"
+    Um `Blob` gravado no browser costuma vir sem cabeçalho de duração, e o
+    `<audio>` reporta `Infinity` até tocar até o fim. A barra fica travada nesse
+    intervalo. Se o gravador já te deu o tempo, passe-o — o componente usa esse
+    valor até o metadado real chegar.
+
 ## Autoplay policy
 
 Navegadores bloqueiam playback antes da primeira interação do usuário. `playAudio` / `play()` retornam `null` quando bloqueado (e chamam `onError` se passado) — em vez de lançar.

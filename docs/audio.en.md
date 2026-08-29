@@ -125,6 +125,37 @@ function Menu({ sfxVolume }: { sfxVolume: number }) {
 
 Changing `volume` on `useSfxPool` calls `setVolume` on the existing pool rather than rebuilding it — rebuilding would throw away every element the user has already downloaded, which is exactly the cost the pool exists to avoid. `baseUrl`, `voices` and `maxSources` are read once, at creation.
 
+## `AudioPlayer` — visible transport
+
+**When to use it:** when the user needs to **control** playback, not just hear
+it — a voice message, a recorded take, an attachment. `playAudio` is
+fire-and-forget; `AudioPlayer` gives play/pause, a draggable bar and the times.
+
+```tsx
+import { AudioPlayer, Button } from "tempest-react-sdk";
+import { Trash } from "lucide-react";
+
+export function Recording({ blob, remove }: { blob: Blob; remove: () => void }) {
+    return (
+        <AudioPlayer
+            src={blob}
+            durationMs={12_400}
+            actions={
+                <Button variant="ghost" iconOnly aria-label="Delete" onClick={remove}>
+                    <Trash size={16} />
+                </Button>
+            }
+        />
+    );
+}
+```
+
+!!! tip "Pass `durationMs` when you already know the length"
+    A `Blob` recorded in the browser usually arrives with no duration header, and
+    `<audio>` reports `Infinity` until it has played to the end. The bar is stuck
+    for that whole stretch. If your recorder already told you the length, pass it
+    — the component uses that value until the real metadata lands.
+
 ## Autoplay policy
 
 Browsers block playback before the user's first interaction. `playAudio` / `play()` return `null` when blocked (and call `onError` if provided) — instead of throwing.

@@ -231,12 +231,14 @@ What you get for free in that snippet:
 A turn with `reasoning` gets a collapsible block **above** the answer:
 
 ```tsx
-{
-  id: "a1",
-  role: "assistant",
-  content: "There are 12 orders.",
-  reasoning: "Filtered by overdue delivery date and status != delivered…",
-}
+import { type AIChatMessage } from "tempest-react-sdk";
+
+const turno: AIChatMessage = {
+    id: "a1",
+    role: "assistant",
+    content: "There are 12 orders.",
+    reasoning: "Filtered by overdue delivery date and status != delivered…",
+};
 ```
 
 !!! info "While only the reasoning has arrived, the block opens itself"
@@ -253,16 +255,40 @@ A turn with `reasoning` gets a collapsible block **above** the answer:
 | Retry | a turn carrying `error` | `onRetry` |
 
 ```tsx
-<AIChat
-  messages={turns}
-  onRegenerate={(turn) => reask(turn)}
-  onFeedback={(turn, vote) => track("answer_rated", { id: turn.id, vote })}
-  onEditSubmit={(turn, text) => {
-    truncateAfter(turn.id);   // your app decides what goes
-    return ask(text);
-  }}
-  votes={savedVotes}          // optional: votes loaded from your database
-/>
+import {
+    AIChat,
+    type AIChatMessage,
+    type AIChatVote,
+} from "tempest-react-sdk";
+
+export function Conversa({
+    turnos,
+    votosSalvos,
+    reperguntar,
+    perguntar,
+    truncarAPartirDe,
+    track,
+}: {
+    turnos: AIChatMessage[];
+    votosSalvos: Record<string, AIChatVote>;
+    reperguntar: (turno: AIChatMessage) => void;
+    perguntar: (texto: string) => Promise<void>;
+    truncarAPartirDe: (id: string) => void;
+    track: (event: string, payload: Record<string, unknown>) => void;
+}) {
+    return (
+        <AIChat
+            messages={turnos}
+            onRegenerate={reperguntar}
+            onFeedback={(turno, voto) => track("answer_rated", { id: turno.id, voto })}
+            onEditSubmit={(turno, texto) => {
+                truncarAPartirDe(turno.id);
+                return perguntar(texto);
+            }}
+            votes={votosSalvos}
+        />
+    );
+}
 ```
 
 !!! warning "Regenerate shows up on the newest assistant turn only — on purpose"
@@ -274,11 +300,17 @@ A turn with `reasoning` gets a collapsible block **above** the answer:
 #### Suggested prompts and the empty state
 
 ```tsx
-<AIChat
-  messages={[]}
-  onSend={ask}
-  suggestions={["Summarise the latest report", "Which orders are late?"]}
-/>
+import { AIChat } from "tempest-react-sdk";
+
+export function Vazio({ perguntar }: { perguntar: (texto: string) => void }) {
+    return (
+        <AIChat
+            messages={[]}
+            onSend={perguntar}
+            suggestions={["Summarise the latest report", "Which orders are late?"]}
+        />
+    );
+}
 ```
 
 On an empty conversation the suggestions sit at the bottom of the transcript area; clicking one sends it straight away. They disappear on the first turn. Without `onSend` they are not rendered (there would be nowhere to send them) and the `EmptyState` shows instead — or your `emptyState`.
@@ -382,6 +414,79 @@ Exported separately for apps that build their own layout — a composer pinned t
 | `lastAssistantId(messages)` | Which turn gets "regenerate". |
 | `tailSignature(messages)` | An effect dependency that changes when the tail grows. |
 | `aiChatStrings(locale)` · `roleLabel(role, strings)` · `turnTime(ts, locale)` | Labels, to reuse in your own layout. |
+
+### `ChatComposer` — the input box on its own
+
+**When to use it:** when the message list is yours (your own virtualisation, a
+layout `Chat` does not cover) but you want the composer ready-made: a textarea
+that grows up to `maxRows`, Enter to send, Shift+Enter for a newline, and
+`focus()` / `setValue()` exposed through a ref.
+
+```tsx
+import { useRef } from "react";
+import { ChatComposer, type ChatComposerHandle } from "tempest-react-sdk";
+
+export function Footer({ send }: { send: (text: string) => Promise<void> }) {
+    const composer = useRef<ChatComposerHandle>(null);
+
+    return (
+        <>
+            <button onClick={() => composer.current?.setValue("Good morning!")}>
+                Use template
+            </button>
+            <ChatComposer ref={composer} onSend={send} maxRows={6} sendLabel="Send" />
+        </>
+    );
+}
+```
+
+!!! warning "An `onSend` that rejects does not lose the text"
+    If the promise rejects, the composer calls `onError` and **puts the text
+    back** instead of clearing the box. A box that empties on a network failure
+    makes the user retype — and they do not know they have to.
+
+### `AIChatComposer` and `AIChatTurn` — the parts of `AIChat`
+
+**When to use them:** to build a layout `AIChat` does not give you.
+`AIChatTurn` renders **one** turn (assistant markdown, user plain text, a
+collapsible reasoning block, copy/regenerate/vote actions); `AIChatComposer` is
+the box with generating state and a stop button.
+
+```tsx
+import { AIChatComposer, AIChatTurn, type AIChatMessage } from "tempest-react-sdk";
+
+export function CustomThread({
+    turns,
+    generating,
+    ask,
+    stop,
+}: {
+    turns: AIChatMessage[];
+    generating: boolean;
+    ask: (text: string) => Promise<void>;
+    stop: () => void;
+}) {
+    const last = turns.at(-1);
+
+    return (
+        <>
+            {turns.map((turn) => (
+                <AIChatTurn
+                    key={turn.id}
+                    message={turn}
+                    canRegenerate={turn.id === last?.id && turn.role === "assistant"}
+                />
+            ))}
+            <AIChatComposer onSend={ask} onStop={stop} generating={generating} />
+        </>
+    );
+}
+```
+
+!!! note "`canRegenerate` only on the newest assistant turn"
+    Regenerating an older turn throws away everything after it — a different
+    operation, and `AIChat` reserves the control for the newest turn. Building
+    the list yourself makes that decision yours.
 
 ## Recap
 

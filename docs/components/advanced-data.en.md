@@ -458,14 +458,21 @@ export function Orders({ orders }: { orders: Order[] }) {
 **Server-paginated listing** — `filtersToQueryParams`, which speaks the `tempest-fastapi-sdk` dialect:
 
 ```tsx
-const params = filtersToQueryParams(filters);
-params.set("page", String(page));
-params.set("page_size", "20");
+import { useQuery } from "@tanstack/react-query";
+import { createApiClient, filtersToQueryParams, type Filter } from "tempest-react-sdk";
 
-const { data } = useQuery({
-  queryKey: ["orders", filters, page],
-  queryFn: () => api.get(`/orders?${params}`),
-});
+const api = createApiClient({ baseURL: "/api" });
+
+export function usePedidos(filtros: Filter[], pagina: number) {
+    const params = filtersToQueryParams(filtros);
+    params.set("page", String(pagina));
+    params.set("page_size", "20");
+
+    return useQuery({
+        queryKey: ["pedidos", filtros, pagina],
+        queryFn: () => api.get(`/pedidos?${params}`),
+    });
+}
 ```
 
 | Operator | Param sent |

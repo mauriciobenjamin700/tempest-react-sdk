@@ -20,48 +20,72 @@ record use a [`Card`](./identity.md); for data entry, [inputs](./inputs.md).
 > **When to use**: compare structured records field by field in columns — orders, users, transactions. Typed by `T`, with per-column responsive priority and optional stack on mobile.
 
 ```tsx
-const columns: TableColumn<Order>[] = [
-  { key: "id", header: "ID", align: "right", priority: "always" },
-  { key: "customer", header: "Customer", priority: "always" },
-  {
-    key: "total",
-    header: "Total",
-    align: "right",
-    render: (row) => formatCurrency(row.total, "BRL"),
-    priority: "always",
-  },
-  {
-    key: "created_at",
-    header: "Date",
-    render: (row) => formatDate(row.created_at),
-    priority: "tablet",
-  },
-  {
-    key: "status",
-    header: "Status",
-    render: (row) => <Badge variant={statusVariant(row.status)}>{row.status}</Badge>,
-    priority: "desktop",
-  },
-  {
-    key: "actions",
-    header: "",
-    render: (row) => (
-      <Button size="sm" onClick={() => edit(row.id)}>
-        Edit
-      </Button>
-    ),
-    priority: "desktop",
-  },
-];
+import { Badge, Button, Table, formatCurrency, formatDate, type TableColumn } from "tempest-react-sdk";
 
-<Table
-  columns={columns}
-  data={orders}
-  rowKey={(row) => row.id}
-  onRowClick={(row) => navigate(`/orders/${row.id}`)}
-  stackOnMobile
-  emptyMessage="No orders found."
-/>;
+interface Order {
+    id: string;
+    customer: string;
+    total: number;
+    created_at: string;
+    status: "paid" | "pending" | "failed";
+}
+
+const VARIANT = { paid: "success", pending: "warning", failed: "danger" } as const;
+
+export function Orders({
+    orders,
+    edit,
+    navigate,
+}: {
+    orders: Order[];
+    edit: (id: string) => void;
+    navigate: (to: string) => void;
+}) {
+    const columns: TableColumn<Order>[] = [
+        { key: "id", header: "ID", align: "right", priority: "always" },
+        { key: "customer", header: "Customer", priority: "always" },
+        {
+            key: "total",
+            header: "Total",
+            align: "right",
+            render: (row) => formatCurrency(row.total),
+            priority: "always",
+        },
+        {
+            key: "created_at",
+            header: "Date",
+            render: (row) => formatDate(row.created_at),
+            priority: "tablet",
+        },
+        {
+            key: "status",
+            header: "Status",
+            render: (row) => <Badge variant={VARIANT[row.status]}>{row.status}</Badge>,
+            priority: "desktop",
+        },
+        {
+            key: "actions",
+            header: "",
+            render: (row) => (
+                <Button size="sm" onClick={() => edit(row.id)}>
+                    Edit
+                </Button>
+            ),
+            priority: "desktop",
+        },
+    ];
+
+    return (
+        <Table
+            columns={columns}
+            data={orders}
+            rowKey={(row) => row.id}
+            onRowClick={(row) => navigate(`/orders/${row.id}`)}
+            stackOnMobile
+            emptyMessage="No orders found."
+        />
+    );
+}
 ```
 
 | Prop            | Type                                           | Default                         |
@@ -110,14 +134,25 @@ const columns: TableColumn<Order>[] = [
 Renders only the visible window + a small overscan buffer. Each row needs a fixed height (`itemHeight`); the container needs a height (`height`).
 
 ```tsx
-<VirtualList
-  items={messages}
-  itemHeight={64}
-  height={480}
-  overscan={5}
-  getKey={(message) => message.id}
-  renderItem={(message) => <MessageRow message={message} />}
-/>
+import { VirtualList } from "tempest-react-sdk";
+
+interface Message {
+    id: string;
+    body: string;
+}
+
+export function Historico({ messages }: { messages: Message[] }) {
+    return (
+        <VirtualList
+            items={messages}
+            itemHeight={64}
+            height={480}
+            overscan={5}
+            getKey={(message) => message.id}
+            renderItem={(message) => <p>{message.body}</p>}
+        />
+    );
+}
 ```
 
 | Prop         | Type                                           | Default |
@@ -148,18 +183,30 @@ Renders only the visible window + a small overscan buffer. Each row needs a fixe
 It renders only the visible window, like `VirtualList`, while staying a real `<table>`: the browser aligns the columns, the header sticks, and assistive technology still sees a grid.
 
 ```tsx
-<VirtualTable
-  data={rows}
-  columns={[
-    { key: "id", header: "#", width: 80, sortable: true },
-    { key: "name", header: "Name", width: 240, sortable: true },
-    { key: "total", header: "Total", width: 120, align: "right", sortable: true },
-  ]}
-  rowHeight={40}
-  height={480}
-  rowKey={(row) => row.id}
-  onRowClick={(row) => open(row.id)}
-/>
+import { VirtualTable } from "tempest-react-sdk";
+
+interface Row {
+    id: number;
+    name: string;
+    total: string;
+}
+
+export function Grande({ rows, open }: { rows: Row[]; open: (id: number) => void }) {
+    return (
+        <VirtualTable
+            data={rows}
+            columns={[
+                { key: "id", header: "#", width: 80, sortable: true },
+                { key: "name", header: "Name", width: 240, sortable: true },
+                { key: "total", header: "Total", width: 120, align: "right", sortable: true },
+            ]}
+            rowHeight={40}
+            height={480}
+            rowKey={(row) => row.id}
+            onRowClick={(row) => open(row.id)}
+        />
+    );
+}
 ```
 
 | Prop            | Type                                            | Default                         |
@@ -633,14 +680,29 @@ function NotificationsRow() {
 Single mode (default) or `multiple`. Controlled via `value` + `onChange`, or uncontrolled via `defaultValue`.
 
 ```tsx
-<Accordion
-  items={[
-    { id: "1", title: "How do I cancel my subscription?", children: <p>...</p> },
-    { id: "2", title: "What payment methods?", children: <p>...</p> },
-  ]}
-/>;
+import { useState } from "react";
+import { Accordion } from "tempest-react-sdk";
 
-<Accordion multiple value={openIds} onChange={setOpenIds} items={faqItems} />;
+const FAQ = [
+    { id: "1", title: "How do I cancel my subscription?", children: <p>In the dashboard, under Account → Subscription.</p> },
+    { id: "2", title: "Which payment methods?", children: <p>Card, Pix and bank slip.</p> },
+];
+
+export function Perguntas() {
+    const [openIds, setOpenIds] = useState<string[]>([]);
+
+    return (
+        <>
+            <Accordion items={FAQ} />
+            <Accordion
+                multiple
+                value={openIds}
+                onChange={(value) => setOpenIds(value as string[])}
+                items={FAQ}
+            />
+        </>
+    );
+}
 ```
 
 | Prop           | Type                                 | Default |
@@ -669,20 +731,26 @@ Single mode (default) or `multiple`. Controlled via `value` + `onChange`, or unc
 A vertical feed with colored markers. Renders as a semantic `<ol>` (each item is an `<li>`).
 
 ```tsx
-<Timeline
-  items={[
-    { id: "1", title: "Order created", meta: "10:24", marker: "primary" },
-    { id: "2", title: "Payment approved", meta: "10:25", marker: "success" },
-    {
-      id: "3",
-      title: "Out for delivery",
-      description: "Driver: John",
-      meta: "11:00",
-      marker: "warning",
-    },
-    { id: "4", title: "Delivered", meta: "12:30", marker: "success" },
-  ]}
-/>
+import { Timeline } from "tempest-react-sdk";
+
+export function Rastreio() {
+    return (
+        <Timeline
+            items={[
+                { id: "1", title: "Order created", meta: "10:24", marker: "primary" },
+                { id: "2", title: "Payment approved", meta: "10:25", marker: "success" },
+                {
+                    id: "3",
+                    title: "Out for delivery",
+                    description: "Driver: John",
+                    meta: "11:00",
+                    marker: "warning",
+                },
+                { id: "4", title: "Delivered", meta: "12:30", marker: "success" },
+            ]}
+        />
+    );
+}
 ```
 
 | Prop        | Type                             | Default |
@@ -805,9 +873,19 @@ export function TrendByProduct() {
 ### Variants
 
 ```tsx
-<Sparkline data={series} />                        {/* line (default) */}
-<Sparkline data={series} variant="area" />         {/* line + washed fill */}
-<Sparkline data={series} variant="bar" />          {/* one bar per point */}
+import { Sparkline } from "tempest-react-sdk";
+
+const serie = [4, 6, 5, 9, 12, 10, 14];
+
+export function Variantes() {
+    return (
+        <>
+            <Sparkline data={serie} />
+            <Sparkline data={serie} variant="area" />
+            <Sparkline data={serie} variant="bar" />
+        </>
+    );
+}
 ```
 
 | Prop             | Type                              | Default                     | What it does                                                    |
@@ -827,9 +905,24 @@ export function TrendByProduct() {
 By default each sparkline normalises against its own extremes. In a table column that is a trap: a row going from 2 to 4 and one going from 200 to 400 draw **exactly the same shape**.
 
 ```tsx
-const ceiling = Math.max(...products.flatMap((p) => p.series));
+import { Sparkline } from "tempest-react-sdk";
 
-<Sparkline data={row.series} min={0} max={ceiling} />;
+interface Produto {
+    id: string;
+    serie: number[];
+}
+
+export function MesmaEscala({ produtos }: { produtos: Produto[] }) {
+    const teto = Math.max(...produtos.flatMap((produto) => produto.serie));
+
+    return (
+        <>
+            {produtos.map((produto) => (
+                <Sparkline key={produto.id} data={produto.serie} min={0} max={teto} />
+            ))}
+        </>
+    );
+}
 ```
 
 !!! warning "Without `min`/`max` the shape is relative — never comparable"

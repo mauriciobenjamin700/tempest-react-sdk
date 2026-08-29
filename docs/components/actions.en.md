@@ -100,11 +100,18 @@ import { Plus } from "lucide-react";
 A portaled hover tooltip. Shows on hover **and** on keyboard focus.
 
 ```tsx
-<Tooltip content="Delete permanently" placement="bottom" openDelay={300}>
-  <Button variant="danger" iconOnly aria-label="Delete">
-    <Trash />
-  </Button>
-</Tooltip>
+import { Button, Tooltip } from "tempest-react-sdk";
+import { Trash } from "lucide-react";
+
+export function ExcluirComDica() {
+    return (
+        <Tooltip content="Delete permanently" placement="bottom" openDelay={300}>
+            <Button variant="danger" iconOnly aria-label="Delete">
+                <Trash size={16} />
+            </Button>
+        </Tooltip>
+    );
+}
 ```
 
 | Prop        | Type                                     | Default |
@@ -130,15 +137,32 @@ A portaled hover tooltip. Shows on hover **and** on keyboard focus.
 A dropdown menu of actions. Keyboard nav (↑↓ Home End Esc). Each entry needs a stable `id` (used as the React key).
 
 ```tsx
-<DropdownMenu
-  trigger={<Button variant="ghost">More actions</Button>}
-  items={[
-    { type: "label", id: "h", label: "Account" },
-    { type: "item", id: "edit", label: "Edit profile", onSelect: () => navigate("/profile") },
-    { type: "separator", id: "s1" },
-    { type: "item", id: "logout", label: "Sign out", onSelect: logout, danger: true },
-  ]}
-/>
+import { Button, DropdownMenu } from "tempest-react-sdk";
+
+export function MaisAcoes({
+    navigate,
+    logout,
+}: {
+    navigate: (to: string) => void;
+    logout: () => void;
+}) {
+    return (
+        <DropdownMenu
+            trigger={<Button variant="ghost">More actions</Button>}
+            items={[
+                { type: "label", id: "h", label: "Account" },
+                {
+                    type: "item",
+                    id: "edit",
+                    label: "Edit profile",
+                    onSelect: () => navigate("/profile"),
+                },
+                { type: "separator", id: "s1" },
+                { type: "item", id: "logout", label: "Sign out", onSelect: logout, danger: true },
+            ]}
+        />
+    );
+}
 ```
 
 | Entry type    | Fields                                                     |
@@ -159,18 +183,27 @@ Component props: `trigger` (`ReactElement`), `items` (`DropdownMenuEntry[]`), `p
 A generic floating panel (anchor + outside-click + Esc dismiss). Works controlled (`open` + `onOpenChange`) or uncontrolled (`defaultOpen`).
 
 ```tsx
-<Popover
-  open={open}
-  onOpenChange={setOpen}
-  placement="bottom"
-  trigger={<Button>Filters</Button>}
->
-  <Stack gap={3}>
-    <Checkbox label="Active only" />
-    <Checkbox label="Paid" />
-    <Button onClick={() => setOpen(false)}>Apply</Button>
-  </Stack>
-</Popover>
+import { useState } from "react";
+import { Button, Checkbox, Popover, Stack } from "tempest-react-sdk";
+
+export function Filtros() {
+    const [open, setOpen] = useState(false);
+
+    return (
+        <Popover
+            open={open}
+            onOpenChange={setOpen}
+            placement="bottom"
+            trigger={<Button>Filters</Button>}
+        >
+            <Stack gap={3}>
+                <Checkbox label="Active only" />
+                <Checkbox label="Paid" />
+                <Button onClick={() => setOpen(false)}>Apply</Button>
+            </Stack>
+        </Popover>
+    );
+}
 ```
 
 | Prop                  | Type                                     | Default        |
@@ -199,20 +232,38 @@ A generic floating panel (anchor + outside-click + Esc dismiss). Works controlle
 A pre-built destructive prompt on top of [`Modal`](./overlay.md) (text + 2 buttons).
 
 ```tsx
-<ConfirmDialog
-  open={open}
-  title="Delete user"
-  description={`This action is permanent. Delete ${user.name}?`}
-  confirmLabel="Yes, delete"
-  cancelLabel="Cancel"
-  variant="danger"
-  loading={deleting}
-  onConfirm={async () => {
-    await deleteUser(user.id);
-    setOpen(false);
-  }}
-  onCancel={() => setOpen(false)}
-/>
+import { useState } from "react";
+import { ConfirmDialog } from "tempest-react-sdk";
+
+export function ExcluirUsuario({
+    user,
+    deleteUser,
+}: {
+    user: { id: string; name: string };
+    deleteUser: (id: string) => Promise<void>;
+}) {
+    const [open, setOpen] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+
+    return (
+        <ConfirmDialog
+            open={open}
+            title="Delete user"
+            description={`This cannot be undone. Delete ${user.name}?`}
+            confirmLabel="Yes, delete"
+            cancelLabel="Cancel"
+            variant="danger"
+            loading={deleting}
+            onConfirm={async () => {
+                setDeleting(true);
+                await deleteUser(user.id);
+                setDeleting(false);
+                setOpen(false);
+            }}
+            onCancel={() => setOpen(false)}
+        />
+    );
+}
 ```
 
 | Prop           | Type                                            | Default       |
@@ -261,11 +312,17 @@ import { Download } from "lucide-react";
 Dismissible bottom banner inviting the user to install the PWA. Shows only when a prompt was captured and the app is **not** already standalone; on platforms that never fire `beforeinstallprompt` (iOS Safari) it stays hidden — surface manual instructions elsewhere. `storageKey` remembers the dismissal across reloads.
 
 ```tsx
-<InstallBanner
-  title="Install the app"
-  description="Offline access and a home-screen shortcut."
-  storageKey="my-app:install-dismissed"
-/>;
+import { InstallBanner } from "tempest-react-sdk";
+
+export function Instalar() {
+    return (
+        <InstallBanner
+            title="Install the app"
+            description="Offline access and a home-screen shortcut."
+            storageKey="meu-app:install-dismissed"
+        />
+    );
+}
 ```
 
 | Prop           | Type        | Default           |

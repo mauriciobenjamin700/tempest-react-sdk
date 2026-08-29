@@ -333,6 +333,12 @@ export function Carregando() {
 !!! note "Back-compat"
     `<Spinner />` with no `caption`/`overlay` stays a single `<span role="status">` — existing usage is unchanged.
 
+!!! warning "`overlay` positions against the nearest positioned ancestor"
+    `overlay` applies `position: absolute; inset: 0`, so it covers the first
+    ancestor whose `position` is not `static`. If nothing above it is positioned,
+    the spinner escapes to the topmost positioned container — in practice, the
+    whole page. Give `position: relative` to the block that should be covered.
+
 ## `Skeleton`
 
 **When to use:** loading content whose **shape** is already known (cards, table
@@ -369,6 +375,13 @@ export function Esqueleto({ loading }: { loading: boolean }) {
 | `variant` | `"rect" \| "text" \| "circle"` | `"rect"` |
 | `width`   | `number \| string`             | `"100%"` |
 | `height`  | `number \| string`             | —        |
+
+!!! tip "The skeleton has to have the shape of the real content"
+    The value of `Skeleton` is not the animation, it is the **reserved space**: if
+    the ghost lines are close to the width and height of what lands there, the
+    text does not jump when the data arrives. A generic 200px block that becomes a
+    340px card trades a spinner for a layout shift — the very problem the skeleton
+    existed to solve.
 
 ## `RefreshIndicator`
 
@@ -478,6 +491,12 @@ export function App() {
 
 **Safe-area aware**.
 
+!!! danger "`useToast` only exists under a `<ToastProvider>`"
+    Outside one the hook **throws** `useToast must be used inside a
+    <ToastProvider>`. The provider belongs at the app root, above the router — if
+    it sits inside a route, any toast fired from outside that route takes the
+    screen down instead of showing up.
+
 ## `EmptyState`
 
 <!-- gallery:table -->
@@ -508,6 +527,12 @@ export function SemPedidos() {
     );
 }
 ```
+
+!!! tip "An empty state is not an error state"
+    `EmptyState` is for "the query worked and there is nothing" — the suggested
+    action creates the first record. `ErrorState` is for "the query failed", and
+    the action is **try again**. Swapping one for the other makes the user create
+    a duplicate order when what actually broke was the network.
 
 ## `ErrorState`
 

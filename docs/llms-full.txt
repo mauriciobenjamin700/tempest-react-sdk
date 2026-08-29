@@ -762,6 +762,37 @@ function Menu({ sfxVolume }: { sfxVolume: number }) {
 
 Mudar `volume` no `useSfxPool` chama `setVolume` no pool existente em vez de recriá-lo — recriar jogaria fora todo elemento que o usuário já baixou, que é exatamente o custo que o pool existe pra evitar. `baseUrl`, `voices` e `maxSources` são lidos uma vez, na criação.
 
+## `AudioPlayer` — transporte visível
+
+**Quando usar:** quando o usuário precisa **controlar** a reprodução, não só
+ouvi-la — um áudio de mensagem, um take gravado, um anexo. `playAudio` dispara e
+esquece; `AudioPlayer` dá play/pause, barra arrastável e os tempos.
+
+```tsx
+import { AudioPlayer, Button } from "tempest-react-sdk";
+import { Trash } from "lucide-react";
+
+export function Gravacao({ blob, apagar }: { blob: Blob; apagar: () => void }) {
+    return (
+        <AudioPlayer
+            src={blob}
+            durationMs={12_400}
+            actions={
+                <Button variant="ghost" iconOnly aria-label="Apagar" onClick={apagar}>
+                    <Trash size={16} />
+                </Button>
+            }
+        />
+    );
+}
+```
+
+!!! tip "Passe `durationMs` quando você já souber a duração"
+    Um `Blob` gravado no browser costuma vir sem cabeçalho de duração, e o
+    `<audio>` reporta `Infinity` até tocar até o fim. A barra fica travada nesse
+    intervalo. Se o gravador já te deu o tempo, passe-o — o componente usa esse
+    valor até o metadado real chegar.
+
 ## Autoplay policy
 
 Navegadores bloqueiam playback antes da primeira interação do usuário. `playAudio` / `play()` retornam `null` quando bloqueado (e chamam `onError` se passado) — em vez de lançar.
@@ -3633,11 +3664,18 @@ import { Plus } from "lucide-react";
 Hover tooltip portalado. Aparece no hover **e** no foco por teclado.
 
 ```tsx
-<Tooltip content="Excluir permanentemente" placement="bottom" openDelay={300}>
-  <Button variant="danger" iconOnly aria-label="Excluir">
-    <Trash />
-  </Button>
-</Tooltip>
+import { Button, Tooltip } from "tempest-react-sdk";
+import { Trash } from "lucide-react";
+
+export function ExcluirComDica() {
+    return (
+        <Tooltip content="Excluir permanentemente" placement="bottom" openDelay={300}>
+            <Button variant="danger" iconOnly aria-label="Excluir">
+                <Trash size={16} />
+            </Button>
+        </Tooltip>
+    );
+}
 ```
 
 | Prop        | Tipo                                     | Default |
@@ -3663,15 +3701,32 @@ Hover tooltip portalado. Aparece no hover **e** no foco por teclado.
 Menu suspenso de ações. Navegação por teclado (↑↓ Home End Esc). Cada entrada precisa de um `id` estável (usado como key do React).
 
 ```tsx
-<DropdownMenu
-  trigger={<Button variant="ghost">Mais ações</Button>}
-  items={[
-    { type: "label", id: "h", label: "Conta" },
-    { type: "item", id: "edit", label: "Editar perfil", onSelect: () => navigate("/profile") },
-    { type: "separator", id: "s1" },
-    { type: "item", id: "logout", label: "Sair", onSelect: logout, danger: true },
-  ]}
-/>
+import { Button, DropdownMenu } from "tempest-react-sdk";
+
+export function MaisAcoes({
+    navigate,
+    logout,
+}: {
+    navigate: (to: string) => void;
+    logout: () => void;
+}) {
+    return (
+        <DropdownMenu
+            trigger={<Button variant="ghost">Mais ações</Button>}
+            items={[
+                { type: "label", id: "h", label: "Conta" },
+                {
+                    type: "item",
+                    id: "edit",
+                    label: "Editar perfil",
+                    onSelect: () => navigate("/profile"),
+                },
+                { type: "separator", id: "s1" },
+                { type: "item", id: "logout", label: "Sair", onSelect: logout, danger: true },
+            ]}
+        />
+    );
+}
 ```
 
 | Entry type    | Campos                                                     |
@@ -3692,18 +3747,27 @@ Props do componente: `trigger` (`ReactElement`), `items` (`DropdownMenuEntry[]`)
 Painel flutuante genérico (anchor + outside-click + Esc dismiss). Funciona controlado (`open` + `onOpenChange`) ou não-controlado (`defaultOpen`).
 
 ```tsx
-<Popover
-  open={open}
-  onOpenChange={setOpen}
-  placement="bottom"
-  trigger={<Button>Filtros</Button>}
->
-  <Stack gap={3}>
-    <Checkbox label="Apenas ativos" />
-    <Checkbox label="Pago" />
-    <Button onClick={() => setOpen(false)}>Aplicar</Button>
-  </Stack>
-</Popover>
+import { useState } from "react";
+import { Button, Checkbox, Popover, Stack } from "tempest-react-sdk";
+
+export function Filtros() {
+    const [open, setOpen] = useState(false);
+
+    return (
+        <Popover
+            open={open}
+            onOpenChange={setOpen}
+            placement="bottom"
+            trigger={<Button>Filtros</Button>}
+        >
+            <Stack gap={3}>
+                <Checkbox label="Apenas ativos" />
+                <Checkbox label="Pago" />
+                <Button onClick={() => setOpen(false)}>Aplicar</Button>
+            </Stack>
+        </Popover>
+    );
+}
 ```
 
 | Prop                  | Tipo                                     | Default        |
@@ -3732,20 +3796,38 @@ Painel flutuante genérico (anchor + outside-click + Esc dismiss). Funciona cont
 Prompt destrutivo pré-montado em cima do [`Modal`](./overlay.md) (texto + 2 botões).
 
 ```tsx
-<ConfirmDialog
-  open={open}
-  title="Excluir usuário"
-  description={`Esta ação é permanente. Excluir ${user.name}?`}
-  confirmLabel="Sim, excluir"
-  cancelLabel="Cancelar"
-  variant="danger"
-  loading={deleting}
-  onConfirm={async () => {
-    await deleteUser(user.id);
-    setOpen(false);
-  }}
-  onCancel={() => setOpen(false)}
-/>
+import { useState } from "react";
+import { ConfirmDialog } from "tempest-react-sdk";
+
+export function ExcluirUsuario({
+    user,
+    deleteUser,
+}: {
+    user: { id: string; name: string };
+    deleteUser: (id: string) => Promise<void>;
+}) {
+    const [open, setOpen] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+
+    return (
+        <ConfirmDialog
+            open={open}
+            title="Excluir usuário"
+            description={`Esta ação é permanente. Excluir ${user.name}?`}
+            confirmLabel="Sim, excluir"
+            cancelLabel="Cancelar"
+            variant="danger"
+            loading={deleting}
+            onConfirm={async () => {
+                setDeleting(true);
+                await deleteUser(user.id);
+                setDeleting(false);
+                setOpen(false);
+            }}
+            onCancel={() => setOpen(false)}
+        />
+    );
+}
 ```
 
 | Prop           | Tipo                                                    | Default       |
@@ -3791,11 +3873,17 @@ import { Download } from "lucide-react";
 Banner inferior dispensável que convida a instalar o PWA. Aparece só quando há prompt capturado e o app **não** está standalone; em plataformas que nunca disparam `beforeinstallprompt` (iOS Safari) fica oculto — surfa instruções manuais em outro lugar. `storageKey` lembra a dispensa entre recarregamentos.
 
 ```tsx
-<InstallBanner
-  title="Instale o app"
-  description="Acesso offline e atalho na tela inicial."
-  storageKey="meu-app:install-dismissed"
-/>;
+import { InstallBanner } from "tempest-react-sdk";
+
+export function Instalar() {
+    return (
+        <InstallBanner
+            title="Instale o app"
+            description="Acesso offline e atalho na tela inicial."
+            storageKey="meu-app:install-dismissed"
+        />
+    );
+}
 ```
 
 | Prop           | Tipo                  | Default        |
@@ -4069,12 +4157,14 @@ O que você ganha de graça nesse trecho:
 Um turno com `reasoning` ganha um bloco colapsável **acima** da resposta:
 
 ```tsx
-{
-  id: "a1",
-  role: "assistant",
-  content: "São 12 pedidos.",
-  reasoning: "Filtrei por data de entrega vencida e status != entregue…",
-}
+import { type AIChatMessage } from "tempest-react-sdk";
+
+const turno: AIChatMessage = {
+    id: "a1",
+    role: "assistant",
+    content: "São 12 pedidos.",
+    reasoning: "Filtrei por data de entrega vencida e status != entregue…",
+};
 ```
 
 !!! info "Enquanto só o raciocínio chegou, o bloco abre sozinho"
@@ -4091,16 +4181,40 @@ Um turno com `reasoning` ganha um bloco colapsável **acima** da resposta:
 | Tentar de novo | turno com `error` | `onRetry` |
 
 ```tsx
-<AIChat
-  messages={turnos}
-  onRegenerate={(turno) => reperguntar(turno)}
-  onFeedback={(turno, voto) => track("answer_rated", { id: turno.id, voto })}
-  onEditSubmit={(turno, texto) => {
-    truncarAPartirDe(turno.id);   // seu app decide o que cai
-    return perguntar(texto);
-  }}
-  votes={votosSalvos}             // opcional: votos que vieram do banco
-/>
+import {
+    AIChat,
+    type AIChatMessage,
+    type AIChatVote,
+} from "tempest-react-sdk";
+
+export function Conversa({
+    turnos,
+    votosSalvos,
+    reperguntar,
+    perguntar,
+    truncarAPartirDe,
+    track,
+}: {
+    turnos: AIChatMessage[];
+    votosSalvos: Record<string, AIChatVote>;
+    reperguntar: (turno: AIChatMessage) => void;
+    perguntar: (texto: string) => Promise<void>;
+    truncarAPartirDe: (id: string) => void;
+    track: (event: string, payload: Record<string, unknown>) => void;
+}) {
+    return (
+        <AIChat
+            messages={turnos}
+            onRegenerate={reperguntar}
+            onFeedback={(turno, voto) => track("answer_rated", { id: turno.id, voto })}
+            onEditSubmit={(turno, texto) => {
+                truncarAPartirDe(turno.id);
+                return perguntar(texto);
+            }}
+            votes={votosSalvos}
+        />
+    );
+}
 ```
 
 !!! warning "Gerar de novo aparece só no último turno de assistente — de propósito"
@@ -4112,11 +4226,17 @@ Um turno com `reasoning` ganha um bloco colapsável **acima** da resposta:
 #### Prompts sugeridos e estado vazio
 
 ```tsx
-<AIChat
-  messages={[]}
-  onSend={perguntar}
-  suggestions={["Resuma o último relatório", "Quais pedidos atrasaram?"]}
-/>
+import { AIChat } from "tempest-react-sdk";
+
+export function Vazio({ perguntar }: { perguntar: (texto: string) => void }) {
+    return (
+        <AIChat
+            messages={[]}
+            onSend={perguntar}
+            suggestions={["Resuma o último relatório", "Quais pedidos atrasaram?"]}
+        />
+    );
+}
 ```
 
 Numa conversa vazia as sugestões aparecem no rodapé da área de transcript; clicar em uma envia direto. Somem no primeiro turno. Sem `onSend` elas não são renderizadas (não haveria pra onde mandar) e cai no `EmptyState` — ou no seu `emptyState`.
@@ -4220,6 +4340,79 @@ Exportados à parte pra quem monta o próprio layout — um composer fixo no rod
 | `lastAssistantId(messages)` | Qual turno recebe o "gerar de novo". |
 | `tailSignature(messages)` | Dependência de efeito que muda quando a cauda cresce. |
 | `aiChatStrings(locale)` · `roleLabel(role, strings)` · `turnTime(ts, locale)` | Rótulos, pra reusar num layout próprio. |
+
+### `ChatComposer` — a caixa de escrever sozinha
+
+**Quando usar:** quando a lista de mensagens é sua (uma virtualização própria, um
+layout que o `Chat` não cobre) mas você quer o composer pronto: textarea que
+cresce até `maxRows`, Enter envia, Shift+Enter quebra linha, e `focus()` /
+`setValue()` expostos por ref.
+
+```tsx
+import { useRef } from "react";
+import { ChatComposer, type ChatComposerHandle } from "tempest-react-sdk";
+
+export function Rodape({ enviar }: { enviar: (texto: string) => Promise<void> }) {
+    const composer = useRef<ChatComposerHandle>(null);
+
+    return (
+        <>
+            <button onClick={() => composer.current?.setValue("Bom dia!")}>
+                Usar modelo
+            </button>
+            <ChatComposer ref={composer} onSend={enviar} maxRows={6} sendLabel="Enviar" />
+        </>
+    );
+}
+```
+
+!!! warning "`onSend` que rejeita não perde o texto"
+    Se a promise rejeitar, o composer chama `onError` e **devolve o texto** para a
+    caixa em vez de limpá-la. Uma caixa que esvazia numa falha de rede faz o
+    usuário redigitar — e ele não sabe que precisa.
+
+### `AIChatComposer` e `AIChatTurn` — as peças do `AIChat`
+
+**Quando usar:** para montar um layout que o `AIChat` não dá. `AIChatTurn`
+renderiza **um** turno (markdown do assistente, texto puro do usuário, bloco de
+raciocínio recolhível, ações de copiar/regenerar/votar); `AIChatComposer` é a
+caixa com estado de geração e botão de parar.
+
+```tsx
+import { AIChatComposer, AIChatTurn, type AIChatMessage } from "tempest-react-sdk";
+
+export function ConversaCustomizada({
+    turnos,
+    gerando,
+    perguntar,
+    parar,
+}: {
+    turnos: AIChatMessage[];
+    gerando: boolean;
+    perguntar: (texto: string) => Promise<void>;
+    parar: () => void;
+}) {
+    const ultimo = turnos.at(-1);
+
+    return (
+        <>
+            {turnos.map((turno) => (
+                <AIChatTurn
+                    key={turno.id}
+                    message={turno}
+                    canRegenerate={turno.id === ultimo?.id && turno.role === "assistant"}
+                />
+            ))}
+            <AIChatComposer onSend={perguntar} onStop={parar} generating={gerando} />
+        </>
+    );
+}
+```
+
+!!! note "`canRegenerate` só no último turno do assistente"
+    Regenerar um turno antigo joga fora tudo que veio depois dele — é outra
+    operação, e o `AIChat` reserva o controle para o turno mais novo. Ao montar a
+    lista você mesmo, essa decisão passa a ser sua.
 
 ## Recap
 
@@ -4693,14 +4886,21 @@ export function Pedidos({ pedidos }: { pedidos: Pedido[] }) {
 **Listagem paginada no servidor** — `filtersToQueryParams`, que fala o dialeto do `tempest-fastapi-sdk`:
 
 ```tsx
-const params = filtersToQueryParams(filtros);
-params.set("page", String(pagina));
-params.set("page_size", "20");
+import { useQuery } from "@tanstack/react-query";
+import { createApiClient, filtersToQueryParams, type Filter } from "tempest-react-sdk";
 
-const { data } = useQuery({
-  queryKey: ["pedidos", filtros, pagina],
-  queryFn: () => api.get(`/pedidos?${params}`),
-});
+const api = createApiClient({ baseURL: "/api" });
+
+export function usePedidos(filtros: Filter[], pagina: number) {
+    const params = filtersToQueryParams(filtros);
+    params.set("page", String(pagina));
+    params.set("page_size", "20");
+
+    return useQuery({
+        queryKey: ["pedidos", filtros, pagina],
+        queryFn: () => api.get(`/pedidos?${params}`),
+    });
+}
 ```
 
 | Operador | Param enviado |
@@ -5415,48 +5615,72 @@ Use esta página quando precisa **listar/comparar** registros. Para um único re
 > **Quando usar**: comparar registros estruturados campo a campo em colunas — pedidos, usuários, transações. Tipada por `T`, com prioridade responsiva por coluna e stack opcional em mobile.
 
 ```tsx
-const columns: TableColumn<Order>[] = [
-  { key: "id", header: "ID", align: "right", priority: "always" },
-  { key: "customer", header: "Cliente", priority: "always" },
-  {
-    key: "total",
-    header: "Total",
-    align: "right",
-    render: (row) => formatCurrency(row.total),
-    priority: "always",
-  },
-  {
-    key: "created_at",
-    header: "Data",
-    render: (row) => formatDate(row.created_at),
-    priority: "tablet",
-  },
-  {
-    key: "status",
-    header: "Status",
-    render: (row) => <Badge variant={statusVariant(row.status)}>{row.status}</Badge>,
-    priority: "desktop",
-  },
-  {
-    key: "actions",
-    header: "",
-    render: (row) => (
-      <Button size="sm" onClick={() => edit(row.id)}>
-        Editar
-      </Button>
-    ),
-    priority: "desktop",
-  },
-];
+import { Badge, Button, Table, formatCurrency, formatDate, type TableColumn } from "tempest-react-sdk";
 
-<Table
-  columns={columns}
-  data={orders}
-  rowKey={(row) => row.id}
-  onRowClick={(row) => navigate(`/orders/${row.id}`)}
-  stackOnMobile
-  emptyMessage="Nenhum pedido encontrado."
-/>;
+interface Order {
+    id: string;
+    customer: string;
+    total: number;
+    created_at: string;
+    status: "paid" | "pending" | "failed";
+}
+
+const VARIANT = { paid: "success", pending: "warning", failed: "danger" } as const;
+
+export function Orders({
+    orders,
+    edit,
+    navigate,
+}: {
+    orders: Order[];
+    edit: (id: string) => void;
+    navigate: (to: string) => void;
+}) {
+    const columns: TableColumn<Order>[] = [
+        { key: "id", header: "ID", align: "right", priority: "always" },
+        { key: "customer", header: "Cliente", priority: "always" },
+        {
+            key: "total",
+            header: "Total",
+            align: "right",
+            render: (row) => formatCurrency(row.total),
+            priority: "always",
+        },
+        {
+            key: "created_at",
+            header: "Data",
+            render: (row) => formatDate(row.created_at),
+            priority: "tablet",
+        },
+        {
+            key: "status",
+            header: "Status",
+            render: (row) => <Badge variant={VARIANT[row.status]}>{row.status}</Badge>,
+            priority: "desktop",
+        },
+        {
+            key: "actions",
+            header: "",
+            render: (row) => (
+                <Button size="sm" onClick={() => edit(row.id)}>
+                    Editar
+                </Button>
+            ),
+            priority: "desktop",
+        },
+    ];
+
+    return (
+        <Table
+            columns={columns}
+            data={orders}
+            rowKey={(row) => row.id}
+            onRowClick={(row) => navigate(`/orders/${row.id}`)}
+            stackOnMobile
+            emptyMessage="Nenhum pedido encontrado."
+        />
+    );
+}
 ```
 
 | Prop            | Tipo                                           | Default                         |
@@ -5502,14 +5726,25 @@ const columns: TableColumn<Order>[] = [
 Renderiza apenas a janela visível + um pequeno buffer de overscan. Cada linha precisa de altura fixa (`itemHeight`); o container precisa de uma altura (`height`).
 
 ```tsx
-<VirtualList
-  items={messages}
-  itemHeight={64}
-  height={480}
-  overscan={5}
-  getKey={(message) => message.id}
-  renderItem={(message) => <MessageRow message={message} />}
-/>
+import { VirtualList } from "tempest-react-sdk";
+
+interface Message {
+    id: string;
+    body: string;
+}
+
+export function Historico({ messages }: { messages: Message[] }) {
+    return (
+        <VirtualList
+            items={messages}
+            itemHeight={64}
+            height={480}
+            overscan={5}
+            getKey={(message) => message.id}
+            renderItem={(message) => <p>{message.body}</p>}
+        />
+    );
+}
 ```
 
 | Prop         | Tipo                                           | Default |
@@ -5540,18 +5775,30 @@ Renderiza apenas a janela visível + um pequeno buffer de overscan. Cada linha p
 Renderiza só a janela visível, como o `VirtualList`, mas continua sendo uma `<table>` de verdade: colunas alinhadas pelo browser, cabeçalho fixo, semântica de grade pra leitor de tela.
 
 ```tsx
-<VirtualTable
-  data={rows}
-  columns={[
-    { key: "id", header: "#", width: 80, sortable: true },
-    { key: "name", header: "Nome", width: 240, sortable: true },
-    { key: "total", header: "Total", width: 120, align: "right", sortable: true },
-  ]}
-  rowHeight={40}
-  height={480}
-  rowKey={(row) => row.id}
-  onRowClick={(row) => open(row.id)}
-/>
+import { VirtualTable } from "tempest-react-sdk";
+
+interface Row {
+    id: number;
+    name: string;
+    total: string;
+}
+
+export function Grande({ rows, open }: { rows: Row[]; open: (id: number) => void }) {
+    return (
+        <VirtualTable
+            data={rows}
+            columns={[
+                { key: "id", header: "#", width: 80, sortable: true },
+                { key: "name", header: "Nome", width: 240, sortable: true },
+                { key: "total", header: "Total", width: 120, align: "right", sortable: true },
+            ]}
+            rowHeight={40}
+            height={480}
+            rowKey={(row) => row.id}
+            onRowClick={(row) => open(row.id)}
+        />
+    );
+}
 ```
 
 | Prop            | Tipo                                            | Default                            |
@@ -6020,14 +6267,29 @@ function NotificationsRow() {
 Modo single (default) ou `multiple`. Controlado via `value` + `onChange`, ou não-controlado via `defaultValue`.
 
 ```tsx
-<Accordion
-  items={[
-    { id: "1", title: "Como cancelo minha assinatura?", children: <p>...</p> },
-    { id: "2", title: "Quais formas de pagamento?", children: <p>...</p> },
-  ]}
-/>;
+import { useState } from "react";
+import { Accordion } from "tempest-react-sdk";
 
-<Accordion multiple value={openIds} onChange={setOpenIds} items={faqItems} />;
+const FAQ = [
+    { id: "1", title: "Como cancelo minha assinatura?", children: <p>Pelo painel, em Conta → Assinatura.</p> },
+    { id: "2", title: "Quais formas de pagamento?", children: <p>Cartão, Pix e boleto.</p> },
+];
+
+export function Perguntas() {
+    const [openIds, setOpenIds] = useState<string[]>([]);
+
+    return (
+        <>
+            <Accordion items={FAQ} />
+            <Accordion
+                multiple
+                value={openIds}
+                onChange={(value) => setOpenIds(value as string[])}
+                items={FAQ}
+            />
+        </>
+    );
+}
 ```
 
 | Prop           | Tipo                                 | Default |
@@ -6056,20 +6318,26 @@ Modo single (default) ou `multiple`. Controlado via `value` + `onChange`, ou nã
 Feed vertical com markers coloridos. Renderiza como `<ol>` semântica (cada item é `<li>`).
 
 ```tsx
-<Timeline
-  items={[
-    { id: "1", title: "Pedido criado", meta: "10:24", marker: "primary" },
-    { id: "2", title: "Pagamento aprovado", meta: "10:25", marker: "success" },
-    {
-      id: "3",
-      title: "Saiu pra entrega",
-      description: "Motorista: João",
-      meta: "11:00",
-      marker: "warning",
-    },
-    { id: "4", title: "Entregue", meta: "12:30", marker: "success" },
-  ]}
-/>
+import { Timeline } from "tempest-react-sdk";
+
+export function Rastreio() {
+    return (
+        <Timeline
+            items={[
+                { id: "1", title: "Pedido criado", meta: "10:24", marker: "primary" },
+                { id: "2", title: "Pagamento aprovado", meta: "10:25", marker: "success" },
+                {
+                    id: "3",
+                    title: "Saiu pra entrega",
+                    description: "Motorista: João",
+                    meta: "11:00",
+                    marker: "warning",
+                },
+                { id: "4", title: "Entregue", meta: "12:30", marker: "success" },
+            ]}
+        />
+    );
+}
 ```
 
 | Prop        | Tipo                            | Default |
@@ -6192,9 +6460,19 @@ export function TendenciaPorProduto() {
 ### Variantes
 
 ```tsx
-<Sparkline data={serie} />                        {/* linha (default) */}
-<Sparkline data={serie} variant="area" />         {/* linha + preenchimento lavado */}
-<Sparkline data={serie} variant="bar" />          {/* uma barra por ponto */}
+import { Sparkline } from "tempest-react-sdk";
+
+const serie = [4, 6, 5, 9, 12, 10, 14];
+
+export function Variantes() {
+    return (
+        <>
+            <Sparkline data={serie} />
+            <Sparkline data={serie} variant="area" />
+            <Sparkline data={serie} variant="bar" />
+        </>
+    );
+}
 ```
 
 | Prop             | Tipo                              | Default                    | O que faz                                                        |
@@ -6214,9 +6492,24 @@ export function TendenciaPorProduto() {
 Por padrão cada sparkline se normaliza contra os próprios extremos. Numa coluna de tabela isso é uma armadilha: uma linha que vai de 2 a 4 e outra que vai de 200 a 400 desenham **exatamente a mesma forma**.
 
 ```tsx
-const teto = Math.max(...produtos.flatMap((p) => p.serie));
+import { Sparkline } from "tempest-react-sdk";
 
-<Sparkline data={linha.serie} min={0} max={teto} />;
+interface Produto {
+    id: string;
+    serie: number[];
+}
+
+export function MesmaEscala({ produtos }: { produtos: Produto[] }) {
+    const teto = Math.max(...produtos.flatMap((produto) => produto.serie));
+
+    return (
+        <>
+            {produtos.map((produto) => (
+                <Sparkline key={produto.id} data={produto.serie} min={0} max={teto} />
+            ))}
+        </>
+    );
+}
 ```
 
 !!! warning "Sem `min`/`max`, a forma é relativa — nunca comparável"
@@ -6302,19 +6595,32 @@ Componentes que **comunicam estado** ao usuário — o que aconteceu, o que est�
 Banner inline. Diferente de `Banner` (top-of-page) e `Toast` (transient).
 
 ```tsx
-<Alert variant="success" appearance="soft" title="Salvo">
-  Suas alterações foram aplicadas com sucesso.
-</Alert>;
+import { useState } from "react";
+import { Alert } from "tempest-react-sdk";
+import { AlertCircle } from "lucide-react";
 
-<Alert
-  variant="danger"
-  appearance="outline"
-  icon={<AlertCircle />}
-  dismissible
-  onDismiss={() => setOpen(false)}
->
-  Falha ao processar pagamento.
-</Alert>;
+export function Avisos() {
+    const [open, setOpen] = useState(true);
+
+    return (
+        <>
+            <Alert variant="success" appearance="soft" title="Salvo">
+                Suas alterações foram aplicadas com sucesso.
+            </Alert>
+
+            {open && (
+                <Alert
+                    variant="danger"
+                    appearance="outline"
+                    icon={<AlertCircle size={16} />}
+                    onClose={() => setOpen(false)}
+                >
+                    Falha ao processar pagamento.
+                </Alert>
+            )}
+        </>
+    );
+}
 ```
 
 | Prop          | Tipo                                                        | Default  |
@@ -6323,9 +6629,9 @@ Banner inline. Diferente de `Banner` (top-of-page) e `Toast` (transient).
 | `appearance`  | `"soft" \| "solid" \| "outline"`                            | `"soft"` |
 | `title`       | `ReactNode`                                                 | —        |
 | `icon`        | `ReactNode`                                                 | —        |
-| `action`      | `ReactNode`                                                 | —        |
-| `dismissible` | `boolean`                                                   | `false`  |
-| `onDismiss`   | `() => void`                                                | —        |
+| `description` | `ReactNode`                                                 | —        |
+| `onClose`     | `() => void` (renderiza o botão de fechar)                  | —        |
+| `closeLabel`  | `string`                                                    | —        |
 
 **A11y**: `role="status"` para info/success, `role="alert"` para warning/danger.
 
@@ -6340,14 +6646,24 @@ Banner inline. Diferente de `Banner` (top-of-page) e `Toast` (transient).
 Persistente, top-of-page. Use para environment indicators, manutenção, expiração.
 
 ```tsx
-<Banner
-  variant="warning"
-  dismissible
-  onDismiss={() => setOpen(false)}
-  action={<Button size="sm">Renovar</Button>}
->
-  Sua assinatura expira em 3 dias.
-</Banner>
+import { useState } from "react";
+import { Banner, Button } from "tempest-react-sdk";
+
+export function AvisoDeAssinatura() {
+    const [open, setOpen] = useState(true);
+    if (!open) return null;
+
+    return (
+        <Banner
+            variant="warning"
+            dismissible
+            onDismiss={() => setOpen(false)}
+            action={<Button size="sm">Renovar</Button>}
+        >
+            Sua assinatura expira em 3 dias.
+        </Banner>
+    );
+}
 ```
 
 Mesmas variants do Alert.
@@ -6365,11 +6681,25 @@ Mesmas variants do Alert.
 Status pill — não removível.
 
 ```tsx
-<Badge>Default</Badge>
-<Badge variant="success">Pago</Badge>
-<Badge variant="danger" appearance="solid">Atrasado</Badge>
-<Badge variant="warning" appearance="outline" shape="square">Pendente</Badge>
-<Badge variant="info" dot>3</Badge>
+import { Badge } from "tempest-react-sdk";
+
+export function Selos() {
+    return (
+        <>
+            <Badge>Default</Badge>
+            <Badge variant="success">Pago</Badge>
+            <Badge variant="danger" appearance="solid">
+                Atrasado
+            </Badge>
+            <Badge variant="warning" appearance="outline" shape="square">
+                Pendente
+            </Badge>
+            <Badge variant="info" dot>
+                3
+            </Badge>
+        </>
+    );
+}
 ```
 
 | Prop         | Tipo                                                                     | Default     |
@@ -6385,8 +6715,18 @@ Status pill — não removível.
 Chip removível. Use para filter tokens, applied filters, selected entities.
 
 ```tsx
-<Tag onRemove={() => removeFilter("sp")} variant="primary">São Paulo</Tag>
-<Tag size="sm">Em estoque</Tag>
+import { Tag } from "tempest-react-sdk";
+
+export function Filtros({ removeFilter }: { removeFilter: (key: string) => void }) {
+    return (
+        <>
+            <Tag onRemove={() => removeFilter("sp")} variant="primary">
+                São Paulo
+            </Tag>
+            <Tag size="sm">Em estoque</Tag>
+        </>
+    );
+}
 ```
 
 | Prop          | Tipo                                                                     | Default     |
@@ -6403,16 +6743,24 @@ Chip removível. Use para filter tokens, applied filters, selected entities.
 KPI card para dashboards.
 
 ```tsx
-<Stat
-  label="Receita"
-  value="R$ 12.345"
-  delta="+12,4%"
-  hint="vs. mês anterior"
-  icon={<TrendingUp />}
-/>;
+import { Stat } from "tempest-react-sdk";
+import { TrendingUp } from "lucide-react";
 
-<Stat label="Sessões" value="1.2k" delta="-3%" hint="últimos 7 dias" />;
-<Stat label="NPS" value="78" delta="0" trend="flat" />;
+export function Metricas() {
+    return (
+        <>
+            <Stat
+                label="Receita"
+                value="R$ 12.345"
+                delta="+12,4%"
+                hint="vs. mês anterior"
+                icon={<TrendingUp size={16} />}
+            />
+            <Stat label="Sessões" value="1.2k" delta="-3%" hint="últimos 7 dias" />
+            <Stat label="NPS" value="78" delta="0" trend="flat" />
+        </>
+    );
+}
 ```
 
 | Prop    | Tipo                       | Default                              |
@@ -6435,9 +6783,17 @@ KPI card para dashboards.
 Barra de progresso.
 
 ```tsx
-<Progress value={uploadProgress} max={100} variant="primary" />;
-<Progress value={100} variant="success" />;
-<Progress indeterminate variant="primary" />;
+import { Progress } from "tempest-react-sdk";
+
+export function Barras({ uploadProgress }: { uploadProgress: number }) {
+    return (
+        <>
+            <Progress value={uploadProgress} max={100} variant="primary" />
+            <Progress value={100} variant="success" />
+            <Progress indeterminate variant="primary" />
+        </>
+    );
+}
 ```
 
 | Prop            | Tipo                                 | Default     |
@@ -6454,22 +6810,25 @@ Barra de progresso.
 Controlador imperativo (`nprogress`) + a barra visual (`<NProgressBar>`). Monte a barra uma vez perto da raiz do app e dirija o controlador de qualquer lugar (transições de rota, interceptors de fetch).
 
 ```tsx
-import { NProgressBar, nprogress, Button } from "tempest-react-sdk";
+import { Button, NProgressBar, nprogress } from "tempest-react-sdk";
 
-// raiz do app — renderiza nada enquanto inativo
-<NProgressBar color="var(--tempest-primary)" height={3} />;
-
-// dispare de qualquer lugar
-async function loadPage() {
-  nprogress.start();
-  try {
-    await fetch("/api/data");
-  } finally {
-    nprogress.done();
-  }
+async function loadPage(): Promise<void> {
+    nprogress.start();
+    try {
+        await fetch("/api/data");
+    } finally {
+        nprogress.done();
+    }
 }
 
-<Button onClick={loadPage}>Carregar</Button>;
+export function Raiz() {
+    return (
+        <>
+            <NProgressBar color="var(--tempest-primary)" height={3} />
+            <Button onClick={loadPage}>Carregar</Button>
+        </>
+    );
+}
 ```
 
 | `nprogress` | Assinatura            | O que faz                                         |
@@ -6495,10 +6854,18 @@ async function loadPage() {
 Loader genérico.
 
 ```tsx
-<Spinner />;
-<Spinner size="lg" />;
-<Spinner size="lg" caption="Carregando…" />;
-<Spinner overlay caption="Carregando…" />; // fallback de Suspense/rota
+import { Spinner } from "tempest-react-sdk";
+
+export function Carregando() {
+    return (
+        <>
+            <Spinner />
+            <Spinner size="lg" />
+            <Spinner size="lg" caption="Carregando…" />
+            <Spinner overlay caption="Carregando…" />
+        </>
+    );
+}
 ```
 
 | Prop      | Tipo                                   | Default        | Descrição                                                       |
@@ -6511,6 +6878,13 @@ Loader genérico.
 !!! note "Back-compat"
     `<Spinner />` sem `caption`/`overlay` continua um único `<span role="status">` — nada muda no uso antigo.
 
+!!! warning "`overlay` posiciona pelo ancestral posicionado mais próximo"
+    `overlay` aplica `position: absolute; inset: 0`, então ele cobre o primeiro
+    ancestral com `position` diferente de `static`. Se ninguém acima tiver
+    posição, o spinner escapa para o container posicionado mais acima — na
+    prática, a página inteira. Dê `position: relative` ao bloco que deve ficar
+    coberto.
+
 ## `Skeleton`
 
 **Quando usar:** carregamento de conteúdo cuja **forma** já é conhecida (cards, linhas de tabela, avatar). Reduz o salto de layout. Para carregamento sem forma definida (um botão processando), use `Spinner`.
@@ -6521,18 +6895,21 @@ Placeholder com shimmer enquanto data carrega.
     Faça o skeleton ter as mesmas dimensões/proporções do conteúdo real — é isso que elimina o layout shift quando os dados chegam. Skeletons genéricos demais (um bloco só) confundem mais do que ajudam.
 
 ```tsx
-{
-  loading ? (
-    <Stack gap={2}>
-      <Skeleton variant="text" width="60%" />
-      <Skeleton variant="text" width="40%" />
-      <Skeleton variant="rect" height={120} />
-    </Stack>
-  ) : (
-    <ActualContent />
-  );
+import { Skeleton, Stack } from "tempest-react-sdk";
+
+export function Esqueleto({ loading }: { loading: boolean }) {
+    if (loading) {
+        return (
+            <Stack gap={2}>
+                <Skeleton variant="text" width="60%" />
+                <Skeleton variant="text" width="40%" />
+                <Skeleton variant="rect" height={120} />
+                <Skeleton variant="circle" width={40} height={40} />
+            </Stack>
+        );
+    }
+    return <p>Conteúdo carregado</p>;
 }
-<Skeleton variant="circle" width={40} height={40} />;
 ```
 
 | Prop      | Tipo                           | Default  |
@@ -6540,6 +6917,13 @@ Placeholder com shimmer enquanto data carrega.
 | `variant` | `"rect" \| "text" \| "circle"` | `"rect"` |
 | `width`   | `number \| string`             | `"100%"` |
 | `height`  | `number \| string`             | —        |
+
+!!! tip "O esqueleto tem que ter a forma do conteúdo real"
+    O ganho do `Skeleton` não é a animação, é a **reserva de espaço**: se as
+    linhas fantasma têm largura e altura próximas do que vai entrar ali, o texto
+    não pula quando os dados chegam. Um bloco genérico de 200px que vira um card
+    de 340px troca o spinner por um salto de layout — que é o problema que o
+    esqueleto existia para resolver.
 
 ## `RefreshIndicator`
 
@@ -6556,16 +6940,21 @@ Placeholder com shimmer enquanto data carrega.
 ```tsx
 import { RefreshIndicator } from "tempest-react-sdk";
 
-function Feed({ items, refetch }) {
-  return (
-    <RefreshIndicator onRefresh={async () => await refetch()}>
-      <ul>
-        {items.map((item) => (
-          <li key={item.id}>{item.title}</li>
-        ))}
-      </ul>
-    </RefreshIndicator>
-  );
+interface FeedItem {
+    id: string;
+    title: string;
+}
+
+export function Feed({ items, refetch }: { items: FeedItem[]; refetch: () => Promise<void> }) {
+    return (
+        <RefreshIndicator onRefresh={refetch}>
+            <ul>
+                {items.map((item) => (
+                    <li key={item.id}>{item.title}</li>
+                ))}
+            </ul>
+        </RefreshIndicator>
+    );
 }
 ```
 
@@ -6589,16 +6978,35 @@ Notificações transientes. Setup via `ToastProvider` + uso via `useToast()`.
     Toasts somem em poucos segundos — se o usuário precisar **agir** sobre a mensagem (corrigir um campo, tentar de novo), ela tem que persistir. Use `Toast` só para feedback descartável; erros acionáveis vão em `Alert`/`ErrorState`.
 
 ```tsx
-// app root
-<ToastProvider position="top-right" defaultDuration={4000}>
-  <App />
-</ToastProvider>;
+import { ToastProvider, useToast } from "tempest-react-sdk";
 
-// componentes
-const toast = useToast();
-toast.success("Salvo");
-toast.error("Falha ao processar pagamento", { duration: 8000 });
-toast.show({ title: "Sincronização", description: "Em andamento…", variant: "info" });
+function Salvar() {
+    const toast = useToast();
+
+    return (
+        <button
+            onClick={() => {
+                toast.success("Salvo");
+                toast.error("Falha ao processar pagamento.", { duration: 8000 });
+                toast.show({
+                    title: "Sincronização",
+                    description: "Em andamento…",
+                    variant: "info",
+                });
+            }}
+        >
+            Salvar
+        </button>
+    );
+}
+
+export function App() {
+    return (
+        <ToastProvider position="top-right" defaultDuration={4000}>
+            <Salvar />
+        </ToastProvider>
+    );
+}
 ```
 
 | `ToastApi` | Assinatura                                       |
@@ -6614,6 +7022,11 @@ toast.show({ title: "Sincronização", description: "Em andamento…", variant: 
 
 **Safe-area aware**.
 
+!!! danger "`useToast` só existe sob um `<ToastProvider>`"
+    Fora dele o hook **lança** `useToast must be used inside a <ToastProvider>`.
+    O provider vai na raiz do app, acima do router — se ele estiver dentro de uma
+    rota, qualquer toast disparado de fora dela derruba a tela em vez de aparecer.
+
 ## `EmptyState`
 
 <!-- gallery:table -->
@@ -6627,13 +7040,26 @@ toast.show({ title: "Sincronização", description: "Em andamento…", variant: 
 "Nada por aqui" centralizado.
 
 ```tsx
-<EmptyState
-  icon={<InboxIcon />}
-  title="Nenhum pedido"
-  description="Quando seus clientes fizerem pedidos, eles aparecem aqui."
-  action={<Button leftIcon={<Plus />}>Novo pedido</Button>}
-/>
+import { Button, EmptyState } from "tempest-react-sdk";
+import { Inbox, Plus } from "lucide-react";
+
+export function SemPedidos() {
+    return (
+        <EmptyState
+            icon={<Inbox size={32} />}
+            title="Nenhum pedido"
+            description="Quando seus clientes fizerem pedidos, eles aparecem aqui."
+            action={<Button leftIcon={<Plus size={16} />}>Novo pedido</Button>}
+        />
+    );
+}
 ```
+
+!!! tip "Estado vazio não é estado de erro"
+    `EmptyState` é para "a consulta funcionou e não há nada" — a ação sugerida
+    cria o primeiro registro. `ErrorState` é para "a consulta falhou", e a ação é
+    **tentar de novo**. Trocar um pelo outro faz o usuário criar um pedido
+    duplicado quando o que caiu foi a rede.
 
 ## `ErrorState`
 
@@ -6642,7 +7068,23 @@ toast.show({ title: "Sincronização", description: "Em andamento…", variant: 
 Falha com botão de retry.
 
 ```tsx
-<ErrorState title="Não foi possível carregar" description={String(error)} onRetry={refetch} />
+import { ErrorState } from "tempest-react-sdk";
+
+export function FalhaAoCarregar({
+    error,
+    refetch,
+}: {
+    error: unknown;
+    refetch: () => void;
+}) {
+    return (
+        <ErrorState
+            title="Não foi possível carregar"
+            description={String(error)}
+            onRetry={refetch}
+        />
+    );
+}
 ```
 
 ## `OfflineIndicator`
@@ -6650,7 +7092,11 @@ Falha com botão de retry.
 **Quando usar:** avisar que o app está offline e confirmar quando a conexão volta. Guiado por `useOnline` — não renderiza nada online, então monte na raiz sem `if`.
 
 ```tsx
-<OfflineIndicator position="top" />
+import { OfflineIndicator } from "tempest-react-sdk";
+
+export function Raiz() {
+    return <OfflineIndicator position="top" />;
+}
 ```
 
 `position`: `"top"` | `"bottom"` (default). Passe `children` pra substituir o corpo, ou `onlineFlashMs={0}` pra não piscar a confirmação. Veja [PWA & Offline-First](../pwa.md).
@@ -6666,12 +7112,23 @@ Falha com botão de retry.
 **Quando usar:** mostrar o estado do motor offline (sincronizado / sincronizando / pendente / offline / erro). Dois modos: passe `sync` pra conectar direto no motor (zero fiação), ou passe `tone` explícito (apresentacional, testável sem IndexedDB).
 
 ```tsx
-// Conectado — auto-fia o motor:
-<SyncStatusBadge sync={notesSync} />;
+import { SyncStatusBadge, useSyncStatus, type OfflineSync } from "tempest-react-sdk";
 
-// Apresentacional — você controla o estado:
-const { tone, pending } = useSyncStatus(notesSync);
-<SyncStatusBadge tone={tone} pending={pending} />;
+interface Nota {
+    id: string;
+    body: string;
+}
+
+export function Status({ notesSync }: { notesSync: OfflineSync<Nota> }) {
+    const { tone, pending } = useSyncStatus(notesSync);
+
+    return (
+        <>
+            <SyncStatusBadge sync={notesSync} />
+            <SyncStatusBadge tone={tone} pending={pending} />
+        </>
+    );
+}
 ```
 
 `tone`: `"idle"` | `"syncing"` | `"pending"` | `"offline"` | `"error"`. `iconOnly` esconde o label; `labels` sobrescreve os textos por tom.
@@ -6681,8 +7138,13 @@ const { tone, pending } = useSyncStatus(notesSync);
 **Quando usar:** avisar que há uma versão nova do app (service worker) e deixar o usuário recarregar. Par de `useServiceWorkerUpdate`.
 
 ```tsx
-const { updateAvailable, applyUpdate } = useServiceWorkerUpdate({ url: "/sw.js" });
-<UpdatePrompt open={updateAvailable} onUpdate={applyUpdate} />;
+import { UpdatePrompt, useServiceWorkerUpdate } from "tempest-react-sdk";
+
+export function AvisoDeAtualizacao() {
+    const { updateAvailable, applyUpdate } = useServiceWorkerUpdate({ url: "/sw.js" });
+
+    return <UpdatePrompt open={updateAvailable} onUpdate={applyUpdate} />;
+}
 ```
 
 Renderiza nada com `open={false}`. `onDismiss` (opcional) mostra o botão de dispensar; `position` `"top"`/`"bottom"`.
@@ -6732,10 +7194,20 @@ Use esta página quando precisar **mostrar** uma entidade ou agrupar conteúdo, 
 Foto de usuário com fallback automático para iniciais coloridas quando não há `src` ou a imagem falha ao carregar. As iniciais são derivadas de `name` (não de `alt`).
 
 ```tsx
-<Avatar src={user.photo} name={user.name} alt={user.name} />;
-<Avatar size="lg" status="online" name="Ana" />;
-<Avatar name="João da Silva" />; // fallback gera iniciais "JS"
-<Avatar name="João" status="busy" size="sm" />;
+import { Avatar } from "tempest-react-sdk";
+
+const user = { name: "Ana Souza", photo: "/avatars/ana.jpg" };
+
+export function Identidades() {
+    return (
+        <>
+            <Avatar src={user.photo} name={user.name} alt={user.name} />
+            <Avatar size="lg" status="online" name="Ana" />
+            <Avatar name="João da Silva" />
+            <Avatar name="João" status="busy" size="sm" />
+        </>
+    );
+}
 ```
 
 | Prop      | Tipo                                        | Default |
@@ -6766,17 +7238,37 @@ Foto de usuário com fallback automático para iniciais coloridas quando não h�
 Container com slots de header (`title` + `actions`) e `footer`.
 
 ```tsx
-<Card title="Pedido #12345" actions={<Button variant="ghost">Editar</Button>}>
-    Conteúdo do card.
-</Card>;
+import { Button, Card, Pagination, Table } from "tempest-react-sdk";
 
-<Card elevation="raised" interactive onClick={() => navigate("/x")}>
-    Card clicável com hover effect.
-</Card>;
+const ITENS = [{ id: "1", produto: "Teclado", quantidade: 2 }];
 
-<Card flush footer={<Pagination ... />}>
-    <Table ... />
-</Card>;
+export function Cards({ navigate }: { navigate: (to: string) => void }) {
+    return (
+        <>
+            <Card title="Pedido #12345" actions={<Button variant="ghost">Editar</Button>}>
+                Conteúdo do card.
+            </Card>
+
+            <Card elevation="raised" interactive onClick={() => navigate("/pedidos/12345")}>
+                Card clicável com efeito de hover.
+            </Card>
+
+            <Card
+                flush
+                footer={<Pagination page={1} totalPages={4} onPageChange={() => {}} />}
+            >
+                <Table
+                    data={ITENS}
+                    rowKey={(item) => item.id}
+                    columns={[
+                        { key: "produto", header: "Produto" },
+                        { key: "quantidade", header: "Qtd." },
+                    ]}
+                />
+            </Card>
+        </>
+    );
+}
 ```
 
 | Prop          | Tipo                                                  | Default     |
@@ -6807,8 +7299,18 @@ Container com slots de header (`title` + `actions`) e `footer`.
 `<kbd>` estilizado para atalhos de teclado.
 
 ```tsx
-<p>Aperte <Kbd>Ctrl</Kbd>+<Kbd>K</Kbd> para abrir o command palette.</p>
-<Kbd size="lg">⌘</Kbd>
+import { Kbd } from "tempest-react-sdk";
+
+export function Atalho() {
+    return (
+        <>
+            <p>
+                Aperte <Kbd>Ctrl</Kbd>+<Kbd>K</Kbd> para abrir o command palette.
+            </p>
+            <Kbd size="lg">⌘</Kbd>
+        </>
+    );
+}
 ```
 
 | Prop   | Tipo                   | Default |
@@ -6831,17 +7333,31 @@ Container com slots de header (`title` + `actions`) e `footer`.
 Fileira de avatares sobrepostos com chip `+N` no fim.
 
 ```tsx
-<AvatarGroup
-  label="Participantes"
-  max={3}
-  items={[
-    { name: "Ada Lovelace", src: ada },
-    { name: "Grace Hopper" },
-    { name: "Alan Turing" },
-    { name: "Edsger Dijkstra" },
-  ]}
-  onOverflowClick={() => setDrawerAberto(true)}
-/>
+import { useState } from "react";
+import { AvatarGroup, Drawer } from "tempest-react-sdk";
+
+export function Participantes() {
+    const [aberto, setAberto] = useState(false);
+
+    return (
+        <>
+            <AvatarGroup
+                label="Participantes"
+                max={3}
+                items={[
+                    { name: "Ada Lovelace", src: "/avatars/ada.jpg" },
+                    { name: "Grace Hopper" },
+                    { name: "Alan Turing" },
+                    { name: "Edsger Dijkstra" },
+                ]}
+                onOverflowClick={() => setAberto(true)}
+            />
+            <Drawer open={aberto} onClose={() => setAberto(false)}>
+                Lista completa de participantes
+            </Drawer>
+        </>
+    );
+}
 ```
 
 | Prop              | Tipo                | Default | O que faz                                                    |
@@ -6934,7 +7450,11 @@ import { Search } from "lucide-react";
 Multi-linha. Mesma API do `Input` (sem `leftIcon`/`rightIcon`).
 
 ```tsx
-<Textarea label="Mensagem" rows={4} helperText="Máximo 500 caracteres" />
+import { Textarea } from "tempest-react-sdk";
+
+export function Mensagem() {
+    return <Textarea label="Mensagem" rows={4} helperText="Máximo 500 caracteres" />;
+}
 ```
 
 ## `Select`
@@ -6942,13 +7462,19 @@ Multi-linha. Mesma API do `Input` (sem `leftIcon`/`rightIcon`).
 Nativo `<select>`. Aceita `options` (lista) ou `<option>` children.
 
 ```tsx
-<Select
-  label="UF"
-  options={[
-    { value: "SP", label: "São Paulo" },
-    { value: "RJ", label: "Rio de Janeiro" },
-  ]}
-/>
+import { Select } from "tempest-react-sdk";
+
+export function Estado() {
+    return (
+        <Select
+            label="UF"
+            options={[
+                { value: "SP", label: "São Paulo" },
+                { value: "RJ", label: "Rio de Janeiro" },
+            ]}
+        />
+    );
+}
 ```
 
 | Prop      | Tipo             | Default |
@@ -6970,13 +7496,30 @@ Nativo `<select>`. Aceita `options` (lista) ou `<option>` children.
 Select com busca + filtro. Keyboard nav (↑↓ Enter Esc).
 
 ```tsx
-<Combobox
-  label="Cidade"
-  options={cities}
-  value={city}
-  onChange={setCity}
-  filter={(opt, query) => opt.label.toLowerCase().includes(query.toLowerCase())}
-/>
+import { useState } from "react";
+import { Combobox } from "tempest-react-sdk";
+
+const CIDADES = [
+    { value: "sp", label: "São Paulo" },
+    { value: "rj", label: "Rio de Janeiro" },
+    { value: "bh", label: "Belo Horizonte" },
+];
+
+export function Cidade() {
+    const [city, setCity] = useState("sp");
+
+    return (
+        <Combobox
+            label="Cidade"
+            options={CIDADES}
+            value={city}
+            onChange={setCity}
+            filter={(option, query) =>
+                String(option.label).toLowerCase().includes(query.toLowerCase())
+            }
+        />
+    );
+}
 ```
 
 ## `MultiSelect`
@@ -7034,8 +7577,22 @@ function Example() {
 Single checkbox. Suporta `indeterminate`.
 
 ```tsx
-<Checkbox label="Aceito os termos" />;
-<Checkbox label="Selecionar todos" indeterminate={someSelected && !allSelected} />;
+import { Checkbox } from "tempest-react-sdk";
+
+export function Selecao({
+    someSelected,
+    allSelected,
+}: {
+    someSelected: boolean;
+    allSelected: boolean;
+}) {
+    return (
+        <>
+            <Checkbox label="Aceito os termos" />
+            <Checkbox label="Selecionar todos" indeterminate={someSelected && !allSelected} />
+        </>
+    );
+}
 ```
 
 ## `Radio` / `RadioGroup`
@@ -7043,12 +7600,31 @@ Single checkbox. Suporta `indeterminate`.
 Radio standalone OU agrupado com value único.
 
 ```tsx
-<RadioGroup label="Plano" value={plan} onChange={setPlan}>
-  <Radio value="free" label="Grátis" />
-  <Radio value="pro" label="Pro" />
-  <Radio value="team" label="Team" />
-</RadioGroup>
+import { useState } from "react";
+import { Radio, RadioGroup } from "tempest-react-sdk";
+
+export function Plano() {
+    const [plan, setPlan] = useState("free");
+
+    return (
+        <fieldset>
+            <legend>Plano</legend>
+            <RadioGroup value={plan} onChange={setPlan}>
+                <Radio value="free" label="Grátis" />
+                <Radio value="pro" label="Pro" />
+                <Radio value="team" label="Team" />
+            </RadioGroup>
+        </fieldset>
+    );
+}
 ```
+
+!!! note "`RadioGroup` não tem `label` — o rótulo do grupo é seu"
+    O componente é o container de estado (`value`, `onChange`, `name`) e não
+    renderiza título nenhum. Um grupo de rádios sem rótulo é anunciado só pelas
+    opções, e o leitor de tela não diz *do que* elas são opções. Envolva num
+    `<fieldset>` com `<legend>`, como no exemplo — é o que o HTML já resolve,
+    e nenhum prop precisa existir para isso.
 
 ## `Switch`
 
@@ -7057,11 +7633,20 @@ Radio standalone OU agrupado com value único.
 Toggle on/off.
 
 ```tsx
-<Switch
-  label="Receber emails"
-  checked={subscribed}
-  onChange={(e) => setSubscribed(e.target.checked)}
-/>
+import { useState } from "react";
+import { Switch } from "tempest-react-sdk";
+
+export function Emails() {
+    const [subscribed, setSubscribed] = useState(false);
+
+    return (
+        <Switch
+            label="Receber emails"
+            checked={subscribed}
+            onChange={(event) => setSubscribed(event.target.checked)}
+        />
+    );
+}
 ```
 
 !!! note "Switch vs Checkbox — não são intercambiáveis"
@@ -7072,7 +7657,16 @@ Toggle on/off.
 Lista de chips com adição por Enter + dedup automático.
 
 ```tsx
-<ChipInput label="Tags" value={tags} onChange={setTags} placeholder="adicione e pressione Enter" />
+import { useState } from "react";
+import { ChipInput } from "tempest-react-sdk";
+
+export function Tags() {
+    const [tags, setTags] = useState<string[]>([]);
+
+    return (
+        <ChipInput label="Tags" value={tags} onChange={setTags} placeholder="adicione e pressione Enter" />
+    );
+}
 ```
 
 ## `SearchBar`
@@ -7080,7 +7674,14 @@ Lista de chips com adição por Enter + dedup automático.
 Input de busca com clear button + debounce opcional via `useDebounce`.
 
 ```tsx
-<SearchBar value={q} onChange={setQ} placeholder="O que você procura?" />
+import { useState } from "react";
+import { SearchBar } from "tempest-react-sdk";
+
+export function Busca() {
+    const [q, setQ] = useState("");
+
+    return <SearchBar value={q} onChange={setQ} placeholder="O que você procura?" />;
+}
 ```
 
 ## `DatePicker`
@@ -7088,8 +7689,31 @@ Input de busca com clear button + debounce opcional via `useDebounce`.
 `<input type="date">` (ou `time`, `datetime-local`, `month`) com label/error.
 
 ```tsx
-<DatePicker label="Data" value={date} onChange={setDate} mode="date" min="2025-01-01" />;
-<DatePicker label="Início" mode="datetime-local" value={start} onChange={setStart} />;
+import { useState } from "react";
+import { DatePicker } from "tempest-react-sdk";
+
+export function Datas() {
+    const [date, setDate] = useState("2026-01-15");
+    const [start, setStart] = useState("2026-01-15T09:00");
+
+    return (
+        <>
+            <DatePicker
+                label="Data"
+                value={date}
+                onChange={setDate}
+                mode="date"
+                min="2025-01-01"
+            />
+            <DatePicker
+                label="Início"
+                mode="datetime-local"
+                value={start}
+                onChange={setStart}
+            />
+        </>
+    );
+}
 ```
 
 ## `DateRangePicker`
@@ -7176,13 +7800,23 @@ function ScheduleField() {
 Drag-and-drop + click-to-upload + lista de arquivos.
 
 ```tsx
-<FileUpload
-  label="Anexar"
-  accept="image/*"
-  multiple
-  onFilesChange={(files) => setFiles(files)}
-  maxSize={5 * 1024 * 1024}
-/>
+import { useState } from "react";
+import { FileUpload } from "tempest-react-sdk";
+
+export function Anexos() {
+    const [files, setFiles] = useState<File[]>([]);
+
+    return (
+        <FileUpload
+            label="Anexar"
+            accept="image/*"
+            multiple
+            value={files}
+            onChange={setFiles}
+            maxSize={5 * 1024 * 1024}
+        />
+    );
+}
 ```
 
 ## `Slider`
@@ -7288,15 +7922,24 @@ function Uploader() {
 Dual-thumb slider com clamp `low ≤ high`.
 
 ```tsx
-<RangeSlider
-  label="Faixa de preço"
-  min={0}
-  max={1000}
-  step={10}
-  value={range}
-  onChange={setRange}
-  formatValue={([lo, hi]) => `R$ ${lo} – R$ ${hi}`}
-/>
+import { useState } from "react";
+import { RangeSlider } from "tempest-react-sdk";
+
+export function FaixaDePreco() {
+    const [range, setRange] = useState<[number, number]>([100, 800]);
+
+    return (
+        <RangeSlider
+            label="Faixa de preço"
+            min={0}
+            max={1000}
+            step={10}
+            value={range}
+            onChange={setRange}
+            formatValue={([lo, hi]) => `R$ ${lo} – R$ ${hi}`}
+        />
+    );
+}
 ```
 
 Aceita `aria-label` pelo mesmo motivo do `Slider`. Cada thumb continua com nome
@@ -7308,8 +7951,19 @@ quem navega de um para o outro precisa saber em qual ponta está.
 Radio group de estrelas.
 
 ```tsx
-<RatingStars value={rating} onChange={setRating} max={5} size="md" />;
-<RatingStars value={4.5} readonly size="lg" />;
+import { useState } from "react";
+import { RatingStars } from "tempest-react-sdk";
+
+export function Avaliacao() {
+    const [rating, setRating] = useState(4);
+
+    return (
+        <>
+            <RatingStars value={rating} onChange={setRating} max={5} size="md" />
+            <RatingStars value={4.5} readonly size="lg" />
+        </>
+    );
+}
 ```
 
 ## `PinInput`
@@ -7322,8 +7976,16 @@ OTP / one-time-code com N células. Paste, auto-advance, backspace flowback, arr
     O usuário pode colar `123456` em qualquer célula que o `PinInput` distribui os dígitos automaticamente — defina `type="numeric"` para que o teclado mobile abra no modo numérico.
 
 ```tsx
-<PinInput length={6} type="numeric" onComplete={(otp) => verify(otp)} />;
-<PinInput length={4} type="alphanumeric" masked autoFocus />;
+import { PinInput } from "tempest-react-sdk";
+
+export function Codigos({ verify }: { verify: (code: string) => void }) {
+    return (
+        <>
+            <PinInput length={6} type="numeric" onComplete={verify} />
+            <PinInput length={4} type="alphanumeric" masked autoFocus />
+        </>
+    );
+}
 ```
 
 | Prop           | Tipo                          | Default        |
@@ -7343,7 +8005,11 @@ OTP / one-time-code com N células. Paste, auto-advance, backspace flowback, arr
 Field tipo `password` com toggle de visibilidade + strength meter opcional (5 níveis).
 
 ```tsx
-<PasswordInput label="Senha" autoComplete="new-password" showStrength />
+import { PasswordInput } from "tempest-react-sdk";
+
+export function Senha() {
+    return <PasswordInput label="Senha" autoComplete="new-password" showStrength />;
+}
 ```
 
 Helper exposto: `estimatePasswordStrength(value)` retorna `0-4` (length, case mix, digits, symbols).
@@ -7363,8 +8029,25 @@ Helper exposto: `estimatePasswordStrength(value)` retorna `0-4` (length, case mi
 `+ / −` numeric com clamp em `min/max`.
 
 ```tsx
-<StepperInput value={qty} onChange={setQty} min={1} max={10} />;
-<StepperInput value={price} onChange={setPrice} step={5} format={(n) => `R$ ${n}`} />;
+import { useState } from "react";
+import { StepperInput } from "tempest-react-sdk";
+
+export function Quantidades() {
+    const [qty, setQty] = useState(1);
+    const [price, setPrice] = useState(50);
+
+    return (
+        <>
+            <StepperInput value={qty} onChange={setQty} min={1} max={10} />
+            <StepperInput
+                value={price}
+                onChange={setPrice}
+                step={5}
+                format={(value) => `R$ ${value}`}
+            />
+        </>
+    );
+}
 ```
 
 ## `Form` / `FormSection` / `FormRow` / `FormActions` / `FormField`
@@ -7378,13 +8061,19 @@ Helper exposto: `estimatePasswordStrength(value)` retorna `0-4` (length, case mi
 Layout wrappers para forms (`stack`/`inline`/`grid`) + integração RHF.
 
 ```tsx
-<Form layout="grid" columns={2} gap={4}>
-  <Input label="Nome" />
-  <Input label="Email" type="email" />
-  <FormActions style={{ gridColumn: "1 / -1" }}>
-    <Button type="submit">Salvar</Button>
-  </FormActions>
-</Form>
+import { Button, Form, FormActions, Input } from "tempest-react-sdk";
+
+export function Cadastro() {
+    return (
+        <Form layout="grid" columns={2} gap={4}>
+            <Input label="Nome" />
+            <Input label="Email" type="email" />
+            <FormActions align="end">
+                <Button type="submit">Salvar</Button>
+            </FormActions>
+        </Form>
+    );
+}
 ```
 
 Detalhes completos em [../forms.md](../forms.md).
@@ -7601,17 +8290,37 @@ Os componentes de layout não desenham conteúdo — eles **organizam o espaço*
 Composer: navbar + sidebar (desktop) / bottomNav (mobile) + main + footer responsivo.
 
 ```tsx
-<AppShell
-    navbar={<Navbar logo={<Brand />} actions={<UserMenu />} />}
-    sidebar={<Sidebar items={...} value={tab} onChange={setTab} />}
-    bottomNav={<BottomNavigation items={...} value={tab} onChange={setTab} />}
-    footer={<Footer />}
-    sidebarBreakpoint="md"
->
-    <Page title="Dashboard">
-        {content}
-    </Page>
-</AppShell>;
+import { useState } from "react";
+import {
+    AppShell,
+    BottomNavigation,
+    Navbar,
+    Page,
+    Sidebar,
+    type SidebarItem,
+} from "tempest-react-sdk";
+
+const NAV: SidebarItem[] = [
+    { key: "dashboard", label: "Dashboard" },
+    { key: "pedidos", label: "Pedidos", badge: 12 },
+    { key: "clientes", label: "Clientes" },
+];
+
+export function Shell() {
+    const [tab, setTab] = useState("dashboard");
+
+    return (
+        <AppShell
+            navbar={<Navbar logo={<strong>Tempest</strong>} actions={<button>Sair</button>} />}
+            sidebar={<Sidebar items={NAV} value={tab} onChange={setTab} />}
+            bottomNav={<BottomNavigation items={NAV} value={tab} onChange={setTab} />}
+            footer={<small>© 2026 Tempest</small>}
+            sidebarBreakpoint="md"
+        >
+            <Page title="Dashboard">Conteúdo da aba {tab}</Page>
+        </AppShell>
+    );
+}
 ```
 
 Comportamento responsivo:
@@ -7627,26 +8336,60 @@ Comportamento responsivo:
 | `footer`            | `ReactNode`                    | —       |
 | `sidebarBreakpoint` | `"sm" \| "md" \| "lg" \| "xl"` | `"md"`  |
 
+!!! warning "`sidebar` some abaixo do breakpoint — não é o mesmo que estar lá"
+    Abaixo de `sidebarBreakpoint` o `AppShell` **não renderiza** a sidebar; ele
+    espera que você passe `bottomNav`. Se a navegação principal só existe na
+    sidebar, no mobile o app fica sem navegação nenhuma. Ou passe `bottomNav`,
+    ou abra a mesma lista num `<Drawer>` a partir de um botão no `Navbar`.
+
 ## `Page`
 
 Page wrapper com header (`eyebrow` + `title` + `description` + `actions`) + `toolbar` + `content` + `footer`.
 
 ```tsx
-<Page
-    eyebrow="Vendas"
-    title="Pedidos"
-    description="Acompanhe seus pedidos em tempo real"
-    actions={
-        <>
-            <Button variant="ghost" leftIcon={<Download />}>Exportar</Button>
-            <Button leftIcon={<Plus />}>Novo</Button>
-        </>
-    }
-    toolbar={<OrderFilters />}
-    footer={<Pagination ... />}
->
-    <Table {...} />
-</Page>;
+import { Button, Page, Pagination, Table } from "tempest-react-sdk";
+import { Download, Plus } from "lucide-react";
+
+const PEDIDOS = [
+    { id: "8421", cliente: "Ana Souza", total: "R$ 1.240,00" },
+    { id: "8422", cliente: "Bruno Lima", total: "R$ 380,00" },
+];
+
+export function PedidosPage() {
+    return (
+        <Page
+            eyebrow="Vendas"
+            title="Pedidos"
+            description="Acompanhe seus pedidos em tempo real"
+            actions={
+                <>
+                    <Button variant="ghost" leftIcon={<Download size={16} />}>
+                        Exportar
+                    </Button>
+                    <Button leftIcon={<Plus size={16} />}>Novo</Button>
+                </>
+            }
+            footer={
+                <Pagination
+                    page={1}
+                    totalPages={3}
+                    totalItems={PEDIDOS.length}
+                    onPageChange={() => {}}
+                />
+            }
+        >
+            <Table
+                data={PEDIDOS}
+                rowKey={(pedido) => pedido.id}
+                columns={[
+                    { key: "id", header: "Pedido" },
+                    { key: "cliente", header: "Cliente" },
+                    { key: "total", header: "Total" },
+                ]}
+            />
+        </Page>
+    );
+}
 ```
 
 | Prop          | Tipo        | Default |
@@ -7664,9 +8407,15 @@ Page wrapper com header (`eyebrow` + `title` + `description` + `actions`) + `too
 Max-width wrapper.
 
 ```tsx
-<Container size="lg">
-  <Page title="Settings">...</Page>
-</Container>
+import { Container, Page } from "tempest-react-sdk";
+
+export function Settings() {
+    return (
+        <Container size="lg">
+            <Page title="Configurações">Preferências da conta</Page>
+        </Container>
+    );
+}
 ```
 
 | `size`   | Max-width |
@@ -7690,14 +8439,25 @@ Max-width wrapper.
 Flex vertical ou horizontal com `gap`, `align`, `justify`, `wrap`. Aceita `ResponsiveValue` em `direction` e `gap`.
 
 ```tsx
-<Stack direction="vertical" gap={4}>
-  <Card>One</Card>
-  <Card>Two</Card>
-</Stack>;
+import { Card, Stack } from "tempest-react-sdk";
 
-<Stack direction={{ base: "vertical", md: "horizontal" }} gap={{ base: 2, md: 4 }}>
-  <Card>Mobile stacks, desktop side-by-side</Card>
-</Stack>;
+export function Empilhado() {
+    return (
+        <>
+            <Stack direction="vertical" gap={4}>
+                <Card>Um</Card>
+                <Card>Dois</Card>
+            </Stack>
+
+            <Stack
+                direction={{ mobile: "vertical", desktop: "horizontal" }}
+                gap={{ mobile: 2, desktop: 4 }}
+            >
+                <Card>No mobile empilha, no desktop fica lado a lado</Card>
+            </Stack>
+        </>
+    );
+}
 ```
 
 | Prop        | Tipo                                                | Default      |
@@ -7715,22 +8475,36 @@ Flex vertical ou horizontal com `gap`, `align`, `justify`, `wrap`. Aceita `Respo
 CSS Grid wrapper.
 
 ```tsx
-<Grid columns={3} gap={4}>
-  <Card>1</Card>
-  <Card>2</Card>
-  <Card>3</Card>
-</Grid>;
+import { Card, Grid, Stat } from "tempest-react-sdk";
 
-<Grid columns={{ base: 1, sm: 2, lg: 4 }} gap={3}>
-  {items.map((it) => (
-    <Stat key={it.id} {...it} />
-  ))}
-</Grid>;
+const METRICAS = [
+    { id: "receita", label: "Receita", value: "R$ 84.200" },
+    { id: "pedidos", label: "Pedidos", value: "1.204" },
+    { id: "ticket", label: "Ticket médio", value: "R$ 69,93" },
+];
 
-<Grid columns="2fr 1fr" gap={6}>
-  <Article />
-  <Sidebar />
-</Grid>;
+export function Painel() {
+    return (
+        <>
+            <Grid columns={3} gap={4}>
+                <Card>1</Card>
+                <Card>2</Card>
+                <Card>3</Card>
+            </Grid>
+
+            <Grid columns={{ mobile: 1, tablet: 2, desktop: 4 }} gap={3}>
+                {METRICAS.map((metrica) => (
+                    <Stat key={metrica.id} label={metrica.label} value={metrica.value} />
+                ))}
+            </Grid>
+
+            <Grid columns="2fr 1fr" gap={6}>
+                <article>Conteúdo</article>
+                <aside>Barra lateral</aside>
+            </Grid>
+        </>
+    );
+}
 ```
 
 | Prop      | Tipo                                      | Default |
@@ -7741,23 +8515,32 @@ CSS Grid wrapper.
 `columns` numérico → `repeat(N, minmax(0, 1fr))`. String passa direto pra `grid-template-columns`.
 
 !!! tip "Colunas responsivas sem media query"
-    `columns={{ base: 1, sm: 2, lg: 4 }}` é a forma idiomática de uma grade que vira lista no mobile e abre colunas no desktop. O `minmax(0, 1fr)` evita o overflow clássico de células com conteúdo largo (texto longo, `<pre>`).
+    `columns={{ mobile: 1, tablet: 2, desktop: 4 }}` é a forma idiomática de uma grade que vira lista no mobile e abre colunas no desktop. As chaves são **`mobile` · `tablet` · `desktop`** — `ResponsiveValue` não usa os nomes de breakpoint (`sm`/`md`/`lg`) que aparecem em `sidebarBreakpoint` e em `<Show above>`. O `minmax(0, 1fr)` evita o overflow clássico de células com conteúdo largo (texto longo, `<pre>`).
 
 ## `Divider`
 
 Separador horizontal/vertical com label opcional.
 
 ```tsx
-<Divider />;
-<Divider variant="dashed" />;
-<Divider orientation="vertical" />;
-<Divider align="center">OU</Divider>;
+import { Divider } from "tempest-react-sdk";
+
+export function Separadores() {
+    return (
+        <>
+            <Divider />
+            <Divider variant="dashed" />
+            <Divider orientation="vertical" />
+            <Divider label="OU" align="center" />
+        </>
+    );
+}
 ```
 
 | Prop          | Tipo                                   | Default        |
 | ------------- | -------------------------------------- | -------------- |
 | `orientation` | `"horizontal" \| "vertical"`           | `"horizontal"` |
 | `variant`     | `"solid" \| "dashed" \| "dotted"`      | `"solid"`      |
+| `label`       | `ReactNode` (só na horizontal)         | —              |
 | `align`       | `"start" \| "center" \| "end"` (label) | `"center"`     |
 
 ## `Spacer`
@@ -7765,11 +8548,17 @@ Separador horizontal/vertical com label opcional.
 Flex push.
 
 ```tsx
-<Stack direction="horizontal">
-  <Button>Cancelar</Button>
-  <Spacer />
-  <Button variant="primary">Salvar</Button>
-</Stack>
+import { Button, Spacer, Stack } from "tempest-react-sdk";
+
+export function AcoesDoFormulario() {
+    return (
+        <Stack direction="horizontal">
+            <Button variant="ghost">Cancelar</Button>
+            <Spacer />
+            <Button variant="primary">Salvar</Button>
+        </Stack>
+    );
+}
 ```
 
 | Prop   | Tipo                   | Default  |
@@ -7781,9 +8570,15 @@ Flex push.
 Centraliza children horizontal/vertical/ambos.
 
 ```tsx
-<Center axis="both" minHeight="100vh">
-  <Spinner />
-</Center>
+import { Center, Spinner } from "tempest-react-sdk";
+
+export function Carregando() {
+    return (
+        <Center axis="both" minHeight="100vh">
+            <Spinner />
+        </Center>
+    );
+}
 ```
 
 | Prop        | Tipo                                   | Default  |
@@ -7791,6 +8586,12 @@ Centraliza children horizontal/vertical/ambos.
 | `axis`      | `"both" \| "horizontal" \| "vertical"` | `"both"` |
 | `minHeight` | `number \| string`                     | —        |
 | `fullWidth` | `boolean`                              | `true`   |
+
+!!! tip "Centralizar na vertical precisa de altura"
+    `axis="both"` centraliza dentro do espaço que o `Center` tem. Num pai sem
+    altura definida esse espaço é a altura do próprio conteúdo, e nada parece
+    acontecer. Passe `minHeight` (ou dê altura ao pai) sempre que a centralização
+    vertical importar.
 
 ## `AspectRatio`
 
@@ -7803,13 +8604,25 @@ Centraliza children horizontal/vertical/ambos.
 Preserva proporção pra media.
 
 ```tsx
-<AspectRatio ratio={16 / 9}>
-  <img src="/cover.jpg" alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-</AspectRatio>;
+import { AspectRatio } from "tempest-react-sdk";
 
-<AspectRatio ratio={1}>
-  <video src="/clip.mp4" autoPlay loop muted />
-</AspectRatio>;
+export function Midia() {
+    return (
+        <>
+            <AspectRatio ratio={16 / 9}>
+                <img
+                    src="/cover.jpg"
+                    alt="Capa do álbum"
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+            </AspectRatio>
+
+            <AspectRatio ratio={1}>
+                <video src="/clip.mp4" autoPlay loop muted />
+            </AspectRatio>
+        </>
+    );
+}
 ```
 
 | Prop    | Tipo     | Default  |
@@ -7818,14 +8631,26 @@ Preserva proporção pra media.
 
 Usa CSS `aspect-ratio` nativo. Compatível com todos navegadores modernos.
 
+!!! warning "`AspectRatio` reserva o espaço antes da imagem chegar"
+    É o que evita o salto de layout: a caixa já tem a proporção final, então o
+    texto abaixo não desce quando a imagem carrega. Por isso a criança precisa
+    preencher a caixa — uma `<img>` sem `width: 100%; height: 100%` fica no
+    tamanho natural dela e a proporção deixa de valer para o que se vê.
+
 ## `SafeArea`
 
 Padding por edge usando `env(safe-area-inset-*)`.
 
 ```tsx
-<SafeArea edges={["top", "bottom"]}>
-  <App />
-</SafeArea>
+import { SafeArea } from "tempest-react-sdk";
+
+export function Raiz() {
+    return (
+        <SafeArea edges={["top", "bottom"]}>
+            <main>Conteúdo que não some atrás do notch</main>
+        </SafeArea>
+    );
+}
 ```
 
 | Prop     | Tipo                                            | Default                           |
@@ -7845,10 +8670,26 @@ Componentes que já cuidam de safe-area automaticamente: `Navbar` (top), `Bottom
 Conditional render baseado em breakpoint. SSR-safe — primeiro render usa `xs` (mobile first), re-renderiza ao client.
 
 ```tsx
-<Show above="md"><DesktopNav /></Show>
-<Hide above="md"><MobileNav /></Hide>
-<Show below="lg"><Banner>Promo</Banner></Show>
-<Show only={["sm", "md"]}><TabletOnlyHint /></Show>
+import { Banner, Hide, Show } from "tempest-react-sdk";
+
+export function PorBreakpoint() {
+    return (
+        <>
+            <Show above="md">
+                <nav>Navegação de desktop</nav>
+            </Show>
+            <Hide above="md">
+                <nav>Navegação de mobile</nav>
+            </Hide>
+            <Show below="lg">
+                <Banner>Promoção de lançamento</Banner>
+            </Show>
+            <Show only={["sm", "md"]}>
+                <p>Dica que só aparece em tablet</p>
+            </Show>
+        </>
+    );
+}
 ```
 
 | Prop    | Tipo                              |
@@ -7859,12 +8700,21 @@ Conditional render baseado em breakpoint. SSR-safe — primeiro render usa `xs` 
 
 `only` sobrescreve `above`/`below` quando setado.
 
+!!! warning "`Show`/`Hide` desmontam — não escondem com CSS"
+    A decisão vem de `useBreakpoint`, que mede `window.innerWidth` em JavaScript,
+    então atravessar o breakpoint **desmonta** a subárvore e todo estado local
+    dentro dela se perde: input meio preenchido, acordeão aberto, scroll. Para
+    esconder mantendo o estado, use CSS (a camada `utilities.css` tem as classes
+    de visibilidade). E como a largura inicial é `0` fora do browser, um
+    `<Show above="md">` renderiza `null` na primeira passada até o efeito medir —
+    o que é correto para um SPA e não é render de servidor.
+
 ## Responsive values
 
 `Stack.direction`, `Grid.columns`, `Form.layout` aceitam `ResponsiveValue<T>`:
 
 ```ts
-type ResponsiveValue<T> = T | { base?: T; sm?: T; md?: T; lg?: T; xl?: T; "2xl"?: T };
+type ResponsiveValue<T> = T | { mobile?: T; tablet?: T; desktop?: T };
 ```
 
 Falls back para o último valor definido por breakpoint cascading.
@@ -7923,23 +8773,33 @@ Componentes que ajudam o usuário a **se localizar e se mover** pelo app. Eles s
 App bar superior. Três slots (`logo` / `nav` / `actions`). Sticky por padrão.
 
 ```tsx
-<Navbar
-  logo={<img src="/logo.svg" alt="App" />}
-  nav={
-    <>
-      <NavLink to="/orders">Pedidos</NavLink>
-      <NavLink to="/products">Produtos</NavLink>
-    </>
-  }
-  actions={
-    <>
-      <Button variant="ghost" iconOnly aria-label="Buscar">
-        <Search />
-      </Button>
-      <Avatar src={user.photo} />
-    </>
-  }
-/>
+import { Avatar, Button, Navbar } from "tempest-react-sdk";
+import { NavLink } from "react-router";
+import { Search } from "lucide-react";
+
+const user = { photo: "/avatars/ana.jpg" };
+
+export function TopBar() {
+    return (
+        <Navbar
+            logo={<img src="/logo.svg" alt="App" />}
+            nav={
+                <>
+                    <NavLink to="/orders">Pedidos</NavLink>
+                    <NavLink to="/products">Produtos</NavLink>
+                </>
+            }
+            actions={
+                <>
+                    <Button variant="ghost" iconOnly aria-label="Buscar">
+                        <Search size={16} />
+                    </Button>
+                    <Avatar src={user.photo} />
+                </>
+            }
+        />
+    );
+}
 ```
 
 | Prop       | Tipo                                      | Default     |
@@ -7966,23 +8826,37 @@ App bar superior. Três slots (`logo` / `nav` / `actions`). Sticky por padrão.
 Layout em grade: slot **leading** (botão voltar + marca) · **título** (`<h1>`) · **actions** (à direita). Sticky + safe-area por padrão. O botão voltar é acessível e, sem `onBack`, cai em `window.history.back()` — com router, passe `onBack={() => navigate(-1)}`.
 
 ```tsx
-// Tela de detalhe: voltar + ação
-<AppBar
-  title="Perfil"
-  showBack
-  onBack={() => navigate(-1)}
-  actions={
-    <Button variant="ghost" iconOnly aria-label="Ajustes" onClick={openSettings}>
-      <Settings />
-    </Button>
-  }
-/>
+import { AppBar, Avatar, Button } from "tempest-react-sdk";
+import { Settings } from "lucide-react";
 
-// Tela inicial: marca à esquerda, sem voltar
-<AppBar brand="Famachapp" actions={<Avatar src={user.photo} />} />
+const user = { photo: "/avatars/ana.jpg" };
 
-// Título centralizado (estilo iOS)
-<AppBar title="Histórico" showBack centered />
+export function Barras({
+    navigate,
+    openSettings,
+}: {
+    navigate: (delta: number) => void;
+    openSettings: () => void;
+}) {
+    return (
+        <>
+            <AppBar
+                title="Perfil"
+                showBack
+                onBack={() => navigate(-1)}
+                actions={
+                    <Button variant="ghost" iconOnly aria-label="Ajustes" onClick={openSettings}>
+                        <Settings size={16} />
+                    </Button>
+                }
+            />
+
+            <AppBar brand="Famachapp" actions={<Avatar src={user.photo} />} />
+
+            <AppBar title="Histórico" showBack centered />
+        </>
+    );
+}
 ```
 
 | Prop        | Tipo                                      | Default     |
@@ -8034,23 +8908,31 @@ Side nav desktop. `items: SidebarEntry[]` (itens, seções e separadores), slots
 `header`/`footer`, modo `collapsed` (apenas ícones).
 
 ```tsx
-const [tab, setTab] = useState("home");
-const [collapsed, setCollapsed] = useState(false);
+import { useState } from "react";
+import { Button, Sidebar } from "tempest-react-sdk";
+import { Cog, Home, Package } from "lucide-react";
 
-<Sidebar
-  header={<Brand collapsed={collapsed} />}
-  items={[
-    { key: "home", label: "Início", icon: <Home /> },
-    { key: "orders", label: "Pedidos", icon: <Package />, badge: 3 },
-    { key: "settings", label: "Ajustes", icon: <Cog /> },
-  ]}
-  value={tab}
-  onChange={setTab}
-  footer={<Button onClick={() => setCollapsed(!collapsed)}>Colapsar</Button>}
-  collapsed={collapsed}
-  width={240}
-  collapsedWidth={64}
-/>;
+export function Lateral() {
+    const [tab, setTab] = useState("home");
+    const [collapsed, setCollapsed] = useState(false);
+
+    return (
+        <Sidebar
+            header={<strong>{collapsed ? "T" : "Tempest"}</strong>}
+            items={[
+                { key: "home", label: "Início", icon: <Home size={16} /> },
+                { key: "orders", label: "Pedidos", icon: <Package size={16} />, badge: 3 },
+                { key: "settings", label: "Ajustes", icon: <Cog size={16} /> },
+            ]}
+            value={tab}
+            onChange={setTab}
+            footer={<Button onClick={() => setCollapsed(!collapsed)}>Colapsar</Button>}
+            collapsed={collapsed}
+            width={240}
+            collapsedWidth={64}
+        />
+    );
+}
 ```
 
 | Prop             | Tipo                           | Default |
@@ -8065,12 +8947,19 @@ const [collapsed, setCollapsed] = useState(false);
 | `collapsedWidth` | `number \| string`             | `64`    |
 
 ```ts
-type SidebarItem = { key, label, icon?, badge?, disabled?, href? };
+type SidebarItem = {
+    key: string;
+    label: ReactNode;
+    icon?: ReactNode;
+    badge?: ReactNode;
+    disabled?: boolean;
+    href?: string;
+};
 
 type SidebarEntry =
-  | ({ type?: "item" } & SidebarItem)
-  | { type: "section"; key: string; label: ReactNode }
-  | { type: "separator"; key: string };
+    | ({ type?: "item" } & SidebarItem)
+    | { type: "section"; key: string; label: ReactNode }
+    | { type: "separator"; key: string };
 ```
 
 `type` é opcional no ramo do item, então **um `SidebarItem[]` continua sendo um
@@ -8151,11 +9040,20 @@ O que sai no HTML:
 no clique:
 
 ```tsx
-<Sidebar
-  items={[{ key: "overview", label: "Visão Geral", href: "/overview" }]}
-  value={tab}
-  onChange={setTab}
-/>
+import { useState } from "react";
+import { Sidebar } from "tempest-react-sdk";
+
+export function ComLink() {
+    const [tab, setTab] = useState("overview");
+
+    return (
+        <Sidebar
+            items={[{ key: "overview", label: "Visão geral", href: "/overview" }]}
+            value={tab}
+            onChange={setTab}
+        />
+    );
+}
 ```
 
 Com isso o middle-click abre em outra aba, o ctrl-click funciona, "copiar endereço
@@ -8221,18 +9119,33 @@ Tipo `NavigationRailItem = { key, label, icon?, badge?, disabled? }`.
 Tab bar fixa no rodapé pra mobile. 3-5 items.
 
 ```tsx
-<Show below="md">
-  <BottomNavigation
-    items={[
-      { key: "home", label: "Início", icon: <Home /> },
-      { key: "search", label: "Buscar", icon: <Search /> },
-      { key: "cart", label: "Carrinho", icon: <Cart />, badge: cartCount },
-      { key: "profile", label: "Perfil", icon: <User /> },
-    ]}
-    value={tab}
-    onChange={setTab}
-  />
-</Show>
+import { useState } from "react";
+import { BottomNavigation, Show } from "tempest-react-sdk";
+import { Home, Search, ShoppingCart, User } from "lucide-react";
+
+export function BarraInferior({ cartCount }: { cartCount: number }) {
+    const [tab, setTab] = useState("home");
+
+    return (
+        <Show below="md">
+            <BottomNavigation
+                items={[
+                    { key: "home", label: "Início", icon: <Home size={20} /> },
+                    { key: "search", label: "Buscar", icon: <Search size={20} /> },
+                    {
+                        key: "cart",
+                        label: "Carrinho",
+                        icon: <ShoppingCart size={20} />,
+                        badge: cartCount,
+                    },
+                    { key: "profile", label: "Perfil", icon: <User size={20} /> },
+                ]}
+                value={tab}
+                onChange={setTab}
+            />
+        </Show>
+    );
+}
 ```
 
 | Prop         | Tipo                           | Default |
@@ -8253,21 +9166,31 @@ Tipo `BottomNavigationItem = { key, label, icon?, badge?, disabled? }`.
 Tabs controlled/uncontrolled. Fade-edge mask em overflow horizontal. Variantes visuais via `variant` (`"underline"` default ou `"pill"`).
 
 ```tsx
-<Tabs
-  value={tab}
-  onChange={setTab}
-  items={[
-    { key: "overview", label: "Visão geral", content: <Overview /> },
-    { key: "details", label: "Detalhes", content: <Details /> },
-    { key: "logs", label: "Logs", content: <Logs /> },
-  ]}
-/>
+import { useState } from "react";
+import { Tabs } from "tempest-react-sdk";
+
+export function Abas() {
+    const [tab, setTab] = useState("overview");
+
+    return (
+        <Tabs
+            activeId={tab}
+            onChange={setTab}
+            items={[
+                { id: "overview", label: "Visão geral", content: <p>Visão geral</p> },
+                { id: "details", label: "Detalhes", content: <p>Detalhes</p> },
+                { id: "logs", label: "Logs", content: <p>Logs</p> },
+            ]}
+        />
+    );
+}
 ```
 
 | Prop           | Tipo                    | Default |
 | -------------- | ----------------------- | ------- |
 | `items`        | `TabItem[]`             | —       |
-| `value`        | `string` (controlled)   | —       |
+| `activeId`     | `string` (controlado)   | —       |
+| `defaultId`    | `string` (não-controlado) | —     |
 | `defaultValue` | `string` (uncontrolled) | —       |
 | `onChange`     | `(key: string) => void` | —       |
 
@@ -8284,14 +9207,23 @@ Tabs controlled/uncontrolled. Fade-edge mask em overflow horizontal. Variantes v
 Wizard linear com steps numerados. `orientation` aceita `"horizontal"` (default) ou `"vertical"`.
 
 ```tsx
-<Stepper
-  current={step}
-  steps={[
-    { key: "info", label: "Informações" },
-    { key: "payment", label: "Pagamento" },
-    { key: "review", label: "Revisão" },
-  ]}
-/>
+import { useState } from "react";
+import { Stepper } from "tempest-react-sdk";
+
+export function Passos() {
+    const [step] = useState(1);
+
+    return (
+        <Stepper
+            current={step}
+            steps={[
+                { label: "Informações" },
+                { label: "Pagamento" },
+                { label: "Revisão" },
+            ]}
+        />
+    );
+}
 ```
 
 ## `Breadcrumbs`
@@ -8301,9 +9233,19 @@ Wizard linear com steps numerados. `orientation` aceita `"horizontal"` (default)
 Navegação hierárquica.
 
 ```tsx
-<Breadcrumbs
-  items={[{ label: "Home", href: "/" }, { label: "Pedidos", href: "/orders" }, { label: "#12345" }]}
-/>
+import { Breadcrumbs } from "tempest-react-sdk";
+
+export function Trilha() {
+    return (
+        <Breadcrumbs
+            items={[
+                { label: "Início", href: "/" },
+                { label: "Pedidos", href: "/orders" },
+                { label: "#12345" },
+            ]}
+        />
+    );
+}
 ```
 
 **A11y**: último item é marcado com `aria-current="page"`.
@@ -8320,28 +9262,40 @@ Navegação hierárquica.
 
 Numeric com siblings + page-size opcional.
 
-!!! note "`page` é 1-indexed, `total` é contagem de itens"
-    `total` é o número **de itens** (não de páginas) — o componente calcula as páginas a partir de `pageSize`. Lembre de resetar `page` para `1` quando o filtro muda, senão você pode parar numa página que não existe mais.
+!!! note "`page` é 1-indexed, e quem conta as páginas é você"
+    `totalPages` é o número **de páginas** — o componente não o deriva de `pageSize`. `totalItems` é opcional e só alimenta o texto de resumo ("1–20 de 137"). Lembre de resetar `page` para `1` quando o filtro muda, senão você pode parar numa página que não existe mais.
 
 ```tsx
-<Pagination
-  page={page}
-  pageSize={size}
-  total={data?.total ?? 0}
-  onPageChange={setPage}
-  onPageSizeChange={setSize}
-  siblings={1}
-/>
+import { useState } from "react";
+import { Pagination } from "tempest-react-sdk";
+
+export function Paginacao({ totalItems }: { totalItems: number }) {
+    const [page, setPage] = useState(1);
+    const [size, setSize] = useState(20);
+
+    return (
+        <Pagination
+            page={page}
+            pageSize={size}
+            totalPages={Math.max(1, Math.ceil(totalItems / size))}
+            totalItems={totalItems}
+            onPageChange={setPage}
+            onPageSizeChange={setSize}
+            siblingCount={1}
+        />
+    );
+}
 ```
 
 | Prop               | Tipo                     | Default |
 | ------------------ | ------------------------ | ------- |
 | `page`             | `number` (1-indexed)     | —       |
 | `pageSize`         | `number`                 | —       |
-| `total`            | `number` (item count)    | —       |
+| `totalPages`       | `number`                 | —       |
+| `totalItems`       | `number` (contagem, opcional) | —  |
 | `onPageChange`     | `(page: number) => void` | —       |
 | `onPageSizeChange` | `(size: number) => void` | —       |
-| `siblings`         | `number` (vizinhos)      | `1`     |
+| `siblingCount`     | `number` (vizinhos)      | `7`     |
 
 ## `SegmentedControl`
 
@@ -8350,17 +9304,27 @@ Numeric com siblings + page-size opcional.
 iOS-style pill bar (2-5 opções).
 
 ```tsx
-<SegmentedControl
-  value={view}
-  onChange={setView}
-  options={[
-    { value: "list", label: "Lista", icon: <List /> },
-    { value: "grid", label: "Grade", icon: <Grid /> },
-    { value: "map", label: "Mapa", icon: <Map /> },
-  ]}
-  size="md"
-  fullWidth
-/>
+import { useState } from "react";
+import { SegmentedControl } from "tempest-react-sdk";
+import { LayoutGrid, List, Map } from "lucide-react";
+
+export function Visao() {
+    const [view, setView] = useState("list");
+
+    return (
+        <SegmentedControl
+            value={view}
+            onChange={setView}
+            options={[
+                { value: "list", label: "Lista", icon: <List size={14} /> },
+                { value: "grid", label: "Grade", icon: <LayoutGrid size={14} /> },
+                { value: "map", label: "Mapa", icon: <Map size={14} /> },
+            ]}
+            size="md"
+            fullWidth
+        />
+    );
+}
 ```
 
 | Prop        | Tipo                       | Default |
@@ -8427,24 +9391,31 @@ Os três compartilham o mesmo motor (portal para `document.body` + backdrop + Es
 Portal + backdrop + Esc + focus trap + scroll lock.
 
 ```tsx
-const [open, setOpen] = useState(false);
+import { useState } from "react";
+import { Button, FormActions, Modal } from "tempest-react-sdk";
 
-<Modal
-  open={open}
-  onClose={() => setOpen(false)}
-  title="Editar perfil"
-  size="md"
-  footer={
-    <FormActions>
-      <Button variant="ghost" onClick={() => setOpen(false)}>
-        Cancelar
-      </Button>
-      <Button onClick={save}>Salvar</Button>
-    </FormActions>
-  }
->
-  <ProfileForm />
-</Modal>;
+export function EditarPerfil({ save }: { save: () => void }) {
+    const [open, setOpen] = useState(false);
+
+    return (
+        <Modal
+            open={open}
+            onClose={() => setOpen(false)}
+            title="Editar perfil"
+            size="md"
+            footer={
+                <FormActions>
+                    <Button variant="ghost" onClick={() => setOpen(false)}>
+                        Cancelar
+                    </Button>
+                    <Button onClick={save}>Salvar</Button>
+                </FormActions>
+            }
+        >
+            <p>O formulário do perfil entra aqui.</p>
+        </Modal>
+    );
+}
 ```
 
 | Prop                 | Tipo                                             | Default |
@@ -8477,17 +9448,26 @@ const [open, setOpen] = useState(false);
 Side drawer. `placement: left/right/top/bottom`. Auto-switch pra bottom-sheet em mobile via `mobilePlacement`.
 
 ```tsx
-<Drawer
-  open={open}
-  onClose={() => setOpen(false)}
-  placement="right"
-  mobilePlacement="bottom" // vira bottom sheet em mobile
-  title="Filtros"
-  showHandle // drag indicator visual quando vira bottom-sheet
-  footer={<Button onClick={apply}>Aplicar</Button>}
->
-  <FilterForm />
-</Drawer>
+import { useState } from "react";
+import { Button, Drawer } from "tempest-react-sdk";
+
+export function GavetaDeFiltros({ apply }: { apply: () => void }) {
+    const [open, setOpen] = useState(false);
+
+    return (
+        <Drawer
+            open={open}
+            onClose={() => setOpen(false)}
+            placement="right"
+            mobilePlacement="bottom"
+            title="Filtros"
+            showHandle
+            footer={<Button onClick={apply}>Aplicar</Button>}
+        >
+            <p>O formulário do perfil entra aqui.</p>
+        </Drawer>
+    );
+}
 ```
 
 | Prop              | Tipo                                                          | Default   |
@@ -8519,13 +9499,23 @@ Side drawer. `placement: left/right/top/bottom`. Auto-switch pra bottom-sheet em
 Modal ancorado na borda inferior — slide-up via animation. Otimizado pra mobile.
 
 ```tsx
-<BottomSheet open={open} onClose={() => setOpen(false)} title="Compartilhar">
-  <Stack gap={3}>
-    <Button leftIcon={<MessageCircle />}>WhatsApp</Button>
-    <Button leftIcon={<Mail />}>Email</Button>
-    <Button leftIcon={<Link />}>Copiar link</Button>
-  </Stack>
-</BottomSheet>
+import { useState } from "react";
+import { BottomSheet, Button, Stack } from "tempest-react-sdk";
+import { Link, Mail, MessageCircle } from "lucide-react";
+
+export function Compartilhar() {
+    const [open, setOpen] = useState(false);
+
+    return (
+        <BottomSheet open={open} onClose={() => setOpen(false)} title="Compartilhar">
+            <Stack gap={3}>
+                <Button leftIcon={<MessageCircle size={16} />}>WhatsApp</Button>
+                <Button leftIcon={<Mail size={16} />}>Email</Button>
+                <Button leftIcon={<Link size={16} />}>Copiar link</Button>
+            </Stack>
+        </BottomSheet>
+    );
+}
 ```
 
 | Prop                | Tipo         | Default |
@@ -14241,6 +15231,36 @@ npm run dev             # http://127.0.0.1:5173
     A gallery é o lugar pra conferir responsividade: redimensione para ≤ 430px
     (mobile) e ≥ 1024px (desktop) antes de dar uma mudança visual como pronta.
     Stack/Grid/Modal/Drawer/Table todos têm comportamento responsivo aqui.
+
+## Capturas nas páginas de documentação
+
+Cada seção da gallery tem uma captura versionada em `docs/assets/gallery/`, e é
+ela que aparece nas páginas de componente. Dois comandos mantêm isso em dia:
+
+```bash
+npm run e2e:build          # build do SDK + da gallery (pré-requisito)
+npm run docs:shots         # captura uma imagem por seção
+npm run docs:gallery       # coloca as imagens nas páginas .md
+```
+
+`docs:shots` sobe o build de produção da gallery, percorre cada
+`section.gallery-section[id]` e grava `docs/assets/gallery/<id>.webp`. As seções
+em que o tema é o assunto ganham também um `<id>.dark.webp`.
+
+!!! tip "Rodar de novo não suja o diff"
+    O arquivo só é escrito quando os bytes mudam. Numa gallery intocada, uma
+    segunda execução deixa `git status` limpo — o diff só aparece quando o
+    componente mudou de verdade.
+
+!!! note "Por que WebP versionado, e não artefato de build"
+    A imagem precisa aparecer **no site MkDocs e no `.md` que o GitHub
+    renderiza**. Artefato gerado só na publicação atende o primeiro e deixa o
+    segundo com imagem quebrada. WebP corta ~50% dos bytes contra PNG e é
+    encodado pelo próprio Chromium do Playwright, sem dependência nova.
+
+`docs:gallery` insere um bloco marcado (`<!-- gallery:<id> -->`) sob o primeiro
+componente de cada seção nas páginas de `docs/components/`, nas duas línguas.
+Passe `--check` para falhar sem escrever — é o que o guard de docs usa.
 
 ## Seções
 

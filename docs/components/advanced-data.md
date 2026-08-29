@@ -461,14 +461,21 @@ export function Pedidos({ pedidos }: { pedidos: Pedido[] }) {
 **Listagem paginada no servidor** — `filtersToQueryParams`, que fala o dialeto do `tempest-fastapi-sdk`:
 
 ```tsx
-const params = filtersToQueryParams(filtros);
-params.set("page", String(pagina));
-params.set("page_size", "20");
+import { useQuery } from "@tanstack/react-query";
+import { createApiClient, filtersToQueryParams, type Filter } from "tempest-react-sdk";
 
-const { data } = useQuery({
-  queryKey: ["pedidos", filtros, pagina],
-  queryFn: () => api.get(`/pedidos?${params}`),
-});
+const api = createApiClient({ baseURL: "/api" });
+
+export function usePedidos(filtros: Filter[], pagina: number) {
+    const params = filtersToQueryParams(filtros);
+    params.set("page", String(pagina));
+    params.set("page_size", "20");
+
+    return useQuery({
+        queryKey: ["pedidos", filtros, pagina],
+        queryFn: () => api.get(`/pedidos?${params}`),
+    });
+}
 ```
 
 | Operador | Param enviado |

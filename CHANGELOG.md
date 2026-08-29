@@ -6,6 +6,51 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`createLinkStatsSampler`, `useLinkStats` e `readRoundTripMs` — a redução de
+  `getStats()` que toda chamada reescreve**
+  ([#232](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/232)).
+
+  `RTCPeerConnection.getStats()` devolve dezenas de entradas com contadores
+  **cumulativos**, e o badge que a chamada mostra — `1,2 Mbps · 42 ms · 1080p60` —
+  é uma redução em cima disso. Cada cópia dessa redução erra os mesmos dois
+  pontos.
+
+  **RTT do par errado.** Uma conexão mantém vários pares de candidatos vivos ao
+  mesmo tempo — host, server-reflexive, relayed — e só um carrega tráfego. Ler o
+  primeiro `candidate-pair` com `state: "succeeded"` faz o número saltar entre
+  caminhos que não estão sendo percorridos: 8 ms do par host ocioso alternando
+  com 180 ms do TURN que está trabalhando. `readRoundTripMs` lê o par que o
+  `transport` nomeia em `selectedCandidatePairId`, com o par `succeeded` só como
+  fallback — porque nem todo browser preenche o campo, e perder a leitura é pior
+  que uma leitura às vezes otimista.
+
+  **Vazão sem delta.** `bytesSent` é cumulativo desde que a conexão abriu.
+  Dividir pelo tempo de sessão dá a média histórica, um número que só desce e
+  nunca mostra o agora. O sampler guarda a leitura anterior e deriva a taxa do
+  delta — é por isso que é um objeto e não uma função, e por isso vale **um por
+  conexão**: compartilhar entre peers subtrai o contador de uma conexão do de
+  outra.
+
+  Bytes somam entre todos os senders, porque um peer publicando câmera e tela
+  ocupa **um** uplink com as duas, e o uplink é o que acaba. Resolução e fps vêm
+  do stream de **maior área**, que é o que domina essa banda.
+
+  `useLinkStats(pc)` amostra a cada 2 s, só enquanto `connectionState` é
+  `"connected"`, e para quando a aba vai para segundo plano. Voltar do segundo
+  plano refaz o baseline antes da próxima amostra: sem isso o primeiro sample
+  divide cinco minutos de bytes por cinco minutos e reporta a média de um período
+  que ninguém perguntou. A última leitura sobrevive à pausa em vez de voltar a
+  `null`, porque um badge que apaga a cada troca de aba é lido como conexão
+  caída.
+
+  O que varia entre engines está coberto e documentado: `mediaType` em vez de
+  `kind` no Chrome antigo, `framesPerSecond` ausente, contador que reinicia num
+  ICE restart (delta negativo vira `0` e o baseline se refaz), simulcast somando
+  camadas. E `docs/webrtc.md` ganhou a seção **"O que isto não mede"** — inbound,
+  `qualityLimitationReason`, perda/jitter e o afogamento de timer em aba de
+  fundo — para quem precisa desses números saber onde procurar em vez de
+  descobrir que o valor estava mentindo.
+
 - **Entrada `checkbox` no `DropdownMenu`**
   ([#244](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/244)).
   `type: "checkbox"` renderiza `role="menuitemcheckbox"` com `aria-checked`, que é

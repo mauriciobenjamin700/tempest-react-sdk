@@ -4,17 +4,17 @@ SDK público da Tempest com componentes React, hooks e integrações reutilizáv
 
 > Este arquivo é o guia operacional do SDK. Padrões globais (PR template PT-BR, conventional commits, `gh pr edit` workaround) vêm de `~/.claude/CLAUDE.md` e continuam valendo.
 
-## Estado atual (snapshot pós-v0.51.0 — `[Unreleased]` no CHANGELOG vazio, aguardando o próximo ciclo)
+## Estado atual (snapshot pós-v0.53.0 — `[Unreleased]` no CHANGELOG vazio, aguardando o próximo ciclo)
 
-- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 71 tags publicadas (0.1.0 → 0.51.0) com signed provenance via OIDC. Histórico completo em `RELEASES.md` (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
-- **Testes**: 5403 testes em 531 arquivos, ~50 s sob `vitest + jsdom + fake-indexeddb`. Cobertura **99,87% linhas / 98,97% statements / 99,93% funções / 96,01% branches**; pisos do CI em **99/98/99/95**, ~1 ponto de folga em cada eixo. O que sobra descoberto — 2 funções e 13 linhas — é **inalcançável por construção** (ver `### P3` abaixo).
-- **Superfície**: 39 módulos em `src/`, 128 componentes, 52 hooks (+ `useNotificationInbox`, que mora junto do `NotificationCenter`), 529 exports na entrada raiz e 21 em `/icons`.
-- **Empacotamento (v0.25.0)**: `dist/` preserva o grafo de módulos (`preserveModules`). O que o app paga de fato (brotli): `{ cn }` 153 B · `{ Button }` 794 B · app típico 8.61 KB · offline/PWA 4.55 KB · `styles.css` 28.68 KB · `utilities.css` 1.36 KB (opt-in). Teto sem tree-shaking: 116.24 KB ESM / 139.29 KB CJS. Budgets do `size-limit` são **por fatia importada**, não pelo barrel.
+- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 73 tags publicadas (0.1.0 → 0.53.0) com signed provenance via OIDC. Histórico completo em `RELEASES.md` (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
+- **Testes**: 5564 testes em 538 arquivos, ~45 s sob `vitest + jsdom + fake-indexeddb`. Cobertura **99,88% linhas / 98,98% statements / 99,93% funções / 96,05% branches**; pisos do CI em **99/98/99/95**, ~1 ponto de folga em cada eixo. O que sobra descoberto — 2 funções e 13 linhas — é **inalcançável por construção** (ver `### P3` abaixo).
+- **Superfície**: 40 módulos em `src/`, 128 componentes, 52 hooks no módulo `hooks/` (109 exports `use*` somando todos os módulos), 538 exports na entrada raiz e 21 em `/icons`.
+- **Empacotamento (v0.25.0)**: `dist/` preserva o grafo de módulos (`preserveModules`). O que o app paga de fato (brotli): `{ cn }` 133 B · `{ Button }` 794 B · app típico 8.91 KB · offline/PWA 4.54 KB · `styles.css` 28.68 KB · `utilities.css` 1.36 KB (opt-in). Teto sem tree-shaking: 118.85 KB ESM / 142.54 KB CJS. Budgets do `size-limit` são **por fatia importada**, não pelo barrel.
 - **Subpaths** (15, a lista é o campo `exports` do `package.json`): `.`, `/testing` (MSW), `/vite` (`createViteConfig` + plugins), `/sw` (helpers de contexto SW), `/charts` (recharts peer), `/editor` (tiptap peer), `/imaging` (decode/encode/resize/crop/compress em canvas, sem dep), `/tabular` (`TabularPredictor` ONNX + cache de modelo, onnxruntime-web peer), `/vision` (onnxruntime-web peer), `/br` (dataset BR + mapa clicável), `/icons` (ícone por slug, 45 shards lazy balanceados), `/icons/virtual` (módulo real: `staticIcons = {}` que o plugin sobrescreve — resolve fora do Vite também), `/styles.css`, `/utilities.css` (camada de layout opt-in), `/package.json`.
 - **CLIs** (`bin/`): `create-tempest-app` (scaffold — invocado como `npx -p tempest-react-sdk create-tempest-app .`; **não** existe pacote `create-tempest-app` no npm, então `npm create tempest-app` dá 404) com templates `template/` e `template-pwa/`; `tempest` (project CLI: `doctor`, `lint`, `fix`, `format`, `gen api <openapi>` → Zod + types + services, `gen icons` → registry estático de ícone). `doctor` e `fix` também fazem **análise de CSS** (`bin/lib/css/`, scanner próprio sem dep): sintaxe que o browser derruba, declaração/regra duplicada, propriedade e token inexistentes, e bloco repetido que pede classe global/utility. `fix` remove só o comprovadamente morto (sempre a cópia **anterior** — last-wins); `--no-css` pula, `--dry-run` é a superfície de revisão.
 - **Style modules**: `colors.css` (inclui `--tempest-code-*`, resolvidos pro piso de **texto** 4,5:1 — a rampa de chart é de **marca**, 3:1, e reprova como texto) + `typography.css` + `motion.css` + `density.css` + `reset.css` + `responsive.css` + `print.css`; `utilities.css` fica **fora** do bundle (opt-in, copiado pra `dist/` no build).
 - **Tooling**: Prettier 3, Husky pre-commit (lint-staged), `Makefile` + `scripts/release.sh` (tag-push pipeline) + `scripts/changelog.mjs` (notes/close) + `scripts/sync-github-releases.sh` (backfill de Releases), 5 workflows — `ci.yml` (PR, matriz node 22/24), `release-npm.yml` (tag push → guard de versão + publish OIDC + read-back do registry + GitHub Release), `size-limit.yml`, `e2e.yml` (gallery), `docs.yml` (Pages).
-- **Docs**: 53 páginas base em `docs/` (106 arquivos com as traduções `.en.md`) + 15 páginas de componentes por categoria + tutorial de 6 páginas + 3 diagramas drawio + `llms.txt`/`llms-full.txt` (`npm run docs:llms`).
+- **Docs**: 86 páginas base (172 arquivos com as traduções `.en.md`) — 54 na raiz de `docs/`, 15 de componentes por categoria, 11 de design de software, tutorial de 6 — mais 3 diagramas drawio + `llms.txt`/`llms-full.txt` (`npm run docs:llms`).
 - **Demo vivo**: app Vite em `examples/gallery` (64 sections) consome o SDK via `file:../..`.
 
 ### Adapter design pattern (consolidado v0.1.3+)
@@ -87,8 +87,9 @@ tempest-react-sdk/
 │   ├── utils/          cn, format BR, storage, writeXlsx, coleções
 │   ├── vision/      ⇢  inferência ONNX (ort-vision-sdk-web vendorizado) + hooks de câmera
 │   ├── vite/        ⇢  createViteConfig
+│   ├── webrtc/         tuneOpus, setTunedLocalDescription, setSenderBitrate (SDP Opus + cap de encoder)
 │   ├── ws/             createWebSocket, useWebSocket
-│   └── index.ts        barrel raiz (529 exports)
+│   └── index.ts        barrel raiz (538 exports)
 ├── bin/                create-tempest-app.mjs + tempest.mjs (doctor/lint/fix/format/gen api)
 ├── template/           scaffold Vite+React+TS
 ├── template-pwa/       scaffold PWA (SW próprio + vite.sw.config.ts)
@@ -113,9 +114,43 @@ viva.
 
 Aberto hoje, em ordem de valor:
 
-| #                                                                           | Frente                              | Por que importa                                                                                                                                                      |
-| --------------------------------------------------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [#210](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/210) | `STATEFUL_DEPS` ainda em dep direta | `@tanstack/react-query`, `zustand` e `react-hook-form` carregam contexto React. Duas cópias custam **correção**, não bytes. Rastreado pra não redescobrir o racional |
+| #                                                                           | Frente                      | Por que importa                                                                                                                             |
+| --------------------------------------------------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| [#231](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/231) | `createPeerMesh`            | A peça que falta para as outras servirem. Slot por transceiver, fila de ICE, offerer por ordem total, divisão de uplink por tamanho de sala |
+| [#233](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/233) | `createVoiceChain`          | O SDK tem a cadeia de saída (`createAudioBus`) e nada na entrada. Gate com hold, de-esser com side-chain manual, medição de piso de ruído   |
+| [#232](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/232) | `getStats` normalizado      | RTT do par **selecionado** (não do primeiro succeeded) e vazão por delta. Fatia mais fácil de portar: entra `RTCStatsReport`, sai objeto    |
+| [#234](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/234) | VAD + push-to-talk          | Fala derivada no cliente em vez de sinalizada; PTT que solta no `blur`                                                                      |
+| [#236](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/236) | Trilha "Fundamentos da Web" | A doc começa no meio: `tutorial/` já assume React, hook e módulo ES. 11 páginas opcionais antes dela                                        |
+| [#235](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/235) | `useFullscreen`             | `good first issue`. Estado dirigido por `fullscreenchange`, porque `Esc` e F11 saem sem passar pela sua função                              |
+
+### O consumidor que dita a frente RTC
+
+`~/projects/my/tools/tempest-mirror-screen` — voz/vídeo/tela N↔N por WebRTC em
+mesh, self-hosted (FastAPI sinalizando, React no browser). Consome
+`tempest-react-sdk@^0.53.0` de verdade, e é de lá que saíram #220–#223 e agora
+#231–#235.
+
+O padrão vale mais que o app: **a primitiva sai de código que já roda em
+produção lá, não de desenho especulativo.** Cada armadilha que virou comentário
+naquele repo vira um teste nomeado aqui — é o que impede a próxima cópia de
+reintroduzi-la.
+
+O que ele já consome: `createAudioBus`, `createLevelMeter`, `setSenderBitrate`,
+`setTunedLocalDescription`, `OpusProfile`, `Icon`/`IconProvider`, `Slider`,
+`useIdle`, `useTheme`, `ThemeProvider`, `ToastProvider`.
+
+O que ele **ainda escreve na mão** (o backlog acima, em ordem de tamanho):
+
+| Arquivo                                      | Linhas | Vira                               |
+| -------------------------------------------- | ------ | ---------------------------------- |
+| `lib/mesh.ts`                                | 892    | #231 `createPeerMesh` + #232 stats |
+| `lib/voiceChain.ts`                          | 456    | #233 `createVoiceChain`            |
+| `lib/voiceActivity.ts` + `lib/pushToTalk.ts` | 148    | #234                               |
+| `lib/immersive.ts`                           | 65     | #235 `useFullscreen`               |
+
+Já coberto pelo SDK e **fora** do backlog: aquisição de mídia
+(`useMicrophone`, `useScreenCapture`, `useCameraStream`, `classifyMediaError`)
+e o socket resiliente. Ao portar, conferir contra esses antes de propor API nova.
 
 Lição que vale mais que a lista: **conferir a `main` antes de começar.** Duas
 frentes desta rodada foram resolvidas em paralelo por outra máquina — o gate de
@@ -123,7 +158,7 @@ dev-mode (`src/utils/dev-mode.ts`) e o crescimento do `materialToLucide` — e a
 versão de lá do dev-mode estava **certa** onde a minha estava errada. `git fetch`
 e comparar antes de investir horas.
 
-Entregue e fora do backlog: **`CodeBlock`** (realce por scanner + tokens `--tempest-code-*`), **`QRCode`** (encoder ISO 18004 próprio, 3,2 KB br), **`Sparkline`** (mini-gráfico inline, sem recharts), **escala contínua de data viz** (`sequentialScale`/`divergingScale`), **`NotificationCenter`** (inbox de push), **`VirtualTable`**, **ícone por slug (`/icons`, issue #37)**, **`tempest fix` convertendo import relativo pra `@/` (issue #56)**, release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`), sweep `axe` em jsdom + smoke Playwright do gallery (`e2e.yml`), coverage gateando o CI (pisos 98/97/96/94), política de versionamento de tokens CSS (`docs/styles.md`).
+Entregue e fora do backlog: **a onda de voz/RTC** (`tuneOpus` + `setTunedLocalDescription` #222, `createAudioBus` com ganho >100% e limiter pós-soma #223, `createWebSocket` resiliente #220, `aria-label` no `Slider` #221), **`CodeBlock`** (realce por scanner + tokens `--tempest-code-*`), **`QRCode`** (encoder ISO 18004 próprio, 3,2 KB br), **`Sparkline`** (mini-gráfico inline, sem recharts), **escala contínua de data viz** (`sequentialScale`/`divergingScale`), **`NotificationCenter`** (inbox de push), **`VirtualTable`**, **ícone por slug (`/icons`, issue #37)**, **`tempest fix` convertendo import relativo pra `@/` (issue #56)**, release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`), sweep `axe` em jsdom + smoke Playwright do gallery (`e2e.yml`), coverage gateando o CI (pisos 98/97/96/94), política de versionamento de tokens CSS (`docs/styles.md`).
 
 ### P1 — componentes
 
@@ -240,7 +275,7 @@ npm run dev               # http://127.0.0.1:5173
 - **Tokens CSS via `--tempest-*`** — única forma de tema. Apps customizam sobrescrevendo no `:root`.
 - **Direct deps + peers de contexto** (v0.2.0+, revisado pós-v0.42.1) — `react`, `react-dom` e `react-router` são peers; demais (`zod`, `zustand`, `dexie`, `react-hook-form`, `@tanstack/react-query`, `lucide-react`) são `dependencies` instaladas junto. Todas continuam externalizadas no Rollup config (bundle do SDK não cresce). Apps que não usam um módulo ainda não pagam — Vite/webpack tree-shake. Decisão original v0.1.x era "peer deps opcionais", revertida em v0.2.0 a pedido do usuário pra simplificar onboarding.
   - **O critério é contexto React, não popularidade.** Duas cópias de `zod`/`dexie`/`lucide-react` custam bytes; duas cópias de uma lib com contexto custam **correção** — `useNavigate() may be used only in the context of a <Router>`. Por isso `react-router` saiu de `dependencies` e virou peer `^7 || ^8`: como dep direta ele gerava cópia aninhada em todo app que já tivesse react-router fora do range fixado. Sintoma exato que o próprio `tempest doctor` acusa via `STATEFUL_DEPS` em `bin/tempest.mjs`.
-  - **Dívida conhecida** ([#210](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/210)): `@tanstack/react-query`, `zustand` e `react-hook-form` também estão em `STATEFUL_DEPS` e continuam como dep direta. Não é inconsistência acidental — a duplicação deles é rara na prática (o SDK aceita ranges largos: `^5`, `^4 || ^5`, `^7.76`) e o onboarding pesa mais. Se um app real colidir, o caminho é o mesmo aplicado ao router: peer com range largo + entrada de CHANGELOG explicando o crash que evita.
+  - **Dívida conhecida, decidida** ([#210](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/210), fechada em 23/08/2026 mantendo o estado): `@tanstack/react-query`, `zustand` e `react-hook-form` também estão em `STATEFUL_DEPS` e continuam como dep direta. Não é inconsistência acidental — a duplicação deles é rara na prática (o SDK aceita ranges largos: `^5`, `^4 || ^5`, `^7.76`) e o onboarding pesa mais. Se um app real colidir, o caminho é o mesmo aplicado ao router: peer com range largo + entrada de CHANGELOG explicando o crash que evita.
 - **Adapters injetam SDK** — Sentry/PostHog/GrowthBook/LaunchDarkly **não** são peer deps. Caller passa a instância. Pattern aplicável pra Datadog/Mixpanel/Unleash/etc.
 - **Client-side only, PWA offline-first** — o SDK **não** vai para SSR/RSC. Nada de `"use client"`, nada de suporte ao App Router do Next: o alvo é SPA Vite que roda offline (service worker, IndexedDB, outbox, install prompt). Isso é escopo escolhido, não lacuna: um SDK que precisa funcionar nos dois mundos paga em cada API (dois caminhos de render, hidratação, `window` proibido no módulo) e o offline-first fica pior. Os guards `typeof window === "undefined"` que existem nos hooks **continuam** — eles servem pra não explodir fora do browser (testes, contexto de service worker, plugin de build), não pra prometer render no servidor.
 - **Sem Storybook** — docs em markdown + `examples/gallery` (app Vite real) cumprem o papel.

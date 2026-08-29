@@ -4,6 +4,65 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`onParseError` em `createWebSocket`, `useWebSocket` e `createEventStream`.**
+  Quando o frame não é JSON e nenhum `parser` foi passado, o callback recebe o
+  erro e o frame cru, e a mensagem **não** é entregue. Sem o callback, o
+  comportamento anterior continua — a string crua entregue como se fosse o seu
+  tipo — mas um build de desenvolvimento agora avisa uma vez por transporte que
+  isso aconteceu.
+
+### Corrigido
+
+- **Paleta vazia em `quantizeScale` e `thresholdScale` devolvia `undefined`
+  anunciado como `string`.** As duas indexavam em `-1` quando a paleta não tinha
+  cor alguma, e o resultado chegava ao DOM como `fill="undefined"`: mapa em
+  branco, nada reportado. Agora lançam na **construção** da escala, que é onde o
+  engano está — normalmente uma paleta saída de um `.filter()` ou de um `.slice()`
+  com o índice errado. `interpolatePalette` já tinha essa guarda; as outras duas
+  não.
+
+- **`string` deixou de ser tipada como `T` no caminho de mensagem.** Os três
+  transportes tinham cópias idênticas de um parser que, no `catch`, fazia
+  `return raw as unknown as T`. A falha nunca aparecia no parse — aparecia no
+  primeiro acesso a propriedade, longe dali. Uma cópia só agora, em
+  `utils/json-frame.ts`, com o aviso e o `onParseError` acima.
+
+- **Quatro `as unknown as BufferSource` no cliente WebAuthn** que o compilador não
+  pedia: `base64UrlToBytes` devolve `Uint8Array<ArrayBuffer>`, que já **é** um
+  `BufferSource`. Asserção dupla desnecessária desliga a checagem exatamente ali.
+
+### Performance
+
+- **Formatador do `Intl` deixou de ser construído a cada chamada** em 11 sítios,
+  `formatCurrency` e `formatDate` inclusive — que é o que uma célula de tabela
+  chama por linha, por render. Medido em 20.000 chamadas: **15,56 µs → 0,29 µs**.
+  Uma grade de 500 linhas × 3 colunas formatadas cai de **23,1 ms para 0,4 ms**,
+  a diferença entre estourar o frame de 16,7 ms só formatando e não notar. Cache
+  em `utils/intl-cache.ts`, chaveado por locale + opções, limitado a 64 formas.
+
+- **`Probs._topK` parou de ordenar as mil classes para devolver cinco.** Seleção
+  parcial O(n·k), sem alocar array de índices: **123,7 µs → 1,9 µs** para saída
+  idêntica (65×). `top5` e `top5conf` passam a partilhar um cálculo memoizado em
+  vez de pagar dois. Empate mantém o índice menor primeiro, igual ao sort estável
+  que substituiu — fixado em teste contra a implementação antiga como oráculo.
+
+- **Linha de `VirtualList` e `VirtualTable` ganhou fronteira de `memo`.** Rolar
+  mudava estado interno do componente e re-renderizava a janela visível inteira em
+  vez da linha que entrou. Medido em 20 passos de uma linha:
+  `renderItem` **126 → 17** e `column.render` **168 → 16**. `renderItem`,
+  `columns` e `onRowClick` participam da comparação de propósito — lê-los de uma
+  ref congelaria a linha mostrando estado velho.
+
+### Interno
+
+- `noImplicitReturns` ligado. Custou um ajuste, no `handleHotUpdate` do plugin de
+  ícones.
+- Decisão registrada no `CLAUDE.md`: `noUncheckedIndexedAccess` fica **desligado**
+  (221 erros, quase todos laço limitado pelo próprio `length`), mas a varredura
+  com a flag vale como auditoria — foi ela que achou a paleta vazia.
+
 ## [0.53.0] — 2026-08-28
 
 ### Adicionado

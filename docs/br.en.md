@@ -391,6 +391,14 @@ const scale = sequentialScale(0, 1200, SEQUENTIAL_VIRIDIS);
 !!! note "Brand palette"
     The palettes are public standards (ColorBrewer/Viridis). Swap for any ordered list of your brand's hex colors — the scale builders accept any `string[]`.
 
+!!! warning "An empty palette throws at construction"
+    `quantizeScale` and `thresholdScale` **throw** when the palette has no colours,
+    rather than returning a scale that answers `undefined` for every value. Such a
+    scale reaches the DOM as `fill="undefined"`: the map comes out blank and
+    nothing is reported. The error now lands on the line that built the scale,
+    which is where the mistake is — usually a palette coming out of a `.filter()`
+    or a `.slice()` with the wrong index.
+
 ---
 
 ## Part 7 — Zoom, color-by-region and municipality search

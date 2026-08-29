@@ -3620,16 +3620,71 @@ Menu suspenso de ações. Navegação por teclado (↑↓ Home End Esc). Cada en
 />
 ```
 
-| Entry type    | Campos                                                     |
-| ------------- | ---------------------------------------------------------- |
-| `"item"`      | `id`, `label`, `icon?`, `onSelect`, `disabled?`, `danger?` |
-| `"label"`     | `id`, `label`                                              |
-| `"separator"` | `id`                                                       |
+| Entry type    | Campos                                                                 |
+| ------------- | ---------------------------------------------------------------------- |
+| `"item"`      | `id`, `label`, `icon?`, `onSelect`, `disabled?`, `danger?`             |
+| `"checkbox"`  | `id`, `label`, `icon?`, `checked`, `onSelect`, `disabled?`             |
+| `"label"`     | `id`, `label`                                                          |
+| `"separator"` | `id`                                                                   |
 
 Props do componente: `trigger` (`ReactElement`), `items` (`DropdownMenuEntry[]`), `placement` (`"bottom-start" \| "bottom-end" \| "top-start" \| "top-end"`, default `"bottom-start"`).
 
-!!! note "Fecha após selecionar"
-    Selecionar um item dispara `onSelect` e fecha o menu. Para um painel que permanece aberto com múltiplas escolhas (checkboxes, filtros), use `Popover` em vez de `DropdownMenu`.
+### Item que liga e desliga
+
+`type: "checkbox"` renderiza `role="menuitemcheckbox"` com `aria-checked` — que é como um leitor de tela anuncia "marcado" em vez de deixar o estado invisível.
+
+```tsx
+import { useState } from "react";
+import { Button, DropdownMenu } from "tempest-react-sdk";
+
+export function MenuDaChamada({ alternarTema }: { alternarTema: () => void }) {
+    const [silencioso, setSilencioso] = useState(false);
+
+    return (
+        <DropdownMenu
+            trigger={<Button variant="ghost">Mais opções</Button>}
+            items={[
+                {
+                    type: "checkbox",
+                    id: "quiet",
+                    label: "Silenciar os sons da chamada",
+                    checked: silencioso,
+                    onSelect: () => setSilencioso((valor) => !valor),
+                },
+                { type: "separator", id: "s" },
+                { type: "item", id: "tema", label: "Alternar tema", onSelect: alternarTema },
+            ]}
+        />
+    );
+}
+```
+
+!!! note "Item comum fecha, checkbox não"
+    Selecionar um `"item"` dispara `onSelect` e fecha o menu. Um `"checkbox"`
+    alterna e **deixa o menu aberto**, porque ajustar duas preferências seguidas é
+    o caso comum e fechar após a primeira transformaria a segunda numa segunda
+    viagem.
+
+### Teclado
+
+`role="menu"` é uma promessa sobre o teclado, e o componente a cumpre — o padrão
+é o [APG Menu Button](https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/):
+
+| Tecla | No gatilho | No menu aberto |
+| --- | --- | --- |
+| `Enter` / `Space` | abre e foca o **primeiro** item | ativa o item focado |
+| `↓` | abre e foca o **primeiro** item | próximo, com wrap |
+| `↑` | abre e foca o **último** item | anterior, com wrap |
+| `Home` / `End` | — | primeiro / último |
+| `Esc` | — | fecha e **devolve o foco ao gatilho** |
+| `Tab` | segue a página | fecha e segue a página |
+
+!!! tip "Foco gerenciado — `Tab` não percorre o menu"
+    As entradas têm `tabIndex={-1}` e só a ativa tem `0`. Sem isso, `Tab` andaria
+    item a item e faria o papel que a seta deveria fazer — o que é pior que
+    inacessível, porque o widget parece funcionar e contradiz o que o
+    `role="menu"` anunciou. Entrada desabilitada, `label` e `separator` nunca são
+    parada.
 
 ## `Popover`
 
@@ -21933,6 +21988,46 @@ Shadows são automaticamente mais escuros no tema dark.
 `@media (prefers-reduced-motion: reduce)` zera todas as durações de tokens automaticamente. Componentes que usam keyframes pesados (modal, drawer, toast, tooltip, skeleton) também detectam e desabilitam animações específicas.
 
 ---
+
+## O reset e o seu markup
+
+`styles.css` traz um reset moderno, e uma das regras dele alcança elementos que
+o SDK não desenha:
+
+```css
+img, svg, video, canvas, audio, iframe, embed, object {
+    display: block;
+    max-width: 100%;
+}
+```
+
+Deixar mídia em bloco evita o espaço fantasma abaixo de uma imagem inline, que é
+o motivo de a regra existir em todo reset moderno. Mas um `<button>` do
+user-agent centraliza o conteúdo com `text-align: center`, e `text-align` só
+alcança caixa inline — então um ícone sozinho num botão **seu** encostaria na
+borda esquerda.
+
+O SDK ships o contrapeso junto:
+
+```css
+:where(button, a, label, summary) > svg:only-child {
+    margin-inline: auto;
+}
+```
+
+!!! tip "Especificidade zero, de propósito"
+    `:where()` não soma especificidade, então **qualquer** regra sua ganha desta
+    sem `!important`. Centralizado é o default; outro alinhamento é uma
+    declaração normal:
+
+    ```css
+    .toolbar button > svg { margin-inline: 0; }
+    ```
+
+!!! note "Só vale para ícone sozinho"
+    `:only-child` mantém a regra restrita ao botão só-de-ícone. Ícone ao lado de
+    rótulo já vive num flex seu, onde `margin: auto` empurraria o texto — esse
+    caso continua com o alinhamento que você deu.
 
 ## Focus ring
 

@@ -103,17 +103,22 @@ describe("DropdownMenu — placement, keyboard and entry kinds", () => {
         expect(screen.getAllByRole("menuitem")).toHaveLength(3);
     });
 
+    /*
+     * These used to dispatch on `window`, which is why they passed while the
+     * component was broken in a real application: firing the key at the window
+     * skips the question of whether focus ever entered the menu, and it never
+     * did. `userEvent.keyboard` sends the key to whatever holds focus, so the
+     * assertions below fail against the old implementation.
+     */
     it("skips disabled items while cycling with the arrow keys", async () => {
         render(<DropdownMenu trigger={<button>abrir</button>} items={items} />);
         await userEvent.click(screen.getByRole("button", { name: "abrir" }));
-
-        fireEvent.keyDown(window, { key: "ArrowDown" });
         expect(document.activeElement?.textContent).toContain("Editar");
 
-        fireEvent.keyDown(window, { key: "ArrowDown" });
+        await userEvent.keyboard("{ArrowDown}");
         expect(document.activeElement?.textContent).toContain("Duplicar");
 
-        fireEvent.keyDown(window, { key: "ArrowDown" });
+        await userEvent.keyboard("{ArrowDown}");
         expect(document.activeElement?.textContent).toContain("Editar");
     });
 
@@ -121,11 +126,11 @@ describe("DropdownMenu — placement, keyboard and entry kinds", () => {
         render(<DropdownMenu trigger={<button>abrir</button>} items={items} />);
         await userEvent.click(screen.getByRole("button", { name: "abrir" }));
 
-        fireEvent.keyDown(window, { key: "ArrowUp" });
-        expect(document.activeElement?.textContent).toContain("Editar");
-
-        fireEvent.keyDown(window, { key: "ArrowUp" });
+        await userEvent.keyboard("{ArrowUp}");
         expect(document.activeElement?.textContent).toContain("Duplicar");
+
+        await userEvent.keyboard("{ArrowUp}");
+        expect(document.activeElement?.textContent).toContain("Editar");
     });
 
     it("closes on Escape and on an outside mousedown", async () => {
@@ -133,8 +138,9 @@ describe("DropdownMenu — placement, keyboard and entry kinds", () => {
         const trigger = screen.getByRole("button", { name: "abrir" });
 
         await userEvent.click(trigger);
-        fireEvent.keyDown(window, { key: "Escape" });
+        await userEvent.keyboard("{Escape}");
         expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+        expect(document.activeElement).toBe(trigger);
 
         await userEvent.click(trigger);
         fireEvent.mouseDown(document.body);

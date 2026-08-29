@@ -51,6 +51,80 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   fundo — para quem precisa desses números saber onde procurar em vez de
   descobrir que o valor estava mentindo.
 
+- **Entrada `checkbox` no `DropdownMenu`**
+  ([#244](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/244)).
+  `type: "checkbox"` renderiza `role="menuitemcheckbox"` com `aria-checked`, que é
+  como um leitor de tela anuncia "marcado" em vez de deixar o estado invisível.
+  Antes não havia onde declarar estado: um item que liga/desliga algo virava
+  `"item"` comum, e o `aria-pressed` que o botão solto tinha se perdia na
+  migração para o menu.
+
+  Alternar **não fecha** o menu — ajustar duas preferências seguidas é o caso
+  comum, e fechar após a primeira transformaria a segunda numa segunda viagem.
+  `"item"` continua fechando, como sempre.
+
+  A união já era discriminada por `type`, então a variante é aditiva: nenhum
+  consumidor quebra.
+
+### Corrigido
+
+- **`role="menu"` sem o teclado que o papel promete**
+  ([#244](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/244)).
+  O menu abria e o foco ficava no gatilho; `ArrowDown` não movia nada. Quem usava
+  teclado descobria por tentativa que ali `Tab` fazia o papel da seta, porque as
+  entradas saíam com `tabIndex: 0`. Não era inacessível — era **fora do padrão**,
+  que é pior: o widget parece funcionar e contradiz o que anunciou.
+
+  O modelo agora é o
+  [APG Menu Button](https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/):
+  `Enter`/`Space`/`↓` abrem focando a primeira entrada e `↑` a última; `↑`/`↓`
+  percorrem com wrap; `Home`/`End` vão às pontas; `Esc` fecha e **devolve o foco
+  ao gatilho**; `Tab` fecha e deixa a ordem da página seguir. Foco gerenciado —
+  `tabIndex: -1` nas entradas, `0` na ativa.
+
+  **Por que as setas sumiam num app real:** o handler vivia num listener de
+  `keydown` no `window`, e qualquer `stopPropagation` no caminho o engolia. Agora
+  o teclado é tratado na própria lista, para onde o foco entrou — as teclas
+  chegam por bubbling e não há listener global a ser pré-empteado.
+
+  Os testes de seta que existiam **passavam com o componente quebrado**: eles
+  disparavam em `window`, o que pula a pergunta de se o foco chegou ao menu. Foram
+  reescritos para `userEvent.keyboard`, que envia a tecla a quem tem o foco. Nove
+  dos doze casos novos falham contra a implementação anterior.
+
+  O foco do gatilho é recuperado pelo `aria-haspopup` que o componente coloca
+  nele, não por `ref`: `ref` mora em lugares diferentes no React 18 e 19, e um
+  trigger custom não é obrigado a encaminhar um.
+
+- **O reset descentralizava ícone em botão do consumidor**
+  ([#241](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/241)).
+  `styles.css` torna todo `svg` uma caixa de bloco — regra padrão de reset
+  moderno, e ela está certa. O efeito colateral não é nos componentes do SDK, que
+  centralizam por conta própria: é no `<button>` que **você** escreve. O
+  user-agent centraliza conteúdo de botão com `text-align: center`, que só
+  alcança caixa inline, então um ícone sozinho encostava na borda esquerda —
+  medido em **12 px** num botão de 44 px com ícone de 20 px, exatamente
+  `(44 − 20) / 2`.
+
+  O sintoma não apontava para a causa: o botão irmão com uma letra continuava
+  centralizado, o que faz parecer defeito do ícone e não do reset.
+
+  O contrapeso vai junto do reset, com **especificidade zero**:
+
+  ```css
+  :where(button, a, label, summary) > svg:only-child {
+    margin-inline: auto;
+  }
+  ```
+
+  `:where()` para qualquer regra sua ganhar dela sem `!important`;
+  `margin-inline` em vez de trocar o `display`, que relayoutaria todo botão com
+  ícone de toda aplicação que já compensou; `:only-child` para não empurrar o
+  rótulo de um botão com ícone **e** texto.
+
+  `e2e/reset.spec.ts` fixa isso num browser real — jsdom não calcula layout e
+  nunca veria. Revertido contra o CSS anterior, falha com `Received: 12`.
+
 ## [0.53.0] — 2026-08-28
 
 ### Adicionado

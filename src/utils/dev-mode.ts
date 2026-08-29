@@ -2,8 +2,9 @@
  * Internal, and imported by path (`../utils/dev-mode`) rather than through the
  * `utils` barrel: re-exporting it would make a one-line env read part of the
  * package's public API, with the semver weight that carries, for something no
- * consumer asked for. The three call sites are `<Icon>`, `useStickyBodyWarning`
- * and the `DataTable` dev warnings.
+ * consumer asked for. Every dev-only diagnostic in the SDK routes through it —
+ * `grep -rn "dev-mode" src/` for the current list, which an enumeration written
+ * here would only drift away from.
  */
 
 /**

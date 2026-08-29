@@ -228,6 +228,34 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `e2e/reset.spec.ts` fixa isso num browser real — jsdom não calcula layout e
   nunca veria. Revertido contra o CSS anterior, falha com `Received: 12`.
 
+- **O relatório de drift do `parseResponse` estava morto no browser**
+  ([#250](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/250)).
+  A decisão de "estou em desenvolvimento" era
+  `typeof process !== "undefined" && process.env?.NODE_ENV === …`, e bundle de
+  browser não tem o identificador `process`: a conjunção curto-circuitava em
+  `false` e a mensagem detalhada — caminhos de campo mais o payload cru — ficava
+  inalcançável justamente no build para o qual foi escrita. Todo app recebia a
+  frase genérica, que é a que deliberadamente não diz nada. A pergunta agora vai
+  por `isDevBuild()`.
+
+  Não é `import.meta.env.DEV`, como a issue propunha: o Vite substitui isso ao
+  buildar **este pacote**, então o artefato publicado carregaria a constante
+  `false` e reproduziria a #164 exatamente.
+
+  **Amplia comportamento, não é refactor puro:** a regra antiga era
+  `NODE_ENV === "development" || "test"`; `isDevBuild()` é
+  `NODE_ENV !== "production"`. Build de staging que nunca seta
+  `NODE_ENV=production` passa a receber um `Error` carregando
+  `JSON.stringify(raw)` — dos sete call sites de `isDevBuild()` esse é o único que
+  imprime payload de servidor em vez de avisar no console, e as duas páginas de
+  doc dizem isso.
+
+  Os testes eram a razão de isso ter passado: o vitest seta `NODE_ENV=test` e o
+  jsdom fornece `process`, então o ramo de dev era tomado por um motivo que
+  browser nenhum reproduz, e nenhum dos dois casos distinguia o código corrigido
+  do quebrado. Agora dirigem o ramo por um `isDevBuild` mockado e nunca leem
+  `process`.
+
 ### Performance
 
 - **Formatador do `Intl` deixou de ser construído a cada chamada** em 11 sítios,

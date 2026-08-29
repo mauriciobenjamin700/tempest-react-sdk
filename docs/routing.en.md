@@ -59,6 +59,12 @@ Each `TempestRouteObject` accepts:
 | `redirectTo`    | `string`                                    | The guard's redirect target. Default `"/"`.                                   |
 | `caseSensitive` | `boolean`                                   | Makes the `path` match case-sensitive.                                        |
 
+!!! tip "A `lazy` page may declare props"
+    `ComponentType` there is literal: any component works, whether its props are
+    required, optional or absent. A page typed `({ id }: Props) => …` goes into
+    the tree without a cast. Props the route needs to supply still come from the
+    `element` or a context — `lazy` mounts the component with no arguments.
+
 Then just hand the tree to `<AppRouter>`:
 
 ```tsx

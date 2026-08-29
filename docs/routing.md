@@ -59,6 +59,12 @@ Cada `TempestRouteObject` aceita:
 | `redirectTo`    | `string`                                    | Destino do redirect do guard. Padrão `"/"`.                                     |
 | `caseSensitive` | `boolean`                                   | Faz o match de `path` diferenciar maiúsculas/minúsculas.                        |
 
+!!! tip "A página do `lazy` pode declarar props"
+    `ComponentType` ali é literal: qualquer componente serve, tenha ele prop
+    obrigatória, opcional ou nenhuma. Uma página `({ id }: Props) => …` entra na
+    árvore sem cast. Props que a rota precise passar continuam saindo do
+    `element` ou de um contexto — o `lazy` monta o componente sem argumentos.
+
 Depois é só passar a árvore para o `<AppRouter>`:
 
 ```tsx

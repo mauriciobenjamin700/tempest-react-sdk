@@ -228,6 +228,36 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `e2e/reset.spec.ts` fixa isso num browser real — jsdom não calcula layout e
   nunca veria. Revertido contra o CSS anterior, falha com `Received: 12`.
 
+- **`lazyWithRetry` recusava componente com props**
+  ([#251](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/251)).
+  Props ficam em posição de parâmetro, então limite sobre elas é contravariante:
+  `ComponentType<unknown>` lê como "aceita todo objeto de props possível", o que
+  nada que declare props próprias satisfaz. Só página genuinamente sem prop
+  compilava pelo helper, enquanto `React.lazy` puro aceitava a mesma página de bom
+  grado — é por isso que o React declara `lazy` e `LazyExoticComponent` como
+  `ComponentType<any>`, e por isso que um app migrando árvore de rotas mista tinha
+  que reverter e ficar sem retry de chunk depois de deploy.
+
+  `ComponentType<never>` não é a fuga sem `any`: este módulo precisa chamar
+  `React.lazy`, e `ComponentClass<never, any>` falha o próprio limite do React em
+  `getDerivedStateFromProps`, onde as props voltam para posição covariante. O
+  limite virou um alias `ComponentType<any>` privado do módulo com disable
+  pontual de eslint — a forma que `KeyBuilder` em `src/query/create-query-keys.ts`
+  já sanciona.
+
+  **Só o limite se moveu.** `T` continua inferido como o componente concreto:
+  prop errada, obrigatória faltando e desconhecida seguem falhando na compilação,
+  e `preload()` ainda resolve para o módulo concreto — fixado por três
+  `@ts-expect-error` que ficam vermelhos como TS2578 se alguém um dia alargar
+  demais o tipo de retorno.
+
+  `src/router/types.ts` carregava o defeito idêntico e independente: `route.lazy`
+  era `() => Promise<{ default: ComponentType<unknown> }>`, então todo usuário de
+  `defineRoutes` estava igualmente preso mesmo com o módulo de auth corrigido, e
+  as duas páginas de routing já documentavam o tipo mais frouxo que o código
+  recusava. `AppRouter.tsx` não muda: `ComponentType<any>` é atribuível a
+  `ComponentType<unknown>`, então nenhum `any` entra na implementação do router.
+
 ### Performance
 
 - **Formatador do `Intl` deixou de ser construído a cada chamada** em 11 sítios,

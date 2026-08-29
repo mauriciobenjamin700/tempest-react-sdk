@@ -120,13 +120,70 @@ A dropdown menu of actions. Keyboard nav (↑↓ Home End Esc). Each entry needs
 | Entry type    | Fields                                                     |
 | ------------- | ---------------------------------------------------------- |
 | `"item"`      | `id`, `label`, `icon?`, `onSelect`, `disabled?`, `danger?` |
+| `"checkbox"`  | `id`, `label`, `icon?`, `checked`, `onSelect`, `disabled?` |
 | `"label"`     | `id`, `label`                                              |
 | `"separator"` | `id`                                                       |
 
 Component props: `trigger` (`ReactElement`), `items` (`DropdownMenuEntry[]`), `placement` (`"bottom-start" \| "bottom-end" \| "top-start" \| "top-end"`, default `"bottom-start"`).
 
-!!! note "Closes after selecting"
-    Selecting an item fires `onSelect` and closes the menu. For a panel that stays open with multiple choices (checkboxes, filters), use `Popover` instead of `DropdownMenu`.
+### An entry that toggles
+
+`type: "checkbox"` renders `role="menuitemcheckbox"` with `aria-checked` — which
+is how a screen reader announces "checked" instead of leaving the state
+invisible.
+
+```tsx
+import { useState } from "react";
+import { Button, DropdownMenu } from "tempest-react-sdk";
+
+export function CallMenu({ toggleTheme }: { toggleTheme: () => void }) {
+    const [quiet, setQuiet] = useState(false);
+
+    return (
+        <DropdownMenu
+            trigger={<Button variant="ghost">More options</Button>}
+            items={[
+                {
+                    type: "checkbox",
+                    id: "quiet",
+                    label: "Mute call sounds",
+                    checked: quiet,
+                    onSelect: () => setQuiet((value) => !value),
+                },
+                { type: "separator", id: "s" },
+                { type: "item", id: "theme", label: "Toggle theme", onSelect: toggleTheme },
+            ]}
+        />
+    );
+}
+```
+
+!!! note "A plain item closes, a checkbox does not"
+    Selecting an `"item"` fires `onSelect` and closes the menu. A `"checkbox"`
+    toggles and **leaves the menu open**, because adjusting two preferences in a
+    row is the ordinary case and closing after the first would make the second a
+    second trip.
+
+### Keyboard
+
+`role="menu"` is a promise about the keyboard, and the component keeps it — the
+pattern is the [APG Menu Button](https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/):
+
+| Key | On the trigger | In the open menu |
+| --- | --- | --- |
+| `Enter` / `Space` | opens, focuses the **first** entry | activates the focused entry |
+| `↓` | opens, focuses the **first** entry | next, wrapping |
+| `↑` | opens, focuses the **last** entry | previous, wrapping |
+| `Home` / `End` | — | first / last |
+| `Esc` | — | closes and **returns focus to the trigger** |
+| `Tab` | follows the page | closes and follows the page |
+
+!!! tip "Managed focus — `Tab` does not walk the menu"
+    Entries carry `tabIndex={-1}` and only the active one is `0`. Without that,
+    `Tab` would step through entry by entry and do the job the arrow key should
+    — which is worse than inaccessible, because the widget looks like it works
+    while contradicting what `role="menu"` announced. Disabled entries, `label`
+    and `separator` are never a stop.
 
 ## `Popover`
 

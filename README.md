@@ -1086,6 +1086,16 @@ if (sender) await setSenderBitrate(sender, 48_000);
 
 No preset table on purpose — which values to use is the consumer's call. What the module owns is the parsing: per-key `fmtp` merge (so the browser's `minptime` survives), `stereo` written together with `sprop-stereo` (they point in opposite directions), payload types read from the `rtpmap`, an `fmtp` inserted when absent, and video m-lines left alone. Full guide: [WebRTC](https://mauriciobenjamin700.github.io/tempest-react-sdk/webrtc/).
 
+The same module reduces `getStats()` into the badge a call actually shows:
+
+```ts
+import { useLinkStats } from "tempest-react-sdk";
+
+const stats = useLinkStats(pc); // { kbps, width, height, fps, rttMs }
+```
+
+Two things every hand-rolled copy gets wrong: the round trip has to come from the pair the transport names in `selectedCandidatePairId` (a connection keeps idle host pairs around, and reading those makes the number jump between paths nobody is using), and the throughput has to be a **delta** — `bytesSent` is cumulative, so dividing it by the session length reports a historical average that only ever falls. Sampling pauses while the tab is hidden and resets its baseline on the way back, so the first sample after a background stretch is not the average of it.
+
 ### Server-Sent Events (SSE) recipe
 
 Stream with exponential reconnect (up to 10 attempts), `ping` heartbeat, JSON parsing by default. For cookie-auth endpoints, pass `withCredentials: true`.

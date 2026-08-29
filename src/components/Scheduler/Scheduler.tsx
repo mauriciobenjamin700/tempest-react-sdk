@@ -20,6 +20,7 @@ import {
     type SchedulerEvent,
 } from "./scheduler-layout";
 import styles from "./Scheduler.module.css";
+import { dateTimeFormat } from "@/utils/intl-cache";
 
 export interface SchedulerProps extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
     /** Events to place. Instants are read in the browser's local time. */
@@ -132,8 +133,8 @@ export function Scheduler({
     const allDay = useMemo(() => layoutAllDay({ events, days: dayList }), [events, dayList]);
     const marks = useMemo(() => hourMarks(window), [window]);
 
-    const dayLabel = new Intl.DateTimeFormat(locale, { weekday: "short", day: "numeric" });
-    const timeLabel = new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" });
+    const dayLabel = dateTimeFormat(locale, { weekday: "short", day: "numeric" });
+    const timeLabel = dateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" });
 
     /** Turn a click's vertical position within a day column into a snapped instant. */
     const slotFromClick = (day: Date, event: React.MouseEvent<HTMLDivElement>): Date => {

@@ -3,6 +3,7 @@ import type { InputHTMLAttributes } from "react";
 import { Input, type InputProps } from "@/components/Input";
 import { formatCEP, formatCNPJ } from "./br-validators";
 import { formatCPF, formatPhone } from "@/utils/format";
+import { numberFormat } from "@/utils/intl-cache";
 
 /**
  * Props of every masked input.
@@ -54,7 +55,7 @@ export interface MoneyInputProps extends Omit<InputProps, "value" | "onChange" |
 }
 
 function formatCents(cents: number, locale: string, currency: string): string {
-    return new Intl.NumberFormat(locale, { style: "currency", currency }).format(cents / 100);
+    return numberFormat(locale, { style: "currency", currency }).format(cents / 100);
 }
 
 function parseCents(text: string): number {

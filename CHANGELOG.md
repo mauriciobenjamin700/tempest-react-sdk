@@ -4,6 +4,37 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **O reset descentralizava ícone em botão do consumidor**
+  ([#241](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/241)).
+  `styles.css` torna todo `svg` uma caixa de bloco — regra padrão de reset
+  moderno, e ela está certa. O efeito colateral não é nos componentes do SDK, que
+  centralizam por conta própria: é no `<button>` que **você** escreve. O
+  user-agent centraliza conteúdo de botão com `text-align: center`, que só
+  alcança caixa inline, então um ícone sozinho encostava na borda esquerda —
+  medido em **12 px** num botão de 44 px com ícone de 20 px, exatamente
+  `(44 − 20) / 2`.
+
+  O sintoma não apontava para a causa: o botão irmão com uma letra continuava
+  centralizado, o que faz parecer defeito do ícone e não do reset.
+
+  O contrapeso vai junto do reset, com **especificidade zero**:
+
+  ```css
+  :where(button, a, label, summary) > svg:only-child {
+    margin-inline: auto;
+  }
+  ```
+
+  `:where()` para qualquer regra sua ganhar dela sem `!important`;
+  `margin-inline` em vez de trocar o `display`, que relayoutaria todo botão com
+  ícone de toda aplicação que já compensou; `:only-child` para não empurrar o
+  rótulo de um botão com ícone **e** texto.
+
+  `e2e/reset.spec.ts` fixa isso num browser real — jsdom não calcula layout e
+  nunca veria. Revertido contra o CSS anterior, falha com `Received: 12`.
+
 ## [0.53.0] — 2026-08-28
 
 ### Adicionado

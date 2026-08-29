@@ -3,6 +3,7 @@
  * `data:` lines until a blank line, track `id:` for Last-Event-ID, honour `retry:` —
  * plus the reconnect that uses the id it just tracked.
  */
+import { decodeFrame } from "../utils/json-frame";
 export type EventStreamStatus = "idle" | "connecting" | "open" | "closed" | "error";
 
 export interface EventStreamMessage<T> {
@@ -31,6 +32,16 @@ export interface CreateEventStreamOptions<T> {
     maxBackoff?: number;
     /** Parse `event.data`. Defaults to JSON with raw-string fallback. */
     parser?: (raw: string) => T;
+    /**
+     * A frame arrived that is not valid JSON, and no `parser` was supplied.
+     *
+     * Registering this drops the frame instead of delivering it: the previous
+     * behaviour handed `onMessage` the raw `string` announced as your message
+     * type, so the failure surfaced later, at the first property access, with
+     * nothing left pointing at the parse. Leave it out and that behaviour is
+     * kept, with a one-time warning in development builds.
+     */
+    onParseError?: (error: unknown, raw: string) => void;
     onOpen?: () => void;
     onMessage?: (message: EventStreamMessage<T>) => void;
     onError?: (error: Event) => void;
@@ -43,14 +54,6 @@ export interface EventStreamController {
     reconnect: () => void;
     /** Current connection status. */
     readonly status: EventStreamStatus;
-}
-
-function defaultParser<T>(raw: string): T {
-    try {
-        return JSON.parse(raw) as T;
-    } catch {
-        return raw as unknown as T;
-    }
 }
 
 /**
@@ -75,10 +78,11 @@ export function createEventStream<T = unknown>(
         maxRetries = 10,
         initialBackoff = 1000,
         maxBackoff = 30000,
-        parser = defaultParser<T>,
+        parser,
         onOpen,
         onMessage,
         onError,
+        onParseError,
         onStatusChange,
     } = options;
 
@@ -96,9 +100,16 @@ export function createEventStream<T = unknown>(
 
     function emit(eventName: string, event: MessageEvent): void {
         if (heartbeatEvents.includes(eventName)) return;
+        const decoded = decodeFrame<T>(
+            typeof event.data === "string" ? event.data : "",
+            parser,
+            onParseError,
+            "createEventStream",
+        );
+        if (!decoded.delivered) return;
         onMessage?.({
             event: eventName,
-            data: parser(event.data),
+            data: decoded.data,
             id: event.lastEventId || undefined,
             raw: event,
         });

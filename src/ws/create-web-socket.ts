@@ -11,6 +11,7 @@ import {
     shouldRetryClose,
     type WebSocketLostReason,
 } from "./resilience";
+import { decodeFrame } from "../utils/json-frame";
 
 export type WebSocketStatus = "idle" | "connecting" | "open" | "closing" | "closed" | "error";
 
@@ -109,6 +110,16 @@ export interface CreateWebSocketOptions<T> {
     maxQueuedMessages?: number;
     /** Parse incoming frames. Default: JSON with raw-string fallback. */
     parser?: (raw: string) => T;
+    /**
+     * A frame arrived that is not valid JSON, and no `parser` was supplied.
+     *
+     * Registering this drops the frame instead of delivering it: the previous
+     * behaviour handed `onMessage` the raw `string` announced as your message
+     * type, so the failure surfaced later, at the first property access, with
+     * nothing left pointing at the parse. Leave it out and that behaviour is
+     * kept, with a one-time warning in development builds.
+     */
+    onParseError?: (error: unknown, raw: string) => void;
     onOpen?: (event: Event) => void;
     onMessage?: (message: WebSocketMessage<T>) => void;
     onClose?: (event: CloseEvent) => void;
@@ -180,14 +191,6 @@ export interface WebSocketController {
     readonly status: WebSocketStatus;
 }
 
-function defaultParser<T>(raw: string): T {
-    try {
-        return JSON.parse(raw) as T;
-    } catch {
-        return raw as unknown as T;
-    }
-}
-
 /**
  * Open a WebSocket that survives a bad network: exponential backoff with jitter,
  * a handshake timeout, a silence watchdog, optional heartbeat pings and typed
@@ -232,11 +235,12 @@ export function createWebSocket<T = unknown>(
         pongPayload = JSON.stringify({ type: "pong" }),
         queueWhileClosed = false,
         maxQueuedMessages = 100,
-        parser = defaultParser<T>,
+        parser,
         onOpen,
         onMessage,
         onClose,
         onError,
+        onParseError,
         onStatusChange,
         onReconnecting,
         onReconnected,
@@ -485,7 +489,9 @@ export function createWebSocket<T = unknown>(
         ws.onmessage = (event) => {
             armSilence();
             const raw = typeof event.data === "string" ? event.data : "";
-            const data = parser(raw);
+            const decoded = decodeFrame<T>(raw, parser, onParseError, "createWebSocket");
+            if (!decoded.delivered) return;
+            const data = decoded.data;
             if (respondToPing && isServerPing(data) && ws.readyState === WebSocket.OPEN) {
                 ws.send(pongPayload);
             }

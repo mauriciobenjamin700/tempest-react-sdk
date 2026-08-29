@@ -16,6 +16,7 @@ import { Example } from "../Example";
  */
 export function OverlaysSection() {
     const [paletteOpen, setPaletteOpen] = useState(false);
+    const [silencioso, setSilencioso] = useState(false);
 
     return (
         <section className="gallery-section" id="overlays">
@@ -62,6 +63,45 @@ export function OverlaysSection() {
                             danger: true,
                             onSelect: () => {},
                         },
+                    ]}
+                />
+            </Example>
+
+            <Example
+                title="DropdownMenu — item que alterna"
+                id="dropdown-checkbox"
+                note={
+                    '`type: "checkbox"` sai como `role="menuitemcheckbox"` com `aria-checked`, e alternar **não** fecha o menu. Abra pelo teclado: ↑↓ Home End Esc.'
+                }
+                code={`const [silencioso, setSilencioso] = useState(false);
+
+<DropdownMenu
+  trigger={<Button variant="ghost">Mais opções</Button>}
+  items={[
+    {
+      type: "checkbox",
+      id: "quiet",
+      label: "Silenciar os sons da chamada",
+      checked: silencioso,
+      onSelect: () => setSilencioso((v) => !v),
+    },
+    { type: "separator", id: "s" },
+    { type: "item", id: "cfg", label: "Configurações", onSelect: () => {} },
+  ]}
+/>`}
+            >
+                <DropdownMenu
+                    trigger={<Button variant="ghost">Mais opções</Button>}
+                    items={[
+                        {
+                            type: "checkbox",
+                            id: "quiet",
+                            label: "Silenciar os sons da chamada",
+                            checked: silencioso,
+                            onSelect: () => setSilencioso((v) => !v),
+                        },
+                        { type: "separator", id: "s" },
+                        { type: "item", id: "cfg", label: "Configurações", onSelect: () => {} },
                     ]}
                 />
             </Example>

@@ -11,6 +11,7 @@ import { createPortal } from "react-dom";
 import { cn } from "@/utils/cn";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
 import styles from "./Drawer.module.css";
+import { usePortalHost } from "../Portal/portal-host";
 
 export type DrawerPlacement = "right" | "left" | "top" | "bottom";
 
@@ -71,7 +72,9 @@ export function Drawer({
         };
     }, [open, closeOnEsc, onClose]);
 
-    if (!open || typeof document === "undefined") return null;
+    const portalHost = usePortalHost();
+
+    if (!open || !portalHost) return null;
 
     return createPortal(
         <>
@@ -115,7 +118,7 @@ export function Drawer({
                 {footer && <footer className={styles.footer}>{footer}</footer>}
             </aside>
         </>,
-        document.body,
+        portalHost,
     );
 }
 

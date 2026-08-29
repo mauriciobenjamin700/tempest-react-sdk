@@ -1,4 +1,5 @@
 import type { HTMLAttributes } from "react";
+import { numberFormat } from "@/utils/intl-cache";
 
 export interface MoneyProps extends HTMLAttributes<HTMLSpanElement> {
     /** Amount in the smallest currency unit (e.g. cents). */
@@ -20,10 +21,7 @@ export interface MoneyProps extends HTMLAttributes<HTMLSpanElement> {
  * <Money cents={500} currency="USD" locale="en-US" /> // "$5.00"
  */
 export function Money({ cents, currency = "BRL", locale = "pt-BR", ...props }: MoneyProps) {
-    const formatted = new Intl.NumberFormat(locale, {
-        style: "currency",
-        currency,
-    }).format(cents / 100);
+    const formatted = numberFormat(locale, { style: "currency", currency }).format(cents / 100);
 
     return <span {...props}>{formatted}</span>;
 }

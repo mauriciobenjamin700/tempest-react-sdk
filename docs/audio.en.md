@@ -12,6 +12,12 @@ Audio in the browser, both directions.
 !!! info "Why a wrapper around `new Audio()`?"
     Playing sound in the browser runs into the _autoplay policy_ and leaking `Audio` elements. The SDK encapsulates it: it tracks the current clip (so you can `stop` it), normalizes volume, handles the autoplay block by returning `null` instead of throwing, and cleans up on unmount when you use the hook.
 
+<!-- gallery:audio-capture -->
+[![Áudio (gravação) in the gallery](assets/gallery/audio-capture.webp)](gallery.md)
+
+*Section `audio-capture` of the [gallery](gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 ## `playAudio` — one-off on the shared player
 
 Ideal for a sound fired by an event, with no UI state:
@@ -118,6 +124,37 @@ function Menu({ sfxVolume }: { sfxVolume: number }) {
     `createAudioPlayer` tracks **one** current clip, with loop, output routing and lifecycle callbacks — what background music needs. Effects are the opposite case: many sources, all short, fire-and-forget, and the only thing that matters is that firing one is cheap.
 
 Changing `volume` on `useSfxPool` calls `setVolume` on the existing pool rather than rebuilding it — rebuilding would throw away every element the user has already downloaded, which is exactly the cost the pool exists to avoid. `baseUrl`, `voices` and `maxSources` are read once, at creation.
+
+## `AudioPlayer` — visible transport
+
+**When to use it:** when the user needs to **control** playback, not just hear
+it — a voice message, a recorded take, an attachment. `playAudio` is
+fire-and-forget; `AudioPlayer` gives play/pause, a draggable bar and the times.
+
+```tsx
+import { AudioPlayer, Button } from "tempest-react-sdk";
+import { Trash } from "lucide-react";
+
+export function Recording({ blob, remove }: { blob: Blob; remove: () => void }) {
+    return (
+        <AudioPlayer
+            src={blob}
+            durationMs={12_400}
+            actions={
+                <Button variant="ghost" iconOnly aria-label="Delete" onClick={remove}>
+                    <Trash size={16} />
+                </Button>
+            }
+        />
+    );
+}
+```
+
+!!! tip "Pass `durationMs` when you already know the length"
+    A `Blob` recorded in the browser usually arrives with no duration header, and
+    `<audio>` reports `Infinity` until it has played to the end. The bar is stuck
+    for that whole stretch. If your recorder already told you the length, pass it
+    — the component uses that value until the real metadata lands.
 
 ## Autoplay policy
 

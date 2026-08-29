@@ -4,6 +4,12 @@ Rolagem estilizada, painéis redimensionáveis, calendário e agenda. Dão forma
 
 ## `ScrollArea`
 
+<!-- gallery:disclosure -->
+[![Accordion · Collapsible · Scroll na gallery](../assets/gallery/disclosure.webp)](../gallery.md)
+
+*Seção `disclosure` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 Contêiner de rolagem estilizado que transborda no eixo escolhido e renderiza uma barra de rolagem fina (WebKit). Repassa `className`, `style` e `ref` ao `<div>`.
 
 ```tsx
@@ -31,6 +37,12 @@ Demais props de `<div>` são repassadas.
 
 ## `Resizable`
 
+<!-- gallery:headless -->
+[![Headless & render-props na gallery](../assets/gallery/headless.webp)](../gallery.md)
+
+*Seção `headless` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 Layout de dois painéis com divisor arrastável. O primeiro painel é dimensionado via `flex-basis` em porcentagem; o segundo preenche o resto. Arraste com o ponteiro ou foque o divisor e use as setas (passo de 2%).
 
 ```tsx
@@ -54,6 +66,12 @@ import { Resizable } from "tempest-react-sdk";
     `children` é uma tupla `[ReactNode, ReactNode]`. O tamanho é sempre fixado em `[min, max]`.
 
 ## `Calendar`
+
+<!-- gallery:inputs-extra -->
+[![Inputs avançados (Date · Pin · Slider) na gallery](../assets/gallery/inputs-extra.webp)](../gallery.md)
+
+*Seção `inputs-extra` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 Seletor de data em grade mensal. Cabeçalho com mês/ano + botões prev/next, linha de dias da semana e grade 6×7 de botões de dia. Seleção e mês visível controláveis ou não-controlados. Aritmética com `Date` puro — sem bibliotecas externas.
 
@@ -81,6 +99,12 @@ const [date, setDate] = useState<Date>();
     Setas movem o foco por dia (←/→) ou por semana (↑/↓); Enter/Espaço seleciona o dia focado.
 
 ## `Scheduler`
+
+<!-- gallery:scheduler -->
+[![Scheduler (agenda) na gallery](../assets/gallery/scheduler.webp)](../gallery.md)
+
+*Seção `scheduler` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 Agenda: eventos posicionados numa grade de tempo ao longo de dias consecutivos. O `Calendar` acima é um **seletor de data** — responde "qual dia?". Este responde "o que tem nesses dias, e quando", o que exige estrutura diferente: eixo vertical de tempo, evento dimensionado pela duração e eventos sobrepostos lado a lado.
 

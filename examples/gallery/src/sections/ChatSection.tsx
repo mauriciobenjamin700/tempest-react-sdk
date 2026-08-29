@@ -114,7 +114,8 @@ export function ChatSection() {
     };
 
     return (
-        <>
+        <section className="gallery-section" id="chat">
+            <h3>Chat</h3>
             <Example
                 id="chat-basic"
                 title="Thread com composer"
@@ -232,6 +233,6 @@ export function ChatSection() {
                     />
                 </div>
             </Example>
-        </>
+        </section>
     );
 }

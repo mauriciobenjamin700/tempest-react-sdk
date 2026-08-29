@@ -12,6 +12,12 @@
 !!! info "Por que um wrapper em volta de `new Audio()`?"
     Tocar som no navegador esbarra na _autoplay policy_ e em vazamento de elementos `Audio`. O SDK encapsula: rastreia o clipe atual (pra dar `stop`), normaliza volume, trata o bloqueio de autoplay devolvendo `null` em vez de estourar, e limpa no unmount quando você usa o hook.
 
+<!-- gallery:audio-capture -->
+[![Áudio (gravação) na gallery](assets/gallery/audio-capture.webp)](gallery.md)
+
+*Seção `audio-capture` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## `playAudio` — one-off no player compartilhado
 
 Ideal pra um som disparado por um evento, sem estado de UI:
@@ -118,6 +124,37 @@ function Menu({ sfxVolume }: { sfxVolume: number }) {
     `createAudioPlayer` rastreia **um** clipe atual, com loop, roteamento de saída e callbacks de ciclo de vida — é o que música de fundo precisa. Efeitos são o caso oposto: muitas fontes, todas curtas, dispara-e-esquece, e o que importa é que disparar seja barato.
 
 Mudar `volume` no `useSfxPool` chama `setVolume` no pool existente em vez de recriá-lo — recriar jogaria fora todo elemento que o usuário já baixou, que é exatamente o custo que o pool existe pra evitar. `baseUrl`, `voices` e `maxSources` são lidos uma vez, na criação.
+
+## `AudioPlayer` — transporte visível
+
+**Quando usar:** quando o usuário precisa **controlar** a reprodução, não só
+ouvi-la — um áudio de mensagem, um take gravado, um anexo. `playAudio` dispara e
+esquece; `AudioPlayer` dá play/pause, barra arrastável e os tempos.
+
+```tsx
+import { AudioPlayer, Button } from "tempest-react-sdk";
+import { Trash } from "lucide-react";
+
+export function Gravacao({ blob, apagar }: { blob: Blob; apagar: () => void }) {
+    return (
+        <AudioPlayer
+            src={blob}
+            durationMs={12_400}
+            actions={
+                <Button variant="ghost" iconOnly aria-label="Apagar" onClick={apagar}>
+                    <Trash size={16} />
+                </Button>
+            }
+        />
+    );
+}
+```
+
+!!! tip "Passe `durationMs` quando você já souber a duração"
+    Um `Blob` gravado no browser costuma vir sem cabeçalho de duração, e o
+    `<audio>` reporta `Infinity` até tocar até o fim. A barra fica travada nesse
+    intervalo. Se o gravador já te deu o tempo, passe-o — o componente usa esse
+    valor até o metadado real chegar.
 
 ## Autoplay policy
 

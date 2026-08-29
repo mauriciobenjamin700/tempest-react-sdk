@@ -5,6 +5,12 @@ Thin wrappers to standardize cache times, query keys, and the `QueryClient`. You
 !!! info "Why do these wrappers exist?"
     Without standardization, every screen guesses a `staleTime` and every domain hand-writes `queryKey: ["user", id]`. That leads to invalidations that miss (a key built differently in two places) and overly aggressive refetching. The SDK centralizes both: named presets plus a factory that guarantees the same key everywhere.
 
+<!-- gallery:recipe-query -->
+[![Data fetching (TanStack Query) in the gallery](assets/gallery/recipe-query.webp)](gallery.md)
+
+*Section `recipe-query` of the [gallery](gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 ## Provider
 
 Wrap the app tree once, usually in `main.tsx` (or inside `<AppProviders>`):

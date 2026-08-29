@@ -9,6 +9,12 @@ A **clickable** national map of the 27 federative units + a states-and-cities da
     import { BrazilMap, citiesByUf } from "tempest-react-sdk/br";
     ```
 
+<!-- gallery:brazil-map -->
+[![Mapa do Brasil (UF + cidades) in the gallery](assets/gallery/brazil-map.webp)](gallery.md)
+
+*Section `brazil-map` of the [gallery](gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 ## When to use
 
 - A **clickable Brazil map** to pick a state (dashboards, regional filters).

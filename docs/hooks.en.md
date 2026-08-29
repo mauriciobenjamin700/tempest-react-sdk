@@ -18,6 +18,18 @@ browser-guarded and independent hooks — import only what you need.
     SDK is client-only by decision (see
     [Architecture](./architecture.en.md#scope-client-side-only)).
 
+<!-- gallery:hooks-state -->
+[![Hooks — estado in the gallery](assets/gallery/hooks-state.webp)](gallery.md)
+
+*Section `hooks-state` of the [gallery](gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
+<!-- gallery:hooks-dom -->
+[![Hooks — DOM & timing in the gallery](assets/gallery/hooks-dom.webp)](gallery.md)
+
+*Section `hooks-dom` of the [gallery](gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 ## Catalogue by purpose
 
 ### DOM / viewport

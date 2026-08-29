@@ -92,7 +92,8 @@ export function DeviceCaptureSection() {
     }, []);
 
     return (
-        <>
+        <section className="gallery-section" id="device-capture">
+            <h3>Captura de dispositivo</h3>
             <Example
                 id="barcode-scanner"
                 title="BarcodeScanner — fecha o ciclo do QRCode"
@@ -324,6 +325,6 @@ const speech = useSpeechRecognition({
                     </div>
                 </div>
             </Example>
-        </>
+        </section>
     );
 }

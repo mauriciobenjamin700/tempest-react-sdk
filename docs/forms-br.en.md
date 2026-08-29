@@ -11,6 +11,12 @@ user types, and fill an address from the ZIP code (CEP). Pairs with
     `123.456.789-00` and any repeated sequence through. The functions below run the
     full algorithm.
 
+<!-- gallery:br-forms -->
+[![BR Forms (CPF/CNPJ/CEP) in the gallery](assets/gallery/br-forms.webp)](gallery.md)
+
+*Section `br-forms` of the [gallery](gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 ## Validators
 
 ```ts

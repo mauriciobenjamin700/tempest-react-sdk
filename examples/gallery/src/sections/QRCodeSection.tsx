@@ -46,7 +46,8 @@ export function QRCodeSection() {
     const info = describe(safe, level);
 
     return (
-        <>
+        <section className="gallery-section" id="qrcode">
+            <h3>QRCode</h3>
             <Example
                 id="qrcode-live"
                 title="Ao vivo"
@@ -205,6 +206,6 @@ export function QRCodeSection() {
                     ))}
                 </div>
             </Example>
-        </>
+        </section>
     );
 }

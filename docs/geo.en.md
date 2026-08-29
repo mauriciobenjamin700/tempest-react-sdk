@@ -5,6 +5,12 @@ A **100% self-hosted** geolocation module: capture latitude/longitude through th
 !!! info "Why tile-free?"
     Any image map (OpenStreetMap, Mapbox, Google) downloads _tiles_ from an external server. That clashes with the "nothing external" requirement. So `TrajectoryMap` draws the projected trajectory in SVG (Web Mercator) with no background — zero requests. If you **host your own** tile server, you can enable the optional Leaflet layer by passing `tileUrl`.
 
+<!-- gallery:geo -->
+[![Geolocalização (mapas & trajetória) in the gallery](assets/gallery/geo.webp)](gallery.md)
+
+*Section `geo` of the [gallery](gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 ## When to use
 
 - Capture the user's position (once or continuously) via `navigator.geolocation`.

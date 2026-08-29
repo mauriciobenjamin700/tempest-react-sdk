@@ -9,6 +9,12 @@ Mapa nacional **clicável** das 27 unidades federativas + dataset de estados e c
     import { BrazilMap, citiesByUf } from "tempest-react-sdk/br";
     ```
 
+<!-- gallery:brazil-map -->
+[![Mapa do Brasil (UF + cidades) na gallery](assets/gallery/brazil-map.webp)](gallery.md)
+
+*Seção `brazil-map` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## Quando usar
 
 - Um **mapa do Brasil clicável** pra selecionar um estado (dashboards, filtros regionais).

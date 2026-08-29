@@ -6,6 +6,12 @@ Use esta página quando precisar que o usuário **faça** algo. Para entrada de 
 
 ## `Button`
 
+<!-- gallery:buttons -->
+[![Buttons na gallery](../assets/gallery/buttons.webp)](../gallery.md)
+
+*Seção `buttons` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: a ação primária ou secundária de qualquer tela — submeter um form, abrir um modal, navegar. É o gatilho de ação por padrão.
 
 Botão primário com variants, sizes, estado de loading.
@@ -51,6 +57,12 @@ import { Plus, Trash } from "lucide-react";
 
 ## `FloatingActionButton`
 
+<!-- gallery:material -->
+[![Material (ListTile · FAB · Rail) na gallery](../assets/gallery/material.webp)](../gallery.md)
+
+*Seção `material` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: a ação primária e persistente de uma tela (criar, compor, adicionar) que deve ficar sempre acessível, flutuando sobre o conteúdo. Redondo quando só tem ícone, ou estendido (pílula) quando tem `label`.
 
 Por padrão fica fixo no canto inferior direito; passe `position="none"` para posicioná-lo inline (ex.: dentro de um `NavigationRail`). Espalha todos os props nativos de `<button>` (`onClick`, `disabled`, etc.).
@@ -77,16 +89,29 @@ import { Plus } from "lucide-react";
 
 ## `Tooltip`
 
+<!-- gallery:navigation -->
+[![AppBar · Tabs · Tooltip · Drawer na gallery](../assets/gallery/navigation.webp)](../gallery.md)
+
+*Seção `navigation` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: dar contexto extra a um controle cujo significado não é óbvio — tipicamente botões `iconOnly`. Nunca para informação crítica.
 
 Hover tooltip portalado. Aparece no hover **e** no foco por teclado.
 
 ```tsx
-<Tooltip content="Excluir permanentemente" placement="bottom" openDelay={300}>
-  <Button variant="danger" iconOnly aria-label="Excluir">
-    <Trash />
-  </Button>
-</Tooltip>
+import { Button, Tooltip } from "tempest-react-sdk";
+import { Trash } from "lucide-react";
+
+export function ExcluirComDica() {
+    return (
+        <Tooltip content="Excluir permanentemente" placement="bottom" openDelay={300}>
+            <Button variant="danger" iconOnly aria-label="Excluir">
+                <Trash size={16} />
+            </Button>
+        </Tooltip>
+    );
+}
 ```
 
 | Prop        | Tipo                                     | Default |
@@ -101,20 +126,43 @@ Hover tooltip portalado. Aparece no hover **e** no foco por teclado.
 
 ## `DropdownMenu`
 
+<!-- gallery:overlays -->
+[![Popover · Dropdown · HoverCard na gallery](../assets/gallery/overlays.webp)](../gallery.md)
+
+*Seção `overlays` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: agrupar ações secundárias atrás de um único gatilho ("Mais ações", menu de perfil) quando elas não cabem na barra principal.
 
 Menu suspenso de ações. Navegação por teclado (↑↓ Home End Esc). Cada entrada precisa de um `id` estável (usado como key do React).
 
 ```tsx
-<DropdownMenu
-  trigger={<Button variant="ghost">Mais ações</Button>}
-  items={[
-    { type: "label", id: "h", label: "Conta" },
-    { type: "item", id: "edit", label: "Editar perfil", onSelect: () => navigate("/profile") },
-    { type: "separator", id: "s1" },
-    { type: "item", id: "logout", label: "Sair", onSelect: logout, danger: true },
-  ]}
-/>
+import { Button, DropdownMenu } from "tempest-react-sdk";
+
+export function MaisAcoes({
+    navigate,
+    logout,
+}: {
+    navigate: (to: string) => void;
+    logout: () => void;
+}) {
+    return (
+        <DropdownMenu
+            trigger={<Button variant="ghost">Mais ações</Button>}
+            items={[
+                { type: "label", id: "h", label: "Conta" },
+                {
+                    type: "item",
+                    id: "edit",
+                    label: "Editar perfil",
+                    onSelect: () => navigate("/profile"),
+                },
+                { type: "separator", id: "s1" },
+                { type: "item", id: "logout", label: "Sair", onSelect: logout, danger: true },
+            ]}
+        />
+    );
+}
 ```
 
 | Entry type    | Campos                                                                 |
@@ -190,18 +238,27 @@ export function MenuDaChamada({ alternarTema }: { alternarTema: () => void }) {
 Painel flutuante genérico (anchor + outside-click + Esc dismiss). Funciona controlado (`open` + `onOpenChange`) ou não-controlado (`defaultOpen`).
 
 ```tsx
-<Popover
-  open={open}
-  onOpenChange={setOpen}
-  placement="bottom"
-  trigger={<Button>Filtros</Button>}
->
-  <Stack gap={3}>
-    <Checkbox label="Apenas ativos" />
-    <Checkbox label="Pago" />
-    <Button onClick={() => setOpen(false)}>Aplicar</Button>
-  </Stack>
-</Popover>
+import { useState } from "react";
+import { Button, Checkbox, Popover, Stack } from "tempest-react-sdk";
+
+export function Filtros() {
+    const [open, setOpen] = useState(false);
+
+    return (
+        <Popover
+            open={open}
+            onOpenChange={setOpen}
+            placement="bottom"
+            trigger={<Button>Filtros</Button>}
+        >
+            <Stack gap={3}>
+                <Checkbox label="Apenas ativos" />
+                <Checkbox label="Pago" />
+                <Button onClick={() => setOpen(false)}>Aplicar</Button>
+            </Stack>
+        </Popover>
+    );
+}
 ```
 
 | Prop                  | Tipo                                     | Default        |
@@ -219,25 +276,49 @@ Painel flutuante genérico (anchor + outside-click + Esc dismiss). Funciona cont
 
 ## `ConfirmDialog`
 
+<!-- gallery:modal -->
+[![Modal & Toast na gallery](../assets/gallery/modal.webp)](../gallery.md)
+
+*Seção `modal` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: a última barreira antes de uma ação irreversível ou cara (excluir, sobrescrever, cancelar). Sempre com `variant="danger"` quando destrutiva.
 
 Prompt destrutivo pré-montado em cima do [`Modal`](./overlay.md) (texto + 2 botões).
 
 ```tsx
-<ConfirmDialog
-  open={open}
-  title="Excluir usuário"
-  description={`Esta ação é permanente. Excluir ${user.name}?`}
-  confirmLabel="Sim, excluir"
-  cancelLabel="Cancelar"
-  variant="danger"
-  loading={deleting}
-  onConfirm={async () => {
-    await deleteUser(user.id);
-    setOpen(false);
-  }}
-  onCancel={() => setOpen(false)}
-/>
+import { useState } from "react";
+import { ConfirmDialog } from "tempest-react-sdk";
+
+export function ExcluirUsuario({
+    user,
+    deleteUser,
+}: {
+    user: { id: string; name: string };
+    deleteUser: (id: string) => Promise<void>;
+}) {
+    const [open, setOpen] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+
+    return (
+        <ConfirmDialog
+            open={open}
+            title="Excluir usuário"
+            description={`Esta ação é permanente. Excluir ${user.name}?`}
+            confirmLabel="Sim, excluir"
+            cancelLabel="Cancelar"
+            variant="danger"
+            loading={deleting}
+            onConfirm={async () => {
+                setDeleting(true);
+                await deleteUser(user.id);
+                setDeleting(false);
+                setOpen(false);
+            }}
+            onCancel={() => setOpen(false)}
+        />
+    );
+}
 ```
 
 | Prop           | Tipo                                                    | Default       |
@@ -256,6 +337,12 @@ Prompt destrutivo pré-montado em cima do [`Modal`](./overlay.md) (texto + 2 bot
     `onConfirm` aceita uma promise, mas o `ConfirmDialog` não gerencia o estado de loading sozinho — passe `loading={deleting}` controlado pelo seu estado para travar ambos os botões enquanto a ação assíncrona corre.
 
 ## `InstallButton`
+
+<!-- gallery:pwa -->
+[![PWA: Install · Push na gallery](../assets/gallery/pwa.webp)](../gallery.md)
+
+*Seção `pwa` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 Botão de instalação do PWA, ligado ao prompt `beforeinstallprompt` ([`useBeforeInstallPrompt`](../hooks.md)). **Renderiza `null`** quando o app não pode ser instalado — prompt ainda não capturado, já instalado, ou rodando standalone — então você o solta na UI sem guardar visibilidade. Herda todas as props do [`Button`](#button).
 
@@ -277,11 +364,17 @@ import { Download } from "lucide-react";
 Banner inferior dispensável que convida a instalar o PWA. Aparece só quando há prompt capturado e o app **não** está standalone; em plataformas que nunca disparam `beforeinstallprompt` (iOS Safari) fica oculto — surfa instruções manuais em outro lugar. `storageKey` lembra a dispensa entre recarregamentos.
 
 ```tsx
-<InstallBanner
-  title="Instale o app"
-  description="Acesso offline e atalho na tela inicial."
-  storageKey="meu-app:install-dismissed"
-/>;
+import { InstallBanner } from "tempest-react-sdk";
+
+export function Instalar() {
+    return (
+        <InstallBanner
+            title="Instale o app"
+            description="Acesso offline e atalho na tela inicial."
+            storageKey="meu-app:install-dismissed"
+        />
+    );
+}
 ```
 
 | Prop           | Tipo                  | Default        |

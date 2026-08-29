@@ -7,6 +7,12 @@ The SDK covers **the client half**: both ceremonies (`navigator.credentials.crea
 !!! info "Why a passkey instead of a password"
     The private key never leaves the device, so there is no password database to leak and no phishing that works: the browser only signs for the domain that registered the credential. For the user it is one touch on a sensor.
 
+<!-- gallery:recipe-passkeys -->
+[![Passkeys (WebAuthn) in the gallery](assets/gallery/recipe-passkeys.webp)](gallery.md)
+
+*Section `recipe-passkeys` of the [gallery](gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 ## The surface
 
 | Symbol | What it is for |

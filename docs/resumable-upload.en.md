@@ -7,6 +7,12 @@
 !!! info "Protocol: tus 1.0.0, not something we invented"
     The client speaks [tus](https://tus.io) (core plus the *creation* and *termination* extensions). That is deliberate: a resumable client with a private wire format means the backend is ours forever. With tus you can point it at `tusd`, `tus-node-server` or `py-tus` without writing a server at all — and the [What your backend must implement](#what-your-backend-must-implement) section fits in one table.
 
+<!-- gallery:recipe-resumable-upload -->
+[![Upload resumível (tus) in the gallery](assets/gallery/recipe-resumable-upload.webp)](gallery.md)
+
+*Section `recipe-resumable-upload` of the [gallery](gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 ## The minimal example
 
 ```tsx

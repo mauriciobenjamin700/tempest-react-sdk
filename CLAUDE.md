@@ -255,6 +255,12 @@ npm run lint
 npm run format            # prettier --write .
 npm run build             # ESM + CJS + d.ts + styles.css
 
+# Docs
+npm run docs:llms         # regenera llms.txt + llms-full.txt
+npm run e2e:build         # build do SDK + gallery (pré-requisito das capturas)
+npm run docs:shots        # captura docs/assets/gallery/<id>.webp por seção
+npm run docs:gallery      # insere as capturas nas páginas (--check no guard)
+
 # Release (tag push → CI publica via release-npm.yml)
 make release TAG=0.1.6             # branch + bump + validate + tag + push + PR
 make release TAG=0.1.6 DRY_RUN=1   # local-only (skip push/PR)

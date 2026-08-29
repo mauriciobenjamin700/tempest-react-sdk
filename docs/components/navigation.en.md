@@ -27,29 +27,45 @@ screen (that's `Tabs`/`SegmentedControl`).
 
 ## `Navbar`
 
+<!-- gallery:nav-extra -->
+[![Navbar · Sidebar · Bottom nav in the gallery](../assets/gallery/nav-extra.webp)](../gallery.md)
+
+*Section `nav-extra` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 **When to use:** a persistent top bar with brand + global actions (search,
 avatar, notifications). It's the highest-level navigation.
 
 Top app bar. Three slots (`logo` / `nav` / `actions`). Sticky by default.
 
 ```tsx
-<Navbar
-  logo={<img src="/logo.svg" alt="App" />}
-  nav={
-    <>
-      <NavLink to="/orders">Orders</NavLink>
-      <NavLink to="/products">Products</NavLink>
-    </>
-  }
-  actions={
-    <>
-      <Button variant="ghost" iconOnly aria-label="Search">
-        <Search />
-      </Button>
-      <Avatar src={user.photo} />
-    </>
-  }
-/>
+import { Avatar, Button, Navbar } from "tempest-react-sdk";
+import { NavLink } from "react-router";
+import { Search } from "lucide-react";
+
+const user = { photo: "/avatars/ana.jpg" };
+
+export function TopBar() {
+    return (
+        <Navbar
+            logo={<img src="/logo.svg" alt="App" />}
+            nav={
+                <>
+                    <NavLink to="/orders">Orders</NavLink>
+                    <NavLink to="/products">Products</NavLink>
+                </>
+            }
+            actions={
+                <>
+                    <Button variant="ghost" iconOnly aria-label="Search">
+                        <Search size={16} />
+                    </Button>
+                    <Avatar src={user.photo} />
+                </>
+            }
+        />
+    );
+}
 ```
 
 | Prop       | Type                                      | Default     |
@@ -66,6 +82,12 @@ automatically.
 
 ## `AppBar`
 
+<!-- gallery:navigation -->
+[![AppBar · Tabs · Tooltip · Drawer in the gallery](../assets/gallery/navigation.webp)](../gallery.md)
+
+*Section `navigation` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 **When to use:** the **mobile-first PWA app bar** — the "back + title + action"
 pattern every detail screen repeats. Use `AppBar` for mobile/PWA apps; use
 `Navbar` when you want the desktop horizontal nav (three slots).
@@ -76,23 +98,37 @@ accessible and, without `onBack`, falls back to `window.history.back()` — with
 router, pass `onBack={() => navigate(-1)}`.
 
 ```tsx
-// Detail screen: back + an action
-<AppBar
-  title="Profile"
-  showBack
-  onBack={() => navigate(-1)}
-  actions={
-    <Button variant="ghost" iconOnly aria-label="Settings" onClick={openSettings}>
-      <Settings />
-    </Button>
-  }
-/>
+import { AppBar, Avatar, Button } from "tempest-react-sdk";
+import { Settings } from "lucide-react";
 
-// Home screen: brand on the left, no back
-<AppBar brand="Famachapp" actions={<Avatar src={user.photo} />} />
+const user = { photo: "/avatars/ana.jpg" };
 
-// Centered title (iOS-style)
-<AppBar title="History" showBack centered />
+export function Barras({
+    navigate,
+    openSettings,
+}: {
+    navigate: (delta: number) => void;
+    openSettings: () => void;
+}) {
+    return (
+        <>
+            <AppBar
+                title="Profile"
+                showBack
+                onBack={() => navigate(-1)}
+                actions={
+                    <Button variant="ghost" iconOnly aria-label="Settings" onClick={openSettings}>
+                        <Settings size={16} />
+                    </Button>
+                }
+            />
+
+            <AppBar brand="Famachapp" actions={<Avatar src={user.photo} />} />
+
+            <AppBar title="History" showBack centered />
+        </>
+    );
+}
 ```
 
 | Prop        | Type                                      | Default          |
@@ -147,23 +183,31 @@ Desktop side nav. `items: SidebarEntry[]` (items, sections and separators),
 `header`/`footer` slots, a `collapsed` mode (icons only).
 
 ```tsx
-const [tab, setTab] = useState("home");
-const [collapsed, setCollapsed] = useState(false);
+import { useState } from "react";
+import { Button, Sidebar } from "tempest-react-sdk";
+import { Cog, Home, Package } from "lucide-react";
 
-<Sidebar
-  header={<Brand collapsed={collapsed} />}
-  items={[
-    { key: "home", label: "Home", icon: <Home /> },
-    { key: "orders", label: "Orders", icon: <Package />, badge: 3 },
-    { key: "settings", label: "Settings", icon: <Cog /> },
-  ]}
-  value={tab}
-  onChange={setTab}
-  footer={<Button onClick={() => setCollapsed(!collapsed)}>Collapse</Button>}
-  collapsed={collapsed}
-  width={240}
-  collapsedWidth={64}
-/>;
+export function Lateral() {
+    const [tab, setTab] = useState("home");
+    const [collapsed, setCollapsed] = useState(false);
+
+    return (
+        <Sidebar
+            header={<strong>{collapsed ? "T" : "Tempest"}</strong>}
+            items={[
+                { key: "home", label: "Home", icon: <Home size={16} /> },
+                { key: "orders", label: "Orders", icon: <Package size={16} />, badge: 3 },
+                { key: "settings", label: "Settings", icon: <Cog size={16} /> },
+            ]}
+            value={tab}
+            onChange={setTab}
+            footer={<Button onClick={() => setCollapsed(!collapsed)}>Collapse</Button>}
+            collapsed={collapsed}
+            width={240}
+            collapsedWidth={64}
+        />
+    );
+}
 ```
 
 | Prop             | Type                           | Default |
@@ -178,12 +222,19 @@ const [collapsed, setCollapsed] = useState(false);
 | `collapsedWidth` | `number \| string`             | `64`    |
 
 ```ts
-type SidebarItem = { key, label, icon?, badge?, disabled?, href? };
+type SidebarItem = {
+    key: string;
+    label: ReactNode;
+    icon?: ReactNode;
+    badge?: ReactNode;
+    disabled?: boolean;
+    href?: string;
+};
 
 type SidebarEntry =
-  | ({ type?: "item" } & SidebarItem)
-  | { type: "section"; key: string; label: ReactNode }
-  | { type: "separator"; key: string };
+    | ({ type?: "item" } & SidebarItem)
+    | { type: "section"; key: string; label: ReactNode }
+    | { type: "separator"; key: string };
 ```
 
 `type` is optional on the item branch, so **a `SidebarItem[]` is still a valid
@@ -264,11 +315,20 @@ What comes out in the HTML:
 click:
 
 ```tsx
-<Sidebar
-  items={[{ key: "overview", label: "Overview", href: "/overview" }]}
-  value={tab}
-  onChange={setTab}
-/>
+import { useState } from "react";
+import { Sidebar } from "tempest-react-sdk";
+
+export function ComLink() {
+    const [tab, setTab] = useState("overview");
+
+    return (
+        <Sidebar
+            items={[{ key: "overview", label: "Overview", href: "/overview" }]}
+            value={tab}
+            onChange={setTab}
+        />
+    );
+}
 ```
 
 With that, middle-click opens a new tab, ctrl-click works, "copy link address"
@@ -281,6 +341,12 @@ that announces itself as actionable and is not.
 hamburger menu.
 
 ## `NavigationRail`
+
+<!-- gallery:material -->
+[![Material (ListTile · FAB · Rail) in the gallery](../assets/gallery/material.webp)](../gallery.md)
+
+*Section `material` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 **When to use:** a compact, vertical navigation column for desktop/tablet — a
 narrower alternative to `Sidebar` when you only need icons stacked over short
@@ -334,18 +400,33 @@ Type `NavigationRailItem = { key, label, icon?, badge?, disabled? }`.
 A bottom-fixed tab bar for mobile. 3-5 items.
 
 ```tsx
-<Show below="md">
-  <BottomNavigation
-    items={[
-      { key: "home", label: "Home", icon: <Home /> },
-      { key: "search", label: "Search", icon: <Search /> },
-      { key: "cart", label: "Cart", icon: <Cart />, badge: cartCount },
-      { key: "profile", label: "Profile", icon: <User /> },
-    ]}
-    value={tab}
-    onChange={setTab}
-  />
-</Show>
+import { useState } from "react";
+import { BottomNavigation, Show } from "tempest-react-sdk";
+import { Home, Search, ShoppingCart, User } from "lucide-react";
+
+export function BarraInferior({ cartCount }: { cartCount: number }) {
+    const [tab, setTab] = useState("home");
+
+    return (
+        <Show below="md">
+            <BottomNavigation
+                items={[
+                    { key: "home", label: "Home", icon: <Home size={20} /> },
+                    { key: "search", label: "Search", icon: <Search size={20} /> },
+                    {
+                        key: "cart",
+                        label: "Cart",
+                        icon: <ShoppingCart size={20} />,
+                        badge: cartCount,
+                    },
+                    { key: "profile", label: "Profile", icon: <User size={20} /> },
+                ]}
+                value={tab}
+                onChange={setTab}
+            />
+        </Show>
+    );
+}
 ```
 
 | Prop         | Type                           | Default |
@@ -369,25 +450,41 @@ Controlled/uncontrolled tabs. Fade-edge mask on horizontal overflow. Visual
 variants via `variant` (`"underline"` default or `"pill"`).
 
 ```tsx
-<Tabs
-  value={tab}
-  onChange={setTab}
-  items={[
-    { key: "overview", label: "Overview", content: <Overview /> },
-    { key: "details", label: "Details", content: <Details /> },
-    { key: "logs", label: "Logs", content: <Logs /> },
-  ]}
-/>
+import { useState } from "react";
+import { Tabs } from "tempest-react-sdk";
+
+export function Abas() {
+    const [tab, setTab] = useState("overview");
+
+    return (
+        <Tabs
+            activeId={tab}
+            onChange={setTab}
+            items={[
+                { id: "overview", label: "Overview", content: <p>Overview</p> },
+                { id: "details", label: "Details", content: <p>Details</p> },
+                { id: "logs", label: "Logs", content: <p>Logs</p> },
+            ]}
+        />
+    );
+}
 ```
 
 | Prop           | Type                    | Default |
 | -------------- | ----------------------- | ------- |
 | `items`        | `TabItem[]`             | —       |
-| `value`        | `string` (controlled)   | —       |
+| `activeId`     | `string` (controlled)   | —       |
+| `defaultId`    | `string` (uncontrolled) | —       |
 | `defaultValue` | `string` (uncontrolled) | —       |
 | `onChange`     | `(key: string) => void` | —       |
 
 ## `Stepper`
+
+<!-- gallery:advanced -->
+[![Stepper · Progress · VirtualList in the gallery](../assets/gallery/advanced.webp)](../gallery.md)
+
+*Section `advanced` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 **When to use:** show progress through a linear multi-step flow (checkout,
 onboarding, wizard). It's a progress indicator, not a selector — drive `current`
@@ -397,14 +494,23 @@ A linear wizard with numbered steps. `orientation` accepts `"horizontal"`
 (default) or `"vertical"`.
 
 ```tsx
-<Stepper
-  current={step}
-  steps={[
-    { key: "info", label: "Information" },
-    { key: "payment", label: "Payment" },
-    { key: "review", label: "Review" },
-  ]}
-/>
+import { useState } from "react";
+import { Stepper } from "tempest-react-sdk";
+
+export function Passos() {
+    const [step] = useState(1);
+
+    return (
+        <Stepper
+            current={step}
+            steps={[
+                { label: "Details" },
+                { label: "Payment" },
+                { label: "Review" },
+            ]}
+        />
+    );
+}
 ```
 
 ## `Breadcrumbs`
@@ -415,44 +521,70 @@ and allow jumping back to previous levels. Skippable in 1-2 level apps.
 Hierarchical navigation.
 
 ```tsx
-<Breadcrumbs
-  items={[{ label: "Home", href: "/" }, { label: "Orders", href: "/orders" }, { label: "#12345" }]}
-/>
+import { Breadcrumbs } from "tempest-react-sdk";
+
+export function Trilha() {
+    return (
+        <Breadcrumbs
+            items={[
+                { label: "Home", href: "/" },
+                { label: "Orders", href: "/orders" },
+                { label: "#12345" },
+            ]}
+        />
+    );
+}
 ```
 
 **A11y**: the last item is marked with `aria-current="page"`.
 
 ## `Pagination`
 
+<!-- gallery:table -->
+[![Table & Pagination in the gallery](../assets/gallery/table.webp)](../gallery.md)
+
+*Section `table` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 **When to use:** walk large lists in discrete pages (search results, tables).
 For continuous feeds prefer infinite scroll (`VirtualList` + `usePoll`/Query).
 
 Numeric with siblings + an optional page-size selector.
 
-!!! note "`page` is 1-indexed, `total` is the item count"
-    `total` is the number **of items** (not pages) — the component derives the
-    pages from `pageSize`. Remember to reset `page` to `1` when the filter
-    changes, otherwise you may land on a page that no longer exists.
+!!! note "`page` is 1-indexed, and you count the pages"
+    `totalPages` is the number **of pages** — the component does not derive it from `pageSize`. `totalItems` is optional and only feeds the summary line ("1–20 of 137"). Remember to reset `page` to `1` when the filter changes, or you can end up on a page that no longer exists.
 
 ```tsx
-<Pagination
-  page={page}
-  pageSize={size}
-  total={data?.total ?? 0}
-  onPageChange={setPage}
-  onPageSizeChange={setSize}
-  siblings={1}
-/>
+import { useState } from "react";
+import { Pagination } from "tempest-react-sdk";
+
+export function Paginacao({ totalItems }: { totalItems: number }) {
+    const [page, setPage] = useState(1);
+    const [size, setSize] = useState(20);
+
+    return (
+        <Pagination
+            page={page}
+            pageSize={size}
+            totalPages={Math.max(1, Math.ceil(totalItems / size))}
+            totalItems={totalItems}
+            onPageChange={setPage}
+            onPageSizeChange={setSize}
+            siblingCount={1}
+        />
+    );
+}
 ```
 
 | Prop               | Type                     | Default |
 | ------------------ | ------------------------ | ------- |
 | `page`             | `number` (1-indexed)     | —       |
 | `pageSize`         | `number`                 | —       |
-| `total`            | `number` (item count)    | —       |
+| `totalPages`       | `number`                 | —       |
+| `totalItems`       | `number` (count, optional) | —     |
 | `onPageChange`     | `(page: number) => void` | —       |
 | `onPageSizeChange` | `(size: number) => void` | —       |
-| `siblings`         | `number` (neighbors)     | `1`     |
+| `siblingCount`     | `number` (neighbors)     | `7`     |
 
 ## `SegmentedControl`
 
@@ -463,17 +595,27 @@ panels — you swap the view manually via `value`.
 An iOS-style pill bar (2-5 options).
 
 ```tsx
-<SegmentedControl
-  value={view}
-  onChange={setView}
-  options={[
-    { value: "list", label: "List", icon: <List /> },
-    { value: "grid", label: "Grid", icon: <Grid /> },
-    { value: "map", label: "Map", icon: <Map /> },
-  ]}
-  size="md"
-  fullWidth
-/>
+import { useState } from "react";
+import { SegmentedControl } from "tempest-react-sdk";
+import { LayoutGrid, List, Map } from "lucide-react";
+
+export function Visao() {
+    const [view, setView] = useState("list");
+
+    return (
+        <SegmentedControl
+            value={view}
+            onChange={setView}
+            options={[
+                { value: "list", label: "List", icon: <List size={14} /> },
+                { value: "grid", label: "Grid", icon: <LayoutGrid size={14} /> },
+                { value: "map", label: "Map", icon: <Map size={14} /> },
+            ]}
+            size="md"
+            fullWidth
+        />
+    );
+}
 ```
 
 | Prop        | Type                       | Default |

@@ -11,6 +11,12 @@ Você não monta `<XAxis>`/`<YAxis>`/`<Tooltip>` na mão: passa `data`, diz qual
 chave é o eixo (`index`) e quais chaves virar séries (`categories`), e o
 componente faz o resto.
 
+<!-- gallery:dataviz-scales -->
+[![Escalas contínuas (heatmap) na gallery](assets/gallery/dataviz-scales.webp)](gallery.md)
+
+*Seção `dataviz-scales` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## Por que um subpath separado
 
 Os gráficos não vêm do barrel principal. Você os importa de

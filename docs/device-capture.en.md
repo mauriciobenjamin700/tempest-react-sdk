@@ -16,6 +16,12 @@ the browser already has, not a library the SDK bundled.
     pages share the same recording engine and the same error taxonomy — what changes is the
     device.
 
+<!-- gallery:device-capture -->
+[![Captura de dispositivo in the gallery](assets/gallery/device-capture.webp)](gallery.md)
+
+*Section `device-capture` of the [gallery](gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 ## Reading codes: start with the component
 
 The SDK already had [`QRCode`](./components/utility.md), which **only encodes**.

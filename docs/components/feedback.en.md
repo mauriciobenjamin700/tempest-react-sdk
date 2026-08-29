@@ -28,25 +28,44 @@ feedback** — show `Spinner`/`Skeleton` during, `Toast`/`Alert` on completion.
 
 ## `Alert`
 
+<!-- gallery:feedback-extra -->
+[![Alert · Timeline · BottomSheet in the gallery](../assets/gallery/feedback-extra.webp)](../gallery.md)
+
+*Section `feedback-extra` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 **When to use:** a message tied to a specific context on the screen (form error,
 result of an operation in a section). Visible until the condition changes.
 
 An inline banner. Different from `Banner` (top-of-page) and `Toast` (transient).
 
 ```tsx
-<Alert variant="success" appearance="soft" title="Saved">
-  Your changes were applied successfully.
-</Alert>;
+import { useState } from "react";
+import { Alert } from "tempest-react-sdk";
+import { AlertCircle } from "lucide-react";
 
-<Alert
-  variant="danger"
-  appearance="outline"
-  icon={<AlertCircle />}
-  dismissible
-  onDismiss={() => setOpen(false)}
->
-  Failed to process payment.
-</Alert>;
+export function Avisos() {
+    const [open, setOpen] = useState(true);
+
+    return (
+        <>
+            <Alert variant="success" appearance="soft" title="Saved">
+                Your changes were applied successfully.
+            </Alert>
+
+            {open && (
+                <Alert
+                    variant="danger"
+                    appearance="outline"
+                    icon={<AlertCircle size={16} />}
+                    onClose={() => setOpen(false)}
+                >
+                    Could not process the payment.
+                </Alert>
+            )}
+        </>
+    );
+}
 ```
 
 | Prop          | Type                                                        | Default  |
@@ -55,31 +74,53 @@ An inline banner. Different from `Banner` (top-of-page) and `Toast` (transient).
 | `appearance`  | `"soft" \| "solid" \| "outline"`                            | `"soft"` |
 | `title`       | `ReactNode`                                                 | —        |
 | `icon`        | `ReactNode`                                                 | —        |
-| `action`      | `ReactNode`                                                 | —        |
-| `dismissible` | `boolean`                                                   | `false`  |
-| `onDismiss`   | `() => void`                                                | —        |
+| `description` | `ReactNode`                                                 | —        |
+| `onClose`     | `() => void` (renders the close button)                     | —        |
+| `closeLabel`  | `string`                                                    | —        |
 
 **A11y**: `role="status"` for info/success, `role="alert"` for warning/danger.
 
 ## `Banner`
 
+<!-- gallery:data-display -->
+[![Stat · Tag · Money · Banner in the gallery](../assets/gallery/data-display.webp)](../gallery.md)
+
+*Section `data-display` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 Persistent, top-of-page. Use it for environment indicators, maintenance,
 expiration.
 
 ```tsx
-<Banner
-  variant="warning"
-  dismissible
-  onDismiss={() => setOpen(false)}
-  action={<Button size="sm">Renew</Button>}
->
-  Your subscription expires in 3 days.
-</Banner>
+import { useState } from "react";
+import { Banner, Button } from "tempest-react-sdk";
+
+export function AvisoDeAssinatura() {
+    const [open, setOpen] = useState(true);
+    if (!open) return null;
+
+    return (
+        <Banner
+            variant="warning"
+            dismissible
+            onDismiss={() => setOpen(false)}
+            action={<Button size="sm">Renew</Button>}
+        >
+            Your subscription expires in 3 days.
+        </Banner>
+    );
+}
 ```
 
 Same variants as Alert.
 
 ## `Badge`
+
+<!-- gallery:feedback -->
+[![Badges · Cards · Skeleton in the gallery](../assets/gallery/feedback.webp)](../gallery.md)
+
+*Section `feedback` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 **When to use:** a short, read-only status label next to an item (order status,
 count). For a chip the user removes, use `Tag`.
@@ -87,11 +128,25 @@ count). For a chip the user removes, use `Tag`.
 Status pill — not removable.
 
 ```tsx
-<Badge>Default</Badge>
-<Badge variant="success">Paid</Badge>
-<Badge variant="danger" appearance="solid">Overdue</Badge>
-<Badge variant="warning" appearance="outline" shape="square">Pending</Badge>
-<Badge variant="info" dot>3</Badge>
+import { Badge } from "tempest-react-sdk";
+
+export function Selos() {
+    return (
+        <>
+            <Badge>Default</Badge>
+            <Badge variant="success">Paid</Badge>
+            <Badge variant="danger" appearance="solid">
+                Overdue
+            </Badge>
+            <Badge variant="warning" appearance="outline" shape="square">
+                Pending
+            </Badge>
+            <Badge variant="info" dot>
+                3
+            </Badge>
+        </>
+    );
+}
 ```
 
 | Prop         | Type                                                                     | Default     |
@@ -107,8 +162,18 @@ Status pill — not removable.
 A removable chip. Use it for filter tokens, applied filters, selected entities.
 
 ```tsx
-<Tag onRemove={() => removeFilter("sp")} variant="primary">São Paulo</Tag>
-<Tag size="sm">In stock</Tag>
+import { Tag } from "tempest-react-sdk";
+
+export function Filtros({ removeFilter }: { removeFilter: (key: string) => void }) {
+    return (
+        <>
+            <Tag onRemove={() => removeFilter("sp")} variant="primary">
+                São Paulo
+            </Tag>
+            <Tag size="sm">In stock</Tag>
+        </>
+    );
+}
 ```
 
 | Prop          | Type                                                                     | Default     |
@@ -126,16 +191,24 @@ NPS) on dashboards. For several KPIs side by side, combine with `Grid`.
 A KPI card for dashboards.
 
 ```tsx
-<Stat
-  label="Revenue"
-  value="R$ 12,345"
-  delta="+12.4%"
-  hint="vs. last month"
-  icon={<TrendingUp />}
-/>;
+import { Stat } from "tempest-react-sdk";
+import { TrendingUp } from "lucide-react";
 
-<Stat label="Sessions" value="1.2k" delta="-3%" hint="last 7 days" />;
-<Stat label="NPS" value="78" delta="0" trend="flat" />;
+export function Metricas() {
+    return (
+        <>
+            <Stat
+                label="Revenue"
+                value="R$ 12.345"
+                delta="+12,4%"
+                hint="vs. previous month"
+                icon={<TrendingUp size={16} />}
+            />
+            <Stat label="Sessions" value="1.2k" delta="-3%" hint="last 7 days" />
+            <Stat label="NPS" value="78" delta="0" trend="flat" />
+        </>
+    );
+}
 ```
 
 | Prop    | Type                       | Default                                   |
@@ -149,12 +222,26 @@ A KPI card for dashboards.
 
 ## `Progress`
 
+<!-- gallery:advanced -->
+[![Stepper · Progress · VirtualList in the gallery](../assets/gallery/advanced.webp)](../gallery.md)
+
+*Section `advanced` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 Progress bar.
 
 ```tsx
-<Progress value={uploadProgress} max={100} variant="primary" />;
-<Progress value={100} variant="success" />;
-<Progress indeterminate variant="primary" />;
+import { Progress } from "tempest-react-sdk";
+
+export function Barras({ uploadProgress }: { uploadProgress: number }) {
+    return (
+        <>
+            <Progress value={uploadProgress} max={100} variant="primary" />
+            <Progress value={100} variant="success" />
+            <Progress indeterminate variant="primary" />
+        </>
+    );
+}
 ```
 
 | Prop            | Type                                 | Default     |
@@ -175,22 +262,25 @@ the bar once near the app root and drive the controller from anywhere (router
 transitions, fetch interceptors).
 
 ```tsx
-import { NProgressBar, nprogress, Button } from "tempest-react-sdk";
+import { Button, NProgressBar, nprogress } from "tempest-react-sdk";
 
-// app root — renders nothing while inactive
-<NProgressBar color="var(--tempest-primary)" height={3} />;
-
-// trigger from anywhere
-async function loadPage() {
-  nprogress.start();
-  try {
-    await fetch("/api/data");
-  } finally {
-    nprogress.done();
-  }
+async function loadPage(): Promise<void> {
+    nprogress.start();
+    try {
+        await fetch("/api/data");
+    } finally {
+        nprogress.done();
+    }
 }
 
-<Button onClick={loadPage}>Load</Button>;
+export function Raiz() {
+    return (
+        <>
+            <NProgressBar color="var(--tempest-primary)" height={3} />
+            <Button onClick={loadPage}>Load</Button>
+        </>
+    );
+}
 ```
 
 | `nprogress` | Signature                   | What it does                                    |
@@ -219,10 +309,18 @@ percentage.
 A generic loader.
 
 ```tsx
-<Spinner />;
-<Spinner size="lg" />;
-<Spinner size="lg" caption="Loading…" />;
-<Spinner overlay caption="Loading…" />; // Suspense / route fallback
+import { Spinner } from "tempest-react-sdk";
+
+export function Carregando() {
+    return (
+        <>
+            <Spinner />
+            <Spinner size="lg" />
+            <Spinner size="lg" caption="Loading…" />
+            <Spinner overlay caption="Loading…" />
+        </>
+    );
+}
 ```
 
 | Prop      | Type                                   | Default        | Description                                                  |
@@ -234,6 +332,12 @@ A generic loader.
 
 !!! note "Back-compat"
     `<Spinner />` with no `caption`/`overlay` stays a single `<span role="status">` — existing usage is unchanged.
+
+!!! warning "`overlay` positions against the nearest positioned ancestor"
+    `overlay` applies `position: absolute; inset: 0`, so it covers the first
+    ancestor whose `position` is not `static`. If nothing above it is positioned,
+    the spinner escapes to the topmost positioned container — in practice, the
+    whole page. Give `position: relative` to the block that should be covered.
 
 ## `Skeleton`
 
@@ -249,18 +353,21 @@ A placeholder with shimmer while data loads.
     generic (a single block) confuse more than they help.
 
 ```tsx
-{
-  loading ? (
-    <Stack gap={2}>
-      <Skeleton variant="text" width="60%" />
-      <Skeleton variant="text" width="40%" />
-      <Skeleton variant="rect" height={120} />
-    </Stack>
-  ) : (
-    <ActualContent />
-  );
+import { Skeleton, Stack } from "tempest-react-sdk";
+
+export function Esqueleto({ loading }: { loading: boolean }) {
+    if (loading) {
+        return (
+            <Stack gap={2}>
+                <Skeleton variant="text" width="60%" />
+                <Skeleton variant="text" width="40%" />
+                <Skeleton variant="rect" height={120} />
+                <Skeleton variant="circle" width={40} height={40} />
+            </Stack>
+        );
+    }
+    return <p>Loaded content</p>;
 }
-<Skeleton variant="circle" width={40} height={40} />;
 ```
 
 | Prop      | Type                           | Default  |
@@ -269,7 +376,20 @@ A placeholder with shimmer while data loads.
 | `width`   | `number \| string`             | `"100%"` |
 | `height`  | `number \| string`             | —        |
 
+!!! tip "The skeleton has to have the shape of the real content"
+    The value of `Skeleton` is not the animation, it is the **reserved space**: if
+    the ghost lines are close to the width and height of what lands there, the
+    text does not jump when the data arrives. A generic 200px block that becomes a
+    340px card trades a spinner for a layout shift — the very problem the skeleton
+    existed to solve.
+
 ## `RefreshIndicator`
+
+<!-- gallery:material -->
+[![Material (ListTile · FAB · Rail) in the gallery](../assets/gallery/material.webp)](../gallery.md)
+
+*Section `material` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 **When to use:** give the user a **pull-to-refresh** gesture on scrollable
 mobile lists/screens (touch) — feeds, inboxes, dashboards. It wraps the
@@ -282,16 +402,21 @@ while pulling and during the refresh.
 ```tsx
 import { RefreshIndicator } from "tempest-react-sdk";
 
-function Feed({ items, refetch }) {
-  return (
-    <RefreshIndicator onRefresh={async () => await refetch()}>
-      <ul>
-        {items.map((item) => (
-          <li key={item.id}>{item.title}</li>
-        ))}
-      </ul>
-    </RefreshIndicator>
-  );
+interface FeedItem {
+    id: string;
+    title: string;
+}
+
+export function Feed({ items, refetch }: { items: FeedItem[]; refetch: () => Promise<void> }) {
+    return (
+        <RefreshIndicator onRefresh={refetch}>
+            <ul>
+                {items.map((item) => (
+                    <li key={item.id}>{item.title}</li>
+                ))}
+            </ul>
+        </RefreshIndicator>
+    );
 }
 ```
 
@@ -321,16 +446,35 @@ Transient notifications. Set up via `ToastProvider` + use via `useToast()`.
     feedback; actionable errors go in `Alert`/`ErrorState`.
 
 ```tsx
-// app root
-<ToastProvider position="top-right" defaultDuration={4000}>
-  <App />
-</ToastProvider>;
+import { ToastProvider, useToast } from "tempest-react-sdk";
 
-// components
-const toast = useToast();
-toast.success("Saved");
-toast.error("Failed to process payment", { duration: 8000 });
-toast.show({ title: "Sync", description: "In progress…", variant: "info" });
+function Salvar() {
+    const toast = useToast();
+
+    return (
+        <button
+            onClick={() => {
+                toast.success("Saved");
+                toast.error("Could not process the payment.", { duration: 8000 });
+                toast.show({
+                    title: "Sync",
+                    description: "In progress…",
+                    variant: "info",
+                });
+            }}
+        >
+            Save
+        </button>
+    );
+}
+
+export function App() {
+    return (
+        <ToastProvider position="top-right" defaultDuration={4000}>
+            <Salvar />
+        </ToastProvider>
+    );
+}
 ```
 
 | `ToastApi` | Signature                                        |
@@ -347,7 +491,19 @@ toast.show({ title: "Sync", description: "In progress…", variant: "info" });
 
 **Safe-area aware**.
 
+!!! danger "`useToast` only exists under a `<ToastProvider>`"
+    Outside one the hook **throws** `useToast must be used inside a
+    <ToastProvider>`. The provider belongs at the app root, above the router — if
+    it sits inside a route, any toast fired from outside that route takes the
+    screen down instead of showing up.
+
 ## `EmptyState`
+
+<!-- gallery:table -->
+[![Table & Pagination in the gallery](../assets/gallery/table.webp)](../gallery.md)
+
+*Section `table` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 **When to use:** a list/collection returned **zero items successfully** (no
 orders yet, search with no results). Always offer a way out (create the first
@@ -357,13 +513,26 @@ item, clear filters). Don't confuse it with an error — for a failure use
 A centered "nothing here".
 
 ```tsx
-<EmptyState
-  icon={<InboxIcon />}
-  title="No orders"
-  description="When your customers place orders, they show up here."
-  action={<Button leftIcon={<Plus />}>New order</Button>}
-/>
+import { Button, EmptyState } from "tempest-react-sdk";
+import { Inbox, Plus } from "lucide-react";
+
+export function SemPedidos() {
+    return (
+        <EmptyState
+            icon={<Inbox size={32} />}
+            title="No orders yet"
+            description="When your customers place orders, they show up here."
+            action={<Button leftIcon={<Plus size={16} />}>New order</Button>}
+        />
+    );
+}
 ```
+
+!!! tip "An empty state is not an error state"
+    `EmptyState` is for "the query worked and there is nothing" — the suggested
+    action creates the first record. `ErrorState` is for "the query failed", and
+    the action is **try again**. Swapping one for the other makes the user create
+    a duplicate order when what actually broke was the network.
 
 ## `ErrorState`
 
@@ -373,7 +542,23 @@ the user can retry. Unlike `EmptyState`, which represents success with no data.
 A failure with a retry button.
 
 ```tsx
-<ErrorState title="Couldn't load" description={String(error)} onRetry={refetch} />
+import { ErrorState } from "tempest-react-sdk";
+
+export function FalhaAoCarregar({
+    error,
+    refetch,
+}: {
+    error: unknown;
+    refetch: () => void;
+}) {
+    return (
+        <ErrorState
+            title="Could not load"
+            description={String(error)}
+            onRetry={refetch}
+        />
+    );
+}
 ```
 
 ## `OfflineIndicator`
@@ -381,22 +566,43 @@ A failure with a retry button.
 **When to use:** warn that the app is offline and confirm when the connection returns. Driven by `useOnline` — renders nothing while online, so mount it at the root without an `if`.
 
 ```tsx
-<OfflineIndicator position="top" />
+import { OfflineIndicator } from "tempest-react-sdk";
+
+export function Raiz() {
+    return <OfflineIndicator position="top" />;
+}
 ```
 
 `position`: `"top"` | `"bottom"` (default). Pass `children` to replace the body, or `onlineFlashMs={0}` to skip the confirmation flash. See [PWA & Offline-First](../pwa.md).
 
 ## `SyncStatusBadge`
 
+<!-- gallery:pwa -->
+[![PWA: Install · Push in the gallery](../assets/gallery/pwa.webp)](../gallery.md)
+
+*Section `pwa` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 **When to use:** show the offline engine state (synced / syncing / pending / offline / error). Two modes: pass `sync` to connect straight to the engine (zero wiring), or pass an explicit `tone` (presentational, testable without IndexedDB).
 
 ```tsx
-// Connected — auto-wires the engine:
-<SyncStatusBadge sync={notesSync} />;
+import { SyncStatusBadge, useSyncStatus, type OfflineSync } from "tempest-react-sdk";
 
-// Presentational — you own the state:
-const { tone, pending } = useSyncStatus(notesSync);
-<SyncStatusBadge tone={tone} pending={pending} />;
+interface Nota {
+    id: string;
+    body: string;
+}
+
+export function Status({ notesSync }: { notesSync: OfflineSync<Nota> }) {
+    const { tone, pending } = useSyncStatus(notesSync);
+
+    return (
+        <>
+            <SyncStatusBadge sync={notesSync} />
+            <SyncStatusBadge tone={tone} pending={pending} />
+        </>
+    );
+}
 ```
 
 `tone`: `"idle"` | `"syncing"` | `"pending"` | `"offline"` | `"error"`. `iconOnly` hides the label; `labels` overrides the per-tone text.
@@ -406,8 +612,13 @@ const { tone, pending } = useSyncStatus(notesSync);
 **When to use:** announce a new app version (service worker) and let the user reload. Pairs with `useServiceWorkerUpdate`.
 
 ```tsx
-const { updateAvailable, applyUpdate } = useServiceWorkerUpdate({ url: "/sw.js" });
-<UpdatePrompt open={updateAvailable} onUpdate={applyUpdate} />;
+import { UpdatePrompt, useServiceWorkerUpdate } from "tempest-react-sdk";
+
+export function AvisoDeAtualizacao() {
+    const { updateAvailable, applyUpdate } = useServiceWorkerUpdate({ url: "/sw.js" });
+
+    return <UpdatePrompt open={updateAvailable} onUpdate={applyUpdate} />;
+}
 ```
 
 Renders nothing when `open={false}`. `onDismiss` (optional) shows the dismiss button; `position` `"top"`/`"bottom"`.

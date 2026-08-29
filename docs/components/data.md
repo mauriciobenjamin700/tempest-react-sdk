@@ -6,51 +6,81 @@ Use esta página quando precisa **listar/comparar** registros. Para um único re
 
 ## `Table<T>`
 
+<!-- gallery:table -->
+[![Table & Pagination na gallery](../assets/gallery/table.webp)](../gallery.md)
+
+*Seção `table` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: comparar registros estruturados campo a campo em colunas — pedidos, usuários, transações. Tipada por `T`, com prioridade responsiva por coluna e stack opcional em mobile.
 
 ```tsx
-const columns: TableColumn<Order>[] = [
-  { key: "id", header: "ID", align: "right", priority: "always" },
-  { key: "customer", header: "Cliente", priority: "always" },
-  {
-    key: "total",
-    header: "Total",
-    align: "right",
-    render: (row) => formatCurrency(row.total),
-    priority: "always",
-  },
-  {
-    key: "created_at",
-    header: "Data",
-    render: (row) => formatDate(row.created_at),
-    priority: "tablet",
-  },
-  {
-    key: "status",
-    header: "Status",
-    render: (row) => <Badge variant={statusVariant(row.status)}>{row.status}</Badge>,
-    priority: "desktop",
-  },
-  {
-    key: "actions",
-    header: "",
-    render: (row) => (
-      <Button size="sm" onClick={() => edit(row.id)}>
-        Editar
-      </Button>
-    ),
-    priority: "desktop",
-  },
-];
+import { Badge, Button, Table, formatCurrency, formatDate, type TableColumn } from "tempest-react-sdk";
 
-<Table
-  columns={columns}
-  data={orders}
-  rowKey={(row) => row.id}
-  onRowClick={(row) => navigate(`/orders/${row.id}`)}
-  stackOnMobile
-  emptyMessage="Nenhum pedido encontrado."
-/>;
+interface Order {
+    id: string;
+    customer: string;
+    total: number;
+    created_at: string;
+    status: "paid" | "pending" | "failed";
+}
+
+const VARIANT = { paid: "success", pending: "warning", failed: "danger" } as const;
+
+export function Orders({
+    orders,
+    edit,
+    navigate,
+}: {
+    orders: Order[];
+    edit: (id: string) => void;
+    navigate: (to: string) => void;
+}) {
+    const columns: TableColumn<Order>[] = [
+        { key: "id", header: "ID", align: "right", priority: "always" },
+        { key: "customer", header: "Cliente", priority: "always" },
+        {
+            key: "total",
+            header: "Total",
+            align: "right",
+            render: (row) => formatCurrency(row.total),
+            priority: "always",
+        },
+        {
+            key: "created_at",
+            header: "Data",
+            render: (row) => formatDate(row.created_at),
+            priority: "tablet",
+        },
+        {
+            key: "status",
+            header: "Status",
+            render: (row) => <Badge variant={VARIANT[row.status]}>{row.status}</Badge>,
+            priority: "desktop",
+        },
+        {
+            key: "actions",
+            header: "",
+            render: (row) => (
+                <Button size="sm" onClick={() => edit(row.id)}>
+                    Editar
+                </Button>
+            ),
+            priority: "desktop",
+        },
+    ];
+
+    return (
+        <Table
+            columns={columns}
+            data={orders}
+            rowKey={(row) => row.id}
+            onRowClick={(row) => navigate(`/orders/${row.id}`)}
+            stackOnMobile
+            emptyMessage="Nenhum pedido encontrado."
+        />
+    );
+}
 ```
 
 | Prop            | Tipo                                           | Default                         |
@@ -85,19 +115,36 @@ const columns: TableColumn<Order>[] = [
 
 ## `VirtualList`
 
+<!-- gallery:advanced -->
+[![Stepper · Progress · VirtualList na gallery](../assets/gallery/advanced.webp)](../gallery.md)
+
+*Seção `advanced` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: rolar listas muito longas (500+ itens) de linhas com **altura fixa** sem inundar o DOM — chats, logs, feeds infinitos.
 
 Renderiza apenas a janela visível + um pequeno buffer de overscan. Cada linha precisa de altura fixa (`itemHeight`); o container precisa de uma altura (`height`).
 
 ```tsx
-<VirtualList
-  items={messages}
-  itemHeight={64}
-  height={480}
-  overscan={5}
-  getKey={(message) => message.id}
-  renderItem={(message) => <MessageRow message={message} />}
-/>
+import { VirtualList } from "tempest-react-sdk";
+
+interface Message {
+    id: string;
+    body: string;
+}
+
+export function Historico({ messages }: { messages: Message[] }) {
+    return (
+        <VirtualList
+            items={messages}
+            itemHeight={64}
+            height={480}
+            overscan={5}
+            getKey={(message) => message.id}
+            renderItem={(message) => <p>{message.body}</p>}
+        />
+    );
+}
 ```
 
 | Prop         | Tipo                                           | Default |
@@ -117,23 +164,41 @@ Renderiza apenas a janela visível + um pequeno buffer de overscan. Cada linha p
 
 ## `VirtualTable<T>`
 
+<!-- gallery:virtual-table -->
+[![VirtualTable (40k linhas) na gallery](../assets/gallery/virtual-table.webp)](../gallery.md)
+
+*Seção `virtual-table` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: uma tabela de **milhares de linhas** numa única grade rolável — extrato, log de auditoria, exportação bruta. O `Table` renderiza tudo o que recebe e o `DataTable` pagina pra manter esse número pequeno; nenhum dos dois responde "me mostre as 40 000 linhas de uma vez".
 
 Renderiza só a janela visível, como o `VirtualList`, mas continua sendo uma `<table>` de verdade: colunas alinhadas pelo browser, cabeçalho fixo, semântica de grade pra leitor de tela.
 
 ```tsx
-<VirtualTable
-  data={rows}
-  columns={[
-    { key: "id", header: "#", width: 80, sortable: true },
-    { key: "name", header: "Nome", width: 240, sortable: true },
-    { key: "total", header: "Total", width: 120, align: "right", sortable: true },
-  ]}
-  rowHeight={40}
-  height={480}
-  rowKey={(row) => row.id}
-  onRowClick={(row) => open(row.id)}
-/>
+import { VirtualTable } from "tempest-react-sdk";
+
+interface Row {
+    id: number;
+    name: string;
+    total: string;
+}
+
+export function Grande({ rows, open }: { rows: Row[]; open: (id: number) => void }) {
+    return (
+        <VirtualTable
+            data={rows}
+            columns={[
+                { key: "id", header: "#", width: 80, sortable: true },
+                { key: "name", header: "Nome", width: 240, sortable: true },
+                { key: "total", header: "Total", width: 120, align: "right", sortable: true },
+            ]}
+            rowHeight={40}
+            height={480}
+            rowKey={(row) => row.id}
+            onRowClick={(row) => open(row.id)}
+        />
+    );
+}
 ```
 
 | Prop            | Tipo                                            | Default                            |
@@ -175,6 +240,12 @@ Coluna: `{ key, header, render?, sortable?, align?, width? }`.
 Os dois ordenam com o mesmo comparador (`compareValues`), então "ordenado" quer dizer a mesma coisa nos dois — número numericamente, data por timestamp, string com `localeCompare` e `numeric: true`.
 
 ## `DataTable<T>` — edição inline
+
+<!-- gallery:data-table -->
+[![DataTable na gallery](../assets/gallery/data-table.webp)](../gallery.md)
+
+*Seção `data-table` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: tela de admin. Você já lista os registros com `DataTable`; agora
 > alguém precisa corrigir um nome sem abrir um modal por linha.
@@ -445,6 +516,12 @@ export function Pessoas() {
 
 ## `BarList`
 
+<!-- gallery:bar-list -->
+[![BarList (distribuição ranqueada) na gallery](../assets/gallery/bar-list.webp)](../gallery.md)
+
+*Seção `bar-list` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: distribuição ranqueada — usuários por plano, erros por endpoint,
 > vendas por categoria. É o gráfico mais comum de painel, e o único que costuma ser
 > reescrito quatro vezes no mesmo dashboard, cada vez com seu CSS e seu `.sort()`.
@@ -533,6 +610,12 @@ import { BarList } from "tempest-react-sdk";
 
 ## `ListTile`
 
+<!-- gallery:material -->
+[![Material (ListTile · FAB · Rail) na gallery](../assets/gallery/material.webp)](../gallery.md)
+
+*Seção `material` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: a linha canônica de lista do Material — um item com slot à esquerda (ícone/avatar), título com subtítulo opcional e slot à direita (ícone, switch, meta). Ideal para listas de configurações, contatos ou menus.
 
 Renderiza como `<div>` estático por padrão; ao receber `onClick` vira um `<button>` de largura total, acessível por teclado.
@@ -573,19 +656,40 @@ function NotificationsRow() {
 
 ## `Accordion`
 
+<!-- gallery:disclosure -->
+[![Accordion · Collapsible · Scroll na gallery](../assets/gallery/disclosure.webp)](../gallery.md)
+
+*Seção `disclosure` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: condensar conteúdo seccionável que o usuário expande sob demanda — FAQs, formulários longos em etapas, painéis de configurações.
 
 Modo single (default) ou `multiple`. Controlado via `value` + `onChange`, ou não-controlado via `defaultValue`.
 
 ```tsx
-<Accordion
-  items={[
-    { id: "1", title: "Como cancelo minha assinatura?", children: <p>...</p> },
-    { id: "2", title: "Quais formas de pagamento?", children: <p>...</p> },
-  ]}
-/>;
+import { useState } from "react";
+import { Accordion } from "tempest-react-sdk";
 
-<Accordion multiple value={openIds} onChange={setOpenIds} items={faqItems} />;
+const FAQ = [
+    { id: "1", title: "Como cancelo minha assinatura?", children: <p>Pelo painel, em Conta → Assinatura.</p> },
+    { id: "2", title: "Quais formas de pagamento?", children: <p>Cartão, Pix e boleto.</p> },
+];
+
+export function Perguntas() {
+    const [openIds, setOpenIds] = useState<string[]>([]);
+
+    return (
+        <>
+            <Accordion items={FAQ} />
+            <Accordion
+                multiple
+                value={openIds}
+                onChange={(value) => setOpenIds(value as string[])}
+                items={FAQ}
+            />
+        </>
+    );
+}
 ```
 
 | Prop           | Tipo                                 | Default |
@@ -603,25 +707,37 @@ Modo single (default) ou `multiple`. Controlado via `value` + `onChange`, ou nã
 
 ## `Timeline`
 
+<!-- gallery:feedback-extra -->
+[![Alert · Timeline · BottomSheet na gallery](../assets/gallery/feedback-extra.webp)](../gallery.md)
+
+*Seção `feedback-extra` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: mostrar uma sequência de eventos no tempo — rastreio de pedido, log de auditoria, feed de atividade. Cada entrada tem marker colorido, título, descrição e meta opcionais.
 
 Feed vertical com markers coloridos. Renderiza como `<ol>` semântica (cada item é `<li>`).
 
 ```tsx
-<Timeline
-  items={[
-    { id: "1", title: "Pedido criado", meta: "10:24", marker: "primary" },
-    { id: "2", title: "Pagamento aprovado", meta: "10:25", marker: "success" },
-    {
-      id: "3",
-      title: "Saiu pra entrega",
-      description: "Motorista: João",
-      meta: "11:00",
-      marker: "warning",
-    },
-    { id: "4", title: "Entregue", meta: "12:30", marker: "success" },
-  ]}
-/>
+import { Timeline } from "tempest-react-sdk";
+
+export function Rastreio() {
+    return (
+        <Timeline
+            items={[
+                { id: "1", title: "Pedido criado", meta: "10:24", marker: "primary" },
+                { id: "2", title: "Pagamento aprovado", meta: "10:25", marker: "success" },
+                {
+                    id: "3",
+                    title: "Saiu pra entrega",
+                    description: "Motorista: João",
+                    meta: "11:00",
+                    marker: "warning",
+                },
+                { id: "4", title: "Entregue", meta: "12:30", marker: "success" },
+            ]}
+        />
+    );
+}
 ```
 
 | Prop        | Tipo                            | Default |
@@ -632,6 +748,12 @@ Feed vertical com markers coloridos. Renderiza como `<ol>` semântica (cada item
 `TimelineItem = { id, title, description?, meta?, icon?, marker?: "primary" \| "success" \| "warning" \| "danger" \| "neutral" }`.
 
 ## `TreeView`
+
+<!-- gallery:hierarchy-flow -->
+[![TreeView · Wizard na gallery](../assets/gallery/hierarchy-flow.webp)](../gallery.md)
+
+*Seção `hierarchy-flow` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: dados **hierárquicos** — árvore de categorias, permissões por módulo, pastas, organograma. Quando o dado é uma lista plana, `Table` ou `ListTile` servem melhor.
 
@@ -696,6 +818,12 @@ export function PermissoesDoPapel() {
 
 ## `Sparkline`
 
+<!-- gallery:sparkline -->
+[![Sparkline (mini-gráfico inline) na gallery](../assets/gallery/sparkline.webp)](../gallery.md)
+
+*Seção `sparkline` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: mostrar a **forma** de uma série ao lado do número que ela explica — uma célula de tabela, um card de métrica, uma linha de lista. Não é substituto de gráfico: se o leitor precisa ler valores no eixo, use [`LineChart`](../charts.md).
 
 Um sparkline é SVG puro na entrada raiz, **sem recharts**. Uma coluna de tendência numa tabela não deveria obrigar o app a instalar uma biblioteca de gráfico inteira.
@@ -732,9 +860,19 @@ export function TendenciaPorProduto() {
 ### Variantes
 
 ```tsx
-<Sparkline data={serie} />                        {/* linha (default) */}
-<Sparkline data={serie} variant="area" />         {/* linha + preenchimento lavado */}
-<Sparkline data={serie} variant="bar" />          {/* uma barra por ponto */}
+import { Sparkline } from "tempest-react-sdk";
+
+const serie = [4, 6, 5, 9, 12, 10, 14];
+
+export function Variantes() {
+    return (
+        <>
+            <Sparkline data={serie} />
+            <Sparkline data={serie} variant="area" />
+            <Sparkline data={serie} variant="bar" />
+        </>
+    );
+}
 ```
 
 | Prop             | Tipo                              | Default                    | O que faz                                                        |
@@ -754,9 +892,24 @@ export function TendenciaPorProduto() {
 Por padrão cada sparkline se normaliza contra os próprios extremos. Numa coluna de tabela isso é uma armadilha: uma linha que vai de 2 a 4 e outra que vai de 200 a 400 desenham **exatamente a mesma forma**.
 
 ```tsx
-const teto = Math.max(...produtos.flatMap((p) => p.serie));
+import { Sparkline } from "tempest-react-sdk";
 
-<Sparkline data={linha.serie} min={0} max={teto} />;
+interface Produto {
+    id: string;
+    serie: number[];
+}
+
+export function MesmaEscala({ produtos }: { produtos: Produto[] }) {
+    const teto = Math.max(...produtos.flatMap((produto) => produto.serie));
+
+    return (
+        <>
+            {produtos.map((produto) => (
+                <Sparkline key={produto.id} data={produto.serie} min={0} max={teto} />
+            ))}
+        </>
+    );
+}
 ```
 
 !!! warning "Sem `min`/`max`, a forma é relativa — nunca comparável"

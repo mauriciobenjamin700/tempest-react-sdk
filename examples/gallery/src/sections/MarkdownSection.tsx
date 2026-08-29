@@ -59,7 +59,8 @@ Isso tudo acima é **texto**, não markup.`;
  */
 export function MarkdownSection() {
     return (
-        <>
+        <section className="gallery-section" id="markdown">
+            <h3>Markdown</h3>
             <Example
                 id="markdown-basic"
                 title="Um documento de verdade"
@@ -102,6 +103,6 @@ export function MarkdownSection() {
             >
                 <Markdown source={HOSTILE} />
             </Example>
-        </>
+        </section>
     );
 }

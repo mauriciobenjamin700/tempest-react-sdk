@@ -134,7 +134,8 @@ export function AIChatSection() {
     };
 
     return (
-        <>
+        <section className="gallery-section" id="aichat">
+            <h3>AIChat</h3>
             <Example
                 id="aichat-streaming"
                 title="Conversa com um modelo, com streaming"
@@ -272,6 +273,6 @@ export function AIChatSection() {
                     <AIChat messages={FAILED} onRetry={() => {}} onRegenerate={() => {}} />
                 </div>
             </Example>
-        </>
+        </section>
     );
 }

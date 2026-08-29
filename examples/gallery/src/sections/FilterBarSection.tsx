@@ -40,11 +40,13 @@ export function FilterBarSection() {
     const query = useMemo(() => filtersToSearchParams(filtros).toString(), [filtros]);
 
     return (
-        <Example
-            id="filterbar-basic"
-            title="Filtros de uma lista"
-            note="Combinados com **E**, achatados. Cada chip lê em palavras ('Status é Pago'), e o mesmo texto é o nome acessível do botão de remover. Adicione um filtro e veja a query embaixo."
-            code={`import { FilterBar, filtersFromSearchParams, filtersToSearchParams } from "tempest-react-sdk";
+        <section className="gallery-section" id="filterbar">
+            <h3>FilterBar</h3>
+            <Example
+                id="filterbar-basic"
+                title="Filtros de uma lista"
+                note="Combinados com **E**, achatados. Cada chip lê em palavras ('Status é Pago'), e o mesmo texto é o nome acessível do botão de remover. Adicione um filtro e veja a query embaixo."
+                code={`import { FilterBar, filtersFromSearchParams, filtersToSearchParams } from "tempest-react-sdk";
 
 const [filtros, setFiltros] = useState<Filter[]>(() =>
   filtersFromSearchParams(new URLSearchParams(location.search), CAMPOS),
@@ -54,53 +56,58 @@ const [filtros, setFiltros] = useState<Filter[]>(() =>
 
 // e pra buscar:
 fetch(\`/api/pedidos?\${filtersToSearchParams(filtros)}\`)`}
-            props={[
-                {
-                    name: "fields",
-                    type: "FilterField[]",
-                    description: "Campos que podem ser filtrados.",
-                },
-                { name: "value", type: "Filter[]", description: "Filtros aplicados. Controlado." },
-                {
-                    name: "onChange",
-                    type: "(filters: Filter[]) => void",
-                    description: "Próximo conjunto, combinado com E.",
-                },
-                {
-                    name: "actions",
-                    type: "ReactNode",
-                    description: "Ao lado dos controles — 'salvar visão', contador.",
-                },
-                {
-                    name: "locale",
-                    type: '"pt-BR" | "en"',
-                    default: '"pt-BR"',
-                    description: "Rótulos.",
-                },
-            ]}
-        >
-            <div style={{ display: "grid", gap: "var(--tempest-space-3)" }}>
-                <FilterBar
-                    fields={CAMPOS}
-                    value={filtros}
-                    onChange={setFiltros}
-                    actions={<Badge variant="neutral">{filtros.length} no total</Badge>}
-                />
+                props={[
+                    {
+                        name: "fields",
+                        type: "FilterField[]",
+                        description: "Campos que podem ser filtrados.",
+                    },
+                    {
+                        name: "value",
+                        type: "Filter[]",
+                        description: "Filtros aplicados. Controlado.",
+                    },
+                    {
+                        name: "onChange",
+                        type: "(filters: Filter[]) => void",
+                        description: "Próximo conjunto, combinado com E.",
+                    },
+                    {
+                        name: "actions",
+                        type: "ReactNode",
+                        description: "Ao lado dos controles — 'salvar visão', contador.",
+                    },
+                    {
+                        name: "locale",
+                        type: '"pt-BR" | "en"',
+                        default: '"pt-BR"',
+                        description: "Rótulos.",
+                    },
+                ]}
+            >
+                <div style={{ display: "grid", gap: "var(--tempest-space-3)" }}>
+                    <FilterBar
+                        fields={CAMPOS}
+                        value={filtros}
+                        onChange={setFiltros}
+                        actions={<Badge variant="neutral">{filtros.length} no total</Badge>}
+                    />
 
-                <code
-                    style={{
-                        display: "block",
-                        padding: "var(--tempest-space-3)",
-                        borderRadius: "var(--tempest-radius-md)",
-                        backgroundColor: "var(--tempest-surface-2)",
-                        fontFamily: "var(--tempest-font-mono)",
-                        fontSize: "var(--tempest-text-xs)",
-                        overflowWrap: "anywhere",
-                    }}
-                >
-                    /api/pedidos?{query || "(sem filtros)"}
-                </code>
-            </div>
-        </Example>
+                    <code
+                        style={{
+                            display: "block",
+                            padding: "var(--tempest-space-3)",
+                            borderRadius: "var(--tempest-radius-md)",
+                            backgroundColor: "var(--tempest-surface-2)",
+                            fontFamily: "var(--tempest-font-mono)",
+                            fontSize: "var(--tempest-text-xs)",
+                            overflowWrap: "anywhere",
+                        }}
+                    >
+                        /api/pedidos?{query || "(sem filtros)"}
+                    </code>
+                </div>
+            </Example>
+        </section>
     );
 }

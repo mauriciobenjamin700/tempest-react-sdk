@@ -4,6 +4,12 @@ Navegação com dropdowns, barra de menus e carrossel. Três formas de levar a p
 
 ## `NavigationMenu`
 
+<!-- gallery:nav-extra -->
+[![Navbar · Sidebar · Bottom nav na gallery](../assets/gallery/nav-extra.webp)](../gallery.md)
+
+*Seção `nav-extra` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 Menu de navegação horizontal com submenus dropdown via hover/clique/foco. Itens de topo em `<nav><ul>`; itens com `children` abrem um painel `role="menu"`. Apenas um painel aberto por vez.
 
 ```tsx
@@ -34,6 +40,12 @@ import { NavigationMenu } from "tempest-react-sdk";
 
 ## `Menubar`
 
+<!-- gallery:overlays -->
+[![Popover · Dropdown · HoverCard na gallery](../assets/gallery/overlays.webp)](../gallery.md)
+
+*Seção `overlays` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 Barra de menus de aplicação (estilo Arquivo / Editar). `role="menubar"`; cada menu é um botão que abre um dropdown. Setas ←/→ navegam entre menus (com wrap).
 
 ```tsx
@@ -60,6 +72,12 @@ import { Menubar } from "tempest-react-sdk";
 `MenubarMenu` = `{ label: ReactNode; items: MenubarItem[] }`. `MenubarItem` = `{ label: ReactNode; onSelect?: () => void; disabled?: boolean; shortcut?: string }` ou `{ separator: true }`.
 
 ## `Carousel`
+
+<!-- gallery:display-media -->
+[![Avatar · Image · Carousel na gallery](../assets/gallery/display-media.webp)](../gallery.md)
+
+*Seção `display-media` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 Slider horizontal de conteúdo mostrando um slide por vez. A track translada pelo índice ativo. Setas prev/next (desabilitadas nas pontas, salvo `loop`) e indicadores em dots. Controlado (`index`) ou não-controlado (`defaultIndex`).
 

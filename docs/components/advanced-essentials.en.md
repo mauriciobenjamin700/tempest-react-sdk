@@ -4,6 +4,12 @@ Toggles, label, expandable regions, interaction-triggered overlays and the comma
 
 ## `Toggle`
 
+<!-- gallery:form-primitives -->
+[![Checkbox · Radio · Switch in the gallery](../assets/gallery/form-primitives.webp)](../gallery.md)
+
+*Section `form-primitives` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 A two-state button — like a checkbox styled as a button. Controlled (`pressed` + `onPressedChange`) or uncontrolled (`defaultPressed`).
 
 ```tsx
@@ -33,6 +39,12 @@ Remaining `<button>` props are forwarded.
     Renders a native `<button type="button">` exposing its state through `aria-pressed` and `data-state="on"|"off"`.
 
 ## `ToggleGroup` (+ `ToggleGroupItem`)
+
+<!-- gallery:feedback-extra -->
+[![Alert · Timeline · BottomSheet in the gallery](../assets/gallery/feedback-extra.webp)](../gallery.md)
+
+*Section `feedback-extra` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 A set of toggles sharing selection state via context. `single` mode (`string` value) or `multiple` mode (`string[]` value).
 
@@ -69,6 +81,12 @@ import { ToggleGroup, ToggleGroupItem } from "tempest-react-sdk";
 
 ## `Label`
 
+<!-- gallery:inputs-extra -->
+[![Inputs avançados (Date · Pin · Slider) in the gallery](../assets/gallery/inputs-extra.webp)](../gallery.md)
+
+*Section `inputs-extra` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 A form `<label>`. Associate it with a control via `htmlFor`. When `required`, a decorative asterisk (`aria-hidden`) is appended.
 
 ```tsx
@@ -86,6 +104,12 @@ import { Label } from "tempest-react-sdk";
 Remaining `<label>` props (incl. `htmlFor`) are forwarded.
 
 ## `Collapsible`
+
+<!-- gallery:disclosure -->
+[![Accordion · Collapsible · Scroll in the gallery](../assets/gallery/disclosure.webp)](../gallery.md)
+
+*Section `disclosure` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 A single expand/collapse region — a lighter alternative to `Accordion` for one block. Controlled (`open` + `onOpenChange`) or uncontrolled (`defaultOpen`).
 
@@ -109,6 +133,12 @@ import { Collapsible } from "tempest-react-sdk";
     The trigger is a `<button aria-expanded aria-controls>` wired to a `role="region"` sharing the same id; the region is `hidden` while closed.
 
 ## `ContextMenu`
+
+<!-- gallery:overlays -->
+[![Popover · Dropdown · HoverCard in the gallery](../assets/gallery/overlays.webp)](../gallery.md)
+
+*Section `overlays` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 Right-click context menu. Opens at the cursor on `onContextMenu` (default browser menu suppressed), rendered through a `Portal`. Closes on outside click, Escape, or selection.
 

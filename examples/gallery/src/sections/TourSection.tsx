@@ -38,11 +38,13 @@ export function TourSection() {
     const [concluido, setConcluido] = useState(false);
 
     return (
-        <Example
-            id="tour-basic"
-            title="Tour guiado"
-            note="Escurece a página, destaca um elemento por vez e explica. O elemento destacado continua clicável — tente clicar em `Novo pedido` com o tour aberto. Setas andam, `Esc` sai."
-            code={`import { Tour } from "tempest-react-sdk";
+        <section className="gallery-section" id="tour">
+            <h3>Tour</h3>
+            <Example
+                id="tour-basic"
+                title="Tour guiado"
+                note="Escurece a página, destaca um elemento por vez e explica. O elemento destacado continua clicável — tente clicar em `Novo pedido` com o tour aberto. Setas andam, `Esc` sai."
+                code={`import { Tour } from "tempest-react-sdk";
 
 const [aberto, setAberto] = useState(!storage.get("tour-v1"));
 
@@ -55,57 +57,60 @@ const [aberto, setAberto] = useState(!storage.get("tour-v1"));
   onClose={() => setAberto(false)}
   onFinish={() => storage.set("tour-v1", true)}
 />`}
-            props={[
-                { name: "steps", type: "TourStep[]", description: "As paradas, em ordem." },
-                { name: "open", type: "boolean", description: "Controlado pelo app." },
-                {
-                    name: "onClose",
-                    type: "() => void",
-                    description: "`Esc`, botão de fechar, pular ou clique no escuro.",
-                },
-                {
-                    name: "onFinish",
-                    type: "() => void",
-                    description: "Depois do último passo. Persistir 'já viu' é do app.",
-                },
-                {
-                    name: "index / onIndexChange",
-                    type: "number / (i: number) => void",
-                    description: "Opcional: o app dirige o passo atual.",
-                },
-                {
-                    name: "spotlightPadding",
-                    type: "number",
-                    default: "4",
-                    description: "Folga em volta do elemento destacado.",
-                },
-            ]}
-        >
-            <div style={{ display: "grid", gap: "var(--tempest-space-4)" }}>
-                <div style={{ display: "flex", gap: "var(--tempest-space-3)", flexWrap: "wrap" }}>
-                    <Button id="tour-novo" onClick={() => setConcluido(false)}>
-                        Novo pedido
-                    </Button>
-                    <Button id="tour-filtros" variant="secondary">
-                        Filtros
-                    </Button>
-                    <Button onClick={() => setAberto(true)}>Rodar o tour</Button>
+                props={[
+                    { name: "steps", type: "TourStep[]", description: "As paradas, em ordem." },
+                    { name: "open", type: "boolean", description: "Controlado pelo app." },
+                    {
+                        name: "onClose",
+                        type: "() => void",
+                        description: "`Esc`, botão de fechar, pular ou clique no escuro.",
+                    },
+                    {
+                        name: "onFinish",
+                        type: "() => void",
+                        description: "Depois do último passo. Persistir 'já viu' é do app.",
+                    },
+                    {
+                        name: "index / onIndexChange",
+                        type: "number / (i: number) => void",
+                        description: "Opcional: o app dirige o passo atual.",
+                    },
+                    {
+                        name: "spotlightPadding",
+                        type: "number",
+                        default: "4",
+                        description: "Folga em volta do elemento destacado.",
+                    },
+                ]}
+            >
+                <div style={{ display: "grid", gap: "var(--tempest-space-4)" }}>
+                    <div
+                        style={{ display: "flex", gap: "var(--tempest-space-3)", flexWrap: "wrap" }}
+                    >
+                        <Button id="tour-novo" onClick={() => setConcluido(false)}>
+                            Novo pedido
+                        </Button>
+                        <Button id="tour-filtros" variant="secondary">
+                            Filtros
+                        </Button>
+                        <Button onClick={() => setAberto(true)}>Rodar o tour</Button>
+                    </div>
+
+                    <Card id="tour-resumo" title="Resumo do dia">
+                        <p style={{ margin: 0 }}>
+                            42 pedidos · R$ 18.430,00
+                            {concluido ? " · tour concluído" : ""}
+                        </p>
+                    </Card>
+
+                    <Tour
+                        steps={PASSOS}
+                        open={aberto}
+                        onClose={() => setAberto(false)}
+                        onFinish={() => setConcluido(true)}
+                    />
                 </div>
-
-                <Card id="tour-resumo" title="Resumo do dia">
-                    <p style={{ margin: 0 }}>
-                        42 pedidos · R$ 18.430,00
-                        {concluido ? " · tour concluído" : ""}
-                    </p>
-                </Card>
-
-                <Tour
-                    steps={PASSOS}
-                    open={aberto}
-                    onClose={() => setAberto(false)}
-                    onFinish={() => setConcluido(true)}
-                />
-            </div>
-        </Example>
+            </Example>
+        </section>
     );
 }

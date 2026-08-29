@@ -4,6 +4,12 @@
 
 ## `Chat`
 
+<!-- gallery:chat -->
+[![Chat na gallery](../assets/gallery/chat.webp)](../gallery.md)
+
+*Seção `chat` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 > **Quando usar**: uma thread de mensagens — suporte, chat interno, comentário de documento, histórico de atendimento.
 
 Agrupa por autor e por dia, marca o lado do usuário atual, mostra estado de entrega, quem está digitando, e traz o composer quando você passa `onSend`.
@@ -93,6 +99,12 @@ Exportado à parte pra quem monta o próprio layout (composer fixo no rodapé de
     Compondo japonês ou coreano, `Enter` confirma a palavra candidata. Enviar ali publica meia palavra e come a confirmação — daí a checagem de `isComposing`.
 
 ## `AIChat`
+
+<!-- gallery:aichat -->
+[![AIChat na gallery](../assets/gallery/aichat.webp)](../gallery.md)
+
+*Seção `aichat` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
 
 > **Quando usar**: conversa com um **modelo** — copiloto do seu app, assistente de suporte, busca conversacional. É a forma que o ChatGPT, o Claude e o DeepSeek convergiram.
 
@@ -221,12 +233,14 @@ O que você ganha de graça nesse trecho:
 Um turno com `reasoning` ganha um bloco colapsável **acima** da resposta:
 
 ```tsx
-{
-  id: "a1",
-  role: "assistant",
-  content: "São 12 pedidos.",
-  reasoning: "Filtrei por data de entrega vencida e status != entregue…",
-}
+import { type AIChatMessage } from "tempest-react-sdk";
+
+const turno: AIChatMessage = {
+    id: "a1",
+    role: "assistant",
+    content: "São 12 pedidos.",
+    reasoning: "Filtrei por data de entrega vencida e status != entregue…",
+};
 ```
 
 !!! info "Enquanto só o raciocínio chegou, o bloco abre sozinho"
@@ -243,16 +257,40 @@ Um turno com `reasoning` ganha um bloco colapsável **acima** da resposta:
 | Tentar de novo | turno com `error` | `onRetry` |
 
 ```tsx
-<AIChat
-  messages={turnos}
-  onRegenerate={(turno) => reperguntar(turno)}
-  onFeedback={(turno, voto) => track("answer_rated", { id: turno.id, voto })}
-  onEditSubmit={(turno, texto) => {
-    truncarAPartirDe(turno.id);   // seu app decide o que cai
-    return perguntar(texto);
-  }}
-  votes={votosSalvos}             // opcional: votos que vieram do banco
-/>
+import {
+    AIChat,
+    type AIChatMessage,
+    type AIChatVote,
+} from "tempest-react-sdk";
+
+export function Conversa({
+    turnos,
+    votosSalvos,
+    reperguntar,
+    perguntar,
+    truncarAPartirDe,
+    track,
+}: {
+    turnos: AIChatMessage[];
+    votosSalvos: Record<string, AIChatVote>;
+    reperguntar: (turno: AIChatMessage) => void;
+    perguntar: (texto: string) => Promise<void>;
+    truncarAPartirDe: (id: string) => void;
+    track: (event: string, payload: Record<string, unknown>) => void;
+}) {
+    return (
+        <AIChat
+            messages={turnos}
+            onRegenerate={reperguntar}
+            onFeedback={(turno, voto) => track("answer_rated", { id: turno.id, voto })}
+            onEditSubmit={(turno, texto) => {
+                truncarAPartirDe(turno.id);
+                return perguntar(texto);
+            }}
+            votes={votosSalvos}
+        />
+    );
+}
 ```
 
 !!! warning "Gerar de novo aparece só no último turno de assistente — de propósito"
@@ -264,11 +302,17 @@ Um turno com `reasoning` ganha um bloco colapsável **acima** da resposta:
 #### Prompts sugeridos e estado vazio
 
 ```tsx
-<AIChat
-  messages={[]}
-  onSend={perguntar}
-  suggestions={["Resuma o último relatório", "Quais pedidos atrasaram?"]}
-/>
+import { AIChat } from "tempest-react-sdk";
+
+export function Vazio({ perguntar }: { perguntar: (texto: string) => void }) {
+    return (
+        <AIChat
+            messages={[]}
+            onSend={perguntar}
+            suggestions={["Resuma o último relatório", "Quais pedidos atrasaram?"]}
+        />
+    );
+}
 ```
 
 Numa conversa vazia as sugestões aparecem no rodapé da área de transcript; clicar em uma envia direto. Somem no primeiro turno. Sem `onSend` elas não são renderizadas (não haveria pra onde mandar) e cai no `EmptyState` — ou no seu `emptyState`.
@@ -372,6 +416,79 @@ Exportados à parte pra quem monta o próprio layout — um composer fixo no rod
 | `lastAssistantId(messages)` | Qual turno recebe o "gerar de novo". |
 | `tailSignature(messages)` | Dependência de efeito que muda quando a cauda cresce. |
 | `aiChatStrings(locale)` · `roleLabel(role, strings)` · `turnTime(ts, locale)` | Rótulos, pra reusar num layout próprio. |
+
+### `ChatComposer` — a caixa de escrever sozinha
+
+**Quando usar:** quando a lista de mensagens é sua (uma virtualização própria, um
+layout que o `Chat` não cobre) mas você quer o composer pronto: textarea que
+cresce até `maxRows`, Enter envia, Shift+Enter quebra linha, e `focus()` /
+`setValue()` expostos por ref.
+
+```tsx
+import { useRef } from "react";
+import { ChatComposer, type ChatComposerHandle } from "tempest-react-sdk";
+
+export function Rodape({ enviar }: { enviar: (texto: string) => Promise<void> }) {
+    const composer = useRef<ChatComposerHandle>(null);
+
+    return (
+        <>
+            <button onClick={() => composer.current?.setValue("Bom dia!")}>
+                Usar modelo
+            </button>
+            <ChatComposer ref={composer} onSend={enviar} maxRows={6} sendLabel="Enviar" />
+        </>
+    );
+}
+```
+
+!!! warning "`onSend` que rejeita não perde o texto"
+    Se a promise rejeitar, o composer chama `onError` e **devolve o texto** para a
+    caixa em vez de limpá-la. Uma caixa que esvazia numa falha de rede faz o
+    usuário redigitar — e ele não sabe que precisa.
+
+### `AIChatComposer` e `AIChatTurn` — as peças do `AIChat`
+
+**Quando usar:** para montar um layout que o `AIChat` não dá. `AIChatTurn`
+renderiza **um** turno (markdown do assistente, texto puro do usuário, bloco de
+raciocínio recolhível, ações de copiar/regenerar/votar); `AIChatComposer` é a
+caixa com estado de geração e botão de parar.
+
+```tsx
+import { AIChatComposer, AIChatTurn, type AIChatMessage } from "tempest-react-sdk";
+
+export function ConversaCustomizada({
+    turnos,
+    gerando,
+    perguntar,
+    parar,
+}: {
+    turnos: AIChatMessage[];
+    gerando: boolean;
+    perguntar: (texto: string) => Promise<void>;
+    parar: () => void;
+}) {
+    const ultimo = turnos.at(-1);
+
+    return (
+        <>
+            {turnos.map((turno) => (
+                <AIChatTurn
+                    key={turno.id}
+                    message={turno}
+                    canRegenerate={turno.id === ultimo?.id && turno.role === "assistant"}
+                />
+            ))}
+            <AIChatComposer onSend={perguntar} onStop={parar} generating={gerando} />
+        </>
+    );
+}
+```
+
+!!! note "`canRegenerate` só no último turno do assistente"
+    Regenerar um turno antigo joga fora tudo que veio depois dele — é outra
+    operação, e o `AIChat` reserva o controle para o turno mais novo. Ao montar a
+    lista você mesmo, essa decisão passa a ser sua.
 
 ## Recap
 

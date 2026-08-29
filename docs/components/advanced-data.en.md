@@ -4,6 +4,12 @@ A stateful table, a step wizard, markdown, a masonry wall, a guided tour, list-t
 
 ## `DataTable<T>`
 
+<!-- gallery:data-table -->
+[![DataTable in the gallery](../assets/gallery/data-table.webp)](../gallery.md)
+
+*Section `data-table` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 A stateful data table built on top of the headless `Table`. Adds client-side search, click-to-sort columns, and pagination, delegating all markup to the underlying `Table`.
 
 ```tsx
@@ -50,6 +56,12 @@ const columns: DataTableColumn<User>[] = [
     Clicking a sortable header cycles asc → desc → unsorted. Search matches a case-insensitive substring across `searchKeys` (or every string/number column when omitted). Pagination is hidden when the result fits on a single page.
 
 ## `Wizard`
+
+<!-- gallery:hierarchy-flow -->
+[![TreeView · Wizard in the gallery](../assets/gallery/hierarchy-flow.webp)](../gallery.md)
+
+*Section `hierarchy-flow` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 Multi-step flow: an indicator, one body at a time, and navigation that respects **per-step validation**. `Stepper` draws the indicator; `Wizard` owns the part every app was rewriting — the active index, the async gate before advancing, disabled/pending buttons and the completion call.
 
@@ -136,6 +148,12 @@ export function SteppedSignup() {
 
 ## `Markdown`
 
+<!-- gallery:markdown -->
+[![Markdown in the gallery](../assets/gallery/markdown.webp)](../gallery.md)
+
+*Section `markdown` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 > **When to use**: rendering text that came from people — a comment, a ticket description, release notes, a message body.
 
 A Markdown subset: headings, paragraphs, lists (nested and ordered), blockquote, fenced code (through [`CodeBlock`](utility.md#codeblock)), thematic break, GFM pipe tables with alignment, and the usual inline set (`**strong**`, `*em*`, `` `code` ``, `~~del~~`, links, images, autolinks, hard breaks).
@@ -175,6 +193,12 @@ import { Markdown } from "tempest-react-sdk";
 
 ## `Masonry`
 
+<!-- gallery:masonry -->
+[![Masonry in the gallery](../assets/gallery/masonry.webp)](../gallery.md)
+
+*Section `masonry` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 > **When to use**: cards of **uneven height** with no order between them — a notes wall, a photo gallery, dashboard cards.
 
 Measures the cards and deals each one into the shortest column, so the bottom edge is as even as the content allows.
@@ -211,6 +235,12 @@ import { Masonry, Card } from "tempest-react-sdk";
     Every card is observed individually: a height measured at mount is wrong in exactly the case of an image still downloading. The first paint weights every card as 1 (so it is never blank) and the measured pass re-deals.
 
 ## `Tour`
+
+<!-- gallery:tour -->
+[![Tour in the gallery](../assets/gallery/tour.webp)](../gallery.md)
+
+*Section `tour` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 > **When to use**: introducing a screen — first-run onboarding, a feature that moved, a flow nobody finds on their own.
 
@@ -271,6 +301,12 @@ export function Orders() {
     The component takes `open` and emits `onClose`/`onFinish`. Writing the flag is one line in the app (`storage.set`) and would be a wrong default here — the key is versioned, scoped per user, and sometimes lives on the backend.
 
 ## `Transfer`
+
+<!-- gallery:transfer -->
+[![Transfer in the gallery](../assets/gallery/transfer.webp)](../gallery.md)
+
+*Section `transfer` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 > **When to use**: picking a **subset** of a catalogue — a profile's permissions, cities on a route, members of a group, columns of a report.
 
@@ -334,6 +370,12 @@ export function ProfilePermissions() {
     A keyboard reaching the buttons before it has seen what they move would have to go back; a screen reader would read "move checked to the right" with no idea what is checked. Each pane is a `region` named by its heading, and each move is announced in a `role="status"`.
 
 ## `FilterBar`
+
+<!-- gallery:filterbar -->
+[![FilterBar in the gallery](../assets/gallery/filterbar.webp)](../gallery.md)
+
+*Section `filterbar` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 > **When to use**: filtering an admin list — orders by status and period, users by role, invoices by due date.
 
@@ -416,14 +458,21 @@ export function Orders({ orders }: { orders: Order[] }) {
 **Server-paginated listing** — `filtersToQueryParams`, which speaks the `tempest-fastapi-sdk` dialect:
 
 ```tsx
-const params = filtersToQueryParams(filters);
-params.set("page", String(page));
-params.set("page_size", "20");
+import { useQuery } from "@tanstack/react-query";
+import { createApiClient, filtersToQueryParams, type Filter } from "tempest-react-sdk";
 
-const { data } = useQuery({
-  queryKey: ["orders", filters, page],
-  queryFn: () => api.get(`/orders?${params}`),
-});
+const api = createApiClient({ baseURL: "/api" });
+
+export function usePedidos(filtros: Filter[], pagina: number) {
+    const params = filtersToQueryParams(filtros);
+    params.set("page", String(pagina));
+    params.set("page_size", "20");
+
+    return useQuery({
+        queryKey: ["pedidos", filtros, pagina],
+        queryFn: () => api.get(`/pedidos?${params}`),
+    });
+}
 ```
 
 | Operator | Param sent |

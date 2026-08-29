@@ -7,6 +7,12 @@ O SDK cobre **a metade do cliente**: as duas cerimônias (`navigator.credentials
 !!! info "Por que passkey e não senha"
     A chave privada nunca sai do aparelho, então não existe base de senhas pra vazar, nem phishing que funcione: o navegador só assina para o domínio que registrou a credencial. Pro usuário é um toque no sensor.
 
+<!-- gallery:recipe-passkeys -->
+[![Passkeys (WebAuthn) na gallery](assets/gallery/recipe-passkeys.webp)](gallery.md)
+
+*Seção `recipe-passkeys` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## A superfície
 
 | Símbolo | Para quê |

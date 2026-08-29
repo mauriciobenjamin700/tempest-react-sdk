@@ -41,7 +41,8 @@ export function TransferSection() {
     const [cidades, setCidades] = useState<string[]>([]);
 
     return (
-        <>
+        <section className="gallery-section" id="transfer">
+            <h3>Transfer</h3>
             <Example
                 id="transfer-basic"
                 title="Escolher um subconjunto"
@@ -112,6 +113,6 @@ const [papeis, setPapeis] = useState<string[]>([]);
                     searchable
                 />
             </Example>
-        </>
+        </section>
     );
 }

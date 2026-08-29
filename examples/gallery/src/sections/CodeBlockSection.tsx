@@ -41,7 +41,8 @@ const LONG = Array.from(
  */
 export function CodeBlockSection() {
     return (
-        <>
+        <section className="gallery-section" id="codeblock">
+            <h3>CodeBlock</h3>
             <Example
                 id="codeblock-basic"
                 title="Básico"
@@ -133,6 +134,6 @@ export function CodeBlockSection() {
             >
                 <CodeBlock code={LONG} maxHeight={260} label="Log da última execução" />
             </Example>
-        </>
+        </section>
     );
 }

@@ -28,7 +28,8 @@ const WAVE = [4, 9, 6, 14, 11, 18, 15, 22, 19, 27, 24, 31];
  */
 export function SparklineSection() {
     return (
-        <>
+        <section className="gallery-section" id="sparkline">
+            <h3>Sparkline (mini-gráfico inline)</h3>
             <Example
                 id="sparkline-variants"
                 title="Variantes"
@@ -209,6 +210,6 @@ export function SparklineSection() {
                     ))}
                 </div>
             </Example>
-        </>
+        </section>
     );
 }

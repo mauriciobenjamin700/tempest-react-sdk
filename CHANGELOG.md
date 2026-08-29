@@ -115,6 +115,16 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **14 links da sidebar da gallery não iam a lugar nenhum.** As seções `chat`,
+  `aichat`, `markdown`, `masonry`, `tour`, `transfer`, `filterbar`, `codeblock`,
+  `qrcode`, `sparkline`, `bar-list`, `audio-capture`, `device-capture` e
+  `br-payments` renderizavam um fragmento React em vez do
+  `<section className="gallery-section" id="…">` que as outras 48 usam, então o
+  `#id` que o registry anuncia não existia no DOM e clicar no item não movia a
+  página. Cada uma passou a ter o elemento âncora e um `<h3>` com o rótulo do
+  registry — o que também torna a seção identificável numa captura. O mesmo vale
+  para `dashboard-layout`, cujo id vivia no `<Example>` interno.
+
 - **Paleta vazia em `quantizeScale` e `thresholdScale` devolvia `undefined`
   anunciado como `string`.** As duas indexavam em `-1` quando a paleta não tinha
   cor alguma, e o resultado chegava ao DOM como `fill="undefined"`: mapa em
@@ -240,7 +250,74 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `columns` e `onRowClick` participam da comparação de propósito — lê-los de uma
   ref congelaria a linha mostrando estado velho.
 
+### Documentação
+
+- **Todo componente passou a aparecer num exemplo que o compilador lê.** Metade
+  dos exemplos de `docs/components/` era fragmento — sem `import`, com variável
+  indefinida e `...` dentro do JSX — e por isso ficava fora de
+  `test/docs-guard.test.ts`, que só compila bloco que importa alguma coisa. Dos
+  79 fragmentos restaram 5, todos deliberados (um tipo mostrado para leitura e
+  trechos de três linhas dentro de admonition). Blocos compilados nas docs: 517
+  → 594.
+
+  `ChatComposer`, `AIChatComposer`, `AIChatTurn` e `AudioPlayer` ganharam o
+  primeiro exemplo — antes só apareciam em prosa.
+
+  Escrever código que compila expôs **oito APIs documentadas que não existem**:
+  `ResponsiveValue<T>` (documentado como `{ base, sm, md, lg, xl, 2xl }`, real
+  `{ mobile, tablet, desktop }`), `Divider` com children em vez de `label`,
+  `Pagination` com `total`/`siblings` em vez de `totalPages`/`totalItems`/
+  `siblingCount`, `Tabs` com `value` e itens por `key` em vez de `activeId` e
+  `id`, `Stepper` com `key` em `StepItem`, `Alert` com
+  `action`/`dismissible`/`onDismiss` em vez de `description`/`onClose`/
+  `closeLabel`, `createApiClient` com `baseUrl` em vez de `baseURL`, e o tipo
+  `FilterValue`, que se chama `Filter`. Tabela de props, prosa e as dicas que
+  ensinavam a chave errada foram corrigidas nas duas línguas.
+
+- **`layout` e `feedback` ganharam as advertências que não tinham** (3 → 7 e
+  6 → 10), cada uma lida do comportamento do componente: `AppShell` não renderiza
+  `sidebar` abaixo do breakpoint; `Show`/`Hide` desmontam em vez de esconder, e
+  a largura inicial `0` fora do browser faz a primeira passada render nada;
+  `Center` centraliza dentro da altura que tem; `AspectRatio` só evita o salto
+  enquanto a criança preenche a caixa; `Spinner overlay` escapa para o ancestral
+  posicionado mais acima; `useToast` lança fora do `<ToastProvider>`;
+  `EmptyState` não é `ErrorState`; e `RadioGroup` não tem `label`.
+
 ### Interno
+
+- **Captura de tela por seção da gallery, versionada e regenerável**
+  (`npm run docs:shots`). A documentação de um SDK de UI não mostrava nada: as
+  únicas 8 imagens do repositório eram de junho, feitas à mão, cobriam 22 das 63
+  seções e nenhuma página de componente tinha imagem alguma.
+
+  `scripts/docs-shots.mjs` sobe o build de produção da gallery, percorre cada
+  `section.gallery-section[id]` e escreve `docs/assets/gallery/<id>.webp` — 63
+  capturas claras e 10 pares claro/escuro nas seções em que o tema é o assunto.
+  A imagem entra no repositório em vez de ser artefato de build porque o
+  requisito é que ela apareça **no site MkDocs e no `.md` que o GitHub
+  renderiza**; um caminho relativo resolve nos dois.
+
+  WebP sem dependência nova: o Chromium do Playwright encoda por
+  `canvas.toDataURL("image/webp")`, o que corta ~50% dos bytes contra PNG
+  (as 73 imagens somam 3,9 MB; as 8 PNG antigas sozinhas somavam 1,3 MB).
+  Arquivo só é escrito quando o byte muda, então rodar de novo numa gallery
+  intocada deixa o `git status` limpo e não cria blob no histórico.
+
+- **As capturas entram nas páginas por geração, não à mão**
+  (`npm run docs:gallery`). `scripts/docs-gallery.mjs` insere um bloco marcado
+  sob o primeiro componente de cada seção em `docs/components/*.md` e no topo
+  das páginas de hook/receita, nas duas línguas. Os 140 componentes exportados
+  são resolvidos por `keywords` do registry, com 13 desempates explícitos e 8
+  isenções nomeadas — `Kanban` entre elas, que shippou na P1 e nunca ganhou
+  seção de gallery.
+
+  A tabela de seções e o bloco de screenshots de `docs/gallery.md` passaram a
+  sair do registry também: a versão mantida à mão dizia "22 seções" enquanto o
+  app tinha 63.
+
+- **Guard de captura em `test/docs-guard.test.ts`.** Três checagens que impedem
+  a rotina de apodrecer: imagem referenciada que não existe em disco, imagem em
+  disco que ninguém referencia, e seção da gallery sem captura.
 
 - `noImplicitReturns` ligado. Custou um ajuste, no `handleHotUpdate` do plugin de
   ícones.

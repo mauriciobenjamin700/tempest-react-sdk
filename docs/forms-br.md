@@ -11,6 +11,12 @@ entrada enquanto o usuário digita e preencher endereço a partir do CEP. Combin
     deixa passar `123.456.789-00` e qualquer sequência repetida. As funções abaixo
     rodam o algoritmo completo.
 
+<!-- gallery:br-forms -->
+[![BR Forms (CPF/CNPJ/CEP) na gallery](assets/gallery/br-forms.webp)](gallery.md)
+
+*Seção `br-forms` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## Validadores
 
 ```ts

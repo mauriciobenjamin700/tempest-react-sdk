@@ -20,6 +20,12 @@ Done. Everything below is already available in your application.
     [versioning policy](#token-versioning-policy) at the end of the page before
     you depend on a specific token.
 
+<!-- gallery:utilities-css -->
+[![utilities.css (camada opt-in) in the gallery](assets/gallery/utilities-css.webp)](gallery.md)
+
+*Section `utilities-css` of the [gallery](gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 ## Summary
 
 - [Color](#color)

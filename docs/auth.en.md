@@ -16,6 +16,12 @@ Five pieces, all decoupled from one another:
     shape. Five primitives compose freely: you can use the store without the
     guard, the guard without the JWT decoder, and so on.
 
+<!-- gallery:recipe-auth -->
+[![Auth & Access Control in the gallery](assets/gallery/recipe-auth.webp)](gallery.md)
+
+*Section `recipe-auth` of the [gallery](gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 ## Store — `createAuthStore<TUser>`
 
 The SDK **does not own your user model**. You pass the `TUser` and get a typed Zustand store, already wired with `persist`.

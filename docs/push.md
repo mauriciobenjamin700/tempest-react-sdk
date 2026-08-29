@@ -4,6 +4,18 @@ Notificações push no navegador têm duas metades que conversam: a **main threa
 
 > Diagrama editável: [push-flow.drawio](./diagrams/push-flow.drawio) (abra no [draw.io](https://app.diagrams.net)).
 
+<!-- gallery:notification-center -->
+[![NotificationCenter (inbox) na gallery](assets/gallery/notification-center.webp)](gallery.md)
+
+*Seção `notification-center` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
+<!-- gallery:integrations -->
+[![SSE · Push · Audio na gallery](assets/gallery/integrations.webp)](gallery.md)
+
+*Seção `integrations` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## Como o Web Push funciona (visão de 30 segundos)
 
 1. O app pede **permissão** ao usuário (`Notification.requestPermission()`).

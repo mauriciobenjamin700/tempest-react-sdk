@@ -16,6 +16,12 @@ CMS, uma tabela de configuração. Aí não há o que importar — só existe a 
 
 É pra isso que existe o subpath `tempest-react-sdk/icons`. 🚀
 
+<!-- gallery:icons -->
+[![Ícones por slug (/icons) na gallery](assets/gallery/icons.webp)](gallery.md)
+
+*Seção `icons` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## O caminho mais curto
 
 ```tsx

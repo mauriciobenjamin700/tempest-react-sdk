@@ -5,6 +5,12 @@
 !!! info "Why wrap `navigator.share`?"
     The native API rejects the promise both when the user cancels the dialog and on real errors, and not every browser exposes it. Handling that by hand turns into a `try/catch` full of checks at every call site. `share()` collapses it all into a `ShareResult` object with clear booleans (`shared` / `unsupported` / `cancelled`), so your code becomes a simple `if`.
 
+<!-- gallery:meta -->
+[![Network · Clipboard · Share in the gallery](assets/gallery/meta.webp)](gallery.md)
+
+*Section `meta` of the [gallery](gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 ## Usage
 
 ```ts

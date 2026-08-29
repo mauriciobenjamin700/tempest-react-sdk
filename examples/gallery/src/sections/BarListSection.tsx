@@ -30,7 +30,8 @@ const VAZIO = [
  */
 export function BarListSection() {
     return (
-        <>
+        <section className="gallery-section" id="bar-list">
+            <h3>BarList (distribuição ranqueada)</h3>
             <Example
                 id="bar-list-basic"
                 title="Distribuição ranqueada"
@@ -127,6 +128,6 @@ export function BarListSection() {
                     <BarList items={VAZIO} showPercentage />
                 </Card>
             </Example>
-        </>
+        </section>
     );
 }

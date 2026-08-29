@@ -5,6 +5,12 @@ Wrapper sobre `EventSource` com reconnect exponencial, heartbeat opt-in e parsin
 !!! info "SSE vs WebSocket — qual escolher?"
     SSE é unidirecional (servidor → cliente), roda sobre HTTP comum, reconecta sozinho e autentica por cookie sem cerimônia. Se o cliente **não precisa enviar** mensagens, SSE é mais simples e barato. Pra tráfego bidirecional (chat, colaboração), use [WebSocket](./websocket.md).
 
+<!-- gallery:recipe-realtime -->
+[![Tempo real (WebSocket) na gallery](assets/gallery/recipe-realtime.webp)](gallery.md)
+
+*Seção `recipe-realtime` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## Quando usar
 
 - Push unilateral servidor → cliente, sem necessidade de envio do cliente.

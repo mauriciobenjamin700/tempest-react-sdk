@@ -18,6 +18,18 @@ granulares, testados e independentes — importe só o que precisar.
     e pronto — o bundler tree-shake o resto. Eles agrupam só por _propósito_ aqui na
     doc, não por acoplamento.
 
+<!-- gallery:hooks-state -->
+[![Hooks — estado na gallery](assets/gallery/hooks-state.webp)](gallery.md)
+
+*Seção `hooks-state` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
+<!-- gallery:hooks-dom -->
+[![Hooks — DOM & timing na gallery](assets/gallery/hooks-dom.webp)](gallery.md)
+
+*Seção `hooks-dom` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## Catálogo por propósito
 
 ### DOM / viewport

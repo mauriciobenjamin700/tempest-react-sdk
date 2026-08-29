@@ -52,7 +52,8 @@ const NOTAS: Nota[] = [
  */
 export function MasonrySection() {
     return (
-        <>
+        <section className="gallery-section" id="masonry">
+            <h3>Masonry</h3>
             <Example
                 id="masonry-basic"
                 title="Cards de altura desigual"
@@ -119,6 +120,6 @@ export function MasonrySection() {
                     )}
                 </Masonry>
             </Example>
-        </>
+        </section>
     );
 }

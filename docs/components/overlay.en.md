@@ -13,29 +13,42 @@ The three share the same engine (portal to `document.body` + backdrop + Esc + fo
 
 ## `Modal`
 
+<!-- gallery:modal -->
+[![Modal & Toast in the gallery](../assets/gallery/modal.webp)](../gallery.md)
+
+*Section `modal` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 > **When to use**: a central flow that pauses context — create/edit a record, a short wizard, a form that demands full attention.
 
 Portal + backdrop + Esc + focus trap + scroll lock.
 
 ```tsx
-const [open, setOpen] = useState(false);
+import { useState } from "react";
+import { Button, FormActions, Modal } from "tempest-react-sdk";
 
-<Modal
-  open={open}
-  onClose={() => setOpen(false)}
-  title="Edit profile"
-  size="md"
-  footer={
-    <FormActions>
-      <Button variant="ghost" onClick={() => setOpen(false)}>
-        Cancel
-      </Button>
-      <Button onClick={save}>Save</Button>
-    </FormActions>
-  }
->
-  <ProfileForm />
-</Modal>;
+export function EditarPerfil({ save }: { save: () => void }) {
+    const [open, setOpen] = useState(false);
+
+    return (
+        <Modal
+            open={open}
+            onClose={() => setOpen(false)}
+            title="Edit profile"
+            size="md"
+            footer={
+                <FormActions>
+                    <Button variant="ghost" onClick={() => setOpen(false)}>
+                        Cancel
+                    </Button>
+                    <Button onClick={save}>Save</Button>
+                </FormActions>
+            }
+        >
+            <p>The profile form goes here.</p>
+        </Modal>
+    );
+}
 ```
 
 | Prop                 | Type                                             | Default |
@@ -59,23 +72,38 @@ close.
 
 ## `Drawer`
 
+<!-- gallery:navigation -->
+[![AppBar · Tabs · Tooltip · Drawer in the gallery](../assets/gallery/navigation.webp)](../gallery.md)
+
+*Section `navigation` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 > **When to use**: a persistent side panel that complements the background screen — filters, an item's details, secondary navigation. It hugs an edge instead of centering.
 
 Side drawer. `placement: left/right/top/bottom`. Auto-switches to a bottom-sheet
 on mobile via `mobilePlacement`.
 
 ```tsx
-<Drawer
-  open={open}
-  onClose={() => setOpen(false)}
-  placement="right"
-  mobilePlacement="bottom" // becomes a bottom sheet on mobile
-  title="Filters"
-  showHandle // visual drag indicator when it becomes a bottom-sheet
-  footer={<Button onClick={apply}>Apply</Button>}
->
-  <FilterForm />
-</Drawer>
+import { useState } from "react";
+import { Button, Drawer } from "tempest-react-sdk";
+
+export function GavetaDeFiltros({ apply }: { apply: () => void }) {
+    const [open, setOpen] = useState(false);
+
+    return (
+        <Drawer
+            open={open}
+            onClose={() => setOpen(false)}
+            placement="right"
+            mobilePlacement="bottom"
+            title="Filters"
+            showHandle
+            footer={<Button onClick={apply}>Apply</Button>}
+        >
+            <p>The profile form goes here.</p>
+        </Drawer>
+    );
+}
 ```
 
 | Prop              | Type                                                       | Default   |
@@ -96,19 +124,35 @@ on mobile via `mobilePlacement`.
 
 ## `BottomSheet`
 
+<!-- gallery:feedback-extra -->
+[![Alert · Timeline · BottomSheet in the gallery](../assets/gallery/feedback-extra.webp)](../gallery.md)
+
+*Section `feedback-extra` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 > **When to use**: mobile-first actions or choices that rise from the bottom — a share menu, an item's options, a short picker. It's the native iOS/Android pattern.
 
 A modal anchored to the bottom edge — slide-up via animation. Optimized for
 mobile.
 
 ```tsx
-<BottomSheet open={open} onClose={() => setOpen(false)} title="Share">
-  <Stack gap={3}>
-    <Button leftIcon={<MessageCircle />}>WhatsApp</Button>
-    <Button leftIcon={<Mail />}>Email</Button>
-    <Button leftIcon={<Link />}>Copy link</Button>
-  </Stack>
-</BottomSheet>
+import { useState } from "react";
+import { BottomSheet, Button, Stack } from "tempest-react-sdk";
+import { Link, Mail, MessageCircle } from "lucide-react";
+
+export function Compartilhar() {
+    const [open, setOpen] = useState(false);
+
+    return (
+        <BottomSheet open={open} onClose={() => setOpen(false)} title="Share">
+            <Stack gap={3}>
+                <Button leftIcon={<MessageCircle size={16} />}>WhatsApp</Button>
+                <Button leftIcon={<Mail size={16} />}>Email</Button>
+                <Button leftIcon={<Link size={16} />}>Copy link</Button>
+            </Stack>
+        </BottomSheet>
+    );
+}
 ```
 
 | Prop                | Type         | Default |
@@ -243,6 +287,12 @@ export function Call() {
 - **Backdrop**: clicks close it (`Modal`/`BottomSheet`: `dismissOnBackdrop={false}`; `Drawer`: `closeOnBackdrop={false}`).
 
 ## `Lightbox`
+
+<!-- gallery:capture-media -->
+[![SignaturePad · Lightbox · AvatarGroup in the gallery](../assets/gallery/capture-media.webp)](../gallery.md)
+
+*Section `capture-media` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
 
 > **When to use it**: view a photo full-screen with navigation — a property gallery, the attachments of a ticket, inspection photos.
 

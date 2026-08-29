@@ -49,7 +49,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ Button, Input, Modal, Table, ToastProvider, AppProviders, AppRouter, createApiClient, createAuthStore, useDebounce }"
     },
-    "limit": "9 KB",
+    "limit": "9.5 kB",
     "ignore": [
       "react",
       "react-dom",

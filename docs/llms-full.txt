@@ -8267,6 +8267,49 @@ export function GaleriaDaVistoria({ fotos }: { fotos: { url: string; descricao: 
 !!! note "`loop` é `true` de propósito"
     Em visualizador de foto, esbarrar num fim morto na última imagem é lido como bug mais vezes do que como limite. Passe `loop={false}` quando a ordem tem significado (um passo-a-passo, por exemplo) — aí os botões de navegação desabilitam nas pontas.
 
+## Tela cheia
+
+Todo overlay do SDK monta por portal, e o alvo do portal segue o elemento em
+**tela cheia** quando existe um — `Modal`, `Drawer`, `BottomSheet`,
+`ToastProvider`, `Command` e o `<Portal>` genérico.
+
+Isso não é conveniência: é correção. Enquanto a página está em tela cheia, o
+browser pinta **apenas a subárvore do elemento em tela cheia**, e `document.body`
+está fora dela. Um overlay montado em `body` existe no DOM, tem caixa medida, e
+não é visto nem clicado — `elementFromPoint` no centro dele devolve o que está
+atrás. Nada lança e nada aparece no console.
+
+```tsx
+import { useRef, useState } from "react";
+import { Button, Modal } from "tempest-react-sdk";
+
+export function Chamada() {
+    const palco = useRef<HTMLDivElement>(null);
+    const [aberto, setAberto] = useState(false);
+
+    return (
+        <div ref={palco}>
+            <Button onClick={() => palco.current?.requestFullscreen()}>Tela cheia</Button>
+            <Button onClick={() => setAberto(true)}>Áudio e vídeo</Button>
+
+            <Modal open={aberto} onClose={() => setAberto(false)} title="Áudio e vídeo">
+                O diálogo aparece dentro do elemento em tela cheia.
+            </Modal>
+        </div>
+    );
+}
+```
+
+!!! tip "O alvo acompanha, não é lido uma vez"
+    Entrar ou sair de tela cheia com um diálogo já aberto **move** o diálogo: o
+    host é estado e escuta `fullscreenchange` (mais o `webkitfullscreenchange`
+    que o WebKit ainda emite). O diálogo continua montado e não perde estado.
+
+!!! note "`container` continua mandando"
+    `<Portal container={…}>` fixa o alvo e ignora a tela cheia. Use quando você
+    precisa de um destino específico — um root de layout, um nó fora de um
+    `overflow`.
+
 ## A11y geral
 
 - **Focus trap**: Tab circula apenas dentro do dialog. Restaura o foco no trigger ao fechar.

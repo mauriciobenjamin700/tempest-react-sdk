@@ -3,6 +3,7 @@ import type { HTMLAttributes, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/utils/cn";
 import styles from "./BottomSheet.module.css";
+import { usePortalHost } from "../Portal/portal-host";
 
 export interface BottomSheetProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"> {
     /** Controlled open state. */
@@ -58,7 +59,9 @@ export function BottomSheet({
         };
     }, [open]);
 
-    if (!open || typeof document === "undefined") return null;
+    const portalHost = usePortalHost();
+
+    if (!open || !portalHost) return null;
 
     return createPortal(
         <div className={styles.root} role="dialog" aria-modal="true">
@@ -82,6 +85,6 @@ export function BottomSheet({
                 <div className={styles.body}>{children}</div>
             </div>
         </div>,
-        document.body,
+        portalHost,
     );
 }

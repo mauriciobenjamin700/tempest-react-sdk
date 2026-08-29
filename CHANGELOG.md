@@ -68,6 +68,34 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **Overlay portado para `document.body` era invisível e inalcançável com a
+  página em tela cheia**
+  ([#243](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/243)).
+  Em tela cheia o browser pinta **apenas a subárvore do elemento em tela cheia**,
+  e `body` está fora dela. O diálogo existia no DOM, com caixa medida, e não era
+  visto nem clicado — `elementFromPoint` no centro dele devolvia o que estava
+  atrás. Nada lançava, nada aparecia no console: a aplicação ficava com um
+  diálogo aberto que o usuário não via, e `Escape` também não chegava, porque o
+  foco estava fora do elemento em tela cheia.
+
+  O alvo do portal passou a seguir `document.fullscreenElement`
+  (mais `webkitFullscreenElement`), com `document.body` como padrão. Corrigido de
+  uma vez nos seis pontos que portam: `Modal`, `Drawer`, `BottomSheet`,
+  `ToastProvider`, `Command` e o `<Portal>` público — o defeito era do formato do
+  portal, não de um componente.
+
+  O host é **estado** e escuta `fullscreenchange`, então entrar ou sair de tela
+  cheia com um diálogo já aberto **move** o diálogo em vez de deixá-lo para trás.
+  `<Portal container={…}>` continua fixando o alvo e ignorando a tela cheia.
+
+  O primeiro valor é resolvido durante o render, não no efeito, para o overlay
+  montar no mesmo commit em que montava antes.
+
+  Fixado nas duas camadas: `portal-host.test.tsx` cobre qual host é escolhido, e
+  `e2e/fullscreen.spec.ts` cobre a parte que só um browser real responde — que o
+  overlay é de fato pintado e clicável. Revertido contra a implementação
+  anterior, o teste de browser falha com `Expected: true / Received: false`.
+
 - **`role="menu"` sem o teclado que o papel promete**
   ([#244](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/244)).
   O menu abria e o foco ficava no gatilho; `ArrowDown` não movia nada. Quem usava

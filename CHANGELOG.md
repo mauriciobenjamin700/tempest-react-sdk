@@ -52,6 +52,39 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   a rotina de apodrecer: imagem referenciada que não existe em disco, imagem em
   disco que ninguém referencia, e seção da gallery sem captura.
 
+### Documentação
+
+- **Todo componente passou a aparecer num exemplo que o compilador lê.** Metade
+  dos exemplos de `docs/components/` era fragmento — sem `import`, com variável
+  indefinida e `...` dentro do JSX — e por isso ficava fora de
+  `test/docs-guard.test.ts`, que só compila bloco que importa alguma coisa. Dos
+  79 fragmentos restaram 5, todos deliberados (um tipo mostrado para leitura e
+  trechos de três linhas dentro de admonition). Blocos compilados nas docs: 517
+  → 594.
+
+  `ChatComposer`, `AIChatComposer`, `AIChatTurn` e `AudioPlayer` ganharam o
+  primeiro exemplo — antes só apareciam em prosa.
+
+  Escrever código que compila expôs **oito APIs documentadas que não existem**:
+  `ResponsiveValue<T>` (documentado como `{ base, sm, md, lg, xl, 2xl }`, real
+  `{ mobile, tablet, desktop }`), `Divider` com children em vez de `label`,
+  `Pagination` com `total`/`siblings` em vez de `totalPages`/`totalItems`/
+  `siblingCount`, `Tabs` com `value` e itens por `key` em vez de `activeId` e
+  `id`, `Stepper` com `key` em `StepItem`, `Alert` com
+  `action`/`dismissible`/`onDismiss` em vez de `description`/`onClose`/
+  `closeLabel`, `createApiClient` com `baseUrl` em vez de `baseURL`, e o tipo
+  `FilterValue`, que se chama `Filter`. Tabela de props, prosa e as dicas que
+  ensinavam a chave errada foram corrigidas nas duas línguas.
+
+- **`layout` e `feedback` ganharam as advertências que não tinham** (3 → 7 e
+  6 → 10), cada uma lida do comportamento do componente: `AppShell` não renderiza
+  `sidebar` abaixo do breakpoint; `Show`/`Hide` desmontam em vez de esconder, e
+  a largura inicial `0` fora do browser faz a primeira passada render nada;
+  `Center` centraliza dentro da altura que tem; `AspectRatio` só evita o salto
+  enquanto a criança preenche a caixa; `Spinner overlay` escapa para o ancestral
+  posicionado mais acima; `useToast` lança fora do `<ToastProvider>`;
+  `EmptyState` não é `ErrorState`; e `RadioGroup` não tem `label`.
+
 ## [0.53.0] — 2026-08-28
 
 ### Adicionado

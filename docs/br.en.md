@@ -57,6 +57,75 @@ isValidUf("mg");     // true
 !!! tip "Empty collections are not errors"
     `citiesByUf` of an unknown UF returns `[]`, it does not throw. Same convention as the backend: "no matches" is a valid result.
 
+### The IBGE code is what you store
+
+Municipality names change. `Presidente Juscelino` (RN) became `Serra Caiada` in 2013, `Embu` became `Embu das Artes` in 2011, `Campo de Santana` (PB) became `Tacima` in 2010. The **7-digit IBGE code does not** — it is what identifies a municipality, and it is the key every dataset in this module joins on.
+
+```ts
+import { municipalitiesByUf, resolveMunicipality } from "tempest-react-sdk/br";
+
+municipalitiesByUf("SP").slice(0, 2);
+// [{ id: "3500105", name: "Adamantina" }, { id: "3500204", name: "Adolfo" }]
+
+resolveMunicipality("SP", "São Paulo");
+// { id: "3550308", name: "São Paulo" }
+```
+
+`resolveMunicipality` accepts four ways of writing the same place — which is the point, because an address saved five years ago has to keep pointing at it:
+
+```ts
+resolveMunicipality("RN", "Serra Caiada")?.id;         // "2410306" — current name
+resolveMunicipality("RN", "Presidente Juscelino")?.id; // "2410306" — former name
+resolveMunicipality("SP", "sao paulo")?.id;            // "3550308" — unaccented, lowercase
+resolveMunicipality("DF", "Ceilândia")?.id;            // "5300108" — administrative region
+```
+
+!!! tip "Store the `id`, display the `name`"
+    `BrazilStateCitySelect` emits both (`municipalityId` and `city`). Persisting the name works until the next rename; persisting the code always works — and it is what `municipalityCentroid(id)` and `reverseGeocode` hand back.
+
+### The Federal District has one municipality and 35 administrative regions
+
+The DF has exactly **one** municipality: Brasília. Ceilândia, Taguatinga, Gama and the other 32 are **administrative regions** inside it — they have no municipality code and never had one.
+
+Ignoring that is not an option: nobody in the DF writes "Brasília" in an address field. So they are listed and resolvable, in a field of their own, and they geocode through the municipality that contains them.
+
+```ts
+import { administrativeRegionsByUf, municipalitiesByUf } from "tempest-react-sdk/br";
+
+municipalitiesByUf("DF");
+// [{ id: "5300108", name: "Brasília" }]
+
+administrativeRegionsByUf("DF").length; // 35
+administrativeRegionsByUf("DF")[0];
+// { id: "53001080521", name: "Arniqueira", municipalityId: "5300108" }
+
+administrativeRegionsByUf("SP"); // [] — only the DF has any
+```
+
+IBGE names three of them as composites of what the local government signposts separately (`SCIA` is Estrutural; `Sudoeste/Octogonal` and `Sol Nascente/Pôr do Sol` are two each). The older names keep resolving:
+
+```ts
+resolveMunicipality("DF", "Octogonal")?.id;  // "5300108"
+resolveMunicipality("DF", "Estrutural")?.id; // "5300108"
+```
+
+!!! warning "`citiesByUf("DF")` now returns only `["Brasília"]`"
+    Through v0.53.0 it returned 36 names, 35 of them administrative regions that **did not geocode** — picking "Ceilândia" produced a selection `geocodeMunicipality` answered empty. If your form needs to offer the regions, use `administrativeRegionsByUf("DF")` (`BrazilStateCitySelect` already does) and `resolveMunicipality` to validate.
+
+### Which IBGE vintage the data comes from
+
+```ts
+import { datasetVintage, pendingGeometryIds } from "tempest-react-sdk/br";
+
+datasetVintage(); // { roster: "2026-08-29", mesh: "2022" }
+pendingGeometryIds(); // ["5101837"]
+```
+
+The two vintages differ on purpose: IBGE publishes a new municipality before it publishes its boundary. `pendingGeometryIds()` enumerates exactly that gap — today one municipality, Boa Esperança do Norte (MT), installed in 2023, for which IBGE serves no geometry at any endpoint. It is listed and selectable; it is the one municipality `geocodeMunicipality` cannot place.
+
+!!! info "Why this is exposed"
+    Because the alternative is your app discovering the gap as an empty result in production. A package test pins this list: when it grows without someone deciding, the build fails.
+
 ### Feed a `<Select>` / `<Combobox>`
 
 `ufChoices()` and `cityChoices(uf)` already return `{ value, label }`:
@@ -80,7 +149,7 @@ import { BrazilStateCitySelect } from "tempest-react-sdk/br";
 export function AddressForm() {
   return (
     <BrazilStateCitySelect
-      onChange={({ uf, city }) => console.log(uf, city)}
+      onChange={({ uf, city, municipalityId }) => console.log(uf, city, municipalityId)}
       stateLabel="State"
       cityLabel="City"
     />
@@ -89,12 +158,15 @@ export function AddressForm() {
 ```
 
 - `defaultUf` / `defaultCity` — initial values (uncontrolled).
-- `onChange({ uf, city })` — fires on every change; `uf`/`city` are `null` when empty.
+- `onChange({ uf, city, municipalityId })` — fires on every change; all three are `null` when empty. `municipalityId` is the IBGE code — the value to persist.
 - `layout="column"` stacks the selects (default is side by side).
 - `disabled` locks both.
 
 !!! note "City enables only after a state"
     The city select is disabled until a state is chosen — there is nothing to list before that.
+
+!!! tip "In the DF, the list includes the administrative regions"
+    Picking `"DF"` lists Brasília **and** the 35 regions. Every one of them emits `municipalityId: "5300108"`, so the selection always geocodes.
 
 ---
 
@@ -459,8 +531,8 @@ export function SearchOnMap() {
 
 ## About the geometry
 
-- Source: **IBGE** UF boundaries (public domain), simplified with Douglas-Peucker (~2 km tolerance) and rounded to 3 decimals.
-- Size: **~119 KB raw / ~36 KB gzip**, in a separate chunk loaded **lazily** by `BrazilMap`.
+- Source: **IBGE** mesh (`/api/v3/malhas`, 2022 vintage), simplified with Douglas-Peucker (~2 km tolerance, capped at a twentieth of each ring's diagonal so a small municipality is not erased) and rounded to 3 decimals.
+- Size: **~99 KB raw / ~31 KB gzip**, in a separate chunk loaded **lazily** by `BrazilMap`.
 - Accuracy: adequate for a **clickable overview map**, **not** for precise geographic analysis or area computation.
 
 !!! info "Municipality: use `BrazilStateMap`"

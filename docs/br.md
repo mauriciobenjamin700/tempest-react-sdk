@@ -57,6 +57,75 @@ isValidUf("mg");     // true
 !!! tip "Coleções vazias não são erro"
     `citiesByUf` de uma UF inexistente devolve `[]`, não lança. Segue a convenção do backend: "sem correspondência" é um resultado válido.
 
+### O código IBGE é o que você guarda
+
+Nome de município muda. `Presidente Juscelino` (RN) virou `Serra Caiada` em 2013, `Embu` virou `Embu das Artes` em 2011, `Campo de Santana` (PB) virou `Tacima` em 2010. O **código IBGE de 7 dígitos não muda** — é ele que identifica o município, e é ele que todo dataset deste módulo usa como chave.
+
+```ts
+import { municipalitiesByUf, resolveMunicipality } from "tempest-react-sdk/br";
+
+municipalitiesByUf("SP").slice(0, 2);
+// [{ id: "3500105", name: "Adamantina" }, { id: "3500204", name: "Adolfo" }]
+
+resolveMunicipality("SP", "São Paulo");
+// { id: "3550308", name: "São Paulo" }
+```
+
+`resolveMunicipality` aceita quatro formas de escrever o mesmo lugar, o que é o ponto — endereço salvo há cinco anos precisa continuar apontando para o mesmo município:
+
+```ts
+resolveMunicipality("RN", "Serra Caiada")?.id;         // "2410306" — nome atual
+resolveMunicipality("RN", "Presidente Juscelino")?.id; // "2410306" — nome antigo
+resolveMunicipality("SP", "sao paulo")?.id;            // "3550308" — sem acento, minúscula
+resolveMunicipality("DF", "Ceilândia")?.id;            // "5300108" — região administrativa
+```
+
+!!! tip "Guarde o `id`, exiba o `name`"
+    O `BrazilStateCitySelect` emite os dois (`municipalityId` e `city`). Persistir o nome funciona até a próxima renomeação; persistir o código funciona sempre — e é o que `municipalityCentroid(id)` e `reverseGeocode` devolvem.
+
+### O Distrito Federal tem um município e 35 regiões administrativas
+
+O DF tem exatamente **um** município: Brasília. Ceilândia, Taguatinga, Gama e as outras 32 são **regiões administrativas** dentro dele — não têm código de município e nunca tiveram.
+
+Ignorar isso não é opção: ninguém no DF escreve "Brasília" num campo de endereço. Então elas são listadas e resolvíveis, num campo próprio, e geocodificam pelo município que as contém.
+
+```ts
+import { administrativeRegionsByUf, municipalitiesByUf } from "tempest-react-sdk/br";
+
+municipalitiesByUf("DF");
+// [{ id: "5300108", name: "Brasília" }]
+
+administrativeRegionsByUf("DF").length; // 35
+administrativeRegionsByUf("DF")[0];
+// { id: "53001080521", name: "Arniqueira", municipalityId: "5300108" }
+
+administrativeRegionsByUf("SP"); // [] — só o DF tem
+```
+
+O IBGE nomeia três delas como composto do que o GDF sinaliza separado (`SCIA` é a Estrutural, `Sudoeste/Octogonal` e `Sol Nascente/Pôr do Sol` são duas cada). Os nomes antigos continuam resolvendo:
+
+```ts
+resolveMunicipality("DF", "Octogonal")?.id;  // "5300108"
+resolveMunicipality("DF", "Estrutural")?.id; // "5300108"
+```
+
+!!! warning "`citiesByUf("DF")` devolve só `["Brasília"]`"
+    Até a v0.53.0 devolvia 36 nomes, 35 deles regiões administrativas que **não geocodificavam** — escolher "Ceilândia" produzia uma seleção que `geocodeMunicipality` respondia vazia. Se o seu formulário precisa oferecer as RAs, use `administrativeRegionsByUf("DF")` (o `BrazilStateCitySelect` já faz isso) e `resolveMunicipality` para validar.
+
+### De qual safra do IBGE são os dados
+
+```ts
+import { datasetVintage, pendingGeometryIds } from "tempest-react-sdk/br";
+
+datasetVintage(); // { roster: "2026-08-29", mesh: "2022" }
+pendingGeometryIds(); // ["5101837"]
+```
+
+As duas safras diferem de propósito: o IBGE publica município novo antes de publicar a malha dele. `pendingGeometryIds()` enumera exatamente essa lacuna — hoje um município, Boa Esperança do Norte (MT), instalado em 2023, para o qual o IBGE não serve geometria em endpoint nenhum. Ele é listado e selecionável; é o único que `geocodeMunicipality` não consegue posicionar.
+
+!!! info "Por que isso está exposto"
+    Porque a alternativa é o app descobrir a lacuna como resultado vazio em produção. Um teste do pacote fixa essa lista: quando ela crescer sem alguém decidir, a build falha.
+
 ### Alimentar um `<Select>` / `<Combobox>`
 
 `ufChoices()` e `cityChoices(uf)` já devolvem `{ value, label }`:
@@ -80,7 +149,7 @@ import { BrazilStateCitySelect } from "tempest-react-sdk/br";
 export function EnderecoForm() {
   return (
     <BrazilStateCitySelect
-      onChange={({ uf, city }) => console.log(uf, city)}
+      onChange={({ uf, city, municipalityId }) => console.log(uf, city, municipalityId)}
       stateLabel="UF"
       cityLabel="Município"
     />
@@ -89,12 +158,15 @@ export function EnderecoForm() {
 ```
 
 - `defaultUf` / `defaultCity` — valores iniciais (não-controlado).
-- `onChange({ uf, city })` — dispara a cada mudança; `uf`/`city` são `null` quando vazios.
+- `onChange({ uf, city, municipalityId })` — dispara a cada mudança; os três são `null` quando vazios. `municipalityId` é o código IBGE — o valor a persistir.
 - `layout="column"` empilha os selects (default é lado a lado).
 - `disabled` trava ambos.
 
 !!! note "Cidade só habilita depois do estado"
     O select de cidade fica desabilitado até um estado ser escolhido — não há o que listar antes disso.
+
+!!! tip "No DF, a lista inclui as regiões administrativas"
+    Escolher `"DF"` lista Brasília **e** as 35 RAs. Qualquer uma delas emite `municipalityId: "5300108"`, então a seleção sempre geocodifica.
 
 ---
 
@@ -464,8 +536,8 @@ export function BuscaNoMapa() {
 
 ## Sobre a geometria
 
-- Fonte: fronteiras das UFs do **IBGE** (domínio público), simplificadas com Douglas-Peucker (~2 km de tolerância) e arredondadas a 3 casas decimais.
-- Tamanho: **~119 KB cru / ~36 KB gzip**, num chunk à parte carregado **lazy** pelo `BrazilMap`.
+- Fonte: malha do **IBGE** (`/api/v3/malhas`, safra 2022), simplificada com Douglas-Peucker (~2 km de tolerância, limitada a um vinte avos da diagonal de cada anel para não apagar município pequeno) e arredondada a 3 casas decimais.
+- Tamanho: **~99 KB cru / ~31 KB gzip**, num chunk à parte carregado **lazy** pelo `BrazilMap`.
 - Precisão: adequada pra um **mapa de visão geral clicável**, **não** pra análise geográfica precisa nem cálculo de área.
 
 !!! info "Município: use o `BrazilStateMap`"

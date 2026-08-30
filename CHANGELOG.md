@@ -6,6 +6,27 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`formatDateTimeForInput` — o irmão que faltava do `formatDateForInput`**
+  ([#266](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/266)).
+
+  ```ts
+  formatDateTimeForInput(appointment.startsAt); // "2026-05-16T22:30"
+  ```
+
+  `formatDateForInput` já existia com a armadilha do `toISOString` escrita na
+  docstring; o campo de data **e hora** não tinha equivalente, e lá o mesmo
+  reflexo (`toISOString().slice(0, 16)`) erra a hora junto com a data — 22h em
+  UTC-3 abre o formulário no dia seguinte, à 1h.
+
+  Duas regras que o recorte ingênuo não tem. **String com fuso não volta
+  intacta**: `"2026-05-16T14:30"` (ingênua) passa direto, mas `"...Z"` e
+  `"...-03:00"` são instantes diferentes do que parecem e são convertidos para o
+  calendário local que o campo mostra — só o formato exato `yyyy-MM-ddTHH:mm`
+  pega o atalho. E **os segundos caem**, porque um `datetime-local` anda de
+  minuto em minuto a menos que o app defina `step`: um `:ss` que o campo não
+  representa seria descartado na primeira edição, e truncar aqui faz o valor
+  exibido e o submetido serem o mesmo.
+
 - **`monitorVoiceActivity` e `usePushToTalk` — as duas peças que todo app de voz
   reescreve**
   ([#234](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/234)).

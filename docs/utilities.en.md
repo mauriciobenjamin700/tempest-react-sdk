@@ -292,6 +292,57 @@ formatDateForInput("not a date"); // "" — the input reads it as "no value"
 
 ---
 
+## Dates and times for `<input type="datetime-local">` — `formatDateTimeForInput`
+
+The sibling of the one above, for the field that stores **when**, not just **which day**. The trap is identical — and here it costs the hour as well as the date.
+
+```ts
+import { formatDateTimeForInput } from "tempest-react-sdk";
+
+formatDateTimeForInput(new Date(2026, 4, 16, 14, 30)); // "2026-05-16T14:30"
+formatDateTimeForInput("2026-05-16T14:30"); // "2026-05-16T14:30"
+formatDateTimeForInput("2026-05-16T14:30:45"); // "2026-05-16T14:30" — seconds dropped
+formatDateTimeForInput("not a date"); // "" — the input reads it as "no value"
+```
+
+An appointment coming back from the backend as a zoned ISO string fills the field without drifting:
+
+```tsx
+import { formatDateTimeForInput } from "tempest-react-sdk";
+
+interface Appointment {
+    id: string;
+    /** ISO 8601 with an offset, the way the backend serialises it. */
+    startsAt: string;
+}
+
+export function AppointmentForm({ appointment }: { appointment: Appointment }) {
+    return (
+        <form method="post">
+            <label htmlFor="startsAt">Start</label>
+            <input
+                id="startsAt"
+                name="startsAt"
+                type="datetime-local"
+                defaultValue={formatDateTimeForInput(appointment.startsAt)}
+            />
+            <button type="submit">Save</button>
+        </form>
+    );
+}
+```
+
+!!! danger "`toISOString().slice(0, 16)` gets the date **and** the hour wrong"
+    Same cause as the sibling, bigger blast radius: a 22:00 slot in UTC-3 becomes `2026-05-17T01:00` — the form opens on the next day, in the small hours. `formatDateTimeForInput` builds every part from **local** time.
+
+!!! warning "A **zoned** string does not come back untouched, on purpose"
+    `"2026-05-16T14:30"` (naive) is returned as-is. `"2026-05-16T14:30:00Z"` is **not** — it is a different instant from the one it looks like, so it is converted to the local calendar the field has to show. Only the exact `yyyy-MM-ddTHH:mm` shape takes the shortcut.
+
+!!! tip "Seconds are dropped, and that keeps the value honest"
+    A `datetime-local` steps by the minute unless the app sets `step`. A `:ss` the field cannot represent would be discarded on the first edit anyway — truncating here makes the rendered value and the submitted value the same.
+
+---
+
 ## Spreadsheets `.xlsx` — `writeXlsx`
 
 Exporting data as CSV feels simple until an accent turns into `Ã©` in Excel. `writeXlsx(headers, rows)` builds a single-sheet Office Open XML (`.xlsx`) workbook straight in memory — UTF-8 end to end, so accents survive Excel/LibreOffice/Google Sheets without the CSV BOM fragility. The only dependency is `fflate` (used to deflate the package), already bundled in the SDK.
@@ -436,7 +487,7 @@ const [save, setSave] = useLocalStorage("save", EMPTY_SAVE, compressedStorageCod
 - Import any helper straight from `tempest-react-sdk` — they are all named, pure, tree-shakable exports.
 - **Spreadsheets**: `writeXlsx(headers, rows)` builds a single-sheet UTF-8 `.xlsx` as a `Uint8Array` (no CSV BOM drama).
 - **CSV**: `toCsv(rows, columns)` writes the file with RFC 4180 escaping and a BOM; `downloadCsv(...)` hands it straight to the user.
-- **Dates and percentages**: `formatDateForInput` gives the `yyyy-MM-dd` an `<input type="date">` insists on (from local parts, without the UTC shift); `percentOf` returns `0` instead of `NaN` when the base is zero.
+- **Dates and percentages**: `formatDateForInput` gives the `yyyy-MM-dd` an `<input type="date">` insists on and `formatDateTimeForInput` gives the `yyyy-MM-ddTHH:mm` an `<input type="datetime-local">` wants (both from local parts, without the UTC shift); `percentOf` returns `0` instead of `NaN` when the base is zero.
 - **Compressed storage**: `compressedStorage.get/set` gzips what it writes; the self-describing format (`~tgz1:`) reads older values with no migration. In React, `useLocalStorage(key, def, compressedStorageCodec)`.
 - **Arrays/Objects**: `groupBy`, `uniqueBy`, `chunk`, `range`, `pick`, `omit`, `deepMerge`, `isEmpty` — always immutable; `deepMerge` replaces arrays instead of merging them.
 - **Guards**: `isDefined`, `isString`, `isNumber`, `isPlainObject`, `assertNever` — safe narrowing + `switch` exhaustiveness.

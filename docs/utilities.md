@@ -292,6 +292,57 @@ formatDateForInput("não é data"); // "" — o input lê como "sem valor"
 
 ---
 
+## Data e hora para `<input type="datetime-local">` — `formatDateTimeForInput`
+
+O irmão do anterior, para o campo que guarda **quando**, não só **qual dia**. A armadilha é idêntica — e aqui ela cobra a hora junto com a data.
+
+```ts
+import { formatDateTimeForInput } from "tempest-react-sdk";
+
+formatDateTimeForInput(new Date(2026, 4, 16, 14, 30)); // "2026-05-16T14:30"
+formatDateTimeForInput("2026-05-16T14:30"); // "2026-05-16T14:30"
+formatDateTimeForInput("2026-05-16T14:30:45"); // "2026-05-16T14:30" — segundos caem
+formatDateTimeForInput("não é data"); // "" — o input lê como "sem valor"
+```
+
+Um agendamento que volta do backend em ISO com fuso preenche o campo sem deslocar:
+
+```tsx
+import { formatDateTimeForInput } from "tempest-react-sdk";
+
+interface Appointment {
+    id: string;
+    /** ISO 8601 com fuso, como o backend serializa. */
+    startsAt: string;
+}
+
+export function AppointmentForm({ appointment }: { appointment: Appointment }) {
+    return (
+        <form method="post">
+            <label htmlFor="startsAt">Início</label>
+            <input
+                id="startsAt"
+                name="startsAt"
+                type="datetime-local"
+                defaultValue={formatDateTimeForInput(appointment.startsAt)}
+            />
+            <button type="submit">Salvar</button>
+        </form>
+    );
+}
+```
+
+!!! danger "`toISOString().slice(0, 16)` erra a data **e** a hora"
+    Mesma causa do irmão, dano maior: um horário das 22h em UTC-3 vira `2026-05-17T01:00` — o formulário abre no dia seguinte, de madrugada. `formatDateTimeForInput` monta tudo pelas partes **locais**.
+
+!!! warning "String **com fuso** não volta intacta, e é de propósito"
+    `"2026-05-16T14:30"` (ingênua) volta como está. `"2026-05-16T14:30:00Z"` **não** — é um instante diferente do que parece, então é convertido para o calendário local que o campo precisa mostrar. Só o formato exato `yyyy-MM-ddTHH:mm` pega o atalho.
+
+!!! tip "Os segundos caem, e isso mantém o valor honesto"
+    Um `datetime-local` anda de minuto em minuto a menos que o app defina `step`. Um `:ss` que o campo não representa seria descartado na primeira edição de qualquer jeito — truncar aqui faz o valor exibido e o valor submetido serem o mesmo.
+
+---
+
 ## Planilhas `.xlsx` — `writeXlsx`
 
 Exportar dados como CSV parece simples até um acento virar `Ã©` no Excel. `writeXlsx(headers, rows)` gera um workbook Office Open XML (`.xlsx`) de uma aba direto em memória — UTF-8 de ponta a ponta, então acentos sobrevivem em Excel/LibreOffice/Google Sheets sem a fragilidade de BOM do CSV. A única dependência é o `fflate` (usado para deflate do pacote), já embutido no SDK.
@@ -437,7 +488,7 @@ const [save, setSave] = useLocalStorage("save", EMPTY_SAVE, compressedStorageCod
 - Importe qualquer helper direto de `tempest-react-sdk` — todos são exports nomeados, puros e tree-shakable.
 - **Planilhas**: `writeXlsx(headers, rows)` gera um `.xlsx` UTF-8 de uma aba como `Uint8Array` (sem drama de BOM do CSV).
 - **CSV**: `toCsv(rows, columns)` escreve o arquivo com escaping RFC 4180 e BOM; `downloadCsv(...)` entrega direto ao usuário.
-- **Datas e percentuais**: `formatDateForInput` dá o `yyyy-MM-dd` que o `<input type="date">` exige (pelas partes locais, sem o desvio de UTC); `percentOf` devolve `0` em vez de `NaN` quando a base é zero.
+- **Datas e percentuais**: `formatDateForInput` dá o `yyyy-MM-dd` que o `<input type="date">` exige e `formatDateTimeForInput` dá o `yyyy-MM-ddTHH:mm` do `<input type="datetime-local">` (os dois pelas partes locais, sem o desvio de UTC); `percentOf` devolve `0` em vez de `NaN` quando a base é zero.
 - **Storage comprimido**: `compressedStorage.get/set` gzipa o que grava; formato autodescritivo (`~tgz1:`) lê valores antigos sem migração. Com React, `useLocalStorage(key, def, compressedStorageCodec)`.
 - **Arrays/Objetos**: `groupBy`, `uniqueBy`, `chunk`, `range`, `pick`, `omit`, `deepMerge`, `isEmpty` — sempre imutáveis; `deepMerge` substitui arrays em vez de fundir.
 - **Guards**: `isDefined`, `isString`, `isNumber`, `isPlainObject`, `assertNever` — narrowing seguro + exaustividade em `switch`.

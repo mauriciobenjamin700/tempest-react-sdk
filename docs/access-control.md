@@ -133,7 +133,7 @@ export function PostActions({ postId }: { postId: string }) {
 
 ## `<Can>` — render condicional
 
-`<Can action resource fallback>` renderiza `children` quando a action é permitida, senão o `fallback` (ou nada). Enquanto uma checagem async está pendente, renderiza o `fallback` (ou nada):
+`<Can action resource fallback>` renderiza `children` quando a action é permitida, senão o `fallback` (ou nada):
 
 ```tsx
 import { Can } from "tempest-react-sdk";
@@ -142,6 +142,30 @@ import { Can } from "tempest-react-sdk";
   <NewPostButton />
 </Can>;
 ```
+
+### `pending` — enquanto a resposta não chegou
+
+Uma checagem que resolve pela rede tem **três** estados, e sem dizer isso o `<Can>` mostra a mensagem de negação para quem ainda vai ser aprovado. A prop `pending` separa os dois:
+
+```tsx
+<Can
+  action="read"
+  resource="finance"
+  fallback={<p>Sem permissão.</p>}
+  pending={<Spinner size="sm" />}
+>
+  <FinancePanel />
+</Can>
+```
+
+!!! warning "Vale sempre que o `fallback` diz algo com cara de negação"
+    Sem `pending`, o `fallback` é o que aparece durante a checagem — então "Sem permissão" pisca na tela de quem **tem** a permissão. Passe `pending={<Spinner />}` para explicar a espera, ou `pending={null}` para não mostrar nada até a resposta chegar.
+
+!!! info "O padrão não mudou"
+    `pending` omitido continua caindo no `fallback`, exatamente como antes: nenhum app existente muda de comportamento ao atualizar. A prop é opt-in.
+
+!!! tip "Para proteger uma **rota**, e não um pedaço de UI"
+    `<Can>` esconde conteúdo; ele não redireciona, e um redirect não pode tratar "ainda resolvendo" e "negado" do mesmo jeito. Rota inteira se protege com o `guard` do `<AppRouter>`, que tem o mesmo terceiro estado — veja [`"pending"` em Routing](./routing.md#forma-de-funcao-assincrona-o-terceiro-estado-pending).
 
 ## `useAccessControl` — a estratégia crua
 
@@ -234,7 +258,7 @@ function DeleteButton({ id }: { id: string }) {
 - `createRoleAccessControl({ permissions, roles, role })` monta RBAC estático; matching por `"<resource>:<action>"`, com curingas `"*"` (tudo) e `"<resource>:*"` (resource inteiro).
 - `permissionsFromToken(token, { claim })` lê permissões do JWT (claim default `"permissions"`, fallback `"scopes"`/`"scope"`); não valida assinatura.
 - `useCan({ action, resource })` → `{ allowed, isLoading, reason }`, com suporte a checagens síncronas e assíncronas.
-- `<Can action resource fallback>` esconde a UI; `useCan` desabilita e explica com `reason`.
+- `<Can action resource fallback>` esconde a UI; `pending` separa "ainda checando" de "negado"; `useCan` desabilita e explica com `reason`.
 - RBAC no frontend é UX — o backend continua sendo a fonte da verdade da autorização.
 
 ## Veja também

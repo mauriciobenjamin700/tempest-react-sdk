@@ -6,6 +6,55 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **Guard de rota ganhou o terceiro estado `"pending"`, e com ele o RBAC
+  assíncrono passou a caber no `AppRouter`**
+  ([#267](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/267)).
+
+  ```tsx
+  {
+      path: "financeiro",
+      lazy: () => import("@/pages/Financeiro"),
+      redirectTo: "/",
+      guardFallback: <Spinner size="lg" />,
+      guard: function useFinanceGuard() {
+          const { allowed, isLoading } = useCan({ action: "read", resource: "finance" });
+          return isLoading ? "pending" : allowed;
+      },
+  }
+  ```
+
+  `guard` era `boolean | (() => boolean)`, e duas respostas não descrevem uma
+  permissão que **ainda não resolveu** — que é exatamente o que o `useCan` do
+  próprio SDK devolve. Com o tipo antigo, as duas respostas possíveis durante a
+  checagem estão erradas: `false` **redireciona quem tem** a permissão num flash
+  toda vez que a rota abre a frio (F5 na URL, link externo), e `true` **renderiza
+  a tela para quem não tem** até a resposta chegar. O app pagava desistindo do
+  `defineRoutes` e montando `<Routes>` na mão — perdendo junto o `lazy` com retry
+  e o boundary de `<Suspense>` que o `AppRouter` já entrega.
+
+  Agora `guard` é `boolean | (() => RouteGuardResult)`, com
+  `RouteGuardResult = boolean | "pending"`. `"pending"` segura a decisão e
+  renderiza `guardFallback`, que **cai no `fallback` do `<AppRouter>`** quando a
+  rota não define o seu: um spinner cobre "chunk carregando" e "permissão
+  resolvendo", que são a mesma frase para o usuário. `<RouteGuard>` acompanha,
+  com `when: RouteGuardResult` e a prop `fallback`.
+
+  **Nomeie a função do guard `use…`.** O guard sempre rodou dentro da
+  renderização, então pode chamar hooks — mas `react-hooks/rules-of-hooks` só
+  aceita hook em função com nome `use*` ou componente `PascalCase`. Escrito como
+  arrow anônima, `guard: () => useCan(…)` reprova no lint de todo app consumidor;
+  `guard: function useFinanceGuard() { … }` passa. Guard sem hook
+  (`() => useAuth.getState().isAuthenticated`) segue igual.
+
+- **`<Can>` ganhou a prop `pending`.** Uma checagem que resolve pela rede tem
+  três estados, e o `<Can>` só sabia dois: durante a checagem ele renderiza o
+  `fallback`, então "Sem permissão" pisca na tela de quem **tem** a permissão.
+  `pending={<Spinner />}` explica a espera, `pending={null}` não mostra nada até
+  a resposta chegar. **Omitir a prop mantém o comportamento anterior** (cai no
+  `fallback`), então nenhum app muda ao atualizar. A docstring do componente, que
+  afirmava renderizar nada durante a checagem, foi corrigida para descrever o que
+  o código faz.
+
 - **`formatDateTimeForInput` — o irmão que faltava do `formatDateForInput`**
   ([#266](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/266)).
 
@@ -368,6 +417,17 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   nada que um bundler precise provar morto.
 
 ### Corrigido
+
+- **Estado de hook vazava de uma rota guardada para a seguinte.** O React Router
+  renderiza o elemento da rota casada **na mesma posição** da árvore, e o
+  `AppRouter` embrulhava todas com o mesmo componente de guard sem chave
+  distinta — então o React reconciliava duas rotas diferentes sobre a mesma
+  instância e o estado da anterior sobrevivia na seguinte. Um guard que lê
+  `useState("de-a")` continuava lendo `"de-a"` depois de navegar para a rota cujo
+  guard inicializa `"de-b"`. Cada objeto de rota passa a ter chave própria, com
+  teste nomeado que falha se ela sair. Latente até agora, porque guard sem hook
+  não tem estado para vazar; virou defeito de verdade no instante em que
+  `"pending"` tornou hook no guard o caminho recomendado.
 
 - **`registerServiceWorker` não avisava quando o worker novo já estava em
   `waiting`**

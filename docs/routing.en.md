@@ -55,7 +55,8 @@ Each `TempestRouteObject` accepts:
 | `element`       | `ReactNode`                                 | What to render when the route matches.                                        |
 | `lazy`          | `() => Promise<{ default: ComponentType }>` | Loads the component on demand (code-split). Automatic retry on a stale chunk. |
 | `children`      | `TempestRouteObject[]`                      | Nested routes.                                                                |
-| `guard`         | `boolean \| (() => boolean)`                | When falsy, renders a redirect instead of the `element`.                      |
+| `guard`         | `boolean \| (() => RouteGuardResult)`       | `false` redirects, `true` renders, `"pending"` holds the decision.            |
+| `guardFallback` | `ReactNode`                                 | Rendered while the guard answers `"pending"`. Defaults to the `<AppRouter>` `fallback`. |
 | `redirectTo`    | `string`                                    | The guard's redirect target. Default `"/"`.                                   |
 | `caseSensitive` | `boolean`                                   | Makes the `path` match case-sensitive.                                        |
 
@@ -237,9 +238,75 @@ export const routes = defineRoutes([
 ```
 
 !!! warning "The guard runs on render — read your store via `getState()` or a hook"
-    The `guard` function is evaluated **during the route's render**. So it must read the state _at that moment_: use `useAuth.getState().isAuthenticated` (an imperative read, outside React) or a selector hook inside a component. Don't capture the value once outside the function — you'd freeze the auth state at initial load.
+    The `guard` function is evaluated **during the route's render**. So it must read the state _at that moment_: use `useAuth.getState().isAuthenticated` (an imperative read, outside React) or call a hook straight in the guard function, which runs inside the render cycle — see the next section. Don't capture the value once outside the function: you'd freeze the auth state at initial load.
 
 When `guard` is falsy, the user is redirected to `redirectTo` (default `"/"`). In the example above, anyone not authenticated who tries to open `/dashboard` lands on `/login`.
+
+### The async function form: the third state `"pending"`
+
+A two-answer guard cannot talk about a permission that has **not resolved yet** — and the SDK ships exactly one of those: `useCan`, which returns `{ allowed, isLoading }`. With only `true`/`false`, the guard has to answer something while the check is in flight, and both possible answers are wrong:
+
+- answering `false` **redirects the person who does have** the permission, in a flash, every time the route is opened cold (F5 straight on the URL, an external link);
+- answering `true` **renders the screen for someone who does not**, until the answer lands.
+
+So the guard takes a third answer:
+
+```ts
+type RouteGuardResult = boolean | "pending";
+```
+
+`"pending"` holds the decision and renders `guardFallback` instead — no redirect, no leaked screen:
+
+```tsx
+// routes.tsx
+import { defineRoutes, useCan } from "tempest-react-sdk";
+import { Spinner } from "tempest-react-sdk";
+import { RootLayout } from "@/layouts/RootLayout";
+import { Home } from "@/pages/Home";
+
+export const routes = defineRoutes([
+  {
+    path: "/",
+    element: <RootLayout />,
+    children: [
+      { index: true, element: <Home /> },
+      {
+        path: "finance",
+        lazy: () => import("@/pages/Finance"),
+        redirectTo: "/",
+        guardFallback: <Spinner size="lg" />,
+        guard: function useFinanceGuard() {
+          const { allowed, isLoading } = useCan({ action: "read", resource: "finance" });
+          return isLoading ? "pending" : allowed;
+        },
+      },
+    ],
+  },
+]);
+```
+
+!!! danger "Name the function `use…` — ESLint rejects it otherwise"
+    The `guard` runs **inside the render**, so it may call hooks. But `react-hooks/rules-of-hooks` only accepts a hook inside a function whose name starts with `use` (or a `PascalCase` component). Written as an anonymous arrow, the example above fails linting with:
+
+    ```text
+    React Hook "useCan" is called in function "guard" that is neither a React
+    function component nor a custom React Hook function.
+    ```
+
+    The form that passes is the **named function expression**, exactly as in the example:
+
+    ```ts
+    guard: function useFinanceGuard() { … }   // ✅ passes
+    guard: () => { … useCan() … }             // ❌ lint error
+    ```
+
+    A guard with **no** hook (`() => useAuth.getState().isAuthenticated`) can stay an anonymous arrow — `getState()` is not a hook.
+
+!!! tip "One spinner covers `lazy` and `pending`"
+    When the route defines no `guardFallback`, the SDK uses the `fallback` you already handed `<AppRouter>` — the same one covering the `lazy` chunk load. Both are "not ready yet", and in most apps they deserve the same spinner.
+
+!!! warning "Each guarded route remounts, and that is deliberate"
+    React Router renders the matched route's element **at the same position** in the tree. Without a distinct key per route, React would reconcile two different routes onto the same guard instance, and the previous route's hook state would survive into the next — a guard reading `useState("from-a")` would still read `"from-a"` after navigating to a route whose guard initialises it to `"from-b"`. `<AppRouter>` keys by route object for exactly that reason, and a named test fails if the key ever goes away.
 
 ## The standalone `RouteGuard`
 
@@ -264,15 +331,16 @@ export function ProtectedDashboard() {
 
 `<RouteGuard>` props:
 
-| Prop         | Type        | Default | Description                                    |
-| ------------ | ----------- | ------- | ---------------------------------------------- |
-| `when`       | `boolean`   | —       | Renders the `children` when truthy.            |
-| `redirectTo` | `string`    | `"/"`   | Target when `when` is false.                   |
-| `replace`    | `boolean`   | `true`  | Replaces the history entry instead of pushing. |
-| `children`   | `ReactNode` | —       | What to protect.                               |
+| Prop         | Type               | Default | Description                                    |
+| ------------ | ------------------ | ------- | ---------------------------------------------- |
+| `when`       | `RouteGuardResult` | —       | `true` renders the `children`, `false` redirects, `"pending"` holds. |
+| `fallback`   | `ReactNode`        | `null`  | Rendered while `when` is `"pending"`.          |
+| `redirectTo` | `string`           | `"/"`   | Target when `when` is false.                   |
+| `replace`    | `boolean`          | `true`  | Replaces the history entry instead of pushing. |
+| `children`   | `ReactNode`        | —       | What to protect.                               |
 
 !!! tip "Same state-reading rule"
-    Here you're inside a React component, so read the store with the hook (`useAuth((state) => state.isAuthenticated)`) to re-render when auth changes — unlike the tree's `guard`, which uses `getState()` because it runs outside the hook lifecycle.
+    Here you're inside a React component, so read the store with the hook (`useAuth((state) => state.isAuthenticated)`) to re-render when auth changes. The tree's `guard` runs **inside** the render too, so it has both options: `getState()` for a simple imperative read, or hooks — as long as the function is named `use…`, as in the `"pending"` section above.
 
 ## Choosing the router kind
 
@@ -314,5 +382,6 @@ test("renders the dashboard route", () => {
 - Use `index: true` for a layout's default route and `path` for the rest — never both together.
 - Nested layouts render children in the `<Outlet>`; navigate with `<Link>`.
 - `lazy` does code-splitting with automatic retry on a stale chunk; show the Suspense `fallback` while it loads.
-- Protect routes with `guard` (boolean or function) + `redirectTo`, or with `<RouteGuard when={...}>` in JSX. The guard runs on render — read the store via `getState()` (in the tree) or via a hook (in a component).
+- Protect routes with `guard` (boolean or function) + `redirectTo`, or with `<RouteGuard when={...}>` in JSX. The guard runs on render, so it may call hooks — name the function `use…` for ESLint to accept it.
+- A permission that resolves asynchronously answers `"pending"`: the decision is held and `guardFallback` (or the `<AppRouter>` `fallback`) shows, instead of redirecting someone who has access or leaking the screen to someone who does not.
 - Pick the router with the `router` prop: `"browser"` in production, `"memory"` + `initialEntries` in tests.

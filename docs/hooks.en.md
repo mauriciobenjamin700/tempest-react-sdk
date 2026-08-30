@@ -52,6 +52,7 @@ browser-guarded and independent hooks — import only what you need.
 | `useServiceWorkerUpdate({ url })`                 | Registers the SW and exposes `{ updateAvailable, applyUpdate, registration }` — consent-based update flow (pairs with `<UpdatePrompt>`). See [PWA](./pwa.md). |
 | `useStorageEstimate({ pollMs? })`                 | `{ usage, quota, ratio, persisted, requestPersist, refresh }` — Storage API quota + `persist()`. Pure pairs: `estimateStorage`, `requestPersistentStorage`. |
 | `useIdle(timeout?)`                               | True when the user is idle for `timeout` ms.                                                                  |
+| `useFullscreen(ref?)`                             | `{ isFullscreen, supported, enter, exit, toggle }` — immersive mode whose state is driven by `fullscreenchange`, so `Esc` and the browser's own button update the UI. Pure pair: `isFullscreenSupported`. |
 | `useGeolocation(opts?)`                           | Position + error + loading.                                                                                   |
 | `useClickOutside(handler)`                        | Returns a ref; calls `handler` on a `mousedown`/`touchstart` outside the element. browser-guarded.                   |
 | `useDocumentTitle(title)`                         | Sets `document.title` while mounted, restoring the previous one on unmount. browser-guarded.                         |
@@ -637,6 +638,59 @@ function Analytics({ query }: { query: string }) {
 ```
 
 Returns `true` only on the first render — handy to skip mount-time effects.
+
+### Immersive mode — `useFullscreen`
+
+Fullscreen is the case where keeping the state in your own function **always** lies. `Esc`, the browser's own exit button and F11 pressed during an API session all leave fullscreen without going through your `exit()` — and the `useState` you flipped on the click keeps saying "Leave fullscreen" over a page that is already back to normal.
+
+`useFullscreen` reads the `fullscreenchange` event (plus the `webkitfullscreenchange` variant, which Safari is still the only engine to fire). The state comes from there, never from the return of the call:
+
+```tsx
+import { useRef, useState } from "react";
+import { Alert, Button, useFullscreen } from "tempest-react-sdk";
+
+export function ImmersiveStage() {
+  const stage = useRef<HTMLDivElement>(null);
+  const { isFullscreen, supported, toggle } = useFullscreen(stage);
+  const [refused, setRefused] = useState(false);
+
+  return (
+    <div ref={stage} style={{ background: "black" }}>
+      <video src="/lesson.mp4" controls />
+
+      {refused ? <Alert variant="warning">The browser refused fullscreen.</Alert> : null}
+
+      {supported ? (
+        <Button
+          onClick={() => {
+            setRefused(false);
+            toggle().catch(() => setRefused(true));
+          }}
+        >
+          {isFullscreen ? "Leave fullscreen" : "Fullscreen"}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+```
+
+Three things are going on there:
+
+- **`isFullscreen`** is identity between your element and the one the browser is presenting. Leaving with `Esc` drops the flag without you doing anything; a `<video>` inside your stage going fullscreen on its own does **not** count, because the element being painted is not yours.
+- **`supported`** comes from `isFullscreenSupported()` — the same function exported standalone, for checking outside a component. It is `false` in two situations that only the flag tells apart: the API does not exist (older WebKit, iOS outside `<video>`) **and** the API exists but is switched off, which is what an `<iframe>` without `allowfullscreen` reports. Hiding the button beats rendering one that does nothing.
+- **`toggle()` is async and can reject.** The rejection is propagated on purpose, so handle it — without the `.catch()` it becomes an unhandled rejection in the console.
+
+With no `ref`, the target is the whole page (`document.documentElement`); `enter()` and `exit()` exist separately for when the button is not a toggle.
+
+!!! warning "Only inside a user gesture"
+    `requestFullscreen` is only accepted from a click, tap or key press. Calling `enter()` in a mount `useEffect` rejects with a `TypeError` in every modern browser — and that is why the rejection reaches you instead of being swallowed: a button that did nothing has to say why.
+
+!!! note "F11 is a different thing"
+    The browser's own fullscreen (F11) does **not** go through the Fullscreen API: `document.fullscreenElement` stays `null` and no event fires, so `isFullscreen` stays `false` for an F11 session. The other direction does hold: F11 pressed during an API fullscreen **leaves** it and fires the event, which is exactly the case the hook covers.
+
+!!! tip "Overlays in fullscreen already work on their own"
+    You do not need this hook for `<Modal>`, `<Drawer>` or toasts: the SDK's `<Portal>` follows the fullscreen element by itself — including moving an already-open dialog when fullscreen starts. See [Fullscreen](./components/overlay.md#fullscreen).
 
 ## PWA & pointer gestures
 

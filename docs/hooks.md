@@ -52,6 +52,7 @@ granulares, testados e independentes — importe só o que precisar.
 | `useServiceWorkerUpdate({ url })`                 | Registra o SW e expõe `{ updateAvailable, applyUpdate, registration }` — fluxo de update com consentimento (par de `<UpdatePrompt>`). Veja [PWA](./pwa.md). |
 | `useStorageEstimate({ pollMs? })`                 | `{ usage, quota, ratio, persisted, requestPersist, refresh }` — quota do Storage API + `persist()`. Pares puros: `estimateStorage`, `requestPersistentStorage`. |
 | `useIdle(timeout?)`                               | True quando usuário ocioso por `timeout` ms.                                                                 |
+| `useFullscreen(ref?)`                             | `{ isFullscreen, supported, enter, exit, toggle }` — modo imersivo com estado dirigido por `fullscreenchange`, então `Esc` e o botão do próprio browser atualizam a UI. Par puro: `isFullscreenSupported`. |
 | `useGeolocation(opts?)`                           | Position + erro + loading.                                                                                   |
 | `useClickOutside(handler)`                        | Retorna um ref; chama `handler` em `mousedown`/`touchstart` fora do elemento. safe sem `window`.                      |
 | `useDocumentTitle(title)`                         | Seta `document.title` enquanto montado, restaurando o anterior no unmount. safe sem `window`.                         |
@@ -635,6 +636,59 @@ function Analytics({ query }: { query: string }) {
 ```
 
 Retorna `true` apenas na primeira renderização — útil para pular efeitos de montagem.
+
+### Modo imersivo — `useFullscreen`
+
+Tela cheia é o caso em que guardar o estado na sua própria função **sempre** mente. `Esc`, o botão de sair do próprio browser e o F11 apertado durante uma sessão da API saem de tela cheia sem passar pelo seu `exit()` — e o `useState` que você virou no clique continua dizendo "Sair da tela cheia" com a página já de volta ao normal.
+
+`useFullscreen` lê o evento `fullscreenchange` (mais a variante `webkitfullscreenchange`, que o Safari ainda é o único a disparar). O estado vem de lá, nunca do retorno da chamada:
+
+```tsx
+import { useRef, useState } from "react";
+import { Alert, Button, useFullscreen } from "tempest-react-sdk";
+
+export function PalcoImersivo() {
+  const stage = useRef<HTMLDivElement>(null);
+  const { isFullscreen, supported, toggle } = useFullscreen(stage);
+  const [recusado, setRecusado] = useState(false);
+
+  return (
+    <div ref={stage} style={{ background: "black" }}>
+      <video src="/aula.mp4" controls />
+
+      {recusado ? <Alert variant="warning">O navegador recusou a tela cheia.</Alert> : null}
+
+      {supported ? (
+        <Button
+          onClick={() => {
+            setRecusado(false);
+            toggle().catch(() => setRecusado(true));
+          }}
+        >
+          {isFullscreen ? "Sair da tela cheia" : "Tela cheia"}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+```
+
+Três coisas acontecem aí:
+
+- **`isFullscreen`** é a identidade entre o seu elemento e o que o browser está apresentando. Sair por `Esc` derruba a flag sem você fazer nada; um `<video>` dentro do seu palco que entra em tela cheia sozinho **não** conta, porque quem está sendo pintado não é o seu elemento.
+- **`supported`** vem de `isFullscreenSupported()` — a mesma função exportada solta, para checar fora de um componente. Ela é `false` em duas situações que só se distinguem lendo o flag: a API não existe (WebKit antigo, iOS fora de `<video>`) **e** a API existe mas está desligada, que é o caso de um `<iframe>` sem `allowfullscreen`. Esconder o botão é melhor que renderizar um que não faz nada.
+- **`toggle()` é assíncrono e pode rejeitar.** A rejeição é repassada de propósito, então trate-a — sem o `.catch()` ela vira unhandled rejection no console.
+
+Sem `ref`, o alvo é a página inteira (`document.documentElement`); `enter()` e `exit()` existem separados para quando o botão não é um toggle.
+
+!!! warning "Só dentro de um gesto do usuário"
+    `requestFullscreen` só é aceito a partir de um clique, toque ou tecla. Chamar `enter()` num `useEffect` de montagem rejeita com `TypeError` em todo browser moderno — e é por isso que a rejeição chega até você em vez de ser engolida: um botão que não fez nada precisa dizer o motivo.
+
+!!! note "F11 é outra coisa"
+    A tela cheia do próprio browser (F11) **não** passa pela Fullscreen API: `document.fullscreenElement` continua `null` e nenhum evento dispara, então `isFullscreen` fica `false` durante uma sessão de F11. O caminho contrário vale: F11 apertado durante uma tela cheia da API **sai** dela e dispara o evento, que é justamente o caso que o hook cobre.
+
+!!! tip "Overlay em tela cheia já funciona sozinho"
+    Você não precisa deste hook para `<Modal>`, `<Drawer>` ou toast: o `<Portal>` do SDK segue o elemento em tela cheia por conta própria — inclusive movendo um diálogo já aberto quando a tela cheia começa. Veja [Tela cheia](./components/overlay.md#tela-cheia).
 
 ## PWA & gestos de ponteiro
 

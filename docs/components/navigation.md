@@ -550,7 +550,21 @@ export function Paginacao({ totalItems }: { totalItems: number }) {
 | `totalItems`       | `number` (contagem, opcional) | —  |
 | `onPageChange`     | `(page: number) => void` | —       |
 | `onPageSizeChange` | `(size: number) => void` | —       |
-| `siblingCount`     | `number` (vizinhos)      | `7`     |
+| `siblingCount`     | `number` (vizinhos)      | `3`     |
+| `compactOnMobile`  | `boolean`                | `true`  |
+
+### Abaixo de 640px: sequencial por default, aleatório se você pedir
+
+O default esconde os números e deixa `‹` / `›` mais o resumo. Num app desktop-first isso é razoável; num mobile-first custa exatamente o que a paginação existe para dar — chegar na página 7 vira seis toques em "próxima" em vez de um toque no `7`.
+
+```tsx
+<Pagination page={page} totalPages={pages} onPageChange={setPage} compactOnMobile={false} />
+```
+
+Com `false`, os números ficam em qualquer largura: a faixa **rola sozinha** na horizontal em vez de alargar a página, e a página atual é trazida para a área visível a cada mudança.
+
+!!! tip "Por que um booleano e não uma `variant`"
+    Só desligar o `display: none` empurraria uma fileira de nove botões para além de um viewport de 360px e daria barra de rolagem horizontal ao **documento inteiro**. O opt-out precisa trazer o próprio layout junto — então ele traz, e não há terceira opção para escolher.
 
 ## `SegmentedControl`
 

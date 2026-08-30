@@ -5,7 +5,7 @@
  * buttons are rendered. They ship together because a footer that pages but cannot
  * resize is half a footer.
  */
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { cn } from "@/utils/cn";
 import styles from "./Pagination.module.css";
 
@@ -18,8 +18,20 @@ export interface PaginationProps {
     pageSizeOptions?: number[];
     /** Total items count; if provided, renders the summary text. */
     totalItems?: number;
-    /** Max number of numbered page buttons to show. Default 7. */
+    /** Pages kept around the current one; ~`siblingCount + 4` buttons render. Default 3. */
     siblingCount?: number;
+    /**
+     * Below 640px, drop to `‹` / `›` plus the summary and hide the numbered
+     * buttons and the size select. Default `true`.
+     *
+     * The default suits a desktop-first app, and costs the thing pagination is
+     * for on a phone: reaching page 7 becomes six taps on "next" instead of one
+     * tap on `7`. Pass `false` in a mobile-first app and the numbers stay at
+     * every width — the row scrolls horizontally by itself rather than pushing
+     * the page wider, and the current page is scrolled into view when it
+     * changes.
+     */
+    compactOnMobile?: boolean;
     className?: string;
 }
 
@@ -40,6 +52,17 @@ function buildRange(page: number, totalPages: number, siblings: number): (number
 
 /**
  * Numeric pagination controls. Pair with {@link usePagination} for state.
+ *
+ * Narrow screens collapse to `‹` / `›` plus the summary by default, which turns
+ * random access into sequential access — fine for a desktop-first app, wrong for
+ * one whose traffic is phones. `compactOnMobile={false}` keeps the numbers at
+ * every width: the row scrolls on its own instead of widening the page, and the
+ * effect below keeps the current page inside the visible part of that row.
+ *
+ * The scroll is why this is one boolean rather than a `variant`. Simply
+ * un-hiding the buttons would push a nine-button row past a 360px viewport and
+ * give the whole document a horizontal scrollbar — the opt-out has to carry its
+ * own layout, so it does.
  */
 export function Pagination({
     page,
@@ -50,17 +73,24 @@ export function Pagination({
     pageSizeOptions = [10, 25, 50, 100],
     totalItems,
     siblingCount = 3,
+    compactOnMobile = true,
     className,
 }: PaginationProps) {
     const pages = useMemo(
         () => buildRange(page, totalPages, siblingCount),
         [page, totalPages, siblingCount],
     );
+    const activePage = useRef<HTMLButtonElement | null>(null);
+
+    useEffect(() => {
+        if (compactOnMobile) return;
+        activePage.current?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+    }, [page, compactOnMobile]);
 
     if (totalPages <= 1 && !onPageSizeChange) return null;
 
     return (
-        <div className={cn(styles.wrapper, className)}>
+        <div className={cn(styles.wrapper, className)} data-compact={String(compactOnMobile)}>
             <div className={styles.summary}>
                 {typeof totalItems === "number"
                     ? `${totalItems} resultado${totalItems === 1 ? "" : "s"}`
@@ -88,6 +118,7 @@ export function Pagination({
                         <button
                             type="button"
                             key={entry}
+                            ref={entry === page ? activePage : undefined}
                             className={cn(
                                 styles.page,
                                 styles.numeric,

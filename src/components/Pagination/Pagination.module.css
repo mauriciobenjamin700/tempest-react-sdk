@@ -14,6 +14,7 @@
     display: flex;
     align-items: center;
     gap: var(--tempest-space-1);
+    min-width: 0;
 }
 
 .page {
@@ -78,17 +79,34 @@
     outline-offset: var(--tempest-focus-ring-offset);
 }
 
-/* Compact mobile mode — hide numeric buttons + size select. */
 @media (max-width: 639.98px) {
-    .numeric,
-    .sizeSelect {
-        display: none;
-    }
     .summary {
         font-size: var(--tempest-text-xs);
     }
-    .controls {
+
+    .wrapper[data-compact="true"] .numeric,
+    .wrapper[data-compact="true"] .sizeSelect {
+        display: none;
+    }
+
+    .wrapper[data-compact="true"] .controls {
         flex: 1;
         justify-content: space-between;
+    }
+
+    .wrapper[data-compact="false"] .controls {
+        flex: 1 1 100%;
+        justify-content: flex-start;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        scrollbar-width: thin;
+        scroll-padding-inline: var(--tempest-space-2);
+        padding-block-end: var(--tempest-space-1);
+    }
+
+    .wrapper[data-compact="false"] .page,
+    .wrapper[data-compact="false"] .ellipsis,
+    .wrapper[data-compact="false"] .sizeSelect {
+        flex: 0 0 auto;
     }
 }

@@ -2,7 +2,7 @@ export { AppRouter, defineRoutes } from "./AppRouter";
 export type { AppRouterProps } from "./AppRouter";
 export { RouteGuard } from "./RouteGuard";
 export type { RouteGuardProps } from "./RouteGuard";
-export type { TempestRouteObject, RouterKind } from "./types";
+export type { TempestRouteObject, RouteGuardResult, RouterKind } from "./types";
 
 /**
  * Declarative React Router primitives, re-exported so apps import their whole

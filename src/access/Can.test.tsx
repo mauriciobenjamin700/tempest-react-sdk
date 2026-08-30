@@ -54,6 +54,61 @@ describe("Can", () => {
     });
 });
 
+describe("Can — pending", () => {
+    it("shows `pending` instead of the denial message while the check is in flight", async () => {
+        let grant: (allowed: boolean) => void = () => {};
+        const control: AccessControl = {
+            can: () =>
+                new Promise<boolean>((resolve) => {
+                    grant = resolve;
+                }),
+        };
+
+        render(
+            <AccessControlProvider control={control}>
+                <Can
+                    action="read"
+                    resource="finance"
+                    fallback={<span>denied</span>}
+                    pending={<span>checking</span>}
+                >
+                    <span>allowed</span>
+                </Can>
+            </AccessControlProvider>,
+        );
+
+        expect(screen.getByText("checking")).toBeInTheDocument();
+        expect(screen.queryByText("denied")).not.toBeInTheDocument();
+
+        grant(true);
+        await waitFor(() => expect(screen.getByText("allowed")).toBeInTheDocument());
+    });
+
+    it("renders nothing while pending when `pending` is explicitly null", () => {
+        const control: AccessControl = { can: () => new Promise<boolean>(() => {}) };
+        const { container } = render(
+            <AccessControlProvider control={control}>
+                <Can action="read" resource="finance" fallback={<span>denied</span>} pending={null}>
+                    <span>allowed</span>
+                </Can>
+            </AccessControlProvider>,
+        );
+        expect(container.textContent).toBe("");
+    });
+
+    it("keeps showing `fallback` while pending when `pending` is not given", () => {
+        const control: AccessControl = { can: () => new Promise<boolean>(() => {}) };
+        render(
+            <AccessControlProvider control={control}>
+                <Can action="read" resource="finance" fallback={<span>denied</span>}>
+                    <span>allowed</span>
+                </Can>
+            </AccessControlProvider>,
+        );
+        expect(screen.getByText("denied")).toBeInTheDocument();
+    });
+});
+
 describe("Can — no fallback", () => {
     it("renders nothing when denied and no fallback is given", async () => {
         const { container } = render(

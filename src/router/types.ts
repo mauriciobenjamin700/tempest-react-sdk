@@ -13,6 +13,19 @@ import type { ComponentType, ReactNode } from "react";
 type AnyRouteComponent = ComponentType<any>;
 
 /**
+ * What a route guard can answer.
+ *
+ * `true` renders the route, `false` redirects — and `"pending"` is the third
+ * answer a two-state guard cannot give. Without it, a permission that resolves
+ * asynchronously has to lie while it is in flight, and both lies are wrong:
+ * answering `false` redirects the person who **does** have the permission,
+ * every time the route is opened cold (F5 on the URL, an external link);
+ * answering `true` renders the screen for someone who does not, until the
+ * answer lands.
+ */
+export type RouteGuardResult = boolean | "pending";
+
+/**
  * A single declarative route node. Mirrors React Router's nested `<Route>`
  * model but adds first-class `lazy` (code-split with retry) and `guard`
  * (redirect when a predicate fails) so apps describe their route tree as data.
@@ -33,9 +46,24 @@ export interface TempestRouteObject {
     children?: TempestRouteObject[];
     /**
      * Access guard. When `false` (or a function returning `false`), the route
-     * renders a redirect to {@link redirectTo} instead of its element.
+     * renders a redirect to {@link redirectTo} instead of its element. When the
+     * function returns `"pending"`, the decision is held and {@link guardFallback}
+     * renders instead — see {@link RouteGuardResult}.
+     *
+     * The function runs inside the guard component's render, so it **may call
+     * hooks** — which is what lets an async permission check like `useCan` plug
+     * straight in. The usual rule applies: call the same hooks on every render
+     * of that route. Guarded routes are keyed per route object, so navigating
+     * between two routes whose guards call different hooks remounts rather than
+     * breaking hook order.
      */
-    guard?: boolean | (() => boolean);
+    guard?: boolean | (() => RouteGuardResult);
+    /**
+     * Rendered while {@link guard} answers `"pending"`. Defaults to the
+     * {@link AppRouter} `fallback`, so a route tree that already passes a
+     * spinner for `lazy` chunks reuses it here with no extra wiring.
+     */
+    guardFallback?: ReactNode;
     /** Destination used when `guard` fails (default: `"/"`). */
     redirectTo?: string;
     /** Match the path case-sensitively. */

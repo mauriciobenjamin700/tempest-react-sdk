@@ -55,7 +55,8 @@ Cada `TempestRouteObject` aceita:
 | `element`       | `ReactNode`                                 | O que renderizar quando a rota casa.                                            |
 | `lazy`          | `() => Promise<{ default: ComponentType }>` | Carrega o componente sob demanda (code-split). Retry automático em chunk velho. |
 | `children`      | `TempestRouteObject[]`                      | Rotas aninhadas.                                                                |
-| `guard`         | `boolean \| (() => boolean)`                | Quando _falsy_, renderiza um redirect no lugar do `element`.                    |
+| `guard`         | `boolean \| (() => RouteGuardResult)`       | `false` redireciona, `true` renderiza, `"pending"` segura a decisão.            |
+| `guardFallback` | `ReactNode`                                 | Renderizado enquanto o guard responde `"pending"`. Padrão: o `fallback` do `<AppRouter>`. |
 | `redirectTo`    | `string`                                    | Destino do redirect do guard. Padrão `"/"`.                                     |
 | `caseSensitive` | `boolean`                                   | Faz o match de `path` diferenciar maiúsculas/minúsculas.                        |
 
@@ -237,9 +238,75 @@ export const routes = defineRoutes([
 ```
 
 !!! warning "O guard roda na renderização — leia a store via `getState()` ou um hook"
-    A função do `guard` é avaliada **durante a renderização** da rota. Por isso ela precisa ler o estado _naquele momento_: use `useAuth.getState().isAuthenticated` (leitura imperativa, fora do React) ou um hook de seleção dentro de um componente. Não capture o valor uma vez fora da função — você congelaria o estado de auth no carregamento inicial.
+    A função do `guard` é avaliada **durante a renderização** da rota. Por isso ela precisa ler o estado _naquele momento_: use `useAuth.getState().isAuthenticated` (leitura imperativa, fora do React) ou chame um hook direto na função do guard, que roda dentro do ciclo de renderização — veja a seção seguinte. Não capture o valor uma vez fora da função: você congelaria o estado de auth no carregamento inicial.
 
 Quando `guard` é _falsy_, o usuário é redirecionado para `redirectTo` (padrão `"/"`). No exemplo acima, quem não está autenticado e tenta abrir `/dashboard` cai em `/login`.
+
+### Forma de função assíncrona: o terceiro estado `"pending"`
+
+Um guard de duas respostas não consegue falar sobre permissão que **ainda não resolveu** — e é o caso do próprio `useCan` do SDK, que devolve `{ allowed, isLoading }`. Com só `true`/`false`, o guard precisa responder algo enquanto a checagem está no ar, e as duas respostas possíveis estão erradas:
+
+- responder `false` **redireciona quem tem** a permissão, num flash, toda vez que a rota é aberta a frio (F5 direto na URL, link externo);
+- responder `true` **renderiza a tela para quem não tem**, até a resposta chegar.
+
+Por isso o guard aceita uma terceira resposta:
+
+```ts
+type RouteGuardResult = boolean | "pending";
+```
+
+`"pending"` segura a decisão e renderiza o `guardFallback` no lugar — sem redirecionar, sem vazar a tela:
+
+```tsx
+// routes.tsx
+import { defineRoutes, useCan } from "tempest-react-sdk";
+import { Spinner } from "tempest-react-sdk";
+import { RootLayout } from "@/layouts/RootLayout";
+import { Home } from "@/pages/Home";
+
+export const routes = defineRoutes([
+  {
+    path: "/",
+    element: <RootLayout />,
+    children: [
+      { index: true, element: <Home /> },
+      {
+        path: "financeiro",
+        lazy: () => import("@/pages/Financeiro"),
+        redirectTo: "/",
+        guardFallback: <Spinner size="lg" />,
+        guard: function useFinanceGuard() {
+          const { allowed, isLoading } = useCan({ action: "read", resource: "finance" });
+          return isLoading ? "pending" : allowed;
+        },
+      },
+    ],
+  },
+]);
+```
+
+!!! danger "Nomeie a função `use…` — sem isso o ESLint reprova"
+    O `guard` roda **dentro da renderização**, então ele pode chamar hooks. Mas a regra `react-hooks/rules-of-hooks` só aceita hook dentro de função cujo nome começa com `use` (ou de componente em `PascalCase`). Escrito como arrow anônima, o exemplo acima falha o lint com:
+
+    ```text
+    React Hook "useCan" is called in function "guard" that is neither a React
+    function component nor a custom React Hook function.
+    ```
+
+    A forma que passa é a **expressão de função nomeada**, exatamente como no exemplo:
+
+    ```ts
+    guard: function useFinanceGuard() { … }   // ✅ passa
+    guard: () => { … useCan() … }             // ❌ erro de lint
+    ```
+
+    Guard **sem** hook (`() => useAuth.getState().isAuthenticated`) continua podendo ser arrow anônima — `getState()` não é hook.
+
+!!! tip "Um spinner cobre `lazy` e `pending`"
+    Se a rota não define `guardFallback`, o SDK usa o `fallback` que você já passou ao `<AppRouter>` — o mesmo que cobre o carregamento de chunk do `lazy`. As duas coisas são "ainda não está pronto", e na maioria dos apps merecem o mesmo spinner.
+
+!!! warning "Cada rota guardada é remontada, e isso é de propósito"
+    O React Router renderiza o elemento da rota casada **na mesma posição** da árvore. Sem uma chave distinta por rota, o React reconciliaria duas rotas diferentes sobre a mesma instância do guard, e o estado de hook da rota anterior sobreviveria na seguinte — um guard que lê `useState("de-a")` continuaria lendo `"de-a"` depois de navegar para a rota cujo guard inicializa `"de-b"`. O `<AppRouter>` dá uma chave por objeto de rota justamente para isso; existe um teste nomeado que falha se ela sair.
 
 ## `RouteGuard` standalone
 
@@ -264,15 +331,16 @@ export function ProtectedDashboard() {
 
 Props do `<RouteGuard>`:
 
-| Prop         | Tipo        | Padrão | Descrição                                            |
-| ------------ | ----------- | ------ | ---------------------------------------------------- |
-| `when`       | `boolean`   | —      | Renderiza os `children` quando verdadeiro.           |
-| `redirectTo` | `string`    | `"/"`  | Destino quando `when` é falso.                       |
-| `replace`    | `boolean`   | `true` | Substitui a entrada no histórico em vez de empilhar. |
-| `children`   | `ReactNode` | —      | O que proteger.                                      |
+| Prop         | Tipo                | Padrão | Descrição                                            |
+| ------------ | ------------------- | ------ | ---------------------------------------------------- |
+| `when`       | `RouteGuardResult`  | —      | `true` renderiza os `children`, `false` redireciona, `"pending"` segura. |
+| `fallback`   | `ReactNode`         | `null` | Renderizado enquanto `when` é `"pending"`.           |
+| `redirectTo` | `string`            | `"/"`  | Destino quando `when` é falso.                       |
+| `replace`    | `boolean`           | `true` | Substitui a entrada no histórico em vez de empilhar. |
+| `children`   | `ReactNode`         | —      | O que proteger.                                      |
 
 !!! tip "Mesma regra de leitura de estado"
-    Aqui você está num componente React, então leia a store com o hook (`useAuth((state) => state.isAuthenticated)`) para re-renderizar quando o auth mudar — diferente do `guard` da árvore, que usa `getState()` por rodar fora do ciclo de hooks.
+    Aqui você está num componente React, então leia a store com o hook (`useAuth((state) => state.isAuthenticated)`) para re-renderizar quando o auth mudar. O `guard` da árvore roda **dentro** da renderização também, então ele tem as duas opções: `getState()` para leitura imperativa simples, ou hooks — desde que a função seja nomeada `use…`, como na seção de `"pending"` acima.
 
 ## Escolhendo o tipo de router
 
@@ -314,5 +382,6 @@ test("renders the dashboard route", () => {
 - Use `index: true` para a rota padrão de um layout e `path` para as demais — nunca os dois juntos.
 - Layouts aninhados renderizam filhos no `<Outlet>`; navegue com `<Link>`.
 - `lazy` faz code-split com retry automático em chunk velho; mostre o `fallback` do Suspense enquanto carrega.
-- Proteja rotas com `guard` (booleano ou função) + `redirectTo`, ou com `<RouteGuard when={...}>` no JSX. O guard roda na renderização — leia a store via `getState()` (na árvore) ou via hook (no componente).
+- Proteja rotas com `guard` (booleano ou função) + `redirectTo`, ou com `<RouteGuard when={...}>` no JSX. O guard roda na renderização, então pode chamar hooks — nomeie a função `use…` para o ESLint aceitar.
+- Permissão que resolve de forma assíncrona responde `"pending"`: a decisão fica segura e o `guardFallback` (ou o `fallback` do `<AppRouter>`) aparece, em vez de redirecionar quem tem acesso ou vazar a tela para quem não tem.
 - Escolha o router com a prop `router`: `"browser"` em produção, `"memory"` + `initialEntries` em testes.

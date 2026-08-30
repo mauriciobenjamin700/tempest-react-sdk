@@ -143,6 +143,45 @@ export function SettingsRoute() {
 }
 ```
 
+### Pages that take props
+
+The component does not lose its typing on the way through the wrapper. Its type is **inferred** from the module the factory resolves to, so a page with a required prop, one with an optional prop and one with no props at all all pass through — and the rendered element is still checked against the real props.
+
+```tsx
+import { Suspense } from "react";
+import { lazyWithRetry } from "tempest-react-sdk";
+import { Spinner } from "tempest-react-sdk";
+
+interface EditorProps {
+  mode: "edit" | "view";
+}
+
+function Editor({ mode }: EditorProps) {
+  return <p>mode: {mode}</p>;
+}
+
+const LazyEditor = lazyWithRetry(() => Promise.resolve({ default: Editor }));
+
+export function EditorRoute() {
+  return (
+    <Suspense fallback={<Spinner />}>
+      <LazyEditor mode="edit" />
+    </Suspense>
+  );
+}
+```
+
+!!! note "Prop checking still applies"
+    Swapping `mode="edit"` for `mode="bogus"`, dropping the required prop or
+    passing a prop that does not exist are all compile errors, exactly as on the
+    component itself. The wrapper relaxes only the generic **constraint** —
+    which used to demand a component with no props — never the inference.
+
+!!! tip "Same for a route's `lazy`"
+    A `TempestRouteObject`'s `lazy` field accepts the same set of components, so
+    a route tree of typed pages goes through `defineRoutes` without a cast. See
+    [Routing](./routing.en.md).
+
 ### Warming the chunk — `preload()`
 
 The returned component carries a `preload()`. Call it when the route becomes **likely**, not when it is needed — hovering the link, opening the menu that holds it, finishing the step before it — and the chunk arrives before the user commits. The `Suspense` fallback simply never shows.

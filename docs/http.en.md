@@ -297,7 +297,7 @@ controller.abort(); // rejects with DOMException, no retry
 
 ## `parseResponse`
 
-Validates the payload with zod. In dev/test it shows exactly which field diverged (contract drift). In prod, a generic message (does not leak internal structure).
+Validates the payload with zod. In a **development build** it shows exactly which field diverged (contract drift), raw payload included. In **any other build**, a generic message — internal structure and the response body never reach the user's screen or your error tracker.
 
 ```ts
 import { parseResponse } from "tempest-react-sdk";
@@ -313,6 +313,12 @@ const user = parseResponse(userSchema, raw, "GET /users/me");
 
 !!! tip "The 3rd argument is the context"
     Always pass a label like `"GET /users/me"`. It shows up in the dev error message and makes it trivial to pinpoint which endpoint broke the contract.
+
+!!! note "How the SDK knows it is dev"
+    By reading `process.env.NODE_ENV`, which Vite, webpack, Rspack and Parcel replace with a literal **while building your app**. So `npm run dev` gets the report and `npm run build` gets the generic sentence, with no configuration on your side. The SDK does **not** use `import.meta.env.DEV`: that expression would be replaced while building the *package*, and the published artifact would carry the constant `false` forever.
+
+!!! warning "The rule compares against `production`, not `development`"
+    The check is `NODE_ENV !== "production"`, not a list of known dev names. A staging or QA build that forgets to set `NODE_ENV=production` lands on the development side — and the error message then carries `JSON.stringify(raw)`, the whole response body. If that build talks to real data, set `NODE_ENV=production` on it.
 
 ## `uploadWithProgress`
 
@@ -468,11 +474,22 @@ try {
 }
 ```
 
-!!! info "FastAPI 422: `detail` is a list, and `error.fields` is what a form wants"
-    A FastAPI validation error arrives as `detail: [{ loc, msg, type }]`. The client builds two things out of it:
+!!! info "`error.fields` — the guilty field, whether it arrives in a list or in a key"
+    A **plain FastAPI** validation error arrives as `detail: [{ loc, msg, type }]`, and the client builds two things out of that list:
 
     - **`error.fields`** — `{ email: "Field required", "items.0.price": "Input should be greater than 0" }`, keyed by field path, which is what a form needs. The `loc` prefix that only names the request part (`body`, `query`, `path`, `header`, `cookie`) is dropped. A field that fails twice keeps the first message — an input shows one error at a time.
     - **`error.detail`** — the same thing flattened into one line, for a log. It carries field paths and the validator's own wording; it is developer text.
+
+    A backend built on [`tempest-fastapi-sdk`](https://mauriciobenjamin700.github.io/tempest-fastapi-sdk/) only sends that list while it has not taken over the handler. Once it has, it names the field in a **key** beside the message — and `fields` reads those too, in this order:
+
+    | Where the field comes from | Example body | Who sends it |
+    | --- | --- | --- |
+    | `detail[].loc` | `{ "detail": [{ "loc": ["body", "email"], "msg": "Field required" }] }` | plain FastAPI (`RequestValidationError` with no handler of its own) |
+    | `detail.field` | `{ "detail": { "detail": "Cidade não encontrada…", "field": "city" } }` | `AppException` / `ValidationException` raised with a dict message |
+    | `field` | `{ "detail": "Value error, … for field 'phone' in 'body'", "field": "phone" }` | a `RequestValidationError` handler that flattens the list |
+    | `details.field` | `{ "detail": "Coluna inválida", "details": { "field": "criado_em" } }` | the `AppException` context bag |
+
+    When the field arrives in a key, the value on `fields` is **the same sentence** as `error.detail` — the backend sent one message, and it now knows which input it belongs to. The list wins over every key; `details` answers last, because it is a generic context bag whose `field` may be about something that is not on screen at all (a sort column, say).
 
     ```ts
     import { isApiError } from "tempest-react-sdk";
@@ -494,6 +511,8 @@ try {
 !!! warning "Do not put a 422's `detail` on screen"
     `"items.0.price: Input should be greater than 0"` in a pt-BR interface is half an English sentence naming internal structure. That is why `describeApiError` does **not** pass `detail` through when `fields` is set: it returns the validation sentence ("Confira os campos destacados e tente de novo.", translatable via `tempest.error.validation`), and the per-field messages stay where they are useful — on the inputs.
 
+    **This now covers the business error that names a field too**, whose `detail` was already a finished sentence. The toast swaps "Cidade não encontrada para o estado informado." for the validation sentence; the sentence is not lost, it moves to `error.fields.city` and shows up against the input. Three ways back, in order of preference: `codes: { VALIDATION_ERROR: "…" }` (which beats the whole funnel), `validation: error.detail` at the call site, or reading `error.detail` yourself — it is untouched.
+
 ### From a typed error to the sentence on screen — `describeApiError`
 
 The `try/catch` above writes the sentence by hand, and every app writes the same funnel — getting the same step wrong: a request that **never reached** the server has `status === 0`, and without special handling it renders as "erro 0".
@@ -512,7 +531,7 @@ The funnel, in order:
 
 1. **`codes[error.code]`** — the sentence **you** wrote for that backend case. It beats every other step: nothing the funnel derives can match a sentence written by someone who knew both the contract and the screen.
 2. **A request that never left** — `status === 0`, or any error while the browser reports itself offline → the offline sentence.
-3. **A validation rejection** — `error.fields` is set → the validation sentence, **not** `detail` (which is technical). The per-field messages stay on `fields`.
+3. **An error that names a field** — `error.fields` is set → the validation sentence, **not** `detail`. This covers both a FastAPI 422 (whose `detail` is technical) and a business error that pointed at a field. The per-field messages stay on `fields`.
 4. **The backend's `detail`** — the most specific text available, already written for a person.
 5. **`fallback`**, with `(HTTP <status>)` appended when a status is known — the screenshot in the support ticket then carries the one fact a developer needs.
 
@@ -582,12 +601,12 @@ const { mutate } = useMutation({
 - 401 with `refresh` → tries to renew and retries once. `onUnauthorized` fires on every unauthorized outcome — no refresh, a refresh that rejected, or a replay that came back 401.
 - `retry: true` turns on replays inside the client: idempotent methods only, network/`408`/`425`/`429`/`5xx` only. Writes never replay on their own.
 - `logger` is opt-in and the client writes to no console without it: one line per attempt (`debug` under 400, `warn` from 400 up) carrying `requestId`, `status` and `ms`, never a body/header/query string.
-- `parseResponse(schema, raw, context)` validates the payload with zod and points at the divergent field in dev.
+- `parseResponse(schema, raw, context)` validates the payload with zod and points at the divergent field in a development build; in any other build, just the generic sentence.
 - `uploadWithProgress` uses XHR to report byte-level progress; for a large file, `createResumableUpload` chunks and resumes — see [Resumable upload](./resumable-upload.md).
 - `retry` (exponential backoff + `shouldRetry`) and `usePoll` (interval with overlap guard) cover flaky operations and job tracking.
 - `generateIdempotencyKey` — generate once per operation, reuse across retries.
-- `describeApiError(error, fallback)` (pure) and `useDescribeApiError()` (i18n-aware) turn the typed error into the sentence on screen, treating `status === 0` as offline instead of "erro 0" and a 422 carrying `fields` as the validation sentence instead of the technical `detail`.
-- `error.fields` indexes a 422's messages by field path — the shape that goes straight into a form's `setError`.
+- `describeApiError(error, fallback)` (pure) and `useDescribeApiError()` (i18n-aware) turn the typed error into the sentence on screen, treating `status === 0` as offline instead of "erro 0" and any error carrying `fields` as the validation sentence instead of `detail`.
+- `error.fields` indexes the per-field messages — from a FastAPI 422's list, or from the `detail.field` / `field` / `details.field` keys a `tempest-fastapi-sdk` backend sends. It is the shape that goes straight into a form's `setError`.
 
 ## See also
 

@@ -142,6 +142,45 @@ export function SettingsRoute() {
 }
 ```
 
+### Páginas que recebem props
+
+O componente não perde a tipagem ao passar pelo wrapper. O tipo dele é **inferido** do módulo que a factory resolve, então uma página com prop obrigatória, uma com prop opcional e uma sem prop nenhuma passam todas — e o elemento renderizado continua checado contra as props reais.
+
+```tsx
+import { Suspense } from "react";
+import { lazyWithRetry } from "tempest-react-sdk";
+import { Spinner } from "tempest-react-sdk";
+
+interface EditorProps {
+  mode: "edit" | "view";
+}
+
+function Editor({ mode }: EditorProps) {
+  return <p>modo: {mode}</p>;
+}
+
+const LazyEditor = lazyWithRetry(() => Promise.resolve({ default: Editor }));
+
+export function EditorRoute() {
+  return (
+    <Suspense fallback={<Spinner />}>
+      <LazyEditor mode="edit" />
+    </Suspense>
+  );
+}
+```
+
+!!! note "A checagem de props continua valendo"
+    Trocar `mode="edit"` por `mode="bogus"`, esquecer a prop obrigatória ou
+    passar uma prop que não existe são erros de compilação, exatamente como no
+    componente direto. O wrapper relaxa só o **constraint** genérico — que antes
+    exigia um componente sem props —, nunca a inferência.
+
+!!! tip "Vale igual no `lazy` de rota"
+    O campo `lazy` de um `TempestRouteObject` aceita o mesmo conjunto de
+    componentes, então uma árvore de rotas com páginas tipadas passa por
+    `defineRoutes` sem cast. Veja [Routing](./routing.md).
+
 ### Aquecendo o chunk — `preload()`
 
 O componente devolvido carrega um `preload()`. Chame no momento em que a rota fica **provável**, não quando ela é necessária — o hover do link, a abertura do menu que contém ela, o fim do passo anterior — e o chunk chega antes do usuário decidir. O `Suspense` fallback simplesmente não aparece.

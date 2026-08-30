@@ -90,18 +90,22 @@ function formatLoc(loc: unknown): string | undefined {
 const MAX_DETAIL_DEPTH = 4;
 
 /**
- * Pull field-level messages out of a validation `detail` list.
+ * Pull field-level messages out of a validation `detail` **list**.
  *
  * FastAPI's `422` body is `detail: [{ loc, msg, type }]`, which is exactly what
  * a form needs and exactly what the flattened `detail` string destroys. Only the
  * top level is read: a validation error names one field per entry, and following
  * nesting here would invent paths the backend never sent.
  *
+ * This is one of two ways a body names a field — see {@link collectFields}, which
+ * is the entry point and falls back to the singular keys when the list names
+ * nothing addressable.
+ *
  * @param raw - The `detail` value from the error body.
  * @returns Field path to message, or undefined when the body is not a
  *     validation list (or carries no entry naming a field).
  */
-function collectFields(raw: unknown): Record<string, string> | undefined {
+function collectListFields(raw: unknown): Record<string, string> | undefined {
     if (!Array.isArray(raw)) return undefined;
 
     const fields: Record<string, string> = {};
@@ -116,6 +120,90 @@ function collectFields(raw: unknown): Record<string, string> | undefined {
     }
 
     return Object.keys(fields).length > 0 ? fields : undefined;
+}
+
+/**
+ * Narrow a value to a plain object — a record, and not an array.
+ *
+ * Arrays are excluded because `typeof [] === "object"` while a list means
+ * something else entirely here: FastAPI's `detail` list is read by
+ * {@link collectListFields}, and reading `.field` off it would only ever be
+ * undefined.
+ *
+ * @param value - The candidate value from the error body.
+ * @returns The value as a record, or undefined when it is not a plain object.
+ */
+function plainRecord(value: unknown): Record<string, unknown> | undefined {
+    return typeof value === "object" && value !== null && !Array.isArray(value)
+        ? (value as Record<string, unknown>)
+        : undefined;
+}
+
+/**
+ * Read the field a **singular** error envelope names.
+ *
+ * A backend built on `tempest-fastapi-sdk` never answers with FastAPI's `detail`
+ * list once it owns the handler: it names the guilty field in a key beside the
+ * message. Three shapes are seen in the wild, and they are read inner-out:
+ *
+ * 1. `detail.field` — the field sits in the same object as the message it
+ *    describes (`{ detail: { detail: "Cidade não encontrada…", field: "city" } }`),
+ *    so it is the least ambiguous claim about which message belongs to which input.
+ * 2. `field` at the top level — a flattened `RequestValidationError`
+ *    (`{ detail: "Value error, … for field 'phone' in 'body'", field: "phone" }`)
+ *    makes the same claim one level out.
+ * 3. `details.field` — `details` is the envelope's free-form context bag, not a
+ *    validation channel, and its `field` may be about something no input on screen
+ *    carries (an unknown sort column, say). It answers last for exactly that reason.
+ *
+ * `location` (`"body -> phone"`) is deliberately not parsed: it renders the same
+ * path `field` already names, no observed envelope sends it without `field`, and
+ * splitting an arrow-separated string would invent a path the backend never sent.
+ *
+ * @param body - The parsed error body, or null when it was not an object.
+ * @returns The field name, or undefined when none of the three keys carried a
+ *     non-empty string — anything else is not usable as a key on `fields`.
+ */
+function namedField(body: Record<string, unknown> | null): string | undefined {
+    if (body === null) return undefined;
+    const candidates: readonly unknown[] = [
+        plainRecord(body.detail)?.field,
+        body.field,
+        plainRecord(body.details)?.field,
+    ];
+    for (const candidate of candidates) {
+        if (typeof candidate === "string" && candidate !== "") return candidate;
+    }
+    return undefined;
+}
+
+/**
+ * Index the body's field-level messages, whichever envelope carried them.
+ *
+ * The single entry point behind `ApiError.fields`, and it applies two rules the
+ * tests pin:
+ *
+ * - FastAPI's `detail` list wins whenever it names at least one addressable
+ *   field. A plain FastAPI app still answers a schema-level `422` with that list
+ *   even on a `tempest-fastapi-sdk` backend, so it stays authoritative.
+ * - A named field with no readable message produces nothing. The only string
+ *   left at that point is the synthetic `Erro <status>`, and `{ phone: "Erro 422" }`
+ *   on an input is noise rather than an error message.
+ *
+ * @param body - The parsed error body, or null when it was not an object.
+ * @param message - The readable message the same body produced, before the
+ *     synthetic fallback — the string that also becomes `ApiError.detail`.
+ * @returns Field name to message, or undefined when nothing named a field.
+ */
+function collectFields(
+    body: Record<string, unknown> | null,
+    message: string | undefined,
+): Record<string, string> | undefined {
+    const listed = collectListFields(body?.detail);
+    if (listed !== undefined) return listed;
+    const field = namedField(body);
+    if (field === undefined || message === undefined) return undefined;
+    return { [field]: message };
 }
 
 /**
@@ -231,9 +319,24 @@ export function syntheticDetail(status: number): string {
  * on `fields` (`{ email: "Field required" }`) for a form to consume without
  * parsing that line back apart. The untouched body stays on `body`.
  *
- * That flattened `detail` is developer-facing: it carries the backend's field
- * paths and the validator's own wording. `describeApiError` knows not to show it
- * to a person when `fields` is set.
+ * A backend that owns its handlers — every `tempest-fastapi-sdk` app — sends no
+ * such list, and names the field in a key instead:
+ *
+ * ```json
+ * { "detail": "Value error, … for field 'phone' in 'body'", "field": "phone" }
+ * { "detail": { "detail": "Cidade não encontrada…", "field": "city" },
+ *   "code": "VALIDATION_ERROR", "details": { "field": "city" } }
+ * ```
+ *
+ * Those are indexed too, keyed by the field the backend named and valued with the
+ * same sentence that becomes `detail`. Precedence is the list first, then
+ * `detail.field`, `field`, `details.field` — see {@link collectFields}.
+ *
+ * A flattened `detail` from the list is developer-facing: it carries the
+ * backend's field paths and the validator's own wording. `describeApiError` knows
+ * not to show it to a person when `fields` is set — which now also covers a
+ * business error that named a field, whose `detail` was a finished sentence. That
+ * sentence is not lost: it is on `fields`, attached to the input that failed.
  *
  * @param status - HTTP status code.
  * @param body - The parsed error body (object, string, or null).
@@ -243,8 +346,10 @@ export function syntheticDetail(status: number): string {
  *
  * @tempest-limits param-count — the arguments are the response as it arrives
  * (`status`, `body`, `headers`) plus the id the request was sent with, and they are
- * passed at exactly one place: the client's response path. Exported from the package
- * root, so the rewrite would be breaking for callers that build their own errors.
+ * passed at exactly three places, all of them a client's response path
+ * (`createApiClient`, `uploadWithProgress`, `createResumableUpload`). Wrapping them
+ * in an options object would name each argument twice at every call site to say
+ * nothing new.
  */
 export function buildApiError(
     status: number,
@@ -254,8 +359,8 @@ export function buildApiError(
 ): ApiError {
     const obj =
         typeof body === "object" && body !== null ? (body as Record<string, unknown>) : null;
-    const detail =
-        normalizeDetail(obj?.detail) ?? normalizeDetail(obj?.message) ?? syntheticDetail(status);
+    const message = normalizeDetail(obj?.detail) ?? normalizeDetail(obj?.message);
+    const detail = message ?? syntheticDetail(status);
     const code = typeof obj?.code === "string" ? obj.code : undefined;
     const details =
         typeof obj?.details === "object" && obj.details !== null
@@ -273,7 +378,7 @@ export function buildApiError(
         code,
         requestId: requestId ?? undefined,
         retryAfter: parseRetryAfter(headers?.get("Retry-After")),
-        fields: collectFields(obj?.detail),
+        fields: collectFields(obj, message),
         body,
     };
 }

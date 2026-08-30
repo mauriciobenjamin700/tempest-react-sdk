@@ -1619,6 +1619,2097 @@ O fluxo: o login chama `setSession`, persistindo `user` + `token`. O `ProtectedL
 
 ---
 
+# basics/css-layout.md
+
+# Caixa, fluxo, flex e grid
+
+!!! tip "Pule esta página se você já sabe…"
+
+    - o que `box-sizing: border-box` muda na conta da largura;
+    - a diferença entre eixo principal e eixo cruzado no flexbox;
+    - quando grid é a resposta e quando flex é;
+    - por que uma *container query* responde melhor que uma *media query*.
+
+## O problema
+
+Você quer duas colunas de 50% lado a lado, com um respiro entre elas:
+
+```css
+.coluna {
+    width: 50%;
+    padding: 16px;
+    float: left;
+}
+```
+
+E elas quebram para baixo. O motivo é a **conta da caixa**: por padrão, `width:
+50%` é a largura do **conteúdo**, e o `padding` é somado por fora. Cada coluna
+ocupa `50% + 32px`, e duas não cabem em 100%.
+
+Uma linha resolve, e é a primeira linha de qualquer CSS moderno:
+
+```css
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+```
+
+Com `border-box`, `width: 50%` passa a incluir `padding` e `border`. A conta fecha.
+
+## O modelo de caixa
+
+Todo elemento é quatro retângulos concêntricos:
+
+```
+┌──────────── margin ────────────┐
+│ ┌────────── border ──────────┐ │
+│ │ ┌──────── padding ───────┐ │ │
+│ │ │       content          │ │ │
+│ │ └────────────────────────┘ │ │
+│ └────────────────────────────┘ │
+└────────────────────────────────┘
+```
+
+- **content** — o texto ou a imagem.
+- **padding** — respiro **dentro**, pintado com o fundo do elemento.
+- **border** — a linha.
+- **margin** — respiro **fora**, transparente. Margens verticais adjacentes
+  **colapsam** entre si (duas de 16px viram uma de 16px, não 32px) — motivo pelo
+  qual `gap` costuma ser mais previsível.
+
+## Flexbox: uma dimensão
+
+Flex distribui filhos ao longo de **um** eixo. É a ferramenta para barra, toolbar,
+linha de botões, lista vertical.
+
+```html
+<!doctype html>
+<html lang="pt-BR">
+    <head>
+        <meta charset="utf-8" />
+        <title>Flex</title>
+        <style>
+            *,
+            *::before,
+            *::after {
+                box-sizing: border-box;
+            }
+            .barra {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                padding: 12px;
+                border: 1px solid #ddd;
+            }
+            .titulo {
+                flex: 1;
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="barra">
+            <strong class="titulo">Um título muito comprido que não cabe na barra inteira</strong>
+            <button type="button">Editar</button>
+            <button type="button">Excluir</button>
+        </div>
+    </body>
+</html>
+```
+
+| Propriedade                     | O que faz                                                                    |
+| ------------------------------- | ---------------------------------------------------------------------------- |
+| `display: flex`                 | Liga o eixo principal (horizontal por padrão).                                |
+| `justify-content`               | Distribui no eixo **principal**.                                              |
+| `align-items`                   | Alinha no eixo **cruzado** (vertical, aqui).                                  |
+| `gap`                           | Espaço entre filhos, sem margens colapsando.                                  |
+| `flex: 1`                       | "Cresça para ocupar a sobra."                                                  |
+| `min-width: 0`                  | O destravamento do truncamento — veja abaixo.                                  |
+
+!!! warning "`min-width: 0` é a linha que falta em 90% dos truncamentos quebrados"
+
+    O tamanho mínimo padrão de um item flex é `auto`, que é **o tamanho do
+    conteúdo**. Um texto longo simplesmente se recusa a encolher, e empurra os
+    botões para fora da barra. `min-width: 0` diz "pode encolher abaixo do
+    conteúdo", e só aí `text-overflow: ellipsis` tem efeito.
+
+## Grid: duas dimensões
+
+Grid define linhas **e** colunas de uma vez. É a ferramenta para layout de página,
+formulário de duas colunas, galeria de cartões.
+
+```css
+.galeria {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+}
+```
+
+Essa linha sozinha é um layout responsivo inteiro, **sem media query**: "quantas
+colunas couberem, cada uma com no mínimo 240px, dividindo a sobra igualmente".
+
+!!! info "Regra prática de escolha"
+
+    Uma direção e o conteúdo manda no tamanho → **flex**. Duas direções e o
+    contêiner manda no tamanho → **grid**. Barra de botões é flex; a página inteira
+    é grid.
+
+## Container query: o breakpoint certo
+
+Uma media query pergunta o tamanho da **janela**. Quase sempre a pergunta errada:
+um componente dentro de uma sidebar de 320px, numa janela de 1600px, recebe o
+layout de desktop e fica espremido.
+
+Container query pergunta o tamanho do **contêiner**:
+
+```css
+.painel {
+    container-type: inline-size;
+    container-name: painel;
+}
+
+@container painel (min-width: 40rem) {
+    .cartao {
+        grid-column: span 6;
+    }
+}
+```
+
+O mesmo componente funciona full-bleed, dentro de uma sidebar ou dentro de uma
+gaveta — porque a pergunta passou a ser sobre o espaço que ele **de fato** tem.
+
+## Onde isso aparece no SDK
+
+O SDK publica uma folha **opt-in** de layout, `utilities.css`, que não vem no
+bundle padrão. Importe quando quiser:
+
+```ts
+import "tempest-react-sdk/styles.css";
+import "tempest-react-sdk/utilities.css"; // opcional
+```
+
+Ela traz as receitas acima já nomeadas — `.tempest-stack`, `.tempest-cluster`,
+`.tempest-row`, `.tempest-grid-auto`, `.tempest-sidebar-layout`,
+`.tempest-form-grid` — e a receita de página inteira, o dashboard:
+
+```html
+<div class="tempest-dashboard">
+    <section class="tempest-widget tempest-widget-half">Vendas</section>
+    <section class="tempest-widget tempest-widget-half">Visitas</section>
+    <section class="tempest-widget tempest-widget-tall">Série temporal</section>
+</div>
+```
+
+`.tempest-dashboard` é um grid de 12 colunas com `container-type: inline-size`, e os
+spans dos widgets abrem em duas etapas — 40rem e 64rem — **do contêiner**, não da
+janela. Um widget nasce ocupando a largura toda, porque dashboard lido no celular é
+uma coluna só, e essa é a maior parte da vida dele.
+
+Detalhes e a lista completa em [Estilos & Design Tokens](../styles.md).
+
+## Recap
+
+- `box-sizing: border-box` faz `width` incluir `padding` e `border` — é a primeira
+  linha do seu CSS. ✅
+- Margens verticais adjacentes colapsam; `gap` não colapsa, por isso é mais
+  previsível.
+- Flex é **uma** dimensão (barra, toolbar); grid é **duas** (página, galeria,
+  formulário).
+- `min-width: 0` é o que deixa um item flex encolher abaixo do conteúdo — sem ele
+  `ellipsis` não funciona.
+- Container query pergunta o tamanho do contêiner, que é a pergunta certa para um
+  componente reusável.
+- No SDK, `utilities.css` é **opt-in** e traz essas receitas nomeadas, incluindo o
+  `.tempest-dashboard` com spans por container query.
+
+📚 **Referência canônica:** [MDN — Flexbox](https://developer.mozilla.org/pt-BR/docs/Web/CSS/CSS_Flexible_Box_Layout) · [MDN — Grid](https://developer.mozilla.org/pt-BR/docs/Web/CSS/CSS_Grid_Layout)
+
+➡️ **Próxima página:** [Custom properties e tema](css-variables.md)
+
+---
+
+# basics/css-variables.md
+
+# Custom properties e tema
+
+!!! tip "Pule esta página se você já sabe…"
+
+    - que `--minha-cor` é uma propriedade CSS de verdade, e que ela **herda**;
+    - a diferença entre `var(--x)` e `var(--x, fallback)`;
+    - por que sobrescrever numa subárvore muda só aquele pedaço da tela;
+    - por que uma custom property vence a variável de pré-processador.
+
+## O problema
+
+Um app com a cor da marca escrita em quarenta arquivos:
+
+```css
+.botao {
+    background: #3b82f6;
+}
+.link {
+    color: #3b82f6;
+}
+.badge {
+    border-color: #3b82f6;
+}
+```
+
+Trocar a marca é quarenta edições. Suportar tema escuro é quarenta **pares** de
+edições. E um cliente que quer a própria cor é impossível sem rebuild.
+
+## A solução tem uma linha
+
+Custom property é uma propriedade CSS como qualquer outra — só que o nome começa com
+`--` e o valor é seu:
+
+```css
+:root {
+    --cor-marca: #3b82f6;
+}
+
+.botao {
+    background: var(--cor-marca);
+}
+```
+
+Agora a marca mora num lugar só. Mas o que faz isso ser a estratégia inteira de
+tema não é a centralização — é a **herança**.
+
+## Um exemplo completo
+
+Arquivo único. Abra no browser: os dois cartões são o **mesmo** CSS, e um deles é
+escuro.
+
+```html
+<!doctype html>
+<html lang="pt-BR">
+    <head>
+        <meta charset="utf-8" />
+        <title>Custom properties</title>
+        <style>
+            :root {
+                --fundo: #ffffff;
+                --texto: #101828;
+                --marca: #3b82f6;
+                --raio: 8px;
+            }
+
+            [data-tema="dark"] {
+                --fundo: #0b0d12;
+                --texto: #f1f3f8;
+                --marca: #7aa2ff;
+            }
+
+            .cartao {
+                background: var(--fundo);
+                color: var(--texto);
+                border: 1px solid var(--marca);
+                border-radius: var(--raio);
+                padding: 16px;
+                margin-bottom: 12px;
+                font-family: system-ui, sans-serif;
+            }
+
+            .cartao button {
+                background: var(--marca);
+                color: var(--fundo);
+                border: 0;
+                border-radius: var(--raio);
+                padding: 8px 16px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="cartao">
+            <p>Claro — usa os valores do <code>:root</code>.</p>
+            <button type="button">Ação</button>
+        </div>
+
+        <div class="cartao" data-tema="dark">
+            <p>Escuro — mesmas regras, valores sobrescritos aqui.</p>
+            <button type="button">Ação</button>
+        </div>
+    </body>
+</html>
+```
+
+Nenhuma regra de `.cartao` foi duplicada. O segundo cartão redefine três valores no
+próprio elemento, e **tudo abaixo dele** — inclusive o `<button>`, que a regra
+`.cartao button` estiliza — passa a resolver `var(--marca)` para o valor novo.
+
+### Por que isso funciona
+
+Custom properties herdam. `var(--marca)` não é "leia a variável global": é "leia o
+valor de `--marca` **neste elemento**", e se ele não a definiu, o valor vem do pai,
+e do pai do pai, até o `:root`.
+
+É essa cadeia que torna o tema por subárvore possível. E é por isso que uma
+variável de Sass **não** faz o mesmo: `$marca` é resolvida na hora do build e
+desaparece do CSS. Custom property existe em tempo de execução — o JS lê e escreve.
+
+```js
+// leitura
+getComputedStyle(document.documentElement).getPropertyValue("--marca");
+
+// escrita
+document.documentElement.style.setProperty("--marca", "#e11d48");
+```
+
+## `var()` com fallback
+
+O segundo argumento é o valor usado quando a propriedade **não está definida**:
+
+```css
+.cartao {
+    padding: var(--cartao-padding, 16px);
+}
+```
+
+Isso cria um **knob**: quem consome pode definir `--cartao-padding` e mudar o
+espaçamento, e quem não define ganha o `16px`. Diferente de um token — que é uma
+decisão de design nomeada, sempre definida — o knob existe justamente para ser
+opcional.
+
+!!! tip "O linter de CSS do SDK trata os dois de forma diferente"
+
+    `tempest doctor` acusa `var(--nao-existe)` sem fallback como token inexistente,
+    e **nunca** reporta `var(--x, fallback)`. Essa regra saiu do dogfood: a primeira
+    versão da análise acusou 47 problemas no CSS do próprio SDK, e 43 eram o idioma
+    de knob. Taxa de falso positivo decide se a ferramenta é lida ou ignorada.
+
+## Onde isso aparece no SDK
+
+Esta é a **estratégia inteira** de tema do `tempest-react-sdk`. Não há prop de cor,
+não há objeto de tema em JS, não há provider obrigatório para estilo: existem
+tokens `--tempest-*` definidos no `:root` e redefinidos sob
+`[data-tempest-theme="dark"]`.
+
+```css
+:root {
+    --tempest-bg: #ffffff;
+    --tempest-surface: var(--tempest-gray-50);
+    --tempest-text: var(--tempest-gray-900);
+    --tempest-primary: var(--tempest-primary-500);
+}
+
+[data-tempest-theme="dark"] {
+    --tempest-bg: #0b0d12;
+    --tempest-text: #f1f3f8;
+}
+```
+
+Customizar o app inteiro é sobrescrever no seu próprio CSS, importado depois:
+
+```css
+:root {
+    --tempest-primary: #e11d48;
+    --tempest-radius-md: 4px;
+}
+```
+
+Pronto — todo `<Button>`, `<Badge>`, `<Input>` e o resto repintam. Você não tocou em
+seletor nenhum, então não há briga de especificidade ([CSS: cascata](css.md)).
+
+!!! info "Escuro por atributo, não por classe"
+
+    O SDK usa `data-tempest-theme="dark"`, não `class="dark"`. O motivo é o
+    exemplo desta página: como o atributo pode ficar em **qualquer** elemento, você
+    escurece uma subárvore — um preview, uma gaveta, um painel — sem escurecer a
+    página. Uma classe global não daria isso de graça.
+
+    O `<ThemeProvider>` gerencia o atributo, e `themeInitScript` o aplica **antes**
+    da primeira pintura, para a página não piscar branco. Detalhes em
+    [Tema](../theme.md).
+
+!!! warning "Token de texto validado contra um fundo não vale sobre outro"
+
+    `--tempest-text-subtle` é resolvido contra `--tempest-bg` e `--tempest-surface`,
+    e **reprova** 4,5:1 sobre `--tempest-primary-soft`. Sobre superfície tingida,
+    use o foreground daquela superfície (`--tempest-primary-on-soft`) e
+    de-enfatize por **tamanho**, não por cor. Isso aconteceu duas vezes no SDK e as
+    duas só apareceu em browser real — o `axe` em jsdom desliga a checagem de
+    contraste porque não há pintura.
+
+## Recap
+
+- Custom property é propriedade CSS de verdade: `--x` **herda** do pai até o
+  `:root`. ✅
+- Sobrescrever numa subárvore muda só aquele pedaço da tela — é o que torna o tema
+  por região possível.
+- Ela existe em runtime; o JS lê com `getPropertyValue` e escreve com
+  `setProperty`. Variável de Sass some no build.
+- `var(--x, fallback)` é um **knob** opcional; `var(--x)` é um token que deve
+  existir.
+- No SDK: tokens `--tempest-*` no `:root`, tema escuro em
+  `[data-tempest-theme="dark"]`, e customizar é sobrescrever token — nunca brigar
+  com seletor.
+
+📚 **Referência canônica:** [MDN — Custom properties](https://developer.mozilla.org/pt-BR/docs/Web/CSS/Using_CSS_custom_properties)
+
+➡️ **Próxima página:** [JavaScript: valor, referência, escopo](js.md)
+
+---
+
+# basics/css.md
+
+# CSS: seletor, cascata, especificidade
+
+!!! tip "Pule esta página se você já sabe…"
+
+    - ler uma especificidade como `(0, 1, 0)` e dizer quem ganha;
+    - que a ordem no arquivo desempata regras de mesma especificidade;
+    - por que `!important` resolve hoje e cobra amanhã;
+    - o que herda e o que não herda.
+
+## O problema
+
+Você quer o botão vermelho. Escreve isto e nada muda:
+
+```css
+.botao {
+    background: red;
+}
+```
+
+Então escreve isto, e funciona:
+
+```css
+.botao {
+    background: red !important;
+}
+```
+
+O bug não foi resolvido — foi adiado. Em algum lugar existe uma regra que ganhou da
+sua, e agora existem duas regras brigando, uma delas com uma arma que só pode ser
+respondida com outra `!important`. Três meses depois o app tem quarenta delas e
+trocar de tema é impossível.
+
+Vale a pena saber **quem** ganhou.
+
+## Um exemplo completo
+
+Arquivo único, abra no browser:
+
+```html
+<!doctype html>
+<html lang="pt-BR">
+    <head>
+        <meta charset="utf-8" />
+        <title>Cascata</title>
+        <style>
+            button {
+                background: gray;
+            }
+            .botao {
+                background: blue;
+            }
+            #salvar {
+                background: green;
+            }
+            .barra .botao {
+                background: orange;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="barra">
+            <button id="salvar" class="botao">Salvar</button>
+        </div>
+    </body>
+</html>
+```
+
+O botão fica **verde**. Quatro regras casam com ele, e a que vence é a do `#id`.
+
+### A conta
+
+Toda regra tem uma especificidade de três números — `(id, classe, tipo)`:
+
+| Seletor         | id  | classe | tipo | Vetor       |
+| --------------- | --- | ------ | ---- | ----------- |
+| `button`        | 0   | 0      | 1    | `(0, 0, 1)` |
+| `.botao`        | 0   | 1      | 0    | `(0, 1, 0)` |
+| `.barra .botao` | 0   | 2      | 0    | `(0, 2, 0)` |
+| `#salvar`       | 1   | 0      | 0    | `(1, 0, 0)` |
+
+Compara-se **da esquerda para a direita**, e é comparação lexicográfica, não soma:
+`(1, 0, 0)` ganha de `(0, 99, 0)`. Nenhuma quantidade de classes alcança um `id`.
+
+Contam como **classe**: `.classe`, `[atributo]`, `:hover`, `:focus`, `:not(...)`
+(o `:not` em si vale zero, mas o que está dentro conta). Contam como **tipo**:
+`div`, `button`, `::before`. `*` vale zero.
+
+!!! info "A ordem desempata — e só desempata"
+
+    Duas regras com a **mesma** especificidade: ganha a que vem **depois**. Isso é
+    o que faz o CSS do seu app sobrescrever o CSS de uma biblioteca — desde que
+    você importe o seu depois, e use a mesma especificidade.
+
+## O que ganha de tudo
+
+A ordem completa que o browser aplica, do mais forte para o mais fraco:
+
+1. `!important` do usuário (folha de estilo do próprio usuário — raro)
+2. `!important` do autor (o seu, e o da biblioteca)
+3. `style="..."` inline
+4. Autor normal, resolvido por camada → especificidade → ordem
+
+`!important` não é "mais especificidade": ele **pula a fila inteira**. É por isso
+que só se responde a ele com outro `!important`, e é por isso que ele é dívida.
+
+!!! warning "O sintoma de que a especificidade está fora de controle"
+
+    Você escreve um seletor mais longo do que precisa (`.pagina .cartao .titulo h2`)
+    só para ganhar de outro. Cada vez que isso acontece, a próxima pessoa precisa
+    de um ainda mais longo. A saída não é escalar — é baixar a especificidade dos
+    dois lados.
+
+## O que herda
+
+Algumas propriedades passam de pai para filho sem você pedir: `color`,
+`font-family`, `font-size`, `line-height`, `text-align`, `visibility` — e
+**custom properties** (`--minha-cor`), que é o que faz o tema funcionar.
+
+Não herdam: `background`, `border`, `padding`, `margin`, `display`, `width`. Elas
+valem só no elemento em que você as escreveu.
+
+```css
+body {
+    color: #333; /* herda: todo texto abaixo fica #333 */
+    border: 1px solid red; /* não herda: só o body ganha borda */
+}
+```
+
+## Onde isso aparece no SDK
+
+O `tempest-react-sdk` estiliza **só** por CSS Modules, e cada classe sai do build
+com o nome transformado:
+
+```
+.button { }        →        .tempest_button_a3f9k { }
+```
+
+Isso é uma escolha de especificidade, não de estética. Toda regra do SDK é **uma
+classe só** — `(0, 1, 0)` — porque:
+
+- **Não colide.** O hash garante que `.button` do SDK e `.button` do seu app são
+  seletores diferentes. Nenhum dos dois precisa de seletor longo para se defender.
+- **É fácil de sobrescrever.** Sua classe própria, com a mesma `(0, 1, 0)`,
+  importada **depois** de `tempest-react-sdk/styles.css`, ganha por ordem. Você
+  nunca precisa de `!important` para ajustar um componente.
+
+```tsx
+import "tempest-react-sdk/styles.css";
+import "./app.css"; // depois: seus overrides ganham no desempate
+```
+
+!!! tip "Sobrescrever token é melhor que sobrescrever regra"
+
+    Na maior parte dos casos você nem precisa de uma classe: mudar
+    `--tempest-primary` no `:root` repinta o componente inteiro sem tocar em
+    seletor nenhum. É o assunto de [Custom properties e tema](css-variables.md).
+
+!!! note "Por que não existe modo *headless*"
+
+    Uma pergunta recorrente é se o SDK poderia emitir `data-*` em vez de classes,
+    para o app estilizar com Tailwind ou Stitches. A resposta é não, e o motivo
+    está em [Estilos & Design Tokens](../styles.md): manter um segundo caminho de estilo
+    dobraria a superfície de cada componente e diluiria os tokens. Um app com
+    Tailwind **convive** com o SDK — o prefixo `tempest_` garante que nada colide.
+
+## Recap
+
+- Especificidade é o vetor `(id, classe, tipo)`, comparado da esquerda para a
+  direita. `(1,0,0)` ganha de `(0,99,0)`. ✅
+- Ordem no arquivo **desempata** regras de mesma especificidade — é como o CSS do
+  app sobrescreve o de uma biblioteca.
+- `!important` não é especificidade alta, é pular a fila. Ele só é respondido com
+  outro, e é assim que um app perde a capacidade de trocar de tema.
+- `color` e as custom properties **herdam**; `background`, `border` e `padding`
+  não.
+- No SDK toda regra é uma classe só, com hash `tempest_*`: não colide e é barata de
+  sobrescrever — importe o seu CSS depois do `styles.css`.
+
+📚 **Referência canônica:** [MDN — Cascata e herança](https://developer.mozilla.org/pt-BR/docs/Learn/CSS/Building_blocks/Cascade_and_inheritance)
+
+➡️ **Próxima página:** [Caixa, fluxo, flex e grid](css-layout.md)
+
+---
+
+# basics/html-forms.md
+
+# Formulário e acessibilidade
+
+!!! tip "Pule esta página se você já sabe…"
+
+    - por que `<label for>` precisa casar com o `id` do campo;
+    - a diferença entre `name`, `id` e `value`;
+    - o que `required`, `type` e `aria-invalid` fazem sem uma linha de JS;
+    - por que `aria-label` é o **último** recurso, não o primeiro.
+
+## O problema
+
+Este campo parece certo:
+
+```html
+<div>Email</div>
+<input type="text" />
+```
+
+O texto "Email" está ali, você lê na tela. Mas para o browser aquilo são duas
+coisas sem relação nenhuma:
+
+- clicar no texto **não** foca o campo;
+- o leitor de tela anuncia "caixa de edição, em branco" — sem nome;
+- em um formulário com seis campos assim, todos se anunciam igual.
+
+O conserto não é `aria-label`. É a relação que faltava:
+
+```html
+<label for="email">Email</label>
+<input id="email" name="email" type="email" required />
+```
+
+## Um formulário completo
+
+Arquivo inteiro, sem JS nenhum. Abra no browser e tente enviar vazio — o browser
+já valida:
+
+```html
+<!doctype html>
+<html lang="pt-BR">
+    <head>
+        <meta charset="utf-8" />
+        <title>Cadastro</title>
+    </head>
+    <body>
+        <main>
+            <h1>Criar conta</h1>
+
+            <form action="/signup" method="post">
+                <p>
+                    <label for="email">Email</label>
+                    <input
+                        id="email"
+                        name="email"
+                        type="email"
+                        required
+                        autocomplete="email"
+                        aria-describedby="email-hint"
+                    />
+                    <small id="email-hint">Usamos só para o login.</small>
+                </p>
+
+                <p>
+                    <label for="senha">Senha</label>
+                    <input
+                        id="senha"
+                        name="senha"
+                        type="password"
+                        required
+                        minlength="8"
+                        autocomplete="new-password"
+                    />
+                </p>
+
+                <p>
+                    <label for="plano">Plano</label>
+                    <select id="plano" name="plano">
+                        <option value="free">Grátis</option>
+                        <option value="pro">Pro</option>
+                    </select>
+                </p>
+
+                <button type="submit">Criar conta</button>
+            </form>
+        </main>
+    </body>
+</html>
+```
+
+### Pedaço por pedaço
+
+| Atributo                 | O que ele compra                                                                                              |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| `for` + `id`             | A **relação** entre rótulo e campo. Clicar no rótulo foca o campo; o leitor de tela anuncia "Email, caixa de edição". |
+| `name`                   | A **chave** enviada no submit. É o nome do dado, não o do elemento — `id` é o do elemento.                      |
+| `type="email"`           | Teclado com `@` no celular, e validação nativa de formato.                                                     |
+| `required`               | Bloqueia o submit e mostra a mensagem do browser, sem JS.                                                       |
+| `minlength="8"`          | Mesma coisa para tamanho mínimo.                                                                                |
+| `autocomplete`           | Deixa o gerenciador de senhas preencher e **salvar**. `new-password` sugere uma senha forte.                    |
+| `aria-describedby`       | Amarra a dica ao campo, então ela é lida **junto** com o rótulo, não como texto solto.                          |
+
+!!! warning "`id` é único na página inteira"
+
+    Dois campos com `id="email"` fazem o `for` apontar para o primeiro, sempre.
+    Em React isso acontece o tempo todo quando o mesmo formulário é renderizado
+    duas vezes na tela — é exatamente o problema que o `useId()` resolve, e é o
+    que o `<Input>` do SDK usa por baixo.
+
+## A ordem de precedência do nome acessível
+
+Todo controle tem um **nome acessível**, e o browser o resolve por uma ordem fixa.
+Simplificada, e na prática é o que importa:
+
+1. `aria-labelledby` (aponta para o `id` de outro elemento)
+2. `aria-label` (uma string escrita à mão)
+3. `<label for>` associado
+4. `placeholder`, `title` — e aí você já está no fundo do poço
+
+O `aria-label` **ganha** do `<label>`. Isso é o que o faz útil e é também o que o
+faz perigoso: se você escrever os dois e eles divergirem, o usuário de leitor de
+tela ouve um nome e o usuário que enxerga lê outro. Um usuário de comando de voz
+que fala "clicar em Email" não acha o campo cujo `aria-label` diz outra coisa.
+
+!!! danger "`placeholder` não é rótulo"
+
+    Ele some quando você digita. Um formulário rotulado só por `placeholder` fica
+    sem nenhum rótulo exatamente no momento em que o usuário revisa o que
+    preencheu — e o contraste dele costuma reprovar em 4,5:1.
+
+## Onde isso aparece no SDK
+
+O `<Input>` do `tempest-react-sdk` monta essa relação inteira sozinho:
+
+```tsx
+import { Input } from "tempest-react-sdk";
+
+export function EmailField() {
+    return <Input label="Email" type="email" required helperText="Usamos só para o login." />;
+}
+```
+
+Sem você passar `id`, ele gera um com `useId()`, usa esse valor no `htmlFor` do
+`<label>` e no `id` do `<input>`, e ainda liga o texto de ajuda por
+`aria-describedby` (que vira `aria-describedby` do erro quando há erro, com
+`aria-invalid` junto).
+
+O `<FormField>` é a camada acima: ele lê o estado do `react-hook-form` e injeta
+`value`, `onChange`, `onBlur`, `error`, `required` e `aria-invalid` no campo filho.
+Você declara a validação uma vez no schema zod, e o markup acessível sai de graça —
+veja [Forms (zod)](../forms.md).
+
+### O caso em que `aria-label` é a resposta certa
+
+O `<Slider>` aceita `aria-label` de propósito:
+
+```tsx
+import { Slider } from "tempest-react-sdk";
+
+export function VolumeControl({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+    return <Slider aria-label="Volume da chamada" value={value} onChange={onChange} min={0} max={100} />;
+}
+```
+
+Um slider num rodapé de uma linha, numa célula de tabela ou numa toolbar não tem
+espaço para a linha de rótulo acima da trilha. Sem `aria-label`, **todos** eles se
+anunciam como "Slider" e ficam indistinguíveis. Essa é a regra: `aria-label` é para
+quando o rótulo visível **não cabe** — não para quando você não quis escrevê-lo.
+
+## Recap
+
+- `<label for>` + `id` é a relação que faz o rótulo existir para o browser. ✅
+- `name` é a chave do dado enviado; `id` é a identidade do elemento na página.
+- `type`, `required`, `minlength` e `autocomplete` compram validação, teclado e
+  gerenciador de senha **sem uma linha de JS**.
+- `aria-label` ganha do `<label>` — use quando o rótulo visível não cabe, e nunca
+  divergindo do texto visível.
+- `placeholder` não é rótulo: ele some na hora em que o usuário mais precisa dele.
+- No SDK, `<Input>` gera o `id` com `useId()` e amarra tudo; `<FormField>` traz o
+  estado de validação para dentro do campo.
+
+📚 **Referência canônica:** [MDN — Formulários](https://developer.mozilla.org/pt-BR/docs/Learn/Forms)
+
+➡️ **Próxima página:** [CSS: seletor, cascata, especificidade](css.md)
+
+---
+
+# basics/html.md
+
+# HTML: estrutura e semântica
+
+!!! tip "Pule esta página se você já sabe…"
+
+    - que a tag escolhida muda **comportamento**, não só aparência;
+    - a diferença entre elemento de bloco e elemento inline;
+    - por que `<div onClick>` não é um botão;
+    - o que o browser monta a partir do seu markup (a árvore de acessibilidade).
+
+## O problema
+
+Este código funciona. Clique, e o `alert` aparece:
+
+```html
+<div class="botao" onclick="alert('salvo')">Salvar</div>
+```
+
+E mesmo assim ele está errado de quatro formas ao mesmo tempo, todas invisíveis
+para quem testou só com o mouse:
+
+- **Não recebe foco.** Você não chega nele com `Tab`.
+- **Não responde a teclado.** `Enter` e `Espaço` não disparam nada.
+- **Não se anuncia.** Um leitor de tela lê "Salvar", não "Salvar, botão".
+- **Não sabe estar desabilitado.** Não existe `disabled` em `<div>`.
+
+Troque uma palavra e as quatro somem:
+
+```html
+<button class="botao" onclick="alert('salvo')">Salvar</button>
+```
+
+Isso é **semântica**: a tag não é um rótulo decorativo, é um contrato de
+comportamento com o browser.
+
+## Um documento completo
+
+Salve como `index.html` e abra no browser — é um arquivo inteiro, sem dependência
+nenhuma:
+
+```html
+<!doctype html>
+<html lang="pt-BR">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Lista de tarefas</title>
+    </head>
+    <body>
+        <header>
+            <h1>Minhas tarefas</h1>
+        </header>
+
+        <main>
+            <section aria-labelledby="pendentes">
+                <h2 id="pendentes">Pendentes</h2>
+                <ul>
+                    <li>Comprar café</li>
+                    <li>Escrever a doc</li>
+                </ul>
+            </section>
+
+            <button type="button" onclick="alert('nova tarefa')">Nova tarefa</button>
+        </main>
+
+        <footer>
+            <p>Feito com HTML puro.</p>
+        </footer>
+    </body>
+</html>
+```
+
+### Pedaço por pedaço
+
+| Linha                     | Por que ela está aí                                                                                       |
+| ------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `<!doctype html>`         | Coloca o browser em **modo padrão**. Sem isso ele entra em "quirks mode" e o CSS se comporta como em 1998. |
+| `lang="pt-BR"`            | Diz ao leitor de tela **em que língua ler** e ao browser como hifenizar.                                   |
+| `<meta charset="utf-8">`  | Sem isso, `ç` e `ã` viram lixo. Vem antes de qualquer texto.                                                |
+| `<meta name="viewport">`  | Sem isso, o celular renderiza uma página de 980px e reduz o zoom. É o que faz o responsivo existir.        |
+| `<main>`                  | Marca o conteúdo principal. Leitores de tela oferecem "pular para o conteúdo" por causa dele.               |
+| `<h1>`/`<h2>`             | Formam o **índice** do documento. Não escolha o nível pelo tamanho da fonte — isso é trabalho do CSS.       |
+| `<ul>`/`<li>`             | O leitor de tela anuncia "lista de 2 itens". Uma pilha de `<div>` não anuncia nada.                        |
+| `aria-labelledby`         | Amarra a `<section>` ao seu próprio `<h2>`, então a região tem nome.                                        |
+
+!!! warning "Um `<h1>` por página, e sem pular níveis"
+
+    `<h1>` → `<h3>` sem `<h2>` no meio quebra a navegação por cabeçalho, que é
+    como muita gente lê uma página inteira. Se o `<h2>` está grande demais,
+    conserte no CSS, não trocando a tag.
+
+## Bloco e inline
+
+Todo elemento tem um comportamento de fluxo padrão:
+
+- **Bloco** (`<div>`, `<p>`, `<section>`, `<h1>`, `<ul>`) ocupa a largura toda e
+  empurra o próximo para baixo.
+- **Inline** (`<span>`, `<a>`, `<strong>`, `<em>`) ocupa só o que o conteúdo pede e
+  fica na mesma linha.
+
+Isso é o **default**, não uma lei: o CSS troca com `display`. Mas o default é o que
+você vê antes de escrever uma linha de CSS, e entender isso é metade dos "por que
+esse elemento está esticado?".
+
+!!! info "`<div>` e `<span>` não são proibidos"
+
+    Eles são as tags **sem** semântica, e existem exatamente para quando não há
+    significado a declarar — um wrapper que só existe para o layout, por exemplo.
+    O erro não é usá-los; é usá-los no lugar de uma tag que **tinha** significado.
+
+## A árvore de acessibilidade
+
+A partir do seu markup o browser monta duas árvores: o **DOM**, que o CSS e o JS
+manipulam, e a **árvore de acessibilidade**, que é o que leitor de tela, navegação
+por teclado e automação de teste enxergam.
+
+`<button>` entra nessa segunda árvore como `role=button`, focável, com nome
+acessível "Salvar". `<div onclick>` entra como um nó genérico, sem papel e sem
+nome. É por isso que a troca de tag conserta quatro bugs de uma vez: você não
+adicionou comportamento, você declarou o que a coisa **é**.
+
+!!! tip "Isso é testável, e o SDK testa"
+
+    `@testing-library/react` consulta pela árvore de acessibilidade —
+    `getByRole("button", { name: "Salvar" })`. Um teste escrito assim falha no
+    `<div onclick>` e passa no `<button>`. É o mesmo motivo pelo qual o SDK roda um
+    sweep do `axe` em jsdom: markup sem semântica reprova antes do merge.
+
+## Onde isso aparece no SDK
+
+Os componentes do `tempest-react-sdk` renderizam **a tag certa**, não uma `<div>`
+estilizada — e isso é o que faz o teclado e o leitor de tela funcionarem de graça
+no seu app:
+
+| Componente                   | Renderiza                        |
+| ---------------------------- | -------------------------------- |
+| `<Button>`                   | `<button>` de verdade            |
+| `<Table>`                    | `<table>` / `<thead>` / `<tbody>` |
+| `<Input>`                    | `<label htmlFor>` + `<input>`     |
+
+`<Stack>` é a exceção que confirma a regra: ele renderiza uma `<div>` flexível,
+porque o papel dele é **só** layout — não há significado a declarar. Quando você
+precisa de uma lista de verdade, use `<ul>`; quando precisa de uma tabela, use
+`<Table>`.
+
+## Recap
+
+- A tag escolhida é um **contrato de comportamento**, não um rótulo visual. ✅
+- `<button>` traz foco, teclado, papel e `disabled` de graça; `<div onclick>` não
+  traz nenhum dos quatro.
+- `<!doctype>`, `lang`, `charset` e `viewport` são as quatro linhas que fazem a
+  página se comportar — nenhuma delas é opcional.
+- Cabeçalhos formam o índice do documento: um `<h1>`, sem pular níveis, tamanho
+  resolvido no CSS.
+- `<div>` e `<span>` são as tags **sem** semântica, e servem para quando não há
+  significado a declarar.
+
+📚 **Referência canônica:** [MDN — HTML](https://developer.mozilla.org/pt-BR/docs/Web/HTML)
+
+➡️ **Próxima página:** [Formulário e acessibilidade](html-forms.md)
+
+---
+
+# basics/index.md
+
+# Fundamentos da Web — Comece por aqui
+
+Esta trilha é **opcional**. Ela existe para quem já programa — em Python, Java, C#,
+Go, o que for — mas nunca precisou aprender **a plataforma web**: HTML, CSS, o
+JavaScript que roda no browser, e o mínimo de TypeScript e React que o
+`tempest-react-sdk` assume em toda página.
+
+O [Tutorial](../tutorial/index.md) começa em `create-tempest-app` e já supõe que
+você sabe o que é um componente, um hook, um módulo ES e um tipo. Se isso soa como
+uma lista de palavras, **comece aqui**. Se soa óbvio, pule direto para o tutorial —
+nada nesta trilha é pré-requisito dele. 🚀
+
+## O caminho expresso
+
+Você não precisa ler as onze páginas. Cada uma abre com um bloco
+**"Pule esta página se você já sabe…"**, e a tabela abaixo é o atalho: ache o
+sintoma, vá na página.
+
+| Se você já viu isso acontecer…                                              | Leia                                       |
+| --------------------------------------------------------------------------- | ------------------------------------------ |
+| "Coloquei `!important` até parar de piscar"                                 | [Cascata e especificidade](css.md)         |
+| "Mudei a cor no `:root` e não pegou em tudo"                                | [Custom properties e tema](css-variables.md) |
+| "O layout quebra quando o texto é grande"                                   | [Caixa, fluxo, flex e grid](css-layout.md) |
+| "Meu `useEffect` roda em loop infinito"                                     | [Valor, referência, escopo](js.md)         |
+| "O `console.log` mostra o dado, mas a tela mostra vazio"                    | [Promise, await, fetch](js-async.md)       |
+| "Importei uma coisa só e o bundle cresceu 8 KB"                             | [Módulos, npm e o bundler](js-modules.md)  |
+| "O TypeScript reclama de um tipo que eu não escrevi"                        | [O mínimo que o SDK usa](typescript.md)    |
+| "O leitor de tela não anuncia o campo"                                      | [Formulário e acessibilidade](html-forms.md) |
+
+## Como cada página é feita
+
+Todas seguem a mesma forma, a mesma do resto deste site:
+
+1. **Pule se você já sabe** — a lista exata do que a página cobre.
+2. **O problema** — o bug real que aparece quando o conceito falta.
+3. **Um exemplo completo** — arquivo inteiro, copiável, que roda. Nunca um
+   fragmento com `...`.
+4. **Pedaço por pedaço** — o *porquê*, não só o *como*.
+5. **Onde isso aparece no SDK** — o ponto que amarra o conceito ao código que você
+   já tem na frente.
+6. **Recap** — os pontos da página em cinco linhas.
+
+!!! info "Esta trilha não substitui a MDN"
+
+    A [MDN Web Docs](https://developer.mozilla.org/pt-BR/) é o dicionário da
+    plataforma web, e cada página aqui linka a referência canônica. O que esta
+    trilha oferece é a **ordem**: o que aprender primeiro, e por que aquilo importa
+    para o app que você tem na sua frente.
+
+!!! note "O que fica de fora"
+
+    Lógica de programação, algoritmo e estrutura de dados. O alvo é quem **já
+    programa** e não conhece a plataforma web — não quem está aprendendo a
+    programar.
+
+## As onze páginas
+
+### Como a página existe
+
+| Página                                              | Você sai sabendo                                              |
+| --------------------------------------------------- | ------------------------------------------------------------- |
+| [HTML: estrutura e semântica](html.md)              | Por que a tag escolhida muda comportamento, não só aparência  |
+| [Formulário e acessibilidade](html-forms.md)        | `<label>`, `for`/`id`, e por que o `aria-label` é o último recurso |
+
+### Como a página parece
+
+| Página                                                  | Você sai sabendo                                          |
+| ------------------------------------------------------- | --------------------------------------------------------- |
+| [CSS: seletor, cascata, especificidade](css.md)         | Quem ganha de quem, e por que `!important` é uma dívida   |
+| [Caixa, fluxo, flex e grid](css-layout.md)              | Por que o elemento tem aquele tamanho, e como o layout responde |
+| [Custom properties e tema](css-variables.md)            | Como `--tempest-*` herda — a estratégia de tema inteira   |
+
+### Como a página reage
+
+| Página                                            | Você sai sabendo                                              |
+| ------------------------------------------------- | ------------------------------------------------------------- |
+| [JavaScript: valor, referência, escopo](js.md)    | Por que um objeto inline quebra memoização                    |
+| [Assíncrono: promise, await, fetch](js-async.md)  | Por que o dado "some", e o que é uma resposta vazia de sucesso |
+| [Módulos, npm e o bundler](js-modules.md)         | O que o `import` custa, e o que tree-shaking cobra            |
+
+### Antes do tutorial
+
+| Página                                                    | Você sai sabendo                                    |
+| --------------------------------------------------------- | --------------------------------------------------- |
+| [TypeScript: o mínimo que o SDK usa](typescript.md)       | Ler uma assinatura de export público sem travar     |
+| [React: componente, estado, efeito](react.md)             | O modelo mental que o Tutorial assume da página um   |
+
+## Recap
+
+- A trilha é **opcional** e nenhuma página dela é pré-requisito do
+  [Tutorial](../tutorial/index.md). ✅
+- Use a **tabela de sintomas** acima se você só quer fechar uma lacuna
+  específica.
+- Cada página ensina **o conceito** e termina mostrando **onde ele já está
+  funcionando** no SDK.
+- Nada aqui é sobre lógica de programação — é sobre a plataforma web.
+
+➡️ **Próxima página:** [HTML: estrutura e semântica](html.md)
+
+---
+
+# basics/js-async.md
+
+# Assíncrono: promise, await, fetch
+
+!!! tip "Pule esta página se você já sabe…"
+
+    - o que uma Promise representa e quais são os três estados dela;
+    - por que `console.log` mostra o dado e a tela mostra vazio;
+    - que `fetch` **não** rejeita em 404 ou 500;
+    - a diferença entre `await` em série e `Promise.all`.
+
+## O problema
+
+Este código imprime `undefined`, e é o erro assíncrono mais comum que existe:
+
+```js
+function buscarUsuario() {
+    let usuario;
+    fetch("/api/user")
+        .then((r) => r.json())
+        .then((dados) => {
+            usuario = dados;
+        });
+    return usuario; // ← executa AGORA; o fetch termina depois
+}
+
+console.log(buscarUsuario()); // undefined
+```
+
+O `return` não espera. A função inteira roda até o fim, devolve `undefined`, e só
+**depois** — milissegundos ou segundos — a resposta chega e escreve numa variável
+que ninguém mais lê.
+
+O conserto não é esperar melhor. É **devolver a promessa**:
+
+```js
+async function buscarUsuario() {
+    const resposta = await fetch("/api/user");
+    return resposta.json();
+}
+
+console.log(await buscarUsuario()); // o objeto
+```
+
+## O que é uma Promise
+
+Um objeto que representa **um valor que ainda não existe**. Três estados, e a
+transição é definitiva:
+
+- `pending` — em andamento
+- `fulfilled` — terminou com um valor
+- `rejected` — terminou com um erro
+
+`await` pausa a função até a promise sair de `pending`, e entrega o valor (ou lança
+o erro). `async` marca a função como "devolve uma promise" — é o que permite usar
+`await` dentro dela.
+
+## Um exemplo completo
+
+Arquivo único, com um endpoint público de verdade. Abra no browser:
+
+```html
+<!doctype html>
+<html lang="pt-BR">
+    <head>
+        <meta charset="utf-8" />
+        <title>Assíncrono</title>
+    </head>
+    <body>
+        <button type="button" id="carregar">Carregar</button>
+        <pre id="saida">clique para carregar</pre>
+
+        <script type="module">
+            const saida = document.querySelector("#saida");
+
+            async function carregarPost(id) {
+                const resposta = await fetch(`https://jsonplaceholder.typicode.com/posts/${id}`);
+
+                if (!resposta.ok) {
+                    throw new Error(`HTTP ${resposta.status}`);
+                }
+
+                return resposta.json();
+            }
+
+            document.querySelector("#carregar").addEventListener("click", async () => {
+                saida.textContent = "carregando…";
+                try {
+                    const post = await carregarPost(1);
+                    saida.textContent = post.title;
+                } catch (erro) {
+                    saida.textContent = `falhou: ${erro.message}`;
+                } finally {
+                    console.log("terminou, com sucesso ou não");
+                }
+            });
+        </script>
+    </body>
+</html>
+```
+
+### O `if (!resposta.ok)` não é opcional
+
+Esta é a armadilha número um do `fetch`:
+
+!!! danger "`fetch` só rejeita se a rede falhar"
+
+    404, 401, 500 — todos chegam como promise **resolvida**. Sem o
+    `if (!resposta.ok)`, você chama `.json()` numa página de erro, e o sintoma
+    aparece como um `SyntaxError` de parse, longe da causa. `resposta.ok` é `true`
+    só para status 200–299.
+
+## Série e paralelo
+
+Dois `await` seguidos rodam **em série** — o segundo só começa quando o primeiro
+termina:
+
+```js
+const usuario = await buscarUsuario(); // 300ms
+const pedidos = await buscarPedidos(); // 300ms
+// total: 600ms
+```
+
+Se não há dependência entre eles, dispare os dois e espere junto:
+
+```js
+const [usuario, pedidos] = await Promise.all([buscarUsuario(), buscarPedidos()]);
+// total: 300ms
+```
+
+| Combinador             | Quando usar                                                         |
+| ---------------------- | ------------------------------------------------------------------- |
+| `Promise.all`          | Precisa de todos. Rejeita no primeiro erro.                          |
+| `Promise.allSettled`   | Quer o resultado de todos, sucesso ou falha.                         |
+| `Promise.race`         | O primeiro que terminar. É como se implementa timeout na mão.        |
+| `Promise.any`          | O primeiro que **der certo**.                                        |
+
+## Cancelamento: `AbortController`
+
+Uma requisição que ninguém mais quer continua consumindo rede e, pior, ainda
+escreve no estado quando volta:
+
+```js
+const controlador = new AbortController();
+fetch("/api/lento", { signal: controlador.signal });
+controlador.abort(); // a promise rejeita com um erro de nome "AbortError"
+```
+
+Em React esse é o conteúdo da função de limpeza de um efeito que busca dados: sem
+cancelar, o componente desmontado ainda recebe a resposta.
+
+## Onde isso aparece no SDK
+
+Você raramente escreve `fetch` num app com o SDK. O `createApiClient` já faz o
+`resposta.ok`, o parse, o token, o timeout e o erro tipado:
+
+```ts
+import { createApiClient, isApiError } from "tempest-react-sdk";
+
+export const api = createApiClient({
+    baseURL: import.meta.env.VITE_API_URL,
+    getToken: () => useAuthStore.getState().token,
+});
+
+try {
+    const usuarios = await api.get<Usuario[]>("/users", { params: { ativo: true } });
+} catch (erro) {
+    if (isApiError(erro) && erro.status === 403) {
+        // erro.detail, erro.code, erro.requestId — tipados
+    }
+}
+```
+
+Qualquer resposta fora de 2xx vira um `TempestApiError` com `status`, `detail`,
+`code` e `requestId` — o oposto do `fetch` cru, onde o 500 passa direto.
+
+Para um caso pontual em componente, o `useAsync` dá os três estados prontos:
+
+```tsx
+import { useAsync } from "tempest-react-sdk";
+
+function PerfilUsuario({ id }: { id: string }) {
+    const { data, status, error, run } = useAsync(() => api.get<Usuario>(`/users/${id}`), [id], {
+        immediate: true,
+    });
+
+    if (status === "pending") return <p>carregando…</p>;
+    if (status === "error") return <p>falhou: {String(error)}</p>;
+    return <p>{data?.nome}</p>;
+}
+```
+
+!!! info "Lista vazia é sucesso, não erro"
+
+    `GET /users?ativo=true` sem nenhum resultado responde **200 com `[]`**, não 404.
+    404 é para "esse recurso único não existe", e é o que distingue "a rota não
+    existe" de "a busca não achou nada". No cliente isso significa que estado vazio
+    é um `if (lista.length === 0)`, não um `catch` — a convenção está em
+    [HTTP](../http.md).
+
+## Recap
+
+- Promise é um valor futuro em três estados; `await` espera e `async` marca a
+  função que devolve uma. ✅
+- Retornar de dentro de um `.then` para fora da função **não funciona** — devolva a
+  promise.
+- `fetch` **não** rejeita em 404/500: sem `if (!resposta.ok)` você faz parse de uma
+  página de erro.
+- `await` em sequência é série; use `Promise.all` quando não há dependência.
+- `AbortController` cancela — é o corpo da limpeza de um efeito que busca dados.
+- No SDK, `createApiClient` cobre ok/parse/token/timeout e lança `TempestApiError`
+  tipado; `useAsync` entrega os três estados prontos.
+
+📚 **Referência canônica:** [MDN — Assincronia](https://developer.mozilla.org/pt-BR/docs/Learn/JavaScript/Asynchronous)
+
+➡️ **Próxima página:** [Módulos, npm e o bundler](js-modules.md)
+
+---
+
+# basics/js-modules.md
+
+# Módulos, npm e o bundler
+
+!!! tip "Pule esta página se você já sabe…"
+
+    - a diferença entre `import`/`export` (ESM) e `require` (CommonJS);
+    - o que `dependencies`, `devDependencies` e `peerDependencies` significam;
+    - o que tree-shaking consegue provar e o que ele não consegue;
+    - por que um `import` de uma coisa só pode arrastar oito quilobytes.
+
+## O problema
+
+Você importa **uma** função:
+
+```ts
+import { cn } from "tempest-react-sdk";
+```
+
+E o bundle cresce 8 KB. Você não usou componente nenhum, não montou provider
+nenhum, e mesmo assim pagou por coisas que nem sabe que existem.
+
+O motivo não é o pacote ser grande — é o bundler não conseguir **provar** que o
+resto é descartável. Esta página é sobre o que ele precisa para provar.
+
+## Módulos ES
+
+Um módulo é um arquivo com escopo próprio. O que sai é o que você exporta:
+
+```ts
+// math.ts
+export function somar(a: number, b: number): number {
+    return a + b;
+}
+
+export const PI = 3.14159;
+```
+
+```ts
+// app.ts
+import { somar, PI } from "./math";
+
+console.log(somar(PI, 1));
+```
+
+| Forma                                | O que faz                                                       |
+| ------------------------------------ | --------------------------------------------------------------- |
+| `export function x()`                | Export **nomeado**. É o que o SDK usa, sempre.                   |
+| `export default x`                   | Export padrão, um por arquivo. O nome na importação é livre.      |
+| `import { x } from "..."`            | Importa um nomeado.                                               |
+| `import * as tudo from "..."`        | Importa o namespace inteiro. **Derruba o tree-shaking.**          |
+| `import type { X } from "..."`       | Importa só o tipo — some do bundle, não existe em runtime.        |
+| `await import("./x")`                | Import **dinâmico**: vira um chunk separado, carregado sob demanda. |
+
+!!! info "ESM é estático, e é isso que permite a otimização"
+
+    `import` só existe no topo do arquivo, com caminho literal. Isso deixa o
+    bundler ler o grafo de dependências **sem executar nada** — e é o que torna
+    tree-shaking possível. `require()` do CommonJS é uma chamada de função comum,
+    que pode estar dentro de um `if`; não dá para analisar da mesma forma.
+
+## npm: os três tipos de dependência
+
+```json
+{
+    "dependencies": { "react-hook-form": "^7.76.0" },
+    "devDependencies": { "vitest": "^4.0.0" },
+    "peerDependencies": { "react": "^18 || ^19" }
+}
+```
+
+| Campo                | Quem instala                       | Para quê                                                   |
+| -------------------- | ---------------------------------- | ---------------------------------------------------------- |
+| `dependencies`       | Vem junto quando alguém instala você | Código que roda em produção.                              |
+| `devDependencies`    | Só quem clona o repo               | Teste, lint, build. Não vai para o consumidor.             |
+| `peerDependencies`   | **O app** instala, você só declara | Biblioteca que precisa existir **uma vez só** no app inteiro. |
+
+!!! warning "Peer dependency não é sobre bytes — é sobre correção"
+
+    Duas cópias de `zod` custam kilobytes. Duas cópias de **React** ou de
+    **react-router** custam funcionamento: cada cópia tem o próprio contexto, e o
+    componente que consome o contexto da cópia B não enxerga o provider montado
+    pela cópia A. O sintoma clássico é
+    `useNavigate() may be used only in the context of a <Router>`.
+
+    Por isso o `tempest-react-sdk` declara `react`, `react-dom` e `react-router`
+    como peers e **todo o resto** como dependência direta: o critério é carregar
+    contexto React, não popularidade.
+
+## Tree-shaking, e o que ele precisa
+
+Tree-shaking é o bundler removendo o que ninguém importou. Ele consegue provar
+isso quando três coisas valem:
+
+1. **O módulo é ESM** (grafo estático).
+2. **O import é nomeado** — `import { cn }`, não `import * as sdk`.
+3. **Não há efeito colateral** no módulo — nada roda só por ele ter sido carregado.
+
+O item 3 é o que o campo `sideEffects` do `package.json` declara:
+
+```json
+{ "sideEffects": ["**/*.css"] }
+```
+
+Isso diz: "todo arquivo deste pacote é livre de efeito colateral, **exceto** os
+`.css`" — e os `.css` precisam ficar de fora porque importar um arquivo de estilo
+**é** o efeito colateral desejado. Sem essa exceção o bundler removeria os estilos.
+
+!!! danger "O que quebra o tree-shaking no seu próprio código"
+
+    - `import * as X from "..."` — o bundler não sabe qual membro você usa.
+    - Código de topo de módulo com efeito (`window.algo = ...`, registrar listener).
+    - Reexportar tudo por um barrel que executa algo ao ser importado.
+
+## Onde isso aparece no SDK
+
+O `tempest-react-sdk` publica o `dist/` com o **grafo de módulos preservado**: um
+arquivo de saída por módulo de origem, em vez de um bundle por entrada.
+
+A diferença é mensurável. Com bundle por entrada, importar só `cn` arrastava ~8,5 KB
+gzip — o bundler não conseguia provar que o resto daquele arquivo único era livre de
+efeito. Com `preserveModules`, o piso caiu para centenas de bytes.
+
+O custo é que `dist/` tem milhares de arquivos. Isso é esperado, não regressão — o
+tarball tem o mesmo tamanho.
+
+E é por isso que o orçamento de tamanho do CI é medido **por fatia importada**, não
+pelo barrel inteiro:
+
+```json
+{
+    "name": "slice: one component (`Button`)",
+    "import": { "./dist/tempest-react-sdk.js": "{ Button }" },
+    "limit": "1.5 KB"
+}
+```
+
+Medir o barrel diria só "o pacote cresceu", que cresce com toda feature e não
+informa nada sobre o que **você** paga. O barrel continua tendo um teto, mas como
+teto explícito de entrada inteira — não como orçamento de consumidor.
+
+!!! tip "Import dinâmico é o outro lado da moeda"
+
+    Rota que ninguém abriu não precisa estar no bundle inicial. O
+    `defineRoutes([...])` do SDK aceita `lazy: () => import("./Pagina")`, e o
+    `<AppRouter>` já monta o `<Suspense>` — veja
+    [Roteamento](../routing.md).
+
+## Recap
+
+- ESM é estático: `import` no topo, caminho literal — é o que permite analisar o
+  grafo sem executar. ✅
+- `dependencies` vem junto; `devDependencies` fica no repo; `peerDependencies` o
+  **app** instala.
+- Peer dep existe por **correção**, não por bytes: duas cópias de uma lib com
+  contexto React quebram em runtime.
+- Tree-shaking precisa de ESM + import nomeado + ausência de efeito colateral;
+  `sideEffects` é como o pacote declara isso.
+- `import * as X` derruba o tree-shaking; `import type` some do bundle.
+- No SDK, `dist/` preserva o grafo de módulos e o orçamento do CI é medido por
+  fatia importada.
+
+📚 **Referência canônica:** [MDN — Módulos JavaScript](https://developer.mozilla.org/pt-BR/docs/Web/JavaScript/Guide/Modules)
+
+➡️ **Próxima página:** [TypeScript: o mínimo que o SDK usa](typescript.md)
+
+---
+
+# basics/js.md
+
+# JavaScript: valor, referência, escopo
+
+!!! tip "Pule esta página se você já sabe…"
+
+    - que `{} === {}` é `false`, e por quê;
+    - que `const` congela a ligação, não o conteúdo;
+    - o que uma closure captura;
+    - por que um objeto inline numa prop faz o `useEffect` rodar de novo.
+
+## O problema
+
+Este `useEffect` roda em **loop infinito**, e o código parece impecável:
+
+```jsx
+function Lista({ status }) {
+    const filtro = { status, ordem: "desc" };
+
+    useEffect(() => {
+        buscar(filtro);
+    }, [filtro]); // ← roda a cada render, sempre
+
+    return null;
+}
+```
+
+O array de dependência compara com `Object.is`, que para objetos é comparação de
+**referência**. `filtro` é um objeto novo a cada render, então nunca é "o mesmo", e
+o efeito dispara — que causa um render — que cria outro objeto — que dispara o
+efeito.
+
+Sem entender valor vs. referência, `useMemo`, `useCallback` e `React.memo` viram
+superstição: você copia o padrão sem saber o que ele evita. Essa página é sobre
+isso.
+
+## Valor e referência
+
+JavaScript tem dois grupos de tipos:
+
+- **Primitivos** — `number`, `string`, `boolean`, `null`, `undefined`, `symbol`,
+  `bigint`. Copiados **por valor**.
+- **Objetos** — `{}`, `[]`, `function`, `Date`, `Map`. Copiados **por referência**
+  (a variável guarda um endereço, não o conteúdo).
+
+Rode isto no console do browser:
+
+```js
+const a = 1;
+const b = a;
+console.log(a === b); // true — mesmo valor
+
+const x = { n: 1 };
+const y = { n: 1 };
+console.log(x === y); // false — conteúdo igual, endereços diferentes
+
+const z = x;
+console.log(x === z); // true — mesmo endereço
+z.n = 2;
+console.log(x.n); // 2 — z e x são o MESMO objeto
+```
+
+A terceira linha é a que quebra o `useEffect`: dois objetos com o mesmo conteúdo
+**não** são iguais para o `===`.
+
+!!! warning "`const` não é imutabilidade"
+
+    ```js
+    const config = { debug: false };
+    config.debug = true; // ✅ permitido — o conteúdo mudou
+    config = {}; // ❌ TypeError — a ligação não pode ser reatribuída
+    ```
+
+    `const` proíbe apontar para outro objeto. Ele não diz nada sobre o objeto.
+    Para congelar o conteúdo existe `Object.freeze`, e ele é raso.
+
+## Cópia rasa e cópia profunda
+
+O spread copia **um nível**:
+
+```js
+const original = { nome: "Ana", endereco: { cidade: "Recife" } };
+const copia = { ...original };
+
+copia.nome = "Bia";
+console.log(original.nome); // "Ana" — nível de cima copiado ✅
+
+copia.endereco.cidade = "Olinda";
+console.log(original.endereco.cidade); // "Olinda" — o objeto aninhado é o MESMO ⚠️
+```
+
+Para cópia profunda de dado serializável, o browser moderno tem
+`structuredClone(original)`.
+
+## Escopo e closure
+
+Uma função "lembra" as variáveis do lugar onde foi **escrita**, não de onde foi
+chamada. Isso é uma closure:
+
+```js
+function criarContador() {
+    let n = 0;
+    return {
+        incrementar: () => ++n,
+        ler: () => n,
+    };
+}
+
+const c = criarContador();
+c.incrementar();
+c.incrementar();
+console.log(c.ler()); // 2 — `n` sobreviveu ao fim de criarContador()
+```
+
+Em React isso vira a **closure obsoleta** (*stale closure*): um `setTimeout` ou um
+listener criado num render captura os valores **daquele** render, e se você não o
+recriar, ele continua enxergando o passado.
+
+```js
+useEffect(() => {
+    const id = setInterval(() => {
+        console.log(contador); // sempre o valor do render em que o efeito rodou
+    }, 1000);
+    return () => clearInterval(id);
+}, []); // array vazio: o efeito nunca é recriado
+```
+
+!!! info "Toda função de limpeza existe por causa disto"
+
+    O `return () => clearInterval(id)` não é boa educação: sem ele, cada render que
+    recrie o efeito deixa um intervalo vivo capturando um passado diferente. Isso é
+    um vazamento **e** um bug de lógica ao mesmo tempo.
+
+## Igualdade: `===`, `Object.is` e igualdade profunda
+
+| Comparação           | O que faz                                                                     |
+| -------------------- | ----------------------------------------------------------------------------- |
+| `==`                 | Converte tipos antes de comparar. Não use.                                     |
+| `===`                | Compara valor (primitivos) ou referência (objetos).                            |
+| `Object.is`          | Como `===`, mas `NaN` é igual a `NaN` e `+0` difere de `-0`. É o que o React usa. |
+| Igualdade profunda   | Percorre a estrutura comparando folha a folha. Não existe nativa — é código.   |
+
+## Onde isso aparece no SDK
+
+O conserto do exemplo de abertura é fixar a referência:
+
+```tsx
+import { useMemo, useEffect } from "react";
+
+function Lista({ status }: { status: string }) {
+    const filtro = useMemo(() => ({ status, ordem: "desc" }), [status]);
+
+    useEffect(() => {
+        buscar(filtro);
+    }, [filtro]); // ✅ só quando `status` muda de verdade
+}
+```
+
+Mas nem sempre a referência é sua para memoizar — quando o objeto **vem de fora**,
+por prop ou de uma resposta HTTP, você não tem onde pôr o `useMemo`. Para esse caso
+o SDK exporta o `useDeepMemo`:
+
+```tsx
+import { useEffect } from "react";
+import { useDeepMemo } from "tempest-react-sdk";
+
+function Relatorio({ filtros }: { filtros: { status: string; tags: string[] } }) {
+    const estaveis = useDeepMemo(filtros);
+
+    useEffect(() => {
+        buscar(estaveis);
+    }, [estaveis]); // só dispara quando o CONTEÚDO muda
+}
+```
+
+Ele guarda o último valor e só troca a referência quando a comparação profunda
+acusa diferença. O pai pode recriar o objeto a cada render à vontade — o filho só
+reage quando o dado mudou.
+
+!!! tip "Escolha por origem do objeto"
+
+    Objeto que **você** cria no componente → `useMemo`, mais barato. Objeto que
+    **chega** pronto e você não controla → `useDeepMemo`. A comparação profunda não
+    é grátis: use quando a alternativa é refazer trabalho maior.
+
+Lista completa dos hooks utilitários em [Hooks](../hooks.md).
+
+## Recap
+
+- Primitivo copia valor; objeto, array e função copiam **referência**. `{} === {}`
+  é `false`. ✅
+- `const` congela a ligação, não o conteúdo.
+- Spread copia um nível só; para o resto existe `structuredClone`.
+- Closure captura o **lugar onde a função foi escrita** — daí a stale closure e a
+  necessidade da função de limpeza.
+- O array de dependência do React compara com `Object.is`: objeto inline dispara
+  sempre.
+- `useMemo` para o objeto que você cria; `useDeepMemo` do SDK para o que chega de
+  fora.
+
+📚 **Referência canônica:** [MDN — JavaScript](https://developer.mozilla.org/pt-BR/docs/Web/JavaScript)
+
+➡️ **Próxima página:** [Assíncrono: promise, await, fetch](js-async.md)
+
+---
+
+# basics/react.md
+
+# React: componente, estado, efeito
+
+!!! tip "Pule esta página se você já sabe…"
+
+    - que um componente é uma função que devolve JSX;
+    - a diferença entre prop e estado;
+    - as duas regras dos hooks, e por que elas existem;
+    - o que a `key` faz numa lista, e quando ela força uma remontagem.
+
+## O problema
+
+Sem React, manter a tela em sincronia com o dado é trabalho manual e o bug é sempre
+o mesmo — mudou o dado em um lugar, esqueceu de atualizar a tela em outro:
+
+```js
+let contador = 0;
+
+document.querySelector("#mais").addEventListener("click", () => {
+    contador++;
+    document.querySelector("#valor").textContent = contador; // ← e nos outros 4 lugares?
+});
+```
+
+React inverte: você descreve **como a tela deve parecer para um dado estado**, e
+quando o estado muda ele recalcula a descrição e aplica só a diferença no DOM. Você
+nunca escreve `textContent`.
+
+## Um componente completo
+
+Um app inteiro em um arquivo. É o modelo mental que o [Tutorial](../tutorial/index.md)
+assume a partir da página um:
+
+```tsx
+import { useState, useEffect } from "react";
+
+interface Tarefa {
+    id: string;
+    titulo: string;
+    feita: boolean;
+}
+
+function ItemTarefa({ tarefa, onAlternar }: { tarefa: Tarefa; onAlternar: (id: string) => void }) {
+    return (
+        <li>
+            <label>
+                <input type="checkbox" checked={tarefa.feita} onChange={() => onAlternar(tarefa.id)} />
+                {tarefa.titulo}
+            </label>
+        </li>
+    );
+}
+
+export function ListaTarefas() {
+    const [tarefas, setTarefas] = useState<Tarefa[]>([]);
+    const [rascunho, setRascunho] = useState("");
+
+    useEffect(() => {
+        document.title = `${tarefas.filter((t) => !t.feita).length} pendentes`;
+    }, [tarefas]);
+
+    function adicionar() {
+        if (!rascunho.trim()) return;
+        setTarefas((atual) => [...atual, { id: crypto.randomUUID(), titulo: rascunho, feita: false }]);
+        setRascunho("");
+    }
+
+    function alternar(id: string) {
+        setTarefas((atual) => atual.map((t) => (t.id === id ? { ...t, feita: !t.feita } : t)));
+    }
+
+    return (
+        <section>
+            <h1>Tarefas</h1>
+
+            <input value={rascunho} onChange={(e) => setRascunho(e.target.value)} />
+            <button type="button" onClick={adicionar}>
+                Adicionar
+            </button>
+
+            <ul>
+                {tarefas.map((tarefa) => (
+                    <ItemTarefa key={tarefa.id} tarefa={tarefa} onAlternar={alternar} />
+                ))}
+            </ul>
+        </section>
+    );
+}
+```
+
+## Pedaço por pedaço
+
+### JSX é uma expressão
+
+`<li>...</li>` não é string nem HTML: é açúcar sintático para uma chamada de função
+que devolve um objeto descrevendo o elemento. Por isso `className` no lugar de
+`class` (`class` é palavra reservada em JS) e `htmlFor` no lugar de `for`, e por isso
+`{expressão}` interpola JavaScript de verdade.
+
+### Prop entra, estado mora
+
+- **Prop** é o argumento da função-componente. Vem do pai e é **somente leitura**.
+- **Estado** é o valor que o componente guarda entre renders. Muda com o `set`, e
+  mudar dispara um novo render.
+
+`ItemTarefa` não tem estado nenhum: ele recebe `tarefa` e `onAlternar` e desenha. Um
+componente assim é trivial de testar e de reusar.
+
+### Estado é imutável — sempre um valor novo
+
+```tsx
+setTarefas((atual) => [...atual, nova]); // ✅ array novo
+tarefas.push(nova); // ❌ React não vê mudança nenhuma
+```
+
+React compara com `Object.is` ([valor vs. referência](js.md)). Mutar o array não
+troca a referência, então o render não acontece. E use a **forma de função**
+(`atual => ...`) quando o próximo valor depende do anterior: ela lê o valor no
+momento da aplicação, não o do render em que a closure foi criada.
+
+### Efeito é para sair do React
+
+`useEffect` roda **depois** da renderização, e serve para sincronizar com algo de
+fora: título do documento, listener, timer, requisição. O array de dependência diz
+quando repetir.
+
+```tsx
+useEffect(() => {
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id); // limpeza: roda antes de repetir e no desmonte
+}, [tick]);
+```
+
+!!! warning "Efeito não é para derivar dado"
+
+    Se um valor pode ser **calculado** do estado que você já tem, calcule na hora do
+    render — não guarde num segundo estado sincronizado por efeito. Um estado
+    derivado é uma cópia que pode ficar velha, e o efeito que a mantém é um render a
+    mais.
+
+    ```tsx
+    const pendentes = tarefas.filter((t) => !t.feita).length; // ✅ derivado no render
+    ```
+
+### As duas regras dos hooks
+
+1. **Só no topo.** Nunca dentro de `if`, laço ou função aninhada.
+2. **Só de dentro de React.** De um componente (`PascalCase`) ou de outro hook
+   (nome começando com `use`).
+
+O motivo da primeira é que o React identifica cada hook pela **ordem de chamada**,
+não por nome. Um `useState` atrás de um `if` muda a ordem entre renders, e o estado
+do hook 2 chega no hook 3.
+
+A segunda é o que o ESLint consegue verificar: a regra `react-hooks/rules-of-hooks`
+só aceita hook dentro de função `PascalCase` ou com nome `use*`. Uma função auxiliar
+chamada `verificarPermissao` que chame um hook **reprova no lint do seu app**,
+mesmo funcionando.
+
+### `key`: identidade, não índice
+
+Numa lista, a `key` diz ao React **qual item é qual** entre um render e o próximo.
+Com `key={tarefa.id}`, remover o primeiro item remove o primeiro nó. Com
+`key={indice}`, o React acha que todos os itens mudaram de conteúdo — e o estado
+interno de cada linha (o foco, o texto digitado) escorrega para a linha vizinha.
+
+!!! info "Key diferente força remontagem — e isso é uma ferramenta"
+
+    Quando a `key` de um elemento muda, o React **desmonta** o antigo e monta um
+    novo, com estado zerado. É a forma idiomática de dizer "isto agora é outra
+    coisa": `<Perfil key={usuarioId} />` garante que trocar de usuário não deixa o
+    estado do anterior na tela.
+
+## Onde isso aparece no SDK
+
+O `tempest-react-sdk` é feito das duas metades desta página: **componentes**, que
+você compõe, e **hooks**, que trazem comportamento.
+
+```tsx
+import { AppProviders, Button, Input, useDebounce } from "tempest-react-sdk";
+import { useState } from "react";
+
+export function Busca() {
+    const [texto, setTexto] = useState("");
+    const textoDebounced = useDebounce(texto, 300);
+
+    return (
+        <AppProviders>
+            <Input label="Buscar" value={texto} onChange={(e) => setTexto(e.target.value)} />
+            <Button onClick={() => console.log(textoDebounced)}>Buscar</Button>
+        </AppProviders>
+    );
+}
+```
+
+São 128 componentes e 116 hooks, mas o contrato é sempre este: componente recebe
+prop e desenha; hook recebe entrada e devolve estado + funções.
+
+## Recap
+
+- Componente é função que devolve JSX; você descreve a tela **para um estado**, e o
+  React aplica a diferença. ✅
+- Prop entra de fora e é somente leitura; estado mora no componente e mudá-lo
+  dispara render.
+- Estado é imutável: crie valor novo, e use a forma de função quando depender do
+  anterior.
+- Efeito é para sincronizar com fora do React, com limpeza; dado derivável se
+  calcula no render.
+- Hooks: só no topo, só dentro de componente ou de outro hook `use*`.
+- `key` é identidade — `id`, nunca índice; e trocar a `key` de propósito remonta com
+  estado limpo.
+
+📚 **Referência canônica:** [React — Aprenda React](https://react.dev/learn)
+
+🎉 **Fim da trilha.** Você tem tudo o que o tutorial assume.
+➡️ **Continue em:** [Tutorial — Comece aqui](../tutorial/index.md)
+
+---
+
+# basics/typescript.md
+
+# TypeScript: o mínimo que o SDK usa
+
+!!! tip "Pule esta página se você já sabe…"
+
+    - ler uma assinatura com genérico (`<T>`) sem travar;
+    - a diferença entre `interface` e `type`, e entre união e interseção;
+    - o que `Omit`, `Pick` e `Partial` fazem;
+    - por que `as` não é conversão e `unknown` é melhor que `any`.
+
+## O problema
+
+Você vê isto na documentação de um componente e para de ler:
+
+```ts
+export interface DatePickerProps
+    extends Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "value" | "onChange" | "size"> {
+    value: string;
+    onChange: (value: string) => void;
+}
+```
+
+Parece hostil. Mas a assinatura está dizendo uma coisa simples e útil: *"aceito
+todos os atributos de um `<input>` do HTML, menos quatro, que eu redefino do meu
+jeito."* Sem isso, você teria que descobrir na tentativa e erro quais props passam.
+
+Esta página cobre exatamente o que aparece nas assinaturas públicas do SDK — nada
+mais.
+
+## Anotação de tipo
+
+```ts
+const nome: string = "Ana";
+const idade: number = 34;
+const ativo: boolean = true;
+const tags: string[] = ["a", "b"];
+const par: [string, number] = ["idade", 34];
+
+function saudar(nome: string, formal: boolean = false): string {
+    return formal ? `Prezado ${nome}` : `Oi ${nome}`;
+}
+```
+
+Na maior parte dos casos você **não** escreve a anotação: o TypeScript infere.
+Escreva onde importa — parâmetro, retorno de export público, e onde a inferência
+erra.
+
+## `interface` e `type`
+
+```ts
+interface Usuario {
+    id: string;
+    nome: string;
+    email?: string; // opcional
+    readonly criadoEm: Date; // não pode ser reatribuído
+}
+
+type Status = "ativo" | "inativo" | "bloqueado"; // união
+type UsuarioComStatus = Usuario & { status: Status }; // interseção
+```
+
+- **União** (`|`) — "um **ou** o outro". `Status` só aceita aquelas três strings, e
+  o editor as autocompleta.
+- **Interseção** (`&`) — "tudo dos dois ao mesmo tempo".
+
+`interface` pode ser estendida e reaberta; `type` faz união, interseção e tipos
+computados. Na prática: `interface` para o formato de um objeto, `type` para o
+resto.
+
+## Genéricos
+
+Um genérico é um **parâmetro de tipo** — o tipo que entra decide o que sai:
+
+```ts
+function primeiro<T>(itens: T[]): T | undefined {
+    return itens[0];
+}
+
+const n = primeiro([1, 2, 3]); // number | undefined
+const s = primeiro(["a", "b"]); // string | undefined
+```
+
+Sem genérico você teria `any[] → any`, e perderia a informação exatamente onde ela
+era útil. É por isso que o cliente HTTP do SDK é `api.get<Usuario[]>("/users")`:
+você diz o que espera, e o retorno vem tipado até o fim.
+
+## Tipos utilitários
+
+Os quatro que aparecem no SDK:
+
+```ts
+interface Usuario {
+    id: string;
+    nome: string;
+    email: string;
+    senha: string;
+}
+
+type UsuarioPublico = Omit<Usuario, "senha">; // tudo menos `senha`
+type Credenciais = Pick<Usuario, "email" | "senha">; // só esses dois
+type UsuarioParcial = Partial<Usuario>; // tudo opcional
+type UsuarioFixo = Required<UsuarioParcial>; // tudo obrigatório de novo
+```
+
+Agora a assinatura da abertura se lê sozinha: `Omit<InputHTMLAttributes<...>,
+"type" | "value" | "onChange" | "size">` é "os atributos de um input HTML, sem
+esses quatro".
+
+!!! info "O `size` daquele `Omit` conserta um bug real"
+
+    `HTMLInputElement.size` é um `number` (a largura do campo em caracteres). O
+    `<Input>` do SDK define `size` como uma união de tamanhos —
+    `"sm" | "md" | "lg"`. Um componente que repassasse
+    `...InputHTMLAttributes` para o `<Input>` colidiria nos dois: o `number` do DOM
+    contra a união do SDK. Por isso o `DatePicker` remove `size` antes de estender.
+    Um `Omit` numa assinatura pública quase sempre está registrando uma colisão
+    dessas.
+
+## `unknown`, `any` e `as`
+
+```ts
+const dado: unknown = JSON.parse(texto);
+
+// ❌ any desliga a checagem — e o erro reaparece em runtime
+const u1 = dado as any;
+u1.qualquer.coisa.aqui; // compila, quebra no browser
+
+// ✅ unknown obriga a estreitar antes de usar
+if (typeof dado === "object" && dado !== null && "nome" in dado) {
+    console.log(dado.nome);
+}
+```
+
+!!! danger "`as` não converte nada"
+
+    `valor as Usuario` não checa, não valida e não transforma: é você **afirmando**
+    ao compilador que sabe mais do que ele. Se a afirmação for falsa, o erro aparece
+    em runtime, longe do `as`. Use quando você tem uma garantia externa real; para
+    dado que vem da rede, valide com zod — é exatamente o que o schema de
+    [Forms (zod)](../forms.md) faz.
+
+## `import type`
+
+```ts
+import type { Usuario } from "./tipos"; // some no build
+import { criarUsuario } from "./api"; // fica no bundle
+```
+
+Tipo não existe em runtime. Marcar o import com `type` deixa isso explícito e
+garante que o bundler não mantenha o módulo vivo só por causa dele.
+
+## Onde isso aparece no SDK
+
+Toda superfície pública do `tempest-react-sdk` é tipada, e o barrel reexporta valor
+e tipo lado a lado:
+
+```ts
+import { createApiClient, isApiError } from "tempest-react-sdk";
+import type { ApiClientConfig, ApiError } from "tempest-react-sdk";
+
+const config: ApiClientConfig = {
+    baseURL: import.meta.env.VITE_API_URL,
+    getToken: () => localStorage.getItem("token") ?? undefined,
+};
+
+const api = createApiClient(config);
+const usuarios = await api.get<Usuario[]>("/users"); // Usuario[], não any
+```
+
+!!! tip "Uma flag que o SDK mediu e decidiu **não** ligar"
+
+    `noUncheckedIndexedAccess` faz `array[0]` ter tipo `T | undefined`. Soa
+    correto, e no SDK produziu 221 erros — quase todos em acesso dentro de laço
+    limitado pelo próprio `length` ou protegido por invariante já defendida. Adotar
+    trocaria 221 guardas reais por 221 `!`, que é justamente o operador que a flag
+    existe para evitar. A varredura valeu como **auditoria** (achou um defeito real
+    e ele virou `throw`); ligar a flag, não. O critério de tipagem que o SDK de
+    fato aplica está em [Tipagem forte](../design/typing.md).
+
+## Recap
+
+- Você anota onde importa: parâmetro, retorno público, e onde a inferência erra. ✅
+- União (`|`) é "um ou outro"; interseção (`&`) é "os dois".
+- Genérico é parâmetro de tipo — `api.get<Usuario[]>` é o que faz o retorno chegar
+  tipado.
+- `Omit`/`Pick`/`Partial` recortam tipos existentes; um `Omit` público costuma
+  registrar uma colisão real.
+- `as` não converte, apenas afirma; prefira `unknown` + estreitamento, ou zod para
+  dado de rede.
+- `import type` some do bundle.
+
+📚 **Referência canônica:** [TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/intro.html)
+
+➡️ **Próxima página:** [React: componente, estado, efeito](react.md)
+
+---
+
 # br-pagamentos.md
 
 # Pagamentos, fiscal & contato BR
@@ -15741,41 +17832,42 @@ Cada seção é um arquivo em [`examples/gallery/src/sections/`](https://github.
 | 27 | QRCode | `#qrcode` | Componentes |
 | 28 | Chat | `#chat` | Componentes |
 | 29 | AIChat | `#aichat` | Componentes |
-| 30 | Cadeia de voz (microfone) | `#voice-chain` | Componentes |
-| 31 | Áudio (gravação) | `#audio-capture` | Componentes |
-| 32 | Captura de dispositivo | `#device-capture` | Componentes |
-| 33 | Dashboard (CSS) | `#dashboard-layout` | Componentes |
-| 34 | FilterBar | `#filterbar` | Componentes |
-| 35 | Markdown | `#markdown` | Componentes |
-| 36 | Masonry | `#masonry` | Componentes |
-| 37 | Tour | `#tour` | Componentes |
-| 38 | Transfer | `#transfer` | Componentes |
-| 39 | CodeBlock | `#codeblock` | Componentes |
-| 40 | Material (ListTile · FAB · Rail) | `#material` | Componentes |
-| 41 | Forms (zod) | `#forms` | Componentes |
-| 42 | BR Forms (CPF/CNPJ/CEP) | `#br-forms` | Componentes |
-| 43 | Hooks — estado | `#hooks-state` | Hooks |
-| 44 | Hooks — DOM & timing | `#hooks-dom` | Hooks |
-| 45 | Network · Clipboard · Share | `#meta` | Hooks |
-| 46 | Formatters | `#utils` | Hooks |
-| 47 | HTTP client | `#recipe-http` | Receitas |
-| 48 | Upload resumível (tus) | `#recipe-resumable-upload` | Receitas |
-| 49 | Passkeys (WebAuthn) | `#recipe-passkeys` | Receitas |
-| 50 | Data fetching (TanStack Query) | `#recipe-query` | Receitas |
-| 51 | Tempo real (WebSocket) | `#recipe-realtime` | Receitas |
-| 52 | Geolocalização (mapas & trajetória) | `#geo` | Receitas |
-| 53 | Mapa do Brasil (UF + cidades) | `#brazil-map` | Receitas |
-| 54 | Pagamentos BR (Pix · boleto · NFe) | `#br-payments` | Receitas |
-| 55 | Auth & Access Control | `#recipe-auth` | Receitas |
-| 56 | SSE · Push · Audio | `#integrations` | Receitas |
-| 57 | NotificationCenter (inbox) | `#notification-center` | Receitas |
-| 58 | PWA: Install · Push | `#pwa` | Receitas |
-| 59 | Store (Zustand) | `#foundation` | Fundação |
-| 60 | Escalas contínuas (heatmap) | `#dataviz-scales` | Fundação |
-| 61 | createTheme · presets · tokens de gráfico | `#theme-factory` | Fundação |
-| 62 | Ícones por slug (/icons) | `#icons` | Fundação |
-| 63 | utilities.css (camada opt-in) | `#utilities-css` | Fundação |
-| 64 | Tema + i18n | `#theme-i18n` | Fundação |
+| 30 | Mesh WebRTC (createPeerMesh) | `#peer-mesh` | Componentes |
+| 31 | Cadeia de voz (microfone) | `#voice-chain` | Componentes |
+| 32 | Áudio (gravação) | `#audio-capture` | Componentes |
+| 33 | Captura de dispositivo | `#device-capture` | Componentes |
+| 34 | Dashboard (CSS) | `#dashboard-layout` | Componentes |
+| 35 | FilterBar | `#filterbar` | Componentes |
+| 36 | Markdown | `#markdown` | Componentes |
+| 37 | Masonry | `#masonry` | Componentes |
+| 38 | Tour | `#tour` | Componentes |
+| 39 | Transfer | `#transfer` | Componentes |
+| 40 | CodeBlock | `#codeblock` | Componentes |
+| 41 | Material (ListTile · FAB · Rail) | `#material` | Componentes |
+| 42 | Forms (zod) | `#forms` | Componentes |
+| 43 | BR Forms (CPF/CNPJ/CEP) | `#br-forms` | Componentes |
+| 44 | Hooks — estado | `#hooks-state` | Hooks |
+| 45 | Hooks — DOM & timing | `#hooks-dom` | Hooks |
+| 46 | Network · Clipboard · Share | `#meta` | Hooks |
+| 47 | Formatters | `#utils` | Hooks |
+| 48 | HTTP client | `#recipe-http` | Receitas |
+| 49 | Upload resumível (tus) | `#recipe-resumable-upload` | Receitas |
+| 50 | Passkeys (WebAuthn) | `#recipe-passkeys` | Receitas |
+| 51 | Data fetching (TanStack Query) | `#recipe-query` | Receitas |
+| 52 | Tempo real (WebSocket) | `#recipe-realtime` | Receitas |
+| 53 | Geolocalização (mapas & trajetória) | `#geo` | Receitas |
+| 54 | Mapa do Brasil (UF + cidades) | `#brazil-map` | Receitas |
+| 55 | Pagamentos BR (Pix · boleto · NFe) | `#br-payments` | Receitas |
+| 56 | Auth & Access Control | `#recipe-auth` | Receitas |
+| 57 | SSE · Push · Audio | `#integrations` | Receitas |
+| 58 | NotificationCenter (inbox) | `#notification-center` | Receitas |
+| 59 | PWA: Install · Push | `#pwa` | Receitas |
+| 60 | Store (Zustand) | `#foundation` | Fundação |
+| 61 | Escalas contínuas (heatmap) | `#dataviz-scales` | Fundação |
+| 62 | createTheme · presets · tokens de gráfico | `#theme-factory` | Fundação |
+| 63 | Ícones por slug (/icons) | `#icons` | Fundação |
+| 64 | utilities.css (camada opt-in) | `#utilities-css` | Fundação |
+| 65 | Tema + i18n | `#theme-i18n` | Fundação |
 <!-- /gallery -->
 
 ## Matriz de variantes
@@ -15847,7 +17939,7 @@ Cada exemplo aparece **lado a lado com o código-fonte** (botão "Copiar"), ent�
 gallery é também uma referência copia-e-cola. Capturas do app rodando:
 
 <!-- gallery:screenshots -->
-Cada seção tem a própria captura ao lado do componente que documenta; os pares abaixo são aqueles em que o tema é o assunto. As 74 imagens são regeneradas por `npm run docs:shots`.
+Cada seção tem a própria captura ao lado do componente que documenta; os pares abaixo são aqueles em que o tema é o assunto. As 75 imagens são regeneradas por `npm run docs:shots`.
 
 ### Buttons
 
@@ -19007,6 +21099,13 @@ Os dois modos e cada pedaço do comando estão explicados em [Scaffold](scaffold
 Novo por aqui? Siga o **[Tutorial — Guia do Usuário](tutorial/index.md)**: do
 scaffold ao app completo, um conceito por página.
 
+!!! tip "Nunca escreveu CSS? Comece um degrau antes"
+
+    O tutorial já assume React, componente, hook e módulo ES. Se essa lista soa
+    como palavras soltas, a trilha **[Fundamentos da Web](basics/index.md)** cobre
+    HTML, CSS, JavaScript do browser, TypeScript e React em onze páginas curtas —
+    e é **opcional**: quem já sabe React vai direto ao Tutorial.
+
 Já sabe usar o SDK e quer saber **como organizar o app**? A aba
 **[Design de Software](design/index.md)** ensina o desenho: camadas, estrutura de
 pastas, onde mora cada estado, tipagem forte, limites objetivos (`.tsx` ≤ 150
@@ -19037,6 +21136,7 @@ do que não usar). Detalhes em [Arquitetura](architecture.md).
 
 | Área                       | Páginas                                                                                                                                                                                                                                                                                                                                                                                          |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Fundamentos da Web**     | [Comece por aqui](basics/index.md) · [HTML](basics/html.md) · [Formulários](basics/html-forms.md) · [CSS](basics/css.md) · [Layout](basics/css-layout.md) · [Custom properties](basics/css-variables.md) · [JavaScript](basics/js.md) · [Assíncrono](basics/js-async.md) · [Módulos](basics/js-modules.md) · [TypeScript](basics/typescript.md) · [React](basics/react.md) |
 | **Tutorial**               | [Comece aqui](tutorial/index.md) · [Roteamento](tutorial/routing.md) · [Estado](tutorial/state.md) · [Buscando dados](tutorial/data-fetching.md) · [Formulários](tutorial/forms.md) · [Fluxo de auth](tutorial/auth-flow.md)                                                                                                                                                                     |
 | **Estrutura de aplicação** | [Scaffold](scaffold.md), [Vite & alias](vite-config.md), [Roteamento](routing.md), [Estado (Zustand)](state.md), [Providers](app-providers.md)                                                                                                                                                                                                                                                   |
 | **Design de Software**     | [Mapa](design/index.md) — [Camadas](design/architecture.md), [Pastas](design/folders.md), [Fluxo de dados](design/data-flow.md), [Estado](design/state.md), [Componentes](design/components.md), [Limites](design/limits.md), [Tipagem](design/typing.md), [Testes](design/testing.md), [Anti-padrões](design/anti-patterns.md), [Checklist](design/checklist.md) |
@@ -29388,6 +31488,12 @@ Todas as opções são opcionais.
 !!! info "Quando você precisa disto?"
     Se a chamada é só voz e o padrão do browser já serve, você não precisa. O momento em que isto vira necessário é o áudio de **tela compartilhada**: música e vídeo herdam o perfil de fala — mono, ~32 kbps, FEC ligado, DTX gateando as passagens quietas — e é exatamente por isso que áudio de tela numa chamada soa como telefone. Nenhuma API de alto nível deixa mudar isso.
 
+<!-- gallery:peer-mesh -->
+[![Mesh WebRTC (createPeerMesh) na gallery](assets/gallery/peer-mesh.webp)](gallery.md)
+
+*Seção `peer-mesh` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## O problema, em uma linha
 
 `RTCPeerConnection` não expõe knob de codec. O perfil do Opus vive numa linha `a=fmtp:` do SDP, e mexer nela é editar texto — com uma cauda longa de armadilhas de protocolo (RFC 7587), não de gosto.
@@ -29587,6 +31693,131 @@ O módulo já cobre o que varia entre engines, e vale saber que varia:
 | `framesPerSecond` ausente | `fps: 0`, e a última leitura boa é mantida |
 | Contador reinicia (ICE restart) | delta negativo vira `0` e o baseline se refaz |
 | Simulcast (várias camadas no mesmo track) | as camadas somam; a resolução vem da maior |
+
+## `createPeerMesh` — a sala inteira, N↔N
+
+As peças acima cuidam de **um** link. `createPeerMesh` cuida da sala: uma `RTCPeerConnection` por participante, com as faixas de mídia negociadas de uma vez.
+
+```ts
+import { createPeerMesh } from "tempest-react-sdk";
+
+const mesh = createPeerMesh({
+  slots: [
+    { name: "mic", kind: "audio" },
+    { name: "cam", kind: "video" },
+    { name: "screen", kind: "video" },
+  ],
+  send: (message) => socket.send(message),
+  onPeers: setPeers,
+  onState: setState,
+});
+
+socket.onMessage = (message) => void mesh.accept(message);
+
+await mesh.addPeer("peer-2", { offerer: true });
+await mesh.setLocalTrack("mic", micTrack);
+```
+
+**O protocolo de sinalização continua seu.** O SDK produz e aceita três formatos (`offer`, `answer`, `ice`) e não sabe nada sobre sala, identidade ou entrega — quem implementa o servidor é você. O que ele traz é a parte que é igual em toda mesh e está errada na maioria delas.
+
+### As seis armadilhas, e por que cada uma é muda
+
+| Armadilha | Sintoma |
+| --- | --- |
+| Answerer pré-alocando transceiver | Câmera do outro aparece no tile de tela, ou o track some |
+| Rotear por posição em vez de `mid` | O mesmo, de forma intermitente |
+| Candidato ICE antes da descrição remota | Conexão fica em `checking` até estourar |
+| Renegociar a cada toggle | Com N peers, N−1 rodadas de offer/answer cada vez que alguém desmuta |
+| Glare | Os dois lados oferecem, e a negociação se anula |
+| Dividir uplink sem piso | Todo mundo recebe um borrão que atualiza uma vez por segundo |
+
+Nenhuma delas levanta erro em lugar nenhum — é por isso que cada uma virou um teste nomeado.
+
+!!! warning "O lado que responde não pode pré-alocar"
+    Aplicar uma oferta remota cria **um transceiver por m-line, em ordem de m-line**, e o browser **não reusa** os que o answerer criou antes. Pré-alocar deixa transceivers mortos na frente dos vivos, e a busca por slot passa a apontar para a mídia errada. Por isso `addPeer(id, { offerer: false })` aloca **nada**: os slots aparecem quando a oferta chega, e são adotados em ordem de `mid`.
+
+!!! info "`mid` é a única identidade de slot que vale nos dois lados"
+    O track não carrega nada que distinga câmera de tela. O offerer aloca as m-lines na ordem que você declarou em `slots`, então o `mid` é o ordinal e os dois lados leem o mesmo. Posição em `getTransceivers()` **discorda** — quem responde acrescenta os negociados depois dos que já tinha — e por isso é só fallback.
+
+### Quem oferece é decidido por ordem de chegada
+
+```ts
+// o servidor anuncia joins em ordem total
+socket.on("peer-joined", (peer) => mesh.addPeer(peer.id, { offerer: false }));
+socket.on("welcome", ({ peers }) => {
+  for (const peer of peers) void mesh.addPeer(peer.id, { offerer: true });
+});
+```
+
+Quem **chega depois** oferece; quem já estava só responde. Exatamente um lado de cada link oferece, então não há glare — sem a dança de rollback do perfect negotiation, e sem depender de o browser implementar `setLocalDescription()` sem argumento.
+
+### Ligar e desligar mídia não renegocia
+
+```ts
+await mesh.setLocalTrack("mic", micTrack); // desmutou
+await mesh.setLocalTrack("mic", null); // mutou
+```
+
+Os slots são negociados **antes de qualquer track existir**, então publicar é um `replaceTrack` num transceiver que já existe: nenhuma m-line é acrescentada e nada renegocia. É essa propriedade que faz a mesh sobreviver — com N peers, uma renegociação por toggle são N−1 rodadas simultâneas de offer/answer toda vez que alguém desmuta.
+
+### O Opus continua seu: `setLocalDescription`
+
+A mesh é quem cria toda oferta e toda resposta, então sem um ponto de entrada aqui não sobraria lugar para o `setTunedLocalDescription` — e uma chamada que adotasse a mesh **perderia em silêncio** o bitrate e o layout de canais que já tinha negociado. Por isso a aplicação da descrição local é um parâmetro:
+
+```ts
+import { createPeerMesh, setTunedLocalDescription } from "tempest-react-sdk";
+
+const mesh = createPeerMesh({
+  slots: [
+    { name: "mic", kind: "audio" },
+    { name: "cam", kind: "video" },
+    { name: "screen", kind: "video" },
+    { name: "screen-audio", kind: "audio" },
+  ],
+  send: (message) => socket.send(message),
+  setLocalDescription: (connection, description) =>
+    setTunedLocalDescription(connection, description, {
+      0: { maxAverageBitrate: 48_000, stereo: false, fec: true, dtx: true },
+      1: { maxAverageBitrate: 192_000, stereo: true, fec: false, dtx: false },
+    }),
+});
+```
+
+Vale para a oferta **e** para a resposta, porque as duas metades do handshake carregam as linhas de áudio.
+
+!!! info "Por que a chave por posição de m-line é legítima aqui"
+    É o mesmo motivo que faz o roteamento por `mid` funcionar: a lista de `slots` fixa a ordem, então o primeiro slot de áudio é sempre a primeira m-line de áudio. Fora de uma mesh com ordem declarada, chavear perfil por posição é frágil — aqui a ordem é o próprio protocolo.
+
+!!! tip "O que é enviado é o que foi aplicado"
+    Depois do gancho, a mesh lê o SDP de volta de `connection.localDescription` em vez de mandar o que o browser criou. Assim, quando o `setTunedLocalDescription` cai no fallback — o browser recusou a edição — o peer recebe a descrição que de fato vale na conexão, e não a versão que ninguém aplicou.
+
+Omitir o parâmetro usa `connection.setLocalDescription(description)`, que é o comportamento sem tuning.
+
+### A sala divide o uplink, e a divisão tem piso
+
+```ts
+await mesh.applyQuality({
+  video: { cam: 1200, screen: 3000 },
+  audio: { mic: 32000 },
+  uplinkBudgetKbps: 6000,
+  minVideoKbps: 300,
+  degradationPreference: "maintain-framerate",
+  fluidFloorKbps: 900,
+});
+```
+
+Cada peer envia **uma cópia de tudo por participante**, então um cap confortável em 1↔1 satura um uplink doméstico com quatro pessoas. Três regras:
+
+- **Áudio fica fora da divisão.** É uma ordem de grandeza mais barato e é a parte da chamada que precisa sobreviver.
+- **`minVideoKbps` é o piso.** Dividir sem piso acaba alocando dezenas de kbps por stream — todo mundo perde a imagem em vez de o excedente ceder.
+- **`maintain-framerate` é sobreposto abaixo de `fluidFloorKbps`.** Quem pediu fluidez pediu imagem boa em movimento, não o número 60: com pouca banda, segurar a taxa divide cada quadro pela metade e o resultado é pior que os 30 fps que substituiu.
+
+`scaleForRoom(quality, peers)` e `resolveDegradation(asked, effective)` são as duas funções puras por trás disso, exportadas porque o app precisa da **mesma** divisão antes de capturar: escolher 4K para uma sala de quatro é capturar quatro vezes mais pixels do que há bits para enviar, e o resultado é pior que a resolução menor. Derive o tamanho da captura do orçamento dividido, não do que a pessoa escolheu.
+
+`applyQuality` guarda **o que foi pedido**, não o que foi aplicado, então uma sala que esvazia volta sozinha à qualidade original — inclusive quando um peer cai, porque `removePeer` reaplica.
+
+!!! tip "Estado agregado inclui \"sozinho na sala\""
+    `onState("connected", "alone")` é o estado legítimo de quem chegou primeiro. Um badge que só olha "algum link conectado?" reporta falha enquanto ninguém mais entrou.
 
 ## Recap
 

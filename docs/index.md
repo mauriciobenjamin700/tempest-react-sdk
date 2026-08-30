@@ -39,6 +39,13 @@ Os dois modos e cada pedaço do comando estão explicados em [Scaffold](scaffold
 Novo por aqui? Siga o **[Tutorial — Guia do Usuário](tutorial/index.md)**: do
 scaffold ao app completo, um conceito por página.
 
+!!! tip "Nunca escreveu CSS? Comece um degrau antes"
+
+    O tutorial já assume React, componente, hook e módulo ES. Se essa lista soa
+    como palavras soltas, a trilha **[Fundamentos da Web](basics/index.md)** cobre
+    HTML, CSS, JavaScript do browser, TypeScript e React em onze páginas curtas —
+    e é **opcional**: quem já sabe React vai direto ao Tutorial.
+
 Já sabe usar o SDK e quer saber **como organizar o app**? A aba
 **[Design de Software](design/index.md)** ensina o desenho: camadas, estrutura de
 pastas, onde mora cada estado, tipagem forte, limites objetivos (`.tsx` ≤ 150
@@ -69,6 +76,7 @@ do que não usar). Detalhes em [Arquitetura](architecture.md).
 
 | Área                       | Páginas                                                                                                                                                                                                                                                                                                                                                                                          |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Fundamentos da Web**     | [Comece por aqui](basics/index.md) · [HTML](basics/html.md) · [Formulários](basics/html-forms.md) · [CSS](basics/css.md) · [Layout](basics/css-layout.md) · [Custom properties](basics/css-variables.md) · [JavaScript](basics/js.md) · [Assíncrono](basics/js-async.md) · [Módulos](basics/js-modules.md) · [TypeScript](basics/typescript.md) · [React](basics/react.md) |
 | **Tutorial**               | [Comece aqui](tutorial/index.md) · [Roteamento](tutorial/routing.md) · [Estado](tutorial/state.md) · [Buscando dados](tutorial/data-fetching.md) · [Formulários](tutorial/forms.md) · [Fluxo de auth](tutorial/auth-flow.md)                                                                                                                                                                     |
 | **Estrutura de aplicação** | [Scaffold](scaffold.md), [Vite & alias](vite-config.md), [Roteamento](routing.md), [Estado (Zustand)](state.md), [Providers](app-providers.md)                                                                                                                                                                                                                                                   |
 | **Design de Software**     | [Mapa](design/index.md) — [Camadas](design/architecture.md), [Pastas](design/folders.md), [Fluxo de dados](design/data-flow.md), [Estado](design/state.md), [Componentes](design/components.md), [Limites](design/limits.md), [Tipagem](design/typing.md), [Testes](design/testing.md), [Anti-padrões](design/anti-patterns.md), [Checklist](design/checklist.md) |

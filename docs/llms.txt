@@ -9,6 +9,17 @@
 - [Arquitetura](https://mauriciobenjamin700.github.io/tempest-react-sdk/architecture/): O tempest-react-sdk é um pacote único com camadas independentes.
 - [Áudio](https://mauriciobenjamin700.github.io/tempest-react-sdk/audio/): Áudio no navegador, nas duas direções.
 - [Auth](https://mauriciobenjamin700.github.io/tempest-react-sdk/auth/): Autenticação no front-end é sempre o mesmo punhado de problemas: onde guardar a sessão, como proteger uma rota, como ler o que tem dentro do token e o que fazer quando ele expira no meio de um deploy.
+- [Caixa, fluxo, flex e grid](https://mauriciobenjamin700.github.io/tempest-react-sdk/basics/css-layout/): !!! tip "Pule esta página se você já sabe…"
+- [Custom properties e tema](https://mauriciobenjamin700.github.io/tempest-react-sdk/basics/css-variables/): !!! tip "Pule esta página se você já sabe…"
+- [CSS: seletor, cascata, especificidade](https://mauriciobenjamin700.github.io/tempest-react-sdk/basics/css/): !!! tip "Pule esta página se você já sabe…"
+- [Formulário e acessibilidade](https://mauriciobenjamin700.github.io/tempest-react-sdk/basics/html-forms/): !!! tip "Pule esta página se você já sabe…"
+- [HTML: estrutura e semântica](https://mauriciobenjamin700.github.io/tempest-react-sdk/basics/html/): !!! tip "Pule esta página se você já sabe…"
+- [Fundamentos da Web — Comece por aqui](https://mauriciobenjamin700.github.io/tempest-react-sdk/basics/index/): Esta trilha é opcional. Ela existe para quem já programa — em Python, Java, C#,
+- [Assíncrono: promise, await, fetch](https://mauriciobenjamin700.github.io/tempest-react-sdk/basics/js-async/): !!! tip "Pule esta página se você já sabe…"
+- [Módulos, npm e o bundler](https://mauriciobenjamin700.github.io/tempest-react-sdk/basics/js-modules/): !!! tip "Pule esta página se você já sabe…"
+- [JavaScript: valor, referência, escopo](https://mauriciobenjamin700.github.io/tempest-react-sdk/basics/js/): !!! tip "Pule esta página se você já sabe…"
+- [React: componente, estado, efeito](https://mauriciobenjamin700.github.io/tempest-react-sdk/basics/react/): !!! tip "Pule esta página se você já sabe…"
+- [TypeScript: o mínimo que o SDK usa](https://mauriciobenjamin700.github.io/tempest-react-sdk/basics/typescript/): !!! tip "Pule esta página se você já sabe…"
 - [Pagamentos, fiscal & contato BR](https://mauriciobenjamin700.github.io/tempest-react-sdk/br-pagamentos/): Os quatro trilhos que todo produto brasileiro acaba precisando — Pix, boleto, chave de acesso da NFe e feriados / dias úteis — mais o canal por onde tudo isso chega ao cliente: WhatsApp.
 - [Mapa do Brasil & localidades](https://mauriciobenjamin700.github.io/tempest-react-sdk/br/): Mapa nacional clicável das 27 unidades federativas + dataset de estados e cidades — sem nenhuma API paga ou externa.
 - [Charts (recharts)](https://mauriciobenjamin700.github.io/tempest-react-sdk/charts/): Gráficos transformam números em forma: uma tendência que sobe, uma fatia que

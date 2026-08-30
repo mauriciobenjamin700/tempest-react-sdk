@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.55.0] — 2026-08-30
+
 ### Adicionado
 
 - **`createPeerMesh` — a sala inteira, N↔N**

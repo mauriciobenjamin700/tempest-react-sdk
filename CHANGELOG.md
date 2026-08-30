@@ -345,6 +345,34 @@ Juscelino` (RN) virou `Serra Caiada` em 2013, `Embu` virou `Embu das Artes`,
   linha de costa que decide esse ponto; a simplificação continua trazendo o
   tamanho de volta (`mun/` foi de 2,26 MB para 2,37 MB).
 
+- **O relatório de drift do `parseResponse` estava morto no browser**
+  ([#250](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/250)).
+  A decisão de "estou em desenvolvimento" era
+  `typeof process !== "undefined" && process.env?.NODE_ENV === …`, e bundle de
+  browser não tem o identificador `process`: a conjunção curto-circuitava em
+  `false` e a mensagem detalhada — caminhos de campo mais o payload cru — ficava
+  inalcançável justamente no build para o qual foi escrita. Todo app recebia a
+  frase genérica, que é a que deliberadamente não diz nada. A pergunta agora vai
+  por `isDevBuild()`.
+
+  Não é `import.meta.env.DEV`, como a issue propunha: o Vite substitui isso ao
+  buildar **este pacote**, então o artefato publicado carregaria a constante
+  `false` e reproduziria a #164 exatamente.
+
+  **Amplia comportamento, não é refactor puro:** a regra antiga era
+  `NODE_ENV === "development" || "test"`; `isDevBuild()` é
+  `NODE_ENV !== "production"`. Build de staging que nunca seta
+  `NODE_ENV=production` passa a receber um `Error` carregando
+  `JSON.stringify(raw)` — dos sete call sites de `isDevBuild()` esse é o único que
+  imprime payload de servidor em vez de avisar no console, e as duas páginas de
+  doc dizem isso.
+
+  Os testes eram a razão de isso ter passado: o vitest seta `NODE_ENV=test` e o
+  jsdom fornece `process`, então o ramo de dev era tomado por um motivo que
+  browser nenhum reproduz, e nenhum dos dois casos distinguia o código corrigido
+  do quebrado. Agora dirigem o ramo por um `isDevBuild` mockado e nunca leem
+  `process`.
+
 ### Performance
 
 - **Formatador do `Intl` deixou de ser construído a cada chamada** em 11 sítios,
@@ -401,6 +429,12 @@ Juscelino` (RN) virou `Serra Caiada` em 2013, `Embu` virou `Embu das Artes`,
   `EmptyState` não é `ErrorState`; e `RadioGroup` não tem `label`.
 
 ### Interno
+
+- **Teto da fatia `http client` no `size-limit` foi de 3,4 kB para 3,6 kB.** A
+  medida ficou em 3,49 kB brotli somando duas correções desta rodada: o índice de
+  `fields` que passou a ler os envelopes singulares e o `isDevBuild()` que tornou
+  o relatório de drift alcançável. Os 93 B a mais compram um caminho que **antes
+  não executava** no browser — o teto anterior media código morto.
 
 - **O gerador de geodados passou a ser a fonte única de `src/br/data/`.**
   `scripts/gen-br-geodata.mjs` buscava malha do `tbrugz/geodata-br` e o arquivo de

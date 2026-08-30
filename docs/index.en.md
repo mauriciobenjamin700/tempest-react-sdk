@@ -40,6 +40,14 @@ every piece of the command, are explained in [Scaffold](scaffold.md).
 New here? Follow the **[Tutorial — User Guide](tutorial/index.md)**: from
 scaffold to a complete app, one concept per page.
 
+!!! tip "Never written CSS? Start one step earlier"
+
+    The tutorial already assumes React, components, hooks and ES modules. If that
+    list reads like loose words, the **[Web Fundamentals](basics/index.md)** track
+    covers HTML, CSS, browser JavaScript, TypeScript and React in eleven short
+    pages — and it is **optional**: if you already know React, go straight to the
+    Tutorial.
+
 Already know the SDK and want to know **how to organize the app**? The
 **[Software Design](design/index.md)** tab teaches the design: layers, folder
 structure, where each kind of state lives, strong typing, hard limits (`.tsx` ≤ 150
@@ -71,6 +79,7 @@ bundler tree-shakes what you don't use). Details in
 
 | Area               | Pages                                                                                                                                                                                                                                                                                                                                                                                            |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Web Fundamentals** | [Start here](basics/index.md) · [HTML](basics/html.md) · [Forms](basics/html-forms.md) · [CSS](basics/css.md) · [Layout](basics/css-layout.md) · [Custom properties](basics/css-variables.md) · [JavaScript](basics/js.md) · [Async](basics/js-async.md) · [Modules](basics/js-modules.md) · [TypeScript](basics/typescript.md) · [React](basics/react.md) |
 | **Tutorial**       | [Start here](tutorial/index.md) · [Routing](tutorial/routing.md) · [State](tutorial/state.md) · [Data fetching](tutorial/data-fetching.md) · [Forms](tutorial/forms.md) · [Auth flow](tutorial/auth-flow.md)                                                                                                                                                                                     |
 | **App foundation** | [Scaffold](scaffold.md), [Vite & alias](vite-config.md), [Routing](routing.md), [State (Zustand)](state.md), [Providers](app-providers.md)                                                                                                                                                                                                                                                       |
 | **Software Design** | [Map](design/index.md) — [Layers](design/architecture.md), [Folders](design/folders.md), [Data flow](design/data-flow.md), [State](design/state.md), [Components](design/components.md), [Limits](design/limits.md), [Typing](design/typing.md), [Testing](design/testing.md), [Anti-patterns](design/anti-patterns.md), [Checklist](design/checklist.md) |

@@ -68,6 +68,22 @@ plugins:
                 build: true
                 nav_translations:
                     Início: Home
+                    Fundamentos da Web: Web Fundamentals
+                    Comece por aqui: Start here
+                    Como a página existe: How the page exists
+                    "HTML: estrutura e semântica": "HTML: structure and semantics"
+                    Formulário e acessibilidade: Forms and accessibility
+                    Como a página parece: How the page looks
+                    "CSS: seletor, cascata, especificidade": "CSS: selectors, cascade, specificity"
+                    Caixa, fluxo, flex e grid: Box, flow, flex and grid
+                    Custom properties e tema: Custom properties and theming
+                    Como a página reage: How the page reacts
+                    "JavaScript: valor, referência, escopo": "JavaScript: value, reference, scope"
+                    "Assíncrono: promise, await, fetch": "Async: promise, await, fetch"
+                    Módulos, npm e o bundler: Modules, npm and the bundler
+                    Antes do tutorial: Before the tutorial
+                    "TypeScript: o mínimo que o SDK usa": "TypeScript: the minimum the SDK uses"
+                    "React: componente, estado, efeito": "React: component, state, effect"
                     Tutorial: Tutorial
                     Comece aqui: Start here
                     Estado: State
@@ -197,6 +213,22 @@ extra:
 
 nav:
     - Início: index.md
+    - Fundamentos da Web:
+          - Comece por aqui: basics/index.md
+          - Como a página existe:
+                - "HTML: estrutura e semântica": basics/html.md
+                - Formulário e acessibilidade: basics/html-forms.md
+          - Como a página parece:
+                - "CSS: seletor, cascata, especificidade": basics/css.md
+                - Caixa, fluxo, flex e grid: basics/css-layout.md
+                - Custom properties e tema: basics/css-variables.md
+          - Como a página reage:
+                - "JavaScript: valor, referência, escopo": basics/js.md
+                - "Assíncrono: promise, await, fetch": basics/js-async.md
+                - Módulos, npm e o bundler: basics/js-modules.md
+          - Antes do tutorial:
+                - "TypeScript: o mínimo que o SDK usa": basics/typescript.md
+                - "React: componente, estado, efeito": basics/react.md
     - Comece aqui:
           - Tutorial:
                 - Comece aqui: tutorial/index.md

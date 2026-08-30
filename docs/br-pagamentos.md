@@ -1,12 +1,12 @@
-# Pagamentos & fiscal BR
+# Pagamentos, fiscal & contato BR
 
-Os quatro trilhos que todo produto brasileiro acaba precisando: **Pix**, **boleto**, **chave de acesso da NFe** e **feriados / dias úteis**. Tudo puro TypeScript, **sem nenhuma dependência nova** — a fatia inteira mede **9,22 KB brotli**, e só Pix (payload + CRC + componente de QR) mede **6,1 KB**.
+Os quatro trilhos que todo produto brasileiro acaba precisando — **Pix**, **boleto**, **chave de acesso da NFe** e **feriados / dias úteis** — mais o canal por onde tudo isso chega ao cliente: **WhatsApp**. Tudo puro TypeScript, **sem nenhuma dependência nova** — a fatia inteira mede **9,22 KB brotli**, só Pix (payload + CRC + componente de QR) mede **6,1 KB**, e o deep link do WhatsApp mede **223 B**.
 
 !!! info "Import pelo subpath `tempest-react-sdk/br`"
     Igual ao resto do módulo BR, estes helpers vivem em `tempest-react-sdk/br` — não na raiz. Quem não importa, não paga.
 
     ```ts
-    import { pixPayload, parseLinhaDigitavel, parseChaveNFe, isBusinessDay } from "tempest-react-sdk/br";
+    import { pixPayload, parseLinhaDigitavel, parseChaveNFe, isBusinessDay, whatsAppUrl } from "tempest-react-sdk/br";
     ```
 
 !!! warning "O SDK não fala com banco nenhum"
@@ -488,11 +488,102 @@ easterSunday(2026); // 2026-04-05
 
 ---
 
+## Parte 5 — WhatsApp
+
+O Pix está montado, o boleto está lido, o horário está marcado. Falta a parte que nenhum encoder resolve: **avisar a pessoa**. No Brasil isso acontece no WhatsApp, e o pedaço que todo projeto reescreve não é o texto — é normalizar o número e montar a URL.
+
+### Deep link, nunca envio
+
+```ts
+import { openWhatsApp, toWhatsAppNumber, whatsAppUrl } from "tempest-react-sdk/br";
+
+toWhatsAppNumber("(11) 99999-8888"); // "5511999998888"
+whatsAppUrl("(11) 99999-8888", "Seu horário é amanhã às 14h.");
+// "https://wa.me/5511999998888?text=Seu%20hor%C3%A1rio%20%C3%A9%20amanh%C3%A3%20%C3%A0s%2014h."
+
+openWhatsApp("(11) 99999-8888", "Seu horário é amanhã às 14h."); // abre a aba, devolve true
+```
+
+!!! tip "Abrir a conversa é uma vantagem, não uma limitação"
+    O link abre o WhatsApp com o texto **pronto** e quem aperta enviar é a pessoa. Isso não exige API oficial, não exige template aprovado, não exige verificação de negócio — e, principalmente, não deixa a UI afirmar que a mensagem foi entregue quando ela só foi *digitada*. Envio automático é outro produto (Cloud API), com outro custo e outra responsabilidade.
+
+### Por que o `55` não é detalhe
+
+Um telefone brasileiro é guardado quase sempre **sem** código de país: dez dígitos no fixo, onze no celular. O `wa.me` recusa qualquer coisa que não esteja totalmente qualificada. `toWhatsAppNumber` põe o `55` na frente dessas duas formas, e devolve intacto um número que **já** traz código de país (12 a 15 dígitos, a faixa E.164 que nenhum número nacional brasileiro alcança) — então o celular de um cliente estrangeiro também funciona.
+
+```ts
+toWhatsAppNumber("11999998888"); // "5511999998888"  — celular nacional
+toWhatsAppNumber("1133334444"); // "551133334444"   — fixo nacional
+toWhatsAppNumber("+55 11 99999-8888"); // "5511999998888"  — já qualificado
+toWhatsAppNumber("+351 912 345 678"); // "351912345678"   — Portugal, intacto
+```
+
+!!! warning "Número que não dá pra normalizar devolve `""` — de propósito"
+    Devolver os dígitos como vieram é o que a versão ingênua faz, e o resultado é uma URL `wa.me` que abre o WhatsApp num número que ninguém tem. Aqui um typo vira **botão desabilitado**, não janela de conversa morta:
+
+    ```tsx
+    const url = whatsAppUrl(client.phone, greeting);
+
+    <Button disabled={!url} onClick={() => openWhatsApp(client.phone, greeting)}>
+        Falar no WhatsApp
+    </Button>
+    ```
+
+!!! note "Prefixo de operadora (`0`, `021`) não é removido"
+    Um zero na frente é ambíguo entre prefixo de longa distância e seleção de operadora, então um número que traz um lê como inválido em vez de ser reinterpretado no escuro. O zero é o que descarta `011999998888` mesmo tendo 12 dígitos: **nenhum** código de país E.164 começa com `0`, logo aquilo é um número nacional vestindo prefixo, nunca um internacional.
+
+!!! info "O nono dígito é da sua base, não do link"
+    Um celular gravado antes de 2016 tem dez dígitos e passa aqui como fixo — o link é montado e é o WhatsApp que decide se acha a conta. Se a sua base tem contato antigo, normalize o nono dígito **na base**; o deep link não tem como adivinhar se `1133334444` é fixo ou celular sem o 9.
+
+### Receita: cobrar o sinal por WhatsApp
+
+O caso que junta esta parte com a [Parte 1](#parte-1-pix) — o texto da mensagem carrega o copia-e-cola do Pix:
+
+```tsx
+import { openWhatsApp, pixPayload } from "tempest-react-sdk/br";
+import { Button } from "tempest-react-sdk";
+
+interface Booking {
+    clientName: string;
+    clientPhone: string;
+    depositBRL: number;
+}
+
+export function DepositRequestButton({ booking }: { booking: Booking }) {
+    function requestDeposit(): void {
+        const payload = pixPayload({
+            key: "financeiro@studio.com.br",
+            merchantName: "Studio Aurora",
+            merchantCity: "SAO PAULO",
+            amount: booking.depositBRL,
+        });
+
+        openWhatsApp(
+            booking.clientPhone,
+            [
+                `Oi, ${booking.clientName}! Para confirmar seu horário, o sinal é de R$ ${booking.depositBRL.toFixed(2)}.`,
+                "",
+                "Pix copia e cola:",
+                payload,
+            ].join("\n"),
+        );
+    }
+
+    return <Button onClick={requestDeposit}>Pedir sinal no WhatsApp</Button>;
+}
+```
+
+!!! note "`openWhatsApp` devolve o pedido, não a aba"
+    `true` significa "o número era usável e a abertura foi pedida". Abrir com `noopener` faz o `window.open` devolver `null` **mesmo quando abre**, então o retorno dele não distingue popup bloqueado de aba aberta — e prometer isso seria mentira. Fora do browser (runner de teste, service worker, plugin de build) devolve `false` em vez de estourar.
+
+---
+
 ## Recapitulando
 
 - **Pix** — `pixPayload` monta o BR Code EMV com o CRC-16/CCITT-FALSE certo (incluindo os literais `6304`); `parsePixPayload` lê de volta, tolerante com tag desconhecida e intolerante com checksum errado; `<PixQRCode>` desenha o símbolo **e** a copia-e-cola, porque num celular só o QR não serve.
 - **Boleto** — `parseLinhaDigitavel` / `parseCodigoBarras` convertem 47↔44 e 48↔44 conferindo todo DV; cobrança e arrecadação são layouts diferentes e o SDK nunca confunde os dois; o fator de vencimento tem **duas** bases desde fev/2025 e a escolha é explícita.
 - **NFe** — `parseChaveNFe` abre os 44 dígitos e resolve o `cUF` no tipo `UF` do módulo; `validateChaveNFe` confere tamanho, UF e DV.
 - **Feriados** — `holidaysFor` devolve os 9 feriados nacionais + os 4 dias bancários móveis, marcados; estado e município entram por `extra`; `isBusinessDay` / `nextBusinessDay` / `addBusinessDays` fazem a conta no calendário local.
+- **WhatsApp** — `toWhatsAppNumber` põe o `55` no número nacional e devolve `""` no que não dá pra dialar; `whatsAppUrl` monta o `wa.me` com o texto codificado; `openWhatsApp` abre a aba. É **deep link**, nunca envio: quem aperta enviar é a pessoa.
 
 Nada disso fala com banco. Para o lado servidor (registrar boleto, criar cobrança Pix, autorizar NF-e), veja [Integração FastAPI](./integration-fastapi.md).

@@ -27,6 +27,39 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   representa seria descartado na primeira edição, e truncar aqui faz o valor
   exibido e o submetido serem o mesmo.
 
+- **Deep link de WhatsApp em `tempest-react-sdk/br`**
+  ([#265](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/265)).
+
+  ```ts
+  import { openWhatsApp, whatsAppUrl } from "tempest-react-sdk/br";
+
+  whatsAppUrl("(11) 99999-8888", "Seu horário é amanhã às 14h.");
+  // "https://wa.me/5511999998888?text=Seu%20hor%C3%A1rio…"
+  ```
+
+  O módulo `br` já cobria Pix, boleto, chave NF-e, CEP, feriado e município —
+  faltava o canal por onde tudo isso chega ao cliente. `toWhatsAppNumber`,
+  `whatsAppUrl` e `openWhatsApp` medem **223 B brotli** somados, sem dependência
+  nova.
+
+  **É deep link, nunca envio**: a conversa abre com o texto pronto e quem aperta
+  enviar é a pessoa. Não exige API oficial, template aprovado nem verificação de
+  negócio, e não deixa a UI afirmar entrega que não houve.
+
+  A regra BR de verdade está na normalização. Telefone brasileiro é guardado sem
+  código de país (10 dígitos no fixo, 11 no celular) e o `wa.me` recusa número
+  não qualificado, então essas duas formas ganham o `55`; 12 a 15 dígitos — faixa
+  E.164 que nenhum número nacional alcança — passam intactos, e o celular de um
+  cliente estrangeiro funciona. **O que não normaliza devolve `""`**, em vez dos
+  dígitos como vieram: assim um typo vira botão desabilitado, não uma conversa
+  aberta num número que ninguém tem. Prefixo de operadora não é removido, e o
+  zero da frente é o que descarta `011999998888` mesmo com 12 dígitos — nenhum
+  código de país E.164 começa com `0`.
+
+  `openWhatsApp` devolve `true` para "número usável, abertura pedida", não para
+  "aba aberta": abrir com `noopener` faz o `window.open` devolver `null` mesmo
+  quando abre. Fora do browser devolve `false` em vez de estourar.
+
 - **`monitorVoiceActivity` e `usePushToTalk` — as duas peças que todo app de voz
   reescreve**
   ([#234](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/234)).

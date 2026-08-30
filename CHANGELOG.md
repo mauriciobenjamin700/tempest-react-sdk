@@ -225,6 +225,25 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **`registerServiceWorker` não avisava quando o worker novo já estava em
+  `waiting`**
+  ([#253](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/253)).
+  A detecção de update era só o evento `updatefound`, que cobre o worker que
+  instala **com a aba aberta**. O caso comum não gera evento nenhum: o usuário
+  abriu o app depois do deploy (o worker instalou e foi para `waiting`), fechou a
+  aba, e voltou depois. Nessa segunda visita o `install` já aconteceu, então
+  `onUpdate` nunca disparava e a atualização ficava parada com o worker velho no
+  controle — indefinidamente, porque toda visita seguinte é igual.
+
+  `registration.waiting` passa a ser lido assim que o registro resolve, pelo mesmo
+  caminho do evento. Os dois deduplicam por **identidade do worker**, então a
+  sessão em que o deploy cai com a aba aberta anuncia uma vez só, e um segundo
+  deploy na mesma sessão — que é outro `ServiceWorker` — ainda anuncia. Sem
+  `controller` nada dispara: isso é primeira instalação, terreno do `onReady`.
+
+  `useServiceWorkerUpdate` herda a correção sem mudar nada, e o flag `asked` que o
+  consumidor mantinha à mão deixa de ser necessário.
+
 - **14 links da sidebar da gallery não iam a lugar nenhum.** As seções `chat`,
   `aichat`, `markdown`, `masonry`, `tour`, `transfer`, `filterbar`, `codeblock`,
   `qrcode`, `sparkline`, `bar-list`, `audio-capture`, `device-capture` e

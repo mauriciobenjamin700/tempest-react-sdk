@@ -24,6 +24,9 @@ export function ServiceWorkerGate() {
 
 Quando um worker novo termina de instalar, `updateAvailable` vira `true`; `applyUpdate()` ativa o worker em espera (`skipWaiting`) e recarrega a página assim que ele assume o controle.
 
+!!! note "Também pega o worker que já estava esperando"
+    O caso comum não gera evento nenhum: o usuário abriu o app depois do deploy (o worker novo instalou e foi para `waiting`), fechou a aba, e voltou depois. Nessa segunda visita `updatefound` não dispara — o `install` já aconteceu. `registerServiceWorker` lê `registration.waiting` assim que o registro resolve, então `updateAvailable` vira `true` do mesmo jeito. Cada worker é anunciado **uma vez**, mesmo quando os dois caminhos valem na mesma sessão, e nenhum dispara na primeira instalação (sem `controller`) — isso é `onReady`, não update.
+
 !!! tip "Deixe `autoUpdate` desligado aqui"
     `useServiceWorkerUpdate` existe para dar a decisão de recarregar ao usuário. Se você quer recarga silenciosa, use `registerServiceWorker({ url, autoUpdate: true })` direto, sem o hook.
 

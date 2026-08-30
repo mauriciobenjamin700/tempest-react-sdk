@@ -9,6 +9,10 @@ export interface RegisterServiceWorkerOptions {
      * Called when a new worker has finished installing while another worker
      * still controls the page. The host app typically prompts the user to
      * reload and then calls {@link skipWaiting} on the returned worker.
+     *
+     * Fires for a worker that was already `waiting` when `register()` resolved
+     * — the state a user returning after a deploy actually finds — as well as
+     * for one that installs during this session, and at most once per worker.
      */
     onUpdate?: (waiting: ServiceWorker, registration: ServiceWorkerRegistration) => void;
     /** Called on registration failure. */
@@ -38,6 +42,38 @@ export interface RegisterServiceWorkerOptions {
 
 const DEFAULT_UPDATE_INTERVAL_MS = 60 * 60 * 1000;
 
+/**
+ * Workers already handed to `onUpdate`, so no worker is announced twice.
+ *
+ * Two paths reach the same waiting worker and both are needed: `updatefound`
+ * catches the worker that installs while the tab is open, and the `waiting`
+ * read at registration catches the one that installed on an earlier visit. In
+ * the session where a deploy lands *and* the tab stays open, both fire for the
+ * same worker — without this the app prompts twice.
+ *
+ * Keyed by worker identity rather than by registration, so a second deploy in
+ * the same session still announces: that is a different `ServiceWorker` object.
+ * A `WeakSet` because the entry should die with the worker it names.
+ */
+const announcedWorkers = new WeakSet<ServiceWorker>();
+
+/**
+ * Hand a waiting worker to `onUpdate`, at most once per worker.
+ *
+ * @param worker - The worker that finished installing.
+ * @param registration - The registration it belongs to.
+ * @param options - The caller's options, whose `onUpdate` is invoked.
+ */
+function announceUpdate(
+    worker: ServiceWorker,
+    registration: ServiceWorkerRegistration,
+    options: RegisterServiceWorkerOptions,
+): void {
+    if (announcedWorkers.has(worker)) return;
+    announcedWorkers.add(worker);
+    options.onUpdate?.(worker, registration);
+}
+
 let controllerReloadWired = false;
 
 function wireControllerReload(): void {
@@ -56,7 +92,19 @@ function wireControllerReload(): void {
  *
  * Skips silently when the runtime has no `serviceWorker` support. The host
  * app keeps full control over the SW file — this helper only handles the
- * boilerplate around `register()` and `updatefound`.
+ * boilerplate around `register()` and update detection.
+ *
+ * Two things can mean "an update is ready", and only one of them is an event.
+ * `updatefound` covers the worker that installs while this tab is open. The
+ * commoner case has no event at all: the user visited after a deploy, the new
+ * worker installed and went to `waiting`, they closed the tab, and they are back
+ * now. `install` already happened, so nothing fires — which is why `waiting` is
+ * read directly once the registration resolves. Both routes go through the same
+ * dedupe, so a worker is announced once even when both apply.
+ *
+ * Neither route fires without `navigator.serviceWorker.controller`: no
+ * controller means this is the first install, which is `onReady` territory, not
+ * an update the user should be prompted about.
  *
  * With `autoUpdate` enabled it additionally polls `registration.update()` on
  * an interval and (by default) reloads the page when a freshly activated worker
@@ -79,12 +127,16 @@ export async function registerServiceWorker(
 
         if (registration.active) options.onReady?.(registration);
 
+        if (registration.waiting && navigator.serviceWorker.controller) {
+            announceUpdate(registration.waiting, registration, options);
+        }
+
         registration.addEventListener("updatefound", () => {
             const installing = registration.installing;
             if (!installing) return;
             installing.addEventListener("statechange", () => {
                 if (installing.state === "installed" && navigator.serviceWorker.controller) {
-                    options.onUpdate?.(installing, registration);
+                    announceUpdate(installing, registration, options);
                 }
             });
         });

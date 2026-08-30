@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.54.0] — 2026-08-30
+
 ### Adicionado
 
 - **Guard de rota ganhou o terceiro estado `"pending"`, e com ele o RBAC

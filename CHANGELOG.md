@@ -6,6 +6,57 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`createVoiceChain` — a cadeia de entrada que faltava**
+  ([#233](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/233)).
+  O SDK tinha a cadeia de **saída** (`createAudioBus`) e nada na **entrada**. O
+  que o browser entrega, mesmo com `echoCancellation` e `noiseSuppression`
+  ligados, ainda é ronco de ventilador abaixo da fala, 20 dB entre um sussurro e
+  um grito, e consoante que não lê.
+
+  ```ts
+  const floor = await measureNoiseFloor(stream, { onProgress: setProgress });
+  const chain = createVoiceChain(
+    micTrack,
+    { ...DEFAULT_VOICE_CHAIN, gate: true, gateThreshold: suggestGateThreshold(floor) },
+    { gain: 1.4 },
+  );
+  ```
+
+  Sete estágios, cada um por um sintoma: high-pass 85 Hz (ventilador, plosiva),
+  gate com **hold de 220 ms**, compressor 3:1, presença +3 dB @ 3 kHz, corte de
+  hiss 9 kHz, de-esser @ 7 kHz e limiter em −1 dBFS. High-pass, compressor e
+  limiter vêm ligados; os outros quatro têm custo audível quando não são
+  precisos.
+
+  **O hold é o que faz o gate ser usável.** O RMS cai a zero entre sílabas, então
+  um gate por limiar puro fecha dentro da palavra e reabre na seguinte — pica a
+  fala e o usuário desliga. **E o de-esser precisa de side-chain, que o Web Audio
+  não tem:** um band-pass alimenta um analyser olhando só 6–8 kHz, e a energia
+  dele dirige o ganho de um peaking filter no caminho principal. Corte estático
+  ali abafaria toda consoante em vez das sílabas que sibilam.
+
+  A ordem dos estágios **não é cosmética** e está fixada por teste: gate antes do
+  high-pass deixa um ronco segurar o gate aberto, compressor antes do gate
+  levanta o piso até encostar no limiar, e limiter antes do ganho de saída é um
+  teto por onde o ganho passa direto.
+
+- **`measureNoiseFloor` e `suggestGateThreshold` — o limiar que ninguém acerta no
+  olho.** Regular gate de ouvido só funciona se você já sabe o que deveria sumir.
+  A medição ouve a sala em repouso por 3 s e devolve o **pico** de RMS; a
+  sugestão põe o limiar acima dele por uma margem (em cima do piso o gate fica
+  batendo na variação da própria sala) e clampa nas duas pontas — sala silenciosa
+  demais daria limiar zero, que nunca fecha; medida com alguém falando daria um
+  que nada abre.
+
+- **`monitorVoiceChain` e `isVoiceChainIdle`.** O monitor devolve a própria voz
+  processada pelo alto-falante — a única forma de ouvir o que os filtros fazem
+  sem uma segunda pessoa na chamada — e vem documentado com o aviso de
+  realimentação, porque sem fone a caixa alimenta o mic que alimenta a caixa.
+  `isVoiceChainIdle` responde se algo mudaria o sinal; com tudo desligado e ganho
+  `1`, `createVoiceChain` devolve o track de origem e **nem abre um
+  `AudioContext`** — browsers limitam quantos vivem ao mesmo tempo, e um aberto
+  para uma cadeia passa-tudo conta igual.
+
 - **`compactOnMobile` no `Pagination`**
   ([#254](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/254)).
   Abaixo de 640px o componente escondia os números por CSS, sem opt-out. Isso
@@ -529,6 +580,12 @@ Juscelino` (RN) virou `Serra Caiada` em 2013, `Embu` virou `Embu das Artes`,
   `EmptyState` não é `ErrorState`; e `RadioGroup` não tem `label`.
 
 ### Interno
+
+- **Teto do barrel CJS no `size-limit` foi de 146 kB para 148 kB**, medido em
+  146,47 kB brotli com a cadeia de voz dentro. O ESM ficou em 122,27 kB, abaixo
+  dos 123 kB que a rodada passada deixou. Nenhum consumidor paga esses números —
+  são o teto explícito da entrada inteira, e a fatia por importação é o que diz o
+  custo real.
 
 - **Teto do barrel ESM inteiro no `size-limit` foi de 121 kB para 123 kB.**
   Medido em 121,08 kB brotli com `useFullscreen` dentro. Esse teto não é orçamento

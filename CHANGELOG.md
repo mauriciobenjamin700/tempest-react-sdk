@@ -490,6 +490,12 @@ Juscelino` (RN) virou `Serra Caiada` em 2013, `Embu` virou `Embu das Artes`,
 
 ### Interno
 
+- **Teto do barrel ESM inteiro no `size-limit` foi de 121 kB para 123 kB.**
+  Medido em 121,08 kB brotli com `useFullscreen` dentro. Esse teto não é orçamento
+  de consumidor — ninguém importa o barrel inteiro, e a tabela de fatias por
+  importação é que diz o custo real; ele existe para o crescimento aparecer, e
+  aparecer é o que ele fez.
+
 - **Teto da fatia `http client` no `size-limit` foi de 3,4 kB para 3,6 kB.** A
   medida ficou em 3,49 kB brotli somando duas correções desta rodada: o índice de
   `fields` que passou a ler os envelopes singulares e o `isDevBuild()` que tornou

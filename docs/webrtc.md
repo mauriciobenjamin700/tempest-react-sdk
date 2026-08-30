@@ -5,6 +5,12 @@
 !!! info "Quando você precisa disto?"
     Se a chamada é só voz e o padrão do browser já serve, você não precisa. O momento em que isto vira necessário é o áudio de **tela compartilhada**: música e vídeo herdam o perfil de fala — mono, ~32 kbps, FEC ligado, DTX gateando as passagens quietas — e é exatamente por isso que áudio de tela numa chamada soa como telefone. Nenhuma API de alto nível deixa mudar isso.
 
+<!-- gallery:peer-mesh -->
+[![Mesh WebRTC (createPeerMesh) na gallery](assets/gallery/peer-mesh.webp)](gallery.md)
+
+*Seção `peer-mesh` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## O problema, em uma linha
 
 `RTCPeerConnection` não expõe knob de codec. O perfil do Opus vive numa linha `a=fmtp:` do SDP, e mexer nela é editar texto — com uma cauda longa de armadilhas de protocolo (RFC 7587), não de gosto.
@@ -204,6 +210,98 @@ O módulo já cobre o que varia entre engines, e vale saber que varia:
 | `framesPerSecond` ausente | `fps: 0`, e a última leitura boa é mantida |
 | Contador reinicia (ICE restart) | delta negativo vira `0` e o baseline se refaz |
 | Simulcast (várias camadas no mesmo track) | as camadas somam; a resolução vem da maior |
+
+## `createPeerMesh` — a sala inteira, N↔N
+
+As peças acima cuidam de **um** link. `createPeerMesh` cuida da sala: uma `RTCPeerConnection` por participante, com as faixas de mídia negociadas de uma vez.
+
+```ts
+import { createPeerMesh } from "tempest-react-sdk";
+
+const mesh = createPeerMesh({
+  slots: [
+    { name: "mic", kind: "audio" },
+    { name: "cam", kind: "video" },
+    { name: "screen", kind: "video" },
+  ],
+  send: (message) => socket.send(message),
+  onPeers: setPeers,
+  onState: setState,
+});
+
+socket.onMessage = (message) => void mesh.accept(message);
+
+await mesh.addPeer("peer-2", { offerer: true });
+await mesh.setLocalTrack("mic", micTrack);
+```
+
+**O protocolo de sinalização continua seu.** O SDK produz e aceita três formatos (`offer`, `answer`, `ice`) e não sabe nada sobre sala, identidade ou entrega — quem implementa o servidor é você. O que ele traz é a parte que é igual em toda mesh e está errada na maioria delas.
+
+### As seis armadilhas, e por que cada uma é muda
+
+| Armadilha | Sintoma |
+| --- | --- |
+| Answerer pré-alocando transceiver | Câmera do outro aparece no tile de tela, ou o track some |
+| Rotear por posição em vez de `mid` | O mesmo, de forma intermitente |
+| Candidato ICE antes da descrição remota | Conexão fica em `checking` até estourar |
+| Renegociar a cada toggle | Com N peers, N−1 rodadas de offer/answer cada vez que alguém desmuta |
+| Glare | Os dois lados oferecem, e a negociação se anula |
+| Dividir uplink sem piso | Todo mundo recebe um borrão que atualiza uma vez por segundo |
+
+Nenhuma delas levanta erro em lugar nenhum — é por isso que cada uma virou um teste nomeado.
+
+!!! warning "O lado que responde não pode pré-alocar"
+    Aplicar uma oferta remota cria **um transceiver por m-line, em ordem de m-line**, e o browser **não reusa** os que o answerer criou antes. Pré-alocar deixa transceivers mortos na frente dos vivos, e a busca por slot passa a apontar para a mídia errada. Por isso `addPeer(id, { offerer: false })` aloca **nada**: os slots aparecem quando a oferta chega, e são adotados em ordem de `mid`.
+
+!!! info "`mid` é a única identidade de slot que vale nos dois lados"
+    O track não carrega nada que distinga câmera de tela. O offerer aloca as m-lines na ordem que você declarou em `slots`, então o `mid` é o ordinal e os dois lados leem o mesmo. Posição em `getTransceivers()` **discorda** — quem responde acrescenta os negociados depois dos que já tinha — e por isso é só fallback.
+
+### Quem oferece é decidido por ordem de chegada
+
+```ts
+// o servidor anuncia joins em ordem total
+socket.on("peer-joined", (peer) => mesh.addPeer(peer.id, { offerer: false }));
+socket.on("welcome", ({ peers }) => {
+  for (const peer of peers) void mesh.addPeer(peer.id, { offerer: true });
+});
+```
+
+Quem **chega depois** oferece; quem já estava só responde. Exatamente um lado de cada link oferece, então não há glare — sem a dança de rollback do perfect negotiation, e sem depender de o browser implementar `setLocalDescription()` sem argumento.
+
+### Ligar e desligar mídia não renegocia
+
+```ts
+await mesh.setLocalTrack("mic", micTrack); // desmutou
+await mesh.setLocalTrack("mic", null); // mutou
+```
+
+Os slots são negociados **antes de qualquer track existir**, então publicar é um `replaceTrack` num transceiver que já existe: nenhuma m-line é acrescentada e nada renegocia. É essa propriedade que faz a mesh sobreviver — com N peers, uma renegociação por toggle são N−1 rodadas simultâneas de offer/answer toda vez que alguém desmuta.
+
+### A sala divide o uplink, e a divisão tem piso
+
+```ts
+await mesh.applyQuality({
+  video: { cam: 1200, screen: 3000 },
+  audio: { mic: 32000 },
+  uplinkBudgetKbps: 6000,
+  minVideoKbps: 300,
+  degradationPreference: "maintain-framerate",
+  fluidFloorKbps: 900,
+});
+```
+
+Cada peer envia **uma cópia de tudo por participante**, então um cap confortável em 1↔1 satura um uplink doméstico com quatro pessoas. Três regras:
+
+- **Áudio fica fora da divisão.** É uma ordem de grandeza mais barato e é a parte da chamada que precisa sobreviver.
+- **`minVideoKbps` é o piso.** Dividir sem piso acaba alocando dezenas de kbps por stream — todo mundo perde a imagem em vez de o excedente ceder.
+- **`maintain-framerate` é sobreposto abaixo de `fluidFloorKbps`.** Quem pediu fluidez pediu imagem boa em movimento, não o número 60: com pouca banda, segurar a taxa divide cada quadro pela metade e o resultado é pior que os 30 fps que substituiu.
+
+`scaleForRoom(quality, peers)` e `resolveDegradation(asked, effective)` são as duas funções puras por trás disso, exportadas porque o app precisa da **mesma** divisão antes de capturar: escolher 4K para uma sala de quatro é capturar quatro vezes mais pixels do que há bits para enviar, e o resultado é pior que a resolução menor. Derive o tamanho da captura do orçamento dividido, não do que a pessoa escolheu.
+
+`applyQuality` guarda **o que foi pedido**, não o que foi aplicado, então uma sala que esvazia volta sozinha à qualidade original — inclusive quando um peer cai, porque `removePeer` reaplica.
+
+!!! tip "Estado agregado inclui \"sozinho na sala\""
+    `onState("connected", "alone")` é o estado legítimo de quem chegou primeiro. Um badge que só olha "algum link conectado?" reporta falha enquanto ninguém mais entrou.
 
 ## Recap
 

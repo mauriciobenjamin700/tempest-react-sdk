@@ -107,6 +107,7 @@ const PAGE_SECTIONS = {
     "push.md": ["notification-center", "integrations"],
     "styles.md": ["utilities-css"],
     "utilities.md": ["utils"],
+    "webrtc.md": ["peer-mesh"],
 };
 
 /**

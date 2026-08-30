@@ -101,41 +101,42 @@ Cada seção é um arquivo em [`examples/gallery/src/sections/`](https://github.
 | 27 | QRCode | `#qrcode` | Componentes |
 | 28 | Chat | `#chat` | Componentes |
 | 29 | AIChat | `#aichat` | Componentes |
-| 30 | Cadeia de voz (microfone) | `#voice-chain` | Componentes |
-| 31 | Áudio (gravação) | `#audio-capture` | Componentes |
-| 32 | Captura de dispositivo | `#device-capture` | Componentes |
-| 33 | Dashboard (CSS) | `#dashboard-layout` | Componentes |
-| 34 | FilterBar | `#filterbar` | Componentes |
-| 35 | Markdown | `#markdown` | Componentes |
-| 36 | Masonry | `#masonry` | Componentes |
-| 37 | Tour | `#tour` | Componentes |
-| 38 | Transfer | `#transfer` | Componentes |
-| 39 | CodeBlock | `#codeblock` | Componentes |
-| 40 | Material (ListTile · FAB · Rail) | `#material` | Componentes |
-| 41 | Forms (zod) | `#forms` | Componentes |
-| 42 | BR Forms (CPF/CNPJ/CEP) | `#br-forms` | Componentes |
-| 43 | Hooks — estado | `#hooks-state` | Hooks |
-| 44 | Hooks — DOM & timing | `#hooks-dom` | Hooks |
-| 45 | Network · Clipboard · Share | `#meta` | Hooks |
-| 46 | Formatters | `#utils` | Hooks |
-| 47 | HTTP client | `#recipe-http` | Receitas |
-| 48 | Upload resumível (tus) | `#recipe-resumable-upload` | Receitas |
-| 49 | Passkeys (WebAuthn) | `#recipe-passkeys` | Receitas |
-| 50 | Data fetching (TanStack Query) | `#recipe-query` | Receitas |
-| 51 | Tempo real (WebSocket) | `#recipe-realtime` | Receitas |
-| 52 | Geolocalização (mapas & trajetória) | `#geo` | Receitas |
-| 53 | Mapa do Brasil (UF + cidades) | `#brazil-map` | Receitas |
-| 54 | Pagamentos BR (Pix · boleto · NFe) | `#br-payments` | Receitas |
-| 55 | Auth & Access Control | `#recipe-auth` | Receitas |
-| 56 | SSE · Push · Audio | `#integrations` | Receitas |
-| 57 | NotificationCenter (inbox) | `#notification-center` | Receitas |
-| 58 | PWA: Install · Push | `#pwa` | Receitas |
-| 59 | Store (Zustand) | `#foundation` | Fundação |
-| 60 | Escalas contínuas (heatmap) | `#dataviz-scales` | Fundação |
-| 61 | createTheme · presets · tokens de gráfico | `#theme-factory` | Fundação |
-| 62 | Ícones por slug (/icons) | `#icons` | Fundação |
-| 63 | utilities.css (camada opt-in) | `#utilities-css` | Fundação |
-| 64 | Tema + i18n | `#theme-i18n` | Fundação |
+| 30 | Mesh WebRTC (createPeerMesh) | `#peer-mesh` | Componentes |
+| 31 | Cadeia de voz (microfone) | `#voice-chain` | Componentes |
+| 32 | Áudio (gravação) | `#audio-capture` | Componentes |
+| 33 | Captura de dispositivo | `#device-capture` | Componentes |
+| 34 | Dashboard (CSS) | `#dashboard-layout` | Componentes |
+| 35 | FilterBar | `#filterbar` | Componentes |
+| 36 | Markdown | `#markdown` | Componentes |
+| 37 | Masonry | `#masonry` | Componentes |
+| 38 | Tour | `#tour` | Componentes |
+| 39 | Transfer | `#transfer` | Componentes |
+| 40 | CodeBlock | `#codeblock` | Componentes |
+| 41 | Material (ListTile · FAB · Rail) | `#material` | Componentes |
+| 42 | Forms (zod) | `#forms` | Componentes |
+| 43 | BR Forms (CPF/CNPJ/CEP) | `#br-forms` | Componentes |
+| 44 | Hooks — estado | `#hooks-state` | Hooks |
+| 45 | Hooks — DOM & timing | `#hooks-dom` | Hooks |
+| 46 | Network · Clipboard · Share | `#meta` | Hooks |
+| 47 | Formatters | `#utils` | Hooks |
+| 48 | HTTP client | `#recipe-http` | Receitas |
+| 49 | Upload resumível (tus) | `#recipe-resumable-upload` | Receitas |
+| 50 | Passkeys (WebAuthn) | `#recipe-passkeys` | Receitas |
+| 51 | Data fetching (TanStack Query) | `#recipe-query` | Receitas |
+| 52 | Tempo real (WebSocket) | `#recipe-realtime` | Receitas |
+| 53 | Geolocalização (mapas & trajetória) | `#geo` | Receitas |
+| 54 | Mapa do Brasil (UF + cidades) | `#brazil-map` | Receitas |
+| 55 | Pagamentos BR (Pix · boleto · NFe) | `#br-payments` | Receitas |
+| 56 | Auth & Access Control | `#recipe-auth` | Receitas |
+| 57 | SSE · Push · Audio | `#integrations` | Receitas |
+| 58 | NotificationCenter (inbox) | `#notification-center` | Receitas |
+| 59 | PWA: Install · Push | `#pwa` | Receitas |
+| 60 | Store (Zustand) | `#foundation` | Fundação |
+| 61 | Escalas contínuas (heatmap) | `#dataviz-scales` | Fundação |
+| 62 | createTheme · presets · tokens de gráfico | `#theme-factory` | Fundação |
+| 63 | Ícones por slug (/icons) | `#icons` | Fundação |
+| 64 | utilities.css (camada opt-in) | `#utilities-css` | Fundação |
+| 65 | Tema + i18n | `#theme-i18n` | Fundação |
 <!-- /gallery -->
 
 ## Matriz de variantes
@@ -207,7 +208,7 @@ Cada exemplo aparece **lado a lado com o código-fonte** (botão "Copiar"), ent�
 gallery é também uma referência copia-e-cola. Capturas do app rodando:
 
 <!-- gallery:screenshots -->
-Cada seção tem a própria captura ao lado do componente que documenta; os pares abaixo são aqueles em que o tema é o assunto. As 74 imagens são regeneradas por `npm run docs:shots`.
+Cada seção tem a própria captura ao lado do componente que documenta; os pares abaixo são aqueles em que o tema é o assunto. As 75 imagens são regeneradas por `npm run docs:shots`.
 
 ### Buttons
 

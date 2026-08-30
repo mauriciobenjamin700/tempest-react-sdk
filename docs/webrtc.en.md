@@ -5,6 +5,12 @@ Audio over WebRTC is **mono and narrow by default**, and the only place that get
 !!! info "When do you need this?"
     If the call is voice only and the browser default is fine, you do not. Where it becomes necessary is **shared-screen** audio: music and video inherit the speech profile — mono, ~32 kbps, FEC on, DTX gating the quiet passages — which is exactly why system audio in a call sounds like a telephone. No high-level API lets you change it.
 
+<!-- gallery:peer-mesh -->
+[![Mesh WebRTC (createPeerMesh) in the gallery](assets/gallery/peer-mesh.webp)](gallery.md)
+
+*Section `peer-mesh` of the [gallery](gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 ## The problem, in one line
 
 `RTCPeerConnection` exposes no codec knob. The Opus profile lives in an `a=fmtp:` line of the SDP, and changing it means editing text — with a long tail of protocol traps (RFC 7587), not taste ones.
@@ -204,6 +210,98 @@ The module already covers what varies between engines, and it is worth knowing t
 | `framesPerSecond` missing | `fps: 0`, and the last good reading is kept |
 | Counter restarts (ICE restart) | a negative delta becomes `0` and the baseline is rebuilt |
 | Simulcast (several layers on one track) | the layers sum; resolution comes from the largest |
+
+## `createPeerMesh` — the whole room, N↔N
+
+The pieces above handle **one** link. `createPeerMesh` handles the room: one `RTCPeerConnection` per participant, with the media lanes negotiated once.
+
+```ts
+import { createPeerMesh } from "tempest-react-sdk";
+
+const mesh = createPeerMesh({
+  slots: [
+    { name: "mic", kind: "audio" },
+    { name: "cam", kind: "video" },
+    { name: "screen", kind: "video" },
+  ],
+  send: (message) => socket.send(message),
+  onPeers: setPeers,
+  onState: setState,
+});
+
+socket.onMessage = (message) => void mesh.accept(message);
+
+await mesh.addPeer("peer-2", { offerer: true });
+await mesh.setLocalTrack("mic", micTrack);
+```
+
+**The signalling protocol stays yours.** The SDK produces and accepts three shapes (`offer`, `answer`, `ice`) and knows nothing about rooms, identity or delivery — the server is yours to implement. What it brings is the part that is the same in every mesh and wrong in most of them.
+
+### The six traps, and why each one is mute
+
+| Trap | Symptom |
+| --- | --- |
+| The answerer pre-allocating transceivers | The other person's camera lands in the screen tile, or the track vanishes |
+| Routing by position instead of `mid` | The same, intermittently |
+| An ICE candidate before the remote description | The connection sits in `checking` until it times out |
+| Renegotiating on every toggle | With N peers, N−1 offer/answer rounds every time somebody unmutes |
+| Glare | Both sides offer, and the negotiation cancels itself |
+| Dividing the uplink without a floor | Everybody gets a blur that updates once a second |
+
+None of them raises an error anywhere — which is why each one became a named test.
+
+!!! warning "The answering side must not pre-allocate"
+    Applying a remote offer creates **one transceiver per m-line, in m-line order**, and the browser does **not** reuse the ones the answerer made beforehand. Pre-allocating leaves dead transceivers in front of the live ones, and slot lookup starts pointing at the wrong media. So `addPeer(id, { offerer: false })` allocates **nothing**: the slots appear when the offer does, and are adopted in `mid` order.
+
+!!! info "`mid` is the only slot identity valid on both sides"
+    The track carries nothing that distinguishes a camera from a screen. The offerer allocates the m-lines in the order you declared in `slots`, so the `mid` is the ordinal and both ends read the same one. Position in `getTransceivers()` **disagrees** — the answering side appends the negotiated ones after whatever it already held — which is why it is only a fallback.
+
+### Who offers is decided by arrival order
+
+```ts
+// the server announces joins in a total order
+socket.on("peer-joined", (peer) => mesh.addPeer(peer.id, { offerer: false }));
+socket.on("welcome", ({ peers }) => {
+  for (const peer of peers) void mesh.addPeer(peer.id, { offerer: true });
+});
+```
+
+Whoever arrives **later** offers; whoever was already there answers. Exactly one side of each link offers, so there is no glare — without the rollback dance of perfect negotiation, and without depending on the browser implementing argument-less `setLocalDescription()`.
+
+### Turning media on and off does not renegotiate
+
+```ts
+await mesh.setLocalTrack("mic", micTrack); // unmuted
+await mesh.setLocalTrack("mic", null); // muted
+```
+
+The slots are negotiated **before any track exists**, so publishing is a `replaceTrack` on a transceiver that is already there: no m-line is added and nothing renegotiates. That property is what makes a mesh survive — with N peers, a renegotiation per toggle is N−1 simultaneous offer/answer rounds every time somebody unmutes.
+
+### The room divides the uplink, and the division has a floor
+
+```ts
+await mesh.applyQuality({
+  video: { cam: 1200, screen: 3000 },
+  audio: { mic: 32000 },
+  uplinkBudgetKbps: 6000,
+  minVideoKbps: 300,
+  degradationPreference: "maintain-framerate",
+  fluidFloorKbps: 900,
+});
+```
+
+Every peer sends **one copy of everything per participant**, so a cap that is comfortable one-to-one saturates a home uplink with four people. Three rules:
+
+- **Audio stays out of the division.** It is an order of magnitude cheaper and it is the part of the call that has to survive.
+- **`minVideoKbps` is the floor.** Dividing without one eventually allocates tens of kbps per stream — everybody loses the picture instead of the excess giving way.
+- **`maintain-framerate` is overridden below `fluidFloorKbps`.** Somebody who asked for fluidity asked for a good picture in motion, not for the number 60: with little bandwidth, holding the rate halves what each frame gets and the result is worse than the 30 fps it replaced.
+
+`scaleForRoom(quality, peers)` and `resolveDegradation(asked, effective)` are the two pure functions behind this, exported because the app needs the **same** division before it captures: choosing 4K for a room of four captures four times more pixels than there are bits to send them with, and the result is worse than the smaller size. Derive the capture size from the divided budget, not from what the person picked.
+
+`applyQuality` keeps **what was asked for**, not what was applied, so a room that empties returns to the original quality on its own — including when a peer drops, because `removePeer` re-applies.
+
+!!! tip "The aggregate state includes \"alone in the room\""
+    `onState("connected", "alone")` is the legitimate state of whoever arrived first. A badge that only asks "is any link connected?" reports a failure for as long as nobody else has joined.
 
 ## Recap
 

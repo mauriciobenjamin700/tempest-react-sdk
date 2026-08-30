@@ -4,6 +4,73 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`createPeerMesh` — a sala inteira, N↔N**
+  ([#231](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/231)).
+  O SDK tinha as **peças** de uma chamada WebRTC (`tuneOpus`,
+  `setTunedLocalDescription`, `setSenderBitrate`, `createAudioBus`,
+  `createLinkStatsSampler`, socket resiliente) e nenhuma **junta** — o consumidor
+  real ainda escrevia 892 linhas de `RTCPeerConnection` na mão.
+
+  ```ts
+  const mesh = createPeerMesh({
+    slots: [
+      { name: "mic", kind: "audio" },
+      { name: "cam", kind: "video" },
+      { name: "screen", kind: "video" },
+    ],
+    send: (message) => socket.send(message),
+    onPeers: setPeers,
+    onState: setState,
+  });
+
+  socket.onMessage = (message) => void mesh.accept(message);
+  await mesh.addPeer("peer-2", { offerer: true });
+  await mesh.setLocalTrack("mic", micTrack);
+  ```
+
+  **O protocolo de sinalização continua do app.** O SDK produz e aceita três
+  formatos (`offer`, `answer`, `ice`); sala, identidade e entrega são de quem
+  implementa o servidor. O que entra é a parte que é igual em toda mesh e está
+  errada na maioria — **seis armadilhas, cada uma com teste nomeado**, todas de
+  sintoma mudo:
+
+  | Armadilha                               | Sintoma                                              |
+  | --------------------------------------- | ---------------------------------------------------- |
+  | Answerer pré-alocando transceiver       | Câmera do outro no tile de tela, ou track sumido     |
+  | Rotear por posição em vez de `mid`      | O mesmo, de forma intermitente                       |
+  | Candidato ICE antes da descrição remota | Conexão presa em `checking` até estourar             |
+  | Renegociar a cada toggle                | Com N peers, N−1 rodadas de offer/answer por desmute |
+  | Glare                                   | Os dois lados oferecem e a negociação se anula       |
+  | Dividir uplink sem piso                 | Todo mundo recebe borrão que atualiza 1×/s           |
+
+  As duas que mais custam: **o lado que responde não pode pré-alocar** (aplicar
+  uma oferta cria um transceiver por m-line, em ordem, e o browser **não reusa**
+  os que o answerer criou antes), e **`mid` é a única identidade de slot válida
+  nos dois lados** — posição em `getTransceivers()` discorda, porque quem
+  responde acrescenta os negociados depois dos que já tinha.
+
+  Glare é resolvido **por ordem**, não por rollback: quem chega depois oferece
+  (`addPeer(id, { offerer: true })`), quem já estava responde. Toggle de mídia é
+  `replaceTrack` num transceiver já negociado — nenhuma m-line entra, nada
+  renegocia.
+
+- **`applyQuality` divide o uplink pela sala, com piso e com o
+  `degradationPreference` resolvido.** Cada peer envia uma cópia de tudo por
+  participante, então cap confortável em 1↔1 satura uplink doméstico com quatro
+  pessoas. Áudio fica **fora** da divisão (é ordem de grandeza mais barato e é a
+  parte que precisa sobreviver); `minVideoKbps` é o piso, porque dividir sem ele
+  aloca dezenas de kbps por stream; e `maintain-framerate` é **sobreposto** abaixo
+  de `fluidFloorKbps`, porque quem pediu fluidez pediu imagem boa em movimento,
+  não o número 60. `removePeer` reaplica, então sala que esvazia volta sozinha à
+  qualidade pedida.
+
+  `scaleForRoom` e `resolveDegradation` saem exportadas: o app precisa da mesma
+  divisão **antes** de capturar, já que capturar 4K para uma sala de quatro é
+  capturar quatro vezes mais pixels do que há bits para enviar.
+
+
 ## [0.54.0] — 2026-08-30
 
 ### Adicionado
@@ -735,6 +802,11 @@ Juscelino` (RN) virou `Serra Caiada` em 2013, `Embu` virou `Embu das Artes`,
   `EmptyState` não é `ErrorState`; e `RadioGroup` não tem `label`.
 
 ### Interno
+
+- **Tetos do barrel no `size-limit`: ESM 123 → 126 kB, CJS 148 → 151 kB.**
+  Medidos em 124,15 e 148,61 kB brotli com a mesh dentro. Continuam sendo teto de
+  entrada inteira, não orçamento de consumidor — quem importa `{ createPeerMesh }`
+  paga a fatia dele, e o `preserveModules` mantém o resto fora.
 
 - **Teto do barrel CJS no `size-limit` foi de 146 kB para 148 kB**, medido em
   146,47 kB brotli com a cadeia de voz dentro. O ESM ficou em 122,27 kB, abaixo

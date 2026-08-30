@@ -4,13 +4,13 @@ SDK público da Tempest com componentes React, hooks e integrações reutilizáv
 
 > Este arquivo é o guia operacional do SDK. Padrões globais (PR template PT-BR, conventional commits, `gh pr edit` workaround) vêm de `~/.claude/CLAUDE.md` e continuam valendo.
 
-## Estado atual (snapshot pós-v0.53.0 — `[Unreleased]` no CHANGELOG vazio, aguardando o próximo ciclo)
+## Estado atual (snapshot pós-v0.53.0 — `[Unreleased]` acumulando: CSS por entrada, link stats, `onParseError`, `useFullscreen`, dataset BR refeito)
 
 - **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 73 tags publicadas (0.1.0 → 0.53.0) com signed provenance via OIDC. Histórico completo em `RELEASES.md` (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
-- **Testes**: 5564 testes em 538 arquivos, ~45 s sob `vitest + jsdom + fake-indexeddb`. Cobertura **99,88% linhas / 98,98% statements / 99,93% funções / 96,05% branches**; pisos do CI em **99/98/99/95**, ~1 ponto de folga em cada eixo. O que sobra descoberto — 2 funções e 13 linhas — é **inalcançável por construção** (ver `### P3` abaixo).
-- **Superfície**: 40 módulos em `src/`, 128 componentes, 52 hooks no módulo `hooks/` (109 exports `use*` somando todos os módulos), 538 exports na entrada raiz e 21 em `/icons`.
-- **Empacotamento (v0.25.0)**: `dist/` preserva o grafo de módulos (`preserveModules`). O que o app paga de fato (brotli): `{ cn }` 133 B · `{ Button }` 794 B · app típico 8.91 KB · offline/PWA 4.54 KB · `styles.css` 28.68 KB · `utilities.css` 1.36 KB (opt-in). Teto sem tree-shaking: 118.85 KB ESM / 142.54 KB CJS. Budgets do `size-limit` são **por fatia importada**, não pelo barrel.
-- **Subpaths** (15, a lista é o campo `exports` do `package.json`): `.`, `/testing` (MSW), `/vite` (`createViteConfig` + plugins), `/sw` (helpers de contexto SW), `/charts` (recharts peer), `/editor` (tiptap peer), `/imaging` (decode/encode/resize/crop/compress em canvas, sem dep), `/tabular` (`TabularPredictor` ONNX + cache de modelo, onnxruntime-web peer), `/vision` (onnxruntime-web peer), `/br` (dataset BR + mapa clicável), `/icons` (ícone por slug, 45 shards lazy balanceados), `/icons/virtual` (módulo real: `staticIcons = {}` que o plugin sobrescreve — resolve fora do Vite também), `/styles.css`, `/utilities.css` (camada de layout opt-in), `/package.json`.
+- **Testes**: 5698 testes em 549 arquivos, ~46 s sob `vitest + jsdom + fake-indexeddb`. Cobertura **99,87% linhas / 98,94% statements / 99,93% funções / 95,91% branches**; pisos do CI em **99/98/99/95**, ~1 ponto de folga em cada eixo. O que sobra descoberto — 2 funções e 13 linhas — é **inalcançável por construção** (ver `### P3` abaixo).
+- **Superfície**: 40 módulos em `src/`, 128 componentes, 53 hooks no módulo `hooks/` (116 exports `use*` somando todos os módulos), 543 exports na entrada raiz, 67 em `/br` e 21 em `/icons`.
+- **Empacotamento (v0.25.0)**: `dist/` preserva o grafo de módulos (`preserveModules`). O que o app paga de fato (brotli): `{ cn }` 133 B · `{ Button }` 794 B · app típico 9.27 KB · offline/PWA 4.54 KB · `styles.css` 28.7 KB · `utilities.css` 1.36 KB (opt-in). Teto sem tree-shaking: 121.08 KB ESM / 145.01 KB CJS. Budgets do `size-limit` são **por fatia importada**, não pelo barrel.
+- **Subpaths** (15, a lista é o campo `exports` do `package.json`): `.`, `/testing` (MSW), `/vite` (`createViteConfig` + plugins), `/sw` (helpers de contexto SW), `/charts` (recharts peer), `/editor` (tiptap peer), `/imaging` (decode/encode/resize/crop/compress em canvas, sem dep), `/tabular` (`TabularPredictor` ONNX + cache de modelo, onnxruntime-web peer), `/vision` (onnxruntime-web peer), `/br` (dataset BR + mapa clicável — os quatro arquivos saem do IBGE numa geração só, chaveados por código de 7 dígitos), `/icons` (ícone por slug, 45 shards lazy balanceados), `/icons/virtual` (módulo real: `staticIcons = {}` que o plugin sobrescreve — resolve fora do Vite também), `/styles.css`, `/utilities.css` (camada de layout opt-in), `/package.json`.
 - **CLIs** (`bin/`): `create-tempest-app` (scaffold — invocado como `npx -p tempest-react-sdk create-tempest-app .`; **não** existe pacote `create-tempest-app` no npm, então `npm create tempest-app` dá 404) com templates `template/` e `template-pwa/`; `tempest` (project CLI: `doctor`, `lint`, `fix`, `format`, `gen api <openapi>` → Zod + types + services, `gen icons` → registry estático de ícone). `doctor` e `fix` também fazem **análise de CSS** (`bin/lib/css/`, scanner próprio sem dep): sintaxe que o browser derruba, declaração/regra duplicada, propriedade e token inexistentes, e bloco repetido que pede classe global/utility. `fix` remove só o comprovadamente morto (sempre a cópia **anterior** — last-wins); `--no-css` pula, `--dry-run` é a superfície de revisão.
 - **Style modules**: `colors.css` (inclui `--tempest-code-*`, resolvidos pro piso de **texto** 4,5:1 — a rampa de chart é de **marca**, 3:1, e reprova como texto) + `typography.css` + `motion.css` + `density.css` + `reset.css` + `responsive.css` + `print.css`; `utilities.css` fica **fora** do bundle (opt-in, copiado pra `dist/` no build).
 - **Tooling**: Prettier 3, Husky pre-commit (lint-staged), `Makefile` + `scripts/release.sh` (tag-push pipeline) + `scripts/changelog.mjs` (notes/close) + `scripts/sync-github-releases.sh` (backfill de Releases), 5 workflows — `ci.yml` (PR, matriz node 22/24), `release-npm.yml` (tag push → guard de versão + publish OIDC + read-back do registry + GitHub Release), `size-limit.yml`, `e2e.yml` (gallery), `docs.yml` (Pages).
@@ -52,7 +52,7 @@ tempest-react-sdk/
 │   ├── app/            <AppProviders> (ErrorBoundary → Query → Theme → i18n)
 │   ├── audio/          createAudioPlayer, useAudio, playAudio
 │   ├── auth/           createAuthStore, AuthGuard, decodeJWT, lazyWithRetry, createRefreshQueue, createTempestAuth
-│   ├── br/          ⇢  dataset de estados/municípios + mapa UF clicável + centroides (chunks lazy)
+│   ├── br/          ⇢  5.571 municípios do IBGE (id + nome + centroide) + 35 RAs do DF + mapa UF clicável (chunks lazy)
 │   ├── capture/        createMediaRecorder, useVideoRecorder, useBarcodeScanner, useScreenCapture, useSpeechRecognition
 │   ├── charts/      ⇢  wrappers recharts
 │   ├── components/     128 componentes UI
@@ -121,14 +121,15 @@ Aberto hoje, em ordem de valor:
 | [#232](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/232) | `getStats` normalizado      | RTT do par **selecionado** (não do primeiro succeeded) e vazão por delta. Fatia mais fácil de portar: entra `RTCStatsReport`, sai objeto    |
 | [#234](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/234) | VAD + push-to-talk          | Fala derivada no cliente em vez de sinalizada; PTT que solta no `blur`                                                                      |
 | [#236](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/236) | Trilha "Fundamentos da Web" | A doc começa no meio: `tutorial/` já assume React, hook e módulo ES. 11 páginas opcionais antes dela                                        |
-| [#235](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/235) | `useFullscreen`             | `good first issue`. Estado dirigido por `fullscreenchange`, porque `Esc` e F11 saem sem passar pela sua função                              |
+| [#253](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/253) | SW novo em `waiting`        | `registerServiceWorker` só avisa quando o `updatefound` dispara; worker já esperando na primeira visita passa despercebido                  |
+| [#254](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/254) | `Pagination` no mobile      | O colapso dos números é CSS puro, sem opt-out — app que quer os números no celular não tem como pedir                                       |
 
 ### O consumidor que dita a frente RTC
 
 `~/projects/my/tools/tempest-mirror-screen` — voz/vídeo/tela N↔N por WebRTC em
 mesh, self-hosted (FastAPI sinalizando, React no browser). Consome
-`tempest-react-sdk@^0.53.0` de verdade, e é de lá que saíram #220–#223 e agora
-#231–#235.
+`tempest-react-sdk@^0.53.0` de verdade, e é de lá que saíram #220–#223 e depois
+#231–#235 — deste último grupo, o `useFullscreen` (#235) já entrou.
 
 O padrão vale mais que o app: **a primitiva sai de código que já roda em
 produção lá, não de desenho especulativo.** Cada armadilha que virou comentário
@@ -146,7 +147,6 @@ O que ele **ainda escreve na mão** (o backlog acima, em ordem de tamanho):
 | `lib/mesh.ts`                                | 892    | #231 `createPeerMesh` + #232 stats |
 | `lib/voiceChain.ts`                          | 456    | #233 `createVoiceChain`            |
 | `lib/voiceActivity.ts` + `lib/pushToTalk.ts` | 148    | #234                               |
-| `lib/immersive.ts`                           | 65     | #235 `useFullscreen`               |
 
 Já coberto pelo SDK e **fora** do backlog: aquisição de mídia
 (`useMicrophone`, `useScreenCapture`, `useCameraStream`, `classifyMediaError`)
@@ -158,7 +158,7 @@ dev-mode (`src/utils/dev-mode.ts`) e o crescimento do `materialToLucide` — e a
 versão de lá do dev-mode estava **certa** onde a minha estava errada. `git fetch`
 e comparar antes de investir horas.
 
-Entregue e fora do backlog: **a onda de voz/RTC** (`tuneOpus` + `setTunedLocalDescription` #222, `createAudioBus` com ganho >100% e limiter pós-soma #223, `createWebSocket` resiliente #220, `aria-label` no `Slider` #221), **`CodeBlock`** (realce por scanner + tokens `--tempest-code-*`), **`QRCode`** (encoder ISO 18004 próprio, 3,2 KB br), **`Sparkline`** (mini-gráfico inline, sem recharts), **escala contínua de data viz** (`sequentialScale`/`divergingScale`), **`NotificationCenter`** (inbox de push), **`VirtualTable`**, **ícone por slug (`/icons`, issue #37)**, **`tempest fix` convertendo import relativo pra `@/` (issue #56)**, release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`), sweep `axe` em jsdom + smoke Playwright do gallery (`e2e.yml`), coverage gateando o CI (pisos 98/97/96/94), política de versionamento de tokens CSS (`docs/styles.md`).
+Entregue e fora do backlog: **`useFullscreen`** (#235 — estado lido de `fullscreenchange`, porque `Esc`, F11 e o botão do browser não passam pela sua função; a assinatura vive em `use-fullscreen-element.ts`, compartilhada com o `usePortalHost`), **os quatro datasets de `br/` unidos pelo código IBGE** (#249 — ver a lição abaixo), **a onda de voz/RTC** (`tuneOpus` + `setTunedLocalDescription` #222, `createAudioBus` com ganho >100% e limiter pós-soma #223, `createWebSocket` resiliente #220, `aria-label` no `Slider` #221), **`CodeBlock`** (realce por scanner + tokens `--tempest-code-*`), **`QRCode`** (encoder ISO 18004 próprio, 3,2 KB br), **`Sparkline`** (mini-gráfico inline, sem recharts), **escala contínua de data viz** (`sequentialScale`/`divergingScale`), **`NotificationCenter`** (inbox de push), **`VirtualTable`**, **ícone por slug (`/icons`, issue #37)**, **`tempest fix` convertendo import relativo pra `@/` (issue #56)**, release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`), sweep `axe` em jsdom + smoke Playwright do gallery (`e2e.yml`), coverage gateando o CI (pisos 98/97/96/94), política de versionamento de tokens CSS (`docs/styles.md`).
 
 ### P1 — componentes
 
@@ -296,6 +296,33 @@ npm run dev               # http://127.0.0.1:5173
 - **Aspas duplas**, tipagem total, JSDoc em inglês nos exports públicos. PT-BR no resto da doc.
 
 ## Lições aprendidas
+
+- **Dataset unido por nome sempre drifta; una por id estável.** Os quatro arquivos de
+  `br/` vinham de duas safras do IBGE comparadas por nome, e 44 renomeações depois o
+  seletor oferecia município que o geocoder não achava — sem erro, só resposta vazia. O
+  código de 7 dígitos sobrevive à renomeação; **o nome é rótulo, não chave**. Corolário:
+  o alias de nome antigo não se escreve à mão, se extrai diffando a safra velha contra a
+  nova pelo id que as duas compartilham, e a supressão é **por UF** (`Presidente
+Juscelino` ainda é município no MA e no MG).
+- **Malha simplificada demais mente sobre conter um ponto.** `qualidade=minima` do IBGE
+  desenha o Rio inteiro com 35 vértices e o Centro cai **fora**: `reverseGeocode`
+  respondia "Niterói". Point-in-polygon precisa de `intermediaria`; o Douglas-Peucker
+  local traz o tamanho de volta. E tolerância **fixa** apaga município pequeno inteiro
+  (Santa Cruz de Minas tem 3,5 km²) — limite a tolerância a uma fração da diagonal do
+  próprio anel.
+- **Lacuna de dado se declara, não se absorve.** O IBGE publica município antes da malha
+  dele. O que salva é o gerador **falhar** quando aparece um caso não declarado, e o
+  pacote expor a lista (`pendingGeometryIds()`), em vez de o app descobrir como resultado
+  vazio em produção.
+- **Teto de `size-limit` estoura ao fim de uma rodada, e às vezes é a soma que estoura.**
+  Duas correções de `http/` couberam sozinhas e mediram 93 B acima do teto juntas. Subir é
+  a resposta certa quando os bytes compram comportamento — o teto anterior media código
+  que não executava —, mas escreva o número medido e a razão no CHANGELOG, senão o teto
+  vira carimbo.
+- **Merjar N PRs que tocam `[Unreleased]` conflita N-1 vezes.** Toda entrada entra no mesmo
+  ponto do `CHANGELOG.md`. É concatenação, não escolha de lado: o que já está na `main`
+  primeiro, a entrada do branch depois. Merjar o PR com o maior diff de dado **primeiro**
+  evita rebasear megabytes.
 
 - `vi.fn(() => obj)` **não funciona** como constructor mock. Use `class Mock { ... }` quando o código faz `new X(...)`.
 - jsdom não calcula layout, então `offsetParent` é sempre null. `useFocusTrap` filtra via `getComputedStyle` em vez disso.

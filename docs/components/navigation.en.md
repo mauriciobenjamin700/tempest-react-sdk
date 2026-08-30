@@ -584,7 +584,21 @@ export function Paginacao({ totalItems }: { totalItems: number }) {
 | `totalItems`       | `number` (count, optional) | —     |
 | `onPageChange`     | `(page: number) => void` | —       |
 | `onPageSizeChange` | `(size: number) => void` | —       |
-| `siblingCount`     | `number` (neighbors)     | `7`     |
+| `siblingCount`     | `number` (neighbors)     | `3`     |
+| `compactOnMobile`  | `boolean`                | `true`  |
+
+### Below 640px: sequential by default, random access if you ask
+
+The default hides the numbers and leaves `‹` / `›` plus the summary. That is reasonable in a desktop-first app; in a mobile-first one it costs exactly what pagination is for — reaching page 7 becomes six taps on "next" instead of one tap on `7`.
+
+```tsx
+<Pagination page={page} totalPages={pages} onPageChange={setPage} compactOnMobile={false} />
+```
+
+With `false` the numbers stay at every width: the row **scrolls horizontally on its own** instead of widening the page, and the current page is brought into view whenever it changes.
+
+!!! tip "Why a boolean and not a `variant`"
+    Simply dropping the `display: none` would push a nine-button row past a 360px viewport and give the **whole document** a horizontal scrollbar. The opt-out has to carry its own layout — so it does, and there is no third option to choose between.
 
 ## `SegmentedControl`
 

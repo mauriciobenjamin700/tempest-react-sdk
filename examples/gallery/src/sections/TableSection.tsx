@@ -71,6 +71,8 @@ export function TableSection() {
     const debounced = useDebounce(search, 250);
     const pagination = usePagination(1, 4);
     const [mode, setMode] = useState<"data" | "empty" | "error">("data");
+    const [compactOnMobile, setCompactOnMobile] = useState(true);
+    const [deepPage, setDeepPage] = useState(7);
 
     const filtered = useClientFilter<Order>(SEED, debounced, ["id", "customer"]);
     const page = useMemo(() => {
@@ -202,6 +204,38 @@ const columns: TableColumn<Order>[] = [
                         />
                     </>
                 )}
+            </Example>
+
+            <Example
+                title="Paginação numérica no celular"
+                note="Estreite a janela abaixo de 640px e alterne o botão: no default os números somem e sobra ‹ ›; com compactOnMobile={false} eles ficam, e a faixa rola sozinha."
+                code={`// Default: abaixo de 640px sobram ‹ / › e o resumo.
+<Pagination page={page} totalPages={23} onPageChange={setPage} />
+
+// Mobile-first: os números ficam em qualquer largura e a faixa rola.
+<Pagination page={page} totalPages={23} onPageChange={setPage} compactOnMobile={false} />`}
+            >
+                <div className="gallery-toolbar" style={{ marginBottom: 16 }}>
+                    <div className="theme-toggle-group">
+                        {([true, false] as const).map((value) => (
+                            <button
+                                key={String(value)}
+                                className={compactOnMobile === value ? "active" : ""}
+                                onClick={() => setCompactOnMobile(value)}
+                            >
+                                compactOnMobile={String(value)}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <Pagination
+                    page={deepPage}
+                    totalPages={23}
+                    totalItems={455}
+                    onPageChange={setDeepPage}
+                    compactOnMobile={compactOnMobile}
+                />
             </Example>
         </section>
     );

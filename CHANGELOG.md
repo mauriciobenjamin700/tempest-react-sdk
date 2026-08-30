@@ -6,6 +6,27 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`compactOnMobile` no `Pagination`**
+  ([#254](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/254)).
+  Abaixo de 640px o componente escondia os números por CSS, sem opt-out. Isso
+  troca navegação **aleatória** por **sequencial**: chegar na página 7 vira seis
+  toques em "próxima" em vez de um toque no `7` — e é justamente no celular que a
+  capacidade importa mais num app mobile-first.
+
+  ```tsx
+  <Pagination page={page} totalPages={23} onPageChange={setPage} compactOnMobile={false} />
+  ```
+
+  Com `false`, os números ficam em qualquer largura. **O opt-out traz o próprio
+  layout junto**: a faixa de controles rola sozinha na horizontal
+  (`overflow-x: auto`) e a página atual é trazida para a área visível a cada
+  mudança. Só desligar o `display: none` empurraria nove botões para além de um
+  viewport de 360px e daria barra horizontal ao documento inteiro — medido em
+  browser real: com o container forçado a 200px a faixa rola 114px por dentro e o
+  documento continua sem overflow.
+
+  Default inalterado (`true`), e acima de 640px nada muda nos dois modos.
+
 - **Entradas de CSS por componente e por grupo**
   ([#239](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/239)).
   O JavaScript que o consumidor importa é tree-shaken; **o CSS não**. Quem

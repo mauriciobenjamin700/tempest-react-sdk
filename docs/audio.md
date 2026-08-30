@@ -374,6 +374,28 @@ function Participante({ stream, volume }: { stream: MediaStream; volume: number 
 
     Duas armadilhas se você desenhar o seu: a escala precisa ser em **dB** (numa linear a fala normal fica espremida no primeiro quinto), e o gradiente de cor precisa ficar no **track** com uma máscara por cima — num elemento que cresce, o gradiente é reescalado junto e pinta vermelho na ponta de um sinal fraco, reportando clipping para quem está quase inaudível.
 
+## Quem está falando: `monitorVoiceActivity`
+
+Indicador de fala é a informação que **todo cliente deriva de graça** do track que já recebe. Sinalizar pelo servidor é o caminho errado: o estado muda várias vezes por segundo e a sala vira enxurrada de mensagens.
+
+```ts
+import { monitorVoiceActivity } from "tempest-react-sdk";
+
+const vad = monitorVoiceActivity(remoteStream, (speaking) => setSpeaking(speaking));
+// depois
+vad.stop();
+```
+
+Duas coisas separam isso de um `if (nivel > x)`:
+
+- **O release.** O RMS cai a nada nas gaps entre palavras, então uma comparação pura pisca em toda sílaba. O estado só cai depois de `releaseMs` (default 350 ms) de silêncio.
+- **`onChange` dispara na virada, não na amostra.** Um callback por leitura re-renderizaria a lista de participantes dez vezes por segundo para dizer a mesma coisa.
+
+O medidor por baixo roda com suavização **desligada** (`decay: 0`): o decaimento suave dele somado a este release seguraria o indicador aberto muito depois da fala.
+
+!!! warning "Um contexto por participante estoura o limite do browser"
+    Chrome permite ~6 `AudioContext` vivos, e uma chamada de cinco pessoas com um monitor cada chega lá. Abra **um** contexto e passe em `context` para todos os monitores — `stop()` fecha só o contexto que ele mesmo criou.
+
 ## Entrada: `createVoiceChain`
 
 `createAudioBus` cuida do que **chega** aos seus ouvidos. `createVoiceChain` cuida do que **sai** do seu microfone — e o que o browser entrega, mesmo com `echoCancellation` e `noiseSuppression` ligados, ainda é ronco de ventilador abaixo da fala, 20 dB entre um sussurro e um grito, e consoante que não lê.

@@ -374,6 +374,28 @@ function Participant({ stream, volume }: { stream: MediaStream; volume: number }
 
     Two traps if you draw your own: the scale has to be in **dB** (on a linear one, normal speech is squeezed into the first fifth), and the color gradient has to live on the **track** with a mask on top — on an element that grows, the gradient is rescaled with it and paints red at the tip of a weak signal, reporting clipping to someone who is nearly inaudible.
 
+## Who is talking: `monitorVoiceActivity`
+
+A speaking indicator is information **every client derives for free** from the track it already receives. Signalling it through a server is the wrong path: the state changes several times per second and floods the room with messages.
+
+```ts
+import { monitorVoiceActivity } from "tempest-react-sdk";
+
+const vad = monitorVoiceActivity(remoteStream, (speaking) => setSpeaking(speaking));
+// later
+vad.stop();
+```
+
+Two things separate this from an `if (level > x)`:
+
+- **The release.** RMS drops to nothing in the gaps between words, so a bare comparison strobes on every syllable. The state only falls after `releaseMs` (default 350 ms) of quiet.
+- **`onChange` fires on the flip, not on the sample.** A callback per reading would re-render the participant list ten times a second to say the same thing.
+
+The meter underneath runs with smoothing **off** (`decay: 0`): its eased decay plus this release would hold the indicator open long after the speech stopped.
+
+!!! warning "One context per participant hits the browser's cap"
+    Chrome allows around six live `AudioContext`s, and a five-person call with a monitor each gets there. Open **one** and pass it as `context` to every monitor — `stop()` closes only a context it created itself.
+
 ## Input: `createVoiceChain`
 
 `createAudioBus` handles what reaches **your ears**. `createVoiceChain` handles what leaves **your microphone** — and what the browser hands over, even with `echoCancellation` and `noiseSuppression` on, is still fan rumble under the speech, 20 dB between a whisper and a shout, and consonants that do not read.

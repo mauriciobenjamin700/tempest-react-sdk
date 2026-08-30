@@ -50,6 +50,9 @@ export type {
 export { measureNoiseFloor, suggestGateThreshold } from "./noise-floor";
 export type { NoiseFloorOptions } from "./noise-floor";
 
+export { monitorVoiceActivity } from "./voice-activity";
+export type { VoiceActivityMonitor, VoiceActivityOptions } from "./voice-activity";
+
 export { createLevelMeter } from "./level-meter";
 export type { LevelMeter, LevelMeterOptions } from "./level-meter";
 

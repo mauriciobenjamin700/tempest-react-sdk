@@ -53,6 +53,7 @@ browser-guarded and independent hooks — import only what you need.
 | `useStorageEstimate({ pollMs? })`                 | `{ usage, quota, ratio, persisted, requestPersist, refresh }` — Storage API quota + `persist()`. Pure pairs: `estimateStorage`, `requestPersistentStorage`. |
 | `useIdle(timeout?)`                               | True when the user is idle for `timeout` ms.                                                                  |
 | `useFullscreen(ref?)`                             | `{ isFullscreen, supported, enter, exit, toggle }` — immersive mode whose state is driven by `fullscreenchange`, so `Esc` and the browser's own button update the UI. Pure pair: `isFullscreenSupported`. |
+| `usePushToTalk({ code, onDown, onUp })`           | Hold to transmit. `blur` releases (alt-tab never delivers the `keyup`), auto-repeat is ignored, and a text field wins. Pairs: `pushToTalkKeyLabel`, `PUSH_TO_TALK_KEYS`.                                   |
 | `useGeolocation(opts?)`                           | Position + error + loading.                                                                                   |
 | `useClickOutside(handler)`                        | Returns a ref; calls `handler` on a `mousedown`/`touchstart` outside the element. browser-guarded.                   |
 | `useDocumentTitle(title)`                         | Sets `document.title` while mounted, restoring the previous one on unmount. browser-guarded.                         |
@@ -691,6 +692,42 @@ With no `ref`, the target is the whole page (`document.documentElement`); `enter
 
 !!! tip "Overlays in fullscreen already work on their own"
     You do not need this hook for `<Modal>`, `<Drawer>` or toasts: the SDK's `<Portal>` follows the fullscreen element by itself — including moving an already-open dialog when fullscreen starts. See [Fullscreen](./components/overlay.md#fullscreen).
+
+### Push-to-talk — `usePushToTalk`
+
+Holding a key to transmit looks like `keydown`/`keyup` and is not. Three things go wrong, and all three only show up in real use:
+
+```tsx
+import { usePushToTalk, pushToTalkKeyLabel, PUSH_TO_TALK_KEYS } from "tempest-react-sdk";
+
+export function VoiceBar({ track }: { track: MediaStreamTrack }) {
+  const [key, setKey] = useState("Space");
+
+  usePushToTalk({
+    code: key,
+    onDown: () => (track.enabled = true),
+    onUp: () => (track.enabled = false),
+  });
+
+  return (
+    <p>
+      Hold <kbd>{pushToTalkKeyLabel(key)}</kbd> to talk.
+    </p>
+  );
+}
+```
+
+- **`blur` releases**, and it is not an edge case: alt-tabbing with the key held means the browser **never** sees the `keyup`, and the microphone stays open for as long as the person is looking at another window — exactly what push-to-talk exists to prevent. Unmounting releases for the same reason.
+- **Auto-repeat is ignored** (`event.repeat`), otherwise a held key fires `onDown` at the keyboard's repeat rate.
+- **A text field wins.** With the focus in an `<input>`, `<textarea>`, `<select>` or a `contenteditable`, the key passes straight through: without that, Space as push-to-talk means never typing a space into the chat, because the handler called `preventDefault`.
+
+`PUSH_TO_TALK_KEYS` is the list for a settings picker, `DEFAULT_PUSH_TO_TALK_KEY` (`"Space"`) the value to seed the preference with before anyone chooses, and `pushToTalkKeyLabel(code)` the label — a raw `KeyboardEvent.code` is not something to show a person.
+
+!!! note "`code`, not `key`"
+    The binding uses `KeyboardEvent.code`, which is the **physical** key: on an ABNT2 keyboard the `key` reported for the backquote position is not what a US layout reports, while `Backquote` is the same key on both.
+
+!!! tip "`enabled: false` to switch it off without unmounting"
+    Toggling between an open microphone and push-to-talk is `enabled`. Turning it off **releases first**, so flipping the switch with the key held does not leave `onUp` unfired.
 
 ## PWA & pointer gestures
 

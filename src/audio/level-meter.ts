@@ -11,8 +11,21 @@ export interface LevelMeterOptions {
      * A raw RMS reading is jittery enough to make a meter look broken. Attack is left
      * instant — a meter that lags the voice going *up* reads as "not recording" —
      * while the decay is eased, which is how every hardware meter behaves.
+     *
+     * `0` turns the smoothing off and reports the window's RMS as measured, which is
+     * what a detector wants: {@link monitorVoiceActivity} applies its own release,
+     * and two of them stacked would hold the indicator open long past the speech.
      */
     decay?: number;
+    /**
+     * Reuse an existing `AudioContext` instead of creating one.
+     *
+     * Browsers cap live contexts (Chrome allows around six), and a meter per remote
+     * participant reaches that in a five-person call. A caller measuring several
+     * streams should open one context and hand it to every meter. `stop()` closes
+     * only a context this meter created — an injected one belongs to the caller.
+     */
+    context?: AudioContext;
 }
 
 /** A running level meter. */
@@ -61,18 +74,18 @@ export interface LevelMeter {
  */
 export function createLevelMeter(
     stream: MediaStream,
-    { fftSize = 1024, decay = 0.7 }: LevelMeterOptions = {},
+    { fftSize = 1024, decay = 0.7, context: injectedContext }: LevelMeterOptions = {},
 ): LevelMeter {
     const Ctor: typeof AudioContext | undefined =
         typeof AudioContext !== "undefined"
             ? AudioContext
             : (globalThis as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
 
-    if (!Ctor) {
+    if (!injectedContext && !Ctor) {
         return { level: () => 0, stop: () => undefined };
     }
 
-    const context = new Ctor();
+    const context = injectedContext ?? new (Ctor as typeof AudioContext)();
     const source = context.createMediaStreamSource(stream);
     const analyser = context.createAnalyser();
     analyser.fftSize = fftSize;
@@ -105,7 +118,7 @@ export function createLevelMeter(
             } catch {
                 /* empty */
             }
-            void context.close().catch(() => undefined);
+            if (!injectedContext) void context.close().catch(() => undefined);
         },
     };
 }

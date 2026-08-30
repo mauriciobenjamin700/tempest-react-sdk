@@ -24,6 +24,9 @@ export function ServiceWorkerGate() {
 
 When a new worker finishes installing, `updateAvailable` flips to `true`; `applyUpdate()` activates the waiting worker (`skipWaiting`) and reloads the page once it takes control.
 
+!!! note "It also catches the worker that was already waiting"
+    The common case fires no event at all: the user opened the app after a deploy (the new worker installed and went to `waiting`), closed the tab, and came back later. On that second visit `updatefound` never fires — `install` already happened. `registerServiceWorker` reads `registration.waiting` as soon as the registration resolves, so `updateAvailable` flips just the same. Each worker is announced **once**, even when both routes apply in one session, and neither fires on a first install (no `controller`) — that is `onReady`, not an update.
+
 !!! tip "Keep `autoUpdate` off here"
     `useServiceWorkerUpdate` exists to hand the reload decision to the user. If you want a silent reload instead, call `registerServiceWorker({ url, autoUpdate: true })` directly, without the hook.
 

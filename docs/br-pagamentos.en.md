@@ -1,12 +1,12 @@
-# BR payments & fiscal
+# BR payments, fiscal & contact
 
-The four rails every Brazilian product ends up needing: **Pix**, **boleto**, the **NFe access key** and **holidays / business days**. Pure TypeScript, **no new dependency** — the whole slice measures **9.22 KB brotli**, and Pix alone (payload + CRC + QR component) measures **6.1 KB**.
+The four rails every Brazilian product ends up needing — **Pix**, **boleto**, the **NFe access key** and **holidays / business days** — plus the channel all of it reaches the customer through: **WhatsApp**. Pure TypeScript, **no new dependency** — the whole slice measures **9.22 KB brotli**, Pix alone (payload + CRC + QR component) measures **6.1 KB**, and the WhatsApp deep link measures **223 B**.
 
 !!! info "Import from the `tempest-react-sdk/br` subpath"
     Like the rest of the BR module, these helpers live in `tempest-react-sdk/br`, not on the root entry. If you don't import it, you don't pay for it.
 
     ```ts
-    import { pixPayload, parseLinhaDigitavel, parseChaveNFe, isBusinessDay } from "tempest-react-sdk/br";
+    import { pixPayload, parseLinhaDigitavel, parseChaveNFe, isBusinessDay, whatsAppUrl } from "tempest-react-sdk/br";
     ```
 
 !!! warning "The SDK talks to no bank"
@@ -488,11 +488,102 @@ It is the anonymous Gregorian *computus* (Meeus/Jones/Butcher): integer arithmet
 
 ---
 
+## Part 5 — WhatsApp
+
+The Pix is assembled, the boleto is parsed, the slot is booked. What is left is the part no encoder solves: **telling the person**. In Brazil that happens on WhatsApp, and the piece every project rewrites is not the copy — it is normalising the number and building the URL.
+
+### A deep link, never a send
+
+```ts
+import { openWhatsApp, toWhatsAppNumber, whatsAppUrl } from "tempest-react-sdk/br";
+
+toWhatsAppNumber("(11) 99999-8888"); // "5511999998888"
+whatsAppUrl("(11) 99999-8888", "Seu horário é amanhã às 14h.");
+// "https://wa.me/5511999998888?text=Seu%20hor%C3%A1rio%20%C3%A9%20amanh%C3%A3%20%C3%A0s%2014h."
+
+openWhatsApp("(11) 99999-8888", "Seu horário é amanhã às 14h."); // opens the tab, returns true
+```
+
+!!! tip "Opening the chat is the feature, not the limitation"
+    The link opens WhatsApp with the message **ready** and the person presses send. No official API, no approved template, no business verification — and, above all, the UI never claims a message was delivered when it was only *typed*. Automated sending is a different product (the Cloud API), with a different cost and a different responsibility.
+
+### Why the `55` is not a detail
+
+A Brazilian phone number is stored almost everywhere **without** its country code: ten digits for a landline, eleven for a mobile. `wa.me` refuses anything that is not fully qualified. `toWhatsAppNumber` puts `55` in front of those two shapes, and returns untouched a number that **already** carries a country code (12 to 15 digits, the E.164 range no Brazilian national number can reach) — so a foreign client's mobile works too.
+
+```ts
+toWhatsAppNumber("11999998888"); // "5511999998888"  — national mobile
+toWhatsAppNumber("1133334444"); // "551133334444"   — national landline
+toWhatsAppNumber("+55 11 99999-8888"); // "5511999998888"  — already qualified
+toWhatsAppNumber("+351 912 345 678"); // "351912345678"   — Portugal, untouched
+```
+
+!!! warning "A number that cannot be normalised returns `""` — on purpose"
+    Handing back the digits as typed is what the naive version does, and the result is a `wa.me` URL that opens WhatsApp on a number nobody owns. Here a typo becomes a **disabled button**, not a dead chat window:
+
+    ```tsx
+    const url = whatsAppUrl(client.phone, greeting);
+
+    <Button disabled={!url} onClick={() => openWhatsApp(client.phone, greeting)}>
+        Message on WhatsApp
+    </Button>
+    ```
+
+!!! note "Trunk and carrier prefixes (`0`, `021`) are not stripped"
+    A leading zero is ambiguous between long-distance dialling and carrier selection, so a number carrying one reads as invalid instead of being reinterpreted in the dark. The zero is what rules out `011999998888` even at a plausible 12 digits: **no** E.164 country code starts with `0`, so that is a national number wearing a prefix, never an international one.
+
+!!! info "The ninth digit belongs to your database, not to the link"
+    A mobile stored before 2016 has ten digits and reads as a landline here — the link is built and WhatsApp decides whether it finds the account. If your records go back that far, normalise the ninth digit **in the database**; a deep link cannot guess whether `1133334444` is a landline or a mobile missing its 9.
+
+### Recipe: asking for the deposit over WhatsApp
+
+The case that ties this part back to [Part 1](#part-1-pix) — the message body carries the Pix copy-and-paste string:
+
+```tsx
+import { openWhatsApp, pixPayload } from "tempest-react-sdk/br";
+import { Button } from "tempest-react-sdk";
+
+interface Booking {
+    clientName: string;
+    clientPhone: string;
+    depositBRL: number;
+}
+
+export function DepositRequestButton({ booking }: { booking: Booking }) {
+    function requestDeposit(): void {
+        const payload = pixPayload({
+            key: "financeiro@studio.com.br",
+            merchantName: "Studio Aurora",
+            merchantCity: "SAO PAULO",
+            amount: booking.depositBRL,
+        });
+
+        openWhatsApp(
+            booking.clientPhone,
+            [
+                `Oi, ${booking.clientName}! Para confirmar seu horário, o sinal é de R$ ${booking.depositBRL.toFixed(2)}.`,
+                "",
+                "Pix copia e cola:",
+                payload,
+            ].join("\n"),
+        );
+    }
+
+    return <Button onClick={requestDeposit}>Pedir sinal no WhatsApp</Button>;
+}
+```
+
+!!! note "`openWhatsApp` reports the request, not the tab"
+    `true` means "the number was usable and the open was requested". Opening with `noopener` makes `window.open` return `null` **even on success**, so its result cannot tell a blocked popup from an opened tab — and promising otherwise would be a lie. Outside a browser (test runner, service worker, build plugin) it returns `false` instead of throwing.
+
+---
+
 ## Recap
 
 - **Pix** — `pixPayload` assembles the EMV BR Code with the right CRC-16/CCITT-FALSE (the literal `6304` included); `parsePixPayload` reads it back, tolerant of unknown tags and intolerant of a bad checksum; `<PixQRCode>` draws the symbol **and** the copy-and-paste line, because on a phone the QR alone is useless.
 - **Boleto** — `parseLinhaDigitavel` / `parseCodigoBarras` convert 47↔44 and 48↔44 while verifying every check digit; cobrança and arrecadação are different layouts and the SDK never conflates them; the fator de vencimento has **two** bases since February 2025 and the choice is explicit.
 - **NFe** — `parseChaveNFe` opens the 44 digits and resolves `cUF` into the module's `UF` type; `validateChaveNFe` checks length, UF and check digit.
 - **Holidays** — `holidaysFor` returns the 9 national holidays plus the 4 movable banking days, labelled; state and municipal days come in through `extra`; `isBusinessDay` / `nextBusinessDay` / `addBusinessDays` do the arithmetic in the local calendar.
+- **WhatsApp** — `toWhatsAppNumber` puts `55` in front of a national number and returns `""` for anything undialable; `whatsAppUrl` builds the `wa.me` link with the text encoded; `openWhatsApp` opens the tab. It is a **deep link**, never a send: the person presses send.
 
 None of this talks to a bank. For the server side (registering a boleto, creating a Pix charge, authorising an invoice), see [FastAPI integration](./integration-fastapi.md).

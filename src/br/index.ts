@@ -128,6 +128,9 @@ export {
 } from "./nfe";
 export type { ChaveNFe } from "./nfe";
 
+// WhatsApp deep link (chat opened with the message ready, never an API send).
+export { openWhatsApp, toWhatsAppNumber, whatsAppUrl } from "./whatsapp";
+
 // National holidays + business-day arithmetic.
 export {
     addBusinessDays,

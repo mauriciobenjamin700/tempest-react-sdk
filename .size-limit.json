@@ -390,6 +390,15 @@
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
+    "name": "slice: WhatsApp deep link (number normalisation + wa.me URL)",
+    "path": "dist/br.js",
+    "import": {
+      "./dist/br.js": "{ toWhatsAppNumber, whatsAppUrl, openWhatsApp }"
+    },
+    "limit": "300 B",
+    "ignore": ["react", "react-dom", "react/jsx-runtime"]
+  },
+  {
     "name": "slice: BR payment rails (Pix + boleto + chave NFe + feriados)",
     "path": "dist/br.js",
     "import": {

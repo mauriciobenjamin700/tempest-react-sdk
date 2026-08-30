@@ -137,7 +137,7 @@ export function PostActions({ postId }: { postId: string }) {
 
 ## `<Can>` — render condicional
 
-`<Can action resource fallback>` renderiza `children` quando a action é permitida, senão o `fallback` (ou nada). Enquanto uma checagem async está pendente, renderiza o `fallback` (ou nada):
+`<Can action resource fallback>` renderiza `children` quando a action é permitida, senão o `fallback` (ou nada):
 
 ```tsx
 import { Can } from "tempest-react-sdk";
@@ -146,6 +146,30 @@ import { Can } from "tempest-react-sdk";
   <NewPostButton />
 </Can>;
 ```
+
+### `pending` — enquanto a resposta não chegou
+
+Uma checagem que resolve pela rede tem **três** estados, e sem dizer isso o `<Can>` mostra a mensagem de negação para quem ainda vai ser aprovado. A prop `pending` separa os dois:
+
+```tsx
+<Can
+  action="read"
+  resource="finance"
+  fallback={<p>Sem permissão.</p>}
+  pending={<Spinner size="sm" />}
+>
+  <FinancePanel />
+</Can>
+```
+
+!!! warning "Vale sempre que o `fallback` diz algo com cara de negação"
+    Sem `pending`, o `fallback` é o que aparece durante a checagem — então "Sem permissão" pisca na tela de quem **tem** a permissão. Passe `pending={<Spinner />}` para explicar a espera, ou `pending={null}` para não mostrar nada até a resposta chegar.
+
+!!! info "O padrão não mudou"
+    `pending` omitido continua caindo no `fallback`, exatamente como antes: nenhum app existente muda de comportamento ao atualizar. A prop é opt-in.
+
+!!! tip "Para proteger uma **rota**, e não um pedaço de UI"
+    `<Can>` esconde conteúdo; ele não redireciona, e um redirect não pode tratar "ainda resolvendo" e "negado" do mesmo jeito. Rota inteira se protege com o `guard` do `<AppRouter>`, que tem o mesmo terceiro estado — veja [`"pending"` em Routing](./routing.md#forma-de-funcao-assincrona-o-terceiro-estado-pending).
 
 ## `useAccessControl` — a estratégia crua
 
@@ -238,7 +262,7 @@ function DeleteButton({ id }: { id: string }) {
 - `createRoleAccessControl({ permissions, roles, role })` monta RBAC estático; matching por `"<resource>:<action>"`, com curingas `"*"` (tudo) e `"<resource>:*"` (resource inteiro).
 - `permissionsFromToken(token, { claim })` lê permissões do JWT (claim default `"permissions"`, fallback `"scopes"`/`"scope"`); não valida assinatura.
 - `useCan({ action, resource })` → `{ allowed, isLoading, reason }`, com suporte a checagens síncronas e assíncronas.
-- `<Can action resource fallback>` esconde a UI; `useCan` desabilita e explica com `reason`.
+- `<Can action resource fallback>` esconde a UI; `pending` separa "ainda checando" de "negado"; `useCan` desabilita e explica com `reason`.
 - RBAC no frontend é UX — o backend continua sendo a fonte da verdade da autorização.
 
 ## Veja também
@@ -655,6 +679,12 @@ Orçamento monitorado por `size-limit` no CI.
 *Seção `audio-capture` da [gallery](gallery.md) — rode localmente para interagir.*
 <!-- /gallery -->
 
+<!-- gallery:voice-chain -->
+[![Cadeia de voz (microfone) na gallery](assets/gallery/voice-chain.webp)](gallery.md)
+
+*Seção `voice-chain` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## `playAudio` — one-off no player compartilhado
 
 Ideal pra um som disparado por um evento, sem estado de UI:
@@ -1005,6 +1035,97 @@ function Participante({ stream, volume }: { stream: MediaStream; volume: number 
 
     Duas armadilhas se você desenhar o seu: a escala precisa ser em **dB** (numa linear a fala normal fica espremida no primeiro quinto), e o gradiente de cor precisa ficar no **track** com uma máscara por cima — num elemento que cresce, o gradiente é reescalado junto e pinta vermelho na ponta de um sinal fraco, reportando clipping para quem está quase inaudível.
 
+## Quem está falando: `monitorVoiceActivity`
+
+Indicador de fala é a informação que **todo cliente deriva de graça** do track que já recebe. Sinalizar pelo servidor é o caminho errado: o estado muda várias vezes por segundo e a sala vira enxurrada de mensagens.
+
+```ts
+import { monitorVoiceActivity } from "tempest-react-sdk";
+
+const vad = monitorVoiceActivity(remoteStream, (speaking) => setSpeaking(speaking));
+// depois
+vad.stop();
+```
+
+Duas coisas separam isso de um `if (nivel > x)`:
+
+- **O release.** O RMS cai a nada nas gaps entre palavras, então uma comparação pura pisca em toda sílaba. O estado só cai depois de `releaseMs` (default 350 ms) de silêncio.
+- **`onChange` dispara na virada, não na amostra.** Um callback por leitura re-renderizaria a lista de participantes dez vezes por segundo para dizer a mesma coisa.
+
+O medidor por baixo roda com suavização **desligada** (`decay: 0`): o decaimento suave dele somado a este release seguraria o indicador aberto muito depois da fala.
+
+!!! warning "Um contexto por participante estoura o limite do browser"
+    Chrome permite ~6 `AudioContext` vivos, e uma chamada de cinco pessoas com um monitor cada chega lá. Abra **um** contexto e passe em `context` para todos os monitores — `stop()` fecha só o contexto que ele mesmo criou.
+
+## Entrada: `createVoiceChain`
+
+`createAudioBus` cuida do que **chega** aos seus ouvidos. `createVoiceChain` cuida do que **sai** do seu microfone — e o que o browser entrega, mesmo com `echoCancellation` e `noiseSuppression` ligados, ainda é ronco de ventilador abaixo da fala, 20 dB entre um sussurro e um grito, e consoante que não lê.
+
+```ts
+import {
+  createVoiceChain,
+  DEFAULT_VOICE_CHAIN,
+  measureNoiseFloor,
+  suggestGateThreshold,
+} from "tempest-react-sdk";
+
+const floor = await measureNoiseFloor(stream, { onProgress: setProgress });
+
+const chain = createVoiceChain(
+  micTrack,
+  { ...DEFAULT_VOICE_CHAIN, gate: true, gateThreshold: suggestGateThreshold(floor) },
+  { gain: 1.4 },
+);
+
+await peer.setLocalTrack(chain.track);
+// depois
+chain.release();
+```
+
+### Cada estágio existe por um sintoma
+
+| Estágio | Some com | Default |
+| --- | --- | --- |
+| `highPass` (85 Hz) | ventilador, trânsito, batida na mesa, plosiva | **ligado** |
+| `gate` (hold de 220 ms) | ruído de sala entre frases | desligado |
+| `compressor` (3:1) | a distância entre quem sussurra e quem grita | **ligado** |
+| `presence` (+3 dB @ 3 kHz) | palavra que chega mas não se entende | desligado |
+| `hissCut` (9 kHz) | chiado de microfone barato | desligado |
+| `deEsser` (@ 7 kHz) | S e CH que doem no fone | desligado |
+| `limiter` (−1 dBFS) | clipping digital, que o outro lado **não recupera** | **ligado** |
+
+Os quatro desligados por padrão têm custo audível quando não são precisos: gate no limiar errado corta palavra, presença num microfone já brilhante machuca, de-esser numa voz que não sibila só abafa.
+
+!!! warning "A ordem não é cosmética"
+    Gate **antes** do high-pass deixa um ronco segurar o gate aberto. Compressor **antes** do gate levanta o piso de ruído até encostar no limiar. Limiter **antes** do ganho de saída é um teto por onde o ganho passa direto. A cadeia monta na ordem de uma mesa: corta o que não é fala, silencia o resto, nivela, molda, define o quão alto sai, e só então segura o teto.
+
+!!! info "Isso vem depois do processamento do browser, não no lugar dele"
+    `echoCancellation` e `noiseSuppression` continuam ligados: os dois resolvem problemas diferentes. O do browser é treinado em ruído estacionário dentro do pipeline de captura; este corta o que sobrou e decide quando a linha deve estar em silêncio.
+
+### O limiar do gate ninguém acerta no olho
+
+Regular gate de ouvido significa ligar e escutar o que sumiu — o que só funciona se você já sabe o que **deveria** sumir. `measureNoiseFloor` ouve a sala em repouso por 3 s e devolve o **pico** de RMS; `suggestGateThreshold` põe o limiar acima dele por uma margem, porque um gate exatamente no nível do ruído fica batendo, abrindo e fechando na variação da própria sala.
+
+O resultado é clampado nas duas pontas: sala medida como perfeitamente silenciosa daria limiar zero (gate que nunca fecha) e sala medida enquanto alguém falava daria um que nada abre.
+
+!!! tip "O limiar é lido a cada tique"
+    Mover `gateThreshold` no objeto de settings muda a cadeia **viva** — um slider não precisa reconstruir o grafo.
+
+### Ouvir a si mesmo antes de entrar na chamada
+
+```tsx
+const monitor = monitorVoiceChain(previewTrack, settings, { gain });
+// ao soltar o botão
+monitor.stop();
+```
+
+!!! danger "Realimentação"
+    Sem fone, a caixa alimenta o microfone que alimenta a caixa. É por isso que isto é uma ação **segurada e explícita**, não uma preferência — e o aviso precisa estar na sua UI, não só aqui.
+
+### Cadeia ociosa não constrói nada
+
+`isVoiceChainIdle(settings, gain)` responde se algo mudaria o sinal. Com tudo desligado e ganho `1`, `createVoiceChain` devolve o track de origem intocado e **nem abre um `AudioContext`** — browsers limitam quantos vivem ao mesmo tempo, e um aberto para uma cadeia passa-tudo conta igual. `supported` fica `false` nesse caso e também num motor sem Web Audio.
+
 ## Montando você mesmo: os hooks
 
 ```tsx
@@ -1306,6 +1427,45 @@ export function SettingsRoute() {
 }
 ```
 
+### Páginas que recebem props
+
+O componente não perde a tipagem ao passar pelo wrapper. O tipo dele é **inferido** do módulo que a factory resolve, então uma página com prop obrigatória, uma com prop opcional e uma sem prop nenhuma passam todas — e o elemento renderizado continua checado contra as props reais.
+
+```tsx
+import { Suspense } from "react";
+import { lazyWithRetry } from "tempest-react-sdk";
+import { Spinner } from "tempest-react-sdk";
+
+interface EditorProps {
+  mode: "edit" | "view";
+}
+
+function Editor({ mode }: EditorProps) {
+  return <p>modo: {mode}</p>;
+}
+
+const LazyEditor = lazyWithRetry(() => Promise.resolve({ default: Editor }));
+
+export function EditorRoute() {
+  return (
+    <Suspense fallback={<Spinner />}>
+      <LazyEditor mode="edit" />
+    </Suspense>
+  );
+}
+```
+
+!!! note "A checagem de props continua valendo"
+    Trocar `mode="edit"` por `mode="bogus"`, esquecer a prop obrigatória ou
+    passar uma prop que não existe são erros de compilação, exatamente como no
+    componente direto. O wrapper relaxa só o **constraint** genérico — que antes
+    exigia um componente sem props —, nunca a inferência.
+
+!!! tip "Vale igual no `lazy` de rota"
+    O campo `lazy` de um `TempestRouteObject` aceita o mesmo conjunto de
+    componentes, então uma árvore de rotas com páginas tipadas passa por
+    `defineRoutes` sem cast. Veja [Routing](./routing.md).
+
 ### Aquecendo o chunk — `preload()`
 
 O componente devolvido carrega um `preload()`. Chame no momento em que a rota fica **provável**, não quando ela é necessária — o hover do link, a abertura do menu que contém ela, o fim do passo anterior — e o chunk chega antes do usuário decidir. O `Suspense` fallback simplesmente não aparece.
@@ -1461,15 +1621,15 @@ O fluxo: o login chama `setSession`, persistindo `user` + `token`. O `ProtectedL
 
 # br-pagamentos.md
 
-# Pagamentos & fiscal BR
+# Pagamentos, fiscal & contato BR
 
-Os quatro trilhos que todo produto brasileiro acaba precisando: **Pix**, **boleto**, **chave de acesso da NFe** e **feriados / dias úteis**. Tudo puro TypeScript, **sem nenhuma dependência nova** — a fatia inteira mede **9,22 KB brotli**, e só Pix (payload + CRC + componente de QR) mede **6,1 KB**.
+Os quatro trilhos que todo produto brasileiro acaba precisando — **Pix**, **boleto**, **chave de acesso da NFe** e **feriados / dias úteis** — mais o canal por onde tudo isso chega ao cliente: **WhatsApp**. Tudo puro TypeScript, **sem nenhuma dependência nova** — a fatia inteira mede **9,22 KB brotli**, só Pix (payload + CRC + componente de QR) mede **6,1 KB**, e o deep link do WhatsApp mede **223 B**.
 
 !!! info "Import pelo subpath `tempest-react-sdk/br`"
     Igual ao resto do módulo BR, estes helpers vivem em `tempest-react-sdk/br` — não na raiz. Quem não importa, não paga.
 
     ```ts
-    import { pixPayload, parseLinhaDigitavel, parseChaveNFe, isBusinessDay } from "tempest-react-sdk/br";
+    import { pixPayload, parseLinhaDigitavel, parseChaveNFe, isBusinessDay, whatsAppUrl } from "tempest-react-sdk/br";
     ```
 
 !!! warning "O SDK não fala com banco nenhum"
@@ -1951,12 +2111,103 @@ easterSunday(2026); // 2026-04-05
 
 ---
 
+## Parte 5 — WhatsApp
+
+O Pix está montado, o boleto está lido, o horário está marcado. Falta a parte que nenhum encoder resolve: **avisar a pessoa**. No Brasil isso acontece no WhatsApp, e o pedaço que todo projeto reescreve não é o texto — é normalizar o número e montar a URL.
+
+### Deep link, nunca envio
+
+```ts
+import { openWhatsApp, toWhatsAppNumber, whatsAppUrl } from "tempest-react-sdk/br";
+
+toWhatsAppNumber("(11) 99999-8888"); // "5511999998888"
+whatsAppUrl("(11) 99999-8888", "Seu horário é amanhã às 14h.");
+// "https://wa.me/5511999998888?text=Seu%20hor%C3%A1rio%20%C3%A9%20amanh%C3%A3%20%C3%A0s%2014h."
+
+openWhatsApp("(11) 99999-8888", "Seu horário é amanhã às 14h."); // abre a aba, devolve true
+```
+
+!!! tip "Abrir a conversa é uma vantagem, não uma limitação"
+    O link abre o WhatsApp com o texto **pronto** e quem aperta enviar é a pessoa. Isso não exige API oficial, não exige template aprovado, não exige verificação de negócio — e, principalmente, não deixa a UI afirmar que a mensagem foi entregue quando ela só foi *digitada*. Envio automático é outro produto (Cloud API), com outro custo e outra responsabilidade.
+
+### Por que o `55` não é detalhe
+
+Um telefone brasileiro é guardado quase sempre **sem** código de país: dez dígitos no fixo, onze no celular. O `wa.me` recusa qualquer coisa que não esteja totalmente qualificada. `toWhatsAppNumber` põe o `55` na frente dessas duas formas, e devolve intacto um número que **já** traz código de país (12 a 15 dígitos, a faixa E.164 que nenhum número nacional brasileiro alcança) — então o celular de um cliente estrangeiro também funciona.
+
+```ts
+toWhatsAppNumber("11999998888"); // "5511999998888"  — celular nacional
+toWhatsAppNumber("1133334444"); // "551133334444"   — fixo nacional
+toWhatsAppNumber("+55 11 99999-8888"); // "5511999998888"  — já qualificado
+toWhatsAppNumber("+351 912 345 678"); // "351912345678"   — Portugal, intacto
+```
+
+!!! warning "Número que não dá pra normalizar devolve `""` — de propósito"
+    Devolver os dígitos como vieram é o que a versão ingênua faz, e o resultado é uma URL `wa.me` que abre o WhatsApp num número que ninguém tem. Aqui um typo vira **botão desabilitado**, não janela de conversa morta:
+
+    ```tsx
+    const url = whatsAppUrl(client.phone, greeting);
+
+    <Button disabled={!url} onClick={() => openWhatsApp(client.phone, greeting)}>
+        Falar no WhatsApp
+    </Button>
+    ```
+
+!!! note "Prefixo de operadora (`0`, `021`) não é removido"
+    Um zero na frente é ambíguo entre prefixo de longa distância e seleção de operadora, então um número que traz um lê como inválido em vez de ser reinterpretado no escuro. O zero é o que descarta `011999998888` mesmo tendo 12 dígitos: **nenhum** código de país E.164 começa com `0`, logo aquilo é um número nacional vestindo prefixo, nunca um internacional.
+
+!!! info "O nono dígito é da sua base, não do link"
+    Um celular gravado antes de 2016 tem dez dígitos e passa aqui como fixo — o link é montado e é o WhatsApp que decide se acha a conta. Se a sua base tem contato antigo, normalize o nono dígito **na base**; o deep link não tem como adivinhar se `1133334444` é fixo ou celular sem o 9.
+
+### Receita: cobrar o sinal por WhatsApp
+
+O caso que junta esta parte com a [Parte 1](#parte-1-pix) — o texto da mensagem carrega o copia-e-cola do Pix:
+
+```tsx
+import { openWhatsApp, pixPayload } from "tempest-react-sdk/br";
+import { Button } from "tempest-react-sdk";
+
+interface Booking {
+    clientName: string;
+    clientPhone: string;
+    depositBRL: number;
+}
+
+export function DepositRequestButton({ booking }: { booking: Booking }) {
+    function requestDeposit(): void {
+        const payload = pixPayload({
+            key: "financeiro@studio.com.br",
+            merchantName: "Studio Aurora",
+            merchantCity: "SAO PAULO",
+            amount: booking.depositBRL,
+        });
+
+        openWhatsApp(
+            booking.clientPhone,
+            [
+                `Oi, ${booking.clientName}! Para confirmar seu horário, o sinal é de R$ ${booking.depositBRL.toFixed(2)}.`,
+                "",
+                "Pix copia e cola:",
+                payload,
+            ].join("\n"),
+        );
+    }
+
+    return <Button onClick={requestDeposit}>Pedir sinal no WhatsApp</Button>;
+}
+```
+
+!!! note "`openWhatsApp` devolve o pedido, não a aba"
+    `true` significa "o número era usável e a abertura foi pedida". Abrir com `noopener` faz o `window.open` devolver `null` **mesmo quando abre**, então o retorno dele não distingue popup bloqueado de aba aberta — e prometer isso seria mentira. Fora do browser (runner de teste, service worker, plugin de build) devolve `false` em vez de estourar.
+
+---
+
 ## Recapitulando
 
 - **Pix** — `pixPayload` monta o BR Code EMV com o CRC-16/CCITT-FALSE certo (incluindo os literais `6304`); `parsePixPayload` lê de volta, tolerante com tag desconhecida e intolerante com checksum errado; `<PixQRCode>` desenha o símbolo **e** a copia-e-cola, porque num celular só o QR não serve.
 - **Boleto** — `parseLinhaDigitavel` / `parseCodigoBarras` convertem 47↔44 e 48↔44 conferindo todo DV; cobrança e arrecadação são layouts diferentes e o SDK nunca confunde os dois; o fator de vencimento tem **duas** bases desde fev/2025 e a escolha é explícita.
 - **NFe** — `parseChaveNFe` abre os 44 dígitos e resolve o `cUF` no tipo `UF` do módulo; `validateChaveNFe` confere tamanho, UF e DV.
 - **Feriados** — `holidaysFor` devolve os 9 feriados nacionais + os 4 dias bancários móveis, marcados; estado e município entram por `extra`; `isBusinessDay` / `nextBusinessDay` / `addBusinessDays` fazem a conta no calendário local.
+- **WhatsApp** — `toWhatsAppNumber` põe o `55` no número nacional e devolve `""` no que não dá pra dialar; `whatsAppUrl` monta o `wa.me` com o texto codificado; `openWhatsApp` abre a aba. É **deep link**, nunca envio: quem aperta enviar é a pessoa.
 
 Nada disso fala com banco. Para o lado servidor (registrar boleto, criar cobrança Pix, autorizar NF-e), veja [Integração FastAPI](./integration-fastapi.md).
 
@@ -2023,6 +2274,75 @@ isValidUf("mg");     // true
 !!! tip "Coleções vazias não são erro"
     `citiesByUf` de uma UF inexistente devolve `[]`, não lança. Segue a convenção do backend: "sem correspondência" é um resultado válido.
 
+### O código IBGE é o que você guarda
+
+Nome de município muda. `Presidente Juscelino` (RN) virou `Serra Caiada` em 2013, `Embu` virou `Embu das Artes` em 2011, `Campo de Santana` (PB) virou `Tacima` em 2010. O **código IBGE de 7 dígitos não muda** — é ele que identifica o município, e é ele que todo dataset deste módulo usa como chave.
+
+```ts
+import { municipalitiesByUf, resolveMunicipality } from "tempest-react-sdk/br";
+
+municipalitiesByUf("SP").slice(0, 2);
+// [{ id: "3500105", name: "Adamantina" }, { id: "3500204", name: "Adolfo" }]
+
+resolveMunicipality("SP", "São Paulo");
+// { id: "3550308", name: "São Paulo" }
+```
+
+`resolveMunicipality` aceita quatro formas de escrever o mesmo lugar, o que é o ponto — endereço salvo há cinco anos precisa continuar apontando para o mesmo município:
+
+```ts
+resolveMunicipality("RN", "Serra Caiada")?.id;         // "2410306" — nome atual
+resolveMunicipality("RN", "Presidente Juscelino")?.id; // "2410306" — nome antigo
+resolveMunicipality("SP", "sao paulo")?.id;            // "3550308" — sem acento, minúscula
+resolveMunicipality("DF", "Ceilândia")?.id;            // "5300108" — região administrativa
+```
+
+!!! tip "Guarde o `id`, exiba o `name`"
+    O `BrazilStateCitySelect` emite os dois (`municipalityId` e `city`). Persistir o nome funciona até a próxima renomeação; persistir o código funciona sempre — e é o que `municipalityCentroid(id)` e `reverseGeocode` devolvem.
+
+### O Distrito Federal tem um município e 35 regiões administrativas
+
+O DF tem exatamente **um** município: Brasília. Ceilândia, Taguatinga, Gama e as outras 32 são **regiões administrativas** dentro dele — não têm código de município e nunca tiveram.
+
+Ignorar isso não é opção: ninguém no DF escreve "Brasília" num campo de endereço. Então elas são listadas e resolvíveis, num campo próprio, e geocodificam pelo município que as contém.
+
+```ts
+import { administrativeRegionsByUf, municipalitiesByUf } from "tempest-react-sdk/br";
+
+municipalitiesByUf("DF");
+// [{ id: "5300108", name: "Brasília" }]
+
+administrativeRegionsByUf("DF").length; // 35
+administrativeRegionsByUf("DF")[0];
+// { id: "53001080521", name: "Arniqueira", municipalityId: "5300108" }
+
+administrativeRegionsByUf("SP"); // [] — só o DF tem
+```
+
+O IBGE nomeia três delas como composto do que o GDF sinaliza separado (`SCIA` é a Estrutural, `Sudoeste/Octogonal` e `Sol Nascente/Pôr do Sol` são duas cada). Os nomes antigos continuam resolvendo:
+
+```ts
+resolveMunicipality("DF", "Octogonal")?.id;  // "5300108"
+resolveMunicipality("DF", "Estrutural")?.id; // "5300108"
+```
+
+!!! warning "`citiesByUf("DF")` devolve só `["Brasília"]`"
+    Até a v0.53.0 devolvia 36 nomes, 35 deles regiões administrativas que **não geocodificavam** — escolher "Ceilândia" produzia uma seleção que `geocodeMunicipality` respondia vazia. Se o seu formulário precisa oferecer as RAs, use `administrativeRegionsByUf("DF")` (o `BrazilStateCitySelect` já faz isso) e `resolveMunicipality` para validar.
+
+### De qual safra do IBGE são os dados
+
+```ts
+import { datasetVintage, pendingGeometryIds } from "tempest-react-sdk/br";
+
+datasetVintage(); // { roster: "2026-08-29", mesh: "2022" }
+pendingGeometryIds(); // ["5101837"]
+```
+
+As duas safras diferem de propósito: o IBGE publica município novo antes de publicar a malha dele. `pendingGeometryIds()` enumera exatamente essa lacuna — hoje um município, Boa Esperança do Norte (MT), instalado em 2023, para o qual o IBGE não serve geometria em endpoint nenhum. Ele é listado e selecionável; é o único que `geocodeMunicipality` não consegue posicionar.
+
+!!! info "Por que isso está exposto"
+    Porque a alternativa é o app descobrir a lacuna como resultado vazio em produção. Um teste do pacote fixa essa lista: quando ela crescer sem alguém decidir, a build falha.
+
 ### Alimentar um `<Select>` / `<Combobox>`
 
 `ufChoices()` e `cityChoices(uf)` já devolvem `{ value, label }`:
@@ -2046,7 +2366,7 @@ import { BrazilStateCitySelect } from "tempest-react-sdk/br";
 export function EnderecoForm() {
   return (
     <BrazilStateCitySelect
-      onChange={({ uf, city }) => console.log(uf, city)}
+      onChange={({ uf, city, municipalityId }) => console.log(uf, city, municipalityId)}
       stateLabel="UF"
       cityLabel="Município"
     />
@@ -2055,12 +2375,15 @@ export function EnderecoForm() {
 ```
 
 - `defaultUf` / `defaultCity` — valores iniciais (não-controlado).
-- `onChange({ uf, city })` — dispara a cada mudança; `uf`/`city` são `null` quando vazios.
+- `onChange({ uf, city, municipalityId })` — dispara a cada mudança; os três são `null` quando vazios. `municipalityId` é o código IBGE — o valor a persistir.
 - `layout="column"` empilha os selects (default é lado a lado).
 - `disabled` trava ambos.
 
 !!! note "Cidade só habilita depois do estado"
     O select de cidade fica desabilitado até um estado ser escolhido — não há o que listar antes disso.
+
+!!! tip "No DF, a lista inclui as regiões administrativas"
+    Escolher `"DF"` lista Brasília **e** as 35 RAs. Qualquer uma delas emite `municipalityId: "5300108"`, então a seleção sempre geocodifica.
 
 ---
 
@@ -2430,8 +2753,8 @@ export function BuscaNoMapa() {
 
 ## Sobre a geometria
 
-- Fonte: fronteiras das UFs do **IBGE** (domínio público), simplificadas com Douglas-Peucker (~2 km de tolerância) e arredondadas a 3 casas decimais.
-- Tamanho: **~119 KB cru / ~36 KB gzip**, num chunk à parte carregado **lazy** pelo `BrazilMap`.
+- Fonte: malha do **IBGE** (`/api/v3/malhas`, safra 2022), simplificada com Douglas-Peucker (~2 km de tolerância, limitada a um vinte avos da diagonal de cada anel para não apagar município pequeno) e arredondada a 3 casas decimais.
+- Tamanho: **~99 KB cru / ~31 KB gzip**, num chunk à parte carregado **lazy** pelo `BrazilMap`.
 - Precisão: adequada pra um **mapa de visão geral clicável**, **não** pra análise geográfica precisa nem cálculo de área.
 
 !!! info "Município: use o `BrazilStateMap`"
@@ -9358,7 +9681,21 @@ export function Paginacao({ totalItems }: { totalItems: number }) {
 | `totalItems`       | `number` (contagem, opcional) | —  |
 | `onPageChange`     | `(page: number) => void` | —       |
 | `onPageSizeChange` | `(size: number) => void` | —       |
-| `siblingCount`     | `number` (vizinhos)      | `7`     |
+| `siblingCount`     | `number` (vizinhos)      | `3`     |
+| `compactOnMobile`  | `boolean`                | `true`  |
+
+### Abaixo de 640px: sequencial por default, aleatório se você pedir
+
+O default esconde os números e deixa `‹` / `›` mais o resumo. Num app desktop-first isso é razoável; num mobile-first custa exatamente o que a paginação existe para dar — chegar na página 7 vira seis toques em "próxima" em vez de um toque no `7`.
+
+```tsx
+<Pagination page={page} totalPages={pages} onPageChange={setPage} compactOnMobile={false} />
+```
+
+Com `false`, os números ficam em qualquer largura: a faixa **rola sozinha** na horizontal em vez de alargar a página, e a página atual é trazida para a área visível a cada mudança.
+
+!!! tip "Por que um booleano e não uma `variant`"
+    Só desligar o `display: none` empurraria uma fileira de nove botões para além de um viewport de 360px e daria barra de rolagem horizontal ao **documento inteiro**. O opt-out precisa trazer o próprio layout junto — então ele traz, e não há terceira opção para escolher.
 
 ## `SegmentedControl`
 
@@ -15404,40 +15741,41 @@ Cada seção é um arquivo em [`examples/gallery/src/sections/`](https://github.
 | 27 | QRCode | `#qrcode` | Componentes |
 | 28 | Chat | `#chat` | Componentes |
 | 29 | AIChat | `#aichat` | Componentes |
-| 30 | Áudio (gravação) | `#audio-capture` | Componentes |
-| 31 | Captura de dispositivo | `#device-capture` | Componentes |
-| 32 | Dashboard (CSS) | `#dashboard-layout` | Componentes |
-| 33 | FilterBar | `#filterbar` | Componentes |
-| 34 | Markdown | `#markdown` | Componentes |
-| 35 | Masonry | `#masonry` | Componentes |
-| 36 | Tour | `#tour` | Componentes |
-| 37 | Transfer | `#transfer` | Componentes |
-| 38 | CodeBlock | `#codeblock` | Componentes |
-| 39 | Material (ListTile · FAB · Rail) | `#material` | Componentes |
-| 40 | Forms (zod) | `#forms` | Componentes |
-| 41 | BR Forms (CPF/CNPJ/CEP) | `#br-forms` | Componentes |
-| 42 | Hooks — estado | `#hooks-state` | Hooks |
-| 43 | Hooks — DOM & timing | `#hooks-dom` | Hooks |
-| 44 | Network · Clipboard · Share | `#meta` | Hooks |
-| 45 | Formatters | `#utils` | Hooks |
-| 46 | HTTP client | `#recipe-http` | Receitas |
-| 47 | Upload resumível (tus) | `#recipe-resumable-upload` | Receitas |
-| 48 | Passkeys (WebAuthn) | `#recipe-passkeys` | Receitas |
-| 49 | Data fetching (TanStack Query) | `#recipe-query` | Receitas |
-| 50 | Tempo real (WebSocket) | `#recipe-realtime` | Receitas |
-| 51 | Geolocalização (mapas & trajetória) | `#geo` | Receitas |
-| 52 | Mapa do Brasil (UF + cidades) | `#brazil-map` | Receitas |
-| 53 | Pagamentos BR (Pix · boleto · NFe) | `#br-payments` | Receitas |
-| 54 | Auth & Access Control | `#recipe-auth` | Receitas |
-| 55 | SSE · Push · Audio | `#integrations` | Receitas |
-| 56 | NotificationCenter (inbox) | `#notification-center` | Receitas |
-| 57 | PWA: Install · Push | `#pwa` | Receitas |
-| 58 | Store (Zustand) | `#foundation` | Fundação |
-| 59 | Escalas contínuas (heatmap) | `#dataviz-scales` | Fundação |
-| 60 | createTheme · presets · tokens de gráfico | `#theme-factory` | Fundação |
-| 61 | Ícones por slug (/icons) | `#icons` | Fundação |
-| 62 | utilities.css (camada opt-in) | `#utilities-css` | Fundação |
-| 63 | Tema + i18n | `#theme-i18n` | Fundação |
+| 30 | Cadeia de voz (microfone) | `#voice-chain` | Componentes |
+| 31 | Áudio (gravação) | `#audio-capture` | Componentes |
+| 32 | Captura de dispositivo | `#device-capture` | Componentes |
+| 33 | Dashboard (CSS) | `#dashboard-layout` | Componentes |
+| 34 | FilterBar | `#filterbar` | Componentes |
+| 35 | Markdown | `#markdown` | Componentes |
+| 36 | Masonry | `#masonry` | Componentes |
+| 37 | Tour | `#tour` | Componentes |
+| 38 | Transfer | `#transfer` | Componentes |
+| 39 | CodeBlock | `#codeblock` | Componentes |
+| 40 | Material (ListTile · FAB · Rail) | `#material` | Componentes |
+| 41 | Forms (zod) | `#forms` | Componentes |
+| 42 | BR Forms (CPF/CNPJ/CEP) | `#br-forms` | Componentes |
+| 43 | Hooks — estado | `#hooks-state` | Hooks |
+| 44 | Hooks — DOM & timing | `#hooks-dom` | Hooks |
+| 45 | Network · Clipboard · Share | `#meta` | Hooks |
+| 46 | Formatters | `#utils` | Hooks |
+| 47 | HTTP client | `#recipe-http` | Receitas |
+| 48 | Upload resumível (tus) | `#recipe-resumable-upload` | Receitas |
+| 49 | Passkeys (WebAuthn) | `#recipe-passkeys` | Receitas |
+| 50 | Data fetching (TanStack Query) | `#recipe-query` | Receitas |
+| 51 | Tempo real (WebSocket) | `#recipe-realtime` | Receitas |
+| 52 | Geolocalização (mapas & trajetória) | `#geo` | Receitas |
+| 53 | Mapa do Brasil (UF + cidades) | `#brazil-map` | Receitas |
+| 54 | Pagamentos BR (Pix · boleto · NFe) | `#br-payments` | Receitas |
+| 55 | Auth & Access Control | `#recipe-auth` | Receitas |
+| 56 | SSE · Push · Audio | `#integrations` | Receitas |
+| 57 | NotificationCenter (inbox) | `#notification-center` | Receitas |
+| 58 | PWA: Install · Push | `#pwa` | Receitas |
+| 59 | Store (Zustand) | `#foundation` | Fundação |
+| 60 | Escalas contínuas (heatmap) | `#dataviz-scales` | Fundação |
+| 61 | createTheme · presets · tokens de gráfico | `#theme-factory` | Fundação |
+| 62 | Ícones por slug (/icons) | `#icons` | Fundação |
+| 63 | utilities.css (camada opt-in) | `#utilities-css` | Fundação |
+| 64 | Tema + i18n | `#theme-i18n` | Fundação |
 <!-- /gallery -->
 
 ## Matriz de variantes
@@ -15509,7 +15847,7 @@ Cada exemplo aparece **lado a lado com o código-fonte** (botão "Copiar"), ent�
 gallery é também uma referência copia-e-cola. Capturas do app rodando:
 
 <!-- gallery:screenshots -->
-Cada seção tem a própria captura ao lado do componente que documenta; os pares abaixo são aqueles em que o tema é o assunto. As 73 imagens são regeneradas por `npm run docs:shots`.
+Cada seção tem a própria captura ao lado do componente que documenta; os pares abaixo são aqueles em que o tema é o assunto. As 74 imagens são regeneradas por `npm run docs:shots`.
 
 ### Buttons
 
@@ -15896,6 +16234,8 @@ granulares, testados e independentes — importe só o que precisar.
 | `useServiceWorkerUpdate({ url })`                 | Registra o SW e expõe `{ updateAvailable, applyUpdate, registration }` — fluxo de update com consentimento (par de `<UpdatePrompt>`). Veja [PWA](./pwa.md). |
 | `useStorageEstimate({ pollMs? })`                 | `{ usage, quota, ratio, persisted, requestPersist, refresh }` — quota do Storage API + `persist()`. Pares puros: `estimateStorage`, `requestPersistentStorage`. |
 | `useIdle(timeout?)`                               | True quando usuário ocioso por `timeout` ms.                                                                 |
+| `useFullscreen(ref?)`                             | `{ isFullscreen, supported, enter, exit, toggle }` — modo imersivo com estado dirigido por `fullscreenchange`, então `Esc` e o botão do próprio browser atualizam a UI. Par puro: `isFullscreenSupported`. |
+| `usePushToTalk({ code, onDown, onUp })`           | Segure para transmitir. `blur` solta (alt-tab não entrega o `keyup`), auto-repeat é ignorado e campo de texto ganha. Pares: `pushToTalkKeyLabel`, `PUSH_TO_TALK_KEYS`.                                    |
 | `useGeolocation(opts?)`                           | Position + erro + loading.                                                                                   |
 | `useClickOutside(handler)`                        | Retorna um ref; chama `handler` em `mousedown`/`touchstart` fora do elemento. safe sem `window`.                      |
 | `useDocumentTitle(title)`                         | Seta `document.title` enquanto montado, restaurando o anterior no unmount. safe sem `window`.                         |
@@ -16480,6 +16820,95 @@ function Analytics({ query }: { query: string }) {
 
 Retorna `true` apenas na primeira renderização — útil para pular efeitos de montagem.
 
+### Modo imersivo — `useFullscreen`
+
+Tela cheia é o caso em que guardar o estado na sua própria função **sempre** mente. `Esc`, o botão de sair do próprio browser e o F11 apertado durante uma sessão da API saem de tela cheia sem passar pelo seu `exit()` — e o `useState` que você virou no clique continua dizendo "Sair da tela cheia" com a página já de volta ao normal.
+
+`useFullscreen` lê o evento `fullscreenchange` (mais a variante `webkitfullscreenchange`, que o Safari ainda é o único a disparar). O estado vem de lá, nunca do retorno da chamada:
+
+```tsx
+import { useRef, useState } from "react";
+import { Alert, Button, useFullscreen } from "tempest-react-sdk";
+
+export function PalcoImersivo() {
+  const stage = useRef<HTMLDivElement>(null);
+  const { isFullscreen, supported, toggle } = useFullscreen(stage);
+  const [recusado, setRecusado] = useState(false);
+
+  return (
+    <div ref={stage} style={{ background: "black" }}>
+      <video src="/aula.mp4" controls />
+
+      {recusado ? <Alert variant="warning">O navegador recusou a tela cheia.</Alert> : null}
+
+      {supported ? (
+        <Button
+          onClick={() => {
+            setRecusado(false);
+            toggle().catch(() => setRecusado(true));
+          }}
+        >
+          {isFullscreen ? "Sair da tela cheia" : "Tela cheia"}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+```
+
+Três coisas acontecem aí:
+
+- **`isFullscreen`** é a identidade entre o seu elemento e o que o browser está apresentando. Sair por `Esc` derruba a flag sem você fazer nada; um `<video>` dentro do seu palco que entra em tela cheia sozinho **não** conta, porque quem está sendo pintado não é o seu elemento.
+- **`supported`** vem de `isFullscreenSupported()` — a mesma função exportada solta, para checar fora de um componente. Ela é `false` em duas situações que só se distinguem lendo o flag: a API não existe (WebKit antigo, iOS fora de `<video>`) **e** a API existe mas está desligada, que é o caso de um `<iframe>` sem `allowfullscreen`. Esconder o botão é melhor que renderizar um que não faz nada.
+- **`toggle()` é assíncrono e pode rejeitar.** A rejeição é repassada de propósito, então trate-a — sem o `.catch()` ela vira unhandled rejection no console.
+
+Sem `ref`, o alvo é a página inteira (`document.documentElement`); `enter()` e `exit()` existem separados para quando o botão não é um toggle.
+
+!!! warning "Só dentro de um gesto do usuário"
+    `requestFullscreen` só é aceito a partir de um clique, toque ou tecla. Chamar `enter()` num `useEffect` de montagem rejeita com `TypeError` em todo browser moderno — e é por isso que a rejeição chega até você em vez de ser engolida: um botão que não fez nada precisa dizer o motivo.
+
+!!! note "F11 é outra coisa"
+    A tela cheia do próprio browser (F11) **não** passa pela Fullscreen API: `document.fullscreenElement` continua `null` e nenhum evento dispara, então `isFullscreen` fica `false` durante uma sessão de F11. O caminho contrário vale: F11 apertado durante uma tela cheia da API **sai** dela e dispara o evento, que é justamente o caso que o hook cobre.
+
+!!! tip "Overlay em tela cheia já funciona sozinho"
+    Você não precisa deste hook para `<Modal>`, `<Drawer>` ou toast: o `<Portal>` do SDK segue o elemento em tela cheia por conta própria — inclusive movendo um diálogo já aberto quando a tela cheia começa. Veja [Tela cheia](./components/overlay.md#tela-cheia).
+
+### Push-to-talk — `usePushToTalk`
+
+Segurar uma tecla para transmitir parece `keydown`/`keyup` e não é. Três coisas dão errado, e as três aparecem só em uso real:
+
+```tsx
+import { usePushToTalk, pushToTalkKeyLabel, PUSH_TO_TALK_KEYS } from "tempest-react-sdk";
+
+export function BarraDeVoz({ track }: { track: MediaStreamTrack }) {
+  const [tecla, setTecla] = useState("Space");
+
+  usePushToTalk({
+    code: tecla,
+    onDown: () => (track.enabled = true),
+    onUp: () => (track.enabled = false),
+  });
+
+  return (
+    <p>
+      Segure <kbd>{pushToTalkKeyLabel(tecla)}</kbd> para falar.
+    </p>
+  );
+}
+```
+
+- **`blur` solta**, e isso não é caso de borda: alt-tab com a tecla segurada significa que o browser **nunca** vê o `keyup`, e o microfone fica aberto enquanto a pessoa olha outra janela — exatamente o que push-to-talk existe para evitar. Desmontar solta pelo mesmo motivo.
+- **Auto-repeat é ignorado** (`event.repeat`), senão a tecla segurada dispara `onDown` na taxa de repetição do teclado.
+- **Campo de texto ganha.** Com o foco num `<input>`, `<textarea>`, `<select>` ou `contenteditable`, a tecla passa direto: sem isso, espaço como PTT significa não conseguir escrever espaço no chat, porque o handler deu `preventDefault`.
+
+`PUSH_TO_TALK_KEYS` é a lista para um seletor de configuração, `DEFAULT_PUSH_TO_TALK_KEY` (`"Space"`) o valor com que semear a preferência antes de a pessoa escolher, e `pushToTalkKeyLabel(code)` o rótulo — `KeyboardEvent.code` cru não se mostra a usuário.
+
+!!! note "`code`, não `key`"
+    A ligação é por `KeyboardEvent.code`, que é a tecla **física**: num teclado ABNT2 o `key` da posição da crase não é o que um layout US reporta, enquanto `Backquote` é a mesma tecla em todos.
+
+!!! tip "`enabled: false` para desligar sem desmontar"
+    Alternar entre microfone aberto e push-to-talk é `enabled`. Desligar **solta primeiro**, então virar a chave com a tecla apertada não deixa `onUp` sem disparar.
+
 ## PWA & gestos de ponteiro
 
 ### Prompt de instalação com fallback — `useInstallPrompt`
@@ -16927,7 +17356,7 @@ controller.abort(); // rejeita com DOMException, sem retentar
 
 ## `parseResponse`
 
-Valida payload com zod. Em dev/test, mostra exatamente qual campo divergiu (contract drift). Em prod, mensagem genérica (não vaza estrutura interna).
+Valida payload com zod. Em um **build de desenvolvimento**, mostra exatamente qual campo divergiu (contract drift) e o payload cru que chegou. Em **qualquer outro build**, uma mensagem genérica — a estrutura interna e o corpo da resposta não vazam pra tela do usuário nem pro seu error tracker.
 
 ```ts
 import { parseResponse } from "tempest-react-sdk";
@@ -16943,6 +17372,12 @@ const user = parseResponse(userSchema, raw, "GET /users/me");
 
 !!! tip "O 3º argumento é o contexto"
     Passe sempre um label como `"GET /users/me"`. Ele aparece na mensagem de erro de dev e torna trivial localizar qual endpoint quebrou o contrato.
+
+!!! note "Como o SDK sabe que é dev"
+    Lendo `process.env.NODE_ENV` — que Vite, webpack, Rspack e Parcel substituem por um literal **enquanto compilam o seu app**. Então `npm run dev` recebe o relatório e `npm run build` recebe a frase genérica, sem nenhuma configuração da sua parte. O SDK **não** usa `import.meta.env.DEV`: essa expressão seria substituída ao compilar o *pacote*, e o artefato publicado carregaria a constante `false` pra sempre.
+
+!!! warning "A regra compara com `production`, não com `development`"
+    A checagem é `NODE_ENV !== "production"`, não uma lista de nomes conhecidos de dev. Um build de staging ou de QA que esquece de definir `NODE_ENV=production` cai no lado de desenvolvimento — e aí a mensagem de erro carrega `JSON.stringify(raw)`, o corpo inteiro da resposta. Se esse build fala com dados reais, defina `NODE_ENV=production` nele.
 
 ## `uploadWithProgress`
 
@@ -17097,11 +17532,22 @@ try {
 }
 ```
 
-!!! info "422 do FastAPI: `detail` é lista, e `error.fields` é o que o formulário quer"
-    Um erro de validação do FastAPI chega como `detail: [{ loc, msg, type }]`. O cliente monta duas coisas dessa lista:
+!!! info "`error.fields` — o campo culpado, venha ele em lista ou em chave"
+    Um erro de validação **do FastAPI cru** chega como `detail: [{ loc, msg, type }]`, e o cliente monta duas coisas dessa lista:
 
     - **`error.fields`** — `{ email: "Field required", "items.0.price": "Input should be greater than 0" }`, indexado pelo caminho do campo, que é o que um formulário precisa. O prefixo de `loc` que só nomeia a parte da requisição (`body`, `query`, `path`, `header`, `cookie`) é descartado. Campo repetido mantém a primeira mensagem — input mostra um erro por vez.
     - **`error.detail`** — a mesma coisa achatada numa linha, para log. Carrega caminho de campo e a redação do validador; é texto de desenvolvedor.
+
+    Um backend em cima do [`tempest-fastapi-sdk`](https://mauriciobenjamin700.github.io/tempest-fastapi-sdk/) manda essa lista só enquanto não assume o handler. Assumindo, ele nomeia o campo numa **chave** ao lado da mensagem — e o `fields` também lê essas, nesta ordem:
+
+    | Onde o campo vem | Exemplo de corpo | Quem manda |
+    | --- | --- | --- |
+    | `detail[].loc` | `{ "detail": [{ "loc": ["body", "email"], "msg": "Field required" }] }` | FastAPI cru (`RequestValidationError` sem handler próprio) |
+    | `detail.field` | `{ "detail": { "detail": "Cidade não encontrada…", "field": "city" } }` | `AppException` / `ValidationException` com dict de mensagem |
+    | `field` | `{ "detail": "Value error, … for field 'phone' in 'body'", "field": "phone" }` | handler de `RequestValidationError` que achata a lista |
+    | `details.field` | `{ "detail": "Coluna inválida", "details": { "field": "criado_em" } }` | saco de contexto do `AppException` |
+
+    Quando o campo vem por chave, o valor em `fields` é **a mesma frase** que está em `error.detail` — o backend mandou uma mensagem só, e ela agora sabe a qual input pertence. A lista ganha de todas as chaves; `details` responde por último, porque é um saco de contexto genérico e o `field` dele pode ser sobre algo que nem existe na tela (uma coluna de ordenação, por exemplo).
 
     ```ts
     import { isApiError } from "tempest-react-sdk";
@@ -17123,6 +17569,8 @@ try {
 !!! warning "Não jogue o `detail` de um 422 na tela"
     `"items.0.price: Input should be greater than 0"` numa interface em pt-BR é meia frase em inglês nomeando estrutura interna. É por isso que o `describeApiError` **não** repassa o `detail` quando `fields` está preenchido: ele devolve a frase de validação ("Confira os campos destacados e tente de novo.", traduzível por `tempest.error.validation`), e as mensagens por campo ficam onde servem — nos inputs.
 
+    **Isso agora vale também para o erro de negócio que nomeia um campo**, cujo `detail` já era uma frase pronta em pt-BR. O toast troca "Cidade não encontrada para o estado informado." pela frase de validação; a sentença não se perde, ela vai para `error.fields.city` e aparece colada no input. Três saídas, em ordem de preferência: `codes: { VALIDATION_ERROR: "…" }` (que ganha do funil inteiro), `validation: error.detail` na chamada, ou ler `error.detail` você mesmo — ele continua intacto.
+
 ### Do erro tipado para a frase na tela — `describeApiError`
 
 O `try/catch` acima escreve a frase à mão, e todo app escreve o mesmo funil — errando sempre no mesmo lugar: a requisição que **não chegou** ao servidor tem `status === 0`, e sem tratamento ela vira "erro 0" na tela.
@@ -17141,7 +17589,7 @@ A ordem do funil:
 
 1. **`codes[error.code]`** — a frase que **você** escreveu pra aquele caso do backend. Ganha de todo o resto: nada que o funil deduz bate uma frase escrita por quem conhecia o contrato e a tela.
 2. **Requisição que não chegou** — `status === 0`, ou um erro qualquer com o browser se declarando offline → frase de offline.
-3. **Rejeição de validação** — `error.fields` preenchido → frase de validação, **não** o `detail` (que é técnico). As mensagens por campo continuam em `fields`.
+3. **Erro que nomeia campo** — `error.fields` preenchido → frase de validação, **não** o `detail`. Vale tanto para o 422 do FastAPI (cujo `detail` é técnico) quanto para o erro de negócio que apontou um campo. As mensagens por campo continuam em `fields`.
 4. **`detail` do backend** — o texto mais específico disponível, e já escrito para uma pessoa.
 5. **`fallback`**, com `(HTTP <status>)` anexado quando há status — o print no chamado de suporte carrega o único dado que o dev precisa.
 
@@ -17211,12 +17659,12 @@ const { mutate } = useMutation({
 - 401 com `refresh` → tenta renovar e repete 1x. `onUnauthorized` dispara em todo desfecho sem autorização — sem refresh, refresh que rejeitou, ou repetição que voltou 401.
 - `retry: true` liga a retentativa dentro do cliente: só método idempotente, só falha de rede/`408`/`425`/`429`/`5xx`. Escrita nunca repete sozinha.
 - `logger` é opt-in e o client não escreve em console sem ele: uma linha por tentativa (`debug` abaixo de 400, `warn` de 400 pra cima) com `requestId`, `status` e `ms`, nunca body/header/query.
-- `parseResponse(schema, raw, context)` valida o payload com zod e aponta o campo divergente em dev.
+- `parseResponse(schema, raw, context)` valida o payload com zod e aponta o campo divergente em um build de desenvolvimento; em qualquer outro build, só a frase genérica.
 - `uploadWithProgress` usa XHR pra reportar progresso byte a byte; para arquivo grande, `createResumableUpload` divide em chunks e retoma — veja [Upload resumível](./resumable-upload.md).
 - `retry` (backoff exponencial + `shouldRetry`) e `usePoll` (intervalo com guarda de overlap) cobrem operações instáveis e acompanhamento de jobs.
 - `generateIdempotencyKey` — gere uma vez por operação, reutilize nos retries.
-- `describeApiError(error, fallback)` (puro) e `useDescribeApiError()` (com i18n) transformam o erro tipado na frase da tela, tratando `status === 0` como offline em vez de "erro 0" e um 422 com `fields` como frase de validação em vez do `detail` técnico.
-- `error.fields` indexa as mensagens do 422 por caminho de campo — é o que vai direto pro `setError` do formulário.
+- `describeApiError(error, fallback)` (puro) e `useDescribeApiError()` (com i18n) transformam o erro tipado na frase da tela, tratando `status === 0` como offline em vez de "erro 0" e todo erro com `fields` como frase de validação em vez do `detail`.
+- `error.fields` indexa as mensagens por campo — da lista do 422 do FastAPI ou das chaves `detail.field` / `field` / `details.field` que um backend `tempest-fastapi-sdk` manda. É o que vai direto pro `setError` do formulário.
 
 ## Veja também
 
@@ -18656,6 +19104,8 @@ O `tempest-fastapi-sdk` padroniza alguns formatos. Este SDK foi alinhado a eles:
 | Conceito | Formato do backend |
 | --- | --- |
 | **Erro** | `{ "detail": str, "code": "ERROR_CODE", "details": { "request_id": str } }` |
+| **Erro de validação** (`RequestValidationError` achatado) | `{ "detail": str, "field": str, "location": str, "type": str }` |
+| **Erro de negócio com campo** (`ValidationException`) | `{ "detail": { "detail": str, "field": str }, "code": "VALIDATION_ERROR", "details": { "field": str } }` |
 | **Paginação offset** | `{ items, total, page, size, pages }` · query `?page&size` (convenção `fastapi-pagination`) |
 | **Paginação cursor** | `{ items, next_cursor, has_more, limit }` · query `?cursor&limit&order_by&ascending` |
 | **Login** | `{ access_token, token_type: "bearer" }` · header `Authorization: Bearer <token>` |
@@ -18694,6 +19144,7 @@ interface ApiError {
     code?: string; // "EMAIL_TAKEN"  (do campo `code`)
     requestId?: string; // "req-abc"      (de details.request_id)
     retryAfter?: number; // segundos, quando houver Retry-After
+    fields?: Record<string, string>; // { city: "Cidade não encontrada…" }
     body?: unknown; // corpo cru
 }
 ```
@@ -18703,6 +19154,39 @@ interface ApiError {
 
 !!! check "Nada para configurar"
     Isso já é o comportamento padrão. Qualquer chamada via `createApiClient` ou pela classe gerada pelo codegen (que usa o `ApiClient` por baixo) entrega o erro nesse formato.
+
+### O campo culpado, que o backend nomeia e o front costumava jogar fora
+
+O backend **sabe** qual campo derrubou a requisição — ele diz o nome. O que faltava era o front escutar: antes, o `error.fields` só era preenchido quando o corpo trazia a lista do FastAPI cru (`detail: [{ loc, msg }]`), que é justamente a forma que um app com handler próprio **não** manda. O nome ficava dentro de `error.body`, e cada tela voltava a fazer cast e parsear prosa.
+
+Agora as três chaves singulares que o `tempest-fastapi-sdk` usa entram no mesmo `error.fields`:
+
+```tsx
+import { createApiClient, describeApiError, isApiError } from "tempest-react-sdk";
+
+const api = createApiClient({ baseURL: import.meta.env.VITE_API_URL });
+
+async function salvarEndereco(values: { city: string; phone: string }): Promise<void> {
+    try {
+        await api.post("/api/enderecos", { body: values });
+    } catch (err) {
+        if (isApiError(err) && err.fields) {
+            for (const [field, message] of Object.entries(err.fields)) {
+                setError(field, { message });
+            }
+        }
+        toast.error(describeApiError(err, "Não foi possível salvar o endereço"));
+    }
+}
+```
+
+Com o corpo `{ "detail": { "detail": "Cidade não encontrada para o estado informado.", "field": "city" }, "code": "VALIDATION_ERROR" }`, o `err.fields` vale `{ city: "Cidade não encontrada para o estado informado." }` — e o `setError("city", …)` cola a frase no input certo.
+
+!!! note "A ordem de precedência"
+    `detail[].loc` (lista do FastAPI) → `detail.field` → `field` → `details.field`. A lista ganha porque um app `tempest-fastapi-sdk` sem handler de `RequestValidationError` continua respondendo o 422 padrão do FastAPI. O `details` responde por último: ele é o saco de contexto genérico do `AppException`, e o `field` dele pode ser sobre algo que não é input nenhum — uma coluna de ordenação recusada, por exemplo.
+
+!!! warning "O toast muda de frase, e é de propósito"
+    O `describeApiError` devolve a frase de validação sempre que `fields` está preenchido. Um erro de negócio que nomeia campo passa a cair aí: o toast troca "Cidade não encontrada para o estado informado." por "Confira os campos destacados e tente de novo.". A frase específica não sumiu — ela está no input. Se você quer a sentença do backend no toast, use `codes: { VALIDATION_ERROR: "…" }` (ganha de tudo) ou `validation: err.detail` na chamada.
 
 ---
 
@@ -21314,6 +21798,9 @@ export function ServiceWorkerGate() {
 
 Quando um worker novo termina de instalar, `updateAvailable` vira `true`; `applyUpdate()` ativa o worker em espera (`skipWaiting`) e recarrega a página assim que ele assume o controle.
 
+!!! note "Também pega o worker que já estava esperando"
+    O caso comum não gera evento nenhum: o usuário abriu o app depois do deploy (o worker novo instalou e foi para `waiting`), fechou a aba, e voltou depois. Nessa segunda visita `updatefound` não dispara — o `install` já aconteceu. `registerServiceWorker` lê `registration.waiting` assim que o registro resolve, então `updateAvailable` vira `true` do mesmo jeito. Cada worker é anunciado **uma vez**, mesmo quando os dois caminhos valem na mesma sessão, e nenhum dispara na primeira instalação (sem `controller`) — isso é `onReady`, não update.
+
 !!! tip "Deixe `autoUpdate` desligado aqui"
     `useServiceWorkerUpdate` existe para dar a decisão de recarregar ao usuário. Se você quer recarga silenciosa, use `registerServiceWorker({ url, autoUpdate: true })` direto, sem o hook.
 
@@ -22199,9 +22686,16 @@ Cada `TempestRouteObject` aceita:
 | `element`       | `ReactNode`                                 | O que renderizar quando a rota casa.                                            |
 | `lazy`          | `() => Promise<{ default: ComponentType }>` | Carrega o componente sob demanda (code-split). Retry automático em chunk velho. |
 | `children`      | `TempestRouteObject[]`                      | Rotas aninhadas.                                                                |
-| `guard`         | `boolean \| (() => boolean)`                | Quando _falsy_, renderiza um redirect no lugar do `element`.                    |
+| `guard`         | `boolean \| (() => RouteGuardResult)`       | `false` redireciona, `true` renderiza, `"pending"` segura a decisão.            |
+| `guardFallback` | `ReactNode`                                 | Renderizado enquanto o guard responde `"pending"`. Padrão: o `fallback` do `<AppRouter>`. |
 | `redirectTo`    | `string`                                    | Destino do redirect do guard. Padrão `"/"`.                                     |
 | `caseSensitive` | `boolean`                                   | Faz o match de `path` diferenciar maiúsculas/minúsculas.                        |
+
+!!! tip "A página do `lazy` pode declarar props"
+    `ComponentType` ali é literal: qualquer componente serve, tenha ele prop
+    obrigatória, opcional ou nenhuma. Uma página `({ id }: Props) => …` entra na
+    árvore sem cast. Props que a rota precise passar continuam saindo do
+    `element` ou de um contexto — o `lazy` monta o componente sem argumentos.
 
 Depois é só passar a árvore para o `<AppRouter>`:
 
@@ -22375,9 +22869,75 @@ export const routes = defineRoutes([
 ```
 
 !!! warning "O guard roda na renderização — leia a store via `getState()` ou um hook"
-    A função do `guard` é avaliada **durante a renderização** da rota. Por isso ela precisa ler o estado _naquele momento_: use `useAuth.getState().isAuthenticated` (leitura imperativa, fora do React) ou um hook de seleção dentro de um componente. Não capture o valor uma vez fora da função — você congelaria o estado de auth no carregamento inicial.
+    A função do `guard` é avaliada **durante a renderização** da rota. Por isso ela precisa ler o estado _naquele momento_: use `useAuth.getState().isAuthenticated` (leitura imperativa, fora do React) ou chame um hook direto na função do guard, que roda dentro do ciclo de renderização — veja a seção seguinte. Não capture o valor uma vez fora da função: você congelaria o estado de auth no carregamento inicial.
 
 Quando `guard` é _falsy_, o usuário é redirecionado para `redirectTo` (padrão `"/"`). No exemplo acima, quem não está autenticado e tenta abrir `/dashboard` cai em `/login`.
+
+### Forma de função assíncrona: o terceiro estado `"pending"`
+
+Um guard de duas respostas não consegue falar sobre permissão que **ainda não resolveu** — e é o caso do próprio `useCan` do SDK, que devolve `{ allowed, isLoading }`. Com só `true`/`false`, o guard precisa responder algo enquanto a checagem está no ar, e as duas respostas possíveis estão erradas:
+
+- responder `false` **redireciona quem tem** a permissão, num flash, toda vez que a rota é aberta a frio (F5 direto na URL, link externo);
+- responder `true` **renderiza a tela para quem não tem**, até a resposta chegar.
+
+Por isso o guard aceita uma terceira resposta:
+
+```ts
+type RouteGuardResult = boolean | "pending";
+```
+
+`"pending"` segura a decisão e renderiza o `guardFallback` no lugar — sem redirecionar, sem vazar a tela:
+
+```tsx
+// routes.tsx
+import { defineRoutes, useCan } from "tempest-react-sdk";
+import { Spinner } from "tempest-react-sdk";
+import { RootLayout } from "@/layouts/RootLayout";
+import { Home } from "@/pages/Home";
+
+export const routes = defineRoutes([
+  {
+    path: "/",
+    element: <RootLayout />,
+    children: [
+      { index: true, element: <Home /> },
+      {
+        path: "financeiro",
+        lazy: () => import("@/pages/Financeiro"),
+        redirectTo: "/",
+        guardFallback: <Spinner size="lg" />,
+        guard: function useFinanceGuard() {
+          const { allowed, isLoading } = useCan({ action: "read", resource: "finance" });
+          return isLoading ? "pending" : allowed;
+        },
+      },
+    ],
+  },
+]);
+```
+
+!!! danger "Nomeie a função `use…` — sem isso o ESLint reprova"
+    O `guard` roda **dentro da renderização**, então ele pode chamar hooks. Mas a regra `react-hooks/rules-of-hooks` só aceita hook dentro de função cujo nome começa com `use` (ou de componente em `PascalCase`). Escrito como arrow anônima, o exemplo acima falha o lint com:
+
+    ```text
+    React Hook "useCan" is called in function "guard" that is neither a React
+    function component nor a custom React Hook function.
+    ```
+
+    A forma que passa é a **expressão de função nomeada**, exatamente como no exemplo:
+
+    ```ts
+    guard: function useFinanceGuard() { … }   // ✅ passa
+    guard: () => { … useCan() … }             // ❌ erro de lint
+    ```
+
+    Guard **sem** hook (`() => useAuth.getState().isAuthenticated`) continua podendo ser arrow anônima — `getState()` não é hook.
+
+!!! tip "Um spinner cobre `lazy` e `pending`"
+    Se a rota não define `guardFallback`, o SDK usa o `fallback` que você já passou ao `<AppRouter>` — o mesmo que cobre o carregamento de chunk do `lazy`. As duas coisas são "ainda não está pronto", e na maioria dos apps merecem o mesmo spinner.
+
+!!! warning "Cada rota guardada é remontada, e isso é de propósito"
+    O React Router renderiza o elemento da rota casada **na mesma posição** da árvore. Sem uma chave distinta por rota, o React reconciliaria duas rotas diferentes sobre a mesma instância do guard, e o estado de hook da rota anterior sobreviveria na seguinte — um guard que lê `useState("de-a")` continuaria lendo `"de-a"` depois de navegar para a rota cujo guard inicializa `"de-b"`. O `<AppRouter>` dá uma chave por objeto de rota justamente para isso; existe um teste nomeado que falha se ela sair.
 
 ## `RouteGuard` standalone
 
@@ -22402,15 +22962,16 @@ export function ProtectedDashboard() {
 
 Props do `<RouteGuard>`:
 
-| Prop         | Tipo        | Padrão | Descrição                                            |
-| ------------ | ----------- | ------ | ---------------------------------------------------- |
-| `when`       | `boolean`   | —      | Renderiza os `children` quando verdadeiro.           |
-| `redirectTo` | `string`    | `"/"`  | Destino quando `when` é falso.                       |
-| `replace`    | `boolean`   | `true` | Substitui a entrada no histórico em vez de empilhar. |
-| `children`   | `ReactNode` | —      | O que proteger.                                      |
+| Prop         | Tipo                | Padrão | Descrição                                            |
+| ------------ | ------------------- | ------ | ---------------------------------------------------- |
+| `when`       | `RouteGuardResult`  | —      | `true` renderiza os `children`, `false` redireciona, `"pending"` segura. |
+| `fallback`   | `ReactNode`         | `null` | Renderizado enquanto `when` é `"pending"`.           |
+| `redirectTo` | `string`            | `"/"`  | Destino quando `when` é falso.                       |
+| `replace`    | `boolean`           | `true` | Substitui a entrada no histórico em vez de empilhar. |
+| `children`   | `ReactNode`         | —      | O que proteger.                                      |
 
 !!! tip "Mesma regra de leitura de estado"
-    Aqui você está num componente React, então leia a store com o hook (`useAuth((state) => state.isAuthenticated)`) para re-renderizar quando o auth mudar — diferente do `guard` da árvore, que usa `getState()` por rodar fora do ciclo de hooks.
+    Aqui você está num componente React, então leia a store com o hook (`useAuth((state) => state.isAuthenticated)`) para re-renderizar quando o auth mudar. O `guard` da árvore roda **dentro** da renderização também, então ele tem as duas opções: `getState()` para leitura imperativa simples, ou hooks — desde que a função seja nomeada `use…`, como na seção de `"pending"` acima.
 
 ## Escolhendo o tipo de router
 
@@ -22452,7 +23013,8 @@ test("renders the dashboard route", () => {
 - Use `index: true` para a rota padrão de um layout e `path` para as demais — nunca os dois juntos.
 - Layouts aninhados renderizam filhos no `<Outlet>`; navegue com `<Link>`.
 - `lazy` faz code-split com retry automático em chunk velho; mostre o `fallback` do Suspense enquanto carrega.
-- Proteja rotas com `guard` (booleano ou função) + `redirectTo`, ou com `<RouteGuard when={...}>` no JSX. O guard roda na renderização — leia a store via `getState()` (na árvore) ou via hook (no componente).
+- Proteja rotas com `guard` (booleano ou função) + `redirectTo`, ou com `<RouteGuard when={...}>` no JSX. O guard roda na renderização, então pode chamar hooks — nomeie a função `use…` para o ESLint aceitar.
+- Permissão que resolve de forma assíncrona responde `"pending"`: a decisão fica segura e o `guardFallback` (ou o `fallback` do `<AppRouter>`) aparece, em vez de redirecionar quem tem acesso ou vazar a tela para quem não tem.
 - Escolha o router com a prop `router`: `"browser"` em produção, `"memory"` + `initialEntries` em testes.
 
 ---
@@ -27556,6 +28118,57 @@ formatDateForInput("não é data"); // "" — o input lê como "sem valor"
 
 ---
 
+## Data e hora para `<input type="datetime-local">` — `formatDateTimeForInput`
+
+O irmão do anterior, para o campo que guarda **quando**, não só **qual dia**. A armadilha é idêntica — e aqui ela cobra a hora junto com a data.
+
+```ts
+import { formatDateTimeForInput } from "tempest-react-sdk";
+
+formatDateTimeForInput(new Date(2026, 4, 16, 14, 30)); // "2026-05-16T14:30"
+formatDateTimeForInput("2026-05-16T14:30"); // "2026-05-16T14:30"
+formatDateTimeForInput("2026-05-16T14:30:45"); // "2026-05-16T14:30" — segundos caem
+formatDateTimeForInput("não é data"); // "" — o input lê como "sem valor"
+```
+
+Um agendamento que volta do backend em ISO com fuso preenche o campo sem deslocar:
+
+```tsx
+import { formatDateTimeForInput } from "tempest-react-sdk";
+
+interface Appointment {
+    id: string;
+    /** ISO 8601 com fuso, como o backend serializa. */
+    startsAt: string;
+}
+
+export function AppointmentForm({ appointment }: { appointment: Appointment }) {
+    return (
+        <form method="post">
+            <label htmlFor="startsAt">Início</label>
+            <input
+                id="startsAt"
+                name="startsAt"
+                type="datetime-local"
+                defaultValue={formatDateTimeForInput(appointment.startsAt)}
+            />
+            <button type="submit">Salvar</button>
+        </form>
+    );
+}
+```
+
+!!! danger "`toISOString().slice(0, 16)` erra a data **e** a hora"
+    Mesma causa do irmão, dano maior: um horário das 22h em UTC-3 vira `2026-05-17T01:00` — o formulário abre no dia seguinte, de madrugada. `formatDateTimeForInput` monta tudo pelas partes **locais**.
+
+!!! warning "String **com fuso** não volta intacta, e é de propósito"
+    `"2026-05-16T14:30"` (ingênua) volta como está. `"2026-05-16T14:30:00Z"` **não** — é um instante diferente do que parece, então é convertido para o calendário local que o campo precisa mostrar. Só o formato exato `yyyy-MM-ddTHH:mm` pega o atalho.
+
+!!! tip "Os segundos caem, e isso mantém o valor honesto"
+    Um `datetime-local` anda de minuto em minuto a menos que o app defina `step`. Um `:ss` que o campo não representa seria descartado na primeira edição de qualquer jeito — truncar aqui faz o valor exibido e o valor submetido serem o mesmo.
+
+---
+
 ## Planilhas `.xlsx` — `writeXlsx`
 
 Exportar dados como CSV parece simples até um acento virar `Ã©` no Excel. `writeXlsx(headers, rows)` gera um workbook Office Open XML (`.xlsx`) de uma aba direto em memória — UTF-8 de ponta a ponta, então acentos sobrevivem em Excel/LibreOffice/Google Sheets sem a fragilidade de BOM do CSV. A única dependência é o `fflate` (usado para deflate do pacote), já embutido no SDK.
@@ -27701,7 +28314,7 @@ const [save, setSave] = useLocalStorage("save", EMPTY_SAVE, compressedStorageCod
 - Importe qualquer helper direto de `tempest-react-sdk` — todos são exports nomeados, puros e tree-shakable.
 - **Planilhas**: `writeXlsx(headers, rows)` gera um `.xlsx` UTF-8 de uma aba como `Uint8Array` (sem drama de BOM do CSV).
 - **CSV**: `toCsv(rows, columns)` escreve o arquivo com escaping RFC 4180 e BOM; `downloadCsv(...)` entrega direto ao usuário.
-- **Datas e percentuais**: `formatDateForInput` dá o `yyyy-MM-dd` que o `<input type="date">` exige (pelas partes locais, sem o desvio de UTC); `percentOf` devolve `0` em vez de `NaN` quando a base é zero.
+- **Datas e percentuais**: `formatDateForInput` dá o `yyyy-MM-dd` que o `<input type="date">` exige e `formatDateTimeForInput` dá o `yyyy-MM-ddTHH:mm` do `<input type="datetime-local">` (os dois pelas partes locais, sem o desvio de UTC); `percentOf` devolve `0` em vez de `NaN` quando a base é zero.
 - **Storage comprimido**: `compressedStorage.get/set` gzipa o que grava; formato autodescritivo (`~tgz1:`) lê valores antigos sem migração. Com React, `useLocalStorage(key, def, compressedStorageCodec)`.
 - **Arrays/Objetos**: `groupBy`, `uniqueBy`, `chunk`, `range`, `pick`, `omit`, `deepMerge`, `isEmpty` — sempre imutáveis; `deepMerge` substitui arrays em vez de fundir.
 - **Guards**: `isDefined`, `isString`, `isNumber`, `isPlainObject`, `assertNever` — narrowing seguro + exaustividade em `switch`.

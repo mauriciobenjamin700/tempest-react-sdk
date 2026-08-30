@@ -30,13 +30,21 @@ export interface ApiError {
     retryAfter?: number;
     /**
      * Field-level messages from a validation response, keyed by the field path
-     * the backend named (`"email"`, `"items.0.price"`).
+     * the backend named (`"email"`, `"items.0.price"`, `"phone"`).
      *
-     * Present only when the body carried a validation list — a FastAPI `422`
-     * answers with `detail: [{ loc, msg, type }]`. This is the shape a form
-     * needs: `detail` is one line for a log or a developer, and pulling the
-     * fields back out of it means parsing prose. The first message wins when a
-     * field appears twice, because a field shows one error at a time.
+     * Present whenever the body named a field, through either shape a Tempest
+     * stack sends:
+     *
+     * - FastAPI's validation list — `detail: [{ loc, msg, type }]`, one entry per
+     *   field, each keyed by its `loc` path.
+     * - The singular keys a `tempest-fastapi-sdk` backend uses once it owns the
+     *   handler — `detail.field`, then top-level `field`, then `details.field`, in
+     *   that order. There the single value is the same sentence as `detail`.
+     *
+     * This is the shape a form needs: `detail` is one line for a log or a
+     * developer, and pulling the fields back out of it means parsing prose. The
+     * first message wins when a field appears twice, because a field shows one
+     * error at a time.
      */
     fields?: Record<string, string>;
     /** The raw parsed error body, when available. */

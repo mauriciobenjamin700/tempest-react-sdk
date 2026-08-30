@@ -1,15 +1,32 @@
 import type { z } from "zod";
 
+import { isDevBuild } from "../utils/dev-mode";
+
 /**
  * Validate an unknown response payload against a zod schema.
  *
- * In development, throws a detailed error pointing at the divergent field.
- * In production, throws a generic error so internals do not leak to users.
+ * A development build throws a detailed error naming every divergent field path
+ * and embedding the raw payload; every other build throws a generic sentence, so
+ * server internals never reach a user's screen or an error tracker.
+ *
+ * Which one you get comes from `isDevBuild()`, the SDK's single answer to that
+ * question, rather than from a check written here. This function used to ask
+ * `typeof process !== "undefined" && process.env?.NODE_ENV === "development"`,
+ * and a browser has no `process` identifier at all — so the guard short-circuited
+ * and the detailed branch was dead in exactly the build it was written for, no
+ * matter what the bundler substituted behind it.
+ *
+ * The rule `isDevBuild()` applies is `NODE_ENV !== "production"`, which is wider
+ * than the old `"development" || "test"`: a staging build that never sets
+ * `NODE_ENV=production` gets the drift report, raw payload included.
  *
  * @param schema - The zod schema to parse against.
  * @param raw - The raw response payload.
  * @param context - A label used in error messages, e.g. "POST /auth/login".
  * @returns The parsed, typed payload.
+ * @throws Error When the payload does not match the schema: `[parseResponse]
+ * Contract drift on <context>` with the field paths and the raw payload in a
+ * development build, `Resposta inválida do servidor (<context>).` otherwise.
  */
 export function parseResponse<TSchema extends z.ZodTypeAny>(
     schema: TSchema,
@@ -21,11 +38,7 @@ export function parseResponse<TSchema extends z.ZodTypeAny>(
         return result.data;
     }
 
-    const isDev =
-        typeof process !== "undefined" &&
-        (process.env?.NODE_ENV === "development" || process.env?.NODE_ENV === "test");
-
-    if (isDev) {
+    if (isDevBuild()) {
         const issues = result.error.issues
             .map((i) => `  - ${i.path.join(".") || "<root>"}: ${i.message}`)
             .join("\n");

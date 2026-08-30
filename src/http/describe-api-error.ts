@@ -100,12 +100,20 @@ function browserIsOffline(): boolean {
  *    offline sentence. This is the step apps skip, and skipping it renders
  *    "erro 0" or a raw `TypeError` at the user.
  * 2. A validation rejection — `error.fields` is set — produces the validation
- *    sentence, **not** `detail`. On a `422` the `detail` line is assembled from
- *    the backend's field paths and the validator's own wording
+ *    sentence, **not** `detail`. On a FastAPI `422` the `detail` line is assembled
+ *    from the backend's field paths and the validator's own wording
  *    (`"items.0.price: Input should be greater than 0"`), which is right for a
  *    log and wrong for a person: it is half English in a pt-BR screen and it
  *    names internals. The per-field messages stay on `fields`, where a form can
  *    attach them to the inputs that failed.
+ *
+ *    This step also catches a business error that named a single field, whose
+ *    `detail` **was** a finished sentence ("Cidade não encontrada para o estado
+ *    informado."). The trade is deliberate: that sentence is now on `fields`,
+ *    against the input it is about, which is where it does the most good. Three
+ *    ways back, in order of preference: `codes: { VALIDATION_ERROR: "…" }` (step 0,
+ *    which still wins), `validation: error.detail` at the call site, or reading
+ *    `error.detail` yourself — it is untouched.
  * 3. The backend's own `detail`, which is the most specific thing available and
  *    is already written for a person — unless `useDetail: false` says that text
  *    is for developers.

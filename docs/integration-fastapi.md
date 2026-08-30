@@ -19,6 +19,8 @@ O `tempest-fastapi-sdk` padroniza alguns formatos. Este SDK foi alinhado a eles:
 | Conceito | Formato do backend |
 | --- | --- |
 | **Erro** | `{ "detail": str, "code": "ERROR_CODE", "details": { "request_id": str } }` |
+| **Erro de validação** (`RequestValidationError` achatado) | `{ "detail": str, "field": str, "location": str, "type": str }` |
+| **Erro de negócio com campo** (`ValidationException`) | `{ "detail": { "detail": str, "field": str }, "code": "VALIDATION_ERROR", "details": { "field": str } }` |
 | **Paginação offset** | `{ items, total, page, size, pages }` · query `?page&size` (convenção `fastapi-pagination`) |
 | **Paginação cursor** | `{ items, next_cursor, has_more, limit }` · query `?cursor&limit&order_by&ascending` |
 | **Login** | `{ access_token, token_type: "bearer" }` · header `Authorization: Bearer <token>` |
@@ -57,6 +59,7 @@ interface ApiError {
     code?: string; // "EMAIL_TAKEN"  (do campo `code`)
     requestId?: string; // "req-abc"      (de details.request_id)
     retryAfter?: number; // segundos, quando houver Retry-After
+    fields?: Record<string, string>; // { city: "Cidade não encontrada…" }
     body?: unknown; // corpo cru
 }
 ```
@@ -66,6 +69,39 @@ interface ApiError {
 
 !!! check "Nada para configurar"
     Isso já é o comportamento padrão. Qualquer chamada via `createApiClient` ou pela classe gerada pelo codegen (que usa o `ApiClient` por baixo) entrega o erro nesse formato.
+
+### O campo culpado, que o backend nomeia e o front costumava jogar fora
+
+O backend **sabe** qual campo derrubou a requisição — ele diz o nome. O que faltava era o front escutar: antes, o `error.fields` só era preenchido quando o corpo trazia a lista do FastAPI cru (`detail: [{ loc, msg }]`), que é justamente a forma que um app com handler próprio **não** manda. O nome ficava dentro de `error.body`, e cada tela voltava a fazer cast e parsear prosa.
+
+Agora as três chaves singulares que o `tempest-fastapi-sdk` usa entram no mesmo `error.fields`:
+
+```tsx
+import { createApiClient, describeApiError, isApiError } from "tempest-react-sdk";
+
+const api = createApiClient({ baseURL: import.meta.env.VITE_API_URL });
+
+async function salvarEndereco(values: { city: string; phone: string }): Promise<void> {
+    try {
+        await api.post("/api/enderecos", { body: values });
+    } catch (err) {
+        if (isApiError(err) && err.fields) {
+            for (const [field, message] of Object.entries(err.fields)) {
+                setError(field, { message });
+            }
+        }
+        toast.error(describeApiError(err, "Não foi possível salvar o endereço"));
+    }
+}
+```
+
+Com o corpo `{ "detail": { "detail": "Cidade não encontrada para o estado informado.", "field": "city" }, "code": "VALIDATION_ERROR" }`, o `err.fields` vale `{ city: "Cidade não encontrada para o estado informado." }` — e o `setError("city", …)` cola a frase no input certo.
+
+!!! note "A ordem de precedência"
+    `detail[].loc` (lista do FastAPI) → `detail.field` → `field` → `details.field`. A lista ganha porque um app `tempest-fastapi-sdk` sem handler de `RequestValidationError` continua respondendo o 422 padrão do FastAPI. O `details` responde por último: ele é o saco de contexto genérico do `AppException`, e o `field` dele pode ser sobre algo que não é input nenhum — uma coluna de ordenação recusada, por exemplo.
+
+!!! warning "O toast muda de frase, e é de propósito"
+    O `describeApiError` devolve a frase de validação sempre que `fields` está preenchido. Um erro de negócio que nomeia campo passa a cair aí: o toast troca "Cidade não encontrada para o estado informado." por "Confira os campos destacados e tente de novo.". A frase específica não sumiu — ela está no input. Se você quer a sentença do backend no toast, use `codes: { VALIDATION_ERROR: "…" }` (ganha de tudo) ou `validation: err.detail` na chamada.
 
 ---
 

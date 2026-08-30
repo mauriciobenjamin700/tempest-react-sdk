@@ -19,6 +19,7 @@ import { DataVizScalesSection } from "./DataVizScalesSection";
 import { ImageCropperSection } from "./ImageCropperSection";
 import { ChatSection } from "./ChatSection";
 import { AIChatSection } from "./AIChatSection";
+import { PeerMeshSection } from "./PeerMeshSection";
 import { VoiceChainSection } from "./VoiceChainSection";
 import { AudioCaptureSection } from "./AudioCaptureSection";
 import { DeviceCaptureSection } from "./DeviceCaptureSection";
@@ -301,6 +302,14 @@ export const SECTIONS: SectionEntry[] = [
             "aichat ai chat llm gpt claude deepseek copiloto assistente streaming stream token cursor caret raciocinio reasoning thinking parar stop regenerar regenerate feedback thumbs markdown prompt",
         group: "Componentes",
         Component: AIChatSection,
+    },
+    {
+        id: "peer-mesh",
+        label: "Mesh WebRTC (createPeerMesh)",
+        keywords:
+            "webrtc mesh peer connection rtcpeerconnection sala room chamada call offer answer ice candidate transceiver slot mid negociacao negotiation uplink bitrate glare sinalizacao signaling",
+        group: "Componentes",
+        Component: PeerMeshSection,
     },
     {
         id: "voice-chain",

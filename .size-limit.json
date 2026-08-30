@@ -286,9 +286,31 @@
     ]
   },
   {
+    "name": "slice: createPeerMesh (mesh WebRTC — slots, ICE queue, uplink division)",
+    "path": "dist/tempest-react-sdk.js",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ createPeerMesh, scaleForRoom, resolveDegradation }"
+    },
+    "limit": "2.3 KB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router",
+      "fflate"
+    ]
+  },
+  {
     "name": "ceiling: full barrel ESM (nobody imports this — tree-shaking is the real cost)",
     "path": "dist/tempest-react-sdk.js",
-    "limit": "123 KB",
+    "limit": "126 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -307,7 +329,7 @@
   {
     "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "148 KB",
+    "limit": "151 KB",
     "ignore": [
       "react",
       "react-dom",

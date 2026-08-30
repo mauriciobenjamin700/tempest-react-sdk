@@ -175,7 +175,14 @@ and `requestId` — the opposite of raw `fetch`, where a 500 sails through.
 For a one-off case inside a component, `useAsync` hands you the three states:
 
 ```tsx
-import { useAsync } from "tempest-react-sdk";
+import { createApiClient, useAsync } from "tempest-react-sdk";
+
+interface User {
+    id: string;
+    name: string;
+}
+
+const api = createApiClient({ baseURL: "/api" });
 
 function UserProfile({ id }: { id: string }) {
     const { data, status, error } = useAsync(() => api.get<User>(`/users/${id}`), [id], {

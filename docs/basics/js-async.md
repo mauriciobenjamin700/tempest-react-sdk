@@ -175,10 +175,17 @@ Qualquer resposta fora de 2xx vira um `TempestApiError` com `status`, `detail`,
 Para um caso pontual em componente, o `useAsync` dá os três estados prontos:
 
 ```tsx
-import { useAsync } from "tempest-react-sdk";
+import { createApiClient, useAsync } from "tempest-react-sdk";
+
+interface Usuario {
+    id: string;
+    nome: string;
+}
+
+const api = createApiClient({ baseURL: "/api" });
 
 function PerfilUsuario({ id }: { id: string }) {
-    const { data, status, error, run } = useAsync(() => api.get<Usuario>(`/users/${id}`), [id], {
+    const { data, status, error } = useAsync(() => api.get<Usuario>(`/users/${id}`), [id], {
         immediate: true,
     });
 

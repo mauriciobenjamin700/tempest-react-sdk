@@ -54,6 +54,47 @@ export function formatDateForInput(value: string | Date): string {
 }
 
 /**
+ * Format an ISO date or Date instance as `yyyy-MM-ddTHH:mm`, the value an
+ * `<input type="datetime-local">` accepts.
+ *
+ * The sibling of {@link formatDateForInput}, and it exists for the same reason:
+ * `toISOString().slice(0, 16)` is the reflex and it is wrong. `toISOString`
+ * converts to UTC first, so a 22:00 appointment in UTC-3 opens the form on the
+ * next day at 01:00 — here the trap costs the hour as well as the date.
+ *
+ * A value already in `yyyy-MM-ddTHH:mm` is returned untouched. A value carrying
+ * a zone (`...Z`, `...-03:00`) deliberately does **not** take that shortcut: it
+ * is a different instant from the naive string that looks like it, so it is
+ * converted to the local calendar parts the input has to show.
+ *
+ * Seconds are dropped. A `datetime-local` steps by the minute unless the app
+ * sets `step`, so a `:ss` the field cannot represent would be silently discarded
+ * on the first edit anyway — truncating here keeps the rendered value and the
+ * submitted value the same.
+ *
+ * @example
+ * <input
+ *     type="datetime-local"
+ *     defaultValue={formatDateTimeForInput(appointment.startsAt)}
+ * />
+ *
+ * @param value - ISO string or Date.
+ * @returns The `yyyy-MM-ddTHH:mm` value, or an empty string when the input is
+ *   invalid — which is what a datetime input reads as "no value", unlike
+ *   `"Invalid Date"`.
+ */
+export function formatDateTimeForInput(value: string | Date): string {
+    if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return value;
+    const date = typeof value === "string" ? new Date(value) : value;
+    if (Number.isNaN(date.getTime())) return "";
+    const month = `${date.getMonth() + 1}`.padStart(2, "0");
+    const day = `${date.getDate()}`.padStart(2, "0");
+    const hours = `${date.getHours()}`.padStart(2, "0");
+    const minutes = `${date.getMinutes()}`.padStart(2, "0");
+    return `${date.getFullYear()}-${month}-${day}T${hours}:${minutes}`;
+}
+
+/**
  * Format an ISO date or Date instance as `dd/MM/yyyy HH:mm`.
  *
  * @param value - ISO string or Date.

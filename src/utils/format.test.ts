@@ -5,6 +5,7 @@ import {
     formatDate,
     formatDateForInput,
     formatDateTime,
+    formatDateTimeForInput,
     formatPercent,
     formatPhone,
 } from "./format";
@@ -103,6 +104,48 @@ describe("formatDateForInput", () => {
 
     it("returns an empty string for an invalid date, which the input reads as no value", () => {
         expect(formatDateForInput("not-a-date")).toBe("");
+    });
+});
+
+describe("formatDateTimeForInput", () => {
+    it("formats a Date as the yyyy-MM-ddTHH:mm an input accepts", () => {
+        expect(formatDateTimeForInput(new Date(2026, 4, 16, 14, 30))).toBe("2026-05-16T14:30");
+    });
+
+    it("pads every single-digit part", () => {
+        expect(formatDateTimeForInput(new Date(2026, 0, 5, 9, 7))).toBe("2026-01-05T09:07");
+    });
+
+    it("keeps the local day and hour for a time UTC would push to the next day", () => {
+        expect(formatDateTimeForInput(new Date(2026, 5, 30, 23, 30))).toBe("2026-06-30T23:30");
+    });
+
+    it("returns a naive yyyy-MM-ddTHH:mm string untouched", () => {
+        expect(formatDateTimeForInput("2026-05-16T14:30")).toBe("2026-05-16T14:30");
+    });
+
+    it("reads a full ISO timestamp back in local time", () => {
+        const local = new Date(2026, 4, 16, 22, 30);
+        expect(formatDateTimeForInput(local.toISOString())).toBe("2026-05-16T22:30");
+    });
+
+    it("drops the seconds a datetime-local cannot represent at its default step", () => {
+        expect(formatDateTimeForInput("2026-05-16T14:30:45")).toBe("2026-05-16T14:30");
+    });
+
+    it("converts a zoned string instead of taking the passthrough shortcut", () => {
+        const previous = process.env.TZ;
+        process.env.TZ = "America/Sao_Paulo";
+        try {
+            expect(formatDateTimeForInput("2026-05-17T01:00:00Z")).toBe("2026-05-16T22:00");
+            expect(formatDateTimeForInput("2026-05-16T22:00:00-03:00")).toBe("2026-05-16T22:00");
+        } finally {
+            process.env.TZ = previous;
+        }
+    });
+
+    it("returns an empty string for an invalid date, which the input reads as no value", () => {
+        expect(formatDateTimeForInput("not-a-date")).toBe("");
     });
 });
 

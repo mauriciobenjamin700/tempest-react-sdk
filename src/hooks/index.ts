@@ -31,6 +31,13 @@ export type { UseBeforeInstallPromptResult } from "./use-before-install-prompt";
 export { useIdle } from "./use-idle";
 export { isFullscreenSupported, useFullscreen } from "./use-fullscreen";
 export type { UseFullscreenResult } from "./use-fullscreen";
+export {
+    DEFAULT_PUSH_TO_TALK_KEY,
+    PUSH_TO_TALK_KEYS,
+    pushToTalkKeyLabel,
+    usePushToTalk,
+} from "./use-push-to-talk";
+export type { PushToTalkKey, UsePushToTalkOptions } from "./use-push-to-talk";
 export { useGeolocation } from "./use-geolocation";
 export type { GeolocationState, UseGeolocationOptions } from "./use-geolocation";
 export { useScrollLock } from "./use-scroll-lock";

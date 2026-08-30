@@ -53,6 +53,7 @@ granulares, testados e independentes — importe só o que precisar.
 | `useStorageEstimate({ pollMs? })`                 | `{ usage, quota, ratio, persisted, requestPersist, refresh }` — quota do Storage API + `persist()`. Pares puros: `estimateStorage`, `requestPersistentStorage`. |
 | `useIdle(timeout?)`                               | True quando usuário ocioso por `timeout` ms.                                                                 |
 | `useFullscreen(ref?)`                             | `{ isFullscreen, supported, enter, exit, toggle }` — modo imersivo com estado dirigido por `fullscreenchange`, então `Esc` e o botão do próprio browser atualizam a UI. Par puro: `isFullscreenSupported`. |
+| `usePushToTalk({ code, onDown, onUp })`           | Segure para transmitir. `blur` solta (alt-tab não entrega o `keyup`), auto-repeat é ignorado e campo de texto ganha. Pares: `pushToTalkKeyLabel`, `PUSH_TO_TALK_KEYS`.                                    |
 | `useGeolocation(opts?)`                           | Position + erro + loading.                                                                                   |
 | `useClickOutside(handler)`                        | Retorna um ref; chama `handler` em `mousedown`/`touchstart` fora do elemento. safe sem `window`.                      |
 | `useDocumentTitle(title)`                         | Seta `document.title` enquanto montado, restaurando o anterior no unmount. safe sem `window`.                         |
@@ -689,6 +690,42 @@ Sem `ref`, o alvo é a página inteira (`document.documentElement`); `enter()` e
 
 !!! tip "Overlay em tela cheia já funciona sozinho"
     Você não precisa deste hook para `<Modal>`, `<Drawer>` ou toast: o `<Portal>` do SDK segue o elemento em tela cheia por conta própria — inclusive movendo um diálogo já aberto quando a tela cheia começa. Veja [Tela cheia](./components/overlay.md#tela-cheia).
+
+### Push-to-talk — `usePushToTalk`
+
+Segurar uma tecla para transmitir parece `keydown`/`keyup` e não é. Três coisas dão errado, e as três aparecem só em uso real:
+
+```tsx
+import { usePushToTalk, pushToTalkKeyLabel, PUSH_TO_TALK_KEYS } from "tempest-react-sdk";
+
+export function BarraDeVoz({ track }: { track: MediaStreamTrack }) {
+  const [tecla, setTecla] = useState("Space");
+
+  usePushToTalk({
+    code: tecla,
+    onDown: () => (track.enabled = true),
+    onUp: () => (track.enabled = false),
+  });
+
+  return (
+    <p>
+      Segure <kbd>{pushToTalkKeyLabel(tecla)}</kbd> para falar.
+    </p>
+  );
+}
+```
+
+- **`blur` solta**, e isso não é caso de borda: alt-tab com a tecla segurada significa que o browser **nunca** vê o `keyup`, e o microfone fica aberto enquanto a pessoa olha outra janela — exatamente o que push-to-talk existe para evitar. Desmontar solta pelo mesmo motivo.
+- **Auto-repeat é ignorado** (`event.repeat`), senão a tecla segurada dispara `onDown` na taxa de repetição do teclado.
+- **Campo de texto ganha.** Com o foco num `<input>`, `<textarea>`, `<select>` ou `contenteditable`, a tecla passa direto: sem isso, espaço como PTT significa não conseguir escrever espaço no chat, porque o handler deu `preventDefault`.
+
+`PUSH_TO_TALK_KEYS` é a lista para um seletor de configuração, `DEFAULT_PUSH_TO_TALK_KEY` (`"Space"`) o valor com que semear a preferência antes de a pessoa escolher, e `pushToTalkKeyLabel(code)` o rótulo — `KeyboardEvent.code` cru não se mostra a usuário.
+
+!!! note "`code`, não `key`"
+    A ligação é por `KeyboardEvent.code`, que é a tecla **física**: num teclado ABNT2 o `key` da posição da crase não é o que um layout US reporta, enquanto `Backquote` é a mesma tecla em todos.
+
+!!! tip "`enabled: false` para desligar sem desmontar"
+    Alternar entre microfone aberto e push-to-talk é `enabled`. Desligar **solta primeiro**, então virar a chave com a tecla apertada não deixa `onUp` sem disparar.
 
 ## PWA & gestos de ponteiro
 

@@ -6,6 +6,45 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`monitorVoiceActivity` e `usePushToTalk` — as duas peças que todo app de voz
+  reescreve**
+  ([#234](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/234)).
+
+  ```ts
+  const vad = monitorVoiceActivity(remoteStream, (speaking) => setSpeaking(speaking));
+
+  usePushToTalk({ code: "Space", onDown: abrirMic, onUp: fecharMic });
+  ```
+
+  **Indicador de fala é derivado no cliente, não sinalizado.** O estado muda
+  várias vezes por segundo; mandar pelo servidor inunda a sala com informação que
+  todo cliente já tem no track que recebe. O que falta num `if (nivel > x)` são
+  duas coisas: o **release de 350 ms**, porque o RMS cai a nada nas gaps entre
+  palavras e uma comparação pura pisca em toda sílaba, e o `onChange` disparar na
+  **virada** e não na amostra — um callback por leitura re-renderiza a lista de
+  participantes dez vezes por segundo para dizer o mesmo. O medidor por baixo roda
+  com suavização desligada: o decaimento dele somado a este release seguraria o
+  indicador aberto muito depois da fala.
+
+  **Push-to-talk parece `keydown`/`keyup` e não é.** `blur` **solta** — alt-tab
+  com a tecla segurada significa que o browser nunca vê o `keyup`, e o microfone
+  fica aberto enquanto a pessoa olha outra janela, que é exatamente o que
+  push-to-talk existe para evitar. Auto-repeat é ignorado, senão a tecla segurada
+  dispara `onDown` na taxa de repetição do teclado. E **campo de texto ganha**:
+  com o foco num `<input>`, `<textarea>`, `<select>` ou `contenteditable` a tecla
+  passa direto, senão espaço como PTT impede escrever espaço no chat. Desmontar
+  solta pelo mesmo motivo do `blur`, e `enabled: false` solta antes de desligar.
+
+  Junto: `PUSH_TO_TALK_KEYS`, `DEFAULT_PUSH_TO_TALK_KEY` e `pushToTalkKeyLabel` —
+  a ligação é por `KeyboardEvent.code` (tecla **física**, sobrevive a troca de
+  layout) e `code` cru não se mostra a usuário.
+
+- **`createLevelMeter` passou a aceitar `context`.** Um medidor por participante
+  remoto estoura o limite de `AudioContext` vivos do browser (~6 no Chrome) numa
+  chamada de cinco pessoas. `stop()` fecha só o contexto que ele mesmo criou; um
+  injetado é do caller. `decay: 0` desliga a suavização e devolve o RMS da janela
+  como medido, que é o que um detector quer.
+
 - **`createVoiceChain` — a cadeia de entrada que faltava**
   ([#233](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/233)).
   O SDK tinha a cadeia de **saída** (`createAudioBus`) e nada na **entrada**. O

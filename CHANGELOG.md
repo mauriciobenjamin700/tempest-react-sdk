@@ -430,6 +430,12 @@ Juscelino` (RN) virou `Serra Caiada` em 2013, `Embu` virou `Embu das Artes`,
 
 ### Interno
 
+- **Teto da fatia `http client` no `size-limit` foi de 3,4 kB para 3,6 kB.** A
+  medida ficou em 3,49 kB brotli somando duas correções desta rodada: o índice de
+  `fields` que passou a ler os envelopes singulares e o `isDevBuild()` que tornou
+  o relatório de drift alcançável. Os 93 B a mais compram um caminho que **antes
+  não executava** no browser — o teto anterior media código morto.
+
 - **O gerador de geodados passou a ser a fonte única de `src/br/data/`.**
   `scripts/gen-br-geodata.mjs` buscava malha do `tbrugz/geodata-br` e o arquivo de
   nomes vinha por fora, sem ninguém comparar os dois. Agora ele lê `/localidades`

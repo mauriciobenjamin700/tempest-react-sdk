@@ -87,6 +87,10 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
     const peers = new Map<string, MeshPeer>();
     const localTracks = new Map<string, MediaStreamTrack | null>();
     let iceServers = options.iceServers ?? [];
+    const describe =
+        options.setLocalDescription ??
+        ((connection: RTCPeerConnection, description: RTCSessionDescriptionInit) =>
+            connection.setLocalDescription(description));
     let quality: MeshQuality = options.quality ?? {};
     let stopped = false;
 
@@ -130,7 +134,7 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
                 options.onNotice?.("empty_local_offer_sdp");
                 return;
             }
-            await link.pc.setLocalDescription(offer);
+            await describe(link.pc, offer);
             send({
                 type: "offer",
                 to: link.peerId,
@@ -264,7 +268,7 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
             options.onNotice?.("empty_local_answer_sdp");
             return;
         }
-        await link.pc.setLocalDescription(answer);
+        await describe(link.pc, answer);
         send({ type: "answer", to: from, sdp: link.pc.localDescription?.sdp ?? answer.sdp });
         await applyQuality(quality);
     };

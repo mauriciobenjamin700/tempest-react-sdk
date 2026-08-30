@@ -70,6 +70,26 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   divisão **antes** de capturar, já que capturar 4K para uma sala de quatro é
   capturar quatro vezes mais pixels do que há bits para enviar.
 
+  **O perfil Opus continua do app.** A mesh cria toda oferta e toda resposta, e
+  sem ponto de entrada não sobraria lugar para o `setTunedLocalDescription` do
+  #222 — uma chamada que adotasse a mesh perderia em silêncio o bitrate e o
+  layout de canais que já tinha. `setLocalDescription` é opcional e recebe
+  `(connection, description)`; omitida, usa
+  `connection.setLocalDescription(description)`. O que vai para o peer é lido de
+  volta de `connection.localDescription`, então quando o tuning cai no fallback o
+  outro lado recebe a descrição que de fato vale.
+
+### Interno
+
+- **Orçamento por fatia para a mesh: `slice: createPeerMesh` com teto de 2,3 kB**,
+  medido em **1980 B** brotli para `{ createPeerMesh, scaleForRoom, resolveDegradation }`.
+  O teto do barrel sozinho é a métrica errada — ele cresce com toda feature e não
+  diz nada do custo para quem importa uma coisa só.
+
+- **Tetos do barrel: ESM 123 → 126 kB, CJS 148 → 151 kB**, medidos em **124,3** e
+  **148,7 kB** brotli com a mesh dentro. Continuam sendo teto de entrada inteira,
+  não orçamento de consumidor: quem importa `{ createPeerMesh }` paga os 1980 B da
+  fatia, e o `preserveModules` mantém o resto fora.
 
 ## [0.54.0] — 2026-08-30
 
@@ -802,11 +822,6 @@ Juscelino` (RN) virou `Serra Caiada` em 2013, `Embu` virou `Embu das Artes`,
   `EmptyState` não é `ErrorState`; e `RadioGroup` não tem `label`.
 
 ### Interno
-
-- **Tetos do barrel no `size-limit`: ESM 123 → 126 kB, CJS 148 → 151 kB.**
-  Medidos em 124,15 e 148,61 kB brotli com a mesh dentro. Continuam sendo teto de
-  entrada inteira, não orçamento de consumidor — quem importa `{ createPeerMesh }`
-  paga a fatia dele, e o `preserveModules` mantém o resto fora.
 
 - **Teto do barrel CJS no `size-limit` foi de 146 kB para 148 kB**, medido em
   146,47 kB brotli com a cadeia de voz dentro. O ESM ficou em 122,27 kB, abaixo

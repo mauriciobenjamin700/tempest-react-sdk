@@ -110,4 +110,28 @@ export interface PeerMeshOptions {
     onNotice?: (reason: string) => void;
     /** Initial encoder limits. */
     quality?: MeshQuality;
+    /**
+     * Applies a local description, so the SDP can be rewritten on the way out.
+     *
+     * Defaults to `connection.setLocalDescription(description)`. The reason it
+     * is a seam is `setTunedLocalDescription`: the mesh is what creates every
+     * offer and answer, so without a hook here there is nowhere left to put the
+     * Opus rewrite, and a call that adopts the mesh silently loses the bitrate
+     * and channel layout it had negotiated before.
+     *
+     * Profiles are keyed by **audio m-line position**, which is legitimate for
+     * exactly the reason slot routing is: the slot list fixes the order, so the
+     * first audio slot is always the first audio m-line.
+     *
+     * @example
+     * setLocalDescription: (connection, description) =>
+     *     setTunedLocalDescription(connection, description, {
+     *         0: MIC_PROFILE,
+     *         1: SYSTEM_AUDIO_PROFILE,
+     *     }),
+     */
+    setLocalDescription?: (
+        connection: RTCPeerConnection,
+        description: RTCSessionDescriptionInit,
+    ) => Promise<unknown>;
 }

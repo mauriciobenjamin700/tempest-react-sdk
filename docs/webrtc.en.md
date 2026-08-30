@@ -277,6 +277,39 @@ await mesh.setLocalTrack("mic", null); // muted
 
 The slots are negotiated **before any track exists**, so publishing is a `replaceTrack` on a transceiver that is already there: no m-line is added and nothing renegotiates. That property is what makes a mesh survive — with N peers, a renegotiation per toggle is N−1 simultaneous offer/answer rounds every time somebody unmutes.
 
+### The Opus profile stays yours: `setLocalDescription`
+
+The mesh is what creates every offer and every answer, so without a seam here there would be nowhere left for `setTunedLocalDescription` — and a call adopting the mesh would **silently lose** the bitrate and channel layout it had already negotiated. So applying the local description is a parameter:
+
+```ts
+import { createPeerMesh, setTunedLocalDescription } from "tempest-react-sdk";
+
+const mesh = createPeerMesh({
+  slots: [
+    { name: "mic", kind: "audio" },
+    { name: "cam", kind: "video" },
+    { name: "screen", kind: "video" },
+    { name: "screen-audio", kind: "audio" },
+  ],
+  send: (message) => socket.send(message),
+  setLocalDescription: (connection, description) =>
+    setTunedLocalDescription(connection, description, {
+      0: { maxAverageBitrate: 48_000, stereo: false, fec: true, dtx: true },
+      1: { maxAverageBitrate: 192_000, stereo: true, fec: false, dtx: false },
+    }),
+});
+```
+
+It covers the offer **and** the answer, because both halves of the handshake carry the audio lines.
+
+!!! info "Why keying profiles by m-line position is legitimate here"
+    Same reason `mid` routing works: the `slots` list fixes the order, so the first audio slot is always the first audio m-line. Outside a mesh with a declared order, keying a profile by position is fragile — here the order *is* the protocol.
+
+!!! tip "What is sent is what was applied"
+    After the hook, the mesh reads the SDP back off `connection.localDescription` rather than sending what the browser created. So when `setTunedLocalDescription` falls back — the browser refused the edit — the peer receives the description that actually holds on the connection, not the version nobody applied.
+
+Omitting the parameter uses `connection.setLocalDescription(description)`, which is the untuned behaviour.
+
 ### The room divides the uplink, and the division has a floor
 
 ```ts

@@ -419,6 +419,68 @@ describe("createPeerMesh — the aggregate state", () => {
     });
 });
 
+describe("createPeerMesh — the local description is a seam", () => {
+    let restore: () => void;
+    beforeEach(() => {
+        restore = installPeerConnection();
+    });
+    afterEach(() => restore());
+
+    it("applies the offer through the caller's hook, so the SDP can be rewritten", async () => {
+        const applied: string[] = [];
+        const { mesh } = meshWith({
+            setLocalDescription: async (connection, description) => {
+                applied.push(description.type ?? "");
+                await connection.setLocalDescription({
+                    ...description,
+                    sdp: `${description.sdp ?? ""}\r\ntuned`,
+                });
+            },
+        });
+
+        await mesh.addPeer("p1", { offerer: true });
+
+        expect(applied).toEqual(["offer"]);
+        expect(connection().localDescription?.sdp).toContain("tuned");
+    });
+
+    it("applies the answer through it too, because both halves carry the audio lines", async () => {
+        const applied: string[] = [];
+        const { mesh } = meshWith({
+            setLocalDescription: async (connection, description) => {
+                applied.push(description.type ?? "");
+                await connection.setLocalDescription(description);
+            },
+        });
+
+        await mesh.addPeer("p1", { offerer: false });
+        await mesh.accept({ type: "offer", from: "p1", to: "self", sdp: "v=0\r\nremote-offer" });
+
+        expect(applied).toEqual(["answer"]);
+    });
+
+    it("sends what was applied rather than what was created", async () => {
+        const { mesh, sent } = meshWith({
+            setLocalDescription: async (connection, description) => {
+                await connection.setLocalDescription({ ...description, sdp: "v=0\r\nrewritten" });
+            },
+        });
+
+        await mesh.addPeer("p1", { offerer: true });
+
+        const offer = sent.find((message) => message.type === "offer");
+        expect(offer && "sdp" in offer ? offer.sdp : "").toBe("v=0\r\nrewritten");
+    });
+
+    it("falls back to setLocalDescription when no hook is given", async () => {
+        const { mesh } = meshWith();
+
+        await mesh.addPeer("p1", { offerer: true });
+
+        expect(connection().localDescription?.sdp).toBe("v=0\r\nlocal-offer");
+    });
+});
+
 describe("createPeerMesh — the wire", () => {
     let restore: () => void;
     beforeEach(() => {

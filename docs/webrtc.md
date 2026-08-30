@@ -277,6 +277,39 @@ await mesh.setLocalTrack("mic", null); // mutou
 
 Os slots são negociados **antes de qualquer track existir**, então publicar é um `replaceTrack` num transceiver que já existe: nenhuma m-line é acrescentada e nada renegocia. É essa propriedade que faz a mesh sobreviver — com N peers, uma renegociação por toggle são N−1 rodadas simultâneas de offer/answer toda vez que alguém desmuta.
 
+### O Opus continua seu: `setLocalDescription`
+
+A mesh é quem cria toda oferta e toda resposta, então sem um ponto de entrada aqui não sobraria lugar para o `setTunedLocalDescription` — e uma chamada que adotasse a mesh **perderia em silêncio** o bitrate e o layout de canais que já tinha negociado. Por isso a aplicação da descrição local é um parâmetro:
+
+```ts
+import { createPeerMesh, setTunedLocalDescription } from "tempest-react-sdk";
+
+const mesh = createPeerMesh({
+  slots: [
+    { name: "mic", kind: "audio" },
+    { name: "cam", kind: "video" },
+    { name: "screen", kind: "video" },
+    { name: "screen-audio", kind: "audio" },
+  ],
+  send: (message) => socket.send(message),
+  setLocalDescription: (connection, description) =>
+    setTunedLocalDescription(connection, description, {
+      0: { maxAverageBitrate: 48_000, stereo: false, fec: true, dtx: true },
+      1: { maxAverageBitrate: 192_000, stereo: true, fec: false, dtx: false },
+    }),
+});
+```
+
+Vale para a oferta **e** para a resposta, porque as duas metades do handshake carregam as linhas de áudio.
+
+!!! info "Por que a chave por posição de m-line é legítima aqui"
+    É o mesmo motivo que faz o roteamento por `mid` funcionar: a lista de `slots` fixa a ordem, então o primeiro slot de áudio é sempre a primeira m-line de áudio. Fora de uma mesh com ordem declarada, chavear perfil por posição é frágil — aqui a ordem é o próprio protocolo.
+
+!!! tip "O que é enviado é o que foi aplicado"
+    Depois do gancho, a mesh lê o SDP de volta de `connection.localDescription` em vez de mandar o que o browser criou. Assim, quando o `setTunedLocalDescription` cai no fallback — o browser recusou a edição — o peer recebe a descrição que de fato vale na conexão, e não a versão que ninguém aplicou.
+
+Omitir o parâmetro usa `connection.setLocalDescription(description)`, que é o comportamento sem tuning.
+
 ### A sala divide o uplink, e a divisão tem piso
 
 ```ts

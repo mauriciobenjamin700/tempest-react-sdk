@@ -19,6 +19,7 @@ import { DataVizScalesSection } from "./DataVizScalesSection";
 import { ImageCropperSection } from "./ImageCropperSection";
 import { ChatSection } from "./ChatSection";
 import { AIChatSection } from "./AIChatSection";
+import { VoiceChainSection } from "./VoiceChainSection";
 import { AudioCaptureSection } from "./AudioCaptureSection";
 import { DeviceCaptureSection } from "./DeviceCaptureSection";
 import { DashboardLayoutSection } from "./DashboardLayoutSection";
@@ -300,6 +301,14 @@ export const SECTIONS: SectionEntry[] = [
             "aichat ai chat llm gpt claude deepseek copiloto assistente streaming stream token cursor caret raciocinio reasoning thinking parar stop regenerar regenerate feedback thumbs markdown prompt",
         group: "Componentes",
         Component: AIChatSection,
+    },
+    {
+        id: "voice-chain",
+        label: "Cadeia de voz (microfone)",
+        keywords:
+            "voz voice chain microfone microphone gate noise gate ruido ruido de fundo noise floor calibracao calibration de-esser deesser compressor limiter presenca presence hiss high-pass highpass monitor realimentacao feedback",
+        group: "Componentes",
+        Component: VoiceChainSection,
     },
     {
         id: "audio-capture",

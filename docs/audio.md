@@ -18,6 +18,12 @@
 *Seção `audio-capture` da [gallery](gallery.md) — rode localmente para interagir.*
 <!-- /gallery -->
 
+<!-- gallery:voice-chain -->
+[![Cadeia de voz (microfone) na gallery](assets/gallery/voice-chain.webp)](gallery.md)
+
+*Seção `voice-chain` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## `playAudio` — one-off no player compartilhado
 
 Ideal pra um som disparado por um evento, sem estado de UI:
@@ -367,6 +373,75 @@ function Participante({ stream, volume }: { stream: MediaStream; volume: number 
     O fill do `Progress` tem `transition: width`, então a barra reporta onde o nível **esteve** — a única coisa que um medidor não pode fazer. Para nível ao vivo, use `createLevelMeter` e escreva no DOM dentro de um `requestAnimationFrame`.
 
     Duas armadilhas se você desenhar o seu: a escala precisa ser em **dB** (numa linear a fala normal fica espremida no primeiro quinto), e o gradiente de cor precisa ficar no **track** com uma máscara por cima — num elemento que cresce, o gradiente é reescalado junto e pinta vermelho na ponta de um sinal fraco, reportando clipping para quem está quase inaudível.
+
+## Entrada: `createVoiceChain`
+
+`createAudioBus` cuida do que **chega** aos seus ouvidos. `createVoiceChain` cuida do que **sai** do seu microfone — e o que o browser entrega, mesmo com `echoCancellation` e `noiseSuppression` ligados, ainda é ronco de ventilador abaixo da fala, 20 dB entre um sussurro e um grito, e consoante que não lê.
+
+```ts
+import {
+  createVoiceChain,
+  DEFAULT_VOICE_CHAIN,
+  measureNoiseFloor,
+  suggestGateThreshold,
+} from "tempest-react-sdk";
+
+const floor = await measureNoiseFloor(stream, { onProgress: setProgress });
+
+const chain = createVoiceChain(
+  micTrack,
+  { ...DEFAULT_VOICE_CHAIN, gate: true, gateThreshold: suggestGateThreshold(floor) },
+  { gain: 1.4 },
+);
+
+await peer.setLocalTrack(chain.track);
+// depois
+chain.release();
+```
+
+### Cada estágio existe por um sintoma
+
+| Estágio | Some com | Default |
+| --- | --- | --- |
+| `highPass` (85 Hz) | ventilador, trânsito, batida na mesa, plosiva | **ligado** |
+| `gate` (hold de 220 ms) | ruído de sala entre frases | desligado |
+| `compressor` (3:1) | a distância entre quem sussurra e quem grita | **ligado** |
+| `presence` (+3 dB @ 3 kHz) | palavra que chega mas não se entende | desligado |
+| `hissCut` (9 kHz) | chiado de microfone barato | desligado |
+| `deEsser` (@ 7 kHz) | S e CH que doem no fone | desligado |
+| `limiter` (−1 dBFS) | clipping digital, que o outro lado **não recupera** | **ligado** |
+
+Os quatro desligados por padrão têm custo audível quando não são precisos: gate no limiar errado corta palavra, presença num microfone já brilhante machuca, de-esser numa voz que não sibila só abafa.
+
+!!! warning "A ordem não é cosmética"
+    Gate **antes** do high-pass deixa um ronco segurar o gate aberto. Compressor **antes** do gate levanta o piso de ruído até encostar no limiar. Limiter **antes** do ganho de saída é um teto por onde o ganho passa direto. A cadeia monta na ordem de uma mesa: corta o que não é fala, silencia o resto, nivela, molda, define o quão alto sai, e só então segura o teto.
+
+!!! info "Isso vem depois do processamento do browser, não no lugar dele"
+    `echoCancellation` e `noiseSuppression` continuam ligados: os dois resolvem problemas diferentes. O do browser é treinado em ruído estacionário dentro do pipeline de captura; este corta o que sobrou e decide quando a linha deve estar em silêncio.
+
+### O limiar do gate ninguém acerta no olho
+
+Regular gate de ouvido significa ligar e escutar o que sumiu — o que só funciona se você já sabe o que **deveria** sumir. `measureNoiseFloor` ouve a sala em repouso por 3 s e devolve o **pico** de RMS; `suggestGateThreshold` põe o limiar acima dele por uma margem, porque um gate exatamente no nível do ruído fica batendo, abrindo e fechando na variação da própria sala.
+
+O resultado é clampado nas duas pontas: sala medida como perfeitamente silenciosa daria limiar zero (gate que nunca fecha) e sala medida enquanto alguém falava daria um que nada abre.
+
+!!! tip "O limiar é lido a cada tique"
+    Mover `gateThreshold` no objeto de settings muda a cadeia **viva** — um slider não precisa reconstruir o grafo.
+
+### Ouvir a si mesmo antes de entrar na chamada
+
+```tsx
+const monitor = monitorVoiceChain(previewTrack, settings, { gain });
+// ao soltar o botão
+monitor.stop();
+```
+
+!!! danger "Realimentação"
+    Sem fone, a caixa alimenta o microfone que alimenta a caixa. É por isso que isto é uma ação **segurada e explícita**, não uma preferência — e o aviso precisa estar na sua UI, não só aqui.
+
+### Cadeia ociosa não constrói nada
+
+`isVoiceChainIdle(settings, gain)` responde se algo mudaria o sinal. Com tudo desligado e ganho `1`, `createVoiceChain` devolve o track de origem intocado e **nem abre um `AudioContext`** — browsers limitam quantos vivem ao mesmo tempo, e um aberto para uma cadeia passa-tudo conta igual. `supported` fica `false` nesse caso e também num motor sem Web Audio.
 
 ## Montando você mesmo: os hooks
 

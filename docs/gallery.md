@@ -101,40 +101,41 @@ Cada seção é um arquivo em [`examples/gallery/src/sections/`](https://github.
 | 27 | QRCode | `#qrcode` | Componentes |
 | 28 | Chat | `#chat` | Componentes |
 | 29 | AIChat | `#aichat` | Componentes |
-| 30 | Áudio (gravação) | `#audio-capture` | Componentes |
-| 31 | Captura de dispositivo | `#device-capture` | Componentes |
-| 32 | Dashboard (CSS) | `#dashboard-layout` | Componentes |
-| 33 | FilterBar | `#filterbar` | Componentes |
-| 34 | Markdown | `#markdown` | Componentes |
-| 35 | Masonry | `#masonry` | Componentes |
-| 36 | Tour | `#tour` | Componentes |
-| 37 | Transfer | `#transfer` | Componentes |
-| 38 | CodeBlock | `#codeblock` | Componentes |
-| 39 | Material (ListTile · FAB · Rail) | `#material` | Componentes |
-| 40 | Forms (zod) | `#forms` | Componentes |
-| 41 | BR Forms (CPF/CNPJ/CEP) | `#br-forms` | Componentes |
-| 42 | Hooks — estado | `#hooks-state` | Hooks |
-| 43 | Hooks — DOM & timing | `#hooks-dom` | Hooks |
-| 44 | Network · Clipboard · Share | `#meta` | Hooks |
-| 45 | Formatters | `#utils` | Hooks |
-| 46 | HTTP client | `#recipe-http` | Receitas |
-| 47 | Upload resumível (tus) | `#recipe-resumable-upload` | Receitas |
-| 48 | Passkeys (WebAuthn) | `#recipe-passkeys` | Receitas |
-| 49 | Data fetching (TanStack Query) | `#recipe-query` | Receitas |
-| 50 | Tempo real (WebSocket) | `#recipe-realtime` | Receitas |
-| 51 | Geolocalização (mapas & trajetória) | `#geo` | Receitas |
-| 52 | Mapa do Brasil (UF + cidades) | `#brazil-map` | Receitas |
-| 53 | Pagamentos BR (Pix · boleto · NFe) | `#br-payments` | Receitas |
-| 54 | Auth & Access Control | `#recipe-auth` | Receitas |
-| 55 | SSE · Push · Audio | `#integrations` | Receitas |
-| 56 | NotificationCenter (inbox) | `#notification-center` | Receitas |
-| 57 | PWA: Install · Push | `#pwa` | Receitas |
-| 58 | Store (Zustand) | `#foundation` | Fundação |
-| 59 | Escalas contínuas (heatmap) | `#dataviz-scales` | Fundação |
-| 60 | createTheme · presets · tokens de gráfico | `#theme-factory` | Fundação |
-| 61 | Ícones por slug (/icons) | `#icons` | Fundação |
-| 62 | utilities.css (camada opt-in) | `#utilities-css` | Fundação |
-| 63 | Tema + i18n | `#theme-i18n` | Fundação |
+| 30 | Cadeia de voz (microfone) | `#voice-chain` | Componentes |
+| 31 | Áudio (gravação) | `#audio-capture` | Componentes |
+| 32 | Captura de dispositivo | `#device-capture` | Componentes |
+| 33 | Dashboard (CSS) | `#dashboard-layout` | Componentes |
+| 34 | FilterBar | `#filterbar` | Componentes |
+| 35 | Markdown | `#markdown` | Componentes |
+| 36 | Masonry | `#masonry` | Componentes |
+| 37 | Tour | `#tour` | Componentes |
+| 38 | Transfer | `#transfer` | Componentes |
+| 39 | CodeBlock | `#codeblock` | Componentes |
+| 40 | Material (ListTile · FAB · Rail) | `#material` | Componentes |
+| 41 | Forms (zod) | `#forms` | Componentes |
+| 42 | BR Forms (CPF/CNPJ/CEP) | `#br-forms` | Componentes |
+| 43 | Hooks — estado | `#hooks-state` | Hooks |
+| 44 | Hooks — DOM & timing | `#hooks-dom` | Hooks |
+| 45 | Network · Clipboard · Share | `#meta` | Hooks |
+| 46 | Formatters | `#utils` | Hooks |
+| 47 | HTTP client | `#recipe-http` | Receitas |
+| 48 | Upload resumível (tus) | `#recipe-resumable-upload` | Receitas |
+| 49 | Passkeys (WebAuthn) | `#recipe-passkeys` | Receitas |
+| 50 | Data fetching (TanStack Query) | `#recipe-query` | Receitas |
+| 51 | Tempo real (WebSocket) | `#recipe-realtime` | Receitas |
+| 52 | Geolocalização (mapas & trajetória) | `#geo` | Receitas |
+| 53 | Mapa do Brasil (UF + cidades) | `#brazil-map` | Receitas |
+| 54 | Pagamentos BR (Pix · boleto · NFe) | `#br-payments` | Receitas |
+| 55 | Auth & Access Control | `#recipe-auth` | Receitas |
+| 56 | SSE · Push · Audio | `#integrations` | Receitas |
+| 57 | NotificationCenter (inbox) | `#notification-center` | Receitas |
+| 58 | PWA: Install · Push | `#pwa` | Receitas |
+| 59 | Store (Zustand) | `#foundation` | Fundação |
+| 60 | Escalas contínuas (heatmap) | `#dataviz-scales` | Fundação |
+| 61 | createTheme · presets · tokens de gráfico | `#theme-factory` | Fundação |
+| 62 | Ícones por slug (/icons) | `#icons` | Fundação |
+| 63 | utilities.css (camada opt-in) | `#utilities-css` | Fundação |
+| 64 | Tema + i18n | `#theme-i18n` | Fundação |
 <!-- /gallery -->
 
 ## Matriz de variantes
@@ -206,7 +207,7 @@ Cada exemplo aparece **lado a lado com o código-fonte** (botão "Copiar"), ent�
 gallery é também uma referência copia-e-cola. Capturas do app rodando:
 
 <!-- gallery:screenshots -->
-Cada seção tem a própria captura ao lado do componente que documenta; os pares abaixo são aqueles em que o tema é o assunto. As 73 imagens são regeneradas por `npm run docs:shots`.
+Cada seção tem a própria captura ao lado do componente que documenta; os pares abaixo são aqueles em que o tema é o assunto. As 74 imagens são regeneradas por `npm run docs:shots`.
 
 ### Buttons
 

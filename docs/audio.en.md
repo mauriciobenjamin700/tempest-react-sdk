@@ -18,6 +18,12 @@ Audio in the browser, both directions.
 *Section `audio-capture` of the [gallery](gallery.md) — run it locally to interact.*
 <!-- /gallery -->
 
+<!-- gallery:voice-chain -->
+[![Cadeia de voz (microfone) in the gallery](assets/gallery/voice-chain.webp)](gallery.md)
+
+*Section `voice-chain` of the [gallery](gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 ## `playAudio` — one-off on the shared player
 
 Ideal for a sound fired by an event, with no UI state:
@@ -367,6 +373,75 @@ function Participant({ stream, volume }: { stream: MediaStream; volume: number }
     The `Progress` fill has `transition: width`, so the bar reports where the level **was** — the one thing a meter cannot do. For a live level use `createLevelMeter` and write to the DOM inside a `requestAnimationFrame`.
 
     Two traps if you draw your own: the scale has to be in **dB** (on a linear one, normal speech is squeezed into the first fifth), and the color gradient has to live on the **track** with a mask on top — on an element that grows, the gradient is rescaled with it and paints red at the tip of a weak signal, reporting clipping to someone who is nearly inaudible.
+
+## Input: `createVoiceChain`
+
+`createAudioBus` handles what reaches **your ears**. `createVoiceChain` handles what leaves **your microphone** — and what the browser hands over, even with `echoCancellation` and `noiseSuppression` on, is still fan rumble under the speech, 20 dB between a whisper and a shout, and consonants that do not read.
+
+```ts
+import {
+  createVoiceChain,
+  DEFAULT_VOICE_CHAIN,
+  measureNoiseFloor,
+  suggestGateThreshold,
+} from "tempest-react-sdk";
+
+const floor = await measureNoiseFloor(stream, { onProgress: setProgress });
+
+const chain = createVoiceChain(
+  micTrack,
+  { ...DEFAULT_VOICE_CHAIN, gate: true, gateThreshold: suggestGateThreshold(floor) },
+  { gain: 1.4 },
+);
+
+await peer.setLocalTrack(chain.track);
+// later
+chain.release();
+```
+
+### Every stage exists because of a symptom
+
+| Stage | Removes | Default |
+| --- | --- | --- |
+| `highPass` (85 Hz) | fans, traffic rumble, desk knocks, plosives | **on** |
+| `gate` (220 ms hold) | room noise between phrases | off |
+| `compressor` (3:1) | the distance between a whisper and a shout | **on** |
+| `presence` (+3 dB @ 3 kHz) | words that arrive but are not understood | off |
+| `hissCut` (9 kHz) | the hiss of a cheap microphone | off |
+| `deEsser` (@ 7 kHz) | S and CH sounds that hurt on headphones | off |
+| `limiter` (−1 dBFS) | digital clipping, which the other end **cannot** recover | **on** |
+
+The four that are off by default each cost something audible when they are not needed: a gate at the wrong threshold clips words, presence on an already bright microphone is harsh, and a de-esser on a voice that does not hiss just dulls it.
+
+!!! warning "The order is not cosmetic"
+    Gating **before** the high-pass lets a rumble hold the gate open. Compressing **before** the gate lifts the noise floor up to meet the threshold. A limiter **before** the output gain is a ceiling the gain walks straight through. The chain is built the way a console is: cut what is not speech, silence the rest, level it, shape it, set how loud it goes out, and only then hold a ceiling.
+
+!!! info "This comes after the browser's processing, not instead of it"
+    `echoCancellation` and `noiseSuppression` stay on: the two solve different problems. The browser's is trained on stationary noise inside the capture pipeline; this cuts what it leaves behind and decides when the line should be silent at all.
+
+### Nobody sets a gate threshold by eye
+
+Setting a gate by ear means switching it on and hearing what disappeared, which only works if you already know what **should** have disappeared. `measureNoiseFloor` listens to the room at rest for 3 s and returns the **peak** RMS; `suggestGateThreshold` puts the threshold above it by a margin, because a gate sitting exactly at the noise level chatters, opening and closing on the room's own variation.
+
+The result is clamped at both ends: a room measured as perfectly silent would give a threshold of zero (a gate that never closes) and one measured while somebody talked would give a threshold nothing opens.
+
+!!! tip "The threshold is read on every tick"
+    Moving `gateThreshold` on the settings object changes the **live** chain — a slider does not need to rebuild the graph.
+
+### Hearing yourself before joining
+
+```tsx
+const monitor = monitorVoiceChain(previewTrack, settings, { gain });
+// when the button is released
+monitor.stop();
+```
+
+!!! danger "Feedback"
+    Without headphones the speakers feed the microphone that feeds the speakers. That is why this is a **held, explicit** action rather than a preference — and the warning belongs in your UI, not only here.
+
+### An idle chain builds nothing
+
+`isVoiceChainIdle(settings, gain)` answers whether anything would change the signal. With every stage off and gain `1`, `createVoiceChain` hands the source track back untouched and **does not even open an `AudioContext`** — browsers cap how many can be live, and one opened for a pass-through chain counts the same. `supported` is `false` in that case and on an engine without Web Audio.
 
 ## Building it yourself: the hooks
 

@@ -35,6 +35,21 @@ export type {
 export { useAudioRecorder } from "./use-audio-recorder";
 export type { UseAudioRecorderOptions, UseAudioRecorderResult } from "./use-audio-recorder";
 
+export {
+    createVoiceChain,
+    isVoiceChainIdle,
+    monitorVoiceChain,
+    DEFAULT_VOICE_CHAIN,
+} from "./voice-chain";
+export type {
+    VoiceChain,
+    VoiceChainOptions,
+    VoiceChainSettings,
+    VoiceMonitor,
+} from "./voice-chain";
+export { measureNoiseFloor, suggestGateThreshold } from "./noise-floor";
+export type { NoiseFloorOptions } from "./noise-floor";
+
 export { createLevelMeter } from "./level-meter";
 export type { LevelMeter, LevelMeterOptions } from "./level-meter";
 

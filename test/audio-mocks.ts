@@ -203,7 +203,7 @@ export function removeMediaRecorder(): () => void {
 }
 
 /** `AnalyserNode` that reports a constant sample value, so RMS is predictable. */
-class FakeAnalyser {
+export class FakeAnalyser {
     fftSize = 1024;
     sample = 0;
     getFloatTimeDomainData(target: Float32Array): void {
@@ -212,9 +212,40 @@ class FakeAnalyser {
     disconnect(): void {}
 }
 
-/** An `AudioParam`, which is a value behind a `.value` and nothing else here. */
-class FakeParam {
+/**
+ * An `AudioParam`: a value behind `.value`, plus the ramps written to it.
+ *
+ * `setTargetAtTime` is recorded rather than simulated. What a gate or a de-esser
+ * is judged on is *which* target it asked for and *when* — the exponential
+ * approach in between is the browser's job, and asserting on a simulated curve
+ * would test the fake.
+ */
+export class FakeParam {
+    /** Every `setTargetAtTime` call, in order. */
+    targets: { value: number; when: number; timeConstant: number }[] = [];
+
     constructor(public value = 0) {}
+
+    setTargetAtTime(value: number, when: number, timeConstant: number): void {
+        this.targets.push({ value, when, timeConstant });
+        this.value = value;
+    }
+}
+
+/** `BiquadFilterNode` with the four fields the voice chain's stages set. */
+export class FakeBiquad {
+    type = "";
+    frequency = new FakeParam(350);
+    Q = new FakeParam(1);
+    gain = new FakeParam(0);
+    connectedTo: unknown[] = [];
+    disconnected = 0;
+    connect(target: unknown): void {
+        this.connectedTo.push(target);
+    }
+    disconnect(): void {
+        this.disconnected += 1;
+    }
 }
 
 /** `GainNode` that records what it was connected to, so the graph can be asserted. */
@@ -270,12 +301,19 @@ export class FakeAudioContext {
 
     closed = false;
     resumed = 0;
+    currentTime = 0;
     analyser = new FakeAnalyser();
+    /** Every analyser handed out, in order. A voice chain asks for one per detector. */
+    analysers: FakeAnalyser[] = [];
+    /** Every biquad handed out, in the order the signal path builds them. */
+    filters: FakeBiquad[] = [];
+    /** Where a monitor connects to be heard. */
+    destination = { id: "destination" };
     /** Every gain node handed out, master first. */
     gains: FakeGain[] = [];
     compressors: FakeCompressor[] = [];
     sources: FakeSourceNode[] = [];
-    destinations: { stream: MediaStream }[] = [];
+    destinations: { stream: MediaStream; disconnect: () => void }[] = [];
 
     constructor() {
         FakeAudioContext.instances.push(this);
@@ -299,8 +337,8 @@ export class FakeAudioContext {
         return node;
     }
 
-    createMediaStreamDestination(): { stream: MediaStream } {
-        const node = { stream: fakeStream() };
+    createMediaStreamDestination(): { stream: MediaStream; disconnect: () => void } {
+        const node = { stream: fakeStream(), disconnect: (): void => undefined };
         this.destinations.push(node);
         return node;
     }
@@ -310,7 +348,15 @@ export class FakeAudioContext {
     }
 
     createAnalyser(): FakeAnalyser {
-        return this.analyser;
+        const node = this.analysers.length === 0 ? this.analyser : new FakeAnalyser();
+        this.analysers.push(node);
+        return node;
+    }
+
+    createBiquadFilter(): FakeBiquad {
+        const node = new FakeBiquad();
+        this.filters.push(node);
+        return node;
     }
 
     async decodeAudioData(): Promise<AudioBuffer> {

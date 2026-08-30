@@ -88,7 +88,7 @@ const WITHOUT_SECTION = {
  * `##` heading, so the reader sees the thing before reading about it.
  */
 const PAGE_SECTIONS = {
-    "audio.md": ["audio-capture"],
+    "audio.md": ["audio-capture", "voice-chain"],
     "auth.md": ["recipe-auth"],
     "br-pagamentos.md": ["br-payments"],
     "br.md": ["brazil-map"],

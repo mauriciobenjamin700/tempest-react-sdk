@@ -81,6 +81,61 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   troca de cor a cada segundo — e que, sendo `MediaRecorder`, chega com
   `duration: Infinity` e exercita a sondagem de verdade.
 
+### Testes
+
+- **Os quatro arquivos que a leva 0.54.0/0.55.0 deixou descobertos foram a 100%
+  nos quatro eixos** ([#282](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/282)), com 39 testes novos e nenhum arquivo
+  novo:
+
+  | Arquivo                     | Antes (stmts/branch/funcs/lines) | Depois                |
+  | --------------------------- | -------------------------------- | --------------------- |
+  | `webrtc/mesh-quality.ts`    | 77,35 / 78,26 / 83,33 / 77,50    | 100 / 100 / 100 / 100 |
+  | `webrtc/peer-mesh.ts`       | 89,63 / 75,64 / 96,55 / 93,52    | 100 / 100 / 100 / 100 |
+  | `audio/voice-chain.ts`      | 94,73 / 90,90 / 91,66 / 95,08    | 100 / 100 / 100 / 100 |
+  | `hooks/use-push-to-talk.ts` | 93,61 / 82,75 / 100 / 100        | 100 / 100 / 100 / 100 |
+
+  No repo: branch 95,61% → **96,02%** (9243/9626), statements 98,72% → **98,98%**,
+  funções 99,85% → **99,94%** (5 descobertas → 2), linhas 99,70% → **99,88%**
+  (35 → 14). A folga sobre o piso mais apertado do CI (branch, 95) volta de 0,61
+  para 1,02 ponto.
+
+  Os pisos do `vitest.config.ts` **não** subiram, pela mesma razão do
+  [#209](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/209): piso encostado no número corrente deixa a próxima PR
+  honesta vermelha por cobertura em vez de pelo próprio defeito. O que a folga de
+  ~1 ponto mede é justamente estar no lugar certo.
+
+- **`applyQualityToLink` não tinha teste nenhum** — o que existia vinha de
+  atravessar o `peer-mesh`, então o retry sem `degradationPreference`, que existe
+  porque o Firefox rejeita o membro inteiro, nunca havia rodado. Agora rodam os
+  dois desfechos (o retry mantém o `maxFramerate`; a recusa dupla preserva o cap
+  de bitrate já aplicado), mais o `null` que levanta o cap, o sender sem
+  transceiver e o sender que não reporta encoding.
+
+- **No `peer-mesh`, os caminhos que só um browser real produz**: descrição criada
+  sem `sdp` (oferta e resposta), `createOffer` rejeitando e liberando o
+  `makingOffer` no `finally`, renegociação que chega com uma oferta em voo,
+  `localDescription` que ainda não pegou o valor, glare (oferta chegando no lado
+  que ofereceu, que **não** deve adotar transceiver), `onended` de track remoto
+  antes e depois do peer sair, mudança de estado após a entrada desaparecer do
+  mapa, `refreshState` depois do `stop()` e candidato com `sdpMid: null`.
+
+- **No `voice-chain`, o ramo que jsdom nunca toma**: `new MediaStream([source])`
+  só executa onde a plataforma tem `MediaStream`, então o caminho real do browser
+  estava descoberto nos dois lugares em que aparece. Junto com ele, o `release()`
+  do pass-through (que respeita `ownsSource`) e o destino que não reporta track,
+  onde a chain desmonta o grafo e devolve a fonte.
+
+- **Achado real, virou issue** ([#283](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/283)): o guard de campo do
+  `usePushToTalk` roda no `keyup` também, então um hold cujo `keyup` cai num campo
+  — soltar a tecla depois de clicar num `<input>` — **não é liberado**, e o
+  microfone fica aberto até o `blur` da janela. O teste que cobre o ramo está
+  escrito como caracterização e é substituído quando o #283 sair.
+
+- **Os mocks de WebRTC ganharam o que faltava** (`test/webrtc-mocks.ts`):
+  `offerSdp`/`answerSdp` anuláveis, `offerRejects`, `tracksLocalDescription` e
+  `emitTrack` aceitando os streams que o lado remetente agrupou. Todos com o
+  default anterior, então nenhum teste existente mudou de comportamento.
+
 ## [0.55.0] — 2026-08-30
 
 ### Adicionado

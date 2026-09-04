@@ -69,6 +69,27 @@ export class FakePeerConnection {
     /** Remote offers arriving at every instance carry this many m-lines. */
     static remoteMLines = 4;
 
+    /**
+     * SDP the next `createOffer` produces, or `null` for an offer with none.
+     *
+     * A browser does produce a description with an empty `sdp` — a codec
+     * negotiation that found nothing in common gets there — and a mesh that
+     * signals it anyway sends a peer an offer it cannot answer.
+     */
+    static offerSdp: string | null = "v=0\r\nlocal-offer";
+    /** SDP the next `createAnswer` produces, or `null` for an answer with none. */
+    static answerSdp: string | null = "v=0\r\nlocal-answer";
+    /** Make `createOffer` reject, as it does when the connection is already closing. */
+    static offerRejects = false;
+    /**
+     * Whether `setLocalDescription` stores what it was given.
+     *
+     * `false` reproduces the window in which `localDescription` is still `null`
+     * right after the call, which is why the mesh signals
+     * `localDescription?.sdp ?? offer.sdp` rather than trusting the readback.
+     */
+    static tracksLocalDescription = true;
+
     connectionState: RTCPeerConnectionState = "new";
     localDescription: RTCSessionDescriptionInit | null = null;
     remoteDescription: RTCSessionDescriptionInit | null = null;
@@ -101,14 +122,18 @@ export class FakePeerConnection {
     }
 
     async createOffer(): Promise<RTCSessionDescriptionInit> {
-        return { type: "offer", sdp: "v=0\r\nlocal-offer" };
+        if (FakePeerConnection.offerRejects) throw new Error("the connection is closing");
+        const sdp = FakePeerConnection.offerSdp;
+        return sdp === null ? { type: "offer" } : { type: "offer", sdp };
     }
 
     async createAnswer(): Promise<RTCSessionDescriptionInit> {
-        return { type: "answer", sdp: "v=0\r\nlocal-answer" };
+        const sdp = FakePeerConnection.answerSdp;
+        return sdp === null ? { type: "answer" } : { type: "answer", sdp };
     }
 
     async setLocalDescription(description: RTCSessionDescriptionInit): Promise<void> {
+        if (!FakePeerConnection.tracksLocalDescription) return;
         this.localDescription = description;
     }
 
@@ -156,17 +181,27 @@ export class FakePeerConnection {
     /**
      * Deliver an inbound track on one of this connection's transceivers.
      *
-     * `streams` is left empty on purpose: that is what a browser reports for an
-     * offer built from bare `addTransceiver` calls, which is exactly how a mesh
-     * allocates its slots, so the routing under test is the fallback path.
+     * `streams` defaults to empty on purpose: that is what a browser reports for
+     * an offer built from bare `addTransceiver` calls, which is exactly how a
+     * mesh allocates its slots, so the routing under test is the fallback path.
+     * Pass one to exercise the other branch, where the sending side grouped the
+     * track into a stream the caller should see instead of a local wrapper.
      */
-    emitTrack(transceiver: FakeTransceiver, track: MediaStreamTrack): void {
-        this.ontrack?.({ transceiver, track, streams: [] } as unknown as RTCTrackEvent);
+    emitTrack(
+        transceiver: FakeTransceiver,
+        track: MediaStreamTrack,
+        streams: readonly MediaStream[] = [],
+    ): void {
+        this.ontrack?.({ transceiver, track, streams } as unknown as RTCTrackEvent);
     }
 
     static reset(): void {
         FakePeerConnection.instances = [];
         FakePeerConnection.remoteMLines = 4;
+        FakePeerConnection.offerSdp = "v=0\r\nlocal-offer";
+        FakePeerConnection.answerSdp = "v=0\r\nlocal-answer";
+        FakePeerConnection.offerRejects = false;
+        FakePeerConnection.tracksLocalDescription = true;
     }
 }
 

@@ -333,6 +333,56 @@ await mesh.setLocalTrack("mic", null); // muted
 
 The slots are negotiated **before any track exists**, so publishing is a `replaceTrack` on a transceiver that is already there: no m-line is added and nothing renegotiates. That property is what makes a mesh survive — with N peers, a renegotiation per toggle is N−1 simultaneous offer/answer rounds every time somebody unmutes.
 
+### Measuring the room: `stats`
+
+The mesh knows how many links there are and when one goes away, which makes it the right place to sample from. `stats` arms a single timer it owns:
+
+```ts
+const mesh = createPeerMesh({
+  slots,
+  send: (message) => socket.send(message),
+  stats: {
+    intervalMs: 2000,
+    onStats: (peerId, stats) => updateBadge(peerId, stats),
+  },
+});
+```
+
+The same value lands on `MeshPeer.stats`, so anything already reading the peer list needs no callback:
+
+```tsx
+{mesh.peers.map((peer) => (
+  <li key={peer.peerId}>
+    {peer.peerId} — {peer.stats?.kbps ?? "—"} kbps · {peer.stats?.rttMs ?? "—"} ms
+    {peer.stats?.relayed ? " · via TURN" : ""}
+  </li>
+))}
+```
+
+!!! warning "One sampler per connection — the rule a hand-rolled loop gets wrong"
+    The rate is a **delta**, so the sampler keeps the previous reading. Sharing one across peers subtracts one connection's counter from another's and reports nonsense. The mesh keeps one sampler per link and drops it with the link, which is the part a hand-written loop forgets when somebody leaves the room.
+
+!!! note "Only `connected` links are sampled"
+    A link still gathering candidates has no traffic to measure, and asking anyway spends a `getStats()` to learn that — per link, on every tick. An empty room runs no timer at all, which is where a call sits for as long as the first person is early.
+
+!!! tip "Measuring makes `onPeers` fire on the interval"
+    That is the point for a badge, and worth knowing for anything that does real work in that handler.
+
+### The connection the mesh does not model: `getConnection`
+
+`MeshPeer.connection` is the **state**, which is what a view needs. `getConnection(peerId)` is the **object**, which is what a measurement needs:
+
+```ts
+const pc = mesh.getConnection("peer-1");
+if (pc) {
+  const channel = pc.createDataChannel("chat");
+}
+```
+
+It is the escape hatch for everything the mesh does not model — `getSenders()`, an `RTCDataChannel`, an encoding tweak the `quality` shape has no field for. A mesh that kept the connection to itself would turn adopting the mesh into losing a feature.
+
+For the common case, which is measuring, prefer `stats` above: it already handles the one-sampler-per-connection rule.
+
 ### The Opus profile stays yours: `setLocalDescription`
 
 The mesh is what creates every offer and every answer, so without a seam here there would be nowhere left for `setTunedLocalDescription` — and a call adopting the mesh would **silently lose** the bitrate and channel layout it had already negotiated. So applying the local description is a parameter:

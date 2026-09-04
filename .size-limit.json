@@ -376,6 +376,15 @@
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
+    "name": "slice: imaging — captureFrame alone (seek + encode, no hooks)",
+    "path": "dist/imaging.js",
+    "import": {
+      "./dist/imaging.js": "{ captureFrame }"
+    },
+    "limit": "2.5 KB",
+    "ignore": ["react", "react-dom", "react/jsx-runtime"]
+  },
+  {
     "name": "slice: tabular — compact reader alone (no onnxruntime-web at all)",
     "path": "dist/tabular.js",
     "import": {

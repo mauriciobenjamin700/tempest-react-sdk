@@ -41,15 +41,19 @@ export {
     supportsImageType,
 } from "./encode";
 export {
+    FrameSeekError,
     ImageDecodeError,
     ImageEncodeError,
     ImagingError,
     ImagingUnavailableError,
     UnsupportedImageTypeError,
 } from "./exceptions";
+export { DEFAULT_FRAME_TIMEOUT_MS, captureFrame } from "./frame";
 export { type Thumbnail, type ThumbnailSpec, createThumbnails } from "./thumbnails";
 export { DEFAULT_BACKGROUND, cropImage, flipImage, resizeImage, rotateImage } from "./transform";
 export type {
+    CaptureFrameOptions,
+    CapturedFrame,
     CompressOptions,
     CropRect,
     DecodedImage,

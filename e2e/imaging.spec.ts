@@ -28,11 +28,19 @@ async function serveImagingDist(page: Page): Promise<void> {
 }
 
 /**
- * Helpers injected into the page: image generators and an EXIF writer.
+ * Helpers injected into the page: image generators, an EXIF writer, and a video.
  *
  * The EXIF writer exists because the orientation claim cannot be tested
  * with a canvas-produced JPEG — canvases never write an orientation tag,
  * and phones always do.
+ *
+ * `makeBandedVideo` records a canvas whose colour says which second it came
+ * from, and it repaints every animation frame rather than once per band:
+ * `captureStream(30)` does **not** synthesize frames at 30 fps, it emits one
+ * when the canvas changes. Painting once a second produced a ~1 fps video whose
+ * frames arrive 700 ms apart (measured), which is a bad stand-in for anything
+ * an app captures from — repainting per animation frame gives ~59 fps, which is
+ * what a real recording looks like.
  */
 const PAGE_HELPERS = `
 window.makeCheckerboard = async (size, cell) => {
@@ -107,6 +115,58 @@ window.firstPixel = async (blob) => {
     context.drawImage(bitmap, 0, 0);
     const { data } = context.getImageData(0, 0, 1, 1);
     return { r: data[0], g: data[1], b: data[2], a: data[3] };
+};
+window.makeBandedVideo = async (bands) => {
+    const COLORS = ["#ff0000", "#00ff00", "#0000ff", "#ffff00"];
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 64;
+    const context = canvas.getContext("2d");
+
+    const stream = canvas.captureStream(30);
+    const recorder = new MediaRecorder(stream, { mimeType: "video/webm" });
+    const chunks = [];
+    recorder.ondataavailable = (event) => { if (event.data.size > 0) chunks.push(event.data); };
+    const stopped = new Promise((resolve) => { recorder.onstop = resolve; });
+
+    const started = performance.now();
+    recorder.start();
+    while (performance.now() - started < bands * 1000) {
+        const band = Math.min(bands - 1, Math.floor((performance.now() - started) / 1000));
+        context.fillStyle = COLORS[band % COLORS.length];
+        context.fillRect(0, 0, 64, 64);
+        await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+    }
+    recorder.stop();
+    await stopped;
+    for (const track of stream.getTracks()) track.stop();
+
+    return { url: URL.createObjectURL(new Blob(chunks, { type: "video/webm" })), colors: COLORS };
+};
+
+window.loadVideo = async (url) => {
+    const video = document.createElement("video");
+    video.muted = true;
+    video.preload = "auto";
+    video.src = url;
+    document.body.append(video);
+    await new Promise((resolve, reject) => {
+        video.addEventListener("loadeddata", resolve, { once: true });
+        video.addEventListener("error", () => reject(new Error("the video did not load")), { once: true });
+    });
+    return video;
+};
+
+window.bandOf = async (blob) => {
+    const bitmap = await createImageBitmap(blob);
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+    const context = canvas.getContext("2d");
+    context.drawImage(bitmap, 0, 0);
+    const { data } = context.getImageData(Math.floor(bitmap.width / 2), Math.floor(bitmap.height / 2), 1, 1);
+    const hit = [[255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 0]].findIndex(
+        ([r, g, b]) => Math.abs(data[0] - r) < 40 && Math.abs(data[1] - g) < 40 && Math.abs(data[2] - b) < 40,
+    );
+    return { band: hit, rgb: [data[0], data[1], data[2]] };
 };
 `;
 
@@ -371,4 +431,165 @@ test("re-encoding drops the EXIF a photo arrived with", async ({ page }) => {
 
     expect(result.before).toBe(true);
     expect(result.after).toBe(false);
+});
+
+/**
+ * `captureFrame` against a real decoder.
+ *
+ * The video is produced in the page by recording a canvas that changes colour
+ * once a second, so a captured frame carries which second it came from — and
+ * being a `MediaRecorder` blob it also arrives with **no duration in its
+ * header**, which is the case an app hits first and the reason the capture
+ * probes for one.
+ *
+ * What this cannot pin, and no test in this repo does yet: that a capture lands
+ * on the exact frame rather than its neighbour. The bands are one second wide
+ * because `MediaRecorder` from `captureStream` gives no frame-accurate
+ * timestamps to build narrower ones from — a committed asset with known frame
+ * times is what that would take.
+ */
+test.describe("captureFrame", () => {
+    test("reads the frame the video is showing, without moving it", async ({ page }) => {
+        const result = await page.evaluate(async () => {
+            const api = window as never as {
+                makeBandedVideo: (bands: number) => Promise<{ url: string }>;
+                loadVideo: (url: string) => Promise<HTMLVideoElement>;
+                bandOf: (blob: Blob) => Promise<{ band: number; rgb: number[] }>;
+            };
+            const { captureFrame } = await import("/imaging-dist/frame.js");
+            const { url } = await api.makeBandedVideo(3);
+            const video = await api.loadVideo(url);
+
+            const shot = await captureFrame(video, { type: "image/png" });
+            const read = await api.bandOf(shot.blob);
+            return {
+                band: read.band,
+                rgb: read.rgb,
+                type: shot.type,
+                width: shot.width,
+                atMs: shot.atMs,
+                currentTime: video.currentTime,
+            };
+        });
+
+        expect(result.type).toBe("image/png");
+        expect(result.width).toBe(64);
+        expect(result.atMs).toBe(0);
+        expect(result.currentTime).toBe(0);
+        expect(result.band, `centre pixel was rgb(${result.rgb.join(",")})`).toBe(0);
+    });
+
+    test("seeks to an instant and captures that instant's band", async ({ page }) => {
+        const result = await page.evaluate(async () => {
+            const api = window as never as {
+                makeBandedVideo: (bands: number) => Promise<{ url: string }>;
+                loadVideo: (url: string) => Promise<HTMLVideoElement>;
+                bandOf: (blob: Blob) => Promise<{ band: number; rgb: number[] }>;
+            };
+            const { captureFrame } = await import("/imaging-dist/frame.js");
+            const { url } = await api.makeBandedVideo(4);
+            const video = await api.loadVideo(url);
+            const headerDuration = video.duration;
+
+            const shot = await captureFrame(video, { atMs: 2_500, type: "image/png" });
+            const read = await api.bandOf(shot.blob);
+            return {
+                headerDuration,
+                probedDuration: video.duration,
+                band: read.band,
+                rgb: read.rgb,
+                atMs: shot.atMs,
+                confirmed: shot.confirmed,
+                restoredTo: video.currentTime,
+            };
+        });
+
+        /**
+         * Measured here, 2026-09-04: Chromium reported `3.000197` for a
+         * one-shot `MediaRecorder` blob — it **does** write a duration for a
+         * recording finalised in a single `stop()`. So the probe does not run
+         * on this path, and asserting `Infinity` would be asserting a browser
+         * bug that this browser does not have. The browsers and the chunked
+         * `timeslice` paths that omit the duration are covered in
+         * `src/imaging/frame.test.ts`, where the value is controlled.
+         */
+        expect(Number.isFinite(result.probedDuration)).toBe(true);
+        expect(result.probedDuration).toBeGreaterThan(2);
+        expect(result.atMs).toBeGreaterThan(2_000);
+        expect(result.atMs).toBeLessThan(3_000);
+        expect(
+            result.confirmed,
+            "a paused seek cannot be confirmed — measured, see the note above",
+        ).toBe(false);
+        expect(result.band, `centre pixel was rgb(${result.rgb.join(",")})`).toBe(2);
+        expect(result.restoredTo).toBe(0);
+    });
+
+    test("leaves the player on the captured frame when told not to restore", async ({ page }) => {
+        const parked = await page.evaluate(async () => {
+            const api = window as never as {
+                makeBandedVideo: (bands: number) => Promise<{ url: string }>;
+                loadVideo: (url: string) => Promise<HTMLVideoElement>;
+            };
+            const { captureFrame } = await import("/imaging-dist/frame.js");
+            const { url } = await api.makeBandedVideo(3);
+            const video = await api.loadVideo(url);
+
+            await captureFrame(video, { atMs: 1_500, restore: false, type: "image/png" });
+            return video.currentTime;
+        });
+
+        expect(parked).toBeGreaterThan(1);
+    });
+
+    /**
+     * The other half of the measurement: while the video **plays**, the frame
+     * callback does fire, so a print of a running recording is confirmed. This
+     * is the assertion that would go red if the confirmation were wired to the
+     * wrong state.
+     */
+    test("confirms the frame when the video is playing", async ({ page }) => {
+        const result = await page.evaluate(async () => {
+            const api = window as never as {
+                makeBandedVideo: (bands: number) => Promise<{ url: string }>;
+                loadVideo: (url: string) => Promise<HTMLVideoElement>;
+            };
+            const { captureFrame } = await import("/imaging-dist/frame.js");
+            const { url } = await api.makeBandedVideo(3);
+            const video = await api.loadVideo(url);
+            video.loop = true;
+            await video.play();
+
+            const shot = await captureFrame(video, { type: "image/png" });
+            return { confirmed: shot.confirmed, playing: !video.paused, bytes: shot.bytes };
+        });
+
+        expect(result.confirmed).toBe(true);
+        expect(result.playing, "capturing the current frame does not pause it").toBe(true);
+        expect(result.bytes).toBeGreaterThan(0);
+    });
+
+    test("refuses a live stream, which has no instant but now", async ({ page }) => {
+        const failure = await page.evaluate(async () => {
+            const { captureFrame } = await import("/imaging-dist/frame.js");
+            const canvas = document.createElement("canvas");
+            canvas.width = 32;
+            canvas.height = 32;
+            canvas.getContext("2d").fillRect(0, 0, 32, 32);
+            const video = document.createElement("video");
+            video.muted = true;
+            video.srcObject = canvas.captureStream(30);
+            await video.play();
+
+            try {
+                await captureFrame(video, { atMs: 500 });
+                return { name: "none", message: "" };
+            } catch (error) {
+                return { name: (error as Error).name, message: (error as Error).message };
+            }
+        });
+
+        expect(failure.name).toBe("FrameSeekError");
+        expect(failure.message).toContain("MediaStream");
+    });
 });

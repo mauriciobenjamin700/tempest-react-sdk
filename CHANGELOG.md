@@ -4,6 +4,83 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`captureFrame` — um frame de um `<video>`, no instante que você pediu**
+  ([#278](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/278)), no subpath `/imaging`. O frame **corrente** nunca
+  precisou de API nova: `createImageBitmap` aceita o elemento, e a união
+  `ImageSource` agora aceita `HTMLVideoElement` ([#277](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/277)), então
+  `resizeImage(video, ...)`, `compressToTarget`, `createThumbnails` e
+  `decodeImage` recebem um `<video>` direto. A mudança é **só de tipo** — o
+  `toBitmap` já delegava, e o cast `as ImageBitmapSource` existia justamente
+  porque a união era mais estreita que a do browser.
+
+  O instante **escolhido** é o que ninguém acerta na mão:
+
+  ```ts
+  video.currentTime = 12.5;
+  await new Promise((r) => video.addEventListener("seeked", r, { once: true }));
+  context.drawImage(video, 0, 0); // pode desenhar o frame ANTERIOR
+  ```
+
+  `seeked` diz que a busca terminou, não que o frame da nova posição está
+  composto e legível. Funciona na máquina de quem escreveu e devolve o vizinho
+  em outro browser, sem erro e sem log. `captureFrame` espera `seeked` **e**
+  um frame apresentado (`requestVideoFrameCallback`), captura, e devolve o
+  player onde estava:
+
+  ```ts
+  const poster = await captureFrame(video, { atMs: 10_000, width: 640 });
+  console.log(poster.atMs, poster.confirmed);
+  ```
+
+  Três armadilhas ficam dentro em vez de na doc do chamador:
+
+  - **Gravação pode chegar sem duração.** `MediaRecorder` não garante duração
+    no header do WebM, então o blob que o `useVideoRecorder` acabou de entregar
+    pode reportar `Infinity` — e é desse vídeo que um app quer frame. Buscar
+    além do fim força o demux e revela o tamanho; a sondagem roda aqui, não em
+    cada chamada. Mesma técnica que o `AudioPlayer` já usava. O e2e **corrigiu
+    a premissa**: medido em Chromium, uma gravação finalizada num único
+    `stop()` **traz** a duração (3.000197 s para 3 s de canvas), então lá a
+    sondagem não roda — ela existe para os caminhos que omitem, como gravação
+    em chunks por `timeslice`.
+  - **Vídeo de outra origem** contamina o canvas e o `SecurityError` chega no
+    encode, longe da causa. Reembalado dizendo que falta
+    `crossOrigin="anonymous"` e o header do servidor.
+  - **Restaurar toca só no que moveu.** Escrever `currentTime` **é** um seek,
+    mesmo com o valor igual, então uma captura recusada antes de mover nada
+    (stream ao vivo, abort) não perturba o player que nunca tocou — e uma que
+    pausou sem precisar mover ainda solta a pausa.
+
+  **O e2e corrigiu o desenho da confirmação.** Medido em Chromium:
+  `requestVideoFrameCallback` dispara enquanto o vídeo **reproduz** e **não**
+  dispara em seek de elemento pausado (`pausedSeek=false`,
+  `whilePlaying=true`). Bloquear o seek nele custaria o `timeoutMs` inteiro em
+  toda captura — 3 s por print — para seguir igual no fim. Então a espera é por
+  estado: vídeo tocando espera o próximo frame apresentado (`confirmed: true`),
+  seek espera `seeked` + dois animation frames (`confirmed: false`, sempre), e
+  frame corrente de vídeo pausado não espera nada. `confirmed` fica no retorno
+  para o chamador distinguir pixel comprovadamente fresco de melhor esforço —
+  `false` num seek é o normal, não aviso.
+
+  Stream ao vivo (`srcObject`) com `atMs` levanta `FrameSeekError`, que é
+  classe própria porque a alternativa é devolver o instante errado — e um frame
+  errado é indistinguível de um correto para tudo o que vem depois.
+
+  Sai também `DEFAULT_FRAME_TIMEOUT_MS` (3000 ms). Custo medido: a entrada
+  `/imaging` fica em **3,47 KB** brotli, dentro do teto de 5 KB que já existia,
+  e a fatia `{ captureFrame }` sozinha mede **2,23 KB** — teto novo de 2,5 KB,
+  porque é por fatia importada que o custo do consumidor se mede.
+
+  25 testes em jsdom cobrem a orquestração — o que é esperado, em que ordem, o
+  que é limpo, o que é reportado — e dizem no arquivo o que **não** podem
+  cobrir: jsdom não tem algoritmo de seek, então todo `seeked` ali é disparado
+  pelo teste. A afirmação que a função existe para garantir é verificada em
+  Chromium (`e2e/imaging.spec.ts`), num vídeo gravado na própria página que
+  troca de cor a cada segundo — e que, sendo `MediaRecorder`, chega com
+  `duration: Infinity` e exercita a sondagem de verdade.
+
 ### Testes
 
 - **Os quatro arquivos que a leva 0.54.0/0.55.0 deixou descobertos foram a 100%

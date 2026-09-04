@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.56.0] — 2026-09-04
+
 ### Adicionado
 
 - **`captureFrame` — um frame de um `<video>`, no instante que você pediu**

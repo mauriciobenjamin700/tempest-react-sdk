@@ -4,10 +4,10 @@ SDK público da Tempest com componentes React, hooks e integrações reutilizáv
 
 > Este arquivo é o guia operacional do SDK. Padrões globais (PR template PT-BR, conventional commits, `gh pr edit` workaround) vêm de `~/.claude/CLAUDE.md` e continuam valendo.
 
-## Estado atual (snapshot pós-v0.53.0 — `[Unreleased]` acumulando: CSS por entrada, link stats, `onParseError`, `useFullscreen`, dataset BR refeito)
+## Estado atual (snapshot pós-v0.55.0 — `[Unreleased]` vazio)
 
-- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 73 tags publicadas (0.1.0 → 0.53.0) com signed provenance via OIDC. Histórico completo em `RELEASES.md` (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
-- **Testes**: 5698 testes em 549 arquivos, ~46 s sob `vitest + jsdom + fake-indexeddb`. Cobertura **99,87% linhas / 98,94% statements / 99,93% funções / 95,91% branches**; pisos do CI em **99/98/99/95**, ~1 ponto de folga em cada eixo. O que sobra descoberto — 2 funções e 13 linhas — é **inalcançável por construção** (ver `### P3` abaixo).
+- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 75 tags publicadas (0.1.0 → 0.55.0) com signed provenance via OIDC. Histórico completo em `RELEASES.md` (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
+- **Testes**: 5846 testes em 557 arquivos, ~56 s sob `vitest + jsdom + fake-indexeddb`. Cobertura medida em 04/09/2026: **99,70% linhas (35 descobertas) / 98,72% statements / 99,85% funções (5) / 95,61% branches (422)**; pisos do CI em **99/98/99/95**, folga de 0,61 ponto no eixo mais apertado (era 0,91). **A cauda deixou de ser só inalcançável:** 21 das 35 linhas e 3 das 5 funções estão na leva RTC/voz de 0.54.0/0.55.0 — `webrtc/peer-mesh.ts` (9 linhas, 19 ramos), `webrtc/mesh-quality.ts` (9, 10), `audio/voice-chain.ts` (3, 5). O resto é poeira de 1–2 linhas, essa sim inalcançável por construção (ver `### P3`). Ranquear por **valor absoluto**, nunca por percentual — é o método da #282, e a [PR #284](https://github.com/mauriciobenjamin700/tempest-react-sdk/pull/284) leva os quatro a 100% nos quatro eixos (39 testes; branch do repo 95,61% → 96,02%, linhas descobertas 35 → 14), sem mexer nos pisos.
 - **Superfície**: 40 módulos em `src/`, 128 componentes, 53 hooks no módulo `hooks/` (116 exports `use*` somando todos os módulos), 543 exports na entrada raiz, 67 em `/br` e 21 em `/icons`.
 - **Empacotamento (v0.25.0)**: `dist/` preserva o grafo de módulos (`preserveModules`). O que o app paga de fato (brotli): `{ cn }` 133 B · `{ Button }` 794 B · app típico 9.27 KB · offline/PWA 4.54 KB · `styles.css` 28.7 KB · `utilities.css` 1.36 KB (opt-in). Teto sem tree-shaking: 121.08 KB ESM / 145.01 KB CJS. Budgets do `size-limit` são **por fatia importada**, não pelo barrel.
 - **Subpaths** (15, a lista é o campo `exports` do `package.json`): `.`, `/testing` (MSW), `/vite` (`createViteConfig` + plugins), `/sw` (helpers de contexto SW), `/charts` (recharts peer), `/editor` (tiptap peer), `/imaging` (decode/encode/resize/crop/compress em canvas, sem dep), `/tabular` (`TabularPredictor` ONNX + cache de modelo, onnxruntime-web peer), `/vision` (onnxruntime-web peer), `/br` (dataset BR + mapa clicável — os quatro arquivos saem do IBGE numa geração só, chaveados por código de 7 dígitos), `/icons` (ícone por slug, 45 shards lazy balanceados), `/icons/virtual` (módulo real: `staticIcons = {}` que o plugin sobrescreve — resolve fora do Vite também), `/styles.css`, `/utilities.css` (camada de layout opt-in), `/package.json`.
@@ -114,22 +114,25 @@ viva.
 
 Aberto hoje, em ordem de valor:
 
-| #                                                                           | Frente                      | Por que importa                                                                                                                             |
-| --------------------------------------------------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| [#231](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/231) | `createPeerMesh`            | A peça que falta para as outras servirem. Slot por transceiver, fila de ICE, offerer por ordem total, divisão de uplink por tamanho de sala |
-| [#233](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/233) | `createVoiceChain`          | O SDK tem a cadeia de saída (`createAudioBus`) e nada na entrada. Gate com hold, de-esser com side-chain manual, medição de piso de ruído   |
-| [#232](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/232) | `getStats` normalizado      | RTT do par **selecionado** (não do primeiro succeeded) e vazão por delta. Fatia mais fácil de portar: entra `RTCStatsReport`, sai objeto    |
-| [#234](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/234) | VAD + push-to-talk          | Fala derivada no cliente em vez de sinalizada; PTT que solta no `blur`                                                                      |
-| [#236](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/236) | Trilha "Fundamentos da Web" | A doc começa no meio: `tutorial/` já assume React, hook e módulo ES. 11 páginas opcionais antes dela                                        |
-| [#253](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/253) | SW novo em `waiting`        | `registerServiceWorker` só avisa quando o `updatefound` dispara; worker já esperando na primeira visita passa despercebido                  |
-| [#254](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/254) | `Pagination` no mobile      | O colapso dos números é CSS puro, sem opt-out — app que quer os números no celular não tem como pedir                                       |
+| #                                                                           | Frente                                     | Por que importa                                                                                                                                                                                           |
+| --------------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [#275](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/275) | `createPeerMesh` sem as conexões           | A mesh do #231 guarda o `RTCPeerConnection` num `Map` fechado, e as três APIs de stats do #232 pedem exatamente ele — 0.54.0 e 0.55.0 entregaram as duas metades e elas não se combinam                   |
+| [#276](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/276) | `resolveDegradation` ancora no slot errado | Decide pelo **máximo entre os slots de vídeo**; a escolha nitidez/fluidez é sobre a **tela**, então com só câmera ligada quem decide é um stream que o usuário não estava pensando                        |
+| [#277](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/277) | `ImageSource` sem `HTMLVideoElement`       | Mudança **só de tipo**: o `toBitmap` já delega pro `createImageBitmap`, que aceita `CanvasImageSource`. Destrava print de gravação de tela em 6 funções do `/imaging`                                     |
+| [#278](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/278) | `captureFrame(video, { atMs })`            | `seeked` não garante que o frame composto é o do `currentTime` — o caminho na mão desenha o vizinho sem erro nenhum. Precisa de `requestVideoFrameCallback`. Depende do #277                              |
+| [#279](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/279) | `<VideoPlayer>` com `rate`                 | O SDK grava vídeo e não sabe tocar. `playbackRate` não aparece uma vez no `src/`, então acelerar uma gravação de 20 min de tela não tem superfície                                                        |
+| [#282](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/282) | Cobertura do `src/webrtc/`                 | Entrou abaixo do padrão: 89,06% branch (277/311), `mesh-quality.ts` a 77,35% de statements — 18 linhas e 29 ramos descobertos em dois arquivos, mais que a cauda inteira que o repo declarou inalcançável |
+| [#281](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/281) | Sweep de `axe` no browser real             | Descarta `results.incomplete`, roda em um tema, um viewport e só no estado inicial — a classe de contraste que escapou duas vezes cai exatamente no `incomplete`                                          |
 
 ### O consumidor que dita a frente RTC
 
 `~/projects/my/tools/tempest-mirror-screen` — voz/vídeo/tela N↔N por WebRTC em
 mesh, self-hosted (FastAPI sinalizando, React no browser). Consome
-`tempest-react-sdk@^0.53.0` de verdade, e é de lá que saíram #220–#223 e depois
-#231–#235 — deste último grupo, o `useFullscreen` (#235) já entrou.
+`tempest-react-sdk@^0.55.0` de verdade, e é de lá que saíram #220–#223 e depois
+#231–#235 — **todas entregues** em 0.54.0/0.55.0. E a adoção de volta rendeu duas
+issues novas (#275, #276): a mesh entregue não expõe as conexões que as stats
+pedem, e o `resolveDegradation` ancora no slot errado. **Adotar é a etapa que
+encontra o defeito** — a issue de implementação passa, a de uso reprova.
 
 O padrão vale mais que o app: **a primitiva sai de código que já roda em
 produção lá, não de desenho especulativo.** Cada armadilha que virou comentário
@@ -137,16 +140,16 @@ naquele repo vira um teste nomeado aqui — é o que impede a próxima cópia de
 reintroduzi-la.
 
 O que ele já consome: `createAudioBus`, `createLevelMeter`, `setSenderBitrate`,
-`setTunedLocalDescription`, `OpusProfile`, `Icon`/`IconProvider`, `Slider`,
-`useIdle`, `useTheme`, `ThemeProvider`, `ToastProvider`.
+`setTunedLocalDescription`, `OpusProfile`, `createVoiceChain`,
+`monitorVoiceActivity`, `usePushToTalk`, `createLinkStatsSampler`, `useFullscreen`,
+`Icon`/`IconProvider`, `Slider`, `useIdle`, `useTheme`, `ThemeProvider`,
+`ToastProvider` — a adoção de 0.54.0/0.55.0 deletou **734 linhas** locais.
 
-O que ele **ainda escreve na mão** (o backlog acima, em ordem de tamanho):
+O que ele **ainda escreve na mão**:
 
-| Arquivo                                      | Linhas | Vira                               |
-| -------------------------------------------- | ------ | ---------------------------------- |
-| `lib/mesh.ts`                                | 892    | #231 `createPeerMesh` + #232 stats |
-| `lib/voiceChain.ts`                          | 456    | #233 `createVoiceChain`            |
-| `lib/voiceActivity.ts` + `lib/pushToTalk.ts` | 148    | #234                               |
+| Arquivo       | Linhas | Estado                                                                                                                                                                             |
+| ------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lib/mesh.ts` | 892    | `createPeerMesh` (#231) entregue, adoção **travada**: sem acesso ao `RTCPeerConnection` (#275) o badge de RTT/vazão morre, e o `resolveDegradation` decide pelo slot errado (#276) |
 
 Já coberto pelo SDK e **fora** do backlog: aquisição de mídia
 (`useMicrophone`, `useScreenCapture`, `useCameraStream`, `classifyMediaError`)
@@ -158,7 +161,7 @@ dev-mode (`src/utils/dev-mode.ts`) e o crescimento do `materialToLucide` — e a
 versão de lá do dev-mode estava **certa** onde a minha estava errada. `git fetch`
 e comparar antes de investir horas.
 
-Entregue e fora do backlog: **`useFullscreen`** (#235 — estado lido de `fullscreenchange`, porque `Esc`, F11 e o botão do browser não passam pela sua função; a assinatura vive em `use-fullscreen-element.ts`, compartilhada com o `usePortalHost`), **os quatro datasets de `br/` unidos pelo código IBGE** (#249 — ver a lição abaixo), **a onda de voz/RTC** (`tuneOpus` + `setTunedLocalDescription` #222, `createAudioBus` com ganho >100% e limiter pós-soma #223, `createWebSocket` resiliente #220, `aria-label` no `Slider` #221), **`CodeBlock`** (realce por scanner + tokens `--tempest-code-*`), **`QRCode`** (encoder ISO 18004 próprio, 3,2 KB br), **`Sparkline`** (mini-gráfico inline, sem recharts), **escala contínua de data viz** (`sequentialScale`/`divergingScale`), **`NotificationCenter`** (inbox de push), **`VirtualTable`**, **ícone por slug (`/icons`, issue #37)**, **`tempest fix` convertendo import relativo pra `@/` (issue #56)**, release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`), sweep `axe` em jsdom + smoke Playwright do gallery (`e2e.yml`), coverage gateando o CI (pisos 98/97/96/94), política de versionamento de tokens CSS (`docs/styles.md`).
+Entregue e fora do backlog: **a leva RTC de 0.54.0/0.55.0** (`createPeerMesh` #231, leitura normalizada de `getStats` #232, `createVoiceChain` #233, VAD + push-to-talk #234), **`registerServiceWorker` avisando de worker já em `waiting`** (#253), **opt-out do colapso do `Pagination` no mobile** (#254), **a trilha "Fundamentos da Web"** (#236), **`useFullscreen`** (#235 — estado lido de `fullscreenchange`, porque `Esc`, F11 e o botão do browser não passam pela sua função; a assinatura vive em `use-fullscreen-element.ts`, compartilhada com o `usePortalHost`), **os quatro datasets de `br/` unidos pelo código IBGE** (#249 — ver a lição abaixo), **a onda de voz/RTC** (`tuneOpus` + `setTunedLocalDescription` #222, `createAudioBus` com ganho >100% e limiter pós-soma #223, `createWebSocket` resiliente #220, `aria-label` no `Slider` #221), **`CodeBlock`** (realce por scanner + tokens `--tempest-code-*`), **`QRCode`** (encoder ISO 18004 próprio, 3,2 KB br), **`Sparkline`** (mini-gráfico inline, sem recharts), **escala contínua de data viz** (`sequentialScale`/`divergingScale`), **`NotificationCenter`** (inbox de push), **`VirtualTable`**, **ícone por slug (`/icons`, issue #37)**, **`tempest fix` convertendo import relativo pra `@/` (issue #56)**, release inicial + pipeline tag-push + provenance, os 4 adapters concretos (Sentry/PostHog/GrowthBook/LaunchDarkly), os hooks e componentes das listas P2 antigas, `<FormField>`, OAuth wrapper, `createMockHandlers`, budget de bundle no CI (`size-limit.yml`), sweep `axe` em jsdom + smoke Playwright do gallery (`e2e.yml`), coverage gateando o CI (pisos 98/97/96/94), política de versionamento de tokens CSS (`docs/styles.md`).
 
 ### P1 — componentes
 
@@ -293,6 +296,7 @@ npm run dev               # http://127.0.0.1:5173
 - **i18n minimalista in-house** — apps que precisarem de plurais avançados / namespaces / async devem usar `i18next` direto. SDK cobre o caso simples e barato (~1.5KB gzip).
 - **Tema dark via `data-tempest-theme="dark"`** — não usar `class="dark"`. Permite escopo parcial (subárvore).
 - **Validações BR** (`validateCPF`/`validateCNPJ`) — algoritmo completo, rejeita todos-iguais.
+- **Inverter um vídeo não é primitiva de SDK** — registrado como fora de escopo dentro do [#278](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/278), com a conta que decide: um frame 1080p em RGBA é 1920×1080×4 ≈ 8,3 MB, então 10 s a 30 fps são ~2,5 GB de decode em memória na rota WebCodecs (~1 GB mantendo `VideoFrame` em NV12). A outra rota — seek + `drawImage` de trás para frente num canvas com `captureStream()` + `MediaRecorder` — paga o seek frágil do #278 uma vez **por frame**, leva mais que o tempo real e re-encoda com perda. Fazer certo é decode e encode intercalados por GOP, cientes de keyframe: editor de vídeo, não função. Reabre só com consumidor real trazendo duração máxima, resolução e tolerância de espera.
 - **Aspas duplas**, tipagem total, JSDoc em inglês nos exports públicos. PT-BR no resto da doc.
 
 ## Lições aprendidas

@@ -170,7 +170,11 @@ Aliases:
     looking in the drawer the finding is not in.
 
     The measured numbers per cell live in `e2e/axe-baseline.json`, and the test
-    fails when one **grows**. It is a ratchet, not an allowlist: the gallery
+    fails when one **grows past the slack** — two nodes, or 2% for the big rules.
+    The slack has the same design as the coverage floors, and the same reason:
+    the gallery renders demos that depend on the clock, so the same build
+    measured twice does not always report the same count. Measured: 87 and then
+    88 `color-contrast` `incomplete` nodes, with nothing changed in between. It is a ratchet, not an allowlist: the gallery
     renders 64 demo sections and carries real accessibility debt, and failing all
     of it would leave the build red forever — which is how a gate gets deleted. A
     drop does not fail; the numbers are there to be lowered.

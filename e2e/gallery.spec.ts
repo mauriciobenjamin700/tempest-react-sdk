@@ -128,13 +128,36 @@ function countByRule(results: AxeViolation[]): RuleCounts {
 }
 
 /**
+ * How much a count may drift above the baseline before it is a regression.
+ *
+ * The same design as the coverage floors in `vitest.config.ts`, and for the same
+ * reason: a gate pressed against the current number turns the next honest change
+ * red for the wrong reason, and a gate that cries wolf gets deleted. The gallery
+ * renders demos that depend on the clock — a calendar showing today, relative
+ * timestamps, charts that animate in — so the same build measured twice does not
+ * always report the same node count. It was measured doing exactly that: 87 and
+ * then 88 `color-contrast` `incomplete` nodes in the light theme, with nothing
+ * changed in between.
+ *
+ * Two nodes of slack, or 2% for the big rules, is wide enough to swallow that
+ * and far too narrow to hide a component regressing.
+ *
+ * @param baseline - The committed count for one rule.
+ * @returns The highest count that still passes.
+ */
+function ceiling(baseline: number): number {
+    return baseline + Math.max(2, Math.ceil(baseline * 0.02));
+}
+
+/**
  * Compare a cell against the committed baseline, allowing only improvement.
  *
  * A ratchet rather than an allowlist. The gallery renders 64 sections of
  * component demos and carries real accessibility debt — the numbers in
  * `axe-baseline.json` are what it measured the day the sweep started seeing all
- * of it, and they are there to be **lowered**. Growth fails; a drop does not,
- * because a red build for fixing something is how a gate gets deleted.
+ * of it, and they are there to be **lowered**. Growth beyond {@link ceiling}
+ * fails; a drop does not, because a red build for fixing something is how a
+ * gate gets deleted.
  *
  * @param label - Which cell, for the failure message.
  * @param counts - What this run measured.
@@ -145,7 +168,9 @@ function regressions(label: string, counts: RuleCounts, baseline: RuleCounts): s
     const found: string[] = [];
     for (const [rule, count] of Object.entries(counts)) {
         const allowed = baseline[rule] ?? 0;
-        if (count > allowed) found.push(`${label} · ${rule}: ${count} nodes, baseline ${allowed}`);
+        if (count > ceiling(allowed)) {
+            found.push(`${label} · ${rule}: ${count} nodes, baseline ${allowed}`);
+        }
     }
     return found;
 }

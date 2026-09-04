@@ -206,6 +206,17 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   contraste `73 → 16` e `71 → 16` nas duas células escuras, e o total de
   violações de 565 → 508 e 712 → 657.
 
+- **O ratchet ganhou folga, porque contagem exata numa página com relógio é
+  instável.** Ele reprovou logo na primeira execução contra o baseline novo com
+  `light-1280 incomplete · color-contrast: 88, baseline 87` — no tema que a
+  correção não tocou, entre duas execuções do **mesmo build**. A gallery
+  renderiza demos que dependem do relógio (calendário mostrando hoje, timestamps
+  relativos, gráficos que animam), então a contagem oscila. A folga é de dois
+  nós, ou 2% nas regras grandes: mesmo desenho dos pisos de cobertura do
+  `vitest.config.ts`, e mesma razão — gate encostado no número corrente reprova
+  a próxima mudança honesta pelo motivo errado, e gate que grita à toa é
+  apagado.
+
 ### Interno
 
 - **O teto do barrel inteiro subiu de 126 para 127 KB**, porque a soma da rodada

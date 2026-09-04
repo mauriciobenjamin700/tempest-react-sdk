@@ -167,7 +167,12 @@ Aliases:
     olhando a gaveta onde o achado não está.
 
     Os números medidos por célula vivem em `e2e/axe-baseline.json`, e o teste
-    falha quando algum **cresce**. É um ratchet, não uma allowlist: a gallery
+    falha quando algum **cresce além da folga** — dois nós, ou 2% para as regras
+    grandes. A folga tem o mesmo desenho dos pisos de cobertura, e a mesma
+    razão: a gallery renderiza demos que dependem do relógio, então o mesmo
+    build medido duas vezes não devolve sempre a mesma contagem. Medido: 87 e
+    depois 88 nós de `color-contrast` em `incomplete`, sem nada mudar entre as
+    duas execuções. É um ratchet, não uma allowlist: a gallery
     renderiza 64 seções de demo e carrega dívida real de acessibilidade, e
     reprovar tudo deixaria o build vermelho para sempre — que é como um gate é
     deletado. Cair não falha; os números estão lá para serem baixados.

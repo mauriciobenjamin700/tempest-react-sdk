@@ -333,6 +333,56 @@ await mesh.setLocalTrack("mic", null); // mutou
 
 Os slots são negociados **antes de qualquer track existir**, então publicar é um `replaceTrack` num transceiver que já existe: nenhuma m-line é acrescentada e nada renegocia. É essa propriedade que faz a mesh sobreviver — com N peers, uma renegociação por toggle são N−1 rodadas simultâneas de offer/answer toda vez que alguém desmuta.
 
+### Medindo a sala: `stats`
+
+A mesh sabe quantos links existem e quando um vai embora, então ela é o lugar certo para amostrar. `stats` liga um único timer que ela mesma gerencia:
+
+```ts
+const mesh = createPeerMesh({
+  slots,
+  send: (message) => socket.send(message),
+  stats: {
+    intervalMs: 2000,
+    onStats: (peerId, stats) => atualizarBadge(peerId, stats),
+  },
+});
+```
+
+O mesmo valor cai em `MeshPeer.stats`, então quem já lê a lista de peers não escreve callback nenhum:
+
+```tsx
+{mesh.peers.map((peer) => (
+  <li key={peer.peerId}>
+    {peer.peerId} — {peer.stats?.kbps ?? "—"} kbps · {peer.stats?.rttMs ?? "—"} ms
+    {peer.stats?.relayed ? " · via TURN" : ""}
+  </li>
+))}
+```
+
+!!! warning "Um sampler por conexão — é a regra que a versão à mão erra"
+    A taxa é um **delta**, então o sampler guarda a leitura anterior. Compartilhar um entre peers subtrai o contador de uma conexão do de outra e reporta bobagem. A mesh mantém um sampler por link e o descarta junto com o link, que é a parte que um laço escrito à mão esquece quando alguém sai da sala.
+
+!!! note "Só links `connected` são amostrados"
+    Link ainda juntando candidatos não tem tráfego para medir, e perguntar de todo jeito gasta um `getStats()` para descobrir isso — por link, a cada tick. Sala vazia não tem timer nenhum, que é onde a chamada fica enquanto a primeira pessoa está adiantada.
+
+!!! tip "Medir faz o `onPeers` disparar no intervalo"
+    É o que se quer para um badge, e vale saber para qualquer coisa que faça trabalho de verdade nesse handler.
+
+### A conexão que a mesh não modela: `getConnection`
+
+`MeshPeer.connection` é o **estado**, que é o que uma view precisa. `getConnection(peerId)` é o **objeto**, que é o que uma medição precisa:
+
+```ts
+const pc = mesh.getConnection("peer-1");
+if (pc) {
+  const canal = pc.createDataChannel("chat");
+}
+```
+
+É a escotilha de escape para tudo que a mesh não modela — `getSenders()`, um `RTCDataChannel`, um ajuste de encoding para o qual o shape de `quality` não tem campo. Uma mesh que guardasse a conexão para si transformaria adotar a mesh em perder uma feature.
+
+Para o caso comum, que é medir, prefira `stats` acima: ele já resolve a regra do sampler por conexão.
+
 ### O Opus continua seu: `setLocalDescription`
 
 A mesh é quem cria toda oferta e toda resposta, então sem um ponto de entrada aqui não sobraria lugar para o `setTunedLocalDescription` — e uma chamada que adotasse a mesh **perderia em silêncio** o bitrate e o layout de canais que já tinha negociado. Por isso a aplicação da descrição local é um parâmetro:

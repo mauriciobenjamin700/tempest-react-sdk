@@ -26,5 +26,6 @@ export type {
     MeshSlot,
     MeshSlotKind,
     MeshState,
+    MeshStatsOptions,
     PeerMeshOptions,
 } from "./mesh-types";

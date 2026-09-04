@@ -16,7 +16,14 @@ import {
     slotOf,
     type PeerLink,
 } from "./peer-link";
-import type { MeshMessage, MeshPeer, MeshQuality, PeerMeshOptions } from "./mesh-types";
+import { createLinkStatsSampler, type LinkStatsSampler } from "./link-stats";
+import type {
+    MeshMessage,
+    MeshPeer,
+    MeshQuality,
+    MeshStatsOptions,
+    PeerMeshOptions,
+} from "./mesh-types";
 
 /** A running mesh. */
 export interface PeerMesh {
@@ -54,6 +61,24 @@ export interface PeerMesh {
     stop: () => void;
     /** The peers as the mesh currently sees them. */
     readonly peers: MeshPeer[];
+    /**
+     * The connection carrying one peer's link, or `null`.
+     *
+     * The escape hatch for everything this mesh does not model. `getStats()`,
+     * `getSenders()`, an `RTCDataChannel`, an encoding tweak the `quality`
+     * shape has no field for — all of it lives on the connection, and a mesh
+     * that keeps it private turns adopting the mesh into losing a feature.
+     *
+     * {@link MeshPeer.connection} is the *state*, which is what a view needs;
+     * this is the object, which is what a measurement needs. For the common
+     * case of measuring, {@link PeerMeshOptions.stats} spares you the loop —
+     * including the one-sampler-per-connection rule that a hand-rolled version
+     * gets wrong.
+     *
+     * @param peerId - The id the peer was added under.
+     * @returns The connection, or `null` when there is no link for that id.
+     */
+    getConnection: (peerId: string) => RTCPeerConnection | null;
 }
 
 /**
@@ -93,12 +118,78 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
             connection.setLocalDescription(description));
     let quality: MeshQuality = options.quality ?? {};
     let stopped = false;
+    const samplers = new Map<string, LinkStatsSampler>();
+    let statsTimer: ReturnType<typeof setInterval> | null = null;
 
     const emptyStreams = (): Record<string, MediaStream | null> =>
         Object.fromEntries(slots.map((slot) => [slot.name, null]));
 
     const emitPeers = (): void => {
         options.onPeers?.([...peers.values()].map((peer) => ({ ...peer })));
+    };
+
+    /**
+     * Sample every connected link once.
+     *
+     * Only `connected` links are asked. A link still gathering candidates has
+     * no traffic to measure, and asking anyway spends a `getStats()` round trip
+     * to learn that — per link, on every tick.
+     *
+     * `settings` arrives as an argument rather than being read from `options`
+     * here: the timer is only ever armed past the check that they exist, so
+     * reading them again would add a branch that nothing can reach.
+     *
+     * @param settings - The measuring options, already known to be present.
+     */
+    const sampleLinks = async (settings: MeshStatsOptions): Promise<void> => {
+        if (stopped) return;
+        let changed = false;
+
+        for (const link of [...links.values()]) {
+            if (link.pc.connectionState !== "connected") continue;
+            let sampler = samplers.get(link.peerId);
+            if (sampler === undefined) {
+                sampler = createLinkStatsSampler(
+                    settings.kind === undefined ? {} : { kind: settings.kind },
+                );
+                samplers.set(link.peerId, sampler);
+            }
+            const stats = await sampler.sample(link.pc);
+            const peer = peers.get(link.peerId);
+            /*
+             * Belt and braces, and the belt is the state check above: a peer
+             * removed from inside `onStats` has its connection closed first, so
+             * the next iteration skips it there rather than here. This catches
+             * the entry disappearing any other way across the await.
+             */
+            if (peer === undefined) continue;
+            peer.stats = stats;
+            changed = true;
+            settings.onStats?.(link.peerId, stats);
+        }
+
+        if (changed) emitPeers();
+    };
+
+    /**
+     * Keep the timer alive exactly while there is something to measure.
+     *
+     * One timer for the whole mesh, not one per peer — and none at all in an
+     * empty room, which is where a call sits for as long as the first person is
+     * early.
+     */
+    const syncStatsTimer = (): void => {
+        const settings = options.stats;
+        if (settings === undefined) return;
+        const wanted = !stopped && links.size > 0;
+        if (wanted && statsTimer === null) {
+            statsTimer = setInterval(() => void sampleLinks(settings), settings.intervalMs ?? 2000);
+            return;
+        }
+        if (!wanted && statsTimer !== null) {
+            clearInterval(statsTimer);
+            statsTimer = null;
+        }
     };
 
     /**
@@ -185,7 +276,9 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
             links.delete(peerId);
         }
         peers.delete(peerId);
+        samplers.delete(peerId);
         void applyQuality(quality);
+        syncStatsTimer();
         emitPeers();
         refreshState();
     };
@@ -244,6 +337,7 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
             if (link.isOfferer) void makeOffer(link);
         };
 
+        syncStatsTimer();
         emitPeers();
         refreshState();
         if (offerer) await makeOffer(link);
@@ -319,7 +413,9 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
         for (const link of links.values()) link.pc.close();
         links.clear();
         peers.clear();
+        samplers.clear();
         stopped = true;
+        syncStatsTimer();
         emitPeers();
         options.onState?.("closed");
     };
@@ -336,6 +432,7 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
             iceServers = servers;
         },
         stop,
+        getConnection: (peerId: string): RTCPeerConnection | null => links.get(peerId)?.pc ?? null,
         get peers(): MeshPeer[] {
             return [...peers.values()].map((peer) => ({ ...peer }));
         },

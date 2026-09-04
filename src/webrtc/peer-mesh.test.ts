@@ -847,3 +847,205 @@ describe("createPeerMesh — the slot a track is set on", () => {
         expect(accepted?.sdpMLineIndex).toBeUndefined();
     });
 });
+
+describe("createPeerMesh — the connection the mesh does not model", () => {
+    let restore: () => void;
+    beforeEach(() => {
+        restore = installPeerConnection();
+    });
+    afterEach(() => restore());
+
+    it("hands out the connection carrying a peer's link", async () => {
+        const { mesh } = meshWith();
+        await mesh.addPeer("p1", { offerer: true });
+
+        expect(mesh.getConnection("p1")).toBe(connection(0));
+    });
+
+    it("has none for a peer it never opened, and none after it closes one", async () => {
+        const { mesh } = meshWith();
+        expect(mesh.getConnection("ghost")).toBeNull();
+
+        await mesh.addPeer("p1", { offerer: true });
+        mesh.removePeer("p1");
+
+        expect(mesh.getConnection("p1")).toBeNull();
+    });
+
+    it("keeps the state and the object as separate answers", async () => {
+        const { mesh } = meshWith();
+        await mesh.addPeer("p1", { offerer: true });
+        connection().setConnectionState("connected");
+
+        expect(mesh.peers[0].connection, "the view wants the state").toBe("connected");
+        expect(mesh.getConnection("p1"), "the measurement wants the object").toBe(connection(0));
+    });
+});
+
+describe("createPeerMesh — measuring its own links", () => {
+    let restore: () => void;
+    beforeEach(() => {
+        restore = installPeerConnection();
+        vi.useFakeTimers();
+    });
+    afterEach(() => {
+        vi.useRealTimers();
+        restore();
+    });
+
+    /** A `getStats()` a fake connection can answer, with a rising byte counter. */
+    function withStats(pc: FakePeerConnection, bytes: number): void {
+        (pc as unknown as { getStats: () => Promise<RTCStatsReport> }).getStats = async () => {
+            const map = new Map<string, unknown>();
+            map.set("pair", {
+                id: "pair",
+                type: "candidate-pair",
+                state: "succeeded",
+                currentRoundTripTime: 0.02,
+                availableOutgoingBitrate: 3_000_000,
+            });
+            map.set("t", { id: "t", type: "transport", selectedCandidatePairId: "pair" });
+            map.set("out", { id: "out", type: "outbound-rtp", kind: "video", bytesSent: bytes });
+            return map as unknown as RTCStatsReport;
+        };
+    }
+
+    it("samples only what is connected, and reports it on the peer", async () => {
+        const onStats = vi.fn();
+        const { mesh } = meshWith({ stats: { intervalMs: 1000, onStats } });
+        await mesh.addPeer("p1", { offerer: true });
+        withStats(connection(0), 0);
+
+        await vi.advanceTimersByTimeAsync(1000);
+        expect(
+            onStats,
+            "a link still gathering candidates has nothing to measure",
+        ).not.toHaveBeenCalled();
+
+        connection(0).setConnectionState("connected");
+        await vi.advanceTimersByTimeAsync(1000);
+
+        expect(onStats).toHaveBeenCalledTimes(1);
+        expect(onStats.mock.calls[0]?.[0]).toBe("p1");
+        expect(mesh.peers[0].stats).toMatchObject({ rttMs: 20, availableKbps: 3000, kbps: 0 });
+    });
+
+    /**
+     * The rule a hand-rolled loop gets wrong. The rate is a delta, so one
+     * sampler per connection: sharing one subtracts a peer's counter from
+     * another's and reports nonsense. Here p2 sends nothing at all — if it were
+     * reading p1's baseline it would report a negative delta or p1's rate.
+     */
+    it("keeps one sampler per connection", async () => {
+        const { mesh } = meshWith({ stats: { intervalMs: 1000 } });
+        await mesh.addPeer("p1", { offerer: true });
+        await mesh.addPeer("p2", { offerer: true });
+        withStats(connection(0), 0);
+        withStats(connection(1), 0);
+        connection(0).setConnectionState("connected");
+        connection(1).setConnectionState("connected");
+
+        await vi.advanceTimersByTimeAsync(1000);
+        withStats(connection(0), 250_000);
+        await vi.advanceTimersByTimeAsync(1000);
+
+        const byId = new Map(mesh.peers.map((peer) => [peer.peerId, peer.stats]));
+        expect(byId.get("p1")?.kbps).toBeGreaterThan(0);
+        expect(byId.get("p2")?.kbps).toBe(0);
+    });
+
+    it("runs no timer in an empty room, and stops when the last peer leaves", async () => {
+        const onStats = vi.fn();
+        const { mesh } = meshWith({ stats: { intervalMs: 1000, onStats } });
+
+        await vi.advanceTimersByTimeAsync(3000);
+        expect(vi.getTimerCount(), "nobody has joined yet").toBe(0);
+
+        await mesh.addPeer("p1", { offerer: true });
+        expect(vi.getTimerCount()).toBeGreaterThan(0);
+
+        mesh.removePeer("p1");
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it("stops measuring when the mesh stops", async () => {
+        const onStats = vi.fn();
+        const { mesh } = meshWith({ stats: { intervalMs: 1000, onStats } });
+        await mesh.addPeer("p1", { offerer: true });
+        withStats(connection(0), 0);
+        connection(0).setConnectionState("connected");
+
+        mesh.stop();
+        await vi.advanceTimersByTimeAsync(5000);
+
+        expect(onStats).not.toHaveBeenCalled();
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it("measures nothing at all when the caller did not ask", async () => {
+        const { mesh } = meshWith();
+        await mesh.addPeer("p1", { offerer: true });
+        withStats(connection(0), 0);
+        connection(0).setConnectionState("connected");
+
+        await vi.advanceTimersByTimeAsync(5000);
+
+        expect(vi.getTimerCount()).toBe(0);
+        expect(mesh.peers[0].stats).toBeUndefined();
+    });
+
+    it("announces the peers again so a badge reading the list updates", async () => {
+        const onPeers = vi.fn();
+        const { mesh } = meshWith({ stats: { intervalMs: 1000 }, onPeers });
+        await mesh.addPeer("p1", { offerer: true });
+        withStats(connection(0), 0);
+        connection(0).setConnectionState("connected");
+        onPeers.mockClear();
+
+        await vi.advanceTimersByTimeAsync(1000);
+
+        expect(onPeers).toHaveBeenCalledTimes(1);
+        expect(onPeers.mock.calls[0]?.[0][0].stats).toBeDefined();
+    });
+
+    /**
+     * A consumer acting on a sample is allowed to close a peer, and the loop is
+     * still walking the link list when it does — an app that drops a link when
+     * its headroom collapses gets here on the first bad tick.
+     */
+    it("survives a peer being closed from inside the stats callback", async () => {
+        let mesh: ReturnType<typeof meshWith>["mesh"] | null = null;
+        const built = meshWith({
+            stats: {
+                intervalMs: 1000,
+                onStats: (peerId) => {
+                    if (peerId === "p1") mesh?.removePeer("p2");
+                },
+            },
+        });
+        mesh = built.mesh;
+        await built.mesh.addPeer("p1", { offerer: true });
+        await built.mesh.addPeer("p2", { offerer: true });
+        withStats(connection(0), 0);
+        withStats(connection(1), 0);
+        connection(0).setConnectionState("connected");
+        connection(1).setConnectionState("connected");
+
+        await vi.advanceTimersByTimeAsync(1000);
+
+        expect(built.mesh.peers.map((peer) => peer.peerId)).toEqual(["p1"]);
+        expect(built.mesh.peers[0].stats).toBeDefined();
+    });
+
+    it("counts what the caller asked it to count", async () => {
+        const { mesh } = meshWith({ stats: { intervalMs: 1000, kind: "audio" } });
+        await mesh.addPeer("p1", { offerer: true });
+        withStats(connection(0), 500_000);
+        connection(0).setConnectionState("connected");
+
+        await vi.advanceTimersByTimeAsync(1000);
+        await vi.advanceTimersByTimeAsync(1000);
+
+        expect(mesh.peers[0].stats?.kbps, "the report carries video only").toBe(0);
+    });
+});

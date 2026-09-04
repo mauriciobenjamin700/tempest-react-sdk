@@ -6,6 +6,41 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **A mesh mede a si mesma, e entrega a conexão para o resto**
+  ([#275](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/275)). Duas coisas, porque o issue pediu as duas e uma delas
+  desbloqueia hoje enquanto a outra é a ergonômica.
+
+  `PeerMesh.getConnection(peerId)` devolve a `RTCPeerConnection` do link, ou
+  `null`. É a escotilha para tudo que a mesh não modela — `getStats()`,
+  `getSenders()`, um `RTCDataChannel`, um ajuste de encoding sem campo no shape
+  de `quality`. Enquanto ela ficava privada, **adotar a mesh custava uma
+  feature**: o consumidor que abriu o issue tinha o badge de `1,2 Mbps · 42 ms`
+  e ficou na mesh própria para não perdê-lo. `MeshPeer.connection` continua
+  sendo o _estado_, que é o que uma view quer; isto é o _objeto_, que é o que
+  uma medição quer.
+
+  E a opção `stats: { intervalMs, kind, onStats }` faz a mesh amostrar
+  sozinha, com `MeshPeer.stats` caindo de graça. A razão de pertencer aqui é
+  que a regra difícil é de propriedade, não de cálculo: **um sampler por
+  conexão**, porque a taxa é um delta e um sampler compartilhado subtrai o
+  contador de uma conexão do de outra. A mesh é o único lugar que sabe quantos
+  links existem e quando um vai embora — e é a segunda metade que um laço
+  escrito à mão esquece. Um timer para a sala inteira, nenhum timer em sala
+  vazia, e só links `connected` são amostrados: link juntando candidatos não
+  tem tráfego para medir, e perguntar gasta um `getStats()` para descobrir
+  isso, por link, a cada tick.
+
+  **Custo medido, e o que eu não fiz.** A fatia `{ createPeerMesh }` vai de
+  1,98 para **3,12 KB** brotli — o teto sobe de 2,3 para 3,3 KB —, porque a mesh
+  passa a referenciar o `createLinkStatsSampler` estaticamente. Ou seja: quem
+  não passa `stats` paga ~1 KB por uma feature que não usa. Considerei
+  `await import()` dentro do tick para tirar o sampler do grafo estático, e
+  rejeitei: introduz um modo de falha em que a importação rejeita e a
+  amostragem para em silêncio, dentro de um callback de timer, para economizar
+  1 KB de quem importa uma mesh WebRTC e quase certamente vai querer o badge.
+  Se algum consumidor real medir esse KB como problema, o caminho é o inverso —
+  receber o sampler por parâmetro.
+
 - **`LinkStats` deixa de ser badge e passa a ser sinal de controle**
   ([#280](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/280)). Três campos novos, os três do mesmo relatório que o
   sampler já tinha na mão: `availableKbps` (banda de subida estimada, em kbps),

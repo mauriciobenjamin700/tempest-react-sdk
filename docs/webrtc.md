@@ -139,6 +139,62 @@ setInterval(async () => {
 
 Já tem o relatório em mãos? `sampler.read(report)` faz a redução sem buscar de novo — útil quando o mesmo `getStats()` alimenta mais de uma coisa.
 
+### De badge a sinal de controle
+
+Os três campos acima descrevem **o que foi enviado**. Para *decidir* qualidade em vez de só mostrá-la, faltam dois que descrevem **o que o caminho aguenta** — e são a única classe de informação que responde antes de a imagem quebrar:
+
+| Campo | O que responde |
+| --- | --- |
+| `availableKbps` | banda de subida que o transporte estima, em kbps, ou `null` |
+| `limitedBy` | o que o encoder diz estar segurando a imagem, ou `null` |
+| `relayed` | se o link está passando por um TURN |
+
+```ts
+const stats = useLinkStats(pc);
+
+if (stats?.limitedBy === "bandwidth" && stats.availableKbps !== null) {
+  aplicarTeto(Math.round(stats.availableKbps * 0.8));
+}
+```
+
+!!! danger "`kbps` não distingue cap honrado de cap se afogando"
+    Chamada de duas pessoas com upload doméstico de ~1 Mb/s recebendo o teto cheio de 2500 kbps de tela: `kbps` reporta **2500** — o cap sendo obedecido enquanto a fila atrás dele cresce, e a imagem congela. Nada em `kbps`, `width`, `height` ou `fps` separa "saudável a 2,5 Mb/s" de "capado a 2,5 Mb/s e afogando". `availableKbps` separa.
+
+!!! warning "`null` não é `0`, e tratar como zero derruba toda chamada"
+    `availableKbps` vem `null` enquanto não houver estimativa — o que é a maior parte dos primeiros segundos de **toda** chamada, e permanente em engine que não publica uma. `0` é indistinguível de "o caminho morreu". Um consumidor que leia ausência como zero baixa a qualidade no começo de cada chamada.
+
+!!! note "Reagir a banda numa máquina limitada por CPU compra imagem pior e nenhum alívio"
+    `limitedBy` é o veredito do encoder, e é o que separa `"bandwidth"` de `"cpu"`. Quando senders discordam, `"bandwidth"` ganha, porque é o único motivo que um teto menor responde. O `"none"` da spec volta como `null`: nenhum consumidor deveria precisar saber que uma das strings verdadeiras significa "nada".
+
+`relayed` é a conta do VPS numa mesh self-hosted: o stream relayed sobe e desce pela máquina de quem hospeda, e quem escolheu 4K não é quem paga. É resolvido **só** do par que o browser nomeia, nunca de um par meramente `succeeded` — adivinhar a rota por um par que não carrega nada reportaria um custo que ninguém está pagando.
+
+Os três também saem avulsos, no mesmo formato do `readRoundTripMs`:
+
+```ts
+import { readAvailableOutgoingKbps, readQualityLimitation, readRelayed } from "tempest-react-sdk";
+
+const report = await pc.getStats();
+const headroom = readAvailableOutgoingKbps(report);
+const limite = readQualityLimitation(report);
+const viaTurn = readRelayed(report);
+```
+
+!!! tip "Uma caminhada, não quatro"
+    Se você vai ler mais de um, use o sampler: `sampler.read(report)` percorre o relatório **uma vez** e resolve o par selecionado **uma vez**. Chamar os quatro leitores avulsos no mesmo relatório o percorre quatro vezes, por link, a cada tick — numa mesh de oito a 2 s isso é o trabalho recorrente mais caro da chamada, no aparelho menos capaz de pagá-lo.
+
+### A cadeia do par selecionado
+
+`readRoundTripMs`, `availableKbps` e `relayed` dependem todos da mesma pergunta: **qual par está carregando o link?** A resposta tem três degraus, nesta ordem:
+
+1. `transport.selectedCandidatePairId` — o que a spec define;
+2. o `candidate-pair` marcado com `selected: true` — fora da spec, e existe porque engine que não preenche nenhum dos dois não parece existir, enquanto engine que preenche só a flag existe;
+3. o primeiro par `succeeded` — um palpite.
+
+O degrau 3 é aceito para RTT e para banda, porque perder a leitura é pior que uma leitura ocasionalmente otimista. **Não** é aceito para `relayed`, pelo motivo acima.
+
+!!! info "O degrau 2 não foi medido em Firefox"
+    A conclusão de que o Firefox marca o par escolhido com `selected: true` em vez de preencher `transport.selectedCandidatePairId` vem de leitura de código de terceiros, **não de medição nossa**. A cadeia está certa por spec de qualquer forma — o degrau 1 continua sendo o primeiro —, mas se você depende desse comportamento específico, meça no seu alvo antes de tratar como fato.
+
 ### Os dois erros que isto evita
 
 **1. RTT lido do par errado.** Uma conexão mantém vários pares de candidatos vivos ao mesmo tempo — host, server-reflexive, relayed — e só **um** carrega tráfego. Pegar o primeiro `candidate-pair` com `state: "succeeded"` faz o número saltar entre caminhos que não estão sendo percorridos: 8 ms do par host ocioso alternando com 180 ms do TURN que está trabalhando.

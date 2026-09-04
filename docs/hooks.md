@@ -717,7 +717,7 @@ export function BarraDeVoz({ track }: { track: MediaStreamTrack }) {
 
 - **`blur` solta**, e isso não é caso de borda: alt-tab com a tecla segurada significa que o browser **nunca** vê o `keyup`, e o microfone fica aberto enquanto a pessoa olha outra janela — exatamente o que push-to-talk existe para evitar. Desmontar solta pelo mesmo motivo.
 - **Auto-repeat é ignorado** (`event.repeat`), senão a tecla segurada dispara `onDown` na taxa de repetição do teclado.
-- **Campo de texto ganha.** Com o foco num `<input>`, `<textarea>`, `<select>` ou `contenteditable`, a tecla passa direto: sem isso, espaço como PTT significa não conseguir escrever espaço no chat, porque o handler deu `preventDefault`.
+- **Campo de texto ganha — na descida.** Com o foco num `<input>`, `<textarea>`, `<select>` ou `contenteditable`, a tecla passa direto: sem isso, espaço como PTT significa não conseguir escrever espaço no chat, porque o handler deu `preventDefault`. Na **subida** o guard é outro: solta se estava segurando, e só então engole a tecla. O `keyup` vai para o que está focado **quando a tecla sobe**, não para o que estava focado quando ela desceu — então segurar espaço na página e clicar num `<input>` antes de soltar entrega o `keyup` no campo, e um guard de campo ali engoliria a liberação e deixaria o microfone aberto.
 
 `PUSH_TO_TALK_KEYS` é a lista para um seletor de configuração, `DEFAULT_PUSH_TO_TALK_KEY` (`"Space"`) o valor com que semear a preferência antes de a pessoa escolher, e `pushToTalkKeyLabel(code)` o rótulo — `KeyboardEvent.code` cru não se mostra a usuário.
 

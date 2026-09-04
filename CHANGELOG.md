@@ -98,6 +98,26 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   ramos que nenhum teste alcança depois do primeiro, e um leitor que devolve
   `null` para um primitivo esconde o caso em vez de pular.
 
+### Corrigido
+
+- **`usePushToTalk` deixava o microfone aberto quando o `keyup` caía num campo**
+  ([#283](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/283)). O guard de campo rodava nos dois handlers, e na subida
+  ele fazia o oposto do seu trabalho: `keyup` é entregue ao que está focado
+  **quando a tecla sobe**, não ao que estava focado quando ela desceu. Segurar
+  Espaço sobre a página, clicar num `<input>` ainda segurando e soltar entregava
+  a liberação dentro do guard — `held` seguia `true`, `onUp` nunca disparava, e
+  o microfone só fechava no `blur` da janela. Que é justamente o intervalo em
+  que a pessoa acha que está com ele fechado.
+
+  Na subida o guard certo é `held`: se não abrimos o microfone não há o que
+  fechar, e o `release()` já sai sozinho nesse caso. O `preventDefault` passou a
+  valer só para tecla em que de fato agimos — antes ele engolia um `keyup` que
+  era do campo.
+
+  Achado ao cobrir o ramo para o [#282](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/282), e é a segunda vez nesta
+  leva que ramo descoberto não era código morto: era caminho que ninguém tinha
+  percorrido, e estava errado.
+
 ## [0.56.0] — 2026-09-04
 
 ### Adicionado

@@ -154,6 +154,35 @@ Aliases:
     aparecer no produto de alguém. O `axe` do jsdom **não** pega isso: ele desliga
     `color-contrast` porque não há paint.
 
+!!! check "E um sweep no browser segura o resto"
+    O teste acima mede os pares que o SDK **declara**. O que ele não pode ver é o
+    que a página compõe: texto sobre superfície tingida, sobre overlay, sobre
+    imagem. Para isso o `e2e/gallery.spec.ts` roda o `axe` em Chromium real numa
+    matriz de **quatro células** — claro e escuro, a 1280px e a 390px — e lê as
+    **duas** listas que o axe devolve.
+
+    Ler `incomplete` é o ponto. O `color-contrast` cai lá, e não em `violations`,
+    sempre que o axe não consegue resolver o que está atrás do texto — que é
+    exatamente o caso da superfície tingida. Um sweep que lê só `violations` está
+    olhando a gaveta onde o achado não está.
+
+    Os números medidos por célula vivem em `e2e/axe-baseline.json`, e o teste
+    falha quando algum **cresce**. É um ratchet, não uma allowlist: a gallery
+    renderiza 64 seções de demo e carrega dívida real de acessibilidade, e
+    reprovar tudo deixaria o build vermelho para sempre — que é como um gate é
+    deletado. Cair não falha; os números estão lá para serem baixados.
+
+!!! warning "Medir contraste sem desligar `transition` dá falso positivo"
+    Trocar `data-tempest-theme` inicia a transição de `color` de todo componente
+    que declara uma, então ler `getComputedStyle` um ou dois frames depois
+    amostra a **animação**: o foreground do tema que sai contra o fundo do que
+    entra. Medindo o `VideoPlayer` isso deu 7,32 e depois **2,33** entre
+    execuções — e 2,33 parece exatamente um defeito real.
+
+    Injete `*{transition:none!important}` antes de medir, e confira que
+    claro → escuro → claro devolve o mesmo número. Se não devolver, a medição
+    está errada, não o CSS.
+
 !!! warning "Texto sobre `primary-soft` usa `primary-on-soft`, não `primary`"
     `--tempest-primary` sobre `--tempest-primary-soft` dá **4,38:1** no tema claro e
     **4,28:1** no escuro — o

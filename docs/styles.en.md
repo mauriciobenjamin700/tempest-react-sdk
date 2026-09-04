@@ -157,6 +157,35 @@ Aliases:
     up in someone's product. jsdom's `axe` does **not** catch this: it disables
     `color-contrast` because there is no paint.
 
+!!! check "And a browser sweep covers the rest"
+    The test above measures the pairs the SDK **declares**. What it cannot see is
+    what a page composes: text over a tinted surface, over an overlay, over an
+    image. For that, `e2e/gallery.spec.ts` runs `axe` in real Chromium across a
+    **four-cell** matrix — light and dark, at 1280px and 390px — and reads
+    **both** lists axe returns.
+
+    Reading `incomplete` is the point. `color-contrast` lands there, not in
+    `violations`, whenever axe cannot resolve what is behind the text — which is
+    exactly the tinted-surface case. A sweep that reads only `violations` is
+    looking in the drawer the finding is not in.
+
+    The measured numbers per cell live in `e2e/axe-baseline.json`, and the test
+    fails when one **grows**. It is a ratchet, not an allowlist: the gallery
+    renders 64 demo sections and carries real accessibility debt, and failing all
+    of it would leave the build red forever — which is how a gate gets deleted. A
+    drop does not fail; the numbers are there to be lowered.
+
+!!! warning "Measuring contrast without disabling `transition` gives a false positive"
+    Flipping `data-tempest-theme` starts the `color` transition on every component
+    that declares one, so reading `getComputedStyle` a frame or two later samples
+    the **animation**: the outgoing theme's foreground against the incoming
+    theme's background. Measuring the `VideoPlayer` that way gave 7.32 and then
+    **2.33** between runs — and 2.33 looks exactly like a real defect.
+
+    Inject `*{transition:none!important}` before measuring, and check that
+    light → dark → light returns the same number. If it does not, the measurement
+    is wrong, not the CSS.
+
 !!! warning "Text on `primary-soft` uses `primary-on-soft`, not `primary`"
     `--tempest-primary` over `--tempest-primary-soft` yields 4.37:1 — WCAG AA
     asks for 4.5:1 on text. That is why `--tempest-primary-on-soft` exists

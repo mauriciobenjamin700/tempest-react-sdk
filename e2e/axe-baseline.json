@@ -1,0 +1,88 @@
+{
+  "dark-1280": {
+    "incomplete": {
+      "aria-prohibited-attr": 27,
+      "aria-valid-attr-value": 4,
+      "color-contrast": 121,
+      "video-caption": 4
+    },
+    "violations": {
+      "aria-allowed-attr": 42,
+      "aria-progressbar-name": 2,
+      "aria-prohibited-attr": 54,
+      "aria-required-children": 6,
+      "aria-required-parent": 200,
+      "color-contrast": 73,
+      "heading-order": 7,
+      "landmark-main-is-top-level": 3,
+      "landmark-no-duplicate-main": 1,
+      "landmark-unique": 3,
+      "listitem": 28,
+      "scrollable-region-focusable": 146
+    }
+  },
+  "dark-390": {
+    "incomplete": {
+      "aria-prohibited-attr": 27,
+      "aria-valid-attr-value": 4,
+      "color-contrast": 131,
+      "video-caption": 4
+    },
+    "violations": {
+      "aria-allowed-attr": 42,
+      "aria-progressbar-name": 2,
+      "aria-prohibited-attr": 54,
+      "aria-required-children": 6,
+      "aria-required-parent": 200,
+      "color-contrast": 71,
+      "heading-order": 7,
+      "landmark-main-is-top-level": 3,
+      "landmark-no-duplicate-main": 1,
+      "landmark-unique": 3,
+      "listitem": 28,
+      "scrollable-region-focusable": 295
+    }
+  },
+  "light-1280": {
+    "incomplete": {
+      "aria-prohibited-attr": 27,
+      "aria-valid-attr-value": 4,
+      "color-contrast": 87,
+      "video-caption": 4
+    },
+    "violations": {
+      "aria-allowed-attr": 42,
+      "aria-progressbar-name": 2,
+      "aria-prohibited-attr": 54,
+      "aria-required-children": 6,
+      "aria-required-parent": 200,
+      "heading-order": 7,
+      "landmark-main-is-top-level": 3,
+      "landmark-no-duplicate-main": 1,
+      "landmark-unique": 3,
+      "listitem": 28,
+      "scrollable-region-focusable": 146
+    }
+  },
+  "light-390": {
+    "incomplete": {
+      "aria-prohibited-attr": 27,
+      "aria-valid-attr-value": 4,
+      "color-contrast": 97,
+      "video-caption": 4
+    },
+    "violations": {
+      "aria-allowed-attr": 42,
+      "aria-progressbar-name": 2,
+      "aria-prohibited-attr": 54,
+      "aria-required-children": 6,
+      "aria-required-parent": 200,
+      "heading-order": 7,
+      "landmark-main-is-top-level": 3,
+      "landmark-no-duplicate-main": 1,
+      "landmark-unique": 3,
+      "listitem": 28,
+      "scrollable-region-focusable": 295
+    }
+  }
+}

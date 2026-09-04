@@ -153,25 +153,46 @@ describe("usePushToTalk", () => {
     });
 
     /**
-     * The field guard runs on the keyup too, so a hold whose keyup lands in a
-     * field is not released by it — clicking into an input without letting go
-     * gets there. `blur` and unmount are what still close the microphone, which
-     * is why both are bound.
+     * The sequence that used to leave the microphone open.
+     *
+     * `keyup` goes to whatever is focused when the key rises, not to what was
+     * focused when it fell — so holding Space over the page and then clicking
+     * into an input before letting go delivers the release into the field. With
+     * the field guard on the way up, that release was swallowed and the hold
+     * survived until the window blurred.
      */
-    it("does not release on a keyup that landed in a field, leaving blur to do it", () => {
+    it("releases a hold whose keyup landed in a field", () => {
         const onUp = vi.fn();
         const { getByLabelText } = mount({ onDown: vi.fn(), onUp });
         const input = getByLabelText("mensagem");
 
         key("keydown");
-        key("keyup", { target: input });
-        expect(onUp).not.toHaveBeenCalled();
-
-        act(() => {
-            window.dispatchEvent(new Event("blur"));
-        });
+        expect(key("keyup", { target: input })).toBe(true);
 
         expect(onUp).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not swallow a keyup in a field when nothing was being held", () => {
+        const onUp = vi.fn();
+        const { getByLabelText } = mount({ onDown: vi.fn(), onUp });
+        const input = getByLabelText("mensagem");
+
+        expect(key("keyup", { target: input })).toBe(false);
+
+        expect(onUp).not.toHaveBeenCalled();
+    });
+
+    it("leaves the space alone when the whole press happened in a field", () => {
+        const onDown = vi.fn();
+        const onUp = vi.fn();
+        const { getByLabelText } = mount({ onDown, onUp });
+        const input = getByLabelText("mensagem");
+
+        expect(key("keydown", { target: input })).toBe(false);
+        expect(key("keyup", { target: input })).toBe(false);
+
+        expect(onDown).not.toHaveBeenCalled();
+        expect(onUp).not.toHaveBeenCalled();
     });
 
     it("swallows the keystroke it acts on, so Space does not scroll the page", () => {

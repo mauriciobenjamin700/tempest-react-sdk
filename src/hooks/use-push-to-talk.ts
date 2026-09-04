@@ -138,9 +138,24 @@ export function usePushToTalk({
             callbacks.current.onDown();
         };
 
+        /**
+         * Release on the way up, and never mind where the keystroke landed.
+         *
+         * The field guard belongs on the way **down** — it is what stops a
+         * push-to-talk bound to Space from opening the microphone every time
+         * somebody writes a message. On the way up it did the opposite of its
+         * job: `keyup` is delivered to whatever is focused when the key rises,
+         * not to what was focused when it fell, so clicking into an input while
+         * still holding sent the release into the guard and left `held` true.
+         * The microphone stayed open until the window blurred.
+         *
+         * `held` is the guard this needs. If we never opened the microphone
+         * there is nothing to close, and `release()` already returns on that —
+         * so the only thing left to decide is `preventDefault`, which is
+         * honest only for a keystroke we actually acted on.
+         */
         const handleKeyUp = (event: KeyboardEvent): void => {
-            if (event.code !== code) return;
-            if (isTypingTarget(event.target)) return;
+            if (event.code !== code || !held) return;
             event.preventDefault();
             release();
         };

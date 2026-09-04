@@ -13,6 +13,7 @@ import { Button } from "./Button";
 import { Card } from "./Card";
 import { AIChat } from "./AIChat";
 import { AudioPlayer } from "./AudioPlayer";
+import { VideoPlayer } from "./VideoPlayer";
 import { Chat } from "./Chat";
 import { Checkbox } from "./Checkbox";
 import { EmptyState } from "./EmptyState";
@@ -340,6 +341,15 @@ const CASES: [name: string, ui: ReactElement][] = [
         <AudioPlayer
             src="/nota.webm"
             durationMs={7000}
+            actions={<button type="button">Baixar</button>}
+        />,
+    ],
+    [
+        "VideoPlayer",
+        <VideoPlayer
+            src="/clipe.webm"
+            durationMs={12_000}
+            tracks={[{ src: "/legendas.vtt", srcLang: "pt-BR", label: "Português", default: true }]}
             actions={<button type="button">Baixar</button>}
         />,
     ],

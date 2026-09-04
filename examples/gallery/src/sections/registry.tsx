@@ -22,6 +22,7 @@ import { AIChatSection } from "./AIChatSection";
 import { PeerMeshSection } from "./PeerMeshSection";
 import { VoiceChainSection } from "./VoiceChainSection";
 import { AudioCaptureSection } from "./AudioCaptureSection";
+import { VideoPlayerSection } from "./VideoPlayerSection";
 import { DeviceCaptureSection } from "./DeviceCaptureSection";
 import { DashboardLayoutSection } from "./DashboardLayoutSection";
 import { FilterBarSection } from "./FilterBarSection";
@@ -318,6 +319,14 @@ export const SECTIONS: SectionEntry[] = [
             "voz voice chain microfone microphone gate noise gate ruido ruido de fundo noise floor calibracao calibration de-esser deesser compressor limiter presenca presence hiss high-pass highpass monitor realimentacao feedback",
         group: "Componentes",
         Component: VoiceChainSection,
+    },
+    {
+        id: "video-player",
+        label: "VideoPlayer",
+        keywords:
+            "video player reproducao playback taxa velocidade playbackrate rate tela cheia fullscreen legenda caption track poster volume mudo mute mediarecorder blob transporte",
+        group: "Componentes",
+        Component: VideoPlayerSection,
     },
     {
         id: "audio-capture",

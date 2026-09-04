@@ -70,6 +70,7 @@ const CATEGORY_GROUP = {
 const GROUP_OVERRIDES = {
     "components/Layout/Layout.module.css": "layout",
     "components/AudioPlayer/AudioPlayer.module.css": "media",
+    "components/VideoPlayer/VideoPlayer.module.css": "media",
     "components/AudioRecorder/AudioRecorder.module.css": "media",
     "components/BarcodeScanner/BarcodeScanner.module.css": "media",
     "components/NotificationCenter/NotificationCenter.module.css": "feedback",

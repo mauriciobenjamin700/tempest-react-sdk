@@ -370,6 +370,15 @@
     ]
   },
   {
+    "name": "slice: VideoPlayer — transport, rate and fullscreen",
+    "path": "dist/tempest-react-sdk.js",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ VideoPlayer }"
+    },
+    "limit": "4.5 KB",
+    "ignore": ["react", "react-dom", "react/jsx-runtime"]
+  },
+  {
     "name": "imaging entry (canvas only, no deps)",
     "path": "dist/imaging.js",
     "limit": "5 KB",

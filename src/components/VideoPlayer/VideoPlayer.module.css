@@ -1,0 +1,244 @@
+/*
+ * The controls are a bar under the frame, not an overlay.
+ *
+ * An overlay has to earn its contrast against arbitrary video pixels, and no
+ * `--tempest-*` token can promise that: every text token here is resolved
+ * against a known surface, and the two contrast defects this repo shipped were
+ * both a text token used over a surface it was never checked against. A bar with
+ * its own surface inherits the theme and is legible by construction. An app that
+ * wants a cinema overlay can position its own chrome over the frame; what ships
+ * is the one that is right in both themes.
+ */
+.player {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-lg);
+    background-color: var(--tempest-surface);
+    color: var(--tempest-text);
+    font-family: var(--tempest-font-sans);
+}
+
+/*
+ * The frame keeps its shape before the video reports one, so the control bar
+ * does not jump down the page when metadata lands. Black rather than a surface
+ * token: letterboxing is part of the picture, and a light bar around a dark
+ * video reads as a rendering bug.
+ */
+.frame {
+    position: relative;
+    width: 100%;
+    background-color: #000000;
+}
+
+.video {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.chrome {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tempest-space-3);
+    padding: var(--tempest-space-2) var(--tempest-space-3);
+    border-top: 1px solid var(--tempest-border);
+    background-color: var(--tempest-surface);
+}
+
+.transport {
+    position: relative;
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    border: none;
+    border-radius: var(--tempest-radius-full);
+    background-color: var(--tempest-primary);
+    color: var(--tempest-primary-foreground);
+    cursor: pointer;
+    transition: var(--tempest-transition-color);
+}
+
+.transport:disabled {
+    background-color: var(--tempest-surface-3);
+    color: var(--tempest-text-subtle);
+    cursor: not-allowed;
+}
+
+.icon {
+    position: relative;
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: none;
+    border-radius: var(--tempest-radius-md);
+    background-color: transparent;
+    color: var(--tempest-text-muted);
+    cursor: pointer;
+    transition: var(--tempest-transition-color);
+}
+
+.icon:hover:not(:disabled) {
+    background-color: var(--tempest-surface-2);
+    color: var(--tempest-text);
+}
+
+.icon:disabled {
+    color: var(--tempest-text-subtle);
+    cursor: not-allowed;
+}
+
+/*
+ * The track is drawn on the input itself rather than with a wrapper and an
+ * overlay: the native element already carries the keyboard behaviour and the
+ * value semantics, and the only thing missing is the look.
+ */
+.seek {
+    flex: 1 1 8rem;
+    min-width: 3rem;
+    height: 1.25rem;
+    margin: 0;
+    background: none;
+    accent-color: var(--tempest-primary);
+    cursor: pointer;
+}
+
+.volume {
+    flex: 0 1 4.5rem;
+    min-width: 2.5rem;
+    height: 1.25rem;
+    margin: 0;
+    background: none;
+    accent-color: var(--tempest-primary);
+    cursor: pointer;
+}
+
+.seek:disabled,
+.volume:disabled {
+    accent-color: var(--tempest-surface-3);
+    cursor: not-allowed;
+}
+
+.rate {
+    flex: 0 0 auto;
+    padding: var(--tempest-space-1) var(--tempest-space-2);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-md);
+    background-color: var(--tempest-surface);
+    color: var(--tempest-text);
+    font-family: inherit;
+    font-size: var(--tempest-text-xs);
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+}
+
+.rate:disabled {
+    color: var(--tempest-text-subtle);
+    cursor: not-allowed;
+}
+
+.transport:focus-visible,
+.icon:focus-visible,
+.seek:focus-visible,
+.volume:focus-visible,
+.rate:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: 2px;
+    border-radius: var(--tempest-radius-sm);
+}
+
+/*
+ * Tabular figures, so the elapsed time does not shift the seek bar sideways as
+ * the digits change — a proportional `1` is narrower than a `0`, and at ten
+ * updates a second the whole row visibly jitters.
+ */
+.time {
+    display: inline-flex;
+    flex: 0 0 auto;
+    gap: var(--tempest-space-1);
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-xs);
+    font-variant-numeric: tabular-nums;
+}
+
+.actions {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: var(--tempest-space-1);
+}
+
+/*
+ * Fullscreen presents the shell, so the frame has to give up its aspect box and
+ * take the height that is left over — otherwise a 16/9 box inside a 16/10
+ * display leaves the bar floating in the middle of the screen.
+ */
+.immersive {
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: 0;
+}
+
+.immersive .frame {
+    flex: 1 1 auto;
+    aspect-ratio: auto !important;
+    min-height: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .transport,
+    .icon {
+        transition: none;
+    }
+}
+
+/* Touch hit-slop — 44×44 without changing the visual footprint, as `Button` does. */
+@media (pointer: coarse) {
+    .transport::after,
+    .icon::after {
+        content: "";
+        position: absolute;
+        inset: -6px;
+    }
+}
+
+/*
+ * On a phone the row cannot hold seven controls. The seek bar takes a line of its
+ * own and the rest wraps under it, which keeps every target at full size instead
+ * of shrinking them all below the touch minimum.
+ */
+@media (max-width: 480px) {
+    .chrome {
+        gap: var(--tempest-space-2);
+        padding: var(--tempest-space-2);
+    }
+
+    .seek {
+        flex: 1 1 100%;
+        order: -1;
+    }
+
+    /*
+     * No volume slider on a phone. Measured at 390px in Chromium: the second row
+     * came to exactly the container width, which pushed the fullscreen button
+     * onto a third row — spent on a slider nobody drags on a phone, where the
+     * hardware keys do that job. The mute button stays, because silencing fast
+     * is the thing people actually want from a video in a feed.
+     */
+    .volume {
+        display: none;
+    }
+}

@@ -4,6 +4,100 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **A mesh mede a si mesma, e entrega a conexão para o resto**
+  ([#275](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/275)). Duas coisas, porque o issue pediu as duas e uma delas
+  desbloqueia hoje enquanto a outra é a ergonômica.
+
+  `PeerMesh.getConnection(peerId)` devolve a `RTCPeerConnection` do link, ou
+  `null`. É a escotilha para tudo que a mesh não modela — `getStats()`,
+  `getSenders()`, um `RTCDataChannel`, um ajuste de encoding sem campo no shape
+  de `quality`. Enquanto ela ficava privada, **adotar a mesh custava uma
+  feature**: o consumidor que abriu o issue tinha o badge de `1,2 Mbps · 42 ms`
+  e ficou na mesh própria para não perdê-lo. `MeshPeer.connection` continua
+  sendo o _estado_, que é o que uma view quer; isto é o _objeto_, que é o que
+  uma medição quer.
+
+  E a opção `stats: { intervalMs, kind, onStats }` faz a mesh amostrar
+  sozinha, com `MeshPeer.stats` caindo de graça. A razão de pertencer aqui é
+  que a regra difícil é de propriedade, não de cálculo: **um sampler por
+  conexão**, porque a taxa é um delta e um sampler compartilhado subtrai o
+  contador de uma conexão do de outra. A mesh é o único lugar que sabe quantos
+  links existem e quando um vai embora — e é a segunda metade que um laço
+  escrito à mão esquece. Um timer para a sala inteira, nenhum timer em sala
+  vazia, e só links `connected` são amostrados: link juntando candidatos não
+  tem tráfego para medir, e perguntar gasta um `getStats()` para descobrir
+  isso, por link, a cada tick.
+
+  **Custo medido, e o que eu não fiz.** A fatia `{ createPeerMesh }` vai de
+  1,98 para **3,12 KB** brotli — o teto sobe de 2,3 para 3,3 KB —, porque a mesh
+  passa a referenciar o `createLinkStatsSampler` estaticamente. Ou seja: quem
+  não passa `stats` paga ~1 KB por uma feature que não usa. Considerei
+  `await import()` dentro do tick para tirar o sampler do grafo estático, e
+  rejeitei: introduz um modo de falha em que a importação rejeita e a
+  amostragem para em silêncio, dentro de um callback de timer, para economizar
+  1 KB de quem importa uma mesh WebRTC e quase certamente vai querer o badge.
+  Se algum consumidor real medir esse KB como problema, o caminho é o inverso —
+  receber o sampler por parâmetro.
+
+- **`LinkStats` deixa de ser badge e passa a ser sinal de controle**
+  ([#280](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/280)). Três campos novos, os três do mesmo relatório que o
+  sampler já tinha na mão: `availableKbps` (banda de subida estimada, em kbps),
+  `limitedBy` (o veredito do encoder) e `relayed` (se o link passa por TURN).
+  Mais os leitores avulsos `readAvailableOutgoingKbps`, `readQualityLimitation`
+  e `readRelayed`, no mesmo formato do `readRoundTripMs`.
+
+  O gatilho foi um bug de produção do consumidor: chamada de duas pessoas com
+  upload doméstico de ~1 Mb/s recebendo o teto cheio de 2500 kbps de tela,
+  mandando e congelando. **`kbps` reporta 2500 nos dois casos** — o cap sendo
+  honrado e o cap se afogando com a fila crescendo atrás dele são
+  indistinguíveis por tudo que o `LinkStats` tinha. `availableKbps` é o campo
+  que os separa, e é a única classe de informação que responde _antes_ de a
+  imagem quebrar.
+
+  `null` e não `0`, e a distinção é o ponto: sem estimativa é o estado normal
+  dos primeiros segundos de **toda** chamada, e permanente em engine que não
+  publica uma, enquanto `0` é indistinguível de caminho morto. Consumidor que
+  leia ausência como zero baixa a qualidade no começo de cada chamada.
+
+  `"bandwidth"` ganha de `"cpu"` quando senders discordam, porque é o único
+  motivo que um teto menor responde — reagir a banda numa máquina limitada por
+  CPU compra imagem pior e nenhum alívio. O `"none"` da spec volta como `null`:
+  ninguém deveria precisar saber que uma das strings verdadeiras significa
+  "nada".
+
+### Alterado
+
+- **Uma caminhada no relatório, não quatro** ([#280](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/280)). O
+  `sampler.read()` percorria o report três vezes (duas dentro do
+  `readRoundTripMs`, uma nos senders) e cada consumidor que quisesse relay ou
+  banda percorria de novo, resolvendo o mesmo par selecionado de novo. Numa
+  mesh de oito a 2 s, era o trabalho recorrente mais caro da chamada, no
+  aparelho menos capaz de pagá-lo. Agora um coletor único reduz o report numa
+  passada e os quatro leitores públicos são projeções dela.
+
+- **A cadeia do par selecionado ganhou o degrau do meio**
+  ([#280](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/280)): `transport.selectedCandidatePairId` → `candidate-pair`
+  marcado com `selected: true` → primeiro par `succeeded`. O degrau 2 está fora
+  da spec e existe porque engine que não preenche nenhum dos dois não parece
+  existir, enquanto engine que preenche só a flag existe — e um leitor que
+  pulasse direto para `succeeded` responderia sobre o caminho errado ali, em
+  silêncio.
+
+  **Não medimos em Firefox.** A atribuição desse comportamento a ele vem de
+  leitura de código de terceiros; a cadeia está certa por spec de qualquer
+  forma, e está escrito assim na doc em vez de afirmado como fato.
+
+  `relayed` **não** aceita o degrau 3, de propósito: rota relayed é a conta de
+  hospedagem de alguém, e reportá-la a partir de um par que não carrega nada
+  cobra um custo que ninguém está pagando.
+
+- **A guarda de "não é objeto" saiu dos três leitores de campo e foi para a
+  porta do laço** que percorre o report. Três cópias do mesmo teste eram três
+  ramos que nenhum teste alcança depois do primeiro, e um leitor que devolve
+  `null` para um primitivo esconde o caso em vez de pular.
+
 ### Corrigido
 
 - **`usePushToTalk` deixava o microfone aberto quando o `keyup` caía num campo**

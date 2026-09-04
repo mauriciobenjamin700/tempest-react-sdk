@@ -434,6 +434,19 @@ Every peer sends **one copy of everything per participant**, so a cap that is co
 - **Audio stays out of the division.** It is an order of magnitude cheaper and it is the part of the call that has to survive.
 - **`minVideoKbps` is the floor.** Dividing without one eventually allocates tens of kbps per stream — everybody loses the picture instead of the excess giving way.
 - **`maintain-framerate` is overridden below `fluidFloorKbps`.** Somebody who asked for fluidity asked for a good picture in motion, not for the number 60: with little bandwidth, holding the rate halves what each frame gets and the result is worse than the 30 fps it replaced.
+- **A slot with no cap is the most generous case, not the absent one.** `null` on a video slot means unbounded, which is exactly where fluidity should hold. An uncapped slot beside a modest camera keeps `maintain-framerate` — reading the `null` as "not reported" and then deciding from the camera is the answer backwards.
+- **`degradationAnchor` names the slot the choice was about.** Without it the **largest** cap across the video slots decides, which is right when the slots are interchangeable and wrong when they are not: somebody who picked fluidity was thinking about the screen — code, a spreadsheet, a video at 60 fps — and on a call with only the camera on, that choice ends up being decided by a stream it was never about.
+
+```ts
+await mesh.applyQuality({
+  video: { cam: 1200, screen: 3000 },
+  degradationPreference: "maintain-framerate",
+  degradationAnchor: "screen",   // the camera does not decide for the screen
+  fluidFloorKbps: 900,
+});
+```
+
+A slot the caps do not mention keeps the preference: nothing has been said about the thing being asked about, and a modest camera beside it is not an answer.
 
 `scaleForRoom(quality, peers)` and `resolveDegradation(asked, effective)` are the two pure functions behind this, exported because the app needs the **same** division before it captures: choosing 4K for a room of four captures four times more pixels than there are bits to send them with, and the result is worse than the smaller size. Derive the capture size from the divided budget, not from what the person picked.
 

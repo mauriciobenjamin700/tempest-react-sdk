@@ -67,6 +67,29 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   ninguém deveria precisar saber que uma das strings verdadeiras significa
   "nada".
 
+- **`MeshQuality.degradationAnchor` — o slot sobre o qual a escolha era**
+  ([#276](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/276)). Sem ele decide o **maior** cap entre os slots de vídeo,
+  o que está certo quando os slots são intercambiáveis e errado quando não são.
+  Quem escolheu fluidez estava pensando na tela — código, planilha, vídeo a
+  60 fps — e numa chamada com só a câmera ligada essa escolha passava a ser
+  decidida por um stream sobre o qual ela nunca foi.
+
+  ```ts
+  await mesh.applyQuality({
+    video: { cam: 1200, screen: 3000 },
+    degradationPreference: "maintain-framerate",
+    degradationAnchor: "screen",
+    fluidFloorKbps: 900,
+  });
+  ```
+
+  Ficou no `MeshQuality` e não como terceiro argumento do `resolveDegradation`
+  de propósito: assim atravessa o `createPeerMesh({ quality })` e o
+  `applyQuality` sem plumbing novo, e a assinatura da função pura não muda.
+
+  Slot que os caps não mencionam mantém a preferência — nada foi dito sobre a
+  coisa em questão, e uma câmera modesta ao lado não é uma resposta.
+
 ### Alterado
 
 - **Uma caminhada no relatório, não quatro** ([#280](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/280)). O
@@ -117,6 +140,17 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   Achado ao cobrir o ramo para o [#282](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/282), e é a segunda vez nesta
   leva que ramo descoberto não era código morto: era caminho que ninguém tinha
   percorrido, e estava errado.
+
+- **`resolveDegradation` lia "sem teto" como "não informado", e a resposta saía
+  ao contrário** ([#276](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/276)). O filtro tirava os `null` **antes** do
+  `Math.max`, então um slot sem cap — que é o caso mais generoso que existe, e
+  exatamente onde a fluidez deve valer — desaparecia da conta e a decisão caía
+  para o cap ao lado. Tela sem teto ao lado de uma câmera modesta virava
+  `maintain-resolution` por causa da câmera.
+
+  Agora `null` num slot de vídeo significa ilimitado: a preferência é mantida.
+  **É mudança de comportamento numa API que já existe** — quem dependia da
+  leitura anterior dependia do defeito.
 
 ## [0.56.0] — 2026-09-04
 

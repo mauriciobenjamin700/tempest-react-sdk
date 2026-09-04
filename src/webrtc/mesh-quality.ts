@@ -56,7 +56,17 @@ export function scaleForRoom(quality: MeshQuality, peers: number): MeshQuality {
  * is worse than the lower rate it replaced — so below that line the preference
  * is overridden rather than obeyed.
  *
- * @param quality - What was asked for.
+ * Two things decide *which* budget answers that question:
+ *
+ * - **`null` is the most generous case, not the absent one.** A slot with no cap
+ *   is unbounded, which is exactly where fluidity should hold. Reading it as
+ *   missing — and then deciding from a modest camera beside it — is the answer
+ *   backwards.
+ * - **{@link MeshQuality.degradationAnchor} names the slot the choice was
+ *   about.** Without it the largest cap across the video slots answers, which
+ *   is right when the slots are interchangeable and wrong when they are not.
+ *
+ * @param quality - What was asked for, including the anchor and the floor.
  * @param effective - What the room's share actually allows.
  * @returns The degradation preference to write onto the senders, or `undefined`
  *     when the caller expressed no preference.
@@ -68,13 +78,23 @@ export function resolveDegradation(
     const asked = quality.degradationPreference;
     if (asked !== "maintain-framerate") return asked;
 
-    const caps = Object.values(effective.video ?? {}).filter((cap): cap is number => cap !== null);
-    if (caps.length === 0) return asked;
+    const video = effective.video ?? {};
+    const floor = quality.fluidFloorKbps ?? DEFAULT_FLUID_FLOOR_KBPS;
+    const anchor = quality.degradationAnchor;
 
-    const budget = Math.max(...caps);
-    return budget >= (quality.fluidFloorKbps ?? DEFAULT_FLUID_FLOOR_KBPS)
-        ? "maintain-framerate"
-        : "maintain-resolution";
+    if (anchor !== undefined) {
+        if (!(anchor in video)) return asked;
+        const cap = video[anchor];
+        if (cap === null) return asked;
+        return cap >= floor ? "maintain-framerate" : "maintain-resolution";
+    }
+
+    const caps = Object.values(video);
+    if (caps.length === 0) return asked;
+    if (caps.some((cap) => cap === null)) return asked;
+
+    const budget = Math.max(...caps.filter((cap): cap is number => cap !== null));
+    return budget >= floor ? "maintain-framerate" : "maintain-resolution";
 }
 
 /**

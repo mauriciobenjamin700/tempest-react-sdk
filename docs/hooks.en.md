@@ -719,7 +719,7 @@ export function VoiceBar({ track }: { track: MediaStreamTrack }) {
 
 - **`blur` releases**, and it is not an edge case: alt-tabbing with the key held means the browser **never** sees the `keyup`, and the microphone stays open for as long as the person is looking at another window — exactly what push-to-talk exists to prevent. Unmounting releases for the same reason.
 - **Auto-repeat is ignored** (`event.repeat`), otherwise a held key fires `onDown` at the keyboard's repeat rate.
-- **A text field wins.** With the focus in an `<input>`, `<textarea>`, `<select>` or a `contenteditable`, the key passes straight through: without that, Space as push-to-talk means never typing a space into the chat, because the handler called `preventDefault`.
+- **A text field wins — on the way down.** With the focus in an `<input>`, `<textarea>`, `<select>` or a `contenteditable`, the key passes straight through: without that, Space as PTT means you cannot type a space in the chat, because the handler called `preventDefault`. On the way **up** the guard is a different one: it releases if a hold was in progress, and only then swallows the key. `keyup` goes to whatever is focused **when the key rises**, not to what was focused when it fell — so holding Space over the page and clicking into an `<input>` before letting go delivers the `keyup` into the field, and a field guard there would swallow the release and leave the microphone open.
 
 `PUSH_TO_TALK_KEYS` is the list for a settings picker, `DEFAULT_PUSH_TO_TALK_KEY` (`"Space"`) the value to seed the preference with before anyone chooses, and `pushToTalkKeyLabel(code)` the label — a raw `KeyboardEvent.code` is not something to show a person.
 

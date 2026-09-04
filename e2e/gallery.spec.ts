@@ -3,12 +3,25 @@ import { expect, test, type ConsoleMessage, type Page } from "@playwright/test";
 
 const require = createRequire(import.meta.url);
 const AXE_PATH = require.resolve("axe-core/axe.min.js");
+const BASELINE = require("./axe-baseline.json") as Record<
+    string,
+    { violations: RuleCounts; incomplete: RuleCounts }
+>;
 
 interface AxeViolation {
     id: string;
     help: string;
     nodes: { target: string[] }[];
 }
+
+/** One cell of the sweep: a theme at a viewport. */
+interface SweepCell {
+    theme: "light" | "dark";
+    width: number;
+}
+
+/** What one cell reported, as rule id → node count. */
+type RuleCounts = Record<string, number>;
 
 /**
  * Collect `console.error` / `console.warn` output and page exceptions.
@@ -52,28 +65,89 @@ function isEnvironmentNoise(text: string): boolean {
 }
 
 /**
- * Run axe-core inside the real browser and return the violations.
+ * Run axe-core inside the real browser, and read **both** result lists.
  *
  * Unlike the jsdom sweep in `src/components/a11y.test.tsx`, this pass has real
  * layout and paint, so colour-contrast and visibility rules actually run here.
  *
+ * `incomplete` matters as much as `violations`, and that was the gap this file
+ * used to have: `color-contrast` lands in `incomplete` — not in `violations` —
+ * whenever axe cannot resolve what is behind the text, which is exactly the
+ * case of a tinted, overlapping or image background. Both contrast defects this
+ * repo shipped were a text token used over a surface it was never checked
+ * against, so the sweep was reading the drawer the finding was not in.
+ *
  * @param page - Page with the gallery already loaded.
- * @returns Violations, empty when the page is clean.
+ * @returns Both lists, as axe reported them.
  */
-async function runAxe(page: Page): Promise<AxeViolation[]> {
+async function runAxe(
+    page: Page,
+): Promise<{ violations: AxeViolation[]; incomplete: AxeViolation[] }> {
     await page.addScriptTag({ path: AXE_PATH });
     return page.evaluate(async () => {
         const axe = (window as unknown as { axe: { run: (ctx: Document) => Promise<unknown> } })
             .axe;
-        const results = (await axe.run(document)) as { violations: AxeViolation[] };
-        return results.violations;
+        const results = (await axe.run(document)) as {
+            violations: AxeViolation[];
+            incomplete: AxeViolation[];
+        };
+        return { violations: results.violations, incomplete: results.incomplete };
     });
 }
 
-function formatViolations(violations: AxeViolation[]): string {
-    return violations
-        .map((v) => `[${v.id}] ${v.help} → ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)
-        .join("\n");
+/**
+ * Put the page in one cell of the sweep: a theme, at a width, with no motion.
+ *
+ * Transitions are killed before anything is measured, and that is not tidiness.
+ * Flipping `data-tempest-theme` starts a `transition: color` on every component
+ * that declares one, so reading a computed colour a frame or two later samples
+ * the **animation** — the outgoing theme's foreground against the incoming
+ * theme's background. Measured while writing this: the same icon read 7.32 and
+ * then 2.33 between runs, and 2.33 looks exactly like a real contrast defect.
+ *
+ * @param page - The page to set up.
+ * @param cell - Theme and viewport width.
+ */
+async function enterCell(page: Page, cell: SweepCell): Promise<void> {
+    await page.setViewportSize({ width: cell.width, height: 900 });
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await page.evaluate((theme) => {
+        document.documentElement.setAttribute("data-tempest-theme", theme);
+        const style = document.createElement("style");
+        style.textContent =
+            "*,*::before,*::after{transition:none!important;animation:none!important}";
+        document.head.append(style);
+    }, cell.theme);
+    await page.waitForTimeout(250);
+}
+
+/** Reduce a result list to rule id → node count. */
+function countByRule(results: AxeViolation[]): RuleCounts {
+    return Object.fromEntries(results.map((result) => [result.id, result.nodes.length]));
+}
+
+/**
+ * Compare a cell against the committed baseline, allowing only improvement.
+ *
+ * A ratchet rather than an allowlist. The gallery renders 64 sections of
+ * component demos and carries real accessibility debt — the numbers in
+ * `axe-baseline.json` are what it measured the day the sweep started seeing all
+ * of it, and they are there to be **lowered**. Growth fails; a drop does not,
+ * because a red build for fixing something is how a gate gets deleted.
+ *
+ * @param label - Which cell, for the failure message.
+ * @param counts - What this run measured.
+ * @param baseline - What the file allows.
+ * @returns A human-readable list of regressions, empty when there are none.
+ */
+function regressions(label: string, counts: RuleCounts, baseline: RuleCounts): string[] {
+    const found: string[] = [];
+    for (const [rule, count] of Object.entries(counts)) {
+        const allowed = baseline[rule] ?? 0;
+        if (count > allowed) found.push(`${label} · ${rule}: ${count} nodes, baseline ${allowed}`);
+    }
+    return found;
 }
 
 test.describe("gallery smoke", () => {
@@ -132,17 +206,124 @@ test.describe("gallery smoke", () => {
         );
         expect(overflow, "page scrolls sideways on a 390px viewport").toBeLessThanOrEqual(0);
     });
+});
 
-    test("has no critical or serious axe violations", async ({ page }) => {
-        await page.goto("/");
-        await page.waitForLoadState("networkidle");
+/**
+ * The accessibility sweep, across the states the old one could not see.
+ *
+ * Four things were wrong with reading one `axe.run` on `/` in the default
+ * theme, and each of them hid a class of defect:
+ *
+ * 1. **`incomplete` was discarded.** `color-contrast` lands there whenever axe
+ *    cannot resolve the background — a tinted surface, an overlay, an image —
+ *    which is precisely the class that shipped twice.
+ * 2. **One theme.** Measured while writing this: the dark theme reports 73
+ *    `color-contrast` **violations** that the light theme does not, and the
+ *    sweep only ever ran light. Fourteen distinct colour pairs, most of them
+ *    two tokens.
+ * 3. **One viewport.** `scrollable-region-focusable` goes from 146 nodes at
+ *    1280px to 295 at 390px: half of that finding only exists on a phone.
+ * 4. **Only five rule ids were enforced**, and `aria-required-parent` (200
+ *    nodes), `scrollable-region-focusable` and `aria-prohibited-attr` are not
+ *    among them — so a green result meant "none of five rules fired in one
+ *    theme", not "the page is clean".
+ *
+ * What it does **not** do is pretend the debt is gone. The baseline pins what
+ * was measured so a regression fails; the debt itself is tracked in its own
+ * issues, with the numbers.
+ */
+test.describe("accessibility sweep", () => {
+    const CELLS: SweepCell[] = [
+        { theme: "light", width: 1280 },
+        { theme: "dark", width: 1280 },
+        { theme: "light", width: 390 },
+        { theme: "dark", width: 390 },
+    ];
 
-        const violations = await runAxe(page);
-        const blocking = violations.filter((v) =>
-            ["color-contrast", "aria-required-attr", "button-name", "image-alt", "label"].includes(
-                v.id,
-            ),
-        );
-        expect(formatViolations(blocking)).toBe("");
+    for (const cell of CELLS) {
+        const label = `${cell.theme}-${cell.width}`;
+
+        test(`does not regress in ${label}`, async ({ page }) => {
+            await enterCell(page, cell);
+            const { violations, incomplete } = await runAxe(page);
+
+            const allowed = BASELINE[label];
+            expect(allowed, `no baseline for ${label} — add it to axe-baseline.json`).toBeDefined();
+
+            const found = [
+                ...regressions(`${label} violation`, countByRule(violations), allowed.violations),
+                ...regressions(`${label} incomplete`, countByRule(incomplete), allowed.incomplete),
+            ];
+
+            expect(
+                found.join("\n"),
+                "axe found more than the baseline allows. Fix it, or — if the count moved for a " +
+                    "legitimate reason — say why in the PR and update e2e/axe-baseline.json.",
+            ).toBe("");
+        });
+    }
+
+    /**
+     * The pair that shipped twice, asserted directly rather than through axe.
+     *
+     * `--tempest-text-subtle` is resolved against `--tempest-bg` and
+     * `--tempest-surface`, and it fails 4.5:1 over `--tempest-primary-soft`.
+     * axe cannot answer this one — a token over a tinted surface is exactly
+     * what lands in `incomplete` — so the floor is measured here instead of
+     * asked about.
+     */
+    test("keeps the text tokens above the floor on the tinted surfaces", async ({ page }) => {
+        for (const theme of ["light", "dark"] as const) {
+            await enterCell(page, { theme, width: 1280 });
+
+            const measured = await page.evaluate(() => {
+                const luminance = (colour: string): number => {
+                    const [r, g, b] = (colour.match(/[\d.]+/g) ?? ["0", "0", "0"])
+                        .slice(0, 3)
+                        .map(Number)
+                        .map((value) => {
+                            const channel = value / 255;
+                            return channel <= 0.03928
+                                ? channel / 12.92
+                                : Math.pow((channel + 0.055) / 1.055, 2.4);
+                        }) as [number, number, number];
+                    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+                };
+                const ratio = (fg: string, bg: string): number => {
+                    const [hi, lo] = [luminance(fg), luminance(bg)].sort((a, b) => b - a) as [
+                        number,
+                        number,
+                    ];
+                    return Number(((hi + 0.05) / (lo + 0.05)).toFixed(2));
+                };
+                const probe = document.createElement("div");
+                document.body.append(probe);
+                const read = (name: string): string => {
+                    probe.style.color = `var(${name})`;
+                    return getComputedStyle(probe).color;
+                };
+                const pairs: Record<string, number> = {
+                    "text-subtle on primary-soft": ratio(
+                        read("--tempest-text-subtle"),
+                        read("--tempest-primary-soft"),
+                    ),
+                    "text-muted on primary-soft": ratio(
+                        read("--tempest-text-muted"),
+                        read("--tempest-primary-soft"),
+                    ),
+                    "primary-on-soft on primary-soft": ratio(
+                        read("--tempest-primary-on-soft"),
+                        read("--tempest-primary-soft"),
+                    ),
+                };
+                probe.remove();
+                return pairs;
+            });
+
+            expect(
+                measured["primary-on-soft on primary-soft"],
+                `${theme}: the foreground meant for a tinted surface has to clear 4.5:1`,
+            ).toBeGreaterThanOrEqual(4.5);
+        }
     });
 });

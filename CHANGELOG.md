@@ -121,6 +121,50 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   ramos que nenhum teste alcança depois do primeiro, e um leitor que devolve
   `null` para um primitivo esconde o caso em vez de pular.
 
+- **O sweep de acessibilidade passou a ver o que não via, e o que ele achou é
+  uma issue** ([#281](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/281)). Quatro coisas estavam erradas em ler um
+  `axe.run` em `/` no tema default, e cada uma escondia uma classe de defeito:
+
+  1. **`incomplete` era descartado.** O `color-contrast` cai lá — não em
+     `violations` — sempre que o axe não consegue resolver o que está atrás do
+     texto: superfície tingida, overlay, imagem. É exatamente a classe que este
+     repo entregou **duas** vezes. O sweep lia a gaveta onde o achado não está.
+  2. **Um tema.** Medido: o escuro reporta **73 violações** de `color-contrast`
+     a 1280px e **71** a 390px; o claro reporta **zero**. O sweep só rodava no
+     claro.
+  3. **Um viewport.** `scrollable-region-focusable` vai de 146 nós a 1280px para
+     **295** a 390px — metade daquele achado só existe no telefone.
+  4. **Só cinco rule ids eram enforçados**, e `aria-required-parent` (200 nós),
+     `scrollable-region-focusable` e `aria-prohibited-attr` não estão entre
+     eles. Verde significava "nenhuma de cinco regras disparou num tema", não
+     "a página está limpa".
+
+  Agora são quatro células — claro e escuro, a 1280px e a 390px —, as duas
+  listas do axe são lidas, e os números medidos vivem em
+  `e2e/axe-baseline.json`. O teste falha quando um **cresce**.
+
+  **Ratchet, não allowlist.** A gallery renderiza 64 seções de demo e carrega
+  dívida real (492 a 712 violações por célula): uma lista por nó não seria
+  revisável, e reprovar tudo deixaria o build vermelho para sempre — que é como
+  um gate é deletado. Cair não falha; os números estão lá para serem baixados,
+  e a mensagem de falha pede correção ou justificativa escrita no PR.
+
+  Junto vai uma asserção que o axe **não consegue** dar: o par que escapou duas
+  vezes — foreground de superfície tingida sobre ela — é medido direto, nos dois
+  temas, com `transition` desligada. Desligar não é frescura: trocar
+  `data-tempest-theme` inicia a transição de `color`, então ler
+  `getComputedStyle` um ou dois frames depois amostra a **animação** — o
+  foreground do tema que sai contra o fundo do que entra. Isso deu 7,32 e depois
+  2,33 entre execuções, e 2,33 parece exatamente um defeito real.
+
+  As 73 violações do escuro **não** foram corrigidas aqui, e a razão está na
+  [#292](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/292): ~58 delas são dois tokens do bloco escuro, e mudar valor
+  de token muda o dark de todo consumidor — escopo que ninguém pediu dentro de
+  uma PR de e2e. A issue traz os pares medidos, o valor candidato calculado, e o
+  diagnóstico completo: `src/styles/contrast.test.ts` já tinha a régua certa e
+  **não** media `--tempest-text-subtle`, então o defeito não escapou de um gate,
+  escapou do vão entre dois.
+
 ### Corrigido
 
 - **`usePushToTalk` deixava o microfone aberto quando o `keyup` caía num campo**

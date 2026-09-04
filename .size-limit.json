@@ -286,12 +286,21 @@
     ]
   },
   {
-    "name": "slice: createPeerMesh (mesh WebRTC — slots, ICE queue, uplink division)",
+    "name": "slice: createLinkStatsSampler (one walk: rate, RTT, headroom, route)",
+    "path": "dist/tempest-react-sdk.js",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ createLinkStatsSampler }"
+    },
+    "limit": "1.5 KB",
+    "ignore": ["react", "react-dom", "react/jsx-runtime"]
+  },
+  {
+    "name": "slice: createPeerMesh (mesh WebRTC — slots, ICE queue, uplink division, own sampling)",
     "path": "dist/tempest-react-sdk.js",
     "import": {
       "./dist/tempest-react-sdk.js": "{ createPeerMesh, scaleForRoom, resolveDegradation }"
     },
-    "limit": "2.3 KB",
+    "limit": "3.3 KB",
     "ignore": [
       "react",
       "react-dom",

@@ -1,3 +1,5 @@
+import type { LinkStats, LinkStatsKind } from "./link-stats";
+
 /** What a slot carries. */
 export type MeshSlotKind = "audio" | "video";
 
@@ -37,6 +39,14 @@ export interface MeshPeer {
     connection: RTCPeerConnectionState;
     /** Inbound stream per slot name, `null` for a slot the peer is not sending. */
     streams: Record<string, MediaStream | null>;
+    /**
+     * The last sample for this link, when the mesh was asked to measure.
+     *
+     * Absent unless {@link PeerMeshOptions.stats} was given: measuring costs a
+     * `getStats()` per link per tick, and a mesh that shows no badge should not
+     * pay it.
+     */
+    stats?: LinkStats;
 }
 
 /**
@@ -69,6 +79,21 @@ export interface MeshQuality {
     /** What a video encoder gives up first. */
     degradationPreference?: RTCDegradationPreference;
     /**
+     * Which video slot decides whether `maintain-framerate` still holds.
+     *
+     * Without it the decision reads the **largest** cap across every video
+     * slot, which is right for a mesh whose slots are interchangeable and wrong
+     * for one where they are not. Somebody who picked fluidity was thinking
+     * about the screen — code, a spreadsheet, a video at 60 fps — and with only
+     * a camera on, that choice ends up being decided by a stream it was never
+     * about.
+     *
+     * Name the slot the choice was about and it decides alone. A slot the caps
+     * do not mention keeps the preference: nothing has been said about the
+     * thing being asked about, and a modest camera beside it is not an answer.
+     */
+    degradationAnchor?: string;
+    /**
      * Total uplink to divide among the peers, in kbps.
      *
      * A mesh sends one copy of everything **per participant**, so a cap that is
@@ -95,6 +120,36 @@ export interface MeshQuality {
 }
 
 /** Options for `createPeerMesh`. */
+/**
+ * Ask the mesh to measure its own links.
+ *
+ * The rule this exists to keep is the one a hand-rolled loop gets wrong: **one
+ * sampler per connection**. The rate is a delta, so a sampler shared across
+ * peers subtracts one connection's counter from another's and reports nonsense
+ * — and the mesh is the only place that knows how many links there are and when
+ * one goes away. It also owns a single timer instead of one per peer.
+ *
+ * Sampling only runs for a link whose connection is `connected`. A link still
+ * gathering candidates has no traffic to measure, and asking anyway spends a
+ * `getStats()` to learn that.
+ */
+export interface MeshStatsOptions {
+    /** How often to sample each connected link, in milliseconds. Default `2000`. */
+    intervalMs?: number;
+    /** Which media the throughput counts. Passed straight to the sampler. */
+    kind?: LinkStatsKind;
+    /**
+     * Called with each link's sample, as it is taken.
+     *
+     * The same value lands on {@link MeshPeer.stats}, so a consumer that reads
+     * the peer list needs no callback at all. Note that measuring therefore
+     * makes {@link PeerMeshOptions.onPeers} fire on the interval — which is the
+     * point for a badge, and worth knowing for anything that does real work in
+     * that handler.
+     */
+    onStats?: (peerId: string, stats: LinkStats) => void;
+}
+
 export interface PeerMeshOptions {
     /** The lanes every link negotiates, in the order they are allocated. */
     slots: readonly MeshSlot[];
@@ -110,6 +165,8 @@ export interface PeerMeshOptions {
     onNotice?: (reason: string) => void;
     /** Initial encoder limits. */
     quality?: MeshQuality;
+    /** Measure every link, on one timer the mesh owns. See {@link MeshStatsOptions}. */
+    stats?: MeshStatsOptions;
     /**
      * Applies a local description, so the SDP can be rewritten on the way out.
      *

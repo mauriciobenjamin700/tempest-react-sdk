@@ -112,6 +112,35 @@ describe("resolveDegradation", () => {
         );
     });
 
+    /**
+     * The answer used to come out backwards here. Filtering the nulls away
+     * before taking the maximum read "no cap" as "no value", so an uncapped
+     * screen beside a modest camera let the camera decide — and an uncapped
+     * slot is the most generous case there is, which is exactly where fluidity
+     * should hold.
+     */
+    it("treats an uncapped slot as unbounded, not as absent", () => {
+        const asked: MeshQuality = {
+            degradationPreference: "maintain-framerate",
+            fluidFloorKbps: 900,
+        };
+
+        expect(resolveDegradation(asked, { video: { screen: null, cam: 300 } })).toBe(
+            "maintain-framerate",
+        );
+    });
+
+    it("still overrides when every slot is capped below the floor", () => {
+        const asked: MeshQuality = {
+            degradationPreference: "maintain-framerate",
+            fluidFloorKbps: 900,
+        };
+
+        expect(resolveDegradation(asked, { video: { screen: 400, cam: 300 } })).toBe(
+            "maintain-resolution",
+        );
+    });
+
     it("keeps the preference when nothing is capped, since nothing says otherwise", () => {
         const asked: MeshQuality = { degradationPreference: "maintain-framerate" };
 
@@ -367,5 +396,70 @@ describe("applyQualityToLink", () => {
 
         expect(cam.applied()).toHaveLength(0);
         expect(mic.applied()).toHaveLength(0);
+    });
+});
+
+describe("resolveDegradation — the slot the choice was about", () => {
+    const asked = (over: Partial<MeshQuality> = {}): MeshQuality => ({
+        degradationPreference: "maintain-framerate",
+        fluidFloorKbps: 900,
+        ...over,
+    });
+
+    /**
+     * The case that opened the issue. Somebody who picked fluidity was thinking
+     * about the screen — code, a spreadsheet, a video at 60 fps. With the
+     * largest cap answering, a call with only a camera on has that choice
+     * decided by a stream it was never about.
+     */
+    it("lets the anchor decide alone, even when a bigger cap sits beside it", () => {
+        expect(
+            resolveDegradation(asked({ degradationAnchor: "cam" }), {
+                video: { screen: 3000, cam: 300 },
+            }),
+        ).toBe("maintain-resolution");
+
+        expect(
+            resolveDegradation(asked({ degradationAnchor: "screen" }), {
+                video: { screen: 3000, cam: 300 },
+            }),
+        ).toBe("maintain-framerate");
+    });
+
+    it("keeps the preference when the caps say nothing about the anchor", () => {
+        expect(
+            resolveDegradation(asked({ degradationAnchor: "screen" }), { video: { cam: 300 } }),
+        ).toBe("maintain-framerate");
+    });
+
+    it("reads an uncapped anchor as unbounded", () => {
+        expect(
+            resolveDegradation(asked({ degradationAnchor: "screen" }), {
+                video: { screen: null, cam: 300 },
+            }),
+        ).toBe("maintain-framerate");
+    });
+
+    it("overrides when the anchor itself fell below the floor", () => {
+        expect(
+            resolveDegradation(asked({ degradationAnchor: "screen" }), {
+                video: { screen: 500 },
+            }),
+        ).toBe("maintain-resolution");
+    });
+
+    it("ignores the anchor for a preference that was never maintain-framerate", () => {
+        expect(
+            resolveDegradation(
+                asked({ degradationAnchor: "screen", degradationPreference: "balanced" }),
+                { video: { screen: 100 } },
+            ),
+        ).toBe("balanced");
+    });
+
+    it("keeps the preference when there is no video at all to anchor on", () => {
+        expect(resolveDegradation(asked({ degradationAnchor: "screen" }), {})).toBe(
+            "maintain-framerate",
+        );
     });
 });

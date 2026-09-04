@@ -11,6 +11,8 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { ImageSource } from "./types";
+
 interface DrawCall {
     readonly args: number[];
 }
@@ -586,5 +588,59 @@ describe("imaging · probing format support", () => {
         expect(await supportsImageType("image/webp")).toBe(false);
 
         resetImageTypeSupportCache();
+    });
+});
+
+/**
+ * A `<video>` is a source like any other, and this is the guard that keeps it
+ * one.
+ *
+ * There is no branch in `toBitmap` for it: `createImageBitmap` takes any
+ * `CanvasImageSource`, which includes `HTMLVideoElement`, and the module's
+ * `as ImageBitmapSource` cast existed precisely because the union here was
+ * narrower than the browser's. So what these pin is the **type** — the
+ * assignment below is checked by `npm run typecheck`, which compiles the tests
+ * — plus the fact that every entry point forwards the element instead of
+ * rejecting it.
+ *
+ * What no stub here can show is that a given browser's `createImageBitmap`
+ * really accepts the element, or that the bitmap holds the frame currently on
+ * screen rather than the previous one. Those live in `e2e/imaging.spec.ts`.
+ */
+describe("imaging · a video as a source", () => {
+    const video = (): HTMLVideoElement => document.createElement("video");
+
+    it("is assignable to ImageSource", async () => {
+        const { decodeImage } = await import("./decode");
+        const element: ImageSource = video();
+
+        const decoded = await decodeImage(element);
+
+        expect([decoded.width, decoded.height]).toEqual([400, 200]);
+    });
+
+    it("resizes, reading the size off the frame rather than the element", async () => {
+        const { resizeImage } = await import("./transform");
+
+        const resized = await resizeImage(video(), { width: 200, type: "image/webp" });
+
+        expect([resized.width, resized.height]).toEqual([200, 100]);
+        expect(resized.type).toBe("image/webp");
+    });
+
+    it("fits a frame into a byte budget", async () => {
+        const { compressToTarget } = await import("./compress");
+
+        const compressed = await compressToTarget(video(), { maxBytes: 500_000 });
+
+        expect(compressed.withinBudget).toBe(true);
+    });
+
+    it("builds thumbnails from a frame", async () => {
+        const { createThumbnails } = await import("./thumbnails");
+
+        const thumbnails = await createThumbnails(video(), [{ name: "small", size: 100 }]);
+
+        expect(thumbnails.map((thumbnail) => thumbnail.name)).toEqual(["small"]);
     });
 });

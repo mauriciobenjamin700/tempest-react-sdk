@@ -16110,6 +16110,12 @@ navegador já tem, não uma biblioteca que o SDK embarcou.
 *Seção `device-capture` da [gallery](gallery.md) — rode localmente para interagir.*
 <!-- /gallery -->
 
+<!-- gallery:video-player -->
+[![VideoPlayer na gallery](assets/gallery/video-player.webp)](gallery.md)
+
+*Seção `video-player` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## Ler códigos: comece pelo componente
 
 O SDK já tinha o [`QRCode`](./components/utility.md), que **só codifica**. O
@@ -16349,6 +16355,76 @@ desabilitada enquanto o usuário ainda não escolheu a tela.
 
 O gravador **não** é dono do stream: parar a gravação deixa o compartilhamento vivo, porque
 um fluxo de suporte normalmente grava, para, deixa a pessoa olhar e grava de novo.
+
+### Tocar o que foi gravado: `VideoPlayer`
+
+O par do `AudioPlayer` para vídeo. Aceita o `Blob` direto, sem upload no meio:
+
+```tsx
+import { useScreenCapture, useVideoRecorder, VideoPlayer } from "tempest-react-sdk";
+
+export function GravarERever() {
+  const screen = useScreenCapture();
+  const rec = useVideoRecorder(screen.stream);
+
+  return (
+    <>
+      <button onClick={screen.start}>Compartilhar tela</button>
+      <button disabled={!rec.ready} onClick={rec.start}>Gravar</button>
+      <button onClick={() => void rec.stop()}>Parar</button>
+
+      {rec.recording && (
+        <VideoPlayer src={rec.recording.blob} durationMs={rec.recording.durationMs} />
+      )}
+    </>
+  );
+}
+```
+
+Transporte completo: play/pause, barra de posição, tempos, mudo + volume,
+**velocidade** e tela cheia. `playsInline` já vem ligado.
+
+| Prop | O que faz |
+| --- | --- |
+| `src` | URL ou `Blob`/`File`. O object URL é revogado na troca e no unmount |
+| `durationMs` | Duração que você já conhece — passe sempre que tiver |
+| `rate` / `rates` / `onRateChange` | Velocidade e os presets. `rates={[]}` esconde o controle |
+| `shiftPitch` | Deixa o pitch subir com a velocidade. Padrão `false` |
+| `poster` | Capa. Combina com o [`captureFrame`](./imaging.md) |
+| `tracks` | Legendas, viram `<track>` |
+| `aspectRatio` | Forma do quadro antes do vídeo reportar a dele. Padrão `16 / 9` |
+| `fullscreen` | Botão de tela cheia onde o navegador suporta. Padrão `true` |
+| `muted` / `autoPlay` / `loop` | Como no elemento |
+| `actions` | Slot no fim da barra — baixar, apagar |
+
+Os presets default saem exportados como `DEFAULT_PLAYBACK_RATES` (`[0.5, 1, 1.5, 2]`), para uma tela de ajustes mostrar a lista em vez de repeti-la.
+
+!!! danger "A velocidade reseta ao trocar de `src` se você escrever só `playbackRate`"
+    O algoritmo de load do elemento copia `defaultPlaybackRate` **em cima** de
+    `playbackRate`. Um player que guarda "2×" em estado e escreve só o segundo
+    perde a escolha do usuário em todo clipe novo — sem erro, sem log. O
+    `VideoPlayer` escreve **os dois**.
+
+    Se você montar o seu no lugar deste, é a linha que não pode faltar. E não
+    espere um teste em jsdom pegar: lá os dois valores são independentes e não
+    existe algoritmo de load, então a regressão fica invisível.
+
+!!! note "Fora de uma faixa útil o navegador pode desligar o áudio"
+    A spec permite ao navegador silenciar quando `playbackRate` sai de uma faixa
+    razoável, e o limite **varia**. Os presets default (0,5× a 2×) ficam dentro
+    de todos os que medimos; se você oferecer 4× ou 0,1×, teste com áudio no
+    navegador alvo antes de prometer ao usuário.
+
+!!! info "Os controles ficam **embaixo** do quadro, não sobre ele"
+    Controle desenhado sobre vídeo tem de garantir contraste contra pixel
+    arbitrário, e nenhum token `--tempest-*` promete isso: todo token de texto
+    daqui é resolvido contra uma superfície conhecida, e os dois defeitos de
+    contraste que este SDK entregou foram token de texto usado sobre superfície
+    onde ele nunca foi checado. Uma barra com superfície própria herda o tema e
+    é legível por construção.
+
+    Se você quer o look de cinema, posicione a sua chrome sobre o quadro — o que
+    ships é o que está certo nos dois temas.
 
 ## Compartilhar a tela
 
@@ -17841,40 +17917,41 @@ Cada seção é um arquivo em [`examples/gallery/src/sections/`](https://github.
 | 29 | AIChat | `#aichat` | Componentes |
 | 30 | Mesh WebRTC (createPeerMesh) | `#peer-mesh` | Componentes |
 | 31 | Cadeia de voz (microfone) | `#voice-chain` | Componentes |
-| 32 | Áudio (gravação) | `#audio-capture` | Componentes |
-| 33 | Captura de dispositivo | `#device-capture` | Componentes |
-| 34 | Dashboard (CSS) | `#dashboard-layout` | Componentes |
-| 35 | FilterBar | `#filterbar` | Componentes |
-| 36 | Markdown | `#markdown` | Componentes |
-| 37 | Masonry | `#masonry` | Componentes |
-| 38 | Tour | `#tour` | Componentes |
-| 39 | Transfer | `#transfer` | Componentes |
-| 40 | CodeBlock | `#codeblock` | Componentes |
-| 41 | Material (ListTile · FAB · Rail) | `#material` | Componentes |
-| 42 | Forms (zod) | `#forms` | Componentes |
-| 43 | BR Forms (CPF/CNPJ/CEP) | `#br-forms` | Componentes |
-| 44 | Hooks — estado | `#hooks-state` | Hooks |
-| 45 | Hooks — DOM & timing | `#hooks-dom` | Hooks |
-| 46 | Network · Clipboard · Share | `#meta` | Hooks |
-| 47 | Formatters | `#utils` | Hooks |
-| 48 | HTTP client | `#recipe-http` | Receitas |
-| 49 | Upload resumível (tus) | `#recipe-resumable-upload` | Receitas |
-| 50 | Passkeys (WebAuthn) | `#recipe-passkeys` | Receitas |
-| 51 | Data fetching (TanStack Query) | `#recipe-query` | Receitas |
-| 52 | Tempo real (WebSocket) | `#recipe-realtime` | Receitas |
-| 53 | Geolocalização (mapas & trajetória) | `#geo` | Receitas |
-| 54 | Mapa do Brasil (UF + cidades) | `#brazil-map` | Receitas |
-| 55 | Pagamentos BR (Pix · boleto · NFe) | `#br-payments` | Receitas |
-| 56 | Auth & Access Control | `#recipe-auth` | Receitas |
-| 57 | SSE · Push · Audio | `#integrations` | Receitas |
-| 58 | NotificationCenter (inbox) | `#notification-center` | Receitas |
-| 59 | PWA: Install · Push | `#pwa` | Receitas |
-| 60 | Store (Zustand) | `#foundation` | Fundação |
-| 61 | Escalas contínuas (heatmap) | `#dataviz-scales` | Fundação |
-| 62 | createTheme · presets · tokens de gráfico | `#theme-factory` | Fundação |
-| 63 | Ícones por slug (/icons) | `#icons` | Fundação |
-| 64 | utilities.css (camada opt-in) | `#utilities-css` | Fundação |
-| 65 | Tema + i18n | `#theme-i18n` | Fundação |
+| 32 | VideoPlayer | `#video-player` | Componentes |
+| 33 | Áudio (gravação) | `#audio-capture` | Componentes |
+| 34 | Captura de dispositivo | `#device-capture` | Componentes |
+| 35 | Dashboard (CSS) | `#dashboard-layout` | Componentes |
+| 36 | FilterBar | `#filterbar` | Componentes |
+| 37 | Markdown | `#markdown` | Componentes |
+| 38 | Masonry | `#masonry` | Componentes |
+| 39 | Tour | `#tour` | Componentes |
+| 40 | Transfer | `#transfer` | Componentes |
+| 41 | CodeBlock | `#codeblock` | Componentes |
+| 42 | Material (ListTile · FAB · Rail) | `#material` | Componentes |
+| 43 | Forms (zod) | `#forms` | Componentes |
+| 44 | BR Forms (CPF/CNPJ/CEP) | `#br-forms` | Componentes |
+| 45 | Hooks — estado | `#hooks-state` | Hooks |
+| 46 | Hooks — DOM & timing | `#hooks-dom` | Hooks |
+| 47 | Network · Clipboard · Share | `#meta` | Hooks |
+| 48 | Formatters | `#utils` | Hooks |
+| 49 | HTTP client | `#recipe-http` | Receitas |
+| 50 | Upload resumível (tus) | `#recipe-resumable-upload` | Receitas |
+| 51 | Passkeys (WebAuthn) | `#recipe-passkeys` | Receitas |
+| 52 | Data fetching (TanStack Query) | `#recipe-query` | Receitas |
+| 53 | Tempo real (WebSocket) | `#recipe-realtime` | Receitas |
+| 54 | Geolocalização (mapas & trajetória) | `#geo` | Receitas |
+| 55 | Mapa do Brasil (UF + cidades) | `#brazil-map` | Receitas |
+| 56 | Pagamentos BR (Pix · boleto · NFe) | `#br-payments` | Receitas |
+| 57 | Auth & Access Control | `#recipe-auth` | Receitas |
+| 58 | SSE · Push · Audio | `#integrations` | Receitas |
+| 59 | NotificationCenter (inbox) | `#notification-center` | Receitas |
+| 60 | PWA: Install · Push | `#pwa` | Receitas |
+| 61 | Store (Zustand) | `#foundation` | Fundação |
+| 62 | Escalas contínuas (heatmap) | `#dataviz-scales` | Fundação |
+| 63 | createTheme · presets · tokens de gráfico | `#theme-factory` | Fundação |
+| 64 | Ícones por slug (/icons) | `#icons` | Fundação |
+| 65 | utilities.css (camada opt-in) | `#utilities-css` | Fundação |
+| 66 | Tema + i18n | `#theme-i18n` | Fundação |
 <!-- /gallery -->
 
 ## Matriz de variantes
@@ -17946,7 +18023,7 @@ Cada exemplo aparece **lado a lado com o código-fonte** (botão "Copiar"), ent�
 gallery é também uma referência copia-e-cola. Capturas do app rodando:
 
 <!-- gallery:screenshots -->
-Cada seção tem a própria captura ao lado do componente que documenta; os pares abaixo são aqueles em que o tema é o assunto. As 75 imagens são regeneradas por `npm run docs:shots`.
+Cada seção tem a própria captura ao lado do componente que documenta; os pares abaixo são aqueles em que o tema é o assunto. As 76 imagens são regeneradas por `npm run docs:shots`.
 
 ### Buttons
 
@@ -20979,6 +21056,136 @@ vezes — e numa imagem de 12 megapixels a decodificação é o custo, não a
 escala. `size` é a **maior aresta**, então retrato e paisagem cabem na mesma
 célula de grid sem conta separada.
 
+## Um frame de um vídeo
+
+O frame que está na tela não precisa de nada especial — um `<video>` é uma
+fonte como qualquer outra, porque `createImageBitmap` aceita o elemento:
+
+```tsx
+import { resizeImage } from "tempest-react-sdk/imaging";
+
+const print = await resizeImage(videoRef.current, { width: 1280, type: "image/webp" });
+```
+
+Um **instante escolhido** é outra história. Este é o código que todo app
+escreve, e ele está errado:
+
+```tsx
+video.currentTime = 12.5;
+await new Promise((r) => video.addEventListener("seeked", r, { once: true }));
+context.drawImage(video, 0, 0); // pode desenhar o frame ANTERIOR
+```
+
+`seeked` diz que a busca terminou, não que o frame da nova posição já está
+composto e legível pelo `drawImage`. O sintoma é o pior tipo: funciona na
+máquina de quem escreveu e devolve o frame vizinho em outro navegador, sem erro
+e sem log.
+
+`captureFrame` é esse caminho feito uma vez:
+
+```tsx
+import { captureFrame } from "tempest-react-sdk/imaging";
+
+const poster = await captureFrame(video, { atMs: 10_000, width: 640 });
+
+setPoster(URL.createObjectURL(poster.blob));
+console.log(`caiu em ${poster.atMs}ms, confirmado: ${poster.confirmed}`);
+```
+
+Sem `atMs` ele lê o frame corrente; com `atMs` ele busca, espera o frame
+daquele instante ser apresentado, captura e **devolve o player onde estava**.
+
+| Opção | O que faz |
+| --- | --- |
+| `atMs` | Instante a capturar. Omitido: o frame na tela agora |
+| `restore` | Devolve `currentTime` e a reprodução. Padrão `true` |
+| `timeoutMs` | Teto para a busca e para o frame depois dela. Padrão `3000` |
+| `signal` | `AbortSignal`; rejeita com `AbortError` |
+| `width` / `height` / `fit` / `type` / `quality` | Iguais ao `resizeImage` |
+
+O retorno é um `ProcessedImage` com dois campos a mais: `atMs`, o instante que
+de fato saiu, e `confirmed`.
+
+!!! note "Por que `atMs` de volta é diferente do `atMs` que você pediu"
+    Uma busca cai numa fronteira de frame. Pedir 12 500 ms num vídeo a 30 fps
+    entrega 12 466,67 ms — o frame que **contém** aquele instante. O campo
+    `atMs` do retorno é o que aconteceu; o que você pediu foi a intenção.
+
+!!! note "`confirmed` diz o quanto dá para ter certeza — e num seek ele é `false`"
+    `requestVideoFrameCallback` é o único sinal que diz "um frame foi
+    apresentado". Medido no Chromium em 04/09/2026: ele dispara enquanto o
+    vídeo **reproduz** e **não** dispara em seek de elemento pausado.
+
+    Então:
+
+    - captura de vídeo **tocando** (o print de gravação de tela) espera o
+      próximo frame apresentado → `confirmed: true`;
+    - captura com **`atMs`** espera `seeked` + dois animation frames →
+      `confirmed: false`, sempre;
+    - captura do frame corrente de vídeo **pausado** não espera nada — o frame
+      na tela já é o frame.
+
+    `false` num seek é o normal, não um aviso. Tratar como falha rejeitaria a
+    maioria das capturas corretas. E é por isso que o seek **não** bloqueia no
+    callback: esperar por um sinal que aquele estado não emite custaria o
+    `timeoutMs` inteiro em cada captura, para seguir igual no fim.
+
+!!! info "Gravação pode chegar sem duração"
+    `MediaRecorder` não garante duração no header do WebM, então o blob que o
+    `useVideoRecorder` acabou de te dar pode reportar `Infinity` — e é
+    justamente desse vídeo que um app quer tirar frame. Buscar além do fim
+    força o navegador a demuxar até o último frame, depois do que ele sabe o
+    tamanho. Essa sondagem roda aqui dentro, não em cada chamada.
+
+    Medido em 04/09/2026: o Chromium **escreve** a duração para uma gravação
+    finalizada num único `stop()` (3.000197 s para 3 s de canvas), então nesse
+    caminho a sondagem não roda. Ela existe para os caminhos que omitem —
+    gravação em chunks por `timeslice`, e outros navegadores. O
+    `useVideoRecorder` mantém o próprio relógio justamente por isso.
+
+!!! warning "Vídeo de outra origem precisa de `crossOrigin`"
+    Sem `crossOrigin="anonymous"` no elemento **antes** da fonte carregar, o
+    vídeo contamina o canvas e a leitura é proibida. O `drawImage` passa e o
+    erro aparece no encode, longe da causa — `captureFrame` reembala dizendo o
+    que ajustar, mas o atributo é da sua tag e o servidor precisa mandar
+    `Access-Control-Allow-Origin`.
+
+Stream ao vivo (`srcObject` de `getUserMedia`, `getDisplayMedia` ou
+`captureStream`) não tem linha do tempo: `atMs` ali levanta `FrameSeekError`.
+Não passe `atMs` e você captura o agora, que é o único instante que existe.
+
+### Print de uma gravação de tela
+
+Junta com `useScreenCapture` e `share`:
+
+```tsx
+import { useScreenCapture, shareOrDownloadBlob } from "tempest-react-sdk";
+import { captureFrame } from "tempest-react-sdk/imaging";
+
+function ScreenPrint() {
+  const screen = useScreenCapture();
+  const video = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (video.current) video.current.srcObject = screen.stream;
+  }, [screen.stream]);
+
+  async function print() {
+    if (!video.current) return;
+    const shot = await captureFrame(video.current, { type: "image/webp", quality: 0.9 });
+    await shareOrDownloadBlob(shot.blob, "print.webp");
+  }
+
+  return (
+    <>
+      <button onClick={screen.start} disabled={!screen.supported}>Compartilhar tela</button>
+      <video ref={video} autoPlay muted playsInline />
+      <button onClick={print} disabled={screen.stream === null}>Tirar print</button>
+    </>
+  );
+}
+```
+
 ## No React
 
 ```tsx
@@ -21036,6 +21243,7 @@ por dezenas de milissegundos por imagem.
 | `rotateImage(source, degrees, options?)` | Gira em múltiplos de 90 |
 | `flipImage(source, axes, options?)` | Espelha |
 | `compressToTarget(source, options)` | Busca binária de qualidade até caber |
+| `captureFrame(video, options?)` | Um frame de um `<video>`, no instante pedido |
 | `createThumbnails(source, specs, options?)` | Vários tamanhos, uma decodificação |
 | `decodeImage(source)` / `readImageInfo(blob)` | Pixels orientados / dimensões e tamanho |
 | `encodeImage(surface, options?)` | Canvas para bytes |
@@ -21044,14 +21252,19 @@ por dezenas de milissegundos por imagem.
 | `useImagePreview(blob)` / `useImageProcessing()` | Hooks |
 
 Erros: `ImagingError` na raiz, com `ImageDecodeError`, `ImageEncodeError`,
-`UnsupportedImageTypeError` e `ImagingUnavailableError`.
+`FrameSeekError`, `UnsupportedImageTypeError` e `ImagingUnavailableError`. O
+`FrameSeekError` é o do `captureFrame`: a busca não chegou, ou o vídeo não tem
+linha do tempo. Ele existe como classe própria porque a alternativa seria
+devolver frame do instante errado, que é indistinguível de um correto para tudo
+o que vem depois.
 
 Os defaults de cada opção também saem exportados, para uma tela de ajustes
 exibir o valor que está prestes a sobrescrever em vez de repeti-lo:
 `DEFAULT_QUALITY` (0.85), `DEFAULT_TYPE` (`image/jpeg`), `DEFAULT_BACKGROUND`
 (`#ffffff`, o fundo que substitui a transparência ao ir para JPEG) e, na busca do
 `compressToTarget`, `DEFAULT_MIN_QUALITY` (0.4), `DEFAULT_MAX_QUALITY` (0.92) e
-`DEFAULT_COMPRESS_STEPS` (6 iterações).
+`DEFAULT_COMPRESS_STEPS` (6 iterações). O `captureFrame` traz
+`DEFAULT_FRAME_TIMEOUT_MS` (3000 ms), o teto de espera da busca.
 
 ## Recapitulando
 
@@ -21059,6 +21272,8 @@ exibir o valor que está prestes a sobrescrever em vez de repeti-lo:
 - Cheque o formato com `supportsImageType`; confie no `type` do retorno.
 - `compressToTarget` para orçamento de bytes; `withoutEnlargement` fica ligado.
 - Reencodar apaga EXIF — é a etapa de privacidade, além da de banda.
+- Frame de vídeo: `captureFrame` para instante escolhido — `seeked` sozinho
+  desenha o frame vizinho. Leia `confirmed` antes de confiar no instante.
 - Rode num worker: `OffscreenCanvas` é usado sozinho quando existe.
 
 ---

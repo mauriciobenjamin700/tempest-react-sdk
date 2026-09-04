@@ -301,6 +301,27 @@ npm run dev               # http://127.0.0.1:5173
 
 ## Lições aprendidas
 
+- **`requestVideoFrameCallback` não dispara em seek pausado — só durante reprodução.**
+  Medido em Chromium (04/09/2026): `hasApi=true`, `pausedSeek=false`,
+  `whilePlaying=true`. A primeira versão do `captureFrame` **bloqueava** o seek nesse
+  callback, o que gastaria o timeout inteiro (3 s) em toda captura com `atMs` e
+  seguiria igual no fim. Espera correta é por estado: tocando → próximo frame
+  apresentado; seek → `seeked` + dois animation frames; frame corrente pausado →
+  nada. Corolário geral: **antes de esperar um sinal do browser, medir se aquele
+  estado o emite** — a doc da API diz o que ele significa, não quando fica quieto.
+- **`canvas.captureStream(fps)` não sintetiza frames; emite quando o canvas muda.**
+  O asset de e2e pintava uma cor por segundo com `captureStream(30)` e produziu
+  vídeo de **~1 fps** — frames a 700 ms de distância, medido. Qualquer espera menor
+  que isso reportava "nenhum frame apresentado", e a falha parecia bug do código sob
+  teste. Repintar a cada `requestAnimationFrame` dá ~59 fps (118 frames em 2 s). Asset
+  sintético com taxa irreal invalida o teste sem parecer inválido.
+- **`MediaRecorder` nem sempre omite a duração.** A crença registrada no
+  `AudioPlayer` — WebM novo reporta `duration: Infinity` — é verdadeira em alguns
+  caminhos e não em todos: medido, o Chromium **escreve** duração para gravação
+  finalizada num único `stop()` (3.000197 s para 3 s de canvas). A sondagem por seek
+  além do fim continua necessária (chunks por `timeslice`, outros engines), mas
+  afirmação de bug de browser envelhece — escrever o navegador, a data e o valor
+  medido ao lado dela.
 - **Medição de contraste tem de desligar `transition`.** Trocar
   `data-tempest-theme` e ler `getComputedStyle` logo depois amostra a animação: o
   componente com `transition: color` devolve o foreground do tema que **sai** contra
@@ -312,10 +333,10 @@ npm run dev               # http://127.0.0.1:5173
 - **Vite guarda o CSS do SDK em `node_modules/.vite`, e `vite preview` guarda o
   `index.html`.** Rebuildar o SDK e a gallery e recarregar a página serviu **duas
   vezes** o CSS antigo, com a regra anterior visível no CSSOM — o que faz parecer que
-  a mudança de CSS não funciona. Ao validar CSS na gallery: `rm -rf
-examples/gallery/node_modules/.vite examples/gallery/dist`, rebuildar, **reiniciar o
-  preview** e conferir o nome do arquivo `assets/index-*.css` que a página carregou
-  contra o que está em `dist/`.
+  a mudança de CSS não funciona. Ao validar CSS na gallery, limpe
+  `examples/gallery/{node_modules/.vite,dist}`, rebuilde, **reinicie o preview** e
+  confira o nome do `assets/index-*.css` que a página carregou contra o que está em
+  `dist/`.
 - **Dataset unido por nome sempre drifta; una por id estável.** Os quatro arquivos de
   `br/` vinham de duas safras do IBGE comparadas por nome, e 44 renomeações depois o
   seletor oferecia município que o geocoder não achava — sem erro, só resposta vazia. O

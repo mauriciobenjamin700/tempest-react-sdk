@@ -552,3 +552,298 @@ describe("createPeerMesh — the wire", () => {
         expect(mesh.peers).toHaveLength(1);
     });
 });
+
+describe("createPeerMesh — a description the browser produced without SDP", () => {
+    let restore: () => void;
+    beforeEach(() => {
+        restore = installPeerConnection();
+    });
+    afterEach(() => restore());
+
+    it("reports an offer with no sdp instead of signalling it", async () => {
+        FakePeerConnection.offerSdp = null;
+        const onNotice = vi.fn();
+        const { mesh, sent } = meshWith({ onNotice });
+
+        await mesh.addPeer("p1", { offerer: true });
+
+        expect(onNotice).toHaveBeenCalledWith("empty_local_offer_sdp");
+        expect(sent.filter((message) => message.type === "offer")).toEqual([]);
+    });
+
+    it("reports an answer with no sdp instead of signalling it", async () => {
+        FakePeerConnection.answerSdp = null;
+        const onNotice = vi.fn();
+        const { mesh, sent } = meshWith({ onNotice });
+
+        await mesh.addPeer("p1", { offerer: false });
+        await mesh.accept({ type: "offer", from: "p1", to: "me", sdp: "v=0\r\nremote-offer" });
+
+        expect(onNotice).toHaveBeenCalledWith("empty_local_answer_sdp");
+        expect(sent.filter((message) => message.type === "answer")).toEqual([]);
+    });
+
+    it("signals what was created when localDescription has not caught up", async () => {
+        FakePeerConnection.tracksLocalDescription = false;
+        const { mesh, sent } = meshWith();
+
+        await mesh.addPeer("p1", { offerer: true });
+        await mesh.addPeer("p2", { offerer: false });
+        await mesh.accept({ type: "offer", from: "p2", to: "me", sdp: "v=0\r\nremote-offer" });
+
+        const sdps = sent
+            .filter((message) => message.type === "offer" || message.type === "answer")
+            .map((message) => ("sdp" in message ? message.sdp : ""));
+        expect(sdps).toEqual(["v=0\r\nlocal-offer", "v=0\r\nlocal-answer"]);
+    });
+
+    it("reports a failed offer and lets the next attempt through", async () => {
+        FakePeerConnection.offerRejects = true;
+        const onNotice = vi.fn();
+        const { mesh, sent } = meshWith({ onNotice });
+
+        await mesh.addPeer("p1", { offerer: true });
+        expect(onNotice).toHaveBeenCalledWith("offer_failed");
+
+        FakePeerConnection.offerRejects = false;
+        connection().onnegotiationneeded?.();
+
+        await vi.waitFor(() =>
+            expect(sent.filter((message) => message.type === "offer")).toHaveLength(1),
+        );
+    });
+
+    it("collapses a renegotiation that lands while an offer is still in flight", async () => {
+        const created = vi.fn();
+        let release!: (description: RTCSessionDescriptionInit) => void;
+        const original = FakePeerConnection.prototype.createOffer;
+        FakePeerConnection.prototype.createOffer = function createOffer() {
+            created();
+            return new Promise<RTCSessionDescriptionInit>((resolve) => {
+                release = resolve;
+            });
+        };
+
+        try {
+            const { mesh, sent } = meshWith();
+            const adding = mesh.addPeer("p1", { offerer: true });
+            await vi.waitFor(() => expect(created).toHaveBeenCalled());
+
+            connection().onnegotiationneeded?.();
+            release({ type: "offer", sdp: "v=0\r\nlocal-offer" });
+            await adding;
+
+            expect(created).toHaveBeenCalledTimes(1);
+            expect(sent.filter((message) => message.type === "offer")).toHaveLength(1);
+        } finally {
+            FakePeerConnection.prototype.createOffer = original;
+        }
+    });
+
+    it("leaves renegotiation to the offering side", async () => {
+        const { mesh, sent } = meshWith();
+        await mesh.addPeer("p1", { offerer: false });
+
+        connection().onnegotiationneeded?.();
+        await Promise.resolve();
+
+        expect(sent.filter((message) => message.type === "offer")).toEqual([]);
+    });
+});
+
+describe("createPeerMesh — the stream wrapped around an inbound track", () => {
+    let restore: () => void;
+    beforeEach(() => {
+        restore = installPeerConnection();
+    });
+    afterEach(() => restore());
+
+    it("prefers the stream the sending side grouped the track into", async () => {
+        const { mesh } = meshWith();
+        await mesh.addPeer("p1", { offerer: true });
+
+        const [mic] = connection().getTransceivers();
+        const published = new MediaStream([]);
+        connection().emitTrack(mic, fakeMediaTrack("audio"), [published]);
+
+        expect(mesh.peers[0].streams.mic).toBe(published);
+    });
+
+    it("routes without a stream at all where MediaStream does not exist", async () => {
+        const { mesh } = meshWith();
+        await mesh.addPeer("p1", { offerer: true });
+
+        const previous = (globalThis as { MediaStream?: unknown }).MediaStream;
+        (globalThis as { MediaStream?: unknown }).MediaStream = undefined;
+        try {
+            const [mic] = connection().getTransceivers();
+            connection().emitTrack(mic, fakeMediaTrack("audio"));
+
+            expect(mesh.peers[0].streams.mic).toBeNull();
+        } finally {
+            (globalThis as { MediaStream?: unknown }).MediaStream = previous;
+        }
+    });
+
+    it("clears the slot when the remote track ends, without dropping the peer", async () => {
+        const { mesh } = meshWith();
+        await mesh.addPeer("p1", { offerer: true });
+
+        const [mic] = connection().getTransceivers();
+        const track = fakeMediaTrack("audio");
+        connection().emitTrack(mic, track);
+        expect(mesh.peers[0].streams.mic).not.toBeNull();
+
+        (track.onended as ((event: Event) => void) | null)?.(new Event("ended"));
+
+        expect(mesh.peers).toHaveLength(1);
+        expect(mesh.peers[0].streams.mic).toBeNull();
+    });
+
+    it("ignores a track ending after its peer already left", async () => {
+        const { mesh } = meshWith();
+        await mesh.addPeer("p1", { offerer: true });
+
+        const [mic] = connection().getTransceivers();
+        const track = fakeMediaTrack("audio");
+        connection().emitTrack(mic, track);
+        mesh.removePeer("p1");
+
+        expect(() =>
+            (track.onended as ((event: Event) => void) | null)?.(new Event("ended")),
+        ).not.toThrow();
+        expect(mesh.peers).toEqual([]);
+    });
+});
+
+describe("createPeerMesh — callbacks fire while the maps are still moving", () => {
+    let restore: () => void;
+    beforeEach(() => {
+        restore = installPeerConnection();
+    });
+    afterEach(() => restore());
+
+    it("removes a peer it never opened a link for", () => {
+        const onPeers = vi.fn();
+        const { mesh } = meshWith({ onPeers });
+
+        expect(() => mesh.removePeer("ghost")).not.toThrow();
+
+        expect(FakePeerConnection.instances).toEqual([]);
+        expect(mesh.peers).toEqual([]);
+        expect(onPeers).toHaveBeenCalledWith([]);
+    });
+
+    it("survives a state change arriving after the peer entry is gone", async () => {
+        const { mesh } = meshWith();
+        await mesh.addPeer("p1", { offerer: true });
+        mesh.removePeer("p1");
+
+        expect(() => connection().setConnectionState("connecting")).not.toThrow();
+        expect(mesh.peers).toEqual([]);
+    });
+
+    it("stops reporting state once it has been stopped", async () => {
+        const onState = vi.fn();
+        const { mesh } = meshWith({ onState });
+        await mesh.addPeer("p1", { offerer: true });
+        mesh.stop();
+        expect(onState).toHaveBeenLastCalledWith("closed");
+        onState.mockClear();
+
+        connection().setConnectionState("connecting");
+
+        expect(onState).not.toHaveBeenCalled();
+    });
+
+    it("gives up on an offer whose peer a listener removed mid-add", async () => {
+        let removed = false;
+        const built = meshWith({
+            onPeers: () => {
+                if (removed) return;
+                removed = true;
+                built.mesh.removePeer("p1");
+            },
+        });
+
+        await expect(
+            built.mesh.accept({ type: "offer", from: "p1", to: "me", sdp: "v=0\r\nremote-offer" }),
+        ).resolves.toBeUndefined();
+
+        expect(built.sent.filter((message) => message.type === "answer")).toEqual([]);
+        expect(built.mesh.peers).toEqual([]);
+    });
+});
+
+describe("createPeerMesh — the slot a track is set on", () => {
+    let restore: () => void;
+    beforeEach(() => {
+        restore = installPeerConnection();
+    });
+    afterEach(() => restore());
+
+    it("ignores a slot name the mesh was never given", async () => {
+        const { mesh } = meshWith();
+        await mesh.addPeer("p1", { offerer: true });
+
+        await expect(
+            mesh.setLocalTrack("not-a-slot", fakeMediaTrack("audio")),
+        ).resolves.toBeUndefined();
+
+        const attached = connection()
+            .getTransceivers()
+            .map((transceiver) => transceiver.sender.track);
+        expect(attached).toEqual([null, null, null, null]);
+    });
+
+    it("keeps a track set before the transceivers exist, and attaches it after", async () => {
+        const { mesh } = meshWith();
+        await mesh.addPeer("p1", { offerer: false });
+        const track = fakeMediaTrack("video");
+
+        await expect(mesh.setLocalTrack("cam", track)).resolves.toBeUndefined();
+        await mesh.accept({ type: "offer", from: "p1", to: "me", sdp: "v=0\r\nremote-offer" });
+
+        expect(connection().getTransceivers()[1]?.sender.track).toBe(track);
+    });
+
+    it("keeps its own transceivers when an offer arrives at the offering side", async () => {
+        const { mesh, sent } = meshWith();
+        await mesh.addPeer("p1", { offerer: true });
+        const own = connection().getTransceivers();
+
+        await mesh.accept({ type: "offer", from: "p1", to: "me", sdp: "v=0\r\nremote-offer" });
+        const track = fakeMediaTrack("video");
+        await mesh.setLocalTrack("cam", track);
+
+        expect(own[1]?.sender.track).toBe(track);
+        expect(
+            connection()
+                .getTransceivers()
+                .slice(own.length)
+                .every((transceiver) => transceiver.sender.track === null),
+        ).toBe(true);
+        expect(sent.filter((message) => message.type === "answer")).toHaveLength(1);
+    });
+
+    it("turns a null sdpMid into undefined, which is what addIceCandidate means by default", async () => {
+        const { mesh } = meshWith();
+        await mesh.addPeer("p1", { offerer: false });
+        await mesh.accept({ type: "offer", from: "p1", to: "me", sdp: "v=0\r\nremote-offer" });
+
+        await mesh.accept({
+            type: "ice",
+            from: "p1",
+            to: "me",
+            candidate: "candidate:trickled",
+            sdpMid: null,
+            sdpMLineIndex: null,
+        });
+
+        const [accepted] = connection().accepted;
+        expect(accepted?.candidate).toBe("candidate:trickled");
+        expect(accepted).not.toHaveProperty("sdpMid", null);
+        expect(accepted?.sdpMid).toBeUndefined();
+        expect(accepted?.sdpMLineIndex).toBeUndefined();
+    });
+});

@@ -2,13 +2,21 @@
  * Types for browser-side image processing.
  */
 
-/** Anything the module can decode. */
+/**
+ * Anything the module can decode.
+ *
+ * `HTMLVideoElement` reads the frame the element is **currently showing** —
+ * `createImageBitmap` accepts it as a `CanvasImageSource`, so nothing here
+ * special-cases it. Reading a chosen instant instead of the current one needs
+ * the seek to be confirmed first, which is what `captureFrame` is for.
+ */
 export type ImageSource =
     | Blob
     | File
     | ImageBitmap
     | ImageData
     | HTMLImageElement
+    | HTMLVideoElement
     | HTMLCanvasElement
     | OffscreenCanvas
     | string;
@@ -75,6 +83,63 @@ export interface ResizeOptions extends EncodeOptions {
      * bytes, which is the opposite of what a resize is usually for.
      */
     readonly withoutEnlargement?: boolean;
+}
+
+/** Options for {@link captureFrame}. */
+export interface CaptureFrameOptions extends ResizeOptions {
+    /**
+     * Instant to capture, in milliseconds. Left out: the frame on screen now.
+     *
+     * Clamped to the video's duration. Seeking snaps to a frame boundary, so
+     * the frame you get is the one **containing** this instant — the result
+     * reports where it actually landed in {@link CapturedFrame.atMs}.
+     */
+    readonly atMs?: number;
+    /**
+     * Put `currentTime` and playback back where they were. Default `true`.
+     *
+     * Only relevant with `atMs`: capturing the current frame moves nothing.
+     * Pass `false` when the capture is meant to leave the player parked on the
+     * frame it took.
+     */
+    readonly restore?: boolean;
+    /**
+     * How long to wait for the seek and for the frame after it. Default `3000`.
+     *
+     * Reached means {@link FrameSeekError}, never a frame from the wrong
+     * instant: a picture of the wrong moment is worse than an error, because
+     * nothing downstream can tell.
+     */
+    readonly timeoutMs?: number;
+    /** Abort the capture. Rejects with an `AbortError` `DOMException`. */
+    readonly signal?: AbortSignal;
+}
+
+/** An encoded frame, and where in the video it came from. */
+export interface CapturedFrame extends ProcessedImage {
+    /**
+     * The instant actually captured, in milliseconds.
+     *
+     * Not necessarily the `atMs` asked for: a seek lands on a frame boundary,
+     * so a request for 12 500 ms in a 30 fps video captures 12 500 at best and
+     * 12 466,67 in practice. Report this one, not the request.
+     */
+    readonly atMs: number;
+    /**
+     * Whether a newly presented frame was observed before the pixels were read.
+     *
+     * `true` only when `requestVideoFrameCallback` reported a frame going to
+     * the compositor. Measured in Chromium, 2026-09-04: that callback fires
+     * while a video **plays** and does **not** fire for a seek on a paused
+     * element — so capturing from a playing video (a screen-recording print)
+     * can be confirmed, and **capturing at an `atMs` reports `false`**, having
+     * settled on `seeked` plus two animation frames instead.
+     *
+     * So `false` is the normal result for a seek, not a warning. It says the
+     * capture is best effort by the standard of what browsers expose, and
+     * treating it as a failure would reject the majority of correct captures.
+     */
+    readonly confirmed: boolean;
 }
 
 /** A rectangle in source pixels. */

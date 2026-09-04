@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
     FakeAudioContext,
+    type FakeTrack,
     fakeStream,
     installAudioContext,
     removeAudioContext,
@@ -329,5 +330,88 @@ describe("monitorVoiceChain", () => {
         const restoreEngine = removeAudioContext();
         expect(() => monitorVoiceChain(fakeTrack(), DEFAULT_VOICE_CHAIN).stop()).not.toThrow();
         restoreEngine();
+    });
+});
+
+describe("createVoiceChain — the pass-through it hands back", () => {
+    let restore: () => void;
+    beforeEach(() => {
+        restore = installAudioContext();
+    });
+    afterEach(() => restore());
+
+    it("stops the source it was given ownership of", () => {
+        const track = fakeTrack();
+        const chain = createVoiceChain(track, ALL_OFF);
+
+        expect(chain.track).toBe(track);
+        expect(chain.supported).toBe(false);
+        chain.release();
+
+        expect((track as unknown as FakeTrack).stopped).toBe(true);
+    });
+
+    it("leaves a source it does not own running, because the caller still publishes it", () => {
+        const track = fakeTrack();
+        const chain = createVoiceChain(track, ALL_OFF, { ownsSource: false });
+
+        chain.release();
+
+        expect((track as unknown as FakeTrack).stopped).toBe(false);
+    });
+
+    it("tears the graph down and falls back when the destination reports no track", () => {
+        const context = new FakeAudioContext();
+        context.createMediaStreamDestination = () => ({
+            stream: fakeStream(0),
+            disconnect: (): void => undefined,
+        });
+        const track = fakeTrack();
+
+        const chain = createVoiceChain(
+            track,
+            { ...ALL_OFF, limiter: true },
+            { context: context as unknown as AudioContext },
+        );
+
+        expect(chain.track).toBe(track);
+        expect(chain.supported).toBe(false);
+        expect(context.sources[0]?.disconnected).toBe(1);
+    });
+});
+
+describe("voice chain — the MediaStream the platform may or may not have", () => {
+    /** A `MediaStream` jsdom does not provide, recording what it was handed. */
+    class StubMediaStream {
+        constructor(public tracks: readonly MediaStreamTrack[] = []) {}
+    }
+
+    let restore: () => void;
+    beforeEach(() => {
+        restore = installAudioContext();
+        vi.stubGlobal("MediaStream", StubMediaStream);
+    });
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        restore();
+    });
+
+    it("wraps the source in one before reading it into the graph", () => {
+        const track = fakeTrack();
+
+        createVoiceChain(track, { ...ALL_OFF, limiter: true });
+
+        const wrapped = context().sources[0]?.stream;
+        expect(wrapped).toBeInstanceOf(StubMediaStream);
+        expect((wrapped as StubMediaStream).tracks).toEqual([track]);
+    });
+
+    it("wraps the processed track the same way before monitoring it", () => {
+        const monitor = monitorVoiceChain(fakeTrack(), { ...ALL_OFF, limiter: true });
+
+        const playback = context().sources.at(-1)?.stream;
+        expect(playback).toBeInstanceOf(StubMediaStream);
+        expect((playback as StubMediaStream).tracks).not.toEqual([]);
+        monitor.stop();
     });
 });

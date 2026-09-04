@@ -140,6 +140,136 @@ vezes — e numa imagem de 12 megapixels a decodificação é o custo, não a
 escala. `size` é a **maior aresta**, então retrato e paisagem cabem na mesma
 célula de grid sem conta separada.
 
+## Um frame de um vídeo
+
+O frame que está na tela não precisa de nada especial — um `<video>` é uma
+fonte como qualquer outra, porque `createImageBitmap` aceita o elemento:
+
+```tsx
+import { resizeImage } from "tempest-react-sdk/imaging";
+
+const print = await resizeImage(videoRef.current, { width: 1280, type: "image/webp" });
+```
+
+Um **instante escolhido** é outra história. Este é o código que todo app
+escreve, e ele está errado:
+
+```tsx
+video.currentTime = 12.5;
+await new Promise((r) => video.addEventListener("seeked", r, { once: true }));
+context.drawImage(video, 0, 0); // pode desenhar o frame ANTERIOR
+```
+
+`seeked` diz que a busca terminou, não que o frame da nova posição já está
+composto e legível pelo `drawImage`. O sintoma é o pior tipo: funciona na
+máquina de quem escreveu e devolve o frame vizinho em outro navegador, sem erro
+e sem log.
+
+`captureFrame` é esse caminho feito uma vez:
+
+```tsx
+import { captureFrame } from "tempest-react-sdk/imaging";
+
+const poster = await captureFrame(video, { atMs: 10_000, width: 640 });
+
+setPoster(URL.createObjectURL(poster.blob));
+console.log(`caiu em ${poster.atMs}ms, confirmado: ${poster.confirmed}`);
+```
+
+Sem `atMs` ele lê o frame corrente; com `atMs` ele busca, espera o frame
+daquele instante ser apresentado, captura e **devolve o player onde estava**.
+
+| Opção | O que faz |
+| --- | --- |
+| `atMs` | Instante a capturar. Omitido: o frame na tela agora |
+| `restore` | Devolve `currentTime` e a reprodução. Padrão `true` |
+| `timeoutMs` | Teto para a busca e para o frame depois dela. Padrão `3000` |
+| `signal` | `AbortSignal`; rejeita com `AbortError` |
+| `width` / `height` / `fit` / `type` / `quality` | Iguais ao `resizeImage` |
+
+O retorno é um `ProcessedImage` com dois campos a mais: `atMs`, o instante que
+de fato saiu, e `confirmed`.
+
+!!! note "Por que `atMs` de volta é diferente do `atMs` que você pediu"
+    Uma busca cai numa fronteira de frame. Pedir 12 500 ms num vídeo a 30 fps
+    entrega 12 466,67 ms — o frame que **contém** aquele instante. O campo
+    `atMs` do retorno é o que aconteceu; o que você pediu foi a intenção.
+
+!!! note "`confirmed` diz o quanto dá para ter certeza — e num seek ele é `false`"
+    `requestVideoFrameCallback` é o único sinal que diz "um frame foi
+    apresentado". Medido no Chromium em 04/09/2026: ele dispara enquanto o
+    vídeo **reproduz** e **não** dispara em seek de elemento pausado.
+
+    Então:
+
+    - captura de vídeo **tocando** (o print de gravação de tela) espera o
+      próximo frame apresentado → `confirmed: true`;
+    - captura com **`atMs`** espera `seeked` + dois animation frames →
+      `confirmed: false`, sempre;
+    - captura do frame corrente de vídeo **pausado** não espera nada — o frame
+      na tela já é o frame.
+
+    `false` num seek é o normal, não um aviso. Tratar como falha rejeitaria a
+    maioria das capturas corretas. E é por isso que o seek **não** bloqueia no
+    callback: esperar por um sinal que aquele estado não emite custaria o
+    `timeoutMs` inteiro em cada captura, para seguir igual no fim.
+
+!!! info "Gravação pode chegar sem duração"
+    `MediaRecorder` não garante duração no header do WebM, então o blob que o
+    `useVideoRecorder` acabou de te dar pode reportar `Infinity` — e é
+    justamente desse vídeo que um app quer tirar frame. Buscar além do fim
+    força o navegador a demuxar até o último frame, depois do que ele sabe o
+    tamanho. Essa sondagem roda aqui dentro, não em cada chamada.
+
+    Medido em 04/09/2026: o Chromium **escreve** a duração para uma gravação
+    finalizada num único `stop()` (3.000197 s para 3 s de canvas), então nesse
+    caminho a sondagem não roda. Ela existe para os caminhos que omitem —
+    gravação em chunks por `timeslice`, e outros navegadores. O
+    `useVideoRecorder` mantém o próprio relógio justamente por isso.
+
+!!! warning "Vídeo de outra origem precisa de `crossOrigin`"
+    Sem `crossOrigin="anonymous"` no elemento **antes** da fonte carregar, o
+    vídeo contamina o canvas e a leitura é proibida. O `drawImage` passa e o
+    erro aparece no encode, longe da causa — `captureFrame` reembala dizendo o
+    que ajustar, mas o atributo é da sua tag e o servidor precisa mandar
+    `Access-Control-Allow-Origin`.
+
+Stream ao vivo (`srcObject` de `getUserMedia`, `getDisplayMedia` ou
+`captureStream`) não tem linha do tempo: `atMs` ali levanta `FrameSeekError`.
+Não passe `atMs` e você captura o agora, que é o único instante que existe.
+
+### Print de uma gravação de tela
+
+Junta com `useScreenCapture` e `share`:
+
+```tsx
+import { useScreenCapture, shareOrDownloadBlob } from "tempest-react-sdk";
+import { captureFrame } from "tempest-react-sdk/imaging";
+
+function ScreenPrint() {
+  const screen = useScreenCapture();
+  const video = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (video.current) video.current.srcObject = screen.stream;
+  }, [screen.stream]);
+
+  async function print() {
+    if (!video.current) return;
+    const shot = await captureFrame(video.current, { type: "image/webp", quality: 0.9 });
+    await shareOrDownloadBlob(shot.blob, "print.webp");
+  }
+
+  return (
+    <>
+      <button onClick={screen.start} disabled={!screen.supported}>Compartilhar tela</button>
+      <video ref={video} autoPlay muted playsInline />
+      <button onClick={print} disabled={screen.stream === null}>Tirar print</button>
+    </>
+  );
+}
+```
+
 ## No React
 
 ```tsx
@@ -197,6 +327,7 @@ por dezenas de milissegundos por imagem.
 | `rotateImage(source, degrees, options?)` | Gira em múltiplos de 90 |
 | `flipImage(source, axes, options?)` | Espelha |
 | `compressToTarget(source, options)` | Busca binária de qualidade até caber |
+| `captureFrame(video, options?)` | Um frame de um `<video>`, no instante pedido |
 | `createThumbnails(source, specs, options?)` | Vários tamanhos, uma decodificação |
 | `decodeImage(source)` / `readImageInfo(blob)` | Pixels orientados / dimensões e tamanho |
 | `encodeImage(surface, options?)` | Canvas para bytes |
@@ -205,14 +336,19 @@ por dezenas de milissegundos por imagem.
 | `useImagePreview(blob)` / `useImageProcessing()` | Hooks |
 
 Erros: `ImagingError` na raiz, com `ImageDecodeError`, `ImageEncodeError`,
-`UnsupportedImageTypeError` e `ImagingUnavailableError`.
+`FrameSeekError`, `UnsupportedImageTypeError` e `ImagingUnavailableError`. O
+`FrameSeekError` é o do `captureFrame`: a busca não chegou, ou o vídeo não tem
+linha do tempo. Ele existe como classe própria porque a alternativa seria
+devolver frame do instante errado, que é indistinguível de um correto para tudo
+o que vem depois.
 
 Os defaults de cada opção também saem exportados, para uma tela de ajustes
 exibir o valor que está prestes a sobrescrever em vez de repeti-lo:
 `DEFAULT_QUALITY` (0.85), `DEFAULT_TYPE` (`image/jpeg`), `DEFAULT_BACKGROUND`
 (`#ffffff`, o fundo que substitui a transparência ao ir para JPEG) e, na busca do
 `compressToTarget`, `DEFAULT_MIN_QUALITY` (0.4), `DEFAULT_MAX_QUALITY` (0.92) e
-`DEFAULT_COMPRESS_STEPS` (6 iterações).
+`DEFAULT_COMPRESS_STEPS` (6 iterações). O `captureFrame` traz
+`DEFAULT_FRAME_TIMEOUT_MS` (3000 ms), o teto de espera da busca.
 
 ## Recapitulando
 
@@ -220,4 +356,6 @@ exibir o valor que está prestes a sobrescrever em vez de repeti-lo:
 - Cheque o formato com `supportsImageType`; confie no `type` do retorno.
 - `compressToTarget` para orçamento de bytes; `withoutEnlargement` fica ligado.
 - Reencodar apaga EXIF — é a etapa de privacidade, além da de banda.
+- Frame de vídeo: `captureFrame` para instante escolhido — `seeked` sozinho
+  desenha o frame vizinho. Leia `confirmed` antes de confiar no instante.
 - Rode num worker: `OffscreenCanvas` é usado sozinho quando existe.

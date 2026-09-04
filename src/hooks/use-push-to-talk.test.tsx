@@ -118,6 +118,62 @@ describe("usePushToTalk", () => {
         expect(onDown).not.toHaveBeenCalled();
     });
 
+    it("leaves a textarea and a select alone, like any other field", () => {
+        const onDown = vi.fn();
+        mount({ onDown, onUp: vi.fn() });
+
+        for (const tag of ["textarea", "select"] as const) {
+            const field = document.createElement(tag);
+            document.body.append(field);
+            expect(key("keydown", { target: field })).toBe(false);
+            field.remove();
+        }
+
+        expect(onDown).not.toHaveBeenCalled();
+    });
+
+    it("opens the microphone once when the platform repeats without the repeat flag", () => {
+        const onDown = vi.fn();
+        mount({ onDown, onUp: vi.fn() });
+
+        key("keydown");
+        key("keydown");
+
+        expect(onDown).toHaveBeenCalledTimes(1);
+    });
+
+    it("ignores the keyup of a key it is not bound to", () => {
+        const onUp = vi.fn();
+        mount({ code: "ControlLeft", onDown: vi.fn(), onUp });
+
+        key("keydown", { code: "ControlLeft" });
+        key("keyup", { code: "Space" });
+
+        expect(onUp).not.toHaveBeenCalled();
+    });
+
+    /**
+     * The field guard runs on the keyup too, so a hold whose keyup lands in a
+     * field is not released by it — clicking into an input without letting go
+     * gets there. `blur` and unmount are what still close the microphone, which
+     * is why both are bound.
+     */
+    it("does not release on a keyup that landed in a field, leaving blur to do it", () => {
+        const onUp = vi.fn();
+        const { getByLabelText } = mount({ onDown: vi.fn(), onUp });
+        const input = getByLabelText("mensagem");
+
+        key("keydown");
+        key("keyup", { target: input });
+        expect(onUp).not.toHaveBeenCalled();
+
+        act(() => {
+            window.dispatchEvent(new Event("blur"));
+        });
+
+        expect(onUp).toHaveBeenCalledTimes(1);
+    });
+
     it("swallows the keystroke it acts on, so Space does not scroll the page", () => {
         mount({ onDown: vi.fn(), onUp: vi.fn() });
 

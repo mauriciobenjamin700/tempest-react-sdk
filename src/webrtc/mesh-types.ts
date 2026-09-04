@@ -69,6 +69,21 @@ export interface MeshQuality {
     /** What a video encoder gives up first. */
     degradationPreference?: RTCDegradationPreference;
     /**
+     * Which video slot decides whether `maintain-framerate` still holds.
+     *
+     * Without it the decision reads the **largest** cap across every video
+     * slot, which is right for a mesh whose slots are interchangeable and wrong
+     * for one where they are not. Somebody who picked fluidity was thinking
+     * about the screen — code, a spreadsheet, a video at 60 fps — and with only
+     * a camera on, that choice ends up being decided by a stream it was never
+     * about.
+     *
+     * Name the slot the choice was about and it decides alone. A slot the caps
+     * do not mention keeps the preference: nothing has been said about the
+     * thing being asked about, and a modest camera beside it is not an answer.
+     */
+    degradationAnchor?: string;
+    /**
      * Total uplink to divide among the peers, in kbps.
      *
      * A mesh sends one copy of everything **per participant**, so a cap that is

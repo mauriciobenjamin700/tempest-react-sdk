@@ -328,6 +328,19 @@ Cada peer envia **uma cópia de tudo por participante**, então um cap confortá
 - **Áudio fica fora da divisão.** É uma ordem de grandeza mais barato e é a parte da chamada que precisa sobreviver.
 - **`minVideoKbps` é o piso.** Dividir sem piso acaba alocando dezenas de kbps por stream — todo mundo perde a imagem em vez de o excedente ceder.
 - **`maintain-framerate` é sobreposto abaixo de `fluidFloorKbps`.** Quem pediu fluidez pediu imagem boa em movimento, não o número 60: com pouca banda, segurar a taxa divide cada quadro pela metade e o resultado é pior que os 30 fps que substituiu.
+- **Slot sem cap é o caso mais generoso, não o ausente.** `null` num slot de vídeo significa sem teto, e é exatamente onde a fluidez deve valer. Um slot sem cap ao lado de uma câmera modesta mantém `maintain-framerate` — ler o `null` como "não informado" e então decidir pela câmera é a resposta ao contrário.
+- **`degradationAnchor` nomeia o slot sobre o qual a escolha era.** Sem ele decide o **maior** cap entre os slots de vídeo, o que está certo quando os slots são intercambiáveis e errado quando não são: quem escolheu fluidez estava pensando na tela — código, planilha, vídeo a 60 fps — e numa chamada com só a câmera ligada essa escolha passa a ser decidida por um stream sobre o qual ela nunca foi.
+
+```ts
+await mesh.applyQuality({
+  video: { cam: 1200, screen: 3000 },
+  degradationPreference: "maintain-framerate",
+  degradationAnchor: "screen",   // a câmera não decide pela tela
+  fluidFloorKbps: 900,
+});
+```
+
+Slot que os caps não mencionam mantém a preferência: nada foi dito sobre a coisa em questão, e uma câmera modesta ao lado não é uma resposta.
 
 `scaleForRoom(quality, peers)` e `resolveDegradation(asked, effective)` são as duas funções puras por trás disso, exportadas porque o app precisa da **mesma** divisão antes de capturar: escolher 4K para uma sala de quatro é capturar quatro vezes mais pixels do que há bits para enviar, e o resultado é pior que a resolução menor. Derive o tamanho da captura do orçamento dividido, não do que a pessoa escolheu.
 

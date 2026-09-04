@@ -167,6 +167,55 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **O tema escuro entregava 73 violações de contraste, e eram três formas do
+  mesmo defeito** ([#292](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/292)): um token de texto que ninguém validou
+  contra a superfície onde ele cai. Medido em Chromium, `73 → 16` a 1280px e
+  `71 → 16` a 390px.
+
+  | Causa                                       | Medido                                                                      | Correção                                   |
+  | ------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------ |
+  | `--tempest-text-subtle` no escuro           | 4,04:1 sobre `surface`, 4,37 sobre `bg`                                     | `#6f7889` → `#7b849a` (4,79 / 5,19)        |
+  | `--tempest-primary-contrast` no `Scheduler` | token **inexistente**: o `var()` caía sempre no `#fff` do fallback → 3,67:1 | aponta para `--tempest-primary-foreground` |
+  | `--tempest-text-on-primary`                 | branco no `:root`, **nunca** sobrescrito no bloco escuro → 3,67:1           | segue `var(--tempest-primary-foreground)`  |
+
+  O valor novo do `text-subtle` foi escolhido com margem, não no primeiro que
+  passa: `#767f95` dá 4,47 sobre `surface` e reprovaria por 0,03. Os 4,79 do
+  `#7b849a` deixam a margem do escuro parecida com a que o claro já tem (4,76),
+  então a próxima mexida na paleta aparece como teste vermelho e não como
+  regressão muda.
+
+  **`--tempest-primary` como texto foi acusado e é inocente**: passa nos dois
+  temas (4,83 / 4,59 no claro, 5,28 / 4,87 no escuro). As falhas de `#0066ff`
+  sobre fundo escuro vinham da section `ThemeFactorySection` da gallery, que
+  chamava `applyTheme(createTheme(...))` **sem `selector`** — e o default é
+  `:root`, então montar aquela demo repintava a gallery inteira com a paleta
+  dela. Toda cor medida no browser virava afirmação sobre a demo. Corrigido com
+  `selector: "#theme-factory"`.
+
+### Testes
+
+- **Os pares que faltavam entraram no `contrast.test.ts`** ([#292](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/292)).
+  O arquivo já tinha a régua certa — cada par (texto, fundo) lido do
+  `colors.css`, nos dois temas, piso 4,5:1 — e não media
+  `--tempest-text-subtle`, `--tempest-primary` como texto, nem o gêmeo
+  `--tempest-text-on-primary`. **O defeito não escapou de um gate; escapou do
+  vão entre dois.** Com os pares novos e o valor antigo, exatamente os dois do
+  escuro falham; com o valor novo, os 52 passam.
+
+- **`e2e/axe-baseline.json` baixou**, que é o ratchet fazendo o trabalho dele:
+  contraste `73 → 16` e `71 → 16` nas duas células escuras, e o total de
+  violações de 565 → 508 e 712 → 657.
+
+### Interno
+
+- **O teto do barrel inteiro subiu de 126 para 127 KB**, porque a soma da rodada
+  mede **126,14 KB** brotli. Não é um teto que alguém pague — o próprio nome diz
+  que ninguém importa o barrel e que o custo real é por fatia —, mas ele existe
+  para a soma não crescer sem que alguém olhe. Os bytes desta vez compraram os
+  três campos de controle do `LinkStats` com seus leitores, a amostragem própria
+  da mesh e o `degradationAnchor`. As fatias importadas de fato continuam nos
+  tetos que já tinham.
+
 - **`usePushToTalk` deixava o microfone aberto quando o `keyup` caía num campo**
   ([#283](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/283)). O guard de campo rodava nos dois handlers, e na subida
   ele fazia o oposto do seu trabalho: `keyup` é entregue ao que está focado

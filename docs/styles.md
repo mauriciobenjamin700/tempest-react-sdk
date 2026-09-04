@@ -183,6 +183,38 @@ Aliases:
     claro → escuro → claro devolve o mesmo número. Se não devolver, a medição
     está errada, não o CSS.
 
+!!! danger "Dois nomes para um trabalho é o vão por onde o defeito passa"
+    O tema escuro entregou **73 violações de contraste** medidas em Chromium, e
+    as três causas eram a mesma coisa vista de ângulos diferentes: um token de
+    texto que ninguém validou contra a superfície onde ele cai.
+
+    | Causa | Medido | Correção |
+    | --- | --- | --- |
+    | `--tempest-text-subtle` no escuro | 4,04:1 sobre `surface`, 4,37 sobre `bg` | `#6f7889` → `#7b849a` (4,79 / 5,19) |
+    | `--tempest-primary-contrast` no `Scheduler` | token **inexistente**, caía no `#fff` do fallback → 3,67:1 | aponta para `--tempest-primary-foreground` |
+    | `--tempest-text-on-primary` | declarado branco no `:root` e **nunca** sobrescrito no escuro → 3,67:1 | segue `var(--tempest-primary-foreground)` |
+
+    O `--tempest-primary-foreground` já estava certo — alguém mediu os 3,68:1 e
+    o corrigiu, escrevendo no `colors.css` que "todos os 16 usos" apontavam
+    para ele. A medição estava certa; a contagem não: o `AppBar` usava o gêmeo
+    e o `Scheduler` usava um nome que não existe.
+
+    **Se você redefinir a paleta, redefina os dois nomes.** E prefira o
+    canônico: `--tempest-text-on-primary` existe por compatibilidade e segue o
+    outro.
+
+!!! warning "Um `var()` com fallback esconde um token que não existe"
+    A análise de CSS do `tempest doctor` não reporta `var()` **com** fallback,
+    de propósito: sem essa regra, o idioma de knob
+    (`var(--tempest-card-padding, 1rem)`) gerava 43 falsos positivos e a
+    ferramenta seria ignorada. O preço é este ponto cego —
+    `var(--tempest-primary-contrast, #fff)` compila, roda, e pinta branco para
+    sempre.
+
+    Ao escrever um `var()` com fallback, pergunte se o nome é um **knob** (o
+    consumidor define) ou um **token de propósito** (o SDK define). No segundo
+    caso, o fallback está escondendo um erro de digitação.
+
 !!! warning "Texto sobre `primary-soft` usa `primary-on-soft`, não `primary`"
     `--tempest-primary` sobre `--tempest-primary-soft` dá **4,38:1** no tema claro e
     **4,28:1** no escuro — o

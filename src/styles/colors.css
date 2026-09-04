@@ -314,7 +314,14 @@
     --tempest-border-strong: #3a4258;
     --tempest-text: #f1f3f8;
     --tempest-text-muted: #aab2c0;
-    --tempest-text-subtle: #6f7889;
+    /*
+     * Measured, not picked: #6f7889 came to 4.04:1 over --tempest-surface and
+     * 4.37:1 over --tempest-bg, and the text floor is 4.5:1. This clears both
+     * at 4.79 and 5.19, which is about the margin the light theme has (4.76
+     * over gray-50) — enough that the next palette nudge shows up as a failing
+     * test rather than as a silent regression.
+     */
+    --tempest-text-subtle: #7b849a;
 
     /* Dark theme uses lighter fills, so every status carries dark ink — including
      * primary and danger, which could still take white in the light theme.
@@ -324,6 +331,16 @@
      * against the dark theme's #3b82f6, so it is overridden rather than duplicated by
      * a new name. */
     --tempest-primary-foreground: #1f0606;
+    /*
+     * The twin, kept in step rather than left behind.
+     *
+     * `--tempest-text-on-primary` is declared in `:root` as white and was never
+     * overridden here, so anything reading it landed white on the dark theme's
+     * light `#3b82f6` fill — 3.67:1. The SDK's own uses now point at
+     * `--tempest-primary-foreground`, and this follows it so a consumer that
+     * still reads the older name gets a legible value instead of the bug.
+     */
+    --tempest-text-on-primary: var(--tempest-primary-foreground);
     --tempest-danger-on-solid: #1f0606;
     --tempest-info-on-solid: #1f0606;
     --tempest-success-on-solid: #1f0606;

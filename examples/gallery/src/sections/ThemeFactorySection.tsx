@@ -25,11 +25,23 @@ export function ThemeFactorySection() {
     const [preset, setPreset] = useState<ThemePresetName>("tempest");
     const [radius, setRadius] = useState("md");
 
+    /*
+     * Scoped to this section, not to `:root`.
+     *
+     * `createTheme` defaults its selector to `:root`, so applying the generated
+     * theme on mount repainted the **whole gallery** with a demo palette — every
+     * other section's colours became a preview of this one. That is not just
+     * untidy: it made every colour measured on the gallery a statement about
+     * this demo rather than about the SDK, which is how a browser sweep came to
+     * report failures the shipped palette does not have.
+     */
     useEffect(() => {
         return applyTheme(
             createTheme({
                 ...themePresets[preset],
                 radius: radius as "none" | "sm" | "md" | "lg" | "xl" | "full",
+                selector: "#theme-factory",
+                darkSelector: '[data-tempest-theme="dark"] #theme-factory',
             }),
         );
     }, [preset, radius]);

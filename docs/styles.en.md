@@ -186,6 +186,38 @@ Aliases:
     light → dark → light returns the same number. If it does not, the measurement
     is wrong, not the CSS.
 
+!!! danger "Two names for one job is the gap a defect walks through"
+    The dark theme shipped **73 contrast violations**, measured in Chromium, and
+    the three causes were the same thing from different angles: a text token
+    nobody validated against the surface it lands on.
+
+    | Cause | Measured | Fix |
+    | --- | --- | --- |
+    | `--tempest-text-subtle` in dark | 4.04:1 over `surface`, 4.37 over `bg` | `#6f7889` → `#7b849a` (4.79 / 5.19) |
+    | `--tempest-primary-contrast` in `Scheduler` | token **does not exist**, so the `#fff` fallback always won → 3.67:1 | points at `--tempest-primary-foreground` |
+    | `--tempest-text-on-primary` | declared white in `:root` and **never** overridden in dark → 3.67:1 | follows `var(--tempest-primary-foreground)` |
+
+    `--tempest-primary-foreground` was already right — somebody measured the
+    3.68:1 and fixed it, writing in `colors.css` that "all 16 uses" pointed at
+    it. The measurement was right; the count was not: `AppBar` used the twin and
+    `Scheduler` used a name that does not exist.
+
+    **If you redefine the palette, redefine both names.** And prefer the
+    canonical one: `--tempest-text-on-primary` exists for compatibility and
+    follows the other.
+
+!!! warning "A `var()` with a fallback hides a token that does not exist"
+    The CSS analysis in `tempest doctor` does not report `var()` **with** a
+    fallback, on purpose: without that rule the knob idiom
+    (`var(--tempest-card-padding, 1rem)`) produced 43 false positives and the
+    tool would be ignored. The price is this blind spot —
+    `var(--tempest-primary-contrast, #fff)` compiles, runs, and paints white
+    forever.
+
+    When writing a `var()` with a fallback, ask whether the name is a **knob**
+    (the consumer defines it) or a **purpose token** (the SDK defines it). In
+    the second case the fallback is hiding a typo.
+
 !!! warning "Text on `primary-soft` uses `primary-on-soft`, not `primary`"
     `--tempest-primary` over `--tempest-primary-soft` yields 4.37:1 — WCAG AA
     asks for 4.5:1 on text. That is why `--tempest-primary-on-soft` exists

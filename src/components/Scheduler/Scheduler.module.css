@@ -64,7 +64,7 @@
     border: none;
     border-radius: var(--tempest-radius-sm);
     background-color: var(--tempest-primary);
-    color: var(--tempest-primary-contrast, #fff);
+    color: var(--tempest-primary-foreground);
     font: inherit;
     font-size: var(--tempest-text-xs);
     line-height: 1.5rem;
@@ -155,7 +155,7 @@
     border: 1px solid var(--tempest-bg);
     border-radius: var(--tempest-radius-sm);
     background-color: var(--tempest-primary);
-    color: var(--tempest-primary-contrast, #fff);
+    color: var(--tempest-primary-foreground);
     font: inherit;
     text-align: left;
     cursor: pointer;

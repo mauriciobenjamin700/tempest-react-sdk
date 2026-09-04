@@ -21,7 +21,7 @@
 
 .bar.primary {
     background: var(--tempest-primary);
-    color: var(--tempest-text-on-primary);
+    color: var(--tempest-primary-foreground);
 }
 
 .bar.transparent {

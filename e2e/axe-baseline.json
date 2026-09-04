@@ -3,7 +3,7 @@
     "incomplete": {
       "aria-prohibited-attr": 27,
       "aria-valid-attr-value": 4,
-      "color-contrast": 121,
+      "color-contrast": 88,
       "video-caption": 4
     },
     "violations": {
@@ -12,7 +12,7 @@
       "aria-prohibited-attr": 54,
       "aria-required-children": 6,
       "aria-required-parent": 200,
-      "color-contrast": 73,
+      "color-contrast": 16,
       "heading-order": 7,
       "landmark-main-is-top-level": 3,
       "landmark-no-duplicate-main": 1,
@@ -25,7 +25,7 @@
     "incomplete": {
       "aria-prohibited-attr": 27,
       "aria-valid-attr-value": 4,
-      "color-contrast": 131,
+      "color-contrast": 98,
       "video-caption": 4
     },
     "violations": {
@@ -34,7 +34,7 @@
       "aria-prohibited-attr": 54,
       "aria-required-children": 6,
       "aria-required-parent": 200,
-      "color-contrast": 71,
+      "color-contrast": 16,
       "heading-order": 7,
       "landmark-main-is-top-level": 3,
       "landmark-no-duplicate-main": 1,

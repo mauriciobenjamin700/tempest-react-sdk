@@ -125,6 +125,33 @@ const PAIRS: ReadonlyArray<{ label: string; fg: string; bg: string }> = [
     { label: "text on surface", fg: "--tempest-text", bg: "--tempest-surface" },
     { label: "muted on bg", fg: "--tempest-text-muted", bg: "--tempest-bg" },
     { label: "muted on surface", fg: "--tempest-text-muted", bg: "--tempest-surface" },
+
+    /*
+     * The two pairs whose absence let a real defect ship. `--tempest-text-subtle`
+     * measured 4.04:1 over the dark surface and nothing here was looking: the
+     * ruler was right, the list was short. Found by widening the browser sweep
+     * to the dark theme, which is a slower way to learn it than this file.
+     */
+    { label: "subtle on bg", fg: "--tempest-text-subtle", bg: "--tempest-bg" },
+    { label: "subtle on surface", fg: "--tempest-text-subtle", bg: "--tempest-surface" },
+
+    /*
+     * Primary **as text**, which is a different question from primary as a
+     * button fill. It passes in both themes — 4.83 and 4.59 in light, 5.28 and
+     * 4.87 in dark — and it is pinned because it was wrongly accused: the
+     * `#0066ff` failures seen in the browser came from a gallery demo applying
+     * the light primary against dark backgrounds, not from this palette.
+     */
+    { label: "primary as text on bg", fg: "--tempest-primary", bg: "--tempest-bg" },
+    { label: "primary as text on surface", fg: "--tempest-primary", bg: "--tempest-surface" },
+
+    /*
+     * The twin of `--tempest-primary-foreground`, which the dark block used to
+     * leave behind at white: 3.67:1 on the dark theme's lighter fill. It is
+     * pinned so the pair cannot drift apart again — a second name for one job
+     * is only safe while something checks that both answers are the same.
+     */
+    { label: "on-primary twin", fg: "--tempest-text-on-primary", bg: "--tempest-primary" },
 ];
 
 const value = (map: Record<string, string>, token: string): string =>

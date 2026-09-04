@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.57.0] — 2026-09-04
+
 ### Adicionado
 
 - **A mesh mede a si mesma, e entrega a conexão para o resto**

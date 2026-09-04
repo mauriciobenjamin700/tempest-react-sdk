@@ -22,6 +22,12 @@ the browser already has, not a library the SDK bundled.
 *Section `device-capture` of the [gallery](gallery.md) — run it locally to interact.*
 <!-- /gallery -->
 
+<!-- gallery:video-player -->
+[![VideoPlayer in the gallery](assets/gallery/video-player.webp)](gallery.md)
+
+*Section `video-player` of the [gallery](gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
 ## Reading codes: start with the component
 
 The SDK already had [`QRCode`](./components/utility.md), which **only encodes**.
@@ -262,6 +268,77 @@ the user has not picked a screen yet.
 
 The recorder does **not** own the stream: stopping the recording leaves the share alive,
 because a support flow usually records, stops, lets the person look and records again.
+
+### Playing back what was recorded: `VideoPlayer`
+
+`AudioPlayer`'s counterpart for video. It takes the `Blob` directly, with no
+upload in between:
+
+```tsx
+import { useScreenCapture, useVideoRecorder, VideoPlayer } from "tempest-react-sdk";
+
+export function RecordAndReview() {
+  const screen = useScreenCapture();
+  const rec = useVideoRecorder(screen.stream);
+
+  return (
+    <>
+      <button onClick={screen.start}>Share screen</button>
+      <button disabled={!rec.ready} onClick={rec.start}>Record</button>
+      <button onClick={() => void rec.stop()}>Stop</button>
+
+      {rec.recording && (
+        <VideoPlayer src={rec.recording.blob} durationMs={rec.recording.durationMs} />
+      )}
+    </>
+  );
+}
+```
+
+The full transport: play/pause, a seek bar, times, mute and volume, **speed**
+and fullscreen. `playsInline` is on by default.
+
+| Prop | What it does |
+| --- | --- |
+| `src` | URL or `Blob`/`File`. The object URL is revoked on change and unmount |
+| `durationMs` | A length you already know — pass it whenever you have it |
+| `rate` / `rates` / `onRateChange` | Speed and its presets. `rates={[]}` hides the control |
+| `shiftPitch` | Let the pitch rise with the speed. Default `false` |
+| `poster` | Cover still. Pairs with [`captureFrame`](./imaging.en.md) |
+| `tracks` | Captions, rendered as `<track>` |
+| `aspectRatio` | Frame shape before the video reports its own. Default `16 / 9` |
+| `fullscreen` | Fullscreen button where the browser supports it. Default `true` |
+| `muted` / `autoPlay` / `loop` | As on the element |
+| `actions` | Slot at the end of the bar — download, delete |
+
+The default presets are exported as `DEFAULT_PLAYBACK_RATES` (`[0.5, 1, 1.5, 2]`), so a settings screen can show the list instead of restating it.
+
+!!! danger "The speed resets on a `src` change if you only write `playbackRate`"
+    The element's load algorithm copies `defaultPlaybackRate` **over**
+    `playbackRate`. A player that keeps "2×" in state and writes only the second
+    loses the viewer's choice on every new clip — no error, no log.
+    `VideoPlayer` writes **both**.
+
+    If you build your own instead, that is the line that cannot be missing. And
+    do not expect a jsdom test to catch it: there the two values are independent
+    and there is no load algorithm, so the regression is invisible.
+
+!!! note "Outside a useful range the browser may drop the audio"
+    The spec lets a browser mute when `playbackRate` leaves a reasonable range,
+    and the limit **varies**. The default presets (0.5× to 2×) sit inside every
+    one we measured; if you offer 4× or 0.1×, test with audio in the target
+    browser before promising it to the viewer.
+
+!!! info "The controls sit **below** the frame, not over it"
+    A control drawn over video has to guarantee contrast against arbitrary
+    pixels, and no `--tempest-*` token promises that: every text token here is
+    resolved against a known surface, and the two contrast defects this SDK
+    shipped were both a text token used over a surface it was never checked
+    against. A bar with its own surface inherits the theme and is legible by
+    construction.
+
+    If you want the cinema look, position your own chrome over the frame — what
+    ships is the one that is right in both themes.
 
 ## Sharing the screen
 

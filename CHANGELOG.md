@@ -4,6 +4,69 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`<VideoPlayer>` — o par do `AudioPlayer` para vídeo** ([#279](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/279)).
+  O SDK gravava vídeo (`useVideoRecorder`, `useScreenCapture`) e não sabia
+  tocar: `playbackRate` não aparecia **uma vez** no `src/` inteiro, então
+  acelerar uma gravação de 20 minutos de tela não tinha superfície nenhuma.
+
+  ```tsx
+  const rec = useVideoRecorder(screen.stream);
+
+  {
+    rec.recording && <VideoPlayer src={rec.recording.blob} durationMs={rec.recording.durationMs} />;
+  }
+  ```
+
+  Transporte completo — play/pause, posição, tempos, mudo + volume, velocidade
+  e tela cheia (sobre o `useFullscreen`) —, `playsInline` ligado, `poster`,
+  legendas em `tracks`, `aspectRatio`, slot `actions`, e o `Blob` aceito direto
+  com o object URL revogado na troca e no unmount. Presets exportados em
+  `DEFAULT_PLAYBACK_RATES`.
+
+  **A armadilha que ele existe para absorver:** o algoritmo de load do elemento
+  copia `defaultPlaybackRate` **em cima** de `playbackRate`. Um player que
+  guarda "2×" em estado e escreve só o segundo perde a escolha do usuário em
+  todo clipe novo, sem erro e sem log. O componente escreve os dois — e o teste
+  disso é **estrutural** de propósito: jsdom mantém os dois valores
+  independentes e não implementa algoritmo de load nenhum (medido em
+  `node_modules/jsdom/lib/jsdom/living/nodes/HTMLMediaElement-impl.js`), então
+  nenhuma asserção de comportamento em jsdom pode ver a regressão.
+
+  **`onRateChange` colide com o DOM**, e a colisão é real: o React tipa esse
+  nome em todo elemento como handler do evento `ratechange`, e um
+  `(rate: number) => void` não é atribuível a um handler que recebe evento —
+  mesma classe do `Input.size` contra `HTMLInputElement.size`. Fica `Omit`ido
+  do `HTMLAttributes`, com a razão escrita no tipo.
+
+  **Os controles ficam embaixo do quadro, não sobre ele.** Controle sobre vídeo
+  tem de garantir contraste contra pixel arbitrário, e nenhum token
+  `--tempest-*` promete isso: todo token de texto daqui é resolvido contra uma
+  superfície conhecida, e os **dois** defeitos de contraste que este SDK
+  entregou foram token de texto usado sobre superfície onde nunca foi checado.
+  Barra com superfície própria herda o tema e é legível por construção. Quem
+  quer o look de cinema posiciona a própria chrome sobre o quadro.
+
+  No mobile (≤480px) a barra de posição ganha linha própria e o resto embrulha
+  embaixo, em vez de encolher sete controles abaixo do mínimo de toque. E o
+  **slider de volume desaparece** no telefone: medido em Chromium a 390px, a
+  segunda linha dava exatamente a largura do container e empurrava o botão de
+  tela cheia para uma terceira — gasto num slider que ninguém arrasta no
+  celular, onde a tecla física faz o trabalho. O botão de mudo fica, porque
+  silenciar rápido é o que se quer de um vídeo num feed.
+
+  Contraste medido no browser real (o `axe` em jsdom desliga `color-contrast`
+  por não haver paint), claro e escuro: tempo 7,32 / 8,42, select de velocidade
+  16,85 / 16,15, ícones 7,32 / 8,42, play branco sobre `--tempest-primary`
+  4,83 nos dois. Todos acima de 4,5:1.
+
+  31 testes, section nova na gallery (`video-player`), entrada no sweep de
+  `axe`, e teto de 6 KB para a fatia `{ VideoPlayer }` no `size-limit`. O que
+  fica descoberto no arquivo são as guardas `if (!node) return` do ref — React
+  anexa o ref antes dos efeitos e antes de qualquer handler poder disparar, e
+  são a classe que o `CLAUDE.md` já descreve como inalcançável por construção.
+
 ## [0.55.0] — 2026-08-30
 
 ### Adicionado

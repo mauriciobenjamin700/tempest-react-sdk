@@ -301,6 +301,21 @@ npm run dev               # http://127.0.0.1:5173
 
 ## Lições aprendidas
 
+- **Medição de contraste tem de desligar `transition`.** Trocar
+  `data-tempest-theme` e ler `getComputedStyle` logo depois amostra a animação: o
+  componente com `transition: color` devolve o foreground do tema que **sai** contra
+  o fundo do que **entra**. Aconteceu três vezes seguidas medindo o `VideoPlayer` —
+  o mesmo ícone deu 7,32 e depois 2,33 — e 2,33 parece exatamente um defeito real de
+  contraste. Injetar `*{transition:none!important}` antes de medir, e conferir que
+  ida-e-volta (claro → escuro → claro) devolve o mesmo número; se não devolver, a
+  medição está errada, não o CSS.
+- **Vite guarda o CSS do SDK em `node_modules/.vite`, e `vite preview` guarda o
+  `index.html`.** Rebuildar o SDK e a gallery e recarregar a página serviu **duas
+  vezes** o CSS antigo, com a regra anterior visível no CSSOM — o que faz parecer que
+  a mudança de CSS não funciona. Ao validar CSS na gallery: `rm -rf
+examples/gallery/node_modules/.vite examples/gallery/dist`, rebuildar, **reiniciar o
+  preview** e conferir o nome do arquivo `assets/index-*.css` que a página carregou
+  contra o que está em `dist/`.
 - **Dataset unido por nome sempre drifta; una por id estável.** Os quatro arquivos de
   `br/` vinham de duas safras do IBGE comparadas por nome, e 44 renomeações depois o
   seletor oferecia município que o geocoder não achava — sem erro, só resposta vazia. O

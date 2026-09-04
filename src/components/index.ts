@@ -257,6 +257,8 @@ export type {
     UseNotificationInboxOptions,
     UseNotificationInboxResult,
 } from "./NotificationCenter";
+export { DEFAULT_PLAYBACK_RATES, VideoPlayer } from "./VideoPlayer";
+export type { VideoPlayerProps, VideoTextTrack } from "./VideoPlayer";
 export { VirtualList } from "./VirtualList";
 export type { VirtualListProps } from "./VirtualList";
 export { VirtualTable } from "./VirtualTable";

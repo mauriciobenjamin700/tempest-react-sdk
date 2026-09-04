@@ -21,6 +21,12 @@ navegador já tem, não uma biblioteca que o SDK embarcou.
 *Seção `device-capture` da [gallery](gallery.md) — rode localmente para interagir.*
 <!-- /gallery -->
 
+<!-- gallery:video-player -->
+[![VideoPlayer na gallery](assets/gallery/video-player.webp)](gallery.md)
+
+*Seção `video-player` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
 ## Ler códigos: comece pelo componente
 
 O SDK já tinha o [`QRCode`](./components/utility.md), que **só codifica**. O
@@ -260,6 +266,76 @@ desabilitada enquanto o usuário ainda não escolheu a tela.
 
 O gravador **não** é dono do stream: parar a gravação deixa o compartilhamento vivo, porque
 um fluxo de suporte normalmente grava, para, deixa a pessoa olhar e grava de novo.
+
+### Tocar o que foi gravado: `VideoPlayer`
+
+O par do `AudioPlayer` para vídeo. Aceita o `Blob` direto, sem upload no meio:
+
+```tsx
+import { useScreenCapture, useVideoRecorder, VideoPlayer } from "tempest-react-sdk";
+
+export function GravarERever() {
+  const screen = useScreenCapture();
+  const rec = useVideoRecorder(screen.stream);
+
+  return (
+    <>
+      <button onClick={screen.start}>Compartilhar tela</button>
+      <button disabled={!rec.ready} onClick={rec.start}>Gravar</button>
+      <button onClick={() => void rec.stop()}>Parar</button>
+
+      {rec.recording && (
+        <VideoPlayer src={rec.recording.blob} durationMs={rec.recording.durationMs} />
+      )}
+    </>
+  );
+}
+```
+
+Transporte completo: play/pause, barra de posição, tempos, mudo + volume,
+**velocidade** e tela cheia. `playsInline` já vem ligado.
+
+| Prop | O que faz |
+| --- | --- |
+| `src` | URL ou `Blob`/`File`. O object URL é revogado na troca e no unmount |
+| `durationMs` | Duração que você já conhece — passe sempre que tiver |
+| `rate` / `rates` / `onRateChange` | Velocidade e os presets. `rates={[]}` esconde o controle |
+| `shiftPitch` | Deixa o pitch subir com a velocidade. Padrão `false` |
+| `poster` | Capa. Combina com o [`captureFrame`](./imaging.md) |
+| `tracks` | Legendas, viram `<track>` |
+| `aspectRatio` | Forma do quadro antes do vídeo reportar a dele. Padrão `16 / 9` |
+| `fullscreen` | Botão de tela cheia onde o navegador suporta. Padrão `true` |
+| `muted` / `autoPlay` / `loop` | Como no elemento |
+| `actions` | Slot no fim da barra — baixar, apagar |
+
+Os presets default saem exportados como `DEFAULT_PLAYBACK_RATES` (`[0.5, 1, 1.5, 2]`), para uma tela de ajustes mostrar a lista em vez de repeti-la.
+
+!!! danger "A velocidade reseta ao trocar de `src` se você escrever só `playbackRate`"
+    O algoritmo de load do elemento copia `defaultPlaybackRate` **em cima** de
+    `playbackRate`. Um player que guarda "2×" em estado e escreve só o segundo
+    perde a escolha do usuário em todo clipe novo — sem erro, sem log. O
+    `VideoPlayer` escreve **os dois**.
+
+    Se você montar o seu no lugar deste, é a linha que não pode faltar. E não
+    espere um teste em jsdom pegar: lá os dois valores são independentes e não
+    existe algoritmo de load, então a regressão fica invisível.
+
+!!! note "Fora de uma faixa útil o navegador pode desligar o áudio"
+    A spec permite ao navegador silenciar quando `playbackRate` sai de uma faixa
+    razoável, e o limite **varia**. Os presets default (0,5× a 2×) ficam dentro
+    de todos os que medimos; se você oferecer 4× ou 0,1×, teste com áudio no
+    navegador alvo antes de prometer ao usuário.
+
+!!! info "Os controles ficam **embaixo** do quadro, não sobre ele"
+    Controle desenhado sobre vídeo tem de garantir contraste contra pixel
+    arbitrário, e nenhum token `--tempest-*` promete isso: todo token de texto
+    daqui é resolvido contra uma superfície conhecida, e os dois defeitos de
+    contraste que este SDK entregou foram token de texto usado sobre superfície
+    onde ele nunca foi checado. Uma barra com superfície própria herda o tema e
+    é legível por construção.
+
+    Se você quer o look de cinema, posicione a sua chrome sobre o quadro — o que
+    ships é o que está certo nos dois temas.
 
 ## Compartilhar a tela
 

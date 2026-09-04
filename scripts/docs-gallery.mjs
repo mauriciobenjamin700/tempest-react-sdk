@@ -47,6 +47,7 @@ const SECTION_OVERRIDES = {
     AIChatComposer: "aichat",
     AIChatTurn: "aichat",
     AudioPlayer: "audio-capture",
+    VideoPlayer: "video-player",
     AudioRecorder: "audio-capture",
     BarcodeScanner: "device-capture",
     Chat: "chat",
@@ -68,6 +69,7 @@ const SECTION_OVERRIDES = {
  * fixing: it shipped in P1 and never got a section.
  */
 const WITHOUT_SECTION = {
+    DEFAULT_PLAYBACK_RATES: "a rate preset list, not a rendered component",
     FormActions: "rendered by the form recipes, never on its own",
     FormRow: "layout piece of <FormField>, shown through it",
     FormSection: "layout piece of <FormField>, shown through it",
@@ -93,7 +95,7 @@ const PAGE_SECTIONS = {
     "br-pagamentos.md": ["br-payments"],
     "br.md": ["brazil-map"],
     "charts.md": ["dataviz-scales"],
-    "device-capture.md": ["device-capture"],
+    "device-capture.md": ["device-capture", "video-player"],
     "forms-br.md": ["br-forms"],
     "geo.md": ["geo"],
     "hooks.md": ["hooks-state", "hooks-dom"],

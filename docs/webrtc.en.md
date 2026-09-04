@@ -139,6 +139,62 @@ setInterval(async () => {
 
 Already holding the report? `sampler.read(report)` runs the reduction without fetching again — useful when the same `getStats()` feeds more than one thing.
 
+### From badge to control signal
+
+The three fields above describe **what was sent**. To *decide* quality rather than only display it, two more are needed, and they describe **what the path can take** — the only class of information that answers before the picture breaks:
+
+| Field | What it answers |
+| --- | --- |
+| `availableKbps` | uplink the transport estimates, in kbps, or `null` |
+| `limitedBy` | what the encoder says is holding the picture back, or `null` |
+| `relayed` | whether the link travels through a TURN relay |
+
+```ts
+const stats = useLinkStats(pc);
+
+if (stats?.limitedBy === "bandwidth" && stats.availableKbps !== null) {
+  applyCap(Math.round(stats.availableKbps * 0.8));
+}
+```
+
+!!! danger "`kbps` does not tell a cap being honoured from a cap drowning"
+    A two-person call on a ~1 Mbps domestic uplink, handed the full 2500 kbps screen cap: `kbps` reports **2500** — the cap being obeyed while the queue behind it grows and the picture freezes. Nothing in `kbps`, `width`, `height` or `fps` separates "healthy at 2.5 Mbps" from "capped at 2.5 Mbps and drowning". `availableKbps` does.
+
+!!! warning "`null` is not `0`, and reading it as zero ruins every call"
+    `availableKbps` is `null` while there is no estimate — which is most of the first seconds of **every** call, and permanent on an engine that publishes none. `0` is indistinguishable from a path that died. A consumer that reads absence as zero drops the quality at the start of every call.
+
+!!! note "Reacting to bandwidth on a CPU-bound machine buys a worse picture and no relief"
+    `limitedBy` is the encoder's verdict, and it is what separates `"bandwidth"` from `"cpu"`. When senders disagree, `"bandwidth"` wins, because it is the only reason a lower cap answers. The spec's `"none"` comes back as `null`: no consumer should have to know that one of the truthy strings means "nothing".
+
+`relayed` is the hosting bill on a self-hosted mesh: a relayed stream goes up and down through the machine somebody pays for, and the person who picked 4K is not that somebody. It is resolved **only** from the pair the browser names, never from a merely `succeeded` one — guessing the route from a pair that carries nothing would report a cost nobody is paying.
+
+All three are exported on their own too, in the same shape as `readRoundTripMs`:
+
+```ts
+import { readAvailableOutgoingKbps, readQualityLimitation, readRelayed } from "tempest-react-sdk";
+
+const report = await pc.getStats();
+const headroom = readAvailableOutgoingKbps(report);
+const limit = readQualityLimitation(report);
+const viaTurn = readRelayed(report);
+```
+
+!!! tip "One walk, not four"
+    If you are going to read more than one, use the sampler: `sampler.read(report)` walks the report **once** and resolves the selected pair **once**. Calling the four standalone readers on the same report walks it four times, per link, on every tick — on a mesh of eight at one sample every two seconds that is the most expensive recurring work in the call, on the device least able to pay it.
+
+### The selected-pair chain
+
+`readRoundTripMs`, `availableKbps` and `relayed` all depend on the same question: **which pair is carrying the link?** The answer has three steps, in this order:
+
+1. `transport.selectedCandidatePairId` — what the spec defines;
+2. the `candidate-pair` flagged `selected: true` — not in the spec, and it exists because an engine that fills neither of the two does not appear to exist, while one that fills only the flag does;
+3. the first `succeeded` pair — a guess.
+
+Step 3 is accepted for round trip and for headroom, because losing the reading is worse than an occasionally optimistic one. It is **not** accepted for `relayed`, for the reason above.
+
+!!! info "Step 2 was not measured in Firefox"
+    The conclusion that Firefox marks the chosen pair with `selected: true` instead of filling `transport.selectedCandidatePairId` comes from reading third-party code, **not from a measurement of ours**. The chain is right by spec either way — step 1 is still tried first — but if you depend on that specific behaviour, measure it on your target before treating it as fact.
+
 ### The two mistakes this avoids
 
 **1. Round trip read from the wrong pair.** A connection keeps several candidate pairs alive at once — host, server-reflexive, relayed — and only **one** carries traffic. Taking the first `candidate-pair` with `state: "succeeded"` makes the number jump between paths nobody is travelling: 8 ms from an idle host pair alternating with 180 ms from the TURN pair doing the work.

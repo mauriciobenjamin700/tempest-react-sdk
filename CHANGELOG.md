@@ -4,6 +4,65 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`LinkStats` deixa de ser badge e passa a ser sinal de controle**
+  ([#280](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/280)). Três campos novos, os três do mesmo relatório que o
+  sampler já tinha na mão: `availableKbps` (banda de subida estimada, em kbps),
+  `limitedBy` (o veredito do encoder) e `relayed` (se o link passa por TURN).
+  Mais os leitores avulsos `readAvailableOutgoingKbps`, `readQualityLimitation`
+  e `readRelayed`, no mesmo formato do `readRoundTripMs`.
+
+  O gatilho foi um bug de produção do consumidor: chamada de duas pessoas com
+  upload doméstico de ~1 Mb/s recebendo o teto cheio de 2500 kbps de tela,
+  mandando e congelando. **`kbps` reporta 2500 nos dois casos** — o cap sendo
+  honrado e o cap se afogando com a fila crescendo atrás dele são
+  indistinguíveis por tudo que o `LinkStats` tinha. `availableKbps` é o campo
+  que os separa, e é a única classe de informação que responde _antes_ de a
+  imagem quebrar.
+
+  `null` e não `0`, e a distinção é o ponto: sem estimativa é o estado normal
+  dos primeiros segundos de **toda** chamada, e permanente em engine que não
+  publica uma, enquanto `0` é indistinguível de caminho morto. Consumidor que
+  leia ausência como zero baixa a qualidade no começo de cada chamada.
+
+  `"bandwidth"` ganha de `"cpu"` quando senders discordam, porque é o único
+  motivo que um teto menor responde — reagir a banda numa máquina limitada por
+  CPU compra imagem pior e nenhum alívio. O `"none"` da spec volta como `null`:
+  ninguém deveria precisar saber que uma das strings verdadeiras significa
+  "nada".
+
+### Alterado
+
+- **Uma caminhada no relatório, não quatro** ([#280](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/280)). O
+  `sampler.read()` percorria o report três vezes (duas dentro do
+  `readRoundTripMs`, uma nos senders) e cada consumidor que quisesse relay ou
+  banda percorria de novo, resolvendo o mesmo par selecionado de novo. Numa
+  mesh de oito a 2 s, era o trabalho recorrente mais caro da chamada, no
+  aparelho menos capaz de pagá-lo. Agora um coletor único reduz o report numa
+  passada e os quatro leitores públicos são projeções dela.
+
+- **A cadeia do par selecionado ganhou o degrau do meio**
+  ([#280](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/280)): `transport.selectedCandidatePairId` → `candidate-pair`
+  marcado com `selected: true` → primeiro par `succeeded`. O degrau 2 está fora
+  da spec e existe porque engine que não preenche nenhum dos dois não parece
+  existir, enquanto engine que preenche só a flag existe — e um leitor que
+  pulasse direto para `succeeded` responderia sobre o caminho errado ali, em
+  silêncio.
+
+  **Não medimos em Firefox.** A atribuição desse comportamento a ele vem de
+  leitura de código de terceiros; a cadeia está certa por spec de qualquer
+  forma, e está escrito assim na doc em vez de afirmado como fato.
+
+  `relayed` **não** aceita o degrau 3, de propósito: rota relayed é a conta de
+  hospedagem de alguém, e reportá-la a partir de um par que não carrega nada
+  cobra um custo que ninguém está pagando.
+
+- **A guarda de "não é objeto" saiu dos três leitores de campo e foi para a
+  porta do laço** que percorre o report. Três cópias do mesmo teste eram três
+  ramos que nenhum teste alcança depois do primeiro, e um leitor que devolve
+  `null` para um primitivo esconde o caso em vez de pular.
+
 ## [0.56.0] — 2026-09-04
 
 ### Adicionado

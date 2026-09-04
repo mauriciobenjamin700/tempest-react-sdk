@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createLinkStatsSampler, readRoundTripMs } from "./link-stats";
+import {
+    createLinkStatsSampler,
+    readAvailableOutgoingKbps,
+    readQualityLimitation,
+    readRelayed,
+    readRoundTripMs,
+} from "./link-stats";
 
 /**
  * A stats report double.
@@ -345,5 +351,313 @@ describe("createLinkStatsSampler resilience", () => {
         } finally {
             vi.useRealTimers();
         }
+    });
+});
+
+describe("readRoundTripMs — the pair the browser flags without naming", () => {
+    /**
+     * The middle step of the chain, and the reason it exists: an engine that
+     * fills neither `selectedCandidatePairId` nor `selected: true` does not
+     * appear to be a thing, while one that fills only the flag does. A reader
+     * that skips straight to `succeeded` answers about the wrong path there,
+     * silently.
+     */
+    it("prefers a pair flagged selected over the first succeeded one", () => {
+        const rtt = readRoundTripMs(
+            report([
+                {
+                    id: "host",
+                    type: "candidate-pair",
+                    state: "succeeded",
+                    currentRoundTripTime: 0.008,
+                },
+                {
+                    id: "relay",
+                    type: "candidate-pair",
+                    state: "succeeded",
+                    selected: true,
+                    currentRoundTripTime: 0.18,
+                },
+            ]),
+        );
+
+        expect(rtt).toBe(180);
+    });
+
+    it("still prefers what the transport names over the flag", () => {
+        const rtt = readRoundTripMs(
+            report([
+                {
+                    id: "flagged",
+                    type: "candidate-pair",
+                    state: "succeeded",
+                    selected: true,
+                    currentRoundTripTime: 0.008,
+                },
+                {
+                    id: "named",
+                    type: "candidate-pair",
+                    state: "succeeded",
+                    currentRoundTripTime: 0.18,
+                },
+                { id: "t", type: "transport", selectedCandidatePairId: "named" },
+            ]),
+        );
+
+        expect(rtt).toBe(180);
+    });
+});
+
+describe("readRoundTripMs — a report that is not shaped like one", () => {
+    it("serves a pair the browser gave no id as the succeeded fallback", () => {
+        const rtt = readRoundTripMs(
+            report([{ type: "candidate-pair", state: "succeeded", currentRoundTripTime: 0.05 }]),
+        );
+
+        expect(rtt).toBe(50);
+    });
+});
+
+describe("readAvailableOutgoingKbps", () => {
+    it("reads the estimate off the pair carrying the link, in kbps", () => {
+        const kbps = readAvailableOutgoingKbps(
+            report([
+                {
+                    id: "host",
+                    type: "candidate-pair",
+                    state: "succeeded",
+                    availableOutgoingBitrate: 9_000_000,
+                },
+                {
+                    id: "relay",
+                    type: "candidate-pair",
+                    state: "succeeded",
+                    availableOutgoingBitrate: 1_100_000,
+                },
+                { id: "t", type: "transport", selectedCandidatePairId: "relay" },
+            ]),
+        );
+
+        expect(kbps).toBe(1100);
+    });
+
+    /**
+     * `null` and not `0`: no estimate yet is the first seconds of every call,
+     * and permanent where the engine publishes none. A consumer that read
+     * absence as zero would drop the quality at the start of every call.
+     */
+    it("returns null while the transport has published no estimate", () => {
+        const kbps = readAvailableOutgoingKbps(
+            report([{ id: "p", type: "candidate-pair", state: "succeeded" }]),
+        );
+
+        expect(kbps).toBeNull();
+    });
+});
+
+describe("readQualityLimitation", () => {
+    it("lets bandwidth win, because it is the only reason a lower cap answers", () => {
+        const reason = readQualityLimitation(
+            report([
+                outbound({ id: "cam", qualityLimitationReason: "cpu" }),
+                outbound({ id: "screen", qualityLimitationReason: "bandwidth" }),
+            ]),
+        );
+
+        expect(reason).toBe("bandwidth");
+    });
+
+    it("reports cpu when that is all any sender says", () => {
+        const reason = readQualityLimitation(
+            report([outbound({ id: "cam", qualityLimitationReason: "cpu" })]),
+        );
+
+        expect(reason).toBe("cpu");
+    });
+
+    /** `"none"` is the spec saying nothing is limiting — a consumer reads that as absence. */
+    it("turns the spec's none into null", () => {
+        const reason = readQualityLimitation(
+            report([outbound({ id: "cam", qualityLimitationReason: "none" })]),
+        );
+
+        expect(reason).toBeNull();
+    });
+
+    it("ignores a value the spec does not define", () => {
+        const reason = readQualityLimitation(
+            report([outbound({ id: "cam", qualityLimitationReason: "vibes" })]),
+        );
+
+        expect(reason).toBeNull();
+    });
+});
+
+describe("readRelayed", () => {
+    it("reports a relay when the named pair travels through one", () => {
+        expect(
+            readRelayed(
+                report([
+                    { id: "lc", type: "local-candidate", candidateType: "relay" },
+                    {
+                        id: "pair",
+                        type: "candidate-pair",
+                        state: "succeeded",
+                        localCandidateId: "lc",
+                    },
+                    { id: "t", type: "transport", selectedCandidatePairId: "pair" },
+                ]),
+            ),
+        ).toBe(true);
+    });
+
+    it("reports no relay for a host route", () => {
+        expect(
+            readRelayed(
+                report([
+                    { id: "lc", type: "local-candidate", candidateType: "host" },
+                    {
+                        id: "pair",
+                        type: "candidate-pair",
+                        state: "succeeded",
+                        localCandidateId: "lc",
+                    },
+                    { id: "t", type: "transport", selectedCandidatePairId: "pair" },
+                ]),
+            ),
+        ).toBe(false);
+    });
+
+    /**
+     * Deliberately no `succeeded` fallback here, unlike the round trip. A
+     * relayed route is somebody's hosting bill, and reporting one from a pair
+     * that carries nothing bills a cost nobody is paying.
+     */
+    it("refuses to guess from a merely succeeded pair", () => {
+        expect(
+            readRelayed(
+                report([
+                    { id: "lc", type: "local-candidate", candidateType: "relay" },
+                    {
+                        id: "pair",
+                        type: "candidate-pair",
+                        state: "succeeded",
+                        localCandidateId: "lc",
+                    },
+                ]),
+            ),
+        ).toBe(false);
+    });
+
+    /** The flag is the browser naming the pair, so it is not a guess. */
+    it("accepts the flag as naming the pair", () => {
+        expect(
+            readRelayed(
+                report([
+                    { id: "lc", type: "local-candidate", candidateType: "relay" },
+                    {
+                        id: "pair",
+                        type: "candidate-pair",
+                        state: "succeeded",
+                        selected: true,
+                        localCandidateId: "lc",
+                    },
+                ]),
+            ),
+        ).toBe(true);
+    });
+});
+
+describe("createLinkStatsSampler — the control signal", () => {
+    it("carries headroom, limitation and route alongside the throughput", () => {
+        const sampler = createLinkStatsSampler();
+        const entries = [
+            { id: "lc", type: "local-candidate", candidateType: "relay" },
+            {
+                id: "pair",
+                type: "candidate-pair",
+                state: "succeeded",
+                localCandidateId: "lc",
+                currentRoundTripTime: 0.042,
+                availableOutgoingBitrate: 1_000_000,
+            },
+            { id: "t", type: "transport", selectedCandidatePairId: "pair" },
+            outbound({ id: "screen", bytesSent: 0, qualityLimitationReason: "bandwidth" }),
+        ];
+
+        const stats = sampler.read(report(entries));
+
+        expect(stats).toMatchObject({
+            rttMs: 42,
+            availableKbps: 1000,
+            limitedBy: "bandwidth",
+            relayed: true,
+        });
+    });
+
+    /**
+     * The bug that opened the issue: a cap being honoured and a cap drowning
+     * report the same `kbps`. Only the headroom tells them apart.
+     */
+    it("tells a healthy cap from a drowning one", () => {
+        const sampler = createLinkStatsSampler();
+        const at = (bytes: number, availableOutgoingBitrate: number) =>
+            report([
+                {
+                    id: "pair",
+                    type: "candidate-pair",
+                    state: "succeeded",
+                    availableOutgoingBitrate,
+                },
+                { id: "t", type: "transport", selectedCandidatePairId: "pair" },
+                outbound({ id: "screen", bytesSent: bytes }),
+            ]);
+
+        sampler.read(at(0, 9_000_000));
+        vi.setSystemTime(new Date());
+        const healthy = sampler.read(at(625_000, 9_000_000));
+        const drowning = sampler.read(at(1_250_000, 1_000_000));
+
+        expect(healthy.availableKbps).toBe(9000);
+        expect(drowning.availableKbps).toBe(1000);
+        expect(drowning.kbps).toBeGreaterThan(0);
+    });
+
+    /**
+     * Most of a real report is neither a pair nor a sender — inbound streams,
+     * media sources, codecs, data channels. The collector has to walk past all
+     * of it without counting any of it.
+     */
+    it("ignores the two thirds of a real report that are not about sending", () => {
+        const sampler = createLinkStatsSampler();
+        const stats = sampler.read(
+            report([
+                { id: "in", type: "inbound-rtp", kind: "video", bytesReceived: 9_000_000 },
+                { id: "src", type: "media-source", kind: "video", width: 4096, height: 2160 },
+                { id: "codec", type: "codec", mimeType: "video/VP9" },
+                { id: "dc", type: "data-channel", bytesSent: 5_000_000 },
+                outbound({ id: "cam", bytesSent: 1_000, frameWidth: 640, frameHeight: 360 }),
+            ]),
+        );
+
+        expect(stats).toMatchObject({ width: 640, height: 360, kbps: 0 });
+    });
+
+    it("keeps the path fields on a sample that carries no sender at all", () => {
+        const sampler = createLinkStatsSampler();
+        const stats = sampler.read(
+            report([
+                {
+                    id: "pair",
+                    type: "candidate-pair",
+                    state: "succeeded",
+                    availableOutgoingBitrate: 2_000_000,
+                    currentRoundTripTime: 0.03,
+                },
+                { id: "t", type: "transport", selectedCandidatePairId: "pair" },
+            ]),
+        );
+
+        expect(stats).toMatchObject({ rttMs: 30, availableKbps: 2000, kbps: 0 });
     });
 });

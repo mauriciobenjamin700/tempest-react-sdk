@@ -4,7 +4,13 @@ import { parseCss } from "./parse.mjs";
 import { analyzeParsed, declSignature, definedCustomProperties } from "./semantic.mjs";
 
 const TOKENS = {
-    names: new Set(["--tempest-space-2", "--tempest-primary", "--tempest-text"]),
+    names: new Set([
+        "--tempest-space-2",
+        "--tempest-primary",
+        "--tempest-text",
+        "--tempest-primary-soft",
+        "--tempest-primary-hover",
+    ]),
     byValue: new Map([
         ["8px", ["--tempest-space-2"]],
         ["#0d6efd", ["--tempest-primary"]],
@@ -150,6 +156,51 @@ describe("analyzeParsed — custom properties", () => {
 
     it("accepts a var() with a fallback", () => {
         expect(codes(".a { width: var(--row-height, 40px); }")).toEqual([]);
+    });
+
+    it("flags a fallback whose name belongs to a family the SDK actually declares", () => {
+        // The one case where a knob and a typo stop being indistinguishable.
+        // `--tempest-primary-*` has declared siblings, so an undeclared member of
+        // it reads as a misspelling rather than as a hook an app may set.
+        const found = first(
+            ".a { color: var(--tempest-primary-contrast, #fff); }",
+            "token-family-typo",
+        );
+        expect(found.severity).toBe("warn");
+        expect(found.message).toContain("--tempest-primary-*");
+    });
+
+    it("adds a suggestion only when a declared token is actually close", () => {
+        // The family match is the finding; the "did you mean" is best effort. A
+        // real misspelling is often far from every token — `-contrast` is nowhere
+        // near `-soft` — and inventing a suggestion there would send the reader to
+        // the wrong token with the tool's confidence behind it.
+        const far = first(
+            ".a { color: var(--tempest-primary-contrast, #fff); }",
+            "token-family-typo",
+        );
+        expect(far.message).not.toContain("Did you mean");
+
+        const near = first(".a { color: var(--tempest-primary-sofr, #fff); }", "token-family-typo");
+        expect(near.message).toContain("Did you mean `--tempest-primary-soft`");
+    });
+
+    it("stays quiet on a knob whose family the SDK never declares", () => {
+        // `--tempest-card-*` has no declared sibling at all — this is a component
+        // inventing a hook, which is the idiom the docs teach. Reporting it is what
+        // made the first version of this analysis fire 43 times on the SDK's own CSS.
+        expect(codes(".a { padding: var(--tempest-card-padding, 8px); }")).toEqual([]);
+    });
+
+    it("stays quiet on a two-segment name, whose family is the bare prefix", () => {
+        // `--tempest-tx` has no family: everything before the last segment is
+        // `--tempest`, which matches every token there is. Treating that as a match
+        // is how a naive version of this rule fires on `Tooltip`'s transform knobs.
+        expect(codes(".a { translate: var(--tempest-tx, 0); }")).toEqual([]);
+    });
+
+    it("stays quiet when the name is a token, fallback or not", () => {
+        expect(codes(".a { color: var(--tempest-primary-soft, #fff); }")).toEqual([]);
     });
 
     it("accepts a var() the same sheet defines", () => {

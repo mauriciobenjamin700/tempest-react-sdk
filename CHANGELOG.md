@@ -4,7 +4,60 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **A análise de CSS passa a reportar `var()` com fallback quando a família do
+  token existe.** A regra documentada era "`var()` com fallback nunca é
+  reportado", e a razão dela é boa — foi ela que derrubou 43 falsos positivos
+  quando a análise rodou no CSS do próprio SDK, porque
+  `var(--tempest-card-padding, 1rem)` é o **idioma de knob**, não um token. O
+  preço era um ponto cego exato: **erro de digitação em nome de token é
+  indistinguível de knob**, já que os dois são
+  `var(nome-que-não-existe, fallback)`.
+
+  Custou um defeito real: o `Scheduler` pintava evento com
+  `color: var(--tempest-primary-contrast, #fff)` — token que nunca existiu —, o
+  `var()` caía no `#fff`, e no escuro isso é **3,67:1**.
+
+  O sinal que separa os dois é **a família já existir**.
+  `--tempest-primary-contrast` não é declarado, mas `--tempest-primary-*` tem
+  doze irmãos que são; `--tempest-card-padding` não tem irmão nenhum. A família
+  precisa de pelo menos um segmento depois do prefixo, senão `--tempest-tx` teria
+  família `--tempest`, que casa com todo token que existe.
+
+  Medido no `src/` do SDK antes de embarcar, que é a regra do repositório para
+  checagem nova de CSS: **5 achados, 5 defeitos reais, nenhum falso positivo**,
+  com 36 knobs legítimos calados. Dois sinais mais frouxos foram medidos e
+  descartados — casar pelo **último** segmento (`--tempest-font-size-sm` parece
+  `--tempest-text-sm`) dá 16 achados e 3 reais, **19% de precisão**, porque todo
+  knob de layout do `utilities.css` termina em `-gap` ou `-width`.
+
 ### Corrigido
+
+- **Os oito nomes que o fallback escondia.** Cada um exigia decisão sobre o
+  substituto certo, não busca-e-troca:
+
+  | Usado                       | Virou                     | Onde                                | Consequência que sumiu                                                      |
+  | --------------------------- | ------------------------- | ----------------------------------- | --------------------------------------------------------------------------- |
+  | `--tempest-surface-hover`   | `--tempest-surface-2`     | `Toggle`, `ToggleGroup`             | **passar o mouse num toggle não-pressionado o fazia parecer pressionado**   |
+  | `--tempest-primary-subtle`  | `--tempest-primary-soft`  | `Dropzone`                          | estado de arraste não tingia                                                |
+  | `--tempest-font-size-sm`    | `--tempest-text-sm`       | `BarList`, `ErrorText`, `DataTable` | tamanho fixo fora da escala                                                 |
+  | `--tempest-font-size-xs`    | `--tempest-text-xs`       | `BarList`                           | idem                                                                        |
+  | `--tempest-duration-normal` | `--tempest-duration-base` | `BarList`                           | 200ms fora da escala, e imune ao `prefers-reduced-motion`                   |
+  | `--tempest-primary-solid`   | `--tempest-primary`       | `Timeline`                          | fallback já era o valor certo                                               |
+  | `--tempest-color-danger`    | `--tempest-danger`        | `ErrorText`                         | fallback aninhado morto                                                     |
+  | `--tempest-code-text`       | `--tempest-text`          | `Markdown`                          | a família `--tempest-code-*` é de **sintaxe**; código inline não é realçado |
+
+  O do `Toggle` é o que valeu a regra: `.pressed` pinta `--tempest-primary-soft`,
+  e o `:hover` do não-pressionado caía no **mesmo** valor pelo fallback. Medido em
+  Chromium depois da correção, hover `#f1f3f6` contra pressed `#eef4ff` no claro e
+  `#1d2230` contra `#0f2245` no escuro — distintos nos dois temas.
+
+  O `Dropzone` passou a tingir de fato o estado de arraste: `--tempest-text` sobre
+  `--tempest-primary-soft` mede **16,07:1** no claro e **14,17:1** no escuro, e a
+  varredura da página no escuro segue com **0 pares abaixo do piso**.
+
+  Closes #294.
 
 - **O tema escuro passa a alcançar o que o browser pinta, e os componentes param
   de pintar superfície com token de escala.** Duas causas distintas produziam o

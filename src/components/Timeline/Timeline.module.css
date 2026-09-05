@@ -38,7 +38,7 @@
 }
 
 .marker-primary {
-    background: var(--tempest-primary-solid, var(--tempest-primary));
+    background: var(--tempest-primary);
 }
 .marker-success {
     background: var(--tempest-success-solid, var(--tempest-success));

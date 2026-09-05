@@ -19,7 +19,7 @@
 
 @media (hover: hover) and (pointer: fine) {
     .toggle:hover {
-        background-color: var(--tempest-surface-hover, var(--tempest-primary-soft));
+        background-color: var(--tempest-surface-2);
     }
 }
 

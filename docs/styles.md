@@ -37,6 +37,7 @@ Pronto. Tudo o que está abaixo já está disponível na sua aplicação.
 - [Radius](#radius)
 - [Elevação (shadow)](#elevacao-shadow)
 - [Motion](#motion)
+- [`color-scheme` — as superfícies que o browser pinta](#color-scheme-as-superficies-que-o-browser-pinta)
 - [Focus ring](#focus-ring)
 - [Z-index](#z-index)
 - [Densidade — `data-tempest-density`](#densidade-data-tempest-density)
@@ -126,6 +127,8 @@ Aliases:
 
 - `--tempest-danger-on-solid` · `--tempest-info-on-solid` = `#ffffff` no claro, `#1f0606` no escuro
 - `--tempest-success-on-solid` · `--tempest-warning-on-solid` = `#1f0606` nos **dois** temas
+- `--tempest-neutral-on-solid` = `#ffffff` nos **dois** temas (o preenchimento
+  neutro é `--tempest-gray-700`, e o ramp cinza não inverte)
 
 !!! danger "`#ffffff` sobre preenchimento de status não é seguro, e nunca foi"
     Medido contra os preenchimentos do **tema claro**, o default: branco sobre
@@ -437,6 +440,49 @@ Shadows são automaticamente mais escuros no tema dark.
 `@media (prefers-reduced-motion: reduce)` zera todas as durações de tokens automaticamente. Componentes que usam keyframes pesados (modal, drawer, toast, tooltip, skeleton) também detectam e desabilitam animações específicas.
 
 ---
+
+## `color-scheme` — as superfícies que o browser pinta
+
+Token não alcança tudo. O popup do `<select>`, a barra de rolagem, o preenchimento
+de autofill, o date picker, o spinner do `input[type=number]` e o canvas default
+são desenhados pelo **user-agent**, a partir de uma propriedade só:
+
+```css
+:root {
+    color-scheme: light;
+}
+
+[data-tempest-theme="dark"] {
+    color-scheme: dark;
+}
+```
+
+O SDK ships as duas. Você não precisa fazer nada — mas precisa saber que existem,
+porque é o que explica por que um `<input>` **sem estilo nenhum** dentro do seu
+app já nasce escuro no tema escuro.
+
+!!! danger "Ler `prefers-color-scheme` não é declarar `color-scheme`"
+    São coisas diferentes com nomes parecidos, e confundi-las custou 58 releases.
+    O `ThemeProvider` sempre **leu** a media query para resolver o modo
+    `"system"`. Declarar a propriedade é o que diz ao browser de qual paleta
+    pintar o que ele mesmo desenha.
+
+    Medido em Chromium com `data-tempest-theme="dark"` ligado e a propriedade
+    ausente: `getComputedStyle(document.documentElement).colorScheme` devolvia
+    `"normal"`, um `<select>` sem classe pintava `#efefef` e um `<input>` sem
+    classe pintava `#ffffff`, os dois com o texto `#f1f3f8` do tema escuro por
+    cima — **1,03:1** e **1,11:1**.
+
+!!! tip "Escopo parcial funciona"
+    A declaração vai no seletor de atributo, não numa media query, então uma
+    subárvore escura dentro de uma página clara ganha controle nativo escuro
+    junto:
+
+    ```html
+    <aside data-tempest-theme="dark">
+        <select><!-- popup escuro --></select>
+    </aside>
+    ```
 
 ## O reset e o seu markup
 

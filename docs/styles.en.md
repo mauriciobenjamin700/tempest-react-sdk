@@ -39,6 +39,7 @@ Done. Everything below is already available in your application.
 - [Radius](#radius)
 - [Elevation (shadow)](#elevation-shadow)
 - [Motion](#motion)
+- [`color-scheme` — the surfaces the browser paints](#color-scheme-the-surfaces-the-browser-paints)
 - [Focus ring](#focus-ring)
 - [Z-index](#z-index)
 - [Density — `data-tempest-density`](#density-data-tempest-density)
@@ -130,6 +131,8 @@ Aliases:
 
 - `--tempest-danger-on-solid` · `--tempest-info-on-solid` = `#ffffff` in light, `#1f0606` in dark
 - `--tempest-success-on-solid` · `--tempest-warning-on-solid` = `#1f0606` in **both** themes
+- `--tempest-neutral-on-solid` = `#ffffff` in **both** themes (the neutral fill is
+  `--tempest-gray-700`, and the gray ramp does not invert)
 
 !!! danger "`#ffffff` on a status fill is not safe, and never was"
     Measured against the **light** theme's own fills — the default — white on
@@ -441,6 +444,48 @@ automatically. Components that use heavy keyframes (modal, drawer, toast,
 tooltip, skeleton) also detect it and disable their specific animations.
 
 ---
+
+## `color-scheme` — the surfaces the browser paints
+
+Tokens do not reach everything. The `<select>` dropdown popup, the scrollbar, the
+autofill wash, the date picker, the `input[type=number]` spinner and the default
+canvas are drawn by the **user agent**, from a single property:
+
+```css
+:root {
+    color-scheme: light;
+}
+
+[data-tempest-theme="dark"] {
+    color-scheme: dark;
+}
+```
+
+The SDK ships both. You do not have to do anything — but it is worth knowing they
+are there, because it is what explains why an `<input>` with **no styling at all**
+inside your app already comes out dark in the dark theme.
+
+!!! danger "Reading `prefers-color-scheme` is not declaring `color-scheme`"
+    Two different things with similar names, and confusing them cost 58 releases.
+    `ThemeProvider` always **read** the media query to resolve the `"system"`
+    mode. Declaring the property is what tells the browser which palette to paint
+    the things it draws itself from.
+
+    Measured in Chromium with `data-tempest-theme="dark"` on and the property
+    absent: `getComputedStyle(document.documentElement).colorScheme` came back
+    `"normal"`, a class-less `<select>` painted `#efefef` and a class-less
+    `<input>` painted `#ffffff`, both carrying the dark theme's `#f1f3f8` text —
+    **1.03:1** and **1.11:1**.
+
+!!! tip "Partial scope works"
+    The declaration goes on the attribute selector rather than in a media query,
+    so a dark subtree inside a light page gets dark native controls too:
+
+    ```html
+    <aside data-tempest-theme="dark">
+        <select><!-- dark popup --></select>
+    </aside>
+    ```
 
 ## The reset and your markup
 

@@ -1,6 +1,6 @@
 .group {
     display: inline-flex;
-    background: var(--tempest-gray-100);
+    background: var(--tempest-surface-2);
     border-radius: var(--tempest-radius-md);
     padding: 2px;
     font-family: var(--tempest-font-sans);

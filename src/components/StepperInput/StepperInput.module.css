@@ -60,7 +60,7 @@
 }
 
 .btn:hover:not(:disabled) {
-    background: var(--tempest-gray-100);
+    background: var(--tempest-surface-2);
 }
 
 .btn:disabled {

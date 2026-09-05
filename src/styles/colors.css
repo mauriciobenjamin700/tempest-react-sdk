@@ -1,4 +1,24 @@
 :root {
+    /*
+     * Which palette the user agent paints its own surfaces from.
+     *
+     * The SDK *read* `prefers-color-scheme` from the very first release —
+     * `ThemeProvider` resolves the system mode with it — and never *declared*
+     * the property, so every surface the browser paints itself stayed light no
+     * matter which theme was on. Measured in Chromium with
+     * `data-tempest-theme="dark"` active: `getComputedStyle(html).colorScheme`
+     * came back `normal`, a bare `<select>` painted `#efefef` and a bare
+     * `<input>` painted `#ffffff`, both carrying the dark theme's `#f1f3f8`
+     * text.
+     *
+     * Tokens cannot reach any of that. The `<select>` dropdown popup, the
+     * scrollbar, the autofill wash, the date and colour pickers, the spinner on
+     * a number input and the default canvas are drawn by the browser from this
+     * one property. Declaring it on the theme selector is what makes an
+     * unstyled control belong to the theme it is sitting in.
+     */
+    color-scheme: light;
+
     /* ============================================================
      * Brand — primary tint scale (50 lightest → 900 darkest)
      * --tempest-primary remains the canonical action color.
@@ -38,6 +58,12 @@
     --tempest-info-on-solid: #ffffff;
     --tempest-success-on-solid: #1f0606;
     --tempest-warning-on-solid: #1f0606;
+    /* The neutral member the family was missing. `Badge` and `Alert` both paint
+       `.neutral.solid` from --tempest-gray-700 and both hardcoded white on top,
+       for the same reason: there was no token to point at. White measures 9.9:1
+       over #344054 in either theme, so the value is what they already rendered —
+       what changes is that a consumer can now retheme it. */
+    --tempest-neutral-on-solid: #ffffff;
     /* Text/icon color for content sitting on --tempest-primary-soft. The plain
        --tempest-primary only reaches 4.37:1 over that tint, which fails WCAG AA
        for body text; the 600 shade lands at ~6.2:1. */
@@ -279,6 +305,11 @@
  * Activated via [data-tempest-theme="dark"] on the root (or any subtree).
  * ============================================================ */
 [data-tempest-theme="dark"] {
+    /* The twin of the `:root` declaration — see the note there. Scoped to the
+       attribute rather than to a media query, so a dark subtree inside a light
+       page gets dark native controls too. */
+    color-scheme: dark;
+
     --tempest-primary-50: #0a1730;
     --tempest-primary-100: #0f2245;
     --tempest-primary-200: #133066;
@@ -345,6 +376,12 @@
     --tempest-info-on-solid: #1f0606;
     --tempest-success-on-solid: #1f0606;
     --tempest-warning-on-solid: #1f0606;
+    /* Unlike the status fills, the neutral one does not flip: the gray ramp is
+       fixed across themes, so `--tempest-gray-700` is #344054 here too and white
+       stays the legible ink. Declared anyway rather than inherited, so the pair
+       reads as a decision and a consumer overriding the ramp sees where to
+       follow. */
+    --tempest-neutral-on-solid: #ffffff;
 
     --tempest-success-fg: #4ade80;
     --tempest-success-bg: #052e16;

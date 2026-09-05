@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.58.0] — 2026-09-05
+
 ### Alterado
 
 - **`/vision` passa a vir do `ort-vision-sdk-web@0.8.1`, e o `Classifier` para

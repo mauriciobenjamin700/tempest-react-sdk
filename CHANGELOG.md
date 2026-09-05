@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.59.0] — 2026-09-05
+
 ### Corrigido
 
 - **`describeApiError` volta a mostrar a sentença que o servidor escreveu para um

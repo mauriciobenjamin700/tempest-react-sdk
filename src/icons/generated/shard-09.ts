@@ -2,6 +2,11 @@
 // Run `npm run gen:icons` after bumping lucide-react.
 
 import {
+    ChevronsUpDown,
+    Church,
+    Cigarette,
+    CigaretteOff,
+    Circle,
     CircleAlert,
     CircleArrowDown,
     CircleArrowLeft,
@@ -37,16 +42,16 @@ import {
     CirclePile,
     CirclePlay,
     CirclePlus,
-    CirclePoundSterling,
-    CirclePower,
-    CircleQuestionMark,
-    CircleSlash,
-    CircleSlash2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** The 40 lucide icons from "circle-alert" through "circle-slash-2", inclusive. */
+/** The 40 lucide icons from "chevrons-up-down" through "circle-plus", inclusive. */
 const shard: Record<string, LucideIcon> = {
+    "chevrons-up-down": ChevronsUpDown,
+    church: Church,
+    cigarette: Cigarette,
+    "cigarette-off": CigaretteOff,
+    circle: Circle,
     "circle-alert": CircleAlert,
     "circle-arrow-down": CircleArrowDown,
     "circle-arrow-left": CircleArrowLeft,
@@ -82,11 +87,6 @@ const shard: Record<string, LucideIcon> = {
     "circle-pile": CirclePile,
     "circle-play": CirclePlay,
     "circle-plus": CirclePlus,
-    "circle-pound-sterling": CirclePoundSterling,
-    "circle-power": CirclePower,
-    "circle-question-mark": CircleQuestionMark,
-    "circle-slash": CircleSlash,
-    "circle-slash-2": CircleSlash2,
 };
 
 export default shard;

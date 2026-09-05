@@ -8,7 +8,7 @@ props, examples, and accessibility notes.
 !!! tip "Icons by name"
     Need to render an icon whose name only exists at runtime (a menu from the API, a
     CMS field)? See [Icons by slug](./icons.md) — `<Icon name="save" />` covers all
-    2024 lucide slugs without `DynamicIcon`'s chunk cost.
+    2065 lucide slugs without `DynamicIcon`'s chunk cost.
 
 ## Categories
 

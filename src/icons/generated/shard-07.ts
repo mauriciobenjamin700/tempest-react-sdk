@@ -2,11 +2,15 @@
 // Run `npm run gen:icons` after bumping lucide-react.
 
 import {
+    CalendarSearch,
+    CalendarSync,
     CalendarX,
     CalendarX2,
     Calendars,
     Camera,
     CameraOff,
+    Can,
+    CanSoda,
     Candy,
     CandyCane,
     CandyOff,
@@ -15,6 +19,7 @@ import {
     Captions,
     CaptionsOff,
     Car,
+    CarBattery,
     CarFront,
     CarTaxiFront,
     Caravan,
@@ -37,21 +42,20 @@ import {
     ChartBarStacked,
     ChartCandlestick,
     ChartColumn,
-    ChartColumnBig,
-    ChartColumnDecreasing,
-    ChartColumnIncreasing,
-    ChartColumnStacked,
-    ChartGantt,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** The 40 lucide icons from "calendar-x" through "chart-gantt", inclusive. */
+/** The 40 lucide icons from "calendar-search" through "chart-column", inclusive. */
 const shard: Record<string, LucideIcon> = {
+    "calendar-search": CalendarSearch,
+    "calendar-sync": CalendarSync,
     "calendar-x": CalendarX,
     "calendar-x-2": CalendarX2,
     calendars: Calendars,
     camera: Camera,
     "camera-off": CameraOff,
+    can: Can,
+    "can-soda": CanSoda,
     candy: Candy,
     "candy-cane": CandyCane,
     "candy-off": CandyOff,
@@ -60,6 +64,7 @@ const shard: Record<string, LucideIcon> = {
     captions: Captions,
     "captions-off": CaptionsOff,
     car: Car,
+    "car-battery": CarBattery,
     "car-front": CarFront,
     "car-taxi-front": CarTaxiFront,
     caravan: Caravan,
@@ -82,11 +87,6 @@ const shard: Record<string, LucideIcon> = {
     "chart-bar-stacked": ChartBarStacked,
     "chart-candlestick": ChartCandlestick,
     "chart-column": ChartColumn,
-    "chart-column-big": ChartColumnBig,
-    "chart-column-decreasing": ChartColumnDecreasing,
-    "chart-column-increasing": ChartColumnIncreasing,
-    "chart-column-stacked": ChartColumnStacked,
-    "chart-gantt": ChartGantt,
 };
 
 export default shard;

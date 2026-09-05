@@ -2,6 +2,8 @@
 // Run `npm run gen:icons` after bumping lucide-react.
 
 import {
+    Briefcase,
+    BriefcaseBusiness,
     BriefcaseConveyorBelt,
     BriefcaseMedical,
     BringToFront,
@@ -40,13 +42,13 @@ import {
     CalendarPlus,
     CalendarPlus2,
     CalendarRange,
-    CalendarSearch,
-    CalendarSync,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** The 40 lucide icons from "briefcase-conveyor-belt" through "calendar-sync", inclusive. */
+/** The 40 lucide icons from "briefcase" through "calendar-range", inclusive. */
 const shard: Record<string, LucideIcon> = {
+    briefcase: Briefcase,
+    "briefcase-business": BriefcaseBusiness,
     "briefcase-conveyor-belt": BriefcaseConveyorBelt,
     "briefcase-medical": BriefcaseMedical,
     "bring-to-front": BringToFront,
@@ -85,8 +87,6 @@ const shard: Record<string, LucideIcon> = {
     "calendar-plus": CalendarPlus,
     "calendar-plus-2": CalendarPlus2,
     "calendar-range": CalendarRange,
-    "calendar-search": CalendarSearch,
-    "calendar-sync": CalendarSync,
 };
 
 export default shard;

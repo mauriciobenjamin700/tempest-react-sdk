@@ -2,6 +2,7 @@
 // Run `npm run gen:icons` after bumping lucide-react.
 
 import {
+    BellDot,
     BellElectric,
     BellMinus,
     BellOff,
@@ -41,12 +42,12 @@ import {
     BookDashed,
     BookDown,
     BookHeadphones,
-    BookHeart,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** The 40 lucide icons from "bell-electric" through "book-heart", inclusive. */
+/** The 40 lucide icons from "bell-dot" through "book-headphones", inclusive. */
 const shard: Record<string, LucideIcon> = {
+    "bell-dot": BellDot,
     "bell-electric": BellElectric,
     "bell-minus": BellMinus,
     "bell-off": BellOff,
@@ -86,7 +87,6 @@ const shard: Record<string, LucideIcon> = {
     "book-dashed": BookDashed,
     "book-down": BookDown,
     "book-headphones": BookHeadphones,
-    "book-heart": BookHeart,
 };
 
 export default shard;

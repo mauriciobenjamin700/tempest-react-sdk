@@ -2,6 +2,18 @@
 // Run `npm run gen:icons` after bumping lucide-react.
 
 import {
+    Fish,
+    FishOff,
+    FishSymbol,
+    FishingHook,
+    FishingRod,
+    Flag,
+    FlagOff,
+    FlagTriangleLeft,
+    FlagTriangleRight,
+    Flame,
+    FlameKindling,
+    Flashlight,
     FlashlightOff,
     FlaskConical,
     FlaskConicalOff,
@@ -30,23 +42,23 @@ import {
     FolderKanban,
     FolderKey,
     FolderLock,
-    FolderMinus,
-    FolderOpen,
-    FolderOpenDot,
-    FolderOutput,
-    FolderPen,
-    FolderPlus,
-    FolderRoot,
-    FolderSearch,
-    FolderSearch2,
-    FolderSymlink,
-    FolderSync,
-    FolderTree,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** The 40 lucide icons from "flashlight-off" through "folder-tree", inclusive. */
+/** The 40 lucide icons from "fish" through "folder-lock", inclusive. */
 const shard: Record<string, LucideIcon> = {
+    fish: Fish,
+    "fish-off": FishOff,
+    "fish-symbol": FishSymbol,
+    "fishing-hook": FishingHook,
+    "fishing-rod": FishingRod,
+    flag: Flag,
+    "flag-off": FlagOff,
+    "flag-triangle-left": FlagTriangleLeft,
+    "flag-triangle-right": FlagTriangleRight,
+    flame: Flame,
+    "flame-kindling": FlameKindling,
+    flashlight: Flashlight,
     "flashlight-off": FlashlightOff,
     "flask-conical": FlaskConical,
     "flask-conical-off": FlaskConicalOff,
@@ -75,18 +87,6 @@ const shard: Record<string, LucideIcon> = {
     "folder-kanban": FolderKanban,
     "folder-key": FolderKey,
     "folder-lock": FolderLock,
-    "folder-minus": FolderMinus,
-    "folder-open": FolderOpen,
-    "folder-open-dot": FolderOpenDot,
-    "folder-output": FolderOutput,
-    "folder-pen": FolderPen,
-    "folder-plus": FolderPlus,
-    "folder-root": FolderRoot,
-    "folder-search": FolderSearch,
-    "folder-search-2": FolderSearch2,
-    "folder-symlink": FolderSymlink,
-    "folder-sync": FolderSync,
-    "folder-tree": FolderTree,
 };
 
 export default shard;

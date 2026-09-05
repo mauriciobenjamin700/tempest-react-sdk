@@ -9,13 +9,13 @@ import { iconStatus, loadIcon, peekIcon, preloadIcons } from "./shard-cache";
 
 describe("generated tables", () => {
     it("covers every lucide slug, canonical plus alias", () => {
-        expect(iconNames.length).toBe(2024);
-        expect(Object.keys(iconAliases).length).toBe(257);
+        expect(iconNames.length).toBe(2065);
+        expect(Object.keys(iconAliases).length).toBe(258);
     });
     it("splits the icons into balanced shards instead of by initial letter", () => {
-        expect(iconShards.length).toBe(45);
+        expect(iconShards.length).toBe(46);
         for (const shard of iconShards) expect(shard.size).toBeLessThanOrEqual(40);
-        expect(iconShards.reduce((total, shard) => total + shard.size, 0)).toBe(1767);
+        expect(iconShards.reduce((total, shard) => total + shard.size, 0)).toBe(1807);
     });
 
     it("keeps the shard bounds ascending in the order the lookup compares them", () => {
@@ -53,7 +53,7 @@ describe("generated tables", () => {
             }
         }
 
-        expect(seen.size).toBe(1767);
+        expect(seen.size).toBe(1807);
         for (const slug of iconNames) expect(seen.has(resolveIconAlias(slug))).toBe(true);
     });
 });

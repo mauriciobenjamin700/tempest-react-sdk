@@ -23,6 +23,7 @@ import {
     AtSign,
     Atom,
     AudioLines,
+    AudioLinesOff,
     AudioLinesX,
     AudioWaveform,
     Award,
@@ -41,11 +42,10 @@ import {
     BadgeJapaneseYen,
     BadgeMinus,
     BadgePercent,
-    BadgePlus,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** The 40 lucide icons from "arrow-right-left" through "badge-plus", inclusive. */
+/** The 40 lucide icons from "arrow-right-left" through "badge-percent", inclusive. */
 const shard: Record<string, LucideIcon> = {
     "arrow-right-left": ArrowRightLeft,
     "arrow-right-to-line": ArrowRightToLine,
@@ -68,6 +68,7 @@ const shard: Record<string, LucideIcon> = {
     "at-sign": AtSign,
     atom: Atom,
     "audio-lines": AudioLines,
+    "audio-lines-off": AudioLinesOff,
     "audio-lines-x": AudioLinesX,
     "audio-waveform": AudioWaveform,
     award: Award,
@@ -86,7 +87,6 @@ const shard: Record<string, LucideIcon> = {
     "badge-japanese-yen": BadgeJapaneseYen,
     "badge-minus": BadgeMinus,
     "badge-percent": BadgePercent,
-    "badge-plus": BadgePlus,
 };
 
 export default shard;

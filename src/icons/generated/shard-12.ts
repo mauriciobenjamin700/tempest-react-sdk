@@ -2,6 +2,11 @@
 // Run `npm run gen:icons` after bumping lucide-react.
 
 import {
+    Combine,
+    Command,
+    Compass,
+    Component,
+    Computer,
     ConciergeBell,
     Cone,
     Construction,
@@ -30,23 +35,23 @@ import {
     Cpu,
     CreativeCommons,
     CreditCard,
+    CreditCardCheck,
+    CreditCardMinus,
+    CreditCardPlus,
+    CreditCardReader,
+    CreditCardX,
     Croissant,
     Crop,
-    Cross,
-    Crosshair,
-    Crown,
-    Cuboid,
-    CupSoda,
-    Currency,
-    Cylinder,
-    Dam,
-    Database,
-    DatabaseArrowDown,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** The 40 lucide icons from "concierge-bell" through "database-arrow-down", inclusive. */
+/** The 40 lucide icons from "combine" through "crop", inclusive. */
 const shard: Record<string, LucideIcon> = {
+    combine: Combine,
+    command: Command,
+    compass: Compass,
+    component: Component,
+    computer: Computer,
     "concierge-bell": ConciergeBell,
     cone: Cone,
     construction: Construction,
@@ -75,18 +80,13 @@ const shard: Record<string, LucideIcon> = {
     cpu: Cpu,
     "creative-commons": CreativeCommons,
     "credit-card": CreditCard,
+    "credit-card-check": CreditCardCheck,
+    "credit-card-minus": CreditCardMinus,
+    "credit-card-plus": CreditCardPlus,
+    "credit-card-reader": CreditCardReader,
+    "credit-card-x": CreditCardX,
     croissant: Croissant,
     crop: Crop,
-    cross: Cross,
-    crosshair: Crosshair,
-    crown: Crown,
-    cuboid: Cuboid,
-    "cup-soda": CupSoda,
-    currency: Currency,
-    cylinder: Cylinder,
-    dam: Dam,
-    database: Database,
-    "database-arrow-down": DatabaseArrowDown,
 };
 
 export default shard;

@@ -37,7 +37,7 @@ export function Toolbar() {
 }
 ```
 
-Pronto — sem provider, sem configuração. Os **2024 slugs** do lucide funcionam
+Pronto — sem provider, sem configuração. Os **2065 slugs** do lucide funcionam
 assim, incluindo nome que só existe em runtime:
 
 ```tsx
@@ -101,9 +101,9 @@ tem um custo que inviabiliza o uso:
 
 !!! danger "`DynamicIcon` gera ~2000 fronteiras de chunk"
     O mapa que ele usa (`dynamicIconImports`) é um módulo de **116 KB** com uma
-    chamada `import()` para **cada** um dos 2024 ícones. Qualquer bundler que veja
+    chamada `import()` para **cada** um dos 2065 ícones. Qualquer bundler que veja
     esse módulo é obrigado a criar um chunk por ícone: no build de produção isso
-    vira ~2024 arquivos minúsculos, e em desenvolvimento vira uma enxurrada de
+    vira ~2065 arquivos minúsculos, e em desenvolvimento vira uma enxurrada de
     requisições no navegador.
 
     Além disso ele resolve o ícone **depois** da renderização (num `useEffect`), então
@@ -118,10 +118,10 @@ O `<Icon>` do SDK troca isso por **um chunk por faixa de 40 ícones**. Renderiza
 GET .../icons/generated/shard-09.js   200
 GET .../icons/generated/shard-21.js   200
 GET .../icons/generated/shard-36.js   200
-… uma por faixa tocada, no máximo 45
+… uma por faixa tocada, no máximo 46
 ```
 
-O maior shard pesa **4,78 KB brotli**, a mediana **4,19 KB** e o menor **1,52 KB**.
+O maior shard pesa **4,92 KB brotli**, a mediana **4,31 KB** e o menor **1,57 KB**.
 O runtime do `<Icon>`, sem shard nenhum, custa **~0,1 KB brotli**.
 
 !!! info "Por que faixa e não letra inicial"
@@ -131,7 +131,7 @@ O runtime do `<Icon>`, sem shard nenhum, custa **~0,1 KB brotli**.
     para um glifo de meio KB, fator de desperdício de ~130x.
 
     As faixas são contíguas e ordenadas, então o SDK acha o shard dono de um slug com
-    uma **busca binária** sobre 45 limites — em vez de embarcar o mapa de 2024
+    uma **busca binária** sobre 46 limites — em vez de embarcar o mapa de 2065
     entradas slug→chunk que faz o `dynamicIconImports` do próprio lucide custar 120 KB
     no chunk principal.
 
@@ -349,7 +349,7 @@ realmente inexistente — nunca enquanto um ícone válido está carregando.
 ## Slug antigo continua funcionando
 
 O lucide renomeou vários ícones (`alert-circle` → `circle-alert`,
-`alert-triangle` → `triangle-alert`) e mantém os 257 nomes antigos como alias. O
+`alert-triangle` → `triangle-alert`) e mantém os 258 nomes antigos como alias. O
 SDK carrega esse mapa, então um slug gravado no banco há dois anos ainda renderiza:
 
 ```tsx
@@ -477,7 +477,7 @@ export function CategoryForm({ onSave }: { onSave: (icon: string) => void }) {
 
 O que você ganha:
 
-- **autocomplete nativo** sobre os 2024 slugs, via `<datalist>` — teclado, leitor de
+- **autocomplete nativo** sobre os 2065 slugs, via `<datalist>` — teclado, leitor de
   tela e o comportamento mobile vêm da plataforma;
 - **preview** do ícone escolhido ao lado do campo;
 - **validação no form nativo**: o input carrega `setCustomValidity`, então um
@@ -486,7 +486,7 @@ O que você ganha:
   `onChange` recebe `shopping-cart`; digitou `alert-circle`, recebe `circle-alert`.
 
 !!! tip "Sugestões são cortadas por default"
-    `limit` é **40**. Montar 2024 `<option>` a cada tecla travava o datalist — é o
+    `limit` é **40**. Montar 2065 `<option>` a cada tecla travava o datalist — é o
     motivo da prop existir, em vez de um default "mostra tudo".
 
 !!! warning "Usa react-hook-form ou zod? A regra é exportada"
@@ -557,8 +557,8 @@ gera as tabelas do SDK, então ela nunca fica atrasada em relação ao que o
 
 | Arquivo                                     | O que tem                                                    |
 | ------------------------------------------- | ------------------------------------------------------------ |
-| [`icon-slugs.txt`](assets/icon-slugs.txt)   | Os 1767 slugs **canônicos**, um por linha                     |
-| [`icon-slugs.csv`](assets/icon-slugs.csv)   | Os 2024 slugs com `status` (`canonical`/`deprecated`) e o canônico correspondente |
+| [`icon-slugs.txt`](assets/icon-slugs.txt)   | Os 1807 slugs **canônicos**, um por linha                     |
+| [`icon-slugs.csv`](assets/icon-slugs.csv)   | Os 2065 slugs com `status` (`canonical`/`deprecated`) e o canônico correspondente |
 
 Use o `.txt` para o que **valida escrita** — é a lista do que pode ser gravado
 hoje. Use o `.csv` para o que **lê dado antigo**: a coluna `canonical` diz para
@@ -759,8 +759,8 @@ reprova a suíte em vez de chegar no seu grid. O que teste nenhum confere é se 
 | `fromMaterialSymbol` | Código Material Symbols → slug lucide, sempre devolvendo um             |
 | `materialToLucide`   | A tabela de pares, para passar no `include` do plugin                   |
 | `MATERIAL_SYMBOL_FALLBACK` | O glifo neutro que um código desconhecido usa                    |
-| `iconNames`          | Os 2024 slugs, ordenados (~7 KB brotli)                                 |
-| `iconAliases`        | Os 257 pares alias → canônico                                          |
+| `iconNames`          | Os 2065 slugs, ordenados (~7 KB brotli)                                 |
+| `iconAliases`        | Os 258 pares alias → canônico                                          |
 | `IconName`           | União de tipo com todos os slugs (só tipo, custo zero)                  |
 
 ### O que cada import custa
@@ -768,13 +768,13 @@ reprova a suíte em vez de chegar no seu grid. O que teste nenhum confere é se 
 Medido com `esbuild --bundle --minify` + brotli, `react` e `lucide-react` externos —
 ou seja, o que o **SDK** adiciona ao seu bundle:
 
-| Você importa           | Brotli   | Puxa a lista de 2024 slugs? |
+| Você importa           | Brotli   | Puxa a lista de 2065 slugs? |
 | ---------------------- | -------- | --------------------------- |
 | `{ Icon }`             | ~2,5 KB  | **Não**                     |
-| `{ resolveIconAlias }` | 2,06 KB  | Não                         |
-| `{ normalizeIconName }`| 2,09 KB  | Não                         |
-| `{ isIconName }`       | 7,20 KB  | Sim (é o que ela consulta)  |
-| `{ iconNames }`        | 7,17 KB  | Sim                         |
+| `{ resolveIconAlias }` | 2,05 KB  | Não                         |
+| `{ normalizeIconName }`| 2,07 KB  | Não                         |
+| `{ isIconName }`       | 7,33 KB  | Sim (é o que ela consulta)  |
+| `{ iconNames }`        | 7,29 KB  | Sim                         |
 
 !!! info "Não existe subpath `/icons/catalog` — e não precisa"
     A separação entre runtime e catálogo **já acontece**, por tree-shaking: nenhum
@@ -790,7 +790,7 @@ ou seja, o que o **SDK** adiciona ao seu bundle:
     `import { iconNames }` de conveniência dentro do `use-icon` custaria ~6 KB a
     todo app que renderiza um ícone, e nada no source pareceria errado.
 
-    O que **é** eager no caminho do `<Icon>` é a tabela de 257 aliases (~2 KB): ela
+    O que **é** eager no caminho do `<Icon>` é a tabela de 258 aliases (~2 KB): ela
     tem que resolver **antes** de escolher o shard, então não dá pra adiar sem uma
     segunda ida à rede para todo slug antigo. 2 KB é o preço de um `icon_code`
     gravado há dois anos continuar renderizando.
@@ -800,12 +800,12 @@ ou seja, o que o **SDK** adiciona ao seu bundle:
 | O que                                            | Brotli    |
 | ------------------------------------------------ | --------- |
 | Runtime do `<Icon>`, antes de qualquer shard     | ~0,1 KB   |
-| Menor shard (7 ícones), sob demanda              | 1,52 KB   |
-| Shard mediano (40 ícones), sob demanda           | 4,19 KB   |
-| Maior shard (40 ícones), sob demanda             | 4,78 KB   |
+| Menor shard (7 ícones), sob demanda              | 1,57 KB   |
+| Shard mediano (40 ícones), sob demanda           | 4,31 KB   |
+| Maior shard (40 ícones), sob demanda             | 4,92 KB   |
 | Maior shard **antes** do rebalanceamento (`s`)   | 19,10 KB  |
-| `{ iconNames }` — a lista dos 2024 slugs         | 6,1 KB    |
-| Runtime + os 45 shards juntos (teto absoluto)    | 130,0 KB  |
+| `{ iconNames }` — a lista dos 2065 slugs         | 7,29 KB   |
+| Runtime + os 46 shards juntos (teto absoluto)    | 137,3 KB  |
 
 !!! info "Como isso foi medido"
     Os shards e a lista saem do `size-limit` **com o `lucide-react` dentro da
@@ -820,7 +820,7 @@ ou seja, o que o **SDK** adiciona ao seu bundle:
 
 ## Recap
 
-- `<Icon name="save" />` resolve qualquer um dos **2024 slugs** do lucide, sem
+- `<Icon name="save" />` resolve qualquer um dos **2065 slugs** do lucide, sem
   configuração.
 - Slug **literal** vira import estático via `tempestIcons()` (ligado por default no
   `createViteConfig`) → **zero requisição extra**.
@@ -829,13 +829,13 @@ ou seja, o que o **SDK** adiciona ao seu bundle:
 - `tempest-react-sdk/icons/virtual` é módulo real: resolve **sem** o plugin (registro
   vazio), então vitest, `tsx` e Storybook carregam o mesmo arquivo.
 - Slug de **runtime** carrega **um shard da faixa dele** — faixas de 40 ícones
-  achadas por busca binária, no máximo 4,78 KB brotli por requisição.
+  achadas por busca binária, no máximo 4,92 KB brotli por requisição.
 - Nome inexistente renderiza `fallback` (nada, por default) e **nunca lança**;
   `console.warn` só em dev.
 - Shard que não chega ganha **2 retries curtos**, responde `iconStatus` `"error"`
   (não `"missing"`) e é reportado por `subscribeToIconErrors` — deploy que rotaciona
   chunk deixou de virar fallback permanente e silencioso.
-- Os 257 **aliases** antigos do lucide continuam resolvendo.
+- Os 258 **aliases** antigos do lucide continuam resolvendo.
 - `icon_code` do banco renderiza sujo: `shopping_cart`, `" Save"` e alias antigo são
   normalizados antes do lookup. `normalize={false}` para lookup estrito, e
   `normalizeIconName` sozinho para validar no formulário.

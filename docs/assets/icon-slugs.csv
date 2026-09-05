@@ -142,6 +142,7 @@ asterisk,canonical,asterisk
 astroid,canonical,astroid
 at-sign,canonical,at-sign
 atom,canonical,atom
+audio-lines-off,canonical,audio-lines-off
 audio-lines-x,canonical,audio-lines-x
 audio-lines,canonical,audio-lines
 audio-waveform,canonical,audio-waveform
@@ -293,6 +294,7 @@ brain,canonical,brain
 brick-wall-fire,canonical,brick-wall-fire
 brick-wall-shield,canonical,brick-wall-shield
 brick-wall,canonical,brick-wall
+bridge,canonical,bridge
 briefcase-business,canonical,briefcase-business
 briefcase-conveyor-belt,canonical,briefcase-conveyor-belt
 briefcase-medical,canonical,briefcase-medical
@@ -340,6 +342,8 @@ calendar,canonical,calendar
 calendars,canonical,calendars
 camera-off,canonical,camera-off
 camera,canonical,camera
+can-soda,canonical,can-soda
+can,canonical,can
 candlestick-chart,deprecated,chart-candlestick
 candy-cane,canonical,candy-cane
 candy-off,canonical,candy-off
@@ -348,6 +352,7 @@ cannabis-off,canonical,cannabis-off
 cannabis,canonical,cannabis
 captions-off,canonical,captions-off
 captions,canonical,captions
+car-battery,canonical,car-battery
 car-front,canonical,car-front
 car-taxi-front,canonical,car-taxi-front
 car,canonical,car
@@ -584,6 +589,11 @@ corner-up-left,canonical,corner-up-left
 corner-up-right,canonical,corner-up-right
 cpu,canonical,cpu
 creative-commons,canonical,creative-commons
+credit-card-check,canonical,credit-card-check
+credit-card-minus,canonical,credit-card-minus
+credit-card-plus,canonical,credit-card-plus
+credit-card-reader,canonical,credit-card-reader
+credit-card-x,canonical,credit-card-x
 credit-card,canonical,credit-card
 croissant,canonical,croissant
 crop,canonical,crop
@@ -639,6 +649,7 @@ donut,canonical,donut
 door-closed-locked,canonical,door-closed-locked
 door-closed,canonical,door-closed
 door-open,canonical,door-open
+door-stairwell,canonical,door-stairwell
 dot-square,deprecated,square-dot
 dot,canonical,dot
 download-cloud,deprecated,cloud-download
@@ -668,6 +679,7 @@ eject,canonical,eject
 ellipse,canonical,ellipse
 ellipsis-vertical,canonical,ellipsis-vertical
 ellipsis,canonical,ellipsis
+engine,canonical,engine
 equal-approximately,canonical,equal-approximately
 equal-not,canonical,equal-not
 equal-square,deprecated,square-equal
@@ -857,6 +869,7 @@ function-square,deprecated,square-function
 funnel-plus,canonical,funnel-plus
 funnel-x,canonical,funnel-x
 funnel,canonical,funnel
+galaxy,canonical,galaxy
 gallery-horizontal-end,canonical,gallery-horizontal-end
 gallery-horizontal,canonical,gallery-horizontal
 gallery-thumbnails,canonical,gallery-thumbnails
@@ -872,6 +885,8 @@ gauge,canonical,gauge
 gavel,canonical,gavel
 gem,canonical,gem
 georgian-lari,canonical,georgian-lari
+germ-off,canonical,germ-off
+germ,canonical,germ
 ghost,canonical,ghost
 gift,canonical,gift
 git-branch-minus,canonical,git-branch-minus
@@ -1066,6 +1081,7 @@ life-buoy,canonical,life-buoy
 ligature,canonical,ligature
 lightbulb-off,canonical,lightbulb-off
 lightbulb,canonical,lightbulb
+lighthouse,canonical,lighthouse
 line-chart,deprecated,chart-line
 line-dot-right-horizontal,canonical,line-dot-right-horizontal
 line-squiggle,canonical,line-squiggle
@@ -1077,6 +1093,7 @@ list-check,canonical,list-check
 list-checks,canonical,list-checks
 list-chevrons-down-up,canonical,list-chevrons-down-up
 list-chevrons-up-down,canonical,list-chevrons-up-down
+list-clock,canonical,list-clock
 list-collapse,canonical,list-collapse
 list-end,canonical,list-end
 list-filter-plus,canonical,list-filter-plus
@@ -1117,8 +1134,10 @@ m-square,deprecated,square-m
 magnet,canonical,magnet
 mail-badge,canonical,mail-badge
 mail-check,canonical,mail-check
+mail-clock,canonical,mail-clock
 mail-minus,canonical,mail-minus
 mail-open,canonical,mail-open
+mail-pen,canonical,mail-pen
 mail-plus,canonical,mail-plus
 mail-question-mark,canonical,mail-question-mark
 mail-question,deprecated,mail-question-mark
@@ -1160,6 +1179,7 @@ menu,canonical,menu
 merge,canonical,merge
 message-circle-check,canonical,message-circle-check
 message-circle-code,canonical,message-circle-code
+message-circle-dashed-check,canonical,message-circle-dashed-check
 message-circle-dashed,canonical,message-circle-dashed
 message-circle-heart,canonical,message-circle-heart
 message-circle-more,canonical,message-circle-more
@@ -1199,6 +1219,7 @@ mic,canonical,mic
 microchip,canonical,microchip
 microscope,canonical,microscope
 microwave,canonical,microwave
+midi-port,canonical,midi-port
 milestone,canonical,milestone
 milk-off,canonical,milk-off
 milk,canonical,milk
@@ -1225,6 +1246,8 @@ monitor-x,canonical,monitor-x
 monitor,canonical,monitor
 moon-star,canonical,moon-star
 moon,canonical,moon
+mop-sparkles,canonical,mop-sparkles
+mop,canonical,mop
 more-horizontal,deprecated,ellipsis
 more-vertical,deprecated,ellipsis-vertical
 mosque,canonical,mosque
@@ -1395,6 +1418,9 @@ play-circle,deprecated,circle-play
 play-off,canonical,play-off
 play-square,deprecated,square-play
 play,canonical,play
+playing-card,canonical,playing-card
+playing-cards-fan,canonical,playing-cards-fan
+playing-cards,canonical,playing-cards
 plug-2,canonical,plug-2
 plug-zap-2,deprecated,plug-zap
 plug-zap,canonical,plug-zap
@@ -1473,6 +1499,8 @@ reply,canonical,reply
 rewind,canonical,rewind
 ribbon,canonical,ribbon
 road,canonical,road
+robot-arm,canonical,robot-arm
+robot-vacuum,canonical,robot-vacuum
 rocket,canonical,rocket
 rocking-chair,canonical,rocking-chair
 roller-coaster,canonical,roller-coaster
@@ -1580,15 +1608,19 @@ shield-question,deprecated,shield-question-mark
 shield-user,canonical,shield-user
 shield-x,canonical,shield-x
 shield,canonical,shield
+ship-cargo,canonical,ship-cargo
 ship-wheel,canonical,ship-wheel
 ship,canonical,ship
 shirt,canonical,shirt
 shopping-bag,canonical,shopping-bag
 shopping-basket,canonical,shopping-basket
+shopping-cart-minus,canonical,shopping-cart-minus
+shopping-cart-plus,canonical,shopping-cart-plus
 shopping-cart,canonical,shopping-cart
 shovel,canonical,shovel
 shower-head,canonical,shower-head
 shredder,canonical,shredder
+shrimp-off,canonical,shrimp-off
 shrimp,canonical,shrimp
 shrink,canonical,shrink
 shrub,canonical,shrub
@@ -1681,9 +1713,11 @@ square-dashed-mouse-pointer,canonical,square-dashed-mouse-pointer
 square-dashed-text,canonical,square-dashed-text
 square-dashed-top-solid,canonical,square-dashed-top-solid
 square-dashed,canonical,square-dashed
+square-dimensions,canonical,square-dimensions
 square-divide,canonical,square-divide
 square-dot,canonical,square-dot
 square-equal,canonical,square-equal
+square-exclamation-point,canonical,square-exclamation-point
 square-function,canonical,square-function
 square-gantt-chart,deprecated,square-chart-gantt
 square-kanban,canonical,square-kanban
@@ -1715,6 +1749,7 @@ square-stack,canonical,square-stack
 square-star,canonical,square-star
 square-stop,canonical,square-stop
 square-terminal,canonical,square-terminal
+square-text,canonical,square-text
 square-user-round,canonical,square-user-round
 square-user,canonical,square-user
 square-x,canonical,square-x
@@ -1847,13 +1882,14 @@ tower-control,canonical,tower-control
 toy-brick,canonical,toy-brick
 tractor,canonical,tractor
 traffic-cone,canonical,traffic-cone
+trailer,canonical,trailer
 train-front-tunnel,canonical,train-front-tunnel
 train-front,canonical,train-front
 train-track,canonical,train-track
 train,deprecated,tram-front
 tram-front,canonical,tram-front
 transgender,canonical,transgender
-trash-2,canonical,trash-2
+trash-2,deprecated,trash
 trash,canonical,trash
 tree-deciduous,canonical,tree-deciduous
 tree-palm,canonical,tree-palm
@@ -1895,6 +1931,7 @@ unlock,deprecated,lock-open
 unplug,canonical,unplug
 upload-cloud,deprecated,cloud-upload
 upload,canonical,upload
+usb-c-port,canonical,usb-c-port
 usb,canonical,usb
 user-2,deprecated,user-round
 user-check-2,deprecated,user-round-check
@@ -1937,6 +1974,7 @@ utility-pole,canonical,utility-pole
 van,canonical,van
 variable,canonical,variable
 vault,canonical,vault
+vector-polygon,canonical,vector-polygon
 vector-square,canonical,vector-square
 vegan,canonical,vegan
 venetian-mask,canonical,venetian-mask
@@ -1949,6 +1987,8 @@ video-off,canonical,video-off
 video,canonical,video
 videotape,canonical,videotape
 view,canonical,view
+virus-off,canonical,virus-off
+virus,canonical,virus
 voicemail,canonical,voicemail
 volleyball,canonical,volleyball
 volume-1,canonical,volume-1
@@ -1983,6 +2023,7 @@ weight-tilde,canonical,weight-tilde
 weight,canonical,weight
 wheat-off,canonical,wheat-off
 wheat,canonical,wheat
+whistle,canonical,whistle
 whole-word,canonical,whole-word
 wifi-cog,canonical,wifi-cog
 wifi-high,canonical,wifi-high

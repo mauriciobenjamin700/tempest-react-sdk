@@ -7,7 +7,7 @@ O catálogo foi dividido por categoria para facilitar navegação. Cada arquivo 
 !!! tip "Ícone por nome"
     Precisa renderizar um ícone cujo nome só existe em runtime (menu vindo da API,
     campo de CMS)? Veja [Ícones por slug](./icons.md) — `<Icon name="save" />` cobre
-    os 2024 slugs do lucide sem o custo de chunk do `DynamicIcon`.
+    os 2065 slugs do lucide sem o custo de chunk do `DynamicIcon`.
 
 ## Categorias
 

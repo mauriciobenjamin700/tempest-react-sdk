@@ -2,6 +2,18 @@
 // Run `npm run gen:icons` after bumping lucide-react.
 
 import {
+    Euro,
+    EvCharger,
+    Expand,
+    ExternalLink,
+    Eye,
+    EyeClosed,
+    EyeDashed,
+    EyeOff,
+    FaceAngry,
+    FaceExpressionless,
+    FaceGrinning,
+    FaceNeutral,
     FaceSlightlyFrowning,
     FaceSlightlySmiling,
     FaceSlightlySmilingPlus,
@@ -30,23 +42,23 @@ import {
     FileCog,
     FileDiff,
     FileDigit,
-    FileDown,
-    FileExclamationPoint,
-    FileHeadphone,
-    FileHeart,
-    FileImage,
-    FileInput,
-    FileKey,
-    FileLock,
-    FileMinus,
-    FileMinusCorner,
-    FileMusic,
-    FileOutput,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** The 40 lucide icons from "face-slightly-frowning" through "file-output", inclusive. */
+/** The 40 lucide icons from "euro" through "file-digit", inclusive. */
 const shard: Record<string, LucideIcon> = {
+    euro: Euro,
+    "ev-charger": EvCharger,
+    expand: Expand,
+    "external-link": ExternalLink,
+    eye: Eye,
+    "eye-closed": EyeClosed,
+    "eye-dashed": EyeDashed,
+    "eye-off": EyeOff,
+    "face-angry": FaceAngry,
+    "face-expressionless": FaceExpressionless,
+    "face-grinning": FaceGrinning,
+    "face-neutral": FaceNeutral,
     "face-slightly-frowning": FaceSlightlyFrowning,
     "face-slightly-smiling": FaceSlightlySmiling,
     "face-slightly-smiling-plus": FaceSlightlySmilingPlus,
@@ -75,18 +87,6 @@ const shard: Record<string, LucideIcon> = {
     "file-cog": FileCog,
     "file-diff": FileDiff,
     "file-digit": FileDigit,
-    "file-down": FileDown,
-    "file-exclamation-point": FileExclamationPoint,
-    "file-headphone": FileHeadphone,
-    "file-heart": FileHeart,
-    "file-image": FileImage,
-    "file-input": FileInput,
-    "file-key": FileKey,
-    "file-lock": FileLock,
-    "file-minus": FileMinus,
-    "file-minus-corner": FileMinusCorner,
-    "file-music": FileMusic,
-    "file-output": FileOutput,
 };
 
 export default shard;

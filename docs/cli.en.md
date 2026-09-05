@@ -212,7 +212,12 @@ meant:
 - **Empty rule** — dead code. In a `.module.css` it is reported and **never**
   removed: it may be the marker class your JS references via `styles.x`.
 
-!!! info "A `var()` with a fallback is never reported"
+- **A token from a family that exists, fallback and all** —
+  `var(--tempest-primary-contrast, #fff)` when `--tempest-primary-*` has twelve
+  declared siblings. It is the one exception to the fallback rule, and the
+  admonition below says why.
+
+!!! info "A `var()` with a fallback is *almost* never reported"
     `var(--tempest-card-padding, var(--tempest-space-5))` is the SDK's own **knob
     idiom**: the name is not a token, it is a hook an app may override. The
     fallback guarantees it renders, so the check stays quiet. Without a fallback
@@ -223,6 +228,50 @@ meant:
     (`--tempest-duration-normal`, `--tempest-primary-solid`,
     `--tempest-primary-on`, `--tempest-danger-on` with no fallback), fixed in the
     same commit that brought the analysis.
+
+!!! danger "Its price was a blind spot: a typo looks exactly like a knob"
+    Both are `var(a-name-nobody-declares, fallback)`. `Scheduler` painted events
+    with `color: var(--tempest-primary-contrast, #fff)` — that token **never
+    existed**, the `var()` fell through to `#fff`, and in the dark theme that is
+    white over a lighter `--tempest-primary`: **3.67:1**, under the 4.5 floor. It
+    compiles, it runs, and it paints wrong forever.
+
+    The signal that separates the two is **the family already existing**.
+    `--tempest-primary-contrast` is undeclared, but `--tempest-primary-*` has
+    twelve siblings that are: the name reads as a missing member of a real
+    family. `--tempest-card-padding` has no `--tempest-card-*` sibling at all: it
+    reads as what it is, a hook the component invented.
+
+    ```console
+    $ tempest fix --dry-run
+    [!] src/components/Timeline/Timeline.module.css:41
+        `--tempest-primary-solid` is not a token, but `--tempest-primary-*` is a real
+        family — the fallback hides the misspelling instead of failing.
+        Did you mean `--tempest-primary-soft`?
+    ```
+
+!!! check "Measured before shipping, like every new CSS check"
+    Run over the SDK's own `src/`: **5 findings, 5 real defects, no false
+    positive**, with 36 legitimate knobs in the same repo staying quiet.
+
+    Two looser signals were measured and **dropped**:
+
+    | Signal | Findings | Real | Precision |
+    | --- | --- | --- | --- |
+    | Declared family (shipped) | 5 | 5 | **100%** |
+    | Last segment matches a token (`--tempest-font-size-sm` ~ `--tempest-text-sm`) | 16 | 3 | 19% |
+    | Family with no segment floor | 9 | 5 | 56% |
+
+    The second fires on every layout knob in `utilities.css`, which end in `-gap`
+    or `-width`. The third treats `--tempest-tx` as a member of the `--tempest`
+    family, which matches **every** token there is — which is why the family needs
+    at least one segment after the prefix.
+
+    What the shipped rule does **not** catch is a wrong prefix outright:
+    `--tempest-font-size-sm` should be `--tempest-text-sm`, but
+    `--tempest-font-size-*` is nobody's family, so there is nothing to match. No
+    cheap signal separates that from a knob — which is exactly why the
+    alternative that would catch both runs at 19% precision.
 
 ### Suggestions (`i`) — when global beats repeated local
 

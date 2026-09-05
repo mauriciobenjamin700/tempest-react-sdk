@@ -24,6 +24,7 @@ export const SEVERITY = {
     "unknown-at-rule": "warn",
     "unknown-property": "warn",
     "unknown-token": "warn",
+    "token-family-typo": "warn",
     "undefined-var": "warn",
     "duplicate-declaration": "warn",
     "overridden-declaration": "warn",

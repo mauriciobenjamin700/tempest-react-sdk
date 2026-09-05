@@ -88,7 +88,7 @@
     padding: 0.1em 0.35em;
     border-radius: var(--tempest-radius-sm);
     background-color: var(--tempest-surface-2);
-    color: var(--tempest-code-text, var(--tempest-text));
+    color: var(--tempest-text);
     font-family: var(--tempest-font-mono);
     font-size: 0.9em;
 }

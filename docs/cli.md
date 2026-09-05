@@ -212,7 +212,11 @@ autor quis:
 - **Regra vazia** — código morto. Em `.module.css` é reportada e **nunca**
   removida: pode ser a classe-marcador que o seu JS referencia via `styles.x`.
 
-!!! info "Um `var()` com fallback nunca é reportado"
+- **Token de uma família que existe, mesmo com fallback** — `var(--tempest-primary-contrast, #fff)`
+  quando `--tempest-primary-*` tem doze irmãos declarados. É a única exceção à
+  regra do fallback, e a admonition abaixo explica por quê.
+
+!!! info "Um `var()` com fallback quase nunca é reportado"
     `var(--tempest-card-padding, var(--tempest-space-5))` é o **idioma de knob**
     do SDK: o nome não é um token, é um gancho que o app pode sobrescrever. Como
     o fallback garante que renderiza, a checagem fica calada. Sem fallback o
@@ -222,6 +226,50 @@ autor quis:
     do próprio SDK — e deixou de pé **4 bugs reais** (`--tempest-duration-normal`,
     `--tempest-primary-solid`, `--tempest-primary-on`, `--tempest-danger-on` sem
     fallback), corrigidos no mesmo commit que trouxe a análise.
+
+!!! danger "O preço dela era um ponto cego: erro de digitação parece knob"
+    Os dois são `var(nome-que-não-existe, fallback)`. O `Scheduler` pintava evento
+    com `color: var(--tempest-primary-contrast, #fff)` — esse token **nunca
+    existiu**, o `var()` caía no `#fff`, e no tema escuro isso é branco sobre um
+    `--tempest-primary` mais claro: **3,67:1**, abaixo do piso de 4,5. Compila,
+    roda, e pinta errado para sempre.
+
+    O sinal que separa os dois é **a família já existir**.
+    `--tempest-primary-contrast` não é declarado, mas `--tempest-primary-*` tem
+    doze irmãos que são: o nome se lê como membro faltando de uma família real.
+    `--tempest-card-padding` não tem irmão `--tempest-card-*` nenhum: se lê como o
+    que é, um gancho que o componente inventou.
+
+    ```console
+    $ tempest fix --dry-run
+    [!] src/components/Timeline/Timeline.module.css:41
+        `--tempest-primary-solid` is not a token, but `--tempest-primary-*` is a real
+        family — the fallback hides the misspelling instead of failing.
+        Did you mean `--tempest-primary-soft`?
+    ```
+
+!!! check "Medido antes de embarcar, como toda checagem nova de CSS"
+    Rodada no `src/` do próprio SDK: **5 achados, 5 defeitos reais, nenhum falso
+    positivo**, com 36 knobs legítimos no mesmo repositório calados.
+
+    Dois sinais mais frouxos foram medidos e **descartados**:
+
+    | Sinal | Achados | Reais | Precisão |
+    | --- | --- | --- | --- |
+    | Família declarada (embarcado) | 5 | 5 | **100%** |
+    | Último segmento casa com um token (`--tempest-font-size-sm` ~ `--tempest-text-sm`) | 16 | 3 | 19% |
+    | Família sem piso de segmentos | 9 | 5 | 56% |
+
+    O segundo dispara em todo knob de layout do `utilities.css`, que termina em
+    `-gap` ou `-width`. O terceiro trata `--tempest-tx` como membro da família
+    `--tempest`, que casa com **todo** token que existe — por isso a família
+    precisa de pelo menos um segmento depois do prefixo.
+
+    O que a regra embarcada **não** pega é o prefixo errado inteiro:
+    `--tempest-font-size-sm` deveria ser `--tempest-text-sm`, mas
+    `--tempest-font-size-*` não é família de ninguém, então não há o que casar.
+    Nenhum sinal barato separa isso de um knob — e é por isso que a alternativa
+    que pegaria os dois tem 19% de precisão.
 
 ### Sugestão (`i`) — quando o global bate o local repetido
 

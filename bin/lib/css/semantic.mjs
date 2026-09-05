@@ -220,13 +220,63 @@ function reportDuplicateRule({ block, previous, at }) {
 }
 
 /**
+ * The family a token name belongs to: everything up to the last segment.
+ *
+ * `--tempest-primary-soft` → `--tempest-primary`. Returns `null` when nothing is
+ * left after the prefix, which is what keeps two-segment names like
+ * `--tempest-tx` out of the family check: their family is the bare prefix, and
+ * that matches every token there is.
+ *
+ * @param {string} name - A custom property name.
+ * @returns {string | null} The family, or null when the name has no family.
+ */
+function familyOf(name) {
+    const family = name.slice(0, name.lastIndexOf("-"));
+    return family === "--tempest" || !family.startsWith("--tempest-") ? null : family;
+}
+
+/** Per-name-set cache, so the families are derived once per run and not per declaration. */
+const FAMILY_CACHE = new WeakMap();
+
+/**
+ * The families the SDK's own tokens form, derived once per token set.
+ *
+ * @param {Set<string>} names - Declared SDK token names.
+ * @returns {Set<string>} Every family with at least one declared member.
+ */
+function familiesOf(names) {
+    const cached = FAMILY_CACHE.get(names);
+    if (cached) return cached;
+    const families = new Set();
+    for (const name of names) {
+        const family = familyOf(name);
+        if (family) families.add(family);
+    }
+    FAMILY_CACHE.set(names, families);
+    return families;
+}
+
+/**
  * Property-level and value-level checks for a single declaration.
  *
- * A `var()` **with a fallback** is never reported. That is the SDK's own knob
- * idiom — `var(--tempest-card-padding, var(--tempest-space-5))` is a component
- * offering an override nobody is required to set — so "this name is not a token"
- * would fire on the pattern the docs teach. Without a fallback the same
- * declaration resolves to nothing, which is a real defect and is reported.
+ * A `var()` **with a fallback** is *almost* never reported. That is the SDK's own
+ * knob idiom — `var(--tempest-card-padding, var(--tempest-space-5))` is a
+ * component offering an override nobody is required to set — so "this name is
+ * not a token" would fire on the pattern the docs teach. Without a fallback the
+ * same declaration resolves to nothing, which is a real defect and is reported.
+ *
+ * The exception is the one case where a knob and a typo stop being
+ * indistinguishable: **the family already exists.** `--tempest-primary-contrast`
+ * is undeclared, but `--tempest-primary-*` has twelve declared siblings, so the
+ * name reads as a member of a real family that is missing — a misspelling.
+ * `--tempest-card-padding` has no declared `--tempest-card-*` sibling at all, so
+ * it reads as what it is, a knob this component invented.
+ *
+ * Measured over the SDK's own `src/` when the rule was written: five hits, five
+ * real defects, no false positive. Two weaker signals were measured and dropped
+ * — matching on the *last* segment instead (`--tempest-font-size-sm` looks like
+ * `--tempest-text-sm`) fired on sixteen names of which three were real, because
+ * every layout knob in `utilities.css` ends in `-gap` or `-width`.
  */
 function checkDecl({ decl, prop, tokens, definedVars, at }) {
     if (isCheckableProperty(prop) && !KNOWN_PROPERTIES.has(prop)) {
@@ -240,8 +290,22 @@ function checkDecl({ decl, prop, tokens, definedVars, at }) {
         }
     }
 
+    const families = familiesOf(tokens.names);
     for (const ref of varReferences(decl.value)) {
-        if (ref.hasFallback || definedVars.has(ref.name)) continue;
+        if (definedVars.has(ref.name) || tokens.names.has(ref.name)) continue;
+        if (ref.hasFallback) {
+            if (!ref.name.startsWith("--tempest-") || tokens.names.size === 0) continue;
+            const family = familyOf(ref.name);
+            if (!family || !families.has(family)) continue;
+            const suggestion = nearest(ref.name, tokens.names, 3);
+            at(
+                "token-family-typo",
+                decl.line,
+                `\`${ref.name}\` is not a token, but \`${family}-*\` is a real family — the fallback ` +
+                    `hides the misspelling instead of failing${suggestion ? `. Did you mean \`${suggestion}\`?` : ""}`,
+            );
+            continue;
+        }
         if (ref.name.startsWith("--tempest-")) {
             if (tokens.names.size === 0) continue;
             const suggestion = nearest(ref.name, tokens.names, 3);

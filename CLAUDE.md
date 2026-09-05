@@ -4,17 +4,17 @@ SDK público da Tempest com componentes React, hooks e integrações reutilizáv
 
 > Este arquivo é o guia operacional do SDK. Padrões globais (PR template PT-BR, conventional commits, `gh pr edit` workaround) vêm de `~/.claude/CLAUDE.md` e continuam valendo.
 
-## Estado atual (snapshot pós-v0.55.0 — `[Unreleased]` vazio)
+## Estado atual (snapshot pós-v0.58.0 — `[Unreleased]` carrega o ciclo 0.59.0)
 
-- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 75 tags publicadas (0.1.0 → 0.55.0) com signed provenance via OIDC. Histórico completo em `RELEASES.md` (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
-- **Testes**: 5995 testes em 559 arquivos, ~47 s sob `vitest + jsdom + fake-indexeddb`. Cobertura medida em 04/09/2026: **99,70% linhas (35 descobertas) / 98,72% statements / 99,85% funções (5) / 95,61% branches (422)**; pisos do CI em **99/98/99/95**, folga de 0,61 ponto no eixo mais apertado (era 0,91). **A cauda deixou de ser só inalcançável:** 21 das 35 linhas e 3 das 5 funções estão na leva RTC/voz de 0.54.0/0.55.0 — `webrtc/peer-mesh.ts` (9 linhas, 19 ramos), `webrtc/mesh-quality.ts` (9, 10), `audio/voice-chain.ts` (3, 5). O resto é poeira de 1–2 linhas, essa sim inalcançável por construção (ver `### P3`). Ranquear por **valor absoluto**, nunca por percentual — é o método da #282, e a [PR #284](https://github.com/mauriciobenjamin700/tempest-react-sdk/pull/284) leva os quatro a 100% nos quatro eixos (39 testes; branch do repo 95,61% → 96,02%, linhas descobertas 35 → 14), sem mexer nos pisos.
-- **Superfície**: 40 módulos em `src/`, 128 componentes, 53 hooks no módulo `hooks/` (116 exports `use*` somando todos os módulos), 543 exports na entrada raiz, 67 em `/br` e 21 em `/icons`.
+- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 78 tags publicadas (0.1.0 → 0.58.0) com signed provenance via OIDC. Histórico completo em `RELEASES.md` (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
+- **Testes**: 6036 testes em 562 arquivos, ~50 s sob `vitest + jsdom + fake-indexeddb`. Cobertura medida em 05/09/2026: **99,73% linhas / 98,81% statements / 99,82% funções / 95,64% branches**; pisos do CI em **99/98/99/95**, folga de 0,64 ponto no eixo mais apertado. Ranquear a cauda por **valor absoluto**, nunca por percentual — é o método da #282. O que sobra é, em boa parte, inalcançável por construção (ver `### P3`).
+- **Superfície**: 40 módulos em `src/`, 129 componentes, 53 hooks no módulo `hooks/`, **564 exports de runtime** na entrada raiz, 70 em `/br` e 21 em `/icons`. Método reprodutível dessa contagem: `node --input-type=module -e 'const m = await import("./dist/tempest-react-sdk.js"); console.log(Object.keys(m).length)'` — contar `export` no `.d.ts` dá ~1250 porque enxerga todo tipo interno do bundle.
 - **Empacotamento (v0.25.0)**: `dist/` preserva o grafo de módulos (`preserveModules`). O que o app paga de fato (brotli): `{ cn }` 133 B · `{ Button }` 794 B · app típico 9.27 KB · offline/PWA 4.54 KB · `styles.css` 28.7 KB · `utilities.css` 1.36 KB (opt-in). Teto sem tree-shaking: 121.08 KB ESM / 145.01 KB CJS. Budgets do `size-limit` são **por fatia importada**, não pelo barrel.
 - **Subpaths** (15, a lista é o campo `exports` do `package.json`): `.`, `/testing` (MSW), `/vite` (`createViteConfig` + plugins), `/sw` (helpers de contexto SW), `/charts` (recharts peer), `/editor` (tiptap peer), `/imaging` (decode/encode/resize/crop/compress em canvas, sem dep), `/tabular` (`TabularPredictor` ONNX + cache de modelo, onnxruntime-web peer), `/vision` (onnxruntime-web peer), `/br` (dataset BR + mapa clicável — os quatro arquivos saem do IBGE numa geração só, chaveados por código de 7 dígitos), `/icons` (ícone por slug, 46 shards lazy balanceados), `/icons/virtual` (módulo real: `staticIcons = {}` que o plugin sobrescreve — resolve fora do Vite também), `/styles.css`, `/utilities.css` (camada de layout opt-in), `/package.json`.
 - **CLIs** (`bin/`): `create-tempest-app` (scaffold — invocado como `npx -p tempest-react-sdk create-tempest-app .`; **não** existe pacote `create-tempest-app` no npm, então `npm create tempest-app` dá 404) com templates `template/` e `template-pwa/`; `tempest` (project CLI: `doctor`, `lint`, `fix`, `format`, `gen api <openapi>` → Zod + types + services, `gen icons` → registry estático de ícone). `doctor` e `fix` também fazem **análise de CSS** (`bin/lib/css/`, scanner próprio sem dep): sintaxe que o browser derruba, declaração/regra duplicada, propriedade e token inexistentes, e bloco repetido que pede classe global/utility. `fix` remove só o comprovadamente morto (sempre a cópia **anterior** — last-wins); `--no-css` pula, `--dry-run` é a superfície de revisão.
 - **Style modules**: `colors.css` (inclui `--tempest-code-*`, resolvidos pro piso de **texto** 4,5:1 — a rampa de chart é de **marca**, 3:1, e reprova como texto) + `typography.css` + `motion.css` + `density.css` + `reset.css` + `responsive.css` + `print.css`; `utilities.css` fica **fora** do bundle (opt-in, copiado pra `dist/` no build).
 - **Tooling**: Prettier 3, Husky pre-commit (lint-staged), `Makefile` + `scripts/release.sh` (tag-push pipeline) + `scripts/changelog.mjs` (notes/close) + `scripts/sync-github-releases.sh` (backfill de Releases), 5 workflows — `ci.yml` (PR, matriz node 22/24), `release-npm.yml` (tag push → guard de versão + publish OIDC + read-back do registry + GitHub Release), `size-limit.yml`, `e2e.yml` (gallery), `docs.yml` (Pages).
-- **Docs**: 86 páginas base (172 arquivos com as traduções `.en.md`) — 54 na raiz de `docs/`, 15 de componentes por categoria, 11 de design de software, tutorial de 6 — mais 3 diagramas drawio + `llms.txt`/`llms-full.txt` (`npm run docs:llms`).
+- **Docs**: 97 páginas base (194 arquivos com as traduções `.en.md`) mais 3 diagramas drawio + `llms.txt`/`llms-full.txt` (`npm run docs:llms`). `test/docs-anchors.test.ts` guarda toda âncora interna — vale mais que o `mkdocs --strict`, que reporta âncora morta só como `INFO`.
 - **Demo vivo**: app Vite em `examples/gallery` (64 sections) consome o SDK via `file:../..`.
 
 ### Adapter design pattern (consolidado v0.1.3+)
@@ -112,17 +112,47 @@ tempest-react-sdk/
 saiu; o estado corrente de cada frente está na issue. `gh issue list` para a lista
 viva.
 
-Aberto hoje, em ordem de valor:
+**Nenhuma issue aberta em 05/09/2026.** As sete que estavam na tabela aqui
+(#275–#282) saíram, e depois delas a rodada de estilo (#294, #295, #299) e a de
+`http/` (#301, #302). `gh issue list` é a fonte; se esta frase estiver de pé e a
+lista não estiver vazia, esta seção está velha.
 
-| #                                                                           | Frente                                     | Por que importa                                                                                                                                                                                           |
-| --------------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [#275](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/275) | `createPeerMesh` sem as conexões           | A mesh do #231 guarda o `RTCPeerConnection` num `Map` fechado, e as três APIs de stats do #232 pedem exatamente ele — 0.54.0 e 0.55.0 entregaram as duas metades e elas não se combinam                   |
-| [#276](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/276) | `resolveDegradation` ancora no slot errado | Decide pelo **máximo entre os slots de vídeo**; a escolha nitidez/fluidez é sobre a **tela**, então com só câmera ligada quem decide é um stream que o usuário não estava pensando                        |
-| [#277](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/277) | `ImageSource` sem `HTMLVideoElement`       | Mudança **só de tipo**: o `toBitmap` já delega pro `createImageBitmap`, que aceita `CanvasImageSource`. Destrava print de gravação de tela em 6 funções do `/imaging`                                     |
-| [#278](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/278) | `captureFrame(video, { atMs })`            | `seeked` não garante que o frame composto é o do `currentTime` — o caminho na mão desenha o vizinho sem erro nenhum. Precisa de `requestVideoFrameCallback`. Depende do #277                              |
-| [#279](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/279) | `<VideoPlayer>` com `rate`                 | O SDK grava vídeo e não sabe tocar. `playbackRate` não aparece uma vez no `src/`, então acelerar uma gravação de 20 min de tela não tem superfície                                                        |
-| [#282](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/282) | Cobertura do `src/webrtc/`                 | Entrou abaixo do padrão: 89,06% branch (277/311), `mesh-quality.ts` a 77,35% de statements — 18 linhas e 29 ramos descobertos em dois arquivos, mais que a cauda inteira que o repo declarou inalcançável |
-| [#281](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/281) | Sweep de `axe` no browser real             | Descarta `results.incomplete`, roda em um tema, um viewport e só no estado inicial — a classe de contraste que escapou duas vezes cai exatamente no `incomplete`                                          |
+A lição de como o backlog se reabastece vale mais que a lista: **as cinco últimas
+issues nasceram de adoção, não de planejamento.** #299 e #295 vieram de olhar uma
+screenshot; #294 de corrigir #295; #301 e #302 de subir o `alofans-frontend` de
+0.53.0 para 0.58.0. Nenhuma teria sido escrita olhando o código do SDK.
+
+E as três vezes que a issue estava **errada** sobre a própria causa também vieram
+daí — ver `### Quando a issue erra o diagnóstico`, abaixo.
+
+### Quando a issue erra o diagnóstico
+
+**Três das cinco últimas issues estavam erradas sobre a própria causa**, e nas
+três o defeito real era maior que o relatado. Medir antes de implementar não é
+zelo — é o que separa fechar a issue de corrigir o bug.
+
+- **#295** dizia "componente cujo fundo não acompanha o tema", em sete seletores.
+  Medindo os 19 nós: 7 eram markup nu, e a causa era que o SDK **nunca declarou
+  `color-scheme`** — ele _lia_ `prefers-color-scheme` desde a v0.1.0 e nunca
+  escreveu a propriedade. Isso alcança popup de `<select>`, scrollbar, autofill e
+  date picker, que nem entram numa medição de contraste. Outro achado do mesmo
+  fio: o `createTheme` emitia `-solid` sem `-on-solid` nas cinco famílias, então
+  todo tema gerado ficava com a tinta do SDK sobre o preenchimento da marca.
+  E **quatro** dos sete seletores não deviam ser corrigidos (thumb do `Switch`,
+  `Tooltip`, marcador do `Timeline`, branco do `QRCode` — quiet zone precisa ser
+  clara para escanear).
+- **#294** propôs um critério de linter que erra nos dois sentidos. Medido no
+  `src/`: o da issue dá 56% de precisão (`--tempest-tx` tem família `--tempest`,
+  que casa com tudo). A variante com piso de um segmento dá **5/5**. A
+  alternativa que pegaria os 3 casos restantes tem **19%** — rejeitada.
+- **#301** propôs ler `globalThis.process?.env?.NODE_ENV` como fallback. Isso
+  **quebraria** o webpack, o único ambiente que funcionava: bundler substitui
+  exatamente a member expression `process.env.NODE_ENV` e nada mais. O sinal do
+  consumidor tem de entrar **na frente** da leitura, nunca no lugar dela.
+
+Corolário para o próximo ciclo: **reproduza o número da issue antes de aceitar a
+explicação dela.** Nos três casos bastou uma medição para a leitura mudar, e nos
+três a implementação "conforme pedido" teria fechado a issue deixando o defeito.
 
 ### O consumidor que dita a frente RTC
 
@@ -300,6 +330,44 @@ npm run dev               # http://127.0.0.1:5173
 - **Aspas duplas**, tipagem total, JSDoc em inglês nos exports públicos. PT-BR no resto da doc.
 
 ## Lições aprendidas
+
+- **Uma frase da doc pode ser o bug.** `docs/http.md` afirmava que o Vite
+  substitui `process.env.NODE_ENV` "como Vite, webpack, Rspack e Parcel". Não
+  substitui, e era essa crença que deixava todo diagnóstico de dev do SDK mudo em
+  app Vite — por releases. Quando a doc explica **por que** um mecanismo funciona,
+  essa explicação é uma afirmação testável, não prosa; a #301 saiu de alguém
+  conferindo o `dist/` contra a frase.
+
+- **Mock do gate esconde que o gate é inalcançável.** `parse-response.test.ts`
+  mocka `isDevBuild` para dirigir os dois ramos — correto para testar o ramo, e é
+  exatamente o que impediu de notar que em produção só um deles roda. Guard novo:
+  um teste **sem mock nenhum** que reproduz o ambiente real (`vi.stubGlobal
+("process", undefined)`) e afirma o que o consumidor vê. Vale para toda função
+  cuja resposta depende do ambiente do build.
+
+- **Teste que fixa uma regressão se reescreve, não se apaga.** O
+  `describe-api-error.test.ts` tinha `"responde a frase de validação, não mais a
+sentença do backend"` — a regressão da #302 pinada em verde. Apagá-lo perderia
+  a história; reescrevê-lo com o porquê no corpo mantém a asserção invertida e
+  registra que a decisão anterior foi revista de propósito.
+
+- **Merge de duas branches que editam a mesma seção engole delimitador.** Juntar
+  duas seções novas em `docs/styles.md` comeu a fence de fechamento de uma
+  admonition, e a partir dali todo heading virou código. O `mkdocs build
+--strict` passou verde — âncora morta é `INFO` para ele. Quem pegou foi
+  `test/docs-anchors.test.ts`. Ao resolver conflito em markdown, conferir
+  delimitador (``` , `!!!`, tabela) na junção, não só o texto.
+
+- **Contagem publicada precisa do método junto.** "543 exports na raiz" não
+  reproduz: contar `export` no `.d.ts` dá ~1250, porque o bundle declara todo tipo
+  interno. Só `Object.keys(await import(dist))` bate. Toda contagem neste arquivo
+  vale o comando que a produziu escrito ao lado.
+
+- **Precedência de opção morre no wrapper.** A correção da #302 quase nasceu
+  inerte: a regra respeitava `validation` como override, e o
+  `useDescribeApiError` **sempre** passa `validation` — o ramo nunca rodaria em
+  componente nenhum. Ao adicionar condição sobre uma opção, conferir o que os
+  wrappers do próprio SDK passam por default, não só o que a função pura aceita.
 
 - **`requestVideoFrameCallback` não dispara em seek pausado — só durante reprodução.**
   Medido em Chromium (04/09/2026): `hasApi=true`, `pausedSeek=false`,

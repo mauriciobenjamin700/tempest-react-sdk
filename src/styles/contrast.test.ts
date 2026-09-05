@@ -18,7 +18,17 @@ import { describe, expect, it } from "vitest";
  * pair below the floor fails here instead of in someone's product.
  */
 
-const CSS = readFileSync(join(__dirname, "colors.css"), "utf8");
+/**
+ * The sheet with comments stripped.
+ *
+ * The split below looks for the dark selector by substring, and a comment that
+ * merely *mentions* `data-tempest-theme="dark"` used to land the split on the
+ * comment instead of the rule — which empties the light map and fails 24
+ * assertions with `token --tempest-success-solid is not defined`, a message
+ * that points nowhere near the prose that caused it. Prose is allowed to name
+ * the selector it documents; the parser is what has to be exact.
+ */
+const CSS = readFileSync(join(__dirname, "colors.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
 
 /** WCAG 2.1 SC 1.4.3 floor for normal-size text. */
 const TEXT_FLOOR = 4.5;

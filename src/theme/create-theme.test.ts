@@ -195,6 +195,54 @@ describe("legibilidade dos temas gerados", () => {
         },
     );
 
+    it.each(Object.entries(themePresets))(
+        "%s deriva -on-solid legível sobre o preenchimento neutro, nos dois esquemas",
+        (_name, preset) => {
+            const theme = createTheme(preset);
+            for (const scheme of ["light", "dark"] as const) {
+                const tokens = theme[scheme];
+                const fill = literal(tokens, "--tempest-gray-700");
+                const ink = literal(tokens, "--tempest-neutral-on-solid");
+                expect(contrastRatio(ink, fill)).toBeGreaterThanOrEqual(4.5);
+            }
+        },
+    );
+
+    it("deriva -on-solid de cada status pedido, legível sobre o próprio -solid", () => {
+        const theme = createTheme({
+            success: "#84cc16",
+            warning: "#facc15",
+            danger: "#f87171",
+            info: "#38bdf8",
+        });
+        for (const scheme of ["light", "dark"] as const) {
+            const tokens = theme[scheme];
+            for (const family of ["success", "warning", "danger", "info"] as const) {
+                const fill = literal(tokens, `--tempest-${family}-solid`);
+                const ink = literal(tokens, `--tempest-${family}-on-solid`);
+                expect(contrastRatio(ink, fill)).toBeGreaterThanOrEqual(4.5);
+            }
+        }
+    });
+
+    it("não deixa -on-solid cair no default do SDK, que foi medido contra outro preenchimento", () => {
+        // Um tema gerado emitia `-solid` e não `-on-solid`: o par que sobrava era
+        // a tinta do SDK sobre o preenchimento da marca, nunca medidos juntos.
+        // Medido na gallery, o neutro escuro gerado (`gray-700` = #a8b2c6) ficava
+        // com o branco do SDK por cima — 2.13:1. O ramp escuro gerado inverte, e
+        // é lá que um `#ffffff` fixo reprovaria: a tinta tem de virar escura
+        // porque o preenchimento virou claro.
+        const theme = createTheme({ gray: "#a8b2c6", warning: "#facc15" });
+        for (const scheme of ["light", "dark"] as const) {
+            const tokens = theme[scheme];
+            expect(tokens["--tempest-neutral-on-solid"]).toBeDefined();
+            expect(tokens["--tempest-warning-on-solid"]).toBeDefined();
+        }
+        expect(literal(theme.dark, "--tempest-neutral-on-solid")).not.toBe(
+            literal(theme.light, "--tempest-neutral-on-solid"),
+        );
+    });
+
     it("mantém o ramp neutro na curva afinada em vez de ancorar no input", () => {
         const { light } = createTheme({ gray: "#667085" });
         // Ancorar comprimiria a faixa: a superfície deixaria de ser quase branca.

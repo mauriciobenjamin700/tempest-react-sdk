@@ -46,7 +46,7 @@
     display: block;
     width: 36px;
     height: 4px;
-    background: var(--tempest-gray-300);
+    background: var(--tempest-border-strong);
     border-radius: var(--tempest-radius-full);
 }
 

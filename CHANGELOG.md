@@ -4,6 +4,84 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **O tema escuro passa a alcançar o que o browser pinta, e os componentes param
+  de pintar superfície com token de escala.** Duas causas distintas produziam o
+  mesmo sintoma — fundo claro embaixo de texto claro — e a segunda tinha uma
+  terceira escondida atrás dela.
+
+  **`color-scheme` nunca foi declarado.** O SDK sempre _leu_ `prefers-color-scheme`
+  (é como o `ThemeProvider` resolve o modo `"system"`) e nunca declarou a
+  propriedade CSS de nome parecido. Token não alcança o popup do `<select>`, a
+  barra de rolagem, o autofill, o date picker nem o canvas default: quem pinta é
+  o user-agent, a partir dessa propriedade. Medido em Chromium com
+  `data-tempest-theme="dark"` ligado, `getComputedStyle(html).colorScheme`
+  devolvia `"normal"`, um `<select>` sem classe pintava `#efefef` e um `<input>`
+  sem classe pintava `#ffffff`, ambos sob o texto `#f1f3f8` do tema — **1,03:1** e
+  **1,11:1**. Agora `:root { color-scheme: light }` e
+  `[data-tempest-theme="dark"] { color-scheme: dark }`; como vai no seletor de
+  atributo e não numa media query, subárvore escura em página clara ganha controle
+  nativo escuro junto. Medido depois: **4,80:1** e **10,09:1**.
+
+  **`--tempest-gray-*` é um ramp fixo.** O bloco escuro sobrescreve 2 dos 22
+  membros, os dois de chart. Componente que pintava fundo a partir dele mantinha
+  fundo claro no escuro enquanto o texto seguia o tema. Trocados por token de
+  propósito, todos com **valor idêntico no tema claro**:
+
+  | Componente                       | Era        | Virou                     |
+  | -------------------------------- | ---------- | ------------------------- |
+  | `SegmentedControl` (trilho)      | `gray-100` | `--tempest-surface-2`     |
+  | `Tag` (neutro)                   | `gray-100` | `--tempest-surface-2`     |
+  | `StepperInput` (botão hover)     | `gray-100` | `--tempest-surface-2`     |
+  | `Sidebar` (item hover)           | `gray-100` | `--tempest-surface-2`     |
+  | `Sidebar` (badge)                | `gray-200` | `--tempest-surface-3`     |
+  | `PasswordInput` (barra de força) | `gray-200` | `--tempest-border`        |
+  | `BottomSheet` (alça)             | `gray-300` | `--tempest-border-strong` |
+
+  Quatro usos do ramp **ficaram**, e um teste guarda a lista com o motivo de cada
+  um: o thumb do `Switch` é claro nos dois temas de propósito (token de superfície
+  o apagaria contra o próprio trilho), o `Tooltip` é invertido de propósito, o
+  marcador neutro do `Timeline` é um ponto sem texto, e `Badge`/`Alert`
+  `.neutral.solid` são _preenchimento_ — `gray-700` é escuro nos dois temas. O
+  branco do `QRCode` também não é defeito: quiet zone clara é requisito de leitura.
+
+  **A família `-on-solid` não tinha membro neutro, e o `createTheme` não emitia
+  nenhum.** `Badge` e `Alert` fixavam `color: #ffffff` no `.neutral.solid` porque
+  não havia token para apontar. Adicionado `--tempest-neutral-on-solid` nos dois
+  blocos. E o `createTheme` emitia `-solid` sem `-on-solid` para as **cinco**
+  famílias, então todo tema gerado ficava com a tinta do SDK — medida contra os
+  preenchimentos do SDK — sobre o preenchimento da marca, dois valores nunca
+  medidos juntos. Medido na gallery, o `#theme-factory` gerava `gray-700` em
+  `#a8b2c6` e recebia o branco por cima: **2,13:1**. Agora as cinco são derivadas
+  com o `readableForeground` que o módulo já usava para
+  `--tempest-primary-foreground`.
+
+  Medido na gallery reconstruída, tema escuro, `transition` desligada e piso WCAG
+  por tamanho de fonte: **0 pares abaixo do piso**, de 16 violações de
+  `color-contrast` no baseline. Links de prosa da gallery, que caíam no `#0000ee`
+  do user-agent (1,90:1 sobre `--tempest-surface`), ganharam cor de tema.
+
+  Closes #295.
+
+### Adicionado
+
+- **`UPDATE_AXE_BASELINE=1` reescreve `e2e/axe-baseline.json` com o que a rodada
+  mediu.** O ratchet só falha com _mais_ que o baseline permite, então correção
+  que remove achado deixa o número velho de pé — e a próxima regressão até aquele
+  número passa calada. Baixar à mão significa transcrever quatro tabelas de regra,
+  que é por que não acontece.
+
+### Alterado
+
+- **O parser do `contrast.test.ts` passa a tirar comentário antes de partir o
+  arquivo.** Ele achava o bloco escuro por `indexOf('data-tempest-theme="dark"')`,
+  então um comentário que _menciona_ o seletor colocava o corte no comentário,
+  esvaziava o mapa claro e derrubava 24 asserções com
+  `token --tempest-success-solid is not defined` — mensagem que não aponta para
+  lugar nenhum perto da prosa que a causou. Prosa pode nomear o seletor que
+  documenta; quem tem de ser exato é o parser.
+
 ## [0.58.0] — 2026-09-05
 
 ### Alterado

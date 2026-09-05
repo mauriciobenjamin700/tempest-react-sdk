@@ -85,6 +85,26 @@ body {
     padding: 0 var(--tempest-space-3);
 }
 
+/*
+ * Prose links, which nothing was styling.
+ *
+ * An `<a>` in a section's running text fell through to the user agent's
+ * `#0000ee`, and against the dark theme's `#14171f` surface that measures
+ * 1.90:1 — the worst contrast on the page, from markup nobody wrote a rule for.
+ * The nav links below have always had their own colour; this covers the rest.
+ */
+.example-body a:not([class]),
+.gallery-section > p a:not([class]) {
+    color: var(--tempest-primary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.example-body a:not([class]):hover,
+.gallery-section > p a:not([class]):hover {
+    color: var(--tempest-primary-hover);
+}
+
 .gallery-nav a {
     display: block;
     padding: 6px var(--tempest-space-3);

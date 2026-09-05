@@ -78,7 +78,7 @@
 }
 .neutral.solid {
     background-color: var(--tempest-gray-700);
-    color: #ffffff;
+    color: var(--tempest-neutral-on-solid);
     border-color: transparent;
 }
 .neutral.outline {

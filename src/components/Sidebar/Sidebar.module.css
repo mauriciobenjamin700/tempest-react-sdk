@@ -98,7 +98,7 @@
 }
 
 .item:hover {
-    background: var(--tempest-gray-100);
+    background: var(--tempest-surface-2);
 }
 
 .item.active {
@@ -134,7 +134,7 @@
     height: 18px;
     padding: 0 6px;
     border-radius: var(--tempest-radius-full);
-    background: var(--tempest-gray-200);
+    background: var(--tempest-surface-3);
     color: var(--tempest-text);
     font-size: 10px;
     line-height: 18px;

@@ -1,4 +1,6 @@
+import { writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import { expect, test, type ConsoleMessage, type Page } from "@playwright/test";
 
 const require = createRequire(import.meta.url);
@@ -265,12 +267,23 @@ test.describe("accessibility sweep", () => {
         { theme: "dark", width: 390 },
     ];
 
+    /** What this run measured, filled only under `UPDATE_AXE_BASELINE=1`. */
+    const measured: Record<string, { violations: RuleCounts; incomplete: RuleCounts }> = {};
+
     for (const cell of CELLS) {
         const label = `${cell.theme}-${cell.width}`;
 
         test(`does not regress in ${label}`, async ({ page }) => {
             await enterCell(page, cell);
             const { violations, incomplete } = await runAxe(page);
+
+            if (process.env.UPDATE_AXE_BASELINE === "1") {
+                measured[label] = {
+                    violations: countByRule(violations),
+                    incomplete: countByRule(incomplete),
+                };
+                return;
+            }
 
             const allowed = BASELINE[label];
             expect(allowed, `no baseline for ${label} — add it to axe-baseline.json`).toBeDefined();
@@ -287,6 +300,25 @@ test.describe("accessibility sweep", () => {
             ).toBe("");
         });
     }
+
+    /**
+     * Rewrite the baseline from what this run measured.
+     *
+     * The ratchet only fails on *more* than the baseline allows, so a fix that
+     * removes findings leaves the old, higher number standing — and the next
+     * regression up to that number passes silently. Lowering it by hand means
+     * transcribing four rule tables, which is why it does not happen.
+     *
+     * Run `UPDATE_AXE_BASELINE=1 npx playwright test e2e/gallery.spec.ts`, read
+     * the diff, and commit it. The env var also skips the assertions, so the
+     * run reports what is there rather than failing on the way to measuring it.
+     */
+    test.afterAll(() => {
+        if (process.env.UPDATE_AXE_BASELINE !== "1") return;
+        if (Object.keys(measured).length !== CELLS.length) return;
+        const path = join(dirname(new URL(import.meta.url).pathname), "axe-baseline.json");
+        writeFileSync(path, `${JSON.stringify(measured, null, 4)}\n`, "utf8");
+    });
 
     /**
      * The pair that shipped twice, asserted directly rather than through axe.

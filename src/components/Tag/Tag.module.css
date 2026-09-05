@@ -24,7 +24,7 @@
 }
 
 .tag.neutral {
-    background: var(--tempest-gray-100);
+    background: var(--tempest-surface-2);
     color: var(--tempest-text);
 }
 

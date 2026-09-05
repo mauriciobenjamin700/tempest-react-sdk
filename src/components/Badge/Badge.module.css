@@ -51,7 +51,7 @@
 }
 .neutral.solid {
     background-color: var(--tempest-gray-700);
-    color: #ffffff;
+    color: var(--tempest-neutral-on-solid);
 }
 .neutral.outline {
     background-color: transparent;

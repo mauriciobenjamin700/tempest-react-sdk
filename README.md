@@ -201,6 +201,8 @@ import "tempest-react-sdk/styles.css";
 
 This injects the design tokens (`--tempest-primary`, `--tempest-radius-md`, ...), a minimal CSS reset, and the per-component CSS Modules. Tokens live on `:root` and on `[data-tempest-theme="dark"]`, so the app can override them globally or per subtree (see [Theming](#theming-reference)).
 
+The reset claims the document surface too — `body { margin: 0 }` plus the theme's background and text colour, and a zero-specificity `height: 100%` chain down to `#root`. Without it an `AppShell` app opens with a spurious scrollbar and an unpainted frame around the shell in dark mode. All four are one ordinary declaration away from being overridden; see [The document surface](https://mauriciobenjamin700.github.io/tempest-react-sdk/en/styles/#the-document-surface).
+
 The styles ship hashed under the `tempest_` namespace — they do **not** collide with Tailwind, Stitches, Linaria, or app-level CSS Modules.
 
 **Importing less.** The JavaScript you import is tree-shaken; the CSS is not, so `styles.css` carries all ~150 components whether you mount thirteen or all of them. Pay for what you use by taking the foundation plus the sheets you need:

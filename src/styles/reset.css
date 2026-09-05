@@ -19,6 +19,38 @@ html {
     tab-size: 4;
 }
 
+/*
+ * The document surface itself, which a reset has to own.
+ *
+ * The user agent gives `body` an 8px margin. Left standing it is not cosmetic
+ * next to `AppShell`, which is `min-height: 100dvh`: the document then measures
+ * `100dvh + 16px` and every app built on the shell opens with a vertical
+ * scrollbar on a page that fits the viewport, framed by an unpainted strip on
+ * all four sides.
+ *
+ * Painting the background and text colour here is what makes that strip follow
+ * the theme. `ThemeProvider` writes `data-tempest-theme` on `<html>` and the
+ * tokens live on `:root`, but nothing was painting the area behind the shell —
+ * so a dark-themed app stayed white underneath and around its own content, and
+ * an element with no background of its own resolved up to a white `body` even
+ * in dark mode.
+ *
+ * The `height: 100%` chain is what lets a percentage-height shell fill the
+ * viewport instead of collapsing onto its content. It goes through `:where()`
+ * because `#root` is markup this stylesheet does not own: at zero specificity
+ * any ordinary rule the consumer writes wins, with no `!important` and no
+ * fight.
+ */
+:where(html, body, #root) {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    background-color: var(--tempest-bg);
+    color: var(--tempest-text);
+}
+
 /* Make images & media block-level and fluid by default. */
 img,
 svg,

@@ -525,7 +525,11 @@ try {
 !!! warning "Não jogue o `detail` de um 422 na tela"
     `"items.0.price: Input should be greater than 0"` numa interface em pt-BR é meia frase em inglês nomeando estrutura interna. É por isso que o `describeApiError` **não** repassa o `detail` quando `fields` está preenchido: ele devolve a frase de validação ("Confira os campos destacados e tente de novo.", traduzível por `tempest.error.validation`), e as mensagens por campo ficam onde servem — nos inputs.
 
-    **Isso agora vale também para o erro de negócio que nomeia um campo**, cujo `detail` já era uma frase pronta em pt-BR. O toast troca "Cidade não encontrada para o estado informado." pela frase de validação; a sentença não se perde, ela vai para `error.fields.city` e aparece colada no input. Três saídas, em ordem de preferência: `codes: { VALIDATION_ERROR: "…" }` (que ganha do funil inteiro), `validation: error.detail` na chamada, ou ler `error.detail` você mesmo — ele continua intacto.
+    **Com uma exceção: a rejeição que nomeia um único campo e cuja mensagem é o próprio `detail`.** Aí o `detail` vai para a tela. Não é um palpite sobre o texto — é identidade: o SDK preenche uma entrada única a partir do `detail` só para o envelope achatado de um backend `tempest-fastapi-sdk`, onde o servidor escreveu **uma frase pronta sobre um campo** ("CPF ou CNPJ inválido"). A string mostrada é exatamente a que já está em `error.fields`, então nada é inventado e nada se perde.
+
+    A linha montada pelo FastAPI nunca chega nesse ramo: ela vem da **lista** `detail`, e as entradas de `fields` ali são as mensagens por issue, não o `detail`.
+
+    Para forçar a frase fixa mesmo nesse caso, `useDetail: false`. Passar `validation` **não** desliga a exceção, de propósito — o `useDescribeApiError` sempre passa `validation` (traduzida ou no default), então tratá-la como override faria o ramo nunca rodar em componente nenhum.
 
 ### Do erro tipado para a frase na tela — `describeApiError`
 
@@ -545,7 +549,7 @@ A ordem do funil:
 
 1. **`codes[error.code]`** — a frase que **você** escreveu pra aquele caso do backend. Ganha de todo o resto: nada que o funil deduz bate uma frase escrita por quem conhecia o contrato e a tela.
 2. **Requisição que não chegou** — `status === 0`, ou um erro qualquer com o browser se declarando offline → frase de offline.
-3. **Erro que nomeia campo** — `error.fields` preenchido → frase de validação, **não** o `detail`. Vale tanto para o 422 do FastAPI (cujo `detail` é técnico) quanto para o erro de negócio que apontou um campo. As mensagens por campo continuam em `fields`.
+3. **Erro que nomeia campos** — `error.fields` preenchido → frase de validação, **não** o `detail`. É o 422 do FastAPI, cujo `detail` é técnico. A exceção é a rejeição que nomeia **um único** campo cuja mensagem é o próprio `detail`: ali o `detail` é devolvido, porque é a mesma string que `fields` carrega. As mensagens por campo continuam em `fields` nos dois casos.
 4. **`detail` do backend** — o texto mais específico disponível, e já escrito para uma pessoa.
 5. **`fallback`**, com `(HTTP <status>)` anexado quando há status — o print no chamado de suporte carrega o único dado que o dev precisa.
 
@@ -574,6 +578,13 @@ Código que o catálogo não conhece simplesmente segue o funil. Sem `codes`, na
 
 !!! tip "`useDetail: false` quando o `detail` é pra desenvolvedor"
     Alguns backends escrevem o `detail` pro log, não pra tela — ou ele ecoa interno. Com `useDetail: false` o passo 4 é pulado e o resultado é sempre uma frase sua, a de offline, a de validação, ou o `fallback` com `(HTTP <status>)`. As frases de offline e validação continuam valendo: elas são do SDK, não do backend.
+
+    É também o jeito de recusar a sentença de campo único descrita acima: com `useDetail: false`, uma rejeição de campo único volta a mostrar a frase de validação.
+
+!!! check "A cauda `for field '…' in '…'` é aparada"
+    Um backend `tempest-fastapi-sdk` achata o erro de campo em `"CPF ou CNPJ inválido for field 'cpf_cnpj' in 'body'"` — frase pronta na sua língua com uma oração em inglês colada no fim. Ela não traz nada de novo: os mesmos dois valores chegam como `field` e `location`, que é de onde `error.fields` os lê. O SDK apara a cauda ao montar o `ApiError`, então `detail` e `fields` já vêm limpos.
+
+    O aparo só dispara quando a cauda nomeia **o campo que o envelope resolveu**. Uma cauda que nomeia outro campo é outro formato, ou uma frase que genuinamente se lê assim — nos dois casos, texto que o SDK não tem como atribuir e por isso não apaga.
 
 Duas superfícies, mesmo funil:
 
@@ -619,7 +630,7 @@ const { mutate } = useMutation({
 - `uploadWithProgress` usa XHR pra reportar progresso byte a byte; para arquivo grande, `createResumableUpload` divide em chunks e retoma — veja [Upload resumível](./resumable-upload.md).
 - `retry` (backoff exponencial + `shouldRetry`) e `usePoll` (intervalo com guarda de overlap) cobrem operações instáveis e acompanhamento de jobs.
 - `generateIdempotencyKey` — gere uma vez por operação, reutilize nos retries.
-- `describeApiError(error, fallback)` (puro) e `useDescribeApiError()` (com i18n) transformam o erro tipado na frase da tela, tratando `status === 0` como offline em vez de "erro 0" e todo erro com `fields` como frase de validação em vez do `detail`.
+- `describeApiError(error, fallback)` (puro) e `useDescribeApiError()` (com i18n) transformam o erro tipado na frase da tela, tratando `status === 0` como offline em vez de "erro 0" e o erro com **vários** campos como frase de validação em vez do `detail`. A rejeição de **um** campo cuja mensagem é o próprio `detail` mostra o `detail` — é a frase que o servidor escreveu para aquele campo. `useDetail: false` recusa.
 - `error.fields` indexa as mensagens por campo — da lista do 422 do FastAPI ou das chaves `detail.field` / `field` / `details.field` que um backend `tempest-fastapi-sdk` manda. É o que vai direto pro `setError` do formulário.
 
 ## Veja também

@@ -71,7 +71,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ createApiClient, parseResponse, uploadWithProgress, retry, usePoll }"
     },
-    "limit": "3.6 KB",
+    "limit": "3.7 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -181,7 +181,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ createResumableUpload, createLocalUploadStorage, uploadFingerprint }"
     },
-    "limit": "3.2 KB",
+    "limit": "3.35 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -338,7 +338,7 @@
   {
     "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "151 KB",
+    "limit": "151.5 KB",
     "ignore": [
       "react",
       "react-dom",

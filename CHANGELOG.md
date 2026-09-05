@@ -4,73 +4,48 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
-### Adicionado
-
-- **`setDevBuild(value)` — o sinal de dev-build que o SDK não tem como ler
-  sozinho num app Vite.** A detecção automática lê `process.env.NODE_ENV`, que
-  webpack, Rspack e Parcel substituem por um literal enquanto compilam o **seu**
-  app. O Vite não substitui nenhuma das duas metades, e num bundle de browser o
-  identificador `process` nem existe: a leitura lança, o `catch` devolve `false`,
-  e todo diagnóstico de desenvolvimento do SDK ficava mudo — **inclusive sob
-  `vite dev`**.
-
-  O mais visível é o relatório de drift do `parseResponse`, que aponta o campo
-  divergente e o payload cru: ele foi escrito para o build de desenvolvimento e
-  nunca rodou nele num app Vite. Uma linha no bootstrap liga:
-
-  ```ts
-  import { setDevBuild } from "tempest-react-sdk";
-
-  setDevBuild(import.meta.env.DEV);
-  ```
-
-  A mesma linha alcança os outros quatro usos internos — aviso de `<Icon>` com
-  `name` e `slug` juntos, falha de shard de ícone, `QueryClient` estrangeiro e o
-  frame JSON.
-
-  O SDK **não** pode ler `import.meta.env.DEV` no lugar do app: o Vite
-  substituiria a expressão ao compilar **este pacote**, e o artefato publicado
-  carregaria a constante. Só o app é compilado no instante em que a resposta é
-  conhecível.
-
-  A leitura automática continua escrita exatamente como estava — member
-  expression crua, dentro do `try` —, e o valor configurado entra **na frente**
-  dela, não no lugar. Trocar por `globalThis.process?.env?.NODE_ENV` mataria a
-  substituição do webpack, que é o único ambiente que acerta hoje.
-
-  Default segue `false`: o relatório embute `JSON.stringify(raw)`, então chutar
-  para o outro lado vazaria payload numa string de erro de produção.
-  `setDevBuild(undefined)` volta à detecção automática.
-
-  Closes #301.
-
-- **A análise de CSS passa a reportar `var()` com fallback quando a família do
-  token existe.** A regra documentada era "`var()` com fallback nunca é
-  reportado", e a razão dela é boa — foi ela que derrubou 43 falsos positivos
-  quando a análise rodou no CSS do próprio SDK, porque
-  `var(--tempest-card-padding, 1rem)` é o **idioma de knob**, não um token. O
-  preço era um ponto cego exato: **erro de digitação em nome de token é
-  indistinguível de knob**, já que os dois são
-  `var(nome-que-não-existe, fallback)`.
-
-  Custou um defeito real: o `Scheduler` pintava evento com
-  `color: var(--tempest-primary-contrast, #fff)` — token que nunca existiu —, o
-  `var()` caía no `#fff`, e no escuro isso é **3,67:1**.
-
-  O sinal que separa os dois é **a família já existir**.
-  `--tempest-primary-contrast` não é declarado, mas `--tempest-primary-*` tem
-  doze irmãos que são; `--tempest-card-padding` não tem irmão nenhum. A família
-  precisa de pelo menos um segmento depois do prefixo, senão `--tempest-tx` teria
-  família `--tempest`, que casa com todo token que existe.
-
-  Medido no `src/` do SDK antes de embarcar, que é a regra do repositório para
-  checagem nova de CSS: **5 achados, 5 defeitos reais, nenhum falso positivo**,
-  com 36 knobs legítimos calados. Dois sinais mais frouxos foram medidos e
-  descartados — casar pelo **último** segmento (`--tempest-font-size-sm` parece
-  `--tempest-text-sm`) dá 16 achados e 3 reais, **19% de precisão**, porque todo
-  knob de layout do `utilities.css` termina em `-gap` ou `-width`.
-
 ### Corrigido
+
+- **`describeApiError` volta a mostrar a sentença que o servidor escreveu para um
+  campo.** Desde a 0.54.0 (`namedField`) o `ApiError.fields` passou a vir
+  preenchido a partir do envelope achatado que um backend `tempest-fastapi-sdk`
+  manda. O efeito colateral estava no `describeApiError`, que devolve a frase fixa
+  sempre que `fields` tem algo: como `fields` passou de **nunca** para **sempre**
+  contra esse backend, a mensagem na tela regrediu de "CPF ou CNPJ inválido" para
+  "Confira os campos destacados e tente de novo.".
+
+  A frase genérica pressupõe uma tela **destacando** os campos, e nenhum app lia
+  `error.fields` no dia do bump: o recurso novo melhorou algo que ninguém usava
+  ainda e piorou o único que todo mundo usava. Não apareceu como quebra no
+  CHANGELOG porque nada quebrou por dentro — o que mudou foi a frequência.
+
+  A regra nova é **identidade, não heurística**: o `detail` é devolvido quando
+  `fields` tem exatamente uma entrada e ela é o próprio `error.detail`. O
+  `collectFields` só monta isso a partir do envelope achatado, onde o servidor
+  escreveu uma frase pronta sobre um campo. A linha que o FastAPI monta
+  (`"items.0.price: Input should be greater than 0"`) vem da **lista** `detail`, e
+  ali as entradas de `fields` são as mensagens por issue, não o `detail` — então
+  ela nunca alcança o ramo novo, e o racional de dez linhas que já estava
+  documentado segue valendo.
+
+  `useDetail: false` força a frase fixa. Passar `validation` **não** desliga a
+  exceção, de propósito: o `useDescribeApiError` sempre passa `validation`
+  (traduzida ou no default), então tratá-la como override faria o ramo nunca rodar
+  em componente nenhum — que é onde estão os chamadores que importam.
+
+  Closes #302.
+
+- **A cauda `for field '<campo>' in '<local>'` sai do `detail` e do `fields`.** O
+  backend achata o erro em `"CPF ou CNPJ inválido for field 'cpf_cnpj' in 'body'"`
+  — frase pronta na língua do app com uma oração em inglês colada no fim. Os dois
+  valores dela já chegam como `field` e `location`, que é de onde o `fields` os lê,
+  então a cauda não traz nada e ia para a tela. Cada app consumidor criou o próprio
+  regex para apará-la.
+
+  O aparo só dispara quando a cauda nomeia **o campo que o envelope resolveu**, e
+  nunca esvazia a mensagem. Cauda que nomeia outro campo é outro formato de
+  envelope, ou uma frase que genuinamente se lê assim — nos dois casos, texto que o
+  SDK não tem como atribuir e por isso não apaga.
 
 - **Os oito nomes que o fallback escondia.** Cada um exigia decisão sobre o
   substituto certo, não busca-e-troca:
@@ -202,6 +177,70 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`setDevBuild(value)` — o sinal de dev-build que o SDK não tem como ler
+  sozinho num app Vite.** A detecção automática lê `process.env.NODE_ENV`, que
+  webpack, Rspack e Parcel substituem por um literal enquanto compilam o **seu**
+  app. O Vite não substitui nenhuma das duas metades, e num bundle de browser o
+  identificador `process` nem existe: a leitura lança, o `catch` devolve `false`,
+  e todo diagnóstico de desenvolvimento do SDK ficava mudo — **inclusive sob
+  `vite dev`**.
+
+  O mais visível é o relatório de drift do `parseResponse`, que aponta o campo
+  divergente e o payload cru: ele foi escrito para o build de desenvolvimento e
+  nunca rodou nele num app Vite. Uma linha no bootstrap liga:
+
+  ```ts
+  import { setDevBuild } from "tempest-react-sdk";
+
+  setDevBuild(import.meta.env.DEV);
+  ```
+
+  A mesma linha alcança os outros quatro usos internos — aviso de `<Icon>` com
+  `name` e `slug` juntos, falha de shard de ícone, `QueryClient` estrangeiro e o
+  frame JSON.
+
+  O SDK **não** pode ler `import.meta.env.DEV` no lugar do app: o Vite
+  substituiria a expressão ao compilar **este pacote**, e o artefato publicado
+  carregaria a constante. Só o app é compilado no instante em que a resposta é
+  conhecível.
+
+  A leitura automática continua escrita exatamente como estava — member
+  expression crua, dentro do `try` —, e o valor configurado entra **na frente**
+  dela, não no lugar. Trocar por `globalThis.process?.env?.NODE_ENV` mataria a
+  substituição do webpack, que é o único ambiente que acerta hoje.
+
+  Default segue `false`: o relatório embute `JSON.stringify(raw)`, então chutar
+  para o outro lado vazaria payload numa string de erro de produção.
+  `setDevBuild(undefined)` volta à detecção automática.
+
+  Closes #301.
+
+- **A análise de CSS passa a reportar `var()` com fallback quando a família do
+  token existe.** A regra documentada era "`var()` com fallback nunca é
+  reportado", e a razão dela é boa — foi ela que derrubou 43 falsos positivos
+  quando a análise rodou no CSS do próprio SDK, porque
+  `var(--tempest-card-padding, 1rem)` é o **idioma de knob**, não um token. O
+  preço era um ponto cego exato: **erro de digitação em nome de token é
+  indistinguível de knob**, já que os dois são
+  `var(nome-que-não-existe, fallback)`.
+
+  Custou um defeito real: o `Scheduler` pintava evento com
+  `color: var(--tempest-primary-contrast, #fff)` — token que nunca existiu —, o
+  `var()` caía no `#fff`, e no escuro isso é **3,67:1**.
+
+  O sinal que separa os dois é **a família já existir**.
+  `--tempest-primary-contrast` não é declarado, mas `--tempest-primary-*` tem
+  doze irmãos que são; `--tempest-card-padding` não tem irmão nenhum. A família
+  precisa de pelo menos um segmento depois do prefixo, senão `--tempest-tx` teria
+  família `--tempest`, que casa com todo token que existe.
+
+  Medido no `src/` do SDK antes de embarcar, que é a regra do repositório para
+  checagem nova de CSS: **5 achados, 5 defeitos reais, nenhum falso positivo**,
+  com 36 knobs legítimos calados. Dois sinais mais frouxos foram medidos e
+  descartados — casar pelo **último** segmento (`--tempest-font-size-sm` parece
+  `--tempest-text-sm`) dá 16 achados e 3 reais, **19% de precisão**, porque todo
+  knob de layout do `utilities.css` termina em `-gap` ou `-width`.
+
 - **`UPDATE_AXE_BASELINE=1` reescreve `e2e/axe-baseline.json` com o que a rodada
   mediu.** O ratchet só falha com _mais_ que o baseline permite, então correção
   que remove achado deixa o número velho de pé — e a próxima regressão até aquele
@@ -209,6 +248,13 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   que é por que não acontece.
 
 ### Alterado
+
+- **Três tetos do `size-limit` subiram, com o número medido.** O `errors.js`
+  cresceu com o aparo da cauda, e ele entra em toda fatia que constrói `ApiError`:
+  `slice: http client` 3,6 → **3,7 kB** (medido 3,63), `slice: resumable upload`
+  3,2 → **3,35 kB** (medido 3,29), `ceiling: full barrel CJS` 151 → **151,5 kB**
+  (medido 151,2). Os bytes compram comportamento — o teto anterior media código
+  que deixava a cauda em inglês na tela do usuário.
 
 - **O parser do `contrast.test.ts` passa a tirar comentário antes de partir o
   arquivo.** Ele achava o bloco escuro por `indexOf('data-tempest-theme="dark"')`,

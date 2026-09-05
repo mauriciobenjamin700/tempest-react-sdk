@@ -314,10 +314,25 @@ const user = parseResponse(userSchema, raw, "GET /users/me");
 !!! tip "O 3º argumento é o contexto"
     Passe sempre um label como `"GET /users/me"`. Ele aparece na mensagem de erro de dev e torna trivial localizar qual endpoint quebrou o contrato.
 
-!!! note "Como o SDK sabe que é dev"
-    Lendo `process.env.NODE_ENV` — que Vite, webpack, Rspack e Parcel substituem por um literal **enquanto compilam o seu app**. Então `npm run dev` recebe o relatório e `npm run build` recebe a frase genérica, sem nenhuma configuração da sua parte. O SDK **não** usa `import.meta.env.DEV`: essa expressão seria substituída ao compilar o *pacote*, e o artefato publicado carregaria a constante `false` pra sempre.
+!!! danger "Em um app **Vite**, o relatório só liga se você disser"
+    O SDK detecta o build lendo `process.env.NODE_ENV`. Webpack, Rspack e Parcel substituem essa expressão por um literal enquanto compilam o **seu** app, então lá funciona sozinho. O Vite **não substitui nenhuma das duas metades**, e num bundle de browser o identificador `process` nem existe: a leitura lança, o SDK responde `false`, e o relatório fica inalcançável — inclusive sob `vite dev`.
 
-!!! warning "A regra compara com `production`, não com `development`"
+    Uma linha no bootstrap resolve:
+
+    ```ts
+    import { setDevBuild } from "tempest-react-sdk";
+
+    setDevBuild(import.meta.env.DEV);
+    ```
+
+    Isso vale para **todo** diagnóstico de desenvolvimento do SDK, não só o `parseResponse`: o aviso de ícone que recebeu `name` e `slug` juntos, a falha de shard, o `QueryClient` estrangeiro e o frame JSON também estavam mudos no Vite.
+
+!!! note "Por que o SDK não lê `import.meta.env.DEV` sozinho"
+    Porque o Vite substituiria essa expressão ao compilar **o pacote**, e o artefato publicado carregaria a constante `false` para sempre — cada guarda atrás dela viraria código morto que o dev server do seu app não consegue mais ligar. Só o seu app é compilado no instante em que a resposta é conhecível, então só ele pode fornecê-la. É por isso que o sinal é um parâmetro, e não uma detecção mais esperta.
+
+    O default é `false` de propósito: o relatório embute `JSON.stringify(raw)`, o corpo inteiro da resposta. Chutar para o lado errado vazaria payload numa string de erro de produção — silêncio é o default seguro.
+
+!!! warning "A detecção automática compara com `production`, não com `development`"
     A checagem é `NODE_ENV !== "production"`, não uma lista de nomes conhecidos de dev. Um build de staging ou de QA que esquece de definir `NODE_ENV=production` cai no lado de desenvolvimento — e aí a mensagem de erro carrega `JSON.stringify(raw)`, o corpo inteiro da resposta. Se esse build fala com dados reais, defina `NODE_ENV=production` nele.
 
 ## `uploadWithProgress`
@@ -600,7 +615,7 @@ const { mutate } = useMutation({
 - 401 com `refresh` → tenta renovar e repete 1x. `onUnauthorized` dispara em todo desfecho sem autorização — sem refresh, refresh que rejeitou, ou repetição que voltou 401.
 - `retry: true` liga a retentativa dentro do cliente: só método idempotente, só falha de rede/`408`/`425`/`429`/`5xx`. Escrita nunca repete sozinha.
 - `logger` é opt-in e o client não escreve em console sem ele: uma linha por tentativa (`debug` abaixo de 400, `warn` de 400 pra cima) com `requestId`, `status` e `ms`, nunca body/header/query.
-- `parseResponse(schema, raw, context)` valida o payload com zod e aponta o campo divergente em um build de desenvolvimento; em qualquer outro build, só a frase genérica.
+- `parseResponse(schema, raw, context)` valida o payload com zod e aponta o campo divergente em um build de desenvolvimento; em qualquer outro build, só a frase genérica. Em app **Vite**, chame `setDevBuild(import.meta.env.DEV)` uma vez no bootstrap — sem isso o SDK não tem como saber, e o relatório fica mudo.
 - `uploadWithProgress` usa XHR pra reportar progresso byte a byte; para arquivo grande, `createResumableUpload` divide em chunks e retoma — veja [Upload resumível](./resumable-upload.md).
 - `retry` (backoff exponencial + `shouldRetry`) e `usePoll` (intervalo com guarda de overlap) cobrem operações instáveis e acompanhamento de jobs.
 - `generateIdempotencyKey` — gere uma vez por operação, reutilize nos retries.

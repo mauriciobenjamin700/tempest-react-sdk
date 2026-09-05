@@ -4,6 +4,73 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Alterado
+
+- **`/vision` passa a vir do `ort-vision-sdk-web@0.8.1`, e o `Classifier` para
+  de degradar modelo Ultralytics em silêncio.** Duas suposições decidiam o que o
+  modelo recebia e o que você lia de volta, e as duas estavam erradas para uma
+  família inteira de arquivos — sem exceção, sem aviso, com resultado da forma
+  exata que você esperava.
+
+  `applySoftmax` era `true` por default, e todo export de classificação do
+  Ultralytics termina num nó `Softmax`: a tarefa normalizava um vetor já
+  normalizado. A operação é monotônica, que é por que isso sobreviveu — o top-1
+  continua certo e toda confiança presa a ele está errada. Medido no SDK Python
+  contra o pipeline do próprio Ultralytics sobre o mesmo arquivo, o erro
+  absoluto máximo de probabilidade foi de `7,6e-07` para `0,82`. E a
+  normalização era ImageNet para todo mundo, enquanto a cabeça de classificação
+  do Ultralytics consome `[0, 1]` cru.
+
+  Agora as duas leem a metadata do export (`author: Ultralytics`,
+  `task: classify` — o mesmo bloco de onde os nomes de classe já vinham). A
+  opção nova `normalization` aceita `"auto"` (default), `"imagenet"`,
+  `"ultralytics"` e `"none"`; `mean`/`std` continuam sobrescrevendo, e passar
+  preset **e** `mean`/`std` juntos lança `RangeError` em vez de preferir um
+  calado. `classifier.normalization` e `classifier.appliesSoftmax` reportam o
+  que ficou valendo. **Isto muda o que um classificador Ultralytics recebe nos
+  defaults** — eles estavam rodando degradados, então a mudança os corrige em
+  vez de quebrá-los.
+
+  Junto vieram os providers: `OrtSession.providers` guardava a lista _pedida_, e
+  o ORT-Web cai para WASM em silêncio, então uma página pedindo `webgpu` num
+  aparelho sem adapter rodava várias vezes mais devagar sem nada no console. O
+  novo `detectProviders` estreita a lista pelo que o navegador admite
+  (`navigator.gpu` com adapter de verdade, `navigator.ml` existindo), `providers`
+  reporta essa lista — best-effort: entrada significa "não descartado" —, e a
+  pedida fica em `requestedProviders`. Pedir um provider explicitamente e não
+  recebê-lo emite `console.warn`; o default caindo continua quieto. A lista
+  efetiva também nunca fica vazia: pedir só `webgpu` sem adapter fazia o
+  `InferenceSession.create` rejeitar com `no available backend found`, ou seja,
+  **nenhuma inferência** em vez do fallback lento.
+
+  Exports novos no subpath: `detectProviders`, `resolveNormalization`,
+  `isUltralyticsClassifier`, `IMAGENET_MEAN`/`IMAGENET_STD`,
+  `IDENTITY_MEAN`/`IDENTITY_STD`, `CUSTOM_NORMALIZATION`.
+
+- **`lucide-react` 1.31 → 1.41, e o registro de ícones foi regerado.** São 2065
+  slugs (1807 canônicos + 258 aliases) em 46 shards, contra 2024 slugs em 45. O
+  bump renomeia ícone: `trash-2` deixou de ser canônico e virou alias de
+  `trash`, então `materialToLucide` passou a apontar `delete`,
+  `delete_forever` e `delete_outline` para o slug canônico — o guard de
+  "nenhum par mira alias depreciado" pegou os três. Slug antigo continua
+  resolvendo, porque `<Icon>` resolve alias.
+
+  O teto de `size-limit` da superfície inteira de `/icons` subiu de 145 KB para
+  148 KB: os 40 ícones novos mediram **145,62 KB**, 618 B acima do teto
+  anterior. Os custos medidos na doc foram refeitos na mesma rodada — maior
+  shard 4,78 → **4,92 KB**, mediana 4,19 → **4,31 KB**, menor 1,52 →
+  **1,57 KB**, `{ iconNames }` 6,1 → **7,29 KB**, teto absoluto 130,0 →
+  **137,3 KB**. A entrada "maior shard" do budget passou a apontar o shard que
+  hoje é o maior (`shard-43`).
+
+- **Dependências de desenvolvimento atualizadas dentro do range declarado** —
+  eslint 10.8 → 10.10, typescript-eslint 8.66 → 8.69, vite 8.2.1 → 8.2.2,
+  vitest 4.1.10 → 4.1.11, playwright 1.62 → 1.63, tiptap 3.29 → 3.31,
+  onnxruntime-web 1.27 → 1.29, `@tanstack/react-query` 5.101 → 5.102, entre
+  outras. Nenhum range publicado mudou, então o consumidor não vê diferença.
+  Ficaram de fora, por serem major: `vitest`/`@vitest/coverage-v8` 5.0.0 e
+  `typescript` 7.0.2.
+
 ## [0.57.0] — 2026-09-04
 
 ### Adicionado

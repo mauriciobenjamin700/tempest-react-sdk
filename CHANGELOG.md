@@ -64,6 +64,51 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
   Closes #295.
 
+- **O reset passa a reivindicar o `body`, que ele anunciava e nunca tocava.**
+  `styles.css` se descreve como shipping "a minimal CSS reset", e em 58 releases
+  a **única** regra `body` do bundle esteve dentro do `@media print`. Os 8px de
+  `margin` do user-agent sobreviviam em toda app consumidora.
+
+  Isso não é cosmético ao lado do `AppShell`, que é `min-height: 100dvh`: o
+  documento media `100dvh + 16px`, então **toda app com AppShell nascia com
+  barra de rolagem vertical numa página que cabe na viewport**. Medido em
+  Chromium a 1440×900 com a folha de estilo sozinha, sem React:
+  `bodyMargin: "8px"`, `overflowPx: 16`. Depois da correção, `"0px"` e `0`.
+
+  Junto vieram a pintura e a cadeia de altura, porque o defeito tem três metades
+  e corrigir uma deixava as outras como passo manual:
+
+  ```css
+  :where(html, body, #root) {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--tempest-bg);
+    color: var(--tempest-text);
+  }
+  ```
+
+  O `ThemeProvider` escreve `data-tempest-theme` no `<html>` e os tokens moram
+  no `:root`, mas isso **declara**, não pinta — nada cobria a área atrás do
+  shell, então uma app em tema escuro ficava branca sob e ao redor do próprio
+  conteúdo. E `height: 100%` é porcentagem: sem os três elos, um shell de altura
+  percentual colapsa no conteúdo. A cadeia vai dentro de `:where()` porque
+  `#root` é markup que a folha não desenha — especificidade zero, então qualquer
+  regra do app ganha sem `!important`. O `body` fica em 0-0-1, igualmente
+  sobrescrevível.
+
+  O reset continua **não** aplicando `font-family` no `body`: o SDK declara
+  `--tempest-font-sans` e deixa a escolha para o app.
+
+  `template/` e `template-pwa/` já importam `styles.css`, então o scaffold herda
+  a correção sem mudança. A `examples/gallery` **carregava a própria cópia** das
+  quatro declarações — que é exatamente o sintoma que a issue descreve, dentro
+  da demo do próprio SDK — e foi removida, deixando o reset sustentá-la.
+
+  Closes #299.
+
 ### Adicionado
 
 - **`UPDATE_AXE_BASELINE=1` reescreve `e2e/axe-baseline.json` com o que a rodada

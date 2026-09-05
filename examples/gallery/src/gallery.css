@@ -2,11 +2,15 @@
     box-sizing: border-box;
 }
 
+/*
+ * Margin, background and text colour used to be repeated here. They now come
+ * from the SDK's own reset, and this app carrying its own copy was the defect
+ * report: a consumer that writes its own body reset is a consumer the reset
+ * failed. What stays is what the SDK deliberately does not decide for an app —
+ * which family the page renders in, and how it smooths.
+ */
 body {
-    margin: 0;
     font-family: var(--tempest-font-sans);
-    background-color: var(--tempest-bg);
-    color: var(--tempest-text);
     -webkit-font-smoothing: antialiased;
 }
 

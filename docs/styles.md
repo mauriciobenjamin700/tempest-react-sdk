@@ -37,6 +37,7 @@ Pronto. Tudo o que está abaixo já está disponível na sua aplicação.
 - [Radius](#radius)
 - [Elevação (shadow)](#elevacao-shadow)
 - [Motion](#motion)
+- [A superfície do documento](#a-superficie-do-documento)
 - [`color-scheme` — as superfícies que o browser pinta](#color-scheme-as-superficies-que-o-browser-pinta)
 - [Focus ring](#focus-ring)
 - [Z-index](#z-index)
@@ -441,6 +442,63 @@ Shadows são automaticamente mais escuros no tema dark.
 
 ---
 
+## A superfície do documento
+
+Antes de qualquer componente, `styles.css` reivindica o `body`:
+
+```css
+:where(html, body, #root) {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    background-color: var(--tempest-bg);
+    color: var(--tempest-text);
+}
+```
+
+São três promessas, e vale saber qual é qual.
+
+**A margem.** O user-agent dá 8px de `margin` ao `body`. Isso não é cosmético ao
+lado do `AppShell`, que é `min-height: 100dvh`: o documento passa a medir
+`100dvh + 16px`, então uma página que **cabe** na viewport nasce com barra de
+rolagem vertical.
+
+**A pintura.** O `ThemeProvider` escreve `data-tempest-theme` no `<html>` e os
+tokens moram no `:root`, mas isso sozinho não pinta nada — só declara. Sem a
+regra acima, a área atrás do shell fica branca no tema escuro, emoldurando o
+conteúdo nos quatro lados, e qualquer elemento sem fundo próprio resolve até um
+`body` branco.
+
+**A cadeia de altura.** `height: 100%` é uma porcentagem, e porcentagem precisa
+de um pai com altura resolvida. Sem os três elos, um shell de altura percentual
+colapsa no conteúdo em vez de preencher a viewport.
+
+!!! tip "Especificidade zero na cadeia de altura"
+    `#root` é markup que esta folha **não** desenha — o id é uma convenção sua,
+    não do SDK. Por isso a cadeia vai dentro de `:where()`, que não soma
+    especificidade: qualquer regra sua ganha desta sem `!important`.
+
+    ```css
+    #root { height: auto; }
+    ```
+
+!!! note "Trocar o fundo é uma declaração"
+    `body` é seletor de especificidade 0-0-1. Um app que queira outro fundo —
+    uma imagem, um gradiente, a cor de uma marca — sobrescreve normalmente:
+
+    ```css
+    body { background: linear-gradient(180deg, #0b0d12, #14171f); }
+    ```
+
+!!! info "O que o reset **não** decide"
+    A família tipográfica do documento. O SDK declara `--tempest-font-sans`, mas
+    não a aplica no `body`: qual fonte a página inteira renderiza é escolha do
+    app, e um SDK que a impusesse capava quem ships uma fonte própria.
+
+    ```css
+    body { font-family: var(--tempest-font-sans); }
 ## `color-scheme` — as superfícies que o browser pinta
 
 Token não alcança tudo. O popup do `<select>`, a barra de rolagem, o preenchimento

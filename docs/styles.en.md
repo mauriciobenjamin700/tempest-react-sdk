@@ -39,6 +39,7 @@ Done. Everything below is already available in your application.
 - [Radius](#radius)
 - [Elevation (shadow)](#elevation-shadow)
 - [Motion](#motion)
+- [The document surface](#the-document-surface)
 - [`color-scheme` — the surfaces the browser paints](#color-scheme-the-surfaces-the-browser-paints)
 - [Focus ring](#focus-ring)
 - [Z-index](#z-index)
@@ -445,6 +446,63 @@ tooltip, skeleton) also detect it and disable their specific animations.
 
 ---
 
+## The document surface
+
+Before any component, `styles.css` claims the `body`:
+
+```css
+:where(html, body, #root) {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    background-color: var(--tempest-bg);
+    color: var(--tempest-text);
+}
+```
+
+That is three promises, and it is worth knowing which is which.
+
+**The margin.** The user agent gives `body` an 8px `margin`. That is not
+cosmetic next to `AppShell`, which is `min-height: 100dvh`: the document then
+measures `100dvh + 16px`, so a page that **fits** the viewport opens with a
+vertical scrollbar.
+
+**The paint.** `ThemeProvider` writes `data-tempest-theme` on `<html>` and the
+tokens live on `:root`, but that alone paints nothing — it only declares. Without
+the rule above, the area behind the shell stays white in the dark theme, framing
+the content on all four sides, and any element with no background of its own
+resolves up to a white `body`.
+
+**The height chain.** `height: 100%` is a percentage, and a percentage needs a
+parent with a resolved height. Without all three links, a percentage-height shell
+collapses onto its content instead of filling the viewport.
+
+!!! tip "Zero specificity on the height chain"
+    `#root` is markup this sheet does **not** draw — the id is your convention,
+    not the SDK's. So the chain goes inside `:where()`, which adds no
+    specificity: any rule of yours beats it without `!important`.
+
+    ```css
+    #root { height: auto; }
+    ```
+
+!!! note "Changing the background is one declaration"
+    `body` is a 0-0-1 selector. An app that wants a different background — an
+    image, a gradient, a brand colour — overrides it normally:
+
+    ```css
+    body { background: linear-gradient(180deg, #0b0d12, #14171f); }
+    ```
+
+!!! info "What the reset does **not** decide"
+    The document's type family. The SDK declares `--tempest-font-sans` but does
+    not apply it to `body`: which font the whole page renders in is the app's
+    call, and an SDK that imposed it would cap anyone shipping their own.
+
+    ```css
+    body { font-family: var(--tempest-font-sans); }
 ## `color-scheme` — the surfaces the browser paints
 
 Tokens do not reach everything. The `<select>` dropdown popup, the scrollbar, the

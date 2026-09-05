@@ -9,7 +9,7 @@ import * as ortRuntime from "onnxruntime-web";
 import { InferenceError, ModelLoadError } from "./exceptions";
 import { type DeclaredShape, declaredShapesFrom } from "./graph";
 import { readModelMetadata } from "./metadata";
-import { resolveProviders } from "./providers";
+import { FALLBACK_PROVIDER, detectProviders, resolveProviders } from "./providers";
 
 /** Anything `InferenceSession.create` accepts. */
 export type ModelSource = string | ArrayBufferLike | Uint8Array;
@@ -60,7 +60,12 @@ function warnMetadataUnavailable(url: string, reason: string): void {
 }
 
 export interface OrtSessionOptions {
-    /** Execution providers in preference order. `undefined` uses {@link DEFAULT_PROVIDERS}. */
+    /**
+     * Execution providers in preference order. `undefined` uses {@link DEFAULT_PROVIDERS}.
+     *
+     * Naming one explicitly also opts into a `console.warn` when this browser
+     * cannot offer it, instead of falling back in silence.
+     */
     readonly providers?: readonly string[];
     /** Optional ORT session options forwarded to `InferenceSession.create`. */
     readonly sessionOptions?: ort.InferenceSession.SessionOptions;
@@ -85,6 +90,29 @@ export interface OrtSessionOptions {
 }
 
 /**
+ * Warn when a provider named explicitly by the caller is not going to run.
+ *
+ * Only explicit requests are worth a warning. The default list exists precisely
+ * so that falling from `webgpu` to `wasm` is the expected outcome — but a caller
+ * who wrote `providers: ["webgpu"]` and lands on WASM has a page several times
+ * slower than intended and nothing in the console to explain it.
+ *
+ * @param requested Providers that were asked for.
+ * @param effective Providers that survived capability detection.
+ */
+function warnOnDroppedProviders(requested: readonly string[], effective: readonly string[]): void {
+    const dropped = requested.filter((provider) => !effective.includes(provider));
+    if (dropped.length === 0) {
+        return;
+    }
+    console.warn(
+        `This browser cannot offer the requested execution provider(s) ${JSON.stringify(dropped)}; ` +
+            `the session will run on ${JSON.stringify(effective)}. Inference still produces correct ` +
+            "results, on the fallback provider.",
+    );
+}
+
+/**
  * Wrap an ONNX Runtime Web `InferenceSession` with convenient metadata access.
  *
  * The wrapper exposes input/output names and the shapes the graph declares,
@@ -94,8 +122,32 @@ export interface OrtSessionOptions {
 export class OrtSession {
     private constructor(
         private readonly _session: ort.InferenceSession,
+        /**
+         * Execution providers this session is expected to run on.
+         *
+         * The requested list narrowed to what this browser can actually offer — a
+         * `webgpu` entry survives only where an adapter exists. Best-effort: ORT-Web
+         * exposes no way to ask which provider a session ended up on, so an entry
+         * here means "not ruled out", not "confirmed". See
+         * {@link requestedProviders} for what was asked for.
+         *
+         * When nothing survives — a caller asking for `webgpu` alone on a device
+         * without it — this falls back to {@link FALLBACK_PROVIDER}, which ORT-Web
+         * can always run. Handing ORT the unsatisfiable list instead makes
+         * `InferenceSession.create` reject with "no available backend found", so the
+         * page gets no inference at all rather than the slow-but-working fallback
+         * the `console.warn` describes. Measured in a real Chromium, where
+         * `navigator.gpu` exists but yields no adapter.
+         */
         public readonly providers: readonly string[],
         private readonly _metadata: Readonly<Record<string, string>>,
+        /**
+         * Execution providers that were asked for, after defaults were applied.
+         *
+         * Kept separate because ORT-Web falls back silently: a page that asks for
+         * `webgpu` on a device without it runs on WASM and is told nothing.
+         */
+        public readonly requestedProviders: readonly string[],
     ) {}
 
     /**
@@ -117,7 +169,12 @@ export class OrtSession {
      * @throws {@link ModelLoadError} if the model cannot be loaded.
      */
     static async create(model: ModelSource, options: OrtSessionOptions = {}): Promise<OrtSession> {
-        const providers = resolveProviders(options.providers);
+        const requested = resolveProviders(options.providers);
+        const detected = await detectProviders(requested);
+        const providers = detected.length > 0 ? detected : [FALLBACK_PROVIDER];
+        if (options.providers !== undefined && options.providers.length > 0) {
+            warnOnDroppedProviders(requested, providers);
+        }
         const sessionOptions: ort.InferenceSession.SessionOptions = {
             ...(options.sessionOptions ?? {}),
             executionProviders:
@@ -146,7 +203,7 @@ export class OrtSession {
             });
         }
 
-        return new OrtSession(session, providers, metadata);
+        return new OrtSession(session, providers, metadata, requested);
     }
 
     /** Names of the model's inputs, in declaration order. */

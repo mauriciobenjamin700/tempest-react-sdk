@@ -70,6 +70,11 @@ const ALLOWED = new Map([
         "vision/core/graph",
         "vendored ort-vision-sdk: warns when the model overrides a requested input size",
     ],
+    [
+        "vision/normalization",
+        "vendored ort-vision-sdk: warns when mean/std contradict an Ultralytics export, " +
+            "which degrades accuracy in production too, not only in dev",
+    ],
 ]);
 
 const CONSOLE_CALL = /console\s*[.[]/;

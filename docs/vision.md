@@ -72,6 +72,44 @@ npm i onnxruntime-web
     automaticamente para **WASM** (CPU) quando não. Você pode forçar a ordem
     passando `providers` nas opções de `create()`.
 
+### Em qual provider a sessão está rodando
+
+O ORT-Web não expõe equivalente ao `getProviders()` do Node: não dá para
+perguntar em que provider a sessão terminou. O que o navegador responde é se a
+API existe — sem `navigator.gpu`, ou sem adapter atrás dele, `webgpu` nunca ia
+rodar —, e é isso que o `detectProviders` usa:
+
+```tsx
+import { DEFAULT_PROVIDERS, detectProviders, OrtSession } from "tempest-react-sdk/vision";
+
+console.log(await detectProviders(DEFAULT_PROVIDERS)); // ["wasm"] num aparelho sem WebGPU
+
+const session = await OrtSession.create("/models/yolov8n.onnx", { providers: ["webgpu"] });
+console.log(session.requestedProviders); // ["webgpu"] — o que você pediu
+console.log(session.providers);          // ["wasm"]   — o que sobrou de pé
+```
+
+`session.providers` é a lista **já estreitada**, e `requestedProviders` guarda a
+pedida. A leitura é best-effort por construção: um provider que sobrevive ainda
+pode falhar dentro do ORT por um motivo que o navegador não conta (um recurso de
+shader que falta, um device esgotado), então entrada aqui significa "não foi
+descartado", não "confirmado rodando".
+
+!!! warning "Pedir um provider explicitamente liga o aviso"
+    Nomear `providers` opta por um `console.warn` quando este navegador não pode
+    oferecer o que você pediu. A lista default caindo de `webgpu` para `wasm`
+    fica quieta — é exatamente para isso que ela existe. O caso que custa caro é
+    o outro: quem escreveu `providers: ["webgpu"]` e aterrissou no WASM tem uma
+    página várias vezes mais lenta e nada no console explicando.
+
+!!! info "A lista efetiva nunca fica vazia"
+    Quando a detecção descarta tudo — pedir só `webgpu` num aparelho sem
+    adapter — a lista cai para `wasm`, que o ORT-Web sempre roda. Entregar ao
+    ORT a lista insatisfazível não é falha graciosa: o
+    `InferenceSession.create` rejeita com `no available backend found` e a
+    página fica **sem inferência nenhuma**, em vez de com o fallback lento que o
+    aviso descreve.
+
 ## A imagem de entrada
 
 Todas as tarefas aceitam o **mesmo** conjunto de entradas — o tipo `ImageInput`.
@@ -214,9 +252,11 @@ existirem, a imagem e o filtro de classes que estreitaram a busca.
 
 ## Classifier — que imagem é essa
 
-`Classifier` aplica pré-processamento estilo ImageNet (224×224 por padrão,
-normalização com média/desvio do ImageNet) e devolve a distribuição de
-probabilidades. `labels` é opcional: sem ele valem os `names` que o export
+`Classifier` prepara a imagem (224×224 por padrão), roda o modelo e devolve a
+distribuição de probabilidades. Como ele normaliza — e se ainda aplica um
+softmax na saída — sai do **próprio arquivo**; a seção
+[O que o classificador assume do seu modelo](#o-que-o-classificador-assume-do-seu-modelo)
+explica a escolha e como sobrescrevê-la. `labels` é opcional: sem ele valem os `names` que o export
 gravou no `.onnx` (ver [Rótulos vêm do modelo](#rotulos-vem-do-modelo)). Um
 ResNet ImageNet baixado pronto normalmente **não** traz `names`, então aí você
 passa a lista:
@@ -254,6 +294,73 @@ for (const p of result.probabilities) {
   console.log(p.name, p.conf);
 }
 ```
+
+### O que o classificador assume do seu modelo
+
+Duas suposições decidem o que o modelo recebe e o que você lê de volta: **como a
+imagem é normalizada** e **se a saída ainda precisa de softmax**. Errar
+qualquer uma não levanta exceção — devolve um resultado da forma exata que você
+esperava, só pior.
+
+Por isso as duas leem a metadata do export. Todo arquivo saído do
+`YOLO(...).export(format="onnx")` carimba `author: Ultralytics` e
+`task: classify`, o mesmo bloco de onde os nomes de classe já vinham:
+
+```tsx
+import { Classifier } from "tempest-react-sdk/vision";
+
+const clf = await Classifier.create("/models/yolov8n-cls.onnx");
+
+console.log(clf.normalization);   // "ultralytics" — entrada crua em [0, 1]
+console.log(clf.appliesSoftmax);  // false — o grafo já termina em Softmax
+```
+
+| `normalization` | Média / desvio                      | Para quem                                      |
+| --------------- | ----------------------------------- | ---------------------------------------------- |
+| `"auto"`        | decide lendo a metadata             | **default** — Ultralytics vira `"ultralytics"`, o resto vira `"imagenet"` |
+| `"imagenet"`    | `IMAGENET_MEAN` / `IMAGENET_STD`    | torchvision, ResNet, ViT — o mundo ImageNet    |
+| `"ultralytics"` | `IDENTITY_MEAN` / `IDENTITY_STD`    | cabeça de classificação Ultralytics, que consome `[0, 1]` cru |
+| `"none"`        | identidade, igual a `"ultralytics"` | export que você sabe não normalizar            |
+| `mean` / `std`  | os seus números                     | reporta `CUSTOM_NORMALIZATION` em `clf.normalization` |
+
+```tsx
+const resnet = await Classifier.create("/models/resnet50.onnx", {
+  normalization: "imagenet",
+  applySoftmax: true,
+});
+```
+
+Passar só `mean` **ou** só `std` deixa o outro no valor do preset. Passar um
+preset e `mean`/`std` juntos lança `RangeError` em vez de preferir um em
+silêncio.
+
+!!! danger "Softmax duas vezes mantém o ranking e estraga os números"
+    Até a `0.7.1`, `applySoftmax` era `true` por default — e todo export de
+    classificação do Ultralytics termina num nó `Softmax`, então a tarefa
+    normalizava um vetor já normalizado. A operação é monotônica, que é
+    exatamente por que isso sobreviveu tanto tempo: o top-1 continua certo e
+    **toda confiança presa a ele está errada**. Medido no SDK Python contra o
+    pipeline do próprio Ultralytics sobre o mesmo arquivo, o erro absoluto
+    máximo de probabilidade foi de `7,6e-07` para `0,82`.
+
+    Agora o default é indefinido: lê a metadata e responde `false` para essa
+    família. Passar booleano continua sobrescrevendo — faça isso para qualquer
+    outro modelo que já emita probabilidade.
+
+!!! note "Modelo degradado não reclama"
+    Um classificador Ultralytics carregado com o default antigo recebia um
+    tensor que nunca viu no treino: nenhuma exceção, nenhum aviso, uma predição
+    da forma certa e simplesmente pior. `clf.normalization` e
+    `clf.appliesSoftmax` existem para essa pergunta — "o que esta instância
+    assumiu?" — ser respondível sem ler o código.
+
+??? info "Detalhes técnicos: as peças por baixo"
+    `resolveNormalization(metadata, options)` é a função que decide, e
+    `isUltralyticsClassifier(metadata)` é o predicado que ela usa. As duas são
+    exportadas para quem monta um pipeline próprio e quer a mesma escolha sem
+    instanciar um `Classifier`. As constantes `IMAGENET_MEAN`, `IMAGENET_STD`,
+    `IDENTITY_MEAN` e `IDENTITY_STD` são os presets, e `CUSTOM_NORMALIZATION` é
+    o nome reportado quando os números vieram de você.
 
 ## Segmenter — o contorno de cada objeto
 
@@ -710,7 +817,7 @@ const result = (await det.predict(frame))[0];
     reusam um `Float32Array` entre chamadas, e até a 0.42.0 reentregavam o buffer
     destacado — o ORT rejeitava com
     `Tensor's size(1228800) does not match data length(0).` a cada duas
-    inferências. Corrigido nesta versão (vision vendorada `0.7.1`).
+    inferências. Corrigido nesta versão (vision vendorada `0.8.1`).
 
 ## Quanto tempo levou
 
@@ -768,7 +875,8 @@ SDK não conhece, ou precisa tratar uma falha específica.
 
 | Grupo             | Exports                                                                                             |
 | ----------------- | --------------------------------------------------------------------------------------------------- |
-| Sessão            | `OrtSession` (carrega o `.onnx`, expõe `metadata`/`inputName`), `resolveProviders`, `DEFAULT_PROVIDERS`, `VisionTask` (base das tarefas), `VERSION` |
+| Sessão            | `OrtSession` (carrega o `.onnx`, expõe `metadata`/`inputName`/`providers`/`requestedProviders`), `resolveProviders`, `detectProviders`, `DEFAULT_PROVIDERS`, `VisionTask` (base das tarefas), `VERSION` |
+| Normalização      | `resolveNormalization`, `isUltralyticsClassifier`, `IMAGENET_MEAN`/`IMAGENET_STD`, `IDENTITY_MEAN`/`IDENTITY_STD`, `CUSTOM_NORMALIZATION` |
 | Entrada           | `loadImage` (qualquer `ImageInput` → `RGBImage`), `normalize`, `toTensor`, `toFloat32`/`toFloat32Tensor`, `zeroTensorData`, `fromCv2`/`toCv2` (BGR ↔ RGB) |
 | Preprocess fundido | `LetterboxPipeline` + `letterboxToTensorData` (detecção/segmentação), `ResizePipeline` + `resizeToTensorData` (classificação), `writePlanarFloat32` (o laço planar compartilhado) |
 | Decodificação     | `decodeYolo` (cabeça anchor-free, v8→v12), `decodeYoloAnchors` (cabeça com âncoras), `decodeYoloSeg`, `nms`, `batchedNms` |

@@ -101,3 +101,54 @@ describe("useDescribeApiError — catalog that maps a key to itself", () => {
         expect(result.current(OFFLINE, "Falhou")).not.toBe(DEFAULT_API_ERROR_STRINGS.offline);
     });
 });
+
+describe("useDescribeApiError — a sentença de campo único chega ao componente", () => {
+    /**
+     * O caminho que quase não existiu.
+     *
+     * O hook resolve `validation` pelo catálogo e a passa **sempre**, traduzida ou
+     * no default pt-BR. Se `validation` desligasse a sentença de campo único, a
+     * correção da #302 valeria só para quem chama a função pura — nenhum
+     * componente. Estes testes fixam que ela chega pelo hook, e que
+     * `useDetail: false` continua sendo o jeito de recusá-la.
+     */
+    const NAMED = new TempestApiError({
+        status: 422,
+        detail: "CPF ou CNPJ inválido",
+        fields: { cpf_cnpj: "CPF ou CNPJ inválido" },
+    });
+
+    it("mostra a sentença do backend mesmo sem provider", () => {
+        const { result } = renderHook(() => useDescribeApiError());
+        expect(result.current(NAMED, "fallback")).toBe("CPF ou CNPJ inválido");
+    });
+
+    it("mostra a sentença do backend mesmo com catálogo definindo a frase de validação", () => {
+        const { result } = renderHook(() => useDescribeApiError(), {
+            wrapper: withCatalog({
+                en: { "tempest.error.validation": "Check the highlighted fields." },
+            }),
+        });
+        expect(result.current(NAMED, "fallback")).toBe("CPF ou CNPJ inválido");
+    });
+
+    it("e o catálogo volta a mandar quando o chamador passa useDetail: false", () => {
+        const { result } = renderHook(() => useDescribeApiError(), {
+            wrapper: withCatalog({
+                en: { "tempest.error.validation": "Check the highlighted fields." },
+            }),
+        });
+        expect(result.current(NAMED, "fallback", { useDetail: false })).toBe(
+            "Check the highlighted fields.",
+        );
+    });
+
+    it("o 422 multi-campo continua na frase do catálogo", () => {
+        const { result } = renderHook(() => useDescribeApiError(), {
+            wrapper: withCatalog({
+                en: { "tempest.error.validation": "Check the highlighted fields." },
+            }),
+        });
+        expect(result.current(VALIDATION, "fallback")).toBe("Check the highlighted fields.");
+    });
+});

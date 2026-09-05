@@ -178,6 +178,37 @@ function namedField(body: Record<string, unknown> | null): string | undefined {
 }
 
 /**
+ * Drop the machine-readable tail a `tempest-fastapi-sdk` backend appends.
+ *
+ * That backend flattens a field error into
+ * `"CPF ou CNPJ inválido for field 'cpf_cnpj' in 'body'"` — a finished sentence
+ * in the app's language with an English clause glued to the end. The clause
+ * carries nothing new: the same two values arrive as `field` and `location` on
+ * the envelope, which is where `ApiError.fields` reads them from. Left in, it
+ * reaches the user, and every consuming app grew its own regex to shave it off.
+ *
+ * The trim only fires when the field the tail names is the field the envelope
+ * resolved to. That is what keeps it from deleting text it cannot account for:
+ * a tail naming some other field is either a different envelope shape or a
+ * sentence that genuinely reads that way, and both are left alone.
+ *
+ * @param message - The readable message, or undefined when the body had none.
+ * @param field - The field name {@link namedField} resolved, if any.
+ * @returns The message without the tail, or the message unchanged.
+ */
+function trimFieldSuffix(
+    message: string | undefined,
+    field: string | undefined,
+): string | undefined {
+    if (message === undefined || field === undefined) return message;
+    const escaped = field.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const trimmed = message
+        .replace(new RegExp(`\\s+for field '${escaped}'(?:\\s+in\\s+'[^']*')?\\.?\\s*$`), "")
+        .trim();
+    return trimmed === "" ? message : trimmed;
+}
+
+/**
  * Index the body's field-level messages, whichever envelope carried them.
  *
  * The single entry point behind `ApiError.fields`, and it applies two rules the
@@ -359,7 +390,10 @@ export function buildApiError(
 ): ApiError {
     const obj =
         typeof body === "object" && body !== null ? (body as Record<string, unknown>) : null;
-    const message = normalizeDetail(obj?.detail) ?? normalizeDetail(obj?.message);
+    const message = trimFieldSuffix(
+        normalizeDetail(obj?.detail) ?? normalizeDetail(obj?.message),
+        namedField(obj),
+    );
     const detail = message ?? syntheticDetail(status);
     const code = typeof obj?.code === "string" ? obj.code : undefined;
     const details =

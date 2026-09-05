@@ -14,6 +14,11 @@ export interface ApiErrorStrings {
      *
      * The per-field messages are on `error.fields`, to be attached to the inputs
      * themselves; this sentence is what the toast says.
+     *
+     * It does not apply to the one rejection that named a single field with a
+     * finished sentence — there the server's own `detail` is shown instead, since
+     * it is the same string `fields` carries. Pass `useDetail: false` to force
+     * this sentence in that case too.
      */
     validation: string;
 }
@@ -88,6 +93,32 @@ function browserIsOffline(): boolean {
 }
 
 /**
+ * Whether `fields` is the flattened single-field envelope, carrying `detail`.
+ *
+ * The check is identity rather than shape-sniffing. `collectFields` has exactly
+ * two sources: FastAPI's `detail` **list**, whose entries are the per-issue
+ * messages, and the flattened envelope, whose one entry is built from the same
+ * string that becomes `ApiError.detail`. So one entry equal to `detail` can only
+ * have come from the second, and returning `detail` there shows the string the
+ * form is already about to attach to that input.
+ *
+ * @param fields - The error's field messages.
+ * @param detail - `error.detail`, already trimmed.
+ * @param status - The HTTP status, to recognise the synthetic `Erro <status>`
+ *     that stands in when the body carried no message at all.
+ * @returns Whether `detail` is safe to show as the sentence.
+ */
+function singleFieldSentence(
+    fields: Record<string, string>,
+    detail: string,
+    status: number,
+): boolean {
+    if (detail === "" || detail === syntheticDetail(status)) return false;
+    const messages = Object.values(fields);
+    return messages.length === 1 && messages[0].trim() === detail;
+}
+
+/**
  * Turn any caught value into a sentence worth showing.
  *
  * The funnel, in order:
@@ -107,13 +138,29 @@ function browserIsOffline(): boolean {
  *    names internals. The per-field messages stay on `fields`, where a form can
  *    attach them to the inputs that failed.
  *
- *    This step also catches a business error that named a single field, whose
- *    `detail` **was** a finished sentence ("Cidade não encontrada para o estado
- *    informado."). The trade is deliberate: that sentence is now on `fields`,
- *    against the input it is about, which is where it does the most good. Three
- *    ways back, in order of preference: `codes: { VALIDATION_ERROR: "…" }` (step 0,
- *    which still wins), `validation: error.detail` at the call site, or reading
- *    `error.detail` yourself — it is untouched.
+ *    **Unless the rejection named exactly one field and its message is
+ *    `detail` itself**, in which case `detail` is returned. That is not a guess
+ *    about the text: `collectFields` fills a single entry from `detail` only for
+ *    the flattened envelope a `tempest-fastapi-sdk` backend sends, where the
+ *    server wrote one finished sentence about one field (`"CPF ou CNPJ
+ *    inválido"`). Returning it shows the same string that is already on
+ *    `fields`, so nothing is invented and nothing is lost. The assembled FastAPI
+ *    line never reaches this branch, because it comes from the `detail` **list**
+ *    and its entries are the per-issue messages, not `detail`.
+ *
+ *    This is a fix, not a preference. Before `namedField` shipped in 0.54.0,
+ *    `fields` was empty against that backend and the sentence reached the user
+ *    through step 3; filling `fields` silently replaced it with "Confira os
+ *    campos destacados", which presumes a screen that highlights fields — and
+ *    no app highlighted anything on the day of the bump.
+ *
+ *    `useDetail: false` still suppresses it, and is the way to force the fixed
+ *    sentence for a backend whose text is written for developers. `validation`
+ *    does **not** override it, and that is on purpose: its own contract is the
+ *    sentence for a payload rejected *field by field*, which one field carrying
+ *    one finished sentence is not — and `useDescribeApiError` always passes
+ *    `validation`, so treating it as an override would mean the branch never ran
+ *    for any component, which is every caller that matters here.
  * 3. The backend's own `detail`, which is the most specific thing available and
  *    is already written for a person — unless `useDetail: false` says that text
  *    is for developers.
@@ -159,10 +206,16 @@ export function describeApiError(
         const mapped = error.code === undefined ? undefined : options?.codes?.[error.code];
         if (mapped !== undefined) return mapped;
         if (error.status === 0) return offline;
+        const detail = error.detail.trim();
         if (error.fields && Object.keys(error.fields).length > 0) {
+            if (
+                options?.useDetail !== false &&
+                singleFieldSentence(error.fields, detail, error.status)
+            ) {
+                return detail;
+            }
             return options?.validation ?? DEFAULT_API_ERROR_STRINGS.validation;
         }
-        const detail = error.detail.trim();
         if (
             options?.useDetail !== false &&
             detail !== "" &&

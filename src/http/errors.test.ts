@@ -179,15 +179,38 @@ describe("buildApiError — os envelopes que um backend tempest-fastapi-sdk real
         details: { field: "city" },
     };
 
-    it("mapeia o campo que um RequestValidationError achatado nomeia", () => {
+    it("mapeia o campo que um RequestValidationError achatado nomeia, sem a cauda", () => {
+        // A cauda `for field 'x' in 'y'` é inglês colado numa mensagem que o
+        // servidor escreveu na língua do app, e os dois valores dela já chegam
+        // como `field` e `location` no envelope — é de lá que `fields` os lê.
+        // Deixada de pé, ela ia para a tela do usuário, e cada app consumidor
+        // criou o próprio regex para apará-la.
         const err = buildApiError(422, flattenedValidation);
 
-        expect(err.fields).toEqual({
-            phone: "Value error, Numero de telefone invalido for field 'phone' in 'body'",
+        expect(err.fields).toEqual({ phone: "Value error, Numero de telefone invalido" });
+        expect(err.detail).toBe("Value error, Numero de telefone invalido");
+    });
+
+    it("deixa a cauda de pé quando ela nomeia um campo que não é o resolvido", () => {
+        // O aparo só dispara quando pode atribuir o que está apagando. Uma cauda
+        // que nomeia outro campo é outro formato de envelope, ou uma frase que
+        // genuinamente se lê assim — nos dois casos, texto que não é meu para
+        // apagar.
+        const err = buildApiError(422, {
+            detail: "CPF inválido for field 'documento' in 'body'",
+            field: "cpf",
         });
-        expect(err.detail).toBe(
-            "Value error, Numero de telefone invalido for field 'phone' in 'body'",
-        );
+
+        expect(err.detail).toBe("CPF inválido for field 'documento' in 'body'");
+    });
+
+    it("não esvazia o detail quando a mensagem é só a cauda", () => {
+        const err = buildApiError(422, {
+            detail: "for field 'cpf' in 'body'",
+            field: "cpf",
+        });
+
+        expect(err.detail).toBe("for field 'cpf' in 'body'");
     });
 
     it("mapeia o campo que um AppException põe dentro do detail", () => {
@@ -286,9 +309,7 @@ describe("buildApiError — os envelopes que um backend tempest-fastapi-sdk real
     it("carrega o campo nomeado até o TempestApiError lançado", () => {
         const err = new TempestApiError(buildApiError(422, flattenedValidation));
 
-        expect(err.fields).toEqual({
-            phone: "Value error, Numero de telefone invalido for field 'phone' in 'body'",
-        });
+        expect(err.fields).toEqual({ phone: "Value error, Numero de telefone invalido" });
         expect(err).toBeInstanceOf(Error);
     });
 });

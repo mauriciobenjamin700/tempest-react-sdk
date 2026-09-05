@@ -234,10 +234,61 @@ describe("describeApiError — erro de negócio que nomeia um campo", () => {
             }),
         );
 
-    it("responde a frase de validação, não mais a sentença do backend", () => {
+    it("mostra a sentença do backend, que é a mesma string que foi para o campo", () => {
+        // Este teste fixava o contrário até a #302. O `namedField` da 0.54.0 fez
+        // `fields` vir sempre preenchido contra um backend tempest-fastapi-sdk, e
+        // com isso a frase genérica passou a substituir uma sentença específica
+        // que o servidor já tinha escrito na língua do app. A frase genérica
+        // pressupõe uma tela destacando campos, e nenhum app destacava nada no dia
+        // do bump: o recurso novo piorou o único que todo mundo usava.
         expect(describeApiError(businessError(), FALLBACK)).toBe(
+            "Cidade não encontrada para o estado informado.",
+        );
+    });
+
+    it("useDetail: false é o jeito de forçar a frase genérica", () => {
+        expect(describeApiError(businessError(), FALLBACK, { useDetail: false })).toBe(
             DEFAULT_API_ERROR_STRINGS.validation,
         );
+    });
+
+    it("passar validation NÃO desliga a sentença de campo único", () => {
+        // Deliberado: `useDescribeApiError` sempre passa `validation` (traduzida ou
+        // default), então tratar isso como override faria o ramo nunca rodar em
+        // componente nenhum — que é onde estão os chamadores que importam. O
+        // contrato do `validation` é a frase de um payload rejeitado *campo a
+        // campo*, e um campo com uma sentença pronta não é isso.
+        expect(
+            describeApiError(businessError(), FALLBACK, { validation: "Confira os campos." }),
+        ).toBe("Cidade não encontrada para o estado informado.");
+    });
+
+    it("mantém a frase genérica quando o 422 do FastAPI nomeia vários campos", () => {
+        // O caminho da lista: `detail` é montado pelo validador, meio em inglês e
+        // nomeando caminho interno de payload. Nunca chega ao ramo novo, porque as
+        // entradas de `fields` são as mensagens por issue, não o `detail`.
+        const error = new TempestApiError(
+            buildApiError(422, {
+                detail: [
+                    { loc: ["body", "items", 0, "price"], msg: "Input should be greater than 0" },
+                    { loc: ["body", "email"], msg: "value is not a valid email address" },
+                ],
+            }),
+        );
+
+        expect(Object.keys(error.fields ?? {})).toHaveLength(2);
+        expect(describeApiError(error, FALLBACK)).toBe(DEFAULT_API_ERROR_STRINGS.validation);
+    });
+
+    it("mantém a frase genérica quando um único campo tem mensagem diferente do detail", () => {
+        const error = new TempestApiError(
+            buildApiError(422, {
+                detail: [{ loc: ["body", "price"], msg: "Input should be greater than 0" }],
+            }),
+        );
+
+        expect(error.fields).toEqual({ price: "Input should be greater than 0" });
+        expect(describeApiError(error, FALLBACK)).toBe(DEFAULT_API_ERROR_STRINGS.validation);
     });
 
     it("e a sentença específica continua no campo, para o input", () => {

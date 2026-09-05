@@ -526,7 +526,11 @@ try {
 !!! warning "Do not put a 422's `detail` on screen"
     `"items.0.price: Input should be greater than 0"` in a pt-BR interface is half an English sentence naming internal structure. That is why `describeApiError` does **not** pass `detail` through when `fields` is set: it returns the validation sentence ("Confira os campos destacados e tente de novo.", translatable via `tempest.error.validation`), and the per-field messages stay where they are useful — on the inputs.
 
-    **This now covers the business error that names a field too**, whose `detail` was already a finished sentence. The toast swaps "Cidade não encontrada para o estado informado." for the validation sentence; the sentence is not lost, it moves to `error.fields.city` and shows up against the input. Three ways back, in order of preference: `codes: { VALIDATION_ERROR: "…" }` (which beats the whole funnel), `validation: error.detail` at the call site, or reading `error.detail` yourself — it is untouched.
+    **With one exception: the rejection that names a single field whose message is `detail` itself.** There `detail` goes to the screen. That is not a guess about the text — it is identity: the SDK fills a single entry from `detail` only for the flattened envelope a `tempest-fastapi-sdk` backend sends, where the server wrote **one finished sentence about one field** ("CPF ou CNPJ inválido"). The string shown is exactly the one already on `error.fields`, so nothing is invented and nothing is lost.
+
+    The line FastAPI assembles never reaches that branch: it comes from the `detail` **list**, and the `fields` entries there are the per-issue messages, not `detail`.
+
+    To force the fixed sentence in that case too, `useDetail: false`. Passing `validation` does **not** switch the exception off, on purpose — `useDescribeApiError` always passes `validation` (translated or defaulted), so treating it as an override would mean the branch never ran in any component.
 
 ### From a typed error to the sentence on screen — `describeApiError`
 
@@ -546,7 +550,7 @@ The funnel, in order:
 
 1. **`codes[error.code]`** — the sentence **you** wrote for that backend case. It beats every other step: nothing the funnel derives can match a sentence written by someone who knew both the contract and the screen.
 2. **A request that never left** — `status === 0`, or any error while the browser reports itself offline → the offline sentence.
-3. **An error that names a field** — `error.fields` is set → the validation sentence, **not** `detail`. This covers both a FastAPI 422 (whose `detail` is technical) and a business error that pointed at a field. The per-field messages stay on `fields`.
+3. **An error that names fields** — `error.fields` is set → the validation sentence, **not** `detail`. That is the FastAPI 422, whose `detail` is technical. The exception is a rejection naming a **single** field whose message is `detail` itself: there `detail` is returned, because it is the same string `fields` carries. The per-field messages stay on `fields` either way.
 4. **The backend's `detail`** — the most specific text available, already written for a person.
 5. **`fallback`**, with `(HTTP <status>)` appended when a status is known — the screenshot in the support ticket then carries the one fact a developer needs.
 
@@ -575,6 +579,13 @@ A code the catalog does not know simply continues down the funnel. With no `code
 
 !!! tip "`useDetail: false` when `detail` is written for developers"
     Some backends write `detail` for the log rather than the screen, or it echoes internals. With `useDetail: false` step 4 is skipped, and the result is always a sentence of yours, the offline one, the validation one, or `fallback` with `(HTTP <status>)`. Offline and validation still apply: they belong to the SDK, not to the backend.
+
+    It is also how you refuse the single-field sentence described above: with `useDetail: false`, a single-field rejection goes back to the validation sentence.
+
+!!! check "The `for field '…' in '…'` tail is trimmed"
+    A `tempest-fastapi-sdk` backend flattens a field error into `"CPF ou CNPJ inválido for field 'cpf_cnpj' in 'body'"` — a finished sentence in your language with an English clause glued to the end. The clause carries nothing new: the same two values arrive as `field` and `location`, which is where `error.fields` reads them from. The SDK trims the tail while building the `ApiError`, so `detail` and `fields` come out clean.
+
+    The trim only fires when the tail names **the field the envelope resolved to**. A tail naming some other field is a different shape, or a sentence that genuinely reads that way — either way, text the SDK cannot account for and therefore does not delete.
 
 Two surfaces, one funnel:
 
@@ -620,7 +631,7 @@ const { mutate } = useMutation({
 - `uploadWithProgress` uses XHR to report byte-level progress; for a large file, `createResumableUpload` chunks and resumes — see [Resumable upload](./resumable-upload.md).
 - `retry` (exponential backoff + `shouldRetry`) and `usePoll` (interval with overlap guard) cover flaky operations and job tracking.
 - `generateIdempotencyKey` — generate once per operation, reuse across retries.
-- `describeApiError(error, fallback)` (pure) and `useDescribeApiError()` (i18n-aware) turn the typed error into the sentence on screen, treating `status === 0` as offline instead of "erro 0" and any error carrying `fields` as the validation sentence instead of `detail`.
+- `describeApiError(error, fallback)` (pure) and `useDescribeApiError()` (i18n-aware) turn the typed error into the sentence on screen, treating `status === 0` as offline instead of "erro 0" and an error carrying **several** fields as the validation sentence instead of `detail`. A **single**-field rejection whose message is `detail` itself shows `detail` — the sentence the server wrote for that field. `useDetail: false` refuses it.
 - `error.fields` indexes the per-field messages — from a FastAPI 422's list, or from the `detail.field` / `field` / `details.field` keys a `tempest-fastapi-sdk` backend sends. It is the shape that goes straight into a form's `setError`.
 
 ## See also

@@ -2,6 +2,16 @@
 // Run `npm run gen:icons` after bumping lucide-react.
 
 import {
+    Cross,
+    Crosshair,
+    Crown,
+    Cuboid,
+    CupSoda,
+    Currency,
+    Cylinder,
+    Dam,
+    Database,
+    DatabaseArrowDown,
     DatabaseArrowUp,
     DatabaseBackup,
     DatabaseCheck,
@@ -32,21 +42,21 @@ import {
     Disc3,
     DiscAlbum,
     Divide,
-    Dna,
-    DnaOff,
-    Dock,
-    Dog,
-    DollarSign,
-    Donut,
-    DoorClosed,
-    DoorClosedLocked,
-    DoorOpen,
-    Dot,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** The 40 lucide icons from "database-arrow-up" through "dot", inclusive. */
+/** The 40 lucide icons from "cross" through "divide", inclusive. */
 const shard: Record<string, LucideIcon> = {
+    cross: Cross,
+    crosshair: Crosshair,
+    crown: Crown,
+    cuboid: Cuboid,
+    "cup-soda": CupSoda,
+    currency: Currency,
+    cylinder: Cylinder,
+    dam: Dam,
+    database: Database,
+    "database-arrow-down": DatabaseArrowDown,
     "database-arrow-up": DatabaseArrowUp,
     "database-backup": DatabaseBackup,
     "database-check": DatabaseCheck,
@@ -77,16 +87,6 @@ const shard: Record<string, LucideIcon> = {
     "disc-3": Disc3,
     "disc-album": DiscAlbum,
     divide: Divide,
-    dna: Dna,
-    "dna-off": DnaOff,
-    dock: Dock,
-    dog: Dog,
-    "dollar-sign": DollarSign,
-    donut: Donut,
-    "door-closed": DoorClosed,
-    "door-closed-locked": DoorClosedLocked,
-    "door-open": DoorOpen,
-    dot: Dot,
 };
 
 export default shard;

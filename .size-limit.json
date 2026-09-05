@@ -494,12 +494,12 @@
   },
   {
     "name": "ceiling: largest icon shard — the real cost of ONE lazy fetch",
-    "path": "dist/icons/generated/shard-19.js",
+    "path": "dist/icons/generated/shard-43.js",
     "limit": "5.5 KB",
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
-    "name": "ceiling: icons — `{ Icon }` incl. ALL 45 lazy shards (lucide MEASURED)",
+    "name": "ceiling: icons — `{ Icon }` incl. ALL 46 lazy shards (lucide MEASURED)",
     "path": "dist/icons.js",
     "import": {
       "./dist/icons.js": "{ Icon }"
@@ -508,9 +508,9 @@
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
-    "name": "ceiling: icons — full surface incl. the 2024-slug list and every shard",
+    "name": "ceiling: icons — full surface incl. the 2065-slug list and every shard",
     "path": "dist/icons.js",
-    "limit": "145 KB",
+    "limit": "148 KB",
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {

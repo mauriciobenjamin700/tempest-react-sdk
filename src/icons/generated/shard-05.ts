@@ -2,6 +2,7 @@
 // Run `npm run gen:icons` after bumping lucide-react.
 
 import {
+    BookHeart,
     BookImage,
     BookKey,
     BookLock,
@@ -40,13 +41,13 @@ import {
     BrickWall,
     BrickWallFire,
     BrickWallShield,
-    Briefcase,
-    BriefcaseBusiness,
+    Bridge,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** The 40 lucide icons from "book-image" through "briefcase-business", inclusive. */
+/** The 40 lucide icons from "book-heart" through "bridge", inclusive. */
 const shard: Record<string, LucideIcon> = {
+    "book-heart": BookHeart,
     "book-image": BookImage,
     "book-key": BookKey,
     "book-lock": BookLock,
@@ -85,8 +86,7 @@ const shard: Record<string, LucideIcon> = {
     "brick-wall": BrickWall,
     "brick-wall-fire": BrickWallFire,
     "brick-wall-shield": BrickWallShield,
-    briefcase: Briefcase,
-    "briefcase-business": BriefcaseBusiness,
+    bridge: Bridge,
 };
 
 export default shard;

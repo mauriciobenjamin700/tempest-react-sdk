@@ -2,6 +2,11 @@
 // Run `npm run gen:icons` after bumping lucide-react.
 
 import {
+    CirclePoundSterling,
+    CirclePower,
+    CircleQuestionMark,
+    CircleSlash,
+    CircleSlash2,
     CircleSmall,
     CircleStar,
     CircleStop,
@@ -37,16 +42,16 @@ import {
     Clock8,
     Clock9,
     ClockAlert,
-    ClockArrowDown,
-    ClockArrowLeft,
-    ClockArrowRight,
-    ClockArrowUp,
-    ClockCheck,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** The 40 lucide icons from "circle-small" through "clock-check", inclusive. */
+/** The 40 lucide icons from "circle-pound-sterling" through "clock-alert", inclusive. */
 const shard: Record<string, LucideIcon> = {
+    "circle-pound-sterling": CirclePoundSterling,
+    "circle-power": CirclePower,
+    "circle-question-mark": CircleQuestionMark,
+    "circle-slash": CircleSlash,
+    "circle-slash-2": CircleSlash2,
     "circle-small": CircleSmall,
     "circle-star": CircleStar,
     "circle-stop": CircleStop,
@@ -82,11 +87,6 @@ const shard: Record<string, LucideIcon> = {
     "clock-8": Clock8,
     "clock-9": Clock9,
     "clock-alert": ClockAlert,
-    "clock-arrow-down": ClockArrowDown,
-    "clock-arrow-left": ClockArrowLeft,
-    "clock-arrow-right": ClockArrowRight,
-    "clock-arrow-up": ClockArrowUp,
-    "clock-check": ClockCheck,
 };
 
 export default shard;

@@ -7,10 +7,10 @@ SDK público da Tempest com componentes React, hooks e integrações reutilizáv
 ## Estado atual (snapshot pós-v0.55.0 — `[Unreleased]` vazio)
 
 - **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 75 tags publicadas (0.1.0 → 0.55.0) com signed provenance via OIDC. Histórico completo em `RELEASES.md` (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
-- **Testes**: 5846 testes em 557 arquivos, ~56 s sob `vitest + jsdom + fake-indexeddb`. Cobertura medida em 04/09/2026: **99,70% linhas (35 descobertas) / 98,72% statements / 99,85% funções (5) / 95,61% branches (422)**; pisos do CI em **99/98/99/95**, folga de 0,61 ponto no eixo mais apertado (era 0,91). **A cauda deixou de ser só inalcançável:** 21 das 35 linhas e 3 das 5 funções estão na leva RTC/voz de 0.54.0/0.55.0 — `webrtc/peer-mesh.ts` (9 linhas, 19 ramos), `webrtc/mesh-quality.ts` (9, 10), `audio/voice-chain.ts` (3, 5). O resto é poeira de 1–2 linhas, essa sim inalcançável por construção (ver `### P3`). Ranquear por **valor absoluto**, nunca por percentual — é o método da #282, e a [PR #284](https://github.com/mauriciobenjamin700/tempest-react-sdk/pull/284) leva os quatro a 100% nos quatro eixos (39 testes; branch do repo 95,61% → 96,02%, linhas descobertas 35 → 14), sem mexer nos pisos.
+- **Testes**: 5995 testes em 559 arquivos, ~47 s sob `vitest + jsdom + fake-indexeddb`. Cobertura medida em 04/09/2026: **99,70% linhas (35 descobertas) / 98,72% statements / 99,85% funções (5) / 95,61% branches (422)**; pisos do CI em **99/98/99/95**, folga de 0,61 ponto no eixo mais apertado (era 0,91). **A cauda deixou de ser só inalcançável:** 21 das 35 linhas e 3 das 5 funções estão na leva RTC/voz de 0.54.0/0.55.0 — `webrtc/peer-mesh.ts` (9 linhas, 19 ramos), `webrtc/mesh-quality.ts` (9, 10), `audio/voice-chain.ts` (3, 5). O resto é poeira de 1–2 linhas, essa sim inalcançável por construção (ver `### P3`). Ranquear por **valor absoluto**, nunca por percentual — é o método da #282, e a [PR #284](https://github.com/mauriciobenjamin700/tempest-react-sdk/pull/284) leva os quatro a 100% nos quatro eixos (39 testes; branch do repo 95,61% → 96,02%, linhas descobertas 35 → 14), sem mexer nos pisos.
 - **Superfície**: 40 módulos em `src/`, 128 componentes, 53 hooks no módulo `hooks/` (116 exports `use*` somando todos os módulos), 543 exports na entrada raiz, 67 em `/br` e 21 em `/icons`.
 - **Empacotamento (v0.25.0)**: `dist/` preserva o grafo de módulos (`preserveModules`). O que o app paga de fato (brotli): `{ cn }` 133 B · `{ Button }` 794 B · app típico 9.27 KB · offline/PWA 4.54 KB · `styles.css` 28.7 KB · `utilities.css` 1.36 KB (opt-in). Teto sem tree-shaking: 121.08 KB ESM / 145.01 KB CJS. Budgets do `size-limit` são **por fatia importada**, não pelo barrel.
-- **Subpaths** (15, a lista é o campo `exports` do `package.json`): `.`, `/testing` (MSW), `/vite` (`createViteConfig` + plugins), `/sw` (helpers de contexto SW), `/charts` (recharts peer), `/editor` (tiptap peer), `/imaging` (decode/encode/resize/crop/compress em canvas, sem dep), `/tabular` (`TabularPredictor` ONNX + cache de modelo, onnxruntime-web peer), `/vision` (onnxruntime-web peer), `/br` (dataset BR + mapa clicável — os quatro arquivos saem do IBGE numa geração só, chaveados por código de 7 dígitos), `/icons` (ícone por slug, 45 shards lazy balanceados), `/icons/virtual` (módulo real: `staticIcons = {}` que o plugin sobrescreve — resolve fora do Vite também), `/styles.css`, `/utilities.css` (camada de layout opt-in), `/package.json`.
+- **Subpaths** (15, a lista é o campo `exports` do `package.json`): `.`, `/testing` (MSW), `/vite` (`createViteConfig` + plugins), `/sw` (helpers de contexto SW), `/charts` (recharts peer), `/editor` (tiptap peer), `/imaging` (decode/encode/resize/crop/compress em canvas, sem dep), `/tabular` (`TabularPredictor` ONNX + cache de modelo, onnxruntime-web peer), `/vision` (onnxruntime-web peer), `/br` (dataset BR + mapa clicável — os quatro arquivos saem do IBGE numa geração só, chaveados por código de 7 dígitos), `/icons` (ícone por slug, 46 shards lazy balanceados), `/icons/virtual` (módulo real: `staticIcons = {}` que o plugin sobrescreve — resolve fora do Vite também), `/styles.css`, `/utilities.css` (camada de layout opt-in), `/package.json`.
 - **CLIs** (`bin/`): `create-tempest-app` (scaffold — invocado como `npx -p tempest-react-sdk create-tempest-app .`; **não** existe pacote `create-tempest-app` no npm, então `npm create tempest-app` dá 404) com templates `template/` e `template-pwa/`; `tempest` (project CLI: `doctor`, `lint`, `fix`, `format`, `gen api <openapi>` → Zod + types + services, `gen icons` → registry estático de ícone). `doctor` e `fix` também fazem **análise de CSS** (`bin/lib/css/`, scanner próprio sem dep): sintaxe que o browser derruba, declaração/regra duplicada, propriedade e token inexistentes, e bloco repetido que pede classe global/utility. `fix` remove só o comprovadamente morto (sempre a cópia **anterior** — last-wins); `--no-css` pula, `--dry-run` é a superfície de revisão.
 - **Style modules**: `colors.css` (inclui `--tempest-code-*`, resolvidos pro piso de **texto** 4,5:1 — a rampa de chart é de **marca**, 3:1, e reprova como texto) + `typography.css` + `motion.css` + `density.css` + `reset.css` + `responsive.css` + `print.css`; `utilities.css` fica **fora** do bundle (opt-in, copiado pra `dist/` no build).
 - **Tooling**: Prettier 3, Husky pre-commit (lint-staged), `Makefile` + `scripts/release.sh` (tag-push pipeline) + `scripts/changelog.mjs` (notes/close) + `scripts/sync-github-releases.sh` (backfill de Releases), 5 workflows — `ci.yml` (PR, matriz node 22/24), `release-npm.yml` (tag push → guard de versão + publish OIDC + read-back do registry + GitHub Release), `size-limit.yml`, `e2e.yml` (gallery), `docs.yml` (Pages).
@@ -63,7 +63,7 @@ tempest-react-sdk/
 │   ├── forms/          FormField, validateForm, zodResolver, useZodForm, inputs mascarados BR, useViaCEP
 │   ├── geo/            mapas sem tile, createPositionTracker, OSRM backend, haversine/bounds
 │   ├── hooks/          52 hooks (useDebounce, useBreakpoint, useInstallPrompt, useServiceWorkerUpdate, …)
-│   ├── icons/       ⇢  <Icon name> por slug + IconProvider + 45 shards gerados (generated/)
+│   ├── icons/       ⇢  <Icon name> por slug + IconProvider + 46 shards gerados (generated/)
 │   ├── http/           createApiClient (timeout + uploadTimeout), parseResponse, uploadWithProgress, retry, usePoll, idempotency
 │   ├── i18n/           createI18n, I18nProvider, useI18n, useTranslate
 │   ├── imaging/     ⇢  decodeImage/encodeImage, resize/crop/rotate/flip, compressToTarget, createThumbnails, useImageProcessing
@@ -359,6 +359,28 @@ Juscelino` ainda é município no MA e no MG).
   a resposta certa quando os bytes compram comportamento — o teto anterior media código
   que não executava —, mas escreva o número medido e a razão no CHANGELOG, senão o teto
   vira carimbo.
+- **Edit à mão dentro de árvore vendorizada é trabalho com data de validade.** O
+  `_topK` de `src/vision/results.ts` ganhou seleção parcial + memoização em
+  29/08/2026 (`ba25d49`, 65× medido) — dentro do arquivo que diz "do not
+  hand-edit". O primeiro `npm run vendor:vision` seguinte apagou tudo, e o único
+  aviso foi um teste **do repo** falhando (`probs.test.ts`, a identidade dos
+  arrays memoizados). Sem esse teste a regressão de custo entrava calada.
+  Melhoria em código vendorizado sobe pro upstream e volta pelo vendor
+  (`ort-vision-sdk-web@0.8.1` é exatamente isso); enquanto não subir, ela é
+  dívida com prazo. Corolário: teste **preservado** pelo vendor (`*.test.ts`,
+  `use-*`) é o único guard que a árvore gerada tem — escreva um para toda
+  propriedade que você quer que sobreviva à próxima geração.
+
+- **Bump de `lucide-react` renomeia ícone, e o canônico de ontem vira alias.** Na
+  1.41 `trash-2` virou alias de `trash`: o slug continua resolvendo (o `<Icon>`
+  resolve alias), mas quem usava `trash-2` como exemplo de slug **canônico** em
+  teste passou a afirmar outra coisa — e o `materialToLucide` passou a mirar
+  alias depreciado em três pares. O guard que pegou isso (`aponta canônico,
+nunca alias`) vale mais que a contagem: ao escolher slug para exemplo de
+  teste, prefira um que o mapa de aliases não menciona. Contagem
+  (slugs/shards/bytes) sempre muda no bump — regenerar o registry é parte do
+  bump, não follow-up.
+
 - **Merjar N PRs que tocam `[Unreleased]` conflita N-1 vezes.** Toda entrada entra no mesmo
   ponto do `CHANGELOG.md`. É concatenação, não escolha de lado: o que já está na `main`
   primeiro, a entrada do branch depois. Merjar o PR com o maior diff de dado **primeiro**

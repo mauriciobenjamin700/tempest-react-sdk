@@ -50,12 +50,12 @@ describe("scanIconSlugs", () => {
 
 describe("buildIconsModule", () => {
     it("emits static named imports and the slug table", () => {
-        expect(buildIconsModule(["save", "trash-2"], iconAliases)).toBe(
-            `import { Save, Trash2 } from "lucide-react";
+        expect(buildIconsModule(["save", "shopping-cart"], iconAliases)).toBe(
+            `import { Save, ShoppingCart } from "lucide-react";
 
 export const staticIcons = {
     "save": Save,
-    "trash-2": Trash2,
+    "shopping-cart": ShoppingCart,
 };
 `,
         );
@@ -80,17 +80,17 @@ export const staticIcons = {
         expect(buildIconsModule([], iconAliases)).toBe("export const staticIcons = {};\n");
     });
     it("is deterministic regardless of input order", () => {
-        expect(buildIconsModule(["trash-2", "save"], iconAliases)).toBe(
-            buildIconsModule(["save", "trash-2"], iconAliases),
+        expect(buildIconsModule(["shopping-cart", "save"], iconAliases)).toBe(
+            buildIconsModule(["save", "shopping-cart"], iconAliases),
         );
     });
-    it("derives only export names lucide really has, for all 2024 slugs", async () => {
+    it("derives only export names lucide really has, for all 2065 slugs", async () => {
         const lucide = (await import("lucide-react")) as unknown as Record<string, unknown>;
         const out = buildIconsModule([...iconNames], iconAliases);
         const named = /^import \{ (.+) \} from "lucide-react";$/m.exec(out)?.[1].split(", ") ?? [];
         const imported = named.map((entry) => entry.split(" as ")[0]);
 
-        expect(imported.length).toBe(1767);
+        expect(imported.length).toBe(1807);
         const missing = imported.filter((name) => lucide[name] === undefined);
         expect(missing).toEqual([]);
     });

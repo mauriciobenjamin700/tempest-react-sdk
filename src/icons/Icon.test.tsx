@@ -80,8 +80,8 @@ describe("Icon — registry path", () => {
 
 describe("Icon — lazy shard path", () => {
     it("resolves a slug with no provider at all", async () => {
-        render(<Icon name="trash-2" />);
-        await waitFor(() => expect(svg()).toHaveClass("lucide-trash-2"));
+        render(<Icon name="shopping-cart" />);
+        await waitFor(() => expect(svg()).toHaveClass("lucide-shopping-cart"));
     });
 
     it("resolves a deprecated alias to its canonical icon", async () => {

@@ -2,6 +2,7 @@
 // Run `npm run gen:icons` after bumping lucide-react.
 
 import {
+    BadgePlus,
     BadgePoundSterling,
     BadgeQuestionMark,
     BadgeRussianRuble,
@@ -41,12 +42,12 @@ import {
     BeerOff,
     Bell,
     BellCheck,
-    BellDot,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** The 40 lucide icons from "badge-pound-sterling" through "bell-dot", inclusive. */
+/** The 40 lucide icons from "badge-plus" through "bell-check", inclusive. */
 const shard: Record<string, LucideIcon> = {
+    "badge-plus": BadgePlus,
     "badge-pound-sterling": BadgePoundSterling,
     "badge-question-mark": BadgeQuestionMark,
     "badge-russian-ruble": BadgeRussianRuble,
@@ -86,7 +87,6 @@ const shard: Record<string, LucideIcon> = {
     "beer-off": BeerOff,
     bell: Bell,
     "bell-check": BellCheck,
-    "bell-dot": BellDot,
 };
 
 export default shard;

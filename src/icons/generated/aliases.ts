@@ -2,7 +2,7 @@
 // Run `npm run gen:icons` after bumping lucide-react.
 
 /**
- * Lucide's 257 deprecated slugs, mapped to the canonical slug that
+ * Lucide's 258 deprecated slugs, mapped to the canonical slug that
  * replaced them (`alert-circle` → `circle-alert`).
  *
  * Kept so a name stored in a database years ago keeps rendering after a lucide
@@ -244,6 +244,7 @@ export const iconAliases: Record<string, string> = {
     "text-select": "square-dashed-text",
     "text-selection": "square-dashed-text",
     train: "tram-front",
+    "trash-2": "trash",
     "tv-2": "tv-minimal",
     unlock: "lock-open",
     "unlock-keyhole": "lock-keyhole-open",

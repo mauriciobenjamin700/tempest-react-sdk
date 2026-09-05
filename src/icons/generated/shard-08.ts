@@ -2,6 +2,11 @@
 // Run `npm run gen:icons` after bumping lucide-react.
 
 import {
+    ChartColumnBig,
+    ChartColumnDecreasing,
+    ChartColumnIncreasing,
+    ChartColumnStacked,
+    ChartGantt,
     ChartLine,
     ChartNetwork,
     ChartNoAxesColumn,
@@ -37,16 +42,16 @@ import {
     ChevronsRight,
     ChevronsRightLeft,
     ChevronsUp,
-    ChevronsUpDown,
-    Church,
-    Cigarette,
-    CigaretteOff,
-    Circle,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** The 40 lucide icons from "chart-line" through "circle", inclusive. */
+/** The 40 lucide icons from "chart-column-big" through "chevrons-up", inclusive. */
 const shard: Record<string, LucideIcon> = {
+    "chart-column-big": ChartColumnBig,
+    "chart-column-decreasing": ChartColumnDecreasing,
+    "chart-column-increasing": ChartColumnIncreasing,
+    "chart-column-stacked": ChartColumnStacked,
+    "chart-gantt": ChartGantt,
     "chart-line": ChartLine,
     "chart-network": ChartNetwork,
     "chart-no-axes-column": ChartNoAxesColumn,
@@ -82,11 +87,6 @@ const shard: Record<string, LucideIcon> = {
     "chevrons-right": ChevronsRight,
     "chevrons-right-left": ChevronsRightLeft,
     "chevrons-up": ChevronsUp,
-    "chevrons-up-down": ChevronsUpDown,
-    church: Church,
-    cigarette: Cigarette,
-    "cigarette-off": CigaretteOff,
-    circle: Circle,
 };
 
 export default shard;

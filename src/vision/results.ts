@@ -153,20 +153,42 @@ export class Probs {
 
     /** Index of the most probable class. */
     get top1(): number {
-        return this._top(1).indices[0] ?? 0;
+        if (this.data.length === 0) return 0;
+        let best = 0;
+        let bestVal = this.data[0] as number;
+        for (let i = 1; i < this.data.length; i++) {
+            const v = this.data[i] as number;
+            if (v > bestVal) {
+                best = i;
+                bestVal = v;
+            }
+        }
+        return best;
     }
 
     /** Probability of the top-1 class. */
     get top1conf(): number {
-        return this._top(1).values[0] ?? 0;
+        if (this.data.length === 0) return 0;
+        return this.data[this.top1] as number;
     }
 
-    /** Indices of the top-5 most probable classes, descending. */
+    /**
+     * Indices of the top-5 most probable classes, descending.
+     *
+     * The array is the memoised selection itself, not a copy — reading it twice
+     * hands back the same object. Treat it as read-only: writing into it edits
+     * what every later read of this `Probs` returns.
+     */
     get top5(): Int32Array {
         return this._top(5).indices;
     }
 
-    /** Probabilities of the top-5 classes, descending. */
+    /**
+     * Probabilities of the top-5 classes, descending.
+     *
+     * Shares the memoised selection with {@link Probs.top5}, under the same
+     * read-only caveat.
+     */
     get top5conf(): Float32Array {
         return this._top(5).values;
     }
@@ -198,12 +220,14 @@ export class Probs {
      * A full sort to read five entries out of a thousand-class vector costs
      * O(n log n) plus an index array the size of the vector; keeping `k` slots
      * ordered by insertion and scanning once costs O(n·k) with no allocation
-     * beyond the result. Measured on 1000 classes, that is 123.7 µs against
-     * 1.9 µs for the same output.
+     * beyond the result. Measured on 1000 classes over 2000 iterations, 134.5 µs
+     * against 1.5 µs for the same output.
      *
      * Ties keep the lower class index first, matching the stable sort this
      * replaced: a candidate only displaces an entry it is strictly greater
-     * than.
+     * than. That is also what keeps this selection in step with the Python
+     * SDK's `np.argsort(-data, kind="stable")`, where the sort is C and the
+     * cost this avoids does not arise.
      *
      * @param k - How many classes to select.
      * @returns Indices and probabilities, descending by probability.

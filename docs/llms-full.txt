@@ -5948,7 +5948,7 @@ O catálogo foi dividido por categoria para facilitar navegação. Cada arquivo 
 !!! tip "Ícone por nome"
     Precisa renderizar um ícone cujo nome só existe em runtime (menu vindo da API,
     campo de CMS)? Veja [Ícones por slug](./icons.md) — `<Icon name="save" />` cobre
-    os 2024 slugs do lucide sem o custo de chunk do `DynamicIcon`.
+    os 2065 slugs do lucide sem o custo de chunk do `DynamicIcon`.
 
 ## Categorias
 
@@ -19075,7 +19075,7 @@ export function BarraDeVoz({ track }: { track: MediaStreamTrack }) {
 
 - **`blur` solta**, e isso não é caso de borda: alt-tab com a tecla segurada significa que o browser **nunca** vê o `keyup`, e o microfone fica aberto enquanto a pessoa olha outra janela — exatamente o que push-to-talk existe para evitar. Desmontar solta pelo mesmo motivo.
 - **Auto-repeat é ignorado** (`event.repeat`), senão a tecla segurada dispara `onDown` na taxa de repetição do teclado.
-- **Campo de texto ganha.** Com o foco num `<input>`, `<textarea>`, `<select>` ou `contenteditable`, a tecla passa direto: sem isso, espaço como PTT significa não conseguir escrever espaço no chat, porque o handler deu `preventDefault`.
+- **Campo de texto ganha — na descida.** Com o foco num `<input>`, `<textarea>`, `<select>` ou `contenteditable`, a tecla passa direto: sem isso, espaço como PTT significa não conseguir escrever espaço no chat, porque o handler deu `preventDefault`. Na **subida** o guard é outro: solta se estava segurando, e só então engole a tecla. O `keyup` vai para o que está focado **quando a tecla sobe**, não para o que estava focado quando ela desceu — então segurar espaço na página e clicar num `<input>` antes de soltar entrega o `keyup` no campo, e um guard de campo ali engoliria a liberação e deixaria o microfone aberto.
 
 `PUSH_TO_TALK_KEYS` é a lista para um seletor de configuração, `DEFAULT_PUSH_TO_TALK_KEY` (`"Space"`) o valor com que semear a preferência antes de a pessoa escolher, e `pushToTalkKeyLabel(code)` o rótulo — `KeyboardEvent.code` cru não se mostra a usuário.
 
@@ -20097,7 +20097,7 @@ export function Toolbar() {
 }
 ```
 
-Pronto — sem provider, sem configuração. Os **2024 slugs** do lucide funcionam
+Pronto — sem provider, sem configuração. Os **2065 slugs** do lucide funcionam
 assim, incluindo nome que só existe em runtime:
 
 ```tsx
@@ -20161,9 +20161,9 @@ tem um custo que inviabiliza o uso:
 
 !!! danger "`DynamicIcon` gera ~2000 fronteiras de chunk"
     O mapa que ele usa (`dynamicIconImports`) é um módulo de **116 KB** com uma
-    chamada `import()` para **cada** um dos 2024 ícones. Qualquer bundler que veja
+    chamada `import()` para **cada** um dos 2065 ícones. Qualquer bundler que veja
     esse módulo é obrigado a criar um chunk por ícone: no build de produção isso
-    vira ~2024 arquivos minúsculos, e em desenvolvimento vira uma enxurrada de
+    vira ~2065 arquivos minúsculos, e em desenvolvimento vira uma enxurrada de
     requisições no navegador.
 
     Além disso ele resolve o ícone **depois** da renderização (num `useEffect`), então
@@ -20178,10 +20178,10 @@ O `<Icon>` do SDK troca isso por **um chunk por faixa de 40 ícones**. Renderiza
 GET .../icons/generated/shard-09.js   200
 GET .../icons/generated/shard-21.js   200
 GET .../icons/generated/shard-36.js   200
-… uma por faixa tocada, no máximo 45
+… uma por faixa tocada, no máximo 46
 ```
 
-O maior shard pesa **4,78 KB brotli**, a mediana **4,19 KB** e o menor **1,52 KB**.
+O maior shard pesa **4,92 KB brotli**, a mediana **4,31 KB** e o menor **1,57 KB**.
 O runtime do `<Icon>`, sem shard nenhum, custa **~0,1 KB brotli**.
 
 !!! info "Por que faixa e não letra inicial"
@@ -20191,7 +20191,7 @@ O runtime do `<Icon>`, sem shard nenhum, custa **~0,1 KB brotli**.
     para um glifo de meio KB, fator de desperdício de ~130x.
 
     As faixas são contíguas e ordenadas, então o SDK acha o shard dono de um slug com
-    uma **busca binária** sobre 45 limites — em vez de embarcar o mapa de 2024
+    uma **busca binária** sobre 46 limites — em vez de embarcar o mapa de 2065
     entradas slug→chunk que faz o `dynamicIconImports` do próprio lucide custar 120 KB
     no chunk principal.
 
@@ -20409,7 +20409,7 @@ realmente inexistente — nunca enquanto um ícone válido está carregando.
 ## Slug antigo continua funcionando
 
 O lucide renomeou vários ícones (`alert-circle` → `circle-alert`,
-`alert-triangle` → `triangle-alert`) e mantém os 257 nomes antigos como alias. O
+`alert-triangle` → `triangle-alert`) e mantém os 258 nomes antigos como alias. O
 SDK carrega esse mapa, então um slug gravado no banco há dois anos ainda renderiza:
 
 ```tsx
@@ -20537,7 +20537,7 @@ export function CategoryForm({ onSave }: { onSave: (icon: string) => void }) {
 
 O que você ganha:
 
-- **autocomplete nativo** sobre os 2024 slugs, via `<datalist>` — teclado, leitor de
+- **autocomplete nativo** sobre os 2065 slugs, via `<datalist>` — teclado, leitor de
   tela e o comportamento mobile vêm da plataforma;
 - **preview** do ícone escolhido ao lado do campo;
 - **validação no form nativo**: o input carrega `setCustomValidity`, então um
@@ -20546,7 +20546,7 @@ O que você ganha:
   `onChange` recebe `shopping-cart`; digitou `alert-circle`, recebe `circle-alert`.
 
 !!! tip "Sugestões são cortadas por default"
-    `limit` é **40**. Montar 2024 `<option>` a cada tecla travava o datalist — é o
+    `limit` é **40**. Montar 2065 `<option>` a cada tecla travava o datalist — é o
     motivo da prop existir, em vez de um default "mostra tudo".
 
 !!! warning "Usa react-hook-form ou zod? A regra é exportada"
@@ -20617,8 +20617,8 @@ gera as tabelas do SDK, então ela nunca fica atrasada em relação ao que o
 
 | Arquivo                                     | O que tem                                                    |
 | ------------------------------------------- | ------------------------------------------------------------ |
-| [`icon-slugs.txt`](assets/icon-slugs.txt)   | Os 1767 slugs **canônicos**, um por linha                     |
-| [`icon-slugs.csv`](assets/icon-slugs.csv)   | Os 2024 slugs com `status` (`canonical`/`deprecated`) e o canônico correspondente |
+| [`icon-slugs.txt`](assets/icon-slugs.txt)   | Os 1807 slugs **canônicos**, um por linha                     |
+| [`icon-slugs.csv`](assets/icon-slugs.csv)   | Os 2065 slugs com `status` (`canonical`/`deprecated`) e o canônico correspondente |
 
 Use o `.txt` para o que **valida escrita** — é a lista do que pode ser gravado
 hoje. Use o `.csv` para o que **lê dado antigo**: a coluna `canonical` diz para
@@ -20819,8 +20819,8 @@ reprova a suíte em vez de chegar no seu grid. O que teste nenhum confere é se 
 | `fromMaterialSymbol` | Código Material Symbols → slug lucide, sempre devolvendo um             |
 | `materialToLucide`   | A tabela de pares, para passar no `include` do plugin                   |
 | `MATERIAL_SYMBOL_FALLBACK` | O glifo neutro que um código desconhecido usa                    |
-| `iconNames`          | Os 2024 slugs, ordenados (~7 KB brotli)                                 |
-| `iconAliases`        | Os 257 pares alias → canônico                                          |
+| `iconNames`          | Os 2065 slugs, ordenados (~7 KB brotli)                                 |
+| `iconAliases`        | Os 258 pares alias → canônico                                          |
 | `IconName`           | União de tipo com todos os slugs (só tipo, custo zero)                  |
 
 ### O que cada import custa
@@ -20828,13 +20828,13 @@ reprova a suíte em vez de chegar no seu grid. O que teste nenhum confere é se 
 Medido com `esbuild --bundle --minify` + brotli, `react` e `lucide-react` externos —
 ou seja, o que o **SDK** adiciona ao seu bundle:
 
-| Você importa           | Brotli   | Puxa a lista de 2024 slugs? |
+| Você importa           | Brotli   | Puxa a lista de 2065 slugs? |
 | ---------------------- | -------- | --------------------------- |
 | `{ Icon }`             | ~2,5 KB  | **Não**                     |
-| `{ resolveIconAlias }` | 2,06 KB  | Não                         |
-| `{ normalizeIconName }`| 2,09 KB  | Não                         |
-| `{ isIconName }`       | 7,20 KB  | Sim (é o que ela consulta)  |
-| `{ iconNames }`        | 7,17 KB  | Sim                         |
+| `{ resolveIconAlias }` | 2,05 KB  | Não                         |
+| `{ normalizeIconName }`| 2,07 KB  | Não                         |
+| `{ isIconName }`       | 7,33 KB  | Sim (é o que ela consulta)  |
+| `{ iconNames }`        | 7,29 KB  | Sim                         |
 
 !!! info "Não existe subpath `/icons/catalog` — e não precisa"
     A separação entre runtime e catálogo **já acontece**, por tree-shaking: nenhum
@@ -20850,7 +20850,7 @@ ou seja, o que o **SDK** adiciona ao seu bundle:
     `import { iconNames }` de conveniência dentro do `use-icon` custaria ~6 KB a
     todo app que renderiza um ícone, e nada no source pareceria errado.
 
-    O que **é** eager no caminho do `<Icon>` é a tabela de 257 aliases (~2 KB): ela
+    O que **é** eager no caminho do `<Icon>` é a tabela de 258 aliases (~2 KB): ela
     tem que resolver **antes** de escolher o shard, então não dá pra adiar sem uma
     segunda ida à rede para todo slug antigo. 2 KB é o preço de um `icon_code`
     gravado há dois anos continuar renderizando.
@@ -20860,12 +20860,12 @@ ou seja, o que o **SDK** adiciona ao seu bundle:
 | O que                                            | Brotli    |
 | ------------------------------------------------ | --------- |
 | Runtime do `<Icon>`, antes de qualquer shard     | ~0,1 KB   |
-| Menor shard (7 ícones), sob demanda              | 1,52 KB   |
-| Shard mediano (40 ícones), sob demanda           | 4,19 KB   |
-| Maior shard (40 ícones), sob demanda             | 4,78 KB   |
+| Menor shard (7 ícones), sob demanda              | 1,57 KB   |
+| Shard mediano (40 ícones), sob demanda           | 4,31 KB   |
+| Maior shard (40 ícones), sob demanda             | 4,92 KB   |
 | Maior shard **antes** do rebalanceamento (`s`)   | 19,10 KB  |
-| `{ iconNames }` — a lista dos 2024 slugs         | 6,1 KB    |
-| Runtime + os 45 shards juntos (teto absoluto)    | 130,0 KB  |
+| `{ iconNames }` — a lista dos 2065 slugs         | 7,29 KB   |
+| Runtime + os 46 shards juntos (teto absoluto)    | 137,3 KB  |
 
 !!! info "Como isso foi medido"
     Os shards e a lista saem do `size-limit` **com o `lucide-react` dentro da
@@ -20880,7 +20880,7 @@ ou seja, o que o **SDK** adiciona ao seu bundle:
 
 ## Recap
 
-- `<Icon name="save" />` resolve qualquer um dos **2024 slugs** do lucide, sem
+- `<Icon name="save" />` resolve qualquer um dos **2065 slugs** do lucide, sem
   configuração.
 - Slug **literal** vira import estático via `tempestIcons()` (ligado por default no
   `createViteConfig`) → **zero requisição extra**.
@@ -20889,13 +20889,13 @@ ou seja, o que o **SDK** adiciona ao seu bundle:
 - `tempest-react-sdk/icons/virtual` é módulo real: resolve **sem** o plugin (registro
   vazio), então vitest, `tsx` e Storybook carregam o mesmo arquivo.
 - Slug de **runtime** carrega **um shard da faixa dele** — faixas de 40 ícones
-  achadas por busca binária, no máximo 4,78 KB brotli por requisição.
+  achadas por busca binária, no máximo 4,92 KB brotli por requisição.
 - Nome inexistente renderiza `fallback` (nada, por default) e **nunca lança**;
   `console.warn` só em dev.
 - Shard que não chega ganha **2 retries curtos**, responde `iconStatus` `"error"`
   (não `"missing"`) e é reportado por `subscribeToIconErrors` — deploy que rotaciona
   chunk deixou de virar fallback permanente e silencioso.
-- Os 257 **aliases** antigos do lucide continuam resolvendo.
+- Os 258 **aliases** antigos do lucide continuam resolvendo.
 - `icon_code` do banco renderiza sujo: `shopping_cart`, `" Save"` e alias antigo são
   normalizados antes do lookup. `normalize={false}` para lookup estrito, e
   `normalizeIconName` sozinho para validar no formulário.
@@ -26469,6 +26469,72 @@ Aliases:
     aparecer no produto de alguém. O `axe` do jsdom **não** pega isso: ele desliga
     `color-contrast` porque não há paint.
 
+!!! check "E um sweep no browser segura o resto"
+    O teste acima mede os pares que o SDK **declara**. O que ele não pode ver é o
+    que a página compõe: texto sobre superfície tingida, sobre overlay, sobre
+    imagem. Para isso o `e2e/gallery.spec.ts` roda o `axe` em Chromium real numa
+    matriz de **quatro células** — claro e escuro, a 1280px e a 390px — e lê as
+    **duas** listas que o axe devolve.
+
+    Ler `incomplete` é o ponto. O `color-contrast` cai lá, e não em `violations`,
+    sempre que o axe não consegue resolver o que está atrás do texto — que é
+    exatamente o caso da superfície tingida. Um sweep que lê só `violations` está
+    olhando a gaveta onde o achado não está.
+
+    Os números medidos por célula vivem em `e2e/axe-baseline.json`, e o teste
+    falha quando algum **cresce além da folga** — dois nós, ou 2% para as regras
+    grandes. A folga tem o mesmo desenho dos pisos de cobertura, e a mesma
+    razão: a gallery renderiza demos que dependem do relógio, então o mesmo
+    build medido duas vezes não devolve sempre a mesma contagem. Medido: 87 e
+    depois 88 nós de `color-contrast` em `incomplete`, sem nada mudar entre as
+    duas execuções. É um ratchet, não uma allowlist: a gallery
+    renderiza 64 seções de demo e carrega dívida real de acessibilidade, e
+    reprovar tudo deixaria o build vermelho para sempre — que é como um gate é
+    deletado. Cair não falha; os números estão lá para serem baixados.
+
+!!! warning "Medir contraste sem desligar `transition` dá falso positivo"
+    Trocar `data-tempest-theme` inicia a transição de `color` de todo componente
+    que declara uma, então ler `getComputedStyle` um ou dois frames depois
+    amostra a **animação**: o foreground do tema que sai contra o fundo do que
+    entra. Medindo o `VideoPlayer` isso deu 7,32 e depois **2,33** entre
+    execuções — e 2,33 parece exatamente um defeito real.
+
+    Injete `*{transition:none!important}` antes de medir, e confira que
+    claro → escuro → claro devolve o mesmo número. Se não devolver, a medição
+    está errada, não o CSS.
+
+!!! danger "Dois nomes para um trabalho é o vão por onde o defeito passa"
+    O tema escuro entregou **73 violações de contraste** medidas em Chromium, e
+    as três causas eram a mesma coisa vista de ângulos diferentes: um token de
+    texto que ninguém validou contra a superfície onde ele cai.
+
+    | Causa | Medido | Correção |
+    | --- | --- | --- |
+    | `--tempest-text-subtle` no escuro | 4,04:1 sobre `surface`, 4,37 sobre `bg` | `#6f7889` → `#7b849a` (4,79 / 5,19) |
+    | `--tempest-primary-contrast` no `Scheduler` | token **inexistente**, caía no `#fff` do fallback → 3,67:1 | aponta para `--tempest-primary-foreground` |
+    | `--tempest-text-on-primary` | declarado branco no `:root` e **nunca** sobrescrito no escuro → 3,67:1 | segue `var(--tempest-primary-foreground)` |
+
+    O `--tempest-primary-foreground` já estava certo — alguém mediu os 3,68:1 e
+    o corrigiu, escrevendo no `colors.css` que "todos os 16 usos" apontavam
+    para ele. A medição estava certa; a contagem não: o `AppBar` usava o gêmeo
+    e o `Scheduler` usava um nome que não existe.
+
+    **Se você redefinir a paleta, redefina os dois nomes.** E prefira o
+    canônico: `--tempest-text-on-primary` existe por compatibilidade e segue o
+    outro.
+
+!!! warning "Um `var()` com fallback esconde um token que não existe"
+    A análise de CSS do `tempest doctor` não reporta `var()` **com** fallback,
+    de propósito: sem essa regra, o idioma de knob
+    (`var(--tempest-card-padding, 1rem)`) gerava 43 falsos positivos e a
+    ferramenta seria ignorada. O preço é este ponto cego —
+    `var(--tempest-primary-contrast, #fff)` compila, roda, e pinta branco para
+    sempre.
+
+    Ao escrever um `var()` com fallback, pergunte se o nome é um **knob** (o
+    consumidor define) ou um **token de propósito** (o SDK define). No segundo
+    caso, o fallback está escondendo um erro de digitação.
+
 !!! warning "Texto sobre `primary-soft` usa `primary-on-soft`, não `primary`"
     `--tempest-primary` sobre `--tempest-primary-soft` dá **4,38:1** no tema claro e
     **4,28:1** no escuro — o
@@ -30726,6 +30792,44 @@ npm i onnxruntime-web
     automaticamente para **WASM** (CPU) quando não. Você pode forçar a ordem
     passando `providers` nas opções de `create()`.
 
+### Em qual provider a sessão está rodando
+
+O ORT-Web não expõe equivalente ao `getProviders()` do Node: não dá para
+perguntar em que provider a sessão terminou. O que o navegador responde é se a
+API existe — sem `navigator.gpu`, ou sem adapter atrás dele, `webgpu` nunca ia
+rodar —, e é isso que o `detectProviders` usa:
+
+```tsx
+import { DEFAULT_PROVIDERS, detectProviders, OrtSession } from "tempest-react-sdk/vision";
+
+console.log(await detectProviders(DEFAULT_PROVIDERS)); // ["wasm"] num aparelho sem WebGPU
+
+const session = await OrtSession.create("/models/yolov8n.onnx", { providers: ["webgpu"] });
+console.log(session.requestedProviders); // ["webgpu"] — o que você pediu
+console.log(session.providers);          // ["wasm"]   — o que sobrou de pé
+```
+
+`session.providers` é a lista **já estreitada**, e `requestedProviders` guarda a
+pedida. A leitura é best-effort por construção: um provider que sobrevive ainda
+pode falhar dentro do ORT por um motivo que o navegador não conta (um recurso de
+shader que falta, um device esgotado), então entrada aqui significa "não foi
+descartado", não "confirmado rodando".
+
+!!! warning "Pedir um provider explicitamente liga o aviso"
+    Nomear `providers` opta por um `console.warn` quando este navegador não pode
+    oferecer o que você pediu. A lista default caindo de `webgpu` para `wasm`
+    fica quieta — é exatamente para isso que ela existe. O caso que custa caro é
+    o outro: quem escreveu `providers: ["webgpu"]` e aterrissou no WASM tem uma
+    página várias vezes mais lenta e nada no console explicando.
+
+!!! info "A lista efetiva nunca fica vazia"
+    Quando a detecção descarta tudo — pedir só `webgpu` num aparelho sem
+    adapter — a lista cai para `wasm`, que o ORT-Web sempre roda. Entregar ao
+    ORT a lista insatisfazível não é falha graciosa: o
+    `InferenceSession.create` rejeita com `no available backend found` e a
+    página fica **sem inferência nenhuma**, em vez de com o fallback lento que o
+    aviso descreve.
+
 ## A imagem de entrada
 
 Todas as tarefas aceitam o **mesmo** conjunto de entradas — o tipo `ImageInput`.
@@ -30868,9 +30972,11 @@ existirem, a imagem e o filtro de classes que estreitaram a busca.
 
 ## Classifier — que imagem é essa
 
-`Classifier` aplica pré-processamento estilo ImageNet (224×224 por padrão,
-normalização com média/desvio do ImageNet) e devolve a distribuição de
-probabilidades. `labels` é opcional: sem ele valem os `names` que o export
+`Classifier` prepara a imagem (224×224 por padrão), roda o modelo e devolve a
+distribuição de probabilidades. Como ele normaliza — e se ainda aplica um
+softmax na saída — sai do **próprio arquivo**; a seção
+[O que o classificador assume do seu modelo](#o-que-o-classificador-assume-do-seu-modelo)
+explica a escolha e como sobrescrevê-la. `labels` é opcional: sem ele valem os `names` que o export
 gravou no `.onnx` (ver [Rótulos vêm do modelo](#rotulos-vem-do-modelo)). Um
 ResNet ImageNet baixado pronto normalmente **não** traz `names`, então aí você
 passa a lista:
@@ -30908,6 +31014,73 @@ for (const p of result.probabilities) {
   console.log(p.name, p.conf);
 }
 ```
+
+### O que o classificador assume do seu modelo
+
+Duas suposições decidem o que o modelo recebe e o que você lê de volta: **como a
+imagem é normalizada** e **se a saída ainda precisa de softmax**. Errar
+qualquer uma não levanta exceção — devolve um resultado da forma exata que você
+esperava, só pior.
+
+Por isso as duas leem a metadata do export. Todo arquivo saído do
+`YOLO(...).export(format="onnx")` carimba `author: Ultralytics` e
+`task: classify`, o mesmo bloco de onde os nomes de classe já vinham:
+
+```tsx
+import { Classifier } from "tempest-react-sdk/vision";
+
+const clf = await Classifier.create("/models/yolov8n-cls.onnx");
+
+console.log(clf.normalization);   // "ultralytics" — entrada crua em [0, 1]
+console.log(clf.appliesSoftmax);  // false — o grafo já termina em Softmax
+```
+
+| `normalization` | Média / desvio                      | Para quem                                      |
+| --------------- | ----------------------------------- | ---------------------------------------------- |
+| `"auto"`        | decide lendo a metadata             | **default** — Ultralytics vira `"ultralytics"`, o resto vira `"imagenet"` |
+| `"imagenet"`    | `IMAGENET_MEAN` / `IMAGENET_STD`    | torchvision, ResNet, ViT — o mundo ImageNet    |
+| `"ultralytics"` | `IDENTITY_MEAN` / `IDENTITY_STD`    | cabeça de classificação Ultralytics, que consome `[0, 1]` cru |
+| `"none"`        | identidade, igual a `"ultralytics"` | export que você sabe não normalizar            |
+| `mean` / `std`  | os seus números                     | reporta `CUSTOM_NORMALIZATION` em `clf.normalization` |
+
+```tsx
+const resnet = await Classifier.create("/models/resnet50.onnx", {
+  normalization: "imagenet",
+  applySoftmax: true,
+});
+```
+
+Passar só `mean` **ou** só `std` deixa o outro no valor do preset. Passar um
+preset e `mean`/`std` juntos lança `RangeError` em vez de preferir um em
+silêncio.
+
+!!! danger "Softmax duas vezes mantém o ranking e estraga os números"
+    Até a `0.7.1`, `applySoftmax` era `true` por default — e todo export de
+    classificação do Ultralytics termina num nó `Softmax`, então a tarefa
+    normalizava um vetor já normalizado. A operação é monotônica, que é
+    exatamente por que isso sobreviveu tanto tempo: o top-1 continua certo e
+    **toda confiança presa a ele está errada**. Medido no SDK Python contra o
+    pipeline do próprio Ultralytics sobre o mesmo arquivo, o erro absoluto
+    máximo de probabilidade foi de `7,6e-07` para `0,82`.
+
+    Agora o default é indefinido: lê a metadata e responde `false` para essa
+    família. Passar booleano continua sobrescrevendo — faça isso para qualquer
+    outro modelo que já emita probabilidade.
+
+!!! note "Modelo degradado não reclama"
+    Um classificador Ultralytics carregado com o default antigo recebia um
+    tensor que nunca viu no treino: nenhuma exceção, nenhum aviso, uma predição
+    da forma certa e simplesmente pior. `clf.normalization` e
+    `clf.appliesSoftmax` existem para essa pergunta — "o que esta instância
+    assumiu?" — ser respondível sem ler o código.
+
+??? info "Detalhes técnicos: as peças por baixo"
+    `resolveNormalization(metadata, options)` é a função que decide, e
+    `isUltralyticsClassifier(metadata)` é o predicado que ela usa. As duas são
+    exportadas para quem monta um pipeline próprio e quer a mesma escolha sem
+    instanciar um `Classifier`. As constantes `IMAGENET_MEAN`, `IMAGENET_STD`,
+    `IDENTITY_MEAN` e `IDENTITY_STD` são os presets, e `CUSTOM_NORMALIZATION` é
+    o nome reportado quando os números vieram de você.
 
 ## Segmenter — o contorno de cada objeto
 
@@ -31364,7 +31537,7 @@ const result = (await det.predict(frame))[0];
     reusam um `Float32Array` entre chamadas, e até a 0.42.0 reentregavam o buffer
     destacado — o ORT rejeitava com
     `Tensor's size(1228800) does not match data length(0).` a cada duas
-    inferências. Corrigido nesta versão (vision vendorada `0.7.1`).
+    inferências. Corrigido nesta versão (vision vendorada `0.8.1`).
 
 ## Quanto tempo levou
 
@@ -31422,7 +31595,8 @@ SDK não conhece, ou precisa tratar uma falha específica.
 
 | Grupo             | Exports                                                                                             |
 | ----------------- | --------------------------------------------------------------------------------------------------- |
-| Sessão            | `OrtSession` (carrega o `.onnx`, expõe `metadata`/`inputName`), `resolveProviders`, `DEFAULT_PROVIDERS`, `VisionTask` (base das tarefas), `VERSION` |
+| Sessão            | `OrtSession` (carrega o `.onnx`, expõe `metadata`/`inputName`/`providers`/`requestedProviders`), `resolveProviders`, `detectProviders`, `DEFAULT_PROVIDERS`, `VisionTask` (base das tarefas), `VERSION` |
+| Normalização      | `resolveNormalization`, `isUltralyticsClassifier`, `IMAGENET_MEAN`/`IMAGENET_STD`, `IDENTITY_MEAN`/`IDENTITY_STD`, `CUSTOM_NORMALIZATION` |
 | Entrada           | `loadImage` (qualquer `ImageInput` → `RGBImage`), `normalize`, `toTensor`, `toFloat32`/`toFloat32Tensor`, `zeroTensorData`, `fromCv2`/`toCv2` (BGR ↔ RGB) |
 | Preprocess fundido | `LetterboxPipeline` + `letterboxToTensorData` (detecção/segmentação), `ResizePipeline` + `resizeToTensorData` (classificação), `writePlanarFloat32` (o laço planar compartilhado) |
 | Decodificação     | `decodeYolo` (cabeça anchor-free, v8→v12), `decodeYoloAnchors` (cabeça com âncoras), `decodeYoloSeg`, `nms`, `batchedNms` |
@@ -31844,6 +32018,62 @@ setInterval(async () => {
 
 Já tem o relatório em mãos? `sampler.read(report)` faz a redução sem buscar de novo — útil quando o mesmo `getStats()` alimenta mais de uma coisa.
 
+### De badge a sinal de controle
+
+Os três campos acima descrevem **o que foi enviado**. Para *decidir* qualidade em vez de só mostrá-la, faltam dois que descrevem **o que o caminho aguenta** — e são a única classe de informação que responde antes de a imagem quebrar:
+
+| Campo | O que responde |
+| --- | --- |
+| `availableKbps` | banda de subida que o transporte estima, em kbps, ou `null` |
+| `limitedBy` | o que o encoder diz estar segurando a imagem, ou `null` |
+| `relayed` | se o link está passando por um TURN |
+
+```ts
+const stats = useLinkStats(pc);
+
+if (stats?.limitedBy === "bandwidth" && stats.availableKbps !== null) {
+  aplicarTeto(Math.round(stats.availableKbps * 0.8));
+}
+```
+
+!!! danger "`kbps` não distingue cap honrado de cap se afogando"
+    Chamada de duas pessoas com upload doméstico de ~1 Mb/s recebendo o teto cheio de 2500 kbps de tela: `kbps` reporta **2500** — o cap sendo obedecido enquanto a fila atrás dele cresce, e a imagem congela. Nada em `kbps`, `width`, `height` ou `fps` separa "saudável a 2,5 Mb/s" de "capado a 2,5 Mb/s e afogando". `availableKbps` separa.
+
+!!! warning "`null` não é `0`, e tratar como zero derruba toda chamada"
+    `availableKbps` vem `null` enquanto não houver estimativa — o que é a maior parte dos primeiros segundos de **toda** chamada, e permanente em engine que não publica uma. `0` é indistinguível de "o caminho morreu". Um consumidor que leia ausência como zero baixa a qualidade no começo de cada chamada.
+
+!!! note "Reagir a banda numa máquina limitada por CPU compra imagem pior e nenhum alívio"
+    `limitedBy` é o veredito do encoder, e é o que separa `"bandwidth"` de `"cpu"`. Quando senders discordam, `"bandwidth"` ganha, porque é o único motivo que um teto menor responde. O `"none"` da spec volta como `null`: nenhum consumidor deveria precisar saber que uma das strings verdadeiras significa "nada".
+
+`relayed` é a conta do VPS numa mesh self-hosted: o stream relayed sobe e desce pela máquina de quem hospeda, e quem escolheu 4K não é quem paga. É resolvido **só** do par que o browser nomeia, nunca de um par meramente `succeeded` — adivinhar a rota por um par que não carrega nada reportaria um custo que ninguém está pagando.
+
+Os três também saem avulsos, no mesmo formato do `readRoundTripMs`:
+
+```ts
+import { readAvailableOutgoingKbps, readQualityLimitation, readRelayed } from "tempest-react-sdk";
+
+const report = await pc.getStats();
+const headroom = readAvailableOutgoingKbps(report);
+const limite = readQualityLimitation(report);
+const viaTurn = readRelayed(report);
+```
+
+!!! tip "Uma caminhada, não quatro"
+    Se você vai ler mais de um, use o sampler: `sampler.read(report)` percorre o relatório **uma vez** e resolve o par selecionado **uma vez**. Chamar os quatro leitores avulsos no mesmo relatório o percorre quatro vezes, por link, a cada tick — numa mesh de oito a 2 s isso é o trabalho recorrente mais caro da chamada, no aparelho menos capaz de pagá-lo.
+
+### A cadeia do par selecionado
+
+`readRoundTripMs`, `availableKbps` e `relayed` dependem todos da mesma pergunta: **qual par está carregando o link?** A resposta tem três degraus, nesta ordem:
+
+1. `transport.selectedCandidatePairId` — o que a spec define;
+2. o `candidate-pair` marcado com `selected: true` — fora da spec, e existe porque engine que não preenche nenhum dos dois não parece existir, enquanto engine que preenche só a flag existe;
+3. o primeiro par `succeeded` — um palpite.
+
+O degrau 3 é aceito para RTT e para banda, porque perder a leitura é pior que uma leitura ocasionalmente otimista. **Não** é aceito para `relayed`, pelo motivo acima.
+
+!!! info "O degrau 2 não foi medido em Firefox"
+    A conclusão de que o Firefox marca o par escolhido com `selected: true` em vez de preencher `transport.selectedCandidatePairId` vem de leitura de código de terceiros, **não de medição nossa**. A cadeia está certa por spec de qualquer forma — o degrau 1 continua sendo o primeiro —, mas se você depende desse comportamento específico, meça no seu alvo antes de tratar como fato.
+
 ### Os dois erros que isto evita
 
 **1. RTT lido do par errado.** Uma conexão mantém vários pares de candidatos vivos ao mesmo tempo — host, server-reflexive, relayed — e só **um** carrega tráfego. Pegar o primeiro `candidate-pair` com `state: "succeeded"` faz o número saltar entre caminhos que não estão sendo percorridos: 8 ms do par host ocioso alternando com 180 ms do TURN que está trabalhando.
@@ -31982,6 +32212,56 @@ await mesh.setLocalTrack("mic", null); // mutou
 
 Os slots são negociados **antes de qualquer track existir**, então publicar é um `replaceTrack` num transceiver que já existe: nenhuma m-line é acrescentada e nada renegocia. É essa propriedade que faz a mesh sobreviver — com N peers, uma renegociação por toggle são N−1 rodadas simultâneas de offer/answer toda vez que alguém desmuta.
 
+### Medindo a sala: `stats`
+
+A mesh sabe quantos links existem e quando um vai embora, então ela é o lugar certo para amostrar. `stats` liga um único timer que ela mesma gerencia:
+
+```ts
+const mesh = createPeerMesh({
+  slots,
+  send: (message) => socket.send(message),
+  stats: {
+    intervalMs: 2000,
+    onStats: (peerId, stats) => atualizarBadge(peerId, stats),
+  },
+});
+```
+
+O mesmo valor cai em `MeshPeer.stats`, então quem já lê a lista de peers não escreve callback nenhum:
+
+```tsx
+{mesh.peers.map((peer) => (
+  <li key={peer.peerId}>
+    {peer.peerId} — {peer.stats?.kbps ?? "—"} kbps · {peer.stats?.rttMs ?? "—"} ms
+    {peer.stats?.relayed ? " · via TURN" : ""}
+  </li>
+))}
+```
+
+!!! warning "Um sampler por conexão — é a regra que a versão à mão erra"
+    A taxa é um **delta**, então o sampler guarda a leitura anterior. Compartilhar um entre peers subtrai o contador de uma conexão do de outra e reporta bobagem. A mesh mantém um sampler por link e o descarta junto com o link, que é a parte que um laço escrito à mão esquece quando alguém sai da sala.
+
+!!! note "Só links `connected` são amostrados"
+    Link ainda juntando candidatos não tem tráfego para medir, e perguntar de todo jeito gasta um `getStats()` para descobrir isso — por link, a cada tick. Sala vazia não tem timer nenhum, que é onde a chamada fica enquanto a primeira pessoa está adiantada.
+
+!!! tip "Medir faz o `onPeers` disparar no intervalo"
+    É o que se quer para um badge, e vale saber para qualquer coisa que faça trabalho de verdade nesse handler.
+
+### A conexão que a mesh não modela: `getConnection`
+
+`MeshPeer.connection` é o **estado**, que é o que uma view precisa. `getConnection(peerId)` é o **objeto**, que é o que uma medição precisa:
+
+```ts
+const pc = mesh.getConnection("peer-1");
+if (pc) {
+  const canal = pc.createDataChannel("chat");
+}
+```
+
+É a escotilha de escape para tudo que a mesh não modela — `getSenders()`, um `RTCDataChannel`, um ajuste de encoding para o qual o shape de `quality` não tem campo. Uma mesh que guardasse a conexão para si transformaria adotar a mesh em perder uma feature.
+
+Para o caso comum, que é medir, prefira `stats` acima: ele já resolve a regra do sampler por conexão.
+
 ### O Opus continua seu: `setLocalDescription`
 
 A mesh é quem cria toda oferta e toda resposta, então sem um ponto de entrada aqui não sobraria lugar para o `setTunedLocalDescription` — e uma chamada que adotasse a mesh **perderia em silêncio** o bitrate e o layout de canais que já tinha negociado. Por isso a aplicação da descrição local é um parâmetro:
@@ -32033,6 +32313,19 @@ Cada peer envia **uma cópia de tudo por participante**, então um cap confortá
 - **Áudio fica fora da divisão.** É uma ordem de grandeza mais barato e é a parte da chamada que precisa sobreviver.
 - **`minVideoKbps` é o piso.** Dividir sem piso acaba alocando dezenas de kbps por stream — todo mundo perde a imagem em vez de o excedente ceder.
 - **`maintain-framerate` é sobreposto abaixo de `fluidFloorKbps`.** Quem pediu fluidez pediu imagem boa em movimento, não o número 60: com pouca banda, segurar a taxa divide cada quadro pela metade e o resultado é pior que os 30 fps que substituiu.
+- **Slot sem cap é o caso mais generoso, não o ausente.** `null` num slot de vídeo significa sem teto, e é exatamente onde a fluidez deve valer. Um slot sem cap ao lado de uma câmera modesta mantém `maintain-framerate` — ler o `null` como "não informado" e então decidir pela câmera é a resposta ao contrário.
+- **`degradationAnchor` nomeia o slot sobre o qual a escolha era.** Sem ele decide o **maior** cap entre os slots de vídeo, o que está certo quando os slots são intercambiáveis e errado quando não são: quem escolheu fluidez estava pensando na tela — código, planilha, vídeo a 60 fps — e numa chamada com só a câmera ligada essa escolha passa a ser decidida por um stream sobre o qual ela nunca foi.
+
+```ts
+await mesh.applyQuality({
+  video: { cam: 1200, screen: 3000 },
+  degradationPreference: "maintain-framerate",
+  degradationAnchor: "screen",   // a câmera não decide pela tela
+  fluidFloorKbps: 900,
+});
+```
+
+Slot que os caps não mencionam mantém a preferência: nada foi dito sobre a coisa em questão, e uma câmera modesta ao lado não é uma resposta.
 
 `scaleForRoom(quality, peers)` e `resolveDegradation(asked, effective)` são as duas funções puras por trás disso, exportadas porque o app precisa da **mesma** divisão antes de capturar: escolher 4K para uma sala de quatro é capturar quatro vezes mais pixels do que há bits para enviar, e o resultado é pior que a resolução menor. Derive o tamanho da captura do orçamento dividido, não do que a pessoa escolheu.
 

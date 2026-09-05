@@ -2,6 +2,18 @@
 // Run `npm run gen:icons` after bumping lucide-react.
 
 import {
+    FileDown,
+    FileExclamationPoint,
+    FileHeadphone,
+    FileHeart,
+    FileImage,
+    FileInput,
+    FileKey,
+    FileLock,
+    FileMinus,
+    FileMinusCorner,
+    FileMusic,
+    FileOutput,
     FilePen,
     FilePenLine,
     FilePlay,
@@ -30,23 +42,23 @@ import {
     Film,
     FingerprintPattern,
     FireExtinguisher,
-    Fish,
-    FishOff,
-    FishSymbol,
-    FishingHook,
-    FishingRod,
-    Flag,
-    FlagOff,
-    FlagTriangleLeft,
-    FlagTriangleRight,
-    Flame,
-    FlameKindling,
-    Flashlight,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** The 40 lucide icons from "file-pen" through "flashlight", inclusive. */
+/** The 40 lucide icons from "file-down" through "fire-extinguisher", inclusive. */
 const shard: Record<string, LucideIcon> = {
+    "file-down": FileDown,
+    "file-exclamation-point": FileExclamationPoint,
+    "file-headphone": FileHeadphone,
+    "file-heart": FileHeart,
+    "file-image": FileImage,
+    "file-input": FileInput,
+    "file-key": FileKey,
+    "file-lock": FileLock,
+    "file-minus": FileMinus,
+    "file-minus-corner": FileMinusCorner,
+    "file-music": FileMusic,
+    "file-output": FileOutput,
     "file-pen": FilePen,
     "file-pen-line": FilePenLine,
     "file-play": FilePlay,
@@ -75,18 +87,6 @@ const shard: Record<string, LucideIcon> = {
     film: Film,
     "fingerprint-pattern": FingerprintPattern,
     "fire-extinguisher": FireExtinguisher,
-    fish: Fish,
-    "fish-off": FishOff,
-    "fish-symbol": FishSymbol,
-    "fishing-hook": FishingHook,
-    "fishing-rod": FishingRod,
-    flag: Flag,
-    "flag-off": FlagOff,
-    "flag-triangle-left": FlagTriangleLeft,
-    "flag-triangle-right": FlagTriangleRight,
-    flame: Flame,
-    "flame-kindling": FlameKindling,
-    flashlight: Flashlight,
 };
 
 export default shard;

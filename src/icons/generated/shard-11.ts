@@ -2,6 +2,11 @@
 // Run `npm run gen:icons` after bumping lucide-react.
 
 import {
+    ClockArrowDown,
+    ClockArrowLeft,
+    ClockArrowRight,
+    ClockArrowUp,
+    ClockCheck,
     ClockFading,
     ClockPlus,
     ClosedCaption,
@@ -37,16 +42,16 @@ import {
     Columns3,
     Columns3Cog,
     Columns4,
-    Combine,
-    Command,
-    Compass,
-    Component,
-    Computer,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** The 40 lucide icons from "clock-fading" through "computer", inclusive. */
+/** The 40 lucide icons from "clock-arrow-down" through "columns-4", inclusive. */
 const shard: Record<string, LucideIcon> = {
+    "clock-arrow-down": ClockArrowDown,
+    "clock-arrow-left": ClockArrowLeft,
+    "clock-arrow-right": ClockArrowRight,
+    "clock-arrow-up": ClockArrowUp,
+    "clock-check": ClockCheck,
     "clock-fading": ClockFading,
     "clock-plus": ClockPlus,
     "closed-caption": ClosedCaption,
@@ -82,11 +87,6 @@ const shard: Record<string, LucideIcon> = {
     "columns-3": Columns3,
     "columns-3-cog": Columns3Cog,
     "columns-4": Columns4,
-    combine: Combine,
-    command: Command,
-    compass: Compass,
-    component: Component,
-    computer: Computer,
 };
 
 export default shard;

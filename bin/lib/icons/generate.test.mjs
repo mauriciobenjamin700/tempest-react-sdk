@@ -28,9 +28,9 @@ describe("scanIconSlugs", () => {
 
 describe("renderRegistry", () => {
     it("emits a createIconRegistry call with static imports", () => {
-        const out = renderRegistry(["save", "trash-2"], iconAliases);
+        const out = renderRegistry(["save", "shopping-cart"], iconAliases);
         expect(out).toContain(`import { createIconRegistry } from "tempest-react-sdk/icons";`);
-        expect(out).toContain(`import { Save, Trash2 } from "lucide-react";`);
+        expect(out).toContain(`import { Save, ShoppingCart } from "lucide-react";`);
         expect(out).toContain(`    "save": Save,`);
     });
     it("imports the canonical component for an alias but keeps the alias key", () => {
@@ -42,8 +42,8 @@ describe("renderRegistry", () => {
         expect(renderRegistry([], iconAliases)).toContain("createIconRegistry({})");
     });
     it("is deterministic regardless of input order", () => {
-        expect(renderRegistry(["trash-2", "save"], iconAliases)).toBe(
-            renderRegistry(["save", "trash-2"], iconAliases),
+        expect(renderRegistry(["shopping-cart", "save"], iconAliases)).toBe(
+            renderRegistry(["save", "shopping-cart"], iconAliases),
         );
     });
 });

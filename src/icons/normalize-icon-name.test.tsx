@@ -54,7 +54,7 @@ describe("Icon — normalization", () => {
          * Loading the slug itself settles the right shard whatever the current
          * range boundaries are.
          */
-        await preloadIcons(["save", "trash-2", "definitely-not-an-icon"]);
+        await preloadIcons(["save", "shopping-cart", "definitely-not-an-icon"]);
     });
 
     afterEach(() => {
@@ -62,8 +62,8 @@ describe("Icon — normalization", () => {
     });
 
     it("renders a snake_case icon_code", () => {
-        render(<Icon name="TRASH_2" fallback={<span data-testid="ph" />} />);
-        expect(document.querySelector("svg")).toHaveClass("lucide-trash-2");
+        render(<Icon name="SHOPPING_CART" fallback={<span data-testid="ph" />} />);
+        expect(document.querySelector("svg")).toHaveClass("lucide-shopping-cart");
     });
 
     it("renders a code with stray whitespace and capitals", () => {

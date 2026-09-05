@@ -314,10 +314,25 @@ const user = parseResponse(userSchema, raw, "GET /users/me");
 !!! tip "The 3rd argument is the context"
     Always pass a label like `"GET /users/me"`. It shows up in the dev error message and makes it trivial to pinpoint which endpoint broke the contract.
 
-!!! note "How the SDK knows it is dev"
-    By reading `process.env.NODE_ENV`, which Vite, webpack, Rspack and Parcel replace with a literal **while building your app**. So `npm run dev` gets the report and `npm run build` gets the generic sentence, with no configuration on your side. The SDK does **not** use `import.meta.env.DEV`: that expression would be replaced while building the *package*, and the published artifact would carry the constant `false` forever.
+!!! danger "In a **Vite** app the report only turns on if you say so"
+    The SDK detects the build by reading `process.env.NODE_ENV`. Webpack, Rspack and Parcel replace that expression with a literal while building **your** app, so it works on its own there. Vite replaces **neither half**, and in a browser bundle the identifier `process` does not even exist: the read throws, the SDK answers `false`, and the report is unreachable — `vite dev` included.
 
-!!! warning "The rule compares against `production`, not `development`"
+    One line at bootstrap fixes it:
+
+    ```ts
+    import { setDevBuild } from "tempest-react-sdk";
+
+    setDevBuild(import.meta.env.DEV);
+    ```
+
+    This covers **every** development-only diagnostic in the SDK, not just `parseResponse`: the icon warning for passing `name` and `slug` together, a shard failure, a foreign `QueryClient` and the JSON frame were all silent under Vite too.
+
+!!! note "Why the SDK does not read `import.meta.env.DEV` itself"
+    Because Vite would replace that expression while building **the package**, and the published artifact would carry the constant `false` forever — every guard behind it becoming dead code your app's dev server can no longer switch on. Only your app is compiled at the moment the answer is knowable, so only it can supply it. That is why the signal is a parameter rather than smarter detection.
+
+    The default is `false` on purpose: the report embeds `JSON.stringify(raw)`, the whole response body. Guessing the other way would leak a payload into a production error string — silence is the safe default.
+
+!!! warning "The automatic detection compares against `production`, not `development`"
     The check is `NODE_ENV !== "production"`, not a list of known dev names. A staging or QA build that forgets to set `NODE_ENV=production` lands on the development side — and the error message then carries `JSON.stringify(raw)`, the whole response body. If that build talks to real data, set `NODE_ENV=production` on it.
 
 ## `uploadWithProgress`
@@ -601,7 +616,7 @@ const { mutate } = useMutation({
 - 401 with `refresh` → tries to renew and retries once. `onUnauthorized` fires on every unauthorized outcome — no refresh, a refresh that rejected, or a replay that came back 401.
 - `retry: true` turns on replays inside the client: idempotent methods only, network/`408`/`425`/`429`/`5xx` only. Writes never replay on their own.
 - `logger` is opt-in and the client writes to no console without it: one line per attempt (`debug` under 400, `warn` from 400 up) carrying `requestId`, `status` and `ms`, never a body/header/query string.
-- `parseResponse(schema, raw, context)` validates the payload with zod and points at the divergent field in a development build; in any other build, just the generic sentence.
+- `parseResponse(schema, raw, context)` validates the payload with zod and points at the divergent field in a development build; in any other build, just the generic sentence. In a **Vite** app, call `setDevBuild(import.meta.env.DEV)` once at bootstrap — without it the SDK has no way to know, and the report stays silent.
 - `uploadWithProgress` uses XHR to report byte-level progress; for a large file, `createResumableUpload` chunks and resumes — see [Resumable upload](./resumable-upload.md).
 - `retry` (exponential backoff + `shouldRetry`) and `usePoll` (interval with overlap guard) cover flaky operations and job tracking.
 - `generateIdempotencyKey` — generate once per operation, reuse across retries.

@@ -5620,7 +5620,11 @@ autor quis:
 - **Regra vazia** — código morto. Em `.module.css` é reportada e **nunca**
   removida: pode ser a classe-marcador que o seu JS referencia via `styles.x`.
 
-!!! info "Um `var()` com fallback nunca é reportado"
+- **Token de uma família que existe, mesmo com fallback** — `var(--tempest-primary-contrast, #fff)`
+  quando `--tempest-primary-*` tem doze irmãos declarados. É a única exceção à
+  regra do fallback, e a admonition abaixo explica por quê.
+
+!!! info "Um `var()` com fallback quase nunca é reportado"
     `var(--tempest-card-padding, var(--tempest-space-5))` é o **idioma de knob**
     do SDK: o nome não é um token, é um gancho que o app pode sobrescrever. Como
     o fallback garante que renderiza, a checagem fica calada. Sem fallback o
@@ -5630,6 +5634,50 @@ autor quis:
     do próprio SDK — e deixou de pé **4 bugs reais** (`--tempest-duration-normal`,
     `--tempest-primary-solid`, `--tempest-primary-on`, `--tempest-danger-on` sem
     fallback), corrigidos no mesmo commit que trouxe a análise.
+
+!!! danger "O preço dela era um ponto cego: erro de digitação parece knob"
+    Os dois são `var(nome-que-não-existe, fallback)`. O `Scheduler` pintava evento
+    com `color: var(--tempest-primary-contrast, #fff)` — esse token **nunca
+    existiu**, o `var()` caía no `#fff`, e no tema escuro isso é branco sobre um
+    `--tempest-primary` mais claro: **3,67:1**, abaixo do piso de 4,5. Compila,
+    roda, e pinta errado para sempre.
+
+    O sinal que separa os dois é **a família já existir**.
+    `--tempest-primary-contrast` não é declarado, mas `--tempest-primary-*` tem
+    doze irmãos que são: o nome se lê como membro faltando de uma família real.
+    `--tempest-card-padding` não tem irmão `--tempest-card-*` nenhum: se lê como o
+    que é, um gancho que o componente inventou.
+
+    ```console
+    $ tempest fix --dry-run
+    [!] src/components/Timeline/Timeline.module.css:41
+        `--tempest-primary-solid` is not a token, but `--tempest-primary-*` is a real
+        family — the fallback hides the misspelling instead of failing.
+        Did you mean `--tempest-primary-soft`?
+    ```
+
+!!! check "Medido antes de embarcar, como toda checagem nova de CSS"
+    Rodada no `src/` do próprio SDK: **5 achados, 5 defeitos reais, nenhum falso
+    positivo**, com 36 knobs legítimos no mesmo repositório calados.
+
+    Dois sinais mais frouxos foram medidos e **descartados**:
+
+    | Sinal | Achados | Reais | Precisão |
+    | --- | --- | --- | --- |
+    | Família declarada (embarcado) | 5 | 5 | **100%** |
+    | Último segmento casa com um token (`--tempest-font-size-sm` ~ `--tempest-text-sm`) | 16 | 3 | 19% |
+    | Família sem piso de segmentos | 9 | 5 | 56% |
+
+    O segundo dispara em todo knob de layout do `utilities.css`, que termina em
+    `-gap` ou `-width`. O terceiro trata `--tempest-tx` como membro da família
+    `--tempest`, que casa com **todo** token que existe — por isso a família
+    precisa de pelo menos um segmento depois do prefixo.
+
+    O que a regra embarcada **não** pega é o prefixo errado inteiro:
+    `--tempest-font-size-sm` deveria ser `--tempest-text-sm`, mas
+    `--tempest-font-size-*` não é família de ninguém, então não há o que casar.
+    Nenhum sinal barato separa isso de um knob — e é por isso que a alternativa
+    que pegaria os dois tem 19% de precisão.
 
 ### Sugestão (`i`) — quando o global bate o local repetido
 
@@ -19549,10 +19597,25 @@ const user = parseResponse(userSchema, raw, "GET /users/me");
 !!! tip "O 3º argumento é o contexto"
     Passe sempre um label como `"GET /users/me"`. Ele aparece na mensagem de erro de dev e torna trivial localizar qual endpoint quebrou o contrato.
 
-!!! note "Como o SDK sabe que é dev"
-    Lendo `process.env.NODE_ENV` — que Vite, webpack, Rspack e Parcel substituem por um literal **enquanto compilam o seu app**. Então `npm run dev` recebe o relatório e `npm run build` recebe a frase genérica, sem nenhuma configuração da sua parte. O SDK **não** usa `import.meta.env.DEV`: essa expressão seria substituída ao compilar o *pacote*, e o artefato publicado carregaria a constante `false` pra sempre.
+!!! danger "Em um app **Vite**, o relatório só liga se você disser"
+    O SDK detecta o build lendo `process.env.NODE_ENV`. Webpack, Rspack e Parcel substituem essa expressão por um literal enquanto compilam o **seu** app, então lá funciona sozinho. O Vite **não substitui nenhuma das duas metades**, e num bundle de browser o identificador `process` nem existe: a leitura lança, o SDK responde `false`, e o relatório fica inalcançável — inclusive sob `vite dev`.
 
-!!! warning "A regra compara com `production`, não com `development`"
+    Uma linha no bootstrap resolve:
+
+    ```ts
+    import { setDevBuild } from "tempest-react-sdk";
+
+    setDevBuild(import.meta.env.DEV);
+    ```
+
+    Isso vale para **todo** diagnóstico de desenvolvimento do SDK, não só o `parseResponse`: o aviso de ícone que recebeu `name` e `slug` juntos, a falha de shard, o `QueryClient` estrangeiro e o frame JSON também estavam mudos no Vite.
+
+!!! note "Por que o SDK não lê `import.meta.env.DEV` sozinho"
+    Porque o Vite substituiria essa expressão ao compilar **o pacote**, e o artefato publicado carregaria a constante `false` para sempre — cada guarda atrás dela viraria código morto que o dev server do seu app não consegue mais ligar. Só o seu app é compilado no instante em que a resposta é conhecível, então só ele pode fornecê-la. É por isso que o sinal é um parâmetro, e não uma detecção mais esperta.
+
+    O default é `false` de propósito: o relatório embute `JSON.stringify(raw)`, o corpo inteiro da resposta. Chutar para o lado errado vazaria payload numa string de erro de produção — silêncio é o default seguro.
+
+!!! warning "A detecção automática compara com `production`, não com `development`"
     A checagem é `NODE_ENV !== "production"`, não uma lista de nomes conhecidos de dev. Um build de staging ou de QA que esquece de definir `NODE_ENV=production` cai no lado de desenvolvimento — e aí a mensagem de erro carrega `JSON.stringify(raw)`, o corpo inteiro da resposta. Se esse build fala com dados reais, defina `NODE_ENV=production` nele.
 
 ## `uploadWithProgress`
@@ -19835,7 +19898,7 @@ const { mutate } = useMutation({
 - 401 com `refresh` → tenta renovar e repete 1x. `onUnauthorized` dispara em todo desfecho sem autorização — sem refresh, refresh que rejeitou, ou repetição que voltou 401.
 - `retry: true` liga a retentativa dentro do cliente: só método idempotente, só falha de rede/`408`/`425`/`429`/`5xx`. Escrita nunca repete sozinha.
 - `logger` é opt-in e o client não escreve em console sem ele: uma linha por tentativa (`debug` abaixo de 400, `warn` de 400 pra cima) com `requestId`, `status` e `ms`, nunca body/header/query.
-- `parseResponse(schema, raw, context)` valida o payload com zod e aponta o campo divergente em um build de desenvolvimento; em qualquer outro build, só a frase genérica.
+- `parseResponse(schema, raw, context)` valida o payload com zod e aponta o campo divergente em um build de desenvolvimento; em qualquer outro build, só a frase genérica. Em app **Vite**, chame `setDevBuild(import.meta.env.DEV)` uma vez no bootstrap — sem isso o SDK não tem como saber, e o relatório fica mudo.
 - `uploadWithProgress` usa XHR pra reportar progresso byte a byte; para arquivo grande, `createResumableUpload` divide em chunks e retoma — veja [Upload resumível](./resumable-upload.md).
 - `retry` (backoff exponencial + `shouldRetry`) e `usePoll` (intervalo com guarda de overlap) cobrem operações instáveis e acompanhamento de jobs.
 - `generateIdempotencyKey` — gere uma vez por operação, reutilize nos retries.
@@ -26352,6 +26415,8 @@ Pronto. Tudo o que está abaixo já está disponível na sua aplicação.
 - [Radius](#radius)
 - [Elevação (shadow)](#elevacao-shadow)
 - [Motion](#motion)
+- [A superfície do documento](#a-superficie-do-documento)
+- [`color-scheme` — as superfícies que o browser pinta](#color-scheme-as-superficies-que-o-browser-pinta)
 - [Focus ring](#focus-ring)
 - [Z-index](#z-index)
 - [Densidade — `data-tempest-density`](#densidade-data-tempest-density)
@@ -26441,6 +26506,8 @@ Aliases:
 
 - `--tempest-danger-on-solid` · `--tempest-info-on-solid` = `#ffffff` no claro, `#1f0606` no escuro
 - `--tempest-success-on-solid` · `--tempest-warning-on-solid` = `#1f0606` nos **dois** temas
+- `--tempest-neutral-on-solid` = `#ffffff` nos **dois** temas (o preenchimento
+  neutro é `--tempest-gray-700`, e o ramp cinza não inverte)
 
 !!! danger "`#ffffff` sobre preenchimento de status não é seguro, e nunca foi"
     Medido contra os preenchimentos do **tema claro**, o default: branco sobre
@@ -26752,6 +26819,108 @@ Shadows são automaticamente mais escuros no tema dark.
 `@media (prefers-reduced-motion: reduce)` zera todas as durações de tokens automaticamente. Componentes que usam keyframes pesados (modal, drawer, toast, tooltip, skeleton) também detectam e desabilitam animações específicas.
 
 ---
+
+## A superfície do documento
+
+Antes de qualquer componente, `styles.css` reivindica o `body`:
+
+```css
+:where(html, body, #root) {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    background-color: var(--tempest-bg);
+    color: var(--tempest-text);
+}
+```
+
+São três promessas, e vale saber qual é qual.
+
+**A margem.** O user-agent dá 8px de `margin` ao `body`. Isso não é cosmético ao
+lado do `AppShell`, que é `min-height: 100dvh`: o documento passa a medir
+`100dvh + 16px`, então uma página que **cabe** na viewport nasce com barra de
+rolagem vertical.
+
+**A pintura.** O `ThemeProvider` escreve `data-tempest-theme` no `<html>` e os
+tokens moram no `:root`, mas isso sozinho não pinta nada — só declara. Sem a
+regra acima, a área atrás do shell fica branca no tema escuro, emoldurando o
+conteúdo nos quatro lados, e qualquer elemento sem fundo próprio resolve até um
+`body` branco.
+
+**A cadeia de altura.** `height: 100%` é uma porcentagem, e porcentagem precisa
+de um pai com altura resolvida. Sem os três elos, um shell de altura percentual
+colapsa no conteúdo em vez de preencher a viewport.
+
+!!! tip "Especificidade zero na cadeia de altura"
+    `#root` é markup que esta folha **não** desenha — o id é uma convenção sua,
+    não do SDK. Por isso a cadeia vai dentro de `:where()`, que não soma
+    especificidade: qualquer regra sua ganha desta sem `!important`.
+
+    ```css
+    #root { height: auto; }
+    ```
+
+!!! note "Trocar o fundo é uma declaração"
+    `body` é seletor de especificidade 0-0-1. Um app que queira outro fundo —
+    uma imagem, um gradiente, a cor de uma marca — sobrescreve normalmente:
+
+    ```css
+    body { background: linear-gradient(180deg, #0b0d12, #14171f); }
+    ```
+
+!!! info "O que o reset **não** decide"
+    A família tipográfica do documento. O SDK declara `--tempest-font-sans`, mas
+    não a aplica no `body`: qual fonte a página inteira renderiza é escolha do
+    app, e um SDK que a impusesse capava quem ships uma fonte própria.
+
+    ```css
+    body { font-family: var(--tempest-font-sans); }
+    ```
+
+## `color-scheme` — as superfícies que o browser pinta
+
+Token não alcança tudo. O popup do `<select>`, a barra de rolagem, o preenchimento
+de autofill, o date picker, o spinner do `input[type=number]` e o canvas default
+são desenhados pelo **user-agent**, a partir de uma propriedade só:
+
+```css
+:root {
+    color-scheme: light;
+}
+
+[data-tempest-theme="dark"] {
+    color-scheme: dark;
+}
+```
+
+O SDK ships as duas. Você não precisa fazer nada — mas precisa saber que existem,
+porque é o que explica por que um `<input>` **sem estilo nenhum** dentro do seu
+app já nasce escuro no tema escuro.
+
+!!! danger "Ler `prefers-color-scheme` não é declarar `color-scheme`"
+    São coisas diferentes com nomes parecidos, e confundi-las custou 58 releases.
+    O `ThemeProvider` sempre **leu** a media query para resolver o modo
+    `"system"`. Declarar a propriedade é o que diz ao browser de qual paleta
+    pintar o que ele mesmo desenha.
+
+    Medido em Chromium com `data-tempest-theme="dark"` ligado e a propriedade
+    ausente: `getComputedStyle(document.documentElement).colorScheme` devolvia
+    `"normal"`, um `<select>` sem classe pintava `#efefef` e um `<input>` sem
+    classe pintava `#ffffff`, os dois com o texto `#f1f3f8` do tema escuro por
+    cima — **1,03:1** e **1,11:1**.
+
+!!! tip "Escopo parcial funciona"
+    A declaração vai no seletor de atributo, não numa media query, então uma
+    subárvore escura dentro de uma página clara ganha controle nativo escuro
+    junto:
+
+    ```html
+    <aside data-tempest-theme="dark">
+        <select><!-- popup escuro --></select>
+    </aside>
+    ```
 
 ## O reset e o seu markup
 

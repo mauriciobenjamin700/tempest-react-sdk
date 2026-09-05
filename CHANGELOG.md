@@ -6,6 +6,44 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`setDevBuild(value)` — o sinal de dev-build que o SDK não tem como ler
+  sozinho num app Vite.** A detecção automática lê `process.env.NODE_ENV`, que
+  webpack, Rspack e Parcel substituem por um literal enquanto compilam o **seu**
+  app. O Vite não substitui nenhuma das duas metades, e num bundle de browser o
+  identificador `process` nem existe: a leitura lança, o `catch` devolve `false`,
+  e todo diagnóstico de desenvolvimento do SDK ficava mudo — **inclusive sob
+  `vite dev`**.
+
+  O mais visível é o relatório de drift do `parseResponse`, que aponta o campo
+  divergente e o payload cru: ele foi escrito para o build de desenvolvimento e
+  nunca rodou nele num app Vite. Uma linha no bootstrap liga:
+
+  ```ts
+  import { setDevBuild } from "tempest-react-sdk";
+
+  setDevBuild(import.meta.env.DEV);
+  ```
+
+  A mesma linha alcança os outros quatro usos internos — aviso de `<Icon>` com
+  `name` e `slug` juntos, falha de shard de ícone, `QueryClient` estrangeiro e o
+  frame JSON.
+
+  O SDK **não** pode ler `import.meta.env.DEV` no lugar do app: o Vite
+  substituiria a expressão ao compilar **este pacote**, e o artefato publicado
+  carregaria a constante. Só o app é compilado no instante em que a resposta é
+  conhecível.
+
+  A leitura automática continua escrita exatamente como estava — member
+  expression crua, dentro do `try` —, e o valor configurado entra **na frente**
+  dela, não no lugar. Trocar por `globalThis.process?.env?.NODE_ENV` mataria a
+  substituição do webpack, que é o único ambiente que acerta hoje.
+
+  Default segue `false`: o relatório embute `JSON.stringify(raw)`, então chutar
+  para o outro lado vazaria payload numa string de erro de produção.
+  `setDevBuild(undefined)` volta à detecção automática.
+
+  Closes #301.
+
 - **A análise de CSS passa a reportar `var()` com fallback quando a família do
   token existe.** A regra documentada era "`var()` com fallback nunca é
   reportado", e a razão dela é boa — foi ela que derrubou 43 falsos positivos

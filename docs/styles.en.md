@@ -503,6 +503,8 @@ collapses onto its content instead of filling the viewport.
 
     ```css
     body { font-family: var(--tempest-font-sans); }
+    ```
+
 ## `color-scheme` — the surfaces the browser paints
 
 Tokens do not reach everything. The `<select>` dropdown popup, the scrollbar, the

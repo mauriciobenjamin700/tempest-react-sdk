@@ -499,6 +499,8 @@ colapsa no conteúdo em vez de preencher a viewport.
 
     ```css
     body { font-family: var(--tempest-font-sans); }
+    ```
+
 ## `color-scheme` — as superfícies que o browser pinta
 
 Token não alcança tudo. O popup do `<select>`, a barra de rolagem, o preenchimento

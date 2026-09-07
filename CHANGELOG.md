@@ -4,6 +4,64 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`schema` em `createEventStream`, `useEventStream`, `createWebSocket` e `useWebSocket`
+  ([#316](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/316)).** O tipo
+  genérico (`useEventStream<Notificacao>`) é uma promessa sobre o servidor que o TypeScript
+  não tem como cumprir — ele apaga em runtime. Medido no `alofans-frontend`: o backend
+  entregou um frame de heartbeat **vazio**, `JSON.parse("")` lançou, e sem `onParseError` o
+  `decodeFrame` entregou a string crua anunciada como o tipo do app — que gravou
+  `message: undefined` no IndexedDB e renderizou notificação vazia, sem um erro no caminho.
+  Havia um schema zod escrito para aquele frame, usado **só** para derivar o tipo. O mesmo
+  padrão na `servus-frontend`: sete handlers com `data as SSENewCandidate`, nenhuma
+  validação em runtime.
+
+  Agora validar é o caminho pronto, no lugar onde o `JSON.parse` já mora:
+
+  ```tsx
+  useEventStream<Notificacao>(url, {
+    schema: notificacaoSchema,
+    onValidationError: (issues, raw) => logger.warn("drift", { issues }),
+    onMessage: ({ data }) => salvar(data),
+  });
+  ```
+
+  - **Sem `schema`, nada muda** — fallback histórico e aviso único inclusive.
+  - Frame que não casa **não é entregue**, a mesma regra que `onParseError` já segue, e
+    `onValidationError` recebe `issues` (`path` pontilhado + `message`) e o texto cru. Sem
+    `onValidationError`, um build de desenvolvimento avisa **uma vez** por transporte — um
+    frame descartado em silêncio é a forma mais difícil de falha de notar.
+  - O valor entregue é a **saída** do schema, então `z.coerce`, `.default()` e
+    `.transform()` valem. `parser` decodifica primeiro e o `schema` valida o que ele
+    devolveu.
+  - Aceita [Standard Schema](https://standardschema.dev) (`~standard`: zod >= 3.24,
+    valibot, arktype) **ou** `.safeParse`, que cobre o zod 3.23 do piso do range. Nenhuma
+    dessas libs entra como dependência — a validação é chamada pela interface. Novos tipos
+    exportados: `SchemaLike`, `SchemaIssue`, `StandardSchemaLike`, `SafeParseSchemaLike`.
+  - Schema assíncrono é **reportado**, não aguardado: o frame é decodificado dentro do
+    handler de `message` e entregue de lá, então `await` entregaria os frames na ordem em
+    que as validações resolvessem.
+
+### Alterado
+
+- **Tetos do `size-limit` do barrel inteiro: ESM 127 → 127,5 KB, CJS 151,5 → 152,5 KB.**
+  Medido antes e depois da validação de frame: ESM **126,29 → 126,82 KB** (+530 B), CJS
+  **151,2 → 151,6 KB** (+400 B) brotli. São os dois tetos de "ninguém importa isto" — a
+  fatia que o consumidor paga de verdade não mudou, porque o gate de `schema` só entra no
+  grafo de quem passa a opção. Os bytes compram a validação e o `pong` que sobrevive a ela.
+
+### Corrigido
+
+- **O `pong` do heartbeat não podia depender do schema do app, e dependia.** Ao ligar
+  `schema` no `createWebSocket`, o ping do servidor (`{"type":"ping"}`) não casa com o
+  schema de payload de app nenhum — então ele seria descartado antes do `respondToPing`, e
+  o `tempest-fastapi-sdk` fecha o socket com `4408` uma vez por `WS_HEARTBEAT_TIMEOUT`.
+  O defeito não estava na issue: apareceu ao ligar as duas opções juntas. A resposta agora
+  é decidida do **texto** do frame quando ele não foi entregue (com um teste de substring
+  na frente, para o frame comum seguir com um scan só), porque o heartbeat é contrato do
+  transporte com o servidor, não do app com o payload dele.
+
 ## [0.61.0] — 2026-09-07
 
 ### Corrigido

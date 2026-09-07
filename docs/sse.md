@@ -149,9 +149,81 @@ no console.
     ele acontece.
 
 !!! tip "`parser` continua mandando"
-    Passar `parser` desliga tudo isso: o resultado dele é sempre entregue, porque
+    Passar `parser` desliga tudo isso: o resultado dele é entregue, porque
     decodificar texto, binário em base64 ou um protocolo próprio é justamente o
-    propósito da opção. `onParseError` só entra em cena quando não há `parser`.
+    propósito da opção. `onParseError` só entra em cena quando não há `parser`. A
+    única coisa que ainda olha o resultado do `parser` é o
+    [`schema`](#validar-o-frame-com-schema), quando você passa os dois.
+
+## Validar o frame com `schema`
+
+O tipo genérico (`createEventStream<Evento>`) é uma **promessa sobre o servidor
+que o TypeScript não tem como cumprir**: ele apaga em runtime. Um frame sem o
+campo `message` chega em `onMessage` anunciado como `Evento`, com
+`message: undefined`, e o app grava isso no IndexedDB e renderiza uma
+notificação vazia — sem nenhum erro no caminho.
+
+Passe `schema` e validar deixa de ser trabalho do app:
+
+```tsx
+import { useEventStream } from "tempest-react-sdk";
+import { z } from "zod";
+
+const notificacaoSchema = z.object({
+    id: z.string(),
+    message: z.string(),
+});
+
+type Notificacao = z.infer<typeof notificacaoSchema>;
+
+export function Notificacoes() {
+    const { status } = useEventStream<Notificacao>("https://api.exemplo.com/notificacoes/stream", {
+        namedEvents: ["notification"],
+        schema: notificacaoSchema,
+        onValidationError: (issues, raw) => {
+            console.warn("frame fora do contrato, descartado:", issues, raw.slice(0, 120));
+        },
+        onMessage: ({ data }) => {
+            console.log(data.message);
+        },
+    });
+
+    return <p>Stream: {status}</p>;
+}
+```
+
+O que a opção garante:
+
+- **sem `schema`, nada muda** — o caminho de hoje continua igual, fallback e aviso inclusive;
+- **o frame que não casa não é entregue**, a mesma regra que o `onParseError` já segue, e `onValidationError` recebe os `issues` (`path` pontilhado + `message`) mais o texto cru;
+- **o valor entregue é a saída do schema**, então `z.coerce`, `.default()` e `.transform()` valem;
+- **`parser` decodifica primeiro**, e o `schema` valida o que ele devolveu;
+- **frame vazio é frame inválido**: `JSON.parse("")` lança, e com `schema` o texto cru vai para o schema, que o recusa — em vez de chegar como string vazia anunciada como o seu tipo.
+
+!!! tip "zod, valibot, arktype — e o SDK não depende de nenhum"
+    O `schema` aceita qualquer coisa com [Standard Schema](https://standardschema.dev)
+    (`~standard`, que zod >= 3.24, valibot e arktype implementam) ou com
+    `.safeParse` — a assinatura que todo usuário de zod já conhece, e que cobre
+    o zod 3.23 anterior ao `~standard`. Nenhuma dessas libs entra como
+    dependência: a validação é chamada pela interface.
+
+!!! warning "A validação tem de ser síncrona"
+    O frame é decodificado dentro do handler de `message` e entregue de lá, então
+    não há onde `await`: um schema assíncrono entregaria os frames na ordem em que
+    as validações resolvessem. Esse caso é **reportado** em `onValidationError`,
+    não aguardado. Use `z.object(...)`, não `.refine(async ...)`.
+
+!!! info "Declare o schema fora do componente"
+    O `schema` é lido quando o stream abre. Um schema construído inline é um objeto
+    novo a cada render — declare no módulo (ou memoize), e o que vale é o que existia
+    na última abertura.
+
+!!! check "Sinal que não depende do bundler"
+    O aviso único de `onParseError` passa por `isDevBuild()`, que lê
+    `process.env.NODE_ENV` — ou seja, depende de o bundler do app substituir essa
+    expressão. O `onValidationError` é do app: ele dispara em qualquer build, e é
+    dele que sai a métrica de "o backend mudou o contrato" sem depender de
+    console de desenvolvimento.
 
 ## Status
 
@@ -168,6 +240,7 @@ no console.
 - `createEventStream(url, options)` abre um SSE com reconnect exponencial; o controller expõe `close`, `reconnect` e `status`.
 - `useEventStream(url, options)` é o wrapper React: amarra o ciclo de vida ao componente, expõe `status`/`lastMessage`/`reconnect` e respeita `enabled`.
 - Heartbeats (default `["ping"]`) mantêm o socket vivo sem disparar `onMessage`.
+- `schema` valida cada frame antes de entregar: o que não casa não chega em `onMessage`, e `onValidationError` diz por quê.
 - Status `"error"` = esgotou tentativas; ofereça `reconnect()` ao usuário.
 
 ## Veja também

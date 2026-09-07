@@ -51,6 +51,10 @@ export interface UseWebSocketResult<T> {
  * baked into the connection, so changing one reopens it with the new value
  * rather than being silently ignored.
  *
+ * `schema` is read when the socket opens, so declare it outside the component
+ * (or memoize it): a schema built inline is a new object on every render, and
+ * the one in force is whichever existed at the last open.
+ *
  * @param url - Full ws:// or wss:// URL.
  * @param options - Connection configuration and callbacks.
  * @returns Status, last frame, and the `send` / `reconnect` controls.
@@ -97,6 +101,7 @@ export function useWebSocket<T = unknown>(
          */
         const hasParser = optionsRef.current.parser !== undefined;
         const hasParseError = optionsRef.current.onParseError !== undefined;
+        const hasValidationError = optionsRef.current.onValidationError !== undefined;
 
         const controller = createWebSocket<T>(url, {
             protocols: optionsRef.current.protocols,
@@ -116,6 +121,10 @@ export function useWebSocket<T = unknown>(
             parser: hasParser ? (raw) => optionsRef.current.parser?.(raw) as T : undefined,
             onParseError: hasParseError
                 ? (error, raw) => optionsRef.current.onParseError?.(error, raw)
+                : undefined,
+            schema: optionsRef.current.schema,
+            onValidationError: hasValidationError
+                ? (issues, raw) => optionsRef.current.onValidationError?.(issues, raw)
                 : undefined,
             onStatusChange: setStatus,
             onOpen: (event) => optionsRef.current.onOpen?.(event),

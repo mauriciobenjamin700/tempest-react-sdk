@@ -12,11 +12,12 @@ import {
     type WebSocketLostReason,
 } from "./resilience";
 import { decodeFrame } from "../utils/json-frame";
+import type { SchemaIssue, SchemaLike } from "../utils/schema-like";
 
 export type WebSocketStatus = "idle" | "connecting" | "open" | "closing" | "closed" | "error";
 
 export interface WebSocketMessage<T> {
-    /** Parsed payload — JSON-decoded when possible, raw string otherwise. */
+    /** Parsed payload — validated when `schema` is set, JSON-decoded when possible, raw string otherwise. */
     data: T;
     /** The original `MessageEvent`. */
     raw: MessageEvent;
@@ -120,6 +121,37 @@ export interface CreateWebSocketOptions<T> {
      * kept, with a one-time warning in development builds.
      */
     onParseError?: (error: unknown, raw: string) => void;
+    /**
+     * Schema every decoded frame must satisfy, from zod, valibot, arktype or
+     * anything else exposing `~standard` or `.safeParse`.
+     *
+     * Without it nothing changes: the payload reaches `onMessage` announced as
+     * `T` on the strength of the type argument alone, which is a promise about
+     * the server that TypeScript cannot keep. With it, a frame that does not
+     * match is **not** delivered — the same rule `onParseError` already follows —
+     * and `onValidationError` hears why. The value delivered is the schema's
+     * output, so coercions and defaults are honoured.
+     *
+     * When `parser` is also supplied, it decodes first and the schema validates
+     * what it returned.
+     *
+     * A server ping is still answered when the schema drops it: the heartbeat is
+     * the transport's contract with the server, not the app's with its payload,
+     * and a socket that stops sending `pong` is closed with `4408` once per
+     * timeout. The validation itself must be synchronous — a frame is decoded
+     * inside the `message` handler and delivered from it, so an async schema
+     * would deliver frames in whatever order their validations settled; that
+     * case is reported through `onValidationError` instead of awaited.
+     */
+    schema?: SchemaLike<T>;
+    /**
+     * A frame was decoded but the `schema` refused it, so it was dropped.
+     *
+     * The one signal that does not depend on how the app's bundler resolves
+     * `process`: the one-time development warning behind `onParseError` needs
+     * `isDevBuild()` to be able to answer, and this callback is the app's own.
+     */
+    onValidationError?: (issues: SchemaIssue[], raw: string) => void;
     onOpen?: (event: Event) => void;
     onMessage?: (message: WebSocketMessage<T>) => void;
     onClose?: (event: CloseEvent) => void;
@@ -241,6 +273,8 @@ export function createWebSocket<T = unknown>(
         onClose,
         onError,
         onParseError,
+        schema,
+        onValidationError,
         onStatusChange,
         onReconnecting,
         onReconnected,
@@ -275,6 +309,30 @@ export function createWebSocket<T = unknown>(
             data !== null &&
             (data as { type?: unknown }).type === "ping"
         );
+    }
+
+    /**
+     * Whether an undelivered frame was a server ping, read from its raw text.
+     *
+     * The delivered path tests the decoded payload, which is what `parser` was
+     * given the frame to produce. A frame `schema` refused never reaches that
+     * path, and a heartbeat the app's schema does not describe is the normal
+     * case rather than an exotic one — so the reply is decided from the wire
+     * text instead, since the server closes with `4408` when no `pong` arrives.
+     *
+     * The substring test in front keeps the ordinary frame at one scan: only a
+     * frame that mentions `"ping"` at all is worth parsing a second time.
+     *
+     * @param raw - The frame body as text.
+     * @returns Whether a `pong` is owed.
+     */
+    function isServerPingFrame(raw: string): boolean {
+        if (!raw.includes('"ping"')) return false;
+        try {
+            return isServerPing(JSON.parse(raw));
+        } catch {
+            return false;
+        }
     }
 
     /** Send everything buffered while the socket was down, oldest first. */
@@ -489,8 +547,18 @@ export function createWebSocket<T = unknown>(
         ws.onmessage = (event) => {
             armSilence();
             const raw = typeof event.data === "string" ? event.data : "";
-            const decoded = decodeFrame<T>(raw, parser, onParseError, "createWebSocket");
-            if (!decoded.delivered) return;
+            const decoded = decodeFrame<T>(raw, "createWebSocket", {
+                parser,
+                onParseError,
+                schema,
+                onValidationError,
+            });
+            if (!decoded.delivered) {
+                if (respondToPing && ws.readyState === WebSocket.OPEN && isServerPingFrame(raw)) {
+                    ws.send(pongPayload);
+                }
+                return;
+            }
             const data = decoded.data;
             if (respondToPing && isServerPing(data) && ws.readyState === WebSocket.OPEN) {
                 ws.send(pongPayload);

@@ -28,10 +28,26 @@ export interface UseEventStreamResult<T> {
  * tied to the component (and the `url`/`enabled` dependencies); the stream
  * closes on unmount.
  *
+ * Pass `schema` to have every frame validated before it reaches `onMessage`,
+ * instead of trusting the type argument: without it `data` is announced as `T`
+ * on the strength of the generic alone, which is a promise about the server
+ * that TypeScript cannot keep. It is read when the stream opens, so declare it
+ * outside the component rather than building one inline per render.
+ *
  * @example
  * useEventStream<Notification>(`${API}/notifications/stream`, {
  *     enabled: !!user,
  *     withCredentials: true,
+ *     onMessage: ({ data }) => addNotification(data),
+ * });
+ *
+ * @example
+ * // Validated: a frame that does not match never reaches `onMessage`
+ * const notificationSchema = z.object({ id: z.string(), message: z.string() });
+ *
+ * useEventStream<Notification>(`${API}/notifications/stream`, {
+ *     schema: notificationSchema,
+ *     onValidationError: (issues) => logger.warn("stream drift", { issues }),
  *     onMessage: ({ data }) => addNotification(data),
  * });
  */

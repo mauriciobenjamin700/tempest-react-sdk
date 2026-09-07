@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.61.0] — 2026-09-07
+
 ### Corrigido
 
 - **O anel de foco reprovava 3:1 nos dois temas, e nenhum guard media isso.**

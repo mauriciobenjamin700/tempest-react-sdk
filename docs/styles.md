@@ -44,6 +44,8 @@ Pronto. Tudo o que está abaixo já está disponível na sua aplicação.
 - [Densidade — `data-tempest-density`](#densidade-data-tempest-density)
 - [Tema dark — `data-tempest-theme`](#tema-dark-data-tempest-theme)
 - [Componentes — variants disponíveis](#componentes-variants-disponiveis)
+- [Quando o app já tem o próprio layout](#quando-o-app-ja-tem-o-proprio-layout)
+- [O plugin — `tempestStyles()`](#o-plugin-tempeststyles)
 - [Camada utilitária opt-in — `utilities.css`](#camada-utilitaria-opt-in-utilitiescss)
 
 ---
@@ -70,10 +72,13 @@ Medido num app Vite real, os mesmos doze componentes montados dos dois jeitos:
 | `core.css` + 7 grupos | 155,43 kB | 23,38 kB |
 | `core.css` + 12 componentes | **38,94 kB** | **7,70 kB** |
 
-!!! danger "`core.css` não é opcional"
-    Ele carrega reset, tokens, tipografia, motion, densidade, responsividade e
-    impressão — **nenhuma** folha de componente repete isso. Importar
-    `Button.css` sem `core.css` dá um botão sem cor, sem espaçamento e sem fonte.
+!!! danger "Nenhuma folha de componente traz a fundação"
+    Reset, tokens, tipografia, motion, densidade, responsividade e impressão vivem
+    na fundação — **nenhuma** folha de componente repete isso. Importar
+    `Button.css` sozinho dá um botão sem cor, sem espaçamento e sem fonte.
+
+    Qual fundação importar depende de quem manda no documento: veja
+    [Quando o app já tem o próprio layout](#quando-o-app-ja-tem-o-proprio-layout).
 
 ### Três granularidades
 
@@ -98,6 +103,117 @@ componente — `styles/DataTable.css`, `styles/Slider.css`.
     Cada classe é hasheada por módulo CSS (`tempest_[local]_[hash]`), e cada
     `dist/**/*.module.js` carrega o caminho de origem junto dos nomes que aquele
     módulo declara — atribuir uma regra a um componente é consulta, não palpite.
+
+## Quando o app já tem o próprio layout
+
+`core.css` é fundação **e** reset global ao mesmo tempo, e o reset reivindica o
+documento inteiro:
+
+```css
+*, ::before, ::after { box-sizing: border-box }
+:where(html, body, #root) { height: 100% }
+body { margin: 0; background: var(--tempest-bg); color: var(--tempest-text) }
+button { background: none; border: 0; padding: 0 }
+:where(ul, ol)[class] { list-style: none; margin: 0; padding: 0 }
+```
+
+Num app que o SDK monta inteiro isso é o que você quer. Num app que já tem o
+próprio layout, é o SDK tomando a superfície do documento — o botão do app perde
+borda e fundo, a lista perde marcador, o `body` perde a cor.
+
+A saída óbvia — remover o import — é pior, e por um motivo que não aparece à
+primeira vista: **os componentes são escritos contra o reset.**
+`.tempest_button` conta com `button { background: none; border: 0 }`, toda conta
+de largura conta com `box-sizing: border-box`, os campos contam com
+`font-family: inherit`. Sem o reset o problema não é acabamento: é o box model.
+
+Por isso a fundação vem em três peças, e não uma:
+
+| Entrada | O que traz | Toca o markup do app? |
+| --- | --- | --- |
+| `styles/tokens.css` | os 373 tokens `--tempest-*` + `color-scheme` | **não** — não pinta markup |
+| `styles/scoped.css` | o reset confinado a `:where([class*="tempest_"])` | **não** — só dentro de componente |
+| `styles/base.css` | o reset global (`html`, `body`, `#root`, `button`…) | sim, é o ponto dele |
+| `styles/core.css` | `tokens` + `base`, como sempre foi | sim |
+
+Um app com layout próprio troca `core.css` por duas linhas:
+
+```ts
+import "tempest-react-sdk/styles/tokens.css";
+import "tempest-react-sdk/styles/scoped.css";
+import "tempest-react-sdk/styles/Button.css";
+```
+
+!!! info "`color-scheme` viaja com os tokens, não com o reset"
+    Ela não é custom property, mas é o que manda o browser pintar **as superfícies
+    dele** — scrollbar, popup de `<select>`, autofill, date picker — no tema ativo.
+    Nenhuma regra `.tempest_*` alcança essas superfícies. Deixá-la no reset global
+    daria as cores do SDK com o chrome do browser ainda em claro.
+
+!!! check "`:where()` é o que mantém isso um republish"
+    Cada seletor de `scoped.css` é o seletor original embrulhado em
+    `:where([class*="tempest_"])`, que contribui **zero** de especificidade. A
+    regra pesa exatamente o que pesava global, então override do seu app que
+    ganhava antes continua ganhando.
+
+## O plugin — `tempestStyles()`
+
+A lista de folhas acima é correta e chata de manter: você a escreve à mão, e ela
+envelhece a cada componente que entra ou sai. Pior, ela erra de um jeito que não
+aparece em review — **um componente paga o CSS de todo componente do SDK que
+renderiza por dentro**. `<DataTable>` sozinho precisa de seis folhas,
+`<AIChat>` de sete. Uma lista de uma folha por componente que o app nomeia está
+errada, e o sintoma é um filho sem estilo lá dentro.
+
+O plugin resolve isso do jeito que uma lista à mão não resolve: lendo os imports
+que o seu source já escreve, e fechando o transitivo pelo grafo de módulos que o
+pacote publica.
+
+```ts
+// vite.config.ts
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import { tempestStyles } from "tempest-react-sdk/vite";
+
+export default defineConfig({
+    plugins: [react(), tempestStyles()],
+});
+```
+
+```ts
+// src/main.tsx — uma linha, para sempre
+import "tempest-react-sdk/styles/auto.css";
+```
+
+Pronto. `auto.css` passa a conter exatamente `tokens.css` + `scoped.css` + as
+folhas dos componentes que o app alcança.
+
+### Opções
+
+```ts
+tempestStyles({
+    dir: "src",            // onde varrer. Default: "src"
+    reset: "scoped",       // "scoped" | "global" | "none". Default: "scoped"
+    include: ["Toast"],    // nomes que a varredura não vê
+});
+```
+
+| `reset` | Emite | Quando |
+| --- | --- | --- |
+| `"scoped"` | `tokens.css` + `scoped.css` | o app tem layout próprio (default) |
+| `"global"` | `core.css` | o SDK monta a página inteira |
+| `"none"` | `tokens.css` | o app já tem um reset equivalente |
+
+!!! tip "Sem o plugin, `auto.css` continua correto"
+    `tempest-react-sdk/styles/auto.css` é um arquivo **real**, que sem o plugin
+    resolve para a folha completa. Tirar o plugin custa bytes, nunca correção —
+    o mesmo desenho do `tempest-react-sdk/icons/virtual`.
+
+!!! warning "Namespace import desliga a varredura"
+    `import * as sdk from "tempest-react-sdk"` resolve `sdk.Button` em runtime,
+    então nenhum conjunto estático de nomes é conhecível. O plugin detecta isso e
+    cai para a folha completa em vez de servir a menos — se você quer o corte,
+    importe nomeado.
     O build **falha** se alguma regra nomear classes de dois módulos, que é o que
     tornaria a divisão um palpite.
 

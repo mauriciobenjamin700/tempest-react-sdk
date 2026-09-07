@@ -744,20 +744,61 @@ The SDK ships the counterweight alongside it:
 ## Focus ring
 
 ```css
---tempest-focus-ring-color: rgba(0, 102, 255, 0.35) --tempest-focus-ring-width: 3px
-  --tempest-focus-ring-offset: 2px;
+--tempest-focus-ring-color: #0052cc;
+--tempest-focus-ring-width: 3px;
+--tempest-focus-ring-offset: 2px;
 ```
 
-A global `:focus-visible` is applied in `reset.css`. Interactive components
-(Button, interactive Card, Tabs, Pagination, etc.) re-apply the ring with tokens.
+A global `:focus-visible` applied in `reset.css` (and, on the scoped path, in
+`scoped.css`). Interactive components — Button, interactive Card, Tabs, Pagination
+— reapply the ring from the same tokens.
 
-To customize the ring per subtree (e.g. a white-label theme):
+The dark theme uses `#60a5fa`. **Neither is the theme's `--tempest-primary`**, and
+that is deliberate: in light they would be the same colour, so the ring around a
+primary Button became the fill's own ink separated by 2px — a halo, not a ring. In
+dark, `#3b82f6` drops to 3.73:1 against `--tempest-surface-3`, and that margin
+disappears the moment the ring lands on an app surface the SDK never measured
+against.
+
+!!! danger "The ring colour has to be opaque"
+    Through 0.60.0 these tokens were semitransparent, and that alone is why they
+    failed: **a tinted ring has no contrast of its own — it has the contrast of
+    whatever is underneath**. Measured, the old value gave **1.60:1** in the light
+    theme and **2.08:1** in dark, against the 3:1 WCAG 2.2 (SC 1.4.11, Non-text
+    Contrast) asks of a non-text indicator.
+
+    If you override the token, override it with an opaque colour and check the
+    number.
+
+To customise per subtree (a white-label theme, say):
 
 ```css
 .my-app {
-  --tempest-focus-ring-color: rgba(124, 58, 237, 0.4);
+    /* opaque, and measured against the surfaces the ring can land on */
+    --tempest-focus-ring-color: #7c3aed;
 }
 ```
+
+!!! warning "`tokens.css` is a prerequisite, not an optional companion"
+    The reset's `var()` does carry a fallback (`currentColor`), but it rescues **your
+    app's markup**, not the SDK's components: they declare the ring with
+    `var(--tempest-focus-ring-color)` and no fallback — 59 such uses — so with the
+    token undefined those declarations are invalid at computed-value time and drop to
+    `outline: none`. Measured in Chromium: `Button` and `Input` lose the ring
+    entirely.
+
+    Load `tokens.css` whenever you load `scoped.css` or `base.css`.
+
+!!! check "What to measure against"
+    The ring is drawn wherever a focusable element is, and a component nests as deep
+    as the app puts it. Measure your colour against **all four** surfaces —
+    `--tempest-bg`, `--tempest-surface`, `--tempest-surface-2`,
+    `--tempest-surface-3` — not against one. Fixing a single background is how a
+    token passes its own test and fails inside a card.
+
+    `src/styles/focus-ring.contrast.test.ts` does precisely that for the SDK's
+    tokens, in both themes, and fails the build below 3:1 — including if the colour
+    goes back to carrying alpha.
 
 ---
 

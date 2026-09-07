@@ -149,9 +149,31 @@ table {
 }
 
 /* Better target for focus-visible across all interactive elements. */
+/*
+ * The fallback is `currentColor`, not a colour.
+ *
+ * A literal has to serve both themes at once, and the window is narrow: to clear
+ * 3:1 against the darkest light surface it must sit below 0.300 relative
+ * luminance, and against the lightest dark surface above 0.112. Every blue on the
+ * ramp measured outside that band — `#0052cc` gives 5.50:1 light and 2.01:1 dark,
+ * `#60a5fa` the reverse. `currentColor` sidesteps the choice: it is the text
+ * colour, which is already contrast-checked against the surface the text sits on,
+ * and it follows the theme for free — 14.32:1 light, 12.37:1 dark.
+ *
+ * The fallback only fires where `colors.css` did not cascade, which is precisely
+ * where no theme is available to pick a literal for.
+ *
+ * It reaches less than it looks, and that is worth knowing rather than assuming:
+ * the SDK's own components declare their ring with `var(--tempest-focus-ring-color)`
+ * and no fallback — 59 such uses — so with the token undefined those declarations
+ * are invalid at computed-value time and drop to `outline: none`. Having already won
+ * the cascade, they are not rescued by this rule. Measured in Chromium: `Button` and
+ * `Input` both lose the ring entirely, while bare app markup keeps it. `tokens.css`
+ * is a prerequisite of this sheet, not an optional companion.
+ */
 :focus-visible {
     outline: var(--tempest-focus-ring-width, 3px) solid
-        var(--tempest-focus-ring-color, rgba(0, 102, 255, 0.35));
+        var(--tempest-focus-ring-color, currentColor);
     outline-offset: var(--tempest-focus-ring-offset, 2px);
 }
 

@@ -49,7 +49,7 @@
     outline: none;
     border-color: var(--tempest-primary);
     box-shadow: 0 0 0 var(--tempest-focus-ring-width, 2px)
-        var(--tempest-focus-ring-color, var(--tempest-primary-100));
+        var(--tempest-focus-ring-color, var(--tempest-primary));
 }
 
 .cell:disabled {

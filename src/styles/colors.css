@@ -125,8 +125,24 @@
 
     /* ============================================================
      * Focus ring
+     *
+     * Opaque, not tinted. A semitransparent ring has no contrast of its own —
+     * it has the contrast of whatever it composites over — so the same token
+     * measured 1.60:1 on `--tempest-surface-3` and 1.69:1 on `--tempest-bg`,
+     * against the 3:1 that WCAG 2.2 SC 1.4.11 asks of a non-text indicator.
+     * Both failed, and nothing caught it: the contrast guards cover text pairs,
+     * and `axe` in jsdom turns `color-contrast` off because there is no paint.
+     *
+     * `primary-600` rather than `primary-500`, for a second reason the ratio alone
+     * does not show: `--tempest-primary` *is* `#0066ff`, so a ring in that colour
+     * around a primary Button is the same ink as the fill, separated by 2px of
+     * surface — a halo, not a ring. Measured, `#0052cc` also lifts the worst surface
+     * case from 3.90:1 to 5.50:1.
+     *
+     * `src/styles/focus-ring.contrast.test.ts` now measures this token against
+     * every surface it can land on, in both themes.
      * ============================================================ */
-    --tempest-focus-ring-color: rgba(0, 102, 255, 0.35);
+    --tempest-focus-ring-color: #0052cc;
     --tempest-focus-ring-width: 3px;
     --tempest-focus-ring-offset: 2px;
 
@@ -409,7 +425,14 @@
     --tempest-info-solid: #3b82f6;
     --tempest-info: #60a5fa;
 
-    --tempest-focus-ring-color: rgba(96, 165, 250, 0.45);
+    /*
+     * `primary-600` rather than the `primary-500` the light theme uses: on dark
+     * surfaces the same step loses too much. Measured worst case across the four
+     * surfaces, `#3b82f6` gives 3.73:1 and `#60a5fa` 5.40:1 — and the margin
+     * matters, because a ring travels onto app surfaces the SDK never validated
+     * against.
+     */
+    --tempest-focus-ring-color: #60a5fa;
 
     --tempest-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
     --tempest-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.2);

@@ -738,19 +738,58 @@ O SDK ships o contrapeso junto:
 ## Focus ring
 
 ```css
---tempest-focus-ring-color: rgba(0, 102, 255, 0.35) --tempest-focus-ring-width: 3px
-  --tempest-focus-ring-offset: 2px;
+--tempest-focus-ring-color: #0052cc;
+--tempest-focus-ring-width: 3px;
+--tempest-focus-ring-offset: 2px;
 ```
 
-`:focus-visible` global aplicado em `reset.css`. Componentes interactive (Button, Card interactive, Tabs, Pagination, etc.) reaplicam o ring com tokens.
+`:focus-visible` global aplicado em `reset.css` (e, no caminho escopado, em
+`scoped.css`). Componentes interativos — Button, Card interactive, Tabs,
+Pagination — reaplicam o anel com os mesmos tokens.
 
-Para customizar o ring por subárvore (ex: tema marca branca):
+No tema dark a cor é `#60a5fa`. **Nenhum dos dois é o `--tempest-primary` do tema**,
+e não por acaso: no claro eles seriam a mesma cor, e o anel de um Button primary
+viraria a tinta do próprio preenchimento separada por 2px — halo, não anel. No dark,
+`#3b82f6` cai para 3,73:1 contra `--tempest-surface-3`, e a margem some assim que o
+anel encosta numa superfície de app que o SDK nunca aferiu.
+
+!!! danger "A cor do anel precisa ser opaca"
+    Até a 0.60.0 estes tokens eram semitransparentes, e essa é a única razão pela
+    qual reprovavam: **um anel tinto não tem contraste próprio — ele tem o contraste
+    do que estiver embaixo**. Medido, o valor antigo dava **1,60:1** no tema claro e
+    **2,08:1** no dark, contra os 3:1 que a WCAG 2.2 (SC 1.4.11, Non-text Contrast)
+    exige de indicador não-textual.
+
+    Se você sobrescrever o token, sobrescreva com cor opaca e confira o número.
+
+Para customizar por subárvore (tema marca branca, por exemplo):
 
 ```css
 .my-app {
-  --tempest-focus-ring-color: rgba(124, 58, 237, 0.4);
+    /* opaco, e aferido contra as superfícies em que o anel pode cair */
+    --tempest-focus-ring-color: #7c3aed;
 }
 ```
+
+!!! warning "`tokens.css` é pré-requisito, não companhia opcional"
+    O `var()` do reset tem fallback (`currentColor`), mas ele socorre **o markup do
+    seu app**, não os componentes do SDK: eles declaram o anel com
+    `var(--tempest-focus-ring-color)` sem fallback — 59 usos —, e com o token
+    indefinido essas declarações são inválidas em computed-value time e caem para
+    `outline: none`. Medido em Chromium: `Button` e `Input` perdem o anel inteiro.
+
+    Carregue `tokens.css` sempre que carregar `scoped.css` ou `base.css`.
+
+!!! check "Contra o que medir"
+    O anel aparece onde houver elemento focável, e um componente aninha tão fundo
+    quanto o app o colocar. Meça a sua cor contra **as quatro** superfícies —
+    `--tempest-bg`, `--tempest-surface`, `--tempest-surface-2`,
+    `--tempest-surface-3` — e não contra uma. Fixar um fundo é como um token passa
+    no próprio teste e falha dentro de um card.
+
+    `src/styles/focus-ring.contrast.test.ts` faz exatamente isso com os tokens do
+    SDK, nos dois temas, e falha o build abaixo de 3:1 — inclusive se a cor voltar
+    a ter alfa.
 
 ---
 

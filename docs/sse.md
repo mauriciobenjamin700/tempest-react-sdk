@@ -218,12 +218,12 @@ O que a opção garante:
     novo a cada render — declare no módulo (ou memoize), e o que vale é o que existia
     na última abertura.
 
-!!! check "Sinal que não depende do bundler"
-    O aviso único de `onParseError` passa por `isDevBuild()`, que lê
-    `process.env.NODE_ENV` — ou seja, depende de o bundler do app substituir essa
-    expressão. O `onValidationError` é do app: ele dispara em qualquer build, e é
-    dele que sai a métrica de "o backend mudou o contrato" sem depender de
-    console de desenvolvimento.
+!!! check "Sinal que existe em produção, não só em dev"
+    O aviso único é dev-only (passa por `isDevBuild()`, que responde certo sozinho
+    em Vite, webpack, Rspack e Parcel — medido) e mora no console de quem estiver
+    com o DevTools aberto. O `onValidationError` é do app: dispara em **qualquer**
+    build, e é dele que sai a métrica de "o backend mudou o contrato" — a que
+    chega no seu logger em produção, onde ninguém está olhando console.
 
 ## Status
 

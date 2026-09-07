@@ -219,12 +219,13 @@ What the option guarantees:
     on every render — declare it at module level (or memoize it), and the one in
     force is whichever existed at the last open.
 
-!!! check "A signal that does not depend on the bundler"
-    The one-time warning behind `onParseError` goes through `isDevBuild()`, which
-    reads `process.env.NODE_ENV` — so it depends on the app's bundler substituting
-    that expression. `onValidationError` is the app's own: it fires in every build,
-    and it is where a "the backend changed the contract" metric comes from without
-    relying on a development console.
+!!! check "A signal that exists in production, not only in dev"
+    The one-time warning is dev-only (it goes through `isDevBuild()`, which answers
+    correctly on its own under Vite, webpack, Rspack and Parcel — measured) and it
+    lives in the console of whoever has DevTools open. `onValidationError` is the
+    app's own: it fires in **every** build, and it is where a "the backend changed
+    the contract" metric comes from — the one that reaches your logger in
+    production, where nobody is watching a console.
 
 ## Status
 

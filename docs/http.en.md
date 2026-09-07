@@ -314,23 +314,53 @@ const user = parseResponse(userSchema, raw, "GET /users/me");
 !!! tip "The 3rd argument is the context"
     Always pass a label like `"GET /users/me"`. It shows up in the dev error message and makes it trivial to pinpoint which endpoint broke the contract.
 
-!!! danger "In a **Vite** app the report only turns on if you say so"
-    The SDK detects the build by reading `process.env.NODE_ENV`. Webpack, Rspack and Parcel replace that expression with a literal while building **your** app, so it works on its own there. Vite replaces **neither half**, and in a browser bundle the identifier `process` does not even exist: the read throws, the SDK answers `false`, and the report is unreachable — `vite dev` included.
+!!! check "In a Vite app the report turns itself on — measured"
+    This page claimed the opposite until 2026-09-07: that Vite substitutes
+    **neither half** of `process.env.NODE_ENV`, leaving the report unreachable
+    under `vite dev` without `setDevBuild`. Measured in a probe app with the SDK
+    installed both ways (a packed tarball, which Vite pre-bundles, and a `file:`
+    link, which it does not), reading back the module the dev server actually
+    **served**:
 
-    One line at bootstrap fixes it:
+    | Vite | `vite dev` | `vite build` |
+    | --- | --- | --- |
+    | 5.4.21, 6.4.3, 7.3.6 | became `true` | became `false` |
+    | 8.2.2 | `"development" !== "production"` | became `false` |
+
+    So the SDK's `isDevBuild()` answers correctly in Vite on its own, in
+    development and in production. The wrong belief survived releases because the
+    expression is **not** substituted in a browser console — which is exactly
+    where it is natural to go and check.
+
+!!! warning "Where `setDevBuild` is still needed"
+    In what no bundler compiles, and in what nobody configures:
+
+    - code no bundler transformed — a service worker registered as a file of its
+      own, a plain `<script type="module">`. There the read really does throw
+      (`process` does not exist at runtime) and the SDK answers `false`;
+    - a staging or QA build that **forgets** to set `NODE_ENV=production`: the
+      automatic detection answers `true` and `parseResponse` embeds
+      `JSON.stringify(raw)` in a message a real user sees. `setDevBuild(false)`
+      closes that;
+    - a test that wants the other branch, and restores it with
+      `setDevBuild(undefined)` on the way out.
 
     ```ts
     import { setDevBuild } from "tempest-react-sdk";
 
-    setDevBuild(import.meta.env.DEV);
+    setDevBuild(false); // staging talking to real data
     ```
 
-    This covers **every** development-only diagnostic in the SDK, not just `parseResponse`: the icon warning for passing `name` and `slug` together, a shard failure, a foreign `QueryClient` and the JSON frame were all silent under Vite too.
-
 !!! note "Why the SDK does not read `import.meta.env.DEV` itself"
-    Because Vite would replace that expression while building **the package**, and the published artifact would carry the constant `false` forever — every guard behind it becoming dead code your app's dev server can no longer switch on. Only your app is compiled at the moment the answer is knowable, so only it can supply it. That is why the signal is a parameter rather than smarter detection.
+    Because Vite would substitute that expression while compiling **the
+    package**, and the published artifact would carry the constant forever —
+    every guard behind it becoming dead code no app could switch back on. That is
+    why the override is a parameter rather than a cleverer detection.
 
-    The default is `false` on purpose: the report embeds `JSON.stringify(raw)`, the whole response body. Guessing the other way would leak a payload into a production error string — silence is the safe default.
+    The default when the read throws is `false` on purpose: the report embeds
+    `JSON.stringify(raw)`, the whole response body. Guessing `true` in a context
+    that cannot prove it would leak a payload into a production error string —
+    silence is the safe default.
 
 !!! warning "The automatic detection compares against `production`, not `development`"
     The check is `NODE_ENV !== "production"`, not a list of known dev names. A staging or QA build that forgets to set `NODE_ENV=production` lands on the development side — and the error message then carries `JSON.stringify(raw)`, the whole response body. If that build talks to real data, set `NODE_ENV=production` on it.

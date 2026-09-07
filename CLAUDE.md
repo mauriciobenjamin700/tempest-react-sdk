@@ -331,12 +331,22 @@ npm run dev               # http://127.0.0.1:5173
 
 ## Lições aprendidas
 
-- **Uma frase da doc pode ser o bug.** `docs/http.md` afirmava que o Vite
-  substitui `process.env.NODE_ENV` "como Vite, webpack, Rspack e Parcel". Não
-  substitui, e era essa crença que deixava todo diagnóstico de dev do SDK mudo em
-  app Vite — por releases. Quando a doc explica **por que** um mecanismo funciona,
-  essa explicação é uma afirmação testável, não prosa; a #301 saiu de alguém
-  conferindo o `dist/` contra a frase.
+- **Uma frase da doc pode ser o bug — e a correção dela também.** `docs/http.md`
+  afirmava que o Vite substitui `process.env.NODE_ENV` "como Vite, webpack, Rspack e
+  Parcel". A #301 trocou por "o Vite **não** substitui, e por isso todo diagnóstico
+  de dev do SDK ficava mudo em app Vite". **Medido em 07/09/2026, a #301 estava
+  errada:** num app de sondagem com o SDK instalado como tarball (pré-bundlado) e
+  como link `file:` (não pré-bundlado), lendo de volta o módulo que o dev server
+  serviu, o `isDevBuild()` virou `true` em `vite dev` e `false` em `vite build` no
+  **Vite 5.4.21, 6.4.3, 7.3.6 e 8.2.2**. A crença errada sobreviveu porque a
+  expressão **não** é substituída no console do browser — que é onde é natural ir
+  conferir, e onde ela nunca passou pelo transform. Corolário duplo: quando a doc
+  explica **por que** um mecanismo funciona, essa explicação é uma afirmação
+  testável; e "conferir no console" não é conferir código que o bundler
+  transformou — leia o módulo **servido** (`curl` no path do dev server) ou o
+  `.vite/deps`. O `setDevBuild` continua existindo para o que ninguém compila
+  (service worker cru, `<script type="module">`) e para desligar em staging que
+  esquece `NODE_ENV=production`.
 
 - **Mock do gate esconde que o gate é inalcançável.** `parse-response.test.ts`
   mocka `isDevBuild` para dirigir os dois ramos — correto para testar o ramo, e é

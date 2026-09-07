@@ -42,9 +42,7 @@ describe("setDevBuild", () => {
         setDevBuild(undefined);
     });
 
-    it("answers for the environment the SDK cannot read", () => {
-        // A Vite bundle: no `process` at all, so detection returns false even
-        // under `vite dev`. This is the whole reason the setter exists.
+    it("answers for a context no bundler transformed, where detection cannot", () => {
         vi.stubGlobal("process", undefined);
         expect(isDevBuild()).toBe(false);
 
@@ -71,10 +69,7 @@ describe("setDevBuild", () => {
         expect(isDevBuild()).toBe(false);
     });
 
-    it("treats false as an answer, not as absence", () => {
-        // The guard is `!== undefined` rather than a truthiness check: an app
-        // that says `setDevBuild(false)` in production must not fall through to
-        // a NODE_ENV that a test runner set to something else.
+    it("treats false as an answer, not as absence, so a production app is not overruled", () => {
         vi.stubEnv("NODE_ENV", "test");
         expect(isDevBuild()).toBe(true);
 

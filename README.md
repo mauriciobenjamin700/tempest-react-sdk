@@ -654,15 +654,17 @@ export async function getUser(id: string) {
 
 On validation failure `parseResponse` throws an `Error` whose `message` includes the request label and the zod issues — exactly the diagnostic you want during a wire-protocol drift.
 
-**Under Vite that report needs one line to turn on.** The SDK detects a dev build by reading `process.env.NODE_ENV`, which webpack, Rspack and Parcel substitute while building your app; Vite substitutes neither half, and a browser bundle has no `process` at all, so the read fails and the SDK stays on the safe side — the generic sentence, `vite dev` included. Say so once at bootstrap:
+**Under Vite the report turns itself on.** The SDK detects a dev build by reading `process.env.NODE_ENV`, and every supported bundler substitutes that expression while building your app — Vite included, measured on 5.4.21, 6.4.3, 7.3.6 and 8.2.2, in `vite dev` and in `vite build`, with the SDK installed both as a packed tarball and as a `file:` link. (This paragraph said the opposite until 0.62.0; the belief survived because the expression is not substituted in a browser console, which is where it is natural to check.)
+
+`setDevBuild` remains for what nothing compiles or nothing configures — a raw service-worker script, a plain `<script type="module">`, or a staging build that never sets `NODE_ENV=production` and would otherwise embed the raw response body in an error a real user sees:
 
 ```ts
 import { setDevBuild } from "tempest-react-sdk";
 
-setDevBuild(import.meta.env.DEV);
+setDevBuild(false); // staging talking to real data
 ```
 
-The SDK cannot read `import.meta.env.DEV` for you: Vite would replace it while building _this package_ and the published artifact would carry the constant. The same line un-mutes every other development-only diagnostic in the SDK.
+The SDK cannot read `import.meta.env.DEV` for you: Vite would replace it while building _this package_ and the published artifact would carry the constant.
 
 ### Upload with progress recipe
 

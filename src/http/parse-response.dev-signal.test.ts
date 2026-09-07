@@ -7,15 +7,19 @@ import { parseResponse } from "./parse-response";
 /**
  * The end of the chain the sibling suite has to mock away.
  *
- * `parse-response.test.ts` mocks `isDevBuild` so it can drive both branches, and
- * that mock is exactly what hid this defect: the branch was reachable in the
- * test and unreachable in a Vite app, where `process` does not exist so the
- * automatic read throws and answers `false` — `vite dev` included. The drift
- * report was written for that build and never once ran in it.
+ * `parse-response.test.ts` mocks `isDevBuild` so it can drive both branches;
+ * nothing is mocked here, and `process` is stubbed away to reproduce the one
+ * context that really has no substituted literal — code no bundler transformed,
+ * such as a raw service-worker script or a plain `<script type="module">`.
  *
- * Nothing is mocked here. `process` is stubbed away to reproduce a browser
- * bundle, and the assertions are that detection alone stays silent and that
- * `setDevBuild` is what turns the report on.
+ * This suite was written believing that context included a Vite app. It does
+ * not: measured on 2026-09-07, Vite 5 through 8 substitute
+ * `process.env.NODE_ENV` in dev and in build, so `isDevBuild()` answers
+ * correctly there on its own (the table lives in its doc). The assertions below
+ * survive the correction unchanged, because what they actually pin is the
+ * untransformed case: detection alone stays silent, `setDevBuild(true)` turns
+ * the report on, and `setDevBuild(false)` keeps the payload out — the direction
+ * a staging build that never sets `NODE_ENV=production` needs.
  */
 const Schema = z.object({ id: z.number() });
 
@@ -51,9 +55,6 @@ describe("parseResponse under a bundle with no process", () => {
     });
 
     it("keeps the raw payload out of the message when the app says production", () => {
-        // The direction that matters for a leak: an app calling
-        // `setDevBuild(import.meta.env.DEV)` in a production build passes
-        // `false`, and the payload must not reach the error string.
         setDevBuild(false);
         try {
             parseResponse(Schema, { id: "nope", token: "secret" }, "GET /users/me");

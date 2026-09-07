@@ -19597,23 +19597,33 @@ const user = parseResponse(userSchema, raw, "GET /users/me");
 !!! tip "O 3º argumento é o contexto"
     Passe sempre um label como `"GET /users/me"`. Ele aparece na mensagem de erro de dev e torna trivial localizar qual endpoint quebrou o contrato.
 
-!!! danger "Em um app **Vite**, o relatório só liga se você disser"
-    O SDK detecta o build lendo `process.env.NODE_ENV`. Webpack, Rspack e Parcel substituem essa expressão por um literal enquanto compilam o **seu** app, então lá funciona sozinho. O Vite **não substitui nenhuma das duas metades**, e num bundle de browser o identificador `process` nem existe: a leitura lança, o SDK responde `false`, e o relatório fica inalcançável — inclusive sob `vite dev`.
+!!! check "Em app Vite o relatório liga sozinho — medido"
+    Esta página afirmava o contrário até 07/09/2026: que o Vite **não substitui** `process.env.NODE_ENV` e que o relatório ficava inalcançável sob `vite dev` sem o `setDevBuild`. Medido num app de sondagem, com o SDK instalado das duas formas (tarball empacotado, que o Vite pré-bundla; e link `file:`, que ele não pré-bundla), lendo de volta o módulo que o dev server **serviu**:
 
-    Uma linha no bootstrap resolve:
+    | Vite | `vite dev` | `vite build` |
+    | --- | --- | --- |
+    | 5.4.21, 6.4.3, 7.3.6 | virou `true` | virou `false` |
+    | 8.2.2 | `"development" !== "production"` | virou `false` |
+
+    Ou seja: o `isDevBuild()` do SDK responde certo sozinho no Vite, em dev e em produção. A crença errada sobreviveu por releases porque a expressão **não** é substituída no console do browser — que é justamente onde é natural ir conferir.
+
+!!! warning "Onde o `setDevBuild` continua sendo necessário"
+    No que nenhum bundler compila e no que ninguém configura:
+
+    - código que nenhum bundler transformou — service worker registrado como arquivo próprio, `<script type="module">` puro. Ali a leitura lança de verdade (`process` não existe em runtime) e o SDK responde `false`;
+    - build de staging/QA que **esquece** de definir `NODE_ENV=production`: a detecção automática responde `true` e o `parseResponse` embute `JSON.stringify(raw)` numa mensagem que usuário real vê. `setDevBuild(false)` fecha isso;
+    - teste que quer o outro ramo, e devolve com `setDevBuild(undefined)` na saída.
 
     ```ts
     import { setDevBuild } from "tempest-react-sdk";
 
-    setDevBuild(import.meta.env.DEV);
+    setDevBuild(false); // staging que fala com dado real
     ```
 
-    Isso vale para **todo** diagnóstico de desenvolvimento do SDK, não só o `parseResponse`: o aviso de ícone que recebeu `name` e `slug` juntos, a falha de shard, o `QueryClient` estrangeiro e o frame JSON também estavam mudos no Vite.
-
 !!! note "Por que o SDK não lê `import.meta.env.DEV` sozinho"
-    Porque o Vite substituiria essa expressão ao compilar **o pacote**, e o artefato publicado carregaria a constante `false` para sempre — cada guarda atrás dela viraria código morto que o dev server do seu app não consegue mais ligar. Só o seu app é compilado no instante em que a resposta é conhecível, então só ele pode fornecê-la. É por isso que o sinal é um parâmetro, e não uma detecção mais esperta.
+    Porque o Vite substituiria essa expressão ao compilar **o pacote**, e o artefato publicado carregaria a constante para sempre — cada guarda atrás dela viraria código morto que nenhum app consegue religar. É por isso que o override é um parâmetro, e não uma detecção mais esperta.
 
-    O default é `false` de propósito: o relatório embute `JSON.stringify(raw)`, o corpo inteiro da resposta. Chutar para o lado errado vazaria payload numa string de erro de produção — silêncio é o default seguro.
+    O default quando a leitura lança é `false` de propósito: o relatório embute `JSON.stringify(raw)`, o corpo inteiro da resposta. Chutar `true` num contexto que não consegue provar vazaria payload numa string de erro de produção — silêncio é o default seguro.
 
 !!! warning "A detecção automática compara com `production`, não com `development`"
     A checagem é `NODE_ENV !== "production"`, não uma lista de nomes conhecidos de dev. Um build de staging ou de QA que esquece de definir `NODE_ENV=production` cai no lado de desenvolvimento — e aí a mensagem de erro carrega `JSON.stringify(raw)`, o corpo inteiro da resposta. Se esse build fala com dados reais, defina `NODE_ENV=production` nele.
@@ -26220,12 +26230,12 @@ O que a opção garante:
     novo a cada render — declare no módulo (ou memoize), e o que vale é o que existia
     na última abertura.
 
-!!! check "Sinal que não depende do bundler"
-    O aviso único de `onParseError` passa por `isDevBuild()`, que lê
-    `process.env.NODE_ENV` — ou seja, depende de o bundler do app substituir essa
-    expressão. O `onValidationError` é do app: ele dispara em qualquer build, e é
-    dele que sai a métrica de "o backend mudou o contrato" sem depender de
-    console de desenvolvimento.
+!!! check "Sinal que existe em produção, não só em dev"
+    O aviso único é dev-only (passa por `isDevBuild()`, que responde certo sozinho
+    em Vite, webpack, Rspack e Parcel — medido) e mora no console de quem estiver
+    com o DevTools aberto. O `onValidationError` é do app: dispara em **qualquer**
+    build, e é dele que sai a métrica de "o backend mudou o contrato" — a que
+    chega no seu logger em produção, onde ninguém está olhando console.
 
 ## Status
 
@@ -33114,12 +33124,12 @@ O que a opção garante:
     não chega ao seu `onMessage` quando o schema o recusa — o que é o certo, já
     que você não o declarou.
 
-!!! check "Sinal que não depende do bundler"
-    O aviso único de `onParseError` passa por `isDevBuild()`, que lê
-    `process.env.NODE_ENV` — ou seja, depende de o bundler do app substituir essa
-    expressão. O `onValidationError` é do app: ele dispara em qualquer build, e é
-    dele que sai a métrica de "o backend mudou o contrato" sem depender de
-    console de desenvolvimento.
+!!! check "Sinal que existe em produção, não só em dev"
+    O aviso único é dev-only (passa por `isDevBuild()`, que responde certo sozinho
+    em Vite, webpack, Rspack e Parcel — medido) e mora no console de quem estiver
+    com o DevTools aberto. O `onValidationError` é do app: dispara em **qualquer**
+    build, e é dele que sai a métrica de "o backend mudou o contrato" — a que
+    chega no seu logger em produção, onde ninguém está olhando console.
 
 ## Status
 

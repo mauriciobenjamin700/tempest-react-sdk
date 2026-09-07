@@ -1,6 +1,38 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import { readdirSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
 import { createRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+/**
+ * Strip CSS comments before matching rules.
+ *
+ * Not cosmetic: a comment that quotes CSS — this file's own explanation quotes
+ * `img { max-height: 100% }` — carries a brace that closes a rule match early, so
+ * the assertion reads a truncated body and fails on a declaration that is present.
+ *
+ * @param css - Stylesheet source.
+ * @returns The source with comments removed.
+ */
+function stripComments(css: string): string {
+    return css.replace(/\/\*[\s\S]*?\*\//g, "");
+}
+
+/**
+ * Collect every CSS module under a directory.
+ *
+ * @param dir - Directory to walk.
+ * @param out - Accumulator.
+ * @returns Absolute paths of the `*.module.css` files found.
+ */
+function collectCssModules(dir: string, out: string[] = []): string[] {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const path = join(dir, entry.name);
+        if (entry.isDirectory()) collectCssModules(path, out);
+        else if (entry.name.endsWith(".module.css")) out.push(path);
+    }
+    return out;
+}
 
 import { ImageCropper, type ImageCropperHandle } from "./ImageCropper";
 
@@ -459,5 +491,55 @@ describe("ImageCropper — measuring the frame with a ResizeObserver", () => {
         renderCropper({ ref });
 
         await expect(ref.current?.crop()).resolves.toBeNull();
+    });
+});
+
+describe("the preview image against an app's own reset", () => {
+    const css = stripComments(readFileSync(join(__dirname, "ImageCropper.module.css"), "utf8"));
+
+    /**
+     * The image is sized inline from the zoom, so either `max-*` cap silently
+     * overrides it — and an app reset carrying `img { max-height: 100% }` is enough,
+     * since a 0-0-1 element rule meets no competition on this node.
+     *
+     * The defect this pins was invisible by construction: `crop()` builds its
+     * rectangle from `computeCropRect({ image: natural, ... })` and never reads the
+     * rendered element, so the export stayed correct while the preview was squashed
+     * on one axis. Nothing pointed at the CSS — it took measuring `clientHeight`
+     * against `style.height` to find. jsdom computes no layout, so the assertion has
+     * to be on the declaration rather than on the rendered box.
+     */
+    it("neutralises both caps, not just the width", () => {
+        const rule = /\.image\s*\{([\s\S]*?)\}/.exec(css)?.[1] ?? "";
+        expect(rule).toMatch(/max-width:\s*none/);
+        expect(rule).toMatch(/max-height:\s*none/);
+    });
+});
+
+/**
+ * The same trap, for every component that ships one.
+ *
+ * A rule that neutralises one cap and not the other is the shape of the bug above,
+ * whatever component it appears in: it says the element is sized by something other
+ * than the cascade, and then leaves the other axis open to the app.
+ */
+describe("every CSS module in the SDK", () => {
+    const modules = collectCssModules(join(__dirname, "..", ".."));
+
+    it("neutralises max-width and max-height together, or neither", () => {
+        const unpaired: string[] = [];
+        for (const file of modules) {
+            const css = stripComments(readFileSync(file, "utf8"));
+            for (const match of css.matchAll(/([^{}]*)\{([^{}]*)\}/g)) {
+                const body = match[2] ?? "";
+                const width = /max-width:\s*none/.test(body);
+                const height = /max-height:\s*none/.test(body);
+                if (width !== height) {
+                    const selector = (match[1] ?? "").trim().split("\n").pop()?.trim();
+                    unpaired.push(`${relative(join(__dirname, "..", ".."), file)} — ${selector}`);
+                }
+            }
+        }
+        expect(unpaired).toEqual([]);
     });
 });

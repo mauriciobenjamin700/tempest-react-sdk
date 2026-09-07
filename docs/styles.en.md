@@ -47,6 +47,7 @@ Done. Everything below is already available in your application.
 - [Dark theme — `data-tempest-theme`](#dark-theme-data-tempest-theme)
 - [Components — available variants](#components-available-variants)
 - [When your app already has its own layout](#when-your-app-already-has-its-own-layout)
+- [Focus on your own elements](#focus-on-your-own-elements)
 - [The plugin — `tempestStyles()`](#the-plugin-tempeststyles)
 - [Opt-in utility layer — `utilities.css`](#opt-in-utility-layer-utilitiescss)
 
@@ -162,6 +163,41 @@ import "tempest-react-sdk/styles/Button.css";
     `:where([class*="tempest_"])`, which contributes **zero** specificity. Each
     rule weighs exactly what it weighed globally, so an app override that used to
     win still wins.
+
+### Focus on your own elements
+
+`base.css` declared `:focus-visible` unscoped, so **every** focusable element on
+the page — yours included — got the SDK's ring. `scoped.css` does not, by design:
+it reaches the node carrying a `tempest_` class and whatever is inside it, and
+nothing else.
+
+What your elements inherit instead is not "nothing": it is the user agent's ring.
+Measured in Chromium, an app `<button>` over `#14213d`: `outline: rgb(16,16,16)
+auto 1px` — **1.19:1**. Invisible focus, in practice.
+
+!!! danger "Migrating from `core.css` to the scoped pair without reading this regresses accessibility"
+    There is no error, no warning and no visual difference. The page looks the same
+    until somebody navigates by keyboard. If your app declares no `:focus-visible`
+    of its own, declare one as you migrate.
+
+One rule brings the SDK's ring back to your markup, on the same tokens:
+
+```css
+:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: var(--tempest-focus-ring-offset);
+}
+```
+
+Writing it is opt-in, which is the point of scoping — but the step is mechanical
+and always has the same right answer, so it is spelled out here rather than left to
+be worked out.
+
+!!! note "`color-scheme` reaches the document through the attribute, not the sheet"
+    The UA ring above came out `rgb(16,16,16)` — the **light** scheme value — even
+    with `color-scheme: dark` inherited. If you scope the theme to a subtree instead
+    of putting `data-tempest-theme` on `<html>`, the surfaces the browser paints
+    stay in the light scheme.
 
 ## The plugin — `tempestStyles()`
 

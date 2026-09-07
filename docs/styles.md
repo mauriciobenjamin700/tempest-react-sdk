@@ -45,6 +45,7 @@ Pronto. Tudo o que está abaixo já está disponível na sua aplicação.
 - [Tema dark — `data-tempest-theme`](#tema-dark-data-tempest-theme)
 - [Componentes — variants disponíveis](#componentes-variants-disponiveis)
 - [Quando o app já tem o próprio layout](#quando-o-app-ja-tem-o-proprio-layout)
+- [O foco dos seus próprios elementos](#o-foco-dos-seus-proprios-elementos)
 - [O plugin — `tempestStyles()`](#o-plugin-tempeststyles)
 - [Camada utilitária opt-in — `utilities.css`](#camada-utilitaria-opt-in-utilitiescss)
 
@@ -155,6 +156,40 @@ import "tempest-react-sdk/styles/Button.css";
     `:where([class*="tempest_"])`, que contribui **zero** de especificidade. A
     regra pesa exatamente o que pesava global, então override do seu app que
     ganhava antes continua ganhando.
+
+### O foco dos seus próprios elementos
+
+`base.css` declarava `:focus-visible` sem escopo, então **todo** elemento focável
+da página — os seus inclusive — ganhava o anel do SDK. `scoped.css` não faz isso,
+por desenho: ele alcança o nó com classe `tempest_` e o que estiver dentro dele, e
+nada mais.
+
+O que os seus elementos herdam no lugar não é "nada": é o anel do user agent.
+Medido em Chromium, um `<button>` do app sobre `#14213d`: `outline: rgb(16,16,16)
+auto 1px` — **1,19:1**. Na prática, foco invisível.
+
+!!! danger "Migrar de `core.css` para o par escopado sem ler isto regride acessibilidade"
+    Não há erro, warning ou diferença visual. A página parece igual até alguém
+    navegar por teclado. Se o seu app não declara `:focus-visible` próprio, declare
+    ao migrar.
+
+Uma linha reativa o anel do SDK no seu markup, com os mesmos tokens:
+
+```css
+:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: var(--tempest-focus-ring-offset);
+}
+```
+
+Escrever isso é opt-in, que é o ponto do escopo — mas o passo é mecânico e sempre
+tem a mesma resposta certa, então está aqui pronto em vez de deduzido.
+
+!!! note "`color-scheme` chega ao documento pelo atributo, não pela folha"
+    O anel do UA acima saiu `rgb(16,16,16)` — o valor do esquema **claro** — mesmo
+    com `color-scheme: dark` herdado. Se você escopa o tema numa subárvore em vez de
+    pôr `data-tempest-theme` no `<html>`, as superfícies que o browser pinta ficam
+    no esquema claro.
 
 ## O plugin — `tempestStyles()`
 

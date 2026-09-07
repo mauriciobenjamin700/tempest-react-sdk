@@ -43,7 +43,18 @@
     position: absolute;
     top: 50%;
     left: 50%;
+    /*
+     * Both `max-*`, not just the width. The size is set inline from the zoom, so
+     * either cap silently overrides it — and an app reset carrying
+     * `img { max-height: 100% }` is enough, since a 0-0-1 element rule meets no
+     * competition here. The failure is worse than it looks: `crop()` builds its
+     * rectangle from `computeCropRect({ image: natural, ... })` and never reads the
+     * rendered element, so the export stays correct while the preview is squashed
+     * on one axis. The user drags against a distorted image and gets a framing they
+     * never saw. A component that sizes itself inline owns neutralising both caps.
+     */
     max-width: none;
+    max-height: none;
     pointer-events: none;
     /*
      * Centring lives in `translate` and the pan in the inline `transform`, which
@@ -56,13 +67,27 @@
 
 .controls {
     display: flex;
+    /*
+     * Wraps rather than squeezing. The zoom slider is the flexible item, so on a
+     * narrow row it is the one that gives — and a range input has no useful floor
+     * of its own, so it gave all the way to `width: 0`, leaving the thumb alone and
+     * no visible focus ring while the button beside it kept both. Measured at 390px
+     * with a crowded row. Wrapping moves the slider to its own line instead.
+     */
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--tempest-space-3);
 }
 
 .zoom {
-    flex: 1;
-    min-width: 0;
+    /*
+     * `min-width: 0` is what let it collapse to nothing: it exists to let a flex
+     * item shrink past its min-content size, which for a range input is the whole
+     * control. A real floor keeps the slider draggable and its focus ring visible;
+     * the wrap on `.controls` is what absorbs the width this refuses to give up.
+     */
+    flex: 1 1 6rem;
+    min-width: 6rem;
     accent-color: var(--tempest-primary);
 }
 

@@ -4,6 +4,64 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`ImageCropper`: o slider de zoom deixa de colapsar para `width: 0`.** `.zoom`
+  trazia `flex: 1; min-width: 0`, e `min-width: 0` existe justamente para deixar um
+  item flex encolher além do min-content — que para um `<input type="range">` é o
+  controle inteiro. Numa linha de controles apertada sobrava só o thumb: medido a
+  390px, `getBoundingClientRect().width` **0**. O botão ao lado, que não encolhe,
+  seguia com anel de foco — então a mesma barra tinha um controle acessível por
+  teclado e outro aparentemente não, que foi como o defeito chegou reportado.
+
+  A correção é piso (`flex: 1 1 6rem`) mais `flex-wrap: wrap` no `.controls`, para a
+  largura que o slider recusa a ceder virar quebra de linha em vez de colapso.
+  Medido depois: 390px → **196,91px** com o anel inteiro nos quatro lados; 1280px →
+  858,56px, idêntico ao anterior. Com os dois itens reais a linha cabe até **290px**
+  de viewport e abaixo disso o slider vai para linha própria com ~200px, sem
+  overflow.
+
+- **`ImageCropper`: a prévia deixa de ser esmagada por um reset de app.** `.image`
+  neutralizava `max-width` e não `max-height`, e a imagem é dimensionada por style
+  inline a partir do zoom — então qualquer `img { max-height: 100% }` do app capa a
+  altura, porque uma regra de elemento (0-0-1) não encontra concorrência naquele nó.
+  Reportado num frame 336×336 com `aspect={1}` e zoom 3: `img.style` 1008×1008,
+  renderizado **1008×336**.
+
+  O que torna isso pior do que parece é como se esconde. O `crop()` monta o retângulo
+  com `computeCropRect({ image: natural, frame, zoom, offset })` e **não lê o elemento
+  renderizado**, então o recorte exportado sai correto enquanto a prévia mente. O
+  usuário arrasta contra uma imagem deformada, confirma, e recebe um enquadramento que
+  não viu. Não há sintoma que aponte para o CSS.
+
+  Guardado duas vezes: a declaração, e uma varredura afirmando que **nenhum** CSS
+  module do SDK neutraliza um `max-*` sem o outro — a assimetria é a forma do bug onde
+  quer que apareça. `.image` era a única ocorrência no `src/`.
+
+- **`gen-scoped-reset.mjs` falha o build quando um seletor do reset não sobrevive à
+  geração.** `scopeSelector` devolvia `null` tanto para regra dropada de propósito
+  quanto para regra que ele não sabia reescrever, e o `main` tratava as duas igual:
+  pular. Uma forma de seletor não suportada sumia do `scoped.css` levando as
+  declarações junto, sem deixar rastro na saída, no log nem nos testes.
+
+  Reportado como o `:focus-visible` pelado tendo sumido — o que deixaria todo controle
+  que conta com o reset sem anel de foco sob `reset: "scoped"`, que é o **default** do
+  plugin. Medido contra a 0.60.0 publicada, aquele sobrevive: a regra está no
+  `dist/styles/scoped.css`, duas vezes, nas duas metades. Mas o relato está certo sobre
+  o mecanismo, e é o mecanismo que muda aqui — gerador cujo modo de falha é o silêncio
+  não pode ser confiado com o box model do SDK.
+
+  São dois guards, porque o silêncio tem duas formas. O resultado de `scopeSelector`
+  virou discriminado, e seletor `unreachable` derruba o build se nomeando; simulando o
+  rewriter que a issue supõe, ele acusa exatamente `:focus-visible`,
+  `:where(ul, ol)[class]` e `:where(button, a, label, summary) > svg:only-child`. E
+  `assertNoPropertyLost` pega a metade sutil — regra que produz saída **e** perde uma
+  declaração no caminho, que ler o arquivo gerado não revela: toda propriedade do
+  `reset.css` precisa aparecer no gerado, com as de documento (`tab-size`,
+  `background-color`, `height` e o par prefixado) escritas em `DOCUMENT_PROPERTIES`.
+
+  `scoped.css` é regerado byte a byte idêntico — os guards não mudam a saída.
+
 ## [0.60.0] — 2026-09-07
 
 ### Adicionado

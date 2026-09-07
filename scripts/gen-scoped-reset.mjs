@@ -119,13 +119,22 @@ function splitTopLevel(css) {
  * node carries the hashed class itself: `.tempest_x button` reaches a `<button>`
  * rendered inside `<Card>`, and `button.tempest_x` reaches `<Button>` itself.
  *
+ * The result is discriminated rather than nullable on purpose. A rule that
+ * produces no output is indistinguishable from one dropped deliberately when both
+ * are `null`, and the difference is the whole safety of this script: the first is
+ * a selector shape the rewriter does not handle, which vanishes from the scoped
+ * sheet and takes its declarations with it. The bare `:focus-visible` is exactly
+ * that shape — no element to prefix — so this is not hypothetical.
+ *
  * @param {string} selector - The selector list.
- * @returns {string | null} The scoped selector list, or `null` when it addresses
- *   the document and should be dropped.
+ * @returns {{kind: "scoped", selector: string} | {kind: "dropped", reason: string}
+ *   | {kind: "unreachable", reason: string}} What became of the selector.
  */
 function scopeSelector(selector) {
     const parts = splitSelectorList(selector);
-    if (parts.every((part) => DOCUMENT_SELECTORS.has(part))) return null;
+    if (parts.every((part) => DOCUMENT_SELECTORS.has(part))) {
+        return { kind: "dropped", reason: "document" };
+    }
 
     /** @type {string[]} */
     const out = [];
@@ -135,7 +144,8 @@ function scopeSelector(selector) {
         const self = scopeSelf(part);
         if (self) out.push(self);
     }
-    return out.length ? out.join(",\n") : null;
+    if (!out.length) return { kind: "unreachable", reason: selector };
+    return { kind: "scoped", selector: out.join(",\n") };
 }
 
 /**
@@ -163,6 +173,54 @@ function scopeSelf(part) {
 }
 
 /**
+ * Properties that belong to the document and are therefore not republished.
+ *
+ * Each one comes from a rule in `DOCUMENT_SELECTORS`: there is no `html` inside a
+ * component to carry `tab-size`, and `body`'s background is the app's to paint.
+ * The list is written out so the parity check below can be exact — "some
+ * properties are missing on purpose" is not a check, it is an excuse.
+ */
+const DOCUMENT_PROPERTIES = new Set([
+    "tab-size",
+    "-moz-tab-size",
+    "text-size-adjust",
+    "-webkit-text-size-adjust",
+    "background-color",
+    "height",
+]);
+
+/**
+ * Fail when a declaration of the reset has no counterpart in the scoped sheet.
+ *
+ * The selector guard catches a rule that produced nothing; this catches the
+ * subtler half — a rule that produced *something* while losing a declaration on
+ * the way, which no amount of eyeballing the output finds. Together they are why
+ * this file can be generated at all: the alternative to a check is trusting a
+ * regex rewrite with the SDK's box model.
+ *
+ * @param {string} source - The reset stylesheet.
+ * @param {string} generated - The whole generated sheet, hand-written header
+ *   included: `box-sizing` is republished there, and checking only the rewritten
+ *   rules would report it lost.
+ * @returns {void}
+ * @throws If a property is republished nowhere and is not document-level.
+ */
+function assertNoPropertyLost(source, generated) {
+    const properties = (css) =>
+        new Set([...css.matchAll(/(?:^|[{;])\s*(-?[a-z][a-z0-9-]*)\s*:/gi)].map((m) => m[1]));
+    const lost = [...properties(source)].filter(
+        (name) => !DOCUMENT_PROPERTIES.has(name) && !properties(generated).has(name),
+    );
+    if (lost.length === 0) return;
+    throw new Error(
+        `gen-scoped-reset: reset.css declares ${lost.join(", ")}, and the scoped sheet ` +
+            "declares them nowhere. A component written against that declaration would " +
+            'lose it silently under `reset: "scoped"`. Add the property to ' +
+            "DOCUMENT_PROPERTIES only if it genuinely belongs to the document.",
+    );
+}
+
+/**
  * Entry point.
  *
  * @returns {void}
@@ -173,6 +231,8 @@ function main() {
 
     /** @type {string[]} */
     const rules = [];
+    /** @type {string[]} */
+    const unreachable = [];
     for (const block of splitTopLevel(css)) {
         const open = block.indexOf("{");
         const selector = block
@@ -185,9 +245,10 @@ function main() {
             const inner = splitTopLevel(body.slice(1, -1).trim())
                 .map((nested) => {
                     const at = nested.indexOf("{");
-                    const scoped = scopeSelector(nested.slice(0, at).trim());
-                    if (!scoped) return null;
-                    const indented = scoped
+                    const result = scopeSelector(nested.slice(0, at).trim());
+                    if (result.kind === "unreachable") unreachable.push(result.reason);
+                    if (result.kind !== "scoped") return null;
+                    const indented = result.selector
                         .split("\n")
                         .map((line) => `    ${line}`)
                         .join("\n");
@@ -199,8 +260,9 @@ function main() {
         }
 
         if (body.includes(HAND_WRITTEN)) continue;
-        const scoped = scopeSelector(selector);
-        if (scoped) rules.push(`${scoped} ${body}`);
+        const result = scopeSelector(selector);
+        if (result.kind === "unreachable") unreachable.push(result.reason);
+        if (result.kind === "scoped") rules.push(`${result.selector} ${body}`);
     }
 
     const header = `/**
@@ -225,7 +287,22 @@ ${SCOPE} *::after {
 }
 `;
 
+    if (unreachable.length > 0) {
+        console.error(
+            `gen-scoped-reset: ${unreachable.length} selector(s) produced no scoped form, so ` +
+                "their declarations would be missing from scoped.css without any sign:",
+        );
+        for (const selector of unreachable) console.error(`  ${selector}`);
+        console.error(
+            "  Teach scopeSelf() the shape, or add the selector to DOCUMENT_SELECTORS " +
+                "if dropping it is deliberate.",
+        );
+        process.exitCode = 1;
+        return;
+    }
+
     const text = `${header}\n${rules.join("\n\n")}\n`;
+    assertNoPropertyLost(css, text);
     const stale = !existsSync(OUT) || readFileSync(OUT, "utf8") !== text;
     if (!check) writeFileSync(OUT, text);
 

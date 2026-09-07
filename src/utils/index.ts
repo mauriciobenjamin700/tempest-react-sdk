@@ -33,3 +33,9 @@ export { writeXlsx } from "./xlsx";
 export { downloadCsv, toCsv } from "./csv";
 export type { CsvColumn, CsvOptions } from "./csv";
 export { setDevBuild } from "./dev-mode";
+export type {
+    SafeParseSchemaLike,
+    SchemaIssue,
+    SchemaLike,
+    StandardSchemaLike,
+} from "./schema-like";

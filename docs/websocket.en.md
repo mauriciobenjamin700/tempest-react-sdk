@@ -237,9 +237,90 @@ per transport in the console.
     shows up where it happens.
 
 !!! tip "`parser` still wins"
-    Passing `parser` switches all of this off: its result is always delivered,
-    because decoding text, base64 binary or a protocol of your own is exactly what
-    the option is for. `onParseError` only applies when there is no `parser`.
+    Passing `parser` switches all of this off: its result is delivered, because
+    decoding text, base64 binary or a protocol of your own is exactly what the
+    option is for. `onParseError` only applies when there is no `parser`. The one
+    thing that still looks at what `parser` returned is
+    [`schema`](#validating-the-frame-with-schema), when you pass both.
+
+## Validating the frame with `schema`
+
+The type argument (`createWebSocket<Event>`) is a **promise about the server
+that TypeScript cannot keep**: it is erased at runtime. A frame missing its
+`message` field reaches `onMessage` announced as `Event`, with
+`message: undefined`, and the app writes that to IndexedDB and renders an empty
+notification — with no error anywhere along the way.
+
+Pass `schema` and validating stops being the app's job:
+
+```tsx
+import { useWebSocket } from "tempest-react-sdk";
+import { z } from "zod";
+
+const frameSchema = z.object({
+    kind: z.string(),
+    body: z.string(),
+});
+
+type Frame = z.infer<typeof frameSchema>;
+
+export function Room() {
+    const { status } = useWebSocket<Frame>("wss://api.example.com/room", {
+        schema: frameSchema,
+        onValidationError: (issues, raw) => {
+            console.warn("frame off contract, dropped:", issues, raw.slice(0, 120));
+        },
+        onMessage: ({ data }) => {
+            console.log(data.body);
+        },
+    });
+
+    return <p>Room: {status}</p>;
+}
+```
+
+What the option guarantees:
+
+- **without `schema`, nothing changes** — today's path stays exactly as it is, fallback and warning included;
+- **a frame that does not match is not delivered**, the same rule `onParseError` already follows, and `onValidationError` receives the `issues` (dotted `path` + `message`) plus the raw text;
+- **the delivered value is the schema's output**, so `z.coerce`, `.default()` and `.transform()` all count;
+- **`parser` decodes first**, and `schema` validates what it returned;
+- **an empty frame is an invalid frame**: `JSON.parse("")` throws, and with `schema` the raw text goes to the schema, which refuses it — instead of arriving as an empty string announced as your type.
+
+!!! tip "zod, valibot, arktype — and the SDK depends on none of them"
+    `schema` accepts anything exposing [Standard Schema](https://standardschema.dev)
+    (`~standard`, which zod >= 3.24, valibot and arktype all implement) or
+    `.safeParse` — the signature every zod user already knows, and the one that
+    covers zod 3.23, which predates `~standard`. None of those libraries becomes
+    a dependency: validation is called through the interface.
+
+!!! warning "Validation must be synchronous"
+    The frame is decoded inside the `message` handler and delivered from it, so
+    there is nowhere to `await`: an async schema would deliver frames in whatever
+    order their validations settled. That case is **reported** through
+    `onValidationError` rather than awaited. Use `z.object(...)`, not
+    `.refine(async ...)`.
+
+!!! info "Declare the schema outside the component"
+    `schema` is read when the socket opens. A schema built inline is a new object
+    on every render — declare it at module level (or memoize it), and the one in
+    force is whichever existed at the last open.
+
+!!! check "The `pong` still goes out"
+    A server ping (`{"type":"ping"}`) almost never matches the app's schema — and
+    it does **not** stop being answered because of that. The heartbeat is the
+    transport's contract with the server, not the app's with its payload:
+    `tempest-fastapi-sdk` closes the socket with `4408` when no `pong` arrives, so
+    the reply is decided from the frame's text, before the schema. The ping itself
+    does not reach your `onMessage` when the schema refuses it — which is right,
+    since you never declared it.
+
+!!! check "A signal that does not depend on the bundler"
+    The one-time warning behind `onParseError` goes through `isDevBuild()`, which
+    reads `process.env.NODE_ENV` — so it depends on the app's bundler substituting
+    that expression. `onValidationError` is the app's own: it fires in every build,
+    and it is where a "the backend changed the contract" metric comes from without
+    relying on a development console.
 
 ## Status
 
@@ -254,6 +335,7 @@ per transport in the console.
 - `onReconnecting` is a quiet state; `onLost` is what deserves UI and a "try again" button.
 - `opened` separates "could not join" from "dropped mid-session" — the first is an error, the second reconnects on its own.
 - `pingInterval` + `pingPayload` keep the connection alive.
+- `schema` validates each frame before delivering it — the heartbeat `pong` still goes out even when the schema refuses the ping.
 - `useWebSocket` ties everything to the component and exposes `status`/`lastMessage`/`send`/`reconnect`/`setSilenceTimeout`.
 
 ## See also

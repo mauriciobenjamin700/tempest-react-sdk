@@ -1,4 +1,5 @@
 import { isDevBuild } from "./dev-mode";
+import { validateWithSchema, type SchemaIssue, type SchemaLike } from "./schema-like";
 
 /**
  * The one decoder behind `createWebSocket`, `useWebSocket` and
@@ -20,6 +21,18 @@ export interface DecodedFrame<T> {
     delivered: boolean;
     /** The decoded payload. Only meaningful when `delivered` is `true`. */
     data: T;
+}
+
+/** How one frame should be turned into `T`, and who hears about failures. */
+export interface DecodeFrameOptions<T> {
+    /** Caller-supplied decoder, which owns the frame completely. */
+    parser?: (raw: string) => T;
+    /** Caller-supplied handler for a frame that is not valid JSON. */
+    onParseError?: (error: unknown, raw: string) => void;
+    /** Caller-supplied schema the decoded payload must satisfy. */
+    schema?: SchemaLike<T>;
+    /** Caller-supplied handler for a payload the schema refused. */
+    onValidationError?: (issues: SchemaIssue[], raw: string) => void;
 }
 
 const warned = new Set<string>();
@@ -44,44 +57,93 @@ function warnOnce(transport: string): void {
 }
 
 /**
+ * Warn once per transport that a frame was dropped by the schema.
+ *
+ * A dropped frame with no `onValidationError` is otherwise completely silent —
+ * the stream looks healthy and the payload simply never arrives, which is the
+ * hardest shape of failure to notice. Development builds only, once, for the
+ * same reason as {@link warnOnce}.
+ *
+ * @param transport - Label used in the message, e.g. `"createEventStream"`.
+ * @param issues - The issues the schema reported, summarized into the message.
+ * @returns Nothing.
+ */
+function warnValidationOnce(transport: string, issues: SchemaIssue[]): void {
+    const key = `${transport}:schema`;
+    if (!isDevBuild() || warned.has(key)) return;
+    warned.add(key);
+    const summary = issues.map((issue) => `${issue.path}: ${issue.message}`).join("; ");
+    console.warn(
+        `[tempest-react-sdk] ${transport}: a frame did not match \`schema\` and was dropped ` +
+            `(${summary}). Pass \`onValidationError\` to handle it yourself. This warning ` +
+            `appears once.`,
+    );
+}
+
+/**
  * Decode one frame, reporting whether it should be delivered.
  *
- * A caller-supplied `parser` owns the frame completely and its result is always
- * delivered — decoding text, binary-as-base64 or a protocol of its own is the
- * point of that option.
+ * A caller-supplied `parser` owns the frame completely: its result is delivered
+ * as it is, or validated when a `schema` was also supplied — decoding text,
+ * binary-as-base64 or a protocol of its own is the point of that option.
  *
  * Without one, the frame is parsed as JSON. When that throws:
  *
  * - with `onParseError`, the callback fires and the frame is **not** delivered,
  *   because a consumer that asked to hear about failures did not ask to also
  *   receive the broken frame;
- * - without it, the raw string is delivered as `T` — the behaviour every version
- *   before this one had, kept so nothing breaks — and development builds warn
- *   once that it happened.
+ * - with `schema` and no `onParseError`, the raw string goes to the schema,
+ *   which refuses it — a caller who asked for validation never receives an
+ *   unvalidated payload, and a frame the server sent empty is exactly this case;
+ * - with neither, the raw string is delivered as `T` — the behaviour every
+ *   version before this one had, kept so nothing breaks — and development builds
+ *   warn once that it happened.
+ *
+ * With a `schema`, a payload the schema refuses is not delivered, and
+ * `onValidationError` hears the issues. The value delivered is the schema's
+ * **output**, so a schema that coerces or defaults is honoured.
  *
  * @param raw - The frame body as text.
- * @param parser - Caller-supplied decoder, if any.
- * @param onParseError - Caller-supplied failure handler, if any.
- * @param transport - Label used in the development warning.
+ * @param transport - Label used in the development warnings.
+ * @param options - Caller-supplied decoder, schema and failure handlers.
  * @returns Whether to deliver, and the payload.
  */
 export function decodeFrame<T>(
     raw: string,
-    parser: ((raw: string) => T) | undefined,
-    onParseError: ((error: unknown, raw: string) => void) | undefined,
     transport: string,
+    options: DecodeFrameOptions<T>,
 ): DecodedFrame<T> {
-    if (parser) return { delivered: true, data: parser(raw) };
+    const { parser, onParseError, schema, onValidationError } = options;
+
+    /**
+     * Put one decoded payload through the schema, when there is one.
+     *
+     * @param value - The payload as parsing produced it.
+     * @returns Whether to deliver, and the payload the consumer should see.
+     */
+    function gate(value: unknown): DecodedFrame<T> {
+        if (!schema) return { delivered: true, data: value as T };
+        const result = validateWithSchema(schema, value);
+        if (result.ok) return { delivered: true, data: result.data };
+        if (onValidationError) onValidationError(result.issues, raw);
+        else warnValidationOnce(transport, result.issues);
+        return { delivered: false, data: undefined as T };
+    }
+
+    if (parser) return gate(parser(raw));
+    let parsed: unknown;
     try {
-        return { delivered: true, data: JSON.parse(raw) as T };
+        parsed = JSON.parse(raw);
     } catch (error) {
         if (onParseError) {
             onParseError(error, raw);
             return { delivered: false, data: undefined as T };
         }
+        if (schema) return gate(raw);
         warnOnce(transport);
         return { delivered: true, data: raw as unknown as T };
     }
+    return gate(parsed);
 }
 
 /**

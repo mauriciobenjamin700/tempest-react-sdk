@@ -4,12 +4,13 @@
  * plus the reconnect that uses the id it just tracked.
  */
 import { decodeFrame } from "../utils/json-frame";
+import type { SchemaIssue, SchemaLike } from "../utils/schema-like";
 export type EventStreamStatus = "idle" | "connecting" | "open" | "closed" | "error";
 
 export interface EventStreamMessage<T> {
     /** Server-named event (default `"message"`). */
     event: string;
-    /** Parsed payload — JSON-decoded when possible, raw string otherwise. */
+    /** Parsed payload — validated when `schema` is set, JSON-decoded when possible, raw string otherwise. */
     data: T;
     /** Server-supplied id, if any. */
     id?: string;
@@ -42,6 +43,34 @@ export interface CreateEventStreamOptions<T> {
      * kept, with a one-time warning in development builds.
      */
     onParseError?: (error: unknown, raw: string) => void;
+    /**
+     * Schema every decoded frame must satisfy, from zod, valibot, arktype or
+     * anything else exposing `~standard` or `.safeParse`.
+     *
+     * Without it nothing changes: the payload reaches `onMessage` announced as
+     * `T` on the strength of the type argument alone, which is a promise about
+     * the server that TypeScript cannot keep. With it, a frame that does not
+     * match is **not** delivered — the same rule `onParseError` already follows —
+     * and `onValidationError` hears why. The value delivered is the schema's
+     * output, so coercions and defaults are honoured.
+     *
+     * When `parser` is also supplied, it decodes first and the schema validates
+     * what it returned.
+     *
+     * The validation must be synchronous. A frame is decoded inside the
+     * `message` handler and delivered from it, so an async schema would deliver
+     * frames in whatever order their validations settled; that case is reported
+     * through `onValidationError` instead of awaited.
+     */
+    schema?: SchemaLike<T>;
+    /**
+     * A frame was decoded but the `schema` refused it, so it was dropped.
+     *
+     * The one signal that does not depend on how the app's bundler resolves
+     * `process`: the one-time development warning behind `onParseError` needs
+     * `isDevBuild()` to be able to answer, and this callback is the app's own.
+     */
+    onValidationError?: (issues: SchemaIssue[], raw: string) => void;
     onOpen?: () => void;
     onMessage?: (message: EventStreamMessage<T>) => void;
     onError?: (error: Event) => void;
@@ -83,6 +112,8 @@ export function createEventStream<T = unknown>(
         onMessage,
         onError,
         onParseError,
+        schema,
+        onValidationError,
         onStatusChange,
     } = options;
 
@@ -102,9 +133,8 @@ export function createEventStream<T = unknown>(
         if (heartbeatEvents.includes(eventName)) return;
         const decoded = decodeFrame<T>(
             typeof event.data === "string" ? event.data : "",
-            parser,
-            onParseError,
             "createEventStream",
+            { parser, onParseError, schema, onValidationError },
         );
         if (!decoded.delivered) return;
         onMessage?.({

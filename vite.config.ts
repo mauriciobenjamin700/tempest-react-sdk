@@ -106,6 +106,7 @@ export default defineConfig({
                 "esbuild",
                 "node:path",
                 "node:url",
+                "node:fs",
                 "node:fs/promises",
             ],
             output: [

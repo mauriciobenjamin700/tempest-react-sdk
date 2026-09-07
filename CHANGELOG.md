@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.62.0] — 2026-09-07
+
 ### Adicionado
 
 - **`schema` em `createEventStream`, `useEventStream`, `createWebSocket` e `useWebSocket`

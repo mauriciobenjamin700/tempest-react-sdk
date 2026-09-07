@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.60.0] — 2026-09-07
+
 ### Adicionado
 
 - **`tempestStyles()` — o CSS do SDK deixa de ser lista mantida à mão.** Plugin

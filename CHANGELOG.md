@@ -6,6 +6,62 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **O anel de foco reprovava 3:1 nos dois temas, e nenhum guard media isso.**
+  `--tempest-focus-ring-color` era semitransparente desde a 0.1.0, e é essa a causa
+  única: **um anel tinto não tem contraste próprio — ele tem o contraste do que
+  estiver embaixo**, então o número muda com a superfície e não é propriedade do
+  token. Medido, o pior caso nas quatro superfícies dava **1,60:1** no tema claro e
+  **2,24:1** no dark, contra os 3:1 que a WCAG 2.2 (SC 1.4.11) exige de indicador
+  não-textual. Alcançava 64 usos.
+
+  | tema  | antes                      | pior caso | agora     | pior caso     |
+  | ----- | -------------------------- | --------- | --------- | ------------- |
+  | claro | `rgba(0, 102, 255, 0.35)`  | 1,60:1 ❌ | `#0066ff` | **3,90:1** ✅ |
+  | dark  | `rgba(96, 165, 250, 0.45)` | 2,24:1 ❌ | `#60a5fa` | **5,40:1** ✅ |
+
+  Nenhum dos dois é o `--tempest-primary` do seu tema, e não por acaso. No claro
+  eles seriam a **mesma cor** (`#0066ff`), então o anel de um Button primary era a
+  tinta do preenchimento separada por 2px de superfície — halo, não anel; medido em
+  browser antes da troca. No dark, `#3b82f6` dá 3,73:1 contra `--tempest-surface-3`
+  e a margem some assim que o anel encosta numa superfície de app que o SDK nunca
+  aferiu.
+
+  **O fallback do `var()` carregava o valor antigo**, em `reset.css` e no
+  `scoped.css` gerado dele: `var(--tempest-focus-ring-color, rgba(0, 102, 255, 0.35))`,
+  medido em **1,678:1** num escopo onde `colors.css` não cascateia. Trocar por um
+  literal não resolve — para passar 3:1 nos **dois** temas a cor precisa ficar entre
+  0,112 e 0,300 de luminância relativa, e nenhum azul da rampa fica (`#0052cc` dá
+  5,50:1 no claro e 2,01:1 no dark). O fallback passou a ser `currentColor`: a cor do
+  texto, já aferida contra a superfície em que o texto está, acompanhando o tema de
+  graça. Medido em Chromium, o pior caso não é o texto comum (17,75:1) e sim um link,
+  onde `currentColor` é a cor que o **user agent** já pôs: **9,40:1** no claro,
+  **8,13:1** no dark. Bem acima do piso, mas número diferente do que supor o token
+  daria — o guard afere os dois. E dois componentes caíam para
+  `--tempest-primary-100` como fallback, que mede **1,01:1** nos dois temas.
+
+  O que esse fallback **não** cobre foi medido junto, e vale mais que ele: os
+  componentes do SDK declaram o anel com `var(--tempest-focus-ring-color)` sem
+  fallback — 59 usos — então com o token indefinido a declaração é inválida em
+  computed-value time e cai para `outline: none`. Tendo vencido a cascata, ela não é
+  socorrida pela regra do reset. `Button` e `Input` perdem o anel inteiro enquanto o
+  markup nu do app o mantém. `tokens.css` é pré-requisito de `scoped.css` e de
+  `base.css`, e a doc passa a dizer isso.
+
+  **A lacuna não era um valor que escapou — era uma categoria que nenhum teste
+  media.** `contrast.test.ts` cobre par (texto, fundo) a 4,5:1; indicador
+  não-textual tem outro piso e não entrava em lugar nenhum. `src/styles/focus-ring.contrast.test.ts`
+  passa a aferir cada token usado como indicador contra **as quatro** superfícies nos
+  dois temas, mais uma asserção de que a cor é opaca — sem ela o token voltaria a
+  ter alfa e as razões seguiriam sendo calculadas dos canais opacos, passando
+  enquanto o anel pintado falha. Uma varredura fecha o conjunto: cor usada como
+  indicador que o arquivo não mede derruba o build.
+
+  A doc ensinava o defeito. O exemplo de customização do anel em `docs/styles.md`
+  era `rgba(124, 58, 237, 0.4)` — semitransparente, a mesma armadilha — e agora traz
+  cor opaca, o piso, e contra o que medir.
+
+### Corrigido
+
 - **`ImageCropper`: o slider de zoom deixa de colapsar para `width: 0`.** `.zoom`
   trazia `flex: 1; min-width: 0`, e `min-width: 0` existe justamente para deixar um
   item flex encolher além do min-content — que para um `<input type="range">` é o

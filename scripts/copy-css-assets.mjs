@@ -9,6 +9,9 @@
  * imports on purpose, so it cannot be folded into the bundle.
  *
  * Hence a copy step instead of an import: the file never enters the module graph.
+ * `scoped.css` rides along for the same reason — it is the reset republished under
+ * `:where([class*="tempest_"])`, offered to apps that own their document styling,
+ * and folding it into `styles.css` would defeat the point of having it.
  *
  * Run automatically by `npm run build`.
  */
@@ -28,6 +31,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
  */
 const ASSETS = [
     ["src/styles/utilities.css", "dist/utilities.css"],
+    ["src/styles/scoped.css", "dist/styles/scoped.css"],
     ["src/icons/virtual-id.d.ts", "dist/icons-virtual-id.d.ts"],
 ];
 
@@ -48,6 +52,7 @@ const REFERENCE_LINE = '/// <reference path="./icons-virtual-id.d.ts" />';
 
 async function main() {
     await mkdir(join(ROOT, "dist"), { recursive: true });
+    await mkdir(join(ROOT, "dist", "styles"), { recursive: true });
 
     for (const [from, to] of ASSETS) {
         await copyFile(join(ROOT, from), join(ROOT, to));

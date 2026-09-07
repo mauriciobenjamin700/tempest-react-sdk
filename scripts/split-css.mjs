@@ -198,6 +198,51 @@ function componentFor(source) {
 }
 
 /**
+ * Declarations that belong with the tokens despite not being custom properties.
+ *
+ * `color-scheme` is the one, and it earns the exception: it is what tells the
+ * browser to paint its own surfaces — scrollbar, `<select>` popup, autofill, date
+ * picker — in the active theme, and those are surfaces no `.tempest_*` rule can
+ * reach. Leaving it behind with the reset gives an app the SDK's colours with the
+ * browser's chrome still in light mode, which is the defect #295 was opened for.
+ */
+const TOKEN_COMPANIONS = new Set(["color-scheme"]);
+
+/**
+ * Whether a block declares nothing that paints the app's own markup.
+ *
+ * This is what separates a token from a rule that takes over: `:root { --tempest-bg }`
+ * is inert until something reads it, while `body { background: var(--tempest-bg) }`
+ * claims the app's document. Splitting `core.css` on that line is what lets an app
+ * take the tokens its components need without the reset taking over its layout.
+ *
+ * The predicate reads declarations rather than selectors deliberately. The colour
+ * tokens live in a `:root` block that *also* carries `color-scheme` and the
+ * `--lightningcss-*` pair the compiler emits, so a selector test would have to
+ * enumerate those; a declaration test only has to name the companion above — and
+ * the run asserts the result is non-empty, because a predicate that silently
+ * rejects every colour block produces a `tokens.css` that parses fine, ships, and
+ * leaves every component unstyled.
+ *
+ * @param {string} block - A top-level CSS block.
+ * @returns {boolean} True when nothing it declares reaches the app's markup.
+ */
+function declaresOnlyTokens(block) {
+    const bodies = [...block.matchAll(/\{([^{}]*)\}/g)].map((match) => match[1]);
+    if (!bodies.length) return false;
+    for (const body of bodies) {
+        for (const declaration of body.split(";")) {
+            const name = declaration.split(":")[0]?.trim();
+            if (!name) continue;
+            if (name.startsWith("--")) continue;
+            if (TOKEN_COMPANIONS.has(name)) continue;
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
  * Write a file only when its bytes differ, reporting what happened.
  *
  * @param {string} path - Destination.
@@ -292,6 +337,36 @@ function main() {
     changed += writeIfChanged(join(OUT_DIR, "core.css"), banner + core.join("\n") + "\n", check)
         ? 1
         : 0;
+
+    changed += writeIfChanged(
+        join(OUT_DIR, "auto.css"),
+        `${banner}/* Without \`tempestStyles()\` this is the complete sheet: the plugin narrows\n` +
+            `   it to the components the app imports. Costs bytes, never correctness. */\n` +
+            '@import "../styles.css";\n',
+        check,
+    )
+        ? 1
+        : 0;
+
+    const tokens = core.filter(declaresOnlyTokens);
+    const base = core.filter((block) => !declaresOnlyTokens(block));
+
+    if (!tokens.some((block) => block.includes("--tempest-bg"))) {
+        console.error(
+            "split-css: tokens.css carries no colour tokens, so every component that " +
+                "reads them would render unstyled. A declaration in the `:root` colour " +
+                "block is not recognised — add it to TOKEN_COMPANIONS if it paints " +
+                "nothing, or keep the block in base.css on purpose.",
+        );
+        process.exitCode = 1;
+        return;
+    }
+    changed += writeIfChanged(join(OUT_DIR, "tokens.css"), banner + tokens.join("\n") + "\n", check)
+        ? 1
+        : 0;
+    changed += writeIfChanged(join(OUT_DIR, "base.css"), banner + base.join("\n") + "\n", check)
+        ? 1
+        : 0;
     for (const [component, rules] of byComponent) {
         changed += writeIfChanged(
             join(OUT_DIR, `${component}.css`),
@@ -318,6 +393,10 @@ function main() {
             `${byComponent.size} components + ${groupMembers.size} groups`,
     );
     console.log(`split-css: whole sheet ${size(css)} · core alone ${size(core.join("\n"))}`);
+    console.log(
+        `split-css: core splits into tokens (${size(tokens.join("\n"))}, ${tokens.length} rules) + ` +
+            `base (${size(base.join("\n"))}, ${base.length} rules)`,
+    );
 
     if (check && changed > 0) {
         console.error(`split-css: ${changed} file(s) differ — run \`npm run build\``);

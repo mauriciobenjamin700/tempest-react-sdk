@@ -102,12 +102,13 @@
     },
     "./styles.css": "./dist/styles.css",
     "./styles/*.css": "./dist/styles/*.css",
+    "./styles/manifest.json": "./dist/styles/manifest.json",
     "./package.json": "./package.json",
     "./utilities.css": "./dist/utilities.css"
   },
   "scripts": {
     "dev": "vite build --watch",
-    "build": "tsc -b tsconfig.build.json && node --max-old-space-size=6144 ./node_modules/vite/bin/vite.js build && node scripts/copy-css-assets.mjs && node scripts/split-css.mjs",
+    "build": "node scripts/gen-scoped-reset.mjs && tsc -b tsconfig.build.json && node --max-old-space-size=6144 ./node_modules/vite/bin/vite.js build && node scripts/split-css.mjs && node scripts/gen-style-manifest.mjs && node scripts/copy-css-assets.mjs",
     "postbuild": "node scripts/check-dist-guards.mjs",
     "typecheck": "tsc -b tsconfig.json --noEmit",
     "lint": "eslint .",

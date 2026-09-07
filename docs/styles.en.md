@@ -46,6 +46,8 @@ Done. Everything below is already available in your application.
 - [Density — `data-tempest-density`](#density-data-tempest-density)
 - [Dark theme — `data-tempest-theme`](#dark-theme-data-tempest-theme)
 - [Components — available variants](#components-available-variants)
+- [When your app already has its own layout](#when-your-app-already-has-its-own-layout)
+- [The plugin — `tempestStyles()`](#the-plugin-tempeststyles)
 - [Opt-in utility layer — `utilities.css`](#opt-in-utility-layer-utilitiescss)
 
 ---
@@ -72,11 +74,14 @@ Measured in a real Vite app, the same twelve components mounted both ways:
 | `core.css` + 7 groups | 155.43 kB | 23.38 kB |
 | `core.css` + 12 components | **38.94 kB** | **7.70 kB** |
 
-!!! danger "`core.css` is not optional"
-    It carries the reset, tokens, typography, motion, density, responsive and
-    print layers — **no** component sheet repeats any of it. Importing
-    `Button.css` without `core.css` gives you a button with no colour, no spacing
-    and no font.
+!!! danger "No component sheet carries the foundation"
+    The reset, tokens, typography, motion, density, responsive and print layers
+    live in the foundation — **no** component sheet repeats any of it. Importing
+    `Button.css` on its own gives you a button with no colour, no spacing and no
+    font.
+
+    *Which* foundation you import depends on who owns the document: see
+    [When your app already has its own layout](#when-your-app-already-has-its-own-layout).
 
 ### Three granularities
 
@@ -103,6 +108,119 @@ component — `styles/DataTable.css`, `styles/Slider.css`.
     declares — attributing a rule to a component is a lookup, not a guess. The
     build **fails** if any rule names classes from two modules, which is what
     would make it one.
+
+## When your app already has its own layout
+
+`core.css` is the foundation **and** a global reset at once, and the reset claims
+the whole document:
+
+```css
+*, ::before, ::after { box-sizing: border-box }
+:where(html, body, #root) { height: 100% }
+body { margin: 0; background: var(--tempest-bg); color: var(--tempest-text) }
+button { background: none; border: 0; padding: 0 }
+:where(ul, ol)[class] { list-style: none; margin: 0; padding: 0 }
+```
+
+In an app the SDK builds end to end, that is exactly what you want. In an app
+that already has its own layout, it is the SDK taking over the document surface —
+your button loses its border and background, your list loses its markers, `body`
+loses its colour.
+
+The obvious way out — drop the import — is worse, for a reason that is not
+visible at first: **the components are written against the reset.**
+`.tempest_button` relies on `button { background: none; border: 0 }`, every width
+calculation relies on `box-sizing: border-box`, the fields rely on
+`font-family: inherit`. Without the reset the problem is not polish, it is the
+box model.
+
+So the foundation ships as three pieces rather than one:
+
+| Entry | What it carries | Touches your markup? |
+| --- | --- | --- |
+| `styles/tokens.css` | the 373 `--tempest-*` tokens + `color-scheme` | **no** — paints no markup |
+| `styles/scoped.css` | the reset confined to `:where([class*="tempest_"])` | **no** — inside components only |
+| `styles/base.css` | the global reset (`html`, `body`, `#root`, `button`…) | yes, that is its job |
+| `styles/core.css` | `tokens` + `base`, as it always was | yes |
+
+An app with its own layout swaps `core.css` for two lines:
+
+```ts
+import "tempest-react-sdk/styles/tokens.css";
+import "tempest-react-sdk/styles/scoped.css";
+import "tempest-react-sdk/styles/Button.css";
+```
+
+!!! info "`color-scheme` travels with the tokens, not the reset"
+    It is not a custom property, but it is what tells the browser to paint **its
+    own** surfaces — scrollbar, `<select>` popup, autofill, date picker — in the
+    active theme. No `.tempest_*` rule can reach those. Leaving it with the global
+    reset would give you the SDK's colours with the browser's chrome still light.
+
+!!! check "`:where()` is what keeps this a republish"
+    Every selector in `scoped.css` is the original wrapped in
+    `:where([class*="tempest_"])`, which contributes **zero** specificity. Each
+    rule weighs exactly what it weighed globally, so an app override that used to
+    win still wins.
+
+## The plugin — `tempestStyles()`
+
+The sheet list above is correct and tedious to maintain: you write it by hand and
+it ages with every component you add or drop. Worse, it fails in a way review
+does not catch — **a component pays for the CSS of every SDK component it renders
+internally**. `<DataTable>` alone needs six sheets, `<AIChat>` seven. A list of
+one sheet per component the app names is wrong, and the symptom is an unstyled
+child somewhere inside.
+
+The plugin settles it the way a hand-kept list cannot: by reading the imports your
+source already writes, and closing the transitive set over the module graph the
+package publishes.
+
+```ts
+// vite.config.ts
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import { tempestStyles } from "tempest-react-sdk/vite";
+
+export default defineConfig({
+    plugins: [react(), tempestStyles()],
+});
+```
+
+```ts
+// src/main.tsx — one line, forever
+import "tempest-react-sdk/styles/auto.css";
+```
+
+That is it. `auto.css` now contains exactly `tokens.css` + `scoped.css` plus the
+sheets for the components your app can reach.
+
+### Options
+
+```ts
+tempestStyles({
+    dir: "src",            // where to scan. Default: "src"
+    reset: "scoped",       // "scoped" | "global" | "none". Default: "scoped"
+    include: ["Toast"],    // names the scan cannot see
+});
+```
+
+| `reset` | Emits | When |
+| --- | --- | --- |
+| `"scoped"` | `tokens.css` + `scoped.css` | your app owns its layout (default) |
+| `"global"` | `core.css` | the SDK builds the whole page |
+| `"none"` | `tokens.css` | your app already ships an equivalent reset |
+
+!!! tip "Without the plugin, `auto.css` is still correct"
+    `tempest-react-sdk/styles/auto.css` is a **real** file that resolves, plugin
+    or not, to the complete sheet. Dropping the plugin costs bytes, never
+    correctness — the same design as `tempest-react-sdk/icons/virtual`.
+
+!!! warning "A namespace import turns the scan off"
+    `import * as sdk from "tempest-react-sdk"` resolves `sdk.Button` at runtime,
+    so no static set of names is knowable. The plugin detects that and falls back
+    to the complete sheet rather than serving you too little — if you want the
+    cut, import by name.
 
 ## Color
 

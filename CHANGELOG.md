@@ -4,6 +4,73 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`tempestStyles()` — o CSS do SDK deixa de ser lista mantida à mão.** Plugin
+  Vite novo em `tempest-react-sdk/vite`: ele lê os imports que o app já escreve,
+  fecha o transitivo pelo grafo de módulos publicado e resolve
+  `tempest-react-sdk/styles/auto.css` para exatamente as folhas que aquele app
+  alcança.
+
+  O fecho transitivo é a metade que uma lista à mão erra. Um componente paga o CSS
+  de todo componente do SDK que renderiza por dentro: medido no `dist/`,
+  `<DataTable>` sozinho precisa de **6** folhas e `<AIChat>` de **7**. Uma lista de
+  uma folha por componente que o app nomeia está errada, e o sintoma é um filho sem
+  estilo lá no fundo — nada que apareça em review.
+
+  `auto.css` é arquivo **real** que sem o plugin resolve para a folha completa,
+  então tirar o plugin custa bytes, nunca correção. Mesmo desenho do
+  `tempest-react-sdk/icons/virtual` (#170).
+
+- **`styles/tokens.css` e `styles/scoped.css` — a fundação sem o sequestro do
+  documento.** `core.css` era fundação **e** reset global no mesmo arquivo, e o
+  reset reivindica `html`, `body`, `#root`, `button`, `input`, `table`,
+  `:where(ul, ol)[class]` e `:focus-visible`: medido, **44 dos 46** seletores dele
+  tocam markup que o app é dono. Num app que o SDK monta inteiro é o desejado; num
+  app com layout próprio é o SDK tomando a página.
+
+  A saída óbvia — remover o import — é pior, e o motivo não é visível: **os
+  componentes são escritos contra o reset.** `.tempest_button` conta com
+  `button { background: none; border: 0; padding: 0 }`, toda conta de largura conta
+  com `box-sizing: border-box`, os campos contam com `font-family: inherit`. Sem o
+  reset o que se perde não é acabamento, é o box model — que é exatamente o
+  "removemos o import e alguns componentes ficaram sem estilo nenhum" relatado.
+
+  A fundação passa a vir em peças, e a divisão é mecânica, não curada: bloco cujas
+  declarações são **todas** custom property é token; o resto é reset.
+
+  | Entrada             | Traz                                         | Toca markup do app? | brotli  |
+  | ------------------- | -------------------------------------------- | ------------------- | ------- |
+  | `styles/tokens.css` | os 373 tokens `--tempest-*` + `color-scheme` | não                 | 2,46 kB |
+  | `styles/scoped.css` | o reset sob `:where([class*="tempest_"])`    | não                 | 0,84 kB |
+  | `styles/base.css`   | o reset global                               | sim                 | 0,82 kB |
+  | `styles/core.css`   | `tokens` + `base`, inalterado                | sim                 | 3,23 kB |
+
+  `color-scheme` viaja com os tokens e não com o reset, por mais que não seja
+  custom property: é ela que manda o browser pintar scrollbar, popup de `<select>`,
+  autofill e date picker no tema ativo — superfícies que nenhuma regra `.tempest_*`
+  alcança (é a #295). Deixá-la para trás dava as cores do SDK com o chrome do
+  browser ainda em claro.
+
+  `scoped.css` é gerado de `reset.css` por `scripts/gen-scoped-reset.mjs`, não
+  escrito à mão — as duas cópias driftariam, e a que drifta é a que ninguém lê.
+  `:where()` é o que mantém isso um **republish**: contribui zero de
+  especificidade, então cada seletor pesa o que pesava global e override do app que
+  ganhava antes continua ganhando.
+
+### Alterado
+
+- **`npm run build` ganha três passos** (`gen-scoped-reset` antes do `tsc`,
+  `gen-style-manifest` e a reordenação de `copy-css-assets` para depois do
+  `split-css`, que limpa `dist/styles/`). `split-css.mjs` passa a emitir
+  `tokens.css`, `base.css` e `auto.css` junto do que já emitia; `core.css` sai
+  **byte a byte igual**.
+
+- **`docs/styles.md` deixa de avisar e passa a oferecer.** A admonition
+  `!!! danger "core.css não é opcional"` descrevia um beco sem saída — o leitor com
+  layout próprio não tinha terceira opção para escolher. Agora tem, e o aviso virou
+  o link para ela.
+
 ## [0.59.0] — 2026-09-05
 
 ### Corrigido

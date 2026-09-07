@@ -634,6 +634,11 @@
     "limit": "4 kB"
   },
   {
+    "name": "styles: foundation without the global reset (tokens + scoped)",
+    "path": ["dist/styles/tokens.css", "dist/styles/scoped.css"],
+    "limit": "3.5 kB"
+  },
+  {
     "name": "styles: a typical app (core + 12 components)",
     "path": [
       "dist/styles/core.css",

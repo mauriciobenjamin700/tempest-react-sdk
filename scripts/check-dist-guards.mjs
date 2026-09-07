@@ -196,6 +196,28 @@ if (namingGraph.has(SHARD_INDEX)) {
     );
 }
 
+/**
+ * Node builtins Vite silently replaced with a browser stub.
+ *
+ * A builtin missing from `rollupOptions.external` is not left alone and is not an
+ * error either: Vite rewrites it to `__vite-browser-external`, whose every export
+ * is undefined. The module still builds, still imports, and fails only when the
+ * function is called — `(0, a.readFileSync) is not a function`, in the consumer's
+ * build, from a plugin that is Node-only by design. `node:fs` reached `dist/vite/`
+ * exactly that way. Nothing in `dist/` should ever reach the stub.
+ */
+const BROWSER_STUB = "__vite-browser-external";
+
+for (const file of collect(DIST)) {
+    if (!file.endsWith(".js") && !file.endsWith(".cjs")) continue;
+    if (!readFileSync(file, "utf8").includes(BROWSER_STUB)) continue;
+    problems.push(
+        `${relative(DIST, file)} imports ${BROWSER_STUB}: a Node builtin it uses is ` +
+            "missing from `rollupOptions.external` in vite.config.ts, so Vite swapped it " +
+            "for a stub whose exports are all undefined. It builds and throws at call time.",
+    );
+}
+
 if (problems.length > 0) {
     console.error("check-dist-guards: FAIL");
     for (const problem of problems) console.error(`  - ${problem}`);

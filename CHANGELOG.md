@@ -6,6 +6,21 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **`ImageCropper`: o slider de zoom deixa de colapsar para `width: 0`.** `.zoom`
+  trazia `flex: 1; min-width: 0`, e `min-width: 0` existe justamente para deixar um
+  item flex encolher além do min-content — que para um `<input type="range">` é o
+  controle inteiro. Numa linha de controles apertada sobrava só o thumb: medido a
+  390px, `getBoundingClientRect().width` **0**. O botão ao lado, que não encolhe,
+  seguia com anel de foco — então a mesma barra tinha um controle acessível por
+  teclado e outro aparentemente não, que foi como o defeito chegou reportado.
+
+  A correção é piso (`flex: 1 1 6rem`) mais `flex-wrap: wrap` no `.controls`, para a
+  largura que o slider recusa a ceder virar quebra de linha em vez de colapso.
+  Medido depois: 390px → **196,91px** com o anel inteiro nos quatro lados; 1280px →
+  858,56px, idêntico ao anterior. Com os dois itens reais a linha cabe até **290px**
+  de viewport e abaixo disso o slider vai para linha própria com ~200px, sem
+  overflow.
+
 - **`ImageCropper`: a prévia deixa de ser esmagada por um reset de app.** `.image`
   neutralizava `max-width` e não `max-height`, e a imagem é dimensionada por style
   inline a partir do zoom — então qualquer `img { max-height: 100% }` do app capa a

@@ -67,13 +67,27 @@
 
 .controls {
     display: flex;
+    /*
+     * Wraps rather than squeezing. The zoom slider is the flexible item, so on a
+     * narrow row it is the one that gives — and a range input has no useful floor
+     * of its own, so it gave all the way to `width: 0`, leaving the thumb alone and
+     * no visible focus ring while the button beside it kept both. Measured at 390px
+     * with a crowded row. Wrapping moves the slider to its own line instead.
+     */
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--tempest-space-3);
 }
 
 .zoom {
-    flex: 1;
-    min-width: 0;
+    /*
+     * `min-width: 0` is what let it collapse to nothing: it exists to let a flex
+     * item shrink past its min-content size, which for a range input is the whole
+     * control. A real floor keeps the slider draggable and its focus ring visible;
+     * the wrap on `.controls` is what absorbs the width this refuses to give up.
+     */
+    flex: 1 1 6rem;
+    min-width: 6rem;
     accent-color: var(--tempest-primary);
 }
 

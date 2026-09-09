@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { buildStyleEntry, scanStyleImports, type StyleManifest } from "./tempest-styles";
+import {
+    buildStyleEntry,
+    scanStyleImports,
+    selectedSheets,
+    type StyleManifest,
+} from "./tempest-styles";
 
 const MANIFEST: StyleManifest = {
     core: "core.css",
@@ -91,6 +96,60 @@ describe("buildStyleEntry", () => {
 
     it("never emits a sheet for a name the manifest does not know", () => {
         expect(buildStyleEntry(["NotAComponent"], MANIFEST)).not.toMatch(/NotAComponent/);
+    });
+
+    it("inlines the narrowed token block instead of importing the whole sheet", () => {
+        const css = buildStyleEntry(["Button"], MANIFEST, "scoped", ":root{--tempest-bg:#fff}");
+        expect(css).not.toContain("styles/tokens.css");
+        expect(css).toContain(":root{--tempest-bg:#fff}");
+        expect(css).toContain("styles/scoped.css");
+    });
+
+    /**
+     * `@import` is only valid before any rule, so a token block above the imports
+     * invalidates every one of them — the components arrive with no CSS at all, and the
+     * page looks like the plugin did nothing. Custom properties resolve regardless of
+     * where the declaration sits, so last is both safe and the only safe place.
+     */
+    it("puts the inlined block after every `@import`, which is the only valid order", () => {
+        const css = buildStyleEntry(["Button"], MANIFEST, "scoped", ":root{--tempest-bg:#fff}");
+        expect(css.lastIndexOf("@import")).toBeLessThan(css.indexOf(":root{"));
+    });
+
+    it("splits `core.css` into tokens and base when the global reset is narrowed", () => {
+        const css = buildStyleEntry(["Button"], MANIFEST, "global", ":root{--tempest-bg:#fff}");
+        expect(css).toContain("styles/base.css");
+        expect(css).not.toContain("styles/core.css");
+        expect(css).not.toContain("styles/tokens.css");
+    });
+
+    it("keeps the foundation whole when the names are unknowable, narrowed or not", () => {
+        const css = buildStyleEntry(null, MANIFEST, "global", ":root{--tempest-bg:#fff}");
+        expect(css).toContain("styles/core.css");
+        expect(css).toContain("styles.css");
+    });
+});
+
+describe("selectedSheets", () => {
+    it("names the sheets the closure has to read, reset included", () => {
+        expect(selectedSheets(["DataTable"], MANIFEST, "scoped")).toEqual([
+            "DataTable.css",
+            "Pagination.css",
+            "Table.css",
+            "scoped.css",
+        ]);
+    });
+
+    it("names the global reset when that is what the entry emits", () => {
+        expect(selectedSheets(["Button"], MANIFEST, "global")).toEqual(["Button.css", "base.css"]);
+    });
+
+    it("omits the reset entirely when the app brings its own", () => {
+        expect(selectedSheets(["Button"], MANIFEST, "none")).toEqual(["Button.css"]);
+    });
+
+    it("points at the whole sheet when the names are unknowable", () => {
+        expect(selectedSheets(null, MANIFEST, "scoped")).toEqual(["../styles.css"]);
     });
 });
 

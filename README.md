@@ -159,6 +159,8 @@ Via `package.json`:
 
 Requires React `>=18` and Node `>=22.12` to build.
 
+**A bundler is required.** Every component module imports its own stylesheet (see [CSS import](#css-import)), and `.css` is not a format Node can load — `node -e "import('tempest-react-sdk')"` fails with `ERR_UNKNOWN_FILE_EXTENSION`. Vite, webpack, Rspack, Parcel and esbuild all resolve that import, and the SDK is client-side only, so no real consumer is affected; a **Jest** suite needs `moduleNameMapper: { "\\.css$": "<rootDir>/test/css-stub.js" }`, the same mapping any CSS-Modules project already has. Vitest needs nothing.
+
 ### Peer & bundled dependencies
 
 **react**, **react-dom** and **react-router** are peer dependencies — those must come from the host app, because a second copy is not just wasted bytes, it is a second _instance_ of a React context and it breaks at runtime.

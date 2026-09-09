@@ -55,6 +55,11 @@ function walk(dir, suffix, out = []) {
  * sheet `split-css.mjs` writes is named after that source file — so the mapping is
  * a rename, not a guess.
  *
+ * The path is the one under `styles/component/`, not the `styles/<Component>.css`
+ * shim beside it: the shim exists for hand-written imports, and pointing the
+ * manifest at it would put a name that collides case-insensitively with a group
+ * sheet back on the generated path.
+ *
  * @returns {Map<string, string>} Dist-relative module path → sheet file name.
  */
 function readSheetOwners() {
@@ -64,7 +69,7 @@ function readSheetOwners() {
         const source = /\/\/#region (\S+\.module\.css)/.exec(readFileSync(file, "utf8"))?.[1];
         if (!source) continue;
         const name = (source.split("/").at(-1) ?? "").replace(/\.module\.css$/, "");
-        owners.set(relative(DIST, file), `${name}.css`);
+        owners.set(relative(DIST, file), `component/${name}.css`);
     }
     return owners;
 }

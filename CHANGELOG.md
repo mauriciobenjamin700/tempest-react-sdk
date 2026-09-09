@@ -4,6 +4,45 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`tempest-react-sdk/node-css-loader` — importar o pacote em Node puro.** Desde a
+  0.63.0 cada módulo de componente importa sua folha, e Node não tem loader para `.css`:
+  `import { Button } from "tempest-react-sdk"` **fora** de um bundler morre antes de ler
+  um export.
+
+  ```text
+  TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".css"
+  ```
+
+  A 0.63.0 respondeu a isso no gate de release — que passou a empacotar o tarball com
+  esbuild antes de rodá-lo, que é o caminho de todo consumidor — e **na doc**, dizendo que
+  o pacote exige um bundler. A doc era metade da resposta: quem não tem bundler (script
+  Node, suíte Jest sem transform de folha, leitura da superfície por introspecção — o
+  método de contagem de exports do `CLAUDE.md` incluído) continuava tendo que escrever o
+  loader à mão, cada um o seu. Aviso na doc é falta de superfície, então o pacote ships um:
+
+  ```bash
+  node --import tempest-react-sdk/node-css-loader seu-script.mjs
+  ```
+
+  ```js
+  import "tempest-react-sdk/node-css-loader";
+  const sdk = await import("tempest-react-sdk");
+  ```
+
+  Resolve toda folha para módulo vazio, em `import` **e** `require` — `register()` cobre
+  só o grafo ESM, e em CommonJS a folha cai na tabela de extensões, que tenta parseá-la
+  como JavaScript (`SyntaxError: Unexpected token '.'`), então as duas metades são
+  tratadas juntas. Nada de estilo é emulado: torna o import um no-op, que é a resposta
+  certa num contexto que não pinta nada. Bundler não precisa — é a ferramenta que tem o
+  loader — e o Vitest também não, porque o Vite processa o CSS.
+
+  O gate de release continua sendo o caminho do consumidor (esbuild) e ganhou um segundo
+  passo que roda as **mesmas** asserções em Node cru com o loader publicado; é o que
+  mantém o subpath honesto. A suíte fixa as duas metades: que Node de fato falha sem o
+  loader, e que para de falhar com ele.
+
 ## [0.63.0] — 2026-09-09
 
 ### Adicionado

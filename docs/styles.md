@@ -53,57 +53,93 @@ Pronto. Tudo o que está abaixo já está disponível na sua aplicação.
 
 ## Importar menos CSS
 
-`tempest-react-sdk/styles.css` traz os ~150 componentes. O JavaScript que você
-importa é tree-shaken; **o CSS não** — então um app que usa treze componentes
-baixa os outros cento e quarenta.
+**Cada componente carrega o próprio CSS.** `import { Button }` traz o markup do
+botão e a folha do botão junto — você não lista folha nenhuma, e não há folha
+global de componentes para importar:
 
-Para pagar só pelo que monta, importe a fundação e as folhas que quiser:
+```ts
+// src/main.tsx — as duas linhas de fundação, e mais nada
+import "tempest-react-sdk/styles/tokens.css";
+import "tempest-react-sdk/styles/scoped.css";
+```
+
+Medido num app Vite montando `Button`, `Card` e `Badge`:
+
+| O que o app importa | raw | brotli |
+| --- | --- | --- |
+| `styles.css` (a folha inteira) | 241,73 kB | 29,15 kB |
+| fundação + os componentes montados | 27,40 kB | **4,49 kB** |
+| idem, com `tempestStyles()` enxugando os tokens | 21,86 kB | **3,37 kB** |
+
+O mesmo app em webpack, sem plugin nenhum: 28,53 kB raw / 4,88 kB brotli. O
+corte não depende de plugin nem de bundler — cada `*.module.js` publicado
+importa a folha do seu componente, e `sideEffects: ["**/*.css"]` no
+`package.json` é o que deixa o bundler jogar fora a folha de um componente que
+o app não alcança.
+
+!!! check "O render é o mesmo, byte a byte de CSS a menos"
+    Medido em browser real, 37 seletores comparados com `transition` desligada,
+    claro e escuro: os computed styles de `styles.css` inteiro e do caminho por
+    componente são **idênticos**. O que muda é quanto CSS chega, não o que ele
+    faz.
+
+!!! info "`styles.css` continua publicado"
+    Uma linha, todos os ~150 componentes, e nada quebra: o bundler deduplica a
+    folha que o componente importa contra a que você importou. Custa bytes, nunca
+    correção — é a mesma troca do `auto.css`.
+
+### Ainda precisa de fundação
+
+A fundação é a única coisa que o componente **não** traz, e não é esquecimento: os
+tokens vivem em `:root`, e uma folha por componente que os repetisse poria N blocos
+de mesma especificidade competindo com o `:root` do seu app — `createTheme` e
+qualquer override seu parariam de mandar. Medido, embutir custa **+14 kB raw** para
+devolver 351 B brotli, então a troca também é ruim em bytes.
+
+Ela vem em quatro peças, e qual combinação usar depende de quem manda no
+documento — as duas linhas acima são a resposta para um app com layout próprio, e
+[Quando o app já tem o próprio layout](#quando-o-app-ja-tem-o-proprio-layout) tem
+a tabela das quatro e o porquê de cada uma.
+
+### Importando folha à mão
+
+Os caminhos antigos continuam de pé, para o caso em que a varredura do bundler não
+alcança o componente — render por `dangerouslySetInnerHTML`, markup montado por
+outro pacote, uma página que só existe em runtime:
 
 ```ts
 import "tempest-react-sdk/styles/core.css";
-import "tempest-react-sdk/styles/Button.css";
-import "tempest-react-sdk/styles/Modal.css";
+import "tempest-react-sdk/styles/component/Button.css";
+import "tempest-react-sdk/styles/forms.css";
 ```
-
-Medido num app Vite real, os mesmos doze componentes montados dos dois jeitos:
-
-| Import | raw | gzip |
-| --- | --- | --- |
-| `styles.css` | 236,71 kB | 35,38 kB |
-| `core.css` + 7 grupos | 155,43 kB | 23,38 kB |
-| `core.css` + 12 componentes | **38,94 kB** | **7,70 kB** |
-
-!!! danger "Nenhuma folha de componente traz a fundação"
-    Reset, tokens, tipografia, motion, densidade, responsividade e impressão vivem
-    na fundação — **nenhuma** folha de componente repete isso. Importar
-    `Button.css` sozinho dá um botão sem cor, sem espaçamento e sem fonte.
-
-    Qual fundação importar depende de quem manda no documento: veja
-    [Quando o app já tem o próprio layout](#quando-o-app-ja-tem-o-proprio-layout).
-
-### Três granularidades
 
 | Entrada | O que traz | Quando |
 | --- | --- | --- |
 | `styles.css` | tudo | uma linha só, e o peso não incomoda |
 | `styles/core.css` | fundação, zero componente | sempre, com qualquer das outras |
 | `styles/<Grupo>.css` | uma família inteira | você usa boa parte dela |
-| `styles/<Componente>.css` | um componente | você quer o mínimo |
+| `styles/component/<Componente>.css` | um componente | você quer o mínimo |
 
 Grupos disponíveis: `actions`, `advanced`, `br`, `chat`, `data`, `editor`,
 `feedback`, `forms`, `geo`, `icons`, `identity`, `layout`, `media`,
-`navigation`, `overlay`, `utility`. O nome do arquivo de componente é o nome do
-componente — `styles/DataTable.css`, `styles/Slider.css`.
+`navigation`, `overlay`, `utility`.
 
-!!! tip "Um componente por arquivo, com um caminho público só"
-    O `exports` do pacote publica isso como **um** padrão de subpath
-    (`"./styles/*.css"`), não como 125 entradas. Granularidade fina sem 125
-    caminhos presos por semver.
+!!! warning "Prefira `styles/component/<X>.css` a `styles/<X>.css`"
+    `styles/<Componente>.css` existe e funciona — é um `@import` de uma linha do
+    arquivo em `component/`. Mas dois nomes de componente colidem com nome de grupo
+    num sistema de arquivos que ignora caixa: `Chat.css` com `chat.css`, `Layout.css`
+    com `layout.css`. No macOS e no Windows o grupo ganha, então esses dois importes
+    entregam a família inteira em vez do componente — mais bytes, nunca menos regra.
+    O caminho `component/` não tem esse problema por construção, e é o que o
+    componente usa internamente.
 
 !!! note "A divisão é exata, não uma poda"
     Cada classe é hasheada por módulo CSS (`tempest_[local]_[hash]`), e cada
     `dist/**/*.module.js` carrega o caminho de origem junto dos nomes que aquele
-    módulo declara — atribuir uma regra a um componente é consulta, não palpite.
+    módulo declara — atribuir uma regra a um componente é consulta, não palpite. O
+    build **falha** se alguma regra nomear classes de dois módulos, que é o que
+    tornaria a divisão um palpite — e é também o que garante que a ordem em que as
+    folhas chegam não importa.
 
 ## Quando o app já tem o próprio layout
 
@@ -132,7 +168,7 @@ Por isso a fundação vem em três peças, e não uma:
 
 | Entrada | O que traz | Toca o markup do app? |
 | --- | --- | --- |
-| `styles/tokens.css` | os 373 tokens `--tempest-*` + `color-scheme` | **não** — não pinta markup |
+| `styles/tokens.css` | os 220 tokens `--tempest-*` (373 declarações, contando dark e densidades) + `color-scheme` | **não** — não pinta markup |
 | `styles/scoped.css` | o reset confinado a `:where([class*="tempest_"])` | **não** — só dentro de componente |
 | `styles/base.css` | o reset global (`html`, `body`, `#root`, `button`…) | sim, é o ponto dele |
 | `styles/core.css` | `tokens` + `base`, como sempre foi | sim |
@@ -142,7 +178,6 @@ Um app com layout próprio troca `core.css` por duas linhas:
 ```ts
 import "tempest-react-sdk/styles/tokens.css";
 import "tempest-react-sdk/styles/scoped.css";
-import "tempest-react-sdk/styles/Button.css";
 ```
 
 !!! info "`color-scheme` viaja com os tokens, não com o reset"
@@ -193,16 +228,18 @@ tem a mesma resposta certa, então está aqui pronto em vez de deduzido.
 
 ## O plugin — `tempestStyles()`
 
-A lista de folhas acima é correta e chata de manter: você a escreve à mão, e ela
-envelhece a cada componente que entra ou sai. Pior, ela erra de um jeito que não
-aparece em review — **um componente paga o CSS de todo componente do SDK que
-renderiza por dentro**. `<DataTable>` sozinho precisa de seis folhas,
-`<AIChat>` de sete. Uma lista de uma folha por componente que o app nomeia está
-errada, e o sintoma é um filho sem estilo lá dentro.
+A folha de cada componente chega sozinha, então o plugin não existe mais para
+montar lista de import. Ele existe pela peça que sobra: **a fundação**.
 
-O plugin resolve isso do jeito que uma lista à mão não resolve: lendo os imports
-que o seu source já escreve, e fechando o transitivo pelo grafo de módulos que o
-pacote publica.
+`tokens.css` são 220 tokens, e um app que monta três componentes lê 105 deles. Os
+outros 115 são bytes que nada na página pode consultar — e, agora que os
+componentes não trazem mais a folha inteira consigo, essa sobra é o maior item
+único do CSS que o app baixa. Medido no app de `Button` + `Card` + `Badge`:
+2516 B brotli de tokens contra 1689 B de todas as folhas de componente juntas.
+
+O plugin lê as folhas que o app vai carregar, fecha o transitivo dos tokens que
+elas consultam — alias como `--tempest-primary: var(--tempest-primary-500)` conta
+o alvo junto — e emite só esses:
 
 ```ts
 // vite.config.ts
@@ -220,8 +257,14 @@ export default defineConfig({
 import "tempest-react-sdk/styles/auto.css";
 ```
 
-Pronto. `auto.css` passa a conter exatamente `tokens.css` + `scoped.css` + as
-folhas dos componentes que o app alcança.
+| O que o app importa | brotli |
+| --- | --- |
+| `tokens.css` + `scoped.css` + as 3 folhas | 4,49 kB |
+| `auto.css` com o plugin | **3,37 kB** |
+
+O `@import` das folhas de componente continua lá, e não custa nada: o bundler
+deduplica contra a folha que o próprio componente importou — medido, a regra base
+do `Button` aparece **uma** vez no CSS servido.
 
 ### Opções
 
@@ -229,15 +272,34 @@ folhas dos componentes que o app alcança.
 tempestStyles({
     dir: "src",            // onde varrer. Default: "src"
     reset: "scoped",       // "scoped" | "global" | "none". Default: "scoped"
+    tokens: "used",        // "used" | "all". Default: "used"
     include: ["Toast"],    // nomes que a varredura não vê
 });
 ```
 
 | `reset` | Emite | Quando |
 | --- | --- | --- |
-| `"scoped"` | `tokens.css` + `scoped.css` | o app tem layout próprio (default) |
-| `"global"` | `core.css` | o SDK monta a página inteira |
-| `"none"` | `tokens.css` | o app já tem um reset equivalente |
+| `"scoped"` | tokens + `scoped.css` | o app tem layout próprio (default) |
+| `"global"` | tokens + `base.css` | o SDK monta a página inteira |
+| `"none"` | tokens | o app já tem um reset equivalente |
+
+| `tokens` | Emite | Quando |
+| --- | --- | --- |
+| `"used"` | só os tokens que as folhas alcançam | default |
+| `"all"` | `tokens.css` inteiro | o app lê token de onde a varredura não olha |
+
+!!! check "O corte varre o seu CSS também"
+    Você pode ler `--tempest-*` em CSS seu — está documentado, e cortar um token que
+    o seu `.app-card` consulta não deixaria a folha menor, deixaria a propriedade sem
+    valor. Por isso a varredura inclui os `.css`/`.scss`/`.less` sob `dir`, não só os
+    `.tsx`.
+
+!!! tip "Nome de token montado em runtime cai para a folha inteira"
+    ``style={{ color: `var(--tempest-${tone})` }}`` nomeia um token que nenhuma
+    varredura estática conhece. O plugin detecta a construção e emite `tokens.css`
+    inteiro — servir mais do que o pedido, nunca menos do que o necessário. É o mesmo
+    desenho do fallback de namespace import, abaixo. Token lido de fora de `dir`
+    (outro pacote, um `<style>` no `index.html`) é o caso de `tokens: "all"`.
 
 !!! tip "Sem o plugin, `auto.css` continua correto"
     `tempest-react-sdk/styles/auto.css` é um arquivo **real**, que sem o plugin
@@ -249,8 +311,6 @@ tempestStyles({
     então nenhum conjunto estático de nomes é conhecível. O plugin detecta isso e
     cai para a folha completa em vez de servir a menos — se você quer o corte,
     importe nomeado.
-    O build **falha** se alguma regra nomear classes de dois módulos, que é o que
-    tornaria a divisão um palpite.
 
 ## Cor
 

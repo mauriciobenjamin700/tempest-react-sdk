@@ -55,60 +55,93 @@ Done. Everything below is already available in your application.
 
 ## Importing less CSS
 
-`tempest-react-sdk/styles.css` carries all ~150 components. The JavaScript you
-import is tree-shaken; **the CSS is not** — so an app using thirteen components
-downloads the other hundred and forty.
+**Every component carries its own CSS.** `import { Button }` brings the button's
+markup and the button's stylesheet with it — you list no sheets, and there is no
+global component sheet to import:
 
-To pay only for what you mount, import the foundation plus the sheets you want:
+```ts
+// src/main.tsx — the two foundation lines, and nothing else
+import "tempest-react-sdk/styles/tokens.css";
+import "tempest-react-sdk/styles/scoped.css";
+```
+
+Measured in a Vite app mounting `Button`, `Card` and `Badge`:
+
+| What the app imports | raw | brotli |
+| --- | --- | --- |
+| `styles.css` (the whole sheet) | 241.73 kB | 29.15 kB |
+| foundation + the components mounted | 27.40 kB | **4.49 kB** |
+| same, with `tempestStyles()` narrowing the tokens | 21.86 kB | **3.37 kB** |
+
+The same app under webpack, with no plugin at all: 28.53 kB raw / 4.88 kB brotli.
+The cut depends on neither a plugin nor a bundler — every published
+`*.module.js` imports its component's sheet, and `sideEffects: ["**/*.css"]` in
+`package.json` is what lets a bundler drop the sheet of a component the app never
+reaches.
+
+!!! check "Same render, less CSS"
+    Measured in a real browser, 37 selectors compared with `transition` disabled, in
+    light and dark: the computed styles of the whole `styles.css` and of the
+    per-component path are **identical**. What changes is how much CSS arrives, not
+    what it does.
+
+!!! info "`styles.css` is still published"
+    One line, all ~150 components, and nothing breaks: the bundler deduplicates the
+    sheet a component imports against the one you imported. It costs bytes, never
+    correctness — the same trade `auto.css` makes.
+
+### You still need the foundation
+
+The foundation is the one thing a component does **not** bring, and that is not an
+oversight: the tokens live in `:root`, and a per-component sheet repeating them would
+put N blocks of equal specificity against your app's own `:root` — `createTheme` and
+any override of yours would stop winning. Measured, inlining them costs **+14 kB
+raw** to give back 351 B brotli, so the trade is bad in bytes too.
+
+It comes in four pieces, and which combination to use depends on who owns the
+document — the two lines above are the answer for an app with its own layout, and
+[When your app already has its own layout](#when-your-app-already-has-its-own-layout)
+carries the table of all four and the reason for each.
+
+### Importing a sheet by hand
+
+The older paths still stand, for the case a bundler's scan cannot reach the
+component — a render through `dangerouslySetInnerHTML`, markup assembled by another
+package, a page that only exists at runtime:
 
 ```ts
 import "tempest-react-sdk/styles/core.css";
-import "tempest-react-sdk/styles/Button.css";
-import "tempest-react-sdk/styles/Modal.css";
+import "tempest-react-sdk/styles/component/Button.css";
+import "tempest-react-sdk/styles/forms.css";
 ```
 
-Measured in a real Vite app, the same twelve components mounted both ways:
-
-| Import | raw | gzip |
-| --- | --- | --- |
-| `styles.css` | 236.71 kB | 35.38 kB |
-| `core.css` + 7 groups | 155.43 kB | 23.38 kB |
-| `core.css` + 12 components | **38.94 kB** | **7.70 kB** |
-
-!!! danger "No component sheet carries the foundation"
-    The reset, tokens, typography, motion, density, responsive and print layers
-    live in the foundation — **no** component sheet repeats any of it. Importing
-    `Button.css` on its own gives you a button with no colour, no spacing and no
-    font.
-
-    *Which* foundation you import depends on who owns the document: see
-    [When your app already has its own layout](#when-your-app-already-has-its-own-layout).
-
-### Three granularities
-
-| Entry | What it carries | When |
+| Entry | What it brings | When |
 | --- | --- | --- |
 | `styles.css` | everything | one line, and the weight does not bother you |
 | `styles/core.css` | foundation, zero components | always, alongside any of the others |
 | `styles/<Group>.css` | a whole family | you use most of it |
-| `styles/<Component>.css` | one component | you want the minimum |
+| `styles/component/<Component>.css` | one component | you want the minimum |
 
-Available groups: `actions`, `advanced`, `br`, `chat`, `data`, `editor`,
+Groups available: `actions`, `advanced`, `br`, `chat`, `data`, `editor`,
 `feedback`, `forms`, `geo`, `icons`, `identity`, `layout`, `media`,
-`navigation`, `overlay`, `utility`. A component file is named after the
-component — `styles/DataTable.css`, `styles/Slider.css`.
+`navigation`, `overlay`, `utility`.
 
-!!! tip "One file per component, one public path"
-    The package `exports` publishes this as **one** subpath pattern
-    (`"./styles/*.css"`), not as 125 entries. Fine granularity without 125 paths
-    pinned by semver.
+!!! warning "Prefer `styles/component/<X>.css` over `styles/<X>.css`"
+    `styles/<Component>.css` exists and works — it is a one-line `@import` of the
+    file under `component/`. But two component names collide with a group name on a
+    case-insensitive file system: `Chat.css` with `chat.css`, `Layout.css` with
+    `layout.css`. On macOS and Windows the group wins, so those two imports hand back
+    the whole family instead of the component — more bytes, never fewer rules. The
+    `component/` path does not have that problem by construction, and it is the path
+    the component itself uses.
 
 !!! note "The split is exact, not a prune"
     Every class is hashed per CSS module (`tempest_[local]_[hash]`), and every
     `dist/**/*.module.js` carries its source path alongside the names that module
-    declares — attributing a rule to a component is a lookup, not a guess. The
-    build **fails** if any rule names classes from two modules, which is what
-    would make it one.
+    declares — attributing a rule to a component is a lookup, not a guess. The build
+    **fails** if any rule names classes from two modules, which is what would make the
+    split a guess — and it is also what guarantees the order the sheets arrive in does
+    not matter.
 
 ## When your app already has its own layout
 
@@ -139,7 +172,7 @@ So the foundation ships as three pieces rather than one:
 
 | Entry | What it carries | Touches your markup? |
 | --- | --- | --- |
-| `styles/tokens.css` | the 373 `--tempest-*` tokens + `color-scheme` | **no** — paints no markup |
+| `styles/tokens.css` | the 220 `--tempest-*` tokens (373 declarations, counting dark and the densities) + `color-scheme` | **no** — paints no markup |
 | `styles/scoped.css` | the reset confined to `:where([class*="tempest_"])` | **no** — inside components only |
 | `styles/base.css` | the global reset (`html`, `body`, `#root`, `button`…) | yes, that is its job |
 | `styles/core.css` | `tokens` + `base`, as it always was | yes |
@@ -149,7 +182,6 @@ An app with its own layout swaps `core.css` for two lines:
 ```ts
 import "tempest-react-sdk/styles/tokens.css";
 import "tempest-react-sdk/styles/scoped.css";
-import "tempest-react-sdk/styles/Button.css";
 ```
 
 !!! info "`color-scheme` travels with the tokens, not the reset"
@@ -201,16 +233,18 @@ be worked out.
 
 ## The plugin — `tempestStyles()`
 
-The sheet list above is correct and tedious to maintain: you write it by hand and
-it ages with every component you add or drop. Worse, it fails in a way review
-does not catch — **a component pays for the CSS of every SDK component it renders
-internally**. `<DataTable>` alone needs six sheets, `<AIChat>` seven. A list of
-one sheet per component the app names is wrong, and the symptom is an unstyled
-child somewhere inside.
+Each component's sheet now arrives on its own, so the plugin is no longer there to
+assemble an import list. It is there for the piece that is left: **the foundation**.
 
-The plugin settles it the way a hand-kept list cannot: by reading the imports your
-source already writes, and closing the transitive set over the module graph the
-package publishes.
+`tokens.css` is 220 tokens, and an app mounting three components reads 105 of them.
+The other 115 are bytes nothing on the page can consult — and now that components no
+longer drag the whole sheet along, that surplus is the single largest item of CSS the
+app downloads. Measured on the `Button` + `Card` + `Badge` app: 2516 B brotli of
+tokens against 1689 B for every component sheet put together.
+
+The plugin reads the sheets the app will load, closes over the tokens they consult —
+an alias like `--tempest-primary: var(--tempest-primary-500)` brings its target along
+— and emits only those:
 
 ```ts
 // vite.config.ts
@@ -228,8 +262,14 @@ export default defineConfig({
 import "tempest-react-sdk/styles/auto.css";
 ```
 
-That is it. `auto.css` now contains exactly `tokens.css` + `scoped.css` plus the
-sheets for the components your app can reach.
+| What the app imports | brotli |
+| --- | --- |
+| `tokens.css` + `scoped.css` + the 3 sheets | 4.49 kB |
+| `auto.css` with the plugin | **3.37 kB** |
+
+The `@import` of the component sheets is still there and costs nothing: the bundler
+deduplicates it against the sheet the component imported itself — measured, the
+`Button` base rule appears **once** in the served CSS.
 
 ### Options
 
@@ -237,26 +277,45 @@ sheets for the components your app can reach.
 tempestStyles({
     dir: "src",            // where to scan. Default: "src"
     reset: "scoped",       // "scoped" | "global" | "none". Default: "scoped"
+    tokens: "used",        // "used" | "all". Default: "used"
     include: ["Toast"],    // names the scan cannot see
 });
 ```
 
 | `reset` | Emits | When |
 | --- | --- | --- |
-| `"scoped"` | `tokens.css` + `scoped.css` | your app owns its layout (default) |
-| `"global"` | `core.css` | the SDK builds the whole page |
-| `"none"` | `tokens.css` | your app already ships an equivalent reset |
+| `"scoped"` | tokens + `scoped.css` | your app owns its layout (default) |
+| `"global"` | tokens + `base.css` | the SDK mounts the whole page |
+| `"none"` | tokens | your app already has an equivalent reset |
+
+| `tokens` | Emits | When |
+| --- | --- | --- |
+| `"used"` | only the tokens the sheets reach | default |
+| `"all"` | the whole `tokens.css` | your app reads tokens where the scan does not look |
+
+!!! check "The cut scans your CSS too"
+    You are free to read `--tempest-*` in CSS of your own — it is documented, and
+    cutting a token your `.app-card` consults would not make the sheet smaller, it
+    would leave the property with no value. So the scan covers the `.css`/`.scss`/
+    `.less` files under `dir`, not only the `.tsx` ones.
+
+!!! tip "A token name built at runtime falls back to the whole sheet"
+    ``style={{ color: `var(--tempest-${tone})` }}`` names a token no static scan can
+    know. The plugin detects the construction and emits the whole `tokens.css` —
+    serving more than asked for, never less than needed. It is the same design as the
+    namespace-import fallback below. A token read from outside `dir` (another package,
+    a `<style>` block in `index.html`) is what `tokens: "all"` is for.
 
 !!! tip "Without the plugin, `auto.css` is still correct"
-    `tempest-react-sdk/styles/auto.css` is a **real** file that resolves, plugin
-    or not, to the complete sheet. Dropping the plugin costs bytes, never
+    `tempest-react-sdk/styles/auto.css` is a **real** file, which without the plugin
+    resolves to the complete sheet. Dropping the plugin costs bytes, never
     correctness — the same design as `tempest-react-sdk/icons/virtual`.
 
 !!! warning "A namespace import turns the scan off"
-    `import * as sdk from "tempest-react-sdk"` resolves `sdk.Button` at runtime,
-    so no static set of names is knowable. The plugin detects that and falls back
-    to the complete sheet rather than serving you too little — if you want the
-    cut, import by name.
+    `import * as sdk from "tempest-react-sdk"` resolves `sdk.Button` at runtime, so no
+    static set of names is knowable. The plugin detects that and falls back to the
+    complete sheet rather than serving too little — if you want the cut, import by
+    name.
 
 ## Color
 

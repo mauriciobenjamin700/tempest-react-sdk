@@ -205,17 +205,18 @@ The reset claims the document surface too — `body { margin: 0 }` plus the them
 
 The styles ship hashed under the `tempest_` namespace — they do **not** collide with Tailwind, Stitches, Linaria, or app-level CSS Modules.
 
-**Importing less.** The JavaScript you import is tree-shaken; the CSS is not, so `styles.css` carries all ~150 components whether you mount thirteen or all of them. Pay for what you use by taking the foundation plus the sheets you need:
+**Importing less — every component carries its own CSS.** `import { Button }` brings the button's stylesheet with it, in any bundler, with no plugin: you import the foundation and nothing else.
 
 ```ts
-import "tempest-react-sdk/styles/core.css"; // tokens + global reset — see below
-import "tempest-react-sdk/styles/Button.css";
-import "tempest-react-sdk/styles/forms.css"; // or a whole family
+import "tempest-react-sdk/styles/tokens.css";
+import "tempest-react-sdk/styles/scoped.css";
 ```
 
-Measured in a real Vite app mounting twelve components: **236.71 kB raw / 35.38 kB gzip** with `styles.css`, **38.94 kB / 7.70 kB** with `core.css` plus those twelve — 78% less. See [Styles](https://mauriciobenjamin700.github.io/tempest-react-sdk/styles/) for the full list of groups.
+Measured in a real Vite app mounting `Button`, `Card` and `Badge`: **241.73 kB raw / 29.15 kB brotli** with `styles.css`, **27.40 kB / 4.49 kB** with the foundation alone — and the computed styles of all 37 selectors are identical in light and dark. The same app under webpack: 28.53 kB / 4.88 kB. `sideEffects: ["**/*.css"]` is what lets the bundler drop the sheet of a component you never mount.
 
-**Letting the build keep that list.** `tempestStyles()` reads the imports your source already writes and resolves `styles/auto.css` to exactly the sheets your app can reach — including the ones it reaches _transitively_, which is where a hand-kept list goes wrong (`<DataTable>` alone needs six, `<AIChat>` seven):
+`styles.css` stays published, and a sheet imported by hand still works — see [Styles](https://mauriciobenjamin700.github.io/tempest-react-sdk/styles/) for `styles/component/<Component>.css`, the groups, and why to prefer that path to `styles/<Component>.css`.
+
+**Trimming the foundation.** `tokens.css` is 220 tokens and a three-component app reads 105 of them, so it becomes the largest single item of CSS left. `tempestStyles()` closes over the tokens your sheets actually consult — 4.49 kB → **3.37 kB** brotli on that same app:
 
 ```ts
 // vite.config.ts
@@ -229,7 +230,7 @@ import "tempest-react-sdk/styles/auto.css";
 **If your app owns its own layout,** do not reach for `core.css`: 44 of its 46 selectors dress markup you own (`html`, `body`, `#root`, `button`, `table`, `:where(ul, ol)[class]`). Dropping it is not the fix either — the components are written _against_ that reset, so without it they lose their box model, not their polish. Take the foundation in two pieces instead, which is also what `tempestStyles()` emits by default:
 
 ```ts
-import "tempest-react-sdk/styles/tokens.css"; // the 373 --tempest-* tokens
+import "tempest-react-sdk/styles/tokens.css"; // the 220 --tempest-* tokens
 import "tempest-react-sdk/styles/scoped.css"; // the reset, confined to :where([class*="tempest_"])
 ```
 

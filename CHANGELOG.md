@@ -4,6 +4,71 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **Cada componente carrega o próprio CSS.** `import { Button }` passou a trazer a folha
+  do botão junto do markup, em qualquer bundler e sem plugin — o app importa a fundação e
+  nada mais. Antes, o CSS por componente existia (`styles/<X>.css` desde a 0.60.0) mas
+  nada ligava o JavaScript a ele: o consumidor mantinha a lista à mão, ou rodava
+  `tempestStyles()`, que só existe para Vite.
+
+  Vite não faz essa ligação em library mode. Medido com `cssCodeSplit: true`: emite uma
+  folha por módulo CSS e injeta o import em **nenhuma** delas, porque num build de app
+  aquele elo vira uma tag `<link>` no HTML. Então ele é escrito depois do build
+  (`scripts/link-component-css.mjs`), sobre o mesmo mapeamento exato que o
+  `split-css.mjs` já calcula — ESM e CommonJS.
+
+  Medido num app Vite montando `Button`, `Card` e `Badge`:
+
+  | O que o app importa                             | raw       | brotli      |
+  | ----------------------------------------------- | --------- | ----------- |
+  | `styles.css`                                    | 241,73 kB | 29,15 kB    |
+  | fundação + os componentes montados              | 27,40 kB  | **4,49 kB** |
+  | idem, com `tempestStyles()` enxugando os tokens | 21,86 kB  | **3,37 kB** |
+
+  O mesmo app em webpack, sem plugin: 28,53 kB / 4,88 kB — o corte não depende de bundler,
+  e `sideEffects: ["**/*.css"]` é o que deixa a folha de um componente não alcançado cair.
+  Validado em browser real: 37 seletores comparados com `transition` desligada, claro e
+  escuro, computed styles **idênticos** ao `styles.css` inteiro. `styles.css` continua
+  publicado, e importá-lo junto não duplica — o bundler deduplica contra a folha que o
+  componente importou (medido: a regra base do `Button` aparece uma vez).
+
+- **`tokens: "used" | "all"` no `tempestStyles()`, default `"used"`.** Com as folhas de
+  componente chegando sozinhas, `tokens.css` virou o maior item único do CSS servido:
+  2516 B brotli contra 1689 B de todas as folhas do app de três componentes juntas. O
+  plugin agora fecha o transitivo dos tokens que as folhas — e o CSS do próprio app —
+  consultam, e emite só esses: 105 dos 220 naquele app, 4,49 → 3,37 kB brotli.
+
+  O fechamento é de alcançabilidade, não um filtro: um token cujo valor nomeia outro
+  (`--tempest-primary: var(--tempest-primary-500)`) traz o alvo junto, senão o `var()`
+  resolveria para nada. Nome de token montado em runtime
+  (`` `var(--tempest-${tone})` ``) desliga o corte e emite a folha inteira — mesmo
+  desenho do fallback de namespace import.
+
+  **Embutir os tokens dentro de cada folha de componente foi medido e rejeitado**: custa
+  +14 kB raw para devolver 351 B brotli, e põe N blocos `:root` de mesma especificidade
+  competindo com o `:root` do app, o que quebraria `createTheme` e qualquer override.
+
+- **`styles/component/<Componente>.css` — o caminho canônico da folha de um componente.**
+  Duas folhas de componente colidiam com nome de grupo num sistema de arquivos que ignora
+  caixa (`Chat.css`/`chat.css`, `Layout.css`/`layout.css`), e no macOS e no Windows o
+  grupo — escrito depois — ganhava. Enquanto o consumidor escolhia o import à mão isso
+  custava bytes (o grupo é superset do componente); com o componente importando a própria
+  folha passaria a ser o arquivo errado. `styles/<Componente>.css` continua funcionando,
+  como um `@import` de uma linha, e a doc marca a preferência. O build agora **falha** se
+  dois componentes colidirem entre si.
+
+### Corrigido
+
+- **Os budgets de `size-limit` mediam o CSS de todo o pacote em cada fatia de JavaScript.**
+  Sintoma: `{ cn }` — que não toca componente nenhum — passou a medir 25,19 kB. Causa: os
+  checks importam `./dist/...` por caminho, então nada resolve por `node_modules` e o
+  esbuild nunca lê o `sideEffects` do `package.json`, mantendo todo import de CSS. Num app
+  real com o SDK instalado a mesma fatia dá **436 B, sem folha nenhuma emitida**. Os limites
+  saíram para `.size-limit.checks.json` e `.size-limit.js` carrega um plugin que resolve
+  folha para módulo vazio nas fatias de JavaScript; o CSS continua orçado pelos checks
+  `styles*`, que apontam para as folhas direto.
+
 ## [0.62.0] — 2026-09-07
 
 ### Adicionado

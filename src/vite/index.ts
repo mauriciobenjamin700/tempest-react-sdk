@@ -9,4 +9,4 @@ export type { TempestPwaDevSwOptions } from "./tempest-pwa-dev-sw";
 export { tempestIcons } from "./tempest-icons";
 export type { TempestIconsOptions } from "./tempest-icons";
 export { tempestStyles } from "./tempest-styles";
-export type { TempestStylesOptions, StyleManifest, ResetMode } from "./tempest-styles";
+export type { TempestStylesOptions, StyleManifest, ResetMode, TokenMode } from "./tempest-styles";

@@ -26549,6 +26549,27 @@ importa a folha do seu componente, e `sideEffects: ["**/*.css"]` no
 `package.json` é o que deixa o bundler jogar fora a folha de um componente que
 o app não alcança.
 
+!!! warning "Exige um bundler — e o que fazer no Jest"
+    O import de `.css` que faz isso funcionar é o mesmo que o Node não sabe
+    carregar: `node -e "import('tempest-react-sdk')"` morre com
+    `ERR_UNKNOWN_FILE_EXTENSION`. Vite, webpack, Rspack, Parcel e esbuild
+    resolvem esse import; Node cru, um script `.mjs` solto e o `require()` do
+    Jest não. Como o SDK é client-side only e roda sempre atrás de um bundler,
+    nenhum consumidor real fica de fora — mas o seu runner de teste pode.
+
+    No **Vitest** nada muda: o Vite processa o CSS. No **Jest**, mapeie a
+    extensão para um stub, que é a mesma configuração que qualquer projeto com
+    CSS Modules já carrega:
+
+    ```js
+    // jest.config.js
+    export default {
+      moduleNameMapper: { "\\.css$": "<rootDir>/test/css-stub.js" },
+    };
+    ```
+
+    Com `test/css-stub.js` exportando um objeto vazio (`module.exports = {}`).
+
 !!! check "O render é o mesmo, byte a byte de CSS a menos"
     Medido em browser real, 37 seletores comparados com `transition` desligada,
     claro e escuro: os computed styles de `styles.css` inteiro e do caminho por

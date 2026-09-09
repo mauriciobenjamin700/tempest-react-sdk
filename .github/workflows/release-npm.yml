@@ -78,27 +78,31 @@ jobs:
             - name: Build
               run: npm run build
 
-            - name: Smoke-install packed tarball and import core symbols
+            # The tarball is exercised the way every consumer consumes it: through
+            # a bundler. Bare Node is not an option since 0.63.0 — each component
+            # module imports its own stylesheet, and `.css` is not a format Node
+            # can load, so `import("tempest-react-sdk")` dies with
+            # ERR_UNKNOWN_FILE_EXTENSION before any assertion runs. esbuild
+            # resolves those imports and drops them (`--loader:.css=empty`), which
+            # is what Vite, webpack and Rspack do with them as well.
+            #
+            # Both guards of the older Node-only smoke survive the change, measured:
+            # a missing peer fails the bundle step (esbuild exits 1 on `Could not
+            # resolve "react-router"`) and a missing export fails the run step.
+            # react + react-dom + react-router go in explicitly so the smoke never
+            # rides on npm's peer auto-install. The SDK still bundles zod / zustand
+            # / dexie / react-hook-form / @tanstack/react-query / lucide-react as
+            # direct dependencies (auto-resolved by npm install).
+            - name: Smoke-install packed tarball and bundle core symbols
               run: |
                   TARBALL=$(npm pack --silent)
-                  PKG_NAME=$(node -p "require('./package.json').name")
                   mkdir -p /tmp/sdk-smoke && cd /tmp/sdk-smoke
                   npm init -y >/dev/null
                   npm pkg set type=module >/dev/null
-                  # react + react-dom + react-router are the required peers. They go in
-                  # explicitly so the smoke never rides on npm's peer auto-install —
-                  # the barrel re-exports ./router, so a missing react-router is an
-                  # ERR_MODULE_NOT_FOUND at import time, not a lazy failure.
-                  # The SDK still bundles zod / zustand / dexie / react-hook-form /
-                  # @tanstack/react-query / lucide-react as direct dependencies
-                  # (auto-resolved by npm install).
-                  npm install --silent "$GITHUB_WORKSPACE/$TARBALL" react@^19 react-dom@^19 react-router@^8
-                  PKG_NAME="$PKG_NAME" node -e "import(process.env.PKG_NAME).then(m => { \
-                    const required = ['Button','Input','Modal','ToastProvider','useDebounce','createApiClient','createAuthStore','ThemeProvider','I18nProvider','QueryProvider','ErrorBoundary','createOfflineStore','createEventStream','createWebSocket','WebPushClient','registerServiceWorker','playAudio','share','cn','formatCurrency']; \
-                    const missing = required.filter(k => !(k in m)); \
-                    if (missing.length) throw new Error('missing exports: ' + missing.join(', ')); \
-                    console.log('Smoke OK · ' + Object.keys(m).length + ' total exports'); \
-                  })"
+                  npm install --silent "$GITHUB_WORKSPACE/$TARBALL" react@^19 react-dom@^19 react-router@^8 esbuild
+                  cp "$GITHUB_WORKSPACE/scripts/smoke-imports.mjs" entry.mjs
+                  npx esbuild entry.mjs --bundle --format=esm --platform=node --loader:.css=empty --outfile=smoke.mjs --log-level=warning
+                  node smoke.mjs
 
             # No NODE_AUTH_TOKEN: publish authenticates via GitHub OIDC
             # (npm Trusted Publishing). Provenance is generated automatically.

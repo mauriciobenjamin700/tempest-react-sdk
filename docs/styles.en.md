@@ -79,6 +79,27 @@ The cut depends on neither a plugin nor a bundler — every published
 `package.json` is what lets a bundler drop the sheet of a component the app never
 reaches.
 
+!!! warning "A bundler is required — and what to do in Jest"
+    The `.css` import that makes this work is the one Node cannot load:
+    `node -e "import('tempest-react-sdk')"` dies with
+    `ERR_UNKNOWN_FILE_EXTENSION`. Vite, webpack, Rspack, Parcel and esbuild
+    resolve that import; bare Node, a loose `.mjs` script and Jest's `require()`
+    do not. The SDK is client-side only and always runs behind a bundler, so no
+    real consumer is left out — but your test runner might be.
+
+    Under **Vitest** nothing changes: Vite processes the CSS. Under **Jest**, map
+    the extension to a stub, which is the same configuration any project with CSS
+    Modules already carries:
+
+    ```js
+    // jest.config.js
+    export default {
+      moduleNameMapper: { "\\.css$": "<rootDir>/test/css-stub.js" },
+    };
+    ```
+
+    With `test/css-stub.js` exporting an empty object (`module.exports = {}`).
+
 !!! check "Same render, less CSS"
     Measured in a real browser, 37 selectors compared with `transition` disabled, in
     light and dark: the computed styles of the whole `styles.css` and of the

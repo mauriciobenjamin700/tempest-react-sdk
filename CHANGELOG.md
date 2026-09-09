@@ -60,6 +60,29 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **O gate de release reprovava o pacote: importar o SDK deixou de funcionar fora de um
+  bundler.** Com cada `*.module.js` importando `styles/component/<X>.css`, o passo de smoke
+  do `release-npm.yml` — que instalava o tarball e fazia `import()` em Node cru — morria com
+  `ERR_UNKNOWN_FILE_EXTENSION: Unknown file extension ".css"` **antes** de qualquer asserção,
+  e o publish nunca acontecia. Alcance medido: **126 módulos ESM e 126 CJS**, e o caminho CJS
+  quebra igual (`require("../styles/component/BrazilMap.css")`).
+
+  O smoke passou a exercitar o tarball como todo consumidor o exercita — **por um bundler**:
+  `esbuild --bundle --loader:.css=empty` e depois `node` no resultado. Os dois guards do
+  smoke anterior sobrevivem, medidos: peer faltando derruba o bundle (esbuild sai 1 em
+  `Could not resolve "react-router"`) e export faltando derruba a execução (sai 1 em
+  `missing exports:`). A asserção saiu do YAML para `scripts/smoke-imports.mjs`, que o
+  Prettier formata e que reproduz o gate localmente; a contagem que ele imprime — **564
+  exports** — bate com a do barrel, porque `Object.keys` sobre um namespace usado
+  dinamicamente não é tree-shakeado.
+
+  **Servir um segundo build por condição `"node"` do `exports` foi considerado e rejeitado**:
+  duplicaria os 126 módulos e mais um caminho no `link-component-css.mjs` para atender um
+  consumidor que a decisão de escopo do SDK (client-side only, SPA Vite) já não tem. O
+  requisito ficou escrito onde o leitor o encontra — README, `docs/styles.md` e
+  `docs/styles.en.md` —, junto do `moduleNameMapper` que uma suíte **Jest** precisa. No
+  Vitest nada muda: o Vite processa o CSS.
+
 - **Os budgets de `size-limit` mediam o CSS de todo o pacote em cada fatia de JavaScript.**
   Sintoma: `{ cn }` — que não toca componente nenhum — passou a medir 25,19 kB. Causa: os
   checks importam `./dist/...` por caminho, então nada resolve por `node_modules` e o

@@ -4,13 +4,13 @@ SDK público da Tempest com componentes React, hooks e integrações reutilizáv
 
 > Este arquivo é o guia operacional do SDK. Padrões globais (PR template PT-BR, conventional commits, `gh pr edit` workaround) vêm de `~/.claude/CLAUDE.md` e continuam valendo.
 
-## Estado atual (snapshot pós-v0.58.0 — `[Unreleased]` carrega o ciclo 0.59.0)
+## Estado atual (snapshot pós-v0.63.0 — `[Unreleased]` carrega o ciclo 0.64.0)
 
-- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 78 tags publicadas (0.1.0 → 0.58.0) com signed provenance via OIDC. Histórico completo em `RELEASES.md` (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
+- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 83 tags publicadas (0.1.0 → 0.63.0) com signed provenance via OIDC. Histórico completo em `RELEASES.md` (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
 - **Testes**: 6145 testes em 570 arquivos, ~50 s sob `vitest + jsdom + fake-indexeddb`. Cobertura medida em 05/09/2026: **99,73% linhas / 98,81% statements / 99,82% funções / 95,64% branches**; pisos do CI em **99/98/99/95**, folga de 0,64 ponto no eixo mais apertado. Ranquear a cauda por **valor absoluto**, nunca por percentual — é o método da #282. O que sobra é, em boa parte, inalcançável por construção (ver `### P3`).
 - **Superfície**: 40 módulos em `src/`, 129 componentes, 53 hooks no módulo `hooks/`, **564 exports de runtime** na entrada raiz, 70 em `/br` e 21 em `/icons`. Método reprodutível dessa contagem: `node --input-type=module -e 'const m = await import("./dist/tempest-react-sdk.js"); console.log(Object.keys(m).length)'` — contar `export` no `.d.ts` dá ~1250 porque enxerga todo tipo interno do bundle.
 - **Empacotamento (v0.25.0)**: `dist/` preserva o grafo de módulos (`preserveModules`). O que o app paga de fato (brotli): `{ cn }` 133 B · `{ Button }` 794 B · app típico 9.27 KB · offline/PWA 4.54 KB · `styles.css` 28.7 KB · `utilities.css` 1.36 KB (opt-in). Teto sem tree-shaking: 121.08 KB ESM / 145.01 KB CJS. Budgets do `size-limit` são **por fatia importada**, não pelo barrel.
-- **Subpaths** (15, a lista é o campo `exports` do `package.json`): `.`, `/testing` (MSW), `/vite` (`createViteConfig` + plugins), `/sw` (helpers de contexto SW), `/charts` (recharts peer), `/editor` (tiptap peer), `/imaging` (decode/encode/resize/crop/compress em canvas, sem dep), `/tabular` (`TabularPredictor` ONNX + cache de modelo, onnxruntime-web peer), `/vision` (onnxruntime-web peer), `/br` (dataset BR + mapa clicável — os quatro arquivos saem do IBGE numa geração só, chaveados por código de 7 dígitos), `/icons` (ícone por slug, 46 shards lazy balanceados), `/icons/virtual` (módulo real: `staticIcons = {}` que o plugin sobrescreve — resolve fora do Vite também), `/styles.css`, `/utilities.css` (camada de layout opt-in), `/package.json`.
+- **Subpaths** (17, a lista é o campo `exports` do `package.json`): `.`, `/testing` (MSW), `/vite` (`createViteConfig` + plugins), `/sw` (helpers de contexto SW), `/charts` (recharts peer), `/editor` (tiptap peer), `/imaging` (decode/encode/resize/crop/compress em canvas, sem dep), `/tabular` (`TabularPredictor` ONNX + cache de modelo, onnxruntime-web peer), `/vision` (onnxruntime-web peer), `/br` (dataset BR + mapa clicável — os quatro arquivos saem do IBGE numa geração só, chaveados por código de 7 dígitos), `/icons` (ícone por slug, 46 shards lazy balanceados), `/icons/virtual` (módulo real: `staticIcons = {}` que o plugin sobrescreve — resolve fora do Vite também), `/styles.css`, `/styles/*.css` (a fundação em peças e as 126 folhas por componente — `styles/component/<X>.css` é o caminho canônico, e é o que cada `*.module.js` importa), `/styles/manifest.json` (fechamento transitivo, calculado no build, de quais folhas cada export precisa — um componente arrasta o CSS de todo componente que ele renderiza por dentro, e é isso que o `tempestStyles()` lê), `/utilities.css` (camada de layout opt-in), `/package.json`.
 - **CLIs** (`bin/`): `create-tempest-app` (scaffold — invocado como `npx -p tempest-react-sdk create-tempest-app .`; **não** existe pacote `create-tempest-app` no npm, então `npm create tempest-app` dá 404) com templates `template/` e `template-pwa/`; `tempest` (project CLI: `doctor`, `lint`, `fix`, `format`, `gen api <openapi>` → Zod + types + services, `gen icons` → registry estático de ícone). `doctor` e `fix` também fazem **análise de CSS** (`bin/lib/css/`, scanner próprio sem dep): sintaxe que o browser derruba, declaração/regra duplicada, propriedade e token inexistentes, e bloco repetido que pede classe global/utility. `fix` remove só o comprovadamente morto (sempre a cópia **anterior** — last-wins); `--no-css` pula, `--dry-run` é a superfície de revisão.
 - **CSS por componente, carregado pelo próprio componente** (0.63.0): cada `dist/**/*.module.js` publicado importa `styles/component/<X>.css` — `import { Button }` traz a folha do botão em qualquer bundler, sem plugin. Escrito por `scripts/link-component-css.mjs` **depois** do build, porque Vite lib mode não faz isso (medido com `cssCodeSplit: true`: emite uma folha por módulo e injeta o import em nenhuma). App importa só a fundação (`tokens.css` + `scoped.css`). Medido, app de 3 componentes: 29,15 → **4,49 kB br** (Vite) / 4,88 kB (webpack), com computed styles idênticos em 37 seletores, claro e escuro. `tempestStyles()` deixou de montar lista de import e passou a enxugar tokens (`tokens: "used"`, 105 de 220 → 3,37 kB br).
 - **Style modules**: `colors.css` (inclui `--tempest-code-*`, resolvidos pro piso de **texto** 4,5:1 — a rampa de chart é de **marca**, 3:1, e reprova como texto) + `typography.css` + `motion.css` + `density.css` + `reset.css` + `responsive.css` + `print.css`; `utilities.css` fica **fora** do bundle (opt-in, copiado pra `dist/` no build).
@@ -332,6 +332,34 @@ npm run dev               # http://127.0.0.1:5173
 
 ## Lições aprendidas
 
+- **Medir o ganho de um empacotamento não é medir o contrato dele.** O #320 mediu bytes em
+  quatro bundlers, computed styles de 37 seletores em claro e escuro, e o custo rejeitado de
+  embutir token — e não mediu se o pacote **ainda importava**. Cada `*.module.js` passou a
+  importar `styles/component/<X>.css`, e `.css` não é formato que o Node carregue: o passo de
+  smoke do `release-npm.yml`, que instala o tarball e faz `import()` em **Node cru**, morria
+  com `ERR_UNKNOWN_FILE_EXTENSION` antes de qualquer asserção. Alcance medido: **126 módulos
+  ESM e 126 CJS** (`require("../styles/component/BrazilMap.css")` quebra igual). Ao mudar o
+  que o build **emite**, a pergunta do gate não é "ficou menor?", é "quem ainda consegue
+  carregar isto?".
+
+  O gate fez o trabalho dele — a 0.63.0 nunca chegou ao npm —, mas **reprovou duas vezes**: a
+  primeira tentativa foi abandonada apagando a tag, sem a causa escrita em lugar nenhum, e a
+  segunda pagou o mesmo diagnóstico do zero cinco horas depois. **Apagar a tag é a limpeza,
+  não a conclusão** — a conclusão é a linha no CHANGELOG. Um run vermelho de release cuja
+  causa não está escrita vale zero na próxima tentativa.
+
+  A correção mantém o gate e troca o ambiente dele: `esbuild --bundle --loader:.css=empty`
+  e `node` no resultado, que é o caminho de todo consumidor. Os dois guards antigos
+  continuam medidos um a um: peer faltando faz o esbuild sair **1** (com
+  `Could not resolve "react-router"`) e export faltando faz o `node` sair **1**. A asserção
+  saiu do YAML para `scripts/smoke-imports.mjs`, que o Prettier formata e que reproduz o
+  gate localmente. **Servir um segundo build por condição `"node"` do `exports` foi
+  rejeitado**: duplicaria os 126 módulos e mais um caminho no `link-component-css.mjs` para
+  atender um consumidor que a decisão client-side-only já não tem. Em vez disso a exigência
+  de bundler virou doc, no `README.md` e nas duas páginas de estilo, junto do
+  `moduleNameMapper` de `.css` que uma suíte **Jest** precisa — no Vitest nada muda, porque
+  o Vite processa o CSS.
+
 - **`sideEffects` do `package.json` só existe se a resolução passar por
   `node_modules`.** Quando cada `*.module.js` passou a importar sua folha, todo budget
   de `size-limit` estourou junto — `{ cn }`, que não toca componente, mediu 25,19 kB.
@@ -398,7 +426,10 @@ sentença do backend"` — a regressão da #302 pinada em verde. Apagá-lo perde
 - **Contagem publicada precisa do método junto.** "543 exports na raiz" não
   reproduz: contar `export` no `.d.ts` dá ~1250, porque o bundle declara todo tipo
   interno. Só `Object.keys(await import(dist))` bate. Toda contagem neste arquivo
-  vale o comando que a produziu escrito ao lado.
+  vale o comando que a produziu escrito ao lado. Sob bundler a contagem se mantém:
+  `Object.keys` sobre um `import * as m` empacotado pelo esbuild devolve os mesmos **564**,
+  porque namespace usado dinamicamente não é tree-shakeado — é o que deixa o smoke de
+  release afirmar a contagem em vez de só checar uma lista de nomes.
 
 - **Precedência de opção morre no wrapper.** A correção da #302 quase nasceu
   inerte: a regra respeitava `validation` como override, e o

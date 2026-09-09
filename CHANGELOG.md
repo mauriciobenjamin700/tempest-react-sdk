@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.63.0] — 2026-09-09
+
 ### Adicionado
 
 - **Cada componente carrega o próprio CSS.** `import { Button }` passou a trazer a folha

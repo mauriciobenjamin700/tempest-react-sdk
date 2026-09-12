@@ -43,6 +43,44 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   mantém o subpath honesto. A suíte fixa as duas metades: que Node de fato falha sem o
   loader, e que para de falhar com ele.
 
+### Corrigido
+
+- **O anel de foco de um tema gerado deixou de reprovar contraste.** A 0.61.0 tornou
+  `--tempest-focus-ring-color` opaco nos arquivos de estilo, com o racional certo: um anel
+  tinto não tem contraste próprio, tem o contraste do que estiver embaixo. O `createTheme`
+  continuou derivando o token com `focusRingAlpha`, default `0.35` — e como `applyTheme`
+  injeta um `<style>` no head, o tema gerado **vence a cascata** sobre o `colors.css`. Todo
+  app que tematizava pelo caminho documentado reintroduzia exatamente o anel que a release
+  tinha removido, sem poder corrigir por CSS próprio.
+
+  Medindo, o defeito é maior que "o default do alfa está errado". Doze marcas contra as
+  quatro superfícies (`--tempest-bg`, `--tempest-surface`, `-2`, `-3`) nos dois esquemas —
+  96 pares:
+
+  | anel                                     | pares acima de 3:1 (WCAG 2.2 SC 1.4.11) |
+  | ---------------------------------------- | --------------------------------------- |
+  | `500` com alfa 0.35 (o default anterior) | 3 de 96                                 |
+  | `500` opaco                              | 58 de 96                                |
+  | degrau escolhido por medição             | **96 de 96**                            |
+
+  Opaco sozinho deixaria o roxo `#8100D7` do relato a **1,91:1 no tema escuro** — o mesmo
+  roxo que passa a 7,20:1 no claro — e um amarelo a 1,43:1 no claro. Então o degrau passou
+  a ser escolhido como o `--tempest-primary-on-soft` já era: o gerador começa no `500` e
+  sobe a rampa até o anel alcançar 3:1 contra **todas** as superfícies que aquele tema vai
+  pintar (as do SDK, ou as geradas quando o tema também nomeia `gray`). Marca que já
+  alcança o piso no `500` mantém a cor exata.
+
+  Uma armadilha do caminho ficou fixada em teste: a rampa **escura** é invertida
+  (`createColorScale` faz do `50` o degrau mais escuro, que é do que `--tempest-bg` é
+  feito), então descer a rampa no escuro — que parece a inversão certa — é a direção
+  errada; medido, deixava uma marca quase preta com anel a 1,04:1 sobre o próprio fundo.
+
+  `focusRingAlpha` continua na API, agora sem default: passar valor abaixo de `1` emite o
+  anel translúcido pedido **e** um aviso em build de desenvolvimento. O guard novo
+  (`src/theme/create-theme.focus-ring.test.ts`) mede a saída do `createTheme`, que é o que
+  `styles/focus-ring.contrast.test.ts` não alcança — ele afere os arquivos, e o valor que
+  vence a cascata é produzido em runtime.
+
 ## [0.63.0] — 2026-09-09
 
 ### Adicionado

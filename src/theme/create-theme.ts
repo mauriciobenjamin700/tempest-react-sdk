@@ -21,6 +21,7 @@ import {
     type ScaleStep,
 } from "./color";
 import { buildDivergingRamp, buildRamp, hueOf } from "./data-viz-ramps";
+import { isDevBuild } from "../utils/dev-mode";
 
 /** Radius presets, applied to the whole `--tempest-radius-*` family at once. */
 export type ThemeRadius = "none" | "sm" | "md" | "lg" | "xl" | "full";
@@ -50,7 +51,15 @@ export interface CreateThemeOptions {
     chart?: string[];
     /** Corner radius scale. A preset name, or explicit per-step values. */
     radius?: ThemeRadius | Partial<Record<"xs" | "sm" | "md" | "lg" | "xl" | "2xl", string>>;
-    /** Alpha of `--tempest-focus-ring-color`, derived from the brand color. Default `0.35`. */
+    /**
+     * Opacity of `--tempest-focus-ring-color`. Omit it — the default ring is opaque.
+     *
+     * A translucent ring has no contrast of its own; it has the contrast of
+     * whatever it composites over. Passing a value below `1` reintroduces the
+     * failure 0.61.0 fixed in the built-in tokens, and logs a warning in a
+     * development build. Kept because a translucent ring over a background you
+     * control is a legitimate choice.
+     */
     focusRingAlpha?: number;
     /** Selector the light tokens are written under. Default `":root"`. */
     selector?: string;
@@ -114,6 +123,126 @@ function pickOnSoftStep(
     return candidates[candidates.length - 1];
 }
 
+/** Minimum contrast for a non-text indicator, WCAG 2.2 SC 1.4.11. */
+const INDICATOR_CONTRAST = 3;
+
+/**
+ * The four surfaces a focus ring can land on, as the SDK's own `colors.css`
+ * paints them.
+ *
+ * Ported from `src/styles/colors.css` (`--tempest-bg`, `--tempest-surface`,
+ * `--tempest-surface-2`, `--tempest-surface-3`, resolved through the gray ramp),
+ * and pinned by a test that reads that file — a theme that only names `primary`
+ * keeps these, so the ring has to be measured against them and not against a
+ * guess. The light values resolve through `--tempest-gray-50/100/200`; the dark
+ * ones are literals in the dark block.
+ */
+const SDK_SURFACES: Record<"light" | "dark", readonly string[]> = {
+    light: ["#ffffff", "#f8f9fb", "#f1f3f6", "#e4e7ec"],
+    dark: ["#0b0d12", "#14171f", "#1d2230", "#262d3f"],
+};
+
+/**
+ * Ramp steps to try for the focus ring, in order.
+ *
+ * `500` first, because the ring should read as the brand when it can, then up
+ * the ramp — which moves away from the surfaces in **both** schemes, because
+ * `createColorScale` inverts the dark ramp: there `50` is the darkest step (it
+ * is what `--tempest-bg` is made of) and `900` the lightest. Walking down in
+ * dark mode looks like the right inversion and is the wrong direction; measured,
+ * it left a near-black brand's ring at 1.04:1 over its own background.
+ */
+const FOCUS_RING_CANDIDATES: readonly ScaleStep[] = [500, 600, 700, 800, 900];
+
+/**
+ * Choose the ramp step for the focus ring, by measuring it against the surfaces
+ * it will actually be drawn on.
+ *
+ * A fixed step does not survive an arbitrary brand, and the measurement says so
+ * loudly: of twelve brands checked against the four surfaces in both schemes —
+ * 96 pairings — `500` opaque clears 3:1 in 58 of them, and `500` at the old
+ * default alpha of 0.35 in 3. Picking the step by measurement clears all 96. The
+ * brand from the report that opened this
+ * (`#8100D7`) passes in light at 7.20:1 and fails in **dark** at 2.70:1 down to
+ * 1.91:1 on `surface-3`; a yellow fails in light at 1.43:1. So the step is
+ * picked the way {@link pickOnSoftStep} picks text on a tint: walk away from the
+ * surfaces until the ring clears the floor against *all* of them.
+ *
+ * The fallback is the candidate with the best worst case rather than the last
+ * one, because "the most extreme step" is not always the most contrasting one
+ * once a brand is near-neutral.
+ *
+ * @param scale - The generated ramp.
+ * @param surfaces - The four surfaces this theme will paint, opaque hex.
+ * @returns The first candidate clearing {@link INDICATOR_CONTRAST} on every
+ *   surface, else the candidate whose weakest pairing is strongest.
+ */
+function pickFocusRingStep(scale: ColorScale, surfaces: readonly string[]): ScaleStep {
+    const worstCase = (step: ScaleStep): number =>
+        Math.min(...surfaces.map((surface) => contrastRatio(scale[step], surface)));
+    let best: ScaleStep = FOCUS_RING_CANDIDATES[0] as ScaleStep;
+    let bestRatio = -1;
+    for (const step of FOCUS_RING_CANDIDATES) {
+        const measured = worstCase(step);
+        if (measured >= INDICATOR_CONTRAST) return step;
+        if (measured > bestRatio) {
+            best = step;
+            bestRatio = measured;
+        }
+    }
+    return best;
+}
+
+/**
+ * The surfaces this theme will actually paint, per scheme.
+ *
+ * A theme that names `gray` repaints all four, so measuring the ring against the
+ * SDK's would be measuring the wrong backdrop — and a theme that does not keeps
+ * the SDK's, which is the common case. The order and the ramp steps mirror
+ * {@link writeNeutralAliases}, which is what emits them.
+ *
+ * @param scheme - Which scheme is being emitted.
+ * @param grayScales - The generated neutral ramps, when the theme names one.
+ * @returns Four opaque hex colors: bg, surface, surface-2, surface-3.
+ */
+function surfacesOf(
+    scheme: "light" | "dark",
+    grayScales: { light: ColorScale; dark: ColorScale } | undefined,
+): readonly string[] {
+    if (!grayScales) return SDK_SURFACES[scheme];
+    const scale = grayScales[scheme];
+    return scheme === "light"
+        ? ["#ffffff", scale[50], scale[100], scale[200]]
+        : [scale[50], scale[100], scale[200], scale[300]];
+}
+
+/**
+ * Warn, in a development build, that an alpha was asked for the focus ring.
+ *
+ * A translucent ring has no contrast of its own — it has the contrast of
+ * whatever it composites over — and that is the failure this option used to
+ * ship by default: measured at alpha `0.35`, twelve brands across four surfaces
+ * and both schemes produced 96 pairings, of which 3 cleared the 3:1 of WCAG 2.2
+ * SC 1.4.11. It stays available, because a translucent ring over a
+ * known background is a legitimate choice, but it is a choice a theme now has to
+ * make on purpose.
+ *
+ * The warning is the difficult part to notice otherwise: a failing focus ring is
+ * visible, it just does not separate.
+ *
+ * @param focusRingAlpha - The opacity the caller asked for, if any.
+ */
+function warnOnTranslucentFocusRing(focusRingAlpha: number | undefined): void {
+    if (focusRingAlpha === undefined || focusRingAlpha >= 1) return;
+    if (!isDevBuild()) return;
+    console.warn(
+        `[tempest-react-sdk] createTheme({ focusRingAlpha: ${focusRingAlpha} }) makes the focus ring ` +
+            "translucent, so its contrast becomes whatever it composites over — measured below the 3:1 " +
+            "of WCAG 2.2 SC 1.4.11 on every surface the SDK paints. Drop the option to get the opaque " +
+            "ring, which is derived from your brand ramp and measured against those surfaces.",
+    );
+}
+
 /**
  * The dark ink for content sitting on a saturated fill.
  *
@@ -129,12 +258,19 @@ const ON_SOLID_INK = "#1f0606";
  * The dark scheme walks the ramp the other way (hover is *lighter*, the soft
  * tint is a dark shade, and readable text on that tint is a light shade) — the
  * same inversion the built-in `colors.css` dark block does by hand.
+ *
+ * @param tokens - The token map for this scheme, written in place.
+ * @param scale - The generated primary ramp.
+ * @param scheme - Which scheme is being emitted.
+ * @param surfaces - The surfaces this theme paints, for the focus-ring measurement.
+ * @param focusRingAlpha - Opacity asked for the ring, or `undefined` for opaque.
  */
 function writePrimaryAliases(
     tokens: Record<string, string>,
     scale: ColorScale,
     scheme: "light" | "dark",
-    focusRingAlpha: number,
+    surfaces: readonly string[],
+    focusRingAlpha: number | undefined,
 ): void {
     tokens["--tempest-primary"] = "var(--tempest-primary-500)";
     if (scheme === "light") {
@@ -156,7 +292,11 @@ function writePrimaryAliases(
     const foreground = readableForeground(scale[500]);
     tokens["--tempest-primary-foreground"] = foreground;
     tokens["--tempest-text-on-primary"] = foreground;
-    tokens["--tempest-focus-ring-color"] = hexToRgbaString(scale[500], focusRingAlpha);
+    const ring = scale[pickFocusRingStep(scale, surfaces)];
+    tokens["--tempest-focus-ring-color"] =
+        focusRingAlpha === undefined || focusRingAlpha >= 1
+            ? ring
+            : hexToRgbaString(ring, focusRingAlpha);
 }
 
 /**
@@ -274,34 +414,53 @@ export function createTheme(options: CreateThemeOptions = {}): GeneratedTheme {
         gray,
         chart,
         radius,
-        focusRingAlpha = 0.35,
+        focusRingAlpha,
         selector = ":root",
         darkSelector = '[data-tempest-theme="dark"]',
     } = options;
 
+    warnOnTranslucentFocusRing(focusRingAlpha);
+
     const light: Record<string, string> = {};
     const dark: Record<string, string> = {};
+
+    // `anchor: false`: a neutral ramp has to keep its tuned lightness curve.
+    // Anchoring it at the input compressed both halves and dropped
+    // text-muted-on-surface-3 to ~4.2:1 — below AA — which the browser axe
+    // sweep caught on the generated themes.
+    const grayScales = gray
+        ? {
+              light: createColorScale(gray, "light", { anchor: false, neutral: true }),
+              dark: createColorScale(gray, "dark", { anchor: false, neutral: true }),
+          }
+        : undefined;
 
     if (primary) {
         const lightScale = createColorScale(primary, "light");
         const darkScale = createColorScale(primary, "dark");
         writeScale(light, "primary", lightScale);
         writeScale(dark, "primary", darkScale);
-        writePrimaryAliases(light, lightScale, "light", focusRingAlpha);
-        writePrimaryAliases(dark, darkScale, "dark", focusRingAlpha);
+        writePrimaryAliases(
+            light,
+            lightScale,
+            "light",
+            surfacesOf("light", grayScales),
+            focusRingAlpha,
+        );
+        writePrimaryAliases(
+            dark,
+            darkScale,
+            "dark",
+            surfacesOf("dark", grayScales),
+            focusRingAlpha,
+        );
     }
 
-    if (gray) {
-        // `anchor: false`: a neutral ramp has to keep its tuned lightness curve.
-        // Anchoring it at the input compressed both halves and dropped
-        // text-muted-on-surface-3 to ~4.2:1 — below AA — which the browser axe
-        // sweep caught on the generated themes.
-        const lightScale = createColorScale(gray, "light", { anchor: false, neutral: true });
-        const darkScale = createColorScale(gray, "dark", { anchor: false, neutral: true });
-        writeScale(light, "gray", lightScale);
-        writeScale(dark, "gray", darkScale);
-        writeNeutralAliases(light, lightScale, "light");
-        writeNeutralAliases(dark, darkScale, "dark");
+    if (grayScales) {
+        writeScale(light, "gray", grayScales.light);
+        writeScale(dark, "gray", grayScales.dark);
+        writeNeutralAliases(light, grayScales.light, "light");
+        writeNeutralAliases(dark, grayScales.dark, "dark");
     }
 
     for (const status of ["success", "warning", "danger", "info"] as const) {

@@ -2,6 +2,30 @@
     display: contents;
 }
 
+/*
+ * A hold on a coarse pointer is this component's right click, and the platform
+ * has its own ideas about what a hold means: iOS raises the callout and both
+ * platforms start a text selection. Scoped to `pointer: coarse` so a mouse user
+ * keeps ordinary selection over the same content.
+ */
+@media (pointer: coarse) {
+    .root {
+        -webkit-touch-callout: none;
+        user-select: none;
+    }
+}
+
+/*
+ * The menu takes focus when it opens so a screen reader announces it, and that
+ * focus gets no ring of its own: measured in Chrome, focusing it from a long
+ * press still matches `:focus-visible`, which drew a heavy ring around the whole
+ * menu after every touch. The indicator that matters is on the focused item,
+ * which is where the arrow keys move next.
+ */
+.menu:focus {
+    outline: none;
+}
+
 .menu {
     position: fixed;
     z-index: var(--tempest-z-popover);

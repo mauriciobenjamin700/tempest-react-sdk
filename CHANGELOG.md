@@ -81,6 +81,40 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `styles/focus-ring.contrast.test.ts` não alcança — ele afere os arquivos, e o valor que
   vence a cascata é produzido em runtime.
 
+- **`ContextMenu` passou a abrir no toque, e a caber na tela.** Ele escutava só
+  `onContextMenu`, e toque não tem clique direito: **medido** no Chrome com emulação
+  de toque (perfis Pixel 7 e iPhone 13), um toque segurado por 900 ms produz
+  `pointerdown`, `touchstart`, `pointerup`, `touchend` e `click` — e **nenhum**
+  `contextmenu`. Toda ação atrás de um `ContextMenu` era inalcançável no celular, sem
+  erro nenhum a que se agarrar: o menu simplesmente nunca abria.
+
+  Três mudanças, por ordem de valor:
+
+  - **Toque longo**, ligado por default e independente do `trigger`, com `pointerdown`
+    filtrado por `pointerType !== "mouse"` (o mouse já tem o gesto dele, e segurar o
+    botão esquerdo é como começa um arrasto). O timer é cancelado quando o dedo anda
+    mais de 10 px — senão toda rolagem que começa sobre o gatilho abre um menu — e o
+    `click` que o dedo deixa para trás é engolido, para abrir o menu sobre um balão de
+    conversa não abrir também o balão. `longPressDelay={0}` desliga.
+  - **Clamp na viewport.** O menu é medido depois de montar e puxado para dentro da
+    tela, com `viewportMargin` (default `8`) de folga. Medido antes: em 320 px de
+    largura, um menu de 180 px aberto em `x=235` ia até 415 — **95 px fora da tela**,
+    cortando a borda direita de todo rótulo.
+  - **`trigger="contextmenu" | "click" | "both"`**, default `"contextmenu"`. `"click"`
+    é o caso do `⋮`, onde clique direito é o gesto errado no desktop e impossível no
+    toque.
+
+  Junto, a a11y de teclado que faltava: o menu **recebe o foco ao abrir** (antes o foco
+  ficava no gatilho e o leitor de tela não anunciava nada), `Home`/`End` foram
+  adicionados às setas que já existiam, e o menu fecha em `scroll` e `resize` — ele é
+  posicionado em coordenadas de viewport, então uma página que rola por baixo o deixava
+  apontando para nada.
+
+  Uma armadilha do caminho ficou fixada em teste: o `Portal` renderiza `null` no
+  primeiro passe e monta num efeito, então um `useLayoutEffect` disparado pela abertura
+  lê um ref ainda vazio — não mede nada e não foca nada. O nó entra por **callback ref
+  em estado**, que é o que faz o efeito rodar no render que tem o elemento.
+
 ## [0.63.0] — 2026-09-09
 
 ### Adicionado

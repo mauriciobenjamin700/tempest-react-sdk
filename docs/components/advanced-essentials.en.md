@@ -140,7 +140,7 @@ import { Collapsible } from "tempest-react-sdk";
 *Section `overlays` of the [gallery](../gallery.md) — run it locally to interact.*
 <!-- /gallery -->
 
-Right-click context menu. Opens at the cursor on `onContextMenu` (default browser menu suppressed), rendered through a `Portal`. Closes on outside click, Escape, or selection.
+Action menu. Opens at the pointer on right click, on a **long press**, and — when you ask for it — on a left click; rendered through a `Portal` and clamped inside the viewport. Closes on outside click, Escape, scroll, resize, or selection.
 
 ```tsx
 import { ContextMenu } from "tempest-react-sdk";
@@ -157,16 +157,51 @@ import { ContextMenu } from "tempest-react-sdk";
 </ContextMenu>;
 ```
 
-| Prop        | Type                | Default | Description                                           |
-| ----------- | ------------------- | ------- | ----------------------------------------------------- |
-| `items`     | `ContextMenuItem[]` | —       | Menu entries — selectable items and separators        |
-| `children`  | `ReactNode`         | —       | Trigger area; right-clicking anywhere within opens it |
-| `className` | `string`            | —       | Extra class names forwarded to the menu element       |
+| Prop             | Type                                | Default         | Description                                         |
+| ---------------- | ----------------------------------- | --------------- | --------------------------------------------------- |
+| `items`          | `ContextMenuItem[]`                 | —               | Menu entries — selectable items and separators      |
+| `children`       | `ReactNode`                         | —               | Trigger area; the gesture anywhere within opens it   |
+| `className`      | `string`                            | —               | Extra class names forwarded to the menu element      |
+| `trigger`        | `"contextmenu" \| "click" \| "both"` | `"contextmenu"` | Which **mouse** gesture opens the menu               |
+| `longPressDelay` | `number` (ms)                       | `500`           | Long-press duration; `0` turns it off                |
+| `viewportMargin` | `number` (px)                       | `8`             | Gap kept between the menu and the edge of the screen |
 
 `ContextMenuItem` = `{ label: ReactNode; onSelect?: () => void; disabled?: boolean; danger?: boolean }` or `{ separator: true }`.
 
+!!! danger "Touch has no right click — and the browser hands you no substitute"
+    Measured in Chrome with touch emulation (Pixel 7 and iPhone 13 profiles), a
+    900 ms hold on a plain element produces `pointerdown`, `touchstart`,
+    `pointerup`, `touchend` and `click` — and **no** `contextmenu`. A menu that
+    only listened for `contextmenu` put every action behind it out of reach on a
+    phone, with nothing to show for it: it simply never opens.
+
+    So the long press is the **default**, independent of `trigger` (which only
+    decides the mouse gesture). The timer is cancelled once the finger travels more
+    than 10 px — otherwise every scroll starting on the trigger would open a menu —
+    and the `click` the finger leaves behind is swallowed, so opening the menu on a
+    chat bubble does not also open the bubble.
+
+!!! tip "The `⋮` pattern"
+    A three-dot button should answer a **left** click. Wrap it with
+    `trigger="click"`:
+
+    ```tsx
+    <ContextMenu trigger="click" items={items}>
+      <Button variant="ghost" aria-label="More actions">⋮</Button>
+    </ContextMenu>
+    ```
+
+    `"both"` keeps both buttons, for a target that accepts either.
+
+!!! check "Clamped inside the viewport"
+    The menu is measured after it mounts and pulled back on screen. Before that,
+    measured at 320 px wide: a 180 px menu opened at `x=235` ran to 415 — **95 px
+    off screen**, cutting the right edge off every label.
+
 !!! tip "Keyboard"
-    Arrow Up/Down move focus across selectable items; Enter activates the focused item.
+    The menu takes focus when it opens, so a screen reader announces the menu
+    instead of staying on the trigger. Arrow Up/Down walk the selectable items and
+    wrap, `Home`/`End` jump to the ends, `Enter` activates and `Escape` closes.
 
 ## `HoverCard`
 

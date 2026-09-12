@@ -140,7 +140,7 @@ import { Collapsible } from "tempest-react-sdk";
 *Seção `overlays` da [gallery](../gallery.md) — rode localmente para interagir.*
 <!-- /gallery -->
 
-Menu de clique direito. Abre na posição do cursor via `onContextMenu` (menu nativo suprimido), renderizado por um `Portal`. Fecha no clique fora, Escape ou seleção.
+Menu de ações. Abre na posição do ponteiro por clique direito, por **toque longo** e — quando você pede — por clique esquerdo; renderizado por um `Portal`, preso dentro da viewport. Fecha no clique fora, Escape, rolagem, resize ou seleção.
 
 ```tsx
 import { ContextMenu } from "tempest-react-sdk";
@@ -157,16 +157,51 @@ import { ContextMenu } from "tempest-react-sdk";
 </ContextMenu>;
 ```
 
-| Prop        | Tipo                | Default | Descrição                                              |
-| ----------- | ------------------- | ------- | ------------------------------------------------------ |
-| `items`     | `ContextMenuItem[]` | —       | Entradas do menu — itens selecionáveis e separadores   |
-| `children`  | `ReactNode`         | —       | Área de gatilho; clique direito em qualquer parte abre |
-| `className` | `string`            | —       | Classes extras repassadas ao elemento do menu          |
+| Prop              | Tipo                                     | Default          | Descrição                                                    |
+| ----------------- | ---------------------------------------- | ---------------- | ------------------------------------------------------------ |
+| `items`           | `ContextMenuItem[]`                      | —                | Entradas do menu — itens selecionáveis e separadores         |
+| `children`        | `ReactNode`                              | —                | Área de gatilho; o gesto em qualquer parte dela abre          |
+| `className`       | `string`                                 | —                | Classes extras repassadas ao elemento do menu                 |
+| `trigger`         | `"contextmenu" \| "click" \| "both"`      | `"contextmenu"`  | Qual gesto de **mouse** abre o menu                           |
+| `longPressDelay`  | `number` (ms)                            | `500`            | Duração do toque longo; `0` desliga                           |
+| `viewportMargin`  | `number` (px)                            | `8`              | Folga mantida entre o menu e a borda da tela                  |
 
 `ContextMenuItem` = `{ label: ReactNode; onSelect?: () => void; disabled?: boolean; danger?: boolean }` ou `{ separator: true }`.
 
+!!! danger "Toque não tem clique direito — e o browser não te dá um substituto"
+    Medido no Chrome com emulação de toque (perfis Pixel 7 e iPhone 13), um toque
+    segurado por 900 ms num elemento comum produz `pointerdown`, `touchstart`,
+    `pointerup`, `touchend` e `click` — e **nenhum** `contextmenu`. Um menu que só
+    escutasse `contextmenu` deixaria toda ação atrás dele inalcançável no celular,
+    sem erro nenhum: ele simplesmente nunca abre.
+
+    Por isso o toque longo é **default**, e independe de `trigger` (que só decide o
+    gesto de mouse). O timer é cancelado quando o dedo anda mais de 10 px — senão
+    toda rolagem que começa sobre o gatilho abriria um menu — e o `click` que o dedo
+    deixa para trás é engolido, para abrir o menu sobre um balão de conversa não
+    abrir também o balão.
+
+!!! tip "O padrão `⋮`"
+    Um botão de três pontinhos deve responder ao clique **esquerdo**. Envolva-o com
+    `trigger="click"`:
+
+    ```tsx
+    <ContextMenu trigger="click" items={items}>
+      <Button variant="ghost" aria-label="Mais ações">⋮</Button>
+    </ContextMenu>
+    ```
+
+    `"both"` mantém os dois botões, para um alvo que aceita as duas formas.
+
+!!! check "Preso dentro da viewport"
+    O menu é medido depois de montar e puxado para dentro da tela. Antes disso,
+    medido em 320 px de largura: um menu de 180 px aberto em `x=235` ia até 415 —
+    **95 px fora da tela**, cortando a borda direita de todo rótulo.
+
 !!! tip "Teclado"
-    Setas ↑/↓ movem o foco entre itens selecionáveis; Enter ativa o item focado.
+    O menu recebe o foco ao abrir, então o leitor de tela anuncia o menu em vez de
+    ficar no gatilho. Setas ↑/↓ percorrem os itens selecionáveis e dão a volta,
+    `Home`/`End` vão para as pontas, `Enter` ativa e `Escape` fecha.
 
 ## `HoverCard`
 

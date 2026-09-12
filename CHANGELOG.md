@@ -90,6 +90,14 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   CJS 152,5 → 155 kB. A fatia `Chat` ganhou teto próprio, **11 kB**, que é o teto com mídia
   e menu embutidos (o `size-limit` não faz splitting; o consumidor faz).
 
+  O sweep `axe` da gallery subiu **5 nós de `color-contrast` em `incomplete`** por
+  célula (92/92/102/102, medido no CI) e **nenhuma violação nova**: um stub de
+  citação sobre `surface-2`, um chip de reação sobre `primary-soft` e os ticks
+  dentro de uma bolha tinta são exatamente o caso em que o axe não resolve o fundo.
+  Contagem não é piso, então os oito pares da bolha passaram a ser **medidos
+  diretamente** num teste novo do e2e, em claro e escuro — e o baseline foi
+  atualizado com os números do CI.
+
   Duas correções vieram junto, achadas pelos guards do próprio repo: `ChatMessage.body`
   passou a ser **opcional** — o guard de exemplos de doc reprovou um exemplo com
   `deleted: true`, e exigir corpo numa mensagem apagada obrigava todo app a inventar um

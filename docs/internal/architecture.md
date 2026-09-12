@@ -5,7 +5,7 @@ mexer em barrel, ou tocar no empacotamento.
 
 ## Estrutura de `src/`
 
-40 módulos, um por domínio. O que é subpath público está marcado com ⇢.
+41 módulos, um por domínio. O que é subpath público está marcado com ⇢.
 
 ```text
 src/
@@ -16,14 +16,14 @@ src/
 ├── br/           ⇢  5.571 municípios do IBGE + 35 RAs do DF + mapa UF clicável
 ├── capture/         createMediaRecorder, useVideoRecorder, useBarcodeScanner
 ├── charts/       ⇢  wrappers recharts
-├── components/      129 componentes UI
+├── components/      131 componentes UI
 ├── data/            createDataProvider, <TempestDataProvider>, useDataProvider
 ├── editor/       ⇢  RichTextEditor (tiptap)
 ├── error-boundary/  ErrorBoundary, useErrorHandler
 ├── feature-flags/   Provider + InMemory + GrowthBook + LaunchDarkly
 ├── forms/           FormField, zodResolver, useZodForm, inputs BR, useViaCEP
 ├── geo/             mapas sem tile, createPositionTracker, OSRM, haversine
-├── hooks/           53 hooks
+├── hooks/           56 hooks
 ├── http/            createApiClient, parseResponse, uploadWithProgress, retry
 ├── i18n/            createI18n, I18nProvider, useI18n, useTranslate
 ├── icons/        ⇢  <Icon name> por slug + IconProvider + 46 shards gerados
@@ -96,7 +96,7 @@ Adicionar subpath é mudança de superfície pública: entra no `exports`, no
 ## Contagens, e como reproduzi-las
 
 ```bash
-# exports de runtime na entrada raiz (564 na 0.63.0)
+# exports de runtime na entrada raiz (567 no ciclo 0.64.0)
 node --import ./loader/css-loader.mjs --input-type=module \
   -e 'const m = await import("./dist/tempest-react-sdk.js"); console.log(Object.keys(m).length)'
 ```

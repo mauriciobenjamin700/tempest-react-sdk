@@ -84,10 +84,12 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   ações em **1,42 kB**, pedido só quando você passa `messageActions`. Sem os dois `lazy()`,
   os mesmos bytes entravam no caminho síncrono de todo chat de suporte.
 
-  Os tetos de `size-limit` subiram junto, com os números medidos: `typical app` 9,5 → 9,75 kB
+  Os tetos de `size-limit` subiram junto, com os números medidos — e os dois tetos de
+  barrel subiram **de novo** depois do rebase, porque quem estoura é a **soma** do ciclo:
+  com o anel de foco medido (#319) já na `main`, o ESM mediu 130,22 kB contra um teto de
+  130 e o CJS 155,07 contra 155. Ficaram em 131 kB e 156 kB. Os demais: `typical app` 9,5 → 9,75 kB
   (a fatia não importa `Chat`; o crescimento entra pela contabilização por caminho local,
-  que não lê `sideEffects` — a mesma armadilha já registrada), barrel ESM 127,5 → 130 kB e
-  CJS 152,5 → 155 kB. A fatia `Chat` ganhou teto próprio, **11 kB**, que é o teto com mídia
+  que não lê `sideEffects` — a mesma armadilha já registrada). A fatia `Chat` ganhou teto próprio, **11 kB**, que é o teto com mídia
   e menu embutidos (o `size-limit` não faz splitting; o consumidor faz).
 
   O sweep `axe` da gallery subiu **5 nós de `color-contrast` em `incomplete`** por

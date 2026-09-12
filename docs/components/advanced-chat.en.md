@@ -60,8 +60,74 @@ export function Support({ me }: { me: { id: string } }) {
 | `locale` | `"pt-BR" \| "en"` | `"pt-BR"` | Labels ("Today", "You", "Sending"…). |
 | `emptyState` | `ReactNode` | `<EmptyState/>` | Empty thread. |
 | `composerDisabled` | `boolean` | `false` | No permission, archived thread, offline. |
+| `onReact` | `(message, emoji: string) => void` | — | Enables the reaction chips. Receives the emoji pressed. |
+| `messageActions` | `(message) => ContextMenuItem[]` | — | Per-message actions: right click, long press, `⋮` button. |
+| `onQuoteClick` | `(message) => void` | — | Click on the reply stub — scroll to the quoted message. |
 
-`ChatMessage = { id, body, authorId, authorName?, sentAt, status?, data? }` · `status` ∈ `"sending" | "sent" | "read" | "failed"`.
+`ChatMessage = { id, body, authorId, authorName?, sentAt, status?, receipt?, attachments?, quote?, reactions?, deleted?, edited?, data? }` · `status` ∈ `"sending" | "sent" | "read" | "failed"`.
+
+### Messenger: what a bubble carries besides text
+
+`<Chat>` started as a text thread, and that is what it solves for support and for document comments. For a messenger between people it stopped at the first bubble that was not plain text — building `tempest-zap` is where that became concrete: the app wrote its own `MessageBubble`, `MessageThread` and `MessageComposer`, not out of preference, but because none of this had anywhere to go.
+
+```tsx
+import { Chat, type ChatMessage } from "tempest-react-sdk";
+
+const messages: ChatMessage[] = [
+  {
+    id: "m1",
+    authorId: "ana",
+    authorName: "Ana",
+    sentAt: Date.now() - 60_000,
+    body: "look at the place",
+    attachments: [{ kind: "image", url: "/photos/room.jpg", alt: "empty room" }],
+    reactions: [{ emoji: "🔥", count: 2, reacted: true }],
+  },
+  {
+    id: "m2",
+    authorId: "me",
+    sentAt: Date.now() - 30_000,
+    body: "booking it for Friday",
+    quote: { messageId: "m1", senderName: "Ana", excerpt: "look at the place", kind: "image" },
+    receipt: { deliveredTo: 9, readBy: 4, totalRecipients: 9 },
+  },
+  { id: "m3", authorId: "bruno", sentAt: Date.now(), deleted: true },
+];
+
+<Chat
+  messages={messages}
+  currentUserId="me"
+  onReact={(message, emoji) => toggleReaction(message.id, emoji)}
+  onQuoteClick={(message) => scrollToMessage(message.quote!.messageId)}
+  messageActions={(message) => [
+    { label: "Reply", onSelect: () => reply(message) },
+    { label: "Forward", onSelect: () => forward(message) },
+    { separator: true },
+    { label: "Delete", danger: true, onSelect: () => remove(message) },
+  ]}
+/>;
+```
+
+| Field | Type | What it solves |
+| --- | --- | --- |
+| `attachments` | `ChatAttachment[]` | Image (opens the `Lightbox`), video and audio (the SDK's players), a voice note with its waveform, a document as a download row |
+| `quote` | `ChatQuote` | The stub of the replied-to message, with `revoked` for when it is deleted |
+| `reactions` | `ChatReaction[]` | Emoji with a tally, marking yours |
+| `receipt` | `ChatReceipt` | `deliveredTo` / `readBy` / `totalRecipients` — a group's ticks |
+| `deleted` | `boolean` | The tombstone, as a state, not a `body` swapped for a string |
+| `edited` | `boolean` | Marks "edited" without touching the body |
+
+!!! danger "Deleting a message has to delete the quote of it"
+    `ChatQuote.revoked` is not decoration. Without it, the text of a deleted message stays visible inside the reply that quoted it — the easiest leak to miss, because the original disappears from the screen and the copy does not. With `revoked: true` the stub swaps the excerpt for "Message deleted" and none of the content survives.
+
+!!! info "Group ticks need three states, not two"
+    `status: "read"` is a boolean for the sender: it cannot separate "delivered to everyone" from "read by everyone", and only the second turns the ticks. With `receipt`, `resolveReceiptState` returns `"sent" | "delivered" | "read"` — and the thresholds are deliberately **all**: reporting "read" because one person out of nine opened it is what makes the indicator lose credibility. When `totalRecipients` is `0` (a thread whose membership the app does not track), `status` decides again.
+
+!!! tip "Actions live in a menu, not painted on the bubble"
+    Buttons on every bubble turn a conversation into a toolbar. `messageActions` wires up the SDK's `<ContextMenu>`: right click on the desktop, **long press** on a phone, and a `⋮` button — which is also the keyboard path. A deleted message gets no actions.
+
+!!! check "Media and the menu arrive through `lazy()` — a text thread does not pay"
+    Measured on `dist`, bundled with code splitting: the thread itself is **3.67 kB brotli**, the media path (`Lightbox` + `VideoPlayer` + `AudioPlayer`) is **4.91 kB** in a chunk requested only when an attachment appears, and the actions menu is **1.42 kB**, requested only when you pass `messageActions`. A support chat or a comment thread keep costing what they cost.
 
 The component is **presentational and controlled**, like the rest of the SDK: it takes a list and emits intent. Where messages come from (REST, the SDK's `createWebSocket`, an SSE stream) and how the optimistic insert is done stay with the app, because those differ per backend.
 
@@ -79,6 +145,12 @@ The component is **presentational and controlled**, like the rest of the SDK: it
 
 !!! tip "It doubles as a comment thread"
     Same component **without** `currentUserId` and without `typing`: everyone on one side, a name per run. That is why "who am I" is a prop rather than an `own` field on every message — in a document comment thread nobody wants to annotate 200 messages.
+
+#### `ChatBubble`
+
+Exported separately for the same reason `ChatComposer` is: an app that builds its own thread (a virtualised list, a two-column layout) reuses the whole bubble — quote, attachments, reactions, ticks, actions menu and tombstone — instead of rebuilding it. It takes `message`, `own`, `locale` and the same handlers `<Chat>` does.
+
+For ticks outside a bubble, the two pure functions it uses are exported as well: `resolveReceiptState(message)` returns `"sending" | "sent" | "delivered" | "read" | "failed"`, and `receiptLabel(receipt, strings)` returns the sentence ("Read by 4 of 9") that goes in the `title` and to the screen reader.
 
 #### `ChatComposer`
 

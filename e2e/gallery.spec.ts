@@ -329,6 +329,85 @@ test.describe("accessibility sweep", () => {
      * what lands in `incomplete` — so the floor is measured here instead of
      * asked about.
      */
+    /**
+     * The messenger bubble's own pairs, measured rather than asked about.
+     *
+     * Every one of these lands in axe's `incomplete` bucket — a quote strip over
+     * `surface-2`, a reaction chip over `primary-soft`, ticks inside a tinted
+     * bubble are exactly the case where axe cannot resolve the background. The
+     * baseline counts those, which is what catches a new unknown appearing, but
+     * a count is not a floor: this test is the floor.
+     *
+     * It already earned its place. The quote author shipped as
+     * `--tempest-primary`, which measured **4.35:1** over `--tempest-surface-2` —
+     * under 4.5:1 for a 12px label, and invisible to the jsdom sweep.
+     */
+    test("keeps the messenger bubble's own pairs above the floor", async ({ page }) => {
+        for (const theme of ["light", "dark"] as const) {
+            await enterCell(page, { theme, width: 1280 });
+            await page.locator("#chat-messenger").scrollIntoViewIfNeeded();
+
+            const measured = await page.evaluate(() => {
+                const luminance = (colour: string): number => {
+                    const [r, g, b] = (colour.match(/[\d.]+/g) ?? ["0", "0", "0"])
+                        .slice(0, 3)
+                        .map(Number)
+                        .map((value) => {
+                            const channel = value / 255;
+                            return channel <= 0.03928
+                                ? channel / 12.92
+                                : Math.pow((channel + 0.055) / 1.055, 2.4);
+                        }) as [number, number, number];
+                    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+                };
+                const ratio = (fg: string, bg: string): number => {
+                    const [hi, lo] = [luminance(fg), luminance(bg)].sort((a, b) => b - a) as [
+                        number,
+                        number,
+                    ];
+                    return Number(((hi + 0.05) / (lo + 0.05)).toFixed(2));
+                };
+                const section = document.querySelector("#chat-messenger");
+                const backdrop = (node: Element): string => {
+                    let current: Element | null = node;
+                    while (current) {
+                        const colour = getComputedStyle(current).backgroundColor;
+                        if (colour && colour !== "rgba(0, 0, 0, 0)" && colour !== "transparent") {
+                            return colour;
+                        }
+                        current = current.parentElement;
+                    }
+                    return "rgb(255, 255, 255)";
+                };
+                const pairs: Record<string, number | null> = {};
+                for (const part of [
+                    "quoteText",
+                    "quoteAuthor",
+                    "tombstone",
+                    "fileMeta",
+                    "fileName",
+                    "reactionMine",
+                    "status",
+                    "edited",
+                ]) {
+                    const node = section?.querySelector(`[class*='${part}']`);
+                    pairs[part] = node ? ratio(getComputedStyle(node).color, backdrop(node)) : null;
+                }
+                return pairs;
+            });
+
+            for (const [part, contrast] of Object.entries(measured)) {
+                expect(contrast, `${theme}: ${part} is missing from the messenger demo`).not.toBe(
+                    null,
+                );
+                expect(
+                    contrast,
+                    `${theme}: ${part} has to clear 4.5:1 over what it actually sits on`,
+                ).toBeGreaterThanOrEqual(4.5);
+            }
+        }
+    });
+
     test("keeps the text tokens above the floor on the tinted surfaces", async ({ page }) => {
         for (const theme of ["light", "dark"] as const) {
             await enterCell(page, { theme, width: 1280 });

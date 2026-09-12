@@ -9,17 +9,11 @@ import { useEffect, useLayoutEffect, useRef, type HTMLAttributes, type ReactNode
 
 import { cn } from "@/utils/cn";
 
+import type { ContextMenuItem } from "../ContextMenu";
 import { EmptyState } from "../EmptyState";
-import { VisuallyHidden } from "../VisuallyHidden";
+import { ChatBubble } from "./ChatBubble";
 import { ChatComposer, type ChatComposerHandle } from "./ChatComposer";
-import {
-    chatStrings,
-    dayLabel,
-    groupMessages,
-    timeLabel,
-    typingLabel,
-    type ChatMessage,
-} from "./chat-groups";
+import { chatStrings, dayLabel, groupMessages, typingLabel, type ChatMessage } from "./chat-groups";
 import styles from "./Chat.module.css";
 
 /** DOM attributes this component redefines. */
@@ -56,15 +50,25 @@ export interface ChatProps extends Omit<HTMLAttributes<HTMLDivElement>, Overridd
     composerDisabled?: boolean;
     /** Called when `onSend` rejects. The draft stays in the field either way. */
     onSendError?: (error: unknown) => void;
+    /**
+     * Toggles a reaction on a message. Enables the reaction chips.
+     *
+     * Called with the emoji that was pressed, including one the user already
+     * reacted with: reacting again clears it, rather than stacking a second copy.
+     * The app owns that rule — the component only reports the press.
+     */
+    onReact?: (message: ChatMessage, emoji: string) => void;
+    /**
+     * Per-message actions: reply, forward, star, edit, delete.
+     *
+     * Returns the items for one message, opened by right click, by long press on
+     * touch, and by a `⋮` button on the bubble. Buttons painted on every bubble
+     * turn a conversation into a toolbar, which is why this is a menu.
+     */
+    messageActions?: (message: ChatMessage) => ContextMenuItem[];
+    /** Called when a reply stub is activated — scroll to the quoted message. */
+    onQuoteClick?: (message: ChatMessage) => void;
 }
-
-/** Status glyph and label for an outgoing message. */
-const STATUS_GLYPH: Record<NonNullable<ChatMessage["status"]>, string> = {
-    sending: "◌",
-    sent: "✓",
-    read: "✓✓",
-    failed: "!",
-};
 
 /**
  * A message thread: grouped by author and by day, own messages on one side, with
@@ -104,6 +108,9 @@ export function Chat({
     composerActions,
     composerDisabled,
     onSendError,
+    onReact,
+    messageActions,
+    onQuoteClick,
     className,
     ...rest
 }: ChatProps) {
@@ -184,55 +191,16 @@ export function Chat({
                                       </span>
                                       <ul className={styles.bubbles}>
                                           {section.messages.map((message) => (
-                                              <li key={message.id} className={styles.bubbleRow}>
-                                                  <div
-                                                      className={cn(
-                                                          styles.bubble,
-                                                          section.own && styles.ownBubble,
-                                                          message.status === "failed" &&
-                                                              styles.failedBubble,
-                                                      )}
-                                                  >
-                                                      <div className={styles.body}>
-                                                          {message.body}
-                                                      </div>
-                                                      <div className={styles.meta}>
-                                                          <time
-                                                              dateTime={new Date(
-                                                                  message.sentAt,
-                                                              ).toISOString()}
-                                                          >
-                                                              {timeLabel(message.sentAt, locale)}
-                                                          </time>
-                                                          {section.own && message.status && (
-                                                              <span
-                                                                  className={cn(
-                                                                      styles.status,
-                                                                      message.status === "failed" &&
-                                                                          styles.statusFailed,
-                                                                  )}
-                                                                  title={strings[message.status]}
-                                                              >
-                                                                  <span aria-hidden="true">
-                                                                      {STATUS_GLYPH[message.status]}
-                                                                  </span>
-                                                                  <VisuallyHidden>
-                                                                      {strings[message.status]}
-                                                                  </VisuallyHidden>
-                                                              </span>
-                                                          )}
-                                                      </div>
-                                                  </div>
-                                                  {message.status === "failed" && onRetry && (
-                                                      <button
-                                                          type="button"
-                                                          className={styles.retry}
-                                                          onClick={() => onRetry(message)}
-                                                      >
-                                                          {strings.retry}
-                                                      </button>
-                                                  )}
-                                              </li>
+                                              <ChatBubble
+                                                  key={message.id}
+                                                  message={message}
+                                                  own={section.own}
+                                                  locale={locale}
+                                                  onRetry={onRetry}
+                                                  onReact={onReact}
+                                                  messageActions={messageActions}
+                                                  onQuoteClick={onQuoteClick}
+                                              />
                                           ))}
                                       </ul>
                                   </div>

@@ -177,6 +177,246 @@
     font-weight: var(--tempest-weight-bold);
 }
 
+/*
+ * A bubble row carries more than a bubble now: the actions button sits beside it
+ * and the reaction chips hang under it, so the row wraps and the chips are given
+ * the whole width to fall onto.
+ */
+.bubbleRow {
+    flex-wrap: wrap;
+}
+
+.reactions {
+    display: flex;
+    flex-basis: 100%;
+    flex-wrap: wrap;
+    gap: var(--tempest-space-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ownRun .reactions {
+    justify-content: flex-end;
+}
+
+.reaction {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tempest-space-1);
+    padding: 0 var(--tempest-space-2);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-full, 999px);
+    background-color: var(--tempest-surface);
+    color: var(--tempest-text);
+    font: inherit;
+    font-size: var(--tempest-text-xs);
+    line-height: 1.8;
+    cursor: pointer;
+}
+
+.reaction:disabled {
+    cursor: default;
+}
+
+/*
+ * Your own reaction is marked by a tinted chip and its own foreground, never by
+ * `--tempest-text-subtle` over the tint: that token is solved against the page
+ * background and fails the text floor on a tinted surface.
+ */
+.reactionMine {
+    border-color: transparent;
+    background-color: var(--tempest-primary-soft);
+    color: var(--tempest-primary-on-soft);
+    font-weight: var(--tempest-weight-medium);
+}
+
+/*
+ * The ⋮ button is always in the DOM — on touch there is no hover to reveal it,
+ * and a control that only appears on hover is a control a phone does not have.
+ * A fine pointer gets it faded until the row is hovered or it is focused.
+ */
+.actionsButton {
+    flex: 0 0 auto;
+    padding: 0 var(--tempest-space-1);
+    border: none;
+    background: none;
+    color: var(--tempest-text-muted);
+    font: inherit;
+    line-height: 1;
+    cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .actionsButton {
+        opacity: 0;
+        transition: var(--tempest-transition-opacity, opacity 120ms ease);
+    }
+
+    .bubbleRow:hover .actionsButton,
+    .actionsButton:focus-visible {
+        opacity: 1;
+    }
+}
+
+/* The reply stub: a tinted strip with a bar on the side it is anchored to. */
+.quote {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+    padding: var(--tempest-space-1) var(--tempest-space-2);
+    border-left: 3px solid var(--tempest-primary);
+    border-radius: var(--tempest-radius-sm);
+    background-color: var(--tempest-surface-2);
+    color: var(--tempest-text);
+    font-size: var(--tempest-text-xs);
+    text-align: left;
+}
+
+.quoteButton {
+    border-top: none;
+    border-right: none;
+    border-bottom: none;
+    font: inherit;
+    font-size: var(--tempest-text-xs);
+    cursor: pointer;
+}
+
+/*
+ * The author of a quote is text, so it is coloured like text.
+ *
+ * `--tempest-primary` here measured **4.35:1** against `--tempest-surface-2` in a
+ * real browser — below the 4.5:1 floor for a 12px label, and invisible to the
+ * jsdom axe sweep, which disables `color-contrast` because nothing is painted.
+ * The brand still marks the quote: it is the bar down the side, which is a
+ * non-text indicator and only owes 3:1.
+ */
+.quoteAuthor {
+    color: var(--tempest-text);
+    font-weight: var(--tempest-weight-medium);
+}
+
+.quoteText {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow-wrap: anywhere;
+}
+
+/*
+ * A revoked quote reads as absent, which is the point: the text of a deleted
+ * message must not survive inside the reply to it.
+ */
+.quoteRevoked {
+    color: var(--tempest-text-muted);
+    font-style: italic;
+}
+
+.tombstone {
+    display: flex;
+    align-items: center;
+    gap: var(--tempest-space-1);
+    color: var(--tempest-text-muted);
+    font-style: italic;
+}
+
+.deletedBubble {
+    border-style: dashed;
+    background-color: transparent;
+}
+
+.edited {
+    font-style: italic;
+}
+
+/* Read by everyone is the only state that turns the ticks. */
+.statusRead {
+    color: var(--tempest-info, var(--tempest-primary));
+}
+
+.attachments {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-space-1);
+    max-width: 320px;
+}
+
+/* Holds the row's height while the attachments chunk is still loading. */
+.attachmentsFallback {
+    min-height: var(--tempest-space-8, 2rem);
+}
+
+.imageAttachment {
+    padding: 0;
+    border: none;
+    border-radius: var(--tempest-radius-md);
+    background: none;
+    line-height: 0;
+    cursor: pointer;
+}
+
+.imageAttachment img {
+    max-width: 100%;
+    max-height: 260px;
+    border-radius: var(--tempest-radius-md);
+    object-fit: cover;
+}
+
+.videoAttachment {
+    max-width: 100%;
+    border-radius: var(--tempest-radius-md);
+}
+
+.voiceAttachment {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-space-1);
+}
+
+/*
+ * The waveform is the difference between a voice note and a grey rectangle: it
+ * is what tells somebody whether this is a word or a two-minute monologue.
+ */
+.waveform {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 28px;
+}
+
+.waveform span {
+    flex: 1 1 auto;
+    min-width: 2px;
+    border-radius: 1px;
+    background-color: var(--tempest-primary);
+    opacity: 0.7;
+}
+
+.fileAttachment {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--tempest-space-2);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-md);
+    color: var(--tempest-text);
+    text-decoration: none;
+}
+
+.fileName {
+    overflow-wrap: anywhere;
+    font-weight: var(--tempest-weight-medium);
+}
+
+.fileMeta {
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-2xs);
+    font-variant-numeric: tabular-nums;
+}
+
 .retry {
     padding: 0;
     border: none;

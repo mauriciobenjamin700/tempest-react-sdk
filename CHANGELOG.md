@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.64.0] — 2026-09-12
+
 ### Adicionado
 
 - **`tempest-react-sdk/node-css-loader` — importar o pacote em Node puro.** Desde a

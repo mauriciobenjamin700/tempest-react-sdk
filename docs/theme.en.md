@@ -154,7 +154,6 @@ const theme = createTheme({
   danger: "#dc2626",
   chart: ["#7c3aed", "#0ea5e9", "#22c55e"],  // --tempest-chart-1..N + -count (see Charts)
   radius: "lg",                // "none" | "sm" | "md" | "lg" | "xl" | "full"
-  focusRingAlpha: 0.35,
 });
 
 theme.light; // { "--tempest-primary-500": "#7c3aed", … } — your color, exactly
@@ -163,6 +162,32 @@ theme.css;   // ":root { … }\n\n[data-tempest-theme=\"dark\"] { … }"
 ```
 
 Only the families you pass are generated — everything else still comes from the SDK's `colors.css`. A theme is a **patch**, not a fork of the palette.
+
+!!! danger "The focus ring is not derived by transparency — and why that matters"
+    A generated theme's `--tempest-focus-ring-color` is **opaque**, and the ramp
+    step is **measured**, not fixed: the generator starts at `500` and walks up
+    the ramp until the ring clears the 3:1 WCAG 2.2 SC 1.4.11 asks for **on all
+    four surfaces** (`--tempest-bg`, `--tempest-surface`, `-2`, `-3`), in both
+    schemes.
+
+    A tinted ring has no contrast of its own — it has the contrast of whatever it
+    composites over. Measured across twelve brands, four surfaces and both themes
+    (96 pairings):
+
+    | ring | pairings above 3:1 |
+    | --- | --- |
+    | `500` at alpha 0.35 (the default through 0.63.0) | 3 of 96 |
+    | `500` opaque | 58 of 96 |
+    | step picked by measurement | **96 of 96** |
+
+    Opaque alone does not fix it, which is what the measured step covers: the
+    purple `#8100D7` passes at 7.20:1 in light and fails at **1.91:1 in dark**,
+    and a yellow fails at 1.43:1 in light. When the brand already clears the floor
+    at `500`, the ring is your exact color — the walk is a fallback, not a
+    recolour.
+
+    `focusRingAlpha` is still there for a translucent ring over a background you
+    control; below `1` it logs a warning in a development build.
 
 !!! check "Step `500` is exactly the color you passed"
     The scale is **anchored** at `500`: your brand's lightness becomes the fixed

@@ -44,14 +44,25 @@ describe("createTheme", () => {
         expect(light["--tempest-text-on-primary"]).toBe("#101828");
     });
 
-    it("derives the focus ring from the brand color with the requested alpha", () => {
-        const { light } = createTheme({ primary: "#0066ff", focusRingAlpha: 0.5 });
-        expect(light["--tempest-focus-ring-color"]).toMatch(/^rgb\(\d+ \d+ \d+ \/ 0\.5\)$/);
+    /**
+     * The inversion of what this file used to assert.
+     *
+     * `defaults the focus ring alpha to 0.35` was a green test over a real
+     * defect: a tinted ring has no contrast of its own, so every app that
+     * branded itself got back the ring 0.61.0 had removed from the stylesheets,
+     * measured at 2.00:1 over white for the brand that reported it. The
+     * assertion is kept, inverted, rather than deleted — otherwise the next
+     * reader has no way to tell the default was revisited on purpose.
+     * `create-theme.focus-ring.test.ts` carries the contrast sweep behind it.
+     */
+    it("derives an opaque focus ring by default, because alpha destroys its contrast", () => {
+        const { light } = createTheme({ primary: "#0066ff" });
+        expect(light["--tempest-focus-ring-color"]).toMatch(/^#[0-9a-fA-F]{6}$/);
     });
 
-    it("defaults the focus ring alpha to 0.35", () => {
-        const { light } = createTheme({ primary: "#0066ff" });
-        expect(light["--tempest-focus-ring-color"]).toContain("/ 0.35)");
+    it("still honours an alpha a theme asks for on purpose", () => {
+        const { light } = createTheme({ primary: "#0066ff", focusRingAlpha: 0.5 });
+        expect(light["--tempest-focus-ring-color"]).toMatch(/^rgb\(\d+ \d+ \d+ \/ 0\.5\)$/);
     });
 
     it("wires neutral aliases when a gray is given", () => {

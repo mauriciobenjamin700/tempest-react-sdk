@@ -29058,7 +29058,6 @@ const theme = createTheme({
   danger: "#dc2626",
   chart: ["#7c3aed", "#0ea5e9", "#22c55e"],  // --tempest-chart-1..N + -count (ver Charts)
   radius: "lg",                // "none" | "sm" | "md" | "lg" | "xl" | "full"
-  focusRingAlpha: 0.35,
 });
 
 theme.light; // { "--tempest-primary-500": "#7c3aed", … } — a sua cor, exata
@@ -29067,6 +29066,32 @@ theme.css;   // ":root { … }\n\n[data-tempest-theme=\"dark\"] { … }"
 ```
 
 Só as famílias que você passa são geradas — o resto continua vindo do `colors.css` do SDK. Um tema é um **patch**, não um fork da paleta.
+
+!!! danger "O anel de foco não é derivado por transparência — e por que isso importa"
+    O `--tempest-focus-ring-color` de um tema gerado é **opaco**, e o degrau da
+    rampa é **medido**, não fixo: o gerador começa no `500` e sobe a rampa até o
+    anel alcançar os 3:1 que a WCAG 2.2 SC 1.4.11 pede **sobre as quatro
+    superfícies** (`--tempest-bg`, `--tempest-surface`, `-2`, `-3`), nos dois
+    esquemas.
+
+    Um anel tinto não tem contraste próprio — ele tem o contraste do que estiver
+    embaixo. Medido em doze marcas contra as quatro superfícies nos dois temas
+    (96 pares):
+
+    | anel | pares acima de 3:1 |
+    | --- | --- |
+    | `500` com alfa 0.35 (o default até a 0.63.0) | 3 de 96 |
+    | `500` opaco | 58 de 96 |
+    | degrau escolhido por medição | **96 de 96** |
+
+    Opaco sozinho não resolve, e é isso que o degrau medido cobre: o roxo
+    `#8100D7` passa a 7,20:1 no claro e reprova a **1,91:1 no escuro**, e um
+    amarelo reprova a 1,43:1 no claro. Quando a marca já alcança o piso no `500`,
+    o anel é a sua cor exata — a caminhada é fallback, não recolorização.
+
+    `focusRingAlpha` continua existindo para quem quer um anel translúcido sobre
+    um fundo que controla; abaixo de `1` ele emite um aviso em build de
+    desenvolvimento.
 
 !!! check "O degrau `500` é exatamente a cor que você passou"
     A escala é **ancorada** no `500`: a lightness da sua marca vira o ponto fixo e

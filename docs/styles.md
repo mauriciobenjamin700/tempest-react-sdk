@@ -125,7 +125,7 @@ o app não alcança.
     faz.
 
 !!! info "`styles.css` continua publicado"
-    Uma linha, todos os ~150 componentes, e nada quebra: o bundler deduplica a
+    Uma linha, todos os 129 componentes, e nada quebra: o bundler deduplica a
     folha que o componente importa contra a que você importou. Custa bytes, nunca
     correção — é a mesma troca do `auto.css`.
 

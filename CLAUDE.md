@@ -55,7 +55,7 @@ Peers obrigatórios: `react`, `react-dom` (`^18 || ^19`), `react-router`
 ## Mapa do repositório
 
 ```text
-src/            41 módulos de domínio (access, auth, br, components, forms, http,
+src/            40 módulos de domínio (access, auth, br, components, forms, http,
                 icons, offline, query, styles, theme, vision, webrtc, ws, …)
 bin/            CLIs: create-tempest-app (scaffold) e tempest (doctor/lint/fix/gen)
 loader/         loader de .css para Node cru, publicado como /node-css-loader
@@ -104,14 +104,15 @@ mais voltam:
 - **`[Unreleased]` conflita N-1 vezes** quando N PRs o tocam: é concatenação, o
   que está na `main` primeiro.
 
-## Estado atual (snapshot pós-v0.63.0 — `[Unreleased]` carrega o ciclo 0.64.0)
+## Estado atual (snapshot pós-v0.64.0 — `[Unreleased]` abre o ciclo 0.65.0)
 
-- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 83 tags publicadas
-  (0.1.0 → 0.63.0) com provenance assinada via OIDC. Histórico em `RELEASES.md`
+- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 84 tags publicadas
+  (0.1.0 → 0.64.0) com provenance assinada via OIDC. Histórico em `RELEASES.md`
   (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
-- **Superfície**: 41 módulos em `src/`, 131 componentes, 56 hooks, **567 exports
-  de runtime** na raiz, 70 em `/br`, 21 em `/icons`, 18 subpaths. O método de
-  contagem (e por que o `--import` não é opcional) está em
+- **Superfície**: 40 módulos em `src/` (`ls -d src/*/`), 129 componentes
+  (`ls -d src/components/*/`), 54 hooks `useX` no barrel de `hooks/`, **567
+  exports de runtime** na raiz, 70 em `/br`, 21 em `/icons`, 18 subpaths. O
+  método de contagem dos exports (e por que o `--import` não é opcional) está em
   [`architecture.md`](./docs/internal/architecture.md).
 - **Testes**: 6262 em 575 arquivos, ~50 s. Cobertura em 05/09/2026: 99,73%
   linhas / 98,81% statements / 99,82% funções / 95,64% branches; pisos do CI em

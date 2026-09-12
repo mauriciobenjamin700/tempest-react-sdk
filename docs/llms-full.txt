@@ -26704,7 +26704,7 @@ o app não alcança.
     faz.
 
 !!! info "`styles.css` continua publicado"
-    Uma linha, todos os ~150 componentes, e nada quebra: o bundler deduplica a
+    Uma linha, todos os 129 componentes, e nada quebra: o bundler deduplica a
     folha que o componente importa contra a que você importou. Custa bytes, nunca
     correção — é a mesma troca do `auto.css`.
 
@@ -29153,7 +29153,7 @@ const theme = createTheme({ primary: "#7c3aed" });
 applyTheme(theme);
 ```
 
-Pronto: os 104 componentes passam a usar a marca nova, no claro e no escuro.
+Pronto: os 129 componentes passam a usar a marca nova, no claro e no escuro.
 
 ### O que ele gera
 

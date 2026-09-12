@@ -104,6 +104,18 @@ jobs:
                   npx esbuild entry.mjs --bundle --format=esm --platform=node --loader:.css=empty --outfile=smoke.mjs --log-level=warning
                   node smoke.mjs
 
+            # The bundled smoke above is the consumer path; this one is the escape
+            # hatch the package ships for everything that is not a bundler — a
+            # script, a Jest suite with no stylesheet transform, any read of the
+            # surface by introspection. It runs the exact same assertions in bare
+            # Node, which only gets that far because `--import` registers the
+            # loader first. Smoking the published subpath is also what keeps it
+            # honest: a loader that stopped resolving stylesheets fails here.
+            - name: Smoke the shipped Node CSS loader
+              run: |
+                  cd /tmp/sdk-smoke
+                  node --import tempest-react-sdk/node-css-loader entry.mjs
+
             # No NODE_AUTH_TOKEN: publish authenticates via GitHub OIDC
             # (npm Trusted Publishing). Provenance is generated automatically.
             # Requires a Trusted Publisher configured on npmjs.com pointing at

@@ -24,6 +24,7 @@
   "files": [
     "dist",
     "bin",
+    "loader",
     "template",
     "template-pwa",
     "README.md",
@@ -45,6 +46,7 @@
       "import": "./dist/tempest-react-sdk.js",
       "require": "./dist/tempest-react-sdk.cjs"
     },
+    "./node-css-loader": "./loader/css-loader.mjs",
     "./testing": {
       "types": "./dist/testing.d.ts",
       "import": "./dist/testing.js",

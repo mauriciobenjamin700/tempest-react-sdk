@@ -159,7 +159,7 @@ Via `package.json`:
 
 Requires React `>=18` and Node `>=22.12` to build.
 
-**A bundler is required.** Every component module imports its own stylesheet (see [CSS import](#css-import)), and `.css` is not a format Node can load — `node -e "import('tempest-react-sdk')"` fails with `ERR_UNKNOWN_FILE_EXTENSION`. Vite, webpack, Rspack, Parcel and esbuild all resolve that import, and the SDK is client-side only, so no real consumer is affected; a **Jest** suite needs `moduleNameMapper: { "\\.css$": "<rootDir>/test/css-stub.js" }`, the same mapping any CSS-Modules project already has. Vitest needs nothing.
+**A bundler is assumed — outside one, load the shipped `.css` loader.** Every component module imports its own stylesheet (see [CSS import](#css-import)), and `.css` is not a format Node can load — `node -e "import('tempest-react-sdk')"` fails with `ERR_UNKNOWN_FILE_EXTENSION`. Vite, webpack, Rspack, Parcel and esbuild all resolve that import, and the SDK is client-side only, so no real app consumer is affected. For everything that is not a bundler — a script, a Jest suite, reading the surface by introspection — the package ships the loader: `node --import tempest-react-sdk/node-css-loader your-script.mjs` resolves every stylesheet to an empty module, for `import` and `require` both. A **Jest** suite can use it or the usual `moduleNameMapper: { "\\.css$": "<rootDir>/test/css-stub.js" }`. Vitest needs nothing.
 
 ### Peer & bundled dependencies
 

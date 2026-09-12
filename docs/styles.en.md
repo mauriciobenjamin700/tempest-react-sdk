@@ -79,13 +79,33 @@ The cut depends on neither a plugin nor a bundler — every published
 `package.json` is what lets a bundler drop the sheet of a component the app never
 reaches.
 
-!!! warning "A bundler is required — and what to do in Jest"
+!!! warning "Outside a bundler, use the loader the package ships"
     The `.css` import that makes this work is the one Node cannot load:
     `node -e "import('tempest-react-sdk')"` dies with
     `ERR_UNKNOWN_FILE_EXTENSION`. Vite, webpack, Rspack, Parcel and esbuild
     resolve that import; bare Node, a loose `.mjs` script and Jest's `require()`
     do not. The SDK is client-side only and always runs behind a bundler, so no
-    real consumer is left out — but your test runner might be.
+    real app consumer is left out — but your script, your test runner and any
+    read of the surface by introspection are.
+
+    For those, the package ships the piece instead of telling you to write it:
+
+    ```bash
+    node --import tempest-react-sdk/node-css-loader your-script.mjs
+    ```
+
+    Or from inside the script, **before** the first import of the package:
+
+    ```js
+    import "tempest-react-sdk/node-css-loader";
+
+    const sdk = await import("tempest-react-sdk");
+    console.log(Object.keys(sdk).length);
+    ```
+
+    It resolves every stylesheet to an empty module, for `import` **and**
+    `require` — nothing about the styles is emulated, which is the correct answer
+    in a context that paints nothing.
 
     Under **Vitest** nothing changes: Vite processes the CSS. Under **Jest**, map
     the extension to a stub, which is the same configuration any project with CSS

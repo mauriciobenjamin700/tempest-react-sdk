@@ -429,7 +429,7 @@ Aliases:
     build medido duas vezes não devolve sempre a mesma contagem. Medido: 87 e
     depois 88 nós de `color-contrast` em `incomplete`, sem nada mudar entre as
     duas execuções. É um ratchet, não uma allowlist: a gallery
-    renderiza 64 seções de demo e carrega dívida real de acessibilidade, e
+    renderiza 66 seções de demo e carrega dívida real de acessibilidade, e
     reprovar tudo deixaria o build vermelho para sempre — que é como um gate é
     deletado. Cair não falha; os números estão lá para serem baixados.
 

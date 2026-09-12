@@ -49,7 +49,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ Button, Input, Modal, Table, ToastProvider, AppProviders, AppRouter, createApiClient, createAuthStore, useDebounce }"
     },
-    "limit": "9.5 kB",
+    "limit": "9.75 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -295,7 +295,7 @@
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
-    "name": "slice: createPeerMesh (mesh WebRTC \u2014 slots, ICE queue, uplink division, own sampling)",
+    "name": "slice: createPeerMesh (mesh WebRTC — slots, ICE queue, uplink division, own sampling)",
     "path": "dist/tempest-react-sdk.js",
     "import": {
       "./dist/tempest-react-sdk.js": "{ createPeerMesh, scaleForRoom, resolveDegradation }"
@@ -317,9 +317,9 @@
     ]
   },
   {
-    "name": "ceiling: full barrel ESM (nobody imports this \u2014 tree-shaking is the real cost)",
+    "name": "ceiling: full barrel ESM (nobody imports this — tree-shaking is the real cost)",
     "path": "dist/tempest-react-sdk.js",
-    "limit": "127.5 KB",
+    "limit": "130 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -336,9 +336,9 @@
     ]
   },
   {
-    "name": "ceiling: full barrel CJS (no tree-shaking \u2014 worst case for require() consumers)",
+    "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "152.5 KB",
+    "limit": "155 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -379,7 +379,7 @@
     ]
   },
   {
-    "name": "slice: VideoPlayer \u2014 transport, rate and fullscreen",
+    "name": "slice: VideoPlayer — transport, rate and fullscreen",
     "path": "dist/tempest-react-sdk.js",
     "import": {
       "./dist/tempest-react-sdk.js": "{ VideoPlayer }"
@@ -394,7 +394,7 @@
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
-    "name": "slice: imaging \u2014 captureFrame alone (seek + encode, no hooks)",
+    "name": "slice: imaging — captureFrame alone (seek + encode, no hooks)",
     "path": "dist/imaging.js",
     "import": {
       "./dist/imaging.js": "{ captureFrame }"
@@ -403,7 +403,7 @@
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
-    "name": "slice: tabular \u2014 compact reader alone (no onnxruntime-web at all)",
+    "name": "slice: tabular — compact reader alone (no onnxruntime-web at all)",
     "path": "dist/tabular.js",
     "import": {
       "./dist/tabular.js": "{ CompactPredictor }"
@@ -424,7 +424,7 @@
     "ignore": ["onnxruntime-web"]
   },
   {
-    "name": "br entry \u2014 full opt-in surface incl. ALL lazy UF/municipality/centroid chunks (5571 municipalities, IBGE intermediaria mesh)",
+    "name": "br entry — full opt-in surface incl. ALL lazy UF/municipality/centroid chunks (5571 municipalities, IBGE intermediaria mesh)",
     "path": "dist/br.js",
     "limit": "515 KB",
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
@@ -457,7 +457,7 @@
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
-    "name": "slice: icons \u2014 no-shard surface (`{ IconProvider, createIconRegistry }`)",
+    "name": "slice: icons — no-shard surface (`{ IconProvider, createIconRegistry }`)",
     "path": "dist/icons.js",
     "import": {
       "./dist/icons.js": "{ IconProvider, createIconRegistry }"
@@ -466,7 +466,7 @@
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
-    "name": "slice: icons \u2014 the Material Symbols bridge",
+    "name": "slice: icons — the Material Symbols bridge",
     "path": "dist/icons.js",
     "import": {
       "./dist/icons.js": "{ fromMaterialSymbol }"
@@ -475,7 +475,7 @@
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
-    "name": "slice: icons \u2014 `{ validateIconName }` (a form validating without rendering)",
+    "name": "slice: icons — `{ validateIconName }` (a form validating without rendering)",
     "path": "dist/icons.js",
     "import": {
       "./dist/icons.js": "{ validateIconName }"
@@ -484,7 +484,7 @@
     "ignore": ["react", "react-dom", "react/jsx-runtime", "lucide-react"]
   },
   {
-    "name": "ceiling: icons \u2014 `{ IconPicker }` (slug list + the Icon runtime it renders with)",
+    "name": "ceiling: icons — `{ IconPicker }` (slug list + the Icon runtime it renders with)",
     "path": "dist/icons.js",
     "import": {
       "./dist/icons.js": "{ IconPicker }"
@@ -493,13 +493,13 @@
     "ignore": ["react", "react-dom", "react/jsx-runtime", "lucide-react"]
   },
   {
-    "name": "ceiling: largest icon shard \u2014 the real cost of ONE lazy fetch",
+    "name": "ceiling: largest icon shard — the real cost of ONE lazy fetch",
     "path": "dist/icons/generated/shard-43.js",
     "limit": "5.5 KB",
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
-    "name": "ceiling: icons \u2014 `{ Icon }` incl. ALL 46 lazy shards (lucide MEASURED)",
+    "name": "ceiling: icons — `{ Icon }` incl. ALL 46 lazy shards (lucide MEASURED)",
     "path": "dist/icons.js",
     "import": {
       "./dist/icons.js": "{ Icon }"
@@ -508,7 +508,7 @@
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
-    "name": "ceiling: icons \u2014 full surface incl. the 2065-slug list and every shard",
+    "name": "ceiling: icons — full surface incl. the 2065-slug list and every shard",
     "path": "dist/icons.js",
     "limit": "148 KB",
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
@@ -558,7 +558,29 @@
     ]
   },
   {
-    "name": "slice: AIChat (LLM transcript \u2014 pulls Markdown + CodeBlock)",
+    "name": "slice: Chat (messenger thread — ceiling with media and menu inlined)",
+    "path": "dist/tempest-react-sdk.js",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ Chat }"
+    },
+    "limit": "11 KB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router",
+      "fflate"
+    ]
+  },
+  {
+    "name": "slice: AIChat (LLM transcript — pulls Markdown + CodeBlock)",
     "path": "dist/tempest-react-sdk.js",
     "import": {
       "./dist/tempest-react-sdk.js": "{ AIChat }"
@@ -629,7 +651,7 @@
     "limit": "30 kB"
   },
   {
-    "name": "styles/core.css (foundation alone \u2014 no component)",
+    "name": "styles/core.css (foundation alone — no component)",
     "path": "dist/styles/core.css",
     "limit": "4 kB"
   },

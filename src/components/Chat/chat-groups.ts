@@ -1,11 +1,93 @@
 import type { ReactNode } from "react";
 
+/** What a bubble can carry besides text. */
+export type ChatAttachmentKind = "image" | "video" | "audio" | "voice" | "file";
+
+/** One attachment on a message. */
+export interface ChatAttachment {
+    /** Decides how it renders: a picture, a player, a voice note, a download row. */
+    kind: ChatAttachmentKind;
+    /** Where the bytes are. A blob URL works for a message still uploading. */
+    url: string;
+    /** File name, shown for `"file"` and used as the download name. */
+    name?: string;
+    /** MIME type, when the app knows it. */
+    mimeType?: string;
+    /** Size in bytes, shown next to a file. */
+    sizeBytes?: number;
+    /** Duration in ms, for audio, voice and video. */
+    durationMs?: number;
+    /** Poster for a video, or a smaller copy of an image. */
+    thumbnailUrl?: string;
+    /**
+     * Normalised peaks, `0`–`1`, for a voice note.
+     *
+     * A voice note without one is a grey rectangle: the waveform is what tells
+     * somebody whether this is a word or a two-minute monologue.
+     */
+    waveform?: readonly number[];
+    /** Alternative text for an image. */
+    alt?: string;
+}
+
+/**
+ * The stub of the message being replied to, shown above the body.
+ *
+ * `revoked` is not decoration: deleting the quoted message has to blank the
+ * quoted text, or it leaks through everyone who replied to it.
+ */
+export interface ChatQuote {
+    /** Id of the quoted message, so the app can scroll to it. */
+    messageId: string;
+    /** Who wrote it. */
+    senderName?: string;
+    /** A short piece of what it said. The component never truncates for you. */
+    excerpt?: string;
+    /** What the quoted message was, when it was not text. */
+    kind?: "text" | ChatAttachmentKind;
+    /** The quoted message was deleted — the excerpt is not shown. */
+    revoked?: boolean;
+}
+
+/** One emoji on a message, with its tally. */
+export interface ChatReaction {
+    /** The emoji itself. */
+    emoji: string;
+    /** How many people reacted with it. */
+    count: number;
+    /** Whether the current user is one of them — the chip reads as pressed. */
+    reacted?: boolean;
+    /** Who reacted, for the chip's tooltip. */
+    names?: readonly string[];
+}
+
+/**
+ * Per-recipient delivery, which is what a group needs.
+ *
+ * `status` is a boolean for the sender: it cannot say "delivered to everyone"
+ * versus "read by everyone", and only the second one turns the ticks blue.
+ */
+export interface ChatReceipt {
+    /** How many recipients have received it. */
+    deliveredTo: number;
+    /** How many have read it. */
+    readBy: number;
+    /** How many recipients there are. */
+    totalRecipients: number;
+}
+
 /** One entry in a thread. */
 export interface ChatMessage {
     /** Stable identity. Used as the React key and by `onRetry`. */
     id: string;
-    /** What was said. A node, so an app can render a link, an image or a quote. */
-    body: ReactNode;
+    /**
+     * What was said. A node, so an app can render a link, an image or a quote.
+     *
+     * Optional, because a message can be all attachment, or be a tombstone: a
+     * deleted message has no body to show, and requiring one made every app
+     * invent a placeholder string for the state the component now owns.
+     */
+    body?: ReactNode;
     /** Who said it. Compared against `currentUserId` to decide sides. */
     authorId: string;
     /** Display name. Falls back to `authorId` in the header of a run. */
@@ -20,6 +102,28 @@ export interface ChatMessage {
      * sitting right there.
      */
     status?: "sending" | "sent" | "read" | "failed";
+    /**
+     * Per-recipient delivery. Takes precedence over `status` for the ticks.
+     *
+     * Use it in a group, where "delivered to all" and "read by all" are different
+     * states and `status` can only say one thing.
+     */
+    receipt?: ChatReceipt;
+    /** Media, voice notes and documents carried by this message. */
+    attachments?: readonly ChatAttachment[];
+    /** The message this one replies to. */
+    quote?: ChatQuote;
+    /** Emoji reactions, already tallied by the app. */
+    reactions?: readonly ChatReaction[];
+    /**
+     * The message was deleted — it renders as a tombstone.
+     *
+     * A state, not a `body` the app swaps for a string: as a state the quote of
+     * it can be blanked too, and every app stops writing its own wording.
+     */
+    deleted?: boolean;
+    /** The message was edited after it was sent. */
+    edited?: boolean;
     /** Anything the app wants to carry through to its own renderers. */
     data?: Record<string, unknown>;
 }
@@ -141,6 +245,20 @@ interface ChatStrings {
     empty: string;
     placeholder: string;
     send: string;
+    deleted: string;
+    edited: string;
+    replyingTo: (name: string) => string;
+    quoteRevoked: string;
+    quoteKind: Record<ChatAttachmentKind, string>;
+    reactions: string;
+    react: (emoji: string, count: number) => string;
+    deliveredAll: string;
+    deliveredSome: (delivered: number, total: number) => string;
+    readAll: string;
+    readSome: (read: number, total: number) => string;
+    messageActions: string;
+    voiceNote: string;
+    download: string;
 }
 
 const PT_BR: ChatStrings = {
@@ -159,6 +277,26 @@ const PT_BR: ChatStrings = {
     empty: "Nenhuma mensagem ainda",
     placeholder: "Escreva uma mensagem",
     send: "Enviar",
+    deleted: "Esta mensagem foi apagada",
+    edited: "editada",
+    replyingTo: (name) => `Em resposta a ${name}`,
+    quoteRevoked: "Mensagem apagada",
+    quoteKind: {
+        image: "Foto",
+        video: "Vídeo",
+        audio: "Áudio",
+        voice: "Mensagem de voz",
+        file: "Documento",
+    },
+    reactions: "Reações",
+    react: (emoji, count) => `${emoji}, ${count} ${count === 1 ? "pessoa" : "pessoas"}`,
+    deliveredAll: "Entregue a todos",
+    deliveredSome: (delivered, total) => `Entregue a ${delivered} de ${total}`,
+    readAll: "Lida por todos",
+    readSome: (read, total) => `Lida por ${read} de ${total}`,
+    messageActions: "Ações da mensagem",
+    voiceNote: "Mensagem de voz",
+    download: "Baixar",
 };
 
 const EN: ChatStrings = {
@@ -177,6 +315,26 @@ const EN: ChatStrings = {
     empty: "No messages yet",
     placeholder: "Write a message",
     send: "Send",
+    deleted: "This message was deleted",
+    edited: "edited",
+    replyingTo: (name) => `Replying to ${name}`,
+    quoteRevoked: "Message deleted",
+    quoteKind: {
+        image: "Photo",
+        video: "Video",
+        audio: "Audio",
+        voice: "Voice message",
+        file: "Document",
+    },
+    reactions: "Reactions",
+    react: (emoji, count) => `${emoji}, ${count} ${count === 1 ? "person" : "people"}`,
+    deliveredAll: "Delivered to everyone",
+    deliveredSome: (delivered, total) => `Delivered to ${delivered} of ${total}`,
+    readAll: "Read by everyone",
+    readSome: (read, total) => `Read by ${read} of ${total}`,
+    messageActions: "Message actions",
+    voiceNote: "Voice message",
+    download: "Download",
 };
 
 /** Locale strings for the thread. */

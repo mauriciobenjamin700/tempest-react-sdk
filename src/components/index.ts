@@ -402,13 +402,20 @@ export type { LightboxItem, LightboxProps } from "./Lightbox";
 export { SignaturePad } from "./SignaturePad";
 export type { SignaturePadHandle, SignaturePadProps } from "./SignaturePad";
 
-export { Chat, ChatComposer } from "./Chat";
+export { Chat, ChatBubble, ChatComposer, receiptLabel, resolveReceiptState } from "./Chat";
 export type {
+    ChatAttachment,
+    ChatAttachmentKind,
+    ChatBubbleProps,
     ChatComposerHandle,
     ChatComposerProps,
     ChatDay,
     ChatMessage,
     ChatProps,
+    ChatQuote,
+    ChatReaction,
+    ChatReceipt,
+    ChatReceiptState,
     ChatRun,
     ChatSection,
 } from "./Chat";

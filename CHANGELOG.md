@@ -43,6 +43,61 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   mantém o subpath honesto. A suíte fixa as duas metades: que Node de fato falha sem o
   loader, e que para de falhar com ele.
 
+- **`<Chat>` virou mensageiro: anexo, citação, reação, recibo por destinatário, menu de
+  ações e tombstone.** Ele renderizava uma thread de texto — agrupada por autor e por dia,
+  com "digitando" e composer — e parava no primeiro balão que não é texto puro. Foi
+  construindo o `tempest-zap` que isso ficou concreto: o app **não usou** o `<Chat>`,
+  escreveu `MessageBubble`, `MessageThread`, `ConversationList` e `MessageComposer`
+  próprios, porque nenhum dos itens abaixo tinha onde encaixar no contrato.
+
+  | Campo novo em `ChatMessage` | O que passa a existir                                                                                                   |
+  | --------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+  | `attachments`               | Imagem (abre no `Lightbox`), vídeo e áudio (players do SDK), nota de voz com waveform, documento como linha de download |
+  | `quote`                     | O stub da mensagem respondida, com `revoked`                                                                            |
+  | `reactions`                 | Emoji com contagem, marcando a sua                                                                                      |
+  | `receipt`                   | `deliveredTo` / `readBy` / `totalRecipients`                                                                            |
+  | `deleted` / `edited`        | Tombstone e marca de edição, como estado                                                                                |
+
+  E três props: `onReact`, `messageActions` e `onQuoteClick`.
+
+  Nenhuma dessas peças é UI nova — a imagem abre no `Lightbox` que o SDK já tinha, o vídeo
+  e o áudio usam os players que ele já tinha, e as ações abrem o `<ContextMenu>`. O que
+  faltava era a composição, e era exatamente ela que cada app refazia igual.
+
+  **Três decisões que a implementação fixou em teste:**
+
+  - **`ChatQuote.revoked` não é enfeite.** Apagar uma mensagem tem de apagar o texto dela
+    dentro da resposta de quem citou — senão o conteúdo sobrevive no lugar mais fácil de
+    não olhar.
+  - **Recibo de grupo precisa de três estados.** `status: "read"` é booleano do remetente e
+    não separa "entregue a todos" de "lida por todos". `resolveReceiptState` devolve
+    `"sent" | "delivered" | "read"`, com limiar **todos** — reportar "lida" porque uma
+    pessoa de nove abriu é o que faz o indicador perder credibilidade. Sem
+    `totalRecipients`, o `status` continua mandando.
+  - **Ações vão para um menu.** Botão em cada bolha transforma conversa em barra de
+    ferramentas; o `<ContextMenu>` dá clique direito, toque longo e o botão `⋮`, que é
+    também o caminho do teclado. Mensagem apagada não recebe ações.
+
+  **A thread de texto não paga pelo que não usa.** Medido no `dist` com code splitting: a
+  thread sai em **3,67 kB brotli**, o caminho de mídia (`Lightbox` + `VideoPlayer` +
+  `AudioPlayer`) em **4,91 kB** num chunk pedido só quando aparece um anexo, e o menu de
+  ações em **1,42 kB**, pedido só quando você passa `messageActions`. Sem os dois `lazy()`,
+  os mesmos bytes entravam no caminho síncrono de todo chat de suporte.
+
+  Os tetos de `size-limit` subiram junto, com os números medidos: `typical app` 9,5 → 9,75 kB
+  (a fatia não importa `Chat`; o crescimento entra pela contabilização por caminho local,
+  que não lê `sideEffects` — a mesma armadilha já registrada), barrel ESM 127,5 → 130 kB e
+  CJS 152,5 → 155 kB. A fatia `Chat` ganhou teto próprio, **11 kB**, que é o teto com mídia
+  e menu embutidos (o `size-limit` não faz splitting; o consumidor faz).
+
+  Duas correções vieram junto, achadas pelos guards do próprio repo: `ChatMessage.body`
+  passou a ser **opcional** — o guard de exemplos de doc reprovou um exemplo com
+  `deleted: true`, e exigir corpo numa mensagem apagada obrigava todo app a inventar um
+  placeholder — e o autor da citação deixou de usar `--tempest-primary` como cor de texto,
+  que mediu **4,35:1** sobre `--tempest-surface-2` em browser real (abaixo dos 4,5:1 de um
+  rótulo de 12 px). A marca continua marcando a citação pela barra lateral, que é indicador
+  não-textual e deve 3:1.
+
 ### Corrigido
 
 - **O anel de foco de um tema gerado deixou de reprovar contraste.** A 0.61.0 tornou

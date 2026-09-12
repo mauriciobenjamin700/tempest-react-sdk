@@ -6,6 +6,24 @@ const HOUR = 60 * 60 * 1000;
 const MINUTE = 60 * 1000;
 const NOW = Date.now();
 
+/**
+ * Inline photo stand-in for the messenger example.
+ *
+ * A data URI rather than a remote placeholder: the docs capture runs without
+ * network access, and a broken image there would be captured as the component's
+ * own rendering.
+ */
+const ROOM_PHOTO =
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="480" height="320">` +
+            `<rect width="480" height="320" fill="#8100d7"/>` +
+            `<rect x="40" y="120" width="160" height="120" fill="#ffffff" opacity="0.25"/>` +
+            `<rect x="230" y="90" width="200" height="150" fill="#ffffff" opacity="0.18"/>` +
+            `<text x="240" y="290" fill="#ffffff" font-family="system-ui" font-size="28" text-anchor="middle">sala do evento</text>` +
+            `</svg>`,
+    );
+
 const THREAD: ChatMessage[] = [
     {
         id: "1",
@@ -46,6 +64,80 @@ const THREAD: ChatMessage[] = [
     },
 ];
 
+/** The messenger thread: attachment, reply, reactions, group receipt, tombstone. */
+const MESSENGER: ChatMessage[] = [
+    {
+        id: "z1",
+        body: "Achei a sala pro evento — olha a foto",
+        authorId: "ana",
+        authorName: "Ana Souza",
+        sentAt: NOW - 22 * MINUTE,
+        attachments: [
+            {
+                kind: "image",
+                url: ROOM_PHOTO,
+                alt: "sala do evento",
+            },
+        ],
+        reactions: [
+            { emoji: "🔥", count: 2, reacted: true },
+            { emoji: "👀", count: 1 },
+        ],
+    },
+    {
+        id: "z2",
+        body: "A ata da reunião passada, pra referência",
+        authorId: "bruno",
+        authorName: "Bruno Lima",
+        sentAt: NOW - 18 * MINUTE,
+        attachments: [{ kind: "file", url: "#", name: "ata-2026-08.pdf", sizeBytes: 184_320 }],
+    },
+    {
+        id: "z3",
+        authorId: "ana",
+        authorName: "Ana Souza",
+        sentAt: NOW - 12 * MINUTE,
+        attachments: [
+            {
+                kind: "voice",
+                url: "#",
+                durationMs: 14_000,
+                waveform: [0.2, 0.5, 0.9, 0.6, 0.3, 0.8, 1, 0.4, 0.2, 0.7, 0.5, 0.3],
+            },
+        ],
+    },
+    {
+        id: "z4",
+        body: "Fechado, reservo pra sexta",
+        authorId: "me",
+        authorName: "Mauricio Benjamin",
+        sentAt: NOW - 8 * MINUTE,
+        quote: {
+            messageId: "z1",
+            senderName: "Ana Souza",
+            excerpt: "Achei a sala pro evento — olha a foto",
+            kind: "image",
+        },
+        receipt: { deliveredTo: 9, readBy: 4, totalRecipients: 9 },
+    },
+    {
+        id: "z5",
+        body: "Confirmado com o financeiro",
+        authorId: "me",
+        authorName: "Mauricio Benjamin",
+        sentAt: NOW - 5 * MINUTE,
+        edited: true,
+        receipt: { deliveredTo: 9, readBy: 9, totalRecipients: 9 },
+    },
+    {
+        id: "z6",
+        authorId: "bruno",
+        authorName: "Bruno Lima",
+        sentAt: NOW - 3 * MINUTE,
+        deleted: true,
+    },
+];
+
 const FAILED: ChatMessage[] = [
     {
         id: "a",
@@ -75,6 +167,7 @@ export function ChatSection() {
     const [messages, setMessages] = useState<ChatMessage[]>(THREAD);
     const [typing, setTyping] = useState<string[]>([]);
     const [failed, setFailed] = useState<ChatMessage[]>(FAILED);
+    const [messenger, setMessenger] = useState<ChatMessage[]>(MESSENGER);
 
     /** Optimistic insert, then a fake ack — what a real app does around its API. */
     const send = (text: string) => {
@@ -175,6 +268,116 @@ export function ChatSection() {
                             <Avatar name={message.authorName ?? message.authorId} size="sm" />
                         )}
                         header={<strong>Ana Souza · pedido 8421</strong>}
+                    />
+                </div>
+            </Example>
+
+            <Example
+                id="chat-messenger"
+                title="Mensageiro: anexo, resposta, reação, recibo e tombstone"
+                note="Cada item aqui era coisa que todo app reescrevia sobre uma bolha de texto. Imagem abre no Lightbox, nota de voz desenha a waveform, o recibo de grupo separa 'entregue a todos' de 'lida por todos', e as ações vivem num menu — clique direito, toque longo ou o botão ⋮."
+                code={`<Chat
+  messages={messages}
+  currentUserId={me.id}
+  onReact={(message, emoji) => toggleReaction(message.id, emoji)}
+  onQuoteClick={(message) => scrollToMessage(message.quote.messageId)}
+  messageActions={(message) => [
+    { label: "Responder", onSelect: () => reply(message) },
+    { label: "Encaminhar", onSelect: () => forward(message) },
+    { separator: true },
+    { label: "Apagar", danger: true, onSelect: () => remove(message) },
+  ]}
+/>`}
+                props={[
+                    {
+                        name: "attachments",
+                        type: "ChatAttachment[]",
+                        description:
+                            "Imagem, vídeo, áudio, nota de voz com waveform, documento pra baixar.",
+                    },
+                    {
+                        name: "quote",
+                        type: "ChatQuote",
+                        description:
+                            "Stub da mensagem respondida. `revoked` apaga o trecho quando ela some.",
+                    },
+                    {
+                        name: "receipt",
+                        type: "ChatReceipt",
+                        description:
+                            "deliveredTo / readBy / totalRecipients — os ticks de um grupo.",
+                    },
+                    {
+                        name: "onReact",
+                        type: "(message, emoji) => void",
+                        description: "Liga os chips. Reagir com o mesmo emoji limpa, não empilha.",
+                    },
+                    {
+                        name: "messageActions",
+                        type: "(message) => ContextMenuItem[]",
+                        description: "Menu por mensagem. Mensagem apagada não recebe ações.",
+                    },
+                ]}
+            >
+                <div
+                    style={{
+                        height: 460,
+                        border: "1px solid var(--tempest-border)",
+                        borderRadius: "var(--tempest-radius-lg)",
+                    }}
+                >
+                    <Chat
+                        messages={messenger}
+                        currentUserId="me"
+                        header={<strong>Evento de setembro · 10 pessoas</strong>}
+                        renderAvatar={(message) => (
+                            <Avatar name={message.authorName ?? message.authorId} size="sm" />
+                        )}
+                        onReact={(message, emoji) =>
+                            setMessenger((current) =>
+                                current.map((item) =>
+                                    item.id === message.id
+                                        ? {
+                                              ...item,
+                                              reactions: (item.reactions ?? []).map((reaction) =>
+                                                  reaction.emoji === emoji
+                                                      ? {
+                                                            ...reaction,
+                                                            reacted: !reaction.reacted,
+                                                            count:
+                                                                reaction.count +
+                                                                (reaction.reacted ? -1 : 1),
+                                                        }
+                                                      : reaction,
+                                              ),
+                                          }
+                                        : item,
+                                ),
+                            )
+                        }
+                        messageActions={(message) => [
+                            { label: "Responder", onSelect: () => {} },
+                            { label: "Encaminhar", onSelect: () => {} },
+                            { separator: true },
+                            {
+                                label: "Apagar",
+                                danger: true,
+                                onSelect: () =>
+                                    setMessenger((current) =>
+                                        current.map((item) =>
+                                            item.id === message.id
+                                                ? {
+                                                      id: item.id,
+                                                      authorId: item.authorId,
+                                                      authorName: item.authorName,
+                                                      sentAt: item.sentAt,
+                                                      deleted: true,
+                                                  }
+                                                : item,
+                                        ),
+                                    ),
+                            },
+                        ]}
                     />
                 </div>
             </Example>

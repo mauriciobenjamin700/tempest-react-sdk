@@ -69,6 +69,7 @@ const SECTION_OVERRIDES = {
  * fixing: it shipped in P1 and never got a section.
  */
 const WITHOUT_SECTION = {
+    ChatBubble: "one bubble of <Chat>, shown by the chat section",
     DEFAULT_PLAYBACK_RATES: "a rate preset list, not a rendered component",
     FormActions: "rendered by the form recipes, never on its own",
     FormRow: "layout piece of <FormField>, shown through it",

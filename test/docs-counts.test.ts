@@ -3,6 +3,8 @@ import { dirname, join, relative } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { execFileSync } from "node:child_process";
+
 import { iconAliases } from "@/icons/generated/aliases";
 import { iconNames } from "@/icons/generated/icon-names";
 
@@ -40,7 +42,9 @@ interface Claim {
     /** Shell-ish description of the measurement, printed when it fails. */
     how: string;
     /**
-     * Sentences that state this number. The first capture group is the figure.
+     * Sentences that state this number. The first capture group is the figure,
+     * read with `.`/thin-space thousands separators stripped — `5.571` in a
+     * PT-BR page is five thousand, and `Number("5.571")` is 5.571.
      *
      * Written narrowly on purpose: `/(\d+) components/` would also match
      * "5 components + router" in a bundle-size line, which is a different claim
@@ -140,6 +144,60 @@ const CLAIMS: Claim[] = [
         ],
     },
     {
+        id: "IBGE municipalities",
+        how: "sum of `municipalities` across `states` in src/br/data/br-locations.json",
+        measure: () => {
+            const data = JSON.parse(
+                readFileSync(join(ROOT, "src", "br", "data", "br-locations.json"), "utf8"),
+            ) as { states: Record<string, { cities: unknown[] }> };
+            return Object.values(data.states).reduce((total, uf) => total + uf.cities.length, 0);
+        },
+        patterns: [/(\d[\d.]{3,6}) (?:municípios|municipalities)/g],
+    },
+    {
+        id: "DF administrative regions",
+        how: "length of administrativeRegions['5300108'] in src/br/data/br-locations.json",
+        measure: () => {
+            const data = JSON.parse(
+                readFileSync(join(ROOT, "src", "br", "data", "br-locations.json"), "utf8"),
+            ) as { administrativeRegions: Record<string, unknown[]> };
+            return data.administrativeRegions["5300108"]?.length ?? 0;
+        },
+        patterns: [
+            /(\d{2,3}) (?:RAs do DF|regiões administrativas|administrative regions)/g,
+            /administrativeRegionsByUf\("DF"\)\.length; \/\/ (\d{2,3})/g,
+        ],
+    },
+    {
+        id: "published doc pages",
+        how: "find docs -name '*.md' -not -name '*.en.md' -not -path 'docs/internal/*' | wc -l",
+        measure: () => {
+            let count = 0;
+            const walk = (dir: string): void => {
+                for (const entry of readdirSync(dir, { withFileTypes: true })) {
+                    if (entry.isDirectory()) {
+                        if (entry.name === "internal") continue;
+                        walk(join(dir, entry.name));
+                    } else if (entry.name.endsWith(".md") && !entry.name.endsWith(".en.md")) {
+                        count += 1;
+                    }
+                }
+            };
+            walk(DOCS);
+            return count;
+        },
+        patterns: [/(\d{2,4}) páginas base/g, /(\d{2,4}) base pages/g],
+    },
+    {
+        id: "published tags",
+        how: "git tag -l 'v*.*.*' | wc -l",
+        measure: () =>
+            execFileSync("git", ["tag", "-l", "v*.*.*"], { cwd: ROOT, encoding: "utf8" })
+                .split("\n")
+                .filter(Boolean).length,
+        patterns: [/(\d{2,4}) tags publicadas/g, /(\d{2,4}) published tags/g],
+    },
+    {
         id: "published subpaths",
         how: "count the keys of `exports` in package.json",
         measure: () => {
@@ -181,7 +239,7 @@ describe("numbers the docs state about this repo", () => {
                 if (claim.except?.some((entry) => line.includes(entry.text))) return;
                 for (const pattern of claim.patterns) {
                     for (const match of line.matchAll(new RegExp(pattern.source, pattern.flags))) {
-                        const stated = Number(match[1]);
+                        const stated = Number((match[1] as string).replace(/[.\u202f ]/g, ""));
                         if (stated !== actual) {
                             wrong.push(
                                 `${file.path}:${index + 1} says ${stated}, repo has ${actual}` +

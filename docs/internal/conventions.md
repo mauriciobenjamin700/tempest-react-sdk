@@ -42,6 +42,28 @@ Leia antes de escrever código, teste ou docstring neste repo.
 - O `axe` do jsdom **desliga** `color-contrast` (não há paint). Contraste só se
   verifica em browser real.
 
+## Números escritos em prosa
+
+Um número na documentação é uma afirmação sobre este repo, e
+`test/docs-counts.test.ts` a trata como tal: mede o repo e compara com as frases
+que a afirmam, falhando com página, linha e os dois valores. Quatro contagens
+erradas sobreviveram a 84 releases antes dele existir.
+
+A regra que decide como escrever:
+
+- **Contagem estável** (componentes, módulos, subpaths, slugs de ícone, seções da
+  gallery, municípios do IBGE) vai **sem data**, e entra no guard. Se ela mudar,
+  o guard reprova e a frase é atualizada no mesmo commit.
+- **Contagem que muda a cada PR** (número de testes, exports de runtime) vai
+  **datada** — "6262 em 575 arquivos, medido em 12/09/2026". Uma afirmação datada
+  continua verdadeira depois; o que envelhece é número apresentado como atual.
+- **Medição de bytes** vai com a versão junto ("medido com `npm run size` na
+  0.64.0"), pelo mesmo motivo.
+
+Ao adicionar uma contagem nova ao guard, **meça importando a fonte** quando ela
+existe. A primeira versão raspava o `aliases.ts` com regex e errava por 29 — ver
+[`lessons.md`](./lessons.md).
+
 ## Testes
 
 `vitest` + `@testing-library/react` + `jsdom` + `fake-indexeddb`.

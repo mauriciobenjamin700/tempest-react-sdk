@@ -111,13 +111,14 @@ mais voltam:
   (0.1.0 → 0.64.0) com provenance assinada via OIDC. Histórico em `RELEASES.md`
   (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
 - **Superfície**: 40 módulos em `src/` (`ls -d src/*/`), 129 componentes
-  (`ls -d src/components/*/`), 54 hooks `useX` no barrel de `hooks/`, **567
-  exports de runtime** na raiz, 70 em `/br`, 21 em `/icons`, 18 subpaths. O
-  método de contagem dos exports (e por que o `--import` não é opcional) está em
+  (`ls -d src/components/*/`), 54 hooks `useX` no barrel de `hooks/`, 18 subpaths
+  — os quatro aferidos por `test/docs-counts.test.ts`. Exports de runtime na
+  raiz: **567 em 12/09/2026** (70 em `/br`, 21 em `/icons`); o método de
+  contagem, e por que o `--import` não é opcional, está em
   [`architecture.md`](./docs/internal/architecture.md).
-- **Testes**: 6262 em 575 arquivos, ~50 s. Cobertura em 05/09/2026: 99,73%
-  linhas / 98,81% statements / 99,82% funções / 95,64% branches; pisos do CI em
-  99/98/99/95.
+- **Testes**: 6262 em 575 arquivos, ~50 s, medido em 12/09/2026. Cobertura em
+  05/09/2026: 99,73% linhas / 98,81% statements / 99,82% funções / 95,64%
+  branches; pisos do CI em 99/98/99/95.
 - **Empacotamento**: `dist/` com `preserveModules`; CSS por componente carregado
   pelo próprio componente (0.63.0); loader `/node-css-loader` para Node cru.
   Budgets do `size-limit` são por **fatia importada**.

@@ -137,13 +137,20 @@ function anchorsOf(source: string): Set<string> {
     return ids;
 }
 
-/** Every markdown file under `docs/`, as repo-relative paths. */
+/**
+ * Every markdown file of the published site, as repo-relative paths.
+ *
+ * `docs/internal/` is skipped for the same reason `mkdocs.yml` excludes it: those
+ * pages are not published, so an anchor into them is a repo link, not a site one.
+ */
 function docPages(dir: string = DOCS): string[] {
     const out: string[] = [];
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
         const full = join(dir, entry.name);
-        if (entry.isDirectory()) out.push(...docPages(full));
-        else if (entry.name.endsWith(".md")) out.push(full);
+        if (entry.isDirectory()) {
+            if (entry.name === "internal") continue;
+            out.push(...docPages(full));
+        } else if (entry.name.endsWith(".md")) out.push(full);
     }
     return out;
 }

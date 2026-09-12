@@ -2,7 +2,16 @@ name: Docs
 on:
     push:
         branches: [main]
-        paths: ["docs/**", "mkdocs.yml", "scripts/gen-llms.mjs", ".github/workflows/docs.yml"]
+        # `docs/internal/**` is negated: those pages are the repo's own rules and
+        # are excluded from the site, so touching them must not redeploy Pages.
+        paths:
+            [
+                "docs/**",
+                "!docs/internal/**",
+                "mkdocs.yml",
+                "scripts/gen-llms.mjs",
+                ".github/workflows/docs.yml",
+            ]
     workflow_dispatch:
 permissions: { contents: read, pages: write, id-token: write }
 concurrency: { group: pages, cancel-in-progress: false }

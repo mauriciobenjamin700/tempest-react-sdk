@@ -43,6 +43,10 @@ function collectMarkdown(dir) {
     for (const entry of readdirSync(dir)) {
         const full = join(dir, entry);
         if (statSync(full).isDirectory()) {
+            // `internal/` holds the rules for working on the SDK, excluded from the
+            // published site by `mkdocs.yml` — an index of pages that have no URL
+            // would point a reader at 404s.
+            if (entry === "internal") continue;
             files.push(...collectMarkdown(full));
         } else if (entry.endsWith(".md") && !entry.endsWith(".en.md")) {
             files.push(full);

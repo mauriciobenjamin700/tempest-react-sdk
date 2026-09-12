@@ -83,11 +83,21 @@ const AMBIENT_PATTERNS: readonly RegExp[] = [/ImportMeta/, /waitUntil/];
 /** CSS side-effect imports (`tempest-react-sdk/styles.css`), which carry no types. */
 const CSS_IMPORT_CODE = 2882;
 
+/**
+ * Pages of the published site.
+ *
+ * `docs/internal/` is skipped: those are the rules for people working on the SDK,
+ * not documentation for a consumer. `mkdocs.yml` excludes the same folder from
+ * the build, so requiring an `.en.md` mirror and a `nav` entry for them would be
+ * a guard about pages nobody publishes.
+ */
 function listMarkdown(dir: string = DOCS, out: string[] = []): string[] {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
         const full = join(dir, entry.name);
-        if (entry.isDirectory()) listMarkdown(full, out);
-        else if (entry.name.endsWith(".md")) out.push(relative(DOCS, full));
+        if (entry.isDirectory()) {
+            if (entry.name === "internal") continue;
+            listMarkdown(full, out);
+        } else if (entry.name.endsWith(".md")) out.push(relative(DOCS, full));
     }
     return out;
 }
@@ -105,6 +115,22 @@ describe("docs structure", () => {
             .filter((page) => !allPages.includes(page.replace(/\.en\.md$/, ".md")));
 
         expect({ missingEn, missingPt }).toEqual({ missingEn: [], missingPt: [] });
+    });
+
+    /**
+     * The internal rules stay out of the published site.
+     *
+     * They are the repo's own conventions, not documentation for a consumer, and
+     * the two halves have to agree: `mkdocs.yml` excludes the folder, and the
+     * collectors above skip it. Without this test, dropping either half fails
+     * quietly — one way publishes pages nobody wrote for readers, the other way
+     * demands an `.en.md` mirror for pages that have no URL.
+     */
+    it("keeps docs/internal out of the site, and out of these guards", () => {
+        const mkdocs = readFileSync(join(ROOT, "mkdocs.yml"), "utf8");
+        expect(mkdocs).toMatch(/exclude_docs:[\s\S]*internal\//);
+        expect(existsSync(join(DOCS, "internal", "README.md"))).toBe(true);
+        expect(allPages.filter((page) => page.startsWith("internal"))).toEqual([]);
     });
 
     it("every page is reachable from the nav, and every nav entry exists", () => {

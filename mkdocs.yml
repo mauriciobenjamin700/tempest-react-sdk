@@ -7,6 +7,12 @@ edit_uri: edit/main/docs/
 copyright: Copyright &copy; 2026 Mauricio Benjamin — MIT License
 docs_dir: docs
 
+# `docs/internal/` são as regras de quem trabalha no SDK, não documentação de
+# consumidor: ficam fora do site publicado, e por isso não têm mirror `.en.md`
+# nem entrada no `nav`. Os guards de documentação pulam a mesma pasta.
+exclude_docs: |
+    internal/
+
 theme:
     name: material
     language: pt-BR

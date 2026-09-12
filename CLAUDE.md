@@ -78,10 +78,11 @@ seção na gallery (ou isenção escrita em `scripts/docs-gallery.mjs`).
 `npm run format:check` · `npm run build` · `npx size-limit` ·
 `npm run docs:gallery -- --check`.
 
-Além deles, quatro guards que reprovam o que o compilador não vê:
+Além deles, cinco guards que reprovam o que o compilador não vê:
 `test/public-surface.test.ts` (todo export de runtime está documentado),
 `test/docs-guard.test.ts` (mirror `.en.md`, entrada no `nav`, e **todo exemplo de
-código compila**), `test/docs-anchors.test.ts` (âncora interna viva) e
+código compila**), `test/docs-anchors.test.ts` (âncora interna viva),
+`test/docs-counts.test.ts` (**toda contagem escrita em prosa bate com o repo**) e
 `scripts/check-dist-guards.mjs` (rodado no `postbuild`).
 
 ## Armadilhas que mais custam

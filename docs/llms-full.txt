@@ -18247,7 +18247,7 @@ Cada seção tem a própria captura ao lado do componente que documenta; os pare
   o papel de Storybook.
 - Rode com `npm run build` na raiz, depois `npm run dev` em `examples/gallery`
   (porta `5173`).
-- 63 seções cobrem componentes, overlays, mídia/imagens, inputs avançados,
+- 66 seções cobrem componentes, overlays, mídia/imagens, inputs avançados,
   DataTable, store, tema/i18n, integrações ao vivo, PWA e utils — cada exemplo
   com código copia-e-cola ao lado. A tabela acima sai do registry, então não
   envelhece.
@@ -27008,7 +27008,7 @@ Aliases:
     build medido duas vezes não devolve sempre a mesma contagem. Medido: 87 e
     depois 88 nós de `color-contrast` em `incomplete`, sem nada mudar entre as
     duas execuções. É um ratchet, não uma allowlist: a gallery
-    renderiza 64 seções de demo e carrega dívida real de acessibilidade, e
+    renderiza 66 seções de demo e carrega dívida real de acessibilidade, e
     reprovar tudo deixaria o build vermelho para sempre — que é como um gate é
     deletado. Cair não falha; os números estão lá para serem baixados.
 

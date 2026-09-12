@@ -17,6 +17,24 @@ lado. Leia antes de confiar numa medição, num gate ou numa afirmação da doc.
   aquele campo: `{ cn }` mediu 25,19 kB ali e **436 B** num app instalado.
   Quando um número salta de forma implausível, reproduza num app instalado antes
   de mexer no limite.
+- **Número escrito em prosa não tem guard — até alguém escrever um.** Auditadas
+  depois da 0.64.0, as páginas afirmavam **três** contagens diferentes de
+  componentes (104 em `theme`, ~150 em `styles`, 131 no snapshot) para um repo com
+  **129**, e o README publicava doze números de bundle de uma release antiga, com
+  o teto do barrel errado em mais de 20 kB. Nada podia contradizê-los: os guards
+  de doc aferem estrutura (mirror, nav, âncora, exemplo que compila), e nenhum lê
+  uma frase. `test/docs-counts.test.ts` fecha isso — cada contagem é medida no
+  repo e comparada com as frases que a afirmam.
+
+- **Scraping por regex é uma medição que só parece uma medição.** A primeira
+  versão daquele guard contava as chaves do `aliases.ts` com
+  `/"[a-z0-9-]+":/` e devolvia **229**; o registry tem **258**, que é o que
+  `npm run gen:icons` imprime e o que o cabeçalho do próprio arquivo gerado diz.
+  Eu quase publiquei 229 no README como "correção" de um 257 que estava errado
+  por um. O guard passou a **importar** `iconNames` e `iconAliases` em vez de
+  raspar o texto: quando existe a fonte, contar o arquivo é adivinhar com mais
+  passos.
+
 - **Contagem publicada precisa do método junto.** "543 exports" não reproduz:
   contar `export` no `.d.ts` dá ~1250. Só `Object.keys(await import(dist))` bate.
 - **Taxa medida por amostragem vai com o N declarado**, e num N onde ela é

@@ -280,7 +280,7 @@ Every section has its own capture next to the component it documents; the pairs 
   it plays the role of Storybook.
 - Run it with `npm run build` at the root, then `npm run dev` in
   `examples/gallery` (port `5173`).
-- 63 sections cover components, overlays, media/images, advanced inputs,
+- 66 sections cover components, overlays, media/images, advanced inputs,
   DataTable, store, theme/i18n, live integrations, PWA and utils — each example
   with copy-paste code next to it. The table above is generated from the
   registry, so it cannot go stale.

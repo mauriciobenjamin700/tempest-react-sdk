@@ -278,7 +278,7 @@ Cada seção tem a própria captura ao lado do componente que documenta; os pare
   o papel de Storybook.
 - Rode com `npm run build` na raiz, depois `npm run dev` em `examples/gallery`
   (porta `5173`).
-- 63 seções cobrem componentes, overlays, mídia/imagens, inputs avançados,
+- 66 seções cobrem componentes, overlays, mídia/imagens, inputs avançados,
   DataTable, store, tema/i18n, integrações ao vivo, PWA e utils — cada exemplo
   com código copia-e-cola ao lado. A tabela acima sai do registry, então não
   envelhece.

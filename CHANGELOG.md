@@ -6791,7 +6791,13 @@ Preenchem as lacunas vs shadcn/ui — sem dependências novas (construídos sobr
 - Nova página **Utilitários** (`utilities.md`) e **Utilitários & headless** (`components/utility.md`) — bilíngues PT-BR + EN-US.
 - Catálogo **Overlays & avançados** (`components/advanced.md`) — bilíngue — para os componentes shadcn-parity.
 
-## [0.6.1] — 2026-06-21
+## [0.6.1] — 2026-06-21 · **nunca publicada**
+
+> Esta seção documenta trabalho que **não** saiu sob este número: não existe tag
+> `v0.6.1` nem versão `0.6.1` no npm — o npm vai de `0.5.1` direto para
+> `0.7.0`. O conteúdo abaixo chegou ao público na **0.7.0**. Mantida porque é
+> história do repo; anotada porque prometia uma versão instalável que nunca
+> existiu.
 
 ### CLI `create-tempest-app` embarcada na lib
 
@@ -6802,7 +6808,13 @@ Preenchem as lacunas vs shadcn/ui — sem dependências novas (construídos sobr
 - `template/` e `bin/` entram no tarball publicado (`files`).
 - O app gerado já vem com **ESLint 9** (flat config react-hooks + react-refresh, scripts `lint`/`lint:fix`) e `tsconfig` estrito (`noImplicitOverride` + `forceConsistentCasingInFileNames`).
 
-## [0.6.0] — 2026-06-21
+## [0.6.0] — 2026-06-21 · **nunca publicada**
+
+> Esta seção documenta trabalho que **não** saiu sob este número: não existe tag
+> `v0.6.0` nem versão `0.6.0` no npm — o npm vai de `0.5.1` direto para
+> `0.7.0`. O conteúdo abaixo chegou ao público na **0.7.0**. Mantida porque é
+> história do repo; anotada porque prometia uma versão instalável que nunca
+> existiu.
 
 Estrutura de aplicação: o SDK passa a oferecer uma fundação opinativa para projetos React — Vite com alias `@`, roteamento declarativo (React Router v7), estado com Zustand e cache com TanStack Query já fiados —, além de uma CLI de scaffolding.
 

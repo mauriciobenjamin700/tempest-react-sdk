@@ -3,8 +3,6 @@ import { dirname, join, relative } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { execFileSync } from "node:child_process";
-
 import { iconAliases } from "@/icons/generated/aliases";
 import { iconNames } from "@/icons/generated/icon-names";
 
@@ -190,11 +188,22 @@ const CLAIMS: Claim[] = [
     },
     {
         id: "published tags",
-        how: "git tag -l 'v*.*.*' | wc -l",
+        /*
+         * Counted from `RELEASES.md`, not from `git tag`.
+         *
+         * The first version asked git, and CI checks out shallow without tags, so
+         * the measurement returned 0 there and the guard failed on a correct page.
+         * `RELEASES.md` is generated from the tags by `make releases-md` and
+         * audited against npm and the GitHub Releases by `make releases-check`, so
+         * it is the same fact in a file every checkout has.
+         */
+        how: "rows of RELEASES.md (generated from git tags by `make releases-md`)",
         measure: () =>
-            execFileSync("git", ["tag", "-l", "v*.*.*"], { cwd: ROOT, encoding: "utf8" })
-                .split("\n")
-                .filter(Boolean).length,
+            [
+                ...readFileSync(join(ROOT, "RELEASES.md"), "utf8").matchAll(
+                    /^\| v\d+\.\d+\.\d+\s*\|/gm,
+                ),
+            ].length,
         patterns: [/(\d{2,4}) tags publicadas/g, /(\d{2,4}) published tags/g],
     },
     {
@@ -306,5 +315,40 @@ describe("the per-component stylesheets the build emits", () => {
                 });
         }
         expect(wrong).toEqual([]);
+    });
+});
+
+/**
+ * Versions the CHANGELOG documents, against the ones that actually shipped.
+ *
+ * Found by accident while fixing the tag count: `0.6.0` and `0.6.1` had full
+ * sections — a new module, a CLI — and no tag, and no npm version. The registry
+ * goes from `0.5.1` straight to `0.7.0`, so anyone who read the changelog and ran
+ * `npm i tempest-react-sdk@0.6.0` got nothing. The work shipped inside `0.7.0`.
+ *
+ * They are kept, annotated, because deleting them would delete the history. This
+ * test is what stops the next one from being silent: a documented version either
+ * shipped, or says on its own heading that it did not.
+ */
+describe("versions the CHANGELOG documents", () => {
+    it("either shipped, or say on the heading that they did not", () => {
+        const changelog = readFileSync(join(ROOT, "CHANGELOG.md"), "utf8");
+        const released = new Set(
+            [
+                ...readFileSync(join(ROOT, "RELEASES.md"), "utf8").matchAll(
+                    /^\| v(\d+\.\d+\.\d+)\s*\|/gm,
+                ),
+            ].map((match) => match[1]),
+        );
+
+        const unshipped: string[] = [];
+        for (const match of changelog.matchAll(/^## \[(\d+\.\d+\.\d+)\](.*)$/gm)) {
+            const [, version = "", rest = ""] = match;
+            if (released.has(version)) continue;
+            if (/nunca publicada|never published/i.test(rest)) continue;
+            unshipped.push(version);
+        }
+
+        expect(unshipped).toEqual([]);
     });
 });

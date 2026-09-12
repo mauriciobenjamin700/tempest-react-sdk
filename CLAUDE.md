@@ -55,7 +55,7 @@ Peers obrigatórios: `react`, `react-dom` (`^18 || ^19`), `react-router`
 ## Mapa do repositório
 
 ```text
-src/            40 módulos de domínio (access, auth, br, components, forms, http,
+src/            41 módulos de domínio (access, auth, br, components, forms, http,
                 icons, offline, query, styles, theme, vision, webrtc, ws, …)
 bin/            CLIs: create-tempest-app (scaffold) e tempest (doctor/lint/fix/gen)
 loader/         loader de .css para Node cru, publicado como /node-css-loader

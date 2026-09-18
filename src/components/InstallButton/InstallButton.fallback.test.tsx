@@ -38,10 +38,15 @@ describe("InstallButton — browsers with no install prompt", () => {
         const button = screen.getByRole("button", { name: "Como instalar" });
         expect(button).toHaveAttribute("aria-expanded", "false");
 
+        expect(button).not.toHaveAttribute("aria-controls");
+
         fireEvent.click(button);
 
         expect(button).toHaveAttribute("aria-expanded", "true");
         expect(screen.getByText(/Adicionar à Tela de Início/)).toBeInTheDocument();
+        expect(
+            document.getElementById(button.getAttribute("aria-controls") ?? ""),
+        ).toHaveTextContent(/Adicionar à Tela de Início/);
     });
 
     it("renders on an Android fork and offers the Chrome intent", () => {

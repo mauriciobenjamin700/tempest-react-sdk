@@ -92,7 +92,7 @@ export function InstallButton({
         <div className={cn(styles.wrapper, wrapperClassName)}>
             <Button
                 aria-expanded={hintOpen}
-                aria-controls={hintId}
+                aria-controls={hintOpen && hint ? hintId : undefined}
                 onClick={() => setHintOpen((open) => !open)}
                 {...props}
             >

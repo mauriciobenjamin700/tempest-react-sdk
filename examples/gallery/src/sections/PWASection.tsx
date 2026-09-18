@@ -1,6 +1,8 @@
 import { useState } from "react";
 import {
     Button,
+    InstallBanner,
+    InstallButton,
     SyncStatusBadge,
     UpdatePrompt,
     isPushSupported,
@@ -52,6 +54,23 @@ export function PWASection() {
                 <Button disabled={!install.installable} onClick={() => void install.prompt()}>
                     Instalar app
                 </Button>
+            </Example>
+
+            <Example
+                title="InstallButton · InstallBanner"
+                note="Num navegador sem beforeinstallprompt (iOS Safari, forks Android) os dois mostram a instrução da plataforma em vez de sumir."
+                code={`<InstallButton variant="primary" />
+
+<InstallBanner
+  title="Instale o app"
+  description="Acesso offline e atalho na tela inicial."
+/>`}
+            >
+                <InstallButton variant="primary" />
+                <InstallBanner
+                    title="Instale o app"
+                    description="Acesso offline e atalho na tela inicial."
+                />
             </Example>
 
             <Example

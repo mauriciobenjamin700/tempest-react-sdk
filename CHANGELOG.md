@@ -66,6 +66,27 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
   Closes #336.
 
+- **`InstallBanner` e `InstallButton` sumiam no iOS e nos forks sem
+  `beforeinstallprompt`.** Os dois eram construídos sobre `useBeforeInstallPrompt`, então
+  renderizavam `null` em todo navegador que nunca dispara o evento — iOS Safari e os forks
+  Chromium de Android (Mi Browser, UC, Opera Mini, Huawei). É exatamente onde o caminho de
+  instalação está escondido (no iOS, atrás do menu **Compartilhar**) e o usuário mais
+  precisa de ajuda. Cada app acabava mantendo uma cópia local dos dois só para acrescentar
+  as trilhas `ios` e `manual`.
+
+  Agora ambos usam `useInstallPrompt` — que já resolvia `method: "native" | "ios" |
+"manual" | "none"` e que os componentes ignoravam. Onde não há prompt, o botão vira
+  **"Como instalar"** e revela a instrução daquela plataforma; no Android o texto ainda
+  oferece o link `intent://` que reabre a página no Chrome. `null` só sai quando não há o
+  que oferecer: já instalado, standalone, ou dentro do período de dispensa.
+
+- **`useInstallPrompt` derrubava o render quando o `localStorage` recusava a leitura.**
+  `readDecline` chamava `getItem` sem guarda, e ele **lança** em modo privativo do Safari
+  e em iframe cross-origin com storage bloqueado — a exceção subia durante o render. O
+  achado apareceu ao portar os componentes, num teste que já existia
+  (`shows the banner when storage cannot be read at all`). Leitura e escrita agora são
+  best-effort, como toda persistência de conveniência do SDK.
+
 ### Adicionado
 
 - **`--tempest-selected-indicator` — o token de estado selecionado.** `#0052cc` no claro,
@@ -130,6 +151,18 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   default continua `1`, e `decimals` é **fixo** — preenche além de truncar
   (`formatPercent(0.5, { decimals: 3 })` é `"50,000%"`), que é o que mantém uma coluna de
   números alinhada. `FormatPercentOptions` é exportado.
+
+- **`renderHint`, `hintLabel` e `manualFallbackDelayMs`** em `InstallBanner` e
+  `InstallButton`, mais `defaultInstallHint` exportado — a cópia default é PT-BR e nomeia
+  as entradas reais de menu, e `InstallHintInput` traz `method` e `openInChromeIntent` para
+  quem quiser compor em cima dela.
+- **`InstallBannerProps.declineCooldownMs`.** Sem ele a dispensa gravada em `storageKey`
+  continua permanente (`"1"`, o que o componente sempre escreveu); com ele a dispensa vira
+  timestamp e o banner volta depois da janela. Uma chave que já contém `"1"` segue valendo
+  como permanente — foi escrita sob o contrato antigo, e ressuscitar um banner que o
+  usuário desligou é pior do que mantê-lo desligado.
+
+  Closes #337.
 
 ### Alterado
 

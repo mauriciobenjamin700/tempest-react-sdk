@@ -56,3 +56,12 @@
 .close:hover {
     background: color-mix(in srgb, currentColor 10%, transparent);
 }
+
+.hint {
+    margin: var(--tempest-space-2) 0 0;
+    color: var(--tempest-text-muted);
+}
+
+.hint a {
+    color: var(--tempest-primary);
+}

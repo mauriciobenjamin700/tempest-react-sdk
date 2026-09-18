@@ -349,7 +349,7 @@ export function ExcluirUsuario({
 *Section `pwa` of the [gallery](../gallery.md) — run it locally to interact.*
 <!-- /gallery -->
 
-PWA install button wired to the `beforeinstallprompt` event ([`useBeforeInstallPrompt`](../hooks.md)). **Renders `null`** when the app can't be installed — no prompt captured yet, already installed, or running standalone — so you can drop it in without guarding visibility. Inherits every [`Button`](#button) prop.
+PWA install button wired to [`useInstallPrompt`](../hooks.md). Where the browser fires `beforeinstallprompt`, the click installs. Where it does **not** — iOS Safari, and the Android Chromium forks (Mi Browser, UC, Opera Mini, Huawei) — the click reveals that platform's instruction instead of the button disappearing. Inherits every [`Button`](#button) prop.
 
 ```tsx
 import { InstallButton } from "tempest-react-sdk";
@@ -358,15 +358,39 @@ import { Download } from "lucide-react";
 <InstallButton variant="primary" leftIcon={<Download size={18} />} />;
 ```
 
-| Prop       | Type                                                       | Default          |
-| ---------- | ---------------------------------------------------------- | ---------------- |
-| `label`    | `ReactNode`                                                | `"Instalar app"` |
-| `onResult` | `(o: "accepted" \| "dismissed" \| "unsupported") => void`  | —                |
-| …          | all `Button` props (`variant`, `size`, `leftIcon`)         | —                |
+| Prop                    | Type                                                       | Default              |
+| ----------------------- | ---------------------------------------------------------- | -------------------- |
+| `label`                 | `ReactNode`                                                | `"Instalar app"`     |
+| `hintLabel`             | `ReactNode`                                                | `"Como instalar"`    |
+| `onResult`              | `(o: "accepted" \| "dismissed" \| "unsupported") => void`  | —                    |
+| `renderHint`            | `(input: InstallHintInput) => ReactNode`                   | `defaultInstallHint` |
+| `manualFallbackDelayMs` | `number`                                                   | `3000`               |
+| `wrapperClassName`      | `string`                                                   | —                    |
+| …                       | all `Button` props (`variant`, `size`, `leftIcon`)         | —                    |
+
+!!! danger "Until v0.65.0 both disappeared exactly where the user needs them"
+    `InstallButton` and `InstallBanner` were built on `useBeforeInstallPrompt`, so they rendered `null` in every browser that never fires the event. iOS Safari is precisely that case — and it is where the install path hides behind the **Share** sheet, which nobody finds unless told. In practice every app kept a local copy of these two components just to add the `ios` and `manual` paths.
+
+    `null` now means only that there is nothing to offer: already installed, running standalone, or inside the decline window.
+
+!!! tip "`renderHint` swaps the copy without rewriting the component"
+    The default is PT-BR and names the real menu entries — on Android it also offers the `intent://` link that reopens the page in Chrome, which is the only path that reaches a real install on a fork with no install entry at all.
+
+    ```tsx
+    import { InstallButton, defaultInstallHint } from "tempest-react-sdk";
+
+    <InstallButton
+        renderHint={(input) =>
+            input.method === "ios" ? <MyIOSSteps /> : defaultInstallHint(input)
+        }
+    />;
+    ```
+
+    `InstallHintInput` carries `method` (`"native" | "ios" | "manual" | "none"`) and `openInChromeIntent`.
 
 ## `InstallBanner`
 
-Dismissible bottom banner inviting the user to install the PWA. Shows only when a prompt was captured and the app is **not** already standalone; on platforms that never fire `beforeinstallprompt` (iOS Safari) it stays hidden — surface manual instructions elsewhere. `storageKey` remembers the dismissal across reloads.
+Dismissible bottom banner inviting the user to install the PWA, on the same `useInstallPrompt`. Where the browser cannot be prompted, the button becomes **"Como instalar"** and reveals the platform's instruction inside the banner. `storageKey` remembers the dismissal across reloads.
 
 ```tsx
 import { InstallBanner } from "tempest-react-sdk";
@@ -389,8 +413,17 @@ export function Instalar() {
 | `installLabel` | `string`    | `"Instalar"`      |
 | `dismissLabel` | `string`    | `"Dispensar"`     |
 | `icon`         | `ReactNode` | —                 |
+| `hintLabel`    | `string`    | `"Como instalar"` |
 | `storageKey`   | `string`    | — (session)       |
+| `declineCooldownMs` | `number` | — (permanent)   |
+| `renderHint`   | `(input: InstallHintInput) => ReactNode` | `defaultInstallHint` |
+| `manualFallbackDelayMs` | `number` | `3000`        |
 | `onResult`     | `(o) => void` | —               |
+
+!!! note "`declineCooldownMs` changes what is stored — and respects what was already there"
+    Without it, a dismissal written to `storageKey` is **permanent**, which is what the component always did (it stores `"1"`). With it, a timestamp is stored and the banner returns after the window.
+
+    A key already holding `"1"` still counts as a permanent dismissal even with `declineCooldownMs` configured: it was written under the old contract, and reviving a banner the user switched off is worse than leaving it off.
 
 ## Recap
 
@@ -398,7 +431,7 @@ export function Instalar() {
 | --------------- | ----------------------------------------------- | ----------- |
 | `Button`        | Fire the primary/secondary action               | click       |
 | `FloatingActionButton` | Floating, persistent primary action      | click       |
-| `InstallButton` | Install the PWA (hides when not applicable)     | click       |
+| `InstallButton` | Install the PWA, or teach how where no prompt exists | click  |
 | `InstallBanner` | Dismissible invite to install the PWA           | click       |
 | `Tooltip`       | Non-critical context on a control               | hover/focus |
 | `DropdownMenu`  | A list of secondary actions (closes on pick)    | click       |

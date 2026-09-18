@@ -6,30 +6,6 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
-- **Estado selecionado a 1,05:1 — `SegmentedControl`, `Command`, `DropdownMenu` e
-  `ContextMenu`.** Os quatro diziam "este está selecionado" trocando uma superfície
-  neutra pela vizinha, e o degrau da rampa é curto de propósito: `--tempest-bg` contra
-  `--tempest-surface` mede **1,053:1** no claro e **1,085:1** no escuro, onde a WCAG 2.2
-  SC 1.4.11 pede 3:1 de indicador não-textual. No `SegmentedControl`, que é seleção
-  persistente, esse era o único sinal — o relato que abriu a issue foi "ao clicar nada
-  acontece, também não há nenhum indicador visual".
-
-  **A correção sugerida na issue não resolvia, e a medição é o motivo.** Usar
-  `--tempest-surface-2` para haver dois degraus dá **1,112:1** no claro e 1,225:1 no
-  escuro; os extremos da rampa (`bg` contra `surface-3`) param em 1,240:1 e 1,416:1.
-  Nenhum par de superfícies neutras alcança o piso.
-
-  **O tint da marca também não** — e esse é o achado que a issue não tinha.
-  `--tempest-primary-soft`, que `ToggleGroup`, `ListTile`, `TreeView` e `NavigationRail`
-  usam e que a issue apontou como o padrão certo, mede entre **1,03:1 e 1,61:1** contra
-  `--tempest-bg` nas doze marcas do guard de tema, nos dois esquemas: ele muda de matiz,
-  e contraste WCAG não conta matiz.
-
-  Os quatro passam a desenhar o estado com uma tinta saturada **sobre** o tint — contorno
-  de 2px no `SegmentedControl`, barra de 3px à esquerda nos três menus. Medido no browser
-  com a gallery: o indicador fica a **6,14:1** do trilho no claro e a **6,24:1** no
-  escuro, contra os 1,007:1 que o tint sozinho entrega.
-
 ### Adicionado
 
 - **`--tempest-selected-indicator` — o token de estado selecionado.** `#0052cc` no claro,
@@ -66,6 +42,28 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   marcador `~tgz1:`.
 
   Closes #340.
+
+- **`client.blob()` e `client.arrayBuffer()` — download binário sem sair do cliente.**
+  Mesmo caminho de `request()`: base URL, `getToken`, refresh na 401, `onUnauthorized`,
+  log, timeout e retentativa. Sem eles, todo download virava um `fetch` cru ao lado de um
+  cliente configurado — refazendo o header `Authorization`, refazendo o tratamento de
+  erro, e **sem** o refresh, que é a razão de o cliente existir; cada app versava
+  diferente sobre a 401 do binário.
+
+  ```ts
+  const imagem = await api.blob(`/analyses/${id}/image`);
+  const pesos = await api.arrayBuffer("/models/classifier.onnx");
+  ```
+
+  Os dois entram na interface `ApiClient`, então um objeto que a implementa à mão — um
+  mock de teste tipado como `ApiClient` — passa a precisar dos dois campos. Cliente criado
+  por `createApiClient` não muda em nada.
+
+  Custo medido com `npx size-limit`: a fatia `http client` vai de 3,70 kB para 3,84 kB
+  brotlied (+140 B), e a fatia do app típico de 9,75 kB para 9,75 kB (+4 B). Os dois
+  budgets subiram junto.
+
+  Closes #338.
 
 ### Alterado
 

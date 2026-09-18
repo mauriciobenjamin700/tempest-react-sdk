@@ -147,6 +147,31 @@
     --tempest-focus-ring-offset: 2px;
 
     /* ============================================================
+     * Selected state
+     *
+     * The ink a component uses to say "this one is selected": the active
+     * segment, the highlighted menu item, the option the arrow keys landed on.
+     *
+     * It exists because a neutral surface cannot do that job. The four surfaces
+     * are one short step apart by design — measured, `bg` to `surface` is
+     * 1.053:1 in light and 1.085:1 in dark, and even the two extremes,
+     * `bg` against `surface-3`, only reach 1.240:1 and 1.416:1. WCAG 2.2
+     * SC 1.4.11 asks 3:1 of a non-text state indicator, so no pair of them
+     * qualifies and widening the ramp to make one would repaint every card.
+     *
+     * A brand tint does not do it either: `--tempest-primary-soft` measured
+     * across twelve brands lands between 1.03:1 and 1.61:1 against `bg` — it
+     * differs in hue, which the ratio does not count.
+     *
+     * So the indicator is a saturated ink drawn as a border or a bar, on top of
+     * whatever tint the component uses. Same value as the focus ring, picked the
+     * same way and for the same reason, kept as its own token because focus and
+     * selection are different states and because this one is never translucent.
+     * `src/styles/selected-indicator.contrast.test.ts` measures it.
+     * ============================================================ */
+    --tempest-selected-indicator: #0052cc;
+
+    /* ============================================================
      * Radius
      * ============================================================ */
     --tempest-radius-xs: 2px;
@@ -433,6 +458,10 @@
      * against.
      */
     --tempest-focus-ring-color: #60a5fa;
+
+    /* Same step as the ring for the same measured reason: on dark surfaces
+     * `primary-500` loses too much, and `primary-600` keeps 5.40:1 worst case. */
+    --tempest-selected-indicator: #60a5fa;
 
     --tempest-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
     --tempest-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.2);

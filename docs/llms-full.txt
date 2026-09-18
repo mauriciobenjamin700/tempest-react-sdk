@@ -26619,6 +26619,7 @@ Pronto. Tudo o que está abaixo já está disponível na sua aplicação.
 - [A superfície do documento](#a-superficie-do-documento)
 - [`color-scheme` — as superfícies que o browser pinta](#color-scheme-as-superficies-que-o-browser-pinta)
 - [Focus ring](#focus-ring)
+- [Estado selecionado](#estado-selecionado)
 - [Z-index](#z-index)
 - [Densidade — `data-tempest-density`](#densidade-data-tempest-density)
 - [Tema dark — `data-tempest-theme`](#tema-dark-data-tempest-theme)
@@ -27470,6 +27471,43 @@ Para customizar por subárvore (tema marca branca, por exemplo):
     `src/styles/focus-ring.contrast.test.ts` faz exatamente isso com os tokens do
     SDK, nos dois temas, e falha o build abaixo de 3:1 — inclusive se a cor voltar
     a ter alfa.
+
+---
+
+## Estado selecionado
+
+```css
+--tempest-selected-indicator: #0052cc; /* dark: #60a5fa */
+```
+
+A tinta com que um componente diz **"este aqui está selecionado"**: o segmento ativo do `SegmentedControl`, a linha destacada do `Command`, do `DropdownMenu` e do `ContextMenu`.
+
+Ele existe porque superfície não faz esse trabalho. As quatro superfícies são, de propósito, um degrau curto uma da outra:
+
+| par | claro | escuro |
+| --- | --- | --- |
+| `bg` vs `surface` | 1,053:1 | 1,085:1 |
+| `bg` vs `surface-2` | 1,112:1 | 1,225:1 |
+| `bg` vs `surface-3` | 1,240:1 | 1,416:1 |
+
+Nem os extremos da rampa alcançam os **3:1** que a WCAG 2.2 SC 1.4.11 pede de indicador não-textual — e alargar o degrau para servir de indicador estragaria todo cartão empilhado sobre fundo.
+
+!!! danger "Tint da marca também não resolve — e é por isso que este token não é `--tempest-primary-soft`"
+    A resposta intuitiva é marcar a seleção com `--tempest-primary-soft`, que é o que `ToggleGroup`, `ListTile`, `TreeView` e `NavigationRail` fazem. Medido nas doze marcas do guard de tema, `--tempest-primary-soft` fica entre **1,03:1 e 1,61:1** contra `--tempest-bg` nos dois esquemas: ele muda de **matiz**, e o contraste WCAG não conta matiz.
+
+    Por isso o indicador é uma tinta saturada desenhada **sobre** o tint — borda no `SegmentedControl`, barra à esquerda nos três menus —, e não a troca do fundo. O tint continua lá; ele é reforço, não o sinal.
+
+Um tema gerado por `createTheme` emite este token pelo mesmo método do anel de foco: sobe a rampa da marca até a tinta alcançar 3:1 contra as quatro superfícies, nos dois esquemas. Diferente do anel, ele **nunca** aceita alfa — `focusRingAlpha` não chega aqui, porque indicador translúcido tem o contraste do que estiver embaixo, que é exatamente o defeito que este token encerra.
+
+```css
+.my-app {
+    /* opaco, e aferido contra as quatro superfícies */
+    --tempest-selected-indicator: #7c3aed;
+}
+```
+
+!!! check "O guard"
+    `src/styles/selected-indicator.contrast.test.ts` mede o token contra as quatro superfícies nos dois temas e **também** fixa os números acima — se alguém propuser de novo "usa `surface-2`, que dá dois degraus", a asserção que reprova a proposta já está escrita. `src/styles/selected-indicator.usage.test.ts` garante que os quatro componentes desenham o estado com o token, e que nenhum outro o usa por engano.
 
 ---
 
@@ -29199,6 +29237,22 @@ Só as famílias que você passa são geradas — o resto continua vindo do `col
     `focusRingAlpha` continua existindo para quem quer um anel translúcido sobre
     um fundo que controla; abaixo de `1` ele emite um aviso em build de
     desenvolvimento.
+
+!!! danger "O indicador de estado selecionado é derivado junto — e nunca aceita alfa"
+    `createTheme` também emite `--tempest-selected-indicator`, pelo mesmo método:
+    sobe a rampa da marca até a tinta alcançar 3:1 contra as quatro superfícies,
+    nos dois esquemas. É a tinta com que `SegmentedControl`, `Command`,
+    `DropdownMenu` e `ContextMenu` marcam o item ativo.
+
+    Ele é token próprio, e não um apelido do anel, por dois motivos. Foco e
+    seleção são estados diferentes — um app pode querer cores diferentes. E
+    `focusRingAlpha` **não chega até ele**: anel translúcido sobre um fundo que
+    você controla é escolha legítima; indicador de estado translúcido é o defeito
+    que o token encerra.
+
+    Detalhe e medição — inclusive por que `--tempest-primary-soft` (1,03:1 a
+    1,61:1 contra `--tempest-bg` em doze marcas) não serve — em
+    [Estado selecionado](styles.md#estado-selecionado).
 
 !!! check "O degrau `500` é exatamente a cor que você passou"
     A escala é **ancorada** no `500`: a lightness da sua marca vira o ponto fixo e

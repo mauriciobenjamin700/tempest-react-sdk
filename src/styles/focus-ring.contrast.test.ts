@@ -50,9 +50,14 @@ const SURFACES = [
  * findings on the first attempt: `:hover:not(:focus)` matched as focus, and the
  * `Lightbox`'s white ring measured against `--tempest-bg` when it is drawn on the
  * lightbox's own dark overlay. The sweep below keeps the list honest instead.
+ *
+ * `--tempest-selected-indicator` is on the list because the three menus mark the
+ * focused row and the selected row with one rule, so in those files the token is a
+ * focus indicator too. `selected-indicator.contrast.test.ts` measures it in full.
  */
 const INDICATOR_TOKENS = [
     "--tempest-focus-ring-color",
+    "--tempest-selected-indicator",
     "--tempest-primary",
     "--tempest-danger",
     "--tempest-text",

@@ -189,6 +189,22 @@ Only the families you pass are generated — everything else still comes from th
     `focusRingAlpha` is still there for a translucent ring over a background you
     control; below `1` it logs a warning in a development build.
 
+!!! danger "The selected-state indicator is derived alongside it — and never takes an alpha"
+    `createTheme` also emits `--tempest-selected-indicator`, by the same method:
+    walk the brand ramp until the ink clears 3:1 against all four surfaces, in
+    both schemes. It is the ink `SegmentedControl`, `Command`, `DropdownMenu` and
+    `ContextMenu` mark the active item with.
+
+    It is its own token rather than an alias of the ring for two reasons. Focus
+    and selection are different states — an app may want different colors. And
+    `focusRingAlpha` **does not reach it**: a translucent ring over a background
+    you control is a legitimate choice; a translucent state indicator is the
+    defect the token ends.
+
+    The detail and the measurement — including why `--tempest-primary-soft`
+    (1.03:1 to 1.61:1 against `--tempest-bg` across twelve brands) does not serve
+    — is in [Selected state](styles.en.md#selected-state).
+
 !!! check "Step `500` is exactly the color you passed"
     The scale is **anchored** at `500`: your brand's lightness becomes the fixed
     point and both halves of the ramp are rescaled around it. Without that, `500`

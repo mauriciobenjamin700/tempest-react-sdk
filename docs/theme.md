@@ -189,6 +189,22 @@ Só as famílias que você passa são geradas — o resto continua vindo do `col
     um fundo que controla; abaixo de `1` ele emite um aviso em build de
     desenvolvimento.
 
+!!! danger "O indicador de estado selecionado é derivado junto — e nunca aceita alfa"
+    `createTheme` também emite `--tempest-selected-indicator`, pelo mesmo método:
+    sobe a rampa da marca até a tinta alcançar 3:1 contra as quatro superfícies,
+    nos dois esquemas. É a tinta com que `SegmentedControl`, `Command`,
+    `DropdownMenu` e `ContextMenu` marcam o item ativo.
+
+    Ele é token próprio, e não um apelido do anel, por dois motivos. Foco e
+    seleção são estados diferentes — um app pode querer cores diferentes. E
+    `focusRingAlpha` **não chega até ele**: anel translúcido sobre um fundo que
+    você controla é escolha legítima; indicador de estado translúcido é o defeito
+    que o token encerra.
+
+    Detalhe e medição — inclusive por que `--tempest-primary-soft` (1,03:1 a
+    1,61:1 contra `--tempest-bg` em doze marcas) não serve — em
+    [Estado selecionado](styles.md#estado-selecionado).
+
 !!! check "O degrau `500` é exatamente a cor que você passou"
     A escala é **ancorada** no `500`: a lightness da sua marca vira o ponto fixo e
     as duas metades do ramp são reescaladas em volta dela. Sem isso o `500` era

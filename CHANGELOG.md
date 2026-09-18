@@ -4,6 +4,49 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **Estado selecionado a 1,05:1 — `SegmentedControl`, `Command`, `DropdownMenu` e
+  `ContextMenu`.** Os quatro diziam "este está selecionado" trocando uma superfície
+  neutra pela vizinha, e o degrau da rampa é curto de propósito: `--tempest-bg` contra
+  `--tempest-surface` mede **1,053:1** no claro e **1,085:1** no escuro, onde a WCAG 2.2
+  SC 1.4.11 pede 3:1 de indicador não-textual. No `SegmentedControl`, que é seleção
+  persistente, esse era o único sinal — o relato que abriu a issue foi "ao clicar nada
+  acontece, também não há nenhum indicador visual".
+
+  **A correção sugerida na issue não resolvia, e a medição é o motivo.** Usar
+  `--tempest-surface-2` para haver dois degraus dá **1,112:1** no claro e 1,225:1 no
+  escuro; os extremos da rampa (`bg` contra `surface-3`) param em 1,240:1 e 1,416:1.
+  Nenhum par de superfícies neutras alcança o piso.
+
+  **O tint da marca também não** — e esse é o achado que a issue não tinha.
+  `--tempest-primary-soft`, que `ToggleGroup`, `ListTile`, `TreeView` e `NavigationRail`
+  usam e que a issue apontou como o padrão certo, mede entre **1,03:1 e 1,61:1** contra
+  `--tempest-bg` nas doze marcas do guard de tema, nos dois esquemas: ele muda de matiz,
+  e contraste WCAG não conta matiz.
+
+  Os quatro passam a desenhar o estado com uma tinta saturada **sobre** o tint — contorno
+  de 2px no `SegmentedControl`, barra de 3px à esquerda nos três menus. Medido no browser
+  com a gallery: o indicador fica a **6,14:1** do trilho no claro e a **6,24:1** no
+  escuro, contra os 1,007:1 que o tint sozinho entrega.
+
+### Adicionado
+
+- **`--tempest-selected-indicator` — o token de estado selecionado.** `#0052cc` no claro,
+  `#60a5fa` no escuro; um tema gerado por `createTheme` deriva o seu pelo mesmo método do
+  anel de foco (sobe a rampa da marca até alcançar 3:1 contra as quatro superfícies, nos
+  dois esquemas). Diferente do anel, **nunca** aceita alfa: `focusRingAlpha` não chega
+  até ele, porque indicador translúcido tem o contraste do que estiver embaixo.
+
+  Três guards novos: `src/styles/selected-indicator.contrast.test.ts` (o token alcança
+  3:1, e as asserções que fixam por que superfície e tint não alcançam),
+  `src/styles/selected-indicator.usage.test.ts` (os quatro componentes desenham o estado
+  com o token; nenhum outro o usa) e
+  `src/theme/create-theme.selected-indicator.test.ts` (12 marcas × 2 esquemas × 4
+  superfícies, mais a garantia de que o alfa do anel não vaza para o indicador).
+
+  Closes #335.
+
 ## [0.64.0] — 2026-09-12
 
 ### Adicionado

@@ -64,7 +64,9 @@
 .item:focus,
 .item.active {
     outline: none;
-    background-color: var(--tempest-surface);
+    background-color: var(--tempest-primary-soft);
+    color: var(--tempest-primary-on-soft);
+    box-shadow: inset 3px 0 0 0 var(--tempest-selected-indicator);
 }
 
 .item:disabled {

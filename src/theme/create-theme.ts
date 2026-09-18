@@ -259,6 +259,12 @@ const ON_SOLID_INK = "#1f0606";
  * tint is a dark shade, and readable text on that tint is a light shade) — the
  * same inversion the built-in `colors.css` dark block does by hand.
  *
+ * The selected-state indicator is derived from the same measurement as the focus
+ * ring and emitted as its own token. It never takes `focusRingAlpha`: a
+ * translucent ring over a known background is a legitimate choice a theme can
+ * make, while a translucent *state* indicator has the contrast of whatever it
+ * composites over, which is the defect this token exists to end.
+ *
  * @param tokens - The token map for this scheme, written in place.
  * @param scale - The generated primary ramp.
  * @param scheme - Which scheme is being emitted.
@@ -297,6 +303,7 @@ function writePrimaryAliases(
         focusRingAlpha === undefined || focusRingAlpha >= 1
             ? ring
             : hexToRgbaString(ring, focusRingAlpha);
+    tokens["--tempest-selected-indicator"] = ring;
 }
 
 /**

@@ -31435,6 +31435,37 @@ const [save, setSave] = useLocalStorage("save", EMPTY_SAVE, compressedStorageCod
 !!! warning "Não é para tudo"
     Comprimir custa CPU nas duas pontas. Para uma preferência de tema ou um flag booleano, use o `storage` normal — o ganho é zero e o custo não. `compressedStorage` vale a partir de payloads na casa das dezenas de KB.
 
+## String crua — `getRaw` e `setRaw`
+
+`get`/`set` passam pelo codec **nas duas pontas**: `storage.set("tema", "dark")` grava `"dark"` — com as aspas. Isso é certo enquanto a chave é sua, e é um problema silencioso no dia em que ela não é:
+
+```ts
+import { storage } from "tempest-react-sdk";
+
+localStorage.setItem("tema", "dark"); // o que o app já tinha, ou outra lib
+
+storage.get("tema", "system"); // "system" — o JSON.parse falhou e caiu no fallback
+storage.getRaw("tema"); // "dark"
+
+storage.setRaw("tema", "dark"); // grava dark, sem aspas — o leitor antigo continua lendo
+```
+
+- `getRaw(key)` — devolve a string exatamente como está, ou `null` (chave ausente, storage indisponível).
+- `setRaw(key, value)` — grava a string exatamente como veio.
+
+Mesma política best-effort do par JSON: SSR-safe, nunca lança, silencia erro de quota e de modo privativo.
+
+!!! danger "Adotar o `storage` numa chave que já existe é migração, não troca de import"
+    Sem o par cru, trocar `localStorage.getItem` por `storage.get` faz duas coisas ao mesmo tempo: a leitura do valor antigo cai no `catch` e devolve o fallback, e a primeira escrita substitui o valor por uma versão entre aspas que o código antigo não reconhece mais. **Nada falha visivelmente.** Numa PWA instalada isso é preferência do usuário resetada; quando a chave guarda refresh token, é logout.
+
+    Use `getRaw`/`setRaw` na chave que já existe, ou migre-a de propósito — lendo com `getRaw` e regravando com `set`.
+
+!!! tip "Interop com quem não fala JSON"
+    A chave `tempest-theme` do `ThemeProvider` é o exemplo dentro do próprio SDK: ela guarda `dark` puro, porque é lida também pelo script inline de `themeInitScript()`, antes de qualquer JavaScript do app rodar. Desde a v0.65.0 o `ThemeProvider` usa `storage.getRaw`/`setRaw`, então há um caminho só de acesso ao `localStorage` no SDK — e a chave continua legível por quem a lê à mão.
+
+!!! note "Também vale para store com codec"
+    `getRaw` num `compressedStorage` devolve a string comprimida com o marcador `~tgz1:`, sem descomprimir: cru quer dizer *sem codec*, não *sem compressão especificamente*.
+
 ---
 
 ## Recap

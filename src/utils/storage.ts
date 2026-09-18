@@ -11,6 +11,10 @@ export interface JsonStorage {
     /**
      * Read and decode a key.
      *
+     * The value is decoded by the store's codec — JSON for {@link storage} —
+     * which is what makes a key written as a bare string unreadable here: it is
+     * not the shape this method writes. {@link JsonStorage.getRaw} reads those.
+     *
      * @typeParam T - The expected value shape.
      * @param key - Storage key.
      * @param fallback - Returned when the key is absent, unreadable, or corrupt.
@@ -20,11 +24,42 @@ export interface JsonStorage {
     /**
      * Encode and write a key.
      *
+     * The value is **encoded** — `set("theme", "dark")` stores `"dark"` with the
+     * quotes, not `dark`. That matters when an existing key is being adopted:
+     * whatever read it before will no longer recognise what this writes, and the
+     * old value will no longer parse here. {@link JsonStorage.setRaw} is the
+     * passthrough.
+     *
      * @typeParam T - The value being stored.
      * @param key - Storage key.
      * @param value - Any value the codec can represent.
      */
     set<T>(key: string, value: T): void;
+    /**
+     * Read a key exactly as `localStorage` holds it, with no decoding.
+     *
+     * The escape hatch {@link JsonStorage.get} cannot be: `get` runs the codec,
+     * so a key holding a bare `dark` — written by another library, by the app
+     * before it adopted this wrapper, or by the SDK's own `ThemeProvider` —
+     * fails to parse and comes back as the fallback. Reading that key is a
+     * different operation, not a variant of the same one.
+     *
+     * @param key - Storage key.
+     * @returns The stored string, or `null` when the key is absent or storage is
+     *   unavailable.
+     */
+    getRaw(key: string): string | null;
+    /**
+     * Write a string exactly as given, with no encoding.
+     *
+     * The counterpart of {@link JsonStorage.getRaw}, and what keeps adoption from
+     * being a silent migration: `set("theme", "dark")` stores `"dark"` **with the
+     * quotes**, which the app's previous reader no longer recognises.
+     *
+     * @param key - Storage key.
+     * @param value - The exact string to store.
+     */
+    setRaw(key: string, value: string): void;
     /**
      * Delete a key.
      *
@@ -80,7 +115,7 @@ function encode<T>(codec: StorageCodec, value: T): string | null {
  * const packed = createJsonStorage(compressedStorageCodec);
  *
  * @param codec - Encoder pair. Defaults to plain JSON.
- * @returns A store with `get` / `set` / `remove`.
+ * @returns A store with `get` / `set` / `getRaw` / `setRaw` / `remove`.
  *
  * @tempest-limits empty-catch — every method is best-effort by contract:
  * `localStorage` throws on quota exhaustion, in Safari private mode, and when a
@@ -111,6 +146,24 @@ export function createJsonStorage(codec: StorageCodec = jsonCodec): JsonStorage 
             }
         },
 
+        getRaw(key: string): string | null {
+            if (typeof window === "undefined") return null;
+            try {
+                return window.localStorage.getItem(key);
+            } catch {
+                return null;
+            }
+        },
+
+        setRaw(key: string, value: string): void {
+            if (typeof window === "undefined") return;
+            try {
+                window.localStorage.setItem(key, value);
+            } catch {
+                /* empty */
+            }
+        },
+
         remove(key: string): void {
             if (typeof window === "undefined") return;
             try {
@@ -125,5 +178,10 @@ export function createJsonStorage(codec: StorageCodec = jsonCodec): JsonStorage 
 /**
  * Typed wrapper around `localStorage` that JSON-encodes values and silently
  * handles environments where storage is unavailable (SSR, private mode).
+ *
+ * `get`/`set` encode; `getRaw`/`setRaw` do not. Reach for the raw pair when the
+ * key is shared with something that does not speak JSON — an existing key in an
+ * app adopting this wrapper, a key another library owns, or the theme
+ * preference the SDK's own `ThemeProvider` stores as a bare string.
  */
 export const storage: JsonStorage = createJsonStorage();

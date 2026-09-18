@@ -1,3 +1,4 @@
+import { storage } from "@/utils/storage";
 import type { ResolvedTheme, ThemeMode } from "./types";
 
 export interface GetInitialThemeOptions {
@@ -19,13 +20,7 @@ export function getInitialTheme(options: GetInitialThemeOptions = {}): ResolvedT
         return defaultTheme === "dark" ? "dark" : "light";
     }
 
-    let stored: ThemeMode | null;
-    try {
-        stored = window.localStorage.getItem(storageKey) as ThemeMode | null;
-    } catch {
-        stored = null;
-    }
-
+    const stored = storage.getRaw(storageKey) as ThemeMode | null;
     const mode: ThemeMode = stored ?? defaultTheme;
     if (mode === "dark" || mode === "light") return mode;
 

@@ -22,6 +22,8 @@ function mockClient(): ApiClient {
         put: vi.fn(async () => ({ id: 1, name: "Ada" }) as never),
         patch: vi.fn(async () => ({ id: 1, name: "Ada" }) as never),
         delete: vi.fn(async () => ({ id: 1, name: "Ada" }) as never),
+        blob: vi.fn(async () => new Blob()),
+        arrayBuffer: vi.fn(async () => new ArrayBuffer(0)),
         upload: vi.fn(async () => ({}) as never),
     };
 }

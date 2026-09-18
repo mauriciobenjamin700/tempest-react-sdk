@@ -6,6 +6,8 @@
  */
 import { randomId } from "../utils";
 import { buildApiUrl } from "./build-url";
+import { decodeByContentType } from "./decode-response";
+import type { ResponseDecoder } from "./decode-response";
 import { buildApiError, TempestApiError, isRetriableStatus } from "./errors";
 import { retry as retryWithBackoff } from "./retry";
 import type { RetryOptions } from "./retry";
@@ -109,6 +111,12 @@ async function parseError(response: Response, sentRequestId?: string): Promise<T
  * is the signal to clear the session. Without `refresh`, the first `401` calls
  * it directly.
  *
+ * **Binary bodies** have their own methods — `blob()` and `arrayBuffer()` — which
+ * run the same pipeline and skip the parse. `request()` no longer decodes an
+ * unknown `Content-Type` as text either: it returns a `Blob` and says so once in
+ * a development build, because reading `image/jpeg` as UTF-8 destroyed the bytes
+ * on the way in.
+ *
  * **Retries** are off unless you set `retry`. See {@link ApiClientConfig.retry}
  * for the built-in policy; it never replays a write.
  *
@@ -129,7 +137,8 @@ async function parseError(response: Response, sentRequestId?: string): Promise<T
  * });
  *
  * @param config - Base URL plus the optional auth, retry and fetch hooks.
- * @returns A client with `request`/`get`/`post`/`put`/`patch`/`delete`/`upload`.
+ * @returns A client with `request`/`get`/`post`/`put`/`patch`/`delete`/`blob`/
+ * `arrayBuffer`/`upload`.
  */
 export function createApiClient(config: ApiClientConfig): ApiClient {
     const fetcher = config.fetcher ?? globalThis.fetch.bind(globalThis);
@@ -233,7 +242,11 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         }
     }
 
-    async function attempt<T>(path: string, options: RequestOptions): Promise<T> {
+    async function attempt<T>(
+        path: string,
+        options: RequestOptions,
+        decode: ResponseDecoder<T>,
+    ): Promise<T> {
         const requestId = config.requestId ? config.requestId() : randomId();
         const method = (options.method ?? "GET").toUpperCase();
         let response = await send(path, options, requestId, method);
@@ -259,27 +272,27 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
             throw await parseError(response, requestId);
         }
 
-        if (response.status === 204) {
-            return undefined as T;
-        }
-
-        const contentType = response.headers.get("content-type") ?? "";
-        if (contentType.includes("application/json")) {
-            return (await response.json()) as T;
-        }
-        return (await response.text()) as unknown as T;
+        return decode(response);
     }
 
-    async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+    async function run<T>(
+        path: string,
+        options: RequestOptions,
+        decode: ResponseDecoder<T>,
+    ): Promise<T> {
         const retryOptions = resolveRetry(config.retry);
-        if (!retryOptions) return attempt<T>(path, options);
+        if (!retryOptions) return attempt<T>(path, options, decode);
 
         const method = (options.method ?? "GET").toUpperCase();
-        return retryWithBackoff(() => attempt<T>(path, options), {
+        return retryWithBackoff(() => attempt<T>(path, options, decode), {
             ...retryOptions,
             shouldRetry:
                 retryOptions.shouldRetry ?? ((error: unknown) => isRetriableFailure(error, method)),
         });
+    }
+
+    async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+        return run<T>(path, options, decodeByContentType);
     }
 
     async function upload<T>(
@@ -303,6 +316,10 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
             request<T>(path, { ...options, method: "PATCH" }),
         delete: <T>(path: string, options?: RequestOptions) =>
             request<T>(path, { ...options, method: "DELETE" }),
+        blob: (path: string, options?: RequestOptions) =>
+            run<Blob>(path, { ...options }, (response) => response.blob()),
+        arrayBuffer: (path: string, options?: RequestOptions) =>
+            run<ArrayBuffer>(path, { ...options }, (response) => response.arrayBuffer()),
         upload,
     };
 }

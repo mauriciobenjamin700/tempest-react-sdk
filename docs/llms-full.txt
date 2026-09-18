@@ -19444,7 +19444,7 @@ Opções (todas exceto `baseURL` são opcionais):
 - `headers` — headers default mesclados em toda request.
 - `fetcher` — implementação de `fetch` alternativa (default `globalThis.fetch`) — útil em testes.
 
-Métodos: `get`, `post`, `put`, `patch`, `delete`, `upload`, `request`. Cada um aceita `RequestOptions` (`body`, `params`, e qualquer campo de `RequestInit` exceto `body`):
+Métodos: `get`, `post`, `put`, `patch`, `delete`, `blob`, `arrayBuffer`, `upload`, `request`. Cada um aceita `RequestOptions` (`body`, `params`, e qualquer campo de `RequestInit` exceto `body`):
 
 ```ts
 // GET com query params (serializados automaticamente)
@@ -19468,7 +19468,7 @@ Comportamento:
 - Em 401 com `refresh` configurado: aguarda `refresh()`, repete o request 1x. Se falhar, chama `onUnauthorized` e lança `ApiError`.
 - Em 401 sem `refresh`: chama `onUnauthorized` e lança `ApiError`.
 - 204 retorna `undefined`.
-- `Content-Type: application/json` na resposta → `JSON.parse`. Caso contrário, retorna texto cru.
+- `Content-Type: application/json` na resposta → `JSON.parse`; `text/*`, XML, CSV e form-urlencoded → texto cru; qualquer outro tipo (imagem, PDF, octet-stream) → `Blob`. Ver [Download de binário](#download-de-binario).
 
 !!! warning "`refresh` só repete uma vez"
     Se o `refresh()` rodar mas o retry ainda devolver 401, o cliente desiste, chama `onUnauthorized` e lança. Isso evita loop infinito de refresh quando a sessão realmente expirou.
@@ -19479,6 +19479,36 @@ Comportamento:
     O trabalho do hook é **local**: limpar store, storage e cache. `POST /auth/logout` pertence ao logout explícito do usuário, quando o token ainda vale — chamar de dentro do `onUnauthorized` é mandar a requisição com o token que o backend acabou de recusar, e ela volta 401/422.
 
     **O erro do hook não vaza mais.** O cliente aguarda o `onUnauthorized` e captura o que ele lançar, então quem chamou continua recebendo o `ApiError` da requisição original — antes da v0.48.0 o throw do hook tomava o lugar do 401, e o console mostrava dois erros onde havia um, o segundo sem relação com a requisição que falhou. Com um `logger` configurado, a falha do hook sai como `warn` em vez de desaparecer.
+
+## Download de binário
+
+Baixar uma imagem, um PDF ou um `.zip` **não sai do cliente**: `blob()` e `arrayBuffer()` rodam o mesmo caminho de `request()` — base URL, `Authorization`, refresh na 401, `onUnauthorized`, log, timeout e retentativa — e só trocam o parse pelo corpo cru.
+
+```ts
+import { createApiClient } from "tempest-react-sdk";
+
+const api = createApiClient({
+  baseURL: import.meta.env.VITE_API_URL,
+  getToken: () => useAuthStore.getState().token,
+  refresh,
+});
+
+const imagem = await api.blob(`/analyses/${id}/image`);
+const url = URL.createObjectURL(imagem);
+
+const pesos = await api.arrayBuffer("/models/classifier.onnx");
+```
+
+Use `blob()` quando o destino é um `<img src>`, um download ou um `FormData`; use `arrayBuffer()` quando algo vai ler os bytes — um decoder, um hash, um `Uint8Array` para o `onnxruntime-web`.
+
+Erro continua sendo erro tipado: um 404 no download lança `ApiError` com `status` e `detail`, igual a qualquer outra chamada.
+
+!!! danger "Antes da v0.65.0 o binário chegava corrompido"
+    `request()` decodificava **todo** corpo não-JSON com `response.text()`, o que lê os bytes como UTF-8. Medido no cabeçalho de um JPEG — `ff d8 ff e0 00 10 4a 46 49 46` —, os 10 bytes que chegaram voltavam como 18 depois do round-trip, 4 deles substituídos por `U+FFFD`. A perda é irreversível: nenhum `TextEncoder` no caller reconstrói o original.
+
+    Por isso todo app acabava com um `fetch` cru ao lado do cliente configurado — refazendo o header `Authorization`, refazendo o tratamento de erro, e **sem** o refresh na 401, que é a razão de o cliente existir.
+
+    Hoje `request()` devolve `Blob` nesse caso, em vez de texto quebrado, e avisa uma vez em build de desenvolvimento apontando para `blob()`/`arrayBuffer()` — que é como o tipo passa a bater com o que chega.
 
 ## Base URL e prefixo
 

@@ -200,6 +200,33 @@ export interface ApiClient {
     put<T>(path: string, options?: RequestOptions): Promise<T>;
     patch<T>(path: string, options?: RequestOptions): Promise<T>;
     delete<T>(path: string, options?: RequestOptions): Promise<T>;
+    /**
+     * Download a binary body through the full client pipeline.
+     *
+     * Same base URL, `getToken` header, 401 refresh-and-replay, `onUnauthorized`,
+     * logging, timeout and retry policy as {@link ApiClient.request} — only the
+     * decoding differs. Without it every download left the client: a hand-rolled
+     * `fetch` that re-declares the `Authorization` header and re-implements the
+     * error handling, and that has no refresh, which is the client's reason to
+     * exist.
+     *
+     * @param path - Path joined onto the client's base URL.
+     * @param options - The same options `request` takes; `method` defaults to GET.
+     * @returns The response body as a `Blob`.
+     * @throws TempestApiError On any non-2xx response, carrying the status.
+     */
+    blob(path: string, options?: RequestOptions): Promise<Blob>;
+    /**
+     * Download a binary body as an `ArrayBuffer`, for the callers a `Blob` does
+     * not serve — a decoder, a hash, a typed array fed to WebGL or to
+     * `onnxruntime-web`.
+     *
+     * @param path - Path joined onto the client's base URL.
+     * @param options - The same options `request` takes; `method` defaults to GET.
+     * @returns The response body as an `ArrayBuffer`.
+     * @throws TempestApiError On any non-2xx response, carrying the status.
+     */
+    arrayBuffer(path: string, options?: RequestOptions): Promise<ArrayBuffer>;
     upload<T>(
         path: string,
         formData: FormData,

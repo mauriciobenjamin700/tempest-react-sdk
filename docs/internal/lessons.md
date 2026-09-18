@@ -112,6 +112,21 @@ lado. Leia antes de confiar numa medição, num gate ou numa afirmação da doc.
   prefira um que o mapa de aliases não menciona. Regenerar o registry é parte do
   bump, não follow-up.
 
+## A matriz de Node vê o que a máquina local não vê
+
+- **`instanceof Blob` reprova no Node 22 e passa no 24.** `Response.blob()`
+  devolve o `Blob` do `node:buffer` (undici), e o ambiente jsdom instala o seu
+  próprio global — duas classes distintas, então `toBeInstanceOf(Blob)` falha num
+  objeto que é Blob por qualquer outra medida. Medido em 18/09/2026: os mesmos
+  testes do #338 passaram em `v24.15.0` e falharam em `v22.23.2`
+  (`expected Blob { size: 10, type: 'image/jpeg' } to be an instance of Blob`),
+  e um helper que decidia por `instanceof` devolveu `Uint8Array []` na sequência.
+  Ao asserir sobre valor que atravessa a fronteira `fetch`/DOM, **cheque a
+  superfície** (`typeof value.arrayBuffer === "function"`), não a classe.
+- **Reproduzir é uma linha:** `PATH="$HOME/.nvm/versions/node/v22.23.2/bin:$PATH"
+  npx vitest run <arquivo>`. A CI roda `verify` em 22 **e** 24; rodar só a versão
+  local transforma metade da matriz em surpresa depois do push.
+
 ## Guards que já salvaram
 
 - `test/docs-anchors.test.ts` pegou heading virando código depois de um merge.

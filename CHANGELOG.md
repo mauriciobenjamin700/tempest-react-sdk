@@ -30,6 +30,17 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   com a gallery: o indicador fica a **6,14:1** do trilho no claro e a **6,24:1** no
   escuro, contra os 1,007:1 que o tint sozinho entrega.
 
+- **`ApiClient` corrompia todo corpo binário.** `request()` decidia o parse por
+  `Content-Type` e caía em `response.text()` para tudo que não fosse JSON — então uma
+  resposta `image/jpeg` era lida como UTF-8. Medido no cabeçalho de um JPEG
+  (`ff d8 ff e0 00 10 4a 46 49 46`): os 10 bytes que chegam voltam como 18 depois do
+  round-trip, 4 deles substituídos por `U+FFFD`, e nenhum `TextEncoder` no caller
+  reconstrói o original.
+
+  Agora um `Content-Type` que não é JSON nem textual (`text/*`, XML, CSV,
+  form-urlencoded) devolve `Blob`, e um build de desenvolvimento avisa uma vez apontando
+  para os métodos novos. Resposta JSON, texto e `204` decodificam exatamente como antes.
+
 ### Adicionado
 
 - **`--tempest-selected-indicator` — o token de estado selecionado.** `#0052cc` no claro,
@@ -66,6 +77,28 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   marcador `~tgz1:`.
 
   Closes #340.
+
+- **`client.blob()` e `client.arrayBuffer()` — download binário sem sair do cliente.**
+  Mesmo caminho de `request()`: base URL, `getToken`, refresh na 401, `onUnauthorized`,
+  log, timeout e retentativa. Sem eles, todo download virava um `fetch` cru ao lado de um
+  cliente configurado — refazendo o header `Authorization`, refazendo o tratamento de
+  erro, e **sem** o refresh, que é a razão de o cliente existir; cada app versava
+  diferente sobre a 401 do binário.
+
+  ```ts
+  const imagem = await api.blob(`/analyses/${id}/image`);
+  const pesos = await api.arrayBuffer("/models/classifier.onnx");
+  ```
+
+  Os dois entram na interface `ApiClient`, então um objeto que a implementa à mão — um
+  mock de teste tipado como `ApiClient` — passa a precisar dos dois campos. Cliente criado
+  por `createApiClient` não muda em nada.
+
+  Custo medido com `npx size-limit` contra a `main` deste ciclo: a fatia `http client` vai
+  de 3,63 kB para 3,84 kB brotlied (+210 B) e a do app típico de 9,67 kB para 9,94 kB
+  (+270 B). Os dois budgets subiram junto — 3,9 kB e 10 kB.
+
+  Closes #338.
 
 ### Alterado
 

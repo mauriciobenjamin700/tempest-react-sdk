@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Input, SearchBar, Select, Textarea } from "tempest-react-sdk";
+import { Input, ListTile, SearchBar, Select, Textarea } from "tempest-react-sdk";
 import { Example } from "../Example";
 
 export function FormFieldsSection() {
@@ -7,6 +7,7 @@ export function FormFieldsSection() {
     const [search, setSearch] = useState("");
     const [bio, setBio] = useState("");
     const [country, setCountry] = useState("");
+    const [lang, setLang] = useState("pt");
 
     const emailError =
         email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? "Email inválido." : undefined;
@@ -43,6 +44,67 @@ export function FormFieldsSection() {
                         helperText="Usaremos isso pra login."
                         error={emailError}
                         required
+                    />
+                </div>
+            </Example>
+
+            <Example
+                title="Select — variante chip numa linha de configurações"
+                note='variant="chip" renderiza só o controle, sem label nem slot de erro. aria-label é obrigatório, porque o nome visível é o da linha.'
+                code={`<ListTile
+  leading={<span>🌐</span>}
+  title="Idioma"
+  trailing={
+      <Select
+          variant="chip"
+          aria-label="Idioma"
+          value={lang}
+          onChange={(e) => setLang(e.target.value)}
+          options={[
+              { value: "pt", label: "Português" },
+              { value: "en", label: "English" },
+          ]}
+      />
+  }
+/>`}
+            >
+                <div
+                    style={{
+                        width: 320,
+                        border: "1px solid var(--tempest-border)",
+                        borderRadius: 8,
+                    }}
+                >
+                    <ListTile
+                        leading={<span>🌐</span>}
+                        title="Idioma"
+                        trailing={
+                            <Select
+                                variant="chip"
+                                aria-label="Idioma"
+                                value={lang}
+                                onChange={(e) => setLang(e.target.value)}
+                                options={[
+                                    { value: "pt", label: "Português" },
+                                    { value: "en", label: "English" },
+                                ]}
+                            />
+                        }
+                    />
+                    <ListTile
+                        leading={<span>🔔</span>}
+                        title="Notificações"
+                        trailing={
+                            <Select
+                                variant="chip"
+                                aria-label="Notificações"
+                                defaultValue="all"
+                                options={[
+                                    { value: "all", label: "Todas" },
+                                    { value: "none", label: "Nenhuma" },
+                                ]}
+                            />
+                        }
                     />
                 </div>
             </Example>

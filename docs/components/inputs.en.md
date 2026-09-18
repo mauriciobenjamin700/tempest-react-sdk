@@ -75,7 +75,7 @@ export function Mensagem() {
 
 ## `Select`
 
-Native `<select>`. Accepts `options` (a list) or `<option>` children.
+Native `<select>`. Accepts `options` (a list) or `<option>` children. Two variants: **`field`** (default — label, control, helper text and error slot) and **`chip`** (the control alone, for a settings row).
 
 ```tsx
 import { Select } from "tempest-react-sdk";
@@ -93,11 +93,50 @@ export function Estado() {
 }
 ```
 
-| Prop      | Type             | Default |
-| --------- | ---------------- | ------- |
-| `options` | `SelectOption[]` | —       |
-| `label`   | `string`         | —       |
-| `error`   | `string`         | —       |
+| Prop         | Type                 | Default   |
+| ------------ | -------------------- | --------- |
+| `options`    | `SelectOption[]`     | —         |
+| `label`      | `string`             | —         |
+| `helperText` | `string`             | —         |
+| `error`      | `string`             | —         |
+| `variant`    | `"field" \| "chip"`  | `"field"` |
+
+### The `chip` variant — settings rows
+
+In a settings row — icon and label on the left, a compact control on the right — the full field stacks **two labelled fields inside one list item**. `variant="chip"` renders the control alone, sized to its content:
+
+```tsx
+import { ListTile, Select } from "tempest-react-sdk";
+
+export function LanguageRow({ lang, setLang }: { lang: string; setLang: (v: string) => void }) {
+    return (
+        <ListTile
+            leading={<span>🌐</span>}
+            title="Idioma"
+            trailing={
+                <Select
+                    variant="chip"
+                    aria-label="Idioma"
+                    value={lang}
+                    onChange={(e) => setLang(e.target.value)}
+                    options={[
+                        { value: "pt", label: "Português" },
+                        { value: "en", label: "English" },
+                    ]}
+                />
+            }
+        />
+    );
+}
+```
+
+!!! danger "`aria-label` is required on `chip` — and the type enforces it"
+    The variant removes the only visible label the component had. The row's text (the `ListTile`'s `title`) names the row, not the `<select>` — there is no accessibility relationship between them — so without `aria-label` a screen reader announces a combobox with **no name**. `SelectChipProps` declares `"aria-label": string` as required, so forgetting it is a compile error rather than an audit finding.
+
+!!! tip "This is why hand-rolling a `<select>` is not worth it"
+    The way out apps took was a native `<select>` with `appearance: none`, just to keep the chip shape. That duplicates this component's markup and **loses with it** the token-driven focus ring, the disabled styling and the caret — all already solved here.
+
+    The `field` variant is unchanged: `label`, `helperText` and `error` exist only there.
 
 ## `Combobox`
 

@@ -164,6 +164,29 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
   Closes #337.
 
+- **`Select` ganhou `variant="chip"` — o controle sozinho, para linha de configurações.**
+  O componente só existia como campo de formulário completo (rótulo, wrapper, slot de
+  erro), e numa linha de configurações — ícone e rótulo à esquerda, controle compacto à
+  direita — isso empilha dois campos rotulados dentro do mesmo item de lista. A saída que
+  todo app tomava era um `<select>` nativo com `appearance: none`, o que duplica o markup
+  deste componente e perde junto o anel de foco por token, o estado desabilitado e o
+  caret.
+
+  ```tsx
+  <ListTile
+    title="Idioma"
+    trailing={<Select variant="chip" aria-label="Idioma" options={langs} />}
+  />
+  ```
+
+  **`aria-label` é obrigatório no `chip`**, cobrado pelo tipo (`SelectChipProps`): a
+  variante remove o único rótulo visível, e o texto da linha nomeia a linha, não o
+  `<select>` — sem ele o leitor de tela anuncia uma combobox sem nome. `SelectProps` passa
+  a ser a união `SelectFieldProps | SelectChipProps`; a variante `field` é o default e não
+  mudou em nada.
+
+  Closes #339.
+
 ### Alterado
 
 - **`ThemeProvider` e `getInitialTheme` passam a usar `storage.getRaw`/`setRaw`** em vez

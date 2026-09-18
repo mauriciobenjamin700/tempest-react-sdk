@@ -47,6 +47,38 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
   Closes #335.
 
+- **`storage.getRaw()` / `storage.setRaw()` — ler e escrever string crua.** `get`/`set`
+  passam pelo codec nas duas pontas, então não havia como tocar numa chave que não é do
+  wrapper. Isso fazia da adoção uma **migração silenciosa**: a chave que hoje guarda
+  `dark` é lida com `JSON.parse("dark")`, que lança, cai no `catch` e devolve o fallback;
+  a primeira escrita a substitui por `"dark"` com aspas, que o leitor antigo do app não
+  reconhece mais. Nada falha visivelmente — em PWA instalada é preferência resetada, e
+  quando a chave guarda refresh token é logout.
+
+  ```ts
+  storage.getRaw("tempest-theme"); // "dark" — o que o JSON.parse não lê
+  storage.setRaw("tempest-theme", "dark"); // grava sem aspas
+  ```
+
+  Mesma política best-effort do par JSON (SSR-safe, nunca lança, silencia quota e modo
+  privativo), e disponível em todo store que `createJsonStorage` constrói — num
+  `compressedStorage`, cru quer dizer _sem codec_, então `getRaw` devolve a string com o
+  marcador `~tgz1:`.
+
+  Closes #340.
+
+### Alterado
+
+- **`ThemeProvider` e `getInitialTheme` passam a usar `storage.getRaw`/`setRaw`** em vez
+  de falar com `window.localStorage` direto. A chave `tempest-theme` guarda `dark` puro
+  porque o script inline de `themeInitScript()` a lê antes de qualquer JavaScript do app
+  — era exatamente a chave do SDK que o `storage` do SDK não conseguia ler. Mesmo
+  comportamento observável, um caminho só de acesso ao `localStorage`, três `try/catch`
+  a menos.
+- **O JSDoc de `get`/`set` agora diz que o valor é JSON-encodado.** Quem lia
+  `set<T>(key: string, value: T)` supunha passthrough para o `localStorage`, que é a
+  suposição que causava o item acima.
+
 ## [0.64.0] — 2026-09-12
 
 ### Adicionado

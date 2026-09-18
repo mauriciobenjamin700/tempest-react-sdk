@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useLatestRef } from "@/hooks/use-latest-ref";
+import { storage } from "@/utils/storage";
 import type { ResolvedTheme, ThemeMode } from "./types";
 
 export interface ThemeContextValue {
@@ -71,14 +72,10 @@ function applyResolved(
 }
 
 function readStored(storageKey: string | null): ThemeMode | null {
-    if (!storageKey || typeof window === "undefined") return null;
-    try {
-        const value = window.localStorage.getItem(storageKey);
-        if (value === "light" || value === "dark" || value === "system") return value;
-        return null;
-    } catch {
-        return null;
-    }
+    if (!storageKey) return null;
+    const value = storage.getRaw(storageKey);
+    if (value === "light" || value === "dark" || value === "system") return value;
+    return null;
 }
 
 /**
@@ -140,13 +137,7 @@ export function ThemeProvider({
     const setTheme = useCallback(
         (next: ThemeMode) => {
             setThemeState(next);
-            if (storageKey && typeof window !== "undefined") {
-                try {
-                    window.localStorage.setItem(storageKey, next);
-                } catch {
-                    /* empty */
-                }
-            }
+            if (storageKey) storage.setRaw(storageKey, next);
         },
         [storageKey],
     );

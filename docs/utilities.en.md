@@ -480,6 +480,37 @@ const [save, setSave] = useLocalStorage("save", EMPTY_SAVE, compressedStorageCod
 !!! warning "Not for everything"
     Compression costs CPU on both ends. For a theme preference or a boolean flag, use plain `storage` — the gain is zero and the cost is not. `compressedStorage` starts paying off at payloads in the tens of KB.
 
+## Raw strings — `getRaw` and `setRaw`
+
+`get`/`set` run the codec **both ways**: `storage.set("theme", "dark")` stores `"dark"` — with the quotes. That is correct while the key is yours, and a silent problem the day it is not:
+
+```ts
+import { storage } from "tempest-react-sdk";
+
+localStorage.setItem("theme", "dark"); // what the app already had, or another library
+
+storage.get("theme", "system"); // "system" — JSON.parse threw and it fell back
+storage.getRaw("theme"); // "dark"
+
+storage.setRaw("theme", "dark"); // stores dark, unquoted — the old reader keeps working
+```
+
+- `getRaw(key)` — returns the string exactly as stored, or `null` (absent key, storage unavailable).
+- `setRaw(key, value)` — stores the string exactly as given.
+
+Same best-effort policy as the JSON pair: SSR-safe, never throws, swallows quota and private-mode errors.
+
+!!! danger "Adopting `storage` on a key that already exists is a migration, not an import change"
+    Without the raw pair, swapping `localStorage.getItem` for `storage.get` does two things at once: reading the old value lands in the `catch` and returns the fallback, and the first write replaces the value with a quoted one the old code no longer recognises. **Nothing fails visibly.** In an installed PWA that is the user's preference reset; when the key holds a refresh token, it is a logout.
+
+    Use `getRaw`/`setRaw` on the existing key, or migrate it on purpose — read with `getRaw`, write back with `set`.
+
+!!! tip "Interop with whatever does not speak JSON"
+    The `ThemeProvider`'s `tempest-theme` key is the example inside the SDK itself: it holds a bare `dark`, because the inline script from `themeInitScript()` reads it before any of the app's JavaScript runs. Since v0.65.0 `ThemeProvider` uses `storage.getRaw`/`setRaw`, so the SDK has a single path to `localStorage` — and the key stays readable by whoever reads it by hand.
+
+!!! note "It applies to a store with a codec too"
+    `getRaw` on `compressedStorage` returns the compressed string with its `~tgz1:` marker, undecompressed: raw means *without the codec*, not *without compression specifically*.
+
 ---
 
 ## Recap

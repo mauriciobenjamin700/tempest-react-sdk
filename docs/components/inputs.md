@@ -63,7 +63,7 @@ export function Mensagem() {
 
 ## `Select`
 
-Nativo `<select>`. Aceita `options` (lista) ou `<option>` children.
+Nativo `<select>`. Aceita `options` (lista) ou `<option>` children. Duas variantes: **`field`** (default — rótulo, controle, helper e slot de erro) e **`chip`** (só o controle, para linha de configurações).
 
 ```tsx
 import { Select } from "tempest-react-sdk";
@@ -81,11 +81,50 @@ export function Estado() {
 }
 ```
 
-| Prop      | Tipo             | Default |
-| --------- | ---------------- | ------- |
-| `options` | `SelectOption[]` | —       |
-| `label`   | `string`         | —       |
-| `error`   | `string`         | —       |
+| Prop        | Tipo                  | Default   |
+| ----------- | --------------------- | --------- |
+| `options`   | `SelectOption[]`      | —         |
+| `label`     | `string`              | —         |
+| `helperText`| `string`              | —         |
+| `error`     | `string`              | —         |
+| `variant`   | `"field" \| "chip"`   | `"field"` |
+
+### Variante `chip` — linha de configurações
+
+Numa linha de configurações — ícone e rótulo à esquerda, controle compacto à direita — o campo completo empilha **dois campos rotulados dentro do mesmo item de lista**. `variant="chip"` renderiza só o controle, dimensionado pelo conteúdo:
+
+```tsx
+import { ListTile, Select } from "tempest-react-sdk";
+
+export function LinhaIdioma({ lang, setLang }: { lang: string; setLang: (v: string) => void }) {
+    return (
+        <ListTile
+            leading={<span>🌐</span>}
+            title="Idioma"
+            trailing={
+                <Select
+                    variant="chip"
+                    aria-label="Idioma"
+                    value={lang}
+                    onChange={(e) => setLang(e.target.value)}
+                    options={[
+                        { value: "pt", label: "Português" },
+                        { value: "en", label: "English" },
+                    ]}
+                />
+            }
+        />
+    );
+}
+```
+
+!!! danger "`aria-label` é obrigatório no `chip` — e o tipo cobra"
+    A variante remove o único rótulo visível que o componente tinha. O texto da linha (`title` do `ListTile`) nomeia a linha, não o `<select>` — não há relação de acessibilidade entre os dois —, então sem `aria-label` o leitor de tela anuncia uma combobox **sem nome**. `SelectChipProps` declara `"aria-label": string` como obrigatório, então esquecê-lo é erro de compilação, não achado de auditoria.
+
+!!! tip "É por isso que não vale escrever um `<select>` na mão"
+    A saída que todo app tomava era um `<select>` nativo com `appearance: none` só para manter o formato de chip. Isso duplica o markup deste componente e **perde junto** o anel de foco por token, o estado desabilitado e o caret — tudo o que já estava resolvido aqui.
+
+    A variante `field` continua idêntica: `label`, `helperText` e `error` só existem nela.
 
 ## `Combobox`
 

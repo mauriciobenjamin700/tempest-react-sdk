@@ -96,7 +96,10 @@ else
   echo "  (sem mudanças nos arquivos de versão — taggeando HEAD existente)"
 fi
 
-echo "→ Tag local $GIT_TAG"
+# A tag nasce aqui porque `make releases-md` lê as git tags — sem ela, a linha da
+# versão que está sendo lançada não existe para ser gerada. Ela é movida logo
+# abaixo, depois do commit que traz o RELEASES.md atualizado.
+echo "→ Tag local $GIT_TAG (provisória, para o RELEASES.md poder vê-la)"
 git tag "$GIT_TAG"
 
 echo "→ Regenerando RELEASES.md"
@@ -104,6 +107,15 @@ make releases-md >/dev/null
 if ! git diff --quiet -- RELEASES.md 2>/dev/null; then
   git add RELEASES.md
   git commit -m "docs: refresh RELEASES.md after $GIT_TAG"
+
+  # Sem isto a tag fica no commit ANTERIOR ao refresh, e o conteúdo taggeado é o
+  # único que a CI do release enxerga: CHANGELOG com a seção `[X.Y.Z]` e
+  # RELEASES.md sem a linha dela, que é exatamente o que
+  # `test/docs-counts.test.ts` reprova. Medido na v0.65.0: a tag apontava para
+  # `chore: release`, o refresh ficava no commit seguinte, e o job "Run tests" do
+  # `release-npm.yml` falhava antes de publicar.
+  echo "→ Movendo $GIT_TAG para o commit com o RELEASES.md atualizado"
+  git tag -f "$GIT_TAG" >/dev/null
 fi
 
 # A validação roda DEPOIS da tag e do RELEASES.md, e antes de qualquer push.

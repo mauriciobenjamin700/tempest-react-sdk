@@ -93,10 +93,23 @@ ficava com a seção `[X.Y.Z]` no CHANGELOG e sem a linha dela no `RELEASES.md`,
 script move a tag (`git tag -f`) para o commit do refresh. **A árvore que a tag
 aponta é a única que a CI de release vê** — validar a branch não substitui isso.
 
+A terceira coisa que o pipeline não faz por você: **o snapshot do `CLAUDE.md`
+entra no commit de release**, não depois. `test/docs-counts.test.ts` afere a
+contagem de tags escrita em prosa contra as linhas do `RELEASES.md`, e o
+`RELEASES.md` ganha a linha nova junto com a tag — então a contagem escrita lá
+vira falsa no instante em que a tag existe, e a CI do release reprova. Atualize
+tags, exports de runtime e a linha de testes antes de taggear.
+
+(E não escreva o número de exemplo aqui: o guard varre **esta** página também, e
+uma frase explicando o problema com um número literal dentro reprova o release
+que ela tenta evitar. Aconteceu.)
+
 Antes de taggear:
 
 - [ ] `CHANGELOG.md` com entrada `## [X.Y.Z] — YYYY-MM-DD` cobrindo toda mudança
       pública, com os números medidos.
+- [ ] snapshot do `CLAUDE.md` atualizado: tags publicadas, exports de runtime,
+      contagem de testes.
 - [ ] `docs/` reflete a superfície nova; `mkdocs build --strict` limpo.
 - [ ] snippets de install referenciam a versão nova onde aplicável.
 - [ ] `npx size-limit` sem estouro.

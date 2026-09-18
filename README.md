@@ -1938,7 +1938,7 @@ npm run clean          # rm -rf dist coverage
 Snapshot of current health:
 
 - 4705 tests / 485 files — 98.7% lines, 97.4% statements, 97.1% functions, 94.6% branches (CI floors: 98/97/96/94).
-- What your app actually pays (brotli, tree-shaken slices measured by `npm run size` on 0.64.0): `cn` alone 203 B · one `Button` 853 B · a typical app shell (5 components + router + providers + HTTP + auth + a hook) 9.54 KB · offline/PWA surface 4.64 KB · `Chat` 10.54 KB · `AIChat` 10.16 KB · audio capture 5.88 KB · device capture (barcode + video + screen + speech) 5.46 KB · BR payment rails (Pix + boleto + NFe + holidays) 9.21 KB · passkeys 2.27 KB · `styles.css` 29.58 KB · the opt-in `utilities.css` 1.36 KB.
+- What your app actually pays (brotli, tree-shaken slices measured by `npm run size` on 0.65.0): `cn` alone 203 B · one `Button` 853 B · a typical app shell (5 components + router + providers + HTTP + auth + a hook) 9.94 KB · offline/PWA surface 4.64 KB · `Chat` 10.53 KB · `AIChat` 10.16 KB · audio capture 5.88 KB · device capture (barcode + video + screen + speech) 5.46 KB · BR payment rails (Pix + boleto + NFe + holidays) 9.21 KB · passkeys 2.27 KB · `styles.css` 29.75 KB · the opt-in `utilities.css` 1.36 KB.
 - Full-barrel ceiling — nobody imports this, it is the no-tree-shaking worst case: 130.22 KB ESM / 155.07 KB CJS.
 - Husky pre-commit runs `lint-staged` (eslint --fix + prettier --write) on staged files.
 

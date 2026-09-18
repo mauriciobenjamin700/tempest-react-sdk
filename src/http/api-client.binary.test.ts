@@ -10,8 +10,29 @@ function binaryResponse(bytes: Uint8Array, contentType = "image/jpeg"): Response
     });
 }
 
+/**
+ * Whether a value behaves like a `Blob`, without asking which realm built it.
+ *
+ * `instanceof Blob` is the wrong question on Node 22: `Response.blob()` returns
+ * undici's `Blob` from `node:buffer`, while the jsdom environment installs its
+ * own global — two distinct classes, so the check fails on an object that is a
+ * Blob by every other measure. Node 24 unifies them, which is how a green local
+ * run and a red CI matrix can disagree about the same assertion.
+ *
+ * @param value - The decoded body.
+ * @returns Whether it exposes the Blob surface the caller relies on.
+ */
+function isBlobLike(value: unknown): value is Blob {
+    return (
+        typeof value === "object" &&
+        value !== null &&
+        typeof (value as Blob).arrayBuffer === "function" &&
+        typeof (value as Blob).size === "number"
+    );
+}
+
 async function bytesOf(value: Blob | ArrayBuffer): Promise<Uint8Array> {
-    const buffer = value instanceof Blob ? await value.arrayBuffer() : value;
+    const buffer = isBlobLike(value) ? await value.arrayBuffer() : (value as ArrayBuffer);
     return new Uint8Array(buffer);
 }
 
@@ -24,7 +45,7 @@ describe("createApiClient binary bodies", () => {
 
         const blob = await api.blob("/analyses/1/image");
 
-        expect(blob).toBeInstanceOf(Blob);
+        expect(isBlobLike(blob)).toBe(true);
         expect(await bytesOf(blob)).toEqual(JPEG_HEADER);
     });
 
@@ -89,7 +110,7 @@ describe("createApiClient binary bodies", () => {
 
         const body = await api.get<Blob>("/analyses/1/image");
 
-        expect(body).toBeInstanceOf(Blob);
+        expect(isBlobLike(body)).toBe(true);
         expect(await bytesOf(body)).toEqual(JPEG_HEADER);
         expect(warn).toHaveBeenCalledWith(expect.stringContaining("binary response"));
     });

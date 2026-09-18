@@ -61,7 +61,7 @@ describe("decodeByContentType", () => {
 
         const decoded = await decodeByContentType<Blob>(response);
 
-        expect(decoded).toBeInstanceOf(Blob);
+        expect(typeof decoded.arrayBuffer).toBe("function");
         expect(new Uint8Array(await decoded.arrayBuffer())).toEqual(JPEG_HEADER);
     });
 

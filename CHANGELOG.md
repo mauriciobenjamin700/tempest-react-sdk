@@ -6,6 +6,41 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **Estado selecionado a 1,05:1 — `SegmentedControl`, `Command`, `DropdownMenu` e
+  `ContextMenu`.** Os quatro diziam "este está selecionado" trocando uma superfície
+  neutra pela vizinha, e o degrau da rampa é curto de propósito: `--tempest-bg` contra
+  `--tempest-surface` mede **1,053:1** no claro e **1,085:1** no escuro, onde a WCAG 2.2
+  SC 1.4.11 pede 3:1 de indicador não-textual. No `SegmentedControl`, que é seleção
+  persistente, esse era o único sinal — o relato que abriu a issue foi "ao clicar nada
+  acontece, também não há nenhum indicador visual".
+
+  **A correção sugerida na issue não resolvia, e a medição é o motivo.** Usar
+  `--tempest-surface-2` para haver dois degraus dá **1,112:1** no claro e 1,225:1 no
+  escuro; os extremos da rampa (`bg` contra `surface-3`) param em 1,240:1 e 1,416:1.
+  Nenhum par de superfícies neutras alcança o piso.
+
+  **O tint da marca também não** — e esse é o achado que a issue não tinha.
+  `--tempest-primary-soft`, que `ToggleGroup`, `ListTile`, `TreeView` e `NavigationRail`
+  usam e que a issue apontou como o padrão certo, mede entre **1,03:1 e 1,61:1** contra
+  `--tempest-bg` nas doze marcas do guard de tema, nos dois esquemas: ele muda de matiz,
+  e contraste WCAG não conta matiz.
+
+  Os quatro passam a desenhar o estado com uma tinta saturada **sobre** o tint — contorno
+  de 2px no `SegmentedControl`, barra de 3px à esquerda nos três menus. Medido no browser
+  com a gallery: o indicador fica a **6,14:1** do trilho no claro e a **6,24:1** no
+  escuro, contra os 1,007:1 que o tint sozinho entrega.
+
+- **`ApiClient` corrompia todo corpo binário.** `request()` decidia o parse por
+  `Content-Type` e caía em `response.text()` para tudo que não fosse JSON — então uma
+  resposta `image/jpeg` era lida como UTF-8. Medido no cabeçalho de um JPEG
+  (`ff d8 ff e0 00 10 4a 46 49 46`): os 10 bytes que chegam voltam como 18 depois do
+  round-trip, 4 deles substituídos por `U+FFFD`, e nenhum `TextEncoder` no caller
+  reconstrói o original.
+
+  Agora um `Content-Type` que não é JSON nem textual (`text/*`, XML, CSV,
+  form-urlencoded) devolve `Blob`, e um build de desenvolvimento avisa uma vez apontando
+  para os métodos novos. Resposta JSON, texto e `204` decodificam exatamente como antes.
+
 ### Adicionado
 
 - **`--tempest-selected-indicator` — o token de estado selecionado.** `#0052cc` no claro,

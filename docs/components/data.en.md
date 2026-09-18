@@ -518,6 +518,14 @@ export function People() {
     it works and does not (the header sorts and nothing moves). None of them is a
     type error, so the warning goes to the `console` in development.
 
+    **The sort warning requires a `sortable` column.** `totalItems` implies
+    `manualSort`, so until v0.65.0 every server-mode table printed it — including
+    the ones with no clickable column at all, where the state the sentence describes
+    does not exist. A warning nobody can act on teaches the reader to skim past the
+    two real ones beside it, and the way out it suggested was
+    `onSortChange={() => {}}`: a callback that does nothing, that the type-checker
+    accepts, and that would hide the warning the day a `sortable` column appeared.
+
 !!! info "Client mode did not change a line"
     Without `totalItems`, `manualSort`, `manualSearch` or `loading`, the markup and
     the behaviour are exactly what they were — including the page clamp when the

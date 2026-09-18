@@ -12,6 +12,8 @@ export interface DataTableDevWarningsInput {
     onPageChange: ((page: number) => void) | undefined;
     /** Whether sorting is delegated. */
     sortIsManual: boolean;
+    /** Whether any column renders a header the user can click to sort. */
+    hasSortableColumn: boolean;
     /** The sort callback, if any. */
     onSortChange: ((sort: never) => void) | undefined;
     /** Whether a search box is rendered at all. */
@@ -32,6 +34,17 @@ export interface DataTableDevWarningsInput {
  * so those warnings only reach a caller the types cannot: plain JavaScript, or
  * props arriving through an `any`-typed spread.
  *
+ * Each one also has to be reachable. `totalItems` implies `manualSort`, so the
+ * sort warning fired on every server-mode table — including one whose columns are
+ * all plain, where no header is clickable and the sentence it prints ("clicking a
+ * sortable header changes the arrow and nothing else") describes a state the user
+ * cannot reach. A warning nobody can act on is not a warning: it teaches the
+ * reader to skim past the two next to it, which *are* real, and the way out it
+ * suggests is `onSortChange={() => {}}` — a callback that does nothing, that the
+ * type-checker accepts, and that would hide the warning on the day a `sortable`
+ * column does appear. So the sort warning asks for a sortable column first, the
+ * way the search one already asks for `searchable`.
+ *
  * The fourth is the one the types genuinely cannot afford. `totalItems` *implies*
  * `manualSearch`, so `searchable` with no `onSearchChange` is an inert search box
  * in server mode without anybody writing `manualSearch`. Expressing that means
@@ -46,6 +59,7 @@ export function useDevWarnings({
     controlledPage,
     onPageChange,
     sortIsManual,
+    hasSortableColumn,
     onSortChange,
     searchable,
     onSearchChange,
@@ -70,7 +84,7 @@ export function useDevWarnings({
                     "`onSearchChange`. Without it the user types and nothing filters and nothing is reported.",
             );
         }
-        if (sortIsManual && !onSortChange) {
+        if (sortIsManual && hasSortableColumn && !onSortChange) {
             console.warn(
                 "[tempest] <DataTable> is sorting manually but `onSortChange` is missing: clicking a sortable header changes the arrow and nothing else.",
             );
@@ -80,6 +94,7 @@ export function useDevWarnings({
         controlledPage,
         onPageChange,
         sortIsManual,
+        hasSortableColumn,
         onSortChange,
         searchable,
         onSearchChange,

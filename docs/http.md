@@ -616,6 +616,28 @@ try {
 
 Código que o catálogo não conhece simplesmente segue o funil. Sem `codes`, nada muda.
 
+### `statuses` — a frase para a falha sem corpo útil
+
+`codes` traduz o que o backend nomeou. **`statuses` cobre o que ele não nomeou** — e o caso concreto é o `403` de rota restrita a admin: o corpo vem com `detail` genérico (ou vazio), então o funil caía no fallback e o administrador lia "Não foi possível carregar", quando a informação que resolve a dúvida dele é que a listagem é restrita.
+
+```ts
+describeApiError(error, "Não foi possível carregar os relatos.", {
+  codes: { PLAN_REQUIRED: "Esta tela exige plano PRO ativo." },
+  statuses: { 403: "Listagem restrita a administradores." },
+});
+```
+
+A precedência é declarada:
+
+1. `codes[error.code]` — a frase mais específica, escrita por quem conhece o contrato.
+2. `statuses[error.status]` — a frase para a classe de falha.
+3. offline, validação, `detail` do servidor, `fallback` — como antes.
+
+`statuses` **vence o `detail`** de propósito: um `detail` genérico emitido pelo framework é pior que a frase que o app escreveu para aquele status. Sem `statuses`, nada muda.
+
+!!! warning "Mapear `0` é permitido — e assume o timeout junto"
+    Um `statuses: { 0: … }` vence a frase de offline, porque é o mapa explícito do caller e a opção `offline` já existe para reescrever aquela frase. Lembre que `status: 0` cobre **duas** coisas: a requisição que não chegou ao servidor e a que o próprio cliente abandonou no timeout. Quem mapeia o `0` está escrevendo uma frase para as duas.
+
 !!! tip "`useDetail: false` quando o `detail` é pra desenvolvedor"
     Alguns backends escrevem o `detail` pro log, não pra tela — ou ele ecoa interno. Com `useDetail: false` o passo 4 é pulado e o resultado é sempre uma frase sua, a de offline, a de validação, ou o `fallback` com `(HTTP <status>)`. As frases de offline e validação continuam valendo: elas são do SDK, não do backend.
 

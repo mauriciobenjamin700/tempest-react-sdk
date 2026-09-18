@@ -94,9 +94,9 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   mock de teste tipado como `ApiClient` — passa a precisar dos dois campos. Cliente criado
   por `createApiClient` não muda em nada.
 
-  Custo medido com `npx size-limit`: a fatia `http client` vai de 3,70 kB para 3,84 kB
-  brotlied (+140 B), e a fatia do app típico de 9,75 kB para 9,75 kB (+4 B). Os dois
-  budgets subiram junto.
+  Custo medido com `npx size-limit` contra a `main` deste ciclo: a fatia `http client` vai
+  de 3,63 kB para 3,84 kB brotlied (+210 B) e a do app típico de 9,67 kB para 9,94 kB
+  (+270 B). Os dois budgets subiram junto — 3,9 kB e 10 kB.
 
   Closes #338.
 

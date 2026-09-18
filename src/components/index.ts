@@ -106,8 +106,13 @@ export type { InputProps, InputSize } from "./Input";
 export { InstallBanner } from "./InstallBanner";
 export type { InstallBannerProps } from "./InstallBanner";
 
-export { InstallButton } from "./InstallButton";
-export type { InstallButtonProps, InstallOutcome } from "./InstallButton";
+export { InstallButton, defaultInstallHint } from "./InstallButton";
+export type {
+    InstallButtonProps,
+    InstallHintInput,
+    InstallOutcome,
+    RenderInstallHint,
+} from "./InstallButton";
 
 export { OfflineIndicator } from "./OfflineIndicator";
 export type { OfflineIndicatorPosition, OfflineIndicatorProps } from "./OfflineIndicator";

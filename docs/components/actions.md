@@ -344,7 +344,7 @@ export function ExcluirUsuario({
 *Seção `pwa` da [gallery](../gallery.md) — rode localmente para interagir.*
 <!-- /gallery -->
 
-Botão de instalação do PWA, ligado ao prompt `beforeinstallprompt` ([`useBeforeInstallPrompt`](../hooks.md)). **Renderiza `null`** quando o app não pode ser instalado — prompt ainda não capturado, já instalado, ou rodando standalone — então você o solta na UI sem guardar visibilidade. Herda todas as props do [`Button`](#button).
+Botão de instalação do PWA, ligado a [`useInstallPrompt`](../hooks.md). Onde o navegador dispara `beforeinstallprompt`, o clique instala. Onde **não** dispara — iOS Safari e os forks Chromium de Android (Mi Browser, UC, Opera Mini, Huawei) — o clique revela a instrução daquela plataforma em vez de o botão sumir. Herda todas as props do [`Button`](#button).
 
 ```tsx
 import { InstallButton } from "tempest-react-sdk";
@@ -353,15 +353,39 @@ import { Download } from "lucide-react";
 <InstallButton variant="primary" leftIcon={<Download size={18} />} />;
 ```
 
-| Prop       | Tipo                                                       | Default          |
-| ---------- | ---------------------------------------------------------- | ---------------- |
-| `label`    | `ReactNode`                                                | `"Instalar app"` |
-| `onResult` | `(o: "accepted" \| "dismissed" \| "unsupported") => void`  | —                |
-| …          | todas as props de `Button` (`variant`, `size`, `leftIcon`) | —                |
+| Prop                    | Tipo                                                       | Default            |
+| ----------------------- | ---------------------------------------------------------- | ------------------ |
+| `label`                 | `ReactNode`                                                | `"Instalar app"`   |
+| `hintLabel`             | `ReactNode`                                                | `"Como instalar"`  |
+| `onResult`              | `(o: "accepted" \| "dismissed" \| "unsupported") => void`  | —                  |
+| `renderHint`            | `(input: InstallHintInput) => ReactNode`                   | `defaultInstallHint` |
+| `manualFallbackDelayMs` | `number`                                                   | `3000`             |
+| `wrapperClassName`      | `string`                                                   | —                  |
+| …                       | todas as props de `Button` (`variant`, `size`, `leftIcon`) | —                  |
+
+!!! danger "Até a v0.65.0 os dois sumiam justamente onde o usuário precisa deles"
+    `InstallButton` e `InstallBanner` eram construídos sobre `useBeforeInstallPrompt`, então renderizavam `null` em todo navegador que nunca dispara o evento. iOS Safari é exatamente esse caso — e é onde o caminho de instalação está escondido atrás do menu **Compartilhar**, que ninguém acha sem ser avisado. O resultado prático era cada app manter uma cópia local destes dois componentes só para acrescentar as trilhas `ios` e `manual`.
+
+    `null` agora só sai quando não há nada a oferecer: app já instalado, rodando standalone, ou dentro do período de dispensa.
+
+!!! tip "`renderHint` troca a cópia sem reescrever o componente"
+    O default é PT-BR e nomeia as entradas reais de menu — no Android também oferece o link `intent://` que reabre a página no Chrome, que é o único caminho que chega a uma instalação de verdade num fork sem entrada de instalar.
+
+    ```tsx
+    import { InstallButton, defaultInstallHint } from "tempest-react-sdk";
+
+    <InstallButton
+        renderHint={(input) =>
+            input.method === "ios" ? <MeuTutorialIOS /> : defaultInstallHint(input)
+        }
+    />;
+    ```
+
+    `InstallHintInput` traz `method` (`"native" | "ios" | "manual" | "none"`) e `openInChromeIntent`.
 
 ## `InstallBanner`
 
-Banner inferior dispensável que convida a instalar o PWA. Aparece só quando há prompt capturado e o app **não** está standalone; em plataformas que nunca disparam `beforeinstallprompt` (iOS Safari) fica oculto — surfa instruções manuais em outro lugar. `storageKey` lembra a dispensa entre recarregamentos.
+Banner inferior dispensável que convida a instalar o PWA, sobre o mesmo `useInstallPrompt`. Onde o navegador não pode ser promptado, o botão vira **"Como instalar"** e revela a instrução da plataforma dentro do próprio banner. `storageKey` lembra a dispensa entre recarregamentos.
 
 ```tsx
 import { InstallBanner } from "tempest-react-sdk";
@@ -384,8 +408,17 @@ export function Instalar() {
 | `installLabel` | `string`              | `"Instalar"`   |
 | `dismissLabel` | `string`              | `"Dispensar"`  |
 | `icon`         | `ReactNode`           | —              |
+| `hintLabel`    | `string`              | `"Como instalar"` |
 | `storageKey`   | `string`              | — (sessão)     |
+| `declineCooldownMs` | `number`         | — (dispensa permanente) |
+| `renderHint`   | `(input: InstallHintInput) => ReactNode` | `defaultInstallHint` |
+| `manualFallbackDelayMs` | `number`     | `3000`         |
 | `onResult`     | `(o) => void`         | —              |
+
+!!! note "`declineCooldownMs` muda o que é gravado — e respeita o que já estava lá"
+    Sem ele, a dispensa gravada em `storageKey` é **permanente**, que é o que o componente sempre fez (grava `"1"`). Com ele, grava um timestamp e o banner volta depois da janela.
+
+    Uma chave que já contém `"1"` continua valendo como dispensa permanente mesmo com `declineCooldownMs` configurado: ela foi escrita sob o contrato antigo, e ressuscitar um banner que o usuário desligou é pior do que mantê-lo desligado.
 
 ## Resumo
 
@@ -393,7 +426,7 @@ export function Instalar() {
 | --------------- | ---------------------------------------------- | ---------- |
 | `Button`        | Disparar a ação primária/secundária            | clique     |
 | `FloatingActionButton` | Ação primária flutuante e persistente   | clique     |
-| `InstallButton` | Instalar o PWA (some quando não aplicável)     | clique     |
+| `InstallButton` | Instalar o PWA, ou ensinar como onde não há prompt | clique  |
 | `InstallBanner` | Convite dispensável pra instalar o PWA         | clique     |
 | `Tooltip`       | Contexto não-crítico num controle              | hover/foco |
 | `DropdownMenu`  | Lista de ações secundárias (fecha ao escolher) | clique     |

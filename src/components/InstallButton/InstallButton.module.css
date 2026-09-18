@@ -1,0 +1,19 @@
+.wrapper {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--tempest-space-2);
+    font-family: var(--tempest-font-sans);
+}
+
+.hint {
+    margin: 0;
+    max-width: 36ch;
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-sm);
+    line-height: var(--tempest-leading-snug);
+}
+
+.hint a {
+    color: var(--tempest-primary);
+}

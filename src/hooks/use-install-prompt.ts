@@ -84,9 +84,26 @@ export interface UseInstallPromptResult {
     recordDecline: () => void;
 }
 
+/**
+ * Whether a recorded decline is still inside its cooldown window.
+ *
+ * Reading is guarded because `localStorage.getItem` **throws** where this hook
+ * matters most: Safari private mode and a cross-origin frame with storage
+ * blocked. Unguarded, that exception escapes during render and takes the page
+ * down — the install CTA is a courtesy, and no courtesy is worth a blank screen.
+ *
+ * @param key - Storage key holding the decline timestamp.
+ * @param cooldownMs - How long a decline suppresses the CTA.
+ * @returns Whether the CTA should stay hidden.
+ */
 function readDecline(key: string, cooldownMs: number): boolean {
     if (typeof window === "undefined") return false;
-    const raw = window.localStorage.getItem(key);
+    let raw: string | null;
+    try {
+        raw = window.localStorage.getItem(key);
+    } catch {
+        return false;
+    }
     if (!raw) return false;
     const ts = Number(raw);
     if (!Number.isFinite(ts)) return false;
@@ -100,6 +117,12 @@ function readDecline(key: string, cooldownMs: number): boolean {
  * Android Chromium forks that lack the prompt API, detects standalone display
  * mode, and applies a decline cooldown persisted in `localStorage`. The
  * resulting `method` tells the UI which install affordance to render.
+ *
+ * Both sides of that persistence are best-effort: `localStorage` throws in
+ * Safari private mode and in a cross-origin frame with storage blocked, and an
+ * exception raised while resolving an install CTA would take the page down with
+ * it. A refused read means "no decline recorded"; a refused write means the CTA
+ * may come back next visit.
  *
  * The decline persistence is pluggable through
  * {@link UseInstallPromptOptions.declineStorageKey} and
@@ -168,7 +191,11 @@ export function useInstallPrompt(options: UseInstallPromptOptions = {}): UseInst
 
     const recordDecline = (): void => {
         if (typeof window === "undefined") return;
-        window.localStorage.setItem(declineStorageKey, String(Date.now()));
+        try {
+            window.localStorage.setItem(declineStorageKey, String(Date.now()));
+        } catch {
+            /* empty */
+        }
     };
 
     const install = async (): Promise<boolean> => {

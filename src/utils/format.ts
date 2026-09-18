@@ -179,16 +179,43 @@ export function formatCPF(value: string): string {
         .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
 }
 
+/** How {@link formatPercent} renders a fraction. */
+export interface FormatPercentOptions {
+    /**
+     * Decimal places to show, fixed (padded as well as truncated).
+     *
+     * Defaults to `1`, which is what the function always did. Two is the case
+     * that produced this option: a confidence of 98,74% and one of 98,7% are the
+     * same number on a summary card and two different readings on a detail
+     * screen, so the precision belongs to the call site.
+     */
+    decimals?: number;
+}
+
 /**
- * Format a fraction (0-1) as a percentage with one decimal.
+ * Format a fraction (0-1) as a percentage.
+ *
+ * A non-finite input renders as `"—"` rather than `"NaN%"` or `"∞%"`, which is
+ * what `Intl.NumberFormat` produces and what a division by zero upstream puts on
+ * the screen. It matches `formatDurationMs`, which already answers that way.
+ *
+ * @example
+ * ```typescript
+ * formatPercent(0.9874);                // "98,7%"
+ * formatPercent(0.9874, { decimals: 2 }); // "98,74%"
+ * formatPercent(0 / 0);                 // "—"
+ * ```
  *
  * @param value - Fraction between 0 and 1.
- * @returns Formatted percent string, e.g. "12,5%".
+ * @param options - Rendering options; `decimals` defaults to 1.
+ * @returns Formatted percent string, e.g. "12,5%", or `"—"` for a non-finite input.
  */
-export function formatPercent(value: number): string {
+export function formatPercent(value: number, options: FormatPercentOptions = {}): string {
+    if (!Number.isFinite(value)) return "—";
+    const decimals = options.decimals ?? 1;
     return numberFormat("pt-BR", {
         style: "percent",
-        minimumFractionDigits: 1,
-        maximumFractionDigits: 1,
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
     }).format(value);
 }

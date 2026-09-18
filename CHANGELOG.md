@@ -59,6 +59,13 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   O aviso agora exige pelo menos uma coluna `sortable`, do mesmo jeito que o aviso de
   busca já exigia `searchable`. Closes #341.
 
+- **`formatPercent` devolvia `"NaN%"` para entrada não-finita.** Medido:
+  `Intl.NumberFormat` renderiza `NaN` como `NaN%` e `Infinity` como `∞%`, então uma
+  divisão por zero lá em cima virava uma tela que parece bug em vez de dado ausente.
+  Agora devolve `"—"`, que é a convenção que o `formatDurationMs` de `/perf` já seguia.
+
+  Closes #336.
+
 ### Adicionado
 
 - **`--tempest-selected-indicator` — o token de estado selecionado.** `#0052cc` no claro,
@@ -117,6 +124,12 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   (+270 B). Os dois budgets subiram junto — 3,9 kB e 10 kB.
 
   Closes #338.
+
+- **`formatPercent(value, { decimals })`.** A função fixava uma casa decimal e não aceitava
+  parâmetro, então quem precisava de outra precisão copiava a implementação inteira. O
+  default continua `1`, e `decimals` é **fixo** — preenche além de truncar
+  (`formatPercent(0.5, { decimals: 3 })` é `"50,000%"`), que é o que mantém uma coluna de
+  números alinhada. `FormatPercentOptions` é exportado.
 
 ### Alterado
 

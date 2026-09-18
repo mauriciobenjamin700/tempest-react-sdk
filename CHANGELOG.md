@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.65.0] — 2026-09-18
+
 ### Corrigido
 
 - **Estado selecionado a 1,05:1 — `SegmentedControl`, `Command`, `DropdownMenu` e

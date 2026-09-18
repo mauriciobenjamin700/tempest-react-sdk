@@ -293,6 +293,39 @@ formatPercent(0 / 0); // "—"
 
 ---
 
+## Absent values — one answer
+
+Every date field an API returns is nullable (`deleted_at`, `expires_at`, half the `updated_at`s), and every number can be missing. The SDK's formatters answer that one way: **`—`**.
+
+```ts
+import { formatCurrency, formatDate, ABSENT_TEXT } from "tempest-react-sdk";
+
+formatCurrency(balance); // "—" when balance is null
+formatDate(order.deliveredAt); // "—" when it has not shipped
+formatDate(order.deliveredAt, { fallback: "pending" }); // the text is yours
+
+ABSENT_TEXT; // "—", for when your own cell has to match
+```
+
+It applies to `formatCurrency`, `formatBytes`, `formatCompactNumber`, `formatPercent`, `formatDate` and `formatDateTime`. The two that feed an `<input>` — `formatDateForInput` and `formatDateTimeForInput` — answer **`""`**, because that is what an input reads as "no value"; an em dash would arrive as content the user has to delete before typing.
+
+!!! danger "Before 0.66.0, absent became a plausible number"
+    Measured on 0.65.0 — what reached the screen for a column the backend left null:
+
+    | input | `formatCurrency` | `formatBytes` | `formatCompactNumber` | `formatDate` |
+    | --- | --- | --- | --- | --- |
+    | `null` | `"R$ 0,00"` | `"NaN undefined"` | `"0"` | throws `TypeError` |
+    | `undefined` | `"R$ NaN"` | `"NaN undefined"` | `"NaN"` | throws `TypeError` |
+
+    The two zeroes are why this is a data-correctness fix rather than a cosmetic one: `NaN` at least **looks** broken, while `R$ 0,00` and `0` are numbers a reader has no way to question — `Intl` coerces `null` to zero, and nobody downstream can tell that from a real zero.
+
+    And `formatDate(null)` **took the screen down**: `null.getTime` is a `TypeError`, so a nullable column produced an error rather than a gap.
+
+!!! tip "Absent and invalid are not the same thing"
+    A value that is present and unparseable — a corrupted ISO string — still answers **`""`**, deliberately. While reading a log, "nobody filled this in" and "what they filled in is broken" are different findings, and the second is the one worth chasing. A blank cell and a `—` stop meaning the same thing.
+
+---
+
 ## Dates for `<input type="date">` — `formatDateForInput`
 
 `formatDate` produces `dd/MM/yyyy`, which an `<input type="date">` rejects — it insists on `yyyy-MM-dd`. Every form with a date rewrites that slice, and rewrites it wrong.

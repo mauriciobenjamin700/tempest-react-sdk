@@ -4,6 +4,52 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **Valor ausente virava número plausível na tela.** Medido na 0.65.0, com o que chegava
+  numa coluna que o backend deixou nula:
+
+  | entrada     | `formatCurrency` | `formatBytes`     | `formatCompactNumber` | `formatDate`      |
+  | ----------- | ---------------- | ----------------- | --------------------- | ----------------- |
+  | `null`      | `"R$ 0,00"`      | `"NaN undefined"` | `"0"`                 | lança `TypeError` |
+  | `undefined` | `"R$ NaN"`       | `"NaN undefined"` | `"NaN"`               | lança `TypeError` |
+
+  Os dois zeros são o que torna isto correção de **dado**, e não de aparência: `NaN`
+  pelo menos parece quebrado, enquanto `R$ 0,00` e `0` são números que o leitor não tem
+  como questionar — `Intl` converte `null` em zero e ninguém a jusante distingue isso de
+  um zero real. O `formatBytes` ia além e imprimia uma unidade inexistente
+  (`"NaN undefined"`), porque o expoente saía da tabela de unidades.
+
+  E os formatadores de data **derrubavam a tela**: `null.getTime` é `TypeError`, então
+  uma coluna anulável — que é todo `deleted_at`, `expires_at` e metade dos `updated_at`
+  de um backend FastAPI — rendia erro, não espaço em branco.
+
+  Os seis formatadores de leitura (`formatCurrency`, `formatBytes`,
+  `formatCompactNumber`, `formatPercent`, `formatDate`, `formatDateTime`) agora aceitam
+  `null`/`undefined` e respondem `"—"`. Closes #349, closes #353.
+
+  Custo medido com `npx size-limit`: o teto do barril CJS (`require()` sem
+  tree-shaking, que ninguém importa inteiro) vai de 155,86 kB para 156,28 kB brotlied —
+  **+417 B** —, e o budget sobe para 157 kB. Nenhuma fatia real mudou de faixa.
+
+### Adicionado
+
+- **`ABSENT_TEXT` e a opção `fallback`.** O travessão é o default, e o texto é
+  configurável por chamada — `formatDate(value, { fallback: "pendente" })`.
+  `formatBytes` e `formatCompactNumber` recebem a opção como **terceiro** parâmetro,
+  depois do `decimals`/`locale` que já tinham.
+
+  `formatDateForInput` e `formatDateTimeForInput` respondem `""` por default, e não o
+  travessão: é o que um `<input>` lê como "sem valor", e um travessão chegaria como
+  conteúdo que o usuário precisa apagar antes de digitar.
+
+### Alterado
+
+- **Ausente e inválido passam a ser distinguíveis.** Valor presente que não dá para
+  interpretar continua respondendo `""`; ausente responde `"—"`. Lendo um log, "ninguém
+  preencheu" e "o que preencheram está quebrado" são achados diferentes, e antes os dois
+  saíam iguais no wrapper que cada app escrevia.
+
 ## [0.65.0] — 2026-09-18
 
 ### Corrigido

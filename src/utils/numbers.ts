@@ -1,3 +1,4 @@
+import { fallbackText, isAbsent, type FormatFallbackOptions } from "@/utils/absent";
 import { numberFormat } from "@/utils/intl-cache";
 /**
  * Clamp `value` between `min` and `max` (inclusive).
@@ -26,13 +27,24 @@ export function clamp(value: number, min: number, max: number): number {
  * controls the fractional digits for scaled units (default 1); `0` bytes
  * always renders as `"0 B"`.
  *
+ * An absent or unrepresentable count renders as `"—"`. It used to render as
+ * **`"NaN undefined"`**: `Math.log(NaN)` walks the exponent off the end of the
+ * unit table, so the unit itself came out `undefined` — the size was not merely
+ * unreadable, it claimed a unit that does not exist.
+ *
  * @example
  * formatBytes(0);       // "0 B"
  * formatBytes(1536);    // "1.5 KB"
  * formatBytes(1048576); // "1 MB"
  * formatBytes(1536, 2); // "1.50 KB"
+ * formatBytes(null);    // "—"
  */
-export function formatBytes(bytes: number, decimals: number = 1): string {
+export function formatBytes(
+    bytes: number | null | undefined,
+    decimals: number = 1,
+    options?: FormatFallbackOptions,
+): string {
+    if (isAbsent(bytes) || !Number.isFinite(bytes)) return fallbackText(options);
     if (bytes === 0) return "0 B";
 
     const units = ["B", "KB", "MB", "GB", "TB"];
@@ -84,11 +96,21 @@ export function percentOf(part: number, total: number): number {
  * Wraps `Intl.NumberFormat` with `notation: "compact"`. The `locale` defaults
  * to `"en-US"`.
  *
+ * An absent or unrepresentable value renders as `"—"`. The `null` case is the
+ * one that matters: `Intl` coerces it to zero, so a count the backend left out
+ * used to read as **`"0"`** — a number the reader has no reason to doubt.
+ *
  * @example
  * formatCompactNumber(1234);            // "1.2K"
  * formatCompactNumber(5600000);         // "5.6M"
  * formatCompactNumber(1234, "pt-BR");   // "1,2 mil"
+ * formatCompactNumber(null);            // "—"
  */
-export function formatCompactNumber(value: number, locale: string = "en-US"): string {
+export function formatCompactNumber(
+    value: number | null | undefined,
+    locale: string = "en-US",
+    options?: FormatFallbackOptions,
+): string {
+    if (isAbsent(value) || !Number.isFinite(value)) return fallbackText(options);
     return numberFormat(locale, { notation: "compact", maximumFractionDigits: 1 }).format(value);
 }

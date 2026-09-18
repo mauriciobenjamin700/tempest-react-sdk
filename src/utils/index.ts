@@ -1,3 +1,5 @@
+export { ABSENT_TEXT } from "./absent";
+export type { FormatFallbackOptions } from "./absent";
 export { cn } from "./cn";
 export { compareValues } from "./compare-values";
 export {

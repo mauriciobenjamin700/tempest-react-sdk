@@ -76,6 +76,15 @@ esbuild sair 1, export faltando faz o `node` sair 1.
 Pipeline **tag-push**, sem Changesets. Três superfícies ficam sincronizadas: a
 tag git, a versão no npm e o GitHub Release.
 
+A ordem dentro do `scripts/release.sh` importa, e custou uma tentativa: o bump e
+o fechamento do `[Unreleased]` vêm primeiro, depois o commit, **a tag local e o
+`RELEASES.md`**, e só então a validação. Invertido — validando antes da tag —
+`test/docs-counts.test.ts` reprova todo release novo, porque a versão que acabou
+de ganhar seção no CHANGELOG ainda não aparece no `RELEASES.md`, que é gerado das
+tags. Ovo e galinha, não defeito do guard. Validar por último também afere
+exatamente a árvore que vai ser empurrada; se falhar, o script apaga a tag local
+e não empurra nada.
+
 Antes de taggear:
 
 - [ ] `CHANGELOG.md` com entrada `## [X.Y.Z] — YYYY-MM-DD` cobrindo toda mudança

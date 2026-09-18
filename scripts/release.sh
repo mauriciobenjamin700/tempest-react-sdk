@@ -88,17 +88,6 @@ VERSION_PATHSPEC=("package.json" "package-lock.json")
 echo "→ Fechando o CHANGELOG em [$TAG]"
 node scripts/changelog.mjs close "$TAG"
 
-if [[ "$SKIP_VALIDATE" != "1" ]]; then
-  echo "→ Validando build localmente"
-  npm ci
-  npm run typecheck
-  npm run lint
-  npm run format:check
-  npm run test:run
-  npm run build
-  npm pack --dry-run
-fi
-
 echo "→ Stage + commit do release"
 git add "${VERSION_PATHSPEC[@]}" "$CHANGELOG"
 if ! git diff --cached --quiet; then
@@ -115,6 +104,39 @@ make releases-md >/dev/null
 if ! git diff --quiet -- RELEASES.md 2>/dev/null; then
   git add RELEASES.md
   git commit -m "docs: refresh RELEASES.md after $GIT_TAG"
+fi
+
+# A validação roda DEPOIS da tag e do RELEASES.md, e antes de qualquer push.
+#
+# Ordem invertida antes da 0.65.0, e ela não sobrevive ao guard que o `e4b6791`
+# adicionou: `test/docs-counts.test.ts` exige que toda versão com seção no
+# CHANGELOG apareça em `RELEASES.md`, que é gerado das tags. Fechando o
+# `[Unreleased]` em `[X.Y.Z]` antes de a tag existir, a versão sendo lançada é
+# sempre "documentada e não publicada", então o release de QUALQUER versão nova
+# reprovava — ovo e galinha, não defeito do guard.
+#
+# Validar aqui também é mais correto: a árvore aferida passa a ser exatamente a
+# que vai ser empurrada, tag e RELEASES.md incluídos. Se a validação falhar, a
+# tag local é removida para a próxima tentativa achar o repo limpo, e nada foi
+# empurrado.
+if [[ "$SKIP_VALIDATE" != "1" ]]; then
+  echo "→ Validando build localmente (tag e RELEASES.md já no lugar)"
+  if ! (
+    set -e
+    npm ci
+    npm run typecheck
+    npm run lint
+    npm run format:check
+    npm run test:run
+    npm run build
+    npm pack --dry-run
+  ); then
+    echo ""
+    echo "ERROR: validação falhou — removendo a tag local $GIT_TAG"
+    echo "       nada foi empurrado; a branch $RELEASE_BRANCH continua aqui para inspeção"
+    git tag -d "$GIT_TAG" >/dev/null
+    exit 1
+  fi
 fi
 
 if [[ "$DRY_RUN" == "1" ]]; then

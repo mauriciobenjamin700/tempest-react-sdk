@@ -79,6 +79,28 @@ describe("formatPercent", () => {
     it("formats zero", () => {
         expect(formatPercent(0)).toBe("0,0%");
     });
+
+    it("keeps one decimal by default, so every existing caller renders the same", () => {
+        expect(formatPercent(0.9874)).toBe("98,7%");
+    });
+
+    it("takes the decimals the call site needs", () => {
+        expect(formatPercent(0.9874, { decimals: 2 })).toBe("98,74%");
+        expect(formatPercent(0.9874, { decimals: 0 })).toBe("99%");
+    });
+
+    it("pads as well as truncates, so a column stays aligned", () => {
+        expect(formatPercent(0.5, { decimals: 3 })).toBe("50,000%");
+    });
+
+    /**
+     * A division by zero upstream reaches here as `NaN`, and `Intl` renders that
+     * as `"NaN%"` — a screen that reads as a bug rather than as missing data.
+     * `formatDurationMs` already answers `"—"`, so the two agree.
+     */
+    it.each([NaN, Infinity, -Infinity])("renders %p as an em dash", (value) => {
+        expect(formatPercent(value)).toBe("—");
+    });
 });
 
 describe("formatDateForInput", () => {

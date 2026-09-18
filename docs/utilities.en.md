@@ -249,6 +249,7 @@ pluralize(2, "person", "people"); // "people"
 | `formatBytes(bytes, decimals?)`    | `(bytes: number, decimals?: number) => string` | Human-readable size in B/KB/MB/GB/TB (base 1024).          |
 | `formatCompactNumber(value, loc?)` | `(value: number, locale?: string) => string`   | Compact notation (`1.2K`, `3.4M`) via `Intl.NumberFormat`. |
 | `percentOf(part, total)`           | `(part: number, total: number) => number`      | 0–100 percentage, with a zero base returning `0`.          |
+| `formatPercent(value, options?)`   | `(value: number, options?: { decimals?: number }) => string` | 0–1 fraction as a pt-BR percentage; `decimals` defaults to `1`. |
 
 ```ts
 import { formatBytes, formatCompactNumber, clamp } from "tempest-react-sdk";
@@ -260,7 +261,27 @@ formatBytes(1536, 2); // "1.50 KB"
 formatCompactNumber(1234); // "1.2K"
 formatCompactNumber(5600000); // "5.6M"
 formatCompactNumber(1234, "pt-BR"); // "1,2 mil"
+
+formatPercent(0.9874); // "98,7%"
+formatPercent(0.9874, { decimals: 2 }); // "98,74%"
+formatPercent(0 / 0); // "—"
 ```
+
+!!! tip "`decimals` is fixed: it pads as well as truncates"
+    `formatPercent(0.5, { decimals: 3 })` is `"50,000%"`, not `"50%"`. A column of
+    numbers stays aligned, which is the case where the extra place matters — a
+    classifier's confidence at 98.7% on a summary card and at 98.74% on a detail
+    screen are two different readings of the same number, and the precision belongs
+    to the call site.
+
+!!! danger "A non-finite input renders as `—`, not `NaN%`"
+    `Intl.NumberFormat` renders `NaN` as `"NaN%"` and `Infinity` as `"∞%"` — a
+    division by zero upstream becomes a screen that reads as a bug rather than as
+    missing data. `formatPercent` answers `"—"`, matching `formatDurationMs` in
+    `/perf`, which already did.
+
+    The pairing with `percentOf` still holds: it takes a **fraction** (0–1), so it
+    is `formatPercent(percentOf(a, b) / 100)`.
 
 !!! note "Pre-existing — `clamp`"
     `clamp(value, min, max)` pins a number to the `[min, max]` range (and tolerates `min > max`, swapping the bounds). `clamp(120, 0, 100)` → `100`.

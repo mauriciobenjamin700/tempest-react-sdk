@@ -41,6 +41,24 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   form-urlencoded) devolve `Blob`, e um build de desenvolvimento avisa uma vez apontando
   para os métodos novos. Resposta JSON, texto e `204` decodificam exatamente como antes.
 
+- **`<DataTable>` avisava sobre `onSortChange` numa tela sem coluna ordenável.**
+  `totalItems` implica `manualSort`, e o guard checava só isso — então toda tabela em
+  modo servidor imprimia, em dev:
+
+  ```text
+  [tempest] <DataTable> is sorting manually but `onSortChange` is missing: clicking a sortable header changes the arrow and nothing else.
+  ```
+
+  inclusive quando nenhuma coluna é `sortable`, isto é, quando não há cabeçalho clicável
+  e o estado que a frase descreve não pode ser alcançado. O custo não é o ruído em si: é
+  que os avisos legítimos ao lado (`totalItems` sem `page`, `searchable` sem
+  `onSearchChange`) passam a ser lidos como ruído, e a saída que o aviso sugere é
+  `onSortChange={() => {}}` — callback vazio que o type-checker aceita e que esconderia o
+  aviso no dia em que uma coluna `sortable` aparecesse.
+
+  O aviso agora exige pelo menos uma coluna `sortable`, do mesmo jeito que o aviso de
+  busca já exigia `searchable`. Closes #341.
+
 ### Adicionado
 
 - **`--tempest-selected-indicator` — o token de estado selecionado.** `#0052cc` no claro,

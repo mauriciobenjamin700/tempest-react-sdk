@@ -344,6 +344,7 @@ export function DataTable<T>({
         controlledPage,
         onPageChange,
         sortIsManual,
+        hasSortableColumn: columns.some((column) => column.sortable),
         onSortChange,
         searchable,
         onSearchChange,

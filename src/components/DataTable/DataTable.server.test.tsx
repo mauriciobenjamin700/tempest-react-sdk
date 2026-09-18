@@ -327,6 +327,52 @@ describe("DataTable — development warnings", () => {
     });
 
     /**
+     * The warning that fired on a correct screen.
+     *
+     * `totalItems` implies `manualSort`, so a server-mode table printed the sort
+     * warning even with every column plain — where no header is clickable and the
+     * state the sentence describes ("clicking a sortable header…") cannot be
+     * reached. The way out it suggested was `onSortChange={() => {}}`, a callback
+     * that does nothing and that would hide the warning the day a `sortable`
+     * column appeared.
+     */
+    it("stays quiet in server mode when no column is sortable", () => {
+        render(
+            <DataTable
+                data={pageOne}
+                columns={[
+                    { key: "name", header: "Name" },
+                    { key: "age", header: "Age" },
+                ]}
+                rowKey={(row) => row.id}
+                totalItems={40}
+                page={1}
+                pageSize={2}
+                onPageChange={vi.fn()}
+            />,
+        );
+        expect(warn).not.toHaveBeenCalledWith(expect.stringContaining("`onSortChange` is missing"));
+    });
+
+    it("still warns in server mode as soon as one column is sortable", () => {
+        render(
+            <DataTable
+                data={pageOne}
+                columns={[
+                    { key: "name", header: "Name" },
+                    { key: "age", header: "Age", sortable: true },
+                ]}
+                rowKey={(row) => row.id}
+                totalItems={40}
+                page={1}
+                pageSize={2}
+                onPageChange={vi.fn()}
+            />,
+        );
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining("`onSortChange` is missing"));
+    });
+
+    /**
      * The one warning here that survives a typed caller.
      *
      * No cast: this combination **compiles**, and that is the point. `totalItems`

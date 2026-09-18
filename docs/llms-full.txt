@@ -8746,6 +8746,14 @@ export function Pessoas() {
     não funciona (o cabeçalho ordena e nada se move). Nenhum é erro de tipo, então
     o aviso sai no `console` em desenvolvimento.
 
+    **O aviso de ordenação exige uma coluna `sortable`.** `totalItems` implica
+    `manualSort`, então até a v0.65.0 toda tabela em modo servidor imprimia esse
+    aviso — inclusive as que não têm nenhuma coluna clicável, onde o estado descrito
+    pela frase não existe. O aviso que ninguém pode atender ensina a passar os olhos
+    pelos dois de verdade que estão do lado, e a saída que ele sugeria era
+    `onSortChange={() => {}}`: um callback que não faz nada, que o type-checker
+    aceita e que esconderia o aviso no dia em que uma coluna `sortable` aparecesse.
+
 !!! info "O modo cliente não mudou uma linha"
     Sem `totalItems`, `manualSort`, `manualSearch` ou `loading`, o markup e o
     comportamento são exatamente os de antes — inclusive o clamp de página quando o

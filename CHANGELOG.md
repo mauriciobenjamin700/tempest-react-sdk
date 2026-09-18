@@ -28,6 +28,10 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `formatCompactNumber`, `formatPercent`, `formatDate`, `formatDateTime`) agora aceitam
   `null`/`undefined` e respondem `"—"`. Closes #349, closes #353.
 
+  Custo medido com `npx size-limit`: o teto do barril CJS (`require()` sem
+  tree-shaking, que ninguém importa inteiro) vai de 155,86 kB para 156,28 kB brotlied —
+  **+417 B** —, e o budget sobe para 157 kB. Nenhuma fatia real mudou de faixa.
+
 ### Adicionado
 
 - **`ABSENT_TEXT` e a opção `fallback`.** O travessão é o default, e o texto é

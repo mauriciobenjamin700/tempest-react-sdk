@@ -31356,6 +31356,39 @@ formatPercent(0 / 0); // "—"
 
 ---
 
+## Valor ausente — uma resposta só
+
+Todo campo de data de uma API é anulável (`deleted_at`, `expires_at`, metade dos `updated_at`), e todo número pode faltar. Os formatadores do SDK respondem a isso de um jeito só: **`—`**.
+
+```ts
+import { formatCurrency, formatDate, ABSENT_TEXT } from "tempest-react-sdk";
+
+formatCurrency(saldo); // "—" quando saldo é null
+formatDate(pedido.entregueEm); // "—" quando ainda não foi entregue
+formatDate(pedido.entregueEm, { fallback: "pendente" }); // o texto é seu
+
+ABSENT_TEXT; // "—", para quando a sua própria célula precisa combinar
+```
+
+Vale para `formatCurrency`, `formatBytes`, `formatCompactNumber`, `formatPercent`, `formatDate` e `formatDateTime`. Os dois que alimentam `<input>` — `formatDateForInput` e `formatDateTimeForInput` — respondem **`""`**, porque é o que um input lê como "sem valor"; um travessão chegaria como conteúdo que o usuário precisa apagar antes de digitar.
+
+!!! danger "Antes da 0.66.0, ausente virava número plausível"
+    Medido na 0.65.0, com o que chegava à tela para uma coluna que o backend deixou nula:
+
+    | entrada | `formatCurrency` | `formatBytes` | `formatCompactNumber` | `formatDate` |
+    | --- | --- | --- | --- | --- |
+    | `null` | `"R$ 0,00"` | `"NaN undefined"` | `"0"` | lança `TypeError` |
+    | `undefined` | `"R$ NaN"` | `"NaN undefined"` | `"NaN"` | lança `TypeError` |
+
+    Os dois zeros são o motivo de isto ser correção de dado, e não de aparência: `NaN` pelo menos **parece** quebrado, enquanto `R$ 0,00` e `0` são números que o leitor não tem como questionar — `Intl` converte `null` em zero, e ninguém a jusante distingue isso de um zero real.
+
+    E `formatDate(null)` **derrubava a tela**: `null.getTime` é `TypeError`, então uma coluna anulável não rendia um espaço em branco, rendia um erro.
+
+!!! tip "Ausente e inválido não são a mesma coisa"
+    Valor presente que não dá para interpretar — um ISO corrompido — continua respondendo **`""`**, e isso é de propósito. Lendo um log, "ninguém preencheu" e "o que preencheram está quebrado" são achados diferentes, e o segundo é o que vale investigar. Uma célula vazia e uma com `—` param de significar a mesma coisa.
+
+---
+
 ## Data para `<input type="date">` — `formatDateForInput`
 
 `formatDate` produz `dd/MM/yyyy`, que um `<input type="date">` rejeita — ele exige `yyyy-MM-dd`. Todo formulário com data reescreve esse recorte, e reescreve errado.

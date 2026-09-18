@@ -1,22 +1,63 @@
+import { fallbackText, isAbsent, type FormatFallbackOptions } from "@/utils/absent";
 import { dateTimeFormat, numberFormat } from "@/utils/intl-cache";
 
 /**
  * Format a number as Brazilian Real currency.
  *
- * @param value - The amount in BRL.
+ * An absent or unrepresentable amount renders as `"—"` rather than as a number.
+ * That branch is a data-correctness fix, not cosmetics: `Intl` coerces `null` to
+ * zero, so an amount the backend left out used to reach the screen as
+ * **`"R$ 0,00"`** — a plausible figure a reader has no way to question — and
+ * `undefined` as `"R$ NaN"`.
+ *
+ * @example
+ * ```typescript
+ * formatCurrency(1234.56);                      // "R$ 1.234,56"
+ * formatCurrency(null);                         // "—"
+ * formatCurrency(null, { fallback: "sem valor" }); // "sem valor"
+ * ```
+ *
+ * @param value - The amount in BRL, or `null`/`undefined` when there is none.
+ * @param options - Text to render when there is nothing to format.
  * @returns A locale-formatted string, e.g. "R$ 1.234,56".
  */
-export function formatCurrency(value: number): string {
+export function formatCurrency(
+    value: number | null | undefined,
+    options?: FormatFallbackOptions,
+): string {
+    if (isAbsent(value) || !Number.isFinite(value)) return fallbackText(options);
     return numberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 }
 
 /**
  * Format an ISO date or Date instance as `dd/MM/yyyy`.
  *
- * @param value - ISO string or Date.
- * @returns Formatted date string, or empty string when input is invalid.
+ * Absent input answers `"—"`. It used to **throw**: `new Date(null)` is epoch and
+ * `null.getTime` is a `TypeError`, so a nullable column — which is every
+ * `deleted_at`, `expires_at` and half the `updated_at` a FastAPI backend sends —
+ * took the screen down instead of rendering a gap.
+ *
+ * A value that is present and unparseable still answers `""`, deliberately: on a
+ * screen that reads a log, "nobody filled this in" and "what they filled in is
+ * broken" are different findings, and the second is the one worth chasing.
+ *
+ * @example
+ * ```typescript
+ * formatDate("2026-05-16T12:00:00Z"); // "16/05/2026"
+ * formatDate(null);                   // "—"
+ * formatDate("banana");               // ""
+ * ```
+ *
+ * @param value - ISO string, Date, or `null`/`undefined`.
+ * @param options - Text to render when the value is absent.
+ * @returns Formatted date string, the fallback when absent, or empty string when
+ *   the value is present and invalid.
  */
-export function formatDate(value: string | Date): string {
+export function formatDate(
+    value: string | Date | null | undefined,
+    options?: FormatFallbackOptions,
+): string {
+    if (isAbsent(value)) return fallbackText(options);
     const date = typeof value === "string" ? new Date(value) : value;
     if (Number.isNaN(date.getTime())) return "";
     return dateTimeFormat("pt-BR").format(date);
@@ -40,11 +81,20 @@ export function formatDate(value: string | Date): string {
  * @example
  * <input type="date" defaultValue={formatDateForInput(order.createdAt)} />
  *
- * @param value - ISO string or Date.
+ * Absent input answers `""` here — **not** the em dash the reading formatters
+ * use — because that is what an input reads as "no value"; an em dash would
+ * arrive as content the user has to delete before typing a date.
+ *
+ * @param value - ISO string, Date, or `null`/`undefined`.
+ * @param options - Text for an absent value; defaults to `""`.
  * @returns The `yyyy-MM-dd` value, or an empty string when the input is invalid —
  *   which is what a date input reads as "no value", unlike `"Invalid Date"`.
  */
-export function formatDateForInput(value: string | Date): string {
+export function formatDateForInput(
+    value: string | Date | null | undefined,
+    options?: FormatFallbackOptions,
+): string {
+    if (isAbsent(value)) return fallbackText(options, "");
     if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
     const date = typeof value === "string" ? new Date(value) : value;
     if (Number.isNaN(date.getTime())) return "";
@@ -83,7 +133,11 @@ export function formatDateForInput(value: string | Date): string {
  *   invalid — which is what a datetime input reads as "no value", unlike
  *   `"Invalid Date"`.
  */
-export function formatDateTimeForInput(value: string | Date): string {
+export function formatDateTimeForInput(
+    value: string | Date | null | undefined,
+    options?: FormatFallbackOptions,
+): string {
+    if (isAbsent(value)) return fallbackText(options, "");
     if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return value;
     const date = typeof value === "string" ? new Date(value) : value;
     if (Number.isNaN(date.getTime())) return "";
@@ -97,10 +151,19 @@ export function formatDateTimeForInput(value: string | Date): string {
 /**
  * Format an ISO date or Date instance as `dd/MM/yyyy HH:mm`.
  *
- * @param value - ISO string or Date.
- * @returns Formatted datetime string, or empty string when input is invalid.
+ * Same contract as {@link formatDate}: absent answers the fallback (`"—"` by
+ * default) instead of throwing, and present-but-invalid answers `""`.
+ *
+ * @param value - ISO string, Date, or `null`/`undefined`.
+ * @param options - Text to render when the value is absent.
+ * @returns Formatted datetime string, the fallback when absent, or empty string
+ *   when the value is present and invalid.
  */
-export function formatDateTime(value: string | Date): string {
+export function formatDateTime(
+    value: string | Date | null | undefined,
+    options?: FormatFallbackOptions,
+): string {
+    if (isAbsent(value)) return fallbackText(options);
     const date = typeof value === "string" ? new Date(value) : value;
     if (Number.isNaN(date.getTime())) return "";
     return dateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(date);
@@ -180,7 +243,7 @@ export function formatCPF(value: string): string {
 }
 
 /** How {@link formatPercent} renders a fraction. */
-export interface FormatPercentOptions {
+export interface FormatPercentOptions extends FormatFallbackOptions {
     /**
      * Decimal places to show, fixed (padded as well as truncated).
      *
@@ -210,8 +273,11 @@ export interface FormatPercentOptions {
  * @param options - Rendering options; `decimals` defaults to 1.
  * @returns Formatted percent string, e.g. "12,5%", or `"—"` for a non-finite input.
  */
-export function formatPercent(value: number, options: FormatPercentOptions = {}): string {
-    if (!Number.isFinite(value)) return "—";
+export function formatPercent(
+    value: number | null | undefined,
+    options: FormatPercentOptions = {},
+): string {
+    if (isAbsent(value) || !Number.isFinite(value)) return fallbackText(options);
     const decimals = options.decimals ?? 1;
     return numberFormat("pt-BR", {
         style: "percent",

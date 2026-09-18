@@ -4,6 +4,38 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`describeApiError(..., { statuses })` — a frase para a falha que chega sem corpo
+  útil.** `codes` traduz o que o backend nomeou; faltava o outro eixo. O caso concreto é
+  o `403` de rota restrita a admin: o corpo traz `detail` genérico (ou vazio), então o
+  funil caía no fallback e o administrador lia "Não foi possível carregar" — quando a
+  informação que responde a dúvida dele é que a listagem é restrita. A saída que os apps
+  tomavam era `isApiError(error) && error.status === 403` na frente da chamada, que é
+  exatamente o `switch` que a opção `codes` existe para apagar.
+
+  ```ts
+  describeApiError(error, "Não foi possível carregar os relatos.", {
+    codes: { PLAN_REQUIRED: "Esta tela exige plano PRO ativo." },
+    statuses: { 403: "Listagem restrita a administradores." },
+  });
+  ```
+
+  Precedência: `codes` → `statuses` → offline / validação / `detail` / `fallback`.
+  `statuses` **vence o `detail`** de propósito — um `detail` genérico emitido pelo
+  framework é pior que a frase que o app escreveu para aquele status —, e um `0` mapeado
+  explicitamente vence a frase de offline, porque a opção `offline` já existe para
+  reescrever aquela. Sem `statuses`, nenhuma saída muda.
+
+  `useDescribeApiError` encaminha a opção sem mudança: o hook só resolve as frases fixas
+  e chama a função pura.
+
+  Custo medido com `npx size-limit`: +55 B no teto do barril ESM (130,98 → 131,03 kB
+  brotlied), que passa de 131 para 132 kB. É o teto que ninguém importa inteiro; nenhuma
+  fatia real mudou.
+
+  Closes #358.
+
 ### Corrigido
 
 - **Valor ausente virava número plausível na tela.** Medido na 0.65.0, com o que chegava

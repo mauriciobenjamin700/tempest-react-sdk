@@ -637,6 +637,28 @@ try {
 
 A code the catalog does not know simply continues down the funnel. With no `codes`, nothing changes.
 
+### `statuses` — the sentence for a failure with no useful body
+
+`codes` translates what the backend named. **`statuses` covers what it did not** — the reference case being the `403` of an admin-only route: the body carries a generic `detail` (or none), so the funnel fell through to the fallback and an administrator read "Não foi possível carregar", when the fact that answers their question is that the listing is restricted.
+
+```ts
+describeApiError(error, "Não foi possível carregar os relatos.", {
+  codes: { PLAN_REQUIRED: "Esta tela exige plano PRO ativo." },
+  statuses: { 403: "Listagem restrita a administradores." },
+});
+```
+
+The precedence is declared:
+
+1. `codes[error.code]` — the most specific sentence, written by someone who knows the contract.
+2. `statuses[error.status]` — the sentence for a class of failure.
+3. offline, validation, the server's `detail`, `fallback` — as before.
+
+`statuses` **beats `detail`** on purpose: a generic line emitted by the framework is worse than the sentence the app wrote for that status. Without `statuses`, nothing changes.
+
+!!! warning "Mapping `0` is allowed — and takes the timeout with it"
+    A `statuses: { 0: … }` beats the offline sentence, because it is the caller's explicit map and the `offline` option already exists to reword that one. Remember `status: 0` covers **two** things: a request that never reached the server, and one the client itself abandoned on timeout. Mapping `0` means writing one sentence for both.
+
 !!! tip "`useDetail: false` when `detail` is written for developers"
     Some backends write `detail` for the log rather than the screen, or it echoes internals. With `useDetail: false` step 4 is skipped, and the result is always a sentence of yours, the offline one, the validation one, or `fallback` with `(HTTP <status>)`. Offline and validation still apply: they belong to the SDK, not to the backend.
 

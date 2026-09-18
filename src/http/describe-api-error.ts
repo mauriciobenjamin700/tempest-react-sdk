@@ -68,6 +68,29 @@ export interface DescribeApiErrorOptions extends Partial<ApiErrorStrings> {
      */
     codes?: Readonly<Record<string, string>>;
     /**
+     * Maps an HTTP status to a sentence, for the failures that arrive with no
+     * useful body.
+     *
+     * `codes` covers the cases the backend named; this covers the ones it did
+     * not. The reference case is the `403` of an admin-only route: the body
+     * carries a generic `detail` (or none), so the funnel fell through to the
+     * fallback and an administrator read "Não foi possível carregar" when the
+     * fact that answers their question is "esta listagem é só para
+     * administradores".
+     *
+     * Checked after `codes` and **before** the backend's `detail`: a generic
+     * sentence emitted by the framework is worse than the one the app wrote for
+     * that status. `useDetail: false` remains the way to suppress `detail`
+     * entirely.
+     *
+     * A `0` key is honoured like any other, ahead of the offline sentence —
+     * `statuses` is the caller's explicit map, and the fixed `offline` string is
+     * already the way to reword that case. Status `0` covers a request that
+     * never landed **and** one abandoned by the client timeout, so an app that
+     * maps it is taking both.
+     */
+    statuses?: Readonly<Record<number, string>>;
+    /**
      * Whether the backend's `detail` may be shown when no `code` matched.
      * Default `true`.
      *
@@ -126,6 +149,11 @@ function singleFieldSentence(
  * 0. `codes[error.code]` — the sentence you wrote for that exact backend case.
  *    Checked first because nothing the funnel derives can beat it, and because a
  *    request that never landed carries no `code` for it to shadow.
+ * 0.5. `statuses[error.status]` — the sentence for a whole class of failure,
+ *    for the errors that arrive with no useful body. It beats the backend's
+ *    `detail`, because a generic line emitted by the framework is worse than the
+ *    one the app wrote for that status, and it beats the offline sentence when
+ *    the caller maps `0` explicitly.
  * 1. A request that never reached the server — `status === 0`, or a non-API
  *    error thrown while the browser reports itself offline — produces the
  *    offline sentence. This is the step apps skip, and skipping it renders
@@ -205,6 +233,8 @@ export function describeApiError(
     if (isApiError(error)) {
         const mapped = error.code === undefined ? undefined : options?.codes?.[error.code];
         if (mapped !== undefined) return mapped;
+        const byStatus = options?.statuses?.[error.status];
+        if (byStatus !== undefined) return byStatus;
         if (error.status === 0) return offline;
         const detail = error.detail.trim();
         if (error.fields && Object.keys(error.fields).length > 0) {

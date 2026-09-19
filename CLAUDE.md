@@ -111,10 +111,10 @@ mais voltam:
 - **`[Unreleased]` conflita N-1 vezes** quando N PRs o tocam: é concatenação, o
   que está na `main` primeiro.
 
-## Estado atual (snapshot pós-v0.65.0 — `[Unreleased]` abre o ciclo 0.66.0)
+## Estado atual (snapshot pós-v0.66.0 — `[Unreleased]` abre o ciclo 0.67.0)
 
-- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 85 tags publicadas
-  (0.1.0 → 0.65.0) com provenance assinada via OIDC. Histórico em `RELEASES.md`
+- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 86 tags publicadas
+  (0.1.0 → 0.66.0) com provenance assinada via OIDC. Histórico em `RELEASES.md`
   (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
 - **Superfície**: 40 módulos em `src/` (`ls -d src/*/`), 129 componentes
   (`ls -d src/components/*/`), 54 hooks `useX` no barrel de `hooks/`, 18 subpaths

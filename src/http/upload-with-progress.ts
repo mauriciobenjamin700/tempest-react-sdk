@@ -5,6 +5,7 @@
  * AbortSignal bridge.
  */
 import { randomId } from "../utils";
+import { isTrustedCredentialTarget, reportSuppressedCredential } from "./credential-scope";
 import { buildApiError, TempestApiError } from "./errors";
 
 export interface UploadProgressEvent {
@@ -24,6 +25,22 @@ export interface UploadWithProgressOptions {
     headers?: Record<string, string>;
     /** Returns the current bearer token. */
     getToken?: () => string | null | undefined;
+    /**
+     * Origin the `getToken` credential belongs to, normally the API's.
+     *
+     * Unlike `createApiClient`, this helper has no base URL to infer a scope
+     * from — the caller names the destination on every call. Set this when the
+     * `url` can come from somewhere other than your own code (a signed URL the
+     * API handed back, a value from a response body) and the token must not
+     * follow it off-origin. Left unset, the header goes wherever `url` points,
+     * which is the behaviour every version before 0.66.0 had.
+     */
+    credentialOrigin?: string;
+    /**
+     * Extra origins allowed to receive the credential, on top of
+     * {@link credentialOrigin}. Ignored when that one is unset.
+     */
+    trustedOrigins?: readonly string[];
     /** Send cookies. Defaults to false. */
     withCredentials?: boolean;
     /** Called on every `progress` event from the XHR upload channel. */
@@ -64,6 +81,8 @@ export function uploadWithProgress<T = unknown>(options: UploadWithProgressOptio
         method = "POST",
         headers = {},
         getToken,
+        credentialOrigin,
+        trustedOrigins,
         withCredentials = false,
         onProgress,
         signal,
@@ -85,7 +104,14 @@ export function uploadWithProgress<T = unknown>(options: UploadWithProgressOptio
         const sentRequestId = requestId ? requestId() : randomId();
         const finalHeaders: Record<string, string> = { ...headers };
         if (token && !("Authorization" in finalHeaders)) {
-            finalHeaders.Authorization = `Bearer ${token}`;
+            if (
+                credentialOrigin === undefined ||
+                isTrustedCredentialTarget(url, credentialOrigin, trustedOrigins)
+            ) {
+                finalHeaders.Authorization = `Bearer ${token}`;
+            } else {
+                reportSuppressedCredential(url, credentialOrigin);
+            }
         }
         if (sentRequestId && !("X-Request-ID" in finalHeaders)) {
             finalHeaders["X-Request-ID"] = sentRequestId;

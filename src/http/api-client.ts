@@ -6,6 +6,7 @@
  */
 import { randomId } from "../utils";
 import { buildApiUrl } from "./build-url";
+import { isTrustedCredentialTarget, reportSuppressedCredential } from "./credential-scope";
 import { decodeByContentType } from "./decode-response";
 import type { ResponseDecoder } from "./decode-response";
 import { buildApiError, TempestApiError, isRetriableStatus } from "./errors";
@@ -117,8 +118,17 @@ async function parseError(response: Response, sentRequestId?: string): Promise<T
  * a development build, because reading `image/jpeg` as UTF-8 destroyed the bytes
  * on the way in.
  *
+ * **The bearer token is scoped to `baseURL`'s origin** since 0.66.0. A path may
+ * be an absolute URL, which overrides the base entirely, so without a scope the
+ * destination of a credentialed request could come from a value read off the
+ * network. A request to another origin still goes out; it goes without the
+ * header, and a development build says so once. Declare the exceptions in
+ * {@link ApiClientConfig.trustedOrigins}.
+ *
  * **Retries** are off unless you set `retry`. See {@link ApiClientConfig.retry}
- * for the built-in policy; it never replays a write.
+ * for the built-in policy; it never replays a write. A single call overrides it
+ * with {@link RequestOptions.retry}, and opts out of auth entirely with
+ * {@link RequestOptions.skipAuth}.
  *
  * **Logging** is off unless you pass a `logger`. With one, every finished attempt
  * writes a line — `debug` under 400, `warn` from 400 up, plus a `warn` when
@@ -143,15 +153,33 @@ async function parseError(response: Response, sentRequestId?: string): Promise<T
 export function createApiClient(config: ApiClientConfig): ApiClient {
     const fetcher = config.fetcher ?? globalThis.fetch.bind(globalThis);
 
-    function authHeaders(): Record<string, string> {
+    /**
+     * The `Authorization` header for a request, or nothing.
+     *
+     * Takes the resolved URL rather than reading `config.baseURL`, because an
+     * absolute path overrides the base entirely (see `buildApiUrl`) and the
+     * credential is scoped to an origin, not to a client.
+     *
+     * @param url - The absolute URL the request is going to.
+     * @param skipAuth - Whether the caller opted this request out of auth.
+     * @returns The header, or an empty object.
+     */
+    function authHeaders(url: string, skipAuth: boolean): Record<string, string> {
+        if (skipAuth) return {};
         const token = config.getToken?.();
-        return token ? { Authorization: `Bearer ${token}` } : {};
+        if (!token) return {};
+        if (!isTrustedCredentialTarget(url, config.baseURL, config.trustedOrigins)) {
+            reportSuppressedCredential(url, config.baseURL);
+            return {};
+        }
+        return { Authorization: `Bearer ${token}` };
     }
 
     async function rawRequest(
         path: string,
         options: RequestOptions,
-        requestId?: string,
+        requestId: string | undefined,
+        skipAuth: boolean,
     ): Promise<Response> {
         const { body, params, headers, signal, timeout, ...rest } = options;
         const isForm = isFormData(body);
@@ -160,11 +188,13 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         const limit =
             timeout !== undefined ? timeout : configured !== undefined ? configured : fallback;
 
+        const url = buildApiUrl(config.baseURL, path, { prefix: config.prefix, params });
+
         const finalHeaders: Record<string, string> = {
             ...(isForm ? {} : { "Content-Type": "application/json" }),
             ...(requestId ? { "X-Request-ID": requestId } : {}),
             ...config.headers,
-            ...authHeaders(),
+            ...authHeaders(url, skipAuth),
             ...(headers as Record<string, string> | undefined),
         };
 
@@ -182,7 +212,6 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
                       : JSON.stringify(body),
         };
 
-        const url = buildApiUrl(config.baseURL, path, { prefix: config.prefix, params });
         try {
             return await fetcher(url, init);
         } catch (cause) {
@@ -203,13 +232,14 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         options: RequestOptions,
         requestId: string,
         method: string,
+        skipAuth: boolean,
     ): Promise<Response> {
         const log = config.logger;
-        if (!log) return rawRequest(path, options, requestId);
+        if (!log) return rawRequest(path, options, requestId, skipAuth);
 
         const startedAt = performance.now();
         try {
-            const response = await rawRequest(path, options, requestId);
+            const response = await rawRequest(path, options, requestId, skipAuth);
             const entry = { requestId, status: response.status, ms: elapsedMs(startedAt) };
             const line = `${method} ${path} → ${response.status}`;
             if (response.status >= 400) log.warn(line, entry);
@@ -247,15 +277,16 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         options: RequestOptions,
         decode: ResponseDecoder<T>,
     ): Promise<T> {
+        const { skipAuth = false, skipAuthRetry = false, ...init } = options;
         const requestId = config.requestId ? config.requestId() : randomId();
-        const method = (options.method ?? "GET").toUpperCase();
-        let response = await send(path, options, requestId, method);
+        const method = (init.method ?? "GET").toUpperCase();
+        let response = await send(path, init, requestId, method, skipAuth);
 
-        if (response.status === 401) {
+        if (response.status === 401 && !skipAuth && !skipAuthRetry) {
             if (config.refresh) {
                 try {
                     await config.refresh();
-                    response = await send(path, options, requestId, method);
+                    response = await send(path, init, requestId, method, skipAuth);
                 } catch {
                     await notifyUnauthorized(response, requestId);
                     throw await parseError(response, requestId);
@@ -280,11 +311,12 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         options: RequestOptions,
         decode: ResponseDecoder<T>,
     ): Promise<T> {
-        const retryOptions = resolveRetry(config.retry);
-        if (!retryOptions) return attempt<T>(path, options, decode);
+        const { retry: perRequest, ...rest } = options;
+        const retryOptions = resolveRetry(perRequest !== undefined ? perRequest : config.retry);
+        if (!retryOptions) return attempt<T>(path, rest, decode);
 
-        const method = (options.method ?? "GET").toUpperCase();
-        return retryWithBackoff(() => attempt<T>(path, options, decode), {
+        const method = (rest.method ?? "GET").toUpperCase();
+        return retryWithBackoff(() => attempt<T>(path, rest, decode), {
             ...retryOptions,
             shouldRetry:
                 retryOptions.shouldRetry ?? ((error: unknown) => isRetriableFailure(error, method)),

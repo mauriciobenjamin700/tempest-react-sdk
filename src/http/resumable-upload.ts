@@ -6,6 +6,7 @@
  * createResumableUpload is the closure that owns them.
  */
 import { bytesToBase64 } from "@/utils/base64";
+import { isTrustedCredentialTarget, reportSuppressedCredential } from "./credential-scope";
 import { buildApiError, isApiError, isRetriableStatus, TempestApiError } from "./errors";
 import { generateIdempotencyKey } from "./idempotency";
 import { retry, type RetryOptions } from "./retry";
@@ -81,6 +82,18 @@ export interface ResumableUploadOptions {
     headers?: Record<string, string>;
     /** Returns the current bearer token, read before each request. */
     getToken?: () => string | null | undefined;
+    /**
+     * Origins besides `endpoint`'s that may receive the `getToken` credential.
+     *
+     * Since 0.66.0 the bearer token is scoped to the origin of `endpoint`, and
+     * the creation response's `Location` no longer decides where it goes. A
+     * server that hands the upload to object storage on another host still
+     * works — the `PATCH` requests simply carry no `Authorization`, which is
+     * what a presigned storage URL expects anyway.
+     *
+     * List the storage origin here when it does need the API's token.
+     */
+    trustedOrigins?: readonly string[];
     /** Send cookies. Default `false`. */
     withCredentials?: boolean;
     /**
@@ -448,6 +461,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
         metadata,
         headers = {},
         getToken,
+        trustedOrigins,
         withCredentials = false,
         key = uploadFingerprint(endpoint, file),
         storage = createLocalUploadStorage(),
@@ -479,10 +493,30 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
         });
     }
 
-    function baseHeaders(): Record<string, string> {
+    /**
+     * Headers every tus request carries, with the credential scoped to the
+     * endpoint's origin.
+     *
+     * The target is a parameter because after creation it is not ours: tus
+     * answers `POST {endpoint}` with a `Location` the server chooses, and the
+     * spec allows an absolute URL on another host — handing the upload to
+     * object storage is the ordinary deployment, not an attack. Before 0.66.0
+     * the bearer token followed that header wherever it pointed, along with the
+     * file bytes.
+     *
+     * @param target - The URL this particular request goes to.
+     * @returns The headers to send.
+     */
+    function baseHeaders(target: string): Record<string, string> {
         const result: Record<string, string> = { ...headers, "Tus-Resumable": TUS_VERSION };
         const token = getToken?.();
-        if (token && !("Authorization" in result)) result.Authorization = `Bearer ${token}`;
+        if (token && !("Authorization" in result)) {
+            if (isTrustedCredentialTarget(target, endpoint, trustedOrigins)) {
+                result.Authorization = `Bearer ${token}`;
+            } else {
+                reportSuppressedCredential(target, endpoint);
+            }
+        }
         return result;
     }
 
@@ -508,7 +542,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
         const response = await sendRequest({
             method: "HEAD",
             url: target,
-            headers: baseHeaders(),
+            headers: baseHeaders(target),
             withCredentials,
             register,
         });
@@ -560,7 +594,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
         }
 
         const creationHeaders: Record<string, string> = {
-            ...baseHeaders(),
+            ...baseHeaders(endpoint),
             "Upload-Length": String(file.size),
             "Idempotency-Key": idempotencyKey,
         };
@@ -599,7 +633,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
             method: "PATCH",
             url: target,
             headers: {
-                ...baseHeaders(),
+                ...baseHeaders(target),
                 "Content-Type": "application/offset+octet-stream",
                 "Upload-Offset": String(from),
             },
@@ -716,7 +750,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
                 await sendRequest({
                     method: "DELETE",
                     url,
-                    headers: baseHeaders(),
+                    headers: baseHeaders(url),
                     withCredentials,
                     register: () => undefined,
                 }).catch(() => undefined);

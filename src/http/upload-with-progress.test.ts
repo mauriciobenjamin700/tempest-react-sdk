@@ -174,3 +174,71 @@ describe("uploadWithProgress — a parser that refuses the body", () => {
         vi.unstubAllGlobals();
     });
 });
+
+/**
+ * This helper has no base URL to infer a scope from — the caller names the
+ * destination on every call — so the scope is opt-in. It earns its place when
+ * the `url` comes from a response body rather than from the app's own code.
+ */
+describe("uploadWithProgress — scoping the credential with credentialOrigin", () => {
+    function installXhr(): XHRMock {
+        const xhr = new XHRMock();
+        vi.stubGlobal("XMLHttpRequest", function () {
+            return xhr;
+        } as unknown as typeof XMLHttpRequest);
+        return xhr;
+    }
+
+    function authHeaderOf(xhr: XHRMock): string | undefined {
+        const sent = xhr.setRequestHeader.mock.calls.find(([name]) => name === "Authorization");
+        return sent?.[1] as string | undefined;
+    }
+
+    it("sends the token when no origin is declared, as every version before 0.66.0 did", async () => {
+        const xhr = installXhr();
+        await uploadWithProgress({
+            url: "https://storage.other/u",
+            body: new FormData(),
+            getToken: () => "tok",
+        });
+        expect(authHeaderOf(xhr)).toBe("Bearer tok");
+        vi.unstubAllGlobals();
+    });
+
+    it("withholds the token from another origin once one is declared", async () => {
+        const xhr = installXhr();
+        await uploadWithProgress({
+            url: "https://storage.other/u",
+            body: new FormData(),
+            getToken: () => "tok",
+            credentialOrigin: "https://api.acme.com",
+        });
+        expect(authHeaderOf(xhr)).toBeUndefined();
+        vi.unstubAllGlobals();
+    });
+
+    it("keeps sending the token to the declared origin", async () => {
+        const xhr = installXhr();
+        await uploadWithProgress({
+            url: "https://api.acme.com/uploads",
+            body: new FormData(),
+            getToken: () => "tok",
+            credentialOrigin: "https://api.acme.com",
+        });
+        expect(authHeaderOf(xhr)).toBe("Bearer tok");
+        vi.unstubAllGlobals();
+    });
+
+    it("honours trustedOrigins alongside the declared origin", async () => {
+        const xhr = installXhr();
+        await uploadWithProgress({
+            url: "https://storage.acme.com/u",
+            body: new FormData(),
+            getToken: () => "tok",
+            credentialOrigin: "https://api.acme.com",
+            trustedOrigins: ["https://storage.acme.com"],
+        });
+        expect(authHeaderOf(xhr)).toBe("Bearer tok");
+        vi.unstubAllGlobals();
+    });
+});

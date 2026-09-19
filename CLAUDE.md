@@ -119,10 +119,10 @@ mais voltam:
 - **Superfície**: 40 módulos em `src/` (`ls -d src/*/`), 129 componentes
   (`ls -d src/components/*/`), 54 hooks `useX` no barrel de `hooks/`, 18 subpaths
   — os quatro aferidos por `test/docs-counts.test.ts`. Exports de runtime na
-  raiz: **568 em 18/09/2026** (70 em `/br`, 21 em `/icons`); o método de
+  raiz: **570 em 19/09/2026** (70 em `/br`, 21 em `/icons`); o método de
   contagem, e por que o `--import` não é opcional, está em
   [`architecture.md`](./docs/internal/architecture.md).
-- **Testes**: 6516 em 584 arquivos, ~44 s, medido em 18/09/2026. Cobertura em
+- **Testes**: 6581 em 587 arquivos, ~48 s, medido em 19/09/2026. Cobertura em
   05/09/2026: 99,73% linhas / 98,81% statements / 99,82% funções / 95,64%
   branches; pisos do CI em 99/98/99/95.
 - **Empacotamento**: `dist/` com `preserveModules`; CSS por componente carregado

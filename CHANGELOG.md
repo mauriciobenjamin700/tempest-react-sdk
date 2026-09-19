@@ -4,6 +4,62 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Segurança
+
+- **O bearer token não era vinculado a nenhuma origem, e num upload resumível quem
+  escolhia o destino era o servidor.** O SDK escrevia `Authorization: Bearer` em três
+  lugares — `api-client.ts`, `upload-with-progress.ts` e `resumable-upload.ts` — e
+  nenhum olhava para onde a requisição ia.
+
+  O caminho que fecha a fronteira é o do tus: a criação responde `201` + `Location`,
+  o spec permite que seja uma URL absoluta em outro host, e `resolveUploadUrl` a
+  aceitava literal. Todo `HEAD`/`PATCH` seguinte levava o token — e os bytes do
+  arquivo — para a origem que o servidor nomeou. Não é cenário exótico: **entregar o
+  upload a um storage em outro host é a topologia normal do tus** (S3, MinIO). Os
+  outros dois caminhos dependiam de a aplicação passar uma URL absoluta, que a doc do
+  `buildApiUrl` incentiva como forma de alcançar um segundo host.
+
+  CORS não barrava: requisição cross-origin com `Authorization` dispara preflight, e
+  quem responde o preflight liberando o header é o destino.
+
+  Agora a credencial é presa a uma origem de referência — a da `baseURL` no client, a
+  do `endpoint` no upload resumível. **A requisição continua saindo**; ela só sai sem
+  o header, e um build de desenvolvimento escreve uma linha por origem dizendo qual
+  ficou de fora. `Authorization` escrito à mão em `headers` nunca é tocado.
+
+  Achado por um passe da skill `security-audit` sobre `src/auth/` + `src/http/`.
+  Closes #365.
+
+  Custo medido com `npx size-limit`, `main` (0.65.0) contra esta branch:
+
+  | fatia                           | antes     | depois    | delta  | teto novo |
+  | ------------------------------- | --------- | --------- | ------ | --------- |
+  | `http client`                   | 3,84 kB   | 4,12 kB   | +280 B | 4,25 kB   |
+  | `resumable upload (tus client)` | 3,29 kB   | 3,51 kB   | +220 B | 3,65 kB   |
+  | `typical app`                   | 9,94 kB   | 10,12 kB  | +180 B | 10,3 kB   |
+  | `ceiling: full barrel ESM`      | 130,85 kB | 131,14 kB | +290 B | 131,5 kB  |
+
+  Os bytes são a resolução de origem (`new URL`), o conjunto de origens já avisadas e
+  a string do aviso de desenvolvimento. O teto do barril CJS não mudou.
+
+### Adicionado
+
+- **`trustedOrigins`** em `ApiClientConfig` e `ResumableUploadOptions`, e o par
+  `credentialOrigin` + `trustedOrigins` em `uploadWithProgress` — a declaração
+  explícita do segundo host que legitimamente recebe o token. Compara por **origem**,
+  então caminho e barra final são ignorados; porta e esquema contam.
+
+- **`isTrustedCredentialTarget(target, reference, trustedOrigins?)`** exportado, para
+  quem monta a requisição por fora do client.
+
+- **Política por requisição em `RequestOptions`: `skipAuth`, `skipAuthRetry` e
+  `retry`.** `skipAuth` vai sem `Authorization` e não entra no ciclo de refresh — é o
+  que login e refresh precisam, e a razão de `createTempestAuth` construir **três**
+  clients para um backend só. Agora constrói **um**: `login` e `refresh` usam
+  `skipAuth`, `fetchUser` usa `skipAuthRetry`, e o client instanciado a cada
+  `fetchUser()` deixou de existir. `options.retry` substitui `config.retry` por
+  inteiro, em vez de mesclar. Closes #364.
+
 ### Corrigido
 
 - **Valor ausente virava número plausível na tela.** Medido na 0.65.0, com o que chegava

@@ -64,6 +64,38 @@ export interface RequestOptions extends Omit<RequestInit, "body"> {
      */
     signal?: AbortSignal | null;
     /**
+     * Send this request with no `Authorization` header, and never enter the
+     * refresh-and-replay cycle on a `401`.
+     *
+     * This is what login and refresh need: a route that must not carry the
+     * token it is about to obtain, and whose own `401` must surface rather than
+     * call `refresh()` again — which would recurse. Before 0.66.0 the only way
+     * to get it was a second client, which is why `createTempestAuth` used to
+     * build three.
+     */
+    skipAuth?: boolean;
+    /**
+     * Send the `Authorization` header, but let a `401` surface instead of
+     * refreshing and replaying.
+     *
+     * The narrower half of {@link skipAuth}, for a call that is authenticated
+     * but whose failure the caller wants to see — a token probe, a background
+     * poll that should not fight for the refresh lock.
+     */
+    skipAuthRetry?: boolean;
+    /**
+     * Retry policy for this request, overriding the client's.
+     *
+     * Replaces `config.retry` entirely rather than merging into it, the same
+     * way `config.retry` is read today: a merged `shouldRetry` would silently
+     * combine two policies that were each written to be complete.
+     *
+     * `false` turns retrying off for one call on a client that has it on;
+     * `true` or {@link RetryOptions} turns it on for one call on a client that
+     * does not.
+     */
+    retry?: boolean | RetryOptions;
+    /**
      * Override the client's timeout for this request, in milliseconds. `null`
      * disables it, which is the escape hatch for a stream or a long poll.
      *
@@ -99,6 +131,25 @@ export interface ApiClientConfig {
     prefix?: string;
     /** Returns the current bearer token (or null/undefined). Called per request. */
     getToken?: () => string | null | undefined;
+    /**
+     * Origins besides `baseURL`'s that may receive the `getToken` credential.
+     *
+     * Since 0.66.0 the bearer token is scoped to the origin of `baseURL`. A
+     * request to any other origin still goes out — it just goes without the
+     * header. That matters because a path may be an absolute URL, in which case
+     * it overrides `baseURL` completely, so the destination of a credentialed
+     * request could be decided by a value the app read off the network: a
+     * pagination link, a `download_url`, a `Location`.
+     *
+     * List the second host here when it genuinely needs the API's token — a CDN
+     * behind the same identity, a sibling service. An origin compares as an
+     * origin (`"https://cdn.acme.com"`), so path and trailing slash are
+     * ignored.
+     *
+     * A relative `baseURL` needs nothing here: a relative target resolves
+     * against the document and cannot cross an origin.
+     */
+    trustedOrigins?: readonly string[];
     /**
      * Per-request correlation id sent as the `X-Request-ID` header, matching the
      * Tempest FastAPI SDK `RequestIDMiddleware`. Defaults to a generated id.

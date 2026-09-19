@@ -157,25 +157,27 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
     const state = (): AuthState<TUser> => useAuthStore.getState();
     const getToken = (): string | null => state().token;
 
-    // Bare client (no auth/refresh) used for the login + refresh calls themselves.
-    const bareApi = createApiClient({ baseURL, prefix, withCredentials, fetcher });
-
+    /**
+     * Load the current user, without letting a `401` end the session.
+     *
+     * `skipAuthRetry` is what keeps this one client honest: the call is
+     * authenticated, but a `401` here surfaces instead of triggering a refresh
+     * and `onUnauthorized`. That was the behaviour of the throwaway client this
+     * used to build per invocation, and it is the reason the preset needed
+     * three clients before 0.66.0.
+     */
     async function fetchUser(): Promise<TUser | null> {
         if (!mePath) return state().user;
-        const token = getToken();
-        const user = await createApiClient({
-            baseURL,
-            prefix,
-            withCredentials,
-            fetcher,
-            getToken: () => token,
-        }).get<TUser>(mePath);
+        const user = await api.get<TUser>(mePath, { skipAuthRetry: true });
         state().setUser(user);
         return user;
     }
 
     async function login(credentials: TCredentials): Promise<TUser | null> {
-        const data = await bareApi.post<unknown>(loginPath, { body: credentials });
+        const data = await api.post<unknown>(loginPath, {
+            body: credentials,
+            skipAuth: true,
+        });
         const { token, refreshToken } = parseTokens(data);
         state().setToken(token);
         writeRefreshToken(refreshToken ?? null);
@@ -207,8 +209,9 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
     }
 
     const refresh = createRefreshQueue(async () => {
-        const data = await bareApi.post<unknown>(refreshPath, {
+        const data = await api.post<unknown>(refreshPath, {
             body: refreshBody(readRefreshToken()),
+            skipAuth: true,
         });
         const { token, refreshToken } = parseTokens(data);
         state().setToken(token);

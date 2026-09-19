@@ -85,6 +85,12 @@ código compila**), `test/docs-anchors.test.ts` (âncora interna viva),
 `test/docs-counts.test.ts` (**toda contagem escrita em prosa bate com o repo**) e
 `scripts/check-dist-guards.mjs` (rodado no `postbuild`).
 
+**Gate de tag, não de PR.** Antes de cortar release que toque `auth`, `oauth`,
+`access`, `http`, `sw`, `offline`, `webrtc` ou `ws`, rode a skill `security-audit`
+em perfil `quick` sobre os módulos tocados. Custa ondas de agente, então não entra
+no caminho de todo PR. O relatório sai em inglês, no formato da skill; a conversa
+continua PT-BR.
+
 ## Armadilhas que mais custam
 
 Detalhe e medição em [`lessons.md`](./docs/internal/lessons.md); estas são as que

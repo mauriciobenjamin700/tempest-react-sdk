@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.66.0] — 2026-09-19
+
 ### Segurança
 
 - **O bearer token não era vinculado a nenhuma origem, e num upload resumível quem

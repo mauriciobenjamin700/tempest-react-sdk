@@ -6138,7 +6138,7 @@ import { Plus } from "lucide-react";
 
 > **Quando usar**: dar contexto extra a um controle cujo significado não é óbvio — tipicamente botões `iconOnly`. Nunca para informação crítica.
 
-Hover tooltip portalado. Aparece no hover **e** no foco por teclado.
+Hover tooltip em portal: escapa de ancestral com `overflow` (uma célula de `DataTable`, por exemplo) e vira para o lado oposto na borda da tela. Aparece no hover **e** no foco por teclado.
 
 ```tsx
 import { Button, Tooltip } from "tempest-react-sdk";
@@ -6161,6 +6161,7 @@ export function ExcluirComDica() {
 | `placement` | `"top" \| "right" \| "bottom" \| "left"` | `"top"` |
 | `openDelay` | `number` (ms antes de aparecer)          | `150`   |
 | `disabled`  | `boolean` (desliga sem mexer no trigger) | `false` |
+| `portal`    | `boolean` (renderiza em `document.body`) | `true`  |
 
 !!! warning "Não esconda informação essencial num tooltip"
     Usuários de touch não têm hover — eles nunca verão o conteúdo. Tooltip é reforço, não a única fonte de uma informação necessária para concluir a tarefa.
@@ -6213,7 +6214,94 @@ export function MaisAcoes({
 | `"label"`     | `id`, `label`                                                          |
 | `"separator"` | `id`                                                                   |
 
-Props do componente: `trigger` (`ReactElement`), `items` (`DropdownMenuEntry[]`), `placement` (`"bottom-start" \| "bottom-end" \| "top-start" \| "top-end"`, default `"bottom-start"`).
+Props do componente: `trigger` (`ReactElement`), `items` (`DropdownMenuEntry[]`), `placement` (`"bottom-start" \| "bottom-end" \| "top-start" \| "top-end"`, default `"bottom-start"`), `portal` (`boolean`, default `true` — ver [Numa linha de tabela](#numa-linha-de-tabela)).
+
+### Numa linha de tabela
+
+O menu de ações por linha é o caso mais comum de painel administrativo, e é
+exatamente onde um menu em fluxo quebra: o wrapper do `DataTable` rola na
+horizontal (`overflow-x: auto`), e pela regra do CSS isso força `overflow-y` a
+`auto` também. Por isso o menu é renderizado **em portal** por padrão, ancorado
+no gatilho.
+
+```tsx
+import { Button, DataTable, DropdownMenu } from "tempest-react-sdk";
+
+interface Usuario {
+    id: string;
+    nome: string;
+}
+
+export function TabelaDeUsuarios({
+    usuarios,
+    abrir,
+    excluir,
+}: {
+    usuarios: Usuario[];
+    abrir: (id: string) => void;
+    excluir: (id: string) => void;
+}) {
+    return (
+        <DataTable<Usuario>
+            data={usuarios}
+            rowKey={(usuario) => usuario.id}
+            columns={[
+                { key: "nome", header: "Nome" },
+                {
+                    key: "id",
+                    header: "",
+                    render: (usuario) => (
+                        <DropdownMenu
+                            placement="bottom-end"
+                            trigger={
+                                <Button variant="ghost" iconOnly aria-label="Ações">
+                                    ⋮
+                                </Button>
+                            }
+                            items={[
+                                {
+                                    type: "item",
+                                    id: "ver",
+                                    label: "Ver perfil",
+                                    onSelect: () => abrir(usuario.id),
+                                },
+                                {
+                                    type: "item",
+                                    id: "excluir",
+                                    label: "Excluir",
+                                    danger: true,
+                                    onSelect: () => excluir(usuario.id),
+                                },
+                            ]}
+                        />
+                    ),
+                },
+            ]}
+        />
+    );
+}
+```
+
+O que o portal resolve, medido no Chrome a 1440 px com o menu de três entradas
+na última linha:
+
+| | Em fluxo (antes da 0.67.0) | Em portal |
+| --- | --- | --- |
+| Entradas visíveis | 1 de 3 | 3 de 3 |
+| Sem espaço embaixo | abria abaixo do fim da tela | **vira para cima** do gatilho |
+| Tabela rola com o menu aberto | — | o menu **acompanha** o gatilho |
+| Dentro de um `Modal` | — | pinta **por cima** do modal |
+
+!!! info "Por que o menu em portal fica acima do `Modal`"
+    Em portal, o menu vive em `document.body`, ao lado do modal — já não herda o
+    empilhamento dele. Ele usa `--tempest-z-popover` (1150), acima de
+    `--tempest-z-modal` (1100). Com `--tempest-z-dropdown` (1000), medido, o menu
+    aberto dentro de um modal ficava **atrás** dele.
+
+!!! tip "`portal={false}` para voltar ao menu em fluxo"
+    Use quando o contêiner precisa ser dono do corte ou do empilhamento do menu
+    de propósito. O mesmo `portal` existe no `Popover` e no `Tooltip`.
+
 
 ### Item que liga e desliga
 
@@ -6263,7 +6351,7 @@ export function MenuDaChamada({ alternarTema }: { alternarTema: () => void }) {
 | `↑` | abre e foca o **último** item | anterior, com wrap |
 | `Home` / `End` | — | primeiro / último |
 | `Esc` | — | fecha e **devolve o foco ao gatilho** |
-| `Tab` | segue a página | fecha e segue a página |
+| `Tab` | segue a página | fecha e segue a página **a partir do gatilho** |
 
 !!! tip "Foco gerenciado — `Tab` não percorre o menu"
     As entradas têm `tabIndex={-1}` e só a ativa tem `0`. Sem isso, `Tab` andaria
@@ -6311,9 +6399,10 @@ export function Filtros() {
 | `placement`           | `"top" \| "bottom" \| "left" \| "right"` | `"bottom"`     |
 | `closeOnEsc`          | `boolean`                                | `true`         |
 | `closeOnOutsideClick` | `boolean`                                | `true`         |
+| `portal`              | `boolean` (renderiza em `document.body`) | `true`         |
 
-!!! note "Sem collision detection"
-    O `Popover` não reposiciona automaticamente quando esbarra na borda da viewport. Se você precisa de flip/shift automático, prefira o `DropdownMenu` (lista simples) ou integre Floating UI no app.
+!!! note "Vira na borda da tela"
+    Em portal (o padrão), o painel vai para o lado oposto quando o `placement` pedido não cabe na viewport, e é mantido dentro dela com 8 px de margem. Rolar a página ou um contêiner com o painel aberto o leva junto com o gatilho.
 
 ## `ConfirmDialog`
 
@@ -12383,7 +12472,8 @@ export function GaleriaDaVistoria({ fotos }: { fotos: { url: string; descricao: 
 
 Todo overlay do SDK monta por portal, e o alvo do portal segue o elemento em
 **tela cheia** quando existe um — `Modal`, `Drawer`, `BottomSheet`,
-`ToastProvider`, `Command` e o `<Portal>` genérico.
+`ToastProvider`, `Command`, `ContextMenu`, `DropdownMenu`, `Popover`, `Tooltip` e o
+`<Portal>` genérico.
 
 Isso não é conveniência: é correção. Enquanto a página está em tela cheia, o
 browser pinta **apenas a subárvore do elemento em tela cheia**, e `document.body`

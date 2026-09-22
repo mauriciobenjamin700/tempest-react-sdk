@@ -20,6 +20,10 @@
     animation: tempest-menu-in var(--tempest-duration-fast) var(--tempest-ease-out);
 }
 
+.portalled {
+    z-index: var(--tempest-z-popover);
+}
+
 .bottomStart {
     top: calc(100% + 4px);
     left: 0;

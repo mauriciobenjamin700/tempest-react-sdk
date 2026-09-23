@@ -5,12 +5,13 @@
  * onClose, title, children, footer, closeOnBackdrop, closeOnEsc, hideCloseButton)
  * plus showHandle for the sheet affordance.
  */
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useEscapeLayer } from "@/components/Portal/escape-layer";
 import { cn } from "@/utils/cn";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
+import { useFocusTrap } from "@/hooks/use-focus-trap";
 import styles from "./Drawer.module.css";
 import { usePortalHost } from "../Portal/portal-host";
 
@@ -39,7 +40,9 @@ export interface DrawerProps {
 
 /**
  * Sliding side panel. Same building blocks as {@link Modal} but anchored to
- * an edge. Locks body scroll while open.
+ * an edge. Locks body scroll while open, and traps keyboard focus in the panel
+ * the same way `Modal` does: focus enters on open, `Tab` cycles inside (portalled
+ * panels opened from it included) and returns to the opener on close.
  */
 export function Drawer({
     open,
@@ -59,6 +62,8 @@ export function Drawer({
     const effectivePlacement: DrawerPlacement =
         isMobile && mobilePlacement ? mobilePlacement : placement;
 
+    const panelRef = useRef<HTMLElement>(null);
+    useFocusTrap(panelRef, open);
     useEscapeLayer(open, closeOnEsc ? onClose : null);
     useEffect(() => {
         if (!open) return;
@@ -82,8 +87,10 @@ export function Drawer({
                 }}
             />
             <aside
+                ref={panelRef}
                 role="dialog"
                 aria-modal="true"
+                tabIndex={-1}
                 className={cn(styles.panel, styles[effectivePlacement], className)}
             >
                 {showHandle &&

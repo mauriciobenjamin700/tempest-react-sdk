@@ -196,6 +196,7 @@ export function Lateral() {
 | `items`          | `SidebarEntry[]`               | —       |
 | `value`          | `string`                       | —       |
 | `onChange`       | `(key: string) => void`        | —       |
+| `match`          | `"key" \| "route"`             | `"key"` |
 | `footer`         | `ReactNode`                    | —       |
 | `collapsed`      | `boolean`                      | `false` |
 | `width`          | `number \| string` (px ou CSS) | `240`   |
@@ -316,6 +317,93 @@ do link" aparece no menu de contexto, e o leitor de tela anuncia link em vez de
 botão. Item `disabled` ignora o `href` e continua `<button disabled>`: âncora não
 tem estado desabilitado, e tirar o `href` pra simular um deixaria um link que se
 anuncia acionável e não é.
+
+### Item ativo a partir da rota
+
+Quando a `key` (ou o `href`) de cada item é uma URL, quase nunca o `pathname` é
+igual a uma delas: `/dashboard/tips/42` tem que destacar `/dashboard/tips`. Passe a
+rota em `value` com `match="route"` e o componente resolve sozinho:
+
+```tsx
+import { useLocation } from "react-router";
+import { Sidebar } from "tempest-react-sdk";
+
+export function PainelNav() {
+    const { pathname } = useLocation();
+
+    return (
+        <Sidebar
+            match="route"
+            value={pathname}
+            items={[
+                { key: "overview", label: "Visão geral", href: "/dashboard" },
+                { key: "tips", label: "Dicas", href: "/dashboard/tips" },
+                { key: "users", label: "Usuários", href: "/users" },
+                { key: "admins", label: "Admins", href: "/users-admin" },
+            ]}
+        />
+    );
+}
+```
+
+O item ativo é o de **caminho mais longo que cobre a rota, em fronteira de
+segmento**. Compara contra o `href` do item, ou a `key` quando ele não tem `href`;
+seções e separadores ficam de fora.
+
+| Rota                 | Ativo                             | Por quê                                           |
+| -------------------- | --------------------------------- | ------------------------------------------------- |
+| `/dashboard/tips/42` | Dicas                             | o mais longo vence — `/dashboard` também cobre    |
+| `/dashboard/tip`     | Visão geral                       | `/dashboard/tip` não é segmento de `/dashboard/tips` |
+| `/users-admin/3`     | Admins                            | `/users` não cobre `/users-admin`                 |
+| `/users/?tab=2#topo` | Usuários                          | barra final, query e hash são ignorados           |
+| `/relatorios`        | nenhum                            | nada cobre a rota                                 |
+
+!!! info "Por que não `find` + `startsWith`"
+    O `items.find((i) => pathname.startsWith(i.href))` que todo painel escreve
+    primeiro erra 8 dos 11 casos medidos no #357: a ordem do
+    array decide quem vence (`/dashboard` fica aceso em toda tela) e
+    `/dashboard/tip` acende `/dashboard/tips`. O `NavLink` do react-router também
+    não resolve: cada link decide sozinho, então em `/dashboard/tips/42` **dois**
+    itens ficam com `aria-current="page"`.
+
+!!! tip "A raiz `/` só acende em `/`"
+    É a mesma regra do `NavLink`. Uma raiz que prefixasse tudo acenderia "Início"
+    em toda tela que o menu não lista.
+
+O componente não lê router nenhum — `value` chega como string —, então continua
+funcionando sem `<Router>` montado (`window.location.pathname` serve).
+
+#### `activeNavKey` — a mesma resolução, fora do `Sidebar`
+
+`BottomNavigation`, `NavigationRail` ou o menu dentro de um `Drawer` recebem
+`value` como `key`. Para eles, a função pura devolve a key ativa:
+
+```tsx
+import { useLocation } from "react-router";
+import { activeNavKey, BottomNavigation } from "tempest-react-sdk";
+
+const items = [
+    { key: "/dashboard", label: "Painel" },
+    { key: "/dashboard/tips", label: "Dicas" },
+];
+
+export function NavMobile() {
+    const { pathname } = useLocation();
+
+    return (
+        <BottomNavigation
+            items={items}
+            value={activeNavKey(pathname, items.map((item) => item.key))}
+            onChange={() => {}}
+        />
+    );
+}
+```
+
+`activeNavKey(pathname, keys)` devolve a key **exatamente como veio** em `keys`, ou
+`""` quando nada cobre a rota — nunca `undefined`, nunca lança. A comparação
+diferencia maiúsculas, como caminho de URL. Com `basename` no router, passe o
+`pathname` do `useLocation()` (que já vem sem ele) e keys sem o `basename`.
 
 **Mobile**: esconda com `<Show above="md">` e exponha via `<Drawer>` no menu hambúrguer.
 

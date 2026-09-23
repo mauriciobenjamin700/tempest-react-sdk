@@ -206,3 +206,49 @@ describe("Sidebar — href", () => {
         expect(screen.getByRole("button", { name: "Docs" })).toBeDisabled();
     });
 });
+
+describe('Sidebar — match="route"', () => {
+    const menu = [
+        { type: "section" as const, key: "s-panel", label: "Painel" },
+        { key: "overview", label: "Visão geral", href: "/dashboard" },
+        { key: "tips", label: "Dicas", href: "/dashboard/tips" },
+        { type: "separator" as const, key: "sep" },
+        { key: "/users", label: "Usuários" },
+        { key: "/users-admin", label: "Admins" },
+    ];
+
+    const current = () =>
+        Array.from(document.querySelectorAll("[aria-current='page']")).map((el) => el.textContent);
+
+    it("lights the item whose href is the longest path covering the route", () => {
+        render(<Sidebar items={menu} match="route" value="/dashboard/tips/42" />);
+        expect(current()).toEqual(["Dicas"]);
+    });
+
+    it("falls back to the key when the item has no href", () => {
+        render(<Sidebar items={menu} match="route" value="/users-admin/7" />);
+        expect(current()).toEqual(["Admins"]);
+    });
+
+    it("lights nothing when no item covers the route", () => {
+        render(<Sidebar items={menu} match="route" value="/elsewhere" />);
+        expect(current()).toEqual([]);
+    });
+
+    it("lights nothing when no value is given", () => {
+        render(<Sidebar items={menu} match="route" />);
+        expect(current()).toEqual([]);
+    });
+
+    it("keeps comparing value to the key by default, so a pathname lights nothing", () => {
+        render(<Sidebar items={menu} value="/dashboard/tips/42" />);
+        expect(current()).toEqual([]);
+    });
+
+    it("still reports the clicked item's key through onChange", async () => {
+        const onChange = vi.fn();
+        render(<Sidebar items={menu} match="route" value="/dashboard" onChange={onChange} />);
+        await userEvent.click(screen.getByText("Dicas"));
+        expect(onChange).toHaveBeenCalledWith("tips");
+    });
+});

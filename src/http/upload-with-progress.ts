@@ -6,6 +6,8 @@
  */
 import { randomId } from "../utils";
 import { isTrustedCredentialTarget, reportSuppressedCredential } from "./credential-scope";
+import { csrfHeaders } from "./csrf";
+import type { CsrfOptions } from "./csrf";
 import { buildApiError, TempestApiError } from "./errors";
 
 export interface UploadProgressEvent {
@@ -43,6 +45,18 @@ export interface UploadWithProgressOptions {
     trustedOrigins?: readonly string[];
     /** Send cookies. Defaults to false. */
     withCredentials?: boolean;
+    /**
+     * Send a CSRF token with the upload, as `createApiClient`'s `csrf` does.
+     * Off by default; `true` reads the `csrf_token` cookie into `X-CSRF-Token`.
+     *
+     * Scoped to {@link credentialOrigin} plus {@link trustedOrigins} — and,
+     * unlike the bearer token, scoped even when `credentialOrigin` is unset:
+     * then the scope is the page's own origin. The bearer default stays open
+     * only for compatibility with every version before 0.66.0; this option is
+     * new, so it starts closed. An API on another origin sets
+     * `credentialOrigin` to receive the token.
+     */
+    csrf?: boolean | CsrfOptions;
     /** Called on every `progress` event from the XHR upload channel. */
     onProgress?: (event: UploadProgressEvent) => void;
     /** Abort the request. */
@@ -84,6 +98,7 @@ export function uploadWithProgress<T = unknown>(options: UploadWithProgressOptio
         credentialOrigin,
         trustedOrigins,
         withCredentials = false,
+        csrf,
         onProgress,
         signal,
         parser = JSON.parse,
@@ -113,6 +128,17 @@ export function uploadWithProgress<T = unknown>(options: UploadWithProgressOptio
                 reportSuppressedCredential(url, credentialOrigin);
             }
         }
+        Object.assign(
+            finalHeaders,
+            csrfHeaders({
+                method,
+                url,
+                reference: credentialOrigin ?? globalThis.location?.origin ?? url,
+                csrf,
+                trustedOrigins,
+                headers,
+            }),
+        );
         if (sentRequestId && !("X-Request-ID" in finalHeaders)) {
             finalHeaders["X-Request-ID"] = sentRequestId;
         }

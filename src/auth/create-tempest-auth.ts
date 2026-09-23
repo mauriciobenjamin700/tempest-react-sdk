@@ -1,5 +1,5 @@
 import { createApiClient } from "../http";
-import type { ApiClient, RetryOptions } from "../http";
+import type { ApiClient, CsrfOptions, RetryOptions } from "../http";
 import { createAuthStore } from "./create-auth-store";
 import type { AuthState } from "./create-auth-store";
 import { createRefreshQueue } from "./refresh-queue";
@@ -39,6 +39,16 @@ export interface CreateTempestAuthOptions<TUser> {
     storage?: "local" | "session";
     /** Send cookies (needed when the refresh token lives in an httpOnly cookie). */
     withCredentials?: boolean;
+    /**
+     * CSRF token for every write, forwarded to `createApiClient`'s `csrf`. Off
+     * by default; `true` echoes the `csrf_token` cookie as `X-CSRF-Token`.
+     *
+     * The pair to `withCredentials`: once the refresh token lives in a cookie,
+     * the browser attaches it to a `POST /auth/refresh` that another site
+     * triggers. Login and refresh carry the header too — they go out with
+     * `skipAuth`, and the CSRF header does not follow auth.
+     */
+    csrf?: boolean | CsrfOptions;
     /** Custom fetch implementation (testing / SSR). Defaults to `globalThis.fetch`. */
     fetcher?: typeof fetch;
     /**
@@ -129,6 +139,7 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
         storeName = "tempest-auth",
         storage = "local",
         withCredentials = false,
+        csrf,
         fetcher,
         parseTokens = defaultParseTokens,
         parseUser,
@@ -222,6 +233,7 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
         baseURL,
         prefix,
         withCredentials,
+        csrf,
         fetcher,
         getToken,
         refresh,

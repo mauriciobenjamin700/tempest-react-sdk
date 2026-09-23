@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { resetCsrfReports } from "./csrf";
 import {
     createLocalUploadStorage,
     createResumableUpload,
@@ -1166,5 +1167,133 @@ describe("createResumableUpload — the credential is scoped to the endpoint's o
         for (const headers of headersFor("PATCH")) {
             expect(headers.Authorization).toBeUndefined();
         }
+    });
+});
+
+/**
+ * A tus server behind `CSRFMiddleware` rejects the creation `POST`, every chunk
+ * `PATCH` and the discarding `DELETE` without the token — and a `Location` on
+ * another host must not receive it, for the same reason it does not receive the
+ * bearer token.
+ */
+describe("createResumableUpload — csrf follows the writes and the endpoint's origin", () => {
+    beforeEach(() => {
+        document.cookie = "csrf_token=tok-1; path=/";
+    });
+
+    afterEach(() => {
+        document.cookie = "csrf_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+        resetCsrfReports();
+    });
+
+    function csrfFor(method: string): (string | undefined)[] {
+        return server.requests
+            .filter((request) => request.method === method)
+            .map((request) => request.headers["X-CSRF-Token"]);
+    }
+
+    it("sends nothing new without csrf", async () => {
+        server = acceptingServer(4);
+        installXhr();
+
+        await createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(4),
+            storage: null,
+        }).start();
+
+        expect([...csrfFor("POST"), ...csrfFor("PATCH")]).toEqual([undefined, undefined]);
+    });
+
+    it("sends the token on creation and on every chunk", async () => {
+        server = acceptingServer(8);
+        installXhr();
+
+        await createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(8),
+            chunkSize: 4,
+            csrf: true,
+            storage: null,
+        }).start();
+
+        expect(csrfFor("POST")).toEqual(["tok-1"]);
+        expect(csrfFor("PATCH")).toEqual(["tok-1", "tok-1"]);
+    });
+
+    it("never sends it on the offset probe, which is a HEAD", async () => {
+        const record: ResumableUploadRecord = {
+            url: "/api/uploads/abc",
+            offset: 0,
+            size: 4,
+            idempotencyKey: "k",
+            updatedAt: 1,
+        };
+        server = acceptingServer(4);
+        installXhr();
+
+        await createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(4),
+            csrf: true,
+            storage: memoryStorage(record),
+        }).start();
+
+        expect(csrfFor("HEAD").length).toBeGreaterThan(0);
+        expect(csrfFor("HEAD").every((value) => value === undefined)).toBe(true);
+        expect(csrfFor("PATCH")).toEqual(["tok-1"]);
+    });
+
+    it("sends it on the DELETE that discards the upload", async () => {
+        server = acceptingServer(12);
+        installXhr();
+        const upload = createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(12),
+            chunkSize: 4,
+            csrf: true,
+            storage: null,
+        });
+        server.onOpen = () => {
+            if (server.countOf("PATCH") === 1) {
+                server.onOpen = null;
+                void upload.abort({ discard: true });
+            }
+        };
+
+        await upload.start();
+
+        await vi.waitFor(() => expect(csrfFor("DELETE")).toEqual(["tok-1"]));
+    });
+
+    it("withholds it from a Location on another origin, and uploads anyway", async () => {
+        server = acceptingServer(4, "https://storage.other/u/abc");
+        installXhr();
+
+        const result = await createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(4),
+            csrf: true,
+            storage: null,
+        }).start();
+
+        expect(result).toEqual({ url: "https://storage.other/u/abc", size: 4 });
+        expect(csrfFor("POST")).toEqual(["tok-1"]);
+        expect(csrfFor("PATCH")).toEqual([undefined]);
+    });
+
+    it("sends it to a storage origin the app declared trusted", async () => {
+        server = acceptingServer(4, "https://storage.acme.com/u/abc");
+        installXhr();
+
+        await createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(4),
+            csrf: true,
+            trustedOrigins: ["https://storage.acme.com"],
+            storage: null,
+        }).start();
+
+        expect(csrfFor("PATCH")).toEqual(["tok-1"]);
     });
 });

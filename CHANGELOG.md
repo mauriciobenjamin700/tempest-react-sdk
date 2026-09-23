@@ -104,6 +104,54 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
   Closes #357
 
+- **`tempestCsp()` em `tempest-react-sdk/vite` — a Content-Security-Policy cujo
+  `connect-src` sai das origens que o app chama em runtime.** Até aqui o `/vite` não
+  tinha nada de CSP, e cada app escrevia o próprio plugin com uma lista de origens à
+  mão, montada à parte do código que as usa. Reproduzido num app Vite 8 real
+  (`vite build` + `vite preview`, Chromium via Playwright, 23/09/2026) com o plugin
+  do relato — `apply: "build"`, `connect-src` montado de `VITE_API_URL` e esquecendo
+  `VITE_OIDC_ISSUER`:
+
+  |                | `vite dev`                                                                  | `vite preview` (build)                                                       |
+  | -------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+  | plugin à mão   | as duas chamadas passam                                                     | `TypeError: Failed to fetch` na do IdP, violação `connect-src` só no console |
+  | `tempestCsp()` | as duas passam; uma origem literal fora do `.env` já é bloqueada **no dev** | as duas passam, zero erro no console                                         |
+
+  O plugin lê toda variável `VITE_*` (o `envPrefix`) cujo valor é URL absoluta — a
+  mesma fonte do `import.meta.env` —, reduz à origem (`https://idp/realms/x` →
+  `https://idp`), pula valor vazio com aviso, derruba o build em valor que não é URL,
+  aplica a política **também no `vite dev`** e imprime cada origem com a variável que
+  a trouxe. `connect` recebe URLs extras; `onPolicy` expõe `meta` e `header` (este com
+  `frame-ancestors`, que `<meta>` ignora). CSP que o `index.html` já declara é
+  mesclada: diretiva declarada fica intacta, só o `connect-src` ganha as origens.
+  Script inline entra por SHA-256, nunca por `'unsafe-inline'`.
+
+  Três pontos da issue contrariados pela medição (Chromium, página com `<meta>` CSP
+  escutando `securitypolicyviolation`):
+
+  - **a prop `style` do React não exige `style-src 'unsafe-inline'`** — CSSOM não é
+    governado por CSP; o bloqueado é `<style>` e `style=""`. O default mantém
+    `'unsafe-inline'` por causa do `applyTheme` (que injeta `<style>`), com
+    `inlineStyles: false` para quem não o usa.
+  - **`connect-src https://api` bloqueia `new WebSocket("wss://api")`**; `'self'` cobre
+    o `ws:` da mesma origem (o HMR). Por isso cada origem `http(s)` ganha o gêmeo
+    `ws(s)` (`sockets: false` desliga).
+  - **não há Workbox no stack do SDK**; `worker-src 'self' blob:` cobre o service
+    worker próprio e worker por `blob:` (bloqueado sem `blob:`, medido).
+
+  `'wasm-unsafe-eval'` entra por padrão: sem ele `WebAssembly.compile` lança
+  `CompileError` (medido), o que derruba `/vision` e `/tabular`. O `useViaCEP` declara
+  a própria origem: `https://viacep.com.br` entra no build só quando o hook está no
+  bundle.
+
+  `template/` e `template-pwa/` passam a ligar `tempestCsp()`; o template PWA buildado
+  (`npm run build` + `vite preview`) registra o service worker, carrega manifest e
+  ícones e fala com a API sem nenhuma mensagem no console. Nova página
+  [Content-Security-Policy](docs/csp.md) (PT/EN). Nenhuma dependência nova: o hash
+  usa `node:crypto`.
+
+  Closes #370
+
 ### Corrigido
 
 - **`Modal`, `Drawer` e `BottomSheet` prendem o foco de verdade.** A doc (`overlay.md`,

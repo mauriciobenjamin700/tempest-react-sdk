@@ -100,7 +100,7 @@ my-app/
 ├── index.html
 ├── package.json          # deps: react, react-dom, tempest-react-sdk; devDeps: vite, @vitejs/plugin-react, typescript, @types/*
 ├── tsconfig.json         # alias @ -> ./src em "paths"
-├── vite.config.ts        # export default createViteConfig()
+├── vite.config.ts        # createViteConfig({ plugins: [tempestCsp()] })
 ├── .env.example          # VITE_API_URL
 ├── .gitignore
 └── src/
@@ -130,12 +130,14 @@ Vamos olhar os três mais importantes.
 #### `vite.config.ts` → `createViteConfig`
 
 ```ts
-import { createViteConfig } from "tempest-react-sdk/vite";
+import { createViteConfig, tempestCsp } from "tempest-react-sdk/vite";
 
-export default createViteConfig();
+export default createViteConfig({
+    plugins: [tempestCsp()],
+});
 ```
 
-Uma linha. O `createViteConfig` já liga o plugin de React, o alias `@ -> ./src` e os defaults que o SDK espera. Veja a página [Vite Config](./vite-config.md) pra customizar.
+Uma chamada. O `createViteConfig` já liga o plugin de React, o alias `@ -> ./src` e os defaults que o SDK espera. Veja a página [Vite Config](./vite-config.md) pra customizar. O `tempestCsp()` escreve a Content-Security-Policy no `index.html`, no dev e no build, com o `connect-src` tirado das URLs `VITE_*` do `.env` — por isso o `cp .env.example .env` do primeiro passo importa. Veja [Content-Security-Policy](./csp.md).
 
 #### `src/App.tsx` → `AppProviders` + `AppRouter`
 
@@ -191,7 +193,7 @@ A flag funciona nos dois modos (pasta nova **e** `.`/merge). Ela **sobrepõe** o
 ```text
 my-app/
 ├── index.html                  # (sobrescrito) link do manifest + theme-color + metas apple
-├── vite.config.ts              # (sobrescrito) createViteConfig + tempestPwaIcons + Manifest + DevSw
+├── vite.config.ts              # (sobrescrito) createViteConfig + tempestPwaIcons + Manifest + DevSw + Csp
 ├── vite.sw.config.ts           # build dedicado que empacota src/sw.ts -> dist/sw.js
 ├── public/
 │   ├── manifest.webmanifest    # metadados de instalação (aponta pros PNGs gerados)

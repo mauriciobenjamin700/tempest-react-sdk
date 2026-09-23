@@ -108,6 +108,7 @@ export default defineConfig({
                 "node:url",
                 "node:fs",
                 "node:fs/promises",
+                "node:crypto",
             ],
             output: [
                 { format: "es", entryFileNames: "[name].js" },

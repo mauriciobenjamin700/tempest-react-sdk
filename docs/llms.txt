@@ -25,6 +25,7 @@
 - [Charts (recharts)](https://mauriciobenjamin700.github.io/tempest-react-sdk/charts/): Gráficos transformam números em forma: uma tendência que sobe, uma fatia que
 - [CLI `tempest`](https://mauriciobenjamin700.github.io/tempest-react-sdk/cli/): Além da CLI de scaffolding create-tempest-app, o pacote
 - [Cookbook — Receitas](https://mauriciobenjamin700.github.io/tempest-react-sdk/cookbook/): Esta página é um livro de receitas: cada seção responde a um "eu quero fazer X"
+- [Content-Security-Policy (`tempestCsp`)](https://mauriciobenjamin700.github.io/tempest-react-sdk/csp/): Uma Content-Security-Policy diz ao navegador de onde a página pode carregar
 - [Data Provider (CRUD)](https://mauriciobenjamin700.github.io/tempest-react-sdk/data-provider/): Camada de CRUD no estilo Refine fiada nas convenções de paginação e endpoints do tempest-fastapi-sdk.
 - [Anti-padrões](https://mauriciobenjamin700.github.io/tempest-react-sdk/design/anti-patterns/): As páginas anteriores dizem o que fazer. Esta diz o que você vai encontrar —
 - [Camadas de um app frontend](https://mauriciobenjamin700.github.io/tempest-react-sdk/design/architecture/): Backend tem um desenho de camadas que todo mundo reconhece: router → controller →

@@ -10,3 +10,5 @@ export { tempestIcons } from "./tempest-icons";
 export type { TempestIconsOptions } from "./tempest-icons";
 export { tempestStyles } from "./tempest-styles";
 export type { TempestStylesOptions, StyleManifest, ResetMode, TokenMode } from "./tempest-styles";
+export { tempestCsp } from "./tempest-csp";
+export type { TempestCspOptions, TempestCspPolicy, TempestCspSource } from "./tempest-csp";

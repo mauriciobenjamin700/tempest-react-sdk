@@ -86,3 +86,18 @@ describe("gallery example", () => {
         ).toEqual([]);
     });
 });
+
+describe("scaffold Content-Security-Policy", () => {
+    it.each(["template", "template-pwa"])(
+        "%s enforces a CSP from its first dev run, so a missing origin fails on the developer's machine",
+        (dir) => {
+            const config = readFileSync(join(ROOT, dir, "vite.config.ts"), "utf8");
+
+            expect(
+                config,
+                `${dir}/vite.config.ts must wire tempestCsp(): without it the scaffold ships no ` +
+                    "policy, and the first one the app writes by hand is usually build-only.",
+            ).toMatch(/plugins:\s*\[[\s\S]*tempestCsp\(\)[\s\S]*\]/);
+        },
+    );
+});

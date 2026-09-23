@@ -63,7 +63,7 @@ export function Mensagem() {
 
 ## `Select`
 
-Nativo `<select>`. Aceita `options` (lista) ou `<option>` children. Duas variantes: **`field`** (default — rótulo, controle, helper e slot de erro) e **`chip`** (só o controle, para linha de configurações).
+Nativo `<select>`. Aceita `options` (lista) ou `<option>` children. Três variantes: **`field`** (default — rótulo, controle, helper e slot de erro), **`chip`** (só o controle, para linha de configurações) e **`bare`** (o mecanismo sem a vestimenta, para app com identidade própria).
 
 ```tsx
 import { Select } from "tempest-react-sdk";
@@ -87,7 +87,9 @@ export function Estado() {
 | `label`     | `string`              | —         |
 | `helperText`| `string`              | —         |
 | `error`     | `string`              | —         |
-| `variant`   | `"field" \| "chip"`   | `"field"` |
+| `variant`   | `"field" \| "chip" \| "bare"` | `"field"` |
+| `caretIcon` | `ReactNode`           | chevron do SDK |
+| `wrapperClassName` | `string`       | —         |
 
 ### Variante `chip` — linha de configurações
 
@@ -125,6 +127,142 @@ export function LinhaIdioma({ lang, setLang }: { lang: string; setLang: (v: stri
     A saída que todo app tomava era um `<select>` nativo com `appearance: none` só para manter o formato de chip. Isso duplica o markup deste componente e **perde junto** o anel de foco por token, o estado desabilitado e o caret — tudo o que já estava resolvido aqui.
 
     A variante `field` continua idêntica: `label`, `helperText` e `error` só existem nela.
+
+### Opções a partir de um mapa — `toOptions`, `withAllOption`, `withEmptyOption`
+
+O rótulo em pt-BR de um enum da API é quase sempre um mapa `valor → rótulo`. `toOptions` converte esse mapa na lista que `Select`, `MultiSelect` e `Combobox` pedem, e duas funções põem na frente as entradas que um `<select>` não tem como representar sozinho:
+
+```tsx
+import { useState } from "react";
+import { ALL_OPTION_VALUE, Select, toOptions, withAllOption, withEmptyOption } from "tempest-react-sdk";
+
+const STATUS = { active: "Ativo", paused: "Pausado", archived: "Arquivado" };
+const HUMOR = new Map([
+    [5, "Ótimo"],
+    [3, "Ok"],
+    [1, "Ruim"],
+]);
+
+export function Filtros() {
+    const [status, setStatus] = useState(ALL_OPTION_VALUE);
+    const [humor, setHumor] = useState("");
+    const filtro = status === ALL_OPTION_VALUE ? {} : { status };
+
+    return (
+        <>
+            <Select
+                label="Status"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                options={withAllOption(toOptions(STATUS))}
+            />
+            <Select
+                label="Humor"
+                value={humor}
+                onChange={(e) => setHumor(e.target.value)}
+                options={withEmptyOption(toOptions(HUMOR))}
+            />
+            <pre>{JSON.stringify(filtro)}</pre>
+        </>
+    );
+}
+```
+
+- **`withAllOption(options, label = "Todos")`** — a entrada `"all"` ("não filtra"). Ela precisa ser uma opção de verdade, não o `placeholder`: placeholder lê como "nada escolhido", e ninguém sabe se a coluna está filtrada. Compare com `ALL_OPTION_VALUE`, não com a string.
+- **`withEmptyOption(options, label = "— Não definido —")`** — a entrada `""` de um campo anulável.
+- Nenhuma das duas muta a lista recebida.
+
+!!! danger "Sem entrada vazia, salvar o formulário grava um valor que ninguém escolheu"
+    Medido no jsdom (que implementa o algoritmo de seleção do HTML): um `<select>` controlado com `value=""` e sem opção vazia devolve **a primeira opção** (`select.value === "a"`). Abrir um formulário de edição e salvar grava esse valor. O `placeholder` do `Select` não resolve: a entrada dele é `disabled hidden`, então depois de escolher algo o campo **nunca mais volta a vazio**. Campo anulável usa `withEmptyOption`.
+
+!!! warning "Objeto reordena chave numérica — use `Map` para escala"
+    `toOptions` preserva a ordem de um `Map` sempre, e a de um objeto **exceto nas chaves inteiras**, que o JavaScript enumera primeiro e em ordem crescente (`OrdinaryOwnPropertyKeys`). Medido no Node 24: `Object.keys({ 5: "Ótimo", 3: "Ok", 1: "Ruim" })` é `["1", "3", "5"]`. Uma escala de humor não é crescente por acaso — passe um `Map`.
+
+    Toda chave vira `value` **string**, porque é string o que `event.target.value` devolve: uma opção com o número `0` volta como `"0"`, e `===` nunca bateria. Por isso a lista serve em `SelectOption[]`, `MultiSelectOption[]` e `ComboboxOption[]`.
+
+### Variante `bare` — o mecanismo sem a vestimenta
+
+As partes difíceis de um select customizado são `appearance: none` e um caret posicionado sobre o controle; a vestimenta (borda, fundo, raio, sombra, altura) é a fácil, e é justamente a que um app com identidade própria não quer. `variant="bare"` entrega só o mecanismo:
+
+```tsx
+import { Select, toOptions, withAllOption } from "tempest-react-sdk";
+
+const STATUS = { active: "Ativo", paused: "Pausado" };
+
+export function BarraDeFiltros() {
+    return (
+        <div style={{ display: "flex", gap: 12 }}>
+            <Select
+                variant="bare"
+                aria-label="Status"
+                wrapperClassName="filtro-marca"
+                options={withAllOption(toOptions(STATUS))}
+            />
+        </div>
+    );
+}
+```
+
+```css
+.filtro-marca {
+    flex: 0 0 40%;
+    height: 44px;
+    padding: 0 4%;
+    border-radius: 22px;
+    background-color: #6d28d9;
+    color: #fff;
+}
+```
+
+- Renderiza **um único** elemento de casca: `wrapper > select + caret`. A casca recebe `wrapperClassName` e **é** o item flex — não há outro `div` entre ela e a barra, então `flex: 0 0 40%` continua valendo.
+- Não pinta borda, fundo, raio, sombra nem altura. O `<select>` estica na altura da casca.
+- O `<select>` **herda `background-color` e `color`** da casca. O fundo não é estética: o menu nativo pinta cada `<option>` a partir do fundo do `<select>`, então um controle transparente devolveria o popup ao branco do sistema.
+- O anel de foco (`--tempest-focus-ring-*`) é desenhado na casca, por `:focus-within`, e segue o raio dela.
+- Como `chip`, não há rótulo visível: `aria-label` **ou** `aria-labelledby` é obrigatório no tipo.
+
+!!! tip "O caret não é capturado pelo CSS do app"
+    Medido no Chrome: uma regra de tela `.fieldset svg { width: 18.4px; height: 100% }` (especificidade 0-1-1) esticava o caret de 14 para 18,39 px. O slot do caret agora fixa o `svg` com seletor 0-2-1 e `margin: 0`, então regra de elemento do app não o alcança.
+
+### O caret — `caretIcon` e os tokens de densidade
+
+O caret é posicionado e dimensionado por dois tokens de densidade, lidos por `Select` e `Combobox`:
+
+| Densidade     | `--tempest-control-caret-offset` | `--tempest-control-caret-size` | Altura `md` |
+| ------------- | -------------------------------- | ------------------------------ | ----------- |
+| `compact`     | 10px                             | 12px                           | 34px        |
+| `comfortable` | 12px                             | 14px                           | 40px        |
+| `touch`       | 12px                             | 16px                           | 44px        |
+| `spacious`    | 14px                             | 16px                           | 44px        |
+
+Antes, o caret ficava cravado a 12 px da borda em toda densidade (medido no Chrome, com o controle indo de 34 a 44 px e o raio de 4 a 12 px). A faixa reservada para o caret no `padding` do controle é calculada dos mesmos tokens, então afastar o caret afasta junto o fim do texto. No `comfortable`, os pixels são os de antes: 12 px de afastamento e 36 px de faixa no `field`, 10 px e 30 px no `chip`.
+
+Afastar o caret da borda é um token, no escopo que você quiser:
+
+```css
+.meu-formulario {
+    --tempest-control-caret-offset: 18px;
+}
+```
+
+E trocar o ícone é uma prop — o `svg` passado é esticado ao `--tempest-control-caret-size`, então o token, não o `width` do ícone, decide o tamanho em cada densidade:
+
+```tsx
+import { ChevronsUpDown } from "lucide-react";
+import { Select } from "tempest-react-sdk";
+
+export function Ordenacao() {
+    return (
+        <Select
+            label="Ordenar por"
+            caretIcon={<ChevronsUpDown />}
+            options={[
+                { value: "recent", label: "Mais recentes" },
+                { value: "name", label: "Nome" },
+            ]}
+        />
+    );
+}
+```
 
 ## `Combobox`
 

@@ -4,6 +4,63 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`toOptions`, `withAllOption`, `withEmptyOption` e `ALL_OPTION_VALUE` — o que produz a
+  lista que `Select`, `MultiSelect` e `Combobox` pedem.** Todo painel escrevia a mesma
+  conversão `valor → rótulo` e as mesmas duas sentinelas (48 linhas em dois arquivos no
+  `relove_dashboard`, ~10 telas). As duas sentinelas não são detalhe do app, e a medição
+  confirma: no jsdom, um `<select>` controlado com `value=""` e sem opção vazia devolve
+  a **primeira opção** (`select.value === "a"`), então salvar um formulário de edição
+  intocado grava um valor que ninguém escolheu — e o `placeholder` do `Select` não cobre
+  o caso, porque a entrada dele é `disabled hidden` e o campo nunca volta a vazio.
+
+  A issue pedia "preservar a ordem de inserção"; **um objeto não consegue** para chave
+  inteira. Medido no Node 24: `Object.keys({ 5: "Ótimo", 3: "Ok", 1: "Ruim" })` é
+  `["1", "3", "5"]` (`OrdinaryOwnPropertyKeys`). `toOptions` aceita por isso também um
+  `Map`, que preserva a ordem escrita, e a doc manda escala numérica por ele. Todo
+  `value` sai `string` — é o que `event.target.value` devolve —, então a mesma lista
+  serve em `SelectOption[]`, `MultiSelectOption[]` e `ComboboxOption[]`.
+
+  Closes #354.
+
+- **`Select variant="bare"` — o mecanismo sem a vestimenta.** Entrega `appearance: none`,
+  o caret posicionado e o anel de foco, sem borda, fundo, raio, sombra nem altura. Uma
+  casca só (`wrapper > select + caret`) recebe o `wrapperClassName` e é o item flex; o
+  `<select>` herda `background-color` e `color` dela, porque o popup nativo pinta o
+  `<option>` a partir do fundo do `<select>`. O nome acessível é obrigatório no tipo
+  (`aria-label` ou `aria-labelledby`), como no `chip`. `alofans-frontend` tinha escrito o
+  próprio componente (~45 linhas de TSX + 30 de CSS) por falta disto.
+
+  O caret deixa de ser capturável pelo CSS do app: medido no Chrome, uma regra
+  `.appfield svg { width: 18.4px; height: 100% }` (0-1-1) esticava o caret do SDK de 14
+  para 18,39 px. O slot agora fixa o `svg` com seletor 0-2-1 e `margin: 0`. (O
+  deslocamento de 10 px que a issue mediu era do componente do app; no do SDK o caret é
+  absoluto e o afastamento não mudou — 12 → 12 px.)
+
+  Closes #369.
+
+- **`caretIcon` e os tokens `--tempest-control-caret-offset` /
+  `--tempest-control-caret-size`.** Medido no Chrome, na gallery: o caret ficava a 12 px
+  da borda em toda densidade enquanto o controle ia de 34 a 44 px e o raio de 4 a 12 px,
+  e `Select` e `Combobox` repetiam o número em duas folhas. Agora os dois leem os tokens
+  (`compact` 10/12 px, `comfortable` 12/14, `touch` 12/16, `spacious` 14/16), e a faixa
+  do `padding` reservada ao caret sai dos mesmos tokens — afastar o caret afasta o fim do
+  texto junto. No `comfortable` os pixels são os de antes (12 px e faixa de 36 px no
+  `field`, 10 e 30 no `chip`, 12 e 32 no `Combobox`), medidos antes e depois. O
+  `Combobox` troca o glifo `▾` pelo mesmo chevron SVG do `Select`, para o token de
+  tamanho valer nele. `caretIcon?: ReactNode` segue a convenção `icon` do resto do SDK.
+
+  Custo medido com `npx size-limit`: `styles.css` 29,87 → 30,08 kB (teto 30 → 30,5 kB),
+  pelos tokens e pela variante. A fatia "typical app" foi de 10 298 → 10 330 B brotli
+  (teto 10,3 → 10,4 kB) **sem nenhum byte de código novo**: o bundle minificado tem o
+  mesmo tamanho (29 606 B) e os mesmos módulos com os mesmos `bytesInOutput`, e difere
+  só em 161 identificadores renomeados pelo minificador (medido com `esbuild --bundle
+--minify --metafile` sobre esta branch e sobre uma `dist` da base). `br entry` +2,4 kB
+  porque o `BrazilStateCitySelect` usa o `Select`.
+
+  Closes #368.
+
 ## [0.67.0] — 2026-09-23
 
 ### Adicionado

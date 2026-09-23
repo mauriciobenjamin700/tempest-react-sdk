@@ -405,3 +405,38 @@ body {
         padding: var(--tempest-space-5);
     }
 }
+
+.gallery-filter-bar {
+    display: flex;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 12px;
+    background: #4c1d95;
+}
+
+.gallery-brand-select {
+    flex: 0 0 40%;
+    height: 44px;
+    padding: 0 4%;
+    border-radius: 22px;
+    background-color: #6d28d9;
+    color: #ffffff;
+    font-weight: 600;
+    --tempest-control-caret-offset: 18px;
+}
+
+.gallery-light-select {
+    flex: 1 1 auto;
+    height: 44px;
+    padding: 0 12px;
+    border: 2px solid #c4b5fd;
+    border-radius: 6px;
+    background-color: #faf5ff;
+    color: #3b0764;
+}
+
+.gallery-filter-bar svg {
+    width: 18.4px;
+    height: 100%;
+    margin: 0 3% 0 0;
+}

@@ -225,6 +225,7 @@ import { HoverCard } from "tempest-react-sdk";
 | `openDelay`  | `number` (ms)                            | `300`      | Delay before opening on `mouseenter`/`focus`       |
 | `closeDelay` | `number` (ms)                            | `150`      | Delay before closing on `mouseleave`/`blur`        |
 | `placement`  | `"top" \| "bottom" \| "left" \| "right"` | `"bottom"` | Where the card is anchored relative to the trigger |
+| `portal`     | `boolean`                                | `true`     | Card in `document.body`: escapes `overflow` and flips at the screen edge; a link in the card is the next `Tab` stop after the trigger |
 
 !!! info "A11y"
     The card is a labelled `role="dialog"` region; the trigger stays keyboard focusable.

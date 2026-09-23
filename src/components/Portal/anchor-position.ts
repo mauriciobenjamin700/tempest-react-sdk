@@ -35,6 +35,12 @@ export interface AnchorPlacement {
     side: AnchorSide;
 }
 
+/** What {@link useAnchorPosition} keeps between measurements. */
+interface MeasuredPlacement extends AnchorPlacement {
+    /** The anchor's width, when the layer matches it. */
+    width: number | undefined;
+}
+
 const OPPOSITE: Record<AnchorSide, AnchorSide> = {
     top: "bottom",
     bottom: "top",
@@ -123,6 +129,11 @@ export interface AnchorPositionOptions {
     offset: number;
     /** When false the hook does nothing and returns `undefined`. */
     enabled: boolean;
+    /**
+     * Give the layer the anchor's width — a listbox under its input. Default
+     * `false`.
+     */
+    matchWidth?: boolean;
 }
 
 /**
@@ -142,7 +153,15 @@ export interface AnchorPositionOptions {
  *
  * Scroll (captured, so a scrolling table wrapper counts) and resize reposition the
  * layer on the next animation frame, so a menu open inside a table that scrolls
- * follows its row instead of floating where the row used to be.
+ * follows its row instead of floating where the row used to be. So does a change
+ * in the size of either box, through a `ResizeObserver`: a combobox list flipped
+ * above its input shrinks as the user types, and a multi-select field grows a
+ * line as chips are added — without the observer the list would keep its old
+ * top and float away from the field, or cover it.
+ *
+ * With `matchWidth` the anchor's width is written to the layer **before** its
+ * height is read, so the height is measured at the width it will be painted at —
+ * a list whose options wrap at the narrower width is taller.
  *
  * The unmeasured first pass is **not** hidden with `visibility: hidden`: an
  * element under it cannot take focus, and the menu's focus effect runs before
@@ -160,8 +179,9 @@ export function useAnchorPosition({
     align,
     offset,
     enabled,
+    matchWidth = false,
 }: AnchorPositionOptions): CSSProperties | undefined {
-    const [placement, setPlacement] = useState<AnchorPlacement | null>(null);
+    const [placement, setPlacement] = useState<MeasuredPlacement | null>(null);
 
     useLayoutEffect(() => {
         if (!enabled || !anchor || !floating) {
@@ -170,7 +190,9 @@ export function useAnchorPosition({
         }
         const update = (): void => {
             const rect = anchor.getBoundingClientRect();
-            const next = computeAnchorPosition({
+            const width = matchWidth ? rect.width : undefined;
+            if (width !== undefined) floating.style.setProperty("width", `${width}px`);
+            const position = computeAnchorPosition({
                 anchor: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
                 width: floating.offsetWidth,
                 height: floating.offsetHeight,
@@ -181,11 +203,13 @@ export function useAnchorPosition({
                 offset,
                 margin: ANCHOR_VIEWPORT_MARGIN,
             });
+            const next: MeasuredPlacement = { ...position, width };
             setPlacement((current) =>
                 current &&
                 current.top === next.top &&
                 current.left === next.left &&
-                current.side === next.side
+                current.side === next.side &&
+                current.width === next.width
                     ? current
                     : next,
             );
@@ -201,13 +225,23 @@ export function useAnchorPosition({
         };
         window.addEventListener("scroll", schedule, { capture: true, passive: true });
         window.addEventListener("resize", schedule);
+        const observer =
+            typeof ResizeObserver === "undefined" ? null : new ResizeObserver(schedule);
+        observer?.observe(floating);
+        observer?.observe(anchor);
         return () => {
+            observer?.disconnect();
             if (frame !== 0) cancelAnimationFrame(frame);
             window.removeEventListener("scroll", schedule, { capture: true });
             window.removeEventListener("resize", schedule);
         };
-    }, [enabled, anchor, floating, side, align, offset]);
+    }, [enabled, anchor, floating, side, align, offset, matchWidth]);
 
     if (!enabled) return undefined;
-    return { position: "fixed", top: placement?.top ?? 0, left: placement?.left ?? 0 };
+    return {
+        position: "fixed",
+        top: placement?.top ?? 0,
+        left: placement?.left ?? 0,
+        width: placement?.width,
+    };
 }

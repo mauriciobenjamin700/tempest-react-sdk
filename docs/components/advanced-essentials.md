@@ -225,6 +225,7 @@ import { HoverCard } from "tempest-react-sdk";
 | `openDelay`  | `number` (ms)                            | `300`      | Atraso antes de abrir em `mouseenter`/`focus`   |
 | `closeDelay` | `number` (ms)                            | `150`      | Atraso antes de fechar em `mouseleave`/`blur`   |
 | `placement`  | `"top" \| "bottom" \| "left" \| "right"` | `"bottom"` | Ancoragem do card relativa ao gatilho           |
+| `portal`     | `boolean`                                | `true`     | Card em `document.body`: escapa de `overflow` e vira na borda da tela; um link no card é o próximo `Tab` depois do gatilho |
 
 !!! info "A11y"
     O card é uma `role="dialog"` rotulada; o gatilho permanece focável por teclado.

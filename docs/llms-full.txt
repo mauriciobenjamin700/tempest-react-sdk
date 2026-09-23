@@ -7989,6 +7989,7 @@ import { HoverCard } from "tempest-react-sdk";
 | `openDelay`  | `number` (ms)                            | `300`      | Atraso antes de abrir em `mouseenter`/`focus`   |
 | `closeDelay` | `number` (ms)                            | `150`      | Atraso antes de fechar em `mouseleave`/`blur`   |
 | `placement`  | `"top" \| "bottom" \| "left" \| "right"` | `"bottom"` | Ancoragem do card relativa ao gatilho           |
+| `portal`     | `boolean`                                | `true`     | Card em `document.body`: escapa de `overflow` e vira na borda da tela; um link no card é o próximo `Tab` depois do gatilho |
 
 !!! info "A11y"
     O card é uma `role="dialog"` rotulada; o gatilho permanece focável por teclado.
@@ -8271,6 +8272,14 @@ import { NavigationMenu } from "tempest-react-sdk";
 | Prop    | Tipo                   | Default | Descrição                     |
 | ------- | ---------------------- | ------- | ----------------------------- |
 | `items` | `NavigationMenuItem[]` | —       | Entradas de navegação de topo |
+| `portal` | `boolean`             | `true`  | Painel em `document.body`     |
+
+!!! info "O painel abre em portal — e é por causa do `Navbar`"
+    O slot `nav` do `Navbar` rola na horizontal (`overflow-x: auto`), e pela regra
+    do CSS isso força `overflow-y` a `auto`: um painel em fluxo ficava inteiro
+    cortado, medido no Chrome a 1440 px. Em portal ele escapa, continua logo
+    depois do gatilho na ordem de `Tab` e vira na borda da tela. `portal={false}`
+    devolve o painel em fluxo. O mesmo vale para o `Menubar`.
 
 `NavigationMenuItem` = `{ label: ReactNode; href?: string; onSelect?: () => void; children?: NavigationMenuItem[] }`.
 
@@ -8307,6 +8316,7 @@ import { Menubar } from "tempest-react-sdk";
 | Prop    | Tipo            | Default | Descrição                                         |
 | ------- | --------------- | ------- | ------------------------------------------------- |
 | `menus` | `MenubarMenu[]` | —       | Menus de topo, renderizados da esquerda à direita |
+| `portal` | `boolean`      | `true`  | Painel em `document.body`                         |
 
 `MenubarMenu` = `{ label: ReactNode; items: MenubarItem[] }`. `MenubarItem` = `{ label: ReactNode; onSelect?: () => void; disabled?: boolean; shortcut?: string }` ou `{ separator: true }`.
 
@@ -10340,6 +10350,12 @@ export function Cidade() {
 }
 ```
 
+!!! info "A lista abre em portal"
+    A lista é renderizada em `document.body`, com a largura do campo, e vira para
+    cima quando não cabe embaixo. Por isso um `Combobox` na última linha de um
+    `DataTable` — cujo wrapper rola e corta o que passa da borda — mostra a lista
+    inteira. `portal={false}` devolve a lista em fluxo.
+
 ## `MultiSelect`
 
 <!-- gallery:inputs-extra -->
@@ -10380,6 +10396,7 @@ function Example() {
 | `maxItems`     | `number`                                          | —                             |
 | `filter`       | `(option, query) => boolean`                     | —                             |
 | `emptyMessage` | `string`                                          | `"Nenhuma opção encontrada"`  |
+| `portal`       | `boolean` (lista em `document.body`)             | `true`                        |
 | `className`    | `string`                                         | —                             |
 
 `MultiSelectOption` é `{ value: string; label: string; disabled?: boolean }`.
@@ -12482,7 +12499,8 @@ export function GaleriaDaVistoria({ fotos }: { fotos: { url: string; descricao: 
 
 Todo overlay do SDK monta por portal, e o alvo do portal segue o elemento em
 **tela cheia** quando existe um — `Modal`, `Drawer`, `BottomSheet`,
-`ToastProvider`, `Command`, `ContextMenu`, `DropdownMenu`, `Popover`, `Tooltip` e o
+`ToastProvider`, `Command`, `ContextMenu`, `DropdownMenu`, `Popover`, `Tooltip`, `HoverCard`, `Combobox`,
+`MultiSelect`, `NavigationMenu`, `Menubar` e o
 `<Portal>` genérico.
 
 Isso não é conveniência: é correção. Enquanto a página está em tela cheia, o

@@ -9,6 +9,7 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFocusTrap } from "@/hooks/use-focus-trap";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
+import { useEscapeLayer } from "@/components/Portal/escape-layer";
 import { cn } from "@/utils/cn";
 import { Portal } from "../Portal";
 import styles from "./Lightbox.module.css";
@@ -110,13 +111,12 @@ export function Lightbox({
         if (!isControlled) setInternalIndex(index);
     }, [index, isControlled]);
 
+    useEscapeLayer(open, onClose);
+
     useEffect(() => {
         if (!open) return;
         function onKeyDown(event: KeyboardEvent): void {
             switch (event.key) {
-                case "Escape":
-                    onClose();
-                    break;
                 case "ArrowRight":
                     move(current + 1);
                     break;
@@ -136,7 +136,7 @@ export function Lightbox({
         }
         document.addEventListener("keydown", onKeyDown);
         return () => document.removeEventListener("keydown", onKeyDown);
-    }, [current, items.length, move, onClose, open]);
+    }, [current, items.length, move, open]);
 
     useEffect(() => {
         if (!open || typeof Image === "undefined") return;

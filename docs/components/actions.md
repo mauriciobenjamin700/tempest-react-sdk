@@ -121,6 +121,10 @@ export function ExcluirComDica() {
 | `openDelay` | `number` (ms antes de aparecer)          | `150`   |
 | `disabled`  | `boolean` (desliga sem mexer no trigger) | `false` |
 
+`Escape` esconde a dica sem mover o ponteiro nem o foco, como pede o WCAG 2.2
+SC 1.4.13. Dentro de um `Modal`, o primeiro `Escape` esconde a dica e o segundo
+fecha o modal.
+
 !!! warning "Não esconda informação essencial num tooltip"
     Usuários de touch não têm hover — eles nunca verão o conteúdo. Tooltip é reforço, não a única fonte de uma informação necessária para concluir a tarefa.
 

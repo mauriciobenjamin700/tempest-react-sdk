@@ -2,6 +2,7 @@
    run on user events (hover/focus), never during render */
 import { cloneElement, useEffect, useId, useRef, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
+import { useEscapeLayer } from "@/components/Portal/escape-layer";
 import { cn } from "@/utils/cn";
 import styles from "./Tooltip.module.css";
 
@@ -24,6 +25,11 @@ export interface TooltipProps {
  * Lightweight tooltip. Shows on hover and on focus (keyboard-friendly). Wraps
  * a single child element via `cloneElement`, so the trigger keeps its own ref
  * and props.
+ *
+ * `Escape` hides it without moving the pointer or the focus, which is what
+ * WCAG 2.2 SC 1.4.13 (Content on Hover or Focus) asks of content that appears on
+ * hover. It is an `Escape` layer like the overlays, so inside a `Modal` the first
+ * press hides the tooltip and the second closes the modal.
  */
 export function Tooltip({
     content,
@@ -67,6 +73,8 @@ export function Tooltip({
             clearTimer();
         };
     }, []);
+
+    useEscapeLayer(open, hide);
 
     const trigger = cloneElement(children, {
         onMouseEnter: show,

@@ -8,6 +8,7 @@
 import { useEffect } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useEscapeLayer } from "@/components/Portal/escape-layer";
 import { cn } from "@/utils/cn";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
 import styles from "./Drawer.module.css";
@@ -58,17 +59,13 @@ export function Drawer({
     const effectivePlacement: DrawerPlacement =
         isMobile && mobilePlacement ? mobilePlacement : placement;
 
+    useEscapeLayer(open, closeOnEsc ? onClose : null);
     useEffect(() => {
         if (!open) return;
         const previousOverflow = document.body.style.overflow;
         document.body.style.overflow = "hidden";
-        const handleKey = (event: KeyboardEvent): void => {
-            if (closeOnEsc && event.key === "Escape") onClose();
-        };
-        window.addEventListener("keydown", handleKey);
         return () => {
             document.body.style.overflow = previousOverflow;
-            window.removeEventListener("keydown", handleKey);
         };
     }, [open, closeOnEsc, onClose]);
 

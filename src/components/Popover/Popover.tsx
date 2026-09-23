@@ -6,6 +6,7 @@
  */
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
+import { useEscapeLayer } from "@/components/Portal/escape-layer";
 import { cn } from "@/utils/cn";
 import styles from "./Popover.module.css";
 
@@ -63,24 +64,21 @@ export function Popover({
         [isControlled, onOpenChange],
     );
 
+    useEscapeLayer(isOpen && closeOnEsc, () => setOpen(false));
+
     useEffect(() => {
         if (!isOpen) return;
-        const onKey = (event: KeyboardEvent): void => {
-            if (closeOnEsc && event.key === "Escape") setOpen(false);
-        };
         const onDown = (event: MouseEvent): void => {
             if (!closeOnOutsideClick) return;
             if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
                 setOpen(false);
             }
         };
-        window.addEventListener("keydown", onKey);
         window.addEventListener("mousedown", onDown);
         return () => {
-            window.removeEventListener("keydown", onKey);
             window.removeEventListener("mousedown", onDown);
         };
-    }, [isOpen, closeOnEsc, closeOnOutsideClick, setOpen]);
+    }, [isOpen, closeOnOutsideClick, setOpen]);
 
     const handleTriggerClick = (event: React.MouseEvent): void => {
         trigger.props.onClick?.(event);

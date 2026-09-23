@@ -5,6 +5,7 @@
  */
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
+import { useEscapeLayer } from "@/components/Portal/escape-layer";
 import { cn } from "@/utils/cn";
 import styles from "./Menubar.module.css";
 
@@ -69,14 +70,14 @@ export function Menubar({ menus, className, ...props }: MenubarProps) {
         setOpenIndex(-1);
     }, []);
 
+    useEscapeLayer(openIndex !== -1, () => {
+        close();
+        triggerRefs.current[openIndex]?.focus();
+    });
+
     useEffect(() => {
         if (openIndex === -1) return;
         const onKey = (event: KeyboardEvent): void => {
-            if (event.key === "Escape") {
-                close();
-                triggerRefs.current[openIndex]?.focus();
-                return;
-            }
             if (event.key === "ArrowRight") {
                 event.preventDefault();
                 const next = (openIndex + 1) % menus.length;

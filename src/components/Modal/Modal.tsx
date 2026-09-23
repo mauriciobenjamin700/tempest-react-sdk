@@ -8,6 +8,7 @@
 import { useEffect, useId } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useEscapeLayer } from "@/components/Portal/escape-layer";
 import { cn } from "@/utils/cn";
 import styles from "./Modal.module.css";
 import { usePortalHost } from "../Portal/portal-host";
@@ -61,21 +62,15 @@ export function Modal({
     "aria-label": ariaLabel,
 }: ModalProps) {
     const titleId = useId();
+    useEscapeLayer(open, closeOnEsc ? onClose : null);
     useEffect(() => {
         if (!open) return;
         const previousOverflow = document.body.style.overflow;
         document.body.style.overflow = "hidden";
-
-        const handleKey = (event: KeyboardEvent): void => {
-            if (closeOnEsc && event.key === "Escape") onClose();
-        };
-        window.addEventListener("keydown", handleKey);
-
         return () => {
             document.body.style.overflow = previousOverflow;
-            window.removeEventListener("keydown", handleKey);
         };
-    }, [open, closeOnEsc, onClose]);
+    }, [open]);
 
     const portalHost = usePortalHost();
 

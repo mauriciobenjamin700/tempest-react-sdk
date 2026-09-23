@@ -1,7 +1,15 @@
 /* eslint-disable react-hooks/refs -- the structural cache is read and written during render by design (see the docstring) */
 import { useRef } from "react";
 
-function deepEqual(a: unknown, b: unknown): boolean {
+/**
+ * Structural equality over plain objects and arrays, the comparison `useDeepMemo`
+ * and `useDraftFilters` share. Internal: not re-exported from the barrel.
+ *
+ * @param a - First value.
+ * @param b - Second value.
+ * @returns Whether both values have the same shape and leaves.
+ */
+export function deepEqual(a: unknown, b: unknown): boolean {
     if (Object.is(a, b)) return true;
     if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) return false;
     if (Array.isArray(a) !== Array.isArray(b)) return false;

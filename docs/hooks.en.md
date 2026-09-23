@@ -75,6 +75,7 @@ browser-guarded and independent hooks — import only what you need.
 | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `usePagination(initialPage?, initialSize?)`       | `{ page, size, setPage, setSize, reset }`.                                                                        |
 | `useClientFilter(items, search, keysOrPredicate)` | Client-side filter by keys or predicate (memoized). Items are objects (`T extends Record<string, unknown>`).       |
+| `useDraftFilters(initial, { onApply?, isEqual? })` | Draft vs applied state for a server-side filter: `{ draft, applied, isDirty, set, apply, clear }`. Applying happens in the event, never in an effect — one click, one request. |
 | `useLocalStorage<T>(key, default)`                | State persisted to localStorage + synced cross-tab via the `storage` event. browser-guarded.                             |
 | `useToggle(initial?)`                             | `[value, { toggle, setTrue, setFalse, set }]` — sugar for boolean state.                                          |
 | `useAsync<T>(fn, deps?, { immediate? })`          | Tracks `idle/pending/success/error`. `{ status, data, error, run, reset }`. Distinct from React Query (no cache). |
@@ -518,6 +519,71 @@ function Quantity() {
 ```
 
 `useCounter(initial, { min, max })` clamps the value — `increment`/`decrement`/`set` respect the bounds.
+
+### Draft vs applied — `useDraftFilters`
+
+A **server-side** filter cannot react to every keystroke: each typed character would be a request. The pattern is always the same — a draft the bar edits freely, and an applied value that only changes on click (or Enter).
+
+```tsx
+import { Button, Input, useDraftFilters, usePaginatedQuery, type OffsetPage } from "tempest-react-sdk";
+
+interface AppError {
+  id: number;
+  code: string;
+}
+
+async function listErrors(params: Record<string, unknown>): Promise<OffsetPage<AppError>> {
+  const response = await fetch(`/api/errors?${new URLSearchParams(params as Record<string, string>)}`);
+  return (await response.json()) as OffsetPage<AppError>;
+}
+
+export function Logs() {
+  const filters = useDraftFilters({ code: "" });
+  const errors = usePaginatedQuery<AppError>({
+    queryKey: ["errors", filters.applied],
+    queryFn: (params) => listErrors({ ...params, ...filters.applied }),
+  });
+
+  return (
+    <>
+      <Input
+        label="Code"
+        value={filters.draft.code}
+        onChange={(e) => filters.set({ code: e.target.value })}
+      />
+      <Button disabled={!filters.isDirty} onClick={() => filters.apply()}>
+        Apply
+      </Button>
+      <Button variant="ghost" onClick={filters.clear}>
+        Clear
+      </Button>
+      <ul>
+        {errors.items.map((error) => (
+          <li key={error.id}>
+            <Button variant="link" onClick={() => filters.apply({ code: error.code })}>
+              {error.code}
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+```
+
+- `set(partial)` edits only the draft. `apply()` publishes the draft; `apply(partial)` writes **and** publishes in the same gesture — the "filter by this code" of a table row, which with two `setState`s would read the stale draft.
+- `clear()` returns the draft and the applied value to the initial one, **together**: resetting only one leaves a filtered list under an empty bar, or the opposite.
+- `isDirty` is `false` right after `apply()` and `clear()` — it is what enables the button.
+- `applied` keeps the **same reference** while nobody applies something different, so it can be a `queryKey` without a phantom refetch.
+
+!!! check "The page goes back to 1 on its own"
+    Filtering while on page 7 asked for page 7 of a result that now has two, and the screen came back empty. Measured (test in `src/query/use-paginated-query.test.tsx`): before 0.68.0 the requests were `[":page=1", ":page=7", "AUTH:page=7"]`; now they are `[":page=1", ":page=7", "AUTH:page=1"]`. The fix lives in `usePaginatedQuery`, not here: **any** structural change of the `queryKey` resets the page, in the same render — with or without this hook.
+
+!!! tip "Keeping the page yourself? Use `onApply`"
+    If the page lives in your own `useState` (or in the URL), `useDraftFilters(EMPTY, { onApply: () => setPage(1) })` — it runs on every `apply()` and `clear()`.
+
+!!! info "No effect in there"
+    Applying happens in the event that asked for it, never in a `useEffect` watching the draft. That is what guarantees one request per click.
 
 ### List as state — `useListState`
 

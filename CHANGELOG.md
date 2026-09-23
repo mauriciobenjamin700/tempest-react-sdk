@@ -4,6 +4,32 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`useDraftFilters(initial, { onApply?, isEqual? })` — rascunho × aplicado de filtro
+  server-side.** `{ draft, applied, isDirty, set, apply, clear }`. `apply(parcial)` grava
+  o rascunho **e** publica no mesmo gesto, lendo de uma ref que toda chamada mantém em
+  dia, então "filtrar por este código" numa linha da tabela não lê o rascunho velho.
+  `clear()` move as duas metades juntas. `applied` mantém a referência enquanto nada
+  diferente é aplicado (igualdade estrutural), então serve de `queryKey` sem refetch
+  fantasma. Nenhum `useEffect`: um clique, uma requisição — medido na gallery, digitar
+  "AUTH" manteve o contador em 2 requisições, e o Enter levou a 3.
+
+  Closes #356.
+
+### Corrigido
+
+- **`usePaginatedQuery` volta para a página 1 quando a `queryKey` muda.** O detalhe 1 da
+  #356 ("filtrar na página 7 pede a página 7") não era do padrão de rascunho: era do
+  hook, com qualquer mudança de filtro. Medido com um teste no hook, estando na página 7
+  e trocando `{ code: "" }` por `{ code: "AUTH" }` na `queryKey`: as requisições eram
+  `[":page=1", ":page=7", "AUTH:page=7"]`, de um resultado de 2 páginas, com a tabela
+  vazia e `pageNumber` 7 > `pageCount` 2. Agora são
+  `[":page=1", ":page=7", "AUTH:page=1"]`. A comparação é por `hashKey` (estrutural), e o reset acontece **no
+  mesmo render** em que a chave muda — um efeito deixaria um render sair com a chave nova
+  e a página velha, e esse render é uma requisição. Mudança de comportamento: quem
+  dependia de a página sobreviver a uma troca de chave passa a começar da 1.
+
 ## [0.67.0] — 2026-09-23
 
 ### Adicionado

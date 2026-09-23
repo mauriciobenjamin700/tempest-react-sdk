@@ -189,8 +189,16 @@ export type { SearchBarProps } from "./SearchBar";
 export { SegmentedControl } from "./SegmentedControl";
 export type { SegmentedControlOption, SegmentedControlProps } from "./SegmentedControl";
 
-export { Select } from "./Select";
-export type { SelectOption, SelectProps } from "./Select";
+export { ALL_OPTION_VALUE, Select, toOptions, withAllOption, withEmptyOption } from "./Select";
+export type {
+    OptionEntry,
+    SelectBareProps,
+    SelectBaseProps,
+    SelectChipProps,
+    SelectFieldProps,
+    SelectOption,
+    SelectProps,
+} from "./Select";
 
 export { activeNavKey, Sidebar } from "./Sidebar";
 export type {

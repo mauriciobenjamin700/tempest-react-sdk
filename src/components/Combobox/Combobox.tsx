@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Portal } from "@/components/Portal";
 import { useAnchorPosition } from "@/components/Portal/anchor-position";
+import { CaretIcon } from "@/components/Select/CaretIcon";
 import { cn } from "@/utils/cn";
 import styles from "./Combobox.module.css";
 
@@ -222,7 +223,7 @@ export function Combobox({
                     onKeyDown={handleKeyDown}
                 />
                 <span className={styles.caret} aria-hidden>
-                    ▾
+                    <CaretIcon />
                 </span>
             </div>
             {open && (portal ? <Portal>{list}</Portal> : list)}

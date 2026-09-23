@@ -1,6 +1,24 @@
 import { useState } from "react";
-import { Input, ListTile, SearchBar, Select, Textarea } from "tempest-react-sdk";
+import { ChevronsUpDown } from "lucide-react";
+import {
+    ALL_OPTION_VALUE,
+    Input,
+    ListTile,
+    SearchBar,
+    Select,
+    Textarea,
+    toOptions,
+    withAllOption,
+    withEmptyOption,
+} from "tempest-react-sdk";
 import { Example } from "../Example";
+
+const STATUS = { active: "Ativo", paused: "Pausado", archived: "Arquivado" };
+const HUMOR = new Map([
+    [5, "Ótimo"],
+    [3, "Ok"],
+    [1, "Ruim"],
+]);
 
 export function FormFieldsSection() {
     const [email, setEmail] = useState("");
@@ -8,6 +26,8 @@ export function FormFieldsSection() {
     const [bio, setBio] = useState("");
     const [country, setCountry] = useState("");
     const [lang, setLang] = useState("pt");
+    const [status, setStatus] = useState(ALL_OPTION_VALUE);
+    const [humor, setHumor] = useState("");
 
     const emailError =
         email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? "Email inválido." : undefined;
@@ -105,6 +125,53 @@ export function FormFieldsSection() {
                                 ]}
                             />
                         }
+                    />
+                </div>
+            </Example>
+
+            <Example
+                title="Select — variante bare com a vestimenta do app"
+                note='variant="bare" entrega appearance: none, caret e anel de foco, sem borda, fundo, raio, sombra nem altura. A casca (wrapperClassName) é o item flex e veste; o select herda fundo e cor. A barra tem uma regra ".gallery-filter-bar svg" de app que não captura o caret.'
+                code={`const STATUS = { active: "Ativo", paused: "Pausado", archived: "Arquivado" };
+const HUMOR = new Map([[5, "Ótimo"], [3, "Ok"], [1, "Ruim"]]);
+
+<div className="gallery-filter-bar">
+    <Select
+        variant="bare"
+        aria-label="Status"
+        wrapperClassName="gallery-brand-select"
+        value={status}
+        onChange={(e) => setStatus(e.target.value)}
+        options={withAllOption(toOptions(STATUS))}
+    />
+    <Select
+        variant="bare"
+        aria-label="Humor"
+        wrapperClassName="gallery-light-select"
+        caretIcon={<ChevronsUpDown />}
+        value={humor}
+        onChange={(e) => setHumor(e.target.value)}
+        options={withEmptyOption(toOptions(HUMOR))}
+    />
+</div>`}
+            >
+                <div className="gallery-filter-bar">
+                    <Select
+                        variant="bare"
+                        aria-label="Status"
+                        wrapperClassName="gallery-brand-select"
+                        value={status}
+                        onChange={(e) => setStatus(e.target.value)}
+                        options={withAllOption(toOptions(STATUS))}
+                    />
+                    <Select
+                        variant="bare"
+                        aria-label="Humor"
+                        wrapperClassName="gallery-light-select"
+                        caretIcon={<ChevronsUpDown />}
+                        value={humor}
+                        onChange={(e) => setHumor(e.target.value)}
+                        options={withEmptyOption(toOptions(HUMOR))}
                     />
                 </div>
             </Example>

@@ -45,6 +45,7 @@ const BLOCK_END = "<!-- /gallery -->";
  */
 const SECTION_OVERRIDES = {
     AIChatComposer: "aichat",
+    ALL_OPTION_VALUE: "form-fields",
     AIChatTurn: "aichat",
     AudioPlayer: "audio-capture",
     VideoPlayer: "video-player",

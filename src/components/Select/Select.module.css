@@ -18,6 +18,9 @@
 }
 
 .field {
+    --_tempest-caret-offset: var(--tempest-control-caret-offset, 12px);
+    --_tempest-caret-size: var(--tempest-control-caret-size, 14px);
+    --_tempest-caret-gap: 10px;
     position: relative;
     display: flex;
     align-items: center;
@@ -26,7 +29,9 @@
 .select {
     width: 100%;
     height: var(--tempest-control-height-md);
-    padding: 0 36px 0 var(--tempest-control-padding-md);
+    padding: 0
+        calc(var(--_tempest-caret-offset) + var(--_tempest-caret-size) + var(--_tempest-caret-gap))
+        0 var(--tempest-control-padding-md);
     border: 1px solid var(--tempest-border);
     border-radius: var(--tempest-control-radius);
     background-color: var(--tempest-bg);
@@ -59,9 +64,22 @@
 
 .caret {
     position: absolute;
-    right: 12px;
+    right: var(--_tempest-caret-offset);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--_tempest-caret-size);
+    height: var(--_tempest-caret-size);
     pointer-events: none;
     color: var(--tempest-text-muted);
+}
+
+.field > .caret > svg {
+    display: block;
+    flex: none;
+    width: 100%;
+    height: 100%;
+    margin: 0;
 }
 
 .error .select {
@@ -90,19 +108,62 @@
 }
 
 .chip {
+    --_tempest-caret-offset: calc(var(--tempest-control-caret-offset, 12px) - 2px);
+    --_tempest-caret-gap: 6px;
     width: auto;
 }
 
 .chip .select {
     width: auto;
     height: var(--tempest-control-height-sm);
-    padding: 0 30px 0 var(--tempest-space-3);
+    padding: 0
+        calc(var(--_tempest-caret-offset) + var(--_tempest-caret-size) + var(--_tempest-caret-gap))
+        0 var(--tempest-space-3);
     border-radius: var(--tempest-radius-full);
     background-color: var(--tempest-surface);
     font-size: var(--tempest-text-sm);
     box-shadow: none;
 }
 
-.chip .caret {
-    right: 10px;
+.bare {
+    display: inline-flex;
+}
+
+.bare .select {
+    flex: 1 1 auto;
+    align-self: stretch;
+    min-width: 0;
+    height: auto;
+    margin: 0;
+    padding-block: 0;
+    padding-inline-start: 0;
+    border: 0;
+    border-radius: inherit;
+    background-color: inherit;
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    box-shadow: none;
+}
+
+.bare .select:focus {
+    box-shadow: none;
+}
+
+.bare:focus-within {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: 2px;
+}
+
+.bare .select:disabled {
+    background-color: inherit;
+    color: inherit;
+}
+
+.bare:has(> .select:disabled) {
+    opacity: 0.6;
+}
+
+.bare .caret {
+    color: inherit;
 }

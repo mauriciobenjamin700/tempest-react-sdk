@@ -43,7 +43,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
   Custo medido com `npx size-limit`, `main` (0.66.0) contra esta branch: barrel ESM
   131,14 → 131,54 kB (+0,40 kB), CJS 156,43 → 156,61 kB (+0,18 kB). Os tetos vão
-  para 132,5 / 157,5 kB, os mesmos valores do #371, que já subia os dois.
+  para 133,5 / 159 kB, o mesmo valor do #371 e do #373: os três tocam a mesma
+  linha, e #371 + #374 juntos já passavam do teto anterior no CJS (157,85 kB).
   Closes #372.
 
 ## [0.66.0] — 2026-09-19

@@ -7,6 +7,8 @@
  */
 import { bytesToBase64 } from "@/utils/base64";
 import { isTrustedCredentialTarget, reportSuppressedCredential } from "./credential-scope";
+import { csrfHeaders } from "./csrf";
+import type { CsrfOptions } from "./csrf";
 import { buildApiError, isApiError, isRetriableStatus, TempestApiError } from "./errors";
 import { generateIdempotencyKey } from "./idempotency";
 import { retry, type RetryOptions } from "./retry";
@@ -96,6 +98,17 @@ export interface ResumableUploadOptions {
     trustedOrigins?: readonly string[];
     /** Send cookies. Default `false`. */
     withCredentials?: boolean;
+    /**
+     * Send a CSRF token on the creation `POST`, every chunk `PATCH` and the
+     * discarding `DELETE` — never on the offset `HEAD`. Off by default; `true`
+     * reads the `csrf_token` cookie into `X-CSRF-Token`, as `createApiClient`
+     * does.
+     *
+     * Scoped like the bearer token, to `endpoint`'s origin plus
+     * {@link trustedOrigins}: a `Location` pointing at object storage on
+     * another host gets neither.
+     */
+    csrf?: boolean | CsrfOptions;
     /**
      * Resume key. Defaults to a fingerprint of endpoint + file name/size/mtime, so
      * picking the same file after a reload resumes instead of restarting.
@@ -463,6 +476,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
         getToken,
         trustedOrigins,
         withCredentials = false,
+        csrf,
         key = uploadFingerprint(endpoint, file),
         storage = createLocalUploadStorage(),
         retry: retryOptions,
@@ -504,10 +518,14 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
      * the bearer token followed that header wherever it pointed, along with the
      * file bytes.
      *
+     * The CSRF token follows the same scope, and only on the methods that
+     * write — which is why the method is a parameter too.
+     *
      * @param target - The URL this particular request goes to.
+     * @param method - The HTTP method of this request.
      * @returns The headers to send.
      */
-    function baseHeaders(target: string): Record<string, string> {
+    function baseHeaders(target: string, method: string): Record<string, string> {
         const result: Record<string, string> = { ...headers, "Tus-Resumable": TUS_VERSION };
         const token = getToken?.();
         if (token && !("Authorization" in result)) {
@@ -517,6 +535,17 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
                 reportSuppressedCredential(target, endpoint);
             }
         }
+        Object.assign(
+            result,
+            csrfHeaders({
+                method,
+                url: target,
+                reference: endpoint,
+                csrf,
+                trustedOrigins,
+                headers,
+            }),
+        );
         return result;
     }
 
@@ -542,7 +571,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
         const response = await sendRequest({
             method: "HEAD",
             url: target,
-            headers: baseHeaders(target),
+            headers: baseHeaders(target, "HEAD"),
             withCredentials,
             register,
         });
@@ -594,7 +623,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
         }
 
         const creationHeaders: Record<string, string> = {
-            ...baseHeaders(endpoint),
+            ...baseHeaders(endpoint, "POST"),
             "Upload-Length": String(file.size),
             "Idempotency-Key": idempotencyKey,
         };
@@ -633,7 +662,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
             method: "PATCH",
             url: target,
             headers: {
-                ...baseHeaders(target),
+                ...baseHeaders(target, "PATCH"),
                 "Content-Type": "application/offset+octet-stream",
                 "Upload-Offset": String(from),
             },
@@ -750,7 +779,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
                 await sendRequest({
                     method: "DELETE",
                     url,
-                    headers: baseHeaders(url),
+                    headers: baseHeaders(url, "DELETE"),
                     withCredentials,
                     register: () => undefined,
                 }).catch(() => undefined);

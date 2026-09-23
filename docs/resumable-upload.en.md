@@ -219,6 +219,8 @@ const upload = createResumableUpload({
 
     The same applies to the persisted record: a `url` in `localStorage` pointing off-origin does not get the token back on resume.
 
+    The `csrf` option follows the same rule: the CSRF token goes on the creation `POST`, every `PATCH` and the discarding `DELETE` — never on the offset `HEAD` — and only to the `endpoint`'s origin and the `trustedOrigins`. See [CSRF](./http.md#csrf-a-session-cookie-needs-its-pair).
+
 !!! warning "`XMLHttpRequest`, not `fetch`"
     As in `uploadWithProgress`: `fetch` still cannot report **upload** progress in any browser. There is a second reason here — tus returns the new offset in a **response header**, and `uploadWithProgress` only hands back a parsed body, so it could not be reused.
 

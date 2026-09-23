@@ -353,6 +353,20 @@ export const auth = createTempestAuth<User>({
 !!! danger "Where to store the token"
     The preset persists to `localStorage` by default (DX). For sensitive apps, prefer the refresh token in an **httpOnly cookie** (`withCredentials: true`) — that way JS never touches it.
 
+    A cookie takes the token out of JS's reach and puts it in CSRF's: the browser attaches the cookie to a `POST /auth/refresh` that **another** site triggered. The pair is `csrf: true`, which echoes `CSRFMiddleware`'s `csrf_token` cookie in `X-CSRF-Token` on every write — login and refresh included:
+
+    ```tsx
+    import { createTempestAuth } from "tempest-react-sdk";
+
+    export const auth = createTempestAuth({
+        baseURL: import.meta.env.VITE_API_URL,
+        withCredentials: true,
+        csrf: true,
+    });
+    ```
+
+    The backend has to mount `CSRFMiddleware` and issue the cookie on a `GET` route before the first write. See [CSRF](./http.md#csrf-a-session-cookie-needs-its-pair).
+
 ---
 
 ## 6. Generating services from OpenAPI

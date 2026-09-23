@@ -219,6 +219,8 @@ const upload = createResumableUpload({
 
     Vale também para o registro persistido: uma `url` guardada no `localStorage` apontando para fora não recupera o token na retomada.
 
+    A opção `csrf` segue a mesma regra: o token CSRF vai no `POST` de criação, em cada `PATCH` e no `DELETE` do descarte — nunca no `HEAD` de offset — e só para a origem do `endpoint` e as `trustedOrigins`. Ver [CSRF](./http.md#csrf-o-cookie-de-sessao-precisa-de-um-par).
+
 !!! warning "`XMLHttpRequest`, não `fetch`"
     Como em `uploadWithProgress`: `fetch` ainda não reporta progresso de **upload** em navegador nenhum. Aqui há um segundo motivo — o tus devolve o novo offset num **header de resposta**, e `uploadWithProgress` só entrega corpo parseado, então não dava pra reaproveitar.
 

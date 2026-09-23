@@ -110,6 +110,7 @@ plugins:
                     CLI tempest: tempest CLI
                     OpenAPI (codegen): OpenAPI (codegen)
                     Vite & alias: Vite & alias
+                    Content-Security-Policy: Content-Security-Policy
                     Roteamento: Routing
                     Geolocalização: Geolocation
                     Mapa do Brasil (br): Brazil map (br)
@@ -247,6 +248,7 @@ nav:
                 - Scaffold (create-tempest-app): scaffold.md
                 - CLI tempest: cli.md
                 - Vite & alias: vite-config.md
+                - Content-Security-Policy: csp.md
                 - OpenAPI (codegen): openapi.md
                 - Gallery (demo): gallery.md
     - Design de Software:

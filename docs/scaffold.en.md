@@ -100,7 +100,7 @@ my-app/
 ├── index.html
 ├── package.json          # deps: react, react-dom, tempest-react-sdk; devDeps: vite, @vitejs/plugin-react, typescript, @types/*
 ├── tsconfig.json         # @ -> ./src alias in "paths"
-├── vite.config.ts        # export default createViteConfig()
+├── vite.config.ts        # createViteConfig({ plugins: [tempestCsp()] })
 ├── .env.example          # VITE_API_URL
 ├── .gitignore
 └── src/
@@ -130,12 +130,14 @@ Let's look at the three most important ones.
 #### `vite.config.ts` → `createViteConfig`
 
 ```ts
-import { createViteConfig } from "tempest-react-sdk/vite";
+import { createViteConfig, tempestCsp } from "tempest-react-sdk/vite";
 
-export default createViteConfig();
+export default createViteConfig({
+    plugins: [tempestCsp()],
+});
 ```
 
-One line. `createViteConfig` already wires up the React plugin, the `@ -> ./src` alias, and the defaults the SDK expects. See the [Vite Config](./vite-config.md) page to customize.
+One call. `createViteConfig` already wires up the React plugin, the `@ -> ./src` alias, and the defaults the SDK expects. See the [Vite Config](./vite-config.md) page to customize. `tempestCsp()` writes the Content-Security-Policy into `index.html`, in dev and build alike, with `connect-src` taken from the `VITE_*` URLs in `.env` — which is why the first step's `cp .env.example .env` matters. See [Content-Security-Policy](./csp.md).
 
 #### `src/App.tsx` → `AppProviders` + `AppRouter`
 
@@ -191,7 +193,7 @@ The flag works in both modes (new folder **and** `.`/merge). It **overlays** the
 ```text
 my-app/
 ├── index.html                  # (overwritten) manifest link + theme-color + apple metas
-├── vite.config.ts              # (overwritten) createViteConfig + tempestPwaIcons + Manifest + DevSw
+├── vite.config.ts              # (overwritten) createViteConfig + tempestPwaIcons + Manifest + DevSw + Csp
 ├── vite.sw.config.ts           # dedicated build that bundles src/sw.ts -> dist/sw.js
 ├── public/
 │   ├── manifest.webmanifest    # install metadata (points at the generated PNGs)

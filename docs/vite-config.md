@@ -181,6 +181,11 @@ Todas as opções são opcionais.
 | `plugins`   | `unknown[]`                        | —             | Plugins Vite acrescentados depois do plugin React.                                 |
 | `overrides` | `Record<string, unknown>`          | —             | `UserConfig` arbitrário com deep-merge por último.                                 |
 
+
+!!! tip "Content-Security-Policy"
+    O `tempestCsp()` mora no mesmo subpath e deriva o `connect-src` das variáveis
+    `VITE_*` que o app lê em runtime. Veja [Content-Security-Policy](csp.md).
+
 ## Recap
 
 - Importe `createViteConfig` de **`tempest-react-sdk/vite`** — subpath dedicado de

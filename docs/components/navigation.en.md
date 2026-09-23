@@ -216,6 +216,7 @@ export function Lateral() {
 | `items`          | `SidebarEntry[]`               | —       |
 | `value`          | `string`                       | —       |
 | `onChange`       | `(key: string) => void`        | —       |
+| `match`          | `"key" \| "route"`             | `"key"` |
 | `footer`         | `ReactNode`                    | —       |
 | `collapsed`      | `boolean`                      | `false` |
 | `width`          | `number \| string` (px or CSS) | `240`   |
@@ -336,6 +337,94 @@ shows up in the context menu, and a screen reader announces a link rather than a
 button. A `disabled` item ignores `href` and stays a `<button disabled>`: an
 anchor has no disabled state, and dropping the `href` to fake one leaves a link
 that announces itself as actionable and is not.
+
+### Active item from the route
+
+When each item's `key` (or `href`) is a URL, the `pathname` almost never equals
+one of them: `/dashboard/tips/42` has to highlight `/dashboard/tips`. Pass the
+route as `value` with `match="route"` and the component resolves it:
+
+```tsx
+import { useLocation } from "react-router";
+import { Sidebar } from "tempest-react-sdk";
+
+export function PanelNav() {
+    const { pathname } = useLocation();
+
+    return (
+        <Sidebar
+            match="route"
+            value={pathname}
+            items={[
+                { key: "overview", label: "Overview", href: "/dashboard" },
+                { key: "tips", label: "Tips", href: "/dashboard/tips" },
+                { key: "users", label: "Users", href: "/users" },
+                { key: "admins", label: "Admins", href: "/users-admin" },
+            ]}
+        />
+    );
+}
+```
+
+The active item is the one with the **longest path covering the route, on a
+segment boundary**. It compares against the item's `href`, or its `key` when it
+has no `href`; sections and separators take no part.
+
+| Route                | Active   | Why                                                 |
+| -------------------- | -------- | --------------------------------------------------- |
+| `/dashboard/tips/42` | Tips     | longest wins — `/dashboard` covers it too           |
+| `/dashboard/tip`     | Overview | `/dashboard/tip` is not a segment of `/dashboard/tips` |
+| `/users-admin/3`     | Admins   | `/users` does not cover `/users-admin`              |
+| `/users/?tab=2#top`  | Users    | trailing slash, query and hash are ignored          |
+| `/reports`           | none     | nothing covers the route                            |
+
+!!! info "Why not `find` + `startsWith`"
+    The `items.find((i) => pathname.startsWith(i.href))` every panel writes first
+    gets 8 of the 11 cases measured in #357 wrong: the array order
+    decides the winner (`/dashboard` stays lit on every screen) and
+    `/dashboard/tip` lights `/dashboard/tips`. react-router's `NavLink` does not
+    solve it either: each link decides on its own, so on `/dashboard/tips/42`
+    **two** items get `aria-current="page"`.
+
+!!! tip "The root `/` lights only on `/`"
+    Same rule as `NavLink`. A root that prefixed everything would light "Home" on
+    every screen the menu does not list.
+
+The component reads no router — `value` comes in as a string — so it keeps
+working with no `<Router>` mounted (`window.location.pathname` works).
+
+#### `activeNavKey` — the same resolution, outside `Sidebar`
+
+`BottomNavigation`, `NavigationRail` or the menu inside a `Drawer` take `value` as
+a `key`. For them, the pure function returns the active key:
+
+```tsx
+import { useLocation } from "react-router";
+import { activeNavKey, BottomNavigation } from "tempest-react-sdk";
+
+const items = [
+    { key: "/dashboard", label: "Panel" },
+    { key: "/dashboard/tips", label: "Tips" },
+];
+
+export function MobileNav() {
+    const { pathname } = useLocation();
+
+    return (
+        <BottomNavigation
+            items={items}
+            value={activeNavKey(pathname, items.map((item) => item.key))}
+            onChange={() => {}}
+        />
+    );
+}
+```
+
+`activeNavKey(pathname, keys)` returns the key **exactly as given** in `keys`, or
+`""` when nothing covers the route — never `undefined`, never a throw. The
+comparison is case-sensitive, as URL paths are. With a router `basename`, pass the
+`pathname` from `useLocation()` (which already has it stripped) and keys without
+the `basename`.
 
 **Mobile**: hide it with `<Show above="md">` and expose it via `<Drawer>` in the
 hamburger menu.

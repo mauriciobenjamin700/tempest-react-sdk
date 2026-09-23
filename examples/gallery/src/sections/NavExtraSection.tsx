@@ -33,6 +33,7 @@ export function NavExtraSection() {
     const [collapsed, setCollapsed] = useState<boolean>(false);
     const [bottomTab, setBottomTab] = useState<string>("home");
     const [view, setView] = useState<string>("list");
+    const [route, setRoute] = useState<string>("/dashboard/tips/42");
 
     return (
         <section className="gallery-section" id="nav-extra">
@@ -161,7 +162,18 @@ const [collapsed, setCollapsed] = useState(false);
                         description:
                             'Itens (key, label, icon?, badge?, disabled?, href?), seções ({ type: "section", key, label }) e separadores ({ type: "separator", key }). Item sem type continua valendo.',
                     },
-                    { name: "value", type: "string", description: "Key do item ativo." },
+                    {
+                        name: "value",
+                        type: "string",
+                        description: 'Key do item ativo (ou a rota atual, com match="route").',
+                    },
+                    {
+                        name: "match",
+                        type: '"key" | "route"',
+                        default: '"key"',
+                        description:
+                            "Como value escolhe o ativo: igualdade de key, ou prefixo mais longo da rota.",
+                    },
                     {
                         name: "onChange",
                         type: "(key: string) => void",
@@ -254,6 +266,94 @@ const [collapsed, setCollapsed] = useState(false);
                             ]}
                             value={sidebarTab}
                             onChange={setSidebarTab}
+                        />
+                    </div>
+                </div>
+            </Example>
+
+            <Example
+                title="Sidebar — item ativo pela rota"
+                id="ex-sidebar-route"
+                note='Com match="route", value é o pathname: vence o item de caminho mais longo que cobre a rota, em fronteira de segmento. Troque a rota simulada e veja /dashboard/tip não acender Dicas, e /users-admin não acender Usuários.'
+                code={`const { pathname } = useLocation();
+
+<Sidebar
+    match="route"
+    value={pathname}
+    items={[
+        { key: "/dashboard", label: "Visão geral", icon: <LayoutDashboard size={18} /> },
+        { key: "/dashboard/tips", label: "Dicas", icon: <BarChart3 size={18} /> },
+        { key: "/users", label: "Usuários", icon: <Users size={18} /> },
+        { key: "/users-admin", label: "Admins", icon: <Settings size={18} /> },
+    ]}
+/>`}
+                props={[
+                    {
+                        name: "match",
+                        type: '"key" | "route"',
+                        default: '"key"',
+                        description:
+                            'Com "route", value é a rota atual e o ativo é o href (ou key) mais longo que a cobre.',
+                    },
+                ]}
+            >
+                <div className="gallery-stack">
+                    <div className="gallery-toolbar">
+                        <div
+                            role="group"
+                            aria-label="Rota simulada"
+                            style={{ display: "flex", flexWrap: "wrap", gap: 8 }}
+                        >
+                            {[
+                                "/dashboard",
+                                "/dashboard/tips/42",
+                                "/dashboard/tip",
+                                "/users-admin/3",
+                                "/relatorios",
+                            ].map((path) => (
+                                <Button
+                                    key={path}
+                                    size="sm"
+                                    variant={route === path ? "primary" : "outline"}
+                                    aria-pressed={route === path}
+                                    onClick={() => setRoute(path)}
+                                >
+                                    {path}
+                                </Button>
+                            ))}
+                        </div>
+                    </div>
+                    <div
+                        style={{
+                            display: "flex",
+                            height: 220,
+                            border: "1px solid var(--tempest-border)",
+                            borderRadius: 8,
+                            overflow: "hidden",
+                        }}
+                    >
+                        <Sidebar
+                            match="route"
+                            value={route}
+                            onChange={setRoute}
+                            items={[
+                                {
+                                    key: "/dashboard",
+                                    label: "Visão geral",
+                                    icon: <LayoutDashboard size={18} />,
+                                },
+                                {
+                                    key: "/dashboard/tips",
+                                    label: "Dicas",
+                                    icon: <BarChart3 size={18} />,
+                                },
+                                { key: "/users", label: "Usuários", icon: <Users size={18} /> },
+                                {
+                                    key: "/users-admin",
+                                    label: "Admins",
+                                    icon: <Settings size={18} />,
+                                },
+                            ]}
                         />
                     </div>
                 </div>

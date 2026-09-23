@@ -59,6 +59,51 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
   Closes #363.
 
+### Adicionado
+
+- **`<Sidebar match="route">` e `activeNavKey(pathname, keys)` — o item ativo sai da
+  rota, com o prefixo mais longo vencendo.** Quem usava URL como `key` (o caminho
+  natural desde o `SidebarItem.href`) resolvia o casamento sozinho, e o `pathname`
+  quase nunca é igual à key: `/dashboard/tips/42` tem que destacar `/dashboard/tips`.
+  Com `match="route"`, `value` passa a ser o pathname e o `Sidebar` resolve contra o
+  `href` de cada item (ou a `key`, sem `href`); seções e separadores ficam de fora. A
+  função pura serve os outros menus que recebem `value` como key (`BottomNavigation`,
+  `NavigationRail`, `Drawer`).
+
+  ```tsx
+  const { pathname } = useLocation();
+  <Sidebar match="route" value={pathname} items={items} />;
+  ```
+
+  Regras: casamento em **fronteira de segmento** (`/users` não cobre `/users-admin`),
+  o caminho **mais longo** vence independente da ordem do array, barra final, query e
+  hash são ignorados dos dois lados, `/` só acende em `/` (a regra do `NavLink`),
+  comparação case-sensitive, e nada casando devolve `""` sem lançar. O componente não
+  lê router — `value` chega como string —, então continua funcionando sem `<Router>`.
+
+  Medido antes de implementar, numa tabela de 11 casos (rota × keys × esperado),
+  fixada em `src/components/Sidebar/active-nav-key.test.ts` (`npx vitest run src/components/Sidebar/active-nav-key.test.ts`): o
+  `keys.find((k) => pathname.startsWith(k))` ingênuo acerta **3/11**; o
+  `activeNavKey` do `relove_dashboard` citado na issue acerta **8/11** — erra key
+  com barra final (`/dashboard/tips/` perde para `/dashboard` em `/dashboard/tips`),
+  query e hash (`/users?tab=2` não acende nada); a implementação daqui acerta
+  **11/11**. O `NavLink` do react-router 8.3.1 também não resolve: cada link decide
+  sozinho, então em `/dashboard/tips/42` **dois** itens ficam com
+  `aria-current="page"`. `Sidebar` sem `match` compara `value` com a `key` como
+  sempre — nenhum call site muda.
+
+  **Teto do `size-limit` da fatia "typical app" sobe de 10,3 para 10,4 kB, sem
+  byte novo dentro dela.** A fatia não importa `Sidebar` e o código novo não entra no
+  bundle dela (`grep` por `activeNav` e pelo regex `[?#]` no bundle: zero). Ela já
+  estava encostada no teto (10,30 kB na 0.67.0) e passou a 10,36 kB porque o módulo a
+  mais no grafo muda os nomes que o minificador escolhe (`var B=` virou `var M=` em
+  todo o arquivo), e o brotli comprime nomes diferentes de forma diferente. Mesmo
+  bundle refeito com `esbuild --bundle --minify` sobre a mesma fatia: 29.730 bytes
+  minificados **antes e depois**, brotli 10.550 → 10.533 B. Medido com `npx size-limit`
+  na 0.67.0 (base) e neste branch.
+
+  Closes #357
+
 ## [0.67.0] — 2026-09-23
 
 ### Adicionado

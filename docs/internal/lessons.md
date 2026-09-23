@@ -151,6 +151,16 @@ lado. Leia antes de confiar numa medição, num gate ou numa afirmação da doc.
   PRs tocam a mesma linha do `.size-limit.checks.json`, meça a soma e use o mesmo
   valor em todos: a mudança idêntica entra sem conflito.
 
+- **O heap do `vite build` já estava no limite antes de reprovar.** O teto era
+  `--max-old-space-size=6144` desde os ícones por slug. Na 0.67.0 o build passava 3
+  de 3 vezes, com pico de RSS de ~7,8 GB. Somados os sete PRs da 0.68.0, abortava
+  com `JavaScript heap out of memory`, e um PR sozinho já passava só 2 de 6 vezes.
+  Nenhum PR regrediu nada (+0,6% de pico): a folga tinha acabado. Com 8192, o build
+  somado passa com pico de RSS de 7 822 556 kB em 25 s, medido com
+  `/usr/bin/time -v node --max-old-space-size=8192 ./node_modules/vite/bin/vite.js build`.
+  Build que falha "às vezes" por memória está no limite, não flaky: meça o pico
+  antes de rodar de novo.
+
 ## Guards que já salvaram
 
 - `test/docs-anchors.test.ts` pegou heading virando código depois de um merge.

@@ -61,6 +61,47 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   2500 B — o `Portal`, o host de tela cheia e a ancoragem, compartilhados pelos três.
   Closes #360.
 
+- **Um `Escape` fechava todos os overlays abertos de uma vez.** Cada overlay
+  escutava `keydown` no `window` e fechava em qualquer `Escape`, sem olhar se outra
+  camada já tinha tratado a tecla. Medido no Chrome, com tecla real:
+
+  | dentro de | camada interna                                                                                      | antes           | depois             |
+  | --------- | --------------------------------------------------------------------------------------------------- | --------------- | ------------------ |
+  | `Modal`   | `DropdownMenu`, `Combobox`, `MultiSelect`, `Popover`, `ContextMenu`, célula editável do `DataTable` | fechava as duas | fecha só a interna |
+  | `Modal`   | outro `Modal`                                                                                       | fechava os dois | fecha só o de cima |
+  | `Drawer`  | `Popover`                                                                                           | fechava os dois | fecha só o interno |
+
+  A issue relatava um caso (menu dentro de modal) e propunha checar
+  `defaultPrevented` no `Modal`. Isso resolve só metade: modal sobre modal,
+  `Popover` e `ContextMenu` são **dois listeners no `window`** para o mesmo
+  evento, e nenhum vê o outro. Agora existe uma pilha interna de camadas com um
+  único listener: só a camada aberta mais recentemente reage, e a tecla já
+  consumida por um handler de elemento (`preventDefault()`) é ignorada. Entram na
+  pilha `Modal`, `Drawer`, `BottomSheet`, `Lightbox`, `Popover`, `ContextMenu`,
+  `NavigationMenu`, `Menubar` e `Tooltip`.
+
+  - A ordem da pilha vem da **renderização**, não do efeito. Efeitos rodam
+    filho-primeiro, então um modal que monta já com outro aberto dentro dele
+    punha o de fora no topo.
+  - `closeOnEsc={false}` (e `dismissOnEsc={false}` no `BottomSheet`) **bloqueia**
+    a tecla em vez de deixá-la passar para o modal de baixo.
+  - `Combobox` e `MultiSelect` passam a consumir o `Escape` que fecha a lista. Com
+    a lista fechada, a tecla segue para o overlay de fora.
+  - O `Escape` que cancela um arrasto do `useSortable` é tratado em captura e
+    consumido, para não fechar o modal no meio do arrasto.
+  - `Tooltip` passa a fechar no `Escape`, como pede o WCAG 2.2 SC 1.4.13.
+  - `Escape` durante composição de IME é ignorado.
+
+  A doc do `Modal` listava `dismissOnBackdrop`/`dismissOnEsc`, que são props do
+  `BottomSheet`. As do `Modal` são `closeOnBackdrop`/`closeOnEsc`. Corrigido nas
+  duas línguas.
+
+  Custo medido com `npx size-limit`, `main` (0.66.0) contra esta branch: barrel ESM
+  131,14 → 131,54 kB (+0,40 kB), CJS 156,43 → 156,61 kB (+0,18 kB). Os tetos vão
+  para 133,5 / 159 kB, o mesmo valor do #371 e do #373: os três tocam a mesma
+  linha, e #371 + #374 juntos já passavam do teto anterior no CJS (157,85 kB).
+  Closes #372.
+
 ## [0.66.0] — 2026-09-19
 
 ### Segurança

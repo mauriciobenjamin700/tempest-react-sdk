@@ -116,6 +116,14 @@ export function MultiSelect({
         return () => window.removeEventListener("mousedown", onDown);
     }, [open]);
 
+    /**
+     * Keyboard model of the input.
+     *
+     * `Escape` calls `preventDefault()` only while the list is open: that marks the
+     * key as consumed, so an enclosing `Modal` or `Drawer` stays open and the next
+     * `Escape` reaches it. With the list closed the key is left alone and dismisses
+     * the enclosing layer, as the user expects.
+     */
     const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>): void => {
         if (event.key === "ArrowDown") {
             event.preventDefault();
@@ -129,6 +137,7 @@ export function MultiSelect({
             const option = filtered[activeIndex];
             if (option) toggle(option);
         } else if (event.key === "Escape") {
+            if (open) event.preventDefault();
             setOpen(false);
             setQuery("");
         } else if (event.key === "Backspace" && query === "" && value.length > 0) {

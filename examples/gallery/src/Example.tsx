@@ -36,6 +36,13 @@ interface ExampleProps {
  * source snippet (with a copy button) on the right. Collapses to a single
  * column on narrow screens. Pass `id` for a deep-linkable anchor and `props`
  * to document the component's API inline.
+ *
+ * The snippet's `<pre>` takes `tabIndex={0}` because it scrolls horizontally and
+ * holds nothing focusable: without a tab stop a keyboard user cannot reach the
+ * clipped part of the code (axe `scrollable-region-focusable`, WCAG 2.1.1).
+ * Measured before the change: 148 of the 149 nodes axe reported for that rule at
+ * 1280px were this element, one per example, so every new example raised the
+ * count. No `aria-label` on it — a name on a `<pre>` is `aria-prohibited-attr`.
  */
 export function Example({ title, code, note, id, props, children }: ExampleProps) {
     return (
@@ -59,7 +66,7 @@ export function Example({ title, code, note, id, props, children }: ExampleProps
             </div>
             <div className="example-body">
                 <div className="example-demo">{children}</div>
-                <pre className="example-code">
+                <pre className="example-code" tabIndex={0}>
                     <code>{code}</code>
                 </pre>
             </div>

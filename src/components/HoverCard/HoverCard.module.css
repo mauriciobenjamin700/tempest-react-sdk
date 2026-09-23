@@ -50,6 +50,12 @@
     transform: translateY(-50%);
 }
 
+.portalled {
+    right: auto;
+    bottom: auto;
+    transform: none;
+}
+
 @keyframes tempest-hover-card-in {
     from {
         opacity: 0;

@@ -32,6 +32,14 @@ import { NavigationMenu } from "tempest-react-sdk";
 | Prop    | Type                   | Default | Description                  |
 | ------- | ---------------------- | ------- | ---------------------------- |
 | `items` | `NavigationMenuItem[]` | —       | Top-level navigation entries |
+| `portal` | `boolean`             | `true`  | Panel in `document.body`     |
+
+!!! info "The panel opens in a portal — because of `Navbar`"
+    `Navbar`'s `nav` slot scrolls horizontally (`overflow-x: auto`), and by the
+    CSS rules that forces `overflow-y` to `auto`: an in-flow panel was clipped
+    entirely, measured in Chrome at 1440 px. In a portal it escapes, stays right
+    after its trigger in the tab order and flips at the screen edge.
+    `portal={false}` brings back the in-flow panel. The same holds for `Menubar`.
 
 `NavigationMenuItem` = `{ label: ReactNode; href?: string; onSelect?: () => void; children?: NavigationMenuItem[] }`.
 
@@ -68,6 +76,7 @@ import { Menubar } from "tempest-react-sdk";
 | Prop    | Type            | Default | Description                            |
 | ------- | --------------- | ------- | -------------------------------------- |
 | `menus` | `MenubarMenu[]` | —       | Top-level menus rendered left-to-right |
+| `portal` | `boolean`      | `true`  | Panel in `document.body`               |
 
 `MenubarMenu` = `{ label: ReactNode; items: MenubarItem[] }`. `MenubarItem` = `{ label: ReactNode; onSelect?: () => void; disabled?: boolean; shortcut?: string }` or `{ separator: true }`.
 

@@ -69,6 +69,18 @@ lado. Leia antes de confiar numa medição, num gate ou numa afirmação da doc.
   `useLayoutEffect` disparado pela abertura lê um ref vazio. O nó entra por
   **callback ref em estado**.
 - **Foco programático casa com `:focus-visible`** no Chrome mesmo vindo de toque.
+- **Painel em portal perde o que herdava do componente.** Em `body`, a lista do
+  `Combobox` herdou a fonte do documento e as opções saíram em `"Times New Roman"`
+  (medido em Chrome, 22/09/2026). O jsdom não calcula CSS, então só o browser ou
+  `test/portal-inheritance.test.ts` (que lê as folhas) veem isso. Ao pôr um painel
+  em portal, compare o estilo computado fluxo × portal nos dois temas.
+- **Portal tira o painel da ordem de `Tab`.** Ele vai para o fim do `body`, e o
+  `Tab` a partir do gatilho aberto pula o conteúdo. Painel com focável usa
+  `usePortalTabOrder`; menu com foco gerenciado (`DropdownMenu`) resolve sozinho.
+- **Dois listeners no `window` não se enxergam.** `defaultPrevented` só resolve
+  quem trata a tecla no elemento, porque o delegado do React roda antes do
+  `window`. Entre camadas que escutam no `window`, a ordem é a de registro, e
+  por isso `Escape` passa pela pilha de `escape-layer.ts`.
 
 ## Quando a doc é o bug
 
@@ -126,6 +138,18 @@ lado. Leia antes de confiar numa medição, num gate ou numa afirmação da doc.
 - **Reproduzir é uma linha:** `PATH="$HOME/.nvm/versions/node/v22.23.2/bin:$PATH"
   npx vitest run <arquivo>`. A CI roda `verify` em 22 **e** 24; rodar só a versão
   local transforma metade da matriz em surpresa depois do push.
+
+## Git e ferramentas
+
+- **O prettier do lint-staged reescreve marcador de conflito.** Um merge commitado
+  com conflito não resolvido no `CHANGELOG.md` saiu com `\=======` e
+  `> > > > > > > origin/…` (citação): um grep por `^<<<<<<<` não acha o resto.
+  Resolva o conflito **antes** do commit e, na dúvida, procure também pelas formas
+  reescritas: `git grep -nE "^(<<<<<<<|=======$|>>>>>>>)|\\\\=======|> > > > > > >"`.
+- **PRs que sobem o mesmo teto do `size-limit` somam.** Três PRs de overlay passavam
+  sozinhos e, juntos, estouravam o teto CJS depois do segundo merge. Quando vários
+  PRs tocam a mesma linha do `.size-limit.checks.json`, meça a soma e use o mesmo
+  valor em todos: a mudança idêntica entra sem conflito.
 
 ## Guards que já salvaram
 

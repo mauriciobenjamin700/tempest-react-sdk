@@ -178,6 +178,12 @@ export function Cidade() {
 }
 ```
 
+!!! info "The list opens in a portal"
+    The list renders in `document.body`, at the field's width, and flips above it
+    when there is no room below. That is why a `Combobox` in the last row of a
+    `DataTable` — whose wrapper scrolls and clips what crosses its edge — shows the
+    whole list. `portal={false}` brings back the in-flow list.
+
 ## `MultiSelect`
 
 <!-- gallery:inputs-extra -->
@@ -220,6 +226,7 @@ function Example() {
 | `maxItems`     | `number`                                          | —                             |
 | `filter`       | `(option, query) => boolean`                     | —                             |
 | `emptyMessage` | `string`                                          | `"Nenhuma opção encontrada"`  |
+| `portal`       | `boolean` (list in `document.body`)              | `true`                        |
 | `className`    | `string`                                         | —                             |
 
 `MultiSelectOption` is `{ value: string; label: string; disabled?: boolean }`.

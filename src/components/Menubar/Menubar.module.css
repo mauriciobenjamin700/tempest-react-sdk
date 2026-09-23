@@ -124,3 +124,9 @@
         animation: none;
     }
 }
+
+.portalled {
+    font-family: var(--tempest-font-sans);
+    font-size: var(--tempest-text-sm);
+    z-index: var(--tempest-z-popover);
+}

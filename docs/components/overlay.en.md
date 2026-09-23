@@ -238,7 +238,8 @@ function DeleteButton({ id }: { id: string }) {
 
 Every SDK overlay mounts through a portal, and the portal target follows the
 **fullscreen** element whenever there is one — `Modal`, `Drawer`, `BottomSheet`,
-`ToastProvider`, `Command`, `ContextMenu`, `DropdownMenu`, `Popover`, `Tooltip` and
+`ToastProvider`, `Command`, `ContextMenu`, `DropdownMenu`, `Popover`, `Tooltip`, `HoverCard`, `Combobox`,
+`MultiSelect`, `NavigationMenu`, `Menubar` and
 the generic `<Portal>`.
 
 This is not convenience, it is correctness. While the page is in fullscreen the

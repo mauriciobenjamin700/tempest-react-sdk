@@ -283,7 +283,8 @@ export function GaleriaDaVistoria({ fotos }: { fotos: { url: string; descricao: 
 
 Todo overlay do SDK monta por portal, e o alvo do portal segue o elemento em
 **tela cheia** quando existe um — `Modal`, `Drawer`, `BottomSheet`,
-`ToastProvider`, `Command`, `ContextMenu`, `DropdownMenu`, `Popover`, `Tooltip` e o
+`ToastProvider`, `Command`, `ContextMenu`, `DropdownMenu`, `Popover`, `Tooltip`, `HoverCard`, `Combobox`,
+`MultiSelect`, `NavigationMenu`, `Menubar` e o
 `<Portal>` genérico.
 
 Isso não é conveniência: é correção. Enquanto a página está em tela cheia, o

@@ -119,3 +119,9 @@
 .wrapper.error .input {
     border-color: var(--tempest-danger);
 }
+
+.portalled {
+    font-family: var(--tempest-font-sans);
+    right: auto;
+    z-index: var(--tempest-z-popover);
+}

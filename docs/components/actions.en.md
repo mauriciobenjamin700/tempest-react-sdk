@@ -97,7 +97,7 @@ import { Plus } from "lucide-react";
 
 > **When to use**: give extra context to a control whose meaning isn't obvious — typically `iconOnly` buttons. Never for critical information.
 
-A portaled hover tooltip. Shows on hover **and** on keyboard focus.
+A hover tooltip in a portal: it escapes an `overflow` ancestor (a `DataTable` cell, say) and flips to the opposite side at the screen edge. Shows on hover **and** on keyboard focus.
 
 ```tsx
 import { Button, Tooltip } from "tempest-react-sdk";
@@ -120,6 +120,7 @@ export function ExcluirComDica() {
 | `placement` | `"top" \| "right" \| "bottom" \| "left"` | `"top"` |
 | `openDelay` | `number` (ms before showing)             | `150`   |
 | `disabled`  | `boolean` (turn off, trigger unchanged)  | `false` |
+| `portal`    | `boolean` (renders in `document.body`)   | `true`  |
 
 `Escape` hides the tooltip without moving the pointer or the focus, as WCAG 2.2
 SC 1.4.13 asks. Inside a `Modal`, the first `Escape` hides the tooltip and the
@@ -176,7 +177,94 @@ export function MaisAcoes({
 | `"label"`     | `id`, `label`                                              |
 | `"separator"` | `id`                                                       |
 
-Component props: `trigger` (`ReactElement`), `items` (`DropdownMenuEntry[]`), `placement` (`"bottom-start" \| "bottom-end" \| "top-start" \| "top-end"`, default `"bottom-start"`).
+Component props: `trigger` (`ReactElement`), `items` (`DropdownMenuEntry[]`), `placement` (`"bottom-start" \| "bottom-end" \| "top-start" \| "top-end"`, default `"bottom-start"`), `portal` (`boolean`, default `true` — see [In a table row](#in-a-table-row)).
+
+### In a table row
+
+The per-row action menu is the most common case of an admin panel, and it is
+exactly where an in-flow menu breaks: the `DataTable` wrapper scrolls
+horizontally (`overflow-x: auto`), and by the CSS rules that forces
+`overflow-y` to `auto` too. That is why the menu renders **in a portal** by
+default, anchored to its trigger.
+
+```tsx
+import { Button, DataTable, DropdownMenu } from "tempest-react-sdk";
+
+interface User {
+    id: string;
+    name: string;
+}
+
+export function UsersTable({
+    users,
+    open,
+    remove,
+}: {
+    users: User[];
+    open: (id: string) => void;
+    remove: (id: string) => void;
+}) {
+    return (
+        <DataTable<User>
+            data={users}
+            rowKey={(user) => user.id}
+            columns={[
+                { key: "name", header: "Name" },
+                {
+                    key: "id",
+                    header: "",
+                    render: (user) => (
+                        <DropdownMenu
+                            placement="bottom-end"
+                            trigger={
+                                <Button variant="ghost" iconOnly aria-label="Actions">
+                                    ⋮
+                                </Button>
+                            }
+                            items={[
+                                {
+                                    type: "item",
+                                    id: "view",
+                                    label: "View profile",
+                                    onSelect: () => open(user.id),
+                                },
+                                {
+                                    type: "item",
+                                    id: "delete",
+                                    label: "Delete",
+                                    danger: true,
+                                    onSelect: () => remove(user.id),
+                                },
+                            ]}
+                        />
+                    ),
+                },
+            ]}
+        />
+    );
+}
+```
+
+What the portal fixes, measured in Chrome at 1440 px with the three-entry menu
+on the last row:
+
+| | In flow (before 0.67.0) | In a portal |
+| --- | --- | --- |
+| Visible entries | 1 of 3 | 3 of 3 |
+| No room below | opened below the fold | **flips above** the trigger |
+| Table scrolls with the menu open | — | the menu **follows** the trigger |
+| Inside a `Modal` | — | paints **on top of** the modal |
+
+!!! info "Why the portalled menu sits above `Modal`"
+    In a portal the menu lives in `document.body`, next to the modal — it no
+    longer inherits the modal's stacking. It uses `--tempest-z-popover` (1150),
+    above `--tempest-z-modal` (1100). With `--tempest-z-dropdown` (1000),
+    measured, a menu opened inside a modal sat **behind** it.
+
+!!! tip "`portal={false}` brings back the in-flow menu"
+    Use it when the container must own the menu's clipping or stacking on
+    purpose. The same `portal` exists on `Popover` and `Tooltip`.
+
 
 ### An entry that toggles
 
@@ -228,7 +316,7 @@ pattern is the [APG Menu Button](https://www.w3.org/WAI/ARIA/apg/patterns/menu-b
 | `↑` | opens, focuses the **last** entry | previous, wrapping |
 | `Home` / `End` | — | first / last |
 | `Esc` | — | closes and **returns focus to the trigger** |
-| `Tab` | follows the page | closes and follows the page |
+| `Tab` | follows the page | closes and follows the page **from the trigger** |
 
 !!! tip "Managed focus — `Tab` does not walk the menu"
     Entries carry `tabIndex={-1}` and only the active one is `0`. Without that,
@@ -276,9 +364,16 @@ export function Filtros() {
 | `placement`           | `"top" \| "bottom" \| "left" \| "right"` | `"bottom"`     |
 | `closeOnEsc`          | `boolean`                                | `true`         |
 | `closeOnOutsideClick` | `boolean`                                | `true`         |
+| `portal`              | `boolean` (renders in `document.body`)   | `true`         |
 
-!!! note "No collision detection"
-    `Popover` doesn't reposition automatically when it hits the viewport edge. If you need automatic flip/shift, prefer `DropdownMenu` (simple list) or integrate Floating UI in your app.
+!!! note "Flips at the screen edge"
+    In a portal (the default), the panel moves to the opposite side when the requested `placement` does not fit the viewport, and is kept inside it with an 8 px margin. Scrolling the page or a container with the panel open carries it along with the trigger.
+
+!!! info "`Tab` enters the panel, even in a portal"
+    In a portal the panel lives at the end of `body`, and the browser would reach
+    it last. `Popover` restores the in-flow order: `Tab` from the open trigger
+    enters the panel's first field, `Tab` on its last field moves on to what
+    follows the trigger, and `Shift+Tab` walks back the same way.
 
 ## `ConfirmDialog`
 

@@ -2,6 +2,8 @@
    run on user events (hover/focus), never during render */
 import { cloneElement, useEffect, useId, useRef, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
+import { Portal } from "@/components/Portal";
+import { useAnchorPosition } from "@/components/Portal/anchor-position";
 import { useEscapeLayer } from "@/components/Portal/escape-layer";
 import { cn } from "@/utils/cn";
 import styles from "./Tooltip.module.css";
@@ -19,7 +21,19 @@ export interface TooltipProps {
     disabled?: boolean;
     /** Delay (ms) before showing the tooltip. Default: 150. */
     openDelay?: number;
+    /**
+     * Render the bubble in a portal, positioned against the trigger. Default `true`.
+     *
+     * In flow, an ancestor with `overflow` other than `visible` clips the bubble —
+     * a `DataTable` cell cut it 23 px short (measured in Chrome at 1440 px). In a
+     * portal it escapes the clip and flips to the opposite side at the viewport
+     * edge. `false` keeps the in-flow bubble.
+     */
+    portal?: boolean;
 }
+
+/** Gap between trigger and bubble, in px — the in-flow CSS uses the same 8 px. */
+const TOOLTIP_OFFSET = 8;
 
 /**
  * Lightweight tooltip. Shows on hover and on focus (keyboard-friendly). Wraps
@@ -37,8 +51,19 @@ export function Tooltip({
     children,
     disabled = false,
     openDelay = 150,
+    portal = true,
 }: TooltipProps) {
     const [open, setOpen] = useState<boolean>(false);
+    const [triggerNode, setTriggerNode] = useState<HTMLSpanElement | null>(null);
+    const [bubbleNode, setBubbleNode] = useState<HTMLSpanElement | null>(null);
+    const floatingStyle = useAnchorPosition({
+        anchor: triggerNode,
+        floating: bubbleNode,
+        side: placement,
+        align: "center",
+        offset: TOOLTIP_OFFSET,
+        enabled: portal && open,
+    });
     const tooltipId = useId();
     /**
      * Handle of the pending open timer.
@@ -84,18 +109,22 @@ export function Tooltip({
         "aria-describedby": open ? tooltipId : undefined,
     } as Record<string, unknown>);
 
+    const bubble = (
+        <span
+            ref={setBubbleNode}
+            id={tooltipId}
+            role="tooltip"
+            className={cn(styles.bubble, styles[placement], portal && styles.portalled)}
+            style={floatingStyle}
+        >
+            {content}
+        </span>
+    );
+
     return (
-        <span className={styles.trigger}>
+        <span ref={setTriggerNode} className={styles.trigger}>
             {trigger}
-            {open && (
-                <span
-                    id={tooltipId}
-                    role="tooltip"
-                    className={cn(styles.bubble, styles[placement])}
-                >
-                    {content}
-                </span>
-            )}
+            {open && (portal ? <Portal>{bubble}</Portal> : bubble)}
         </span>
     );
 }

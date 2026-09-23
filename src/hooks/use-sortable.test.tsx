@@ -3,6 +3,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { Modal } from "@/components/Modal";
+
 import { moveItem, useSortable } from "./use-sortable";
 
 const ROW_HEIGHT = 40;
@@ -202,6 +204,23 @@ describe("useSortable — pointer", () => {
 
         expect(onReorder).not.toHaveBeenCalled();
         expect(screen.getByTestId("estado")).toHaveTextContent("null/null");
+    });
+
+    it("aborts the drag without closing the modal it sits in", () => {
+        const onReorder = vi.fn();
+        const onClose = vi.fn();
+        render(
+            <Modal open onClose={onClose} title="Ordenar">
+                <List onReorder={onReorder} />
+            </Modal>,
+        );
+
+        fireEvent.pointerDown(screen.getByText("Alfa"), { pointerId: 1, ...pointOf(0) });
+        fireEvent.pointerMove(window, { pointerId: 1, ...pointOf(2) });
+        fireEvent.keyDown(window, { key: "Escape" });
+
+        expect(screen.getByTestId("estado")).toHaveTextContent("null/null");
+        expect(onClose).not.toHaveBeenCalled();
     });
 
     it("ignores interaction while disabled", () => {

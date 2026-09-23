@@ -5,6 +5,7 @@
  */
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
+import { useEscapeLayer } from "@/components/Portal/escape-layer";
 import { cn } from "@/utils/cn";
 import styles from "./NavigationMenu.module.css";
 
@@ -59,18 +60,15 @@ export function NavigationMenu({ items, className, ...props }: NavigationMenuPro
 
     const openIndex = clickedIndex !== -1 ? clickedIndex : hovered;
 
+    useEscapeLayer(openIndex !== -1, close);
+
     useEffect(() => {
         if (openIndex === -1) return;
-        const onKey = (event: KeyboardEvent): void => {
-            if (event.key === "Escape") close();
-        };
         const onDown = (event: MouseEvent): void => {
             if (rootRef.current && !rootRef.current.contains(event.target as Node)) close();
         };
-        window.addEventListener("keydown", onKey);
         window.addEventListener("mousedown", onDown);
         return () => {
-            window.removeEventListener("keydown", onKey);
             window.removeEventListener("mousedown", onDown);
         };
     }, [openIndex, close]);

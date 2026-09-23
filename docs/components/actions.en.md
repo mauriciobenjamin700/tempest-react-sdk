@@ -122,6 +122,10 @@ export function ExcluirComDica() {
 | `disabled`  | `boolean` (turn off, trigger unchanged)  | `false` |
 | `portal`    | `boolean` (renders in `document.body`)   | `true`  |
 
+`Escape` hides the tooltip without moving the pointer or the focus, as WCAG 2.2
+SC 1.4.13 asks. Inside a `Modal`, the first `Escape` hides the tooltip and the
+second one closes the modal.
+
 !!! warning "Don't hide essential information in a tooltip"
     Touch users have no hover — they'll never see the content. A tooltip is reinforcement, not the only source of information needed to complete the task.
 

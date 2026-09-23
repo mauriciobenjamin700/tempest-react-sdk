@@ -8,6 +8,7 @@ import { useCallback, useEffect, useId, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
 import { Portal } from "@/components/Portal";
 import { useAnchorPosition } from "@/components/Portal/anchor-position";
+import { useEscapeLayer } from "@/components/Portal/escape-layer";
 import { cn } from "@/utils/cn";
 import styles from "./Popover.module.css";
 
@@ -91,8 +92,10 @@ export function Popover({
         [isControlled, onOpenChange],
     );
 
+    useEscapeLayer(isOpen && closeOnEsc, () => setOpen(false));
+
     /**
-     * Dismiss on Escape and on a press outside both trigger and panel.
+     * Dismiss on a press outside both trigger and panel.
      *
      * The panel is checked on its own because in a portal it is not inside the
      * trigger's wrapper, and a press inside it — on a form field, say — would
@@ -100,22 +103,17 @@ export function Popover({
      */
     useEffect(() => {
         if (!isOpen) return;
-        const onKey = (event: KeyboardEvent): void => {
-            if (closeOnEsc && event.key === "Escape") setOpen(false);
-        };
         const onDown = (event: MouseEvent): void => {
             if (!closeOnOutsideClick) return;
             const target = event.target as Node;
             if (rootNode?.contains(target) || panelNode?.contains(target)) return;
             setOpen(false);
         };
-        window.addEventListener("keydown", onKey);
         window.addEventListener("mousedown", onDown);
         return () => {
-            window.removeEventListener("keydown", onKey);
             window.removeEventListener("mousedown", onDown);
         };
-    }, [isOpen, closeOnEsc, closeOnOutsideClick, setOpen, rootNode, panelNode]);
+    }, [isOpen, closeOnOutsideClick, setOpen, rootNode, panelNode]);
 
     const handleTriggerClick = (event: React.MouseEvent): void => {
         trigger.props.onClick?.(event);

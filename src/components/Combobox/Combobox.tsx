@@ -99,6 +99,14 @@ export function Combobox({
         return () => window.removeEventListener("mousedown", onDown);
     }, [open, closeAndReset]);
 
+    /**
+     * Keyboard model of the input.
+     *
+     * `Escape` calls `preventDefault()` only while the list is open: that marks the
+     * key as consumed, so an enclosing `Modal` or `Drawer` stays open and the next
+     * `Escape` reaches it. With the list closed the key is left alone and dismisses
+     * the enclosing layer, as the user expects.
+     */
     const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>): void => {
         if (event.key === "ArrowDown") {
             event.preventDefault();
@@ -112,6 +120,7 @@ export function Combobox({
             const option = filtered[activeIndex];
             if (option) handleSelect(option);
         } else if (event.key === "Escape") {
+            if (open) event.preventDefault();
             closeAndReset();
         }
     };

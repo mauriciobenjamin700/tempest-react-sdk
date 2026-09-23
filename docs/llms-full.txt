@@ -19779,6 +19779,7 @@ Opções (todas exceto `baseURL` são opcionais):
 - `logger` — para onde o cliente reporta cada requisição que terminou. **Desligado por default.** Ver [Log de requisição](#log-de-requisicao).
 - `withCredentials` — envia cookies em cross-origin (default `false`).
 - `trustedOrigins` — origens, além da da `baseURL`, que podem receber o token de `getToken`. Ver [Escopo da credencial](#escopo-da-credencial-o-token-nao-atravessa-origem).
+- `csrf` — `true` ou `CsrfOptions`: ecoa o cookie `csrf_token` no header `X-CSRF-Token` em toda escrita. **Desligado por default.** Ver [CSRF](#csrf-o-cookie-de-sessao-precisa-de-um-par).
 - `headers` — headers default mesclados em toda request.
 - `fetcher` — implementação de `fetch` alternativa (default `globalThis.fetch`) — útil em testes.
 
@@ -19970,6 +19971,99 @@ await api.get("/relatorio-pesado", { retry: false });
 
 !!! note "Substitui, não mescla"
     `options.retry` troca `config.retry` por inteiro. Mesclar juntaria em silêncio dois `shouldRetry` que foram escritos cada um para ser completo.
+
+## CSRF — o cookie de sessão precisa de um par
+
+`Authorization: Bearer` é imune a CSRF porque o navegador **nunca** anexa esse header sozinho: uma página de outro site pode disparar um `POST` para a sua API, mas ele sai sem credencial. Cookie é o oposto. Com a sessão (ou o refresh token) num cookie `httpOnly` — o modo que `withCredentials: true` existe para servir —, o navegador manda o cookie junto com a requisição que **outro** site disparou.
+
+Até a 0.67.0 o SDK não tinha peça nenhuma dessa defesa. Desde a **0.68.0**, é uma opção:
+
+```ts
+import { createApiClient } from "tempest-react-sdk";
+
+export const api = createApiClient({
+  baseURL: import.meta.env.VITE_API_URL,
+  withCredentials: true,
+  csrf: true,
+});
+
+await api.post("/pedidos", { body: { item: 1 } });
+// → X-CSRF-Token: <valor do cookie csrf_token>
+
+await api.get("/pedidos");
+// → sem X-CSRF-Token
+```
+
+É o padrão **double-submit cookie**: o servidor grava um cookie que de propósito **não** é `HttpOnly`, o cliente lê e ecoa o valor num header, e o servidor recusa a escrita cujo header não bate com o cookie. O outro site consegue fazer o navegador *enviar* o cookie, mas não consegue *lê-lo* — então não consegue escrever o header.
+
+Os defaults são os do `CSRFMiddleware` do `tempest-fastapi-sdk` — cookie `csrf_token`, header `X-CSRF-Token` —, então `csrf: true` funciona contra ele sem configuração nos dois lados. Os dois nomes estão exportados como `DEFAULT_CSRF_COOKIE_NAME` e `DEFAULT_CSRF_HEADER_NAME`.
+
+As regras, e cada uma é um teste:
+
+| Regra | Por quê |
+| --- | --- |
+| Sem `csrf`, nenhuma requisição muda | a opção é nova; quem não liga não paga nada |
+| Vai em `POST`/`PUT`/`PATCH`/`DELETE` e em qualquer método não-seguro | lista de **negação** (`GET`, `HEAD`, `OPTIONS`, `TRACE`): método custom é escrita até prova em contrário |
+| Nunca vai em `GET`/`HEAD`/`OPTIONS`/`TRACE` | leitura não muda estado, e token em `GET` só acaba em log e cache |
+| Nunca atravessa origem | mesmo escopo do bearer token — `baseURL` mais `trustedOrigins`. Token CSRF entregue a terceiro é token que o terceiro reenvia |
+| Vai em requisição `skipAuth` | login e refresh saem com `skipAuth`, e são exatamente as escritas que um cookie de sessão expõe |
+| Um header CSRF seu nunca é trocado | em qualquer caixa: `"x-csrf-token"` ao lado de `"X-CSRF-Token"` chegaria ao `fetch` como `"a, b"` |
+| O cookie é lido a cada requisição | o servidor que rotaciona o cookie é seguido sem passo de captura — o cookie jar do navegador é o store |
+
+!!! info "Rotação sem header de resposta, de propósito"
+    Não existe modo "ler o token de um header de resposta". Ele dependeria de `Access-Control-Expose-Headers` no backend, e header de exposição ausente falha em silêncio: o token nunca rotaciona e a **segunda** escrita volta `403`. Lendo o cookie a cada requisição, a repetição depois de um `refresh()` já sai com o valor novo.
+
+Em build de desenvolvimento, duas situações escrevem **uma** linha no console: o header retido por ir para outra origem (a mesma mensagem do `Authorization`), e `csrf` ligado sem token para mandar — cookie que não existe, que foi emitido `HttpOnly` ou para um domínio que a página não lê. A requisição sai mesmo assim, porque o SDK não sabe se aquela rota é protegida (o middleware costuma ter `exclude_paths`); se for, o sintoma é um `403 CSRF_VALIDATION_FAILED`, e a linha no console diz por quê.
+
+### Outro nome, ou o token vindo de outro lugar
+
+```ts
+import { createApiClient } from "tempest-react-sdk";
+
+const api = createApiClient({
+  baseURL: "https://api.exemplo.com",
+  withCredentials: true,
+  csrf: {
+    cookieName: "XSRF-TOKEN",
+    headerName: "X-XSRF-TOKEN",
+  },
+});
+
+let tokenEmMemoria: string | null = null;
+const outra = createApiClient({
+  baseURL: "https://api.outro-site.com",
+  withCredentials: true,
+  csrf: { getToken: () => tokenEmMemoria },
+});
+```
+
+`getToken` é para o que o cookie não cobre: uma API em outro **site**, cujo cookie o `document.cookie` desta página não enxerga, ou um backend que entrega o token num corpo de resposta.
+
+!!! tip "O `SameSite` do cookie não dispensa isto"
+    O default do `tempest-fastapi-sdk` é `AUTH_COOKIE_SAMESITE=lax`, e `Lax` já barra o `POST` vindo de **outro site**. Não barra o que é *mesmo site* e outra origem — um subdomínio irmão (`blog.exemplo.com` → `api.exemplo.com`) —, e o SPA em outro site precisa de `SameSite=None`, que não barra nada. É para esses dois casos que o par existe.
+
+### O que o backend precisa
+
+1. Montar o `CSRFMiddleware` (ele confere cookie × header em toda escrita).
+2. **Emitir o cookie antes da primeira escrita**: `make_csrf_token_dependency()` numa rota `GET` que o app chame no boot — o login também é uma escrita.
+3. Não emitir o cookie como `HttpOnly` (o `make_csrf_token_dependency` já não emite).
+
+A receita de backend é a [Segurança](https://mauriciobenjamin700.github.io/tempest-fastapi-sdk/recipes/security/) do `tempest-fastapi-sdk`.
+
+### Os outros caminhos de requisição
+
+`createTempestAuth({ csrf })`, `uploadWithProgress({ csrf })` e `createResumableUpload({ csrf })` aceitam a mesma opção e seguem a mesma regra — no tus, o token vai no `POST` de criação, em cada `PATCH` e no `DELETE` do descarte, nunca no `HEAD` de offset. Para a requisição que você monta por fora, a regra está exportada:
+
+```ts
+import { csrfHeaders } from "tempest-react-sdk";
+
+const url = "https://api.exemplo.com/relatorios";
+await fetch(url, {
+  method: "POST",
+  credentials: "include",
+  headers: csrfHeaders({ method: "POST", url, reference: "https://api.exemplo.com", csrf: true }),
+});
+```
 
 ## Log de requisição
 
@@ -20224,6 +20318,8 @@ export function AvatarUpload() {
     ```
 
     Sem `credentialOrigin`, o header vai para onde a `url` apontar — o comportamento de toda versão anterior à 0.66.0.
+
+    A opção `csrf` segue o mesmo escopo, com uma diferença: **sem** `credentialOrigin` ela fica presa à origem da própria página, não aberta. O `Authorization` fica aberto só por compatibilidade; o `csrf` é novo e nasce fechado. API em outra origem declara `credentialOrigin` para receber o token.
 
 ## `retry` — backoff exponencial
 
@@ -20502,6 +20598,7 @@ const { mutate } = useMutation({
 - `uploadWithProgress` usa XHR pra reportar progresso byte a byte; para arquivo grande, `createResumableUpload` divide em chunks e retoma — veja [Upload resumível](./resumable-upload.md).
 - `retry` (backoff exponencial + `shouldRetry`) e `usePoll` (intervalo com guarda de overlap) cobrem operações instáveis e acompanhamento de jobs.
 - `generateIdempotencyKey` — gere uma vez por operação, reutilize nos retries.
+- `csrf: true` ecoa o cookie `csrf_token` em `X-CSRF-Token` em toda escrita, nunca em leitura, nunca para outra origem, inclusive em `skipAuth` — o par que a sessão em cookie (`withCredentials`) exige. Os defaults são os do `CSRFMiddleware` do `tempest-fastapi-sdk`.
 - `describeApiError(error, fallback)` (puro) e `useDescribeApiError()` (com i18n) transformam o erro tipado na frase da tela, tratando `status === 0` como offline em vez de "erro 0" e o erro com **vários** campos como frase de validação em vez do `detail`. A rejeição de **um** campo cuja mensagem é o próprio `detail` mostra o `detail` — é a frase que o servidor escreveu para aquele campo. `useDetail: false` recusa.
 - `error.fields` indexa as mensagens por campo — da lista do 422 do FastAPI ou das chaves `detail.field` / `field` / `details.field` que um backend `tempest-fastapi-sdk` manda. É o que vai direto pro `setError` do formulário.
 
@@ -22421,6 +22518,20 @@ export const auth = createTempestAuth<User>({
 
 !!! danger "Onde guardar o token"
     O preset persiste no `localStorage` por padrão (DX). Para apps sensíveis, prefira refresh token em **cookie httpOnly** (`withCredentials: true`) — assim o JS nunca toca o refresh token.
+
+    Cookie tira o token do alcance do JS e o põe no alcance do CSRF: o navegador anexa o cookie a um `POST /auth/refresh` que **outro** site disparou. O par é `csrf: true`, que ecoa o cookie `csrf_token` do `CSRFMiddleware` em `X-CSRF-Token` em toda escrita — login e refresh inclusive:
+
+    ```tsx
+    import { createTempestAuth } from "tempest-react-sdk";
+
+    export const auth = createTempestAuth({
+        baseURL: import.meta.env.VITE_API_URL,
+        withCredentials: true,
+        csrf: true,
+    });
+    ```
+
+    O backend precisa montar o `CSRFMiddleware` e emitir o cookie numa rota `GET` antes da primeira escrita. Ver [CSRF](./http.md#csrf-o-cookie-de-sessao-precisa-de-um-par).
 
 ---
 
@@ -25610,6 +25721,8 @@ const upload = createResumableUpload({
     ```
 
     Vale também para o registro persistido: uma `url` guardada no `localStorage` apontando para fora não recupera o token na retomada.
+
+    A opção `csrf` segue a mesma regra: o token CSRF vai no `POST` de criação, em cada `PATCH` e no `DELETE` do descarte — nunca no `HEAD` de offset — e só para a origem do `endpoint` e as `trustedOrigins`. Ver [CSRF](./http.md#csrf-o-cookie-de-sessao-precisa-de-um-par).
 
 !!! warning "`XMLHttpRequest`, não `fetch`"
     Como em `uploadWithProgress`: `fetch` ainda não reporta progresso de **upload** em navegador nenhum. Aqui há um segundo motivo — o tus devolve o novo offset num **header de resposta**, e `uploadWithProgress` só entrega corpo parseado, então não dava pra reaproveitar.

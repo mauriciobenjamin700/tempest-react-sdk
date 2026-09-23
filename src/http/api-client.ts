@@ -7,6 +7,7 @@
 import { randomId } from "../utils";
 import { buildApiUrl } from "./build-url";
 import { isTrustedCredentialTarget, reportSuppressedCredential } from "./credential-scope";
+import { csrfHeaders } from "./csrf";
 import { decodeByContentType } from "./decode-response";
 import type { ResponseDecoder } from "./decode-response";
 import { buildApiError, TempestApiError, isRetriableStatus } from "./errors";
@@ -125,6 +126,12 @@ async function parseError(response: Response, sentRequestId?: string): Promise<T
  * header, and a development build says so once. Declare the exceptions in
  * {@link ApiClientConfig.trustedOrigins}.
  *
+ * **CSRF** is off unless you set `csrf`. With it, every unsafe request (anything
+ * but `GET`/`HEAD`/`OPTIONS`/`TRACE`) echoes the `csrf_token` cookie in an
+ * `X-CSRF-Token` header — the double-submit contract of `tempest-fastapi-sdk`'s
+ * `CSRFMiddleware` — scoped to the same origins as the bearer token and sent on
+ * `skipAuth` requests too. See {@link ApiClientConfig.csrf}.
+ *
  * **Retries** are off unless you set `retry`. See {@link ApiClientConfig.retry}
  * for the built-in policy; it never replays a write. A single call overrides it
  * with {@link RequestOptions.retry}, and opts out of auth entirely with
@@ -190,12 +197,21 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
 
         const url = buildApiUrl(config.baseURL, path, { prefix: config.prefix, params });
 
+        const callerHeaders = headers as Record<string, string> | undefined;
         const finalHeaders: Record<string, string> = {
             ...(isForm ? {} : { "Content-Type": "application/json" }),
             ...(requestId ? { "X-Request-ID": requestId } : {}),
             ...config.headers,
             ...authHeaders(url, skipAuth),
-            ...(headers as Record<string, string> | undefined),
+            ...csrfHeaders({
+                method: rest.method ?? "GET",
+                url,
+                reference: config.baseURL,
+                csrf: config.csrf,
+                trustedOrigins: config.trustedOrigins,
+                headers: { ...config.headers, ...callerHeaders },
+            }),
+            ...callerHeaders,
         };
 
         const timed = withTimeout(signal, limit);

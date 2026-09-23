@@ -4,6 +4,61 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Segurança
+
+- **`csrf` — o modo cookie que a doc recomenda ganhou a defesa que ele exige.** A página
+  de integração com FastAPI mandava guardar o refresh token num cookie `httpOnly`
+  (`withCredentials: true`), e é exatamente o modo em que o navegador anexa a credencial
+  a uma requisição que **outro** site disparou. O SDK não tinha peça nenhuma de CSRF:
+  `grep -rni csrf src docs` devolvia zero linha de código, doc ou teste.
+
+  ```ts
+  const api = createApiClient({ baseURL, withCredentials: true, csrf: true });
+  await api.post("/pedidos", { body }); // → X-CSRF-Token: <cookie csrf_token>
+  ```
+
+  É o double-submit cookie, com os defaults **medidos** no `CSRFMiddleware` do
+  `tempest-fastapi-sdk` 0.297.0 (`tempest_fastapi_sdk/api/middlewares/csrf.py`): cookie
+  `csrf_token`, header `X-CSRF-Token`, escritas `POST`/`PUT`/`PATCH`/`DELETE`. Exportados
+  como `DEFAULT_CSRF_COOKIE_NAME` / `DEFAULT_CSRF_HEADER_NAME`, com teste fixando o valor.
+  Regras, uma classe de teste cada: sem `csrf` nada muda; vai em todo método não-seguro
+  (lista de negação `GET`/`HEAD`/`OPTIONS`/`TRACE`) e nunca num seguro; **nunca atravessa
+  origem** — reusa o `isTrustedCredentialTarget` da 0.66.0, então `baseURL` +
+  `trustedOrigins`; vai em requisição `skipAuth` (login e refresh são as escritas
+  forjáveis); header CSRF escrito à mão, em qualquer caixa, nunca é trocado; o cookie é
+  relido a cada requisição, então a repetição depois de um `refresh()` já sai com o valor
+  rotacionado. Em build de desenvolvimento, `csrf` ligado sem cookie legível escreve uma
+  linha no console em vez de virar `403` mudo.
+
+  Cobre todo caminho de requisição do SDK: `createApiClient`, `createTempestAuth({ csrf })`,
+  `uploadWithProgress({ csrf })` (escopo na origem da página quando `credentialOrigin`
+  falta — opção nova nasce fechada) e `createResumableUpload({ csrf })` (`POST`, `PATCH`,
+  `DELETE`; nunca o `HEAD` de offset; nunca um `Location` de outra origem). `csrfHeaders()`
+  está exportado para a requisição montada à mão. `CsrfOptions.getToken` cobre a API em
+  outro site, cujo cookie o `document.cookie` não vê.
+
+  A issue estava errada em três pontos, medidos:
+  - **Rotação por header de resposta não entrou.** O backend não emite o token em header
+    nenhum — o double-submit dele é cookie × header —, e captura por header dependeria de
+    `Access-Control-Expose-Headers`, que falha em silêncio. Relendo o cookie por
+    requisição, a rotação sai de graça e o critério "ausência do header de exposição"
+    deixa de existir.
+  - **Default `csrftoken` → `csrf_token`**, o nome que o `tempest-fastapi-sdk` usa.
+  - **"Um path absoluto de terceiro vazaria o cookie" não procede**: `credentials:
+"include"` manda os cookies **do destino**, não os da sua API. O que vazaria é o header
+    CSRF, e esse é o que o escopo de origem segura.
+
+  Sem aviso de `withCredentials` sem `csrf`: o backend documenta `exclude_paths=("/api/",)`
+  e `SameSite=lax` por default, então o aviso dispararia em quase todo app correto.
+
+  Custo medido com `npx size-limit` (brotli): fatia do http client 4118 → 4570 B (teto
+  4,25 → 4,6 kB), app típico 10 298 → 10 740 B (10,3 → 10,8 kB), upload resumível 3512 →
+  3938 B (3,65 → 4 kB), barril ESM 132 981 → 133 621 B (133,5 → 134 kB), barril CJS
+  158 326 → 159 042 B (159 → 159,5 kB). O `createApiClient` importa o `csrf.ts`
+  estaticamente, então quem não liga a opção também paga os ~450 B.
+
+  Closes #363.
+
 ### Adicionado
 
 - **`<Sidebar match="route">` e `activeNavKey(pathname, keys)` — o item ativo sai da

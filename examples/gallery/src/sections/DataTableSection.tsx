@@ -101,6 +101,7 @@ export function DataTableSection() {
     const announce = useAnnounce();
 
     const [page, setPage] = useState(1);
+    const [size, setSize] = useState(5);
     const [sort, setSort] = useState<DataTableSort<Row> | null>(null);
     const [term, setTerm] = useState("");
     const [pageData, setPageData] = useState<{ items: Row[]; total: number }>({
@@ -118,7 +119,7 @@ export function DataTableSection() {
     useEffect(() => {
         let current = true;
         setLoading(true);
-        fetchPage({ page, pageSize: 5, sort, term }).then((result) => {
+        fetchPage({ page, pageSize: size, sort, term }).then((result) => {
             if (!current) return;
             setPageData(result);
             setLoading(false);
@@ -126,7 +127,7 @@ export function DataTableSection() {
         return () => {
             current = false;
         };
-    }, [page, sort, term]);
+    }, [page, size, sort, term]);
 
     /**
      * Fake backend: slow, and it refuses the literal name "erro".
@@ -186,8 +187,8 @@ export function DataTableSection() {
 
             <Example
                 id="data-table-server"
-                title="Paginação no servidor — página, ordenação e busca controladas"
-                note="A tabela recebe só a página atual. totalItems manda no número de páginas, e clicar num cabeçalho ou digitar na busca reporta pra fora em vez de mexer nas linhas que já estão na tela — ordenar a página seria ordenar cinco linhas alegando ter ordenado 23. Entre páginas as linhas antigas ficam esmaecidas; no primeiro carregamento aparecem placeholders."
+                title="Paginação no servidor — página, tamanho, ordenação e busca controladas"
+                note="A tabela recebe só a página atual. totalItems manda no número de páginas, e clicar num cabeçalho ou digitar na busca reporta pra fora em vez de mexer nas linhas que já estão na tela — ordenar a página seria ordenar cinco linhas alegando ter ordenado 23. O seletor de itens por página reporta o tamanho e volta para a página 1; com 25 por página cabe tudo numa página e o rodapé continua, para dar pra voltar. Entre páginas as linhas antigas ficam esmaecidas; no primeiro carregamento aparecem placeholders."
                 code={`const { data, isFetching } = usePaginatedQuery({
   queryKey: ["pessoas", page, sort, term],
   queryFn: () => api.get(\`/pessoas?\${filtersToQueryParams(filtros)}\`),
@@ -197,10 +198,12 @@ export function DataTableSection() {
   data={data?.items ?? []}
   columns={columns}
   rowKey={(row) => row.id}
-  pageSize={5}
   totalItems={data?.total ?? 0}
   page={page}
   onPageChange={setPage}
+  pageSize={size}
+  pageSizeOptions={[5, 10, 25]}
+  onPageSizeChange={setSize}
   onSortChange={setSort}
   searchable
   onSearchChange={setTerm}
@@ -217,6 +220,12 @@ export function DataTableSection() {
                         name: "page / onPageChange",
                         type: "number / (page: number) => void",
                         description: "Página controlada. Obrigatória no modo servidor.",
+                    },
+                    {
+                        name: "pageSize / onPageSizeChange",
+                        type: "number / (size: number) => void",
+                        description:
+                            "Liga o seletor de itens por página. A tabela volta para a página 1 sozinha.",
                     },
                     {
                         name: "onSortChange",
@@ -242,10 +251,12 @@ export function DataTableSection() {
                     data={pageData.items}
                     columns={columns}
                     rowKey={(row) => row.id}
-                    pageSize={5}
                     totalItems={pageData.total}
                     page={page}
                     onPageChange={setPage}
+                    pageSize={size}
+                    pageSizeOptions={[5, 10, 25]}
+                    onPageSizeChange={setSize}
                     onSortChange={(next) => {
                         setSort(next);
                         setPage(1);

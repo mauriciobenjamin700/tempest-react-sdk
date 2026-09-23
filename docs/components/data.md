@@ -452,6 +452,9 @@ export function Pessoas() {
 | `manualSearch` | `boolean` | Delega a busca. Implícito com `totalItems`. |
 | `onSearchChange` | `(term: string) => void` | Termo digitado; debounce é seu. |
 | `loading` | `boolean` | Requisição em voo. |
+| `pageSize` | `number` | Linhas por página; obrigatório com `onPageSizeChange`. |
+| `onPageSizeChange` | `(size: number) => void` | Liga o seletor de itens por página ([abaixo](#itens-por-pagina)). |
+| `pageSizeOptions` | `number[]` | Tamanhos oferecidos. Default `[10, 25, 50, 100]`. |
 
 !!! check "O compilador agora recusa a combinação inválida"
     As props são uma **união** das formas que funcionam, então três erros que antes
@@ -521,6 +524,79 @@ export function Pessoas() {
     dataset encolhe, que no modo servidor é desligado de propósito (a página é sua,
     e um clamp contra um `totalItems` que ainda não chegou mandaria o usuário pra
     uma página que ele não pediu, no meio do fetch).
+
+### Itens por página
+
+> **Quando usar**: listagem de admin em que quem lê precisa escolher a densidade —
+> 10 para conferir, 100 para varrer relato de crash.
+
+O rodapé do `DataTable` é o próprio `Pagination`, que já tem o seletor. Passe
+`onPageSizeChange` e ele aparece; sem essa prop, nada muda.
+
+```tsx
+import { useState } from "react";
+import { DataTable, usePaginatedQuery, type DataTableColumn } from "tempest-react-sdk";
+
+type Erro = { id: number; mensagem: string; ocorrencias: number };
+
+const COLUNAS: DataTableColumn<Erro>[] = [
+  { key: "mensagem", header: "Mensagem" },
+  { key: "ocorrencias", header: "Ocorrências", align: "right" },
+];
+
+export function ConsoleDeErros() {
+  const [tamanho, setTamanho] = useState(25);
+
+  const { items, total, pageNumber, setPage, isFetching } = usePaginatedQuery<Erro>({
+    queryKey: ["erros"],
+    queryFn: ({ page, size }) => fetch(`/api/erros?page=${page}&size=${size}`).then((r) => r.json()),
+    pageSize: tamanho,
+  });
+
+  return (
+    <DataTable
+      data={items}
+      columns={COLUNAS}
+      rowKey={(row) => row.id}
+      totalItems={total}
+      page={pageNumber}
+      onPageChange={setPage}
+      pageSize={tamanho}
+      pageSizeOptions={[10, 25, 50, 100]}
+      onPageSizeChange={setTamanho}
+      loading={isFetching}
+    />
+  );
+}
+```
+
+1. **`pageSize` volta para a tabela.** O seletor só reporta; quem guarda o
+   tamanho é você, e é ele que conta as páginas (`totalItems / pageSize`). Por isso
+   `onPageSizeChange` sem `pageSize` não compila.
+2. **A página volta para 1 sozinha.** Depois de `onPageSizeChange`, a tabela chama
+   `onPageChange(1)` — a não ser que você já esteja na página 1. Página 7 com 10 por
+   página são as linhas 61–70; com 100 por página ela não existe. Você **não**
+   precisa escrever `setPage(1)` no callback (se escrever, é inofensivo).
+3. **O rodapé fica mesmo com uma página só.** Escolher 100 para 40 linhas deixa uma
+   página; sem o seletor na tela não haveria como voltar para 10.
+4. **O tamanho atual sempre aparece na lista.** `pageSize={20}` com a lista padrão
+   entra como opção, em ordem — antes um `<select>` sem opção correspondente
+   mostrava "10 / página" sobre uma tabela de 20 linhas.
+
+!!! check "O tipo recusa o seletor que não faz nada"
+    | Você escreveu | Por que não compila |
+    | --- | --- |
+    | `pageSizeOptions` sem `onPageSizeChange` | O seletor muda e ninguém é avisado |
+    | `onPageSizeChange` sem `pageSize` | A escolha nunca volta: a tabela segue contando páginas de 10 |
+
+    O tipo dessa metade é `DataTablePageSizeProps`. Para callers que o tipo não
+    alcança (JavaScript puro), o segundo caso também avisa no `console` em dev.
+
+!!! note "Abaixo de 640px o seletor some"
+    É o default do `Pagination` (`compactOnMobile`): no celular o rodapé fica em
+    `‹` / `›` mais o resumo, e o tamanho escolhido no desktop continua valendo. É um
+    trade-off de espaço, não um bug — veja
+    [`Pagination`](./navigation.md#pagination).
 
 ## `BarList`
 

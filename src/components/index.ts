@@ -378,6 +378,7 @@ export type {
     DataTableColumn,
     DataTableEditLabels,
     DataTableEditorType,
+    DataTablePageSizeProps,
     DataTablePagingProps,
     DataTableProps,
     DataTableSort,

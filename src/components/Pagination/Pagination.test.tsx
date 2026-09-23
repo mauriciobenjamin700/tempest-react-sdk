@@ -80,4 +80,30 @@ describe("Pagination — narrow screens", () => {
         rerender(<Pagination page={8} totalPages={20} onPageChange={vi.fn()} />);
         expect(scrollIntoView).not.toHaveBeenCalled();
     });
+
+    /**
+     * A `<select>` whose value matches no option displays its first one: before the
+     * merge, `pageSize={20}` against the default list read "10 / página" over a
+     * table that showed 20 rows.
+     */
+    it("offers the current page size even when it is not among the options", () => {
+        const { getByLabelText } = render(
+            <Pagination
+                page={1}
+                totalPages={5}
+                onPageChange={vi.fn()}
+                pageSize={20}
+                onPageSizeChange={vi.fn()}
+            />,
+        );
+        const select = getByLabelText("Itens por página") as HTMLSelectElement;
+        expect(select.value).toBe("20");
+        expect(Array.from(select.options, (option) => option.value)).toEqual([
+            "10",
+            "20",
+            "25",
+            "50",
+            "100",
+        ]);
+    });
 });

@@ -1,6 +1,7 @@
 /**
  * @tempest-limits file-lines, props-count, function-lines — the table does four jobs
- * a caller turns on independently — paging (pageSize), search (searchable,
+ * a caller turns on independently — paging (pageSize, plus the optional size
+ * selector onPageSizeChange/pageSizeOptions), search (searchable,
  * searchKeys), sort (initialSort) and inline edit (onCellChange, editLabels) — over
  * one row model (data, columns, rowKey, emptyMessage). The body is long because
  * those four share the derived-rows pipeline: filter, then sort, then page, then map
@@ -101,7 +102,13 @@ export interface DataTableBaseProps<T> extends HTMLAttributes<HTMLDivElement> {
     data: T[];
     /** Column definitions. */
     columns: DataTableColumn<T>[];
-    /** Rows per page. Default 10. */
+    /**
+     * Rows per page. Default 10.
+     *
+     * Always read on every render, so it is already a controlled value; what turns
+     * it into a user-facing choice is `onPageSizeChange` (see
+     * {@link DataTablePageSizeProps}), which then makes it required.
+     */
     pageSize?: number;
     /** Render a search input above the table. Default false. */
     searchable?: boolean;
@@ -190,6 +197,42 @@ export type DataTablePagingProps =
       };
 
 /**
+ * The items-per-page selector: owned by the caller, or absent.
+ *
+ * The footer is the SDK's own `Pagination`, which already renders a size
+ * `<select>`; this is the channel that reaches it. Two shapes only, for the same
+ * reason as {@link DataTablePagingProps}: `pageSizeOptions` with no
+ * `onPageSizeChange` is a selector that changes nothing, and `onPageSizeChange`
+ * with no `pageSize` is one whose choice never comes back — the table would keep
+ * counting pages by the default 10 while the selector claims 50. Both are build
+ * errors instead.
+ */
+export type DataTablePageSizeProps =
+    | {
+          /** No selector: `pageSize` is fixed by the caller. */
+          onPageSizeChange?: never;
+          /** Nothing to choose from. */
+          pageSizeOptions?: never;
+      }
+    | {
+          /** The size currently shown. Required, since the selector reports and you feed it back. */
+          pageSize: number;
+          /**
+           * Called with the size the user picked. Passing it renders the selector in the
+           * footer, and keeps the footer on screen even when everything fits on one page
+           * — otherwise picking 100 for 40 rows would remove the only control that can
+           * pick 10 again.
+           *
+           * The table also moves back to page 1 (through `onPageChange` when the page
+           * is controlled), after this call. Page 7 of 10-per-page has no meaning at
+           * 100-per-page, and 1 is the only page guaranteed to exist under the new size.
+           */
+          onPageSizeChange: (size: number) => void;
+          /** Sizes offered. Default `[10, 25, 50, 100]`; the current `pageSize` is always included. */
+          pageSizeOptions?: number[];
+      };
+
+/**
  * Sorting: delegated, and therefore reported, or neither.
  *
  * `manualSort` without `onSortChange` renders a header that moves its arrow and
@@ -253,11 +296,12 @@ export type DataTableSearchProps =
       };
 
 /**
- * The table's props: the shared half, plus one valid paging shape and one valid
- * sorting shape.
+ * The table's props: the shared half, plus one valid shape per axis — paging,
+ * page size, sorting and searching.
  */
 export type DataTableProps<T> = DataTableBaseProps<T> &
     DataTablePagingProps &
+    DataTablePageSizeProps &
     DataTableSortProps<T> &
     DataTableSearchProps;
 
@@ -278,7 +322,8 @@ function headerText<T>(column: DataTableColumn<T>): string {
  * - Clicking a sortable header cycles asc → desc → unsorted.
  * - Search matches a case-insensitive substring across `searchKeys`
  *   (or every string/number column when not provided).
- * - Pagination is hidden when the result fits on a single page.
+ * - Pagination is hidden when the result fits on a single page — unless
+ *   `onPageSizeChange` is set, because the footer then carries the size selector.
  * - A column with `editable` renders a button that opens an inline editor;
  *   `Enter` commits, `Escape` discards, `Tab` walks to the next editable cell.
  *
@@ -302,7 +347,7 @@ function headerText<T>(column: DataTableColumn<T>): string {
 export function DataTable<T>({
     data,
     columns,
-    pageSize = 10,
+    pageSize: pageSizeProp,
     searchable = false,
     searchKeys,
     initialSort,
@@ -313,6 +358,8 @@ export function DataTable<T>({
     totalItems,
     page: controlledPage,
     onPageChange,
+    onPageSizeChange,
+    pageSizeOptions,
     manualSort,
     onSortChange,
     manualSearch,
@@ -321,6 +368,7 @@ export function DataTable<T>({
     className,
     ...rest
 }: DataTableProps<T>) {
+    const pageSize = pageSizeProp ?? 10;
     const [search, setSearch] = useState<string>("");
     const [sort, setSort] = useState<DataTableSort<T> | null>(initialSort ?? null);
     const { page: internalPage, setPage: setInternalPage } = usePagination(1, pageSize);
@@ -339,10 +387,26 @@ export function DataTable<T>({
         [controlledPage, setInternalPage, onPageChange],
     );
 
+    /**
+     * Report the new size, then return to page 1 unless already there.
+     *
+     * The size goes out first so a caller that batches both into one query key
+     * (React batches the two updates of one event) fetches once, at the right size.
+     */
+    const changePageSize = useCallback(
+        (next: number) => {
+            onPageSizeChange?.(next);
+            if (page !== 1) setPage(1);
+        },
+        [onPageSizeChange, page, setPage],
+    );
+
     useDevWarnings({
         serverMode,
         controlledPage,
         onPageChange,
+        pageSizeControlled: pageSizeProp !== undefined,
+        onPageSizeChange,
         sortIsManual,
         hasSortableColumn: columns.some((column) => column.sortable),
         onSortChange,
@@ -702,12 +766,15 @@ export function DataTable<T>({
                     />
                 )}
             </div>
-            {totalPages > 1 && (
+            {(totalPages > 1 || onPageSizeChange !== undefined) && (
                 <Pagination
                     page={safePage}
                     totalPages={totalPages}
                     onPageChange={setPage}
                     totalItems={rowCount}
+                    pageSize={pageSize}
+                    pageSizeOptions={pageSizeOptions}
+                    onPageSizeChange={onPageSizeChange && changePageSize}
                 />
             )}
         </div>

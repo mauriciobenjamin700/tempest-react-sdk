@@ -584,6 +584,7 @@ export function Paginacao({ totalItems }: { totalItems: number }) {
 | `totalItems`       | `number` (count, optional) | —     |
 | `onPageChange`     | `(page: number) => void` | —       |
 | `onPageSizeChange` | `(size: number) => void` | —       |
+| `pageSizeOptions`  | `number[]` — the current `pageSize` is always merged in | `[10, 25, 50, 100]` |
 | `siblingCount`     | `number` (neighbors)     | `3`     |
 | `compactOnMobile`  | `boolean`                | `true`  |
 

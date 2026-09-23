@@ -4,6 +4,56 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`DataTable` ganha o seletor de itens por página (`pageSize` + `onPageSizeChange` +
+  `pageSizeOptions`).** O rodapé do `DataTable` é o próprio `Pagination`, que já tinha o
+  seletor, mas recebia só quatro props (`page`, `totalPages`, `onPageChange`,
+  `totalItems`): uma listagem de admin com "itens por página" não podia usar a tabela, e
+  manter um `Pagination` externo deixava **duas** paginações na tela. Medido com um
+  teste descartável em vitest (`DataTable totalItems={95}` + `Pagination` externo): 2
+  botões "Página anterior", 0 `<select>` dentro da tabela.
+
+  ```tsx
+  <DataTable
+    data={items}
+    columns={columns}
+    totalItems={total}
+    page={pageNumber}
+    onPageChange={setPage}
+    pageSize={size}
+    pageSizeOptions={[10, 25, 50, 100]}
+    onPageSizeChange={setSize}
+  />
+  ```
+
+  - **Sem `onPageSizeChange`, nada muda** — o seletor não aparece e o rodapé continua
+    sumindo quando tudo cabe numa página.
+  - **O tipo recusa o seletor que mente** (`DataTablePageSizeProps`, exportado):
+    `pageSizeOptions` sem `onPageSizeChange` e `onPageSizeChange` sem `pageSize` são erro
+    de build — o segundo deixaria a tabela contando páginas de 10 enquanto o seletor diz 50. Para JavaScript puro, o segundo também avisa em dev.
+  - **A tabela volta para a página 1 sozinha**, chamando `onPageChange(1)` depois de
+    `onPageSizeChange` (e só se não estiver já na 1). Página 7 com 10 por página não
+    existe com 100 por página.
+  - **O defeito que o encaminhamento "conforme pedido" teria entregado:** o rodapé era
+    condicionado a `totalPages > 1`, então escolher 100 para 40 linhas removia o rodapé
+    e, com ele, o único controle capaz de voltar para 10. Com o seletor ligado o rodapé
+    fica. O teste `keeps the selector on screen when everything fits on one page` falha
+    com o gate antigo (`Unable to find a label with the text of: Itens por página`).
+  - **`Pagination` sempre oferece o `pageSize` atual**, mesclado em ordem nas opções.
+    Medido em jsdom antes da mudança: `pageSize={20}` com a lista padrão deixava o
+    `<select>` em `"10"` — "10 / página" sobre uma tabela de 20 linhas.
+  - Abaixo de 640px o seletor continua escondido (default `compactOnMobile` do
+    `Pagination`), agora documentado na receita.
+
+  Custo medido com `npx size-limit` contra a base `release/v0.67.0`: fatia
+  `{ DataTable }` 5841 → 6004 B (+163 B), barril ESM 132981 → 133029 B (+48 B), barril
+  CJS 158326 → 158814 B (+488 B). O teto da fatia `DataTable with inline editing +
+server mode` sobe de 5.9 KB para 6.1 KB: os bytes compram o seletor, o reset de página
+  e o aviso de dev.
+
+  Closes #359
+
 ## [0.67.0] — 2026-09-23
 
 ### Adicionado

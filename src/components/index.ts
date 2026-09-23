@@ -192,7 +192,7 @@ export type { SegmentedControlOption, SegmentedControlProps } from "./SegmentedC
 export { Select } from "./Select";
 export type { SelectOption, SelectProps } from "./Select";
 
-export { Sidebar } from "./Sidebar";
+export { activeNavKey, Sidebar } from "./Sidebar";
 export type {
     SidebarEntry,
     SidebarItem,

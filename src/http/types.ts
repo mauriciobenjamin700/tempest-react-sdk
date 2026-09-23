@@ -1,4 +1,5 @@
 import type { Logger } from "../logger";
+import type { CsrfOptions } from "./csrf";
 import type { RetryOptions } from "./retry";
 
 /**
@@ -207,7 +208,6 @@ export interface ApiClientConfig {
      * permission the caller does not have.
      */
     retry?: boolean | RetryOptions;
-    /** Whether to send cookies on cross-origin requests (default: false). */
     /**
      * Milliseconds before a request is abandoned. Default `15_000`. `null` turns
      * it off.
@@ -237,7 +237,32 @@ export interface ApiClientConfig {
      * particular call does not fit either default.
      */
     uploadTimeout?: number | null;
+    /** Whether to send cookies on cross-origin requests (default: false). */
     withCredentials?: boolean;
+    /**
+     * Send a CSRF token on every request that can change state. Off by default.
+     *
+     * A bearer token is immune to cross-site request forgery because the
+     * browser never attaches `Authorization` on its own. A cookie session is
+     * not: the browser sends the cookie with a request another site triggers.
+     * That is the mode `withCredentials: true` exists for — and before 0.68.0
+     * the SDK had no piece of the defense.
+     *
+     * `true` uses the defaults of `tempest-fastapi-sdk`'s `CSRFMiddleware`:
+     * read the `csrf_token` cookie, send it as `X-CSRF-Token`. Pass
+     * {@link CsrfOptions} to rename either, or to supply the token yourself.
+     *
+     * The header goes on `POST`, `PUT`, `PATCH`, `DELETE` and any other
+     * non-safe method, never on `GET`/`HEAD`/`OPTIONS`/`TRACE`; only to the
+     * origins the bearer token may reach (`baseURL`'s plus
+     * {@link trustedOrigins}); on `skipAuth` requests too, because login and
+     * refresh are the writes a cookie session exposes; and never over a CSRF
+     * header you set yourself.
+     *
+     * Independent of `withCredentials`: a same-origin app sends its cookies
+     * without it, and is exposed the same way.
+     */
+    csrf?: boolean | CsrfOptions;
     /** Default headers merged into every request. */
     headers?: Record<string, string>;
     /** Optional fetch implementation (defaults to globalThis.fetch). */

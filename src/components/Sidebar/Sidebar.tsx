@@ -1,10 +1,11 @@
 /**
  * @tempest-limits props-count — header, items, footer are the three regions,
- * value/onChange the selection, and collapsed/width/collapsedWidth the two layout
- * modes it switches between.
+ * value/onChange/match the selection, and collapsed/width/collapsedWidth the two
+ * layout modes it switches between.
  */
 import { useId, type HTMLAttributes, type ReactNode } from "react";
 import { cn } from "@/utils/cn";
+import { activeNavIndex } from "./active-nav-key";
 import styles from "./Sidebar.module.css";
 import { SidebarEntry } from "./SidebarEntry";
 
@@ -59,8 +60,28 @@ export interface SidebarProps extends Omit<HTMLAttributes<HTMLElement>, "onChang
     header?: ReactNode;
     /** Navigation entries. An entry with no `type` is an item. */
     items: SidebarEntry[];
-    /** Active item key. */
+    /**
+     * The active item: its `key` by default, or the current route with
+     * `match="route"`.
+     */
     value?: string;
+    /**
+     * How `value` picks the active item.
+     *
+     * - `"key"` (default): the item whose `key` equals `value`.
+     * - `"route"`: `value` is the current pathname, and the active item is the one
+     *   whose `href` (or `key`, when it has no `href`) is the longest path covering
+     *   it on a segment boundary — see `activeNavKey`. `/dashboard/tips/42` lights
+     *   `/dashboard/tips`, not `/dashboard`, and `/users-admin` never lights
+     *   `/users`. Sections and separators take no part.
+     *
+     * `"route"` is what lets the app pass `useLocation().pathname` and stop
+     * computing a key: the component already holds the entries the resolution runs
+     * against, so asking the app to repeat them is how the two drift apart. It
+     * reads no router itself — the value comes in as a string — so the component
+     * keeps working with no router mounted.
+     */
+    match?: "key" | "route";
     /** Fires when an item is clicked. Receives the item's `key`. */
     onChange?: (key: string) => void;
     /** Bottom slot — typically settings/profile/logout. */
@@ -125,6 +146,34 @@ function toBlocks(entries: readonly SidebarEntry[]): Block[] {
 }
 
 /**
+ * The key of the item `value` selects, under the given `match` mode.
+ *
+ * @param entries - The `items` prop, as given.
+ * @param value - The `value` prop.
+ * @param match - The `match` prop.
+ * @returns The active item's key, or `undefined` when no item is active.
+ */
+function resolveActiveKey(
+    entries: readonly SidebarEntry[],
+    value: string | undefined,
+    match: "key" | "route",
+): string | undefined {
+    if (match === "key" || value === undefined) {
+        return value;
+    }
+    const items = entries.filter(
+        (entry): entry is { type?: "item" } & SidebarItem =>
+            entry.type !== "section" && entry.type !== "separator",
+    );
+    return items[
+        activeNavIndex(
+            value,
+            items.map((item) => item.href ?? item.key),
+        )
+    ]?.key;
+}
+
+/**
  * Desktop sidebar navigation. Pair with `<Show above="md">` and a `Drawer`
  * for mobile.
  *
@@ -146,6 +195,17 @@ function toBlocks(entries: readonly SidebarEntry[]): Block[] {
  * </Show>
  *
  * @example
+ * const { pathname } = useLocation();
+ * <Sidebar
+ *     match="route"
+ *     value={pathname}
+ *     items={[
+ *         { key: "overview", label: "Overview", href: "/dashboard" },
+ *         { key: "tips", label: "Tips", href: "/dashboard/tips" },
+ *     ]}
+ * />
+ *
+ * @example
  * <Sidebar
  *     items={[
  *         { type: "section", key: "monitoring", label: "Monitoring" },
@@ -163,6 +223,7 @@ export function Sidebar({
     items,
     value,
     onChange,
+    match = "key",
     footer,
     collapsed = false,
     width = 240,
@@ -173,6 +234,7 @@ export function Sidebar({
 }: SidebarProps) {
     const baseId = useId();
     const blocks = toBlocks(items);
+    const activeKey = resolveActiveKey(items, value, match);
     const finalWidth =
         typeof (collapsed ? collapsedWidth : width) === "number"
             ? `${collapsed ? collapsedWidth : width}px`
@@ -199,7 +261,7 @@ export function Sidebar({
                                     <SidebarEntry
                                         key={item.key}
                                         item={item}
-                                        active={item.key === value}
+                                        active={item.key === activeKey}
                                         collapsed={collapsed}
                                         onSelect={onChange}
                                     />
@@ -226,7 +288,7 @@ export function Sidebar({
                                 <SidebarEntry
                                     key={item.key}
                                     item={item}
-                                    active={item.key === value}
+                                    active={item.key === activeKey}
                                     collapsed={collapsed}
                                     onSelect={onChange}
                                 />

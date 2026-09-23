@@ -4,6 +4,106 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Segurança
+
+- **`csrf` — o modo cookie que a doc recomenda ganhou a defesa que ele exige.** A página
+  de integração com FastAPI mandava guardar o refresh token num cookie `httpOnly`
+  (`withCredentials: true`), e é exatamente o modo em que o navegador anexa a credencial
+  a uma requisição que **outro** site disparou. O SDK não tinha peça nenhuma de CSRF:
+  `grep -rni csrf src docs` devolvia zero linha de código, doc ou teste.
+
+  ```ts
+  const api = createApiClient({ baseURL, withCredentials: true, csrf: true });
+  await api.post("/pedidos", { body }); // → X-CSRF-Token: <cookie csrf_token>
+  ```
+
+  É o double-submit cookie, com os defaults **medidos** no `CSRFMiddleware` do
+  `tempest-fastapi-sdk` 0.297.0 (`tempest_fastapi_sdk/api/middlewares/csrf.py`): cookie
+  `csrf_token`, header `X-CSRF-Token`, escritas `POST`/`PUT`/`PATCH`/`DELETE`. Exportados
+  como `DEFAULT_CSRF_COOKIE_NAME` / `DEFAULT_CSRF_HEADER_NAME`, com teste fixando o valor.
+  Regras, uma classe de teste cada: sem `csrf` nada muda; vai em todo método não-seguro
+  (lista de negação `GET`/`HEAD`/`OPTIONS`/`TRACE`) e nunca num seguro; **nunca atravessa
+  origem** — reusa o `isTrustedCredentialTarget` da 0.66.0, então `baseURL` +
+  `trustedOrigins`; vai em requisição `skipAuth` (login e refresh são as escritas
+  forjáveis); header CSRF escrito à mão, em qualquer caixa, nunca é trocado; o cookie é
+  relido a cada requisição, então a repetição depois de um `refresh()` já sai com o valor
+  rotacionado. Em build de desenvolvimento, `csrf` ligado sem cookie legível escreve uma
+  linha no console em vez de virar `403` mudo.
+
+  Cobre todo caminho de requisição do SDK: `createApiClient`, `createTempestAuth({ csrf })`,
+  `uploadWithProgress({ csrf })` (escopo na origem da página quando `credentialOrigin`
+  falta — opção nova nasce fechada) e `createResumableUpload({ csrf })` (`POST`, `PATCH`,
+  `DELETE`; nunca o `HEAD` de offset; nunca um `Location` de outra origem). `csrfHeaders()`
+  está exportado para a requisição montada à mão. `CsrfOptions.getToken` cobre a API em
+  outro site, cujo cookie o `document.cookie` não vê.
+
+  A issue estava errada em três pontos, medidos:
+  - **Rotação por header de resposta não entrou.** O backend não emite o token em header
+    nenhum — o double-submit dele é cookie × header —, e captura por header dependeria de
+    `Access-Control-Expose-Headers`, que falha em silêncio. Relendo o cookie por
+    requisição, a rotação sai de graça e o critério "ausência do header de exposição"
+    deixa de existir.
+  - **Default `csrftoken` → `csrf_token`**, o nome que o `tempest-fastapi-sdk` usa.
+  - **"Um path absoluto de terceiro vazaria o cookie" não procede**: `credentials:
+"include"` manda os cookies **do destino**, não os da sua API. O que vazaria é o header
+    CSRF, e esse é o que o escopo de origem segura.
+
+  Sem aviso de `withCredentials` sem `csrf`: o backend documenta `exclude_paths=("/api/",)`
+  e `SameSite=lax` por default, então o aviso dispararia em quase todo app correto.
+
+  Custo medido com `npx size-limit` (brotli): fatia do http client 4118 → 4570 B (teto
+  4,25 → 4,6 kB), app típico 10 298 → 10 740 B (10,3 → 10,8 kB), upload resumível 3512 →
+  3938 B (3,65 → 4 kB), barril ESM 132 981 → 133 621 B (133,5 → 134 kB), barril CJS
+  158 326 → 159 042 B (159 → 159,5 kB). O `createApiClient` importa o `csrf.ts`
+  estaticamente, então quem não liga a opção também paga os ~450 B.
+
+  Closes #363.
+
+### Adicionado
+
+- **`<Sidebar match="route">` e `activeNavKey(pathname, keys)` — o item ativo sai da
+  rota, com o prefixo mais longo vencendo.** Quem usava URL como `key` (o caminho
+  natural desde o `SidebarItem.href`) resolvia o casamento sozinho, e o `pathname`
+  quase nunca é igual à key: `/dashboard/tips/42` tem que destacar `/dashboard/tips`.
+  Com `match="route"`, `value` passa a ser o pathname e o `Sidebar` resolve contra o
+  `href` de cada item (ou a `key`, sem `href`); seções e separadores ficam de fora. A
+  função pura serve os outros menus que recebem `value` como key (`BottomNavigation`,
+  `NavigationRail`, `Drawer`).
+
+  ```tsx
+  const { pathname } = useLocation();
+  <Sidebar match="route" value={pathname} items={items} />;
+  ```
+
+  Regras: casamento em **fronteira de segmento** (`/users` não cobre `/users-admin`),
+  o caminho **mais longo** vence independente da ordem do array, barra final, query e
+  hash são ignorados dos dois lados, `/` só acende em `/` (a regra do `NavLink`),
+  comparação case-sensitive, e nada casando devolve `""` sem lançar. O componente não
+  lê router — `value` chega como string —, então continua funcionando sem `<Router>`.
+
+  Medido antes de implementar, numa tabela de 11 casos (rota × keys × esperado),
+  fixada em `src/components/Sidebar/active-nav-key.test.ts` (`npx vitest run src/components/Sidebar/active-nav-key.test.ts`): o
+  `keys.find((k) => pathname.startsWith(k))` ingênuo acerta **3/11**; o
+  `activeNavKey` do `relove_dashboard` citado na issue acerta **8/11** — erra key
+  com barra final (`/dashboard/tips/` perde para `/dashboard` em `/dashboard/tips`),
+  query e hash (`/users?tab=2` não acende nada); a implementação daqui acerta
+  **11/11**. O `NavLink` do react-router 8.3.1 também não resolve: cada link decide
+  sozinho, então em `/dashboard/tips/42` **dois** itens ficam com
+  `aria-current="page"`. `Sidebar` sem `match` compara `value` com a `key` como
+  sempre — nenhum call site muda.
+
+  **Teto do `size-limit` da fatia "typical app" sobe de 10,3 para 10,4 kB, sem
+  byte novo dentro dela.** A fatia não importa `Sidebar` e o código novo não entra no
+  bundle dela (`grep` por `activeNav` e pelo regex `[?#]` no bundle: zero). Ela já
+  estava encostada no teto (10,30 kB na 0.67.0) e passou a 10,36 kB porque o módulo a
+  mais no grafo muda os nomes que o minificador escolhe (`var B=` virou `var M=` em
+  todo o arquivo), e o brotli comprime nomes diferentes de forma diferente. Mesmo
+  bundle refeito com `esbuild --bundle --minify` sobre a mesma fatia: 29.730 bytes
+  minificados **antes e depois**, brotli 10.550 → 10.533 B. Medido com `npx size-limit`
+  na 0.67.0 (base) e neste branch.
+
+  Closes #357
+
 ### Corrigido
 
 - **`Modal`, `Drawer` e `BottomSheet` prendem o foco de verdade.** A doc (`overlay.md`,
@@ -44,7 +144,9 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   Custo medido com `npx size-limit`: o `Modal` passa a carregar o trap — fatia "typical
   app" 10,30 → 11,04 kB brotli (+746 B; teto 10,3 → 11,1 kB) e fatia `Chat` 10,77 →
   11,15 kB (+384 B, via `Lightbox`; teto 11 → 11,2 kB). Barril ESM +310 B (133,29 kB,
-  teto 133,5 mantido) e CJS +671 B (159,00 kB, teto 159 mantido, no limite).
+  teto 133,5 mantido) e CJS +671 B (159,00 kB, teto 159 mantido, no limite). Somado ao #380 no merge,
+  medido com `npx size-limit`: "typical app" 11,42 kB (teto 11,5 kB) e CJS 159,77 kB
+  (teto 160 kB).
 
   Closes #375.
 

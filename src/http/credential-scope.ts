@@ -78,9 +78,10 @@ export function isTrustedCredentialTarget(
 /**
  * Say once, in a development build, that a credential was withheld.
  *
- * Without it the symptom is a `401` from a host the developer never typed, and
- * nothing in the app's code mentions the origin that produced it. Keyed by
- * target origin so a hundred-chunk upload reports one line.
+ * Without it the symptom is a `401` (or, for the CSRF header, a `403`) from a
+ * host the developer never typed, and nothing in the app's code mentions the
+ * origin that produced it. Keyed by credential and target origin, so a
+ * hundred-chunk upload reports one line per header it withheld.
  *
  * Silent in production for the same reason {@link parseResponse} is: the origin
  * an app talks to is not something to print into a user's console or ship to an
@@ -88,14 +89,21 @@ export function isTrustedCredentialTarget(
  *
  * @param target - The URL whose request went out unauthenticated.
  * @param reference - The origin the credential was scoped to.
+ * @param header - The header that was withheld. Default `"Authorization"`.
  */
-export function reportSuppressedCredential(target: string, reference: string): void {
+export function reportSuppressedCredential(
+    target: string,
+    reference: string,
+    header = "Authorization",
+): void {
     if (!isDevBuild()) return;
     const targetOrigin = originOf(target);
-    if (targetOrigin === null || reported.has(targetOrigin)) return;
-    reported.add(targetOrigin);
+    if (targetOrigin === null) return;
+    const key = `${header} ${targetOrigin}`;
+    if (reported.has(key)) return;
+    reported.add(key);
     console.warn(
-        `[tempest-react-sdk] Authorization was not sent to ${targetOrigin}: the credential is scoped to ${originOf(reference) ?? reference}. Add the origin to trustedOrigins if it should receive the token.`,
+        `[tempest-react-sdk] ${header} was not sent to ${targetOrigin}: the credential is scoped to ${originOf(reference) ?? reference}. Add the origin to trustedOrigins if it should receive the token.`,
     );
 }
 

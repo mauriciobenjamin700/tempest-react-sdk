@@ -369,6 +369,12 @@ export function Filtros() {
 !!! note "Flips at the screen edge"
     In a portal (the default), the panel moves to the opposite side when the requested `placement` does not fit the viewport, and is kept inside it with an 8 px margin. Scrolling the page or a container with the panel open carries it along with the trigger.
 
+!!! info "`Tab` enters the panel, even in a portal"
+    In a portal the panel lives at the end of `body`, and the browser would reach
+    it last. `Popover` restores the in-flow order: `Tab` from the open trigger
+    enters the panel's first field, `Tab` on its last field moves on to what
+    follows the trigger, and `Shift+Tab` walks back the same way.
+
 ## `ConfirmDialog`
 
 <!-- gallery:modal -->

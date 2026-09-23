@@ -9,6 +9,7 @@ import type { ReactElement, ReactNode } from "react";
 import { Portal } from "@/components/Portal";
 import { useAnchorPosition } from "@/components/Portal/anchor-position";
 import { useEscapeLayer } from "@/components/Portal/escape-layer";
+import { usePortalTabOrder } from "@/components/Portal/tab-bridge";
 import { cn } from "@/utils/cn";
 import styles from "./Popover.module.css";
 
@@ -83,6 +84,7 @@ export function Popover({
         offset: POPOVER_OFFSET,
         enabled: portal && isOpen,
     });
+    usePortalTabOrder({ enabled: portal && isOpen, anchor: rootNode, panel: panelNode });
 
     const setOpen = useCallback(
         (next: boolean): void => {

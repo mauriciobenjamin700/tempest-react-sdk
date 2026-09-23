@@ -109,7 +109,7 @@ Each section is a file under [`examples/gallery/src/sections/`](https://github.c
 | 33 | Áudio (gravação) | `#audio-capture` | Componentes |
 | 34 | Captura de dispositivo | `#device-capture` | Componentes |
 | 35 | Dashboard (CSS) | `#dashboard-layout` | Componentes |
-| 36 | FilterBar | `#filterbar` | Componentes |
+| 36 | FilterBar & FilterPanel | `#filterbar` | Componentes |
 | 37 | Markdown | `#markdown` | Componentes |
 | 38 | Masonry | `#masonry` | Componentes |
 | 39 | Tour | `#tour` | Componentes |

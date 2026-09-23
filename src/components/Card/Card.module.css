@@ -55,8 +55,13 @@
     padding: 0;
 }
 
+/*
+ * The header wraps: actions that do not fit beside the title move under it instead
+ * of pushing the card, and the page, wider than the screen.
+ */
 .header {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: var(--tempest-space-3);

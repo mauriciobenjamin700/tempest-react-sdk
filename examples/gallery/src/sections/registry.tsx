@@ -354,9 +354,9 @@ export const SECTIONS: SectionEntry[] = [
     },
     {
         id: "filterbar",
-        label: "FilterBar",
+        label: "FilterBar & FilterPanel",
         keywords:
-            "filterbar filtro filtros query builder chip condicao operador url searchparams lista",
+            "filterbar filterpanel usedraftfilters rascunho aplicado filtro filtros query builder chip condicao operador url searchparams lista",
         group: "Componentes",
         Component: FilterBarSection,
     },

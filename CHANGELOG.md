@@ -207,6 +207,41 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
   Closes #368.
 
+- **`FilterPanel` — o invólucro do conjunto fixo de filtros.** O `FilterBar` é um
+  construtor (campo + operador + valor); faltava o caso mais comum de painel
+  administrativo, em que a tela já conhece os filtros e só precisa do cartão, da grade,
+  do título e do "Limpar filtros". Sem estado e sem opinião sobre os campos: os filhos
+  são os `Input`/`Select` da tela, uma célula cada. `onClear` mostra **Limpar filtros**
+  só quando presente; `onApply` põe os campos num `<form>`, e o **Filtrar** do cabeçalho
+  e o Enter em qualquer campo aplicam; `actions` guarda o que não é campo.
+
+  A issue pedia `columns={{ base, md, lg }}` e atribuía a grade que estica a campos em
+  `flex`. Medido no Chromium (script Playwright sobre a gallery, 390 e 1280 px) contra a
+  composição que já existia, `Card` + `Grid`:
+
+  | O que                                             | `Card` + `Grid`                                              | `FilterPanel`                                                        |
+  | ------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------- |
+  | 4 campos num contêiner de 360 px, tela de 1280 px | 4 colunas de **57,5 px** (o `Grid` segue o viewport)         | 1 coluna de 318 px (`auto-fill` com piso de `12rem`, segue o painel) |
+  | Cabeçalho com 3 ações a 390 px                    | 527 px num cabeçalho de 308 px; página com `scrollWidth` 568 | quebra linha; `scrollWidth` 390                                      |
+  | Célula ao lado de um campo com erro               | caixa cresce 62 → 82 px (o `input` fica em 40)               | 62 px (`align-items: start`)                                         |
+
+  O campo que estica **não reproduz** com `Grid` — era defeito do `flex` do componente
+  local do app. `columns` existe mesmo assim, repassado ao `Grid`, para quem quer colunas
+  fixas por viewport.
+
+  Closes #355.
+
+- **`useDraftFilters(initial, { onApply?, isEqual? })` — rascunho × aplicado de filtro
+  server-side.** `{ draft, applied, isDirty, set, apply, clear }`. `apply(parcial)` grava
+  o rascunho **e** publica no mesmo gesto, lendo de uma ref que toda chamada mantém em
+  dia, então "filtrar por este código" numa linha da tabela não lê o rascunho velho.
+  `clear()` move as duas metades juntas. `applied` mantém a referência enquanto nada
+  diferente é aplicado (igualdade estrutural), então serve de `queryKey` sem refetch
+  fantasma. Nenhum `useEffect`: um clique, uma requisição — medido na gallery, digitar
+  "AUTH" manteve o contador em 2 requisições, e o Enter levou a 3.
+
+  Closes #356.
+
 ### Corrigido
 
 - **`Modal`, `Drawer` e `BottomSheet` prendem o foco de verdade.** A doc (`overlay.md`,
@@ -252,6 +287,34 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   (teto 160 kB).
 
   Closes #375.
+
+- **`usePaginatedQuery` volta para a página 1 quando a `queryKey` muda.** O detalhe 1 da
+  #356 ("filtrar na página 7 pede a página 7") não era do padrão de rascunho: era do
+  hook, com qualquer mudança de filtro. Medido com um teste no hook, estando na página 7
+  e trocando `{ code: "" }` por `{ code: "AUTH" }` na `queryKey`: as requisições eram
+  `[":page=1", ":page=7", "AUTH:page=7"]`, de um resultado de 2 páginas, com a tabela
+  vazia e `pageNumber` 7 > `pageCount` 2. Agora são
+  `[":page=1", ":page=7", "AUTH:page=1"]`. A comparação é por `hashKey` (estrutural), e o reset acontece **no
+  mesmo render** em que a chave muda — um efeito deixaria um render sair com a chave nova
+  e a página velha, e esse render é uma requisição. Mudança de comportamento: quem
+  dependia de a página sobreviver a uma troca de chave passa a começar da 1.
+
+- **O cabeçalho do `Card` quebra linha.** Com `actions` que não cabem ao lado do título,
+  o cabeçalho empurrava o cartão, e a página, para além da tela (medida acima). Vale
+  para todo `Card` com `actions`; quem cabia numa linha não muda.
+
+### Tamanho
+
+Medido com `npx size-limit` (antes: `release/v0.67.0` num worktree limpo):
+
+- teto do barril ESM 132,98 → 133,79 kB (+806 B) — teto de 133,5 → **134 kB**;
+- teto do barril CJS 158,33 → 159,49 kB (+1159 B) — teto de 159 → **160 kB**;
+- fatia "typical app" 10.298 → 10.301 B (+3 B), teto de 10,3 → **10,35 kB**. Nenhum
+  código novo entra nela: o esbuild emite o mesmo bundle com identificadores renomeados
+  (`var B=` → `var M=`), porque o grafo do barril cresceu. A fatia estava a 2 B do teto.
+- Custo real da superfície nova (esbuild + brotli, importando de `dist/`): `FilterPanel`
+  2.589 B com `Card`/`Grid`/`Button` (esses três sozinhos: 2.124 B); `useDraftFilters`
+  496 B; `usePaginatedQuery` 440 → 504 B.
 
 ## [0.67.0] — 2026-09-23
 

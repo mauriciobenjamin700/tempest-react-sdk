@@ -24,7 +24,7 @@ O catálogo foi dividido por categoria para facilitar navegação. Cada arquivo 
     - **[Essenciais](./components/advanced-essentials.md)** — Toggle, ToggleGroup, Label, Collapsible, ContextMenu, HoverCard, Command
     - **[Layout & UX](./components/advanced-layout.md)** — ScrollArea, Resizable, Calendar, Scheduler
     - **[Navegação & conteúdo](./components/advanced-navigation.md)** — NavigationMenu, Menubar, Carousel
-    - **[Dados](./components/advanced-data.md)** — DataTable, Wizard, Markdown, Masonry, Tour, Transfer, FilterBar, Kanban
+    - **[Dados](./components/advanced-data.md)** — DataTable, Wizard, Markdown, Masonry, Tour, Transfer, FilterBar, FilterPanel, Kanban
     - **[Conversa](./components/advanced-chat.md)** — Chat, AIChat
 
 ## Convenções globais

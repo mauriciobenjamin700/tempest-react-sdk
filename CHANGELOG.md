@@ -4,6 +4,63 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`DropdownMenu`, `Popover` e `Tooltip` eram cortados por qualquer ancestral com
+  `overflow`, e o caso que isso pegava é o mais comum de painel: o menu de ações de
+  uma linha de `DataTable`.** O wrapper da tabela rola na horizontal
+  (`overflow-x: auto`), e pela regra do CSS isso força `overflow-y` a `auto` também.
+  Medido no Chrome a 1440 px, última linha de uma tabela de quatro:
+
+  | camada         | antes                   | depois  |
+  | -------------- | ----------------------- | ------- |
+  | `DropdownMenu` | 1 de 3 entradas visível | 3 de 3  |
+  | `Popover`      | 3% do painel visível    | inteiro |
+  | `Tooltip`      | 23 px além do contêiner | inteiro |
+
+  As três camadas agora renderizam **em portal**, ancoradas no gatilho: viram para o
+  lado oposto quando o pedido não cabe na viewport, ficam dentro dela com 8 px de
+  margem e acompanham o gatilho em scroll (inclusive de contêiner) e resize. A prop
+  nova `portal` (default `true`) devolve o comportamento em fluxo.
+
+  A issue estava errada em dois pontos, e ambos mudaram o escopo: o `Tooltip`, que
+  ela citava como já resolvido, **não** tinha portal (a doc dizia "portalado"); e o
+  `ContextMenu`, que ela pedia, já tinha. Quatro defeitos só apareceram ao medir a
+  implementação pedida:
+
+  - **Portal com `--tempest-z-dropdown` (1000) põe o menu atrás de um `Modal`
+    (1100).** Em fluxo, o menu herdava o empilhamento do modal; em `body`, não. O
+    menu em portal usa `--tempest-z-popover` (1150), o mesmo do `ContextMenu`.
+  - **`Tab` no menu levava o foco para fora do `Modal`.** Fechar e deixar o browser
+    seguir movia o foco a partir do menu — o último nó do `body`, fora do diálogo.
+    Agora o foco volta ao gatilho antes do movimento, e o `Tab` segue dali.
+  - **O conteúdo do `Popover` saía da ordem de `Tab`.** Em portal, o painel vai
+    para o fim do `body`: com dois campos dentro, `Tab` a partir do gatilho aberto
+    pulava o painel e ia para o próximo botão da página (em fluxo, caía no primeiro
+    campo). Uma ponte interna devolve a ordem: `Tab` do gatilho entra no painel,
+    `Tab` no último item sai para o que vem depois do gatilho, e `Shift+Tab` faz o
+    caminho inverso. Validado em browser, na página e dentro de um `Modal`.
+  - **Clique numa entrada contava como clique fora.** O teste de outside-click
+    olhava só o wrapper do gatilho, que não contém mais o menu.
+
+  Custo medido com `npx size-limit`, `main` (0.66.0) contra esta branch:
+
+  | fatia             | antes     | depois    | delta    | teto novo |
+  | ----------------- | --------- | --------- | -------- | --------- |
+  | barrel ESM (teto) | 131,14 kB | 132,50 kB | +1,36 kB | 133,5 kB  |
+  | barrel CJS (teto) | 156,43 kB | 157,29 kB | +0,86 kB | 159 kB    |
+
+  Os tetos cobrem os três PRs de overlay que tocam a mesma linha do
+  `.size-limit.checks.json` (#371, #374, #373), com o mesmo valor nos três, para o
+  merge não conflitar e a `main` não reprovar depois do segundo merge: sozinhos,
+  cada um cabia no teto anterior, e #371 + #374 juntos já davam 157,85 kB no CJS.
+  A soma dos três medida é 132,89 / 158,53 kB.
+
+  Por componente isolado (esbuild + brotli, deps externas), o `Tooltip` vai de 679 B
+  para 1694 B, o `Popover` de 799 B para 1788 B e o `DropdownMenu` de 1467 B para
+  2500 B — o `Portal`, o host de tela cheia e a ancoragem, compartilhados pelos três.
+  Closes #360.
+
 ## [0.66.0] — 2026-09-19
 
 ### Segurança

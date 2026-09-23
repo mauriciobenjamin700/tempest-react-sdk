@@ -25,15 +25,21 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
   A issue estava errada em dois pontos, e ambos mudaram o escopo: o `Tooltip`, que
   ela citava como já resolvido, **não** tinha portal (a doc dizia "portalado"); e o
-  `ContextMenu`, que ela pedia, já tinha. Três defeitos só apareceram ao medir a
+  `ContextMenu`, que ela pedia, já tinha. Quatro defeitos só apareceram ao medir a
   implementação pedida:
 
   - **Portal com `--tempest-z-dropdown` (1000) põe o menu atrás de um `Modal`
     (1100).** Em fluxo, o menu herdava o empilhamento do modal; em `body`, não. O
     menu em portal usa `--tempest-z-popover` (1150), o mesmo do `ContextMenu`.
-  - **`Tab` escapava do focus trap do `Modal`.** Fechar e deixar o browser seguir
-    movia o foco a partir do menu — o último nó do `body`, fora do modal. Agora o
-    foco volta ao gatilho antes do movimento, e o `Tab` segue dali.
+  - **`Tab` no menu levava o foco para fora do `Modal`.** Fechar e deixar o browser
+    seguir movia o foco a partir do menu — o último nó do `body`, fora do diálogo.
+    Agora o foco volta ao gatilho antes do movimento, e o `Tab` segue dali.
+  - **O conteúdo do `Popover` saía da ordem de `Tab`.** Em portal, o painel vai
+    para o fim do `body`: com dois campos dentro, `Tab` a partir do gatilho aberto
+    pulava o painel e ia para o próximo botão da página (em fluxo, caía no primeiro
+    campo). Uma ponte interna devolve a ordem: `Tab` do gatilho entra no painel,
+    `Tab` no último item sai para o que vem depois do gatilho, e `Shift+Tab` faz o
+    caminho inverso. Validado em browser, na página e dentro de um `Modal`.
   - **Clique numa entrada contava como clique fora.** O teste de outside-click
     olhava só o wrapper do gatilho, que não contém mais o menu.
 

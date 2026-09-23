@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 import type { RefObject } from "react";
 
-const FOCUSABLE_SELECTOR = [
+/** Elements that can take keyboard focus — shared with the portal tab order. */
+export const FOCUSABLE_SELECTOR = [
     "a[href]",
     "button:not([disabled])",
     "textarea:not([disabled])",
@@ -36,8 +37,15 @@ export function useFocusTrap(containerRef: RefObject<HTMLElement | null>, active
             });
         }
 
+        /**
+         * Keep `Tab` and `Shift+Tab` inside the container.
+         *
+         * A `Tab` already consumed is left alone: a portalled panel inside the
+         * container (a `Popover`, say) routes its own `Tab` back next to its
+         * trigger, and wrapping here as well would move focus a second time.
+         */
         function handleKeydown(event: KeyboardEvent): void {
-            if (event.key !== "Tab") return;
+            if (event.key !== "Tab" || event.defaultPrevented) return;
             const elements = getFocusable();
             if (elements.length === 0) {
                 event.preventDefault();

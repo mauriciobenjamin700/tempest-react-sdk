@@ -121,8 +121,8 @@ function isSelectable(entry: DropdownMenuEntry): entry is SelectableEntry {
  * - `Tab` closes the menu and lets the page's own tab order take over, counted
  *   from the trigger: focus goes back to the trigger synchronously and the key's
  *   default action then moves on from there. Without that, a portalled menu —
- *   the last thing in `body` — would hand `Tab` to whatever follows it, outside
- *   an enclosing `Modal`'s focus trap.
+ *   the last thing in `body` — would hand `Tab` to whatever follows it, which
+ *   inside a `Modal` is outside the dialog.
  * - Focus is managed: entries carry `tabIndex={-1}` and only the active one is
  *   `0`, which is what stops `Tab` from walking the menu one entry at a time.
  *

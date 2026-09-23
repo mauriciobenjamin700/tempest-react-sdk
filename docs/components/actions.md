@@ -363,6 +363,12 @@ export function Filtros() {
 !!! note "Vira na borda da tela"
     Em portal (o padrão), o painel vai para o lado oposto quando o `placement` pedido não cabe na viewport, e é mantido dentro dela com 8 px de margem. Rolar a página ou um contêiner com o painel aberto o leva junto com o gatilho.
 
+!!! info "`Tab` entra no painel, mesmo em portal"
+    Em portal, o painel mora no fim do `body`, e o browser o alcançaria por último.
+    O `Popover` devolve a ordem de quando ele estava em fluxo: `Tab` a partir do
+    gatilho aberto entra no primeiro campo do painel, `Tab` no último campo segue
+    para o que vem depois do gatilho, e `Shift+Tab` faz o caminho inverso.
+
 ## `ConfirmDialog`
 
 <!-- gallery:modal -->

@@ -638,6 +638,7 @@ export function Paginacao({ totalItems }: { totalItems: number }) {
 | `totalItems`       | `number` (contagem, opcional) | —  |
 | `onPageChange`     | `(page: number) => void` | —       |
 | `onPageSizeChange` | `(size: number) => void` | —       |
+| `pageSizeOptions`  | `number[]` — o `pageSize` atual sempre entra na lista | `[10, 25, 50, 100]` |
 | `siblingCount`     | `number` (vizinhos)      | `3`     |
 | `compactOnMobile`  | `boolean`                | `true`  |
 

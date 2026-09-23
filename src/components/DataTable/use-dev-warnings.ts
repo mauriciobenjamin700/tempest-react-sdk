@@ -10,6 +10,10 @@ export interface DataTableDevWarningsInput {
     controlledPage: number | undefined;
     /** The page callback, if any. */
     onPageChange: ((page: number) => void) | undefined;
+    /** Whether the caller passed `pageSize` at all. */
+    pageSizeControlled: boolean;
+    /** The size-selector callback, if any. */
+    onPageSizeChange: ((size: number) => void) | undefined;
     /** Whether sorting is delegated. */
     sortIsManual: boolean;
     /** Whether any column renders a header the user can click to sort. */
@@ -29,8 +33,9 @@ export interface DataTableDevWarningsInput {
  * Each of these produces a screen that looks like it works: the header sorts and
  * nothing moves, the pager renders and clicking it does nothing.
  *
- * Three of them **are** type errors now — `DataTablePagingProps`,
- * `DataTableSortProps` and `DataTableSearchProps` reject them at the call site —
+ * Four of them **are** type errors now — `DataTablePagingProps`,
+ * `DataTablePageSizeProps`, `DataTableSortProps` and `DataTableSearchProps` reject
+ * them at the call site —
  * so those warnings only reach a caller the types cannot: plain JavaScript, or
  * props arriving through an `any`-typed spread.
  *
@@ -45,7 +50,7 @@ export interface DataTableDevWarningsInput {
  * column does appear. So the sort warning asks for a sortable column first, the
  * way the search one already asks for `searchable`.
  *
- * The fourth is the one the types genuinely cannot afford. `totalItems` *implies*
+ * The server-mode search warning is the one the types genuinely cannot afford. `totalItems` *implies*
  * `manualSearch`, so `searchable` with no `onSearchChange` is an inert search box
  * in server mode without anybody writing `manualSearch`. Expressing that means
  * the search axis has to read the paging axis, crossing two three-member unions
@@ -58,6 +63,8 @@ export function useDevWarnings({
     serverMode,
     controlledPage,
     onPageChange,
+    pageSizeControlled,
+    onPageSizeChange,
     sortIsManual,
     hasSortableColumn,
     onSortChange,
@@ -78,6 +85,12 @@ export function useDevWarnings({
                 "[tempest] <DataTable page> is controlled but `onPageChange` is missing, so the pager cannot do anything.",
             );
         }
+        if (onPageSizeChange && !pageSizeControlled) {
+            console.warn(
+                "[tempest] <DataTable onPageSizeChange> needs a controlled `pageSize`. Without it the " +
+                    "selector reports the new size and the table keeps counting pages by 10.",
+            );
+        }
         if (serverMode && searchable && !onSearchChange) {
             console.warn(
                 "[tempest] <DataTable totalItems searchable> delegates searching, so the box needs " +
@@ -93,6 +106,8 @@ export function useDevWarnings({
         serverMode,
         controlledPage,
         onPageChange,
+        pageSizeControlled,
+        onPageSizeChange,
         sortIsManual,
         hasSortableColumn,
         onSortChange,

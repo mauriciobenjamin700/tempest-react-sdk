@@ -225,7 +225,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ DataTable }"
     },
-    "limit": "5.9 KB",
+    "limit": "6.1 KB",
     "ignore": [
       "react",
       "react-dom",

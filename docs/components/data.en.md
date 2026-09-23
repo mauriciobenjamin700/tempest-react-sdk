@@ -462,6 +462,9 @@ export function People() {
 | `manualSearch` | `boolean` | Delegates searching. Implied by `totalItems`. |
 | `onSearchChange` | `(term: string) => void` | The typed term; debouncing is yours. |
 | `loading` | `boolean` | A request is in flight. |
+| `pageSize` | `number` | Rows per page; required with `onPageSizeChange`. |
+| `onPageSizeChange` | `(size: number) => void` | Turns on the items-per-page selector ([below](#items-per-page)). |
+| `pageSizeOptions` | `number[]` | Sizes offered. Default `[10, 25, 50, 100]`. |
 
 !!! check "The compiler now rejects the invalid combination"
     The props are a **union** of the shapes that work, so three mistakes that used
@@ -532,6 +535,79 @@ export function People() {
     dataset shrinks, which server mode deliberately turns off (the page is yours,
     and a clamp against a `totalItems` that has not caught up would send the user to
     a page they never asked for, mid-fetch).
+
+### Items per page
+
+> **When to use**: an admin listing where the reader picks the density — 10 to
+> check a record, 100 to sweep crash reports.
+
+The `DataTable` footer is the SDK's own `Pagination`, which already has the
+selector. Pass `onPageSizeChange` and it appears; without that prop, nothing
+changes.
+
+```tsx
+import { useState } from "react";
+import { DataTable, usePaginatedQuery, type DataTableColumn } from "tempest-react-sdk";
+
+type AppError = { id: number; message: string; occurrences: number };
+
+const COLUMNS: DataTableColumn<AppError>[] = [
+  { key: "message", header: "Message" },
+  { key: "occurrences", header: "Occurrences", align: "right" },
+];
+
+export function ErrorConsole() {
+  const [size, setSize] = useState(25);
+
+  const { items, total, pageNumber, setPage, isFetching } = usePaginatedQuery<AppError>({
+    queryKey: ["errors"],
+    queryFn: ({ page, size }) => fetch(`/api/errors?page=${page}&size=${size}`).then((r) => r.json()),
+    pageSize: size,
+  });
+
+  return (
+    <DataTable
+      data={items}
+      columns={COLUMNS}
+      rowKey={(row) => row.id}
+      totalItems={total}
+      page={pageNumber}
+      onPageChange={setPage}
+      pageSize={size}
+      pageSizeOptions={[10, 25, 50, 100]}
+      onPageSizeChange={setSize}
+      loading={isFetching}
+    />
+  );
+}
+```
+
+1. **`pageSize` comes back to the table.** The selector only reports; you own the
+   size, and it is what counts the pages (`totalItems / pageSize`). That is why
+   `onPageSizeChange` without `pageSize` does not compile.
+2. **The page goes back to 1 by itself.** After `onPageSizeChange`, the table calls
+   `onPageChange(1)` — unless you are already on page 1. Page 7 at 10 per page is
+   rows 61–70; at 100 per page it does not exist. You do **not** need `setPage(1)`
+   in the callback (writing it is harmless).
+3. **The footer stays even with a single page.** Picking 100 for 40 rows leaves one
+   page; without the selector on screen there would be no way back to 10.
+4. **The current size is always in the list.** `pageSize={20}` with the default
+   list is merged in, in order — before, a `<select>` with no matching option read
+   "10 / página" over a table showing 20 rows.
+
+!!! check "The type rejects a selector that does nothing"
+    | You wrote | Why it does not compile |
+    | --- | --- |
+    | `pageSizeOptions` without `onPageSizeChange` | The selector changes and nobody hears it |
+    | `onPageSizeChange` without `pageSize` | The choice never comes back: the table keeps counting pages of 10 |
+
+    The type for this half is `DataTablePageSizeProps`. For callers the type cannot
+    reach (plain JavaScript), the second case also warns in the dev `console`.
+
+!!! note "Below 640px the selector hides"
+    That is the `Pagination` default (`compactOnMobile`): on a phone the footer is
+    `‹` / `›` plus the summary, and the size picked on desktop keeps applying. It is
+    a space trade-off, not a bug — see [`Pagination`](./navigation.md#pagination).
 
 ## `BarList`
 

@@ -47,8 +47,14 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
   | fatia             | antes     | depois    | delta    | teto novo |
   | ----------------- | --------- | --------- | -------- | --------- |
-  | barrel ESM (teto) | 131,14 kB | 132,02 kB | +0,88 kB | 132,5 kB  |
-  | barrel CJS (teto) | 156,43 kB | 157,07 kB | +0,64 kB | 157,5 kB  |
+  | barrel ESM (teto) | 131,14 kB | 132,50 kB | +1,36 kB | 133,5 kB  |
+  | barrel CJS (teto) | 156,43 kB | 157,29 kB | +0,86 kB | 159 kB    |
+
+  Os tetos cobrem os três PRs de overlay que tocam a mesma linha do
+  `.size-limit.checks.json` (#371, #374, #373), com o mesmo valor nos três, para o
+  merge não conflitar e a `main` não reprovar depois do segundo merge: sozinhos,
+  cada um cabia no teto anterior, e #371 + #374 juntos já davam 157,85 kB no CJS.
+  A soma dos três medida é 132,89 / 158,53 kB.
 
   Por componente isolado (esbuild + brotli, deps externas), o `Tooltip` vai de 679 B
   para 1694 B, o `Popover` de 799 B para 1788 B e o `DropdownMenu` de 1467 B para
@@ -92,7 +98,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
   Custo medido com `npx size-limit`, `main` (0.66.0) contra esta branch: barrel ESM
   131,14 → 131,54 kB (+0,40 kB), CJS 156,43 → 156,61 kB (+0,18 kB). Os tetos vão
-  para 132,5 / 157,5 kB, os mesmos valores do #371, que já subia os dois.
+  para 133,5 / 159 kB, o mesmo valor do #371 e do #373: os três tocam a mesma
+  linha, e #371 + #374 juntos já passavam do teto anterior no CJS (157,85 kB).
   Closes #372.
 
 ## [0.66.0] — 2026-09-19

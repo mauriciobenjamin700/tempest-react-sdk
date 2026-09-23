@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.67.0] — 2026-09-23
+
 ### Adicionado
 
 - **`describeApiError(..., { statuses })` — a frase para a falha que chega sem corpo

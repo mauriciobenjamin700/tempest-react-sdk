@@ -201,6 +201,24 @@ const upload = createResumableUpload({
 - `pause()` drops the in-flight chunk; the persisted offset stays at the last **confirmed** chunk. `resume()` does a `HEAD` first, so partial bytes the server accepted are not lost.
 - `abort({ discard: true })` sends `DELETE` and clears the record; without `discard`, the resume point stays.
 
+!!! warning "The token does not follow `Location` off your origin"
+    tus answers creation with a `Location` **the server chooses**, and the spec allows an absolute URL on another host — handing the upload to object storage is ordinary operation, not an attack. Up to 0.65.0 the bearer token followed that header wherever it pointed, along with the file bytes.
+
+    Since **0.66.0** the credential is bound to the `endpoint`'s origin. When `Location` points elsewhere, the creation `POST` still carries the token — that one went to your backend — and the following `HEAD`/`PATCH`/`DELETE` go without it. The upload completes normally, which is what a presigned storage URL expects anyway.
+
+    When the storage host genuinely needs your API's token, declare it:
+
+    ```ts
+    createResumableUpload({
+      endpoint: "/api/uploads",
+      file,
+      getToken: () => auth.getToken(),
+      trustedOrigins: ["https://storage.example.com"],
+    });
+    ```
+
+    The same applies to the persisted record: a `url` in `localStorage` pointing off-origin does not get the token back on resume.
+
 !!! warning "`XMLHttpRequest`, not `fetch`"
     As in `uploadWithProgress`: `fetch` still cannot report **upload** progress in any browser. There is a second reason here — tus returns the new offset in a **response header**, and `uploadWithProgress` only hands back a parsed body, so it could not be reused.
 

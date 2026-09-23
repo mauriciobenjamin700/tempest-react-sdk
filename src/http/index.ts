@@ -1,6 +1,7 @@
 export { createApiClient } from "./api-client";
 export { buildApiUrl } from "./build-url";
 export type { BuildApiUrlOptions } from "./build-url";
+export { isTrustedCredentialTarget } from "./credential-scope";
 export { TempestApiError, isApiError, isRetriableStatus } from "./errors";
 export {
     API_ERROR_OFFLINE_KEY,

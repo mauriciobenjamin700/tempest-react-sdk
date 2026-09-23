@@ -51,6 +51,7 @@ Options (everything except `baseURL` is optional):
 - `retry` — `true` or `RetryOptions`. **Off by default.** See [Built-in retries](#built-in-retries).
 - `logger` — where the client reports every request it finished. **Off by default.** See [Request logging](#request-logging).
 - `withCredentials` — send cookies on cross-origin requests (default `false`).
+- `trustedOrigins` — origins besides `baseURL`'s that may receive the `getToken` credential. See [Credential scope](#credential-scope-the-token-does-not-cross-an-origin).
 - `headers` — default headers merged into every request.
 - `fetcher` — alternative `fetch` implementation (default `globalThis.fetch`) — handy in tests.
 
@@ -175,6 +176,73 @@ const stream = new EventSource(
   }),
 );
 ```
+
+## Credential scope — the token does not cross an origin
+
+The `path` you pass may be an **absolute URL**, and when it is, it overrides the whole `baseURL` — that is how one client reaches a second host without you building another. The price of that, up to 0.65.0, was that the destination of an authenticated request could come from a value read off the network: a pagination link, a `download_url`, a `Location` header.
+
+Since **0.66.0** the token is bound to `baseURL`'s origin:
+
+```ts
+const api = createApiClient({
+  baseURL: "https://api.example.com",
+  getToken: () => useAuthStore.getState().token,
+});
+
+await api.get("/me");
+// → Authorization: Bearer <token>
+
+await api.get("https://cdn.other.com/file.json");
+// → the request goes, the Authorization does not
+```
+
+The request **still goes out**. Calling another origin is not an attack — it is what the second host exists to serve. What changes is that it goes without your API's credential.
+
+!!! tip "Declare the second host when it does need the token"
+    ```ts
+    const api = createApiClient({
+      baseURL: "https://api.example.com",
+      getToken: () => useAuthStore.getState().token,
+      trustedOrigins: ["https://cdn.example.com"],
+    });
+    ```
+    The comparison is by **origin**, so path and trailing slash are ignored: `"https://cdn.example.com"` and `"https://cdn.example.com/uploads/"` mean the same thing. Port and scheme count — `https://api.x` and `https://api.x:8443` are different origins.
+
+In a development build, the first suppression per origin writes one console line naming the origin that went without the header and the origin the credential is bound to. Production writes nothing: the origins an app talks to are not something to print into a user's console or ship to your error tracker.
+
+!!! info "A relative `baseURL` needs nothing here"
+    Behind a dev-server proxy, `baseURL: "/api"` resolves against the document — the page's own origin. Both sides are resolved before comparing, so the check passes.
+
+An `Authorization` **you** wrote by hand in `headers` is never touched: the scope governs only the header derived from `getToken`.
+
+The predicate itself is exported, for when you build the request yourself:
+
+```ts
+import { isTrustedCredentialTarget } from "tempest-react-sdk";
+
+isTrustedCredentialTarget("https://api.example.com/me", "https://api.example.com");
+// true
+isTrustedCredentialTarget("https://cdn.other.com/u/1", "https://api.example.com");
+// false
+```
+
+### Per-request policy
+
+Three `RequestOptions` fields decide auth and retry for one call, with no second client:
+
+- `skipAuth` — goes without `Authorization` **and** never enters the refresh cycle. This is what login and refresh need: a route that must not carry the token it is about to obtain, and whose own 401 must not call `refresh()` again — which would recurse.
+- `skipAuthRetry` — goes authenticated, but a 401 surfaces instead of triggering refresh-and-replay. For a token probe, or a background poll that should not fight for the refresh lock.
+- `retry` — replaces the client's policy for this call. `false` turns it off on a client that has it; `true` or `RetryOptions` turns it on for one that does not.
+
+```ts
+const api = createApiClient({ baseURL, getToken, refresh, retry: true });
+
+await api.post("/auth/login", { body: credentials, skipAuth: true });
+await api.get("/heavy-report", { retry: false });
+```
+
+!!! note "Replaces, does not merge"
+    `options.retry` swaps `config.retry` out entirely. Merging would silently combine two `shouldRetry` functions that were each written to be complete.
 
 ## Request logging
 
@@ -434,6 +502,21 @@ export function AvatarUpload() {
 ```
 
 `onProgress` receives `{ loaded, total, fraction, lengthComputable }`. `fraction` is `null` when the total size is unknown. Aborting via `signal` rejects with `DOMException("Aborted")`.
+
+!!! tip "`credentialOrigin` when the `url` does not come from your code"
+    This helper has no `baseURL` to infer a scope from — you name the destination on every call — so the origin check is **opt-in** here. Turn it on when the `url` can come from a response body rather than from your own code:
+
+    ```ts
+    await uploadWithProgress({
+      url: signedUrlTheApiReturned,
+      body: form,
+      getToken: () => auth.getToken(),
+      credentialOrigin: import.meta.env.VITE_API_URL,
+      trustedOrigins: ["https://storage.example.com"],
+    });
+    ```
+
+    Without `credentialOrigin`, the header goes wherever `url` points — the behaviour of every version before 0.66.0.
 
 ## `retry` — exponential backoff
 

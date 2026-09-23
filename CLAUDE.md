@@ -85,6 +85,12 @@ código compila**), `test/docs-anchors.test.ts` (âncora interna viva),
 `test/docs-counts.test.ts` (**toda contagem escrita em prosa bate com o repo**) e
 `scripts/check-dist-guards.mjs` (rodado no `postbuild`).
 
+**Gate de tag, não de PR.** Antes de cortar release que toque `auth`, `oauth`,
+`access`, `http`, `sw`, `offline`, `webrtc` ou `ws`, rode a skill `security-audit`
+em perfil `quick` sobre os módulos tocados. Custa ondas de agente, então não entra
+no caminho de todo PR. O relatório sai em inglês, no formato da skill; a conversa
+continua PT-BR.
+
 ## Armadilhas que mais custam
 
 Detalhe e medição em [`lessons.md`](./docs/internal/lessons.md); estas são as que
@@ -105,18 +111,18 @@ mais voltam:
 - **`[Unreleased]` conflita N-1 vezes** quando N PRs o tocam: é concatenação, o
   que está na `main` primeiro.
 
-## Estado atual (snapshot pós-v0.65.0 — `[Unreleased]` abre o ciclo 0.66.0)
+## Estado atual (snapshot pós-v0.66.0 — `[Unreleased]` abre o ciclo 0.67.0)
 
-- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 85 tags publicadas
-  (0.1.0 → 0.65.0) com provenance assinada via OIDC. Histórico em `RELEASES.md`
+- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 86 tags publicadas
+  (0.1.0 → 0.66.0) com provenance assinada via OIDC. Histórico em `RELEASES.md`
   (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
 - **Superfície**: 40 módulos em `src/` (`ls -d src/*/`), 129 componentes
   (`ls -d src/components/*/`), 54 hooks `useX` no barrel de `hooks/`, 18 subpaths
   — os quatro aferidos por `test/docs-counts.test.ts`. Exports de runtime na
-  raiz: **568 em 18/09/2026** (70 em `/br`, 21 em `/icons`); o método de
+  raiz: **570 em 19/09/2026** (70 em `/br`, 21 em `/icons`); o método de
   contagem, e por que o `--import` não é opcional, está em
   [`architecture.md`](./docs/internal/architecture.md).
-- **Testes**: 6516 em 584 arquivos, ~44 s, medido em 18/09/2026. Cobertura em
+- **Testes**: 6581 em 587 arquivos, ~48 s, medido em 19/09/2026. Cobertura em
   05/09/2026: 99,73% linhas / 98,81% statements / 99,82% funções / 95,64%
   branches; pisos do CI em 99/98/99/95.
 - **Empacotamento**: `dist/` com `preserveModules`; CSS por componente carregado

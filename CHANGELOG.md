@@ -38,6 +38,121 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **`DropdownMenu`, `Popover` e `Tooltip` eram cortados por qualquer ancestral com
+  `overflow`, e o caso que isso pegava é o mais comum de painel: o menu de ações de
+  uma linha de `DataTable`.** O wrapper da tabela rola na horizontal
+  (`overflow-x: auto`), e pela regra do CSS isso força `overflow-y` a `auto` também.
+  Medido no Chrome a 1440 px, última linha de uma tabela de quatro:
+
+  | camada         | antes                   | depois  |
+  | -------------- | ----------------------- | ------- |
+  | `DropdownMenu` | 1 de 3 entradas visível | 3 de 3  |
+  | `Popover`      | 3% do painel visível    | inteiro |
+  | `Tooltip`      | 23 px além do contêiner | inteiro |
+
+  As três camadas agora renderizam **em portal**, ancoradas no gatilho: viram para o
+  lado oposto quando o pedido não cabe na viewport, ficam dentro dela com 8 px de
+  margem e acompanham o gatilho em scroll (inclusive de contêiner) e resize. A prop
+  nova `portal` (default `true`) devolve o comportamento em fluxo.
+
+  A issue estava errada em dois pontos, e ambos mudaram o escopo: o `Tooltip`, que
+  ela citava como já resolvido, **não** tinha portal (a doc dizia "portalado"); e o
+  `ContextMenu`, que ela pedia, já tinha. Quatro defeitos só apareceram ao medir a
+  implementação pedida:
+
+  - **Portal com `--tempest-z-dropdown` (1000) põe o menu atrás de um `Modal`
+    (1100).** Em fluxo, o menu herdava o empilhamento do modal; em `body`, não. O
+    menu em portal usa `--tempest-z-popover` (1150), o mesmo do `ContextMenu`.
+  - **`Tab` no menu levava o foco para fora do `Modal`.** Fechar e deixar o browser
+    seguir movia o foco a partir do menu — o último nó do `body`, fora do diálogo.
+    Agora o foco volta ao gatilho antes do movimento, e o `Tab` segue dali.
+  - **O conteúdo do `Popover` saía da ordem de `Tab`.** Em portal, o painel vai
+    para o fim do `body`: com dois campos dentro, `Tab` a partir do gatilho aberto
+    pulava o painel e ia para o próximo botão da página (em fluxo, caía no primeiro
+    campo). Uma ponte interna devolve a ordem: `Tab` do gatilho entra no painel,
+    `Tab` no último item sai para o que vem depois do gatilho, e `Shift+Tab` faz o
+    caminho inverso. Validado em browser, na página e dentro de um `Modal`.
+  - **Clique numa entrada contava como clique fora.** O teste de outside-click
+    olhava só o wrapper do gatilho, que não contém mais o menu.
+
+  Custo medido com `npx size-limit`, `main` (0.66.0) contra esta branch:
+
+  | fatia             | antes     | depois    | delta    | teto novo |
+  | ----------------- | --------- | --------- | -------- | --------- |
+  | barrel ESM (teto) | 131,14 kB | 132,50 kB | +1,36 kB | 133,5 kB  |
+  | barrel CJS (teto) | 156,43 kB | 157,29 kB | +0,86 kB | 159 kB    |
+
+  Os tetos cobrem os três PRs de overlay que tocam a mesma linha do
+  `.size-limit.checks.json` (#371, #374, #373), com o mesmo valor nos três, para o
+  merge não conflitar e a `main` não reprovar depois do segundo merge: sozinhos,
+  cada um cabia no teto anterior, e #371 + #374 juntos já davam 157,85 kB no CJS.
+  A soma dos três medida é 132,89 / 158,53 kB.
+
+  Por componente isolado (esbuild + brotli, deps externas), o `Tooltip` vai de 679 B
+  para 1694 B, o `Popover` de 799 B para 1788 B e o `DropdownMenu` de 1467 B para
+  2500 B — o `Portal`, o host de tela cheia e a ancoragem, compartilhados pelos três.
+  Closes #360.
+
+## [0.66.0] — 2026-09-19
+
+### Segurança
+
+- **O bearer token não era vinculado a nenhuma origem, e num upload resumível quem
+  escolhia o destino era o servidor.** O SDK escrevia `Authorization: Bearer` em três
+  lugares — `api-client.ts`, `upload-with-progress.ts` e `resumable-upload.ts` — e
+  nenhum olhava para onde a requisição ia.
+
+  O caminho que fecha a fronteira é o do tus: a criação responde `201` + `Location`,
+  o spec permite que seja uma URL absoluta em outro host, e `resolveUploadUrl` a
+  aceitava literal. Todo `HEAD`/`PATCH` seguinte levava o token — e os bytes do
+  arquivo — para a origem que o servidor nomeou. Não é cenário exótico: **entregar o
+  upload a um storage em outro host é a topologia normal do tus** (S3, MinIO). Os
+  outros dois caminhos dependiam de a aplicação passar uma URL absoluta, que a doc do
+  `buildApiUrl` incentiva como forma de alcançar um segundo host.
+
+  CORS não barrava: requisição cross-origin com `Authorization` dispara preflight, e
+  quem responde o preflight liberando o header é o destino.
+
+  Agora a credencial é presa a uma origem de referência — a da `baseURL` no client, a
+  do `endpoint` no upload resumível. **A requisição continua saindo**; ela só sai sem
+  o header, e um build de desenvolvimento escreve uma linha por origem dizendo qual
+  ficou de fora. `Authorization` escrito à mão em `headers` nunca é tocado.
+
+  Achado por um passe da skill `security-audit` sobre `src/auth/` + `src/http/`.
+  Closes #365.
+
+  Custo medido com `npx size-limit`, `main` (0.65.0) contra esta branch:
+
+  | fatia                           | antes     | depois    | delta  | teto novo |
+  | ------------------------------- | --------- | --------- | ------ | --------- |
+  | `http client`                   | 3,84 kB   | 4,12 kB   | +280 B | 4,25 kB   |
+  | `resumable upload (tus client)` | 3,29 kB   | 3,51 kB   | +220 B | 3,65 kB   |
+  | `typical app`                   | 9,94 kB   | 10,12 kB  | +180 B | 10,3 kB   |
+  | `ceiling: full barrel ESM`      | 130,85 kB | 131,14 kB | +290 B | 131,5 kB  |
+
+  Os bytes são a resolução de origem (`new URL`), o conjunto de origens já avisadas e
+  a string do aviso de desenvolvimento. O teto do barril CJS não mudou.
+
+### Adicionado
+
+- **`trustedOrigins`** em `ApiClientConfig` e `ResumableUploadOptions`, e o par
+  `credentialOrigin` + `trustedOrigins` em `uploadWithProgress` — a declaração
+  explícita do segundo host que legitimamente recebe o token. Compara por **origem**,
+  então caminho e barra final são ignorados; porta e esquema contam.
+
+- **`isTrustedCredentialTarget(target, reference, trustedOrigins?)`** exportado, para
+  quem monta a requisição por fora do client.
+
+- **Política por requisição em `RequestOptions`: `skipAuth`, `skipAuthRetry` e
+  `retry`.** `skipAuth` vai sem `Authorization` e não entra no ciclo de refresh — é o
+  que login e refresh precisam, e a razão de `createTempestAuth` construir **três**
+  clients para um backend só. Agora constrói **um**: `login` e `refresh` usam
+  `skipAuth`, `fetchUser` usa `skipAuthRetry`, e o client instanciado a cada
+  `fetchUser()` deixou de existir. `options.retry` substitui `config.retry` por
+  inteiro, em vez de mesclar. Closes #364.
+
+### Corrigido
+
 - **Valor ausente virava número plausível na tela.** Medido na 0.65.0, com o que chegava
   numa coluna que o backend deixou nula:
 

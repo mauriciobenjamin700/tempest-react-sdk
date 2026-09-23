@@ -24,6 +24,10 @@
     outline: none;
 }
 
+.portalled {
+    --tempest-popover-tx: 0;
+}
+
 /* Placements (center-aligned across the trigger). */
 .top {
     bottom: calc(100% + 8px);

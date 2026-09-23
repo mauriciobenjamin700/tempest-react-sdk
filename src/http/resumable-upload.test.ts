@@ -1068,3 +1068,103 @@ describe("createResumableUpload — stopping between chunks, not inside one", ()
         expect(server.countOf("PATCH"), "an abort is never replayed").toBe(1);
     });
 });
+
+/**
+ * tus answers creation with a `Location` the server chooses, and the spec allows
+ * an absolute URL on another host. Until 0.66.0 the bearer token followed it
+ * wherever it pointed, along with the file bytes — so the destination of a
+ * credentialed request was decided by a response header.
+ */
+describe("createResumableUpload — the credential is scoped to the endpoint's origin", () => {
+    /** Headers of every request the fake server saw for a method. */
+    function headersFor(method: string): Record<string, string>[] {
+        return server.requests
+            .filter((request) => request.method === method)
+            .map((request) => request.headers);
+    }
+
+    it("keeps sending the token while the upload URL stays on the endpoint's origin", async () => {
+        server = acceptingServer(8, "/api/uploads/abc");
+        installXhr();
+
+        await createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(8),
+            chunkSize: 4,
+            getToken: () => "token-1",
+            storage: null,
+        }).start();
+
+        expect(headersFor("POST")[0].Authorization).toBe("Bearer token-1");
+        for (const headers of headersFor("PATCH")) {
+            expect(headers.Authorization).toBe("Bearer token-1");
+        }
+        expect(server.countOf("PATCH")).toBe(2);
+    });
+
+    it("withholds the token from an upload URL on another origin, and uploads anyway", async () => {
+        server = acceptingServer(8, "https://storage.other/u/abc");
+        installXhr();
+
+        const result = await createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(8),
+            chunkSize: 4,
+            getToken: () => "token-1",
+            storage: null,
+        }).start();
+
+        expect(result).toEqual({ url: "https://storage.other/u/abc", size: 8 });
+        expect(headersFor("POST")[0].Authorization, "creation is still ours").toBe(
+            "Bearer token-1",
+        );
+        expect(headersFor("PATCH").length).toBeGreaterThan(0);
+        for (const headers of headersFor("PATCH")) {
+            expect(headers.Authorization).toBeUndefined();
+        }
+    });
+
+    it("sends the token to a storage origin the app declared trusted", async () => {
+        server = acceptingServer(4, "https://storage.acme.com/u/abc");
+        installXhr();
+
+        await createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(4),
+            getToken: () => "token-1",
+            trustedOrigins: ["https://storage.acme.com"],
+            storage: null,
+        }).start();
+
+        for (const headers of headersFor("PATCH")) {
+            expect(headers.Authorization).toBe("Bearer token-1");
+        }
+    });
+
+    it("does not trust a foreign URL just because it came back from storage", async () => {
+        const record: ResumableUploadRecord = {
+            url: "https://storage.other/u/abc",
+            offset: 0,
+            size: 8,
+            idempotencyKey: "k",
+            updatedAt: 1,
+        };
+        server = acceptingServer(8, "https://storage.other/u/abc");
+        installXhr();
+
+        await createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(8),
+            chunkSize: 4,
+            getToken: () => "token-1",
+            storage: memoryStorage(record),
+        }).start();
+
+        for (const headers of headersFor("HEAD")) {
+            expect(headers.Authorization, "the resume probe is a request too").toBeUndefined();
+        }
+        for (const headers of headersFor("PATCH")) {
+            expect(headers.Authorization).toBeUndefined();
+        }
+    });
+});

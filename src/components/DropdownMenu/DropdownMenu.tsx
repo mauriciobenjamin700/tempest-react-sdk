@@ -6,6 +6,9 @@
  */
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent, ReactElement, ReactNode } from "react";
+import { Portal } from "@/components/Portal";
+import { useAnchorPosition } from "@/components/Portal/anchor-position";
+import type { AnchorAlign, AnchorSide } from "@/components/Portal/anchor-position";
 import { cn } from "@/utils/cn";
 import styles from "./DropdownMenu.module.css";
 
@@ -55,6 +58,23 @@ export interface DropdownMenuProps {
     }>;
     items: DropdownMenuEntry[];
     placement?: DropdownMenuPlacement;
+    /**
+     * Render the menu in a portal, positioned against the trigger. Default `true`.
+     *
+     * Without it the menu is `position: absolute` inside the trigger's wrapper,
+     * and any ancestor with `overflow` other than `visible` clips it. The ordinary
+     * victim is the action column of a `DataTable`: its wrapper scrolls
+     * horizontally, `overflow-x: auto` forces `overflow-y` to `auto` too, and the
+     * menu of the last row showed one of three entries (measured in Chrome at
+     * 1440 px). In a portal the menu escapes the clip, flips above the trigger
+     * when there is no room below, and follows the trigger on scroll and resize.
+     *
+     * The portalled menu stacks at `--tempest-z-popover`, above
+     * `--tempest-z-modal`, so a menu opened inside a `Modal` still paints on top.
+     * `false` keeps the in-flow menu, for a container that must own the menu's
+     * stacking or clipping on purpose.
+     */
+    portal?: boolean;
     className?: string;
 }
 
@@ -72,6 +92,16 @@ function placementClass(placement: DropdownMenuPlacement): string {
     }
 }
 
+const PLACEMENT_GEOMETRY: Record<DropdownMenuPlacement, [AnchorSide, AnchorAlign]> = {
+    "bottom-start": ["bottom", "start"],
+    "bottom-end": ["bottom", "end"],
+    "top-start": ["top", "start"],
+    "top-end": ["top", "end"],
+};
+
+/** Gap between trigger and menu, in px — the in-flow CSS uses the same 4 px. */
+const MENU_OFFSET = 4;
+
 /** Whether an entry can take focus — an item or checkbox that is not disabled. */
 function isSelectable(entry: DropdownMenuEntry): entry is SelectableEntry {
     return (entry.type === "item" || entry.type === "checkbox") && !entry.disabled;
@@ -88,7 +118,11 @@ function isSelectable(entry: DropdownMenuEntry): entry is SelectableEntry {
  * - `ArrowUp` / `ArrowDown` move with wrap, `Home` / `End` jump to the ends.
  * - `Escape` closes and returns focus to the trigger, so the next `Tab` continues
  *   from where the user was rather than from the top of the document.
- * - `Tab` closes the menu and lets the page's own tab order take over.
+ * - `Tab` closes the menu and lets the page's own tab order take over, counted
+ *   from the trigger: focus goes back to the trigger synchronously and the key's
+ *   default action then moves on from there. Without that, a portalled menu —
+ *   the last thing in `body` — would hand `Tab` to whatever follows it, which
+ *   inside a `Modal` is outside the dialog.
  * - Focus is managed: entries carry `tabIndex={-1}` and only the active one is
  *   `0`, which is what stops `Tab` from walking the menu one entry at a time.
  *
@@ -98,12 +132,14 @@ export function DropdownMenu({
     trigger,
     items,
     placement = "bottom-start",
+    portal = true,
     className,
 }: DropdownMenuProps) {
     const [open, setOpen] = useState(false);
     const [activeIndex, setActiveIndex] = useState<number>(-1);
     const id = useId();
-    const rootRef = useRef<HTMLSpanElement>(null);
+    const [rootNode, setRootNode] = useState<HTMLSpanElement | null>(null);
+    const [menuNode, setMenuNode] = useState<HTMLUListElement | null>(null);
     const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
     const pendingFocus = useRef<"first" | "last" | null>(null);
 
@@ -122,8 +158,8 @@ export function DropdownMenu({
      * @returns Nothing.
      */
     const focusTrigger = useCallback((): void => {
-        rootRef.current?.querySelector<HTMLElement>("[aria-haspopup='menu']")?.focus();
-    }, []);
+        rootNode?.querySelector<HTMLElement>("[aria-haspopup='menu']")?.focus();
+    }, [rootNode]);
 
     const close = useCallback(
         (restoreFocus: boolean): void => {
@@ -152,21 +188,47 @@ export function DropdownMenu({
         focusIndex(selectable[next] ?? -1);
     };
 
+    const [side, align] = PLACEMENT_GEOMETRY[placement];
+    const floatingStyle = useAnchorPosition({
+        anchor: rootNode,
+        floating: menuNode,
+        side,
+        align,
+        offset: MENU_OFFSET,
+        enabled: portal && open,
+    });
+
+    /**
+     * Focus the entry the opening key asked for.
+     *
+     * Keyed off the menu node rather than off `open` alone: in a portal the menu
+     * mounts one commit after `open` flips, and an effect that ran on `open` would
+     * find no entries to focus.
+     */
     useEffect(() => {
-        if (!open || pendingFocus.current === null) return;
+        if (!open || !menuNode || pendingFocus.current === null) return;
         const target = pendingFocus.current === "last" ? selectable.at(-1) : selectable[0];
         pendingFocus.current = null;
         if (target !== undefined) focusIndex(target);
-    }, [open, selectable, focusIndex]);
+    }, [open, menuNode, selectable, focusIndex]);
 
+    /**
+     * Close on a press outside both the trigger and the menu.
+     *
+     * The menu is checked separately because in a portal it is not inside the
+     * trigger's wrapper: testing the wrapper alone would treat a press on an entry
+     * as outside and close the menu before the entry's click lands.
+     */
     useEffect(() => {
         if (!open) return;
         const onDown = (event: MouseEvent): void => {
-            if (rootRef.current && !rootRef.current.contains(event.target as Node)) close(false);
+            const target = event.target as Node;
+            if (rootNode?.contains(target) || menuNode?.contains(target)) return;
+            close(false);
         };
         window.addEventListener("mousedown", onDown);
         return () => window.removeEventListener("mousedown", onDown);
-    }, [open, close]);
+    }, [open, close, rootNode, menuNode]);
 
     const openWith = (edge: "first" | "last"): void => {
         pendingFocus.current = edge;
@@ -220,7 +282,7 @@ export function DropdownMenu({
                 close(true);
                 break;
             case "Tab":
-                close(false);
+                close(true);
                 break;
             default:
                 break;
@@ -255,62 +317,70 @@ export function DropdownMenu({
         close(true);
     };
 
-    return (
-        <span ref={rootRef} className={styles.root}>
-            {triggerClone}
-            {open && (
-                <ul
-                    id={id}
-                    role="menu"
-                    className={cn(styles.menu, placementClass(placement), className)}
-                    onKeyDown={handleMenuKeyDown}
-                >
-                    {items.map((entry, index) => {
-                        if (entry.type === "separator") {
-                            return (
-                                <li
-                                    key={entry.id}
-                                    role="separator"
-                                    className={styles.separator}
-                                    aria-hidden
-                                />
-                            );
-                        }
-                        if (entry.type === "label") {
-                            return (
-                                <li key={entry.id} role="presentation" className={styles.label}>
-                                    {entry.label}
-                                </li>
-                            );
-                        }
-                        const checkbox = entry.type === "checkbox";
-                        return (
-                            <li key={entry.id} role="none">
-                                <button
-                                    ref={(el) => {
-                                        itemRefs.current[index] = el;
-                                    }}
-                                    type="button"
-                                    role={checkbox ? "menuitemcheckbox" : "menuitem"}
-                                    aria-checked={checkbox ? entry.checked : undefined}
-                                    tabIndex={activeIndex === index ? 0 : -1}
-                                    className={cn(
-                                        styles.item,
-                                        entry.type === "item" && entry.danger && styles.danger,
-                                        activeIndex === index && styles.active,
-                                    )}
-                                    disabled={entry.disabled}
-                                    onClick={() => handleSelect(entry)}
-                                    onMouseEnter={() => setActiveIndex(index)}
-                                >
-                                    {entry.icon && <span aria-hidden>{entry.icon}</span>}
-                                    {entry.label}
-                                </button>
-                            </li>
-                        );
-                    })}
-                </ul>
+    const menu = (
+        <ul
+            ref={setMenuNode}
+            id={id}
+            role="menu"
+            className={cn(
+                styles.menu,
+                portal ? styles.portalled : placementClass(placement),
+                className,
             )}
+            style={floatingStyle}
+            onKeyDown={handleMenuKeyDown}
+        >
+            {items.map((entry, index) => {
+                if (entry.type === "separator") {
+                    return (
+                        <li
+                            key={entry.id}
+                            role="separator"
+                            className={styles.separator}
+                            aria-hidden
+                        />
+                    );
+                }
+                if (entry.type === "label") {
+                    return (
+                        <li key={entry.id} role="presentation" className={styles.label}>
+                            {entry.label}
+                        </li>
+                    );
+                }
+                const checkbox = entry.type === "checkbox";
+                return (
+                    <li key={entry.id} role="none">
+                        <button
+                            ref={(el) => {
+                                itemRefs.current[index] = el;
+                            }}
+                            type="button"
+                            role={checkbox ? "menuitemcheckbox" : "menuitem"}
+                            aria-checked={checkbox ? entry.checked : undefined}
+                            tabIndex={activeIndex === index ? 0 : -1}
+                            className={cn(
+                                styles.item,
+                                entry.type === "item" && entry.danger && styles.danger,
+                                activeIndex === index && styles.active,
+                            )}
+                            disabled={entry.disabled}
+                            onClick={() => handleSelect(entry)}
+                            onMouseEnter={() => setActiveIndex(index)}
+                        >
+                            {entry.icon && <span aria-hidden>{entry.icon}</span>}
+                            {entry.label}
+                        </button>
+                    </li>
+                );
+            })}
+        </ul>
+    );
+
+    return (
+        <span ref={setRootNode} className={styles.root}>
+            {triggerClone}
+            {open && (portal ? <Portal>{menu}</Portal> : menu)}
         </span>
     );
 }

@@ -51,6 +51,7 @@ Opções (todas exceto `baseURL` são opcionais):
 - `retry` — `true` ou `RetryOptions`. **Desligado por default.** Ver [Retentativa embutida](#retentativa-embutida).
 - `logger` — para onde o cliente reporta cada requisição que terminou. **Desligado por default.** Ver [Log de requisição](#log-de-requisicao).
 - `withCredentials` — envia cookies em cross-origin (default `false`).
+- `trustedOrigins` — origens, além da da `baseURL`, que podem receber o token de `getToken`. Ver [Escopo da credencial](#escopo-da-credencial-o-token-nao-atravessa-origem).
 - `headers` — headers default mesclados em toda request.
 - `fetcher` — implementação de `fetch` alternativa (default `globalThis.fetch`) — útil em testes.
 
@@ -175,6 +176,73 @@ const stream = new EventSource(
   }),
 );
 ```
+
+## Escopo da credencial — o token não atravessa origem
+
+O `path` que você passa pode ser uma **URL absoluta**, e nesse caso ela vence a `baseURL` inteira — é assim que um mesmo cliente alcança um segundo host sem você criar outro. O preço disso, até a 0.65.0, era que o destino de uma requisição autenticada podia vir de um valor lido da rede: um link de paginação, um `download_url`, um header `Location`.
+
+Desde a **0.66.0** o token é preso à origem da `baseURL`:
+
+```ts
+const api = createApiClient({
+  baseURL: "https://api.exemplo.com",
+  getToken: () => useAuthStore.getState().token,
+});
+
+await api.get("/me");
+// → Authorization: Bearer <token>
+
+await api.get("https://cdn.outro.com/arquivo.json");
+// → a requisição vai, o Authorization não
+```
+
+A requisição **continua saindo**. Chamar outra origem não é ataque — é o que o segundo host existe para servir. O que muda é que ela sai sem a credencial da sua API.
+
+!!! tip "Declare o segundo host quando ele precisa do token"
+    ```ts
+    const api = createApiClient({
+      baseURL: "https://api.exemplo.com",
+      getToken: () => useAuthStore.getState().token,
+      trustedOrigins: ["https://cdn.exemplo.com"],
+    });
+    ```
+    A comparação é por **origem**, então caminho e barra final são ignorados: `"https://cdn.exemplo.com"` e `"https://cdn.exemplo.com/uploads/"` valem a mesma coisa. Porta e esquema contam — `https://api.x` e `https://api.x:8443` são origens diferentes.
+
+Em build de desenvolvimento, a primeira supressão por origem escreve uma linha no console dizendo qual origem ficou sem o header e a qual origem a credencial está presa. Em produção não escreve nada: a origem que um app conversa não é coisa para ir parar no console do usuário nem no seu rastreador de erros.
+
+!!! info "`baseURL` relativa não precisa de nada"
+    Atrás de um proxy de dev-server, `baseURL: "/api"` resolve contra o documento — mesma origem da página. Os dois lados são resolvidos antes de comparar, então a checagem passa.
+
+Um `Authorization` que **você** escreveu à mão em `headers` nunca é tocado: o escopo governa só o header derivado de `getToken`.
+
+O mesmo predicado está exportado, para quando você monta a requisição por fora:
+
+```ts
+import { isTrustedCredentialTarget } from "tempest-react-sdk";
+
+isTrustedCredentialTarget("https://api.exemplo.com/me", "https://api.exemplo.com");
+// true
+isTrustedCredentialTarget("https://cdn.outro.com/u/1", "https://api.exemplo.com");
+// false
+```
+
+### Política por requisição
+
+Três campos de `RequestOptions` decidem auth e retentativa numa chamada só, sem precisar de um segundo cliente:
+
+- `skipAuth` — vai sem `Authorization` **e** não entra no ciclo de refresh. É o que login e refresh precisam: a rota que não pode levar o token que está prestes a obter, e cujo próprio 401 não pode chamar `refresh()` de novo — o que recursaria.
+- `skipAuthRetry` — vai autenticada, mas um 401 sobe em vez de disparar refresh-e-repetição. Para uma sondagem de token, ou um polling de fundo que não deve disputar o refresh.
+- `retry` — substitui a política do cliente nesta chamada. `false` desliga num cliente que tem; `true` ou `RetryOptions` liga num que não tem.
+
+```ts
+const api = createApiClient({ baseURL, getToken, refresh, retry: true });
+
+await api.post("/auth/login", { body: credenciais, skipAuth: true });
+await api.get("/relatorio-pesado", { retry: false });
+```
+
+!!! note "Substitui, não mescla"
+    `options.retry` troca `config.retry` por inteiro. Mesclar juntaria em silêncio dois `shouldRetry` que foram escritos cada um para ser completo.
 
 ## Log de requisição
 
@@ -414,6 +482,21 @@ export function AvatarUpload() {
 ```
 
 `onProgress` recebe `{ loaded, total, fraction, lengthComputable }`. `fraction` é `null` quando o tamanho total é desconhecido. Abortar via `signal` rejeita com `DOMException("Aborted")`.
+
+!!! tip "`credentialOrigin` quando a `url` não vem do seu código"
+    Este helper não tem `baseURL` de onde deduzir um escopo — você nomeia o destino em toda chamada —, então a checagem de origem é **opcional** aqui. Ligue-a quando a `url` puder vir de um corpo de resposta em vez do seu próprio código:
+
+    ```ts
+    await uploadWithProgress({
+      url: urlAssinadaQueAApiDevolveu,
+      body: form,
+      getToken: () => auth.getToken(),
+      credentialOrigin: import.meta.env.VITE_API_URL,
+      trustedOrigins: ["https://storage.exemplo.com"],
+    });
+    ```
+
+    Sem `credentialOrigin`, o header vai para onde a `url` apontar — o comportamento de toda versão anterior à 0.66.0.
 
 ## `retry` — backoff exponencial
 

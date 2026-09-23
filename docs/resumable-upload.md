@@ -201,6 +201,24 @@ const upload = createResumableUpload({
 - `pause()` derruba o chunk em voo; o offset persistido continua o do último chunk **confirmado**. O `resume()` faz `HEAD` primeiro, então bytes parciais que o servidor aceitou não se perdem.
 - `abort({ discard: true })` manda `DELETE` e apaga o registro; sem `discard`, o ponto de retomada fica.
 
+!!! warning "O token não segue o `Location` para fora da sua origem"
+    O tus responde a criação com um `Location` que **o servidor escolhe**, e o spec permite que seja uma URL absoluta em outro host — entregar o upload a um storage é operação normal, não ataque. Até a 0.65.0 o bearer token seguia aquele header para onde ele apontasse, junto com os bytes do arquivo.
+
+    Desde a **0.66.0** a credencial fica presa à origem do `endpoint`. Se o `Location` aponta para outra origem, o `POST` de criação ainda leva o token — ele foi para o seu backend —, e os `HEAD`/`PATCH`/`DELETE` seguintes vão sem ele. O upload termina normalmente, que é o que uma URL de storage pré-assinada espera.
+
+    Quando o storage realmente precisa do token da sua API, declare:
+
+    ```ts
+    createResumableUpload({
+      endpoint: "/api/uploads",
+      file,
+      getToken: () => auth.getToken(),
+      trustedOrigins: ["https://storage.exemplo.com"],
+    });
+    ```
+
+    Vale também para o registro persistido: uma `url` guardada no `localStorage` apontando para fora não recupera o token na retomada.
+
 !!! warning "`XMLHttpRequest`, não `fetch`"
     Como em `uploadWithProgress`: `fetch` ainda não reporta progresso de **upload** em navegador nenhum. Aqui há um segundo motivo — o tus devolve o novo offset num **header de resposta**, e `uploadWithProgress` só entrega corpo parseado, então não dava pra reaproveitar.
 

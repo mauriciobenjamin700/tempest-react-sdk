@@ -47,7 +47,7 @@ describe("DropdownMenu", () => {
     });
 
     it("danger entry gets danger class", async () => {
-        const { container } = render(
+        render(
             <DropdownMenu
                 trigger={<button type="button">menu</button>}
                 items={[
@@ -56,8 +56,7 @@ describe("DropdownMenu", () => {
             />,
         );
         await userEvent.click(screen.getByText("menu"));
-        const item = container.querySelector("[role=menuitem]");
-        expect(item?.className).toContain("danger");
+        expect(screen.getByRole("menuitem").className).toContain("danger");
     });
 });
 

@@ -60,8 +60,8 @@ export function EditarPerfil({ save }: { save: () => void }) {
 | `footer`             | `ReactNode`                                      | —       |
 | `fullscreen`         | `boolean` (ocupa 100dvh independente do size)    | `false` |
 | `fullscreenOnMobile` | `boolean` (vira fullscreen abaixo de 640px)      | `false` |
-| `dismissOnBackdrop`  | `boolean`                                        | `true`  |
-| `dismissOnEsc`       | `boolean`                                        | `true`  |
+| `closeOnBackdrop`    | `boolean`                                        | `true`  |
+| `closeOnEsc`         | `boolean`                                        | `true`  |
 
 !!! tip "Safe-area em fullscreen"
     Em `fullscreen` o Modal aplica `env(safe-area-inset-*)` em todos os edges, respeitando notch e barra de gestos. Use `fullscreenOnMobile` para um modal denso virar tela cheia abaixo de 640px em vez de espremer num cartão minúsculo.
@@ -283,7 +283,8 @@ export function GaleriaDaVistoria({ fotos }: { fotos: { url: string; descricao: 
 
 Todo overlay do SDK monta por portal, e o alvo do portal segue o elemento em
 **tela cheia** quando existe um — `Modal`, `Drawer`, `BottomSheet`,
-`ToastProvider`, `Command`, `ContextMenu`, `DropdownMenu`, `Popover`, `Tooltip` e o
+`ToastProvider`, `Command`, `ContextMenu`, `DropdownMenu`, `Popover`, `Tooltip`, `HoverCard`, `Combobox`,
+`MultiSelect`, `NavigationMenu`, `Menubar` e o
 `<Portal>` genérico.
 
 Isso não é conveniência: é correção. Enquanto a página está em tela cheia, o
@@ -327,15 +328,66 @@ export function Chamada() {
 
 - **Focus trap**: Tab circula apenas dentro do dialog. Restaura o foco no trigger ao fechar.
 - **Scroll lock**: `body.overflow = "hidden"` enquanto aberto.
-- **Esc** fecha (`Modal`/`BottomSheet`: `dismissOnEsc={false}`; `Drawer`: `closeOnEsc={false}`).
+- **Esc** fecha a camada de cima (`Modal`/`Drawer`: `closeOnEsc={false}`; `BottomSheet`: `dismissOnEsc={false}`) — ver [`Escape` fecha uma camada por vez](#escape-fecha-uma-camada-por-vez).
 - **`aria-modal="true"`** indica para leitores de tela que o resto da página está bloqueado.
-- **Backdrop**: clicks fecham (`Modal`/`BottomSheet`: `dismissOnBackdrop={false}`; `Drawer`: `closeOnBackdrop={false}`).
+- **Backdrop**: clicks fecham (`Modal`/`Drawer`: `closeOnBackdrop={false}`; `BottomSheet`: `dismissOnBackdrop={false}`).
+
+### `Escape` fecha uma camada por vez
+
+Um `Escape` fecha **só a camada aberta mais recentemente**. O próximo `Escape`
+fecha a de baixo:
+
+```tsx
+import { useState } from "react";
+import { Button, DropdownMenu, Modal } from "tempest-react-sdk";
+
+export function EditarPedido({ cancelar }: { cancelar: () => void }) {
+    const [aberto, setAberto] = useState(true);
+
+    return (
+        <Modal open={aberto} onClose={() => setAberto(false)} title="Editar pedido">
+            <DropdownMenu
+                trigger={<Button variant="ghost">Mais ações</Button>}
+                items={[{ type: "item", id: "cancelar", label: "Cancelar pedido", onSelect: cancelar }]}
+            />
+        </Modal>
+    );
+}
+```
+
+Com o menu aberto, o primeiro `Escape` fecha o menu e devolve o foco ao gatilho
+**dentro do modal**. O segundo fecha o modal.
+
+Antes da 0.67.0, cada overlay escutava `keydown` no `window` e fechava em
+qualquer `Escape`, então uma tecla fechava tudo o que estava aberto. Medido no
+Chrome, com tecla real:
+
+| Dentro de | Camada interna | Antes | Agora |
+| --- | --- | --- | --- |
+| `Modal` | `DropdownMenu`, `Combobox`, `MultiSelect`, `Popover`, `ContextMenu`, célula editável do `DataTable` | fechava as duas | fecha só a interna |
+| `Modal` | outro `Modal` | fechava os dois | fecha só o de cima |
+| `Drawer` | `Popover` | fechava os dois | fecha só o `Popover` |
+
+A regra vale para `Modal`, `Drawer`, `BottomSheet`, `Lightbox`, `Popover`,
+`ContextMenu`, `NavigationMenu`, `Menubar` e `Tooltip`. Quem trata `Escape` no
+próprio elemento (a lista do `Combobox`, o editor de célula, o `DropdownMenu`)
+consome a tecla antes, e o overlay de fora não reage.
+
+!!! note "`closeOnEsc={false}` bloqueia, não deixa passar"
+    Um `Modal` (ou `Drawer`) com `Escape` desligado continua no topo da pilha e
+    **engole** a tecla. Sem isso, o `Escape` passaria direto e fecharia o modal
+    de baixo, com o de cima ainda aberto.
+
+!!! tip "Seu handler de `Escape` convive com a pilha"
+    Se um componente seu trata `Escape` dentro de um overlay, chame
+    `event.preventDefault()`. A pilha ignora tecla já consumida, e o overlay de
+    fora continua aberto.
 
 ## Resumo
 
 | Componente    | Ancoragem        | Vocação                           | Prop de dismiss                    |
 | ------------- | ---------------- | --------------------------------- | ---------------------------------- |
-| `Modal`       | centralizado     | fluxos centrais (criar/editar)    | `dismissOnBackdrop`/`dismissOnEsc` |
+| `Modal`       | centralizado     | fluxos centrais (criar/editar)    | `closeOnBackdrop`/`closeOnEsc`     |
 | `Drawer`      | borda (variável) | painéis laterais persistentes     | `closeOnBackdrop`/`closeOnEsc`     |
 | `BottomSheet` | borda inferior   | ações mobile-first (compartilhar) | `dismissOnBackdrop`/`dismissOnEsc` |
 | `ModalsManager` | pilha (imperativa) | abrir modais/confirmações via código | `useModals().close`/`closeAll`     |

@@ -5,6 +5,10 @@
  */
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
+import { Portal } from "@/components/Portal";
+import { useAnchorPosition } from "@/components/Portal/anchor-position";
+import { useEscapeLayer } from "@/components/Portal/escape-layer";
+import { usePortalTabOrder } from "@/components/Portal/tab-bridge";
 import { cn } from "@/utils/cn";
 import styles from "./NavigationMenu.module.css";
 
@@ -22,7 +26,22 @@ export interface NavigationMenuItem {
 export interface NavigationMenuProps extends HTMLAttributes<HTMLElement> {
     /** Top-level navigation entries. */
     items: NavigationMenuItem[];
+    /**
+     * Render the open panel in a portal, positioned under its trigger. Default
+     * `true`.
+     *
+     * In flow, an ancestor with `overflow` other than `visible` clips the panel,
+     * and the SDK's own `Navbar` is one: its `nav` slot scrolls horizontally, and
+     * `overflow-x: auto` forces `overflow-y` to `auto` too — a submenu showed
+     * 0% of its panel there (measured in Chrome at 1440 px). In a portal the
+     * panel escapes the clip, flips at the viewport edge, stays in the tab order
+     * right after its trigger, and follows it on scroll and resize.
+     */
+    portal?: boolean;
 }
+
+/** Gap between trigger and panel, in px — the in-flow CSS uses the same 4 px. */
+const PANEL_OFFSET = 4;
 
 /**
  * Horizontal navigation menu with hover/click/focus dropdown submenus.
@@ -46,7 +65,7 @@ export interface NavigationMenuProps extends HTMLAttributes<HTMLElement> {
  *     ]}
  * />
  */
-export function NavigationMenu({ items, className, ...props }: NavigationMenuProps) {
+export function NavigationMenu({ items, portal = true, className, ...props }: NavigationMenuProps) {
     const [clickedIndex, setClickedIndex] = useState<number>(-1);
     const [hovered, setHovered] = useState<number>(-1);
     const baseId = useId();
@@ -59,21 +78,40 @@ export function NavigationMenu({ items, className, ...props }: NavigationMenuPro
 
     const openIndex = clickedIndex !== -1 ? clickedIndex : hovered;
 
+    const [anchorNode, setAnchorNode] = useState<HTMLLIElement | null>(null);
+    const [panelNode, setPanelNode] = useState<HTMLUListElement | null>(null);
+    const floating = portal && openIndex !== -1;
+    const floatingStyle = useAnchorPosition({
+        anchor: anchorNode,
+        floating: panelNode,
+        side: "bottom",
+        align: "start",
+        offset: PANEL_OFFSET,
+        enabled: floating,
+    });
+    usePortalTabOrder({ enabled: floating, anchor: anchorNode, panel: panelNode });
+
+    useEscapeLayer(openIndex !== -1, close);
+
+    /**
+     * Close on a press outside both the menu and the open panel.
+     *
+     * The panel is checked on its own because in a portal it is not inside the
+     * menu's root: a press on one of its entries would otherwise count as
+     * outside, close the panel on `mousedown`, and swallow the entry's click.
+     */
     useEffect(() => {
         if (openIndex === -1) return;
-        const onKey = (event: KeyboardEvent): void => {
-            if (event.key === "Escape") close();
-        };
         const onDown = (event: MouseEvent): void => {
-            if (rootRef.current && !rootRef.current.contains(event.target as Node)) close();
+            const target = event.target as Node;
+            if (rootRef.current?.contains(target) || panelNode?.contains(target)) return;
+            close();
         };
-        window.addEventListener("keydown", onKey);
         window.addEventListener("mousedown", onDown);
         return () => {
-            window.removeEventListener("keydown", onKey);
             window.removeEventListener("mousedown", onDown);
         };
-    }, [openIndex, close]);
+    }, [openIndex, close, panelNode]);
 
     const renderLeaf = (item: NavigationMenuItem, role: "none" | "menuitem"): ReactNode => {
         const handleClick = (): void => {
@@ -118,9 +156,25 @@ export function NavigationMenu({ items, className, ...props }: NavigationMenuPro
                     }
                     const open = openIndex === index;
                     const panelId = `${baseId}-panel-${index}`;
+                    const panel = (
+                        <ul
+                            ref={setPanelNode}
+                            id={panelId}
+                            role="menu"
+                            className={cn(styles.panel, portal && styles.portalled)}
+                            style={floatingStyle}
+                        >
+                            {item.children!.map((child, childIndex) => (
+                                <li key={childIndex} role="none" className={styles.subItem}>
+                                    {renderLeaf(child, "menuitem")}
+                                </li>
+                            ))}
+                        </ul>
+                    );
                     return (
                         <li
                             key={index}
+                            ref={open ? setAnchorNode : undefined}
                             className={styles.item}
                             onMouseEnter={() => setHovered(index)}
                             onMouseLeave={() => setHovered((prev) => (prev === index ? -1 : prev))}
@@ -138,15 +192,7 @@ export function NavigationMenu({ items, className, ...props }: NavigationMenuPro
                             >
                                 {item.label}
                             </button>
-                            {open && (
-                                <ul id={panelId} role="menu" className={styles.panel}>
-                                    {item.children!.map((child, childIndex) => (
-                                        <li key={childIndex} role="none" className={styles.subItem}>
-                                            {renderLeaf(child, "menuitem")}
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
+                            {open && (portal ? <Portal>{panel}</Portal> : panel)}
                         </li>
                     );
                 })}

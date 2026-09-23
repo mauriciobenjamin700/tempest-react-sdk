@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useEscapeLayer } from "@/components/Portal/escape-layer";
 import { cn } from "@/utils/cn";
 import styles from "./BottomSheet.module.css";
 import { usePortalHost } from "../Portal/portal-host";
@@ -41,14 +42,7 @@ export function BottomSheet({
     children,
     ...props
 }: BottomSheetProps) {
-    useEffect(() => {
-        if (!open || !dismissOnEsc) return;
-        const handler = (e: KeyboardEvent) => {
-            if (e.key === "Escape") onClose();
-        };
-        window.addEventListener("keydown", handler);
-        return () => window.removeEventListener("keydown", handler);
-    }, [open, dismissOnEsc, onClose]);
+    useEscapeLayer(open, dismissOnEsc ? onClose : null);
 
     useEffect(() => {
         if (!open) return;

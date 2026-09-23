@@ -6163,6 +6163,10 @@ export function ExcluirComDica() {
 | `disabled`  | `boolean` (desliga sem mexer no trigger) | `false` |
 | `portal`    | `boolean` (renderiza em `document.body`) | `true`  |
 
+`Escape` esconde a dica sem mover o ponteiro nem o foco, como pede o WCAG 2.2
+SC 1.4.13. Dentro de um `Modal`, o primeiro `Escape` esconde a dica e o segundo
+fecha o modal.
+
 !!! warning "Não esconda informação essencial num tooltip"
     Usuários de touch não têm hover — eles nunca verão o conteúdo. Tooltip é reforço, não a única fonte de uma informação necessária para concluir a tarefa.
 
@@ -7985,6 +7989,7 @@ import { HoverCard } from "tempest-react-sdk";
 | `openDelay`  | `number` (ms)                            | `300`      | Atraso antes de abrir em `mouseenter`/`focus`   |
 | `closeDelay` | `number` (ms)                            | `150`      | Atraso antes de fechar em `mouseleave`/`blur`   |
 | `placement`  | `"top" \| "bottom" \| "left" \| "right"` | `"bottom"` | Ancoragem do card relativa ao gatilho           |
+| `portal`     | `boolean`                                | `true`     | Card em `document.body`: escapa de `overflow` e vira na borda da tela; um link no card é o próximo `Tab` depois do gatilho |
 
 !!! info "A11y"
     O card é uma `role="dialog"` rotulada; o gatilho permanece focável por teclado.
@@ -8267,6 +8272,14 @@ import { NavigationMenu } from "tempest-react-sdk";
 | Prop    | Tipo                   | Default | Descrição                     |
 | ------- | ---------------------- | ------- | ----------------------------- |
 | `items` | `NavigationMenuItem[]` | —       | Entradas de navegação de topo |
+| `portal` | `boolean`             | `true`  | Painel em `document.body`     |
+
+!!! info "O painel abre em portal — e é por causa do `Navbar`"
+    O slot `nav` do `Navbar` rola na horizontal (`overflow-x: auto`), e pela regra
+    do CSS isso força `overflow-y` a `auto`: um painel em fluxo ficava inteiro
+    cortado, medido no Chrome a 1440 px. Em portal ele escapa, continua logo
+    depois do gatilho na ordem de `Tab` e vira na borda da tela. `portal={false}`
+    devolve o painel em fluxo. O mesmo vale para o `Menubar`.
 
 `NavigationMenuItem` = `{ label: ReactNode; href?: string; onSelect?: () => void; children?: NavigationMenuItem[] }`.
 
@@ -8303,6 +8316,7 @@ import { Menubar } from "tempest-react-sdk";
 | Prop    | Tipo            | Default | Descrição                                         |
 | ------- | --------------- | ------- | ------------------------------------------------- |
 | `menus` | `MenubarMenu[]` | —       | Menus de topo, renderizados da esquerda à direita |
+| `portal` | `boolean`      | `true`  | Painel em `document.body`                         |
 
 `MenubarMenu` = `{ label: ReactNode; items: MenubarItem[] }`. `MenubarItem` = `{ label: ReactNode; onSelect?: () => void; disabled?: boolean; shortcut?: string }` ou `{ separator: true }`.
 
@@ -10336,6 +10350,12 @@ export function Cidade() {
 }
 ```
 
+!!! info "A lista abre em portal"
+    A lista é renderizada em `document.body`, com a largura do campo, e vira para
+    cima quando não cabe embaixo. Por isso um `Combobox` na última linha de um
+    `DataTable` — cujo wrapper rola e corta o que passa da borda — mostra a lista
+    inteira. `portal={false}` devolve a lista em fluxo.
+
 ## `MultiSelect`
 
 <!-- gallery:inputs-extra -->
@@ -10376,6 +10396,7 @@ function Example() {
 | `maxItems`     | `number`                                          | —                             |
 | `filter`       | `(option, query) => boolean`                     | —                             |
 | `emptyMessage` | `string`                                          | `"Nenhuma opção encontrada"`  |
+| `portal`       | `boolean` (lista em `document.body`)             | `true`                        |
 | `className`    | `string`                                         | —                             |
 
 `MultiSelectOption` é `{ value: string; label: string; disabled?: boolean }`.
@@ -12255,8 +12276,8 @@ export function EditarPerfil({ save }: { save: () => void }) {
 | `footer`             | `ReactNode`                                      | —       |
 | `fullscreen`         | `boolean` (ocupa 100dvh independente do size)    | `false` |
 | `fullscreenOnMobile` | `boolean` (vira fullscreen abaixo de 640px)      | `false` |
-| `dismissOnBackdrop`  | `boolean`                                        | `true`  |
-| `dismissOnEsc`       | `boolean`                                        | `true`  |
+| `closeOnBackdrop`    | `boolean`                                        | `true`  |
+| `closeOnEsc`         | `boolean`                                        | `true`  |
 
 !!! tip "Safe-area em fullscreen"
     Em `fullscreen` o Modal aplica `env(safe-area-inset-*)` em todos os edges, respeitando notch e barra de gestos. Use `fullscreenOnMobile` para um modal denso virar tela cheia abaixo de 640px em vez de espremer num cartão minúsculo.
@@ -12478,7 +12499,8 @@ export function GaleriaDaVistoria({ fotos }: { fotos: { url: string; descricao: 
 
 Todo overlay do SDK monta por portal, e o alvo do portal segue o elemento em
 **tela cheia** quando existe um — `Modal`, `Drawer`, `BottomSheet`,
-`ToastProvider`, `Command`, `ContextMenu`, `DropdownMenu`, `Popover`, `Tooltip` e o
+`ToastProvider`, `Command`, `ContextMenu`, `DropdownMenu`, `Popover`, `Tooltip`, `HoverCard`, `Combobox`,
+`MultiSelect`, `NavigationMenu`, `Menubar` e o
 `<Portal>` genérico.
 
 Isso não é conveniência: é correção. Enquanto a página está em tela cheia, o
@@ -12522,15 +12544,66 @@ export function Chamada() {
 
 - **Focus trap**: Tab circula apenas dentro do dialog. Restaura o foco no trigger ao fechar.
 - **Scroll lock**: `body.overflow = "hidden"` enquanto aberto.
-- **Esc** fecha (`Modal`/`BottomSheet`: `dismissOnEsc={false}`; `Drawer`: `closeOnEsc={false}`).
+- **Esc** fecha a camada de cima (`Modal`/`Drawer`: `closeOnEsc={false}`; `BottomSheet`: `dismissOnEsc={false}`) — ver [`Escape` fecha uma camada por vez](#escape-fecha-uma-camada-por-vez).
 - **`aria-modal="true"`** indica para leitores de tela que o resto da página está bloqueado.
-- **Backdrop**: clicks fecham (`Modal`/`BottomSheet`: `dismissOnBackdrop={false}`; `Drawer`: `closeOnBackdrop={false}`).
+- **Backdrop**: clicks fecham (`Modal`/`Drawer`: `closeOnBackdrop={false}`; `BottomSheet`: `dismissOnBackdrop={false}`).
+
+### `Escape` fecha uma camada por vez
+
+Um `Escape` fecha **só a camada aberta mais recentemente**. O próximo `Escape`
+fecha a de baixo:
+
+```tsx
+import { useState } from "react";
+import { Button, DropdownMenu, Modal } from "tempest-react-sdk";
+
+export function EditarPedido({ cancelar }: { cancelar: () => void }) {
+    const [aberto, setAberto] = useState(true);
+
+    return (
+        <Modal open={aberto} onClose={() => setAberto(false)} title="Editar pedido">
+            <DropdownMenu
+                trigger={<Button variant="ghost">Mais ações</Button>}
+                items={[{ type: "item", id: "cancelar", label: "Cancelar pedido", onSelect: cancelar }]}
+            />
+        </Modal>
+    );
+}
+```
+
+Com o menu aberto, o primeiro `Escape` fecha o menu e devolve o foco ao gatilho
+**dentro do modal**. O segundo fecha o modal.
+
+Antes da 0.67.0, cada overlay escutava `keydown` no `window` e fechava em
+qualquer `Escape`, então uma tecla fechava tudo o que estava aberto. Medido no
+Chrome, com tecla real:
+
+| Dentro de | Camada interna | Antes | Agora |
+| --- | --- | --- | --- |
+| `Modal` | `DropdownMenu`, `Combobox`, `MultiSelect`, `Popover`, `ContextMenu`, célula editável do `DataTable` | fechava as duas | fecha só a interna |
+| `Modal` | outro `Modal` | fechava os dois | fecha só o de cima |
+| `Drawer` | `Popover` | fechava os dois | fecha só o `Popover` |
+
+A regra vale para `Modal`, `Drawer`, `BottomSheet`, `Lightbox`, `Popover`,
+`ContextMenu`, `NavigationMenu`, `Menubar` e `Tooltip`. Quem trata `Escape` no
+próprio elemento (a lista do `Combobox`, o editor de célula, o `DropdownMenu`)
+consome a tecla antes, e o overlay de fora não reage.
+
+!!! note "`closeOnEsc={false}` bloqueia, não deixa passar"
+    Um `Modal` (ou `Drawer`) com `Escape` desligado continua no topo da pilha e
+    **engole** a tecla. Sem isso, o `Escape` passaria direto e fecharia o modal
+    de baixo, com o de cima ainda aberto.
+
+!!! tip "Seu handler de `Escape` convive com a pilha"
+    Se um componente seu trata `Escape` dentro de um overlay, chame
+    `event.preventDefault()`. A pilha ignora tecla já consumida, e o overlay de
+    fora continua aberto.
 
 ## Resumo
 
 | Componente    | Ancoragem        | Vocação                           | Prop de dismiss                    |
 | ------------- | ---------------- | --------------------------------- | ---------------------------------- |
-| `Modal`       | centralizado     | fluxos centrais (criar/editar)    | `dismissOnBackdrop`/`dismissOnEsc` |
+| `Modal`       | centralizado     | fluxos centrais (criar/editar)    | `closeOnBackdrop`/`closeOnEsc`     |
 | `Drawer`      | borda (variável) | painéis laterais persistentes     | `closeOnBackdrop`/`closeOnEsc`     |
 | `BottomSheet` | borda inferior   | ações mobile-first (compartilhar) | `dismissOnBackdrop`/`dismissOnEsc` |
 | `ModalsManager` | pilha (imperativa) | abrir modais/confirmações via código | `useModals().close`/`closeAll`     |

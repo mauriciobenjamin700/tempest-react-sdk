@@ -310,19 +310,29 @@ export function useSortable(options: UseSortableOptions): UseSortableResult {
             }
         }
 
+        /**
+         * Cancel the drag on `Escape`.
+         *
+         * Listened in the capture phase and marked consumed: the overlays' shared
+         * `Escape` listener sits on `window` in the bubble phase, so a list sorted
+         * inside a `Modal` would otherwise close the modal mid-drag instead of
+         * just dropping the item back.
+         */
         function onKeyDown(event: KeyboardEvent): void {
-            if (event.key === "Escape") reset();
+            if (event.key !== "Escape") return;
+            event.preventDefault();
+            reset();
         }
 
         window.addEventListener("pointermove", onPointerMove);
         window.addEventListener("pointerup", onPointerUp);
         window.addEventListener("pointercancel", reset);
-        window.addEventListener("keydown", onKeyDown);
+        window.addEventListener("keydown", onKeyDown, true);
         return () => {
             window.removeEventListener("pointermove", onPointerMove);
             window.removeEventListener("pointerup", onPointerUp);
             window.removeEventListener("pointercancel", reset);
-            window.removeEventListener("keydown", onKeyDown);
+            window.removeEventListener("keydown", onKeyDown, true);
         };
     }, [activeIndex, commit, reset, setOverGroup, setOverIndex]);
 

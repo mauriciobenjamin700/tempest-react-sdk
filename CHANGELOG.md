@@ -93,6 +93,87 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   2500 B — o `Portal`, o host de tela cheia e a ancoragem, compartilhados pelos três.
   Closes #360.
 
+- **Um `Escape` fechava todos os overlays abertos de uma vez.** Cada overlay
+  escutava `keydown` no `window` e fechava em qualquer `Escape`, sem olhar se outra
+  camada já tinha tratado a tecla. Medido no Chrome, com tecla real:
+
+  | dentro de | camada interna                                                                                      | antes           | depois             |
+  | --------- | --------------------------------------------------------------------------------------------------- | --------------- | ------------------ |
+  | `Modal`   | `DropdownMenu`, `Combobox`, `MultiSelect`, `Popover`, `ContextMenu`, célula editável do `DataTable` | fechava as duas | fecha só a interna |
+  | `Modal`   | outro `Modal`                                                                                       | fechava os dois | fecha só o de cima |
+  | `Drawer`  | `Popover`                                                                                           | fechava os dois | fecha só o interno |
+
+  A issue relatava um caso (menu dentro de modal) e propunha checar
+  `defaultPrevented` no `Modal`. Isso resolve só metade: modal sobre modal,
+  `Popover` e `ContextMenu` são **dois listeners no `window`** para o mesmo
+  evento, e nenhum vê o outro. Agora existe uma pilha interna de camadas com um
+  único listener: só a camada aberta mais recentemente reage, e a tecla já
+  consumida por um handler de elemento (`preventDefault()`) é ignorada. Entram na
+  pilha `Modal`, `Drawer`, `BottomSheet`, `Lightbox`, `Popover`, `ContextMenu`,
+  `NavigationMenu`, `Menubar` e `Tooltip`.
+
+  - A ordem da pilha vem da **renderização**, não do efeito. Efeitos rodam
+    filho-primeiro, então um modal que monta já com outro aberto dentro dele
+    punha o de fora no topo.
+  - `closeOnEsc={false}` (e `dismissOnEsc={false}` no `BottomSheet`) **bloqueia**
+    a tecla em vez de deixá-la passar para o modal de baixo.
+  - `Combobox` e `MultiSelect` passam a consumir o `Escape` que fecha a lista. Com
+    a lista fechada, a tecla segue para o overlay de fora.
+  - O `Escape` que cancela um arrasto do `useSortable` é tratado em captura e
+    consumido, para não fechar o modal no meio do arrasto.
+  - `Tooltip` passa a fechar no `Escape`, como pede o WCAG 2.2 SC 1.4.13.
+  - `Escape` durante composição de IME é ignorado.
+
+  A doc do `Modal` listava `dismissOnBackdrop`/`dismissOnEsc`, que são props do
+  `BottomSheet`. As do `Modal` são `closeOnBackdrop`/`closeOnEsc`. Corrigido nas
+  duas línguas.
+
+  Custo medido com `npx size-limit`, `main` (0.66.0) contra esta branch: barrel ESM
+  131,14 → 131,54 kB (+0,40 kB), CJS 156,43 → 156,61 kB (+0,18 kB). Os tetos vão
+  para 133,5 / 159 kB, o mesmo valor do #371 e do #373: os três tocam a mesma
+  linha, e #371 + #374 juntos já passavam do teto anterior no CJS (157,85 kB).
+  Closes #372.
+
+- **`Combobox`, `MultiSelect`, `HoverCard`, `NavigationMenu` e `Menubar` eram
+  cortados por ancestral com `overflow`, dois deles dentro de composições do
+  próprio SDK.** Mesma causa do #360: painel `position: absolute` dentro da árvore.
+  Medido no Chrome a 1440 px (grade de 36 pontos com `elementFromPoint`):
+
+  | componente       | onde                           | antes       | depois |
+  | ---------------- | ------------------------------ | ----------- | ------ |
+  | `Combobox`       | última linha de um `DataTable` | 0% visível  | 100%   |
+  | `MultiSelect`    | última linha de um `DataTable` | 0% visível  | 100%   |
+  | `HoverCard`      | última linha de um `DataTable` | 17% visível | 100%   |
+  | `NavigationMenu` | slot `nav` do `Navbar`         | 0% visível  | 100%   |
+  | `Menubar`        | slot `nav` do `Navbar`         | 0% visível  | 100%   |
+
+  O `nav` do `Navbar` e o `main` do `AppShell` têm `overflow-x: auto`, e pela regra
+  do CSS isso força `overflow-y` a `auto`: `<Navbar nav={<NavigationMenu …/>}>`, a
+  composição óbvia, cortava o submenu inteiro. Os cinco ganham `portal` (default
+  `true`) sobre a mesma ancoragem do #360, e dois defeitos só apareceram ao medir:
+
+  - **A lista do `Combobox` perdia a fonte.** Em `body`, o painel herda do documento
+    e não do root do componente: as opções saíam em `"Times New Roman"`. O que o
+    root declara (`font-family`, e `font-size` nos menus) agora vai também no painel
+    em portal. Um guard novo, `test/portal-inheritance.test.ts`, lê o CSS e reprova
+    propriedade herdada que não chega ao painel — o jsdom não calcula estilo, então
+    nenhum teste de componente veria isso. Comparados em browser, fluxo × portal, 8
+    painéis × claro/escuro: 16/16 idênticos.
+  - **Largura e altura mudam depois de abrir.** A lista toma a largura do campo
+    (`matchWidth`) e a altura é medida já nessa largura; um `ResizeObserver` no
+    painel e na âncora reposiciona quando a lista encolhe ao digitar ou quando o
+    campo do `MultiSelect` ganha uma linha de chips.
+
+  `HoverCard`, `NavigationMenu` e `Menubar` usam a ponte de `Tab` do #371: o
+  conteúdo focável do painel continua sendo o próximo `Tab` depois do gatilho.
+  `MultiSelect` teve o comentário inline do handler de `mousedown` migrado para a
+  docstring do handler.
+
+  Custo medido com `npx size-limit`, base empilhada (#371 + #374) contra esta branch:
+  barrel ESM 132,45 → 132,89 kB (+0,44 kB), CJS 157,85 → 158,53 kB (+0,68 kB),
+  dentro dos tetos compartilhados de 133,5 / 159 kB.
+  Closes #373.
+
 ## [0.66.0] — 2026-09-19
 
 ### Segurança

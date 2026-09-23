@@ -32,6 +32,14 @@ import { NavigationMenu } from "tempest-react-sdk";
 | Prop    | Tipo                   | Default | Descrição                     |
 | ------- | ---------------------- | ------- | ----------------------------- |
 | `items` | `NavigationMenuItem[]` | —       | Entradas de navegação de topo |
+| `portal` | `boolean`             | `true`  | Painel em `document.body`     |
+
+!!! info "O painel abre em portal — e é por causa do `Navbar`"
+    O slot `nav` do `Navbar` rola na horizontal (`overflow-x: auto`), e pela regra
+    do CSS isso força `overflow-y` a `auto`: um painel em fluxo ficava inteiro
+    cortado, medido no Chrome a 1440 px. Em portal ele escapa, continua logo
+    depois do gatilho na ordem de `Tab` e vira na borda da tela. `portal={false}`
+    devolve o painel em fluxo. O mesmo vale para o `Menubar`.
 
 `NavigationMenuItem` = `{ label: ReactNode; href?: string; onSelect?: () => void; children?: NavigationMenuItem[] }`.
 
@@ -68,6 +76,7 @@ import { Menubar } from "tempest-react-sdk";
 | Prop    | Tipo            | Default | Descrição                                         |
 | ------- | --------------- | ------- | ------------------------------------------------- |
 | `menus` | `MenubarMenu[]` | —       | Menus de topo, renderizados da esquerda à direita |
+| `portal` | `boolean`      | `true`  | Painel em `document.body`                         |
 
 `MenubarMenu` = `{ label: ReactNode; items: MenubarItem[] }`. `MenubarItem` = `{ label: ReactNode; onSelect?: () => void; disabled?: boolean; shortcut?: string }` ou `{ separator: true }`.
 

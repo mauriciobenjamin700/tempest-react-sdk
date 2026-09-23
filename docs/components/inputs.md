@@ -165,6 +165,12 @@ export function Cidade() {
 }
 ```
 
+!!! info "A lista abre em portal"
+    A lista é renderizada em `document.body`, com a largura do campo, e vira para
+    cima quando não cabe embaixo. Por isso um `Combobox` na última linha de um
+    `DataTable` — cujo wrapper rola e corta o que passa da borda — mostra a lista
+    inteira. `portal={false}` devolve a lista em fluxo.
+
 ## `MultiSelect`
 
 <!-- gallery:inputs-extra -->
@@ -205,6 +211,7 @@ function Example() {
 | `maxItems`     | `number`                                          | —                             |
 | `filter`       | `(option, query) => boolean`                     | —                             |
 | `emptyMessage` | `string`                                          | `"Nenhuma opção encontrada"`  |
+| `portal`       | `boolean` (lista em `document.body`)             | `true`                        |
 | `className`    | `string`                                         | —                             |
 
 `MultiSelectOption` é `{ value: string; label: string; disabled?: boolean }`.

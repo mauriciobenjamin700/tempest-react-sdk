@@ -60,8 +60,8 @@ export function EditarPerfil({ save }: { save: () => void }) {
 | `footer`             | `ReactNode`                                      | —       |
 | `fullscreen`         | `boolean` (fills 100dvh regardless of size)      | `false` |
 | `fullscreenOnMobile` | `boolean` (becomes fullscreen below 640px)       | `false` |
-| `dismissOnBackdrop`  | `boolean`                                        | `true`  |
-| `dismissOnEsc`       | `boolean`                                        | `true`  |
+| `closeOnBackdrop`    | `boolean`                                        | `true`  |
+| `closeOnEsc`         | `boolean`                                        | `true`  |
 
 !!! tip "Safe-area in fullscreen"
     In `fullscreen` the Modal applies `env(safe-area-inset-*)` on all edges, respecting notch and gesture bar. Use `fullscreenOnMobile` so a dense modal becomes full-screen below 640px instead of cramming into a tiny card.
@@ -238,7 +238,8 @@ function DeleteButton({ id }: { id: string }) {
 
 Every SDK overlay mounts through a portal, and the portal target follows the
 **fullscreen** element whenever there is one — `Modal`, `Drawer`, `BottomSheet`,
-`ToastProvider`, `Command`, `ContextMenu`, `DropdownMenu`, `Popover`, `Tooltip` and
+`ToastProvider`, `Command`, `ContextMenu`, `DropdownMenu`, `Popover`, `Tooltip`, `HoverCard`, `Combobox`,
+`MultiSelect`, `NavigationMenu`, `Menubar` and
 the generic `<Portal>`.
 
 This is not convenience, it is correctness. While the page is in fullscreen the
@@ -283,9 +284,60 @@ export function Call() {
 
 - **Focus trap**: Tab cycles only inside the dialog. Restores focus to the trigger on close.
 - **Scroll lock**: `body.overflow = "hidden"` while open.
-- **Esc** closes (`Modal`/`BottomSheet`: `dismissOnEsc={false}`; `Drawer`: `closeOnEsc={false}`).
+- **Esc** closes the top layer (`Modal`/`Drawer`: `closeOnEsc={false}`; `BottomSheet`: `dismissOnEsc={false}`) — see [`Escape` closes one layer at a time](#escape-closes-one-layer-at-a-time).
 - **`aria-modal="true"`** tells screen readers the rest of the page is blocked.
-- **Backdrop**: clicks close it (`Modal`/`BottomSheet`: `dismissOnBackdrop={false}`; `Drawer`: `closeOnBackdrop={false}`).
+- **Backdrop**: clicks close it (`Modal`/`Drawer`: `closeOnBackdrop={false}`; `BottomSheet`: `dismissOnBackdrop={false}`).
+
+### `Escape` closes one layer at a time
+
+One `Escape` closes **only the most recently opened layer**. The next `Escape`
+closes the one below:
+
+```tsx
+import { useState } from "react";
+import { Button, DropdownMenu, Modal } from "tempest-react-sdk";
+
+export function EditOrder({ cancel }: { cancel: () => void }) {
+    const [open, setOpen] = useState(true);
+
+    return (
+        <Modal open={open} onClose={() => setOpen(false)} title="Edit order">
+            <DropdownMenu
+                trigger={<Button variant="ghost">More actions</Button>}
+                items={[{ type: "item", id: "cancel", label: "Cancel order", onSelect: cancel }]}
+            />
+        </Modal>
+    );
+}
+```
+
+With the menu open, the first `Escape` closes the menu and returns focus to the
+trigger **inside the modal**. The second one closes the modal.
+
+Before 0.67.0 every overlay listened for `keydown` on `window` and closed on any
+`Escape`, so one key press closed everything that was open. Measured in Chrome,
+with a real key press:
+
+| Inside | Inner layer | Before | Now |
+| --- | --- | --- | --- |
+| `Modal` | `DropdownMenu`, `Combobox`, `MultiSelect`, `Popover`, `ContextMenu`, editable `DataTable` cell | closed both | closes only the inner one |
+| `Modal` | another `Modal` | closed both | closes only the top one |
+| `Drawer` | `Popover` | closed both | closes only the `Popover` |
+
+The rule covers `Modal`, `Drawer`, `BottomSheet`, `Lightbox`, `Popover`,
+`ContextMenu`, `NavigationMenu`, `Menubar` and `Tooltip`. Components that handle
+`Escape` on their own element (the `Combobox` list, the cell editor,
+`DropdownMenu`) consume the key first, and the outer overlay does not react.
+
+!!! note "`closeOnEsc={false}` blocks, it does not pass through"
+    A `Modal` (or `Drawer`) with `Escape` turned off stays on top of the stack
+    and **swallows** the key. Otherwise `Escape` would fall through and close the
+    modal underneath while the top one stays open.
+
+!!! tip "Your own `Escape` handler works with the stack"
+    If a component of yours handles `Escape` inside an overlay, call
+    `event.preventDefault()`. The stack ignores a consumed key, so the outer
+    overlay stays open.
 
 ## `Lightbox`
 
@@ -351,7 +403,7 @@ export function InspectionGallery({ photos }: { photos: { url: string; descripti
 
 | Component     | Anchoring       | Purpose                          | Dismiss props                      |
 | ------------- | --------------- | -------------------------------- | ---------------------------------- |
-| `Modal`       | centered        | central flows (create/edit)      | `dismissOnBackdrop`/`dismissOnEsc` |
+| `Modal`       | centered        | central flows (create/edit)      | `closeOnBackdrop`/`closeOnEsc`     |
 | `Drawer`      | edge (variable) | persistent side panels           | `closeOnBackdrop`/`closeOnEsc`     |
 | `BottomSheet` | bottom edge     | mobile-first actions (share)     | `dismissOnBackdrop`/`dismissOnEsc` |
 | `ModalsManager` | stack (imperative) | open modals/confirmations from code | `useModals().close`/`closeAll`   |

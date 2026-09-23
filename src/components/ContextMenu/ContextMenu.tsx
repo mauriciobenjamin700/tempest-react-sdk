@@ -9,6 +9,7 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { cn } from "@/utils/cn";
 import { Portal } from "@/components/Portal";
+import { useEscapeLayer } from "@/components/Portal/escape-layer";
 import styles from "./ContextMenu.module.css";
 
 export type ContextMenuItem =
@@ -175,13 +176,11 @@ export function ContextMenu({
         }
     };
 
+    useEscapeLayer(open, close);
+
     useEffect(() => {
         if (!open) return;
         const onKey = (event: KeyboardEvent): void => {
-            if (event.key === "Escape") {
-                close();
-                return;
-            }
             const move = (next: number): void => {
                 event.preventDefault();
                 setActiveIndex(next);

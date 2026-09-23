@@ -104,6 +104,52 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
   Closes #357
 
+### Corrigido
+
+- **`Modal`, `Drawer` e `BottomSheet` prendem o foco de verdade.** A doc (`overlay.md`,
+  "A11y geral") e a docstring do `Modal` prometiam focus trap, e nenhum dos três chamava
+  `useFocusTrap`: declaravam `aria-modal="true"` — o leitor de tela ouvia que a página
+  estava bloqueada — enquanto o teclado continuava andando por ela. Medido no Chrome
+  (Playwright, tecla real) na seção `modal` da gallery:
+
+  | Momento              | Antes                                                                                          | Agora                                                    |
+  | -------------------- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+  | Logo depois de abrir | foco no botão que abriu, fora do diálogo                                                       | `Fechar`, primeiro focável do diálogo                    |
+  | `Tab` ×5             | `Excluir item` → `<pre>` → `Copiar` → `Toast success` → `Toast error`, todos atrás do backdrop | `Cancelar` → `Salvar` → `Fechar` → `Cancelar` → `Salvar` |
+  | `Escape`             | foco onde o `Tab` tinha deixado                                                                | volta ao botão que abriu                                 |
+
+  Igual no `Drawer` e no `BottomSheet`. Os três ganham `tabIndex={-1}` no nó do diálogo,
+  que recebe o foco quando não há nada focável dentro.
+
+- **`useFocusTrap` convive com painéis em portal, empilha e devolve o foco certo.** Ligar
+  o hook no `Modal` não bastava; medido o comportamento dele, havia mais três defeitos:
+  - `Shift+Tab` no **meio** de um painel em portal aberto de dentro (`Popover`,
+    `HoverCard`…) puxava o foco para o último botão do modal, porque o painel mora fora do
+    container. Os painéis que usam `usePortalTabOrder` agora se registram como camada do
+    gatilho, e o trap os trata como parte do container, emendados logo depois dele.
+    Medido na gallery, `Popover` aberto dentro do modal: `Período → De → Até → Ordenar`, e
+    de volta `Até → De → Período`. Quando o gatilho é a última parada do modal, o `Tab`
+    que a ponte do portal mandaria para fora volta para a primeira.
+  - **Modal sobre modal**: os dois traps reagiam ao mesmo `Tab`. Agora só o mais recente
+    age, e ao fechar devolve o foco ao botão que o abriu, dentro do de baixo.
+  - O elemento a restaurar era lido num efeito, depois de um filho com `autoFocus` ter
+    tomado o foco: o `Command` devolvia o foco ao `body` ao fechar. Agora é lido no render
+    que arma o trap; o `Command` devolve ao botão que o abriu. E conteúdo que já pôs o foco
+    dentro (um `autoFocus`) não é mais arrancado para o primeiro focável.
+
+  Novo `e2e/modal-focus-trap.spec.ts` fixa as sequências acima em Chromium, e a gallery
+  ganha o exemplo "Foco preso, com camadas dentro" (`Popover`, `DropdownMenu` e um modal
+  aninhado dentro de um `Modal`).
+
+  Custo medido com `npx size-limit`: o `Modal` passa a carregar o trap — fatia "typical
+  app" 10,30 → 11,04 kB brotli (+746 B; teto 10,3 → 11,1 kB) e fatia `Chat` 10,77 →
+  11,15 kB (+384 B, via `Lightbox`; teto 11 → 11,2 kB). Barril ESM +310 B (133,29 kB,
+  teto 133,5 mantido) e CJS +671 B (159,00 kB, teto 159 mantido, no limite). Somado ao #380 no merge,
+  medido com `npx size-limit`: "typical app" 11,42 kB (teto 11,5 kB) e CJS 159,77 kB
+  (teto 160 kB).
+
+  Closes #375.
+
 ## [0.67.0] — 2026-09-23
 
 ### Adicionado

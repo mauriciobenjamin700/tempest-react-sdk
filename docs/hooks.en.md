@@ -301,11 +301,19 @@ function CustomModal({ open }: { open: boolean }) {
 }
 ```
 
+The hook owns focus end to end: when it arms it moves focus to the first
+focusable (or to the container itself when there is none — give it
+`tabIndex={-1}`), keeps `Tab`/`Shift+Tab` inside, and when it disarms returns
+focus to whoever held it when the trap armed — even if an `autoFocus` child took
+focus first. Portalled panels opened from inside (`Popover`, `HoverCard`,
+`NavigationMenu`, `Menubar`) count as part of the container, and traps stack:
+only the most recent one moves focus.
+
 !!! note "Focus-trap accessibility"
-    `useFocusTrap` confines Tab inside the container, but it does not replace the rest
-    of the dialog contract: set `role="dialog"` + `aria-modal="true"`, return focus to
-    the trigger on close, and handle Escape. The SDK's `Modal` component already does
-    all of this — only reach for this hook in hand-rolled overlays.
+    `useFocusTrap` handles focus, not the rest of the dialog contract: set
+    `role="dialog"` + `aria-modal="true"`, give it an accessible name and handle
+    Escape. The SDK's `Modal`, `Drawer` and `BottomSheet` already do all of this —
+    only reach for this hook in hand-rolled overlays.
 
 ### Speaking to a screen reader — `useAnnounce`
 

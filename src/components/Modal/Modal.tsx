@@ -5,10 +5,11 @@
  * children, footer, closeOnBackdrop, closeOnEsc, hideCloseButton. The body is the
  * focus trap and the scroll lock, which must be installed and torn down together.
  */
-import { useEffect, useId } from "react";
+import { useEffect, useId, useRef } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useEscapeLayer } from "@/components/Portal/escape-layer";
+import { useFocusTrap } from "@/hooks/use-focus-trap";
 import { cn } from "@/utils/cn";
 import styles from "./Modal.module.css";
 import { usePortalHost } from "../Portal/portal-host";
@@ -41,6 +42,13 @@ export interface ModalProps {
  * Portal-rendered modal dialog with backdrop, Esc handler, and slots for
  * header/body/footer. Locks body scroll while open.
  *
+ * Keyboard focus is trapped in the dialog while it is open (`useFocusTrap`): it
+ * enters on the first tab stop — or the dialog itself when there is none —,
+ * `Tab`/`Shift+Tab` cycle inside it, including the panels of a `Popover` or
+ * `HoverCard` opened from it, and closing returns focus to the element that
+ * opened it. `aria-modal="true"` tells a screen reader the page behind is inert;
+ * the trap is what makes that true for the keyboard.
+ *
  * The `dialog` role needs an accessible name: a `title` supplies it via
  * `aria-labelledby`, and a titleless dialog should pass `aria-label`. The
  * header heading is only rendered when there is a title, so a close-button-only
@@ -62,6 +70,8 @@ export function Modal({
     "aria-label": ariaLabel,
 }: ModalProps) {
     const titleId = useId();
+    const dialogRef = useRef<HTMLDivElement>(null);
+    useFocusTrap(dialogRef, open);
     useEscapeLayer(open, closeOnEsc ? onClose : null);
     useEffect(() => {
         if (!open) return;
@@ -85,8 +95,10 @@ export function Modal({
             }}
         >
             <div
+                ref={dialogRef}
                 role="dialog"
                 aria-modal="true"
+                tabIndex={-1}
                 aria-labelledby={title ? titleId : undefined}
                 aria-label={title ? undefined : ariaLabel}
                 className={cn(

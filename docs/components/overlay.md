@@ -326,11 +326,68 @@ export function Chamada() {
 
 ## A11y geral
 
-- **Focus trap**: Tab circula apenas dentro do dialog. Restaura o foco no trigger ao fechar.
+- **Focus trap** (`Modal`, `Drawer`, `BottomSheet`): o foco entra no dialog ao abrir, `Tab`/`Shift+Tab` circulam só dentro dele — inclusive pelos painéis em portal abertos de dentro — e o foco volta ao gatilho ao fechar. Ver [O foco fica dentro, painéis em portal incluídos](#o-foco-fica-dentro-paineis-em-portal-incluidos).
 - **Scroll lock**: `body.overflow = "hidden"` enquanto aberto.
 - **Esc** fecha a camada de cima (`Modal`/`Drawer`: `closeOnEsc={false}`; `BottomSheet`: `dismissOnEsc={false}`) — ver [`Escape` fecha uma camada por vez](#escape-fecha-uma-camada-por-vez).
 - **`aria-modal="true"`** indica para leitores de tela que o resto da página está bloqueado.
 - **Backdrop**: clicks fecham (`Modal`/`Drawer`: `closeOnBackdrop={false}`; `BottomSheet`: `dismissOnBackdrop={false}`).
+
+### O foco fica dentro, painéis em portal incluídos
+
+Aberto, o `Modal` põe o foco no primeiro elemento focável (no exemplo, o botão
+**Fechar** do cabeçalho). Daí em diante, `Tab` e `Shift+Tab` só andam dentro do
+diálogo:
+
+```tsx
+import { useState } from "react";
+import { Button, Input, Modal, Popover } from "tempest-react-sdk";
+
+export function Filtros({ aplicar }: { aplicar: () => void }) {
+    const [aberto, setAberto] = useState(false);
+
+    return (
+        <>
+            <Button onClick={() => setAberto(true)}>Abrir filtros</Button>
+            <Modal
+                open={aberto}
+                onClose={() => setAberto(false)}
+                title="Filtros"
+                footer={<Button onClick={aplicar}>Aplicar</Button>}
+            >
+                <Popover trigger={<Button variant="secondary">Período</Button>}>
+                    <Input aria-label="De" />
+                    <Input aria-label="Até" />
+                </Popover>
+            </Modal>
+        </>
+    );
+}
+```
+
+Com o `Popover` aberto, o painel mora no fim do `body`, fora do diálogo — e mesmo
+assim entra no ciclo logo depois do gatilho: **Período → De → Até → Aplicar →
+Fechar → Período**. Um `Modal` aberto de dentro de outro prende o foco até
+fechar e devolve ao botão que o abriu, dentro do de baixo. Ao fechar, o foco
+volta a **Abrir filtros**.
+
+Antes da 0.68.0, `Modal`, `Drawer` e `BottomSheet` declaravam `aria-modal="true"`
+sem prender o foco. Medido no Chrome, com tecla real, na seção `modal` da
+gallery:
+
+| Momento | Antes | Agora |
+| --- | --- | --- |
+| Logo depois de abrir | foco no botão que abriu, **fora** do diálogo | primeiro focável do diálogo |
+| `Tab` ×5 | 5 paradas na página **atrás** do backdrop | circula entre os focáveis do diálogo |
+| Ao fechar | onde o `Tab` tinha deixado | o botão que abriu |
+
+O leitor de tela ouvia que a página estava bloqueada enquanto o teclado
+continuava nela. O `Command` já prendia o foco, mas ao fechar o devolvia ao
+`body`: o `autoFocus` do campo de busca tomava o foco antes de o trap anotar de
+onde ele vinha.
+
+!!! tip "Diálogo sem nada focável"
+    Com `hideCloseButton` e conteúdo só de texto, o foco vai para o próprio
+    diálogo (`tabIndex={-1}`), e o `Tab` fica parado nele em vez de escapar.
 
 ### `Escape` fecha uma camada por vez
 

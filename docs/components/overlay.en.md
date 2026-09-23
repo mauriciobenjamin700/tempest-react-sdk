@@ -282,11 +282,67 @@ export function Call() {
 
 ## General A11y
 
-- **Focus trap**: Tab cycles only inside the dialog. Restores focus to the trigger on close.
+- **Focus trap** (`Modal`, `Drawer`, `BottomSheet`): focus enters the dialog on open, `Tab`/`Shift+Tab` cycle only inside it — portalled panels opened from it included — and focus returns to the trigger on close. See [Focus stays inside, portalled panels included](#focus-stays-inside-portalled-panels-included).
 - **Scroll lock**: `body.overflow = "hidden"` while open.
 - **Esc** closes the top layer (`Modal`/`Drawer`: `closeOnEsc={false}`; `BottomSheet`: `dismissOnEsc={false}`) — see [`Escape` closes one layer at a time](#escape-closes-one-layer-at-a-time).
 - **`aria-modal="true"`** tells screen readers the rest of the page is blocked.
 - **Backdrop**: clicks close it (`Modal`/`Drawer`: `closeOnBackdrop={false}`; `BottomSheet`: `dismissOnBackdrop={false}`).
+
+### Focus stays inside, portalled panels included
+
+Once open, the `Modal` puts focus on its first focusable element (here, the
+header's **Close** button — labelled "Fechar"). From then on, `Tab` and
+`Shift+Tab` only move inside the dialog:
+
+```tsx
+import { useState } from "react";
+import { Button, Input, Modal, Popover } from "tempest-react-sdk";
+
+export function Filters({ apply }: { apply: () => void }) {
+    const [open, setOpen] = useState(false);
+
+    return (
+        <>
+            <Button onClick={() => setOpen(true)}>Open filters</Button>
+            <Modal
+                open={open}
+                onClose={() => setOpen(false)}
+                title="Filters"
+                footer={<Button onClick={apply}>Apply</Button>}
+            >
+                <Popover trigger={<Button variant="secondary">Period</Button>}>
+                    <Input aria-label="From" />
+                    <Input aria-label="To" />
+                </Popover>
+            </Modal>
+        </>
+    );
+}
+```
+
+With the `Popover` open its panel lives at the end of `body`, outside the dialog —
+and it still joins the cycle right after its trigger: **Period → From → To →
+Apply → Close → Period**. A `Modal` opened from inside another traps focus until
+it closes and then hands it back to the button that opened it, inside the one
+below. On close, focus returns to **Open filters**.
+
+Before 0.68.0, `Modal`, `Drawer` and `BottomSheet` declared `aria-modal="true"`
+without trapping focus. Measured in Chrome, with real key presses, on the
+gallery's `modal` section:
+
+| Moment | Before | Now |
+| --- | --- | --- |
+| Right after opening | focus on the opening button, **outside** the dialog | the dialog's first focusable |
+| `Tab` ×5 | 5 stops on the page **behind** the backdrop | cycles through the dialog's focusables |
+| On close | wherever `Tab` had left it | the opening button |
+
+The screen reader heard that the page was blocked while the keyboard kept using
+it. `Command` already trapped focus, but on close it returned it to `body`: the
+search field's `autoFocus` took focus before the trap noted where it came from.
+
+!!! tip "A dialog with nothing focusable"
+    With `hideCloseButton` and text-only content, focus goes to the dialog itself
+    (`tabIndex={-1}`), and `Tab` stays on it instead of escaping.
 
 ### `Escape` closes one layer at a time
 

@@ -1,7 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useEscapeLayer } from "@/components/Portal/escape-layer";
+import { useFocusTrap } from "@/hooks/use-focus-trap";
 import { cn } from "@/utils/cn";
 import styles from "./BottomSheet.module.css";
 import { usePortalHost } from "../Portal/portal-host";
@@ -24,7 +25,9 @@ export interface BottomSheetProps extends Omit<HTMLAttributes<HTMLDivElement>, "
 
 /**
  * Slide-up modal panel — mobile-style sheet anchored to the bottom edge.
- * Uses portal + safe-area padding + scroll lock.
+ * Uses portal + safe-area padding + scroll lock, and traps keyboard focus in the
+ * sheet like `Modal`: focus enters on open, `Tab` cycles inside and returns to
+ * the opener on close.
  *
  * @example
  * <BottomSheet open={open} onClose={() => setOpen(false)} title="Filters">
@@ -42,6 +45,8 @@ export function BottomSheet({
     children,
     ...props
 }: BottomSheetProps) {
+    const rootRef = useRef<HTMLDivElement>(null);
+    useFocusTrap(rootRef, open);
     useEscapeLayer(open, dismissOnEsc ? onClose : null);
 
     useEffect(() => {
@@ -58,7 +63,7 @@ export function BottomSheet({
     if (!open || !portalHost) return null;
 
     return createPortal(
-        <div className={styles.root} role="dialog" aria-modal="true">
+        <div ref={rootRef} className={styles.root} role="dialog" aria-modal="true" tabIndex={-1}>
             <div
                 className={styles.backdrop}
                 onClick={() => dismissOnBackdrop && onClose()}

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { FOCUSABLE_SELECTOR } from "@/hooks/use-focus-trap";
+import { registerPortalLayer, tabbables } from "@/hooks/tab-sequence";
 
 /** Options of {@link usePortalTabOrder}. */
 export interface PortalTabOrderOptions {
@@ -9,21 +9,6 @@ export interface PortalTabOrderOptions {
     anchor: HTMLElement | null;
     /** The portalled panel. */
     panel: HTMLElement | null;
-}
-
-/**
- * The elements `Tab` can stop on inside `root`, in document order.
- *
- * @param root - Where to look.
- * @returns The tabbable descendants that are not disabled, hidden or removed
- * from the tab order.
- */
-function tabbables(root: ParentNode): HTMLElement[] {
-    return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter((el) => {
-        if (el.tabIndex < 0 || el.hasAttribute("aria-hidden")) return false;
-        const style = window.getComputedStyle(el);
-        return style.display !== "none" && style.visibility !== "hidden";
-    });
 }
 
 /**
@@ -43,7 +28,9 @@ function tabbables(root: ParentNode): HTMLElement[] {
  * - `Shift+Tab` on the first stop after the anchor enters the panel's last stop.
  *
  * Listened on `document` in the capture phase and marked consumed, so it runs
- * before an enclosing `Modal`'s focus trap, which skips a consumed `Tab`.
+ * before an enclosing `Modal`'s focus trap, which skips a consumed `Tab`. The
+ * panel is also registered as a layer of its anchor, which is how that trap
+ * knows the panel belongs inside it although the portal put it outside.
  *
  * @param options - Whether it is active, the anchor and the panel.
  * @returns Nothing.
@@ -80,7 +67,11 @@ export function usePortalTabOrder({ enabled, anchor, panel }: PortalTabOrderOpti
             }
         };
 
+        const unregister = registerPortalLayer({ anchor, panel });
         document.addEventListener("keydown", onKeyDown, true);
-        return () => document.removeEventListener("keydown", onKeyDown, true);
+        return () => {
+            unregister();
+            document.removeEventListener("keydown", onKeyDown, true);
+        };
     }, [enabled, anchor, panel]);
 }

@@ -1,11 +1,21 @@
 import { useState } from "react";
-import { Button, ConfirmDialog, Modal, useToast } from "tempest-react-sdk";
+import {
+    Button,
+    ConfirmDialog,
+    DropdownMenu,
+    Input,
+    Modal,
+    Popover,
+    useToast,
+} from "tempest-react-sdk";
 import { Example } from "../Example";
 
 export function ModalSection() {
     const [open, setOpen] = useState(false);
     const [confirm, setConfirm] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [layered, setLayered] = useState(false);
+    const [nested, setNested] = useState(false);
     const toast = useToast();
 
     async function handleConfirm(): Promise<void> {
@@ -92,6 +102,82 @@ export function ModalSection() {
                     onConfirm={handleConfirm}
                     onCancel={() => setConfirm(false)}
                 />
+            </Example>
+
+            <Example
+                title="Foco preso, com camadas dentro"
+                note="Tab e Shift+Tab circulam só dentro do modal — inclusive pelo painel do Popover, que mora num portal. Um modal aberto de dentro prende o foco até fechar e devolve ao botão que o abriu."
+                code={`<Modal
+    open={open}
+    onClose={() => setOpen(false)}
+    title="Filtros"
+    footer={<Button onClick={() => setOpen(false)}>Aplicar</Button>}
+>
+    <div className="gallery-row">
+        <Popover trigger={<Button variant="secondary">Período</Button>}>
+            <Input aria-label="De" placeholder="De" />
+            <Input aria-label="Até" placeholder="Até" />
+        </Popover>
+        <DropdownMenu
+            trigger={<Button variant="secondary">Ordenar</Button>}
+            items={[
+                { type: "item", id: "recent", label: "Mais recentes", onSelect: () => {} },
+                { type: "item", id: "oldest", label: "Mais antigos", onSelect: () => {} },
+            ]}
+        />
+        <Button variant="ghost" onClick={() => setNested(true)}>
+            Salvar filtro
+        </Button>
+    </div>
+    <Modal open={nested} onClose={() => setNested(false)} title="Salvar filtro" size="sm">
+        <Input aria-label="Nome do filtro" placeholder="Nome do filtro" />
+    </Modal>
+</Modal>`}
+            >
+                <div className="gallery-row">
+                    <Button onClick={() => setLayered(true)}>Abrir filtros</Button>
+                </div>
+                <Modal
+                    open={layered}
+                    onClose={() => setLayered(false)}
+                    title="Filtros"
+                    footer={<Button onClick={() => setLayered(false)}>Aplicar</Button>}
+                >
+                    <div className="gallery-row">
+                        <Popover trigger={<Button variant="secondary">Período</Button>}>
+                            <Input aria-label="De" placeholder="De" />
+                            <Input aria-label="Até" placeholder="Até" />
+                        </Popover>
+                        <DropdownMenu
+                            trigger={<Button variant="secondary">Ordenar</Button>}
+                            items={[
+                                {
+                                    type: "item",
+                                    id: "recent",
+                                    label: "Mais recentes",
+                                    onSelect: () => {},
+                                },
+                                {
+                                    type: "item",
+                                    id: "oldest",
+                                    label: "Mais antigos",
+                                    onSelect: () => {},
+                                },
+                            ]}
+                        />
+                        <Button variant="ghost" onClick={() => setNested(true)}>
+                            Salvar filtro
+                        </Button>
+                    </div>
+                    <Modal
+                        open={nested}
+                        onClose={() => setNested(false)}
+                        title="Salvar filtro"
+                        size="sm"
+                    >
+                        <Input aria-label="Nome do filtro" placeholder="Nome do filtro" />
+                    </Modal>
+                </Modal>
             </Example>
 
             <Example

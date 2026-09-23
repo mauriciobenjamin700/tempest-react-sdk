@@ -375,7 +375,7 @@ export function PermissoesDoPerfil() {
 ## `FilterBar`
 
 <!-- gallery:filterbar -->
-[![FilterBar na gallery](../assets/gallery/filterbar.webp)](../gallery.md)
+[![FilterBar & FilterPanel na gallery](../assets/gallery/filterbar.webp)](../gallery.md)
 
 *Seção `filterbar` da [gallery](../gallery.md) — rode localmente para interagir.*
 <!-- /gallery -->
@@ -542,6 +542,111 @@ export function usePedidos(filtros: Filter[], pagina: number) {
 !!! tip "Filtro incompleto só desabilita o Aplicar"
     Não é erro pra gritar — é formulário meio preenchido. Trocar o operador limpa o valor, porque valor carregado entre operadores produz filtro que ninguém quis escrever.
 
+## `FilterPanel`
+
+> **Quando usar**: a tela já sabe quais são os filtros — município, UF, situação, uma busca — e o que falta é o **invólucro**: o cartão, a grade que reflui, o título e o botão de limpar.
+
+O `FilterBar` acima é um *construtor*: quem usa escolhe campo, operador e valor. O `FilterPanel` é o outro caso, o mais comum de painel administrativo — o conjunto é fixo, e os campos são os seus próprios `Input`/`Select`. Ele não guarda estado nem opina sobre os campos: é layout.
+
+```tsx
+import {
+  FilterPanel,
+  Input,
+  Select,
+  useDraftFilters,
+  usePaginatedQuery,
+  type OffsetPage,
+} from "tempest-react-sdk";
+
+interface Atividade {
+  id: number;
+  titulo: string;
+}
+
+interface FiltroAtividades {
+  busca: string;
+  uf: string;
+}
+
+const VAZIO: FiltroAtividades = { busca: "", uf: "" };
+
+const UFS = [
+  { value: "", label: "Todas" },
+  { value: "PI", label: "Piauí" },
+  { value: "PE", label: "Pernambuco" },
+];
+
+async function listarAtividades(
+  params: Record<string, unknown>,
+): Promise<OffsetPage<Atividade>> {
+  const resposta = await fetch(`/api/atividades?${new URLSearchParams(params as Record<string, string>)}`);
+  return (await resposta.json()) as OffsetPage<Atividade>;
+}
+
+export function Atividades() {
+  const filtros = useDraftFilters(VAZIO);
+  const atividades = usePaginatedQuery<Atividade>({
+    queryKey: ["atividades", filtros.applied],
+    queryFn: (params) => listarAtividades({ ...params, ...filtros.applied }),
+  });
+
+  return (
+    <>
+      <FilterPanel
+        onApply={() => filtros.apply()}
+        onClear={filtros.clear}
+        applyDisabled={!filtros.isDirty}
+      >
+        <Input
+          label="Busca"
+          value={filtros.draft.busca}
+          onChange={(e) => filtros.set({ busca: e.target.value })}
+        />
+        <Select
+          label="UF"
+          options={UFS}
+          value={filtros.draft.uf}
+          onChange={(e) => filtros.set({ uf: e.target.value })}
+        />
+      </FilterPanel>
+      <p>{atividades.total} atividades</p>
+    </>
+  );
+}
+```
+
+O que acontece aí:
+
+1. Os campos editam o **rascunho** (`filtros.draft`) — digitar não pede nada ao servidor.
+2. **Filtrar**, ou Enter em qualquer campo, chama `onApply`: o rascunho vira `filtros.applied`, que está na `queryKey`, e sai **uma** requisição.
+3. **Limpar filtros** chama `onClear`, que zera rascunho e aplicado juntos.
+4. Com `applyDisabled={!filtros.isDirty}`, o botão só acende quando há algo novo a aplicar.
+
+| Prop | Tipo | Default | O que faz |
+| --- | --- | --- | --- |
+| `children` | `ReactNode` | — | Os campos. Cada filho é uma célula da grade. |
+| `title` | `ReactNode` | `"Filtros"` | Título. String vira `h3` e dá nome à região `search`. |
+| `actions` | `ReactNode` | — | Ações que não são campo — "Exportar CSV", "Atualizar a cada 30s". |
+| `onClear` | `() => void` | — | Mostra **Limpar filtros**. Sem ele, não há botão. |
+| `onApply` | `() => void` | — | Põe os campos num `<form>`: botão **Filtrar** e Enter aplicam. |
+| `applyDisabled` | `boolean` | `false` | Desabilita o Filtrar (e, com ele, o Enter). |
+| `minFieldWidth` | `string` | `"12rem"` | Largura mínima do campo antes de a grade perder uma coluna. |
+| `columns` | `ResponsiveValue<number \| string>` | — | Colunas fixas por viewport, como no `Grid`. Substitui `minFieldWidth`. |
+| `locale` | `"pt-BR" \| "en"` | `"pt-BR"` | Título e rótulos default. |
+| `labels` | `Partial<FilterPanelLabels>` | — | Troca qualquer rótulo — `{ apply: "Buscar" }`. |
+
+!!! check "A grade segue a largura do **painel**, não da tela"
+    O default é `repeat(auto-fill, minmax(min(100%, 12rem), 1fr))`. Medido no Chromium: o mesmo conjunto dentro de uma coluna de 360 px numa tela de 1280 px, montado com `Grid columns={{ mobile: 1, tablet: 2, desktop: 4 }}`, virava quatro campos de **57,5 px** — o `Grid` troca de coluna pelo viewport. Com o default, a conta sai do espaço que o painel tem, e o `min(100%, …)` impede que um piso maior que o celular estoure a largura.
+
+!!! info "As células alinham no topo"
+    Campo com mensagem de erro é mais alto. Com o `stretch` padrão da grade, as caixas dos vizinhos de linha cresciam junto (62 → 82 px); o `input` em si não esticava, mas a célula mentia a própria altura.
+
+!!! tip "O cabeçalho quebra linha"
+    Três ações ao lado do título mediam 527 px num cabeçalho de 308 px a 390 px de largura, e a página inteira rolava de lado. O cabeçalho do `Card` agora quebra linha — isso vale para todo `Card` com `actions` —, e as ações quebram entre si. **Filtrar** fica sempre por último.
+
+!!! note "Por que `children`, e não `fields={[…]}`"
+    Um array de nós exige `key` em cada campo só para agradar o React, e não compra nada: cada filho já é uma célula da grade.
+
 ## `Kanban`
 
 > **Quando usar**: quadro de colunas com cards que mudam de estágio — backlog, pipeline de vendas, ordens de serviço por status.
@@ -595,4 +700,5 @@ export function QuadroDoBacklog() {
 ## Recap
 
 - **Dados**: `DataTable<T>` envolve o `Table` headless com busca, ordenação e paginação client-side.
+- **Filtros**: `FilterBar` para consulta livre (campo + operador + valor); `FilterPanel` para o conjunto fixo que a tela conhece, com `useDraftFilters` separando o rascunho do aplicado.
 - Todos seguem os mesmos padrões controlado/não-controlado, expõem A11y por teclado e importam de `tempest-react-sdk`.

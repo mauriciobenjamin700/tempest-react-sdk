@@ -157,3 +157,78 @@ describe("usePaginatedQuery — ordering and navigation clamps", () => {
         await waitFor(() => expect(queryFn).toHaveBeenCalledTimes(2));
     });
 });
+
+describe("usePaginatedQuery — a new filter starts from the first page", () => {
+    /**
+     * Before 0.68.0 the page survived a key change: on page 7 of an unfiltered list,
+     * applying `code: "AUTH"` requested `AUTH:page=7` of a two-page result and
+     * rendered an empty table (#356). The reset now happens in the same render as
+     * the key change, so the stale page never reaches the fetcher.
+     */
+    it("never requests the previous page number for a new query key", async () => {
+        const calls: string[] = [];
+        const { result, rerender } = renderHook(
+            ({ code }: { code: string }) =>
+                usePaginatedQuery<{ id: number }>({
+                    queryKey: ["logs", { code }],
+                    pageSize: 10,
+                    queryFn: async (p) => {
+                        calls.push(`${code}:page=${p.page}`);
+                        return pageOf(p.page ?? 1, 10, code ? 20 : 100);
+                    },
+                }),
+            { wrapper: wrapper(), initialProps: { code: "" } },
+        );
+        await waitFor(() => expect(result.current.items).toHaveLength(10));
+        act(() => result.current.setPage(7));
+        await waitFor(() => expect(result.current.page?.page).toBe(7));
+
+        rerender({ code: "AUTH" });
+
+        await waitFor(() => expect(result.current.page?.page).toBe(1));
+        expect(result.current.pageNumber).toBe(1);
+        expect(calls).toEqual([":page=1", ":page=7", "AUTH:page=1"]);
+    });
+
+    it("keeps the page when the query key is structurally the same", async () => {
+        const queryFn = vi.fn(async (p: OffsetParams) => pageOf(p.page ?? 1, 10, 100));
+        const { result, rerender } = renderHook(
+            ({ code }: { code: string }) =>
+                usePaginatedQuery<{ id: number }>({
+                    queryKey: ["logs", { code }],
+                    pageSize: 10,
+                    queryFn,
+                }),
+            { wrapper: wrapper(), initialProps: { code: "AUTH" } },
+        );
+        await waitFor(() => expect(result.current.items).toHaveLength(10));
+        act(() => result.current.setPage(3));
+        await waitFor(() => expect(result.current.page?.page).toBe(3));
+
+        rerender({ code: "AUTH" });
+
+        expect(result.current.pageNumber).toBe(3);
+    });
+
+    it("navigates from page 1 of the new key after a reset", async () => {
+        const { result, rerender } = renderHook(
+            ({ code }: { code: string }) =>
+                usePaginatedQuery<{ id: number }>({
+                    queryKey: ["logs", { code }],
+                    pageSize: 10,
+                    queryFn: async (p) => pageOf(p.page ?? 1, 10, 100),
+                }),
+            { wrapper: wrapper(), initialProps: { code: "" } },
+        );
+        await waitFor(() => expect(result.current.items).toHaveLength(10));
+        act(() => result.current.setPage(5));
+        await waitFor(() => expect(result.current.page?.page).toBe(5));
+        rerender({ code: "AUTH" });
+        await waitFor(() => expect(result.current.page?.page).toBe(1));
+
+        act(() => result.current.next());
+        await waitFor(() => expect(result.current.page?.page).toBe(2));
+        act(() => result.current.prev());
+        await waitFor(() => expect(result.current.page?.page).toBe(1));
+    });
+});

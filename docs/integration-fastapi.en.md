@@ -194,6 +194,9 @@ function UsersTable() {
 
 The hook **owns the page state**, sends `page` + `size` to your `queryFn`, keeps the previous page visible while the next loads (`keepPreviousData`), and derives `hasNext`/`hasPrev`/`pageCount`.
 
+!!! check "A new filter starts from page 1"
+    Put the applied filters in the `queryKey` (`["users", filters]`). When it changes structurally, the page goes back to 1 **in the same render** — without the in-between request for the old page. Until 0.68.0 the page survived: filtering on page 7 asked for page 7 of a two-page result. To keep a draft apart from what is applied, see [`useDraftFilters`](./hooks.md#draft-vs-applied-usedraftfilters).
+
 !!! tip "`size` vs `page_size`"
     The default follows `fastapi-pagination` (`?size=`). If your backend uses `page_size`, pass `sizeParam: "page_size"`. `order_by`/`ascending` are only sent when you set `orderBy`.
 

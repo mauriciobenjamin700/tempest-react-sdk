@@ -75,6 +75,7 @@ granulares, testados e independentes — importe só o que precisar.
 | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | `usePagination(initialPage?, initialSize?)`       | `{ page, size, setPage, setSize, reset }`.                                                                      |
 | `useClientFilter(items, search, keysOrPredicate)` | Filtro client-side por keys ou predicado (memoizado). Os itens são objetos (`T extends Record<string, unknown>`). |
+| `useDraftFilters(initial, { onApply?, isEqual? })` | Rascunho × aplicado de filtro server-side: `{ draft, applied, isDirty, set, apply, clear }`. Aplicar acontece no evento, nunca num efeito — um clique, uma requisição. |
 | `useLocalStorage<T>(key, default)`                | State persistido em localStorage + sincronizado cross-tab via `storage` event. safe sem `window`.                        |
 | `useToggle(initial?)`                             | `[value, { toggle, setTrue, setFalse, set }]` — açúcar pra boolean state.                                       |
 | `useAsync<T>(fn, deps?, { immediate? })`          | Track `idle/pending/success/error`. `{ status, data, error, run, reset }`. Distinto de React Query (sem cache). |
@@ -524,6 +525,71 @@ function Quantity() {
 ```
 
 `useCounter(initial, { min, max })` clampa o valor — `increment`/`decrement`/`set` respeitam os limites.
+
+### Rascunho × aplicado — `useDraftFilters`
+
+Filtro **server-side** não pode reagir a cada tecla: cada caractere digitado viraria uma requisição. O padrão é sempre o mesmo — um rascunho que a barra edita à vontade, e um valor aplicado que só muda no clique (ou no Enter).
+
+```tsx
+import { Button, Input, useDraftFilters, usePaginatedQuery, type OffsetPage } from "tempest-react-sdk";
+
+interface ErroApp {
+  id: number;
+  code: string;
+}
+
+async function listarErros(params: Record<string, unknown>): Promise<OffsetPage<ErroApp>> {
+  const resposta = await fetch(`/api/errors?${new URLSearchParams(params as Record<string, string>)}`);
+  return (await resposta.json()) as OffsetPage<ErroApp>;
+}
+
+export function Logs() {
+  const filtros = useDraftFilters({ code: "" });
+  const erros = usePaginatedQuery<ErroApp>({
+    queryKey: ["erros", filtros.applied],
+    queryFn: (params) => listarErros({ ...params, ...filtros.applied }),
+  });
+
+  return (
+    <>
+      <Input
+        label="Código"
+        value={filtros.draft.code}
+        onChange={(e) => filtros.set({ code: e.target.value })}
+      />
+      <Button disabled={!filtros.isDirty} onClick={() => filtros.apply()}>
+        Filtrar
+      </Button>
+      <Button variant="ghost" onClick={filtros.clear}>
+        Limpar
+      </Button>
+      <ul>
+        {erros.items.map((erro) => (
+          <li key={erro.id}>
+            <Button variant="link" onClick={() => filtros.apply({ code: erro.code })}>
+              {erro.code}
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+```
+
+- `set(parcial)` edita só o rascunho. `apply()` publica o rascunho; `apply(parcial)` grava **e** publica no mesmo gesto — o "filtrar por este código" de uma linha da tabela, que com dois `setState` leria o rascunho velho.
+- `clear()` volta rascunho e aplicado ao valor inicial, **juntos**: zerar só um deixa a lista filtrada com a barra em branco, ou o contrário.
+- `isDirty` é `false` logo depois de `apply()` e `clear()` — é o que habilita o botão.
+- `applied` mantém a **mesma referência** enquanto ninguém aplica algo diferente, então serve de `queryKey` sem refetch fantasma.
+
+!!! check "A página volta para 1 sozinha"
+    Filtrar estando na página 7 pedia a página 7 de um resultado que agora tem duas, e a tela respondia vazia. Medido (teste em `src/query/use-paginated-query.test.tsx`): antes da 0.68.0 as requisições eram `[":page=1", ":page=7", "AUTH:page=7"]`; agora são `[":page=1", ":page=7", "AUTH:page=1"]`. O conserto mora no `usePaginatedQuery`, não aqui: **qualquer** mudança estrutural da `queryKey` zera a página, no mesmo render — com ou sem este hook.
+
+!!! tip "Página guardada por você? Use `onApply`"
+    Se a página vive num `useState` seu (ou na URL), `useDraftFilters(VAZIO, { onApply: () => setPagina(1) })` — ele roda em todo `apply()` e `clear()`.
+
+!!! info "Nenhum efeito lá dentro"
+    Aplicar acontece no evento que pediu, nunca num `useEffect` observando o rascunho. É o que garante uma requisição por clique.
 
 ### Lista como estado — `useListState`
 

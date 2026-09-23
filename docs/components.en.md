@@ -25,7 +25,7 @@ props, examples, and accessibility notes.
     - **[Essentials](./components/advanced-essentials.md)** — Toggle, ToggleGroup, Label, Collapsible, ContextMenu, HoverCard, Command
     - **[Layout & UX](./components/advanced-layout.md)** — ScrollArea, Resizable, Calendar, Scheduler
     - **[Navigation & content](./components/advanced-navigation.md)** — NavigationMenu, Menubar, Carousel
-    - **[Data](./components/advanced-data.md)** — DataTable, Wizard, Markdown, Masonry, Tour, Transfer, FilterBar, Kanban
+    - **[Data](./components/advanced-data.md)** — DataTable, Wizard, Markdown, Masonry, Tour, Transfer, FilterBar, FilterPanel, Kanban
     - **[Chat](./components/advanced-chat.md)** — Chat, AIChat
 
 ## Global conventions

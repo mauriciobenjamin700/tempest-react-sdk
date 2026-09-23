@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { hashKey, keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { QueryKey, UseQueryOptions } from "@tanstack/react-query";
 
 import type { OffsetPage, OffsetParams } from "./pagination";
@@ -8,7 +8,11 @@ export interface UsePaginatedQueryOptions<T> extends Omit<
     UseQueryOptions<OffsetPage<T>, Error, OffsetPage<T>, QueryKey>,
     "queryKey" | "queryFn"
 > {
-    /** Base query key — the current page/sort is appended for cache isolation. */
+    /**
+     * Base query key — the current page/sort is appended for cache isolation.
+     * Put the applied filters here: when the key changes structurally, the page
+     * goes back to 1 in the same render.
+     */
     queryKey: QueryKey;
     /** Fetcher receiving the offset params; return the backend envelope. */
     queryFn: (params: OffsetParams) => Promise<OffsetPage<T>> | OffsetPage<T>;
@@ -32,7 +36,7 @@ export interface UsePaginatedQueryResult<T> {
     page: OffsetPage<T> | undefined;
     /** The rows of the current page (empty array while pending). */
     items: T[];
-    /** Current 1-based page number (controlled by the hook). */
+    /** Current 1-based page number (controlled by the hook; back to 1 on a new `queryKey`). */
     pageNumber: number;
     /** Total page count from the last successful response. */
     pageCount: number;
@@ -62,6 +66,13 @@ export interface UsePaginatedQueryResult<T> {
  * fetcher, keeps the previous page visible while the next loads, and derives
  * `hasNext`/`hasPrev`/`pageCount`.
  *
+ * A structurally different `queryKey` (compared with TanStack's `hashKey`) is a
+ * different result set, so the page returns to 1. The reset is applied during
+ * render rather than in an effect: an effect would let one render go out with the
+ * new key and the old page, and that render is a request — on page 7 of an
+ * unfiltered list, applying a filter used to ask for page 7 of a two-page result
+ * and show an empty table (#356).
+ *
  * @example
  * const users = usePaginatedQuery<User>({
  *     queryKey: ["users"],
@@ -84,7 +95,10 @@ export function usePaginatedQuery<T>(
         ...queryOptions
     } = options;
 
-    const [pageNumber, setPageNumber] = useState(initialPage);
+    const keyHash = hashKey(queryKey);
+    const [paging, setPaging] = useState({ keyHash, page: initialPage });
+    if (paging.keyHash !== keyHash) setPaging({ keyHash, page: 1 });
+    const pageNumber = paging.keyHash === keyHash ? paging.page : 1;
 
     const query = useQuery<OffsetPage<T>, Error>({
         ...queryOptions,
@@ -105,9 +119,18 @@ export function usePaginatedQuery<T>(
     const hasNext = pageNumber < pageCount;
     const hasPrev = pageNumber > 1;
 
-    const setPage = useCallback((next: number) => setPageNumber(Math.max(1, next)), []);
-    const next = useCallback(() => setPageNumber((p) => (p < pageCount ? p + 1 : p)), [pageCount]);
-    const prev = useCallback(() => setPageNumber((p) => (p > 1 ? p - 1 : p)), []);
+    const setPage = useCallback(
+        (next: number) => setPaging((s) => ({ ...s, page: Math.max(1, next) })),
+        [],
+    );
+    const next = useCallback(
+        () => setPaging((s) => (s.page < pageCount ? { ...s, page: s.page + 1 } : s)),
+        [pageCount],
+    );
+    const prev = useCallback(
+        () => setPaging((s) => (s.page > 1 ? { ...s, page: s.page - 1 } : s)),
+        [],
+    );
 
     return {
         page,

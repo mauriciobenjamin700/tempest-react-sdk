@@ -16,14 +16,14 @@ src/
 ├── br/           ⇢  5.571 municípios do IBGE + 35 RAs do DF + mapa UF clicável
 ├── capture/         createMediaRecorder, useVideoRecorder, useBarcodeScanner
 ├── charts/       ⇢  wrappers recharts
-├── components/      129 componentes UI
+├── components/      130 componentes UI
 ├── data/            createDataProvider, <TempestDataProvider>, useDataProvider
 ├── editor/       ⇢  RichTextEditor (tiptap)
 ├── error-boundary/  ErrorBoundary, useErrorHandler
 ├── feature-flags/   Provider + InMemory + GrowthBook + LaunchDarkly
 ├── forms/           FormField, zodResolver, useZodForm, inputs BR, useViaCEP
 ├── geo/             mapas sem tile, createPositionTracker, OSRM, haversine
-├── hooks/           54 hooks `useX`
+├── hooks/           55 hooks `useX`
 ├── http/            createApiClient, parseResponse, uploadWithProgress, retry
 ├── i18n/            createI18n, I18nProvider, useI18n, useTranslate
 ├── icons/        ⇢  <Icon name> por slug + IconProvider + 46 shards gerados

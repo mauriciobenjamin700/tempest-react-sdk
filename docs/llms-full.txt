@@ -6013,7 +6013,7 @@ O catálogo foi dividido por categoria para facilitar navegação. Cada arquivo 
     - **[Essenciais](./components/advanced-essentials.md)** — Toggle, ToggleGroup, Label, Collapsible, ContextMenu, HoverCard, Command
     - **[Layout & UX](./components/advanced-layout.md)** — ScrollArea, Resizable, Calendar, Scheduler
     - **[Navegação & conteúdo](./components/advanced-navigation.md)** — NavigationMenu, Menubar, Carousel
-    - **[Dados](./components/advanced-data.md)** — DataTable, Wizard, Markdown, Masonry, Tour, Transfer, FilterBar, Kanban
+    - **[Dados](./components/advanced-data.md)** — DataTable, Wizard, Markdown, Masonry, Tour, Transfer, FilterBar, FilterPanel, Kanban
     - **[Conversa](./components/advanced-chat.md)** — Chat, AIChat
 
 ## Convenções globais
@@ -7536,7 +7536,7 @@ export function PermissoesDoPerfil() {
 ## `FilterBar`
 
 <!-- gallery:filterbar -->
-[![FilterBar na gallery](../assets/gallery/filterbar.webp)](../gallery.md)
+[![FilterBar & FilterPanel na gallery](../assets/gallery/filterbar.webp)](../gallery.md)
 
 *Seção `filterbar` da [gallery](../gallery.md) — rode localmente para interagir.*
 <!-- /gallery -->
@@ -7703,6 +7703,111 @@ export function usePedidos(filtros: Filter[], pagina: number) {
 !!! tip "Filtro incompleto só desabilita o Aplicar"
     Não é erro pra gritar — é formulário meio preenchido. Trocar o operador limpa o valor, porque valor carregado entre operadores produz filtro que ninguém quis escrever.
 
+## `FilterPanel`
+
+> **Quando usar**: a tela já sabe quais são os filtros — município, UF, situação, uma busca — e o que falta é o **invólucro**: o cartão, a grade que reflui, o título e o botão de limpar.
+
+O `FilterBar` acima é um *construtor*: quem usa escolhe campo, operador e valor. O `FilterPanel` é o outro caso, o mais comum de painel administrativo — o conjunto é fixo, e os campos são os seus próprios `Input`/`Select`. Ele não guarda estado nem opina sobre os campos: é layout.
+
+```tsx
+import {
+  FilterPanel,
+  Input,
+  Select,
+  useDraftFilters,
+  usePaginatedQuery,
+  type OffsetPage,
+} from "tempest-react-sdk";
+
+interface Atividade {
+  id: number;
+  titulo: string;
+}
+
+interface FiltroAtividades {
+  busca: string;
+  uf: string;
+}
+
+const VAZIO: FiltroAtividades = { busca: "", uf: "" };
+
+const UFS = [
+  { value: "", label: "Todas" },
+  { value: "PI", label: "Piauí" },
+  { value: "PE", label: "Pernambuco" },
+];
+
+async function listarAtividades(
+  params: Record<string, unknown>,
+): Promise<OffsetPage<Atividade>> {
+  const resposta = await fetch(`/api/atividades?${new URLSearchParams(params as Record<string, string>)}`);
+  return (await resposta.json()) as OffsetPage<Atividade>;
+}
+
+export function Atividades() {
+  const filtros = useDraftFilters(VAZIO);
+  const atividades = usePaginatedQuery<Atividade>({
+    queryKey: ["atividades", filtros.applied],
+    queryFn: (params) => listarAtividades({ ...params, ...filtros.applied }),
+  });
+
+  return (
+    <>
+      <FilterPanel
+        onApply={() => filtros.apply()}
+        onClear={filtros.clear}
+        applyDisabled={!filtros.isDirty}
+      >
+        <Input
+          label="Busca"
+          value={filtros.draft.busca}
+          onChange={(e) => filtros.set({ busca: e.target.value })}
+        />
+        <Select
+          label="UF"
+          options={UFS}
+          value={filtros.draft.uf}
+          onChange={(e) => filtros.set({ uf: e.target.value })}
+        />
+      </FilterPanel>
+      <p>{atividades.total} atividades</p>
+    </>
+  );
+}
+```
+
+O que acontece aí:
+
+1. Os campos editam o **rascunho** (`filtros.draft`) — digitar não pede nada ao servidor.
+2. **Filtrar**, ou Enter em qualquer campo, chama `onApply`: o rascunho vira `filtros.applied`, que está na `queryKey`, e sai **uma** requisição.
+3. **Limpar filtros** chama `onClear`, que zera rascunho e aplicado juntos.
+4. Com `applyDisabled={!filtros.isDirty}`, o botão só acende quando há algo novo a aplicar.
+
+| Prop | Tipo | Default | O que faz |
+| --- | --- | --- | --- |
+| `children` | `ReactNode` | — | Os campos. Cada filho é uma célula da grade. |
+| `title` | `ReactNode` | `"Filtros"` | Título. String vira `h3` e dá nome à região `search`. |
+| `actions` | `ReactNode` | — | Ações que não são campo — "Exportar CSV", "Atualizar a cada 30s". |
+| `onClear` | `() => void` | — | Mostra **Limpar filtros**. Sem ele, não há botão. |
+| `onApply` | `() => void` | — | Põe os campos num `<form>`: botão **Filtrar** e Enter aplicam. |
+| `applyDisabled` | `boolean` | `false` | Desabilita o Filtrar (e, com ele, o Enter). |
+| `minFieldWidth` | `string` | `"12rem"` | Largura mínima do campo antes de a grade perder uma coluna. |
+| `columns` | `ResponsiveValue<number \| string>` | — | Colunas fixas por viewport, como no `Grid`. Substitui `minFieldWidth`. |
+| `locale` | `"pt-BR" \| "en"` | `"pt-BR"` | Título e rótulos default. |
+| `labels` | `Partial<FilterPanelLabels>` | — | Troca qualquer rótulo — `{ apply: "Buscar" }`. |
+
+!!! check "A grade segue a largura do **painel**, não da tela"
+    O default é `repeat(auto-fill, minmax(min(100%, 12rem), 1fr))`. Medido no Chromium: o mesmo conjunto dentro de uma coluna de 360 px numa tela de 1280 px, montado com `Grid columns={{ mobile: 1, tablet: 2, desktop: 4 }}`, virava quatro campos de **57,5 px** — o `Grid` troca de coluna pelo viewport. Com o default, a conta sai do espaço que o painel tem, e o `min(100%, …)` impede que um piso maior que o celular estoure a largura.
+
+!!! info "As células alinham no topo"
+    Campo com mensagem de erro é mais alto. Com o `stretch` padrão da grade, as caixas dos vizinhos de linha cresciam junto (62 → 82 px); o `input` em si não esticava, mas a célula mentia a própria altura.
+
+!!! tip "O cabeçalho quebra linha"
+    Três ações ao lado do título mediam 527 px num cabeçalho de 308 px a 390 px de largura, e a página inteira rolava de lado. O cabeçalho do `Card` agora quebra linha — isso vale para todo `Card` com `actions` —, e as ações quebram entre si. **Filtrar** fica sempre por último.
+
+!!! note "Por que `children`, e não `fields={[…]}`"
+    Um array de nós exige `key` em cada campo só para agradar o React, e não compra nada: cada filho já é uma célula da grade.
+
 ## `Kanban`
 
 > **Quando usar**: quadro de colunas com cards que mudam de estágio — backlog, pipeline de vendas, ordens de serviço por status.
@@ -7756,6 +7861,7 @@ export function QuadroDoBacklog() {
 ## Recap
 
 - **Dados**: `DataTable<T>` envolve o `Table` headless com busca, ordenação e paginação client-side.
+- **Filtros**: `FilterBar` para consulta livre (campo + operador + valor); `FilterPanel` para o conjunto fixo que a tela conhece, com `useDraftFilters` separando o rascunho do aplicado.
 - Todos seguem os mesmos padrões controlado/não-controlado, expõem A11y por teclado e importam de `tempest-react-sdk`.
 
 ---
@@ -18325,7 +18431,7 @@ Cada seção é um arquivo em [`examples/gallery/src/sections/`](https://github.
 | 33 | Áudio (gravação) | `#audio-capture` | Componentes |
 | 34 | Captura de dispositivo | `#device-capture` | Componentes |
 | 35 | Dashboard (CSS) | `#dashboard-layout` | Componentes |
-| 36 | FilterBar | `#filterbar` | Componentes |
+| 36 | FilterBar & FilterPanel | `#filterbar` | Componentes |
 | 37 | Markdown | `#markdown` | Componentes |
 | 38 | Masonry | `#masonry` | Componentes |
 | 39 | Tour | `#tour` | Componentes |
@@ -18837,6 +18943,7 @@ granulares, testados e independentes — importe só o que precisar.
 | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | `usePagination(initialPage?, initialSize?)`       | `{ page, size, setPage, setSize, reset }`.                                                                      |
 | `useClientFilter(items, search, keysOrPredicate)` | Filtro client-side por keys ou predicado (memoizado). Os itens são objetos (`T extends Record<string, unknown>`). |
+| `useDraftFilters(initial, { onApply?, isEqual? })` | Rascunho × aplicado de filtro server-side: `{ draft, applied, isDirty, set, apply, clear }`. Aplicar acontece no evento, nunca num efeito — um clique, uma requisição. |
 | `useLocalStorage<T>(key, default)`                | State persistido em localStorage + sincronizado cross-tab via `storage` event. safe sem `window`.                        |
 | `useToggle(initial?)`                             | `[value, { toggle, setTrue, setFalse, set }]` — açúcar pra boolean state.                                       |
 | `useAsync<T>(fn, deps?, { immediate? })`          | Track `idle/pending/success/error`. `{ status, data, error, run, reset }`. Distinto de React Query (sem cache). |
@@ -19278,6 +19385,71 @@ function Quantity() {
 ```
 
 `useCounter(initial, { min, max })` clampa o valor — `increment`/`decrement`/`set` respeitam os limites.
+
+### Rascunho × aplicado — `useDraftFilters`
+
+Filtro **server-side** não pode reagir a cada tecla: cada caractere digitado viraria uma requisição. O padrão é sempre o mesmo — um rascunho que a barra edita à vontade, e um valor aplicado que só muda no clique (ou no Enter).
+
+```tsx
+import { Button, Input, useDraftFilters, usePaginatedQuery, type OffsetPage } from "tempest-react-sdk";
+
+interface ErroApp {
+  id: number;
+  code: string;
+}
+
+async function listarErros(params: Record<string, unknown>): Promise<OffsetPage<ErroApp>> {
+  const resposta = await fetch(`/api/errors?${new URLSearchParams(params as Record<string, string>)}`);
+  return (await resposta.json()) as OffsetPage<ErroApp>;
+}
+
+export function Logs() {
+  const filtros = useDraftFilters({ code: "" });
+  const erros = usePaginatedQuery<ErroApp>({
+    queryKey: ["erros", filtros.applied],
+    queryFn: (params) => listarErros({ ...params, ...filtros.applied }),
+  });
+
+  return (
+    <>
+      <Input
+        label="Código"
+        value={filtros.draft.code}
+        onChange={(e) => filtros.set({ code: e.target.value })}
+      />
+      <Button disabled={!filtros.isDirty} onClick={() => filtros.apply()}>
+        Filtrar
+      </Button>
+      <Button variant="ghost" onClick={filtros.clear}>
+        Limpar
+      </Button>
+      <ul>
+        {erros.items.map((erro) => (
+          <li key={erro.id}>
+            <Button variant="link" onClick={() => filtros.apply({ code: erro.code })}>
+              {erro.code}
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+```
+
+- `set(parcial)` edita só o rascunho. `apply()` publica o rascunho; `apply(parcial)` grava **e** publica no mesmo gesto — o "filtrar por este código" de uma linha da tabela, que com dois `setState` leria o rascunho velho.
+- `clear()` volta rascunho e aplicado ao valor inicial, **juntos**: zerar só um deixa a lista filtrada com a barra em branco, ou o contrário.
+- `isDirty` é `false` logo depois de `apply()` e `clear()` — é o que habilita o botão.
+- `applied` mantém a **mesma referência** enquanto ninguém aplica algo diferente, então serve de `queryKey` sem refetch fantasma.
+
+!!! check "A página volta para 1 sozinha"
+    Filtrar estando na página 7 pedia a página 7 de um resultado que agora tem duas, e a tela respondia vazia. Medido (teste em `src/query/use-paginated-query.test.tsx`): antes da 0.68.0 as requisições eram `[":page=1", ":page=7", "AUTH:page=7"]`; agora são `[":page=1", ":page=7", "AUTH:page=1"]`. O conserto mora no `usePaginatedQuery`, não aqui: **qualquer** mudança estrutural da `queryKey` zera a página, no mesmo render — com ou sem este hook.
+
+!!! tip "Página guardada por você? Use `onApply`"
+    Se a página vive num `useState` seu (ou na URL), `useDraftFilters(VAZIO, { onApply: () => setPagina(1) })` — ele roda em todo `apply()` e `clear()`.
+
+!!! info "Nenhum efeito lá dentro"
+    Aplicar acontece no evento que pediu, nunca num `useEffect` observando o rascunho. É o que garante uma requisição por clique.
 
 ### Lista como estado — `useListState`
 
@@ -22175,6 +22347,9 @@ function UsersTable() {
 ```
 
 O hook **controla o estado de página** internamente, envia `page` + `size` para o `queryFn`, mantém a página anterior visível enquanto a próxima carrega (`keepPreviousData`) e deriva `hasNext`/`hasPrev`/`pageCount`.
+
+!!! check "Filtro novo começa da página 1"
+    Ponha os filtros aplicados na `queryKey` (`["users", filtros]`). Quando ela muda estruturalmente, a página volta para 1 **no mesmo render** — sem a requisição intermediária da página antiga. Até a 0.68.0 a página sobrevivia: filtrar na página 7 pedia a página 7 de um resultado de duas. Para separar rascunho de aplicado, veja [`useDraftFilters`](./hooks.md#rascunho-aplicado-usedraftfilters).
 
 !!! tip "`size` vs `page_size`"
     O default segue o `fastapi-pagination` (`?size=`). Se o seu backend usa `page_size`, passe `sizeParam: "page_size"`. O `order_by`/`ascending` só são enviados quando você define `orderBy`.
@@ -27107,7 +27282,7 @@ o app não alcança.
     faz.
 
 !!! info "`styles.css` continua publicado"
-    Uma linha, todos os 129 componentes, e nada quebra: o bundler deduplica a
+    Uma linha, todos os 130 componentes, e nada quebra: o bundler deduplica a
     folha que o componente importa contra a que você importou. Custa bytes, nunca
     correção — é a mesma troca do `auto.css`.
 
@@ -29593,7 +29768,7 @@ const theme = createTheme({ primary: "#7c3aed" });
 applyTheme(theme);
 ```
 
-Pronto: os 129 componentes passam a usar a marca nova, no claro e no escuro.
+Pronto: os 130 componentes passam a usar a marca nova, no claro e no escuro.
 
 ### O que ele gera
 

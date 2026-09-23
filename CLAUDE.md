@@ -116,8 +116,8 @@ mais voltam:
 - **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 87 tags publicadas
   (0.1.0 → 0.67.0) com provenance assinada via OIDC. Histórico em `RELEASES.md`
   (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
-- **Superfície**: 40 módulos em `src/` (`ls -d src/*/`), 129 componentes
-  (`ls -d src/components/*/`), 54 hooks `useX` no barrel de `hooks/`, 18 subpaths
+- **Superfície**: 40 módulos em `src/` (`ls -d src/*/`), 130 componentes
+  (`ls -d src/components/*/`), 55 hooks `useX` no barrel de `hooks/`, 18 subpaths
   — os quatro aferidos por `test/docs-counts.test.ts`. Exports de runtime na
   raiz: **570 em 23/09/2026** (70 em `/br`, 21 em `/icons`); o método de
   contagem, e por que o `--import` não é opcional, está em

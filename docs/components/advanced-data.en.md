@@ -372,7 +372,7 @@ export function ProfilePermissions() {
 ## `FilterBar`
 
 <!-- gallery:filterbar -->
-[![FilterBar in the gallery](../assets/gallery/filterbar.webp)](../gallery.md)
+[![FilterBar & FilterPanel in the gallery](../assets/gallery/filterbar.webp)](../gallery.md)
 
 *Section `filterbar` of the [gallery](../gallery.md) — run it locally to interact.*
 <!-- /gallery -->
@@ -539,6 +539,112 @@ export function usePedidos(filtros: Filter[], pagina: number) {
 !!! tip "An incomplete filter only disables Apply"
     It is not an error to shout about — it is a half-filled form. Changing the operator clears the value, because a value carried across operators produces filters nobody meant to write.
 
+## `FilterPanel`
+
+> **When to use it**: the screen already knows its filters — city, state, status, a search box — and what is missing is the **frame**: the card, the grid that reflows, the title and the clear button.
+
+`FilterBar` above is a *builder*: the user picks field, operator and value. `FilterPanel` is the other case, the most common one in an admin panel — the set is fixed, and the fields are your own `Input`/`Select`. It holds no state and has no opinion on the fields: it is layout.
+
+```tsx
+import {
+  FilterPanel,
+  Input,
+  Select,
+  useDraftFilters,
+  usePaginatedQuery,
+  type OffsetPage,
+} from "tempest-react-sdk";
+
+interface Activity {
+  id: number;
+  title: string;
+}
+
+interface ActivityFilter {
+  search: string;
+  state: string;
+}
+
+const EMPTY: ActivityFilter = { search: "", state: "" };
+
+const STATES = [
+  { value: "", label: "All" },
+  { value: "PI", label: "Piauí" },
+  { value: "PE", label: "Pernambuco" },
+];
+
+async function listActivities(
+  params: Record<string, unknown>,
+): Promise<OffsetPage<Activity>> {
+  const response = await fetch(`/api/activities?${new URLSearchParams(params as Record<string, string>)}`);
+  return (await response.json()) as OffsetPage<Activity>;
+}
+
+export function Activities() {
+  const filters = useDraftFilters(EMPTY);
+  const activities = usePaginatedQuery<Activity>({
+    queryKey: ["activities", filters.applied],
+    queryFn: (params) => listActivities({ ...params, ...filters.applied }),
+  });
+
+  return (
+    <>
+      <FilterPanel
+        locale="en"
+        onApply={() => filters.apply()}
+        onClear={filters.clear}
+        applyDisabled={!filters.isDirty}
+      >
+        <Input
+          label="Search"
+          value={filters.draft.search}
+          onChange={(e) => filters.set({ search: e.target.value })}
+        />
+        <Select
+          label="State"
+          options={STATES}
+          value={filters.draft.state}
+          onChange={(e) => filters.set({ state: e.target.value })}
+        />
+      </FilterPanel>
+      <p>{activities.total} activities</p>
+    </>
+  );
+}
+```
+
+What happens there:
+
+1. The fields edit the **draft** (`filters.draft`) — typing asks the server for nothing.
+2. **Apply filters**, or Enter in any field, calls `onApply`: the draft becomes `filters.applied`, which is in the `queryKey`, and **one** request goes out.
+3. **Clear filters** calls `onClear`, which resets the draft and the applied value together.
+4. With `applyDisabled={!filters.isDirty}`, the button only lights up when there is something new to apply.
+
+| Prop | Type | Default | What it does |
+| --- | --- | --- | --- |
+| `children` | `ReactNode` | — | The fields. Each child is one grid cell. |
+| `title` | `ReactNode` | `"Filtros"` | Heading. A string renders as an `h3` and names the `search` region. |
+| `actions` | `ReactNode` | — | Actions that are not fields — "Export CSV", "Refresh every 30s". |
+| `onClear` | `() => void` | — | Shows **Clear filters**. Without it, there is no button. |
+| `onApply` | `() => void` | — | Puts the fields in a `<form>`: the **Apply** button and Enter apply. |
+| `applyDisabled` | `boolean` | `false` | Disables Apply (and, with it, Enter). |
+| `minFieldWidth` | `string` | `"12rem"` | Narrowest a field gets before the grid drops a column. |
+| `columns` | `ResponsiveValue<number \| string>` | — | Fixed columns per viewport, as in `Grid`. Replaces `minFieldWidth`. |
+| `locale` | `"pt-BR" \| "en"` | `"pt-BR"` | Default title and labels. |
+| `labels` | `Partial<FilterPanelLabels>` | — | Override any label — `{ apply: "Search" }`. |
+
+!!! check "The grid follows the **panel's** width, not the screen's"
+    The default is `repeat(auto-fill, minmax(min(100%, 12rem), 1fr))`. Measured in Chromium: the same set inside a 360 px column of a 1280 px screen, built with `Grid columns={{ mobile: 1, tablet: 2, desktop: 4 }}`, became four **57.5 px** fields — `Grid` switches columns on the viewport. With the default, the count comes from the room the panel has, and `min(100%, …)` keeps a floor wider than the phone from overflowing it.
+
+!!! info "Cells align to the top"
+    A field with an error message is taller. With the grid's default `stretch`, its row-mates' boxes grew with it (62 → 82 px); the `input` itself did not stretch, but the cell lied about its own height.
+
+!!! tip "The header wraps"
+    Three actions next to the title measured 527 px in a 308 px header at 390 px wide, and the whole page scrolled sideways. `Card`'s header now wraps — this applies to every `Card` with `actions` — and the actions wrap among themselves. **Apply** is always last.
+
+!!! note "Why `children`, not `fields={[…]}`"
+    An array of nodes needs a `key` on every field just to please React, and buys nothing: each child is already a grid cell.
+
 ## `Kanban`
 
 > **When to use it**: a board of columns whose cards move between stages — backlog, sales pipeline, work orders by status.
@@ -592,4 +698,5 @@ export function BacklogBoard() {
 ## Recap
 
 - **Data**: `DataTable<T>` wraps the headless `Table` with client-side search, sort, and pagination.
+- **Filters**: `FilterBar` for free-form querying (field + operator + value); `FilterPanel` for the fixed set a screen knows, with `useDraftFilters` keeping the draft apart from what is applied.
 - All share the same controlled/uncontrolled patterns, expose keyboard A11y, and import from `tempest-react-sdk`.

@@ -7,6 +7,7 @@ import {
     type FilterField,
 } from "tempest-react-sdk";
 import { Example } from "../Example";
+import { FilterPanelExample } from "./FilterPanelExample";
 
 const CAMPOS: FilterField[] = [
     { name: "titulo", label: "Título", type: "text", placeholder: "parte do título" },
@@ -41,7 +42,7 @@ export function FilterBarSection() {
 
     return (
         <section className="gallery-section" id="filterbar">
-            <h3>FilterBar</h3>
+            <h3>FilterBar & FilterPanel</h3>
             <Example
                 id="filterbar-basic"
                 title="Filtros de uma lista"
@@ -108,6 +109,8 @@ fetch(\`/api/pedidos?\${filtersToSearchParams(filtros)}\`)`}
                     </code>
                 </div>
             </Example>
+
+            <FilterPanelExample />
         </section>
     );
 }

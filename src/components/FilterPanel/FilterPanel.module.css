@@ -1,0 +1,28 @@
+.panel {
+    min-width: 0;
+}
+
+/*
+ * Actions share the header row with the title on a wide screen and move under it,
+ * wrapping among themselves, when they do not fit. Apply stays last.
+ */
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--tempest-space-2);
+    margin-left: auto;
+}
+
+.form {
+    margin: 0;
+}
+
+/*
+ * Top alignment keeps a field's box its own height: the grid default stretches every
+ * cell of a row to the tallest one, which is the field showing an error.
+ */
+.fields {
+    align-items: start;
+}

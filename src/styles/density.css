@@ -27,6 +27,9 @@
 
     --tempest-control-radius: var(--tempest-radius-md);
     --tempest-control-gap: var(--tempest-space-2);
+
+    --tempest-control-caret-offset: 12px;
+    --tempest-control-caret-size: 14px;
 }
 
 [data-tempest-density="compact"] {
@@ -50,6 +53,9 @@
 
     --tempest-control-radius: var(--tempest-radius-sm);
     --tempest-control-gap: var(--tempest-space-1);
+
+    --tempest-control-caret-offset: 10px;
+    --tempest-control-caret-size: 12px;
 }
 
 [data-tempest-density="touch"] {
@@ -74,6 +80,9 @@
 
     --tempest-control-radius: var(--tempest-radius-md);
     --tempest-control-gap: var(--tempest-space-2);
+
+    --tempest-control-caret-offset: 12px;
+    --tempest-control-caret-size: 16px;
 }
 
 [data-tempest-density="spacious"] {
@@ -97,6 +106,9 @@
 
     --tempest-control-radius: var(--tempest-radius-lg);
     --tempest-control-gap: var(--tempest-space-3);
+
+    --tempest-control-caret-offset: 14px;
+    --tempest-control-caret-size: 16px;
 }
 
 /* ============================================================

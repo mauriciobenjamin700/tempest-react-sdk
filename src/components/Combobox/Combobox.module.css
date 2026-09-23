@@ -15,6 +15,8 @@
 }
 
 .field {
+    --_tempest-caret-offset: var(--tempest-control-caret-offset, 12px);
+    --_tempest-caret-size: var(--tempest-control-caret-size, 14px);
     position: relative;
     display: flex;
     align-items: center;
@@ -23,7 +25,8 @@
 .input {
     width: 100%;
     height: var(--tempest-control-height-md);
-    padding: 0 32px 0 var(--tempest-control-padding-md);
+    padding: 0 calc(var(--_tempest-caret-offset) + var(--_tempest-caret-size) + 6px) 0
+        var(--tempest-control-padding-md);
     border: 1px solid var(--tempest-border);
     border-radius: var(--tempest-control-radius);
     background-color: var(--tempest-bg);
@@ -51,9 +54,22 @@
 
 .caret {
     position: absolute;
-    right: 12px;
+    right: var(--_tempest-caret-offset);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--_tempest-caret-size);
+    height: var(--_tempest-caret-size);
     pointer-events: none;
     color: var(--tempest-text-muted);
+}
+
+.field > .caret > svg {
+    display: block;
+    flex: none;
+    width: 100%;
+    height: 100%;
+    margin: 0;
 }
 
 .menu {

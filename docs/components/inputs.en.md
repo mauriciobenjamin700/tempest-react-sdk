@@ -75,7 +75,7 @@ export function Mensagem() {
 
 ## `Select`
 
-Native `<select>`. Accepts `options` (a list) or `<option>` children. Two variants: **`field`** (default — label, control, helper text and error slot) and **`chip`** (the control alone, for a settings row).
+Native `<select>`. Accepts `options` (a list) or `<option>` children. Three variants: **`field`** (default — label, control, helper text and error slot), **`chip`** (the control alone, for a settings row) and **`bare`** (the mechanism without the look, for an app with its own visual identity).
 
 ```tsx
 import { Select } from "tempest-react-sdk";
@@ -99,7 +99,9 @@ export function Estado() {
 | `label`      | `string`             | —         |
 | `helperText` | `string`             | —         |
 | `error`      | `string`             | —         |
-| `variant`    | `"field" \| "chip"`  | `"field"` |
+| `variant`    | `"field" \| "chip" \| "bare"` | `"field"` |
+| `caretIcon`  | `ReactNode`          | SDK chevron |
+| `wrapperClassName` | `string`       | —         |
 
 ### The `chip` variant — settings rows
 
@@ -137,6 +139,142 @@ export function LanguageRow({ lang, setLang }: { lang: string; setLang: (v: stri
     The way out apps took was a native `<select>` with `appearance: none`, just to keep the chip shape. That duplicates this component's markup and **loses with it** the token-driven focus ring, the disabled styling and the caret — all already solved here.
 
     The `field` variant is unchanged: `label`, `helperText` and `error` exist only there.
+
+### Options from a map — `toOptions`, `withAllOption`, `withEmptyOption`
+
+The pt-BR label of an API enum is nearly always a `value → label` map. `toOptions` turns that map into the list `Select`, `MultiSelect` and `Combobox` take, and two helpers prepend the entries a `<select>` cannot represent on its own:
+
+```tsx
+import { useState } from "react";
+import { ALL_OPTION_VALUE, Select, toOptions, withAllOption, withEmptyOption } from "tempest-react-sdk";
+
+const STATUS = { active: "Ativo", paused: "Pausado", archived: "Arquivado" };
+const HUMOR = new Map([
+    [5, "Ótimo"],
+    [3, "Ok"],
+    [1, "Ruim"],
+]);
+
+export function Filters() {
+    const [status, setStatus] = useState(ALL_OPTION_VALUE);
+    const [humor, setHumor] = useState("");
+    const filter = status === ALL_OPTION_VALUE ? {} : { status };
+
+    return (
+        <>
+            <Select
+                label="Status"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                options={withAllOption(toOptions(STATUS))}
+            />
+            <Select
+                label="Humor"
+                value={humor}
+                onChange={(e) => setHumor(e.target.value)}
+                options={withEmptyOption(toOptions(HUMOR))}
+            />
+            <pre>{JSON.stringify(filter)}</pre>
+        </>
+    );
+}
+```
+
+- **`withAllOption(options, label = "Todos")`** — the `"all"` ("no filter") entry. It has to be a real option, not the `placeholder`: a placeholder reads as "nothing chosen", and nobody can tell whether the column is filtered. Compare against `ALL_OPTION_VALUE`, not the string.
+- **`withEmptyOption(options, label = "— Não definido —")`** — the `""` entry of a nullable field.
+- Neither mutates the list it receives.
+
+!!! danger "Without an empty entry, saving the form writes a value nobody chose"
+    Measured in jsdom (which implements HTML's selectedness algorithm): a controlled `<select>` with `value=""` and no empty option reads back as **the first option** (`select.value === "a"`). Opening an edit form and saving it writes that value. `Select`'s `placeholder` does not solve it: its entry is `disabled hidden`, so once something is picked the field **can never go back to empty**. A nullable field uses `withEmptyOption`.
+
+!!! warning "An object reorders numeric keys — use a `Map` for a scale"
+    `toOptions` always keeps a `Map`'s order, and an object's **except for integer keys**, which JavaScript enumerates first and ascending (`OrdinaryOwnPropertyKeys`). Measured in Node 24: `Object.keys({ 5: "Ótimo", 3: "Ok", 1: "Ruim" })` is `["1", "3", "5"]`. A mood scale is not ascending by accident — pass a `Map`.
+
+    Every key becomes a **string** `value`, because a string is what `event.target.value` hands back: an option built from the number `0` comes back as `"0"`, and `===` would never match. That is why the list fits `SelectOption[]`, `MultiSelectOption[]` and `ComboboxOption[]`.
+
+### The `bare` variant — the mechanism without the look
+
+The hard parts of a custom select are `appearance: none` and a caret positioned over the control; the look (border, background, radius, shadow, height) is the easy part, and precisely the one an app with its own identity does not want. `variant="bare"` ships only the mechanism:
+
+```tsx
+import { Select, toOptions, withAllOption } from "tempest-react-sdk";
+
+const STATUS = { active: "Ativo", paused: "Pausado" };
+
+export function FilterBar() {
+    return (
+        <div style={{ display: "flex", gap: 12 }}>
+            <Select
+                variant="bare"
+                aria-label="Status"
+                wrapperClassName="brand-filter"
+                options={withAllOption(toOptions(STATUS))}
+            />
+        </div>
+    );
+}
+```
+
+```css
+.brand-filter {
+    flex: 0 0 40%;
+    height: 44px;
+    padding: 0 4%;
+    border-radius: 22px;
+    background-color: #6d28d9;
+    color: #fff;
+}
+```
+
+- Renders **a single** shell element: `wrapper > select + caret`. The shell takes `wrapperClassName` and **is** the flex item — there is no other `div` between it and the bar, so `flex: 0 0 40%` still applies.
+- Paints no border, background, radius, shadow or height. The `<select>` stretches to the shell's height.
+- The `<select>` **inherits `background-color` and `color`** from the shell. The background is not cosmetic: the native menu paints each `<option>` from the `<select>`'s background, so a transparent control would hand the popup back to the system white.
+- The focus ring (`--tempest-focus-ring-*`) is drawn on the shell, through `:focus-within`, and follows its radius.
+- Like `chip`, there is no visible label: `aria-label` **or** `aria-labelledby` is required by the type.
+
+!!! tip "The app's CSS does not capture the caret"
+    Measured in Chrome: a screen rule `.fieldset svg { width: 18.4px; height: 100% }` (specificity 0-1-1) stretched the caret from 14 to 18.39 px. The caret slot now pins the `svg` with a 0-2-1 selector and `margin: 0`, so an app's element rule does not reach it.
+
+### The caret — `caretIcon` and the density tokens
+
+The caret is positioned and sized by two density tokens, read by both `Select` and `Combobox`:
+
+| Density       | `--tempest-control-caret-offset` | `--tempest-control-caret-size` | `md` height |
+| ------------- | -------------------------------- | ------------------------------ | ----------- |
+| `compact`     | 10px                             | 12px                           | 34px        |
+| `comfortable` | 12px                             | 14px                           | 40px        |
+| `touch`       | 12px                             | 16px                           | 44px        |
+| `spacious`    | 14px                             | 16px                           | 44px        |
+
+Before, the caret sat 12 px from the edge at every density (measured in Chrome, while the control went from 34 to 44 px tall and its radius from 4 to 12 px). The lane the control's `padding` reserves for the caret is computed from the same tokens, so moving the caret moves the text's end with it. On `comfortable` the pixels are the old ones: 12 px offset and a 36 px lane on `field`, 10 px and 30 px on `chip`.
+
+Moving the caret away from the edge is a token, at whatever scope you want:
+
+```css
+.my-form {
+    --tempest-control-caret-offset: 18px;
+}
+```
+
+And swapping the icon is a prop — the `svg` you pass is stretched to `--tempest-control-caret-size`, so the token, not the icon's `width`, decides its size at every density:
+
+```tsx
+import { ChevronsUpDown } from "lucide-react";
+import { Select } from "tempest-react-sdk";
+
+export function SortBy() {
+    return (
+        <Select
+            label="Sort by"
+            caretIcon={<ChevronsUpDown />}
+            options={[
+                { value: "recent", label: "Most recent" },
+                { value: "name", label: "Name" },
+            ]}
+        />
+    );
+}
+```
 
 ## `Combobox`
 

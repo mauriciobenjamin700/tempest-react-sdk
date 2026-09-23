@@ -648,7 +648,7 @@
   {
     "name": "styles.css",
     "path": "dist/styles.css",
-    "limit": "30 kB"
+    "limit": "30.5 kB"
   },
   {
     "name": "styles/core.css (foundation alone — no component)",

@@ -960,6 +960,8 @@ Tokens controlados:
 --tempest-control-font-xs..xl
 --tempest-control-radius
 --tempest-control-gap
+--tempest-control-caret-offset
+--tempest-control-caret-size
 ```
 
 Button, Input, Select, Textarea já lêem desses tokens — basta trocar o atributo no root e tudo redimensiona junto.

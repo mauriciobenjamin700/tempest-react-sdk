@@ -969,6 +969,8 @@ Controlled tokens:
 --tempest-control-font-xs..xl
 --tempest-control-radius
 --tempest-control-gap
+--tempest-control-caret-offset
+--tempest-control-caret-size
 ```
 
 Button, Input, Select, and Textarea already read these tokens — just swap the

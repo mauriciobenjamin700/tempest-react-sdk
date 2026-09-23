@@ -76,21 +76,33 @@ describe("DropdownMenu — placement, keyboard and entry kinds", () => {
         },
     ];
 
-    it.each(["bottom-start", "bottom-end", "top-start", "top-end"] as const)(
-        "carries the %s placement class",
-        async (placement) => {
-            render(
-                <DropdownMenu
-                    trigger={<button>abrir</button>}
-                    items={items}
-                    placement={placement}
-                />,
-            );
-            await userEvent.click(screen.getByRole("button", { name: "abrir" }));
-            const menu = screen.getByRole("menu");
-            expect(menu.className).toBeTruthy();
-        },
-    );
+    it.each([
+        ["bottom-start", "bottomStart"],
+        ["bottom-end", "bottomEnd"],
+        ["top-start", "topStart"],
+        ["top-end", "topEnd"],
+    ] as const)("carries the %s placement class in flow", async (placement, className) => {
+        render(
+            <DropdownMenu
+                trigger={<button>abrir</button>}
+                items={items}
+                placement={placement}
+                portal={false}
+            />,
+        );
+        await userEvent.click(screen.getByRole("button", { name: "abrir" }));
+        const menu = screen.getByRole("menu");
+        expect(menu.className).toContain(className);
+        expect(menu.className).not.toContain("portalled");
+    });
+
+    it("drops the placement class in a portal, where the anchor places the menu", async () => {
+        render(<DropdownMenu trigger={<button>abrir</button>} items={items} placement="top-end" />);
+        await userEvent.click(screen.getByRole("button", { name: "abrir" }));
+        const menu = screen.getByRole("menu");
+        expect(menu.className).toContain("portalled");
+        expect(menu.className).not.toContain("topEnd");
+    });
 
     it("renders labels and separators as non-interactive entries", async () => {
         render(<DropdownMenu trigger={<button>abrir</button>} items={items} />);
@@ -207,8 +219,40 @@ describe("DropdownMenu — placement, keyboard and entry kinds", () => {
             />,
         );
         await userEvent.click(screen.getByRole("button", { name: "abrir" }));
-        fireEvent.keyDown(window, { key: "ArrowDown" });
-        fireEvent.keyDown(window, { key: "ArrowUp" });
+        const menu = screen.getByRole("menu");
+        for (const key of ["ArrowDown", "ArrowUp", "Home", "End"]) {
+            fireEvent.keyDown(menu, { key });
+        }
         expect(screen.getByRole("menu")).toBeInTheDocument();
+        expect(document.activeElement).not.toBe(menu);
+    });
+
+    it("leaves the trigger alone when its own onKeyDown consumed the key", () => {
+        render(
+            <DropdownMenu
+                trigger={<button onKeyDown={(event) => event.preventDefault()}>abrir</button>}
+                items={items}
+            />,
+        );
+        fireEvent.keyDown(screen.getByRole("button", { name: "abrir" }), { key: "ArrowDown" });
+        expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    });
+
+    it("leaves the trigger alone when its own onClick consumed the click", async () => {
+        render(
+            <DropdownMenu
+                trigger={<button onClick={(event) => event.preventDefault()}>abrir</button>}
+                items={items}
+            />,
+        );
+        await userEvent.click(screen.getByRole("button", { name: "abrir" }));
+        expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    });
+
+    it("opens on ArrowUp with the last selectable entry focused", async () => {
+        render(<DropdownMenu trigger={<button>abrir</button>} items={items} />);
+        fireEvent.keyDown(screen.getByRole("button", { name: "abrir" }), { key: "ArrowUp" });
+        expect(await screen.findByRole("menu")).toBeInTheDocument();
+        expect(document.activeElement).toBe(screen.getByRole("menuitem", { name: "Duplicar" }));
     });
 });

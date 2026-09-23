@@ -111,21 +111,21 @@ mais voltam:
 - **`[Unreleased]` conflita N-1 vezes** quando N PRs o tocam: é concatenação, o
   que está na `main` primeiro.
 
-## Estado atual (snapshot pós-v0.67.0 — `[Unreleased]` abre o ciclo 0.68.0)
+## Estado atual (snapshot pós-v0.68.0 — `[Unreleased]` abre o ciclo 0.69.0)
 
-- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 87 tags publicadas
-  (0.1.0 → 0.67.0) com provenance assinada via OIDC. Histórico em `RELEASES.md`
+- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 88 tags publicadas
+  (0.1.0 → 0.68.0) com provenance assinada via OIDC. Histórico em `RELEASES.md`
   (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
 - **Superfície**: 40 módulos em `src/` (`ls -d src/*/`), 130 componentes
   (`ls -d src/components/*/`), 55 hooks `useX` no barrel de `hooks/`, 18 subpaths
   — os quatro aferidos por `test/docs-counts.test.ts`. Exports de runtime na
-  raiz: **570 em 23/09/2026** (70 em `/br`, 21 em `/icons`); o método de
+  raiz: **580 em 23/09/2026** (70 em `/br`, 21 em `/icons`); o método de
   contagem, e por que o `--import` não é opcional, está em
   [`architecture.md`](./docs/internal/architecture.md).
-- **Testes**: 6672 em 600 arquivos, ~112 s (`npm run test:run`), medido em 23/09/2026. Cobertura em
-  23/09/2026: 99,12% linhas / 98,23% statements / 99,37% funções / 95,16%
-  branches (`npx vitest run --coverage`); pisos do CI em 99/98/99/95 — branches
-  com folga de ~0,15 pp, e o node 22 mede ~0,02 pp abaixo do 24.
+- **Testes**: 6920 em 617 arquivos, medido em 23/09/2026 (`npm run test:run`).
+  Cobertura em 23/09/2026: 99,14% linhas / 98,26% statements / 99,39% funções /
+  95,32% branches (`npx vitest run --coverage`); pisos do CI em 99/98/99/95 — o
+  node 22 mede ~0,02 pp abaixo do 24 em branches.
 - **Empacotamento**: `dist/` com `preserveModules`; CSS por componente carregado
   pelo próprio componente (0.63.0); loader `/node-css-loader` para Node cru.
   Budgets do `size-limit` são por **fatia importada**.

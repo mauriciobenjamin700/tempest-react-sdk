@@ -15,6 +15,14 @@ export interface PaginationProps {
     onPageChange: (page: number) => void;
     pageSize?: number;
     onPageSizeChange?: (size: number) => void;
+    /**
+     * Sizes offered in the selector. Default `[10, 25, 50, 100]`.
+     *
+     * The current `pageSize` is always offered too, merged in ascending order. A
+     * `<select>` whose value matches no option displays its first option, so
+     * `pageSize={20}` against the default list used to read "10 / página" over a
+     * table showing 20 rows.
+     */
     pageSizeOptions?: number[];
     /** Total items count; if provided, renders the summary text. */
     totalItems?: number;
@@ -34,6 +42,8 @@ export interface PaginationProps {
     compactOnMobile?: boolean;
     className?: string;
 }
+
+const DEFAULT_PAGE_SIZE_OPTIONS: number[] = [10, 25, 50, 100];
 
 function buildRange(page: number, totalPages: number, siblings: number): (number | "...")[] {
     const totalSlots = siblings + 4;
@@ -70,7 +80,7 @@ export function Pagination({
     onPageChange,
     pageSize,
     onPageSizeChange,
-    pageSizeOptions = [10, 25, 50, 100],
+    pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
     totalItems,
     siblingCount = 3,
     compactOnMobile = true,
@@ -79,6 +89,13 @@ export function Pagination({
     const pages = useMemo(
         () => buildRange(page, totalPages, siblingCount),
         [page, totalPages, siblingCount],
+    );
+    const sizes = useMemo(
+        () =>
+            pageSize === undefined || pageSizeOptions.includes(pageSize)
+                ? pageSizeOptions
+                : [...pageSizeOptions, pageSize].sort((a, b) => a - b),
+        [pageSize, pageSizeOptions],
     );
     const activePage = useRef<HTMLButtonElement | null>(null);
 
@@ -147,7 +164,7 @@ export function Pagination({
                         onChange={(event) => onPageSizeChange(Number(event.target.value))}
                         aria-label="Itens por página"
                     >
-                        {pageSizeOptions.map((opt) => (
+                        {sizes.map((opt) => (
                             <option key={opt} value={opt}>
                                 {opt} / página
                             </option>

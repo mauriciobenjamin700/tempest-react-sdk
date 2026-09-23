@@ -4,6 +4,7 @@ export type {
     DataTableCellChange,
     DataTableColumn,
     DataTableEditorType,
+    DataTablePageSizeProps,
     DataTablePagingProps,
     DataTableProps,
     DataTableSearchProps,

@@ -90,4 +90,30 @@ describe("DataTableProps", () => {
     it("still accepts a search box the table filters itself", () => {
         expect(<DataTable data={data} columns={columns} searchable />).toBeTruthy();
     });
+
+    it("accepts a size selector paired with a controlled pageSize", () => {
+        expect(
+            <DataTable
+                data={data}
+                columns={columns}
+                totalItems={40}
+                page={1}
+                onPageChange={() => {}}
+                pageSize={25}
+                pageSizeOptions={[10, 25, 50, 100]}
+                onPageSizeChange={() => {}}
+            />,
+        ).toBeTruthy();
+    });
+
+    it("rejects size options with nowhere to report the choice", () => {
+        // @ts-expect-error pageSizeOptions requires onPageSizeChange
+        expect(<DataTable data={data} columns={columns} pageSizeOptions={[10, 50]} />).toBeTruthy();
+    });
+
+    it("rejects a size selector whose choice never comes back as pageSize", () => {
+        const report = (): void => {};
+        // @ts-expect-error onPageSizeChange requires pageSize
+        expect(<DataTable data={data} columns={columns} onPageSizeChange={report} />).toBeTruthy();
+    });
 });

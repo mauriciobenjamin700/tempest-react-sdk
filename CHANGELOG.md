@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.68.0] — 2026-09-23
+
 ### Segurança
 
 - **`csrf` — o modo cookie que a doc recomenda ganhou a defesa que ele exige.** A página

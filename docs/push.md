@@ -656,7 +656,58 @@ installNotificationClickHandler();
 
 `installPushHandler` tenta `event.data.json()` e cai pra `event.data.text()`. Use `transform` pra suprimir (`null`) ou enriquecer notificações.
 
-`installNotificationClickHandler` foca o client existente quando a URL bate, ou abre nova janela.
+`installNotificationClickHandler` foca a aba que já está **exatamente** na URL de destino, ou abre nova janela. A comparação é pela URL inteira, resolvida contra a origem da aba: `/events/1` não foca uma aba em `/events/10`, e `/` não foca qualquer aba aberta.
+
+### Botões de ação e opções da notificação
+
+Todo campo de `NotificationOptions` que o payload trouxer chega ao navegador: `actions`, `requireInteraction`, `vibrate`, `silent`, `renotify`, `timestamp`, `dir` e `lang`, além de `body`, `icon`, `badge`, `image` e `tag`. Campo ausente continua ausente, e o navegador aplica o default dele.
+
+Cada botão pode levar a própria `url`. É isto que o backend manda:
+
+```json
+{
+  "title": "Seu evento é amanhã",
+  "url": "/events/details/42",
+  "actions": [
+    { "action": "alo", "title": "Mandar um alô", "url": "/events/details/42#alo" },
+    { "action": "depois", "title": "Depois" }
+  ],
+  "vibrate": [100, 50, 100]
+}
+```
+
+O clique resolve assim:
+
+| Onde o usuário clicou | URL aberta |
+| --- | --- |
+| No corpo da notificação | `url` de topo (`/events/details/42`) |
+| No botão `alo` | `url` da ação (`/events/details/42#alo`) |
+| No botão `depois`, que não tem `url` | `url` de topo |
+
+!!! info "Por que a `url` da ação vai para `data.actionUrls`"
+    O `NotificationAction` do navegador só conhece `action`, `title` e `icon` — uma
+    `url` ali seria descartada. O `installPushHandler` tira a `url` de cada botão e
+    guarda o mapa `{ alo: "/events/details/42#alo" }` em `notification.data.actionUrls`;
+    o `installNotificationClickHandler` lê esse mapa pelo `event.action`.
+
+Com `resolveUrl` próprio, você recebe a ação clicada como segundo argumento (`""` ou `undefined` no clique do corpo):
+
+```ts
+/// <reference lib="webworker" />
+import { installNotificationClickHandler } from "tempest-react-sdk/sw";
+
+installNotificationClickHandler({
+  resolveUrl: (data, action) => {
+    const { url } = data as { url: string };
+    return action === "alo" ? `${url}?compose=1` : url;
+  },
+});
+```
+
+!!! note "Quantos botões aparecem"
+    O navegador mostra até `Notification.maxActions` botões (2 no Chrome desktop) e
+    ignora o resto. Safari e Firefox não desenham botão nenhum — o clique no corpo
+    continua funcionando em todos.
 
 !!! tip "Cache offline mora no mesmo módulo"
     `tempest-react-sdk/sw` também exporta `installPrecache` (app shell offline) e

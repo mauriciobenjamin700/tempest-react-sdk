@@ -12,6 +12,7 @@ export {
 export type {
     InstallPushHandlerOptions,
     InstallNotificationClickHandlerOptions,
+    PushNotificationAction,
     PushPayload,
 } from "./create-push-handler";
 export { installPrecache, installRuntimeCache, createPartialResponse } from "./cache";

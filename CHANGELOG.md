@@ -4,6 +4,24 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`sw` — botão de ação da notificação agora aparece e abre a própria URL (#390).**
+  O `installPushHandler` montava as opções do `showNotification` com seis campos fixos, então
+  `actions`, `requireInteraction`, `vibrate`, `silent`, `renotify`, `timestamp`, `dir` e `lang`
+  do payload nunca chegavam ao navegador — o botão nem era desenhado. Agora todo campo presente
+  é repassado, e o ausente continua ausente. Cada ação pode trazer `url`
+  (`PushNotificationAction`, exportado de `tempest-react-sdk/sw`): o handler a guarda em
+  `data.actionUrls`, porque o `NotificationAction` do navegador a descartaria.
+  O `installNotificationClickHandler` passa `event.action` ao `resolveUrl` como segundo
+  argumento — mudança compatível — e o default abre a URL da ação clicada, caindo no `url` de
+  topo no clique do corpo ou em ação sem `url`.
+- **`sw` — o clique na notificação focava a aba errada.** A aba existente era escolhida por
+  `client.url.includes(target)`: `/events/1` focava uma aba em `/events/10`, e o `url` default
+  `/` casava com qualquer aba aberta, que era focada sem navegar. A comparação agora é pela URL
+  inteira, com o destino resolvido contra a origem da aba. Uma aba na mesma rota com query ou
+  hash diferente deixa de casar e o clique abre janela nova.
+
 ## [0.68.0] — 2026-09-23
 
 ### Segurança

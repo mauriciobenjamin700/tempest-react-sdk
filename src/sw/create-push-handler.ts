@@ -37,6 +37,7 @@ interface SwGlobal {
         type: "notificationclick",
         listener: (event: {
             notification: { close(): void; data?: unknown };
+            action?: string;
             waitUntil(promise: Promise<unknown>): void;
         }) => void,
     ): void;
@@ -47,6 +48,26 @@ function getSwScope(): SwGlobal {
     return globalThis as unknown as SwGlobal;
 }
 
+/**
+ * A notification button as the push payload describes it.
+ *
+ * `action`, `title` and `icon` are forwarded to the browser as a
+ * `NotificationAction`. `url` is not part of that type — the browser would drop
+ * it — so {@link installPushHandler} moves it into `data.actionUrls`, where
+ * {@link installNotificationClickHandler} reads it back when that button is
+ * clicked.
+ */
+export interface PushNotificationAction {
+    /** Identifier delivered as `event.action` when the button is clicked. */
+    action: string;
+    /** Button label. */
+    title: string;
+    /** Button icon URL. */
+    icon?: string;
+    /** URL opened when this button is clicked. Falls back to the top-level `url`. */
+    url?: string;
+}
+
 export interface PushPayload {
     title?: string;
     body?: string;
@@ -54,9 +75,94 @@ export interface PushPayload {
     badge?: string;
     image?: string;
     tag?: string;
+    /** URL opened when the notification body is clicked. Default: `"/"`. */
     url?: string;
+    /** Buttons rendered on the notification (browsers show up to `Notification.maxActions`). */
+    actions?: PushNotificationAction[];
+    /** Keep the notification on screen until the user interacts with it. */
+    requireInteraction?: boolean;
+    /** Vibration pattern in milliseconds (mobile). */
+    vibrate?: number | number[];
+    /** Show the notification without sound or vibration. */
+    silent?: boolean;
+    /** Alert again when a notification with the same `tag` replaces an older one. */
+    renotify?: boolean;
+    /** Event time in epoch milliseconds, shown by some platforms. */
+    timestamp?: number;
+    /** Text direction of the title and body. */
+    dir?: NotificationDirection;
+    /** BCP 47 language tag of the title and body. */
+    lang?: string;
     /** Arbitrary extra data forwarded to `event.notification.data`. */
     data?: Record<string, unknown>;
+}
+
+/**
+ * `NotificationOptions` plus the members TypeScript's DOM lib leaves out
+ * because not every engine implements them. Chromium honours all of them;
+ * engines without support ignore the unknown keys.
+ */
+type ExtendedNotificationOptions = NotificationOptions & {
+    image?: string;
+    actions?: Omit<PushNotificationAction, "url">[];
+    vibrate?: number | number[];
+    renotify?: boolean;
+    timestamp?: number;
+};
+
+/**
+ * Payload keys copied verbatim onto the notification options when present.
+ */
+const FORWARDED_OPTIONS = [
+    "body",
+    "image",
+    "tag",
+    "requireInteraction",
+    "vibrate",
+    "silent",
+    "renotify",
+    "timestamp",
+    "dir",
+    "lang",
+] as const satisfies readonly (keyof PushPayload & keyof ExtendedNotificationOptions)[];
+
+/**
+ * Build the `showNotification` options from a push payload.
+ *
+ * Keys the payload omits stay absent instead of being set to `undefined`, so
+ * the browser applies its own defaults. Per-action `url`s are collected into
+ * `data.actionUrls` (only when at least one action carries one) and stripped
+ * from the actions handed to the browser.
+ *
+ * @param payload - The parsed (and transformed) push payload.
+ * @param defaultIcon - Icon used when the payload omits one.
+ * @param defaultBadge - Badge used when the payload omits one.
+ * @returns The options object for `registration.showNotification`.
+ */
+function buildNotificationOptions(
+    payload: PushPayload,
+    defaultIcon: string | undefined,
+    defaultBadge: string | undefined,
+): ExtendedNotificationOptions {
+    const options: Record<string, unknown> = {
+        icon: payload.icon ?? defaultIcon,
+        badge: payload.badge ?? defaultBadge,
+    };
+    for (const key of FORWARDED_OPTIONS) {
+        if (payload[key] !== undefined) options[key] = payload[key];
+    }
+
+    const data: Record<string, unknown> = { url: payload.url ?? "/", ...(payload.data ?? {}) };
+    if (payload.actions) {
+        const actionUrls: Record<string, string> = {};
+        options.actions = payload.actions.map(({ url, ...action }) => {
+            if (url !== undefined) actionUrls[action.action] = url;
+            return action;
+        });
+        if (Object.keys(actionUrls).length > 0) data.actionUrls = actionUrls;
+    }
+    options.data = data;
+    return options as ExtendedNotificationOptions;
 }
 
 export interface InstallPushHandlerOptions {
@@ -76,6 +182,12 @@ export interface InstallPushHandlerOptions {
 /**
  * Install a `push` event listener that parses the payload as JSON (with a
  * plain-text fallback) and shows a notification.
+ *
+ * Every `NotificationOptions` member the payload carries is forwarded —
+ * `actions`, `requireInteraction`, `vibrate`, `silent`, `renotify`,
+ * `timestamp`, `dir` and `lang` alongside `body`, `icon`, `badge`, `image` and
+ * `tag`. `data` receives the top-level `url` (default `"/"`), the payload's
+ * own `data`, and `actionUrls` mapping each action id to its `url`.
  */
 export function installPushHandler(options: InstallPushHandlerOptions = {}): void {
     const sw = getSwScope();
@@ -95,46 +207,76 @@ export function installPushHandler(options: InstallPushHandlerOptions = {}): voi
         if (!payload) return;
 
         const title = payload.title ?? defaultTitle;
-        const notification: NotificationOptions & { image?: string } = {
-            body: payload.body,
-            icon: payload.icon ?? defaultIcon,
-            badge: payload.badge ?? defaultBadge,
-            image: payload.image,
-            tag: payload.tag,
-            data: { url: payload.url ?? "/", ...(payload.data ?? {}) },
-        };
+        const notification = buildNotificationOptions(payload, defaultIcon, defaultBadge);
 
         event.waitUntil(sw.registration.showNotification(title, notification));
     });
 }
 
 export interface InstallNotificationClickHandlerOptions {
-    /** Resolve the destination URL from the notification data. Default: `data.url`. */
-    resolveUrl?: (data: unknown) => string;
+    /**
+     * Resolve the destination URL from the notification data and the clicked
+     * action id (`""` or `undefined` for a click on the body). Default: the
+     * action's entry in `data.actionUrls`, else `data.url`, else `"/"`.
+     */
+    resolveUrl?: (data: unknown, action: string | undefined) => string;
+}
+
+/**
+ * Default URL resolution for a notification click.
+ *
+ * @param data - `event.notification.data`, as {@link installPushHandler} wrote it.
+ * @param action - `event.action`; empty or `undefined` for a click on the body.
+ * @returns The action's URL when it has one, else `data.url`, else `"/"`.
+ */
+function defaultResolveUrl(data: unknown, action: string | undefined): string {
+    if (typeof data === "string") return data;
+    if (!data || typeof data !== "object") return "/";
+    const record = data as Record<string, unknown>;
+    if (action && record.actionUrls && typeof record.actionUrls === "object") {
+        const actionUrl = (record.actionUrls as Record<string, unknown>)[action];
+        if (typeof actionUrl === "string") return actionUrl;
+    }
+    return typeof record.url === "string" ? record.url : "/";
+}
+
+/**
+ * Whether an open window client is already showing `target`.
+ *
+ * `target` is resolved against the client's own URL, so a relative path
+ * compares on the client's origin, and the comparison is on the full href.
+ * A substring test would let `/events/1` match a client on `/events/10`, and
+ * `/` match every client.
+ *
+ * @param clientUrl - The window client's absolute URL.
+ * @param target - The URL the click resolved to, absolute or relative.
+ * @returns `true` when both point at the same document.
+ */
+function clientShowsTarget(clientUrl: string, target: string): boolean {
+    try {
+        return new URL(target, clientUrl).href === new URL(clientUrl).href;
+    } catch {
+        return false;
+    }
 }
 
 /**
  * Install a `notificationclick` handler that focuses an existing client when
  * possible and falls back to opening a new window.
+ *
+ * A click on an action button opens that action's URL (see
+ * {@link PushNotificationAction.url}); a click on the body, or on an action
+ * without one, opens the top-level `url`.
  */
 export function installNotificationClickHandler(
     options: InstallNotificationClickHandlerOptions = {},
 ): void {
     const sw = getSwScope();
-    const resolveUrl =
-        options.resolveUrl ??
-        ((data: unknown) => {
-            if (typeof data === "string") return data;
-            if (data && typeof data === "object" && "url" in data) {
-                const url = (data as Record<string, unknown>).url;
-                return typeof url === "string" ? url : "/";
-            }
-            return "/";
-        });
+    const resolveUrl = options.resolveUrl ?? defaultResolveUrl;
 
     sw.addEventListener("notificationclick", (event) => {
         event.notification.close();
-        const target = resolveUrl(event.notification.data);
+        const target = resolveUrl(event.notification.data, event.action);
 
         event.waitUntil(
             (async () => {
@@ -143,7 +285,7 @@ export function installNotificationClickHandler(
                     includeUncontrolled: true,
                 });
                 for (const client of clients) {
-                    if (client.url.includes(target)) {
+                    if (clientShowsTarget(client.url, target)) {
                         return client.focus();
                     }
                 }

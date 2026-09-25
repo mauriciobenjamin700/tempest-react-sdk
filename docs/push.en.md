@@ -663,7 +663,59 @@ installNotificationClickHandler();
 
 `installPushHandler` tries `event.data.json()` and falls back to `event.data.text()`. Use `transform` to suppress (`null`) or enrich notifications.
 
-`installNotificationClickHandler` focuses the existing client when the URL matches, or opens a new window.
+`installNotificationClickHandler` focuses the tab that is **exactly** on the target URL, or opens a new window. The comparison is on the whole URL, resolved against the tab's origin: `/events/1` does not focus a tab on `/events/10`, and `/` does not focus any open tab.
+
+### Action buttons and notification options
+
+Every `NotificationOptions` field the payload carries reaches the browser: `actions`, `requireInteraction`, `vibrate`, `silent`, `renotify`, `timestamp`, `dir` and `lang`, alongside `body`, `icon`, `badge`, `image` and `tag`. A missing field stays missing, and the browser applies its own default.
+
+Each button can carry its own `url`. This is what the backend sends:
+
+```json
+{
+  "title": "Your event is tomorrow",
+  "url": "/events/details/42",
+  "actions": [
+    { "action": "hello", "title": "Say hello", "url": "/events/details/42#hello" },
+    { "action": "later", "title": "Later" }
+  ],
+  "vibrate": [100, 50, 100]
+}
+```
+
+The click resolves like this:
+
+| Where the user clicked | URL opened |
+| --- | --- |
+| On the notification body | top-level `url` (`/events/details/42`) |
+| On the `hello` button | the action's `url` (`/events/details/42#hello`) |
+| On the `later` button, which has no `url` | top-level `url` |
+
+!!! info "Why the action `url` goes into `data.actionUrls`"
+    The browser's `NotificationAction` only knows `action`, `title` and `icon` — a
+    `url` there would be dropped. `installPushHandler` takes each button's `url` out
+    and stores the map `{ hello: "/events/details/42#hello" }` in
+    `notification.data.actionUrls`; `installNotificationClickHandler` reads that map
+    through `event.action`.
+
+With your own `resolveUrl`, you get the clicked action as the second argument (`""` or `undefined` for a body click):
+
+```ts
+/// <reference lib="webworker" />
+import { installNotificationClickHandler } from "tempest-react-sdk/sw";
+
+installNotificationClickHandler({
+  resolveUrl: (data, action) => {
+    const { url } = data as { url: string };
+    return action === "hello" ? `${url}?compose=1` : url;
+  },
+});
+```
+
+!!! note "How many buttons show up"
+    The browser shows up to `Notification.maxActions` buttons (2 on desktop Chrome)
+    and ignores the rest. Safari and Firefox draw no buttons at all — the body click
+    keeps working everywhere.
 
 !!! tip "Offline caching lives in the same module"
     `tempest-react-sdk/sw` also exports `installPrecache` (offline app shell) and

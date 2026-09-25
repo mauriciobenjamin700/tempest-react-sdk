@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.69.0] — 2026-09-25
+
 ### Corrigido
 
 - **`sw` — botão de ação da notificação agora aparece e abre a própria URL (#390).**

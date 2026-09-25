@@ -22,6 +22,28 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   inteira, com o destino resolvido contra a origem da aba. Uma aba na mesma rota com query ou
   hash diferente deixa de casar e o clique abre janela nova.
 
+### Interno
+
+- **O `vite build` cabe em 4 GB de heap de novo, e o pico não cresce mais com o número
+  de núcleos (#387).** O `vite-plugin-dts` faz o rollup de tipos de cada uma das 12
+  entradas com um `Extractor.invoke` próprio, e cada um monta um programa TypeScript
+  sobre todo `.d.ts` do repo. O `unplugin-dts` agenda os 12 com
+  `os.availableParallelism()` vagas: numa máquina de 12 núcleos todos estacionavam no
+  mesmo `await import(...)` e os 12 programas ficavam vivos ao mesmo tempo. O
+  `vite.config.ts` agora passa ao API Extractor um `CompilerState` único, criado com
+  `additionalEntryPoints`, e todas as entradas reusam o mesmo programa. O `dist/` sai
+  byte a byte idêntico (3116 arquivos, `diff -rq` vazio); o teto caiu de 8192 para
+  4096 MB. Medido com
+  `/usr/bin/time -v node --max-old-space-size=<N> ./node_modules/vite/bin/vite.js build`
+  numa máquina de 12 núcleos:
+
+  | Build                | Pico de RSS  | Tempo | Menor heap que passa  |
+  | -------------------- | ------------ | ----- | --------------------- |
+  | antes (12 programas) | 7 819 764 kB | 56 s  | > 6144 MB (aborta)    |
+  | depois (1 programa)  | 3 480 676 kB | 16 s  | 2048 MB (1536 aborta) |
+
+  Custo só de build: não afeta consumidor nem runtime.
+
 ## [0.68.0] — 2026-09-23
 
 ### Segurança

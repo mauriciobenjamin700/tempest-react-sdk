@@ -160,6 +160,14 @@ lado. Leia antes de confiar numa medição, num gate ou numa afirmação da doc.
   `/usr/bin/time -v node --max-old-space-size=8192 ./node_modules/vite/bin/vite.js build`.
   Build que falha "às vezes" por memória está no limite, não flaky: meça o pico
   antes de rodar de novo.
+- **O heap do build escalava com o número de núcleos, não com o código (#387).** O
+  culpado era o rollup de tipos: o `unplugin-dts` roda um `Extractor.invoke` por
+  entrada com `os.availableParallelism()` vagas, e os 12 programas TypeScript ficavam
+  vivos ao mesmo tempo. Forçar a concorrência a 1 derrubou o pico de 7,8 GB para
+  3,1 GB sem mudar uma linha de saída; o conserto definitivo foi um `CompilerState`
+  compartilhado no `vite.config.ts` (3,5 GB, 16 s, passa com 2048 MB). Para isolar
+  memória de build, desligue uma etapa por vez (`dts` fora: 1,3 GB; `bundleTypes: false`:
+  2,7 GB; sem sourcemap ou sem a entrada `icons`: ~7 GB) antes de subir o teto.
 
 ## Guards que já salvaram
 

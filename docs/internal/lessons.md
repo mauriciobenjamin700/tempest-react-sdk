@@ -168,6 +168,14 @@ lado. Leia antes de confiar numa medição, num gate ou numa afirmação da doc.
   compartilhado no `vite.config.ts` (3,5 GB, 16 s, passa com 2048 MB). Para isolar
   memória de build, desligue uma etapa por vez (`dts` fora: 1,3 GB; `bundleTypes: false`:
   2,7 GB; sem sourcemap ou sem a entrada `icons`: ~7 GB) antes de subir o teto.
+- **O `release.sh` validava só o último passo (achado na 0.69.0).** Os passos iam
+  num subshell com `set -e` dentro de `if ! ( ... )`, e o bash ignora `set -e` em
+  contexto testado por `if`: typecheck, lint, testes e build rodavam, mas só o exit
+  do `npm pack --dry-run` decidia. A 0.69.0 saiu do dry-run "validada" com
+  `docs-counts` vermelho. Repro:
+  `bash -c 'if ! ( set -e; false; echo ran ); then echo gated; else echo NOT; fi'`
+  imprime `ran` e `NOT`. Gate em shell encadeia com `&&`; `set -e` não serve dentro
+  de `if`, `while`, `&&` ou `||`.
 
 ## Guards que já salvaram
 

@@ -131,18 +131,21 @@ fi
 # que vai ser empurrada, tag e RELEASES.md incluídos. Se a validação falhar, a
 # tag local é removida para a próxima tentativa achar o repo limpo, e nada foi
 # empurrado.
+#
+# Os passos vão encadeados com `&&`, não com `set -e` no subshell: dentro de
+# `if ! ( ... )` o bash ignora o `set -e`, e só o exit do último comando contava.
+# Até a 0.69.0 um teste, lint ou build quebrado passava como validado.
 if [[ "$SKIP_VALIDATE" != "1" ]]; then
   echo "→ Validando build localmente (tag e RELEASES.md já no lugar)"
-  if ! (
-    set -e
-    npm ci
-    npm run typecheck
-    npm run lint
-    npm run format:check
-    npm run test:run
-    npm run build
-    npm pack --dry-run
-  ); then
+  if ! {
+    npm ci &&
+      npm run typecheck &&
+      npm run lint &&
+      npm run format:check &&
+      npm run test:run &&
+      npm run build &&
+      npm pack --dry-run
+  }; then
     echo ""
     echo "ERROR: validação falhou — removendo a tag local $GIT_TAG"
     echo "       nada foi empurrado; a branch $RELEASE_BRANCH continua aqui para inspeção"

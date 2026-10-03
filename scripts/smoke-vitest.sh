@@ -12,6 +12,11 @@
 #
 # Monta um projeto descartável com o `vite.config.ts` do scaffold
 # (`createViteConfig`), importa o barril e renderiza um `Button`.
+#
+# A instalação roda no npm 11 mesmo sob Node 22: o npm 10.9.8 que vem com ele cai
+# com `Cannot read properties of null (reading 'edgesOut')` em
+# `npm install vitest@^4` num projeto vazio, sem o SDK no meio. `--loglevel=error`
+# no lugar de `--silent`, que engolia esse erro e deixava só o exit 1.
 
 set -euo pipefail
 
@@ -22,7 +27,7 @@ cd "$WORK"
 
 npm init -y >/dev/null
 npm pkg set type=module >/dev/null
-npm install --silent --no-audit --no-fund "$TARBALL" \
+npx --yes npm@11 install --loglevel=error --no-audit --no-fund "$TARBALL" \
     react@^19 react-dom@^19 react-router@^8 \
     vite@^8 @vitejs/plugin-react vitest@^4 happy-dom
 

@@ -40,6 +40,13 @@ import { createViteConfig } from "tempest-react-sdk/vite";
 todo app Vite já tem os dois no `devDependencies`, não há nada extra pra instalar
 — o helper apenas os reutiliza.
 
+Só o `createViteConfig` precisa do `@vitejs/plugin-react`, e ele só o carrega
+quando a config é montada. Os outros helpers deste subpath (`tempestVitest`,
+`tempestCsp`, `tempestStyles`, …) funcionam sem ele — numa lib, ou num app com
+`@vitejs/plugin-react-swc`. Até a 0.73.0 importar qualquer um deles exigia o
+plugin React instalado (`ERR_MODULE_NOT_FOUND`,
+[#401](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/401)).
+
 ## O exemplo mínimo
 
 Sem nenhuma opção, você ainda ganha os defaults completos:

@@ -1,7 +1,6 @@
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
-import type { ProxyOptions, UserConfig } from "vite";
-import react from "@vitejs/plugin-react";
+import type { PluginOption, ProxyOptions, UserConfig } from "vite";
 
 import { tempestIcons, type TempestIconsOptions } from "./tempest-icons";
 import { tempestVitest } from "./tempest-vitest";
@@ -68,6 +67,22 @@ function normalizeProxy(proxy: Record<string, ProxyEntry>): Record<string, Proxy
 }
 
 /**
+ * Load `@vitejs/plugin-react` when a config is built, not when this module loads.
+ *
+ * The plugin is an optional peer, and every helper of `tempest-react-sdk/vite`
+ * ships through one barrel. A top-level import made the whole barrel require it:
+ * a project without the React plugin could not load a config importing only
+ * `tempestVitest` or `tempestCsp` (`ERR_MODULE_NOT_FOUND`, #401). Vite resolves a
+ * promise in `plugins` before using it, so {@link createViteConfig} stays
+ * synchronous and only it needs the peer.
+ *
+ * @returns The React plugin, once its module has loaded.
+ */
+function reactPlugin(): Promise<PluginOption> {
+    return import("@vitejs/plugin-react").then((module) => module.default());
+}
+
+/**
  * Build a Tempest-flavored Vite config for a React app: the `@vitejs/plugin-react`
  * plugin, the `@` → `src` import alias, sane dev-server defaults and
  * {@link tempestVitest}, which lets a Vitest suite import the SDK — so a
@@ -103,7 +118,12 @@ export function createViteConfig(options: CreateViteConfigOptions = {}): Tempest
         : [];
 
     const base: UserConfig = {
-        plugins: [react(), ...iconsPlugin, tempestVitest(), ...plugins] as UserConfig["plugins"],
+        plugins: [
+            reactPlugin(),
+            ...iconsPlugin,
+            tempestVitest(),
+            ...plugins,
+        ] as UserConfig["plugins"],
         resolve: {
             alias: {
                 "@": resolve(process.cwd(), srcDir),

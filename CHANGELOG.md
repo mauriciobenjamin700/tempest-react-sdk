@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.72.0] — 2026-10-03
+
 ### Corrigido
 
 - **`vite` — `tempestVitest()`: a suíte Vitest do consumidor volta a importar o SDK (#397).**

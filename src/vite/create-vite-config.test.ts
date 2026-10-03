@@ -46,10 +46,11 @@ describe("createViteConfig", () => {
         });
     });
 
-    it("includes the react plugin", () => {
+    it("includes the react plugin, loaded when the config is built", async () => {
         const config = createViteConfig() as ResolvedConfig;
-        expect(Array.isArray(config.plugins)).toBe(true);
-        expect((config.plugins ?? []).length).toBeGreaterThan(0);
+        const resolved = (await Promise.all((config.plugins ?? []) as unknown[])).flat(Infinity);
+        const names = resolved.map((p) => (p as { name?: string } | null)?.name ?? "");
+        expect(names).toContain("vite:react-babel");
     });
 });
 

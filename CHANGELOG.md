@@ -4,6 +4,20 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`vite` — os helpers de `tempest-react-sdk/vite` não exigem mais o `@vitejs/plugin-react`
+  (#401).** O `create-vite-config` importava o plugin React no topo do módulo, e como todo
+  helper do subpath sai pelo mesmo barril, um projeto sem esse peer opcional não carregava
+  nem uma config que só usava `tempestVitest()` ou `tempestCsp()`:
+  `ERR_MODULE_NOT_FOUND: Cannot find package '@vitejs/plugin-react'`. O `createViteConfig`
+  agora carrega o plugin com `import()` dinâmico, como uma promise em `plugins`, que o Vite
+  resolve antes de usar — a função continua síncrona e é a única que precisa do peer.
+- **O smoke de release cobre um consumidor sem `@vitejs/plugin-react`.** O
+  `scripts/smoke-vitest.sh` instalava o plugin e usava o `createViteConfig`, por isso não via
+  o caso. O segundo cenário usa só o `tempestVitest()` e falha contra o `0.73.0` publicado
+  com o mesmo `ERR_MODULE_NOT_FOUND`; contra o tarball com a correção, os dois cenários passam.
+
 ## [0.73.0] — 2026-10-03
 
 ### Alterado

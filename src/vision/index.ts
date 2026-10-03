@@ -2,7 +2,7 @@
  * `tempest-react-sdk/vision` — browser computer-vision inference with ONNX
  * Runtime Web (classification, detection, segmentation).
  *
- * Vendored from `@mauriciobenjamin700/ort-vision-sdk-web@0.8.1` (MIT, same
+ * Vendored from `@mauriciobenjamin700/ort-vision-sdk-web@0.11.0` (MIT, same
  * author) so it ships inside this SDK without an extra package install.
  * `onnxruntime-web` stays an optional peer dependency — install it (and ship
  * the matching `.wasm` files) only when you use this subpath.
@@ -49,7 +49,14 @@ export {
     ProviderNotAvailableError,
 } from "./core/exceptions";
 
-export { type ModelSource, type OrtSessionOptions, OrtSession } from "./core/session";
+export {
+    DEFAULT_MODEL_CACHE,
+    GRAPH_OPTIMIZATION_KEY,
+    type ModelSource,
+    type OrtSessionOptions,
+    OrtSession,
+    QUANTIZATION_KEY,
+} from "./core/session";
 export {
     type DeclaredDim,
     type DeclaredShape,
@@ -60,8 +67,20 @@ export {
     resolveInputSize,
     spatialInputSize,
 } from "./core/graph";
-export { modelNames, parseNames, readModelMetadata } from "./core/metadata";
-export { DEFAULT_PROVIDERS, detectProviders, resolveProviders } from "./core/providers";
+export {
+    DEFAULT_TENSOR_TYPE,
+    type Float16ArrayLike,
+    asFloat32Array,
+    hasFloat16Array,
+    tensorTypeFor,
+} from "./core/dtypes";
+export { modelNames, parseNames, readModelInputTypes, readModelMetadata } from "./core/metadata";
+export {
+    DEFAULT_PROVIDERS,
+    type ProviderSpec,
+    detectProviders,
+    resolveProviders,
+} from "./core/providers";
 export { type Speed, SpeedTimer } from "./core/timing";
 export {
     CUSTOM_NORMALIZATION,
@@ -79,6 +98,7 @@ export { type ImageInput, loadImage } from "./io/image";
 
 export {
     FUSION_KIND_DETECT_CLASSIFY,
+    FUSION_KIND_DETECT_SEGMENT_CLASSIFY,
     INPUT_IMAGE,
     INPUT_PAD,
     INPUT_SCALE,
@@ -86,6 +106,7 @@ export {
     METADATA_PREFIX,
     OUTPUT_BOXES,
     OUTPUT_CLASSES,
+    OUTPUT_MASKS,
     OUTPUT_NUM_DETECTIONS,
     OUTPUT_PROBS,
     OUTPUT_SCORES,
@@ -161,4 +182,4 @@ export {
     Segmenter,
 } from "./tasks/segmenter";
 
-export const VERSION: string = "0.8.1";
+export const VERSION: string = "0.11.0";

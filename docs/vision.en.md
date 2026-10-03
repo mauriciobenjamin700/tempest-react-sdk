@@ -128,11 +128,37 @@ format (`RGBImage`, HWC RGB uint8).
 | `ImageBitmap`        | `det.predict(await createImageBitmap(blob))`     |
 | `ImageData`          | `det.predict(ctx.getImageData(0, 0, w, h))`      |
 | `RGBImage`           | `det.predict(rgbImage)` (the SDK's canonical form)|
+| `HTMLVideoElement`   | `det.predict(video)` (the frame on screen at call time) |
+| `VideoFrame`         | `det.predict(frame)` (WebCodecs / `MediaStreamTrackProcessor`) |
 
 !!! note "`File` rides in through the `Blob` door"
     The `ImageInput` type lists `Blob`, and `File` is a subclass of `Blob` — so
     a `File` from an `<input type="file">` is accepted directly, no conversion.
     That's the natural path for "the user picked a photo."
+
+### The camera straight into `predict()`
+
+In a camera loop, hand the `<video>` over directly: the SDK decodes the frame on
+screen at call time. A live `MediaStream`, an alpha-less `VideoFrame` and a JPEG
+also skip the GPU read-back — `load` for a 1080p frame went from 8.5–10.7 ms to
+2.0–2.5 ms.
+
+```tsx
+import { Detector } from "tempest-react-sdk/vision";
+
+const det = await Detector.create("/models/yolov8n.onnx");
+const video = document.querySelector("video");
+
+if (video) {
+  const result = (await det.predict(video))[0];
+  console.log(result.boxes.cls);
+}
+```
+
+!!! warning "Wait for `loadeddata`"
+    A `<video>` without a current frame throws `ImageLoadError`. Start the loop
+    after the `loadeddata` event — `useCameraStream` already hands the stream
+    over at that point.
 
 ## Detector — where are the objects
 
@@ -468,6 +494,31 @@ const result = (
     `confThreshold` here only filters further — you cannot loosen it below what
     the file already decided. Need a lower floor? Re-fuse the pipeline in Python.
 
+### Three stages: detect, segment and classify
+
+A pipeline fused with `fuse_detect_segment_classify` (Python 0.11.0+) carries a
+segmenter between the two stages, and runs on the **same** `DetectClassify`. The
+difference shows in the result: every detection gains `d.mask`, the object's
+binary mask cut to its box — the same contract `Segmenter` uses.
+
+```tsx
+import { DetectClassify, FUSION_KIND_DETECT_SEGMENT_CLASSIFY } from "tempest-react-sdk/vision";
+
+const pipeline = await DetectClassify.create("/models/birds-seg-pipeline.onnx");
+console.log(pipeline.spec.kind === FUSION_KIND_DETECT_SEGMENT_CLASSIFY); // true
+console.log(pipeline.spec.hasMasks); // true
+
+const result = (await pipeline.predict("/images/flock.jpg"))[0];
+
+for (const d of result) {
+  if (d.mask) console.log(d.name, d.mask.width, d.mask.height);
+}
+```
+
+On a two-stage pipeline `d.mask` is `null`. The spec also reports
+`maskThreshold`, `maskApplied` and `segmenterNames`, read off the metadata the
+fusion wrote; the graph output is named `OUTPUT_MASKS`.
+
 ## The resolution comes from the model
 
 `inputSize` is optional and acts as a **fallback**. The resolution a task
@@ -742,6 +793,92 @@ plenty for UX).
     return previewUrl ? <img src={previewUrl} alt="Preview" /> : null;
     ```
 
+## Half-precision (FP16) models
+
+A model exported with `half=True` is **half the size** — 5.11 MB against
+10.11 MB on a detector, 10.41 against 20.78 on a classifier — which in a browser
+is the difference between the page opening and not. It runs through the same
+tasks, with no option at all:
+
+```tsx
+import { Detector, hasFloat16Array } from "tempest-react-sdk/vision";
+
+console.log(hasFloat16Array()); // false on a browser without Float16Array
+
+const det = await Detector.create("/models/yolov8n-fp16.onnx");
+const result = (await det.predict("/images/street.jpg"))[0];
+console.log(result.boxes.xyxy);
+```
+
+Each input's type is read off the file itself, in the same pass that already
+reads the `names`. Preprocessing stays in `float32` on purpose — normalizing in
+half precision loses exactly the small differences normalization preserves — and
+the conversion happens at one boundary, the session's `run()`. Outputs are
+widened back to `float32` before decoding: in float16 a coordinate near 1280
+only resolves 1 px.
+
+!!! danger "Without `Float16Array`, `create()` refuses"
+    ORT requires a real `Float16Array` for a half tensor, and not every browser
+    has one. Loading an FP16 model there fails **at `create()`**, with a message
+    naming the inputs and the missing global — not at the first frame. Check
+    with `hasFloat16Array()` and serve the FP32 model in that case.
+
+For callers driving `OrtSession` by hand: `session.inputDtype` names the
+declared type, `readModelInputTypes` reads the types from the bytes,
+`tensorTypeFor` translates the ONNX code (`DEFAULT_TENSOR_TYPE` when there is
+none), and `asFloat32Array` widens a raw output of any type.
+
+## Creating the session faster
+
+Before the first inference the browser downloads the model **and** ORT's runtime
+(12.8 MB of WASM, 25.9 MB with WebGPU). Since vision `0.11.0` the two downloads
+overlap on their own — the first create at 5 MB/s went from 5.1 to 2.65 s. The
+rest is opt-in:
+
+```tsx
+import { DEFAULT_MODEL_CACHE, Detector } from "tempest-react-sdk/vision";
+
+const det = await Detector.create("/models/yolov8n.v1.onnx", {
+  cache: true,
+  providers: [{ name: "webgpu", preferredLayout: "NHWC" }, "wasm"],
+});
+
+console.log(DEFAULT_MODEL_CACHE); // "ort-vision-sdk-models"
+```
+
+- **`cache: true`** (or a bucket name) keeps the model in Cache Storage: a
+  returning visitor reads it from disk instead of the network.
+- **`providers`** accepts ORT's config object next to the name, and passes its
+  options through. `session.providers` keeps reporting names.
+
+!!! warning "The URL is the key, and nothing expires"
+    Published a new model at the same URL? Whoever had the old one keeps it.
+    Version the URL (`yolo.v2.onnx`, `?v=2`) or delete the bucket with
+    `caches.delete(DEFAULT_MODEL_CACHE)`.
+
+### Models prepared in Python
+
+Two build steps of the Python `ort-vision-sdk` (0.12.0+) leave a mark in the
+metadata, and the web SDK reads it:
+
+| Python step       | Mark                     | What changes here                                                       |
+| ----------------- | ------------------------ | ----------------------------------------------------------------------- |
+| `optimize_model`  | `GRAPH_OPTIMIZATION_KEY` | the session is created without optimizing again (29 → 12 ms on a YOLO11n-seg/WASM) |
+| `quantize_model`  | `QUANTIZATION_KEY`       | the INT8 model runs on WASM even when `webgpu` is requested (68.4 → 52.7 ms) |
+
+```tsx
+import { GRAPH_OPTIMIZATION_KEY, OrtSession, QUANTIZATION_KEY } from "tempest-react-sdk/vision";
+
+const session = await OrtSession.create("/models/yolov8n.int8.onnx");
+console.log(session.metadata[QUANTIZATION_KEY]); // present on a quantized model
+console.log(session.metadata[GRAPH_OPTIMIZATION_KEY]); // present on a pre-optimized one
+```
+
+!!! info "Why INT8 leaves WebGPU"
+    ORT-Web's WebGPU `DequantizeLinear` rejects the quantized bias
+    (`scale and zero-point inputs must have the same rank`). The SDK falls back
+    to WASM with a `console.warn` instead of letting the session break.
+
 ## `warmup()` — the first inference is not representative
 
 The first run of a session pays costs none of the later ones do: WebGPU compiles
@@ -820,6 +957,13 @@ const result = (await det.predict(frame))[0];
     `Tensor's size(1228800) does not match data length(0).` on every other
     inference. Fixed in this version (vendored vision `0.8.1`).
 
+!!! check "Two `predict()` calls at once on one task"
+    ORT-Web refuses a second `run` while one is in flight, and up to vision
+    `0.10.0` that surfaced as `Session already started`. Each session now
+    queues its runs: with `env.wasm.proxy`, two in flight took a 1080p frame
+    from 82–86 ms to 70–73 ms, and a failed run no longer blocks the ones
+    behind it.
+
 ## How long it took
 
 Every envelope carries a `speed` breakdown of the `predict()` call, in
@@ -876,15 +1020,16 @@ does not know, or need to handle one specific failure.
 
 | Group           | Exports                                                                                               |
 | --------------- | ----------------------------------------------------------------------------------------------------- |
-| Session         | `OrtSession` (loads the `.onnx`, exposes `metadata`/`inputName`/`providers`/`requestedProviders`), `resolveProviders`, `detectProviders`, `DEFAULT_PROVIDERS`, `VisionTask` (task base class), `VERSION` |
+| Session         | `OrtSession` (loads the `.onnx`, exposes `metadata`/`inputName`/`providers`/`requestedProviders`), `resolveProviders`, `detectProviders`, `DEFAULT_PROVIDERS`, `DEFAULT_MODEL_CACHE`, `GRAPH_OPTIMIZATION_KEY`, `QUANTIZATION_KEY`, `VisionTask` (task base class), `VERSION` |
 | Normalization   | `resolveNormalization`, `isUltralyticsClassifier`, `IMAGENET_MEAN`/`IMAGENET_STD`, `IDENTITY_MEAN`/`IDENTITY_STD`, `CUSTOM_NORMALIZATION` |
 | Input           | `loadImage` (any `ImageInput` → `RGBImage`), `normalize`, `toTensor`, `toFloat32`/`toFloat32Tensor`, `zeroTensorData`, `fromCv2`/`toCv2` (BGR ↔ RGB) |
+| Half precision  | `readModelInputTypes`, `tensorTypeFor`, `asFloat32Array`, `hasFloat16Array`, `DEFAULT_TENSOR_TYPE` |
 | Fused preprocess | `LetterboxPipeline` + `letterboxToTensorData` (detect/segment), `ResizePipeline` + `resizeToTensorData` (classify), `writePlanarFloat32` (the shared planar write) |
 | Decoding        | `decodeYolo` (anchor-free head, v8→v12), `decodeYoloAnchors` (anchor-based head), `decodeYoloSeg`, `nms`, `batchedNms` |
 | Labels          | `resolveLabels`, `defaultLabels`, `parseNames`, `modelNames`, `readModelMetadata`, `COCO_CLASSES`        |
 | Bulk views      | `Boxes`, `Masks`, `Probs` — the "numpy-style" collections behind `result.boxes`/`.masks`/`.probs`        |
 | Errors          | `OrtVisionError` (base), `ModelLoadError`, `ImageLoadError`, `InferenceError`, `LabelMapError`, `ProviderNotAvailableError`, `NoDetectionsError`, `FusionError` |
-| Fusion contract | `readFusionSpec`, `FusionSpec`, `CropSource`, `INPUT_IMAGE`/`INPUT_SOURCE`/`INPUT_SCALE`/`INPUT_PAD`, `OUTPUT_BOXES`/`OUTPUT_SCORES`/`OUTPUT_CLASSES`/`OUTPUT_PROBS`/`OUTPUT_NUM_DETECTIONS`, `METADATA_PREFIX`, `FUSION_KIND_DETECT_CLASSIFY` |
+| Fusion contract | `readFusionSpec`, `FusionSpec`, `CropSource`, `INPUT_IMAGE`/`INPUT_SOURCE`/`INPUT_SCALE`/`INPUT_PAD`, `OUTPUT_BOXES`/`OUTPUT_SCORES`/`OUTPUT_CLASSES`/`OUTPUT_PROBS`/`OUTPUT_NUM_DETECTIONS`, `OUTPUT_MASKS`, `METADATA_PREFIX`, `FUSION_KIND_DETECT_CLASSIFY`, `FUSION_KIND_DETECT_SEGMENT_CLASSIFY` |
 | Helpers         | `requireDetections` (the check behind `raiseOnEmpty`), `SpeedTimer`, `softmax`, `topK`                   |
 
 !!! tip "Anchor-based head: `decodeYoloAnchors`"
@@ -940,8 +1085,12 @@ both runtimes, get the same result.
   `.xyxy`/`.xywh`/`.asXywh()`/`.xyxyn()`). Or use the bulk view `result.boxes`
   (`.xyxy`/`.cls`/`.conf`) and `result.names`.
 - Accepted inputs: URL `string`, `Blob`, `File`, `HTMLImageElement`, canvases
-  (`HTMLCanvasElement`/`OffscreenCanvas`), `ImageBitmap`, `ImageData`, and
-  `RGBImage`.
+  (`HTMLCanvasElement`/`OffscreenCanvas`), `ImageBitmap`, `ImageData`,
+  `HTMLVideoElement`/`VideoFrame`, and `RGBImage`.
+- An **FP16** model runs with no option at all (half the size); without
+  `Float16Array`, `create()` refuses. **`cache: true`** keeps the model in Cache
+  Storage, and models marked by Python's `optimize_model`/`quantize_model` load
+  faster.
 - Labels via `resolveLabels` / `COCO_CLASSES`: the `"coco"` preset, an array, a
   sparse dict, or auto-generated. `labels` is **optional** on all three tasks —
   when omitted, the `.onnx`'s own `names` win, and only a model carrying none

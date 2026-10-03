@@ -4,6 +4,48 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`vision` — vendor atualizado de `ort-vision-sdk-web@0.8.1` para `0.11.0`.** Traz, sem
+  mudança de API nas tarefas:
+  - **Modelos FP16** (`half=True`) rodam: o tipo de cada entrada é lido do próprio `.onnx` e o
+    `run()` converte o feed. Antes, o modelo carregava e quebrava no primeiro `predict()` com
+    `Unexpected input data type`. Navegador sem `Float16Array` é recusado no `create()`. Novos
+    exports: `readModelInputTypes`, `tensorTypeFor`, `asFloat32Array`, `hasFloat16Array`,
+    `DEFAULT_TENSOR_TYPE`.
+  - **Pipeline de três estágios** (`detect_segment_classify`, fundido no Python): o mesmo
+    `DetectClassify` o roda, e cada detecção ganha `d.mask`. Novos exports:
+    `FUSION_KIND_DETECT_SEGMENT_CLASSIFY`, `OUTPUT_MASKS`.
+  - **Criação de sessão mais rápida:** opção `cache` (Cache Storage, `DEFAULT_MODEL_CACHE`),
+    `providers` aceitando o objeto de config do ORT, runtime do ORT baixado em paralelo ao modelo
+    (primeira criação a 5 MB/s: 5,1 → 2,65 s) e modelos marcados por `optimize_model` /
+    `quantize_model` do Python (`GRAPH_OPTIMIZATION_KEY`, `QUANTIZATION_KEY`).
+  - **Entradas `HTMLVideoElement` e `VideoFrame`**, com o frame de câmera pulando a leitura de
+    volta da GPU (`load` 1080p 8,5–10,7 → 2,0–2,5 ms).
+  - Números medidos no repositório upstream; o método de cada um está no `CHANGELOG.md` do
+    `ort-vision-sdk-web`.
+
+### Corrigido
+
+- **`vision` — `Segmenter.create` rejeitava todo YOLO-seg real com metadata.** Com
+  `onnxruntime-web` ≥ 1.21 os coeficientes de máscara eram contados como classes (1 classe lida
+  como 33, COCO como 112), e os `names` do próprio modelo caíam em `LabelMapError`.
+- **`vision` — dois `predict()` concorrentes na mesma tarefa quebravam** com
+  `Session already started`. Cada sessão agora enfileira as execuções.
+- **`vision` — `readModelInputTypes` desistia de todo modelo acima de 1 MB** (upstream #54),
+  o que desfazia o suporte a FP16 justamente nos modelos reais.
+
+### Interno
+
+- **Budget do `vision entry` no `size-limit`: 15 → 17 KB.** O vendor novo mede 16,19 kB
+  (brotli, `onnxruntime-web` externo) com `npm run build && npx size-limit`; o crescimento é o
+  código upstream (leitura de dtype, cache, fila de execuções, modelo-sonda embutido).
+- **`src/vision/session.test.ts` separa a sessão-sonda da sessão real.** O `OrtSession.create`
+  agora cria uma sessão num modelo de 84 bytes para subir o runtime em paralelo ao download; o
+  teste de ordem (metadata antes do `create`) passa a aferir a sessão real, o teste de "bytes,
+  não URL" deixa de passar por vacuidade olhando a sonda, e um teste novo fixa uma sonda por
+  página.
+
 ## [0.69.0] — 2026-09-25
 
 ### Corrigido

@@ -24,25 +24,28 @@ import {
     OUTPUT_BOXES,
     OUTPUT_CLASSES,
     OUTPUT_NUM_DETECTIONS,
+    OUTPUT_MASKS,
     OUTPUT_PROBS,
     OUTPUT_SCORES,
     type FusionSpec,
     readFusionSpec,
 } from "../fusion";
-import { type ImageInput, loadImage } from "../io/image";
+import { type ImageInput, loadImageSource } from "../io/image";
 import { type LabelSpec, resolveLabels } from "../labels";
 import { softmax, topK } from "../postprocess/classification";
+import { asFloat32Array } from "../core/dtypes";
 import { toCHW, toFloat32, toFloat32Tensor } from "../preprocess/image";
 import { LetterboxPipeline, zeroTensorData } from "../preprocess/pipeline";
 import { Boxes, DetectClassifyResults } from "../results";
+import type { RGBImage } from "../types";
 import {
     BoundingBox,
-    RGBImage,
+    Mask,
     type ClassProbability,
     type ClassificationResult,
     type DetectionResult,
 } from "../types";
-import { VisionTask, requireDetections } from "./base";
+import { VisionTask, cropToBox, requireDetections } from "./base";
 
 export interface DetectClassifyOptions extends OrtSessionOptions {
     /**
@@ -260,20 +263,26 @@ export class DetectClassify extends VisionTask {
     ): Promise<DetectClassifyResults[]> {
         const timer = new SpeedTimer();
         const path = typeof image === "string" ? image : null;
-        const original = await loadImage(image);
+        const { image: original, canvas } = await loadImageSource(image);
         timer.stage("load");
-        const { feeds, scale, padLeft, padTop } = this._preprocess(original);
+        const { feeds, scale, padLeft, padTop, reused } = this._preprocess(original, canvas);
         timer.stage("preprocess");
-        const outputs = await this._session.run(feeds);
-        this._pipeline.release();
+        let outputs: Record<string, ort.Tensor>;
+        try {
+            outputs = await this._session.run(feeds);
+        } finally {
+            this._pipeline.release({ reused });
+        }
         timer.stage("inference");
 
         const probsTensor = output(outputs, OUTPUT_PROBS);
         const boxes = floats(outputs, OUTPUT_BOXES);
         const scores = floats(outputs, OUTPUT_SCORES);
         const classes = integers(outputs, OUTPUT_CLASSES);
-        const probs = probsTensor.data as Float32Array;
+        const probs = asFloat32Array(probsTensor.data);
         const reported = integers(outputs, OUTPUT_NUM_DETECTIONS)[0] ?? 0;
+        const masks = this._spec.hasMasks ? floats(outputs, OUTPUT_MASKS) : null;
+        const [cropWidth, cropHeight] = this._spec.cropSize;
         const rows = Math.min(reported, Math.floor(boxes.length / 4));
         const classCount = probsTensor.dims[probsTensor.dims.length - 1] ?? 0;
 
@@ -286,7 +295,7 @@ export class DetectClassify extends VisionTask {
             if (confidence < floor || (allowed !== null && !allowed.has(classId))) continue;
 
             const bbox = this._toOriginal(boxes, row, { scale, padLeft, padTop, original });
-            const cropped = crop(original, bbox);
+            const cropped = cropToBox(original, bbox);
             detections.push(
                 detection(
                     classId,
@@ -299,6 +308,7 @@ export class DetectClassify extends VisionTask {
                         cropped,
                         options.topK,
                     ),
+                    masks === null ? null : maskToBox(masks, row, cropWidth, cropHeight, cropped),
                 ),
             );
         }
@@ -340,15 +350,23 @@ export class DetectClassify extends VisionTask {
      * is what lets the graph undo the letterbox transform internally and crop at
      * native resolution instead of from the downscaled copy. That one is **not**
      * letterboxed by definition, so it does not go through the fused path.
+     *
+     * @param image The decoded input.
+     * @param canvas The opaque canvas it was decoded on, when there is one — see
+     *   {@link LetterboxPipeline.run}.
      */
-    private _preprocess(image: RGBImage): {
+    private _preprocess(
+        image: RGBImage,
+        canvas: CanvasImageSource | null,
+    ): {
         feeds: Record<string, ort.Tensor>;
         scale: number;
         padLeft: number;
         padTop: number;
+        reused: boolean;
     } {
         const [width, height] = this._spec.inputSize;
-        const boxed = this._pipeline.run(image);
+        const boxed = this._pipeline.run(image, canvas);
         const feeds: Record<string, ort.Tensor> = {
             [INPUT_IMAGE]: toFloat32Tensor(boxed.data, [1, 3, height, width]),
         };
@@ -361,7 +379,13 @@ export class DetectClassify extends VisionTask {
                 [2],
             );
         }
-        return { feeds, scale: boxed.scale, padLeft: boxed.padLeft, padTop: boxed.padTop };
+        return {
+            feeds,
+            scale: boxed.scale,
+            padLeft: boxed.padLeft,
+            padTop: boxed.padTop,
+            reused: boxed.reused,
+        };
     }
 
     /**
@@ -496,7 +520,7 @@ function output(outputs: Record<string, ort.Tensor>, name: string): ort.Tensor {
  * @throws {@link FusionError} when the graph does not carry that output.
  */
 function floats(outputs: Record<string, ort.Tensor>, name: string): Float32Array {
-    return output(outputs, name).data as Float32Array;
+    return asFloat32Array(output(outputs, name).data);
 }
 
 /**
@@ -531,31 +555,6 @@ function tensorOf(image: RGBImage): ort.Tensor {
 }
 
 /**
- * Cut the box region out of the original image.
- *
- * @param image The source image.
- * @param bbox The box, in original-image pixel coordinates.
- * @returns The cropped region, or a zero-sized image for a box with no area.
- */
-function crop(image: RGBImage, bbox: BoundingBox): RGBImage {
-    const [rawX1, rawY1, rawX2, rawY2] = bbox.asIntXyxy();
-    const x1 = Math.max(0, rawX1);
-    const y1 = Math.max(0, rawY1);
-    const x2 = Math.min(image.width, rawX2);
-    const y2 = Math.min(image.height, rawY2);
-    if (x2 <= x1 || y2 <= y1) return new RGBImage(new Uint8Array(0), 0, 0);
-
-    const width = x2 - x1;
-    const height = y2 - y1;
-    const out = new Uint8Array(width * height * 3);
-    for (let row = 0; row < height; row++) {
-        const offset = ((y1 + row) * image.width + x1) * 3;
-        out.set(image.data.subarray(offset, offset + width * 3), row * width * 3);
-    }
-    return new RGBImage(out, width, height);
-}
-
-/**
  * Assemble one detection, filling the Ultralytics-style aliases.
  *
  * @param classId Detector class index.
@@ -573,6 +572,7 @@ function detection(
     bbox: BoundingBox,
     croppedImage: RGBImage,
     classification: ClassificationResult,
+    mask: Mask | null,
 ): DetectionResult {
     return {
         classId,
@@ -585,7 +585,53 @@ function detection(
         box: bbox,
         croppedImage,
         classification,
+        mask,
     };
+}
+
+/**
+ * Resample a crop-space mask onto the cropped image's own pixel grid.
+ *
+ * Exported for the test suite rather than for callers: it is not re-exported
+ * from the package root, and a mask reaches user code already resampled, on
+ * {@link DetectionResult.mask}.
+ *
+ * The graph computes masks at the resolution the segmenter was exported at,
+ * which is rarely the size of the box in the original image. Resampling here is
+ * what lets {@link DetectionResult.mask} carry the contract `Segmenter` already
+ * produces, so a caller that handles one handles the other.
+ *
+ * Nearest-neighbour on purpose: the values are already thresholded, and
+ * interpolating between them would invent edge pixels that are neither.
+ *
+ * @param masks The graph's `masks` output.
+ * @param row Which detection row to read.
+ * @param cropWidth Width of one mask in the graph's output.
+ * @param cropHeight Height of one mask in the graph's output.
+ * @param target The cropped image the mask must line up with.
+ * @returns The mask on the crop's grid, or `null` when the box has no area.
+ */
+export function maskToBox(
+    masks: Float32Array,
+    row: number,
+    cropWidth: number,
+    cropHeight: number,
+    target: RGBImage,
+): Mask | null {
+    const { width, height } = target;
+    if (width < 1 || height < 1) return null;
+    const stride = cropWidth * cropHeight;
+    const source = masks.subarray(row * stride, (row + 1) * stride);
+    const data = new Uint8Array(width * height);
+    for (let y = 0; y < height; y++) {
+        const sourceRow = Math.min(Math.floor((y * cropHeight) / height), cropHeight - 1);
+        for (let x = 0; x < width; x++) {
+            const sourceColumn = Math.min(Math.floor((x * cropWidth) / width), cropWidth - 1);
+            data[y * width + x] =
+                (source[sourceRow * cropWidth + sourceColumn] ?? 0) > 0.5 ? 255 : 0;
+        }
+    }
+    return new Mask(data, width, height);
 }
 
 /**

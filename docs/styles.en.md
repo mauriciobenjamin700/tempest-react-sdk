@@ -108,7 +108,11 @@ reaches.
     `require` — nothing about the styles is emulated, which is the correct answer
     in a context that paints nothing.
 
-    Under **Vitest** nothing changes: Vite processes the CSS. Under **Jest**, map
+    Under **Vitest**, `createViteConfig` already handles it: it includes
+    `tempestVitest()`, which makes Vitest transform the SDK instead of handing it
+    to Node. With a `vitest.config.ts` of your own, add the plugin — without it the
+    suite dies with `Unknown file extension ".css"` (details in
+    [Testing with Vitest](vite-config.md#testing-with-vitest)). Under **Jest**, map
     the extension to a stub, which is the same configuration any project with CSS
     Modules already carries:
 

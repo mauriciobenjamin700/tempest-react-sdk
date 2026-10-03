@@ -106,7 +106,11 @@ o app não alcança.
     — nada de estilo é emulado, que é a resposta certa num contexto que não
     pinta nada.
 
-    No **Vitest** nada muda: o Vite processa o CSS. No **Jest**, mapeie a
+    No **Vitest**, o `createViteConfig` já resolve: ele inclui o `tempestVitest()`,
+    que faz o Vitest transformar o SDK em vez de entregá-lo ao Node. Com um
+    `vitest.config.ts` próprio, adicione o plugin — sem ele, a suíte cai com
+    `Unknown file extension ".css"` (detalhes em
+    [Testes com Vitest](vite-config.md#testes-com-vitest)). No **Jest**, mapeie a
     extensão para um stub, que é a mesma configuração que qualquer projeto com
     CSS Modules já carrega:
 

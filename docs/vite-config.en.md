@@ -56,6 +56,7 @@ That gives you:
 | Default       | Value         |
 | ------------- | ------------- |
 | React plugin  | enabled       |
+| `tempestVitest()` | enabled |
 | `@` alias     | → `src`       |
 | `server.port` | `5173`        |
 | `server.host` | `"127.0.0.1"` |
@@ -166,6 +167,50 @@ export default createViteConfig({
     and `overrides.plugins` are appended to yours. The rest of the `UserConfig`
     (`build`, `define`, etc.) applies normally.
 
+## Testing with Vitest
+
+Every SDK component imports its own stylesheet. In the app, Vite resolves that
+import. In a Vitest suite, it does not: Vitest hands every ESM package from
+`node_modules` to **Node**, and Node cannot load `.css`. Any test that imports the
+SDK dies before running:
+
+```text
+TypeError: Unknown file extension ".css" for …/node_modules/tempest-react-sdk/dist/styles/component/Accordion.css
+```
+
+If your `vite.config.ts` is `createViteConfig`, **there is nothing to do**: it
+already includes `tempestVitest()`, which tells Vitest to transform the SDK through
+Vite's pipeline, as the app does. Outside Vitest the plugin is inert — Vite ignores
+the `test` key.
+
+With a `vitest.config.ts` of your own, add the plugin:
+
+```ts
+// vitest.config.ts
+import { defineConfig } from "vitest/config";
+import { tempestVitest } from "tempest-react-sdk/vite";
+
+export default defineConfig({
+  plugins: [tempestVitest()],
+  test: { environment: "jsdom" },
+});
+```
+
+Measured with `tempest-react-sdk@0.70.0` and a one-line test importing `Button`
+(the repro of [#397](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/397)):
+
+| Vitest | default config                     | with `tempestVitest()` |
+| ------ | ---------------------------------- | ---------------------- |
+| 2.1.9  | ❌ `Unknown file extension ".css"` | ✅ 1 passed            |
+| 3.2.7  | ❌ `Unknown file extension ".css"` | ✅ 1 passed            |
+| 4.1.11 | ❌ `Unknown file extension ".css"` | ✅ 1 passed            |
+
+!!! info "What the plugin does underneath"
+    It adds `"tempest-react-sdk"` to `test.server.deps.inline`, on top of whatever
+    list you already have. If your config already uses `inline: true` (inline
+    everything), the plugin leaves it alone — merging the two would crash Vitest 4
+    with `ex.test is not a function`.
+
 ## Options reference
 
 All options are optional.
@@ -197,5 +242,7 @@ All options are optional.
   — Vite and TS resolve paths independently.
 - In `proxy`, strings are shorthand (`{ target, changeOrigin: true }`); objects pass
   through raw as `ProxyOptions`.
+- In a Vitest suite, `tempestVitest()` (already included) lets the SDK import without
+  `Unknown file extension ".css"`; with a `vitest.config.ts` of your own, add it.
 - `overrides` is the escape hatch: deep-merged last, merging `plugins`/`resolve`/`server`
   instead of replacing them.

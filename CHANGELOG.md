@@ -25,6 +25,23 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   novo de 2 kB); os tetos explícitos do barrel inteiro sobem de 135,5 → 136,5 kB (ESM,
   135 161 → 136 325 B) e de 161,5 → 163 kB (CJS, 161 129 → 162 635 B).
 
+### Corrigido
+
+- **`vite` — `tempestVitest()`: a suíte Vitest do consumidor volta a importar o SDK (#397).**
+  Desde a 0.63.0 cada componente importa a própria folha, e o Vitest entrega ao Node todo
+  pacote ESM de `node_modules` — que não carrega `.css`. Qualquer teste que importasse o
+  barril caía com `TypeError: Unknown file extension ".css"` (19 de 37 arquivos de teste no
+  upgrade do FAMACHApp), enquanto a doc dizia "no Vitest nada muda". O plugin acrescenta
+  `"tempest-react-sdk"` a `test.server.deps.inline` e o `createViteConfig` já o inclui, então
+  quem usa o config do scaffold não muda nada; com `vitest.config.ts` próprio, basta
+  `plugins: [tempestVitest()]`. Medido com o repro da issue: Vitest 2.1.9, 3.2.7 e 4.1.11
+  falham no config default e passam com o plugin. Uma config com `inline: true` fica
+  intocada — o merge do Vite viraria `[true, "tempest-react-sdk"]` e o Vitest 4 cai com
+  `ex.test is not a function`. Guard novo `scripts/smoke-vitest.sh`, no CI e no release: monta
+  um consumidor Vitest sobre o tarball empacotado, importa o barril e renderiza um `Button`
+  (falha contra a 0.70.0, passa com a correção). Doc PT/EN corrigida em `styles.md` e seção
+  "Testes com Vitest" em `vite-config.md`.
+
 ## [0.70.0] — 2026-10-03
 
 ### Adicionado

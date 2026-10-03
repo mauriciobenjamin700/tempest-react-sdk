@@ -28063,7 +28063,11 @@ o app não alcança.
     — nada de estilo é emulado, que é a resposta certa num contexto que não
     pinta nada.
 
-    No **Vitest** nada muda: o Vite processa o CSS. No **Jest**, mapeie a
+    No **Vitest**, o `createViteConfig` já resolve: ele inclui o `tempestVitest()`,
+    que faz o Vitest transformar o SDK em vez de entregá-lo ao Node. Com um
+    `vitest.config.ts` próprio, adicione o plugin — sem ele, a suíte cai com
+    `Unknown file extension ".css"` (detalhes em
+    [Testes com Vitest](vite-config.md#testes-com-vitest)). No **Jest**, mapeie a
     extensão para um stub, que é a mesma configuração que qualquer projeto com
     CSS Modules já carrega:
 
@@ -34188,6 +34192,7 @@ Isso te dá:
 | Default       | Valor         |
 | ------------- | ------------- |
 | Plugin React  | ligado        |
+| `tempestVitest()` | ligado    |
 | Alias `@`     | → `src`       |
 | `server.port` | `5173`        |
 | `server.host` | `"127.0.0.1"` |
@@ -34298,6 +34303,50 @@ export default createViteConfig({
     primeiro nível, e `overrides.plugins` são acrescentados aos seus. O resto do
     `UserConfig` (`build`, `define`, etc.) entra normalmente.
 
+## Testes com Vitest
+
+Cada componente do SDK importa a própria folha de estilo. No app, quem resolve esse
+import é o Vite. Numa suíte Vitest, não: o Vitest entrega ao **Node** todo pacote
+ESM que vem de `node_modules`, e o Node não sabe carregar `.css`. Qualquer teste que
+importe o SDK cai antes de rodar:
+
+```text
+TypeError: Unknown file extension ".css" for …/node_modules/tempest-react-sdk/dist/styles/component/Accordion.css
+```
+
+Se o seu `vite.config.ts` é o `createViteConfig`, **não há nada a fazer**: ele já
+inclui o `tempestVitest()`, que manda o Vitest transformar o SDK pelo pipeline do
+Vite, como o app faz. Fora do Vitest o plugin é inerte — o Vite ignora a chave
+`test`.
+
+Com um `vitest.config.ts` próprio, adicione o plugin:
+
+```ts
+// vitest.config.ts
+import { defineConfig } from "vitest/config";
+import { tempestVitest } from "tempest-react-sdk/vite";
+
+export default defineConfig({
+  plugins: [tempestVitest()],
+  test: { environment: "jsdom" },
+});
+```
+
+Medido com `tempest-react-sdk@0.70.0` e um teste de uma linha que importa `Button`
+(o repro da [#397](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/397)):
+
+| Vitest | config default                        | com `tempestVitest()` |
+| ------ | ------------------------------------- | --------------------- |
+| 2.1.9  | ❌ `Unknown file extension ".css"`    | ✅ 1 passed           |
+| 3.2.7  | ❌ `Unknown file extension ".css"`    | ✅ 1 passed           |
+| 4.1.11 | ❌ `Unknown file extension ".css"`    | ✅ 1 passed           |
+
+!!! info "O que o plugin faz por baixo"
+    Ele acrescenta `"tempest-react-sdk"` a `test.server.deps.inline`, somando à
+    lista que você já tiver. Se a sua config já usa `inline: true` (inline de
+    tudo), o plugin não mexe — juntar os dois quebraria o Vitest 4 com
+    `ex.test is not a function`.
+
 ## Referência das opções
 
 Todas as opções são opcionais.
@@ -34328,6 +34377,8 @@ Todas as opções são opcionais.
   — Vite e TS resolvem caminhos de forma independente.
 - No `proxy`, strings são atalho (`{ target, changeOrigin: true }`); objetos passam
   crus como `ProxyOptions`.
+- Numa suíte Vitest, o `tempestVitest()` (já incluso) faz o SDK importar sem
+  `Unknown file extension ".css"`; com `vitest.config.ts` próprio, adicione-o.
 - `overrides` é o escape hatch: deep-merge por último, mesclando `plugins`/`resolve`/`server`
   em vez de substituí-los.
 

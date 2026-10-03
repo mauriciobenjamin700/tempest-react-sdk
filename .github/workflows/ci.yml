@@ -58,3 +58,10 @@ jobs:
 
             - name: Build
               run: npm run build
+
+            # A consumer's Vitest suite, against the packed tarball (#397). The SDK's
+            # own suite tests src/, which Vite transforms; only the installed package
+            # shows that Vitest hands an ESM dependency to Node, which cannot load the
+            # stylesheet each component imports.
+            - name: Smoke a consumer Vitest suite against the tarball
+              run: scripts/smoke-vitest.sh "$(npm pack --silent)"

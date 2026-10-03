@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.71.0] — 2026-10-03
+
 ### Adicionado
 
 - **`telemetry` — `createAppErrorReporter`, o cliente do `/api/app-errors` do `tempest-fastapi-sdk`.**

@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.73.0] — 2026-10-03
+
 ### Alterado
 
 - **`vision` — vendor atualizado de `ort-vision-sdk-web@0.11.0` para `0.12.0`.** Abaixo do

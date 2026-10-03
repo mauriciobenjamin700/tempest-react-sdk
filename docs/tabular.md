@@ -377,7 +377,8 @@ conteúdo, então republicar os mesmos bytes **não** parece versão nova.
 ## Instalação
 
 `onnxruntime-web` é **peer dependency opcional**: só quem usa esse subpath
-instala.
+instala. Faixa aceita: **`>=1.22.0`** — abaixo dela o runtime não informa o shape
+da entrada, e o predictor não consegue ler quantas features o modelo declara.
 
 ```bash
 npm install onnxruntime-web

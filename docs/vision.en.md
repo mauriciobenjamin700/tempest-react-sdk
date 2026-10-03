@@ -43,11 +43,21 @@ import { Classifier, Detector, Segmenter } from "tempest-react-sdk/vision";
 The engine that actually runs the `.onnx` models — the
 [`onnxruntime-web`](https://onnxruntime.ai/docs/get-started/with-javascript/web.html)
 package — does **not** come bundled. It's an **optional** peer dependency: the
-app installs it once and the vision subpath reuses it.
+app installs it once and the vision subpath reuses it. Accepted range:
+**`>=1.22.0`**.
 
 ```bash
 npm i onnxruntime-web
 ```
+
+!!! warning "Upgrading: `onnxruntime-web` now has to be >= 1.22"
+    Below 1.22, `onnxruntime-web` does not report a session's input and output
+    shapes. The vendored vision (`0.12.0`) reads those shapes from the `.onnx`
+    itself when the runtime reports none, so a model still opens at the right
+    size — but 1.22 onward is what it is tested against on a real runtime.
+    `/tabular` reads the same data to learn how many features the model
+    declares. Run `npm i onnxruntime-web@latest` and serve the `.wasm` files of
+    the same version.
 
 !!! warning "Without `onnxruntime-web`, inference won't run"
     Because `onnxruntime-web` is an **optional** peer dep,

@@ -4,6 +4,21 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Alterado
+
+- **`vision` — vendor atualizado de `ort-vision-sdk-web@0.11.0` para `0.12.0`.** Abaixo do
+  `onnxruntime-web` 1.22, o runtime não informa os shapes de entrada e saída da sessão
+  (`inputMetadata` / `outputMetadata` vêm `undefined`; medido upstream em 1.17.3, 1.18.0,
+  1.19.2, 1.20.1 e 1.21.0). As tarefas caíam em silêncio no tamanho de entrada padrão (640 /
+  224): um modelo exportado em outro tamanho quebrava no `predict()` com
+  `Got invalid dimensions for input`, e um modelo sem `names` saía com as 80 classes COCO.
+  A vision agora lê esses shapes do próprio `.onnx` quando o runtime não informa.
+- **Peer `onnxruntime-web`: `>=1.17.0` → `>=1.22.0`**, o mesmo piso do `ort-vision-sdk-web`
+  0.12.0, que é a primeira versão que a suíte upstream testa contra o runtime real. Vale
+  para `/vision` e `/tabular`: abaixo de 1.22 o `/tabular` também não lê quantas features o
+  modelo declara (`declaredFeatures` devolve `null`). Para atualizar:
+  `npm i onnxruntime-web@latest`, servindo os `.wasm` da mesma versão.
+
 ## [0.72.0] — 2026-10-03
 
 ### Corrigido

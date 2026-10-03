@@ -383,7 +383,9 @@ version.
 ## Installation
 
 `onnxruntime-web` is an **optional peer dependency**: only users of this
-subpath install it.
+subpath install it. Accepted range: **`>=1.22.0`** — below it the runtime does
+not report the input shape, and the predictor cannot read how many features the
+model declares.
 
 ```bash
 npm install onnxruntime-web

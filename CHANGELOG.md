@@ -4,6 +4,27 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`telemetry` — `createAppErrorReporter`, o cliente do `/api/app-errors` do `tempest-fastapi-sdk`.**
+  O backend já tinha onde guardar o erro que acontece no celular do usuário (módulo
+  `app_errors`); faltava o lado do app, e cada app ia escrever o seu. O reporter descreve o
+  erro (`describeAppError`: `name` vira `code`; `message` leva a cadeia de `cause`, o contexto
+  e a stack, nessa ordem, para o corte de 4000 caracteres do backend perder a stack primeiro),
+  carimba os dados do aparelho **na hora do erro** e enfileira em `localStorage` antes de
+  qualquer rede — relato feito sem sinal sai quando o navegador volta `online`. Relato idêntico
+  vira contador (`[repeated N×]`), a fila tem teto de 50, 429 pausa pelo `Retry-After` e retoma
+  sozinho, 5xx/408/rede mantêm na fila e outro 4xx descarta (travaria os de trás). Token é
+  opcional: a rota é pública e o backend tira o usuário do token, nunca do body.
+  `createAppErrorTelemetryAdapter` liga o reporter ao `TelemetryProvider`. Os limites de
+  coluna (`120`/`4000`/`200`) e o sufixo `…[truncado]` são portados do backend e fixados em
+  teste. Uma `DOMException` (o `NotReadableError` do seletor de arquivos) é lida pelo
+  formato, não por `instanceof Error`, que ela nem sempre passa — sem isso a causa virava `{}`.
+  Custo, medido com `npx size-limit` contra a `main` limpa: a fatia
+  `{ createAppErrorReporter, createAppErrorTelemetryAdapter }` pesa 1,60 kB brotli (budget
+  novo de 2 kB); os tetos explícitos do barrel inteiro sobem de 135,5 → 136,5 kB (ESM,
+  135 161 → 136 325 B) e de 161,5 → 163 kB (CJS, 161 129 → 162 635 B).
+
 ## [0.70.0] — 2026-10-03
 
 ### Adicionado

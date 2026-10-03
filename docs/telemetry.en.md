@@ -207,6 +207,105 @@ Mapping:
     object with 3 `vi.fn()` instead of stubbing the full SDK — and keeps the
     adapter resilient to API changes that don't touch that subset.
 
+## App errors to a Tempest backend (`/api/app-errors`)
+
+The error that matters happens on the user's phone, often **with no signal**, and dies right there. If your backend uses `tempest-fastapi-sdk`, it already has a place for it: the `app_errors` module mounts `POST /api/app-errors` and a table you can query from the admin. Only the app side is missing — and that is what `createAppErrorReporter` delivers. 🚀
+
+```ts
+import { createAppErrorReporter } from "tempest-react-sdk";
+
+export const reporter = createAppErrorReporter({
+    endpoint: `${import.meta.env.VITE_API_URL}/api/app-errors`,
+    getToken: () => sessionStorage.getItem("access_token"),
+    device: () => ({
+        platform: "web",
+        app_version: import.meta.env.VITE_APP_VERSION,
+        os_version: navigator.userAgent,
+    }),
+});
+
+try {
+    throw new Error("Could not read the photo", { cause: new TypeError("size=0") });
+} catch (error) {
+    reporter.report(error, { step: "crop", mime: "image/jpeg", size: 0 });
+}
+```
+
+Piece by piece:
+
+- **`endpoint`** — the full URL of the route.
+- **`getToken`** — optional. The route is public: an error before login, or with an expired session, still has to get through. A missing, empty or throwing token sends anonymously; the backend takes `user_id` from the token, **never** from the body.
+- **`device`** — read **when the error happens**, not when it is sent. A report queued offline on `1.4.0` must not go out labelled `1.5.0`.
+- **`report(error, context)`** — never throws. It describes the error, stamps the device, queues it and tries to send.
+
+### What goes in `message`
+
+`describeAppError` (exported, if you want it on its own) turns any thrown value into the `code` + `message` pair:
+
+```text
+Error: Could not read the photo
+caused by: TypeError: size=0
+context: {"step":"crop","mime":"image/jpeg","size":0}
+Error: Could not read the photo
+    at …
+```
+
+`code` is the error's `name`. The order is deliberate: the backend cuts `message` at 4000 characters, so what is worth most comes first — the **`cause` chain**, where the real failure almost always is, then your context, and the stack last.
+
+!!! tip "`DOMException` too"
+    The `NotReadableError` a file picker throws is a `DOMException`, which does
+    not always pass `instanceof Error`. The reporter reads the error by shape
+    (`name` + `message`), so the cause arrives whole instead of becoming `{}`.
+
+### Offline and the queue
+
+Everything goes through a `localStorage` queue **before** the network. With no signal, the report waits; when the browser fires `online`, the queue drains on its own. Two rules bound it:
+
+- **An identical report becomes a counter.** A failure in a loop is stored once, and goes out with `[repeated N×]` at the start of `message`.
+- **A ceiling of 50** (`maxEntries`) — the oldest leaves first.
+
+What each answer does:
+
+| Answer | The report |
+| --- | --- |
+| 2xx | leaves the queue |
+| 429 | stays; sending pauses for `Retry-After` and resumes on its own |
+| 5xx, 408, network failure | stays; retried on the next `report`, `online` or `flush()` |
+| any other 4xx | is dropped — the backend would refuse that body forever, and it would block the ones behind it |
+
+`flush()` drains now and returns `{ sent, dropped, pending, retryAfterMs }`; concurrent calls share one run. `dispose()` removes the `online` listener and the timer.
+
+### With `TelemetryProvider`
+
+If the app already programs against `useTelemetry()`, the adapter connects both ends:
+
+```tsx
+import type { ReactNode } from "react";
+import {
+    createAppErrorReporter,
+    createAppErrorTelemetryAdapter,
+    TelemetryProvider,
+} from "tempest-react-sdk";
+
+const reporter = createAppErrorReporter({ endpoint: "/api/app-errors" });
+const adapter = createAppErrorTelemetryAdapter({ reporter });
+
+export function AppTelemetry({ children }: { children: ReactNode }) {
+    return <TelemetryProvider adapter={adapter}>{children}</TelemetryProvider>;
+}
+```
+
+| `TelemetryAdapter`           | reporter                    |
+| ---------------------------- | --------------------------- |
+| `captureException(err, ctx)` | `reporter.report(err, ctx)` |
+| `flush()`                    | `reporter.flush()`          |
+| `identify` / `track`         | nothing                     |
+
+!!! info "Why `identify` and `track` do nothing"
+    The backend takes the user from the token, never from the client, and the
+    route stores errors, not product events. Need both? Use this adapter for
+    errors and an analytics one (PostHog) for events.
+
 ## Custom adapter
 
 For Datadog, Amplitude, Mixpanel — write ~20 lines:
@@ -241,6 +340,7 @@ const telemetry = useTelemetry();
 - **`useTelemetry()` can be `null`** — always `telemetry?.track(...)` with optional chaining.
 - **Adapters inject the instance** (`{ sentry }`, `{ posthog }`) — never a peer dep.
 - **A custom adapter** is ~20 lines mapping 4 methods.
+- **`createAppErrorReporter`** takes field errors to a Tempest backend's `/api/app-errors`, with an offline queue, dedup and 429 handling.
 
 ### See also
 

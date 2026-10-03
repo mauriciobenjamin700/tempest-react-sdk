@@ -4,6 +4,7 @@ import type { ProxyOptions, UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 import { tempestIcons, type TempestIconsOptions } from "./tempest-icons";
+import { tempestVitest } from "./tempest-vitest";
 
 /**
  * A Vite proxy entry: either a target URL string (expanded to
@@ -68,7 +69,8 @@ function normalizeProxy(proxy: Record<string, ProxyEntry>): Record<string, Proxy
 
 /**
  * Build a Tempest-flavored Vite config for a React app: the `@vitejs/plugin-react`
- * plugin, the `@` → `src` import alias, and sane dev-server defaults — so a
+ * plugin, the `@` → `src` import alias, sane dev-server defaults and
+ * {@link tempestVitest}, which lets a Vitest suite import the SDK — so a
  * consuming app's `vite.config.ts` is a single call instead of repeated
  * boilerplate. Everything is overridable.
  *
@@ -101,7 +103,7 @@ export function createViteConfig(options: CreateViteConfigOptions = {}): Tempest
         : [];
 
     const base: UserConfig = {
-        plugins: [react(), ...iconsPlugin, ...plugins] as UserConfig["plugins"],
+        plugins: [react(), ...iconsPlugin, tempestVitest(), ...plugins] as UserConfig["plugins"],
         resolve: {
             alias: {
                 "@": resolve(process.cwd(), srcDir),

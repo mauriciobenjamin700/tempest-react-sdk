@@ -99,3 +99,14 @@ describe("createViteConfig — icons plugin", () => {
         expect(names.indexOf("tempest-icons")).toBeLessThan(names.indexOf("extra-plugin"));
     });
 });
+
+describe("createViteConfig — vitest plugin", () => {
+    it("always wires tempestVitest, so a suite built on this config can import the SDK", () => {
+        const names = (
+            (createViteConfig({ icons: false }) as { plugins?: unknown[] }).plugins ?? []
+        )
+            .flat(Infinity)
+            .map((p) => (p as { name?: string })?.name ?? "");
+        expect(names).toContain("tempest-vitest");
+    });
+});

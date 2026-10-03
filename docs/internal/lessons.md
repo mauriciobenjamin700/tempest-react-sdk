@@ -12,6 +12,12 @@ lado. Leia antes de confiar numa medição, num gate ou numa afirmação da doc.
   `ERR_UNKNOWN_FILE_EXTENSION` (126 módulos ESM e 126 CJS). Ao mudar o que o build
   **emite**, a pergunta do gate não é "ficou menor?", é "quem ainda consegue
   carregar isto?".
+- **"Nada muda" em ferramenta X é afirmação testável, e o teste roda no pacote
+  instalado.** A doc da 0.63.0 dizia que no Vitest nada mudava porque "o Vite
+  processa o CSS" — verdade para `src/`, que é o que a suíte do SDK testa, e falso
+  para `node_modules`, que o Vitest entrega ao Node (#397: 19 de 37 arquivos de
+  teste quebrados num consumidor). O guard é `scripts/smoke-vitest.sh` sobre o
+  tarball; cada caminho de consumo (bundler, Node cru, Vitest) tem o seu.
 - **`sideEffects` só existe se a resolução passar por `node_modules`.** Os checks
   de `size-limit` importam `./dist/...` por caminho, então o esbuild nunca lê
   aquele campo: `{ cn }` mediu 25,19 kB ali e **436 B** num app instalado.

@@ -116,6 +116,11 @@ jobs:
                   cd /tmp/sdk-smoke
                   node --import tempest-react-sdk/node-css-loader entry.mjs
 
+            # The third consumer path: a Vitest suite, which externalizes the package
+            # to Node unless `tempestVitest()` (part of `createViteConfig`) inlines it.
+            - name: Smoke a consumer Vitest suite against the tarball
+              run: scripts/smoke-vitest.sh "$(ls tempest-react-sdk-*.tgz)"
+
             # No NODE_AUTH_TOKEN: publish authenticates via GitHub OIDC
             # (npm Trusted Publishing). Provenance is generated automatically.
             # Requires a Trusted Publisher configured on npmjs.com pointing at

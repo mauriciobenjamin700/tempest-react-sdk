@@ -7,7 +7,7 @@ import type * as ort from "onnxruntime-web";
 
 import { type ModelSource, type OrtSessionOptions, OrtSession } from "../core/session";
 import { SpeedTimer } from "../core/timing";
-import { type ImageInput, loadImage } from "../io/image";
+import { type ImageInput, loadImageSource } from "../io/image";
 import { classificationNumClasses, resolveInputSize } from "../core/graph";
 import { modelNames } from "../core/metadata";
 import { type LabelSpec, resolveLabels } from "../labels";
@@ -17,6 +17,7 @@ import {
     resolveNormalization,
 } from "../normalization";
 import { softmax, topK } from "../postprocess/classification";
+import { asFloat32Array } from "../core/dtypes";
 import { toFloat32Tensor } from "../preprocess/image";
 import { ResizePipeline, zeroTensorData } from "../preprocess/pipeline";
 import { ClassificationResults, Probs } from "../results";
@@ -260,12 +261,16 @@ export class Classifier extends VisionTask {
     ): Promise<ClassificationResults[]> {
         const timer = new SpeedTimer();
         const path = typeof image === "string" ? image : null;
-        const original = await loadImage(image);
+        const { image: original, canvas } = await loadImageSource(image);
         timer.stage("load");
-        const tensor = this._preprocess(original);
+        const { tensor, reused } = this._preprocess(original, canvas);
         timer.stage("preprocess");
-        const outputs = await this._session.run({ [this._session.inputName]: tensor });
-        this._pipeline.release();
+        let outputs: Record<string, ort.Tensor>;
+        try {
+            outputs = await this._session.run({ [this._session.inputName]: tensor });
+        } finally {
+            this._pipeline.release({ reused });
+        }
         timer.stage("inference");
         const firstOutputName = this._session.outputNames[0];
         if (firstOutputName === undefined) {
@@ -277,7 +282,7 @@ export class Classifier extends VisionTask {
                 `Classifier model output ${firstOutputName} missing from run() result.`,
             );
         }
-        const fullProbs = this._postprocess(raw.data as Float32Array);
+        const fullProbs = this._postprocess(asFloat32Array(raw.data));
 
         const { indices, values } = topK(fullProbs, options.topK ?? null);
         const probabilities: ClassProbability[] = [];
@@ -325,10 +330,20 @@ export class Classifier extends VisionTask {
         ];
     }
 
-    private _preprocess(image: RGBImage): ort.Tensor {
+    /**
+     * Resize and pack the image into the tensor the model expects.
+     *
+     * @param image The decoded input.
+     * @param canvas The opaque canvas it was decoded on, when there is one — see
+     *   {@link ResizePipeline.run}.
+     */
+    private _preprocess(
+        image: RGBImage,
+        canvas: CanvasImageSource | null,
+    ): { tensor: ort.Tensor; reused: boolean } {
         const [tw, th] = this._inputSize;
-        const { data } = this._pipeline.run(image);
-        return toFloat32Tensor(data, [1, 3, th, tw]);
+        const { data, reused } = this._pipeline.run(image, canvas);
+        return { tensor: toFloat32Tensor(data, [1, 3, th, tw]), reused };
     }
 
     private _postprocess(raw: Float32Array): Float32Array {

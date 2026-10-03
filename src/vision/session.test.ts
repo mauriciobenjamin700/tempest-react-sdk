@@ -12,13 +12,33 @@ import type * as MetadataModule from "./core/metadata";
  * a phone surfaced as `Can't create a session. failed to allocate a buffer of
  * size N`. So the read has to happen *before* `InferenceSession.create`, and the
  * order is pinned here rather than left to whoever re-vendors this tree next.
+ *
+ * Since `ort-vision-sdk-web@0.11.0`, `OrtSession.create` also builds a probe
+ * session on a tiny embedded model while the real one downloads, so ORT's
+ * WebAssembly runtime starts in parallel. The probe holds no model buffer, so
+ * it is recorded apart (by its byte length) and the order asserted here is the
+ * one that matters: the metadata read against the build of the real session.
  */
 
 /** Order in which the metadata read and the ORT session build were reached. */
 const calls: string[] = [];
 
-const createSession = vi.fn((_model: unknown, _options?: unknown) => {
+/** What each real `InferenceSession.create` call was handed as its model. */
+const sources: unknown[] = [];
+
+/** Byte length of the runtime probe model `OrtSession.create` warms ORT with. */
+const PROBE_LENGTH = 84;
+
+/** How many probe sessions were built, kept apart from {@link calls}. */
+let probes = 0;
+
+const createSession = vi.fn((model: unknown, _options?: unknown) => {
+    if (model instanceof Uint8Array && model.length === PROBE_LENGTH) {
+        probes += 1;
+        return Promise.resolve({ release: () => Promise.resolve() });
+    }
     calls.push("create");
+    sources.push(model);
     return Promise.resolve({
         inputNames: ["images"],
         outputNames: ["output0"],
@@ -118,6 +138,7 @@ function serveModel(model: Uint8Array): void {
 
 afterEach(() => {
     calls.length = 0;
+    sources.length = 0;
     createSession.mockClear();
     vi.unstubAllGlobals();
 });
@@ -137,7 +158,17 @@ describe("vision · OrtSession.create", () => {
 
         await OrtSession.create("/models/detect.onnx");
 
-        expect(createSession.mock.calls[0]?.[0]).toBeInstanceOf(Uint8Array);
+        expect(sources).toHaveLength(1);
+        expect(sources[0]).toBeInstanceOf(Uint8Array);
+    });
+
+    it("starts ORT's runtime with one probe session per page", async () => {
+        serveModel(modelProto({ task: "detect" }));
+
+        await OrtSession.create("/models/detect.onnx");
+        await OrtSession.create("/models/detect.onnx");
+
+        expect(probes).toBe(1);
     });
 
     it("skips the fetch entirely when metadata is not wanted", async () => {
@@ -148,6 +179,6 @@ describe("vision · OrtSession.create", () => {
 
         expect(fetchSpy).not.toHaveBeenCalled();
         expect(calls).toEqual(["create"]);
-        expect(createSession.mock.calls[0]?.[0]).toBe("/models/detect.onnx");
+        expect(sources).toEqual(["/models/detect.onnx"]);
     });
 });

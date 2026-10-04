@@ -576,6 +576,9 @@ Com o `createTheme`, as regras saem junto quando você passa
   Sem nenhum, a seção fica com os tokens da página.
 - `data-tempest-tone="default"` (ou `<Section tone="default">`) dentro da
   faixa devolve os tokens da página — claro ou escuro, com a sua marca.
+- `Navbar` e `AppBar` aceitam `tone="inverse"` para a barra na cor da marca com
+  botões e links dentro; `tone="primary"` só pinta o fundo — veja
+  [Barra na cor da marca](components/navigation.md#barra-na-cor-da-marca).
 
 ## Integração com o CSS do app + `theme-color`
 

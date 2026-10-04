@@ -576,6 +576,9 @@ With `createTheme`, the rules come along when you pass
   neither, the section keeps the page's tokens.
 - `data-tempest-tone="default"` (or `<Section tone="default">`) inside the
   band brings the page's tokens back — light or dark, with your brand.
+- `Navbar` and `AppBar` take `tone="inverse"` for a bar in the brand color with
+  buttons and links inside; `tone="primary"` only paints the background — see
+  [A bar in the brand color](components/navigation.md#a-bar-in-the-brand-color).
 
 ## App CSS integration + `theme-color`
 

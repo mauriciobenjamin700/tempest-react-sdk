@@ -24,6 +24,29 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   gerador, `src/theme/inverse-restore.ts`); barrel CJS 166 248 → 166 758 B (teto 166,4 → 166,8 KB).
   `createInverseSurface` aceita `selector` e `page` e devolve `rules`, que o `createTheme`
   preenche com o seu `inverseSelector`, `selector` e `darkSelector`.
+- **`Navbar` e `AppBar` ganham `tone="inverse"` — barra na cor da marca com os componentes de
+  dentro invertidos (#419).** O tom escreve `data-tempest-tone="inverse"` na barra e a pinta com o
+  `--tempest-bg` da superfície invertida, então `Button` primário, link, `ghost`, ícone, texto
+  `muted` e anel de foco passam a ser medidos contra o fundo. Medido no Chromium (harness Vite com
+  `src/`, porta 5419, 390 e 1280 px, página clara e escura, `transition` desligada): azul do SDK —
+  fundo `#042e75`, texto/link/rótulo 12,71, `muted` 9,60, anel 6,95; `#facc15` gerado com
+  `createInverseSurface` — fundo `#facc15`, 11,59 / 8,82 / 6,40. Antes, com `tone="primary"` no
+  azul do SDK (claro): link 1:1, `Button` primário da cor da barra (1:1), `muted` 1,59, anel 1,41;
+  no escuro, 1 / 1 / 1,72 / 1,45.
+- Decisão medida, contra a proposta da issue: `tone="primary"` **não** passou a inverter. O fundo
+  da superfície invertida não é sempre o `500` — no `#0066ff` é o `800` (`#042e75`) —, então
+  inverter o `primary` repintaria toda barra existente. E só acrescentar o atributo quebra: dentro
+  da superfície `--tempest-primary` é a cor de ação, e a barra medida saiu `#ffffff` no azul do SDK
+  (`#101828` no `#facc15`). `tone="primary"` fica igual à 0.74.0: 16 capturas (390 e 1280 px,
+  claro e escuro, com e sem a folha, SDK e `#facc15`) idênticas byte a byte antes e depois.
+- Sem a folha `styles/inverse.css` nem `createTheme({ inverse: createInverseSurface })`,
+  `tone="inverse"` cai nos tokens da página (`--tempest-bg`/`--tempest-text`): texto 17,75:1 no
+  claro e 17,51:1 no escuro — legível, só não na marca.
+- Custo, medido com `npx size-limit`: +0,10 kB br no barrel ESM e +0,21 kB no CJS — a classe e o
+  atributo em dois componentes. Com o ciclo inteiro na `main`, o barrel mede 139,86 kB (ESM) e
+  167,02 kB (CJS, teto 167 → 167,2 KB); `styles.css` 30,47 kB (teto 30,5).
+- Gallery: exemplo `Navbar na cor da marca` na seção `nav-extra` e um `AppBar tone="inverse"` na
+  seção `navigation`.
 
 ### Corrigido
 

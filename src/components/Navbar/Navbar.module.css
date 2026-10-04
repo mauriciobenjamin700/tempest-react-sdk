@@ -19,6 +19,11 @@
     color: var(--tempest-primary-foreground);
 }
 
+.navbar.inverse {
+    background: var(--tempest-bg);
+    color: var(--tempest-text);
+}
+
 .navbar.transparent {
     background: transparent;
     color: inherit;

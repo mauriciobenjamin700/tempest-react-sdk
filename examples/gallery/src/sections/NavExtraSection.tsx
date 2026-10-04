@@ -92,9 +92,10 @@ export function NavExtraSection() {
                     },
                     {
                         name: "tone",
-                        type: '"surface" | "primary" | "transparent"',
+                        type: '"surface" | "primary" | "inverse" | "transparent"',
                         default: '"surface"',
-                        description: "Tom visual da barra.",
+                        description:
+                            'Tom visual da barra. "inverse" inverte também os componentes de dentro (exige a superfície invertida).',
                     },
                     {
                         name: "bordered",
@@ -127,6 +128,44 @@ export function NavExtraSection() {
                                 <Button size="sm">Criar conta</Button>
                             </>
                         }
+                    />
+                </div>
+            </Example>
+
+            <Example
+                title="Navbar na cor da marca"
+                id="ex-navbar-inverse"
+                note='tone="inverse" pinta a barra com a superfície invertida e inverte os slots: botão primário, link, ghost e anel de foco medidos sobre o fundo (rótulo e link 12,71:1, anel 6,95:1 no azul do SDK). tone="primary" segue pintando o 500 com os filhos nos tokens da página. Exige tempest-react-sdk/styles/inverse.css ou createTheme({ inverse: createInverseSurface }).'
+                code={`import "tempest-react-sdk/styles/inverse.css";
+
+<Navbar
+    tone="inverse"
+    sticky={false}
+    logo={<strong>Tempest</strong>}
+    nav={
+        <Button variant="link" href="#">
+            Docs
+        </Button>
+    }
+    actions={<Button size="sm">Criar conta</Button>}
+/>`}
+            >
+                <div className="gallery-stack" data-testid="navbar-inverse">
+                    <Navbar
+                        tone="inverse"
+                        sticky={false}
+                        logo={<strong>Tempest</strong>}
+                        nav={
+                            <>
+                                <Button variant="ghost" size="sm">
+                                    Home
+                                </Button>
+                                <Button variant="link" size="sm" href="#">
+                                    Docs
+                                </Button>
+                            </>
+                        }
+                        actions={<Button size="sm">Criar conta</Button>}
                     />
                 </div>
             </Example>

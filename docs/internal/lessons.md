@@ -183,6 +183,22 @@ lado. Leia antes de confiar numa medição, num gate ou numa afirmação da doc.
   imprime `ran` e `NOT`. Gate em shell encadeia com `&&`; `set -e` não serve dentro
   de `if`, `while`, `&&` ou `||`.
 
+## CSS modules: o teste aceita qualquer chave
+
+- **No Vitest, toda chave de CSS module existe.** Sem `test.css.include`, o Vitest
+  não processa o CSS e devolve a própria chave para qualquer acesso:
+  `styles.connector`, sem regra nenhuma, vira a classe `"connector"`. O build publica
+  só as chaves em camelCase (`localsConvention: "camelCaseOnly"`), e a grafia crua
+  some — `.marker-primary` vira `markerPrimary`, `.size2xl` vira `size2Xl`. Resultado
+  (#405): o marcador do `Timeline` saiu transparente e o `Modal size="2xl"` sem teto de largura
+  por várias releases, com teste verde asserindo `toContain("size2xl")`. Ligar
+  o processamento de CSS na suíte não é a saída barata: com
+  `include: [/\.module\.css$/]` o jsdom passa a aplicar `pointer-events: none` dos
+  inputs visualmente escondidos e 14 testes de clique quebram (os outros 2 dos 16 vermelhos eram o próprio defeito do `Modal`). O guard mora no
+  `dist/` (`scripts/check-dist-guards.mjs`, seção de chaves de CSS module), que é
+  onde a chave real existe. Ao nomear regra cuja chave sai por conversão, escreva a
+  regra já na grafia publicada (`.size2Xl`), para fonte e chave lerem igual.
+
 ## Guards que já salvaram
 
 - `test/docs-anchors.test.ts` pegou heading virando código depois de um merge.

@@ -13,9 +13,9 @@ describe("Modal — new sizes + fullscreen", () => {
         );
         const dialog = screen.getByRole("dialog");
         if (size === "2xl") {
-            expect(dialog.className).toContain("size2xl");
+            expect(dialog.className).toContain("size2Xl");
         } else if (size === "3xl") {
-            expect(dialog.className).toContain("size3xl");
+            expect(dialog.className).toContain("size3Xl");
         } else {
             expect(dialog.className).toContain(size);
         }

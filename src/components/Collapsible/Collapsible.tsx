@@ -50,7 +50,7 @@ export function Collapsible({
     }, [isOpen, isControlled, onOpenChange]);
 
     return (
-        <div className={cn(styles.collapsible, isOpen && styles.open, className)} {...props}>
+        <div className={cn(styles.collapsible, className)} {...props}>
             <button
                 type="button"
                 id={triggerId}

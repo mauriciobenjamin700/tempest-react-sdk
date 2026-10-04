@@ -28,8 +28,29 @@ describe("Timeline", () => {
         expect(container.querySelectorAll("li")).toHaveLength(3);
     });
 
+    it("draws a connector line between entries, none after the last", () => {
+        const { container } = render(<Timeline items={items} />);
+        expect(container.querySelectorAll(".line")).toHaveLength(2);
+    });
+
     it("omits connector lines when connector=false", () => {
         const { container } = render(<Timeline items={items} connector={false} />);
-        expect((container.firstElementChild as HTMLElement).className).not.toMatch(/connector/);
+        expect(container.querySelectorAll(".line")).toHaveLength(0);
+    });
+
+    it.each([
+        ["primary", "markerPrimary"],
+        ["success", "markerSuccess"],
+        ["warning", "markerWarning"],
+        ["danger", "markerDanger"],
+        ["neutral", "markerNeutral"],
+    ] as const)("paints marker=%s with the published %s class", (marker, className) => {
+        const { container } = render(<Timeline items={[{ id: "1", title: "x", marker }]} />);
+        expect(container.querySelector(".marker")).toHaveClass("marker", className);
+    });
+
+    it("paints the primary marker when no marker is given", () => {
+        const { container } = render(<Timeline items={[{ id: "1", title: "x" }]} />);
+        expect(container.querySelector(".marker")).toHaveClass("markerPrimary");
     });
 });

@@ -4,6 +4,23 @@ import styles from "./Timeline.module.css";
 
 export type TimelineMarker = "primary" | "success" | "warning" | "danger" | "neutral";
 
+/**
+ * The class each marker color applies, keyed by the published CSS-module names.
+ *
+ * The build exports CSS-module keys in camelCase only (`localsConvention:
+ * "camelCaseOnly"` in `vite.config.ts`), so a kebab lookup such as
+ * `styles["marker-primary"]` is `undefined` in `dist/` — which is how every marker
+ * shipped transparent until issue #405. A `Record` over the union also makes the
+ * type-checker demand an entry for every color added to {@link TimelineMarker}.
+ */
+const MARKER_CLASS: Record<TimelineMarker, string> = {
+    primary: styles.markerPrimary,
+    success: styles.markerSuccess,
+    warning: styles.markerWarning,
+    danger: styles.markerDanger,
+    neutral: styles.markerNeutral,
+};
+
 export interface TimelineItem {
     /** Stable identifier (used as React key). */
     id: string;
@@ -39,7 +56,7 @@ export interface TimelineProps extends HTMLAttributes<HTMLOListElement> {
  */
 export function Timeline({ items, connector = true, className, ...props }: TimelineProps) {
     return (
-        <ol className={cn(styles.timeline, connector && styles.connector, className)} {...props}>
+        <ol className={cn(styles.timeline, className)} {...props}>
             {items.map((item, index) => {
                 const isLast = index === items.length - 1;
                 return (
@@ -48,7 +65,7 @@ export function Timeline({ items, connector = true, className, ...props }: Timel
                             <span
                                 className={cn(
                                     styles.marker,
-                                    styles[`marker-${item.marker ?? "primary"}`],
+                                    MARKER_CLASS[item.marker ?? "primary"],
                                 )}
                                 aria-hidden="true"
                             >

@@ -168,7 +168,6 @@ export function AIChatTurn({
                 styles.turn,
                 isUser && styles.userTurn,
                 role === "system" && styles.systemTurn,
-                streaming && styles.streamingTurn,
             )}
             aria-busy={streaming || undefined}
             data-role={role}

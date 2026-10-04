@@ -6,12 +6,13 @@
  * and those cannot be separated without passing the same active index back and
  * forth.
  */
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useId, useMemo, useRef, useState } from "react";
 import { Portal } from "@/components/Portal";
 import { useAnchorPosition } from "@/components/Portal/anchor-position";
 import { CaretIcon } from "@/components/Select/CaretIcon";
 import { cn } from "@/utils/cn";
 import styles from "./Combobox.module.css";
+import { useListboxDismiss } from "./use-listbox-dismiss";
 
 export interface ComboboxOption {
     value: string;
@@ -57,7 +58,9 @@ function defaultFilter(option: ComboboxOption, query: string): boolean {
  * Combobox — text input with a filterable dropdown of options.
  *
  * Selecting an option fires `onChange(value)`. Typing filters the list.
- * Keyboard: ArrowUp/ArrowDown to navigate, Enter to select, Esc to close.
+ * Keyboard: ArrowUp/ArrowDown to navigate — the active option is announced
+ * through `aria-activedescendant`, focus stays on the input — Enter to select,
+ * Esc to close, and Tab/Shift+Tab leave the field closing the list.
  */
 export function Combobox({
     options,
@@ -116,23 +119,14 @@ export function Combobox({
         [onChange, closeAndReset],
     );
 
-    /**
-     * Close on a press outside both the field and the list.
-     *
-     * The list is checked on its own because in a portal it is not inside the
-     * field's wrapper: a press on its scrollbar, or on the empty message, would
-     * otherwise count as outside and close it.
-     */
-    useEffect(() => {
-        if (!open) return;
-        const onDown = (event: MouseEvent): void => {
-            const target = event.target as Node;
-            if (rootRef.current?.contains(target) || listNode?.contains(target)) return;
-            closeAndReset();
-        };
-        window.addEventListener("mousedown", onDown);
-        return () => window.removeEventListener("mousedown", onDown);
-    }, [open, closeAndReset, listNode]);
+    const { onInputBlur, onListMouseDown } = useListboxDismiss({
+        open,
+        rootRef,
+        listNode,
+        onDismiss: closeAndReset,
+    });
+    const optionId = (index: number): string => `${id}-option-${index}`;
+    const activeOption = open ? filtered[activeIndex] : undefined;
 
     /**
      * Keyboard model of the input.
@@ -167,6 +161,7 @@ export function Combobox({
             role="listbox"
             className={cn(styles.menu, portal && styles.portalled)}
             style={floatingStyle}
+            onMouseDown={onListMouseDown}
         >
             {filtered.length === 0 ? (
                 <li className={styles.empty}>{emptyMessage}</li>
@@ -174,6 +169,7 @@ export function Combobox({
                 filtered.map((option, index) => (
                     <li
                         key={option.value}
+                        id={optionId(index)}
                         role="option"
                         aria-selected={option.value === value}
                         className={cn(
@@ -182,10 +178,7 @@ export function Combobox({
                             option.value === value && styles.selected,
                         )}
                         onMouseEnter={() => setActiveIndex(index)}
-                        onMouseDown={(event) => {
-                            event.preventDefault();
-                            handleSelect(option);
-                        }}
+                        onMouseDown={() => handleSelect(option)}
                     >
                         {option.label}
                     </li>
@@ -210,6 +203,7 @@ export function Combobox({
                     aria-expanded={open}
                     aria-controls={`${id}-listbox`}
                     aria-autocomplete="list"
+                    aria-activedescendant={activeOption ? optionId(activeIndex) : undefined}
                     className={styles.input}
                     placeholder={placeholder}
                     disabled={disabled}
@@ -221,6 +215,7 @@ export function Combobox({
                         setActiveIndex(0);
                     }}
                     onKeyDown={handleKeyDown}
+                    onBlur={onInputBlur}
                 />
                 <span className={styles.caret} aria-hidden>
                     <CaretIcon />

@@ -4,9 +4,10 @@
  * emptyMessage) and portal. The body is the listbox with chip removal, type-ahead and
  * the ARIA active-descendant wiring reading one active index.
  */
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useId, useMemo, useRef, useState } from "react";
 import { Portal } from "@/components/Portal";
 import { useAnchorPosition } from "@/components/Portal/anchor-position";
+import { useListboxDismiss } from "@/components/Combobox/use-listbox-dismiss";
 import { cn } from "@/utils/cn";
 import styles from "./MultiSelect.module.css";
 
@@ -58,8 +59,10 @@ const LIST_OFFSET = 4;
  * removable chips inside the field. Selecting toggles a value; Backspace on an
  * empty query removes the last chip.
  *
- * Keyboard: ArrowUp/ArrowDown navigate, Enter toggles the active option, Esc
- * closes, Backspace (empty input) pops the last chip.
+ * Keyboard: ArrowUp/ArrowDown navigate — the active option is announced through
+ * `aria-activedescendant`, focus stays on the input — Enter toggles the active
+ * option, Esc closes, Backspace (empty input) pops the last chip, and
+ * Tab/Shift+Tab leave the field closing the list.
  */
 export function MultiSelect({
     options,
@@ -131,24 +134,19 @@ export function MultiSelect({
         [onChange, value],
     );
 
-    /**
-     * Close on a press outside both the field and the list.
-     *
-     * The list is checked on its own because in a portal it is not inside the
-     * field's wrapper: a press on its scrollbar, or on the empty message, would
-     * otherwise count as outside and close it.
-     */
-    useEffect(() => {
-        if (!open) return;
-        const onDown = (event: MouseEvent): void => {
-            const target = event.target as Node;
-            if (rootRef.current?.contains(target) || listNode?.contains(target)) return;
-            setOpen(false);
-            setQuery("");
-        };
-        window.addEventListener("mousedown", onDown);
-        return () => window.removeEventListener("mousedown", onDown);
-    }, [open, listNode]);
+    const close = useCallback((): void => {
+        setOpen(false);
+        setQuery("");
+    }, []);
+
+    const { onInputBlur, onListMouseDown } = useListboxDismiss({
+        open,
+        rootRef,
+        listNode,
+        onDismiss: close,
+    });
+    const optionId = (index: number): string => `${id}-option-${index}`;
+    const activeOption = open ? filtered[activeIndex] : undefined;
 
     /**
      * Open the list and keep focus on the input when the empty part of the field
@@ -186,8 +184,7 @@ export function MultiSelect({
             if (option) toggle(option);
         } else if (event.key === "Escape") {
             if (open) event.preventDefault();
-            setOpen(false);
-            setQuery("");
+            close();
         } else if (event.key === "Backspace" && query === "" && value.length > 0) {
             removeAt(value[value.length - 1]);
         }
@@ -201,6 +198,7 @@ export function MultiSelect({
             aria-multiselectable
             className={cn(styles.menu, portal && styles.portalled)}
             style={floatingStyle}
+            onMouseDown={onListMouseDown}
         >
             {filtered.length === 0 ? (
                 <li className={styles.empty}>{emptyMessage}</li>
@@ -210,6 +208,7 @@ export function MultiSelect({
                     return (
                         <li
                             key={option.value}
+                            id={optionId(index)}
                             role="option"
                             aria-selected={isSelected}
                             aria-disabled={option.disabled || (!isSelected && atMax)}
@@ -219,10 +218,7 @@ export function MultiSelect({
                                 isSelected && styles.selected,
                             )}
                             onMouseEnter={() => setActiveIndex(index)}
-                            onMouseDown={(event) => {
-                                event.preventDefault();
-                                toggle(option);
-                            }}
+                            onMouseDown={() => toggle(option)}
                         >
                             <span className={styles.check} aria-hidden>
                                 {isSelected ? "✓" : ""}
@@ -272,6 +268,7 @@ export function MultiSelect({
                     aria-expanded={open}
                     aria-controls={`${id}-listbox`}
                     aria-autocomplete="list"
+                    aria-activedescendant={activeOption ? optionId(activeIndex) : undefined}
                     className={styles.input}
                     placeholder={value.length === 0 ? placeholder : ""}
                     disabled={disabled}
@@ -283,6 +280,7 @@ export function MultiSelect({
                         setActiveIndex(0);
                     }}
                     onKeyDown={handleKeyDown}
+                    onBlur={onInputBlur}
                 />
             </div>
             {open && (portal ? <Portal>{list}</Portal> : list)}

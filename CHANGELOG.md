@@ -93,6 +93,22 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   O timer saiu: um `mousedown` na lista mantém o foco no campo, então o clique não corre contra
   o blur. Depois, no mesmo browser: `Tab` → próximo controle da página, lista fechada;
   `↓ ↓ ↑ Enter` → escolhe o 2º resultado; `Esc` → lista fechada, foco no campo; clique → escolhe.
+- **`Combobox` e `MultiSelect` fecham a lista quando o foco sai do campo (#430).** Medido em
+  Chromium headless (`@playwright/test`, Vite dev servindo `src/`, `portal` ligado e desligado):
+  `Tab` e `Shift+Tab` levavam o foco ao controle vizinho e deixavam a lista aberta por cima dele,
+  com `aria-expanded="true"` num campo sem foco, até um clique fora — e o `Escape` não fechava
+  mais, porque quem ouve a tecla é o campo. No `MultiSelect`, `Shift+Tab` parava no `×` do último
+  chip com a lista aberta. Um clique na mensagem de lista vazia jogava o foco no `<body>` com a
+  lista ainda aberta. E o `aria-activedescendant` que o cabeçalho dos dois arquivos citava não
+  existia: as setas moviam o destaque sem nada anunciado ao leitor de tela. Agora a lista fecha
+  quando o foco vai do campo para qualquer elemento fora dela, um `mousedown` em qualquer ponto da
+  lista mantém o foco no campo, e cada opção tem `id` apontado por `aria-activedescendant`
+  enquanto a lista está aberta. Depois, no mesmo browser: `Tab` → próximo controle, lista fechada;
+  `Shift+Tab` → controle anterior (ou o `×` do chip), lista fechada; clique numa opção → escolhe,
+  foco no campo; clique fora e `Escape` inalterados. `Command` não tem o defeito (medido: é diálogo
+  com foco preso, `Tab` não sai), nem `TimePicker` (colunas inline, sem lista que abre e fecha).
+  Guards em `Combobox.focus-exit.test.tsx` e `MultiSelect.focus-exit.test.tsx`, que reprovam 16
+  de 24 casos contra a `main`.
 
 ## [0.74.0] — 2026-10-04
 

@@ -259,26 +259,6 @@ function declaresOnlyTokens(block) {
 }
 
 /**
- * Whether a block paints only an element that opted in with `data-tempest-tone`.
- *
- * The inverse surface ships as two blocks: the token block, which the predicate
- * above already accepts, and a `:where([data-tempest-tone="inverse"])` rule that
- * paints the fill and the ink on the element carrying the attribute. That rule
- * declares `background-color` and `color`, so the declaration test sends it to
- * `base.css` — and an app on the documented foundation (`tokens.css` +
- * `scoped.css`) then gets inverted tokens over the page's background: white text
- * on white. It belongs with the tokens for the reason the tokens do: it reaches
- * nothing the app did not mark, and at zero specificity it never outranks the app.
- *
- * @param {string} block - A top-level CSS block.
- * @returns {boolean} True when the block's only selector is an opt-in tone attribute.
- */
-function paintsOnlyOptInTone(block) {
-    const selector = block.slice(0, block.indexOf("{")).trim();
-    return /^:where\(\[data-tempest-tone=[^\]]+\]\)$/.test(selector);
-}
-
-/**
  * Write a file only when its bytes differ, reporting what happened.
  *
  * @param {string} path - Destination.
@@ -384,9 +364,8 @@ function main() {
         ? 1
         : 0;
 
-    const isToken = (block) => declaresOnlyTokens(block) || paintsOnlyOptInTone(block);
-    const tokens = core.filter(isToken);
-    const base = core.filter((block) => !isToken(block));
+    const tokens = core.filter(declaresOnlyTokens);
+    const base = core.filter((block) => !declaresOnlyTokens(block));
 
     if (!tokens.some((block) => block.includes("--tempest-bg"))) {
         console.error(

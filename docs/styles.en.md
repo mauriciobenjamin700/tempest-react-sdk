@@ -165,6 +165,7 @@ import "tempest-react-sdk/styles/forms.css";
 | --- | --- | --- |
 | `styles.css` | everything | one line, and the weight does not bother you |
 | `styles/core.css` | foundation, zero components | always, alongside any of the others |
+| `styles/inverse.css` | the SDK blue's [inverse surface](theme.md#inverse-surface-a-section-in-the-brand-color) — opt-in, **not** in `styles.css` | you paint a section in the brand and do not generate the theme with `inverse` |
 | `styles/<Group>.css` | a whole family | you use most of it |
 | `styles/component/<Component>.css` | one component | you want the minimum |
 
@@ -220,7 +221,7 @@ So the foundation ships as three pieces rather than one:
 
 | Entry | What it carries | Touches your markup? |
 | --- | --- | --- |
-| `styles/tokens.css` | the 220 `--tempest-*` tokens (373 declarations, counting dark and the densities) + `color-scheme` | **no** — paints no markup; the one painting rule is the inverse surface's, only on an element carrying `data-tempest-tone`, at zero specificity |
+| `styles/tokens.css` | the 220 `--tempest-*` tokens (373 declarations, counting dark and the densities) + `color-scheme` | **no** — paints no markup |
 | `styles/scoped.css` | the reset confined to `:where([class*="tempest_"])` | **no** — inside components only |
 | `styles/base.css` | the global reset (`html`, `body`, `#root`, `button`…) | yes, that is its job |
 | `styles/core.css` | `tokens` + `base`, as it always was | yes |

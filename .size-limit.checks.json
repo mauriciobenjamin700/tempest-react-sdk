@@ -308,12 +308,12 @@
     ]
   },
   {
-    "name": "slice: createTheme (page schemes + the measured inverse surface)",
+    "name": "slice: createTheme (page schemes; the inverse generator is opt-in and stays out)",
     "path": "dist/tempest-react-sdk.js",
     "import": {
       "./dist/tempest-react-sdk.js": "{ createTheme }"
     },
-    "limit": "5 KB",
+    "limit": "3.5 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -404,7 +404,7 @@
   {
     "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "166.5 KB",
+    "limit": "166.4 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -714,7 +714,7 @@
   {
     "name": "styles.css",
     "path": "dist/styles.css",
-    "limit": "30.9 kB"
+    "limit": "30.5 kB"
   },
   {
     "name": "styles/core.css (foundation alone — no component)",
@@ -753,5 +753,10 @@
     "name": "utilities.css (opt-in layer)",
     "path": "dist/utilities.css",
     "limit": "3 KB"
+  },
+  {
+    "name": "styles/inverse.css (opt-in inverse surface)",
+    "path": "dist/styles/inverse.css",
+    "limit": "1 kB"
   }
 ]

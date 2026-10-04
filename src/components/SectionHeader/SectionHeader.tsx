@@ -104,11 +104,15 @@ export type SectionTone = "inverse";
 export interface SectionProps extends HTMLAttributes<HTMLElement> {
     /**
      * `"inverse"` paints the section in the brand color and inverts every color
-     * token inside it, by writing `data-tempest-tone="inverse"`. The tokens come
-     * from `colors.css` for the SDK's own brand and from `createTheme` for yours,
-     * each measured against the fill (text and muted text at 4.5:1 or more, the
-     * focus ring at 3:1 or more). The prop exists so the tone is typed: a typo in
-     * a hand-written attribute fails silently, a typo here fails the build.
+     * token inside it, by writing `data-tempest-tone="inverse"`. The tokens are
+     * opt-in, because most apps never paint a section in the brand: they come
+     * from `tempest-react-sdk/styles/inverse.css` for the SDK's own blue, or from
+     * `createTheme({ primary, inverse: createInverseSurface })` for yours, each
+     * measured against the fill (text and muted text at 4.5:1 or more, the focus
+     * ring at 3:1 or more). With neither loaded the attribute matches nothing and
+     * the section keeps the page's tokens — legible, not inverted. The prop
+     * exists so the tone is typed: a typo in a hand-written attribute fails
+     * silently, a typo here fails the build.
      */
     tone?: SectionTone;
 }

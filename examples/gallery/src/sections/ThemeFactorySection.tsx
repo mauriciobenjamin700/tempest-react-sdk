@@ -4,6 +4,7 @@ import {
     Badge,
     Button,
     Card,
+    createInverseSurface,
     createTheme,
     Input,
     Section,
@@ -44,6 +45,7 @@ export function ThemeFactorySection() {
                 radius: radius as "none" | "sm" | "md" | "lg" | "xl" | "full",
                 selector: "#theme-factory",
                 darkSelector: '[data-tempest-theme="dark"] #theme-factory',
+                inverse: createInverseSurface,
                 inverseSelector: '#theme-factory [data-tempest-tone="inverse"]',
             }),
         );
@@ -173,7 +175,9 @@ themeContrast({ primary: "#003d99" }); //  9.8 — texto branco escolhido`}
             <Example
                 title="Superfície invertida (seção na cor da marca)"
                 note="data-tempest-tone='inverse' em qualquer elemento: o fundo vira a marca e todo token de cor é redefinido e medido sobre ela — texto e muted ≥ 4.5:1, anel ≥ 3:1. Igual no claro e no escuro."
-                code={`<Section tone="inverse">
+                code={`import "tempest-react-sdk/styles/inverse.css"; // ou createTheme({ primary, inverse: createInverseSurface })
+
+<Section tone="inverse">
   <SectionHeader eyebrow="Pronto?" title="Comece agora" description="Sem cartão de crédito." />
   <Button>Criar conta</Button>
   <Button variant="outline">Falar com vendas</Button>

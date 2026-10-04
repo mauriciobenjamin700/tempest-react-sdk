@@ -158,8 +158,7 @@ const theme = createTheme({
 
 theme.light; // { "--tempest-primary-500": "#7c3aed", … } — your color, exactly
 theme.dark;  // same, with the ramp inverted
-theme.inverse; // the section in the brand color — see "Inverse surface"
-theme.css;   // ":root { … }\n\n[data-tempest-theme=\"dark\"] { … }\n\n[data-tempest-tone=\"inverse\"] { … }"
+theme.css;   // ":root { … }\n\n[data-tempest-theme=\"dark\"] { … }"
 ```
 
 Only the families you pass are generated — everything else still comes from the SDK's `colors.css`. A theme is a **patch**, not a fork of the palette.
@@ -336,10 +335,13 @@ button labelled in the brand, light text, a focus ring that separates from the
 fill. Overriding half a dozen tokens by hand leaves the rest of the palette on
 the page's values, and that is where the section breaks.
 
-Put `tone="inverse"` on the `Section` (or the `data-tempest-tone="inverse"`
-attribute on any element):
+The surface is **opt-in** — most apps never paint a section in the brand, so
+nobody pays for it without asking. Load the sheet once and put `tone="inverse"`
+on the `Section` (or the `data-tempest-tone="inverse"` attribute on any
+element):
 
 ```tsx
+import "tempest-react-sdk/styles/inverse.css";
 import { Button, Section, SectionHeader } from "tempest-react-sdk";
 
 export function FinalCta() {
@@ -452,29 +454,47 @@ colors, not references to the page's ramp. A band in the brand color is the
 brand in both themes — and a brand with no dark variant (the common landing
 case) has nothing to decide.
 
+### Without the import
+
+The `styles/inverse.css` sheet stays out of `colors.css`, `tokens.css` **and**
+`styles.css`: it is 96 declarations most apps never use (measured, they took the
+`tokens.css` + `scoped.css` foundation from 3.05 to 3.44 kB brotli for
+everyone). One rule for every way of importing the SDK: the surface exists when
+this sheet — or a theme generated with `inverse`, below — is loaded.
+
+With neither, the attribute matches nothing and the section keeps the page's
+tokens: legible, just not inverted. Measured in the browser, a `Section
+tone="inverse"` without the sheet shows its title at 17.75:1 and its description
+at 7.69:1 in the light theme (17.51 and 9.11 in dark) — an ordinary section.
+
 ### Your brand, with `createTheme`
 
-`colors.css` ships the inverse surface of the SDK's blue. With `createTheme` and
-a `primary`, the block is generated for your brand — by default:
+The sheet carries the surface of the SDK's blue. For your brand, hand the
+generator to `createTheme` — no sheet needed:
 
 ```tsx
-import { applyTheme, createTheme } from "tempest-react-sdk";
+import { applyTheme, createInverseSurface, createTheme } from "tempest-react-sdk";
 
-const theme = createTheme({ primary: "#03184b" });
+const theme = createTheme({ primary: "#03184b", inverse: createInverseSurface });
 
-theme.inverse["--tempest-bg"]; // "#03184b" — your brand is the fill
+theme.inverse?.["--tempest-bg"]; // "#03184b" — your brand is the fill
 applyTheme(theme);
 ```
 
-Statuses and chart colors the theme names (`danger`, `chart`…) reach the inverse
-surface too. To scope it to another selector, use `inverseSelector`; to skip the
-block, `inverse: false`.
+!!! info "Why the generator, and not `inverse: true`"
+    With a flag, `createTheme` would have to import the generator, and every app
+    that generates a theme would load it. Measured with `npx size-limit`:
+    `{ createTheme }` alone is 3.35 kB brotli, and with the generator inside it
+    was 4.86 kB. Passing the function, only whoever imports it pays.
 
-!!! warning "Pasted static CSS: generate it again"
-    If you pasted `createTheme`'s output into a `.css` file (see
-    [No JS](#no-js-paste-the-generated-css)), that file has no inverse block for
-    your brand, and the section falls back to the `colors.css` block — the SDK's
-    blue. Run the command again to include it.
+Statuses and chart colors the theme names (`danger`, `chart`…) reach the inverse
+surface too. To scope it to another selector, use `inverseSelector`. Without
+`inverse`, the theme comes out as always — two blocks, and no `theme.inverse`.
+
+!!! warning "Pasted static CSS"
+    If you paste `createTheme`'s output into a `.css` file (see
+    [No JS](#no-js-paste-the-generated-css)), generate it with
+    `inverse: createInverseSurface` so the file carries your brand's block.
 
 ### Recap
 
@@ -484,8 +504,9 @@ block, `inverse: false`.
   lighter than the fill too.
 - The fill is the `500` when it can carry it; otherwise the nearest step that can.
 - The same in the light and the dark theme.
-- `createTheme({ primary })` generates your brand's block; static CSS has to be
-  regenerated.
+- Opt-in: `import "tempest-react-sdk/styles/inverse.css"` for the SDK's blue, or
+  `createTheme({ primary, inverse: createInverseSurface })` for your brand. With
+  neither, the section keeps the page's tokens.
 
 ## App CSS integration + `theme-color`
 

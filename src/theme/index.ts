@@ -16,6 +16,13 @@ export {
 export type { ColorScale, Oklch, ScaleStep } from "./color";
 export { createTheme, themeContrast } from "./create-theme";
 export type { CreateThemeOptions, GeneratedTheme, ThemeRadius, ThemeStatus } from "./create-theme";
+export { createInverseSurface } from "./inverse-surface";
+export type {
+    InverseScheme,
+    InverseSurface,
+    InverseSurfaceGenerator,
+    InverseSurfaceOptions,
+} from "./inverse-render";
 export { getThemePreset, themePresets } from "./theme-presets";
 export type { ThemePresetName } from "./theme-presets";
 export { getInitialTheme, themeInitScript } from "./initial-theme";

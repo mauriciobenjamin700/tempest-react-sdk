@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { contrastRatio, relativeLuminance } from "./color";
+import { createInverseSurface } from "./inverse-surface";
 import { createTheme, themeContrast } from "./create-theme";
 import { getThemePreset, themePresets } from "./theme-presets";
 
@@ -334,13 +335,13 @@ describe("createTheme — continuous data-viz scales", () => {
     });
 
     it("emits each scale for light and dark separately", () => {
-        const { css } = createTheme({ primary: "#2563eb", inverse: false });
+        const { css } = createTheme({ primary: "#2563eb" });
         expect(css.match(/--tempest-chart-sequential-1:/g)).toHaveLength(2);
         expect(css.match(/--tempest-chart-diverging-1:/g)).toHaveLength(2);
     });
 
     it("emits a third copy of each scale for the inverse surface, solved for its fill", () => {
-        const { css } = createTheme({ primary: "#2563eb" });
+        const { css } = createTheme({ primary: "#2563eb", inverse: createInverseSurface });
         expect(css.match(/--tempest-chart-sequential-1:/g)).toHaveLength(3);
         expect(css.match(/--tempest-chart-diverging-1:/g)).toHaveLength(3);
     });

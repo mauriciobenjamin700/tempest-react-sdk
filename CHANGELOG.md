@@ -6,41 +6,41 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
-- **Superfície invertida — seção na cor da marca com todo token de cor redefinido e medido
-  (#409).** `<Section tone="inverse">` ou `data-tempest-tone="inverse"` em qualquer elemento
-  pinta o fundo na marca e redefine os 96 tokens de cor que os componentes leem (superfícies,
-  bordas, três níveis de texto, ação e estados, `soft`, foco, seleção, rampa `primary-*`,
-  status, gráfico, sintaxe, sombras). O `colors.css` traz o bloco do azul do SDK; o
-  `createTheme` gera o da marca **por padrão** quando recebe `primary` (`inverse: false`
-  desliga, `inverseSelector` escopa) e devolve os valores em `theme.inverse`. Reprodução do
-  override manual da issue sobre navy `#1e2a5a` (`createInverseSurface` + `contrastRatio`):
-  os tokens herdados davam `text-subtle` 2,75:1, `danger` 2,12:1, `selected-indicator` 2,01:1
-  e texto branco num `Card` 1,05:1. Agora, em 14 marcas (`src/theme/inverse-surface.test.ts`):
-  texto ≥ 7:1, `muted` ≥ 4,5:1 nas quatro superfícies **e** num brilho 0,1 OKLCH mais claro
-  que o fundo (o gradiente da landing de origem derrubava `subtle` a 3,64:1), `subtle` ≥ 4,5:1,
-  anel ≥ 3:1, rótulo do botão ≥ 4,5:1 nos três estados. No browser (Chromium, gallery
-  buildada, 390 e 1280 px, claro e escuro, idênticos): azul do SDK — fundo `#042e75`, título
-  12,71, muted 9,60, subtle 7,28, anel 6,95; navy da landing `#03184b` — 16,99 / 10,62 / 6,63
-  / 6,31, e sobre o brilho `#122d70` 8,03 / 5,01 / 4,77.
+- **Superfície invertida, opt-in — seção na cor da marca com todo token de cor redefinido e
+  medido (#409).** `<Section tone="inverse">` ou `data-tempest-tone="inverse"` em qualquer
+  elemento pinta o fundo na marca e redefine os 96 tokens de cor que os componentes leem
+  (superfícies, bordas, três níveis de texto, ação e estados, `soft`, foco, seleção, rampa
+  `primary-*`, status, gráfico, sintaxe, sombras). Só existe para quem pede: a folha
+  `tempest-react-sdk/styles/inverse.css` traz o bloco do azul do SDK, e
+  `createTheme({ primary, inverse: createInverseSurface })` gera o da marca (`inverseSelector`
+  escopa) e devolve os valores em `theme.inverse`. Sem nenhum dos dois, o atributo não casa com
+  nada e a seção fica com os tokens da página — medido no browser, título 17,75:1 e descrição
+  7,69:1 no claro (17,51 e 9,11 no escuro). Reprodução do override manual da issue sobre navy
+  `#1e2a5a` (`createInverseSurface` + `contrastRatio`): os tokens herdados davam `text-subtle`
+  2,75:1, `danger` 2,12:1, `selected-indicator` 2,01:1 e texto branco num `Card` 1,05:1. Agora,
+  em 14 marcas (`src/theme/inverse-surface.test.ts`): texto ≥ 7:1, `muted` ≥ 4,5:1 nas quatro
+  superfícies **e** num brilho 0,1 OKLCH mais claro que o fundo (o gradiente da landing de
+  origem derrubava `subtle` a 3,64:1), `subtle` ≥ 4,5:1, anel ≥ 3:1, rótulo do botão ≥ 4,5:1
+  nos três estados. No browser (Chromium, gallery buildada, 390 e 1280 px, claro e escuro,
+  idênticos): azul do SDK — fundo `#042e75`, título 12,71, muted 9,60, subtle 7,28, anel 6,95;
+  navy da landing `#03184b` — 16,99 / 10,62 / 6,63 / 6,31, e sobre o brilho `#122d70` 8,03 /
+  5,01 / 4,77.
 - Decisões medidas, contra a proposta da issue: o fundo **não** é sempre o `500` — é o `500`
   quando ele carrega os três níveis de texto, senão o degrau mais próximo que carrega (6 de 14
   marcas ficam no `500`; o `#0066ff` vai ao `800`, porque branco sobre ele mede 4,83:1). As
   superfícies elevadas ficam **mais fundas** que o fundo, não mais claras (mesmas 6 de 14, e os
   roxos param no `700` em vez do `800`). Os valores são literais, então a seção é **igual no
   tema claro e no escuro**. Tokens sólidos, não alfa sobre branco.
-- O `split-css` passa a mandar a regra `:where([data-tempest-tone])` (que pinta fundo e texto
-  só no elemento marcado, com especificidade zero) para o `tokens.css`; antes ela iria para o
-  `base.css` e um app na fundação documentada (`tokens.css` + `scoped.css`) teria texto branco
-  sobre fundo branco.
-- Custo, medido com `npx size-limit` contra a `main` buildada: fatia `{ createTheme }` 3,18 →
-  4,86 kB br (+1,68 kB — o gerador, as tabelas portadas do `colors.css` e a medição; novo check
-  com teto de 5 kB); fundação `tokens.css` + `scoped.css` 3,05 → 3,44 kB (+0,39, o bloco do
-  azul do SDK); `styles.css` 30,43 → 30,86 kB (teto 30,5 → 30,9); barrel ESM 137,63 → 139,23
-  kB (teto 137,8 → 139,4) e CJS 164,48 → 166,34 kB (teto 164,7 → 166,5). Um app que não usa
-  `createTheme` paga só os 0,39 kB de CSS.
-- **Migração:** `GeneratedTheme` ganha o campo `inverse`, e `theme.css` ganha um terceiro
-  bloco. CSS estático colado da saída antiga do `createTheme` não traz o bloco da sua marca —
-  regenere-o, ou a seção cai no azul do SDK.
+- Por que opt-in, medido com `npx size-limit`: dentro do `colors.css`, o bloco levava a base
+  `tokens.css` + `scoped.css` de 3,05 para 3,44 kB br em todo app; como flag do `createTheme`, o
+  gerador levava `{ createTheme }` de 3,18 para 4,86 kB. Agora a base volta a 3,05 kB,
+  `styles.css` a 30,43 kB, `{ createTheme }` fica em 3,35 kB (+0,17: o renderizador e os tipos;
+  novo check com teto de 3,5 kB) e a folha opt-in mede 0,83 kB (teto 1 kB). A folha fica fora do
+  `styles.css` também, para haver uma regra só em toda forma de importar o SDK. O barrel inclui o
+  gerador por exportá-lo: ESM 137,63 → 139,27 kB (teto 139,4) e CJS 164,48 → 166,25 kB (teto
+  166,4).
+- `createTheme` sem `inverse` emite o mesmo de antes: dois blocos, sem campo `inverse` no
+  resultado.
 - **`SectionHeader` e `Section` — o cabeçalho do `Page` como componente público (#410).**
   Uma página com várias seções precisa de um `<h1>` e vários `<h2>` com o mesmo visual, e o
   cabeçalho só existia preso ao `Page` (sempre `<h1>`). O `SectionHeader` recebe `eyebrow`,

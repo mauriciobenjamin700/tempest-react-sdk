@@ -42,9 +42,9 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - Sem a folha `styles/inverse.css` nem `createTheme({ inverse: createInverseSurface })`,
   `tone="inverse"` cai nos tokens da página (`--tempest-bg`/`--tempest-text`): texto 17,75:1 no
   claro e 17,51:1 no escuro — legível, só não na marca.
-- Custo, medido com `npx size-limit`: barrel ESM 139,27 → 139,37 kB br (teto 139,4 → 139,5) e CJS
-  166,25 → 166,46 kB (teto 166,4 → 166,6) — a classe e o atributo em dois componentes; `styles.css`
-  30,47 kB (teto 30,5).
+- Custo, medido com `npx size-limit`: +0,10 kB br no barrel ESM e +0,21 kB no CJS — a classe e o
+  atributo em dois componentes. Com o ciclo inteiro na `main`, o barrel mede 139,86 kB (ESM) e
+  167,02 kB (CJS, teto 167 → 167,2 KB); `styles.css` 30,47 kB (teto 30,5).
 - Gallery: exemplo `Navbar na cor da marca` na seção `nav-extra` e um `AppBar tone="inverse"` na
   seção `navigation`.
 

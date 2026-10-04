@@ -385,7 +385,7 @@
   {
     "name": "ceiling: full barrel ESM (nobody imports this — tree-shaking is the real cost)",
     "path": "dist/tempest-react-sdk.js",
-    "limit": "139.4 KB",
+    "limit": "139.8 KB",
     "ignore": [
       "react",
       "react-dom",

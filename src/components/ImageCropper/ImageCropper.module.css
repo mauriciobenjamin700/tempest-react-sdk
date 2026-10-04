@@ -31,8 +31,8 @@
 }
 
 .frame:focus-visible {
-    outline: 2px solid var(--tempest-primary);
-    outline-offset: 2px;
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: var(--tempest-focus-ring-offset);
 }
 
 .circle {
@@ -113,8 +113,8 @@
 }
 
 .reset:focus-visible {
-    outline: 2px solid var(--tempest-primary);
-    outline-offset: 2px;
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: var(--tempest-focus-ring-offset);
 }
 
 .reset:disabled {

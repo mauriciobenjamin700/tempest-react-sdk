@@ -92,7 +92,7 @@
 
 .marker[role="button"]:focus-visible {
     outline: none;
-    stroke: var(--tempest-primary-active);
+    stroke: var(--tempest-focus-ring-color);
     stroke-width: 3;
 }
 

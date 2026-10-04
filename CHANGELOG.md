@@ -20,6 +20,28 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   por dentro (`InstallButton`, `ConfirmDialog`, `Wizard`, `ModalsManager`).
   `Button.loading-name.test.tsx` aplica a folha real no jsdom e reprova 5 de 5 contra o CSS
   anterior.
+- **Anel de foco — 22 folhas desenhavam o foco na cor da marca em vez de
+  `--tempest-focus-ring-color` (#418).** A issue contou 24 anéis em 13 arquivos
+  (`grep -rc "outline: 2px solid var(--tempest-primary)" src`); a varredura por seletor de
+  `:focus` achou 35 pontos em 22 arquivos, em quatro formas: os 24 `outline` (`AIChat`,
+  `Carousel`, `Chat`, `FilterBar`, `ImageCropper`, `Markdown`, `Menubar`, `NavigationMenu`,
+  `NotificationCenter`, `Tour`, `Transfer`, `VirtualTable`, `IconPicker`); o `stroke` de foco do
+  `BrazilMap` (estado e marcador) e do `TrajectoryMap`; o fallback
+  `var(--tempest-focus-ring-color, var(--tempest-primary))` de `FloatingActionButton`,
+  `ListTile`, `NavigationRail`, `PasswordInput` e `PinInput`, morto porque os dois tokens vêm da
+  mesma folha (agora `currentColor`, como o reset); e três regras que tiravam o `outline` e
+  marcavam o foco só com borda ou tinta da marca — `Dropzone`, a caixa do compositor do `AIChat`
+  e o resultado do `MunicipalitySearch`, que ganham o anel. Os anéis seguem o padrão dos
+  demais componentes: largura, cor e offset por token; os que eram internos (offset negativo,
+  dentro de área com rolagem) ficam internos com `calc(var(--tempest-focus-ring-width) * -1)`.
+  A largura passa de 2px fixos para o token (3px). Medido no Chromium, gatilho do `Menubar`, de
+  `main` para cá: claro 4,83 → 6,82:1, escuro 5,28 → 7,64:1, superfície invertida 12,71 →
+  6,95:1 (o `--tempest-primary` lá é branco, então o anel antigo não reprovava — a divergência da
+  issue não aparece no tema do SDK) e `createTheme({ primary: "#facc15" })` **1,53 → 5,39:1**, que
+  é onde o defeito estava. Ficam na marca, por não serem foco: a barra de não lida do
+  `NotificationCenter`, a linha marcada do `CodeBlock`, o alvo de soltura do `Kanban` e o
+  destaque do `Tour`. Guard em `src/styles/focus-ring.usage.test.ts`, que reprova 40 + 38
+  seletores contra a `main`.
 
 ## [0.74.0] — 2026-10-04
 

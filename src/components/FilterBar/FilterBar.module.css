@@ -88,8 +88,8 @@
 
 .select:focus-visible,
 .input:focus-visible {
-    outline: 2px solid var(--tempest-primary);
-    outline-offset: -1px;
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: calc(var(--tempest-focus-ring-width) * -1);
 }
 
 .actions {
@@ -142,6 +142,6 @@
 .secondary:focus-visible,
 .ghost:focus-visible,
 .remove:focus-visible {
-    outline: 2px solid var(--tempest-primary);
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
     outline-offset: 1px;
 }

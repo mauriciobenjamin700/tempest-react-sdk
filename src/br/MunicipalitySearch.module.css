@@ -38,8 +38,12 @@
 
 .result:hover,
 .result:focus-visible {
-    outline: none;
     background: var(--tempest-primary-soft);
+}
+
+.result:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: calc(var(--tempest-focus-ring-width) * -1);
 }
 
 .uf {

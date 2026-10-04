@@ -42,7 +42,7 @@
 
 .state[role="button"]:focus-visible {
     outline: none;
-    stroke: var(--tempest-primary);
+    stroke: var(--tempest-focus-ring-color);
     stroke-width: 1.5;
 }
 
@@ -105,7 +105,7 @@
 
 .marker[role="button"]:focus-visible {
     outline: none;
-    stroke: var(--tempest-primary);
+    stroke: var(--tempest-focus-ring-color);
     stroke-width: 3;
 }
 

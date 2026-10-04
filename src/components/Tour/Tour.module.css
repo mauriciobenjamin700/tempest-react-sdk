@@ -39,8 +39,8 @@
 }
 
 .card:focus-visible {
-    outline: 2px solid var(--tempest-primary);
-    outline-offset: 2px;
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: var(--tempest-focus-ring-offset);
 }
 
 .header {
@@ -140,8 +140,8 @@
 .secondary:focus-visible,
 .skip:focus-visible,
 .close:focus-visible {
-    outline: 2px solid var(--tempest-primary);
-    outline-offset: 2px;
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: var(--tempest-focus-ring-offset);
 }
 
 /* The spotlight ring is decoration; a reader who asked for less motion gets none. */

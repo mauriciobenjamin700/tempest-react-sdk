@@ -9,6 +9,7 @@ import {
     DEFAULT_CHART_COLORS,
     DEFAULT_CODE_COLORS,
     DEFAULT_STATUS_COLORS,
+    DEFAULT_TONE_SELECTOR,
     INVERSE_SELECTOR,
     createInverseSurface,
     renderInverseSurface,
@@ -419,13 +420,27 @@ describe("createTheme — inverse surface", () => {
     it("keeps the generator out of createTheme's module graph", () => {
         const source = readFileSync(join(__dirname, "create-theme.ts"), "utf8");
         expect(source).not.toMatch(/from "\.\/inverse-surface"/);
+        const render = readFileSync(join(__dirname, "inverse-render.ts"), "utf8");
+        expect(render).not.toMatch(/^import (?!type)[^;]*from "\.\/inverse-(surface|restore)"/m);
     });
 
     it("writes under a custom selector, paint rule included", () => {
         const { css } = createTheme({ primary: "#1e2a5a", inverseSelector: ".hero", ...on });
         expect(css).toContain(".hero {\n    color-scheme: dark;");
         expect(css).toContain(":where(.hero) {");
-        expect(css).not.toContain("data-tempest-tone");
+        expect(css).not.toContain(INVERSE_SELECTOR);
+    });
+
+    it("keeps the default tone under its own attribute when the surface has a custom selector", () => {
+        /*
+         * This used to assert that a custom selector left no `data-tempest-tone`
+         * in the CSS at all. #420 reversed it on purpose: the region that goes
+         * back to the page is `data-tempest-tone="default"` whatever selector the
+         * surface itself uses, and the save rule skips that selector instead.
+         */
+        const { css } = createTheme({ primary: "#1e2a5a", inverseSelector: ".hero", ...on });
+        expect(css).toContain(`:where(${DEFAULT_TONE_SELECTOR}:not(`);
+        expect(css).toContain(":where(:is(:root, [data-tempest-theme]):not(.hero)) {");
     });
 
     it("passes the theme's statuses and chart colors through", () => {
@@ -444,5 +459,76 @@ describe("createTheme — inverse surface", () => {
         expect(createTheme({ primary: "#1e2a5a", ...on }).css).toContain(
             renderInverseSurface(INVERSE_SELECTOR, surface),
         );
+    });
+});
+
+describe("inverse surface — default tone (#420)", () => {
+    /*
+     * A region inside the surface that goes back to the page's tokens. Custom
+     * properties inherit from the parent, so the region cannot read `:root`
+     * again; the page's value of every redefined token is saved in a
+     * `--tempest-default-*` twin where a theme is declared, and the region reads
+     * it back. That the computed styles then match the page is measured in a
+     * browser (`e2e/inverse-default-tone.spec.ts`); these pin the text.
+     */
+    const surface = createInverseSurface({ primary: "#1e2a5a" });
+    const names = Object.keys(surface.tokens);
+    const css = renderInverseSurface(INVERSE_SELECTOR, surface);
+    const rule = (start: string): string => {
+        const from = css.indexOf(start);
+        expect(from, `${start} missing`).toBeGreaterThanOrEqual(0);
+        return css.slice(from, css.indexOf("}", from));
+    };
+    const twin = (name: string): string => name.replace("--tempest-", "--tempest-default-");
+
+    it("saves every token the surface redefines, where the page declares its schemes", () => {
+        const save = rule(`:where(:is(:root, [data-tempest-theme]):not(${INVERSE_SELECTOR})) {`);
+        for (const name of names) expect(save).toContain(`${twin(name)}: var(${name});`);
+    });
+
+    it("reads every one of them back in the region", () => {
+        const restore = rule(`:where(${DEFAULT_TONE_SELECTOR}:not(:root, [data-tempest-theme])) {`);
+        for (const name of names) expect(restore).toContain(`${name}: var(${twin(name)});`);
+    });
+
+    it("never saves and restores on one element, where the pair would reference itself", () => {
+        expect(css).toMatch(/:where\(:is\(([^)]*)\):not\([^)]*\)\) \{/);
+        const anchors = /:where\(:is\(([^)]*)\)/.exec(css)?.[1];
+        expect(css).toContain(`:where(${DEFAULT_TONE_SELECTOR}:not(${anchors})) {`);
+    });
+
+    it("restores the page's color scheme and ink, light and dark, at zero specificity", () => {
+        const paint = rule(`:where(${DEFAULT_TONE_SELECTOR}) {`);
+        expect(paint).toMatch(/color-scheme:\s*light;/);
+        expect(paint).toMatch(/background-color:\s*var\(--tempest-bg\)/);
+        expect(paint).toMatch(/color:\s*var\(--tempest-text\)/);
+        expect(rule(`:where(:is([data-tempest-theme="dark"]) ${DEFAULT_TONE_SELECTOR}) {`)).toMatch(
+            /color-scheme:\s*dark;/,
+        );
+    });
+
+    it("saves under a theme's own selectors too, so a scoped theme is restored", () => {
+        const { css: scoped } = createTheme({
+            primary: "#1e2a5a",
+            selector: "#app",
+            darkSelector: '[data-tempest-theme="dark"] #app',
+            inverse: createInverseSurface,
+        });
+        const anchors = ':root, [data-tempest-theme], #app, [data-tempest-theme="dark"] #app';
+        expect(scoped).toContain(`:where(:is(${anchors}):not(${INVERSE_SELECTOR})) {`);
+        expect(scoped).toContain(`:where(${DEFAULT_TONE_SELECTOR}:not(${anchors})) {`);
+        expect(scoped).toContain(
+            `:where(:is([data-tempest-theme="dark"] #app) ${DEFAULT_TONE_SELECTOR}) {`,
+        );
+    });
+
+    it("ships in inverse.css exactly as the generator renders it, so it costs nothing elsewhere", () => {
+        const flat = (text: string): string => text.replace(/\s+/g, " ").trim();
+        const shipped = renderInverseSurface(
+            INVERSE_SELECTOR,
+            createInverseSurface({ primary: "#0066ff" }),
+        );
+        expect(flat(INVERSE_CSS)).toBe(flat(shipped));
+        expect(CSS).not.toContain("--tempest-default-");
     });
 });

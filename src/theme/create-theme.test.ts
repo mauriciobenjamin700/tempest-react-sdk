@@ -341,9 +341,14 @@ describe("createTheme — continuous data-viz scales", () => {
     });
 
     it("emits a third copy of each scale for the inverse surface, solved for its fill", () => {
+        /*
+         * Counts the declarations that carry a color. Since #420 the inverse
+         * surface also reads each token back from its saved page value in the
+         * `data-tempest-tone="default"` region — a `var()`, not another copy.
+         */
         const { css } = createTheme({ primary: "#2563eb", inverse: createInverseSurface });
-        expect(css.match(/--tempest-chart-sequential-1:/g)).toHaveLength(3);
-        expect(css.match(/--tempest-chart-diverging-1:/g)).toHaveLength(3);
+        expect(css.match(/--tempest-chart-sequential-1: #/g)).toHaveLength(3);
+        expect(css.match(/--tempest-chart-diverging-1: #/g)).toHaveLength(3);
     });
 
     it("leaves the built-in scales alone when no colour is given to derive from", () => {

@@ -12,6 +12,14 @@ export const INVERSE_SELECTOR = '[data-tempest-tone="inverse"]';
 /** Which way the inverse surface reads: light ink on a dark fill, or the reverse. */
 export type InverseScheme = "light" | "dark";
 
+/** Where the page's schemes are written: the selectors `createTheme` uses. */
+export interface PageSelectors {
+    /** Selector of the light scheme. Default `:root`. */
+    selector: string;
+    /** Selector of the dark scheme. Default `'[data-tempest-theme="dark"]'`. */
+    darkSelector: string;
+}
+
 /** The inverse surface for one brand. */
 export interface InverseSurface {
     /** Every color custom property the surface redefines, as literal colors. */
@@ -24,6 +32,12 @@ export interface InverseSurface {
     scheme: InverseScheme;
     /** Step of the brand's light ramp used as the fill. */
     step: ScaleStep;
+    /**
+     * CSS written after the surface: the rules that let a region inside it go
+     * back to the page's tokens with `data-tempest-tone="default"`. Rendered by
+     * the generator, so `createTheme` alone does not ship the code that writes it.
+     */
+    rules?: string;
 }
 
 /** Input for an {@link InverseSurfaceGenerator} — `createInverseSurface`. */
@@ -37,6 +51,18 @@ export interface InverseSurfaceOptions {
     statuses?: Partial<Record<ThemeStatus, string>>;
     /** Categorical chart colors the theme names; else the SDK's defaults. */
     chart?: readonly string[];
+    /**
+     * Selector the surface is written under, which the default-tone rules keep
+     * out of the elements that save the page's values. Default
+     * `'[data-tempest-tone="inverse"]'`.
+     */
+    selector?: string;
+    /**
+     * Selectors the page's schemes are written under, so a region restores a
+     * theme scoped to them too. Default `createTheme`'s: `:root` and
+     * `'[data-tempest-theme="dark"]'`.
+     */
+    page?: PageSelectors;
 }
 
 /**
@@ -52,8 +78,9 @@ export interface InverseSurfaceOptions {
 export type InverseSurfaceGenerator = (options: InverseSurfaceOptions) => InverseSurface;
 
 /**
- * Render the inverse surface as CSS: the token block, plus a zero-specificity
- * rule that paints the fill and the ink on the element itself.
+ * Render the inverse surface as CSS: the token block, a zero-specificity rule
+ * that paints the fill and the ink on the element itself, and the surface's own
+ * {@link InverseSurface.rules}.
  *
  * The paint rule is what makes the attribute a complete shortcut — without it a
  * `<section data-tempest-tone="inverse">` would get inverted tokens and keep the
@@ -70,6 +97,7 @@ export function renderInverseSurface(selector: string, surface: InverseSurface):
         .join("\n");
     return (
         `${selector} {\n    color-scheme: ${surface.scheme};\n${body}\n}\n\n` +
-        `:where(${selector}) {\n    background-color: var(--tempest-bg);\n    color: var(--tempest-text);\n}`
+        `:where(${selector}) {\n    background-color: var(--tempest-bg);\n    color: var(--tempest-text);\n}` +
+        (surface.rules ? `\n\n${surface.rules}` : "")
     );
 }

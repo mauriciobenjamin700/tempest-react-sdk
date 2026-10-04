@@ -498,6 +498,71 @@ superfície invertida também. Para escopar a outro seletor, use
     [Sem JS](#sem-js-cole-o-css-gerado)), gere com `inverse: createInverseSurface`
     para o arquivo trazer o bloco da sua marca.
 
+### De volta aos tokens da página
+
+Um formulário de contato, um preço, um depoimento: às vezes um trecho **dentro**
+da faixa precisa voltar a ser página — um `Card` branco num hero navy. Dentro da
+superfície invertida todo descendente herda os tokens invertidos, então o `Card`
+sai navy. Marque o trecho com `data-tempest-tone="default"` (ou
+`<Section tone="default">`):
+
+```tsx
+import "tempest-react-sdk/styles/inverse.css";
+import { Button, Card, Input, Section, SectionHeader } from "tempest-react-sdk";
+
+export function ContactHero() {
+    return (
+        <Section tone="inverse" style={{ padding: 48 }}>
+            <SectionHeader title="Fale com a gente" />
+            <Card data-tempest-tone="default" title="Contato">
+                <Input label="E-mail" name="email" />
+                <Button>Enviar</Button>
+            </Card>
+        </Section>
+    );
+}
+```
+
+O `Card` volta a ser **o da página** — claro no tema claro, escuro no escuro, com
+a sua marca e os seus overrides do `:root`. Medido no browser (Chromium,
+04/10/2026): de 28 valores computados de um `Card`, um `Input` e um `Button`, 0
+diferem do mesmo trio fora da faixa, no tema claro, no escuro e num subtree
+escuro. Sem o atributo, 25 de 28 diferiam no claro e 18 de 28 no escuro.
+
+Ponha o atributo **na própria superfície** (o `Card`) para ela flutuar sobre a
+faixa. Num wrapper, o wrapper inteiro vira um bloco com o fundo da página — uma
+regra `:where()` pinta `background-color` e `color` nele, com especificidade
+zero, como na seção invertida.
+
+??? info "Como funciona — e as duas alternativas medidas"
+    Custom property herda do pai, então uma regra não consegue "pular" a seção e
+    ler o `:root` de novo — e escopar o bloco invertido para longe do trecho
+    (`@scope (…) to (…)`, `:not()`) não muda nada: o trecho continua herdando o
+    que a seção declarou. Medido com `@scope`: os mesmos 25 de 28 no claro.
+
+    O que funciona é guardar o valor da página **antes** de a seção sobrescrever.
+    Todo elemento onde um tema é declarado (`:root`, `[data-tempest-theme]` e os
+    seletores do `createTheme`) copia cada token que a superfície redefine para um
+    gêmeo `--tempest-default-*`. Um `var()` dentro de custom property resolve no
+    elemento que o declara, então o gêmeo guarda o valor da página e atravessa a
+    seção intacto. O trecho lê os tokens de volta dos gêmeos.
+
+    | abordagem | custo (brotli) | quem paga | com override de marca no `:root` |
+    | --- | --- | --- | --- |
+    | gêmeos `--tempest-default-*` (escolhida) | +821 B no `inverse.css` | só quem carrega a superfície | 0 de 28 diferem |
+    | um bloco por tema com os valores do SDK | +1257 B | só quem carrega a superfície | 3 de 28 diferem |
+    | o trecho nos seletores do `colors.css` | +15 B | **todo app** | 3 de 28 diferem |
+
+    O `tokens.css` e o `styles.css` saem com os mesmos bytes de antes. O
+    `{ createTheme }` sem `inverse` cresce 40 B brotli (3346 → 3386), o repasse
+    dos seletores ao gerador; o código que escreve as regras mora no gerador.
+    Números de `npx size-limit` na 0.74.0 + este PR; os de 1257 B e 15 B, de
+    `zlib.brotliCompressSync` sobre o CSS de cada alternativa.
+
+Com o `createTheme`, as regras saem junto quando você passa
+`inverse: createInverseSurface`, escritas para o seu `selector` e o seu
+`darkSelector` — um tema escopado a `#app` também é restaurado.
+
 ### Recap
 
 - `<Section tone="inverse">` ou `data-tempest-tone="inverse"` em qualquer
@@ -509,6 +574,8 @@ superfície invertida também. Para escopar a outro seletor, use
 - Opt-in: `import "tempest-react-sdk/styles/inverse.css"` para o azul do SDK, ou
   `createTheme({ primary, inverse: createInverseSurface })` para a sua marca.
   Sem nenhum, a seção fica com os tokens da página.
+- `data-tempest-tone="default"` (ou `<Section tone="default">`) dentro da
+  faixa devolve os tokens da página — claro ou escuro, com a sua marca.
 
 ## Integração com o CSS do app + `theme-color`
 

@@ -521,6 +521,8 @@ export function createTheme(options: CreateThemeOptions = {}): GeneratedTheme {
                       info: options.info,
                   },
                   chart,
+                  selector: inverseSelector,
+                  page: { selector, darkSelector },
               })
             : null;
 

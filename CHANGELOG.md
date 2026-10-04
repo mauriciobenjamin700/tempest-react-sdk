@@ -4,6 +4,27 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **Tom `default` — um trecho de uma superfície invertida volta aos tokens da página (#420).**
+  `data-tempest-tone="default"` (ou `<Section tone="default">`) dentro de uma seção
+  `tone="inverse"` devolve os tokens da página ao trecho — um `Card` branco num hero navy. Volta
+  ao tema **atual**, não ao claro fixo: claro, escuro, um subtree escuro, a marca de um
+  `createTheme` e os overrides do `:root` do app. Medido em Chromium headless (`@playwright/test`,
+  28 valores computados de um `Card`, um `Input` e um `Button`, dentro do trecho × fora da
+  seção): antes, 25 de 28 diferiam no claro e 18 de 28 no escuro; agora 0 nos dois, e
+  `e2e/inverse-default-tone.spec.ts` afere isso na gallery. Custom property herda do pai, então
+  escopar o bloco invertido para longe do trecho (`@scope … to …`) não muda nada (os mesmos
+  25 de 28); a solução guarda o valor da página em gêmeos `--tempest-default-*` onde cada tema é
+  declarado e o trecho os lê de volta. Rejeitadas por medição: um bloco por tema com os valores
+  do SDK (+1257 B brotli, e 3 de 28 errados com override de marca) e o trecho nos seletores do
+  `colors.css` (+15 B para **todo** app, mesmos 3 de 28). Custo, com `npx size-limit`:
+  `styles/inverse.css` 834 → 1655 B (teto 1 → 1,7 kB); `tokens.css` e `styles.css` com os mesmos
+  bytes; `{ createTheme }` 3346 → 3386 B (o repasse dos seletores — o código das regras mora no
+  gerador, `src/theme/inverse-restore.ts`); barrel CJS 166 248 → 166 758 B (teto 166,4 → 166,8 KB).
+  `createInverseSurface` aceita `selector` e `page` e devolve `rules`, que o `createTheme`
+  preenche com o seu `inverseSelector`, `selector` e `darkSelector`.
+
 ### Corrigido
 
 - **`Button` em `loading` mantém o nome acessível (#416).** O rótulo era escondido com

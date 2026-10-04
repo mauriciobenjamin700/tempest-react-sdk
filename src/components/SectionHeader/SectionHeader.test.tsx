@@ -165,6 +165,16 @@ describe("Section tone", () => {
         );
     });
 
+    it("writes the default tone attribute the restore rules are scoped to", () => {
+        const { container } = render(
+            <Section tone="inverse">
+                <Section tone="default" aria-label="Contato" />
+            </Section>,
+        );
+        const inner = container.querySelectorAll("section")[1];
+        expect(inner?.getAttribute("data-tempest-tone")).toBe("default");
+    });
+
     it("leaves the attribute off without a tone, so the page tokens apply", () => {
         const { container } = render(
             <Section>

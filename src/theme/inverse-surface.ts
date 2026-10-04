@@ -28,15 +28,23 @@ import {
     type ScaleStep,
 } from "./color";
 import { buildDivergingRamp, buildRamp, hueOf } from "./data-viz-ramps";
-import type { InverseScheme, InverseSurface, InverseSurfaceOptions } from "./inverse-render";
+import {
+    INVERSE_SELECTOR,
+    type InverseScheme,
+    type InverseSurface,
+    type InverseSurfaceOptions,
+} from "./inverse-render";
+import { DEFAULT_PAGE_SELECTORS, defaultToneRules } from "./inverse-restore";
 import { THEME_STATUSES, writeStatus, type ThemeStatus } from "./status-tokens";
 
 export { INVERSE_SELECTOR, renderInverseSurface } from "./inverse-render";
+export { DEFAULT_TONE_SELECTOR } from "./inverse-restore";
 export type {
     InverseScheme,
     InverseSurface,
     InverseSurfaceGenerator,
     InverseSurfaceOptions,
+    PageSelectors,
 } from "./inverse-render";
 
 /** WCAG 2.x AA floor for body text. */
@@ -544,8 +552,14 @@ function margin(tokens: Record<string, string>, glow: string): number {
  * section paints the same in the light and the dark page scheme: the brand is
  * the brand in both.
  *
- * @param options - The brand, plus the status and chart colors the theme names.
- * @returns The token map, the scheme it reads as, and the fill step used.
+ * The result also carries the rules that let a region inside the surface go
+ * back to the page's tokens (`data-tempest-tone="default"`), written for the
+ * selectors in `options`.
+ *
+ * @param options - The brand, plus the status and chart colors the theme names
+ *   and the selectors the surface and the page are written under.
+ * @returns The token map, the scheme it reads as, the fill step used and the
+ *   default-tone rules.
  */
 export function createInverseSurface(options: InverseSurfaceOptions): InverseSurface {
     const ramp = createColorScale(options.primary, "light");
@@ -554,11 +568,17 @@ export function createInverseSurface(options: InverseSurfaceOptions): InverseSur
     for (const step of FILL_CANDIDATES) {
         const derived = deriveOver(ramp[step], options);
         const measured = margin(derived.tokens, derived.glow);
-        if (measured >= 0) return { tokens: derived.tokens, scheme: derived.scheme, step };
         if (measured > bestMargin) {
             best = { tokens: derived.tokens, scheme: derived.scheme, step };
             bestMargin = measured;
         }
+        if (measured >= 0) break;
     }
-    return best as InverseSurface;
+    const surface = best as InverseSurface;
+    surface.rules = defaultToneRules(
+        Object.keys(surface.tokens),
+        options.selector ?? INVERSE_SELECTOR,
+        options.page ?? DEFAULT_PAGE_SELECTORS,
+    );
+    return surface;
 }

@@ -223,7 +223,9 @@ todo atributo de `<section>`.
 - Sem `SectionHeader` com título, o `aria-labelledby` fica de fora em vez de
   apontar para um id que não existe.
 - `tone="inverse"` pinta a seção na cor da marca e inverte todo token de cor
-  dentro dela (escreve `data-tempest-tone="inverse"`). Os valores e as medições
+  dentro dela (escreve `data-tempest-tone="inverse"`). É opt-in: carregue
+  `tempest-react-sdk/styles/inverse.css` ou gere o tema com
+  `inverse: createInverseSurface`; sem nenhum, a seção fica com os tokens da página. Os valores e as medições
   estão em [Superfície invertida](../theme.md#superficie-invertida-secao-na-cor-da-marca).
 
 ## `Container`

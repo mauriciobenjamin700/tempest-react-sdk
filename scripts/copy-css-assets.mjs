@@ -12,6 +12,8 @@
  * `scoped.css` rides along for the same reason — it is the reset republished under
  * `:where([class*="tempest_"])`, offered to apps that own their document styling,
  * and folding it into `styles.css` would defeat the point of having it.
+ * `styles/inverse.css` too: the inverse surface is 96 declarations most apps
+ * never use, so it is loaded by the apps that paint a section in the brand.
  *
  * Run automatically by `npm run build`.
  */
@@ -32,6 +34,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const ASSETS = [
     ["src/styles/utilities.css", "dist/utilities.css"],
     ["src/styles/scoped.css", "dist/styles/scoped.css"],
+    ["src/styles/inverse.css", "dist/styles/inverse.css"],
     ["src/icons/virtual-id.d.ts", "dist/icons-virtual-id.d.ts"],
 ];
 

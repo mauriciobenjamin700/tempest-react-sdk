@@ -22,7 +22,11 @@ import {
 } from "./color";
 import { buildDivergingRamp, buildRamp, hueOf } from "./data-viz-ramps";
 import { isDevBuild } from "../utils/dev-mode";
-import { INVERSE_SELECTOR, createInverseSurface, renderInverseSurface } from "./inverse-surface";
+import {
+    INVERSE_SELECTOR,
+    renderInverseSurface,
+    type InverseSurfaceGenerator,
+} from "./inverse-render";
 import { ON_SOLID_INK, THEME_STATUSES, writeStatus } from "./status-tokens";
 
 /** Radius presets, applied to the whole `--tempest-radius-*` family at once. */
@@ -67,16 +71,22 @@ export interface CreateThemeOptions {
     /** Selector the dark tokens are written under. Default `'[data-tempest-theme="dark"]'`. */
     darkSelector?: string;
     /**
-     * Emit the inverse surface — the token set for a section painted in the
-     * brand color — alongside the page schemes. Default `true` whenever
-     * `primary` is set; ignored without it.
+     * Also emit the inverse surface — the token set for a section painted in the
+     * brand color — by passing its generator, `createInverseSurface`. Off by
+     * default; ignored without `primary`.
      *
-     * On by default because `colors.css` ships the inverse surface of the SDK's
-     * own blue: a rebranded app that forgot this flag would paint its
-     * `data-tempest-tone="inverse"` sections in the SDK's blue, not its brand.
-     * Pass `false` only when the app styles those sections itself.
+     * The generator is passed in rather than switched on with `true` so that
+     * `createTheme` never imports it: an app that does not paint a section in
+     * its brand does not ship the 1.68 kB brotli it costs.
+     *
+     * @example
+     * ```ts
+     * import { createInverseSurface, createTheme } from "tempest-react-sdk";
+     *
+     * createTheme({ primary: "#03184b", inverse: createInverseSurface });
+     * ```
      */
-    inverse?: boolean;
+    inverse?: InverseSurfaceGenerator;
     /** Selector the inverse tokens are written under. Default `'[data-tempest-tone="inverse"]'`. */
     inverseSelector?: string;
 }
@@ -89,10 +99,10 @@ export interface GeneratedTheme {
     dark: Record<string, string>;
     /**
      * Inverse-surface custom properties — literal colors, identical under the
-     * light and the dark page scheme. Empty when the theme names no `primary` or
-     * passes `inverse: false`.
+     * light and the dark page scheme. Present only when the theme names a
+     * `primary` and passes `inverse`.
      */
-    inverse: Record<string, string>;
+    inverse?: Record<string, string>;
     /** Both blocks rendered as CSS, ready for {@link applyTheme} or a stylesheet. */
     css: string;
 }
@@ -391,7 +401,7 @@ export function createTheme(options: CreateThemeOptions = {}): GeneratedTheme {
         focusRingAlpha,
         selector = ":root",
         darkSelector = '[data-tempest-theme="dark"]',
-        inverse = true,
+        inverse,
         inverseSelector = INVERSE_SELECTOR,
     } = options;
 
@@ -502,7 +512,7 @@ export function createTheme(options: CreateThemeOptions = {}): GeneratedTheme {
 
     const inverseSurface =
         primary && inverse
-            ? createInverseSurface({
+            ? inverse({
                   primary,
                   statuses: {
                       success: options.success,
@@ -522,7 +532,9 @@ export function createTheme(options: CreateThemeOptions = {}): GeneratedTheme {
         .filter(Boolean)
         .join("\n\n");
 
-    return { light, dark, inverse: inverseSurface?.tokens ?? {}, css };
+    return inverseSurface
+        ? { light, dark, inverse: inverseSurface.tokens, css }
+        : { light, dark, css };
 }
 
 /**

@@ -1,0 +1,147 @@
+/* ============================================================
+ * Inverse surface — opt-in.
+ *
+ *   import "tempest-react-sdk/styles/inverse.css";
+ *
+ * Activated via [data-tempest-tone="inverse"] on any element (or
+ * `<Section tone="inverse">`): a hero, a call-to-action band, a footer
+ * painted in the brand colour.
+ *
+ * The components inside such a section must invert — a light action
+ * button labelled in the brand, light text, a ring that separates from
+ * the fill — and overriding a handful of tokens by hand leaves the rest
+ * on the page's values. Measured over a navy band with the eight-token
+ * override #409 started from: the inherited `--tempest-text-subtle` sat
+ * at 2.75:1, `--tempest-danger` at 2.12:1, the selected indicator at
+ * 2.01:1, and a `Card` put white text on `--tempest-surface` at 1.05:1.
+ *
+ * So the block redefines every colour token the components read, as
+ * literal colours rather than references to the ramp: the section paints
+ * the same under the light and the dark page scheme. The values are the
+ * output of `createTheme`'s inverse surface for the SDK's own `#0066ff`
+ * — whose fill is the ramp's `800`, because white on the `500` itself
+ * measures 4.83:1 and leaves no room for muted and subtle text to clear
+ * AA, on the fill or on a region of the band lifted 0.1 toward the ink
+ * (a radial glow, a hover). `src/theme/inverse-surface.test.ts` pins this
+ * block to the generator; a brand gets its own block from
+ * `createTheme({ primary, inverse: createInverseSurface })`, which needs no
+ * import.
+ *
+ * Why a separate file and not part of `colors.css`, `tokens.css` or
+ * `styles.css`: most apps never paint a section in the brand, and the
+ * block is 96 declarations — measured, it took the `tokens.css` +
+ * `scoped.css` foundation from 3.05 to 3.44 kB brotli for everyone. It
+ * stays out of `styles.css` too, so there is one rule for every entry
+ * point: the surface exists when this file (or a generated theme with
+ * `inverse: createInverseSurface`) is loaded. Without either, the attribute matches
+ * nothing and the section renders with the page's tokens — legible, just
+ * not inverted.
+ *
+ * The `:where()` rule paints the fill and the ink on the element itself,
+ * at zero specificity, so the attribute alone is a complete section and
+ * any background the app sets on the same element still wins.
+ * ============================================================ */
+[data-tempest-tone="inverse"] {
+    color-scheme: dark;
+    --tempest-bg: #042e75;
+    --tempest-surface: #012361;
+    --tempest-surface-2: #011949;
+    --tempest-surface-3: #000f34;
+    --tempest-border: #305ba6;
+    --tempest-border-strong: #436fbc;
+    --tempest-text: #ffffff;
+    --tempest-text-muted: #d0e1fd;
+    --tempest-text-subtle: #b2c5e7;
+    --tempest-primary: #ffffff;
+    --tempest-primary-hover: #e6efff;
+    --tempest-primary-active: #d0dff9;
+    --tempest-primary-foreground: #042e75;
+    --tempest-text-on-primary: #042e75;
+    --tempest-primary-soft: #18428b;
+    --tempest-primary-soft-hover: #244e98;
+    --tempest-primary-on-soft: #abc9fa;
+    --tempest-focus-ring-color: #9dc1fd;
+    --tempest-selected-indicator: #9dc1fd;
+    --tempest-primary-50: #131f33;
+    --tempest-primary-100: #112953;
+    --tempest-primary-200: #063688;
+    --tempest-primary-300: #0e4db6;
+    --tempest-primary-400: #0562f1;
+    --tempest-primary-500: #3e83fd;
+    --tempest-primary-600: #6fa1f9;
+    --tempest-primary-700: #95bbfb;
+    --tempest-primary-800: #bbd3fb;
+    --tempest-primary-900: #dbe8fd;
+    --tempest-success: #71d888;
+    --tempest-success-fg: #6cd383;
+    --tempest-success-bg: #142317;
+    --tempest-success-border: #0d4a20;
+    --tempest-success-solid: #16a34a;
+    --tempest-success-on-solid: #1f0606;
+    --tempest-warning: #feb57c;
+    --tempest-warning-fg: #fbaa6a;
+    --tempest-warning-bg: #291b11;
+    --tempest-warning-border: #613305;
+    --tempest-warning-solid: #d97706;
+    --tempest-warning-on-solid: #1f0606;
+    --tempest-danger: #fcb0a6;
+    --tempest-danger-fg: #fd8d81;
+    --tempest-danger-bg: #2f1715;
+    --tempest-danger-border: #6d0d0d;
+    --tempest-danger-solid: #dc2626;
+    --tempest-danger-on-solid: #ffffff;
+    --tempest-danger-hover: #bd0011;
+    --tempest-info: #a4c4ff;
+    --tempest-info-fg: #83acfc;
+    --tempest-info-bg: #151f31;
+    --tempest-info-border: #0f3078;
+    --tempest-info-solid: #2563eb;
+    --tempest-info-on-solid: #ffffff;
+    --tempest-chart-1: #60a5fa;
+    --tempest-chart-2: #4ade80;
+    --tempest-chart-3: #fbbf24;
+    --tempest-chart-4: #a78bfa;
+    --tempest-chart-5: #f472b6;
+    --tempest-chart-6: #22d3ee;
+    --tempest-chart-7: #fb923c;
+    --tempest-chart-8: #2dd4bf;
+    --tempest-chart-sequential-1: #152849;
+    --tempest-chart-sequential-2: #163d83;
+    --tempest-chart-sequential-3: #1c55b8;
+    --tempest-chart-sequential-4: #2e70e5;
+    --tempest-chart-sequential-5: #5591fa;
+    --tempest-chart-sequential-6: #89b3fa;
+    --tempest-chart-sequential-7: #b9d2fd;
+    --tempest-chart-diverging-1: #0844a7;
+    --tempest-chart-diverging-2: #3c6fc9;
+    --tempest-chart-diverging-3: #729ae0;
+    --tempest-chart-diverging-4: #afc5eb;
+    --tempest-chart-diverging-5: #000f34;
+    --tempest-chart-diverging-6: #d8c199;
+    --tempest-chart-diverging-7: #be9240;
+    --tempest-chart-diverging-8: #936a0e;
+    --tempest-chart-diverging-9: #64480b;
+    --tempest-chart-grid: #305ba6;
+    --tempest-chart-axis: #b2c5e7;
+    --tempest-code-comment: #a1aab2;
+    --tempest-code-punctuation: #9faab4;
+    --tempest-code-string: #76b784;
+    --tempest-code-number: #e79476;
+    --tempest-code-keyword: #a39ffa;
+    --tempest-code-literal: #ea9090;
+    --tempest-code-function: #4eb3e7;
+    --tempest-code-tag: #e391b8;
+    --tempest-code-attribute: #59b9b8;
+    --tempest-code-property: #59b9b8;
+    --tempest-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --tempest-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.2);
+    --tempest-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2);
+    --tempest-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5), 0 4px 8px rgba(0, 0, 0, 0.3);
+    --tempest-shadow-xl: 0 24px 48px rgba(0, 0, 0, 0.6), 0 8px 16px rgba(0, 0, 0, 0.3);
+    --tempest-shadow-inner: inset 0 2px 4px rgba(15, 23, 42, 0.06);
+}
+
+:where([data-tempest-tone="inverse"]) {
+    background-color: var(--tempest-bg);
+    color: var(--tempest-text);
+}

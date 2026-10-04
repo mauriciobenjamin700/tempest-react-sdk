@@ -35,10 +35,9 @@ import {
  * page-scheme guards already sweep.
  */
 
-const CSS = readFileSync(join(__dirname, "..", "styles", "colors.css"), "utf8").replace(
-    /\/\*[\s\S]*?\*\//g,
-    "",
-);
+const strip = (text: string): string => text.replace(/\/\*[\s\S]*?\*\//g, "");
+const CSS = strip(readFileSync(join(__dirname, "..", "styles", "colors.css"), "utf8"));
+const INVERSE_CSS = strip(readFileSync(join(__dirname, "..", "styles", "inverse.css"), "utf8"));
 
 /** WCAG 2.x AA floor for body text. */
 const TEXT_FLOOR = 4.5;
@@ -122,19 +121,19 @@ function parse(block: string): Record<string, string> {
     return map;
 }
 
-/** The `:root`, dark and inverse blocks of `colors.css`. */
+/** The `:root` and dark blocks of `colors.css`, and the two rules of `inverse.css`. */
 function blocks(): { light: string; dark: string; inverse: string; paint: string } {
     const darkStart = CSS.indexOf('[data-tempest-theme="dark"]');
-    const inverseStart = CSS.indexOf(`${INVERSE_SELECTOR} {`);
-    const paintStart = CSS.indexOf(`:where(${INVERSE_SELECTOR})`);
+    const inverseStart = INVERSE_CSS.indexOf(`${INVERSE_SELECTOR} {`);
+    const paintStart = INVERSE_CSS.indexOf(`:where(${INVERSE_SELECTOR})`);
     expect(darkStart).toBeGreaterThan(0);
-    expect(inverseStart).toBeGreaterThan(darkStart);
+    expect(inverseStart).toBeGreaterThanOrEqual(0);
     expect(paintStart).toBeGreaterThan(inverseStart);
     return {
         light: CSS.slice(0, darkStart),
-        dark: CSS.slice(darkStart, inverseStart),
-        inverse: CSS.slice(inverseStart, paintStart),
-        paint: CSS.slice(paintStart),
+        dark: CSS.slice(darkStart),
+        inverse: INVERSE_CSS.slice(inverseStart, paintStart),
+        paint: INVERSE_CSS.slice(paintStart),
     };
 }
 
@@ -342,8 +341,14 @@ describe("inverse surface — the fill", () => {
     });
 });
 
-describe("inverse surface — colors.css", () => {
+describe("inverse surface — styles/inverse.css", () => {
     const { light, dark, inverse, paint } = blocks();
+
+    it("stays opt-in: nothing the foundation or styles.css loads declares it", () => {
+        const styles = join(__dirname, "..", "styles");
+        expect(CSS).not.toContain("data-tempest-tone");
+        expect(readFileSync(join(styles, "index.css"), "utf8")).not.toContain("inverse.css");
+    });
 
     it("ships the inverse surface of the SDK's own brand, exactly as the generator derives it", () => {
         const generated = createInverseSurface({ primary: "#0066ff" });
@@ -390,8 +395,10 @@ describe("inverse surface — colors.css", () => {
 });
 
 describe("createTheme — inverse surface", () => {
-    it("emits the inverse surface whenever the theme names a primary", () => {
-        const theme = createTheme({ primary: "#1e2a5a" });
+    const on = { inverse: createInverseSurface };
+
+    it("emits the inverse surface when handed the generator", () => {
+        const theme = createTheme({ primary: "#1e2a5a", ...on });
         expect(theme.inverse).toEqual(createInverseSurface({ primary: "#1e2a5a" }).tokens);
         expect(theme.css).toContain(`${INVERSE_SELECTOR} {`);
         expect(theme.css).toContain(`:where(${INVERSE_SELECTOR})`);
@@ -400,17 +407,22 @@ describe("createTheme — inverse surface", () => {
         );
     });
 
-    it("leaves it out with inverse: false, or without a primary to derive from", () => {
-        const off = createTheme({ primary: "#1e2a5a", inverse: false });
-        expect(off.inverse).toEqual({});
+    it("leaves it out by default, and without a primary to derive from", () => {
+        const off = createTheme({ primary: "#1e2a5a" });
+        expect(off).not.toHaveProperty("inverse");
         expect(off.css).not.toContain("data-tempest-tone");
-        const grayOnly = createTheme({ gray: "#64748b" });
-        expect(grayOnly.inverse).toEqual({});
+        const grayOnly = createTheme({ gray: "#64748b", ...on });
+        expect(grayOnly).not.toHaveProperty("inverse");
         expect(grayOnly.css).not.toContain("data-tempest-tone");
     });
 
+    it("keeps the generator out of createTheme's module graph", () => {
+        const source = readFileSync(join(__dirname, "create-theme.ts"), "utf8");
+        expect(source).not.toMatch(/from "\.\/inverse-surface"/);
+    });
+
     it("writes under a custom selector, paint rule included", () => {
-        const { css } = createTheme({ primary: "#1e2a5a", inverseSelector: ".hero" });
+        const { css } = createTheme({ primary: "#1e2a5a", inverseSelector: ".hero", ...on });
         expect(css).toContain(".hero {\n    color-scheme: dark;");
         expect(css).toContain(":where(.hero) {");
         expect(css).not.toContain("data-tempest-tone");
@@ -418,7 +430,7 @@ describe("createTheme — inverse surface", () => {
 
     it("passes the theme's statuses and chart colors through", () => {
         const options = { primary: "#1e2a5a", danger: "#a21caf", chart: ["#0ea5e9"] };
-        expect(createTheme(options).inverse).toEqual(
+        expect(createTheme({ ...options, ...on }).inverse).toEqual(
             createInverseSurface({
                 primary: options.primary,
                 statuses: { danger: options.danger },
@@ -429,7 +441,7 @@ describe("createTheme — inverse surface", () => {
 
     it("renders the same text createTheme appends", () => {
         const surface = createInverseSurface({ primary: "#1e2a5a" });
-        expect(createTheme({ primary: "#1e2a5a" }).css).toContain(
+        expect(createTheme({ primary: "#1e2a5a", ...on }).css).toContain(
             renderInverseSurface(INVERSE_SELECTOR, surface),
         );
     });

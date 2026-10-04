@@ -163,6 +163,7 @@ import "tempest-react-sdk/styles/forms.css";
 | --- | --- | --- |
 | `styles.css` | tudo | uma linha só, e o peso não incomoda |
 | `styles/core.css` | fundação, zero componente | sempre, com qualquer das outras |
+| `styles/inverse.css` | a [superfície invertida](theme.md#superficie-invertida-secao-na-cor-da-marca) do azul do SDK — opt-in, **fora** do `styles.css` | você pinta uma seção na marca e não gera o tema com `inverse` |
 | `styles/<Grupo>.css` | uma família inteira | você usa boa parte dela |
 | `styles/component/<Componente>.css` | um componente | você quer o mínimo |
 
@@ -216,7 +217,7 @@ Por isso a fundação vem em três peças, e não uma:
 
 | Entrada | O que traz | Toca o markup do app? |
 | --- | --- | --- |
-| `styles/tokens.css` | os 220 tokens `--tempest-*` (373 declarações, contando dark e densidades) + `color-scheme` | **não** — não pinta markup; a única regra que pinta é a da superfície invertida, e só no elemento que tem `data-tempest-tone`, com especificidade zero |
+| `styles/tokens.css` | os 220 tokens `--tempest-*` (373 declarações, contando dark e densidades) + `color-scheme` | **não** — não pinta markup |
 | `styles/scoped.css` | o reset confinado a `:where([class*="tempest_"])` | **não** — só dentro de componente |
 | `styles/base.css` | o reset global (`html`, `body`, `#root`, `button`…) | sim, é o ponto dele |
 | `styles/core.css` | `tokens` + `base`, como sempre foi | sim |

@@ -234,7 +234,9 @@ Accepts every `<section>` attribute.
 - With no titled `SectionHeader`, `aria-labelledby` is left off instead of
   pointing at an id that does not exist.
 - `tone="inverse"` paints the section in the brand color and inverts every
-  color token inside it (it writes `data-tempest-tone="inverse"`). Values and
+  color token inside it (it writes `data-tempest-tone="inverse"`). It is opt-in:
+  load `tempest-react-sdk/styles/inverse.css` or generate the theme with
+  `inverse: createInverseSurface`; with neither, the section keeps the page's tokens. Values and
   measurements are in [Inverse surface](../theme.md#inverse-surface-a-section-in-the-brand-color).
 
 ## `Container`

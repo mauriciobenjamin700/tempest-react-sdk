@@ -99,10 +99,7 @@ function themes(): { light: Record<string, string>; dark: Record<string, string>
         return map;
     };
     const light = parse(CSS.slice(0, split));
-    return {
-        light,
-        dark: { ...light, ...parse(CSS.slice(split, CSS.indexOf('data-tempest-tone="inverse"'))) },
-    };
+    return { light, dark: { ...light, ...parse(CSS.slice(split)) } };
 }
 
 /** Follow `var(--x)` indirection to a literal colour. */

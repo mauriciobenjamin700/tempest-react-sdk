@@ -158,8 +158,7 @@ const theme = createTheme({
 
 theme.light; // { "--tempest-primary-500": "#7c3aed", … } — a sua cor, exata
 theme.dark;  // idem, com o ramp invertido
-theme.inverse; // a seção na cor da marca — ver "Superfície invertida"
-theme.css;   // ":root { … }\n\n[data-tempest-theme=\"dark\"] { … }\n\n[data-tempest-tone=\"inverse\"] { … }"
+theme.css;   // ":root { … }\n\n[data-tempest-theme=\"dark\"] { … }"
 ```
 
 Só as famílias que você passa são geradas — o resto continua vindo do `colors.css` do SDK. Um tema é um **patch**, não um fork da paleta.
@@ -337,10 +336,13 @@ claro com texto na cor da marca, texto claro, um anel de foco que se separe do
 fundo. Sobrescrever meia dúzia de tokens à mão deixa o resto da paleta com os
 valores da página, e é aí que a seção quebra.
 
-Coloque `tone="inverse"` no `Section` (ou o atributo `data-tempest-tone="inverse"`
-em qualquer elemento):
+A superfície é **opt-in** — a maioria dos apps nunca pinta uma seção na marca,
+então ninguém paga por ela sem pedir. Carregue a folha uma vez e coloque
+`tone="inverse"` no `Section` (ou o atributo `data-tempest-tone="inverse"` em
+qualquer elemento):
 
 ```tsx
+import "tempest-react-sdk/styles/inverse.css";
 import { Button, Section, SectionHeader } from "tempest-react-sdk";
 
 export function FinalCta() {
@@ -453,29 +455,48 @@ literais, não referências à rampa da página. Uma faixa na cor da marca é a 
 nos dois temas — e uma marca sem variante escura (o caso comum de landing) não
 precisa decidir nada.
 
+### Sem o import
+
+A folha `styles/inverse.css` fica fora do `colors.css`, do `tokens.css` **e** do
+`styles.css`: são 96 declarações que a maioria dos apps não usa (medido, elas
+levavam a base `tokens.css` + `scoped.css` de 3,05 para 3,44 kB brotli para
+todo mundo). Uma regra só para toda forma de importar o SDK: a superfície existe
+quando essa folha — ou um tema gerado com `inverse`, abaixo — está carregada.
+
+Sem nenhum dos dois, o atributo não casa com nada e a seção fica com os tokens
+da página: legível, só não invertida. Medido no browser, um `Section
+tone="inverse"` sem a folha mostra o título a 17,75:1 e a descrição a 7,69:1 no
+tema claro (17,51 e 9,11 no escuro) — é uma seção comum.
+
 ### Sua marca, com `createTheme`
 
-O `colors.css` traz a superfície invertida do azul do SDK. Com `createTheme` e um
-`primary`, o bloco é gerado para a sua marca — por padrão:
+A folha traz a superfície do azul do SDK. Para a sua marca, passe o gerador ao
+`createTheme` — não precisa da folha:
 
 ```tsx
-import { applyTheme, createTheme } from "tempest-react-sdk";
+import { applyTheme, createInverseSurface, createTheme } from "tempest-react-sdk";
 
-const theme = createTheme({ primary: "#03184b" });
+const theme = createTheme({ primary: "#03184b", inverse: createInverseSurface });
 
-theme.inverse["--tempest-bg"]; // "#03184b" — a sua marca é o fundo
+theme.inverse?.["--tempest-bg"]; // "#03184b" — a sua marca é o fundo
 applyTheme(theme);
 ```
 
+!!! info "Por que o gerador, e não `inverse: true`"
+    Com uma flag, o `createTheme` teria de importar o gerador, e todo app que
+    gera um tema o carregaria. Medido com `npx size-limit`: `{ createTheme }`
+    sozinho é 3,35 kB brotli, e com o gerador dentro era 4,86 kB. Passando a
+    função, só quem a importa paga.
+
 Status e cores de gráfico que o tema nomeia (`danger`, `chart`…) entram na
 superfície invertida também. Para escopar a outro seletor, use
-`inverseSelector`; para não gerar o bloco, `inverse: false`.
+`inverseSelector`. Sem `inverse`, o tema sai como sempre — dois blocos, e
+`theme.inverse` ausente.
 
-!!! warning "CSS estático colado: gere de novo"
-    Se você colou a saída do `createTheme` num `.css` (veja
-    [Sem JS](#sem-js-cole-o-css-gerado)), esse arquivo não tem o bloco invertido
-    da sua marca, e a seção cai no bloco do `colors.css` — o azul do SDK. Rode o
-    comando de novo para incluir o bloco.
+!!! warning "CSS estático colado"
+    Se você cola a saída do `createTheme` num `.css` (veja
+    [Sem JS](#sem-js-cole-o-css-gerado)), gere com `inverse: createInverseSurface`
+    para o arquivo trazer o bloco da sua marca.
 
 ### Recap
 
@@ -485,8 +506,9 @@ superfície invertida também. Para escopar a outro seletor, use
   brilho 0,1 mais claro que o fundo.
 - O fundo é o `500` quando ele aguenta; senão o degrau mais próximo que aguenta.
 - Igual no tema claro e no escuro.
-- `createTheme({ primary })` gera o bloco da sua marca; CSS estático precisa ser
-  regenerado.
+- Opt-in: `import "tempest-react-sdk/styles/inverse.css"` para o azul do SDK, ou
+  `createTheme({ primary, inverse: createInverseSurface })` para a sua marca.
+  Sem nenhum, a seção fica com os tokens da página.
 
 ## Integração com o CSS do app + `theme-color`
 

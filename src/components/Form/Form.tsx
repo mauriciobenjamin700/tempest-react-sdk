@@ -72,6 +72,13 @@ export interface FormSectionProps extends Omit<HTMLAttributes<HTMLElement>, "tit
  * Has its own `layout`/`columns`/`gap` so subsets can stack while the parent
  * grids (or vice versa).
  *
+ * The header is deliberately not a `SectionHeader`: a field group sits one step
+ * below a page section, and its title is `text-lg` / semibold / `leading-snug`
+ * with `space-3` below, against `text-2xl` / bold / `leading-tight` with
+ * `space-5` for `SectionHeader`. Sharing the component would either grow every
+ * form group to page-section size or add a size switch to `SectionHeader` that
+ * only this caller uses.
+ *
  * @example
  * <FormSection title="Endereço" description="Usado para entrega" layout="grid" columns={3}>
  *     <Input label="CEP" />

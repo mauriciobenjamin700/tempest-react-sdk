@@ -100,7 +100,8 @@ export const SECTIONS: SectionEntry[] = [
     {
         id: "layout",
         label: "Layout (AppShell · Page · Container)",
-        keywords: "appshell page container center spacer divider safearea show hide layout",
+        keywords:
+            "appshell page sectionheader section container center spacer divider safearea show hide layout",
         group: "Componentes",
         Component: LayoutSection,
     },

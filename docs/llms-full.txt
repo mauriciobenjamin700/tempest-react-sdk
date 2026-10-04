@@ -11563,6 +11563,83 @@ export function PedidosPage() {
 | `footer`      | `ReactNode` | —       |
 | `padded`      | `boolean`   | `true`  |
 
+## `SectionHeader`
+
+O cabeçalho do `Page` (`eyebrow` + `title` + `description` + `actions`) como peça
+própria, para uma página com várias seções ter **um `<h1>` e vários `<h2>` com o
+mesmo visual**. O `Page` usa o `SectionHeader` com `level={1}` por dentro, então
+os dois ficam iguais por construção.
+
+Para a seção virar landmark, envolva com `Section`: ele renderiza `<section>` e
+liga o `aria-labelledby` ao `id` do título do `SectionHeader` dentro dele
+sozinho. Sem nome acessível, um `<section>` não é `region` — o leitor de tela
+pula a seção na navegação por landmarks. Esse passo é sempre o mesmo, então é a
+lib que faz.
+
+```tsx
+import { Button, Page, Section, SectionHeader } from "tempest-react-sdk";
+
+export function LandingPage() {
+    return (
+        <Page
+            eyebrow="TEMPEST"
+            title="Software sob medida"
+            description="Do protótipo à produção, com o mesmo time."
+            actions={<Button>Falar com a gente</Button>}
+        >
+            <Section>
+                <SectionHeader
+                    eyebrow="Soluções"
+                    title="O que podemos desenvolver"
+                    description="Apps, painéis e integrações."
+                    align="center"
+                />
+                <p>Conteúdo da seção de soluções.</p>
+            </Section>
+            <Section>
+                <SectionHeader eyebrow="Processo" title="Como trabalhamos" />
+                <p>Conteúdo da seção de processo.</p>
+            </Section>
+        </Page>
+    );
+}
+```
+
+A árvore de acessibilidade sai com um `main`, um `heading` nível 1 e duas
+`region` nomeadas "O que podemos desenvolver" e "Como trabalhamos".
+
+| Prop          | Tipo                         | Default    |
+| ------------- | ---------------------------- | ---------- |
+| `title`       | `ReactNode`                  | —          |
+| `eyebrow`     | `ReactNode`                  | —          |
+| `description` | `ReactNode`                  | —          |
+| `actions`     | `ReactNode`                  | —          |
+| `level`       | `1 \| 2 \| 3 \| 4 \| 5 \| 6` | `2`        |
+| `align`       | `"start" \| "center"`        | `"start"`  |
+| `id`          | `string`                     | `useId()`  |
+
+`id` vai no elemento do título (não no `<header>`); sem ele, um id é gerado com
+`useId`. Com todos os slots vazios, nada é renderizado.
+
+!!! note "`level` é semântica, não tamanho"
+    O visual é o mesmo em todo nível: você escolhe o nível pela hierarquia do
+    documento (um `<h1>` por página, `<h2>` para as seções), não pelo tamanho que
+    quer ver. Isso é o que deixa o `h1` do `Page` e o `h2` das seções iguais.
+
+### `Section`
+
+`<section>` que pega o nome acessível do `SectionHeader` dentro dele. Aceita
+todo atributo de `<section>`.
+
+- O vínculo passa por contexto, então um `div` ou um `Card` entre o `Section` e
+  o `SectionHeader` não quebra nada.
+- Vale o **primeiro** `SectionHeader` com `title` montado; se ele desmontar, o
+  próximo assume.
+- `Section` aninhado é nomeado pelo próprio cabeçalho, não pelo de fora.
+- `aria-label` ou `aria-labelledby` passados por você vencem o automático.
+- Sem `SectionHeader` com título, o `aria-labelledby` fica de fora em vez de
+  apontar para um id que não existe.
+
 ## `Container`
 
 Max-width wrapper.
@@ -11882,7 +11959,7 @@ Falls back para o último valor definido por breakpoint cascading.
 
 ## A11y geral
 
-- `Page.title` é `<h1>` — apenas um por página para hierarquia correta.
+- `Page.title` é `<h1>` — apenas um por página para hierarquia correta. As seções abaixo dele usam `SectionHeader` (`<h2>` por default) dentro de `Section`, que vira `region` com nome.
 - `AppShell` envolve em `<main>` semântico.
 - `<Show>`/`<Hide>` renderizam `null` no servidor + ajustam no client (no SEO impact, primeira tinta pode flickerizar).
 
@@ -28093,7 +28170,7 @@ o app não alcança.
     faz.
 
 !!! info "`styles.css` continua publicado"
-    Uma linha, todos os 130 componentes, e nada quebra: o bundler deduplica a
+    Uma linha, todos os 131 componentes, e nada quebra: o bundler deduplica a
     folha que o componente importa contra a que você importou. Custa bytes, nunca
     correção — é a mesma troca do `auto.css`.
 
@@ -30738,7 +30815,7 @@ const theme = createTheme({ primary: "#7c3aed" });
 applyTheme(theme);
 ```
 
-Pronto: os 130 componentes passam a usar a marca nova, no claro e no escuro.
+Pronto: os 131 componentes passam a usar a marca nova, no claro e no escuro.
 
 ### O que ele gera
 

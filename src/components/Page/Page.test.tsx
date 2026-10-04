@@ -13,6 +13,11 @@ describe("Page", () => {
         expect(screen.getByText("desc")).toBeInTheDocument();
     });
 
+    it("keeps the page title an h1 through SectionHeader", () => {
+        render(<Page title="Pedidos">content</Page>);
+        expect(screen.getByRole("heading", { level: 1, name: "Pedidos" })).toBeInTheDocument();
+    });
+
     it("renders header slots", () => {
         render(
             <Page eyebrow="Section" title="Hello" actions={<button>act</button>}>

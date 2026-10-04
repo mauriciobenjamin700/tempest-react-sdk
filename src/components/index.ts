@@ -186,6 +186,14 @@ export type { SafeAreaEdge, SafeAreaProps } from "./SafeArea";
 export { SearchBar } from "./SearchBar";
 export type { SearchBarProps } from "./SearchBar";
 
+export { Section, SectionHeader } from "./SectionHeader";
+export type {
+    SectionHeaderAlign,
+    SectionHeaderLevel,
+    SectionHeaderProps,
+    SectionProps,
+} from "./SectionHeader";
+
 export { SegmentedControl } from "./SegmentedControl";
 export type { SegmentedControlOption, SegmentedControlProps } from "./SegmentedControl";
 

@@ -4,6 +4,27 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`SectionHeader` e `Section` — o cabeçalho do `Page` como componente público (#410).**
+  Uma página com várias seções precisa de um `<h1>` e vários `<h2>` com o mesmo visual, e o
+  cabeçalho só existia preso ao `Page` (sempre `<h1>`). O `SectionHeader` recebe `eyebrow`,
+  `title`, `description`, `actions`, `level` (1–6, default `2`; só semântica, o visual não
+  muda), `align` (`"start"` | `"center"`) e `id` (gerado com `useId` quando ausente, posto no
+  título). O `Section` renderiza `<section>` e liga o `aria-labelledby` ao título do
+  `SectionHeader` de dentro por contexto, então a seção vira `region` com nome sem passo
+  manual — medido em Chromium headless na gallery: as duas seções do exemplo saem como
+  `region "O que podemos desenvolver"` e `region "Como trabalhamos"`.
+- O `Page` passa a renderizar o cabeçalho com `SectionHeader level={1}`, sem mudança de API
+  nem de visual: as 12 capturas dos `<main>` da seção Layout (390 e 1280 px, claro e
+  escuro) saem byte a byte idênticas antes e depois, e as métricas computadas de cada nó do
+  cabeçalho (posição, tamanho, fonte, margens, cor) também. A única diferença no DOM é o
+  `id` gerado no `<h1>`.
+- O `.sectionHeader` interno do `FormSection` **não** foi unificado: o título de um grupo de
+  campos é `text-lg`/semibold com `space-3` abaixo, contra `text-2xl`/bold com `space-5` do
+  `SectionHeader`. Unificar mudaria todo formulário existente ou pediria uma variante de
+  tamanho usada só por ele.
+
 ### Corrigido
 
 - **`styles` — o `Navbar` sticky não some mais depois de uma tela de rolagem (#406).** O reset

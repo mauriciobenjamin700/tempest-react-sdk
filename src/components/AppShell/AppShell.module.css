@@ -8,8 +8,20 @@
     font-family: var(--tempest-font-sans);
 }
 
+/*
+ * The wrapper steps out of the box tree so the bar inside it is laid out by the
+ * shell directly.
+ *
+ * A sticky element cannot leave its containing block, and as a plain block this
+ * wrapper was exactly as tall as the bar: `Navbar` is sticky by default and
+ * scrolled away with the page anyway — measured in Chromium and Firefox at
+ * 1440x900, `top: -1261px` at `scrollY` 1261 (#406). With `display: contents`
+ * the containing block is the shell, which grows with the content, and the bar
+ * stays at `top: 0`. Making the wrapper sticky instead would pin the bar even
+ * when the app passed `sticky={false}`; this way the bar's own prop decides.
+ */
 .navbar {
-    flex: 0 0 auto;
+    display: contents;
 }
 
 .row {

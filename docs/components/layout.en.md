@@ -84,6 +84,12 @@ Responsive behavior:
 | `footer`            | `ReactNode`                    | —       |
 | `sidebarBreakpoint` | `"sm" \| "md" \| "lg" \| "xl"` | `"md"`  |
 
+The `navbar` sticks to the top while scrolling: its wrapper generates no box
+(`display: contents`), so the sticky `Navbar` is held by the whole shell, and
+`sticky={false}` on the `Navbar` still turns it off. Before the #406 fix the bar
+left the screen along with the content (`top: -1261px` at `scrollY` 1261,
+Chromium and Firefox at 1440×900).
+
 !!! warning "`sidebar` disappears below the breakpoint — that is not the same as being there"
     Below `sidebarBreakpoint` the `AppShell` does **not** render the sidebar; it
     expects you to pass `bottomNav`. If your primary navigation lives only in the

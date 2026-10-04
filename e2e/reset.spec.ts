@@ -85,3 +85,141 @@ test.describe("reset", () => {
         expect(offset.dx).toBeLessThan(-8);
     });
 });
+
+/**
+ * Swap the gallery's `#root` for a fresh one holding `html`.
+ *
+ * The rules under test key on `#root` and on how many children it holds, so the
+ * probe has to own that element outright. The gallery's own root is renamed and
+ * hidden rather than removed: React keeps its reference, and the published
+ * stylesheet stays applied to the page.
+ *
+ * @param page - The gallery page, stylesheet loaded.
+ * @param html - Markup for the new `#root`.
+ */
+async function mountRoot(page: Page, html: string): Promise<void> {
+    await page.evaluate((markup) => {
+        const gallery = document.getElementById("root") as HTMLElement;
+        gallery.id = "gallery-root";
+        gallery.style.display = "none";
+        const root = document.createElement("div");
+        root.id = "root";
+        root.innerHTML = markup;
+        document.body.append(root);
+    }, html);
+}
+
+/**
+ * Scroll the document and report where the probe sits in the viewport.
+ *
+ * @param page - The page holding a `[data-probe]` element.
+ * @param y - Vertical scroll offset to apply.
+ * @returns The applied `scrollY` and the probe's top edge relative to the viewport.
+ */
+async function topAfterScroll(page: Page, y: number): Promise<{ scrollY: number; top: number }> {
+    return page.evaluate(async (offset) => {
+        window.scrollTo(0, offset);
+        await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+        const probe = document.querySelector("[data-probe]") as HTMLElement;
+        return { scrollY: window.scrollY, top: Math.round(probe.getBoundingClientRect().top) };
+    }, y);
+}
+
+/**
+ * Outer HTML of the gallery's live `AppShell` demo, with a marker on its bar.
+ *
+ * Cloning the rendered demo carries the real hashed class names of `AppShell`,
+ * `Navbar` and `Page`, so the probe exercises the published component sheets
+ * rather than a hand-written imitation of them.
+ *
+ * @param page - The gallery page.
+ * @returns The shell markup.
+ */
+async function appShellMarkup(page: Page): Promise<string> {
+    return page.evaluate(() => {
+        const main = document.querySelector("#ex-appshell main") as HTMLElement;
+        const shell = (main.parentElement as HTMLElement).parentElement as HTMLElement;
+        const clone = shell.cloneNode(true) as HTMLElement;
+        clone.querySelector("header")?.setAttribute("data-probe", "");
+        return clone.outerHTML;
+    });
+}
+
+/**
+ * How `#root` sizes itself (#406).
+ *
+ * A fixed `height: 100%` on `#root` made it the containing block of a sticky bar
+ * placed directly inside it, so the bar left the screen after one viewport —
+ * `top: -417px` at `scrollY` 1261 at 1440x900. Plain `min-height: 100%` fixes the
+ * bar but collapses every percentage-height shell onto its content (`Page` 900px
+ * to 271px). The reset keeps the definite height for a single child and lets
+ * `#root` grow otherwise; these pin both halves.
+ */
+test.describe("reset: the app root (#406)", () => {
+    test.use({ viewport: { width: 1440, height: 900 } });
+
+    test.beforeEach(async ({ page }) => {
+        await page.goto("/");
+        await page.waitForFunction(() => document.fonts.status === "loaded");
+    });
+
+    test("a sticky bar placed directly in #root stays on screen past one viewport", async ({
+        page,
+    }) => {
+        await mountRoot(
+            page,
+            `<header data-probe style="position:sticky;top:0;height:56px">bar</header><main style="height:2400px">long</main>`,
+        );
+
+        expect(await topAfterScroll(page, 1261)).toEqual({ scrollY: 1261, top: 0 });
+    });
+
+    test("the SDK Navbar placed directly in #root stays on screen too", async ({ page }) => {
+        const navbar = await page.evaluate(
+            () => (document.querySelector("#ex-appshell header") as HTMLElement).outerHTML,
+        );
+        await mountRoot(
+            page,
+            navbar.replace("<header", "<header data-probe") +
+                `<main style="height:2400px">long</main>`,
+        );
+
+        expect(await topAfterScroll(page, 1261)).toEqual({ scrollY: 1261, top: 0 });
+    });
+
+    test("the Navbar inside AppShell stays on screen when the page scrolls", async ({ page }) => {
+        const shell = await appShellMarkup(page);
+        await mountRoot(page, shell);
+        await page.evaluate(() => {
+            const filler = document.createElement("div");
+            filler.style.height = "2400px";
+            (document.querySelector("#root main") as HTMLElement).append(filler);
+        });
+
+        expect(await topAfterScroll(page, 1261)).toEqual({ scrollY: 1261, top: 0 });
+    });
+
+    test("a single percentage-height child still fills the viewport", async ({ page }) => {
+        await mountRoot(page, `<div data-probe style="height:100%">short</div>`);
+
+        const height = await page.evaluate(
+            () => (document.querySelector("[data-probe]") as HTMLElement).offsetHeight,
+        );
+        expect(height).toBe(900);
+    });
+
+    test("a Page as the single child of #root still fills the viewport", async ({ page }) => {
+        const pageMarkup = await page.evaluate(() => {
+            const main = document.querySelector("#ex-appshell main") as HTMLElement;
+            return (main.firstElementChild as HTMLElement).outerHTML;
+        });
+        await mountRoot(page, pageMarkup);
+
+        const height = await page.evaluate(
+            () =>
+                ((document.getElementById("root") as HTMLElement).firstElementChild as HTMLElement)
+                    .offsetHeight,
+        );
+        expect(height).toBe(900);
+    });
+});

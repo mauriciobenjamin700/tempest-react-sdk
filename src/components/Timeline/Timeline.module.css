@@ -37,19 +37,19 @@
     flex: 0 0 auto;
 }
 
-.marker-primary {
+.markerPrimary {
     background: var(--tempest-primary);
 }
-.marker-success {
+.markerSuccess {
     background: var(--tempest-success-solid, var(--tempest-success));
 }
-.marker-warning {
+.markerWarning {
     background: var(--tempest-warning-solid, var(--tempest-warning));
 }
-.marker-danger {
+.markerDanger {
     background: var(--tempest-danger-solid, var(--tempest-danger));
 }
-.marker-neutral {
+.markerNeutral {
     background: var(--tempest-gray-400, var(--tempest-border));
 }
 

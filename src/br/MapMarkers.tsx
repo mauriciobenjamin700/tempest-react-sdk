@@ -18,7 +18,7 @@ export interface MapMarkersProps {
  */
 export function MapMarkers({ projection, markers, onMarkerClick }: MapMarkersProps) {
     return (
-        <g className={styles.markers}>
+        <g>
             {markers.map((marker, index) => {
                 const p = projection.project(marker);
                 const interactive = Boolean(onMarkerClick);

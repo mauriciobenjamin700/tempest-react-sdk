@@ -17,6 +17,26 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `scripts/smoke-vitest.sh` instalava o plugin e usava o `createViteConfig`, por isso não via
   o caso. O segundo cenário usa só o `tempestVitest()` e falha contra o `0.73.0` publicado
   com o mesmo `ERR_MODULE_NOT_FOUND`; contra o tarball com a correção, os dois cenários passam.
+- **`Timeline` — o marcador volta a ter cor, e `Modal size="2xl"`/`"3xl"` volta a ter teto de
+  largura (#405).** O build publica as chaves de CSS module só em camelCase
+  (`localsConvention: "camelCaseOnly"`), e o código lia a grafia crua:
+  ``styles[`marker-${marker}`]`` e `styles.size2xl` eram `undefined` no `dist/`, então
+  todo marcador saía transparente (`background-color: rgba(0, 0, 0, 0)`, medido no Chrome
+  sobre a 0.73.0) e os dois tamanhos maiores do `Modal` ficavam sem teto de largura
+  (`max-width: none`, contra `1280px`/`1440px`). As chaves
+  publicadas eram `markerPrimary`… e `size2Xl`/`size3Xl`; o `Timeline` agora resolve a cor
+  por um `Record<TimelineMarker, string>` e as regras usam a mesma grafia da chave.
+  Quatro referências a regras que nunca existiram saíram sem efeito visual:
+  `Timeline` `connector`, `Collapsible` `open`, `AIChat` `streamingTurn` e `MapMarkers`
+  `markers`.
+- **Guard de chave de CSS module no `dist/`.** O `scripts/check-dist-guards.mjs`
+  (`postbuild`) confere, para cada `import styles from "./X.module.css"` de `src/`, que
+  todo `styles.nome` e `styles["literal"]` existe no objeto exportado por
+  `dist/…/X.module.js`, e reprova template com `-` ou `_` no texto fixo. Os testes
+  unitários não viam o defeito porque o Vitest não processa CSS por padrão e devolve a
+  própria chave para **qualquer** chave de CSS module — `styles.connector` virava a classe
+  `"connector"` no teste. Medido: 1121 leituras em 139 imports resolvem; sobre o código da
+  0.73.0, o guard reprova os sete casos acima.
 
 ## [0.73.0] — 2026-10-03
 

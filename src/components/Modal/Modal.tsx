@@ -137,9 +137,21 @@ export function Modal({
     );
 }
 
+/**
+ * Resolve the width class for a {@link ModalSize}.
+ *
+ * `2xl`/`3xl` are not valid CSS identifiers, so their rules are `.size2Xl` and
+ * `.size3Xl` — spelled exactly as the build exports them. The build camelCases
+ * CSS-module keys (`localsConvention: "camelCaseOnly"`), which turns `.size2xl`
+ * into the key `size2Xl`; a lookup of `styles.size2xl` was `undefined` in `dist/`
+ * and both sizes rendered with no `max-width` at all (issue #405).
+ *
+ * @param size - The requested modal size.
+ * @returns The CSS-module class name for that size.
+ */
 function sizeClassName(size: ModalSize): string | undefined {
-    if (size === "2xl") return styles.size2xl;
-    if (size === "3xl") return styles.size3xl;
+    if (size === "2xl") return styles.size2Xl;
+    if (size === "3xl") return styles.size3Xl;
     return styles[size];
 }
 

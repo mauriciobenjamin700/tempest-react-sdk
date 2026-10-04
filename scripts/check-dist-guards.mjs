@@ -9,7 +9,7 @@
  * like the right one, and invisible to the test suite, which runs before the
  * bundler folds anything. It is only visible here, in `dist`.
  *
- * Three invariants, checked after every build:
+ * Four invariants, checked after every build:
  *
  * 1. `dist/utils/dev-mode.js` still contains the live `process.env.NODE_ENV`
  *    read — the expression the *consumer's* bundler replaces.
@@ -22,6 +22,8 @@
  *    `Icon` path imports `generated/icon-names.js` — one convenience import
  *    inside `use-icon` or `shard-cache` would add ~6 KB brotli to every app that
  *    renders a single icon, and nothing in the source would look wrong.
+ * 4. Every CSS-module key the source reads exists in the published module
+ *    (issue #405) — see the section above `cssModuleImports`.
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -218,6 +220,138 @@ for (const file of collect(DIST)) {
     );
 }
 
+/**
+ * CSS-module keys the source reads but the published module does not export.
+ *
+ * The build runs CSS modules with `localsConvention: "camelCaseOnly"`, so
+ * `.marker-primary` is published as the key `markerPrimary` and `.size2xl` as
+ * `size2Xl`; the raw spelling is gone. A lookup by the raw spelling is
+ * `undefined`, `cn()` drops it, and the element renders unstyled — the `Timeline`
+ * marker shipped transparent and `Modal size="2xl"` at the default width that way
+ * (issue #405). The unit suite cannot see it: Vitest does not process CSS by
+ * default and answers *every* key of a CSS module with the key itself, so
+ * `styles["marker-primary"]` and `styles.connector` (a rule that never existed)
+ * were both classes in every test. Only the artifact knows the real keys.
+ *
+ * Two checks per `import x from "./Y.module.css"` in `src/`, against the
+ * default-export object of `dist/…/Y.module.js`:
+ *
+ * 1. every `x.name` and `x["literal"]` is a key that object has;
+ * 2. no `x[\`…${…}…\`]` template carries `-` or `_` in its fixed text — the
+ *    convention strips both, so such a lookup cannot match any published key.
+ *
+ * A computed lookup by a variable (`x[size]`) is out of reach statically; those
+ * are typed by a union whose members are plain identifiers, which is the
+ * convention the `Record` maps (`Timeline`'s `MARKER_CLASS`) make explicit.
+ */
+const SRC = join(ROOT, "src");
+const CSS_MODULE_IMPORT = /\bimport\s+(\w+)\s+from\s+"(\.{1,2}\/[^"]+\.module\.css)"/g;
+const BLOCK_COMMENT = /\/\*[\s\S]*?\*\//g;
+const LINE_COMMENT = /(^|[^:"'`\\])\/\/.*$/gm;
+
+/**
+ * Collect every source module that can import a CSS module.
+ *
+ * @param {string} dir - Directory to walk.
+ * @param {string[]} found - Accumulator.
+ * @returns {string[]} Absolute paths of `.ts`/`.tsx` files, tests and `.d.ts` excluded.
+ */
+function collectSource(dir, found = []) {
+    for (const entry of readdirSync(dir)) {
+        const full = join(dir, entry);
+        if (statSync(full).isDirectory()) collectSource(full, found);
+        else if (/\.tsx?$/.test(entry) && !/\.(test|d)\.tsx?$/.test(entry)) found.push(full);
+    }
+    return found;
+}
+
+/**
+ * Read the keys of a published CSS module's default export.
+ *
+ * The default object is what `import styles from "…"` binds, so it is the set
+ * read — not the named exports, which the source never imports.
+ *
+ * @param {string} file - Absolute path of a `dist/**\/*.module.js`.
+ * @returns {Set<string> | undefined} The keys, or `undefined` when the shape is unrecognised.
+ */
+function publishedKeys(file) {
+    const source = readFileSync(file, "utf8");
+    const binding = source.match(/\bexport\s*\{[^}]*?\b([\w$]+)\s+as\s+default\b/)?.[1];
+    if (binding === undefined) return undefined;
+    const escaped = binding.replace(/\$/g, "\\$");
+    const body = source.match(new RegExp(`(?:^|[\\s,;])${escaped}\\s*=\\s*\\{([^}]*)\\}`))?.[1];
+    if (body === undefined) return undefined;
+    return new Set([...body.matchAll(/([\w$]+)\s*:/g)].map((match) => match[1]));
+}
+
+let cssModuleImports = 0;
+let cssModuleLookups = 0;
+
+for (const file of collectSource(SRC)) {
+    const raw = readFileSync(file, "utf8");
+    if (!raw.includes(".module.css")) continue;
+    const code = raw.replace(BLOCK_COMMENT, "").replace(LINE_COMMENT, "$1");
+    const where = relative(ROOT, file).replace(/\\/g, "/");
+
+    for (const [, binding, specifier] of code.matchAll(CSS_MODULE_IMPORT)) {
+        cssModuleImports += 1;
+        const published = join(DIST, relative(SRC, join(file, "..", specifier))).replace(
+            /\.css$/,
+            ".js",
+        );
+        const shown = relative(ROOT, published).replace(/\\/g, "/");
+        let keys;
+        try {
+            keys = publishedKeys(published);
+        } catch {
+            problems.push(`${where} imports ${specifier}, but ${shown} was not emitted`);
+            continue;
+        }
+        if (keys === undefined || keys.size === 0) {
+            problems.push(
+                `${shown} has no default-export object this guard can read, so the ` +
+                    "CSS-module key check proves nothing for it. Update publishedKeys().",
+            );
+            continue;
+        }
+
+        const dotted = new RegExp(`\\b${binding}\\.([A-Za-z_$][\\w$]*)`, "g");
+        for (const [, key] of code.matchAll(dotted)) {
+            cssModuleLookups += 1;
+            if (keys.has(key)) continue;
+            problems.push(
+                `${where} reads ${binding}.${key}, which ${shown} does not export — it is ` +
+                    "undefined in every app. Published keys are camelCase only " +
+                    '(`localsConvention: "camelCaseOnly"`); use the key as published, or ' +
+                    "drop the reference if the rule does not exist.",
+            );
+        }
+
+        const computed = new RegExp(
+            `\\b${binding}\\[\\s*(["'\`])((?:(?!\\1)[\\s\\S])*)\\1\\s*\\]`,
+            "g",
+        );
+        for (const [, quote, literal] of code.matchAll(computed)) {
+            cssModuleLookups += 1;
+            const isTemplate = quote === "`" && literal.includes("${");
+            const fixed = isTemplate ? literal.replace(/\$\{[^}]*\}/g, "") : literal;
+            if (isTemplate ? !/[-_]/.test(fixed) : keys.has(literal)) continue;
+            problems.push(
+                `${where} reads ${binding}[${quote}${literal}${quote}], which cannot match any ` +
+                    `key of ${shown}: published keys are camelCase only, so a \`-\` or \`_\` ` +
+                    "never survives. Map the values to keys with a typed Record instead.",
+            );
+        }
+    }
+}
+
+if (cssModuleImports === 0) {
+    problems.push(
+        'found no `import x from "./Y.module.css"` in src/, so the CSS-module key ' +
+            "check proves nothing. Update CSS_MODULE_IMPORT to the import form in use.",
+    );
+}
+
 if (problems.length > 0) {
     console.error("check-dist-guards: FAIL");
     for (const problem of problems) console.error(`  - ${problem}`);
@@ -226,5 +360,6 @@ if (problems.length > 0) {
 
 console.log(
     "check-dist-guards: ok (live dev guard present, no ungated console calls, " +
-        `Icon reaches ${iconGraph.size} modules and none is the slug list)`,
+        `Icon reaches ${iconGraph.size} modules and none is the slug list, ` +
+        `${cssModuleLookups} CSS-module lookups in ${cssModuleImports} imports all resolve)`,
 );

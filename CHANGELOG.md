@@ -44,9 +44,9 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Alterado
 
-- **Tetos do barrel no `size-limit`: ESM 136,5 → 137 kB, CJS 163 → 163,5 kB.** O barrel passou
-  a medir 136,68 kB (ESM) e 163,01 kB (CJS) com o `Reveal`; a fatia `{ Reveal }` sozinha mede
-  839 B brotli (`npx size-limit`, 0.73.0 + esta mudança).
+- **Tetos do barrel no `size-limit`: ESM 136,5 → 137,2 kB, CJS 163 → 163,5 kB.** Com
+  `SectionHeader` e `Reveal` juntos, o barrel mede 137,05 kB (ESM) e 163,46 kB (CJS); a fatia
+  `{ Reveal }` sozinha mede 839 B brotli (`npx size-limit`, `main` + esta mudança).
 
 ### Corrigido
 

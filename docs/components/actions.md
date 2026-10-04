@@ -56,6 +56,8 @@ import { Plus, Trash } from "lucide-react";
 !!! tip "loading bloqueia duplo clique"
     `loading` desabilita o botão e seta `aria-busy="true"` — é o padrão para submits assíncronos. Ative-o assim que disparar a request para evitar requisições duplicadas por cliques repetidos.
 
+    O rótulo continua sendo o nome acessível durante o loading: ele some só da pintura (o spinner o substitui na tela, na mesma largura), então o leitor de tela anuncia "Salvar, botão, indisponível" — e não um "botão" sem nome. O spinner é decorativo (`aria-hidden`) e não entra no nome; o estado vem de `aria-busy` e do `disabled`. Vale para `<button>`, `href` e `ButtonSlot`.
+
 ### Botão que navega: `href`
 
 Um CTA que **leva a algum lugar** — "Fale conosco" no WhatsApp, `mailto:`, "Ver planos", "Baixar" — é um link, não um botão. Com `onClick={() => location.assign(url)}` ele perde o clique do meio, o Ctrl+clique, o "abrir em nova aba", a prévia da URL e o crawler; com `<a><Button /></a>` vira HTML inválido, com dois tab stops. Com `href`, o `Button` renderiza um `<a>` com a mesma aparência em todas as variants e sizes:

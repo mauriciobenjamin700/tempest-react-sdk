@@ -14,6 +14,13 @@ export interface ButtonContentProps {
  * The inside of every button-looking element: the absolutely-positioned spinner
  * plus the icon/label row, shared by `Button` and `ButtonSlot`.
  *
+ * While loading, the row is hidden by paint only (`opacity: 0`), never with
+ * `visibility: hidden` or `display: none`: those drop the label from the
+ * accessibility tree and the button is announced with no name (#416). Painted
+ * out, the label still sizes the button — its width does not move — and still
+ * names it. The spinner is `aria-hidden`, so the name is the label alone and the
+ * busy state comes from `aria-busy` on the host element.
+ *
  * @param props - See {@link ButtonContentProps}.
  * @returns The content nodes.
  */

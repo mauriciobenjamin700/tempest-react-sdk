@@ -262,8 +262,15 @@ a.button:is(:link, :visited, :hover, :active, :focus, :not([href])) {
     min-width: 0;
 }
 
+/*
+ * Hide the label by paint only. `visibility: hidden` also drops it from the
+ * accessibility tree, so a loading button lost its name (#416). `opacity: 0`
+ * keeps the name and the width; `pointer-events: none` keeps the invisible
+ * label out of hit-testing, as it was. Forced colors leaves `opacity` alone.
+ */
 .loading .hiddenText {
-    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
 }
 
 .spinner {

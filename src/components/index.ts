@@ -200,6 +200,7 @@ export type {
     SectionHeaderLevel,
     SectionHeaderProps,
     SectionProps,
+    SectionTone,
 } from "./SectionHeader";
 
 export { SegmentedControl } from "./SegmentedControl";

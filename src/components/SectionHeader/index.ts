@@ -4,4 +4,5 @@ export type {
     SectionHeaderLevel,
     SectionHeaderProps,
     SectionProps,
+    SectionTone,
 } from "./SectionHeader";

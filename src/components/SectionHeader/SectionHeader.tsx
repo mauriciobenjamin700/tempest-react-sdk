@@ -98,7 +98,20 @@ export function SectionHeader({
     );
 }
 
-export type SectionProps = HTMLAttributes<HTMLElement>;
+/** Surface tone a {@link Section} can take. */
+export type SectionTone = "inverse";
+
+export interface SectionProps extends HTMLAttributes<HTMLElement> {
+    /**
+     * `"inverse"` paints the section in the brand color and inverts every color
+     * token inside it, by writing `data-tempest-tone="inverse"`. The tokens come
+     * from `colors.css` for the SDK's own brand and from `createTheme` for yours,
+     * each measured against the fill (text and muted text at 4.5:1 or more, the
+     * focus ring at 3:1 or more). The prop exists so the tone is typed: a typo in
+     * a hand-written attribute fails silently, a typo here fails the build.
+     */
+    tone?: SectionTone;
+}
 
 /**
  * `<section>` that takes its accessible name from the `SectionHeader` inside it.
@@ -118,8 +131,14 @@ export type SectionProps = HTMLAttributes<HTMLElement>;
  *     <SectionHeader title="Planos" />
  *     <PlanGrid />
  * </Section>
+ *
+ * @example
+ * <Section tone="inverse">
+ *     <SectionHeader title="Comece agora" />
+ *     <Button>Criar conta</Button>
+ * </Section>
  */
-export function Section({ children, ...props }: SectionProps) {
+export function Section({ children, tone, ...props }: SectionProps) {
     const [headingIds, setHeadingIds] = useState<string[]>([]);
     const context = useMemo<SectionContextValue>(
         () => ({
@@ -133,7 +152,11 @@ export function Section({ children, ...props }: SectionProps) {
     const named = props["aria-labelledby"] !== undefined || props["aria-label"] !== undefined;
     return (
         <SectionContext.Provider value={context}>
-            <section aria-labelledby={named ? undefined : headingIds[0]} {...props}>
+            <section
+                aria-labelledby={named ? undefined : headingIds[0]}
+                data-tempest-tone={tone}
+                {...props}
+            >
                 {children}
             </section>
         </SectionContext.Provider>

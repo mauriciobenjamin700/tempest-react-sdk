@@ -216,7 +216,7 @@ Por isso a fundação vem em três peças, e não uma:
 
 | Entrada | O que traz | Toca o markup do app? |
 | --- | --- | --- |
-| `styles/tokens.css` | os 220 tokens `--tempest-*` (373 declarações, contando dark e densidades) + `color-scheme` | **não** — não pinta markup |
+| `styles/tokens.css` | os 220 tokens `--tempest-*` (373 declarações, contando dark e densidades) + `color-scheme` | **não** — não pinta markup; a única regra que pinta é a da superfície invertida, e só no elemento que tem `data-tempest-tone`, com especificidade zero |
 | `styles/scoped.css` | o reset confinado a `:where([class*="tempest_"])` | **não** — só dentro de componente |
 | `styles/base.css` | o reset global (`html`, `body`, `#root`, `button`…) | sim, é o ponto dele |
 | `styles/core.css` | `tokens` + `base`, como sempre foi | sim |

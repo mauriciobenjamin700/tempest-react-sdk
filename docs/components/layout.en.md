@@ -233,6 +233,9 @@ Accepts every `<section>` attribute.
 - An `aria-label` or `aria-labelledby` you pass wins over the automatic one.
 - With no titled `SectionHeader`, `aria-labelledby` is left off instead of
   pointing at an id that does not exist.
+- `tone="inverse"` paints the section in the brand color and inverts every
+  color token inside it (it writes `data-tempest-tone="inverse"`). Values and
+  measurements are in [Inverse surface](../theme.md#inverse-surface-a-section-in-the-brand-color).
 
 ## `Container`
 

@@ -308,6 +308,28 @@
     ]
   },
   {
+    "name": "slice: createTheme (page schemes + the measured inverse surface)",
+    "path": "dist/tempest-react-sdk.js",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ createTheme }"
+    },
+    "limit": "5 KB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router",
+      "fflate"
+    ]
+  },
+  {
     "name": "slice: admin plumbing (filters + CSV + error copy)",
     "path": "dist/tempest-react-sdk.js",
     "import": {
@@ -363,7 +385,7 @@
   {
     "name": "ceiling: full barrel ESM (nobody imports this — tree-shaking is the real cost)",
     "path": "dist/tempest-react-sdk.js",
-    "limit": "137.8 KB",
+    "limit": "139.4 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -382,7 +404,7 @@
   {
     "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "164.7 KB",
+    "limit": "166.5 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -692,7 +714,7 @@
   {
     "name": "styles.css",
     "path": "dist/styles.css",
-    "limit": "30.5 kB"
+    "limit": "30.9 kB"
   },
   {
     "name": "styles/core.css (foundation alone — no component)",

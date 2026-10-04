@@ -222,6 +222,9 @@ todo atributo de `<section>`.
 - `aria-label` ou `aria-labelledby` passados por você vencem o automático.
 - Sem `SectionHeader` com título, o `aria-labelledby` fica de fora em vez de
   apontar para um id que não existe.
+- `tone="inverse"` pinta a seção na cor da marca e inverte todo token de cor
+  dentro dela (escreve `data-tempest-tone="inverse"`). Os valores e as medições
+  estão em [Superfície invertida](../theme.md#superficie-invertida-secao-na-cor-da-marca).
 
 ## `Container`
 

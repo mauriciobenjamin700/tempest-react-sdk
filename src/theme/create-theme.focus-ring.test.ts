@@ -87,7 +87,10 @@ function sdkSurfaces(): Record<"light" | "dark", string[]> {
         return map;
     };
     const light = parse(css.slice(0, split));
-    const dark = { ...light, ...parse(css.slice(split)) };
+    const dark = {
+        ...light,
+        ...parse(css.slice(split, css.indexOf('data-tempest-tone="inverse"'))),
+    };
     const resolve = (map: Record<string, string>, name: string, depth = 0): string => {
         const value = map[name];
         if (value === undefined) throw new Error(`token ${name} is not defined`);

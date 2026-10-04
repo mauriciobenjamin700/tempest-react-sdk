@@ -249,6 +249,8 @@ applyTheme(createTheme(themePresets.violet)); // or start from a preset
 
 The ramp is derived in OKLCH (HSL lightness is not perceptual, which is what makes generated palettes look broken for some hues) and **anchored at step `500`**, so the color you pass is the color your buttons get. `--tempest-primary-foreground` and the text-on-soft step are picked by **measured** contrast, not convention — hardcoding white breaks a yellow brand. See [Theme › createTheme](https://mauriciobenjamin700.github.io/tempest-react-sdk/theme/).
 
+**A section in the brand color.** `<Section tone="inverse">` (or `data-tempest-tone="inverse"` on any element) paints a hero, CTA band or footer in the brand and redefines every color token the components read inside it — text ≥ 7:1, muted and subtle text ≥ 4.5:1, focus ring ≥ 3:1, each measured against the fill and a lighter glow over it. `colors.css` ships the SDK blue's block and `createTheme({ primary })` generates yours. See [Theme › Inverse surface](https://mauriciobenjamin700.github.io/tempest-react-sdk/en/theme/#inverse-surface-a-section-in-the-brand-color).
+
 **Optional layout layer.** CSS Modules cover the inside of each component; the layer _around_ them (page shell, two-column form, action row, card, a region that scrolls sideways instead of the page) is a second, opt-in stylesheet:
 
 ```ts

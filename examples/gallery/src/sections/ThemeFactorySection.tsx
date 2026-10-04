@@ -6,6 +6,8 @@ import {
     Card,
     createTheme,
     Input,
+    Section,
+    SectionHeader,
     SegmentedControl,
     themeContrast,
     themePresets,
@@ -42,6 +44,7 @@ export function ThemeFactorySection() {
                 radius: radius as "none" | "sm" | "md" | "lg" | "xl" | "full",
                 selector: "#theme-factory",
                 darkSelector: '[data-tempest-theme="dark"] #theme-factory',
+                inverseSelector: '#theme-factory [data-tempest-tone="inverse"]',
             }),
         );
     }, [preset, radius]);
@@ -165,6 +168,69 @@ themeContrast({ primary: "#003d99" }); //  9.8 — texto branco escolhido`}
                         contraste da marca: {contrast ? contrast.toFixed(2) : "—"}:1
                     </Badge>
                 </div>
+            </Example>
+
+            <Example
+                title="Superfície invertida (seção na cor da marca)"
+                note="data-tempest-tone='inverse' em qualquer elemento: o fundo vira a marca e todo token de cor é redefinido e medido sobre ela — texto e muted ≥ 4.5:1, anel ≥ 3:1. Igual no claro e no escuro."
+                code={`<Section tone="inverse">
+  <SectionHeader eyebrow="Pronto?" title="Comece agora" description="Sem cartão de crédito." />
+  <Button>Criar conta</Button>
+  <Button variant="outline">Falar com vendas</Button>
+</Section>
+
+// ou em qualquer elemento:
+<footer data-tempest-tone="inverse">…</footer>`}
+            >
+                <Section
+                    tone="inverse"
+                    data-testid="inverse-surface"
+                    style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 16,
+                        padding: 24,
+                        borderRadius: "var(--tempest-radius-lg)",
+                    }}
+                >
+                    <SectionHeader
+                        eyebrow="Pronto?"
+                        title="Comece agora"
+                        description="Texto muted: sem cartão de crédito, cancele quando quiser."
+                    />
+                    <span style={{ color: "var(--tempest-text-subtle)", fontSize: 13 }}>
+                        Texto subtle: termos de uso se aplicam.
+                    </span>
+                    <div
+                        style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}
+                    >
+                        <Button>Criar conta</Button>
+                        <Button variant="outline">Falar com vendas</Button>
+                        <Button variant="ghost">Ghost</Button>
+                        <Button variant="link" href="#theme-factory">
+                            Ver planos
+                        </Button>
+                        <Badge appearance="soft">soft</Badge>
+                        <Badge appearance="solid">solid</Badge>
+                        <Badge variant="danger" appearance="soft">
+                            erro
+                        </Badge>
+                    </div>
+                    <div
+                        style={{
+                            display: "grid",
+                            gap: 12,
+                            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                        }}
+                    >
+                        <Input label="E-mail" name="inverse-email" placeholder="voce@empresa.com" />
+                        <Card title="Card dentro da seção">
+                            <span style={{ color: "var(--tempest-text-muted)" }}>
+                                Borda, texto e sombra seguem a faixa.
+                            </span>
+                        </Card>
+                    </div>
+                </Section>
             </Example>
 
             <Example

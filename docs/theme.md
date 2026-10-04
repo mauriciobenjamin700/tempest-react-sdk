@@ -158,7 +158,8 @@ const theme = createTheme({
 
 theme.light; // { "--tempest-primary-500": "#7c3aed", … } — a sua cor, exata
 theme.dark;  // idem, com o ramp invertido
-theme.css;   // ":root { … }\n\n[data-tempest-theme=\"dark\"] { … }"
+theme.inverse; // a seção na cor da marca — ver "Superfície invertida"
+theme.css;   // ":root { … }\n\n[data-tempest-theme=\"dark\"] { … }\n\n[data-tempest-tone=\"inverse\"] { … }"
 ```
 
 Só as famílias que você passa são geradas — o resto continua vindo do `colors.css` do SDK. Um tema é um **patch**, não um fork da paleta.
@@ -327,6 +328,165 @@ readableForeground("#fde047"); // o foreground escuro: branco nesse amarelo é i
     do `createTheme` sai regular em vez de embolar nos amarelos.
     `oklchToHex` ainda reduz o croma até a cor caber no gamut sRGB, em vez de
     devolver um hex recortado.
+
+## Superfície invertida (seção na cor da marca)
+
+Hero, faixa de chamada, rodapé: uma seção pintada na cor da marca dentro de uma
+página clara. Os componentes **dentro** dela precisam inverter — botão primário
+claro com texto na cor da marca, texto claro, um anel de foco que se separe do
+fundo. Sobrescrever meia dúzia de tokens à mão deixa o resto da paleta com os
+valores da página, e é aí que a seção quebra.
+
+Coloque `tone="inverse"` no `Section` (ou o atributo `data-tempest-tone="inverse"`
+em qualquer elemento):
+
+```tsx
+import { Button, Section, SectionHeader } from "tempest-react-sdk";
+
+export function FinalCta() {
+    return (
+        <Section tone="inverse" style={{ padding: 48 }}>
+            <SectionHeader
+                eyebrow="Pronto?"
+                title="Comece agora"
+                description="Sem cartão de crédito, cancele quando quiser."
+            />
+            <Button>Criar conta</Button>
+            <Button variant="outline">Falar com vendas</Button>
+        </Section>
+    );
+}
+```
+
+Pronto: o fundo vira a marca, o `Button` primário vira claro com texto na
+cor da marca, o `outline` e o `ghost` ficam claros, o anel de foco, o `Input`, o
+`Card`, o `Badge` e os textos `muted`/`subtle` passam a valer contra o fundo
+invertido. 🚀
+
+![Superfície invertida na gallery](assets/gallery/theme-factory.webp)
+
+### O que muda dentro da seção
+
+O bloco `[data-tempest-tone="inverse"]` redefine **todo token de cor** que os
+componentes leem — 96 deles: superfícies, bordas, os três níveis de texto, a cor
+de ação e seus estados, `soft`, foco, indicador de seleção, a rampa
+`primary-50…900` (que `Tag` e `Sidebar` usam crus), os quatro status, as cores
+de gráfico e de sintaxe, as sombras. A lista não é de memória: o teste lê
+`colors.css` e reprova se surgir token de cor sem valor na superfície invertida.
+
+Ficam de fora, de propósito, a rampa `gray-*` e o `--tempest-neutral-on-solid`
+— o par do `Badge`/`Alert` neutro sólido. A rampa cinza é fixa entre os temas
+(o bloco escuro também não a sobrescreve), e o par continua o que a página mediu.
+
+Uma regra `:where([data-tempest-tone="inverse"])` pinta o fundo e a cor do texto
+no próprio elemento, com especificidade zero: o atributo sozinho já é uma seção
+completa, e um `background` que você puser no mesmo elemento vence sem briga.
+
+### Contraste medido, não escolhido
+
+Cada valor é derivado da marca e **medido** contra o fundo onde vai ficar, como
+o resto do `createTheme`. Medido em 14 marcas (as doze do teste do anel de foco
+mais dois navies):
+
+| par | piso | pior caso |
+| --- | --- | --- |
+| texto sobre as quatro superfícies e o brilho | 7:1 | ≥ 7 em todas |
+| texto `muted` sobre as quatro superfícies e o brilho | 4,5:1 | ≥ 4,5 em todas |
+| texto `subtle` sobre `bg`, `surface` e o brilho | 4,5:1 | ≥ 4,5 em todas |
+| anel de foco e indicador de seleção | 3:1 | ≥ 3 em todas |
+| rótulo do botão primário em repouso, hover e active | 4,5:1 | ≥ 4,5 em todas |
+
+O **brilho** é o fundo levantado 0,1 em lightness OKLCH na direção do texto: uma
+seção raramente é uma cor chapada. A landing que abriu o #409 põe um gradiente
+radial de `#1f3f8f` a 55% sobre o navy `#03184b`, e o texto `subtle` medido só
+contra o fundo chapado caía para 3,64:1 ali. Medindo o brilho junto, o mesmo
+token sai a 5,01:1 sobre ele.
+
+Medido no browser (Chromium, gallery buildada, 04/10/2026, 390 e 1280 px, tema
+da página claro e escuro — números idênticos nos quatro):
+
+| marca | fundo | título | `muted` | `subtle` | anel | botão primário |
+| --- | --- | --- | --- | --- | --- | --- |
+| SDK (`#0066ff`) | `#042e75` | 12,71 | 9,60 | 7,28 | 6,95 | 12,71 |
+| landing (`#03184b`) | `#03184b` | 16,99 | 10,62 | 6,63 | 6,31 | 16,99 |
+
+### O fundo é a sua marca — quando ela aguenta
+
+O fundo é o `500` da sua marca sempre que ele carrega o esquema. Quando não
+carrega, o gerador desce (ou sobe) a rampa um degrau por vez até carregar:
+branco sobre o `#0066ff` mede 4,83:1, o que mal passa AA para o título e não
+deixa espaço para `muted` e `subtle` passarem também. Por isso a superfície do
+azul padrão do SDK é o `800` (`#042e75`), enquanto um navy fica no `500`.
+
+| marca | degrau do fundo |
+| --- | --- |
+| `#03184b`, `#1e2a5a`, `#111111`, `#FFD400`, `#a3e635`, `#fafafa` | `500` — a própria marca |
+| `#8100D7`, `#4f46e5` | `700` |
+| `#0066ff`, `#dc2626`, `#ec4899`, `#f97316` | `800` |
+| `#22d3ee` | `400` · `#14b8a6` `300` |
+
+A direção do texto segue o fundo: marca escura ganha texto branco, marca clara
+(amarelo, lima) ganha texto escuro — a mesma escolha que o `createTheme` faz para
+`--tempest-primary-foreground`. O `color-scheme` da seção acompanha, então
+scrollbar, autofill e o popup de um `<select>` nativo seguem o fundo, não a
+página.
+
+!!! info "Superfícies mais fundas, não mais claras"
+    Na página, uma superfície elevada caminha na direção do texto (cinza sobre
+    branco, cinza mais claro sobre preto). Sobre uma marca de tom médio isso gasta
+    exatamente o contraste de que o texto precisa. Na superfície invertida, o
+    `Card` dentro de uma faixa navy é um navy mais fundo, e dentro de uma faixa
+    amarela um amarelo mais pálido: toda superfície carrega o texto pelo menos
+    tão bem quanto o fundo.
+
+!!! info "Valores sólidos, não alfa sobre branco"
+    `rgb(255 255 255 / 0.1)` parece seguir qualquer fundo, e é por isso mesmo
+    que não tem contraste próprio — tem o contraste do que estiver embaixo. É o
+    defeito que o anel de foco translúcido tinha. Os tokens da superfície
+    invertida são sólidos e medidos; a tolerância a variação de fundo vem do
+    brilho medido acima, não do alfa.
+
+### Tema escuro
+
+A superfície invertida é **a mesma no claro e no escuro**: os valores são cores
+literais, não referências à rampa da página. Uma faixa na cor da marca é a marca
+nos dois temas — e uma marca sem variante escura (o caso comum de landing) não
+precisa decidir nada.
+
+### Sua marca, com `createTheme`
+
+O `colors.css` traz a superfície invertida do azul do SDK. Com `createTheme` e um
+`primary`, o bloco é gerado para a sua marca — por padrão:
+
+```tsx
+import { applyTheme, createTheme } from "tempest-react-sdk";
+
+const theme = createTheme({ primary: "#03184b" });
+
+theme.inverse["--tempest-bg"]; // "#03184b" — a sua marca é o fundo
+applyTheme(theme);
+```
+
+Status e cores de gráfico que o tema nomeia (`danger`, `chart`…) entram na
+superfície invertida também. Para escopar a outro seletor, use
+`inverseSelector`; para não gerar o bloco, `inverse: false`.
+
+!!! warning "CSS estático colado: gere de novo"
+    Se você colou a saída do `createTheme` num `.css` (veja
+    [Sem JS](#sem-js-cole-o-css-gerado)), esse arquivo não tem o bloco invertido
+    da sua marca, e a seção cai no bloco do `colors.css` — o azul do SDK. Rode o
+    comando de novo para incluir o bloco.
+
+### Recap
+
+- `<Section tone="inverse">` ou `data-tempest-tone="inverse"` em qualquer
+  elemento: fundo na marca, todo token de cor invertido.
+- Texto ≥ 7:1, `muted` e `subtle` ≥ 4,5:1, anel ≥ 3:1 — medidos também sobre um
+  brilho 0,1 mais claro que o fundo.
+- O fundo é o `500` quando ele aguenta; senão o degrau mais próximo que aguenta.
+- Igual no tema claro e no escuro.
+- `createTheme({ primary })` gera o bloco da sua marca; CSS estático precisa ser
+  regenerado.
 
 ## Integração com o CSS do app + `theme-color`
 

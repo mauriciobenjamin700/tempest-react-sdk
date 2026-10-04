@@ -132,7 +132,7 @@ mais voltam:
 - **Docs**: 98 páginas base (196 com as traduções `.en.md`) + `llms.txt` /
   `llms-full.txt`. Site MkDocs bilíngue no GitHub Pages; `docs/internal/` fica
   fora dele.
-- **Demo vivo**: `examples/gallery`, app Vite com 66 seções consumindo o SDK via
+- **Demo vivo**: `examples/gallery`, app Vite com 67 seções consumindo o SDK via
   `file:../..`.
 
 Os números acima envelhecem — quando divergirem do repo, o repo está certo e esta

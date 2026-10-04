@@ -28,6 +28,7 @@ import { DashboardLayoutSection } from "./DashboardLayoutSection";
 import { FilterBarSection } from "./FilterBarSection";
 import { MarkdownSection } from "./MarkdownSection";
 import { MasonrySection } from "./MasonrySection";
+import { RevealSection } from "./RevealSection";
 import { TourSection } from "./TourSection";
 import { TransferSection } from "./TransferSection";
 import { CodeBlockSection } from "./CodeBlockSection";
@@ -375,6 +376,14 @@ export const SECTIONS: SectionEntry[] = [
         keywords: "masonry mosaico colunas altura desigual cards pinterest grid coluna curta",
         group: "Componentes",
         Component: MasonrySection,
+    },
+    {
+        id: "reveal",
+        label: "Reveal",
+        keywords:
+            "reveal animacao entrada scroll rolar viewport fade slide escalonado stagger landing reduced motion",
+        group: "Componentes",
+        Component: RevealSection,
     },
     {
         id: "tour",

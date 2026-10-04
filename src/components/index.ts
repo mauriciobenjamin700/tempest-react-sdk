@@ -311,6 +311,8 @@ export type { TruncateTextProps } from "./TruncateText";
 
 export { VisuallyHidden } from "./VisuallyHidden";
 export type { VisuallyHiddenProps } from "./VisuallyHidden";
+export { Reveal } from "./Reveal";
+export type { RevealProps, RevealState, RevealVariant } from "./Reveal";
 
 // Generic headless / logical
 export { Portal } from "./Portal";

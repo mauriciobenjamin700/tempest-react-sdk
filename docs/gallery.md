@@ -110,34 +110,35 @@ Cada seção é um arquivo em [`examples/gallery/src/sections/`](https://github.
 | 36 | FilterBar & FilterPanel | `#filterbar` | Componentes |
 | 37 | Markdown | `#markdown` | Componentes |
 | 38 | Masonry | `#masonry` | Componentes |
-| 39 | Tour | `#tour` | Componentes |
-| 40 | Transfer | `#transfer` | Componentes |
-| 41 | CodeBlock | `#codeblock` | Componentes |
-| 42 | Material (ListTile · FAB · Rail) | `#material` | Componentes |
-| 43 | Forms (zod) | `#forms` | Componentes |
-| 44 | BR Forms (CPF/CNPJ/CEP) | `#br-forms` | Componentes |
-| 45 | Hooks — estado | `#hooks-state` | Hooks |
-| 46 | Hooks — DOM & timing | `#hooks-dom` | Hooks |
-| 47 | Network · Clipboard · Share | `#meta` | Hooks |
-| 48 | Formatters | `#utils` | Hooks |
-| 49 | HTTP client | `#recipe-http` | Receitas |
-| 50 | Upload resumível (tus) | `#recipe-resumable-upload` | Receitas |
-| 51 | Passkeys (WebAuthn) | `#recipe-passkeys` | Receitas |
-| 52 | Data fetching (TanStack Query) | `#recipe-query` | Receitas |
-| 53 | Tempo real (WebSocket) | `#recipe-realtime` | Receitas |
-| 54 | Geolocalização (mapas & trajetória) | `#geo` | Receitas |
-| 55 | Mapa do Brasil (UF + cidades) | `#brazil-map` | Receitas |
-| 56 | Pagamentos BR (Pix · boleto · NFe) | `#br-payments` | Receitas |
-| 57 | Auth & Access Control | `#recipe-auth` | Receitas |
-| 58 | SSE · Push · Audio | `#integrations` | Receitas |
-| 59 | NotificationCenter (inbox) | `#notification-center` | Receitas |
-| 60 | PWA: Install · Push | `#pwa` | Receitas |
-| 61 | Store (Zustand) | `#foundation` | Fundação |
-| 62 | Escalas contínuas (heatmap) | `#dataviz-scales` | Fundação |
-| 63 | createTheme · presets · tokens de gráfico | `#theme-factory` | Fundação |
-| 64 | Ícones por slug (/icons) | `#icons` | Fundação |
-| 65 | utilities.css (camada opt-in) | `#utilities-css` | Fundação |
-| 66 | Tema + i18n | `#theme-i18n` | Fundação |
+| 39 | Reveal | `#reveal` | Componentes |
+| 40 | Tour | `#tour` | Componentes |
+| 41 | Transfer | `#transfer` | Componentes |
+| 42 | CodeBlock | `#codeblock` | Componentes |
+| 43 | Material (ListTile · FAB · Rail) | `#material` | Componentes |
+| 44 | Forms (zod) | `#forms` | Componentes |
+| 45 | BR Forms (CPF/CNPJ/CEP) | `#br-forms` | Componentes |
+| 46 | Hooks — estado | `#hooks-state` | Hooks |
+| 47 | Hooks — DOM & timing | `#hooks-dom` | Hooks |
+| 48 | Network · Clipboard · Share | `#meta` | Hooks |
+| 49 | Formatters | `#utils` | Hooks |
+| 50 | HTTP client | `#recipe-http` | Receitas |
+| 51 | Upload resumível (tus) | `#recipe-resumable-upload` | Receitas |
+| 52 | Passkeys (WebAuthn) | `#recipe-passkeys` | Receitas |
+| 53 | Data fetching (TanStack Query) | `#recipe-query` | Receitas |
+| 54 | Tempo real (WebSocket) | `#recipe-realtime` | Receitas |
+| 55 | Geolocalização (mapas & trajetória) | `#geo` | Receitas |
+| 56 | Mapa do Brasil (UF + cidades) | `#brazil-map` | Receitas |
+| 57 | Pagamentos BR (Pix · boleto · NFe) | `#br-payments` | Receitas |
+| 58 | Auth & Access Control | `#recipe-auth` | Receitas |
+| 59 | SSE · Push · Audio | `#integrations` | Receitas |
+| 60 | NotificationCenter (inbox) | `#notification-center` | Receitas |
+| 61 | PWA: Install · Push | `#pwa` | Receitas |
+| 62 | Store (Zustand) | `#foundation` | Fundação |
+| 63 | Escalas contínuas (heatmap) | `#dataviz-scales` | Fundação |
+| 64 | createTheme · presets · tokens de gráfico | `#theme-factory` | Fundação |
+| 65 | Ícones por slug (/icons) | `#icons` | Fundação |
+| 66 | utilities.css (camada opt-in) | `#utilities-css` | Fundação |
+| 67 | Tema + i18n | `#theme-i18n` | Fundação |
 <!-- /gallery -->
 
 ## Matriz de variantes
@@ -209,7 +210,7 @@ Cada exemplo aparece **lado a lado com o código-fonte** (botão "Copiar"), ent�
 gallery é também uma referência copia-e-cola. Capturas do app rodando:
 
 <!-- gallery:screenshots -->
-Cada seção tem a própria captura ao lado do componente que documenta; os pares abaixo são aqueles em que o tema é o assunto. As 76 imagens são regeneradas por `npm run docs:shots`.
+Cada seção tem a própria captura ao lado do componente que documenta; os pares abaixo são aqueles em que o tema é o assunto. As 77 imagens são regeneradas por `npm run docs:shots`.
 
 ### Buttons
 
@@ -278,7 +279,7 @@ Cada seção tem a própria captura ao lado do componente que documenta; os pare
   o papel de Storybook.
 - Rode com `npm run build` na raiz, depois `npm run dev` em `examples/gallery`
   (porta `5173`).
-- 66 seções cobrem componentes, overlays, mídia/imagens, inputs avançados,
+- 67 seções cobrem componentes, overlays, mídia/imagens, inputs avançados,
   DataTable, store, tema/i18n, integrações ao vivo, PWA e utils — cada exemplo
   com código copia-e-cola ao lado. A tabela acima sai do registry, então não
   envelhece.

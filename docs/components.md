@@ -19,7 +19,7 @@ O catálogo foi dividido por categoria para facilitar navegação. Cada arquivo 
 - **[Dados](./components/data.md)** — Table, VirtualList, VirtualTable, DataTable, ListTile, Accordion, Timeline, TreeView, Sparkline
 - **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, NProgress, Spinner, Skeleton, RefreshIndicator, Toast, EmptyState, ErrorState, OfflineIndicator, SyncStatusBadge, UpdatePrompt
 - **[Identidade & micro](./components/identity.md)** — Avatar, AvatarGroup, Card, Kbd
-- **[Utilitários & headless](./components/utility.md)** — CopyButton, RelativeTime, Money, TruncateText, VisuallyHidden, Portal, ClickOutside, ConditionalWrapper, For, ErrorText, Image, DataList, DescriptionList, CodeBlock, QRCode
+- **[Utilitários & headless](./components/utility.md)** — CopyButton, RelativeTime, Money, TruncateText, VisuallyHidden, Reveal, Portal, ClickOutside, ConditionalWrapper, For, ErrorText, Image, DataList, DescriptionList, CodeBlock, QRCode
 - **Overlays & avançados** — os componentes em paridade com a shadcn/ui, em cinco páginas ([visão geral](./components/advanced.md)):
     - **[Essenciais](./components/advanced-essentials.md)** — Toggle, ToggleGroup, Label, Collapsible, ContextMenu, HoverCard, Command
     - **[Layout & UX](./components/advanced-layout.md)** — ScrollArea, Resizable, Calendar, Scheduler

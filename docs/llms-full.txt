@@ -6008,7 +6008,7 @@ O catálogo foi dividido por categoria para facilitar navegação. Cada arquivo 
 - **[Dados](./components/data.md)** — Table, VirtualList, VirtualTable, DataTable, ListTile, Accordion, Timeline, TreeView, Sparkline
 - **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, NProgress, Spinner, Skeleton, RefreshIndicator, Toast, EmptyState, ErrorState, OfflineIndicator, SyncStatusBadge, UpdatePrompt
 - **[Identidade & micro](./components/identity.md)** — Avatar, AvatarGroup, Card, Kbd
-- **[Utilitários & headless](./components/utility.md)** — CopyButton, RelativeTime, Money, TruncateText, VisuallyHidden, Portal, ClickOutside, ConditionalWrapper, For, ErrorText, Image, DataList, DescriptionList, CodeBlock, QRCode
+- **[Utilitários & headless](./components/utility.md)** — CopyButton, RelativeTime, Money, TruncateText, VisuallyHidden, Reveal, Portal, ClickOutside, ConditionalWrapper, For, ErrorText, Image, DataList, DescriptionList, CodeBlock, QRCode
 - **Overlays & avançados** — os componentes em paridade com a shadcn/ui, em cinco páginas ([visão geral](./components/advanced.md)):
     - **[Essenciais](./components/advanced-essentials.md)** — Toggle, ToggleGroup, Label, Collapsible, ContextMenu, HoverCard, Command
     - **[Layout & UX](./components/advanced-layout.md)** — ScrollArea, Resizable, Calendar, Scheduler
@@ -13281,6 +13281,68 @@ Estende `HTMLAttributes<HTMLElement>`.
 
 ---
 
+## Movimento
+
+### `Reveal`
+
+<!-- gallery:reveal -->
+[![Reveal na gallery](../assets/gallery/reveal.webp)](../gallery.md)
+
+*Seção `reveal` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
+Conteúdo que **entra ao chegar na viewport** — fade ou deslize ao rolar, o padrão de toda landing page. Revela uma vez e para de observar.
+
+```tsx
+import { Card, Reveal } from "tempest-react-sdk";
+
+const etapas = [
+  { id: "1", titulo: "Diagnóstico" },
+  { id: "2", titulo: "Protótipo" },
+  { id: "3", titulo: "Piloto" },
+];
+
+export function Etapas() {
+  return (
+    <ol>
+      {etapas.map((etapa, index) => (
+        <Reveal key={etapa.id} as="li" variant="up" delay={index * 90}>
+          <Card title={etapa.titulo} />
+        </Reveal>
+      ))}
+    </ol>
+  );
+}
+```
+
+O escalonamento é o `index` do `map` vezes um passo: não existe `RevealGroup`, porque o índice já está na sua mão e um grupo só esconderia essa conta atrás de `cloneElement`.
+
+| Prop         | Tipo                                                     | Default                     | Notas                                                                                      |
+| ------------ | -------------------------------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------ |
+| `variant`    | `"fade" \| "up" \| "down" \| "left" \| "right" \| "scale"` | `"up"`                      | De onde o conteúdo vem. `up` sobe de baixo; `left` vem da direita para a esquerda.         |
+| `delay`      | `number` (ms)                                            | `0`                         | Espera antes de entrar (`--tempest-reveal-delay`).                                         |
+| `duration`   | `number` (ms)                                            | `--tempest-duration-slower` | Duração da entrada (`--tempest-reveal-duration`).                                          |
+| `as`         | `keyof JSX.IntrinsicElements`                            | `"div"`                     | Elemento a renderizar — `"li"` dentro de `<ul>`/`<ol>` mantém a semântica da lista.        |
+| `once`       | `boolean`                                                | `true`                      | `false` esconde de novo quando o elemento sai **inteiro** de vista, e anima na próxima volta. |
+| `threshold`  | `number`                                                 | `0.15`                      | Fração do elemento — ou da viewport, se ele for mais alto que ela — que precisa aparecer.  |
+| `rootMargin` | `string`                                                 | `"0px"`                     | Margem do root, como no `IntersectionObserver`.                                            |
+
+Estende `HTMLAttributes<HTMLElement>`. O estado atual sai em `data-state` (`"static"`, `"hidden"` ou `"shown"`) e a variante em `data-variant`.
+
+As três armadilhas de um `Reveal` escrito à mão já vêm resolvidas no componente:
+
+- **`prefers-reduced-motion: reduce`** → o conteúdo fica visível e parado, sem transform nem transição (WCAG 2.3.3). É CSS, então vale também se a preferência mudar com a página aberta.
+- **Sem `IntersectionObserver`** → o elemento fica em `data-state="static"`, que é conteúdo visível. Ele nunca fica escondido esperando uma observação que não vai chegar.
+- **Elemento mais alto que a viewport** → um bloco de três telas nunca chega a 50% visível, então `threshold={0.5}` cru nunca revelaria. O `Reveal` lê a geometria na primeira observação e reescala o threshold pela fração máxima alcançável: o bloco revela quando ocupa metade da viewport.
+
+!!! info "Markup sem JavaScript fica visível"
+
+    O estado escondido só é aplicado no cliente que consegue observar. Renderizado sem JS — ou antes da hidratação —, o elemento sai como `data-state="static"`. A transição mora só no estado `"shown"`, então a troca para `"hidden"` na montagem é instantânea, sem fade-out.
+
+Personalize sem prop nova pelas custom properties `--tempest-reveal-distance` (default `1.5rem`), `--tempest-reveal-scale` (`0.95`) e `--tempest-reveal-easing`.
+
+---
+
 ## Headless / lógicos
 
 Sem CSS próprio: encapsulam comportamento e te deixam fornecer a marcação.
@@ -13572,6 +13634,7 @@ try {
 ## Recap
 
 - **Display**: `CopyButton` (clipboard + estado transiente), `RelativeTime` (`<time>` relativo), `Money` (centavos → moeda), `TruncateText` (line-clamp), `VisuallyHidden` (sr-only).
+- **Movimento**: `Reveal` (entrada ao rolar, escalonável por `delay`; visível sem `IntersectionObserver` e parado com `prefers-reduced-motion`).
 - **Headless/lógicos**: `Portal` (SSR-safe), `ClickOutside`, `ConditionalWrapper`, `For` (lista tipada com fallback), `ErrorText` (erro de campo `role="alert"`).
 - **Mídia/conteúdo**: `Image` (lazy + fallback), `DataList` (`<ul>` genérico), `DescriptionList` (`<dl>` termo/valor), `CodeBlock` (amostra de código com realce), `QRCode` (símbolo QR em SVG, codificado no browser).
 - Componentes "display" e "conteúdo" usam tokens `--tempest-*`; os headless não trazem CSS — você fornece a marcação.
@@ -19144,34 +19207,35 @@ Cada seção é um arquivo em [`examples/gallery/src/sections/`](https://github.
 | 36 | FilterBar & FilterPanel | `#filterbar` | Componentes |
 | 37 | Markdown | `#markdown` | Componentes |
 | 38 | Masonry | `#masonry` | Componentes |
-| 39 | Tour | `#tour` | Componentes |
-| 40 | Transfer | `#transfer` | Componentes |
-| 41 | CodeBlock | `#codeblock` | Componentes |
-| 42 | Material (ListTile · FAB · Rail) | `#material` | Componentes |
-| 43 | Forms (zod) | `#forms` | Componentes |
-| 44 | BR Forms (CPF/CNPJ/CEP) | `#br-forms` | Componentes |
-| 45 | Hooks — estado | `#hooks-state` | Hooks |
-| 46 | Hooks — DOM & timing | `#hooks-dom` | Hooks |
-| 47 | Network · Clipboard · Share | `#meta` | Hooks |
-| 48 | Formatters | `#utils` | Hooks |
-| 49 | HTTP client | `#recipe-http` | Receitas |
-| 50 | Upload resumível (tus) | `#recipe-resumable-upload` | Receitas |
-| 51 | Passkeys (WebAuthn) | `#recipe-passkeys` | Receitas |
-| 52 | Data fetching (TanStack Query) | `#recipe-query` | Receitas |
-| 53 | Tempo real (WebSocket) | `#recipe-realtime` | Receitas |
-| 54 | Geolocalização (mapas & trajetória) | `#geo` | Receitas |
-| 55 | Mapa do Brasil (UF + cidades) | `#brazil-map` | Receitas |
-| 56 | Pagamentos BR (Pix · boleto · NFe) | `#br-payments` | Receitas |
-| 57 | Auth & Access Control | `#recipe-auth` | Receitas |
-| 58 | SSE · Push · Audio | `#integrations` | Receitas |
-| 59 | NotificationCenter (inbox) | `#notification-center` | Receitas |
-| 60 | PWA: Install · Push | `#pwa` | Receitas |
-| 61 | Store (Zustand) | `#foundation` | Fundação |
-| 62 | Escalas contínuas (heatmap) | `#dataviz-scales` | Fundação |
-| 63 | createTheme · presets · tokens de gráfico | `#theme-factory` | Fundação |
-| 64 | Ícones por slug (/icons) | `#icons` | Fundação |
-| 65 | utilities.css (camada opt-in) | `#utilities-css` | Fundação |
-| 66 | Tema + i18n | `#theme-i18n` | Fundação |
+| 39 | Reveal | `#reveal` | Componentes |
+| 40 | Tour | `#tour` | Componentes |
+| 41 | Transfer | `#transfer` | Componentes |
+| 42 | CodeBlock | `#codeblock` | Componentes |
+| 43 | Material (ListTile · FAB · Rail) | `#material` | Componentes |
+| 44 | Forms (zod) | `#forms` | Componentes |
+| 45 | BR Forms (CPF/CNPJ/CEP) | `#br-forms` | Componentes |
+| 46 | Hooks — estado | `#hooks-state` | Hooks |
+| 47 | Hooks — DOM & timing | `#hooks-dom` | Hooks |
+| 48 | Network · Clipboard · Share | `#meta` | Hooks |
+| 49 | Formatters | `#utils` | Hooks |
+| 50 | HTTP client | `#recipe-http` | Receitas |
+| 51 | Upload resumível (tus) | `#recipe-resumable-upload` | Receitas |
+| 52 | Passkeys (WebAuthn) | `#recipe-passkeys` | Receitas |
+| 53 | Data fetching (TanStack Query) | `#recipe-query` | Receitas |
+| 54 | Tempo real (WebSocket) | `#recipe-realtime` | Receitas |
+| 55 | Geolocalização (mapas & trajetória) | `#geo` | Receitas |
+| 56 | Mapa do Brasil (UF + cidades) | `#brazil-map` | Receitas |
+| 57 | Pagamentos BR (Pix · boleto · NFe) | `#br-payments` | Receitas |
+| 58 | Auth & Access Control | `#recipe-auth` | Receitas |
+| 59 | SSE · Push · Audio | `#integrations` | Receitas |
+| 60 | NotificationCenter (inbox) | `#notification-center` | Receitas |
+| 61 | PWA: Install · Push | `#pwa` | Receitas |
+| 62 | Store (Zustand) | `#foundation` | Fundação |
+| 63 | Escalas contínuas (heatmap) | `#dataviz-scales` | Fundação |
+| 64 | createTheme · presets · tokens de gráfico | `#theme-factory` | Fundação |
+| 65 | Ícones por slug (/icons) | `#icons` | Fundação |
+| 66 | utilities.css (camada opt-in) | `#utilities-css` | Fundação |
+| 67 | Tema + i18n | `#theme-i18n` | Fundação |
 <!-- /gallery -->
 
 ## Matriz de variantes
@@ -19243,7 +19307,7 @@ Cada exemplo aparece **lado a lado com o código-fonte** (botão "Copiar"), ent�
 gallery é também uma referência copia-e-cola. Capturas do app rodando:
 
 <!-- gallery:screenshots -->
-Cada seção tem a própria captura ao lado do componente que documenta; os pares abaixo são aqueles em que o tema é o assunto. As 76 imagens são regeneradas por `npm run docs:shots`.
+Cada seção tem a própria captura ao lado do componente que documenta; os pares abaixo são aqueles em que o tema é o assunto. As 77 imagens são regeneradas por `npm run docs:shots`.
 
 ### Buttons
 
@@ -19312,7 +19376,7 @@ Cada seção tem a própria captura ao lado do componente que documenta; os pare
   o papel de Storybook.
 - Rode com `npm run build` na raiz, depois `npm run dev` em `examples/gallery`
   (porta `5173`).
-- 66 seções cobrem componentes, overlays, mídia/imagens, inputs avançados,
+- 67 seções cobrem componentes, overlays, mídia/imagens, inputs avançados,
   DataTable, store, tema/i18n, integrações ao vivo, PWA e utils — cada exemplo
   com código copia-e-cola ao lado. A tabela acima sai do registry, então não
   envelhece.
@@ -28476,7 +28540,7 @@ Aliases:
     build medido duas vezes não devolve sempre a mesma contagem. Medido: 87 e
     depois 88 nós de `color-contrast` em `incomplete`, sem nada mudar entre as
     duas execuções. É um ratchet, não uma allowlist: a gallery
-    renderiza 66 seções de demo e carrega dívida real de acessibilidade, e
+    renderiza 67 seções de demo e carrega dívida real de acessibilidade, e
     reprovar tudo deixaria o build vermelho para sempre — que é como um gate é
     deletado. Cair não falha; os números estão lá para serem baixados.
 

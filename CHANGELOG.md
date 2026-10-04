@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.75.0] — 2026-10-04
+
 ### Adicionado
 
 - **Tom `default` — um trecho de uma superfície invertida volta aos tokens da página (#420).**

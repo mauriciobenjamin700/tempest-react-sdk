@@ -157,6 +157,83 @@ export function OrdersPage() {
 | `footer`      | `ReactNode` | —       |
 | `padded`      | `boolean`   | `true`  |
 
+## `SectionHeader`
+
+The `Page` header (`eyebrow` + `title` + `description` + `actions`) as a piece of
+its own, so a page with several sections gets **one `<h1>` and many `<h2>` with
+the same look**. `Page` uses `SectionHeader` with `level={1}` internally, so the
+two match by construction.
+
+To make the section a landmark, wrap it in `Section`: it renders `<section>` and
+wires `aria-labelledby` to the title id of the `SectionHeader` inside it on its
+own. Without an accessible name a `<section>` is not a `region` — screen readers
+skip it in landmark navigation. The step is always the same, so the library does
+it.
+
+```tsx
+import { Button, Page, Section, SectionHeader } from "tempest-react-sdk";
+
+export function LandingPage() {
+    return (
+        <Page
+            eyebrow="TEMPEST"
+            title="Custom software"
+            description="From prototype to production, with the same team."
+            actions={<Button>Talk to us</Button>}
+        >
+            <Section>
+                <SectionHeader
+                    eyebrow="Solutions"
+                    title="What we can build"
+                    description="Apps, dashboards and integrations."
+                    align="center"
+                />
+                <p>Solutions section content.</p>
+            </Section>
+            <Section>
+                <SectionHeader eyebrow="Process" title="How we work" />
+                <p>Process section content.</p>
+            </Section>
+        </Page>
+    );
+}
+```
+
+The accessibility tree comes out with one `main`, one level-1 `heading` and two
+`region`s named "What we can build" and "How we work".
+
+| Prop          | Type                         | Default    |
+| ------------- | ---------------------------- | ---------- |
+| `title`       | `ReactNode`                  | —          |
+| `eyebrow`     | `ReactNode`                  | —          |
+| `description` | `ReactNode`                  | —          |
+| `actions`     | `ReactNode`                  | —          |
+| `level`       | `1 \| 2 \| 3 \| 4 \| 5 \| 6` | `2`        |
+| `align`       | `"start" \| "center"`        | `"start"`  |
+| `id`          | `string`                     | `useId()`  |
+
+`id` goes on the title element (not on the `<header>`); without it, an id is
+generated with `useId`. With every slot empty, nothing is rendered.
+
+!!! note "`level` is semantics, not size"
+    The look is the same at every level: pick the level from the document
+    outline (one `<h1>` per page, `<h2>` for sections), not from the size you
+    want to see. That is what keeps the `Page` `h1` and the section `h2`s alike.
+
+### `Section`
+
+`<section>` that takes its accessible name from the `SectionHeader` inside it.
+Accepts every `<section>` attribute.
+
+- The link goes through context, so a `div` or a `Card` between `Section` and
+  `SectionHeader` does not break it.
+- The **first** mounted `SectionHeader` with a `title` wins; if it unmounts, the
+  next one takes over.
+- A nested `Section` is named by its own header, not by the outer one.
+- An `aria-label` or `aria-labelledby` you pass wins over the automatic one.
+- With no titled `SectionHeader`, `aria-labelledby` is left off instead of
+  pointing at an id that does not exist.
+
 ## `Container`
 
 Max-width wrapper.
@@ -491,7 +568,7 @@ Falls back to the last value defined per cascading breakpoint.
 
 ## General A11y
 
-- `Page.title` is `<h1>` — only one per page for correct hierarchy.
+- `Page.title` is `<h1>` — only one per page for correct hierarchy. Sections below it use `SectionHeader` (`<h2>` by default) inside `Section`, which becomes a named `region`.
 - `AppShell` wraps in a semantic `<main>`.
 - `<Show>`/`<Hide>` render `null` on the server + adjust on the client (no SEO impact, the first paint may flicker).
 

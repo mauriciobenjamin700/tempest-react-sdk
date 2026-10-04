@@ -1,6 +1,8 @@
 import {
     AppShell,
     Page,
+    Section,
+    SectionHeader,
     Container,
     Center,
     Spacer,
@@ -171,6 +173,63 @@ import { Plus } from "lucide-react";
                     >
                         Lista de pedidos aqui.
                     </Page>
+                </div>
+            </Example>
+
+            <Example
+                title="SectionHeader + Section"
+                id="ex-section-header"
+                note="O cabeçalho do Page como peça própria: um <h1> na página e um <h2> por seção, com o mesmo visual. Section liga o aria-labelledby sozinho e vira region com nome."
+                code={`import { Section, SectionHeader } from "tempest-react-sdk";
+
+<Section>
+    <SectionHeader
+        eyebrow="Soluções"
+        title="O que podemos desenvolver"
+        description="Apps, painéis e integrações."
+        align="center"
+    />
+    Conteúdo da seção.
+</Section>`}
+                props={[
+                    {
+                        name: "level",
+                        type: "1 | 2 | 3 | 4 | 5 | 6",
+                        default: "2",
+                        description: "Nível do título — semântica, o visual não muda.",
+                    },
+                    {
+                        name: "align",
+                        type: '"start" | "center"',
+                        default: '"start"',
+                        description: "Alinhamento do bloco de texto.",
+                    },
+                    {
+                        name: "id",
+                        type: "string",
+                        default: "useId()",
+                        description: "Id do título; é o que o Section usa no aria-labelledby.",
+                    },
+                ]}
+            >
+                <div style={{ display: "grid", gap: 24 }}>
+                    <Section>
+                        <SectionHeader
+                            eyebrow="Soluções"
+                            title="O que podemos desenvolver"
+                            description="Apps, painéis e integrações."
+                            align="center"
+                        />
+                        <p style={{ margin: 0, textAlign: "center" }}>Conteúdo da seção.</p>
+                    </Section>
+                    <Section>
+                        <SectionHeader
+                            eyebrow="Processo"
+                            title="Como trabalhamos"
+                            actions={<Button variant="ghost">Ver etapas</Button>}
+                        />
+                        <p style={{ margin: 0 }}>Conteúdo da seção.</p>
+                    </Section>
                 </div>
             </Example>
 

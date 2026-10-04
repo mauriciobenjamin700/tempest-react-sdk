@@ -5,6 +5,7 @@
  */
 import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/utils/cn";
+import { SectionHeader } from "../SectionHeader";
 import styles from "./Page.module.css";
 
 export interface PageProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
@@ -29,6 +30,10 @@ export interface PageProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
  * Page wrapper with header + (optional) toolbar + content + footer. Pairs
  * with `Container` when you want a max-width content well.
  *
+ * The header is a `SectionHeader` at `level={1}`, so the page title and the
+ * `<h2>` of each section below it share one look; when every header slot is
+ * empty no `<header>` is rendered.
+ *
  * @example
  * <Page title="Pedidos" description="Acompanhe seus pedidos" actions={<Button>Novo</Button>}>
  *     <Table {...} />
@@ -46,19 +51,15 @@ export function Page({
     children,
     ...props
 }: PageProps) {
-    const hasHeader = title || eyebrow || description || actions;
     return (
         <main className={cn(styles.page, padded && styles.padded, className)} {...props}>
-            {hasHeader && (
-                <header className={styles.header}>
-                    <div className={styles.headerText}>
-                        {eyebrow && <div className={styles.eyebrow}>{eyebrow}</div>}
-                        {title && <h1 className={styles.title}>{title}</h1>}
-                        {description && <p className={styles.description}>{description}</p>}
-                    </div>
-                    {actions && <div className={styles.actions}>{actions}</div>}
-                </header>
-            )}
+            <SectionHeader
+                level={1}
+                eyebrow={eyebrow}
+                title={title}
+                description={description}
+                actions={actions}
+            />
             {toolbar && <div className={styles.toolbar}>{toolbar}</div>}
             <div className={styles.content}>{children}</div>
             {footer && <footer className={styles.footer}>{footer}</footer>}

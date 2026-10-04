@@ -24,6 +24,29 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   campos é `text-lg`/semibold com `space-3` abaixo, contra `text-2xl`/bold com `space-5` do
   `SectionHeader`. Unificar mudaria todo formulário existente ou pediria uma variante de
   tamanho usada só por ele.
+- **`Reveal` — conteúdo que entra ao chegar na viewport (#408).** Fade/deslize ao rolar sobre o
+  `useIntersectionObserver`, com `variant` (`fade`, `up`, `down`, `left`, `right`, `scale`),
+  `delay` e `duration` em ms (custom properties `--tempest-reveal-delay`/`-duration`, default
+  nos tokens `--tempest-duration-slower` + `--tempest-ease-*`), `as` polimórfico (`"li"` dentro
+  de lista), `once` (default `true`), `threshold` e `rootMargin`. As três armadilhas da issue
+  são código, não aviso: `prefers-reduced-motion: reduce` fixa o conteúdo visível e parado em
+  CSS; sem `IntersectionObserver` o elemento fica em `data-state="static"` (visível); e um
+  elemento mais alto que a viewport tem o threshold reescalado pela fração máxima alcançável.
+  Medido em Chromium headless (Playwright, viewport 1280×900, 04/10/2026) contra a gallery
+  buildada, pelo mesmo método do `e2e/reveal.spec.ts` (que fixa os quatro critérios da issue):
+  um bloco de 1980 px tem razão máxima 0,454, então um `IntersectionObserver` cru com
+  `threshold: 0.5` só entrega a observação inicial e nunca revela; o `Reveal` com
+  `threshold={0.5}` fica escondido com 440 px visíveis e revela com 460 px (metade da viewport =
+  450). Escalonamento com `delay={index * 90}`: as quatro entradas começam a 83/83/100 ms uma da
+  outra (quantização de frame). Sem `RevealGroup` — o índice do `map` já dá o escalonamento.
+- **Gallery: seção `reveal`** (67 seções), com lista escalonada, as seis variantes e o bloco
+  mais alto que a tela.
+
+### Alterado
+
+- **Tetos do barrel no `size-limit`: ESM 136,5 → 137,2 kB, CJS 163 → 163,5 kB.** Com
+  `SectionHeader` e `Reveal` juntos, o barrel mede 137,05 kB (ESM) e 163,46 kB (CJS); a fatia
+  `{ Reveal }` sozinha mede 839 B brotli (`npx size-limit`, `main` + esta mudança).
 
 ### Corrigido
 

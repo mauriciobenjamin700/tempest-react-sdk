@@ -16,7 +16,7 @@ src/
 ├── br/           ⇢  5.571 municípios do IBGE + 35 RAs do DF + mapa UF clicável
 ├── capture/         createMediaRecorder, useVideoRecorder, useBarcodeScanner
 ├── charts/       ⇢  wrappers recharts
-├── components/      131 componentes UI
+├── components/      132 componentes UI
 ├── data/            createDataProvider, <TempestDataProvider>, useDataProvider
 ├── editor/       ⇢  RichTextEditor (tiptap)
 ├── error-boundary/  ErrorBoundary, useErrorHandler

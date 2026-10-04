@@ -1,0 +1,42 @@
+.reveal[data-state="hidden"] {
+    opacity: 0;
+}
+
+.reveal[data-state="hidden"][data-variant="up"] {
+    transform: translate3d(0, var(--tempest-reveal-distance, 1.5rem), 0);
+}
+
+.reveal[data-state="hidden"][data-variant="down"] {
+    transform: translate3d(0, calc(-1 * var(--tempest-reveal-distance, 1.5rem)), 0);
+}
+
+.reveal[data-state="hidden"][data-variant="left"] {
+    transform: translate3d(var(--tempest-reveal-distance, 1.5rem), 0, 0);
+}
+
+.reveal[data-state="hidden"][data-variant="right"] {
+    transform: translate3d(calc(-1 * var(--tempest-reveal-distance, 1.5rem)), 0, 0);
+}
+
+.reveal[data-state="hidden"][data-variant="scale"] {
+    transform: scale(var(--tempest-reveal-scale, 0.95));
+}
+
+.reveal[data-state="shown"] {
+    opacity: 1;
+    transform: none;
+    transition:
+        opacity var(--tempest-reveal-duration, var(--tempest-duration-slower))
+            var(--tempest-reveal-easing, var(--tempest-ease-out)),
+        transform var(--tempest-reveal-duration, var(--tempest-duration-slower))
+            var(--tempest-reveal-easing, var(--tempest-ease-emphasized));
+    transition-delay: var(--tempest-reveal-delay, 0ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .reveal[data-state][data-variant] {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
+}

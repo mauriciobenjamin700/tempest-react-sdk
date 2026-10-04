@@ -132,7 +132,7 @@ reaches.
     what it does.
 
 !!! info "`styles.css` is still published"
-    One line, all 131 components, and nothing breaks: the bundler deduplicates the
+    One line, all 132 components, and nothing breaks: the bundler deduplicates the
     sheet a component imports against the one you imported. It costs bytes, never
     correctness — the same trade `auto.css` makes.
 
@@ -440,7 +440,7 @@ Aliases:
     the gallery renders demos that depend on the clock, so the same build
     measured twice does not always report the same count. Measured: 87 and then
     88 `color-contrast` `incomplete` nodes, with nothing changed in between. It is a ratchet, not an allowlist: the gallery
-    renders 66 demo sections and carries real accessibility debt, and failing all
+    renders 67 demo sections and carries real accessibility debt, and failing all
     of it would leave the build red forever — which is how a gate gets deleted. A
     drop does not fail; the numbers are there to be lowered.
 

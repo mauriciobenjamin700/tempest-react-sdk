@@ -130,7 +130,7 @@ o app não alcança.
     faz.
 
 !!! info "`styles.css` continua publicado"
-    Uma linha, todos os 131 componentes, e nada quebra: o bundler deduplica a
+    Uma linha, todos os 132 componentes, e nada quebra: o bundler deduplica a
     folha que o componente importa contra a que você importou. Custa bytes, nunca
     correção — é a mesma troca do `auto.css`.
 
@@ -436,7 +436,7 @@ Aliases:
     build medido duas vezes não devolve sempre a mesma contagem. Medido: 87 e
     depois 88 nós de `color-contrast` em `incomplete`, sem nada mudar entre as
     duas execuções. É um ratchet, não uma allowlist: a gallery
-    renderiza 66 seções de demo e carrega dívida real de acessibilidade, e
+    renderiza 67 seções de demo e carrega dívida real de acessibilidade, e
     reprovar tudo deixaria o build vermelho para sempre — que é como um gate é
     deletado. Cair não falha; os números estão lá para serem baixados.
 

@@ -114,6 +114,68 @@ Extends `HTMLAttributes<HTMLElement>`.
 
 ---
 
+## Motion
+
+### `Reveal`
+
+<!-- gallery:reveal -->
+[![Reveal in the gallery](../assets/gallery/reveal.webp)](../gallery.md)
+
+*Section `reveal` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
+Content that **enters when it reaches the viewport** — a fade or slide on scroll, the pattern of every landing page. It reveals once and stops observing.
+
+```tsx
+import { Card, Reveal } from "tempest-react-sdk";
+
+const steps = [
+  { id: "1", title: "Discovery" },
+  { id: "2", title: "Prototype" },
+  { id: "3", title: "Pilot" },
+];
+
+export function Steps() {
+  return (
+    <ol>
+      {steps.map((step, index) => (
+        <Reveal key={step.id} as="li" variant="up" delay={index * 90}>
+          <Card title={step.title} />
+        </Reveal>
+      ))}
+    </ol>
+  );
+}
+```
+
+Staggering is the `map` index times a step: there is no `RevealGroup`, because the index is already in your hand and a group would only hide that arithmetic behind `cloneElement`.
+
+| Prop         | Type                                                     | Default                     | Notes                                                                                   |
+| ------------ | -------------------------------------------------------- | --------------------------- | --------------------------------------------------------------------------------------- |
+| `variant`    | `"fade" \| "up" \| "down" \| "left" \| "right" \| "scale"` | `"up"`                      | Where the content comes from. `up` rises from below; `left` travels right to left.      |
+| `delay`      | `number` (ms)                                            | `0`                         | Wait before entering (`--tempest-reveal-delay`).                                        |
+| `duration`   | `number` (ms)                                            | `--tempest-duration-slower` | Length of the entrance (`--tempest-reveal-duration`).                                   |
+| `as`         | `keyof JSX.IntrinsicElements`                            | `"div"`                     | Element to render — `"li"` inside `<ul>`/`<ol>` keeps the list semantics.               |
+| `once`       | `boolean`                                                | `true`                      | `false` hides again once the element is **fully** out of view, and animates next time.  |
+| `threshold`  | `number`                                                 | `0.15`                      | Fraction of the element — or of the viewport, when it is taller — that must be visible. |
+| `rootMargin` | `string`                                                 | `"0px"`                     | Root margin, as in `IntersectionObserver`.                                              |
+
+Extends `HTMLAttributes<HTMLElement>`. The current state is written to `data-state` (`"static"`, `"hidden"` or `"shown"`) and the variant to `data-variant`.
+
+The three traps of a hand-rolled `Reveal` are handled by the component:
+
+- **`prefers-reduced-motion: reduce`** → the content is visible and still, with no transform and no transition (WCAG 2.3.3). It is CSS, so it also holds when the preference changes with the page open.
+- **No `IntersectionObserver`** → the element stays at `data-state="static"`, which is visible content. It is never hidden waiting for an observation that cannot come.
+- **Element taller than the viewport** → a block three screens tall never reaches 50% visibility, so a raw `threshold={0.5}` would never reveal it. `Reveal` reads the geometry on the first observation and rescales the threshold by the highest reachable ratio: the block reveals once it fills half the viewport.
+
+!!! info "Markup without JavaScript stays visible"
+
+    The hidden state is applied only on a client that can observe. Rendered without JS — or before hydration — the element comes out as `data-state="static"`. The transition lives on the `"shown"` state only, so the switch to `"hidden"` on mount is instant, with no fade-out.
+
+Customize without a new prop through the custom properties `--tempest-reveal-distance` (default `1.5rem`), `--tempest-reveal-scale` (`0.95`) and `--tempest-reveal-easing`.
+
+---
+
 ## Headless / logical
 
 No CSS of their own: they encapsulate behavior and let you supply the markup.
@@ -405,6 +467,7 @@ try {
 ## Recap
 
 - **Display**: `CopyButton` (clipboard + transient state), `RelativeTime` (relative `<time>`), `Money` (cents → currency), `TruncateText` (line-clamp), `VisuallyHidden` (sr-only).
+- **Motion**: `Reveal` (enter on scroll, staggered by `delay`; visible without `IntersectionObserver` and still under `prefers-reduced-motion`).
 - **Headless/logical**: `Portal` (SSR-safe), `ClickOutside`, `ConditionalWrapper`, `For` (typed list with fallback), `ErrorText` (field error `role="alert"`).
 - **Media/content**: `Image` (lazy + fallback), `DataList` (generic `<ul>`), `DescriptionList` (`<dl>` term/value), `CodeBlock` (code sample with highlighting), `QRCode` (QR symbol as SVG, encoded in the browser).
 - "Display" and "content" components use `--tempest-*` tokens; the headless ones ship no CSS — you supply the markup.

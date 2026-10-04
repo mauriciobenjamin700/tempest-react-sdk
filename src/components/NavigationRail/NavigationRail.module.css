@@ -65,7 +65,7 @@
 
 .item:focus-visible {
     outline: var(--tempest-focus-ring-width, 2px) solid
-        var(--tempest-focus-ring-color, var(--tempest-primary));
+        var(--tempest-focus-ring-color, currentColor);
     outline-offset: var(--tempest-focus-ring-offset, 2px);
 }
 

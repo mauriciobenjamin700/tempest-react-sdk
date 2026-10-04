@@ -21,7 +21,11 @@
 .zone:focus-visible {
     border-color: var(--tempest-primary);
     color: var(--tempest-text);
-    outline: none;
+}
+
+.zone:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: var(--tempest-focus-ring-offset);
 }
 
 .dragging {

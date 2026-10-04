@@ -50,8 +50,8 @@
 }
 
 .thread:focus-visible {
-    outline: 2px solid var(--tempest-primary);
-    outline-offset: -2px;
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: calc(var(--tempest-focus-ring-width) * -1);
 }
 
 .jump {
@@ -521,8 +521,8 @@
 }
 
 .editField:focus-visible {
-    outline: 2px solid var(--tempest-primary);
-    outline-offset: -1px;
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: calc(var(--tempest-focus-ring-width) * -1);
 }
 
 .editActions {
@@ -632,6 +632,7 @@
 
 .composerBox:focus-within {
     border-color: var(--tempest-primary);
+    box-shadow: 0 0 0 var(--tempest-focus-ring-width) var(--tempest-focus-ring-color);
 }
 
 .field {

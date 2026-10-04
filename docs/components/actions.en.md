@@ -56,6 +56,8 @@ import { Plus, Trash } from "lucide-react";
 !!! tip "loading blocks double-clicks"
     `loading` disables the button and sets `aria-busy="true"` — it's the standard for async submits. Turn it on the moment you fire the request to avoid duplicate requests from repeated clicks.
 
+    The label stays the accessible name while loading: it is removed from paint only (the spinner replaces it on screen, at the same width), so a screen reader announces "Save, button, unavailable" — not a nameless "button". The spinner is decorative (`aria-hidden`) and adds nothing to the name; the state comes from `aria-busy` and `disabled`. This holds for `<button>`, `href` and `ButtonSlot`.
+
 ### A button that navigates: `href`
 
 A call to action that **takes the user somewhere** — "Contact us" on WhatsApp, `mailto:`, "See plans", "Download" — is a link, not a button. With `onClick={() => location.assign(url)}` it loses the middle click, Ctrl+click, "open in new tab", the URL preview and the crawler; with `<a><Button /></a>` it is invalid HTML with two tab stops. With `href`, `Button` renders an `<a>` with the same look across every variant and size:

@@ -4,6 +4,23 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`Button` em `loading` mantém o nome acessível (#416).** O rótulo era escondido com
+  `visibility: hidden`, que tira o texto da árvore de acessibilidade: o controle era anunciado
+  como "botão" ou "link" sem nome. Medido em Chromium headless (`@playwright/test`,
+  `getByRole` + `ariaSnapshot`): antes, `getByRole("button", { name: "Salvar" })` achava **0**
+  nos modos `<button>`, `href` e `ButtonSlot`; agora acha 1 em cada, e o snapshot lê
+  `button "Salvar" [disabled]`. O rótulo passa a sumir só da pintura (`opacity: 0` +
+  `pointer-events: none`): a largura não muda ao entrar e sair do loading (`offsetWidth`
+  76/116/105/40/147 px nos cinco casos medidos, antes, durante e depois), o texto continua fora
+  da seleção (`user-select: none` do botão) e fora do hit-test, e em `forced-colors: active` o
+  `opacity` é preservado — o rótulo não reaparece sob o spinner. O spinner segue `aria-hidden`:
+  o nome é só o rótulo, e o estado vem de `aria-busy` + `disabled`. Alcança quem usa `Button`
+  por dentro (`InstallButton`, `ConfirmDialog`, `Wizard`, `ModalsManager`).
+  `Button.loading-name.test.tsx` aplica a folha real no jsdom e reprova 5 de 5 contra o CSS
+  anterior.
+
 ## [0.74.0] — 2026-10-04
 
 ### Adicionado

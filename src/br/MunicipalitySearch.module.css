@@ -37,21 +37,12 @@
 }
 
 .result:hover,
-.result:focus-visible {
+.result.active {
     background: var(--tempest-primary-soft);
-}
-
-.result:focus-visible {
-    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
-    outline-offset: calc(var(--tempest-focus-ring-width) * -1);
 }
 
 .uf {
     font-size: var(--tempest-text-xs);
     color: var(--tempest-text-muted);
     font-weight: var(--tempest-weight-medium);
-}
-
-.result.active {
-    background: var(--tempest-primary-soft);
 }

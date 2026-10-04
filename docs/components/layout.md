@@ -216,12 +216,12 @@ todo atributo de `<section>`.
 
 - O vínculo passa por contexto, então um `div` ou um `Card` entre o `Section` e
   o `SectionHeader` não quebra nada.
-- Vale o **primeiro** `SectionHeader` com `title` montado; se ele desmontar, o
-  próximo assume.
+- Vale o **primeiro** `SectionHeader` com `title`, na ordem de render; se ele
+  desmontar, o próximo assume.
 - `Section` aninhado é nomeado pelo próprio cabeçalho, não pelo de fora.
 - `aria-label` ou `aria-labelledby` passados por você vencem o automático.
-- Sem `SectionHeader` com título, o `aria-labelledby` fica de fora em vez de
-  apontar para um id que não existe.
+- Sem `SectionHeader` com título, o `aria-labelledby` fica de fora (depois de
+  montar) em vez de apontar para um id que não existe.
 - `tone="inverse"` pinta a seção na cor da marca e inverte todo token de cor
   dentro dela (escreve `data-tempest-tone="inverse"`). É opt-in: carregue
   `tempest-react-sdk/styles/inverse.css` ou gere o tema com
@@ -231,6 +231,18 @@ todo atributo de `<section>`.
   um `Card`) dentro de uma seção invertida devolve os tokens da página — claro ou
   escuro, o que a página estiver usando. Vem com as mesmas regras opt-in; veja
   [De volta aos tokens da página](../theme.md#de-volta-aos-tokens-da-pagina).
+
+!!! info "O vínculo já está no primeiro render"
+    O `id` é do `Section` (`useId`), e o primeiro `SectionHeader` com `title`
+    o põe no próprio título. Por isso o `aria-labelledby` sai já no primeiro
+    HTML — `renderToString`, pré-render — e a hidratação não muda o atributo.
+    Dois casos o servidor não tem como saber, porque o `<section>` é escrito
+    antes dos filhos: sem título nenhum, o atributo do HTML aponta para um id
+    que não existe até a hidratação o tirar (medido no Chromium 153: fica o
+    mesmo grupo anônimo de sem atributo, e o axe não acusa nada); e com `id`
+    explícito no primeiro `SectionHeader`, o atributo passa para esse `id` na
+    hidratação. Se você precisa do `id` explícito no HTML do servidor, passe
+    `aria-labelledby` no `Section`.
 
 ## `Container`
 

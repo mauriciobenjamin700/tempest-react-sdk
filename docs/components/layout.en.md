@@ -227,12 +227,12 @@ Accepts every `<section>` attribute.
 
 - The link goes through context, so a `div` or a `Card` between `Section` and
   `SectionHeader` does not break it.
-- The **first** mounted `SectionHeader` with a `title` wins; if it unmounts, the
-  next one takes over.
+- The **first** `SectionHeader` with a `title`, in render order, wins; if it
+  unmounts, the next one takes over.
 - A nested `Section` is named by its own header, not by the outer one.
 - An `aria-label` or `aria-labelledby` you pass wins over the automatic one.
-- With no titled `SectionHeader`, `aria-labelledby` is left off instead of
-  pointing at an id that does not exist.
+- With no titled `SectionHeader`, `aria-labelledby` is left off (once mounted)
+  instead of pointing at an id that does not exist.
 - `tone="inverse"` paints the section in the brand color and inverts every
   color token inside it (it writes `data-tempest-tone="inverse"`). It is opt-in:
   load `tempest-react-sdk/styles/inverse.css` or generate the theme with
@@ -242,6 +242,18 @@ Accepts every `<section>` attribute.
   `Card`) inside an inverse section brings the page's tokens back — light or
   dark, whichever the page is on. It ships with the same opt-in rules; see
   [Back to the page's tokens](../theme.md#back-to-the-pages-tokens).
+
+!!! info "The link is there on the first render"
+    The `id` belongs to `Section` (`useId`), and the first `SectionHeader` with a
+    `title` puts it on its own heading. So `aria-labelledby` is already in the
+    first HTML — `renderToString`, prerendering — and hydration does not change
+    the attribute. Two cases the server cannot know, because `<section>` is
+    written before its children: with no title at all, the HTML attribute points
+    at an id that does not exist until hydration removes it (measured in
+    Chromium 153: it stays the same anonymous group as no attribute, and axe
+    reports nothing); and with an explicit `id` on the first `SectionHeader`, the
+    attribute moves to that `id` on hydration. If you need the explicit `id` in
+    the server HTML, pass `aria-labelledby` to the `Section`.
 
 ## `Container`
 

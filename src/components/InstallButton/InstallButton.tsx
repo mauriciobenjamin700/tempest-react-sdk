@@ -1,6 +1,6 @@
 import { useId, useState } from "react";
 import type { ReactNode } from "react";
-import { Button, type ButtonProps } from "@/components/Button";
+import { Button, type ButtonAsButtonProps } from "@/components/Button";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
 import { cn } from "@/utils/cn";
 import { defaultInstallHint, type RenderInstallHint } from "./install-hints";
@@ -8,7 +8,7 @@ import styles from "./InstallButton.module.css";
 
 export type InstallOutcome = "accepted" | "dismissed" | "unsupported";
 
-export interface InstallButtonProps extends Omit<ButtonProps, "onClick" | "children"> {
+export interface InstallButtonProps extends Omit<ButtonAsButtonProps, "onClick" | "children"> {
     /** Button label. Default `"Instalar app"`. */
     label?: ReactNode;
     /**
@@ -49,7 +49,9 @@ export interface InstallButtonProps extends Omit<ButtonProps, "onClick" | "child
  * Nothing renders only when there is genuinely nothing to offer — already
  * installed, running standalone, or inside the decline cooldown.
  *
- * Inherits every {@link Button} prop (`variant`, `size`, `leftIcon`, …).
+ * Inherits every {@link Button} prop of the `<button>` mode (`variant`, `size`,
+ * `leftIcon`, …) but not `href`: its click opens the install prompt
+ * or toggles the instruction, which is an action, not a navigation.
  *
  * @example
  * <InstallButton variant="primary" leftIcon={<Download />} />

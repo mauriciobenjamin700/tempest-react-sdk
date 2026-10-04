@@ -28,6 +28,13 @@ describe("Button", () => {
         await userEvent.click(button);
         expect(onClick).not.toHaveBeenCalled();
     });
+
+    it("announces aria-busy while loading, as the docs have always promised", () => {
+        const { rerender } = render(<Button loading>Salvando</Button>);
+        expect(screen.getByRole("button")).toHaveAttribute("aria-busy", "true");
+        rerender(<Button>Salvar</Button>);
+        expect(screen.getByRole("button")).not.toHaveAttribute("aria-busy");
+    });
 });
 
 describe("Button — fullWidth", () => {

@@ -51,6 +51,7 @@ const SECTION_OVERRIDES = {
     VideoPlayer: "video-player",
     AudioRecorder: "audio-capture",
     BarcodeScanner: "device-capture",
+    ButtonSlot: "buttons",
     Chat: "chat",
     ChatComposer: "chat",
     Markdown: "markdown",

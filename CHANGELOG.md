@@ -42,6 +42,43 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - **Gallery: seção `reveal`** (67 seções), com lista escalonada, as seis variantes e o bloco
   mais alto que a tela.
 
+- **`Button` com `href` e `ButtonSlot` para o botão que navega (#407).** O `Button`
+  renderizava sempre `<button>`, e um CTA que leva a algum lugar ("Fale conosco" no
+  WhatsApp, `mailto:`, "Ver planos") saía como `<a><Button /></a>` (HTML inválido, dois tab
+  stops) ou como `onClick={() => location.assign(url)}` (sem clique do meio, Ctrl+clique,
+  "abrir em nova aba" nem prévia da URL). Agora:
+  - **`href`** no `Button` renderiza `<a>` com as mesmas classes de todas as variants e
+    sizes; `target` e `rel` são repassados, e `target="_blank"` ganha `noopener noreferrer`
+    sozinho, somado aos tokens do consumidor sem duplicar.
+  - **`ButtonSlot`** (novo) aplica classes, props e `ref` do botão ao único filho, no padrão
+    `asChild`/Slot: `<ButtonSlot><Link to="/x" /></ButtonSlot>` troca a rota do react-router
+    sem reload, e o SDK não importa o router. O Slot é local
+    (`src/components/Button/slot.ts`), sem dependência nova: é um merge de props e uma
+    composição de refs, e o `@radix-ui/react-slot` poria os bounds dele em todo consumidor.
+    Um `className` em função (o do `NavLink`) continua função.
+  - **Por que componente e não prop `asChild`:** uma prop é desvio em tempo de execução que o
+    bundler não remove. Com `asChild` dentro do `Button`, a fatia `{ Button }` media 1,71 kB
+    brotli; com o Slot num export separado, mede **1,21 kB** (`npx size-limit`), e o
+    `ButtonSlot` sozinho mede 1,54 kB. Os ~360 B restantes sobre os 853 B da `0.73.0` são o
+    `href` (~220 B, medido removendo o ramo), o `forwardRef` e o `aria-busy`.
+  - **Link desabilitado ou em loading** recebe `aria-disabled="true"`, `role="link"` e
+    `tabIndex={-1}`, perde o `href` e tem clique e clique do meio cancelados. No
+    `ButtonSlot` em volta de um `Link`, o `href` é do `Link` e fica; o clique segue
+    bloqueado, porque o `Link` pula a navegação de um evento já prevenido.
+  - **Tipos por modo**: `ButtonProps` vira a união de `ButtonAsButtonProps` e
+    `ButtonAsLinkProps` (exportadas, com `ButtonBaseProps` e `ButtonSlotProps`); `type` só
+    existe no modo `<button>`, e o `ref` é `HTMLButtonElement` ou `HTMLAnchorElement`
+    conforme o modo. O `Button` passa a encaminhar `ref` (`forwardRef`) — no React 18 ele
+    não chegava ao `<button>`.
+  - `InstallButton` herda só o modo `<button>` (`Omit<ButtonAsButtonProps, …>`): o clique
+    dele é ação, não navegação. `CopyButton` e `FloatingActionButton` não estendem
+    `Button`.
+  - **Tetos do `size-limit`** (`npx size-limit`, `main` com `SectionHeader` e `Reveal` + esta
+    mudança): `{ Button }` 853 B → 1,21 kB (teto 1,5 → 1,3 kB); typical app 11,73 kB (11,5 →
+    11,8 kB); barril ESM 137,05 → 137,63 kB (137,2 → 137,8 kB); barril CJS 163,46 → 164,48 kB
+    (163,5 → 164,7 kB).
+    Check novo para `{ ButtonSlot }`: 1,54 kB, teto 1,65 kB.
+
 ### Alterado
 
 - **Tetos do barrel no `size-limit`: ESM 136,5 → 137,2 kB, CJS 163 → 163,5 kB.** Com
@@ -99,6 +136,14 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   própria chave para **qualquer** chave de CSS module — `styles.connector` virava a classe
   `"connector"` no teste. Medido: 1121 leituras em 139 imports resolvem; sobre o código da
   0.73.0, o guard reprova os sete casos acima.
+- **`Button` em `<a>` resiste à regra de link do app.** `.button` é uma classe (0,1,0) e
+  `a:hover { color }` é (0,1,1): o template React do Vite traz exatamente essa regra, e o
+  rótulo de um link-botão `primary` ficava `#535bf2` sobre o fundo primário no hover. As
+  variants passam a declarar a cor como `--_tempest-button-fg`, reafirmada em
+  `a.button:is(:link, :visited, :hover, :active, :focus, :not([href]))` (0,2,1). O `<button>`
+  computa a mesma cor de antes.
+- **`Button` com `loading` seta `aria-busy="true"`,** como a doc de `actions` sempre afirmou —
+  o atributo nunca era renderizado.
 
 ## [0.73.0] — 2026-10-03
 

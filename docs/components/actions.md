@@ -48,12 +48,91 @@ import { Plus, Trash } from "lucide-react";
 | `pill`      | `boolean` (border-radius pílula)                                                                | `false`     |
 | `leftIcon`  | `ReactNode`                                                                                     | —           |
 | `rightIcon` | `ReactNode`                                                                                     | —           |
+| `href`      | `string` — renderiza `<a>` em vez de `<button>`                                                 | —           |
 
 !!! warning "iconOnly precisa de rótulo acessível"
     `iconOnly` remove o texto visível, então leitores de tela não têm o que anunciar. Sempre passe `aria-label` descrevendo a ação (`aria-label="Excluir"`). Sem isso o botão é um ícone mudo para tecnologia assistiva.
 
 !!! tip "loading bloqueia duplo clique"
     `loading` desabilita o botão e seta `aria-busy="true"` — é o padrão para submits assíncronos. Ative-o assim que disparar a request para evitar requisições duplicadas por cliques repetidos.
+
+### Botão que navega: `href`
+
+Um CTA que **leva a algum lugar** — "Fale conosco" no WhatsApp, `mailto:`, "Ver planos", "Baixar" — é um link, não um botão. Com `onClick={() => location.assign(url)}` ele perde o clique do meio, o Ctrl+clique, o "abrir em nova aba", a prévia da URL e o crawler; com `<a><Button /></a>` vira HTML inválido, com dois tab stops. Com `href`, o `Button` renderiza um `<a>` com a mesma aparência em todas as variants e sizes:
+
+```tsx
+import { Button } from "tempest-react-sdk";
+import { MessageCircle } from "lucide-react";
+
+export function Ctas() {
+  return (
+    <>
+      <Button href="/planos" variant="outline">
+        Ver planos
+      </Button>
+      <Button
+        href="https://wa.me/5586999999999"
+        target="_blank"
+        leftIcon={<MessageCircle size={16} />}
+      >
+        Fale conosco
+      </Button>
+    </>
+  );
+}
+```
+
+- `target` e `rel` são repassados.
+- O `ref` é tipado por modo: `HTMLButtonElement` sem `href`, `HTMLAnchorElement` com. `type` só existe no modo `<button>` — `<Button href="/x" type="submit">` não compila.
+
+!!! check "`target=_blank` ganha `noopener noreferrer` sozinho"
+    Sem `noopener`, a aba aberta recebe `window.opener` e pode redirecionar a sua. É regra mecânica com uma resposta certa, então mora no componente: os tokens que você passar em `rel` ficam, e os que faltam são acrescentados sem duplicar.
+
+!!! info "Link desabilitado"
+    `<a>` não tem `disabled`. Com `disabled` ou `loading`, o link recebe `aria-disabled="true"`, `role="link"` e `tabIndex={-1}`, perde o `href` e tem o clique e o clique do meio cancelados — não navega e é anunciado como indisponível.
+
+!!! note "Por que `InstallButton` não aceita `href`"
+    O clique dele abre o prompt de instalação ou mostra a instrução — é ação, não navegação. Ele herda as props do modo `<button>`.
+
+## `ButtonSlot`
+
+> **Quando usar**: dar a aparência do `Button` a **outro** elemento — tipicamente o `Link` do react-router, para trocar de rota sem recarregar a página.
+
+O `ButtonSlot` não renderiza elemento próprio: aplica as classes, as props e o `ref` do botão ao **único** filho (o padrão `asChild`/Slot). Ele aceita as mesmas props de aparência do `Button` (`variant`, `size`, `loading`, `disabled`, `fullWidth`, `iconOnly`, `pill`, `leftIcon`, `rightIcon`), e o `Button` nunca importa o router.
+
+```tsx
+import { ButtonSlot } from "tempest-react-sdk";
+import { Link, NavLink } from "react-router";
+
+export function Menu() {
+  return (
+    <>
+      <ButtonSlot variant="soft">
+        <Link to="/conta">Minha conta</Link>
+      </ButtonSlot>
+      <ButtonSlot variant="ghost">
+        <NavLink to="/" className={({ isActive }) => (isActive ? "ativo" : "")}>
+          Início
+        </NavLink>
+      </ButtonSlot>
+    </>
+  );
+}
+```
+
+Como as props se combinam:
+
+- **Classes são somadas.** Um `className` em função (o do `NavLink`) continua função.
+- **As props do `ButtonSlot` vencem as do filho**, porque são elas que carregam a semântica de desabilitado.
+- **Handlers rodam os dois**: o do `ButtonSlot` primeiro; se ele chamar `preventDefault()`, o do filho não roda.
+- **Os dois `ref`** — o do filho e o do `ButtonSlot` — recebem o mesmo nó.
+- Um filho com `target="_blank"` também ganha `noopener noreferrer`.
+
+!!! info "Desabilitado em volta de um `Link`"
+    Com `disabled` ou `loading`, o filho recebe `aria-disabled="true"` e `tabIndex={-1}`, e o clique e o clique do meio são cancelados — o `Link` pula a navegação porque o evento chega prevenido. Um `<a href>` comum ainda perde o `href`; o `href` de um `Link` é calculado por ele e continua no DOM.
+
+!!! tip "Por que um componente e não uma prop `asChild`"
+    O merge de props e a composição de refs custam ~0,6 kB brotli. Uma prop `asChild` é um desvio em tempo de execução que nenhum bundler remove, então todo app que usa `Button` pagaria por ele. Como export separado, o `ButtonSlot` sai do bundle de quem não o importa: a fatia `{ Button }` mede 1,21 kB com `href`, contra 1,71 kB com `asChild` dentro do `Button`.
 
 ## `FloatingActionButton`
 

@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -66,5 +68,38 @@ describe("AppBar — centered title", () => {
     it("carries the centered class", () => {
         const { container } = render(<AppBar centered title="Tempest" />);
         expect((container.firstChild as HTMLElement).className).toContain("centered");
+    });
+});
+
+describe("AppBar — inverse tone", () => {
+    const css = readFileSync(join(__dirname, "AppBar.module.css"), "utf8");
+
+    function rule(selector: string): string {
+        const start = css.indexOf(`${selector} {`);
+        return css.slice(start, css.indexOf("}", start));
+    }
+
+    it("writes the inverse tone attribute, so the slots read the inverted tokens", () => {
+        const { container } = render(<AppBar tone="inverse" />);
+        expect(container.querySelector("header")?.getAttribute("data-tempest-tone")).toBe(
+            "inverse",
+        );
+    });
+
+    it("leaves the attribute off the primary tone, which keeps painting the brand 500", () => {
+        const { container } = render(<AppBar tone="primary" />);
+        expect(container.querySelector("header")?.hasAttribute("data-tempest-tone")).toBe(false);
+    });
+
+    it("keeps the primary fill on --tempest-primary, byte-identical to 0.74.0", () => {
+        expect(rule(".bar.primary")).toContain("background: var(--tempest-primary);");
+        expect(rule(".bar.primary")).toContain("color: var(--tempest-primary-foreground);");
+    });
+
+    it("paints the inverse fill from --tempest-bg: inside the scope --tempest-primary is the action color, and the bar measured #ffffff on it", () => {
+        const inverse = rule(".bar.inverse");
+        expect(inverse).toContain("background: var(--tempest-bg);");
+        expect(inverse).toContain("color: var(--tempest-text);");
+        expect(inverse).not.toContain("--tempest-primary");
     });
 });

@@ -12,7 +12,21 @@ import { cn } from "@/utils/cn";
 import { useStickyBodyWarning } from "./use-sticky-body-warning";
 import styles from "./AppBar.module.css";
 
-export type AppBarTone = "surface" | "primary" | "transparent";
+/**
+ * Visual tone of an {@link AppBar}.
+ *
+ * - `"surface"` — the page's surface and text.
+ * - `"primary"` — the brand fill (`--tempest-primary`) with
+ *   `--tempest-primary-foreground` ink. Only the bar's own text and back button
+ *   follow the fill: components in `actions` keep the page's tokens. Measured in
+ *   Chromium over the SDK's `#0066ff`, a primary `Button` inside it has the same
+ *   color as the bar (1:1) and its focus ring reads 1.41:1.
+ * - `"inverse"` — the inverse surface: every color token inverted inside the bar,
+ *   so the components in it are measured against the fill. See
+ *   {@link AppBarProps.tone}.
+ * - `"transparent"` — no background; the text inherits.
+ */
+export type AppBarTone = "surface" | "primary" | "inverse" | "transparent";
 
 export interface AppBarProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
     /** Page title — string or any node. Rendered as the bar's `<h1>`. */
@@ -48,7 +62,22 @@ export interface AppBarProps extends Omit<HTMLAttributes<HTMLElement>, "title"> 
      * development the bar says so in the console when it detects it.
      */
     sticky?: boolean;
-    /** Visual tone. Default `"surface"`. */
+    /**
+     * Visual tone. Default `"surface"`.
+     *
+     * `"inverse"` writes `data-tempest-tone="inverse"` and paints the bar with the
+     * inverse surface's `--tempest-bg`, so the back button, the title and the
+     * components in `actions` invert with it. The tokens are opt-in:
+     * `tempest-react-sdk/styles/inverse.css` for the SDK's own blue, or
+     * `createTheme({ primary, inverse: createInverseSurface })` for yours. With
+     * neither loaded the bar falls back to the page's `--tempest-bg` and
+     * `--tempest-text` — legible, not inverted.
+     *
+     * A separate tone rather than a change to `"primary"`, because the inverse
+     * fill is not always the brand's `500`: for `#0066ff` it is the `800`
+     * (`#042e75`), and turning `"primary"` into it would repaint every bar that
+     * uses it today.
+     */
     tone?: AppBarTone;
     /** Thin bottom border. Default `true`. */
     bordered?: boolean;
@@ -125,6 +154,7 @@ export function AppBar({
                 safeArea && styles.safeArea,
                 className,
             )}
+            data-tempest-tone={tone === "inverse" ? "inverse" : undefined}
             {...props}
         >
             <div className={styles.leading}>{leadingContent}</div>

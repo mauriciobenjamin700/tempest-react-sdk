@@ -24,6 +24,11 @@
     color: var(--tempest-primary-foreground);
 }
 
+.bar.inverse {
+    background: var(--tempest-bg);
+    color: var(--tempest-text);
+}
+
 .bar.transparent {
     background: transparent;
     color: inherit;

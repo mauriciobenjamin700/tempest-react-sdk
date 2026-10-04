@@ -11715,12 +11715,12 @@ todo atributo de `<section>`.
 
 - O vínculo passa por contexto, então um `div` ou um `Card` entre o `Section` e
   o `SectionHeader` não quebra nada.
-- Vale o **primeiro** `SectionHeader` com `title` montado; se ele desmontar, o
-  próximo assume.
+- Vale o **primeiro** `SectionHeader` com `title`, na ordem de render; se ele
+  desmontar, o próximo assume.
 - `Section` aninhado é nomeado pelo próprio cabeçalho, não pelo de fora.
 - `aria-label` ou `aria-labelledby` passados por você vencem o automático.
-- Sem `SectionHeader` com título, o `aria-labelledby` fica de fora em vez de
-  apontar para um id que não existe.
+- Sem `SectionHeader` com título, o `aria-labelledby` fica de fora (depois de
+  montar) em vez de apontar para um id que não existe.
 - `tone="inverse"` pinta a seção na cor da marca e inverte todo token de cor
   dentro dela (escreve `data-tempest-tone="inverse"`). É opt-in: carregue
   `tempest-react-sdk/styles/inverse.css` ou gere o tema com
@@ -11730,6 +11730,18 @@ todo atributo de `<section>`.
   um `Card`) dentro de uma seção invertida devolve os tokens da página — claro ou
   escuro, o que a página estiver usando. Vem com as mesmas regras opt-in; veja
   [De volta aos tokens da página](../theme.md#de-volta-aos-tokens-da-pagina).
+
+!!! info "O vínculo já está no primeiro render"
+    O `id` é do `Section` (`useId`), e o primeiro `SectionHeader` com `title`
+    o põe no próprio título. Por isso o `aria-labelledby` sai já no primeiro
+    HTML — `renderToString`, pré-render — e a hidratação não muda o atributo.
+    Dois casos o servidor não tem como saber, porque o `<section>` é escrito
+    antes dos filhos: sem título nenhum, o atributo do HTML aponta para um id
+    que não existe até a hidratação o tirar (medido no Chromium 153: fica o
+    mesmo grupo anônimo de sem atributo, e o axe não acusa nada); e com `id`
+    explícito no primeiro `SectionHeader`, o atributo passa para esse `id` na
+    hidratação. Se você precisa do `id` explícito no HTML do servidor, passe
+    `aria-labelledby` no `Section`.
 
 ## `Container`
 
@@ -12137,10 +12149,74 @@ export function TopBar() {
 | `nav`      | `ReactNode`                               | —           |
 | `actions`  | `ReactNode`                               | —           |
 | `sticky`   | `boolean`                                 | `true`      |
-| `tone`     | `"surface" \| "primary" \| "transparent"` | `"surface"` |
+| `tone`     | `"surface" \| "primary" \| "inverse" \| "transparent"` | `"surface"` |
 | `bordered` | `boolean`                                 | `true`      |
 
 **Safe-area**: aplica `padding-top: max(space-3, env(safe-area-inset-top))` automático.
+
+### Barra na cor da marca
+
+`tone="primary"` pinta o fundo da barra com `--tempest-primary` e o texto dela
+com `--tempest-primary-foreground` — e só. Os componentes **dentro** dela
+continuam com os tokens da página. Medido no Chromium sobre o azul do SDK
+(`#0066ff`, tema claro): um `Button variant="link"` some (1:1), o `Button`
+primário tem a mesma cor da barra (borda 1:1), o texto `muted` fica em 1,59:1 e
+o anel de foco em 1,41:1.
+
+Quando a barra leva botão, link ou campo, use `tone="inverse"`: ela recebe
+`data-tempest-tone="inverse"` e todo token de cor se inverte lá dentro, como num
+[`Section tone="inverse"`](../theme.md#superficie-invertida-secao-na-cor-da-marca).
+
+```tsx
+import "tempest-react-sdk/styles/inverse.css";
+import { AppBar, Button, Navbar } from "tempest-react-sdk";
+
+export function Barras() {
+    return (
+        <>
+            <Navbar
+                tone="inverse"
+                logo={<strong>Tempest</strong>}
+                nav={
+                    <Button variant="link" href="/docs">
+                        Docs
+                    </Button>
+                }
+                actions={<Button>Criar conta</Button>}
+            />
+            <AppBar title="Pedido" showBack tone="inverse" actions={<Button>Salvar</Button>} />
+        </>
+    );
+}
+```
+
+Medido no Chromium. As linhas `inverse` dão o mesmo número na página clara e na
+escura; a linha `primary` é a da página clara (na escura o `500` vira
+`#3b82f6`: texto 5,25, link 1, `muted` 1,72, anel 1,45):
+
+| marca | fundo | texto e ícone | link e `ghost` | `muted` | rótulo do botão primário | anel de foco |
+| --- | --- | --- | --- | --- | --- | --- |
+| SDK (`#0066ff`), `primary` | `#0066ff` | 4,83 | 1 · 3,67 | 1,59 | 4,83 (botão = barra) | 1,41 |
+| SDK (`#0066ff`), `inverse` | `#042e75` | 12,71 | 12,71 · 12,71 | 9,60 | 12,71 | 6,95 |
+| `#facc15`, `inverse` | `#facc15` | 11,59 | 11,59 · 11,59 | 8,82 | 11,59 | 6,40 |
+
+!!! info "Por que um tom novo, e não `primary` invertendo"
+    O fundo da superfície invertida nem sempre é o `500` da marca: o gerador
+    desce a rampa até o degrau que carrega os três níveis de texto. Para o
+    `#0066ff` esse degrau é o `800` (`#042e75`) — branco sobre o `500` mede
+    4,83:1 e não deixa espaço para `muted`. Fazer `primary` inverter repintaria
+    toda barra que já o usa. E só pôr o atributo não basta: dentro da
+    superfície, `--tempest-primary` é a cor de **ação** (branco no azul do SDK),
+    e a barra medida ficou `#ffffff`. Então `primary` segue igual à 0.74.0 —
+    capturas antes/depois idênticas byte a byte — e `inverse` é o pedido
+    explícito.
+
+!!! warning "Sem a superfície invertida carregada"
+    `tone="inverse"` depende do opt-in: `tempest-react-sdk/styles/inverse.css`
+    (azul do SDK) ou `createTheme({ primary, inverse: createInverseSurface })`
+    (sua marca). Sem nenhum dos dois, a barra cai nos tokens da página
+    (`--tempest-bg` e `--tempest-text`): legível — texto 17,75:1 no claro e
+    17,51:1 no escuro —, só não na cor da marca.
 
 ## `AppBar`
 
@@ -12200,9 +12276,12 @@ export function Barras({
 | `actions`   | `ReactNode`                               | —           |
 | `centered`  | `boolean`                                 | `false`     |
 | `sticky`    | `boolean`                                 | `true`      |
-| `tone`      | `"surface" \| "primary" \| "transparent"` | `"surface"` |
+| `tone`      | `"surface" \| "primary" \| "inverse" \| "transparent"` | `"surface"` |
 | `bordered`  | `boolean`                                 | `true`      |
 | `safeArea`  | `boolean`                                 | `true`      |
+
+Com botão ou campo em `actions` sobre a cor da marca, use `tone="inverse"` — veja
+[Barra na cor da marca](#barra-na-cor-da-marca).
 
 !!! tip "Customização visual"
     O SDK entrega só o layout + comportamento. Cor, altura e tipografia saem dos tokens `--tempest-*` (sobrescreva no `:root`). Para um ícone/menu customizado no lado direito, passe qualquer node em `actions`; para substituir o lado esquerdo inteiro (ex.: avatar no lugar do voltar), use `leading`.
@@ -31405,6 +31484,9 @@ Com o `createTheme`, as regras saem junto quando você passa
   Sem nenhum, a seção fica com os tokens da página.
 - `data-tempest-tone="default"` (ou `<Section tone="default">`) dentro da
   faixa devolve os tokens da página — claro ou escuro, com a sua marca.
+- `Navbar` e `AppBar` aceitam `tone="inverse"` para a barra na cor da marca com
+  botões e links dentro; `tone="primary"` só pinta o fundo — veja
+  [Barra na cor da marca](components/navigation.md#barra-na-cor-da-marca).
 
 ## Integração com o CSS do app + `theme-color`
 

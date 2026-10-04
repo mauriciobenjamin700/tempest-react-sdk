@@ -74,11 +74,75 @@ export function TopBar() {
 | `nav`      | `ReactNode`                               | —           |
 | `actions`  | `ReactNode`                               | —           |
 | `sticky`   | `boolean`                                 | `true`      |
-| `tone`     | `"surface" \| "primary" \| "transparent"` | `"surface"` |
+| `tone`     | `"surface" \| "primary" \| "inverse" \| "transparent"` | `"surface"` |
 | `bordered` | `boolean`                                 | `true`      |
 
 **Safe-area**: applies `padding-top: max(space-3, env(safe-area-inset-top))`
 automatically.
+
+### A bar in the brand color
+
+`tone="primary"` paints the bar's background with `--tempest-primary` and its
+text with `--tempest-primary-foreground` — and nothing else. The components
+**inside** it keep the page's tokens. Measured in Chromium over the SDK's blue
+(`#0066ff`, light theme): a `Button variant="link"` disappears (1:1), the
+primary `Button` has the bar's own color (edge 1:1), `muted` text sits at
+1.59:1 and the focus ring at 1.41:1.
+
+When the bar holds a button, a link or a field, use `tone="inverse"`: it gets
+`data-tempest-tone="inverse"` and every color token inverts inside it, as in a
+[`Section tone="inverse"`](../theme.md#inverse-surface-a-section-in-the-brand-color).
+
+```tsx
+import "tempest-react-sdk/styles/inverse.css";
+import { AppBar, Button, Navbar } from "tempest-react-sdk";
+
+export function Bars() {
+    return (
+        <>
+            <Navbar
+                tone="inverse"
+                logo={<strong>Tempest</strong>}
+                nav={
+                    <Button variant="link" href="/docs">
+                        Docs
+                    </Button>
+                }
+                actions={<Button>Create account</Button>}
+            />
+            <AppBar title="Order" showBack tone="inverse" actions={<Button>Save</Button>} />
+        </>
+    );
+}
+```
+
+Measured in Chromium. The `inverse` rows give the same number on the light and
+the dark page; the `primary` row is the light page's (in dark the `500` becomes
+`#3b82f6`: text 5.25, link 1, `muted` 1.72, ring 1.45):
+
+| brand | fill | text and icon | link and `ghost` | `muted` | primary button label | focus ring |
+| --- | --- | --- | --- | --- | --- | --- |
+| SDK (`#0066ff`), `primary` | `#0066ff` | 4.83 | 1 · 3.67 | 1.59 | 4.83 (button = bar) | 1.41 |
+| SDK (`#0066ff`), `inverse` | `#042e75` | 12.71 | 12.71 · 12.71 | 9.60 | 12.71 | 6.95 |
+| `#facc15`, `inverse` | `#facc15` | 11.59 | 11.59 · 11.59 | 8.82 | 11.59 | 6.40 |
+
+!!! info "Why a new tone, and not `primary` inverting"
+    The inverse surface's fill is not always the brand's `500`: the generator
+    walks the ramp to the step that carries all three text levels. For
+    `#0066ff` that step is the `800` (`#042e75`) — white on the `500` measures
+    4.83:1 and leaves no room for `muted`. Making `primary` invert would repaint
+    every bar that already uses it. And adding the attribute alone is not
+    enough: inside the surface, `--tempest-primary` is the **action** color
+    (white on the SDK's blue), and the measured bar turned `#ffffff`. So
+    `primary` stays as in 0.74.0 — before/after captures byte-identical — and
+    `inverse` is the explicit request.
+
+!!! warning "Without the inverse surface loaded"
+    `tone="inverse"` depends on the opt-in: `tempest-react-sdk/styles/inverse.css`
+    (the SDK's blue) or `createTheme({ primary, inverse: createInverseSurface })`
+    (your brand). With neither, the bar falls back to the page's tokens
+    (`--tempest-bg` and `--tempest-text`): legible — text at 17.75:1 in light and
+    17.51:1 in dark — just not in the brand color.
 
 ## `AppBar`
 
@@ -143,9 +207,12 @@ export function Barras({
 | `actions`   | `ReactNode`                               | —                |
 | `centered`  | `boolean`                                 | `false`          |
 | `sticky`    | `boolean`                                 | `true`           |
-| `tone`      | `"surface" \| "primary" \| "transparent"` | `"surface"`      |
+| `tone`      | `"surface" \| "primary" \| "inverse" \| "transparent"` | `"surface"`      |
 | `bordered`  | `boolean`                                 | `true`           |
 | `safeArea`  | `boolean`                                 | `true`           |
+
+With a button or a field in `actions` over the brand color, use `tone="inverse"` —
+see [A bar in the brand color](#a-bar-in-the-brand-color).
 
 !!! tip "Visual customization"
     The SDK ships only the layout + behaviour. Color, height and typography come

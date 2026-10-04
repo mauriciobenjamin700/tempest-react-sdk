@@ -63,10 +63,74 @@ export function TopBar() {
 | `nav`      | `ReactNode`                               | —           |
 | `actions`  | `ReactNode`                               | —           |
 | `sticky`   | `boolean`                                 | `true`      |
-| `tone`     | `"surface" \| "primary" \| "transparent"` | `"surface"` |
+| `tone`     | `"surface" \| "primary" \| "inverse" \| "transparent"` | `"surface"` |
 | `bordered` | `boolean`                                 | `true`      |
 
 **Safe-area**: aplica `padding-top: max(space-3, env(safe-area-inset-top))` automático.
+
+### Barra na cor da marca
+
+`tone="primary"` pinta o fundo da barra com `--tempest-primary` e o texto dela
+com `--tempest-primary-foreground` — e só. Os componentes **dentro** dela
+continuam com os tokens da página. Medido no Chromium sobre o azul do SDK
+(`#0066ff`, tema claro): um `Button variant="link"` some (1:1), o `Button`
+primário tem a mesma cor da barra (borda 1:1), o texto `muted` fica em 1,59:1 e
+o anel de foco em 1,41:1.
+
+Quando a barra leva botão, link ou campo, use `tone="inverse"`: ela recebe
+`data-tempest-tone="inverse"` e todo token de cor se inverte lá dentro, como num
+[`Section tone="inverse"`](../theme.md#superficie-invertida-secao-na-cor-da-marca).
+
+```tsx
+import "tempest-react-sdk/styles/inverse.css";
+import { AppBar, Button, Navbar } from "tempest-react-sdk";
+
+export function Barras() {
+    return (
+        <>
+            <Navbar
+                tone="inverse"
+                logo={<strong>Tempest</strong>}
+                nav={
+                    <Button variant="link" href="/docs">
+                        Docs
+                    </Button>
+                }
+                actions={<Button>Criar conta</Button>}
+            />
+            <AppBar title="Pedido" showBack tone="inverse" actions={<Button>Salvar</Button>} />
+        </>
+    );
+}
+```
+
+Medido no Chromium. As linhas `inverse` dão o mesmo número na página clara e na
+escura; a linha `primary` é a da página clara (na escura o `500` vira
+`#3b82f6`: texto 5,25, link 1, `muted` 1,72, anel 1,45):
+
+| marca | fundo | texto e ícone | link e `ghost` | `muted` | rótulo do botão primário | anel de foco |
+| --- | --- | --- | --- | --- | --- | --- |
+| SDK (`#0066ff`), `primary` | `#0066ff` | 4,83 | 1 · 3,67 | 1,59 | 4,83 (botão = barra) | 1,41 |
+| SDK (`#0066ff`), `inverse` | `#042e75` | 12,71 | 12,71 · 12,71 | 9,60 | 12,71 | 6,95 |
+| `#facc15`, `inverse` | `#facc15` | 11,59 | 11,59 · 11,59 | 8,82 | 11,59 | 6,40 |
+
+!!! info "Por que um tom novo, e não `primary` invertendo"
+    O fundo da superfície invertida nem sempre é o `500` da marca: o gerador
+    desce a rampa até o degrau que carrega os três níveis de texto. Para o
+    `#0066ff` esse degrau é o `800` (`#042e75`) — branco sobre o `500` mede
+    4,83:1 e não deixa espaço para `muted`. Fazer `primary` inverter repintaria
+    toda barra que já o usa. E só pôr o atributo não basta: dentro da
+    superfície, `--tempest-primary` é a cor de **ação** (branco no azul do SDK),
+    e a barra medida ficou `#ffffff`. Então `primary` segue igual à 0.74.0 —
+    capturas antes/depois idênticas byte a byte — e `inverse` é o pedido
+    explícito.
+
+!!! warning "Sem a superfície invertida carregada"
+    `tone="inverse"` depende do opt-in: `tempest-react-sdk/styles/inverse.css`
+    (azul do SDK) ou `createTheme({ primary, inverse: createInverseSurface })`
+    (sua marca). Sem nenhum dos dois, a barra cai nos tokens da página
+    (`--tempest-bg` e `--tempest-text`): legível — texto 17,75:1 no claro e
+    17,51:1 no escuro —, só não na cor da marca.
 
 ## `AppBar`
 
@@ -126,9 +190,12 @@ export function Barras({
 | `actions`   | `ReactNode`                               | —           |
 | `centered`  | `boolean`                                 | `false`     |
 | `sticky`    | `boolean`                                 | `true`      |
-| `tone`      | `"surface" \| "primary" \| "transparent"` | `"surface"` |
+| `tone`      | `"surface" \| "primary" \| "inverse" \| "transparent"` | `"surface"` |
 | `bordered`  | `boolean`                                 | `true`      |
 | `safeArea`  | `boolean`                                 | `true`      |
+
+Com botão ou campo em `actions` sobre a cor da marca, use `tone="inverse"` — veja
+[Barra na cor da marca](#barra-na-cor-da-marca).
 
 !!! tip "Customização visual"
     O SDK entrega só o layout + comportamento. Cor, altura e tipografia saem dos tokens `--tempest-*` (sobrescreva no `:root`). Para um ícone/menu customizado no lado direito, passe qualquer node em `actions`; para substituir o lado esquerdo inteiro (ex.: avatar no lugar do voltar), use `leading`.

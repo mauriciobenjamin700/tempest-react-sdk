@@ -27,7 +27,11 @@ export function NavigationSection() {
 />
 
 // Tela inicial: marca + avatar (tone primary)
-<AppBar brand="Famachapp" tone="primary" actions={<Avatar name="Ana" size="sm" />} />`}
+<AppBar brand="Famachapp" tone="primary" actions={<Avatar name="Ana" size="sm" />} />
+
+// Ações dentro da barra na cor da marca: tone inverse
+// (exige tempest-react-sdk/styles/inverse.css)
+<AppBar title="Pedido" showBack tone="inverse" actions={<Button size="sm">Salvar</Button>} />`}
             >
                 <div style={{ display: "grid", gap: 12, width: "100%" }}>
                     <AppBar
@@ -51,6 +55,13 @@ export function NavigationSection() {
                         actions={<Avatar name="Ana" size="sm" />}
                     />
                     <AppBar title="Histórico" showBack onBack={() => undefined} centered />
+                    <AppBar
+                        title="Pedido"
+                        showBack
+                        onBack={() => undefined}
+                        tone="inverse"
+                        actions={<Button size="sm">Salvar</Button>}
+                    />
                 </div>
             </Example>
 

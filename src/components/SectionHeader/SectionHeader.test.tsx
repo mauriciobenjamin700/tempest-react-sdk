@@ -152,3 +152,25 @@ describe("Section", () => {
         expect(violations, formatA11yViolations(violations)).toEqual([]);
     });
 });
+
+describe("Section tone", () => {
+    it("writes the inverse tone attribute the token block is scoped to", () => {
+        const { container } = render(
+            <Section tone="inverse">
+                <SectionHeader title="Comece agora" />
+            </Section>,
+        );
+        expect(container.querySelector("section")?.getAttribute("data-tempest-tone")).toBe(
+            "inverse",
+        );
+    });
+
+    it("leaves the attribute off without a tone, so the page tokens apply", () => {
+        const { container } = render(
+            <Section>
+                <SectionHeader title="Planos" />
+            </Section>,
+        );
+        expect(container.querySelector("section")?.hasAttribute("data-tempest-tone")).toBe(false);
+    });
+});

@@ -158,7 +158,8 @@ const theme = createTheme({
 
 theme.light; // { "--tempest-primary-500": "#7c3aed", … } — your color, exactly
 theme.dark;  // same, with the ramp inverted
-theme.css;   // ":root { … }\n\n[data-tempest-theme=\"dark\"] { … }"
+theme.inverse; // the section in the brand color — see "Inverse surface"
+theme.css;   // ":root { … }\n\n[data-tempest-theme=\"dark\"] { … }\n\n[data-tempest-tone=\"inverse\"] { … }"
 ```
 
 Only the families you pass are generated — everything else still comes from the SDK's `colors.css`. A theme is a **patch**, not a fork of the palette.
@@ -326,6 +327,165 @@ readableForeground("#fde047"); // the dark foreground: white on this yellow is u
     amount at any hue — which is why `createTheme`'s scale comes out even
     instead of collapsing in the yellows. `oklchToHex` also walks chroma down
     until the color fits the sRGB gamut, rather than handing back a clipped hex.
+
+## Inverse surface (a section in the brand color)
+
+Hero, call-to-action band, footer: a section painted in the brand color inside
+a light page. The components **inside** it have to invert — a light primary
+button labelled in the brand, light text, a focus ring that separates from the
+fill. Overriding half a dozen tokens by hand leaves the rest of the palette on
+the page's values, and that is where the section breaks.
+
+Put `tone="inverse"` on the `Section` (or the `data-tempest-tone="inverse"`
+attribute on any element):
+
+```tsx
+import { Button, Section, SectionHeader } from "tempest-react-sdk";
+
+export function FinalCta() {
+    return (
+        <Section tone="inverse" style={{ padding: 48 }}>
+            <SectionHeader
+                eyebrow="Ready?"
+                title="Get started"
+                description="No credit card, cancel any time."
+            />
+            <Button>Create account</Button>
+            <Button variant="outline">Talk to sales</Button>
+        </Section>
+    );
+}
+```
+
+Done: the fill becomes the brand, the primary `Button` turns light with the
+label in the brand color, `outline` and `ghost` go light, and the focus ring,
+`Input`, `Card`, `Badge` and the `muted`/`subtle` text now hold against the
+inverted fill. 🚀
+
+![Inverse surface in the gallery](assets/gallery/theme-factory.webp)
+
+### What changes inside the section
+
+The `[data-tempest-tone="inverse"]` block redefines **every color token** the
+components read — 96 of them: surfaces, borders, the three text levels, the
+action color and its states, `soft`, focus, the selected indicator, the
+`primary-50…900` ramp (which `Tag` and `Sidebar` read raw), the four statuses,
+chart and syntax colors, shadows. The list is not from memory: the test reads
+`colors.css` and fails if a color token appears with no value on the inverse
+surface.
+
+Left out on purpose: the `gray-*` ramp and `--tempest-neutral-on-solid` — the
+pair of the neutral solid `Badge`/`Alert`. The gray ramp is fixed across themes
+(the dark block does not override it either), and the pair stays the one the
+page measured.
+
+A `:where([data-tempest-tone="inverse"])` rule paints the fill and the text color
+on the element itself, at zero specificity: the attribute alone is a complete
+section, and a `background` you set on the same element wins without a fight.
+
+### Measured contrast, not picked
+
+Every value is derived from the brand and **measured** against the fill it will
+sit on, like the rest of `createTheme`. Measured across 14 brands (the twelve of
+the focus-ring test plus two navies):
+
+| pair | floor | worst case |
+| --- | --- | --- |
+| text over the four surfaces and the glow | 7:1 | ≥ 7 on all |
+| `muted` text over the four surfaces and the glow | 4.5:1 | ≥ 4.5 on all |
+| `subtle` text over `bg`, `surface` and the glow | 4.5:1 | ≥ 4.5 on all |
+| focus ring and selected indicator | 3:1 | ≥ 3 on all |
+| primary button label at rest, hover and active | 4.5:1 | ≥ 4.5 on all |
+
+The **glow** is the fill lifted 0.1 in OKLCH lightness toward the text: a section
+is rarely one flat color. The landing that opened #409 lays a radial gradient of
+`#1f3f8f` at 55% over the navy `#03184b`, and `subtle` text measured only
+against the flat fill dropped to 3.64:1 there. Measuring the glow too, the same
+token lands at 5.01:1 on it.
+
+Measured in the browser (Chromium, built gallery, 04/10/2026, 390 and 1280 px,
+light and dark page theme — identical numbers in all four):
+
+| brand | fill | title | `muted` | `subtle` | ring | primary button |
+| --- | --- | --- | --- | --- | --- | --- |
+| SDK (`#0066ff`) | `#042e75` | 12.71 | 9.60 | 7.28 | 6.95 | 12.71 |
+| landing (`#03184b`) | `#03184b` | 16.99 | 10.62 | 6.63 | 6.31 | 16.99 |
+
+### The fill is your brand — when it can carry it
+
+The fill is your brand's `500` whenever it can carry the scheme. When it cannot,
+the generator walks the ramp one step at a time until it can: white on `#0066ff`
+measures 4.83:1, which barely clears AA for the title and leaves no room for
+`muted` and `subtle` to clear it too. That is why the SDK's default blue gets the
+`800` (`#042e75`) while a navy keeps its `500`.
+
+| brand | fill step |
+| --- | --- |
+| `#03184b`, `#1e2a5a`, `#111111`, `#FFD400`, `#a3e635`, `#fafafa` | `500` — the brand itself |
+| `#8100D7`, `#4f46e5` | `700` |
+| `#0066ff`, `#dc2626`, `#ec4899`, `#f97316` | `800` |
+| `#22d3ee` | `400` · `#14b8a6` `300` |
+
+The text direction follows the fill: a dark brand gets white text, a light brand
+(yellow, lime) gets dark text — the same pick `createTheme` makes for
+`--tempest-primary-foreground`. The section's `color-scheme` follows too, so the
+scrollbar, autofill and a native `<select>` popup match the fill, not the page.
+
+!!! info "Deeper surfaces, not lighter ones"
+    On the page, a raised surface moves toward the text (gray on white, lighter
+    gray on black). On a mid-tone brand that spends exactly the contrast the
+    text needs. On the inverse surface, a `Card` in a navy band is a deeper navy,
+    and in a yellow band a paler yellow: every surface carries the text at least
+    as well as the fill does.
+
+!!! info "Solid values, not alpha over white"
+    `rgb(255 255 255 / 0.1)` seems to follow any background, and that is exactly
+    why it has no contrast of its own — it has the contrast of whatever is below.
+    It is the defect the translucent focus ring had. The inverse tokens are solid
+    and measured; tolerance to a varying fill comes from the glow measured above,
+    not from alpha.
+
+### Dark theme
+
+The inverse surface is **the same in light and dark**: the values are literal
+colors, not references to the page's ramp. A band in the brand color is the
+brand in both themes — and a brand with no dark variant (the common landing
+case) has nothing to decide.
+
+### Your brand, with `createTheme`
+
+`colors.css` ships the inverse surface of the SDK's blue. With `createTheme` and
+a `primary`, the block is generated for your brand — by default:
+
+```tsx
+import { applyTheme, createTheme } from "tempest-react-sdk";
+
+const theme = createTheme({ primary: "#03184b" });
+
+theme.inverse["--tempest-bg"]; // "#03184b" — your brand is the fill
+applyTheme(theme);
+```
+
+Statuses and chart colors the theme names (`danger`, `chart`…) reach the inverse
+surface too. To scope it to another selector, use `inverseSelector`; to skip the
+block, `inverse: false`.
+
+!!! warning "Pasted static CSS: generate it again"
+    If you pasted `createTheme`'s output into a `.css` file (see
+    [No JS](#no-js-paste-the-generated-css)), that file has no inverse block for
+    your brand, and the section falls back to the `colors.css` block — the SDK's
+    blue. Run the command again to include it.
+
+### Recap
+
+- `<Section tone="inverse">` or `data-tempest-tone="inverse"` on any element:
+  fill in the brand, every color token inverted.
+- Text ≥ 7:1, `muted` and `subtle` ≥ 4.5:1, ring ≥ 3:1 — measured on a glow 0.1
+  lighter than the fill too.
+- The fill is the `500` when it can carry it; otherwise the nearest step that can.
+- The same in the light and the dark theme.
+- `createTheme({ primary })` generates your brand's block; static CSS has to be
+  regenerated.
 
 ## App CSS integration + `theme-color`
 

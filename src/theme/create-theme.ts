@@ -22,12 +22,13 @@ import {
 } from "./color";
 import { buildDivergingRamp, buildRamp, hueOf } from "./data-viz-ramps";
 import { isDevBuild } from "../utils/dev-mode";
+import { INVERSE_SELECTOR, createInverseSurface, renderInverseSurface } from "./inverse-surface";
+import { ON_SOLID_INK, THEME_STATUSES, writeStatus } from "./status-tokens";
 
 /** Radius presets, applied to the whole `--tempest-radius-*` family at once. */
 export type ThemeRadius = "none" | "sm" | "md" | "lg" | "xl" | "full";
 
-/** Status token families that {@link createTheme} can regenerate. */
-export type ThemeStatus = "success" | "warning" | "danger" | "info";
+export type { ThemeStatus } from "./status-tokens";
 
 /** Input for {@link createTheme}. Every field is optional — omitted families keep the built-in tokens. */
 export interface CreateThemeOptions {
@@ -65,6 +66,19 @@ export interface CreateThemeOptions {
     selector?: string;
     /** Selector the dark tokens are written under. Default `'[data-tempest-theme="dark"]'`. */
     darkSelector?: string;
+    /**
+     * Emit the inverse surface — the token set for a section painted in the
+     * brand color — alongside the page schemes. Default `true` whenever
+     * `primary` is set; ignored without it.
+     *
+     * On by default because `colors.css` ships the inverse surface of the SDK's
+     * own blue: a rebranded app that forgot this flag would paint its
+     * `data-tempest-tone="inverse"` sections in the SDK's blue, not its brand.
+     * Pass `false` only when the app styles those sections itself.
+     */
+    inverse?: boolean;
+    /** Selector the inverse tokens are written under. Default `'[data-tempest-tone="inverse"]'`. */
+    inverseSelector?: string;
 }
 
 /** A generated theme: token maps per color scheme, plus the CSS text that carries them. */
@@ -73,6 +87,12 @@ export interface GeneratedTheme {
     light: Record<string, string>;
     /** Dark-scheme custom properties. */
     dark: Record<string, string>;
+    /**
+     * Inverse-surface custom properties — literal colors, identical under the
+     * light and the dark page scheme. Empty when the theme names no `primary` or
+     * passes `inverse: false`.
+     */
+    inverse: Record<string, string>;
     /** Both blocks rendered as CSS, ready for {@link applyTheme} or a stylesheet. */
     css: string;
 }
@@ -244,15 +264,6 @@ function warnOnTranslucentFocusRing(focusRingAlpha: number | undefined): void {
 }
 
 /**
- * The dark ink for content sitting on a saturated fill.
- *
- * Near-black tinted toward warm rather than pure black, matching the value
- * `colors.css` uses for the same job: it reads as part of the swatch instead of
- * a hole punched in it.
- */
-const ON_SOLID_INK = "#1f0606";
-
-/**
  * Emit the primary aliases for one scheme.
  *
  * The dark scheme walks the ramp the other way (hover is *lighter*, the soft
@@ -342,50 +353,6 @@ function writeNeutralAliases(
     tokens["--tempest-neutral-on-solid"] = readableForeground(scale[700], "#ffffff", ON_SOLID_INK);
 }
 
-/**
- * Emit one status family (`--tempest-danger`, `-fg`, `-bg`, `-border`, `-solid`).
- *
- * `-fg` is the text shade over `-bg`, so it has to cross the ramp in opposite
- * directions per scheme; `-solid` stays the saturated fill used by badges.
- *
- * `-on-solid` is derived from the `-solid` this call just emitted, rather than
- * left to fall through. Falling through was the bug: the SDK's own
- * `-on-solid` values are measured against the SDK's own fills, so a brand whose
- * `danger-600` lands light kept white ink over it and nothing said so. The
- * generated neutral hit exactly that — white over a generated `gray-700` of
- * `#a8b2c6` measures 2.13:1.
- */
-function writeStatus(
-    tokens: Record<string, string>,
-    name: ThemeStatus,
-    scale: ColorScale,
-    scheme: "light" | "dark",
-): void {
-    if (scheme === "light") {
-        tokens[`--tempest-${name}`] = scale[700];
-        tokens[`--tempest-${name}-fg`] = scale[800];
-        tokens[`--tempest-${name}-bg`] = scale[50];
-        tokens[`--tempest-${name}-border`] = scale[200];
-        tokens[`--tempest-${name}-solid`] = scale[600];
-        tokens[`--tempest-${name}-on-solid`] = readableForeground(
-            scale[600],
-            "#ffffff",
-            ON_SOLID_INK,
-        );
-    } else {
-        tokens[`--tempest-${name}`] = scale[700];
-        tokens[`--tempest-${name}-fg`] = scale[700];
-        tokens[`--tempest-${name}-bg`] = scale[50];
-        tokens[`--tempest-${name}-border`] = scale[200];
-        tokens[`--tempest-${name}-solid`] = scale[500];
-        tokens[`--tempest-${name}-on-solid`] = readableForeground(
-            scale[500],
-            "#ffffff",
-            ON_SOLID_INK,
-        );
-    }
-}
-
 function renderBlock(selector: string, tokens: Record<string, string>): string {
     const entries = Object.entries(tokens);
     if (entries.length === 0) return "";
@@ -424,6 +391,8 @@ export function createTheme(options: CreateThemeOptions = {}): GeneratedTheme {
         focusRingAlpha,
         selector = ":root",
         darkSelector = '[data-tempest-theme="dark"]',
+        inverse = true,
+        inverseSelector = INVERSE_SELECTOR,
     } = options;
 
     warnOnTranslucentFocusRing(focusRingAlpha);
@@ -470,7 +439,7 @@ export function createTheme(options: CreateThemeOptions = {}): GeneratedTheme {
         writeNeutralAliases(dark, grayScales.dark, "dark");
     }
 
-    for (const status of ["success", "warning", "danger", "info"] as const) {
+    for (const status of THEME_STATUSES) {
         const value = options[status];
         if (!value) continue;
         writeStatus(light, status, createColorScale(value, "light"), "light");
@@ -531,11 +500,29 @@ export function createTheme(options: CreateThemeOptions = {}): GeneratedTheme {
         }
     }
 
-    const css = [renderBlock(selector, light), renderBlock(darkSelector, dark)]
+    const inverseSurface =
+        primary && inverse
+            ? createInverseSurface({
+                  primary,
+                  statuses: {
+                      success: options.success,
+                      warning: options.warning,
+                      danger: options.danger,
+                      info: options.info,
+                  },
+                  chart,
+              })
+            : null;
+
+    const css = [
+        renderBlock(selector, light),
+        renderBlock(darkSelector, dark),
+        inverseSurface ? renderInverseSurface(inverseSelector, inverseSurface) : "",
+    ]
         .filter(Boolean)
         .join("\n\n");
 
-    return { light, dark, css };
+    return { light, dark, inverse: inverseSurface?.tokens ?? {}, css };
 }
 
 /**

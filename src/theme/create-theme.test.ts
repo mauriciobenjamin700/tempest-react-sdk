@@ -334,9 +334,15 @@ describe("createTheme — continuous data-viz scales", () => {
     });
 
     it("emits each scale for light and dark separately", () => {
-        const { css } = createTheme({ primary: "#2563eb" });
+        const { css } = createTheme({ primary: "#2563eb", inverse: false });
         expect(css.match(/--tempest-chart-sequential-1:/g)).toHaveLength(2);
         expect(css.match(/--tempest-chart-diverging-1:/g)).toHaveLength(2);
+    });
+
+    it("emits a third copy of each scale for the inverse surface, solved for its fill", () => {
+        const { css } = createTheme({ primary: "#2563eb" });
+        expect(css.match(/--tempest-chart-sequential-1:/g)).toHaveLength(3);
+        expect(css.match(/--tempest-chart-diverging-1:/g)).toHaveLength(3);
     });
 
     it("leaves the built-in scales alone when no colour is given to derive from", () => {

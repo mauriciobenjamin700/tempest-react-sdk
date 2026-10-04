@@ -220,7 +220,7 @@ So the foundation ships as three pieces rather than one:
 
 | Entry | What it carries | Touches your markup? |
 | --- | --- | --- |
-| `styles/tokens.css` | the 220 `--tempest-*` tokens (373 declarations, counting dark and the densities) + `color-scheme` | **no** — paints no markup |
+| `styles/tokens.css` | the 220 `--tempest-*` tokens (373 declarations, counting dark and the densities) + `color-scheme` | **no** — paints no markup; the one painting rule is the inverse surface's, only on an element carrying `data-tempest-tone`, at zero specificity |
 | `styles/scoped.css` | the reset confined to `:where([class*="tempest_"])` | **no** — inside components only |
 | `styles/base.css` | the global reset (`html`, `body`, `#root`, `button`…) | yes, that is its job |
 | `styles/core.css` | `tokens` + `base`, as it always was | yes |

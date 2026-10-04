@@ -3,7 +3,15 @@
  * actions) plus the three switches that decide its semantics: level, align and the
  * heading id. Splitting them would leave the id away from the heading it names.
  */
-import { createContext, useContext, useId, useLayoutEffect, useMemo, useState } from "react";
+import {
+    createContext,
+    useContext,
+    useId,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/utils/cn";
 import styles from "./SectionHeader.module.css";
@@ -12,13 +20,26 @@ export type SectionHeaderLevel = 1 | 2 | 3 | 4 | 5 | 6;
 export type SectionHeaderAlign = "start" | "center";
 
 /**
- * Lets the nearest `<Section>` learn the id of the heading that names it.
+ * Links the nearest `<Section>` to the heading that names it.
  *
- * `register` returns the matching unregister so a heading that unmounts (or
- * changes id) releases the section instead of leaving `aria-labelledby` pointing
- * at an element that no longer exists.
+ * Two channels, because they answer at different times:
+ *
+ * - `sectionId` + `claim` work during render, so the link exists in the very
+ *   first HTML (`renderToString`, hydration) where no effect runs. The section
+ *   owns `sectionId` (from `useId`, identical on server and client) and writes
+ *   it to `aria-labelledby` before any child renders; the first titled
+ *   `SectionHeader` to call `claim` in render order becomes its owner and, when
+ *   it has no explicit `id`, puts `sectionId` on its heading. `claim` is keyed by
+ *   the caller's own `useId`, so asking twice (Strict Mode, a re-render) gives
+ *   the same answer and never hands the id to a second heading.
+ * - `register` works after mount and is the source of truth from then on: it
+ *   returns the matching unregister so a heading that unmounts (or changes id)
+ *   releases the section instead of leaving `aria-labelledby` pointing at an
+ *   element that no longer exists, and the next registered heading takes over.
  */
 interface SectionContextValue {
+    sectionId: string;
+    claim: (headerKey: string) => boolean;
     register: (headingId: string) => () => void;
 }
 
@@ -47,9 +68,10 @@ export interface SectionHeaderProps extends Omit<HTMLAttributes<HTMLElement>, "t
  *
  * The heading level is a prop because one page needs one `<h1>` and many
  * `<h2>` that look alike; the visual stays the same at every level so the
- * outline is picked by meaning, not by size. Inside a `<Section>` the heading
- * id is registered with it, which is what gives the `region` landmark its
- * accessible name.
+ * outline is picked by meaning, not by size. Inside a `<Section>` the first
+ * titled header takes the section's own id for its heading (unless `id` is
+ * given) and registers it, which is what gives the `region` landmark its
+ * accessible name — in the server HTML too.
  *
  * @example
  * <Section>
@@ -69,10 +91,11 @@ export function SectionHeader({
     ...props
 }: SectionHeaderProps) {
     const autoId = useId();
-    const headingId = id ?? autoId;
     const section = useContext(SectionContext);
-    const register = section?.register;
     const hasTitle = Boolean(title);
+    const ownsSection = section !== null && hasTitle && section.claim(autoId);
+    const headingId = id ?? (ownsSection ? section.sectionId : autoId);
+    const register = section?.register;
     useLayoutEffect(() => {
         if (!register || !hasTitle) return undefined;
         return register(headingId);
@@ -131,11 +154,23 @@ export interface SectionProps extends HTMLAttributes<HTMLElement> {
  * accessible name; without one it is an anonymous group and screen-reader
  * landmark navigation skips it. Wiring `aria-labelledby` to the heading id is
  * the same mechanical step on every page, so the section does it: every
- * `SectionHeader` with a `title` below it registers its id through context (so
- * wrappers in between do not break the link) and the first one mounted names
- * the section; when it unmounts, the next one takes over. An explicit
- * `aria-labelledby` or `aria-label` wins over the registered one, and with no
+ * `SectionHeader` with a `title` below it reaches the section through context
+ * (so wrappers in between do not break the link) and the first one names it;
+ * when it unmounts, the next one takes over. An explicit `aria-labelledby` or
+ * `aria-label` wins over the automatic one, and once mounted with no titled
  * heading the attribute is left off rather than pointing at nothing.
+ *
+ * The section owns the id (`useId`), so the link is already in the first
+ * render — `renderToString` and the HTML a server sends — where no effect runs.
+ * The parent's attributes are written before any child renders, so the section
+ * cannot know what is below it: it always writes its own id, and the first
+ * titled `SectionHeader` in render order puts that id on its heading. Two
+ * cases cannot be known on the server, and both are settled on hydration
+ * without a mismatch warning: with no titled heading the server attribute is
+ * dropped (until then it resolves to nothing, which Chromium 153 exposes as
+ * the same anonymous group as no attribute at all), and when that first header
+ * has an explicit `id` the attribute moves to it. A consumer that needs the
+ * explicit id in the server HTML passes `aria-labelledby` itself.
  *
  * @example
  * <Section>
@@ -150,21 +185,33 @@ export interface SectionProps extends HTMLAttributes<HTMLElement> {
  * </Section>
  */
 export function Section({ children, tone, ...props }: SectionProps) {
-    const [headingIds, setHeadingIds] = useState<string[]>([]);
+    const sectionId = useId();
+    const ownerRef = useRef<string | null>(null);
+    const [headingIds, setHeadingIds] = useState<string[] | null>(null);
     const context = useMemo<SectionContextValue>(
         () => ({
+            sectionId,
+            claim: (headerKey: string) => {
+                ownerRef.current ??= headerKey;
+                return ownerRef.current === headerKey;
+            },
             register: (id: string) => {
-                setHeadingIds((current) => [...current, id]);
-                return () => setHeadingIds((current) => current.filter((entry) => entry !== id));
+                setHeadingIds((current) => [...(current ?? []), id]);
+                return () =>
+                    setHeadingIds((current) => (current ?? []).filter((entry) => entry !== id));
             },
         }),
-        [],
+        [sectionId],
     );
+    useLayoutEffect(() => {
+        setHeadingIds((current) => current ?? []);
+    }, []);
     const named = props["aria-labelledby"] !== undefined || props["aria-label"] !== undefined;
+    const labelledBy = headingIds === null ? sectionId : headingIds[0];
     return (
         <SectionContext.Provider value={context}>
             <section
-                aria-labelledby={named ? undefined : headingIds[0]}
+                aria-labelledby={named ? undefined : labelledBy}
                 data-tempest-tone={tone}
                 {...props}
             >

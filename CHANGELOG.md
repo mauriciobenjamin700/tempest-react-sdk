@@ -63,6 +63,23 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `NotificationCenter`, a linha marcada do `CodeBlock`, o alvo de soltura do `Kanban` e o
   destaque do `Tour`. Guard em `src/styles/focus-ring.usage.test.ts`, que reprova 40 + 38
   seletores contra a `main`.
+- **`<Section>` renderizado no servidor sai com `aria-labelledby` (#425).** O `SectionHeader`
+  registrava o `id` do título no `Section` por efeito, e no servidor não roda efeito:
+  `renderToString(<Section><SectionHeader title="T" /></Section>)` saía com
+  `<section>` sem atributo nenhum e `<h2 id="_R_0_">` (medido na 0.74.0, React 19), uma
+  `<section>` sem nome até a hidratação. Agora o `Section` é dono do `id` (`useId`, igual no
+  servidor e no cliente) e o escreve no primeiro render; o primeiro `SectionHeader` com `title`
+  **na ordem de render** o põe no próprio título, e o registro por efeito continua sendo a
+  fonte depois de montar (desmontar passa a vez ao próximo, `aria-label`/`aria-labelledby` do
+  consumidor vencem, `Section` aninhado é nomeado pelo próprio cabeçalho). Com dois
+  `SectionHeader` na mesma `Section`, o primeiro em ordem de render leva o `id`, o segundo
+  fica com o próprio — no HTML do servidor e depois da hidratação, sem warning
+  (`hydrateRoot` + espião de `console.error` em `SectionHeader.test.tsx`). Dois casos o
+  servidor não tem como saber, porque o `<section>` é escrito antes dos filhos, e ambos se
+  resolvem na hidratação sem mismatch: sem título nenhum, o atributo do HTML aponta para um
+  `id` inexistente até sair (Chromium 153, árvore de acessibilidade via CDP: o mesmo `generic`
+  sem nome de uma `<section>` sem atributo, axe sem violação); com `id` explícito no primeiro
+  `SectionHeader`, o atributo passa para esse `id`.
 
 ## [0.74.0] — 2026-10-04
 

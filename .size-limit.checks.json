@@ -27,7 +27,29 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ Button }"
     },
-    "limit": "1.5 KB",
+    "limit": "1.3 KB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router",
+      "fflate"
+    ]
+  },
+  {
+    "name": "slice: `ButtonSlot` (asChild pattern, separate so `Button` does not carry it)",
+    "path": "dist/tempest-react-sdk.js",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ ButtonSlot }"
+    },
+    "limit": "1.65 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -49,7 +71,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ Button, Input, Modal, Table, ToastProvider, AppProviders, AppRouter, createApiClient, createAuthStore, useDebounce }"
     },
-    "limit": "11.5 kB",
+    "limit": "11.8 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -341,7 +363,7 @@
   {
     "name": "ceiling: full barrel ESM (nobody imports this — tree-shaking is the real cost)",
     "path": "dist/tempest-react-sdk.js",
-    "limit": "137.2 KB",
+    "limit": "137.8 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -360,7 +382,7 @@
   {
     "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "163.5 KB",
+    "limit": "164.7 KB",
     "ignore": [
       "react",
       "react-dom",

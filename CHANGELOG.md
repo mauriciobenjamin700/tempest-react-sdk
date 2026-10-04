@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.74.0] — 2026-10-04
+
 ### Adicionado
 
 - **Superfície invertida, opt-in — seção na cor da marca com todo token de cor redefinido e

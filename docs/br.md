@@ -531,6 +531,7 @@ export function BuscaNoMapa() {
 
 - `uf` restringe a busca a um estado; sem ele, busca no país todo (resultado mostra a UF).
 - `onSelect(m)` recebe `{ id, name, uf, latitude, longitude }` — dá pra centralizar/marcar também.
+- Teclado igual ao do `Combobox`: o foco fica no campo, `↓`/`↑` movem o resultado ativo (anunciado por `aria-activedescendant`), `Enter` escolhe, `Esc` fecha a lista e `Tab` sai do campo fechando a lista. Os resultados não entram na ordem de `Tab`.
 
 ---
 

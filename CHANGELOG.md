@@ -80,6 +80,19 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `id` inexistente até sair (Chromium 153, árvore de acessibilidade via CDP: o mesmo `generic`
   sem nome de uma `<section>` sem atributo, axe sem violação); com `id` explícito no primeiro
   `SectionHeader`, o atributo passa para esse `id`.
+- **`MunicipalitySearch` utilizável só por teclado (#426).** Medido em Chromium headless
+  (gallery buildada, `#brazil-map`, busca `sa`): `Tab` a partir do campo levava o foco ao
+  primeiro resultado, o timer de 120 ms do `onBlur` desmontava a lista e o foco caía no
+  `<body>` — escolher só dava com `Enter` mais rápido que o timer; `↓`/`↑`, `Enter` e `Esc`
+  não faziam nada (lista continuava aberta, `aria-activedescendant` ausente). A suspeita da
+  issue estava certa e o defeito era maior: não havia modelo de teclado nenhum, e cada resultado
+  era um `<button>` na ordem de `Tab` dentro de um `<li>` (filho inválido de `listbox`). Agora o
+  teclado é o do `Combobox`: o foco fica no campo, `↓`/`↑` movem o resultado ativo via
+  `aria-activedescendant`, `Enter` escolhe, `Esc` fecha (com `preventDefault` só com a lista
+  aberta, para não fechar o `Modal` em volta) e `Tab` vai ao próximo controle fechando a lista.
+  O timer saiu: um `mousedown` na lista mantém o foco no campo, então o clique não corre contra
+  o blur. Depois, no mesmo browser: `Tab` → próximo controle da página, lista fechada;
+  `↓ ↓ ↑ Enter` → escolhe o 2º resultado; `Esc` → lista fechada, foco no campo; clique → escolhe.
 
 ## [0.74.0] — 2026-10-04
 

@@ -526,6 +526,7 @@ export function SearchOnMap() {
 
 - `uf` restricts the search to one state; without it, it searches the whole country (the result shows the UF).
 - `onSelect(m)` receives `{ id, name, uf, latitude, longitude }` — enough to also center/mark it.
+- Keyboard matches `Combobox`: focus stays on the field, `↓`/`↑` move the active result (announced through `aria-activedescendant`), `Enter` picks it, `Esc` closes the list and `Tab` leaves the field, closing the list. Results are not in the `Tab` order.
 
 ---
 

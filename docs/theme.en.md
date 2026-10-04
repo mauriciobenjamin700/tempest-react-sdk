@@ -496,6 +496,73 @@ surface too. To scope it to another selector, use `inverseSelector`. Without
     [No JS](#no-js-paste-the-generated-css)), generate it with
     `inverse: createInverseSurface` so the file carries your brand's block.
 
+### Back to the page's tokens
+
+A contact form, a price, a testimonial: sometimes a region **inside** the band
+needs to be page again — a white `Card` in a navy hero. Inside the inverse
+surface every descendant inherits the inverted tokens, so the `Card` comes out
+navy. Mark the region with `data-tempest-tone="default"` (or
+`<Section tone="default">`):
+
+```tsx
+import "tempest-react-sdk/styles/inverse.css";
+import { Button, Card, Input, Section, SectionHeader } from "tempest-react-sdk";
+
+export function ContactHero() {
+    return (
+        <Section tone="inverse" style={{ padding: 48 }}>
+            <SectionHeader title="Talk to us" />
+            <Card data-tempest-tone="default" title="Contact">
+                <Input label="Email" name="email" />
+                <Button>Send</Button>
+            </Card>
+        </Section>
+    );
+}
+```
+
+The `Card` is **the page's** again — light in the light theme, dark in the dark
+one, with your brand and your `:root` overrides. Measured in the browser
+(Chromium, 2026-10-04): of 28 computed values of a `Card`, an `Input` and a
+`Button`, 0 differ from the same trio outside the band, in the light theme, the
+dark one and a dark subtree. Without the attribute, 25 of 28 differed in light
+and 18 of 28 in dark.
+
+Put the attribute **on the surface itself** (the `Card`) so it floats on the
+band. On a wrapper, the whole wrapper becomes a block in the page's background —
+a `:where()` rule paints `background-color` and `color` on it, at zero
+specificity, as on the inverse section.
+
+??? info "How it works — and the two alternatives measured"
+    A custom property inherits from the parent, so a rule cannot "skip" the
+    section and read `:root` again — and scoping the inverse block away from the
+    region (`@scope (…) to (…)`, `:not()`) changes nothing: the region still
+    inherits what the section declared. Measured with `@scope`: the same 25 of 28
+    in light.
+
+    What works is saving the page's value **before** the section overrides it.
+    Every element a theme is declared on (`:root`, `[data-tempest-theme]` and
+    `createTheme`'s selectors) copies each token the surface redefines into a
+    `--tempest-default-*` twin. A `var()` inside a custom property resolves on
+    the element that declares it, so the twin keeps the page's value and crosses
+    the section untouched. The region reads its tokens back from the twins.
+
+    | approach | cost (brotli) | who pays | with a brand override on `:root` |
+    | --- | --- | --- | --- |
+    | `--tempest-default-*` twins (chosen) | +821 B in `inverse.css` | only who loads the surface | 0 of 28 differ |
+    | one block per theme with the SDK's values | +1257 B | only who loads the surface | 3 of 28 differ |
+    | the region in `colors.css`'s selectors | +15 B | **every app** | 3 of 28 differ |
+
+    `tokens.css` and `styles.css` ship the same bytes as before. `{ createTheme }`
+    without `inverse` grows 40 B brotli (3346 → 3386), handing the selectors to
+    the generator; the code that writes the rules lives in the generator. Numbers
+    from `npx size-limit` on 0.74.0 + this change; the 1257 B and 15 B ones from
+    `zlib.brotliCompressSync` over each alternative's CSS.
+
+With `createTheme`, the rules come along when you pass
+`inverse: createInverseSurface`, written for your `selector` and
+`darkSelector` — a theme scoped to `#app` is restored too.
+
 ### Recap
 
 - `<Section tone="inverse">` or `data-tempest-tone="inverse"` on any element:
@@ -507,6 +574,8 @@ surface too. To scope it to another selector, use `inverseSelector`. Without
 - Opt-in: `import "tempest-react-sdk/styles/inverse.css"` for the SDK's blue, or
   `createTheme({ primary, inverse: createInverseSurface })` for your brand. With
   neither, the section keeps the page's tokens.
+- `data-tempest-tone="default"` (or `<Section tone="default">`) inside the
+  band brings the page's tokens back — light or dark, with your brand.
 
 ## App CSS integration + `theme-color`
 

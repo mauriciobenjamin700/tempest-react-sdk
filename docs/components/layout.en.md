@@ -238,6 +238,10 @@ Accepts every `<section>` attribute.
   load `tempest-react-sdk/styles/inverse.css` or generate the theme with
   `inverse: createInverseSurface`; with neither, the section keeps the page's tokens. Values and
   measurements are in [Inverse surface](../theme.md#inverse-surface-a-section-in-the-brand-color).
+- `tone="default"` (or `data-tempest-tone="default"` on any element, such as a
+  `Card`) inside an inverse section brings the page's tokens back — light or
+  dark, whichever the page is on. It ships with the same opt-in rules; see
+  [Back to the page's tokens](../theme.md#back-to-the-pages-tokens).
 
 ## `Container`
 

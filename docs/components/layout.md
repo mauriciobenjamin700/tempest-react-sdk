@@ -227,6 +227,10 @@ todo atributo de `<section>`.
   `tempest-react-sdk/styles/inverse.css` ou gere o tema com
   `inverse: createInverseSurface`; sem nenhum, a seção fica com os tokens da página. Os valores e as medições
   estão em [Superfície invertida](../theme.md#superficie-invertida-secao-na-cor-da-marca).
+- `tone="default"` (ou `data-tempest-tone="default"` em qualquer elemento, como
+  um `Card`) dentro de uma seção invertida devolve os tokens da página — claro ou
+  escuro, o que a página estiver usando. Vem com as mesmas regras opt-in; veja
+  [De volta aos tokens da página](../theme.md#de-volta-aos-tokens-da-pagina).
 
 ## `Container`
 

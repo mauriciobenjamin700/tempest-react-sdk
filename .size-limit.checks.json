@@ -404,7 +404,7 @@
   {
     "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "166.4 KB",
+    "limit": "166.8 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -757,6 +757,6 @@
   {
     "name": "styles/inverse.css (opt-in inverse surface)",
     "path": "dist/styles/inverse.css",
-    "limit": "1 kB"
+    "limit": "1.7 kB"
   }
 ]

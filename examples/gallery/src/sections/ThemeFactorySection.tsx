@@ -238,6 +238,59 @@ themeContrast({ primary: "#003d99" }); //  9.8 — texto branco escolhido`}
             </Example>
 
             <Example
+                title="De volta aos tokens da página dentro da faixa"
+                note="data-tempest-tone='default' (ou <Section tone='default'>) dentro de uma superfície invertida devolve os tokens da página — claro ou escuro, o que a página estiver usando, com a marca e os overrides do app. O Card abaixo é idêntico ao de fora da faixa."
+                code={`<Section tone="inverse">
+  <SectionHeader title="Fale com a gente" />
+  <Card data-tempest-tone="default" title="Contato">
+    <Input label="E-mail" name="email" />
+    <Button>Enviar</Button>
+  </Card>
+</Section>`}
+            >
+                <Section
+                    tone="inverse"
+                    aria-label="Faixa com card da página"
+                    style={{
+                        display: "grid",
+                        gap: 16,
+                        padding: 24,
+                        borderRadius: "var(--tempest-radius-lg)",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                    }}
+                >
+                    <SectionHeader
+                        title="Fale com a gente"
+                        description="Este card volta para os tokens da página."
+                    />
+                    <Card
+                        data-tempest-tone="default"
+                        data-testid="tone-default-card"
+                        title="Dentro da faixa"
+                    >
+                        <div style={{ display: "grid", gap: 12, justifyItems: "start" }}>
+                            <Input
+                                label="E-mail"
+                                name="tone-default-email"
+                                placeholder="voce@empresa.com"
+                            />
+                            <Button>Enviar</Button>
+                        </div>
+                    </Card>
+                </Section>
+                <Card data-testid="tone-default-reference" title="Fora da faixa">
+                    <div style={{ display: "grid", gap: 12, justifyItems: "start" }}>
+                        <Input
+                            label="E-mail"
+                            name="tone-reference-email"
+                            placeholder="voce@empresa.com"
+                        />
+                        <Button>Enviar</Button>
+                    </div>
+                </Card>
+            </Example>
+
+            <Example
                 title="Tokens de série (--tempest-chart-1..8)"
                 note="O módulo /charts lê esses tokens em runtime, então trocar o preset move os gráficos junto. São categóricas, espaçadas por matiz — não um ramp."
                 code={`applyTheme(createTheme({

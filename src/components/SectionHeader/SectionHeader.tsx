@@ -99,7 +99,7 @@ export function SectionHeader({
 }
 
 /** Surface tone a {@link Section} can take. */
-export type SectionTone = "inverse";
+export type SectionTone = "inverse" | "default";
 
 export interface SectionProps extends HTMLAttributes<HTMLElement> {
     /**
@@ -113,6 +113,13 @@ export interface SectionProps extends HTMLAttributes<HTMLElement> {
      * the section keeps the page's tokens — legible, not inverted. The prop
      * exists so the tone is typed: a typo in a hand-written attribute fails
      * silently, a typo here fails the build.
+     *
+     * `"default"` hands a region inside an inverse section back to the page's
+     * tokens — light or dark, whichever the page is on — by writing
+     * `data-tempest-tone="default"`: a white form or price card in a navy hero.
+     * The rules ship with the inverse tokens, so it costs nothing until those are
+     * loaded, and outside an inverse section the tokens it restores are the ones
+     * already there.
      */
     tone?: SectionTone;
 }

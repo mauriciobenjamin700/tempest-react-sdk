@@ -22,6 +22,7 @@ export type {
     InverseSurface,
     InverseSurfaceGenerator,
     InverseSurfaceOptions,
+    PageSelectors,
 } from "./inverse-render";
 export { getThemePreset, themePresets } from "./theme-presets";
 export type { ThemePresetName } from "./theme-presets";

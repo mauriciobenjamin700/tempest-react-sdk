@@ -11491,6 +11491,12 @@ Comportamento responsivo:
 | `footer`            | `ReactNode`                    | —       |
 | `sidebarBreakpoint` | `"sm" \| "md" \| "lg" \| "xl"` | `"md"`  |
 
+A `navbar` gruda no topo ao rolar: o wrapper dela não gera caixa
+(`display: contents`), então o `Navbar` sticky se prende ao shell inteiro, e
+`sticky={false}` no `Navbar` continua desligando. Antes da correção do #406 a barra
+saía da tela junto com o conteúdo (`top: -1261px` com `scrollY` 1261, Chromium e
+Firefox a 1440×900).
+
 !!! warning "`sidebar` some abaixo do breakpoint — não é o mesmo que estar lá"
     Abaixo de `sidebarBreakpoint` o `AppShell` **não renderiza** a sidebar; ele
     espera que você passe `bottomNav`. Se a navegação principal só existe na
@@ -28151,7 +28157,9 @@ documento inteiro:
 
 ```css
 *, ::before, ::after { box-sizing: border-box }
-:where(html, body, #root) { height: 100% }
+:where(html, body) { height: 100% }
+:where(#root) { min-height: 100% }
+:where(#root:has(> :only-child)) { height: 100% }
 body { margin: 0; background: var(--tempest-bg); color: var(--tempest-text) }
 button { background: none; border: 0; padding: 0 }
 :where(ul, ol)[class] { list-style: none; margin: 0; padding: 0 }
@@ -28661,7 +28669,15 @@ Shadows são automaticamente mais escuros no tema dark.
 Antes de qualquer componente, `styles.css` reivindica o `body`:
 
 ```css
-:where(html, body, #root) {
+:where(html, body) {
+    height: 100%;
+}
+
+:where(#root) {
+    min-height: 100%;
+}
+
+:where(#root:has(> :only-child)) {
     height: 100%;
 }
 
@@ -28688,6 +28704,52 @@ conteúdo nos quatro lados, e qualquer elemento sem fundo próprio resolve até 
 **A cadeia de altura.** `height: 100%` é uma porcentagem, e porcentagem precisa
 de um pai com altura resolvida. Sem os três elos, um shell de altura percentual
 colapsa no conteúdo em vez de preencher a viewport.
+
+O `#root` só recebe a altura fixa quando tem **um único filho**. Altura fixa no
+`#root` fixa também o containing block de cada filho, e um elemento `sticky` não
+sai do próprio containing block: um `Navbar` colocado direto no `#root`, ao lado
+de um `<main>` longo, sumia depois de uma viewport de rolagem (#406). Com
+`min-height` o `#root` cresce com o conteúdo e a barra fica no topo. Um shell de
+tela cheia (`Page`, `Resizable`, um `<div style="height: 100%">` seu) é o filho
+único do `#root`, enquanto uma barra sticky sempre tem um irmão — o conteúdo
+abaixo dela —, e é o `:only-child` que separa os dois casos.
+
+Medido em Chromium e Firefox a 1440×900, com `scrollY` 1261 para a barra
+(probe com os componentes publicados, `getBoundingClientRect().top` e
+`offsetHeight`):
+
+| Layout dentro do `#root` | `height: 100%` (antes) | só `min-height: 100%` | atual |
+| --- | --- | --- | --- |
+| `Navbar` + `<main>` longo — topo da barra | **−417px** | 0 | 0 |
+| `AppShell` com conteúdo longo — topo da barra | **−1261px** | **−1261px** | 0 |
+| `Page` curta, filho único | 900px | **271px** | 900px |
+| `Resizable`, filho único | 900px | **24px** | 900px |
+| `<div style="height: 100%">`, filho único | 900px | **120px** | 900px |
+
+A linha do `AppShell` é outro defeito, que tinha a mesma cara: o wrapper da
+`navbar` era um bloco da altura da barra, então o `Navbar` sticky dentro dele não
+tinha para onde grudar. O wrapper agora é `display: contents`, e quem decide é o
+`sticky` do próprio `Navbar`.
+
+!!! warning "Shell de tela cheia com um irmão no `#root`"
+    O `:only-child` conta elementos, não caixas no fluxo. Um toast ou banner
+    `position: fixed` renderizado **ao lado** do shell no `#root` faz o `#root`
+    voltar a crescer com o conteúdo, e um `Page` curto deixa de preencher a
+    viewport (900px → 212px, mesma medição). Os overlays do SDK vão por portal
+    para o `body` e não contam. Para um overlay de terceiro, envolva o shell e o
+    overlay num único elemento, ou devolva a altura fixa com uma regra sua:
+
+    ```css
+    #root { height: 100%; }
+    ```
+
+    Num app com `Navbar` direto no `#root`, essa regra traz o defeito do #406 de
+    volta.
+
+Trocar o `display` do `#root` para grid ou flex, que preencheria a viewport com
+qualquer número de filhos, foi medido e descartado: o filho com
+`max-width: 600px; margin: 0 auto` encolhe para a largura do conteúdo (32px), e
+cada filho é esticado até a altura da viewport.
 
 !!! tip "Especificidade zero na cadeia de altura"
     `#root` é markup que esta folha **não** desenha — o id é uma convenção sua,

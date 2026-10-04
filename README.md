@@ -203,7 +203,7 @@ import "tempest-react-sdk/styles.css";
 
 This injects the design tokens (`--tempest-primary`, `--tempest-radius-md`, ...), a minimal CSS reset, and the per-component CSS Modules. Tokens live on `:root` and on `[data-tempest-theme="dark"]`, so the app can override them globally or per subtree (see [Theming](#theming-reference)).
 
-The reset claims the document surface too — `body { margin: 0 }` plus the theme's background and text colour, and a zero-specificity `height: 100%` chain down to `#root`. Without it an `AppShell` app opens with a spurious scrollbar and an unpainted frame around the shell in dark mode. All four are one ordinary declaration away from being overridden; see [The document surface](https://mauriciobenjamin700.github.io/tempest-react-sdk/en/styles/#the-document-surface).
+The reset claims the document surface too — `body { margin: 0 }` plus the theme's background and text colour, and a zero-specificity height chain: `height: 100%` on `html` and `body`, `min-height: 100%` on `#root`, which takes the fixed height only when it holds a single child — so a full-screen shell fills the viewport and a sticky `Navbar` placed directly in `#root` stays on screen. Without it an `AppShell` app opens with a spurious scrollbar and an unpainted frame around the shell in dark mode. All four are one ordinary declaration away from being overridden; see [The document surface](https://mauriciobenjamin700.github.io/tempest-react-sdk/en/styles/#the-document-surface).
 
 The styles ship hashed under the `tempest_` namespace — they do **not** collide with Tailwind, Stitches, Linaria, or app-level CSS Modules.
 
@@ -229,7 +229,7 @@ export default defineConfig({ plugins: [react(), tempestStyles()] });
 import "tempest-react-sdk/styles/auto.css";
 ```
 
-**If your app owns its own layout,** do not reach for `core.css`: 44 of its 46 selectors dress markup you own (`html`, `body`, `#root`, `button`, `table`, `:where(ul, ol)[class]`). Dropping it is not the fix either — the components are written _against_ that reset, so without it they lose their box model, not their polish. Take the foundation in two pieces instead, which is also what `tempestStyles()` emits by default:
+**If your app owns its own layout,** do not reach for `core.css`: 46 of its 48 rules dress markup you own (`html`, `body`, `#root`, `button`, `table`, `:where(ul, ol)[class]`). Dropping it is not the fix either — the components are written _against_ that reset, so without it they lose their box model, not their polish. Take the foundation in two pieces instead, which is also what `tempestStyles()` emits by default:
 
 ```ts
 import "tempest-react-sdk/styles/tokens.css"; // the 220 --tempest-* tokens

@@ -6,6 +6,24 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **`styles` — o `Navbar` sticky não some mais depois de uma tela de rolagem (#406).** O reset
+  fixava `height: 100%` no `#root`, o que fazia do `#root` o containing block de um `Navbar`
+  colocado direto nele: a barra grudava só até o fim dos primeiros 900px e saía da tela
+  (`top: -417px` com `scrollY` 1261, Chromium e Firefox a 1440×900). A proposta da issue —
+  só `min-height: 100%` — consertava a barra e colapsava todo shell de altura percentual
+  (`Page` 900px → 271px, `Resizable` → 24px, um `<div style="height: 100%">` → 120px). O
+  reset agora dá `min-height: 100%` ao `#root` e a altura fixa só quando ele tem um único
+  filho (`:where(#root:has(> :only-child))`), que é o caso do shell de tela cheia; uma barra
+  sticky sempre tem irmão. Trocar o `display` do `#root` para grid/flex foi medido e
+  descartado: encolhe o filho com `margin: 0 auto` (600px → 32px). Efeito colateral medido:
+  um shell curto com um overlay `position: fixed` de terceiro como irmão no `#root` deixa de
+  preencher a viewport (900px → 212px); os overlays do SDK vão por portal e não contam.
+  Fixado em `e2e/reset.spec.ts`, que reprova 3 de 5 casos contra o CSS anterior.
+- **`AppShell` — o `Navbar` sticky dentro do shell nunca grudava (#406).** O wrapper da
+  `navbar` era um bloco da altura da barra, então o containing block do `Navbar` sticky
+  tinha 56px e a barra rolava com a página (`top: -1261px` com `scrollY` 1261), com ou sem
+  a cadeia de altura. O wrapper agora é `display: contents`: a barra se prende ao shell, e
+  `sticky={false}` no `Navbar` continua valendo.
 - **`vite` — os helpers de `tempest-react-sdk/vite` não exigem mais o `@vitejs/plugin-react`
   (#401).** O `create-vite-config` importava o plugin React no topo do módulo, e como todo
   helper do subpath sai pelo mesmo barril, um projeto sem esse peer opcional não carregava

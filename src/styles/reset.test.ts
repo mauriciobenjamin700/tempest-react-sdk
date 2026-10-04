@@ -47,9 +47,30 @@ describe("reset.css document surface", () => {
         expect(body).toMatch(/color:\s*var\(--tempest-text\)/);
     });
 
-    it("carries the height chain down to the app root", () => {
-        const chain = ruleFor(RESET, ":where(html, body, #root)");
-        expect(chain).toMatch(/height:\s*100%/);
+    it("carries the height chain through html and body", () => {
+        expect(ruleFor(RESET, ":where(html, body)")).toMatch(/(?:^|[;\s])height:\s*100%/);
+    });
+
+    /**
+     * Rewritten for #406, not deleted. The chain used to end in a fixed
+     * `height: 100%` on `#root`, which made `#root` the containing block of a
+     * sticky `Navbar` placed directly inside it: the bar scrolled away after one
+     * viewport (`top: -417px` at `scrollY` 1261, Chromium and Firefox, 1440x900).
+     * `#root` now grows with its content, and takes the definite height only
+     * when it holds a single element — the full-height shell case, where a
+     * percentage would otherwise collapse (`Page` 900px to 271px). The layout
+     * itself is fixed in `e2e/reset.spec.ts`; this holds the declarations.
+     */
+    it("lets the app root grow with its content instead of fixing its height", () => {
+        const root = ruleFor(RESET, ":where(#root)");
+        expect(root).toMatch(/min-height:\s*100%/);
+        expect(root).not.toMatch(/(?:^|[;\s])height:/);
+    });
+
+    it("gives the app root a definite height only when it holds a single element", () => {
+        expect(ruleFor(RESET, ":where(#root:has(> :only-child))")).toMatch(
+            /(?:^|[;\s])height:\s*100%/,
+        );
     });
 
     it("keeps the height chain at zero specificity, so a consumer rule wins", () => {

@@ -41,7 +41,37 @@ html {
  * any ordinary rule the consumer writes wins, with no `!important` and no
  * fight.
  */
-:where(html, body, #root) {
+:where(html, body) {
+    height: 100%;
+}
+
+/*
+ * `#root` takes the definite height only when it holds a single element.
+ *
+ * A fixed `height: 100%` on `#root` also fixes the containing block of every
+ * child, and a sticky element cannot leave its containing block: a `Navbar`
+ * placed directly in `#root` next to a long `<main>` scrolled away after one
+ * viewport — measured in Chromium and Firefox at 1440x900, `top: -417px` at
+ * `scrollY` 1261 (#406). `min-height: 100%` lets `#root` grow with the content,
+ * and the bar stays at `top: 0`.
+ *
+ * `min-height` alone is not enough, because a percentage resolves only against
+ * a definite height: `Page`, `Resizable` and any `height: 100%` layout of the
+ * app collapse onto their content (`Page` 900px to 271px, `Resizable` to 24px).
+ * Those shells are the single child of `#root`, while a sticky bar always has a
+ * sibling — the content it sits above — so `:only-child` tells the two cases
+ * apart. A shell wrapping its own bar keeps working too: the bar's containing
+ * block is then the shell, which grows.
+ *
+ * Changing the display of `#root` (grid or flex with stretch) was measured and
+ * rejected: `margin: 0 auto` on the only child shrinks it to its content
+ * (600px to 32px) and every child is stretched to the viewport height.
+ */
+:where(#root) {
+    min-height: 100%;
+}
+
+:where(#root:has(> :only-child)) {
     height: 100%;
 }
 

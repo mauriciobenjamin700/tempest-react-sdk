@@ -196,7 +196,9 @@ the whole document:
 
 ```css
 *, ::before, ::after { box-sizing: border-box }
-:where(html, body, #root) { height: 100% }
+:where(html, body) { height: 100% }
+:where(#root) { min-height: 100% }
+:where(#root:has(> :only-child)) { height: 100% }
 body { margin: 0; background: var(--tempest-bg); color: var(--tempest-text) }
 button { background: none; border: 0; padding: 0 }
 :where(ul, ol)[class] { list-style: none; margin: 0; padding: 0 }
@@ -710,7 +712,15 @@ tooltip, skeleton) also detect it and disable their specific animations.
 Before any component, `styles.css` claims the `body`:
 
 ```css
-:where(html, body, #root) {
+:where(html, body) {
+    height: 100%;
+}
+
+:where(#root) {
+    min-height: 100%;
+}
+
+:where(#root:has(> :only-child)) {
     height: 100%;
 }
 
@@ -737,6 +747,52 @@ resolves up to a white `body`.
 **The height chain.** `height: 100%` is a percentage, and a percentage needs a
 parent with a resolved height. Without all three links, a percentage-height shell
 collapses onto its content instead of filling the viewport.
+
+`#root` only takes the fixed height when it has **a single child**. A fixed
+height on `#root` also fixes the containing block of every child, and a `sticky`
+element cannot leave its own containing block: a `Navbar` placed directly in
+`#root`, next to a long `<main>`, scrolled away after one viewport (#406). With
+`min-height`, `#root` grows with the content and the bar stays at the top. A
+full-screen shell (`Page`, `Resizable`, a `<div style="height: 100%">` of yours)
+is the single child of `#root`, while a sticky bar always has a sibling — the
+content below it —, and `:only-child` is what tells the two cases apart.
+
+Measured in Chromium and Firefox at 1440×900, with `scrollY` 1261 for the bar
+(probe using the published components, `getBoundingClientRect().top` and
+`offsetHeight`):
+
+| Layout inside `#root` | `height: 100%` (before) | `min-height: 100%` only | current |
+| --- | --- | --- | --- |
+| `Navbar` + long `<main>` — bar top | **−417px** | 0 | 0 |
+| `AppShell` with long content — bar top | **−1261px** | **−1261px** | 0 |
+| short `Page`, single child | 900px | **271px** | 900px |
+| `Resizable`, single child | 900px | **24px** | 900px |
+| `<div style="height: 100%">`, single child | 900px | **120px** | 900px |
+
+The `AppShell` row is a different defect that looked the same: the `navbar`
+wrapper was a block exactly as tall as the bar, so the sticky `Navbar` inside it
+had nowhere to stick. The wrapper is now `display: contents`, and the `Navbar`'s
+own `sticky` prop decides.
+
+!!! warning "A full-screen shell with a sibling in `#root`"
+    `:only-child` counts elements, not in-flow boxes. A `position: fixed` toast
+    or banner rendered **next to** the shell in `#root` makes `#root` grow with
+    its content again, and a short `Page` stops filling the viewport (900px →
+    212px, same measurement). The SDK's overlays portal to `body` and do not
+    count. For a third-party overlay, wrap the shell and the overlay in a single
+    element, or bring the fixed height back with a rule of your own:
+
+    ```css
+    #root { height: 100%; }
+    ```
+
+    In an app with a `Navbar` directly in `#root`, that rule brings the #406
+    defect back.
+
+Switching the `display` of `#root` to grid or flex, which would fill the viewport
+with any number of children, was measured and rejected: a child with
+`max-width: 600px; margin: 0 auto` shrinks to its content width (32px), and
+every child is stretched to the viewport height.
 
 !!! tip "Zero specificity on the height chain"
     `#root` is markup this sheet does **not** draw — the id is your convention,

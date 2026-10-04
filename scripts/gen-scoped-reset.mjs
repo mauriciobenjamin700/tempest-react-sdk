@@ -47,7 +47,13 @@ const SCOPE = ':where([class*="tempest_"])';
  * Matched against the whole selector text, comma-separated parts included, because
  * each of these is written as its own rule upstream.
  */
-const DOCUMENT_SELECTORS = new Set(["html", "body", ":where(html, body, #root)"]);
+const DOCUMENT_SELECTORS = new Set([
+    "html",
+    "body",
+    ":where(html, body)",
+    ":where(#root)",
+    ":where(#root:has(> :only-child))",
+]);
 
 /**
  * Declaration whose rule is republished by hand in the header.
@@ -181,6 +187,7 @@ function scopeSelf(part) {
  * properties are missing on purpose" is not a check, it is an excuse.
  */
 const DOCUMENT_PROPERTIES = new Set([
+    "min-height",
     "tab-size",
     "-moz-tab-size",
     "text-size-adjust",

@@ -74,6 +74,12 @@ Comportamento responsivo:
 | `footer`            | `ReactNode`                    | —       |
 | `sidebarBreakpoint` | `"sm" \| "md" \| "lg" \| "xl"` | `"md"`  |
 
+A `navbar` gruda no topo ao rolar: o wrapper dela não gera caixa
+(`display: contents`), então o `Navbar` sticky se prende ao shell inteiro, e
+`sticky={false}` no `Navbar` continua desligando. Antes da correção do #406 a barra
+saía da tela junto com o conteúdo (`top: -1261px` com `scrollY` 1261, Chromium e
+Firefox a 1440×900).
+
 !!! warning "`sidebar` some abaixo do breakpoint — não é o mesmo que estar lá"
     Abaixo de `sidebarBreakpoint` o `AppShell` **não renderiza** a sidebar; ele
     espera que você passe `bottomNav`. Se a navegação principal só existe na

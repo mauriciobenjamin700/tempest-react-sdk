@@ -1,6 +1,6 @@
 {
   "name": "tempest-react-sdk",
-  "version": "0.75.0",
+  "version": "0.76.0",
   "description": "SDK público da Tempest com componentes, hooks e integrações para projetos React.",
   "type": "module",
   "license": "MIT",
@@ -87,6 +87,11 @@
       "import": "./dist/vision.js",
       "require": "./dist/vision.cjs"
     },
+    "./neural": {
+      "types": "./dist/neural.d.ts",
+      "import": "./dist/neural.js",
+      "require": "./dist/neural.cjs"
+    },
     "./br": {
       "types": "./dist/br.d.ts",
       "import": "./dist/br.js",
@@ -151,6 +156,7 @@
     "zustand": "^4.0.0 || ^5.0.0"
   },
   "peerDependencies": {
+    "@sapphi-red/web-noise-suppressor": "^0.4.1",
     "@tiptap/react": "^2.0.0 || ^3.0.0",
     "@tiptap/starter-kit": "^2.0.0 || ^3.0.0",
     "@vitejs/plugin-react": "^4.0.0 || ^5.0.0 || ^6.0.0",
@@ -183,12 +189,16 @@
     },
     "onnxruntime-web": {
       "optional": true
+    },
+    "@sapphi-red/web-noise-suppressor": {
+      "optional": true
     }
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@microsoft/api-extractor": "^7.58.12",
     "@playwright/test": "^1.62.0",
+    "@sapphi-red/web-noise-suppressor": "^0.4.1",
     "@size-limit/preset-small-lib": "^13.0.1",
     "@tanstack/react-query": "^5.90.0",
     "@testing-library/jest-dom": "^7.0.0",

@@ -170,6 +170,7 @@ plugins:
                     Upload resumível (tus): Resumable upload (tus)
                     Áudio: Audio
                     Captura de dispositivo: Device capture
+                    Neural (RNNoise 48 kHz): Neural noise suppression (RNNoise)
                     Tabular (scikit-learn): Tabular (scikit-learn)
                     Imagens (processamento): Imaging (processing)
                     Formulários: Forms
@@ -314,6 +315,7 @@ nav:
                 - Upload resumível (tus): resumable-upload.md
                 - Áudio: audio.md
                 - Captura de dispositivo: device-capture.md
+                - Neural (RNNoise 48 kHz): neural.md
                 - Vision (ONNX): vision.md
                 - Tabular (scikit-learn): tabular.md
                 - Imagens (processamento): imaging.md

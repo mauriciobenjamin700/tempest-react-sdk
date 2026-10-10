@@ -4,6 +4,21 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.76.0] — 2026-10-10 (nunca publicada)
+
+### Adicionado
+
+- **Subpath `tempest-react-sdk/neural` — RNNoise (supressão neural de ruído) como peer opcional.**
+  `isNeuralSuppressionSupported`, `prepareNeuralSuppressor` e `createNeuralSuppressor` rodam o
+  modelo numa `AudioWorklet` em contexto de 48 kHz e devolvem um `MediaStreamTrack` denoised para
+  publicar no lugar da captura — separa a voz de teclado, ventoinha e trânsito com o modelo em vez
+  do gate de ruído estacionário do `noiseSuppression` nativo. O consumidor serve os três assets
+  (módulo do worklet + dois `.wasm`, via `?url`), o load-once e o registro por contexto ficam na
+  lib; `createNeuralSuppressor` devolve `null` (não lança) quando o contexto não roda a 48 kHz ou o
+  grafo não pôde ser construído. `@sapphi-red/web-noise-suppressor@^0.4.1` é dependência opcional —
+  só entra no bundle de quem importa o subpath. Segue o precedente do `vision`/`onnxruntime-web`:
+  runtime pesado nunca bundlado. Docs PT-BR/EN em `docs/neural.md` + `docs/neural.en.md`.
+
 ## [0.75.0] — 2026-10-04
 
 ### Adicionado

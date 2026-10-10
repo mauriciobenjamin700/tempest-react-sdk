@@ -55,7 +55,7 @@ Peers obrigatórios: `react`, `react-dom` (`^18 || ^19`), `react-router`
 ## Mapa do repositório
 
 ```text
-src/            40 módulos de domínio (access, auth, br, components, forms, http,
+src/            41 módulos de domínio (access, auth, br, components, forms, http,
                 icons, offline, query, styles, theme, vision, webrtc, ws, …)
 bin/            CLIs: create-tempest-app (scaffold) e tempest (doctor/lint/fix/gen)
 loader/         loader de .css para Node cru, publicado como /node-css-loader
@@ -117,7 +117,7 @@ mais voltam:
   (0.1.0 → 0.75.0) com provenance assinada via OIDC. Histórico em `RELEASES.md`
   (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
 - **Superfície**: 40 módulos em `src/` (`ls -d src/*/`), 132 componentes
-  (`ls -d src/components/*/`), 55 hooks `useX` no barrel de `hooks/`, 18 subpaths
+  (`ls -d src/components/*/`), 55 hooks `useX` no barrel de `hooks/`, 19 subpaths
   — os quatro aferidos por `test/docs-counts.test.ts`. Exports de runtime na
   raiz: **588 em 04/10/2026** (70 em `/br`, 21 em `/icons`); o método de
   contagem, e por que o `--import` não é opcional, está em
@@ -129,7 +129,7 @@ mais voltam:
 - **Empacotamento**: `dist/` com `preserveModules`; CSS por componente carregado
   pelo próprio componente (0.63.0); loader `/node-css-loader` para Node cru.
   Budgets do `size-limit` são por **fatia importada**.
-- **Docs**: 98 páginas base (196 com as traduções `.en.md`) + `llms.txt` /
+- **Docs**: 99 páginas base (198 com as traduções `.en.md`) + `llms.txt` /
   `llms-full.txt`. Site MkDocs bilíngue no GitHub Pages; `docs/internal/` fica
   fora dele.
 - **Demo vivo**: `examples/gallery`, app Vite com 67 seções consumindo o SDK via

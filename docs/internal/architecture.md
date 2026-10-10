@@ -5,7 +5,7 @@ mexer em barrel, ou tocar no empacotamento.
 
 ## Estrutura de `src/`
 
-40 módulos, um por domínio. O que é subpath público está marcado com ⇢.
+41 módulos, um por domínio. O que é subpath público está marcado com ⇢.
 
 ```text
 src/

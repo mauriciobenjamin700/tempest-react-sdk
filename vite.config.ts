@@ -27,6 +27,10 @@ const LIB_ENTRIES: Record<string, string> = {
     // run in the browser. Shares the optional `onnxruntime-web`
     // peer with `vision`, externalized the same way.
     tabular: resolve(__dirname, "src/tabular/index.ts"),
+    // Neural audio — RNNoise speech/enhancement suppression run in an
+    // AudioWorklet. `@sapphi-red/web-noise-suppressor` is an optional peer;
+    // the caller serves the worklet and wasm assets and hands over their URLs.
+    neural: resolve(__dirname, "src/neural/index.ts"),
     // Vision inference (vendored ort-vision-sdk-web) — onnxruntime-web
     // is an optional peer, externalized. Entry is `public.ts`, which
     // re-exports the vendored `index.ts` plus the SDK camera/luminance
@@ -187,6 +191,9 @@ export default defineConfig({
                 "@tiptap/core",
                 "@tiptap/pm",
                 "onnxruntime-web",
+                // Optional peer for `tempest-react-sdk/neural` — the worklet
+                // module is served by the caller, the package is never bundled.
+                "@sapphi-red/web-noise-suppressor",
                 // Optional peer for the geo module's Leaflet tile layer (lazy).
                 "leaflet",
                 // `tempest-react-sdk/vite` is a Node-only config helper — keep

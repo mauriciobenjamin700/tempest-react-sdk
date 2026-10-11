@@ -13,6 +13,21 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `clear()` sem argumento continua funcionando igual. Docs PT-BR/EN em
   `docs/query.md` + `docs/query.en.md`.
 
+### Alterado
+
+- **`persistQueryClientOffline`: o handle fica encerrado depois de `clear()` (#440).** Antes, o
+  mesmo handle continuava gravando depois do `clear()`; agora `restore()`/`flush()` viram no-op e
+  mudanças no cache não são mais persistidas. **Migração:** app que guarda a `persistence` no
+  nível do módulo e a reaproveita depois do login para de persistir — crie um handle novo a cada
+  sessão (exemplo `startSession`/`endSession` em `docs/query.md`). Em build de dev, o primeiro
+  `restore()`, `flush()` ou query adicionada/atualizada num handle encerrado gera um único
+  `console.warn` (gated por `isDevBuild()`).
+- **`clear()` é ordenado entre handles da mesma `databaseName` + `key`.** Enquanto um `clear()`
+  roda, o `restore()` e as gravações de um handle novo esperam ele terminar — um logout não
+  aguardado seguido de login não hidrata mais o snapshot anterior nem tem a primeira gravação do
+  novo usuário apagada. Se o delete do IndexedDB rejeitar, `resetClient: true` limpa o
+  `QueryClient` mesmo assim e a rejeição chega a quem chamou.
+
 ### Corrigido
 
 - **`persistQueryClientOffline`: `clear()` no logout não é mais desfeito, e o cache do usuário

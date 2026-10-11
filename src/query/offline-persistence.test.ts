@@ -1,5 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setDevBuild } from "../utils/dev-mode";
 import { persistQueryClientOffline } from "./offline-persistence";
 
 function makeClient(): QueryClient {
@@ -142,8 +143,13 @@ describe("persistQueryClientOffline — throttling and teardown", () => {
 });
 
 describe("persistQueryClientOffline — clear() ends the session (#440)", () => {
+    beforeEach(() => {
+        vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    });
+
     afterEach(() => {
         vi.useRealTimers();
+        vi.restoreAllMocks();
     });
 
     async function restoreInto(dbName: string): Promise<QueryClient> {
@@ -334,5 +340,79 @@ describe("persistQueryClientOffline — clear() ends the session (#440)", () => 
 
         const next = await restoreInto(dbName);
         expect(next.getQueryData(["me"])).toBe("B");
+    });
+
+    it("a new handle's restore() waits for a clear() still running on the same key", async () => {
+        const dbName = `qc-${Math.random().toString(36).slice(2)}`;
+        const client = makeClient();
+        client.setQueryData(["me"], "A");
+        const old = persistQueryClientOffline({ queryClient: client, databaseName: dbName });
+        await old.flush();
+        client.setQueryData(["me"], "A2");
+
+        const oldWrite = old.flush();
+        const clearing = old.clear();
+        const next = makeClient();
+        const fresh = persistQueryClientOffline({ queryClient: next, databaseName: dbName });
+        await fresh.restore();
+        await Promise.all([oldWrite, clearing]);
+        fresh.unsubscribe();
+
+        expect(next.getQueryData(["me"])).toBeUndefined();
+    });
+
+    it("a pending clear() never deletes the snapshot a new handle writes meanwhile", async () => {
+        const dbName = `qc-${Math.random().toString(36).slice(2)}`;
+        const client = makeClient();
+        client.setQueryData(["me"], "A");
+        const old = persistQueryClientOffline({ queryClient: client, databaseName: dbName });
+
+        const oldWrite = old.flush();
+        const clearing = old.clear();
+        const next = makeClient();
+        next.setQueryData(["me"], "B");
+        const fresh = persistQueryClientOffline({ queryClient: next, databaseName: dbName });
+        await fresh.flush();
+        await Promise.all([oldWrite, clearing]);
+        fresh.unsubscribe();
+
+        const restored = await restoreInto(dbName);
+        expect(restored.getQueryData(["me"])).toBe("B");
+    });
+
+    it("warns once in dev when the cache keeps changing on a cleared handle", async () => {
+        const warn = vi.mocked(console.warn);
+        const client = makeClient();
+        const persistence = persistQueryClientOffline({
+            queryClient: client,
+            databaseName: `qc-${Math.random().toString(36).slice(2)}`,
+        });
+
+        await persistence.clear({ resetClient: true });
+        expect(warn).not.toHaveBeenCalled();
+        client.setQueryData(["me"], "B");
+        client.setQueryData(["me"], "B2");
+        await persistence.flush();
+        persistence.unsubscribe();
+
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(String(warn.mock.calls[0]?.[0])).toContain("persistQueryClientOffline");
+    });
+
+    it("stays silent on a cleared handle outside a dev build", async () => {
+        setDevBuild(false);
+        try {
+            const client = makeClient();
+            const persistence = persistQueryClientOffline({
+                queryClient: client,
+                databaseName: `qc-${Math.random().toString(36).slice(2)}`,
+            });
+            await persistence.clear();
+            client.setQueryData(["me"], "B");
+            await persistence.flush();
+            expect(console.warn).not.toHaveBeenCalled();
+        } finally {
+            setDevBuild(undefined);
+        }
     });
 });

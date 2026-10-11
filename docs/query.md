@@ -247,7 +247,32 @@ As gravações são throttled (`throttleMs`, default 1s) e assinam o cache. `flu
 - **Chame `persistence.clear()` no seu fluxo de logout** (ou no hook de fim de sessão do seu auth). É idempotente e pode ser chamado mais de uma vez, inclusive em paralelo.
 - **`clear({ resetClient: true })` é o logout em uma chamada**: depois de parar a persistência e apagar o snapshot, ele também faz `queryClient.clear()`, então nada do usuário anterior fica nem no disco nem em memória.
 - **Sem a opção (default `false`), o `QueryClient` em memória não é tocado** — ele é do app, que pode querer manter queries públicas (um catálogo, feature flags) e tirar só as keys do usuário com `removeQueries`. Como a persistência já parou, a ordem entre `persistence.clear()` e a sua limpeza manual não importa.
-- **Para persistir a próxima sessão**, chame `persistQueryClientOffline` de novo depois do login: o handle antigo não volta a gravar.
+- **Para persistir a próxima sessão, crie um handle novo no login**: o handle antigo não volta a gravar. Em build de dev, o primeiro `restore()`, `flush()` ou query nova num handle encerrado gera **um** `console.warn` avisando disso.
+- **Handles de sessões diferentes não se atropelam.** Enquanto um `clear()` está rodando, o `restore()` e as gravações de um handle novo com o mesmo `databaseName` + `key` esperam ele terminar — mesmo que o logout não tenha sido aguardado.
+- Se a remoção no IndexedDB falhar, `resetClient` limpa o `QueryClient` mesmo assim, e o erro chega a quem chamou.
+
+!!! warning "Mudou na 0.77.0: o handle morre no `clear()`"
+    Antes, o mesmo handle continuava gravando depois do `clear()`. Se o seu app guarda a `persistence` no nível do módulo e reaproveita depois do login, ele **para de persistir** a partir da 0.77.0. Crie o handle dentro da sessão:
+
+```ts
+import { persistQueryClientOffline, type OfflineQueryPersistence } from "tempest-react-sdk";
+import { QueryClient } from "@tanstack/react-query";
+
+const queryClient = new QueryClient();
+let persistence: OfflineQueryPersistence | null = null;
+
+export async function startSession(): Promise<void> {
+    persistence = persistQueryClientOffline({ queryClient });
+    await persistence.restore();
+}
+
+export async function endSession(): Promise<void> {
+    await persistence?.clear({ resetClient: true });
+    persistence = null;
+}
+```
+
+Chame `startSession()` no boot com usuário logado e depois de cada login; `endSession()` no logout.
 
 Dexie é peer dependency do store offline — instale (`npm i dexie`).
 

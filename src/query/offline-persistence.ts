@@ -1,5 +1,22 @@
-import { dehydrate, hydrate, type QueryClient } from "@tanstack/react-query";
+import {
+    dehydrate,
+    hydrate,
+    type QueryCacheNotifyEvent,
+    type QueryClient,
+} from "@tanstack/react-query";
 import { createOfflineStore } from "../offline/create-offline-store";
+import { isDevBuild } from "../utils/dev-mode";
+
+/**
+ * Clears still running, per `databaseName` + `key` slot, across every handle.
+ *
+ * A handle's `clear()` deletes by key with no ordering against other handles,
+ * so a new handle created on login while the previous one is still clearing
+ * could `restore()` the previous user's snapshot before the delete lands, or
+ * have its first write deleted by it. Every handle's `restore()` and writes
+ * wait for the slot's pending clear first; the entry is dropped once settled.
+ */
+const pendingClears = new Map<string, Promise<unknown>>();
 
 /** Options for {@link persistQueryClientOffline}. */
 export interface OfflineQueryPersistenceOptions {
@@ -47,12 +64,23 @@ export interface OfflineQueryPersistence {
      * End the persisted session (e.g. on logout) and delete the snapshot.
      *
      * Terminal for this handle: it cancels the pending throttled write, stops
-     * listening to the query cache, waits for any write already in flight and
-     * only then deletes the row — so neither a write pending in the last
-     * throttle window nor cache activity after logout (the next user's first
-     * query) can re-persist the previous user's responses. Afterwards
-     * `restore`/`flush` are no-ops; to persist a new session, call
-     * {@link persistQueryClientOffline} again after login.
+     * persisting cache changes, waits for any write already in flight and only
+     * then deletes the row — so neither a write pending in the last throttle
+     * window nor cache activity after logout (the next user's first query) can
+     * re-persist the previous user's responses. Afterwards `restore`/`flush`
+     * are no-ops; to persist a new session, call
+     * {@link persistQueryClientOffline} again after login. In a dev build
+     * (`isDevBuild()`), the first `restore`, `flush` or added/updated query on
+     * an ended handle logs one `console.warn` saying so, because a handle kept
+     * at module scope would otherwise stop persisting in silence.
+     *
+     * Ordered against other handles on the same `databaseName` + `key`: until
+     * this clear settles, a new handle's `restore()` and writes wait for it, so
+     * a handle created on login without awaiting the logout neither hydrates
+     * the previous snapshot nor has its first write deleted.
+     *
+     * If the delete rejects, `resetClient` still clears the client and the
+     * rejection reaches the caller.
      *
      * The in-memory `QueryClient` is cleared only with `resetClient: true`, and
      * then only after persistence has stopped, so the reset itself cannot
@@ -105,19 +133,38 @@ export function persistQueryClientOffline(
 ): OfflineQueryPersistence {
     const { queryClient, throttleMs = 1000 } = options;
     const key = options.key ?? "tanstack-query";
+    const databaseName = options.databaseName ?? "TempestQueryCache";
     const store = createOfflineStore<Snapshot, string>({
-        databaseName: options.databaseName ?? "TempestQueryCache",
+        databaseName,
         version: 1,
         tableName: "cache",
         indexes: "&id",
         keyPath: "id",
     });
 
+    const slot = `${databaseName}\u0000${key}`;
     let ended = false;
+    let warnedEnded = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const inFlight = new Set<Promise<unknown>>();
 
+    async function afterPendingClear(): Promise<void> {
+        const pending = pendingClears.get(slot);
+        if (pending) await pending;
+    }
+
+    function warnEnded(): void {
+        if (warnedEnded || !isDevBuild()) return;
+        warnedEnded = true;
+        console.warn(
+            "[tempest-react-sdk] persistQueryClientOffline: handle ended by clear(); " +
+                "create a new one after login to keep persisting.",
+        );
+    }
+
     async function save(): Promise<void> {
+        if (ended) return;
+        await afterPendingClear();
         if (ended) return;
         const write = store.put({ id: key, state: dehydrate(queryClient) });
         inFlight.add(write);
@@ -143,30 +190,61 @@ export function persistQueryClientOffline(
         }, throttleMs);
     }
 
-    const unsubscribeCache = queryClient.getQueryCache().subscribe(schedule);
-
-    function stop(): void {
-        cancelTimer();
+    function onCacheEvent(event: QueryCacheNotifyEvent): void {
+        if (!ended) {
+            schedule();
+            return;
+        }
+        if (event.type !== "added" && event.type !== "updated") return;
         unsubscribeCache();
+        warnEnded();
+    }
+
+    const unsubscribeCache = queryClient.getQueryCache().subscribe(onCacheEvent);
+
+    async function endSession(resetClient: boolean): Promise<void> {
+        try {
+            await Promise.allSettled([...inFlight]);
+            await store.delete(key);
+        } finally {
+            if (resetClient) queryClient.clear();
+        }
     }
 
     return {
         async restore() {
+            if (ended) {
+                warnEnded();
+                return;
+            }
+            await afterPendingClear();
             if (ended) return;
             const snapshot = await store.get(key);
             if (snapshot && !ended) hydrate(queryClient, snapshot.state);
         },
         async flush() {
+            if (ended) {
+                warnEnded();
+                return;
+            }
             cancelTimer();
             await save();
         },
-        unsubscribe: stop,
+        unsubscribe() {
+            cancelTimer();
+            unsubscribeCache();
+        },
         async clear(clearOptions = {}) {
             ended = true;
-            stop();
-            await Promise.allSettled([...inFlight]);
-            await store.delete(key);
-            if (clearOptions.resetClient) queryClient.clear();
+            cancelTimer();
+            const previous = pendingClears.get(slot);
+            const run = endSession(clearOptions.resetClient ?? false);
+            const settled = Promise.allSettled([previous, run]);
+            pendingClears.set(slot, settled);
+            void settled.then(() => {
+                if (pendingClears.get(slot) === settled) pendingClears.delete(slot);
+            });
+            await run;
         },
     };
 }

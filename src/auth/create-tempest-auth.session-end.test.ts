@@ -330,16 +330,7 @@ describe("createTempestAuth — onSessionEnd on account switch", () => {
         expect(auth.getToken()).toBe("B-tok-1");
     });
 
-    /**
-     * Inverted on purpose. This used to pin that `login()` waits for a
-     * `logout()` teardown still running. Review found that the same wait
-     * deadlocks when the caller is the hook itself (`onSessionEnd` awaiting
-     * `auth.api`, `auth.logout()` or `auth.login()`), and without an async
-     * context the SDK cannot tell the hook from an outside caller. A hang is
-     * worse than an overlap, so while a hook runs nothing waits on it; the
-     * documented contract is to `await auth.logout()` before `login()`.
-     */
-    it("does not wait for a teardown still running when logout() was not awaited", async () => {
+    it("installs B only after a logout() teardown still in progress finished", async () => {
         const order: string[] = [];
         let finishTeardown!: () => void;
         const auth = createTempestAuth<User>({
@@ -356,12 +347,14 @@ describe("createTempestAuth — onSessionEnd on account switch", () => {
         });
         await auth.login({ email: "a@x.test", password: "x" });
 
-        const leaving = auth.logout();
-        await auth.login({ email: "b@x.test", password: "x" });
-        order.push(`installed:${auth.getToken()}`);
+        void auth.logout();
+        const switching = auth.login({ email: "b@x.test", password: "x" });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(auth.getToken()).toBeNull();
         finishTeardown();
-        await leaving;
+        await switching;
+        order.push(`installed:${auth.getToken()}`);
 
-        expect(order).toEqual(["end:logout", "installed:B-tok-1", "end:done"]);
+        expect(order).toEqual(["end:logout", "end:done", "installed:B-tok-1"]);
     });
 });

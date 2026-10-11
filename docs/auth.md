@@ -289,8 +289,8 @@ Repare em `session.api`: quando o hook roda, o store **já foi limpo**, então `
 
 E o `unsubscribe()` do push libera a inscrição do navegador **mesmo quando o `DELETE` falha** (veja [Push → Desinscrever](./push.md#desinscrever-o-que-quase-todo-mundo-erra)). É isso que fecha o caminho automático: quando a sessão expira, o servidor já recusa o token, o `DELETE` volta 401 — e o navegador para de receber as notificações da conta anterior do mesmo jeito. O `WebPushUnsubscribeError` traz o `subscription` com o `endpoint`: o exemplo guarda para reenviar o `DELETE` quando houver sessão de novo, em vez de esperar o `404`/`410` do próximo envio.
 
-!!! warning "Dentro do hook, use `session.api` — não `auth.api`, `auth.logout()` nem `auth.login()`"
-    Quando o hook roda, o store já está vazio: `auth.api` sai sem token, e o 401 dele encerraria uma sessão que já acabou. Enquanto um hook roda, nenhuma chamada espera o teardown em andamento — se esperasse, uma chamada feita **de dentro** do hook esperaria a si mesma para sempre. `session.api` é o cliente feito para isso.
+!!! warning "Dentro do hook, use só `session.api` — nunca `auth.login()`"
+    Quando o hook roda, o store já está vazio: `auth.api` sai sem token, e o 401 dele não encerra nada (o encerramento automático e um `logout()` sem sessão não esperam o hook em andamento, justamente para uma chamada de dentro dele não esperar a si mesma). Já o `auth.login()` **sempre** espera o teardown em andamento — é o que impede a conta nova de começar enquanto a anterior ainda está sendo limpa —, então chamado de dentro do hook ele espera o próprio hook e nunca termina. O SDK não tem como distinguir o hook de quem chama de fora (o navegador não tem contexto assíncrono), então é regra documentada, não checagem. `session.api` é o cliente feito para o hook.
 
 !!! tip "Limpe aqui todo estado por usuário"
     O hook é o ponto único de teardown: o push acima, e ao lado dele qualquer outro estado que pertence à conta — o cache de queries persistido, a fila de background sync do service worker, os caches de resposta autenticada, o usuário da telemetria. Componha tudo dentro do mesmo `onSessionEnd`; cada passo independente com seu próprio `.catch`, para uma falha não pular os outros.
@@ -323,7 +323,7 @@ O hook roda **uma vez por sessão**: um segundo `logout()`, ou as outras request
 
 Por que o hook roda **antes** de instalar a conta nova: o teardown da conta anterior — limpar o cache persistido, a fila de background sync — precisa terminar antes que as requests da conta nova comecem a preenchê-los; na ordem inversa ele apagaria (ou disputaria) os dados da conta nova. O preço é um intervalo em que `isAuthenticated` é `false` enquanto o hook roda — um guard de rota pode reagir a ele, então mantenha o hook curto. Um erro do hook aqui é engolido: o login em si deu certo.
 
-Com `logout()` explícito antes, **aguarde-o**: `await auth.logout()` e só então `login()`. Um `login()` chamado enquanto o hook do `logout()` ainda roda não espera por ele (veja o aviso acima sobre chamadas de dentro do hook), e a conta nova pode começar antes de o teardown da anterior terminar.
+Um `logout()` cujo teardown ainda está em andamento é esperado do mesmo jeito: `logout()` seguido de `login()` sem `await` não instala a conta nova antes de o hook da anterior terminar — o hook que limpa o estado da conta A não corre junto com a conta B.
 
 Um `login()` cuja sessão mudou enquanto a request dele estava em voo — um `logout()` no meio, por exemplo — rejeita com `SessionSupersededError` e não instala nada.
 

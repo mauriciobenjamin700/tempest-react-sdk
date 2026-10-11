@@ -290,8 +290,8 @@ Note `session.api`: by the time the hook runs, the store **has already been clea
 
 And the push `unsubscribe()` releases the browser subscription **even when the `DELETE` fails** (see [Push → Unsubscribing](./push.en.md#unsubscribing-what-almost-everybody-gets-wrong)). That is what closes the automatic path: when the session expires, the server already refuses the token, the `DELETE` comes back 401 — and the browser stops receiving the previous account's notifications all the same. `WebPushUnsubscribeError` carries the `subscription` with its `endpoint`: the example keeps it to resend the `DELETE` once there is a session again, instead of waiting for the next send's `404`/`410`.
 
-!!! warning "Inside the hook, use `session.api` — not `auth.api`, `auth.logout()` or `auth.login()`"
-    When the hook runs the store is already empty: `auth.api` goes out with no token, and its 401 would end a session that already ended. While a hook runs, no call waits on the teardown in progress — if it did, a call made **from inside** the hook would wait on itself forever. `session.api` is the client made for this.
+!!! warning "Inside the hook, use only `session.api` — never `auth.login()`"
+    When the hook runs the store is already empty: `auth.api` goes out with no token, and its 401 ends nothing (the automatic end and a `logout()` with no session do not wait on the hook in progress, precisely so a call from inside it does not wait on itself). `auth.login()`, though, **always** waits on the teardown in progress — that is what keeps the new account from starting while the previous one is still being cleared — so called from inside the hook it waits on the hook itself and never settles. The SDK cannot tell the hook from an outside caller (the browser has no async context), so this is a documented rule, not a runtime check. `session.api` is the client made for the hook.
 
 !!! tip "Clear every per-user state here"
     The hook is the single teardown point: the push above, and next to it any other state that belongs to the account — the persisted query cache, the service worker's background-sync queue, the authenticated response caches, the telemetry user. Compose them all inside the same `onSessionEnd`, each independent step with its own `.catch`, so one failure does not skip the others.
@@ -324,7 +324,7 @@ The hook runs **once per session**: a second `logout()`, or the other requests o
 
 Why the hook runs **before** the new account is installed: the previous account's teardown — clearing the persisted cache, the background-sync queue — has to finish before the new account's requests start filling them; in the reverse order it would wipe (or race with) the new account's data. The cost is a window in which `isAuthenticated` is `false` while the hook runs — a route guard may react to it, so keep the hook short. A hook error here is swallowed: the login itself succeeded.
 
-With an explicit `logout()` first, **await it**: `await auth.logout()`, then `login()`. A `login()` called while the `logout()` hook is still running does not wait for it (see the warning above about calls from inside the hook), and the new account may start before the previous one's teardown ended.
+A `logout()` whose teardown is still running is awaited the same way: `logout()` followed by `login()` without `await` does not install the new account before the previous one's hook finished — the hook clearing account A's state never runs alongside account B.
 
 A `login()` whose session moved while its request was in flight — a `logout()` in between, for example — rejects with `SessionSupersededError` and installs nothing.
 

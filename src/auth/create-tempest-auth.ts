@@ -143,6 +143,12 @@ export interface CreateTempestAuthOptions<TUser> {
      * `isAuthenticated` is `false` while the hook runs, which a route guard may
      * act on; keep the hook short. Its error is swallowed there, since the
      * login itself succeeded.
+     *
+     * Inside the hook, reach the backend only through `session.api`. `auth.api`
+     * goes out with no token; `auth.login()` waits on the teardown in progress —
+     * this hook — and never settles. Telling the hook apart from an outside
+     * caller would need an async context the browser does not have, so this is
+     * a documented rule, not a runtime check.
      */
     onSessionEnd?: (session: TempestSessionEnd<TUser>) => void | Promise<void>;
 }
@@ -390,9 +396,8 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      * untouched. When one was live, `onSessionEnd` runs with `"switch"` before
      * the new tokens are installed — see the option for why that order. A
      * `logout()` still tearing down is awaited the same way, so the new
-     * account's state never starts before the previous one's teardown ended —
-     * unless this `login()` was called while a hook runs, which may be the hook
-     * itself.
+     * account's state never starts before the previous one's teardown ended.
+     * Never call it from inside `onSessionEnd`: it would wait on that hook.
      *
      * @param credentials - Sent as the login body.
      * @returns The user of the new session, or null.
@@ -432,9 +437,13 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      *
      * With nothing left to end, the caller waits on the teardown already under
      * way (`ending`, which never rejects, so a later no-op does not inherit an
-     * old error) — except while a hook is running: the caller may be the hook
-     * itself, through `auth.api`, `auth.logout()` or `auth.login()`, and
-     * waiting on its own teardown would never settle.
+     * old error). Two callers skip that wait while a hook is running, because
+     * they may be the hook itself and would wait on their own teardown forever:
+     * `endSession` — a hook awaiting `auth.api` goes out tokenless, gets a
+     * `401`, and lands here — and a `logout()` with no session left. `login()`
+     * (`"switch"`) always waits: the new account's state must not start while
+     * the previous one's teardown is still clearing it. A hook awaiting
+     * `auth.login()` therefore never settles — misuse the option documents.
      *
      * The returned `done` is a fresh promise derived from the hook, not the one
      * `ending` holds: a `logout()` nobody awaits still surfaces the hook's error
@@ -454,7 +463,10 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
         const live = token !== null || user !== null || readRefreshToken() !== null;
         state().logout();
         writeRefreshToken(null);
-        if (!live) return { live, done: hooksRunning > 0 ? Promise.resolve() : ending };
+        if (!live) {
+            const wait = reason === "switch" || hooksRunning === 0;
+            return { live, done: wait ? ending : Promise.resolve() };
+        }
         if (!onSessionEnd) return { live, done: Promise.resolve() };
         const sessionApi = createApiClient({
             baseURL,

@@ -50,8 +50,10 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
     sessão de B — o cliente agora lê a época de cada tentativa (`getSessionEpoch`) e o
     `onUnauthorized` recusa a tentativa de uma sessão encerrada com `SessionSupersededError`;
   - `onSessionEnd` que aguardava `auth.api` travava o `logout()` para sempre (o 401 sem token
-    encerrava a sessão de novo e esperava o próprio hook) — enquanto um hook roda, nenhuma chamada
-    espera o teardown, e só a chamada que encerrou a sessão navega para o `redirectTo`;
+    encerrava a sessão de novo e esperava o próprio hook) — enquanto um hook roda, o encerramento
+    automático e um `logout()` sem sessão não esperam o teardown, e só a chamada que encerrou a
+    sessão navega para o `redirectTo`. O `login()` continua esperando o teardown em andamento (um
+    hook que chama `auth.login()` trava: dentro do hook, use só `session.api`);
   - `logout()` sem `await` cujo hook lançava engolia o erro em silêncio — agora vira
     `unhandledrejection`;
   - request sem token que voltava 401 depois do login de B renovava e, na falha, encerrava B — agora
@@ -78,8 +80,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   conta nova instalados. Login que falha não toca a sessão anterior nem o refresh em voo dela (antes
   desta versão, a época avançava no começo do `login()`). O hook roda **antes** de instalar a conta
   nova para o teardown terminar antes de as requests dela preencherem cache e filas; o custo é
-  `isAuthenticated` em `false` enquanto ele roda. Erro do hook nesse caminho é engolido. Com
-  `logout()` explícito antes, aguarde-o: enquanto um hook roda nada espera por ele (ver abaixo).
+  `isAuthenticated` em `false` enquanto ele roda. Erro do hook nesse caminho é engolido, e um
+  `logout()` sem `await` cujo teardown ainda corre é esperado antes de instalar a conta nova.
 - **`SessionSupersededError`** (refresh ou `login()` cuja sessão foi superada antes de terminar) e
   **`WebPushUnsubscribeError`**, exportados da raiz.
 

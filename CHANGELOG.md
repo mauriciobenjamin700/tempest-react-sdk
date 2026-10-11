@@ -20,6 +20,16 @@ blob:` e o resto dos defaults — cada um mais permissivo que o `'none'` herdado
   entrando. Script inline que a política declarada bloqueia vira aviso no build, com o hash para
   colar — antes ficava liberado em silêncio. Semântica completa numa tabela em `docs/csp.md`
   (`.en.md`). Reproduzido com 5 testes em `src/vite/tempest-csp.test.ts` que falhavam na `main`.
+- **`parsePixPayload` recusa payload com duas leituras (#448).** Com CRC válido (quem monta o
+  payload recalcula), a `main` devolvia `amount: 1` para a tag `54` repetida (`1.00` e `1000.00`),
+  a primeira chave para duas subtags `01` na `26`, `kind: "static"` para uma `26` com chave e URL, e
+  lia a tag `54` com `Number()`: `1e3` → `1000`, `-1` → `-1`, `0x10` → `16`, `,5` → `NaN`. Agora
+  lança `PixError` em ID repetido na raiz (regra que o manual do BR Code do Bacen v2 cita do EMV®
+  QRCPS-MPM) e dentro das tags `26` e `62`, em `26` com `01` e `25` juntos, e em `54` fora do formato
+  EMV — só dígitos e um `.` decimal (`"98."` vale), até duas casas (unidade menor do BRL na ISO
+  4217), até 13 caracteres (Tabela 1 do manual), diferente de zero. O CRC continua obrigatório, e a
+  doc deixa de apresentá-lo como prova de autoria: ele detecta corrupção. Tabela das recusas em
+  `docs/br-pagamentos.md` (`.en.md`); 24 casos novos em `src/br/pix.test.ts`, 17 falhavam na `main`.
 
 ## [0.76.0] — 2026-10-10
 

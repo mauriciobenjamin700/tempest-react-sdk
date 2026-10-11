@@ -4,6 +4,29 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Interno
+
+- **Lockfile: `brace-expansion` 5.0.9 → 5.0.12, `fast-uri` 3.1.7 → 3.1.8 e `source-map-js`
+  1.2.1 → 1.2.2, só dependência de desenvolvimento (#450).** Bump mínimo, dentro dos ranges
+  que já estavam declarados (`npm update brace-expansion fast-uri source-map-js`): o
+  `package.json` não muda, e o lockfile muda só essas três entradas. O `npm audit fix`
+  sugerido na issue foi descartado porque arrastava junto o `@microsoft/api-extractor`
+  7.59.0 → 7.59.4 e a árvore `@microsoft/*`/`@rushstack/*` dele. O `source-map-js` (via
+  `vite` → `postcss`, `jsdom` → `css-tree` e `@vitest/coverage-v8`) não estava na issue: o
+  advisory GHSA-68fv-2mgg-jv7q saiu depois dela. Medido com `npm audit` e
+  `npm audit --omit=dev`:
+
+  | Lockfile | `npm audit`                             | `npm audit --omit=dev` |
+  | -------- | --------------------------------------- | ---------------------- |
+  | antes    | 7 (2 high, 5 moderate)                  | 0                      |
+  | depois   | 4 moderate, todos a mesma cadeia abaixo | 0                      |
+
+  O que sobra é o `sprintf-js` (GHSA-hp3w-g68c-fv3c, faixa afetada `*`: **nenhuma** versão
+  corrigida existe), puxado por `@microsoft/api-extractor` → `@rushstack/ts-command-line` →
+  `argparse@~1.0.9`. A única saída que o `npm audit fix --force` oferece é rebaixar o
+  api-extractor para 7.7.8, o que quebraria o rollup de tipos — fica registrado, sem ação, até
+  o upstream publicar correção. Nada disso chega ao consumidor.
+
 ## [0.76.0] — 2026-10-10
 
 ### Adicionado

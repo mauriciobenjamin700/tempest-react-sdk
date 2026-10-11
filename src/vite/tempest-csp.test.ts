@@ -376,14 +376,17 @@ describe("tempestCsp — an existing policy is merged, never loosened", () => {
         ]);
     });
 
-    it("replaces 'none' in connect-src once there is an origin to allow", () => {
-        const { policy } = run(
+    it("keeps a declared connect-src 'none' and warns about the origins it leaves out, where it used to replace the 'none' with them and loosen the app's policy", () => {
+        const { policy, warn } = run(
             { connect: ["https://a.test"], sockets: false },
             { html: declared("connect-src 'none'") },
         );
-        expect(policy.directives["connect-src"]).toEqual(["https://a.test"]);
+        expect(policy.directives["connect-src"]).toEqual(["'none'"]);
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(warn.mock.calls[0]![0]).toContain("https://a.test");
         const kept = run({ env: false }, { html: declared("connect-src 'none'") });
         expect(kept.policy.directives["connect-src"]).toEqual(["'none'"]);
+        expect(kept.warn).not.toHaveBeenCalled();
     });
 
     it("reads a single-quoted, entity-encoded content attribute", () => {
@@ -452,7 +455,8 @@ describe("tempestCsp — an existing policy is merged, never loosened", () => {
             { log: false, sockets: false, connect: ["https://a.test"] },
             { html: declared("default-src 'none'") },
         );
-        expect(none.policy.directives["connect-src"]).toEqual(["https://a.test"]);
+        expect(none.policy.directives).not.toHaveProperty("connect-src");
+        expect(none.warn.mock.calls[0]![0]).toContain("https://a.test");
     });
 
     it("follows the CSP3 fallback chain: worker-src inherits a declared script-src (#439)", () => {
@@ -493,6 +497,74 @@ describe("tempestCsp — an existing policy is merged, never loosened", () => {
         }
         const nonce = run({ log: false }, { html: page("script-src 'unsafe-inline' 'nonce-x'") });
         expect(nonce.warn).toHaveBeenCalledTimes(1);
+    });
+
+    it("removes a declared directive set to false in directives, since removing is the app's explicit choice", () => {
+        const { policy } = run(
+            { log: false, directives: { "img-src": false } },
+            { html: declared("default-src 'self'; img-src 'self' https://cdn.test") },
+        );
+        expect(policy.directives).not.toHaveProperty("img-src");
+    });
+
+    it("warns instead of silently dropping configured sources for a declared directive", () => {
+        const { policy, warn } = run(
+            { log: false, directives: { "img-src": ["https://tiles.test"] } },
+            { html: declared("img-src 'self'") },
+        );
+        expect(policy.directives["img-src"]).toEqual(["'self'"]);
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(warn.mock.calls[0]![0]).toContain("img-src");
+        expect(warn.mock.calls[0]![0]).toContain("https://tiles.test");
+    });
+
+    it("judges an inline <script> by a declared script-src-elem, which governs <script> elements", () => {
+        const html = declared("script-src-elem 'self'").replace(
+            "</head>",
+            "<script>console.log(1)</script></head>",
+        );
+        const { policy, warn } = run({ log: false }, { html });
+        expect(policy.directives["script-src-elem"]).toEqual(["'self'"]);
+        expect(policy.directives["script-src"]!.some((s) => s.startsWith("'sha256-"))).toBe(false);
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(warn.mock.calls[0]![0]).toContain("script-src-elem 'self'");
+    });
+
+    it.each([
+        "script-src",
+        "script-src-elem",
+        "script-src-attr",
+        "style-src",
+        "style-src-elem",
+        "style-src-attr",
+        "worker-src",
+        "child-src",
+        "frame-src",
+        "fenced-frame-src",
+        "connect-src",
+        "manifest-src",
+        "media-src",
+        "font-src",
+        "img-src",
+        "object-src",
+        "prefetch-src",
+    ])(
+        "treats %s as inherited from a declared default-src, following the CSP3 fallback chain",
+        (name) => {
+            const { policy } = run(
+                { log: false, env: false, directives: { [name]: ["https://x.test"] } },
+                { html: declared("default-src 'self'") },
+            );
+            expect(policy.directives[name]).toEqual(["'self'", "https://x.test"]);
+        },
+    );
+
+    it("does not treat frame-ancestors as inherited, since it has no fallback and only restricts when added", () => {
+        const { policy } = run(
+            { log: false, directives: { "frame-ancestors": ["'none'"] } },
+            { html: declared("default-src 'self'") },
+        );
+        expect(policy.directives["frame-ancestors"]).toEqual(["'none'"]);
     });
 
     it("refuses two CSP <meta> tags, whose intersection a merge would weaken", () => {

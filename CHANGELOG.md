@@ -6,6 +6,21 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **Revisão do #439 e do #448, cada item com teste que falhava antes da correção.**
+  `tempestCsp`: um `connect-src 'none'` declarado (ou herdado de `default-src 'none'`) não é mais
+  substituído pelas origens resolvidas; elas ficam de fora e o build lista cada uma num aviso (o teste
+  que fixava a substituição foi invertido, com o porquê no nome). Fontes em `directives` para uma
+  diretiva declarada não entram e geram aviso, em vez de sumir em silêncio; `false` em `directives`
+  agora remove a diretiva declarada. Script inline passa a ser julgado pelo `script-src-elem`
+  declarado, que é quem governa `<script>`: o hash não vai mais para um `script-src` que não decide
+  nada, e o aviso dispara. `prefetch-src` entrou na tabela de fallback, que agora cita a lista do CSP3
+  §6.8.3 e o motivo de cada entrada além dela; medido antes, a falta dele não afrouxava política
+  nenhuma — só mudava a base de `directives: { "prefetch-src": [...] }` de vazia para a herdada.
+  `pixPayload`: o valor é conferido depois do `toFixed(2)`, então `amount: 0.004` lança em vez de
+  emitir `54="0.00"`; texto fora do conjunto de caracteres comum do EMV (ASCII imprimível) lança em
+  qualquer TLV, como a chave `joão@exemplo.com` que antes entrava. `parsePixPayload` conta o tamanho
+  de cada TLV em caracteres, como o EMV define, e lê um template com texto não ASCII sem desalinhar.
+
 - **`tempestCsp` não afrouxa mais uma CSP declarada ao preencher diretivas que caíam no
   `default-src` (#439).** Com `<meta http-equiv="Content-Security-Policy" content="default-src 'none';
 style-src 'self'">` e um `<script>` inline, o build emitia `script-src 'self' 'wasm-unsafe-eval'
@@ -15,7 +30,7 @@ blob:` e o resto dos defaults — cada um mais permissivo que o `'none'` herdado
   não declarou, mas já governa pela cadeia de fallback do CSP3 §6.8.3 (`img-src` → `default-src`,
   `worker-src` → `child-src` → `script-src` → `default-src`), fica de fora e continua herdando: sem
   hash inline, sem `'wasm-unsafe-eval'`, sem `data:`/`blob:`. O `connect-src` parte do valor herdado
-  e ganha só as origens resolvidas; fontes passadas em `directives` também somam ao herdado, não aos
+  e ganha só as origens resolvidas (se o herdado é `'none'`, nada entra e o build avisa); fontes passadas em `directives` também somam ao herdado, não aos
   defaults. Default que só restringe (`object-src 'none'`, `base-uri`, `form-action`) continua
   entrando. Script inline que a política declarada bloqueia vira aviso no build, com o hash para
   colar — antes ficava liberado em silêncio. Semântica completa numa tabela em `docs/csp.md`

@@ -194,7 +194,7 @@ The CRC detects **corruption**, not **authorship**: whoever crafts a payload rec
 | a tag `26` with a key (`01`) **and** a URL (`25`) | a BR Code is static or dynamic, not both |
 | a tag `54` outside the EMV format: `1e3`, `-1`, `,5`, `0x10`, `1.005`, over 13 characters | digits and one `.` decimal mark only, up to two decimals (BRL) — what `Number()` would read as `1000`, `-1`, `NaN` or `16` |
 
-`"98"` and `"98."` still parse: EMV allows the `.` with no decimals. Zero (`"0"`, `"0.00"`) reads as `amount: 0`, because the Central Bank's BR Code manual lists `"0"` as a tag `54` example — the reader tolerates what the Bacen spec accepts. `pixPayload` still refuses a non-positive amount: what the SDK emits is its own choice.
+`"98"` and `"98."` still parse: EMV allows the `.` with no decimals. Zero (`"0"`, `"0.00"`) reads as `amount: 0`, because the Central Bank's BR Code manual lists `"0"` as a tag `54` example — the reader tolerates what the Bacen spec accepts. `pixPayload` still refuses a non-positive amount — checked **after** rounding, so `0.004` throws instead of writing `"0.00"` — and refuses text outside the EMV common character set (printable ASCII), such as a `joão@example.com` key: each TLV length counts characters, and only in that set do a character, a UTF-16 unit and a byte coincide. When reading, lengths count characters, so another PSP's template with non-ASCII text does not misalign the tags after it.
 
 ### `pixCrc16`, if you need the checksum alone
 

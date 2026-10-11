@@ -194,7 +194,7 @@ O CRC detecta **corrupção**, não **autoria**: quem monta um payload recalcula
 | tag `26` com chave (`01`) **e** URL (`25`) | o BR Code é estático ou dinâmico, não os dois |
 | tag `54` fora do formato EMV: `1e3`, `-1`, `,5`, `0x10`, `1.005`, mais de 13 caracteres | só dígitos e um `.` decimal, até duas casas (BRL) — o que `Number()` leria como `1000`, `-1`, `NaN` ou `16` |
 
-`"98"` e `"98."` continuam valendo: o EMV permite o `.` sem casas decimais. Zero (`"0"`, `"0.00"`) é lido como `amount: 0`, porque o manual do BR Code do Bacen traz `"0"` como exemplo da tag `54` — o leitor é tolerante com o que a spec do Bacen aceita. O `pixPayload` continua recusando valor não positivo: o que o SDK emite, ele escolhe.
+`"98"` e `"98."` continuam valendo: o EMV permite o `.` sem casas decimais. Zero (`"0"`, `"0.00"`) é lido como `amount: 0`, porque o manual do BR Code do Bacen traz `"0"` como exemplo da tag `54` — o leitor é tolerante com o que a spec do Bacen aceita. O `pixPayload` continua recusando valor não positivo — conferido **depois** do arredondamento, então `0.004` lança em vez de emitir `"0.00"` — e recusa texto fora do conjunto de caracteres comum do EMV (ASCII imprimível), como uma chave `joão@exemplo.com`: o tamanho de cada TLV conta caracteres, e só nesse conjunto caractere, unidade UTF-16 e byte coincidem. Na leitura, o tamanho é contado em caracteres, para um template de outro PSP com texto não ASCII não desalinhar as tags seguintes.
 
 ### `pixCrc16`, se você precisa do checksum sozinho
 

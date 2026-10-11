@@ -211,8 +211,8 @@ falls into one of these rows:
 
 | The directive in your `<meta>` | What the plugin emits | Example |
 | --- | --- | --- |
-| declared | **exactly as written**; `directives` does not touch it | `script-src 'self'` stays `script-src 'self'`, no hash, no `'wasm-unsafe-eval'` |
-| `connect-src` declared | your value **+** the resolved origins | `connect-src 'self'` → `connect-src 'self' https://api.example.com` |
+| declared | **exactly as written**; sources in `directives` for it are **not** added and become a build warning; `false` in `directives` removes it (removing is your explicit choice) | `script-src 'self'` stays `script-src 'self'`, no hash, no `'wasm-unsafe-eval'` |
+| `connect-src` declared | your value **+** the resolved origins; with `'none'` (declared or inherited from `default-src`), nothing is added and the build warns about each origin left out | `connect-src 'self'` → `connect-src 'self' https://api.example.com` |
 | not declared, but inherited through the CSP3 fallback chain (`img-src` → `default-src`; `worker-src` → `child-src` → `script-src` → `default-src`) | **nothing** — it keeps falling back to the inherited value | with `default-src 'none'`, no `img-src 'self' data: blob:` appears |
 | `connect-src` inherited | the inherited value **+** the resolved origins; nothing when there is no origin | `default-src 'self'` → `connect-src 'self' https://api.example.com` |
 | inherited, with sources in `directives` | the inherited value **+** the `directives` sources | `default-src 'self'` + `{ "img-src": ["https://tiles.example.com"] }` → `img-src 'self' https://tiles.example.com` |
@@ -223,7 +223,8 @@ falls into one of these rows:
 !!! warning "Inheriting from `default-src` turns off what the default allowed"
     With `default-src 'self'` and no `script-src`, the `'wasm-unsafe-eval'` that
     `/vision` needs and the inline-script hash are **not** added: they would loosen
-    your policy. An inline `<script>` your policy blocks becomes a **build
+    your policy. An inline `<script>` your policy blocks — judged by
+    `script-src-elem` when you declare it, since that is what governs `<script>` — becomes a **build
     warning**, with the hash ready to paste into `script-src`. If the app needs
     WebAssembly, declare the directive in the `<meta>` or pass the sources in
     `directives` — for example `directives: { "script-src": ["'wasm-unsafe-eval'"] }`.

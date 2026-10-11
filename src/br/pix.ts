@@ -247,8 +247,36 @@ function toPayloadText(value: string, field: string): string {
     return stripped;
 }
 
-/** One `ID + 2-digit length + value` triple. */
+/**
+ * The EMV "Common Character Set" that an `ans` (Alphanumeric Special) field may
+ * carry: printable ASCII, `0x20`–`0x7E`. Every root field of a BR Code is `ans`,
+ * and the BACEN BR Code manual (v2, May 2020) only widened it from alphanumeric —
+ * "The restriction that established that only alphanumeric characters could be
+ * used has been removed" — not past it. Only the alternate-language template
+ * (tag 64) is `String` and may carry another character set, and the builder
+ * never writes it.
+ */
+const COMMON_CHARACTER_SET = /^[\x20-\x7E]*$/;
+
+/**
+ * One `ID + 2-digit length + value` triple.
+ *
+ * The length is "the number of characters included in the [value] field" (EMV
+ * MPM, as restated by the HKMA Common QR Code Specification §2; the BACEN manual:
+ * "size specifies how many characters"). Inside the common character set a
+ * character is one UTF-16 unit and one UTF-8 byte, so `value.length` is exact —
+ * which is why a value outside it throws instead of being measured.
+ *
+ * @throws {PixError} When the value leaves the common character set or exceeds
+ * the two-digit length.
+ */
 function tlv(id: string, value: string): string {
+    if (!COMMON_CHARACTER_SET.test(value)) {
+        throw new PixError(
+            `Tag ${id} has characters outside the EMV common character set (printable ASCII): ` +
+                `${JSON.stringify(value)}.`,
+        );
+    }
     if (value.length > MAX_TLV_VALUE) {
         throw new PixError(
             `Tag ${id} is ${value.length} characters; the EMV length field holds at most ${MAX_TLV_VALUE}.`,
@@ -335,7 +363,12 @@ export function normalizePixKey(key: string): NormalizedPixKey {
     return { type, value: digits(trimmed) };
 }
 
-/** Format an amount the way tag 54 wants it: dot separator, two decimals. */
+/**
+ * Format an amount the way tag 54 wants it: dot separator, two decimals.
+ *
+ * Positivity is checked on the rounded field, not on the input: `0.004` is
+ * positive and still writes `"0.00"`, a zero-value QR for a positive charge.
+ */
 function toAmountField(amount: number): string {
     if (!Number.isFinite(amount)) {
         throw new PixError(`Amount must be a finite number, got ${amount}.`);
@@ -346,6 +379,11 @@ function toAmountField(amount: number): string {
         );
     }
     const field = amount.toFixed(2);
+    if (Number(field) <= 0) {
+        throw new PixError(
+            `Amount ${amount} rounds to ${field} at two decimals. Omit \`amount\` for a QR whose value the payer types.`,
+        );
+    }
     if (field.length > 13) {
         throw new PixError(`Amount ${field} does not fit tag 54, which holds 13 characters.`);
     }
@@ -487,15 +525,21 @@ export function pixPayload(input: PixInput): string {
  * repeats either. Keeping the first of two values would give the caller one
  * reading of the payload while a wallet that keeps the last pays another.
  *
+ * Lengths count characters (code points), as EMV defines them — see {@link tlv}.
+ * A payload from another PSP may carry a `String` template (tag 64, or an
+ * unreserved one) with non-ASCII text, where counting UTF-16 units would split
+ * a character and misread every tag after it.
+ *
  * @throws {PixError} When a length prefix is not two digits, runs past the end,
  * or an ID repeats at this level.
  */
-function parseTlv(input: string, where: string): PixField[] {
+function parseTlv(text: string, where: string): PixField[] {
+    const input = Array.from(text);
     const fields: PixField[] = [];
     let cursor = 0;
     while (cursor < input.length) {
-        const id = input.slice(cursor, cursor + 2);
-        const rawLength = input.slice(cursor + 2, cursor + 4);
+        const id = input.slice(cursor, cursor + 2).join("");
+        const rawLength = input.slice(cursor + 2, cursor + 4).join("");
         if (!/^\d{2}$/.test(id) || !/^\d{2}$/.test(rawLength)) {
             throw new PixError(
                 `Malformed TLV in ${where} at offset ${cursor}: expected a 2-digit tag and length.`,
@@ -513,7 +557,7 @@ function parseTlv(input: string, where: string): PixField[] {
                 `Tag ${id} in ${where} appears more than once; a BR Code carries each tag once per level.`,
             );
         }
-        fields.push({ id, value: input.slice(start, start + length) });
+        fields.push({ id, value: input.slice(start, start + length).join("") });
         cursor = start + length;
     }
     return fields;

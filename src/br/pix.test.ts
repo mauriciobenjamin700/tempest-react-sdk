@@ -607,3 +607,55 @@ describe("parsePixPayload — one reading per payload (#448)", () => {
         },
     );
 });
+
+describe("pix — what the spec says about amounts and characters (review of #448)", () => {
+    it("refuses an amount that rounds to zero at two decimals instead of emitting tag 54 = 0.00", () => {
+        expect(() =>
+            pixPayload({
+                key: "12345678909",
+                merchantName: "Loja",
+                merchantCity: "SP",
+                amount: 0.004,
+            }),
+        ).toThrow(PixError);
+        expect(
+            parsePixPayload(
+                pixPayload({
+                    key: "12345678909",
+                    merchantName: "Loja",
+                    merchantCity: "SP",
+                    amount: 0.005,
+                }),
+            ).amount,
+        ).toBe(0.01);
+    });
+
+    it("refuses a value outside the EMV common character set instead of writing a length that counts UTF-16 units", () => {
+        expect(() =>
+            pixPayload({ key: "joão@exemplo.com", merchantName: "Loja", merchantCity: "SP" }),
+        ).toThrow(/character set/i);
+        expect(() =>
+            pixPayload({ key: "a😀@exemplo.com", merchantName: "Loja", merchantCity: "SP" }),
+        ).toThrow(/character set/i);
+    });
+
+    it("counts a TLV length in characters, as EMV defines it, when a template carries non-ASCII", () => {
+        const body =
+            rawTlv("00", "01") +
+            rawTlv("26", rawTlv("00", "br.gov.bcb.pix") + rawTlv("01", "12345678909")) +
+            rawTlv("52", "0000") +
+            rawTlv("53", "986") +
+            rawTlv("58", "BR") +
+            rawTlv("59", "Loja") +
+            rawTlv("60", "SP") +
+            "6406" +
+            "0002pt" +
+            "8002😀x" +
+            rawTlv("62", rawTlv("05", "***")) +
+            "6304";
+        const data = parsePixPayload(body + pixCrc16(body));
+        expect(data.fields.find((field) => field.id === "64")?.value).toBe("0002pt");
+        expect(data.fields.find((field) => field.id === "80")?.value).toBe("😀x");
+        expect(data.txid).toBe("***");
+    });
+});

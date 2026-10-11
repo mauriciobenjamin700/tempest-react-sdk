@@ -69,7 +69,7 @@ Cache Storage is keyed by **URL** and outlives logout. Left alone, account A's `
 
 So `installRuntimeCache` enforces four rules on its own:
 
-- **A request carrying `Authorization` goes straight to the network**: the route neither reads nor writes the cache, as if the service worker did not exist for it.
+- **A request carrying a credential header goes straight to the network** — `Authorization`, `X-Api-Key`, `X-Auth-Token` and the rest of `DEFAULT_CREDENTIAL_HEADERS` (override per route with `credentialHeaders`): the route neither reads nor writes the cache, as if the service worker did not exist for it.
 - **`Cache-Control: no-store` is never stored**, and **`private`** only with the opt-in.
 - **`maxAgeSeconds` also applies to the fallback**: an expired entry is a miss, never an offline "last resort". This holds for `network-first` and `stale-while-revalidate`.
 - **Age counts from the write**, not from the `Date` header — which a CORS response does not expose, so for an API on another origin `maxAgeSeconds` never expired anything.
@@ -92,10 +92,15 @@ installRuntimeCache([
 ]);
 ```
 
-With the opt-in, every entry is stored with `Vary: Authorization`: the Cache API only returns it for the **same** bearer. Another account (or none) misses instead of reading the data. A token rotated while online simply rewrites the entry.
+With the opt-in, every entry is stored with `Vary` on each credential header the request carried (`Vary: authorization`, for example): the Cache API only returns it for the **same** credential. Another account (or none) misses instead of reading the data. A token rotated while online simply rewrites the entry.
 
-!!! note "Cookie sessions"
-    The service worker cannot see the request's `Cookie`, so it has no way to tell that a cookie-session API is personal. Send `Cache-Control: private` (or `no-store`) on personal responses — the SDK now honours it — and clear the data on logout with [`clearSessionData()`](#6-logout-clear-the-session-data).
+The revalidation that keeps going after the response — the `stale-while-revalidate` refresh and the network request that lost to `networkTimeoutSeconds` — is handed to `event.waitUntil`, so the browser does not stop the worker mid-write.
+
+!!! warning "Limit: cookie sessions"
+    The service worker **cannot see** the request's `Cookie`, so it cannot tell a cookie-session API from a public GET. Gating on `request.credentials` does not help: it would switch off caching for every same-origin image and font. For a cookie-session API, cache privacy depends on two things outside the SDK:
+
+    - the server sending `Cache-Control: private` (or `no-store`) on personal responses — the SDK honours it;
+    - the app calling [`clearSessionData()`](#6-logout-clear-the-session-data) on logout.
 
 ## 3. Background sync + periodic sync
 
@@ -122,7 +127,9 @@ await registerPeriodicSync({ registration, minIntervalMinutes: 360 });
 
 The queue lives in the `tempest-bg-sync` IndexedDB database and outlives logout. So `installBackgroundSync` **removes the credential headers** before writing — `Authorization` and the rest of `DEFAULT_CREDENTIAL_HEADERS` (`x-api-key`, `x-auth-token`, `x-csrf-token`, …). Before 0.77.0 the bearer stayed readable there after logout and the mutation was replayed with the old identity (measured in Chromium 153, 11/10/2026).
 
-On replay, the worker asks the open page for the **current** credentials, over `postMessage` (a message of type `BACKGROUND_SYNC_CREDENTIALS_MESSAGE`, with a `MessagePort` for the answer). Install the provider once, next to your auth:
+Entries written by earlier versions are scrubbed too: on the first open after the update, the database migrates and deletes their credential headers from disk. On replay the list is applied again, so no entry goes out with the credential it stored.
+
+On replay, the worker asks the open pages for the **current** credentials, over `postMessage` (a message of type `BACKGROUND_SYNC_CREDENTIALS_MESSAGE`, with a `MessagePort` for the answer). Install the provider once, next to your auth — the `--pwa` template already does it in `src/pwa.tsx`:
 
 ```ts
 import { createTempestAuth } from "tempest-react-sdk";
@@ -139,37 +146,46 @@ provideBackgroundSyncCredentials(
 );
 ```
 
-What happens to each entry:
-
-| Provider answer | Replay |
-| -- | -- |
-| headers | sent with them — only the header **names** the original request carried, so always returning `Authorization` never leaks the token to a URL that did not receive it |
-| `null` (no session) | the entry is dropped, unsent |
-| none (tab closed, no provider installed, or it threw) | stays pending until `maxRetentionMinutes` |
-
-An entry that carried no credentials — and no owner, see below — is replayed as it was, without asking.
+!!! warning "Without a provider, authenticated mutations are not replayed"
+    The queue does not keep the token, so only the page can hand it back. Without `provideBackgroundSyncCredentials`, the entry stays pending until `maxRetentionMinutes` and is gone. In development builds the worker warns in the console (once per replay).
 
 #### Every entry has an owner
 
-`getPrincipal` binds the mutation to whoever made it. Right after queueing, the worker asks the tab that issued the request who is signed in and stores a **SHA-256 fingerprint** of that id on the entry — never the id or the token. On replay it asks again:
+`getPrincipal` binds the mutation to whoever made it. Right after queueing, the worker asks the tab that issued the request who is signed in and stores a **SHA-256 fingerprint** of that id on the entry — never the id or the token. The question does not delay the `fetch` rejection; until it comes back (up to 6 s), replay keeps the entry pending.
 
-| Entry owner × current owner | Replay |
+The owner is in one of three states:
+
+| State | When | Replay |
+| -- | -- | -- |
+| **owned** | the tab answered with `getPrincipal` | only goes out with the answer of a tab where the **same** owner is signed in; none matches → dropped |
+| **unowned** | the tab answered without `getPrincipal` | any answer will do (preferring one without a principal) |
+| **unknown** | nobody answered, `getPrincipal` threw, the tab was gone, or the entry predates 0.77 | **fails closed**: only goes out with the answer of a tab without a principal; every tab has one → dropped |
+
+On replay the worker asks **every** tab in parallel, under one 3 s deadline, and uses the answer that fits — another account's tab answering first no longer drops A's mutation. Then:
+
+| Chosen answer | Replay |
 | -- | -- |
-| equal | sent with the current credentials (refreshed token included) |
-| different — including another account signed in with no `clearSessionData()` in between | **dropped, unsent**: A's mutation never goes out as B, nor anonymously |
-| entry without an owner (provider without `getPrincipal`, or the tab did not answer at queue time) | only the credential rules above |
+| headers including every stripped one | sent with them — only the header **names** the original request carried, so always returning `Authorization` never leaks the token to a URL that did not receive it |
+| headers missing a stripped one | stays pending (it does not go out anonymous to take a 401 and vanish) |
+| `null` (no session) | dropped, unsent |
+| no valid answer | stays pending until `maxRetentionMinutes` |
 
-This also covers cookie sessions: an entry with no credential header but with an owner only goes out when the owner matches. Measured in Chromium 153 (11/10/2026): A queues offline, B signs in without clearing anything, the sync fires — the server receives no POST and the entry is gone.
+An entry with no credential and no owner is replayed as it was, without asking. A provider error (`getHeaders` or `getPrincipal` throwing) comes back as an explicit `{ error: true }`, never as silence.
 
-The queue-time question does not delay the `fetch` rejection; until it comes back (up to 6 s), replay keeps the entry pending.
+Measured in Chromium 153 (11/10/2026), with a real service worker, IndexedDB and two tabs: A queues offline, B signs in without clearing anything, the sync fires — the server receives no POST; with B's tab open next to it, A's mutation goes out with A's refreshed token.
+
+There is one replay per queue: `sync`, `periodicsync` and the Safari fallback firing together share the same pass, so a mutation is never sent twice. And `clearBackgroundSyncQueue()` reaches work in flight: each entry is checked against the database right before it goes out, and a request still failing when the queue was cleared is not written afterwards.
 
 Outside that path, `installBackgroundSync` has two knobs:
 
-- **`credentialHeaders`** — the list of headers removed. For a custom one: `[...DEFAULT_CREDENTIAL_HEADERS, "x-tenant-key"]`.
-- **`beforeReplay(request, { queuedAt, strippedHeaders, owner })`** — replaces the request to the page: return the `Request` to send, `null` to drop, or throw to keep it pending. Useful when the worker can get the credential by itself; `owner` lets it apply the same owner rule.
+- **`credentialHeaders`** — the list of headers removed. For a custom one: `[...DEFAULT_CREDENTIAL_HEADERS, "x-tenant-key"]`. The provider must return all of them.
+- **`beforeReplay(request, { queuedAt, strippedHeaders, ownerState, owner })`** — replaces the request to the pages: return the `Request` to send, `null` to drop, or throw to keep it pending. Useful when the worker can get the credential by itself; `ownerState`/`owner` let it apply the same owner rule.
+
+!!! warning "Limit: credentials in the URL or the body"
+    Only **headers** leave the queue. A token in the query string (`?access_token=…`) or inside the mutation body is stored as sent. Send credentials in a header.
 
 !!! warning "`credentialHeaders: []` brings the old behavior back"
-    With an empty list, every header — bearer included — goes to IndexedDB in plain text. It is an explicit choice, for apps with no open page at replay time that accept the risk.
+    With an empty list, every header — bearer included — goes to IndexedDB in plain text and is replayed as stored. It is an explicit choice, for apps with no open page at replay time that accept the risk.
 
 ## 4. Durability: request persistent storage
 

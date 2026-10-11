@@ -16,12 +16,18 @@ import {
  *  1. Push + notifications + skip-waiting (the SDK push helpers).
  *  2. Background sync — failed POST/PUT/PATCH/DELETE to `/api` are queued and
  *     replayed online. Credential headers are never stored; on replay the
- *     worker asks the page for the current ones (`provideBackgroundSyncCredentials`
- *     in the page, next to your auth).
- *  3. Runtime caching: API GETs (network-first) + media (cache-first with
- *     Range support, so audio/video seeking works offline). Requests carrying
- *     `Authorization` bypass the cache unless the route sets
- *     `cacheAuthenticated: true`.
+ *     worker asks the open pages for the current ones and for who is signed in,
+ *     which `src/pwa.tsx` answers from the auth store
+ *     (`provideBackgroundSyncCredentials`). Remove that and queued
+ *     authenticated mutations never replay.
+ *  3. Runtime caching: unauthenticated API GETs (network-first) + media
+ *     (cache-first with Range support, so audio/video seeking works offline).
+ *     Every request the API client sends with a bearer (`Authorization`, or any
+ *     other credential header) bypasses this cache and goes to the network: in
+ *     an app with accounts, most `/api` GETs. To serve them offline, add
+ *     `cacheAuthenticated: true` to the route — entries then vary on the
+ *     credential, so another account never reads them — and keep
+ *     `clearSessionData()` in the logout flow.
  *  4. Precache of the app shell so the app launches offline (API navigations
  *     excluded). Reads the `precache-manifest.json` emitted by
  *     `tempestPwaManifest()` in `vite.config.ts`.

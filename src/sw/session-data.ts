@@ -19,7 +19,7 @@ export interface ClearSessionDataOptions {
 export interface ClearSessionDataResult {
     /** Names of the Cache Storage buckets deleted. */
     caches: string[];
-    /** Whether the background-sync queue database was deleted. */
+    /** Whether the background-sync queue was emptied. */
     queueCleared: boolean;
 }
 

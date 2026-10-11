@@ -26,9 +26,11 @@ afterEach(() => {
 
 function countQueue(name: string): Promise<number> {
     return new Promise((resolve) => {
-        const open = indexedDB.open(name, 1);
-        open.onupgradeneeded = () =>
-            open.result.createObjectStore("requests", { keyPath: "id", autoIncrement: true });
+        const open = indexedDB.open(name);
+        open.onupgradeneeded = () => {
+            if (!open.result.objectStoreNames.contains("requests"))
+                open.result.createObjectStore("requests", { keyPath: "id", autoIncrement: true });
+        };
         open.onsuccess = () => {
             const db = open.result;
             const req = db.transaction("requests").objectStore("requests").count();

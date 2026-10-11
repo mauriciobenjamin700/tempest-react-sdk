@@ -43,9 +43,36 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `BACKGROUND_SYNC_CREDENTIALS_MESSAGE` e os tipos `BackgroundSyncReplayContext`,
   `BackgroundSyncCredentialsRequest`, `BackgroundSyncCredentialsProvider`,
   `ClearSessionDataOptions`, `ClearSessionDataResult`.
-- **`RuntimeRoute.cacheAuthenticated`**.
+- **`RuntimeRoute.cacheAuthenticated`** e **`RuntimeRoute.credentialHeaders`**; tipo `BackgroundSyncOwnerState`.
 
 ### Corrigido
+
+- **Revisão da fila de background sync** (#444), cada item com teste que falhava antes:
+  - **Entrada gravada antes do fix** (bearer em texto puro) não é mais reenviada como estava: o banco
+    sobe para a versão 2 e a migração apaga os headers de credencial do disco na primeira abertura; o
+    replay aplica a lista de novo. Medido no Chromium 153: antes saía `Bearer OLD-0.76`, agora nada.
+  - **Dono que não pôde ser registrado falha fechado.** Sem resposta, erro, aba sumida ou entrada
+    legada viram `ownerState: "unknown"`, que só sai com resposta de aba sem principal. Antes a entrada
+    ficava sem dono e saía com o token de quem logasse depois (medido: `Bearer B`; agora nada).
+    `getPrincipal`/`getHeaders` que lançam respondem `{ error: true }` em vez de fechar a porta.
+  - **Várias abas:** o worker pergunta a todas em paralelo, com um prazo único, e usa a resposta cujo
+    dono bate — antes a primeira aba (de outra conta) descartava a mutação.
+  - **Resposta sem um header removido mantém a entrada pendente**, em vez de sair anônima e sumir no 401.
+  - **Replay single-flight** por fila: `sync`, `periodicsync` e o fallback do Safari juntos não enviam
+    a mesma mutação duas vezes (bug anterior a esta versão).
+  - **`clearBackgroundSyncQueue()` alcança o que está em voo**: o replay confere cada entrada no banco
+    antes de enviar, e uma requisição que falha depois da limpeza não é gravada (época no store `meta`).
+    Passa a esvaziar a fila em vez de apagar o banco.
+  - Em build de desenvolvimento, aviso no console quando nenhuma página responde por uma credencial.
+- **Runtime cache:** o gate de requisição autenticada usa a lista de headers de credencial
+  (`RuntimeRoute.credentialHeaders`, default `DEFAULT_CREDENTIAL_HEADERS`), não só `Authorization`, e o
+  opt-in faz `Vary` em cada um. A revalidação do `stale-while-revalidate` e a rede que perdeu para o
+  `networkTimeoutSeconds` vão para `event.waitUntil`.
+- **Template PWA:** `src/pwa.tsx` instala `provideBackgroundSyncCredentials` a partir de `@/stores/auth`
+  (com `getPrincipal`); o comentário do `sw.ts` explica que GET com bearer não entra no cache sem
+  `cacheAuthenticated`.
+- **Doc:** limites explícitos — sessão por cookie depende de `Cache-Control` do servidor e de
+  `clearSessionData()`; credencial na URL ou no corpo é gravada como foi enviada.
 
 - **`maxAgeSeconds` não vencia nada numa API de outra origem.** A idade vinha do header `Date`, que
   resposta CORS não expõe (medido: `headers.get("date")` → `null` cross-origin). A entrada agora

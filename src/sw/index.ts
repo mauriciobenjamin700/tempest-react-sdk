@@ -19,7 +19,6 @@ export { installPrecache, installRuntimeCache, createPartialResponse } from "./c
 export type { InstallPrecacheOptions, RuntimeRoute, RuntimeStrategy } from "./cache";
 export {
     BACKGROUND_SYNC_CREDENTIALS_MESSAGE,
-    DEFAULT_CREDENTIAL_HEADERS,
     clearBackgroundSyncQueue,
     installBackgroundSync,
     provideBackgroundSyncCredentials,
@@ -27,6 +26,7 @@ export {
 export type {
     BackgroundSyncCredentialsProvider,
     BackgroundSyncCredentialsRequest,
+    BackgroundSyncOwnerState,
     BackgroundSyncReplayContext,
     InstallBackgroundSyncOptions,
     ProvideBackgroundSyncCredentialsOptions,
@@ -35,5 +35,6 @@ export { registerPeriodicSync } from "./periodic-sync";
 export type { RegisterPeriodicSyncOptions } from "./periodic-sync";
 export { inspectCaches, clearCaches } from "./cache-inspect";
 export type { CacheFilter, CacheReport } from "./cache-inspect";
+export { DEFAULT_CREDENTIAL_HEADERS } from "./credential-headers";
 export { clearSessionData } from "./session-data";
 export type { ClearSessionDataOptions, ClearSessionDataResult } from "./session-data";

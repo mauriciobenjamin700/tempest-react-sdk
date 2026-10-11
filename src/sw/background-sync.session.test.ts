@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setDevBuild } from "../utils/dev-mode";
+import { DEFAULT_CREDENTIAL_HEADERS } from "./credential-headers";
 import {
     BACKGROUND_SYNC_CREDENTIALS_MESSAGE,
-    DEFAULT_CREDENTIAL_HEADERS,
     clearBackgroundSyncQueue,
     installBackgroundSync,
     provideBackgroundSyncCredentials,
@@ -15,7 +16,7 @@ interface StoredEntry {
     credentials?: RequestCredentials;
     strippedHeaders?: string[];
     owner?: string | null;
-    ownerPending?: boolean;
+    ownerState?: string;
 }
 
 interface FakeClient {
@@ -82,9 +83,11 @@ function nextQueue(): string {
 
 function readQueue(name: string): Promise<StoredEntry[]> {
     return new Promise((resolve, reject) => {
-        const open = indexedDB.open(name, 1);
-        open.onupgradeneeded = () =>
-            open.result.createObjectStore("requests", { keyPath: "id", autoIncrement: true });
+        const open = indexedDB.open(name);
+        open.onupgradeneeded = () => {
+            if (!open.result.objectStoreNames.contains("requests"))
+                open.result.createObjectStore("requests", { keyPath: "id", autoIncrement: true });
+        };
         open.onsuccess = () => {
             const db = open.result;
             const req = db.transaction("requests", "readonly").objectStore("requests").getAll();
@@ -119,14 +122,14 @@ async function fireSync(queue: string): Promise<void> {
     await drained?.catch(() => undefined);
 }
 
-function postAs(token: string): Request {
+function postAs(token: string, extra: Record<string, string> = {}): Request {
     return new Request("https://app.test/api/items", {
         method: "POST",
         body: '{"x":1}',
         headers: {
             Authorization: `Bearer ${token}`,
-            "X-Api-Key": "k",
             "Content-Type": "application/json",
+            ...extra,
         },
     });
 }
@@ -143,7 +146,7 @@ describe("installBackgroundSync — credentials never reach IndexedDB (#444)", (
     it("strips Authorization and the other credential headers before persisting", async () => {
         const queue = nextQueue();
         installBackgroundSync({ queueName: queue });
-        await failOffline(postAs("A"));
+        await failOffline(postAs("A", { "X-Api-Key": "k" }));
 
         const [entry] = await readQueue(queue);
         const names = entry?.headers.map(([name]) => name.toLowerCase());
@@ -303,7 +306,9 @@ describe("installBackgroundSync — replay re-applies the current credentials", 
         await fireSync(queue);
         expect(beforeReplay.mock.calls[0]?.[1]).toEqual({
             queuedAt: expect.any(Number),
-            strippedHeaders: ["authorization", "x-api-key"],
+            strippedHeaders: ["authorization"],
+            ownerState: "unknown",
+            owner: undefined,
         });
         expect(fetchMock).toHaveBeenCalledTimes(1);
         expect((fetchMock.mock.calls[0]?.[0] as Request).headers.get("authorization")).toBe(
@@ -330,12 +335,12 @@ describe("clearBackgroundSyncQueue", () => {
         vi.unstubAllGlobals();
     });
 
-    it("rejects when the deletion fails", async () => {
+    it("rejects when the queue database cannot be opened", async () => {
         const request: { onsuccess?: () => void; onerror?: () => void; error: Error } = {
             error: new Error("denied"),
         };
         vi.stubGlobal("indexedDB", {
-            deleteDatabase: () => {
+            open: () => {
                 queueMicrotask(() => request.onerror?.());
                 return request;
             },
@@ -388,13 +393,18 @@ describe("provideBackgroundSyncCredentials", () => {
         ).toEqual({ headers: null });
     });
 
-    it("stays silent when the provider throws, so the entry stays pending", async () => {
+    it("answers an explicit error when the provider throws, instead of going silent", async () => {
+        /**
+         * Rewritten on purpose (review item 2): this test used to expect silence.
+         * Silence costs the worker the full timeout and cannot be told apart from a
+         * page without a provider; an explicit error keeps the entry pending at once.
+         */
         provideBackgroundSyncCredentials(() => {
             throw new Error("store not ready");
         });
         expect(
             await ask({ type: BACKGROUND_SYNC_CREDENTIALS_MESSAGE, url: "u", method: "POST" }),
-        ).toBe("no-answer");
+        ).toEqual({ error: true });
     });
 
     it("ignores other messages and stops answering once removed", async () => {
@@ -525,7 +535,7 @@ describe("installBackgroundSync — entries are bound to their owner", () => {
         expect(fetchMock).toHaveBeenCalledTimes(2);
     });
 
-    it("waits while the owner is still being stamped, then treats a lost stamp as unbound", async () => {
+    it("waits while the owner is still being stamped, then treats a lost stamp as unknown", async () => {
         const queue = nextQueue();
         installBackgroundSync({ queueName: queue });
         let port: MessagePort | undefined;
@@ -545,7 +555,7 @@ describe("installBackgroundSync — entries are bound to their owner", () => {
             waitUntil: (p: Promise<unknown>) => extended.push(p),
         });
         await produced?.catch(() => undefined);
-        expect((await readQueue(queue))[0]).toMatchObject({ ownerPending: true });
+        expect((await readQueue(queue))[0]).toMatchObject({ ownerState: "pending" });
 
         fetchMock.mockClear();
         fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
@@ -569,7 +579,7 @@ describe("installBackgroundSync — entries are bound to their owner", () => {
         await failOffline(postAs("A"), "tab");
         const [entry] = await readQueue(queue);
         expect(entry).not.toHaveProperty("owner");
-        expect(entry).not.toHaveProperty("ownerPending");
+        expect(entry).toMatchObject({ ownerState: "unbound" });
     });
 
     it("answers the enqueue question with the owner only, without reading the token", async () => {
@@ -595,5 +605,260 @@ describe("installBackgroundSync — entries are bound to their owner", () => {
         expect(await answer).toEqual({ headers: null, owner: null });
         expect(getHeaders).not.toHaveBeenCalled();
         channel.port1.close();
+    });
+});
+
+interface FakePage extends FakeClient {
+    signIn(principal: string | null, token: string | null): void;
+}
+
+/**
+ * A window client with its own `navigator.serviceWorker` and a real provider,
+ * so several tabs signed in as different people can answer the worker.
+ */
+function fakePage(principal: string | null, token: string | null, withPrincipal = true): FakePage {
+    const container = new EventTarget();
+    const state = { principal, token };
+    vi.stubGlobal("navigator", { serviceWorker: container });
+    provideBackgroundSyncCredentials(
+        () => (state.token ? { Authorization: `Bearer ${state.token}` } : null),
+        withPrincipal ? { getPrincipal: () => state.principal } : {},
+    );
+    vi.unstubAllGlobals();
+    return {
+        postMessage: vi.fn((data: unknown, transfer: MessagePort[]) => {
+            container.dispatchEvent(new MessageEvent("message", { data, ports: transfer }));
+        }),
+        signIn(nextPrincipal: string | null, nextToken: string | null) {
+            state.principal = nextPrincipal;
+            state.token = nextToken;
+        },
+    };
+}
+
+function writeLegacyEntry(name: string, entry: Record<string, unknown>): Promise<void> {
+    return new Promise((resolve, reject) => {
+        const open = indexedDB.open(name, 1);
+        open.onupgradeneeded = () =>
+            open.result.createObjectStore("requests", { keyPath: "id", autoIncrement: true });
+        open.onsuccess = () => {
+            const db = open.result;
+            const tx = db.transaction("requests", "readwrite");
+            tx.objectStore("requests").add(entry);
+            tx.oncomplete = () => {
+                db.close();
+                resolve();
+            };
+            tx.onerror = () => reject(tx.error);
+        };
+        open.onerror = () => reject(open.error);
+    });
+}
+
+function sentAuthorizations(): (string | null)[] {
+    return fetchMock.mock.calls.map(([request]) =>
+        (request as Request).headers.get("authorization"),
+    );
+}
+
+describe("background sync — review findings", () => {
+    afterEach(() => setDevBuild(undefined));
+
+    it("1: never replays the plaintext bearer of an entry queued before the fix", async () => {
+        const queue = nextQueue();
+        await writeLegacyEntry(queue, {
+            url: "https://app.test/api/legacy",
+            method: "POST",
+            headers: [
+                ["authorization", "Bearer OLD"],
+                ["content-type", "application/json"],
+            ],
+            body: null,
+            timestamp: Date.now(),
+        });
+        installBackgroundSync({ queueName: queue });
+        windowClients = [fakePage("user-b", "B")];
+        fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+        await fireSync(queue);
+
+        expect(sentAuthorizations()).not.toContain("Bearer OLD");
+        expect(JSON.stringify(await readQueue(queue))).not.toContain("Bearer OLD");
+    });
+
+    it("1: re-applies the current token to a legacy entry when the page has no principal", async () => {
+        const queue = nextQueue();
+        await writeLegacyEntry(queue, {
+            url: "https://app.test/api/legacy",
+            method: "POST",
+            headers: [["authorization", "Bearer OLD"]],
+            body: null,
+            timestamp: Date.now(),
+        });
+        installBackgroundSync({ queueName: queue });
+        windowClients = [fakePage(null, "NOW", false)];
+        fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+        await fireSync(queue);
+        expect(sentAuthorizations()).toEqual(["Bearer NOW"]);
+    });
+
+    it("2: an owner that could not be stamped fails closed instead of taking the next account's token", async () => {
+        const queue = nextQueue();
+        installBackgroundSync({ queueName: queue });
+        issuers = { tab: answeringClient("garbage") };
+        await failOffline(postAs("A"), "tab");
+
+        windowClients = [fakePage("user-b", "B")];
+        fetchMock.mockClear();
+        fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+        await fireSync(queue);
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(await readQueue(queue)).toEqual([]);
+    });
+
+    it("2: an issuing tab the worker cannot find leaves the owner unknown, not unbound", async () => {
+        const queue = nextQueue();
+        installBackgroundSync({ queueName: queue });
+        await failOffline(postAs("A"), "gone");
+
+        windowClients = [fakePage("user-b", "B")];
+        fetchMock.mockClear();
+        await fireSync(queue);
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("2: a getPrincipal that throws answers an explicit error instead of closing the port", async () => {
+        const container = new EventTarget();
+        vi.stubGlobal("navigator", { serviceWorker: container });
+        provideBackgroundSyncCredentials(() => null, {
+            getPrincipal: () => {
+                throw new Error("store not hydrated");
+            },
+        });
+        const channel = new MessageChannel();
+        const answer = new Promise<unknown>((resolve) => {
+            channel.port1.onmessage = (event: MessageEvent) => resolve(event.data);
+            setTimeout(() => resolve("silence"), 50);
+        });
+        container.dispatchEvent(
+            new MessageEvent("message", {
+                data: {
+                    type: BACKGROUND_SYNC_CREDENTIALS_MESSAGE,
+                    url: "u",
+                    method: "POST",
+                    phase: "enqueue",
+                },
+                ports: [channel.port2],
+            }),
+        );
+        expect(await answer).toEqual({ error: true });
+        channel.port1.close();
+        vi.unstubAllGlobals();
+    });
+
+    it("3: finds the owner's tab even when another account's tab answers first", async () => {
+        const queue = nextQueue();
+        installBackgroundSync({ queueName: queue });
+        const tabA = fakePage("user-a", "A");
+        issuers = { tab: tabA };
+        await failOffline(postAs("A"), "tab");
+
+        windowClients = [fakePage("user-b", "B"), tabA];
+        fetchMock.mockClear();
+        fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+        await fireSync(queue);
+        expect(sentAuthorizations()).toEqual(["Bearer A"]);
+    });
+
+    it("3: asks every tab in parallel under one shared deadline", async () => {
+        const queue = nextQueue();
+        installBackgroundSync({ queueName: queue });
+        await failOffline(postAs("A"));
+        fetchMock.mockClear();
+
+        vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+        windowClients = [{ postMessage: vi.fn() }, { postMessage: vi.fn() }];
+        let drained: Promise<unknown> | undefined;
+        listeners.sync[0]?.({ tag: queue, waitUntil: (p: Promise<unknown>) => (drained = p) });
+        let settled = false;
+        void (drained as Promise<unknown>).catch(() => undefined).then(() => (settled = true));
+        await vi.waitFor(() => expect(windowClients[1]?.postMessage).toHaveBeenCalled());
+        await vi.advanceTimersByTimeAsync(3000);
+        await vi.waitFor(() => expect(settled).toBe(true));
+    });
+
+    it("5: concurrent triggers share one replay, so a mutation is never sent twice", async () => {
+        const queue = nextQueue();
+        installBackgroundSync({ queueName: queue });
+        await failOffline(new Request("https://app.test/api/once", { method: "POST", body: "x" }));
+        fetchMock.mockClear();
+        let release: (response: Response) => void = () => undefined;
+        fetchMock.mockImplementation(() => new Promise<Response>((resolve) => (release = resolve)));
+
+        const runs: Promise<unknown>[] = [];
+        for (let i = 0; i < 2; i += 1) {
+            listeners.sync[0]?.({ tag: queue, waitUntil: (p: Promise<unknown>) => runs.push(p) });
+        }
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+        release(new Response(null, { status: 200 }));
+        await Promise.allSettled(runs);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("6: a queue cleared mid-replay stops the replay before the next send", async () => {
+        const queue = nextQueue();
+        const beforeReplay = vi.fn(async (request: Request) => {
+            await clearBackgroundSyncQueue(queue);
+            return request;
+        });
+        installBackgroundSync({ queueName: queue, beforeReplay });
+        await failOffline(new Request("https://app.test/api/a", { method: "POST", body: "x" }));
+        fetchMock.mockClear();
+        fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+        await fireSync(queue);
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("6: a request that fails after the queue was cleared is not queued", async () => {
+        const queue = nextQueue();
+        installBackgroundSync({ queueName: queue });
+        let fail: (error: Error) => void = () => undefined;
+        fetchMock.mockImplementationOnce(
+            () => new Promise<Response>((_, reject) => (fail = reject)),
+        );
+        let produced: Promise<Response> | undefined;
+        listeners.fetch[0]?.({
+            request: new Request("https://app.test/api/late", { method: "POST", body: "x" }),
+            respondWith: (r: Promise<Response>) => (produced = r),
+            waitUntil: (p: Promise<unknown>) => extended.push(p),
+        });
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        await clearBackgroundSyncQueue(queue);
+        fail(new Error("offline"));
+        await produced?.catch(() => undefined);
+        await Promise.all(extended);
+        expect(await readQueue(queue)).toEqual([]);
+    });
+
+    it("8: keeps the entry pending when the page's answer lacks a stripped header", async () => {
+        const queue = nextQueue();
+        installBackgroundSync({ queueName: queue });
+        await failOffline(postAs("A", { "X-Api-Key": "k" }));
+        windowClients = [answeringClient({ headers: { Authorization: "Bearer NOW" } })];
+        fetchMock.mockClear();
+        await fireSync(queue);
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(await readQueue(queue)).toHaveLength(1);
+    });
+
+    it("10: warns in development when no page answers for a queued credential", async () => {
+        setDevBuild(true);
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+        const queue = nextQueue();
+        installBackgroundSync({ queueName: queue });
+        await failOffline(postAs("A"));
+        await failOffline(postAs("A"));
+        await fireSync(queue);
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(String(warn.mock.calls[0]?.[0])).toContain("provideBackgroundSyncCredentials");
     });
 });

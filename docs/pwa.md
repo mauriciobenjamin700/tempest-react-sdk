@@ -69,7 +69,7 @@ O Cache Storage guarda por **URL** e sobrevive ao logout. Sem cuidado, o `GET /a
 
 Por isso o `installRuntimeCache` aplica quatro regras sozinho:
 
-- **Requisição com `Authorization` passa direto para a rede**: a rota não lê nem grava o cache, como se o service worker não existisse para ela.
+- **Requisição com header de credencial passa direto para a rede** — `Authorization`, `X-Api-Key`, `X-Auth-Token` e o resto de `DEFAULT_CREDENTIAL_HEADERS` (troque por rota com `credentialHeaders`): a rota não lê nem grava o cache, como se o service worker não existisse para ela.
 - **`Cache-Control: no-store` nunca é gravado**, e **`private`** só com opt-in.
 - **`maxAgeSeconds` vale também no fallback**: entrada vencida é miss, nunca "último recurso" offline. Isso vale para `network-first` e `stale-while-revalidate`.
 - **A idade conta da gravação**, não do header `Date` — que não é exposto em resposta CORS, então numa API em outra origem o `maxAgeSeconds` nunca vencia nada.
@@ -92,10 +92,15 @@ installRuntimeCache([
 ]);
 ```
 
-Com o opt-in, cada entrada é gravada com `Vary: Authorization`: o Cache API só a devolve para o **mesmo** bearer. Outra conta (ou nenhuma) erra o cache em vez de ler o dado. Um token renovado online simplesmente regrava a entrada.
+Com o opt-in, cada entrada é gravada com `Vary` em cada header de credencial que a requisição levou (`Vary: authorization`, por exemplo): o Cache API só a devolve para a **mesma** credencial. Outra conta (ou nenhuma) erra o cache em vez de ler o dado. Um token renovado online simplesmente regrava a entrada.
 
-!!! note "Sessão por cookie"
-    O service worker não enxerga o `Cookie` da requisição, então não tem como saber que uma API com sessão por cookie é pessoal. Mande `Cache-Control: private` (ou `no-store`) nas respostas pessoais — agora o SDK respeita — e limpe os dados no logout com [`clearSessionData()`](#6-logout-apague-os-dados-da-sessao).
+A revalidação que continua depois da resposta — o refresh do `stale-while-revalidate` e a rede que perdeu para o `networkTimeoutSeconds` — vai para o `event.waitUntil`, então o navegador não derruba o worker no meio da gravação.
+
+!!! warning "Limite: sessão por cookie"
+    O service worker **não enxerga** o `Cookie` da requisição, então não distingue uma API com sessão por cookie de um GET público. Bloquear por `request.credentials` não resolve: desligaria o cache de toda imagem e fonte da mesma origem. Numa API com sessão por cookie, a privacidade do cache depende de duas coisas fora do SDK:
+
+    - o servidor mandar `Cache-Control: private` (ou `no-store`) nas respostas pessoais — o SDK respeita;
+    - o app chamar [`clearSessionData()`](#6-logout-apague-os-dados-da-sessao) no logout.
 
 ## 3. Background sync + periodic sync
 
@@ -122,7 +127,9 @@ await registerPeriodicSync({ registration, minIntervalMinutes: 360 });
 
 A fila vive no IndexedDB `tempest-bg-sync` e sobrevive ao logout. Por isso o `installBackgroundSync` **remove os headers de credencial** antes de gravar — `Authorization` e o resto de `DEFAULT_CREDENTIAL_HEADERS` (`x-api-key`, `x-auth-token`, `x-csrf-token`, …). Antes da 0.77.0 o bearer ficava legível ali depois do logout e a mutação era reenviada com a identidade antiga (medido no Chromium 153, 11/10/2026).
 
-No replay, o worker pede a credencial **atual** à página aberta, por `postMessage` (mensagem do tipo `BACKGROUND_SYNC_CREDENTIALS_MESSAGE`, com um `MessagePort` para a resposta). Instale o provedor uma vez, ao lado do seu auth:
+Entradas gravadas por versões anteriores também são limpas: na primeira abertura depois da atualização, o banco migra e apaga os headers de credencial do disco. No replay, a lista é aplicada de novo, então nenhuma entrada sai com a credencial que guardou.
+
+No replay, o worker pede a credencial **atual** às páginas abertas, por `postMessage` (mensagem do tipo `BACKGROUND_SYNC_CREDENTIALS_MESSAGE`, com um `MessagePort` para a resposta). Instale o provedor uma vez, ao lado do seu auth — o template `--pwa` já faz isso em `src/pwa.tsx`:
 
 ```ts
 import { createTempestAuth } from "tempest-react-sdk";
@@ -139,37 +146,46 @@ provideBackgroundSyncCredentials(
 );
 ```
 
-O que acontece com cada entrada:
-
-| Resposta do provedor | Replay |
-| -- | -- |
-| headers | reenvia com eles — só os **nomes** que a requisição original tinha, então devolver `Authorization` sempre não vaza o token para uma URL que não o recebia |
-| `null` (sem sessão) | descarta a entrada, sem enviar |
-| nenhuma (aba fechada, provedor não instalado ou que lançou) | fica pendente até `maxRetentionMinutes` |
-
-Entrada que não tinha credencial nenhuma — nem dono, veja abaixo — é reenviada como estava, sem perguntar.
+!!! warning "Sem provedor, a mutação autenticada não é reenviada"
+    A fila não guarda o token, então só a página pode devolvê-lo. Sem `provideBackgroundSyncCredentials`, a entrada fica pendente até `maxRetentionMinutes` e some. Em build de desenvolvimento o worker avisa no console (uma vez por replay).
 
 #### Cada entrada tem dono
 
-O `getPrincipal` amarra a mutação a quem a fez. Logo depois de enfileirar, o worker pergunta à aba que disparou a requisição quem está logado e grava na entrada uma **impressão SHA-256** desse id — nunca o id nem o token. No replay, pergunta de novo:
+O `getPrincipal` amarra a mutação a quem a fez. Logo depois de enfileirar, o worker pergunta à aba que disparou a requisição quem está logado e grava na entrada uma **impressão SHA-256** desse id — nunca o id nem o token. A pergunta não atrasa a rejeição do `fetch`; enquanto ela não volta (até 6 s), o replay deixa a entrada pendente.
 
-| Dono da entrada × dono atual | Replay |
+O dono fica em um de três estados:
+
+| Estado | Quando | Replay |
+| -- | -- | -- |
+| **com dono** | a aba respondeu com `getPrincipal` | só sai com a resposta de uma aba em que o **mesmo** dono está logado; nenhuma bate → descarta |
+| **sem dono** | a aba respondeu sem `getPrincipal` | qualquer resposta serve (prefere uma sem principal) |
+| **desconhecido** | ninguém respondeu, `getPrincipal` lançou, a aba sumiu, ou a entrada é de antes da 0.77 | **falha fechado**: só sai com a resposta de uma aba sem principal; se toda aba tem um, descarta |
+
+No replay o worker pergunta a **todas** as abas em paralelo, com um único prazo de 3 s, e usa a resposta que serve — uma aba de outra conta respondendo primeiro não derruba a mutação de A. Depois:
+
+| Resposta escolhida | Replay |
 | -- | -- |
-| iguais | reenvia com a credencial atual (token renovado incluso) |
-| diferentes — inclusive outra conta logada sem `clearSessionData()` no meio | **descarta, sem enviar**: mutação de A nunca sai como B, nem anônima |
-| entrada sem dono (provedor sem `getPrincipal`, ou a aba não respondeu ao enfileirar) | só as regras de credencial acima |
+| headers com todos os que foram removidos | reenvia com eles — só os **nomes** que a requisição original tinha, então devolver `Authorization` sempre não vaza o token para uma URL que não o recebia |
+| headers sem algum que foi removido | fica pendente (não sai anônima para levar 401 e sumir) |
+| `null` (sem sessão) | descarta, sem enviar |
+| nenhuma resposta válida | fica pendente até `maxRetentionMinutes` |
 
-Vale também para sessão por cookie: a entrada sem header de credencial, mas com dono, só sai se o dono bater. Medido no Chromium 153 (11/10/2026): A enfileira offline, B entra sem limpar nada, o sync dispara — o servidor não recebe POST nenhum e a entrada some.
+Entrada sem credencial e sem dono é reenviada como estava, sem perguntar. Erro no provedor (`getHeaders` ou `getPrincipal` que lança) volta como `{ error: true }` explícito, nunca como silêncio.
 
-A pergunta ao enfileirar não atrasa a rejeição do `fetch`; enquanto ela não volta (até 6 s), o replay deixa a entrada pendente.
+Medido no Chromium 153 (11/10/2026), com service worker, IndexedDB e duas abas reais: A enfileira offline, B entra sem limpar nada, o sync dispara — o servidor não recebe POST; com a aba de B aberta ao lado, a mutação de A sai com o token renovado de A.
+
+O replay é um só por fila: `sync`, `periodicsync` e o fallback do Safari disparando juntos compartilham a mesma passada, e a mesma mutação não sai duas vezes. E `clearBackgroundSyncQueue()` alcança o que está em voo: cada entrada é conferida no banco logo antes de sair, e uma requisição que ainda estava falhando quando a fila foi limpa não é gravada depois.
 
 Fora desse caminho, há dois controles no `installBackgroundSync`:
 
-- **`credentialHeaders`** — a lista de headers removidos. Para um header próprio: `[...DEFAULT_CREDENTIAL_HEADERS, "x-tenant-key"]`.
-- **`beforeReplay(request, { queuedAt, strippedHeaders, owner })`** — substitui o pedido à página: devolva o `Request` a enviar, `null` para descartar, ou lance para manter pendente. Útil quando o worker consegue a credencial sozinho; o `owner` permite aplicar a mesma regra de dono.
+- **`credentialHeaders`** — a lista de headers removidos. Para um header próprio: `[...DEFAULT_CREDENTIAL_HEADERS, "x-tenant-key"]`. O provedor precisa devolver todos eles.
+- **`beforeReplay(request, { queuedAt, strippedHeaders, ownerState, owner })`** — substitui o pedido às páginas: devolva o `Request` a enviar, `null` para descartar, ou lance para manter pendente. Útil quando o worker consegue a credencial sozinho; `ownerState`/`owner` permitem aplicar a mesma regra de dono.
+
+!!! warning "Limite: credencial na URL ou no corpo"
+    Só **headers** saem da fila. Um token em query string (`?access_token=…`) ou dentro do corpo da mutação é gravado como foi enviado. Mande credencial em header.
 
 !!! warning "`credentialHeaders: []` volta ao comportamento antigo"
-    Com a lista vazia, todo header — bearer incluso — vai em texto puro para o IndexedDB. É uma escolha explícita, para quem não tem página aberta no replay e aceita o risco.
+    Com a lista vazia, todo header — bearer incluso — vai em texto puro para o IndexedDB e é reenviado como foi gravado. É uma escolha explícita, para quem não tem página aberta no replay e aceita o risco.
 
 ## 4. Durabilidade: peça armazenamento persistente
 

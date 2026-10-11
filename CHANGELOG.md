@@ -6,6 +6,15 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **`toCsv`/`downloadCsv` neutralizam fórmula por padrão — CSV injection (#446).** Campo de texto
+  que começa com `=`, `+`, `-`, `@`, TAB ou CR sai com `'` na frente (recomendação da OWASP), e o
+  cabeçalho também. Medido convertendo o CSV com o LibreOffice 26.2 headless
+  (`soffice --headless --infilter="CSV:59,34,76,1" --convert-to fods`): antes, `=1+2` e um
+  `=HYPERLINK(...&A1...)` entravam como `table:formula` (2 fórmulas, `=1+2` valendo `3`); depois,
+  zero fórmulas. Número não é tocado — célula `number` e texto que é só número (`"-5"`,
+  `"-1.234,56"`, `"+42"`) seguem numéricos. **Muda a saída** de quem exportava texto começando com
+  esses caracteres: para CSV que alimenta o importador de outro sistema, `{ neutralizeFormulas: false }`
+  (novo em `CsvOptions`) devolve os bytes de antes.
 - **`Markdown` (e o corpo do `AIChat`) não trava mais a aba com texto hostil (#437).** A regex de
   heading `/^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/` tinha backtracking cúbico: `"# a" + " ".repeat(n) +
 "b"` custava 82 ms com n = 1000, 2,0 s com 3000 e 4,8 s com 4000, a cada render, também dentro de

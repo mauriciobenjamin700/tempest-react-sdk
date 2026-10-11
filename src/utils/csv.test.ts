@@ -163,7 +163,6 @@ describe("toCsv — formula injection (#446)", () => {
         ["-5+1", "'-5+1"],
         ["@SUM(1+1)", "'@SUM(1+1)"],
         ["\t=1+1", "'\t=1+1"],
-        ["-", "'-"],
         ["-- nota", "'-- nota"],
     ])("prefixes a quote to the string %j so a spreadsheet reads it as text", (raw, written) => {
         expect(cell(raw)).toBe(written);
@@ -187,6 +186,32 @@ describe("toCsv — formula injection (#446)", () => {
         expect(cell("-1.234,56", { delimiter: ";" })).toBe("-1.234,56");
         expect(cell("+42")).toBe("+42");
     });
+
+    /**
+     * This used to assert `"'-"`. Reversed on purpose: a lone `-` has no operand,
+     * so no spreadsheet can evaluate it, LibreOffice 26.2 read it as text without
+     * the prefix, and it is the common "no value" placeholder — the prefix only
+     * printed a stray `'` in every empty cell of a report.
+     */
+    it("leaves a lone dash alone, since an operator without operand is not a formula", () => {
+        expect(cell("-")).toBe("-");
+        expect(cell("--")).toBe("'--");
+        expect(cell("- 1")).toBe("'- 1");
+    });
+
+    it.each([
+        ["+55 (11) 99999-9999", "'+55 (11) 99999-9999"],
+        ["@maria", "'@maria"],
+    ])("still prefixes %j, which Excel and Sheets read as a formula start", (raw, written) => {
+        expect(cell(raw)).toBe(written);
+    });
+
+    it.each([" =1+1", "\n=1+1"])(
+        "leaves %j alone: whitespace before = read as text in LibreOffice 26.2",
+        (raw) => {
+            expect(cell(raw, { delimiter: ";" })).toBe(raw.startsWith("\n") ? `"${raw}"` : raw);
+        },
+    );
 
     it("leaves an ordinary field and a formula character in the middle alone", () => {
         expect(cell("a=b")).toBe("a=b");

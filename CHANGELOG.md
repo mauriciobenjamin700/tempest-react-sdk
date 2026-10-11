@@ -13,6 +13,32 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   mídia e menu inline): 11,2 → 11,4 kB, `main` 11,12 → 11,38 kB — o `safe-url` entra inteiro no
   caminho da linha de anexo (#447). Os bytes compram os três guards.
 
+- **`toCsv`/`downloadCsv` neutralizam fórmula por padrão — CSV injection (#446). Muda a saída
+  padrão.** Campo de texto (e cabeçalho) que começa com `=`, `+`, `-`, `@`, TAB ou CR sai com `'` na
+  frente, a lista da OWASP. Ficam de fora a célula `number`, o texto que é só número (`"-5"`,
+  `"-1.234,56"`, `"+42"`) e o `"-"` sozinho, placeholder comum de "sem valor" que não tem operando
+  para ser fórmula. Medido convertendo cada CSV com o LibreOffice 26.2 headless
+  (`soffice --headless --infilter="CSV:59,34,76,1" --convert-to fods`) e lendo o `table:formula`
+  de cada célula:
+
+  | Entrada                             | Sem prefixo        | Com prefixo                  |
+  | ----------------------------------- | ------------------ | ---------------------------- |
+  | `=1+2`                              | fórmula, valor `3` | texto `'=1+2`                |
+  | `=HYPERLINK("http://…/?d="&A1,"x")` | fórmula            | texto                        |
+  | `+55 (11) 99999-9999`               | texto              | texto `'+55 (11) 99999-9999` |
+  | `@maria`                            | texto              | texto `'@maria`              |
+  | `-`                                 | texto              | texto `-` (isento)           |
+  | TAB + `=1+1`                        | texto              | texto `'` + TAB + `=1+1`     |
+  | espaço + `=1+1`                     | texto              | texto (não é gatilho)        |
+  | `\n=1+1` (campo entre aspas)        | texto              | texto (não é gatilho)        |
+
+  O LibreOffice só avaliou o `=`; `+`, `@` e TAB continuam no gatilho porque Excel e Google Sheets
+  os leem como início de fórmula (não medido aqui, sem Excel no ambiente). Espaço e quebra de linha
+  antes do `=` leram como texto e não entraram.
+
+  **Migração:** quem exporta CSV para o importador de outro sistema, e não para a planilha de uma
+  pessoa, passa `{ neutralizeFormulas: false }` (novo em `CsvOptions`) e recebe os bytes de antes.
+
 ### Adicionado
 
 - **`safeLinkUrl`, `safeImageUrl` e `safeAttachmentUrl` na raiz (#447).** A allowlist de esquema
@@ -32,15 +58,6 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   link**, não que o React a neutralizou. Agora a URL passa por `safeAttachmentUrl` e a recusada
   vira a mesma linha sem link. O `src` de imagem, vídeo e áudio fica como está: medido nos mesmos
   dois navegadores, `<img>`, `<video>` e `<audio>` com `src="javascript:..."` não executam.
-- **`toCsv`/`downloadCsv` neutralizam fórmula por padrão — CSV injection (#446).** Campo de texto
-  que começa com `=`, `+`, `-`, `@`, TAB ou CR sai com `'` na frente (recomendação da OWASP), e o
-  cabeçalho também. Medido convertendo o CSV com o LibreOffice 26.2 headless
-  (`soffice --headless --infilter="CSV:59,34,76,1" --convert-to fods`): antes, `=1+2` e um
-  `=HYPERLINK(...&A1...)` entravam como `table:formula` (2 fórmulas, `=1+2` valendo `3`); depois,
-  zero fórmulas. Número não é tocado — célula `number` e texto que é só número (`"-5"`,
-  `"-1.234,56"`, `"+42"`) seguem numéricos. **Muda a saída** de quem exportava texto começando com
-  esses caracteres: para CSV que alimenta o importador de outro sistema, `{ neutralizeFormulas: false }`
-  (novo em `CsvOptions`) devolve os bytes de antes.
 - **`Markdown` (e o corpo do `AIChat`) não trava mais a aba com texto hostil (#437).** A regex de
   heading `/^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/` tinha backtracking cúbico: `"# a" + " ".repeat(n) +
 "b"` custava 82 ms com n = 1000, 2,0 s com 3000 e 4,8 s com 4000, a cada render, também dentro de

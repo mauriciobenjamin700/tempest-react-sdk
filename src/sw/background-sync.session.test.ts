@@ -14,6 +14,8 @@ interface StoredEntry {
     headers: [string, string][];
     credentials?: RequestCredentials;
     strippedHeaders?: string[];
+    owner?: string | null;
+    ownerPending?: boolean;
 }
 
 interface FakeClient {
@@ -26,19 +28,26 @@ const STUB_KEYS = ["addEventListener", "registration", "fetch", "clients"];
 let listeners: Record<string, Listener[]>;
 let fetchMock: ReturnType<typeof vi.fn>;
 let windowClients: FakeClient[];
+let issuers: Record<string, FakeClient>;
+let extended: Promise<unknown>[];
 let queueCounter = 0;
 
 function stubSw(): void {
     listeners = { fetch: [], sync: [] };
     fetchMock = vi.fn();
     windowClients = [];
+    issuers = {};
+    extended = [];
     const sw: Record<string, unknown> = {
         addEventListener: (name: string, listener: Listener) => {
             (listeners[name] ??= []).push(listener);
         },
         registration: { sync: { register: vi.fn().mockResolvedValue(undefined) } },
         fetch: fetchMock,
-        clients: { matchAll: vi.fn(async () => windowClients) },
+        clients: {
+            matchAll: vi.fn(async () => windowClients),
+            get: vi.fn(async (id: string) => issuers[id]),
+        },
     };
     for (const key of STUB_KEYS) {
         ORIGINAL[key] = (globalThis as Record<string, unknown>)[key];
@@ -89,17 +98,19 @@ function readQueue(name: string): Promise<StoredEntry[]> {
     });
 }
 
-async function failOffline(request: Request): Promise<void> {
+async function failOffline(request: Request, clientId?: string): Promise<void> {
     fetchMock.mockRejectedValueOnce(new Error("offline"));
     let produced: Promise<Response> | undefined;
     listeners.fetch[0]?.({
         request,
+        clientId,
         respondWith: (r: Response | Promise<Response>) => {
             produced = Promise.resolve(r);
         },
-        waitUntil: () => undefined,
+        waitUntil: (p: Promise<unknown>) => extended.push(p),
     });
     await produced?.catch(() => undefined);
+    await Promise.all(extended);
 }
 
 async function fireSync(queue: string): Promise<void> {
@@ -204,6 +215,7 @@ describe("installBackgroundSync — replay re-applies the current credentials", 
             type: BACKGROUND_SYNC_CREDENTIALS_MESSAGE,
             url: "https://app.test/api/items",
             method: "POST",
+            phase: "replay",
         });
         const sent = fetchMock.mock.calls.at(-1)?.[0] as Request;
         expect(sent.headers.get("authorization")).toBe("Bearer NOW");
@@ -365,6 +377,7 @@ describe("provideBackgroundSyncCredentials", () => {
         expect(getHeaders).toHaveBeenCalledWith({
             url: "https://app.test/api/items",
             method: "POST",
+            phase: "replay",
         });
     });
 
@@ -399,5 +412,188 @@ describe("provideBackgroundSyncCredentials", () => {
     it("is a no-op without service-worker support", () => {
         vi.stubGlobal("navigator", {});
         expect(provideBackgroundSyncCredentials(() => null)()).toBeUndefined();
+    });
+});
+
+describe("installBackgroundSync — entries are bound to their owner", () => {
+    let container: EventTarget;
+    let principal: string | null;
+    let token: string | null;
+
+    beforeEach(() => {
+        container = new EventTarget();
+        vi.stubGlobal("navigator", { serviceWorker: container });
+        principal = "user-a";
+        token = "A";
+        provideBackgroundSyncCredentials(
+            () => (token ? { Authorization: `Bearer ${token}` } : null),
+            {
+                getPrincipal: () => principal,
+            },
+        );
+    });
+
+    afterEach(() => vi.unstubAllGlobals());
+
+    function page(): FakeClient {
+        return {
+            postMessage: vi.fn((data: unknown, transfer: MessagePort[]) => {
+                container.dispatchEvent(new MessageEvent("message", { data, ports: transfer }));
+            }),
+        };
+    }
+
+    it("never sends A's queued mutation with B's credentials when logout skipped the cleanup", async () => {
+        const queue = nextQueue();
+        installBackgroundSync({ queueName: queue });
+        issuers = { tab: page() };
+        await failOffline(postAs("A"), "tab");
+        const [entry] = await readQueue(queue);
+        expect(entry?.owner).toMatch(/^[0-9a-f]{64}$/);
+        expect(JSON.stringify(entry)).not.toContain("user-a");
+
+        principal = "user-b";
+        token = "B";
+        windowClients = [page()];
+        fetchMock.mockClear();
+        fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+        await fireSync(queue);
+
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(await readQueue(queue)).toEqual([]);
+    });
+
+    it("sends the owner's mutation with the owner's refreshed token", async () => {
+        const queue = nextQueue();
+        installBackgroundSync({ queueName: queue });
+        issuers = { tab: page() };
+        await failOffline(postAs("A"), "tab");
+
+        token = "A2";
+        windowClients = [page()];
+        fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+        await fireSync(queue);
+
+        const sent = fetchMock.mock.calls.at(-1)?.[0] as Request;
+        expect(sent.headers.get("authorization")).toBe("Bearer A2");
+        expect(await readQueue(queue)).toEqual([]);
+    });
+
+    it("drops a mutation queued while signed out once somebody is signed in", async () => {
+        const queue = nextQueue();
+        installBackgroundSync({ queueName: queue });
+        principal = null;
+        issuers = { tab: page() };
+        await failOffline(
+            new Request("https://app.test/api/x", { method: "POST", body: "x" }),
+            "tab",
+        );
+        expect((await readQueue(queue))[0]?.owner).toBeNull();
+
+        principal = "user-b";
+        windowClients = [page()];
+        fetchMock.mockClear();
+        await fireSync(queue);
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("checks the owner of a cookie-session mutation that carried no credential header", async () => {
+        const queue = nextQueue();
+        installBackgroundSync({ queueName: queue });
+        issuers = { tab: page() };
+        await failOffline(
+            new Request("https://app.test/api/c", {
+                method: "POST",
+                body: "x",
+                credentials: "include",
+            }),
+            "tab",
+        );
+        await failOffline(
+            new Request("https://app.test/api/c", {
+                method: "POST",
+                body: "y",
+                credentials: "include",
+            }),
+            "tab",
+        );
+
+        windowClients = [page()];
+        fetchMock.mockClear();
+        fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+        await fireSync(queue);
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("waits while the owner is still being stamped, then treats a lost stamp as unbound", async () => {
+        const queue = nextQueue();
+        installBackgroundSync({ queueName: queue });
+        let port: MessagePort | undefined;
+        issuers = {
+            tab: {
+                postMessage: vi.fn((_data: unknown, transfer: MessagePort[]) => {
+                    port = transfer[0];
+                }),
+            },
+        };
+        fetchMock.mockRejectedValueOnce(new Error("offline"));
+        let produced: Promise<Response> | undefined;
+        listeners.fetch[0]?.({
+            request: new Request("https://app.test/api/p", { method: "POST", body: "x" }),
+            clientId: "tab",
+            respondWith: (r: Promise<Response>) => (produced = r),
+            waitUntil: (p: Promise<unknown>) => extended.push(p),
+        });
+        await produced?.catch(() => undefined);
+        expect((await readQueue(queue))[0]).toMatchObject({ ownerPending: true });
+
+        fetchMock.mockClear();
+        fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+        await fireSync(queue);
+        expect(fetchMock).not.toHaveBeenCalled();
+
+        const now = Date.now();
+        vi.spyOn(Date, "now").mockReturnValue(now + 10_000);
+        await fireSync(queue);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+
+        port?.postMessage({ headers: null, owner: "late" });
+        await Promise.all(extended);
+        expect(await readQueue(queue)).toEqual([]);
+    });
+
+    it("leaves the entry unbound when the issuing page has no principal getter", async () => {
+        const queue = nextQueue();
+        installBackgroundSync({ queueName: queue });
+        issuers = { tab: answeringClient({ headers: null }) };
+        await failOffline(postAs("A"), "tab");
+        const [entry] = await readQueue(queue);
+        expect(entry).not.toHaveProperty("owner");
+        expect(entry).not.toHaveProperty("ownerPending");
+    });
+
+    it("answers the enqueue question with the owner only, without reading the token", async () => {
+        const getHeaders = vi.fn(() => ({ Authorization: "Bearer x" }));
+        const local = new EventTarget();
+        vi.stubGlobal("navigator", { serviceWorker: local });
+        provideBackgroundSyncCredentials(getHeaders, { getPrincipal: async () => "" });
+        const channel = new MessageChannel();
+        const answer = new Promise<unknown>((resolve) => {
+            channel.port1.onmessage = (event: MessageEvent) => resolve(event.data);
+        });
+        local.dispatchEvent(
+            new MessageEvent("message", {
+                data: {
+                    type: BACKGROUND_SYNC_CREDENTIALS_MESSAGE,
+                    url: "u",
+                    method: "POST",
+                    phase: "enqueue",
+                },
+                ports: [channel.port2],
+            }),
+        );
+        expect(await answer).toEqual({ headers: null, owner: null });
+        expect(getHeaders).not.toHaveBeenCalled();
+        channel.port1.close();
     });
 });

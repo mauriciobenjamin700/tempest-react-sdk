@@ -128,12 +128,15 @@ On replay, the worker asks the open page for the **current** credentials, over `
 import { createTempestAuth } from "tempest-react-sdk";
 import { provideBackgroundSyncCredentials } from "tempest-react-sdk/sw";
 
-export const auth = createTempestAuth({ baseURL: "https://api.example.com" });
+export const auth = createTempestAuth<{ id: string }>({ baseURL: "https://api.example.com" });
 
-provideBackgroundSyncCredentials(() => {
-  const { token } = auth.useAuthStore.getState();
-  return token ? { Authorization: `Bearer ${token}` } : null;
-});
+provideBackgroundSyncCredentials(
+  () => {
+    const { token } = auth.useAuthStore.getState();
+    return token ? { Authorization: `Bearer ${token}` } : null;
+  },
+  { getPrincipal: () => auth.useAuthStore.getState().user?.id },
+);
 ```
 
 What happens to each entry:
@@ -144,12 +147,26 @@ What happens to each entry:
 | `null` (no session) | the entry is dropped, unsent |
 | none (tab closed, no provider installed, or it threw) | stays pending until `maxRetentionMinutes` |
 
-An entry that carried no credentials is replayed as it was, without asking.
+An entry that carried no credentials — and no owner, see below — is replayed as it was, without asking.
+
+#### Every entry has an owner
+
+`getPrincipal` binds the mutation to whoever made it. Right after queueing, the worker asks the tab that issued the request who is signed in and stores a **SHA-256 fingerprint** of that id on the entry — never the id or the token. On replay it asks again:
+
+| Entry owner × current owner | Replay |
+| -- | -- |
+| equal | sent with the current credentials (refreshed token included) |
+| different — including another account signed in with no `clearSessionData()` in between | **dropped, unsent**: A's mutation never goes out as B, nor anonymously |
+| entry without an owner (provider without `getPrincipal`, or the tab did not answer at queue time) | only the credential rules above |
+
+This also covers cookie sessions: an entry with no credential header but with an owner only goes out when the owner matches. Measured in Chromium 153 (11/10/2026): A queues offline, B signs in without clearing anything, the sync fires — the server receives no POST and the entry is gone.
+
+The queue-time question does not delay the `fetch` rejection; until it comes back (up to 6 s), replay keeps the entry pending.
 
 Outside that path, `installBackgroundSync` has two knobs:
 
 - **`credentialHeaders`** — the list of headers removed. For a custom one: `[...DEFAULT_CREDENTIAL_HEADERS, "x-tenant-key"]`.
-- **`beforeReplay(request, { queuedAt, strippedHeaders })`** — replaces the request to the page: return the `Request` to send, `null` to drop, or throw to keep it pending. Useful when the worker can get the credential by itself.
+- **`beforeReplay(request, { queuedAt, strippedHeaders, owner })`** — replaces the request to the page: return the `Request` to send, `null` to drop, or throw to keep it pending. Useful when the worker can get the credential by itself; `owner` lets it apply the same owner rule.
 
 !!! warning "`credentialHeaders: []` brings the old behavior back"
     With an empty list, every header — bearer included — goes to IndexedDB in plain text. It is an explicit choice, for apps with no open page at replay time that accept the risk.
@@ -213,7 +230,7 @@ It deletes **every** Cache Storage bucket except the app-shell precache (`tempes
 Why not a prefix: before 0.77.0 the docs said `clearCaches("tempest-")` on logout, and the recipe named the cache `api` — the prefix did not match and **nothing** was deleted. Worse, it would match `tempest-precache-*` and break the app offline. The default filter inverts the logic, so it works whatever `cacheName` you chose. To narrow it, pass `caches` (a `CacheFilter`); for a queue with another name, `queueName`. Just the queue: `clearBackgroundSyncQueue()`.
 
 !!! tip "It runs in the page"
-    Cache Storage and IndexedDB are origin storage, reachable from `window` — no message to the service worker needed. If your auth exposes an end-of-session callback, call `clearSessionData()` there too, to cover a session that expires on its own.
+    Cache Storage and IndexedDB are origin storage, reachable from `window` — no message to the service worker needed. If your auth exposes an end-of-session callback, call `clearSessionData()` there too, to cover a session that expires on its own. With `getPrincipal` on the provider, the queue no longer depends on it to keep its owner — the runtime cache still does.
 
 ## 7. Offline status UI
 

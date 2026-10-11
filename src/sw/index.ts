@@ -29,6 +29,7 @@ export type {
     BackgroundSyncCredentialsRequest,
     BackgroundSyncReplayContext,
     InstallBackgroundSyncOptions,
+    ProvideBackgroundSyncCredentialsOptions,
 } from "./background-sync";
 export { registerPeriodicSync } from "./periodic-sync";
 export type { RegisterPeriodicSyncOptions } from "./periodic-sync";

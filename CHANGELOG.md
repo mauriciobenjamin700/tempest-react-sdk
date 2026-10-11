@@ -29,8 +29,16 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   (`tempest-precache-*`) e a fila de background sync. A doc mandava `clearCaches("tempest-")`, que
   não casava com o cache `api` da receita (medido: `deleted []`) e, se casasse, derrubaria o precache.
 - **`clearBackgroundSyncQueue(queueName?)`** — apaga a fila de mutações pendentes.
-- **`provideBackgroundSyncCredentials(getHeaders)`** — lado página do pedido de credencial no
-  replay. O worker só aplica os nomes de header que a requisição original carregava.
+- **`provideBackgroundSyncCredentials(getHeaders, { getPrincipal })`** — lado página do pedido de
+  credencial no replay. O worker só aplica os nomes de header que a requisição original carregava.
+- **Entrada da fila de background sync com dono.** Com `getPrincipal`, o worker pergunta à aba que
+  disparou a requisição quem está logado logo depois de enfileirar (sem atrasar a rejeição do
+  `fetch`) e grava uma impressão SHA-256 desse id — nunca o id nem o token — em `owner`. No replay,
+  dono diferente do atual descarta a entrada sem enviar: a mutação de A não sai com a credencial de B
+  mesmo quando o app esquece `clearSessionData()` no logout (medido no Chromium 153: A enfileira, B
+  entra sem limpar, o sync dispara e o servidor não recebe POST). Vale também para sessão por cookie.
+  Entrada sem dono (provedor sem `getPrincipal`, ou aba que não respondeu) segue só as regras de
+  credencial. `beforeReplay` recebe `owner` no contexto; tipo `ProvideBackgroundSyncCredentialsOptions`.
 - **`installBackgroundSync({ credentialHeaders, beforeReplay })`**, `DEFAULT_CREDENTIAL_HEADERS`,
   `BACKGROUND_SYNC_CREDENTIALS_MESSAGE` e os tipos `BackgroundSyncReplayContext`,
   `BackgroundSyncCredentialsRequest`, `BackgroundSyncCredentialsProvider`,

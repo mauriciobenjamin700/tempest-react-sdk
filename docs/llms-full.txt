@@ -26220,12 +26220,15 @@ No replay, o worker pede a credencial **atual** à página aberta, por `postMess
 import { createTempestAuth } from "tempest-react-sdk";
 import { provideBackgroundSyncCredentials } from "tempest-react-sdk/sw";
 
-export const auth = createTempestAuth({ baseURL: "https://api.example.com" });
+export const auth = createTempestAuth<{ id: string }>({ baseURL: "https://api.example.com" });
 
-provideBackgroundSyncCredentials(() => {
-  const { token } = auth.useAuthStore.getState();
-  return token ? { Authorization: `Bearer ${token}` } : null;
-});
+provideBackgroundSyncCredentials(
+  () => {
+    const { token } = auth.useAuthStore.getState();
+    return token ? { Authorization: `Bearer ${token}` } : null;
+  },
+  { getPrincipal: () => auth.useAuthStore.getState().user?.id },
+);
 ```
 
 O que acontece com cada entrada:
@@ -26236,12 +26239,26 @@ O que acontece com cada entrada:
 | `null` (sem sessão) | descarta a entrada, sem enviar |
 | nenhuma (aba fechada, provedor não instalado ou que lançou) | fica pendente até `maxRetentionMinutes` |
 
-Entrada que não tinha credencial nenhuma é reenviada como estava, sem perguntar.
+Entrada que não tinha credencial nenhuma — nem dono, veja abaixo — é reenviada como estava, sem perguntar.
+
+#### Cada entrada tem dono
+
+O `getPrincipal` amarra a mutação a quem a fez. Logo depois de enfileirar, o worker pergunta à aba que disparou a requisição quem está logado e grava na entrada uma **impressão SHA-256** desse id — nunca o id nem o token. No replay, pergunta de novo:
+
+| Dono da entrada × dono atual | Replay |
+| -- | -- |
+| iguais | reenvia com a credencial atual (token renovado incluso) |
+| diferentes — inclusive outra conta logada sem `clearSessionData()` no meio | **descarta, sem enviar**: mutação de A nunca sai como B, nem anônima |
+| entrada sem dono (provedor sem `getPrincipal`, ou a aba não respondeu ao enfileirar) | só as regras de credencial acima |
+
+Vale também para sessão por cookie: a entrada sem header de credencial, mas com dono, só sai se o dono bater. Medido no Chromium 153 (11/10/2026): A enfileira offline, B entra sem limpar nada, o sync dispara — o servidor não recebe POST nenhum e a entrada some.
+
+A pergunta ao enfileirar não atrasa a rejeição do `fetch`; enquanto ela não volta (até 6 s), o replay deixa a entrada pendente.
 
 Fora desse caminho, há dois controles no `installBackgroundSync`:
 
 - **`credentialHeaders`** — a lista de headers removidos. Para um header próprio: `[...DEFAULT_CREDENTIAL_HEADERS, "x-tenant-key"]`.
-- **`beforeReplay(request, { queuedAt, strippedHeaders })`** — substitui o pedido à página: devolva o `Request` a enviar, `null` para descartar, ou lance para manter pendente. Útil quando o worker consegue a credencial sozinho.
+- **`beforeReplay(request, { queuedAt, strippedHeaders, owner })`** — substitui o pedido à página: devolva o `Request` a enviar, `null` para descartar, ou lance para manter pendente. Útil quando o worker consegue a credencial sozinho; o `owner` permite aplicar a mesma regra de dono.
 
 !!! warning "`credentialHeaders: []` volta ao comportamento antigo"
     Com a lista vazia, todo header — bearer incluso — vai em texto puro para o IndexedDB. É uma escolha explícita, para quem não tem página aberta no replay e aceita o risco.
@@ -26305,7 +26322,7 @@ Ele apaga **todo** bucket do Cache Storage menos o precache do app shell (`tempe
 Por que não um prefixo: antes da 0.77.0 a doc mandava `clearCaches("tempest-")` no logout, e a receita chamava o cache de `api` — o prefixo não casava e **nada** era apagado. Pior: casaria com `tempest-precache-*` e derrubaria o app offline. O filtro padrão inverte a lógica, então funciona qualquer que seja o `cacheName` escolhido. Para estreitar, passe `caches` (um `CacheFilter`); para uma fila com outro nome, `queueName`. Só a fila: `clearBackgroundSyncQueue()`.
 
 !!! tip "Roda na página"
-    Cache Storage e IndexedDB são armazenamento da origem, acessíveis da `window` — não precisa mandar mensagem ao service worker. Se o seu auth expõe um callback de fim de sessão, chame `clearSessionData()` nele, para cobrir também a sessão que expira sozinha.
+    Cache Storage e IndexedDB são armazenamento da origem, acessíveis da `window` — não precisa mandar mensagem ao service worker. Se o seu auth expõe um callback de fim de sessão, chame `clearSessionData()` nele, para cobrir também a sessão que expira sozinha. Com `getPrincipal` no provedor, a fila já não depende disso para não trocar de dono — mas o cache de runtime depende.
 
 ## 7. UI de status offline
 

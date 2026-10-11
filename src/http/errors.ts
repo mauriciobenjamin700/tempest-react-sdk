@@ -37,6 +37,36 @@ export class TempestApiError extends Error implements ApiError {
 }
 
 /**
+ * Thrown by a `refresh` hook — and rethrown by {@link createApiClient} — when
+ * the session that started the refresh is no longer the current one.
+ *
+ * A refresh is a network round trip, and the session can end or change hands
+ * during it: the user signs out, or signs out and another account signs in. The
+ * tokens that refresh brings back belong to the session that ended, so they are
+ * discarded instead of installed, and the request that was waiting on them is
+ * not replayed — replaying it would send it as whoever is signed in now.
+ *
+ * This is deliberately not an unauthorized outcome. The client does **not** call
+ * `onUnauthorized` for it: that callback ends the session, and the current
+ * session — possibly a different account that just signed in — did nothing
+ * wrong. Treat it like an aborted request: drop the result, show nothing.
+ *
+ * @example
+ * try {
+ *     await api.get("/api/orders");
+ * } catch (err) {
+ *     if (err instanceof RefreshSupersededError) return;
+ *     throw err;
+ * }
+ */
+export class RefreshSupersededError extends Error {
+    constructor() {
+        super("A sessão mudou durante a renovação do token.");
+        this.name = "RefreshSupersededError";
+    }
+}
+
+/**
  * Type guard for the {@link ApiError} shape. Matches both {@link TempestApiError}
  * instances and plain objects carrying `status` + `detail`.
  *

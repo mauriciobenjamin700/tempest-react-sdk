@@ -10,7 +10,12 @@ import { isTrustedCredentialTarget, reportSuppressedCredential } from "./credent
 import { csrfHeaders } from "./csrf";
 import { decodeByContentType } from "./decode-response";
 import type { ResponseDecoder } from "./decode-response";
-import { buildApiError, TempestApiError, isRetriableStatus } from "./errors";
+import {
+    buildApiError,
+    RefreshSupersededError,
+    TempestApiError,
+    isRetriableStatus,
+} from "./errors";
 import { retry as retryWithBackoff } from "./retry";
 import type { RetryOptions } from "./retry";
 import { withTimeout } from "./timeout";
@@ -296,14 +301,16 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         const { skipAuth = false, skipAuthRetry = false, ...init } = options;
         const requestId = config.requestId ? config.requestId() : randomId();
         const method = (init.method ?? "GET").toUpperCase();
+        const sentToken = skipAuth ? null : (config.getToken?.() ?? null);
         let response = await send(path, init, requestId, method, skipAuth);
 
         if (response.status === 401 && !skipAuth && !skipAuthRetry) {
             if (config.refresh) {
                 try {
-                    await config.refresh();
+                    await config.refresh({ token: sentToken });
                     response = await send(path, init, requestId, method, skipAuth);
-                } catch {
+                } catch (error) {
+                    if (error instanceof RefreshSupersededError) throw error;
                     await notifyUnauthorized(response, requestId);
                     throw await parseError(response, requestId);
                 }

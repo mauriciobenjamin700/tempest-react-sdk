@@ -224,7 +224,9 @@ await Promise.all([refresh(), refresh(), refresh(), refresh(), refresh()]);
 !!! warning "Compartilhar a promise sozinho não colapsa uma rajada — passe o `getToken`"
     Uma página que dispara várias requests de uma vez recebe vários 401 de volta, mas eles **não chegam na mesma janela**: os retardatários resolvem depois do primeiro refresh já ter terminado, não encontram promise nenhuma pra entrar, e cada um começa outra — rotacionando um token que já está novo. Medido contra um backend de mentira, cinco requests expiradas concorrentes gastaram **dois** refreshes, não um.
 
-    O `getToken` fecha essa brecha: a fila lembra qual token o último refresh instalou, e uma chamada que encontra esse mesmo token ainda no lugar retorna na hora, porque o refresh que ela ia fazer já aconteceu. Aí as mesmas cinco requests gastam exatamente um refresh — e vinte também.
+    O `getToken` fecha essa brecha. Plugada como `refresh` do `createApiClient`, a fila recebe de cada 401 o token com que aquela request saiu: se ele já não é o token atual, a rotação que ela ia disparar já aconteceu, então a chamada retorna na hora e a repetição sai com o token novo. Aí as mesmas cinco requests gastam exatamente um refresh — e vinte também.
+
+    Chamada à mão, sem esse contexto, a fila cai no modo antigo: lembra o token que o último refresh instalou e pula enquanto ele estiver no lugar. Esse modo não distingue "já renovado" de "o token renovado expirou" — os dois deixam a mesma string no store. Antes da 0.77.0 o cliente não passava o contexto, e todo token emitido por um refresh ficava irrenovável quando expirava: o 401 pulava o refresh, a repetição falhava e o `onUnauthorized` derrubava uma sessão saudável.
 
 !!! tip "Plugue direto no `createApiClient`"
     Passe a fila como `refresh` no cliente HTTP — ele a chama em todo 401 e a coalescência acontece de graça, evitando uma tempestade de refreshes paralelos derrubando seu endpoint de auth.
@@ -242,6 +244,88 @@ const api = createApiClient({
   onUnauthorized: () => useAuthStore.getState().logout(),
 });
 ```
+
+## Fim de sessão — `createTempestAuth` e `onSessionEnd`
+
+Uma sessão termina de dois jeitos: o usuário clica em **Sair** (`auth.logout()`), ou o próprio cliente desiste dela — o refresh falhou, ou a repetição depois do refresh voltou 401 de novo. Nos dois casos, todo estado que **deriva do usuário** precisa sair junto: a inscrição de push deste navegador, o cache de queries persistido, a fila de background sync, o usuário identificado na telemetria. Senão a próxima conta que entrar neste navegador herda o que era da anterior.
+
+O `createTempestAuth` tem um lugar só para isso, que roda nos **dois** caminhos: `onSessionEnd`.
+
+```ts
+import { WebPushClient, createTempestAuth } from "tempest-react-sdk";
+
+interface User {
+  id: string;
+  name: string;
+}
+
+export const auth = createTempestAuth<User>({
+  baseURL: "https://api.exemplo.com",
+  onSessionEnd: async (session) => {
+    const push = new WebPushClient({
+      vapidPublicKey: "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U",
+      onSubscribe: () => {},
+      onUnsubscribe: (sub) =>
+        session.api.delete("/webpush/subscribe", { body: { endpoint: sub.endpoint } }),
+    });
+    await push.unsubscribe().catch(() => false);
+  },
+});
+
+await auth.logout();
+```
+
+Repare em `session.api`: quando o hook roda, o store **já foi limpo**, então `auth.api` não manda mais token nenhum. O `session.api` é um cliente que ainda manda o access token da sessão que acabou — é por ele que o `DELETE` sai autenticado. Ele nunca renova e nunca encerra sessão: um 401 ali só rejeita.
+
+E o `unsubscribe()` do push libera a inscrição do navegador **mesmo quando o `DELETE` falha** (veja [Push → Desinscrever](./push.md#desinscrever-o-que-quase-todo-mundo-erra)). É isso que fecha o caminho automático: quando a sessão expira, o servidor já recusa o token, o `DELETE` volta 401 — e o navegador para de receber as notificações da conta anterior do mesmo jeito.
+
+!!! tip "Limpe aqui todo estado por usuário"
+    O hook é o ponto único de teardown: o push acima, e ao lado dele qualquer outro estado que pertence à conta — o cache de queries persistido, a fila de background sync do service worker, os caches de resposta autenticada, o usuário da telemetria. Componha tudo dentro do mesmo `onSessionEnd`; cada passo independente com seu próprio `.catch`, para uma falha não pular os outros.
+
+### A ordem, exatamente
+
+Nos dois caminhos — `logout()` e o encerramento automático — a sequência é a mesma:
+
+| Passo | O que acontece | Síncrono? |
+| --- | --- | --- |
+| 1 | Todo refresh em voo é **superado**: não pode mais reinstalar os tokens da sessão que está acabando | sim |
+| 2 | O store e o refresh token guardado são limpos — `isAuthenticated` já é `false` | sim |
+| 3 | `onSessionEnd` roda com `{ reason, user, token, api }` | pode ser `async` |
+| 4 | Só no encerramento automático, com `redirectTo`: o navegador navega — **depois** do hook, mesmo que ele lance | — |
+
+`reason` é `"logout"` no `logout()` explícito e `"expired"` quando o cliente encerrou. No `"logout"` o token normalmente ainda vale; no `"expired"` o servidor já o recusou, então trate a chamada autenticada como tentativa e deixe a parte local do teardown independente dela.
+
+`logout()` devolve `Promise<void>`: o store é limpo antes do primeiro `await`, então quem ignora a promise vê o estado deslogado na hora. A promise resolve quando o hook terminou e rejeita com o erro dele. No caminho automático o erro do hook é engolido — a request que encerrou a sessão já rejeita com o 401 dela.
+
+O hook roda **uma vez por sessão**: um segundo `logout()`, ou as outras requests de uma rajada de 401, não encontram sessão para encerrar e esperam o teardown que já está em andamento.
+
+!!! warning "`login()` por cima de uma sessão viva não chama o hook"
+    Trocar de conta sem sair primeiro não passa pelo `onSessionEnd`. Chame `await auth.logout()` antes do `login()` da outra conta.
+
+### Refresh em voo e troca de conta — `RefreshSupersededError`
+
+Um refresh é uma ida e volta de rede, e a sessão pode acabar no meio dela. Cada refresh fica amarrado a uma **época de sessão**, que o `logout()` e o começo do `login()` incrementam. Um refresh que resolve depois que a época dele acabou descarta o que trouxe e rejeita com `RefreshSupersededError` — e o cliente repassa esse erro **sem** chamar `onUnauthorized`, porque a sessão atual (talvez outra conta, que acabou de entrar) não fez nada de errado. Uma request que saiu com o token de uma sessão encerrada e volta 401 é recusada do mesmo jeito, em vez de ser repetida como a conta que está logada agora.
+
+Antes da 0.77.0, um refresh em voo durante o `logout()` reinstalava os tokens antigos e voltava `isAuthenticated` para `true`; com `logout()` + `login(B)` no meio, trocava o token de B pelo de A — a tela mostrava B, e toda request saía como A.
+
+Trate o erro como uma request abortada: descarte o resultado e não mostre nada.
+
+```ts
+import { RefreshSupersededError, createTempestAuth } from "tempest-react-sdk";
+
+const auth = createTempestAuth({ baseURL: "https://api.exemplo.com" });
+
+export async function loadOrders(): Promise<unknown[] | null> {
+  try {
+    return await auth.api.get<unknown[]>("/api/orders");
+  } catch (error) {
+    if (error instanceof RefreshSupersededError) return null;
+    throw error;
+  }
+}
+```
+
+Os refreshes também colapsam por **rotação**, não só por sobreposição no tempo: um 401 cuja request saiu com um token que a mesma sessão já trocou repete com o token novo e não renova nada. Três requests expiradas gastam um refresh, cheguem os 401 juntos ou um depois do outro.
 
 ## Exemplo completo — login, guard e refresh juntos
 
@@ -325,9 +409,12 @@ O fluxo: o login chama `setSession`, persistindo `user` + `token`. O `ProtectedL
 - **`decodeJWT`** lança em token inválido; **`isJWTExpired`** é defensivo e nunca lança. Só para UX, nunca para autorização.
 - **`lazyWithRetry`** — sobrevive a chunks stale pós-deploy com backoff + reload.
 - **`createRefreshQueue`** — N refreshes concorrentes viram 1.
+- **`onSessionEnd`** — teardown por usuário no `logout()` **e** na expiração automática, com `session.api` ainda autenticado.
+- **`RefreshSupersededError`** — refresh ou request de uma sessão que já acabou; descarte, não deslogue.
 
 ### Veja também
 
 - [Routing](./routing.md) — `<RouteGuard>` declarativo, alternativa ao `AuthGuard` na árvore de rotas
 - [HTTP](./http.md) — `getToken: () => useAuthStore.getState().token` + `refresh: queue`
+- [Push](./push.md) — por que o `unsubscribe()` libera o navegador mesmo quando o backend falha
 - [Error Boundary](./error-boundary.md) — a falha final do `lazyWithRetry` vira um `ChunkLoadError` que o boundary captura

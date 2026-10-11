@@ -4,6 +4,67 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **Refresh em voo não reinstala mais a sessão depois do logout nem troca a conta logada (#435).**
+  Cada refresh do `createTempestAuth` fica amarrado a uma época de sessão, incrementada pelo
+  `logout()` e pelo começo do `login()`; cada época tem sua própria fila. Refresh que resolve (ou
+  falha) depois que a época acabou descarta os tokens e rejeita com `RefreshSupersededError`, que o
+  `createApiClient` repassa **sem** chamar `onUnauthorized` — a correção ingênua com `throw`
+  derrubaria a conta recém-logada. Request que saiu com o token de uma sessão encerrada e volta 401
+  é recusada do mesmo jeito, em vez de ser repetida como a conta atual. Medido com
+  `npx vitest run src/auth/create-tempest-auth.epoch.test.ts` (backend de duas contas com o refresh
+  preso num gate): antes, `logout()` durante o refresh terminava com `token: "A-tok-2"`,
+  `isAuthenticated: true` e a request pendente respondida como A; `logout()` + `login(B)` terminava
+  com `user: B` e `token: "A-tok-2"`, e a request seguinte saía como A; uma request de A atrasada
+  depois do login de B era repetida como B. Depois, os três rejeitam com `RefreshSupersededError` e B
+  mantém `B-tok-1`/`B-ref-1`.
+- **Três 401 da mesma expiração gastam um refresh, cheguem juntos ou escalonados.** O
+  `createTempestAuth` não passava `getToken` à fila, então só colapsava 401 sobrepostos no tempo:
+  três requests expiradas com respostas a 0/20/40 ms gastavam **3** refreshes (mesmo teste acima);
+  agora gastam 1. O 401 cujo token já foi trocado pela mesma sessão só repete.
+- **`createRefreshQueue({ getToken })` deixava de renovar quando o token que ele emitiu expirava.** A
+  fila pulava o refresh enquanto o token do último refresh continuasse no store — e um token expirado
+  continua no store com a mesma string. Plugada no `createApiClient`, todo token emitido por refresh
+  virava irrenovável: o 401 pulava o refresh, a repetição falhava e `onUnauthorized` encerrava uma
+  sessão saudável. Medido com `npx vitest run src/auth/refresh-queue.test.ts`: 1 refresh para 2
+  expirações antes, 2 depois. A fila agora recebe do cliente o token com que a request falhou e
+  compara com ele; chamada à mão, sem contexto, mantém o comportamento anterior.
+- **`WebPushClient.unsubscribe()` libera a inscrição do navegador mesmo quando o `DELETE` no
+  backend falha (#445).** Antes, um `onUnsubscribe` rejeitado abortava antes de
+  `PushSubscription.unsubscribe()` — e ele rejeita justamente no fim da sessão, quando o token já
+  sumiu (reproduzido: DELETE → 401, `subscription.unsubscribe` nunca chamado). Agora o backend é
+  chamado primeiro, o navegador é liberado **sempre**, e a falha do backend sobe como
+  `WebPushUnsubscribeError` (com `subscription`, `browserUnsubscribed` e `cause`) depois da
+  liberação. `usePushSubscription` passa `subscribed` a `false` nesse caso. A doc de push, que
+  chamava a ordem antiga de "lado seguro do erro", agora compara os dois custos: linha órfã some no
+  próximo envio com `404`/`410`; inscrição viva entrega as notificações da conta para o próximo
+  usuário do navegador.
+
+### Adicionado
+
+- **`createTempestAuth({ onSessionEnd })` — teardown por usuário no logout e na expiração
+  automática (#445).** Roda nos dois caminhos, uma vez por sessão, com
+  `{ reason: "logout" | "expired", user, token, api }` — `api` ainda manda o token da sessão que
+  acabou, porque o store já foi limpo. Ordem: supera o refresh em voo → limpa o store (síncrono) →
+  roda o hook → navega para `redirectTo` (só no automático, depois do hook). Substitui a receita
+  manual de logout de `docs/push.md`, que não cobria a expiração automática. Tipos novos:
+  `TempestSessionEnd<TUser>` e `RefreshContext`.
+- **`RefreshSupersededError`** e **`WebPushUnsubscribeError`**, exportados da raiz.
+
+### Alterado
+
+- **`TempestAuth.logout` agora devolve `Promise<void>`** (era `() => void`). O store continua limpo
+  de forma síncrona, antes do primeiro `await`; a promise resolve quando o `onSessionEnd` terminou e
+  rejeita com o erro dele. Chamar sem `await` segue funcionando.
+- **`ApiClientConfig.refresh` recebe `(context: RefreshContext)`** com o token com que a request
+  rejeitada saiu. Função sem parâmetro continua atribuível — nenhum chamador quebra.
+- **Budgets do `size-limit` sobem pelo que os bytes compram** (medido com `npx size-limit`, `main`
+  × branch): `slice: http client` 4,57 → 4,64 kB (teto 4,6 → 4,7 kB) — `RefreshSupersededError` e o
+  token da request no `refresh`; `slice: typical app` 11,73 → 11,78 kB (teto 11,8 → 11,9 kB); barrel
+  ESM 139,86 → 140,45 kB (teto 140,2 → 140,8 kB); barrel CJS 167,02 → 167,56 kB (teto 167,2 →
+  167,6 kB).
+
 ## [0.76.0] — 2026-10-10
 
 ### Adicionado

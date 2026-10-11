@@ -2,6 +2,7 @@ export {
     WebPushClient,
     WebPushUnsupportedError,
     WebPushPermissionDeniedError,
+    WebPushUnsubscribeError,
 } from "./web-push-client";
 export type { WebPushClientConfig } from "./web-push-client";
 export { usePushSubscription } from "./use-push-subscription";

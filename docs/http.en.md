@@ -47,7 +47,7 @@ Options (everything except `baseURL` is optional):
 - `prefix` — path segment every request is nested under, such as `"/api"`. See [Base URL and prefix](#base-url-and-prefix).
 - `getToken()` — called per request; returning a string injects `Authorization: Bearer <token>`.
 - `onUnauthorized(response)` — fired whenever the request ends up unauthorized: a 401 with no `refresh`, a `refresh()` that rejected, or a replay that came back 401 again. Use it to log out.
-- `refresh()` — when present and the request returns 401, the client awaits `refresh()` and retries the request **once**.
+- `refresh(context)` — when present and the request returns 401, the client awaits `refresh()` and retries the request **once**. The `context` (`RefreshContext`) carries `token`, the token the rejected request was sent with — which lets the queue tell a late 401 (the token was already replaced: just replay) from a fresh one. A `refresh` that throws `RefreshSupersededError` makes the request reject with that error **without** calling `onUnauthorized`: the refresh's session is over, and the current one must not be ended for it — see [Auth → Refresh in flight and account switching](./auth.en.md#refresh-in-flight-and-account-switching-refreshsupersedederror).
 - `retry` — `true` or `RetryOptions`. **Off by default.** See [Built-in retries](#built-in-retries).
 - `logger` — where the client reports every request it finished. **Off by default.** See [Request logging](#request-logging).
 - `withCredentials` — send cookies on cross-origin requests (default `false`).

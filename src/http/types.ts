@@ -9,6 +9,16 @@ import type { RetryOptions } from "./retry";
  */
 export type ApiClientLogger = Pick<Logger, "debug" | "warn">;
 
+/** What {@link ApiClientConfig.refresh} learns about the `401` it is answering. */
+export interface RefreshContext {
+    /**
+     * The access token the rejected request was sent with, read from `getToken`
+     * when the request left — or `null` when it carried none (`skipAuth`, no
+     * token yet, or no `getToken` configured).
+     */
+    token: string | null;
+}
+
 export interface ApiError {
     /** HTTP status code (0 for network failures). */
     status: number;
@@ -186,8 +196,17 @@ export interface ApiClientConfig {
     /**
      * Optional refresh hook. When provided and the original request returns 401,
      * the client awaits `refresh()` then retries the request once.
+     *
+     * The hook receives a {@link RefreshContext} naming the token the rejected
+     * request carried. A hook that ignores it keeps working; one that reads it
+     * can tell a stale `401` — the token already rotated since the request left —
+     * from a fresh one, and skip a second refresh.
+     *
+     * Throwing {@link RefreshSupersededError} rejects the request with that
+     * error **without** calling `onUnauthorized`: the session the refresh
+     * belonged to is gone, and the one in its place must not be ended for it.
      */
-    refresh?: () => Promise<void>;
+    refresh?: (context: RefreshContext) => Promise<void>;
     /**
      * Retry failed requests with exponential backoff. Off by default, so the
      * client keeps failing fast unless you opt in.

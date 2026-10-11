@@ -8,7 +8,12 @@ export interface WebPushClientConfig {
      * the host app decides the endpoint and how the payload is serialized.
      */
     onSubscribe: (subscription: PushSubscriptionJSON) => Promise<void> | void;
-    /** Remove the subscription from the backend. Called before `subscription.unsubscribe()`. */
+    /**
+     * Remove the subscription from the backend. Called before
+     * `subscription.unsubscribe()`, with the subscription's JSON — key the
+     * delete by its `endpoint`. A rejection no longer keeps the browser
+     * subscribed: see {@link WebPushClient.unsubscribe}.
+     */
     onUnsubscribe?: (subscription: PushSubscriptionJSON) => Promise<void> | void;
     /**
      * Override how the service worker registration is obtained.
@@ -29,6 +34,34 @@ export class WebPushPermissionDeniedError extends Error {
     constructor() {
         super("Permissão de notificação negada pelo usuário.");
         this.name = "WebPushPermissionDeniedError";
+    }
+}
+
+/**
+ * Thrown by {@link WebPushClient.unsubscribe} when `onUnsubscribe` failed. The
+ * browser subscription was still released — `browserUnsubscribed` says whether
+ * the browser confirmed it — so the only thing left behind is the backend row.
+ *
+ * Carries the `subscription` JSON so the app can retry the delete by
+ * `endpoint` later; if it never does, the push service answers the next send
+ * to that endpoint with `404`/`410`, which is the backend's cue to drop the row.
+ */
+export class WebPushUnsubscribeError extends Error {
+    /** The subscription whose backend delete failed. */
+    readonly subscription: PushSubscriptionJSON;
+    /** Whether `PushSubscription.unsubscribe()` reported success. */
+    readonly browserUnsubscribed: boolean;
+
+    /**
+     * @param subscription - The subscription whose backend delete failed.
+     * @param browserUnsubscribed - What `PushSubscription.unsubscribe()` returned.
+     * @param cause - What `onUnsubscribe` threw.
+     */
+    constructor(subscription: PushSubscriptionJSON, browserUnsubscribed: boolean, cause: unknown) {
+        super("Falha ao remover a inscrição de push no backend.", { cause });
+        this.name = "WebPushUnsubscribeError";
+        this.subscription = subscription;
+        this.browserUnsubscribed = browserUnsubscribed;
     }
 }
 
@@ -115,17 +148,41 @@ export class WebPushClient {
     }
 
     /**
-     * Cancel the current subscription. Calls `onUnsubscribe` first (so the
-     * backend can purge the record) and then `subscription.unsubscribe()`.
+     * Cancel the current subscription: `onUnsubscribe` first, so the backend
+     * can purge the record while the endpoint is known, then
+     * `subscription.unsubscribe()` — **always**, even when `onUnsubscribe`
+     * failed.
      *
-     * @returns True when an active subscription was removed, false otherwise.
+     * Why the browser is released anyway: the two failure modes are not
+     * symmetric. A backend row left behind costs one send to a dead endpoint,
+     * which the push service answers with `404`/`410` and the backend deletes.
+     * A browser subscription left behind keeps delivering this account's
+     * notifications to whoever uses the browser next — and the backend call
+     * fails precisely when that matters, at the end of a session, when the
+     * token that authenticates it is already gone. Before 0.77.0 a rejected
+     * `onUnsubscribe` aborted here and the browser stayed subscribed (#445).
+     * The endpoint is not lost either way: it is read before both calls and
+     * travels in the error.
+     *
+     * @returns True when an active subscription was removed, false when there
+     *   was none or the browser refused.
+     * @throws {WebPushUnsubscribeError} When `onUnsubscribe` failed — thrown
+     *   after the browser subscription was released.
      */
     async unsubscribe(): Promise<boolean> {
         const subscription = await this.getSubscription();
         if (!subscription) return false;
+        const json = subscription.toJSON();
+        let backendError: { cause: unknown } | null = null;
         if (this.config.onUnsubscribe) {
-            await this.config.onUnsubscribe(subscription.toJSON());
+            try {
+                await this.config.onUnsubscribe(json);
+            } catch (cause) {
+                backendError = { cause };
+            }
         }
-        return subscription.unsubscribe();
+        const released = await subscription.unsubscribe();
+        if (backendError) throw new WebPushUnsubscribeError(json, released, backendError.cause);
+        return released;
     }
 }

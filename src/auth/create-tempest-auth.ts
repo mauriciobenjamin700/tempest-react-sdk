@@ -1,5 +1,5 @@
-import { createApiClient } from "../http";
-import type { ApiClient, CsrfOptions, RetryOptions } from "../http";
+import { createApiClient, RefreshSupersededError } from "../http";
+import type { ApiClient, CsrfOptions, RefreshContext, RetryOptions } from "../http";
 import { createAuthStore } from "./create-auth-store";
 import type { AuthState } from "./create-auth-store";
 import { createRefreshQueue } from "./refresh-queue";
@@ -12,6 +12,34 @@ export interface TempestTokenResponse {
     token_type?: string;
     /** Optional refresh token (when the API returns it in the body, not a cookie). */
     refresh_token?: string;
+}
+
+/**
+ * What {@link CreateTempestAuthOptions.onSessionEnd} receives about the session
+ * that just ended.
+ */
+export interface TempestSessionEnd<TUser> {
+    /**
+     * Why it ended: `"logout"` for an explicit `logout()`, `"expired"` when the
+     * client ended it on its own — the refresh failed, or the request replayed
+     * after a refresh still came back `401`.
+     */
+    reason: "logout" | "expired";
+    /** The user of the ended session, as the store held it. */
+    user: TUser | null;
+    /** The access token of the ended session, or `null` when it had none. */
+    token: string | null;
+    /**
+     * A client that sends the ended session's access token — the store has
+     * already been cleared, so `auth.api` no longer does.
+     *
+     * Use it for the server-side half of the teardown, such as deleting this
+     * browser's push subscription. It never refreshes and never ends a session:
+     * a `401` here just rejects. On `"logout"` the token is usually still
+     * valid; on `"expired"` the server has already refused it, so expect the
+     * call to fail and keep the local half of the teardown independent of it.
+     */
+    api: ApiClient;
 }
 
 export interface CreateTempestAuthOptions<TUser> {
@@ -80,6 +108,34 @@ export interface CreateTempestAuthOptions<TUser> {
      * outside any guarded subtree and a full reload is acceptable.
      */
     redirectTo?: string;
+    /**
+     * Tear down per-user state when a session ends — on an explicit `logout()`
+     * **and** when the client ends the session on its own after a failed
+     * refresh. Without it, the automatic path had no place to hook into, and
+     * state derived from the user (a push subscription, a persisted query
+     * cache, a background-sync queue) survived into the next account.
+     *
+     * Order, on both paths:
+     *
+     * 1. any refresh still in flight is superseded, so it cannot reinstall the
+     *    ending session's tokens;
+     * 2. the store and the stored refresh token are cleared — synchronously, so
+     *    `isAuthenticated` is already `false` when `logout()` returns;
+     * 3. this hook runs with a {@link TempestSessionEnd} whose `api` still sends
+     *    the ended session's access token;
+     * 4. on `"expired"` with `redirectTo` set, the browser navigates — after the
+     *    hook settled, even if it threw.
+     *
+     * It may be async. `logout()` resolves when it settles and rejects with what
+     * it threw; on the automatic path the error is swallowed, because the
+     * request that ended the session already rejects with its own `401`. It
+     * runs once per session: a second `logout()`, or the other requests of a
+     * burst of `401`s, find nothing left to end and skip it.
+     *
+     * Not called by `login()` over a live session — call `logout()` first when
+     * switching accounts.
+     */
+    onSessionEnd?: (session: TempestSessionEnd<TUser>) => void | Promise<void>;
 }
 
 export interface TempestAuth<TUser, TCredentials> {
@@ -89,9 +145,21 @@ export interface TempestAuth<TUser, TCredentials> {
     api: ApiClient;
     /** Authenticate, store the session, and resolve the user (or null). */
     login: (credentials: TCredentials) => Promise<TUser | null>;
-    /** Clear the session (and the stored refresh token). */
-    logout: () => void;
-    /** Refresh the access token (deduplicated across concurrent callers). */
+    /**
+     * End the session: supersede any refresh in flight, clear the store and the
+     * stored refresh token, then run `onSessionEnd`.
+     *
+     * The store is cleared synchronously, before the first `await`, so callers
+     * that ignore the promise see the signed-out state at once. The promise
+     * resolves when `onSessionEnd` settled and rejects with its error.
+     */
+    logout: () => Promise<void>;
+    /**
+     * Refresh the access token (deduplicated across concurrent callers).
+     *
+     * @throws {RefreshSupersededError} When the session ended or changed while
+     *   the refresh was in flight; its tokens were discarded.
+     */
     refresh: () => Promise<void>;
     /** The current access token, or null. */
     getToken: () => string | null;
@@ -114,6 +182,20 @@ function defaultParseTokens(data: unknown): { token: string; refreshToken?: stri
  * `redirectTo` set, the browser also leaves the page; without it, clearing the
  * store is enough for a `<RouteGuard>` to navigate on its own.
  *
+ * Every refresh is bound to a **session epoch**, bumped by `logout()` and at the
+ * start of `login()`. A refresh that resolves after its epoch ended discards
+ * what it brought back and rejects with {@link RefreshSupersededError}, which
+ * the client passes through without ending the new session. Before 0.77.0 a
+ * refresh that was in flight during `logout()` reinstalled the old tokens —
+ * and after `logout()` + `login(B)`, replaced B's token with A's while the UI
+ * showed B (#435). A `401` from a request sent under an ended session is
+ * refused the same way, instead of being replayed as the account signed in now.
+ *
+ * Refreshes are collapsed per rotation, not just per overlap: a `401` whose
+ * request left with a token that has since been replaced in the same session
+ * replays with the new token and refreshes nothing. Three expired requests take
+ * one refresh whether their `401`s arrive together or one after another.
+ *
  * @example
  * const auth = createTempestAuth<User, { email: string; password: string }>({
  *     baseURL: import.meta.env.VITE_API_URL,
@@ -122,7 +204,7 @@ function defaultParseTokens(data: unknown): { token: string; refreshToken?: stri
  *
  * await auth.login({ email, password });   // stores session, returns the user
  * const orders = await auth.api.get("/api/orders");  // sends the bearer token
- * auth.logout();
+ * await auth.logout();                      // clears, then runs onSessionEnd
  *
  * @param options - The auth configuration.
  * @returns The store hook, a wired API client, and login/logout/refresh helpers.
@@ -146,6 +228,7 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
         refreshBody = (rt) => (rt ? { refresh_token: rt } : undefined),
         retry,
         redirectTo,
+        onSessionEnd,
     } = options;
 
     const useAuthStore = createAuthStore<TUser>({ name: storeName, storage });
@@ -184,13 +267,106 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
         return user;
     }
 
+    let epoch = 0;
+    const issued = new Set<string>();
+    const retired = new Set<string>();
+    let ending: Promise<void> = Promise.resolve();
+
+    /**
+     * Install an access token under the current epoch, remembering it and the
+     * one it replaces.
+     *
+     * Remembering both is what lets `refreshFor` tell a `401` from this
+     * session's older token (already rotated, just replay) from one sent under a
+     * session that has since ended (refuse). The replaced token counts because
+     * it may never have passed through here — rehydrated from storage on a page
+     * load, or set on the store directly.
+     *
+     * @param token - The access token to install.
+     */
+    function install(token: string): void {
+        const replaced = state().token;
+        if (replaced) issued.add(replaced);
+        state().setToken(token);
+        issued.add(token);
+    }
+
+    /**
+     * Start a new session epoch: supersede the refresh in flight, retire this
+     * epoch's tokens — the one in the store included, for the same reason as in
+     * `install` — and give the new epoch a refresh queue of its own, so a `401`
+     * under the new session never joins the old session's refresh.
+     */
+    function nextEpoch(): void {
+        epoch += 1;
+        const current = state().token;
+        if (current) issued.add(current);
+        for (const token of issued) retired.add(token);
+        issued.clear();
+        queue = createRefreshQueue(rotate);
+    }
+
+    /**
+     * Perform one refresh for the epoch that is current when it starts.
+     *
+     * Checked again after the round trip, on success and on failure alike: a
+     * refresh that fails after `logout()` + `login(B)` must not reach
+     * `onUnauthorized` either, or it would end B's session.
+     *
+     * @throws {RefreshSupersededError} When the epoch changed during the call.
+     */
+    async function rotate(): Promise<void> {
+        const started = epoch;
+        let data: unknown;
+        try {
+            data = await api.post<unknown>(refreshPath, {
+                body: refreshBody(readRefreshToken()),
+                skipAuth: true,
+            });
+        } catch (error) {
+            if (epoch !== started) throw new RefreshSupersededError();
+            throw error;
+        }
+        if (epoch !== started) throw new RefreshSupersededError();
+        const { token, refreshToken } = parseTokens(data);
+        install(token);
+        if (refreshToken) writeRefreshToken(refreshToken);
+    }
+
+    let queue = createRefreshQueue(rotate);
+
+    /**
+     * The `refresh` the client calls on a `401`, told which token the rejected
+     * request carried.
+     *
+     * - A token retired by an ended session, no longer current: the request
+     *   belongs to that session and is refused rather than replayed as whoever
+     *   is signed in now.
+     * - Any other token that is no longer current: this session already rotated
+     *   past it, so the replay just picks up the new one — no second refresh.
+     * - Otherwise: join or start this epoch's refresh.
+     *
+     * @param context - The token the rejected request was sent with.
+     * @throws {RefreshSupersededError} When the request belongs to an ended
+     *   session, or the session changed during the refresh.
+     */
+    async function refreshFor(context: RefreshContext): Promise<void> {
+        const current = getToken();
+        if (context.token !== null && context.token !== current) {
+            if (retired.has(context.token)) throw new RefreshSupersededError();
+            if (current !== null) return;
+        }
+        return queue();
+    }
+
     async function login(credentials: TCredentials): Promise<TUser | null> {
+        nextEpoch();
         const data = await api.post<unknown>(loginPath, {
             body: credentials,
             skipAuth: true,
         });
         const { token, refreshToken } = parseTokens(data);
-        state().setToken(token);
+        install(token);
         writeRefreshToken(refreshToken ?? null);
         const embedded = parseUser?.(data);
         if (embedded != null) {
@@ -200,34 +376,64 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
         return fetchUser();
     }
 
-    function logout(): void {
+    /**
+     * End the current session, synchronously up to the hook.
+     *
+     * The epoch moves first, so a refresh resolving between here and the hook
+     * is already superseded. The hook only runs when there was a session to
+     * end — a token, a stored refresh token or a user — which is what keeps a
+     * burst of `401`s from running it once per request; those later callers
+     * wait on the teardown already under way instead, through `ending`, which
+     * never rejects so a later no-op `logout()` does not inherit an old error.
+     *
+     * @param reason - Whether the caller signed out or the client gave up.
+     * @returns A promise settling with the hook.
+     */
+    function finish(reason: TempestSessionEnd<TUser>["reason"]): Promise<void> {
+        nextEpoch();
+        const { user, token } = state();
+        const live = token !== null || user !== null || readRefreshToken() !== null;
         state().logout();
         writeRefreshToken(null);
+        if (!live) return ending;
+        if (!onSessionEnd) return Promise.resolve();
+        const sessionApi = createApiClient({
+            baseURL,
+            prefix,
+            withCredentials,
+            csrf,
+            fetcher,
+            getToken: () => token,
+        });
+        const run = (async () => {
+            await onSessionEnd({ reason, user, token, api: sessionApi });
+        })();
+        ending = run.then(
+            () => undefined,
+            () => undefined,
+        );
+        return run;
+    }
+
+    function logout(): Promise<void> {
+        return finish("logout");
     }
 
     /**
-     * Clear the session and, when `redirectTo` is set, leave the page.
+     * End the session after the client gave up on it and, when `redirectTo`
+     * is set, leave the page once `onSessionEnd` settled.
      *
      * Separate from `logout` so an explicit sign-out stays a pure state change:
      * a caller that already navigates itself would otherwise get a second,
-     * competing navigation.
+     * competing navigation. The hook is awaited before navigating because a
+     * hard navigation aborts whatever request it still had in flight.
      */
-    function endSession(): void {
-        logout();
+    async function endSession(): Promise<void> {
+        await finish("expired").catch(() => undefined);
         if (redirectTo && typeof window !== "undefined") {
             window.location.assign(redirectTo);
         }
     }
-
-    const refresh = createRefreshQueue(async () => {
-        const data = await api.post<unknown>(refreshPath, {
-            body: refreshBody(readRefreshToken()),
-            skipAuth: true,
-        });
-        const { token, refreshToken } = parseTokens(data);
-        state().setToken(token);
-        if (refreshToken) writeRefreshToken(refreshToken);
-    });
 
     const api = createApiClient({
         baseURL,
@@ -236,10 +442,12 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
         csrf,
         fetcher,
         getToken,
-        refresh,
+        refresh: refreshFor,
         retry,
         onUnauthorized: () => endSession(),
     });
+
+    const refresh = (): Promise<void> => queue();
 
     return { useAuthStore, api, login, logout, refresh, getToken };
 }

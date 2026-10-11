@@ -1,5 +1,5 @@
 import { QueryClient } from "@tanstack/react-query";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { persistQueryClientOffline } from "./offline-persistence";
 
 function makeClient(): QueryClient {
@@ -138,5 +138,160 @@ describe("persistQueryClientOffline — throttling and teardown", () => {
         await b.restore();
         b.unsubscribe();
         expect(other.getQueryData(["x"])).toBeUndefined();
+    });
+});
+
+describe("persistQueryClientOffline — clear() ends the session (#440)", () => {
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    async function restoreInto(dbName: string): Promise<QueryClient> {
+        const next = makeClient();
+        const reader = persistQueryClientOffline({ queryClient: next, databaseName: dbName });
+        await reader.restore();
+        reader.unsubscribe();
+        return next;
+    }
+
+    it("a write pending at clear() never lands, so the next boot restores nothing", async () => {
+        vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+        const dbName = `qc-${Math.random().toString(36).slice(2)}`;
+        const client = makeClient();
+        const persistence = persistQueryClientOffline({
+            queryClient: client,
+            databaseName: dbName,
+            throttleMs: 50,
+        });
+
+        client.setQueryData(["me", "inbox"], { owner: "user-a", secret: "A" });
+        await persistence.clear();
+        await vi.advanceTimersByTimeAsync(200);
+        vi.useRealTimers();
+
+        const next = await restoreInto(dbName);
+        expect(next.getQueryData(["me", "inbox"])).toBeUndefined();
+    });
+
+    it("cache activity after clear() does not re-persist the previous user's data", async () => {
+        vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+        const dbName = `qc-${Math.random().toString(36).slice(2)}`;
+        const client = makeClient();
+        client.setQueryData(["me", "inbox"], { owner: "user-a", secret: "A" });
+        const persistence = persistQueryClientOffline({
+            queryClient: client,
+            databaseName: dbName,
+            throttleMs: 50,
+        });
+        await persistence.flush();
+
+        await persistence.clear();
+        client.setQueryData(["public"], "next user's first query");
+        await vi.advanceTimersByTimeAsync(200);
+        vi.useRealTimers();
+
+        const next = await restoreInto(dbName);
+        expect(next.getQueryData(["me", "inbox"])).toBeUndefined();
+        expect(next.getQueryData(["public"])).toBeUndefined();
+    });
+
+    it("a save already in flight when clear() starts is deleted, not left behind", async () => {
+        const dbName = `qc-${Math.random().toString(36).slice(2)}`;
+        const client = makeClient();
+        client.setQueryData(["me"], "A");
+        const persistence = persistQueryClientOffline({
+            queryClient: client,
+            databaseName: dbName,
+        });
+
+        const inFlight = persistence.flush();
+        await persistence.clear();
+        await inFlight;
+
+        const next = await restoreInto(dbName);
+        expect(next.getQueryData(["me"])).toBeUndefined();
+    });
+
+    it("flush() after clear() is a no-op and does not write the live cache back", async () => {
+        const dbName = `qc-${Math.random().toString(36).slice(2)}`;
+        const client = makeClient();
+        client.setQueryData(["me"], "A");
+        const persistence = persistQueryClientOffline({
+            queryClient: client,
+            databaseName: dbName,
+        });
+
+        await persistence.clear();
+        await persistence.flush();
+
+        const next = await restoreInto(dbName);
+        expect(next.getQueryData(["me"])).toBeUndefined();
+    });
+
+    it("clear() leaves the in-memory QueryClient untouched", async () => {
+        const client = makeClient();
+        client.setQueryData(["catalog"], [1, 2]);
+        const persistence = persistQueryClientOffline({
+            queryClient: client,
+            databaseName: `qc-${Math.random().toString(36).slice(2)}`,
+        });
+
+        await persistence.clear();
+        expect(client.getQueryData(["catalog"])).toEqual([1, 2]);
+    });
+
+    it("clear() is idempotent and composes with unsubscribe() in any order", async () => {
+        const dbName = `qc-${Math.random().toString(36).slice(2)}`;
+        const client = makeClient();
+        client.setQueryData(["me"], "A");
+        const persistence = persistQueryClientOffline({
+            queryClient: client,
+            databaseName: dbName,
+        });
+        await persistence.flush();
+
+        persistence.unsubscribe();
+        await Promise.all([persistence.clear(), persistence.clear()]);
+        await persistence.clear();
+        persistence.unsubscribe();
+
+        const next = await restoreInto(dbName);
+        expect(next.getQueryData(["me"])).toBeUndefined();
+    });
+
+    it("restore() after clear() does not hydrate a snapshot written by another handle", async () => {
+        const dbName = `qc-${Math.random().toString(36).slice(2)}`;
+        const client = makeClient();
+        const persistence = persistQueryClientOffline({
+            queryClient: client,
+            databaseName: dbName,
+        });
+        await persistence.clear();
+
+        const other = makeClient();
+        other.setQueryData(["other"], "B");
+        const writer = persistQueryClientOffline({ queryClient: other, databaseName: dbName });
+        await writer.flush();
+        writer.unsubscribe();
+
+        await persistence.restore();
+        expect(client.getQueryData(["other"])).toBeUndefined();
+    });
+
+    it("a fresh handle after clear() persists the new session normally", async () => {
+        const dbName = `qc-${Math.random().toString(36).slice(2)}`;
+        const client = makeClient();
+        client.setQueryData(["me"], "A");
+        const first = persistQueryClientOffline({ queryClient: client, databaseName: dbName });
+        await first.clear();
+        client.clear();
+
+        const second = persistQueryClientOffline({ queryClient: client, databaseName: dbName });
+        client.setQueryData(["me"], "B");
+        await second.flush();
+        second.unsubscribe();
+
+        const next = await restoreInto(dbName);
+        expect(next.getQueryData(["me"])).toBe("B");
     });
 });

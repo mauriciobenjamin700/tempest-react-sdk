@@ -20,14 +20,36 @@ export interface OfflineQueryPersistenceOptions {
 export interface OfflineQueryPersistence {
     /**
      * Load the persisted snapshot into the `QueryClient`. Call once on boot,
-     * before rendering queries, so cached data is available offline.
+     * before rendering queries, so cached data is available offline. A no-op
+     * once {@link OfflineQueryPersistence.clear} has been called.
      */
     restore: () => Promise<void>;
-    /** Write the current cache snapshot immediately (bypassing the throttle). */
+    /**
+     * Write the current cache snapshot immediately (bypassing the throttle). A
+     * no-op once {@link OfflineQueryPersistence.clear} has been called.
+     */
     flush: () => Promise<void>;
-    /** Stop persisting and drop the pending write. */
+    /** Stop persisting and drop the pending write. Idempotent. */
     unsubscribe: () => void;
-    /** Delete the persisted snapshot (e.g. on logout). */
+    /**
+     * End the persisted session (e.g. on logout) and delete the snapshot.
+     *
+     * Terminal for this handle: it cancels the pending throttled write, stops
+     * listening to the query cache, waits for any write already in flight and
+     * only then deletes the row — so neither a write pending in the last
+     * throttle window nor cache activity after logout (the next user's first
+     * query) can re-persist the previous user's responses. Afterwards
+     * `restore`/`flush` are no-ops; to persist a new session, call
+     * {@link persistQueryClientOffline} again after login.
+     *
+     * The in-memory `QueryClient` is **not** cleared: the app owns it and the
+     * shape of its logout (`queryClient.clear()`, or `removeQueries` on the
+     * user-scoped keys only while keeping a public catalog). Because
+     * persistence is already off, that call can come before or after this one.
+     *
+     * Idempotent and safe to call concurrently; every call deletes the row
+     * again.
+     */
     clear: () => Promise<void>;
 }
 
@@ -49,11 +71,19 @@ interface Snapshot {
  * @param options - The client plus storage/throttle configuration.
  * @returns A handle with `restore`, `flush`, `clear` and `unsubscribe`.
  *
+ * `clear()` is terminal for the handle (see {@link OfflineQueryPersistence.clear}):
+ * a logout that only deleted the row used to be undone by the pending write or
+ * by the next cache event, restoring the previous user's data on the next boot
+ * (#440).
+ *
  * @example
  * const persistence = persistQueryClientOffline({ queryClient });
- * await persistence.restore(); // before first render
- * // ... later, on logout:
- * await persistence.clear();
+ * await persistence.restore();
+ *
+ * async function logout(): Promise<void> {
+ *     await persistence.clear();
+ *     queryClient.clear();
+ * }
  */
 export function persistQueryClientOffline(
     options: OfflineQueryPersistenceOptions,
@@ -68,13 +98,30 @@ export function persistQueryClientOffline(
         keyPath: "id",
     });
 
+    let ended = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const inFlight = new Set<Promise<unknown>>();
+
     async function save(): Promise<void> {
-        await store.put({ id: key, state: dehydrate(queryClient) });
+        if (ended) return;
+        const write = store.put({ id: key, state: dehydrate(queryClient) });
+        inFlight.add(write);
+        try {
+            await write;
+        } finally {
+            inFlight.delete(write);
+        }
     }
 
-    let timer: ReturnType<typeof setTimeout> | null = null;
+    function cancelTimer(): void {
+        if (timer) {
+            clearTimeout(timer);
+            timer = null;
+        }
+    }
+
     function schedule(): void {
-        if (timer) return;
+        if (timer || ended) return;
         timer = setTimeout(() => {
             timer = null;
             void save();
@@ -83,26 +130,26 @@ export function persistQueryClientOffline(
 
     const unsubscribeCache = queryClient.getQueryCache().subscribe(schedule);
 
+    function stop(): void {
+        cancelTimer();
+        unsubscribeCache();
+    }
+
     return {
         async restore() {
+            if (ended) return;
             const snapshot = await store.get(key);
-            if (snapshot) hydrate(queryClient, snapshot.state);
+            if (snapshot && !ended) hydrate(queryClient, snapshot.state);
         },
         async flush() {
-            if (timer) {
-                clearTimeout(timer);
-                timer = null;
-            }
+            cancelTimer();
             await save();
         },
-        unsubscribe() {
-            if (timer) {
-                clearTimeout(timer);
-                timer = null;
-            }
-            unsubscribeCache();
-        },
+        unsubscribe: stop,
         async clear() {
+            ended = true;
+            stop();
+            await Promise.allSettled([...inFlight]);
             await store.delete(key);
         },
     };

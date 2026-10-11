@@ -4,6 +4,22 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`persistQueryClientOffline`: `clear()` no logout não é mais desfeito, e o cache do usuário
+  anterior não volta no próximo boot (#440).** Antes, `clear()` só apagava a linha do IndexedDB; o
+  timer de escrita e o subscribe no cache continuavam, e `save()` serializa o `QueryClient` inteiro.
+  Uma escrita pendente na última janela de throttle, ou qualquer evento de cache depois do logout
+  (a primeira query do próximo usuário), regravava as respostas de quem saiu, e o `restore()` do
+  boot seguinte as hidratava. Reproduzido em `src/query/offline-persistence.test.ts` antes da
+  correção (`npx vitest run src/query/offline-persistence.test.ts`: 4 de 8 testes novos falhando,
+  com `expected { owner: 'user-a', secret: 'A' } to be undefined`). Agora `clear()` é terminal
+  para o handle: cancela o timer, para o subscribe, espera a escrita em voo e só então apaga a
+  linha; `restore()`/`flush()` viram no-op depois dele; é idempotente e seguro em paralelo. O
+  `QueryClient` em memória **não** é limpo — é do app (`queryClient.clear()` ou `removeQueries`
+  seletivo); para persistir a próxima sessão, crie um handle novo depois do login. Docs PT-BR/EN em
+  `docs/query.md` + `docs/query.en.md`.
+
 ## [0.76.0] — 2026-10-10
 
 ### Adicionado

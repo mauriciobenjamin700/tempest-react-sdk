@@ -204,11 +204,29 @@ do React Refresh entra do mesmo jeito.
 Se o `index.html` já declara uma `<meta http-equiv="Content-Security-Policy">`, o
 plugin **mescla, não sobrescreve**:
 
-- toda diretiva que o app declarou fica **exatamente como está** — o plugin nunca
-  afrouxa uma escolha que você escreveu;
-- a exceção é o `connect-src`, que **ganha** as origens resolvidas (é a lista que
-  o plugin existe para manter);
-- diretivas que o app não declarou vêm dos defaults.
+o resultado nunca é mais permissivo do que a política que você escreveu. Cada
+diretiva cai numa destas linhas:
+
+| A diretiva no seu `<meta>` | O que o plugin emite | Exemplo |
+| --- | --- | --- |
+| declarada | **exatamente como está**; `directives` não mexe nela | `script-src 'self'` continua `script-src 'self'`, sem hash nem `'wasm-unsafe-eval'` |
+| `connect-src` declarado | o seu valor **+** as origens resolvidas | `connect-src 'self'` → `connect-src 'self' https://api.example.com` |
+| não declarada, mas herdada pela cadeia de fallback do CSP3 (`img-src` → `default-src`; `worker-src` → `child-src` → `script-src` → `default-src`) | **nada** — ela continua caindo no valor herdado | com `default-src 'none'`, nenhum `img-src 'self' data: blob:` aparece |
+| `connect-src` herdado | o valor herdado **+** as origens resolvidas; nada, se não há origem | `default-src 'self'` → `connect-src 'self' https://api.example.com` |
+| herdada, com fontes em `directives` | o valor herdado **+** as fontes de `directives` | `default-src 'self'` + `{ "img-src": ["https://tiles.example.com"] }` → `img-src 'self' https://tiles.example.com` |
+| herdada, com default `'none'` (`object-src`) | o default, que só restringe | `object-src 'none'` |
+| sem fallback (`base-uri`, `form-action`) | o default, que só restringe | `base-uri 'self'` |
+| nada no seu `<meta>` a governa | o default | sem `default-src`, o `img-src` vem como `'self' data: blob:` |
+
+!!! warning "Herdar do `default-src` desliga o que o default liberava"
+    Com `default-src 'self'` e sem `script-src`, o `'wasm-unsafe-eval'` do
+    `/vision` e o hash do script inline **não entram**: afrouxariam a sua
+    política. Um `<script>` inline que a sua política bloqueia vira **aviso no
+    build**, com o hash pronto para colar no `script-src`. Se o app precisa do
+    WebAssembly, declare a diretiva no `<meta>` ou passe as fontes em
+    `directives` — por exemplo `directives: { "script-src": ["'wasm-unsafe-eval'"] }`.
+    O `<style>` que o `applyTheme` injeta em runtime o build não vê: com
+    `default-src` sem `'unsafe-inline'`, declare um `style-src` que o libere.
 
 Duas `<meta>` de CSP na mesma página derrubam o build: o navegador aplica a
 **interseção** das duas, e juntá-las numa só afrouxaria a política.

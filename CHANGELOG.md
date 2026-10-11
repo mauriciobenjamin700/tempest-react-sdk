@@ -4,6 +4,23 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`tempestCsp` não afrouxa mais uma CSP declarada ao preencher diretivas que caíam no
+  `default-src` (#439).** Com `<meta http-equiv="Content-Security-Policy" content="default-src 'none';
+style-src 'self'">` e um `<script>` inline, o build emitia `script-src 'self' 'wasm-unsafe-eval'
+'sha256-…'`, `img-src 'self' data: blob:`, `connect-src 'self' blob: data:`, `worker-src 'self'
+blob:` e o resto dos defaults — cada um mais permissivo que o `'none'` herdado; com
+  `default-src 'self'`, o mesmo, mais `style-src 'self' 'unsafe-inline'`. Agora a diretiva que o app
+  não declarou, mas já governa pela cadeia de fallback do CSP3 §6.8.3 (`img-src` → `default-src`,
+  `worker-src` → `child-src` → `script-src` → `default-src`), fica de fora e continua herdando: sem
+  hash inline, sem `'wasm-unsafe-eval'`, sem `data:`/`blob:`. O `connect-src` parte do valor herdado
+  e ganha só as origens resolvidas; fontes passadas em `directives` também somam ao herdado, não aos
+  defaults. Default que só restringe (`object-src 'none'`, `base-uri`, `form-action`) continua
+  entrando. Script inline que a política declarada bloqueia vira aviso no build, com o hash para
+  colar — antes ficava liberado em silêncio. Semântica completa numa tabela em `docs/csp.md`
+  (`.en.md`). Reproduzido com 5 testes em `src/vite/tempest-csp.test.ts` que falhavam na `main`.
+
 ## [0.76.0] — 2026-10-10
 
 ### Adicionado

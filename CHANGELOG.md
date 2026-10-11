@@ -20,6 +20,30 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `await`. As tracks em si não são paradas: pertencem ao chamador. O duplo de teste
   `FakePeerConnection` agora rejeita negociação depois de `close()` com `InvalidStateError`, como o
   browser. Docs PT-BR/EN em `docs/webrtc.md` ("Encerrar é definitivo").
+- **`createPeerMesh`: negociação interrompida por `stop()`/`removePeer()` não rejeita mais o
+  `accept()`.** Um `setRemoteDescription`/`createAnswer`/`setLocalDescription` em voo quando o link
+  fecha é rejeitado pelo browser com `InvalidStateError` (ou nunca resolve, como o Chromium foi
+  medido fazendo); no primeiro caso o `accept()` rejeitava e, ligado como `void mesh.accept(m)`,
+  virava unhandled rejection. Agora a rejeição de um link que já não está vivo é engolida, e a de um
+  link vivo continua sendo relançada. O `FakePeerConnection` ganhou `hold`/`release()` e
+  `closeMode: "reject" | "hang"` para os testes cobrirem os dois comportamentos em cada passo.
+- **`createPeerMesh`: nada chega ao app depois do `stop()`.** `removePeer` e o
+  `onconnectionstatechange` de uma conexão fechada disparavam `onPeers([])` depois do stop; e o
+  evento atrasado de uma conexão já removida podia derrubar o link novo re-adicionado com o mesmo id.
+- **`createPeerMesh({ stats })`: amostra de uma conexão substituída não cai no peer novo, e um
+  `getStats()` rejeitado não derruba o tick.** A conferência depois do `await` agora é por
+  identidade do link, não por id; e cada link é amostrado no seu próprio `try`, então uma conexão
+  fechando no meio não gera unhandled rejection nem deixa as outras sem medição.
+- **`createPeerMesh`: `addPeer` com `addTransceiver` lançando não deixa link pendurado.** Antes o
+  link entrava no mapa antes dos transceivers, e todo `addPeer` seguinte com o mesmo id virava
+  no-op; agora a conexão é fechada, o erro é relançado e o id fica livre.
+- **`createPeerMesh`: `setLocalTrack` sobreposto no mesmo slot termina na última chamada.** Um
+  desmute com `replaceTrack` ainda em voo podia terminar depois do mute seguinte, deixando o
+  microfone enviando enquanto a mesh achava o slot vazio. As escritas agora são enfileiradas por
+  slot, e cada uma publica o que o slot contém quando roda.
+- Custo, medido com `npx size-limit --json` em `origin/main` × esta branch (min + brotli): fatia
+  `createPeerMesh` 3164 B → 3385 B (+221 B, teto 3,3 kB → 3,4 kB); barrel ESM 139 861 B → 140 190 B
+  (+329 B, dentro do teto); barrel CJS 167 019 B → 167 204 B (+185 B, teto 167,2 kB → 167,3 kB).
 
 ## [0.76.0] — 2026-10-10
 

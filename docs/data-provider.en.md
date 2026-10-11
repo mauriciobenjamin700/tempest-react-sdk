@@ -37,7 +37,7 @@ export const dataProvider = createDataProvider(apiClient);
 | `sortOrderParam`     | `"ascending"`  | Query-param name for the sort direction.                                                  |
 | `sortOrderAsBoolean` | `true`         | `true` → emit a boolean (`order:"asc"` becomes `true`). `false` → emit `"asc"`/`"desc"`.  |
 | `updateMethod`       | `"patch"`      | HTTP method used by `update` (`"patch"` or `"put"`).                                       |
-| `buildPath`          | see below      | Builds the resource path. Default: `id == null ? "/{resource}" : "/{resource}/{id}"`.     |
+| `buildPath`          | see below      | Builds the resource path. Default: `id == null ? "/{resource}" : "/{resource}/{id}"`. Receives the `id` already encoded (see below). |
 
 !!! note "The defaults follow the `tempest-fastapi-sdk`"
     `BasePaginationFilterSchema` uses `page`/`size`/`order_by`/`ascending`, and `ascending` is a boolean. That's why `sortOrderAsBoolean` defaults to `true`. If your backend expects `?sort=desc` instead of `?ascending=false`, tweak `sortOrderParam` and `sortOrderAsBoolean`.
@@ -67,6 +67,32 @@ export const dataProvider = createDataProvider(apiClient, {
 | `create("posts", data)`            | `POST /posts`                                                |
 | `update("posts", id, data)`        | `PATCH /posts/{id}` (or `PUT` with `updateMethod: "put"`)    |
 | `deleteOne("posts", id)`           | `DELETE /posts/{id}`                                         |
+
+### The `id` never leaves its own segment
+
+The `id` is the part of the URL that may come from outside the app — a search param, the hash, a value another user stored. Left raw in the path, `"../../admin/users"` would send the authenticated `GET` (with the Bearer) to another endpoint, and `"7?role=admin"` would inject a query string into the `PATCH`. So, since 0.77.0, **every** `id` goes through `encodeIdSegment` before reaching `buildPath`:
+
+| `id` received           | Path sent                            |
+| ----------------------- | ------------------------------------ |
+| `42`                    | `/posts/42`                          |
+| `"../admin"`            | `/posts/..%2Fadmin`                  |
+| `"a/b?x=1"`             | `/posts/a%2Fb%3Fx%3D1`               |
+| `""`, `"."` or `".."`   | rejects with `TypeError`, no request |
+
+`encodeIdSegment` applies `encodeURIComponent` and rejects the three values the URL parser would resolve as a dot-segment even when encoded. It applies to a custom `buildPath` too — the override receives the finished segment and only interpolates it, as in the example above.
+
+!!! tip "Building a path with an id outside the data provider"
+    Calling `createApiClient` directly with an outside id? Use the same helper:
+
+    ```ts
+    import { createApiClient, encodeIdSegment } from "tempest-react-sdk";
+
+    const api = createApiClient({ baseURL: import.meta.env.VITE_API_URL });
+
+    export function fetchInvoice(id: string): Promise<unknown> {
+      return api.get(`/invoices/${encodeIdSegment(id)}`);
+    }
+    ```
 
 ## Provider in the tree
 
@@ -278,6 +304,7 @@ export function EditPost({ id }: { id: string }) {
 - `useList` resolves an `OffsetPage<T>` (`items`/`total`/`page`/`pages`); `useOne` fetches a record and disables itself without an `id`.
 - `useCreate` / `useUpdate` / `useDelete` are mutations that invalidate the right cache on success — list (create/delete) or list + record (update).
 - Backend off-convention? Tweak `pageParam`/`sizeParam`/`sortFieldParam`/`sortOrderParam`/`sortOrderAsBoolean`/`updateMethod`/`buildPath`.
+- Every `id` goes through `encodeIdSegment`: it stays in one segment, and `""`/`"."`/`".."` are rejected before the request.
 
 ## See also
 

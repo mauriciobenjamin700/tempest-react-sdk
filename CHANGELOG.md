@@ -4,6 +4,24 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **Data provider — o `id` não sai mais do próprio segmento do path (#438).** `getOne`,
+  `getMany`, `update` e `deleteOne` interpolavam o `id` cru em `/{resource}/{id}`, e o
+  `buildApiUrl` resolvia `..` e cortava a query no primeiro `?`: com `baseURL`
+  `https://app.example.test/api`, `getOne("posts", "../../admin/users")` enviava
+  `GET https://app.example.test/admin/users` com o Bearer, `deleteOne("posts", "../users/7")`
+  virava `DELETE …/api/users/7` e `update("posts", "7?role=admin")` virava
+  `PATCH …/api/posts/7?role=admin`. Agora todo `id` passa pelo novo `encodeIdSegment`
+  (`encodeURIComponent` + rejeição de `""`, `"."` e `".."` com `TypeError`, antes de qualquer
+  requisição): os mesmos ids vão para `…/api/posts/..%2F..%2Fadmin%2Fusers`,
+  `…/api/posts/..%2Fusers%2F7` e `…/api/posts/7%3Frole%3Dadmin`; id comum (`42`, UUID) segue
+  idêntico. Medido com `createApiClient` + `fetcher` stub, antes × depois, em
+  `src/data/create-data-provider.path.test.ts`. **Efeito em `buildPath` customizado:** o
+  override passa a receber o `id` já codificado — quem já fazia `encodeURIComponent(id)` nele
+  deve remover, ou `%2F` vira `%252F`. `encodeIdSegment` é exportado para quem monta path com id
+  de fora chamando o `createApiClient` direto. Docs em `docs/data-provider.md` + `.en.md`.
+
 ## [0.76.0] — 2026-10-10
 
 ### Adicionado

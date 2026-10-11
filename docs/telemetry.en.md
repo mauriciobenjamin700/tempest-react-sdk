@@ -235,6 +235,7 @@ Piece by piece:
 
 - **`endpoint`** — the full URL of the route.
 - **`getToken`** — optional. The route is public: an error before login, or with an expired session, still has to get through. A missing, empty or throwing token sends anonymously; the backend takes `user_id` from the token, **never** from the body.
+- **`getPrincipal`** — optional, recommended. Who is signed in, read when the error happens; see [Logout and who owns each report](#logout-and-who-owns-each-report).
 - **`device`** — read **when the error happens**, not when it is sent. A report queued offline on `1.4.0` must not go out labelled `1.5.0`.
 - **`report(error, context)`** — never throws. It describes the error, stamps the device, queues it and tries to send.
 
@@ -261,7 +262,7 @@ Error: Could not read the photo
 
 Everything goes through a `localStorage` queue **before** the network. With no signal, the report waits; when the browser fires `online`, the queue drains on its own. Two rules bound it:
 
-- **An identical report becomes a counter.** A failure in a loop is stored once, and goes out with `[repeated N×]` at the start of `message`.
+- **An identical report (from the same owner) becomes a counter.** A failure in a loop is stored once, and goes out with `[repeated N×]` at the start of `message`.
 - **A ceiling of 50** (`maxEntries`) — the oldest leaves first.
 
 What each answer does:
@@ -274,6 +275,46 @@ What each answer does:
 | any other 4xx | is dropped — the backend would refuse that body forever, and it would block the ones behind it |
 
 `flush()` drains now and returns `{ sent, dropped, pending, retryAfterMs }`; concurrent calls share one run. `dispose()` removes the `online` listener and the timer.
+
+### Logout and who owns each report
+
+The token is read **when the queue drains**, not when the error happens — and the queue survives a logout. Left alone, an error Ana had offline would go out with Bruno's token if he signed in on the same browser before the queue drained: the backend takes `user_id` from the token and would credit Bruno with Ana's message, context and stack.
+
+That is why each report is **stamped with who was signed in when the error happened**, and only goes out with that same person's bearer:
+
+```ts
+import { createAppErrorReporter } from "tempest-react-sdk";
+
+let currentUserId: string | null = null;
+
+export const reporter = createAppErrorReporter({
+    endpoint: "/api/app-errors",
+    getToken: () => sessionStorage.getItem("access_token"),
+    getPrincipal: () => currentUserId,
+});
+
+export function onLogout(): void {
+    currentUserId = null;
+    reporter.clear();
+}
+```
+
+- **`getPrincipal`** — optional. A **stable, non-secret** id of who is signed in (the user id, not the email). The queue stores only a one-way fingerprint of it (`entry.owner`), **never** the token.
+- **Without `getPrincipal`**, the owner is a fingerprint of the token read when the error happened. Just as safe, but a token refresh between the error and the send makes the report go out anonymously. Pass `getPrincipal` to keep attribution across refreshes.
+- **`foreignReports`** — what to do with someone else's report (or one of unknown owner, queued before 0.77.0): `"anonymous"` (default) sends it without `Authorization`, because the route is public and the error is still useful; `"drop"` discards it, for apps where the previous user's error text must not leave the device after they signed out.
+- **`reporter.clear()` on logout** empties the queue. It is not what protects attribution — the stamp already does — but it is what makes sure nothing from that session is left behind.
+
+| Report raised by | Sent under the session of | Goes out as |
+| --- | --- | --- |
+| Ana | Ana | Ana's bearer |
+| Ana | Bruno, or nobody | anonymous (or dropped, with `foreignReports: "drop"`) |
+| nobody (before login) | anyone | anonymous |
+| old queue, no owner | anyone | anonymous (or dropped) |
+
+!!! check "No credential on disk"
+    `localStorage` holds the report and an `owner` such as `p:3f1c…` — 64 bits
+    of hash that do not turn back into a token. The token stays only where the
+    app keeps it.
 
 ### With `TelemetryProvider`
 
@@ -340,7 +381,7 @@ const telemetry = useTelemetry();
 - **`useTelemetry()` can be `null`** — always `telemetry?.track(...)` with optional chaining.
 - **Adapters inject the instance** (`{ sentry }`, `{ posthog }`) — never a peer dep.
 - **A custom adapter** is ~20 lines mapping 4 methods.
-- **`createAppErrorReporter`** takes field errors to a Tempest backend's `/api/app-errors`, with an offline queue, dedup and 429 handling.
+- **`createAppErrorReporter`** takes field errors to a Tempest backend's `/api/app-errors`, with an offline queue, dedup and 429 handling — and each report only leaves with the bearer of whoever raised it (`getPrincipal`; `clear()` on logout).
 
 ### See also
 

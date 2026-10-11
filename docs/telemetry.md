@@ -235,6 +235,7 @@ Pedaço por pedaço:
 
 - **`endpoint`** — a URL inteira da rota.
 - **`getToken`** — opcional. A rota é pública: erro antes do login, ou com sessão vencida, também tem que chegar. Token ausente, vazio ou que lança vira envio anônimo; o backend tira o `user_id` do token, **nunca** do body.
+- **`getPrincipal`** — opcional, recomendado. Quem está logado, lido na hora do erro; veja [Logout e de quem é cada relato](#logout-e-de-quem-e-cada-relato).
 - **`device`** — lido **na hora do erro**, não na hora do envio. Um relato enfileirado offline na `1.4.0` não pode sair rotulado `1.5.0`.
 - **`report(error, context)`** — nunca lança. Descreve o erro, carimba o aparelho, enfileira e tenta enviar.
 
@@ -261,7 +262,7 @@ Error: Falha ao ler a foto
 
 Tudo passa por uma fila em `localStorage` **antes** da rede. Sem sinal, o relato espera; quando o navegador dispara `online`, a fila drena sozinha. Duas regras seguram o tamanho dela:
 
-- **Relato idêntico vira contador.** Um erro em loop entra uma vez, e sai com `[repeated N×]` no começo do `message`.
+- **Relato idêntico (do mesmo dono) vira contador.** Um erro em loop entra uma vez, e sai com `[repeated N×]` no começo do `message`.
 - **Teto de 50** (`maxEntries`) — o mais antigo sai primeiro.
 
 O que cada resposta faz:
@@ -274,6 +275,45 @@ O que cada resposta faz:
 | outro 4xx | é descartado — o backend recusaria aquele body para sempre, e ele travaria os de trás |
 
 `flush()` drena na hora e devolve `{ sent, dropped, pending, retryAfterMs }`; chamadas concorrentes compartilham a mesma execução. `dispose()` remove o listener de `online` e o timer.
+
+### Logout e de quem é cada relato
+
+O token é lido **na hora do envio**, não na hora do erro — e a fila sobrevive ao logout. Sem cuidado, um erro que a Ana teve offline sairia com o token do Bruno, se ele entrasse no mesmo navegador antes de a fila drenar: o backend tira o `user_id` do token e atribuiria ao Bruno a mensagem, o contexto e a stack da Ana.
+
+Por isso cada relato é **carimbado com quem estava logado quando o erro aconteceu**, e só sai com o Bearer dessa mesma pessoa:
+
+```ts
+import { createAppErrorReporter } from "tempest-react-sdk";
+
+let currentUserId: string | null = null;
+
+export const reporter = createAppErrorReporter({
+    endpoint: "/api/app-errors",
+    getToken: () => sessionStorage.getItem("access_token"),
+    getPrincipal: () => currentUserId,
+});
+
+export function onLogout(): void {
+    currentUserId = null;
+    reporter.clear();
+}
+```
+
+- **`getPrincipal`** — opcional. Um id **estável e não secreto** de quem está logado (o id do usuário, não o e-mail). A fila guarda só uma impressão digital de mão única dele (`entry.owner`), **nunca** o token.
+- **Sem `getPrincipal`**, o dono é a impressão digital do token lido na hora do erro. É igualmente seguro, mas um refresh de token entre o erro e o envio faz o relato sair anônimo. Passe `getPrincipal` para manter a atribuição através de refreshes.
+- **`foreignReports`** — o que fazer com relato de outra pessoa (ou de dono desconhecido, enfileirado antes da 0.77.0): `"anonymous"` (padrão) envia sem `Authorization`, porque a rota é pública e o erro continua útil; `"drop"` descarta, para app em que o texto do erro do usuário anterior não pode sair do aparelho depois que ele saiu.
+- **`reporter.clear()` no logout** esvazia a fila. Não é ele que protege a atribuição — o carimbo já faz isso —, mas é o que garante que nada daquela sessão fica para trás.
+
+| Relato levantado por | Enviado com a sessão de | Sai como |
+| --- | --- | --- |
+| Ana | Ana | Bearer da Ana |
+| Ana | Bruno, ou ninguém | anônimo (ou descartado, com `foreignReports: "drop"`) |
+| ninguém (antes do login) | qualquer um | anônimo |
+| fila antiga, sem dono | qualquer um | anônimo (ou descartado) |
+
+!!! check "Nada de credencial em disco"
+    O `localStorage` guarda o relato e um `owner` como `p:3f1c…` — 64 bits de
+    hash, que não viram token de volta. O token continua só onde o app o guarda.
 
 ### Com o `TelemetryProvider`
 
@@ -340,7 +380,7 @@ const telemetry = useTelemetry();
 - **`useTelemetry()` pode ser `null`** — sempre `telemetry?.track(...)` com optional chaining.
 - **Adapters injetam a instância** (`{ sentry }`, `{ posthog }`) — nunca peer dep.
 - **Adapter custom** é ~20 linhas mapeando 4 métodos.
-- **`createAppErrorReporter`** leva erro do campo ao `/api/app-errors` do backend Tempest, com fila offline, dedup e respeito ao 429.
+- **`createAppErrorReporter`** leva erro do campo ao `/api/app-errors` do backend Tempest, com fila offline, dedup e respeito ao 429 — e cada relato só sai com o Bearer de quem o levantou (`getPrincipal`; `clear()` no logout).
 
 ### Veja também
 

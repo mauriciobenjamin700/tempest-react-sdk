@@ -4,6 +4,25 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`createAppErrorReporter` — relato enfileirado nunca sai com o token de quem logou depois (#441).**
+  O token era resolvido no flush para a fila inteira, e a fila sobrevive ao logout: um erro de A
+  enfileirado offline saía com `Authorization: Bearer <B>` depois que B logava no mesmo navegador,
+  e o backend atribuía a B a mensagem, o contexto e a stack de A. Cada entrada agora carrega
+  `owner`, uma impressão digital de mão única (FNV-1a, 64 bits) de quem estava logado no
+  `report()` — nunca o token —, e só sai com o Bearer quando o dono bate com o atual. Nova opção
+  **`getPrincipal`** (id estável e não secreto; sem ela, o dono é a impressão do token, e um
+  refresh entre erro e envio manda o relato anônimo) e **`foreignReports: "anonymous" | "drop"`**
+  (padrão `"anonymous"`, porque a rota é pública). Entradas persistidas antes desta versão, sem
+  dono, saem anônimas (ou descartadas com `"drop"`). Relatos idênticos de donos diferentes não se
+  fundem mais no contador. `reporter.clear()` documentado para o logout. Regressão em
+  `src/telemetry/app-error-reporter.test.ts`. Docs PT-BR/EN em `docs/telemetry.md` +
+  `docs/telemetry.en.md`.
+  Custo medido com `npx size-limit` sobre `npm run build` (main → este commit): fatia
+  `createAppErrorReporter` 1,60 → 1,98 kB brotli (teto 2 KB mantido); barril ESM 139,86 → 140,39
+  kB e CJS 167,02 → 167,34 kB, por isso os tetos dos barris sobem para 140,6 KB e 167,5 KB.
+
 ## [0.76.0] — 2026-10-10
 
 ### Adicionado

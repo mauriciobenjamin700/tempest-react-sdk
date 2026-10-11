@@ -4,6 +4,15 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`persistence.clear({ resetClient: true })` — logout em uma chamada.** Opção nova (tipo
+  `OfflineQueryClearOptions`), default `false`: depois de parar a persistência e apagar o
+  snapshot, também faz `queryClient.clear()`. O default não toca o `QueryClient` em memória porque
+  ele é do app, que pode manter queries públicas e tirar só as do usuário com `removeQueries`.
+  `clear()` sem argumento continua funcionando igual. Docs PT-BR/EN em
+  `docs/query.md` + `docs/query.en.md`.
+
 ### Corrigido
 
 - **`persistQueryClientOffline`: `clear()` no logout não é mais desfeito, e o cache do usuário
@@ -17,12 +26,6 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   para o handle: cancela o timer, para o subscribe, espera a escrita em voo e só então apaga a
   linha; `restore()`/`flush()` viram no-op depois dele; é idempotente e seguro em paralelo. Para
   persistir a próxima sessão, crie um handle novo depois do login.
-- **`persistence.clear({ resetClient: true })` — logout em uma chamada.** Opção nova (tipo
-  `OfflineQueryClearOptions`), default `false`: depois de parar a persistência e apagar o
-  snapshot, também faz `queryClient.clear()`. O default não toca o `QueryClient` em memória porque
-  ele é do app, que pode manter queries públicas e tirar só as do usuário com `removeQueries`.
-  `clear()` sem argumento continua funcionando igual. Docs PT-BR/EN em
-  `docs/query.md` + `docs/query.en.md`.
 
 ## [0.76.0] — 2026-10-10
 

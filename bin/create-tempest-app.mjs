@@ -8,11 +8,13 @@
 //
 // In merge mode, files the user already has are left untouched and an existing
 // package.json has the Tempest scripts/deps merged in (your name/version are
-// preserved). The `--pwa` flag overlays the PWA template (manifest, service
-// worker, push-subscribe wiring) on top of the base.
-import { cp, mkdir, readdir, readFile, rename, writeFile } from "node:fs/promises";
+// preserved). A symlink already in the destination is never written through:
+// it is skipped and reported, so a link to a folder outside the project cannot
+// redirect the template there. The `--pwa` flag overlays the PWA template
+// (manifest, service worker, push-subscribe wiring) on top of the base.
+import { cp, lstat, mkdir, readdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -87,39 +89,68 @@ async function readSdkVersion() {
 }
 
 /**
+ * Whether `path` exists in the destination as a symbolic link.
+ *
+ * Checked with `lstat`, which does not follow the link: `mkdir(recursive)` and
+ * `cp` both would, and that is how a `src -> ../elsewhere` link turned a merge
+ * into writes outside the project (#436).
+ *
+ * @param {string} path - Absolute destination path.
+ * @returns {Promise<boolean>}
+ */
+async function isSymlink(path) {
+    try {
+        return (await lstat(path)).isSymbolicLink();
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Whether the real location of `path`'s parent directory sits inside `root`.
+ *
+ * Second line behind {@link isSymlink}: it catches a link that appears in an
+ * ancestor the copy did not create itself.
+ *
+ * @param {string} realRoot - `realpath` of the destination root.
+ * @param {string} path - Absolute destination path about to be written.
+ * @returns {Promise<boolean>}
+ */
+async function parentInside(realRoot, path) {
+    const parent = await realpath(dirname(path));
+    const rel = relative(realRoot, parent);
+    return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
+}
+
+/**
  * Copy a template tree into `destDir`. `package.json` is handled separately;
  * any path already present in `protect` (the user's own files) is skipped and
- * recorded. Everything else is overwritten, so a later overlay wins over the
+ * recorded, and so is any symlink in the destination, which is never written
+ * through. Everything else is overwritten, so a later overlay wins over the
  * base it sits on.
+ *
+ * Template entries are written straight under their final name
+ * (`_gitignore` → `.gitignore`), so no rename pass over the destination is
+ * needed; the one that existed renamed the user's own `_gitignore` files too.
  */
-async function copyTree(srcDir, destDir, protect, skipped, relBase = "") {
+async function copyTree(srcDir, destDir, protect, skipped, realRoot, relBase = "") {
     const entries = await readdir(srcDir, { withFileTypes: true });
     for (const entry of entries) {
         const rel = join(relBase, finalName(entry.name));
         const from = join(srcDir, entry.name);
         const to = join(destDir, finalName(entry.name));
+        if (entry.name === "package.json" && !entry.isDirectory()) continue;
+        if ((await isSymlink(to)) || !(await parentInside(realRoot, to))) {
+            skipped.add(rel);
+            continue;
+        }
         if (entry.isDirectory()) {
             await mkdir(to, { recursive: true });
-            await copyTree(from, to, protect, skipped, rel);
-        } else if (entry.name === "package.json") {
-            // handled separately by writeFreshPackageJson / mergePackageJson
+            await copyTree(from, to, protect, skipped, realRoot, rel);
         } else if (protect.has(rel)) {
             skipped.add(rel);
         } else {
             await cp(from, to);
-        }
-    }
-}
-
-/** Recursively rename underscore-prefixed dotfiles after a directory copy. */
-async function fixDotfiles(dir) {
-    const entries = await readdir(dir, { withFileTypes: true });
-    for (const entry of entries) {
-        const full = join(dir, entry.name);
-        if (entry.isDirectory()) {
-            await fixDotfiles(full);
-        } else if (RENAME_ON_COPY[entry.name]) {
-            await rename(full, join(dir, RENAME_ON_COPY[entry.name]));
         }
     }
 }
@@ -216,20 +247,22 @@ async function main() {
     const protect = await listFiles(destDir);
     const hadPkg = protect.has("package.json");
     const skipped = new Set();
+    const realRoot = await realpath(destDir);
 
-    await copyTree(TEMPLATE_DIR, destDir, protect, skipped);
-    if (pwa) await copyTree(TEMPLATE_PWA_DIR, destDir, protect, skipped);
-    await fixDotfiles(destDir);
+    await copyTree(TEMPLATE_DIR, destDir, protect, skipped, realRoot);
+    if (pwa) await copyTree(TEMPLATE_PWA_DIR, destDir, protect, skipped, realRoot);
 
-    // package.json: merge into the user's if present, otherwise write fresh.
-    if (hadPkg) {
+    const pkgIsLink = await isSymlink(join(destDir, "package.json"));
+    if (pkgIsLink) {
+        skipped.add("package.json");
+    } else if (hadPkg) {
         await mergePackageJson(destDir, sdkVersion);
         console.log(`${c.dim}Merged scripts + deps into existing package.json.${c.reset}`);
     } else {
         const name = mergeMode ? (destDir.split("/").pop() || "tempest-app").toLowerCase() : arg;
         await writeFreshPackageJson(destDir, name, sdkVersion);
     }
-    if (pwa) await applyPwaPackageJson(destDir);
+    if (pwa && !pkgIsLink) await applyPwaPackageJson(destDir);
 
     if (skipped.size) {
         console.log(`\n${c.yellow}Skipped ${skipped.size} existing file(s):${c.reset}`);

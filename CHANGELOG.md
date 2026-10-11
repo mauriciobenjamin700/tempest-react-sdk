@@ -18,6 +18,14 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   lugar do literal `/.../` (mesma regex). Tag que vira slug com dígito inicial (`2fa`) e
   `operationId` só com símbolos/dígitos agora geram classe e método válidos. Testes em
   `bin/lib/openapi/generate.hostile.test.mjs` executam a saída numa VM.
+- **`create-tempest-app .` não escreve mais através de symlink do destino (#436).** Em modo merge,
+  um `src -> ../fora` fazia `mkdir`/`cp` seguirem o link e sobrescreverem `fora/main.tsx` (e
+  criarem mais nove arquivos lá) sem reportar nada; um `package.json` que fosse link também era
+  mesclado no alvo. Agora todo caminho do destino passa por `lstat` antes da escrita: symlink é
+  pulado e listado como existente, e a escrita confere que o diretório pai real fica dentro do
+  `realpath` da raiz. O passe `fixDotfiles` saiu: a cópia já grava `_gitignore` como `.gitignore`,
+  então ele só renomeava o `_gitignore` do próprio usuário por cima de um `.gitignore` dele. Testes
+  em `bin/create-tempest-app.e2e.test.mjs`.
 
 ## [0.76.0] — 2026-10-10
 

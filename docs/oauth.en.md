@@ -91,32 +91,39 @@ interface OAuthError {
 
 ## The callback route: `useOAuthCallback`
 
-When the flow is a **redirect** (the provider comes back to `/callback?code=…`) rather than a popup, you need to exchange that code for a session — exactly once.
+When the flow is a **redirect** (the provider comes back to `/callback?code=…&state=…`) instead of a popup, you need to swap that code for a session — exactly once, and **carrying the `state` along**.
+
+With a [`tempest-fastapi-sdk`](integration-fastapi.en.md) backend, the flow is:
+
+1. A link points at `GET /auth/oauth/google/login` (a navigation, not a `fetch`). The backend mints the `state`, stores it in an `HttpOnly` cookie and redirects to Google.
+2. Google sends the user back to your app's callback route with `?code=…&state=…`.
+3. The app forwards `code` **and** `state` to `GET /auth/oauth/google/callback`. The backend compares the `state` with the cookie (`hmac.compare_digest`, single use, expires after `AUTH_OAUTH_STATE_TTL_SECONDS`), redeems the `code` and returns the same JWT pair as `POST /auth/login`.
+
+Step 3 is `exchangeOAuthCallback`:
 
 ```tsx
-import { useNavigate } from "tempest-react-sdk";
-import { ErrorState, Spinner, useOAuthCallback } from "tempest-react-sdk";
+import {
+  ErrorState,
+  Spinner,
+  createApiClient,
+  exchangeOAuthCallback,
+  useNavigate,
+  useOAuthCallback,
+} from "tempest-react-sdk";
 
-interface Session {
-  token: string;
-  user: { id: string; name: string };
+const api = createApiClient({ baseURL: import.meta.env.VITE_API_URL });
+
+interface LoginResponse {
+  user_id: string;
+  access_token: string | null;
+  refresh_token: string | null;
 }
 
 export function OAuthCallbackPage() {
   const navigate = useNavigate();
 
-  const { loading, error } = useOAuthCallback<Session>({
-    exchange: async () => {
-      const code = new URLSearchParams(window.location.search).get("code");
-      if (!code) throw new Error("missing code");
-      const response = await fetch("/api/auth/google/exchange", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ code }),
-      });
-      if (!response.ok) throw new Error("exchange failed");
-      return (await response.json()) as Session;
-    },
+  const { loading, error } = useOAuthCallback<LoginResponse>({
+    exchange: () => exchangeOAuthCallback<LoginResponse>(api, "google"),
     onSuccess: () => navigate("/dashboard", { replace: true }),
     onError: () => navigate("/login?error=oauth", { replace: true }),
   });
@@ -127,10 +134,28 @@ export function OAuthCallbackPage() {
 }
 ```
 
-The result: while the POST is in flight you get the spinner; on resolve the hook calls `onSuccess` and you redirect; on failure `onError` sends the user back to login with an error flag.
+The result: while the exchange is in flight you get the spinner; on resolve the hook calls `onSuccess` and you redirect; on failure `onError` sends the user back to login with an error flag.
+
+What `exchangeOAuthCallback(api, provider, options?)` does for you:
+
+- Reads `code` and `state` with `readOAuthCallbackParams` and **throws `OAuthCallbackError` before any request** when the provider sent `error` (`reason: "provider_error"`), when `state` is missing (`"missing_state"`) or `code` is missing (`"missing_code"`).
+- Sends both to `{prefix}/oauth/{provider}/callback` with `credentials: "include"` — the `state` cookie is the other half of the comparison.
+- Uses `skipAuth` and `retry: false`: there is no session yet, a `401` there is a forged or expired callback (not a token to refresh), and the backend clears the `state` cookie on the first attempt.
+
+| Option   | Default                  | What it is for                                               |
+| -------- | ------------------------ | ------------------------------------------------------------ |
+| `prefix` | `"/auth"`                | The `prefix` given to `make_auth_router` on the backend.     |
+| `search` | `window.location.search` | Where to read the provider's redirect from.                  |
+| `signal` | —                        | Aborts the exchange.                                         |
+
+!!! danger "Why the `state` cannot be left behind"
+    Without it, an attacker sends the victim to `/callback?code=<a code from the attacker's account>` and the victim ends up signed in to the attacker's account (login CSRF) — everything they type afterwards lands there. The old recipe read only the `code`, so no backend could check the `state`. Now the reader returns both or throws.
+
+!!! note "A backend that is not `tempest-fastapi-sdk`"
+    Use `readOAuthCallbackParams()` inside your `exchange` and send `code` **and** `state` to your route. Comparing the `state` with the value bound to the browser that started the flow is the backend's job: the browser cannot read an `HttpOnly` cookie, so a client-side check would prove nothing.
 
 !!! check "Runs once, even under StrictMode"
-    In development React 18/19 mounts every component twice on purpose. Without a guard, `exchange` would fire two POSTs and the second would fail — OAuth codes are single-use. The hook uses a `ref` to guarantee a single run, so you never see the phantom "code already redeemed" error in dev.
+    In development React 18/19 mounts every component twice on purpose. Without a guard, `exchange` would fire two exchanges and the second would fail — OAuth codes are single-use. The hook uses a `ref` to guarantee a single run, so you never see the phantom "code already redeemed" error in dev.
 
 ### Return value
 
@@ -149,13 +174,36 @@ The result: while the POST is in flight you get the spinner; on resolve the hook
 The natural pair is [`createAuthStore`](auth.en.md): `onSuccess` stores the session, and from then on `AuthGuard` and `createApiClient` see a logged-in user.
 
 ```tsx
-const { loading } = useOAuthCallback<Session>({
-  exchange: () => api.post<Session>("/auth/google/exchange", { body: { code } }),
-  onSuccess: ({ token, user }) => {
-    useAuthStore.getState().setSession({ token, user });
-    navigate("/dashboard", { replace: true });
-  },
-});
+import {
+  createApiClient,
+  createAuthStore,
+  exchangeOAuthCallback,
+  useNavigate,
+  useOAuthCallback,
+} from "tempest-react-sdk";
+
+interface User {
+  id: string;
+}
+
+interface LoginResponse {
+  user_id: string;
+  access_token: string;
+}
+
+const useAuthStore = createAuthStore<User>();
+const api = createApiClient({ baseURL: import.meta.env.VITE_API_URL });
+
+export function useGoogleCallback() {
+  const navigate = useNavigate();
+  return useOAuthCallback<LoginResponse>({
+    exchange: () => exchangeOAuthCallback<LoginResponse>(api, "google"),
+    onSuccess: ({ user_id, access_token }) => {
+      useAuthStore.getState().setSession({ user: { id: user_id }, token: access_token });
+      navigate("/dashboard", { replace: true });
+    },
+  });
+}
 ```
 
 ## Recap
@@ -165,4 +213,5 @@ const { loading } = useOAuthCallback<Session>({
 - One Tap ships **enabled**; turn it off with `disableOneTap` where it doesn't belong.
 - Validating the `idToken` is always the backend's job.
 - `useOAuthCallback` runs the exchange exactly once (StrictMode-proof) and returns `loading`/`data`/`error`/`status`.
+- `exchangeOAuthCallback` carries `code` **and** `state` to the backend callback; without `state`, it refuses before sending.
 - It pairs with [`auth`](auth.en.md) to store the session and [`routing`](routing.en.md) to redirect.

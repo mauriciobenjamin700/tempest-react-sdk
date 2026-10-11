@@ -4,6 +4,31 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`exchangeOAuthCallback`, `readOAuthCallbackParams` e `OAuthCallbackError` — o `state` do
+  OAuth não fica mais para trás no callback (#449).** `readOAuthCallbackParams()` devolve `code`
+  **e** `state` do redirect ou lança `OAuthCallbackError` (`reason`: `"provider_error"`,
+  `"missing_state"`, `"missing_code"`) antes de qualquer requisição.
+  `exchangeOAuthCallback(api, provider, options?)` (opções `prefix`, `search`, `signal`) repassa os dois para
+  `GET {prefix}/oauth/{provider}/callback` do `tempest-fastapi-sdk` com `credentials: "include"`
+  (o cookie `HttpOnly` do `state` é a outra metade da comparação), `skipAuth` e `retry: false`.
+  A comparação — `hmac.compare_digest`, uso único, TTL `AUTH_OAUTH_STATE_TTL_SECONDS`, amarrada
+  ao provider — já existe no `make_auth_router` do backend, que é quem sorteia o `state`; o
+  navegador não lê o cookie, então gerar ou conferir `state` no cliente não acrescentaria nada
+  nesse fluxo, e o backend não aceita `code_verifier` (sem PKCE a encaminhar).
+  Medido com a receita antiga de `docs/oauth.md` sob `useOAuthCallback` + `fetch` stub:
+  `/callback?code=ATTACKER_CODE` (sem `state`) e `/callback?code=ATTACKER_CODE&state=forged`
+  terminavam em `status=success` com `POST … body={"code":"ATTACKER_CODE"}` — o `state` nunca
+  saía do navegador. Com o helper, o primeiro é recusado sem requisição e o segundo chega ao
+  backend como `…/auth/oauth/google/callback?code=ATTACKER_CODE&state=forged`, onde o `401` do
+  state forjado aparece uma vez, sem refresh nem `onUnauthorized`
+  (`src/oauth/callback.test.tsx`). Receita e JSDoc do `useOAuthCallback` reescritos; docs em
+  `docs/oauth.md` + `.en.md`. Custo, com `npx size-limit` (main `a188917` × esta branch): barrel ESM
+  140 075 → 140 258 B (teto 140,2 → 140,3 kB), barrel CJS 167 085 → 167 358 B (teto 167,2 →
+  167,4 kB); os dois tetos contam também o `encodeIdSegment` do #438 (ESM 139 861 → 140 075 B,
+  CJS 167 019 → 167 085 B, ainda dentro dos tetos antigos).
+
 ### Corrigido
 
 - **Data provider — o `id` não sai mais do próprio segmento do path (#438).** `getOne`,

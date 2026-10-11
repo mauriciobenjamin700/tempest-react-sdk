@@ -28,15 +28,18 @@ export interface UseOAuthCallbackResult<T> {
  * Survives React StrictMode double-mounting in dev — uses a ref guard to
  * ensure `exchange` runs once.
  *
+ * For a provider redirect, the exchange must carry the `state` along with the
+ * `code`, or no backend can tell a forged callback from a real one (login
+ * CSRF). `exchangeOAuthCallback` does that against a
+ * `tempest-fastapi-sdk` backend; `readOAuthCallbackParams` returns both
+ * values (or throws) for any other backend.
+ *
  * @example
  * function OAuthCallback() {
- *     const { loading, error } = useOAuthCallback({
- *         exchange: async () => {
- *             const code = new URLSearchParams(location.search).get("code")!;
- *             return api.post("/auth/google/exchange", { body: { code } });
- *         },
- *         onSuccess: ({ token, user }) => {
- *             useAuthStore.getState().setSession({ user, token });
+ *     const { loading, error } = useOAuthCallback<LoginResponse>({
+ *         exchange: () => exchangeOAuthCallback<LoginResponse>(api, "google"),
+ *         onSuccess: ({ user_id, access_token }) => {
+ *             useAuthStore.getState().setSession({ user: { id: user_id }, token: access_token });
  *             navigate("/dashboard", { replace: true });
  *         },
  *         onError: () => navigate("/login?error=oauth", { replace: true }),

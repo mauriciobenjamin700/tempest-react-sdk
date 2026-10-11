@@ -1,23 +1,33 @@
 // JSON Schema (OpenAPI 3.0/3.1 subset) → Zod expression source string.
 // Pure + deterministic so the generated output is stable and testable.
 
-import { assertIdentifier } from "./escape.mjs";
+import { toIdentifier } from "./escape.mjs";
 
 /**
- * Convert a $ref like "#/components/schemas/User" to its schema name ("User").
- *
- * The name lands in identifier position (type alias, Zod const, import list), so
- * it is validated here, the one place every $ref passes through.
- *
- * @throws {Error} When the referenced name is not a valid identifier.
+ * Convert a $ref like "#/components/schemas/User" to its spec schema name
+ * ("User"). This is the lookup key into `components.schemas`, not yet an
+ * identifier: pass it through {@link typeName} before emitting it.
  */
 export function refName(ref) {
-    return assertIdentifier(ref.slice(ref.lastIndexOf("/") + 1), "schema name");
+    return ref.slice(ref.lastIndexOf("/") + 1);
 }
 
-/** The generated Zod const name for a schema name (e.g. "User" → "UserSchema"). */
+/**
+ * The TypeScript type name for a spec schema name (`user.Response` →
+ * `UserResponse`; a valid identifier is kept as is).
+ *
+ * @throws {Error} When the name has nothing to build an identifier from.
+ */
+export function typeName(name) {
+    return toIdentifier(name, "pascal", "schema name");
+}
+
+/**
+ * The generated Zod const name for a spec schema name
+ * (`User` → `UserSchema`, `user.Response` → `UserResponseSchema`).
+ */
 export function zodName(name) {
-    return `${name}Schema`;
+    return `${typeName(name)}Schema`;
 }
 
 function isNullable(schema) {

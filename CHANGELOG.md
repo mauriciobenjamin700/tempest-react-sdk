@@ -12,10 +12,13 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   mesmo pelo template literal da URL e pelo nome do schema. O escape agora é centralizado em
   `bin/lib/openapi/escape.mjs` e escolhido pela posição: comentário perde quebra de linha e `*/`,
   segmento de path é texto escapado do template literal, `pattern` vira
-  `new RegExp(JSON.stringify(p))`. Nome de schema/`$ref`, parâmetro de path e `{placeholder}` não
-  declarado **lançam erro** em vez de serem reescritos — um nome renomeado deixaria de bater com a
-  API. Spec legítimo gera o mesmo código, exceto `pattern`, que sai como `new RegExp("...")` no
-  lugar do literal `/.../` (mesma regex). Tag que vira slug com dígito inicial (`2fa`) e
+  `new RegExp(JSON.stringify(p))`. Nome de schema/`$ref` ou parâmetro de path que não é identificador
+  (`{user-id}`, `user.Response`, `User-Out`) **vira identificador** — camelCase para parâmetro,
+  PascalCase para tipo, `_` para palavra reservada ou dígito inicial — e o nome original continua
+  valendo onde importa em runtime (placeholder da URL, chave de objeto). Dois nomes que viram o
+  mesmo identificador lançam erro citando os dois; `{placeholder}` não declarado também. Spec
+  legítimo gera o mesmo código, exceto `pattern`, que sai como `new RegExp("...")` no lugar do
+  literal `/.../` (mesma regex). Tag que vira slug com dígito inicial (`2fa`) e
   `operationId` só com símbolos/dígitos agora geram classe e método válidos. Testes em
   `bin/lib/openapi/generate.hostile.test.mjs` executam a saída numa VM.
 - **`create-tempest-app .` não escreve mais através de symlink do destino (#436).** Em modo merge,

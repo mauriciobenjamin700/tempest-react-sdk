@@ -141,11 +141,16 @@ function UserList() {
     Todo texto do spec entra no TypeScript gerado escapado pela posição onde cai:
     tag, `summary` e path em comentário não fecham o `/** */`, segmentos do path
     viram texto do template literal, `pattern` vira `new RegExp("...")`. Nome que
-    precisa ser **identificador** — nome de schema, `$ref`, parâmetro de path — é
-    recusado com erro claro quando não é um identificador TypeScript válido (ou é
-    palavra reservada), e um `{placeholder}` do path que não é parâmetro declarado
-    também. O gerador recusa em vez de renomear porque um nome reescrito deixaria
-    de bater com a API que ele descreve.
+    precisa ser **identificador** e não é — `{user-id}`, `user.Response`,
+    `User-Out` — vira um identificador válido: camelCase para parâmetro
+    (`userId`), PascalCase para schema e tipo (`UserResponse`), prefixo `_` para
+    palavra reservada ou dígito inicial (`_string`, `_2fa`). Onde o nome importa
+    em runtime, vale o original: a URL monta `{user-id}` com o valor de `userId`,
+    e chave de objeto sai como string escapada (`"display-name"`). Nome que já é
+    identificador fica como está. Dois nomes que viram o mesmo identificador
+    (`User-Out` e `user.Out`) são recusados com erro que cita os dois, e um
+    `{placeholder}` do path que não é parâmetro declarado também — não há
+    variável segura para ele.
 
 ## Recap
 

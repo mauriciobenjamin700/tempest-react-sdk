@@ -141,11 +141,16 @@ function UserList() {
     Every string from the spec reaches the generated TypeScript escaped for the
     position it lands in: a tag, `summary` or path inside a comment cannot close
     the `/** */`, path segments become template-literal text, and `pattern`
-    becomes `new RegExp("...")`. A name that must be an **identifier** — schema
-    name, `$ref`, path parameter — is refused with a clear error when it is not a
-    valid TypeScript identifier (or is a reserved word), and so is a path
-    `{placeholder}` that is not a declared parameter. The generator refuses instead
-    of renaming because a rewritten name would stop matching the API it describes.
+    becomes `new RegExp("...")`. A name that must be an **identifier** and is
+    not — `{user-id}`, `user.Response`, `User-Out` — becomes a valid one:
+    camelCase for a parameter (`userId`), PascalCase for a schema or type
+    (`UserResponse`), a `_` prefix for a reserved word or a leading digit
+    (`_string`, `_2fa`). Wherever the name matters at runtime the original wins:
+    the URL fills `{user-id}` with the value of `userId`, and an object key is an
+    escaped string (`"display-name"`). A name that already is an identifier is
+    kept. Two names that map to the same identifier (`User-Out` and `user.Out`)
+    are refused with an error naming both, and so is a path `{placeholder}` that
+    is not a declared parameter — there is no safe variable for it.
 
 ## Recap
 

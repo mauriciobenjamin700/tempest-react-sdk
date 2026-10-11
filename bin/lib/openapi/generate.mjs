@@ -1,7 +1,7 @@
 // OpenAPI 3.x → per-tag { schemas.ts (Zod), types.ts, service.ts (class) }.
 // Pure: takes the parsed spec object, returns a { path: contents } map. No I/O.
-import { assertIdentifier, commentText, urlTemplate } from "./escape.mjs";
-import { refName, zodName, schemaToZod } from "./schema-to-zod.mjs";
+import { assertNoCollision, commentText, toIdentifier, urlTemplate } from "./escape.mjs";
+import { refName, schemaToZod, typeName, zodName } from "./schema-to-zod.mjs";
 
 const HTTP_METHODS = ["get", "post", "put", "patch", "delete"];
 
@@ -65,7 +65,7 @@ function collectRefs(node, schemas, acc = new Set(), seen = new Set()) {
 /** TS type expression for a schema node (uses generated type names for $refs). */
 function tsType(schema) {
     if (!schema || typeof schema !== "object") return "unknown";
-    if (schema.$ref) return refName(schema.$ref);
+    if (schema.$ref) return typeName(refName(schema.$ref));
     if (schema.allOf) return schema.allOf.map(tsType).join(" & ");
     if (schema.anyOf || schema.oneOf) {
         const parts = (schema.anyOf ?? schema.oneOf).map(tsType);
@@ -196,7 +196,7 @@ function bodySchema(op) {
  */
 export function generate(doc) {
     const schemas = doc.components?.schemas ?? {};
-    for (const name of Object.keys(schemas)) assertIdentifier(name, "schema name");
+    assertNoCollision(Object.keys(schemas), typeName, "schema names");
     const groups = new Map(); // slug → { tag, ops: [...] }
 
     for (const [path, item] of Object.entries(doc.paths ?? {})) {
@@ -239,7 +239,7 @@ export function generate(doc) {
 
         // 3. types.ts
         const typeLines = sorted.map(
-            (name) => `export type ${name} = z.infer<typeof S.${zodName(name)}>;`,
+            (name) => `export type ${typeName(name)} = z.infer<typeof S.${zodName(name)}>;`,
         );
         files[`${slug}/types.ts`] =
             `import type { z } from "zod";\n\nimport * as S from "./schemas";\n\n${typeLines.join("\n")}\n`;
@@ -249,7 +249,7 @@ export function generate(doc) {
         const methods = ops.map(({ method, path, op }) =>
             emitMethod(method, path, op, schemas, usedNames),
         );
-        const usedTypeNames = [...used].sort();
+        const usedTypeNames = [...used].map(typeName).sort();
         const typeImport = usedTypeNames.length
             ? `import type { ${usedTypeNames.join(", ")} } from "./types";\n`
             : "";
@@ -295,7 +295,17 @@ function emitMethod(method, path, op, schemas, usedNames = new Set()) {
     }
     usedNames.add(name);
     const pathParams = (op.parameters ?? []).filter((p) => p.in === "path");
-    for (const p of pathParams) assertIdentifier(p.name, `path parameter in ${method} ${path}`);
+    const where = `${method.toUpperCase()} ${path}`;
+    const paramId = (name) => toIdentifier(name, "camel", `path parameter in ${where}`);
+    const reservedArgs = [];
+    if (bodySchema(op)) reservedArgs.push("body");
+    if ((op.parameters ?? []).some((p) => p.in === "query")) reservedArgs.push("params");
+    assertNoCollision(
+        [...reservedArgs, ...pathParams.map((p) => p.name)],
+        (n) => (reservedArgs.includes(n) ? n : paramId(n)),
+        `method arguments of ${where}`,
+    );
+    const paramIds = new Map(pathParams.map((p) => [p.name, paramId(p.name)]));
     const queryParams = (op.parameters ?? []).filter((p) => p.in === "query");
     const body = bodySchema(op);
     const resp = successSchema(op);
@@ -308,7 +318,9 @@ function emitMethod(method, path, op, schemas, usedNames = new Set()) {
           : "void";
 
     const args = [];
-    for (const p of pathParams) args.push(`${p.name}: ${tsType(p.schema ?? { type: "string" })}`);
+    for (const p of pathParams) {
+        args.push(`${paramIds.get(p.name)}: ${tsType(p.schema ?? { type: "string" })}`);
+    }
     if (body) args.push(`body: ${tsType(body)}`);
     if (queryParams.length) {
         const q = queryParams
@@ -320,7 +332,7 @@ function emitMethod(method, path, op, schemas, usedNames = new Set()) {
         args.push(`params: { ${q} }`);
     }
 
-    const url = urlTemplate(path, new Set(pathParams.map((p) => p.name)));
+    const url = urlTemplate(path, paramIds);
 
     const callOpts = [];
     if (body) callOpts.push("body");

@@ -7,7 +7,6 @@ import { describe, expect, it } from "vitest";
 import { generate } from "./generate.mjs";
 
 const require = createRequire(import.meta.url);
-
 /**
  * Transpile one generated TypeScript file and run it in a fresh VM context.
  *
@@ -42,7 +41,6 @@ function evaluate(source, context, modules) {
     );
     return module.exports;
 }
-
 /**
  * Evaluate a generated group (`schemas.ts` then `service.ts`) and call every
  * method of its service class with a recording fake `ApiClient`.
@@ -74,7 +72,6 @@ async function runGroup(files, slug) {
     }
     return { context, urls };
 }
-
 /** Wrap one operation into a minimal OpenAPI document. */
 function spec(paths, schemas = {}) {
     return { openapi: "3.1.0", components: { schemas }, paths };
@@ -146,73 +143,119 @@ describe("generate — hostile spec text never becomes code (#434)", () => {
         ).toThrow(/placeholder "globalThis.PWNED_PATH=1".*not a declared path parameter/);
     });
 
-    it("a path parameter whose name is not an identifier is refused", () => {
+    it("a path parameter whose name injects code is mapped to an inert identifier", async () => {
         const name = "a=globalThis.PWNED_PARAM=1";
+        const { files } = generate(
+            spec({
+                [`/run/{${name}}`]: {
+                    get: {
+                        tags: ["t"],
+                        parameters: [{ name, in: "path", required: true }],
+                        responses: OK,
+                    },
+                },
+            }),
+        );
+        expect(
+            files["t/service.ts"],
+            "was refused until #434's follow-up: refusing every non-identifier also refused " +
+                "real `{user-id}` params; the mapping keeps only [A-Za-z0-9]",
+        ).toContain("aGlobalThisPWNEDPARAM1: string");
+        const { context, urls } = await runGroup(files, "t");
+        expect(context.PWNED_PARAM).toBeUndefined();
+        expect(urls).toEqual(["/run/v-value"]);
+    });
+
+    it("a schema name that injects a statement is mapped to an inert identifier", async () => {
+        const name = "Thing = z.string(); globalThis.PWNED_NAME = 1; export const Other";
+        const { files } = generate(
+            spec(
+                {
+                    "/a": {
+                        post: {
+                            tags: ["t"],
+                            requestBody: {
+                                content: {
+                                    "application/json": {
+                                        schema: { $ref: `#/components/schemas/${name}` },
+                                    },
+                                },
+                            },
+                            responses: OK,
+                        },
+                    },
+                },
+                { [name]: { type: "object" } },
+            ),
+        );
+        expect(
+            files["t/schemas.ts"],
+            "was refused until #434's follow-up: `user.Response` / `User-Out` are legitimate " +
+                "names, and the PascalCase mapping leaves nothing executable",
+        ).toContain("export const ThingZStringGlobalThisPWNEDNAME1ExportConstOtherSchema =");
+        const context = vm.createContext({});
+        const S = evaluate(files["t/schemas.ts"], context, {});
+        evaluate(files["t/service.ts"], context, { "./schemas": S });
+        expect(context.PWNED_NAME).toBeUndefined();
+    });
+
+    it("a schema named after a reserved word gets a _ prefix", async () => {
+        const { files } = generate(
+            spec(
+                {
+                    "/a": {
+                        get: {
+                            tags: ["t"],
+                            responses: {
+                                200: {
+                                    content: {
+                                        "application/json": {
+                                            schema: { $ref: "#/components/schemas/string" },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+                { string: { type: "object" } },
+            ),
+        );
+        expect(files["t/types.ts"]).toContain(
+            "export type _string = z.infer<typeof S._stringSchema>;",
+        );
+        await runGroup(files, "t");
+    });
+
+    it("two schema names that map to the same identifier are refused, naming both", () => {
+        expect(() =>
+            generate(spec({}, { "User-Out": { type: "object" }, "user.Out": { type: "object" } })),
+        ).toThrow(/"User-Out" and "user\.Out" both map to the TypeScript identifier "UserOut"/);
+    });
+
+    it("a path parameter that maps onto another method argument is refused", () => {
         expect(() =>
             generate(
                 spec({
-                    [`/run/{${name}}`]: {
+                    "/a/{user-id}/{userId}": {
                         get: {
                             tags: ["t"],
-                            parameters: [{ name, in: "path", required: true }],
+                            parameters: [
+                                { name: "user-id", in: "path" },
+                                { name: "userId", in: "path" },
+                            ],
                             responses: OK,
                         },
                     },
                 }),
             ),
-        ).toThrow(/path parameter .* is not a valid TypeScript identifier/);
+        ).toThrow(/"user-id" and "userId" both map to the TypeScript identifier "userId"/);
     });
 
-    it("a schema name that injects a statement is refused", () => {
-        const name = "Thing = z.string(); globalThis.PWNED_NAME = 1; export const Other";
-        expect(() =>
-            generate(
-                spec(
-                    {
-                        "/a": {
-                            post: {
-                                tags: ["t"],
-                                requestBody: {
-                                    content: {
-                                        "application/json": {
-                                            schema: { $ref: `#/components/schemas/${name}` },
-                                        },
-                                    },
-                                },
-                                responses: OK,
-                            },
-                        },
-                    },
-                    { [name]: { type: "object" } },
-                ),
-            ),
-        ).toThrow(/schema name .* is not a valid TypeScript identifier/);
-    });
-
-    it("a schema named after a reserved word is refused", () => {
-        expect(() =>
-            generate(
-                spec(
-                    {
-                        "/a": {
-                            get: {
-                                tags: ["t"],
-                                responses: {
-                                    200: {
-                                        content: {
-                                            "application/json": {
-                                                schema: { $ref: "#/components/schemas/string" },
-                                            },
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                    },
-                    { string: { type: "object" } },
-                ),
-            ),
-        ).toThrow(/schema name "string" is a reserved word/);
+    it("a name with nothing to build an identifier from is refused", () => {
+        expect(() => generate(spec({}, { "***": { type: "object" } }))).toThrow(
+            /schema name "\*\*\*" has no letter or digit/,
+        );
     });
 
     it("a regex pattern with an escaped slash or a line break compiles to the same regex", () => {
@@ -271,5 +314,75 @@ describe("generate — hostile spec text never becomes code (#434)", () => {
         const { files } = generate(spec({ "/a": { get: { tags: ["2fa"], responses: OK } } }));
         const { urls } = await runGroup(files, "2fa");
         expect(urls).toEqual(["/a"]);
+    });
+});
+
+describe("generate — real-world names that are not identifiers are mapped", () => {
+    const REAL = spec(
+        {
+            "/users/{user-id}/profile": {
+                put: {
+                    tags: ["users"],
+                    operationId: "update_profile",
+                    parameters: [
+                        { name: "user-id", in: "path", required: true, schema: { type: "string" } },
+                    ],
+                    requestBody: {
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/User-In" },
+                            },
+                        },
+                    },
+                    responses: {
+                        200: {
+                            content: {
+                                "application/json": {
+                                    schema: { $ref: "#/components/schemas/user.Response" },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+        {
+            "User-In": {
+                type: "object",
+                required: ["display-name"],
+                properties: { "display-name": { type: "string" } },
+            },
+            "user.Response": {
+                type: "object",
+                properties: {
+                    id: { type: "string" },
+                    owner: { $ref: "#/components/schemas/User-In" },
+                },
+            },
+        },
+    );
+
+    it("generates code that transpiles, runs and builds the URL with the spec's names", async () => {
+        const { files } = generate(REAL);
+        const service = files["users/service.ts"];
+        expect(service).toContain(
+            "async updateProfile(userId: string, body: UserIn): Promise<UserResponse>",
+        );
+        expect(service).toContain("S.UserInSchema.parse(body);");
+        expect(files["users/types.ts"]).toContain(
+            "export type UserResponse = z.infer<typeof S.UserResponseSchema>;",
+        );
+        expect(files["users/schemas.ts"]).toContain('"display-name": z.string()');
+
+        const context = vm.createContext({});
+        const S = evaluate(files["users/schemas.ts"], context, {});
+        const mod = evaluate(service, context, { "./schemas": S });
+        const calls = [];
+        const api = { put: async (url, opts) => calls.push({ url, opts }) };
+        await new mod.UsersService(api).updateProfile("42", { "display-name": "Ana" });
+        expect(calls).toEqual([
+            { url: "/users/42/profile", opts: { body: { "display-name": "Ana" } } },
+        ]);
+        await expect(new mod.UsersService(api).updateProfile("42", {})).rejects.toThrow();
     });
 });

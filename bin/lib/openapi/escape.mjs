@@ -7,9 +7,13 @@
  * imported by the app. Every spec string therefore reaches the output through one
  * of these functions, chosen by the syntactic position it lands in:
  *
- * - identifier position (schema names, path parameters, class names) →
- *   {@link assertIdentifier}, which refuses instead of rewriting, because a
- *   renamed type would silently stop matching the API it describes;
+ * - identifier position (schema names, path parameters) → {@link toIdentifier},
+ *   which maps a name that is not a TypeScript identifier (`user-id`,
+ *   `user.Response`) to one that is. The mapped name only ever appears in
+ *   identifier position; wherever the name matters at runtime — the URL
+ *   placeholder, an object key — the spec's original is used, escaped. Two
+ *   names that map to the same identifier are refused by
+ *   {@link assertNoCollision}, never silently merged;
  * - string position → `JSON.stringify` at the call site;
  * - doc comment → {@link commentText};
  * - URL template literal → {@link urlTemplate}.
@@ -82,25 +86,62 @@ export const RESERVED_WORDS = new Set([
 ]);
 
 /**
- * Return `name` when it is a valid, non-reserved TypeScript identifier, or throw.
+ * Map a spec name to a valid, non-reserved TypeScript identifier.
+ *
+ * A name that already is one is returned unchanged, so a spec that generated
+ * fine before keeps generating the same code. Otherwise the name is split into
+ * its alphanumeric words and joined in `camel` case (parameters: `user-id` →
+ * `userId`) or `pascal` case (schemas and types: `user.Response` →
+ * `UserResponse`). A reserved word, or a rebuilt name that starts with a digit
+ * or is reserved, gets a `_` prefix (`string` → `_string`, `2fa` → `_2fa`). Only `[A-Za-z0-9_$]`
+ * survives, so no spec text can reach the output through this path.
  *
  * @param {unknown} name - The spec string about to land in identifier position.
+ * @param {"camel"|"pascal"} style - Case for a name that has to be rebuilt.
  * @param {string} what - What the name is, for the error ("schema name").
- * @returns {string} The same name.
- * @throws {Error} When the name would not parse as a single identifier.
+ * @returns {string} The identifier.
+ * @throws {Error} When the name has no alphanumeric character to build one from.
  */
-export function assertIdentifier(name, what) {
-    if (typeof name !== "string" || !IDENTIFIER.test(name)) {
+export function toIdentifier(name, style, what) {
+    if (typeof name === "string" && IDENTIFIER.test(name)) {
+        return RESERVED_WORDS.has(name) ? `_${name}` : name;
+    }
+    const words = typeof name === "string" ? (name.match(/[A-Za-z0-9]+/g) ?? []) : [];
+    if (words.length === 0) {
         throw new Error(
-            `OpenAPI ${what} ${JSON.stringify(name)} is not a valid TypeScript identifier (expected ${IDENTIFIER}). Rename it in the spec; the generator does not rewrite names it would have to match at runtime.`,
+            `OpenAPI ${what} ${JSON.stringify(name)} has no letter or digit to build a TypeScript identifier from. Rename it in the spec.`,
         );
     }
-    if (RESERVED_WORDS.has(name)) {
-        throw new Error(
-            `OpenAPI ${what} ${JSON.stringify(name)} is a reserved word in TypeScript. Rename it in the spec.`,
-        );
+    const joined = words
+        .map((w, i) =>
+            i === 0 && style === "camel"
+                ? w.charAt(0).toLowerCase() + w.slice(1)
+                : w.charAt(0).toUpperCase() + w.slice(1),
+        )
+        .join("");
+    return /^[0-9]/.test(joined) || RESERVED_WORDS.has(joined) ? `_${joined}` : joined;
+}
+
+/**
+ * Throw when two different spec names map to the same identifier.
+ *
+ * @param {Iterable<string>} names - Original spec names.
+ * @param {(name: string) => string} map - The mapping applied to each.
+ * @param {string} what - What the names are, for the error ("schema names").
+ * @throws {Error} Listing both originals and the identifier they share.
+ */
+export function assertNoCollision(names, map, what) {
+    const seen = new Map();
+    for (const name of names) {
+        const id = map(name);
+        const other = seen.get(id);
+        if (other !== undefined && other !== name) {
+            throw new Error(
+                `OpenAPI ${what} ${JSON.stringify(other)} and ${JSON.stringify(name)} both map to the TypeScript identifier "${id}". Rename one of them in the spec.`,
+            );
+        }
+        seen.set(id, name);
     }
-    return name;
 }
 
 /**
@@ -132,13 +173,17 @@ function templateText(text) {
  * Build the URL expression for an operation path.
  *
  * Static segments are escaped for the template literal; each `{name}` placeholder
- * must be a declared path parameter and a valid identifier, and becomes `${name}`.
- * A path without placeholders is emitted as a JSON string literal.
+ * is matched by the spec's original name against the declared path parameters
+ * and becomes `${identifier}`, the variable that parameter was mapped to
+ * (`{user-id}` → `${userId}`). A path without placeholders is emitted as a JSON
+ * string literal.
  *
- * @param {string} path - The OpenAPI path key ("/users/{id}").
- * @param {Set<string>} declared - Names of the operation's `in: "path"` params.
+ * @param {string} path - The OpenAPI path key ("/users/{user-id}").
+ * @param {Map<string, string>} declared - Original name → identifier of each of
+ *   the operation's `in: "path"` params.
  * @returns {string} A TypeScript expression evaluating to the URL.
- * @throws {Error} When a placeholder is undeclared or not an identifier.
+ * @throws {Error} When a placeholder is not a declared path parameter — there is
+ *   no variable it could safely map to.
  */
 export function urlTemplate(path, declared) {
     if (declared.size === 0) return JSON.stringify(path);
@@ -151,7 +196,7 @@ export function urlTemplate(path, declared) {
                 `OpenAPI path ${JSON.stringify(path)}: placeholder ${JSON.stringify(name)} is not a declared path parameter.`,
             );
         }
-        out += templateText(path.slice(last, match.index)) + "${" + name + "}";
+        out += templateText(path.slice(last, match.index)) + "${" + declared.get(name) + "}";
         last = match.index + match[0].length;
     }
     out += templateText(path.slice(last));

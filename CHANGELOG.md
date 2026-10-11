@@ -4,6 +4,26 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`Markdown` (e o corpo do `AIChat`) não trava mais a aba com texto hostil (#437).** A regex de
+  heading `/^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/` tinha backtracking cúbico: `"# a" + " ".repeat(n) +
+"b"` custava 82 ms com n = 1000, 2,0 s com 3000 e 4,8 s com 4000, a cada render, também dentro de
+  citação e lista. Agora só o marcador de abertura é regex e o fechamento sai por `trimEnd` — a
+  mesma linha com 50 000 espaços parseia em 0,3 ms. A varredura do mesmo módulo achou o padrão em
+  mais cinco lugares, todos corrigidos e fixados em teste com teto de 250 ms (o caso mais lento leva
+  ~35 ms sob instrumentação de cobertura): abertura de fence (` ``` ` + 20 000 espaços + `!`: 362 ms
+  → 0,3 ms), linha delimitadora de tabela (`- |` + 50 000 espaços: 1,2 s → 0,1 ms), quebra forçada
+  `/ {2,}$/` e a regra inline `^ {2,}\n` (parágrafo com 50 000 espaços internos: 1,1 s → 0,3 ms), e
+  link/imagem/autolink sem fechamento, que reescaneavam até o fim a partir de cada abertura
+  (`"[".repeat(50000)`: 605 ms → 8 ms; cada regra inline agora só roda no próprio primeiro
+  caractere). E um defeito que não é regex: citação e lista aninhadas recursavam sem limite, e `"-
+".repeat(20000)` lançava `RangeError: Maximum call stack size exceeded` de dentro do componente —
+  o aninhamento agora para em 32 níveis e o resto vira parágrafo, sem perder texto. Medido em Node
+  24 com `performance.now()` em volta de `parseMarkdown` (script bundlado com `esbuild`). Os casos
+  de heading com fechamento `#`, níveis 1–6, `#` sozinho e `#título` (não são heading) seguem iguais
+  e estão fixados em teste.
+
 ## [0.76.0] — 2026-10-10
 
 ### Adicionado

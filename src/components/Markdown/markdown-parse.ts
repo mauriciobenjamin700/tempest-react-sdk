@@ -49,21 +49,77 @@ export type MarkdownBlock =
       }
     | { type: "rule" };
 
-const FENCE = /^\s{0,3}(`{3,}|~{3,})\s*([\w+-]*)\s*$/;
-const HEADING = /^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/;
+/**
+ * A fence opener, matched against the line **after** `trimEnd()`.
+ *
+ * The trailing `\s*` lives in the `trimEnd()` rather than in the pattern: with it,
+ * `\s*([\w+-]*)\s*$` is two whitespace quantifiers separated by one that may be
+ * empty, and a fence followed by 20 000 spaces and a stray `!` took 0.36 s (#437).
+ */
+const FENCE = /^\s{0,3}(`{3,}|~{3,})\s*([\w+-]*)$/;
+/**
+ * The opening marker of an ATX heading. The text and the optional closing `#` run
+ * are cut by {@link matchHeading} with string operations, not by this pattern.
+ */
+const HEADING_OPEN = /^\s{0,3}(#{1,6})\s+/;
 const RULE = /^\s{0,3}([-*_])\s*(?:\1\s*){2,}$/;
 const QUOTE = /^\s{0,3}>\s?(.*)$/;
 const BULLET = /^(\s*)([-*+])\s+(.*)$/;
 const ORDERED = /^(\s*)(\d{1,9})[.)]\s+(.*)$/;
-const HARD_BREAK = / {2,}$/;
 /**
- * A table's delimiter row.
+ * A table's delimiter row, matched against the line **after** `trimEnd()`.
  *
  * The `|` is required somewhere in the line, and that is what tells a one-column
  * table (`| --- |`) apart from a thematic break (`---`) — a single column is a
- * legitimate table, and the first version of this regex demanded two.
+ * legitimate table, and the first version of this regex demanded two. The trailing
+ * whitespace is trimmed before the test for the same reason as {@link FENCE}: a
+ * `\s*\|?\s*$` tail backtracked quadratically on `- |` plus 50 000 spaces (#437).
  */
-const TABLE_DELIMITER = /^\s{0,3}\|[\s|:-]*$|^\s{0,3}:?-+:?(\s*\|\s*:?-+:?)+\s*\|?\s*$/;
+const TABLE_DELIMITER = /^\s{0,3}\|[\s|:-]*$|^\s{0,3}:?-+:?(\s*\|\s*:?-+:?)+\s*\|?$/;
+
+/**
+ * How deep quotes and lists may nest before the rest is read as a paragraph.
+ *
+ * Each level is one recursive {@link parseBlocks} call and one nested element in
+ * the render, so `"- ".repeat(20000)` used to throw `RangeError: Maximum call stack
+ * size exceeded` out of the component (#437). Real documents stop at a handful of
+ * levels; past this cap the words are kept, only the nesting is dropped.
+ */
+const MAX_NESTING_DEPTH = 32;
+
+/**
+ * Match an ATX heading in linear time.
+ *
+ * The regex this replaces, `/^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/`, let a lazy `.*?`
+ * and two `\s*` race for the same run of spaces: `"# a" + " ".repeat(4000) + "b"`
+ * took about 4.7 s, cubic in the run (#437). Only the opening marker is a regex
+ * now. The text is the rest of the line minus the longest suffix shaped like
+ * `\s*#*\s*` — exactly what the lazy group left behind, so `# título #`,
+ * `# título#` and `# #` read as before.
+ *
+ * @param line - One source line.
+ * @returns The level and raw text, or `null` when the line is not a heading.
+ */
+function matchHeading(line: string): { level: number; text: string } | null {
+    const open = HEADING_OPEN.exec(line);
+    if (!open) return null;
+    let text = line.slice(open[0].length).trimEnd();
+    let end = text.length;
+    while (end > 0 && text[end - 1] === "#") end -= 1;
+    text = text.slice(0, end).trimEnd();
+    return { level: open[1].length, text };
+}
+
+/**
+ * Whether a paragraph line ends in a hard break: two or more trailing spaces.
+ *
+ * `/ {2,}$/` was quadratic on a line with a long inner run of spaces — it retried
+ * the run from every space and failed at the next word each time (0.57 s for
+ * 50 000 spaces, #437).
+ */
+function endsWithHardBreak(line: string): boolean {
+    return line.endsWith("  ");
+}
 
 /**
  * Parse a Markdown document into blocks.
@@ -73,11 +129,26 @@ const TABLE_DELIMITER = /^\s{0,3}\|[\s|:-]*$|^\s{0,3}:?-+:?(\s*\|\s*:?-+:?)+\s*\
  */
 export function parseMarkdown(source: string): MarkdownBlock[] {
     const lines = source.replace(/\r\n?/g, "\n").split("\n");
-    return parseBlocks(lines);
+    return parseBlocks(lines, 0);
 }
 
-/** Parse a run of lines into blocks. */
-function parseBlocks(lines: string[]): MarkdownBlock[] {
+/**
+ * Parse a run of lines into blocks.
+ *
+ * @param lines - The lines of this container.
+ * @param depth - How many quotes and lists enclose them. At
+ *   {@link MAX_NESTING_DEPTH} the lines become one paragraph instead of more
+ *   containers, so a hostile document cannot exhaust the stack.
+ * @returns The blocks.
+ */
+function parseBlocks(lines: string[], depth: number): MarkdownBlock[] {
+    if (depth >= MAX_NESTING_DEPTH) {
+        const source = lines
+            .map((line) => line.trim())
+            .filter(Boolean)
+            .join("\n");
+        return source ? [{ type: "paragraph", children: parseInline(source) }] : [];
+    }
     const blocks: MarkdownBlock[] = [];
     let i = 0;
 
@@ -89,7 +160,7 @@ function parseBlocks(lines: string[]): MarkdownBlock[] {
             continue;
         }
 
-        const fence = FENCE.exec(line);
+        const fence = FENCE.exec(line.trimEnd());
         if (fence) {
             const marker = fence[1][0];
             const body: string[] = [];
@@ -105,12 +176,12 @@ function parseBlocks(lines: string[]): MarkdownBlock[] {
             continue;
         }
 
-        const heading = HEADING.exec(line);
+        const heading = matchHeading(line);
         if (heading) {
             blocks.push({
                 type: "heading",
-                level: heading[1].length,
-                children: parseInline(heading[2]),
+                level: heading.level,
+                children: parseInline(heading.text),
             });
             i += 1;
             continue;
@@ -137,18 +208,22 @@ function parseBlocks(lines: string[]): MarkdownBlock[] {
                 inner.push(lines[i]);
                 i += 1;
             }
-            blocks.push({ type: "quote", children: parseBlocks(inner) });
+            blocks.push({ type: "quote", children: parseBlocks(inner, depth + 1) });
             continue;
         }
 
         if (BULLET.test(line) || ORDERED.test(line)) {
-            const [list, next] = parseList(lines, i);
+            const [list, next] = parseList(lines, i, depth);
             blocks.push(list);
             i = next;
             continue;
         }
 
-        if (i + 1 < lines.length && line.includes("|") && TABLE_DELIMITER.test(lines[i + 1])) {
+        if (
+            i + 1 < lines.length &&
+            line.includes("|") &&
+            TABLE_DELIMITER.test(lines[i + 1].trimEnd())
+        ) {
             const [table, next] = parseTable(lines, i);
             blocks.push(table);
             i = next;
@@ -160,9 +235,9 @@ function parseBlocks(lines: string[]): MarkdownBlock[] {
         while (i < lines.length && lines[i].trim() !== "") {
             const current = lines[i];
             if (
-                HEADING.test(current) ||
+                matchHeading(current) ||
                 RULE.test(current) ||
-                FENCE.test(current) ||
+                FENCE.test(current.trimEnd()) ||
                 QUOTE.test(current) ||
                 BULLET.test(current) ||
                 ORDERED.test(current)
@@ -170,7 +245,7 @@ function parseBlocks(lines: string[]): MarkdownBlock[] {
                 break;
             }
             paragraph.push(current.trim());
-            hardBreaks.push(HARD_BREAK.test(current));
+            hardBreaks.push(endsWithHardBreak(current));
             i += 1;
         }
         if (paragraph.length > 0) {
@@ -211,9 +286,12 @@ function joinParagraph(lines: readonly string[], hardBreaks: readonly boolean[])
  * Nesting is decided by indentation relative to the **first** item's marker, so a
  * list indented inside a quote or another list still reads correctly.
  *
+ * @param lines - The lines of the enclosing container.
+ * @param start - Index of the first item's line.
+ * @param depth - Nesting depth of the enclosing container.
  * @returns The list node and the index of the first line after it.
  */
-function parseList(lines: string[], start: number): [MarkdownBlock, number] {
+function parseList(lines: string[], start: number, depth: number): [MarkdownBlock, number] {
     const bulletStart = BULLET.exec(lines[start]);
     const orderedStart = ORDERED.exec(lines[start]);
     // The two markers are mutually exclusive — `-*+` versus digits — so whichever
@@ -229,7 +307,7 @@ function parseList(lines: string[], start: number): [MarkdownBlock, number] {
 
     const flush = (): void => {
         if (buffer.length === 0) return;
-        items.push(parseBlocks(buffer));
+        items.push(parseBlocks(buffer, depth + 1));
         buffer = [];
     };
 
@@ -323,12 +401,27 @@ function parseTable(lines: string[], start: number): [MarkdownBlock, number] {
     return [{ type: "table", align, head: head.map(parseInline), rows }, i];
 }
 
+/**
+ * The precheck a rule needs before its pattern may run, keyed by the opener the
+ * pattern starts with.
+ *
+ * `link` covers links and images, whose label ends at the first `]`; `autolink`
+ * covers `<scheme:...>`, which ends at the first `>` or whitespace. Without the
+ * precheck each pattern scanned to the end of the text from every opener, and
+ * `"[".repeat(50000)` took 0.6 s (#437).
+ */
+type InlineGuard = { kind: "link"; opener: "[" | "![" } | { kind: "autolink"; opener: "<" };
+
 /** Inline delimiters, longest marker first so `**` wins over `*`. */
 const INLINE_RULES: Array<{
+    first: string;
     pattern: RegExp;
+    guard?: InlineGuard;
     build: (match: RegExpExecArray) => MarkdownInline | null;
 }> = [
     {
+        guard: { kind: "link", opener: "![" },
+        first: "!",
         pattern: /^!\[([^\]]*)\]\(((?:[^()\s]|\([^()\s]*\))+)(?:\s+"[^"]*")?\)/,
         build: (match) => {
             const src = safeImageUrl(match[2]);
@@ -336,6 +429,8 @@ const INLINE_RULES: Array<{
         },
     },
     {
+        guard: { kind: "link", opener: "[" },
+        first: "[",
         pattern: /^\[([^\]]*)\]\(((?:[^()\s]|\([^()\s]*\))+)(?:\s+"[^"]*")?\)/,
         build: (match) => {
             const href = safeLinkUrl(match[2]);
@@ -345,28 +440,35 @@ const INLINE_RULES: Array<{
             return href ? { type: "link", href, children } : { type: "text", value: match[1] };
         },
     },
-    { pattern: /^`([^`]+)`/, build: (match) => ({ type: "code", value: match[1] }) },
+    { first: "`", pattern: /^`([^`]+)`/, build: (match) => ({ type: "code", value: match[1] }) },
     {
+        first: "*",
         pattern: /^\*\*([\s\S]+?)\*\*/,
         build: (match) => ({ type: "strong", children: parseInline(match[1]) }),
     },
     {
+        first: "_",
         pattern: /^__([\s\S]+?)__/,
         build: (match) => ({ type: "strong", children: parseInline(match[1]) }),
     },
     {
+        first: "~",
         pattern: /^~~([\s\S]+?)~~/,
         build: (match) => ({ type: "del", children: parseInline(match[1]) }),
     },
     {
+        first: "*",
         pattern: /^\*([^*\n]+)\*/,
         build: (match) => ({ type: "em", children: parseInline(match[1]) }),
     },
     {
+        first: "_",
         pattern: /^_([^_\n]+)_/,
         build: (match) => ({ type: "em", children: parseInline(match[1]) }),
     },
     {
+        guard: { kind: "autolink", opener: "<" },
+        first: "<",
         pattern: /^<((?:https?:\/\/|mailto:)[^>\s]+)>/,
         build: (match) => {
             const href = safeLinkUrl(match[1]);
@@ -375,9 +477,11 @@ const INLINE_RULES: Array<{
                 : { type: "text", value: match[1] };
         },
     },
-    { pattern: /^ {2,}\n/, build: () => ({ type: "break" }) },
-    { pattern: /^\\\n/, build: () => ({ type: "break" }) },
+    { first: "\\", pattern: /^\\\n/, build: () => ({ type: "break" }) },
 ];
+
+/** Characters some inline rule can start with; any other character is text. */
+const INLINE_FIRST = new Set(INLINE_RULES.map((rule) => rule.first));
 
 /**
  * Parse inline Markdown.
@@ -385,6 +489,21 @@ const INLINE_RULES: Array<{
  * A backslash escapes the next character, so `\*not italic\*` renders with the
  * asterisks. Anything that matches no rule is text — an unclosed `**` is two
  * asterisks, not a bold run to the end of the paragraph.
+ *
+ * The parse is linear in the text, which matters because the text is somebody
+ * else's (#437):
+ *
+ * - A run of spaces is consumed whole: it is a hard break when two or more of them
+ *   end at a newline, and text otherwise. Matching `^ {2,}\n` from every space
+ *   rescanned the run each time.
+ * - A link or image label ends at the first `]` after the opener, so every opener
+ *   before the same `]` shares the same `](...)` tail. The position of that `]` is
+ *   cached, an opener whose `]` is not followed by `(` is skipped without running
+ *   the pattern, and once a tail has failed no later opener retries it.
+ * - An autolink ends at the first `>` or whitespace, also cached; when that stop
+ *   is not `>` the pattern cannot match and is not run.
+ * - A rule runs only at its own first character, so a run of `[` costs one set
+ *   lookup per character instead of every pattern in the table.
  *
  * @param source - One block's text.
  * @returns Inline nodes.
@@ -394,9 +513,38 @@ export function parseInline(source: string): MarkdownInline[] {
     let text = "";
     let i = 0;
 
+    let bracketAt = -1;
+    let deadTailAt = -1;
+    let stopAt = -1;
+    const stops = /[>\s]/g;
+
     const flush = (): void => {
         if (text) nodes.push({ type: "text", value: text });
         text = "";
+    };
+
+    const closingBracket = (from: number): number => {
+        if (bracketAt < from) {
+            const found = source.indexOf("]", from);
+            bracketAt = found === -1 ? source.length : found;
+        }
+        return bracketAt;
+    };
+
+    const autolinkStop = (from: number): number => {
+        if (stopAt < from) {
+            stops.lastIndex = from;
+            stopAt = stops.exec(source)?.index ?? source.length;
+        }
+        return stopAt;
+    };
+
+    const allowed = (guard: InlineGuard | undefined): boolean => {
+        if (!guard) return true;
+        if (!source.startsWith(guard.opener, i)) return false;
+        if (guard.kind === "autolink") return source[autolinkStop(i + 1)] === ">";
+        const close = closingBracket(i + guard.opener.length);
+        return source[close + 1] === "(" && close !== deadTailAt;
     };
 
     while (i < source.length) {
@@ -406,11 +554,37 @@ export function parseInline(source: string): MarkdownInline[] {
             continue;
         }
 
+        if (source[i] === " ") {
+            let end = i;
+            while (source[end] === " ") end += 1;
+            if (end - i >= 2 && source[end] === "\n") {
+                flush();
+                nodes.push({ type: "break" });
+                i = end + 1;
+            } else {
+                text += source.slice(i, end);
+                i = end;
+            }
+            continue;
+        }
+
+        if (!INLINE_FIRST.has(source[i])) {
+            text += source[i];
+            i += 1;
+            continue;
+        }
+
         const rest = source.slice(i);
         let matched = false;
         for (const rule of INLINE_RULES) {
+            if (rule.first !== source[i] || !allowed(rule.guard)) continue;
             const match = rule.pattern.exec(rest);
-            if (!match) continue;
+            if (!match) {
+                if (rule.guard?.kind === "link") {
+                    deadTailAt = closingBracket(i + rule.guard.opener.length);
+                }
+                continue;
+            }
             const node = rule.build(match);
             if (!node) continue;
             flush();

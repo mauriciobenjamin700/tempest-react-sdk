@@ -31,6 +31,25 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   baixa o tarball confere o digest antes de usá-lo. `test/release-workflow.test.ts` fixa
   essas regras: contra o workflow da `main`, 9 dos 10 casos falham. `actionlint` 1.7.12
   (`uvx --from actionlint-py actionlint`) limpo. Docs: `docs/release.md` + `.en.md`.
+- **`release-npm.yml` — só uma tag `vX.Y.Z` publica, e tag, npm e GitHub Release apontam
+  para o mesmo commit (#452).** O `workflow_dispatch` não tinha restrição: disparado de uma
+  branch, o guard de versão era pulado (`GITHUB_REF_TYPE` ≠ `tag`) e a tag saía do
+  `package.json` daquela árvore, que ia para o npm com provenance. Reproduzido rodando o passo
+  antigo com `GITHUB_REF_TYPE=branch` sobre um `package.json` `9.9.9`: exit 0 e
+  `tag=v9.9.9`. Depois, o `gh release create "$TAG"` rodava sem `--target` nem
+  `--verify-tag`, e o `gh release create --help` documenta o default: tag inexistente é
+  criada "from the latest state of the default branch" — outro commit. Agora o
+  `scripts/check-release-ref.sh` reprova, antes de qualquer instalação, o ref que não é tag
+  `vX.Y.Z`/`vX.Y.Z-pre`, a tag que não descreve o `package.json` e a tag que não aponta para o
+  `GITHUB_SHA` (tag anotada é resolvida para o commit); o re-run manual passa a ser
+  `gh workflow run release-npm.yml --ref vX.Y.Z`. O job `release` confere de novo a tag contra o
+  SHA via API, cria com `--verify-tag` e só anexa o tarball cujo sha512 é o `dist.integrity`
+  que o npm serve, então o `upload --clobber` não troca mais o asset por um build de outra ref.
+  O job `publish` roda no environment `npm-release` — sem configuração não barra nada; com
+  revisores obrigatórios e o Trusted Publisher do npm amarrado a ele vira o gate humano
+  (`docs/release.md` diz como ligar). `test/release-workflow.test.ts` ganhou 10 casos, que
+  falham no workflow anterior: 6 executam o guard num repo git descartável (branch, versão
+  divergente, tag fora do formato, tag em outro commit, caminho feliz, prerelease anotada).
 
 ### Interno
 

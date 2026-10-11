@@ -52,7 +52,7 @@ Release. O workflow falha se a tag não descrever a versão do `package.json`, e
 falha se o registry não estiver servindo a versão como `latest` — então "workflow
 verde" significa de fato "publicado e visível".
 
-Tag push é a **única** forma de publicar. Não há "publish via PR merge" — o merge do release PR é apenas para sincronizar `main` com `package.json` + `RELEASES.md` atualizados.
+Uma tag `vX.Y.Z` é a **única** coisa que publica — o disparo manual também roda sobre a tag, nunca sobre uma branch. Não há "publish via PR merge" — o merge do release PR é apenas para sincronizar `main` com `package.json` + `RELEASES.md` atualizados.
 
 ## Comandos
 
@@ -135,7 +135,7 @@ Necessário porque o publish no npm e a criação do Release passaram a andar ju
 Disparado por:
 
 - **`push: tags: [v*.*.*]`** — fluxo principal. `make release TAG=X` push uma tag e o workflow dispara automaticamente.
-- **`workflow_dispatch`** — manual via `gh workflow run release-npm.yml --ref main`. Útil quando o publish de uma tag falhou e você quer re-rodar sem incrementar versão.
+- **`workflow_dispatch`** — manual, **sempre sobre a tag**: `gh workflow run release-npm.yml --ref vX.Y.Z`. Útil quando o publish de uma tag falhou e você quer re-rodar sem incrementar versão. Disparado de uma branch (`--ref main`), o guard do passo 3 reprova a run antes de instalar qualquer coisa — até a 0.76.0 ele derivava a tag do `package.json` da branch e publicava aquela árvore.
 
 O workflow parte de `permissions: {}` e se divide em quatro jobs, cada um com só a permissão de que precisa. A divisão é o ponto: o único job que **pode** publicar não roda nada resolvido do registry na hora do release.
 
@@ -143,23 +143,33 @@ O workflow parte de `permissions: {}` e se divide em quatro jobs, cada um com s�
 | --------- | ----------------- | -------------------------------------------------------------------------- |
 | `build`   | `contents: read`  | guard de versão, `npm ci`, lint, format, typecheck, testes, build, `npm pack` |
 | `smoke`   | `contents: read`  | os três smokes do tarball, com as instalações flutuantes do consumidor     |
-| `publish` | `id-token: write` | npm CLI fixado + `npm publish` do tarball já testado + read-back           |
+| `publish` | `id-token: write` (environment `npm-release`) | npm CLI fixado + `npm publish` do tarball já testado + read-back           |
 | `release` | `contents: write` | o GitHub Release, sem instalar nada                                        |
 
 Passos, na ordem:
 
 1. **Checkout** (`actions/checkout`, fixado por SHA como toda action do workflow) com `fetch-depth: 0` e `persist-credentials: false` — o `GITHUB_TOKEN` não fica gravado no `.git/config` para os passos seguintes.
 2. **Node 22** + cache npm.
-3. **Guard de versão** — compara a tag (`GITHUB_REF_NAME` sem o `v`) com o `version` do `package.json` e **aborta** se divergirem, antes de qualquer publish. Também deriva `prerelease` (versão com `-`) para marcar o Release corretamente. Em `workflow_dispatch` a tag é derivada do `package.json`.
+3. **Guard de ref** (`scripts/check-release-ref.sh`) — **aborta**, antes de qualquer instalação, se o ref da run não é uma tag `vX.Y.Z` (ou `vX.Y.Z-pre`), se a tag não descreve o `version` do `package.json`, ou se ela não aponta para o commit em checkout (`GITHUB_SHA`). Vale para tag push e para `workflow_dispatch`. Também deriva `prerelease` (versão com `-`) para marcar o Release corretamente.
 4. **`npm ci`**, **lint**, **format check**, **typecheck**, **testes** e **build**.
 5. **`npm pack`** — o tarball sobe como artifact (`npm-tarball`) e o SHA-256 dele vira output do job. Output de job não pode ser reescrito por job posterior, então todo job que baixa o artifact confere o digest antes de usá-lo (`sha256sum --check`).
 6. **Smoke** (job `smoke`) — instala o tarball em `/tmp/sdk-smoke` com `react@^19 react-dom@^19 react-router@^8` e empacota com esbuild, roda as mesmas asserções em Node cru com o `node-css-loader` publicado, e roda uma suíte Vitest de consumidor (`scripts/smoke-vitest.sh`). Essas instalações resolvem versões flutuantes do registry — por isso moram num job sem permissão de escrita nenhuma.
 7. **`npm publish "./<tarball>" --provenance --access public`** (job `publish`) via **Trusted Publishing (OIDC)** — sem `NPM_TOKEN`. Publica **o arquivo** que o `build` empacotou e o `smoke` testou: publish de diretório re-rodaria o `prepublishOnly` (typecheck + lint + a suíte inteira + build) dentro do job com `id-token`, e mandaria um pack novo em vez do testado; publish de tarball não roda script de ciclo de vida nenhum. O npm CLI é instalado em versão exata (`npm install -g npm@12.2.0`), não `@latest`.
 8. **Read-back do registry** — confirma que o npm serve `tempest-react-sdk@<versão>` (até 30 minutos, porque o registry processa o upload de forma assíncrona) **e** que `dist-tags.latest` aponta para ela. Falha o job caso contrário: publish que aterrissou em outra tag deixaria de parecer verde.
-9. **GitHub Release** (job `release`) — `gh release create <tag>` com o tarball do artifact anexado e as notas extraídas da seção do `CHANGELOG.md` (`scripts/changelog.mjs notes <versão> --allow-unreleased`), acrescidas do link para a versão no npm. Se o Release já existe, faz `gh release edit` + `upload --clobber` em vez de falhar, então re-rodar o workflow para a mesma tag é seguro.
+9. **GitHub Release** (job `release`) — `gh release create <tag>` com o tarball do artifact anexado e as notas extraídas da seção do `CHANGELOG.md` (`scripts/changelog.mjs notes <versão> --allow-unreleased`), acrescidas do link para a versão no npm. Antes, confere que a tag ainda resolve para o `GITHUB_SHA` publicado e que o sha512 do tarball é o `dist.integrity` que o npm serve; o `gh release create` leva `--verify-tag`, então nunca cria uma tag faltante na HEAD da branch padrão. Se o Release já existe, faz `gh release edit` + `upload --clobber` em vez de falhar — e o `--clobber` só re-sobe os mesmos bytes que o npm serve. Re-rodar o workflow para a mesma tag é seguro: use **Re-run failed jobs**, que reaproveita o artifact da run que publicou; um re-run completo reempacota, e o job falha se o pack novo não bater byte a byte com o publicado.
 
 !!! note "Por que o npm é fixado em 12.2.0"
     Trusted Publishing exige npm >= 11.5.1, e o Node 22 traz 10.x. Até a 0.76.0 o passo instalava `npm@latest`, e o `latest` mudou de major duas vezes debaixo do job sem ninguém escolher: os logs das runs da v0.74.0 à v0.76.0 mostram o npm 12 (`npm notice run …`, `allowScripts`). A 12.2.0 é a versão que publicou essas três releases. Subir o npm é uma mudança deliberada nessa linha, revisada como qualquer outra.
+
+### Environment `npm-release`
+
+O job `publish` roda no environment `npm-release`. Sem configuração, o GitHub o cria vazio e ele não barra nada — o workflow funciona igual. Ele é o gancho para dois controles que moram fora do repositório, e que valem a pena:
+
+- **Em Settings → Environments → `npm-release`**: _Required reviewers_ (o publish espera aprovação humana, mesmo depois de todos os gates verdes) e _Deployment branches and tags_ restrito a tags `v*`.
+- **No Trusted Publisher do npmjs.com**: o campo _Environment_ preenchido com `npm-release`. Daí em diante o npm só aceita a troca OIDC de um job nesse environment — outro workflow ou outro job do mesmo arquivo não publica.
+
+!!! tip "Ligue os dois juntos"
+    O revisor obrigatório sem o vínculo no npm deixa um job fora do environment publicar; o vínculo sem o revisor deixa qualquer run do environment publicar sem ninguém olhar.
 
 ## Segredos necessários no GitHub
 

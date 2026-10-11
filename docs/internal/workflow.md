@@ -63,7 +63,7 @@ Screenshots, Outras mudanças, Notas sobre deploy + as três listas finais).
 
 Cinco workflows: `ci.yml` (PR: format + lint + typecheck + test + build, node
 22/24), `size-limit.yml`, `e2e.yml` (gallery + axe), `docs.yml` (Pages) e
-`release-npm.yml` (tag push → guard de versão + smoke + publish OIDC + read-back
+`release-npm.yml` (tag `vX.Y.Z` → guard de ref + smoke + publish OIDC + read-back
 do registry + GitHub Release).
 
 O smoke do release empacota o tarball **com esbuild** e roda o resultado — que é
@@ -81,6 +81,18 @@ que voltar a juntar as coisas: action sem SHA, checkout sem
 `persist-credentials: false`, `npm@latest`, `npm ci`/`npx`/smoke no job com
 `id-token`, publish de diretório. Ao subir o npm ou uma action, troque a versão
 exata/o SHA de propósito — o comentário ao lado diz de onde veio.
+
+**Só uma tag publica, inclusive no disparo manual** (#452). O
+`scripts/check-release-ref.sh` reprova a run cujo ref não é `vX.Y.Z`, cuja tag
+não bate com o `package.json` ou não aponta para o `GITHUB_SHA` — então o
+re-run manual é `gh workflow run release-npm.yml --ref vX.Y.Z`, nunca
+`--ref main`. O job `release` confere de novo a tag contra o SHA, cria com
+`--verify-tag` e só anexa o tarball cujo sha512 é o `dist.integrity` do npm. Para
+recuperar uma run que publicou e falhou depois, use **Re-run failed jobs**: o
+re-run completo reempacota, e o job `release` reprova se o pack novo não for
+byte a byte o publicado. Revisor obrigatório no environment `npm-release` e o
+vínculo do Trusted Publisher a ele são configuração do GitHub/npm, não do repo —
+`docs/release.md` diz como ligar.
 
 ## Release
 

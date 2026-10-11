@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { execFileSync, spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 
 /**
  * Supply-chain guards for `.github/workflows/release-npm.yml`.
@@ -127,5 +129,174 @@ describe("release-npm.yml supply chain (#451)", () => {
         const [, body] = onlyJob(/contents: write/);
         expect(body).not.toMatch(/id-token/);
         expect(body).not.toMatch(/npm (ci|install)|npx |npm run /);
+    });
+});
+
+describe("release-npm.yml publishes one commit, from a tag (#452)", () => {
+    it("guards the ref before installing anything", () => {
+        const [, build] = onlyJob(/scripts\/check-release-ref\.sh/);
+        expect(build.indexOf("scripts/check-release-ref.sh")).toBeLessThan(build.indexOf("npm ci"));
+        expect(WORKFLOW).not.toMatch(/tag=v\$\{PKG_VERSION\}/);
+    });
+
+    it("puts the publishing job behind an environment", () => {
+        const [, body] = onlyJob(/id-token: write/);
+        expect(body).toMatch(/^ {8}environment: npm-release$/m);
+    });
+
+    it("never lets gh create the tag somewhere else", () => {
+        const creates = [...WORKFLOW.matchAll(/gh release create .+/g)].map((m) => m[0]);
+        expect(creates.length).toBeGreaterThan(0);
+        for (const line of creates) expect(line).toMatch(/--verify-tag/);
+    });
+
+    it("attaches only the bytes npm serves, on the commit that was published", () => {
+        const [, body] = onlyJob(/gh release/);
+        expect(body).toMatch(/dist\.integrity/);
+        expect(body).toMatch(/commits\/\$\{TAG\}/);
+        expect(body.indexOf("dist.integrity")).toBeLessThan(body.indexOf("gh release upload"));
+    });
+});
+
+const GUARD = resolve(import.meta.dirname, "..", "scripts", "check-release-ref.sh");
+
+/**
+ * A throwaway git repo with one commit and a `package.json` at a given version.
+ *
+ * @param version - The `version` written to `package.json`.
+ * @returns The repo path and the commit SHA.
+ */
+function fixtureRepo(version: string): { dir: string; sha: string } {
+    const dir = mkdtempSync(join(tmpdir(), "tempest-release-ref-"));
+    const git = (...args: string[]): string =>
+        execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], {
+            cwd: dir,
+            encoding: "utf8",
+        }).trim();
+    git("init", "-q");
+    writeFileSync(join(dir, "package.json"), JSON.stringify({ version }));
+    git("add", ".");
+    git("commit", "-q", "-m", "one");
+    const sha = git("rev-parse", "HEAD");
+    writeFileSync(join(dir, "other.txt"), "x");
+    git("add", ".");
+    git("commit", "-q", "-m", "two");
+    git("tag", "v-later", "HEAD");
+    git("tag", `v${version}`, sha);
+    return { dir, sha };
+}
+
+/**
+ * Run the guard the way the build job does, with the GitHub ref variables set.
+ *
+ * @param dir - The checkout to run in.
+ * @param env - `GITHUB_REF_TYPE`, `GITHUB_REF_NAME` and `GITHUB_SHA`.
+ * @returns Exit status, combined output, and what was written to `GITHUB_OUTPUT`.
+ */
+function runGuard(
+    dir: string,
+    env: Record<string, string>,
+): { status: number | null; output: string; written: string } {
+    const outputFile = join(dir, "github-output");
+    writeFileSync(outputFile, "");
+    const result = spawnSync("bash", [GUARD], {
+        cwd: dir,
+        encoding: "utf8",
+        env: { ...process.env, ...env, GITHUB_OUTPUT: outputFile },
+    });
+    return {
+        status: result.status,
+        output: `${result.stdout}${result.stderr}`,
+        written: readFileSync(outputFile, "utf8"),
+    };
+}
+
+describe("scripts/check-release-ref.sh (#452)", () => {
+    it("refuses a dispatch from a branch, and says how to dispatch a tag", () => {
+        const { dir, sha } = fixtureRepo("1.2.3");
+        const run = runGuard(dir, {
+            GITHUB_REF_TYPE: "branch",
+            GITHUB_REF_NAME: "main",
+            GITHUB_SHA: sha,
+        });
+        expect(run.status).toBe(1);
+        expect(run.output).toContain("--ref v1.2.3");
+        expect(run.written).toBe("");
+    });
+
+    it("refuses a tag that does not describe package.json", () => {
+        const { dir, sha } = fixtureRepo("1.2.3");
+        execFileSync("git", ["tag", "v1.2.4", sha], { cwd: dir });
+        const run = runGuard(dir, {
+            GITHUB_REF_TYPE: "tag",
+            GITHUB_REF_NAME: "v1.2.4",
+            GITHUB_SHA: sha,
+        });
+        expect(run.status).toBe(1);
+        expect(run.output).toContain("does not match package.json version 1.2.3");
+    });
+
+    it("refuses a tag that is not vX.Y.Z", () => {
+        const { dir, sha } = fixtureRepo("1.2.3");
+        const run = runGuard(dir, {
+            GITHUB_REF_TYPE: "tag",
+            GITHUB_REF_NAME: "v-later",
+            GITHUB_SHA: sha,
+        });
+        expect(run.status).toBe(1);
+        expect(run.output).toContain("is not vX.Y.Z");
+    });
+
+    it("refuses a tag that points at another commit than the run's", () => {
+        const { dir } = fixtureRepo("1.2.3");
+        const head = execFileSync("git", ["rev-parse", "HEAD"], { cwd: dir, encoding: "utf8" });
+        const run = runGuard(dir, {
+            GITHUB_REF_TYPE: "tag",
+            GITHUB_REF_NAME: "v1.2.3",
+            GITHUB_SHA: head.trim(),
+        });
+        expect(run.status).toBe(1);
+        expect(run.output).toContain("but this run checked out");
+    });
+
+    it("accepts the tag of the checked-out commit and writes the outputs", () => {
+        const { dir, sha } = fixtureRepo("1.2.3");
+        const run = runGuard(dir, {
+            GITHUB_REF_TYPE: "tag",
+            GITHUB_REF_NAME: "v1.2.3",
+            GITHUB_SHA: sha,
+        });
+        expect(run.status).toBe(0);
+        expect(run.written).toBe("tag=v1.2.3\nversion=1.2.3\nprerelease=false\n");
+    });
+
+    it("marks a prerelease and peels an annotated tag to its commit", () => {
+        const { dir, sha } = fixtureRepo("2.0.0-rc.1");
+        execFileSync(
+            "git",
+            [
+                "-c",
+                "user.name=t",
+                "-c",
+                "user.email=t@t",
+                "tag",
+                "-f",
+                "-a",
+                "-m",
+                "rc",
+                "v2.0.0-rc.1",
+                sha,
+            ],
+            {
+                cwd: dir,
+            },
+        );
+        const run = runGuard(dir, {
+            GITHUB_REF_TYPE: "tag",
+            GITHUB_REF_NAME: "v2.0.0-rc.1",
+            GITHUB_SHA: sha,
+        });
+        expect(run.status).toBe(0);
+        expect(run.written).toBe("tag=v2.0.0-rc.1\nversion=2.0.0-rc.1\nprerelease=true\n");
     });
 });

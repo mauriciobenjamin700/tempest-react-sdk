@@ -39,25 +39,12 @@ jobs:
                   cache: npm
                   cache-dependency-path: package-lock.json
 
-            - name: Resolve version and check it matches the tag
+            # Publishes from a vX.Y.Z tag only — workflow_dispatch included —
+            # that matches package.json and points at the checked-out commit
+            # (#452). The tag, the npm version and the Release share one SHA.
+            - name: Check the ref is a release tag for this commit
               id: version
-              run: |
-                  PKG_VERSION=$(node -p "require('./package.json').version")
-                  if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
-                    TAG_VERSION="${GITHUB_REF_NAME#v}"
-                    if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
-                      echo "::error::tag ${GITHUB_REF_NAME} does not match package.json version ${PKG_VERSION}"
-                      exit 1
-                    fi
-                    echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-                  else
-                    echo "tag=v${PKG_VERSION}" >> "$GITHUB_OUTPUT"
-                  fi
-                  echo "version=${PKG_VERSION}" >> "$GITHUB_OUTPUT"
-                  case "$PKG_VERSION" in
-                    *-*) echo "prerelease=true" >> "$GITHUB_OUTPUT" ;;
-                    *) echo "prerelease=false" >> "$GITHUB_OUTPUT" ;;
-                  esac
+              run: scripts/check-release-ref.sh
 
             - name: Install dependencies
               run: npm ci
@@ -83,9 +70,11 @@ jobs:
               id: pack
               run: |
                   TARBALL=$(npm pack --silent)
-                  echo "tarball=${TARBALL}" >> "$GITHUB_OUTPUT"
-                  echo "sha256=$(sha256sum "$TARBALL" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
-                  echo "name=$(node -p "require('./package.json').name")" >> "$GITHUB_OUTPUT"
+                  {
+                    echo "tarball=${TARBALL}"
+                    echo "sha256=$(sha256sum "$TARBALL" | cut -d' ' -f1)"
+                    echo "name=$(node -p "require('./package.json').name")"
+                  } >> "$GITHUB_OUTPUT"
 
             - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
               with:
@@ -169,6 +158,10 @@ jobs:
         name: Publish tempest-react-sdk
         needs: [build, smoke]
         runs-on: ubuntu-latest
+        # The hook for a human gate: required reviewers and a v* tag rule are
+        # set on this environment in the repo settings, and the npm Trusted
+        # Publisher can be bound to it. Unconfigured, it gates nothing.
+        environment: npm-release
         permissions:
             id-token: write
         steps:
@@ -256,7 +249,7 @@ jobs:
                     sleep 15
                   done
                   if [ "$PUBLISHED" != "$VERSION" ]; then
-                    echo "::error::npm still does not serve ${PKG_NAME}@${VERSION} after 30 minutes (got '${PUBLISHED}'). The publish step above succeeded, so the fix is to re-run this job once the version shows on https://www.npmjs.com/package/${PKG_NAME} — the publish step skips a version the registry already has, so the re-run only redoes the read-back and the GitHub Release. \`make releases-sync\` creates the Release without re-running anything."
+                    echo "::error::npm still does not serve ${PKG_NAME}@${VERSION} after 30 minutes (got '${PUBLISHED}'). The publish step above succeeded, so the fix is \"Re-run failed jobs\" once the version shows on https://www.npmjs.com/package/${PKG_NAME} — the publish step skips a version the registry already has, so the re-run only redoes the read-back and the GitHub Release. \`make releases-sync\` creates the Release without re-running anything."
                     exit 1
                   fi
                   for attempt in $(seq 1 12); do
@@ -299,16 +292,34 @@ jobs:
 
             # Keeps GitHub in step with npm: every published version gets the
             # matching GitHub Release, with its CHANGELOG section as the notes and
-            # the packed tarball attached. Idempotent — re-running a tag edits the
-            # existing Release instead of failing.
+            # the published tarball attached. Idempotent — re-running a tag edits
+            # the existing Release instead of failing.
+            #
+            # Three checks keep the Release on the published commit (#452): the
+            # tag still resolves to this run's SHA, `--verify-tag` refuses to let
+            # `gh` create a missing tag at the default branch's HEAD, and the
+            # tarball is attached only when its sha512 is the `dist.integrity`
+            # npm serves — so `--clobber` can only ever re-upload the same bytes.
             - name: Create or update the GitHub Release
               env:
                   GH_TOKEN: ${{ github.token }}
+                  PKG_NAME: ${{ needs.build.outputs.name }}
                   TAG: ${{ needs.build.outputs.tag }}
                   VERSION: ${{ needs.build.outputs.version }}
                   PRERELEASE: ${{ needs.build.outputs.prerelease }}
                   TARBALL: ${{ needs.build.outputs.tarball }}
               run: |
+                  TAG_COMMIT=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${TAG}" --jq .sha)
+                  if [ "$TAG_COMMIT" != "$GITHUB_SHA" ]; then
+                    echo "::error::tag ${TAG} now points at ${TAG_COMMIT}, but ${GITHUB_SHA} is what was published"
+                    exit 1
+                  fi
+                  INTEGRITY="sha512-$(openssl dgst -sha512 -binary "$TARBALL" | base64 -w0)"
+                  SERVED=$(npm view --prefer-online "${PKG_NAME}@${VERSION}" dist.integrity)
+                  if [ "$INTEGRITY" != "$SERVED" ]; then
+                    echo "::error::${TARBALL} (${INTEGRITY}) is not the tarball npm serves for ${PKG_NAME}@${VERSION} (${SERVED}). A full re-run repacks; use \"Re-run failed jobs\" so this job gets the artifact of the run that published, or \`make releases-sync\`."
+                    exit 1
+                  fi
                   node scripts/changelog.mjs notes "$VERSION" --allow-unreleased > /tmp/release-notes.md
                   {
                     echo ""
@@ -322,6 +333,6 @@ jobs:
                     gh release edit "$TAG" "${FLAGS[@]}"
                     gh release upload "$TAG" "$TARBALL" --clobber
                   else
-                    gh release create "$TAG" "$TARBALL" "${FLAGS[@]}"
+                    gh release create "$TAG" "$TARBALL" --verify-tag "${FLAGS[@]}"
                   fi
                   echo "✓ GitHub Release ${TAG} em sincronia com npm ${VERSION}"

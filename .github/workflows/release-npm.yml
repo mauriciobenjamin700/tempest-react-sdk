@@ -13,6 +13,13 @@ on:
 # installs — ever runs next to `id-token: write` or `contents: write`.
 permissions: {}
 
+# A tag push and a dispatch on the same tag would otherwise race to publish and
+# to cut the Release. They queue instead; a release half-way through its 30-min
+# read-back is never cancelled, because its publish may already have happened.
+concurrency:
+    group: release-npm-${{ github.ref }}
+    cancel-in-progress: false
+
 jobs:
     build:
         name: Verify, build and pack
@@ -24,6 +31,8 @@ jobs:
             tag: ${{ steps.version.outputs.tag }}
             version: ${{ steps.version.outputs.version }}
             prerelease: ${{ steps.version.outputs.prerelease }}
+            dist_tag: ${{ steps.version.outputs.dist_tag }}
+            artifact: npm-tarball-${{ github.run_attempt }}
             tarball: ${{ steps.pack.outputs.tarball }}
             sha256: ${{ steps.pack.outputs.sha256 }}
         steps:
@@ -64,6 +73,10 @@ jobs:
             - name: Build
               run: npm run build
 
+            # The artifact is named per attempt: a full re-run uploads its own
+            # (a fixed name would collide with the first attempt's), and "Re-run
+            # failed jobs" keeps this job's outputs, so the re-run jobs download
+            # the artifact of the attempt that built them.
             # The digest travels as a job output, which no later job can
             # rewrite; every job that consumes the artifact checks it first.
             - name: Pack
@@ -78,7 +91,7 @@ jobs:
 
             - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
               with:
-                  name: npm-tarball
+                  name: npm-tarball-${{ github.run_attempt }}
                   path: ${{ steps.pack.outputs.tarball }}
                   if-no-files-found: error
 
@@ -100,7 +113,7 @@ jobs:
 
             - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
               with:
-                  name: npm-tarball
+                  name: ${{ needs.build.outputs.artifact }}
 
             - name: Check the tarball is the one the build job packed
               env:
@@ -182,7 +195,7 @@ jobs:
 
             - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
               with:
-                  name: npm-tarball
+                  name: ${{ needs.build.outputs.artifact }}
 
             - name: Check the tarball is the one the build job packed
               env:
@@ -210,6 +223,7 @@ jobs:
                   PKG_NAME: ${{ needs.build.outputs.name }}
                   VERSION: ${{ needs.build.outputs.version }}
                   TARBALL: ${{ needs.build.outputs.tarball }}
+                  DIST_TAG: ${{ needs.build.outputs.dist_tag }}
               run: |
                   PUBLISHED=$(npm view --prefer-online "${PKG_NAME}@${VERSION}" version 2>/dev/null || true)
                   if [ "$PUBLISHED" = "$VERSION" ]; then
@@ -217,11 +231,13 @@ jobs:
                     echo "  (re-run path: the read-back and the GitHub Release below still run)"
                     exit 0
                   fi
-                  npm publish "./${TARBALL}" --provenance --access public
+                  npm publish "./${TARBALL}" --provenance --access public --tag "${DIST_TAG}"
 
-            # Registry read-back: npm must actually serve this version, and the
-            # `latest` dist-tag must point at it — a publish that silently landed
-            # under another tag would otherwise look like a green release.
+            # Registry read-back: npm must actually serve this version, and its
+            # dist-tag (`latest`, or `next` for a prerelease) must point at it — a
+            # publish that silently landed under another tag would otherwise look
+            # like a green release. Both waits get the same 30-minute window: the
+            # dist-tag lags the version by as much as the version lags the upload.
             #
             # The window is minutes, not seconds. npm accepts the upload and then
             # processes it asynchronously, printing "Your package is being
@@ -237,10 +253,11 @@ jobs:
             #
             # `npm view` is asked to skip its cache, so a negative answer from the
             # first attempt is not replayed for the rest of the loop.
-            - name: Verify the npm registry serves this version as latest
+            - name: Verify the npm registry serves this version under its dist-tag
               env:
                   PKG_NAME: ${{ needs.build.outputs.name }}
                   VERSION: ${{ needs.build.outputs.version }}
+                  DIST_TAG: ${{ needs.build.outputs.dist_tag }}
               run: |
                   for attempt in $(seq 1 120); do
                     PUBLISHED=$(npm view --prefer-online "${PKG_NAME}@${VERSION}" version 2>/dev/null || true)
@@ -252,17 +269,17 @@ jobs:
                     echo "::error::npm still does not serve ${PKG_NAME}@${VERSION} after 30 minutes (got '${PUBLISHED}'). The publish step above succeeded, so the fix is \"Re-run failed jobs\" once the version shows on https://www.npmjs.com/package/${PKG_NAME} — the publish step skips a version the registry already has, so the re-run only redoes the read-back and the GitHub Release. \`make releases-sync\` creates the Release without re-running anything."
                     exit 1
                   fi
-                  for attempt in $(seq 1 12); do
-                    LATEST=$(npm view --prefer-online "${PKG_NAME}" dist-tags.latest 2>/dev/null || true)
-                    [ "$LATEST" = "$VERSION" ] && break
-                    echo "· dist-tag latest is still '${LATEST}' (attempt ${attempt}/12); retrying in 15s"
+                  for attempt in $(seq 1 120); do
+                    TAGGED=$(npm view --prefer-online "${PKG_NAME}" "dist-tags.${DIST_TAG}" 2>/dev/null || true)
+                    [ "$TAGGED" = "$VERSION" ] && break
+                    echo "· dist-tag ${DIST_TAG} is still '${TAGGED}' (attempt ${attempt}/120); retrying in 15s"
                     sleep 15
                   done
-                  if [ "$LATEST" != "$VERSION" ]; then
-                    echo "::error::npm dist-tag latest is '${LATEST}', expected '${VERSION}'"
+                  if [ "$TAGGED" != "$VERSION" ]; then
+                    echo "::error::npm dist-tag ${DIST_TAG} is '${TAGGED}' after 30 minutes, expected '${VERSION}'"
                     exit 1
                   fi
-                  echo "✓ npm: ${PKG_NAME}@${VERSION} published and tagged latest"
+                  echo "✓ npm: ${PKG_NAME}@${VERSION} published and tagged ${DIST_TAG}"
 
     release:
         name: GitHub Release
@@ -282,7 +299,7 @@ jobs:
 
             - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
               with:
-                  name: npm-tarball
+                  name: ${{ needs.build.outputs.artifact }}
 
             - name: Check the tarball is the one the build job packed
               env:
@@ -315,9 +332,18 @@ jobs:
                     exit 1
                   fi
                   INTEGRITY="sha512-$(openssl dgst -sha512 -binary "$TARBALL" | base64 -w0)"
-                  SERVED=$(npm view --prefer-online "${PKG_NAME}@${VERSION}" dist.integrity)
+                  for attempt in $(seq 1 120); do
+                    SERVED=$(npm view --prefer-online "${PKG_NAME}@${VERSION}" dist.integrity 2>/dev/null || true)
+                    [ -n "$SERVED" ] && break
+                    echo "· npm has not reported dist.integrity yet (attempt ${attempt}/120); retrying in 15s"
+                    sleep 15
+                  done
+                  if [ -z "$SERVED" ]; then
+                    echo "::error::npm did not report dist.integrity for ${PKG_NAME}@${VERSION} after 30 minutes; nothing was attached. Re-run this job once https://www.npmjs.com/package/${PKG_NAME}/v/${VERSION} shows the version."
+                    exit 1
+                  fi
                   if [ "$INTEGRITY" != "$SERVED" ]; then
-                    echo "::error::${TARBALL} (${INTEGRITY}) is not the tarball npm serves for ${PKG_NAME}@${VERSION} (${SERVED}). A full re-run repacks; use \"Re-run failed jobs\" so this job gets the artifact of the run that published, or \`make releases-sync\`."
+                    echo "::error::${TARBALL} (${INTEGRITY}) is not the tarball npm serves for ${PKG_NAME}@${VERSION} (${SERVED}): this attempt rebuilt it, and the pack is not byte-identical to the published one. Nothing was attached. Create the Release from the tag with \`make releases-sync\` (no asset), or attach the registry's own tarball (\`npm pack ${PKG_NAME}@${VERSION}\`) by hand."
                     exit 1
                   fi
                   node scripts/changelog.mjs notes "$VERSION" --allow-unreleased > /tmp/release-notes.md

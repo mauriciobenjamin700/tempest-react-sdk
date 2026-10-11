@@ -50,6 +50,21 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   (`docs/release.md` diz como ligar). `test/release-workflow.test.ts` ganhou 10 casos, que
   falham no workflow anterior: 6 executam o guard num repo git descartável (branch, versão
   divergente, tag fora do formato, tag em outro commit, caminho feliz, prerelease anotada).
+- **`release-npm.yml` — prerelease vai para o dist-tag `next`, e a recuperação de uma run
+  falhada funciona pelos dois caminhos de re-run.** Achados da revisão das duas entradas acima:
+  uma tag `v0.77.0-rc.1` era publicada em `latest` (já era assim antes), e virava o default de
+  todo `npm install`; agora o `scripts/check-release-ref.sh` emite `dist_tag` (`next` para
+  versão com `-`, `latest` no resto), o publish passa `--tag "$DIST_TAG"` e o read-back espera
+  esse dist-tag — o GitHub Release continua marcado como prerelease. O read-back do dist-tag
+  tinha 12 tentativas (3 min) contra 120 (30 min) da versão; agora as duas esperas, e a leitura
+  do `dist.integrity` no job `release` (que era uma chamada única, sem retry, e no `bash -e`
+  morria sem `::error::`), usam a mesma janela de 120 × 15 s e erro anotado. O artifact passa a
+  se chamar `npm-tarball-<run_attempt>`: com nome fixo, um "Re-run all jobs" colidiria com o
+  da primeira tentativa; "Re-run failed jobs" herda os outputs do `build` e baixa o artifact da
+  tentativa que publicou. A mensagem de pack divergente deixa de mandar para um caminho que não
+  existe e aponta `make releases-sync`. `concurrency` por ref, sem `cancel-in-progress`, enfileira
+  um tag push e um dispatch da mesma tag. `test/release-workflow.test.ts` ganhou 8 casos (7
+  falham no commit anterior; o oitavo só fixa o formato `@<sha> # vX.Y.Z` das actions).
 
 ### Interno
 

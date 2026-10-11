@@ -12,8 +12,9 @@
 # publicava aquela árvore e o `gh release create` criava a tag na HEAD da branch
 # padrão — outro commit. Com o guard, tag, npm e Release apontam para o mesmo SHA.
 #
-# Lê GITHUB_REF_TYPE, GITHUB_REF_NAME e GITHUB_SHA; escreve tag, version e
-# prerelease em GITHUB_OUTPUT. Roda na raiz do checkout, com as tags buscadas.
+# Lê GITHUB_REF_TYPE, GITHUB_REF_NAME e GITHUB_SHA; escreve tag, version,
+# prerelease e dist_tag em GITHUB_OUTPUT. Prerelease vai para o dist-tag `next`:
+# publicada em `latest`, uma `-rc.1` viraria o default de todo `npm install`. Roda na raiz do checkout, com as tags buscadas.
 
 set -euo pipefail
 
@@ -45,8 +46,8 @@ fi
     echo "tag=${TAG}"
     echo "version=${PKG_VERSION}"
     case "$PKG_VERSION" in
-        *-*) echo "prerelease=true" ;;
-        *) echo "prerelease=false" ;;
+        *-*) printf "prerelease=true\ndist_tag=next\n" ;;
+        *) printf "prerelease=false\ndist_tag=latest\n" ;;
     esac
 } >> "$GITHUB_OUTPUT"
 echo "✓ ${TAG} == package.json ${PKG_VERSION} @ ${GITHUB_SHA}"

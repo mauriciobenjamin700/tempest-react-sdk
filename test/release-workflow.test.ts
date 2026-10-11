@@ -267,7 +267,7 @@ describe("scripts/check-release-ref.sh (#452)", () => {
             GITHUB_SHA: sha,
         });
         expect(run.status).toBe(0);
-        expect(run.written).toBe("tag=v1.2.3\nversion=1.2.3\nprerelease=false\n");
+        expect(run.written).toBe("tag=v1.2.3\nversion=1.2.3\nprerelease=false\ndist_tag=latest\n");
     });
 
     it("marks a prerelease and peels an annotated tag to its commit", () => {
@@ -297,6 +297,80 @@ describe("scripts/check-release-ref.sh (#452)", () => {
             GITHUB_SHA: sha,
         });
         expect(run.status).toBe(0);
-        expect(run.written).toBe("tag=v2.0.0-rc.1\nversion=2.0.0-rc.1\nprerelease=true\n");
+        expect(run.written).toBe(
+            "tag=v2.0.0-rc.1\nversion=2.0.0-rc.1\nprerelease=true\ndist_tag=next\n",
+        );
+    });
+});
+
+describe("release-npm.yml recovery and prereleases (review of #451/#452)", () => {
+    it("labels every pinned action with the tag its SHA came from", () => {
+        const pins = [...WORKFLOW.matchAll(/uses: \S+@[0-9a-f]{40}(.*)$/gm)].map((m) => m[1]);
+        expect(pins.length).toBeGreaterThan(0);
+        for (const comment of pins) expect(comment).toMatch(/^ # v\d+\.\d+\.\d+$/);
+    });
+
+    it("never runs two releases of the same ref at once, nor cancels one", () => {
+        expect(WORKFLOW).toMatch(
+            /^concurrency:\n {4}group: release-npm-\$\{\{ github\.ref \}\}\n {4}cancel-in-progress: false$/m,
+        );
+    });
+
+    it("publishes a prerelease under its own dist-tag and reads that tag back", () => {
+        const [, body] = onlyJob(/id-token: write/);
+        expect(body).toMatch(/DIST_TAG: \$\{\{ needs\.build\.outputs\.dist_tag \}\}/);
+        expect(body).toMatch(/npm publish "\.\/\$\{TARBALL\}" .*--tag "\$\{DIST_TAG\}"/);
+        expect(body).toMatch(/dist-tags\.\$\{DIST_TAG\}/);
+        expect(body).not.toMatch(/dist-tags\.latest/);
+    });
+
+    it("gives every registry read-back the same 30-minute window", () => {
+        const windows = [...WORKFLOW.matchAll(/seq 1 (\d+)/g)].map((m) => m[1]);
+        expect(windows.length).toBeGreaterThanOrEqual(3);
+        for (const n of windows) expect(n).toBe("120");
+    });
+
+    it("retries dist.integrity and fails with an annotation, not a bare exit", () => {
+        const [, body] = onlyJob(/dist\.integrity/);
+        expect(body).toMatch(/SERVED=\$\(npm view [^\n]*dist\.integrity[^\n]*\|\| true\)/);
+        expect(body).toMatch(/::error::npm did not report dist\.integrity/);
+    });
+
+    it("names the tarball artifact per attempt, so a full re-run does not collide", () => {
+        expect(WORKFLOW).toMatch(/artifact: npm-tarball-\$\{\{ github\.run_attempt \}\}/);
+        const upload = /upload-artifact@\S+[^\n]*\n {14}with:\n {18}name: (.+)/.exec(WORKFLOW);
+        expect(upload?.[1]).toBe("npm-tarball-${{ github.run_attempt }}");
+        const downloads = [
+            ...WORKFLOW.matchAll(/download-artifact@\S+[^\n]*\n {14}with:\n {18}name: (.+)/g),
+        ].map((m) => m[1]);
+        expect(downloads).toHaveLength(3);
+        for (const name of downloads) expect(name).toBe("${{ needs.build.outputs.artifact }}");
+    });
+
+    it("points a byte mismatch at a recovery that exists", () => {
+        const line = /::error::\$\{TARBALL\}[^\n]*/.exec(WORKFLOW)?.[0] ?? "";
+        expect(line).toContain("make releases-sync");
+        expect(line).not.toContain("Re-run failed jobs");
+    });
+});
+
+describe("scripts/check-release-ref.sh dist-tag (review of #451/#452)", () => {
+    it("sends a release to latest and a prerelease to next", () => {
+        const stable = fixtureRepo("1.2.3");
+        expect(
+            runGuard(stable.dir, {
+                GITHUB_REF_TYPE: "tag",
+                GITHUB_REF_NAME: "v1.2.3",
+                GITHUB_SHA: stable.sha,
+            }).written,
+        ).toContain("dist_tag=latest\n");
+        const pre = fixtureRepo("0.77.0-rc.1");
+        expect(
+            runGuard(pre.dir, {
+                GITHUB_REF_TYPE: "tag",
+                GITHUB_REF_NAME: "v0.77.0-rc.1",
+                GITHUB_SHA: pre.sha,
+            }).written,
+        ).toContain("dist_tag=next\n");
     });
 });

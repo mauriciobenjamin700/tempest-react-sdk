@@ -88,9 +88,12 @@ não bate com o `package.json` ou não aponta para o `GITHUB_SHA` — então o
 re-run manual é `gh workflow run release-npm.yml --ref vX.Y.Z`, nunca
 `--ref main`. O job `release` confere de novo a tag contra o SHA, cria com
 `--verify-tag` e só anexa o tarball cujo sha512 é o `dist.integrity` do npm. Para
-recuperar uma run que publicou e falhou depois, use **Re-run failed jobs**: o
-re-run completo reempacota, e o job `release` reprova se o pack novo não for
-byte a byte o publicado. Revisor obrigatório no environment `npm-release` e o
+recuperar uma run que publicou e falhou depois, use **Re-run failed jobs**, que
+reaproveita o artifact da tentativa que publicou (o artifact é
+`npm-tarball-<run_attempt>`). O re-run completo reempacota, e o job `release`
+não anexa nada se o pack novo não for byte a byte o publicado — a saída é
+`make releases-sync`. Prerelease publica em `next`, não em `latest`; runs da
+mesma tag entram em fila (`concurrency`), sem cancelar a que está rodando. Revisor obrigatório no environment `npm-release` e o
 vínculo do Trusted Publisher a ele são configuração do GitHub/npm, não do repo —
 `docs/release.md` diz como ligar.
 

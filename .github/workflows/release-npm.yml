@@ -153,9 +153,10 @@ jobs:
             # tarball is ~5 MB across ~2700 files, which is the slow end of that.
             # v0.53.0 published fine and failed here after 50s; v0.54.0 published
             # fine and failed here after the 6 minutes that was meant to fix it.
+            # v0.76.0 took 18 minutes to show up, eclipsing the 15 that followed.
             # Both skipped the GitHub Release step and left the three surfaces out
             # of sync — exactly the drift this read-back exists to prevent. Hence
-            # 15 minutes, and hence the publish step above being skippable: a
+            # 30 minutes, and hence the publish step above being skippable: a
             # window can always be too short, so the recovery has to work.
             #
             # `npm view` is asked to skip its cache, so a negative answer from the
@@ -164,14 +165,14 @@ jobs:
               run: |
                   VERSION="${{ steps.version.outputs.version }}"
                   PKG_NAME=$(node -p "require('./package.json').name")
-                  for attempt in $(seq 1 60); do
+                  for attempt in $(seq 1 120); do
                     PUBLISHED=$(npm view --prefer-online "${PKG_NAME}@${VERSION}" version 2>/dev/null || true)
                     [ -n "$PUBLISHED" ] && break
-                    echo "· registry has not caught up yet (attempt ${attempt}/60); retrying in 15s"
+                    echo "· registry has not caught up yet (attempt ${attempt}/120); retrying in 15s"
                     sleep 15
                   done
                   if [ "$PUBLISHED" != "$VERSION" ]; then
-                    echo "::error::npm still does not serve ${PKG_NAME}@${VERSION} after 15 minutes (got '${PUBLISHED}'). The publish step above succeeded, so the fix is to re-run this job once the version shows on https://www.npmjs.com/package/${PKG_NAME} — the publish step skips a version the registry already has, so the re-run only redoes the read-back and the GitHub Release. \`make releases-sync\` creates the Release without re-running anything."
+                    echo "::error::npm still does not serve ${PKG_NAME}@${VERSION} after 30 minutes (got '${PUBLISHED}'). The publish step above succeeded, so the fix is to re-run this job once the version shows on https://www.npmjs.com/package/${PKG_NAME} — the publish step skips a version the registry already has, so the re-run only redoes the read-back and the GitHub Release. \`make releases-sync\` creates the Release without re-running anything."
                     exit 1
                   fi
                   for attempt in $(seq 1 12); do

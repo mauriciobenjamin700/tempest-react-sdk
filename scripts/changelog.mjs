@@ -16,8 +16,9 @@
  *   node scripts/changelog.mjs close <version> [<date>]
  *       Rewrites `## [Unreleased]` into `## [<version>] — <date>` in place and
  *       seeds a fresh empty `## [Unreleased]` above it, so the tag that goes out
- *       carries a dated section and the next cycle starts clean. No-ops when the
- *       version section already exists. `<date>` defaults to today (UTC).
+ *       carries a dated section and the next cycle starts clean. When the
+ *       version section already exists carrying the unpublished marker, removes
+ *       the marker from its heading instead. `<date>` defaults to today (UTC).
  *
  * Exits non-zero only on genuine failure (bad usage, unreadable CHANGELOG),
  * never for "there was nothing to do".
@@ -71,7 +72,15 @@ function notes(version, allowUnreleased) {
 
 function close(version, date) {
     const text = readFileSync(CHANGELOG, "utf8");
-    if (sectionBody(text, version) !== null) {
+    const heading = new RegExp(`^## \\[${escapeRegExp(version)}\\][^\\n]*`, "m");
+    const headingText = text.match(heading)?.[0];
+    if (headingText) {
+        if (/\((?:nunca publicada|never published)\)/.test(headingText)) {
+            const clean = headingText.replace(/\s*\((?:nunca publicada|never published)\)\s*$/, "");
+            const next = text.replace(headingText, clean);
+            writeFileSync(CHANGELOG, next);
+            return { changed: true, reason: `marcador de não-publicada removido de [${version}]` };
+        }
         return { changed: false, reason: `seção [${version}] já existe` };
     }
     if (!text.includes(UNRELEASED_HEADING)) {

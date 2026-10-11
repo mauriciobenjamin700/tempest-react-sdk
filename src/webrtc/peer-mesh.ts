@@ -10,7 +10,6 @@ import { applyQualityToLink, resolveDegradation, scaleForRoom } from "./mesh-qua
 import {
     acceptCandidate,
     adoptTransceivers,
-    attachLocalTracks,
     createPeerConnection,
     drainCandidates,
     slotOf,
@@ -336,6 +335,63 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
         emitPeers();
     };
 
+    /**
+     * Queue one write behind every earlier write to the same slot.
+     *
+     * Every write that puts a local track on a sender goes through here — the
+     * fan-out of `setLocalTrack` and the first write onto a link that just
+     * got its transceivers alike. Two writes to one slot therefore never run
+     * at once, and a write queued later always finishes later.
+     *
+     * @param slot - The slot name.
+     * @param write - The write to run once the earlier ones have finished.
+     * @returns The queued write.
+     */
+    const enqueueWrite = (slot: string, write: () => Promise<void>): Promise<void> => {
+        const queued = (slotWrites.get(slot) ?? Promise.resolve()).then(write);
+        slotWrites.set(slot, queued);
+        return queued;
+    };
+
+    /**
+     * Put a slot's current track on one link's sender.
+     *
+     * The track is read when the write runs, not when it was queued, so the
+     * last `setLocalTrack` wins whichever write lands last. A refusal
+     * belongs to a link that is tearing down, whose state handler removes it,
+     * so it is not an error here.
+     *
+     * @param link - The link to write onto.
+     * @param slot - The slot name.
+     * @param index - The slot's position in `slots`, which is its transceiver.
+     */
+    const writeSlot = async (link: PeerLink, slot: string, index: number): Promise<void> => {
+        const transceiver = link.transceivers[index];
+        if (!transceiver || !isLive(link)) return;
+        try {
+            await transceiver.sender.replaceTrack(localTracks.get(slot) ?? null);
+        } catch {
+            return;
+        }
+    };
+
+    /**
+     * Publish every held local track onto a link whose transceivers now exist.
+     *
+     * Up front for the offerer, after the offer lands for the answerer, so a
+     * microphone that was already live when the peer joined starts flowing
+     * without waiting for a toggle. Each slot's write joins that slot's queue,
+     * so a mute issued while it is in flight still has the last word.
+     *
+     * @param link - The link to publish onto.
+     */
+    const attachLocalTracks = (link: PeerLink): Promise<unknown> =>
+        Promise.all(
+            slots.map((slot, index) =>
+                enqueueWrite(slot.name, () => writeSlot(link, slot.name, index)),
+            ),
+        );
+
     const removePeer = (peerId: string): void => {
         if (stopped) return;
         const link = links.get(peerId);
@@ -383,7 +439,7 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
         });
 
         if (offerer) {
-            await attachLocalTracks(link, slots, localTracks);
+            await attachLocalTracks(link);
             if (!isLive(link)) return;
         }
 
@@ -436,7 +492,7 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
 
         if (!link.isOfferer) {
             adoptTransceivers(link);
-            await attachLocalTracks(link, slots, localTracks);
+            await attachLocalTracks(link);
         }
         if (!isLive(link)) return;
 
@@ -479,30 +535,6 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
     };
 
     /**
-     * Write a slot's current track onto every live link.
-     *
-     * The track is read when the write runs, not when it was requested, so a
-     * queued write always publishes the latest call's track. A sender that
-     * refuses the track belongs to a link that is tearing down, and its state
-     * handler removes it — so a refusal is not an error here.
-     *
-     * @param slot - The slot name.
-     * @param index - The slot's position in `slots`, which is its transceiver.
-     */
-    const publishSlot = async (slot: string, index: number): Promise<void> => {
-        const track = localTracks.get(slot) ?? null;
-        for (const link of [...links.values()]) {
-            const transceiver = link.transceivers[index];
-            if (!transceiver) continue;
-            try {
-                await transceiver.sender.replaceTrack(track);
-            } catch {
-                continue;
-            }
-        }
-    };
-
-    /**
      * Publish or retract one slot, one write at a time per slot.
      *
      * Writes to a slot are chained, and each publishes whatever the slot holds
@@ -516,11 +548,9 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
         const index = slots.findIndex((entry) => entry.name === slot);
         if (index < 0) return;
 
-        const write = (slotWrites.get(slot) ?? Promise.resolve()).then(() =>
-            publishSlot(slot, index),
-        );
-        slotWrites.set(slot, write);
-        await write;
+        await enqueueWrite(slot, async () => {
+            for (const link of [...links.values()]) await writeSlot(link, slot, index);
+        });
         await applyQuality(quality);
     };
 

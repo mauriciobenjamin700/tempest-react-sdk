@@ -40,10 +40,12 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - **`createPeerMesh`: `setLocalTrack` sobreposto no mesmo slot termina na última chamada.** Um
   desmute com `replaceTrack` ainda em voo podia terminar depois do mute seguinte, deixando o
   microfone enviando enquanto a mesh achava o slot vazio. As escritas agora são enfileiradas por
-  slot, e cada uma publica o que o slot contém quando roda.
+  slot, e cada uma publica o que o slot contém quando roda. A escrita inicial das tracks num link
+  novo (offerer no `addPeer`, answerer ao aplicar a oferta) entra na mesma fila, então um mute
+  disparado enquanto o link anexava o microfone também tem a última palavra.
 - Custo, medido com `npx size-limit --json` em `origin/main` × esta branch (min + brotli): fatia
-  `createPeerMesh` 3164 B → 3385 B (+221 B, teto 3,3 kB → 3,4 kB); barrel ESM 139 861 B → 140 190 B
-  (+329 B, dentro do teto); barrel CJS 167 019 B → 167 204 B (+185 B, teto 167,2 kB → 167,3 kB).
+  `createPeerMesh` 3164 B → 3392 B (+228 B, teto 3,3 kB → 3,4 kB); barrel ESM 139 861 B → 140 195 B
+  (+334 B, dentro do teto); barrel CJS 167 019 B → 167 169 B (+150 B, dentro do teto).
 
 ## [0.76.0] — 2026-10-10
 

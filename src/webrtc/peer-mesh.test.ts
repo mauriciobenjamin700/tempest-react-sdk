@@ -1391,3 +1391,51 @@ describe("createPeerMesh — overlapping setLocalTrack calls", () => {
         expect(sender.track).toBeNull();
     });
 });
+
+describe("createPeerMesh — the first write onto a new link", () => {
+    let restore: () => void;
+    beforeEach(() => {
+        restore = installPeerConnection();
+    });
+    afterEach(() => {
+        vi.restoreAllMocks();
+        restore();
+    });
+
+    it("cannot outlast a mute queued while the new link was attaching the microphone", async () => {
+        const { mesh } = meshWith();
+        await mesh.setLocalTrack("mic", fakeMediaTrack("audio"));
+        let finishAttach: () => void = () => undefined;
+        const original = FakePeerConnection.prototype.addTransceiver;
+        vi.spyOn(FakePeerConnection.prototype, "addTransceiver").mockImplementation(function (
+            this: FakePeerConnection,
+            kind: string,
+            init?: RTCRtpTransceiverInit,
+        ) {
+            const transceiver = original.call(this, kind, init);
+            if (this.getTransceivers().length === 1) {
+                const { sender } = transceiver;
+                sender.replaceTrack.mockImplementationOnce(
+                    (track) =>
+                        new Promise<void>((resolve) => {
+                            finishAttach = () => {
+                                sender.track = track;
+                                resolve();
+                            };
+                        }),
+                );
+            }
+            return transceiver;
+        });
+
+        const joining = mesh.addPeer("peer-1", { offerer: true });
+        const mute = mesh.setLocalTrack("mic", null);
+        await Promise.resolve();
+        await Promise.resolve();
+        finishAttach();
+        await Promise.all([joining, mute]);
+
+        const mic = connection().getTransceivers()[0] as FakeTransceiver;
+        expect(mic.sender.track).toBeNull();
+    });
+});

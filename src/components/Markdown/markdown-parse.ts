@@ -18,7 +18,7 @@
 // and it is also the documented limit — this is not a CommonMark implementation and
 // does not try to be.
 
-import { safeImageUrl, safeLinkUrl } from "./markdown-url";
+import { safeImageUrl, safeLinkUrl } from "@/utils/safe-url";
 
 /** Inline content. */
 export type MarkdownInline =

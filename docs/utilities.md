@@ -473,6 +473,43 @@ await downloadCsv(usuarios, COLUNAS, "usuarios.csv"); // entrega ao usuário
 
 ---
 
+## URL que veio de outra pessoa — `safeLinkUrl`, `safeImageUrl`, `safeAttachmentUrl`
+
+Todo `href` montado com dado de usuário é um lugar onde `javascript:alert(1)` vira script no clique. O React 19 troca um `href` `javascript:` por um stub que lança erro, mas o SDK aceita React 18 — e o 18 só avisa no console. Medido com `react-dom` 18.3.1: o `href` sai literal, e clicar roda o script no Chromium 153 e no Firefox 155, **mesmo com `download`** no `<a>`.
+
+Os três helpers são a mesma allowlist de esquema que o `Markdown` e o `Chat` usam por dentro. Devolvem a URL, ou `null` quando ela não pode virar `href`/`src`:
+
+```tsx
+import { safeAttachmentUrl, safeImageUrl, safeLinkUrl } from "tempest-react-sdk";
+
+export function Anexo({ url, nome }: { url: string; nome: string }) {
+  const href = safeAttachmentUrl(url);
+  return href ? (
+    <a href={href} download={nome}>
+      {nome}
+    </a>
+  ) : (
+    <span>{nome}</span>
+  );
+}
+
+safeLinkUrl("https://x.dev"); // "https://x.dev"
+safeLinkUrl("JaVaScRiPt:alert(1)"); // null
+safeImageUrl("data:image/svg+xml;base64,PHN2Zz4="); // null
+```
+
+| Helper | Aceita | Use em |
+| --- | --- | --- |
+| `safeLinkUrl` | `http`, `https`, `mailto`, `tel`, `sms`, relativa | link que a pessoa clica |
+| `safeImageUrl` | o mesmo + `data:image/` raster (png/jpeg/gif/webp/avif/bmp) | `src` de imagem |
+| `safeAttachmentUrl` | `http`, `https`, `blob`, relativa + `data:image/` raster | arquivo pra baixar — `blob:` é o upload ainda em voo |
+
+!!! check "Allowlist, não blocklist"
+    Antes de comparar, os três tiram espaço e caractere de controle, então `java\tscript:` e `\u0001javascript:` caem como `javascript:`. Uma blocklist teria que enumerar cada grafia; a allowlist recusa o que não conhece.
+
+!!! info "`safeAttachmentUrl` devolve a URL como veio"
+    O esquema é julgado na forma normalizada, mas o retorno é o original: normalizar apaga espaço, e `/arquivos/relatório final.pdf` é um caminho real. A normalização só **remove** caracteres — mais do que o parser de URL do navegador remove —, então não há esquema que ele veja e o helper não.
+
 ## Storage comprimido — `compressedStorage`
 
 `localStorage` dá cerca de **5 MB por origem** e cobra **dois bytes por caractere**. Um app offline-first que guarda estado de verdade — um save de jogo, um rascunho longo, um cache de catálogo — bate nesse teto antes do que parece, e o sintoma é um `QuotaExceededError` no meio de uma escrita, não um aviso.
@@ -576,7 +613,8 @@ Mesma política best-effort do par JSON: SSR-safe, nunca lança, silencia erro d
 
 - Importe qualquer helper direto de `tempest-react-sdk` — todos são exports nomeados, puros e tree-shakable.
 - **Planilhas**: `writeXlsx(headers, rows)` gera um `.xlsx` UTF-8 de uma aba como `Uint8Array` (sem drama de BOM do CSV).
-- **CSV**: `toCsv(rows, columns)` escreve o arquivo com escaping RFC 4180 e BOM; `downloadCsv(...)` entrega direto ao usuário.
+- **CSV**: `toCsv(rows, columns)` escreve o arquivo com escaping RFC 4180 e BOM, e neutraliza fórmula por padrão; `downloadCsv(...)` entrega direto ao usuário.
+- **URL de usuário**: `safeLinkUrl`, `safeImageUrl` e `safeAttachmentUrl` devolvem a URL ou `null` — allowlist de esquema antes de qualquer `href`/`src`.
 - **Datas e percentuais**: `formatDateForInput` dá o `yyyy-MM-dd` que o `<input type="date">` exige e `formatDateTimeForInput` dá o `yyyy-MM-ddTHH:mm` do `<input type="datetime-local">` (os dois pelas partes locais, sem o desvio de UTC); `percentOf` devolve `0` em vez de `NaN` quando a base é zero.
 - **Storage comprimido**: `compressedStorage.get/set` gzipa o que grava; formato autodescritivo (`~tgz1:`) lê valores antigos sem migração. Com React, `useLocalStorage(key, def, compressedStorageCodec)`.
 - **Arrays/Objetos**: `groupBy`, `uniqueBy`, `chunk`, `range`, `pick`, `omit`, `deepMerge`, `isEmpty` — sempre imutáveis; `deepMerge` substitui arrays em vez de fundir.

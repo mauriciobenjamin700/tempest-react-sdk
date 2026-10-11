@@ -120,6 +120,9 @@ const mensagens: ChatMessage[] = [
 !!! danger "Apagar uma mensagem tem de apagar a citação dela"
     `ChatQuote.revoked` não é enfeite. Sem ele, o texto de uma mensagem apagada continua visível dentro da resposta de quem a citou — o vazamento mais fácil de passar despercebido, porque a mensagem original some da tela e a cópia não. Com `revoked: true` o stub troca o trecho por "Mensagem apagada" e nada do conteúdo sobrevive.
 
+!!! check "A URL do anexo passa por allowlist antes de virar link"
+    A linha de download é o único lugar onde a URL que o remetente mandou vira `href`. Ela passa pelo [`safeAttachmentUrl`](../utilities.md#url-que-veio-de-outra-pessoa-safelinkurl-safeimageurl-safeattachmenturl): `http`, `https`, `blob` (o upload ainda em voo) e relativa viram link; qualquer outra coisa — `javascript:` inclusive — vira a mesma linha **sem** link, com nome e tamanho. Não depende do React: no 18, o `href` `javascript:` saía literal e rodava no clique, com `download` ou sem.
+
 !!! info "Ticks de grupo precisam de três estados, não de dois"
     `status: "read"` é um booleano do remetente: ele não distingue "entregue a todos" de "lida por todos", e só o segundo pinta o tick. Com `receipt`, `resolveReceiptState` devolve `"sent" | "delivered" | "read"` — e os limiares são deliberadamente **todos**: reportar "lida" porque uma pessoa de nove abriu é o que faz o indicador perder credibilidade. Quando `totalRecipients` é `0` (conversa cuja composição o app não acompanha), o `status` volta a mandar.
 

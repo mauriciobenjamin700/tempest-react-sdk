@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { formatBytes } from "@/utils/numbers";
+import { safeAttachmentUrl } from "@/utils/safe-url";
 
 import { AudioPlayer } from "../AudioPlayer";
 import { Lightbox } from "../Lightbox";
@@ -45,6 +46,12 @@ function durationLabel(durationMs: number): string {
  * Nothing here is new UI: an image opens the SDK's lightbox, a video and an audio
  * clip use the SDK's players, and a file is a download row. That composition is
  * the whole point — every app was writing it again, the same way.
+ *
+ * The file row is the one place a sender's URL becomes an `href`, so it goes
+ * through {@link safeAttachmentUrl}: `http:`, `https:`, `blob:` and relative URLs
+ * are linked, anything else renders the same row without a link (#447). Media
+ * `src` is left as given — an `<img>`, `<video>` or `<audio>` does not run a
+ * `javascript:` URL.
  *
  * @param props - The attachments and the locale strings.
  * @returns The rendered attachment list.
@@ -115,13 +122,9 @@ export function ChatAttachments({ attachments, strings }: ChatAttachmentsProps) 
                         />
                     );
                 }
-                return (
-                    <a
-                        key={key}
-                        className={styles.fileAttachment}
-                        href={attachment.url}
-                        download={attachment.name ?? true}
-                    >
+                const href = safeAttachmentUrl(attachment.url);
+                const row = (
+                    <>
                         <span className={styles.fileName}>
                             {attachment.name ?? strings.download}
                         </span>
@@ -137,7 +140,21 @@ export function ChatAttachments({ attachments, strings }: ChatAttachmentsProps) 
                                 .filter(Boolean)
                                 .join(" · ")}
                         </span>
+                    </>
+                );
+                return href ? (
+                    <a
+                        key={key}
+                        className={styles.fileAttachment}
+                        href={href}
+                        download={attachment.name ?? true}
+                    >
+                        {row}
                     </a>
+                ) : (
+                    <div key={key} className={styles.fileAttachment}>
+                        {row}
+                    </div>
                 );
             })}
 

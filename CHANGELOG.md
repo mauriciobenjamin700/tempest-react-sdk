@@ -4,8 +4,34 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Alterado
+
+- **Tetos dos barris no `size-limit`: ESM 140,2 → 140,7 kB, CJS 167,2 → 167,7 kB.** Medido com
+  `npx size-limit` depois de `npm run build`, brotli: `main` 139,86 / 167,02 kB → #437 (parser
+  linear + teto de aninhamento) 140,29 / 167,38 → #446 (neutralização de fórmula no CSV) 140,37 /
+  167,30 → #447 (`safe-url` público + linha de anexo) 140,62 / 167,63. E a fatia `{ Chat }` (com
+  mídia e menu inline): 11,2 → 11,4 kB, `main` 11,12 → 11,38 kB — o `safe-url` entra inteiro no
+  caminho da linha de anexo (#447). Os bytes compram os três guards.
+
+### Adicionado
+
+- **`safeLinkUrl`, `safeImageUrl` e `safeAttachmentUrl` na raiz (#447).** A allowlist de esquema
+  que o `Markdown` já aplicava saiu de `components/Markdown/markdown-url.ts` para
+  `utils/safe-url.ts` e virou export público, mais um terceiro helper para arquivo:
+  `safeAttachmentUrl` aceita `http`, `https`, `blob`, relativa e `data:image/` raster, e devolve a
+  URL como veio (normalizar apaga espaço de nome de arquivo). Doc em `docs/utilities.md`.
+
 ### Corrigido
 
+- **Anexo de arquivo do `Chat` não vira mais `href` `javascript:` (#447).** A linha de download
+  renderizava `<a href={attachment.url} download>` sem allowlist. Medido: com `react-dom` 18.3.1
+  (`renderToStaticMarkup` num fixture com `react@18.3.1`), o `href="javascript:..."` saía literal; com
+  `@playwright/test`, clicar um `<a href="javascript:void(document.title='x')" download>` mudou o
+  título no Chromium 153 e no Firefox 155 — o `download` não impede. A suíte roda React 19.2.8, que
+  troca o `href` por um stub que lança erro, e é por isso que o teste afirma que a linha **não é
+  link**, não que o React a neutralizou. Agora a URL passa por `safeAttachmentUrl` e a recusada
+  vira a mesma linha sem link. O `src` de imagem, vídeo e áudio fica como está: medido nos mesmos
+  dois navegadores, `<img>`, `<video>` e `<audio>` com `src="javascript:..."` não executam.
 - **`toCsv`/`downloadCsv` neutralizam fórmula por padrão — CSV injection (#446).** Campo de texto
   que começa com `=`, `+`, `-`, `@`, TAB ou CR sai com `'` na frente (recomendação da OWASP), e o
   cabeçalho também. Medido convertendo o CSV com o LibreOffice 26.2 headless

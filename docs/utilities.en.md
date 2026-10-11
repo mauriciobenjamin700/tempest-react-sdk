@@ -474,6 +474,43 @@ await downloadCsv(users, COLUMNS, "users.csv"); // hand it to the user
 
 ---
 
+## A URL that came from someone else — `safeLinkUrl`, `safeImageUrl`, `safeAttachmentUrl`
+
+Every `href` built from user data is a place where `javascript:alert(1)` becomes script on click. React 19 swaps a `javascript:` `href` for a stub that throws, but the SDK accepts React 18 — and 18 only warns in the console. Measured with `react-dom` 18.3.1: the `href` is written verbatim, and clicking it runs the script in Chromium 153 and Firefox 155, **even with `download`** on the `<a>`.
+
+The three helpers are the same scheme allowlist that `Markdown` and `Chat` use internally. They return the URL, or `null` when it must not become an `href`/`src`:
+
+```tsx
+import { safeAttachmentUrl, safeImageUrl, safeLinkUrl } from "tempest-react-sdk";
+
+export function Attachment({ url, name }: { url: string; name: string }) {
+  const href = safeAttachmentUrl(url);
+  return href ? (
+    <a href={href} download={name}>
+      {name}
+    </a>
+  ) : (
+    <span>{name}</span>
+  );
+}
+
+safeLinkUrl("https://x.dev"); // "https://x.dev"
+safeLinkUrl("JaVaScRiPt:alert(1)"); // null
+safeImageUrl("data:image/svg+xml;base64,PHN2Zz4="); // null
+```
+
+| Helper | Accepts | Use for |
+| --- | --- | --- |
+| `safeLinkUrl` | `http`, `https`, `mailto`, `tel`, `sms`, relative | a link the person clicks |
+| `safeImageUrl` | the same + raster `data:image/` (png/jpeg/gif/webp/avif/bmp) | an image `src` |
+| `safeAttachmentUrl` | `http`, `https`, `blob`, relative + raster `data:image/` | a file to download — `blob:` is the upload still in flight |
+
+!!! check "Allowlist, not blocklist"
+    Before comparing, all three strip whitespace and control characters, so `java\tscript:` and `\u0001javascript:` fall as `javascript:`. A blocklist would have to enumerate every spelling; the allowlist refuses what it does not know.
+
+!!! info "`safeAttachmentUrl` returns the URL as given"
+    The scheme is judged on the normalized form, but the original comes back: normalizing deletes spaces, and `/files/final report.pdf` is a real path. Normalization only **removes** characters — more than the browser's URL parser removes — so there is no scheme the browser sees that the helper does not.
+
 ## Compressed storage — `compressedStorage`
 
 `localStorage` gives you roughly **5 MB per origin** and bills **two bytes per character**. An offline-first app that stores real state — a game save, a long draft, a catalogue cache — hits that ceiling sooner than you would guess, and the symptom is a `QuotaExceededError` in the middle of a write, not a warning.
@@ -576,7 +613,8 @@ Same best-effort policy as the JSON pair: SSR-safe, never throws, swallows quota
 
 - Import any helper straight from `tempest-react-sdk` — they are all named, pure, tree-shakable exports.
 - **Spreadsheets**: `writeXlsx(headers, rows)` builds a single-sheet UTF-8 `.xlsx` as a `Uint8Array` (no CSV BOM drama).
-- **CSV**: `toCsv(rows, columns)` writes the file with RFC 4180 escaping and a BOM; `downloadCsv(...)` hands it straight to the user.
+- **CSV**: `toCsv(rows, columns)` writes the file with RFC 4180 escaping and a BOM, and neutralizes formulas by default; `downloadCsv(...)` hands it straight to the user.
+- **User URLs**: `safeLinkUrl`, `safeImageUrl` and `safeAttachmentUrl` return the URL or `null` — a scheme allowlist before any `href`/`src`.
 - **Dates and percentages**: `formatDateForInput` gives the `yyyy-MM-dd` an `<input type="date">` insists on and `formatDateTimeForInput` gives the `yyyy-MM-ddTHH:mm` an `<input type="datetime-local">` wants (both from local parts, without the UTC shift); `percentOf` returns `0` instead of `NaN` when the base is zero.
 - **Compressed storage**: `compressedStorage.get/set` gzips what it writes; the self-describing format (`~tgz1:`) reads older values with no migration. In React, `useLocalStorage(key, def, compressedStorageCodec)`.
 - **Arrays/Objects**: `groupBy`, `uniqueBy`, `chunk`, `range`, `pick`, `omit`, `deepMerge`, `isEmpty` — always immutable; `deepMerge` replaces arrays instead of merging them.

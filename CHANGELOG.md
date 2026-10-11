@@ -4,6 +4,21 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`tempest gen api` não copia mais texto do spec OpenAPI cru para o TypeScript gerado (#434).**
+  Uma tag ou `summary` com `*/` fechava o comentário e rodava código no import do `service.ts`
+  (reproduzido: `globalThis.PWNED_TAG`/`PWNED_SUMMARY` = 1); um path ou `$ref` hostil fazia o
+  mesmo pelo template literal da URL e pelo nome do schema. O escape agora é centralizado em
+  `bin/lib/openapi/escape.mjs` e escolhido pela posição: comentário perde quebra de linha e `*/`,
+  segmento de path é texto escapado do template literal, `pattern` vira
+  `new RegExp(JSON.stringify(p))`. Nome de schema/`$ref`, parâmetro de path e `{placeholder}` não
+  declarado **lançam erro** em vez de serem reescritos — um nome renomeado deixaria de bater com a
+  API. Spec legítimo gera o mesmo código, exceto `pattern`, que sai como `new RegExp("...")` no
+  lugar do literal `/.../` (mesma regex). Tag que vira slug com dígito inicial (`2fa`) e
+  `operationId` só com símbolos/dígitos agora geram classe e método válidos. Testes em
+  `bin/lib/openapi/generate.hostile.test.mjs` executam a saída numa VM.
+
 ## [0.76.0] — 2026-10-10
 
 ### Adicionado

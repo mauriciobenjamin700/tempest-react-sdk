@@ -1,5 +1,6 @@
 // OpenAPI 3.x → per-tag { schemas.ts (Zod), types.ts, service.ts (class) }.
 // Pure: takes the parsed spec object, returns a { path: contents } map. No I/O.
+import { assertIdentifier, commentText, urlTemplate } from "./escape.mjs";
 import { refName, zodName, schemaToZod } from "./schema-to-zod.mjs";
 
 const HTTP_METHODS = ["get", "post", "put", "patch", "delete"];
@@ -20,19 +21,25 @@ function pascal(s) {
     return s.replace(/(^|[^a-zA-Z0-9])([a-zA-Z0-9])/g, (_, _b, ch) => ch.toUpperCase());
 }
 
-/** camelCase method name from operationId or method+path. */
+/**
+ * camelCase method name from operationId or method+path.
+ *
+ * The result only ever holds `[a-zA-Z0-9]`, so it cannot carry code; an
+ * operationId that sanitizes to nothing, or to a leading digit, falls back to
+ * the method+path name and is otherwise prefixed with `_` to stay an identifier.
+ */
 function methodName(op, method, path) {
-    if (op.operationId) {
+    if (typeof op.operationId === "string") {
         const id = op.operationId.replace(/[^a-zA-Z0-9]+(.)?/g, (_, ch) =>
             ch ? ch.toUpperCase() : "",
         );
-        return id.charAt(0).toLowerCase() + id.slice(1);
+        if (/^[a-zA-Z]/.test(id)) return id.charAt(0).toLowerCase() + id.slice(1);
     }
     const parts = path
         .split("/")
         .filter(Boolean)
-        .map((p) => p.replace(/[{}]/g, ""));
-    return method + parts.map((p) => pascal(p)).join("");
+        .map((p) => pascal(p).replace(/[^a-zA-Z0-9]/g, ""));
+    return method + parts.join("");
 }
 
 /** Collect component-schema names referenced (transitively) by a schema node. */
@@ -189,6 +196,7 @@ function bodySchema(op) {
  */
 export function generate(doc) {
     const schemas = doc.components?.schemas ?? {};
+    for (const name of Object.keys(schemas)) assertIdentifier(name, "schema name");
     const groups = new Map(); // slug → { tag, ops: [...] }
 
     for (const [path, item] of Object.entries(doc.paths ?? {})) {
@@ -207,7 +215,7 @@ export function generate(doc) {
 
     for (const { tag, slug, ops } of groups.values()) {
         tags.push(tag);
-        const Class = `${pascal(slug)}Service`;
+        const Class = `${slugIdent(pascal(slug))}Service`;
 
         // 1. Which component schemas does this group touch (transitively)?
         const used = new Set();
@@ -255,7 +263,7 @@ export function generate(doc) {
             `import type { ${sdkTypes.join(", ")} } from "tempest-react-sdk";\n\n` +
             schemaImport +
             typeImport +
-            `\n/** Generated service for the "${tag}" routes. Inject an ApiClient (createApiClient). */\n` +
+            `\n/** Generated service for the "${commentText(tag)}" routes. Inject an ApiClient (createApiClient). */\n` +
             `export class ${Class} {\n` +
             `    constructor(private readonly api: ApiClient) {}\n\n` +
             body +
@@ -287,6 +295,7 @@ function emitMethod(method, path, op, schemas, usedNames = new Set()) {
     }
     usedNames.add(name);
     const pathParams = (op.parameters ?? []).filter((p) => p.in === "path");
+    for (const p of pathParams) assertIdentifier(p.name, `path parameter in ${method} ${path}`);
     const queryParams = (op.parameters ?? []).filter((p) => p.in === "query");
     const body = bodySchema(op);
     const resp = successSchema(op);
@@ -311,9 +320,7 @@ function emitMethod(method, path, op, schemas, usedNames = new Set()) {
         args.push(`params: { ${q} }`);
     }
 
-    // Interpolate path params into a template literal.
-    const tpl = path.replace(/{([^}]+)}/g, (_, n) => "${" + n + "}");
-    const url = pathParams.length ? `\`${tpl}\`` : JSON.stringify(path);
+    const url = urlTemplate(path, new Set(pathParams.map((p) => p.name)));
 
     const callOpts = [];
     if (body) callOpts.push("body");
@@ -330,7 +337,7 @@ function emitMethod(method, path, op, schemas, usedNames = new Set()) {
     const ret = retType === "void" ? "Promise<void>" : `Promise<${retType}>`;
     const generic = retType === "void" ? "" : `<${retType}>`;
     return (
-        `    /** \`${method.toUpperCase()} ${path}\`${op.summary ? ` — ${op.summary}` : ""} */\n` +
+        `    /** \`${method.toUpperCase()} ${commentText(path)}\`${op.summary ? ` — ${commentText(op.summary)}` : ""} */\n` +
         `    async ${name}(${args.join(", ")}): ${ret} {\n` +
         validation +
         `        return this.api.${method}${generic}(${url}${optsArg});\n` +

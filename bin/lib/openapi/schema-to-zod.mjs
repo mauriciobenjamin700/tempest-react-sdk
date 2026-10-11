@@ -1,9 +1,18 @@
 // JSON Schema (OpenAPI 3.0/3.1 subset) → Zod expression source string.
 // Pure + deterministic so the generated output is stable and testable.
 
-/** Convert a $ref like "#/components/schemas/User" to its schema name ("User"). */
+import { assertIdentifier } from "./escape.mjs";
+
+/**
+ * Convert a $ref like "#/components/schemas/User" to its schema name ("User").
+ *
+ * The name lands in identifier position (type alias, Zod const, import list), so
+ * it is validated here, the one place every $ref passes through.
+ *
+ * @throws {Error} When the referenced name is not a valid identifier.
+ */
 export function refName(ref) {
-    return ref.slice(ref.lastIndexOf("/") + 1);
+    return assertIdentifier(ref.slice(ref.lastIndexOf("/") + 1), "schema name");
 }
 
 /** The generated Zod const name for a schema name (e.g. "User" → "UserSchema"). */
@@ -77,7 +86,7 @@ export function schemaToZod(schema, resolveRef = (ref) => zodName(refName(ref)))
             if (typeof schema.minLength === "number") e += `.min(${schema.minLength})`;
             if (typeof schema.maxLength === "number") e += `.max(${schema.maxLength})`;
             if (typeof schema.pattern === "string")
-                e += `.regex(/${schema.pattern.replace(/\//g, "\\/")}/)`;
+                e += `.regex(new RegExp(${JSON.stringify(schema.pattern)}))`;
             return withModifiers(e, schema);
         }
         case "integer":

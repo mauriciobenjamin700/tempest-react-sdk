@@ -137,6 +137,16 @@ function UserList() {
     response, grouped by the first `tag`. YAML and multiple content-types are not
     supported yet — point at the `/openapi.json` (JSON).
 
+!!! info "Third-party spec text never becomes code"
+    Every string from the spec reaches the generated TypeScript escaped for the
+    position it lands in: a tag, `summary` or path inside a comment cannot close
+    the `/** */`, path segments become template-literal text, and `pattern`
+    becomes `new RegExp("...")`. A name that must be an **identifier** — schema
+    name, `$ref`, path parameter — is refused with a clear error when it is not a
+    valid TypeScript identifier (or is a reserved word), and so is a path
+    `{placeholder}` that is not a declared parameter. The generator refuses instead
+    of renaming because a rewritten name would stop matching the API it describes.
+
 ## Recap
 
 - `tempest gen api <url|file> --out src/api` generates, **per route group**, three files: `schemas.ts` (Zod), `types.ts` (`z.infer`) and `service.ts` (class).

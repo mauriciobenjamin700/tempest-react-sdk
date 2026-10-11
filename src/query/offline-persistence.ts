@@ -16,6 +16,18 @@ export interface OfflineQueryPersistenceOptions {
     throttleMs?: number;
 }
 
+/** Options for {@link OfflineQueryPersistence.clear}. */
+export interface OfflineQueryClearOptions {
+    /**
+     * Also clear the in-memory `QueryClient` (`queryClient.clear()`) once
+     * persistence has stopped and the snapshot is deleted — the one-call logout.
+     * Default `false`: the client belongs to the app, which may want to keep
+     * public queries (a catalog, feature flags) across sessions and drop only
+     * the user-scoped keys with `removeQueries`.
+     */
+    resetClient?: boolean;
+}
+
 /** Handle returned by {@link persistQueryClientOffline}. */
 export interface OfflineQueryPersistence {
     /**
@@ -42,15 +54,19 @@ export interface OfflineQueryPersistence {
      * `restore`/`flush` are no-ops; to persist a new session, call
      * {@link persistQueryClientOffline} again after login.
      *
-     * The in-memory `QueryClient` is **not** cleared: the app owns it and the
-     * shape of its logout (`queryClient.clear()`, or `removeQueries` on the
-     * user-scoped keys only while keeping a public catalog). Because
-     * persistence is already off, that call can come before or after this one.
+     * The in-memory `QueryClient` is cleared only with `resetClient: true`, and
+     * then only after persistence has stopped, so the reset itself cannot
+     * trigger a write. It is opt-in because the app owns the client and the
+     * shape of its logout: it may keep public queries and drop only the
+     * user-scoped keys with `removeQueries`. Because persistence is already
+     * off, that manual call can come before or after this one.
      *
      * Idempotent and safe to call concurrently; every call deletes the row
      * again.
+     *
+     * @param options - `resetClient` also clears the in-memory `QueryClient`.
      */
-    clear: () => Promise<void>;
+    clear: (options?: OfflineQueryClearOptions) => Promise<void>;
 }
 
 interface Snapshot {
@@ -81,8 +97,7 @@ interface Snapshot {
  * await persistence.restore();
  *
  * async function logout(): Promise<void> {
- *     await persistence.clear();
- *     queryClient.clear();
+ *     await persistence.clear({ resetClient: true });
  * }
  */
 export function persistQueryClientOffline(
@@ -146,11 +161,12 @@ export function persistQueryClientOffline(
             await save();
         },
         unsubscribe: stop,
-        async clear() {
+        async clear(clearOptions = {}) {
             ended = true;
             stop();
             await Promise.allSettled([...inFlight]);
             await store.delete(key);
+            if (clearOptions.resetClient) queryClient.clear();
         },
     };
 }

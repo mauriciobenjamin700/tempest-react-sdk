@@ -231,8 +231,7 @@ const persistence = persistQueryClientOffline({ queryClient });
 await persistence.restore(); // before the first render
 
 export async function logout(): Promise<void> {
-    await persistence.clear();
-    queryClient.clear();
+    await persistence.clear({ resetClient: true });
 }
 
 // on teardown:
@@ -246,7 +245,8 @@ Writes are throttled (`throttleMs`, default 1s) and subscribe to the cache. `flu
 `clear()` cancels the pending write, stops listening to the cache, waits for any write already in flight and only then deletes the snapshot. After it, `restore()` and `flush()` on that handle do nothing. That is what keeps the previous user's cache from coming back: before 0.77.0, `clear()` only deleted the row, and both a write pending in the last throttle window and the first cache event after logout (the next user's first query) re-wrote the signed-out user's authenticated responses — which the next boot's `restore()` hydrated for whoever was using the browser.
 
 - **Call `persistence.clear()` in your logout flow** (or in your auth's session-end hook). It is idempotent and can be called more than once, concurrently included.
-- **The in-memory `QueryClient` is not cleared** — the app owns it and decides between `queryClient.clear()` and `removeQueries` on the user-scoped keys only (keeping a public catalog, say). Since persistence has already stopped, the order of the two calls does not matter.
+- **`clear({ resetClient: true })` is the one-call logout**: after stopping persistence and deleting the snapshot, it also runs `queryClient.clear()`, so nothing from the previous user is left on disk or in memory.
+- **Without the option (default `false`), the in-memory `QueryClient` is left alone** — the app owns it and may want to keep public queries (a catalog, feature flags) and drop only the user-scoped keys with `removeQueries`. Since persistence has already stopped, the order of `persistence.clear()` and your manual cleanup does not matter.
 - **To persist the next session**, call `persistQueryClientOffline` again after login: the old handle never writes again.
 
 Dexie is a peer dependency of the offline store — install it (`npm i dexie`).

@@ -15,9 +15,13 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   correção (`npx vitest run src/query/offline-persistence.test.ts`: 4 de 8 testes novos falhando,
   com `expected { owner: 'user-a', secret: 'A' } to be undefined`). Agora `clear()` é terminal
   para o handle: cancela o timer, para o subscribe, espera a escrita em voo e só então apaga a
-  linha; `restore()`/`flush()` viram no-op depois dele; é idempotente e seguro em paralelo. O
-  `QueryClient` em memória **não** é limpo — é do app (`queryClient.clear()` ou `removeQueries`
-  seletivo); para persistir a próxima sessão, crie um handle novo depois do login. Docs PT-BR/EN em
+  linha; `restore()`/`flush()` viram no-op depois dele; é idempotente e seguro em paralelo. Para
+  persistir a próxima sessão, crie um handle novo depois do login.
+- **`persistence.clear({ resetClient: true })` — logout em uma chamada.** Opção nova (tipo
+  `OfflineQueryClearOptions`), default `false`: depois de parar a persistência e apagar o
+  snapshot, também faz `queryClient.clear()`. O default não toca o `QueryClient` em memória porque
+  ele é do app, que pode manter queries públicas e tirar só as do usuário com `removeQueries`.
+  `clear()` sem argumento continua funcionando igual. Docs PT-BR/EN em
   `docs/query.md` + `docs/query.en.md`.
 
 ## [0.76.0] — 2026-10-10

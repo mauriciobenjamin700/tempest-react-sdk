@@ -231,8 +231,7 @@ const persistence = persistQueryClientOffline({ queryClient });
 await persistence.restore(); // antes do primeiro render
 
 export async function logout(): Promise<void> {
-    await persistence.clear();
-    queryClient.clear();
+    await persistence.clear({ resetClient: true });
 }
 
 // no teardown:
@@ -246,7 +245,8 @@ As gravações são throttled (`throttleMs`, default 1s) e assinam o cache. `flu
 `clear()` cancela a gravação pendente, para de ouvir o cache, espera a gravação que já estiver em voo e só então apaga o snapshot. Depois dele, `restore()` e `flush()` desse handle não fazem nada. É isso que impede o cache do usuário anterior de voltar: antes da 0.77.0, `clear()` só apagava a linha, e tanto a gravação pendente na última janela de throttle quanto o primeiro evento de cache depois do logout (a primeira query do próximo usuário) regravavam as respostas autenticadas de quem saiu — que o `restore()` do próximo boot hidratava para quem estivesse no navegador.
 
 - **Chame `persistence.clear()` no seu fluxo de logout** (ou no hook de fim de sessão do seu auth). É idempotente e pode ser chamado mais de uma vez, inclusive em paralelo.
-- **O `QueryClient` em memória não é limpo** — ele é do app, e o app decide se faz `queryClient.clear()` ou `removeQueries` só nas keys do usuário (mantendo um catálogo público, por exemplo). Como a persistência já parou, a ordem entre as duas chamadas não importa.
+- **`clear({ resetClient: true })` é o logout em uma chamada**: depois de parar a persistência e apagar o snapshot, ele também faz `queryClient.clear()`, então nada do usuário anterior fica nem no disco nem em memória.
+- **Sem a opção (default `false`), o `QueryClient` em memória não é tocado** — ele é do app, que pode querer manter queries públicas (um catálogo, feature flags) e tirar só as keys do usuário com `removeQueries`. Como a persistência já parou, a ordem entre `persistence.clear()` e a sua limpeza manual não importa.
 - **Para persistir a próxima sessão**, chame `persistQueryClientOffline` de novo depois do login: o handle antigo não volta a gravar.
 
 Dexie é peer dependency do store offline — instale (`npm i dexie`).

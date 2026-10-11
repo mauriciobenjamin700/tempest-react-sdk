@@ -240,6 +240,47 @@ describe("persistQueryClientOffline — clear() ends the session (#440)", () => 
         expect(client.getQueryData(["catalog"])).toEqual([1, 2]);
     });
 
+    it("clear({ resetClient: true }) also empties the in-memory QueryClient", async () => {
+        const client = makeClient();
+        client.setQueryData(["me", "inbox"], { owner: "user-a" });
+        const persistence = persistQueryClientOffline({
+            queryClient: client,
+            databaseName: `qc-${Math.random().toString(36).slice(2)}`,
+        });
+
+        await persistence.clear({ resetClient: true });
+        expect(client.getQueryData(["me", "inbox"])).toBeUndefined();
+        expect(client.getQueryCache().getAll()).toHaveLength(0);
+    });
+
+    it("clear({ resetClient: true }) leaves no snapshot row behind, not even an empty one", async () => {
+        vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+        const dbName = `qc-${Math.random().toString(36).slice(2)}`;
+        const client = makeClient();
+        client.setQueryData(["me"], "A");
+        const persistence = persistQueryClientOffline({
+            queryClient: client,
+            databaseName: dbName,
+            throttleMs: 50,
+        });
+
+        await persistence.clear({ resetClient: true });
+        await vi.advanceTimersByTimeAsync(200);
+        vi.useRealTimers();
+
+        const raw = indexedDB.open(dbName);
+        const rows = await new Promise<number>((resolve) => {
+            raw.onsuccess = () => {
+                const request = raw.result.transaction("cache").objectStore("cache").count();
+                request.onsuccess = () => {
+                    raw.result.close();
+                    resolve(request.result);
+                };
+            };
+        });
+        expect(rows).toBe(0);
+    });
+
     it("clear() is idempotent and composes with unsubscribe() in any order", async () => {
         const dbName = `qc-${Math.random().toString(36).slice(2)}`;
         const client = makeClient();

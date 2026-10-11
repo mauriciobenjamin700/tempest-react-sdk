@@ -115,7 +115,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ createAppErrorReporter, createAppErrorTelemetryAdapter }"
     },
-    "limit": "2 KB",
+    "limit": "2.2 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -404,7 +404,7 @@
   {
     "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "167.5 KB",
+    "limit": "167.9 KB",
     "ignore": [
       "react",
       "react-dom",

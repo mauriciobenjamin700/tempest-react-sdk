@@ -10,18 +10,25 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   O token era resolvido no flush para a fila inteira, e a fila sobrevive ao logout: um erro de A
   enfileirado offline saía com `Authorization: Bearer <B>` depois que B logava no mesmo navegador,
   e o backend atribuía a B a mensagem, o contexto e a stack de A. Cada entrada agora carrega
-  `owner`, uma impressão digital de mão única (FNV-1a, 64 bits) de quem estava logado no
-  `report()` — nunca o token —, e só sai com o Bearer quando o dono bate com o atual. Nova opção
-  **`getPrincipal`** (id estável e não secreto; sem ela, o dono é a impressão do token, e um
-  refresh entre erro e envio manda o relato anônimo) e **`foreignReports: "anonymous" | "drop"`**
-  (padrão `"anonymous"`, porque a rota é pública). Entradas persistidas antes desta versão, sem
-  dono, saem anônimas (ou descartadas com `"drop"`). Relatos idênticos de donos diferentes não se
-  fundem mais no contador. `reporter.clear()` documentado para o logout. Regressão em
+  `session`, uma impressão digital de mão única (FNV-1a, 64 bits) do token em vigor no `report()` —
+  nunca o token —, e só sai com Bearer quando o token do envio é esse mesmo; caso contrário sai
+  anônima. Um refresh entre erro e envio também manda o relato anônimo: a atribuição se perde,
+  nunca vai para a pessoa errada. Nova opção **`getPrincipal`** (id estável e não secreto, gravado
+  como `owner`), que **não** libera o Bearer — um store de usuário atrasado em relação ao login
+  mandaria o relato de A com o token de B — e só alimenta **`foreignReports: "anonymous" | "drop"`**
+  (padrão `"anonymous"`). `"drop"` descarta todo relato que não se prova do principal atual (de
+  outro, de ninguém ou desconhecido) e só vale com `getPrincipal`: sem ele, divergência de token
+  não prova dono alheio e o relato sai anônimo. `clear()` interrompe um flush em andamento e
+  descarta relatos esperando um `getToken` assíncrono; esse `getToken` tem prazo de 5 s, então
+  nem o relato nem o flush travam. Um `getPrincipal` que devolve algo que não é string/número vale
+  "ninguém". Entradas persistidas antes desta versão saem anônimas (ou descartadas com `"drop"`).
+  Relatos idênticos com carimbos diferentes não se fundem no contador. Regressões em
   `src/telemetry/app-error-reporter.test.ts`. Docs PT-BR/EN em `docs/telemetry.md` +
   `docs/telemetry.en.md`.
   Custo medido com `npx size-limit` sobre `npm run build` (main → este commit): fatia
-  `createAppErrorReporter` 1,60 → 1,98 kB brotli (teto 2 KB mantido); barril ESM 139,86 → 140,39
-  kB e CJS 167,02 → 167,34 kB, por isso os tetos dos barris sobem para 140,6 KB e 167,5 KB.
+  `createAppErrorReporter` 1,60 → 2,14 kB brotli, por isso o teto da fatia sobe de 2 KB para
+  2,2 KB; barril ESM 139,86 → 140,42 kB e CJS 167,02 → 167,71 kB, com os tetos dos barris em
+  140,6 KB e 167,9 KB.
 
 ## [0.76.0] — 2026-10-10
 

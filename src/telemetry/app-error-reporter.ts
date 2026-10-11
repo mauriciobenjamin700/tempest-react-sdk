@@ -1,9 +1,9 @@
 import { appErrorOwner } from "./app-error-owner";
 import { createAppErrorQueue } from "./app-error-queue";
-import type { AppErrorQueueEntry, AppErrorQueueStorage } from "./app-error-queue";
+import type { AppErrorQueueEntry, AppErrorQueueStorage, AppErrorStamp } from "./app-error-queue";
 import { fitAppErrorReport } from "./app-error-schema";
 import type { AppErrorDeviceSchema } from "./app-error-schema";
-import { resolveToken, sendOne } from "./app-error-transport";
+import { readToken, sendOne } from "./app-error-transport";
 import { describeAppError } from "./describe-app-error";
 
 /** Options for {@link createAppErrorReporter}. */
@@ -19,32 +19,39 @@ export interface CreateAppErrorReporterOptions {
     /**
      * Who is signed in right now — a stable, non-secret id such as the user id.
      * Read **when the error is reported**, and stored in the queue only as a
-     * one-way fingerprint.
+     * one-way fingerprint (`entry.owner`). A non-string (an `async` getter
+     * from untyped JS, an object) or a getter that throws reads as nobody.
      *
-     * The token is resolved when the queue drains, which can be after a logout
-     * and somebody else's login on the same browser. A queued report goes out
-     * with the current bearer only when its owner matches the current one;
-     * otherwise {@link CreateAppErrorReporterOptions.foreignReports} decides.
-     *
-     * Without it, the owner is a fingerprint of the token read at report time:
-     * just as safe, but a token refresh between the report and the send makes
-     * the report anonymous. Give `getPrincipal` to keep attribution across
-     * refreshes. A getter that throws counts as nobody signed in.
+     * It never grants the bearer. The bearer goes out only when the token at
+     * send time is the very token that was in force at report time (its
+     * fingerprint is `entry.session`): the principal and the token come from
+     * two sources, and a principal store that lags behind a login would
+     * otherwise send A's report with B's token. The principal only tells
+     * {@link CreateAppErrorReporterOptions.foreignReports} `"drop"` whose
+     * report is whose.
      */
-    getPrincipal?: () => string | null | undefined;
+    getPrincipal?: () => string | number | null | undefined;
     /**
-     * What to do with a queued report whose owner is not the one signed in at
-     * send time — or unknown, for entries queued before 0.77.0. Default
+     * What to do with a queued report that cannot go out with the current
+     * bearer — raised under another token, or queued before 0.77.0. Default
      * `"anonymous"`.
      *
      * - `"anonymous"` — send it without `Authorization`. The route is public,
      *   so the error still reaches the backend; it is only not attributed to
-     *   anybody, which is the truth about it from the current session's view.
-     * - `"drop"` — discard it. For apps where the previous user's error text
-     *   (context, stack) must not leave the device after they signed out.
+     *   anybody. This includes the user's own reports raised before a token
+     *   refresh: attribution is lost, never misplaced.
+     * - `"drop"` — discard every report not proven to be the current
+     *   principal's: another principal, nobody, or unknown (no principal at
+     *   report time, a legacy entry, or nobody signed in now). For apps where
+     *   a previous user's error text must not leave the device after they
+     *   signed out. **Needs `getPrincipal`**: without it the only identity is
+     *   the token fingerprint, and a refresh changes it, so a mismatch is no
+     *   proof the report is someone else's — the reporter then sends
+     *   anonymously instead of destroying the user's own reports.
      *
-     * Never is it sent with the current user's bearer: that would credit the
-     * previous user's error to whoever signed in next.
+     * Never is a report sent with a bearer other than the one it was raised
+     * under: that would credit the previous user's error to whoever signed in
+     * next.
      */
     foreignReports?: "anonymous" | "drop";
     /**
@@ -92,6 +99,11 @@ export interface AppErrorReporter {
      * Drop every waiting report. Call it on logout when reports raised in that
      * session should not outlive it; even without it, a report never leaves
      * with the next user's bearer.
+     *
+     * It also stops a flush in flight before its next send (the one already on
+     * the wire cannot be recalled), and discards reports still waiting for an
+     * async `getToken` to stamp them — both would otherwise refill the queue or
+     * keep sending what the logout meant to forget.
      */
     clear: () => void;
     /** Remove the `online` listener and the retry timer. */
@@ -131,7 +143,7 @@ function readDevice(device: CreateAppErrorReporterOptions["device"]): AppErrorDe
  * @param getPrincipal - The app's principal getter.
  * @returns The owner, or `null` when nobody is signed in or the getter throws.
  */
-function principalOwner(getPrincipal: () => string | null | undefined): string | null {
+function principalOwner(getPrincipal: () => unknown): string | null {
     try {
         return appErrorOwner("p", getPrincipal());
     } catch {
@@ -140,29 +152,21 @@ function principalOwner(getPrincipal: () => string | null | undefined): string |
 }
 
 /**
- * Stamp the owner of a report being raised now.
+ * Stamp a report being raised now with its session and, when given, principal.
  *
- * @param getPrincipal - The app's principal getter, which wins when given.
- * @param getToken - The app's token getter, fingerprinted otherwise.
- * @returns The owner, or a promise of it when the token getter is async.
+ * @param getPrincipal - The app's principal getter, read synchronously.
+ * @param token - The token read now, or a promise of it.
+ * @returns The stamp, or a promise of it when the token is still arriving.
  */
-function ownerNow(
+function stampNow(
     getPrincipal: CreateAppErrorReporterOptions["getPrincipal"],
-    getToken: CreateAppErrorReporterOptions["getToken"],
-): string | null | Promise<string | null> {
-    if (getPrincipal) return principalOwner(getPrincipal);
-    try {
-        const token = getToken?.();
-        if (typeof token === "object" && token !== null) {
-            return Promise.resolve(token).then(
-                (value) => appErrorOwner("t", value),
-                () => null,
-            );
-        }
-        return appErrorOwner("t", token);
-    } catch {
-        return null;
+    token: string | null | Promise<string | null>,
+): AppErrorStamp | Promise<AppErrorStamp> {
+    const owner = getPrincipal ? { owner: principalOwner(getPrincipal) } : {};
+    if (typeof token === "string" || token === null) {
+        return { session: appErrorOwner("t", token), ...owner };
     }
+    return token.then((value) => ({ session: appErrorOwner("t", value), ...owner }));
 }
 
 /**
@@ -184,9 +188,11 @@ function ownerNow(
  * - **any other 4xx** — dropped: the backend will refuse that body forever, and
  *   keeping it would block every report queued behind it.
  *
- * Each report is stamped with who was signed in when it was raised (see
- * `getPrincipal`), and only goes out with the bearer of that same person. The
- * queue never stores a token — only a one-way fingerprint of the owner.
+ * Each report is stamped with a one-way fingerprint of the token in force when
+ * it was raised, and goes out with a bearer only when the token at send time is
+ * that same one — never with the token of whoever signed in next. The queue
+ * never stores a token. `clear()` also stops a flush in flight and discards
+ * reports still waiting for an async token.
  *
  * @example
  * import { createAppErrorReporter } from "tempest-react-sdk";
@@ -204,7 +210,7 @@ function ownerNow(
  */
 export function createAppErrorReporter(options: CreateAppErrorReporterOptions): AppErrorReporter {
     const { endpoint, getToken, getPrincipal, device, autoFlush = true } = options;
-    const foreign = options.foreignReports ?? "anonymous";
+    const strict = getPrincipal !== undefined && options.foreignReports === "drop";
     const queue = createAppErrorQueue(
         options.storage === undefined ? defaultStorage() : options.storage,
         options.storageKey ?? "tempest:app-errors",
@@ -214,21 +220,26 @@ export function createAppErrorReporter(options: CreateAppErrorReporterOptions): 
     let pausedUntil = 0;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const stamping = new Set<Promise<void>>();
+    let generation = 0;
 
     const drain = async (): Promise<AppErrorFlushResult> => {
         const send = options.fetch ?? globalThis.fetch.bind(globalThis);
         await Promise.all(stamping);
-        const token = await resolveToken(getToken);
-        const current = getPrincipal ? principalOwner(getPrincipal) : appErrorOwner("t", token);
+        const token = await readToken(getToken);
+        const session = appErrorOwner("t", token);
+        const current = getPrincipal ? principalOwner(getPrincipal) : null;
+        const started = generation;
         const result: AppErrorFlushResult = { sent: 0, dropped: 0, pending: 0, retryAfterMs: null };
         for (const entry of queue.entries()) {
-            const own = entry.owner !== null && entry.owner === current;
-            if (!own && entry.owner !== null && foreign === "drop") {
+            if (!queue.has(entry)) continue;
+            if (strict && (entry.owner == null || entry.owner !== current)) {
                 queue.remove(entry);
                 result.dropped += 1;
                 continue;
             }
-            const outcome = await sendOne(send, endpoint, own ? token : null, entry);
+            const bearer = entry.session != null && entry.session === session ? token : null;
+            const outcome = await sendOne(send, endpoint, bearer, entry);
+            if (generation !== started) break;
             if (outcome.kind === "stop") break;
             if (outcome.kind === "wait") {
                 result.retryAfterMs = outcome.ms;
@@ -267,14 +278,16 @@ export function createAppErrorReporter(options: CreateAppErrorReporterOptions): 
         report(error, context) {
             const description = describeAppError(error, context);
             const report = fitAppErrorReport({ ...readDevice(device), ...description });
-            const owner = ownerNow(getPrincipal, getToken);
-            if (typeof owner !== "object" || owner === null) {
-                queue.push(report, owner);
+            const stamp = stampNow(getPrincipal, readToken(getToken));
+            if (!(stamp instanceof Promise)) {
+                queue.push(report, stamp);
                 if (shouldSend()) void flush();
                 return;
             }
-            const stamped = owner.then((value) => {
+            const raisedIn = generation;
+            const stamped = stamp.then((value) => {
                 stamping.delete(stamped);
+                if (generation !== raisedIn) return;
                 queue.push(report, value);
                 if (shouldSend()) void flush();
             });
@@ -282,7 +295,10 @@ export function createAppErrorReporter(options: CreateAppErrorReporterOptions): 
         },
         flush,
         pending: () => queue.entries(),
-        clear: () => queue.clear(),
+        clear() {
+            generation += 1;
+            queue.clear();
+        },
         dispose() {
             if (typeof window !== "undefined") window.removeEventListener("online", onOnline);
             if (timer) clearTimeout(timer);

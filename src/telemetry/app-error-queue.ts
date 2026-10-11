@@ -16,15 +16,31 @@ export interface AppErrorQueueEntry {
     /** How many times this exact report was raised while it waited. */
     count: number;
     /**
-     * Who was signed in when the report was raised — a one-way fingerprint of
-     * the principal (or, without `getPrincipal`, of the token), never the
-     * credential itself. `null` means nobody was; the field is missing on
-     * entries persisted before it existed (≤ 0.76.0), whose owner is unknown.
+     * The token in force when the report was raised, as a one-way fingerprint
+     * (`"t:<hex>"`) — never the token itself. `null` means there was none;
+     * the field is missing on entries persisted before it existed (≤ 0.76.0).
      *
      * The bearer is resolved when the queue drains, not when the error happens,
      * so this is what keeps a report user A raised offline from leaving with
-     * user B's token after B signs in on the same browser.
+     * user B's token: the bearer only goes out when it is the very token whose
+     * fingerprint is stored here.
      */
+    session?: string | null;
+    /**
+     * Who `getPrincipal` said was signed in when the report was raised, as a
+     * one-way fingerprint (`"p:<hex>"`). Only set when the reporter has a
+     * `getPrincipal`; `null` means it named nobody. It never grants the bearer
+     * — `session` does — it only decides whether `foreignReports: "drop"`
+     * discards the entry.
+     */
+    owner?: string | null;
+}
+
+/** Who a report is stamped with when it is raised. */
+export interface AppErrorStamp {
+    /** Token fingerprint, or `null`. */
+    session: string | null;
+    /** Principal fingerprint; absent without `getPrincipal`. */
     owner?: string | null;
 }
 
@@ -33,13 +49,15 @@ export interface AppErrorQueue {
     /** Every waiting entry, oldest first. */
     entries: () => AppErrorQueueEntry[];
     /**
-     * Add a report, folding it into an identical waiting one of the same owner.
+     * Add a report, folding it into an identical waiting one with the same stamp.
      *
      * @param report - The fitted report.
-     * @param owner - Fingerprint of who was signed in, or `null` for nobody.
+     * @param stamp - Who was signed in when it was raised.
      * @returns How many entries the size ceiling evicted (0 or 1).
      */
-    push: (report: AppErrorReportSchema, owner: string | null) => number;
+    push: (report: AppErrorReportSchema, stamp: AppErrorStamp) => number;
+    /** Whether `entry` is still waiting — `false` once sent, dropped or cleared. */
+    has: (entry: AppErrorQueueEntry) => boolean;
     /**
      * Drop `entry` — the one just sent, or refused for good.
      *
@@ -64,23 +82,26 @@ function sameReport(a: AppErrorReportSchema, b: AppErrorReportSchema): boolean {
 }
 
 /**
- * Whether a waiting entry holds this report raised by this owner.
+ * Whether a waiting entry holds this report with this stamp.
  *
- * The owner is part of the identity on purpose: folding B's report into A's
+ * The stamp is part of the identity on purpose: folding B's report into A's
  * waiting one would send B's occurrences under A's name, which is the
- * misattribution the owner exists to prevent.
+ * misattribution the stamp exists to prevent.
  *
  * @param entry - A waiting entry.
- * @param report - The report to match.
- * @param owner - The owner to match; `undefined` matches only legacy entries.
- * @returns `true` when report and owner both match.
+ * @param other - The report and stamp to match; a missing field matches only a
+ *   missing field, so legacy entries keep to themselves.
+ * @returns `true` when report, session and owner all match.
  */
 function holds(
     entry: AppErrorQueueEntry,
-    report: AppErrorReportSchema,
-    owner: string | null | undefined,
+    other: Pick<AppErrorQueueEntry, "report" | "session" | "owner">,
 ): boolean {
-    return sameReport(entry.report, report) && entry.owner === owner;
+    return (
+        sameReport(entry.report, other.report) &&
+        entry.session === other.session &&
+        entry.owner === other.owner
+    );
 }
 
 /**
@@ -142,13 +163,14 @@ export function createAppErrorQueue(
     };
     return {
         entries: () => [...memory],
-        push(report, owner) {
-            const existing = memory.find((entry) => holds(entry, report, owner));
+        push(report, stamp) {
+            const incoming: AppErrorQueueEntry = { report, count: 1, ...stamp };
+            const existing = memory.find((entry) => holds(entry, incoming));
             let evicted = 0;
             if (existing) {
                 existing.count += 1;
             } else {
-                memory.push({ report, count: 1, owner });
+                memory.push(incoming);
                 if (memory.length > maxEntries) {
                     memory = memory.slice(memory.length - maxEntries);
                     evicted = 1;
@@ -157,8 +179,9 @@ export function createAppErrorQueue(
             save();
             return evicted;
         },
+        has: (target) => memory.some((entry) => holds(entry, target)),
         remove(target) {
-            memory = memory.filter((entry) => !holds(entry, target.report, target.owner));
+            memory = memory.filter((entry) => !holds(entry, target));
             save();
         },
         clear() {

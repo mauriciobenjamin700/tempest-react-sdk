@@ -54,15 +54,26 @@ export function fingerprintAppErrorOwner(text: string): string {
 }
 
 /**
- * Turn a principal or a token into the owner a queue entry stores.
+ * Turn a principal or a token into the fingerprint a queue entry stores.
  *
  * The prefix keeps the two sources from ever matching each other: a report
  * stamped from a principal is never taken for one stamped from a token.
  *
+ * Only a non-empty string or a finite number is an identity. Anything else —
+ * notably the `Promise` an `async` getter returns from untyped JS — reads as
+ * nobody, because stringifying it would give every user the same
+ * `"[object Promise]"` fingerprint.
+ *
  * @param source - `"p"` for a principal from `getPrincipal`, `"t"` for a token.
  * @param value - The identity, or nothing when nobody is signed in.
- * @returns `"<source>:<fingerprint>"`, or `null` when `value` is empty.
+ * @returns `"<source>:<fingerprint>"`, or `null` when `value` is no identity.
  */
-export function appErrorOwner(source: "p" | "t", value: string | null | undefined): string | null {
-    return value ? `${source}:${fingerprintAppErrorOwner(value)}` : null;
+export function appErrorOwner(source: "p" | "t", value: unknown): string | null {
+    const text =
+        typeof value === "string"
+            ? value
+            : typeof value === "number" && Number.isFinite(value)
+              ? String(value)
+              : "";
+    return text ? `${source}:${fingerprintAppErrorOwner(text)}` : null;
 }

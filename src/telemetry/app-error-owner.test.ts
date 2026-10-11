@@ -30,4 +30,11 @@ describe("app error owner", () => {
         expect(appErrorOwner("p", "")).toBeNull();
         expect(appErrorOwner("t", undefined)).toBeNull();
     });
+
+    it("accepts only a string or a finite number as an identity", () => {
+        expect(appErrorOwner("p", Promise.resolve("a"))).toBeNull();
+        expect(appErrorOwner("p", { id: "a" })).toBeNull();
+        expect(appErrorOwner("p", Number.NaN)).toBeNull();
+        expect(appErrorOwner("p", 42)).toBe(appErrorOwner("p", "42"));
+    });
 });

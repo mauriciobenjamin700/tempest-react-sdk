@@ -4,7 +4,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
-## [0.76.0] — 2026-10-10 (nunca publicada)
+## [0.76.0] — 2026-10-10
 
 ### Adicionado
 

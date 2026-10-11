@@ -576,15 +576,25 @@ What happens to the name and the folder:
 
 - **The name becomes PascalCase.** `"user card"`, `user-card`, `user_card`,
   `userCard` and `UserCard` all produce `UserCard`. A name that does not start
-  with a letter, or holds anything but letters, digits, spaces, `-` and `_`, is
-  refused with the reason — nothing is written.
+  with a letter, or holds anything but ASCII letters, digits, spaces, `-` and
+  `_`, is refused with the reason — nothing is written. So is a device name
+  Windows reserves (`Con`, `Nul`, `Aux`, `Prn`, `Com1`–`Com9`, `Lpt1`–`Lpt9`),
+  since the folder could not be created or cloned there.
+- **The hook is `use<Name>`**, or `use<Name>Component` when `use<Name>` would be
+  a React hook (`Memo` → `useMemoComponent`): the `react-hooks` rules recognize
+  hooks by name.
 - **The default folder is `src/components`**, where a `create-tempest-app` app
   already resolves the `@/` alias. Change it with `--out`:
-  `npx tempest gen component Card --out src/ui`.
+  `npx tempest gen component Card --out src/ui`. Outside `src/` the alias does
+  not reach, so the CLI prints the path with a warning instead of an `import`.
+- **The folder must stay inside the project.** `--out ../x`, an absolute path
+  outside it and a folder whose ancestor is a symlink leading out are refused,
+  and so is `--out` with no value (or followed by another flag).
 - **An existing folder is refused.** With `--force`, only the five generated
   files are rewritten; the rest of the folder (a test of yours, say) is left as
-  it is. A symlink in place of the folder or of one of the files is refused even
-  with `--force`, so the write never leaves the project.
+  it is. A symlink in place of the folder, or a folder/symlink in place of one of
+  the five files, is refused even with `--force` — and everything is checked
+  **before** the first write, so a refusal never leaves the folder half done.
 
 !!! check "Passes the template's gates as generated"
     The five files compile under the template's strict `tsconfig`, pass its

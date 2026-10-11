@@ -5982,15 +5982,25 @@ O que acontece com o nome e com a pasta:
 
 - **O nome vira PascalCase.** `"user card"`, `user-card`, `user_card`,
   `userCard` e `UserCard` geram todos `UserCard`. Nome que não começa com letra
-  ou tem caractere fora de letra, dígito, espaço, `-` e `_` é recusado com a
-  mensagem do motivo — nada é escrito.
+  ou tem caractere fora de letra ASCII, dígito, espaço, `-` e `_` é recusado com a
+  mensagem do motivo — nada é escrito. Nome de dispositivo reservado do Windows
+  (`Con`, `Nul`, `Aux`, `Prn`, `Com1`–`Com9`, `Lpt1`–`Lpt9`) também, porque a
+  pasta não abre nem clona lá.
+- **O hook é `use<Nome>`**, ou `use<Nome>Component` quando `use<Nome>` seria um
+  hook do React (`Memo` → `useMemoComponent`): as regras do `react-hooks`
+  reconhecem hook pelo nome.
 - **A pasta padrão é `src/components`**, onde um app do `create-tempest-app`
   já resolve o alias `@/`. Troque com `--out`:
-  `npx tempest gen component Card --out src/ui`.
+  `npx tempest gen component Card --out src/ui`. Fora de `src/` o alias não
+  alcança, então a CLI mostra o caminho com um aviso em vez do `import`.
+- **A pasta precisa ficar dentro do projeto.** `--out ../x`, caminho absoluto
+  fora dele e pasta cujo ancestral é symlink para fora são recusados, e `--out`
+  sem valor (ou seguido de outra flag) também.
 - **Pasta existente é recusada.** Com `--force`, só os cinco arquivos gerados
   são reescritos; o resto da pasta (um teste seu, por exemplo) fica como está.
-  Um symlink no lugar da pasta ou de um dos arquivos é recusado mesmo com
-  `--force`, então a escrita não sai do projeto.
+  Symlink no lugar da pasta, ou pasta/symlink no lugar de um dos cinco arquivos,
+  é recusado mesmo com `--force` — e tudo é conferido **antes** da primeira
+  escrita, então uma recusa nunca deixa a pasta pela metade.
 
 !!! check "Passa nos gates do template como saiu"
     Os cinco arquivos compilam no `tsconfig` estrito do template, passam no

@@ -23,6 +23,25 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, "..", "..", "..");
 const CLI = join(REPO, "bin", "tempest.mjs");
 const TEMPLATE = join(REPO, "template");
+/**
+ * Component names that collide with something a generated file declares or
+ * imports: React built-in hooks (`use<Name>` would be `useMemo`), the `React`
+ * namespace, and globals the component function would shadow.
+ */
+const COLLIDING = [
+    "UserCard",
+    "Memo",
+    "State",
+    "Effect",
+    "Callback",
+    "LayoutEffect",
+    "React",
+    "ReactMemo",
+    "UseMemo",
+    "Object",
+    "Promise",
+    "Error",
+];
 const FILES = ["constants.ts", "hooks.ts", "index.tsx", "styles.module.css", "utils.ts"];
 
 describe("normalizeComponentName", () => {
@@ -45,9 +64,16 @@ describe("normalizeComponentName", () => {
         ["   ", /Missing component name/],
         ["2fa", /must start with a letter/],
         ["-card", /must start with a letter/],
-        ["user/card", /use letters, digits/],
-        ["../evil", /use letters, digits/],
-        ['card"; alert(1)', /use letters, digits/],
+        ["user/card", /use ASCII letters, digits/],
+        ["../evil", /use ASCII letters, digits/],
+        ['card"; alert(1)', /use ASCII letters, digits/],
+        ["cartão", /use ASCII letters, digits/],
+        ["con", /reserved device name on Windows/],
+        ["NUL", /reserved device name on Windows/],
+        ["aux", /reserved device name on Windows/],
+        ["prn", /reserved device name on Windows/],
+        ["com1", /reserved device name on Windows/],
+        ["Lpt9", /reserved device name on Windows/],
     ])("refuses %j", (raw, message) => {
         expect(() => normalizeComponentName(raw)).toThrow(message);
     });
@@ -68,6 +94,14 @@ describe("componentFiles", () => {
         expect(files["hooks.ts"]).toContain('from "./constants"');
     });
 
+    it("renames the hook when use<Name> is a React built-in hook", () => {
+        expect(componentFiles("Memo").files["hooks.ts"]).toContain(
+            "export function useMemoComponent(",
+        );
+        expect(componentFiles("State").files["index.tsx"]).toContain("useStateComponent(title)");
+        expect(componentFiles("Card").files["hooks.ts"]).toContain("export function useCard(");
+    });
+
     it("writes no comment and no single-quoted string", () => {
         const { files } = componentFiles("UserCard");
         for (const [file, contents] of Object.entries(files)) {
@@ -76,64 +110,72 @@ describe("componentFiles", () => {
         }
     });
 
-    it("passes the app template's ESLint config as generated", async () => {
-        const dir = mkdtempSync(join(tmpdir(), "tempest-component-lint-"));
-        try {
-            const { files } = componentFiles("UserCard");
-            for (const [file, contents] of Object.entries(files)) {
-                writeFileSync(join(dir, file), contents);
+    it.each(COLLIDING)(
+        "passes the app template's ESLint config as generated for %s",
+        async (componentName) => {
+            const dir = mkdtempSync(join(tmpdir(), "tempest-component-lint-"));
+            try {
+                const { files } = componentFiles(componentName);
+                for (const [file, contents] of Object.entries(files)) {
+                    writeFileSync(join(dir, file), contents);
+                }
+                const eslint = new ESLint({
+                    cwd: dir,
+                    overrideConfigFile: join(TEMPLATE, "eslint.config.js"),
+                });
+                const results = await eslint.lintFiles(["*.ts", "*.tsx"]);
+                const messages = results.flatMap((r) =>
+                    r.messages.map((m) => `${r.filePath}:${m.line} ${m.ruleId} ${m.message}`),
+                );
+                expect(results).toHaveLength(4);
+                expect(messages).toEqual([]);
+            } finally {
+                rmSync(dir, { recursive: true, force: true });
             }
-            const eslint = new ESLint({
-                cwd: dir,
-                overrideConfigFile: join(TEMPLATE, "eslint.config.js"),
-            });
-            const results = await eslint.lintFiles(["*.ts", "*.tsx"]);
-            const messages = results.flatMap((r) =>
-                r.messages.map((m) => `${r.filePath}:${m.line} ${m.ruleId} ${m.message}`),
-            );
-            expect(results).toHaveLength(4);
-            expect(messages).toEqual([]);
-        } finally {
-            rmSync(dir, { recursive: true, force: true });
-        }
-    });
+        },
+    );
 
-    it("type-checks under the app template's strict tsconfig", () => {
-        const { files } = componentFiles("UserCard");
-        const tsconfig = ts.parseConfigFileTextToJson(
-            "tsconfig.json",
-            readFileSync(join(TEMPLATE, "tsconfig.json"), "utf8"),
-        ).config;
-        const { options } = ts.convertCompilerOptionsFromJson(
-            { ...tsconfig.compilerOptions, types: [], paths: undefined },
-            REPO,
-        );
-        const root = join(REPO, "__virtual_component__");
-        const virtual = new Map(
-            Object.entries(files)
-                .filter(([file]) => !file.endsWith(".css"))
-                .map(([file, contents]) => [join(root, file), contents]),
-        );
-        virtual.set(
-            join(root, "css-modules.d.ts"),
-            'declare module "*.module.css" {\n  const classes: Readonly<Record<string, string>>;\n  export default classes;\n}\n',
-        );
-        const host = ts.createCompilerHost(options);
-        const readFile = host.readFile.bind(host);
-        const fileExists = host.fileExists.bind(host);
-        host.readFile = (f) => virtual.get(f) ?? readFile(f);
-        host.fileExists = (f) => virtual.has(f) || fileExists(f);
-        const directoryExists = host.directoryExists?.bind(host);
-        host.directoryExists = (d) => d === root || (directoryExists?.(d) ?? true);
-        const getSourceFile = host.getSourceFile.bind(host);
-        host.getSourceFile = (f, lang) =>
-            virtual.has(f) ? ts.createSourceFile(f, virtual.get(f), lang) : getSourceFile(f, lang);
-        const program = ts.createProgram([...virtual.keys()], options, host);
-        const diagnostics = ts
-            .getPreEmitDiagnostics(program)
-            .map((d) => ts.flattenDiagnosticMessageText(d.messageText, "\n"));
-        expect(diagnostics).toEqual([]);
-    });
+    it.each(COLLIDING)(
+        "type-checks %s under the app template's strict tsconfig",
+        (componentName) => {
+            const { files } = componentFiles(componentName);
+            const tsconfig = ts.parseConfigFileTextToJson(
+                "tsconfig.json",
+                readFileSync(join(TEMPLATE, "tsconfig.json"), "utf8"),
+            ).config;
+            const { options } = ts.convertCompilerOptionsFromJson(
+                { ...tsconfig.compilerOptions, types: [], paths: undefined },
+                REPO,
+            );
+            const root = join(REPO, "__virtual_component__");
+            const virtual = new Map(
+                Object.entries(files)
+                    .filter(([file]) => !file.endsWith(".css"))
+                    .map(([file, contents]) => [join(root, file), contents]),
+            );
+            virtual.set(
+                join(root, "css-modules.d.ts"),
+                'declare module "*.module.css" {\n  const classes: Readonly<Record<string, string>>;\n  export default classes;\n}\n',
+            );
+            const host = ts.createCompilerHost(options);
+            const readFile = host.readFile.bind(host);
+            const fileExists = host.fileExists.bind(host);
+            host.readFile = (f) => virtual.get(f) ?? readFile(f);
+            host.fileExists = (f) => virtual.has(f) || fileExists(f);
+            const directoryExists = host.directoryExists?.bind(host);
+            host.directoryExists = (d) => d === root || (directoryExists?.(d) ?? true);
+            const getSourceFile = host.getSourceFile.bind(host);
+            host.getSourceFile = (f, lang) =>
+                virtual.has(f)
+                    ? ts.createSourceFile(f, virtual.get(f), lang)
+                    : getSourceFile(f, lang);
+            const program = ts.createProgram([...virtual.keys()], options, host);
+            const diagnostics = ts
+                .getPreEmitDiagnostics(program)
+                .map((d) => ts.flattenDiagnosticMessageText(d.messageText, "\n"));
+            expect(diagnostics).toEqual([]);
+        },
+    );
 });
 
 describe("tempest gen component (CLI)", () => {
@@ -220,6 +262,64 @@ describe("tempest gen component (CLI)", () => {
         expect(status).toBe(1);
         expect(out).toMatch(/symlink/);
         expect(readdirSync(outside)).toEqual([]);
+    });
+
+    it.each([
+        [["gen", "component", "Card", "--out", "../x"], /outside the project/],
+        [["gen", "component", "Card", "--out", "/tmp/tempest-outside-abs"], /outside the project/],
+        [["gen", "component", "Card", "--out", "--force"], /--out needs a folder/],
+        [["gen", "component", "Card", "--out"], /--out needs a folder/],
+        [["gen", "component", "Card", "--out", ""], /--out needs a folder/],
+    ])("refuses an --out of %j", (args, message) => {
+        const { status, out } = tempest(...args);
+        expect(status).toBe(1);
+        expect(out).toMatch(message);
+        expect(existsSync(join(cwd, "src"))).toBe(false);
+        expect(existsSync(join(cwd, "--force"))).toBe(false);
+        expect(existsSync(join(dirname(cwd), "x"))).toBe(false);
+        expect(existsSync("/tmp/tempest-outside-abs")).toBe(false);
+    });
+
+    it("refuses an --out whose existing ancestor is a symlink leaving the project", () => {
+        const outside = mkdtempSync(join(tmpdir(), "tempest-component-outside-"));
+        try {
+            mkdirSync(join(cwd, "src"));
+            symlinkSync(outside, join(cwd, "src", "components"));
+
+            const { status, out } = tempest("gen", "component", "Card");
+
+            expect(status).toBe(1);
+            expect(out).toMatch(/outside the project/);
+            expect(readdirSync(outside)).toEqual([]);
+        } finally {
+            rmSync(outside, { recursive: true, force: true });
+        }
+    });
+
+    it("--force validates all five targets before writing any of them", () => {
+        const dir = join(cwd, "src", "components", "Card");
+        mkdirSync(join(dir, "utils.ts"), { recursive: true });
+        writeFileSync(join(dir, "index.tsx"), "mine");
+
+        const { status, out } = tempest("gen", "component", "Card", "--force");
+
+        expect(status).toBe(1);
+        expect(out).toMatch(/utils\.ts is not a regular file/);
+        expect(readFileSync(join(dir, "index.tsx"), "utf8")).toBe("mine");
+        expect(readdirSync(dir).sort()).toEqual(["index.tsx", "utils.ts"]);
+    });
+
+    it("prints the path with a warning instead of a wrong import outside src/", () => {
+        const { status, out } = tempest("gen", "component", "Card", "--out", "lib/ui");
+        expect(status).toBe(0);
+        expect(out).not.toMatch(/import \{ Card \}/);
+        expect(out).toMatch(/lib\/ui\/Card.*outside src\/.*@\//s);
+    });
+
+    it("keeps the @/ hint for a folder whose name merely starts with two dots", () => {
+        const { status, out } = tempest("gen", "component", "Card", "--out", "src/..ui");
+        expect(status).toBe(0);
+        expect(out).toContain('import { Card } from "@/..ui/Card";');
     });
 
     it.each([

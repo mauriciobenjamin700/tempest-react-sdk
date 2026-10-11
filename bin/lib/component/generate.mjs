@@ -8,9 +8,50 @@
  * (sorted imports, type-only imports, no unused code) — and follows the
  * template's Prettier config (double quotes, two-space indent, trailing commas).
  * Every file is wired into `index.tsx`, so none starts out as dead code.
+ *
+ * `hooks.ts` reaches React through `import * as React` rather than a named
+ * import, so no generated name can ever redeclare what the file imports. The
+ * hook is `use<Name>`, or `use<Name>Component` when that would be a React
+ * built-in (see {@link REACT_BUILTIN_HOOKS}).
  */
 
 const WORD = /[A-Za-z0-9]+/g;
+
+/**
+ * Folder names Windows reserves for devices, matched case-insensitively. A
+ * folder called `Con` or `Lpt1` cannot be created or cloned there, so a project
+ * with one breaks for every Windows teammate.
+ */
+/**
+ * React's built-in hook names. Ported from the `react` and `react-dom` hook
+ * exports (React 19). A component whose `use<Name>` lands on one of them gets
+ * `use<Name>Component` instead: the `react-hooks` lint rules match hooks by name,
+ * so a custom `useMemo(title)` would be linted as React's and warned about.
+ */
+export const REACT_BUILTIN_HOOKS = new Set([
+    "use",
+    "useActionState",
+    "useCallback",
+    "useContext",
+    "useDebugValue",
+    "useDeferredValue",
+    "useEffect",
+    "useEffectEvent",
+    "useFormStatus",
+    "useId",
+    "useImperativeHandle",
+    "useInsertionEffect",
+    "useLayoutEffect",
+    "useMemo",
+    "useOptimistic",
+    "useReducer",
+    "useRef",
+    "useState",
+    "useSyncExternalStore",
+    "useTransition",
+]);
+
+const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
 
 /**
  * Normalize a component name to PascalCase.
@@ -23,8 +64,9 @@ const WORD = /[A-Za-z0-9]+/g;
  *
  * @param {unknown} raw - The name as typed on the command line.
  * @returns {string} The PascalCase component name.
- * @throws {Error} When the name is empty, has characters other than letters,
- *   digits, spaces, `-` and `_`, or does not start with a letter.
+ * @throws {Error} When the name is empty, has characters other than ASCII
+ *   letters, digits, spaces, `-` and `_`, does not start with a letter, or is a
+ *   device name Windows reserves (`Con`, `Nul`, `Com1`…).
  */
 export function normalizeComponentName(raw) {
     const input = typeof raw === "string" ? raw.trim() : "";
@@ -33,7 +75,7 @@ export function normalizeComponentName(raw) {
     }
     if (!/^[A-Za-z0-9 _-]+$/.test(input)) {
         throw new Error(
-            `Invalid component name ${JSON.stringify(input)}: use letters, digits, spaces, "-" or "_".`,
+            `Invalid component name ${JSON.stringify(input)}: use ASCII letters, digits, spaces, "-" or "_".`,
         );
     }
     if (!/^[A-Za-z]/.test(input)) {
@@ -42,7 +84,13 @@ export function normalizeComponentName(raw) {
         );
     }
     const words = input.replace(/([a-z0-9])([A-Z])/g, "$1 $2").match(WORD) ?? [];
-    return words.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join("");
+    const name = words.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join("");
+    if (WINDOWS_RESERVED.test(name)) {
+        throw new Error(
+            `Invalid component name ${JSON.stringify(input)}: "${name}" is a reserved device name on Windows and cannot be a folder there.`,
+        );
+    }
+    return name;
 }
 
 /**
@@ -70,7 +118,7 @@ function upperSnake(name) {
 export function componentFiles(rawName) {
     const name = normalizeComponentName(rawName);
     const constant = `${upperSnake(name)}_DEFAULT_TITLE`;
-    const hook = `use${name}`;
+    const hook = REACT_BUILTIN_HOOKS.has(`use${name}`) ? `use${name}Component` : `use${name}`;
     const props = `${name}Props`;
 
     const index = [
@@ -118,12 +166,12 @@ export function componentFiles(rawName) {
     ].join("\n");
 
     const hooks = [
-        `import { useMemo } from "react";`,
+        `import * as React from "react";`,
         ``,
         `import { ${constant} } from "./constants";`,
         ``,
         `export function ${hook}(title?: string): { heading: string } {`,
-        `  const heading = useMemo(() => title?.trim() || ${constant}, [title]);`,
+        `  const heading = React.useMemo(() => title?.trim() || ${constant}, [title]);`,
         ``,
         `  return { heading };`,
         `}`,

@@ -9,9 +9,9 @@
 //   tempest gen <api|icons|component> …   code generators (`new component` = alias)
 //   tempest --help | --version
 import { spawnSync } from "node:child_process";
-import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { aliasImports } from "./lib/alias/index.mjs";
 import { describeTypeScript, loadTypeScript } from "./lib/alias/typescript.mjs";
@@ -1379,66 +1379,137 @@ async function genIcons(args) {
 
 // ------------------------------------------------------- gen component ----
 
-/** Flags `gen component` reads a value from, so the value is not taken as the name. */
-const COMPONENT_VALUE_FLAGS = new Set(["--out"]);
+/**
+ * `lstat` that answers `null` for a missing path instead of throwing.
+ *
+ * @param {string} path - Absolute path.
+ * @returns {import("node:fs").Stats | null}
+ */
+function lstatOrNull(path) {
+    try {
+        return lstatSync(path);
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Whether `path` would be created inside the project.
+ *
+ * Resolves the nearest ancestor that exists through `realpath`, so `../x`, an
+ * absolute path and an ancestor that is a symlink to somewhere else
+ * (`src/components -> /elsewhere`) are all seen where they really land.
+ *
+ * @param {string} path - Absolute path about to be created.
+ * @returns {boolean}
+ */
+function landsInsideProject(path) {
+    let existing = path;
+    while (!existsSync(existing) && dirname(existing) !== existing) existing = dirname(existing);
+    const rel = relative(realpathSync(ROOT), realpathSync(existing));
+    return !(rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel));
+}
+
+/**
+ * Parse the `gen component` argv tail.
+ *
+ * Unlike the shared {@link parseOut}, a `--out` with no value, an empty one or
+ * one that is another flag (`--out --force`) is an error rather than a silent
+ * fallback to the default or a folder named `--force`.
+ *
+ * @param {string[]} args - Arguments after `component`.
+ * @returns {{ error: string } | { name: string | undefined, out: string, force: boolean }}
+ */
+function parseComponentArgs(args) {
+    let out = "src/components";
+    let force = false;
+    const positionals = [];
+    for (let i = 0; i < args.length; i += 1) {
+        const arg = args[i];
+        if (arg === "--force") {
+            force = true;
+        } else if (arg === "--out") {
+            const value = args[i + 1];
+            if (value === undefined || value === "" || value.startsWith("--")) {
+                return { error: "--out needs a folder, e.g. --out src/components" };
+            }
+            out = value;
+            i += 1;
+        } else if (arg.startsWith("--")) {
+            return { error: `Unknown option: ${arg}` };
+        } else {
+            positionals.push(arg);
+        }
+    }
+    if (positionals.length > 1) {
+        return {
+            error: `Expected one component name, got ${positionals.length}. Quote a name with spaces: tempest gen component "User Card"`,
+        };
+    }
+    return { name: positionals[0], out, force };
+}
 
 /**
  * `tempest gen component <Name> [--out src/components] [--force]` — create
  * `<out>/<Name>/` with `index.tsx`, `styles.module.css`, `constants.ts`,
  * `utils.ts` and `hooks.ts`.
  *
- * The name is normalized to PascalCase (`"user card"` → `UserCard`). An existing
- * folder is refused unless `--force` is passed; with it, only the five generated
- * files are rewritten and anything else in the folder is left alone. A symlink at
- * the folder or at one of the five files is refused even with `--force`, so the
- * write cannot land outside the project.
+ * The name is normalized to PascalCase (`"user card"` → `UserCard`). Every check
+ * runs before the first write, so a refusal leaves the disk untouched:
+ *
+ * - the folder must land inside the project once symlinks are resolved;
+ * - an existing folder is refused unless `--force`;
+ * - the folder must not be a symlink, and each of the five files must be a
+ *   regular file or missing — never a symlink or a directory — even with
+ *   `--force`, which then rewrites only those five and leaves the rest alone.
+ *
+ * The closing hint prints an `@/` import when the folder is under `src/`, the
+ * only place the template's alias reaches; elsewhere it prints the path.
  */
 async function genComponent(args) {
-    const unknown = args.filter(
-        (a) => a.startsWith("--") && a !== "--force" && !COMPONENT_VALUE_FLAGS.has(a),
-    );
-    if (unknown.length) {
-        console.error(`${c.red}✗ Unknown option: ${unknown.join(", ")}${c.reset}`);
-        return 1;
-    }
-    const positionals = args.filter(
-        (a, i) => !a.startsWith("--") && !COMPONENT_VALUE_FLAGS.has(args[i - 1]),
-    );
-    if (positionals.length > 1) {
-        console.error(
-            `${c.red}✗ Expected one component name, got ${positionals.length}.${c.reset} Quote a name with spaces: tempest gen component "User Card"`,
-        );
+    const parsed = parseComponentArgs(args);
+    if ("error" in parsed) {
+        console.error(`${c.red}✗ ${parsed.error}${c.reset}`);
         return 1;
     }
     let generated;
     try {
-        generated = componentFiles(positionals[0]);
+        generated = componentFiles(parsed.name);
     } catch (err) {
         console.error(`${c.red}✗ ${err.message}${c.reset}`);
         return 1;
     }
-    const force = args.includes("--force");
-    const outRel = parseOut(args, "src/components");
-    const dir = resolve(ROOT, outRel, generated.name);
-    const shown = relative(ROOT, dir) || ".";
+    const dir = resolve(ROOT, parsed.out, generated.name);
+    const shown = relative(ROOT, dir).split(sep).join("/") || ".";
 
-    const targets = [dir, ...Object.keys(generated.files).map((f) => join(dir, f))];
-    const link = targets.find((p) => {
-        try {
-            return lstatSync(p).isSymbolicLink();
-        } catch {
-            return false;
-        }
-    });
-    if (link) {
+    if (!landsInsideProject(dir)) {
         console.error(
-            `${c.red}✗ ${relative(ROOT, link)} is a symlink; refusing to write through it.${c.reset}`,
+            `${c.red}✗ ${dir} is outside the project${c.reset} (${ROOT}), once symlinks are resolved. Pick an --out inside it.`,
         );
         return 1;
     }
-    if (existsSync(dir) && !force) {
+    const dirStat = lstatOrNull(dir);
+    if (dirStat?.isSymbolicLink()) {
+        console.error(`${c.red}✗ ${shown} is a symlink; refusing to write through it.${c.reset}`);
+        return 1;
+    }
+    if (dirStat && !parsed.force) {
         console.error(
             `${c.red}✗ ${shown} already exists.${c.reset} Pass --force to rewrite its five generated files.`,
+        );
+        return 1;
+    }
+    if (dirStat && !dirStat.isDirectory()) {
+        console.error(`${c.red}✗ ${shown} exists and is not a folder.${c.reset}`);
+        return 1;
+    }
+    const blocked = Object.keys(generated.files).find((file) => {
+        const stat = lstatOrNull(join(dir, file));
+        return stat !== null && !stat.isFile();
+    });
+    if (blocked) {
+        console.error(
+            `${c.red}✗ ${shown}/${blocked} is not a regular file${c.reset} (a folder or a symlink); nothing was written.`,
         );
         return 1;
     }
@@ -1450,11 +1521,16 @@ async function genComponent(args) {
 
     console.log(`${c.green}✓ ${generated.name}${c.reset} → ${c.bold}${shown}/${c.reset}`);
     for (const file of Object.keys(generated.files)) console.log(`  ${c.dim}· ${file}${c.reset}`);
-    console.log(`
-${c.dim}Use it:${c.reset}`);
-    const fromSrc = relative(join(ROOT, "src"), dir).split(sep).join("/");
-    const from = fromSrc.startsWith("..") ? `./${shown}` : `@/${fromSrc}`;
-    console.log(`  import { ${generated.name} } from "${from}";`);
+    const fromSrc = relative(join(ROOT, "src"), dir);
+    const outsideSrc = fromSrc === ".." || fromSrc.startsWith(`..${sep}`) || isAbsolute(fromSrc);
+    if (outsideSrc) {
+        console.log(
+            `\n${c.yellow}! ${shown} is outside src/${c.reset}, where the template's @/ alias does not reach — import it by a relative path.`,
+        );
+    } else {
+        console.log(`\n${c.dim}Use it:${c.reset}`);
+        console.log(`  import { ${generated.name} } from "@/${fromSrc.split(sep).join("/")}";`);
+    }
     return 0;
 }
 

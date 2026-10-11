@@ -192,9 +192,9 @@ The CRC detects **corruption**, not **authorship**: whoever crafts a payload rec
 | a tag repeated at the root (`54`, `59`, `26`, …) | the Central Bank's BR Code manual, citing EMV® QRCPS-MPM: no duplicate IDs in the root |
 | a sub-tag repeated inside `26` or `62` (two `01` keys, two `05` txids) | the same ambiguity one level down; no conforming emitter repeats one |
 | a tag `26` with a key (`01`) **and** a URL (`25`) | a BR Code is static or dynamic, not both |
-| a tag `54` outside the EMV format: `1e3`, `-1`, `,5`, `0x10`, `0`, `1.005`, over 13 characters | digits and one `.` decimal mark only, up to two decimals (BRL), non-zero — what `Number()` would read as `1000`, `-1`, `NaN` or `16` |
+| a tag `54` outside the EMV format: `1e3`, `-1`, `,5`, `0x10`, `1.005`, over 13 characters | digits and one `.` decimal mark only, up to two decimals (BRL) — what `Number()` would read as `1000`, `-1`, `NaN` or `16` |
 
-`"98"` and `"98."` still parse: EMV allows the `.` with no decimals.
+`"98"` and `"98."` still parse: EMV allows the `.` with no decimals. Zero (`"0"`, `"0.00"`) reads as `amount: 0`, because the Central Bank's BR Code manual lists `"0"` as a tag `54` example — the reader tolerates what the Bacen spec accepts. `pixPayload` still refuses a non-positive amount: what the SDK emits is its own choice.
 
 ### `pixCrc16`, if you need the checksum alone
 

@@ -177,6 +177,12 @@ const MAX_EMAIL_KEY = 77;
  * mark, which "may be present even if there are no decimals" (`"98."`). Up to two
  * decimals, the minor unit ISO 4217 gives BRL (`986`). No sign, exponent, comma,
  * hex prefix or whitespace — every one of which `Number()` would happily read.
+ *
+ * Zero (`"0"`, `"0.00"`) is accepted: EMV asks for a non-zero amount, but the BACEN
+ * BR Code manual (v2, Table 1) gives `"0"` as an example value of tag 54, and the
+ * parser reads payloads other PSPs emit — strict with what is malformed, tolerant
+ * with what the Bacen spec accepts. The builder stays stricter: `pixPayload`
+ * still refuses a non-positive amount, because it only writes what we choose to emit.
  */
 const AMOUNT_FIELD = /^\d+(?:\.\d{0,2})?$/;
 
@@ -522,13 +528,13 @@ function pick(fields: readonly PixField[], id: string): string | undefined {
  * Read tag 54 into reais.
  *
  * @throws {PixError} When the field is outside the EMV format
- * ({@link AMOUNT_FIELD}), wider than 13 characters, or zero — EMV requires a
- * present amount to be non-zero, and `pixPayload` refuses a non-positive one.
+ * ({@link AMOUNT_FIELD}) or wider than 13 characters. Zero is read as `0`; see
+ * {@link AMOUNT_FIELD} for why the reader accepts what `pixPayload` refuses.
  */
 function readAmountField(field: string): number {
-    if (field.length > MAX_AMOUNT_FIELD || !AMOUNT_FIELD.test(field) || !/[1-9]/.test(field)) {
+    if (field.length > MAX_AMOUNT_FIELD || !AMOUNT_FIELD.test(field)) {
         throw new PixError(
-            `Tag 54 (amount) must be a positive amount like "25.50", with "." as the decimal mark, ` +
+            `Tag 54 (amount) must be an amount like "25.50", with "." as the decimal mark, ` +
                 `at most two decimals and ${MAX_AMOUNT_FIELD} characters; got ${JSON.stringify(field)}.`,
         );
     }

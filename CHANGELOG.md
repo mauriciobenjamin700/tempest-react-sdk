@@ -27,9 +27,11 @@ blob:` e o resto dos defaults — cada um mais permissivo que o `'none'` herdado
   lança `PixError` em ID repetido na raiz (regra que o manual do BR Code do Bacen v2 cita do EMV®
   QRCPS-MPM) e dentro das tags `26` e `62`, em `26` com `01` e `25` juntos, e em `54` fora do formato
   EMV — só dígitos e um `.` decimal (`"98."` vale), até duas casas (unidade menor do BRL na ISO
-  4217), até 13 caracteres (Tabela 1 do manual), diferente de zero. O CRC continua obrigatório, e a
+  4217), até 13 caracteres (Tabela 1 do manual). Zero (`"0"`, `"0.00"`) é lido como `amount: 0`, porque o
+  manual do Bacen traz `"0"` como exemplo da tag `54`; o `pixPayload` continua recusando valor não
+  positivo. O CRC continua obrigatório, e a
   doc deixa de apresentá-lo como prova de autoria: ele detecta corrupção. Tabela das recusas em
-  `docs/br-pagamentos.md` (`.en.md`); 24 casos novos em `src/br/pix.test.ts`, 17 falhavam na `main`.
+  `docs/br-pagamentos.md` (`.en.md`); 24 casos novos em `src/br/pix.test.ts`, 15 falhavam na `main`.
 
 ## [0.76.0] — 2026-10-10
 

@@ -3913,9 +3913,9 @@ O CRC detecta **corrupção**, não **autoria**: quem monta um payload recalcula
 | tag repetida na raiz (`54`, `59`, `26`, …) | o manual do BR Code do Bacen, citando o EMV® QRCPS-MPM: não há ID duplicado na raiz |
 | subtag repetida dentro da `26` ou da `62` (duas chaves `01`, dois `txid` `05`) | mesma ambiguidade um nível abaixo; nenhum emissor conforme repete |
 | tag `26` com chave (`01`) **e** URL (`25`) | o BR Code é estático ou dinâmico, não os dois |
-| tag `54` fora do formato EMV: `1e3`, `-1`, `,5`, `0x10`, `0`, `1.005`, mais de 13 caracteres | só dígitos e um `.` decimal, até duas casas (BRL), diferente de zero — o que `Number()` leria como `1000`, `-1`, `NaN` ou `16` |
+| tag `54` fora do formato EMV: `1e3`, `-1`, `,5`, `0x10`, `1.005`, mais de 13 caracteres | só dígitos e um `.` decimal, até duas casas (BRL) — o que `Number()` leria como `1000`, `-1`, `NaN` ou `16` |
 
-`"98"` e `"98."` continuam valendo: o EMV permite o `.` sem casas decimais.
+`"98"` e `"98."` continuam valendo: o EMV permite o `.` sem casas decimais. Zero (`"0"`, `"0.00"`) é lido como `amount: 0`, porque o manual do BR Code do Bacen traz `"0"` como exemplo da tag `54` — o leitor é tolerante com o que a spec do Bacen aceita. O `pixPayload` continua recusando valor não positivo: o que o SDK emite, ele escolhe.
 
 ### `pixCrc16`, se você precisa do checksum sozinho
 

@@ -575,8 +575,6 @@ describe("parsePixPayload — one reading per payload (#448)", () => {
         "1,00",
         ".5",
         "1.005",
-        "0",
-        "0.00",
         "1.2.3",
         "12345678901.00",
     ])("rejects tag 54 = %j, outside the EMV amount format", (value) => {
@@ -593,4 +591,19 @@ describe("parsePixPayload — one reading per payload (#448)", () => {
     ])("reads tag 54 = %j as %d", (value, amount) => {
         expect(parsePixPayload(crafted({ amount: [value] })).amount).toBe(amount);
     });
+
+    it.each(["0", "0.00"])(
+        'reads tag 54 = %j as 0, because the Bacen BR Code manual lists "0" as a tag 54 value, while pixPayload still refuses it',
+        (value) => {
+            expect(parsePixPayload(crafted({ amount: [value] })).amount).toBe(0);
+            expect(() =>
+                pixPayload({
+                    key: "12345678909",
+                    merchantName: "Loja",
+                    merchantCity: "SP",
+                    amount: 0,
+                }),
+            ).toThrow(PixError);
+        },
+    );
 });

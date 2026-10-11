@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { act, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it } from "vitest";
@@ -148,5 +150,68 @@ describe("Toast — icon slot", () => {
         const { baseElement } = showToast(options);
         const violations = await findA11yViolations(baseElement);
         expect(formatA11yViolations(violations)).toBe("");
+    });
+
+    it.each([
+        ["an empty fragment", <></>],
+        ["an empty array", []],
+        [
+            "a fragment of empty values",
+            <>
+                {null}
+                {false}
+            </>,
+        ],
+        [
+            "nested empty fragments",
+            <>
+                <></>
+            </>,
+        ],
+    ])("treats %s as no icon", (_name, icon) => {
+        const { toast } = showToast({ icon, title: "Salvo" });
+        expect(toast.children).toHaveLength(2);
+        expect(toast.className).not.toContain("withIcon");
+    });
+
+    it("keeps a fragment that wraps a real node as an icon", () => {
+        const { toast } = showToast({ icon: <>{BADGE}</>, title: "Conquista" });
+        expect(toast.children).toHaveLength(3);
+    });
+
+    it("makes a decorative icon inert, so nothing in it stays in the tab order", () => {
+        const { toast } = showToast({
+            icon: <button type="button">dentro</button>,
+            title: "Conquista",
+        });
+        const leading = toast.firstElementChild;
+        expect(leading?.getAttribute("aria-hidden")).toBe("true");
+        expect(leading?.hasAttribute("inert")).toBe(true);
+    });
+
+    it("makes a labelled icon inert too, because role=img flattens its children", () => {
+        const { toast } = showToast({
+            icon: BADGE,
+            iconLabel: "Medalha",
+            title: "Conquista",
+        });
+        expect(toast.firstElementChild?.hasAttribute("inert")).toBe(true);
+    });
+});
+
+describe("Toast — stylesheet contract", () => {
+    const css = readFileSync(resolve(__dirname, "Toast.module.css"), "utf8");
+
+    it("caps an img or svg nested anywhere in the leading slot, not only a direct child", () => {
+        expect(css).not.toMatch(/\.leading\s*>\s*(img|svg)/);
+        expect(css).toMatch(/\.leading\s+img/);
+        expect(css).toMatch(/\.leading\s+svg/);
+    });
+
+    it("keeps the close button from shrinking and lets long words wrap inside the text", () => {
+        const rule = (name: string): string =>
+            css.match(new RegExp(`\\.${name}\\s*\\{([^}]*)\\}`))?.[1] ?? "";
+        expect(rule("close")).toMatch(/flex:\s*0 0 auto/);
+        expect(rule("content")).toMatch(/overflow-wrap:\s*anywhere/);
     });
 });

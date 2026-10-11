@@ -5,7 +5,10 @@
  * in another.
  */
 import {
+    Children,
+    Fragment,
     createContext,
+    isValidElement,
     useCallback,
     useContext,
     useEffect,
@@ -41,11 +44,16 @@ export interface ToastOptions {
     /**
      * Leading slot rendered before the text, e.g. `<img src="/badge.svg" alt="" />`.
      *
-     * It is an app asset, so it takes any `ReactNode`. The slot is decorative
-     * (`aria-hidden`) unless {@link ToastOptions.iconLabel} is given: most icons
-     * repeat what the title already says, and an unlabelled image inside the live
-     * region would otherwise be announced as "image" or by its file name. An
-     * `<img>` or `<svg>` inside it is capped at 32px and keeps its aspect ratio.
+     * It is an app asset, so it takes any `ReactNode` — but it is a slot for an
+     * **icon**, not for a control. The wrapper is `inert`, so a button or link put
+     * here is neither focusable nor clickable; actions belong outside the toast.
+     *
+     * The slot is decorative (`aria-hidden`) unless {@link ToastOptions.iconLabel}
+     * is given: most icons repeat what the title already says, and an unlabelled
+     * image inside the live region would otherwise be announced as "image" or by
+     * its file name. An `<img>` or `<svg>` anywhere inside it is capped at 32px and
+     * keeps its aspect ratio. A node that renders nothing (`null`, a boolean, `""`,
+     * `[]`, an empty fragment) counts as no icon, so the toast keeps two columns.
      */
     icon?: ReactNode;
     /**
@@ -234,8 +242,16 @@ interface ItemProps {
  *
  * With an icon the toast becomes three columns (leading, content, close) and the
  * icon and text are centred vertically against each other, so a 32px badge sits
- * level with a one-line title. Toasts without an icon keep the original
- * top-aligned layout, pixel for pixel.
+ * level with a one-line title. Toasts without an icon keep the top-aligned layout
+ * and the same size for short text; what changed for them is long text: the text
+ * column now wraps a long word (`overflow-wrap: anywhere`) and the close button no
+ * longer shrinks (it used to drop from 22px to 16–17px beside a two-line
+ * description).
+ *
+ * The leading wrapper gets `inert` through a callback ref instead of a prop,
+ * because no prop value works on both supported Reacts: React 18 drops
+ * `inert={true}` with a warning and renders `inert=""`, while React 19 renders
+ * `inert={true}` and drops `inert=""`.
  */
 function ToastItem({ toast, onDismiss }: ItemProps) {
     useEffect(() => {
@@ -244,7 +260,7 @@ function ToastItem({ toast, onDismiss }: ItemProps) {
         return () => clearTimeout(timer);
     }, [toast.id, toast.duration, onDismiss]);
 
-    const hasIcon = toast.icon != null && typeof toast.icon !== "boolean" && toast.icon !== "";
+    const hasIcon = rendersSomething(toast.icon);
 
     return (
         <div
@@ -257,6 +273,7 @@ function ToastItem({ toast, onDismiss }: ItemProps) {
         >
             {hasIcon && (
                 <div
+                    ref={makeInert}
                     className={styles.leading}
                     {...(toast.iconLabel
                         ? { role: "img", "aria-label": toast.iconLabel }
@@ -279,6 +296,35 @@ function ToastItem({ toast, onDismiss }: ItemProps) {
             </button>
         </div>
     );
+}
+
+/**
+ * Whether a node renders anything at all.
+ *
+ * `Children.toArray` drops `null`, `undefined` and booleans and flattens arrays,
+ * but keeps a fragment as one element — so a fragment is unwrapped and checked
+ * by its children. `""` renders no text node worth a column either.
+ *
+ * @param node - The icon slot content.
+ * @returns `true` when at least one child would produce output.
+ */
+function rendersSomething(node: ReactNode): boolean {
+    return Children.toArray(node).some((child) => {
+        if (child === "") return false;
+        if (isValidElement<{ children?: ReactNode }>(child) && child.type === Fragment) {
+            return rendersSomething(child.props.children);
+        }
+        return true;
+    });
+}
+
+/**
+ * Callback ref that marks the icon wrapper `inert`, on React 18 and 19 alike.
+ *
+ * @param node - The wrapper element, or `null` on unmount.
+ */
+function makeInert(node: HTMLDivElement | null): void {
+    node?.setAttribute("inert", "");
 }
 
 function CloseIcon() {

@@ -8,14 +8,18 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 - **`Toast` ganha slot de ícone (`icon`, `iconLabel`) e alinhamento de texto (`align`)** (#453).
   `ToastOptions.icon?: ReactNode` renderiza o asset do app numa coluna `leading` à esquerda do
-  texto, com `<img>`/`<svg>` limitados a 32px sem distorcer, e ícone e texto centrados na
+  texto, com `<img>`/`<svg>` em qualquer nível limitados a 32px sem distorcer, e ícone e texto centrados na
   vertical entre si. O slot é decorativo (`aria-hidden`) por padrão — quase sempre repete o
   título, e uma imagem sem rótulo na região `aria-live` seria lida como "imagem" ou pelo nome do
-  arquivo; `iconLabel` o expõe como `role="img"` com aquele nome. `align: "start" | "center"`
+  arquivo; `iconLabel` o expõe como `role="img"` com aquele nome. O wrapper é `inert` (por
+  callback ref: o React 18 descarta `inert={true}` e o 19 descarta `inert=""`), então o slot é
+  para ícone, não para controle — nada nele entra na ordem de `Tab`. Nó que não renderiza nada
+  (`null`, booleano, `""`, `[]`, fragment vazio) conta como sem ícone. `align: "start" | "center"`
   (novo tipo `ToastAlign`) fica em `"start"` por padrão: o texto centralizado pedido pela issue
   virou opção, porque num toast empilhado e com descrição de duas linhas a borda comum à
-  esquerda é o que mantém a leitura. Toast sem ícone mantém o layout anterior; `variant`,
-  `duration` e a fila não mudam.
+  esquerda é o que mantém a leitura. Toast sem ícone mantém o layout e o tamanho para texto
+  curto (com texto longo, ver o botão de fechar em Corrigido); `variant`, `duration` e a fila
+  não mudam.
 - Custo, medido com `npx size-limit --json` em `origin/main` × branch: fatia "typical app"
   11 727 → 11 866 B (teto 11,8 → 11,9 kB), barrel ESM 139 861 → 139 962 B (teto 140,2 KB
   mantido), barrel CJS 167 019 → 167 232 B (teto 167,2 → 167,3 KB) e `styles.css` 30 474 →

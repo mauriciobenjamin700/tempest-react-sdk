@@ -458,7 +458,7 @@ export function App() {
 
 ### Ícone e alinhamento
 
-`ToastOptions.icon` recebe qualquer `ReactNode` — normalmente um asset do app — e o renderiza numa coluna própria à esquerda do texto. `<img>` e `<svg>` dentro dela ficam limitados a 32px, sem distorcer.
+`ToastOptions.icon` recebe qualquer `ReactNode` — normalmente um asset do app — e o renderiza numa coluna própria à esquerda do texto. `<img>` e `<svg>` em qualquer nível dentro dela ficam limitados a 32px, sem distorcer. Nó que não renderiza nada (`null`, `false`, `[]`, fragment vazio) conta como sem ícone.
 
 ```tsx
 import { ToastProvider, useToast } from "tempest-react-sdk";
@@ -494,11 +494,13 @@ export function App() {
 
 | Opção       | Tipo                    | Default   | O que faz                                                                    |
 | ----------- | ----------------------- | --------- | ---------------------------------------------------------------------------- |
-| `icon`      | `ReactNode`             | —         | Slot à esquerda do texto. Decorativo (`aria-hidden`) se não houver `iconLabel`. |
+| `icon`      | `ReactNode`             | —         | Slot à esquerda do texto, para ícone. `inert`; decorativo (`aria-hidden`) se não houver `iconLabel`. |
 | `iconLabel` | `string`                | —         | Nome acessível do ícone: o slot vira `role="img"` e é anunciado com o toast. |
 | `align`     | `"start" \| "center"`   | `"start"` | Alinhamento do título e da descrição.                                       |
 
 O ícone é **decorativo por padrão** porque quase sempre repete o título ("Título Invicto desbloqueado!" ao lado da medalha). Sem isso, uma imagem sem rótulo dentro da região `aria-live` seria lida como "imagem" ou pelo nome do arquivo. Quando o ícone carrega informação que o texto não tem, passe `iconLabel` — não é preciso mexer no `alt` do asset.
+
+O slot é para **ícone, não para controle**: o wrapper é `inert`, então um botão ou link colocado ali não recebe foco nem clique. Ação sobre a notificação fica fora do toast — se o usuário precisa agir, use `Alert`.
 
 !!! note "Por que o texto não é centralizado por padrão"
     O toast é lido como uma frase ao lado do botão de fechar, e quase sempre empilhado com outros. Alinhado à esquerda, o texto divide a mesma borda com o ícone e com os toasts vizinhos, e uma descrição de duas linhas continua escaneável — centralizada, cada linha começa num ponto diferente. `align: "center"` fica para o toast curto e comemorativo, de uma linha, como o do exemplo.

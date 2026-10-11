@@ -130,8 +130,8 @@
     color: var(--tempest-text);
 }
 
-.leading > img,
-.leading > svg {
+.leading img,
+.leading svg {
     display: block;
     max-width: var(--tempest-space-8);
     max-height: var(--tempest-space-8);

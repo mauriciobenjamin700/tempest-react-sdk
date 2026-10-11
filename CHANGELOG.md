@@ -29,6 +29,25 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   167,4 kB); os dois tetos contam também o `encodeIdSegment` do #438 (ESM 139 861 → 140 075 B,
   CJS 167 019 → 167 085 B, ainda dentro dos tetos antigos).
 
+### Alterado
+
+- **`buildPath` customizado do data provider recebe o `id` já codificado (#438).** Desde o
+  `encodeIdSegment`, todo `id` chega ao `buildPath` como um segmento pronto
+  (`encodeURIComponent`, sem `""`/`"."`/`".."`). **Migração: remova o encode do seu `buildPath`;
+  o id já chega codificado.** Quem mantiver `encodeURIComponent(id)` codifica duas vezes —
+  `"a/b"` vira `a%252Fb` e o backend recebe outro id. Antes:
+
+  ```ts
+  buildPath: (resource, id) =>
+    id == null ? `/api/${resource}` : `/api/${resource}/${encodeURIComponent(String(id))}`,
+  ```
+
+  Depois:
+
+  ```ts
+  buildPath: (resource, id) => (id == null ? `/api/${resource}` : `/api/${resource}/${id}`),
+  ```
+
 ### Corrigido
 
 - **Data provider — o `id` não sai mais do próprio segmento do path (#438).** `getOne`,

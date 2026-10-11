@@ -81,6 +81,22 @@ The `id` is the part of the URL that may come from outside the app — a search 
 
 `encodeIdSegment` applies `encodeURIComponent` and rejects the three values the URL parser would resolve as a dot-segment even when encoded. It applies to a custom `buildPath` too — the override receives the finished segment and only interpolates it, as in the example above.
 
+!!! warning "Migration (0.77.0): drop the encode from your `buildPath`"
+    The `id` already arrives encoded. A `buildPath` that called `encodeURIComponent(id)` now encodes twice (`a/b` becomes `a%252Fb`) and the backend receives a different id.
+
+    Before:
+
+    ```ts
+    buildPath: (resource, id) =>
+      id == null ? `/api/${resource}` : `/api/${resource}/${encodeURIComponent(String(id))}`,
+    ```
+
+    After:
+
+    ```ts
+    buildPath: (resource, id) => (id == null ? `/api/${resource}` : `/api/${resource}/${id}`),
+    ```
+
 !!! tip "Building a path with an id outside the data provider"
     Calling `createApiClient` directly with an outside id? Use the same helper:
 

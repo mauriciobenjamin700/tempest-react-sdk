@@ -248,9 +248,9 @@ const api = createApiClient({
 
 ## Ending the session — `createTempestAuth` and `onSessionEnd`
 
-A session ends in two ways: the user clicks **Sign out** (`auth.logout()`), or the client gives up on it — the refresh failed, or the replay after the refresh came back 401 again. Either way, every piece of state **derived from the user** has to go with it: this browser's push subscription, the persisted query cache, the background-sync queue, the user identified in telemetry. Otherwise the next account to sign in on this browser inherits what belonged to the previous one.
+A session ends in three ways: the user clicks **Sign out** (`auth.logout()`); the client gives up on it — the refresh failed, or the replay after the refresh came back 401 again; or another account signs in on top of it (`auth.login()` with other credentials). In every case, every piece of state **derived from the user** has to go with it: this browser's push subscription, the persisted query cache, the background-sync queue, the user identified in telemetry. Otherwise the next account to sign in on this browser inherits what belonged to the previous one.
 
-`createTempestAuth` has one place for that, and it runs on **both** paths: `onSessionEnd`.
+`createTempestAuth` has one place for that, and it runs on **all three** paths: `onSessionEnd`.
 
 ```ts
 import { WebPushClient, createTempestAuth } from "tempest-react-sdk";
@@ -285,27 +285,37 @@ And the push `unsubscribe()` releases the browser subscription **even when the `
 
 ### The order, exactly
 
-On both paths — `logout()` and the automatic end — the sequence is the same:
+On all three paths — `logout()`, the automatic end and the account switch — the sequence is the same:
 
 | Step | What happens | Synchronous? |
 | --- | --- | --- |
 | 1 | Any refresh in flight is **superseded**: it can no longer reinstall the ending session's tokens | yes |
 | 2 | The store and the stored refresh token are cleared — `isAuthenticated` is already `false` | yes |
 | 3 | `onSessionEnd` runs with `{ reason, user, token, api }` | may be `async` |
-| 4 | Automatic end with `redirectTo` only: the browser navigates — **after** the hook, even if it threw | — |
+| 4 | On the automatic end with `redirectTo`, the browser navigates; on an account switch, the new session is installed — both **after** the hook, even if it threw | — |
 
-`reason` is `"logout"` for an explicit `logout()` and `"expired"` when the client ended it. On `"logout"` the token is usually still valid; on `"expired"` the server has already refused it, so treat the authenticated call as best-effort and keep the local half of the teardown independent of it.
+`reason` is `"logout"` for an explicit `logout()`, `"expired"` when the client ended it and `"switch"` when a `login()` replaced the session. On `"logout"` and `"switch"` the token is usually still valid; on `"expired"` the server has already refused it, so treat the authenticated call as best-effort and keep the local half of the teardown independent of it.
 
 `logout()` returns `Promise<void>`: the store is cleared before the first `await`, so callers that ignore the promise see the signed-out state at once. The promise resolves when the hook finished and rejects with its error. On the automatic path the hook's error is swallowed — the request that ended the session already rejects with its own 401.
 
 The hook runs **once per session**: a second `logout()`, or the other requests of a burst of 401s, find no session left to end and wait on the teardown already under way.
 
-!!! warning "`login()` over a live session does not call the hook"
-    Switching accounts without signing out first does not go through `onSessionEnd`. Call `await auth.logout()` before the other account's `login()`.
+### Switching accounts — `reason: "switch"`
+
+`auth.login()` with another account while a session is live ends the previous one through the same path, without you having to call `logout()` first:
+
+1. the new credentials go to the backend — **nothing changes yet**. If the login fails, the previous account stays signed in, with its in-flight refresh intact;
+2. once the credentials are accepted, the epoch moves and the store is cleared (steps 1 and 2 of the table);
+3. `onSessionEnd` runs with `reason: "switch"`, the **previous** account's `user` and `token`, and a `session.api` that still sends its token;
+4. only then are the new account's tokens installed, and `login()` resolves with the new user.
+
+Why the hook runs **before** the new account is installed: the previous account's teardown — clearing the persisted cache, the background-sync queue — has to finish before the new account's requests start filling them; in the reverse order it would wipe (or race with) the new account's data. The cost is a window in which `isAuthenticated` is `false` while the hook runs — a route guard may react to it, so keep the hook short. A hook error here is swallowed: the login itself succeeded.
+
+A `logout()` whose teardown is still running is awaited the same way: `logout()` followed by `login()` without `await` does not install the new account before the previous one's hook finished.
 
 ### Refresh in flight and account switching — `RefreshSupersededError`
 
-A refresh is a network round trip, and the session can end in the middle of it. Every refresh is bound to a **session epoch**, which `logout()` and the start of `login()` increment. A refresh that resolves after its epoch ended discards what it brought back and rejects with `RefreshSupersededError` — and the client passes that error through **without** calling `onUnauthorized`, because the current session (maybe another account that just signed in) did nothing wrong. A request sent with the token of an ended session that comes back 401 is refused the same way, instead of being replayed as whoever is signed in now.
+A refresh is a network round trip, and the session can end in the middle of it. Every refresh is bound to a **session epoch**, which `logout()` and a `login()` whose credentials were accepted increment. A refresh that resolves after its epoch ended discards what it brought back and rejects with `RefreshSupersededError` — and the client passes that error through **without** calling `onUnauthorized`, because the current session (maybe another account that just signed in) did nothing wrong. A request sent with the token of an ended session that comes back 401 is refused the same way, instead of being replayed as whoever is signed in now.
 
 Before 0.77.0, a refresh in flight during `logout()` reinstalled the old tokens and flipped `isAuthenticated` back to `true`; with `logout()` + `login(B)` in between, it replaced B's token with A's — the screen showed B, and every request went out as A.
 

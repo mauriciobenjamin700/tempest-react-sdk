@@ -22,9 +22,10 @@ export interface TempestSessionEnd<TUser> {
     /**
      * Why it ended: `"logout"` for an explicit `logout()`, `"expired"` when the
      * client ended it on its own — the refresh failed, or the request replayed
-     * after a refresh still came back `401`.
+     * after a refresh still came back `401` — and `"switch"` when `login()`
+     * succeeded for another set of credentials while this session was live.
      */
-    reason: "logout" | "expired";
+    reason: "logout" | "expired" | "switch";
     /** The user of the ended session, as the store held it. */
     user: TUser | null;
     /** The access token of the ended session, or `null` when it had none. */
@@ -109,13 +110,13 @@ export interface CreateTempestAuthOptions<TUser> {
      */
     redirectTo?: string;
     /**
-     * Tear down per-user state when a session ends — on an explicit `logout()`
-     * **and** when the client ends the session on its own after a failed
-     * refresh. Without it, the automatic path had no place to hook into, and
+     * Tear down per-user state when a session ends — on an explicit `logout()`,
+     * when the client ends the session on its own after a failed refresh, and
+     * when a successful `login()` replaces a live session. Without it, the automatic path had no place to hook into, and
      * state derived from the user (a push subscription, a persisted query
      * cache, a background-sync queue) survived into the next account.
      *
-     * Order, on both paths:
+     * Order, on every path:
      *
      * 1. any refresh still in flight is superseded, so it cannot reinstall the
      *    ending session's tokens;
@@ -124,7 +125,8 @@ export interface CreateTempestAuthOptions<TUser> {
      * 3. this hook runs with a {@link TempestSessionEnd} whose `api` still sends
      *    the ended session's access token;
      * 4. on `"expired"` with `redirectTo` set, the browser navigates — after the
-     *    hook settled, even if it threw.
+     *    hook settled, even if it threw; on `"switch"`, the new session is
+     *    installed — after the hook settled, even if it threw.
      *
      * It may be async. `logout()` resolves when it settles and rejects with what
      * it threw; on the automatic path the error is swallowed, because the
@@ -132,8 +134,15 @@ export interface CreateTempestAuthOptions<TUser> {
      * runs once per session: a second `logout()`, or the other requests of a
      * burst of `401`s, find nothing left to end and skip it.
      *
-     * Not called by `login()` over a live session — call `logout()` first when
-     * switching accounts.
+     * On `"switch"` the hook runs only **after** the new credentials were
+     * accepted, so a failed `login()` leaves the live session untouched. It runs
+     * **before** the new session is installed: teardown of the previous
+     * account's state (clearing a persisted cache, a background-sync queue) has
+     * to finish before the new account's requests start filling them, or it
+     * would wipe — or race with — the new account's data. The cost is that
+     * `isAuthenticated` is `false` while the hook runs, which a route guard may
+     * act on; keep the hook short. Its error is swallowed there, since the
+     * login itself succeeded.
      */
     onSessionEnd?: (session: TempestSessionEnd<TUser>) => void | Promise<void>;
 }
@@ -182,8 +191,8 @@ function defaultParseTokens(data: unknown): { token: string; refreshToken?: stri
  * `redirectTo` set, the browser also leaves the page; without it, clearing the
  * store is enough for a `<RouteGuard>` to navigate on its own.
  *
- * Every refresh is bound to a **session epoch**, bumped by `logout()` and at the
- * start of `login()`. A refresh that resolves after its epoch ended discards
+ * Every refresh is bound to a **session epoch**, bumped by `logout()` and by a
+ * `login()` whose credentials were accepted. A refresh that resolves after its epoch ended discards
  * what it brought back and rejects with {@link RefreshSupersededError}, which
  * the client passes through without ending the new session. Before 0.77.0 a
  * refresh that was in flight during `logout()` reinstalled the old tokens —
@@ -359,13 +368,32 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
         return queue();
     }
 
+    /**
+     * Authenticate and install the new session.
+     *
+     * The previous session ends only once the new credentials are accepted: a
+     * login that fails leaves it, and the refresh it may have in flight,
+     * untouched. When one was live, `onSessionEnd` runs with `"switch"` before
+     * the new tokens are installed — see the option for why that order. A
+     * `logout()` still tearing down is awaited the same way, so the new
+     * account's state never starts before the previous one's teardown ended.
+     *
+     * @param credentials - Sent as the login body.
+     * @returns The user of the new session, or null.
+     * @throws {RefreshSupersededError} When another `logout()` or `login()`
+     *   ended the session while this one was waiting on the teardown; the new
+     *   tokens are discarded.
+     */
     async function login(credentials: TCredentials): Promise<TUser | null> {
-        nextEpoch();
         const data = await api.post<unknown>(loginPath, {
             body: credentials,
             skipAuth: true,
         });
         const { token, refreshToken } = parseTokens(data);
+        const teardown = finish("switch");
+        const mine = epoch;
+        await teardown.catch(() => undefined);
+        if (epoch !== mine) throw new RefreshSupersededError();
         install(token);
         writeRefreshToken(refreshToken ?? null);
         const embedded = parseUser?.(data);
@@ -386,7 +414,8 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      * wait on the teardown already under way instead, through `ending`, which
      * never rejects so a later no-op `logout()` does not inherit an old error.
      *
-     * @param reason - Whether the caller signed out or the client gave up.
+     * @param reason - Whether the caller signed out, the client gave up, or a
+     *   login replaced the session.
      * @returns A promise settling with the hook.
      */
     function finish(reason: TempestSessionEnd<TUser>["reason"]): Promise<void> {

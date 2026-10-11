@@ -8,7 +8,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 - **Refresh em voo não reinstala mais a sessão depois do logout nem troca a conta logada (#435).**
   Cada refresh do `createTempestAuth` fica amarrado a uma época de sessão, incrementada pelo
-  `logout()` e pelo começo do `login()`; cada época tem sua própria fila. Refresh que resolve (ou
+  `logout()` e por um `login()` com credenciais aceitas; cada época tem sua própria fila. Refresh que resolve (ou
   falha) depois que a época acabou descarta os tokens e rejeita com `RefreshSupersededError`, que o
   `createApiClient` repassa **sem** chamar `onUnauthorized` — a correção ingênua com `throw`
   derrubaria a conta recém-logada. Request que saiu com o token de uma sessão encerrada e volta 401
@@ -43,13 +43,25 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
-- **`createTempestAuth({ onSessionEnd })` — teardown por usuário no logout e na expiração
-  automática (#445).** Roda nos dois caminhos, uma vez por sessão, com
-  `{ reason: "logout" | "expired", user, token, api }` — `api` ainda manda o token da sessão que
+- **`createTempestAuth({ onSessionEnd })` — teardown por usuário no logout, na expiração
+  automática e na troca de conta (#445).** Roda nos três caminhos, uma vez por sessão, com
+  `{ reason: "logout" | "expired" | "switch", user, token, api }` — `api` ainda manda o token da sessão que
   acabou, porque o store já foi limpo. Ordem: supera o refresh em voo → limpa o store (síncrono) →
   roda o hook → navega para `redirectTo` (só no automático, depois do hook). Substitui a receita
   manual de logout de `docs/push.md`, que não cobria a expiração automática. Tipos novos:
   `TempestSessionEnd<TUser>` e `RefreshContext`.
+- **`login()` por cima de uma sessão viva encerra a anterior com `reason: "switch"`.** Antes, a
+  conta nova substituía a anterior sem teardown nenhum, e a inscrição de push e o estado por
+  usuário da conta anterior passavam para a nova. Ordem: credenciais novas aceitas → época avança e
+  store limpo → `onSessionEnd({ reason: "switch", user/token/api da conta anterior })` → tokens da
+  conta nova instalados. Login que falha não toca a sessão anterior nem o refresh em voo dela (antes
+  desta versão, a época avançava no começo do `login()`). O hook roda **antes** de instalar a conta
+  nova para o teardown terminar antes de as requests dela preencherem cache e filas; o custo é
+  `isAuthenticated` em `false` enquanto ele roda. Erro do hook nesse caminho é engolido, e um
+  `logout()` cujo teardown ainda corre é esperado antes de instalar a conta nova. Medido com
+  `npx vitest run src/auth/create-tempest-auth.session-end.test.ts` contra o commit anterior: 3 dos
+  4 testes novos falhavam (hook não chamado; login falho de B superava o refresh de A; B instalado
+  antes do fim do teardown de A).
 - **`RefreshSupersededError`** e **`WebPushUnsubscribeError`**, exportados da raiz.
 
 ### Alterado
@@ -57,6 +69,18 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - **`TempestAuth.logout` agora devolve `Promise<void>`** (era `() => void`). O store continua limpo
   de forma síncrona, antes do primeiro `await`; a promise resolve quando o `onSessionEnd` terminou e
   rejeita com o erro dele. Chamar sem `await` segue funcionando.
+
+  **Migração:** nada é obrigatório — quem chama `auth.logout()` sem usar o retorno compila e se
+  comporta igual (o store é limpo na hora). Ajuste só se:
+
+  - o lint do app tem `@typescript-eslint/no-floating-promises`: troque `auth.logout()` por
+    `await auth.logout()` ou `void auth.logout()`;
+  - o app tipou um campo como `logout: () => void` e atribui um tipo que espera **exatamente**
+    `void` de volta (ex.: implementa a interface `TempestAuth` à mão) — passe a devolver
+    `Promise<void>`;
+  - o app espera o teardown antes de navegar ou recarregar: use `await auth.logout()`, que agora
+    só resolve depois do `onSessionEnd`.
+
 - **`ApiClientConfig.refresh` recebe `(context: RefreshContext)`** com o token com que a request
   rejeitada saiu. Função sem parâmetro continua atribuível — nenhum chamador quebra.
 - **Budgets do `size-limit` sobem pelo que os bytes compram** (medido com `npx size-limit`, `main`

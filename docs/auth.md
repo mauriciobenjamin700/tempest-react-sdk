@@ -247,9 +247,9 @@ const api = createApiClient({
 
 ## Fim de sessão — `createTempestAuth` e `onSessionEnd`
 
-Uma sessão termina de dois jeitos: o usuário clica em **Sair** (`auth.logout()`), ou o próprio cliente desiste dela — o refresh falhou, ou a repetição depois do refresh voltou 401 de novo. Nos dois casos, todo estado que **deriva do usuário** precisa sair junto: a inscrição de push deste navegador, o cache de queries persistido, a fila de background sync, o usuário identificado na telemetria. Senão a próxima conta que entrar neste navegador herda o que era da anterior.
+Uma sessão termina de três jeitos: o usuário clica em **Sair** (`auth.logout()`); o próprio cliente desiste dela — o refresh falhou, ou a repetição depois do refresh voltou 401 de novo; ou outra conta entra por cima (`auth.login()` com outras credenciais). Em todos os casos, todo estado que **deriva do usuário** precisa sair junto: a inscrição de push deste navegador, o cache de queries persistido, a fila de background sync, o usuário identificado na telemetria. Senão a próxima conta que entrar neste navegador herda o que era da anterior.
 
-O `createTempestAuth` tem um lugar só para isso, que roda nos **dois** caminhos: `onSessionEnd`.
+O `createTempestAuth` tem um lugar só para isso, que roda nos **três** caminhos: `onSessionEnd`.
 
 ```ts
 import { WebPushClient, createTempestAuth } from "tempest-react-sdk";
@@ -284,27 +284,37 @@ E o `unsubscribe()` do push libera a inscrição do navegador **mesmo quando o `
 
 ### A ordem, exatamente
 
-Nos dois caminhos — `logout()` e o encerramento automático — a sequência é a mesma:
+Nos três caminhos — `logout()`, o encerramento automático e a troca de conta — a sequência é a mesma:
 
 | Passo | O que acontece | Síncrono? |
 | --- | --- | --- |
 | 1 | Todo refresh em voo é **superado**: não pode mais reinstalar os tokens da sessão que está acabando | sim |
 | 2 | O store e o refresh token guardado são limpos — `isAuthenticated` já é `false` | sim |
 | 3 | `onSessionEnd` roda com `{ reason, user, token, api }` | pode ser `async` |
-| 4 | Só no encerramento automático, com `redirectTo`: o navegador navega — **depois** do hook, mesmo que ele lance | — |
+| 4 | No encerramento automático com `redirectTo`, o navegador navega; na troca de conta, a sessão nova é instalada — nos dois, **depois** do hook, mesmo que ele lance | — |
 
-`reason` é `"logout"` no `logout()` explícito e `"expired"` quando o cliente encerrou. No `"logout"` o token normalmente ainda vale; no `"expired"` o servidor já o recusou, então trate a chamada autenticada como tentativa e deixe a parte local do teardown independente dela.
+`reason` é `"logout"` no `logout()` explícito, `"expired"` quando o cliente encerrou e `"switch"` quando um `login()` substituiu a sessão. No `"logout"` e no `"switch"` o token normalmente ainda vale; no `"expired"` o servidor já o recusou, então trate a chamada autenticada como tentativa e deixe a parte local do teardown independente dela.
 
 `logout()` devolve `Promise<void>`: o store é limpo antes do primeiro `await`, então quem ignora a promise vê o estado deslogado na hora. A promise resolve quando o hook terminou e rejeita com o erro dele. No caminho automático o erro do hook é engolido — a request que encerrou a sessão já rejeita com o 401 dela.
 
 O hook roda **uma vez por sessão**: um segundo `logout()`, ou as outras requests de uma rajada de 401, não encontram sessão para encerrar e esperam o teardown que já está em andamento.
 
-!!! warning "`login()` por cima de uma sessão viva não chama o hook"
-    Trocar de conta sem sair primeiro não passa pelo `onSessionEnd`. Chame `await auth.logout()` antes do `login()` da outra conta.
+### Troca de conta — `reason: "switch"`
+
+`auth.login()` com outra conta enquanto uma sessão está viva encerra a anterior pelo mesmo caminho, sem você precisar chamar `logout()` antes:
+
+1. as credenciais novas vão ao backend — **nada muda ainda**. Se o login falhar, a conta anterior continua logada, com o refresh em voo dela intacto;
+2. aceitas as credenciais, a época avança e o store é limpo (passos 1 e 2 da tabela);
+3. `onSessionEnd` roda com `reason: "switch"`, o `user` e o `token` da conta **anterior**, e um `session.api` que ainda manda o token dela;
+4. só então os tokens da conta nova são instalados, e o `login()` resolve com o usuário novo.
+
+Por que o hook roda **antes** de instalar a conta nova: o teardown da conta anterior — limpar o cache persistido, a fila de background sync — precisa terminar antes que as requests da conta nova comecem a preenchê-los; na ordem inversa ele apagaria (ou disputaria) os dados da conta nova. O preço é um intervalo em que `isAuthenticated` é `false` enquanto o hook roda — um guard de rota pode reagir a ele, então mantenha o hook curto. Um erro do hook aqui é engolido: o login em si deu certo.
+
+Um `logout()` cujo teardown ainda está em andamento é esperado do mesmo jeito: `logout()` seguido de `login()` sem `await` não instala a conta nova antes de o hook da anterior terminar.
 
 ### Refresh em voo e troca de conta — `RefreshSupersededError`
 
-Um refresh é uma ida e volta de rede, e a sessão pode acabar no meio dela. Cada refresh fica amarrado a uma **época de sessão**, que o `logout()` e o começo do `login()` incrementam. Um refresh que resolve depois que a época dele acabou descarta o que trouxe e rejeita com `RefreshSupersededError` — e o cliente repassa esse erro **sem** chamar `onUnauthorized`, porque a sessão atual (talvez outra conta, que acabou de entrar) não fez nada de errado. Uma request que saiu com o token de uma sessão encerrada e volta 401 é recusada do mesmo jeito, em vez de ser repetida como a conta que está logada agora.
+Um refresh é uma ida e volta de rede, e a sessão pode acabar no meio dela. Cada refresh fica amarrado a uma **época de sessão**, que o `logout()` e um `login()` com credenciais aceitas incrementam. Um refresh que resolve depois que a época dele acabou descarta o que trouxe e rejeita com `RefreshSupersededError` — e o cliente repassa esse erro **sem** chamar `onUnauthorized`, porque a sessão atual (talvez outra conta, que acabou de entrar) não fez nada de errado. Uma request que saiu com o token de uma sessão encerrada e volta 401 é recusada do mesmo jeito, em vez de ser repetida como a conta que está logada agora.
 
 Antes da 0.77.0, um refresh em voo durante o `logout()` reinstalava os tokens antigos e voltava `isAuthenticated` para `true`; com `logout()` + `login(B)` no meio, trocava o token de B pelo de A — a tela mostrava B, e toda request saía como A.
 

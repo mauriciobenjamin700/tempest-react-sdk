@@ -200,3 +200,161 @@ describe("createTempestAuth — onSessionEnd", () => {
         expect(assign).toHaveBeenCalledWith("/login");
     });
 });
+
+/**
+ * A two-account backend: `a@x.test` logs in as `A-tok-1`, `b@x.test` as
+ * `B-tok-1`, and any other email is refused with `401`. The refresh route waits
+ * on a gate and answers `A-tok-2`; a protected route accepts `A-tok-2` and
+ * `B-tok-1` and records the bearer every request carried.
+ *
+ * @returns The fetcher, the gate release and the `[path, bearer]` log.
+ */
+function switchBackend() {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+        release = resolve;
+    });
+    const seen: Array<[string, string | undefined]> = [];
+    const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = new URL(String(input));
+        const headers = (init?.headers ?? {}) as Record<string, string>;
+        seen.push([url.pathname, headers.Authorization]);
+        if (url.pathname === "/api/auth/login") {
+            const { email } = JSON.parse(String(init?.body)) as { email: string };
+            if (email === "a@x.test")
+                return jsonResponse({
+                    access_token: "A-tok-1",
+                    refresh_token: "A-ref-1",
+                    user: { id: "A" },
+                });
+            if (email === "b@x.test")
+                return jsonResponse({
+                    access_token: "B-tok-1",
+                    refresh_token: "B-ref-1",
+                    user: { id: "B" },
+                });
+            return jsonResponse({ detail: "bad credentials" }, 401);
+        }
+        if (url.pathname === "/api/auth/refresh") {
+            await gate;
+            return jsonResponse({ access_token: "A-tok-2", refresh_token: "A-ref-2" });
+        }
+        if (url.pathname === "/webpush/subscribe") return new Response(null, { status: 204 });
+        const bearer = headers.Authorization;
+        if (bearer === "Bearer A-tok-2") return jsonResponse({ acting_as: "A" });
+        if (bearer === "Bearer B-tok-1") return jsonResponse({ acting_as: "B" });
+        return jsonResponse({ detail: "expired" }, 401);
+    });
+    return { fetcher, seen, release: () => release() };
+}
+
+/**
+ * Follow-up to #445: `login()` over a live session used to replace it without
+ * ending it, so the previous account's push subscription and cached state
+ * survived into the new one. It now ends the previous session with
+ * `reason: "switch"` — but only once the new credentials were accepted.
+ */
+describe("createTempestAuth — onSessionEnd on account switch", () => {
+    beforeEach(() => {
+        localStorage.clear();
+    });
+
+    it("ends A with reason 'switch' and A's token before installing B", async () => {
+        const { fetcher, seen } = switchBackend();
+        const during: Array<string | null> = [];
+        const ends: Array<{ reason: string; user: User | null; token: string | null }> = [];
+        const auth = createTempestAuth<User>({
+            baseURL: "https://api.example.test",
+            fetcher,
+            parseUser: (data) => (data as { user: User }).user,
+            onSessionEnd: async (session) => {
+                ends.push({ reason: session.reason, user: session.user, token: session.token });
+                during.push(auth.getToken());
+                await session.api.delete("/webpush/subscribe", { body: { endpoint: "e" } });
+            },
+        });
+        await auth.login({ email: "a@x.test", password: "x" });
+
+        await expect(auth.login({ email: "b@x.test", password: "x" })).resolves.toEqual({
+            id: "B",
+        });
+
+        expect(ends).toEqual([{ reason: "switch", user: { id: "A" }, token: "A-tok-1" }]);
+        expect(during).toEqual([null]);
+        expect(seen).toContainEqual(["/webpush/subscribe", "Bearer A-tok-1"]);
+        expect(auth.getToken()).toBe("B-tok-1");
+        expect(localStorage.getItem("tempest-auth-refresh")).toBe("B-ref-1");
+    });
+
+    it("leaves A's session and its in-flight refresh untouched when B's login fails", async () => {
+        const { fetcher, release } = switchBackend();
+        const onSessionEnd = vi.fn();
+        const auth = createTempestAuth<User>({
+            baseURL: "https://api.example.test",
+            fetcher,
+            parseUser: (data) => (data as { user: User }).user,
+            onSessionEnd,
+        });
+        await auth.login({ email: "a@x.test", password: "x" });
+
+        const pending = auth.api.get("/api/orders");
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await expect(auth.login({ email: "wrong@x.test", password: "x" })).rejects.toMatchObject({
+            status: 401,
+        });
+        release();
+
+        await expect(pending).resolves.toEqual({ acting_as: "A" });
+        expect(onSessionEnd).not.toHaveBeenCalled();
+        expect(auth.getToken()).toBe("A-tok-2");
+        expect(auth.useAuthStore.getState()).toMatchObject({
+            user: { id: "A" },
+            isAuthenticated: true,
+        });
+    });
+
+    it("still signs B in when the switch teardown throws", async () => {
+        const auth = createTempestAuth<User>({
+            baseURL: "https://api.example.test",
+            fetcher: switchBackend().fetcher,
+            parseUser: (data) => (data as { user: User }).user,
+            onSessionEnd: () => {
+                throw new Error("teardown failed");
+            },
+        });
+        await auth.login({ email: "a@x.test", password: "x" });
+
+        await expect(auth.login({ email: "b@x.test", password: "x" })).resolves.toEqual({
+            id: "B",
+        });
+        expect(auth.getToken()).toBe("B-tok-1");
+    });
+
+    it("installs B only after a logout() teardown still in progress finished", async () => {
+        const order: string[] = [];
+        let finishTeardown!: () => void;
+        const auth = createTempestAuth<User>({
+            baseURL: "https://api.example.test",
+            fetcher: switchBackend().fetcher,
+            parseUser: (data) => (data as { user: User }).user,
+            onSessionEnd: async (session) => {
+                order.push(`end:${session.reason}`);
+                await new Promise<void>((resolve) => {
+                    finishTeardown = resolve;
+                });
+                order.push("end:done");
+            },
+        });
+        await auth.login({ email: "a@x.test", password: "x" });
+
+        void auth.logout();
+        const switching = auth.login({ email: "b@x.test", password: "x" });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(auth.getToken()).toBeNull();
+        finishTeardown();
+        await switching;
+        order.push(`installed:${auth.getToken()}`);
+
+        expect(order).toEqual(["end:logout", "end:done", "installed:B-tok-1"]);
+    });
+});

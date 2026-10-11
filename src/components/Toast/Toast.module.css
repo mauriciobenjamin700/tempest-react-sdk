@@ -107,7 +107,39 @@
     margin: 2px 0 0 0;
 }
 
+.content {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.withIcon .content {
+    align-self: center;
+}
+
+.alignCenter .content {
+    text-align: center;
+}
+
+.leading {
+    flex: 0 0 auto;
+    align-self: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--tempest-text);
+}
+
+.leading > img,
+.leading > svg {
+    display: block;
+    max-width: var(--tempest-space-8);
+    max-height: var(--tempest-space-8);
+    object-fit: contain;
+}
+
 .close {
+    flex: 0 0 auto;
     margin-left: auto;
     background: none;
     border: none;

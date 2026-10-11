@@ -71,7 +71,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ Button, Input, Modal, Table, ToastProvider, AppProviders, AppRouter, createApiClient, createAuthStore, useDebounce }"
     },
-    "limit": "11.8 kB",
+    "limit": "11.9 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -404,7 +404,7 @@
   {
     "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "167.2 KB",
+    "limit": "167.3 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -714,7 +714,7 @@
   {
     "name": "styles.css",
     "path": "dist/styles.css",
-    "limit": "30.5 kB"
+    "limit": "30.6 kB"
   },
   {
     "name": "styles/core.css (foundation alone — no component)",

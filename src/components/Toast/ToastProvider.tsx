@@ -21,6 +21,16 @@ import { usePortalHost } from "../Portal/portal-host";
 
 export type ToastVariant = "success" | "warning" | "error" | "info";
 
+/**
+ * Horizontal alignment of a toast's title and description.
+ *
+ * `"start"` is the default because a toast is read as a sentence beside a close
+ * button: left-aligned lines share one edge with the icon and the stack, so a
+ * two-line description stays scannable. `"center"` exists for the short
+ * celebratory toast (an achievement with a badge) where the text is one line.
+ */
+export type ToastAlign = "start" | "center";
+
 export interface ToastOptions {
     id?: string;
     title?: string;
@@ -28,12 +38,35 @@ export interface ToastOptions {
     variant?: ToastVariant;
     /** Auto-dismiss timeout in ms. Pass `0` to keep the toast until dismissed manually. */
     duration?: number;
+    /**
+     * Leading slot rendered before the text, e.g. `<img src="/badge.svg" alt="" />`.
+     *
+     * It is an app asset, so it takes any `ReactNode`. The slot is decorative
+     * (`aria-hidden`) unless {@link ToastOptions.iconLabel} is given: most icons
+     * repeat what the title already says, and an unlabelled image inside the live
+     * region would otherwise be announced as "image" or by its file name. An
+     * `<img>` or `<svg>` inside it is capped at 32px and keeps its aspect ratio.
+     */
+    icon?: ReactNode;
+    /**
+     * Accessible name for {@link ToastOptions.icon} when the icon carries meaning
+     * the text does not. With it the slot becomes `role="img"` with this label and
+     * is announced together with the toast; without it the slot is hidden from
+     * assistive technology.
+     */
+    iconLabel?: string;
+    /** Text alignment of title and description. Default `"start"`; see {@link ToastAlign}. */
+    align?: ToastAlign;
 }
 
-interface ToastEntry extends Required<Omit<ToastOptions, "id" | "title" | "description">> {
+interface ToastEntry extends Required<
+    Omit<ToastOptions, "id" | "title" | "description" | "icon" | "iconLabel">
+> {
     id: string;
     title?: string;
     description?: string;
+    icon?: ReactNode;
+    iconLabel?: string;
 }
 
 export interface ToastApi {
@@ -99,6 +132,9 @@ export function ToastProvider({
                 description: options.description,
                 variant: options.variant ?? "info",
                 duration: options.duration ?? defaultDuration,
+                icon: options.icon,
+                iconLabel: options.iconLabel,
+                align: options.align ?? "start",
             };
             setToasts((current) => [...current, entry]);
             return id;
@@ -195,6 +231,11 @@ interface ItemProps {
  * No `role="status"` of its own: it already lives inside the container's live
  * region, and a live region nested in a live region is announced twice by some
  * screen readers.
+ *
+ * With an icon the toast becomes three columns (leading, content, close) and the
+ * icon and text are centred vertically against each other, so a 32px badge sits
+ * level with a one-line title. Toasts without an icon keep the original
+ * top-aligned layout, pixel for pixel.
  */
 function ToastItem({ toast, onDismiss }: ItemProps) {
     useEffect(() => {
@@ -203,9 +244,28 @@ function ToastItem({ toast, onDismiss }: ItemProps) {
         return () => clearTimeout(timer);
     }, [toast.id, toast.duration, onDismiss]);
 
+    const hasIcon = toast.icon != null && typeof toast.icon !== "boolean" && toast.icon !== "";
+
     return (
-        <div className={cn(styles.toast, styles[toast.variant])}>
-            <div>
+        <div
+            className={cn(
+                styles.toast,
+                styles[toast.variant],
+                hasIcon && styles.withIcon,
+                toast.align === "center" && styles.alignCenter,
+            )}
+        >
+            {hasIcon && (
+                <div
+                    className={styles.leading}
+                    {...(toast.iconLabel
+                        ? { role: "img", "aria-label": toast.iconLabel }
+                        : { "aria-hidden": true })}
+                >
+                    {toast.icon}
+                </div>
+            )}
+            <div className={styles.content}>
                 {toast.title && <p className={styles.title}>{toast.title}</p>}
                 {toast.description && <p className={styles.description}>{toast.description}</p>}
             </div>

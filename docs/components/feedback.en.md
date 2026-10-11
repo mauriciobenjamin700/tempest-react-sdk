@@ -491,6 +491,67 @@ export function App() {
 
 **Safe-area aware**.
 
+### Icon and alignment
+
+`ToastOptions.icon` takes any `ReactNode` — usually an app asset — and renders it
+in its own column to the left of the text. An `<img>` or `<svg>` inside it is
+capped at 32px without being distorted.
+
+```tsx
+import { ToastProvider, useToast } from "tempest-react-sdk";
+
+function Achievement() {
+    const toast = useToast();
+
+    return (
+        <button
+            onClick={() =>
+                toast.show({
+                    icon: <img src={"/assets/invict.svg"} alt="" />,
+                    title: "Undefeated title unlocked!",
+                    variant: "success",
+                    duration: 4000,
+                    align: "center",
+                })
+            }
+        >
+            Unlock
+        </button>
+    );
+}
+
+export function App() {
+    return (
+        <ToastProvider>
+            <Achievement />
+        </ToastProvider>
+    );
+}
+```
+
+| Option      | Type                    | Default   | What it does                                                                 |
+| ----------- | ----------------------- | --------- | ---------------------------------------------------------------------------- |
+| `icon`      | `ReactNode`             | —         | Slot to the left of the text. Decorative (`aria-hidden`) without `iconLabel`. |
+| `iconLabel` | `string`                | —         | Accessible name for the icon: the slot becomes `role="img"` and is announced with the toast. |
+| `align`     | `"start" \| "center"`   | `"start"` | Alignment of the title and description.                                      |
+
+The icon is **decorative by default** because it almost always repeats the title
+("Undefeated title unlocked!" beside the medal). Otherwise an unlabelled image
+inside the `aria-live` region would be read as "image" or by its file name. When
+the icon carries information the text does not, pass `iconLabel` — no need to
+touch the asset's `alt`.
+
+!!! note "Why the text is not centred by default"
+    A toast reads as a sentence beside a close button, and it is usually stacked
+    with others. Left-aligned, the text shares one edge with the icon and with the
+    neighbouring toasts, and a two-line description stays scannable — centred,
+    every line starts somewhere else. `align: "center"` is for the short,
+    celebratory one-line toast, like the one in the example.
+
+`variant`, `duration` and the queue do not change with an icon: the coloured
+border still marks the variant, and a toast without an icon keeps exactly the
+previous layout.
+
 !!! danger "`useToast` only exists under a `<ToastProvider>`"
     Outside one the hook **throws** `useToast must be used inside a
     <ToastProvider>`. The provider belongs at the app root, above the router — if
@@ -626,7 +687,7 @@ Renders nothing when `open={false}`. `onDismiss` (optional) shows the dismiss bu
 ## General A11y
 
 - `Alert`/`Banner` with the `warning`/`danger` variant use `role="alert"` (announced immediately).
-- The `Toast` container is `aria-live="polite"` + `aria-atomic="true"`.
+- The `Toast` container is `aria-live="polite"` + `aria-atomic="false"` — only the new toast is announced, not the whole stack. An icon without `iconLabel` is `aria-hidden`.
 - `Spinner`/`Progress.indeterminate` add `aria-busy="true"`.
 - `Skeleton` is decorative — it doesn't announce (`aria-hidden`).
 - `Stat.value` with tabular-nums aligns numeric values in columns.

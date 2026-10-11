@@ -4,6 +4,34 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`Toast` ganha slot de ícone (`icon`, `iconLabel`) e alinhamento de texto (`align`)** (#453).
+  `ToastOptions.icon?: ReactNode` renderiza o asset do app numa coluna `leading` à esquerda do
+  texto, com `<img>`/`<svg>` limitados a 32px sem distorcer, e ícone e texto centrados na
+  vertical entre si. O slot é decorativo (`aria-hidden`) por padrão — quase sempre repete o
+  título, e uma imagem sem rótulo na região `aria-live` seria lida como "imagem" ou pelo nome do
+  arquivo; `iconLabel` o expõe como `role="img"` com aquele nome. `align: "start" | "center"`
+  (novo tipo `ToastAlign`) fica em `"start"` por padrão: o texto centralizado pedido pela issue
+  virou opção, porque num toast empilhado e com descrição de duas linhas a borda comum à
+  esquerda é o que mantém a leitura. Toast sem ícone mantém o layout anterior; `variant`,
+  `duration` e a fila não mudam.
+- Custo, medido com `npx size-limit --json` em `origin/main` × branch: fatia "typical app"
+  11 727 → 11 866 B (teto 11,8 → 11,9 kB), barrel ESM 139 861 → 139 962 B (teto 140,2 KB
+  mantido), barrel CJS 167 019 → 167 232 B (teto 167,2 → 167,3 KB) e `styles.css` 30 474 →
+  30 567 B (teto 30,5 → 30,6 kB).
+
+### Corrigido
+
+- **Botão de fechar do `Toast` encolhia com texto longo.** O bloco de texto e o botão dividiam o
+  encolhimento do flex, e uma descrição de duas linhas espremia o botão de 22px para 16–17px
+  (medido em Chromium headless, 390px e 1280px, galeria `#modal`, com o CSS da 0.76.0 reaplicado
+  por override). O botão agora é `flex: 0 0 auto`, e o texto quebra palavra longa
+  (`overflow-wrap: anywhere`) em vez de empurrá-lo para fora.
+- **Doc do `Toast` afirmava `aria-atomic="true"`** no container; o código usa `"false"` desde que
+  a pilha deixou de ser relida inteira a cada toast novo. A frase agora diz o que o componente
+  faz, nas duas línguas.
+
 ## [0.76.0] — 2026-10-10
 
 ### Adicionado

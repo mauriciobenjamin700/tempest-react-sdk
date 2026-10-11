@@ -205,6 +205,74 @@ export function ModalSection() {
                     </Button>
                 </div>
             </Example>
+
+            <Example
+                title="Toast com ícone"
+                note='icon é um slot à esquerda (decorativo sem iconLabel). align="center" é opcional — o padrão é texto à esquerda.'
+                code={`toast.show({
+    icon: <img src="/badge-invict.svg" alt="" />,
+    title: "Título Invicto desbloqueado!",
+    variant: "success",
+    duration: 4000,
+    align: "center",
+});
+
+toast.show({
+    icon: <img src="/badge-invict.svg" alt="" />,
+    iconLabel: "Medalha de ouro",
+    title: "Sequência de 10 vitórias",
+    description: "Você venceu dez partidas seguidas sem perder nenhum set — a medalha fica no seu perfil.",
+    variant: "info",
+});
+
+toast.warning(
+    "Sua sessão expira em cinco minutos — salve o rascunho antes que o formulário seja descartado.",
+    { title: "Sessão expirando" },
+);`}
+            >
+                <div className="gallery-row">
+                    <Button
+                        variant="secondary"
+                        onClick={() =>
+                            toast.show({
+                                icon: <img src="/badge-invict.svg" alt="" />,
+                                title: "Título Invicto desbloqueado!",
+                                variant: "success",
+                                duration: 4000,
+                                align: "center",
+                            })
+                        }
+                    >
+                        Conquista (centro)
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        onClick={() =>
+                            toast.show({
+                                icon: <img src="/badge-invict.svg" alt="" />,
+                                iconLabel: "Medalha de ouro",
+                                title: "Sequência de 10 vitórias",
+                                description:
+                                    "Você venceu dez partidas seguidas sem perder nenhum set — a medalha fica no seu perfil.",
+                                variant: "info",
+                            })
+                        }
+                    >
+                        Ícone + texto longo
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        onClick={() =>
+                            toast.warning(
+                                "Sua sessão expira em cinco minutos — salve o rascunho antes que o formulário seja descartado.",
+                                { title: "Sessão expirando" },
+                            )
+                        }
+                    >
+                        Sem ícone + texto longo
+                    </Button>
+                </div>
+            </Example>
         </section>
     );
 }

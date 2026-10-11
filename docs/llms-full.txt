@@ -35495,6 +35495,29 @@ await mesh.setLocalTrack("mic", null); // mutou
 
 Os slots são negociados **antes de qualquer track existir**, então publicar é um `replaceTrack` num transceiver que já existe: nenhuma m-line é acrescentada e nada renegocia. É essa propriedade que faz a mesh sobreviver — com N peers, uma renegociação por toggle são N−1 rodadas simultâneas de offer/answer toda vez que alguém desmuta.
 
+### Encerrar é definitivo
+
+```ts
+import { createPeerMesh } from "tempest-react-sdk";
+
+declare const socket: {
+  send: (message: unknown) => void;
+  onMessage: (message: never) => void;
+};
+
+const mesh = createPeerMesh({
+  slots: [{ name: "mic", kind: "audio" }],
+  send: (message) => socket.send(message),
+});
+socket.onMessage = (message) => void mesh.accept(message);
+
+mesh.stop(); // desligou
+```
+
+`stop()` fecha todos os links, esquece as tracks locais e reporta `closed` — **de vez**. O socket de sinalização costuma sobreviver à chamada, então uma oferta ainda em trânsito de quem saiu (ou de qualquer um que o servidor repasse a este usuário) continua chegando em `accept` depois do hang-up. Uma mesh parada descarta: não abre conexão, não responde e não publica track nenhuma, então uma chamada que mostra `closed` nunca volta a enviar microfone e câmera. Vale também para `addPeer`, `setLocalTrack` e `applyQuality`, e para toda negociação que já esperava o browser quando o `stop()` rodou.
+
+As tracks em si **não** são paradas: são suas, e podem estar num preview ou ser reaproveitadas na próxima chamada. Para entrar de novo, crie outra mesh.
+
 ### Medindo a sala: `stats`
 
 A mesh sabe quantos links existem e quando um vai embora, então ela é o lugar certo para amostrar. `stats` liga um único timer que ela mesma gerencia:

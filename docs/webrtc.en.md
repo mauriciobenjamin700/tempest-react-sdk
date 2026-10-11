@@ -333,6 +333,29 @@ await mesh.setLocalTrack("mic", null); // muted
 
 The slots are negotiated **before any track exists**, so publishing is a `replaceTrack` on a transceiver that is already there: no m-line is added and nothing renegotiates. That property is what makes a mesh survive — with N peers, a renegotiation per toggle is N−1 simultaneous offer/answer rounds every time somebody unmutes.
 
+### Hanging up is final
+
+```ts
+import { createPeerMesh } from "tempest-react-sdk";
+
+declare const socket: {
+  send: (message: unknown) => void;
+  onMessage: (message: never) => void;
+};
+
+const mesh = createPeerMesh({
+  slots: [{ name: "mic", kind: "audio" }],
+  send: (message) => socket.send(message),
+});
+socket.onMessage = (message) => void mesh.accept(message);
+
+mesh.stop(); // hung up
+```
+
+`stop()` closes every link, forgets the local tracks and reports `closed` — **for good**. The signalling socket usually outlives the call, so an offer still in flight from someone who left (or from anyone the server relays to this user) keeps reaching `accept` after the hang-up. A stopped mesh drops it: it opens no connection, answers nothing and publishes no track, so a call that shows `closed` never sends the microphone and camera again. The same goes for `addPeer`, `setLocalTrack` and `applyQuality`, and for every negotiation that was already waiting on the browser when `stop()` ran.
+
+The tracks themselves are **not** stopped: they are yours, and may be in a preview or reused on the next call. To join again, create a new mesh.
+
 ### Measuring the room: `stats`
 
 The mesh knows how many links there are and when one goes away, which makes it the right place to sample from. `stats` arms a single timer it owns:

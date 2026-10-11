@@ -57,7 +57,23 @@ export interface PeerMesh {
     applyQuality: (quality: MeshQuality) => Promise<void>;
     /** Replace the ICE servers used for links opened from now on. */
     setIceServers: (servers: RTCIceServer[]) => void;
-    /** Close every link and report `closed`. */
+    /**
+     * Close every link, forget the local tracks and report `closed` — for good.
+     *
+     * Stopping is terminal. The signalling socket usually outlives the call, so
+     * an offer still in flight from a former participant, or from anyone the
+     * server relays to this user, keeps reaching {@link PeerMesh.accept} after
+     * the hang-up. A stopped mesh drops it: no connection is opened, nothing is
+     * answered and no track is published, so a call that reports `closed` never
+     * sends the microphone or camera again. The same holds for `addPeer`,
+     * `setLocalTrack` and `applyQuality`, and for every negotiation that was
+     * already awaiting the browser when `stop()` ran. Calling it twice is a
+     * no-op.
+     *
+     * The tracks themselves are not stopped: they belong to the caller, who may
+     * still be showing them in a preview or reusing them on the next call. To
+     * join again, create a new mesh.
+     */
     stop: () => void;
     /** The peers as the mesh currently sees them. */
     readonly peers: MeshPeer[];
@@ -208,6 +224,7 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
     };
 
     const applyQuality = async (next: MeshQuality): Promise<void> => {
+        if (stopped) return;
         quality = next;
         const effective = scaleForRoom(next, links.size);
         const degradation = resolveDegradation(next, effective);
@@ -216,23 +233,39 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
         }
     };
 
+    /**
+     * Whether a link is still the one the mesh holds for its peer.
+     *
+     * Every negotiation step awaits the browser, and `stop()` or `removePeer()`
+     * can close the link inside any of those awaits. A continuation that does
+     * not re-check keeps negotiating on a closed connection — which a browser
+     * answers with `InvalidStateError` — or, worse, signals an answer for a call
+     * that already hung up.
+     *
+     * @param link - The link a continuation is about to touch.
+     * @returns `false` once the mesh stopped or the link was removed or replaced.
+     */
+    const isLive = (link: PeerLink): boolean => !stopped && links.get(link.peerId) === link;
+
     const makeOffer = async (link: PeerLink): Promise<void> => {
         if (link.makingOffer) return;
         link.makingOffer = true;
         try {
             const offer = await link.pc.createOffer();
+            if (!isLive(link)) return;
             if (!offer.sdp) {
                 options.onNotice?.("empty_local_offer_sdp");
                 return;
             }
             await describe(link.pc, offer);
+            if (!isLive(link)) return;
             send({
                 type: "offer",
                 to: link.peerId,
                 sdp: link.pc.localDescription?.sdp ?? offer.sdp,
             });
         } catch {
-            options.onNotice?.("offer_failed");
+            if (isLive(link)) options.onNotice?.("offer_failed");
         } finally {
             link.makingOffer = false;
         }
@@ -284,7 +317,7 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
     };
 
     const addPeer = async (peerId: string, { offerer }: { offerer: boolean }): Promise<void> => {
-        if (links.has(peerId)) return;
+        if (stopped || links.has(peerId)) return;
 
         const pc = createPeerConnection(iceServers);
         const link: PeerLink = {
@@ -308,6 +341,7 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
                 pc.addTransceiver(slot.kind, { direction: "sendrecv" }),
             );
             await attachLocalTracks(link, slots, localTracks);
+            if (!isLive(link)) return;
         }
 
         pc.onicecandidate = (event): void => {
@@ -346,9 +380,10 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
     const acceptOffer = async (from: string, sdp: string): Promise<void> => {
         if (!links.has(from)) await addPeer(from, { offerer: false });
         const link = links.get(from);
-        if (!link) return;
+        if (!link || !isLive(link)) return;
 
         await link.pc.setRemoteDescription({ type: "offer", sdp });
+        if (!isLive(link)) return;
         link.remoteReady = true;
         await drainCandidates(link);
 
@@ -356,18 +391,22 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
             adoptTransceivers(link);
             await attachLocalTracks(link, slots, localTracks);
         }
+        if (!isLive(link)) return;
 
         const answer = await link.pc.createAnswer();
+        if (!isLive(link)) return;
         if (!answer.sdp) {
             options.onNotice?.("empty_local_answer_sdp");
             return;
         }
         await describe(link.pc, answer);
+        if (!isLive(link)) return;
         send({ type: "answer", to: from, sdp: link.pc.localDescription?.sdp ?? answer.sdp });
         await applyQuality(quality);
     };
 
     const accept = async (message: MeshMessage & { from: string }): Promise<void> => {
+        if (stopped) return;
         if (message.type === "offer") {
             await acceptOffer(message.from, message.sdp);
             return;
@@ -378,6 +417,7 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
 
         if (message.type === "answer") {
             await link.pc.setRemoteDescription({ type: "answer", sdp: message.sdp });
+            if (!isLive(link)) return;
             link.remoteReady = true;
             await drainCandidates(link);
             await applyQuality(quality);
@@ -393,6 +433,7 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
     };
 
     const setLocalTrack = async (slot: string, track: MediaStreamTrack | null): Promise<void> => {
+        if (stopped) return;
         localTracks.set(slot, track);
         const index = slots.findIndex((entry) => entry.name === slot);
         if (index < 0) return;
@@ -410,11 +451,13 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
     };
 
     const stop = (): void => {
+        if (stopped) return;
+        stopped = true;
         for (const link of links.values()) link.pc.close();
         links.clear();
         peers.clear();
         samplers.clear();
-        stopped = true;
+        localTracks.clear();
         syncStatsTimer();
         emitPeers();
         options.onState?.("closed");

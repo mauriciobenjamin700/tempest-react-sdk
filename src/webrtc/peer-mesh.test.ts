@@ -1049,3 +1049,155 @@ describe("createPeerMesh — measuring its own links", () => {
         expect(mesh.peers[0].stats?.kbps, "the report carries video only").toBe(0);
     });
 });
+
+describe("createPeerMesh — stop() is terminal", () => {
+    let restore: () => void;
+    beforeEach(() => {
+        restore = installPeerConnection();
+    });
+    afterEach(() => {
+        vi.restoreAllMocks();
+        restore();
+    });
+
+    /** An offer from a peer the mesh may or may not know. */
+    function offerFrom(peerId: string): MeshMessage & { from: string } {
+        return { type: "offer", from: peerId, to: "me", sdp: "v=0\r\nremote-offer" };
+    }
+
+    it("answers no offer that arrives after stop, and publishes no track on it", async () => {
+        const onState = vi.fn();
+        const { mesh, sent } = meshWith({ onState });
+        await mesh.setLocalTrack("mic", fakeMediaTrack("audio"));
+        await mesh.setLocalTrack("cam", fakeMediaTrack("video"));
+        mesh.stop();
+        onState.mockClear();
+
+        await expect(mesh.accept(offerFrom("late-peer"))).resolves.toBeUndefined();
+
+        expect(FakePeerConnection.instances).toHaveLength(0);
+        expect(sent).toEqual([]);
+        expect(mesh.peers).toEqual([]);
+        expect(mesh.getConnection("late-peer")).toBeNull();
+        expect(onState).not.toHaveBeenCalled();
+    });
+
+    it("opens no link from addPeer after stop", async () => {
+        const { mesh, sent } = meshWith();
+        mesh.stop();
+
+        await mesh.addPeer("peer-1", { offerer: true });
+
+        expect(FakePeerConnection.instances).toHaveLength(0);
+        expect(sent).toEqual([]);
+    });
+
+    it("forgets the local tracks, so a track set after stop reaches no link", async () => {
+        const { mesh } = meshWith();
+        mesh.stop();
+
+        await mesh.setLocalTrack("mic", fakeMediaTrack("audio"));
+        await mesh.addPeer("peer-1", { offerer: true });
+        await mesh.accept(offerFrom("peer-2"));
+
+        expect(FakePeerConnection.instances).toHaveLength(0);
+    });
+
+    it("drops an offer whose remote description was still being applied when stop ran", async () => {
+        const onNotice = vi.fn();
+        const { mesh, sent } = meshWith({ onNotice });
+        await mesh.setLocalTrack("mic", fakeMediaTrack("audio"));
+        let release: () => void = () => undefined;
+        const gate = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        const original = FakePeerConnection.prototype.setRemoteDescription;
+        const spy = vi
+            .spyOn(FakePeerConnection.prototype, "setRemoteDescription")
+            .mockImplementation(async function (
+                this: FakePeerConnection,
+                description: RTCSessionDescriptionInit,
+            ) {
+                await original.call(this, description);
+                await gate;
+            });
+
+        const pending = mesh.accept(offerFrom("peer-1"));
+        await vi.waitFor(() => expect(spy).toHaveBeenCalled());
+        mesh.stop();
+        release();
+
+        await expect(pending).resolves.toBeUndefined();
+        expect(sent.filter((message) => message.type === "answer")).toEqual([]);
+        const senders = connection()
+            .getTransceivers()
+            .map((transceiver) => transceiver.sender.track);
+        expect(senders.every((track) => track === null)).toBe(true);
+        expect(onNotice).not.toHaveBeenCalled();
+    });
+
+    it("drops an answer whose remote description was still being applied when stop ran", async () => {
+        const { mesh } = meshWith();
+        await mesh.addPeer("peer-1", { offerer: true });
+        const original = FakePeerConnection.prototype.setRemoteDescription;
+        let release: () => void = () => undefined;
+        const gate = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        vi.spyOn(FakePeerConnection.prototype, "setRemoteDescription").mockImplementation(
+            async function (this: FakePeerConnection, description: RTCSessionDescriptionInit) {
+                await original.call(this, description);
+                await gate;
+            },
+        );
+        await mesh.accept({
+            type: "ice",
+            from: "peer-1",
+            to: "me",
+            candidate: "candidate:early",
+            sdpMid: "0",
+            sdpMLineIndex: 0,
+        });
+
+        const pending = mesh.accept({
+            type: "answer",
+            from: "peer-1",
+            to: "me",
+            sdp: "v=0\r\nremote-answer",
+        });
+        mesh.stop();
+        release();
+
+        await expect(pending).resolves.toBeUndefined();
+        expect(connection().accepted).toEqual([]);
+    });
+
+    it("sends no offer and raises no notice for a link stop closed while it was being opened", async () => {
+        const onNotice = vi.fn();
+        const onPeers = vi.fn();
+        const { mesh, sent } = meshWith({ onNotice, onPeers });
+        await mesh.setLocalTrack("mic", fakeMediaTrack("audio"));
+
+        const pending = mesh.addPeer("peer-1", { offerer: true });
+        mesh.stop();
+        onPeers.mockClear();
+        await pending;
+
+        expect(sent).toEqual([]);
+        expect(onNotice).not.toHaveBeenCalled();
+        expect(onPeers).not.toHaveBeenCalled();
+    });
+
+    it("keeps closed once stopped, whatever a closed connection reports afterwards", async () => {
+        const onState = vi.fn();
+        const { mesh } = meshWith({ onState });
+        await mesh.addPeer("peer-1", { offerer: true });
+        mesh.stop();
+        onState.mockClear();
+
+        connection().setConnectionState("closed");
+        mesh.stop();
+
+        expect(onState).not.toHaveBeenCalled();
+    });
+});

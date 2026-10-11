@@ -4,6 +4,23 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`createPeerMesh`: `stop()` é terminal — oferta que chega depois do hang-up não reabre o microfone
+  e a câmera (#442).** Antes, `accept()`/`addPeer()` ignoravam a flag `stopped` e `stop()` não
+  esquecia as tracks locais: uma oferta atrasada (de um ex-participante, ou de qualquer um que a
+  sinalização repassasse) criava um `RTCPeerConnection` novo, anexava mic e câmera ainda vivos e
+  respondia, enquanto a mesh seguia reportando `closed`. Medido em Chromium real com dois peers
+  (`--use-fake-device-for-media-stream`, sinalização local): depois do `stop()`, o peer atrasado via
+  o link `connected` com `mic` e `cam` e recebia ~65 kB/s; com a correção, nenhuma conexão é aberta
+  e o delta é 0. Agora `accept`, `addPeer`, `setLocalTrack` e `applyQuality` viram no-op depois do
+  `stop()`, `stop()` limpa as tracks e é idempotente, e toda continuação de negociação (`offer`,
+  `answer`, criação do link) re-confere que o link ainda é o vivo antes de seguir — sem `answer` nem
+  `onNotice("offer_failed")` espúrios para um link que o `stop()`/`removePeer()` fechou no meio de um
+  `await`. As tracks em si não são paradas: pertencem ao chamador. O duplo de teste
+  `FakePeerConnection` agora rejeita negociação depois de `close()` com `InvalidStateError`, como o
+  browser. Docs PT-BR/EN em `docs/webrtc.md` ("Encerrar é definitivo").
+
 ## [0.76.0] — 2026-10-10
 
 ### Adicionado

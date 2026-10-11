@@ -12,6 +12,11 @@ import { vi } from "vitest";
  *    not reuse those.
  * 2. `addIceCandidate` **throws** while `remoteDescription` is `null`.
  * 3. A transceiver has no `mid` until it is negotiated.
+ *
+ * It also rejects every negotiation call once closed, with the
+ * `InvalidStateError` a browser raises: a fake that keeps answering after
+ * `close()` hides every race in which the mesh keeps negotiating on a link it
+ * already tore down.
  */
 
 /** An `RTCRtpSender` that records what was written to it. */
@@ -121,18 +126,26 @@ export class FakePeerConnection {
         return [...this.transceivers];
     }
 
+    /** Reject the way a browser does when a closed connection is asked to negotiate. */
+    private assertOpen(): void {
+        if (this.closed) throw new DOMException("the connection is closed", "InvalidStateError");
+    }
+
     async createOffer(): Promise<RTCSessionDescriptionInit> {
+        this.assertOpen();
         if (FakePeerConnection.offerRejects) throw new Error("the connection is closing");
         const sdp = FakePeerConnection.offerSdp;
         return sdp === null ? { type: "offer" } : { type: "offer", sdp };
     }
 
     async createAnswer(): Promise<RTCSessionDescriptionInit> {
+        this.assertOpen();
         const sdp = FakePeerConnection.answerSdp;
         return sdp === null ? { type: "answer" } : { type: "answer", sdp };
     }
 
     async setLocalDescription(description: RTCSessionDescriptionInit): Promise<void> {
+        this.assertOpen();
         if (!FakePeerConnection.tracksLocalDescription) return;
         this.localDescription = description;
     }
@@ -146,6 +159,7 @@ export class FakePeerConnection {
      * ends up on the wrong media.
      */
     async setRemoteDescription(description: RTCSessionDescriptionInit): Promise<void> {
+        this.assertOpen();
         this.remoteDescription = description;
         if (description.type !== "offer") return;
         for (let index = 0; index < FakePeerConnection.remoteMLines; index += 1) {
@@ -156,6 +170,7 @@ export class FakePeerConnection {
     }
 
     async addIceCandidate(candidate: RTCIceCandidateInit): Promise<void> {
+        this.assertOpen();
         if (this.remoteDescription === null) {
             throw new DOMException("remote description is null", "InvalidStateError");
         }

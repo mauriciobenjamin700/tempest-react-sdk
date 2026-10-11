@@ -4,6 +4,49 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Breaking
+
+- **`installRuntimeCache` deixa requisição com `Authorization` fora do cache** (#443). Antes, toda
+  resposta `ok` era gravada chaveada só pela URL; medido no Chromium 153 (11/10/2026, harness com SW,
+  Cache Storage e IndexedDB reais contra API de fixture em loopback), a conta B offline — ou com a
+  rede acima de `networkTimeoutSeconds` — recebia o `GET /api/me` da conta A. Agora a rota deixa a
+  requisição autenticada ir à rede sem tocar o cache. Quem dependia do `/api` autenticado offline liga
+  **`cacheAuthenticated: true`** na rota: a entrada é gravada com `Vary: Authorization` e só casa com o
+  mesmo bearer (medido: B erra, A acerta).
+- **`Cache-Control: no-store` nunca é gravado, e `private` só com `cacheAuthenticated`.**
+- **`maxAgeSeconds` vale no fallback.** `network-first` e `stale-while-revalidate` devolviam a entrada
+  vencida quando a rede falhava; agora ela é miss e a requisição falha.
+- **`installBackgroundSync` não grava header de credencial** (#444). `Authorization`, `x-api-key`,
+  `x-auth-token`, `x-csrf-token`, `x-xsrf-token` (`DEFAULT_CREDENTIAL_HEADERS`) saem antes do
+  IndexedDB; medido antes, o bearer de A ficava em `tempest-bg-sync` depois do logout e o replay o
+  enviava ao servidor. No replay o worker pede a credencial atual à página por `postMessage`: sem
+  página que responda, a entrada fica pendente (até `maxRetentionMinutes`) em vez de sair sem
+  credencial; resposta `null` descarta. `credentialHeaders: []` restaura o comportamento antigo.
+
+### Adicionado
+
+- **`clearSessionData()`** (`/sw`) — no logout, apaga todo bucket do Cache Storage menos o precache
+  (`tempest-precache-*`) e a fila de background sync. A doc mandava `clearCaches("tempest-")`, que
+  não casava com o cache `api` da receita (medido: `deleted []`) e, se casasse, derrubaria o precache.
+- **`clearBackgroundSyncQueue(queueName?)`** — apaga a fila de mutações pendentes.
+- **`provideBackgroundSyncCredentials(getHeaders)`** — lado página do pedido de credencial no
+  replay. O worker só aplica os nomes de header que a requisição original carregava.
+- **`installBackgroundSync({ credentialHeaders, beforeReplay })`**, `DEFAULT_CREDENTIAL_HEADERS`,
+  `BACKGROUND_SYNC_CREDENTIALS_MESSAGE` e os tipos `BackgroundSyncReplayContext`,
+  `BackgroundSyncCredentialsRequest`, `BackgroundSyncCredentialsProvider`,
+  `ClearSessionDataOptions`, `ClearSessionDataResult`.
+- **`RuntimeRoute.cacheAuthenticated`**.
+
+### Corrigido
+
+- **`maxAgeSeconds` não vencia nada numa API de outra origem.** A idade vinha do header `Date`, que
+  resposta CORS não expõe (medido: `headers.get("date")` → `null` cross-origin). A entrada agora
+  carrega a hora da gravação em `x-tempest-cached-at`; entrada antiga sem o carimbo cai no `Date`.
+- **A fila de background sync preserva o modo `credentials`** da requisição original, para API com
+  sessão por cookie reenviar com cookie.
+- **Template PWA e doc nomeiam os caches `tempest-api`/`tempest-media`**, e a doc troca a limpeza de
+  logout por `clearSessionData()`.
+
 ## [0.76.0] — 2026-10-10
 
 ### Adicionado

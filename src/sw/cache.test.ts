@@ -602,3 +602,146 @@ describe("installRuntimeCache — cache hit after a failed refresh", () => {
         expect(res.status).toBe(206);
     });
 });
+
+describe("installRuntimeCache — session isolation (#443)", () => {
+    const bearer = (token: string): Request =>
+        new Request("https://app.test/api/me", { headers: { Authorization: `Bearer ${token}` } });
+
+    it("leaves a request carrying Authorization to the network unless the route opts in", async () => {
+        installRuntimeCache([{ match: /\/api\//, strategy: "network-first", cacheName: "api" }]);
+        expect(await dispatchFetch(bearer("A"))).toBe("passthrough");
+        expect(await cacheStorage.keys()).toEqual([]);
+    });
+
+    it("never serves one bearer's cached /api/me to another bearer offline by default", async () => {
+        (await cacheStorage.open("api")).store.set(
+            "https://app.test/api/me",
+            new Response('{"user":"dummy-a"}'),
+        );
+        installRuntimeCache([{ match: /\/api\//, strategy: "network-first", cacheName: "api" }]);
+        fetchMock.mockRejectedValue(new Error("offline"));
+        expect(await dispatchFetch(bearer("B"))).toBe("passthrough");
+    });
+
+    it("stores authenticated responses with Vary: Authorization under cacheAuthenticated", async () => {
+        installRuntimeCache([
+            {
+                match: /\/api\//,
+                strategy: "network-first",
+                cacheName: "api",
+                cacheAuthenticated: true,
+            },
+        ]);
+        fetchMock.mockResolvedValueOnce(
+            new Response("a", { headers: { vary: "Accept-Encoding" } }),
+        );
+        await dispatchFetch(bearer("A"));
+        const stored = (await cacheStorage.open("api")).store.get("https://app.test/api/me");
+        expect(stored?.headers.get("vary")).toBe("Accept-Encoding, Authorization");
+        expect(Number(stored?.headers.get("x-tempest-cached-at"))).toBeGreaterThan(0);
+        expect(await stored?.text()).toBe("a");
+    });
+
+    it("does not duplicate an existing Vary: Authorization", async () => {
+        installRuntimeCache([
+            {
+                match: /\/api\//,
+                strategy: "cache-first",
+                cacheName: "api",
+                cacheAuthenticated: true,
+            },
+        ]);
+        fetchMock.mockResolvedValueOnce(new Response("a", { headers: { vary: "authorization" } }));
+        await dispatchFetch(bearer("A"));
+        const stored = (await cacheStorage.open("api")).store.get("https://app.test/api/me");
+        expect(stored?.headers.get("vary")).toBe("authorization");
+    });
+
+    it("never stores Cache-Control: no-store, even under cacheAuthenticated", async () => {
+        installRuntimeCache([
+            {
+                match: /\/api\//,
+                strategy: "cache-first",
+                cacheName: "api",
+                cacheAuthenticated: true,
+            },
+        ]);
+        fetchMock.mockResolvedValue(
+            new Response("a", { headers: { "cache-control": "max-age=0, No-Store" } }),
+        );
+        const res = (await dispatchFetch(bearer("A"))) as Response;
+        expect(await res.text()).toBe("a");
+        expect((await (await cacheStorage.open("api")).keys()).length).toBe(0);
+    });
+
+    it("stores Cache-Control: private only under cacheAuthenticated", async () => {
+        installRuntimeCache([
+            { match: /\/pub\//, strategy: "cache-first", cacheName: "pub" },
+            {
+                match: /\/own\//,
+                strategy: "cache-first",
+                cacheName: "own",
+                cacheAuthenticated: true,
+            },
+        ]);
+        fetchMock.mockImplementation(
+            async () => new Response("p", { headers: { "cache-control": "private, max-age=60" } }),
+        );
+        await dispatchFetch(new Request("https://app.test/pub/a"));
+        await dispatchFetch(new Request("https://app.test/own/a"));
+        expect((await (await cacheStorage.open("pub")).keys()).length).toBe(0);
+        expect((await (await cacheStorage.open("own")).keys()).length).toBe(1);
+    });
+
+    it("network-first does not fall back to an entry past maxAgeSeconds", async () => {
+        (await cacheStorage.open("api")).store.set(
+            "https://app.test/api/list",
+            new Response("old", {
+                headers: { date: new Date(Date.now() - 600_000).toUTCString() },
+            }),
+        );
+        installRuntimeCache([
+            { match: /\/api\//, strategy: "network-first", cacheName: "api", maxAgeSeconds: 300 },
+        ]);
+        fetchMock.mockRejectedValue(new Error("offline"));
+        await expect(dispatchFetch(new Request("https://app.test/api/list"))).rejects.toThrow(
+            "no network and no cache",
+        );
+    });
+
+    it("stale-while-revalidate does not fall back to an entry past maxAgeSeconds", async () => {
+        (await cacheStorage.open("swr")).store.set(
+            "https://app.test/swr/a",
+            new Response("old", {
+                headers: { date: new Date(Date.now() - 600_000).toUTCString() },
+            }),
+        );
+        installRuntimeCache([
+            {
+                match: /\/swr\//,
+                strategy: "stale-while-revalidate",
+                cacheName: "swr",
+                maxAgeSeconds: 300,
+            },
+        ]);
+        fetchMock.mockRejectedValue(new Error("offline"));
+        await expect(dispatchFetch(new Request("https://app.test/swr/a"))).rejects.toThrow(
+            "no network and no cache",
+        );
+    });
+
+    it("expires by the write stamp when the response exposes no Date (cross-origin CORS)", async () => {
+        (await cacheStorage.open("x")).store.set(
+            "https://api.other.test/x/a",
+            new Response("old", {
+                headers: { "x-tempest-cached-at": String(Date.now() - 600_000) },
+            }),
+        );
+        installRuntimeCache([
+            { match: /\/x\//, strategy: "cache-first", cacheName: "x", maxAgeSeconds: 300 },
+        ]);
+        fetchMock.mockResolvedValueOnce(new Response("fresh"));
+        const res = (await dispatchFetch(new Request("https://api.other.test/x/a"))) as Response;
+        expect(await res.text()).toBe("fresh");
+    });
+});

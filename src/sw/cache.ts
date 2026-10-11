@@ -20,7 +20,7 @@
  *
  *   // Register specific routes FIRST so they win over the precache catch-all.
  *   installRuntimeCache([
- *     { match: /\/api\//, strategy: "network-first", cacheName: "api", maxAgeSeconds: 300 },
+ *     { match: /\/api\//, strategy: "network-first", cacheName: "tempest-api", maxAgeSeconds: 300 },
  *   ]);
  *   installPrecache();
  */
@@ -80,6 +80,25 @@ export interface RuntimeRoute {
      * resource is cached once (the `Range` header is stripped before caching).
      */
     rangeRequests?: boolean;
+    /**
+     * Opt in to caching requests that carry an `Authorization` header, and
+     * responses marked `Cache-Control: private`. Default `false`.
+     *
+     * Cache Storage is keyed by URL and outlives the session: without this
+     * gate, a `GET /api/me` stored for one account was served to the next
+     * account on the same browser whenever the network failed or exceeded
+     * `networkTimeoutSeconds` (reproduced in Chromium 153, 11/10/2026). With
+     * the default, authenticated requests bypass the route entirely and reach
+     * the network as if no service worker were installed.
+     *
+     * When enabled, every stored entry gets `Vary: Authorization` appended, so
+     * the Cache API only matches it for the same bearer — another account (or no
+     * account) misses instead of reading it. A token rotated while online simply
+     * repopulates the entry. Pair it with `clearSessionData()` on logout, which
+     * removes the entries themselves. `Cache-Control: no-store` is never cached,
+     * opt-in or not.
+     */
+    cacheAuthenticated?: boolean;
 }
 
 /** Options for {@link installPrecache}. */
@@ -111,13 +130,78 @@ interface PrecacheManifest {
 let precacheName = "";
 const precachedPaths = new Set<string>();
 
-/** Whether a cached response has aged past `maxAgeSeconds` (best-effort, via `Date`). */
+/**
+ * Header stamped on every runtime-cache entry with the epoch milliseconds of the
+ * write. `Date` alone is not enough: it is not a CORS-safelisted response
+ * header, so for a cross-origin API the worker reads `null` and `maxAgeSeconds`
+ * would never expire anything.
+ */
+const CACHED_AT_HEADER = "x-tempest-cached-at";
+
+/**
+ * Whether a cached response has aged past `maxAgeSeconds`. Reads the
+ * {@link CACHED_AT_HEADER} stamp written by the runtime cache, and falls back to
+ * `Date` for entries written before the stamp existed.
+ */
 function isExpired(response: Response, maxAgeSeconds?: number): boolean {
     if (!maxAgeSeconds) return false;
+    const stamp = Number(response.headers.get(CACHED_AT_HEADER));
     const dateHeader = response.headers.get("date");
-    if (!dateHeader) return false;
-    const age = (Date.now() - new Date(dateHeader).getTime()) / 1000;
-    return age > maxAgeSeconds;
+    const storedAt = stamp > 0 ? stamp : dateHeader ? new Date(dateHeader).getTime() : NaN;
+    if (Number.isNaN(storedAt)) return false;
+    return (Date.now() - storedAt) / 1000 > maxAgeSeconds;
+}
+
+/** The `Cache-Control` directives of a response, lower-cased. */
+function cacheControlDirectives(response: Response): string[] {
+    return (response.headers.get("cache-control") ?? "")
+        .toLowerCase()
+        .split(",")
+        .map((directive) => directive.trim().split("=")[0]);
+}
+
+/**
+ * Whether a network response may be written to the route's cache: it must be
+ * `ok`, never `no-store`, and `private` only under `cacheAuthenticated`.
+ */
+function isStorable(response: Response, route: RuntimeRoute): boolean {
+    if (!response.ok) return false;
+    const directives = cacheControlDirectives(response);
+    if (directives.includes("no-store")) return false;
+    return route.cacheAuthenticated === true || !directives.includes("private");
+}
+
+/**
+ * Write a response to the route's cache with the {@link CACHED_AT_HEADER} stamp
+ * and, under `cacheAuthenticated`, `Vary: Authorization` appended so the entry
+ * only matches the bearer that produced it. Skips responses that
+ * {@link isStorable} rejects, then trims the cache to `maxEntries`.
+ */
+async function store(
+    cache: Cache,
+    request: Request,
+    response: Response,
+    route: RuntimeRoute,
+): Promise<void> {
+    if (!isStorable(response, route)) return;
+    const headers = new Headers(response.headers);
+    headers.set(CACHED_AT_HEADER, String(Date.now()));
+    if (route.cacheAuthenticated) {
+        const vary = headers.get("vary");
+        const varies = (vary ?? "")
+            .toLowerCase()
+            .split(",")
+            .map((name) => name.trim());
+        if (!varies.includes("authorization") && !varies.includes("*")) {
+            headers.set("vary", vary ? `${vary}, Authorization` : "Authorization");
+        }
+    }
+    const copy = response.clone();
+    await cache.put(
+        request,
+        new Response(copy.body, { status: copy.status, statusText: copy.statusText, headers }),
+    );
+    await trimCache(route.cacheName, route.maxEntries);
 }
 
 /** Drop oldest entries until the cache holds at most `maxEntries`. */
@@ -137,10 +221,7 @@ async function cacheFirst(request: Request, route: RuntimeRoute): Promise<Respon
     if (cached && !isExpired(cached, route.maxAgeSeconds)) return cached;
 
     const response = await fetch(request);
-    if (response.ok) {
-        await cache.put(request, response.clone());
-        await trimCache(route.cacheName, route.maxEntries);
-    }
+    await store(cache, request, response, route);
     return response;
 }
 
@@ -149,10 +230,7 @@ async function networkFirst(request: Request, route: RuntimeRoute): Promise<Resp
 
     const network = (async (): Promise<Response> => {
         const response = await fetch(request);
-        if (response.ok) {
-            await cache.put(request, response.clone());
-            await trimCache(route.cacheName, route.maxEntries);
-        }
+        await store(cache, request, response, route);
         return response;
     })();
 
@@ -167,7 +245,7 @@ async function networkFirst(request: Request, route: RuntimeRoute): Promise<Resp
         return await network;
     } catch {
         const cached = await cache.match(request);
-        if (cached) return cached;
+        if (cached && !isExpired(cached, route.maxAgeSeconds)) return cached;
         throw new Error("network-first: no network and no cache");
     }
 }
@@ -178,18 +256,15 @@ async function staleWhileRevalidate(request: Request, route: RuntimeRoute): Prom
 
     const network = fetch(request)
         .then(async (response) => {
-            if (response.ok) {
-                await cache.put(request, response.clone());
-                await trimCache(route.cacheName, route.maxEntries);
-            }
+            await store(cache, request, response, route);
             return response;
         })
         .catch(() => undefined);
 
-    if (cached && !isExpired(cached, route.maxAgeSeconds)) return cached;
+    const fresh = cached && !isExpired(cached, route.maxAgeSeconds) ? cached : undefined;
+    if (fresh) return fresh;
     const response = await network;
     if (response) return response;
-    if (cached) return cached;
     throw new Error("stale-while-revalidate: no network and no cache");
 }
 
@@ -213,7 +288,7 @@ function routeMatches(route: RuntimeRoute, url: URL, request: Request): boolean 
 /**
  * Build a `206 Partial Content` response from a full one for an HTTP `Range`
  * request. Supports `bytes=start-end`, open-ended `bytes=start-` and suffix
- * `bytes=-suffixLength`. Returns the original response when there is no usable
+ * `bytes=-suffixLength` (the last N bytes). Returns the original response when there is no usable
  * `Range` header, or a `416` when the range is unsatisfiable.
  *
  * @param request The incoming request (its `Range` header drives the slice).
@@ -237,7 +312,6 @@ export async function createPartialResponse(
     let start: number;
     let end: number;
     if (match[1] === "") {
-        // Suffix range: last N bytes.
         const suffix = Number(match[2]);
         start = Math.max(0, total - suffix);
         end = total - 1;
@@ -272,6 +346,13 @@ export async function createPartialResponse(
  * given runtime strategies. Non-matching requests are left untouched (no
  * `respondWith`), so a later {@link installPrecache} can handle them.
  *
+ * A request carrying `Authorization` is also left untouched unless its route
+ * sets `cacheAuthenticated`, and a response with `Cache-Control: no-store`
+ * (or `private`, without that opt-in) is served but never stored. `maxAgeSeconds`
+ * applies to every read, including the offline fallback: an expired entry is a
+ * miss, never a last resort. Under `rangeRequests`, the full resource is cached
+ * once (the `Range` header stripped) and each range is sliced from it.
+ *
  * Register this BEFORE `installPrecache` so specific routes win over the
  * precache catch-all.
  *
@@ -286,9 +367,9 @@ export function installRuntimeCache(routes: RuntimeRoute[]): void {
         const url = new URL(request.url);
         const route = routes.find((candidate) => routeMatches(candidate, url, request));
         if (!route) return;
+        if (!route.cacheAuthenticated && request.headers.has("authorization")) return;
 
         if (route.rangeRequests && request.headers.has("range")) {
-            // Cache/serve the FULL resource once (no Range), then slice it.
             const full = new Request(request.url, {
                 headers: stripRange(request.headers),
                 credentials: request.credentials,

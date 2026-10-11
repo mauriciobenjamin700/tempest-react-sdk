@@ -39,8 +39,8 @@ Dentro do seu `sw.ts`, registre as rotas específicas **antes** do precache (par
 import { installRuntimeCache, installPrecache } from "tempest-react-sdk/sw";
 
 installRuntimeCache([
-  { match: /\/api\//, strategy: "network-first", cacheName: "api", maxAgeSeconds: 300 },
-  { match: /\.(png|jpg|webp)$/, strategy: "cache-first", cacheName: "img", maxEntries: 60 },
+  { match: /\/api\//, strategy: "network-first", cacheName: "tempest-api", maxAgeSeconds: 300 },
+  { match: /\.(png|jpg|webp)$/, strategy: "cache-first", cacheName: "tempest-img", maxEntries: 60 },
 ]);
 
 installPrecache(); // app shell + navegação offline
@@ -63,6 +63,40 @@ installPrecache(); // app shell + navegação offline
 
     Com os defaults (`/precache-manifest.json` e `/index.html`), o worker instala, busca um manifest que responde 404 e a navegação offline nunca resolve.
 
+### Resposta autenticada não entra no cache (a não ser que você peça)
+
+O Cache Storage guarda por **URL** e sobrevive ao logout. Sem cuidado, o `GET /api/me` da conta A fica lá e é servido para a conta B no mesmo navegador assim que a rede cai — ou demora mais que `networkTimeoutSeconds`. Medido no Chromium 153 (11/10/2026), antes da 0.77.0: B, offline, recebia o corpo de A.
+
+Por isso o `installRuntimeCache` aplica quatro regras sozinho:
+
+- **Requisição com `Authorization` passa direto para a rede**: a rota não lê nem grava o cache, como se o service worker não existisse para ela.
+- **`Cache-Control: no-store` nunca é gravado**, e **`private`** só com opt-in.
+- **`maxAgeSeconds` vale também no fallback**: entrada vencida é miss, nunca "último recurso" offline. Isso vale para `network-first` e `stale-while-revalidate`.
+- **A idade conta da gravação**, não do header `Date` — que não é exposto em resposta CORS, então numa API em outra origem o `maxAgeSeconds` nunca vencia nada.
+
+Quer mesmo dados autenticados offline? Ligue `cacheAuthenticated` na rota:
+
+```ts
+/// <reference lib="webworker" />
+import { installRuntimeCache } from "tempest-react-sdk/sw";
+
+installRuntimeCache([
+  {
+    match: /\/api\//,
+    strategy: "network-first",
+    cacheName: "tempest-api",
+    networkTimeoutSeconds: 5,
+    maxAgeSeconds: 300,
+    cacheAuthenticated: true,
+  },
+]);
+```
+
+Com o opt-in, cada entrada é gravada com `Vary: Authorization`: o Cache API só a devolve para o **mesmo** bearer. Outra conta (ou nenhuma) erra o cache em vez de ler o dado. Um token renovado online simplesmente regrava a entrada.
+
+!!! note "Sessão por cookie"
+    O service worker não enxerga o `Cookie` da requisição, então não tem como saber que uma API com sessão por cookie é pessoal. Mande `Cache-Control: private` (ou `no-store`) nas respostas pessoais — agora o SDK respeita — e limpe os dados no logout com [`clearSessionData()`](#6-logout-apague-os-dados-da-sessao).
+
 ## 3. Background sync + periodic sync
 
 `installBackgroundSync` enfileira mutações (`POST`/`PUT`/`PATCH`/`DELETE`) que falham offline e as reenvia quando a rede volta — via Background Sync API, com fallback oportunista para navegadores sem ela (Safari).
@@ -83,6 +117,42 @@ await registerPeriodicSync({ registration, minIntervalMinutes: 360 });
 ```
 
 `registerPeriodicSync` checa a permissão `periodic-background-sync` primeiro e retorna `false` quando indisponível (Chrome-only) — chamar sempre é seguro.
+
+### Credencial não vai para o IndexedDB
+
+A fila vive no IndexedDB `tempest-bg-sync` e sobrevive ao logout. Por isso o `installBackgroundSync` **remove os headers de credencial** antes de gravar — `Authorization` e o resto de `DEFAULT_CREDENTIAL_HEADERS` (`x-api-key`, `x-auth-token`, `x-csrf-token`, …). Antes da 0.77.0 o bearer ficava legível ali depois do logout e a mutação era reenviada com a identidade antiga (medido no Chromium 153, 11/10/2026).
+
+No replay, o worker pede a credencial **atual** à página aberta, por `postMessage` (mensagem do tipo `BACKGROUND_SYNC_CREDENTIALS_MESSAGE`, com um `MessagePort` para a resposta). Instale o provedor uma vez, ao lado do seu auth:
+
+```ts
+import { createTempestAuth } from "tempest-react-sdk";
+import { provideBackgroundSyncCredentials } from "tempest-react-sdk/sw";
+
+export const auth = createTempestAuth({ baseURL: "https://api.example.com" });
+
+provideBackgroundSyncCredentials(() => {
+  const { token } = auth.useAuthStore.getState();
+  return token ? { Authorization: `Bearer ${token}` } : null;
+});
+```
+
+O que acontece com cada entrada:
+
+| Resposta do provedor | Replay |
+| -- | -- |
+| headers | reenvia com eles — só os **nomes** que a requisição original tinha, então devolver `Authorization` sempre não vaza o token para uma URL que não o recebia |
+| `null` (sem sessão) | descarta a entrada, sem enviar |
+| nenhuma (aba fechada, provedor não instalado ou que lançou) | fica pendente até `maxRetentionMinutes` |
+
+Entrada que não tinha credencial nenhuma é reenviada como estava, sem perguntar.
+
+Fora desse caminho, há dois controles no `installBackgroundSync`:
+
+- **`credentialHeaders`** — a lista de headers removidos. Para um header próprio: `[...DEFAULT_CREDENTIAL_HEADERS, "x-tenant-key"]`.
+- **`beforeReplay(request, { queuedAt, strippedHeaders })`** — substitui o pedido à página: devolva o `Request` a enviar, `null` para descartar, ou lance para manter pendente. Útil quando o worker consegue a credencial sozinho.
+
+!!! warning "`credentialHeaders: []` volta ao comportamento antigo"
+    Com a lista vazia, todo header — bearer incluso — vai em texto puro para o IndexedDB. É uma escolha explícita, para quem não tem página aberta no replay e aceita o risco.
 
 ## 4. Durabilidade: peça armazenamento persistente
 
@@ -109,7 +179,7 @@ Fora do React, use as funções puras `estimateStorage()` e `requestPersistentSt
 
 ## 5. Observabilidade do cache
 
-Para um readout "X MB cacheado" ou um "limpar cache" no logout, use os helpers de main thread:
+Para um readout "X MB cacheado" ou um botão "limpar cache", use os helpers de main thread:
 
 ```ts
 import { inspectCaches, clearCaches } from "tempest-react-sdk/sw";
@@ -117,12 +187,35 @@ import { inspectCaches, clearCaches } from "tempest-react-sdk/sw";
 const reports = await inspectCaches({ filter: "tempest-" });
 const totalMb = reports.reduce((n, r) => n + (r.bytes ?? 0), 0) / 1e6;
 
-await clearCaches("tempest-"); // no logout
+await clearCaches("tempest-img"); // um bucket específico
 ```
 
 `inspectCaches` mede bytes por padrão (lendo cada resposta); passe `measureBytes: false` para um relatório rápido só de contagem.
 
-## 6. UI de status offline
+## 6. Logout: apague os dados da sessão
+
+O cache de runtime e a fila de background sync são do **navegador**, não do usuário: a próxima conta que entrar herda os dois. No logout, chame `clearSessionData()`:
+
+```ts
+import { createTempestAuth } from "tempest-react-sdk";
+import { clearSessionData } from "tempest-react-sdk/sw";
+
+export const auth = createTempestAuth({ baseURL: "https://api.example.com" });
+
+export async function signOut() {
+  await clearSessionData();
+  auth.logout();
+}
+```
+
+Ele apaga **todo** bucket do Cache Storage menos o precache do app shell (`tempest-precache-*`), e a fila `tempest-bg-sync` inteira. Devolve `{ caches, queueCleared }` com o que removeu.
+
+Por que não um prefixo: antes da 0.77.0 a doc mandava `clearCaches("tempest-")` no logout, e a receita chamava o cache de `api` — o prefixo não casava e **nada** era apagado. Pior: casaria com `tempest-precache-*` e derrubaria o app offline. O filtro padrão inverte a lógica, então funciona qualquer que seja o `cacheName` escolhido. Para estreitar, passe `caches` (um `CacheFilter`); para uma fila com outro nome, `queueName`. Só a fila: `clearBackgroundSyncQueue()`.
+
+!!! tip "Roda na página"
+    Cache Storage e IndexedDB são armazenamento da origem, acessíveis da `window` — não precisa mandar mensagem ao service worker. Se o seu auth expõe um callback de fim de sessão, chame `clearSessionData()` nele, para cobrir também a sessão que expira sozinha.
+
+## 7. UI de status offline
 
 Dois componentes prontos, guiados por `useOnline` e pelo motor de sync:
 
@@ -144,7 +237,7 @@ function StatusBar() {
 - **`<OfflineIndicator>`** — barra fixa que aparece offline e pisca uma confirmação ao reconectar. Não renderiza nada online, então é seguro montar na raiz do app.
 - **`<SyncStatusBadge>`** — pílula com ícone + label + contagem de pendências, alimentada por `useSyncStatus(sync).tone`.
 
-## 7. Hooks reativos do motor de sync
+## 8. Hooks reativos do motor de sync
 
 `useOfflineSync` inscreve um componente no `OfflineSync` e opcionalmente dispara flush no mount, no evento `online` e num intervalo:
 
@@ -160,7 +253,7 @@ function useNotesSync() {
 
 Para mutações **otimistas** que gravam no outbox e atualizam o cache do TanStack Query (com rollback em falha), use `useOfflineMutation` — veja [Query](./query.md#useofflinemutation).
 
-## 8. Resolução de conflitos
+## 9. Resolução de conflitos
 
 O pull sobrescreve o registro local pela versão do servidor. Quando precisar de uma política explícita dentro do `applyRemote`, os helpers cobrem os dois casos comuns (empate → remoto vence):
 
@@ -176,8 +269,9 @@ applyRemote: async (dto) => {
 ## Recap
 
 - **`useServiceWorkerUpdate` + `<UpdatePrompt>`** dão o fluxo de atualização com consentimento. ✅
-- **`installPrecache`** liga navigation preload; **`installRuntimeCache`** cobre as estratégias Workbox-like.
-- **`installBackgroundSync`** + **`registerPeriodicSync`** reenviam mutações offline, com ou sem navegação nova.
+- **`installPrecache`** liga navigation preload; **`installRuntimeCache`** cobre as estratégias Workbox-like e deixa resposta autenticada fora do cache, salvo `cacheAuthenticated`.
+- **`installBackgroundSync`** + **`registerPeriodicSync`** reenviam mutações offline, com ou sem navegação nova — sem gravar credencial; **`provideBackgroundSyncCredentials`** entrega a atual no replay.
+- **`clearSessionData`** no logout apaga cache de runtime e fila. 🔒
 - **`useStorageEstimate`** + **`requestPersistentStorage`** evitam o despejo do IndexedDB.
 - **`inspectCaches`/`clearCaches`** dão visibilidade e limpeza do cache.
 - **`<OfflineIndicator>` / `<SyncStatusBadge>` / `useOfflineSync` / `useSyncStatus`** montam a UI de status reativa. 🚀

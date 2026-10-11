@@ -1,4 +1,4 @@
-import type { RefreshContext } from "../http";
+import type { RequestAuthContext } from "../http";
 
 export interface CreateRefreshQueueOptions {
     /**
@@ -42,7 +42,7 @@ export interface CreateRefreshQueueOptions {
  * @param options - Optional token reader that enables already-refreshed
  *   detection.
  * @returns A function that refreshes at most once per rotation, accepting the
- *   {@link RefreshContext} `createApiClient` passes on a `401`.
+ *   {@link RequestAuthContext} `createApiClient` passes on a `401`.
  *
  * @example
  * const refresh = createRefreshQueue(() => AuthService.refresh(), {
@@ -56,12 +56,12 @@ export interface CreateRefreshQueueOptions {
 export function createRefreshQueue(
     refresh: () => Promise<void>,
     options: CreateRefreshQueueOptions = {},
-): (context?: RefreshContext) => Promise<void> {
+): (context?: Pick<RequestAuthContext, "token">) => Promise<void> {
     const { getToken } = options;
     let current: Promise<void> | null = null;
     let lastIssued: string | null = null;
 
-    return (context?: RefreshContext) => {
+    return (context?: Pick<RequestAuthContext, "token">) => {
         if (current) return current;
 
         if (getToken) {

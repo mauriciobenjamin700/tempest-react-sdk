@@ -252,12 +252,14 @@ Uma sessão termina de três jeitos: o usuário clica em **Sair** (`auth.logout(
 O `createTempestAuth` tem um lugar só para isso, que roda nos **três** caminhos: `onSessionEnd`.
 
 ```ts
-import { WebPushClient, createTempestAuth } from "tempest-react-sdk";
+import { WebPushClient, WebPushUnsubscribeError, createTempestAuth } from "tempest-react-sdk";
 
 interface User {
   id: string;
   name: string;
 }
+
+const ORPHANED_PUSH_KEY = "push-orphaned-subscriptions";
 
 export const auth = createTempestAuth<User>({
   baseURL: "https://api.exemplo.com",
@@ -268,7 +270,15 @@ export const auth = createTempestAuth<User>({
       onUnsubscribe: (sub) =>
         session.api.delete("/webpush/subscribe", { body: { endpoint: sub.endpoint } }),
     });
-    await push.unsubscribe().catch(() => false);
+    try {
+      await push.unsubscribe();
+    } catch (error) {
+      if (!(error instanceof WebPushUnsubscribeError)) return;
+      const pending: PushSubscriptionJSON[] = JSON.parse(
+        localStorage.getItem(ORPHANED_PUSH_KEY) ?? "[]",
+      );
+      localStorage.setItem(ORPHANED_PUSH_KEY, JSON.stringify([...pending, error.subscription]));
+    }
   },
 });
 
@@ -277,7 +287,10 @@ await auth.logout();
 
 Repare em `session.api`: quando o hook roda, o store **já foi limpo**, então `auth.api` não manda mais token nenhum. O `session.api` é um cliente que ainda manda o access token da sessão que acabou — é por ele que o `DELETE` sai autenticado. Ele nunca renova e nunca encerra sessão: um 401 ali só rejeita.
 
-E o `unsubscribe()` do push libera a inscrição do navegador **mesmo quando o `DELETE` falha** (veja [Push → Desinscrever](./push.md#desinscrever-o-que-quase-todo-mundo-erra)). É isso que fecha o caminho automático: quando a sessão expira, o servidor já recusa o token, o `DELETE` volta 401 — e o navegador para de receber as notificações da conta anterior do mesmo jeito.
+E o `unsubscribe()` do push libera a inscrição do navegador **mesmo quando o `DELETE` falha** (veja [Push → Desinscrever](./push.md#desinscrever-o-que-quase-todo-mundo-erra)). É isso que fecha o caminho automático: quando a sessão expira, o servidor já recusa o token, o `DELETE` volta 401 — e o navegador para de receber as notificações da conta anterior do mesmo jeito. O `WebPushUnsubscribeError` traz o `subscription` com o `endpoint`: o exemplo guarda para reenviar o `DELETE` quando houver sessão de novo, em vez de esperar o `404`/`410` do próximo envio.
+
+!!! warning "Dentro do hook, use `session.api` — não `auth.api`, `auth.logout()` nem `auth.login()`"
+    Quando o hook roda, o store já está vazio: `auth.api` sai sem token, e o 401 dele encerraria uma sessão que já acabou. Enquanto um hook roda, nenhuma chamada espera o teardown em andamento — se esperasse, uma chamada feita **de dentro** do hook esperaria a si mesma para sempre. `session.api` é o cliente feito para isso.
 
 !!! tip "Limpe aqui todo estado por usuário"
     O hook é o ponto único de teardown: o push acima, e ao lado dele qualquer outro estado que pertence à conta — o cache de queries persistido, a fila de background sync do service worker, os caches de resposta autenticada, o usuário da telemetria. Componha tudo dentro do mesmo `onSessionEnd`; cada passo independente com seu próprio `.catch`, para uma falha não pular os outros.
@@ -295,9 +308,9 @@ Nos três caminhos — `logout()`, o encerramento automático e a troca de conta
 
 `reason` é `"logout"` no `logout()` explícito, `"expired"` quando o cliente encerrou e `"switch"` quando um `login()` substituiu a sessão. No `"logout"` e no `"switch"` o token normalmente ainda vale; no `"expired"` o servidor já o recusou, então trate a chamada autenticada como tentativa e deixe a parte local do teardown independente dela.
 
-`logout()` devolve `Promise<void>`: o store é limpo antes do primeiro `await`, então quem ignora a promise vê o estado deslogado na hora. A promise resolve quando o hook terminou e rejeita com o erro dele. No caminho automático o erro do hook é engolido — a request que encerrou a sessão já rejeita com o 401 dela.
+`logout()` devolve `Promise<void>`: o store é limpo antes do primeiro `await`, então quem ignora a promise vê o estado deslogado na hora. A promise resolve quando o hook terminou e rejeita com o erro dele — e um `logout()` sem `await` cujo hook lança vira `unhandledrejection`, em vez de o erro sumir. No caminho automático o erro do hook é engolido — a request que encerrou a sessão já rejeita com o 401 dela.
 
-O hook roda **uma vez por sessão**: um segundo `logout()`, ou as outras requests de uma rajada de 401, não encontram sessão para encerrar e esperam o teardown que já está em andamento.
+O hook roda **uma vez por sessão**: um segundo `logout()`, ou as outras requests de uma rajada de 401, não encontram sessão para encerrar. Só a chamada que encerrou a sessão navega para o `redirectTo`.
 
 ### Troca de conta — `reason: "switch"`
 
@@ -310,11 +323,13 @@ O hook roda **uma vez por sessão**: um segundo `logout()`, ou as outras request
 
 Por que o hook roda **antes** de instalar a conta nova: o teardown da conta anterior — limpar o cache persistido, a fila de background sync — precisa terminar antes que as requests da conta nova comecem a preenchê-los; na ordem inversa ele apagaria (ou disputaria) os dados da conta nova. O preço é um intervalo em que `isAuthenticated` é `false` enquanto o hook roda — um guard de rota pode reagir a ele, então mantenha o hook curto. Um erro do hook aqui é engolido: o login em si deu certo.
 
-Um `logout()` cujo teardown ainda está em andamento é esperado do mesmo jeito: `logout()` seguido de `login()` sem `await` não instala a conta nova antes de o hook da anterior terminar.
+Com `logout()` explícito antes, **aguarde-o**: `await auth.logout()` e só então `login()`. Um `login()` chamado enquanto o hook do `logout()` ainda roda não espera por ele (veja o aviso acima sobre chamadas de dentro do hook), e a conta nova pode começar antes de o teardown da anterior terminar.
+
+Um `login()` cuja sessão mudou enquanto a request dele estava em voo — um `logout()` no meio, por exemplo — rejeita com `SessionSupersededError` e não instala nada.
 
 ### Refresh em voo e troca de conta — `SessionSupersededError`
 
-Um refresh é uma ida e volta de rede, e a sessão pode acabar no meio dela. Cada refresh fica amarrado a uma **época de sessão**, que o `logout()` e um `login()` com credenciais aceitas incrementam. Um refresh que resolve depois que a época dele acabou descarta o que trouxe e rejeita com `SessionSupersededError` — e o cliente repassa esse erro **sem** chamar `onUnauthorized`, porque a sessão atual (talvez outra conta, que acabou de entrar) não fez nada de errado. Uma request que saiu com o token de uma sessão encerrada e volta 401 é recusada do mesmo jeito, em vez de ser repetida como a conta que está logada agora.
+Um refresh é uma ida e volta de rede, e a sessão pode acabar no meio dela. Cada refresh fica amarrado a uma **época de sessão**, que o `logout()` e um `login()` com credenciais aceitas incrementam. Um refresh que resolve depois que a época dele acabou descarta o que trouxe e rejeita com `SessionSupersededError` — e o cliente repassa esse erro **sem** chamar `onUnauthorized`, porque a sessão atual (talvez outra conta, que acabou de entrar) não fez nada de errado. Uma request que saiu durante uma sessão encerrada e volta 401 é recusada do mesmo jeito — inclusive a repetição depois de um refresh — em vez de ser repetida como a conta que está logada agora ou de encerrar a sessão dela. E uma request que saiu **sem** token e volta 401 depois que uma conta entrou só rejeita com o 401: não renova nem encerra a sessão nova.
 
 Antes da 0.77.0, um refresh em voo durante o `logout()` reinstalava os tokens antigos e voltava `isAuthenticated` para `true`; com `logout()` + `login(B)` no meio, trocava o token de B pelo de A — a tela mostrava B, e toda request saía como A.
 

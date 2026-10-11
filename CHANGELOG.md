@@ -41,6 +41,27 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   próximo envio com `404`/`410`; inscrição viva entrega as notificações da conta para o próximo
   usuário do navegador.
 
+- **Corridas de sessão achadas em review do próprio ciclo** (todas medidas com um teste que falhava
+  antes, em `src/auth/create-tempest-auth.races.test.ts` e
+  `src/push/web-push-client.unsubscribe.test.ts`):
+  - `login()` cujo POST estava em voo durante um `logout()` instalava a conta mesmo assim — agora
+    rejeita com `SessionSupersededError` e não instala nada;
+  - a repetição de A depois do refresh que voltava 401 após `logout()` + `login(B)` encerrava a
+    sessão de B — o cliente agora lê a época de cada tentativa (`getSessionEpoch`) e o
+    `onUnauthorized` recusa a tentativa de uma sessão encerrada com `SessionSupersededError`;
+  - `onSessionEnd` que aguardava `auth.api` travava o `logout()` para sempre (o 401 sem token
+    encerrava a sessão de novo e esperava o próprio hook) — enquanto um hook roda, nenhuma chamada
+    espera o teardown, e só a chamada que encerrou a sessão navega para o `redirectTo`;
+  - `logout()` sem `await` cujo hook lançava engolia o erro em silêncio — agora vira
+    `unhandledrejection`;
+  - request sem token que voltava 401 depois do login de B renovava e, na falha, encerrava B — agora
+    só rejeita com o 401;
+  - `WebPushUnsubscribeError` com o navegador falhando junto do backend saía como `DOMException` cru
+    e perdia o `endpoint` — agora é sempre `WebPushUnsubscribeError`, com `cause` sendo um
+    `AggregateError` dos dois erros.
+    Os conjuntos de tokens emitidos/aposentados, que cresciam a cada refresh numa sessão longa, foram
+    removidos: a época lida na saída de cada tentativa cobre o que eles cobriam.
+
 ### Adicionado
 
 - **`createTempestAuth({ onSessionEnd })` — teardown por usuário no logout, na expiração
@@ -49,7 +70,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   acabou, porque o store já foi limpo. Ordem: supera o refresh em voo → limpa o store (síncrono) →
   roda o hook → navega para `redirectTo` (só no automático, depois do hook). Substitui a receita
   manual de logout de `docs/push.md`, que não cobria a expiração automática. Tipos novos:
-  `TempestSessionEnd<TUser>` e `RefreshContext`.
+  `TempestSessionEnd<TUser>` e `RequestAuthContext`.
 - **`login()` por cima de uma sessão viva encerra a anterior com `reason: "switch"`.** Antes, a
   conta nova substituía a anterior sem teardown nenhum, e a inscrição de push e o estado por
   usuário da conta anterior passavam para a nova. Ordem: credenciais novas aceitas → época avança e
@@ -57,11 +78,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   conta nova instalados. Login que falha não toca a sessão anterior nem o refresh em voo dela (antes
   desta versão, a época avançava no começo do `login()`). O hook roda **antes** de instalar a conta
   nova para o teardown terminar antes de as requests dela preencherem cache e filas; o custo é
-  `isAuthenticated` em `false` enquanto ele roda. Erro do hook nesse caminho é engolido, e um
-  `logout()` cujo teardown ainda corre é esperado antes de instalar a conta nova. Medido com
-  `npx vitest run src/auth/create-tempest-auth.session-end.test.ts` contra o commit anterior: 3 dos
-  4 testes novos falhavam (hook não chamado; login falho de B superava o refresh de A; B instalado
-  antes do fim do teardown de A).
+  `isAuthenticated` em `false` enquanto ele roda. Erro do hook nesse caminho é engolido. Com
+  `logout()` explícito antes, aguarde-o: enquanto um hook roda nada espera por ele (ver abaixo).
 - **`SessionSupersededError`** (refresh ou `login()` cuja sessão foi superada antes de terminar) e
   **`WebPushUnsubscribeError`**, exportados da raiz.
 
@@ -82,13 +100,16 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   - o app espera o teardown antes de navegar ou recarregar: use `await auth.logout()`, que agora
     só resolve depois do `onSessionEnd`.
 
-- **`ApiClientConfig.refresh` recebe `(context: RefreshContext)`** com o token com que a request
-  rejeitada saiu. Função sem parâmetro continua atribuível — nenhum chamador quebra.
+- **`ApiClientConfig.refresh` recebe `(context: RequestAuthContext)`** e
+  **`onUnauthorized` recebe `(response, context)`**, com o `token` e a `epoch` com que a tentativa
+  rejeitada saiu; **`ApiClientConfig.getSessionEpoch`** é a opção nova que fornece a época.
+  `onUnauthorized` que lança `SessionSupersededError` faz a request rejeitar com ele. Funções sem
+  esses parâmetros continuam atribuíveis — nenhum chamador quebra.
 - **Budgets do `size-limit` sobem pelo que os bytes compram** (medido com `npx size-limit`, `main`
-  × branch): `slice: http client` 4,57 → 4,64 kB (teto 4,6 → 4,7 kB) — `SessionSupersededError` e o
-  token da request no `refresh`; `slice: typical app` 11,73 → 11,83 kB (teto 11,8 → 11,9 kB); barrel
-  ESM 139,86 → 140,45 kB (teto 140,2 → 140,8 kB); barrel CJS 167,02 → 167,63 kB (teto 167,2 →
-  167,7 kB).
+  × branch): `slice: http client` 4,57 → 4,69 kB (teto 4,6 → 4,8 kB) — `SessionSupersededError`, o
+  contexto da tentativa (`token` + `epoch`) em `refresh`/`onUnauthorized`; `slice: typical app`
+  11,73 → 11,79 kB (teto 11,8 → 11,9 kB); barrel ESM 139,86 → 140,52 kB (teto 140,2 → 140,8 kB);
+  barrel CJS 167,02 → 167,82 kB (teto 167,2 → 168 kB).
 
 ## [0.76.0] — 2026-10-10
 

@@ -101,3 +101,36 @@ describe("WebPushClient.unsubscribe — the browser is always released", () => {
         });
     });
 });
+
+describe("WebPushClient.unsubscribe — both halves failing", () => {
+    afterEach(() => {
+        delete (globalThis as { Notification?: unknown }).Notification;
+        delete (globalThis as { PushManager?: unknown }).PushManager;
+        delete (navigator as { serviceWorker?: unknown }).serviceWorker;
+    });
+
+    it("keeps the backend failure and the browser failure in one WebPushUnsubscribeError", async () => {
+        const browserUnsubscribe = mockSubscribedBrowser();
+        const browserError = new DOMException("gone", "InvalidStateError");
+        browserUnsubscribe.mockRejectedValue(browserError);
+        const backendError = new Error("401");
+        const client = new WebPushClient({
+            vapidPublicKey: "k",
+            onSubscribe: () => undefined,
+            onUnsubscribe: () => Promise.reject(backendError),
+        });
+
+        const outcome = await client.unsubscribe().catch((error: unknown) => error);
+
+        expect(outcome).toBeInstanceOf(WebPushUnsubscribeError);
+        expect(outcome).toMatchObject({
+            browserUnsubscribed: false,
+            subscription: { endpoint: "https://push/x" },
+        });
+        expect((outcome as WebPushUnsubscribeError).cause).toBeInstanceOf(AggregateError);
+        expect(((outcome as WebPushUnsubscribeError).cause as AggregateError).errors).toEqual([
+            backendError,
+            browserError,
+        ]);
+    });
+});

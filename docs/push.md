@@ -417,7 +417,9 @@ export function PushToggle() {
 
 Se o backend falhou, o `unsubscribe()` lança `WebPushUnsubscribeError` **depois**
 de liberar o navegador. O erro carrega `subscription` (com o `endpoint`, para você
-tentar o `DELETE` de novo mais tarde), `browserUnsubscribed` e o `cause` original.
+tentar o `DELETE` de novo mais tarde), `browserUnsubscribed` e o `cause` original —
+um `AggregateError` com os dois erros (backend primeiro) quando o navegador também
+falhou, para o `endpoint` nunca virar um `DOMException` cru.
 O `usePushSubscription` já reflete isso: `subscribed` vira `false` e `error` fica
 com o `WebPushUnsubscribeError`.
 
@@ -478,7 +480,9 @@ pelo seu `logout()`. Com o `createTempestAuth`, o lugar é o `onSessionEnd`, que
 roda nos dois:
 
 ```ts
-import { WebPushClient, createTempestAuth } from "tempest-react-sdk";
+import { WebPushClient, WebPushUnsubscribeError, createTempestAuth } from "tempest-react-sdk";
+
+const ORPHANED_PUSH_KEY = "push-orphaned-subscriptions";
 
 export const auth = createTempestAuth({
     baseURL: import.meta.env.VITE_API_URL,
@@ -489,7 +493,15 @@ export const auth = createTempestAuth({
             onUnsubscribe: (sub) =>
                 session.api.delete("/webpush/subscribe", { body: { endpoint: sub.endpoint } }),
         });
-        await push.unsubscribe().catch(() => false);
+        try {
+            await push.unsubscribe();
+        } catch (error) {
+            if (!(error instanceof WebPushUnsubscribeError)) return;
+            const pending: PushSubscriptionJSON[] = JSON.parse(
+                localStorage.getItem(ORPHANED_PUSH_KEY) ?? "[]",
+            );
+            localStorage.setItem(ORPHANED_PUSH_KEY, JSON.stringify([...pending, error.subscription]));
+        }
     },
 });
 ```
@@ -499,6 +511,9 @@ Duas peças fazem isso funcionar sem aviso nenhum para você lembrar:
 - `session.api` ainda manda o token da sessão que acabou — o store já foi limpo,
   então `auth.api` não manda mais. No logout explícito o `DELETE` sai
   autenticado e apaga a linha.
+- O `catch` guarda o `subscription` do `WebPushUnsubscribeError`: no próximo login,
+  reenvie o `DELETE` de cada `endpoint` guardado e limpe a lista. Descartar o erro
+  com `.catch(() => false)` jogaria fora justamente o `endpoint` da linha órfã.
 - Na expiração automática o servidor já recusa esse token, o `DELETE` volta 401 —
   e o navegador é liberado do mesmo jeito, porque o `unsubscribe()` sempre libera.
   A linha órfã some no próximo envio, com o `404`/`410`.

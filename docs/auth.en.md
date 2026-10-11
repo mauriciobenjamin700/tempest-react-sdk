@@ -253,12 +253,14 @@ A session ends in three ways: the user clicks **Sign out** (`auth.logout()`); th
 `createTempestAuth` has one place for that, and it runs on **all three** paths: `onSessionEnd`.
 
 ```ts
-import { WebPushClient, createTempestAuth } from "tempest-react-sdk";
+import { WebPushClient, WebPushUnsubscribeError, createTempestAuth } from "tempest-react-sdk";
 
 interface User {
   id: string;
   name: string;
 }
+
+const ORPHANED_PUSH_KEY = "push-orphaned-subscriptions";
 
 export const auth = createTempestAuth<User>({
   baseURL: "https://api.example.com",
@@ -269,7 +271,15 @@ export const auth = createTempestAuth<User>({
       onUnsubscribe: (sub) =>
         session.api.delete("/webpush/subscribe", { body: { endpoint: sub.endpoint } }),
     });
-    await push.unsubscribe().catch(() => false);
+    try {
+      await push.unsubscribe();
+    } catch (error) {
+      if (!(error instanceof WebPushUnsubscribeError)) return;
+      const pending: PushSubscriptionJSON[] = JSON.parse(
+        localStorage.getItem(ORPHANED_PUSH_KEY) ?? "[]",
+      );
+      localStorage.setItem(ORPHANED_PUSH_KEY, JSON.stringify([...pending, error.subscription]));
+    }
   },
 });
 
@@ -278,7 +288,10 @@ await auth.logout();
 
 Note `session.api`: by the time the hook runs, the store **has already been cleared**, so `auth.api` no longer sends any token. `session.api` is a client that still sends the ended session's access token — that is how the `DELETE` goes out authenticated. It never refreshes and never ends a session: a 401 there just rejects.
 
-And the push `unsubscribe()` releases the browser subscription **even when the `DELETE` fails** (see [Push → Unsubscribing](./push.en.md#unsubscribing-what-almost-everybody-gets-wrong)). That is what closes the automatic path: when the session expires, the server already refuses the token, the `DELETE` comes back 401 — and the browser stops receiving the previous account's notifications all the same.
+And the push `unsubscribe()` releases the browser subscription **even when the `DELETE` fails** (see [Push → Unsubscribing](./push.en.md#unsubscribing-what-almost-everybody-gets-wrong)). That is what closes the automatic path: when the session expires, the server already refuses the token, the `DELETE` comes back 401 — and the browser stops receiving the previous account's notifications all the same. `WebPushUnsubscribeError` carries the `subscription` with its `endpoint`: the example keeps it to resend the `DELETE` once there is a session again, instead of waiting for the next send's `404`/`410`.
+
+!!! warning "Inside the hook, use `session.api` — not `auth.api`, `auth.logout()` or `auth.login()`"
+    When the hook runs the store is already empty: `auth.api` goes out with no token, and its 401 would end a session that already ended. While a hook runs, no call waits on the teardown in progress — if it did, a call made **from inside** the hook would wait on itself forever. `session.api` is the client made for this.
 
 !!! tip "Clear every per-user state here"
     The hook is the single teardown point: the push above, and next to it any other state that belongs to the account — the persisted query cache, the service worker's background-sync queue, the authenticated response caches, the telemetry user. Compose them all inside the same `onSessionEnd`, each independent step with its own `.catch`, so one failure does not skip the others.
@@ -296,9 +309,9 @@ On all three paths — `logout()`, the automatic end and the account switch — 
 
 `reason` is `"logout"` for an explicit `logout()`, `"expired"` when the client ended it and `"switch"` when a `login()` replaced the session. On `"logout"` and `"switch"` the token is usually still valid; on `"expired"` the server has already refused it, so treat the authenticated call as best-effort and keep the local half of the teardown independent of it.
 
-`logout()` returns `Promise<void>`: the store is cleared before the first `await`, so callers that ignore the promise see the signed-out state at once. The promise resolves when the hook finished and rejects with its error. On the automatic path the hook's error is swallowed — the request that ended the session already rejects with its own 401.
+`logout()` returns `Promise<void>`: the store is cleared before the first `await`, so callers that ignore the promise see the signed-out state at once. The promise resolves when the hook finished and rejects with its error — and an un-awaited `logout()` whose hook throws becomes an `unhandledrejection` instead of losing the error. On the automatic path the hook's error is swallowed — the request that ended the session already rejects with its own 401.
 
-The hook runs **once per session**: a second `logout()`, or the other requests of a burst of 401s, find no session left to end and wait on the teardown already under way.
+The hook runs **once per session**: a second `logout()`, or the other requests of a burst of 401s, find no session left to end. Only the call that ended the session navigates to `redirectTo`.
 
 ### Switching accounts — `reason: "switch"`
 
@@ -311,11 +324,13 @@ The hook runs **once per session**: a second `logout()`, or the other requests o
 
 Why the hook runs **before** the new account is installed: the previous account's teardown — clearing the persisted cache, the background-sync queue — has to finish before the new account's requests start filling them; in the reverse order it would wipe (or race with) the new account's data. The cost is a window in which `isAuthenticated` is `false` while the hook runs — a route guard may react to it, so keep the hook short. A hook error here is swallowed: the login itself succeeded.
 
-A `logout()` whose teardown is still running is awaited the same way: `logout()` followed by `login()` without `await` does not install the new account before the previous one's hook finished.
+With an explicit `logout()` first, **await it**: `await auth.logout()`, then `login()`. A `login()` called while the `logout()` hook is still running does not wait for it (see the warning above about calls from inside the hook), and the new account may start before the previous one's teardown ended.
+
+A `login()` whose session moved while its request was in flight — a `logout()` in between, for example — rejects with `SessionSupersededError` and installs nothing.
 
 ### Refresh in flight and account switching — `SessionSupersededError`
 
-A refresh is a network round trip, and the session can end in the middle of it. Every refresh is bound to a **session epoch**, which `logout()` and a `login()` whose credentials were accepted increment. A refresh that resolves after its epoch ended discards what it brought back and rejects with `SessionSupersededError` — and the client passes that error through **without** calling `onUnauthorized`, because the current session (maybe another account that just signed in) did nothing wrong. A request sent with the token of an ended session that comes back 401 is refused the same way, instead of being replayed as whoever is signed in now.
+A refresh is a network round trip, and the session can end in the middle of it. Every refresh is bound to a **session epoch**, which `logout()` and a `login()` whose credentials were accepted increment. A refresh that resolves after its epoch ended discards what it brought back and rejects with `SessionSupersededError` — and the client passes that error through **without** calling `onUnauthorized`, because the current session (maybe another account that just signed in) did nothing wrong. A request sent during an ended session that comes back 401 is refused the same way — the replay after a refresh included — instead of being replayed as whoever is signed in now or ending their session. And a request sent **without** a token that comes back 401 after an account signed in just rejects with the 401: it neither refreshes nor ends the new session.
 
 Before 0.77.0, a refresh in flight during `logout()` reinstalled the old tokens and flipped `isAuthenticated` back to `true`; with `logout()` + `login(B)` in between, it replaced B's token with A's — the screen showed B, and every request went out as A.
 

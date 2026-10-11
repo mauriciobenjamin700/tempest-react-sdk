@@ -9,14 +9,24 @@ import type { RetryOptions } from "./retry";
  */
 export type ApiClientLogger = Pick<Logger, "debug" | "warn">;
 
-/** What {@link ApiClientConfig.refresh} learns about the `401` it is answering. */
-export interface RefreshContext {
+/**
+ * What {@link ApiClientConfig.refresh} and {@link ApiClientConfig.onUnauthorized}
+ * learn about the attempt that came back `401`: the credential and the session it
+ * left under, both read when that attempt was sent.
+ */
+export interface RequestAuthContext {
     /**
-     * The access token the rejected request was sent with, read from `getToken`
-     * when the request left — or `null` when it carried none (`skipAuth`, no
-     * token yet, or no `getToken` configured).
+     * The access token the rejected attempt was sent with, read from `getToken`
+     * when it left — or `null` when it carried none (`skipAuth`, no token yet,
+     * or no `getToken` configured).
      */
     token: string | null;
+    /**
+     * What `getSessionEpoch` returned when the attempt left, or `null` when it
+     * is not configured. Differing from the current value means the attempt
+     * belongs to a session that has since ended.
+     */
+    epoch: number | null;
 }
 
 export interface ApiError {
@@ -143,6 +153,15 @@ export interface ApiClientConfig {
     /** Returns the current bearer token (or null/undefined). Called per request. */
     getToken?: () => string | null | undefined;
     /**
+     * Returns a counter that changes whenever the session changes — a sign-out,
+     * a sign-in. Read when each attempt leaves and handed to `refresh` and
+     * `onUnauthorized` in {@link RequestAuthContext}, so they can tell a `401`
+     * from an ended session (refuse it) from one of the current session (handle
+     * it). The token alone cannot: a request sent with no token, or with a token
+     * rehydrated from storage, says nothing about which session sent it.
+     */
+    getSessionEpoch?: () => number;
+    /**
      * Origins besides `baseURL`'s that may receive the `getToken` credential.
      *
      * Since 0.66.0 the bearer token is scoped to the origin of `baseURL`. A
@@ -171,8 +190,12 @@ export interface ApiClientConfig {
      * Called when a request ends up unauthorized — a 401 with no `refresh`
      * configured, a `refresh()` that threw, or a retry that came back 401 again
      * after a refresh that resolved. Use it to end the session.
+     *
+     * `context` describes the attempt that came back `401` — the replay's, when
+     * it was the replay. Throwing {@link SessionSupersededError} here rejects the
+     * request with it; any other error is logged and the `401` is thrown as usual.
      */
-    onUnauthorized?: (response: Response) => void | Promise<void>;
+    onUnauthorized?: (response: Response, context: RequestAuthContext) => void | Promise<void>;
     /**
      * Where the client reports each request it finished. Off when absent — the
      * client writes to no console of its own.
@@ -197,7 +220,7 @@ export interface ApiClientConfig {
      * Optional refresh hook. When provided and the original request returns 401,
      * the client awaits `refresh()` then retries the request once.
      *
-     * The hook receives a {@link RefreshContext} naming the token the rejected
+     * The hook receives a {@link RequestAuthContext} naming the token the rejected
      * request carried. A hook that ignores it keeps working; one that reads it
      * can tell a stale `401` — the token already rotated since the request left —
      * from a fresh one, and skip a second refresh.
@@ -206,7 +229,7 @@ export interface ApiClientConfig {
      * error **without** calling `onUnauthorized`: the session the refresh
      * belonged to is gone, and the one in its place must not be ended for it.
      */
-    refresh?: (context: RefreshContext) => Promise<void>;
+    refresh?: (context: RequestAuthContext) => Promise<void>;
     /**
      * Retry failed requests with exponential backoff. Off by default, so the
      * client keeps failing fast unless you opt in.

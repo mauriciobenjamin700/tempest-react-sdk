@@ -420,8 +420,10 @@ export function PushToggle() {
 If the backend failed, `unsubscribe()` throws `WebPushUnsubscribeError` **after**
 releasing the browser. The error carries `subscription` (with the `endpoint`, so
 you can retry the `DELETE` later), `browserUnsubscribed`, and the original
-`cause`. `usePushSubscription` already reflects it: `subscribed` becomes `false`
-and `error` holds the `WebPushUnsubscribeError`.
+`cause` — an `AggregateError` holding both errors (backend first) when the
+browser failed too, so the `endpoint` is never traded for a bare `DOMException`.
+`usePushSubscription` already reflects it: `subscribed` becomes `false` and
+`error` holds the `WebPushUnsubscribeError`.
 
 Why release the browser anyway: the two failures do not cost the same.
 
@@ -481,7 +483,9 @@ path does not go through your `logout()`. With `createTempestAuth`, the place is
 `onSessionEnd`, which runs on both:
 
 ```ts
-import { WebPushClient, createTempestAuth } from "tempest-react-sdk";
+import { WebPushClient, WebPushUnsubscribeError, createTempestAuth } from "tempest-react-sdk";
+
+const ORPHANED_PUSH_KEY = "push-orphaned-subscriptions";
 
 export const auth = createTempestAuth({
     baseURL: import.meta.env.VITE_API_URL,
@@ -492,7 +496,15 @@ export const auth = createTempestAuth({
             onUnsubscribe: (sub) =>
                 session.api.delete("/webpush/subscribe", { body: { endpoint: sub.endpoint } }),
         });
-        await push.unsubscribe().catch(() => false);
+        try {
+            await push.unsubscribe();
+        } catch (error) {
+            if (!(error instanceof WebPushUnsubscribeError)) return;
+            const pending: PushSubscriptionJSON[] = JSON.parse(
+                localStorage.getItem(ORPHANED_PUSH_KEY) ?? "[]",
+            );
+            localStorage.setItem(ORPHANED_PUSH_KEY, JSON.stringify([...pending, error.subscription]));
+        }
     },
 });
 ```
@@ -502,6 +514,10 @@ Two pieces make this work with no warning for you to remember:
 - `session.api` still sends the ended session's token — the store has already
   been cleared, so `auth.api` no longer does. On an explicit sign-out the
   `DELETE` goes out authenticated and deletes the row.
+- The `catch` keeps the `WebPushUnsubscribeError`'s `subscription`: on the next
+  login, resend the `DELETE` for each stored `endpoint` and clear the list.
+  Dropping the error with `.catch(() => false)` would throw away exactly the
+  orphaned row's `endpoint`.
 - On automatic expiry the server already refuses that token, the `DELETE` comes
   back 401 — and the browser is released all the same, because `unsubscribe()`
   always releases it. The orphaned row goes away on the next send, with the

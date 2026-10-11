@@ -42,6 +42,6 @@ export type {
     ApiClientConfig,
     ApiClientLogger,
     ApiError,
-    RefreshContext,
+    RequestAuthContext,
     RequestOptions,
 } from "./types";

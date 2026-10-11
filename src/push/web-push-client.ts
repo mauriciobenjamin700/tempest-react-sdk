@@ -167,7 +167,10 @@ export class WebPushClient {
      * @returns True when an active subscription was removed, false when there
      *   was none or the browser refused.
      * @throws {WebPushUnsubscribeError} When `onUnsubscribe` failed — thrown
-     *   after the browser subscription was released.
+     *   after the browser subscription was released. When the browser call also
+     *   threw, `browserUnsubscribed` is `false` and `cause` is an
+     *   `AggregateError` holding both errors, backend first, so the endpoint the
+     *   error carries is never traded for a bare `DOMException`.
      */
     async unsubscribe(): Promise<boolean> {
         const subscription = await this.getSubscription();
@@ -181,8 +184,20 @@ export class WebPushClient {
                 backendError = { cause };
             }
         }
-        const released = await subscription.unsubscribe();
-        if (backendError) throw new WebPushUnsubscribeError(json, released, backendError.cause);
-        return released;
+        if (!backendError) return subscription.unsubscribe();
+        let released: boolean;
+        try {
+            released = await subscription.unsubscribe();
+        } catch (browserError) {
+            throw new WebPushUnsubscribeError(
+                json,
+                false,
+                new AggregateError(
+                    [backendError.cause, browserError],
+                    "Backend delete and browser unsubscribe both failed.",
+                ),
+            );
+        }
+        throw new WebPushUnsubscribeError(json, released, backendError.cause);
     }
 }

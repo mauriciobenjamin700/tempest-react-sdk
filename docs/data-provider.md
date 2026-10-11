@@ -78,8 +78,9 @@ O `id` é a parte da URL que pode vir de fora do app — um search param, o hash
 | `"../admin"`            | `/posts/..%2Fadmin`                  |
 | `"a/b?x=1"`             | `/posts/a%2Fb%3Fx%3D1`               |
 | `""`, `"."` ou `".."`   | rejeita com `TypeError`, sem requisição |
+| `null` ou `undefined`   | rejeita com `TypeError`, sem requisição (antes virava `/posts/null`) |
 
-`encodeIdSegment` aplica `encodeURIComponent` e rejeita os três valores que o parser de URL resolveria como dot-segment mesmo codificados. Ele vale também para o `buildPath` customizado — o override recebe o segmento pronto e só interpola, como no exemplo acima.
+`encodeIdSegment` aplica `encodeURIComponent` e rejeita os três valores que o parser de URL resolveria como dot-segment mesmo codificados, além de `null`/`undefined`. Ele vale também para o `buildPath` customizado — o override recebe o segmento pronto e só interpola, como no exemplo acima.
 
 !!! warning "Migração (0.77.0): remova o encode do seu `buildPath`"
     O `id` já chega codificado. Um `buildPath` que fazia `encodeURIComponent(id)` passa a codificar duas vezes (`a/b` vira `a%252Fb`) e o backend recebe outro id.

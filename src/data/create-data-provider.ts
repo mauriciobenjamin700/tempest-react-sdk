@@ -117,10 +117,13 @@ const DOT_SEGMENTS: ReadonlySet<string> = new Set(["", ".", ".."]);
  * `encodeURIComponent` neutralises `/`, `?`, `#` and `%`. It leaves `.` alone,
  * so `""`, `"."` and `".."` are rejected instead: the URL parser resolves them
  * as dot-segments whatever the encoding, and none of them names a record.
+ * `null` and `undefined` — what an untyped caller or a not-yet-loaded route
+ * param hands over — are rejected too, since `String()` would turn them into
+ * the literal segments `"null"` and `"undefined"`.
  *
  * @param id - The record id, as handed to the provider.
  * @returns The percent-encoded segment, safe to interpolate between two `/`.
- * @throws {TypeError} When the id is `""`, `"."` or `".."`.
+ * @throws {TypeError} When the id is `null`, `undefined`, `""`, `"."` or `".."`.
  *
  * @example
  * encodeIdSegment(7); // "7"
@@ -128,6 +131,9 @@ const DOT_SEGMENTS: ReadonlySet<string> = new Set(["", ".", ".."]);
  * encodeIdSegment(".."); // throws TypeError
  */
 export function encodeIdSegment(id: string | number): string {
+    if (id == null) {
+        throw new TypeError(`Invalid record id ${String(id)}: a record id is required.`);
+    }
     const raw = String(id);
     if (DOT_SEGMENTS.has(raw)) {
         throw new TypeError(

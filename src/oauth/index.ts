@@ -14,4 +14,5 @@ export type {
     ExchangeOAuthCallbackOptions,
     OAuthCallbackErrorReason,
     OAuthCallbackParams,
+    ReadOAuthCallbackOptions,
 } from "./callback";

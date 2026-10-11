@@ -28,6 +28,14 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   140 075 → 140 258 B (teto 140,2 → 140,3 kB), barrel CJS 167 085 → 167 358 B (teto 167,2 →
   167,4 kB); os dois tetos contam também o `encodeIdSegment` do #438 (ESM 139 861 → 140 075 B,
   CJS 167 019 → 167 085 B, ainda dentro dos tetos antigos).
+  Lendo `window.location`, o leitor também tira `code` e `state` da barra de endereço com
+  `history.replaceState` (mantém os outros params, o hash e o `history.state`; limpa mesmo quando
+  recusa o callback), para o código não ficar no histórico nem no `Referer`; `scrubUrl: false`
+  desliga (`src/oauth/callback.scrub.test.ts`). Trade-off documentado em `docs/oauth.md` +
+  `.en.md`: o contrato do `make_auth_router` é `GET` com `code`/`state` na query, então a URL
+  entra no access log do backend — o método não muda, e a doc orienta mascarar os dois na rota. A limpeza da URL e o
+  ref de opções do hook custam +146 B no barrel ESM (140 258 → 140 404 B, teto 140,3 → 140,5 kB)
+  e +185 B no CJS (167 358 → 167 543 B, teto 167,4 → 167,6 kB), medido com `npx size-limit`.
 
 ### Alterado
 
@@ -50,6 +58,17 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **`useOAuthCallback` entrega o resultado em StrictMode e com re-render durante a troca.** O
+  cleanup do efeito marcava a execução como cancelada e o `ref` de "já rodou" impedia a segunda:
+  no remount simulado do StrictMode (dev) e em todo re-render do pai com `exchange`/`onSuccess`/
+  `onError` inline, a única troca era descartada, `onSuccess` nunca rodava e o hook ficava em
+  `"pending"` para sempre — com o `code`, que é de uso único, já gasto. Agora as opções ficam
+  num ref com o valor mais recente, o efeito não tem dependências, a troca roda uma vez por
+  montagem lógica e o resultado só é descartado se o componente estiver desmontado quando ele
+  chega; o `onSuccess`/`onError` chamado é o mais recente. Antes: 3 de 4 testes de
+  `src/oauth/use-oauth-callback.lifecycle.test.tsx` falhavam (StrictMode sucesso, StrictMode
+  erro, re-render); depois, 4 de 4. A doc afirmava "roda uma vez, mesmo em StrictMode" —
+  reescrita em `docs/oauth.md` + `.en.md`.
 - **Data provider — o `id` não sai mais do próprio segmento do path (#438).** `getOne`,
   `getMany`, `update` e `deleteOne` interpolavam o `id` cru em `/{resource}/{id}`, e o
   `buildApiUrl` resolvia `..` e cortava a query no primeiro `?`: com `baseURL`
@@ -57,8 +76,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `GET https://app.example.test/admin/users` com o Bearer, `deleteOne("posts", "../users/7")`
   virava `DELETE …/api/users/7` e `update("posts", "7?role=admin")` virava
   `PATCH …/api/posts/7?role=admin`. Agora todo `id` passa pelo novo `encodeIdSegment`
-  (`encodeURIComponent` + rejeição de `""`, `"."` e `".."` com `TypeError`, antes de qualquer
-  requisição): os mesmos ids vão para `…/api/posts/..%2F..%2Fadmin%2Fusers`,
+  (`encodeURIComponent` + rejeição de `null`, `undefined`, `""`, `"."` e `".."` com `TypeError`,
+  antes de qualquer requisição — `null`/`undefined` viravam `/posts/null` e `/posts/undefined`): os mesmos ids vão para `…/api/posts/..%2F..%2Fadmin%2Fusers`,
   `…/api/posts/..%2Fusers%2F7` e `…/api/posts/7%3Frole%3Dadmin`; id comum (`42`, UUID) segue
   idêntico. Medido com `createApiClient` + `fetcher` stub, antes × depois, em
   `src/data/create-data-provider.path.test.ts`. **Efeito em `buildPath` customizado:** o

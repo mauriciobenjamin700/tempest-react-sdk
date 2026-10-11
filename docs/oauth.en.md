@@ -141,21 +141,26 @@ What `exchangeOAuthCallback(api, provider, options?)` does for you:
 - Reads `code` and `state` with `readOAuthCallbackParams` and **throws `OAuthCallbackError` before any request** when the provider sent `error` (`reason: "provider_error"`), when `state` is missing (`"missing_state"`) or `code` is missing (`"missing_code"`).
 - Sends both to `{prefix}/oauth/{provider}/callback` with `credentials: "include"` — the `state` cookie is the other half of the comparison.
 - Uses `skipAuth` and `retry: false`: there is no session yet, a `401` there is a forged or expired callback (not a token to refresh), and the backend clears the `state` cookie on the first attempt.
+- Removes `code` and `state` from the address bar with `history.replaceState` as soon as it reads them (even when it refuses the callback), keeping the other params, the hash and the router's `history.state`. The code then stays out of the history, bookmarks and the next request's `Referer`.
 
 | Option   | Default                  | What it is for                                               |
 | -------- | ------------------------ | ------------------------------------------------------------ |
 | `prefix` | `"/auth"`                | The `prefix` given to `make_auth_router` on the backend.     |
 | `search` | `window.location.search` | Where to read the provider's redirect from.                  |
 | `signal` | —                        | Aborts the exchange.                                         |
+| `scrubUrl` | `true` when reading `window.location` | `false` keeps `code`/`state` in the URL. With an explicit `search` the default is `false`. |
 
 !!! danger "Why the `state` cannot be left behind"
     Without it, an attacker sends the victim to `/callback?code=<a code from the attacker's account>` and the victim ends up signed in to the attacker's account (login CSRF) — everything they type afterwards lands there. The old recipe read only the `code`, so no backend could check the `state`. Now the reader returns both or throws.
+
+!!! info "Trade-off: `code` and `state` travel in a `GET` query"
+    The `make_auth_router` contract is `GET /oauth/{provider}/callback?code=…&state=…` — the same URL the provider would hit if it redirected straight to the backend — so the helper does not change the method. The cost: the whole URL lands in the access log of the backend and of any proxy on the way. The risk is bounded (the `code` is single-use, redeemed within seconds and only valid together with the `state` cookie), but a log holding a not-yet-redeemed `code` is a log holding a short-lived credential. If your logs are shared, configure the server or proxy to mask `code` and `state` on that route.
 
 !!! note "A backend that is not `tempest-fastapi-sdk`"
     Use `readOAuthCallbackParams()` inside your `exchange` and send `code` **and** `state` to your route. Comparing the `state` with the value bound to the browser that started the flow is the backend's job: the browser cannot read an `HttpOnly` cookie, so a client-side check would prove nothing.
 
 !!! check "Runs once, even under StrictMode"
-    In development React 18/19 mounts every component twice on purpose. Without a guard, `exchange` would fire two exchanges and the second would fail — OAuth codes are single-use. The hook uses a `ref` to guarantee a single run, so you never see the phantom "code already redeemed" error in dev.
+    In development React 18/19 mounts, unmounts and remounts every component on purpose. The hook fires `exchange` once per logical mount — OAuth codes are single-use — **and delivers the result** to the mount that remains: it only discards it if the component is really unmounted when the response lands. The same holds for a parent re-render with inline `onSuccess`/`onError` during the request; the hook always calls their latest version. Up to 0.76.0, both cases left the hook `"pending"` forever.
 
 ### Return value
 

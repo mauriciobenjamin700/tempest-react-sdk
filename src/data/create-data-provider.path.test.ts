@@ -146,3 +146,25 @@ describe("encodeIdSegment", () => {
         expect(() => encodeIdSegment(id)).toThrow(TypeError);
     });
 });
+
+describe("encodeIdSegment — a missing id is not a record id", () => {
+    it.each([null, undefined])(
+        "throws a TypeError for %s, which used to become a literal path segment",
+        (id) => {
+            expect(() => encodeIdSegment(id as unknown as string)).toThrow(TypeError);
+        },
+    );
+
+    it.each([null, undefined])(
+        "rejects getOne/update/deleteOne with %s before any request",
+        async (id) => {
+            const { provider, sent } = harness();
+            const missing = id as unknown as string;
+
+            await expect(provider.getOne("posts", missing)).rejects.toThrow(TypeError);
+            await expect(provider.update("posts", missing, {})).rejects.toThrow(TypeError);
+            await expect(provider.deleteOne("posts", missing)).rejects.toThrow(TypeError);
+            expect(sent).toEqual([]);
+        },
+    );
+});

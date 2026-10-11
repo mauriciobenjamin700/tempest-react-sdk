@@ -42,6 +42,38 @@ export interface OAuthCallbackParams {
     state: string;
 }
 
+/** Options for {@link readOAuthCallbackParams}. */
+export interface ReadOAuthCallbackOptions {
+    /**
+     * Remove `code` and `state` from the address bar after reading them, with
+     * `history.replaceState` — other params, the hash and `history.state` are
+     * kept. Default: `true` when reading `window.location`, `false` when an
+     * explicit `search` is passed (there is no URL of yours to clean then).
+     */
+    scrubUrl?: boolean;
+}
+
+const CALLBACK_SECRETS: readonly string[] = ["code", "state"];
+
+/**
+ * Drop `code` and `state` from the current URL without a navigation.
+ *
+ * Left in place, the single-use code sits in the history entry, in a bookmark,
+ * in a shared screenshot and in the `Referer` of the next request. Passing
+ * `history.state` back keeps a router's own bookkeeping (React Router's `idx`)
+ * intact. No-op when neither param is present.
+ */
+function scrubCallbackUrl(): void {
+    const url = new URL(window.location.href);
+    if (!CALLBACK_SECRETS.some((key) => url.searchParams.has(key))) return;
+    for (const key of CALLBACK_SECRETS) url.searchParams.delete(key);
+    window.history.replaceState(
+        window.history.state,
+        "",
+        `${url.pathname}${url.search}${url.hash}`,
+    );
+}
+
 /**
  * Read `code` and `state` from a provider's redirect, refusing an incomplete one.
  *
@@ -59,7 +91,12 @@ export interface OAuthCallbackParams {
  * expiry). The browser cannot read that cookie, so any check here would be
  * theatre; forwarding the value is the browser's whole job.
  *
+ * When it reads `window.location`, it also removes `code` and `state` from the
+ * address bar (see {@link ReadOAuthCallbackOptions.scrubUrl}) — before
+ * validating, so a refused callback is cleaned too.
+ *
  * @param search - The query string or params to read. Default: `window.location.search`.
+ * @param options - Whether to scrub the URL.
  * @returns The `code` and `state`.
  * @throws {OAuthCallbackError} `"provider_error"` when the provider sent `error`
  *   (the user declined, for instance), `"missing_state"` without `state`,
@@ -69,14 +106,19 @@ export interface OAuthCallbackParams {
  * const { code, state } = readOAuthCallbackParams("?code=4%2F0A&state=xyz");
  */
 export function readOAuthCallbackParams(
-    search: string | URLSearchParams = globalThis.location?.search ?? "",
+    search?: string | URLSearchParams,
+    options: ReadOAuthCallbackOptions = {},
 ): OAuthCallbackParams {
-    const params = typeof search === "string" ? new URLSearchParams(search) : search;
+    const fromLocation = search === undefined;
+    const { scrubUrl = fromLocation } = options;
+    const source = search ?? globalThis.location?.search ?? "";
+    const params = typeof source === "string" ? new URLSearchParams(source) : source;
     const error = params.get("error");
-    if (error) throw new OAuthCallbackError("provider_error", error);
     const state = params.get("state");
-    if (!state) throw new OAuthCallbackError("missing_state");
     const code = params.get("code");
+    if (scrubUrl && typeof window !== "undefined") scrubCallbackUrl();
+    if (error) throw new OAuthCallbackError("provider_error", error);
+    if (!state) throw new OAuthCallbackError("missing_state");
     if (!code) throw new OAuthCallbackError("missing_code");
     return { code, state };
 }
@@ -90,6 +132,8 @@ export interface ExchangeOAuthCallbackOptions {
     prefix?: string;
     /** Where to read the provider's redirect from. Default: `window.location.search`. */
     search?: string | URLSearchParams;
+    /** Forwarded to {@link readOAuthCallbackParams}. Default: scrub when reading `window.location`. */
+    scrubUrl?: boolean;
     /** Abort the exchange. */
     signal?: AbortSignal;
 }
@@ -129,8 +173,8 @@ export async function exchangeOAuthCallback<T>(
     provider: string,
     options: ExchangeOAuthCallbackOptions = {},
 ): Promise<T> {
-    const { prefix = "/auth", search, signal } = options;
-    const { code, state } = readOAuthCallbackParams(search);
+    const { prefix = "/auth", search, scrubUrl, signal } = options;
+    const { code, state } = readOAuthCallbackParams(search, { scrubUrl });
     const base = prefix.replace(/\/+$/, "");
     return api.get<T>(`${base}/oauth/${encodeURIComponent(provider)}/callback`, {
         params: { code, state },

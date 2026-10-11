@@ -14687,8 +14687,9 @@ O `id` é a parte da URL que pode vir de fora do app — um search param, o hash
 | `"../admin"`            | `/posts/..%2Fadmin`                  |
 | `"a/b?x=1"`             | `/posts/a%2Fb%3Fx%3D1`               |
 | `""`, `"."` ou `".."`   | rejeita com `TypeError`, sem requisição |
+| `null` ou `undefined`   | rejeita com `TypeError`, sem requisição (antes virava `/posts/null`) |
 
-`encodeIdSegment` aplica `encodeURIComponent` e rejeita os três valores que o parser de URL resolveria como dot-segment mesmo codificados. Ele vale também para o `buildPath` customizado — o override recebe o segmento pronto e só interpola, como no exemplo acima.
+`encodeIdSegment` aplica `encodeURIComponent` e rejeita os três valores que o parser de URL resolveria como dot-segment mesmo codificados, além de `null`/`undefined`. Ele vale também para o `buildPath` customizado — o override recebe o segmento pronto e só interpola, como no exemplo acima.
 
 !!! warning "Migração (0.77.0): remova o encode do seu `buildPath`"
     O `id` já chega codificado. Um `buildPath` que fazia `encodeURIComponent(id)` passa a codificar duas vezes (`a/b` vira `a%252Fb`) e o backend recebe outro id.
@@ -24101,21 +24102,26 @@ O que `exchangeOAuthCallback(api, provider, options?)` faz por você:
 - Lê `code` e `state` com `readOAuthCallbackParams` e **lança `OAuthCallbackError` antes de qualquer requisição** quando o provider mandou `error` (`reason: "provider_error"`), quando falta o `state` (`"missing_state"`) ou o `code` (`"missing_code"`).
 - Envia os dois para `{prefix}/oauth/{provider}/callback` com `credentials: "include"` — o cookie do `state` é a outra metade da comparação.
 - Usa `skipAuth` e `retry: false`: ainda não há sessão, um `401` ali é callback forjado ou expirado (não token a renovar), e o backend apaga o cookie do `state` na primeira tentativa.
+- Tira `code` e `state` da barra de endereço com `history.replaceState` assim que os lê (mesmo quando recusa o callback), mantendo os outros params, o hash e o `history.state` do router. Assim o código não fica no histórico, num favorito ou no `Referer` da próxima requisição.
 
 | Opção    | Default                  | Para que serve                                               |
 | -------- | ------------------------ | ------------------------------------------------------------ |
 | `prefix` | `"/auth"`                | O `prefix` passado ao `make_auth_router` no backend.         |
 | `search` | `window.location.search` | De onde ler o redirect do provider.                          |
 | `signal` | —                        | Aborta a troca.                                              |
+| `scrubUrl` | `true` lendo `window.location` | `false` mantém `code`/`state` na URL. Com `search` explícito o default é `false`. |
 
 !!! danger "Por que o `state` não pode ficar pra trás"
     Sem ele, um atacante manda a vítima para `/callback?code=<code da conta dele>` e a vítima fica logada na conta do atacante (login CSRF) — tudo o que ela digitar depois vai pra lá. A receita antiga lia só o `code`, então nenhum backend tinha como conferir o `state`. Agora o leitor devolve os dois ou lança.
+
+!!! info "Trade-off: `code` e `state` vão na query de um `GET`"
+    O contrato do `make_auth_router` é `GET /oauth/{provider}/callback?code=…&state=…` — a mesma URL que o provider usaria se redirecionasse direto pro backend —, então o helper não troca o método. O custo: a URL inteira entra no access log do backend e de qualquer proxy no caminho. O risco é limitado (o `code` é de uso único, troca em segundos e só vale junto do cookie do `state`), mas um log com `code` ainda não resgatado é um log com credencial de curta duração. Se os seus logs são compartilhados, configure o servidor ou o proxy para mascarar `code` e `state` nessa rota.
 
 !!! note "Backend que não é o `tempest-fastapi-sdk`"
     Use `readOAuthCallbackParams()` dentro do seu `exchange` e mande `code` **e** `state` para a sua rota. A comparação do `state` com o valor amarrado ao navegador que iniciou o fluxo é do backend: o navegador não lê um cookie `HttpOnly`, então uma checagem no cliente não provaria nada.
 
 !!! check "Roda uma vez, mesmo em StrictMode"
-    Em desenvolvimento o React 18/19 monta cada componente duas vezes de propósito. Sem guarda, `exchange` dispararia duas trocas e o segundo falharia — código OAuth é de uso único. O hook usa um `ref` pra garantir uma execução só, então você não vê o erro fantasma "code already redeemed" em dev.
+    Em desenvolvimento o React 18/19 monta, desmonta e remonta cada componente de propósito. O hook dispara `exchange` uma vez só por montagem lógica — código OAuth é de uso único — **e entrega o resultado** à montagem que sobrou: só descarta se o componente estiver de fato desmontado quando a resposta chegar. O mesmo vale para um re-render do pai com `onSuccess`/`onError` inline durante a requisição; o hook chama sempre a versão mais recente deles. Até a 0.76.0, os dois casos deixavam o hook em `"pending"` para sempre.
 
 ### Retorno
 

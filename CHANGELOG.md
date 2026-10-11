@@ -4,6 +4,34 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Segurança
+
+- **`release-npm.yml` — o job que pode publicar não roda mais código resolvido do registry
+  na hora do release (#451).** Era um job só, com `id-token: write` (Trusted Publishing) e
+  `contents: write`, e o checkout deixava o `GITHUB_TOKEN` no `.git/config`. Dentro dele
+  rodavam `npm install -g npm@latest`, o `npm install` flutuante do smoke
+  (`react@^19 react-dom@^19 react-router@^8 esbuild`) e o `scripts/smoke-vitest.sh`
+  (`npx --yes npm@11`, `vite@^8 vitest@^4 happy-dom`) — script de instalação de qualquer um
+  desses tinha acesso ao endpoint OIDC. E o `npm publish` de diretório re-rodava o
+  `prepublishOnly` inteiro (typecheck + lint + suíte + build) dentro do job, então o tarball
+  publicado era um pack **novo**, não o que o smoke testou: no log da v0.76.0 o publish leva
+  ~5 min porque roda a suíte de novo. Medido nos logs das runs (`gh api …/actions/jobs/<id>/logs`):
+  `npm@latest` já resolvia para o npm **12** nas releases v0.74.0–v0.76.0 (`npm notice run`,
+  `allowScripts`), e hoje `npm view npm dist-tags.latest` devolve `12.2.0` — o major mudou
+  10 → 11 → 12 debaixo do job sem ninguém escolher. Agora o workflow parte de
+  `permissions: {}` e são quatro jobs: `build` (`contents: read`: `npm ci`, gates, build,
+  `npm pack` + SHA-256 como output), `smoke` (`contents: read`: as instalações flutuantes),
+  `publish` (só `id-token: write`: `npm install -g npm@12.2.0`, a versão exata que publicou as
+  três últimas releases, e `npm publish "./<tarball>"`, que não roda script de ciclo de vida —
+  conferido com `npm publish <tgz> --dry-run` num pacote-fixture cujos `prepublishOnly`,
+  `prepack`, `prepare` e `publish` só imprimem: no diretório os quatro rodam, no tarball
+  nenhum) e `release` (só `contents: write`, sem instalar nada). Todo checkout tem
+  `persist-credentials: false`, toda action é fixada por SHA (`checkout` v5.1.0,
+  `setup-node` v5.0.0, `upload-artifact` v4.6.2, `download-artifact` v4.3.0) e todo job que
+  baixa o tarball confere o digest antes de usá-lo. `test/release-workflow.test.ts` fixa
+  essas regras: contra o workflow da `main`, 9 dos 10 casos falham. `actionlint` 1.7.12
+  (`uvx --from actionlint-py actionlint`) limpo. Docs: `docs/release.md` + `.en.md`.
+
 ### Interno
 
 - **Lockfile: `brace-expansion` 5.0.9 → 5.0.12, `fast-uri` 3.1.7 → 3.1.8 e `source-map-js`

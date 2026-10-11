@@ -71,6 +71,17 @@ o caminho de todo consumidor — e depois roda as mesmas asserções em Node cru
 o loader publicado. Os dois guards antigos continuam medidos: peer faltando faz o
 esbuild sair 1, export faltando faz o `node` sair 1.
 
+O `release-npm.yml` é quatro jobs, não um (#451): `build` e `smoke` com
+`contents: read`, `publish` só com `id-token: write`, `release` só com
+`contents: write`. **Nada resolvido do registry na hora roda ao lado de
+`id-token`** — o job de publish instala um npm de versão exata e publica o
+tarball que o `build` empacotou e o `smoke` testou, conferindo o SHA-256 que
+veio como output do `build`. `test/release-workflow.test.ts` reprova o workflow
+que voltar a juntar as coisas: action sem SHA, checkout sem
+`persist-credentials: false`, `npm@latest`, `npm ci`/`npx`/smoke no job com
+`id-token`, publish de diretório. Ao subir o npm ou uma action, troque a versão
+exata/o SHA de propósito — o comentário ao lado diz de onde veio.
+
 ## Release
 
 Pipeline **tag-push**, sem Changesets. Três superfícies ficam sincronizadas: a

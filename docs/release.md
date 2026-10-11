@@ -25,21 +25,25 @@ Local:                                  GitHub Actions:
   └─────────────────────────┘                     │
                                                   ▼
                                        ┌────────────────────────────┐
+                                       │ build (contents: read)     │
                                        │ 1. Checkout @ tag          │
                                        │ 2. tag == package.json?    │
-                                       │ 3. Lint + format-check     │
-                                       │ 4. Typecheck               │
-                                       │ 5. Tests (vitest)          │
-                                       │ 6. Build (vite + dts)      │
-                                       │ 7. Smoke install           │
-                                       │ 8. npm publish             │
+                                       │ 3. npm ci + lint + format  │
+                                       │ 4. Typecheck + tests       │
+                                       │ 5. Build + npm pack        │
+                                       │ smoke (contents: read)     │
+                                       │ 6. Bundler, Node cru e     │
+                                       │    Vitest contra o tarball │
+                                       │ publish (id-token: write)  │
+                                       │ 7. npm publish <tarball>   │
                                        │    --provenance            │
-                                       │ 9. read-back: registry     │
+                                       │ 8. read-back: registry     │
                                        │    serve a versão e o      │
                                        │    dist-tag latest bate?   │
-                                       │ 10. GitHub Release da tag  │
-                                       │     (notas = CHANGELOG,    │
-                                       │      tarball anexado)      │
+                                       │ release (contents: write)  │
+                                       │ 9. GitHub Release da tag   │
+                                       │    (notas = CHANGELOG,     │
+                                       │     tarball anexado)       │
                                        └────────────────────────────┘
 ```
 
@@ -133,21 +137,29 @@ Disparado por:
 - **`push: tags: [v*.*.*]`** — fluxo principal. `make release TAG=X` push uma tag e o workflow dispara automaticamente.
 - **`workflow_dispatch`** — manual via `gh workflow run release-npm.yml --ref main`. Útil quando o publish de uma tag falhou e você quer re-rodar sem incrementar versão.
 
-Passos do job `publish`:
+O workflow parte de `permissions: {}` e se divide em quatro jobs, cada um com só a permissão de que precisa. A divisão é o ponto: o único job que **pode** publicar não roda nada resolvido do registry na hora do release.
 
-1. **Checkout** (`actions/checkout@v5`) com `fetch-depth: 0`.
-2. **Node 22** + `registry-url: https://registry.npmjs.org` + cache npm, e `npm install -g npm@latest` (Trusted Publishing exige npm >= 11.5.1).
+| Job       | Permissão         | O que roda                                                                 |
+| --------- | ----------------- | -------------------------------------------------------------------------- |
+| `build`   | `contents: read`  | guard de versão, `npm ci`, lint, format, typecheck, testes, build, `npm pack` |
+| `smoke`   | `contents: read`  | os três smokes do tarball, com as instalações flutuantes do consumidor     |
+| `publish` | `id-token: write` | npm CLI fixado + `npm publish` do tarball já testado + read-back           |
+| `release` | `contents: write` | o GitHub Release, sem instalar nada                                        |
+
+Passos, na ordem:
+
+1. **Checkout** (`actions/checkout`, fixado por SHA como toda action do workflow) com `fetch-depth: 0` e `persist-credentials: false` — o `GITHUB_TOKEN` não fica gravado no `.git/config` para os passos seguintes.
+2. **Node 22** + cache npm.
 3. **Guard de versão** — compara a tag (`GITHUB_REF_NAME` sem o `v`) com o `version` do `package.json` e **aborta** se divergirem, antes de qualquer publish. Também deriva `prerelease` (versão com `-`) para marcar o Release corretamente. Em `workflow_dispatch` a tag é derivada do `package.json`.
-4. **`npm ci`**.
-5. **Lint** (`npm run lint`).
-6. **Format check** (`npm run format:check`).
-7. **Typecheck** (`npm run typecheck`).
-8. **Tests** (`npm run test:run`).
-9. **Build** (`npm run build`).
-10. **Smoke install** — gera tarball via `npm pack`, instala em `/tmp/sdk-smoke` com `react@^19 react-dom@^19` (as demais deps vêm como dependências diretas do pacote), importa o pacote dinamicamente e valida que 20 exports core estão presentes.
-11. **`npm publish --provenance --access public`** via **Trusted Publishing (OIDC)** — sem `NPM_TOKEN`. `id-token: write` é o que permite o attestation de provenance no sigstore.
-12. **Read-back do registry** — confirma que o npm serve `tempest-react-sdk@<versão>` (com até 5 tentativas, porque o registry demora a propagar) **e** que `dist-tags.latest` aponta para ela. Falha o job caso contrário: publish que aterrissou em outra tag deixaria de parecer verde.
-13. **GitHub Release** — `gh release create <tag>` com o tarball anexado e as notas extraídas da seção do `CHANGELOG.md` (`scripts/changelog.mjs notes <versão> --allow-unreleased`), acrescidas do link para a versão no npm. Se o Release já existe, faz `gh release edit` + `upload --clobber` em vez de falhar, então re-rodar o workflow para a mesma tag é seguro. Exige `contents: write` no job.
+4. **`npm ci`**, **lint**, **format check**, **typecheck**, **testes** e **build**.
+5. **`npm pack`** — o tarball sobe como artifact (`npm-tarball`) e o SHA-256 dele vira output do job. Output de job não pode ser reescrito por job posterior, então todo job que baixa o artifact confere o digest antes de usá-lo (`sha256sum --check`).
+6. **Smoke** (job `smoke`) — instala o tarball em `/tmp/sdk-smoke` com `react@^19 react-dom@^19 react-router@^8` e empacota com esbuild, roda as mesmas asserções em Node cru com o `node-css-loader` publicado, e roda uma suíte Vitest de consumidor (`scripts/smoke-vitest.sh`). Essas instalações resolvem versões flutuantes do registry — por isso moram num job sem permissão de escrita nenhuma.
+7. **`npm publish "./<tarball>" --provenance --access public`** (job `publish`) via **Trusted Publishing (OIDC)** — sem `NPM_TOKEN`. Publica **o arquivo** que o `build` empacotou e o `smoke` testou: publish de diretório re-rodaria o `prepublishOnly` (typecheck + lint + a suíte inteira + build) dentro do job com `id-token`, e mandaria um pack novo em vez do testado; publish de tarball não roda script de ciclo de vida nenhum. O npm CLI é instalado em versão exata (`npm install -g npm@12.2.0`), não `@latest`.
+8. **Read-back do registry** — confirma que o npm serve `tempest-react-sdk@<versão>` (até 30 minutos, porque o registry processa o upload de forma assíncrona) **e** que `dist-tags.latest` aponta para ela. Falha o job caso contrário: publish que aterrissou em outra tag deixaria de parecer verde.
+9. **GitHub Release** (job `release`) — `gh release create <tag>` com o tarball do artifact anexado e as notas extraídas da seção do `CHANGELOG.md` (`scripts/changelog.mjs notes <versão> --allow-unreleased`), acrescidas do link para a versão no npm. Se o Release já existe, faz `gh release edit` + `upload --clobber` em vez de falhar, então re-rodar o workflow para a mesma tag é seguro.
+
+!!! note "Por que o npm é fixado em 12.2.0"
+    Trusted Publishing exige npm >= 11.5.1, e o Node 22 traz 10.x. Até a 0.76.0 o passo instalava `npm@latest`, e o `latest` mudou de major duas vezes debaixo do job sem ninguém escolher: os logs das runs da v0.74.0 à v0.76.0 mostram o npm 12 (`npm notice run …`, `allowScripts`). A 12.2.0 é a versão que publicou essas três releases. Subir o npm é uma mudança deliberada nessa linha, revisada como qualquer outra.
 
 ## Segredos necessários no GitHub
 
@@ -163,7 +175,7 @@ O `GITHUB_TOKEN` (usado para criar o Release) é fornecido automaticamente pelo 
 O publish inclui `--provenance` quando rodado no CI. Isso requer:
 
 - `permissions: id-token: write` no workflow (já configurado).
-- npm >= 11.5.1 no runner (o step de upgrade cuida disso).
+- npm >= 11.5.1 no runner (o job `publish` instala a 12.2.0, fixada).
 - Um Trusted Publisher configurado no npmjs.com para este repositório.
 
 O resultado: cada versão publicada carrega um attestation assinado pelo sigstore, ligando o tarball ao commit + workflow run que o produziram. Visível no [registry](https://www.npmjs.com/package/tempest-react-sdk) como badge "Verified provenance".

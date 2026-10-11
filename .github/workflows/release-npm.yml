@@ -6,40 +6,39 @@ on:
             - "v*.*.*"
     workflow_dispatch:
 
-permissions:
-    contents: read
+# Every job declares exactly what it needs. The split is the point (#451): the
+# only job that can publish runs a pinned npm CLI and a tarball that an
+# unprivileged job built and smoked. Nothing resolved from the registry at
+# release time — `npm ci`, the test suite, the build, the floating smoke
+# installs — ever runs next to `id-token: write` or `contents: write`.
+permissions: {}
 
 jobs:
-    publish:
-        name: Publish tempest-react-sdk
+    build:
+        name: Verify, build and pack
         runs-on: ubuntu-latest
         permissions:
-            # contents: write is what lets the last step cut the GitHub Release
-            # for the tag that triggered this run.
-            contents: write
-            id-token: write
+            contents: read
+        outputs:
+            name: ${{ steps.pack.outputs.name }}
+            tag: ${{ steps.version.outputs.tag }}
+            version: ${{ steps.version.outputs.version }}
+            prerelease: ${{ steps.version.outputs.prerelease }}
+            tarball: ${{ steps.pack.outputs.tarball }}
+            sha256: ${{ steps.pack.outputs.sha256 }}
         steps:
-            - uses: actions/checkout@v5
+            - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
               with:
                   fetch-depth: 0
+                  persist-credentials: false
 
             - name: Set up Node.js
-              uses: actions/setup-node@v5
+              uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
               with:
                   node-version: "22"
-                  registry-url: "https://registry.npmjs.org"
                   cache: npm
                   cache-dependency-path: package-lock.json
 
-            # Trusted Publishing (OIDC) requires npm >= 11.5.1; Node 22 still
-            # ships npm 10.x. Upgrade so `npm publish` mints a short-lived
-            # token from the GitHub OIDC identity — no NPM_TOKEN needed.
-            - name: Upgrade npm for Trusted Publishing
-              run: npm install -g npm@latest
-
-            # Guard: the git tag and package.json must agree before anything is
-            # published, otherwise npm gets a version the tag does not describe
-            # and the GitHub Release ends up pointing at the wrong code.
             - name: Resolve version and check it matches the tag
               id: version
               run: |
@@ -78,6 +77,48 @@ jobs:
             - name: Build
               run: npm run build
 
+            # The digest travels as a job output, which no later job can
+            # rewrite; every job that consumes the artifact checks it first.
+            - name: Pack
+              id: pack
+              run: |
+                  TARBALL=$(npm pack --silent)
+                  echo "tarball=${TARBALL}" >> "$GITHUB_OUTPUT"
+                  echo "sha256=$(sha256sum "$TARBALL" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+                  echo "name=$(node -p "require('./package.json').name")" >> "$GITHUB_OUTPUT"
+
+            - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+              with:
+                  name: npm-tarball
+                  path: ${{ steps.pack.outputs.tarball }}
+                  if-no-files-found: error
+
+    smoke:
+        name: Smoke the packed tarball
+        needs: build
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+        steps:
+            - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+              with:
+                  persist-credentials: false
+
+            - name: Set up Node.js
+              uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+              with:
+                  node-version: "22"
+
+            - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+              with:
+                  name: npm-tarball
+
+            - name: Check the tarball is the one the build job packed
+              env:
+                  TARBALL: ${{ needs.build.outputs.tarball }}
+                  SHA256: ${{ needs.build.outputs.sha256 }}
+              run: echo "${SHA256}  ${TARBALL}" | sha256sum --check
+
             # The tarball is exercised the way every consumer consumes it: through
             # a bundler. Bare Node is not an option since 0.63.0 — each component
             # module imports its own stylesheet, and `.css` is not a format Node
@@ -94,8 +135,9 @@ jobs:
             # / dexie / react-hook-form / @tanstack/react-query / lucide-react as
             # direct dependencies (auto-resolved by npm install).
             - name: Smoke-install packed tarball and bundle core symbols
+              env:
+                  TARBALL: ${{ needs.build.outputs.tarball }}
               run: |
-                  TARBALL=$(npm pack --silent)
                   mkdir -p /tmp/sdk-smoke && cd /tmp/sdk-smoke
                   npm init -y >/dev/null
                   npm pkg set type=module >/dev/null
@@ -119,12 +161,51 @@ jobs:
             # The third consumer path: a Vitest suite, which externalizes the package
             # to Node unless `tempestVitest()` (part of `createViteConfig`) inlines it.
             - name: Smoke a consumer Vitest suite against the tarball
-              run: scripts/smoke-vitest.sh "$(ls tempest-react-sdk-*.tgz)"
+              env:
+                  TARBALL: ${{ needs.build.outputs.tarball }}
+              run: scripts/smoke-vitest.sh "$TARBALL"
+
+    publish:
+        name: Publish tempest-react-sdk
+        needs: [build, smoke]
+        runs-on: ubuntu-latest
+        permissions:
+            id-token: write
+        steps:
+            - name: Set up Node.js
+              uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+              with:
+                  node-version: "22"
+                  registry-url: "https://registry.npmjs.org"
+
+            # Trusted Publishing (OIDC) needs npm >= 11.5.1 and Node 22 ships
+            # 10.x, so the CLI is upgraded — to an exact version, because this is
+            # the binary that holds the OIDC token. 12.2.0 is the one that
+            # published v0.74.0 through v0.76.0 (the floating `latest` tag resolved
+            # to it, read off the run logs), and `latest` had moved 10 → 11 → 12 under
+            # this job without anyone choosing it. Bump it on purpose.
+            - name: Install the pinned npm CLI
+              run: npm install -g npm@12.2.0
+
+            - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+              with:
+                  name: npm-tarball
+
+            - name: Check the tarball is the one the build job packed
+              env:
+                  TARBALL: ${{ needs.build.outputs.tarball }}
+                  SHA256: ${{ needs.build.outputs.sha256 }}
+              run: echo "${SHA256}  ${TARBALL}" | sha256sum --check
 
             # No NODE_AUTH_TOKEN: publish authenticates via GitHub OIDC
             # (npm Trusted Publishing). Provenance is generated automatically.
             # Requires a Trusted Publisher configured on npmjs.com pointing at
             # this repo + workflow file (release-npm.yml).
+            # It publishes the tarball the build job packed and the smoke job
+            # exercised, by path: a directory publish would re-run
+            # `prepublishOnly` (typecheck + lint + the whole test suite + build)
+            # inside this job, and ship a fresh pack instead of the smoked one.
+            # A tarball publish runs no lifecycle script at all.
             # Skipped when the registry already serves this exact version, which
             # is what makes re-running a failed run a real recovery rather than a
             # second publish that aborts on conflict. The read-back below is the
@@ -132,16 +213,18 @@ jobs:
             # a successful upload — so the run that has to be repeated is one
             # whose publish already happened.
             - name: Publish (Trusted Publishing / OIDC)
+              env:
+                  PKG_NAME: ${{ needs.build.outputs.name }}
+                  VERSION: ${{ needs.build.outputs.version }}
+                  TARBALL: ${{ needs.build.outputs.tarball }}
               run: |
-                  VERSION="${{ steps.version.outputs.version }}"
-                  PKG_NAME=$(node -p "require('./package.json').name")
                   PUBLISHED=$(npm view --prefer-online "${PKG_NAME}@${VERSION}" version 2>/dev/null || true)
                   if [ "$PUBLISHED" = "$VERSION" ]; then
                     echo "· ${PKG_NAME}@${VERSION} is already on the registry — skipping publish"
                     echo "  (re-run path: the read-back and the GitHub Release below still run)"
                     exit 0
                   fi
-                  npm publish --provenance --access public
+                  npm publish "./${TARBALL}" --provenance --access public
 
             # Registry read-back: npm must actually serve this version, and the
             # `latest` dist-tag must point at it — a publish that silently landed
@@ -162,9 +245,10 @@ jobs:
             # `npm view` is asked to skip its cache, so a negative answer from the
             # first attempt is not replayed for the rest of the loop.
             - name: Verify the npm registry serves this version as latest
+              env:
+                  PKG_NAME: ${{ needs.build.outputs.name }}
+                  VERSION: ${{ needs.build.outputs.version }}
               run: |
-                  VERSION="${{ steps.version.outputs.version }}"
-                  PKG_NAME=$(node -p "require('./package.json').name")
                   for attempt in $(seq 1 120); do
                     PUBLISHED=$(npm view --prefer-online "${PKG_NAME}@${VERSION}" version 2>/dev/null || true)
                     [ -n "$PUBLISHED" ] && break
@@ -187,6 +271,32 @@ jobs:
                   fi
                   echo "✓ npm: ${PKG_NAME}@${VERSION} published and tagged latest"
 
+    release:
+        name: GitHub Release
+        needs: [build, publish]
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        steps:
+            - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+              with:
+                  persist-credentials: false
+
+            - name: Set up Node.js
+              uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+              with:
+                  node-version: "22"
+
+            - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+              with:
+                  name: npm-tarball
+
+            - name: Check the tarball is the one the build job packed
+              env:
+                  TARBALL: ${{ needs.build.outputs.tarball }}
+                  SHA256: ${{ needs.build.outputs.sha256 }}
+              run: echo "${SHA256}  ${TARBALL}" | sha256sum --check
+
             # Keeps GitHub in step with npm: every published version gets the
             # matching GitHub Release, with its CHANGELOG section as the notes and
             # the packed tarball attached. Idempotent — re-running a tag edits the
@@ -194,9 +304,10 @@ jobs:
             - name: Create or update the GitHub Release
               env:
                   GH_TOKEN: ${{ github.token }}
-                  TAG: ${{ steps.version.outputs.tag }}
-                  VERSION: ${{ steps.version.outputs.version }}
-                  PRERELEASE: ${{ steps.version.outputs.prerelease }}
+                  TAG: ${{ needs.build.outputs.tag }}
+                  VERSION: ${{ needs.build.outputs.version }}
+                  PRERELEASE: ${{ needs.build.outputs.prerelease }}
+                  TARBALL: ${{ needs.build.outputs.tarball }}
               run: |
                   node scripts/changelog.mjs notes "$VERSION" --allow-unreleased > /tmp/release-notes.md
                   {
@@ -205,7 +316,6 @@ jobs:
                     echo ""
                     echo "📦 npm: [\`tempest-react-sdk@${VERSION}\`](https://www.npmjs.com/package/tempest-react-sdk/v/${VERSION}) — publicado com provenance (OIDC)."
                   } >> /tmp/release-notes.md
-                  TARBALL=$(npm pack --silent)
                   FLAGS=(--title "$TAG" --notes-file /tmp/release-notes.md)
                   [ "$PRERELEASE" = "true" ] && FLAGS+=(--prerelease)
                   if gh release view "$TAG" >/dev/null 2>&1; then

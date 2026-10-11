@@ -115,7 +115,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ createAppErrorReporter, createAppErrorTelemetryAdapter }"
     },
-    "limit": "2.2 KB",
+    "limit": "2.4 KB",
     "ignore": [
       "react",
       "react-dom",

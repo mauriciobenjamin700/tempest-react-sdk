@@ -18,7 +18,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   mandaria o relato de A com o token de B — e só alimenta **`foreignReports: "anonymous" | "drop"`**
   (padrão `"anonymous"`). `"drop"` descarta todo relato que não se prova do principal atual (de
   outro, de ninguém ou desconhecido) e só vale com `getPrincipal`: sem ele, divergência de token
-  não prova dono alheio e o relato sai anônimo. `clear()` interrompe um flush em andamento e
+  não prova dono alheio e o relato sai anônimo (um `console.warn` único em dev avisa). `clear()` interrompe um flush em andamento e
   descarta relatos esperando um `getToken` assíncrono; esse `getToken` tem prazo de 5 s, então
   nem o relato nem o flush travam. Um `getPrincipal` que devolve algo que não é string/número vale
   "ninguém". Entradas persistidas antes desta versão saem anônimas (ou descartadas com `"drop"`).
@@ -26,8 +26,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `src/telemetry/app-error-reporter.test.ts`. Docs PT-BR/EN em `docs/telemetry.md` +
   `docs/telemetry.en.md`.
   Custo medido com `npx size-limit` sobre `npm run build` (main → este commit): fatia
-  `createAppErrorReporter` 1,60 → 2,14 kB brotli, por isso o teto da fatia sobe de 2 KB para
-  2,2 KB; barril ESM 139,86 → 140,42 kB e CJS 167,02 → 167,71 kB, com os tetos dos barris em
+  `createAppErrorReporter` 1,60 → 2,31 kB brotli (com o aviso de dev), por isso o teto da fatia
+  sobe de 2 KB para 2,4 KB; barril ESM 139,86 → 140,42 kB e CJS 167,02 → 167,71 kB, com os tetos dos barris em
   140,6 KB e 167,9 KB.
 
 ## [0.76.0] — 2026-10-10

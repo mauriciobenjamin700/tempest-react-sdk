@@ -5,6 +5,7 @@ import { fitAppErrorReport } from "./app-error-schema";
 import type { AppErrorDeviceSchema } from "./app-error-schema";
 import { readToken, sendOne } from "./app-error-transport";
 import { describeAppError } from "./describe-app-error";
+import { isDevBuild } from "../utils/dev-mode";
 
 /** Options for {@link createAppErrorReporter}. */
 export interface CreateAppErrorReporterOptions {
@@ -110,6 +111,41 @@ export interface AppErrorReporter {
     dispose: () => void;
 }
 
+/** Set once the warning has printed, so every reporter built after it stays quiet. */
+let warnedDropWithoutPrincipal = false;
+
+/**
+ * Reset the warn-once latch. Test-only: the latch is module state, so a suite
+ * asserting the warning more than once would otherwise see it only the first time.
+ */
+export function resetDropWithoutPrincipalWarning(): void {
+    warnedDropWithoutPrincipal = false;
+}
+
+/**
+ * Warn once, in development, that `foreignReports: "drop"` was asked for
+ * without the `getPrincipal` it needs.
+ *
+ * Without a principal the only identity is the token fingerprint, which a
+ * refresh changes, so the reporter cannot tell a foreign report from the
+ * user's own and sends them anonymously instead of dropping them. The option
+ * type-checks either way, so nothing else would tell the app its privacy
+ * choice is not in force.
+ *
+ * @param options - The reporter's options.
+ */
+function warnOnDropWithoutPrincipal(options: CreateAppErrorReporterOptions): void {
+    if (warnedDropWithoutPrincipal || options.foreignReports !== "drop") return;
+    if (options.getPrincipal !== undefined || !isDevBuild()) return;
+    warnedDropWithoutPrincipal = true;
+    console.warn(
+        '[tempest-react-sdk] createAppErrorReporter({ foreignReports: "drop" }) needs ' +
+            "`getPrincipal`: without it the reporter cannot prove a queued report belongs " +
+            "to someone else, so it drops nothing and those reports go out anonymously. " +
+            'Pass `getPrincipal` to make "drop" take effect.',
+    );
+}
+
 /**
  * Pick the default store, guarding hosts where touching `localStorage` throws.
  *
@@ -210,6 +246,7 @@ function stampNow(
  */
 export function createAppErrorReporter(options: CreateAppErrorReporterOptions): AppErrorReporter {
     const { endpoint, getToken, getPrincipal, device, autoFlush = true } = options;
+    warnOnDropWithoutPrincipal(options);
     const strict = getPrincipal !== undefined && options.foreignReports === "drop";
     const queue = createAppErrorQueue(
         options.storage === undefined ? defaultStorage() : options.storage,

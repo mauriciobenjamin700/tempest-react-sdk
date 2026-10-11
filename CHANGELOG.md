@@ -4,6 +4,19 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`tempest gen component <Nome>` — pasta de componente modular (#454).** Cria
+  `src/components/<Nome>/` com `index.tsx`, `styles.module.css`, `constants.ts`, `utils.ts` e
+  `hooks.ts`, todos ligados ao `index.tsx`. O nome é normalizado para PascalCase (`"user card"` →
+  `UserCard`) e recusado com o motivo quando não começa com letra ou tem caractere fora de
+  letra/dígito/espaço/`-`/`_`. `--out` troca a pasta (padrão `src/components`, onde o alias `@/`
+  do template já resolve); pasta existente é recusada, e `--force` reescreve só os cinco arquivos.
+  Symlink na pasta ou num dos arquivos é recusado mesmo com `--force`. `tempest new component` é
+  alias, com a grafia da issue. A saída passa no `tsc`, no ESLint e no Prettier do template como
+  sai — conferido num app de `create-tempest-app` com `tsc -b`, `eslint src`, `prettier --check`
+  e `vite build`, e fixado em `bin/lib/component/generate.test.mjs`. Docs em `docs/cli.md`.
+
 ## [0.76.0] — 2026-10-10
 
 ### Adicionado

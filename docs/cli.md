@@ -547,6 +547,54 @@ E em arquivo `.css` (o Vite resolve alias em CSS também):
     Apps gerados pelo `create-tempest-app` já vêm com tudo configurado. Em um
     projeto pelado, instale: `npm i -D eslint prettier eslint-plugin-simple-import-sort eslint-plugin-unused-imports`.
 
+## `tempest gen component`
+
+Cria a pasta de um componente novo, já no formato modular — um arquivo por
+responsabilidade:
+
+```bash
+npx tempest gen component "user card"
+# o mesmo, com a grafia do pedido original:
+npx tempest new component "user card"
+```
+
+```text
+src/components/UserCard/
+├── index.tsx           o componente (UserCard + UserCardProps)
+├── styles.module.css   as classes, via CSS Modules
+├── constants.ts        constantes do componente (USER_CARD_DEFAULT_TITLE)
+├── utils.ts            funções puras (joinClassNames)
+└── hooks.ts            hooks do componente (useUserCard)
+```
+
+E no fim ele mostra como importar: `import { UserCard } from "@/components/UserCard";`.
+
+O que acontece com o nome e com a pasta:
+
+- **O nome vira PascalCase.** `"user card"`, `user-card`, `user_card`,
+  `userCard` e `UserCard` geram todos `UserCard`. Nome que não começa com letra
+  ou tem caractere fora de letra, dígito, espaço, `-` e `_` é recusado com a
+  mensagem do motivo — nada é escrito.
+- **A pasta padrão é `src/components`**, onde um app do `create-tempest-app`
+  já resolve o alias `@/`. Troque com `--out`:
+  `npx tempest gen component Card --out src/ui`.
+- **Pasta existente é recusada.** Com `--force`, só os cinco arquivos gerados
+  são reescritos; o resto da pasta (um teste seu, por exemplo) fica como está.
+  Um symlink no lugar da pasta ou de um dos arquivos é recusado mesmo com
+  `--force`, então a escrita não sai do projeto.
+
+!!! check "Passa nos gates do template como saiu"
+    Os cinco arquivos compilam no `tsconfig` estrito do template, passam no
+    `eslint.config.js` dele (imports ordenados, `import type`, nada morto) e já
+    estão no formato do Prettier do app: aspas duplas, sem comentário. Cada
+    arquivo é usado pelo `index.tsx`, então nenhum nasce como código morto.
+
+!!! info "Por que `gen` e `new` são o mesmo comando"
+    Os geradores da CLI moram sob `gen` (`gen api`, `gen icons`), e
+    `gen component` entra no mesmo lugar. `new component` é a grafia pedida na
+    issue e fica como alias — só para `component`, para `new` não virar um
+    segundo nome de todo gerador.
+
 ## `tempest lint` e `tempest format`
 
 ```bash
@@ -573,4 +621,5 @@ npx tempest --version
 - A **[análise de CSS](#analise-de-css)** acha sintaxe que o browser derruba, declaração/regra duplicada, nome que não existe e bloco repetido que pede uma classe global. O `doctor` resume, o `--dry-run` lista tudo, o `fix` remove só o que é morto.
 - A **[análise de design](./design/limits.md)** mede limite de arquivo/função/hook, contagem de props, `any`, `fetch` em componente, `catch` vazio e cor literal inline — sempre como aviso, com `@tempest-limits <regra> — <motivo>` como saída de emergência escrita.
 - **`lint`** reporta; **`format`** só formata.
+- **`gen component <Nome>`** (alias `new component`) cria `src/components/<Nome>/` com `index.tsx`, `styles.module.css`, `constants.ts`, `utils.ts` e `hooks.ts`; `--out` troca a pasta, `--force` reescreve.
 - Veja também: [Scaffold](./scaffold.md) · [Arquitetura](./architecture.md).

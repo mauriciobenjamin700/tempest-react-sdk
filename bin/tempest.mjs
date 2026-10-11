@@ -6,15 +6,17 @@
 //   tempest lint [paths…]    run ESLint (report only)
 //   tempest fix [paths…]     alias imports (../ → @/) + ESLint --fix + Prettier
 //   tempest format [paths…]  Prettier --write
+//   tempest gen <api|icons|component> …   code generators (`new component` = alias)
 //   tempest --help | --version
 import { spawnSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { aliasImports } from "./lib/alias/index.mjs";
 import { describeTypeScript, loadTypeScript } from "./lib/alias/typescript.mjs";
 import { readTsconfig } from "./lib/alias/tsconfig.mjs";
+import { componentFiles } from "./lib/component/generate.mjs";
 import { analyzeCss, applyCssFixes, applyExtraction, planExtraction } from "./lib/css/index.mjs";
 import { analyzeDesign } from "./lib/design/index.mjs";
 import { checkLucide } from "./lib/doctor/lucide.mjs";
@@ -1375,7 +1377,88 @@ async function genIcons(args) {
     return 0;
 }
 
-const GEN_TARGETS = { api: genApi, icons: genIcons };
+// ------------------------------------------------------- gen component ----
+
+/** Flags `gen component` reads a value from, so the value is not taken as the name. */
+const COMPONENT_VALUE_FLAGS = new Set(["--out"]);
+
+/**
+ * `tempest gen component <Name> [--out src/components] [--force]` — create
+ * `<out>/<Name>/` with `index.tsx`, `styles.module.css`, `constants.ts`,
+ * `utils.ts` and `hooks.ts`.
+ *
+ * The name is normalized to PascalCase (`"user card"` → `UserCard`). An existing
+ * folder is refused unless `--force` is passed; with it, only the five generated
+ * files are rewritten and anything else in the folder is left alone. A symlink at
+ * the folder or at one of the five files is refused even with `--force`, so the
+ * write cannot land outside the project.
+ */
+async function genComponent(args) {
+    const unknown = args.filter(
+        (a) => a.startsWith("--") && a !== "--force" && !COMPONENT_VALUE_FLAGS.has(a),
+    );
+    if (unknown.length) {
+        console.error(`${c.red}✗ Unknown option: ${unknown.join(", ")}${c.reset}`);
+        return 1;
+    }
+    const positionals = args.filter(
+        (a, i) => !a.startsWith("--") && !COMPONENT_VALUE_FLAGS.has(args[i - 1]),
+    );
+    if (positionals.length > 1) {
+        console.error(
+            `${c.red}✗ Expected one component name, got ${positionals.length}.${c.reset} Quote a name with spaces: tempest gen component "User Card"`,
+        );
+        return 1;
+    }
+    let generated;
+    try {
+        generated = componentFiles(positionals[0]);
+    } catch (err) {
+        console.error(`${c.red}✗ ${err.message}${c.reset}`);
+        return 1;
+    }
+    const force = args.includes("--force");
+    const outRel = parseOut(args, "src/components");
+    const dir = resolve(ROOT, outRel, generated.name);
+    const shown = relative(ROOT, dir) || ".";
+
+    const targets = [dir, ...Object.keys(generated.files).map((f) => join(dir, f))];
+    const link = targets.find((p) => {
+        try {
+            return lstatSync(p).isSymbolicLink();
+        } catch {
+            return false;
+        }
+    });
+    if (link) {
+        console.error(
+            `${c.red}✗ ${relative(ROOT, link)} is a symlink; refusing to write through it.${c.reset}`,
+        );
+        return 1;
+    }
+    if (existsSync(dir) && !force) {
+        console.error(
+            `${c.red}✗ ${shown} already exists.${c.reset} Pass --force to rewrite its five generated files.`,
+        );
+        return 1;
+    }
+
+    await mkdir(dir, { recursive: true });
+    for (const [file, contents] of Object.entries(generated.files)) {
+        await writeFile(join(dir, file), contents);
+    }
+
+    console.log(`${c.green}✓ ${generated.name}${c.reset} → ${c.bold}${shown}/${c.reset}`);
+    for (const file of Object.keys(generated.files)) console.log(`  ${c.dim}· ${file}${c.reset}`);
+    console.log(`
+${c.dim}Use it:${c.reset}`);
+    const fromSrc = relative(join(ROOT, "src"), dir).split(sep).join("/");
+    const from = fromSrc.startsWith("..") ? `./${shown}` : `@/${fromSrc}`;
+    console.log(`  import { ${generated.name} } from "${from}";`);
+    return 0;
+}
+
+const GEN_TARGETS = { api: genApi, icons: genIcons, component: genComponent };
 
 function gen(args) {
     const what = args[0];
@@ -1387,6 +1470,21 @@ function gen(args) {
         return 1;
     }
     return target(args.slice(1));
+}
+
+/**
+ * `tempest new component <Name>` — the spelling from issue #454, kept as an
+ * alias of `tempest gen component`. Only `component` is accepted, so `new` does
+ * not become a second name for every generator.
+ */
+function newCommand(args) {
+    if (args[0] !== "component") {
+        console.error(
+            `${c.red}✗ Unknown new target: ${args[0] ?? "(none)"}${c.reset} — supported: component (alias of tempest gen component).`,
+        );
+        return 1;
+    }
+    return genComponent(args.slice(1));
 }
 
 // ------------------------------------------------------------------ main ----
@@ -1408,6 +1506,12 @@ ${c.bold}Commands${c.reset}
                     (e.g. tempest gen api http://127.0.0.1:8000/openapi.json --out src/api)
   ${c.bold}gen icons${c.reset}         Write a static icon registry from the slugs your source uses
                     (e.g. tempest gen icons --out src/icons.generated.ts --dir src)
+  ${c.bold}gen component${c.reset} <Name>
+                    Create <out>/<Name>/ with index.tsx, styles.module.css,
+                    constants.ts, utils.ts and hooks.ts (name → PascalCase)
+                    (e.g. tempest gen component "user card" --out src/components)
+                    --force rewrites the five files of an existing folder.
+                    Alias: tempest new component <Name>
 
 ${c.bold}doctor options${c.reset}
   --no-css          Skip the CSS analysis
@@ -1450,6 +1554,7 @@ const commands = {
     fix: () => fix(rest),
     format: () => format(rest),
     gen: () => gen(rest),
+    new: () => newCommand(rest),
 };
 
 if (!commands[cmd]) {

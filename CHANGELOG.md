@@ -9,7 +9,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - **Refresh em voo não reinstala mais a sessão depois do logout nem troca a conta logada (#435).**
   Cada refresh do `createTempestAuth` fica amarrado a uma época de sessão, incrementada pelo
   `logout()` e por um `login()` com credenciais aceitas; cada época tem sua própria fila. Refresh que resolve (ou
-  falha) depois que a época acabou descarta os tokens e rejeita com `RefreshSupersededError`, que o
+  falha) depois que a época acabou descarta os tokens e rejeita com `SessionSupersededError`, que o
   `createApiClient` repassa **sem** chamar `onUnauthorized` — a correção ingênua com `throw`
   derrubaria a conta recém-logada. Request que saiu com o token de uma sessão encerrada e volta 401
   é recusada do mesmo jeito, em vez de ser repetida como a conta atual. Medido com
@@ -17,7 +17,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   preso num gate): antes, `logout()` durante o refresh terminava com `token: "A-tok-2"`,
   `isAuthenticated: true` e a request pendente respondida como A; `logout()` + `login(B)` terminava
   com `user: B` e `token: "A-tok-2"`, e a request seguinte saía como A; uma request de A atrasada
-  depois do login de B era repetida como B. Depois, os três rejeitam com `RefreshSupersededError` e B
+  depois do login de B era repetida como B. Depois, os três rejeitam com `SessionSupersededError` e B
   mantém `B-tok-1`/`B-ref-1`.
 - **Três 401 da mesma expiração gastam um refresh, cheguem juntos ou escalonados.** O
   `createTempestAuth` não passava `getToken` à fila, então só colapsava 401 sobrepostos no tempo:
@@ -62,7 +62,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `npx vitest run src/auth/create-tempest-auth.session-end.test.ts` contra o commit anterior: 3 dos
   4 testes novos falhavam (hook não chamado; login falho de B superava o refresh de A; B instalado
   antes do fim do teardown de A).
-- **`RefreshSupersededError`** e **`WebPushUnsubscribeError`**, exportados da raiz.
+- **`SessionSupersededError`** (refresh ou `login()` cuja sessão foi superada antes de terminar) e
+  **`WebPushUnsubscribeError`**, exportados da raiz.
 
 ### Alterado
 
@@ -84,10 +85,10 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - **`ApiClientConfig.refresh` recebe `(context: RefreshContext)`** com o token com que a request
   rejeitada saiu. Função sem parâmetro continua atribuível — nenhum chamador quebra.
 - **Budgets do `size-limit` sobem pelo que os bytes compram** (medido com `npx size-limit`, `main`
-  × branch): `slice: http client` 4,57 → 4,64 kB (teto 4,6 → 4,7 kB) — `RefreshSupersededError` e o
-  token da request no `refresh`; `slice: typical app` 11,73 → 11,78 kB (teto 11,8 → 11,9 kB); barrel
-  ESM 139,86 → 140,45 kB (teto 140,2 → 140,8 kB); barrel CJS 167,02 → 167,56 kB (teto 167,2 →
-  167,6 kB).
+  × branch): `slice: http client` 4,57 → 4,64 kB (teto 4,6 → 4,7 kB) — `SessionSupersededError` e o
+  token da request no `refresh`; `slice: typical app` 11,73 → 11,83 kB (teto 11,8 → 11,9 kB); barrel
+  ESM 139,86 → 140,45 kB (teto 140,2 → 140,8 kB); barrel CJS 167,02 → 167,63 kB (teto 167,2 →
+  167,7 kB).
 
 ## [0.76.0] — 2026-10-10
 

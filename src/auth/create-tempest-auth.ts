@@ -1,4 +1,4 @@
-import { createApiClient, RefreshSupersededError } from "../http";
+import { createApiClient, SessionSupersededError } from "../http";
 import type { ApiClient, CsrfOptions, RefreshContext, RetryOptions } from "../http";
 import { createAuthStore } from "./create-auth-store";
 import type { AuthState } from "./create-auth-store";
@@ -166,7 +166,7 @@ export interface TempestAuth<TUser, TCredentials> {
     /**
      * Refresh the access token (deduplicated across concurrent callers).
      *
-     * @throws {RefreshSupersededError} When the session ended or changed while
+     * @throws {SessionSupersededError} When the session ended or changed while
      *   the refresh was in flight; its tokens were discarded.
      */
     refresh: () => Promise<void>;
@@ -193,7 +193,7 @@ function defaultParseTokens(data: unknown): { token: string; refreshToken?: stri
  *
  * Every refresh is bound to a **session epoch**, bumped by `logout()` and by a
  * `login()` whose credentials were accepted. A refresh that resolves after its epoch ended discards
- * what it brought back and rejects with {@link RefreshSupersededError}, which
+ * what it brought back and rejects with {@link SessionSupersededError}, which
  * the client passes through without ending the new session. Before 0.77.0 a
  * refresh that was in flight during `logout()` reinstalled the old tokens —
  * and after `logout()` + `login(B)`, replaced B's token with A's while the UI
@@ -322,7 +322,7 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      * refresh that fails after `logout()` + `login(B)` must not reach
      * `onUnauthorized` either, or it would end B's session.
      *
-     * @throws {RefreshSupersededError} When the epoch changed during the call.
+     * @throws {SessionSupersededError} When the epoch changed during the call.
      */
     async function rotate(): Promise<void> {
         const started = epoch;
@@ -333,10 +333,10 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
                 skipAuth: true,
             });
         } catch (error) {
-            if (epoch !== started) throw new RefreshSupersededError();
+            if (epoch !== started) throw new SessionSupersededError();
             throw error;
         }
-        if (epoch !== started) throw new RefreshSupersededError();
+        if (epoch !== started) throw new SessionSupersededError();
         const { token, refreshToken } = parseTokens(data);
         install(token);
         if (refreshToken) writeRefreshToken(refreshToken);
@@ -356,13 +356,13 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      * - Otherwise: join or start this epoch's refresh.
      *
      * @param context - The token the rejected request was sent with.
-     * @throws {RefreshSupersededError} When the request belongs to an ended
+     * @throws {SessionSupersededError} When the request belongs to an ended
      *   session, or the session changed during the refresh.
      */
     async function refreshFor(context: RefreshContext): Promise<void> {
         const current = getToken();
         if (context.token !== null && context.token !== current) {
-            if (retired.has(context.token)) throw new RefreshSupersededError();
+            if (retired.has(context.token)) throw new SessionSupersededError();
             if (current !== null) return;
         }
         return queue();
@@ -380,7 +380,7 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      *
      * @param credentials - Sent as the login body.
      * @returns The user of the new session, or null.
-     * @throws {RefreshSupersededError} When another `logout()` or `login()`
+     * @throws {SessionSupersededError} When another `logout()` or `login()`
      *   ended the session while this one was waiting on the teardown; the new
      *   tokens are discarded.
      */
@@ -393,7 +393,7 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
         const teardown = finish("switch");
         const mine = epoch;
         await teardown.catch(() => undefined);
-        if (epoch !== mine) throw new RefreshSupersededError();
+        if (epoch !== mine) throw new SessionSupersededError();
         install(token);
         writeRefreshToken(refreshToken ?? null);
         const embedded = parseUser?.(data);

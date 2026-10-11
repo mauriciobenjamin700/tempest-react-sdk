@@ -37,8 +37,10 @@ export class TempestApiError extends Error implements ApiError {
 }
 
 /**
- * Thrown by a `refresh` hook — and rethrown by {@link createApiClient} — when
- * the session that started the refresh is no longer the current one.
+ * Thrown when the session that started an operation is no longer the current
+ * one by the time it settles: a `refresh` hook (rethrown by
+ * {@link createApiClient}), or a `createTempestAuth` `login()` whose session
+ * was replaced while it waited on the previous session's teardown.
  *
  * A refresh is a network round trip, and the session can end or change hands
  * during it: the user signs out, or signs out and another account signs in. The
@@ -55,14 +57,14 @@ export class TempestApiError extends Error implements ApiError {
  * try {
  *     await api.get("/api/orders");
  * } catch (err) {
- *     if (err instanceof RefreshSupersededError) return;
+ *     if (err instanceof SessionSupersededError) return;
  *     throw err;
  * }
  */
-export class RefreshSupersededError extends Error {
+export class SessionSupersededError extends Error {
     constructor() {
-        super("A sessão mudou durante a renovação do token.");
-        this.name = "RefreshSupersededError";
+        super("A sessão mudou antes de a operação terminar.");
+        this.name = "SessionSupersededError";
     }
 }
 

@@ -312,16 +312,16 @@ Por que o hook roda **antes** de instalar a conta nova: o teardown da conta ante
 
 Um `logout()` cujo teardown ainda está em andamento é esperado do mesmo jeito: `logout()` seguido de `login()` sem `await` não instala a conta nova antes de o hook da anterior terminar.
 
-### Refresh em voo e troca de conta — `RefreshSupersededError`
+### Refresh em voo e troca de conta — `SessionSupersededError`
 
-Um refresh é uma ida e volta de rede, e a sessão pode acabar no meio dela. Cada refresh fica amarrado a uma **época de sessão**, que o `logout()` e um `login()` com credenciais aceitas incrementam. Um refresh que resolve depois que a época dele acabou descarta o que trouxe e rejeita com `RefreshSupersededError` — e o cliente repassa esse erro **sem** chamar `onUnauthorized`, porque a sessão atual (talvez outra conta, que acabou de entrar) não fez nada de errado. Uma request que saiu com o token de uma sessão encerrada e volta 401 é recusada do mesmo jeito, em vez de ser repetida como a conta que está logada agora.
+Um refresh é uma ida e volta de rede, e a sessão pode acabar no meio dela. Cada refresh fica amarrado a uma **época de sessão**, que o `logout()` e um `login()` com credenciais aceitas incrementam. Um refresh que resolve depois que a época dele acabou descarta o que trouxe e rejeita com `SessionSupersededError` — e o cliente repassa esse erro **sem** chamar `onUnauthorized`, porque a sessão atual (talvez outra conta, que acabou de entrar) não fez nada de errado. Uma request que saiu com o token de uma sessão encerrada e volta 401 é recusada do mesmo jeito, em vez de ser repetida como a conta que está logada agora.
 
 Antes da 0.77.0, um refresh em voo durante o `logout()` reinstalava os tokens antigos e voltava `isAuthenticated` para `true`; com `logout()` + `login(B)` no meio, trocava o token de B pelo de A — a tela mostrava B, e toda request saía como A.
 
 Trate o erro como uma request abortada: descarte o resultado e não mostre nada.
 
 ```ts
-import { RefreshSupersededError, createTempestAuth } from "tempest-react-sdk";
+import { SessionSupersededError, createTempestAuth } from "tempest-react-sdk";
 
 const auth = createTempestAuth({ baseURL: "https://api.exemplo.com" });
 
@@ -329,7 +329,7 @@ export async function loadOrders(): Promise<unknown[] | null> {
   try {
     return await auth.api.get<unknown[]>("/api/orders");
   } catch (error) {
-    if (error instanceof RefreshSupersededError) return null;
+    if (error instanceof SessionSupersededError) return null;
     throw error;
   }
 }
@@ -420,7 +420,7 @@ O fluxo: o login chama `setSession`, persistindo `user` + `token`. O `ProtectedL
 - **`lazyWithRetry`** — sobrevive a chunks stale pós-deploy com backoff + reload.
 - **`createRefreshQueue`** — N refreshes concorrentes viram 1.
 - **`onSessionEnd`** — teardown por usuário no `logout()` **e** na expiração automática, com `session.api` ainda autenticado.
-- **`RefreshSupersededError`** — refresh ou request de uma sessão que já acabou; descarte, não deslogue.
+- **`SessionSupersededError`** — refresh ou request de uma sessão que já acabou; descarte, não deslogue.
 
 ### Veja também
 

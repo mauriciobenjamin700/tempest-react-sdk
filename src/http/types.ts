@@ -202,7 +202,7 @@ export interface ApiClientConfig {
      * can tell a stale `401` — the token already rotated since the request left —
      * from a fresh one, and skip a second refresh.
      *
-     * Throwing {@link RefreshSupersededError} rejects the request with that
+     * Throwing {@link SessionSupersededError} rejects the request with that
      * error **without** calling `onUnauthorized`: the session the refresh
      * belonged to is gone, and the one in its place must not be ended for it.
      */

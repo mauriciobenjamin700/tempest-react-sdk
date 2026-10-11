@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { RefreshSupersededError } from "../http";
+import { SessionSupersededError } from "../http";
 import { createTempestAuth } from "./create-tempest-auth";
 
 interface User {
@@ -122,7 +122,7 @@ describe("createTempestAuth — refresh bound to the session epoch", () => {
         void auth.logout();
         release();
 
-        await expect(pending).rejects.toBeInstanceOf(RefreshSupersededError);
+        await expect(pending).rejects.toBeInstanceOf(SessionSupersededError);
         expect(auth.getToken()).toBeNull();
         expect(auth.useAuthStore.getState().isAuthenticated).toBe(false);
         expect(localStorage.getItem("tempest-auth-refresh")).toBeNull();
@@ -138,7 +138,7 @@ describe("createTempestAuth — refresh bound to the session epoch", () => {
         await auth.login({ email: "b@x.test", password: "x" });
         release();
 
-        await expect(pending).rejects.toBeInstanceOf(RefreshSupersededError);
+        await expect(pending).rejects.toBeInstanceOf(SessionSupersededError);
         expect(auth.getToken()).toBe("B-tok-1");
         expect(auth.useAuthStore.getState()).toMatchObject({
             user: { id: "B" },
@@ -157,7 +157,7 @@ describe("createTempestAuth — refresh bound to the session epoch", () => {
         await auth.login({ email: "b@x.test", password: "x" });
         release();
 
-        await expect(pending).rejects.toBeInstanceOf(RefreshSupersededError);
+        await expect(pending).rejects.toBeInstanceOf(SessionSupersededError);
         expect(auth.getToken()).toBe("B-tok-1");
     });
 
@@ -175,7 +175,7 @@ describe("createTempestAuth — refresh bound to the session epoch", () => {
         expect(refreshBodies).toEqual([{ refresh_token: "A-ref-1" }, { refresh_token: "B-ref-1" }]);
 
         release();
-        await expect(stale).rejects.toBeInstanceOf(RefreshSupersededError);
+        await expect(stale).rejects.toBeInstanceOf(SessionSupersededError);
         expect(auth.getToken()).toBe("B-tok-2");
     });
 
@@ -214,7 +214,7 @@ describe("createTempestAuth — refresh bound to the session epoch", () => {
         await auth.login({ email: "b@x.test", password: "x" });
         fail();
 
-        await expect(pending).rejects.toBeInstanceOf(RefreshSupersededError);
+        await expect(pending).rejects.toBeInstanceOf(SessionSupersededError);
         expect(auth.getToken()).toBe("B-tok-1");
         expect(onSessionEnd).toHaveBeenCalledOnce();
         expect(onSessionEnd.mock.calls[0]?.[0]).toMatchObject({ reason: "logout" });
@@ -229,7 +229,7 @@ describe("createTempestAuth — refresh bound to the session epoch", () => {
         void auth.logout();
         await auth.login({ email: "b@x.test", password: "x" });
 
-        await expect(stale).rejects.toBeInstanceOf(RefreshSupersededError);
+        await expect(stale).rejects.toBeInstanceOf(SessionSupersededError);
         expect(auth.getToken()).toBe("B-tok-1");
         expect(auth.useAuthStore.getState().isAuthenticated).toBe(true);
     });
@@ -248,7 +248,7 @@ describe("createTempestAuth — refresh bound to the session epoch", () => {
         void auth.logout();
         await auth.login({ email: "b@x.test", password: "x" });
 
-        await expect(stale).rejects.toBeInstanceOf(RefreshSupersededError);
+        await expect(stale).rejects.toBeInstanceOf(SessionSupersededError);
         expect(auth.getToken()).toBe("B-tok-1");
     });
 });

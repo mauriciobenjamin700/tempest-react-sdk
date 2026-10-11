@@ -12,7 +12,7 @@ import { decodeByContentType } from "./decode-response";
 import type { ResponseDecoder } from "./decode-response";
 import {
     buildApiError,
-    RefreshSupersededError,
+    SessionSupersededError,
     TempestApiError,
     isRetriableStatus,
 } from "./errors";
@@ -310,7 +310,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
                     await config.refresh({ token: sentToken });
                     response = await send(path, init, requestId, method, skipAuth);
                 } catch (error) {
-                    if (error instanceof RefreshSupersededError) throw error;
+                    if (error instanceof SessionSupersededError) throw error;
                     await notifyUnauthorized(response, requestId);
                     throw await parseError(response, requestId);
                 }

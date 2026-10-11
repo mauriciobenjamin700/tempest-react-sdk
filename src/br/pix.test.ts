@@ -659,3 +659,34 @@ describe("pix — what the spec says about amounts and characters (review of #44
         expect(data.txid).toBe("***");
     });
 });
+
+describe("pixPayload — accents in free text are stripped, a key with one is refused", () => {
+    it("writes São Paulo and João as Sao Paulo and Joao, keeping the case the caller gave", () => {
+        const payload = pixPayload({
+            key: "12345678909",
+            merchantName: "João",
+            merchantCity: "São Paulo",
+        });
+        expect(payload).toContain("5904Joao");
+        expect(payload).toContain("6009Sao Paulo");
+        expect(parsePixPayload(payload)).toMatchObject({
+            merchantName: "Joao",
+            merchantCity: "Sao Paulo",
+        });
+    });
+
+    it("refuses what is left outside the common character set after stripping, naming the field", () => {
+        expect(() =>
+            pixPayload({ key: "12345678909", merchantName: "Loja 😀", merchantCity: "SP" }),
+        ).toThrow(/merchantName/);
+        expect(() =>
+            pixPayload({ key: "12345678909", merchantName: "Loja", merchantCity: "東京" }),
+        ).toThrow(/merchantCity/);
+    });
+
+    it("refuses an accented key instead of transliterating it into another key", () => {
+        expect(() =>
+            pixPayload({ key: "joão@exemplo.com", merchantName: "Loja", merchantCity: "SP" }),
+        ).toThrow(PixError);
+    });
+});

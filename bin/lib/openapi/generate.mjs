@@ -42,6 +42,49 @@ function methodName(op, method, path) {
     return method + parts.join("");
 }
 
+/**
+ * Member names every generated service class already has: the constructor and the
+ * injected `api` property. An operation whose method name lands on one of them is
+ * deduplicated like any other collision (`constructor2`, `api2`).
+ */
+const CLASS_MEMBERS = ["constructor", "api"];
+
+/**
+ * Names a generated method body uses besides its path parameters: the `body` and
+ * `params` arguments and the `S` schemas import. A path parameter that maps to one
+ * of them becomes `<name>Param` (`{body}` → `bodyParam`), so it neither duplicates
+ * an argument nor shadows the import.
+ */
+const METHOD_LOCALS = new Set(["body", "params", "S"]);
+
+/**
+ * Check every `pattern` in a schema compiles as a JavaScript regex.
+ *
+ * The generated Zod schema builds it with `new RegExp(...)` when the module is
+ * imported, so an invalid one would only surface in the app at runtime — a blank
+ * screen. Failing here names the schema and where in it the pattern sits.
+ *
+ * @param {unknown} node - The schema (sub)node.
+ * @param {string} schema - The component schema name, for the error.
+ * @param {string[]} [at] - Keys from the schema root to `node`.
+ * @throws {Error} When a pattern does not compile.
+ */
+function assertPatterns(node, schema, at = []) {
+    if (!node || typeof node !== "object") return;
+    if (typeof node.pattern === "string") {
+        try {
+            new RegExp(node.pattern);
+        } catch (err) {
+            throw new Error(
+                `OpenAPI schema ${JSON.stringify(schema)} at ${at.join(".") || "(root)"}: pattern ${JSON.stringify(node.pattern)} is not a valid JavaScript regular expression (${err.message}).`,
+            );
+        }
+    }
+    for (const [key, value] of Object.entries(node)) {
+        if (key !== "pattern") assertPatterns(value, schema, [...at, key]);
+    }
+}
+
 /** Collect component-schema names referenced (transitively) by a schema node. */
 function collectRefs(node, schemas, acc = new Set(), seen = new Set()) {
     if (!node || typeof node !== "object") return acc;
@@ -196,7 +239,10 @@ function bodySchema(op) {
  */
 export function generate(doc) {
     const schemas = doc.components?.schemas ?? {};
-    assertNoCollision(Object.keys(schemas), typeName, "schema names");
+    assertNoCollision(
+        Object.keys(schemas).map((n) => [n, typeName(n)]),
+        "schema names",
+    );
     const groups = new Map(); // slug → { tag, ops: [...] }
 
     for (const [path, item] of Object.entries(doc.paths ?? {})) {
@@ -209,6 +255,11 @@ export function generate(doc) {
             groups.get(slug).ops.push({ method, path, op });
         }
     }
+
+    assertNoCollision(
+        [...groups.keys()].map((slug) => [slug, slugIdent(slug)]),
+        "tags (as barrel names)",
+    );
 
     const files = {};
     const tags = [];
@@ -226,6 +277,7 @@ export function generate(doc) {
             if (r) collectRefs(r, schemas, used);
         }
         const { sorted, cyclic } = topoSort(used, schemas);
+        for (const name of sorted) assertPatterns(schemas[name], name);
 
         // 2. schemas.ts
         const schemaLines = sorted.map((name) => {
@@ -245,7 +297,7 @@ export function generate(doc) {
             `import type { z } from "zod";\n\nimport * as S from "./schemas";\n\n${typeLines.join("\n")}\n`;
 
         // 4. service.ts
-        const usedNames = new Set();
+        const usedNames = new Set(CLASS_MEMBERS);
         const methods = ops.map(({ method, path, op }) =>
             emitMethod(method, path, op, schemas, usedNames),
         );
@@ -296,16 +348,21 @@ function emitMethod(method, path, op, schemas, usedNames = new Set()) {
     usedNames.add(name);
     const pathParams = (op.parameters ?? []).filter((p) => p.in === "path");
     const where = `${method.toUpperCase()} ${path}`;
-    const paramId = (name) => toIdentifier(name, "camel", `path parameter in ${where}`);
-    const reservedArgs = [];
-    if (bodySchema(op)) reservedArgs.push("body");
-    if ((op.parameters ?? []).some((p) => p.in === "query")) reservedArgs.push("params");
+    const paramId = (name) => {
+        const id = toIdentifier(name, "camel", `path parameter in ${where}`);
+        return METHOD_LOCALS.has(id) ? `${id}Param` : id;
+    };
+    const paramIds = new Map(pathParams.map((p) => [p.name, paramId(p.name)]));
     assertNoCollision(
-        [...reservedArgs, ...pathParams.map((p) => p.name)],
-        (n) => (reservedArgs.includes(n) ? n : paramId(n)),
+        [
+            ...[...paramIds],
+            ...(bodySchema(op) ? [["the request body argument", "body"]] : []),
+            ...((op.parameters ?? []).some((p) => p.in === "query")
+                ? [["the query argument", "params"]]
+                : []),
+        ],
         `method arguments of ${where}`,
     );
-    const paramIds = new Map(pathParams.map((p) => [p.name, paramId(p.name)]));
     const queryParams = (op.parameters ?? []).filter((p) => p.in === "query");
     const body = bodySchema(op);
     const resp = successSchema(op);

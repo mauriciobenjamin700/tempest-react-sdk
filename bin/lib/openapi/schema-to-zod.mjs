@@ -13,13 +13,31 @@ export function refName(ref) {
 }
 
 /**
+ * Names the generated files declare, import or rely on as globals next to the
+ * schema types: the SDK types `service.ts` imports, the `z` and `S` imports, and
+ * the `Promise` / `Record` globals the emitted signatures use. A schema with one
+ * of these names would collide with the import or shadow the global.
+ */
+export const GENERATED_NAMES = new Set([
+    "ApiClient",
+    "CursorPage",
+    "OffsetPage",
+    "Promise",
+    "Record",
+    "S",
+    "z",
+]);
+
+/**
  * The TypeScript type name for a spec schema name (`user.Response` →
- * `UserResponse`; a valid identifier is kept as is).
+ * `UserResponse`; a valid identifier is kept as is). A name in
+ * {@link GENERATED_NAMES} gets a `_` prefix (`Promise` → `_Promise`).
  *
  * @throws {Error} When the name has nothing to build an identifier from.
  */
 export function typeName(name) {
-    return toIdentifier(name, "pascal", "schema name");
+    const id = toIdentifier(name, "pascal", "schema name");
+    return GENERATED_NAMES.has(id) ? `_${id}` : id;
 }
 
 /**

@@ -20,7 +20,14 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   legítimo gera o mesmo código, exceto `pattern`, que sai como `new RegExp("...")` no lugar do
   literal `/.../` (mesma regex). Tag que vira slug com dígito inicial (`2fa`) e
   `operationId` só com símbolos/dígitos agora geram classe e método válidos. Testes em
-  `bin/lib/openapi/generate.hostile.test.mjs` executam a saída numa VM.
+  `bin/lib/openapi/generate.hostile.test.mjs` executam a saída numa VM. Nomes que o gerador
+  já usa também são tratados: parâmetro de path `body`/`params`/`S` vira `<nome>Param`,
+  `operationId` `constructor`/`api` vira `constructor2`/`api2`, schema chamado `ApiClient`,
+  `OffsetPage`, `CursorPage`, `Promise`, `Record`, `z` ou `S` ganha `_`, `eval` e `arguments`
+  contam como reservados, e duas tags com o mesmo nome no barrel (`user 1`/`user1`) são
+  recusadas. `pattern` que não compila como regex falha a geração citando schema e propriedade, em
+  vez de quebrar o app no import. U+2028/U+2029 em enum, chave, `default` e `pattern` foram
+  conferidos com `tsc` e passam sem escape extra.
 - **`create-tempest-app .` não escreve mais através de symlink do destino (#436).** Em modo merge,
   um `src -> ../fora` fazia `mkdir`/`cp` seguirem o link e sobrescreverem `fora/main.tsx` (e
   criarem mais nove arquivos lá) sem reportar nada; um `package.json` que fosse link também era
@@ -28,7 +35,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   pulado e listado como existente, e a escrita confere que o diretório pai real fica dentro do
   `realpath` da raiz. O passe `fixDotfiles` saiu: a cópia já grava `_gitignore` como `.gitignore`,
   então ele só renomeava o `_gitignore` do próprio usuário por cima de um `.gitignore` dele. Testes
-  em `bin/create-tempest-app.e2e.test.mjs`.
+  em `bin/create-tempest-app.e2e.test.mjs`. A janela entre a checagem e a escrita (TOCTOU) fica
+  como risco aceito, registrada na docstring.
 
 ## [0.76.0] — 2026-10-10
 

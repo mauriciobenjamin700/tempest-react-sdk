@@ -24789,6 +24789,15 @@ function UserList() {
     `{placeholder}` do path que não é parâmetro declarado também — não há
     variável segura para ele.
 
+    O mesmo vale para nomes que o próprio gerador já usa. Parâmetro de path que
+    cairia em `body`, `params` ou `S` vira `bodyParam`/`paramsParam`/`SParam`;
+    `operationId` `constructor` ou `api` vira `constructor2`/`api2`; schema
+    chamado `ApiClient`, `OffsetPage`, `CursorPage`, `Promise`, `Record`, `z` ou
+    `S` ganha prefixo `_`; e duas tags cujo nome no barrel coincide (`user 1` e
+    `user1`) são recusadas citando as duas. Um `pattern` que não compila como
+    regex JavaScript falha a **geração**, citando o schema e o caminho da
+    propriedade — em vez de quebrar o app no import.
+
 ## Recap
 
 - `tempest gen api <url|file> --out src/api` gera, **por grupo de rotas**, três arquivos: `schemas.ts` (Zod), `types.ts` (`z.infer`) e `service.ts` (classe).

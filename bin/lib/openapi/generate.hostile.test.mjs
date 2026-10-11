@@ -1,4 +1,6 @@
 import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import vm from "node:vm";
 
 import ts from "typescript";
@@ -384,5 +386,207 @@ describe("generate — real-world names that are not identifiers are mapped", ()
             { url: "/users/42/profile", opts: { body: { "display-name": "Ana" } } },
         ]);
         await expect(new mod.UsersService(api).updateProfile("42", {})).rejects.toThrow();
+    });
+});
+
+const REPO = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+
+/**
+ * Type-check a generated group with the full TypeScript checker, not just the
+ * parser: duplicate parameters, shadowed imports and non-generic `Promise` are
+ * semantic errors that `transpileModule` does not report.
+ *
+ * Files live in a virtual folder under the repository so `zod` resolves from its
+ * `node_modules`; `tempest-react-sdk` is swapped for a stub with the three types
+ * the generator imports from it.
+ *
+ * @param {Record<string, string>} files - The generator output.
+ * @param {string} slug - The group folder.
+ * @returns {string[]} Diagnostic messages.
+ */
+function typecheck(files, slug) {
+    const root = join(REPO, "__virtual_openapi__");
+    const virtual = new Map(
+        ["schemas.ts", "types.ts", "service.ts"].map((f) => [
+            join(root, f),
+            files[`${slug}/${f}`].replace('from "tempest-react-sdk"', 'from "./sdk"'),
+        ]),
+    );
+    virtual.set(
+        join(root, "sdk.ts"),
+        [
+            "type Call = <T = unknown>(url: string, opts?: unknown) => Promise<T>;",
+            "export type ApiClient = { get: Call; post: Call; put: Call; patch: Call; delete: Call };",
+            "export type OffsetPage<T> = { items: T[]; total: number };",
+            "export type CursorPage<T> = { items: T[]; next_cursor: string | null };",
+        ].join("\n"),
+    );
+    const options = {
+        strict: true,
+        target: ts.ScriptTarget.ES2022,
+        module: ts.ModuleKind.ESNext,
+        moduleResolution: ts.ModuleResolutionKind.Bundler,
+        skipLibCheck: true,
+        noEmit: true,
+    };
+    const host = ts.createCompilerHost(options);
+    const readFile = host.readFile.bind(host);
+    const fileExists = host.fileExists.bind(host);
+    const directoryExists = host.directoryExists?.bind(host);
+    const getSourceFile = host.getSourceFile.bind(host);
+    host.readFile = (f) => virtual.get(f) ?? readFile(f);
+    host.fileExists = (f) => virtual.has(f) || fileExists(f);
+    host.directoryExists = (d) => d === root || (directoryExists?.(d) ?? true);
+    host.getSourceFile = (f, lang) =>
+        virtual.has(f) ? ts.createSourceFile(f, virtual.get(f), lang) : getSourceFile(f, lang);
+    const program = ts.createProgram([...virtual.keys()], options, host);
+    return ts
+        .getPreEmitDiagnostics(program)
+        .map((d) => ts.flattenDiagnosticMessageText(d.messageText, "\n"));
+}
+
+const JSON_BODY = (ref) => ({
+    content: { "application/json": { schema: { $ref: `#/components/schemas/${ref}` } } },
+});
+const JSON_OK = (ref) => ({ 200: JSON_BODY(ref) });
+
+describe("generate — names that collide with what the generator itself declares", () => {
+    it("a path parameter named body, params or S is renamed, not duplicated or shadowing", async () => {
+        const { files } = generate(
+            spec(
+                {
+                    "/a/{body}/{params}/{S}": {
+                        post: {
+                            tags: ["t"],
+                            operationId: "send",
+                            parameters: [
+                                { name: "body", in: "path", required: true },
+                                { name: "params", in: "path", required: true },
+                                { name: "S", in: "path", required: true },
+                                { name: "q", in: "query" },
+                            ],
+                            requestBody: JSON_BODY("Req"),
+                            responses: OK,
+                        },
+                    },
+                },
+                { Req: { type: "object" } },
+            ),
+        );
+        expect(typecheck(files, "t")).toEqual([]);
+        const context = vm.createContext({});
+        const S = evaluate(files["t/schemas.ts"], context, {});
+        const mod = evaluate(files["t/service.ts"], context, { "./schemas": S });
+        const calls = [];
+        const api = { post: async (url, opts) => calls.push({ url, opts }) };
+        await new mod.TService(api).send("b", "p", "s", { k: 1 }, { q: "x" });
+        expect(calls).toEqual([{ url: "/a/b/p/s", opts: { body: { k: 1 }, params: { q: "x" } } }]);
+    });
+
+    it("an operationId of constructor or api becomes a distinct method", async () => {
+        const { files } = generate(
+            spec({
+                "/a": { get: { tags: ["t"], operationId: "constructor", responses: OK } },
+                "/b": { get: { tags: ["t"], operationId: "api", responses: OK } },
+            }),
+        );
+        expect(typecheck(files, "t")).toEqual([]);
+        const { urls } = await runGroup(files, "t");
+        expect(urls.sort()).toEqual(["/a", "/b"]);
+    });
+
+    it("path parameters named eval or arguments are prefixed for strict mode", async () => {
+        const { files } = generate(
+            spec({
+                "/a/{eval}/{arguments}": {
+                    get: {
+                        tags: ["t"],
+                        operationId: "get",
+                        parameters: [
+                            { name: "eval", in: "path" },
+                            { name: "arguments", in: "path" },
+                        ],
+                        responses: OK,
+                    },
+                },
+            }),
+        );
+        expect(typecheck(files, "t")).toEqual([]);
+        expect(files["t/service.ts"]).toContain("_eval: string, _arguments: string");
+        const context = vm.createContext({});
+        const mod = evaluate(files["t/service.ts"], context, {});
+        const calls = [];
+        await new mod.TService({ get: async (url) => calls.push(url) }).get("e", "a");
+        expect(calls).toEqual(["/a/e/a"]);
+    });
+
+    it("two tags whose barrel names collide are refused, naming both", () => {
+        expect(() =>
+            generate(
+                spec({
+                    "/a": { get: { tags: ["user 1"], responses: OK } },
+                    "/b": { get: { tags: ["user1"], responses: OK } },
+                }),
+            ),
+        ).toThrow(/"user-1" and "user1" both map to the TypeScript identifier "user1"/);
+    });
+
+    it("schemas named after generated imports or used globals are prefixed", () => {
+        const page = {
+            type: "object",
+            properties: {
+                items: { type: "array", items: { $ref: "#/components/schemas/Promise" } },
+                total: { type: "integer" },
+                pages: { type: "integer" },
+                size: { type: "integer" },
+            },
+        };
+        const names = ["ApiClient", "OffsetPage", "CursorPage", "Promise", "Record", "z", "S"];
+        const paths = Object.fromEntries(
+            names.map((n, i) => [
+                `/n${i}`,
+                { post: { tags: ["t"], requestBody: JSON_BODY(n), responses: JSON_OK("Page") } },
+            ]),
+        );
+        paths["/free"] = {
+            get: {
+                tags: ["t"],
+                responses: {
+                    200: { content: { "application/json": { schema: { type: "object" } } } },
+                },
+            },
+        };
+        const schemas = Object.fromEntries(names.map((n) => [n, { type: "object" }]));
+        schemas.Page = page;
+        const { files } = generate(spec(paths, schemas));
+        expect(files["t/service.ts"]).toContain("OffsetPage<_Promise>");
+        expect(typecheck(files, "t")).toEqual([]);
+    });
+
+    it("an invalid regex pattern fails generation, naming the schema and property", () => {
+        expect(() =>
+            generate(
+                spec(
+                    {
+                        "/a": {
+                            post: { tags: ["t"], requestBody: JSON_BODY("Body"), responses: OK },
+                        },
+                    },
+                    {
+                        Body: {
+                            type: "object",
+                            properties: {
+                                inner: {
+                                    type: "object",
+                                    properties: { code: { type: "string", pattern: "(" } },
+                                },
+                            },
+                        },
+                    },
+                ),
+            ),
+        ).toThrow(
+            /schema "Body" at properties\.inner\.properties\.code: pattern "\(" is not a valid/,
+        );
     });
 });

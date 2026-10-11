@@ -23,11 +23,14 @@ const IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
 
 /**
  * Words that parse as an identifier but cannot name a type alias, a `const` or a
- * parameter in a generated module. Ported from the ECMAScript reserved words plus
- * the TypeScript predefined type names that `type X = ...` rejects.
+ * parameter in a generated module. Ported from the ECMAScript reserved words,
+ * `eval` and `arguments` (which strict mode — every class body — forbids as a
+ * binding), and the TypeScript predefined type names that `type X = ...`
+ * rejects.
  */
 export const RESERVED_WORDS = new Set([
     "any",
+    "arguments",
     "await",
     "bigint",
     "boolean",
@@ -43,6 +46,7 @@ export const RESERVED_WORDS = new Set([
     "do",
     "else",
     "enum",
+    "eval",
     "export",
     "extends",
     "false",
@@ -123,24 +127,26 @@ export function toIdentifier(name, style, what) {
 }
 
 /**
- * Throw when two different spec names map to the same identifier.
+ * Throw when two entries map to the same identifier.
  *
- * @param {Iterable<string>} names - Original spec names.
- * @param {(name: string) => string} map - The mapping applied to each.
+ * Compared per entry, not per name: a path parameter literally called `body`
+ * maps to itself and still collides with the `body` argument, which a
+ * name-versus-mapped-name comparison would miss.
+ *
+ * @param {Iterable<[string, string]>} entries - `[label, identifier]` pairs; the
+ *   label is the spec's original name, or a description of a generated name.
  * @param {string} what - What the names are, for the error ("schema names").
- * @throws {Error} Listing both originals and the identifier they share.
+ * @throws {Error} Listing both labels and the identifier they share.
  */
-export function assertNoCollision(names, map, what) {
+export function assertNoCollision(entries, what) {
     const seen = new Map();
-    for (const name of names) {
-        const id = map(name);
-        const other = seen.get(id);
-        if (other !== undefined && other !== name) {
+    for (const [label, id] of entries) {
+        if (seen.has(id)) {
             throw new Error(
-                `OpenAPI ${what} ${JSON.stringify(other)} and ${JSON.stringify(name)} both map to the TypeScript identifier "${id}". Rename one of them in the spec.`,
+                `OpenAPI ${what} ${JSON.stringify(seen.get(id))} and ${JSON.stringify(label)} both map to the TypeScript identifier "${id}". Rename one of them in the spec.`,
             );
         }
-        seen.set(id, name);
+        seen.set(id, label);
     }
 }
 

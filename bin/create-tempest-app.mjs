@@ -14,7 +14,7 @@
 // (manifest, service worker, push-subscribe wiring) on top of the base.
 import { cp, lstat, mkdir, readdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -110,7 +110,15 @@ async function isSymlink(path) {
  * Whether the real location of `path`'s parent directory sits inside `root`.
  *
  * Second line behind {@link isSymlink}: it catches a link that appears in an
- * ancestor the copy did not create itself.
+ * ancestor the copy did not create itself. A folder whose name merely starts
+ * with two dots (`..cache`) is inside; only `..` itself or a `../` prefix is not.
+ *
+ * Both checks run immediately before each `mkdir`/`cp`, but nothing makes the
+ * check and the write one atomic step: a process that swaps a folder for a
+ * symlink in that window can still redirect the write. Node offers no
+ * `openat`/`O_NOFOLLOW` walk to close it, and the attacker would need to be
+ * racing the scaffold inside the user's own project folder, so this residual
+ * TOCTOU window is an accepted risk.
  *
  * @param {string} realRoot - `realpath` of the destination root.
  * @param {string} path - Absolute destination path about to be written.
@@ -119,7 +127,7 @@ async function isSymlink(path) {
 async function parentInside(realRoot, path) {
     const parent = await realpath(dirname(path));
     const rel = relative(realRoot, parent);
-    return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
+    return !(rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel));
 }
 
 /**

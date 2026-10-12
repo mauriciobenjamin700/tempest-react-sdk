@@ -169,7 +169,6 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   sobe de 2 KB para 2,4 KB; barril ESM 139,86 → 140,42 kB e CJS 167,02 → 167,71 kB, com os tetos dos barris em
   140,6 KB e 167,9 KB.
 
-
 ## [0.76.0] — 2026-10-10
 
 ### Adicionado

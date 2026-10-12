@@ -145,7 +145,6 @@ range: v0.75`, medido). O `latest` é lido de `npm view <pkg> dist-tags --json` 
   pendente), se existirem com o tipo errado ou se caírem fora do projeto depois de resolver
   symlinks. Ancestral que é symlink pendente agora conta como fora do projeto.
 
-
 ## [0.77.0] — 2026-10-12
 
 ### Breaking

@@ -145,6 +145,30 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
     Os conjuntos de tokens emitidos/aposentados, que cresciam a cada refresh numa sessão longa, foram
     removidos: a época lida na saída de cada tentativa cobre o que eles cobriam.
 
+- **`createAppErrorReporter` — relato enfileirado nunca sai com o token de quem logou depois (#441).**
+  O token era resolvido no flush para a fila inteira, e a fila sobrevive ao logout: um erro de A
+  enfileirado offline saía com `Authorization: Bearer <B>` depois que B logava no mesmo navegador,
+  e o backend atribuía a B a mensagem, o contexto e a stack de A. Cada entrada agora carrega
+  `session`, uma impressão digital de mão única (FNV-1a, 64 bits) do token em vigor no `report()` —
+  nunca o token —, e só sai com Bearer quando o token do envio é esse mesmo; caso contrário sai
+  anônima. Um refresh entre erro e envio também manda o relato anônimo: a atribuição se perde,
+  nunca vai para a pessoa errada. Nova opção **`getPrincipal`** (id estável e não secreto, gravado
+  como `owner`), que **não** libera o Bearer — um store de usuário atrasado em relação ao login
+  mandaria o relato de A com o token de B — e só alimenta **`foreignReports: "anonymous" | "drop"`**
+  (padrão `"anonymous"`). `"drop"` descarta todo relato que não se prova do principal atual (de
+  outro, de ninguém ou desconhecido) e só vale com `getPrincipal`: sem ele, divergência de token
+  não prova dono alheio e o relato sai anônimo (um `console.warn` único em dev avisa). `clear()` interrompe um flush em andamento e
+  descarta relatos esperando um `getToken` assíncrono; esse `getToken` tem prazo de 5 s, então
+  nem o relato nem o flush travam. Um `getPrincipal` que devolve algo que não é string/número vale
+  "ninguém". Entradas persistidas antes desta versão saem anônimas (ou descartadas com `"drop"`).
+  Relatos idênticos com carimbos diferentes não se fundem no contador. Regressões em
+  `src/telemetry/app-error-reporter.test.ts`. Docs PT-BR/EN em `docs/telemetry.md` +
+  `docs/telemetry.en.md`.
+  Custo medido com `npx size-limit` sobre `npm run build` (main → este commit): fatia
+  `createAppErrorReporter` 1,60 → 2,31 kB brotli (com o aviso de dev), por isso o teto da fatia
+  sobe de 2 KB para 2,4 KB; barril ESM 139,86 → 140,42 kB e CJS 167,02 → 167,71 kB, com os tetos dos barris em
+  140,6 KB e 167,9 KB.
+
 ## [0.76.0] — 2026-10-10
 
 ### Adicionado

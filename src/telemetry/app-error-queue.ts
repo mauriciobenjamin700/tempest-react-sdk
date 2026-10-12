@@ -15,6 +15,33 @@ export interface AppErrorQueueEntry {
     report: AppErrorReportSchema;
     /** How many times this exact report was raised while it waited. */
     count: number;
+    /**
+     * The token in force when the report was raised, as a one-way fingerprint
+     * (`"t:<hex>"`) — never the token itself. `null` means there was none;
+     * the field is missing on entries persisted before it existed (≤ 0.76.0).
+     *
+     * The bearer is resolved when the queue drains, not when the error happens,
+     * so this is what keeps a report user A raised offline from leaving with
+     * user B's token: the bearer only goes out when it is the very token whose
+     * fingerprint is stored here.
+     */
+    session?: string | null;
+    /**
+     * Who `getPrincipal` said was signed in when the report was raised, as a
+     * one-way fingerprint (`"p:<hex>"`). Only set when the reporter has a
+     * `getPrincipal`; `null` means it named nobody. It never grants the bearer
+     * — `session` does — it only decides whether `foreignReports: "drop"`
+     * discards the entry.
+     */
+    owner?: string | null;
+}
+
+/** Who a report is stamped with when it is raised. */
+export interface AppErrorStamp {
+    /** Token fingerprint, or `null`. */
+    session: string | null;
+    /** Principal fingerprint; absent without `getPrincipal`. */
+    owner?: string | null;
 }
 
 /** The persisted queue the reporter drains. */
@@ -22,19 +49,23 @@ export interface AppErrorQueue {
     /** Every waiting entry, oldest first. */
     entries: () => AppErrorQueueEntry[];
     /**
-     * Add a report, folding it into an identical waiting one.
+     * Add a report, folding it into an identical waiting one with the same stamp.
      *
+     * @param report - The fitted report.
+     * @param stamp - Who was signed in when it was raised.
      * @returns How many entries the size ceiling evicted (0 or 1).
      */
-    push: (report: AppErrorReportSchema) => number;
+    push: (report: AppErrorReportSchema, stamp: AppErrorStamp) => number;
+    /** Whether `entry` is still waiting — `false` once sent, dropped or cleared. */
+    has: (entry: AppErrorQueueEntry) => boolean;
     /**
-     * Drop the entry holding `report` — the one just sent, or refused for good.
+     * Drop `entry` — the one just sent, or refused for good.
      *
-     * Matched by content, not by position: a report raised while the send was
-     * in flight may have evicted the head, and dropping "the first entry" would
-     * then throw away a report nobody sent.
+     * Matched by content and owner, not by position: a report raised while the
+     * send was in flight may have evicted the head, and dropping "the first
+     * entry" would then throw away a report nobody sent.
      */
-    remove: (report: AppErrorReportSchema) => void;
+    remove: (entry: AppErrorQueueEntry) => void;
     /** Drop everything. */
     clear: () => void;
 }
@@ -48,6 +79,29 @@ export interface AppErrorQueue {
  */
 function sameReport(a: AppErrorReportSchema, b: AppErrorReportSchema): boolean {
     return a.code === b.code && a.message === b.message && a.app_version === b.app_version;
+}
+
+/**
+ * Whether a waiting entry holds this report with this stamp.
+ *
+ * The stamp is part of the identity on purpose: folding B's report into A's
+ * waiting one would send B's occurrences under A's name, which is the
+ * misattribution the stamp exists to prevent.
+ *
+ * @param entry - A waiting entry.
+ * @param other - The report and stamp to match; a missing field matches only a
+ *   missing field, so legacy entries keep to themselves.
+ * @returns `true` when report, session and owner all match.
+ */
+function holds(
+    entry: AppErrorQueueEntry,
+    other: Pick<AppErrorQueueEntry, "report" | "session" | "owner">,
+): boolean {
+    return (
+        sameReport(entry.report, other.report) &&
+        entry.session === other.session &&
+        entry.owner === other.owner
+    );
 }
 
 /**
@@ -74,7 +128,7 @@ function load(storage: AppErrorQueueStorage | null, key: string): AppErrorQueueE
  * Two rules bound it, because it fills exactly when the device is offline and
  * something is failing repeatedly:
  *
- * - **Identical reports fold.** A failure in a loop raises the same report a
+ * - **Identical reports from the same owner fold.** A failure in a loop raises the same report a
  *   hundred times; it is stored once with a `count`, instead of pushing every
  *   other failure out of the queue.
  * - **A ceiling evicts the oldest.** The newest report is the one closest to
@@ -109,13 +163,14 @@ export function createAppErrorQueue(
     };
     return {
         entries: () => [...memory],
-        push(report) {
-            const existing = memory.find((entry) => sameReport(entry.report, report));
+        push(report, stamp) {
+            const incoming: AppErrorQueueEntry = { report, count: 1, ...stamp };
+            const existing = memory.find((entry) => holds(entry, incoming));
             let evicted = 0;
             if (existing) {
                 existing.count += 1;
             } else {
-                memory.push({ report, count: 1 });
+                memory.push(incoming);
                 if (memory.length > maxEntries) {
                     memory = memory.slice(memory.length - maxEntries);
                     evicted = 1;
@@ -124,8 +179,9 @@ export function createAppErrorQueue(
             save();
             return evicted;
         },
-        remove(report) {
-            memory = memory.filter((entry) => !sameReport(entry.report, report));
+        has: (target) => memory.some((entry) => holds(entry, target)),
+        remove(target) {
+            memory = memory.filter((entry) => !holds(entry, target));
             save();
         },
         clear() {

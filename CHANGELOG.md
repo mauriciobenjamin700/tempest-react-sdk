@@ -115,6 +115,21 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   e mantém a rejeição de `null`). Nenhuma assinatura de método gerado muda; parâmetro de path chamado
   `encodeIdSegment` vira `encodeIdSegmentParam` e schema com esse nome ganha prefixo `_`. **Regenere**
   os serviços (`tempest gen api`) para receber a proteção.
+
+- **`release-npm.yml` — o `release-dist-tag.sh` que roda nos jobs privilegiados sai do commit, não do
+  workspace do build** (#495). O digest do script era tirado no passo Pack, depois de `npm ci`, testes e
+  build, e o script viajava no artifact; o `publish` (`id-token: write`) e o `release`
+  (`contents: write`) conferiam a cópia contra esse digest e a executavam. Um `postinstall` de
+  dependência que reescrevesse o script passava na conferência: reproduzido em sandbox da auditoria
+  (`evidence-hashchain-npmci.txt`), a conferência no estilo do workflow deu `OK` com o script trocado e
+  ele rodou; contra o digest do commit, `FAILED`. Agora o artifact leva só o tarball, o output
+  `release_script_sha256` e as conferências dele saem, e os dois jobs rodam o script de um
+  `actions/checkout` próprio de `github.sha` (`persist-credentials: false`; no `publish`, esparso, só do
+  arquivo, sem instalação depois), baixando o artifact em `$RUNNER_TEMP/npm-tarball`, fora do checkout.
+  Guard novo em `test/release-workflow.test.ts` (`npx vitest run test/release-workflow.test.ts`): no
+  workflow anterior, 8 de 55 testes falham; depois, 55/55. A execução no runner hospedado não foi
+  observada — a medição é do workflow lido como texto.
+
 - **`retry(factory, { retries: 0 })` nunca chamava a `factory` e rejeitava com `undefined`** (#486). O
   laço era `while (attempt < retries)`, então `0`, qualquer negativo e `NaN` pulavam a tentativa: a
   request não saía e o erro não dizia nada. Agora a primeira tentativa sempre roda — `0`/negativo fazem

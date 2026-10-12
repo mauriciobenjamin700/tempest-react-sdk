@@ -10,7 +10,10 @@ on:
 # only job that can publish runs a pinned npm CLI and a tarball that an
 # unprivileged job built and smoked. Nothing resolved from the registry at
 # release time — `npm ci`, the test suite, the build, the floating smoke
-# installs — ever runs next to `id-token: write` or `contents: write`.
+# installs — ever runs next to `id-token: write` or `contents: write`. Nor can
+# any of it reach those jobs through a file: the artifact carries the tarball
+# alone, and the scripts the privileged jobs run come from their own checkout
+# of `github.sha`, never from the build job's workspace (#495).
 permissions: {}
 
 # One release at a time, of any tag (#472). A tag push and a dispatch on the
@@ -39,7 +42,6 @@ jobs:
             artifact: npm-tarball-${{ github.run_attempt }}
             tarball: ${{ steps.pack.outputs.tarball }}
             sha256: ${{ steps.pack.outputs.sha256 }}
-            release_script_sha256: ${{ steps.pack.outputs.release_script_sha256 }}
         steps:
             - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
               with:
@@ -100,6 +102,10 @@ jobs:
             # the artifact of the attempt that built them.
             # The digest travels as a job output, which no later job can
             # rewrite; every job that consumes the artifact checks it first.
+            # Only the tarball goes up: this workspace ran `npm ci`, the tests
+            # and the build, so any file in it may have been rewritten by
+            # dependency code, and a digest taken here would vouch for that
+            # rewrite (#495).
             - name: Pack
               id: pack
               run: |
@@ -107,16 +113,13 @@ jobs:
                   {
                     echo "tarball=${TARBALL}"
                     echo "sha256=$(sha256sum "$TARBALL" | cut -d' ' -f1)"
-                    echo "release_script_sha256=$(sha256sum scripts/release-dist-tag.sh | cut -d' ' -f1)"
                     echo "name=$(node -p "require('./package.json').name")"
                   } >> "$GITHUB_OUTPUT"
 
             - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
               with:
                   name: npm-tarball-${{ github.run_attempt }}
-                  path: |
-                      ${{ steps.pack.outputs.tarball }}
-                      scripts/release-dist-tag.sh
+                  path: ${{ steps.pack.outputs.tarball }}
                   if-no-files-found: error
 
     smoke:
@@ -210,6 +213,17 @@ jobs:
         permissions:
             id-token: write
         steps:
+            # The dist-tag script runs from the commit itself, not from the
+            # build job's workspace (#495): a sparse checkout of that one file,
+            # with no install after it, so nothing resolved from the registry
+            # can touch what runs next to the OIDC token.
+            - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+              with:
+                  ref: ${{ github.sha }}
+                  persist-credentials: false
+                  sparse-checkout: scripts/release-dist-tag.sh
+                  sparse-checkout-cone-mode: false
+
             - name: Set up Node.js
               uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
               with:
@@ -225,18 +239,18 @@ jobs:
             - name: Install the pinned npm CLI
               run: npm install -g npm@12.2.0
 
+            # Downloaded outside the workspace, so the artifact cannot land on
+            # top of the checkout whatever it contains.
             - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
               with:
                   name: ${{ needs.build.outputs.artifact }}
+                  path: ${{ runner.temp }}/npm-tarball
 
-            - name: Check the tarball and the dist-tag script are the ones the build job packed
+            - name: Check the tarball is the one the build job packed
               env:
-                  TARBALL: ${{ needs.build.outputs.tarball }}
+                  TARBALL: ${{ runner.temp }}/npm-tarball/${{ needs.build.outputs.tarball }}
                   SHA256: ${{ needs.build.outputs.sha256 }}
-                  RELEASE_SCRIPT_SHA256: ${{ needs.build.outputs.release_script_sha256 }}
-              run: |
-                  echo "${SHA256}  ${TARBALL}" | sha256sum --check
-                  echo "${RELEASE_SCRIPT_SHA256}  scripts/release-dist-tag.sh" | sha256sum --check
+              run: echo "${SHA256}  ${TARBALL}" | sha256sum --check
 
             # No NODE_AUTH_TOKEN: publish authenticates via GitHub OIDC
             # (npm Trusted Publishing). Provenance is generated automatically.
@@ -263,7 +277,7 @@ jobs:
               env:
                   PKG_NAME: ${{ needs.build.outputs.name }}
                   VERSION: ${{ needs.build.outputs.version }}
-                  TARBALL: ${{ needs.build.outputs.tarball }}
+                  TARBALL: ${{ runner.temp }}/npm-tarball/${{ needs.build.outputs.tarball }}
                   BUILD_DIST_TAG: ${{ needs.build.outputs.dist_tag }}
               run: |
                   PUBLISHED=$(npm view --prefer-online "${PKG_NAME}@${VERSION}" version 2>/dev/null || true)
@@ -279,7 +293,7 @@ jobs:
                     echo "::notice::the registry's latest moved to '${CURRENT_LATEST}' since the build job; publishing under ${DIST_TAG}, not ${BUILD_DIST_TAG}"
                   fi
                   echo "dist_tag=${DIST_TAG}" >> "$GITHUB_OUTPUT"
-                  npm publish "./${TARBALL}" --provenance --access public --tag "${DIST_TAG}"
+                  npm publish "${TARBALL}" --provenance --access public --tag "${DIST_TAG}"
                   echo "published=true" >> "$GITHUB_OUTPUT"
 
             # Registry read-back: npm must actually serve this version, and its
@@ -348,8 +362,11 @@ jobs:
         permissions:
             contents: write
         steps:
+            # `scripts/` comes from this checkout of the commit, never from the
+            # artifact (#495).
             - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
               with:
+                  ref: ${{ github.sha }}
                   persist-credentials: false
 
             - name: Set up Node.js
@@ -357,18 +374,18 @@ jobs:
               with:
                   node-version: "22"
 
+            # Downloaded outside the workspace, so the artifact cannot land on
+            # top of the checkout whatever it contains.
             - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
               with:
                   name: ${{ needs.build.outputs.artifact }}
+                  path: ${{ runner.temp }}/npm-tarball
 
-            - name: Check the tarball and the dist-tag script are the ones the build job packed
+            - name: Check the tarball is the one the build job packed
               env:
-                  TARBALL: ${{ needs.build.outputs.tarball }}
+                  TARBALL: ${{ runner.temp }}/npm-tarball/${{ needs.build.outputs.tarball }}
                   SHA256: ${{ needs.build.outputs.sha256 }}
-                  RELEASE_SCRIPT_SHA256: ${{ needs.build.outputs.release_script_sha256 }}
-              run: |
-                  echo "${SHA256}  ${TARBALL}" | sha256sum --check
-                  echo "${RELEASE_SCRIPT_SHA256}  scripts/release-dist-tag.sh" | sha256sum --check
+              run: echo "${SHA256}  ${TARBALL}" | sha256sum --check
 
             # Keeps GitHub in step with npm: every published version gets the
             # matching GitHub Release, with its CHANGELOG section as the notes and
@@ -395,7 +412,7 @@ jobs:
                   TAG: ${{ needs.build.outputs.tag }}
                   VERSION: ${{ needs.build.outputs.version }}
                   PRERELEASE: ${{ needs.build.outputs.prerelease }}
-                  TARBALL: ${{ needs.build.outputs.tarball }}
+                  TARBALL: ${{ runner.temp }}/npm-tarball/${{ needs.build.outputs.tarball }}
               run: |
                   TAG_COMMIT=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${TAG}" --jq .sha)
                   if [ "$TAG_COMMIT" != "$GITHUB_SHA" ]; then

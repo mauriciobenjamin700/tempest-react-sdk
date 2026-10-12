@@ -4,7 +4,146 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`persistence.clear({ resetClient: true })` — logout em uma chamada.** Opção nova (tipo
+  `OfflineQueryClearOptions`), default `false`: depois de parar a persistência e apagar o
+  snapshot, também faz `queryClient.clear()`. O default não toca o `QueryClient` em memória porque
+  ele é do app, que pode manter queries públicas e tirar só as do usuário com `removeQueries`.
+  `clear()` sem argumento continua funcionando igual. Docs PT-BR/EN em
+  `docs/query.md` + `docs/query.en.md`.
+
+- **`createTempestAuth({ onSessionEnd })` — teardown por usuário no logout, na expiração
+  automática e na troca de conta (#445).** Roda nos três caminhos, uma vez por sessão, com
+  `{ reason: "logout" | "expired" | "switch", user, token, api }` — `api` ainda manda o token da sessão que
+  acabou, porque o store já foi limpo. Ordem: supera o refresh em voo → limpa o store (síncrono) →
+  roda o hook → navega para `redirectTo` (só no automático, depois do hook). Substitui a receita
+  manual de logout de `docs/push.md`, que não cobria a expiração automática. Tipos novos:
+  `TempestSessionEnd<TUser>` e `RequestAuthContext`.
+- **`login()` por cima de uma sessão viva encerra a anterior com `reason: "switch"`.** Antes, a
+  conta nova substituía a anterior sem teardown nenhum, e a inscrição de push e o estado por
+  usuário da conta anterior passavam para a nova. Ordem: credenciais novas aceitas → época avança e
+  store limpo → `onSessionEnd({ reason: "switch", user/token/api da conta anterior })` → tokens da
+  conta nova instalados. Login que falha não toca a sessão anterior nem o refresh em voo dela (antes
+  desta versão, a época avançava no começo do `login()`). O hook roda **antes** de instalar a conta
+  nova para o teardown terminar antes de as requests dela preencherem cache e filas; o custo é
+  `isAuthenticated` em `false` enquanto ele roda. Erro do hook nesse caminho é engolido, e um
+  `logout()` sem `await` cujo teardown ainda corre é esperado antes de instalar a conta nova.
+- **`SessionSupersededError`** (refresh ou `login()` cuja sessão foi superada antes de terminar) e
+  **`WebPushUnsubscribeError`**, exportados da raiz.
+
+### Alterado
+
+- **`persistQueryClientOffline`: o handle fica encerrado depois de `clear()` (#440).** Antes, o
+  mesmo handle continuava gravando depois do `clear()`; agora `restore()`/`flush()` viram no-op e
+  mudanças no cache não são mais persistidas. **Migração:** app que guarda a `persistence` no
+  nível do módulo e a reaproveita depois do login para de persistir — crie um handle novo a cada
+  sessão (exemplo `startSession`/`endSession` em `docs/query.md`). Em build de dev, o primeiro
+  `restore()`, `flush()` ou query adicionada/atualizada num handle encerrado gera um único
+  `console.warn` (gated por `isDevBuild()`).
+- **`clear()` é ordenado entre handles da mesma `databaseName` + `key`.** Enquanto um `clear()`
+  roda, o `restore()` e as gravações de um handle novo esperam ele terminar — um logout não
+  aguardado seguido de login não hidrata mais o snapshot anterior nem tem a primeira gravação do
+  novo usuário apagada. Se o delete do IndexedDB rejeitar, `resetClient: true` limpa o
+  `QueryClient` mesmo assim e a rejeição chega a quem chamou.
+
+- **`TempestAuth.logout` agora devolve `Promise<void>`** (era `() => void`). O store continua limpo
+  de forma síncrona, antes do primeiro `await`; a promise resolve quando o `onSessionEnd` terminou e
+  rejeita com o erro dele. Chamar sem `await` segue funcionando.
+
+  **Migração:** nada é obrigatório — quem chama `auth.logout()` sem usar o retorno compila e se
+  comporta igual (o store é limpo na hora). Ajuste só se:
+
+  - o lint do app tem `@typescript-eslint/no-floating-promises`: troque `auth.logout()` por
+    `await auth.logout()` ou `void auth.logout()`;
+  - o app tipou um campo como `logout: () => void` e atribui um tipo que espera **exatamente**
+    `void` de volta (ex.: implementa a interface `TempestAuth` à mão) — passe a devolver
+    `Promise<void>`;
+  - o app espera o teardown antes de navegar ou recarregar: use `await auth.logout()`, que agora
+    só resolve depois do `onSessionEnd`.
+
+- **`ApiClientConfig.refresh` recebe `(context: RequestAuthContext)`** e
+  **`onUnauthorized` recebe `(response, context)`**, com o `token` e a `epoch` com que a tentativa
+  rejeitada saiu; **`ApiClientConfig.getSessionEpoch`** é a opção nova que fornece a época.
+  `onUnauthorized` que lança `SessionSupersededError` faz a request rejeitar com ele. Funções sem
+  esses parâmetros continuam atribuíveis — nenhum chamador quebra.
+- **Budgets do `size-limit` sobem pelo que os bytes compram** (medido com `npx size-limit`, `main`
+  × branch): `slice: http client` 4,57 → 4,69 kB (teto 4,6 → 4,8 kB) — `SessionSupersededError`, o
+  contexto da tentativa (`token` + `epoch`) em `refresh`/`onUnauthorized`; `slice: typical app`
+  11,73 → 11,79 kB (teto 11,8 → 11,9 kB); barrel ESM 139,86 → 140,52 kB (teto 140,2 → 140,8 kB);
+  barrel CJS 167,02 → 167,82 kB (teto 167,2 → 168 kB).
+
 ### Corrigido
+
+- **`persistQueryClientOffline`: `clear()` no logout não é mais desfeito, e o cache do usuário
+  anterior não volta no próximo boot (#440).** Antes, `clear()` só apagava a linha do IndexedDB; o
+  timer de escrita e o subscribe no cache continuavam, e `save()` serializa o `QueryClient` inteiro.
+  Uma escrita pendente na última janela de throttle, ou qualquer evento de cache depois do logout
+  (a primeira query do próximo usuário), regravava as respostas de quem saiu, e o `restore()` do
+  boot seguinte as hidratava. Reproduzido em `src/query/offline-persistence.test.ts` antes da
+  correção (`npx vitest run src/query/offline-persistence.test.ts`: 4 de 8 testes novos falhando,
+  com `expected { owner: 'user-a', secret: 'A' } to be undefined`). Agora `clear()` é terminal
+  para o handle: cancela o timer, para o subscribe, espera a escrita em voo e só então apaga a
+  linha; `restore()`/`flush()` viram no-op depois dele; é idempotente e seguro em paralelo. Para
+  persistir a próxima sessão, crie um handle novo depois do login.
+
+- **Refresh em voo não reinstala mais a sessão depois do logout nem troca a conta logada (#435).**
+  Cada refresh do `createTempestAuth` fica amarrado a uma época de sessão, incrementada pelo
+  `logout()` e por um `login()` com credenciais aceitas; cada época tem sua própria fila. Refresh que resolve (ou
+  falha) depois que a época acabou descarta os tokens e rejeita com `SessionSupersededError`, que o
+  `createApiClient` repassa **sem** chamar `onUnauthorized` — a correção ingênua com `throw`
+  derrubaria a conta recém-logada. Request que saiu com o token de uma sessão encerrada e volta 401
+  é recusada do mesmo jeito, em vez de ser repetida como a conta atual. Medido com
+  `npx vitest run src/auth/create-tempest-auth.epoch.test.ts` (backend de duas contas com o refresh
+  preso num gate): antes, `logout()` durante o refresh terminava com `token: "A-tok-2"`,
+  `isAuthenticated: true` e a request pendente respondida como A; `logout()` + `login(B)` terminava
+  com `user: B` e `token: "A-tok-2"`, e a request seguinte saía como A; uma request de A atrasada
+  depois do login de B era repetida como B. Depois, os três rejeitam com `SessionSupersededError` e B
+  mantém `B-tok-1`/`B-ref-1`.
+- **Três 401 da mesma expiração gastam um refresh, cheguem juntos ou escalonados.** O
+  `createTempestAuth` não passava `getToken` à fila, então só colapsava 401 sobrepostos no tempo:
+  três requests expiradas com respostas a 0/20/40 ms gastavam **3** refreshes (mesmo teste acima);
+  agora gastam 1. O 401 cujo token já foi trocado pela mesma sessão só repete.
+- **`createRefreshQueue({ getToken })` deixava de renovar quando o token que ele emitiu expirava.** A
+  fila pulava o refresh enquanto o token do último refresh continuasse no store — e um token expirado
+  continua no store com a mesma string. Plugada no `createApiClient`, todo token emitido por refresh
+  virava irrenovável: o 401 pulava o refresh, a repetição falhava e `onUnauthorized` encerrava uma
+  sessão saudável. Medido com `npx vitest run src/auth/refresh-queue.test.ts`: 1 refresh para 2
+  expirações antes, 2 depois. A fila agora recebe do cliente o token com que a request falhou e
+  compara com ele; chamada à mão, sem contexto, mantém o comportamento anterior.
+- **`WebPushClient.unsubscribe()` libera a inscrição do navegador mesmo quando o `DELETE` no
+  backend falha (#445).** Antes, um `onUnsubscribe` rejeitado abortava antes de
+  `PushSubscription.unsubscribe()` — e ele rejeita justamente no fim da sessão, quando o token já
+  sumiu (reproduzido: DELETE → 401, `subscription.unsubscribe` nunca chamado). Agora o backend é
+  chamado primeiro, o navegador é liberado **sempre**, e a falha do backend sobe como
+  `WebPushUnsubscribeError` (com `subscription`, `browserUnsubscribed` e `cause`) depois da
+  liberação. `usePushSubscription` passa `subscribed` a `false` nesse caso. A doc de push, que
+  chamava a ordem antiga de "lado seguro do erro", agora compara os dois custos: linha órfã some no
+  próximo envio com `404`/`410`; inscrição viva entrega as notificações da conta para o próximo
+  usuário do navegador.
+
+- **Corridas de sessão achadas em review do próprio ciclo** (todas medidas com um teste que falhava
+  antes, em `src/auth/create-tempest-auth.races.test.ts` e
+  `src/push/web-push-client.unsubscribe.test.ts`):
+  - `login()` cujo POST estava em voo durante um `logout()` instalava a conta mesmo assim — agora
+    rejeita com `SessionSupersededError` e não instala nada;
+  - a repetição de A depois do refresh que voltava 401 após `logout()` + `login(B)` encerrava a
+    sessão de B — o cliente agora lê a época de cada tentativa (`getSessionEpoch`) e o
+    `onUnauthorized` recusa a tentativa de uma sessão encerrada com `SessionSupersededError`;
+  - `onSessionEnd` que aguardava `auth.api` travava o `logout()` para sempre (o 401 sem token
+    encerrava a sessão de novo e esperava o próprio hook) — enquanto um hook roda, o encerramento
+    automático e um `logout()` sem sessão não esperam o teardown, e só a chamada que encerrou a
+    sessão navega para o `redirectTo`. O `login()` continua esperando o teardown em andamento (um
+    hook que chama `auth.login()` trava: dentro do hook, use só `session.api`);
+  - `logout()` sem `await` cujo hook lançava engolia o erro em silêncio — agora vira
+    `unhandledrejection`;
+  - request sem token que voltava 401 depois do login de B renovava e, na falha, encerrava B — agora
+    só rejeita com o 401;
+  - `WebPushUnsubscribeError` com o navegador falhando junto do backend saía como `DOMException` cru
+    e perdia o `endpoint` — agora é sempre `WebPushUnsubscribeError`, com `cause` sendo um
+    `AggregateError` dos dois erros.
+    Os conjuntos de tokens emitidos/aposentados, que cresciam a cada refresh numa sessão longa, foram
+    removidos: a época lida na saída de cada tentativa cobre o que eles cobriam.
 
 - **`createAppErrorReporter` — relato enfileirado nunca sai com o token de quem logou depois (#441).**
   O token era resolvido no flush para a fila inteira, e a fila sobrevive ao logout: um erro de A
@@ -29,6 +168,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `createAppErrorReporter` 1,60 → 2,31 kB brotli (com o aviso de dev), por isso o teto da fatia
   sobe de 2 KB para 2,4 KB; barril ESM 139,86 → 140,42 kB e CJS 167,02 → 167,71 kB, com os tetos dos barris em
   140,6 KB e 167,9 KB.
+
 
 ## [0.76.0] — 2026-10-10
 

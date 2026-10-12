@@ -299,8 +299,8 @@ const user = await auth.login({ email, password });
 // um refresh único e re-tenta a chamada original
 const orders = await auth.api.get("/api/orders");
 
-// Logout (limpa sessão + refresh token guardado)
-auth.logout();
+// Logout (limpa sessão + refresh token guardado, depois roda o onSessionEnd)
+await auth.logout();
 ```
 
 O store é o mesmo `createAuthStore` (persistido), então funciona com o `<AuthGuard>`:
@@ -337,6 +337,9 @@ export const auth = createTempestAuth<User>({
     `redirectTo` usa `window.location.assign`, o que recarrega a aplicação inteira e descarta o histórico do router. O caminho declarativo (`<RouteGuard when={isAuthenticated} redirectTo="/login">`) mantém a SPA viva e não precisa de opção nenhuma — o `logout()` interno já dispara a navegação.
 
     `redirectTo` **não** dispara num `auth.logout()` explícito: ali quem chamou normalmente já navega, e duas navegações competindo é pior que nenhuma.
+
+!!! tip "Limpe o estado por usuário nos dois caminhos — `onSessionEnd`"
+    O logout explícito e a expiração automática terminam a sessão do mesmo jeito, e o `onSessionEnd` roda nos dois — com um `session.api` que ainda manda o token da sessão que acabou. É ali que a inscrição de push, o cache persistido e o resto do estado da conta saem. A ordem exata e a receita estão em [Auth → Fim de sessão](./auth.md#fim-de-sessao-createtempestauth-e-onsessionend).
 
 ### Retentativa
 

@@ -104,9 +104,19 @@ describe("release-npm.yml supply chain (#451)", () => {
         }
     });
 
+    /**
+     * Rewritten, not deleted: this used to forbid any checkout in the publishing job,
+     * which is what made the dist-tag script travel in the artifact from a workspace
+     * that had already run `npm ci`, the tests and the build (#495). The job now checks
+     * out the commit itself, sparse, for that one file and with no install after it.
+     */
     it("runs nothing resolved at release time inside the publishing job", () => {
         const [, body] = onlyJob(/id-token: write/);
-        expect(body).not.toMatch(/actions\/checkout/);
+        const checkouts = body.split("uses: actions/checkout@").slice(1);
+        expect(checkouts).toHaveLength(1);
+        expect(checkouts[0]?.split(/\n {12}- /)[0]).toMatch(
+            /\n {18}sparse-checkout: scripts\/release-dist-tag\.sh\n {18}sparse-checkout-cone-mode: false/,
+        );
         expect(body).not.toMatch(/npm ci|npm run |npx |npm pack|smoke-/);
         expect(body).not.toMatch(/contents: write/);
         const installs = [...body.matchAll(/npm install (.+)/g)].map((m) => m[1]);
@@ -115,7 +125,7 @@ describe("release-npm.yml supply chain (#451)", () => {
 
     it("publishes the tarball that was smoked, not a fresh pack", () => {
         const [, body] = onlyJob(/id-token: write/);
-        expect(body).toMatch(/npm publish "\.\/\$\{?TARBALL\}?"/);
+        expect(body).toMatch(/npm publish "\$\{TARBALL\}"/);
         expect(body).toMatch(/sha256sum (--check|-c)/);
     });
 
@@ -332,7 +342,7 @@ describe("release-npm.yml recovery and prereleases (review of #451/#452)", () =>
     it("publishes a prerelease under its own dist-tag and reads that tag back", () => {
         const [, body] = onlyJob(/id-token: write/);
         expect(body).toMatch(/DIST_TAG: \$\{\{ steps\.publish\.outputs\.dist_tag \}\}/);
-        expect(body).toMatch(/npm publish "\.\/\$\{TARBALL\}" .*--tag "\$\{DIST_TAG\}"/);
+        expect(body).toMatch(/npm publish "\$\{TARBALL\}" .*--tag "\$\{DIST_TAG\}"/);
         expect(body).toMatch(/release-dist-tag\.sh get "\$\{PKG_NAME\}" "\$\{DIST_TAG\}"/);
     });
 
@@ -475,9 +485,6 @@ describe("release-npm.yml reads the registry's latest for the guard (#472)", () 
         expect(reread).toBeGreaterThan(-1);
         expect(pick).toBeGreaterThan(reread);
         expect(body.indexOf("npm publish")).toBeGreaterThan(pick);
-        expect(body).toMatch(
-            /echo "\$\{RELEASE_SCRIPT_SHA256\} {2}scripts\/release-dist-tag\.sh" \| sha256sum --check/,
-        );
     });
 
     it("waits for the dist-tag only when this run is the one that published", () => {
@@ -642,6 +649,59 @@ describe("release-npm.yml surfaces release-dist-tag.sh errors on stdout (#472)",
         for (const line of calls) {
             expect(line).toMatch(
                 /=\$\((bash )?scripts\/release-dist-tag\.sh [^)]*2>"\$RUNNER_TEMP\/([\w.-]+)"\) \|\| \{ cat "\$RUNNER_TEMP\/\2"; exit 1; \}$/,
+            );
+        }
+    });
+});
+
+/**
+ * The steps of one job, split on the twelve-space `- ` that opens each step.
+ *
+ * @param body - The job body.
+ * @returns Each step's text, in order.
+ */
+function steps(body: string): string[] {
+    return body.split(/\n {12}- /).slice(1);
+}
+
+describe("release-npm.yml runs scripts from the commit, never from the build's workspace (#495)", () => {
+    const privileged = [...JOBS].filter(([, body]) => /id-token: write|contents: write/.test(body));
+
+    it("finds both privileged jobs", () => {
+        expect(privileged.map(([id]) => id).sort()).toEqual(["publish", "release"]);
+    });
+
+    it("uploads the tarball alone, so no script travels in the artifact", () => {
+        const upload = steps(JOBS.get("build") ?? "").find((step) =>
+            step.includes("actions/upload-artifact@"),
+        );
+        expect(upload).toBeDefined();
+        expect(upload).toMatch(/\n {18}path: \$\{\{ steps\.pack\.outputs\.tarball \}\}$/m);
+        expect(upload).not.toMatch(/scripts\//);
+        expect(WORKFLOW).not.toMatch(/release_script_sha256|RELEASE_SCRIPT_SHA256/);
+    });
+
+    it.each(privileged)(
+        "%s checks out github.sha before it runs anything from scripts/",
+        (_id, body) => {
+            const list = steps(body);
+            const checkout = list.findIndex((step) => step.startsWith("uses: actions/checkout@"));
+            expect(checkout).toBeGreaterThan(-1);
+            expect(list[checkout]).toMatch(/\n {18}ref: \$\{\{ github\.sha \}\}/);
+            const firstScript = list.findIndex((step) => /\n {14}run: [\s\S]*scripts\//.test(step));
+            expect(firstScript).toBeGreaterThan(checkout);
+        },
+    );
+
+    it.each(privileged)("%s downloads the artifact outside the checkout", (_id, body) => {
+        const downloads = steps(body).filter((step) =>
+            step.startsWith("uses: actions/download-artifact@"),
+        );
+        expect(downloads).toHaveLength(1);
+        expect(downloads[0]).toMatch(/\n {18}path: \$\{\{ runner\.temp \}\}\/npm-tarball/);
+        for (const line of body.split("\n").filter((l) => /^\s+TARBALL: /.test(l))) {
+            expect(line).toMatch(
+                /TARBALL: \$\{\{ runner\.temp \}\}\/npm-tarball\/\$\{\{ needs\.build\.outputs\.tarball \}\}$/,
             );
         }
     });

@@ -104,6 +104,51 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **Os serviços do `tempest gen api` interpolavam o parâmetro de path cru, e `../` no id levava a
+  requisição — com o Bearer — para outro endpoint** (#499). `deleteComment("../../account")` saía
+  como `DELETE /account`; com `baseURL` `https://api/v1`, `"../../../account"` escapava do `/v1`; e
+  `"7?role=admin"` injetava query string. Agora todo parâmetro de path entra na URL como
+  `${encodeIdSegment(id)}` — o mesmo helper que fechou a #438 no `createDataProvider` —, e o
+  `service.ts` que o usa ganha `import { encodeIdSegment } from "tempest-react-sdk"`. `/`, `?`, `#` e
+  `%` ficam no segmento; `""`, `"."`, `".."`, `null` e `undefined` lançam `TypeError` antes do
+  `fetch`. Parâmetro `boolean`, array ou objeto passa com `as never` (o helper converte com `String()`
+  e mantém a rejeição de `null`). Nenhuma assinatura de método gerado muda; parâmetro de path chamado
+  `encodeIdSegment` vira `encodeIdSegmentParam` e schema com esse nome ganha prefixo `_`. **Regenere**
+  os serviços (`tempest gen api`) para receber a proteção.
+
+- **`release-npm.yml` — o `release-dist-tag.sh` que roda nos jobs privilegiados sai do commit, não do
+  workspace do build** (#495). O digest do script era tirado no passo Pack, depois de `npm ci`, testes e
+  build, e o script viajava no artifact; o `publish` (`id-token: write`) e o `release`
+  (`contents: write`) conferiam a cópia contra esse digest e a executavam. Um `postinstall` de
+  dependência que reescrevesse o script passava na conferência: reproduzido em sandbox da auditoria
+  (`evidence-hashchain-npmci.txt`), a conferência no estilo do workflow deu `OK` com o script trocado e
+  ele rodou; contra o digest do commit, `FAILED`. Agora o artifact leva só o tarball, o output
+  `release_script_sha256` e as conferências dele saem, e os dois jobs rodam o script de um
+  `actions/checkout` próprio de `github.sha` (`persist-credentials: false`; no `publish`, esparso, só do
+  arquivo, sem instalação depois), baixando o artifact em `$RUNNER_TEMP/npm-tarball`, fora do checkout.
+  Guard novo em `test/release-workflow.test.ts` (`npx vitest run test/release-workflow.test.ts`): no
+  workflow anterior, 8 de 55 testes falham; depois, 55/55. A execução no runner hospedado não foi
+  observada — a medição é do workflow lido como texto.
+
+- **`createTempestAuth`: um 401 sem token durante o `login()` não dispara mais refresh** (#496). A
+  #474 fechou o caso todo deslogado, mas com um `login()` em voo o 401 ainda renovava — e no modo
+  cookie esse refresh ia com o cookie que o navegador tivesse: depois do `logout()` sem `logoutPath`
+  (o default), com a revogação falhando ou passando de 10 s, o da conta que tinha saído. Login de B
+  que falhava deixava o cliente logado como A, com o token de A persistido; login de B que dava certo
+  podia ter o cookie sobrescrito pelo `Set-Cookie` tardio desse refresh, e o refresh seguinte
+  instalava o token de A com o store mostrando B. Agora esse 401 espera os logins em voo assentarem e
+  repete a request com o token instalado, ou rejeita com o 401 se nenhum instalou; o `refresh()` do
+  boot continua podendo juntar-se a um refresh em andamento, e o modo corpo (refresh token guardado)
+  não muda. Dentro de um `onSessionEnd` que chama `auth.api` durante a troca de conta, o 401 sai sem
+  esperar — o login espera o hook, e esperar o login travaria. Reproduzido com o harness de cookie
+  jar da auditoria e fixado em `src/auth/create-tempest-auth.cookie.test.ts`
+  (`npx vitest run src/auth/create-tempest-auth.cookie.test.ts`): na `b0dc694` os quatro testes novos
+  ou reescritos falham (1 refresh enviado; request anônima resolvendo como A; `SessionSupersededError`
+  em vez do replay como B; o hook recebendo o usuário B), depois passam. A doc de auth passa a dizer
+  que, sem revogação no servidor funcionando, a conta que saiu continua restaurável pelo `refresh()`
+  do boot. Custo, medido com `npx size-limit` (`b0dc694` × esta mudança): barrel CJS 173,51 →
+  173,73 kB (teto 173,6 → 173,75 kB); barrel ESM 145,92 → 145,94 kB, dentro do teto.
+
 - **`CodeBlock`/`Markdown`: identificador JavaScript com `$` no meio era relido a cada `$`,
   quadrático** (#498). Na família JS (`ts`/`js`/`tsx`/`jsx` e apelidos), palavra-chave, literal e
   número terminavam em `\b`, que casa antes de `$`; o scanner parava no `$` do meio de `$1$1…` ou
@@ -119,6 +164,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `0x1$a(`, inválidos, ficam `plain` (antes, número + `$foo` função); `$1$1` vira `$1$` `plain` + `1`
   número (antes, `$`/`1` alternados). `$type`, `foo$this` e o resto dos casos fixados em teste
   seguem iguais.
+
 
 - **`retry(factory, { retries: 0 })` nunca chamava a `factory` e rejeitava com `undefined`** (#486). O
   laço era `while (attempt < retries)`, então `0`, qualquer negativo e `NaN` pulavam a tentativa: a

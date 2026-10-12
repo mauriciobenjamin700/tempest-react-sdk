@@ -63,6 +63,7 @@ export type UserCreate = z.infer<typeof S.UserCreateSchema>;
 
 ```ts
 import type { ApiClient } from "tempest-react-sdk";
+import { encodeIdSegment } from "tempest-react-sdk";
 import * as S from "./schemas";
 import type { User, UserCreate } from "./types";
 
@@ -82,10 +83,36 @@ export class UsersService {
 
   /** `GET /users/{id}` */
   async getUser(id: number): Promise<User> {
-    return this.api.get<User>(`/users/${id}`);
+    return this.api.get<User>(`/users/${encodeIdSegment(id)}`);
   }
 }
 ```
+
+### Parâmetro de path vira **um segmento só**
+
+Repare no `encodeIdSegment(id)` acima: todo parâmetro de path passa por ele
+antes de entrar na URL. O valor do `id` costuma vir de fora do app — um param do
+React Router, um search param, um valor que outro usuário gravou. Se ele
+entrasse cru, `"../../account"` levaria o `DELETE /users/{id}` para
+`DELETE /account`, **com o Bearer do usuário logado**, e `"7?role=admin"`
+injetaria query string. É a mesma proteção que o
+[`createDataProvider`](./data-provider.md) aplica desde a 0.77.0:
+
+| Valor passado | Requisição enviada |
+| --- | --- |
+| `7` | `GET /users/7` |
+| `"../../account"` | `GET /users/..%2F..%2Faccount` |
+| `"7?role=admin"` | `GET /users/7%3Frole%3Dadmin` |
+| `"7#x"` | `GET /users/7%23x` |
+| `""`, `"."`, `".."`, `null`, `undefined` | nenhuma — lança `TypeError` antes do `fetch` |
+
+Parâmetro tipado como `boolean`, array ou objeto também passa pelo
+`encodeIdSegment` (com uma asserção de tipo, já que ele aceita
+`string | number`): `true` vira `true`, `["a", "b"]` vira `a%2Cb`.
+
+!!! tip "Regenere para receber a proteção"
+    Serviços gerados antes desta versão interpolam o parâmetro cru. Rode
+    `tempest gen api` de novo — nenhuma assinatura de método muda.
 
 ## Como usar
 
@@ -160,10 +187,11 @@ function UserList() {
     variável segura para ele.
 
     O mesmo vale para nomes que o próprio gerador já usa. Parâmetro de path que
-    cairia em `body`, `params` ou `S` vira `bodyParam`/`paramsParam`/`SParam`;
-    `operationId` `constructor` ou `api` vira `constructor2`/`api2`; schema
-    chamado `ApiClient`, `OffsetPage`, `CursorPage`, `Promise`, `Record`, `z` ou
-    `S` ganha prefixo `_`; e duas tags cujo nome no barrel coincide (`user 1` e
+    cairia em `body`, `params`, `S` ou `encodeIdSegment` vira
+    `bodyParam`/`paramsParam`/`SParam`/`encodeIdSegmentParam`; `operationId`
+    `constructor` ou `api` vira `constructor2`/`api2`; schema chamado
+    `ApiClient`, `OffsetPage`, `CursorPage`, `Promise`, `Record`, `z`, `S` ou
+    `encodeIdSegment` ganha prefixo `_`; e duas tags cujo nome no barrel coincide (`user 1` e
     `user1`) são recusadas citando as duas. Um `pattern` que não compila como
     regex JavaScript falha a **geração**, citando o schema e o caminho da
     propriedade — em vez de quebrar o app no import.
@@ -172,5 +200,6 @@ function UserList() {
 
 - `tempest gen api <url|file> --out src/api` gera, **por grupo de rotas**, três arquivos: `schemas.ts` (Zod), `types.ts` (`z.infer`) e `service.ts` (classe).
 - A classe de serviço recebe um `ApiClient` injetado e **valida o body com Zod** antes de chamar a API.
+- Todo parâmetro de path passa por `encodeIdSegment`: fica num segmento só, e `""`/`"."`/`".."` lançam antes da requisição.
 - Trate `src/api/` como artefato gerado — **regenere** quando o contrato mudar.
 - Veja também: [HTTP / `createApiClient`](./http.md) · [Query](./query.md) · [CLI `tempest`](./cli.md).

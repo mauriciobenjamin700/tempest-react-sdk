@@ -46,11 +46,17 @@ describe("retry — abort during the backoff", () => {
         expect(factory, "the aborted attempt never ran").toHaveBeenCalledTimes(1);
     });
 
-    it("rejects with the last error when the caller allows no attempt at all", async () => {
-        const factory = vi.fn(async () => "nunca");
+    /**
+     * Inverted on purpose (#486). This test used to pin `retries: 0` as "no
+     * attempt at all": the factory never ran and the promise rejected with
+     * `undefined`, an error nobody could act on and a request that was never
+     * sent. `retries` counts total attempts, and the first one always runs.
+     */
+    it("still makes the first attempt when the caller allows no replay", async () => {
+        const factory = vi.fn(async () => "sempre");
 
-        await expect(retry(factory, { retries: 0 })).rejects.toBeUndefined();
-        expect(factory).not.toHaveBeenCalled();
+        await expect(retry(factory, { retries: 0 })).resolves.toBe("sempre");
+        expect(factory).toHaveBeenCalledTimes(1);
     });
 
     it("stops before the backoff even starts when the abort lands during onRetry", async () => {

@@ -15,6 +15,24 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `trimEnd()`, que remove o mesmo conjunto de caracteres. Reproduzido em
   `npx vitest run src/components/CodeBlock/CodeBlock.test.tsx` (o teste de teto de tempo
   falhava com 1650 ms e agora passa com folga).
+- **O `tokenize` do `CodeBlock` consome cada token numa passada, então a tokenização é linear
+  no tamanho da entrada (#477).** Com o `at++` como único fallback, uma string ou comentário
+  sem fechamento era reescaneada a partir de cada abertura seguinte. Agora todo padrão de
+  string e comentário tem o **fecho opcional** (`"..."?`, `/*...*?`, `<!--...--?`): a aspa vai
+  até o fecho ou o fim da linha, e o template literal, a tripla do Python e o comentário de
+  bloco vão até o fecho ou o fim da entrada. Aplicado em JSON, família JS, CSS, HTML, bash,
+  python e SQL. Medido com `performance.now()` em Node 24 (12/10/2026), JSON de 80 KB com uma
+  aspa seguida de `\"` repetido: **1998 ms** antes, **< 1 ms** depois. Reproduzido em
+  `npx vitest run src/components/CodeBlock/tokenize.test.ts` (9 testes de teto de tempo
+  falhavam, de 606 a 1998 ms, e agora passam com folga).
+
+  A varredura que o #477 pediu achou o mesmo defeito em outra forma: as regras com lookahead
+  (`function` do JS e do python, `attribute` do HTML, `property`/`function` do CSS) casavam a
+  corrida de identificador inteira e falhavam no lookahead, e o `at++` re-tentava a corrida a
+  partir de cada caractere. Uma cerca com 80 KB de caracteres de palavra sem pontuação (blob
+  base64, token minificado) levava **6,2 s** e 160 KB levavam **24,7 s**. Cada gramática ganhou
+  uma regra `plain` final que consome a corrida numa passada: os mesmos casos caíram para
+  **0,4 ms** (160 KB).
 
 ## [0.77.0] — 2026-10-12
 

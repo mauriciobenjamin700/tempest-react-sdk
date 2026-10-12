@@ -86,6 +86,25 @@ const JS_LITERALS = "true|false|null|undefined|NaN|Infinity";
  * Order carries meaning: comments and strings come first so a keyword inside a
  * string stays a string. Every pattern is sticky (`y`) and anchored by
  * `lastIndex`, so a rule can only match where the scanner currently stands.
+ *
+ * Every string and comment pattern makes its closing delimiter **optional** —
+ * `"..."?`, `/*...*?` / `<!--...--?` — so an unterminated opener is consumed as a
+ * single token instead of failing and being rescanned from the next opener.
+ * Without that, a `"` followed by many escaped quotes was re-read to the end of
+ * the input from each opening quote, quadratic in the input (#477). A quote
+ * string runs to its closing quote or the end of the line; a template literal,
+ * a Python triple-quoted string and a block comment run to their close or the
+ * end of the input.
+ *
+ * Each grammar also ends with a `plain` rule that consumes a run of identifier
+ * characters in one step. The rules that need a lookahead — the JavaScript
+ * `function`, the HTML `attribute`, the CSS `property` and `function`, the
+ * Python `function` — match a whole run and then fail if the character after it
+ * is not the expected one; with only `at++` to fall back on, the scanner retried
+ * that run from every character in it. A code fence holding a long run of word
+ * characters and no punctuation (a base64 blob, a minified token) took 6 s at
+ * 80 KB and 25 s at 160 KB; the fallback consumes the run once, so the scan
+ * stays linear (#477 sweep).
  */
 const GRAMMARS: Record<CodeLanguage, Rule[]> = {
     typescript: jsRules(false),
@@ -93,31 +112,33 @@ const GRAMMARS: Record<CodeLanguage, Rule[]> = {
     tsx: jsRules(true),
     jsx: jsRules(true),
     json: [
-        { kind: "property", pattern: /"(?:[^"\\]|\\.)*"(?=\s*:)/y },
-        { kind: "string", pattern: /"(?:[^"\\]|\\.)*"/y },
+        { kind: "property", pattern: /"(?:[^"\\\n]|\\.)*"(?=\s*:)/y },
+        { kind: "string", pattern: /"(?:[^"\\\n]|\\.)*"?/y },
         { kind: "number", pattern: /-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/y },
         { kind: "literal", pattern: /\b(?:true|false|null)\b/y },
         { kind: "punctuation", pattern: /[{}[\],:]/y },
     ],
     css: [
-        { kind: "comment", pattern: /\/\*[\s\S]*?\*\//y },
-        { kind: "string", pattern: /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/y },
+        { kind: "comment", pattern: /\/\*[\s\S]*?(?:\*\/|$)/y },
+        { kind: "string", pattern: /"(?:[^"\\\n]|\\.)*"?|'(?:[^'\\\n]|\\.)*'?/y },
         { kind: "keyword", pattern: /@[a-zA-Z-]+/y },
         { kind: "property", pattern: /--?[a-zA-Z][\w-]*(?=\s*:)/y },
         { kind: "function", pattern: /[a-zA-Z-]+(?=\()/y },
         { kind: "number", pattern: /-?\d+(?:\.\d+)?(?:px|rem|em|%|s|ms|vh|vw|fr|deg)?/y },
         { kind: "punctuation", pattern: /[{}();:,>+~]/y },
+        { kind: "plain", pattern: /[\w-]+/y },
     ],
     html: [
-        { kind: "comment", pattern: /<!--[\s\S]*?-->/y },
-        { kind: "string", pattern: /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/y },
+        { kind: "comment", pattern: /<!--[\s\S]*?(?:-->|$)/y },
+        { kind: "string", pattern: /"(?:[^"\\\n]|\\.)*"?|'(?:[^'\\\n]|\\.)*'?/y },
         { kind: "tag", pattern: /<\/?[a-zA-Z][\w:-]*/y },
         { kind: "attribute", pattern: /[a-zA-Z][\w:-]*(?==)/y },
         { kind: "punctuation", pattern: /\/?>|=/y },
+        { kind: "plain", pattern: /[a-zA-Z][\w:-]*/y },
     ],
     bash: [
         { kind: "comment", pattern: /#[^\n]*/y },
-        { kind: "string", pattern: /"(?:[^"\\]|\\.)*"|'[^']*'/y },
+        { kind: "string", pattern: /"(?:[^"\\\n]|\\.)*"?|'[^'\n]*'?/y },
         {
             kind: "keyword",
             pattern:
@@ -131,7 +152,8 @@ const GRAMMARS: Record<CodeLanguage, Rule[]> = {
         { kind: "comment", pattern: /#[^\n]*/y },
         {
             kind: "string",
-            pattern: /"""[\s\S]*?"""|'''[\s\S]*?'''|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/y,
+            pattern:
+                /"""[\s\S]*?(?:"""|$)|'''[\s\S]*?(?:'''|$)|"(?:[^"\\\n]|\\.)*"?|'(?:[^'\\\n]|\\.)*'?/y,
         },
         {
             kind: "keyword",
@@ -142,10 +164,11 @@ const GRAMMARS: Record<CodeLanguage, Rule[]> = {
         { kind: "number", pattern: /\b\d+(?:\.\d+)?\b/y },
         { kind: "function", pattern: /[A-Za-z_]\w*(?=\()/y },
         { kind: "punctuation", pattern: /[{}[\]().,:;=+\-*/<>!]/y },
+        { kind: "plain", pattern: /[A-Za-z_]\w*/y },
     ],
     sql: [
-        { kind: "comment", pattern: /--[^\n]*|\/\*[\s\S]*?\*\//y },
-        { kind: "string", pattern: /'(?:[^']|'')*'/y },
+        { kind: "comment", pattern: /--[^\n]*|\/\*[\s\S]*?(?:\*\/|$)/y },
+        { kind: "string", pattern: /'(?:[^'\n]|'')*'?/y },
         {
             kind: "keyword",
             // Case-insensitive: SQL is written both ways and both should paint.
@@ -161,10 +184,10 @@ const GRAMMARS: Record<CodeLanguage, Rule[]> = {
 /** The shared JavaScript-family rules, with JSX tags added for tsx/jsx. */
 function jsRules(withJsx: boolean): Rule[] {
     const rules: Rule[] = [
-        { kind: "comment", pattern: /\/\/[^\n]*|\/\*[\s\S]*?\*\//y },
+        { kind: "comment", pattern: /\/\/[^\n]*|\/\*[\s\S]*?(?:\*\/|$)/y },
         {
             kind: "string",
-            pattern: /`(?:[^`\\]|\\.)*`|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/y,
+            pattern: /`(?:[^`\\]|\\.)*`?|"(?:[^"\\\n]|\\.)*"?|'(?:[^'\\\n]|\\.)*'?/y,
         },
         { kind: "keyword", pattern: new RegExp(`\\b(?:${JS_KEYWORDS})\\b`, "y") },
         { kind: "literal", pattern: new RegExp(`\\b(?:${JS_LITERALS})\\b`, "y") },
@@ -174,6 +197,7 @@ function jsRules(withJsx: boolean): Rule[] {
         },
         { kind: "function", pattern: /[A-Za-z_$][\w$]*(?=\s*\()/y },
         { kind: "punctuation", pattern: /[{}[\]().,;:?!=<>+\-*/%&|^~]/y },
+        { kind: "plain", pattern: /[A-Za-z_$][\w$]*/y },
     ];
     if (withJsx) {
         // Before the keyword rule, so `<Button` reads as a tag and not as `<`.
@@ -194,6 +218,10 @@ function jsRules(withJsx: boolean): Rule[] {
  *
  * Unknown languages produce a single `plain` token, so an unhighlighted block is
  * a normal outcome and never an error.
+ *
+ * The scan is linear in the source: an unterminated string or comment becomes a
+ * single token that runs to its close, the end of the line or the end of the
+ * input, so the openers inside it are never rescanned (#477).
  *
  * @param code - The source.
  * @param language - Grammar name or alias.

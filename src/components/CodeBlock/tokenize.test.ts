@@ -151,6 +151,61 @@ describe("tokenize — the other grammars", () => {
     });
 });
 
+describe("tokenize — every token is consumed in one pass, so the scan is linear (#477)", () => {
+    /**
+     * Run `work` and return how long it took, in milliseconds.
+     *
+     * The budget sits well above what a single pass over the input costs under
+     * coverage instrumentation and far below what rescanning cost before #477:
+     * an unterminated string was rescanned from every later opener, quadratic in
+     * the input (`"` plus 40 000 escaped quotes took about 2 s for JSON).
+     */
+    const elapsed = (work: () => unknown): number => {
+        const start = performance.now();
+        work();
+        return performance.now() - start;
+    };
+
+    /** Ceiling for one tokenize of an adversarial input, in milliseconds. */
+    const BUDGET_MS = 250;
+
+    it.each([
+        ["json", `"${'\\"'.repeat(40_000)}`],
+        ["typescript", `"${'\\"'.repeat(40_000)}`],
+        ["javascript", `"${'\\"'.repeat(40_000)}`],
+        ["tsx", `"${'\\"'.repeat(40_000)}`],
+        ["css", "/*x".repeat(40_000)],
+        ["html", "<!--".repeat(40_000)],
+        ["bash", `"${'\\"'.repeat(40_000)}`],
+        ["python", `"${'\\"'.repeat(40_000)}`],
+        ["sql", "/*x".repeat(40_000)],
+    ])("tokenizes %s with an unterminated opener in linear time", (language, code) => {
+        expect(elapsed(() => tokenize(code, language))).toBeLessThan(BUDGET_MS);
+    });
+
+    it("runs an unterminated string to the end of its line, not the input", () => {
+        const code = 'a = "sem fim\nb = 1';
+        expect(of(tokenize(code, "ts"), "string")).toEqual(['"sem fim']);
+        assertLossless(code, "ts");
+    });
+
+    it("runs an unterminated block comment to the end of the input as one token", () => {
+        const code = "code\n/* sem fim\nmais";
+        expect(of(tokenize(code, "ts"), "comment")).toEqual(["/* sem fim\nmais"]);
+        assertLossless(code, "ts");
+    });
+
+    it.each([
+        ["typescript", "a".repeat(80_000)],
+        ["tsx", "a".repeat(80_000)],
+        ["css", "-".repeat(80_000)],
+        ["html", `<a ${"x".repeat(80_000)}`],
+        ["python", "a".repeat(80_000)],
+    ])("consumes a long %s identifier run in one pass", (language, code) => {
+        expect(elapsed(() => tokenize(code, language))).toBeLessThan(BUDGET_MS);
+    });
+});
+
 describe("tokenizeLines", () => {
     it("splits tokens at newlines so each line stands alone", () => {
         const lines = tokenizeLines("const a = 1;\nconst b = 2;", "ts");

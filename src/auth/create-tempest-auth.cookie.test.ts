@@ -348,3 +348,204 @@ describe("createTempestAuth — logoutPath", () => {
         expect(calls.filter((call) => call.path === "/api/auth/logout")).toHaveLength(0);
     });
 });
+
+/**
+ * A gate the test opens by hand.
+ *
+ * @returns The promise and the function that opens it.
+ */
+function gate(): { wait: Promise<void>; open: () => void } {
+    let open!: () => void;
+    const wait = new Promise<void>((resolve) => {
+        open = resolve;
+    });
+    return { wait, open };
+}
+
+/**
+ * A backend whose login, refresh and logout routes can each be held, recording
+ * when each request arrives and when each response leaves.
+ *
+ * @param holds - Per-route gates; `logout` is consumed one per request.
+ * @returns The fetcher and the ordered event log.
+ */
+function heldBackend(holds: {
+    login?: Promise<void>;
+    refresh?: Promise<void>;
+    logout?: Promise<void>[];
+}): { fetcher: typeof fetch; events: string[]; calls: Call[] } {
+    const events: string[] = [];
+    const calls: Call[] = [];
+    const logouts = [...(holds.logout ?? [])];
+    const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = new URL(String(input)).pathname;
+        const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+        calls.push({ path, method: init?.method ?? "GET", bearer: bearerOf(init), body });
+        events.push(`> ${path}`);
+        if (path === "/api/auth/login") {
+            await holds.login;
+            const who = (body as { email?: string }).email === "b@x.test" ? "B" : "A";
+            events.push(`< login ${who}`);
+            return jsonResponse({ access_token: `${who}-tok-1`, refresh_token: `${who}-ref-1` });
+        }
+        if (path === "/api/auth/refresh") {
+            await holds.refresh;
+            events.push("< refresh");
+            return jsonResponse({ access_token: "A-tok-cookie-1" });
+        }
+        if (path === "/api/auth/logout") {
+            await logouts.shift();
+            events.push("< logout");
+            return new Response(null, { status: 204 });
+        }
+        if (bearerOf(init) === undefined) return jsonResponse({ detail: "anonymous" }, 401);
+        return jsonResponse({ id: bearerOf(init) });
+    }) as unknown as typeof fetch;
+    return { fetcher, events, calls };
+}
+
+describe("createTempestAuth — review of the cookie and logoutPath fixes", () => {
+    beforeEach(() => {
+        localStorage.clear();
+        vi.useRealTimers();
+    });
+
+    it("restores the boot session when a tokenless request 401s while the boot refresh is in flight", async () => {
+        const held = gate();
+        const { fetcher, calls } = heldBackend({ refresh: held.wait });
+        const auth = createTempestAuth<User>({
+            baseURL: "https://api.example.test",
+            withCredentials: true,
+            fetcher,
+        });
+
+        const booting = auth.refresh();
+        const loading = auth.api.get("/api/me");
+        await tick();
+        held.open();
+
+        await expect(booting).resolves.toBeUndefined();
+        await expect(loading).resolves.toEqual({ id: "A-tok-cookie-1" });
+        expect(auth.getToken()).toBe("A-tok-cookie-1");
+        expect(calls.filter((call) => call.path === "/api/auth/refresh")).toHaveLength(1);
+    });
+
+    it("does not call onSessionEnd or redirect for a tokenless 401 with no session", async () => {
+        const onSessionEnd = vi.fn();
+        const { fetcher } = heldBackend({});
+        const auth = createTempestAuth<User>({
+            baseURL: "https://api.example.test",
+            withCredentials: true,
+            fetcher,
+            onSessionEnd,
+        });
+
+        await expect(auth.api.get("/api/me")).rejects.toMatchObject({ status: 401 });
+
+        expect(onSessionEnd).not.toHaveBeenCalled();
+    });
+
+    it("makes login() wait for every overlapping revocation, not just the last", async () => {
+        const first = gate();
+        const second = gate();
+        const { fetcher, calls } = heldBackend({ logout: [first.wait, second.wait] });
+        const auth = createTempestAuth<User>({
+            baseURL: "https://api.example.test",
+            withCredentials: true,
+            logoutPath: "/api/auth/logout",
+            fetcher,
+        });
+        await auth.login({ email: "a@x.test", password: "x" });
+
+        void auth.logout();
+        void auth.logout();
+        const signingIn = auth.login({ email: "b@x.test", password: "x" });
+        await tick();
+        second.open();
+        await tick();
+        expect(calls.filter((call) => call.path === "/api/auth/login")).toHaveLength(1);
+        first.open();
+        await signingIn;
+
+        expect(calls.filter((call) => call.path === "/api/auth/login")).toHaveLength(2);
+    });
+
+    it("revokes in cookie mode only after a login in flight during logout() got its response", async () => {
+        const held = gate();
+        const { fetcher, events } = heldBackend({ login: held.wait });
+        const auth = createTempestAuth<User>({
+            baseURL: "https://api.example.test",
+            withCredentials: true,
+            logoutPath: "/api/auth/logout",
+            fetcher,
+        });
+
+        const signingIn = auth.login({ email: "a@x.test", password: "x" }).catch(() => undefined);
+        await tick();
+        const ending = auth.logout();
+        await tick();
+        held.open();
+        await Promise.all([signingIn, ending]);
+
+        expect(events.indexOf("< login A")).toBeGreaterThanOrEqual(0);
+        expect(events.indexOf("> /api/auth/logout")).toBeGreaterThan(events.indexOf("< login A"));
+    });
+
+    it("revokes in body mode the refresh token a superseded login brought back", async () => {
+        const held = gate();
+        const { fetcher, calls } = heldBackend({ login: held.wait });
+        const auth = createTempestAuth<User>({
+            baseURL: "https://api.example.test",
+            logoutPath: "/api/auth/logout",
+            fetcher,
+        });
+
+        const signingIn = auth.login({ email: "a@x.test", password: "x" }).catch(() => undefined);
+        await tick();
+        await auth.logout();
+        held.open();
+        await signingIn;
+        await tick();
+
+        const logout = calls.find((call) => call.path === "/api/auth/logout");
+        expect(logout).toMatchObject({ bearer: "A-tok-1", body: { refresh_token: "A-ref-1" } });
+    });
+
+    it("signs in after the revocation wait times out when the logout never answers", async () => {
+        vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+        const never = new Promise<void>(() => undefined);
+        const { fetcher, calls } = heldBackend({ logout: [never] });
+        const auth = createTempestAuth<User>({
+            baseURL: "https://api.example.test",
+            logoutPath: "/api/auth/logout",
+            fetcher,
+        });
+        await auth.login({ email: "a@x.test", password: "x" });
+
+        void auth.logout();
+        const signingIn = auth.login({ email: "b@x.test", password: "x" });
+        await vi.advanceTimersByTimeAsync(9_999);
+        expect(calls.filter((call) => call.path === "/api/auth/login")).toHaveLength(1);
+        await vi.advanceTimersByTimeAsync(1);
+
+        await expect(signingIn).resolves.toBeNull();
+        expect(auth.getToken()).toBe("B-tok-1");
+    });
+
+    it("reports a failed revocation to onLogoutError", async () => {
+        const onLogoutError = vi.fn();
+        const { fetcher } = cookieBackend({ logoutStatus: 500 });
+        const auth = createTempestAuth<User>({
+            baseURL: "https://api.example.test",
+            logoutPath: "/api/auth/logout",
+            onLogoutError,
+            fetcher,
+        });
+        await auth.login({ email: "a@x.test", password: "x" });
+
+        await auth.logout();
+
+        expect(onLogoutError).toHaveBeenCalledOnce();
+        expect(onLogoutError.mock.calls[0]?.[0]).toMatchObject({ status: 500 });
+    });
+});

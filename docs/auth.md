@@ -371,7 +371,10 @@ Com `withCredentials: true`, o refresh token mora num cookie HttpOnly, e o `logo
 
 A primeira é do próprio preset e não tem opção: **um 401 de uma request que saiu sem token, sem sessão instalada** (sem access token, sem refresh token guardado e sem `login()` em curso), **só rejeita com o 401** — não dispara refresh. Antes, esse 401 chegava depois do `logout()`, o refresh ia com o cookie de A, e o próximo usuário do navegador agia como A (#474).
 
-O que continua funcionando é restaurar a sessão pelo cookie quando o app recarrega: chame `auth.refresh()` no boot, explicitamente. É o caminho legítimo — o app decide restaurar —, e não um efeito colateral de qualquer request anônima.
+O que continua funcionando é restaurar a sessão pelo cookie quando o app recarrega: chame `auth.refresh()` no boot, explicitamente. É o caminho legítimo — o app decide restaurar —, e não um efeito colateral de qualquer request anônima. Uma request sem token que volta 401 **enquanto** esse refresh do boot está em voo entra nele e é repetida com o token restaurado; e um 401 sem sessão nenhuma não encerra nada — não roda o `onSessionEnd`, não navega para o `redirectTo` e não supera o refresh do boot.
+
+!!! warning "Migração: app em modo cookie que restaurava a sessão por uma request anônima"
+    Até a 0.77.0, com `withCredentials: true` e o store vazio — `storage: "session"` numa aba nova, o storage limpo, ou o primeiro carregamento depois de um logout —, a primeira request do app voltava 401, o preset renovava pelo cookie e a sessão "voltava sozinha". Isso acabou: é exatamente o caminho que relogava a conta que tinha saído. **Chame `auth.refresh()` no boot**, antes de renderizar a área protegida, e trate a rejeição como "não logado". Com o store persistido no `localStorage` (o default) e um access token guardado, nada muda.
 
 A segunda peça é revogar no servidor: passe `logoutPath`, e o `logout()` explícito faz `POST` nessa rota com as credenciais da sessão que terminou — o access token dela, e o corpo que o `refreshBody` monta com o refresh token guardado (`{ refresh_token }` no modo corpo; sem corpo no modo cookie, em que o cookie vai junto).
 
@@ -389,6 +392,7 @@ export const auth = createTempestAuth<User>({
   withCredentials: true,
   csrf: true,
   logoutPath: "/api/auth/logout",
+  onLogoutError: (error) => console.error("logout no servidor falhou", error),
 });
 
 export async function restoreSession(): Promise<boolean> {
@@ -411,6 +415,9 @@ export async function signOut(): Promise<void> {
 - A revogação é **best-effort**: falha de rede, `4xx` ou `5xx` é engolida, e o usuário sai do mesmo jeito.
 - Um `login()` que começa com a revogação em voo espera por ela, porque a resposta do logout apaga os cookies de auth e, chegando depois, apagaria os da conta nova.
 - Só o `logout()` explícito revoga. Na troca de conta (`"switch"`) o cookie no navegador já é o da conta nova; no `"expired"` o servidor já recusou a sessão.
+- Dois `logout()` sobrepostos mandam cada um a sua revogação, e o `login()` espera **todas** — no máximo 10 segundos: uma revogação que nunca volta atrasa o login, não o trava.
+- Um `logout()` durante um `login()` ou refresh em voo: no modo cookie, a revogação espera a resposta dele (no mesmo limite de 10 segundos), porque é ela que grava o cookie da sessão que está acabando; no modo corpo, o refresh token que essa resposta superada traz é revogado à parte.
+- Uma revogação que falha chama `onLogoutError(error)` e, em build de dev, avisa no console — o `logout()` resolve do mesmo jeito.
 
 !!! info "A rota no tempest-fastapi-sdk"
     O `make_auth_router` monta `POST /auth/logout` (`204`, idempotente) quando o serviço guarda refresh token no banco (`refresh_token_model`): no modo corpo ele lê `{ refresh_token }`, no modo cookie lê o cookie e apaga os dois cookies de auth. Com `AUTH_TOKEN_DELIVERY=both`, a rota de cookie fica em `/auth/cookie/logout`. Refresh token stateless (JWT) não tem como ser revogado, e a rota não existe — ali o cookie só morre quando expira.

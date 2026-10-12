@@ -153,8 +153,33 @@ export function onSessionEnd(): void {
 - **`getPrincipal`** — the same getter the error reporter and `provideBackgroundSyncCredentials` take. The record gets a one-way fingerprint of the user (`owner`, never the raw id), and a record with another owner — another user, nobody, or no owner, written before 0.78.0 — is **deleted** instead of resumed: its URL gets no request, and its `Idempotency-Key` is never reused.
 - **`clear()`** — removes every record under `createLocalUploadStorage()`'s `tempest-upload:` prefix. Call it from `onSessionEnd` (see [Auth → Ending the session](./auth.en.md#ending-the-session-createtempestauth-and-onsessionend)). A custom `storage` implements the equivalent on its side.
 
+And if the account switch happens **while the upload runs**? `getPrincipal` is read again before every chunk and every record write: once it names someone else, the run stops with `ResumableUploadSupersededError` (`reason: "principal"`), before the new account's token reaches the previous one's upload URL. A `clear()` mid-run does the same (`reason: "cleared"`) instead of the record being written back. It is not a pause — the run cannot go on as the new account: the state moves to `"error"`.
+
+```ts
+import { ResumableUploadSupersededError, createResumableUpload } from "tempest-react-sdk";
+
+declare const file: File;
+declare const session: { userId: string | null };
+
+export async function send(): Promise<string | null> {
+  const upload = createResumableUpload({
+    endpoint: "/api/uploads",
+    file,
+    getPrincipal: () => session.userId,
+  });
+  try {
+    return (await upload.start())?.url ?? null;
+  } catch (error) {
+    if (error instanceof ResumableUploadSupersededError) return null;
+    throw error;
+  }
+}
+```
+
+`clear()` only removes values shaped like an upload record: a prefix with no delimiter (`"app"`) does not take the app's own keys (`"appSettings"`) with it.
+
 !!! warning "Without `getPrincipal`, the behavior is the old one"
-    Without `getPrincipal`, any record under the same key is still resumed, whoever wrote it. That is fine for a one-account-per-browser app; with more than one, pass the getter and clear at session end.
+    Without `getPrincipal`, any record under the same key is still resumed, whoever wrote it, and a run in progress does not notice the account switch. That is fine for a one-account-per-browser app; with more than one, pass the getter and clear at session end — and, without the getter, call `abort()` on the uploads in progress from `onSessionEnd`.
 
 ## The failure that actually happens
 

@@ -3,6 +3,7 @@ import { resetCsrfReports } from "./csrf";
 import {
     createLocalUploadStorage,
     createResumableUpload,
+    ResumableUploadSupersededError,
     DEFAULT_CHUNK_SIZE,
     TUS_VERSION,
     uploadFingerprint,
@@ -1522,5 +1523,75 @@ describe("createResumableUpload — the creation key across runs of one handle",
             .map((request) => request.headers["Idempotency-Key"]);
         expect(keys).toHaveLength(2);
         expect(keys[1]).not.toBe(keys[0]);
+    });
+});
+
+describe("createResumableUpload — the principal or the storage changes mid-run", () => {
+    const file = new File([new Uint8Array(10)], "nota.webm", { lastModified: 1 });
+    const recordKey = `tempest-upload:${uploadFingerprint("/api/uploads", file)}`;
+
+    it("stops the run with a typed error when the principal changes, and never sends B's token to A's URL", async () => {
+        let principal = "user-A";
+        let token = "tok-A";
+        server = acceptingServer(10, "/api/uploads/A");
+        server.onOpen = () => {
+            if (server.countOf("PATCH") === 1) {
+                principal = "user-B";
+                token = "tok-B";
+            }
+        };
+        installXhr();
+        const upload = createResumableUpload({
+            endpoint: "/api/uploads",
+            file,
+            chunkSize: 4,
+            getToken: () => token,
+            getPrincipal: () => principal,
+        });
+
+        await expect(upload.start()).rejects.toBeInstanceOf(ResumableUploadSupersededError);
+
+        expect(upload.state).toBe("error");
+        expect(server.countOf("PATCH")).toBe(1);
+        expect(
+            server.requests.filter((request) => request.headers.Authorization === "Bearer tok-B"),
+        ).toEqual([]);
+        const stored = JSON.parse(
+            localStorage.getItem(recordKey) ?? "null",
+        ) as ResumableUploadRecord;
+        expect(stored.offset).toBe(0);
+    });
+
+    it("stops the run, and writes nothing back, when the storage is cleared mid-run", async () => {
+        server = acceptingServer(10, "/api/uploads/A");
+        server.onOpen = () => {
+            if (server.countOf("PATCH") === 1) createLocalUploadStorage().clear();
+        };
+        installXhr();
+        const upload = createResumableUpload({ endpoint: "/api/uploads", file, chunkSize: 4 });
+
+        await expect(upload.start()).rejects.toMatchObject({ reason: "cleared" });
+
+        expect(server.countOf("PATCH")).toBe(1);
+        expect(localStorage.getItem(recordKey)).toBeNull();
+    });
+
+    it("clear() leaves an app key that only shares the prefix's characters", async () => {
+        const storage = createLocalUploadStorage("app");
+        await storage.set(":upload", {
+            url: "/u",
+            offset: 0,
+            size: 1,
+            idempotencyKey: "k",
+            updatedAt: 1,
+        });
+        localStorage.setItem("appSettings", JSON.stringify({ theme: "dark" }));
+        localStorage.setItem("appToken", "abc");
+
+        storage.clear();
+
+        expect(localStorage.getItem("app:upload")).toBeNull();
+        expect(localStorage.getItem("appSettings")).toBe('{"theme":"dark"}');
+        expect(localStorage.getItem("appToken")).toBe("abc");
     });
 });

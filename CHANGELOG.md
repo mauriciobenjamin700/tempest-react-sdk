@@ -29,6 +29,37 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   do upload resumível 3,94 → 4,21 kB (teto 4 → 4,25 kB), barrel ESM 145,09 → 145,28 kB (teto 145,3) e
   CJS 172,58 → 172,81 kB (teto 172,85).
 
+- **`createTempestAuth({ onLogoutError })`** — recebe o erro de uma revogação do `logoutPath` que
+  falhou (rede, `4xx`, `5xx`); em build de dev também sai um `console.warn`. Antes a falha sumia sem
+  sinal.
+- **`ResumableUploadSupersededError`** — o `start()`/`resume()` rejeita com ele (`reason: "principal"`
+  ou `"cleared"`) quando o `getPrincipal` muda ou o `clear()` roda durante o upload.
+
+### Alterado
+
+- **`createTempestAuth` em modo cookie: a sessão não volta mais sozinha por uma request anônima**
+  (#474). Com `withCredentials: true` e o store vazio (`storage: "session"` numa aba nova, storage
+  limpo, primeiro carregamento depois de um logout), a primeira request que voltava 401 renovava pelo
+  cookie e restaurava a sessão; agora ela só rejeita. **Migração:** chame `auth.refresh()` no boot.
+  Uma request sem token que volta 401 enquanto esse refresh está em voo entra nele e é repetida, e um
+  401 sem sessão não roda `onSessionEnd`, não navega e não supera o refresh do boot — antes, o
+  `finish("expired")` sem sessão avançava a época e jogava fora o refresh do boot.
+- **`logoutPath`: revogações sobrepostas e o login em voo.** O `login()` espera **todas** as
+  revogações pendentes, não só a última, e no máximo 10 s (`LOGOUT_REVOCATION_WAIT_MS`, interno): uma
+  revogação que nunca volta atrasa o login em vez de travá-lo. No modo cookie, a revogação espera
+  (no mesmo limite) as respostas de login/refresh em voo quando o `logout()` rodou, porque é a
+  resposta que grava o cookie da sessão encerrada; no modo corpo, o refresh token de uma resposta
+  superada é revogado à parte.
+- **`createResumableUpload` relê o `getPrincipal` antes de cada chunk e de cada gravação do registro**
+  (#479): com a conta trocada no meio do run, o run para com `ResumableUploadSupersededError` antes de
+  o token novo ir para a URL de upload da conta anterior (medido antes: os `PATCH` seguintes saíam
+  com `Bearer tok-B`). Um `clear()` no meio do run também o para, em vez de o registro ser regravado.
+- **`createLocalUploadStorage().clear()` só apaga valor com formato de registro**: com um prefixo sem
+  delimitador (`"app"`), ele apagava também as chaves do app (`"appSettings"`).
+- **Tetos do `size-limit`** para as correções acima, medidos com `npx size-limit` (commit `e5657a6` ×
+  esta mudança): fatia do upload resumível 4,20 → 4,44 kB (teto 4,25 → 4,45 kB), barrel ESM 145,28 →
+  145,85 kB (teto 145,3 → 145,9) e CJS 172,76 → 173,17 kB (teto 172,85 → 173,2).
+
 ### Corrigido
 
 - **`createTempestAuth` — em modo refresh por cookie, um 401 anônimo depois do `logout()` não loga A de

@@ -21,6 +21,82 @@ export const TUS_VERSION = "1.0.0";
 export const DEFAULT_CHUNK_SIZE = 5 * 1024 * 1024;
 
 /**
+ * Thrown by `start()`/`resume()` when the run can no longer go on as the
+ * account that started it.
+ *
+ * - `"principal"` — `getPrincipal` names someone else than when the run
+ *   attached: the next chunk would carry the new account's token to the
+ *   previous account's upload URL, and the record would be stamped for the
+ *   wrong owner.
+ * - `"cleared"` — `createLocalUploadStorage().clear()` ran for this storage's
+ *   prefix (typically in `onSessionEnd`): writing the record back would undo
+ *   the clear.
+ *
+ * Not a pause: the run cannot be resumed as the new account. The state moves
+ * to `"error"`, and the previous owner's record is left as it was.
+ */
+export class ResumableUploadSupersededError extends Error {
+    /** Why the run stopped. */
+    readonly reason: "principal" | "cleared";
+
+    /**
+     * @param reason - Why the run stopped.
+     */
+    constructor(reason: "principal" | "cleared") {
+        super(
+            reason === "principal"
+                ? "O usuário mudou durante o upload resumível."
+                : "Os registros de upload resumível foram limpos durante o upload.",
+        );
+        this.name = "ResumableUploadSupersededError";
+        this.reason = reason;
+    }
+}
+
+/**
+ * How many times `clear()` ran per local-storage prefix, so a run can tell its
+ * record was cleared under it — even through another
+ * `createLocalUploadStorage()` object with the same prefix, which is what an
+ * `onSessionEnd` builds.
+ */
+const clearGenerations = new Map<string, number>();
+
+/**
+ * The clear generation reader of each storage built by
+ * `createLocalUploadStorage`. A custom storage has none, and its runs only
+ * stop on a principal change.
+ */
+const localGenerations = new WeakMap<ResumableUploadStorage, () => number>();
+
+/**
+ * Whether a stored value has the shape of a {@link ResumableUploadRecord}.
+ *
+ * `clear()` matches keys by prefix, and a prefix with no delimiter (`"app"`)
+ * also matches an app's own keys (`"appSettings"`). Changing how keys are
+ * built would orphan every record already stored under a custom prefix, so
+ * `clear()` removes only values this storage could have written.
+ *
+ * @param raw - The stored string.
+ * @returns Whether it parses as a record.
+ */
+function isUploadRecord(raw: string | null): boolean {
+    if (!raw) return false;
+    try {
+        const value = JSON.parse(raw) as Partial<ResumableUploadRecord> | null;
+        return (
+            typeof value === "object" &&
+            value !== null &&
+            typeof value.url === "string" &&
+            typeof value.offset === "number" &&
+            typeof value.size === "number" &&
+            typeof value.idempotencyKey === "string"
+        );
+    } catch {
+        return false;
+    }
+}
+
+/**
  * Where a resumable upload is.
  *
  * `"paused"` and `"aborted"` are both "not running", but only `"paused"` keeps the
@@ -87,6 +163,12 @@ export interface LocalUploadStorage extends ResumableUploadStorage {
      * Forget every record under this storage's prefix — the call for
      * `onSessionEnd`, so the next account on the browser does not find the
      * previous one's upload URLs. Synchronous; a no-op without `localStorage`.
+     *
+     * Only values shaped like a record are removed, so a prefix without a
+     * delimiter does not take the app's own keys with it. A run still going on
+     * this prefix stops before its next chunk with
+     * {@link ResumableUploadSupersededError} (`"cleared"`) instead of writing
+     * its record back.
      */
     clear(): void;
 }
@@ -120,6 +202,12 @@ export interface ResumableUploadOptions {
      * replayed A's `Idempotency-Key` with B's token (#479). Pass it on every
      * app with more than one account per browser, and also clear the storage
      * at session end (`createLocalUploadStorage().clear()` in `onSessionEnd`).
+     *
+     * It is read again before every chunk and every record write: when it
+     * names someone else mid-run, the run stops with
+     * {@link ResumableUploadSupersededError} (`"principal"`) before the new
+     * account's token reaches the previous one's upload URL. Without it, call
+     * `abort()` on the uploads in progress from `onSessionEnd`.
      */
     getPrincipal?: () => string | number | null | undefined;
     /**
@@ -281,7 +369,7 @@ export function createLocalUploadStorage(prefix = "tempest-upload:"): LocalUploa
         }
     }
 
-    return {
+    const storage: LocalUploadStorage = {
         get(key) {
             const raw = backend()?.getItem(prefix + key);
             if (!raw) return null;
@@ -298,16 +386,21 @@ export function createLocalUploadStorage(prefix = "tempest-upload:"): LocalUploa
             backend()?.removeItem(prefix + key);
         },
         clear() {
+            clearGenerations.set(prefix, (clearGenerations.get(prefix) ?? 0) + 1);
             const store = backend();
             if (!store) return;
             const owned: string[] = [];
             for (let index = 0; index < store.length; index += 1) {
                 const name = store.key(index);
-                if (name?.startsWith(prefix)) owned.push(name);
+                if (name?.startsWith(prefix) && isUploadRecord(store.getItem(name))) {
+                    owned.push(name);
+                }
             }
             for (const name of owned) store.removeItem(name);
         },
     };
+    localGenerations.set(storage, () => clearGenerations.get(prefix) ?? 0);
+    return storage;
 }
 
 /**
@@ -543,6 +636,23 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
     let idempotencyKey: string | null = null;
     let owner: string | null | undefined;
     let attached = false;
+    const generationOf = storage ? localGenerations.get(storage) : undefined;
+    let generation = generationOf?.() ?? 0;
+
+    /**
+     * Throw when the run can no longer go on as the account that attached it:
+     * the principal changed, or the local storage was cleared under it.
+     *
+     * @throws {ResumableUploadSupersededError} In either case.
+     */
+    function assertCurrentOwner(): void {
+        if (getPrincipal && ownerFingerprint("p", getPrincipal()) !== owner) {
+            throw new ResumableUploadSupersededError("principal");
+        }
+        if (generationOf && generationOf() !== generation) {
+            throw new ResumableUploadSupersededError("cleared");
+        }
+    }
     let stopping: "pause" | "abort" | null = null;
     let inFlight: XMLHttpRequest | null = null;
     let resumedFrom = 0;
@@ -610,6 +720,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
 
     async function persist(): Promise<void> {
         if (!storage || !url || !idempotencyKey) return;
+        assertCurrentOwner();
         await storage.set(key, {
             url,
             offset,
@@ -660,6 +771,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
         if (attached && current !== owner) idempotencyKey = null;
         owner = current;
         attached = true;
+        generation = generationOf?.() ?? 0;
         let stored = storage ? await storage.get(key) : null;
         if (stored && owner !== undefined && stored.owner !== owner) {
             await storage?.delete(key);
@@ -719,6 +831,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
 
     /** Push one chunk, resyncing the offset first when a previous attempt failed. */
     async function writeChunk(target: string, resync: { needed: boolean }): Promise<void> {
+        assertCurrentOwner();
         if (resync.needed) {
             offset = await probe(target);
             resync.needed = false;
@@ -790,6 +903,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
                 ...retryOptions,
                 shouldRetry: (error, attempt) => {
                     if (stopping) return false;
+                    if (error instanceof ResumableUploadSupersededError) return false;
                     if (error instanceof DOMException && error.name === "AbortError") return false;
                     const again =
                         retryOptions?.shouldRetry?.(error, attempt) ??

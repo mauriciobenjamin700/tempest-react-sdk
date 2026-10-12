@@ -21,6 +21,7 @@ export {
     DEFAULT_CHUNK_SIZE,
     createLocalUploadStorage,
     createResumableUpload,
+    ResumableUploadSupersededError,
     uploadFingerprint,
 } from "./resumable-upload";
 export type {

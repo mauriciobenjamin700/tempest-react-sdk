@@ -372,7 +372,10 @@ With `withCredentials: true`, the refresh token lives in an HttpOnly cookie, and
 
 The first is the preset's own and has no option: **a 401 from a request that left without a token, while no session is installed** (no access token, no stored refresh token and no `login()` in flight), **just rejects with the 401** — it does not start a refresh. Before, that 401 arrived after `logout()`, the refresh went out with A's cookie, and the next person on the browser acted as A (#474).
 
-Restoring the session from the cookie when the app reloads still works: call `auth.refresh()` at boot, explicitly. That is the legitimate path — the app decides to restore — rather than a side effect of any anonymous request.
+Restoring the session from the cookie when the app reloads still works: call `auth.refresh()` at boot, explicitly. That is the legitimate path — the app decides to restore — rather than a side effect of any anonymous request. A tokenless request that comes back 401 **while** that boot refresh is in flight joins it and replays with the restored token; and a 401 with no session at all ends nothing — it does not run `onSessionEnd`, does not navigate to `redirectTo` and does not supersede the boot refresh.
+
+!!! warning "Migration: cookie-mode apps that restored the session through an anonymous request"
+    Up to 0.77.0, with `withCredentials: true` and an empty store — `storage: "session"` in a new tab, cleared storage, or the first load after a logout —, the app's first request came back 401, the preset refreshed through the cookie, and the session "came back on its own". That is gone: it is exactly the path that signed the departed account back in. **Call `auth.refresh()` at boot**, before rendering the protected area, and treat a rejection as "signed out". With the store persisted in `localStorage` (the default) and an access token stored, nothing changes.
 
 The second piece is revoking on the server: pass `logoutPath`, and an explicit `logout()` sends a `POST` to that route with the ended session's credentials — its access token, and the body `refreshBody` builds from the stored refresh token (`{ refresh_token }` in body mode; no body in cookie mode, where the cookie goes along).
 
@@ -390,6 +393,7 @@ export const auth = createTempestAuth<User>({
   withCredentials: true,
   csrf: true,
   logoutPath: "/api/auth/logout",
+  onLogoutError: (error) => console.error("server-side logout failed", error),
 });
 
 export async function restoreSession(): Promise<boolean> {
@@ -412,6 +416,9 @@ export async function signOut(): Promise<void> {
 - Revocation is **best-effort**: a network failure, `4xx` or `5xx` is swallowed, and the user is signed out all the same.
 - A `login()` started while the revocation is in flight waits for it, because the logout response clears the auth cookies and, arriving later, would clear the new account's.
 - Only an explicit `logout()` revokes. On an account switch (`"switch"`) the browser's cookie is already the new account's; on `"expired"` the server has already refused the session.
+- Two overlapping `logout()` calls each send their own revocation, and `login()` waits for **all** of them — at most 10 seconds: a revocation that never answers delays the sign-in, it does not block it.
+- A `logout()` during a `login()` or refresh in flight: in cookie mode, the revocation waits for its response (within the same 10-second bound), since that response is what sets the ending session's cookie; in body mode, the refresh token the superseded response brings back is revoked separately.
+- A failed revocation calls `onLogoutError(error)` and, in a dev build, warns in the console — `logout()` resolves all the same.
 
 !!! info "The route in tempest-fastapi-sdk"
     `make_auth_router` mounts `POST /auth/logout` (`204`, idempotent) when the service stores refresh tokens in the database (`refresh_token_model`): in body mode it reads `{ refresh_token }`, in cookie mode it reads the cookie and deletes both auth cookies. With `AUTH_TOKEN_DELIVERY=both`, the cookie route is `/auth/cookie/logout`. A stateless (JWT) refresh token cannot be revoked, and the route does not exist — there the cookie only dies when it expires.

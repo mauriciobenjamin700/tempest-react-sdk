@@ -243,7 +243,6 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - **Template PWA e doc nomeiam os caches `tempest-api`/`tempest-media`**, e a doc troca a limpeza de
   logout por `clearSessionData()`.
 
-
 ## [0.76.0] — 2026-10-10
 
 ### Adicionado

@@ -122,7 +122,7 @@ mais voltam:
   raiz: **603 em 12/10/2026** (70 em `/br`, 21 em `/icons`); o método de
   contagem, e por que o `--import` não é opcional, está em
   [`architecture.md`](./docs/internal/architecture.md).
-- **Testes**: 8099 em 660 arquivos, medido em 12/10/2026 (`npm run test:run`).
+- **Testes**: 8100 em 660 arquivos, medido em 12/10/2026 (`npm run test:run`).
   Cobertura em 23/09/2026: 99,14% linhas / 98,26% statements / 99,39% funções /
   95,32% branches (`npx vitest run --coverage`); pisos do CI em 99/98/99/95 — o
   node 22 mede ~0,02 pp abaixo do 24 em branches.

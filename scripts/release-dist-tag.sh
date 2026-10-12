@@ -64,6 +64,12 @@ is_newer_than() {
 }
 
 # Extrai a chave $1 do JSON de dist-tags na stdin; imprime nada sem ela.
+#
+# O npm 12 (o CLI fixado no job de publish) embrulha a resposta num array de um
+# elemento; o npm 10 imprime o objeto puro. Os dois são aceitos. Array com outro
+# tamanho não é lido: não dá para saber qual objeto vale. Medido na run da
+# v0.78.0, que parou antes do publish lendo `[{"latest":"0.77.0"}]` como "sem
+# latest".
 extract_tag() {
     node -e '
         let tags;
@@ -72,6 +78,7 @@ extract_tag() {
         } catch {
             process.exit(0);
         }
+        if (Array.isArray(tags)) tags = tags.length === 1 ? tags[0] : undefined;
         const value = tags && typeof tags === "object" ? tags[process.argv[1]] : undefined;
         if (typeof value === "string") process.stdout.write(value);
     ' "$1"

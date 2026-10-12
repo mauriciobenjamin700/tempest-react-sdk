@@ -104,6 +104,22 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **`CodeBlock`/`Markdown`: identificador JavaScript com `$` no meio era relido a cada `$`,
+  quadrático** (#498). Na família JS (`ts`/`js`/`tsx`/`jsx` e apelidos), palavra-chave, literal e
+  número terminavam em `\b`, que casa antes de `$`; o scanner parava no `$` do meio de `$1$1…` ou
+  `if$if$…` e a regra de função lia o resto da sequência atrás de um `(` que não vinha, uma vez por
+  `$`. Agora as três terminam em `(?![\w$])` e a de função só começa onde não há caractere de
+  identificador antes (`(?<![\w$])`), então cada sequência é lida um número constante de vezes. A
+  varredura com 84 unidades repetidas em todas as gramáticas (10 k contra 40 k caracteres) só achou
+  crescimento quadrático na família JS; depois da correção a maior entrada leva 9 ms. Medido com
+  `node --input-type=module -e 'import { tokenize } from "./src/components/CodeBlock/tokenize.ts"; for (const [u, l] of [["$1", "ts"], ["if$", "tsx"]]) { const s = performance.now(); tokenize(u.repeat(40000), l); console.log(l, u, (performance.now() - s).toFixed(1), "ms"); }'`
+  (Node 24): `"$1"` × 40 000 em `ts` de 3125 ms para 14 ms; `"if$"` × 40 000 em `tsx` de 4474 ms para
+  0,4 ms. A pintura muda só onde uma regra cortava o identificador: `if$foo(`, `this$x(` e `true$y(`
+  pintam o identificador inteiro como função (antes, palavra-chave + `$foo` função); `1$foo(` e
+  `0x1$a(`, inválidos, ficam `plain` (antes, número + `$foo` função); `$1$1` vira `$1$` `plain` + `1`
+  número (antes, `$`/`1` alternados). `$type`, `foo$this` e o resto dos casos fixados em teste
+  seguem iguais.
+
 - **`retry(factory, { retries: 0 })` nunca chamava a `factory` e rejeitava com `undefined`** (#486). O
   laço era `while (attempt < retries)`, então `0`, qualquer negativo e `NaN` pulavam a tentativa: a
   request não saía e o erro não dizia nada. Agora a primeira tentativa sempre roda — `0`/negativo fazem
@@ -303,6 +319,11 @@ range: v0.75`, medido). O `latest` é lido de `npm view <pkg> dist-tags --json` 
   **144,97 kB**) e no build desta branch (CJS **172,62 kB**, ESM **145,13 kB**) em 12/10/2026, o
   CJS sobe ~0,16 kB e o ESM ~0,16 kB — as regras de CSS do #477 (propriedade inteira + guard de
   seletor) respondem pela maior parte. Os tetos sobem para manter folga sobre o valor medido.
+- **Os tetos dos barrels sobem de novo: ESM de 146,0 para 146,2 kB e CJS de 173,6 para 173,8 kB**
+  (#498). Medido com `npx size-limit --json` em 12/10/2026, com a `tokenize.ts` do `main` e a desta
+  branch na mesma árvore: ESM **145 920 → 146 119 B**, CJS **173 506 → 173 706 B**, fatia do
+  `CodeBlock` 2837 → 2859 B. O `main` ficava a 80 B do teto do ESM; os tetos sobem o mínimo para
+  caber o valor medido.
 
 ## [0.77.0] — 2026-10-12
 

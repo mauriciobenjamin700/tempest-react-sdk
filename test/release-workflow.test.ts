@@ -630,6 +630,24 @@ describe("scripts/release-dist-tag.sh (#472)", () => {
         expect(down.calls).toBe(10);
     });
 
+    /**
+     * npm 12.2.0, the CLI the publish job pins, prints `npm view <pkg> dist-tags
+     * --json` wrapped in a one-element array; npm 10 prints the bare object. The
+     * v0.78.0 publish read `[{"latest":"0.77.0"}]` as "no latest" and stopped
+     * before publishing. An array that does not hold exactly one object is
+     * still refused, since it cannot be told apart from several versions.
+     */
+    it("reads the dist-tags npm 12 wraps in a one-element array", () => {
+        const wrapped = JSON.stringify([JSON.parse(TAGS_JSON)]);
+        const latest = runDistTag(["current-latest", "p"], [[0, wrapped, ""]]);
+        expect(latest.status).toBe(0);
+        expect(latest.stdout).toBe("0.77.0");
+        expect(runDistTag(["get", "p", "release-0.75"], [[0, wrapped, ""]]).stdout).toBe("0.75.1");
+        const ambiguous = JSON.stringify([{ latest: "0.77.0" }, { latest: "0.76.0" }]);
+        expect(runDistTag(["current-latest", "p"], [[0, ambiguous, ""]]).status).toBe(1);
+        expect(runDistTag(["get", "p", "latest"], [[0, ambiguous, ""]]).stdout).toBe("");
+    });
+
     it("picks the same dist-tag the guard writes", () => {
         expect(runDistTag(["pick", "0.78.0", "0.77.0"]).stdout.trim()).toBe("latest");
         expect(runDistTag(["pick", "0.77.0", "0.77.0"]).stdout.trim()).toBe("latest");

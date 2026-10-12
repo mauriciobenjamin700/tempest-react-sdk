@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.78.0] — 2026-10-12
+
 ### Breaking
 
 - **`installBackgroundSync`: entrada de dono desconhecido falha fechado mesmo sem header de
@@ -104,6 +106,14 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **O job de publish da release lia os dist-tags do npm 12 como "sem `latest`" e parava antes de
+  publicar.** O `npm@12.2.0` fixado no job embrulha `npm view <pacote> dist-tags --json` num array de
+  um elemento (`[{"latest":"0.77.0"}]`), e o `scripts/release-dist-tag.sh` (#472) só tinha rodado com
+  o npm 10 do job de build, que imprime o objeto puro. A primeira run da tag `v0.78.0` falhou no
+  `current-latest` sem publicar nada. O extrator agora aceita as duas formas e recusa array de outro
+  tamanho. Reproduzido com `npx -y -p npm@12.2.0 bash scripts/release-dist-tag.sh current-latest
+tempest-react-sdk` (antes: `::error::… has no latest dist-tag`; depois: `0.77.0`), com teste em
+  `test/release-workflow.test.ts`.
 - **Os serviços do `tempest gen api` interpolavam o parâmetro de path cru, e `../` no id levava a
   requisição — com o Bearer — para outro endpoint** (#499). `deleteComment("../../account")` saía
   como `DELETE /account`; com `baseURL` `https://api/v1`, `"../../../account"` escapava do `/v1`; e
@@ -356,7 +366,7 @@ range: v0.75`, medido). O `latest` é lido de `npm view <pkg> dist-tags --json` 
   `npx vitest run src/components/Markdown/markdown-parse.test.ts` (2 testes de teto de tempo
   falhavam com 1583/1577 ms e agora passam com folga).
 
-### Tamanho
+### Interno
 
 - **Os tetos dos barrels sobem: CJS de 172,5 para 172,7 kB e ESM de 145,0 para 145,2 kB.**
   As mudanças do `CodeBlock` (#476, #477) e do `Markdown` (#478) mexem pouco na fatia

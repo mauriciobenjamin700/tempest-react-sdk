@@ -6,8 +6,6 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
-
-
 ## [0.77.0] — 2026-10-12
 
 ### Breaking

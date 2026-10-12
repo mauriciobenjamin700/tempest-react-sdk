@@ -4,7 +4,7 @@ export type { BuildApiUrlOptions } from "./build-url";
 export { isTrustedCredentialTarget } from "./credential-scope";
 export { DEFAULT_CSRF_COOKIE_NAME, DEFAULT_CSRF_HEADER_NAME, csrfHeaders } from "./csrf";
 export type { CsrfHeadersInput, CsrfOptions } from "./csrf";
-export { TempestApiError, isApiError, isRetriableStatus } from "./errors";
+export { SessionSupersededError, TempestApiError, isApiError, isRetriableStatus } from "./errors";
 export {
     API_ERROR_OFFLINE_KEY,
     API_ERROR_VALIDATION_KEY,
@@ -42,5 +42,6 @@ export type {
     ApiClientConfig,
     ApiClientLogger,
     ApiError,
+    RequestAuthContext,
     RequestOptions,
 } from "./types";

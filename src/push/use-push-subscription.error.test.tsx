@@ -203,6 +203,43 @@ describe("usePushSubscription — unsubscribe paths", () => {
         expect(result.current.loading).toBe(false);
     });
 
+    it("reports unsubscribed when only the backend delete failed", async () => {
+        Object.assign(globalThis, {
+            Notification: { permission: "granted", requestPermission: vi.fn() },
+            PushManager: function () {},
+        });
+        const getSubscription = vi.fn().mockResolvedValue({
+            endpoint: "https://push/1",
+            toJSON: () => ({ endpoint: "https://push/1", keys: {} }),
+            unsubscribe: vi.fn().mockResolvedValue(true),
+        });
+        Object.assign(navigator, {
+            serviceWorker: { ready: Promise.resolve({ pushManager: { getSubscription } }) },
+        });
+
+        const { result } = renderHook(() =>
+            usePushSubscription({
+                vapidPublicKey: VALID_VAPID_KEY,
+                onSubscribe: async () => undefined,
+                onUnsubscribe: async () => {
+                    throw new Error("401");
+                },
+            }),
+        );
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(result.current.subscribed).toBe(true);
+
+        await act(async () => {
+            await expect(result.current.unsubscribe()).rejects.toMatchObject({
+                name: "WebPushUnsubscribeError",
+            });
+        });
+        expect(result.current.subscribed).toBe(false);
+        expect(result.current.error?.name).toBe("WebPushUnsubscribeError");
+    });
+
     it("unsubscribe() is a no-op when the environment lacks Push support", async () => {
         const { result } = renderHook(() =>
             usePushSubscription({

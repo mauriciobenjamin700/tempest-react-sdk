@@ -49,13 +49,17 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   - **Runs de `plain` adjacentes são fundidos** num token só, de volta à forma do `origin/main`:
     `alpha beta gamma` é um `plain` e um `<span data-token="plain">` no DOM, não um por
     identificador.
-  - **O CSS casa a palavra inteira onde ela está.** `property` (`[\w-]+` antes do `:`) e
-    `function` (`[\w-]+` antes do `(`) passam a pintar `font-size`, `max-width`, `display`,
-    `min-width` e `translate3d` inteiros — antes só a cauda depois do hífen (`-size`, `-width`)
-    ou um dígito solto (`translate` + número `3` + `d`) saía pintado, e um seletor como `h1` ou
-    `.mt-2` quebrava em `h`+`1` e `.mt`+`-2`. Um `#rgb`/`#rrggbb` pinta como número, inteiro.
-    Aqui a saída é **melhor** que a do `origin/main`, que errava isso: é a exceção assumida ao
-    “igual ao `origin/main`”, e por isso tem teste e esta nota.
+  - **O CSS casa a palavra inteira onde ela está, sem pintar o que não é propriedade.**
+    `property` só casa antes de um `:` que abre valor (espaço, `;`, `}`) e `function` antes de
+    `(` — `font-size`, `max-width`, `display`, `min-width` e `translate3d` pintam inteiros, onde
+    antes só a cauda depois do hífen (`-size`, `-width`) ou um dígito solto (`translate` + número
+    `3` + `d`) saía pintado, e um seletor como `h1` ou `.mt-2` quebrava em `h`+`1` e `.mt`+`-2`.
+    Um `#rgb`/`#rrggbb` pinta como número, inteiro. Depois de `.`/`#`/`(`/`,`/`>`/`+`/`~`/`:` o
+    `prop:` é seletor, não declaração; e um `:` colado em letra (`li:hover`, `color:red`) é
+    pseudo-classe ou declaração compacta — a mesma forma, que só um parser separa — então os dois
+    ficam `plain`, como o `origin/main` pintava. Aqui a saída é **melhor** que a do `origin/main`
+    (que errava `-size`, `h1`, `.mt-2` e `#fff`): é a exceção assumida ao “igual ao `origin/main`”,
+    por isso com teste próprio e esta nota.
   - **Um valor de atributo JSX pode conter um LF cru.** `<input placeholder="Digite seu` + LF +
     `  nome">` volta a ser uma string só: a regra do atributo roda antes das strings JS e casa no
     `=` sem consumi-lo, então o `=` mantém a pontuação. Pelo mesmo limite, um apóstrofo em texto
@@ -84,9 +88,9 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - **Os tetos dos barrels sobem: CJS de 172,5 para 172,7 kB e ESM de 145,0 para 145,2 kB.**
   As mudanças do `CodeBlock` (#476, #477) e do `Markdown` (#478) mexem pouco na fatia
   pior-caso. Medido com `npx size-limit --json` no build do `main` (CJS **172,46 kB**, ESM
-  **144,97 kB**) e no build desta branch (CJS **172,38 kB**, ESM **145,00 kB**) em 12/10/2026: o
-  CJS fica abaixo do `main` — o rearranjo das regras do CSS (#477) devolve mais do que as regras
-  acrescentadas — e o ESM sobe ~0,03 kB. Os tetos sobem para manter folga sobre o valor medido.
+  **144,97 kB**) e no build desta branch (CJS **172,62 kB**, ESM **145,13 kB**) em 12/10/2026, o
+  CJS sobe ~0,16 kB e o ESM ~0,16 kB — as regras de CSS do #477 (propriedade inteira + guard de
+  seletor) respondem pela maior parte. Os tetos sobem para manter folga sobre o valor medido.
 
 ## [0.77.0] — 2026-10-12
 

@@ -273,6 +273,25 @@ describe("tokenize — CSS matches a whole word where it stands (#477)", () => {
         expect(tokenize(".mt-2", "css")).toEqual([{ kind: "plain", value: ".mt-2" }]);
         expect(of(tokenize(".mt-2 { gap: 1rem }", "css"), "number")).toEqual(["1rem"]);
     });
+
+    it("does not paint a selector or a pseudo-class as a property", () => {
+        expect(of(tokenize(".b:hover { color: red }", "css"), "property")).toEqual(["color"]);
+        expect(of(tokenize("li:last-child { margin: 1rem }", "css"), "property")).toEqual([
+            "margin",
+        ]);
+        expect(of(tokenize("a::before { content: 'x' }", "css"), "property")).toEqual(["content"]);
+        expect(
+            of(tokenize("@media (min-width: 40em) { .x { gap: 1rem } }", "css"), "property"),
+        ).toEqual(["gap"]);
+    });
+
+    it("leaves a property glued to its value plain, as origin/main did", () => {
+        expect(of(tokenize(".x { color:red }", "css"), "property")).toEqual([]);
+        expect(of(tokenize(".x { width:100% }", "css"), "property")).toEqual([]);
+        expect(of(tokenize("a { background: url(http://x/logo.png) }", "css"), "property")).toEqual(
+            ["background"],
+        );
+    });
 });
 
 describe("tokenize — a JSX attribute string may hold a line feed (#477)", () => {

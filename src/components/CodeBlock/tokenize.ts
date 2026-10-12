@@ -131,7 +131,13 @@ const JS_LITERALS = "true|false|null|undefined|NaN|Infinity";
  *
  * The CSS `property` and `function` rules match a whole word where it stands —
  * `font-size` and `translate3d` paint as one token rather than splitting the
- * tail — and a `#rgb`/`#rrggbb` colour paints as a number.
+ * tail — and a `#rgb`/`#rrggbb` colour paints as a number. A word before a
+ * colon only counts as a property when the colon starts a value boundary
+ * (whitespace, `;`, `}`): after a `.`/`#`/`(`/`,`/`>`/`+`/`~`/`:` it is a
+ * selector, and when the colon is followed by an identifier character it could
+ * be a pseudo-class (`li:hover`) or a declaration with no space (`color:red`) —
+ * neither can be told apart without a parser, so both stay `plain`, which is
+ * what `origin/main` painted (`#477`).
  */
 const GRAMMARS: Record<CodeLanguage, Rule[]> = {
     typescript: jsRules(false),
@@ -149,7 +155,7 @@ const GRAMMARS: Record<CodeLanguage, Rule[]> = {
         { kind: "comment", pattern: /\/\*[\s\S]*?(?:\*\/|$)/y },
         { kind: "string", pattern: /"(?:[^"\\\n]|\\[\s\S])*"?|'(?:[^'\\\n]|\\[\s\S])*'?/y },
         { kind: "keyword", pattern: /@[a-zA-Z-]+/y },
-        { kind: "property", pattern: /[\w-]+(?=\s*:)/y },
+        { kind: "property", pattern: /(?<![.#[\](),>+~:])[\w-]+(?=\s*:(?![\w/:]))/y },
         { kind: "function", pattern: /[\w-]+(?=\()/y },
         { kind: "number", pattern: /#[0-9a-fA-F]{3,8}\b/y },
         { kind: "number", pattern: /(?<![\w-])-?\d+(?:\.\d+)?(?:px|rem|em|%|s|ms|vh|vw|fr|deg)?/y },

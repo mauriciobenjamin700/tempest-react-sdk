@@ -64,8 +64,24 @@ const FENCE = /^\s{0,3}(`{3,}|~{3,})\s*([\w+-]*)$/;
 const HEADING_OPEN = /^\s{0,3}(#{1,6})\s+/;
 const RULE = /^\s{0,3}([-*_])\s*(?:\1\s*){2,}$/;
 const QUOTE = /^\s{0,3}>\s?(.*)$/;
-const BULLET = /^(\s*)([-*+])\s+(.*)$/;
-const ORDERED = /^(\s*)(\d{1,9})[.)]\s+(.*)$/;
+/**
+ * A list item's opener: indentation, marker and one-or-more spaces or tabs.
+ *
+ * The separator is `[ \t]` and the content is `([^]*)`, which matches any
+ * character including U+2028/U+2029. With the old `\s+(.*)$`, a marker followed
+ * by a run of spaces and then a line/paragraph separator let the two quantifiers
+ * race for the run: the `.` stops at the separator, `$` is never reached, and the
+ * engine tries every split of the spaces — quadratic in the run, 3.6 s for a
+ * bullet padded with 80 000 spaces (#478). The content group always matches, so
+ * the patterns are linear.
+ *
+ * U+2028/U+2029 are **not** treated as line breaks: {@link parseMarkdown} splits
+ * on `\n` and `\r` only, so the separator stays inside the item text, exactly as
+ * it stayed inside the paragraph before. Making them line breaks would be a
+ * broader reading than the linearity fix needs.
+ */
+const BULLET = /^([ \t]*)([-*+])[ \t]+([^]*)$/;
+const ORDERED = /^([ \t]*)(\d{1,9})[.)][ \t]+([^]*)$/;
 /**
  * A table's delimiter row, matched against the line **after** `trimEnd()`.
  *

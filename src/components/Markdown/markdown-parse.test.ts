@@ -105,6 +105,18 @@ describe("parseMarkdown — blocks", () => {
         expect(kinds("- a\n1. b")).toEqual(["list", "list"]);
     });
 
+    it.each([
+        ["- item"],
+        ["* item"],
+        ["+ item"],
+        ["1. item"],
+        ["1) item"],
+        ["- \ttab after the marker"],
+        ["   - recuado"],
+    ])("reads %j as a list item", (source) => {
+        expect(kinds(source)).toEqual(["list"]);
+    });
+
     it("nests a list by indentation", () => {
         const block = first("- pai\n  - filho\n  - outro\n- tio", "list");
         expect(block.items).toHaveLength(2);
@@ -261,6 +273,17 @@ describe("parseMarkdown — hostile input stays linear (#437)", () => {
         ["a run of unclosed image openers", "![".repeat(25_000)],
         ["link openers sharing one failing tail", `${"[".repeat(50_000)}](x y`],
         ["a run of unclosed autolinks", "<http://".repeat(12_000)],
+        // The line separator and the paragraph separator are not `\n`, so they stay
+        // inside one line. The list patterns used to let `\s+` and `(.*)` race for
+        // the run of spaces around them, quadratic in the run (#478).
+        [
+            "a bullet item padded with spaces before a line separator",
+            `- ${" ".repeat(50_000)}a\u2028`,
+        ],
+        [
+            "an ordered item padded with spaces before a paragraph separator",
+            `1. ${" ".repeat(50_000)}a\u2029`,
+        ],
     ])("parses %s in linear time", (_label, source) => {
         expect(elapsed(() => parseMarkdown(source))).toBeLessThan(BUDGET_MS);
     });

@@ -34,6 +34,25 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   uma regra `plain` final que consome a corrida numa passada: os mesmos casos caíram para
   **0,4 ms** (160 KB).
 
+- **A regex de item de lista do `Markdown` é linear numa linha com U+2028/U+2029 (#478).** As
+  regex `BULLET`/`ORDERED` deixavam o `\s+` e o `(.*)` disputarem os mesmos espaços; como o
+  separador de linha e o de parágrafo não são `\n`, o `.` parava neles e o `$` nunca era
+  alcançado, então o motor tentava toda divisão da corrida. O separador virou `[ \t]+` e a
+  captura virou `([^]*)`, que sempre casa. Medido com `performance.now()` em Node 24
+  (12/10/2026), em `parseMarkdown`: **57 / 227 / 913 / 3650 ms** a 10 / 20 / 40 / 80 mil
+  espaços, cerca de 4× por duplicação; depois, no teto do teste de tempo. U+2028/U+2029 **não**
+  são tratados como quebra de linha — `parseMarkdown` continua quebrando só em `\n`/`\r`, e o
+  separador fica no texto do item, como já ficava no parágrafo. Reproduzido em
+  `npx vitest run src/components/Markdown/markdown-parse.test.ts` (2 testes de teto de tempo
+  falhavam com 1583/1577 ms e agora passam com folga).
+
+### Tamanho
+
+- **O teto do barrel CJS sobe de 172,5 para 172,7 kB.** O tokenizador linear do `CodeBlock`
+  (#477) e as regex de lista do `Markdown` (#478) acrescentam ~0,19 kB brotliado à fatia
+  pior-caso (`ceiling: full barrel CJS`). Medido com `npx size-limit` sobre o build do `main`
+  (**172,46 kB**) e desta branch (**172,65 kB**) em 12/10/2026.
+
 ## [0.77.0] — 2026-10-12
 
 ### Breaking

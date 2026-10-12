@@ -1,8 +1,9 @@
 /**
  * Main-thread helpers to inspect and clear the Cache Storage buckets a service
- * worker fills — for a "X MB cacheado" readout and a "limpar cache" action
- * (e.g. on logout). All guard `caches` so they no-op safely under SSR / older
- * browsers.
+ * worker fills — for a "X MB cacheado" readout and a "limpar cache" action.
+ * On logout prefer `clearSessionData`, which also drops the background-sync
+ * queue and spares the app-shell precache. All guard `caches` so they no-op
+ * safely under SSR / older browsers.
  */
 
 /** Per-cache usage summary returned by {@link inspectCaches}. */
@@ -89,7 +90,7 @@ export async function inspectCaches(
  * @returns The names of the caches that were deleted.
  *
  * @example
- * await clearCaches("tempest-"); // drop every SDK-managed cache on logout
+ * await clearCaches("tempest-api"); // drop one runtime bucket
  */
 export async function clearCaches(filter?: CacheFilter): Promise<string[]> {
     if (!cacheStorageAvailable()) return [];

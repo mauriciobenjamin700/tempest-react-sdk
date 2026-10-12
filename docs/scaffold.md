@@ -73,6 +73,7 @@ Aqui o `npx create-tempest-app` resolve o `bin` a partir do `tempest-react-sdk` 
 Nesse modo "diretório atual":
 
 - **Arquivos existentes são preservados** — a CLI pula cada um que já existe e **reporta** o que foi pulado, sem sobrescrever nada seu.
+- **Symlink no destino nunca é atravessado** — um `src -> ../outro-lugar` (comum em monorepo ou repositório clonado) é pulado e reportado inteiro, assim como um `package.json` que seja link: a CLI não escreve fora da pasta do projeto.
 - Um `package.json` existente tem os scripts e deps da Tempest **mesclados**: seu `name`/`version` e os scripts/deps que já estavam lá são mantidos, e o `tempest-react-sdk` é fixado na **própria versão do SDK** que está rodando o scaffold.
 
 !!! info "O `.env`"
@@ -272,7 +273,7 @@ installRuntimeCache([
   {
     match: (url) => url.pathname.startsWith("/api/"),
     strategy: "network-first", // ou "cache-first" / "stale-while-revalidate"
-    cacheName: "api",
+    cacheName: "tempest-api",
     networkTimeoutSeconds: 5,
     maxEntries: 50,
     maxAgeSeconds: 60 * 5,
@@ -350,7 +351,7 @@ installRuntimeCache([
   {
     match: (url) => /\.(mp3|mp4|webm)$/.test(url.pathname),
     strategy: "cache-first",
-    cacheName: "media",
+    cacheName: "tempest-media",
     rangeRequests: true,
   },
 ]);

@@ -68,17 +68,63 @@ export async function sendOne(
 }
 
 /**
- * Resolve the token, sending anonymously when it cannot be had.
+ * How long a report or a flush waits for an async `getToken` before giving up
+ * and going without a token.
  *
- * @param getToken - The caller's token getter.
+ * A getter that never settles — a refresh stuck on a dead network, a promise
+ * nobody resolves — must not hold the report out of the queue, nor the flush
+ * (and every later one, which shares its run) forever. Five seconds covers a
+ * slow refresh round trip on a weak connection; past it the report is stamped
+ * with no session and leaves anonymously, which never misattributes.
+ */
+export const APP_ERROR_TOKEN_TIMEOUT_MS = 5_000;
+
+/** The token getter's shape, as {@link readToken} accepts it. */
+export type AppErrorTokenGetter = () =>
+    string | null | undefined | Promise<string | null | undefined>;
+
+/**
+ * Keep only a usable token: a non-empty string.
+ *
+ * @param value - Whatever the getter produced, possibly from untyped JS.
  * @returns The token, or `null`.
  */
-export async function resolveToken(
-    getToken: (() => string | null | undefined | Promise<string | null | undefined>) | undefined,
-): Promise<string | null> {
+function asToken(value: unknown): string | null {
+    return typeof value === "string" && value !== "" ? value : null;
+}
+
+/**
+ * Read the token, synchronously when the getter is synchronous.
+ *
+ * Staying synchronous for a synchronous getter is what lets `report()` queue
+ * the report before it returns; an async getter is bounded by
+ * {@link APP_ERROR_TOKEN_TIMEOUT_MS}. A getter that throws, rejects, times out
+ * or produces anything but a non-empty string reads as no token.
+ *
+ * @param getToken - The caller's token getter.
+ * @returns The token or `null`, directly or as a promise that always settles.
+ */
+export function readToken(
+    getToken: AppErrorTokenGetter | undefined,
+): string | null | Promise<string | null> {
+    let value: unknown;
     try {
-        return (await getToken?.()) || null;
+        value = getToken?.();
     } catch {
         return null;
     }
+    if (typeof value !== "object" || value === null) return asToken(value);
+    return new Promise<string | null>((resolve) => {
+        const timer = setTimeout(() => resolve(null), APP_ERROR_TOKEN_TIMEOUT_MS);
+        Promise.resolve(value).then(
+            (token) => {
+                clearTimeout(timer);
+                resolve(asToken(token));
+            },
+            () => {
+                clearTimeout(timer);
+                resolve(null);
+            },
+        );
+    });
 }

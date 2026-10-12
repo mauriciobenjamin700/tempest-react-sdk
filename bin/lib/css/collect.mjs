@@ -4,6 +4,8 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 
+import { landsInside } from "../fs/contain.mjs";
+
 const SKIP_DIRS = new Set([
     "node_modules",
     "dist",
@@ -18,6 +20,9 @@ const SKIP_DIRS = new Set([
     ".turbo",
     ".cache",
 ]);
+
+/** `skipped` reason for a sheet that resolves outside the project. */
+export const OUTSIDE_PROJECT = "resolves outside the project through a symlink";
 
 /** Above this size a stylesheet is treated as generated, not authored. */
 const MAX_BYTES = 512 * 1024;
@@ -34,6 +39,11 @@ export function looksMinified(text) {
 
 /**
  * Collect the project's own `.css` files.
+ *
+ * A sheet that resolves outside the project once symlinks are followed is
+ * skipped with a reason: an explicit target that is a link (`tempest fix src`
+ * with `src -> /elsewhere`) is walked through it, and `fix` would rewrite sheets
+ * that are not the project's.
  *
  * @param {object} params
  * @param {string} params.root - Project root; relative targets resolve against it.
@@ -60,6 +70,10 @@ export function collectStylesheets({ root, targets = ["."], maxFiles = MAX_FILES
         }
         if (size > MAX_BYTES) {
             skipped.push({ path, reason: "larger than 512 KB — treated as generated" });
+            return;
+        }
+        if (!landsInside(root, path)) {
+            skipped.push({ path, reason: OUTSIDE_PROJECT });
             return;
         }
         if (/\.min\.css$/.test(path)) {

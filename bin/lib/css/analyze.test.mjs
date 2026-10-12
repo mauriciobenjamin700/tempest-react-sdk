@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -62,6 +62,26 @@ describe("analyzeCss — collection", () => {
         write("src/b.css", ".b { color: red; color: red; }\n");
         const analysis = analyze([join("src", "a.css")]);
         expect(analysis.stats.files).toBe(1);
+    });
+
+    it("skips a sheet reached through a symlink leaving the project, so fix never rewrites it", () => {
+        const outside = mkdtempSync(join(tmpdir(), "tempest-css-outside-"));
+        try {
+            const before = ".a {\n    color: red;\n    color: red;\n}\n";
+            writeFileSync(join(outside, "a.css"), before);
+            symlinkSync(outside, join(root, "src"), "dir");
+
+            const analysis = analyze(["src"]);
+            applyCssFixes({ analysis });
+
+            expect(analysis.stats.files).toBe(0);
+            expect(analysis.skipped[0]).toMatchObject({
+                reason: "resolves outside the project through a symlink",
+            });
+            expect(readFileSync(join(outside, "a.css"), "utf8")).toBe(before);
+        } finally {
+            rmSync(outside, { recursive: true, force: true });
+        }
     });
 
     it("sorts findings error → warn → info", () => {

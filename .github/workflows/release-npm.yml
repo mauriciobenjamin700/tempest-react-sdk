@@ -13,11 +13,15 @@ on:
 # installs — ever runs next to `id-token: write` or `contents: write`.
 permissions: {}
 
-# A tag push and a dispatch on the same tag would otherwise race to publish and
-# to cut the Release. They queue instead; a release half-way through its 30-min
-# read-back is never cancelled, because its publish may already have happened.
+# One release at a time, of any tag (#472). A tag push and a dispatch on the
+# same tag would otherwise race to publish and to cut the Release, and two
+# different tags would read the same registry `latest` and both claim it — the
+# older one landing last. They queue instead; a release half-way through its
+# 30-min read-back is never cancelled, because its publish may already have
+# happened. GitHub keeps one pending run per group: a third run queued behind a
+# pending one cancels that pending run, which then has to be dispatched again.
 concurrency:
-    group: release-npm-${{ github.ref }}
+    group: release-npm
     cancel-in-progress: false
 
 jobs:
@@ -35,6 +39,7 @@ jobs:
             artifact: npm-tarball-${{ github.run_attempt }}
             tarball: ${{ steps.pack.outputs.tarball }}
             sha256: ${{ steps.pack.outputs.sha256 }}
+            release_script_sha256: ${{ steps.pack.outputs.release_script_sha256 }}
         steps:
             - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
               with:
@@ -48,11 +53,27 @@ jobs:
                   cache: npm
                   cache-dependency-path: package-lock.json
 
+            # The guard picks the dist-tag against the registry's current
+            # `latest`, so `latest` only ever moves forward (#472). Only an
+            # explicit E404 counts as a package with no `latest`; an empty answer
+            # fails, and any other failure is retried and then fails the run,
+            # because guessing "no latest" would send a backport there.
+            - name: Read the registry's current latest dist-tag
+              id: registry
+              run: |
+                  PKG_NAME=$(node -p "require('./package.json').name")
+                  LATEST=$(scripts/release-dist-tag.sh current-latest "$PKG_NAME" 2>"$RUNNER_TEMP/current-latest.err") || { cat "$RUNNER_TEMP/current-latest.err"; exit 1; }
+                  cat "$RUNNER_TEMP/current-latest.err"
+                  echo "current_latest=${LATEST}" >> "$GITHUB_OUTPUT"
+                  echo "· ${PKG_NAME} latest on the registry: '${LATEST}'"
+
             # Publishes from a vX.Y.Z tag only — workflow_dispatch included —
             # that matches package.json and points at the checked-out commit
             # (#452). The tag, the npm version and the Release share one SHA.
             - name: Check the ref is a release tag for this commit
               id: version
+              env:
+                  CURRENT_LATEST: ${{ steps.registry.outputs.current_latest }}
               run: scripts/check-release-ref.sh
 
             - name: Install dependencies
@@ -86,13 +107,16 @@ jobs:
                   {
                     echo "tarball=${TARBALL}"
                     echo "sha256=$(sha256sum "$TARBALL" | cut -d' ' -f1)"
+                    echo "release_script_sha256=$(sha256sum scripts/release-dist-tag.sh | cut -d' ' -f1)"
                     echo "name=$(node -p "require('./package.json').name")"
                   } >> "$GITHUB_OUTPUT"
 
             - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
               with:
                   name: npm-tarball-${{ github.run_attempt }}
-                  path: ${{ steps.pack.outputs.tarball }}
+                  path: |
+                      ${{ steps.pack.outputs.tarball }}
+                      scripts/release-dist-tag.sh
                   if-no-files-found: error
 
     smoke:
@@ -167,6 +191,14 @@ jobs:
                   TARBALL: ${{ needs.build.outputs.tarball }}
               run: scripts/smoke-vitest.sh "$TARBALL"
 
+            # The `tempest` bin, run the way `npx tempest` runs it: plain Node, no
+            # `--import`. `gen icons` imported a barrel that reaches a `.css` and failed
+            # in every installed app until 0.77.0 (#485).
+            - name: Smoke the tempest CLI against the tarball
+              env:
+                  TARBALL: ${{ needs.build.outputs.tarball }}
+              run: scripts/smoke-cli.sh "$TARBALL"
+
     publish:
         name: Publish tempest-react-sdk
         needs: [build, smoke]
@@ -197,11 +229,14 @@ jobs:
               with:
                   name: ${{ needs.build.outputs.artifact }}
 
-            - name: Check the tarball is the one the build job packed
+            - name: Check the tarball and the dist-tag script are the ones the build job packed
               env:
                   TARBALL: ${{ needs.build.outputs.tarball }}
                   SHA256: ${{ needs.build.outputs.sha256 }}
-              run: echo "${SHA256}  ${TARBALL}" | sha256sum --check
+                  RELEASE_SCRIPT_SHA256: ${{ needs.build.outputs.release_script_sha256 }}
+              run: |
+                  echo "${SHA256}  ${TARBALL}" | sha256sum --check
+                  echo "${RELEASE_SCRIPT_SHA256}  scripts/release-dist-tag.sh" | sha256sum --check
 
             # No NODE_AUTH_TOKEN: publish authenticates via GitHub OIDC
             # (npm Trusted Publishing). Provenance is generated automatically.
@@ -218,12 +253,18 @@ jobs:
             # step that fails when npm is slow to propagate, and it fails *after*
             # a successful upload — so the run that has to be repeated is one
             # whose publish already happened.
+            #
+            # The dist-tag is picked again right here (#472), from the registry's
+            # `latest` read seconds before the upload, with the same script the
+            # build job's guard ran: the build job read it minutes ago, and
+            # another release may have moved it since.
             - name: Publish (Trusted Publishing / OIDC)
+              id: publish
               env:
                   PKG_NAME: ${{ needs.build.outputs.name }}
                   VERSION: ${{ needs.build.outputs.version }}
                   TARBALL: ${{ needs.build.outputs.tarball }}
-                  DIST_TAG: ${{ needs.build.outputs.dist_tag }}
+                  BUILD_DIST_TAG: ${{ needs.build.outputs.dist_tag }}
               run: |
                   PUBLISHED=$(npm view --prefer-online "${PKG_NAME}@${VERSION}" version 2>/dev/null || true)
                   if [ "$PUBLISHED" = "$VERSION" ]; then
@@ -231,13 +272,27 @@ jobs:
                     echo "  (re-run path: the read-back and the GitHub Release below still run)"
                     exit 0
                   fi
+                  CURRENT_LATEST=$(bash scripts/release-dist-tag.sh current-latest "$PKG_NAME" 2>"$RUNNER_TEMP/current-latest.err") || { cat "$RUNNER_TEMP/current-latest.err"; exit 1; }
+                  cat "$RUNNER_TEMP/current-latest.err"
+                  DIST_TAG=$(bash scripts/release-dist-tag.sh pick "$VERSION" "$CURRENT_LATEST" 2>"$RUNNER_TEMP/pick.err") || { cat "$RUNNER_TEMP/pick.err"; exit 1; }
+                  if [ "$DIST_TAG" != "$BUILD_DIST_TAG" ]; then
+                    echo "::notice::the registry's latest moved to '${CURRENT_LATEST}' since the build job; publishing under ${DIST_TAG}, not ${BUILD_DIST_TAG}"
+                  fi
+                  echo "dist_tag=${DIST_TAG}" >> "$GITHUB_OUTPUT"
                   npm publish "./${TARBALL}" --provenance --access public --tag "${DIST_TAG}"
+                  echo "published=true" >> "$GITHUB_OUTPUT"
 
             # Registry read-back: npm must actually serve this version, and its
-            # dist-tag (`latest`, or `next` for a prerelease) must point at it — a
+            # dist-tag (`latest`, `next` for a prerelease, `release-<maj>.<min>`
+            # for a version not above the registry's latest) must point at it — a
             # publish that silently landed under another tag would otherwise look
             # like a green release. Both waits get the same 30-minute window: the
             # dist-tag lags the version by as much as the version lags the upload.
+            #
+            # The dist-tag wait runs only when this run uploaded: a skipped
+            # publish set no tag, and the run that did upload already waited for
+            # it. Tags are read from `dist-tags --json`, because `npm view` takes
+            # `dist-tags.release-0.75` as a path and always answers empty.
             #
             # The window is minutes, not seconds. npm accepts the upload and then
             # processes it asynchronously, printing "Your package is being
@@ -257,7 +312,8 @@ jobs:
               env:
                   PKG_NAME: ${{ needs.build.outputs.name }}
                   VERSION: ${{ needs.build.outputs.version }}
-                  DIST_TAG: ${{ needs.build.outputs.dist_tag }}
+                  DIST_TAG: ${{ steps.publish.outputs.dist_tag }}
+                  PUBLISHED_NOW: ${{ steps.publish.outputs.published }}
               run: |
                   for attempt in $(seq 1 120); do
                     PUBLISHED=$(npm view --prefer-online "${PKG_NAME}@${VERSION}" version 2>/dev/null || true)
@@ -269,8 +325,12 @@ jobs:
                     echo "::error::npm still does not serve ${PKG_NAME}@${VERSION} after 30 minutes (got '${PUBLISHED}'). The publish step above succeeded, so the fix is \"Re-run failed jobs\" once the version shows on https://www.npmjs.com/package/${PKG_NAME} — the publish step skips a version the registry already has, so the re-run only redoes the read-back and the GitHub Release. \`make releases-sync\` creates the Release without re-running anything."
                     exit 1
                   fi
+                  if [ "$PUBLISHED_NOW" != "true" ]; then
+                    echo "✓ npm: ${PKG_NAME}@${VERSION} was already published; its dist-tag is the one the publishing run set"
+                    exit 0
+                  fi
                   for attempt in $(seq 1 120); do
-                    TAGGED=$(npm view --prefer-online "${PKG_NAME}" "dist-tags.${DIST_TAG}" 2>/dev/null || true)
+                    TAGGED=$(bash scripts/release-dist-tag.sh get "${PKG_NAME}" "${DIST_TAG}")
                     [ "$TAGGED" = "$VERSION" ] && break
                     echo "· dist-tag ${DIST_TAG} is still '${TAGGED}' (attempt ${attempt}/120); retrying in 15s"
                     sleep 15
@@ -301,16 +361,27 @@ jobs:
               with:
                   name: ${{ needs.build.outputs.artifact }}
 
-            - name: Check the tarball is the one the build job packed
+            - name: Check the tarball and the dist-tag script are the ones the build job packed
               env:
                   TARBALL: ${{ needs.build.outputs.tarball }}
                   SHA256: ${{ needs.build.outputs.sha256 }}
-              run: echo "${SHA256}  ${TARBALL}" | sha256sum --check
+                  RELEASE_SCRIPT_SHA256: ${{ needs.build.outputs.release_script_sha256 }}
+              run: |
+                  echo "${SHA256}  ${TARBALL}" | sha256sum --check
+                  echo "${RELEASE_SCRIPT_SHA256}  scripts/release-dist-tag.sh" | sha256sum --check
 
             # Keeps GitHub in step with npm: every published version gets the
             # matching GitHub Release, with its CHANGELOG section as the notes and
             # the published tarball attached. Idempotent — re-running a tag edits
             # the existing Release instead of failing.
+            #
+            # "Latest" on GitHub follows the registry (#472): the Release is
+            # created with --latest only when npm's `latest` is this version, and
+            # with --latest=false otherwise (backport, `next`). It is read from
+            # the registry, not from the dist-tag the publish picked, so a re-run
+            # that creates the Release of an already-published latest still
+            # marks it. An existing Release keeps its flag: `gh release edit` is
+            # never given one.
             #
             # Three checks keep the Release on the published commit (#452): the
             # tag still resolves to this run's SHA, `--verify-tag` refuses to let
@@ -359,6 +430,12 @@ jobs:
                     gh release edit "$TAG" "${FLAGS[@]}"
                     gh release upload "$TAG" "$TARBALL" --clobber
                   else
-                    gh release create "$TAG" "$TARBALL" --verify-tag "${FLAGS[@]}"
+                    REGISTRY_LATEST=$(scripts/release-dist-tag.sh current-latest "$PKG_NAME" 2>"$RUNNER_TEMP/current-latest.err") || { cat "$RUNNER_TEMP/current-latest.err"; exit 1; }
+                    if [ "$REGISTRY_LATEST" = "$VERSION" ]; then
+                      LATEST_FLAG=--latest
+                    else
+                      LATEST_FLAG=--latest=false
+                    fi
+                    gh release create "$TAG" "$TARBALL" --verify-tag "$LATEST_FLAG" "${FLAGS[@]}"
                   fi
                   echo "✓ GitHub Release ${TAG} em sincronia com npm ${VERSION}"

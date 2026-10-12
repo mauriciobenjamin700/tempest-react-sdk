@@ -73,6 +73,7 @@ Here `npx create-tempest-app` resolves the `bin` from the `tempest-react-sdk` yo
 In this "current directory" mode:
 
 - **Existing files are left untouched** — the CLI skips each one that already exists and **reports** what it skipped, never overwriting anything of yours.
+- **A symlink in the destination is never followed** — a `src -> ../elsewhere` (common in a monorepo or a cloned repository) is skipped and reported whole, and so is a `package.json` that is a link: the CLI never writes outside the project folder.
 - An existing `package.json` has the Tempest scripts and deps **merged** in: your `name`/`version` and the scripts/deps already there are preserved, and `tempest-react-sdk` is pinned to the **SDK's own version** running the scaffold.
 
 !!! info "The `.env`"

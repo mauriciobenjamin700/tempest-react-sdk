@@ -1,14 +1,51 @@
 // JSON Schema (OpenAPI 3.0/3.1 subset) → Zod expression source string.
 // Pure + deterministic so the generated output is stable and testable.
 
-/** Convert a $ref like "#/components/schemas/User" to its schema name ("User"). */
+import { toIdentifier } from "./escape.mjs";
+
+/**
+ * Convert a $ref like "#/components/schemas/User" to its spec schema name
+ * ("User"). This is the lookup key into `components.schemas`, not yet an
+ * identifier: pass it through {@link typeName} before emitting it.
+ */
 export function refName(ref) {
     return ref.slice(ref.lastIndexOf("/") + 1);
 }
 
-/** The generated Zod const name for a schema name (e.g. "User" → "UserSchema"). */
+/**
+ * Names the generated files declare, import or rely on as globals next to the
+ * schema types: the SDK types `service.ts` imports, the `z` and `S` imports, and
+ * the `Promise` / `Record` globals the emitted signatures use. A schema with one
+ * of these names would collide with the import or shadow the global.
+ */
+export const GENERATED_NAMES = new Set([
+    "ApiClient",
+    "CursorPage",
+    "OffsetPage",
+    "Promise",
+    "Record",
+    "S",
+    "z",
+]);
+
+/**
+ * The TypeScript type name for a spec schema name (`user.Response` →
+ * `UserResponse`; a valid identifier is kept as is). A name in
+ * {@link GENERATED_NAMES} gets a `_` prefix (`Promise` → `_Promise`).
+ *
+ * @throws {Error} When the name has nothing to build an identifier from.
+ */
+export function typeName(name) {
+    const id = toIdentifier(name, "pascal", "schema name");
+    return GENERATED_NAMES.has(id) ? `_${id}` : id;
+}
+
+/**
+ * The generated Zod const name for a spec schema name
+ * (`User` → `UserSchema`, `user.Response` → `UserResponseSchema`).
+ */
 export function zodName(name) {
-    return `${name}Schema`;
+    return `${typeName(name)}Schema`;
 }
 
 function isNullable(schema) {
@@ -77,7 +114,7 @@ export function schemaToZod(schema, resolveRef = (ref) => zodName(refName(ref)))
             if (typeof schema.minLength === "number") e += `.min(${schema.minLength})`;
             if (typeof schema.maxLength === "number") e += `.max(${schema.maxLength})`;
             if (typeof schema.pattern === "string")
-                e += `.regex(/${schema.pattern.replace(/\//g, "\\/")}/)`;
+                e += `.regex(new RegExp(${JSON.stringify(schema.pattern)}))`;
             return withModifiers(e, schema);
         }
         case "integer":

@@ -24890,6 +24890,30 @@ function UserList() {
     resposta JSON, agrupados pela primeira `tag`. YAML e múltiplos content-types
     ainda não — aponte para o `/openapi.json` (JSON).
 
+!!! info "Spec de terceiro não vira código"
+    Todo texto do spec entra no TypeScript gerado escapado pela posição onde cai:
+    tag, `summary` e path em comentário não fecham o `/** */`, segmentos do path
+    viram texto do template literal, `pattern` vira `new RegExp("...")`. Nome que
+    precisa ser **identificador** e não é — `{user-id}`, `user.Response`,
+    `User-Out` — vira um identificador válido: camelCase para parâmetro
+    (`userId`), PascalCase para schema e tipo (`UserResponse`), prefixo `_` para
+    palavra reservada ou dígito inicial (`_string`, `_2fa`). Onde o nome importa
+    em runtime, vale o original: a URL monta `{user-id}` com o valor de `userId`,
+    e chave de objeto sai como string escapada (`"display-name"`). Nome que já é
+    identificador fica como está. Dois nomes que viram o mesmo identificador
+    (`User-Out` e `user.Out`) são recusados com erro que cita os dois, e um
+    `{placeholder}` do path que não é parâmetro declarado também — não há
+    variável segura para ele.
+
+    O mesmo vale para nomes que o próprio gerador já usa. Parâmetro de path que
+    cairia em `body`, `params` ou `S` vira `bodyParam`/`paramsParam`/`SParam`;
+    `operationId` `constructor` ou `api` vira `constructor2`/`api2`; schema
+    chamado `ApiClient`, `OffsetPage`, `CursorPage`, `Promise`, `Record`, `z` ou
+    `S` ganha prefixo `_`; e duas tags cujo nome no barrel coincide (`user 1` e
+    `user1`) são recusadas citando as duas. Um `pattern` que não compila como
+    regex JavaScript falha a **geração**, citando o schema e o caminho da
+    propriedade — em vez de quebrar o app no import.
+
 ## Recap
 
 - `tempest gen api <url|file> --out src/api` gera, **por grupo de rotas**, três arquivos: `schemas.ts` (Zod), `types.ts` (`z.infer`) e `service.ts` (classe).
@@ -27779,6 +27803,7 @@ Aqui o `npx create-tempest-app` resolve o `bin` a partir do `tempest-react-sdk` 
 Nesse modo "diretório atual":
 
 - **Arquivos existentes são preservados** — a CLI pula cada um que já existe e **reporta** o que foi pulado, sem sobrescrever nada seu.
+- **Symlink no destino nunca é atravessado** — um `src -> ../outro-lugar` (comum em monorepo ou repositório clonado) é pulado e reportado inteiro, assim como um `package.json` que seja link: a CLI não escreve fora da pasta do projeto.
 - Um `package.json` existente tem os scripts e deps da Tempest **mesclados**: seu `name`/`version` e os scripts/deps que já estavam lá são mantidos, e o `tempest-react-sdk` é fixado na **própria versão do SDK** que está rodando o scaffold.
 
 !!! info "O `.env`"

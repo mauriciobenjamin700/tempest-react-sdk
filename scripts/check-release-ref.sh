@@ -59,7 +59,13 @@ case "$PKG_VERSION" in
     *-*) PRERELEASE=true ;;
     *) PRERELEASE=false ;;
 esac
-DIST_TAG=$(bash "$DIST_TAG_SCRIPT" pick "$PKG_VERSION" "$CURRENT_LATEST")
+PICK_ERR=$(mktemp)
+DIST_TAG=$(bash "$DIST_TAG_SCRIPT" pick "$PKG_VERSION" "$CURRENT_LATEST" 2> "$PICK_ERR") || {
+    cat "$PICK_ERR"
+    rm -f "$PICK_ERR"
+    exit 1
+}
+rm -f "$PICK_ERR"
 
 {
     echo "tag=${TAG}"

@@ -62,7 +62,8 @@ jobs:
               id: registry
               run: |
                   PKG_NAME=$(node -p "require('./package.json').name")
-                  LATEST=$(scripts/release-dist-tag.sh current-latest "$PKG_NAME")
+                  LATEST=$(scripts/release-dist-tag.sh current-latest "$PKG_NAME" 2>"$RUNNER_TEMP/current-latest.err") || { cat "$RUNNER_TEMP/current-latest.err"; exit 1; }
+                  cat "$RUNNER_TEMP/current-latest.err"
                   echo "current_latest=${LATEST}" >> "$GITHUB_OUTPUT"
                   echo "· ${PKG_NAME} latest on the registry: '${LATEST}'"
 
@@ -263,8 +264,9 @@ jobs:
                     echo "  (re-run path: the read-back and the GitHub Release below still run)"
                     exit 0
                   fi
-                  CURRENT_LATEST=$(bash scripts/release-dist-tag.sh current-latest "$PKG_NAME")
-                  DIST_TAG=$(bash scripts/release-dist-tag.sh pick "$VERSION" "$CURRENT_LATEST")
+                  CURRENT_LATEST=$(bash scripts/release-dist-tag.sh current-latest "$PKG_NAME" 2>"$RUNNER_TEMP/current-latest.err") || { cat "$RUNNER_TEMP/current-latest.err"; exit 1; }
+                  cat "$RUNNER_TEMP/current-latest.err"
+                  DIST_TAG=$(bash scripts/release-dist-tag.sh pick "$VERSION" "$CURRENT_LATEST" 2>"$RUNNER_TEMP/pick.err") || { cat "$RUNNER_TEMP/pick.err"; exit 1; }
                   if [ "$DIST_TAG" != "$BUILD_DIST_TAG" ]; then
                     echo "::notice::the registry's latest moved to '${CURRENT_LATEST}' since the build job; publishing under ${DIST_TAG}, not ${BUILD_DIST_TAG}"
                   fi
@@ -420,7 +422,7 @@ jobs:
                     gh release edit "$TAG" "${FLAGS[@]}"
                     gh release upload "$TAG" "$TARBALL" --clobber
                   else
-                    REGISTRY_LATEST=$(scripts/release-dist-tag.sh current-latest "$PKG_NAME")
+                    REGISTRY_LATEST=$(scripts/release-dist-tag.sh current-latest "$PKG_NAME" 2>"$RUNNER_TEMP/current-latest.err") || { cat "$RUNNER_TEMP/current-latest.err"; exit 1; }
                     if [ "$REGISTRY_LATEST" = "$VERSION" ]; then
                       LATEST_FLAG=--latest
                     else

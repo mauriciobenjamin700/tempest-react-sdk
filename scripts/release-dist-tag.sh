@@ -27,7 +27,9 @@
 # Resposta vazia com código 0, ou pacote sem `latest`, falha: tratar como pacote
 # novo mandaria um backport para `latest`. Outra falha do `npm view` é retentada
 # RELEASE_RETRY_ATTEMPTS vezes (10), com RELEASE_RETRY_SECONDS (15) entre elas.
-# Mensagens vão para stderr; stdout leva só o valor.
+# Mensagens vão para stderr; stdout leva só o valor. O workflow grava o stderr
+# num arquivo e o imprime na stdout do step, para o `::error::` virar anotação
+# sem depender de o runner ler comandos do stderr.
 
 set -euo pipefail
 

@@ -492,7 +492,7 @@ describe("release-npm.yml marks the GitHub Release Latest like the npm dist-tag 
         const [, body] = onlyJob(/contents: write/);
         expect(body).not.toMatch(/DIST_TAG/);
         expect(body).toMatch(
-            /REGISTRY_LATEST=\$\(scripts\/release-dist-tag\.sh current-latest "\$PKG_NAME"\)/,
+            /REGISTRY_LATEST=\$\(scripts\/release-dist-tag\.sh current-latest "\$PKG_NAME" 2>/,
         );
         expect(body).toMatch(
             /if \[ "\$REGISTRY_LATEST" = "\$VERSION" \]; then\n\s+LATEST_FLAG=--latest\n\s+else\n\s+LATEST_FLAG=--latest=false\n\s+fi/,
@@ -630,5 +630,19 @@ describe("scripts/release-dist-tag.sh (#472)", () => {
         expect(runDistTag(["pick", "0.78.0-rc.1", "0.77.0"]).stdout.trim()).toBe("next");
         expect(runDistTag(["pick", "1.0.0", ""]).stdout.trim()).toBe("latest");
         expect(runDistTag(["pick", "1.0.0", "garbage"]).status).toBe(1);
+    });
+});
+
+describe("release-npm.yml surfaces release-dist-tag.sh errors on stdout (#472)", () => {
+    it("captures stderr to a file and prints it before failing, on every fallible call", () => {
+        const calls = WORKFLOW.split("\n").filter((line) =>
+            /release-dist-tag\.sh (current-latest|pick)/.test(line),
+        );
+        expect(calls.length).toBeGreaterThanOrEqual(4);
+        for (const line of calls) {
+            expect(line).toMatch(
+                /=\$\((bash )?scripts\/release-dist-tag\.sh [^)]*2>"\$RUNNER_TEMP\/([\w.-]+)"\) \|\| \{ cat "\$RUNNER_TEMP\/\2"; exit 1; \}$/,
+            );
+        }
     });
 });

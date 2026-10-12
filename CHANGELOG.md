@@ -627,7 +627,6 @@ blob:` e o resto dos defaults — cada um mais permissivo que o `'none'` herdado
   api-extractor para 7.7.8, o que quebraria o rollup de tipos — fica registrado, sem ação, até
   o upstream publicar correção. Nada disso chega ao consumidor.
 
-
 ## [0.76.0] — 2026-10-10
 
 ### Adicionado

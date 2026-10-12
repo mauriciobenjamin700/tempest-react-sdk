@@ -992,3 +992,107 @@ describe("installBackgroundSync — an unknown owner fails closed without creden
         expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 });
+
+describe('installBackgroundSync — ownerPolicy: "lenient" for an app without sign-in (#480)', () => {
+    function cookiePost(): Request {
+        return new Request("https://app.test/api/items", {
+            method: "POST",
+            body: "x",
+            credentials: "include",
+        });
+    }
+
+    it("replays an unknown entry without credentials as-is, without asking any page", async () => {
+        const queue = nextQueue();
+        installBackgroundSync({ queueName: queue, ownerPolicy: "lenient" });
+        await failOffline(cookiePost(), "gone");
+        const pageB = fakePage("user-b", null);
+        windowClients = [pageB];
+        fetchMock.mockClear();
+        fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+        await fireSync(queue);
+
+        expect(
+            pageB.postMessage,
+            "lenient restores the replay-as-is of 0.77.0: no page is asked, so B's cookie " +
+                "would ride along — the reason it is opt-in and not the default.",
+        ).not.toHaveBeenCalled();
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(await readQueue(queue)).toEqual([]);
+    });
+
+    it("replays an unknown entry without credentials while no page is open", async () => {
+        const queue = nextQueue();
+        installBackgroundSync({ queueName: queue, ownerPolicy: "lenient" });
+        await failOffline(cookiePost(), "");
+        windowClients = [];
+        fetchMock.mockClear();
+        fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+        await fireSync(queue);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("replays a legacy v1 entry without credentials as-is", async () => {
+        const queue = nextQueue();
+        await writeLegacyEntry(queue, {
+            url: "https://app.test/api/items",
+            method: "POST",
+            headers: [["content-type", "text/plain"]],
+            body: null,
+            timestamp: Date.now(),
+        });
+        installBackgroundSync({ queueName: queue, ownerPolicy: "lenient" });
+        fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+        await fireSync(queue);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("still drops an unknown entry with stripped credentials when every page has a principal", async () => {
+        const queue = nextQueue();
+        installBackgroundSync({ queueName: queue, ownerPolicy: "lenient" });
+        await failOffline(postAs("A"), "gone");
+        const pageB = fakePage("user-b", "B");
+        windowClients = [pageB];
+        fetchMock.mockClear();
+        fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+        await fireSync(queue);
+
+        expect(pageB.postMessage).toHaveBeenCalled();
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(await readQueue(queue)).toEqual([]);
+    });
+
+    it("still keeps an unknown entry with stripped credentials pending while no page answers", async () => {
+        const queue = nextQueue();
+        installBackgroundSync({ queueName: queue, ownerPolicy: "lenient" });
+        await failOffline(postAs("A"), "gone");
+        windowClients = [];
+        fetchMock.mockClear();
+        await fireSync(queue);
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(await readQueue(queue)).toHaveLength(1);
+    });
+
+    it("still checks a bound entry without credentials against the signed-in owner", async () => {
+        const queue = nextQueue();
+        installBackgroundSync({ queueName: queue, ownerPolicy: "lenient" });
+        issuers = { tab: fakePage("user-a", null) };
+        await failOffline(cookiePost(), "tab");
+        windowClients = [fakePage("user-b", null)];
+        fetchMock.mockClear();
+        fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+        await fireSync(queue);
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("defaults to strict: the same unknown entry waits for a page", async () => {
+        const queue = nextQueue();
+        installBackgroundSync({ queueName: queue });
+        await failOffline(cookiePost(), "gone");
+        windowClients = [];
+        fetchMock.mockClear();
+        fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+        await fireSync(queue);
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+});

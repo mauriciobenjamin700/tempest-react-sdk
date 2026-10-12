@@ -26,6 +26,7 @@ export {
 export type {
     BackgroundSyncCredentialsProvider,
     BackgroundSyncCredentialsRequest,
+    BackgroundSyncOwnerPolicy,
     BackgroundSyncOwnerState,
     BackgroundSyncReplayContext,
     InstallBackgroundSyncOptions,

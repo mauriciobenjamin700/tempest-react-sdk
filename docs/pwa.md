@@ -147,7 +147,7 @@ provideBackgroundSyncCredentials(
 ```
 
 !!! warning "Sem provedor, nenhuma mutação é reenviada"
-    A fila não guarda o token, então só a página pode devolvê-lo — e só a página diz quem está logado. Sem `provideBackgroundSyncCredentials`, a aba não responde, o dono da entrada fica **desconhecido** e ela fica pendente até `maxRetentionMinutes` e some, tenha ou não header de credencial. Em build de desenvolvimento o worker avisa no console (uma vez por replay). API com sessão por cookie e sem token instala o provedor do mesmo jeito: `provideBackgroundSyncCredentials(() => null, { getPrincipal })`.
+    A fila não guarda o token, então só a página pode devolvê-lo — e só a página diz quem está logado. Sem `provideBackgroundSyncCredentials`, a aba não responde, o dono da entrada fica **desconhecido** e ela fica pendente até `maxRetentionMinutes` e some, tenha ou não header de credencial. Em build de desenvolvimento o worker avisa no console (uma vez por replay). API com sessão por cookie e sem token instala o provedor do mesmo jeito: `provideBackgroundSyncCredentials(() => null, { getPrincipal })`. App sem login nenhum usa [`ownerPolicy: "lenient"`](#ownerpolicy-app-sem-login).
 
 #### Cada entrada tem dono
 
@@ -170,22 +170,42 @@ No replay o worker pergunta a **todas** as abas em paralelo, com um único prazo
 | `null` (sem sessão) | descarta, sem enviar |
 | nenhuma resposta válida | fica pendente até `maxRetentionMinutes` |
 
-Só a entrada **sem dono** e sem header de credencial é reenviada como estava, sem perguntar. A de dono **desconhecido** pergunta mesmo sem header: numa API com sessão por cookie (`credentials: "include"`), o navegador anexa no replay o cookie de quem estiver logado naquela hora, então reenviar sem checar mandaria a mutação de A com a sessão de B (até a 0.77.0 era assim). Erro no provedor (`getHeaders` ou `getPrincipal` que lança) volta como `{ error: true }` explícito, nunca como silêncio.
+Só a entrada **sem dono** e sem header de credencial é reenviada como estava, sem perguntar. A de dono **desconhecido** pergunta mesmo sem header: numa API com sessão por cookie (`credentials: "include"`), o navegador anexa no replay o cookie de quem estiver logado naquela hora, então reenviar sem checar mandaria a mutação de A com a sessão de B (até a 0.77.0 era assim; `ownerPolicy: "lenient"` restaura isso, veja abaixo). Erro no provedor (`getHeaders` ou `getPrincipal` que lança) volta como `{ error: true }` explícito, nunca como silêncio.
 
 Medido no Chromium 153 (11/10/2026), com service worker, IndexedDB e duas abas reais: A enfileira offline, B entra sem limpar nada, o sync dispara — o servidor não recebe POST; com a aba de B aberta ao lado, a mutação de A sai com o token renovado de A.
 
 O replay é um só por fila: `sync`, `periodicsync` e o fallback do Safari disparando juntos compartilham a mesma passada, e a mesma mutação não sai duas vezes. E `clearBackgroundSyncQueue()` alcança o que está em voo: cada entrada é conferida no banco logo antes de sair, e uma requisição que ainda estava falhando quando a fila foi limpa não é gravada depois.
 
-Fora desse caminho, há dois controles no `installBackgroundSync`:
+Fora desse caminho, há três controles no `installBackgroundSync`:
 
 - **`credentialHeaders`** — a lista de headers removidos. Para um header próprio: `[...DEFAULT_CREDENTIAL_HEADERS, "x-tenant-key"]`. O provedor precisa devolver todos eles.
 - **`beforeReplay(request, { queuedAt, strippedHeaders, ownerState, owner })`** — substitui o pedido às páginas: devolva o `Request` a enviar, `null` para descartar, ou lance para manter pendente. Útil quando o worker consegue a credencial sozinho; `ownerState`/`owner` permitem aplicar a mesma regra de dono.
+- **`ownerPolicy`** — `"strict"` (padrão) ou `"lenient"`; veja [`ownerPolicy`: app sem login](#ownerpolicy-app-sem-login).
 
 !!! warning "Limite: credencial na URL ou no corpo"
     Só **headers** saem da fila. Um token em query string (`?access_token=…`) ou dentro do corpo da mutação é gravado como foi enviado. Mande credencial em header.
 
 !!! warning "`credentialHeaders: []` volta ao comportamento antigo"
     Com a lista vazia, todo header — bearer incluso — vai em texto puro para o IndexedDB e é reenviado como foi gravado. É uma escolha explícita, para quem não tem página aberta no replay e aceita o risco.
+
+#### `ownerPolicy`: app sem login
+
+O padrão é `ownerPolicy: "strict"`. App **sem login**, em que nenhuma página informa principal e não há provedor, pode voltar ao reenvio sem consulta da 0.77.0 com `ownerPolicy: "lenient"`:
+
+```ts
+import { installBackgroundSync } from "tempest-react-sdk/sw";
+
+installBackgroundSync({ match: /\/api\//, ownerPolicy: "lenient" });
+```
+
+| Entrada | `"strict"` (padrão) | `"lenient"` |
+| -- | -- | -- |
+| dono **desconhecido**, sem header de credencial | pergunta às páginas: reenvia com resposta sem principal, descarta se toda resposta tem principal, pendente sem resposta | reenvia como estava, sem perguntar |
+| dono **desconhecido**, com header de credencial removido | pergunta às páginas (mesma regra) | pergunta às páginas (mesma regra) |
+| **com dono** / **sem dono** | igual nos dois modos | igual nos dois modos |
+
+!!! danger "`lenient` não serve para sessão por cookie"
+    No replay o navegador anexa o cookie de quem estiver logado naquela hora. Com `"lenient"`, a mutação de A cujo dono não foi carimbado (aba fechada, `clientId` vazio, carimbo perdido, entrada antiga) sai com a sessão de B. Com cookie, fique no `"strict"` e instale o provedor com `getPrincipal`. Um `beforeReplay` próprio ignora a opção.
 
 ## 4. Durabilidade: peça armazenamento persistente
 

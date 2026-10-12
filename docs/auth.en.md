@@ -353,6 +353,56 @@ export async function loadOrders(): Promise<unknown[] | null> {
 
 Refreshes also collapse per **rotation**, not just per overlap in time: a 401 whose request left with a token the same session has since replaced replays with the new token and refreshes nothing. Three expired requests take one refresh, whether their 401s arrive together or one after another.
 
+### Cookie refresh and server-side logout — `logoutPath`
+
+With `withCredentials: true`, the refresh token lives in an HttpOnly cookie, and `logout()` cannot reach it: it clears the store and the stored refresh token, while the cookie stays in the browser, redeemable until the backend revokes it. Two pieces close this.
+
+The first is the preset's own and has no option: **a 401 from a request that left without a token, while no session is installed** (no access token, no stored refresh token and no `login()` in flight), **just rejects with the 401** — it does not start a refresh. Before, that 401 arrived after `logout()`, the refresh went out with A's cookie, and the next person on the browser acted as A (#474).
+
+Restoring the session from the cookie when the app reloads still works: call `auth.refresh()` at boot, explicitly. That is the legitimate path — the app decides to restore — rather than a side effect of any anonymous request.
+
+The second piece is revoking on the server: pass `logoutPath`, and an explicit `logout()` sends a `POST` to that route with the ended session's credentials — its access token, and the body `refreshBody` builds from the stored refresh token (`{ refresh_token }` in body mode; no body in cookie mode, where the cookie goes along).
+
+```ts
+import { createTempestAuth } from "tempest-react-sdk";
+
+interface User {
+  id: string;
+  name: string;
+}
+
+export const auth = createTempestAuth<User>({
+  baseURL: "https://api.example.com",
+  mePath: "/api/auth/me",
+  withCredentials: true,
+  csrf: true,
+  logoutPath: "/api/auth/logout",
+});
+
+export async function restoreSession(): Promise<boolean> {
+  try {
+    await auth.refresh();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function signOut(): Promise<void> {
+  await auth.logout();
+  window.location.assign("/login");
+}
+```
+
+- The store is cleared **before** the revocation finishes: `isAuthenticated` is already `false` when `logout()` returns, as always.
+- The promise `logout()` returns waits for the revocation. That is why `await auth.logout()` before navigating matters: a hard navigation aborts the request in flight.
+- Revocation is **best-effort**: a network failure, `4xx` or `5xx` is swallowed, and the user is signed out all the same.
+- A `login()` started while the revocation is in flight waits for it, because the logout response clears the auth cookies and, arriving later, would clear the new account's.
+- Only an explicit `logout()` revokes. On an account switch (`"switch"`) the browser's cookie is already the new account's; on `"expired"` the server has already refused the session.
+
+!!! info "The route in tempest-fastapi-sdk"
+    `make_auth_router` mounts `POST /auth/logout` (`204`, idempotent) when the service stores refresh tokens in the database (`refresh_token_model`): in body mode it reads `{ refresh_token }`, in cookie mode it reads the cookie and deletes both auth cookies. With `AUTH_TOKEN_DELIVERY=both`, the cookie route is `/auth/cookie/logout`. A stateless (JWT) refresh token cannot be revoked, and the route does not exist — there the cookie only dies when it expires.
+
 ## Complete example — login, guard, and refresh together
 
 A real app stitches all five pieces together. This is the complete, copy-pasteable skeleton:
@@ -437,6 +487,7 @@ The flow: login calls `setSession`, persisting `user` + `token`. `ProtectedLayou
 - **`createRefreshQueue`** — N concurrent refreshes become 1.
 - **`onSessionEnd`** — per-user teardown on `logout()` **and** on automatic expiry, with `session.api` still authenticated.
 - **`SessionSupersededError`** — a refresh or request from a session that already ended; drop it, do not sign out.
+- **`logoutPath`** — revokes the refresh token (or cookie) on the server on `logout()`; restore the session at boot with `auth.refresh()`.
 
 ### See also
 

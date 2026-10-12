@@ -60,6 +60,35 @@ export interface CreateTempestAuthOptions<TUser> {
     loginPath?: string;
     /** Refresh route (`POST`). Default: `"/api/auth/refresh"`. */
     refreshPath?: string;
+    /**
+     * Server-side logout route (`POST`), called by an explicit `logout()` to
+     * revoke the ending session. Off by default.
+     *
+     * `logout()` alone only clears client state, and an HttpOnly refresh
+     * cookie is out of its reach: with `withCredentials`, the cookie stays
+     * redeemable until the backend revokes it. The tempest-fastapi-sdk mounts
+     * `POST /auth/logout` (`204`, idempotent) when it stores refresh tokens in
+     * the database — at `/auth/cookie/logout` when it delivers tokens both in
+     * the body and in cookies — and stateless refresh tokens cannot be
+     * revoked, so the route is absent there.
+     *
+     * The request goes out through the ended session's client (the same one
+     * `onSessionEnd` receives, carrying its access token), with the body that
+     * `refreshBody` builds from the refresh token stored before the clear:
+     * `{ refresh_token }` in body mode, no body in cookie mode, which is what
+     * that route reads. The local clear does not wait on it — `isAuthenticated`
+     * is still `false` when `logout()` returns — but the promise `logout()`
+     * returns does, so a navigation after `await auth.logout()` does not abort
+     * it. A failure (network, `4xx`, `5xx`) is swallowed: revocation is
+     * best-effort and never keeps the user signed in. A `login()` started
+     * while it is in flight waits for it, because the logout response clears
+     * the auth cookies and would otherwise clear the new account's.
+     *
+     * Only an explicit `logout()` revokes. On `"switch"` the cookie jar already
+     * holds the new account's cookie, and on `"expired"` the server has already
+     * refused the session.
+     */
+    logoutPath?: string;
     /** Optional current-user route (`GET`) called after login/refresh. */
     mePath?: string;
     /** Persist key for the store. Default: `"tempest-auth"`. */
@@ -166,7 +195,9 @@ export interface TempestAuth<TUser, TCredentials> {
      *
      * The store is cleared synchronously, before the first `await`, so callers
      * that ignore the promise see the signed-out state at once. The promise
-     * resolves when `onSessionEnd` settled and rejects with its error.
+     * resolves when `onSessionEnd` settled — and, with `logoutPath`, when the
+     * server-side revocation settled too — and rejects with the hook's error;
+     * a failed revocation never rejects it.
      */
     logout: () => Promise<void>;
     /**
@@ -206,6 +237,12 @@ function defaultParseTokens(data: unknown): { token: string; refreshToken?: stri
  * showed B (#435). A `401` from a request sent under an ended session is
  * refused the same way, instead of being replayed as the account signed in now.
  *
+ * A `401` from a request that carried no token, while no session is installed
+ * or being installed, surfaces without a refresh: in cookie mode that refresh
+ * would be answered by the HttpOnly cookie `logout()` cannot clear, signing the
+ * previous account back in (#474). Restore a session at boot with an explicit
+ * `refresh()`, and pass `logoutPath` so the backend revokes the cookie.
+ *
  * Refreshes are collapsed per rotation, not just per overlap: a `401` whose
  * request left with a token that has since been replaced in the same session
  * replays with the new token and refreshes nothing. Three expired requests take
@@ -232,6 +269,7 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
         prefix,
         loginPath = "/api/auth/login",
         refreshPath = "/api/auth/refresh",
+        logoutPath,
         mePath,
         storeName = "tempest-auth",
         storage = "local",
@@ -301,6 +339,26 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
     let epoch = 0;
     let ending: Promise<void> = Promise.resolve();
     let hooksRunning = 0;
+    let loginsInFlight = 0;
+    let revoking: Promise<void> | null = null;
+
+    /**
+     * A client that sends an ended session's access token, and never refreshes
+     * or ends a session: a `401` there just rejects.
+     *
+     * @param token - The ended session's access token.
+     * @returns The client `onSessionEnd` and the `logoutPath` call go through.
+     */
+    function endedSessionApi(token: string | null): ApiClient {
+        return createApiClient({
+            baseURL,
+            prefix,
+            withCredentials,
+            csrf,
+            fetcher,
+            getToken: () => token,
+        });
+    }
 
     /**
      * Start a new session epoch: supersede the refresh in flight and give the
@@ -364,6 +422,22 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
     }
 
     /**
+     * Whether nothing could make a tokenless `401` worth a refresh: no access
+     * token, no stored refresh token and no `login()` in flight.
+     *
+     * With `withCredentials`, the refresh would otherwise be answered by an
+     * HttpOnly cookie the client cannot see or clear — after `logout()`, that
+     * signed the previous account back in for whoever used the browser next
+     * (#474). Restoring a session from the cookie is an explicit `refresh()`,
+     * typically at boot, which this does not touch.
+     *
+     * @returns Whether no session is installed or being installed.
+     */
+    function signedOut(): boolean {
+        return getToken() === null && readRefreshToken() === null && loginsInFlight === 0;
+    }
+
+    /**
      * The `refresh` the client calls on a `401`.
      *
      * - An attempt from an ended epoch is refused rather than replayed as
@@ -371,6 +445,8 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      * - A token this session already rotated past: the replay just picks up the
      *   new one — no second refresh.
      * - No token, while a session is now installed: the `401` surfaces as is.
+     * - No token, and no session installed or being installed: the `401`
+     *   surfaces as is — see `signedOut`.
      * - Otherwise: join or start this epoch's refresh.
      *
      * @param context - The credential and epoch the rejected attempt left with.
@@ -383,6 +459,7 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
             if (context.token === null) throw new Error("anonymous 401 under a live session");
             return;
         }
+        if (context.token === null && signedOut()) throw new Error("anonymous 401 with no session");
         return queue();
     }
 
@@ -414,6 +491,9 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      * `logout()` still tearing down is awaited the same way, so the new
      * account's state never starts before the previous one's teardown ended.
      * Never call it from inside `onSessionEnd`: it would wait on that hook.
+     * A `logoutPath` revocation still in flight is awaited before the request
+     * leaves, so its cookie-clearing response cannot land after the new
+     * account's cookies.
      *
      * @param credentials - Sent as the login body.
      * @returns The user of the new session, or null.
@@ -423,6 +503,27 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      *   tokens, or the user, are discarded.
      */
     async function login(credentials: TCredentials): Promise<TUser | null> {
+        if (revoking) await revoking;
+        loginsInFlight += 1;
+        try {
+            return await signIn(credentials);
+        } finally {
+            loginsInFlight -= 1;
+        }
+    }
+
+    /**
+     * The body of `login()`, counted in `loginsInFlight` by its caller so a
+     * tokenless `401` during the sign-in is not mistaken for one with no
+     * session coming. The count starts only after a pending revocation
+     * settled: until then the cookie a refresh would present is the ended
+     * session's.
+     *
+     * @param credentials - Sent as the login body.
+     * @returns The user of the new session, or null.
+     * @throws {SessionSupersededError} See `login()`.
+     */
+    async function signIn(credentials: TCredentials): Promise<TUser | null> {
         const started = epoch;
         const data = await api.post<unknown>(loginPath, {
             body: credentials,
@@ -485,14 +586,7 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
             return { live, done: wait ? ending : Promise.resolve() };
         }
         if (!onSessionEnd) return { live, done: Promise.resolve() };
-        const sessionApi = createApiClient({
-            baseURL,
-            prefix,
-            withCredentials,
-            csrf,
-            fetcher,
-            getToken: () => token,
-        });
+        const sessionApi = endedSessionApi(token);
         hooksRunning += 1;
         const run = (async () => {
             try {
@@ -508,8 +602,42 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
         return { live, done: run.then(() => undefined) };
     }
 
+    /**
+     * Send the `logoutPath` revocation for the session about to end, with the
+     * credentials it holds now — read before `finish` clears them.
+     *
+     * Skipped without `logoutPath`, and in body mode when there is nothing to
+     * revoke; in cookie mode it always goes out, since the cookie it revokes is
+     * invisible to the client. Never rejects.
+     *
+     * @returns A promise settling when the revocation settled, or null when
+     *   none was sent.
+     */
+    function revoke(): Promise<void> | null {
+        if (!logoutPath) return null;
+        const { token, user } = state();
+        const refreshToken = readRefreshToken();
+        if (!withCredentials && token === null && user === null && refreshToken === null) {
+            return null;
+        }
+        const sent = endedSessionApi(token)
+            .post<unknown>(logoutPath, { body: refreshBody(refreshToken) })
+            .then(
+                () => undefined,
+                () => undefined,
+            );
+        const tracked: Promise<void> = sent.finally(() => {
+            if (revoking === tracked) revoking = null;
+        });
+        revoking = tracked;
+        return tracked;
+    }
+
     function logout(): Promise<void> {
-        return finish("logout").done;
+        const revocation = revoke();
+        const { done } = finish("logout");
+        if (!revocation) return done;
+        return Promise.all([revocation, done]).then(() => undefined);
     }
 
     /**

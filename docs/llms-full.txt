@@ -1637,6 +1637,56 @@ export async function loadOrders(): Promise<unknown[] | null> {
 
 Os refreshes também colapsam por **rotação**, não só por sobreposição no tempo: um 401 cuja request saiu com um token que a mesma sessão já trocou repete com o token novo e não renova nada. Três requests expiradas gastam um refresh, cheguem os 401 juntos ou um depois do outro.
 
+### Refresh por cookie e logout no servidor — `logoutPath`
+
+Com `withCredentials: true`, o refresh token mora num cookie HttpOnly, e o `logout()` não alcança esse cookie: ele limpa o store e o refresh token guardado, e o cookie continua no navegador, resgatável até o backend revogá-lo. Duas peças fecham isso.
+
+A primeira é do próprio preset e não tem opção: **um 401 de uma request que saiu sem token, sem sessão instalada** (sem access token, sem refresh token guardado e sem `login()` em curso), **só rejeita com o 401** — não dispara refresh. Antes, esse 401 chegava depois do `logout()`, o refresh ia com o cookie de A, e o próximo usuário do navegador agia como A (#474).
+
+O que continua funcionando é restaurar a sessão pelo cookie quando o app recarrega: chame `auth.refresh()` no boot, explicitamente. É o caminho legítimo — o app decide restaurar —, e não um efeito colateral de qualquer request anônima.
+
+A segunda peça é revogar no servidor: passe `logoutPath`, e o `logout()` explícito faz `POST` nessa rota com as credenciais da sessão que terminou — o access token dela, e o corpo que o `refreshBody` monta com o refresh token guardado (`{ refresh_token }` no modo corpo; sem corpo no modo cookie, em que o cookie vai junto).
+
+```ts
+import { createTempestAuth } from "tempest-react-sdk";
+
+interface User {
+  id: string;
+  name: string;
+}
+
+export const auth = createTempestAuth<User>({
+  baseURL: "https://api.exemplo.com",
+  mePath: "/api/auth/me",
+  withCredentials: true,
+  csrf: true,
+  logoutPath: "/api/auth/logout",
+});
+
+export async function restoreSession(): Promise<boolean> {
+  try {
+    await auth.refresh();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function signOut(): Promise<void> {
+  await auth.logout();
+  window.location.assign("/login");
+}
+```
+
+- O store é limpo **antes** da revogação terminar: `isAuthenticated` já é `false` quando o `logout()` retorna, como sempre.
+- A promise do `logout()` espera a revogação. Por isso o `await auth.logout()` antes de navegar importa: uma navegação dura aborta a request em voo.
+- A revogação é **best-effort**: falha de rede, `4xx` ou `5xx` é engolida, e o usuário sai do mesmo jeito.
+- Um `login()` que começa com a revogação em voo espera por ela, porque a resposta do logout apaga os cookies de auth e, chegando depois, apagaria os da conta nova.
+- Só o `logout()` explícito revoga. Na troca de conta (`"switch"`) o cookie no navegador já é o da conta nova; no `"expired"` o servidor já recusou a sessão.
+
+!!! info "A rota no tempest-fastapi-sdk"
+    O `make_auth_router` monta `POST /auth/logout` (`204`, idempotente) quando o serviço guarda refresh token no banco (`refresh_token_model`): no modo corpo ele lê `{ refresh_token }`, no modo cookie lê o cookie e apaga os dois cookies de auth. Com `AUTH_TOKEN_DELIVERY=both`, a rota de cookie fica em `/auth/cookie/logout`. Refresh token stateless (JWT) não tem como ser revogado, e a rota não existe — ali o cookie só morre quando expira.
+
 ## Exemplo completo — login, guard e refresh juntos
 
 Um app real costura as cinco peças. Este é o esqueleto completo e copiável:
@@ -1721,6 +1771,7 @@ O fluxo: o login chama `setSession`, persistindo `user` + `token`. O `ProtectedL
 - **`createRefreshQueue`** — N refreshes concorrentes viram 1.
 - **`onSessionEnd`** — teardown por usuário no `logout()` **e** na expiração automática, com `session.api` ainda autenticado.
 - **`SessionSupersededError`** — refresh ou request de uma sessão que já acabou; descarte, não deslogue.
+- **`logoutPath`** — revoga o refresh token (ou o cookie) no servidor no `logout()`; restaure a sessão no boot com `auth.refresh()`.
 
 ### Veja também
 
@@ -23807,7 +23858,8 @@ const user = await auth.login({ email, password });
 // um refresh único e re-tenta a chamada original
 const orders = await auth.api.get("/api/orders");
 
-// Logout (limpa sessão + refresh token guardado, depois roda o onSessionEnd)
+// Logout (limpa sessão + refresh token guardado, depois roda o onSessionEnd;
+// com logoutPath, também revoga no servidor)
 await auth.logout();
 ```
 
@@ -23879,6 +23931,21 @@ export const auth = createTempestAuth<User>({
     ```
 
     O backend precisa montar o `CSRFMiddleware` e emitir o cookie numa rota `GET` antes da primeira escrita. Ver [CSRF](./http.md#csrf-o-cookie-de-sessao-precisa-de-um-par).
+
+    O cookie também sobrevive ao `logout()`, que só limpa o estado do cliente. Passe `logoutPath` para o backend revogá-lo, e restaure a sessão no boot com `auth.refresh()` — um 401 anônimo sem sessão instalada não renova mais sozinho. Detalhes em [Auth → Refresh por cookie e logout no servidor](./auth.md#refresh-por-cookie-e-logout-no-servidor-logoutpath).
+
+    ```tsx
+    import { createTempestAuth } from "tempest-react-sdk";
+
+    export const auth = createTempestAuth({
+        baseURL: import.meta.env.VITE_API_URL,
+        withCredentials: true,
+        csrf: true,
+        logoutPath: "/api/auth/logout",
+    });
+
+    await auth.refresh().catch(() => undefined);
+    ```
 
 ---
 

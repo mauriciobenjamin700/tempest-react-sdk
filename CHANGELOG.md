@@ -4,7 +4,28 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`createTempestAuth({ logoutPath })` — o `logout()` explícito revoga a sessão no servidor** (#474).
+  Faz `POST` na rota com o cliente da sessão que terminou (o access token dela) e o corpo do
+  `refreshBody` montado com o refresh token guardado antes da limpeza — `{ refresh_token }` no modo
+  corpo, sem corpo no modo cookie —, que é o contrato do `POST /auth/logout` do tempest-fastapi-sdk
+  (montado com `refresh_token_model`; `/auth/cookie/logout` com `AUTH_TOKEN_DELIVERY=both`). O store
+  continua limpo de forma síncrona; a promise do `logout()` espera a revogação, que é best-effort
+  (falha de rede ou `4xx`/`5xx` é engolida), e um `login()` iniciado no meio espera por ela para a
+  resposta do logout não apagar os cookies da conta nova. Off por default.
+
 ### Corrigido
+
+- **`createTempestAuth` — em modo refresh por cookie, um 401 anônimo depois do `logout()` não loga A de
+  novo** (#474). Um 401 de request que saiu sem token chegava ao refresh com token nulo, e o refresh ia com o cookie HttpOnly que o `logout()` não alcança: medido com um backend cujo cookie
+  continua válido, `logout()` → `auth.api.get("/api/me")` → 401 → refresh → `isAuthenticated: true`
+  com o token de A, e a repetição devolvia o `/me` de A. Agora, sem sessão instalada (sem access
+  token, sem refresh token guardado e sem `login()` em curso), esse 401 só rejeita. Restaurar a sessão
+  pelo cookie no boot continua funcionando por `auth.refresh()` explícito — quem dependia de uma
+  request anônima para restaurar passa a chamar `refresh()` (`src/auth/create-tempest-auth.cookie.test.ts`).
+  Custo, medido com `npx size-limit` (`main` d39027c × esta mudança): barrel ESM 144,97 → 145,09 kB e
+  CJS 172,46 → 172,58 kB; os tetos sobem para 145,1 / 172,6 kB.
 
 - **`createTempestAuth` — o `/me` que resolve depois do `logout()` não grava mais o perfil no store**
   (#473). O `login()` instalava o token e esperava o `GET mePath` sem conferir a época da sessão:

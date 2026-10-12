@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.77.0] — 2026-10-12
+
 ### Breaking
 
 - **`installRuntimeCache` deixa requisição com `Authorization` fora do cache** (#443). Antes, toda

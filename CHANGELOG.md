@@ -47,7 +47,6 @@ range: v0.75`, medido). O `latest` é lido de `npm view <pkg> dist-tags --json` 
   de commit fora da `main` segue dependendo do revisor obrigatório no environment `npm-release` e do
   vínculo do Trusted Publisher — configuração externa, documentada em `docs/release.md`.
 
-
 ## [0.77.0] — 2026-10-12
 
 ### Breaking

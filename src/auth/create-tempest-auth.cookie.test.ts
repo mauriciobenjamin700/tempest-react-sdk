@@ -156,7 +156,17 @@ describe("createTempestAuth — cookie refresh after logout", () => {
         expect(calls.filter((call) => call.path === "/api/auth/refresh")).toHaveLength(1);
     });
 
-    it("still refreshes a tokenless 401 while a login is in flight", async () => {
+    /**
+     * Inverted on purpose by #496. This test used to assert one refresh: the
+     * login in flight counted as "a session is coming", so the tokenless 401
+     * started a refresh. In cookie mode that refresh presents whatever cookie
+     * the browser holds — after `logout()` without a working `logoutPath`, the
+     * previous account's — and either signed that account back in when the
+     * login failed, or let the refresh's late `Set-Cookie` overwrite the new
+     * account's cookie. The 401 now waits for the login and replays with the
+     * token it installed, with no refresh at all.
+     */
+    it("does not refresh a tokenless 401 while a login is in flight, and replays it with the login's token", async () => {
         let openLogin!: () => void;
         const loginHeld = new Promise<void>((resolve) => {
             openLogin = resolve;
@@ -178,9 +188,160 @@ describe("createTempestAuth — cookie refresh after logout", () => {
         await tick();
         openLogin();
         await signingIn;
-        await anonymous.catch(() => undefined);
 
-        expect(calls.filter((call) => call.path === "/api/auth/refresh")).toHaveLength(1);
+        await expect(anonymous).resolves.toEqual({ id: "A" });
+        expect(calls.filter((call) => call.path === "/api/auth/refresh")).toHaveLength(0);
+        expect(calls.filter((call) => call.path === "/api/me").map((call) => call.bearer)).toEqual([
+            undefined,
+            "A-tok-1",
+        ]);
+    });
+});
+
+/**
+ * A backend that models the browser's cookie jar: one refresh cookie, sent
+ * with every credentialed request, last `Set-Cookie` wins. Login and refresh
+ * both set it; refresh rotates it; logout does nothing (no `logoutPath`, the
+ * default), so the ended account's cookie stays redeemable — the condition of
+ * #496.
+ *
+ * @param holds - Gates holding the login and refresh responses, read when
+ *   each request arrives, so a test can set them after the first login.
+ * @returns The fetcher, the calls it saw and a reader for the jar.
+ */
+function jarBackend(holds: { login?: Promise<void>; refresh?: Promise<void> } = {}): {
+    fetcher: typeof fetch;
+    calls: Call[];
+    jar: () => string | null;
+} {
+    const calls: Call[] = [];
+    let jar: string | null = null;
+    let seq = 0;
+    const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = new URL(String(input)).pathname;
+        const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+        const cookie = init?.credentials === "include" ? jar : null;
+        calls.push({ path, method: init?.method ?? "GET", bearer: bearerOf(init), body });
+        if (path === "/api/auth/login") {
+            await holds.login;
+            const { email, password } = body as { email: string; password: string };
+            if (password !== "ok") return jsonResponse({ detail: "bad credentials" }, 401);
+            seq += 1;
+            jar = `${email}-rt-${seq}`;
+            return jsonResponse({ access_token: `${email}-at-${seq}` });
+        }
+        if (path === "/api/auth/refresh") {
+            if (cookie === null) return jsonResponse({ detail: "no cookie" }, 401);
+            await holds.refresh;
+            const who = cookie.split("-")[0];
+            seq += 1;
+            jar = `${who}-rt-${seq}`;
+            return jsonResponse({ access_token: `${who}-at-${seq}` });
+        }
+        const bearer = bearerOf(init);
+        if (bearer === undefined) return jsonResponse({ detail: "anonymous" }, 401);
+        return jsonResponse({ id: bearer.split("-")[0] });
+    }) as unknown as typeof fetch;
+    return { fetcher, calls, jar: () => jar };
+}
+
+/**
+ * #496: the tokenless-401 refresh #474 kept for "a login is in flight"
+ * redeemed the previous account's refresh cookie. Both tests failed against
+ * b0dc694.
+ */
+describe("createTempestAuth — tokenless 401 during login()", () => {
+    beforeEach(() => {
+        localStorage.clear();
+    });
+
+    it("stays signed out when the login fails, instead of restoring the previous account", async () => {
+        const login = gate();
+        const holds: { login?: Promise<void> } = {};
+        const { fetcher, calls } = jarBackend(holds);
+        const auth = createTempestAuth<User>({
+            baseURL: "https://api.example.test",
+            withCredentials: true,
+            fetcher,
+            parseUser: () => ({ id: "x" }),
+        });
+        await auth.login({ email: "A", password: "ok" });
+        await auth.logout();
+        holds.login = login.wait;
+
+        const signingIn = auth.login({ email: "B", password: "wrong" });
+        signingIn.catch(() => undefined);
+        await tick();
+        const anonymous = auth.api.get("/api/me");
+        anonymous.catch(() => undefined);
+        await tick();
+        login.open();
+
+        await expect(signingIn).rejects.toMatchObject({ status: 401 });
+        await expect(anonymous).rejects.toMatchObject({ status: 401 });
+        expect(calls.filter((call) => call.path === "/api/auth/refresh")).toHaveLength(0);
+        expect(auth.getToken()).toBeNull();
+        expect(auth.useAuthStore.getState().isAuthenticated).toBe(false);
+        expect(localStorage.getItem("tempest-auth")).not.toContain("A-at");
+    });
+
+    it("sends no refresh during the login, so no late Set-Cookie overwrites the new account's cookie", async () => {
+        const login = gate();
+        const refresh = gate();
+        const holds: { login?: Promise<void>; refresh?: Promise<void> } = {};
+        const { fetcher, calls, jar } = jarBackend(holds);
+        const auth = createTempestAuth<User>({
+            baseURL: "https://api.example.test",
+            withCredentials: true,
+            fetcher,
+            parseUser: (data) => ({
+                id: String((data as { access_token: string }).access_token).split("-")[0],
+            }),
+        });
+        await auth.login({ email: "A", password: "ok" });
+        await auth.logout();
+        holds.login = login.wait;
+        holds.refresh = refresh.wait;
+
+        const signingIn = auth.login({ email: "B", password: "ok" });
+        await tick();
+        const anonymous = auth.api.get("/api/me");
+        await tick();
+        login.open();
+        await expect(signingIn).resolves.toEqual({ id: "B" });
+        refresh.open();
+        await tick();
+        holds.refresh = undefined;
+
+        await expect(anonymous).resolves.toEqual({ id: "B" });
+        expect(calls.filter((call) => call.path === "/api/auth/refresh")).toHaveLength(0);
+        expect(jar()).toMatch(/^B-rt-/);
+
+        await auth.refresh();
+        await expect(auth.api.get("/api/me")).resolves.toEqual({ id: "B" });
+        expect(auth.getToken()).toMatch(/^B-at-/);
+        expect(auth.useAuthStore.getState().user).toEqual({ id: "B" });
+    });
+
+    it("does not deadlock an onSessionEnd hook that calls auth.api during an account switch", async () => {
+        const { fetcher } = jarBackend();
+        const seen: unknown[] = [];
+        const auth = createTempestAuth<User>({
+            baseURL: "https://api.example.test",
+            withCredentials: true,
+            fetcher,
+            parseUser: () => ({ id: "x" }),
+            onSessionEnd: async () => {
+                seen.push(await auth.api.get("/api/me").catch((error: unknown) => error));
+            },
+        });
+        await auth.login({ email: "A", password: "ok" });
+
+        await expect(auth.login({ email: "B", password: "ok" })).resolves.toEqual({ id: "x" });
+
+        expect(seen).toHaveLength(1);
+        expect(seen[0]).toMatchObject({ status: 401 });
+        expect(auth.getToken()).toMatch(/^B-at-/);
     });
 });
 

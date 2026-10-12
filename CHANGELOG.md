@@ -130,6 +130,25 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   workflow anterior, 8 de 55 testes falham; depois, 55/55. A execução no runner hospedado não foi
   observada — a medição é do workflow lido como texto.
 
+- **`createTempestAuth`: um 401 sem token durante o `login()` não dispara mais refresh** (#496). A
+  #474 fechou o caso todo deslogado, mas com um `login()` em voo o 401 ainda renovava — e no modo
+  cookie esse refresh ia com o cookie que o navegador tivesse: depois do `logout()` sem `logoutPath`
+  (o default), com a revogação falhando ou passando de 10 s, o da conta que tinha saído. Login de B
+  que falhava deixava o cliente logado como A, com o token de A persistido; login de B que dava certo
+  podia ter o cookie sobrescrito pelo `Set-Cookie` tardio desse refresh, e o refresh seguinte
+  instalava o token de A com o store mostrando B. Agora esse 401 espera os logins em voo assentarem e
+  repete a request com o token instalado, ou rejeita com o 401 se nenhum instalou; o `refresh()` do
+  boot continua podendo juntar-se a um refresh em andamento, e o modo corpo (refresh token guardado)
+  não muda. Dentro de um `onSessionEnd` que chama `auth.api` durante a troca de conta, o 401 sai sem
+  esperar — o login espera o hook, e esperar o login travaria. Reproduzido com o harness de cookie
+  jar da auditoria e fixado em `src/auth/create-tempest-auth.cookie.test.ts`
+  (`npx vitest run src/auth/create-tempest-auth.cookie.test.ts`): na `b0dc694` os quatro testes novos
+  ou reescritos falham (1 refresh enviado; request anônima resolvendo como A; `SessionSupersededError`
+  em vez do replay como B; o hook recebendo o usuário B), depois passam. A doc de auth passa a dizer
+  que, sem revogação no servidor funcionando, a conta que saiu continua restaurável pelo `refresh()`
+  do boot. Custo, medido com `npx size-limit` (`b0dc694` × esta mudança): barrel CJS 173,51 →
+  173,73 kB (teto 173,6 → 173,75 kB); barrel ESM 145,92 → 145,94 kB, dentro do teto.
+
 - **`retry(factory, { retries: 0 })` nunca chamava a `factory` e rejeitava com `undefined`** (#486). O
   laço era `while (attempt < retries)`, então `0`, qualquer negativo e `NaN` pulavam a tentativa: a
   request não saía e o erro não dizia nada. Agora a primeira tentativa sempre roda — `0`/negativo fazem

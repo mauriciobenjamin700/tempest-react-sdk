@@ -6,6 +6,29 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **`retry(factory, { retries: 0 })` nunca chamava a `factory` e rejeitava com `undefined`** (#486). O
+  laço era `while (attempt < retries)`, então `0`, qualquer negativo e `NaN` pulavam a tentativa: a
+  request não saía e o erro não dizia nada. Agora a primeira tentativa sempre roda — `0`/negativo fazem
+  uma e repassam o erro dela, `NaN` vale o default, fração arredonda pra baixo. Vale também para
+  `createApiClient({ retry: { retries: 0 } })` e o `retry` do `createResumableUpload`. A semântica
+  **não muda**: `retries` continua sendo o total de tentativas (default 3 = a primeira + 2
+  repetições), que é o que o JSDoc, o `createApiClient`, o upload resumível e o `lazyWithRetry` já
+  contavam; o número de requests com o default e com qualquer `retries >= 1` é o mesmo de antes. O
+  JSDoc e a doc (`http` → "O que `retries` conta") agora dizem isso explicitamente.
+
+- **`tempest gen icons` volta a funcionar no pacote instalado** (#485). O bin importava o barril
+  `dist/icons.js` para ler as tabelas de slug, e o barril alcança o `.css` do `<IconPicker>` desde o
+  CSS por componente (0.63.0): em Node puro, que é como `npx tempest` roda, o import morria com
+  `ERR_UNKNOWN_FILE_EXTENSION ".css"` e o comando saía com "Could not read the icon tables" em todo
+  app (reproduzido com `npm pack` + install num app limpo). Agora o CLI importa só os dois módulos
+  de dados (`dist/icons/generated/icon-names.js` e `aliases.js`), que não importam nada — em vez de
+  registrar o `/node-css-loader` no processo inteiro e ainda carregar React e o grafo de componentes
+  para ler duas listas. Três guardas novos: um teste que chama `loadIconTables` num `node` filho sem
+  loader, o `check-dist-guards` (roda em Node puro após todo build) chamando o mesmo
+  `loadIconTables` contra o `dist` real, e `scripts/smoke-cli.sh`, que roda `tempest gen icons`
+  contra o tarball no CI e no job de smoke do release. `doctor`, `lint`, `gen api` e
+  `gen component` não importam `dist/` e rodaram limpos em Node puro contra o tarball.
+
 - **`release-npm.yml` — o `latest` do npm não anda mais para trás** (#472). O
   `scripts/check-release-ref.sh` mandava toda versão estável para `latest`; medido num repo git de
   fixture, uma tag `v0.75.1` com o registry em `0.77.0` saía com `dist_tag=latest`, e um backport viraria
@@ -23,6 +46,7 @@ range: v0.75`, medido). O `latest` é lido de `npm view <pkg> dist-tags --json` 
   precisa ter este workflow na branch: o tag push roda o `release-npm.yml` do commit da tag. Publicar
   de commit fora da `main` segue dependendo do revisor obrigatório no environment `npm-release` e do
   vínculo do Trusted Publisher — configuração externa, documentada em `docs/release.md`.
+
 
 ## [0.77.0] — 2026-10-12
 

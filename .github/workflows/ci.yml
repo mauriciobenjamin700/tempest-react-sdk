@@ -65,3 +65,9 @@ jobs:
             # stylesheet each component imports.
             - name: Smoke a consumer Vitest suite against the tarball
               run: scripts/smoke-vitest.sh "$(npm pack --silent)"
+
+            # The `tempest` bin in plain Node, against the tarball (#485). The suite runs
+            # under Vitest, which loads stylesheets itself, so only the installed package
+            # shows a bin import that reaches a `.css`.
+            - name: Smoke the tempest CLI against the tarball
+              run: scripts/smoke-cli.sh "$(npm pack --silent)"

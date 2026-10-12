@@ -21492,6 +21492,7 @@ Detalhes que valem saber:
 - A retentativa envolve a requisição **inteira**, refresh incluído. Uma tentativa que gasta o ciclo de 401 → refresh → repetição conta como uma tentativa só.
 - Cada tentativa carrega o seu próprio `X-Request-ID`, então o backend consegue distinguir as tentativas nos logs.
 - `Retry-After` (em `429`/`503`) é respeitado e sobrepõe o backoff daquela tentativa.
+- `retry: true` faz **3 tentativas no total** (a primeira + 2 repetições). `retry: { retries: N }` faz `N` no total, e `retries: 0` faz uma só — veja [o que `retries` conta](#o-que-retries-conta).
 ## Timeout e cancelamento
 
 O cliente abandona uma requisição depois de **15 s** por default, e depois de **5 min** quando o body é `FormData`.
@@ -21672,7 +21673,7 @@ import { api } from "./api";
 import type { ApiError } from "tempest-react-sdk";
 
 const data = await retry(() => api.get("/flaky-endpoint"), {
-  retries: 5,
+  retries: 5, // 5 tentativas no total: a primeira + 4 repetições
   initialDelay: 300,
   maxDelay: 10_000,
   // Não retentar erros de cliente (4xx) — só falhas transitórias
@@ -21680,6 +21681,23 @@ const data = await retry(() => api.get("/flaky-endpoint"), {
   onRetry: ({ attempt, delay }) => console.warn(`Tentativa ${attempt} em ${delay}ms`),
 });
 ```
+
+### O que `retries` conta
+
+`retries` é o **total de tentativas**, a primeira incluída — não o número de repetições depois dela. O default é `3`: uma chamada e até duas repetições.
+
+| `retries` | Tentativas |
+| --------- | ---------- |
+| omitido ou `NaN` | 3 |
+| `5` | 5 |
+| `1` | 1 |
+| `0` ou negativo | 1 |
+| `2.5` | 2 (arredonda pra baixo) |
+
+A primeira tentativa **sempre** acontece: `retries: 0` desliga a repetição, e a promise rejeita com o erro daquela tentativa.
+
+??? info "Por que total, e não repetições"
+    O nome sugere "repetições", mas toda superfície que repassa o valor sempre contou total: a opção `retry` do `createApiClient`, o `createResumableUpload` ("5 tentativas") e o `retries` do `lazyWithRetry`. Trocar para repetições somaria uma request a todo chamador que passa um número — e nenhuma troca de default esconde isso. Até a 0.77.0, `retries: 0` (e qualquer negativo) não chamava a factory nenhuma vez e rejeitava com `undefined` (#486).
 
 !!! note "O default já evita retentar o que não vai melhorar"
     Você **não precisa** escrever o `shouldRetry` do exemplo acima. Sem ele, o

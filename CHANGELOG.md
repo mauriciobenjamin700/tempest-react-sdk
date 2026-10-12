@@ -4,6 +4,33 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Breaking
+
+- **`installBackgroundSync`: entrada de dono desconhecido falha fechado mesmo sem header de
+  credencial** (#480). O `beforeReplay` padrão reenviava sem perguntar a nenhuma página toda entrada
+  sem credencial removida e sem dono `bound` — inclusive a de dono `unknown` (aba que disparou já
+  fechada, `clientId` vazio, carimbo perdido depois dos 6 s, entrada anterior à 0.77). Numa API com
+  sessão por cookie (`credentials: "include"`) o navegador anexa no replay o cookie de quem estiver
+  logado naquela hora, então a mutação de A saía com a sessão de B, contrariando a tabela da doc e o
+  próprio tipo. Agora, no padrão **`ownerPolicy: "strict"`**, só a entrada `unbound` sem credencial
+  sai como estava; a `unknown` pergunta às páginas: reenvia só quando **toda** resposta vem sem
+  principal, descarta assim que uma resposta tem principal (uma aba de bundle anterior ao deploy,
+  sem `getPrincipal`, não autoriza mais o replay ao lado da aba de B — nem para entrada com credencial
+  removida, nos dois modos) e fica pendente quando nenhuma página responde. A opção nova **`ownerPolicy: "lenient"`** (tipo `BackgroundSyncOwnerPolicy`) restaura o
+  reenvio sem consulta da entrada `unknown` sem credencial; a entrada com credencial removida passa
+  pelas páginas nos dois modos. Medido com o harness Node + `fake-indexeddb` da auditoria
+  (`npx vitest run src/sw/background-sync.session.test.ts -t "an unknown owner fails closed"`):
+  na 0.77.0, 12 de 17 casos falham (aba sumida, `clientId` vazio, `pending` depois do prazo e linha
+  v1, cada um descartando com B aberta, descartando com B ao lado de uma aba antiga sem `getPrincipal`
+  e esperando sem página); depois, 17/17. Não medido em browser real.
+  **Migração:** sem provedor, toda entrada fica `unknown` e, no `"strict"`, nenhuma é mais reenviada —
+  some depois de `maxRetentionMinutes` (em build de desenvolvimento o worker avisa no console).
+  - **App sem login:** passe `installBackgroundSync({ ownerPolicy: "lenient" })`.
+  - **App com sessão por cookie:** fique no `"strict"` e instale o provedor com `getPrincipal`, mesmo
+    sem token — `provideBackgroundSyncCredentials(() => null, { getPrincipal: () => user?.id })` — e
+    chame também `clearSessionData()` no logout, porque a checagem confia que o `getPrincipal` de cada
+    aba reflete o cookie que vai no replay.
+
 ### Alterado
 
 - **`toCsv` / `downloadCsv` põem entre aspas o texto com o separador do outro locale (#481).** A

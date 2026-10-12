@@ -120,6 +120,9 @@ const messages: ChatMessage[] = [
 !!! danger "Deleting a message has to delete the quote of it"
     `ChatQuote.revoked` is not decoration. Without it, the text of a deleted message stays visible inside the reply that quoted it — the easiest leak to miss, because the original disappears from the screen and the copy does not. With `revoked: true` the stub swaps the excerpt for "Message deleted" and none of the content survives.
 
+!!! check "The attachment URL goes through an allowlist before it becomes a link"
+    The download row is the one place the sender's URL becomes an `href`. It goes through [`safeAttachmentUrl`](../utilities.md#a-url-that-came-from-someone-else-safelinkurl-safeimageurl-safeattachmenturl): `http`, `https`, `blob` (the upload still in flight) and relative URLs become a link; anything else — `javascript:` included — becomes the same row **without** a link, with name and size. It does not depend on React: on 18 the `javascript:` `href` was written verbatim and ran on click, with or without `download`.
+
 !!! info "Group ticks need three states, not two"
     `status: "read"` is a boolean for the sender: it cannot separate "delivered to everyone" from "read by everyone", and only the second turns the ticks. With `receipt`, `resolveReceiptState` returns `"sent" | "delivered" | "read"` — and the thresholds are deliberately **all**: reporting "read" because one person out of nine opened it is what makes the indicator lose credibility. When `totalRecipients` is `0` (a thread whose membership the app does not track), `status` decides again.
 

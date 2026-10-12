@@ -185,6 +185,11 @@ import { Markdown } from "tempest-react-sdk";
 
     `[clique](javascript:alert(1))` renderiza **"clique"** como texto: o link cai, as palavras ficam. Blocklist teria que enumerar `javascript:`, `JaVaScRiPt:`, `java\tscript:`, `\u0001javascript:` — e erraria a que ninguém pensou. A allowlist não tem essa dívida.
 
+!!! check "Texto hostil não trava a aba"
+    O parse é **linear** no tamanho do texto: nenhuma regex do parser tem dois quantificadores disputando o mesmo trecho. Antes da 0.77.0, `"# a" + " ".repeat(4000) + "b"` — 4 KB num comentário — custava 4,7 s de main thread a cada render, e o custo crescia ao cubo. Hoje uma linha de heading com 50 KB de espaços parseia em menos de 1 ms (medido com `performance.now()` em Node 24; o teto de tempo está fixado em teste no `markdown-parse.test.ts`).
+
+    Citação e lista aninham até **32 níveis**. Dali em diante o conteúdo vira parágrafo: as palavras ficam, só o aninhamento cai. Sem o teto, `"- ".repeat(20000)` estourava a pilha (`RangeError`) e derrubava a árvore React de quem só abriu a conversa.
+
 !!! warning "É um subconjunto, e isso é o teto escolhido"
     Não tem HTML embutido, nota de rodapé, definition list, referência de link (`[a][b]`), nem lista de tarefa. Se o seu caso precisa de CommonMark completo com plugins, use `react-markdown` + `remark` direto — são 40 KB e uma cadeia de plugins que o SDK inteiro não paga. O escopo aqui é o que um comentário de usuário usa.
 

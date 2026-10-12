@@ -225,7 +225,9 @@ await Promise.all([refresh(), refresh(), refresh(), refresh(), refresh()]);
 !!! warning "Sharing the promise alone does not collapse a burst — pass `getToken`"
     A page that fires several requests at once gets several 401s back, but they **do not land inside one window**: the stragglers resolve after the first refresh already finished, find no promise to join, and each starts another one — rotating a token that is already fresh. Measured against a mock backend, five concurrent expired requests took **two** refreshes, not one.
 
-    `getToken` closes that gap: the queue remembers the token its last refresh installed, and a call that finds that same token still in place returns immediately, because the refresh it was about to perform has already happened. The same five requests then take exactly one refresh, and so do twenty.
+    `getToken` closes that gap. Wired as `createApiClient`'s `refresh`, the queue is told, for each 401, which token that request was sent with: when it is no longer the current token, the rotation it was about to trigger already happened, so the call returns at once and the replay goes out with the new token. The same five requests then take exactly one refresh, and so do twenty.
+
+    Called by hand, without that context, the queue falls back to the old mode: it remembers the token its last refresh installed and skips while that token is in place. That mode cannot tell "already refreshed" from "the refreshed token has expired" — both leave the same string in the store. Before 0.77.0 the client did not pass the context, and every token a refresh issued became unrefreshable once it expired: the 401 skipped the refresh, the replay failed, and `onUnauthorized` ended a healthy session.
 
 !!! tip "Plug it straight into `createApiClient`"
     Pass the queue as `refresh` on the HTTP client — it calls it on every 401 and the coalescing happens for free, avoiding a storm of parallel refreshes hammering your auth endpoint.
@@ -243,6 +245,113 @@ const api = createApiClient({
   onUnauthorized: () => useAuthStore.getState().logout(),
 });
 ```
+
+## Ending the session — `createTempestAuth` and `onSessionEnd`
+
+A session ends in three ways: the user clicks **Sign out** (`auth.logout()`); the client gives up on it — the refresh failed, or the replay after the refresh came back 401 again; or another account signs in on top of it (`auth.login()` with other credentials). In every case, every piece of state **derived from the user** has to go with it: this browser's push subscription, the persisted query cache, the background-sync queue, the user identified in telemetry. Otherwise the next account to sign in on this browser inherits what belonged to the previous one.
+
+`createTempestAuth` has one place for that, and it runs on **all three** paths: `onSessionEnd`.
+
+```ts
+import { WebPushClient, WebPushUnsubscribeError, createTempestAuth } from "tempest-react-sdk";
+
+interface User {
+  id: string;
+  name: string;
+}
+
+const ORPHANED_PUSH_KEY = "push-orphaned-subscriptions";
+
+export const auth = createTempestAuth<User>({
+  baseURL: "https://api.example.com",
+  onSessionEnd: async (session) => {
+    const push = new WebPushClient({
+      vapidPublicKey: "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U",
+      onSubscribe: () => {},
+      onUnsubscribe: (sub) =>
+        session.api.delete("/webpush/subscribe", { body: { endpoint: sub.endpoint } }),
+    });
+    try {
+      await push.unsubscribe();
+    } catch (error) {
+      if (!(error instanceof WebPushUnsubscribeError)) return;
+      const pending: PushSubscriptionJSON[] = JSON.parse(
+        localStorage.getItem(ORPHANED_PUSH_KEY) ?? "[]",
+      );
+      localStorage.setItem(ORPHANED_PUSH_KEY, JSON.stringify([...pending, error.subscription]));
+    }
+  },
+});
+
+await auth.logout();
+```
+
+Note `session.api`: by the time the hook runs, the store **has already been cleared**, so `auth.api` no longer sends any token. `session.api` is a client that still sends the ended session's access token — that is how the `DELETE` goes out authenticated. It never refreshes and never ends a session: a 401 there just rejects.
+
+And the push `unsubscribe()` releases the browser subscription **even when the `DELETE` fails** (see [Push → Unsubscribing](./push.en.md#unsubscribing-what-almost-everybody-gets-wrong)). That is what closes the automatic path: when the session expires, the server already refuses the token, the `DELETE` comes back 401 — and the browser stops receiving the previous account's notifications all the same. `WebPushUnsubscribeError` carries the `subscription` with its `endpoint`: the example keeps it to resend the `DELETE` once there is a session again, instead of waiting for the next send's `404`/`410`.
+
+!!! warning "Inside the hook, use only `session.api` — never `auth.login()`"
+    When the hook runs the store is already empty: `auth.api` goes out with no token, and its 401 ends nothing (the automatic end and a `logout()` with no session do not wait on the hook in progress, precisely so a call from inside it does not wait on itself). `auth.login()`, though, **always** waits on the teardown in progress — that is what keeps the new account from starting while the previous one is still being cleared — so called from inside the hook it waits on the hook itself and never settles. The SDK cannot tell the hook from an outside caller (the browser has no async context), so this is a documented rule, not a runtime check. `session.api` is the client made for the hook.
+
+!!! tip "Clear every per-user state here"
+    The hook is the single teardown point: the push above, and next to it any other state that belongs to the account — the persisted query cache, the service worker's background-sync queue, the authenticated response caches, the telemetry user. Compose them all inside the same `onSessionEnd`, each independent step with its own `.catch`, so one failure does not skip the others.
+
+### The order, exactly
+
+On all three paths — `logout()`, the automatic end and the account switch — the sequence is the same:
+
+| Step | What happens | Synchronous? |
+| --- | --- | --- |
+| 1 | Any refresh in flight is **superseded**: it can no longer reinstall the ending session's tokens | yes |
+| 2 | The store and the stored refresh token are cleared — `isAuthenticated` is already `false` | yes |
+| 3 | `onSessionEnd` runs with `{ reason, user, token, api }` | may be `async` |
+| 4 | On the automatic end with `redirectTo`, the browser navigates; on an account switch, the new session is installed — both **after** the hook, even if it threw | — |
+
+`reason` is `"logout"` for an explicit `logout()`, `"expired"` when the client ended it and `"switch"` when a `login()` replaced the session. On `"logout"` and `"switch"` the token is usually still valid; on `"expired"` the server has already refused it, so treat the authenticated call as best-effort and keep the local half of the teardown independent of it.
+
+`logout()` returns `Promise<void>`: the store is cleared before the first `await`, so callers that ignore the promise see the signed-out state at once. The promise resolves when the hook finished and rejects with its error — and an un-awaited `logout()` whose hook throws becomes an `unhandledrejection` instead of losing the error. On the automatic path the hook's error is swallowed — the request that ended the session already rejects with its own 401.
+
+The hook runs **once per session**: a second `logout()`, or the other requests of a burst of 401s, find no session left to end. Only the call that ended the session navigates to `redirectTo`.
+
+### Switching accounts — `reason: "switch"`
+
+`auth.login()` with another account while a session is live ends the previous one through the same path, without you having to call `logout()` first:
+
+1. the new credentials go to the backend — **nothing changes yet**. If the login fails, the previous account stays signed in, with its in-flight refresh intact;
+2. once the credentials are accepted, the epoch moves and the store is cleared (steps 1 and 2 of the table);
+3. `onSessionEnd` runs with `reason: "switch"`, the **previous** account's `user` and `token`, and a `session.api` that still sends its token;
+4. only then are the new account's tokens installed, and `login()` resolves with the new user.
+
+Why the hook runs **before** the new account is installed: the previous account's teardown — clearing the persisted cache, the background-sync queue — has to finish before the new account's requests start filling them; in the reverse order it would wipe (or race with) the new account's data. The cost is a window in which `isAuthenticated` is `false` while the hook runs — a route guard may react to it, so keep the hook short. A hook error here is swallowed: the login itself succeeded.
+
+A `logout()` whose teardown is still running is awaited the same way: `logout()` followed by `login()` without `await` does not install the new account before the previous one's hook finished — the hook clearing account A's state never runs alongside account B.
+
+A `login()` whose session moved while its request was in flight — a `logout()` in between, for example — rejects with `SessionSupersededError` and installs nothing.
+
+### Refresh in flight and account switching — `SessionSupersededError`
+
+A refresh is a network round trip, and the session can end in the middle of it. Every refresh is bound to a **session epoch**, which `logout()` and a `login()` whose credentials were accepted increment. A refresh that resolves after its epoch ended discards what it brought back and rejects with `SessionSupersededError` — and the client passes that error through **without** calling `onUnauthorized`, because the current session (maybe another account that just signed in) did nothing wrong. A request sent during an ended session that comes back 401 is refused the same way — the replay after a refresh included — instead of being replayed as whoever is signed in now or ending their session. And a request sent **without** a token that comes back 401 after an account signed in just rejects with the 401: it neither refreshes nor ends the new session.
+
+Before 0.77.0, a refresh in flight during `logout()` reinstalled the old tokens and flipped `isAuthenticated` back to `true`; with `logout()` + `login(B)` in between, it replaced B's token with A's — the screen showed B, and every request went out as A.
+
+Treat the error like an aborted request: drop the result and show nothing.
+
+```ts
+import { SessionSupersededError, createTempestAuth } from "tempest-react-sdk";
+
+const auth = createTempestAuth({ baseURL: "https://api.example.com" });
+
+export async function loadOrders(): Promise<unknown[] | null> {
+  try {
+    return await auth.api.get<unknown[]>("/api/orders");
+  } catch (error) {
+    if (error instanceof SessionSupersededError) return null;
+    throw error;
+  }
+}
+```
+
+Refreshes also collapse per **rotation**, not just per overlap in time: a 401 whose request left with a token the same session has since replaced replays with the new token and refreshes nothing. Three expired requests take one refresh, whether their 401s arrive together or one after another.
 
 ## Complete example — login, guard, and refresh together
 
@@ -326,9 +435,12 @@ The flow: login calls `setSession`, persisting `user` + `token`. `ProtectedLayou
 - **`decodeJWT`** throws on an invalid token; **`isJWTExpired`** is defensive and never throws. For UX only, never for authorization.
 - **`lazyWithRetry`** — survives stale post-deploy chunks with backoff + reload.
 - **`createRefreshQueue`** — N concurrent refreshes become 1.
+- **`onSessionEnd`** — per-user teardown on `logout()` **and** on automatic expiry, with `session.api` still authenticated.
+- **`SessionSupersededError`** — a refresh or request from a session that already ended; drop it, do not sign out.
 
 ### See also
 
 - [Routing](./routing.en.md) — declarative `<RouteGuard>`, an alternative to `AuthGuard` in the route tree
 - [HTTP](./http.en.md) — `getToken: () => useAuthStore.getState().token` + `refresh: queue`
+- [Push](./push.en.md) — why `unsubscribe()` releases the browser even when the backend fails
 - [Error Boundary](./error-boundary.en.md) — `lazyWithRetry`'s final failure becomes a `ChunkLoadError` that the boundary catches

@@ -33,6 +33,7 @@ export { sleep, withTimeout } from "./promises";
 export { randomId } from "./ids";
 export { writeXlsx } from "./xlsx";
 export { downloadCsv, toCsv } from "./csv";
+export { safeAttachmentUrl, safeImageUrl, safeLinkUrl } from "./safe-url";
 export type { CsvColumn, CsvOptions } from "./csv";
 export { setDevBuild } from "./dev-mode";
 export type {

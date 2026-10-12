@@ -146,8 +146,8 @@ provideBackgroundSyncCredentials(
 );
 ```
 
-!!! warning "Sem provedor, a mutação autenticada não é reenviada"
-    A fila não guarda o token, então só a página pode devolvê-lo. Sem `provideBackgroundSyncCredentials`, a entrada fica pendente até `maxRetentionMinutes` e some. Em build de desenvolvimento o worker avisa no console (uma vez por replay).
+!!! warning "Sem provedor, nenhuma mutação é reenviada"
+    A fila não guarda o token, então só a página pode devolvê-lo — e só a página diz quem está logado. Sem `provideBackgroundSyncCredentials`, a aba não responde, o dono da entrada fica **desconhecido** e ela fica pendente até `maxRetentionMinutes` e some, tenha ou não header de credencial. Em build de desenvolvimento o worker avisa no console (uma vez por replay). API com sessão por cookie e sem token instala o provedor do mesmo jeito: `provideBackgroundSyncCredentials(() => null, { getPrincipal })`.
 
 #### Cada entrada tem dono
 
@@ -159,7 +159,7 @@ O dono fica em um de três estados:
 | -- | -- | -- |
 | **com dono** | a aba respondeu com `getPrincipal` | só sai com a resposta de uma aba em que o **mesmo** dono está logado; nenhuma bate → descarta |
 | **sem dono** | a aba respondeu sem `getPrincipal` | qualquer resposta serve (prefere uma sem principal) |
-| **desconhecido** | ninguém respondeu, `getPrincipal` lançou, a aba sumiu, ou a entrada é de antes da 0.77 | **falha fechado**: só sai com a resposta de uma aba sem principal; se toda aba tem um, descarta |
+| **desconhecido** | ninguém respondeu, `getPrincipal` lançou, a aba sumiu (ou não havia aba), o carimbo se perdeu depois dos 6 s, ou a entrada é de antes da 0.77 | **falha fechado**, com ou sem header de credencial: só sai com a resposta de uma aba sem principal; se toda aba tem um, descarta; sem resposta, fica pendente |
 
 No replay o worker pergunta a **todas** as abas em paralelo, com um único prazo de 3 s, e usa a resposta que serve — uma aba de outra conta respondendo primeiro não derruba a mutação de A. Depois:
 
@@ -170,7 +170,7 @@ No replay o worker pergunta a **todas** as abas em paralelo, com um único prazo
 | `null` (sem sessão) | descarta, sem enviar |
 | nenhuma resposta válida | fica pendente até `maxRetentionMinutes` |
 
-Entrada sem credencial e sem dono é reenviada como estava, sem perguntar. Erro no provedor (`getHeaders` ou `getPrincipal` que lança) volta como `{ error: true }` explícito, nunca como silêncio.
+Só a entrada **sem dono** e sem header de credencial é reenviada como estava, sem perguntar. A de dono **desconhecido** pergunta mesmo sem header: numa API com sessão por cookie (`credentials: "include"`), o navegador anexa no replay o cookie de quem estiver logado naquela hora, então reenviar sem checar mandaria a mutação de A com a sessão de B (até a 0.77.0 era assim). Erro no provedor (`getHeaders` ou `getPrincipal` que lança) volta como `{ error: true }` explícito, nunca como silêncio.
 
 Medido no Chromium 153 (11/10/2026), com service worker, IndexedDB e duas abas reais: A enfileira offline, B entra sem limpar nada, o sync dispara — o servidor não recebe POST; com a aba de B aberta ao lado, a mutação de A sai com o token renovado de A.
 
@@ -246,7 +246,7 @@ Ele apaga **todo** bucket do Cache Storage menos o precache do app shell (`tempe
 Por que não um prefixo: antes da 0.77.0 a doc mandava `clearCaches("tempest-")` no logout, e a receita chamava o cache de `api` — o prefixo não casava e **nada** era apagado. Pior: casaria com `tempest-precache-*` e derrubaria o app offline. O filtro padrão inverte a lógica, então funciona qualquer que seja o `cacheName` escolhido. Para estreitar, passe `caches` (um `CacheFilter`); para uma fila com outro nome, `queueName`. Só a fila: `clearBackgroundSyncQueue()`.
 
 !!! tip "Roda na página"
-    Cache Storage e IndexedDB são armazenamento da origem, acessíveis da `window` — não precisa mandar mensagem ao service worker. Se o seu auth expõe um callback de fim de sessão, chame `clearSessionData()` nele, para cobrir também a sessão que expira sozinha. Com `getPrincipal` no provedor, a fila já não depende disso para não trocar de dono — mas o cache de runtime depende.
+    Cache Storage e IndexedDB são armazenamento da origem, acessíveis da `window` — não precisa mandar mensagem ao service worker. Se o seu auth expõe um callback de fim de sessão, chame `clearSessionData()` nele, para cobrir também a sessão que expira sozinha. Com `getPrincipal` no provedor e token em header, a fila já não depende disso para não trocar de dono — mas o cache de runtime depende. Com sessão por cookie, a checagem do dono confia que o `getPrincipal` de cada aba reflete o cookie que o navegador vai mandar; uma aba com estado velho (A ainda na memória enquanto B entrou em outra aba) autoriza o replay com o cookie de B. Por isso, com cookie, chame `clearSessionData()` no logout mesmo usando `getPrincipal`.
 
 ## 7. UI de status offline
 

@@ -146,8 +146,8 @@ provideBackgroundSyncCredentials(
 );
 ```
 
-!!! warning "Without a provider, authenticated mutations are not replayed"
-    The queue does not keep the token, so only the page can hand it back. Without `provideBackgroundSyncCredentials`, the entry stays pending until `maxRetentionMinutes` and is gone. In development builds the worker warns in the console (once per replay).
+!!! warning "Without a provider, no mutation is replayed"
+    The queue does not keep the token, so only the page can hand it back — and only the page can say who is signed in. Without `provideBackgroundSyncCredentials`, the tab does not answer, the entry's owner is **unknown**, and it stays pending until `maxRetentionMinutes` and is gone, whether or not it carried a credential header. In development builds the worker warns in the console (once per replay). A cookie-session API with no token installs the provider all the same: `provideBackgroundSyncCredentials(() => null, { getPrincipal })`.
 
 #### Every entry has an owner
 
@@ -159,7 +159,7 @@ The owner is in one of three states:
 | -- | -- | -- |
 | **owned** | the tab answered with `getPrincipal` | only goes out with the answer of a tab where the **same** owner is signed in; none matches → dropped |
 | **unowned** | the tab answered without `getPrincipal` | any answer will do (preferring one without a principal) |
-| **unknown** | nobody answered, `getPrincipal` threw, the tab was gone, or the entry predates 0.77 | **fails closed**: only goes out with the answer of a tab without a principal; every tab has one → dropped |
+| **unknown** | nobody answered, `getPrincipal` threw, the tab was gone (or there was none), the stamp was lost past the 6 s, or the entry predates 0.77 | **fails closed**, with or without a credential header: only goes out with the answer of a tab without a principal; every tab has one → dropped; no answer → stays pending |
 
 On replay the worker asks **every** tab in parallel, under one 3 s deadline, and uses the answer that fits — another account's tab answering first no longer drops A's mutation. Then:
 
@@ -170,7 +170,7 @@ On replay the worker asks **every** tab in parallel, under one 3 s deadline, and
 | `null` (no session) | dropped, unsent |
 | no valid answer | stays pending until `maxRetentionMinutes` |
 
-An entry with no credential and no owner is replayed as it was, without asking. A provider error (`getHeaders` or `getPrincipal` throwing) comes back as an explicit `{ error: true }`, never as silence.
+Only an **unowned** entry with no credential header is replayed as it was, without asking. An entry whose owner is **unknown** asks even without a header: on a cookie-session API (`credentials: "include"`), the browser attaches on replay the cookie of whoever is signed in at that moment, so replaying unchecked would send A's mutation with B's session (as it did up to 0.77.0). A provider error (`getHeaders` or `getPrincipal` throwing) comes back as an explicit `{ error: true }`, never as silence.
 
 Measured in Chromium 153 (11/10/2026), with a real service worker, IndexedDB and two tabs: A queues offline, B signs in without clearing anything, the sync fires — the server receives no POST; with B's tab open next to it, A's mutation goes out with A's refreshed token.
 
@@ -246,7 +246,7 @@ It deletes **every** Cache Storage bucket except the app-shell precache (`tempes
 Why not a prefix: before 0.77.0 the docs said `clearCaches("tempest-")` on logout, and the recipe named the cache `api` — the prefix did not match and **nothing** was deleted. Worse, it would match `tempest-precache-*` and break the app offline. The default filter inverts the logic, so it works whatever `cacheName` you chose. To narrow it, pass `caches` (a `CacheFilter`); for a queue with another name, `queueName`. Just the queue: `clearBackgroundSyncQueue()`.
 
 !!! tip "It runs in the page"
-    Cache Storage and IndexedDB are origin storage, reachable from `window` — no message to the service worker needed. If your auth exposes an end-of-session callback, call `clearSessionData()` there too, to cover a session that expires on its own. With `getPrincipal` on the provider, the queue no longer depends on it to keep its owner — the runtime cache still does.
+    Cache Storage and IndexedDB are origin storage, reachable from `window` — no message to the service worker needed. If your auth exposes an end-of-session callback, call `clearSessionData()` there too, to cover a session that expires on its own. With `getPrincipal` on the provider and the token in a header, the queue no longer depends on it to keep its owner — the runtime cache still does. With a cookie session, the owner check trusts that each tab's `getPrincipal` reflects the cookie the browser will send; a tab with stale state (A still in memory while B signed in on another tab) authorizes the replay with B's cookie. So, with cookies, call `clearSessionData()` on logout even when using `getPrincipal`.
 
 ## 7. Offline status UI
 

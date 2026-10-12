@@ -4,7 +4,10 @@
  * bypasses `installRuntimeCache` unless the route opts in. `Cookie` and
  * `Proxy-Authorization` are listed for completeness although the browser
  * forbids scripts from setting them — a cookie session is invisible to the
- * worker, which is why it depends on `Cache-Control` and `clearSessionData()`.
+ * worker. The runtime cache therefore depends on `Cache-Control` and
+ * `clearSessionData()`; the background-sync queue checks the entry's owner
+ * through `getPrincipal` whether or not a credential header was stripped, and
+ * `clearSessionData()` still backs that check up.
  */
 export const DEFAULT_CREDENTIAL_HEADERS: readonly string[] = [
     "authorization",

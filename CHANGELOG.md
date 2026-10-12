@@ -4,6 +4,28 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Alterado
+
+- **`installBackgroundSync`: entrada de dono desconhecido falha fechado mesmo sem header de
+  credencial** (#480). O `beforeReplay` padrão reenviava sem perguntar a nenhuma página toda entrada
+  sem credencial removida e sem dono `bound` — inclusive a de dono `unknown` (aba que disparou já
+  fechada, `clientId` vazio, carimbo perdido depois dos 6 s, entrada anterior à 0.77). Numa API com
+  sessão por cookie (`credentials: "include"`) o navegador anexa no replay o cookie de quem estiver
+  logado naquela hora, então a mutação de A saía com a sessão de B, contrariando a tabela da doc e o
+  próprio tipo. Agora só a entrada `unbound` sem credencial sai como estava; a `unknown` passa pela
+  mesma regra das outras: reenvia com uma resposta sem principal, descarta quando toda resposta tem
+  principal e fica pendente quando nenhuma página responde. Medido com o harness Node +
+  `fake-indexeddb` da auditoria (`npx vitest run src/sw/background-sync.session.test.ts -t "#480"`):
+  antes, 8 de 13 casos falhavam (aba sumida, `clientId` vazio, `pending` depois do prazo e linha v1,
+  cada um descartando com B aberta e esperando sem página); depois, 13/13. Não medido em browser real.
+  **Migração:** o app que usa `installBackgroundSync` sem nunca chamar
+  `provideBackgroundSyncCredentials` (típico de sessão por cookie) tem toda entrada `unknown`, e
+  nenhuma é mais reenviada — some depois de `maxRetentionMinutes`; em build de desenvolvimento o worker
+  avisa no console. Instale o provedor na página, mesmo sem token:
+  `provideBackgroundSyncCredentials(() => null, { getPrincipal: () => user?.id })`. Com sessão por
+  cookie, chame também `clearSessionData()` no logout: a checagem confia que o `getPrincipal` de cada
+  aba reflete o cookie que vai no replay.
+
 ## [0.77.0] — 2026-10-12
 
 ### Breaking

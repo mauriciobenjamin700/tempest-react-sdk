@@ -4,11 +4,23 @@ import { installBackgroundSync } from "./background-sync";
 type Listener = (event: unknown) => void;
 
 const ORIGINAL: Record<string, unknown> = {};
-const STUB_KEYS = ["addEventListener", "registration", "fetch"];
+const STUB_KEYS = ["addEventListener", "registration", "fetch", "clients"];
 
 let listeners: Record<string, Listener[]>;
 let fetchMock: ReturnType<typeof vi.fn>;
 let registerMock: ReturnType<typeof vi.fn>;
+
+/**
+ * A window client that answers every worker question without a principal, as a
+ * page that calls `provideBackgroundSyncCredentials(() => null)` does. Entries
+ * queued here have no issuing tab, so their owner is `"unknown"`, and since #480
+ * an unknown owner replays only with such an answer.
+ */
+const principalLessPage = {
+    postMessage: (_message: unknown, transfer: MessagePort[]) => {
+        transfer[0]?.postMessage({ headers: null });
+    },
+};
 
 function stubSw(withSync: boolean): void {
     listeners = { fetch: [], sync: [] };
@@ -21,6 +33,10 @@ function stubSw(withSync: boolean): void {
         },
         registration: withSync ? { sync: { register: registerMock } } : {},
         fetch: fetchMock,
+        clients: {
+            matchAll: async () => [principalLessPage],
+            get: async () => undefined,
+        },
     };
     for (const key of STUB_KEYS) {
         ORIGINAL[key] = (globalThis as Record<string, unknown>)[key];

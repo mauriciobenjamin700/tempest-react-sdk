@@ -68,7 +68,9 @@ function getSwScope(): BgSwGlobal {
  *   the entry only goes out while the same one is signed in.
  * - `"unbound"`: the issuing page answered without `getPrincipal`.
  * - `"unknown"`: nobody could say — no issuing tab, no answer, an error, or an
- *   entry written before owners existed. Fails closed.
+ *   entry written before owners existed. Fails closed, with or without stripped
+ *   credentials: a cookie session rides along on the replay, so an entry with no
+ *   credential header is checked like any other.
  *
  * While the worker is still asking, the stored state is `"pending"`, which a
  * replay never sees: it waits, then reads a stamp that never came as `"unknown"`.
@@ -204,18 +206,23 @@ export interface InstallBackgroundSyncOptions {
      * The context carries the entry's owner, so a custom hook can apply the
      * same rule as the default.
      *
-     * Default: an entry with no stripped credentials and no bound owner is
-     * replayed as-is. The others ask every open window client in parallel (see
-     * {@link provideBackgroundSyncCredentials}) and pick the answer that fits:
+     * Default: only an `"unbound"` entry with no stripped credentials is
+     * replayed as-is, without asking. Every other entry — credentialed or not —
+     * asks every open window client in parallel (see
+     * {@link provideBackgroundSyncCredentials}) and picks the answer that fits:
      * - `"bound"`: the answer whose owner matches; none among valid answers →
      *   dropped, never sent anonymously or as somebody else;
      * - `"unknown"`: only an answer without a principal (an app that does not use
-     *   `getPrincipal`); every answer has one → dropped;
+     *   `getPrincipal`); every answer has one → dropped. This holds for an entry
+     *   with no credential header too, since the browser attaches the cookies of
+     *   whoever is signed in at replay time;
      * - `"unbound"`: any answer, preferring one without a principal.
      * Then `null` headers drop a credentialed entry, an answer that lacks one of
      * the stripped headers keeps it pending, and only the stripped names are
      * re-applied. No valid answer at all keeps it pending until
-     * `maxRetentionMinutes` (and warns once per replay in development builds).
+     * `maxRetentionMinutes` (and warns once per replay in development builds) —
+     * so a page that never calls {@link provideBackgroundSyncCredentials} leaves
+     * every entry it queued `"unknown"`, and none of them is replayed.
      */
     beforeReplay?: (
         request: Request,
@@ -536,8 +543,9 @@ function createReplayRun(sw: BgSwGlobal): ReplayRun {
             if (warned || !isDevBuild()) return;
             warned = true;
             console.warn(
-                "[tempest-react-sdk/sw] background-sync: a queued request needs the current " +
-                    "credentials, and no open page answered. Call " +
+                "[tempest-react-sdk/sw] background-sync: a queued request needs an open page " +
+                    "to confirm who is signed in or to supply the current credentials, and no " +
+                    "open page answered. Call " +
                     "provideBackgroundSyncCredentials() in the page; the entry stays pending.",
             );
         },
@@ -571,7 +579,7 @@ async function defaultBeforeReplay(
     context: BackgroundSyncReplayContext,
 ): Promise<Request | null> {
     const credentialed = context.strippedHeaders.length > 0;
-    if (!credentialed && context.ownerState !== "bound") return request;
+    if (!credentialed && context.ownerState === "unbound") return request;
     const answers = await run.ask(request);
     if (answers.length === 0) {
         run.warnNoAnswer();

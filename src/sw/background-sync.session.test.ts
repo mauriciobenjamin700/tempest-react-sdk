@@ -271,7 +271,7 @@ describe("installBackgroundSync — replay re-applies the current credentials", 
         expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it("replays an entry that carried no credentials without asking any page", async () => {
+    it("asks a page before replaying an uncredentialed entry whose owner is unknown", async () => {
         const queue = nextQueue();
         installBackgroundSync({ queueName: queue });
         await failOffline(new Request("https://app.test/api/anon", { method: "POST", body: "x" }));
@@ -279,7 +279,12 @@ describe("installBackgroundSync — replay re-applies the current credentials", 
         windowClients = [client];
         fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
         await fireSync(queue);
-        expect(client.postMessage).not.toHaveBeenCalled();
+        expect(
+            client.postMessage,
+            "Until #480 an entry with no credential header skipped the owner check. With no " +
+                "issuing tab its owner is unknown, and a cookie session rides along on the " +
+                "replay, so the worker now asks; this page has no principal, so it replays.",
+        ).toHaveBeenCalled();
         expect(await readQueue(queue)).toEqual([]);
     });
 
@@ -565,6 +570,15 @@ describe("installBackgroundSync — entries are bound to their owner", () => {
         const now = Date.now();
         vi.spyOn(Date, "now").mockReturnValue(now + 10_000);
         await fireSync(queue);
+        expect(
+            fetchMock,
+            "Until #480 a lost stamp on an entry without credential headers was replayed " +
+                "unchecked. Read as unknown, it fails closed: with no page to answer, it waits.",
+        ).not.toHaveBeenCalled();
+        expect(await readQueue(queue)).toHaveLength(1);
+
+        windowClients = [answeringClient({ headers: null })];
+        await fireSync(queue);
         expect(fetchMock).toHaveBeenCalledTimes(1);
 
         port?.postMessage({ headers: null, owner: "late" });
@@ -790,6 +804,7 @@ describe("background sync — review findings", () => {
         const queue = nextQueue();
         installBackgroundSync({ queueName: queue });
         await failOffline(new Request("https://app.test/api/once", { method: "POST", body: "x" }));
+        windowClients = [answeringClient({ headers: null })];
         fetchMock.mockClear();
         let release: (response: Response) => void = () => undefined;
         fetchMock.mockImplementation(() => new Promise<Response>((resolve) => (release = resolve)));
@@ -860,5 +875,120 @@ describe("background sync — review findings", () => {
         await fireSync(queue);
         expect(warn).toHaveBeenCalledTimes(1);
         expect(String(warn.mock.calls[0]?.[0])).toContain("provideBackgroundSyncCredentials");
+    });
+});
+
+describe("installBackgroundSync — an unknown owner fails closed without credentials too (#480)", () => {
+    function cookiePost(body = "x"): Request {
+        return new Request("https://app.test/api/items", {
+            method: "POST",
+            body,
+            credentials: "include",
+        });
+    }
+
+    async function queueUnknown(variant: string, queue: string): Promise<void> {
+        if (variant === "issuing tab gone") {
+            await failOffline(cookiePost(), "gone");
+        } else if (variant === "empty clientId") {
+            await failOffline(cookiePost(), "");
+        } else if (variant === "pending past the grace") {
+            issuers = { tab: { postMessage: vi.fn() } };
+            fetchMock.mockRejectedValueOnce(new Error("offline"));
+            let produced: Promise<Response> | undefined;
+            listeners.fetch[0]?.({
+                request: cookiePost(),
+                clientId: "tab",
+                respondWith: (r: Promise<Response>) => (produced = r),
+                waitUntil: () => undefined,
+            });
+            await produced?.catch(() => undefined);
+            expect((await readQueue(queue))[0]).toMatchObject({ ownerState: "pending" });
+            const now = Date.now();
+            vi.spyOn(Date, "now").mockReturnValue(now + 10_000);
+        } else {
+            await writeLegacyEntry(queue, {
+                url: "https://app.test/api/items",
+                method: "POST",
+                headers: [["content-type", "text/plain"]],
+                body: null,
+                timestamp: Date.now(),
+                credentials: "include",
+            });
+        }
+    }
+
+    const variants = [
+        "issuing tab gone",
+        "empty clientId",
+        "pending past the grace",
+        "legacy v1 entry",
+    ] as const;
+
+    for (const variant of variants) {
+        it(`${variant}: drops a cookie-session mutation while only a signed-in page answers`, async () => {
+            const queue = nextQueue();
+            if (variant !== "legacy v1 entry") installBackgroundSync({ queueName: queue });
+            await queueUnknown(variant, queue);
+            if (variant === "legacy v1 entry") installBackgroundSync({ queueName: queue });
+
+            const pageB = fakePage("user-b", null);
+            windowClients = [pageB];
+            fetchMock.mockClear();
+            fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+            await fireSync(queue);
+
+            expect(pageB.postMessage).toHaveBeenCalled();
+            expect(fetchMock).not.toHaveBeenCalled();
+            expect(await readQueue(queue)).toEqual([]);
+        });
+
+        it(`${variant}: keeps a cookie-session mutation pending while no page answers`, async () => {
+            const queue = nextQueue();
+            if (variant !== "legacy v1 entry") installBackgroundSync({ queueName: queue });
+            await queueUnknown(variant, queue);
+            if (variant === "legacy v1 entry") installBackgroundSync({ queueName: queue });
+
+            windowClients = [];
+            fetchMock.mockClear();
+            fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+            await fireSync(queue);
+
+            expect(fetchMock).not.toHaveBeenCalled();
+            expect(await readQueue(queue)).toHaveLength(1);
+        });
+
+        it(`${variant}: replays a cookie-session mutation once a page answers without a principal`, async () => {
+            const queue = nextQueue();
+            if (variant !== "legacy v1 entry") installBackgroundSync({ queueName: queue });
+            await queueUnknown(variant, queue);
+            if (variant === "legacy v1 entry") installBackgroundSync({ queueName: queue });
+
+            windowClients = [fakePage("user-b", null), fakePage(null, null, false)];
+            fetchMock.mockClear();
+            fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+            await fireSync(queue);
+
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+            expect((fetchMock.mock.calls[0]?.[0] as Request).credentials).toBe("include");
+            expect(await readQueue(queue)).toEqual([]);
+        });
+    }
+
+    it("still replays an unbound entry without credentials as-is, without asking any page", async () => {
+        const queue = nextQueue();
+        installBackgroundSync({ queueName: queue });
+        issuers = { tab: answeringClient({ headers: null }) };
+        await failOffline(cookiePost(), "tab");
+        expect((await readQueue(queue))[0]).toMatchObject({ ownerState: "unbound" });
+
+        const pageB = fakePage("user-b", null);
+        windowClients = [pageB];
+        fetchMock.mockClear();
+        fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+        await fireSync(queue);
+
+        expect(pageB.postMessage).not.toHaveBeenCalled();
+        expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 });

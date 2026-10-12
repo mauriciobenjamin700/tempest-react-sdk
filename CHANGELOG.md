@@ -304,7 +304,6 @@ range: v0.75`, medido). O `latest` é lido de `npm view <pkg> dist-tags --json` 
   CJS sobe ~0,16 kB e o ESM ~0,16 kB — as regras de CSS do #477 (propriedade inteira + guard de
   seletor) respondem pela maior parte. Os tetos sobem para manter folga sobre o valor medido.
 
-
 ## [0.77.0] — 2026-10-12
 
 ### Breaking

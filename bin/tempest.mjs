@@ -6,15 +6,17 @@
 //   tempest lint [paths…]    run ESLint (report only)
 //   tempest fix [paths…]     alias imports (../ → @/) + ESLint --fix + Prettier
 //   tempest format [paths…]  Prettier --write
+//   tempest gen <api|icons|component> …   code generators (`new component` = alias)
 //   tempest --help | --version
 import { spawnSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { aliasImports } from "./lib/alias/index.mjs";
 import { describeTypeScript, loadTypeScript } from "./lib/alias/typescript.mjs";
 import { readTsconfig } from "./lib/alias/tsconfig.mjs";
+import { componentFiles } from "./lib/component/generate.mjs";
 import { analyzeCss, applyCssFixes, applyExtraction, planExtraction } from "./lib/css/index.mjs";
 import { analyzeDesign } from "./lib/design/index.mjs";
 import { checkLucide } from "./lib/doctor/lucide.mjs";
@@ -1375,7 +1377,164 @@ async function genIcons(args) {
     return 0;
 }
 
-const GEN_TARGETS = { api: genApi, icons: genIcons };
+// ------------------------------------------------------- gen component ----
+
+/**
+ * `lstat` that answers `null` for a missing path instead of throwing.
+ *
+ * @param {string} path - Absolute path.
+ * @returns {import("node:fs").Stats | null}
+ */
+function lstatOrNull(path) {
+    try {
+        return lstatSync(path);
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Whether `path` would be created inside the project.
+ *
+ * Resolves the nearest ancestor that exists through `realpath`, so `../x`, an
+ * absolute path and an ancestor that is a symlink to somewhere else
+ * (`src/components -> /elsewhere`) are all seen where they really land.
+ *
+ * @param {string} path - Absolute path about to be created.
+ * @returns {boolean}
+ */
+function landsInsideProject(path) {
+    let existing = path;
+    while (!existsSync(existing) && dirname(existing) !== existing) existing = dirname(existing);
+    const rel = relative(realpathSync(ROOT), realpathSync(existing));
+    return !(rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel));
+}
+
+/**
+ * Parse the `gen component` argv tail.
+ *
+ * Unlike the shared {@link parseOut}, a `--out` with no value, an empty one or
+ * one that is another flag (`--out --force`) is an error rather than a silent
+ * fallback to the default or a folder named `--force`.
+ *
+ * @param {string[]} args - Arguments after `component`.
+ * @returns {{ error: string } | { name: string | undefined, out: string, force: boolean }}
+ */
+function parseComponentArgs(args) {
+    let out = "src/components";
+    let force = false;
+    const positionals = [];
+    for (let i = 0; i < args.length; i += 1) {
+        const arg = args[i];
+        if (arg === "--force") {
+            force = true;
+        } else if (arg === "--out") {
+            const value = args[i + 1];
+            if (value === undefined || value === "" || value.startsWith("--")) {
+                return { error: "--out needs a folder, e.g. --out src/components" };
+            }
+            out = value;
+            i += 1;
+        } else if (arg.startsWith("--")) {
+            return { error: `Unknown option: ${arg}` };
+        } else {
+            positionals.push(arg);
+        }
+    }
+    if (positionals.length > 1) {
+        return {
+            error: `Expected one component name, got ${positionals.length}. Quote a name with spaces: tempest gen component "User Card"`,
+        };
+    }
+    return { name: positionals[0], out, force };
+}
+
+/**
+ * `tempest gen component <Name> [--out src/components] [--force]` — create
+ * `<out>/<Name>/` with `index.tsx`, `styles.module.css`, `constants.ts`,
+ * `utils.ts` and `hooks.ts`.
+ *
+ * The name is normalized to PascalCase (`"user card"` → `UserCard`). Every check
+ * runs before the first write, so a refusal leaves the disk untouched:
+ *
+ * - the folder must land inside the project once symlinks are resolved;
+ * - an existing folder is refused unless `--force`;
+ * - the folder must not be a symlink, and each of the five files must be a
+ *   regular file or missing — never a symlink or a directory — even with
+ *   `--force`, which then rewrites only those five and leaves the rest alone.
+ *
+ * The closing hint prints an `@/` import when the folder is under `src/`, the
+ * only place the template's alias reaches; elsewhere it prints the path.
+ */
+async function genComponent(args) {
+    const parsed = parseComponentArgs(args);
+    if ("error" in parsed) {
+        console.error(`${c.red}✗ ${parsed.error}${c.reset}`);
+        return 1;
+    }
+    let generated;
+    try {
+        generated = componentFiles(parsed.name);
+    } catch (err) {
+        console.error(`${c.red}✗ ${err.message}${c.reset}`);
+        return 1;
+    }
+    const dir = resolve(ROOT, parsed.out, generated.name);
+    const shown = relative(ROOT, dir).split(sep).join("/") || ".";
+
+    if (!landsInsideProject(dir)) {
+        console.error(
+            `${c.red}✗ ${dir} is outside the project${c.reset} (${ROOT}), once symlinks are resolved. Pick an --out inside it.`,
+        );
+        return 1;
+    }
+    const dirStat = lstatOrNull(dir);
+    if (dirStat?.isSymbolicLink()) {
+        console.error(`${c.red}✗ ${shown} is a symlink; refusing to write through it.${c.reset}`);
+        return 1;
+    }
+    if (dirStat && !parsed.force) {
+        console.error(
+            `${c.red}✗ ${shown} already exists.${c.reset} Pass --force to rewrite its five generated files.`,
+        );
+        return 1;
+    }
+    if (dirStat && !dirStat.isDirectory()) {
+        console.error(`${c.red}✗ ${shown} exists and is not a folder.${c.reset}`);
+        return 1;
+    }
+    const blocked = Object.keys(generated.files).find((file) => {
+        const stat = lstatOrNull(join(dir, file));
+        return stat !== null && !stat.isFile();
+    });
+    if (blocked) {
+        console.error(
+            `${c.red}✗ ${shown}/${blocked} is not a regular file${c.reset} (a folder or a symlink); nothing was written.`,
+        );
+        return 1;
+    }
+
+    await mkdir(dir, { recursive: true });
+    for (const [file, contents] of Object.entries(generated.files)) {
+        await writeFile(join(dir, file), contents);
+    }
+
+    console.log(`${c.green}✓ ${generated.name}${c.reset} → ${c.bold}${shown}/${c.reset}`);
+    for (const file of Object.keys(generated.files)) console.log(`  ${c.dim}· ${file}${c.reset}`);
+    const fromSrc = relative(join(ROOT, "src"), dir);
+    const outsideSrc = fromSrc === ".." || fromSrc.startsWith(`..${sep}`) || isAbsolute(fromSrc);
+    if (outsideSrc) {
+        console.log(
+            `\n${c.yellow}! ${shown} is outside src/${c.reset}, where the template's @/ alias does not reach — import it by a relative path.`,
+        );
+    } else {
+        console.log(`\n${c.dim}Use it:${c.reset}`);
+        console.log(`  import { ${generated.name} } from "@/${fromSrc.split(sep).join("/")}";`);
+    }
+    return 0;
+}
+
+const GEN_TARGETS = { api: genApi, icons: genIcons, component: genComponent };
 
 function gen(args) {
     const what = args[0];
@@ -1387,6 +1546,21 @@ function gen(args) {
         return 1;
     }
     return target(args.slice(1));
+}
+
+/**
+ * `tempest new component <Name>` — the spelling from issue #454, kept as an
+ * alias of `tempest gen component`. Only `component` is accepted, so `new` does
+ * not become a second name for every generator.
+ */
+function newCommand(args) {
+    if (args[0] !== "component") {
+        console.error(
+            `${c.red}✗ Unknown new target: ${args[0] ?? "(none)"}${c.reset} — supported: component (alias of tempest gen component).`,
+        );
+        return 1;
+    }
+    return genComponent(args.slice(1));
 }
 
 // ------------------------------------------------------------------ main ----
@@ -1408,6 +1582,12 @@ ${c.bold}Commands${c.reset}
                     (e.g. tempest gen api http://127.0.0.1:8000/openapi.json --out src/api)
   ${c.bold}gen icons${c.reset}         Write a static icon registry from the slugs your source uses
                     (e.g. tempest gen icons --out src/icons.generated.ts --dir src)
+  ${c.bold}gen component${c.reset} <Name>
+                    Create <out>/<Name>/ with index.tsx, styles.module.css,
+                    constants.ts, utils.ts and hooks.ts (name → PascalCase)
+                    (e.g. tempest gen component "user card" --out src/components)
+                    --force rewrites the five files of an existing folder.
+                    Alias: tempest new component <Name>
 
 ${c.bold}doctor options${c.reset}
   --no-css          Skip the CSS analysis
@@ -1450,6 +1630,7 @@ const commands = {
     fix: () => fix(rest),
     format: () => format(rest),
     gen: () => gen(rest),
+    new: () => newCommand(rest),
 };
 
 if (!commands[cmd]) {

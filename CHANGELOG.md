@@ -4,6 +4,17 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`createTempestAuth` — o `/me` que resolve depois do `logout()` não grava mais o perfil no store**
+  (#473). O `login()` instalava o token e esperava o `GET mePath` sem conferir a época da sessão:
+  medido com o `/me` de A segurado, `logout()` deixava `{ token: null, user: A }` persistido, e
+  `logout()` + `login(B)` deixava `{ token: "tok-B", user: A }` — a UI mostrava A enquanto as
+  requests saíam como B, e o `login(A)` superado resolvia com A. Agora o `/me` fica preso à época em
+  que saiu, no sucesso e na falha: se ela mudou, o perfil é descartado e o `login()` rejeita com
+  `SessionSupersededError` (`src/auth/create-tempest-auth.races.test.ts`, três testes que falhavam
+  na `main`).
+
 ## [0.77.0] — 2026-10-12
 
 ### Breaking

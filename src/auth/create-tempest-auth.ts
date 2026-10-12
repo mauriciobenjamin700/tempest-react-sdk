@@ -274,10 +274,26 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      * and `onUnauthorized`. That was the behaviour of the throwaway client this
      * used to build per invocation, and it is the reason the preset needed
      * three clients before 0.66.0.
+     *
+     * Bound to the epoch current when the request leaves, like `rotate()`: a
+     * profile that resolves after `logout()` — or after `logout()` +
+     * `login(B)` — is discarded instead of written next to B's token, and the
+     * `login()` that asked for it rejects as superseded (#473).
+     *
+     * @throws {SessionSupersededError} When the epoch changed while the
+     *   request was in flight, on success and on failure alike.
      */
     async function fetchUser(): Promise<TUser | null> {
         if (!mePath) return state().user;
-        const user = await api.get<TUser>(mePath, { skipAuthRetry: true });
+        const started = epoch;
+        let user: TUser;
+        try {
+            user = await api.get<TUser>(mePath, { skipAuthRetry: true });
+        } catch (error) {
+            if (epoch !== started) throw new SessionSupersededError();
+            throw error;
+        }
+        if (epoch !== started) throw new SessionSupersededError();
         state().setUser(user);
         return user;
     }
@@ -402,8 +418,9 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      * @param credentials - Sent as the login body.
      * @returns The user of the new session, or null.
      * @throws {SessionSupersededError} When a `logout()` or another `login()`
-     *   moved the session while this one was in flight — during its request or
-     *   during the teardown; the new tokens are discarded.
+     *   moved the session while this one was in flight — during its request,
+     *   during the teardown or while `mePath` was loading the user; the new
+     *   tokens, or the user, are discarded.
      */
     async function login(credentials: TCredentials): Promise<TUser | null> {
         const started = epoch;

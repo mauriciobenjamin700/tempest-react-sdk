@@ -326,7 +326,7 @@ Why the hook runs **before** the new account is installed: the previous account'
 
 A `logout()` whose teardown is still running is awaited the same way: `logout()` followed by `login()` without `await` does not install the new account before the previous one's hook finished — the hook clearing account A's state never runs alongside account B.
 
-A `login()` whose session moved while its request was in flight — a `logout()` in between, for example — rejects with `SessionSupersededError` and installs nothing.
+A `login()` whose session moved while its request was in flight — a `logout()` in between, for example — rejects with `SessionSupersededError` and installs nothing. The same holds for the `mePath` `GET` that `login()` sends after installing the token: a profile that arrives after a `logout()` (or after `logout()` + another account's `login()`) is discarded, instead of landing in the store next to the next account's token.
 
 ### Refresh in flight and account switching — `SessionSupersededError`
 

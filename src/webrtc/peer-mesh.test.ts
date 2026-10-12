@@ -1049,3 +1049,393 @@ describe("createPeerMesh — measuring its own links", () => {
         expect(mesh.peers[0].stats?.kbps, "the report carries video only").toBe(0);
     });
 });
+
+describe("createPeerMesh — stop() is terminal", () => {
+    let restore: () => void;
+    beforeEach(() => {
+        restore = installPeerConnection();
+    });
+    afterEach(() => {
+        vi.restoreAllMocks();
+        restore();
+    });
+
+    /** An offer from a peer the mesh may or may not know. */
+    function offerFrom(peerId: string): MeshMessage & { from: string } {
+        return { type: "offer", from: peerId, to: "me", sdp: "v=0\r\nremote-offer" };
+    }
+
+    it("answers no offer that arrives after stop, and publishes no track on it", async () => {
+        const onState = vi.fn();
+        const { mesh, sent } = meshWith({ onState });
+        await mesh.setLocalTrack("mic", fakeMediaTrack("audio"));
+        await mesh.setLocalTrack("cam", fakeMediaTrack("video"));
+        mesh.stop();
+        onState.mockClear();
+
+        await expect(mesh.accept(offerFrom("late-peer"))).resolves.toBeUndefined();
+
+        expect(FakePeerConnection.instances).toHaveLength(0);
+        expect(sent).toEqual([]);
+        expect(mesh.peers).toEqual([]);
+        expect(mesh.getConnection("late-peer")).toBeNull();
+        expect(onState).not.toHaveBeenCalled();
+    });
+
+    it("opens no link from addPeer after stop", async () => {
+        const { mesh, sent } = meshWith();
+        mesh.stop();
+
+        await mesh.addPeer("peer-1", { offerer: true });
+
+        expect(FakePeerConnection.instances).toHaveLength(0);
+        expect(sent).toEqual([]);
+    });
+
+    it("forgets the local tracks, so a track set after stop reaches no link", async () => {
+        const { mesh } = meshWith();
+        mesh.stop();
+
+        await mesh.setLocalTrack("mic", fakeMediaTrack("audio"));
+        await mesh.addPeer("peer-1", { offerer: true });
+        await mesh.accept(offerFrom("peer-2"));
+
+        expect(FakePeerConnection.instances).toHaveLength(0);
+    });
+
+    /** Whether a promise is still pending after the queue has drained. */
+    async function stillPending(promise: Promise<unknown>): Promise<boolean> {
+        const marker = Symbol("pending");
+        const winner = await Promise.race([
+            promise.then(
+                () => "settled",
+                () => "settled",
+            ),
+            new Promise((resolve) => setTimeout(() => resolve(marker), 20)),
+        ]);
+        return winner === marker;
+    }
+
+    /** Let parked calls through until `steps` of them have completed, then park on the next. */
+    async function advance(steps: number): Promise<void> {
+        for (let step = 0; step <= steps; step += 1) {
+            await vi.waitFor(() => expect(FakePeerConnection.heldCount).toBeGreaterThan(0));
+            if (step < steps) FakePeerConnection.release();
+        }
+    }
+
+    /**
+     * The three awaits of answering an offer, each interrupted in both of the
+     * ways a browser settles a call that `close()` ran under: Chromium was
+     * measured leaving it pending forever, and the spec allows a rejection.
+     */
+    describe.each(["reject", "hang"] as const)("a call in flight that close() %ss", (mode) => {
+        it.each([
+            [0, "setRemoteDescription"],
+            [1, "createAnswer"],
+            [2, "setLocalDescription"],
+        ])(
+            "answers nothing when stop runs during step %i (%s), and never rejects",
+            async (step) => {
+                const onNotice = vi.fn();
+                const { mesh, sent } = meshWith({ onNotice });
+                await mesh.setLocalTrack("mic", fakeMediaTrack("audio"));
+                FakePeerConnection.hold = true;
+                FakePeerConnection.closeMode = mode;
+
+                const pending = mesh.accept(offerFrom("peer-1"));
+                await advance(step);
+                mesh.stop();
+                FakePeerConnection.release();
+
+                if (mode === "reject") await expect(pending).resolves.toBeUndefined();
+                else expect(await stillPending(pending)).toBe(true);
+                expect(sent.filter((message) => message.type === "answer")).toEqual([]);
+                expect(onNotice).not.toHaveBeenCalled();
+            },
+        );
+
+        it("answers nothing when removePeer runs while the offer is being applied", async () => {
+            const { mesh, sent } = meshWith();
+            FakePeerConnection.hold = true;
+            FakePeerConnection.closeMode = mode;
+
+            const pending = mesh.accept(offerFrom("peer-1"));
+            await advance(0);
+            mesh.removePeer("peer-1");
+            FakePeerConnection.release();
+
+            if (mode === "reject") await expect(pending).resolves.toBeUndefined();
+            else expect(await stillPending(pending)).toBe(true);
+            expect(sent).toEqual([]);
+        });
+
+        it("drops an answer whose remote description was being applied when stop ran", async () => {
+            const { mesh } = meshWith();
+            await mesh.addPeer("peer-1", { offerer: true });
+            FakePeerConnection.hold = true;
+            FakePeerConnection.closeMode = mode;
+
+            const pending = mesh.accept({
+                type: "answer",
+                from: "peer-1",
+                to: "me",
+                sdp: "v=0\r\nremote-answer",
+            });
+            await advance(0);
+            mesh.stop();
+            FakePeerConnection.release();
+
+            if (mode === "reject") await expect(pending).resolves.toBeUndefined();
+            else expect(await stillPending(pending)).toBe(true);
+        });
+
+        it("still reports a failure on a link that is alive", async () => {
+            const { mesh } = meshWith();
+            FakePeerConnection.hold = true;
+            const pending = mesh.accept(offerFrom("peer-1"));
+            await advance(0);
+            vi.spyOn(connection(), "createAnswer").mockRejectedValue(new Error("codec mismatch"));
+            FakePeerConnection.release();
+
+            await expect(pending).rejects.toThrow("codec mismatch");
+        });
+    });
+
+    it("sends no offer and raises no notice for a link stop closed while it was being opened", async () => {
+        const onNotice = vi.fn();
+        const onPeers = vi.fn();
+        const { mesh, sent } = meshWith({ onNotice, onPeers });
+        await mesh.setLocalTrack("mic", fakeMediaTrack("audio"));
+
+        const pending = mesh.addPeer("peer-1", { offerer: true });
+        mesh.stop();
+        onPeers.mockClear();
+        await pending;
+
+        expect(sent).toEqual([]);
+        expect(onNotice).not.toHaveBeenCalled();
+        expect(onPeers).not.toHaveBeenCalled();
+    });
+
+    it("keeps closed once stopped, whatever a closed connection reports afterwards", async () => {
+        const onState = vi.fn();
+        const { mesh } = meshWith({ onState });
+        await mesh.addPeer("peer-1", { offerer: true });
+        mesh.stop();
+        onState.mockClear();
+
+        connection().setConnectionState("closed");
+        mesh.stop();
+
+        expect(onState).not.toHaveBeenCalled();
+    });
+});
+
+describe("createPeerMesh — nothing reaches the app after stop", () => {
+    let restore: () => void;
+    beforeEach(() => {
+        restore = installPeerConnection();
+    });
+    afterEach(() => restore());
+
+    it("reports no peers from removePeer after stop", async () => {
+        const onPeers = vi.fn();
+        const { mesh } = meshWith({ onPeers });
+        await mesh.addPeer("peer-1", { offerer: true });
+        mesh.stop();
+        onPeers.mockClear();
+
+        mesh.removePeer("peer-1");
+
+        expect(onPeers).not.toHaveBeenCalled();
+    });
+
+    it("reports no peers when a closed connection reports its state after stop", async () => {
+        const onPeers = vi.fn();
+        const { mesh } = meshWith({ onPeers });
+        await mesh.addPeer("peer-1", { offerer: true });
+        mesh.stop();
+        onPeers.mockClear();
+
+        connection().setConnectionState("closed");
+        connection().setConnectionState("connecting");
+
+        expect(onPeers).not.toHaveBeenCalled();
+    });
+
+    it("lets a replaced connection's late state change leave the new link alone", async () => {
+        const { mesh } = meshWith();
+        await mesh.addPeer("peer-1", { offerer: true });
+        mesh.removePeer("peer-1");
+        await mesh.addPeer("peer-1", { offerer: true });
+
+        connection(0).setConnectionState("failed");
+
+        expect(mesh.getConnection("peer-1")).toBe(connection(1));
+        expect(connection(1).closed).toBe(false);
+    });
+});
+
+describe("createPeerMesh — a link the browser refuses to build", () => {
+    let restore: () => void;
+    beforeEach(() => {
+        restore = installPeerConnection();
+    });
+    afterEach(() => restore());
+
+    it("leaves no half-built link behind when addTransceiver throws", async () => {
+        const { mesh } = meshWith();
+        FakePeerConnection.addTransceiverThrows = true;
+
+        await expect(mesh.addPeer("peer-1", { offerer: true })).rejects.toThrow();
+
+        expect(connection(0).closed).toBe(true);
+        expect(mesh.peers).toEqual([]);
+        expect(mesh.getConnection("peer-1")).toBeNull();
+
+        FakePeerConnection.addTransceiverThrows = false;
+        await mesh.addPeer("peer-1", { offerer: true });
+
+        expect(mesh.getConnection("peer-1")).toBe(connection(1));
+    });
+});
+
+describe("createPeerMesh — measuring across a link that changes under it", () => {
+    let restore: () => void;
+    beforeEach(() => {
+        restore = installPeerConnection();
+        vi.useFakeTimers();
+    });
+    afterEach(() => {
+        vi.useRealTimers();
+        restore();
+    });
+
+    /** A minimal report with an outbound byte counter. */
+    function report(bytes: number): RTCStatsReport {
+        const map = new Map<string, unknown>();
+        map.set("out", { id: "out", type: "outbound-rtp", kind: "video", bytesSent: bytes });
+        return map as unknown as RTCStatsReport;
+    }
+
+    /** Replace a fake connection's `getStats`. */
+    function stub(pc: FakePeerConnection, getStats: () => Promise<RTCStatsReport>): void {
+        (pc as unknown as { getStats: () => Promise<RTCStatsReport> }).getStats = getStats;
+    }
+
+    it("does not hand a removed connection's sample to the peer re-added under its id", async () => {
+        const onStats = vi.fn();
+        const { mesh } = meshWith({ stats: { intervalMs: 1000, onStats } });
+        await mesh.addPeer("p1", { offerer: true });
+        let answer: (value: RTCStatsReport) => void = () => undefined;
+        stub(connection(0), () => new Promise((resolve) => (answer = resolve)));
+        connection(0).setConnectionState("connected");
+
+        await vi.advanceTimersByTimeAsync(1000);
+        mesh.removePeer("p1");
+        await mesh.addPeer("p1", { offerer: true });
+        answer(report(500_000));
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(onStats).not.toHaveBeenCalled();
+        expect(mesh.peers[0].stats).toBeUndefined();
+    });
+
+    it("keeps measuring the other links when one getStats() rejects", async () => {
+        const onStats = vi.fn();
+        const { mesh } = meshWith({ stats: { intervalMs: 1000, onStats } });
+        await mesh.addPeer("p1", { offerer: true });
+        await mesh.addPeer("p2", { offerer: true });
+        stub(connection(0), () => Promise.reject(new Error("the connection is closing")));
+        stub(connection(1), async () => report(0));
+        connection(0).setConnectionState("connected");
+        connection(1).setConnectionState("connected");
+
+        await vi.advanceTimersByTimeAsync(1000);
+
+        expect(onStats).toHaveBeenCalledTimes(1);
+        expect(onStats.mock.calls[0]?.[0]).toBe("p2");
+    });
+});
+
+describe("createPeerMesh — overlapping setLocalTrack calls", () => {
+    let restore: () => void;
+    beforeEach(() => {
+        restore = installPeerConnection();
+    });
+    afterEach(() => restore());
+
+    it("ends on the last call: an unmute still in flight cannot undo the mute after it", async () => {
+        const { mesh } = meshWith();
+        await mesh.addPeer("peer-1", { offerer: true });
+        const sender = (connection().getTransceivers()[0] as FakeTransceiver).sender;
+        let finishUnmute: () => void = () => undefined;
+        sender.replaceTrack.mockImplementationOnce(
+            (track) =>
+                new Promise<void>((resolve) => {
+                    finishUnmute = () => {
+                        sender.track = track;
+                        resolve();
+                    };
+                }),
+        );
+        const mic = fakeMediaTrack("audio");
+
+        const unmute = mesh.setLocalTrack("mic", mic);
+        const mute = mesh.setLocalTrack("mic", null);
+        await Promise.resolve();
+        finishUnmute();
+        await Promise.all([unmute, mute]);
+
+        expect(sender.track).toBeNull();
+    });
+});
+
+describe("createPeerMesh — the first write onto a new link", () => {
+    let restore: () => void;
+    beforeEach(() => {
+        restore = installPeerConnection();
+    });
+    afterEach(() => {
+        vi.restoreAllMocks();
+        restore();
+    });
+
+    it("cannot outlast a mute queued while the new link was attaching the microphone", async () => {
+        const { mesh } = meshWith();
+        await mesh.setLocalTrack("mic", fakeMediaTrack("audio"));
+        let finishAttach: () => void = () => undefined;
+        const original = FakePeerConnection.prototype.addTransceiver;
+        vi.spyOn(FakePeerConnection.prototype, "addTransceiver").mockImplementation(function (
+            this: FakePeerConnection,
+            kind: string,
+            init?: RTCRtpTransceiverInit,
+        ) {
+            const transceiver = original.call(this, kind, init);
+            if (this.getTransceivers().length === 1) {
+                const { sender } = transceiver;
+                sender.replaceTrack.mockImplementationOnce(
+                    (track) =>
+                        new Promise<void>((resolve) => {
+                            finishAttach = () => {
+                                sender.track = track;
+                                resolve();
+                            };
+                        }),
+                );
+            }
+            return transceiver;
+        });
+
+        const joining = mesh.addPeer("peer-1", { offerer: true });
+        const mute = mesh.setLocalTrack("mic", null);
+        await Promise.resolve();
+        await Promise.resolve();
+        finishAttach();
+        await Promise.all([joining, mute]);
+
+        const mic = connection().getTransceivers()[0] as FakeTransceiver;
+        expect(mic.sender.track).toBeNull();
+    });
+});

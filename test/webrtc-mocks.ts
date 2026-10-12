@@ -12,6 +12,18 @@ import { vi } from "vitest";
  *    not reuse those.
  * 2. `addIceCandidate` **throws** while `remoteDescription` is `null`.
  * 3. A transceiver has no `mid` until it is negotiated.
+ *
+ * It also models what `close()` does to negotiation, because a fake that keeps
+ * answering after `close()` hides every race in which the mesh keeps
+ * negotiating on a link it already tore down:
+ *
+ * - a call made **after** `close()` rejects with `InvalidStateError`;
+ * - a call still **in flight** when `close()` runs either rejects the same way
+ *   or never settles at all, per {@link FakePeerConnection.closeMode}. Chromium
+ *   was measured doing the second — `accept()` stayed pending forever with
+ *   `stop()` run 0 ms after the offer — and the spec allows both, so the mesh
+ *   has to survive each. {@link FakePeerConnection.hold} is what keeps a call in
+ *   flight long enough for a test to close the connection under it.
  */
 
 /** An `RTCRtpSender` that records what was written to it. */
@@ -89,6 +101,31 @@ export class FakePeerConnection {
      * `localDescription?.sdp ?? offer.sdp` rather than trusting the readback.
      */
     static tracksLocalDescription = true;
+    /**
+     * Park every negotiation call until {@link FakePeerConnection.release}.
+     *
+     * Off by default, so a call settles on the next microtask as before. On, it
+     * opens the window a real browser has while it works: the call is in flight
+     * and `close()` can run under it.
+     */
+    /** Make `addTransceiver` throw, as it does for a kind the browser cannot send. */
+    static addTransceiverThrows = false;
+    static hold = false;
+    /** What `close()` does to a call in flight: reject it, or leave it pending forever. */
+    static closeMode: "reject" | "hang" = "reject";
+    private static held: (() => void)[] = [];
+
+    /** How many calls are parked by {@link FakePeerConnection.hold} right now. */
+    static get heldCount(): number {
+        return FakePeerConnection.held.length;
+    }
+
+    /** Let every parked call proceed. Calls a `close()` already settled are skipped. */
+    static release(): void {
+        const parked = FakePeerConnection.held;
+        FakePeerConnection.held = [];
+        for (const proceed of parked) proceed();
+    }
 
     connectionState: RTCPeerConnectionState = "new";
     localDescription: RTCSessionDescriptionInit | null = null;
@@ -102,6 +139,7 @@ export class FakePeerConnection {
     onnegotiationneeded: (() => void) | null = null;
 
     private transceivers: FakeTransceiver[] = [];
+    private inFlight = new Set<(error: DOMException) => void>();
     /** Candidates the connection accepted, in order. */
     accepted: RTCIceCandidateInit[] = [];
 
@@ -111,6 +149,9 @@ export class FakePeerConnection {
     }
 
     addTransceiver(kind: string, init?: RTCRtpTransceiverInit): FakeTransceiver {
+        if (FakePeerConnection.addTransceiverThrows) {
+            throw new DOMException("the kind is not supported", "NotSupportedError");
+        }
         const transceiver = new FakeTransceiver(kind, init?.direction ?? "sendrecv");
         transceiver.mid = String(this.transceivers.length);
         this.transceivers.push(transceiver);
@@ -121,20 +162,51 @@ export class FakePeerConnection {
         return [...this.transceivers];
     }
 
-    async createOffer(): Promise<RTCSessionDescriptionInit> {
-        if (FakePeerConnection.offerRejects) throw new Error("the connection is closing");
-        const sdp = FakePeerConnection.offerSdp;
-        return sdp === null ? { type: "offer" } : { type: "offer", sdp };
+    /** Reject the way a browser does when a closed connection is asked to negotiate. */
+    private assertOpen(): void {
+        if (this.closed) throw new DOMException("the connection is closed", "InvalidStateError");
     }
 
-    async createAnswer(): Promise<RTCSessionDescriptionInit> {
-        const sdp = FakePeerConnection.answerSdp;
-        return sdp === null ? { type: "answer" } : { type: "answer", sdp };
+    /**
+     * Run one negotiation call the way the browser schedules it.
+     *
+     * @param work - The effect of the call, applied only once it completes.
+     * @returns What `work` returns.
+     */
+    private async negotiate<T>(work: () => T): Promise<T> {
+        this.assertOpen();
+        if (FakePeerConnection.hold) {
+            await new Promise<void>((resolve, reject) => {
+                const abort = (error: DOMException): void => reject(error);
+                this.inFlight.add(abort);
+                FakePeerConnection.held.push(() => {
+                    if (this.inFlight.delete(abort)) resolve();
+                });
+            });
+        }
+        return work();
     }
 
-    async setLocalDescription(description: RTCSessionDescriptionInit): Promise<void> {
-        if (!FakePeerConnection.tracksLocalDescription) return;
-        this.localDescription = description;
+    createOffer(): Promise<RTCSessionDescriptionInit> {
+        return this.negotiate(() => {
+            if (FakePeerConnection.offerRejects) throw new Error("the connection is closing");
+            const sdp = FakePeerConnection.offerSdp;
+            return sdp === null ? { type: "offer" } : { type: "offer", sdp };
+        });
+    }
+
+    createAnswer(): Promise<RTCSessionDescriptionInit> {
+        return this.negotiate(() => {
+            const sdp = FakePeerConnection.answerSdp;
+            return sdp === null ? { type: "answer" } : { type: "answer", sdp };
+        });
+    }
+
+    setLocalDescription(description: RTCSessionDescriptionInit): Promise<void> {
+        return this.negotiate(() => {
+            if (!FakePeerConnection.tracksLocalDescription) return;
+            this.localDescription = description;
+        });
     }
 
     /**
@@ -145,26 +217,40 @@ export class FakePeerConnection {
      * negotiated ones with no `mid` — which is exactly how positional slot lookup
      * ends up on the wrong media.
      */
-    async setRemoteDescription(description: RTCSessionDescriptionInit): Promise<void> {
-        this.remoteDescription = description;
-        if (description.type !== "offer") return;
-        for (let index = 0; index < FakePeerConnection.remoteMLines; index += 1) {
-            const transceiver = new FakeTransceiver(index === 0 ? "audio" : "video", "recvonly");
-            transceiver.mid = String(index);
-            this.transceivers.push(transceiver);
-        }
+    setRemoteDescription(description: RTCSessionDescriptionInit): Promise<void> {
+        return this.negotiate(() => {
+            this.remoteDescription = description;
+            if (description.type !== "offer") return;
+            for (let index = 0; index < FakePeerConnection.remoteMLines; index += 1) {
+                const transceiver = new FakeTransceiver(
+                    index === 0 ? "audio" : "video",
+                    "recvonly",
+                );
+                transceiver.mid = String(index);
+                this.transceivers.push(transceiver);
+            }
+        });
     }
 
-    async addIceCandidate(candidate: RTCIceCandidateInit): Promise<void> {
-        if (this.remoteDescription === null) {
-            throw new DOMException("remote description is null", "InvalidStateError");
-        }
-        this.accepted.push(candidate);
+    addIceCandidate(candidate: RTCIceCandidateInit): Promise<void> {
+        return this.negotiate(() => {
+            if (this.remoteDescription === null) {
+                throw new DOMException("remote description is null", "InvalidStateError");
+            }
+            this.accepted.push(candidate);
+        });
     }
 
+    /** Close, settling every call in flight per {@link FakePeerConnection.closeMode}. */
     close(): void {
         this.closed = true;
         this.connectionState = "closed";
+        const aborts = [...this.inFlight];
+        this.inFlight.clear();
+        if (FakePeerConnection.closeMode === "hang") return;
+        for (const abort of aborts) {
+            abort(new DOMException("the connection was closed", "InvalidStateError"));
+        }
     }
 
     /** Drive a connection state change, as the browser would. */
@@ -202,6 +288,10 @@ export class FakePeerConnection {
         FakePeerConnection.answerSdp = "v=0\r\nlocal-answer";
         FakePeerConnection.offerRejects = false;
         FakePeerConnection.tracksLocalDescription = true;
+        FakePeerConnection.hold = false;
+        FakePeerConnection.addTransceiverThrows = false;
+        FakePeerConnection.closeMode = "reject";
+        FakePeerConnection.held = [];
     }
 }
 

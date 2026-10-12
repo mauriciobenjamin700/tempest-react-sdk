@@ -154,6 +154,37 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `safeAttachmentUrl` aceita `http`, `https`, `blob`, relativa e `data:image/` raster, e devolve a
   URL como veio (normalizar apaga espaço de nome de arquivo). Doc em `docs/utilities.md`.
 
+- **`exchangeOAuthCallback`, `readOAuthCallbackParams` e `OAuthCallbackError` — o `state` do
+  OAuth não fica mais para trás no callback (#449).** `readOAuthCallbackParams()` devolve `code`
+  **e** `state` do redirect ou lança `OAuthCallbackError` (`reason`: `"provider_error"`,
+  `"missing_state"`, `"missing_code"`) antes de qualquer requisição.
+  `exchangeOAuthCallback(api, provider, options?)` (opções `prefix`, `search`, `signal`) repassa os dois para
+  `GET {prefix}/oauth/{provider}/callback` do `tempest-fastapi-sdk` com `credentials: "include"`
+  (o cookie `HttpOnly` do `state` é a outra metade da comparação), `skipAuth` e `retry: false`.
+  A comparação — `hmac.compare_digest`, uso único, TTL `AUTH_OAUTH_STATE_TTL_SECONDS`, amarrada
+  ao provider — já existe no `make_auth_router` do backend, que é quem sorteia o `state`; o
+  navegador não lê o cookie, então gerar ou conferir `state` no cliente não acrescentaria nada
+  nesse fluxo, e o backend não aceita `code_verifier` (sem PKCE a encaminhar).
+  Medido com a receita antiga de `docs/oauth.md` sob `useOAuthCallback` + `fetch` stub:
+  `/callback?code=ATTACKER_CODE` (sem `state`) e `/callback?code=ATTACKER_CODE&state=forged`
+  terminavam em `status=success` com `POST … body={"code":"ATTACKER_CODE"}` — o `state` nunca
+  saía do navegador. Com o helper, o primeiro é recusado sem requisição e o segundo chega ao
+  backend como `…/auth/oauth/google/callback?code=ATTACKER_CODE&state=forged`, onde o `401` do
+  state forjado aparece uma vez, sem refresh nem `onUnauthorized`
+  (`src/oauth/callback.test.tsx`). Receita e JSDoc do `useOAuthCallback` reescritos; docs em
+  `docs/oauth.md` + `.en.md`. Custo, com `npx size-limit` (main `a188917` × esta branch): barrel ESM
+  140 075 → 140 258 B (teto 140,2 → 140,3 kB), barrel CJS 167 085 → 167 358 B (teto 167,2 →
+  167,4 kB); os dois tetos contam também o `encodeIdSegment` do #438 (ESM 139 861 → 140 075 B,
+  CJS 167 019 → 167 085 B, ainda dentro dos tetos antigos).
+  Lendo `window.location`, o leitor também tira `code` e `state` da barra de endereço com
+  `history.replaceState` (mantém os outros params, o hash e o `history.state`; limpa mesmo quando
+  recusa o callback), para o código não ficar no histórico nem no `Referer`; `scrubUrl: false`
+  desliga (`src/oauth/callback.scrub.test.ts`). Trade-off documentado em `docs/oauth.md` +
+  `.en.md`: o contrato do `make_auth_router` é `GET` com `code`/`state` na query, então a URL
+  entra no access log do backend — o método não muda, e a doc orienta mascarar os dois na rota. A limpeza da URL e o
+  ref de opções do hook custam +146 B no barrel ESM (140 258 → 140 404 B, teto 140,3 → 140,5 kB)
+  e +185 B no CJS (167 358 → 167 543 B, teto 167,4 → 167,6 kB), medido com `npx size-limit`.
+
 ### Alterado
 
 - **`persistQueryClientOffline`: o handle fica encerrado depois de `clear()` (#440).** Antes, o
@@ -227,6 +258,23 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
   **Migração:** quem exporta CSV para o importador de outro sistema, e não para a planilha de uma
   pessoa, passa `{ neutralizeFormulas: false }` (novo em `CsvOptions`) e recebe os bytes de antes.
+
+- **`buildPath` customizado do data provider recebe o `id` já codificado (#438).** Desde o
+  `encodeIdSegment`, todo `id` chega ao `buildPath` como um segmento pronto
+  (`encodeURIComponent`, sem `""`/`"."`/`".."`). **Migração: remova o encode do seu `buildPath`;
+  o id já chega codificado.** Quem mantiver `encodeURIComponent(id)` codifica duas vezes —
+  `"a/b"` vira `a%252Fb` e o backend recebe outro id. Antes:
+
+  ```ts
+  buildPath: (resource, id) =>
+    id == null ? `/api/${resource}` : `/api/${resource}/${encodeURIComponent(String(id))}`,
+  ```
+
+  Depois:
+
+  ```ts
+  buildPath: (resource, id) => (id == null ? `/api/${resource}` : `/api/${resource}/${id}`),
+  ```
 
 ### Corrigido
 
@@ -417,6 +465,33 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   24 com `performance.now()` em volta de `parseMarkdown` (script bundlado com `esbuild`). Os casos
   de heading com fechamento `#`, níveis 1–6, `#` sozinho e `#título` (não são heading) seguem iguais
   e estão fixados em teste.
+
+- **`useOAuthCallback` entrega o resultado em StrictMode e com re-render durante a troca.** O
+  cleanup do efeito marcava a execução como cancelada e o `ref` de "já rodou" impedia a segunda:
+  no remount simulado do StrictMode (dev) e em todo re-render do pai com `exchange`/`onSuccess`/
+  `onError` inline, a única troca era descartada, `onSuccess` nunca rodava e o hook ficava em
+  `"pending"` para sempre — com o `code`, que é de uso único, já gasto. Agora as opções ficam
+  num ref com o valor mais recente, o efeito não tem dependências, a troca roda uma vez por
+  montagem lógica e o resultado só é descartado se o componente estiver desmontado quando ele
+  chega; o `onSuccess`/`onError` chamado é o mais recente. Antes: 3 de 4 testes de
+  `src/oauth/use-oauth-callback.lifecycle.test.tsx` falhavam (StrictMode sucesso, StrictMode
+  erro, re-render); depois, 4 de 4. A doc afirmava "roda uma vez, mesmo em StrictMode" —
+  reescrita em `docs/oauth.md` + `.en.md`.
+- **Data provider — o `id` não sai mais do próprio segmento do path (#438).** `getOne`,
+  `getMany`, `update` e `deleteOne` interpolavam o `id` cru em `/{resource}/{id}`, e o
+  `buildApiUrl` resolvia `..` e cortava a query no primeiro `?`: com `baseURL`
+  `https://app.example.test/api`, `getOne("posts", "../../admin/users")` enviava
+  `GET https://app.example.test/admin/users` com o Bearer, `deleteOne("posts", "../users/7")`
+  virava `DELETE …/api/users/7` e `update("posts", "7?role=admin")` virava
+  `PATCH …/api/posts/7?role=admin`. Agora todo `id` passa pelo novo `encodeIdSegment`
+  (`encodeURIComponent` + rejeição de `null`, `undefined`, `""`, `"."` e `".."` com `TypeError`,
+  antes de qualquer requisição — `null`/`undefined` viravam `/posts/null` e `/posts/undefined`): os mesmos ids vão para `…/api/posts/..%2F..%2Fadmin%2Fusers`,
+  `…/api/posts/..%2Fusers%2F7` e `…/api/posts/7%3Frole%3Dadmin`; id comum (`42`, UUID) segue
+  idêntico. Medido com `createApiClient` + `fetcher` stub, antes × depois, em
+  `src/data/create-data-provider.path.test.ts`. **Efeito em `buildPath` customizado:** o
+  override passa a receber o `id` já codificado — quem já fazia `encodeURIComponent(id)` nele
+  deve remover, ou `%2F` vira `%252F`. `encodeIdSegment` é exportado para quem monta path com id
+  de fora chamando o `createApiClient` direto. Docs em `docs/data-provider.md` + `.en.md`.
 
 ### Interno
 

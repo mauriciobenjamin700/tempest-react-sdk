@@ -37,7 +37,7 @@ export const dataProvider = createDataProvider(apiClient);
 | `sortOrderParam`     | `"ascending"`  | Nome do query-param da direção da ordenação.                                                |
 | `sortOrderAsBoolean` | `true`         | `true` → emite booleano (`order:"asc"` vira `true`). `false` → emite `"asc"`/`"desc"`.      |
 | `updateMethod`       | `"patch"`      | Método HTTP usado por `update` (`"patch"` ou `"put"`).                                       |
-| `buildPath`          | ver abaixo     | Monta o path do recurso. Default: `id == null ? "/{resource}" : "/{resource}/{id}"`.        |
+| `buildPath`          | ver abaixo     | Monta o path do recurso. Default: `id == null ? "/{resource}" : "/{resource}/{id}"`. Recebe o `id` já codificado (ver abaixo). |
 
 !!! note "Os defaults seguem o `tempest-fastapi-sdk`"
     `BasePaginationFilterSchema` usa `page`/`size`/`order_by`/`ascending`, e `ascending` é um booleano. Por isso `sortOrderAsBoolean` é `true` por default. Se o seu backend espera `?sort=desc` em vez de `?ascending=false`, ajuste `sortOrderParam` e `sortOrderAsBoolean`.
@@ -67,6 +67,49 @@ export const dataProvider = createDataProvider(apiClient, {
 | `create("posts", data)`            | `POST /posts`                                                 |
 | `update("posts", id, data)`        | `PATCH /posts/{id}` (ou `PUT` com `updateMethod: "put"`)      |
 | `deleteOne("posts", id)`           | `DELETE /posts/{id}`                                          |
+
+### O `id` nunca sai do próprio segmento
+
+O `id` é a parte da URL que pode vir de fora do app — um search param, o hash, um valor que outro usuário gravou. Se ele entrasse cru no path, `"../../admin/users"` levaria o `GET` autenticado (com o Bearer) para outro endpoint, e `"7?role=admin"` injetaria query string no `PATCH`. Por isso, desde a 0.77.0, **todo** `id` passa por `encodeIdSegment` antes de chegar ao `buildPath`:
+
+| `id` recebido           | Path enviado                         |
+| ----------------------- | ------------------------------------ |
+| `42`                    | `/posts/42`                          |
+| `"../admin"`            | `/posts/..%2Fadmin`                  |
+| `"a/b?x=1"`             | `/posts/a%2Fb%3Fx%3D1`               |
+| `""`, `"."` ou `".."`   | rejeita com `TypeError`, sem requisição |
+| `null` ou `undefined`   | rejeita com `TypeError`, sem requisição (antes virava `/posts/null`) |
+
+`encodeIdSegment` aplica `encodeURIComponent` e rejeita os três valores que o parser de URL resolveria como dot-segment mesmo codificados, além de `null`/`undefined`. Ele vale também para o `buildPath` customizado — o override recebe o segmento pronto e só interpola, como no exemplo acima.
+
+!!! warning "Migração (0.77.0): remova o encode do seu `buildPath`"
+    O `id` já chega codificado. Um `buildPath` que fazia `encodeURIComponent(id)` passa a codificar duas vezes (`a/b` vira `a%252Fb`) e o backend recebe outro id.
+
+    Antes:
+
+    ```ts
+    buildPath: (resource, id) =>
+      id == null ? `/api/${resource}` : `/api/${resource}/${encodeURIComponent(String(id))}`,
+    ```
+
+    Depois:
+
+    ```ts
+    buildPath: (resource, id) => (id == null ? `/api/${resource}` : `/api/${resource}/${id}`),
+    ```
+
+!!! tip "Montando path com id fora do data provider"
+    Quem chama o `createApiClient` direto com um id de fora usa o mesmo helper:
+
+    ```ts
+    import { createApiClient, encodeIdSegment } from "tempest-react-sdk";
+
+    const api = createApiClient({ baseURL: import.meta.env.VITE_API_URL });
+
+    export function fetchInvoice(id: string): Promise<unknown> {
+      return api.get(`/invoices/${encodeIdSegment(id)}`);
+    }
+    ```
 
 ## Provider na árvore
 
@@ -277,6 +320,7 @@ export function EditPost({ id }: { id: string }) {
 - `useList` resolve um `OffsetPage<T>` (`items`/`total`/`page`/`pages`); `useOne` busca um registro e se desabilita sem `id`.
 - `useCreate` / `useUpdate` / `useDelete` são mutations que invalidam o cache certo no sucesso — lista (create/delete) ou lista + registro (update).
 - Backends fora da convenção? Ajuste `pageParam`/`sizeParam`/`sortFieldParam`/`sortOrderParam`/`sortOrderAsBoolean`/`updateMethod`/`buildPath`.
+- Todo `id` passa por `encodeIdSegment`: fica num segmento só, e `""`/`"."`/`".."` são rejeitados antes da requisição.
 
 ## Veja também
 

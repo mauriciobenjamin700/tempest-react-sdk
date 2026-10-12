@@ -93,8 +93,54 @@ export interface DataProviderOptions {
     /**
      * Build the request path for a resource (and optional id).
      * Default: `id == null ? "/" + resource : "/" + resource + "/" + id`.
+     *
+     * Since 0.77.0 `id` arrives already passed through {@link encodeIdSegment}:
+     * percent-encoded as one path segment, and never `""`, `"."` or `".."`. An
+     * override therefore interpolates it as-is — encoding it again would turn
+     * `%2F` into `%252F`.
      */
     buildPath?: (resource: string, id?: string | number) => string;
+}
+
+const DOT_SEGMENTS: ReadonlySet<string> = new Set(["", ".", ".."]);
+
+/**
+ * Encode a record id as exactly one URL path segment.
+ *
+ * The data provider calls this on every id before building a path, because the
+ * id is the one part of the URL that may come from outside the app — a search
+ * param, a hash, a decoded route param, a value another user stored. Left raw,
+ * `"../../admin/users"` walks the authenticated request out of the resource,
+ * `"7?role=admin"` injects query params and `"7#x"` truncates the path, all
+ * while the request still carries the bearer token (#438).
+ *
+ * `encodeURIComponent` neutralises `/`, `?`, `#` and `%`. It leaves `.` alone,
+ * so `""`, `"."` and `".."` are rejected instead: the URL parser resolves them
+ * as dot-segments whatever the encoding, and none of them names a record.
+ * `null` and `undefined` — what an untyped caller or a not-yet-loaded route
+ * param hands over — are rejected too, since `String()` would turn them into
+ * the literal segments `"null"` and `"undefined"`.
+ *
+ * @param id - The record id, as handed to the provider.
+ * @returns The percent-encoded segment, safe to interpolate between two `/`.
+ * @throws {TypeError} When the id is `null`, `undefined`, `""`, `"."` or `".."`.
+ *
+ * @example
+ * encodeIdSegment(7); // "7"
+ * encodeIdSegment("a/b?x=1"); // "a%2Fb%3Fx%3D1"
+ * encodeIdSegment(".."); // throws TypeError
+ */
+export function encodeIdSegment(id: string | number): string {
+    if (id == null) {
+        throw new TypeError(`Invalid record id ${String(id)}: a record id is required.`);
+    }
+    const raw = String(id);
+    if (DOT_SEGMENTS.has(raw)) {
+        throw new TypeError(
+            `Invalid record id ${JSON.stringify(raw)}: it would resolve as a path dot-segment.`,
+        );
+    }
+    return encodeURIComponent(raw);
 }
 
 const defaultBuildPath = (resource: string, id?: string | number): string =>
@@ -107,6 +153,10 @@ const defaultBuildPath = (resource: string, id?: string | number): string =>
  * `GET /{resource}?page=&size=&order_by=&ascending=&...filters`, one →
  * `GET /{resource}/{id}`, create → `POST`, update → `PATCH`/`PUT`,
  * delete → `DELETE`.
+ *
+ * Every id goes through {@link encodeIdSegment} before reaching `buildPath`, so
+ * an id can never leave its own path segment — not with the default builder,
+ * and not with an override that interpolates it.
  *
  * @param client - The HTTP client created by `createApiClient`.
  * @param options - Optional overrides for param names, sort encoding,
@@ -159,8 +209,8 @@ export function createDataProvider(
             return client.get<OffsetPage<T>>(buildPath(resource), requestOptions);
         },
 
-        getOne<T>(resource: string, id: string | number): Promise<T> {
-            return client.get<T>(buildPath(resource, id));
+        async getOne<T>(resource: string, id: string | number): Promise<T> {
+            return client.get<T>(buildPath(resource, encodeIdSegment(id)));
         },
 
         getMany<T>(resource: string, ids: (string | number)[]): Promise<T[]> {
@@ -171,15 +221,15 @@ export function createDataProvider(
             return client.post<T>(buildPath(resource), { body: data });
         },
 
-        update<T>(resource: string, id: string | number, data: unknown): Promise<T> {
-            const path = buildPath(resource, id);
+        async update<T>(resource: string, id: string | number, data: unknown): Promise<T> {
+            const path = buildPath(resource, encodeIdSegment(id));
             return updateMethod === "put"
                 ? client.put<T>(path, { body: data })
                 : client.patch<T>(path, { body: data });
         },
 
-        deleteOne<T>(resource: string, id: string | number): Promise<T> {
-            return client.delete<T>(buildPath(resource, id));
+        async deleteOne<T>(resource: string, id: string | number): Promise<T> {
+            return client.delete<T>(buildPath(resource, encodeIdSegment(id)));
         },
     };
 

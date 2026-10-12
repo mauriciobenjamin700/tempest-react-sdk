@@ -1,4 +1,4 @@
-export { createDataProvider } from "./create-data-provider";
+export { createDataProvider, encodeIdSegment } from "./create-data-provider";
 export type {
     DataProvider,
     DataProviderOptions,

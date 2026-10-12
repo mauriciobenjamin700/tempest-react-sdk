@@ -1,6 +1,11 @@
 // Public surface of the CSS analysis used by `tempest doctor` and `tempest fix`.
 export { analyzeCss, applyCssFixes } from "./analyze.mjs";
-export { collectStylesheets, customPropertiesInSources, looksMinified } from "./collect.mjs";
+export {
+    collectStylesheets,
+    customPropertiesInSources,
+    looksMinified,
+    OUTSIDE_PROJECT,
+} from "./collect.mjs";
 export { countBySeverity, finding, SEVERITY, sortFindings } from "./findings.mjs";
 export { fixCss } from "./fix.mjs";
 export {

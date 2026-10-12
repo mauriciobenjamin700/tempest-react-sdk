@@ -4,7 +4,219 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Breaking
+
+- **`installBackgroundSync`: entrada de dono desconhecido falha fechado mesmo sem header de
+  credencial** (#480). O `beforeReplay` padrão reenviava sem perguntar a nenhuma página toda entrada
+  sem credencial removida e sem dono `bound` — inclusive a de dono `unknown` (aba que disparou já
+  fechada, `clientId` vazio, carimbo perdido depois dos 6 s, entrada anterior à 0.77). Numa API com
+  sessão por cookie (`credentials: "include"`) o navegador anexa no replay o cookie de quem estiver
+  logado naquela hora, então a mutação de A saía com a sessão de B, contrariando a tabela da doc e o
+  próprio tipo. Agora, no padrão **`ownerPolicy: "strict"`**, só a entrada `unbound` sem credencial
+  sai como estava; a `unknown` pergunta às páginas: reenvia só quando **toda** resposta vem sem
+  principal, descarta assim que uma resposta tem principal (uma aba de bundle anterior ao deploy,
+  sem `getPrincipal`, não autoriza mais o replay ao lado da aba de B — nem para entrada com credencial
+  removida, nos dois modos) e fica pendente quando nenhuma página responde. A opção nova **`ownerPolicy: "lenient"`** (tipo `BackgroundSyncOwnerPolicy`) restaura o
+  reenvio sem consulta da entrada `unknown` sem credencial; a entrada com credencial removida passa
+  pelas páginas nos dois modos. Medido com o harness Node + `fake-indexeddb` da auditoria
+  (`npx vitest run src/sw/background-sync.session.test.ts -t "an unknown owner fails closed"`):
+  na 0.77.0, 12 de 17 casos falham (aba sumida, `clientId` vazio, `pending` depois do prazo e linha
+  v1, cada um descartando com B aberta, descartando com B ao lado de uma aba antiga sem `getPrincipal`
+  e esperando sem página); depois, 17/17. Não medido em browser real.
+  **Migração:** sem provedor, toda entrada fica `unknown` e, no `"strict"`, nenhuma é mais reenviada —
+  some depois de `maxRetentionMinutes` (em build de desenvolvimento o worker avisa no console).
+  - **App sem login:** passe `installBackgroundSync({ ownerPolicy: "lenient" })`.
+  - **App com sessão por cookie:** fique no `"strict"` e instale o provedor com `getPrincipal`, mesmo
+    sem token — `provideBackgroundSyncCredentials(() => null, { getPrincipal: () => user?.id })` — e
+    chame também `clearSessionData()` no logout, porque a checagem confia que o `getPrincipal` de cada
+    aba reflete o cookie que vai no replay.
+
+### Adicionado
+
+- **`createTempestAuth({ logoutPath })` — o `logout()` explícito revoga a sessão no servidor** (#474).
+  Faz `POST` na rota com o cliente da sessão que terminou (o access token dela) e o corpo do
+  `refreshBody` montado com o refresh token guardado antes da limpeza — `{ refresh_token }` no modo
+  corpo, sem corpo no modo cookie —, que é o contrato do `POST /auth/logout` do tempest-fastapi-sdk
+  (montado com `refresh_token_model`; `/auth/cookie/logout` com `AUTH_TOKEN_DELIVERY=both`). O store
+  continua limpo de forma síncrona; a promise do `logout()` espera a revogação, que é best-effort
+  (falha de rede ou `4xx`/`5xx` é engolida), e um `login()` iniciado no meio espera por ela para a
+  resposta do logout não apagar os cookies da conta nova. Off por default.
+- **`createResumableUpload({ getPrincipal })` e `createLocalUploadStorage().clear()`** (#479). O registro
+  de retomada era chaveado só por endpoint + arquivo e sobrevivia ao logout: medido com o registro de
+  A no `localStorage`, o upload de B com um arquivo de mesma impressão digital fazia `HEAD` e `PATCH`
+  na URL de A com `Bearer tok-B`, e, com o servidor recusando, o `POST` de criação de B reaproveitava
+  a `Idempotency-Key` de A. Com `getPrincipal` (o mesmo getter do reporter de erros e do
+  `provideBackgroundSyncCredentials`), o registro guarda uma impressão digital de mão única do dono
+  (`owner`), e um registro de outro dono — outro usuário, ninguém, ou sem dono — é apagado em vez de
+  retomado, com `Idempotency-Key` nova. `clear()` apaga todo registro sob `tempest-upload:`; a doc de
+  auth passa a listá-lo no `onSessionEnd`. Sem `getPrincipal`, o comportamento é o de antes
+  (`src/http/resumable-upload.test.ts`). O `createLocalUploadStorage` passa a devolver
+  `LocalUploadStorage` (`ResumableUploadStorage` + `clear()`), compatível com quem o tipava como
+  `ResumableUploadStorage`. Custo, medido com `npx size-limit` (commit do #474 × esta mudança): fatia
+  do upload resumível 3,94 → 4,21 kB (teto 4 → 4,25 kB), barrel ESM 145,09 → 145,28 kB (teto 145,3) e
+  CJS 172,58 → 172,81 kB (teto 172,85).
+
+- **`createTempestAuth({ onLogoutError })`** — recebe o erro de uma revogação do `logoutPath` que
+  falhou (rede, `4xx`, `5xx`); em build de dev também sai um `console.warn`. Antes a falha sumia sem
+  sinal.
+- **`ResumableUploadSupersededError`** — o `start()`/`resume()` rejeita com ele (`reason: "principal"`
+  ou `"cleared"`) quando o `getPrincipal` muda ou o `clear()` roda durante o upload.
+
+### Alterado
+
+- **`toCsv` / `downloadCsv` põem entre aspas o texto com o separador do outro locale (#481).** A
+  citação só olhava o delimitador configurado, então com o `,` padrão o valor
+  `x;=HYPERLINK(CHAR(104)&A1)` saía sem aspas — e um Excel pt-BR, que separa em `;`, partiria o
+  campo e veria uma célula começando com `=`. O espelho valia para `a,=1+2` num arquivo com `;`.
+  Agora, com `neutralizeFormulas` ligado (o padrão), texto que tem `,`, `;` ou TAB sai sempre entre
+  aspas, seja qual for o delimitador: `"x;=HYPERLINK(CHAR(104)&A1)"`. Campo entre aspas não é
+  dividido pela planilha, então as aspas fecham o caminho sem tocar o texto; o `'` continua só no
+  início do campo, como na 0.77. Número puro (`-1.234,56`) não ganha aspas pelo outro separador.
+  Saída medida com `toCsv` na `main` e nesta mudança; não havia planilha no ambiente
+  (`which soffice libreoffice localc` vazio), então a leitura pelo Excel/LibreOffice não foi
+  medida. **Migração:** a saída padrão muda só na citação — campo de texto com `,`, `;` ou TAB passa
+  a vir entre aspas, o que é transparente para leitor RFC 4180, e um campo que começa com TAB sai
+  `"'` + TAB + `…"`. Quem importa o arquivo noutro sistema e precisa dos bytes como vieram passa
+  `{ neutralizeFormulas: false }`, que mantém a saída da 0.77 sem mudança.
+
+- **`createTempestAuth` em modo cookie: a sessão não volta mais sozinha por uma request anônima**
+  (#474). Com `withCredentials: true` e o store vazio (`storage: "session"` numa aba nova, storage
+  limpo, primeiro carregamento depois de um logout), a primeira request que voltava 401 renovava pelo
+  cookie e restaurava a sessão; agora ela só rejeita. **Migração:** chame `auth.refresh()` no boot.
+  Uma request sem token que volta 401 enquanto esse refresh está em voo entra nele e é repetida, e um
+  401 sem sessão não roda `onSessionEnd`, não navega e não supera o refresh do boot — antes, o
+  `finish("expired")` sem sessão avançava a época e jogava fora o refresh do boot.
+- **`logoutPath`: revogações sobrepostas e o login em voo.** O `login()` espera **todas** as
+  revogações pendentes, não só a última, e no máximo 10 s (`LOGOUT_REVOCATION_WAIT_MS`, interno): uma
+  revogação que nunca volta atrasa o login em vez de travá-lo. No modo cookie, a revogação espera
+  (no mesmo limite) as respostas de login/refresh em voo quando o `logout()` rodou, porque é a
+  resposta que grava o cookie da sessão encerrada; no modo corpo, o refresh token de uma resposta
+  superada é revogado à parte.
+- **`createResumableUpload` relê o `getPrincipal` antes de cada chunk e de cada gravação do registro**
+  (#479): com a conta trocada no meio do run, o run para com `ResumableUploadSupersededError` antes de
+  o token novo ir para a URL de upload da conta anterior (medido antes: os `PATCH` seguintes saíam
+  com `Bearer tok-B`). Um `clear()` no meio do run também o para, em vez de o registro ser regravado.
+- **`createLocalUploadStorage().clear()` só apaga valor com formato de registro**: com um prefixo sem
+  delimitador (`"app"`), ele apagava também as chaves do app (`"appSettings"`).
+- **Tetos do `size-limit`** para as correções acima, medidos com `npx size-limit` (commit `e5657a6` ×
+  esta mudança): fatia do upload resumível 4,20 → 4,44 kB (teto 4,25 → 4,45 kB), barrel ESM 145,28 →
+  145,85 kB (teto 145,3 → 145,9) e CJS 172,76 → 173,17 kB (teto 172,85 → 173,2).
+
 ### Corrigido
+
+- **`retry(factory, { retries: 0 })` nunca chamava a `factory` e rejeitava com `undefined`** (#486). O
+  laço era `while (attempt < retries)`, então `0`, qualquer negativo e `NaN` pulavam a tentativa: a
+  request não saía e o erro não dizia nada. Agora a primeira tentativa sempre roda — `0`/negativo fazem
+  uma e repassam o erro dela, `NaN` vale o default, fração arredonda pra baixo. Vale também para
+  `createApiClient({ retry: { retries: 0 } })` e o `retry` do `createResumableUpload`. A semântica
+  **não muda**: `retries` continua sendo o total de tentativas (default 3 = a primeira + 2
+  repetições), que é o que o JSDoc, o `createApiClient`, o upload resumível e o `lazyWithRetry` já
+  contavam; o número de requests com o default e com qualquer `retries >= 1` é o mesmo de antes. O
+  JSDoc e a doc (`http` → "O que `retries` conta") agora dizem isso explicitamente.
+
+- **`tempest gen icons` volta a funcionar no pacote instalado** (#485). O bin importava o barril
+  `dist/icons.js` para ler as tabelas de slug, e o barril alcança o `.css` do `<IconPicker>` desde o
+  CSS por componente (0.63.0): em Node puro, que é como `npx tempest` roda, o import morria com
+  `ERR_UNKNOWN_FILE_EXTENSION ".css"` e o comando saía com "Could not read the icon tables" em todo
+  app (reproduzido com `npm pack` + install num app limpo). Agora o CLI importa só os dois módulos
+  de dados (`dist/icons/generated/icon-names.js` e `aliases.js`), que não importam nada — em vez de
+  registrar o `/node-css-loader` no processo inteiro e ainda carregar React e o grafo de componentes
+  para ler duas listas. Três guardas novos: um teste que chama `loadIconTables` num `node` filho sem
+  loader, o `check-dist-guards` (roda em Node puro após todo build) chamando o mesmo
+  `loadIconTables` contra o `dist` real, e `scripts/smoke-cli.sh`, que roda `tempest gen icons`
+  contra o tarball no CI e no job de smoke do release. `doctor`, `lint`, `gen api` e
+  `gen component` não importam `dist/` e rodaram limpos em Node puro contra o tarball.
+
+- **`release-npm.yml` — o `latest` do npm não anda mais para trás** (#472). O
+  `scripts/check-release-ref.sh` mandava toda versão estável para `latest`; medido num repo git de
+  fixture, uma tag `v0.75.1` com o registry em `0.77.0` saía com `dist_tag=latest`, e um backport viraria
+  o default de todo `npm install`. A regra agora mora em `scripts/release-dist-tag.sh`: versão maior ou
+  igual ao `latest` do registry (igual só no re-run) vai para `latest`, prerelease continua em `next`, e
+  versão menor vai para `release-<major>.<minor>` (`v0.75.1` → `release-0.75`). O nome não é `v0.75`
+  porque o npm 12.2.0 recusa dist-tag que seja range semver (`Tag name must not be a valid SemVer
+range: v0.75`, medido). O `latest` é lido de `npm view <pkg> dist-tags --json` (o caminho
+  `dist-tags.release-0.75` volta sempre vazio no `npm view`); só `E404` conta como pacote novo, e resposta
+  vazia, pacote sem `latest` ou `CURRENT_LATEST` ausente reprovam a run. O job `publish` relê o
+  `latest` e escolhe o dist-tag de novo imediatamente antes do upload, e o workflow passa a rodar um
+  release por vez (`concurrency` de grupo único `release-npm`). O read-back espera o dist-tag escolhido,
+  só quando a run fez o upload. O GitHub Release é criado com `--latest` só quando o `latest` do
+  registry é a versão (`--latest=false` no resto); Release existente não tem o flag alterado. Backport
+  precisa ter este workflow na branch: o tag push roda o `release-npm.yml` do commit da tag. Publicar
+  de commit fora da `main` segue dependendo do revisor obrigatório no environment `npm-release` e do
+  vínculo do Trusted Publisher — configuração externa, documentada em `docs/release.md`.
+
+- **`tempestCsp` não abre mais um `connect-src` que o app bloqueou com `'NONE'` ou lista vazia
+  (#482).** A checagem de bloqueio comparava com o literal `'none'` em minúsculas e exigia
+  exatamente um item, mas palavra-chave de CSP não diferencia maiúsculas e lista vazia também não
+  casa nada (CSP3 §6.7.2.5). Medido antes, com `connect: ["https://api.example.com"]`:
+  `connect-src 'NONE'` virava `connect-src 'NONE' https://api.example.com wss://api.example.com`,
+  `connect-src` vazio virava `connect-src https://api.example.com wss://api.example.com`, e
+  `default-src 'NONE'` ganhava um `connect-src` com as origens — nenhum com aviso. Agora os três
+  ficam como escritos e o build avisa cada origem deixada de fora. As outras comparações de
+  palavra-chave do plugin também passaram a ignorar a caixa: `'UNSAFE-INLINE'` e `'SHA256-…'`
+  declarados não geram mais aviso falso de `<script>` inline bloqueado, e um
+  `directives: { "style-src": ["'UNSAFE-INLINE'"] }` não recebe mais hashes de `<style>` (com
+  hash presente, o browser ignora o `'unsafe-inline'`). Teste:
+  `npx vitest run src/vite/tempest-csp.test.ts -t "482"`.
+- **`parsePixPayload` recusa tag 63 que não é a última e tag 00 que não é a primeira (#475).** O
+  parser só conferia os 8 caracteres finais como `6304` + CRC e tratava uma tag 63 anterior como
+  campo comum. Medido antes: `pixPayload(...)` + `540599.99` + `6304` + CRC era aceito com
+  `amount: 99.99` e `crcValid: true`, o mesmo texto cortado no primeiro CRC também era válido e
+  sem valor, e uma tag 63 interna com CRC `0000` também passava — duas leituras do mesmo payload,
+  justamente o que o leitor promete recusar. Agora qualquer campo raiz com id `63` lança
+  `PixError`, assim como uma raiz que não começa pela tag `00`: o EMV® QRCPS-MPM, que o manual do
+  BR Code do Bacen segue, fixa a `00` como primeiro objeto e a `63` como último. Payload emitido
+  por PSP conforme não muda. Teste: `npx vitest run src/br/pix.test.ts -t "475"`.
+
+- **`tempest fix` não reescreve mais arquivo fora do projeto através de symlink.** Achado na
+  varredura das escritas da CLI ao fechar #483/#484: com `src` plantado como symlink para outra
+  pasta, a passada de alias seguia o link (o `readdirSync` da base segue) e convertia os imports
+  `../` dos arquivos de lá para `@/` (reproduzido em dir temporário: `import { b } from "../b"`
+  virou `"@/b"` no arquivo de fora). A passada de CSS fazia o mesmo com um alvo explícito que é
+  link (`tempest fix src`). As duas agora deixam de fora todo arquivo cujo `realpath` cai fora do
+  projeto, e cada passada imprime quantos pulou, numa linha
+  `! N arquivo(s) fora do projeto (symlink) — pulados`. A checagem `landsInside` sai do `tempest.mjs` para `bin/lib/fs/contain.mjs`, onde os
+  geradores e as passadas do `fix` a compartilham.
+
+- **`tempest fix --extract-css` não acrescenta mais através de uma folha global que é symlink**
+  (#483). A folha alvo era escolhida com `existsSync` e escrita com `writeFileSync`, ambos seguindo
+  link: com `src/index.css` apontando para um rc de shell fora do projeto (e importado pelo
+  `main.tsx`), a regra extraída ia para o rc, e um valor de custom property com quebra de linha
+  virava uma linha que o shell executava (reproduzido em dir temporário). Agora a folha só é aceita
+  se o `lstat` disser arquivo comum (symlink no próprio arquivo, pendente inclusive, é recusado) e
+  o `realpath` dela cair dentro do `realpath` da raiz — ancestral symlink para fora é recusado, e
+  pasta symlink que fica no projeto (monorepo com `src -> app/src`) é aceita, a mesma regra dos
+  geradores. Os importadores são comparados pelo `realpath`. Declaração com terminador de linha
+  (`\n`, `\r`, `\f`, U+2028, U+2029) no nome ou no valor é recusada com o motivo, como as outras
+  recusas da passada.
+
+- **`tempest gen api` e `tempest gen icons` não escrevem mais através de symlink nem fora do projeto**
+  (#484). Com `src/api` ou `src/icons.generated.ts` plantados como symlink num repo clonado, o
+  `gen api` criava os 5 arquivos gerados na pasta apontada e o `gen icons` sobrescrevia o arquivo
+  apontado, ambos com exit 0 (reproduzido em dir temporário com `src/api -> <fora>`). Os dois agora
+  usam a mesma checagem do `gen component`, extraída para um helper único: antes da primeira
+  escrita, o `--out`, cada pasta de grupo e cada arquivo são recusados se forem symlink (inclusive
+  pendente), se existirem com o tipo errado ou se caírem fora do projeto depois de resolver
+  symlinks. Ancestral que é symlink pendente agora conta como fora do projeto.
+
+- **`createTempestAuth` — em modo refresh por cookie, um 401 anônimo depois do `logout()` não loga A de
+  novo** (#474). Um 401 de request que saiu sem token chegava ao refresh com token nulo, e o refresh ia com o cookie HttpOnly que o `logout()` não alcança: medido com um backend cujo cookie
+  continua válido, `logout()` → `auth.api.get("/api/me")` → 401 → refresh → `isAuthenticated: true`
+  com o token de A, e a repetição devolvia o `/me` de A. Agora, sem sessão instalada (sem access
+  token, sem refresh token guardado e sem `login()` em curso), esse 401 só rejeita. Restaurar a sessão
+  pelo cookie no boot continua funcionando por `auth.refresh()` explícito — quem dependia de uma
+  request anônima para restaurar passa a chamar `refresh()` (`src/auth/create-tempest-auth.cookie.test.ts`).
+  Custo, medido com `npx size-limit` (`main` d39027c × esta mudança): barrel ESM 144,97 → 145,09 kB e
+  CJS 172,46 → 172,58 kB; os tetos sobem para 145,1 / 172,6 kB.
+
+- **`createTempestAuth` — o `/me` que resolve depois do `logout()` não grava mais o perfil no store**
+  (#473). O `login()` instalava o token e esperava o `GET mePath` sem conferir a época da sessão:
+  medido com o `/me` de A segurado, `logout()` deixava `{ token: null, user: A }` persistido, e
+  `logout()` + `login(B)` deixava `{ token: "tok-B", user: A }` — a UI mostrava A enquanto as
+  requests saíam como B, e o `login(A)` superado resolvia com A. Agora o `/me` fica preso à época em
+  que saiu, no sucesso e na falha: se ela mudou, o perfil é descartado e o `login()` rejeita com
+  `SessionSupersededError` (`src/auth/create-tempest-auth.races.test.ts`, três testes que falhavam
+  na `main`).
 
 - **`CodeBlock` apara o espaço final em tempo linear (#476).** O
   `code.replace(/\s+$/, "")` era quadrático: num código com uma corrida longa de espaços
@@ -91,6 +303,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   **144,97 kB**) e no build desta branch (CJS **172,62 kB**, ESM **145,13 kB**) em 12/10/2026, o
   CJS sobe ~0,16 kB e o ESM ~0,16 kB — as regras de CSS do #477 (propriedade inteira + guard de
   seletor) respondem pela maior parte. Os tetos sobem para manter folga sobre o valor medido.
+
 
 ## [0.77.0] — 2026-10-12
 

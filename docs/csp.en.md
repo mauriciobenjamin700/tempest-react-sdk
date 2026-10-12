@@ -212,7 +212,7 @@ falls into one of these rows:
 | The directive in your `<meta>` | What the plugin emits | Example |
 | --- | --- | --- |
 | declared | **exactly as written**; sources in `directives` for it are **not** added and become a build warning; `false` in `directives` removes it (removing is your explicit choice) | `script-src 'self'` stays `script-src 'self'`, no hash, no `'wasm-unsafe-eval'` |
-| `connect-src` declared | your value **+** the resolved origins; with `'none'` (declared or inherited from `default-src`), nothing is added and the build warns about each origin left out | `connect-src 'self'` → `connect-src 'self' https://api.example.com` |
+| `connect-src` declared | your value **+** the resolved origins; with a list that matches nothing — `'none'` in any letter case (`'NONE'` too) or an empty one —, declared or inherited from `default-src`, nothing is added and the build warns about each origin left out | `connect-src 'self'` → `connect-src 'self' https://api.example.com` |
 | not declared, but inherited through the CSP3 fallback chain (`img-src` → `default-src`; `worker-src` → `child-src` → `script-src` → `default-src`) | **nothing** — it keeps falling back to the inherited value | with `default-src 'none'`, no `img-src 'self' data: blob:` appears |
 | `connect-src` inherited | the inherited value **+** the resolved origins; nothing when there is no origin | `default-src 'self'` → `connect-src 'self' https://api.example.com` |
 | inherited, with sources in `directives` | the inherited value **+** the `directives` sources | `default-src 'self'` + `{ "img-src": ["https://tiles.example.com"] }` → `img-src 'self' https://tiles.example.com` |

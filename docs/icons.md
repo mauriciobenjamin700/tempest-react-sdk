@@ -445,6 +445,11 @@ Re-rode depois de adicionar ícones novos. Um slug que o scan não vê (nome mon
 por concatenação, por exemplo) continua funcionando pelo shard — só não ganha o
 caminho estático.
 
+O arquivo de saída e a pasta dele não podem ser symlink (nem pendente) nem ficar
+fora do projeto: o `gen icons` recusa antes de escrever, então um
+`src/icons.generated.ts` que é link num repo clonado não sobrescreve o arquivo
+para onde aponta.
+
 ## Seletor de ícone pronto
 
 Todo painel que deixa alguém escolher um ícone reescrevia a mesma tela: filtrar a

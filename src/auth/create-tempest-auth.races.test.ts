@@ -213,6 +213,97 @@ describe("createTempestAuth — session races", () => {
         expect(unhandled).toEqual([boom]);
     });
 
+    /**
+     * A backend keyed on the login email whose `/me` for account A waits on a
+     * gate, so the test can move the session while A's profile is in flight.
+     *
+     * @param held - The gate A's `/me` waits on.
+     * @returns The mocked fetcher.
+     */
+    function meFetcher(held: { wait: Promise<void> }): typeof fetch {
+        return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+            const url = String(input);
+            if (url.endsWith("/api/auth/login")) {
+                const who = emailOf(init) === "b@x.test" ? "B" : "A";
+                return jsonResponse({ access_token: `${who}-tok-1` });
+            }
+            if (url.endsWith("/api/auth/me")) {
+                const token = bearerOf(init);
+                if (token === "A-tok-1") {
+                    await held.wait;
+                    return jsonResponse({ id: "A" });
+                }
+                return jsonResponse({ id: token === "B-tok-1" ? "B" : "?" });
+            }
+            return jsonResponse({}, 404);
+        }) as unknown as typeof fetch;
+    }
+
+    it("discards A's profile when logout() ends the session while A's /me is in flight", async () => {
+        const held = gate();
+        const auth = createTempestAuth<User>({
+            baseURL: "https://api.example.test",
+            mePath: "/api/auth/me",
+            fetcher: meFetcher(held),
+        });
+
+        const signingIn = auth.login({ email: "a@x.test", password: "x" });
+        await tick();
+        await auth.logout();
+        held.open();
+
+        await expect(signingIn).rejects.toBeInstanceOf(SessionSupersededError);
+        expect(auth.useAuthStore.getState().user).toBeNull();
+        expect(JSON.parse(localStorage.getItem("tempest-auth") ?? "{}").state?.user).toBeNull();
+    });
+
+    it("keeps B's profile when A's /me resolves after logout() and login(B)", async () => {
+        const held = gate();
+        const auth = createTempestAuth<User>({
+            baseURL: "https://api.example.test",
+            mePath: "/api/auth/me",
+            fetcher: meFetcher(held),
+        });
+
+        const signingIn = auth.login({ email: "a@x.test", password: "x" });
+        await tick();
+        await auth.logout();
+        await expect(auth.login({ email: "b@x.test", password: "x" })).resolves.toEqual({
+            id: "B",
+        });
+        held.open();
+
+        await expect(signingIn).rejects.toBeInstanceOf(SessionSupersededError);
+        expect(auth.getToken()).toBe("B-tok-1");
+        expect(auth.useAuthStore.getState().user).toEqual({ id: "B" });
+        expect(JSON.parse(localStorage.getItem("tempest-auth") ?? "{}").state?.user).toEqual({
+            id: "B",
+        });
+    });
+
+    it("rejects as superseded when A's /me fails after the session moved", async () => {
+        const held = gate();
+        const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+            const url = String(input);
+            if (url.endsWith("/api/auth/login")) return jsonResponse({ access_token: "A-tok-1" });
+            await held.wait;
+            return jsonResponse({ detail: "boom" }, 500);
+        });
+        const auth = createTempestAuth<User>({
+            baseURL: "https://api.example.test",
+            mePath: "/api/auth/me",
+            fetcher,
+        });
+
+        const signingIn = auth.login({ email: "a@x.test", password: "x" });
+        await tick();
+        await auth.logout();
+        held.open();
+
+        await expect(signingIn).rejects.toBeInstanceOf(SessionSupersededError);
+        expect(auth.useAuthStore.getState().user).toBeNull();
+    });
+
     it("does not refresh or end B's session for a tokenless request that fails after B signed in", async () => {
         const held = gate();
         const onSessionEnd = vi.fn();

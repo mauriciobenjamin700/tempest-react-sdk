@@ -146,8 +146,8 @@ provideBackgroundSyncCredentials(
 );
 ```
 
-!!! warning "Without a provider, authenticated mutations are not replayed"
-    The queue does not keep the token, so only the page can hand it back. Without `provideBackgroundSyncCredentials`, the entry stays pending until `maxRetentionMinutes` and is gone. In development builds the worker warns in the console (once per replay).
+!!! warning "Without a provider, no mutation is replayed"
+    The queue does not keep the token, so only the page can hand it back — and only the page can say who is signed in. Without `provideBackgroundSyncCredentials`, the tab does not answer, the entry's owner is **unknown**, and it stays pending until `maxRetentionMinutes` and is gone, whether or not it carried a credential header. In development builds the worker warns in the console (once per replay). A cookie-session API with no token installs the provider all the same: `provideBackgroundSyncCredentials(() => null, { getPrincipal })`. An app with no sign-in at all uses [`ownerPolicy: "lenient"`](#ownerpolicy-an-app-without-sign-in).
 
 #### Every entry has an owner
 
@@ -159,7 +159,7 @@ The owner is in one of three states:
 | -- | -- | -- |
 | **owned** | the tab answered with `getPrincipal` | only goes out with the answer of a tab where the **same** owner is signed in; none matches → dropped |
 | **unowned** | the tab answered without `getPrincipal` | any answer will do (preferring one without a principal) |
-| **unknown** | nobody answered, `getPrincipal` threw, the tab was gone, or the entry predates 0.77 | **fails closed**: only goes out with the answer of a tab without a principal; every tab has one → dropped |
+| **unknown** | nobody answered, `getPrincipal` threw, the tab was gone (or there was none), the stamp was lost past the 6 s, or the entry predates 0.77 | **fails closed**, with or without a credential header: only goes out when **every** tab that answered lacks a principal; a single tab with one → dropped; no answer → stays pending |
 
 On replay the worker asks **every** tab in parallel, under one 3 s deadline, and uses the answer that fits — another account's tab answering first no longer drops A's mutation. Then:
 
@@ -170,22 +170,42 @@ On replay the worker asks **every** tab in parallel, under one 3 s deadline, and
 | `null` (no session) | dropped, unsent |
 | no valid answer | stays pending until `maxRetentionMinutes` |
 
-An entry with no credential and no owner is replayed as it was, without asking. A provider error (`getHeaders` or `getPrincipal` throwing) comes back as an explicit `{ error: true }`, never as silence.
+Only an **unowned** entry with no credential header is replayed as it was, without asking. An entry whose owner is **unknown** asks even without a header: on a cookie-session API (`credentials: "include"`), the browser attaches on replay the cookie of whoever is signed in at that moment, so replaying unchecked would send A's mutation with B's session (as it did up to 0.77.0; `ownerPolicy: "lenient"` restores that, see below). And a tab without `getPrincipal` — say, still running the bundle from before the deploy — does not authorize the replay when another tab answers with a principal: it says nothing about the cookie that rides along. A provider error (`getHeaders` or `getPrincipal` throwing) comes back as an explicit `{ error: true }`, never as silence.
 
 Measured in Chromium 153 (11/10/2026), with a real service worker, IndexedDB and two tabs: A queues offline, B signs in without clearing anything, the sync fires — the server receives no POST; with B's tab open next to it, A's mutation goes out with A's refreshed token.
 
 There is one replay per queue: `sync`, `periodicsync` and the Safari fallback firing together share the same pass, so a mutation is never sent twice. And `clearBackgroundSyncQueue()` reaches work in flight: each entry is checked against the database right before it goes out, and a request still failing when the queue was cleared is not written afterwards.
 
-Outside that path, `installBackgroundSync` has two knobs:
+Outside that path, `installBackgroundSync` has three knobs:
 
 - **`credentialHeaders`** — the list of headers removed. For a custom one: `[...DEFAULT_CREDENTIAL_HEADERS, "x-tenant-key"]`. The provider must return all of them.
 - **`beforeReplay(request, { queuedAt, strippedHeaders, ownerState, owner })`** — replaces the request to the pages: return the `Request` to send, `null` to drop, or throw to keep it pending. Useful when the worker can get the credential by itself; `ownerState`/`owner` let it apply the same owner rule.
+- **`ownerPolicy`** — `"strict"` (default) or `"lenient"`; see [`ownerPolicy`: an app without sign-in](#ownerpolicy-an-app-without-sign-in).
 
 !!! warning "Limit: credentials in the URL or the body"
     Only **headers** leave the queue. A token in the query string (`?access_token=…`) or inside the mutation body is stored as sent. Send credentials in a header.
 
 !!! warning "`credentialHeaders: []` brings the old behavior back"
     With an empty list, every header — bearer included — goes to IndexedDB in plain text and is replayed as stored. It is an explicit choice, for apps with no open page at replay time that accept the risk.
+
+#### `ownerPolicy`: an app without sign-in
+
+The default is `ownerPolicy: "strict"`. An app **without sign-in**, where no page reports a principal and there is no provider, can go back to the unchecked replay of 0.77.0 with `ownerPolicy: "lenient"`:
+
+```ts
+import { installBackgroundSync } from "tempest-react-sdk/sw";
+
+installBackgroundSync({ match: /\/api\//, ownerPolicy: "lenient" });
+```
+
+| Entry | `"strict"` (default) | `"lenient"` |
+| -- | -- | -- |
+| **unknown** owner, no credential header | asks the pages: replayed only if every answer lacks a principal, dropped if any has one, pending with no answer | replayed as it was, without asking |
+| **unknown** owner, credential header stripped | asks the pages (same rule) | asks the pages (same rule) |
+| **owned** / **unowned** | same in both modes | same in both modes |
+
+!!! danger "`lenient` is not for a cookie session"
+    On replay the browser attaches the cookie of whoever is signed in at that moment. Under `"lenient"`, A's mutation whose owner was never stamped (tab closed, empty `clientId`, stamp lost, old entry) goes out with B's session. With cookies, stay on `"strict"` and install the provider with `getPrincipal`. A custom `beforeReplay` ignores the option.
 
 ## 4. Durability: request persistent storage
 
@@ -246,7 +266,7 @@ It deletes **every** Cache Storage bucket except the app-shell precache (`tempes
 Why not a prefix: before 0.77.0 the docs said `clearCaches("tempest-")` on logout, and the recipe named the cache `api` — the prefix did not match and **nothing** was deleted. Worse, it would match `tempest-precache-*` and break the app offline. The default filter inverts the logic, so it works whatever `cacheName` you chose. To narrow it, pass `caches` (a `CacheFilter`); for a queue with another name, `queueName`. Just the queue: `clearBackgroundSyncQueue()`.
 
 !!! tip "It runs in the page"
-    Cache Storage and IndexedDB are origin storage, reachable from `window` — no message to the service worker needed. If your auth exposes an end-of-session callback, call `clearSessionData()` there too, to cover a session that expires on its own. With `getPrincipal` on the provider, the queue no longer depends on it to keep its owner — the runtime cache still does.
+    Cache Storage and IndexedDB are origin storage, reachable from `window` — no message to the service worker needed. If your auth exposes an end-of-session callback, call `clearSessionData()` there too, to cover a session that expires on its own. With `getPrincipal` on the provider and the token in a header, the queue no longer depends on it to keep its owner — the runtime cache still does. With a cookie session, the owner check trusts that each tab's `getPrincipal` reflects the cookie the browser will send; a tab with stale state (A still in memory while B signed in on another tab) authorizes the replay with B's cookie. So, with cookies, call `clearSessionData()` on logout even when using `getPrincipal`.
 
 ## 7. Offline status UI
 

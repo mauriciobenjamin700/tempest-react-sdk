@@ -690,3 +690,32 @@ describe("pixPayload — accents in free text are stripped, a key with one is re
         ).toThrow(PixError);
     });
 });
+
+describe("parsePixPayload — tag 00 opens and tag 63 closes the frame (#475)", () => {
+    const base = pixPayload({
+        key: "12345678909",
+        merchantName: "Loja Tempest",
+        merchantCity: "Sao Paulo",
+    });
+    const sealed = (body: string): string => body + pixCrc16(body);
+
+    it("rejects a tag 63 before the end with a valid inner CRC, where it used to read the tail's amount", () => {
+        const smuggled = sealed(`${base}540599.996304`);
+        const prefix = smuggled.slice(0, smuggled.indexOf("6304") + 8);
+        expect(parsePixPayload(prefix).amount).toBeUndefined();
+        expect(() => parsePixPayload(smuggled)).toThrow(PixError);
+        expect(() => parsePixPayload(smuggled)).toThrow(/tag 63 .*last/i);
+    });
+
+    it("rejects a tag 63 before the end with a wrong inner CRC (0000)", () => {
+        const smuggled = sealed(`${base.slice(0, -4)}0000540599.996304`);
+        expect(() => parsePixPayload(smuggled)).toThrow(/tag 63 .*last/i);
+        expect(() => parsePixPayload(smuggled, { requireCrc: false })).toThrow(/tag 63 .*last/i);
+    });
+
+    it("rejects a payload whose first tag is not 00, the Payload Format Indicator", () => {
+        const moved = sealed(crafted().slice(6, -4).replace("5204", "0002015204"));
+        expect(() => parsePixPayload(moved)).toThrow(/tag 00 .*first/i);
+        expect(() => parsePixPayload(sealed(crafted().slice(6, -4)))).toThrow(/tag 00 .*first/i);
+    });
+});

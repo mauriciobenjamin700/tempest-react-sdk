@@ -210,7 +210,7 @@ diretiva cai numa destas linhas:
 | A diretiva no seu `<meta>` | O que o plugin emite | Exemplo |
 | --- | --- | --- |
 | declarada | **exatamente como está**; fontes em `directives` para ela **não** entram e viram aviso no build; `false` em `directives` a remove (remover é escolha explícita sua) | `script-src 'self'` continua `script-src 'self'`, sem hash nem `'wasm-unsafe-eval'` |
-| `connect-src` declarado | o seu valor **+** as origens resolvidas; com `'none'` (declarado ou herdado do `default-src`), nada entra e o build avisa cada origem que ficou de fora | `connect-src 'self'` → `connect-src 'self' https://api.example.com` |
+| `connect-src` declarado | o seu valor **+** as origens resolvidas; com uma lista que não casa nada — `'none'` em qualquer caixa (`'NONE'` também) ou vazia —, declarada ou herdada do `default-src`, nada entra e o build avisa cada origem que ficou de fora | `connect-src 'self'` → `connect-src 'self' https://api.example.com` |
 | não declarada, mas herdada pela cadeia de fallback do CSP3 (`img-src` → `default-src`; `worker-src` → `child-src` → `script-src` → `default-src`) | **nada** — ela continua caindo no valor herdado | com `default-src 'none'`, nenhum `img-src 'self' data: blob:` aparece |
 | `connect-src` herdado | o valor herdado **+** as origens resolvidas; nada, se não há origem | `default-src 'self'` → `connect-src 'self' https://api.example.com` |
 | herdada, com fontes em `directives` | o valor herdado **+** as fontes de `directives` | `default-src 'self'` + `{ "img-src": ["https://tiles.example.com"] }` → `img-src 'self' https://tiles.example.com` |

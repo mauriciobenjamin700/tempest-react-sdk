@@ -1,4 +1,4 @@
-import { appErrorOwner } from "./app-error-owner";
+import { ownerFingerprint } from "@/utils/owner-fingerprint";
 import { createAppErrorQueue } from "./app-error-queue";
 import type { AppErrorQueueEntry, AppErrorQueueStorage, AppErrorStamp } from "./app-error-queue";
 import { fitAppErrorReport } from "./app-error-schema";
@@ -181,7 +181,7 @@ function readDevice(device: CreateAppErrorReporterOptions["device"]): AppErrorDe
  */
 function principalOwner(getPrincipal: () => unknown): string | null {
     try {
-        return appErrorOwner("p", getPrincipal());
+        return ownerFingerprint("p", getPrincipal());
     } catch {
         return null;
     }
@@ -200,9 +200,9 @@ function stampNow(
 ): AppErrorStamp | Promise<AppErrorStamp> {
     const owner = getPrincipal ? { owner: principalOwner(getPrincipal) } : {};
     if (typeof token === "string" || token === null) {
-        return { session: appErrorOwner("t", token), ...owner };
+        return { session: ownerFingerprint("t", token), ...owner };
     }
-    return token.then((value) => ({ session: appErrorOwner("t", value), ...owner }));
+    return token.then((value) => ({ session: ownerFingerprint("t", value), ...owner }));
 }
 
 /**
@@ -263,7 +263,7 @@ export function createAppErrorReporter(options: CreateAppErrorReporterOptions): 
         const send = options.fetch ?? globalThis.fetch.bind(globalThis);
         await Promise.all(stamping);
         const token = await readToken(getToken);
-        const session = appErrorOwner("t", token);
+        const session = ownerFingerprint("t", token);
         const current = getPrincipal ? principalOwner(getPrincipal) : null;
         const started = generation;
         const result: AppErrorFlushResult = { sent: 0, dropped: 0, pending: 0, retryAfterMs: null };

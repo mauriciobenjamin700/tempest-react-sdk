@@ -68,12 +68,26 @@ function getSwScope(): BgSwGlobal {
  *   the entry only goes out while the same one is signed in.
  * - `"unbound"`: the issuing page answered without `getPrincipal`.
  * - `"unknown"`: nobody could say — no issuing tab, no answer, an error, or an
- *   entry written before owners existed. Fails closed.
+ *   entry written before owners existed. Fails closed, with or without stripped
+ *   credentials: a cookie session rides along on the replay, so an entry with no
+ *   credential header is checked like any other.
  *
  * While the worker is still asking, the stored state is `"pending"`, which a
  * replay never sees: it waits, then reads a stamp that never came as `"unknown"`.
  */
 export type BackgroundSyncOwnerState = "bound" | "unbound" | "unknown";
+
+/**
+ * How the default `beforeReplay` treats an `"unknown"` owner on an entry that
+ * carried no credential header:
+ * - `"strict"` (default): it asks the open pages like any other entry — replayed
+ *   only when every answer lacks a principal, dropped as soon as one answer has
+ *   one, pending while nobody answers.
+ * - `"lenient"`: it is replayed as-is, without asking (the behavior up to 0.77.0).
+ *
+ * An entry with stripped credentials always asks, under either policy.
+ */
+export type BackgroundSyncOwnerPolicy = "strict" | "lenient";
 
 /** A serialized request stored in the queue. */
 interface QueuedRequest {
@@ -204,19 +218,40 @@ export interface InstallBackgroundSyncOptions {
      * The context carries the entry's owner, so a custom hook can apply the
      * same rule as the default.
      *
-     * Default: an entry with no stripped credentials and no bound owner is
-     * replayed as-is. The others ask every open window client in parallel (see
-     * {@link provideBackgroundSyncCredentials}) and pick the answer that fits:
+     * Default: only an `"unbound"` entry with no stripped credentials (and, under
+     * `ownerPolicy: "lenient"`, an `"unknown"` one) is replayed as-is, without
+     * asking. Every other entry — credentialed or not —
+     * asks every open window client in parallel (see
+     * {@link provideBackgroundSyncCredentials}) and picks the answer that fits:
      * - `"bound"`: the answer whose owner matches; none among valid answers →
      *   dropped, never sent anonymously or as somebody else;
-     * - `"unknown"`: only an answer without a principal (an app that does not use
-     *   `getPrincipal`); every answer has one → dropped;
+     * - `"unknown"`: only when every answer lacks a principal (an app that does
+     *   not use `getPrincipal`); a single answer with one → dropped, since a
+     *   stale tab without `getPrincipal` says nothing about who is signed in
+     *   next to it. This holds for an entry
+     *   with no credential header too, since the browser attaches the cookies of
+     *   whoever is signed in at replay time;
      * - `"unbound"`: any answer, preferring one without a principal.
      * Then `null` headers drop a credentialed entry, an answer that lacks one of
      * the stripped headers keeps it pending, and only the stripped names are
      * re-applied. No valid answer at all keeps it pending until
-     * `maxRetentionMinutes` (and warns once per replay in development builds).
+     * `maxRetentionMinutes` (and warns once per replay in development builds) —
+     * so a page that never calls {@link provideBackgroundSyncCredentials} leaves
+     * every entry it queued `"unknown"`, and none of them is replayed.
      */
+    /**
+     * How an `"unknown"` owner is handled on an entry with no stripped
+     * credentials (see {@link BackgroundSyncOwnerPolicy}). Default `"strict"`.
+     *
+     * `"lenient"` restores the replay-as-is of 0.77.0 and earlier for an app without sign-in,
+     * where no page ever reports a principal. Do not use it with a cookie
+     * session: the browser attaches on replay the cookie of whoever is signed in
+     * at that moment, so a mutation queued by A whose owner was never stamped
+     * (issuing tab closed, empty `clientId`, stamp lost, legacy entry) goes out
+     * with B's session. Entries with stripped credentials ask the pages either
+     * way. Ignored when a custom `beforeReplay` is given.
+     */
+    ownerPolicy?: BackgroundSyncOwnerPolicy;
     beforeReplay?: (
         request: Request,
         context: BackgroundSyncReplayContext,
@@ -536,15 +571,23 @@ function createReplayRun(sw: BgSwGlobal): ReplayRun {
             if (warned || !isDevBuild()) return;
             warned = true;
             console.warn(
-                "[tempest-react-sdk/sw] background-sync: a queued request needs the current " +
-                    "credentials, and no open page answered. Call " +
+                "[tempest-react-sdk/sw] background-sync: a queued request needs an open page " +
+                    "to confirm who is signed in or to supply the current credentials, and no " +
+                    "open page answered. Call " +
                     "provideBackgroundSyncCredentials() in the page; the entry stays pending.",
             );
         },
     };
 }
 
-/** Pick the answer an entry may be replayed with, per its owner state. */
+/**
+ * Pick the answer an entry may be replayed with, per its owner state.
+ *
+ * An `"unknown"` owner replays only when every valid answer lacks a principal:
+ * one tab reporting a principal (even `null`) is enough to drop it, because a
+ * principal-less answer — say a tab still running a bundle from before the app
+ * adopted `getPrincipal` — says nothing about whose cookie the replay carries.
+ */
 function chooseAnswer(
     answers: readonly ClientAnswer[],
     context: BackgroundSyncReplayContext,
@@ -553,7 +596,7 @@ function chooseAnswer(
         case "bound":
             return answers.find((answer) => answer.hasPrincipal && answer.owner === context.owner);
         case "unknown":
-            return answers.find((answer) => !answer.hasPrincipal);
+            return answers.every((answer) => !answer.hasPrincipal) ? answers[0] : undefined;
         case "unbound":
             return answers.find((answer) => !answer.hasPrincipal) ?? answers[0];
     }
@@ -569,9 +612,13 @@ async function defaultBeforeReplay(
     run: ReplayRun,
     request: Request,
     context: BackgroundSyncReplayContext,
+    ownerPolicy: BackgroundSyncOwnerPolicy,
 ): Promise<Request | null> {
     const credentialed = context.strippedHeaders.length > 0;
-    if (!credentialed && context.ownerState !== "bound") return request;
+    const unchecked =
+        context.ownerState === "unbound" ||
+        (ownerPolicy === "lenient" && context.ownerState === "unknown");
+    if (!credentialed && unchecked) return request;
     const answers = await run.ask(request);
     if (answers.length === 0) {
         run.warnNoAnswer();
@@ -599,6 +646,7 @@ interface ReplayConfig {
     maxRetentionMs: number;
     credentialHeaders: ReadonlySet<string>;
     beforeReplay?: InstallBackgroundSyncOptions["beforeReplay"];
+    ownerPolicy: BackgroundSyncOwnerPolicy;
 }
 
 /**
@@ -612,12 +660,12 @@ interface ReplayConfig {
  * the sync registered.
  */
 async function replayQueue(config: ReplayConfig, now: number): Promise<void> {
-    const { sw, name, maxRetentionMs, credentialHeaders, beforeReplay } = config;
+    const { sw, name, maxRetentionMs, credentialHeaders, beforeReplay, ownerPolicy } = config;
     const run = createReplayRun(sw);
     const prepare =
         beforeReplay ??
         ((request: Request, context: BackgroundSyncReplayContext) =>
-            defaultBeforeReplay(run, request, context));
+            defaultBeforeReplay(run, request, context, ownerPolicy));
     const entries = await readAll(name, credentialHeaders);
     let pending = 0;
 
@@ -743,6 +791,7 @@ export function installBackgroundSync(options: InstallBackgroundSyncOptions = {}
         periodicSyncTag = `${options.queueName ?? DEFAULT_QUEUE_NAME}-periodic`,
         credentialHeaders = DEFAULT_CREDENTIAL_HEADERS,
         beforeReplay,
+        ownerPolicy = "strict",
     } = options;
     const stripped = credentialHeaderSet(credentialHeaders);
     const replay: ReplayConfig = {
@@ -751,6 +800,7 @@ export function installBackgroundSync(options: InstallBackgroundSyncOptions = {}
         maxRetentionMs: maxRetentionMinutes * 60 * 1000,
         credentialHeaders: stripped,
         beforeReplay,
+        ownerPolicy,
     };
 
     sw.addEventListener("fetch", (event) => {

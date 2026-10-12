@@ -12,11 +12,20 @@
 # publicava aquela árvore e o `gh release create` criava a tag na HEAD da branch
 # padrão — outro commit. Com o guard, tag, npm e Release apontam para o mesmo SHA.
 #
-# Lê GITHUB_REF_TYPE, GITHUB_REF_NAME e GITHUB_SHA; escreve tag, version,
-# prerelease e dist_tag em GITHUB_OUTPUT. Prerelease vai para o dist-tag `next`:
-# publicada em `latest`, uma `-rc.1` viraria o default de todo `npm install`. Roda na raiz do checkout, com as tags buscadas.
+# Lê GITHUB_REF_TYPE, GITHUB_REF_NAME, GITHUB_SHA e CURRENT_LATEST; escreve tag,
+# version, prerelease e dist_tag em GITHUB_OUTPUT. Roda na raiz do checkout, com
+# as tags buscadas.
+#
+# O dist-tag é monotônico (#472) e a regra mora em `scripts/release-dist-tag.sh`
+# (`pick`), a mesma que o job publish reaplica logo antes do `npm publish`.
+# CURRENT_LATEST é o `latest` do registry, lido pelo workflow com
+# `release-dist-tag.sh current-latest`; vazio é pacote que ainda não existe.
+# Precisa estar definida, mesmo vazia: ausente, o guard falha em vez de assumir
+# pacote novo e mandar qualquer versão para `latest`.
 
 set -euo pipefail
+
+DIST_TAG_SCRIPT="$(dirname "$0")/release-dist-tag.sh"
 
 PKG_VERSION=$(node -p "require('./package.json').version")
 
@@ -42,12 +51,26 @@ if [ "$TAG_COMMIT" != "${GITHUB_SHA:-}" ]; then
     exit 1
 fi
 
+if [ -z "${CURRENT_LATEST+set}" ]; then
+    echo "::error::CURRENT_LATEST is not set. Pass the registry's dist-tags.latest (empty when the package has none) so a backport cannot move latest backwards."
+    exit 1
+fi
+case "$PKG_VERSION" in
+    *-*) PRERELEASE=true ;;
+    *) PRERELEASE=false ;;
+esac
+PICK_ERR=$(mktemp)
+DIST_TAG=$(bash "$DIST_TAG_SCRIPT" pick "$PKG_VERSION" "$CURRENT_LATEST" 2> "$PICK_ERR") || {
+    cat "$PICK_ERR"
+    rm -f "$PICK_ERR"
+    exit 1
+}
+rm -f "$PICK_ERR"
+
 {
     echo "tag=${TAG}"
     echo "version=${PKG_VERSION}"
-    case "$PKG_VERSION" in
-        *-*) printf "prerelease=true\ndist_tag=next\n" ;;
-        *) printf "prerelease=false\ndist_tag=latest\n" ;;
-    esac
+    echo "prerelease=${PRERELEASE}"
+    echo "dist_tag=${DIST_TAG}"
 } >> "$GITHUB_OUTPUT"
-echo "✓ ${TAG} == package.json ${PKG_VERSION} @ ${GITHUB_SHA}"
+echo "✓ ${TAG} == package.json ${PKG_VERSION} @ ${GITHUB_SHA} → dist-tag ${DIST_TAG} (registry latest: '${CURRENT_LATEST}')"

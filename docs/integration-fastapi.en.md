@@ -300,7 +300,8 @@ const user = await auth.login({ email, password });
 // single refresh and retries the original call
 const orders = await auth.api.get("/api/orders");
 
-// Logout (clears the session + stored refresh token, then runs onSessionEnd)
+// Logout (clears the session + stored refresh token, then runs onSessionEnd;
+// with logoutPath, also revokes on the server)
 await auth.logout();
 ```
 
@@ -372,6 +373,21 @@ export const auth = createTempestAuth<User>({
     ```
 
     The backend has to mount `CSRFMiddleware` and issue the cookie on a `GET` route before the first write. See [CSRF](./http.md#csrf-a-session-cookie-needs-its-pair).
+
+    The cookie also survives `logout()`, which only clears client state. Pass `logoutPath` so the backend revokes it, and restore the session at boot with `auth.refresh()` — an anonymous 401 with no session installed no longer refreshes on its own. Details in [Auth → Cookie refresh and server-side logout](./auth.en.md#cookie-refresh-and-server-side-logout-logoutpath).
+
+    ```tsx
+    import { createTempestAuth } from "tempest-react-sdk";
+
+    export const auth = createTempestAuth({
+        baseURL: import.meta.env.VITE_API_URL,
+        withCredentials: true,
+        csrf: true,
+        logoutPath: "/api/auth/logout",
+    });
+
+    await auth.refresh().catch(() => undefined);
+    ```
 
 ---
 

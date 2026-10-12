@@ -87,6 +87,37 @@ range: v0.75`, medido). O `latest` é lido de `npm view <pkg> dist-tags --json` 
   BR Code do Bacen segue, fixa a `00` como primeiro objeto e a `63` como último. Payload emitido
   por PSP conforme não muda. Teste: `npx vitest run src/br/pix.test.ts -t "475"`.
 
+- **`tempest fix` não reescreve mais arquivo fora do projeto através de symlink.** Achado na
+  varredura das escritas da CLI ao fechar #483/#484: com `src` plantado como symlink para outra
+  pasta, a passada de alias seguia o link (o `readdirSync` da base segue) e convertia os imports
+  `../` dos arquivos de lá para `@/` (reproduzido em dir temporário: `import { b } from "../b"`
+  virou `"@/b"` no arquivo de fora). A passada de CSS fazia o mesmo com um alvo explícito que é
+  link (`tempest fix src`). As duas agora deixam de fora todo arquivo cujo `realpath` cai fora do
+  projeto, e cada passada imprime quantos pulou, numa linha
+  `! N arquivo(s) fora do projeto (symlink) — pulados`. A checagem `landsInside` sai do `tempest.mjs` para `bin/lib/fs/contain.mjs`, onde os
+  geradores e as passadas do `fix` a compartilham.
+
+- **`tempest fix --extract-css` não acrescenta mais através de uma folha global que é symlink**
+  (#483). A folha alvo era escolhida com `existsSync` e escrita com `writeFileSync`, ambos seguindo
+  link: com `src/index.css` apontando para um rc de shell fora do projeto (e importado pelo
+  `main.tsx`), a regra extraída ia para o rc, e um valor de custom property com quebra de linha
+  virava uma linha que o shell executava (reproduzido em dir temporário). Agora a folha só é aceita
+  se o `lstat` disser arquivo comum (symlink no próprio arquivo, pendente inclusive, é recusado) e
+  o `realpath` dela cair dentro do `realpath` da raiz — ancestral symlink para fora é recusado, e
+  pasta symlink que fica no projeto (monorepo com `src -> app/src`) é aceita, a mesma regra dos
+  geradores. Os importadores são comparados pelo `realpath`. Declaração com terminador de linha
+  (`\n`, `\r`, `\f`, U+2028, U+2029) no nome ou no valor é recusada com o motivo, como as outras
+  recusas da passada.
+
+- **`tempest gen api` e `tempest gen icons` não escrevem mais através de symlink nem fora do projeto**
+  (#484). Com `src/api` ou `src/icons.generated.ts` plantados como symlink num repo clonado, o
+  `gen api` criava os 5 arquivos gerados na pasta apontada e o `gen icons` sobrescrevia o arquivo
+  apontado, ambos com exit 0 (reproduzido em dir temporário com `src/api -> <fora>`). Os dois agora
+  usam a mesma checagem do `gen component`, extraída para um helper único: antes da primeira
+  escrita, o `--out`, cada pasta de grupo e cada arquivo são recusados se forem symlink (inclusive
+  pendente), se existirem com o tipo errado ou se caírem fora do projeto depois de resolver
+  symlinks. Ancestral que é symlink pendente agora conta como fora do projeto.
+
 ## [0.77.0] — 2026-10-12
 
 ### Breaking

@@ -2,6 +2,7 @@
 import { readdirSync, statSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
 
+import { landsInside } from "../fs/contain.mjs";
 import { isInsideBase } from "./specifier.mjs";
 
 const SOURCE_EXTS = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"]);
@@ -40,6 +41,13 @@ function kindOf(path) {
  * the base; a target that is merely *outside* it yields nothing, so
  * `tempest fix e2e` rewrites nothing instead of quietly rewriting `src/`.
  *
+ * A file that resolves outside the project once symlinks are followed is dropped
+ * too: the walk descends into the base with `readdirSync`, which follows a base
+ * that is itself a link (`src -> /elsewhere`), and the codemod would otherwise
+ * rewrite files that are not the project's. Each such file is handed to
+ * `onOutside`, so the caller can say how many it left alone instead of skipping
+ * them in silence.
+ *
  * Results are sorted so the report — and any diff a reviewer reads — is stable
  * across runs and platforms.
  *
@@ -47,15 +55,24 @@ function kindOf(path) {
  * @param {string} params.root - Project root; relative targets resolve against it.
  * @param {string[]} params.targets - Positional paths from the command line.
  * @param {string} params.baseDir - Absolute alias base directory.
+ * @param {(path: string) => void} [params.onOutside] - Called once per file left
+ *   out because it resolves outside the project.
  * @returns {Array<{ path: string, kind: "source" | "style" }>}
  */
-export function collectFiles({ root, targets, baseDir }) {
+export function collectFiles({ root, targets, baseDir, onOutside = () => {} }) {
     const out = new Map();
+    const outside = new Set();
 
     const addFile = (path) => {
-        if (out.has(path) || !isInsideBase(path, baseDir)) return;
+        if (out.has(path) || outside.has(path) || !isInsideBase(path, baseDir)) return;
         const kind = kindOf(path);
-        if (kind) out.set(path, { path, kind });
+        if (!kind) return;
+        if (!landsInside(root, path)) {
+            outside.add(path);
+            onOutside(path);
+            return;
+        }
+        out.set(path, { path, kind });
     };
 
     const walk = (dir) => {

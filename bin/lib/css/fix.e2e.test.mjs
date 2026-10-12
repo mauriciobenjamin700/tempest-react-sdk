@@ -188,3 +188,53 @@ describe("tempest fix --extract-css", () => {
         expect(readFileSync(join(root, "src/index.css"), "utf8")).not.toContain(".u-row");
     });
 });
+
+describe("tempest fix — files outside the project are skipped out loud", () => {
+    let outside;
+
+    beforeEach(() => {
+        outside = mkdtempSync(join(tmpdir(), "tempest-fix-outside-"));
+    });
+
+    afterEach(() => {
+        rmSync(outside, { recursive: true, force: true });
+    });
+
+    it("the CSS pass prints how many sheets it skipped", () => {
+        const before = ".a {\n    color: red;\n    color: red;\n}\n";
+        writeFileSync(join(outside, "a.css"), before);
+        symlinkSync(outside, join(root, "src"), "dir");
+
+        const { out } = fix(["src"]);
+
+        expect(out).toContain("! 1 arquivo(s) fora do projeto (symlink) — pulados");
+        expect(readFileSync(join(outside, "a.css"), "utf8")).toBe(before);
+    });
+
+    it("the alias pass prints how many files it skipped", () => {
+        const typescript = dirname(
+            createRequire(import.meta.url).resolve("typescript/package.json"),
+        );
+        mkdirSync(join(root, "node_modules"));
+        symlinkSync(typescript, join(root, "node_modules", "typescript"), "dir");
+        write(
+            "tsconfig.json",
+            JSON.stringify({ compilerOptions: { paths: { "@/*": ["./src/*"] } } }),
+        );
+        const before = 'import { b } from "../b";\nexport const a = b;\n';
+        mkdirSync(join(outside, "sub"));
+        writeFileSync(join(outside, "b.ts"), "export const b = 1;\n");
+        writeFileSync(join(outside, "sub", "a.ts"), before);
+        symlinkSync(outside, join(root, "src"), "dir");
+
+        const result = spawnSync(process.execPath, [CLI, "fix", "--no-css"], {
+            cwd: root,
+            encoding: "utf8",
+            env: { ...process.env, NO_COLOR: "1", FORCE_COLOR: "0" },
+        });
+        const out = `${result.stdout}${result.stderr}`;
+
+        expect(out).toContain("! 2 arquivo(s) fora do projeto (symlink) — pulados");
+        expect(readFileSync(join(outside, "sub", "a.ts"), "utf8")).toBe(before);
+    });
+});

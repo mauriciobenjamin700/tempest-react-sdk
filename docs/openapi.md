@@ -125,6 +125,13 @@ function UserList() {
     `src/api/` são **gerados**, então trate-os como build artifact (não edite à
     mão; versione se quiser, mas regenere ao mudar o contrato).
 
+!!! note "A saída fica dentro do projeto"
+    Antes da primeira escrita, o `gen api` confere o `--out`, cada pasta de grupo
+    e cada arquivo: symlink (inclusive pendente) no lugar de qualquer um deles,
+    caminho fora do projeto e ancestral que é symlink para fora são recusados, e
+    nada é escrito. Um `src/api` que é link num repo clonado não leva os arquivos
+    gerados para outro lugar do disco.
+
 !!! note "Validação de **entrada**, tipagem na **saída**"
     O método valida o **body** com `Schema.parse(...)` (erro cedo se você mandar
     dado inválido) e **tipa** a resposta. A resposta não é validada em runtime

@@ -4,6 +4,22 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`release-npm.yml` — o `latest` do npm não anda mais para trás** (#472). O
+  `scripts/check-release-ref.sh` mandava toda versão estável para `latest`; medido num repo git de
+  fixture, uma tag `v0.75.1` com o registry em `0.77.0` saía com `dist_tag=latest`, e um backport viraria
+  o default de todo `npm install`. Agora o workflow lê `dist-tags.latest` do registry (com retry; `E404`
+  conta como pacote sem `latest`, outra falha reprova a run) e passa em `CURRENT_LATEST`: só versão
+  maior vai para `latest`, prerelease continua em `next`, e versão menor ou igual vai para
+  `release-<major>.<minor>` (`v0.75.1` → `release-0.75`). O nome não é `v0.75` porque o npm 12.2.0
+  recusa dist-tag que seja range semver (`Tag name must not be a valid SemVer range: v0.75`, medido).
+  `CURRENT_LATEST` ausente reprova em vez de assumir pacote novo. O read-back espera o dist-tag certo e
+  só quando a run fez o upload, para o re-run completo de uma versão já publicada continuar sendo
+  recuperação. Publicar de commit fora da `main` segue dependendo do revisor obrigatório no environment
+  `npm-release` e do vínculo do Trusted Publisher — configuração externa, documentada em
+  `docs/release.md`.
+
 ## [0.77.0] — 2026-10-12
 
 ### Breaking

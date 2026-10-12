@@ -92,10 +92,18 @@ recuperar uma run que publicou e falhou depois, use **Re-run failed jobs**, que
 reaproveita o artifact da tentativa que publicou (o artifact é
 `npm-tarball-<run_attempt>`). O re-run completo reempacota, e o job `release`
 não anexa nada se o pack novo não for byte a byte o publicado — a saída é
-`make releases-sync`. Prerelease publica em `next`, não em `latest`; runs da
+`make releases-sync`. O dist-tag é monotônico (#472): o step _Read the registry's
+current latest dist-tag_ lê `dist-tags.latest` (E404 = sem `latest`; outra falha
+reprova) e passa em `CURRENT_LATEST`; o guard manda para `latest` só versão maior
+que ele, prerelease para `next` e o resto (backport, ou a própria versão num
+re-run) para `release-<major>.<minor>` — `v0.75` não serve, o npm recusa dist-tag
+que é range semver. A espera do dist-tag no read-back só roda quando a run fez o
+upload; runs da
 mesma tag entram em fila (`concurrency`), sem cancelar a que está rodando. Revisor obrigatório no environment `npm-release` e o
 vínculo do Trusted Publisher a ele são configuração do GitHub/npm, não do repo —
-`docs/release.md` diz como ligar.
+`docs/release.md` diz como ligar. Eles continuam sendo o único freio para tag em
+commit fora da `main` (o `release.sh` taggeia antes do merge, de propósito): o
+dist-tag monotônico só impede que esse publish leve o `latest` para trás.
 
 ## Release
 

@@ -189,20 +189,33 @@ function fixtureRepo(version: string): { dir: string; sha: string } {
 /**
  * Run the guard the way the build job does, with the GitHub ref variables set.
  *
+ * `CURRENT_LATEST` defaults to empty (a package with no `latest` yet), the way
+ * the workflow passes it; pass `undefined` to leave it unset.
+ *
  * @param dir - The checkout to run in.
- * @param env - `GITHUB_REF_TYPE`, `GITHUB_REF_NAME` and `GITHUB_SHA`.
+ * @param env - `GITHUB_REF_TYPE`, `GITHUB_REF_NAME`, `GITHUB_SHA` and `CURRENT_LATEST`.
  * @returns Exit status, combined output, and what was written to `GITHUB_OUTPUT`.
  */
 function runGuard(
     dir: string,
-    env: Record<string, string>,
+    env: Record<string, string | undefined>,
 ): { status: number | null; output: string; written: string } {
     const outputFile = join(dir, "github-output");
     writeFileSync(outputFile, "");
+    const merged: Record<string, string | undefined> = {
+        ...process.env,
+        CURRENT_LATEST: "",
+        ...env,
+        GITHUB_OUTPUT: outputFile,
+    };
+    const childEnv: Record<string, string> = {};
+    for (const [key, value] of Object.entries(merged)) {
+        if (value !== undefined) childEnv[key] = value;
+    }
     const result = spawnSync("bash", [GUARD], {
         cwd: dir,
         encoding: "utf8",
-        env: { ...process.env, ...env, GITHUB_OUTPUT: outputFile },
+        env: childEnv,
     });
     return {
         status: result.status,
@@ -325,7 +338,11 @@ describe("release-npm.yml recovery and prereleases (review of #451/#452)", () =>
     });
 
     it("gives every registry read-back the same 30-minute window", () => {
-        const windows = [...WORKFLOW.matchAll(/seq 1 (\d+)/g)].map((m) => m[1]);
+        const readBacks = [...JOBS]
+            .filter(([id]) => id !== "build")
+            .map(([, body]) => body)
+            .join("\n");
+        const windows = [...readBacks.matchAll(/seq 1 (\d+)/g)].map((m) => m[1]);
         expect(windows.length).toBeGreaterThanOrEqual(3);
         for (const n of windows) expect(n).toBe("120");
     });
@@ -354,23 +371,101 @@ describe("release-npm.yml recovery and prereleases (review of #451/#452)", () =>
     });
 });
 
-describe("scripts/check-release-ref.sh dist-tag (review of #451/#452)", () => {
-    it("sends a release to latest and a prerelease to next", () => {
-        const stable = fixtureRepo("1.2.3");
-        expect(
-            runGuard(stable.dir, {
-                GITHUB_REF_TYPE: "tag",
-                GITHUB_REF_NAME: "v1.2.3",
-                GITHUB_SHA: stable.sha,
-            }).written,
-        ).toContain("dist_tag=latest\n");
-        const pre = fixtureRepo("0.77.0-rc.1");
-        expect(
-            runGuard(pre.dir, {
-                GITHUB_REF_TYPE: "tag",
-                GITHUB_REF_NAME: "v0.77.0-rc.1",
-                GITHUB_SHA: pre.sha,
-            }).written,
-        ).toContain("dist_tag=next\n");
+/**
+ * Run the guard on a fixture tag of `version`, against a registry whose `latest` is `current`.
+ *
+ * @param version - The `package.json` version, tagged `v<version>` on the run's commit.
+ * @param current - The `CURRENT_LATEST` the workflow read from the registry, or `undefined` for unset.
+ * @returns The guard run.
+ */
+function guardAgainst(
+    version: string,
+    current: string | undefined,
+): { status: number | null; output: string; written: string } {
+    const repo = fixtureRepo(version);
+    return runGuard(repo.dir, {
+        GITHUB_REF_TYPE: "tag",
+        GITHUB_REF_NAME: `v${version}`,
+        GITHUB_SHA: repo.sha,
+        CURRENT_LATEST: current,
+    });
+}
+
+/**
+ * Rewritten, not deleted: this suite used to pin `latest` for every stable version
+ * (review of #451/#452), which is exactly what let a backport `v0.75.1` cut after
+ * 0.77.0 move `latest` backwards. Only a version above the registry's `latest` gets
+ * it now; the rest go to `release-<major>.<minor>`.
+ */
+describe("scripts/check-release-ref.sh dist-tag is monotonic (#472)", () => {
+    it("sends a stable version above the registry's latest to latest", () => {
+        expect(guardAgainst("0.78.0", "0.77.0").written).toContain("dist_tag=latest\n");
+        expect(guardAgainst("1.0.0", "0.77.0").written).toContain("dist_tag=latest\n");
+        expect(guardAgainst("0.77.10", "0.77.9").written).toContain("dist_tag=latest\n");
+        expect(guardAgainst("0.77.0", "0.77.0-rc.1").written).toContain("dist_tag=latest\n");
+    });
+
+    it("sends a backport below the registry's latest to its release line, not latest", () => {
+        const run = guardAgainst("0.75.1", "0.77.0");
+        expect(run.status).toBe(0);
+        expect(run.written).toBe(
+            "tag=v0.75.1\nversion=0.75.1\nprerelease=false\ndist_tag=release-0.75\n",
+        );
+        expect(guardAgainst("0.77.9", "0.77.10").written).toContain("dist_tag=release-0.77\n");
+    });
+
+    it("sends a version equal to the registry's latest to its release line", () => {
+        expect(guardAgainst("0.77.0", "0.77.0").written).toContain("dist_tag=release-0.77\n");
+    });
+
+    it("sends a prerelease to next whatever the registry's latest is", () => {
+        expect(guardAgainst("0.78.0-rc.1", "0.77.0").written).toContain("dist_tag=next\n");
+        expect(guardAgainst("0.75.2-rc.1", "0.77.0").written).toContain("dist_tag=next\n");
+        expect(guardAgainst("0.77.0-rc.1", "").written).toContain("dist_tag=next\n");
+    });
+
+    it("sends the first stable version of a package with no latest to latest", () => {
+        expect(guardAgainst("1.2.3", "").written).toContain("dist_tag=latest\n");
+    });
+
+    it("never names a release line the way npm refuses, as a semver range", () => {
+        const tag = /dist_tag=(.+)/.exec(guardAgainst("0.75.1", "0.77.0").written)?.[1] ?? "";
+        expect(tag).toMatch(/^release-\d+\.\d+$/);
+        expect(tag).not.toMatch(/^v?\d+(\.\d+)?(\.[\dx*])?$/);
+    });
+
+    it("fails, rather than assume a new package, when CURRENT_LATEST is unset", () => {
+        const run = guardAgainst("0.75.1", undefined);
+        expect(run.status).toBe(1);
+        expect(run.output).toContain("CURRENT_LATEST is not set");
+        expect(run.written).toBe("");
+    });
+
+    it("fails on a CURRENT_LATEST that is not a version", () => {
+        const run = guardAgainst("0.78.0", "npm ERR! 503");
+        expect(run.status).toBe(1);
+        expect(run.output).toContain("is not a semver version");
+        expect(run.written).toBe("");
+    });
+});
+
+describe("release-npm.yml reads the registry's latest for the guard (#472)", () => {
+    it("reads dist-tags.latest with a retry and hands it to the guard", () => {
+        const [, build] = onlyJob(/scripts\/check-release-ref\.sh/);
+        expect(build).toMatch(/npm view [^\n]*dist-tags\.latest/);
+        expect(build).toMatch(/seq 1 \d+/);
+        expect(build).toMatch(/E404/);
+        expect(build).toMatch(
+            /CURRENT_LATEST: \$\{\{ steps\.registry\.outputs\.current_latest \}\}/,
+        );
+        expect(build.indexOf("dist-tags.latest")).toBeLessThan(
+            build.indexOf("scripts/check-release-ref.sh"),
+        );
+    });
+
+    it("waits for the dist-tag only when this run is the one that published", () => {
+        const [, body] = onlyJob(/id-token: write/);
+        expect(body).toMatch(/PUBLISHED_NOW: \$\{\{ steps\.publish\.outputs\.published \}\}/);
+        expect(body).toMatch(/echo "published=true" >> "\$GITHUB_OUTPUT"/);
     });
 });

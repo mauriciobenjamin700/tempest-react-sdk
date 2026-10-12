@@ -48,11 +48,41 @@ jobs:
                   cache: npm
                   cache-dependency-path: package-lock.json
 
+            # The guard picks the dist-tag against the registry's current
+            # `latest`, so `latest` only ever moves forward (#472). A 404 is a
+            # package that does not exist yet, which has no `latest`; any other
+            # failure is retried and then fails the run, because guessing "no
+            # latest" would send a backport there.
+            - name: Read the registry's current latest dist-tag
+              id: registry
+              run: |
+                  PKG_NAME=$(node -p "require('./package.json').name")
+                  ERR="${RUNNER_TEMP}/npm-view-latest.err"
+                  for attempt in $(seq 1 10); do
+                    if LATEST=$(npm view --prefer-online "${PKG_NAME}" dist-tags.latest 2>"$ERR"); then
+                      echo "current_latest=${LATEST}" >> "$GITHUB_OUTPUT"
+                      echo "· ${PKG_NAME} latest on the registry: '${LATEST}'"
+                      exit 0
+                    fi
+                    if grep -q E404 "$ERR"; then
+                      echo "current_latest=" >> "$GITHUB_OUTPUT"
+                      echo "· ${PKG_NAME} is not on the registry yet"
+                      exit 0
+                    fi
+                    echo "· npm view failed (attempt ${attempt}/10); retrying in 15s"
+                    sleep 15
+                  done
+                  cat "$ERR"
+                  echo "::error::could not read dist-tags.latest of ${PKG_NAME} from the registry"
+                  exit 1
+
             # Publishes from a vX.Y.Z tag only — workflow_dispatch included —
             # that matches package.json and points at the checked-out commit
             # (#452). The tag, the npm version and the Release share one SHA.
             - name: Check the ref is a release tag for this commit
               id: version
+              env:
+                  CURRENT_LATEST: ${{ steps.registry.outputs.current_latest }}
               run: scripts/check-release-ref.sh
 
             - name: Install dependencies
@@ -219,6 +249,7 @@ jobs:
             # a successful upload — so the run that has to be repeated is one
             # whose publish already happened.
             - name: Publish (Trusted Publishing / OIDC)
+              id: publish
               env:
                   PKG_NAME: ${{ needs.build.outputs.name }}
                   VERSION: ${{ needs.build.outputs.version }}
@@ -232,12 +263,19 @@ jobs:
                     exit 0
                   fi
                   npm publish "./${TARBALL}" --provenance --access public --tag "${DIST_TAG}"
+                  echo "published=true" >> "$GITHUB_OUTPUT"
 
             # Registry read-back: npm must actually serve this version, and its
-            # dist-tag (`latest`, or `next` for a prerelease) must point at it — a
+            # dist-tag (`latest`, `next` for a prerelease, `release-<maj>.<min>`
+            # for a version not above the registry's latest) must point at it — a
             # publish that silently landed under another tag would otherwise look
             # like a green release. Both waits get the same 30-minute window: the
             # dist-tag lags the version by as much as the version lags the upload.
+            #
+            # The dist-tag wait runs only when this run uploaded. A re-run whose
+            # build job ran again reads its own version back as the registry's
+            # latest and so derives `release-<maj>.<min>`, a tag the skipped
+            # publish never set; the run that did upload already waited for it.
             #
             # The window is minutes, not seconds. npm accepts the upload and then
             # processes it asynchronously, printing "Your package is being
@@ -258,6 +296,7 @@ jobs:
                   PKG_NAME: ${{ needs.build.outputs.name }}
                   VERSION: ${{ needs.build.outputs.version }}
                   DIST_TAG: ${{ needs.build.outputs.dist_tag }}
+                  PUBLISHED_NOW: ${{ steps.publish.outputs.published }}
               run: |
                   for attempt in $(seq 1 120); do
                     PUBLISHED=$(npm view --prefer-online "${PKG_NAME}@${VERSION}" version 2>/dev/null || true)
@@ -268,6 +307,10 @@ jobs:
                   if [ "$PUBLISHED" != "$VERSION" ]; then
                     echo "::error::npm still does not serve ${PKG_NAME}@${VERSION} after 30 minutes (got '${PUBLISHED}'). The publish step above succeeded, so the fix is \"Re-run failed jobs\" once the version shows on https://www.npmjs.com/package/${PKG_NAME} — the publish step skips a version the registry already has, so the re-run only redoes the read-back and the GitHub Release. \`make releases-sync\` creates the Release without re-running anything."
                     exit 1
+                  fi
+                  if [ "$PUBLISHED_NOW" != "true" ]; then
+                    echo "✓ npm: ${PKG_NAME}@${VERSION} was already published; its dist-tag is the one the publishing run set"
+                    exit 0
                   fi
                   for attempt in $(seq 1 120); do
                     TAGGED=$(npm view --prefer-online "${PKG_NAME}" "dist-tags.${DIST_TAG}" 2>/dev/null || true)

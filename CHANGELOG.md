@@ -104,6 +104,17 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **Os serviços do `tempest gen api` interpolavam o parâmetro de path cru, e `../` no id levava a
+  requisição — com o Bearer — para outro endpoint** (#499). `deleteComment("../../account")` saía
+  como `DELETE /account`; com `baseURL` `https://api/v1`, `"../../../account"` escapava do `/v1`; e
+  `"7?role=admin"` injetava query string. Agora todo parâmetro de path entra na URL como
+  `${encodeIdSegment(id)}` — o mesmo helper que fechou a #438 no `createDataProvider` —, e o
+  `service.ts` que o usa ganha `import { encodeIdSegment } from "tempest-react-sdk"`. `/`, `?`, `#` e
+  `%` ficam no segmento; `""`, `"."`, `".."`, `null` e `undefined` lançam `TypeError` antes do
+  `fetch`. Parâmetro `boolean`, array ou objeto passa com `as never` (o helper converte com `String()`
+  e mantém a rejeição de `null`). Nenhuma assinatura de método gerado muda; parâmetro de path chamado
+  `encodeIdSegment` vira `encodeIdSegmentParam` e schema com esse nome ganha prefixo `_`. **Regenere**
+  os serviços (`tempest gen api`) para receber a proteção.
 - **`retry(factory, { retries: 0 })` nunca chamava a `factory` e rejeitava com `undefined`** (#486). O
   laço era `while (attempt < retries)`, então `0`, qualquer negativo e `NaN` pulavam a tentativa: a
   request não saía e o erro não dizia nada. Agora a primeira tentativa sempre roda — `0`/negativo fazem

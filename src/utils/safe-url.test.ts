@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { safeImageUrl, safeLinkUrl } from "./markdown-url";
+import { safeAttachmentUrl, safeImageUrl, safeLinkUrl } from "./safe-url";
 
 describe("safeLinkUrl", () => {
     it("keeps the schemes a link may use", () => {
@@ -75,5 +75,40 @@ describe("safeImageUrl", () => {
 
     it("drops javascript: in a src too", () => {
         expect(safeImageUrl("javascript:alert(1)")).toBeNull();
+    });
+});
+
+describe("safeAttachmentUrl (#447)", () => {
+    it.each([
+        "https://cdn.x.dev/a.pdf",
+        "http://x.dev/a.pdf",
+        "blob:https://app.x.dev/4f1c-9a2e",
+        "/files/a.pdf",
+        "files/a.pdf",
+        "//cdn.x.dev/a.pdf",
+        "data:image/png;base64,iVBORw0KGgo=",
+    ])("keeps %j", (url) => {
+        expect(safeAttachmentUrl(url)).toBe(url);
+    });
+
+    it.each([
+        'javascript:document.title="x"',
+        "JaVaScRiPt:alert(1)",
+        "java\tscript:alert(1)",
+        "\u0001javascript:alert(1)",
+        " javascript:alert(1)",
+        "vbscript:msgbox(1)",
+        "data:text/html,<script>alert(1)</script>",
+        "data:image/svg+xml;base64,PHN2Zz4=",
+        "mailto:a@x.dev",
+        "file:///etc/passwd",
+        "",
+        "   ",
+    ])("rejects %j", (url) => {
+        expect(safeAttachmentUrl(url)).toBeNull();
+    });
+
+    it("returns the URL as given, so a space in a file name survives", () => {
+        expect(safeAttachmentUrl("/files/relatório final.pdf")).toBe("/files/relatório final.pdf");
     });
 });

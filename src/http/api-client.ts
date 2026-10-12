@@ -10,11 +10,16 @@ import { isTrustedCredentialTarget, reportSuppressedCredential } from "./credent
 import { csrfHeaders } from "./csrf";
 import { decodeByContentType } from "./decode-response";
 import type { ResponseDecoder } from "./decode-response";
-import { buildApiError, TempestApiError, isRetriableStatus } from "./errors";
+import {
+    buildApiError,
+    SessionSupersededError,
+    TempestApiError,
+    isRetriableStatus,
+} from "./errors";
 import { retry as retryWithBackoff } from "./retry";
 import type { RetryOptions } from "./retry";
 import { withTimeout } from "./timeout";
-import type { ApiClient, ApiClientConfig, RequestOptions } from "./types";
+import type { ApiClient, ApiClientConfig, RequestAuthContext, RequestOptions } from "./types";
 
 /**
  * Methods the built-in retry policy will replay.
@@ -271,21 +276,49 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         }
     }
 
-    async function notifyUnauthorized(response: Response, requestId: string): Promise<void> {
+    /**
+     * Call `onUnauthorized`, keeping the request's own error unless the hook
+     * says the attempt belongs to an ended session.
+     *
+     * @param response - The `401` that ended the attempt.
+     * @param requestId - Correlation id for the log.
+     * @param context - The credential and session the attempt left with.
+     * @throws {SessionSupersededError} When `onUnauthorized` threw it.
+     */
+    async function notifyUnauthorized(
+        response: Response,
+        requestId: string,
+        context: RequestAuthContext,
+    ): Promise<void> {
         if (!config.onUnauthorized) return;
         config.logger?.warn(`unauthorized — calling onUnauthorized`, {
             requestId,
             status: response.status,
         });
         try {
-            await config.onUnauthorized(response);
+            await config.onUnauthorized(response, context);
         } catch (error) {
+            if (error instanceof SessionSupersededError) throw error;
             config.logger?.warn(`onUnauthorized threw — keeping the original response error`, {
                 requestId,
                 status: response.status,
                 error,
             });
         }
+    }
+
+    /**
+     * The credential and session an attempt leaves with, read just before it is
+     * sent.
+     *
+     * @param skipAuth - Whether the attempt goes out without credentials.
+     * @returns The context handed to `refresh` and `onUnauthorized`.
+     */
+    function authContext(skipAuth: boolean): RequestAuthContext {
+        return {
+            token: skipAuth ? null : (config.getToken?.() ?? null),
+            epoch: config.getSessionEpoch?.() ?? null,
+        };
     }
 
     async function attempt<T>(
@@ -296,22 +329,26 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         const { skipAuth = false, skipAuthRetry = false, ...init } = options;
         const requestId = config.requestId ? config.requestId() : randomId();
         const method = (init.method ?? "GET").toUpperCase();
+        const sent = authContext(skipAuth);
         let response = await send(path, init, requestId, method, skipAuth);
 
         if (response.status === 401 && !skipAuth && !skipAuthRetry) {
             if (config.refresh) {
+                let replayed: RequestAuthContext;
                 try {
-                    await config.refresh();
+                    await config.refresh(sent);
+                    replayed = authContext(skipAuth);
                     response = await send(path, init, requestId, method, skipAuth);
-                } catch {
-                    await notifyUnauthorized(response, requestId);
+                } catch (error) {
+                    if (error instanceof SessionSupersededError) throw error;
+                    await notifyUnauthorized(response, requestId, sent);
                     throw await parseError(response, requestId);
                 }
                 if (response.status === 401) {
-                    await notifyUnauthorized(response, requestId);
+                    await notifyUnauthorized(response, requestId, replayed);
                 }
             } else {
-                await notifyUnauthorized(response, requestId);
+                await notifyUnauthorized(response, requestId, sent);
             }
         }
 

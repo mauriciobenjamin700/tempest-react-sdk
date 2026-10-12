@@ -4,7 +4,186 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Breaking
+
+- **`installRuntimeCache` deixa requisição com `Authorization` fora do cache** (#443). Antes, toda
+  resposta `ok` era gravada chaveada só pela URL; medido no Chromium 153 (11/10/2026, harness com SW,
+  Cache Storage e IndexedDB reais contra API de fixture em loopback), a conta B offline — ou com a
+  rede acima de `networkTimeoutSeconds` — recebia o `GET /api/me` da conta A. Agora a rota deixa a
+  requisição autenticada ir à rede sem tocar o cache. Quem dependia do `/api` autenticado offline liga
+  **`cacheAuthenticated: true`** na rota: a entrada é gravada com `Vary: Authorization` e só casa com o
+  mesmo bearer (medido: B erra, A acerta).
+- **`Cache-Control: no-store` nunca é gravado, e `private` só com `cacheAuthenticated`.**
+- **`maxAgeSeconds` vale no fallback.** `network-first` e `stale-while-revalidate` devolviam a entrada
+  vencida quando a rede falhava; agora ela é miss e a requisição falha.
+- **`installBackgroundSync` não grava header de credencial** (#444). `Authorization`, `x-api-key`,
+  `x-auth-token`, `x-csrf-token`, `x-xsrf-token` (`DEFAULT_CREDENTIAL_HEADERS`) saem antes do
+  IndexedDB; medido antes, o bearer de A ficava em `tempest-bg-sync` depois do logout e o replay o
+  enviava ao servidor. No replay o worker pede a credencial atual à página por `postMessage`: sem
+  página que responda, a entrada fica pendente (até `maxRetentionMinutes`) em vez de sair sem
+  credencial; resposta `null` descarta. `credentialHeaders: []` restaura o comportamento antigo.
+
+### Segurança
+
+- **`release-npm.yml` — o job que pode publicar não roda mais código resolvido do registry
+  na hora do release (#451).** Era um job só, com `id-token: write` (Trusted Publishing) e
+  `contents: write`, e o checkout deixava o `GITHUB_TOKEN` no `.git/config`. Dentro dele
+  rodavam `npm install -g npm@latest`, o `npm install` flutuante do smoke
+  (`react@^19 react-dom@^19 react-router@^8 esbuild`) e o `scripts/smoke-vitest.sh`
+  (`npx --yes npm@11`, `vite@^8 vitest@^4 happy-dom`) — script de instalação de qualquer um
+  desses tinha acesso ao endpoint OIDC. E o `npm publish` de diretório re-rodava o
+  `prepublishOnly` inteiro (typecheck + lint + suíte + build) dentro do job, então o tarball
+  publicado era um pack **novo**, não o que o smoke testou: no log da v0.76.0 o publish leva
+  ~5 min porque roda a suíte de novo. Medido nos logs das runs (`gh api …/actions/jobs/<id>/logs`):
+  `npm@latest` já resolvia para o npm **12** nas releases v0.74.0–v0.76.0 (`npm notice run`,
+  `allowScripts`), e hoje `npm view npm dist-tags.latest` devolve `12.2.0` — o major mudou
+  10 → 11 → 12 debaixo do job sem ninguém escolher. Agora o workflow parte de
+  `permissions: {}` e são quatro jobs: `build` (`contents: read`: `npm ci`, gates, build,
+  `npm pack` + SHA-256 como output), `smoke` (`contents: read`: as instalações flutuantes),
+  `publish` (só `id-token: write`: `npm install -g npm@12.2.0`, a versão exata que publicou as
+  três últimas releases, e `npm publish "./<tarball>"`, que não roda script de ciclo de vida —
+  conferido com `npm publish <tgz> --dry-run` num pacote-fixture cujos `prepublishOnly`,
+  `prepack`, `prepare` e `publish` só imprimem: no diretório os quatro rodam, no tarball
+  nenhum) e `release` (só `contents: write`, sem instalar nada). Todo checkout tem
+  `persist-credentials: false`, toda action é fixada por SHA (`checkout` v5.1.0,
+  `setup-node` v5.0.0, `upload-artifact` v4.6.2, `download-artifact` v4.3.0) e todo job que
+  baixa o tarball confere o digest antes de usá-lo. `test/release-workflow.test.ts` fixa
+  essas regras: contra o workflow da `main`, 9 dos 10 casos falham. `actionlint` 1.7.12
+  (`uvx --from actionlint-py actionlint`) limpo. Docs: `docs/release.md` + `.en.md`.
+- **`release-npm.yml` — só uma tag `vX.Y.Z` publica, e tag, npm e GitHub Release apontam
+  para o mesmo commit (#452).** O `workflow_dispatch` não tinha restrição: disparado de uma
+  branch, o guard de versão era pulado (`GITHUB_REF_TYPE` ≠ `tag`) e a tag saía do
+  `package.json` daquela árvore, que ia para o npm com provenance. Reproduzido rodando o passo
+  antigo com `GITHUB_REF_TYPE=branch` sobre um `package.json` `9.9.9`: exit 0 e
+  `tag=v9.9.9`. Depois, o `gh release create "$TAG"` rodava sem `--target` nem
+  `--verify-tag`, e o `gh release create --help` documenta o default: tag inexistente é
+  criada "from the latest state of the default branch" — outro commit. Agora o
+  `scripts/check-release-ref.sh` reprova, antes de qualquer instalação, o ref que não é tag
+  `vX.Y.Z`/`vX.Y.Z-pre`, a tag que não descreve o `package.json` e a tag que não aponta para o
+  `GITHUB_SHA` (tag anotada é resolvida para o commit); o re-run manual passa a ser
+  `gh workflow run release-npm.yml --ref vX.Y.Z`. O job `release` confere de novo a tag contra o
+  SHA via API, cria com `--verify-tag` e só anexa o tarball cujo sha512 é o `dist.integrity`
+  que o npm serve, então o `upload --clobber` não troca mais o asset por um build de outra ref.
+  O job `publish` roda no environment `npm-release` — sem configuração não barra nada; com
+  revisores obrigatórios e o Trusted Publisher do npm amarrado a ele vira o gate humano
+  (`docs/release.md` diz como ligar). `test/release-workflow.test.ts` ganhou 10 casos, que
+  falham no workflow anterior: 6 executam o guard num repo git descartável (branch, versão
+  divergente, tag fora do formato, tag em outro commit, caminho feliz, prerelease anotada).
+- **`release-npm.yml` — prerelease vai para o dist-tag `next`, e a recuperação de uma run
+  falhada funciona pelos dois caminhos de re-run.** Achados da revisão das duas entradas acima:
+  uma tag `v0.77.0-rc.1` era publicada em `latest` (já era assim antes), e virava o default de
+  todo `npm install`; agora o `scripts/check-release-ref.sh` emite `dist_tag` (`next` para
+  versão com `-`, `latest` no resto), o publish passa `--tag "$DIST_TAG"` e o read-back espera
+  esse dist-tag — o GitHub Release continua marcado como prerelease. O read-back do dist-tag
+  tinha 12 tentativas (3 min) contra 120 (30 min) da versão; agora as duas esperas, e a leitura
+  do `dist.integrity` no job `release` (que era uma chamada única, sem retry, e no `bash -e`
+  morria sem `::error::`), usam a mesma janela de 120 × 15 s e erro anotado. O artifact passa a
+  se chamar `npm-tarball-<run_attempt>`: com nome fixo, um "Re-run all jobs" colidiria com o
+  da primeira tentativa; "Re-run failed jobs" herda os outputs do `build` e baixa o artifact da
+  tentativa que publicou. A mensagem de pack divergente deixa de mandar para um caminho que não
+  existe e aponta `make releases-sync`. `concurrency` por ref, sem `cancel-in-progress`, enfileira
+  um tag push e um dispatch da mesma tag. `test/release-workflow.test.ts` ganhou 8 casos (7
+  falham no commit anterior; o oitavo só fixa o formato `@<sha> # vX.Y.Z` das actions).
+
 ### Adicionado
+
+- **`persistence.clear({ resetClient: true })` — logout em uma chamada.** Opção nova (tipo
+  `OfflineQueryClearOptions`), default `false`: depois de parar a persistência e apagar o
+  snapshot, também faz `queryClient.clear()`. O default não toca o `QueryClient` em memória porque
+  ele é do app, que pode manter queries públicas e tirar só as do usuário com `removeQueries`.
+  `clear()` sem argumento continua funcionando igual. Docs PT-BR/EN em
+  `docs/query.md` + `docs/query.en.md`.
+
+- **`createTempestAuth({ onSessionEnd })` — teardown por usuário no logout, na expiração
+  automática e na troca de conta (#445).** Roda nos três caminhos, uma vez por sessão, com
+  `{ reason: "logout" | "expired" | "switch", user, token, api }` — `api` ainda manda o token da sessão que
+  acabou, porque o store já foi limpo. Ordem: supera o refresh em voo → limpa o store (síncrono) →
+  roda o hook → navega para `redirectTo` (só no automático, depois do hook). Substitui a receita
+  manual de logout de `docs/push.md`, que não cobria a expiração automática. Tipos novos:
+  `TempestSessionEnd<TUser>` e `RequestAuthContext`.
+- **`login()` por cima de uma sessão viva encerra a anterior com `reason: "switch"`.** Antes, a
+  conta nova substituía a anterior sem teardown nenhum, e a inscrição de push e o estado por
+  usuário da conta anterior passavam para a nova. Ordem: credenciais novas aceitas → época avança e
+  store limpo → `onSessionEnd({ reason: "switch", user/token/api da conta anterior })` → tokens da
+  conta nova instalados. Login que falha não toca a sessão anterior nem o refresh em voo dela (antes
+  desta versão, a época avançava no começo do `login()`). O hook roda **antes** de instalar a conta
+  nova para o teardown terminar antes de as requests dela preencherem cache e filas; o custo é
+  `isAuthenticated` em `false` enquanto ele roda. Erro do hook nesse caminho é engolido, e um
+  `logout()` sem `await` cujo teardown ainda corre é esperado antes de instalar a conta nova.
+- **`SessionSupersededError`** (refresh ou `login()` cuja sessão foi superada antes de terminar) e
+  **`WebPushUnsubscribeError`**, exportados da raiz.
+
+- **`clearSessionData()`** (`/sw`) — no logout, apaga todo bucket do Cache Storage menos o precache
+  (`tempest-precache-*`) e a fila de background sync. A doc mandava `clearCaches("tempest-")`, que
+  não casava com o cache `api` da receita (medido: `deleted []`) e, se casasse, derrubaria o precache.
+- **`clearBackgroundSyncQueue(queueName?)`** — apaga a fila de mutações pendentes.
+- **`provideBackgroundSyncCredentials(getHeaders, { getPrincipal })`** — lado página do pedido de
+  credencial no replay. O worker só aplica os nomes de header que a requisição original carregava.
+- **Entrada da fila de background sync com dono.** Com `getPrincipal`, o worker pergunta à aba que
+  disparou a requisição quem está logado logo depois de enfileirar (sem atrasar a rejeição do
+  `fetch`) e grava uma impressão SHA-256 desse id — nunca o id nem o token — em `owner`. No replay,
+  dono diferente do atual descarta a entrada sem enviar: a mutação de A não sai com a credencial de B
+  mesmo quando o app esquece `clearSessionData()` no logout (medido no Chromium 153: A enfileira, B
+  entra sem limpar, o sync dispara e o servidor não recebe POST). Vale também para sessão por cookie.
+  Entrada sem dono (provedor sem `getPrincipal`, ou aba que não respondeu) segue só as regras de
+  credencial. `beforeReplay` recebe `owner` no contexto; tipo `ProvideBackgroundSyncCredentialsOptions`.
+- **`installBackgroundSync({ credentialHeaders, beforeReplay })`**, `DEFAULT_CREDENTIAL_HEADERS`,
+  `BACKGROUND_SYNC_CREDENTIALS_MESSAGE` e os tipos `BackgroundSyncReplayContext`,
+  `BackgroundSyncCredentialsRequest`, `BackgroundSyncCredentialsProvider`,
+  `ClearSessionDataOptions`, `ClearSessionDataResult`.
+- **`RuntimeRoute.cacheAuthenticated`** e **`RuntimeRoute.credentialHeaders`**; tipo `BackgroundSyncOwnerState`.
+
+- **`tempest gen component <Nome>` — pasta de componente modular (#454).** Cria
+  `src/components/<Nome>/` com `index.tsx`, `styles.module.css`, `constants.ts`, `utils.ts` e
+  `hooks.ts`, todos ligados ao `index.tsx`. O nome é normalizado para PascalCase (`"user card"` →
+  `UserCard`) e recusado com o motivo quando não começa com letra, tem caractere fora de letra
+  ASCII/dígito/espaço/`-`/`_` ou é nome de dispositivo reservado do Windows (`Con`, `Nul`,
+  `Com1`…). O hook é `use<Nome>`, ou `use<Nome>Component` quando colidiria com um hook do React
+  (`Memo`). `--out` troca a pasta (padrão `src/components`, onde o alias `@/` do template já
+  resolve) e precisa ficar dentro do projeto depois de resolver symlinks; `--out` sem valor é
+  erro. Pasta existente é recusada, e `--force` reescreve só os cinco arquivos. Symlink na pasta,
+  ou pasta/symlink no lugar de um dos arquivos, é recusado mesmo com `--force`, e tudo é conferido
+  antes da primeira escrita. Fora de `src/` a CLI mostra o caminho com aviso em vez do `import`. `tempest new component` é
+  alias, com a grafia da issue. A saída passa no `tsc`, no ESLint e no Prettier do template como
+  sai — conferido num app de `create-tempest-app` com `tsc -b`, `eslint src`, `prettier --check`
+  e `vite build`, e fixado em `bin/lib/component/generate.test.mjs`. Docs em `docs/cli.md`.
+
+- **`safeLinkUrl`, `safeImageUrl` e `safeAttachmentUrl` na raiz (#447).** A allowlist de esquema
+  que o `Markdown` já aplicava saiu de `components/Markdown/markdown-url.ts` para
+  `utils/safe-url.ts` e virou export público, mais um terceiro helper para arquivo:
+  `safeAttachmentUrl` aceita `http`, `https`, `blob`, relativa e `data:image/` raster, e devolve a
+  URL como veio (normalizar apaga espaço de nome de arquivo). Doc em `docs/utilities.md`.
+
+- **`exchangeOAuthCallback`, `readOAuthCallbackParams` e `OAuthCallbackError` — o `state` do
+  OAuth não fica mais para trás no callback (#449).** `readOAuthCallbackParams()` devolve `code`
+  **e** `state` do redirect ou lança `OAuthCallbackError` (`reason`: `"provider_error"`,
+  `"missing_state"`, `"missing_code"`) antes de qualquer requisição.
+  `exchangeOAuthCallback(api, provider, options?)` (opções `prefix`, `search`, `signal`) repassa os dois para
+  `GET {prefix}/oauth/{provider}/callback` do `tempest-fastapi-sdk` com `credentials: "include"`
+  (o cookie `HttpOnly` do `state` é a outra metade da comparação), `skipAuth` e `retry: false`.
+  A comparação — `hmac.compare_digest`, uso único, TTL `AUTH_OAUTH_STATE_TTL_SECONDS`, amarrada
+  ao provider — já existe no `make_auth_router` do backend, que é quem sorteia o `state`; o
+  navegador não lê o cookie, então gerar ou conferir `state` no cliente não acrescentaria nada
+  nesse fluxo, e o backend não aceita `code_verifier` (sem PKCE a encaminhar).
+  Medido com a receita antiga de `docs/oauth.md` sob `useOAuthCallback` + `fetch` stub:
+  `/callback?code=ATTACKER_CODE` (sem `state`) e `/callback?code=ATTACKER_CODE&state=forged`
+  terminavam em `status=success` com `POST … body={"code":"ATTACKER_CODE"}` — o `state` nunca
+  saía do navegador. Com o helper, o primeiro é recusado sem requisição e o segundo chega ao
+  backend como `…/auth/oauth/google/callback?code=ATTACKER_CODE&state=forged`, onde o `401` do
+  state forjado aparece uma vez, sem refresh nem `onUnauthorized`
+  (`src/oauth/callback.test.tsx`). Receita e JSDoc do `useOAuthCallback` reescritos; docs em
+  `docs/oauth.md` + `.en.md`. Custo, com `npx size-limit` (main `a188917` × esta branch): barrel ESM
+  140 075 → 140 258 B (teto 140,2 → 140,3 kB), barrel CJS 167 085 → 167 358 B (teto 167,2 →
+  167,4 kB); os dois tetos contam também o `encodeIdSegment` do #438 (ESM 139 861 → 140 075 B,
+  CJS 167 019 → 167 085 B, ainda dentro dos tetos antigos).
+  Lendo `window.location`, o leitor também tira `code` e `state` da barra de endereço com
+  `history.replaceState` (mantém os outros params, o hash e o `history.state`; limpa mesmo quando
+  recusa o callback), para o código não ficar no histórico nem no `Referer`; `scrubUrl: false`
+  desliga (`src/oauth/callback.scrub.test.ts`). Trade-off documentado em `docs/oauth.md` +
+  `.en.md`: o contrato do `make_auth_router` é `GET` com `code`/`state` na query, então a URL
+  entra no access log do backend — o método não muda, e a doc orienta mascarar os dois na rota. A limpeza da URL e o
+  ref de opções do hook custam +146 B no barrel ESM (140 258 → 140 404 B, teto 140,3 → 140,5 kB)
+  e +185 B no CJS (167 358 → 167 543 B, teto 167,4 → 167,6 kB), medido com `npx size-limit`.
 
 - **`Toast` ganha slot de ícone (`icon`, `iconLabel`) e alinhamento de texto (`align`)** (#453).
   `ToastOptions.icon?: ReactNode` renderiza o asset do app numa coluna `leading` à esquerda do
@@ -25,7 +204,396 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   mantido), barrel CJS 167 019 → 167 232 B (teto 167,2 → 167,3 KB) e `styles.css` 30 474 →
   30 567 B (teto 30,5 → 30,6 kB).
 
+### Alterado
+
+- **`persistQueryClientOffline`: o handle fica encerrado depois de `clear()` (#440).** Antes, o
+  mesmo handle continuava gravando depois do `clear()`; agora `restore()`/`flush()` viram no-op e
+  mudanças no cache não são mais persistidas. **Migração:** app que guarda a `persistence` no
+  nível do módulo e a reaproveita depois do login para de persistir — crie um handle novo a cada
+  sessão (exemplo `startSession`/`endSession` em `docs/query.md`). Em build de dev, o primeiro
+  `restore()`, `flush()` ou query adicionada/atualizada num handle encerrado gera um único
+  `console.warn` (gated por `isDevBuild()`).
+- **`clear()` é ordenado entre handles da mesma `databaseName` + `key`.** Enquanto um `clear()`
+  roda, o `restore()` e as gravações de um handle novo esperam ele terminar — um logout não
+  aguardado seguido de login não hidrata mais o snapshot anterior nem tem a primeira gravação do
+  novo usuário apagada. Se o delete do IndexedDB rejeitar, `resetClient: true` limpa o
+  `QueryClient` mesmo assim e a rejeição chega a quem chamou.
+
+- **`TempestAuth.logout` agora devolve `Promise<void>`** (era `() => void`). O store continua limpo
+  de forma síncrona, antes do primeiro `await`; a promise resolve quando o `onSessionEnd` terminou e
+  rejeita com o erro dele. Chamar sem `await` segue funcionando.
+
+  **Migração:** nada é obrigatório — quem chama `auth.logout()` sem usar o retorno compila e se
+  comporta igual (o store é limpo na hora). Ajuste só se:
+
+  - o lint do app tem `@typescript-eslint/no-floating-promises`: troque `auth.logout()` por
+    `await auth.logout()` ou `void auth.logout()`;
+  - o app tipou um campo como `logout: () => void` e atribui um tipo que espera **exatamente**
+    `void` de volta (ex.: implementa a interface `TempestAuth` à mão) — passe a devolver
+    `Promise<void>`;
+  - o app espera o teardown antes de navegar ou recarregar: use `await auth.logout()`, que agora
+    só resolve depois do `onSessionEnd`.
+
+- **`ApiClientConfig.refresh` recebe `(context: RequestAuthContext)`** e
+  **`onUnauthorized` recebe `(response, context)`**, com o `token` e a `epoch` com que a tentativa
+  rejeitada saiu; **`ApiClientConfig.getSessionEpoch`** é a opção nova que fornece a época.
+  `onUnauthorized` que lança `SessionSupersededError` faz a request rejeitar com ele. Funções sem
+  esses parâmetros continuam atribuíveis — nenhum chamador quebra.
+- **Budgets do `size-limit` sobem pelo que os bytes compram** (medido com `npx size-limit`, `main`
+  × branch): `slice: http client` 4,57 → 4,69 kB (teto 4,6 → 4,8 kB) — `SessionSupersededError`, o
+  contexto da tentativa (`token` + `epoch`) em `refresh`/`onUnauthorized`; `slice: typical app`
+  11,73 → 11,79 kB (teto 11,8 → 11,9 kB); barrel ESM 139,86 → 140,52 kB (teto 140,2 → 140,8 kB);
+  barrel CJS 167,02 → 167,82 kB (teto 167,2 → 168 kB).
+
+- **Tetos dos barris no `size-limit`: ESM 140,2 → 140,7 kB, CJS 167,2 → 167,7 kB.** Medido com
+  `npx size-limit` depois de `npm run build`, brotli: `main` 139,86 / 167,02 kB → #437 (parser
+  linear + teto de aninhamento) 140,29 / 167,38 → #446 (neutralização de fórmula no CSV) 140,37 /
+  167,30 → #447 (`safe-url` público + linha de anexo) 140,62 / 167,63. E a fatia `{ Chat }` (com
+  mídia e menu inline): 11,2 → 11,4 kB, `main` 11,12 → 11,38 kB — o `safe-url` entra inteiro no
+  caminho da linha de anexo (#447). Os bytes compram os três guards.
+
+- **`toCsv`/`downloadCsv` neutralizam fórmula por padrão — CSV injection (#446). Muda a saída
+  padrão.** Campo de texto (e cabeçalho) que começa com `=`, `+`, `-`, `@`, TAB ou CR sai com `'` na
+  frente, a lista da OWASP. Ficam de fora a célula `number`, o texto que é só número (`"-5"`,
+  `"-1.234,56"`, `"+42"`) e o `"-"` sozinho, placeholder comum de "sem valor" que não tem operando
+  para ser fórmula. Medido convertendo cada CSV com o LibreOffice 26.2 headless
+  (`soffice --headless --infilter="CSV:59,34,76,1" --convert-to fods`) e lendo o `table:formula`
+  de cada célula:
+
+  | Entrada                             | Sem prefixo        | Com prefixo                  |
+  | ----------------------------------- | ------------------ | ---------------------------- |
+  | `=1+2`                              | fórmula, valor `3` | texto `'=1+2`                |
+  | `=HYPERLINK("http://…/?d="&A1,"x")` | fórmula            | texto                        |
+  | `+55 (11) 99999-9999`               | texto              | texto `'+55 (11) 99999-9999` |
+  | `@maria`                            | texto              | texto `'@maria`              |
+  | `-`                                 | texto              | texto `-` (isento)           |
+  | TAB + `=1+1`                        | texto              | texto `'` + TAB + `=1+1`     |
+  | espaço + `=1+1`                     | texto              | texto (não é gatilho)        |
+  | `\n=1+1` (campo entre aspas)        | texto              | texto (não é gatilho)        |
+
+  O LibreOffice só avaliou o `=`; `+`, `@` e TAB continuam no gatilho porque Excel e Google Sheets
+  os leem como início de fórmula (não medido aqui, sem Excel no ambiente). Espaço e quebra de linha
+  antes do `=` leram como texto e não entraram.
+
+  **Migração:** quem exporta CSV para o importador de outro sistema, e não para a planilha de uma
+  pessoa, passa `{ neutralizeFormulas: false }` (novo em `CsvOptions`) e recebe os bytes de antes.
+
+- **`buildPath` customizado do data provider recebe o `id` já codificado (#438).** Desde o
+  `encodeIdSegment`, todo `id` chega ao `buildPath` como um segmento pronto
+  (`encodeURIComponent`, sem `""`/`"."`/`".."`). **Migração: remova o encode do seu `buildPath`;
+  o id já chega codificado.** Quem mantiver `encodeURIComponent(id)` codifica duas vezes —
+  `"a/b"` vira `a%252Fb` e o backend recebe outro id. Antes:
+
+  ```ts
+  buildPath: (resource, id) =>
+    id == null ? `/api/${resource}` : `/api/${resource}/${encodeURIComponent(String(id))}`,
+  ```
+
+  Depois:
+
+  ```ts
+  buildPath: (resource, id) => (id == null ? `/api/${resource}` : `/api/${resource}/${id}`),
+  ```
+
 ### Corrigido
+
+- **`persistQueryClientOffline`: `clear()` no logout não é mais desfeito, e o cache do usuário
+  anterior não volta no próximo boot (#440).** Antes, `clear()` só apagava a linha do IndexedDB; o
+  timer de escrita e o subscribe no cache continuavam, e `save()` serializa o `QueryClient` inteiro.
+  Uma escrita pendente na última janela de throttle, ou qualquer evento de cache depois do logout
+  (a primeira query do próximo usuário), regravava as respostas de quem saiu, e o `restore()` do
+  boot seguinte as hidratava. Reproduzido em `src/query/offline-persistence.test.ts` antes da
+  correção (`npx vitest run src/query/offline-persistence.test.ts`: 4 de 8 testes novos falhando,
+  com `expected { owner: 'user-a', secret: 'A' } to be undefined`). Agora `clear()` é terminal
+  para o handle: cancela o timer, para o subscribe, espera a escrita em voo e só então apaga a
+  linha; `restore()`/`flush()` viram no-op depois dele; é idempotente e seguro em paralelo. Para
+  persistir a próxima sessão, crie um handle novo depois do login.
+
+- **Refresh em voo não reinstala mais a sessão depois do logout nem troca a conta logada (#435).**
+  Cada refresh do `createTempestAuth` fica amarrado a uma época de sessão, incrementada pelo
+  `logout()` e por um `login()` com credenciais aceitas; cada época tem sua própria fila. Refresh que resolve (ou
+  falha) depois que a época acabou descarta os tokens e rejeita com `SessionSupersededError`, que o
+  `createApiClient` repassa **sem** chamar `onUnauthorized` — a correção ingênua com `throw`
+  derrubaria a conta recém-logada. Request que saiu com o token de uma sessão encerrada e volta 401
+  é recusada do mesmo jeito, em vez de ser repetida como a conta atual. Medido com
+  `npx vitest run src/auth/create-tempest-auth.epoch.test.ts` (backend de duas contas com o refresh
+  preso num gate): antes, `logout()` durante o refresh terminava com `token: "A-tok-2"`,
+  `isAuthenticated: true` e a request pendente respondida como A; `logout()` + `login(B)` terminava
+  com `user: B` e `token: "A-tok-2"`, e a request seguinte saía como A; uma request de A atrasada
+  depois do login de B era repetida como B. Depois, os três rejeitam com `SessionSupersededError` e B
+  mantém `B-tok-1`/`B-ref-1`.
+- **Três 401 da mesma expiração gastam um refresh, cheguem juntos ou escalonados.** O
+  `createTempestAuth` não passava `getToken` à fila, então só colapsava 401 sobrepostos no tempo:
+  três requests expiradas com respostas a 0/20/40 ms gastavam **3** refreshes (mesmo teste acima);
+  agora gastam 1. O 401 cujo token já foi trocado pela mesma sessão só repete.
+- **`createRefreshQueue({ getToken })` deixava de renovar quando o token que ele emitiu expirava.** A
+  fila pulava o refresh enquanto o token do último refresh continuasse no store — e um token expirado
+  continua no store com a mesma string. Plugada no `createApiClient`, todo token emitido por refresh
+  virava irrenovável: o 401 pulava o refresh, a repetição falhava e `onUnauthorized` encerrava uma
+  sessão saudável. Medido com `npx vitest run src/auth/refresh-queue.test.ts`: 1 refresh para 2
+  expirações antes, 2 depois. A fila agora recebe do cliente o token com que a request falhou e
+  compara com ele; chamada à mão, sem contexto, mantém o comportamento anterior.
+- **`WebPushClient.unsubscribe()` libera a inscrição do navegador mesmo quando o `DELETE` no
+  backend falha (#445).** Antes, um `onUnsubscribe` rejeitado abortava antes de
+  `PushSubscription.unsubscribe()` — e ele rejeita justamente no fim da sessão, quando o token já
+  sumiu (reproduzido: DELETE → 401, `subscription.unsubscribe` nunca chamado). Agora o backend é
+  chamado primeiro, o navegador é liberado **sempre**, e a falha do backend sobe como
+  `WebPushUnsubscribeError` (com `subscription`, `browserUnsubscribed` e `cause`) depois da
+  liberação. `usePushSubscription` passa `subscribed` a `false` nesse caso. A doc de push, que
+  chamava a ordem antiga de "lado seguro do erro", agora compara os dois custos: linha órfã some no
+  próximo envio com `404`/`410`; inscrição viva entrega as notificações da conta para o próximo
+  usuário do navegador.
+
+- **Corridas de sessão achadas em review do próprio ciclo** (todas medidas com um teste que falhava
+  antes, em `src/auth/create-tempest-auth.races.test.ts` e
+  `src/push/web-push-client.unsubscribe.test.ts`):
+  - `login()` cujo POST estava em voo durante um `logout()` instalava a conta mesmo assim — agora
+    rejeita com `SessionSupersededError` e não instala nada;
+  - a repetição de A depois do refresh que voltava 401 após `logout()` + `login(B)` encerrava a
+    sessão de B — o cliente agora lê a época de cada tentativa (`getSessionEpoch`) e o
+    `onUnauthorized` recusa a tentativa de uma sessão encerrada com `SessionSupersededError`;
+  - `onSessionEnd` que aguardava `auth.api` travava o `logout()` para sempre (o 401 sem token
+    encerrava a sessão de novo e esperava o próprio hook) — enquanto um hook roda, o encerramento
+    automático e um `logout()` sem sessão não esperam o teardown, e só a chamada que encerrou a
+    sessão navega para o `redirectTo`. O `login()` continua esperando o teardown em andamento (um
+    hook que chama `auth.login()` trava: dentro do hook, use só `session.api`);
+  - `logout()` sem `await` cujo hook lançava engolia o erro em silêncio — agora vira
+    `unhandledrejection`;
+  - request sem token que voltava 401 depois do login de B renovava e, na falha, encerrava B — agora
+    só rejeita com o 401;
+  - `WebPushUnsubscribeError` com o navegador falhando junto do backend saía como `DOMException` cru
+    e perdia o `endpoint` — agora é sempre `WebPushUnsubscribeError`, com `cause` sendo um
+    `AggregateError` dos dois erros.
+    Os conjuntos de tokens emitidos/aposentados, que cresciam a cada refresh numa sessão longa, foram
+    removidos: a época lida na saída de cada tentativa cobre o que eles cobriam.
+
+- **`createAppErrorReporter` — relato enfileirado nunca sai com o token de quem logou depois (#441).**
+  O token era resolvido no flush para a fila inteira, e a fila sobrevive ao logout: um erro de A
+  enfileirado offline saía com `Authorization: Bearer <B>` depois que B logava no mesmo navegador,
+  e o backend atribuía a B a mensagem, o contexto e a stack de A. Cada entrada agora carrega
+  `session`, uma impressão digital de mão única (FNV-1a, 64 bits) do token em vigor no `report()` —
+  nunca o token —, e só sai com Bearer quando o token do envio é esse mesmo; caso contrário sai
+  anônima. Um refresh entre erro e envio também manda o relato anônimo: a atribuição se perde,
+  nunca vai para a pessoa errada. Nova opção **`getPrincipal`** (id estável e não secreto, gravado
+  como `owner`), que **não** libera o Bearer — um store de usuário atrasado em relação ao login
+  mandaria o relato de A com o token de B — e só alimenta **`foreignReports: "anonymous" | "drop"`**
+  (padrão `"anonymous"`). `"drop"` descarta todo relato que não se prova do principal atual (de
+  outro, de ninguém ou desconhecido) e só vale com `getPrincipal`: sem ele, divergência de token
+  não prova dono alheio e o relato sai anônimo (um `console.warn` único em dev avisa). `clear()` interrompe um flush em andamento e
+  descarta relatos esperando um `getToken` assíncrono; esse `getToken` tem prazo de 5 s, então
+  nem o relato nem o flush travam. Um `getPrincipal` que devolve algo que não é string/número vale
+  "ninguém". Entradas persistidas antes desta versão saem anônimas (ou descartadas com `"drop"`).
+  Relatos idênticos com carimbos diferentes não se fundem no contador. Regressões em
+  `src/telemetry/app-error-reporter.test.ts`. Docs PT-BR/EN em `docs/telemetry.md` +
+  `docs/telemetry.en.md`.
+  Custo medido com `npx size-limit` sobre `npm run build` (main → este commit): fatia
+  `createAppErrorReporter` 1,60 → 2,31 kB brotli (com o aviso de dev), por isso o teto da fatia
+  sobe de 2 KB para 2,4 KB; barril ESM 139,86 → 140,42 kB e CJS 167,02 → 167,71 kB, com os tetos dos barris em
+  140,6 KB e 167,9 KB.
+
+- **Revisão da fila de background sync** (#444), cada item com teste que falhava antes:
+  - **Entrada gravada antes do fix** (bearer em texto puro) não é mais reenviada como estava: o banco
+    sobe para a versão 2 e a migração apaga os headers de credencial do disco na primeira abertura; o
+    replay aplica a lista de novo. Medido no Chromium 153: antes saía `Bearer OLD-0.76`, agora nada.
+  - **Dono que não pôde ser registrado falha fechado.** Sem resposta, erro, aba sumida ou entrada
+    legada viram `ownerState: "unknown"`, que só sai com resposta de aba sem principal. Antes a entrada
+    ficava sem dono e saía com o token de quem logasse depois (medido: `Bearer B`; agora nada).
+    `getPrincipal`/`getHeaders` que lançam respondem `{ error: true }` em vez de fechar a porta.
+  - **Várias abas:** o worker pergunta a todas em paralelo, com um prazo único, e usa a resposta cujo
+    dono bate — antes a primeira aba (de outra conta) descartava a mutação.
+  - **Resposta sem um header removido mantém a entrada pendente**, em vez de sair anônima e sumir no 401.
+  - **Replay single-flight** por fila: `sync`, `periodicsync` e o fallback do Safari juntos não enviam
+    a mesma mutação duas vezes (bug anterior a esta versão).
+  - **`clearBackgroundSyncQueue()` alcança o que está em voo**: o replay confere cada entrada no banco
+    antes de enviar, e uma requisição que falha depois da limpeza não é gravada (época no store `meta`).
+    Passa a esvaziar a fila em vez de apagar o banco.
+  - Em build de desenvolvimento, aviso no console quando nenhuma página responde por uma credencial.
+- **Runtime cache:** o gate de requisição autenticada usa a lista de headers de credencial
+  (`RuntimeRoute.credentialHeaders`, default `DEFAULT_CREDENTIAL_HEADERS`), não só `Authorization`, e o
+  opt-in faz `Vary` em cada um. A revalidação do `stale-while-revalidate` e a rede que perdeu para o
+  `networkTimeoutSeconds` vão para `event.waitUntil`.
+- **Template PWA:** `src/pwa.tsx` instala `provideBackgroundSyncCredentials` a partir de `@/stores/auth`
+  (com `getPrincipal`); o comentário do `sw.ts` explica que GET com bearer não entra no cache sem
+  `cacheAuthenticated`.
+- **Doc:** limites explícitos — sessão por cookie depende de `Cache-Control` do servidor e de
+  `clearSessionData()`; credencial na URL ou no corpo é gravada como foi enviada.
+
+- **`maxAgeSeconds` não vencia nada numa API de outra origem.** A idade vinha do header `Date`, que
+  resposta CORS não expõe (medido: `headers.get("date")` → `null` cross-origin). A entrada agora
+  carrega a hora da gravação em `x-tempest-cached-at`; entrada antiga sem o carimbo cai no `Date`.
+- **A fila de background sync preserva o modo `credentials`** da requisição original, para API com
+  sessão por cookie reenviar com cookie.
+- **Template PWA e doc nomeiam os caches `tempest-api`/`tempest-media`**, e a doc troca a limpeza de
+  logout por `clearSessionData()`.
+
+- **`tempest gen api` não copia mais texto do spec OpenAPI cru para o TypeScript gerado (#434).**
+  Uma tag ou `summary` com `*/` fechava o comentário e rodava código no import do `service.ts`
+  (reproduzido: `globalThis.PWNED_TAG`/`PWNED_SUMMARY` = 1); um path ou `$ref` hostil fazia o
+  mesmo pelo template literal da URL e pelo nome do schema. O escape agora é centralizado em
+  `bin/lib/openapi/escape.mjs` e escolhido pela posição: comentário perde quebra de linha e `*/`,
+  segmento de path é texto escapado do template literal, `pattern` vira
+  `new RegExp(JSON.stringify(p))`. Nome de schema/`$ref` ou parâmetro de path que não é identificador
+  (`{user-id}`, `user.Response`, `User-Out`) **vira identificador** — camelCase para parâmetro,
+  PascalCase para tipo, `_` para palavra reservada ou dígito inicial — e o nome original continua
+  valendo onde importa em runtime (placeholder da URL, chave de objeto). Dois nomes que viram o
+  mesmo identificador lançam erro citando os dois; `{placeholder}` não declarado também. Spec
+  legítimo gera o mesmo código, exceto `pattern`, que sai como `new RegExp("...")` no lugar do
+  literal `/.../` (mesma regex). Tag que vira slug com dígito inicial (`2fa`) e
+  `operationId` só com símbolos/dígitos agora geram classe e método válidos. Testes em
+  `bin/lib/openapi/generate.hostile.test.mjs` executam a saída numa VM. Nomes que o gerador
+  já usa também são tratados: parâmetro de path `body`/`params`/`S` vira `<nome>Param`,
+  `operationId` `constructor`/`api` vira `constructor2`/`api2`, schema chamado `ApiClient`,
+  `OffsetPage`, `CursorPage`, `Promise`, `Record`, `z` ou `S` ganha `_`, `eval` e `arguments`
+  contam como reservados, e duas tags com o mesmo nome no barrel (`user 1`/`user1`) são
+  recusadas. `pattern` que não compila como regex falha a geração citando schema e propriedade, em
+  vez de quebrar o app no import. U+2028/U+2029 em enum, chave, `default` e `pattern` foram
+  conferidos com `tsc` e passam sem escape extra.
+- **`create-tempest-app .` não escreve mais através de symlink do destino (#436).** Em modo merge,
+  um `src -> ../fora` fazia `mkdir`/`cp` seguirem o link e sobrescreverem `fora/main.tsx` (e
+  criarem mais nove arquivos lá) sem reportar nada; um `package.json` que fosse link também era
+  mesclado no alvo. Agora todo caminho do destino passa por `lstat` antes da escrita: symlink é
+  pulado e listado como existente, e a escrita confere que o diretório pai real fica dentro do
+  `realpath` da raiz. O passe `fixDotfiles` saiu: a cópia já grava `_gitignore` como `.gitignore`,
+  então ele só renomeava o `_gitignore` do próprio usuário por cima de um `.gitignore` dele. Testes
+  em `bin/create-tempest-app.e2e.test.mjs`. A janela entre a checagem e a escrita (TOCTOU) fica
+  como risco aceito, registrada na docstring.
+
+- **Anexo de arquivo do `Chat` não vira mais `href` `javascript:` (#447).** A linha de download
+  renderizava `<a href={attachment.url} download>` sem allowlist. Medido: com `react-dom` 18.3.1
+  (`renderToStaticMarkup` num fixture com `react@18.3.1`), o `href="javascript:..."` saía literal; com
+  `@playwright/test`, clicar um `<a href="javascript:void(document.title='x')" download>` mudou o
+  título no Chromium 153 e no Firefox 155 — o `download` não impede. A suíte roda React 19.2.8, que
+  troca o `href` por um stub que lança erro, e é por isso que o teste afirma que a linha **não é
+  link**, não que o React a neutralizou. Agora a URL passa por `safeAttachmentUrl` e a recusada
+  vira a mesma linha sem link. O `src` de imagem, vídeo e áudio fica como está: medido nos mesmos
+  dois navegadores, `<img>`, `<video>` e `<audio>` com `src="javascript:..."` não executam.
+- **`Markdown` (e o corpo do `AIChat`) não trava mais a aba com texto hostil (#437).** A regex de
+  heading `/^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/` tinha backtracking cúbico: `"# a" + " ".repeat(n) +
+"b"` custava 82 ms com n = 1000, 2,0 s com 3000 e 4,8 s com 4000, a cada render, também dentro de
+  citação e lista. Agora só o marcador de abertura é regex e o fechamento sai por `trimEnd` — a
+  mesma linha com 50 000 espaços parseia em 0,3 ms. A varredura do mesmo módulo achou o padrão em
+  mais cinco lugares, todos corrigidos e fixados em teste com teto de 250 ms (o caso mais lento leva
+  ~35 ms sob instrumentação de cobertura): abertura de fence (` ``` ` + 20 000 espaços + `!`: 362 ms
+  → 0,3 ms), linha delimitadora de tabela (`- |` + 50 000 espaços: 1,2 s → 0,1 ms), quebra forçada
+  `/ {2,}$/` e a regra inline `^ {2,}\n` (parágrafo com 50 000 espaços internos: 1,1 s → 0,3 ms), e
+  link/imagem/autolink sem fechamento, que reescaneavam até o fim a partir de cada abertura
+  (`"[".repeat(50000)`: 605 ms → 8 ms; cada regra inline agora só roda no próprio primeiro
+  caractere). E um defeito que não é regex: citação e lista aninhadas recursavam sem limite, e `"-
+".repeat(20000)` lançava `RangeError: Maximum call stack size exceeded` de dentro do componente —
+  o aninhamento agora para em 32 níveis e o resto vira parágrafo, sem perder texto. Medido em Node
+  24 com `performance.now()` em volta de `parseMarkdown` (script bundlado com `esbuild`). Os casos
+  de heading com fechamento `#`, níveis 1–6, `#` sozinho e `#título` (não são heading) seguem iguais
+  e estão fixados em teste.
+
+- **`useOAuthCallback` entrega o resultado em StrictMode e com re-render durante a troca.** O
+  cleanup do efeito marcava a execução como cancelada e o `ref` de "já rodou" impedia a segunda:
+  no remount simulado do StrictMode (dev) e em todo re-render do pai com `exchange`/`onSuccess`/
+  `onError` inline, a única troca era descartada, `onSuccess` nunca rodava e o hook ficava em
+  `"pending"` para sempre — com o `code`, que é de uso único, já gasto. Agora as opções ficam
+  num ref com o valor mais recente, o efeito não tem dependências, a troca roda uma vez por
+  montagem lógica e o resultado só é descartado se o componente estiver desmontado quando ele
+  chega; o `onSuccess`/`onError` chamado é o mais recente. Antes: 3 de 4 testes de
+  `src/oauth/use-oauth-callback.lifecycle.test.tsx` falhavam (StrictMode sucesso, StrictMode
+  erro, re-render); depois, 4 de 4. A doc afirmava "roda uma vez, mesmo em StrictMode" —
+  reescrita em `docs/oauth.md` + `.en.md`.
+- **Data provider — o `id` não sai mais do próprio segmento do path (#438).** `getOne`,
+  `getMany`, `update` e `deleteOne` interpolavam o `id` cru em `/{resource}/{id}`, e o
+  `buildApiUrl` resolvia `..` e cortava a query no primeiro `?`: com `baseURL`
+  `https://app.example.test/api`, `getOne("posts", "../../admin/users")` enviava
+  `GET https://app.example.test/admin/users` com o Bearer, `deleteOne("posts", "../users/7")`
+  virava `DELETE …/api/users/7` e `update("posts", "7?role=admin")` virava
+  `PATCH …/api/posts/7?role=admin`. Agora todo `id` passa pelo novo `encodeIdSegment`
+  (`encodeURIComponent` + rejeição de `null`, `undefined`, `""`, `"."` e `".."` com `TypeError`,
+  antes de qualquer requisição — `null`/`undefined` viravam `/posts/null` e `/posts/undefined`): os mesmos ids vão para `…/api/posts/..%2F..%2Fadmin%2Fusers`,
+  `…/api/posts/..%2Fusers%2F7` e `…/api/posts/7%3Frole%3Dadmin`; id comum (`42`, UUID) segue
+  idêntico. Medido com `createApiClient` + `fetcher` stub, antes × depois, em
+  `src/data/create-data-provider.path.test.ts`. **Efeito em `buildPath` customizado:** o
+  override passa a receber o `id` já codificado — quem já fazia `encodeURIComponent(id)` nele
+  deve remover, ou `%2F` vira `%252F`. `encodeIdSegment` é exportado para quem monta path com id
+  de fora chamando o `createApiClient` direto. Docs em `docs/data-provider.md` + `.en.md`.
+
+- **`createPeerMesh`: `stop()` é terminal — oferta que chega depois do hang-up não reabre o microfone
+  e a câmera (#442).** Antes, `accept()`/`addPeer()` ignoravam a flag `stopped` e `stop()` não
+  esquecia as tracks locais: uma oferta atrasada (de um ex-participante, ou de qualquer um que a
+  sinalização repassasse) criava um `RTCPeerConnection` novo, anexava mic e câmera ainda vivos e
+  respondia, enquanto a mesh seguia reportando `closed`. Medido em Chromium real com dois peers
+  (`--use-fake-device-for-media-stream`, sinalização local): depois do `stop()`, o peer atrasado via
+  o link `connected` com `mic` e `cam` e recebia ~65 kB/s; com a correção, nenhuma conexão é aberta
+  e o delta é 0. Agora `accept`, `addPeer`, `setLocalTrack` e `applyQuality` viram no-op depois do
+  `stop()`, `stop()` limpa as tracks e é idempotente, e toda continuação de negociação (`offer`,
+  `answer`, criação do link) re-confere que o link ainda é o vivo antes de seguir — sem `answer` nem
+  `onNotice("offer_failed")` espúrios para um link que o `stop()`/`removePeer()` fechou no meio de um
+  `await`. As tracks em si não são paradas: pertencem ao chamador. O duplo de teste
+  `FakePeerConnection` agora rejeita negociação depois de `close()` com `InvalidStateError`, como o
+  browser. Docs PT-BR/EN em `docs/webrtc.md` ("Encerrar é definitivo").
+- **`createPeerMesh`: negociação interrompida por `stop()`/`removePeer()` não rejeita mais o
+  `accept()`.** Um `setRemoteDescription`/`createAnswer`/`setLocalDescription` em voo quando o link
+  fecha é rejeitado pelo browser com `InvalidStateError` (ou nunca resolve, como o Chromium foi
+  medido fazendo); no primeiro caso o `accept()` rejeitava e, ligado como `void mesh.accept(m)`,
+  virava unhandled rejection. Agora a rejeição de um link que já não está vivo é engolida, e a de um
+  link vivo continua sendo relançada. O `FakePeerConnection` ganhou `hold`/`release()` e
+  `closeMode: "reject" | "hang"` para os testes cobrirem os dois comportamentos em cada passo.
+- **`createPeerMesh`: nada chega ao app depois do `stop()`.** `removePeer` e o
+  `onconnectionstatechange` de uma conexão fechada disparavam `onPeers([])` depois do stop; e o
+  evento atrasado de uma conexão já removida podia derrubar o link novo re-adicionado com o mesmo id.
+- **`createPeerMesh({ stats })`: amostra de uma conexão substituída não cai no peer novo, e um
+  `getStats()` rejeitado não derruba o tick.** A conferência depois do `await` agora é por
+  identidade do link, não por id; e cada link é amostrado no seu próprio `try`, então uma conexão
+  fechando no meio não gera unhandled rejection nem deixa as outras sem medição.
+- **`createPeerMesh`: `addPeer` com `addTransceiver` lançando não deixa link pendurado.** Antes o
+  link entrava no mapa antes dos transceivers, e todo `addPeer` seguinte com o mesmo id virava
+  no-op; agora a conexão é fechada, o erro é relançado e o id fica livre.
+- **`createPeerMesh`: `setLocalTrack` sobreposto no mesmo slot termina na última chamada.** Um
+  desmute com `replaceTrack` ainda em voo podia terminar depois do mute seguinte, deixando o
+  microfone enviando enquanto a mesh achava o slot vazio. As escritas agora são enfileiradas por
+  slot, e cada uma publica o que o slot contém quando roda. A escrita inicial das tracks num link
+  novo (offerer no `addPeer`, answerer ao aplicar a oferta) entra na mesma fila, então um mute
+  disparado enquanto o link anexava o microfone também tem a última palavra.
+- Custo, medido com `npx size-limit --json` em `origin/main` × esta branch (min + brotli): fatia
+  `createPeerMesh` 3164 B → 3392 B (+228 B, teto 3,3 kB → 3,4 kB); barrel ESM 139 861 B → 140 195 B
+  (+334 B, dentro do teto); barrel CJS 167 019 B → 167 169 B (+150 B, dentro do teto).
+
+- **Revisão do #439 e do #448, cada item com teste que falhava antes da correção.**
+  `tempestCsp`: um `connect-src 'none'` declarado (ou herdado de `default-src 'none'`) não é mais
+  substituído pelas origens resolvidas; elas ficam de fora e o build lista cada uma num aviso (o teste
+  que fixava a substituição foi invertido, com o porquê no nome). Fontes em `directives` para uma
+  diretiva declarada não entram e geram aviso, em vez de sumir em silêncio; `false` em `directives`
+  agora remove a diretiva declarada. Script inline passa a ser julgado pelo `script-src-elem`
+  declarado, que é quem governa `<script>`: o hash não vai mais para um `script-src` que não decide
+  nada, e o aviso dispara. `prefetch-src` entrou na tabela de fallback, que agora cita a lista do CSP3
+  §6.8.3 e o motivo de cada entrada além dela; medido antes, a falta dele não afrouxava política
+  nenhuma — só mudava a base de `directives: { "prefetch-src": [...] }` de vazia para a herdada.
+  `pixPayload`: o valor é conferido depois do `toFixed(2)`, então `amount: 0.004` lança em vez de
+  emitir `54="0.00"`; texto fora do conjunto de caracteres comum do EMV (ASCII imprimível) lança em
+  qualquer TLV, como a chave `joão@exemplo.com` que antes entrava. `parsePixPayload` conta o tamanho
+  de cada TLV em caracteres, como o EMV define, e lê um template com texto não ASCII sem desalinhar.
+
+- **`tempestCsp` não afrouxa mais uma CSP declarada ao preencher diretivas que caíam no
+  `default-src` (#439).** Com `<meta http-equiv="Content-Security-Policy" content="default-src 'none';
+style-src 'self'">` e um `<script>` inline, o build emitia `script-src 'self' 'wasm-unsafe-eval'
+'sha256-…'`, `img-src 'self' data: blob:`, `connect-src 'self' blob: data:`, `worker-src 'self'
+blob:` e o resto dos defaults — cada um mais permissivo que o `'none'` herdado; com
+  `default-src 'self'`, o mesmo, mais `style-src 'self' 'unsafe-inline'`. Agora a diretiva que o app
+  não declarou, mas já governa pela cadeia de fallback do CSP3 §6.8.3 (`img-src` → `default-src`,
+  `worker-src` → `child-src` → `script-src` → `default-src`), fica de fora e continua herdando: sem
+  hash inline, sem `'wasm-unsafe-eval'`, sem `data:`/`blob:`. O `connect-src` parte do valor herdado
+  e ganha só as origens resolvidas (se o herdado é `'none'`, nada entra e o build avisa); fontes passadas em `directives` também somam ao herdado, não aos
+  defaults. Default que só restringe (`object-src 'none'`, `base-uri`, `form-action`) continua
+  entrando. Script inline que a política declarada bloqueia vira aviso no build, com o hash para
+  colar — antes ficava liberado em silêncio. Semântica completa numa tabela em `docs/csp.md`
+  (`.en.md`). Reproduzido com 5 testes em `src/vite/tempest-csp.test.ts` que falhavam na `main`.
+- **`parsePixPayload` recusa payload com duas leituras (#448).** Com CRC válido (quem monta o
+  payload recalcula), a `main` devolvia `amount: 1` para a tag `54` repetida (`1.00` e `1000.00`),
+  a primeira chave para duas subtags `01` na `26`, `kind: "static"` para uma `26` com chave e URL, e
+  lia a tag `54` com `Number()`: `1e3` → `1000`, `-1` → `-1`, `0x10` → `16`, `,5` → `NaN`. Agora
+  lança `PixError` em ID repetido na raiz (regra que o manual do BR Code do Bacen v2 cita do EMV®
+  QRCPS-MPM) e dentro das tags `26` e `62`, em `26` com `01` e `25` juntos, e em `54` fora do formato
+  EMV — só dígitos e um `.` decimal (`"98."` vale), até duas casas (unidade menor do BRL na ISO
+  4217), até 13 caracteres (Tabela 1 do manual). Zero (`"0"`, `"0.00"`) é lido como `amount: 0`, porque o
+  manual do Bacen traz `"0"` como exemplo da tag `54`; o `pixPayload` continua recusando valor não
+  positivo. O CRC continua obrigatório, e a
+  doc deixa de apresentá-lo como prova de autoria: ele detecta corrupção. Tabela das recusas em
+  `docs/br-pagamentos.md` (`.en.md`); 24 casos novos em `src/br/pix.test.ts`, 15 falhavam na `main`.
 
 - **Botão de fechar do `Toast` encolhia com texto longo.** O bloco de texto e o botão dividiam o
   encolhimento do flex, e uma descrição de duas linhas espremia o botão de 22px para 16–17px
@@ -35,6 +603,30 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - **Doc do `Toast` afirmava `aria-atomic="true"`** no container; o código usa `"false"` desde que
   a pilha deixou de ser relida inteira a cada toast novo. A frase agora diz o que o componente
   faz, nas duas línguas.
+
+### Interno
+
+- **Lockfile: `brace-expansion` 5.0.9 → 5.0.12, `fast-uri` 3.1.7 → 3.1.8 e `source-map-js`
+  1.2.1 → 1.2.2, só dependência de desenvolvimento (#450).** Bump mínimo, dentro dos ranges
+  que já estavam declarados (`npm update brace-expansion fast-uri source-map-js`): o
+  `package.json` não muda, e o lockfile muda só essas três entradas. O `npm audit fix`
+  sugerido na issue foi descartado porque arrastava junto o `@microsoft/api-extractor`
+  7.59.0 → 7.59.4 e a árvore `@microsoft/*`/`@rushstack/*` dele. O `source-map-js` (via
+  `vite` → `postcss`, `jsdom` → `css-tree` e `@vitest/coverage-v8`) não estava na issue: o
+  advisory GHSA-68fv-2mgg-jv7q saiu depois dela. Medido com `npm audit` e
+  `npm audit --omit=dev`:
+
+  | Lockfile | `npm audit`                             | `npm audit --omit=dev` |
+  | -------- | --------------------------------------- | ---------------------- |
+  | antes    | 7 (2 high, 5 moderate)                  | 0                      |
+  | depois   | 4 moderate, todos a mesma cadeia abaixo | 0                      |
+
+  O que sobra é o `sprintf-js` (GHSA-hp3w-g68c-fv3c, faixa afetada `*`: **nenhuma** versão
+  corrigida existe), puxado por `@microsoft/api-extractor` → `@rushstack/ts-command-line` →
+  `argparse@~1.0.9`. A única saída que o `npm audit fix --force` oferece é rebaixar o
+  api-extractor para 7.7.8, o que quebraria o rollup de tipos — fica registrado, sem ação, até
+  o upstream publicar correção. Nada disso chega ao consumidor.
+
 
 ## [0.76.0] — 2026-10-10
 

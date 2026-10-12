@@ -101,34 +101,6 @@ export async function acceptCandidate(link: PeerLink, init: RTCIceCandidateInit)
 }
 
 /**
- * Publish every held local track onto a link's slots.
- *
- * Called once the transceivers exist — up front for the offerer, after the offer
- * lands for the answerer — so a microphone that was already live when the peer
- * joined starts flowing without waiting for a toggle.
- *
- * @param link - The link to publish onto.
- * @param slots - The mesh's slot list.
- * @param tracks - The current local track per slot name.
- */
-export async function attachLocalTracks(
-    link: PeerLink,
-    slots: readonly MeshSlot[],
-    tracks: Map<string, MediaStreamTrack | null>,
-): Promise<void> {
-    for (const [index, slot] of slots.entries()) {
-        const transceiver = link.transceivers[index];
-        const track = tracks.get(slot.name) ?? null;
-        if (!transceiver || !track) continue;
-        try {
-            await transceiver.sender.replaceTrack(track);
-        } catch {
-            /* the browser refused the track; the slot simply stays silent */
-        }
-    }
-}
-
-/**
  * Adopt the transceivers a remote offer created, in `mid` order.
  *
  * The answering side allocates **nothing** up front, and that is the whole

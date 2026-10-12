@@ -10,13 +10,12 @@ import { applyQualityToLink, resolveDegradation, scaleForRoom } from "./mesh-qua
 import {
     acceptCandidate,
     adoptTransceivers,
-    attachLocalTracks,
     createPeerConnection,
     drainCandidates,
     slotOf,
     type PeerLink,
 } from "./peer-link";
-import { createLinkStatsSampler, type LinkStatsSampler } from "./link-stats";
+import { createLinkStatsSampler, type LinkStats, type LinkStatsSampler } from "./link-stats";
 import type {
     MeshMessage,
     MeshPeer,
@@ -24,6 +23,9 @@ import type {
     MeshStatsOptions,
     PeerMeshOptions,
 } from "./mesh-types";
+
+/** What {@link createPeerMesh}'s negotiation steps return once their link is gone. */
+const GONE = Symbol("gone");
 
 /** A running mesh. */
 export interface PeerMesh {
@@ -57,7 +59,23 @@ export interface PeerMesh {
     applyQuality: (quality: MeshQuality) => Promise<void>;
     /** Replace the ICE servers used for links opened from now on. */
     setIceServers: (servers: RTCIceServer[]) => void;
-    /** Close every link and report `closed`. */
+    /**
+     * Close every link, forget the local tracks and report `closed` — for good.
+     *
+     * Stopping is terminal. The signalling socket usually outlives the call, so
+     * an offer still in flight from a former participant, or from anyone the
+     * server relays to this user, keeps reaching {@link PeerMesh.accept} after
+     * the hang-up. A stopped mesh drops it: no connection is opened, nothing is
+     * answered and no track is published, so a call that reports `closed` never
+     * sends the microphone or camera again. The same holds for `addPeer`,
+     * `setLocalTrack` and `applyQuality`, and for every negotiation that was
+     * already awaiting the browser when `stop()` ran. Calling it twice is a
+     * no-op.
+     *
+     * The tracks themselves are not stopped: they belong to the caller, who may
+     * still be showing them in a preview or reusing them on the next call. To
+     * join again, create a new mesh.
+     */
     stop: () => void;
     /** The peers as the mesh currently sees them. */
     readonly peers: MeshPeer[];
@@ -111,6 +129,7 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
     const links = new Map<string, PeerLink>();
     const peers = new Map<string, MeshPeer>();
     const localTracks = new Map<string, MediaStreamTrack | null>();
+    const slotWrites = new Map<string, Promise<void>>();
     let iceServers = options.iceServers ?? [];
     const describe =
         options.setLocalDescription ??
@@ -129,6 +148,45 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
     };
 
     /**
+     * Whether a link is still the one the mesh holds for its peer.
+     *
+     * Every negotiation step awaits the browser, and `stop()` or `removePeer()`
+     * can close the link inside any of those awaits. A continuation that does
+     * not re-check keeps negotiating on a closed connection — which a browser
+     * answers with `InvalidStateError` — or, worse, signals an answer for a call
+     * that already hung up.
+     *
+     * @param link - The link a continuation is about to touch.
+     * @returns `false` once the mesh stopped or the link was removed or replaced.
+     */
+    const isLive = (link: PeerLink): boolean => !stopped && links.get(link.peerId) === link;
+
+    /**
+     * Await one negotiation step, and tell the caller whether to go on.
+     *
+     * A browser settles a call that `close()` ran under in one of two ways:
+     * it rejects with `InvalidStateError`, or — what Chromium was measured
+     * doing — it never settles at all. The second needs nothing here; the
+     * first would surface as a rejected `accept()`, which the documented
+     * `void mesh.accept(message)` wiring turns into an unhandled rejection
+     * for a call that already hung up. So a rejection on a link that is no
+     * longer live is swallowed, and one on a live link is rethrown untouched.
+     *
+     * @param link - The link the step negotiates on.
+     * @param step - The pending browser call.
+     * @returns The step's value, or {@link GONE} when the link stopped being live.
+     */
+    const whileLive = async <T>(link: PeerLink, step: Promise<T>): Promise<T | typeof GONE> => {
+        try {
+            const value = await step;
+            return isLive(link) ? value : GONE;
+        } catch (error) {
+            if (!isLive(link)) return GONE;
+            throw error;
+        }
+    };
+
+    /**
      * Sample every connected link once.
      *
      * Only `connected` links are asked. A link still gathering candidates has
@@ -138,6 +196,12 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
      * `settings` arrives as an argument rather than being read from `options`
      * here: the timer is only ever armed past the check that they exist, so
      * reading them again would add a branch that nothing can reach.
+     *
+     * Each link is sampled on its own: a `getStats()` that rejects — a link
+     * closing under the call does that — skips that link for this tick and
+     * leaves the others measured. Across the await the link is re-checked by
+     * identity, not by id: a peer removed and re-added under the same id holds
+     * a new connection, and the old one's sample must not land on it.
      *
      * @param settings - The measuring options, already known to be present.
      */
@@ -154,15 +218,14 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
                 );
                 samplers.set(link.peerId, sampler);
             }
-            const stats = await sampler.sample(link.pc);
+            let stats: LinkStats;
+            try {
+                stats = await sampler.sample(link.pc);
+            } catch {
+                continue;
+            }
             const peer = peers.get(link.peerId);
-            /*
-             * Belt and braces, and the belt is the state check above: a peer
-             * removed from inside `onStats` has its connection closed first, so
-             * the next iteration skips it there rather than here. This catches
-             * the entry disappearing any other way across the await.
-             */
-            if (peer === undefined) continue;
+            if (!isLive(link) || peer === undefined) continue;
             peer.stats = stats;
             changed = true;
             settings.onStats?.(link.peerId, stats);
@@ -208,6 +271,7 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
     };
 
     const applyQuality = async (next: MeshQuality): Promise<void> => {
+        if (stopped) return;
         quality = next;
         const effective = scaleForRoom(next, links.size);
         const degradation = resolveDegradation(next, effective);
@@ -221,18 +285,20 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
         link.makingOffer = true;
         try {
             const offer = await link.pc.createOffer();
+            if (!isLive(link)) return;
             if (!offer.sdp) {
                 options.onNotice?.("empty_local_offer_sdp");
                 return;
             }
             await describe(link.pc, offer);
+            if (!isLive(link)) return;
             send({
                 type: "offer",
                 to: link.peerId,
                 sdp: link.pc.localDescription?.sdp ?? offer.sdp,
             });
         } catch {
-            options.onNotice?.("offer_failed");
+            if (isLive(link)) options.onNotice?.("offer_failed");
         } finally {
             link.makingOffer = false;
         }
@@ -269,7 +335,65 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
         emitPeers();
     };
 
+    /**
+     * Queue one write behind every earlier write to the same slot.
+     *
+     * Every write that puts a local track on a sender goes through here — the
+     * fan-out of `setLocalTrack` and the first write onto a link that just
+     * got its transceivers alike. Two writes to one slot therefore never run
+     * at once, and a write queued later always finishes later.
+     *
+     * @param slot - The slot name.
+     * @param write - The write to run once the earlier ones have finished.
+     * @returns The queued write.
+     */
+    const enqueueWrite = (slot: string, write: () => Promise<void>): Promise<void> => {
+        const queued = (slotWrites.get(slot) ?? Promise.resolve()).then(write);
+        slotWrites.set(slot, queued);
+        return queued;
+    };
+
+    /**
+     * Put a slot's current track on one link's sender.
+     *
+     * The track is read when the write runs, not when it was queued, so the
+     * last `setLocalTrack` wins whichever write lands last. A refusal
+     * belongs to a link that is tearing down, whose state handler removes it,
+     * so it is not an error here.
+     *
+     * @param link - The link to write onto.
+     * @param slot - The slot name.
+     * @param index - The slot's position in `slots`, which is its transceiver.
+     */
+    const writeSlot = async (link: PeerLink, slot: string, index: number): Promise<void> => {
+        const transceiver = link.transceivers[index];
+        if (!transceiver || !isLive(link)) return;
+        try {
+            await transceiver.sender.replaceTrack(localTracks.get(slot) ?? null);
+        } catch {
+            return;
+        }
+    };
+
+    /**
+     * Publish every held local track onto a link whose transceivers now exist.
+     *
+     * Up front for the offerer, after the offer lands for the answerer, so a
+     * microphone that was already live when the peer joined starts flowing
+     * without waiting for a toggle. Each slot's write joins that slot's queue,
+     * so a mute issued while it is in flight still has the last word.
+     *
+     * @param link - The link to publish onto.
+     */
+    const attachLocalTracks = (link: PeerLink): Promise<unknown> =>
+        Promise.all(
+            slots.map((slot, index) =>
+                enqueueWrite(slot.name, () => writeSlot(link, slot.name, index)),
+            ),
+        );
+
     const removePeer = (peerId: string): void => {
+        if (stopped) return;
         const link = links.get(peerId);
         if (link) {
             link.pc.close();
@@ -284,13 +408,24 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
     };
 
     const addPeer = async (peerId: string, { offerer }: { offerer: boolean }): Promise<void> => {
-        if (links.has(peerId)) return;
+        if (stopped || links.has(peerId)) return;
 
         const pc = createPeerConnection(iceServers);
+        let transceivers: RTCRtpTransceiver[] = [];
+        if (offerer) {
+            try {
+                transceivers = slots.map((slot) =>
+                    pc.addTransceiver(slot.kind, { direction: "sendrecv" }),
+                );
+            } catch (error) {
+                pc.close();
+                throw error;
+            }
+        }
         const link: PeerLink = {
             peerId,
             pc,
-            transceivers: [],
+            transceivers,
             pendingCandidates: [],
             remoteReady: false,
             makingOffer: false,
@@ -304,10 +439,8 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
         });
 
         if (offerer) {
-            link.transceivers = slots.map((slot) =>
-                pc.addTransceiver(slot.kind, { direction: "sendrecv" }),
-            );
-            await attachLocalTracks(link, slots, localTracks);
+            await attachLocalTracks(link);
+            if (!isLive(link)) return;
         }
 
         pc.onicecandidate = (event): void => {
@@ -323,6 +456,7 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
         pc.ontrack = (event): void => attachRemoteTrack(link, event);
 
         pc.onconnectionstatechange = (): void => {
+            if (!isLive(link)) return;
             const peer = peers.get(peerId);
             if (peer) peer.connection = pc.connectionState;
             if (pc.connectionState === "failed" || pc.connectionState === "closed") {
@@ -346,28 +480,35 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
     const acceptOffer = async (from: string, sdp: string): Promise<void> => {
         if (!links.has(from)) await addPeer(from, { offerer: false });
         const link = links.get(from);
-        if (!link) return;
+        if (!link || !isLive(link)) return;
 
-        await link.pc.setRemoteDescription({ type: "offer", sdp });
+        if (
+            (await whileLive(link, link.pc.setRemoteDescription({ type: "offer", sdp }))) === GONE
+        ) {
+            return;
+        }
         link.remoteReady = true;
         await drainCandidates(link);
 
         if (!link.isOfferer) {
             adoptTransceivers(link);
-            await attachLocalTracks(link, slots, localTracks);
+            await attachLocalTracks(link);
         }
+        if (!isLive(link)) return;
 
-        const answer = await link.pc.createAnswer();
+        const answer = await whileLive(link, link.pc.createAnswer());
+        if (answer === GONE) return;
         if (!answer.sdp) {
             options.onNotice?.("empty_local_answer_sdp");
             return;
         }
-        await describe(link.pc, answer);
+        if ((await whileLive(link, describe(link.pc, answer))) === GONE) return;
         send({ type: "answer", to: from, sdp: link.pc.localDescription?.sdp ?? answer.sdp });
         await applyQuality(quality);
     };
 
     const accept = async (message: MeshMessage & { from: string }): Promise<void> => {
+        if (stopped) return;
         if (message.type === "offer") {
             await acceptOffer(message.from, message.sdp);
             return;
@@ -377,7 +518,8 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
         if (!link) return;
 
         if (message.type === "answer") {
-            await link.pc.setRemoteDescription({ type: "answer", sdp: message.sdp });
+            const applied = link.pc.setRemoteDescription({ type: "answer", sdp: message.sdp });
+            if ((await whileLive(link, applied)) === GONE) return;
             link.remoteReady = true;
             await drainCandidates(link);
             await applyQuality(quality);
@@ -392,29 +534,34 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
         });
     };
 
+    /**
+     * Publish or retract one slot, one write at a time per slot.
+     *
+     * Writes to a slot are chained, and each publishes whatever the slot holds
+     * when it runs. Without the chain, an unmute whose `replaceTrack` is still
+     * in flight could finish after the mute that followed it, leaving the
+     * sender on the microphone while the mesh believes the slot is empty.
+     */
     const setLocalTrack = async (slot: string, track: MediaStreamTrack | null): Promise<void> => {
+        if (stopped) return;
         localTracks.set(slot, track);
         const index = slots.findIndex((entry) => entry.name === slot);
         if (index < 0) return;
 
-        for (const link of links.values()) {
-            const transceiver = link.transceivers[index];
-            if (!transceiver) continue;
-            try {
-                await transceiver.sender.replaceTrack(track);
-            } catch {
-                /* the link is tearing down; its state handler will remove it */
-            }
-        }
+        await enqueueWrite(slot, async () => {
+            for (const link of [...links.values()]) await writeSlot(link, slot, index);
+        });
         await applyQuality(quality);
     };
 
     const stop = (): void => {
+        if (stopped) return;
+        stopped = true;
         for (const link of links.values()) link.pc.close();
         links.clear();
         peers.clear();
         samplers.clear();
-        stopped = true;
+        localTracks.clear();
         syncStatsTimer();
         emitPeers();
         options.onState?.("closed");

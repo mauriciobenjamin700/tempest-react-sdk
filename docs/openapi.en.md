@@ -137,6 +137,30 @@ function UserList() {
     response, grouped by the first `tag`. YAML and multiple content-types are not
     supported yet — point at the `/openapi.json` (JSON).
 
+!!! info "Third-party spec text never becomes code"
+    Every string from the spec reaches the generated TypeScript escaped for the
+    position it lands in: a tag, `summary` or path inside a comment cannot close
+    the `/** */`, path segments become template-literal text, and `pattern`
+    becomes `new RegExp("...")`. A name that must be an **identifier** and is
+    not — `{user-id}`, `user.Response`, `User-Out` — becomes a valid one:
+    camelCase for a parameter (`userId`), PascalCase for a schema or type
+    (`UserResponse`), a `_` prefix for a reserved word or a leading digit
+    (`_string`, `_2fa`). Wherever the name matters at runtime the original wins:
+    the URL fills `{user-id}` with the value of `userId`, and an object key is an
+    escaped string (`"display-name"`). A name that already is an identifier is
+    kept. Two names that map to the same identifier (`User-Out` and `user.Out`)
+    are refused with an error naming both, and so is a path `{placeholder}` that
+    is not a declared parameter — there is no safe variable for it.
+
+    The same goes for names the generator itself uses. A path parameter that
+    would land on `body`, `params` or `S` becomes `bodyParam`/`paramsParam`/
+    `SParam`; an `operationId` of `constructor` or `api` becomes
+    `constructor2`/`api2`; a schema named `ApiClient`, `OffsetPage`, `CursorPage`,
+    `Promise`, `Record`, `z` or `S` gets a `_` prefix; and two tags whose barrel
+    names coincide (`user 1` and `user1`) are refused, naming both. A `pattern`
+    that does not compile as a JavaScript regex fails **generation**, naming the
+    schema and the property path — instead of breaking the app on import.
+
 ## Recap
 
 - `tempest gen api <url|file> --out src/api` generates, **per route group**, three files: `schemas.ts` (Zod), `types.ts` (`z.infer`) and `service.ts` (class).

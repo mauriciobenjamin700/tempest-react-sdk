@@ -217,3 +217,90 @@ describe("parseInline", () => {
         expect(text([node])).toBe("forte com itálico dentro");
     });
 });
+
+/**
+ * Run `work` and return how long it took, in milliseconds.
+ *
+ * The budget is about eight times what the linear parser needs under coverage
+ * instrumentation (at most ~35 ms, for the inline cases; under 10 ms bare), and
+ * below what the backtracking regexes took before #437 on the same inputs:
+ * `"# a" + " ".repeat(3000) + "b"` cost about 2 s, and the other cases 0.45 to
+ * 2.3 s each.
+ */
+function elapsed(work: () => unknown): number {
+    const start = performance.now();
+    work();
+    return performance.now() - start;
+}
+
+/** Ceiling for one parse of an adversarial input, in milliseconds. */
+const BUDGET_MS = 250;
+
+describe("parseMarkdown — hostile input stays linear (#437)", () => {
+    it("parses a heading padded with 3000 spaces without cubic backtracking", () => {
+        for (const prefix of ["# a", "> # a", "- # a"]) {
+            expect(elapsed(() => parseMarkdown(`${prefix}${" ".repeat(3000)}b`))).toBeLessThan(
+                BUDGET_MS,
+            );
+        }
+    });
+
+    it("parses a heading line with 50 KB of spaces well under the budget", () => {
+        const source = `# a${" ".repeat(50_000)}b`;
+        expect(elapsed(() => parseMarkdown(source))).toBeLessThan(BUDGET_MS);
+        expect(first(source, "heading").children).toEqual([
+            { type: "text", value: `a${" ".repeat(50_000)}b` },
+        ]);
+    });
+
+    it.each([
+        ["a paragraph with an inner run of spaces", `a${" ".repeat(50_000)}b`],
+        ["a fence opener followed by spaces and junk", `\`\`\`${" ".repeat(50_000)}!`],
+        ["a table delimiter row ending in spaces and junk", `a|b\n- |${" ".repeat(50_000)}!`],
+        ["a run of unclosed link openers", "[".repeat(50_000)],
+        ["a run of unclosed image openers", "![".repeat(25_000)],
+        ["link openers sharing one failing tail", `${"[".repeat(50_000)}](x y`],
+        ["a run of unclosed autolinks", "<http://".repeat(12_000)],
+    ])("parses %s in linear time", (_label, source) => {
+        expect(elapsed(() => parseMarkdown(source))).toBeLessThan(BUDGET_MS);
+    });
+
+    it("caps nesting instead of overflowing the stack on deep lists and quotes", () => {
+        expect(() => parseMarkdown(`${"- ".repeat(20_000)}x`)).not.toThrow();
+        expect(() => parseMarkdown(`${">".repeat(20_000)}x`)).not.toThrow();
+    });
+
+    it("keeps the text of a quote nested past the cap as a paragraph", () => {
+        let block: MarkdownBlock | undefined = parseMarkdown(`${"> ".repeat(100)}fundo`)[0];
+        let depth = 0;
+        while (block?.type === "quote") {
+            block = block.children[0];
+            depth += 1;
+        }
+        expect(depth).toBeLessThan(100);
+        expect(block?.type).toBe("paragraph");
+        expect(text(block?.type === "paragraph" ? block.children : [])).toContain("fundo");
+    });
+});
+
+describe("parseMarkdown — heading edge cases kept by the linear matcher", () => {
+    it.each([
+        ["# título #", "título"],
+        ["## título ##   ", "título"],
+        ["# título#", "título"],
+        ["#   espaçado   ", "espaçado"],
+        ["   ### recuado", "recuado"],
+        ["# a # b", "a # b"],
+        ["# #", ""],
+        ["# ", ""],
+    ])("reads %j as the heading text %j", (source, expected) => {
+        expect(text(first(source, "heading").children)).toBe(expected);
+    });
+
+    it.each(["#", "#título", "    # quatro espaços é código no CommonMark, aqui é texto"])(
+        "does not read %j as a heading",
+        (source) => {
+            expect(kinds(source)).not.toContain("heading");
+        },
+    );
+});

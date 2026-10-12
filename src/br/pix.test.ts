@@ -467,3 +467,226 @@ describe("parsePixPayload", () => {
         expect(data.keyType).toBeUndefined();
     });
 });
+
+/** One TLV triple, written by hand so a test can build what `pixPayload` refuses to. */
+function rawTlv(id: string, value: string): string {
+    return `${id}${String(value.length).padStart(2, "0")}${value}`;
+}
+
+/**
+ * A CRC-valid payload from raw TLVs. Anyone crafting a payload recomputes the CRC,
+ * so these cases prove the parser rejects them on structure, not on checksum.
+ */
+function crafted({
+    account = [
+        ["00", "br.gov.bcb.pix"],
+        ["01", "12345678909"],
+    ],
+    amount = ["1.00"],
+    additional = [["05", "***"]],
+    extra = [],
+}: {
+    account?: ReadonlyArray<readonly [string, string]>;
+    amount?: readonly string[];
+    additional?: ReadonlyArray<readonly [string, string]>;
+    extra?: ReadonlyArray<readonly [string, string]>;
+} = {}): string {
+    const body =
+        rawTlv("00", "01") +
+        rawTlv("26", account.map(([id, value]) => rawTlv(id, value)).join("")) +
+        rawTlv("52", "0000") +
+        rawTlv("53", "986") +
+        amount.map((value) => rawTlv("54", value)).join("") +
+        rawTlv("58", "BR") +
+        rawTlv("59", "Loja Tempest") +
+        rawTlv("60", "Sao Paulo") +
+        extra.map(([id, value]) => rawTlv(id, value)).join("") +
+        rawTlv("62", additional.map(([id, value]) => rawTlv(id, value)).join("")) +
+        "6304";
+    return body + pixCrc16(body);
+}
+
+describe("parsePixPayload — one reading per payload (#448)", () => {
+    it("accepts the crafted baseline, so every rejection below is about the one change", () => {
+        expect(parsePixPayload(crafted())).toMatchObject({ key: "12345678909", amount: 1 });
+    });
+
+    it("rejects a repeated top-level tag instead of keeping the first", () => {
+        expect(() => parsePixPayload(crafted({ amount: ["1.00", "1000.00"] }))).toThrow(
+            /tag 54 .*more than once/i,
+        );
+        expect(() => parsePixPayload(crafted({ extra: [["59", "Outro Nome"]] }))).toThrow(
+            /tag 59 .*more than once/i,
+        );
+        const twoAccounts =
+            rawTlv("26", rawTlv("00", "br.gov.bcb.pix") + rawTlv("01", "12345678909")) +
+            rawTlv("26", rawTlv("00", "br.gov.bcb.pix") + rawTlv("01", "11222333000181"));
+        const body = crafted().replace(/^0002012\d{2}.*?52040000/, `000201${twoAccounts}52040000`);
+        const withCrc = body.slice(0, -4) + pixCrc16(body.slice(0, -4));
+        expect(() => parsePixPayload(withCrc)).toThrow(/tag 26 .*more than once/i);
+    });
+
+    it("rejects a repeated sub-tag inside tag 26 and tag 62", () => {
+        expect(() =>
+            parsePixPayload(
+                crafted({
+                    account: [
+                        ["00", "br.gov.bcb.pix"],
+                        ["01", "12345678909"],
+                        ["01", "11222333000181"],
+                    ],
+                }),
+            ),
+        ).toThrow(/tag 01 in tag 26 .*more than once/i);
+        expect(() =>
+            parsePixPayload(
+                crafted({
+                    additional: [
+                        ["05", "PEDIDO1"],
+                        ["05", "PEDIDO2"],
+                    ],
+                }),
+            ),
+        ).toThrow(/tag 05 in tag 62 .*more than once/i);
+    });
+
+    it("rejects a tag 26 that carries both a key and a URL", () => {
+        expect(() =>
+            parsePixPayload(
+                crafted({
+                    account: [
+                        ["00", "br.gov.bcb.pix"],
+                        ["01", "12345678909"],
+                        ["25", "pix.example.com/qr/v2/abc"],
+                    ],
+                }),
+            ),
+        ).toThrow(/both a key .* and a URL/i);
+    });
+
+    it.each([
+        "1e3",
+        "-1",
+        ",5",
+        "0x10",
+        "Infinity",
+        "+1.00",
+        " 1.00",
+        "1,00",
+        ".5",
+        "1.005",
+        "1.2.3",
+        "12345678901.00",
+    ])("rejects tag 54 = %j, outside the EMV amount format", (value) => {
+        expect(() => parsePixPayload(crafted({ amount: [value] }))).toThrow(/tag 54/i);
+    });
+
+    it.each([
+        ["1.00", 1],
+        ["123.99", 123.99],
+        ["98", 98],
+        ["98.", 98],
+        ["0.5", 0.5],
+        ["1234567890.99", 1234567890.99],
+    ])("reads tag 54 = %j as %d", (value, amount) => {
+        expect(parsePixPayload(crafted({ amount: [value] })).amount).toBe(amount);
+    });
+
+    it.each(["0", "0.00"])(
+        'reads tag 54 = %j as 0, because the Bacen BR Code manual lists "0" as a tag 54 value, while pixPayload still refuses it',
+        (value) => {
+            expect(parsePixPayload(crafted({ amount: [value] })).amount).toBe(0);
+            expect(() =>
+                pixPayload({
+                    key: "12345678909",
+                    merchantName: "Loja",
+                    merchantCity: "SP",
+                    amount: 0,
+                }),
+            ).toThrow(PixError);
+        },
+    );
+});
+
+describe("pix — what the spec says about amounts and characters (review of #448)", () => {
+    it("refuses an amount that rounds to zero at two decimals instead of emitting tag 54 = 0.00", () => {
+        expect(() =>
+            pixPayload({
+                key: "12345678909",
+                merchantName: "Loja",
+                merchantCity: "SP",
+                amount: 0.004,
+            }),
+        ).toThrow(PixError);
+        expect(
+            parsePixPayload(
+                pixPayload({
+                    key: "12345678909",
+                    merchantName: "Loja",
+                    merchantCity: "SP",
+                    amount: 0.005,
+                }),
+            ).amount,
+        ).toBe(0.01);
+    });
+
+    it("refuses a value outside the EMV common character set instead of writing a length that counts UTF-16 units", () => {
+        expect(() =>
+            pixPayload({ key: "joão@exemplo.com", merchantName: "Loja", merchantCity: "SP" }),
+        ).toThrow(/character set/i);
+        expect(() =>
+            pixPayload({ key: "a😀@exemplo.com", merchantName: "Loja", merchantCity: "SP" }),
+        ).toThrow(/character set/i);
+    });
+
+    it("counts a TLV length in characters, as EMV defines it, when a template carries non-ASCII", () => {
+        const body =
+            rawTlv("00", "01") +
+            rawTlv("26", rawTlv("00", "br.gov.bcb.pix") + rawTlv("01", "12345678909")) +
+            rawTlv("52", "0000") +
+            rawTlv("53", "986") +
+            rawTlv("58", "BR") +
+            rawTlv("59", "Loja") +
+            rawTlv("60", "SP") +
+            "6406" +
+            "0002pt" +
+            "8002😀x" +
+            rawTlv("62", rawTlv("05", "***")) +
+            "6304";
+        const data = parsePixPayload(body + pixCrc16(body));
+        expect(data.fields.find((field) => field.id === "64")?.value).toBe("0002pt");
+        expect(data.fields.find((field) => field.id === "80")?.value).toBe("😀x");
+        expect(data.txid).toBe("***");
+    });
+});
+
+describe("pixPayload — accents in free text are stripped, a key with one is refused", () => {
+    it("writes São Paulo and João as Sao Paulo and Joao, keeping the case the caller gave", () => {
+        const payload = pixPayload({
+            key: "12345678909",
+            merchantName: "João",
+            merchantCity: "São Paulo",
+        });
+        expect(payload).toContain("5904Joao");
+        expect(payload).toContain("6009Sao Paulo");
+        expect(parsePixPayload(payload)).toMatchObject({
+            merchantName: "Joao",
+            merchantCity: "Sao Paulo",
+        });
+    });
+
+    it("refuses what is left outside the common character set after stripping, naming the field", () => {
+        expect(() =>
+            pixPayload({ key: "12345678909", merchantName: "Loja 😀", merchantCity: "SP" }),
+        ).toThrow(/merchantName/);
+        expect(() =>
+            pixPayload({ key: "12345678909", merchantName: "Loja", merchantCity: "東京" }),
+        ).toThrow(/merchantCity/);
+    });
+
+    it("refuses an accented key instead of transliterating it into another key", () => {
+        expect(() =>
+            pixPayload({ key: "joão@exemplo.com", merchantName: "Loja", merchantCity: "SP" }),
+        ).toThrow(PixError);
+    });
+});

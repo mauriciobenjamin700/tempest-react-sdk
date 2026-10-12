@@ -173,6 +173,23 @@ const MAX_TLV_VALUE = 99;
 const MAX_EMAIL_KEY = 77;
 
 /**
+ * Tag 54 as EMV® QRCPS-MPM writes it: digits, and at most one `.` as the decimal
+ * mark, which "may be present even if there are no decimals" (`"98."`). Up to two
+ * decimals, the minor unit ISO 4217 gives BRL (`986`). No sign, exponent, comma,
+ * hex prefix or whitespace — every one of which `Number()` would happily read.
+ *
+ * Zero (`"0"`, `"0.00"`) is accepted: EMV asks for a non-zero amount, but the BACEN
+ * BR Code manual (v2, Table 1) gives `"0"` as an example value of tag 54, and the
+ * parser reads payloads other PSPs emit — strict with what is malformed, tolerant
+ * with what the Bacen spec accepts. The builder stays stricter: `pixPayload`
+ * still refuses a non-positive amount, because it only writes what we choose to emit.
+ */
+const AMOUNT_FIELD = /^\d+(?:\.\d{0,2})?$/;
+
+/** Width of tag 54: "01..13" in the BACEN BR Code manual, Table 1. */
+const MAX_AMOUNT_FIELD = 13;
+
+/**
  * CRC-16/CCITT-FALSE of a string, as four upper-case hex characters.
  *
  * Bitwise rather than table-driven: 200-odd characters at 8 shifts each is
@@ -230,8 +247,36 @@ function toPayloadText(value: string, field: string): string {
     return stripped;
 }
 
-/** One `ID + 2-digit length + value` triple. */
+/**
+ * The EMV "Common Character Set" that an `ans` (Alphanumeric Special) field may
+ * carry: printable ASCII, `0x20`–`0x7E`. Every root field of a BR Code is `ans`,
+ * and the BACEN BR Code manual (v2, May 2020) only widened it from alphanumeric —
+ * "The restriction that established that only alphanumeric characters could be
+ * used has been removed" — not past it. Only the alternate-language template
+ * (tag 64) is `String` and may carry another character set, and the builder
+ * never writes it.
+ */
+const COMMON_CHARACTER_SET = /^[\x20-\x7E]*$/;
+
+/**
+ * One `ID + 2-digit length + value` triple.
+ *
+ * The length is "the number of characters included in the [value] field" (EMV
+ * MPM, as restated by the HKMA Common QR Code Specification §2; the BACEN manual:
+ * "size specifies how many characters"). Inside the common character set a
+ * character is one UTF-16 unit and one UTF-8 byte, so `value.length` is exact —
+ * which is why a value outside it throws instead of being measured.
+ *
+ * @throws {PixError} When the value leaves the common character set or exceeds
+ * the two-digit length.
+ */
 function tlv(id: string, value: string): string {
+    if (!COMMON_CHARACTER_SET.test(value)) {
+        throw new PixError(
+            `Tag ${id} has characters outside the EMV common character set (printable ASCII): ` +
+                `${JSON.stringify(value)}.`,
+        );
+    }
     if (value.length > MAX_TLV_VALUE) {
         throw new PixError(
             `Tag ${id} is ${value.length} characters; the EMV length field holds at most ${MAX_TLV_VALUE}.`,
@@ -318,7 +363,12 @@ export function normalizePixKey(key: string): NormalizedPixKey {
     return { type, value: digits(trimmed) };
 }
 
-/** Format an amount the way tag 54 wants it: dot separator, two decimals. */
+/**
+ * Format an amount the way tag 54 wants it: dot separator, two decimals.
+ *
+ * Positivity is checked on the rounded field, not on the input: `0.004` is
+ * positive and still writes `"0.00"`, a zero-value QR for a positive charge.
+ */
 function toAmountField(amount: number): string {
     if (!Number.isFinite(amount)) {
         throw new PixError(`Amount must be a finite number, got ${amount}.`);
@@ -329,6 +379,11 @@ function toAmountField(amount: number): string {
         );
     }
     const field = amount.toFixed(2);
+    if (Number(field) <= 0) {
+        throw new PixError(
+            `Amount ${amount} rounds to ${field} at two decimals. Omit \`amount\` for a QR whose value the payer types.`,
+        );
+    }
     if (field.length > 13) {
         throw new PixError(`Amount ${field} does not fit tag 54, which holds 13 characters.`);
     }
@@ -463,14 +518,28 @@ export function pixPayload(input: PixInput): string {
 /**
  * Split a flat run of TLVs. Stops cleanly at the first malformed triple.
  *
- * @throws {PixError} When a length prefix is not two digits or runs past the end.
+ * An ID may appear once per level. The BACEN BR Code manual (v2, May 2020)
+ * states it for the root — "there are no duplicate IDs in the document's root,
+ * according to" EMV® QRCPS-MPM;
+ * the same holds here inside tags 26 and 62, which no conforming emitter
+ * repeats either. Keeping the first of two values would give the caller one
+ * reading of the payload while a wallet that keeps the last pays another.
+ *
+ * Lengths count characters (code points), as EMV defines them — see {@link tlv}.
+ * A payload from another PSP may carry a `String` template (tag 64, or an
+ * unreserved one) with non-ASCII text, where counting UTF-16 units would split
+ * a character and misread every tag after it.
+ *
+ * @throws {PixError} When a length prefix is not two digits, runs past the end,
+ * or an ID repeats at this level.
  */
-function parseTlv(input: string, where: string): PixField[] {
+function parseTlv(text: string, where: string): PixField[] {
+    const input = Array.from(text);
     const fields: PixField[] = [];
     let cursor = 0;
     while (cursor < input.length) {
-        const id = input.slice(cursor, cursor + 2);
-        const rawLength = input.slice(cursor + 2, cursor + 4);
+        const id = input.slice(cursor, cursor + 2).join("");
+        const rawLength = input.slice(cursor + 2, cursor + 4).join("");
         if (!/^\d{2}$/.test(id) || !/^\d{2}$/.test(rawLength)) {
             throw new PixError(
                 `Malformed TLV in ${where} at offset ${cursor}: expected a 2-digit tag and length.`,
@@ -483,15 +552,37 @@ function parseTlv(input: string, where: string): PixField[] {
                 `Tag ${id} in ${where} declares ${length} characters but only ${input.length - start} remain.`,
             );
         }
-        fields.push({ id, value: input.slice(start, start + length) });
+        if (fields.some((field) => field.id === id)) {
+            throw new PixError(
+                `Tag ${id} in ${where} appears more than once; a BR Code carries each tag once per level.`,
+            );
+        }
+        fields.push({ id, value: input.slice(start, start + length).join("") });
         cursor = start + length;
     }
     return fields;
 }
 
-/** First value for a tag, or `undefined`. */
+/** The value of a tag — unique per level, see {@link parseTlv} — or `undefined`. */
 function pick(fields: readonly PixField[], id: string): string | undefined {
     return fields.find((field) => field.id === id)?.value;
+}
+
+/**
+ * Read tag 54 into reais.
+ *
+ * @throws {PixError} When the field is outside the EMV format
+ * ({@link AMOUNT_FIELD}) or wider than 13 characters. Zero is read as `0`; see
+ * {@link AMOUNT_FIELD} for why the reader accepts what `pixPayload` refuses.
+ */
+function readAmountField(field: string): number {
+    if (field.length > MAX_AMOUNT_FIELD || !AMOUNT_FIELD.test(field)) {
+        throw new PixError(
+            `Tag 54 (amount) must be an amount like "25.50", with "." as the decimal mark, ` +
+                `at most two decimals and ${MAX_AMOUNT_FIELD} characters; got ${JSON.stringify(field)}.`,
+        );
+    }
+    return Number(field);
 }
 
 /**
@@ -501,14 +592,22 @@ function pick(fields: readonly PixField[], id: string): string | undefined {
  * {@link PixData.fields} instead of raising, because PSPs do add their own
  * templates and a reader that rejects them is useless in production. What is
  * *not* tolerated is a broken frame — a length prefix that runs off the end, a
- * missing tag 63 — or a checksum mismatch, which means the string was corrupted
- * and no longer names the account the payee published.
+ * missing tag 63 — a checksum mismatch, which means the string was corrupted in
+ * transit, or a payload with two readings: a tag repeated at the root or inside
+ * tags 26 and 62, a tag 26 with both a key and a URL, or a tag 54 outside the EMV
+ * amount format. A preview built from one reading while the wallet pays the
+ * other is the failure those rules exist for.
+ *
+ * The CRC detects corruption, not authorship: whoever crafts a payload
+ * recomputes it, so a valid CRC says nothing about who published the account.
  *
  * @param payload - The copia-e-cola string. Surrounding whitespace is ignored.
  * @param options - See {@link ParsePixOptions}.
  * @returns The decoded payload.
- * @throws {PixError} On a malformed frame, a missing CRC tag, a tag 26 that is
- * not a Pix account, or — unless `requireCrc` is `false` — a CRC mismatch.
+ * @throws {PixError} On a malformed frame, a missing CRC tag, a repeated tag, a
+ * tag 26 that is not a Pix account or that carries both a key and a URL, an
+ * amount outside the EMV format, or — unless `requireCrc` is `false` — a CRC
+ * mismatch.
  *
  * @example
  * const data = parsePixPayload(copied);
@@ -545,6 +644,11 @@ export function parsePixPayload(payload: string, options: ParsePixOptions = {}):
 
     const url = pick(account, MAI_TAG_URL);
     const key = pick(account, MAI_TAG_KEY);
+    if (url !== undefined && key !== undefined) {
+        throw new PixError(
+            "Tag 26 carries both a key (01) and a URL (25); a BR Code is either static or dynamic, not both.",
+        );
+    }
     const amountField = pick(fields, TAG_TRANSACTION_AMOUNT);
     const txid = pick(
         parseTlv(pick(fields, TAG_ADDITIONAL_DATA) ?? "", "tag 62"),
@@ -552,12 +656,12 @@ export function parsePixPayload(payload: string, options: ParsePixOptions = {}):
     );
 
     return {
-        kind: url !== undefined && key === undefined ? "dynamic" : "static",
+        kind: url === undefined ? "static" : "dynamic",
         ...(key === undefined ? {} : { key, keyType: pixKeyType(key) ?? undefined }),
         ...(url === undefined ? {} : { url }),
         merchantName: pick(fields, TAG_MERCHANT_NAME) ?? "",
         merchantCity: pick(fields, TAG_MERCHANT_CITY) ?? "",
-        ...(amountField === undefined ? {} : { amount: Number(amountField) }),
+        ...(amountField === undefined ? {} : { amount: readAmountField(amountField) }),
         currency: pick(fields, TAG_TRANSACTION_CURRENCY) ?? "",
         countryCode: pick(fields, TAG_COUNTRY_CODE) ?? "",
         merchantCategoryCode: pick(fields, TAG_MERCHANT_CATEGORY_CODE) ?? "",

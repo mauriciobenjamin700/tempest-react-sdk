@@ -20,11 +20,6 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   a vir entre aspas, o que é transparente para leitor RFC 4180, e um campo que começa com TAB sai
   `"'` + TAB + `…"`. Quem importa o arquivo noutro sistema e precisa dos bytes como vieram passa
   `{ neutralizeFormulas: false }`, que mantém a saída da 0.77 sem mudança.
-- **Teto do barrel ESM no `size-limit`: 145 → 145,2 kB.** Com a primeira versão do #481, as
-  correções de #482, #475 e #481 juntas levavam o barrel ESM de 144,97 kB (`main`) a 145,11 kB. Com
-  a versão final do #481, que só põe aspas, o barrel ESM mede 144,88 kB e o CJS 172,50 kB (teto de
-  172,5 kB). Fatias tocadas: CSV ("admin plumbing") 2196 → 2223 B, Pix 6355 → 6443 B
-  (`npx size-limit --json`, `main` × esta branch).
 
 ### Corrigido
 

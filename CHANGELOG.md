@@ -165,7 +165,6 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   número (antes, `$`/`1` alternados). `$type`, `foo$this` e o resto dos casos fixados em teste
   seguem iguais.
 
-
 - **`retry(factory, { retries: 0 })` nunca chamava a `factory` e rejeitava com `undefined`** (#486). O
   laço era `while (attempt < retries)`, então `0`, qualquer negativo e `NaN` pulavam a tentativa: a
   request não saía e o erro não dizia nada. Agora a primeira tentativa sempre roda — `0`/negativo fazem

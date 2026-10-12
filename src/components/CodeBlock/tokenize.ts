@@ -99,7 +99,12 @@ const JS_LITERALS = "true|false|null|undefined|NaN|Infinity";
  * (`\\[\s\S]`), so `"a\` + LF + `b"` is one string. A quote string that cannot
  * hold a raw newline — the JavaScript and JSON `"`/`'`, CSS, the Python
  * `"`/`'` — still ends at the line when it is unterminated, which is the only
- * case the optional close cuts at the line.
+ * case the optional close cuts at the line. A JSX attribute value is the
+ * exception in the JavaScript family: `="…"` has its own rule, ahead of the
+ * plain JS strings, so it may hold a raw line feed — `<input placeholder="a` +
+ * LF + `b">` is one string where the plain JS rule would have ended it at the
+ * line. The rule matches at the `=` and looks behind for it, so `=` keeps its
+ * paint; `(?<==\s)` covers the spaced `= "…"` form too.
  *
  * Each grammar also ends with a `plain` rule that consumes a run of identifier
  * characters in one step. The rules that need a lookahead — the JavaScript
@@ -109,10 +114,24 @@ const JS_LITERALS = "true|false|null|undefined|NaN|Infinity";
  * that run from every character in it. A code fence holding a long run of word
  * characters and no punctuation (a base64 blob, a minified token) took 6 s at
  * 80 KB and 25 s at 160 KB; the fallback consumes the run once, so the scan
- * stays linear (#477 sweep). The JavaScript fallback does **not** start at `$` —
- * it takes a `$` run and an identifier run separately — so `$type`, `$default`
- * and `$this` keep the `$` plain and the name a keyword, exactly as before the
- * fallback existed.
+ * stays linear (#477 sweep).
+ *
+ * The `plain` rule matches an identifier run while the scanner's fallback
+ * collects whatever no rule matched, so one plain stretch arrives in pieces;
+ * `tokenize` fuses adjacent `plain` tokens back into one, which is the array
+ * shape — and the one span per run — that predates the fallback (#477).
+ *
+ * The JavaScript fallback does **not** start at `$` — it takes a `$` run and an
+ * identifier run separately — so a leading `$type`, `$default` and `$this` keep
+ * the `$` plain and the name a keyword. Inside an identifier the `$` is an
+ * ordinary character, so `foo$this`, `a$true` and `x$1` are one `plain` token
+ * instead of painting `this`, `true` and `1` out of them; the `'` string rule
+ * carries the same boundary in a lookbehind, so an apostrophe in prose
+ * (`Don't`) does not open a string that runs to the end of the input.
+ *
+ * The CSS `property` and `function` rules match a whole word where it stands —
+ * `font-size` and `translate3d` paint as one token rather than splitting the
+ * tail — and a `#rgb`/`#rrggbb` colour paints as a number.
  */
 const GRAMMARS: Record<CodeLanguage, Rule[]> = {
     typescript: jsRules(false),
@@ -130,9 +149,10 @@ const GRAMMARS: Record<CodeLanguage, Rule[]> = {
         { kind: "comment", pattern: /\/\*[\s\S]*?(?:\*\/|$)/y },
         { kind: "string", pattern: /"(?:[^"\\\n]|\\[\s\S])*"?|'(?:[^'\\\n]|\\[\s\S])*'?/y },
         { kind: "keyword", pattern: /@[a-zA-Z-]+/y },
-        { kind: "property", pattern: /--?[a-zA-Z][\w-]*(?=\s*:)/y },
-        { kind: "function", pattern: /[a-zA-Z-]+(?=\()/y },
-        { kind: "number", pattern: /-?\d+(?:\.\d+)?(?:px|rem|em|%|s|ms|vh|vw|fr|deg)?/y },
+        { kind: "property", pattern: /[\w-]+(?=\s*:)/y },
+        { kind: "function", pattern: /[\w-]+(?=\()/y },
+        { kind: "number", pattern: /#[0-9a-fA-F]{3,8}\b/y },
+        { kind: "number", pattern: /(?<![\w-])-?\d+(?:\.\d+)?(?:px|rem|em|%|s|ms|vh|vw|fr|deg)?/y },
         { kind: "punctuation", pattern: /[{}();:,>+~]/y },
         { kind: "plain", pattern: /[\w-]+/y },
     ],
@@ -195,7 +215,8 @@ function jsRules(withJsx: boolean): Rule[] {
         { kind: "comment", pattern: /\/\/[^\n]*|\/\*[\s\S]*?(?:\*\/|$)/y },
         {
             kind: "string",
-            pattern: /`(?:[^`\\]|\\[\s\S])*`?|"(?:[^"\\\n]|\\[\s\S])*"?|'(?:[^'\\\n]|\\[\s\S])*'?/y,
+            pattern:
+                /`(?:[^`\\]|\\[\s\S])*`?|"(?:[^"\\\n]|\\[\s\S])*"?|(?<![\w$])'(?:[^'\\\n]|\\[\s\S])*'?/y,
         },
         { kind: "keyword", pattern: new RegExp(`\\b(?:${JS_KEYWORDS})\\b`, "y") },
         { kind: "literal", pattern: new RegExp(`\\b(?:${JS_LITERALS})\\b`, "y") },
@@ -208,8 +229,13 @@ function jsRules(withJsx: boolean): Rule[] {
         { kind: "plain", pattern: /(?:[A-Za-z_][\w$]*|\$+)/y },
     ];
     if (withJsx) {
-        // Before the keyword rule, so `<Button` reads as a tag and not as `<`.
-        rules.splice(2, 0, { kind: "tag", pattern: /<\/?[A-Za-z][\w.]*|\/>/y });
+        rules.splice(
+            1,
+            0,
+            { kind: "string", pattern: /(?:(?<==)|(?<==\s))"[^"]*"?/y },
+            { kind: "string", pattern: /(?:(?<==)|(?<==\s))'[^']*'?/y },
+        );
+        rules.splice(4, 0, { kind: "tag", pattern: /<\/?[A-Za-z][\w.]*|\/>/y });
     }
     return rules;
 }
@@ -248,8 +274,26 @@ export function tokenize(code: string, language: string | undefined): Token[] {
     let plainFrom = 0;
     let at = 0;
 
+    /**
+     * Append a token, fusing it with the previous one when both are `plain`.
+     *
+     * The `plain` rule matches an identifier run while the scanner's fallback
+     * collects the characters no rule matched, so one plain stretch of source
+     * arrives in pieces. Fusing them keeps the array shape `origin/main`
+     * produced, where a plain run was a single token and each got one span in
+     * the DOM rather than one per identifier (#477).
+     */
+    const push = (token: Token) => {
+        const last = tokens[tokens.length - 1];
+        if (last && last.kind === "plain" && token.kind === "plain") {
+            last.value += token.value;
+        } else {
+            tokens.push(token);
+        }
+    };
+
     const flushPlain = (until: number) => {
-        if (until > plainFrom) tokens.push({ kind: "plain", value: code.slice(plainFrom, until) });
+        if (until > plainFrom) push({ kind: "plain", value: code.slice(plainFrom, until) });
     };
 
     while (at < code.length) {
@@ -264,7 +308,7 @@ export function tokenize(code: string, language: string | undefined): Token[] {
         }
         if (matched) {
             flushPlain(at);
-            tokens.push(matched);
+            push(matched);
             at += matched.value.length;
             plainFrom = at;
         } else {

@@ -183,6 +183,127 @@ describe("tokenize — a `$` identifier paints as it did before the plain rule",
     });
 });
 
+describe("tokenize — adjacent plain runs are one token, as in origin/main (#477)", () => {
+    const samples: [string, string][] = [
+        ["typescript", "const x = 1; // note\nfunction f(a) { return a + 1; }"],
+        ["css", ".a { --x: 4px; color: rgb(0 0 0 / 50%); }"],
+        ["html", '<a href="/x" class="y">t</a>'],
+        ["python", "def f(a):\n    return a + 1"],
+    ];
+
+    it.each(samples)("never leaves two plain tokens side by side in %s", (language, code) => {
+        const kinds = tokenize(code, language).map((token) => token.kind);
+        kinds.forEach((kind, index) => {
+            if (index > 0) expect(kinds[index - 1] === "plain" && kind === "plain").toBe(false);
+        });
+    });
+
+    it("reproduces origin/main's token array for a realistic module", () => {
+        const code =
+            'import { useState } from "react";\nexport function Counter() {\n    const [n, setN] = useState(0);\n    return n + 1;\n}';
+        expect(tokenize(code, "ts")).toEqual([
+            { kind: "keyword", value: "import" },
+            { kind: "plain", value: " " },
+            { kind: "punctuation", value: "{" },
+            { kind: "plain", value: " useState " },
+            { kind: "punctuation", value: "}" },
+            { kind: "plain", value: " " },
+            { kind: "keyword", value: "from" },
+            { kind: "plain", value: " " },
+            { kind: "string", value: '"react"' },
+            { kind: "punctuation", value: ";" },
+            { kind: "plain", value: "\n" },
+            { kind: "keyword", value: "export" },
+            { kind: "plain", value: " " },
+            { kind: "keyword", value: "function" },
+            { kind: "plain", value: " " },
+            { kind: "function", value: "Counter" },
+            { kind: "punctuation", value: "(" },
+            { kind: "punctuation", value: ")" },
+            { kind: "plain", value: " " },
+            { kind: "punctuation", value: "{" },
+            { kind: "plain", value: "\n    " },
+            { kind: "keyword", value: "const" },
+            { kind: "plain", value: " " },
+            { kind: "punctuation", value: "[" },
+            { kind: "plain", value: "n" },
+            { kind: "punctuation", value: "," },
+            { kind: "plain", value: " setN" },
+            { kind: "punctuation", value: "]" },
+            { kind: "plain", value: " " },
+            { kind: "punctuation", value: "=" },
+            { kind: "plain", value: " " },
+            { kind: "function", value: "useState" },
+            { kind: "punctuation", value: "(" },
+            { kind: "number", value: "0" },
+            { kind: "punctuation", value: ")" },
+            { kind: "punctuation", value: ";" },
+            { kind: "plain", value: "\n    " },
+            { kind: "keyword", value: "return" },
+            { kind: "plain", value: " n " },
+            { kind: "punctuation", value: "+" },
+            { kind: "plain", value: " " },
+            { kind: "number", value: "1" },
+            { kind: "punctuation", value: ";" },
+            { kind: "plain", value: "\n" },
+            { kind: "punctuation", value: "}" },
+        ]);
+    });
+});
+
+describe("tokenize — CSS matches a whole word where it stands (#477)", () => {
+    it("reads a hyphenated property whole instead of only its tail", () => {
+        expect(of(tokenize("font-size: 1rem", "css"), "property")).toEqual(["font-size"]);
+        expect(of(tokenize("max-width: 10rem", "css"), "property")).toEqual(["max-width"]);
+    });
+
+    it("reads a function name whole", () => {
+        expect(of(tokenize("transform: translate3d(0, 0, 0)", "css"), "function")).toEqual([
+            "translate3d",
+        ]);
+    });
+
+    it("reads a hex colour as a number", () => {
+        expect(of(tokenize("color: #ff0000", "css"), "number")).toEqual(["#ff0000"]);
+        expect(of(tokenize("color: #abc", "css"), "number")).toEqual(["#abc"]);
+    });
+
+    it("does not pull a digit out of the middle of an identifier", () => {
+        expect(tokenize("h1", "css")).toEqual([{ kind: "plain", value: "h1" }]);
+        expect(tokenize(".mt-2", "css")).toEqual([{ kind: "plain", value: ".mt-2" }]);
+        expect(of(tokenize(".mt-2 { gap: 1rem }", "css"), "number")).toEqual(["1rem"]);
+    });
+});
+
+describe("tokenize — a JSX attribute string may hold a line feed (#477)", () => {
+    it("keeps a multiline attribute value one string", () => {
+        const code = '<input placeholder="Digite seu\n  nome">';
+        expect(of(tokenize(code, "tsx"), "string")).toEqual(['"Digite seu\n  nome"']);
+        assertLossless(code, "tsx");
+    });
+
+    it("reads a single-quoted attribute value", () => {
+        expect(of(tokenize("<Button label='Ok' />", "tsx"), "string")).toEqual(["'Ok'"]);
+    });
+
+    it("does not open a string on an apostrophe in JSX text", () => {
+        const tokens = tokenize("<p>Don't</p>", "tsx");
+        expect(of(tokens, "string")).toEqual([]);
+        expect(of(tokens, "plain")).toEqual(["Don't"]);
+        assertLossless("<p>Don't</p>", "tsx");
+    });
+});
+
+describe("tokenize — a `$` inside an identifier stays one plain token", () => {
+    it("does not paint a keyword, literal or number out of `foo$this` and friends", () => {
+        const tokens = tokenize("foo$this a$true x$1", "ts");
+        expect(of(tokens, "keyword")).toEqual([]);
+        expect(of(tokens, "literal")).toEqual([]);
+        expect(of(tokens, "number")).toEqual([]);
+        expect(of(tokens, "plain")).toEqual(["foo$this a$true x$1"]);
+    });
+});
+
 describe("tokenize — every token is consumed in one pass, so the scan is linear (#477)", () => {
     /**
      * Run `work` and return how long it took, in milliseconds.

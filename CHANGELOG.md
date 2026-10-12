@@ -40,6 +40,30 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   identificador seguinte são tokens separados, então `$type`, `$default` e `$this` seguem
   pintados como em `origin/main` (o `$` plain e o nome como keyword).
 
+- **O realce do `CodeBlock` volta a dar o mesmo array de tokens do `origin/main` no código bem
+  formado, e acerta o CSS que ele errava (#477).** A regra `plain` que o #477 introduziu partia
+  uma corrida de texto em um token por identificador, onde antes era um só, e a gramática de CSS
+  pintava a cauda da palavra fora do lugar. Quatro correções, todas com teste próprio em
+  `npx vitest run src/components/CodeBlock/tokenize.test.ts`:
+
+  - **Runs de `plain` adjacentes são fundidos** num token só, de volta à forma do `origin/main`:
+    `alpha beta gamma` é um `plain` e um `<span data-token="plain">` no DOM, não um por
+    identificador.
+  - **O CSS casa a palavra inteira onde ela está.** `property` (`[\w-]+` antes do `:`) e
+    `function` (`[\w-]+` antes do `(`) passam a pintar `font-size`, `max-width`, `display`,
+    `min-width` e `translate3d` inteiros — antes só a cauda depois do hífen (`-size`, `-width`)
+    ou um dígito solto (`translate` + número `3` + `d`) saía pintado, e um seletor como `h1` ou
+    `.mt-2` quebrava em `h`+`1` e `.mt`+`-2`. Um `#rgb`/`#rrggbb` pinta como número, inteiro.
+    Aqui a saída é **melhor** que a do `origin/main`, que errava isso: é a exceção assumida ao
+    “igual ao `origin/main`”, e por isso tem teste e esta nota.
+  - **Um valor de atributo JSX pode conter um LF cru.** `<input placeholder="Digite seu` + LF +
+    `  nome">` volta a ser uma string só: a regra do atributo roda antes das strings JS e casa no
+    `=` sem consumi-lo, então o `=` mantém a pontuação. Pelo mesmo limite, um apóstrofo em texto
+    JSX (`<p>Don't</p>`) deixou de abrir uma string que ia até o fim da entrada.
+  - **`$` dentro de um identificador segue no `plain`.** `foo$this`, `a$true` e `x$1` saem como um
+    `plain` inteiro; o `origin/main` pintava `this`, `true` e `1`. Um `$` **inicial** (`$type`,
+    `$this`) continua separado — `$` plain + o nome como keyword.
+
 - **A regex de item de lista do `Markdown` é linear numa linha com U+2028/U+2029 (#478).** As
   regex `BULLET`/`ORDERED` deixavam o `\s+` e o `(.*)` disputarem os mesmos espaços; como o
   separador de linha e o de parágrafo não são `\n`, o `.` parava neles e o `$` nunca era
@@ -57,11 +81,12 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Tamanho
 
-- **Os tetos dos barrels sobem: CJS de 172,5 para 172,7 kB e ESM de 145,0 para 145,2 kB.** O
-  tokenizador linear do `CodeBlock` (#476, #477) e as regex de lista do `Markdown` (#478)
-  acrescentam ~0,07 kB brotliado à fatia pior-caso (`ceiling: full barrel CJS`) e ~0,17 kB ao
-  barrel ESM. Medido com `npx size-limit` sobre o build do `main` (CJS **172,46 kB**, ESM
-  **144,97 kB**) e desta branch (CJS **172,53 kB**, ESM **145,14 kB**) em 12/10/2026.
+- **Os tetos dos barrels sobem: CJS de 172,5 para 172,7 kB e ESM de 145,0 para 145,2 kB.**
+  As mudanças do `CodeBlock` (#476, #477) e do `Markdown` (#478) mexem pouco na fatia
+  pior-caso. Medido com `npx size-limit --json` no build do `main` (CJS **172,46 kB**, ESM
+  **144,97 kB**) e no build desta branch (CJS **172,38 kB**, ESM **145,00 kB**) em 12/10/2026: o
+  CJS fica abaixo do `main` — o rearranjo das regras do CSS (#477) devolve mais do que as regras
+  acrescentadas — e o ESM sobe ~0,03 kB. Os tetos sobem para manter folga sobre o valor medido.
 
 ## [0.77.0] — 2026-10-12
 

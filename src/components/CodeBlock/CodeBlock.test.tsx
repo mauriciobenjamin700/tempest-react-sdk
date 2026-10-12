@@ -32,6 +32,15 @@ describe("CodeBlock — the code itself", () => {
         expect(kinds).toContain("number");
     });
 
+    it("renders one plain span per plain run, not one per identifier", () => {
+        const { container } = render(
+            <CodeBlock code="alpha beta gamma" language="ts" copyable={false} />,
+        );
+        const plains = [...container.querySelectorAll('[data-token="plain"]')];
+        expect(plains).toHaveLength(1);
+        expect(plains[0].textContent).toBe("alpha beta gamma");
+    });
+
     it("renders an unknown language as plain text rather than failing", () => {
         const { container } = render(<CodeBlock code="MOVE A TO B." language="cobol" />);
         expect(rendered(container)).toBe("MOVE A TO B.");

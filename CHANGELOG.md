@@ -9,17 +9,20 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - **`release-npm.yml` — o `latest` do npm não anda mais para trás** (#472). O
   `scripts/check-release-ref.sh` mandava toda versão estável para `latest`; medido num repo git de
   fixture, uma tag `v0.75.1` com o registry em `0.77.0` saía com `dist_tag=latest`, e um backport viraria
-  o default de todo `npm install`. Agora o workflow lê `dist-tags.latest` do registry (com retry; `E404`
-  conta como pacote sem `latest`, outra falha reprova a run) e passa em `CURRENT_LATEST`: só versão
-  maior vai para `latest`, prerelease continua em `next`, e versão menor ou igual vai para
-  `release-<major>.<minor>` (`v0.75.1` → `release-0.75`). O nome não é `v0.75` porque o npm 12.2.0
-  recusa dist-tag que seja range semver (`Tag name must not be a valid SemVer range: v0.75`, medido).
-  `CURRENT_LATEST` ausente reprova em vez de assumir pacote novo. O read-back espera o dist-tag certo e
-  só quando a run fez o upload, para o re-run completo de uma versão já publicada continuar sendo
-  recuperação. O GitHub Release é criado com `--latest` só quando o npm recebeu `latest` (`--latest=false`
-  no resto); Release existente não tem o flag alterado no re-run. Publicar de commit fora da `main` segue dependendo do revisor obrigatório no environment
-  `npm-release` e do vínculo do Trusted Publisher — configuração externa, documentada em
-  `docs/release.md`.
+  o default de todo `npm install`. A regra agora mora em `scripts/release-dist-tag.sh`: versão maior ou
+  igual ao `latest` do registry (igual só no re-run) vai para `latest`, prerelease continua em `next`, e
+  versão menor vai para `release-<major>.<minor>` (`v0.75.1` → `release-0.75`). O nome não é `v0.75`
+  porque o npm 12.2.0 recusa dist-tag que seja range semver (`Tag name must not be a valid SemVer
+range: v0.75`, medido). O `latest` é lido de `npm view <pkg> dist-tags --json` (o caminho
+  `dist-tags.release-0.75` volta sempre vazio no `npm view`); só `E404` conta como pacote novo, e resposta
+  vazia, pacote sem `latest` ou `CURRENT_LATEST` ausente reprovam a run. O job `publish` relê o
+  `latest` e escolhe o dist-tag de novo imediatamente antes do upload, e o workflow passa a rodar um
+  release por vez (`concurrency` de grupo único `release-npm`). O read-back espera o dist-tag escolhido,
+  só quando a run fez o upload. O GitHub Release é criado com `--latest` só quando o `latest` do
+  registry é a versão (`--latest=false` no resto); Release existente não tem o flag alterado. Backport
+  precisa ter este workflow na branch: o tag push roda o `release-npm.yml` do commit da tag. Publicar
+  de commit fora da `main` segue dependendo do revisor obrigatório no environment `npm-release` e do
+  vínculo do Trusted Publisher — configuração externa, documentada em `docs/release.md`.
 
 ## [0.77.0] — 2026-10-12
 

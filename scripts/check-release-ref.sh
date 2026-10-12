@@ -16,53 +16,16 @@
 # version, prerelease e dist_tag em GITHUB_OUTPUT. Roda na raiz do checkout, com
 # as tags buscadas.
 #
-# O dist-tag é monotônico (#472): `latest` só anda para a frente.
-#
-# - Prerelease vai para `next`: publicada em `latest`, uma `-rc.1` viraria o
-#   default de todo `npm install`.
-# - Versão estável maior que CURRENT_LATEST (o `dist-tags.latest` do registry,
-#   lido pelo workflow) vai para `latest`. CURRENT_LATEST vazio é pacote sem
-#   `latest` ainda, e também vai para `latest`.
-# - Versão estável menor ou igual vai para `release-<major>.<minor>`: um backport
-#   `v0.75.1` publicado depois da 0.77.0 não leva o `latest` para trás. O nome não
-#   é `v0.75` porque o npm recusa dist-tag que seja range semver válido
-#   (`npm publish --tag v0.75` sai com "Tag name must not be a valid SemVer
-#   range", medido no npm 12.2.0).
-#
-# CURRENT_LATEST precisa estar definida, mesmo vazia: ausente, o guard falha em
-# vez de assumir pacote novo e mandar qualquer versão para `latest`.
+# O dist-tag é monotônico (#472) e a regra mora em `scripts/release-dist-tag.sh`
+# (`pick`), a mesma que o job publish reaplica logo antes do `npm publish`.
+# CURRENT_LATEST é o `latest` do registry, lido pelo workflow com
+# `release-dist-tag.sh current-latest`; vazio é pacote que ainda não existe.
+# Precisa estar definida, mesmo vazia: ausente, o guard falha em vez de assumir
+# pacote novo e mandar qualquer versão para `latest`.
 
 set -euo pipefail
 
-SEMVER_RE='^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
-
-# Compara dois inteiros decimais sem limite de tamanho; imprime -1, 0 ou 1.
-compare_numbers() {
-    local a="$1" b="$2"
-    if [ "${#a}" -ne "${#b}" ]; then
-        if [ "${#a}" -gt "${#b}" ]; then echo 1; else echo -1; fi
-    elif [[ "$a" > "$b" ]]; then
-        echo 1
-    elif [[ "$a" < "$b" ]]; then
-        echo -1
-    else
-        echo 0
-    fi
-}
-
-# Sucesso quando a versão estável $1 é maior que a versão semver $2.
-is_newer_than() {
-    local candidate="$1" current="$2" i order
-    local -a mine theirs
-    IFS=. read -r -a mine <<< "${candidate%%-*}"
-    IFS=. read -r -a theirs <<< "${current%%-*}"
-    for i in 0 1 2; do
-        order=$(compare_numbers "${mine[$i]}" "${theirs[$i]}")
-        [ "$order" = 1 ] && return 0
-        [ "$order" = -1 ] && return 1
-    done
-    [ "$current" != "${current%%-*}" ]
-}
+DIST_TAG_SCRIPT="$(dirname "$0")/release-dist-tag.sh"
 
 PKG_VERSION=$(node -p "require('./package.json').version")
 
@@ -92,26 +55,11 @@ if [ -z "${CURRENT_LATEST+set}" ]; then
     echo "::error::CURRENT_LATEST is not set. Pass the registry's dist-tags.latest (empty when the package has none) so a backport cannot move latest backwards."
     exit 1
 fi
-if [ -n "$CURRENT_LATEST" ] && ! [[ "$CURRENT_LATEST" =~ $SEMVER_RE ]]; then
-    echo "::error::CURRENT_LATEST '${CURRENT_LATEST}' is not a semver version"
-    exit 1
-fi
-
 case "$PKG_VERSION" in
-    *-*)
-        PRERELEASE=true
-        DIST_TAG=next
-        ;;
-    *)
-        PRERELEASE=false
-        if [ -z "$CURRENT_LATEST" ] || is_newer_than "$PKG_VERSION" "$CURRENT_LATEST"; then
-            DIST_TAG=latest
-        else
-            IFS=. read -r MAJOR MINOR _ <<< "$PKG_VERSION"
-            DIST_TAG="release-${MAJOR}.${MINOR}"
-        fi
-        ;;
+    *-*) PRERELEASE=true ;;
+    *) PRERELEASE=false ;;
 esac
+DIST_TAG=$(bash "$DIST_TAG_SCRIPT" pick "$PKG_VERSION" "$CURRENT_LATEST")
 
 {
     echo "tag=${TAG}"

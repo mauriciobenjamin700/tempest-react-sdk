@@ -148,7 +148,7 @@ Triggered by:
 - **`push: tags: [v*.*.*]`** — the main flow. `make release TAG=X` pushes a tag and the workflow fires automatically.
 - **`workflow_dispatch`** — manual, **always on the tag**: `gh workflow run release-npm.yml --ref vX.Y.Z`. Useful when a tag's publish failed and you want to re-run without bumping the version. Dispatched from a branch (`--ref main`), the step 3 guard fails the run before anything is installed — up to 0.76.0 it derived the tag from the branch's `package.json` and published that tree.
 
-The workflow starts from `permissions: {}`, queues runs of the same tag (`concurrency` per ref, never cancelling the one in progress — its publish may already have happened) and is split into four jobs, each holding only the permission it needs. The split is the point: the only job that **can** publish runs nothing resolved from the registry at release time.
+The workflow starts from `permissions: {}`, runs one release at a time, of any tag (`concurrency` with the single group `release-npm`, never cancelling the one in progress — its publish may already have happened) and is split into four jobs, each holding only the permission it needs. The split is the point: the only job that **can** publish runs nothing resolved from the registry at release time.
 
 | Job       | Permission        | What it runs                                                          |
 | --------- | ----------------- | --------------------------------------------------------------------- |
@@ -161,12 +161,12 @@ Steps, in order:
 
 1. **Checkout** (`actions/checkout`, pinned by SHA like every action in the workflow) with `fetch-depth: 0` and `persist-credentials: false` — the `GITHUB_TOKEN` is not left in `.git/config` for later steps.
 2. **Node 22** + npm cache.
-3. **Ref guard** (`scripts/check-release-ref.sh`) — **aborts**, before anything is installed, when the run's ref is not a `vX.Y.Z` (or `vX.Y.Z-pre`) tag, when the tag does not describe `package.json`'s `version`, or when it does not point at the checked-out commit (`GITHUB_SHA`). It applies to tag pushes and to `workflow_dispatch` alike. It also derives `prerelease` (a version containing `-`) so the Release is marked correctly, and picks the dist-tag by comparing the version with the registry's current `latest`, which the step before reads with `npm view tempest-react-sdk dist-tags.latest` (see [Dist-tags](#dist-tags)).
+3. **Ref guard** (`scripts/check-release-ref.sh`) — **aborts**, before anything is installed, when the run's ref is not a `vX.Y.Z` (or `vX.Y.Z-pre`) tag, when the tag does not describe `package.json`'s `version`, or when it does not point at the checked-out commit (`GITHUB_SHA`). It applies to tag pushes and to `workflow_dispatch` alike. It also derives `prerelease` (a version containing `-`) so the Release is marked correctly, and picks the dist-tag by comparing the version with the registry's current `latest`, which the step before reads with `scripts/release-dist-tag.sh current-latest` (see [Dist-tags](#dist-tags)).
 4. **`npm ci`**, **lint**, **format check**, **typecheck**, **tests** and **build**.
 5. **`npm pack`** — the tarball is uploaded as an `npm-tarball-<attempt>` artifact (one name per `run_attempt`, so a full re-run does not collide with the first attempt's artifact) and its SHA-256 becomes a job output. A later job cannot rewrite a job output, so every job that downloads the artifact checks the digest before using it (`sha256sum --check`).
 6. **Smoke** (`smoke` job) — installs the tarball in `/tmp/sdk-smoke` with `react@^19 react-dom@^19 react-router@^8` and bundles it with esbuild, runs the same assertions in bare Node with the published `node-css-loader`, and runs a consumer Vitest suite (`scripts/smoke-vitest.sh`). Those installs resolve floating versions from the registry — which is why they live in a job with no write permission at all.
-7. **`npm publish "./<tarball>" --provenance --access public`** (`publish` job) via **Trusted Publishing (OIDC)** — no `NPM_TOKEN`. It publishes **the file** `build` packed and `smoke` tested: a directory publish would re-run `prepublishOnly` (typecheck + lint + the whole suite + build) inside the `id-token` job and ship a fresh pack instead of the tested one; a tarball publish runs no lifecycle script at all. The `--tag` is the dist-tag the guard picked: `latest` only for a version above the current `latest`, `next` for a prerelease, `release-<major>.<minor>` for the rest (see [Dist-tags](#dist-tags)). The npm CLI is installed at an exact version (`npm install -g npm@12.2.0`), not `@latest`.
-8. **Registry read-back** — confirms npm serves `tempest-react-sdk@<version>` (up to 30 minutes, since the registry processes the upload asynchronously) **and** that its dist-tag (`latest`, `next` or `release-<major>.<minor>`) points at it — with the same 30-minute window, because the dist-tag lags as much as the version. Fails the job otherwise: a publish that landed under a different tag would no longer look green. The dist-tag wait only runs when this run uploaded: on a re-run where `build` ran again, the `latest` it reads is already the version itself, the guard derives `release-<major>.<minor>` and the publish is skipped — the right dist-tag is the one the publishing run set, and that run already waited for it.
+7. **`npm publish "./<tarball>" --provenance --access public`** (`publish` job) via **Trusted Publishing (OIDC)** — no `NPM_TOKEN`. It publishes **the file** `build` packed and `smoke` tested: a directory publish would re-run `prepublishOnly` (typecheck + lint + the whole suite + build) inside the `id-token` job and ship a fresh pack instead of the tested one; a tarball publish runs no lifecycle script at all. The `--tag` is picked again **right before** the upload, re-reading the registry's `latest` with the same script the guard ran — `build` read it minutes earlier, and another release may have moved it (see [Dist-tags](#dist-tags)). The npm CLI is installed at an exact version (`npm install -g npm@12.2.0`), not `@latest`.
+8. **Registry read-back** — confirms npm serves `tempest-react-sdk@<version>` (up to 30 minutes, since the registry processes the upload asynchronously) **and** that its dist-tag (`latest`, `next` or `release-<major>.<minor>`) points at it — with the same 30-minute window, because the dist-tag lags as much as the version. Fails the job otherwise: a publish that landed under a different tag would no longer look green. The dist-tag wait only runs when this run uploaded: on a re-run the publish is skipped and sets no tag, and the run that published already waited for its own.
 9. **GitHub Release** (`release` job) — `gh release create <tag>` with the artifact's tarball attached and the notes extracted from the `CHANGELOG.md` section (`scripts/changelog.mjs notes <version> --allow-unreleased`), plus a link to the npm version. First it checks that the tag still resolves to the published `GITHUB_SHA` and that the tarball's sha512 is the `dist.integrity` npm serves (read with the same 30-minute window); `gh release create` gets `--verify-tag`, so it never creates a missing tag at the default branch's HEAD. When the Release already exists it does `gh release edit` + `upload --clobber` instead of failing — and `--clobber` can only re-upload the bytes npm serves. To recover a run that published and failed afterwards, use **Re-run failed jobs**: the re-run jobs inherit the `build` outputs and download the artifact of the attempt that published. A **Re-run all jobs** works too (the artifact has its own name), but it repacks — and if the new pack is not byte-identical to the published one, the `release` job attaches nothing and fails, pointing at `make releases-sync` (creates the Release with no asset) or at attaching the registry's own tarball by hand (`npm pack tempest-react-sdk@<version>`).
 
 !!! note "Why npm is pinned to 12.2.0"
@@ -174,22 +174,36 @@ Steps, in order:
 
 ### Dist-tags
 
-`latest` is **monotonic**: it only moves forward. The _Read the registry's current latest dist-tag_ step reads `dist-tags.latest` from the registry (with a retry; a package that does not exist yet, `E404`, counts as having no `latest`; any other failure fails the run instead of guessing) and hands the value to the guard as `CURRENT_LATEST`.
+`latest` is **monotonic**: it only moves forward. The rule lives in one script, `scripts/release-dist-tag.sh`, called in three places: by the guard in the `build` job, by the `publish` job right before `npm publish`, and by the `release` job to mark the GitHub Release.
 
-| Tag version                                   | Dist-tag                   | Example, with `latest` at `0.77.0` |
-| --------------------------------------------- | -------------------------- | ---------------------------------- |
-| prerelease (`X.Y.Z-something`)                | `next`                     | `v0.78.0-rc.1` → `next`            |
-| stable, above `latest` (or no `latest`)       | `latest`                   | `v0.78.0` → `latest`               |
-| stable, at or below `latest`                  | `release-<major>.<minor>`  | `v0.75.1` → `release-0.75`         |
+| Tag version                                         | Dist-tag                   | Example, with `latest` at `0.77.0` |
+| --------------------------------------------------- | -------------------------- | ---------------------------------- |
+| prerelease (`X.Y.Z-something`)                      | `next`                     | `v0.78.0-rc.1` → `next`            |
+| stable, above `latest` (or no `latest`)             | `latest`                   | `v0.78.0` → `latest`               |
+| stable, equal to `latest` (re-run of the published) | `latest`                   | `v0.77.0` → `latest`               |
+| stable, below `latest`                              | `release-<major>.<minor>`  | `v0.75.1` → `release-0.75`         |
 
-Up to 0.77.0 every stable version went to `latest`, so a `v0.75.1` backport cut after 0.77.0 would have become the default of every `npm install`. Whoever wants the old line installs it by its dist-tag: `npm install tempest-react-sdk@release-0.75`.
+Up to 0.77.0 every stable version went to `latest`, so a `v0.75.1` backport cut after 0.77.0 would have become the default of every `npm install`. Whoever wants the old line installs it by its dist-tag: `npm install tempest-react-sdk@release-0.75`. "Equal" only happens on a re-run of an already-published version (npm does not accept publishing the same version twice), which is why it stays on `latest`.
+
+How `latest` is read:
+
+- **Through `npm view <package> dist-tags --json`**, with the key extracted in Node. Never `npm view <package> dist-tags.<name>`: npm takes the dot as a path, and `dist-tags.release-0.75` always comes back empty.
+- **Only an explicit `E404` is a new package** (no `latest`). An empty answer with exit 0, or a package that exists without `latest`, **fails the run** — reading that as a new package would send a backport to `latest`. Other `npm view` failures are retried 10 times, 15 s apart, and then fail.
+
+Two runs never fight over `latest`: the workflow has a single `concurrency` group, so releases of different tags queue. And the `publish` job re-reads `latest` seconds before the upload; if it moved since `build`, the publish uses the new dist-tag and leaves a `::notice::`.
+
+!!! warning "GitHub's queue: one pending run per group"
+    GitHub keeps **one** pending run per `concurrency` group. With a release running and two tags queued, the third cancels the second while it is still waiting. The cancelled one published nothing; dispatch it again with `gh workflow run release-npm.yml --ref vX.Y.Z`.
+
+!!! warning "A backport needs this version of the workflow"
+    On a tag push, GitHub runs the `release-npm.yml` **of the tag's commit**. A `v0.75.1` tag cut from a branch that starts at 0.75.0 runs the old workflow, which sends everything to `latest`. The backport branch needs `release-npm.yml`, `scripts/check-release-ref.sh` and `scripts/release-dist-tag.sh` from this version on (cherry-pick the #472 fix).
+
+The **GitHub Release** follows the registry: `gh release create` gets `--latest` when npm's `latest` **is** this version, and `--latest=false` otherwise (a backport, or a prerelease, which keeps `--prerelease`). The flag comes from the registry, not from the picked dist-tag, so a re-run that creates the Release of a version already published as `latest` still marks it. An existing Release keeps its flag: a re-run goes through `gh release edit` + `upload --clobber`, with no `--latest`.
 
 !!! info "Why `release-0.75` and not `v0.75`"
     npm refuses a dist-tag that is a valid semver range, and `v0.75` is one (`>=0.75.0 <0.76.0-0`): `npm publish --tag v0.75` exits with `Tag name must not be a valid SemVer range: v0.75` (measured on npm 12.2.0, the one the `publish` job installs).
 
-The **GitHub Release** follows the same dist-tag: `gh release create` gets `--latest` when npm got `latest`, and `--latest=false` for a backport or a prerelease (which keeps `--prerelease`). An existing Release keeps its flag — a re-run goes through `gh release edit` + `upload --clobber`, with no `--latest`, because a full re-run of the published version derives `release-<major>.<minor>` and would unmark the Release that really is the latest. Edge case: if the original run published to npm and failed before creating the Release, a full re-run creates it with `--latest=false`; mark it by hand (`gh release edit <tag> --latest`).
-
-The guard runs offline: `CURRENT_LATEST` is an environment variable, and `test/release-workflow.test.ts` exercises every row of the table in a fixture git repo. Unset, the guard fails instead of assuming a new package.
+The script runs offline: the guard takes `CURRENT_LATEST` from an environment variable (unset, it fails instead of assuming a new package), and `test/release-workflow.test.ts` exercises every row of the table in a fixture git repo and every registry answer with a fake `npm` on the `PATH`.
 
 ### The `npm-release` environment
 

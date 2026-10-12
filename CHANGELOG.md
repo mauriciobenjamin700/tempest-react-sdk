@@ -4,6 +4,25 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Breaking
+
+- **`installRuntimeCache` deixa requisição com `Authorization` fora do cache** (#443). Antes, toda
+  resposta `ok` era gravada chaveada só pela URL; medido no Chromium 153 (11/10/2026, harness com SW,
+  Cache Storage e IndexedDB reais contra API de fixture em loopback), a conta B offline — ou com a
+  rede acima de `networkTimeoutSeconds` — recebia o `GET /api/me` da conta A. Agora a rota deixa a
+  requisição autenticada ir à rede sem tocar o cache. Quem dependia do `/api` autenticado offline liga
+  **`cacheAuthenticated: true`** na rota: a entrada é gravada com `Vary: Authorization` e só casa com o
+  mesmo bearer (medido: B erra, A acerta).
+- **`Cache-Control: no-store` nunca é gravado, e `private` só com `cacheAuthenticated`.**
+- **`maxAgeSeconds` vale no fallback.** `network-first` e `stale-while-revalidate` devolviam a entrada
+  vencida quando a rede falhava; agora ela é miss e a requisição falha.
+- **`installBackgroundSync` não grava header de credencial** (#444). `Authorization`, `x-api-key`,
+  `x-auth-token`, `x-csrf-token`, `x-xsrf-token` (`DEFAULT_CREDENTIAL_HEADERS`) saem antes do
+  IndexedDB; medido antes, o bearer de A ficava em `tempest-bg-sync` depois do logout e o replay o
+  enviava ao servidor. No replay o worker pede a credencial atual à página por `postMessage`: sem
+  página que responda, a entrada fica pendente (até `maxRetentionMinutes`) em vez de sair sem
+  credencial; resposta `null` descarta. `credentialHeaders: []` restaura o comportamento antigo.
+
 ### Adicionado
 
 - **`persistence.clear({ resetClient: true })` — logout em uma chamada.** Opção nova (tipo
@@ -31,6 +50,26 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `logout()` sem `await` cujo teardown ainda corre é esperado antes de instalar a conta nova.
 - **`SessionSupersededError`** (refresh ou `login()` cuja sessão foi superada antes de terminar) e
   **`WebPushUnsubscribeError`**, exportados da raiz.
+
+- **`clearSessionData()`** (`/sw`) — no logout, apaga todo bucket do Cache Storage menos o precache
+  (`tempest-precache-*`) e a fila de background sync. A doc mandava `clearCaches("tempest-")`, que
+  não casava com o cache `api` da receita (medido: `deleted []`) e, se casasse, derrubaria o precache.
+- **`clearBackgroundSyncQueue(queueName?)`** — apaga a fila de mutações pendentes.
+- **`provideBackgroundSyncCredentials(getHeaders, { getPrincipal })`** — lado página do pedido de
+  credencial no replay. O worker só aplica os nomes de header que a requisição original carregava.
+- **Entrada da fila de background sync com dono.** Com `getPrincipal`, o worker pergunta à aba que
+  disparou a requisição quem está logado logo depois de enfileirar (sem atrasar a rejeição do
+  `fetch`) e grava uma impressão SHA-256 desse id — nunca o id nem o token — em `owner`. No replay,
+  dono diferente do atual descarta a entrada sem enviar: a mutação de A não sai com a credencial de B
+  mesmo quando o app esquece `clearSessionData()` no logout (medido no Chromium 153: A enfileira, B
+  entra sem limpar, o sync dispara e o servidor não recebe POST). Vale também para sessão por cookie.
+  Entrada sem dono (provedor sem `getPrincipal`, ou aba que não respondeu) segue só as regras de
+  credencial. `beforeReplay` recebe `owner` no contexto; tipo `ProvideBackgroundSyncCredentialsOptions`.
+- **`installBackgroundSync({ credentialHeaders, beforeReplay })`**, `DEFAULT_CREDENTIAL_HEADERS`,
+  `BACKGROUND_SYNC_CREDENTIALS_MESSAGE` e os tipos `BackgroundSyncReplayContext`,
+  `BackgroundSyncCredentialsRequest`, `BackgroundSyncCredentialsProvider`,
+  `ClearSessionDataOptions`, `ClearSessionDataResult`.
+- **`RuntimeRoute.cacheAuthenticated`** e **`RuntimeRoute.credentialHeaders`**; tipo `BackgroundSyncOwnerState`.
 
 ### Alterado
 
@@ -168,6 +207,41 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `createAppErrorReporter` 1,60 → 2,31 kB brotli (com o aviso de dev), por isso o teto da fatia
   sobe de 2 KB para 2,4 KB; barril ESM 139,86 → 140,42 kB e CJS 167,02 → 167,71 kB, com os tetos dos barris em
   140,6 KB e 167,9 KB.
+
+- **Revisão da fila de background sync** (#444), cada item com teste que falhava antes:
+  - **Entrada gravada antes do fix** (bearer em texto puro) não é mais reenviada como estava: o banco
+    sobe para a versão 2 e a migração apaga os headers de credencial do disco na primeira abertura; o
+    replay aplica a lista de novo. Medido no Chromium 153: antes saía `Bearer OLD-0.76`, agora nada.
+  - **Dono que não pôde ser registrado falha fechado.** Sem resposta, erro, aba sumida ou entrada
+    legada viram `ownerState: "unknown"`, que só sai com resposta de aba sem principal. Antes a entrada
+    ficava sem dono e saía com o token de quem logasse depois (medido: `Bearer B`; agora nada).
+    `getPrincipal`/`getHeaders` que lançam respondem `{ error: true }` em vez de fechar a porta.
+  - **Várias abas:** o worker pergunta a todas em paralelo, com um prazo único, e usa a resposta cujo
+    dono bate — antes a primeira aba (de outra conta) descartava a mutação.
+  - **Resposta sem um header removido mantém a entrada pendente**, em vez de sair anônima e sumir no 401.
+  - **Replay single-flight** por fila: `sync`, `periodicsync` e o fallback do Safari juntos não enviam
+    a mesma mutação duas vezes (bug anterior a esta versão).
+  - **`clearBackgroundSyncQueue()` alcança o que está em voo**: o replay confere cada entrada no banco
+    antes de enviar, e uma requisição que falha depois da limpeza não é gravada (época no store `meta`).
+    Passa a esvaziar a fila em vez de apagar o banco.
+  - Em build de desenvolvimento, aviso no console quando nenhuma página responde por uma credencial.
+- **Runtime cache:** o gate de requisição autenticada usa a lista de headers de credencial
+  (`RuntimeRoute.credentialHeaders`, default `DEFAULT_CREDENTIAL_HEADERS`), não só `Authorization`, e o
+  opt-in faz `Vary` em cada um. A revalidação do `stale-while-revalidate` e a rede que perdeu para o
+  `networkTimeoutSeconds` vão para `event.waitUntil`.
+- **Template PWA:** `src/pwa.tsx` instala `provideBackgroundSyncCredentials` a partir de `@/stores/auth`
+  (com `getPrincipal`); o comentário do `sw.ts` explica que GET com bearer não entra no cache sem
+  `cacheAuthenticated`.
+- **Doc:** limites explícitos — sessão por cookie depende de `Cache-Control` do servidor e de
+  `clearSessionData()`; credencial na URL ou no corpo é gravada como foi enviada.
+
+- **`maxAgeSeconds` não vencia nada numa API de outra origem.** A idade vinha do header `Date`, que
+  resposta CORS não expõe (medido: `headers.get("date")` → `null` cross-origin). A entrada agora
+  carrega a hora da gravação em `x-tempest-cached-at`; entrada antiga sem o carimbo cai no `Date`.
+- **A fila de background sync preserva o modo `credentials`** da requisição original, para API com
+  sessão por cookie reenviar com cookie.
+- **Template PWA e doc nomeiam os caches `tempest-api`/`tempest-media`**, e a doc troca a limpeza de
+  logout por `clearSessionData()`.
 
 ## [0.76.0] — 2026-10-10
 

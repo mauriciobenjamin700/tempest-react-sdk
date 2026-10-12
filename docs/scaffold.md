@@ -272,7 +272,7 @@ installRuntimeCache([
   {
     match: (url) => url.pathname.startsWith("/api/"),
     strategy: "network-first", // ou "cache-first" / "stale-while-revalidate"
-    cacheName: "api",
+    cacheName: "tempest-api",
     networkTimeoutSeconds: 5,
     maxEntries: 50,
     maxAgeSeconds: 60 * 5,
@@ -350,7 +350,7 @@ installRuntimeCache([
   {
     match: (url) => /\.(mp3|mp4|webm)$/.test(url.pathname),
     strategy: "cache-first",
-    cacheName: "media",
+    cacheName: "tempest-media",
     rangeRequests: true,
   },
 ]);

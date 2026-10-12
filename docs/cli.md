@@ -339,6 +339,12 @@ $ npx tempest fix
     duplicado e não converte bloco repetido em classe global. Tudo isso é edição
     de design, não limpeza.
 
+!!! note "Nada fora do projeto é reescrito"
+    Arquivo que, seguindo symlink, cai fora do projeto fica de fora das duas
+    passadas: um `src` que é link para outra pasta não leva o `fix` a reescrever
+    o CSS nem os imports de lá. Cada passada imprime quantos arquivos pulou
+    (`! N arquivo(s) fora do projeto (symlink) — pulados`).
+
 ### `--extract-css`: mover o bloco repetido pra classe global
 
 O `fix` normal **reporta** bloco repetido e não mexe. Com a flag, ele executa: o
@@ -390,7 +396,9 @@ O que ele reescreve no TSX:
     | nenhuma outra regra da folha menciona a classe | um `.row:hover` ou `.row .child` ficaria sem sujeito |
     | o módulo continua com pelo menos outra regra | senão o import vira código morto, o ESLint remove, e as regras que sobraram **param de carregar** |
     | a classe é lida só como `styles.row` / `styles["row"]` | `styles[key]` ou `Object.keys(styles)` tornam o módulo **opaco**: nada nele é extraído |
+    | nenhuma declaração tem quebra de linha | copiada pra folha global, ela viraria uma linha nova fora da regra |
     | a folha global existe **e** alguém a importa | escrever numa folha que ninguém carrega é no-op silencioso |
+    | a folha global é arquivo comum (não symlink) e o caminho real dela fica dentro do projeto | a escrita segue o link: um `src/index.css` que aponta pra fora levaria o CSS pra outro arquivo do disco. Pasta symlink que fica no projeto (`src/styles -> theme`) é aceita |
     | o nome novo não colide na folha global | use `--css-prefix` |
 
     ```console
@@ -604,6 +612,12 @@ O que acontece com o nome e com a pasta:
     `gen component` entra no mesmo lugar. `new component` é a grafia pedida na
     issue e fica como alias — só para `component`, para `new` não virar um
     segundo nome de todo gerador.
+
+!!! check "Todo gerador confere o destino do mesmo jeito"
+    `gen api`, `gen icons` e `gen component` passam pela mesma checagem antes de
+    escrever: symlink no lugar de uma pasta criada ou de um arquivo escrito
+    (inclusive symlink pendente), caminho fora do projeto e ancestral que é
+    symlink para fora são recusados, e nada é escrito.
 
 ## `tempest lint` e `tempest format`
 

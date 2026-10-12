@@ -125,6 +125,13 @@ function UserList() {
     `src/api/` are **generated**, so treat them as a build artifact (don't edit
     by hand; commit them if you like, but regenerate when the contract changes).
 
+!!! note "The output stays inside the project"
+    Before the first write, `gen api` checks the `--out`, every route-group folder
+    and every file: a symlink (dangling included) in place of any of them, a path
+    outside the project and an ancestor that is a symlink leading out are refused,
+    and nothing is written. A `src/api` that is a link in a cloned repository does
+    not carry the generated files somewhere else on disk.
+
 !!! note "Validates **input**, types the **output**"
     The method validates the **body** with `Schema.parse(...)` (fails early on
     invalid data) and **types** the response. The response is not validated at

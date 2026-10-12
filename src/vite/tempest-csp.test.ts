@@ -389,6 +389,64 @@ describe("tempestCsp — an existing policy is merged, never loosened", () => {
         expect(kept.warn).not.toHaveBeenCalled();
     });
 
+    it("keeps a connect-src that matches nothing in any spelling — 'NONE', an empty list, or default-src 'NONE' — and warns instead of adding the origins (#482)", () => {
+        for (const [content, kept] of [
+            ["default-src 'self'; connect-src 'NONE'", ["'NONE'"]],
+            ["default-src 'self'; connect-src 'None' 'none'", ["'None'", "'none'"]],
+            ["default-src 'self'; connect-src", []],
+        ] as const) {
+            const { policy, warn } = run(
+                { connect: ["https://api.example.com"], env: false, log: false },
+                { html: declared(content) },
+            );
+            expect(policy.directives["connect-src"]).toEqual(kept);
+            expect(policy.meta).not.toContain("api.example.com");
+            expect(warn).toHaveBeenCalledTimes(1);
+            expect(warn.mock.calls[0]![0]).toContain("https://api.example.com");
+        }
+        for (const content of ["default-src 'NONE'", "default-src"]) {
+            const inherited = run(
+                { connect: ["https://api.example.com"], env: false, log: false },
+                { html: declared(content) },
+            );
+            expect(inherited.policy.directives).not.toHaveProperty("connect-src");
+            expect(inherited.policy.meta).not.toContain("api.example.com");
+            expect(inherited.warn).toHaveBeenCalledTimes(1);
+            expect(inherited.warn.mock.calls[0]![0]).toContain("(through default-src)");
+        }
+    });
+
+    it("drops a 'NONE' that sits beside real sources when adding the origins, since 'none' is ignored next to them (#482)", () => {
+        const { policy } = run(
+            { connect: ["https://api.example.com"], env: false, log: false, sockets: false },
+            { html: declared("connect-src 'NONE' https://cdn.test") },
+        );
+        expect(policy.directives["connect-src"]).toEqual([
+            "https://cdn.test",
+            "https://api.example.com",
+        ]);
+    });
+
+    it("reads 'unsafe-inline' and hash keywords case-insensitively when judging inline scripts and styles (#482)", () => {
+        const inline = "console.log(1)";
+        const hash = createHash("sha256").update(inline).digest("base64");
+        const page = (content: string): string =>
+            declared(content).replace("</head>", `<script>${inline}</script></head>`);
+        for (const allowed of [
+            "script-src 'self' 'UNSAFE-INLINE'",
+            `script-src 'self' 'SHA256-${hash}'`,
+        ]) {
+            expect(run({ log: false }, { html: page(allowed) }).warn).not.toHaveBeenCalled();
+        }
+        const nonce = run({ log: false }, { html: page("script-src 'unsafe-inline' 'NONCE-x'") });
+        expect(nonce.warn).toHaveBeenCalledTimes(1);
+        const styled = run(
+            { log: false, inlineStyles: false, directives: { "style-src": ["'UNSAFE-INLINE'"] } },
+            { html: PAGE.replace("</head>", "<style>p{}</style></head>") },
+        );
+        expect(styled.policy.directives["style-src"]).toEqual(["'self'", "'UNSAFE-INLINE'"]);
+    });
+
     it("reads a single-quoted, entity-encoded content attribute", () => {
         const { policy } = run(
             {},

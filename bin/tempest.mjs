@@ -9,7 +9,7 @@
 //   tempest gen <api|icons|component> …   code generators (`new component` = alias)
 //   tempest --help | --version
 import { spawnSync } from "node:child_process";
-import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,7 +17,14 @@ import { aliasImports } from "./lib/alias/index.mjs";
 import { describeTypeScript, loadTypeScript } from "./lib/alias/typescript.mjs";
 import { readTsconfig } from "./lib/alias/tsconfig.mjs";
 import { componentFiles } from "./lib/component/generate.mjs";
-import { analyzeCss, applyCssFixes, applyExtraction, planExtraction } from "./lib/css/index.mjs";
+import { landsInside, lstatOrNull } from "./lib/fs/contain.mjs";
+import {
+    analyzeCss,
+    applyCssFixes,
+    applyExtraction,
+    OUTSIDE_PROJECT,
+    planExtraction,
+} from "./lib/css/index.mjs";
 import { analyzeDesign } from "./lib/design/index.mjs";
 import { checkLucide } from "./lib/doctor/lucide.mjs";
 import { generateRegistry, loadIconTables } from "./lib/icons/generate.mjs";
@@ -1052,6 +1059,7 @@ function reportAlias(result, dryRun) {
     for (const err of result.errors) {
         console.log(`  ${c.red}✗ ${err.path}${c.reset} ${c.dim}${err.message}${c.reset}`);
     }
+    reportOutside(result.outside ?? 0);
     if (!result.total) {
         console.log(`  ${c.dim}nothing to convert${c.reset}`);
         return;
@@ -1060,6 +1068,22 @@ function reportAlias(result, dryRun) {
     console.log(
         `  ${c.green}✓${c.reset} ${verb} ${result.total} import(s) in ${result.files.length} file(s)`,
     );
+}
+
+/**
+ * Say how many files a `fix` pass left alone because they resolve outside the
+ * project through a symlink.
+ *
+ * The passes skip those files rather than rewrite them; printing the count here,
+ * and not only in `doctor`, keeps a planted `src -> /elsewhere` from turning
+ * `fix` into a silent no-op.
+ *
+ * @param {number} count - Files skipped by one pass.
+ * @returns {void}
+ */
+function reportOutside(count) {
+    if (count === 0) return;
+    console.log(`  ${c.yellow}! ${count} arquivo(s) fora do projeto (symlink) — pulados${c.reset}`);
 }
 
 /** Prefix for a finding line: red for a browser-visible defect, yellow otherwise. */
@@ -1098,6 +1122,7 @@ function cssPass({ targets, dryRun, extract = false, target, prefix }) {
         );
         return 1;
     }
+    reportOutside(analysis.skipped.filter((s) => s.reason === OUTSIDE_PROJECT).length);
     if (analysis.stats.files === 0) {
         console.log(`  ${c.dim}no stylesheets found${c.reset}`);
         return 0;
@@ -1296,12 +1321,29 @@ async function genApi(args) {
         return 1;
     }
     const outDir = resolve(ROOT, parseOut(args, "src/api"));
+    const outProblem = writeTargetProblem(outDir, "dir");
+    if (outProblem) {
+        console.error(
+            `${c.red}✗ ${shownPath(outDir)} ${outProblem}.${c.reset} Nothing was written.`,
+        );
+        return 1;
+    }
     console.log(`${c.dim}→ loading ${source}${c.reset}`);
     const doc = await loadSpec(source);
     const { files, tags } = generate(doc);
 
-    for (const [rel, contents] of Object.entries(files)) {
-        const dest = join(outDir, rel);
+    const targets = Object.entries(files).map(([rel, contents]) => ({
+        dest: join(outDir, rel),
+        contents,
+    }));
+    for (const { dest } of targets) {
+        const problem = generatedFileProblem(outDir, dest);
+        if (problem) {
+            console.error(`${c.red}✗ ${problem}.${c.reset} Nothing was written.`);
+            return 1;
+        }
+    }
+    for (const { dest, contents } of targets) {
         await mkdir(dirname(dest), { recursive: true });
         await writeFile(dest, contents);
     }
@@ -1343,6 +1385,12 @@ async function genIcons(args) {
     const dirIndex = args.indexOf("--dir");
     const dirRel = dirIndex >= 0 && args[dirIndex + 1] ? args[dirIndex + 1] : "src";
     const dir = resolve(ROOT, dirRel);
+    const dest = resolve(ROOT, outRel);
+    const destProblem = generatedFileProblem(dirname(dest), dest);
+    if (destProblem) {
+        console.error(`${c.red}✗ ${destProblem}.${c.reset} Nothing was written.`);
+        return 1;
+    }
 
     let tables;
     try {
@@ -1361,7 +1409,6 @@ async function genIcons(args) {
         aliases: tables.aliases,
     });
 
-    const dest = resolve(ROOT, outRel);
     await mkdir(dirname(dest), { recursive: true });
     await writeFile(dest, source);
 
@@ -1380,34 +1427,74 @@ async function genIcons(args) {
 // ------------------------------------------------------- gen component ----
 
 /**
- * `lstat` that answers `null` for a missing path instead of throwing.
+ * Why a generator must not write `path`, or `null` when it may.
  *
- * @param {string} path - Absolute path.
- * @returns {import("node:fs").Stats | null}
+ * The one check every generator (`gen api`, `gen icons`, `gen component`) runs on
+ * each folder it creates and each file it writes, before the first write:
+ *
+ * - `path` itself must not be a symlink — dangling included, since `mkdir` and
+ *   `writeFile` follow a link to wherever it points, existing or not;
+ * - it must land inside the project once symlinks are resolved
+ *   ({@link landsInside});
+ * - if it exists, it must be what is about to be written there: a folder for
+ *   `"dir"`, a regular file for `"file"`.
+ *
+ * A symlinked ancestor that resolves inside the project is accepted, as it
+ * always was for `gen component`; one that leaves it, or dangles, is refused.
+ *
+ * @param {string} path - Absolute path about to be created or rewritten.
+ * @param {"dir" | "file"} kind - What the generator writes there.
+ * @returns {string | null} A phrase completing "`<path>` …", or `null`.
  */
-function lstatOrNull(path) {
-    try {
-        return lstatSync(path);
-    } catch {
-        return null;
+function writeTargetProblem(path, kind) {
+    const stat = lstatOrNull(path);
+    if (stat?.isSymbolicLink()) return "is a symlink; refusing to write through it";
+    if (!landsInside(ROOT, path)) {
+        return `is outside the project (${ROOT}) once symlinks are resolved`;
     }
+    if (stat && kind === "dir" && !stat.isDirectory()) return "exists and is not a folder";
+    if (stat && kind === "file" && !stat.isFile()) return "is not a regular file";
+    return null;
 }
 
 /**
- * Whether `path` would be created inside the project.
+ * Check one generated file and every folder between `base` and it.
  *
- * Resolves the nearest ancestor that exists through `realpath`, so `../x`, an
- * absolute path and an ancestor that is a symlink to somewhere else
- * (`src/components -> /elsewhere`) are all seen where they really land.
+ * `gen api` writes `<out>/<tag>/service.ts`, so a symlink at `<out>/<tag>` would
+ * carry the write elsewhere as surely as one at `<out>`; each level is checked,
+ * not just the leaf.
  *
- * @param {string} path - Absolute path about to be created.
- * @returns {boolean}
+ * @param {string} base - Folder already checked (the `--out` of `gen api`), or
+ *   the file's own folder when nothing above it is generated.
+ * @param {string} dest - Absolute path of the file about to be written.
+ * @returns {string | null} The full refusal ("`<path>` is …"), or `null`.
  */
-function landsInsideProject(path) {
-    let existing = path;
-    while (!existsSync(existing) && dirname(existing) !== existing) existing = dirname(existing);
-    const rel = relative(realpathSync(ROOT), realpathSync(existing));
-    return !(rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel));
+function generatedFileProblem(base, dest) {
+    const rel = relative(base, dirname(dest));
+    const folders = [base];
+    if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+        folders[0] = dirname(dest);
+    } else {
+        for (const segment of rel.split(sep).filter(Boolean)) {
+            folders.push(join(folders[folders.length - 1], segment));
+        }
+    }
+    for (const folder of folders) {
+        const problem = writeTargetProblem(folder, "dir");
+        if (problem) return `${shownPath(folder)} ${problem}`;
+    }
+    const problem = writeTargetProblem(dest, "file");
+    return problem ? `${shownPath(dest)} ${problem}` : null;
+}
+
+/**
+ * `path` relative to the project, with `/` separators, for messages.
+ *
+ * @param {string} path - Absolute path.
+ * @returns {string}
+ */
+function shownPath(path) {
+    return relative(ROOT, path).split(sep).join("/") || ".";
 }
 
 /**
@@ -1480,33 +1567,22 @@ async function genComponent(args) {
         return 1;
     }
     const dir = resolve(ROOT, parsed.out, generated.name);
-    const shown = relative(ROOT, dir).split(sep).join("/") || ".";
+    const shown = shownPath(dir);
 
-    if (!landsInsideProject(dir)) {
-        console.error(
-            `${c.red}✗ ${dir} is outside the project${c.reset} (${ROOT}), once symlinks are resolved. Pick an --out inside it.`,
-        );
+    const dirProblem = writeTargetProblem(dir, "dir");
+    if (dirProblem) {
+        console.error(`${c.red}✗ ${shown} ${dirProblem}.${c.reset}`);
         return 1;
     }
-    const dirStat = lstatOrNull(dir);
-    if (dirStat?.isSymbolicLink()) {
-        console.error(`${c.red}✗ ${shown} is a symlink; refusing to write through it.${c.reset}`);
-        return 1;
-    }
-    if (dirStat && !parsed.force) {
+    if (lstatOrNull(dir) && !parsed.force) {
         console.error(
             `${c.red}✗ ${shown} already exists.${c.reset} Pass --force to rewrite its five generated files.`,
         );
         return 1;
     }
-    if (dirStat && !dirStat.isDirectory()) {
-        console.error(`${c.red}✗ ${shown} exists and is not a folder.${c.reset}`);
-        return 1;
-    }
-    const blocked = Object.keys(generated.files).find((file) => {
-        const stat = lstatOrNull(join(dir, file));
-        return stat !== null && !stat.isFile();
-    });
+    const blocked = Object.keys(generated.files).find((file) =>
+        writeTargetProblem(join(dir, file), "file"),
+    );
     if (blocked) {
         console.error(
             `${c.red}✗ ${shown}/${blocked} is not a regular file${c.reset} (a folder or a symlink); nothing was written.`,

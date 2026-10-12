@@ -18,7 +18,13 @@ import { describeTypeScript, loadTypeScript } from "./lib/alias/typescript.mjs";
 import { readTsconfig } from "./lib/alias/tsconfig.mjs";
 import { componentFiles } from "./lib/component/generate.mjs";
 import { landsInside, lstatOrNull } from "./lib/fs/contain.mjs";
-import { analyzeCss, applyCssFixes, applyExtraction, planExtraction } from "./lib/css/index.mjs";
+import {
+    analyzeCss,
+    applyCssFixes,
+    applyExtraction,
+    OUTSIDE_PROJECT,
+    planExtraction,
+} from "./lib/css/index.mjs";
 import { analyzeDesign } from "./lib/design/index.mjs";
 import { checkLucide } from "./lib/doctor/lucide.mjs";
 import { generateRegistry, loadIconTables } from "./lib/icons/generate.mjs";
@@ -1053,6 +1059,7 @@ function reportAlias(result, dryRun) {
     for (const err of result.errors) {
         console.log(`  ${c.red}✗ ${err.path}${c.reset} ${c.dim}${err.message}${c.reset}`);
     }
+    reportOutside(result.outside ?? 0);
     if (!result.total) {
         console.log(`  ${c.dim}nothing to convert${c.reset}`);
         return;
@@ -1061,6 +1068,22 @@ function reportAlias(result, dryRun) {
     console.log(
         `  ${c.green}✓${c.reset} ${verb} ${result.total} import(s) in ${result.files.length} file(s)`,
     );
+}
+
+/**
+ * Say how many files a `fix` pass left alone because they resolve outside the
+ * project through a symlink.
+ *
+ * The passes skip those files rather than rewrite them; printing the count here,
+ * and not only in `doctor`, keeps a planted `src -> /elsewhere` from turning
+ * `fix` into a silent no-op.
+ *
+ * @param {number} count - Files skipped by one pass.
+ * @returns {void}
+ */
+function reportOutside(count) {
+    if (count === 0) return;
+    console.log(`  ${c.yellow}! ${count} arquivo(s) fora do projeto (symlink) — pulados${c.reset}`);
 }
 
 /** Prefix for a finding line: red for a browser-visible defect, yellow otherwise. */
@@ -1099,6 +1122,7 @@ function cssPass({ targets, dryRun, extract = false, target, prefix }) {
         );
         return 1;
     }
+    reportOutside(analysis.skipped.filter((s) => s.reason === OUTSIDE_PROJECT).length);
     if (analysis.stats.files === 0) {
         console.log(`  ${c.dim}no stylesheets found${c.reset}`);
         return 0;

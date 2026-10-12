@@ -12,20 +12,21 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `../` dos arquivos de lá para `@/` (reproduzido em dir temporário: `import { b } from "../b"`
   virou `"@/b"` no arquivo de fora). A passada de CSS fazia o mesmo com um alvo explícito que é
   link (`tempest fix src`). As duas agora deixam de fora todo arquivo cujo `realpath` cai fora do
-  projeto; o `doctor` lista a folha pulada com o motivo. A checagem `landsInside` sai do
-  `tempest.mjs` para `bin/lib/fs/contain.mjs`, onde os geradores e as passadas do `fix` a
-  compartilham.
+  projeto, e cada passada imprime quantos pulou, numa linha
+  `! N arquivo(s) fora do projeto (symlink) — pulados`. A checagem `landsInside` sai do `tempest.mjs` para `bin/lib/fs/contain.mjs`, onde os
+  geradores e as passadas do `fix` a compartilham.
 
 - **`tempest fix --extract-css` não acrescenta mais através de uma folha global que é symlink**
   (#483). A folha alvo era escolhida com `existsSync` e escrita com `writeFileSync`, ambos seguindo
   link: com `src/index.css` apontando para um rc de shell fora do projeto (e importado pelo
   `main.tsx`), a regra extraída ia para o rc, e um valor de custom property com quebra de linha
   virava uma linha que o shell executava (reproduzido em dir temporário). Agora a folha só é aceita
-  se o `lstat` disser arquivo comum e o `realpath` for exatamente `realpath(raiz)` + o caminho
-  relativo — o que recusa symlink no próprio arquivo, pendente inclusive, e em qualquer pasta acima
-  dele, mesmo que aponte para dentro do projeto (passe o arquivo real em `--css-target`). Os
-  importadores são comparados pelo `realpath`. Declaração com terminador de linha (`\n`, `\r`, `\f`,
-  U+2028, U+2029) no nome ou no valor é recusada com o motivo, como as outras recusas da passada.
+  se o `lstat` disser arquivo comum (symlink no próprio arquivo, pendente inclusive, é recusado) e
+  o `realpath` dela cair dentro do `realpath` da raiz — ancestral symlink para fora é recusado, e
+  pasta symlink que fica no projeto (monorepo com `src -> app/src`) é aceita, a mesma regra dos
+  geradores. Os importadores são comparados pelo `realpath`. Declaração com terminador de linha
+  (`\n`, `\r`, `\f`, U+2028, U+2029) no nome ou no valor é recusada com o motivo, como as outras
+  recusas da passada.
 
 - **`tempest gen api` e `tempest gen icons` não escrevem mais através de symlink nem fora do projeto**
   (#484). Com `src/api` ou `src/icons.generated.ts` plantados como symlink num repo clonado, o

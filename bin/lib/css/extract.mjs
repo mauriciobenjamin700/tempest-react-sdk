@@ -20,15 +20,15 @@
 //     through a computed key or by handing the whole object around;
 //   - no declaration carries a line terminator, so the appended rule is the
 //     same lines it was in the module and cannot open a new line of its own;
-//   - the target global sheet is a regular file reached without a symlink, inside
-//     the project, AND some source file imports it, because appending to a
+//   - the target global sheet is a regular file (not a symlink) whose realpath is
+//     inside the project, AND some source file imports it, because appending to a
 //     stylesheet nobody loads is a silent no-op;
 //   - the new global name collides with nothing already in that sheet.
 import { readFileSync, realpathSync, writeFileSync } from "node:fs";
-import { isAbsolute, join, relative, sep } from "node:path";
+import { join, relative } from "node:path";
 
 import { discoverAlias } from "../alias/discover.mjs";
-import { lstatOrNull } from "../fs/contain.mjs";
+import { landsInside, lstatOrNull } from "../fs/contain.mjs";
 import { loadTypeScript, typeScriptUnavailableReason } from "../alias/typescript.mjs";
 import { collectSources, indexClassUses, resolveSpecifier } from "./references.mjs";
 import { parseCss } from "./parse.mjs";
@@ -146,32 +146,26 @@ function realpathOrNull(path) {
  * Why the candidate global sheet must not be appended to, or `null`.
  *
  * `writeFileSync` follows symlinks, so a `src/index.css` that is a link — or
- * that sits under a linked folder — carries the append to wherever it points:
- * measured before this check, a link to a shell rc file got the extracted rule
- * appended, and a custom property value with a newline in it became a line the
- * shell ran. The sheet is accepted only when it is a regular file and its
- * `realpath` is exactly `realpath(root)` joined with its path relative to the
- * root — which holds only when no component below the root is a symlink, and
- * implies the sheet is inside the project. A link that stays in the project is
- * refused too: the target is a stylesheet the CLI picked by name, and the real
- * file is one `--css-target` away.
+ * that sits under a linked folder pointing out of the project — carries the
+ * append to wherever it points: measured before this check, a link to a shell rc
+ * file got the extracted rule appended, and a custom property value with a
+ * newline in it became a line the shell ran.
+ *
+ * The rule matches the generators': the sheet itself must be a regular file
+ * (`lstat`, so a link — dangling included — is refused), and its `realpath` must
+ * land inside `realpath(root)`. A symlinked folder that stays inside the project
+ * (a monorepo's `src -> app/src`) is accepted — the write lands in the project
+ * either way, and refusing it would switch the pass off for a legitimate layout.
  *
  * @param {string} root - Project root.
  * @param {string} path - Absolute candidate path, which `lstat` sees.
  * @returns {string | null} A phrase completing "`<file>` …", or `null`.
  */
 function unsafeTargetReason(root, path) {
-    const rel = relative(root, path);
-    if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
-        return "fica fora do projeto";
-    }
     const stat = lstatOrNull(path);
     if (stat?.isSymbolicLink()) return "é um symlink, e a escrita seguiria o link";
     if (!stat?.isFile()) return "não é um arquivo comum";
-    const realRoot = realpathOrNull(root);
-    if (realRoot === null || realpathOrNull(path) !== join(realRoot, rel)) {
-        return "está sob uma pasta que é symlink, e a escrita seguiria o link";
-    }
+    if (!landsInside(root, path)) return "fica fora do projeto depois de resolver symlinks";
     return null;
 }
 

@@ -21,6 +21,9 @@ const SKIP_DIRS = new Set([
     ".cache",
 ]);
 
+/** `skipped` reason for a sheet that resolves outside the project. */
+export const OUTSIDE_PROJECT = "resolves outside the project through a symlink";
+
 /** Above this size a stylesheet is treated as generated, not authored. */
 const MAX_BYTES = 512 * 1024;
 
@@ -70,7 +73,7 @@ export function collectStylesheets({ root, targets = ["."], maxFiles = MAX_FILES
             return;
         }
         if (!landsInside(root, path)) {
-            skipped.push({ path, reason: "resolves outside the project through a symlink" });
+            skipped.push({ path, reason: OUTSIDE_PROJECT });
             return;
         }
         if (/\.min\.css$/.test(path)) {

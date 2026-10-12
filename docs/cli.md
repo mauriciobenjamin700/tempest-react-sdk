@@ -342,7 +342,8 @@ $ npx tempest fix
 !!! note "Nada fora do projeto é reescrito"
     Arquivo que, seguindo symlink, cai fora do projeto fica de fora das duas
     passadas: um `src` que é link para outra pasta não leva o `fix` a reescrever
-    o CSS nem os imports de lá. No `doctor`, a folha pulada aparece com o motivo.
+    o CSS nem os imports de lá. Cada passada imprime quantos arquivos pulou
+    (`! N arquivo(s) fora do projeto (symlink) — pulados`).
 
 ### `--extract-css`: mover o bloco repetido pra classe global
 
@@ -397,7 +398,7 @@ O que ele reescreve no TSX:
     | a classe é lida só como `styles.row` / `styles["row"]` | `styles[key]` ou `Object.keys(styles)` tornam o módulo **opaco**: nada nele é extraído |
     | nenhuma declaração tem quebra de linha | copiada pra folha global, ela viraria uma linha nova fora da regra |
     | a folha global existe **e** alguém a importa | escrever numa folha que ninguém carrega é no-op silencioso |
-    | a folha global é arquivo comum dentro do projeto, sem symlink no caminho | a escrita segue o link: um `src/index.css` que aponta pra fora levaria o CSS pra outro arquivo do disco |
+    | a folha global é arquivo comum (não symlink) e o caminho real dela fica dentro do projeto | a escrita segue o link: um `src/index.css` que aponta pra fora levaria o CSS pra outro arquivo do disco. Pasta symlink que fica no projeto (`src/styles -> theme`) é aceita |
     | o nome novo não colide na folha global | use `--css-prefix` |
 
     ```console

@@ -345,8 +345,8 @@ $ npx tempest fix
 !!! note "Nothing outside the project is rewritten"
     A file that lands outside the project once symlinks are followed is left out
     of both passes: a `src` that links to another folder does not make `fix`
-    rewrite the CSS or the imports there. `doctor` lists a skipped sheet with the
-    reason.
+    rewrite the CSS or the imports there. Each pass prints how many files it
+    skipped (`! N arquivo(s) fora do projeto (symlink) — pulados`).
 
 ### `--extract-css`: move the repeated block into a global class
 
@@ -401,7 +401,7 @@ What it rewrites in the TSX:
     | the class is only read as `styles.row` / `styles["row"]` | `styles[key]` or `Object.keys(styles)` make the module **opaque**: nothing in it is extracted |
     | no declaration has a line break | copied into the global sheet, it would become a new line outside the rule |
     | the global sheet exists **and** something imports it | appending to a stylesheet nobody loads is a silent no-op |
-    | the global sheet is a regular file inside the project, with no symlink on its path | the write follows the link: a `src/index.css` pointing outside would carry the CSS into another file on disk |
+    | the global sheet is a regular file (not a symlink) whose real path is inside the project | the write follows the link: a `src/index.css` pointing outside would carry the CSS into another file on disk. A symlinked folder that stays in the project (`src/styles -> theme`) is accepted |
     | the new name collides with nothing in the global sheet | use `--css-prefix` |
 
     ```console

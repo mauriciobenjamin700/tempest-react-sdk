@@ -370,19 +370,27 @@ describe("planExtraction — the global sheet stays inside the project (#483)", 
         const result = run();
 
         expect(result.status).toBe("no-target");
-        expect(result.message).toContain("pasta que é symlink");
+        expect(result.message).toContain("fica fora do projeto");
         expect(readFileSync(join(outside, "globals.css"), "utf8")).toBe(":root {}\n");
     });
 
-    it("refuses a symlinked folder even when it stays inside the project", () => {
+    /**
+     * Reversed on purpose. The first version of #483 refused any symlink on the
+     * path, so a monorepo layout like `src/styles -> theme` switched the pass off
+     * with a `!` and exit 0. The write lands inside the project either way; what
+     * is refused is a link on the sheet itself and a realpath that leaves the
+     * project — the same rule as `gen api`/`gen component`.
+     */
+    it("accepts a symlinked folder that stays inside the project, as the generators do", () => {
         write("theme/globals.css", ":root {}\n");
         symlinkSync(join(root, "theme"), join(root, "src/styles"));
         write("src/main.tsx", 'import "./styles/globals.css";\n');
 
         const result = run();
 
-        expect(result.status).toBe("no-target");
-        expect(readFileSync(join(root, "theme/globals.css"), "utf8")).toBe(":root {}\n");
+        expect(result.status).toBe("ok");
+        expect(result.groups).toHaveLength(1);
+        expect(readFileSync(join(root, "theme/globals.css"), "utf8")).toContain(".u-row {");
     });
 
     it("refuses a --css-target outside the project", () => {

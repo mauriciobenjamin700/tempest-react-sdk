@@ -156,7 +156,7 @@ describe("aliasImports — files outside the project", () => {
         rmSync(join(root, "src"), { recursive: true });
         symlinkSync(outside, join(root, "src"), "dir");
 
-        expect(run()).toMatchObject({ total: 0, files: [] });
+        expect(run()).toMatchObject({ total: 0, files: [], outside: 2 });
         expect(readFileSync(join(outside, "sub", "a.ts"), "utf8")).toBe(before);
     });
 });

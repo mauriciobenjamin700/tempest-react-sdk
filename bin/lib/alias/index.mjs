@@ -36,6 +36,7 @@ export { describeTypeScript, loadTypeScript, typeScriptUnavailableReason } from 
  *   files: Array<{ path: string, changes: Array<{ from: string, to: string, line: number }> }>,
  *   total: number,
  *   errors: Array<{ path: string, message: string }>,
+ *   outside?: number,
  * }}
  */
 export function aliasImports({ root, targets, dryRun = false }) {
@@ -58,7 +59,16 @@ export function aliasImports({ root, targets, dryRun = false }) {
     const errors = [];
     let total = 0;
 
-    for (const { path, kind } of collectFiles({ root, targets, baseDir })) {
+    let outside = 0;
+    const collected = collectFiles({
+        root,
+        targets,
+        baseDir,
+        onOutside: () => {
+            outside += 1;
+        },
+    });
+    for (const { path, kind } of collected) {
         let text;
         try {
             text = readFileSync(path, "utf8");
@@ -90,5 +100,6 @@ export function aliasImports({ root, targets, dryRun = false }) {
         files,
         total,
         errors,
+        outside,
     };
 }

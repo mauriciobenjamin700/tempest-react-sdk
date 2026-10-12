@@ -14,6 +14,20 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   continua limpo de forma síncrona; a promise do `logout()` espera a revogação, que é best-effort
   (falha de rede ou `4xx`/`5xx` é engolida), e um `login()` iniciado no meio espera por ela para a
   resposta do logout não apagar os cookies da conta nova. Off por default.
+- **`createResumableUpload({ getPrincipal })` e `createLocalUploadStorage().clear()`** (#479). O registro
+  de retomada era chaveado só por endpoint + arquivo e sobrevivia ao logout: medido com o registro de
+  A no `localStorage`, o upload de B com um arquivo de mesma impressão digital fazia `HEAD` e `PATCH`
+  na URL de A com `Bearer tok-B`, e, com o servidor recusando, o `POST` de criação de B reaproveitava
+  a `Idempotency-Key` de A. Com `getPrincipal` (o mesmo getter do reporter de erros e do
+  `provideBackgroundSyncCredentials`), o registro guarda uma impressão digital de mão única do dono
+  (`owner`), e um registro de outro dono — outro usuário, ninguém, ou sem dono — é apagado em vez de
+  retomado, com `Idempotency-Key` nova. `clear()` apaga todo registro sob `tempest-upload:`; a doc de
+  auth passa a listá-lo no `onSessionEnd`. Sem `getPrincipal`, o comportamento é o de antes
+  (`src/http/resumable-upload.test.ts`). O `createLocalUploadStorage` passa a devolver
+  `LocalUploadStorage` (`ResumableUploadStorage` + `clear()`), compatível com quem o tipava como
+  `ResumableUploadStorage`. Custo, medido com `npx size-limit` (commit do #474 × esta mudança): fatia
+  do upload resumível 3,94 → 4,21 kB (teto 4 → 4,25 kB), barrel ESM 145,09 → 145,28 kB (teto 145,3) e
+  CJS 172,58 → 172,81 kB (teto 172,85).
 
 ### Corrigido
 

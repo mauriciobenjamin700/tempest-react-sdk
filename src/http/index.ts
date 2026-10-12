@@ -24,6 +24,7 @@ export {
     uploadFingerprint,
 } from "./resumable-upload";
 export type {
+    LocalUploadStorage,
     ResumableUpload,
     ResumableUploadOptions,
     ResumableUploadProgress,

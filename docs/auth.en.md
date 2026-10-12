@@ -294,7 +294,20 @@ And the push `unsubscribe()` releases the browser subscription **even when the `
     When the hook runs the store is already empty: `auth.api` goes out with no token, and its 401 ends nothing (the automatic end and a `logout()` with no session do not wait on the hook in progress, precisely so a call from inside it does not wait on itself). `auth.login()`, though, **always** waits on the teardown in progress — that is what keeps the new account from starting while the previous one is still being cleared — so called from inside the hook it waits on the hook itself and never settles. The SDK cannot tell the hook from an outside caller (the browser has no async context), so this is a documented rule, not a runtime check. `session.api` is the client made for the hook.
 
 !!! tip "Clear every per-user state here"
-    The hook is the single teardown point: the push above, and next to it any other state that belongs to the account — the persisted query cache, the service worker's background-sync queue, the authenticated response caches, the telemetry user. Compose them all inside the same `onSessionEnd`, each independent step with its own `.catch`, so one failure does not skip the others.
+    The hook is the single teardown point: the push above, and next to it any other state that belongs to the account — the persisted query cache, the service worker's background-sync queue, the authenticated response caches, the telemetry user, the resumable-upload records. Compose them all inside the same `onSessionEnd`, each independent step with its own `.catch`, so one failure does not skip the others.
+
+    The resumable-upload records keep the signed-out account's upload URL and `Idempotency-Key`, and only go away when the upload completes or on `abort({ discard: true })`. Clear them with `createLocalUploadStorage().clear()` (it removes everything under the `tempest-upload:` prefix) and pass `getPrincipal` to `createResumableUpload` — details in [Resumable upload → One record per user](./resumable-upload.en.md#one-record-per-user-getprincipal-and-clear):
+
+    ```ts
+    import { createLocalUploadStorage, createTempestAuth } from "tempest-react-sdk";
+
+    export const auth = createTempestAuth({
+      baseURL: "https://api.example.com",
+      onSessionEnd: () => {
+        createLocalUploadStorage().clear();
+      },
+    });
+    ```
 
 ### The order, exactly
 

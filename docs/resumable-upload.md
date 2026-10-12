@@ -73,7 +73,7 @@ O que acontece: um `POST` cria o upload, uma sequência de `PATCH` empurra 5 MiB
 
 ## Retomar depois de um reload
 
-É o motivo de existir. O cliente guarda `{ url, offset, size, idempotencyKey }` sob uma **chave de retomada** e, no próximo `start()`, reencontra o upload:
+É o motivo de existir. O cliente guarda `{ url, offset, size, idempotencyKey }` (e o `owner`, com `getPrincipal`) sob uma **chave de retomada** e, no próximo `start()`, reencontra o upload:
 
 ```ts
 const upload = createResumableUpload({ endpoint: "/api/uploads", file });
@@ -122,6 +122,39 @@ createResumableUpload({
 ```
 
 `storage: null` desliga a persistência: aí a retomada sobrevive a uma queda de rede, mas não a um reload.
+
+### Um registro por usuário — `getPrincipal` e `clear()`
+
+O registro sobrevive ao reload — e, por isso mesmo, ao logout. A chave padrão não tem usuário nenhum: se A sai deixando um upload pela metade e B escolhe um arquivo com a mesma impressão digital, o cliente de B faria `HEAD` e `PATCH` na URL de upload de A com o token de B e, se o servidor recusasse, mandaria o `POST` de criação com a `Idempotency-Key` de A (#479).
+
+Duas peças fecham isso:
+
+```ts
+import { createLocalUploadStorage, createResumableUpload } from "tempest-react-sdk";
+
+declare const file: File;
+declare const auth: { getToken: () => string | null };
+declare const session: { userId: string | null };
+
+const upload = createResumableUpload({
+  endpoint: "/api/uploads",
+  file,
+  getToken: () => auth.getToken(),
+  getPrincipal: () => session.userId,
+});
+
+await upload.start();
+
+export function onSessionEnd(): void {
+  createLocalUploadStorage().clear();
+}
+```
+
+- **`getPrincipal`** — o mesmo getter do reporter de erros e do `provideBackgroundSyncCredentials`. O registro ganha uma impressão digital de mão única do usuário (`owner`, nunca o id em claro), e um registro de outro dono — outro usuário, ninguém, ou sem dono, gravado antes da 0.78.0 — é **apagado** em vez de retomado: a URL dele não recebe request, e a `Idempotency-Key` dele nunca é reaproveitada.
+- **`clear()`** — apaga todo registro sob o prefixo `tempest-upload:` do `createLocalUploadStorage()`. Chame no `onSessionEnd` (veja [Auth → Fim de sessão](./auth.md#fim-de-sessao-createtempestauth-e-onsessionend)). Um `storage` próprio implementa o equivalente do lado dele.
+
+!!! warning "Sem `getPrincipal`, o comportamento é o de antes"
+    Quem não passa `getPrincipal` continua retomando qualquer registro com a mesma chave, de qualquer usuário. Serve para app de uma conta por navegador; com mais de uma, passe o getter e limpe no fim de sessão.
 
 ## A falha que realmente acontece
 
@@ -229,6 +262,7 @@ const upload = createResumableUpload({
 - **`createResumableUpload({ endpoint, file })`** — chunks de 5 MiB, retomada por rede e por reload, protocolo tus 1.0.0.
 - **`start()` / `pause()` / `resume()` / `abort({ discard })`**; `start()` resolve `null` quando você parou de propósito.
 - O ponto de retomada mora em `localStorage` por padrão; troque por `storage`, desligue com `null`.
+- **`getPrincipal`** prende o registro ao usuário; **`createLocalUploadStorage().clear()`** no `onSessionEnd` apaga os que sobraram.
 - Resposta perdida é resolvida por **offset endereçado + `HEAD` antes de cada retentativa**, e a criação por **`Idempotency-Key`**.
 - Backoff é o `retry` do SDK — não existe um segundo.
 

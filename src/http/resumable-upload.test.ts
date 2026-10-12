@@ -1297,3 +1297,230 @@ describe("createResumableUpload — csrf follows the writes and the endpoint's o
         expect(csrfFor("PATCH")).toEqual(["tok-1"]);
     });
 });
+
+/**
+ * #479: the resume record was keyed on endpoint + file only, so after A signed
+ * out leaving an upload half-done, B picking a file with the same fingerprint
+ * sent `HEAD`/`PATCH` to A's upload URL with B's bearer — and, when the server
+ * refused, replayed A's `Idempotency-Key` on B's creation `POST`. The tests that
+ * pass `getPrincipal` failed against d39027c.
+ */
+describe("createResumableUpload — the resume record belongs to a principal", () => {
+    const file = new File([new Uint8Array(10)], "nota.webm", { lastModified: 1 });
+
+    /**
+     * Leave an upload of A's half-done in `localStorage`: the creation succeeds,
+     * one chunk lands, and the next chunk fails with no retry left.
+     *
+     * @param principal - What `getPrincipal` answers for A, or no getter at all.
+     * @returns A's persisted record.
+     */
+    async function abandonUploadAsA(
+        principal: (() => string | null) | undefined,
+    ): Promise<ResumableUploadRecord> {
+        server = acceptingServer(10, "/api/uploads/A");
+        server.queue("PATCH", { status: 204, headers: { "Upload-Offset": "4" } });
+        server.queue("PATCH", { status: 500 });
+        installXhr();
+        await createResumableUpload({
+            endpoint: "/api/uploads",
+            file,
+            chunkSize: 4,
+            getToken: () => "tok-A",
+            getPrincipal: principal,
+            retry: { shouldRetry: () => false },
+        })
+            .start()
+            .catch(() => undefined);
+        const stored = await createLocalUploadStorage().get(
+            uploadFingerprint("/api/uploads", file),
+        );
+        expect(stored).toMatchObject({ url: "http://localhost:3000/api/uploads/A", offset: 4 });
+        return stored!;
+    }
+
+    it("does not resume A's upload for B, and creates B's with a fresh Idempotency-Key", async () => {
+        const recordOfA = await abandonUploadAsA(() => "user-A");
+        server = acceptingServer(10, "/api/uploads/B");
+        installXhr();
+
+        const result = await createResumableUpload({
+            endpoint: "/api/uploads",
+            file,
+            chunkSize: 4,
+            getToken: () => "tok-B",
+            getPrincipal: () => "user-B",
+        }).start();
+
+        expect(result).toEqual({ url: "http://localhost:3000/api/uploads/B", size: 10 });
+        expect(server.requests.filter((request) => request.url.endsWith("/api/uploads/A"))).toEqual(
+            [],
+        );
+        const creation = server.requests.find((request) => request.method === "POST");
+        expect(creation?.headers.Authorization).toBe("Bearer tok-B");
+        expect(creation?.headers["Idempotency-Key"]).not.toBe(recordOfA.idempotencyKey);
+    });
+
+    it("does not resume a record written before the owner existed once getPrincipal is passed", async () => {
+        const legacy = await abandonUploadAsA(undefined);
+        expect(legacy).not.toHaveProperty("owner");
+        server = acceptingServer(10, "/api/uploads/B");
+        installXhr();
+
+        await createResumableUpload({
+            endpoint: "/api/uploads",
+            file,
+            chunkSize: 4,
+            getToken: () => "tok-B",
+            getPrincipal: () => "user-B",
+        }).start();
+
+        expect(server.countOf("HEAD")).toBe(0);
+        expect(
+            server.requests.find((request) => request.method === "POST")?.headers,
+        ).not.toMatchObject({ "Idempotency-Key": legacy.idempotencyKey });
+    });
+
+    it("does not resume a signed-in user's upload for an anonymous one", async () => {
+        await abandonUploadAsA(() => "user-A");
+        server = acceptingServer(10, "/api/uploads/anon");
+        installXhr();
+
+        await createResumableUpload({
+            endpoint: "/api/uploads",
+            file,
+            chunkSize: 4,
+            getPrincipal: () => null,
+        }).start();
+
+        expect(server.requests.filter((request) => request.url.endsWith("/api/uploads/A"))).toEqual(
+            [],
+        );
+    });
+
+    it("still resumes the same principal's own upload", async () => {
+        const recordOfA = await abandonUploadAsA(() => "user-A");
+        expect(recordOfA.owner).toMatch(/^p:[0-9a-f]{16}$/);
+        expect(JSON.stringify(recordOfA)).not.toContain("user-A");
+        server = acceptingServer(10, "/api/uploads/A");
+        installXhr();
+
+        await createResumableUpload({
+            endpoint: "/api/uploads",
+            file,
+            chunkSize: 4,
+            getToken: () => "tok-A",
+            getPrincipal: () => "user-A",
+        }).start();
+
+        expect(server.requests[0]).toMatchObject({
+            method: "HEAD",
+            url: "http://localhost:3000/api/uploads/A",
+        });
+        expect(server.countOf("POST")).toBe(0);
+    });
+
+    it("keeps resuming any record without getPrincipal, as before 0.78.0", async () => {
+        await abandonUploadAsA(undefined);
+        server = acceptingServer(10, "/api/uploads/A");
+        installXhr();
+
+        await createResumableUpload({
+            endpoint: "/api/uploads",
+            file,
+            chunkSize: 4,
+            getToken: () => "tok-B",
+        }).start();
+
+        expect(server.requests[0]).toMatchObject({
+            method: "HEAD",
+            url: "http://localhost:3000/api/uploads/A",
+        });
+    });
+});
+
+describe("createLocalUploadStorage — clear()", () => {
+    it("forgets every record under its prefix and nothing else", async () => {
+        const storage = createLocalUploadStorage();
+        const record: ResumableUploadRecord = {
+            url: "/api/uploads/1",
+            offset: 1,
+            size: 2,
+            idempotencyKey: "k",
+            updatedAt: 1,
+        };
+        await storage.set("a", record);
+        await storage.set("b", record);
+        localStorage.setItem("tempest-auth", "keep");
+        localStorage.setItem("other:a", "keep");
+
+        storage.clear();
+
+        expect(await storage.get("a")).toBeNull();
+        expect(await storage.get("b")).toBeNull();
+        expect(localStorage.getItem("tempest-auth")).toBe("keep");
+        expect(localStorage.getItem("other:a")).toBe("keep");
+    });
+
+    it("no-ops when there is no localStorage", () => {
+        const storage = createLocalUploadStorage();
+        vi.stubGlobal("localStorage", undefined);
+        expect(() => storage.clear()).not.toThrow();
+    });
+});
+
+describe("createResumableUpload — the creation key across runs of one handle", () => {
+    /**
+     * A server whose first creation `POST` is lost on the network, and that
+     * accepts everything after.
+     *
+     * @returns The server.
+     */
+    function losesFirstCreation(): FakeTusServer {
+        const created = acceptingServer(4);
+        created.queue("POST", { status: 0, networkError: true });
+        return created;
+    }
+
+    it("reuses the in-memory Idempotency-Key on resume() without storage, for the same principal", async () => {
+        server = losesFirstCreation();
+        installXhr();
+        const upload = createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(4),
+            storage: null,
+            getPrincipal: () => "user-A",
+        });
+
+        await upload.start().catch(() => undefined);
+        await upload.resume();
+
+        const keys = server.requests
+            .filter((request) => request.method === "POST")
+            .map((request) => request.headers["Idempotency-Key"]);
+        expect(keys).toHaveLength(2);
+        expect(keys[1]).toBe(keys[0]);
+    });
+
+    it("draws a new Idempotency-Key on resume() when the principal changed", async () => {
+        server = losesFirstCreation();
+        installXhr();
+        let principal = "user-A";
+        const upload = createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(4),
+            storage: null,
+            getPrincipal: () => principal,
+        });
+
+        await upload.start().catch(() => undefined);
+        principal = "user-B";
+        await upload.resume();
+
+        const keys = server.requests
+            .filter((request) => request.method === "POST")
+            .map((request) => request.headers["Idempotency-Key"]);
+        expect(keys).toHaveLength(2);
+        expect(keys[1]).not.toBe(keys[0]);
+    });
+});

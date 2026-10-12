@@ -293,7 +293,20 @@ E o `unsubscribe()` do push libera a inscrição do navegador **mesmo quando o `
     Quando o hook roda, o store já está vazio: `auth.api` sai sem token, e o 401 dele não encerra nada (o encerramento automático e um `logout()` sem sessão não esperam o hook em andamento, justamente para uma chamada de dentro dele não esperar a si mesma). Já o `auth.login()` **sempre** espera o teardown em andamento — é o que impede a conta nova de começar enquanto a anterior ainda está sendo limpa —, então chamado de dentro do hook ele espera o próprio hook e nunca termina. O SDK não tem como distinguir o hook de quem chama de fora (o navegador não tem contexto assíncrono), então é regra documentada, não checagem. `session.api` é o cliente feito para o hook.
 
 !!! tip "Limpe aqui todo estado por usuário"
-    O hook é o ponto único de teardown: o push acima, e ao lado dele qualquer outro estado que pertence à conta — o cache de queries persistido, a fila de background sync do service worker, os caches de resposta autenticada, o usuário da telemetria. Componha tudo dentro do mesmo `onSessionEnd`; cada passo independente com seu próprio `.catch`, para uma falha não pular os outros.
+    O hook é o ponto único de teardown: o push acima, e ao lado dele qualquer outro estado que pertence à conta — o cache de queries persistido, a fila de background sync do service worker, os caches de resposta autenticada, o usuário da telemetria, os registros de upload resumível. Componha tudo dentro do mesmo `onSessionEnd`; cada passo independente com seu próprio `.catch`, para uma falha não pular os outros.
+
+    Os registros de upload resumível guardam a URL de upload e a `Idempotency-Key` da conta que saiu, e só somem quando o upload completa ou num `abort({ discard: true })`. Limpe com `createLocalUploadStorage().clear()` (apaga tudo sob o prefixo `tempest-upload:`) e passe `getPrincipal` ao `createResumableUpload` — detalhes em [Upload resumível → Um registro por usuário](./resumable-upload.md#um-registro-por-usuario-getprincipal-e-clear):
+
+    ```ts
+    import { createLocalUploadStorage, createTempestAuth } from "tempest-react-sdk";
+
+    export const auth = createTempestAuth({
+      baseURL: "https://api.exemplo.com",
+      onSessionEnd: () => {
+        createLocalUploadStorage().clear();
+      },
+    });
+    ```
 
 ### A ordem, exatamente
 

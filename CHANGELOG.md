@@ -104,6 +104,18 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **Os serviços do `tempest gen api` interpolavam o parâmetro de path cru, e `../` no id levava a
+  requisição — com o Bearer — para outro endpoint** (#499). `deleteComment("../../account")` saía
+  como `DELETE /account`; com `baseURL` `https://api/v1`, `"../../../account"` escapava do `/v1`; e
+  `"7?role=admin"` injetava query string. Agora todo parâmetro de path entra na URL como
+  `${encodeIdSegment(id)}` — o mesmo helper que fechou a #438 no `createDataProvider` —, e o
+  `service.ts` que o usa ganha `import { encodeIdSegment } from "tempest-react-sdk"`. `/`, `?`, `#` e
+  `%` ficam no segmento; `""`, `"."`, `".."`, `null` e `undefined` lançam `TypeError` antes do
+  `fetch`. Parâmetro `boolean`, array ou objeto passa com `as never` (o helper converte com `String()`
+  e mantém a rejeição de `null`). Nenhuma assinatura de método gerado muda; parâmetro de path chamado
+  `encodeIdSegment` vira `encodeIdSegmentParam` e schema com esse nome ganha prefixo `_`. **Regenere**
+  os serviços (`tempest gen api`) para receber a proteção.
+
 - **`release-npm.yml` — o `release-dist-tag.sh` que roda nos jobs privilegiados sai do commit, não do
   workspace do build** (#495). O digest do script era tirado no passo Pack, depois de `npm ci`, testes e
   build, e o script viajava no artifact; o `publish` (`id-token: write`) e o `release`

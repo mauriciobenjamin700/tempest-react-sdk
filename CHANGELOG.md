@@ -87,7 +87,6 @@ range: v0.75`, medido). O `latest` é lido de `npm view <pkg> dist-tags --json` 
   BR Code do Bacen segue, fixa a `00` como primeiro objeto e a `63` como último. Payload emitido
   por PSP conforme não muda. Teste: `npx vitest run src/br/pix.test.ts -t "475"`.
 
-
 ## [0.77.0] — 2026-10-12
 
 ### Breaking

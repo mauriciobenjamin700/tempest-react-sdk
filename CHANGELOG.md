@@ -31,6 +31,37 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
     chame também `clearSessionData()` no logout, porque a checagem confia que o `getPrincipal` de cada
     aba reflete o cookie que vai no replay.
 
+### Adicionado
+
+- **`createTempestAuth({ logoutPath })` — o `logout()` explícito revoga a sessão no servidor** (#474).
+  Faz `POST` na rota com o cliente da sessão que terminou (o access token dela) e o corpo do
+  `refreshBody` montado com o refresh token guardado antes da limpeza — `{ refresh_token }` no modo
+  corpo, sem corpo no modo cookie —, que é o contrato do `POST /auth/logout` do tempest-fastapi-sdk
+  (montado com `refresh_token_model`; `/auth/cookie/logout` com `AUTH_TOKEN_DELIVERY=both`). O store
+  continua limpo de forma síncrona; a promise do `logout()` espera a revogação, que é best-effort
+  (falha de rede ou `4xx`/`5xx` é engolida), e um `login()` iniciado no meio espera por ela para a
+  resposta do logout não apagar os cookies da conta nova. Off por default.
+- **`createResumableUpload({ getPrincipal })` e `createLocalUploadStorage().clear()`** (#479). O registro
+  de retomada era chaveado só por endpoint + arquivo e sobrevivia ao logout: medido com o registro de
+  A no `localStorage`, o upload de B com um arquivo de mesma impressão digital fazia `HEAD` e `PATCH`
+  na URL de A com `Bearer tok-B`, e, com o servidor recusando, o `POST` de criação de B reaproveitava
+  a `Idempotency-Key` de A. Com `getPrincipal` (o mesmo getter do reporter de erros e do
+  `provideBackgroundSyncCredentials`), o registro guarda uma impressão digital de mão única do dono
+  (`owner`), e um registro de outro dono — outro usuário, ninguém, ou sem dono — é apagado em vez de
+  retomado, com `Idempotency-Key` nova. `clear()` apaga todo registro sob `tempest-upload:`; a doc de
+  auth passa a listá-lo no `onSessionEnd`. Sem `getPrincipal`, o comportamento é o de antes
+  (`src/http/resumable-upload.test.ts`). O `createLocalUploadStorage` passa a devolver
+  `LocalUploadStorage` (`ResumableUploadStorage` + `clear()`), compatível com quem o tipava como
+  `ResumableUploadStorage`. Custo, medido com `npx size-limit` (commit do #474 × esta mudança): fatia
+  do upload resumível 3,94 → 4,21 kB (teto 4 → 4,25 kB), barrel ESM 145,09 → 145,28 kB (teto 145,3) e
+  CJS 172,58 → 172,81 kB (teto 172,85).
+
+- **`createTempestAuth({ onLogoutError })`** — recebe o erro de uma revogação do `logoutPath` que
+  falhou (rede, `4xx`, `5xx`); em build de dev também sai um `console.warn`. Antes a falha sumia sem
+  sinal.
+- **`ResumableUploadSupersededError`** — o `start()`/`resume()` rejeita com ele (`reason: "principal"`
+  ou `"cleared"`) quando o `getPrincipal` muda ou o `clear()` roda durante o upload.
+
 ### Alterado
 
 - **`toCsv` / `downloadCsv` põem entre aspas o texto com o separador do outro locale (#481).** A
@@ -47,6 +78,29 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   a vir entre aspas, o que é transparente para leitor RFC 4180, e um campo que começa com TAB sai
   `"'` + TAB + `…"`. Quem importa o arquivo noutro sistema e precisa dos bytes como vieram passa
   `{ neutralizeFormulas: false }`, que mantém a saída da 0.77 sem mudança.
+
+- **`createTempestAuth` em modo cookie: a sessão não volta mais sozinha por uma request anônima**
+  (#474). Com `withCredentials: true` e o store vazio (`storage: "session"` numa aba nova, storage
+  limpo, primeiro carregamento depois de um logout), a primeira request que voltava 401 renovava pelo
+  cookie e restaurava a sessão; agora ela só rejeita. **Migração:** chame `auth.refresh()` no boot.
+  Uma request sem token que volta 401 enquanto esse refresh está em voo entra nele e é repetida, e um
+  401 sem sessão não roda `onSessionEnd`, não navega e não supera o refresh do boot — antes, o
+  `finish("expired")` sem sessão avançava a época e jogava fora o refresh do boot.
+- **`logoutPath`: revogações sobrepostas e o login em voo.** O `login()` espera **todas** as
+  revogações pendentes, não só a última, e no máximo 10 s (`LOGOUT_REVOCATION_WAIT_MS`, interno): uma
+  revogação que nunca volta atrasa o login em vez de travá-lo. No modo cookie, a revogação espera
+  (no mesmo limite) as respostas de login/refresh em voo quando o `logout()` rodou, porque é a
+  resposta que grava o cookie da sessão encerrada; no modo corpo, o refresh token de uma resposta
+  superada é revogado à parte.
+- **`createResumableUpload` relê o `getPrincipal` antes de cada chunk e de cada gravação do registro**
+  (#479): com a conta trocada no meio do run, o run para com `ResumableUploadSupersededError` antes de
+  o token novo ir para a URL de upload da conta anterior (medido antes: os `PATCH` seguintes saíam
+  com `Bearer tok-B`). Um `clear()` no meio do run também o para, em vez de o registro ser regravado.
+- **`createLocalUploadStorage().clear()` só apaga valor com formato de registro**: com um prefixo sem
+  delimitador (`"app"`), ele apagava também as chaves do app (`"appSettings"`).
+- **Tetos do `size-limit`** para as correções acima, medidos com `npx size-limit` (commit `e5657a6` ×
+  esta mudança): fatia do upload resumível 4,20 → 4,44 kB (teto 4,25 → 4,45 kB), barrel ESM 145,28 →
+  145,85 kB (teto 145,3 → 145,9) e CJS 172,76 → 173,17 kB (teto 172,85 → 173,2).
 
 ### Corrigido
 
@@ -144,6 +198,25 @@ range: v0.75`, medido). O `latest` é lido de `npm view <pkg> dist-tags --json` 
   escrita, o `--out`, cada pasta de grupo e cada arquivo são recusados se forem symlink (inclusive
   pendente), se existirem com o tipo errado ou se caírem fora do projeto depois de resolver
   symlinks. Ancestral que é symlink pendente agora conta como fora do projeto.
+
+- **`createTempestAuth` — em modo refresh por cookie, um 401 anônimo depois do `logout()` não loga A de
+  novo** (#474). Um 401 de request que saiu sem token chegava ao refresh com token nulo, e o refresh ia com o cookie HttpOnly que o `logout()` não alcança: medido com um backend cujo cookie
+  continua válido, `logout()` → `auth.api.get("/api/me")` → 401 → refresh → `isAuthenticated: true`
+  com o token de A, e a repetição devolvia o `/me` de A. Agora, sem sessão instalada (sem access
+  token, sem refresh token guardado e sem `login()` em curso), esse 401 só rejeita. Restaurar a sessão
+  pelo cookie no boot continua funcionando por `auth.refresh()` explícito — quem dependia de uma
+  request anônima para restaurar passa a chamar `refresh()` (`src/auth/create-tempest-auth.cookie.test.ts`).
+  Custo, medido com `npx size-limit` (`main` d39027c × esta mudança): barrel ESM 144,97 → 145,09 kB e
+  CJS 172,46 → 172,58 kB; os tetos sobem para 145,1 / 172,6 kB.
+
+- **`createTempestAuth` — o `/me` que resolve depois do `logout()` não grava mais o perfil no store**
+  (#473). O `login()` instalava o token e esperava o `GET mePath` sem conferir a época da sessão:
+  medido com o `/me` de A segurado, `logout()` deixava `{ token: null, user: A }` persistido, e
+  `logout()` + `login(B)` deixava `{ token: "tok-B", user: A }` — a UI mostrava A enquanto as
+  requests saíam como B, e o `login(A)` superado resolvia com A. Agora o `/me` fica preso à época em
+  que saiu, no sucesso e na falha: se ela mudou, o perfil é descartado e o `login()` rejeita com
+  `SessionSupersededError` (`src/auth/create-tempest-auth.races.test.ts`, três testes que falhavam
+  na `main`).
 
 ## [0.77.0] — 2026-10-12
 

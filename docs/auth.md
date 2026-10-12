@@ -293,7 +293,20 @@ E o `unsubscribe()` do push libera a inscrição do navegador **mesmo quando o `
     Quando o hook roda, o store já está vazio: `auth.api` sai sem token, e o 401 dele não encerra nada (o encerramento automático e um `logout()` sem sessão não esperam o hook em andamento, justamente para uma chamada de dentro dele não esperar a si mesma). Já o `auth.login()` **sempre** espera o teardown em andamento — é o que impede a conta nova de começar enquanto a anterior ainda está sendo limpa —, então chamado de dentro do hook ele espera o próprio hook e nunca termina. O SDK não tem como distinguir o hook de quem chama de fora (o navegador não tem contexto assíncrono), então é regra documentada, não checagem. `session.api` é o cliente feito para o hook.
 
 !!! tip "Limpe aqui todo estado por usuário"
-    O hook é o ponto único de teardown: o push acima, e ao lado dele qualquer outro estado que pertence à conta — o cache de queries persistido, a fila de background sync do service worker, os caches de resposta autenticada, o usuário da telemetria. Componha tudo dentro do mesmo `onSessionEnd`; cada passo independente com seu próprio `.catch`, para uma falha não pular os outros.
+    O hook é o ponto único de teardown: o push acima, e ao lado dele qualquer outro estado que pertence à conta — o cache de queries persistido, a fila de background sync do service worker, os caches de resposta autenticada, o usuário da telemetria, os registros de upload resumível. Componha tudo dentro do mesmo `onSessionEnd`; cada passo independente com seu próprio `.catch`, para uma falha não pular os outros.
+
+    Os registros de upload resumível guardam a URL de upload e a `Idempotency-Key` da conta que saiu, e só somem quando o upload completa ou num `abort({ discard: true })`. Limpe com `createLocalUploadStorage().clear()` (apaga tudo sob o prefixo `tempest-upload:`) e passe `getPrincipal` ao `createResumableUpload` — detalhes em [Upload resumível → Um registro por usuário](./resumable-upload.md#um-registro-por-usuario-getprincipal-e-clear):
+
+    ```ts
+    import { createLocalUploadStorage, createTempestAuth } from "tempest-react-sdk";
+
+    export const auth = createTempestAuth({
+      baseURL: "https://api.exemplo.com",
+      onSessionEnd: () => {
+        createLocalUploadStorage().clear();
+      },
+    });
+    ```
 
 ### A ordem, exatamente
 
@@ -325,7 +338,7 @@ Por que o hook roda **antes** de instalar a conta nova: o teardown da conta ante
 
 Um `logout()` cujo teardown ainda está em andamento é esperado do mesmo jeito: `logout()` seguido de `login()` sem `await` não instala a conta nova antes de o hook da anterior terminar — o hook que limpa o estado da conta A não corre junto com a conta B.
 
-Um `login()` cuja sessão mudou enquanto a request dele estava em voo — um `logout()` no meio, por exemplo — rejeita com `SessionSupersededError` e não instala nada.
+Um `login()` cuja sessão mudou enquanto a request dele estava em voo — um `logout()` no meio, por exemplo — rejeita com `SessionSupersededError` e não instala nada. Vale também para o `GET` do `mePath` que o `login()` faz depois de instalar o token: um perfil que chega depois de um `logout()` (ou de `logout()` + `login()` de outra conta) é descartado, em vez de ficar no store ao lado do token da conta seguinte.
 
 ### Refresh em voo e troca de conta — `SessionSupersededError`
 
@@ -351,6 +364,63 @@ export async function loadOrders(): Promise<unknown[] | null> {
 ```
 
 Os refreshes também colapsam por **rotação**, não só por sobreposição no tempo: um 401 cuja request saiu com um token que a mesma sessão já trocou repete com o token novo e não renova nada. Três requests expiradas gastam um refresh, cheguem os 401 juntos ou um depois do outro.
+
+### Refresh por cookie e logout no servidor — `logoutPath`
+
+Com `withCredentials: true`, o refresh token mora num cookie HttpOnly, e o `logout()` não alcança esse cookie: ele limpa o store e o refresh token guardado, e o cookie continua no navegador, resgatável até o backend revogá-lo. Duas peças fecham isso.
+
+A primeira é do próprio preset e não tem opção: **um 401 de uma request que saiu sem token, sem sessão instalada** (sem access token, sem refresh token guardado e sem `login()` em curso), **só rejeita com o 401** — não dispara refresh. Antes, esse 401 chegava depois do `logout()`, o refresh ia com o cookie de A, e o próximo usuário do navegador agia como A (#474).
+
+O que continua funcionando é restaurar a sessão pelo cookie quando o app recarrega: chame `auth.refresh()` no boot, explicitamente. É o caminho legítimo — o app decide restaurar —, e não um efeito colateral de qualquer request anônima. Uma request sem token que volta 401 **enquanto** esse refresh do boot está em voo entra nele e é repetida com o token restaurado; e um 401 sem sessão nenhuma não encerra nada — não roda o `onSessionEnd`, não navega para o `redirectTo` e não supera o refresh do boot.
+
+!!! warning "Migração: app em modo cookie que restaurava a sessão por uma request anônima"
+    Até a 0.77.0, com `withCredentials: true` e o store vazio — `storage: "session"` numa aba nova, o storage limpo, ou o primeiro carregamento depois de um logout —, a primeira request do app voltava 401, o preset renovava pelo cookie e a sessão "voltava sozinha". Isso acabou: é exatamente o caminho que relogava a conta que tinha saído. **Chame `auth.refresh()` no boot**, antes de renderizar a área protegida, e trate a rejeição como "não logado". Com o store persistido no `localStorage` (o default) e um access token guardado, nada muda.
+
+A segunda peça é revogar no servidor: passe `logoutPath`, e o `logout()` explícito faz `POST` nessa rota com as credenciais da sessão que terminou — o access token dela, e o corpo que o `refreshBody` monta com o refresh token guardado (`{ refresh_token }` no modo corpo; sem corpo no modo cookie, em que o cookie vai junto).
+
+```ts
+import { createTempestAuth } from "tempest-react-sdk";
+
+interface User {
+  id: string;
+  name: string;
+}
+
+export const auth = createTempestAuth<User>({
+  baseURL: "https://api.exemplo.com",
+  mePath: "/api/auth/me",
+  withCredentials: true,
+  csrf: true,
+  logoutPath: "/api/auth/logout",
+  onLogoutError: (error) => console.error("logout no servidor falhou", error),
+});
+
+export async function restoreSession(): Promise<boolean> {
+  try {
+    await auth.refresh();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function signOut(): Promise<void> {
+  await auth.logout();
+  window.location.assign("/login");
+}
+```
+
+- O store é limpo **antes** da revogação terminar: `isAuthenticated` já é `false` quando o `logout()` retorna, como sempre.
+- A promise do `logout()` espera a revogação. Por isso o `await auth.logout()` antes de navegar importa: uma navegação dura aborta a request em voo.
+- A revogação é **best-effort**: falha de rede, `4xx` ou `5xx` é engolida, e o usuário sai do mesmo jeito.
+- Um `login()` que começa com a revogação em voo espera por ela, porque a resposta do logout apaga os cookies de auth e, chegando depois, apagaria os da conta nova.
+- Só o `logout()` explícito revoga. Na troca de conta (`"switch"`) o cookie no navegador já é o da conta nova; no `"expired"` o servidor já recusou a sessão.
+- Dois `logout()` sobrepostos mandam cada um a sua revogação, e o `login()` espera **todas** — no máximo 10 segundos: uma revogação que nunca volta atrasa o login, não o trava.
+- Um `logout()` durante um `login()` ou refresh em voo: no modo cookie, a revogação espera a resposta dele (no mesmo limite de 10 segundos), porque é ela que grava o cookie da sessão que está acabando; no modo corpo, o refresh token que essa resposta superada traz é revogado à parte.
+- Uma revogação que falha chama `onLogoutError(error)` e, em build de dev, avisa no console — o `logout()` resolve do mesmo jeito.
+
+!!! info "A rota no tempest-fastapi-sdk"
+    O `make_auth_router` monta `POST /auth/logout` (`204`, idempotente) quando o serviço guarda refresh token no banco (`refresh_token_model`): no modo corpo ele lê `{ refresh_token }`, no modo cookie lê o cookie e apaga os dois cookies de auth. Com `AUTH_TOKEN_DELIVERY=both`, a rota de cookie fica em `/auth/cookie/logout`. Refresh token stateless (JWT) não tem como ser revogado, e a rota não existe — ali o cookie só morre quando expira.
 
 ## Exemplo completo — login, guard e refresh juntos
 
@@ -436,6 +506,7 @@ O fluxo: o login chama `setSession`, persistindo `user` + `token`. O `ProtectedL
 - **`createRefreshQueue`** — N refreshes concorrentes viram 1.
 - **`onSessionEnd`** — teardown por usuário no `logout()` **e** na expiração automática, com `session.api` ainda autenticado.
 - **`SessionSupersededError`** — refresh ou request de uma sessão que já acabou; descarte, não deslogue.
+- **`logoutPath`** — revoga o refresh token (ou o cookie) no servidor no `logout()`; restaure a sessão no boot com `auth.refresh()`.
 
 ### Veja também
 

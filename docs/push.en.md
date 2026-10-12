@@ -412,14 +412,29 @@ export function PushToggle() {
 
 `unsubscribe()` does two things, **in this order**:
 
-1. it calls `onUnsubscribe(subscription)` — your delete route;
-2. only then it calls `subscription.unsubscribe()` in the browser.
+1. it calls `onUnsubscribe(subscription)` — your delete route, while the
+   `endpoint` is still live;
+2. it calls `subscription.unsubscribe()` in the browser — **always**, even when
+   step 1 failed.
 
-The order is a choice: if the backend fails, the subscription **stays** in the
-browser and `unsubscribe()` throws. That is the safe side to fail on — the
-opposite (deleting in the browser first) would lose the `endpoint`, and without it
-the backend could never know which row to delete. It would keep pushing to a dead
-endpoint until the push service answered `410`.
+If the backend failed, `unsubscribe()` throws `WebPushUnsubscribeError` **after**
+releasing the browser. The error carries `subscription` (with the `endpoint`, so
+you can retry the `DELETE` later), `browserUnsubscribed`, and the original
+`cause` — an `AggregateError` holding both errors (backend first) when the
+browser failed too, so the `endpoint` is never traded for a bare `DOMException`.
+`usePushSubscription` already reflects it: `subscribed` becomes `false` and
+`error` holds the `WebPushUnsubscribeError`.
+
+Why release the browser anyway: the two failures do not cost the same.
+
+| What is left behind when the backend fails | Cost |
+| --- | --- |
+| An orphaned row in the database (browser released) | one send to a dead endpoint, which the push service answers with `404`/`410` — and the backend deletes the row ([see below](#404410-from-the-push-service-delete-on-the-backend)) |
+| A live subscription in the browser (the behaviour before 0.77.0) | the browser keeps delivering **this account's** notifications to whoever uses it next |
+
+And the `DELETE` fails precisely when unsubscribing matters most: at the end of a
+session, when the token that authenticates it is already gone. The `endpoint` is
+not lost either — it is read before both calls and travels in the error.
 
 #### Delete by `endpoint`, not by session
 
@@ -462,28 +477,57 @@ same Chrome, the endpoint is unchanged — and still tied to Ana in your databas
 Bruno starts receiving Ana's notifications, on his device, with the app showing
 his own account.
 
-Unsubscribe on logout, **before** throwing the token away:
+Unsubscribe **when the session ends** — not only on the sign-out button. The
+session also ends on its own (refresh token revoked, refresh failed), and that
+path does not go through your `logout()`. With `createTempestAuth`, the place is
+`onSessionEnd`, which runs on both:
 
 ```ts
-// src/stores/auth.ts — or wherever your logout lives
-import { WebPushClient } from "tempest-react-sdk";
+import { WebPushClient, WebPushUnsubscribeError, createTempestAuth } from "tempest-react-sdk";
 
-async function logout() {
-    const push = new WebPushClient({
-        vapidPublicKey: import.meta.env.VITE_VAPID_PUBLIC_KEY,
-        onSubscribe: () => {},
-        onUnsubscribe: (sub) =>
-            api.delete("/webpush/subscribe", { body: { endpoint: sub.endpoint } }),
-    });
+const ORPHANED_PUSH_KEY = "push-orphaned-subscriptions";
 
-    // With no token the DELETE returns 401 and the row is orphaned.
-    await push.unsubscribe().catch(() => {
-        // Network down: the backend cleans up when the push service answers 404/410.
-    });
-
-    auth.clear();
-}
+export const auth = createTempestAuth({
+    baseURL: import.meta.env.VITE_API_URL,
+    onSessionEnd: async (session) => {
+        const push = new WebPushClient({
+            vapidPublicKey: import.meta.env.VITE_VAPID_PUBLIC_KEY,
+            onSubscribe: () => {},
+            onUnsubscribe: (sub) =>
+                session.api.delete("/webpush/subscribe", { body: { endpoint: sub.endpoint } }),
+        });
+        try {
+            await push.unsubscribe();
+        } catch (error) {
+            if (!(error instanceof WebPushUnsubscribeError)) return;
+            const pending: PushSubscriptionJSON[] = JSON.parse(
+                localStorage.getItem(ORPHANED_PUSH_KEY) ?? "[]",
+            );
+            localStorage.setItem(ORPHANED_PUSH_KEY, JSON.stringify([...pending, error.subscription]));
+        }
+    },
+});
 ```
+
+Two pieces make this work with no warning for you to remember:
+
+- `session.api` still sends the ended session's token — the store has already
+  been cleared, so `auth.api` no longer does. On an explicit sign-out the
+  `DELETE` goes out authenticated and deletes the row.
+- The `catch` keeps the `WebPushUnsubscribeError`'s `subscription`: on the next
+  login, resend the `DELETE` for each stored `endpoint` and clear the list.
+  Dropping the error with `.catch(() => false)` would throw away exactly the
+  orphaned row's `endpoint`.
+- On automatic expiry the server already refuses that token, the `DELETE` comes
+  back 401 — and the browser is released all the same, because `unsubscribe()`
+  always releases it. The orphaned row goes away on the next send, with the
+  `404`/`410`.
+
+The full order, and what else to clear in the same hook, is in
+[Auth → Ending the session](./auth.en.md#ending-the-session-createtempestauth-and-onsessionend).
+Without `createTempestAuth`, call the same `push.unsubscribe()` in your logout
+**before** discarding the token, and also on the path where your HTTP client
+gives up on the session.
 
 !!! tip "If you do not want to lose the permission you earned"
     `unsubscribe()` on logout keeps the permission (see above), so the next login

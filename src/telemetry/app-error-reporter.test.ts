@@ -252,3 +252,351 @@ describe("createAppErrorReporter", () => {
         }
     });
 });
+
+describe("createAppErrorReporter — who a queued report belongs to (#441)", () => {
+    beforeEach(() => setOnline(true));
+    afterEach(() => {
+        built.splice(0).forEach((reporter) => reporter.dispose());
+        localStorage.clear();
+    });
+
+    function session(initial: string | null) {
+        let token: string | null = initial;
+        return {
+            getToken: () => token,
+            switchTo(next: string | null) {
+                token = next;
+            },
+        };
+    }
+
+    function authorizations(fetchMock: ReturnType<typeof vi.fn>): Array<string | undefined> {
+        return inits(fetchMock).map(
+            (init) => (init.headers as Record<string, string>).Authorization,
+        );
+    }
+
+    it("never sends A's offline report with B's bearer when the app gives no getPrincipal", async () => {
+        const fetchMock = vi
+            .fn()
+            .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+            .mockResolvedValue(answer(201));
+        const auth = session("token-dummyA");
+        const reporter = build(fetchMock, { autoFlush: false, getToken: auth.getToken });
+        reporter.report(new Error("upload failed"), { record: "A-fixture-42" });
+        expect(await reporter.flush()).toMatchObject({ sent: 0, pending: 1 });
+        auth.switchTo(null);
+        auth.switchTo("token-dummyB");
+        expect(await reporter.flush()).toMatchObject({ sent: 1, pending: 0 });
+        expect(authorizations(fetchMock)).toEqual(["Bearer token-dummyA", undefined]);
+        expect(bodies(fetchMock)[1]?.message).toContain("A-fixture-42");
+    });
+
+    it("never sends A's report with B's bearer after a reload, when the app gives getPrincipal", async () => {
+        setOnline(false);
+        const fetchMock = vi.fn(async () => answer(201));
+        const auth = session("token-dummyA");
+        let principal: string | null = "user-a";
+        const options: Partial<CreateAppErrorReporterOptions> = {
+            storage: undefined,
+            getToken: () => auth.getToken(),
+            getPrincipal: () => principal,
+        };
+        build(fetchMock, options).report(new Error("upload failed"), { record: "A-fixture-42" });
+        principal = null;
+        auth.switchTo(null);
+        principal = "user-b";
+        auth.switchTo("token-dummyB");
+        setOnline(true);
+        const reloaded = build(fetchMock, { ...options, autoFlush: false });
+        expect(await reloaded.flush()).toMatchObject({ sent: 1, pending: 0 });
+        expect(authorizations(fetchMock)).toEqual([undefined]);
+    });
+
+    it("sends anonymously across a token refresh even for the same principal, since only the token proves the bearer", async () => {
+        const fetchMock = vi.fn(async () => answer(201));
+        const auth = session("token-1");
+        const reporter = build(fetchMock, {
+            autoFlush: false,
+            getToken: auth.getToken,
+            getPrincipal: () => "user-a",
+        });
+        reporter.report("x");
+        auth.switchTo("token-2");
+        await reporter.flush();
+        expect(authorizations(fetchMock)).toEqual([undefined]);
+    });
+
+    it("sends anonymously after a token refresh when there is no getPrincipal", async () => {
+        const fetchMock = vi.fn(async () => answer(201));
+        const auth = session("token-1");
+        const reporter = build(fetchMock, { autoFlush: false, getToken: auth.getToken });
+        reporter.report("x");
+        auth.switchTo("token-2");
+        await reporter.flush();
+        expect(authorizations(fetchMock)).toEqual([undefined]);
+    });
+
+    it("stamps the owner from an async getToken at report time, before the flush reads the queue", async () => {
+        const fetchMock = vi.fn(async () => answer(201));
+        let token = "token-dummyA";
+        const reporter = build(fetchMock, { autoFlush: false, getToken: async () => token });
+        reporter.report("a");
+        const first = reporter.flush();
+        await first;
+        reporter.report("b");
+        token = "token-dummyB";
+        await reporter.flush();
+        expect(authorizations(fetchMock)).toEqual(["Bearer token-dummyA", undefined]);
+    });
+
+    it("drops, when asked to, every report not proven to be the current principal's — anonymous ones included", async () => {
+        const fetchMock = vi.fn(async () => answer(201));
+        let principal: string | null = null;
+        const reporter = build(fetchMock, {
+            autoFlush: false,
+            getToken: () => (principal ? `token-${principal}` : null),
+            getPrincipal: () => principal,
+            foreignReports: "drop",
+        });
+        reporter.report("before login");
+        principal = "a";
+        reporter.report("from a");
+        reporter.report("a again");
+        principal = "b";
+        reporter.report("from b");
+        expect(await reporter.flush()).toEqual({
+            sent: 1,
+            dropped: 3,
+            pending: 0,
+            retryAfterMs: null,
+        });
+        expect(bodies(fetchMock).map((body) => body.message)).toEqual(["from b"]);
+        expect(authorizations(fetchMock)).toEqual(["Bearer token-b"]);
+    });
+
+    it("treats a principal getter that throws as nobody, which only matters to drop — the unchanged token still proves the bearer", async () => {
+        const fetchMock = vi.fn(async () => answer(201));
+        const reporter = build(fetchMock, {
+            autoFlush: false,
+            getToken: () => "tok",
+            getPrincipal: () => {
+                throw new Error("store not ready");
+            },
+        });
+        reporter.report("x");
+        await reporter.flush();
+        expect(reporter.pending()).toEqual([]);
+        expect(authorizations(fetchMock)).toEqual(["Bearer tok"]);
+        const strict = build(fetchMock, {
+            autoFlush: false,
+            getToken: () => "tok",
+            getPrincipal: () => {
+                throw new Error("store not ready");
+            },
+            foreignReports: "drop",
+        });
+        strict.report("y");
+        expect(await strict.flush()).toMatchObject({ sent: 0, dropped: 1 });
+    });
+
+    it("sends entries queued before owners existed without the current bearer", async () => {
+        localStorage.setItem(
+            "tempest:app-errors",
+            JSON.stringify([{ report: { code: "Error", message: "legacy" }, count: 1 }]),
+        );
+        const fetchMock = vi.fn(async () => answer(201));
+        const reporter = build(fetchMock, {
+            storage: undefined,
+            autoFlush: false,
+            getToken: () => "token-dummyB",
+        });
+        expect(await reporter.flush()).toMatchObject({ sent: 1, pending: 0 });
+        expect(authorizations(fetchMock)).toEqual([undefined]);
+    });
+
+    it("never writes the token to storage", () => {
+        setOnline(false);
+        const reporter = build(vi.fn(), {
+            storage: undefined,
+            getToken: () => "token-dummyA-secret",
+            getPrincipal: () => "user-a",
+        });
+        reporter.report("x");
+        const tokenOnly = build(vi.fn(), {
+            storage: undefined,
+            storageKey: "token-only",
+            getToken: () => "token-dummyA-secret",
+        });
+        tokenOnly.report("y");
+        const stored = `${localStorage.getItem("tempest:app-errors")}${localStorage.getItem("token-only")}`;
+        expect(stored).not.toContain("token-dummyA-secret");
+        expect(stored).not.toContain("user-a");
+        expect(reporter.pending()[0]?.owner).toMatch(/^p:[0-9a-f]{16}$/);
+        expect(reporter.pending()[0]?.session).toMatch(/^t:[0-9a-f]{16}$/);
+        expect(tokenOnly.pending()[0]?.session).toMatch(/^t:[0-9a-f]{16}$/);
+        expect(tokenOnly.pending()[0]).not.toHaveProperty("owner");
+    });
+});
+
+describe("createAppErrorReporter — owner review findings", () => {
+    beforeEach(() => setOnline(true));
+    afterEach(() => {
+        built.splice(0).forEach((reporter) => reporter.dispose());
+        vi.useRealTimers();
+        localStorage.clear();
+    });
+
+    function headersOf(fetchMock: ReturnType<typeof vi.fn>): Array<string | undefined> {
+        return inits(fetchMock).map(
+            (init) => (init.headers as Record<string, string>).Authorization,
+        );
+    }
+
+    function deferred<T>() {
+        let resolve: (value: T) => void = () => undefined;
+        const promise = new Promise<T>((done) => {
+            resolve = done;
+        });
+        return { promise, resolve };
+    }
+
+    it("1: never drops the user's own reports on a token refresh in token mode, even with drop", async () => {
+        const fetchMock = vi.fn(async () => answer(201));
+        let token = "token-1";
+        const reporter = build(fetchMock, {
+            autoFlush: false,
+            getToken: () => token,
+            foreignReports: "drop",
+        });
+        reporter.report("mine");
+        token = "token-2";
+        expect(await reporter.flush()).toMatchObject({ sent: 1, dropped: 0 });
+        expect(headersOf(fetchMock)).toEqual([undefined]);
+    });
+
+    it("2: never sends A's report with B's bearer when the principal store is stale", async () => {
+        const fetchMock = vi.fn(async () => answer(201));
+        let token = "token-dummyA";
+        const reporter = build(fetchMock, {
+            autoFlush: false,
+            getToken: () => token,
+            getPrincipal: () => "user-a",
+        });
+        reporter.report("from a");
+        token = "token-dummyB";
+        await reporter.flush();
+        expect(headersOf(fetchMock)).toEqual([undefined]);
+    });
+
+    it("3: clear() stops a drain in flight from sending what it cleared", async () => {
+        const first = deferred<Response>();
+        const fetchMock = vi
+            .fn()
+            .mockImplementationOnce(() => first.promise)
+            .mockResolvedValue(answer(201));
+        const reporter = build(fetchMock, { autoFlush: false, getToken: () => "token-dummyA" });
+        reporter.report("a1");
+        reporter.report("a2");
+        const run = reporter.flush();
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+        reporter.clear();
+        first.resolve(answer(201));
+        await run;
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(reporter.pending()).toEqual([]);
+    });
+
+    it("4: clear() discards a report whose async stamp was still pending", async () => {
+        const token = deferred<string>();
+        const reporter = build(vi.fn(), { autoFlush: false, getToken: () => token.promise });
+        reporter.report("a");
+        reporter.clear();
+        token.resolve("token-dummyA");
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(reporter.pending()).toEqual([]);
+    });
+
+    it("5: a getToken that never settles cannot hang the report or the flush", async () => {
+        vi.useFakeTimers();
+        const fetchMock = vi.fn(async () => answer(201));
+        const reporter = build(fetchMock, {
+            autoFlush: false,
+            getToken: () => new Promise<string>(() => undefined),
+        });
+        reporter.report("stuck");
+        const run = reporter.flush().then(() => "settled");
+        await vi.advanceTimersByTimeAsync(30_000);
+        expect(await Promise.race([run, Promise.resolve("hung")])).toBe("settled");
+        expect(headersOf(fetchMock)).toEqual([undefined]);
+    });
+
+    it("6: with drop, a report of unknown owner is dropped instead of leaving anonymously", async () => {
+        const fetchMock = vi.fn(async () => answer(201));
+        let principal: string | null = null;
+        const reporter = build(fetchMock, {
+            autoFlush: false,
+            getToken: () => (principal ? `token-${principal}` : null),
+            getPrincipal: () => principal,
+            foreignReports: "drop",
+        });
+        reporter.report("raised while the session read as empty");
+        principal = "b";
+        expect(await reporter.flush()).toMatchObject({ sent: 0, dropped: 1 });
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("7: an async getPrincipal does not make every owner collide", async () => {
+        const fetchMock = vi.fn(async () => answer(201));
+        let principal = "a";
+        const reporter = build(fetchMock, {
+            autoFlush: false,
+            getToken: () => "tok",
+            getPrincipal: (async () => principal) as unknown as () => string,
+            foreignReports: "drop",
+        });
+        reporter.report("from a");
+        principal = "b";
+        await reporter.flush();
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("skips an entry evicted while an earlier one was on the wire", async () => {
+        const first = deferred<Response>();
+        const fetchMock = vi
+            .fn()
+            .mockImplementationOnce(() => first.promise)
+            .mockResolvedValue(answer(201));
+        const reporter = build(fetchMock, { autoFlush: false, maxEntries: 3 });
+        reporter.report("a");
+        reporter.report("b");
+        reporter.report("c");
+        const run = reporter.flush();
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+        reporter.report("d");
+        reporter.report("e");
+        first.resolve(answer(201));
+        expect(await run).toMatchObject({ sent: 2, pending: 2 });
+        expect(bodies(fetchMock).map((body) => body.message)).toEqual(["a", "c"]);
+    });
+
+    it("sends on its own once an async token stamps the report", async () => {
+        const fetchMock = vi.fn(async () => answer(201));
+        const reporter = build(fetchMock, { getToken: async () => "tok" });
+        reporter.report("x");
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+        expect(headersOf(fetchMock)).toEqual(["Bearer tok"]);
+    });
+
+    it("reads a rejecting async getToken as no token", async () => {
+        const fetchMock = vi.fn(async () => answer(201));
+        const reporter = build(fetchMock, {
+            autoFlush: false,
+            getToken: () => Promise.reject(new Error("refresh failed")),
+        });
+        reporter.report("x");
+        expect(await reporter.flush()).toMatchObject({ sent: 1 });
+        expect(headersOf(fetchMock)).toEqual([undefined]);
+    });
+});

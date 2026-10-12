@@ -14,6 +14,7 @@ export type { OutboxDraft, UseOfflineMutationOptions } from "./use-offline-mutat
 export { upsertById, removeById } from "./optimistic";
 export { persistQueryClientOffline } from "./offline-persistence";
 export type {
+    OfflineQueryClearOptions,
     OfflineQueryPersistence,
     OfflineQueryPersistenceOptions,
 } from "./offline-persistence";

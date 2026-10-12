@@ -1509,7 +1509,9 @@ await Promise.all([refresh(), refresh(), refresh(), refresh(), refresh()]);
 !!! warning "Compartilhar a promise sozinho não colapsa uma rajada — passe o `getToken`"
     Uma página que dispara várias requests de uma vez recebe vários 401 de volta, mas eles **não chegam na mesma janela**: os retardatários resolvem depois do primeiro refresh já ter terminado, não encontram promise nenhuma pra entrar, e cada um começa outra — rotacionando um token que já está novo. Medido contra um backend de mentira, cinco requests expiradas concorrentes gastaram **dois** refreshes, não um.
 
-    O `getToken` fecha essa brecha: a fila lembra qual token o último refresh instalou, e uma chamada que encontra esse mesmo token ainda no lugar retorna na hora, porque o refresh que ela ia fazer já aconteceu. Aí as mesmas cinco requests gastam exatamente um refresh — e vinte também.
+    O `getToken` fecha essa brecha. Plugada como `refresh` do `createApiClient`, a fila recebe de cada 401 o token com que aquela request saiu: se ele já não é o token atual, a rotação que ela ia disparar já aconteceu, então a chamada retorna na hora e a repetição sai com o token novo. Aí as mesmas cinco requests gastam exatamente um refresh — e vinte também.
+
+    Chamada à mão, sem esse contexto, a fila cai no modo antigo: lembra o token que o último refresh instalou e pula enquanto ele estiver no lugar. Esse modo não distingue "já renovado" de "o token renovado expirou" — os dois deixam a mesma string no store. Antes da 0.77.0 o cliente não passava o contexto, e todo token emitido por um refresh ficava irrenovável quando expirava: o 401 pulava o refresh, a repetição falhava e o `onUnauthorized` derrubava uma sessão saudável.
 
 !!! tip "Plugue direto no `createApiClient`"
     Passe a fila como `refresh` no cliente HTTP — ele a chama em todo 401 e a coalescência acontece de graça, evitando uma tempestade de refreshes paralelos derrubando seu endpoint de auth.
@@ -1527,6 +1529,113 @@ const api = createApiClient({
   onUnauthorized: () => useAuthStore.getState().logout(),
 });
 ```
+
+## Fim de sessão — `createTempestAuth` e `onSessionEnd`
+
+Uma sessão termina de três jeitos: o usuário clica em **Sair** (`auth.logout()`); o próprio cliente desiste dela — o refresh falhou, ou a repetição depois do refresh voltou 401 de novo; ou outra conta entra por cima (`auth.login()` com outras credenciais). Em todos os casos, todo estado que **deriva do usuário** precisa sair junto: a inscrição de push deste navegador, o cache de queries persistido, a fila de background sync, o usuário identificado na telemetria. Senão a próxima conta que entrar neste navegador herda o que era da anterior.
+
+O `createTempestAuth` tem um lugar só para isso, que roda nos **três** caminhos: `onSessionEnd`.
+
+```ts
+import { WebPushClient, WebPushUnsubscribeError, createTempestAuth } from "tempest-react-sdk";
+
+interface User {
+  id: string;
+  name: string;
+}
+
+const ORPHANED_PUSH_KEY = "push-orphaned-subscriptions";
+
+export const auth = createTempestAuth<User>({
+  baseURL: "https://api.exemplo.com",
+  onSessionEnd: async (session) => {
+    const push = new WebPushClient({
+      vapidPublicKey: "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U",
+      onSubscribe: () => {},
+      onUnsubscribe: (sub) =>
+        session.api.delete("/webpush/subscribe", { body: { endpoint: sub.endpoint } }),
+    });
+    try {
+      await push.unsubscribe();
+    } catch (error) {
+      if (!(error instanceof WebPushUnsubscribeError)) return;
+      const pending: PushSubscriptionJSON[] = JSON.parse(
+        localStorage.getItem(ORPHANED_PUSH_KEY) ?? "[]",
+      );
+      localStorage.setItem(ORPHANED_PUSH_KEY, JSON.stringify([...pending, error.subscription]));
+    }
+  },
+});
+
+await auth.logout();
+```
+
+Repare em `session.api`: quando o hook roda, o store **já foi limpo**, então `auth.api` não manda mais token nenhum. O `session.api` é um cliente que ainda manda o access token da sessão que acabou — é por ele que o `DELETE` sai autenticado. Ele nunca renova e nunca encerra sessão: um 401 ali só rejeita.
+
+E o `unsubscribe()` do push libera a inscrição do navegador **mesmo quando o `DELETE` falha** (veja [Push → Desinscrever](./push.md#desinscrever-o-que-quase-todo-mundo-erra)). É isso que fecha o caminho automático: quando a sessão expira, o servidor já recusa o token, o `DELETE` volta 401 — e o navegador para de receber as notificações da conta anterior do mesmo jeito. O `WebPushUnsubscribeError` traz o `subscription` com o `endpoint`: o exemplo guarda para reenviar o `DELETE` quando houver sessão de novo, em vez de esperar o `404`/`410` do próximo envio.
+
+!!! warning "Dentro do hook, use só `session.api` — nunca `auth.login()`"
+    Quando o hook roda, o store já está vazio: `auth.api` sai sem token, e o 401 dele não encerra nada (o encerramento automático e um `logout()` sem sessão não esperam o hook em andamento, justamente para uma chamada de dentro dele não esperar a si mesma). Já o `auth.login()` **sempre** espera o teardown em andamento — é o que impede a conta nova de começar enquanto a anterior ainda está sendo limpa —, então chamado de dentro do hook ele espera o próprio hook e nunca termina. O SDK não tem como distinguir o hook de quem chama de fora (o navegador não tem contexto assíncrono), então é regra documentada, não checagem. `session.api` é o cliente feito para o hook.
+
+!!! tip "Limpe aqui todo estado por usuário"
+    O hook é o ponto único de teardown: o push acima, e ao lado dele qualquer outro estado que pertence à conta — o cache de queries persistido, a fila de background sync do service worker, os caches de resposta autenticada, o usuário da telemetria. Componha tudo dentro do mesmo `onSessionEnd`; cada passo independente com seu próprio `.catch`, para uma falha não pular os outros.
+
+### A ordem, exatamente
+
+Nos três caminhos — `logout()`, o encerramento automático e a troca de conta — a sequência é a mesma:
+
+| Passo | O que acontece | Síncrono? |
+| --- | --- | --- |
+| 1 | Todo refresh em voo é **superado**: não pode mais reinstalar os tokens da sessão que está acabando | sim |
+| 2 | O store e o refresh token guardado são limpos — `isAuthenticated` já é `false` | sim |
+| 3 | `onSessionEnd` roda com `{ reason, user, token, api }` | pode ser `async` |
+| 4 | No encerramento automático com `redirectTo`, o navegador navega; na troca de conta, a sessão nova é instalada — nos dois, **depois** do hook, mesmo que ele lance | — |
+
+`reason` é `"logout"` no `logout()` explícito, `"expired"` quando o cliente encerrou e `"switch"` quando um `login()` substituiu a sessão. No `"logout"` e no `"switch"` o token normalmente ainda vale; no `"expired"` o servidor já o recusou, então trate a chamada autenticada como tentativa e deixe a parte local do teardown independente dela.
+
+`logout()` devolve `Promise<void>`: o store é limpo antes do primeiro `await`, então quem ignora a promise vê o estado deslogado na hora. A promise resolve quando o hook terminou e rejeita com o erro dele — e um `logout()` sem `await` cujo hook lança vira `unhandledrejection`, em vez de o erro sumir. No caminho automático o erro do hook é engolido — a request que encerrou a sessão já rejeita com o 401 dela.
+
+O hook roda **uma vez por sessão**: um segundo `logout()`, ou as outras requests de uma rajada de 401, não encontram sessão para encerrar. Só a chamada que encerrou a sessão navega para o `redirectTo`.
+
+### Troca de conta — `reason: "switch"`
+
+`auth.login()` com outra conta enquanto uma sessão está viva encerra a anterior pelo mesmo caminho, sem você precisar chamar `logout()` antes:
+
+1. as credenciais novas vão ao backend — **nada muda ainda**. Se o login falhar, a conta anterior continua logada, com o refresh em voo dela intacto;
+2. aceitas as credenciais, a época avança e o store é limpo (passos 1 e 2 da tabela);
+3. `onSessionEnd` roda com `reason: "switch"`, o `user` e o `token` da conta **anterior**, e um `session.api` que ainda manda o token dela;
+4. só então os tokens da conta nova são instalados, e o `login()` resolve com o usuário novo.
+
+Por que o hook roda **antes** de instalar a conta nova: o teardown da conta anterior — limpar o cache persistido, a fila de background sync — precisa terminar antes que as requests da conta nova comecem a preenchê-los; na ordem inversa ele apagaria (ou disputaria) os dados da conta nova. O preço é um intervalo em que `isAuthenticated` é `false` enquanto o hook roda — um guard de rota pode reagir a ele, então mantenha o hook curto. Um erro do hook aqui é engolido: o login em si deu certo.
+
+Um `logout()` cujo teardown ainda está em andamento é esperado do mesmo jeito: `logout()` seguido de `login()` sem `await` não instala a conta nova antes de o hook da anterior terminar — o hook que limpa o estado da conta A não corre junto com a conta B.
+
+Um `login()` cuja sessão mudou enquanto a request dele estava em voo — um `logout()` no meio, por exemplo — rejeita com `SessionSupersededError` e não instala nada.
+
+### Refresh em voo e troca de conta — `SessionSupersededError`
+
+Um refresh é uma ida e volta de rede, e a sessão pode acabar no meio dela. Cada refresh fica amarrado a uma **época de sessão**, que o `logout()` e um `login()` com credenciais aceitas incrementam. Um refresh que resolve depois que a época dele acabou descarta o que trouxe e rejeita com `SessionSupersededError` — e o cliente repassa esse erro **sem** chamar `onUnauthorized`, porque a sessão atual (talvez outra conta, que acabou de entrar) não fez nada de errado. Uma request que saiu durante uma sessão encerrada e volta 401 é recusada do mesmo jeito — inclusive a repetição depois de um refresh — em vez de ser repetida como a conta que está logada agora ou de encerrar a sessão dela. E uma request que saiu **sem** token e volta 401 depois que uma conta entrou só rejeita com o 401: não renova nem encerra a sessão nova.
+
+Antes da 0.77.0, um refresh em voo durante o `logout()` reinstalava os tokens antigos e voltava `isAuthenticated` para `true`; com `logout()` + `login(B)` no meio, trocava o token de B pelo de A — a tela mostrava B, e toda request saía como A.
+
+Trate o erro como uma request abortada: descarte o resultado e não mostre nada.
+
+```ts
+import { SessionSupersededError, createTempestAuth } from "tempest-react-sdk";
+
+const auth = createTempestAuth({ baseURL: "https://api.exemplo.com" });
+
+export async function loadOrders(): Promise<unknown[] | null> {
+  try {
+    return await auth.api.get<unknown[]>("/api/orders");
+  } catch (error) {
+    if (error instanceof SessionSupersededError) return null;
+    throw error;
+  }
+}
+```
+
+Os refreshes também colapsam por **rotação**, não só por sobreposição no tempo: um 401 cuja request saiu com um token que a mesma sessão já trocou repete com o token novo e não renova nada. Três requests expiradas gastam um refresh, cheguem os 401 juntos ou um depois do outro.
 
 ## Exemplo completo — login, guard e refresh juntos
 
@@ -1610,11 +1719,14 @@ O fluxo: o login chama `setSession`, persistindo `user` + `token`. O `ProtectedL
 - **`decodeJWT`** lança em token inválido; **`isJWTExpired`** é defensivo e nunca lança. Só para UX, nunca para autorização.
 - **`lazyWithRetry`** — sobrevive a chunks stale pós-deploy com backoff + reload.
 - **`createRefreshQueue`** — N refreshes concorrentes viram 1.
+- **`onSessionEnd`** — teardown por usuário no `logout()` **e** na expiração automática, com `session.api` ainda autenticado.
+- **`SessionSupersededError`** — refresh ou request de uma sessão que já acabou; descarte, não deslogue.
 
 ### Veja também
 
 - [Routing](./routing.md) — `<RouteGuard>` declarativo, alternativa ao `AuthGuard` na árvore de rotas
 - [HTTP](./http.md) — `getToken: () => useAuthStore.getState().token` + `refresh: queue`
+- [Push](./push.md) — por que o `unsubscribe()` libera o navegador mesmo quando o backend falha
 - [Error Boundary](./error-boundary.md) — a falha final do `lazyWithRetry` vira um `ChunkLoadError` que o boundary captura
 
 ---
@@ -20809,8 +20921,9 @@ Opções (todas exceto `baseURL` são opcionais):
 - `baseURL` — prefixo de toda requisição. **Obrigatório.** Pode carregar caminho (`https://api.exemplo.com/api`) e pode ser relativo (`"/api"`, resolvido contra a origem atual). Ver [Base URL e prefixo](#base-url-e-prefixo).
 - `prefix` — segmento sob o qual toda requisição fica aninhada, tipo `"/api"`. Ver [Base URL e prefixo](#base-url-e-prefixo).
 - `getToken()` — chamado a cada request; retornar string injeta `Authorization: Bearer <token>`.
-- `onUnauthorized(response)` — disparado sempre que a requisição termina sem autorização: 401 sem `refresh`, `refresh()` que rejeitou, ou repetição que voltou 401 de novo. Use pra deslogar.
-- `refresh()` — quando presente e o request der 401, o cliente aguarda `refresh()` e repete a requisição **uma vez**.
+- `onUnauthorized(response, context)` — disparado sempre que a requisição termina sem autorização: 401 sem `refresh`, `refresh()` que rejeitou, ou repetição que voltou 401 de novo. Use pra deslogar. O `context` descreve a tentativa que voltou 401 (a repetição, quando foi ela); lançar `SessionSupersededError` ali faz a request rejeitar com esse erro.
+- `getSessionEpoch()` — contador que muda a cada troca de sessão (logout, login). O cliente o lê quando cada tentativa sai e o entrega em `context.epoch` para `refresh` e `onUnauthorized` — é o que deixa distinguir um 401 de uma sessão que já acabou. O `createTempestAuth` já o configura.
+- `refresh(context)` — quando presente e o request der 401, o cliente aguarda `refresh()` e repete a requisição **uma vez**. O `context` (`RequestAuthContext`) traz `token`, o token com que a request rejeitada saiu, e `epoch`, o valor de `getSessionEpoch` naquela hora — o que deixa a fila distinguir um 401 atrasado (o token já foi trocado: só repetir) de um novo. Um `refresh` que lança `SessionSupersededError` faz a request rejeitar com esse erro **sem** chamar `onUnauthorized`: a sessão do refresh acabou, e a atual não deve ser encerrada por isso — veja [Auth → Refresh em voo e troca de conta](./auth.md#refresh-em-voo-e-troca-de-conta-sessionsupersedederror).
 - `retry` — `true` ou `RetryOptions`. **Desligado por default.** Ver [Retentativa embutida](#retentativa-embutida).
 - `logger` — para onde o cliente reporta cada requisição que terminou. **Desligado por default.** Ver [Log de requisição](#log-de-requisicao).
 - `withCredentials` — envia cookies em cross-origin (default `false`).
@@ -23502,8 +23615,8 @@ const user = await auth.login({ email, password });
 // um refresh único e re-tenta a chamada original
 const orders = await auth.api.get("/api/orders");
 
-// Logout (limpa sessão + refresh token guardado)
-auth.logout();
+// Logout (limpa sessão + refresh token guardado, depois roda o onSessionEnd)
+await auth.logout();
 ```
 
 O store é o mesmo `createAuthStore` (persistido), então funciona com o `<AuthGuard>`:
@@ -23540,6 +23653,9 @@ export const auth = createTempestAuth<User>({
     `redirectTo` usa `window.location.assign`, o que recarrega a aplicação inteira e descarta o histórico do router. O caminho declarativo (`<RouteGuard when={isAuthenticated} redirectTo="/login">`) mantém a SPA viva e não precisa de opção nenhuma — o `logout()` interno já dispara a navegação.
 
     `redirectTo` **não** dispara num `auth.logout()` explícito: ali quem chamou normalmente já navega, e duas navegações competindo é pior que nenhuma.
+
+!!! tip "Limpe o estado por usuário nos dois caminhos — `onSessionEnd`"
+    O logout explícito e a expiração automática terminam a sessão do mesmo jeito, e o `onSessionEnd` roda nos dois — com um `session.api` que ainda manda o token da sessão que acabou. É ali que a inscrição de push, o cache persistido e o resto do estado da conta saem. A ordem exata e a receita estão em [Auth → Fim de sessão](./auth.md#fim-de-sessao-createtempestauth-e-onsessionend).
 
 ### Retentativa
 
@@ -25599,14 +25715,29 @@ export function PushToggle() {
 
 `unsubscribe()` faz duas coisas, **nessa ordem**:
 
-1. chama `onUnsubscribe(subscription)` — a sua rota de exclusão;
-2. só então chama `subscription.unsubscribe()` no navegador.
+1. chama `onUnsubscribe(subscription)` — a sua rota de exclusão, enquanto o
+   `endpoint` ainda está ativo;
+2. chama `subscription.unsubscribe()` no navegador — **sempre**, mesmo que o
+   passo 1 tenha falhado.
 
-A ordem é escolhida: se o backend falhar, a inscrição **continua** no navegador e
-o `unsubscribe()` lança. É o lado seguro do erro — o oposto (apagar no navegador
-primeiro) perderia o `endpoint`, e sem ele o backend nunca saberia qual linha
-apagar. Ficaria mandando push pra um endpoint morto até o push service devolver
-`410`.
+Se o backend falhou, o `unsubscribe()` lança `WebPushUnsubscribeError` **depois**
+de liberar o navegador. O erro carrega `subscription` (com o `endpoint`, para você
+tentar o `DELETE` de novo mais tarde), `browserUnsubscribed` e o `cause` original —
+um `AggregateError` com os dois erros (backend primeiro) quando o navegador também
+falhou, para o `endpoint` nunca virar um `DOMException` cru.
+O `usePushSubscription` já reflete isso: `subscribed` vira `false` e `error` fica
+com o `WebPushUnsubscribeError`.
+
+Por que liberar o navegador mesmo assim: as duas falhas não custam o mesmo.
+
+| O que sobra quando o backend falha | Custo |
+| --- | --- |
+| Linha órfã no banco (navegador liberado) | um envio para um endpoint morto, que o push service responde com `404`/`410` — e o backend apaga a linha ([veja abaixo](#404410-do-push-service-apague-no-backend)) |
+| Inscrição viva no navegador (o comportamento antes da 0.77.0) | o navegador continua entregando as notificações **desta conta** para quem usar o navegador depois |
+
+E o `DELETE` falha justamente quando desinscrever mais importa: no fim da sessão,
+quando o token que o autentica já foi embora. O `endpoint` também não se perde —
+ele é lido antes das duas chamadas e viaja no erro.
 
 #### Apague pelo `endpoint`, não pela sessão
 
@@ -25648,28 +25779,55 @@ Chrome, o endpoint continua o mesmo — e continua amarrado à Ana no seu banco.
 Bruno passa a receber as notificações da Ana, no aparelho dele, com o app
 mostrando a conta dele.
 
-Desinscreva no logout, **antes** de jogar o token fora:
+Desinscreva **no fim da sessão** — não só no botão de sair. A sessão também acaba
+sozinha (refresh token revogado, refresh que falhou), e esse caminho não passa
+pelo seu `logout()`. Com o `createTempestAuth`, o lugar é o `onSessionEnd`, que
+roda nos dois:
 
 ```ts
-// src/stores/auth.ts — ou onde seu logout mora
-import { WebPushClient } from "tempest-react-sdk";
+import { WebPushClient, WebPushUnsubscribeError, createTempestAuth } from "tempest-react-sdk";
 
-async function logout() {
-    const push = new WebPushClient({
-        vapidPublicKey: import.meta.env.VITE_VAPID_PUBLIC_KEY,
-        onSubscribe: () => {},
-        onUnsubscribe: (sub) =>
-            api.delete("/webpush/subscribe", { body: { endpoint: sub.endpoint } }),
-    });
+const ORPHANED_PUSH_KEY = "push-orphaned-subscriptions";
 
-    // Sem token, o DELETE volta 401 e a inscrição fica órfã no banco.
-    await push.unsubscribe().catch(() => {
-        // Rede caiu: o backend limpa quando o push service devolver 404/410.
-    });
-
-    auth.clear();
-}
+export const auth = createTempestAuth({
+    baseURL: import.meta.env.VITE_API_URL,
+    onSessionEnd: async (session) => {
+        const push = new WebPushClient({
+            vapidPublicKey: import.meta.env.VITE_VAPID_PUBLIC_KEY,
+            onSubscribe: () => {},
+            onUnsubscribe: (sub) =>
+                session.api.delete("/webpush/subscribe", { body: { endpoint: sub.endpoint } }),
+        });
+        try {
+            await push.unsubscribe();
+        } catch (error) {
+            if (!(error instanceof WebPushUnsubscribeError)) return;
+            const pending: PushSubscriptionJSON[] = JSON.parse(
+                localStorage.getItem(ORPHANED_PUSH_KEY) ?? "[]",
+            );
+            localStorage.setItem(ORPHANED_PUSH_KEY, JSON.stringify([...pending, error.subscription]));
+        }
+    },
+});
 ```
+
+Duas peças fazem isso funcionar sem aviso nenhum para você lembrar:
+
+- `session.api` ainda manda o token da sessão que acabou — o store já foi limpo,
+  então `auth.api` não manda mais. No logout explícito o `DELETE` sai
+  autenticado e apaga a linha.
+- O `catch` guarda o `subscription` do `WebPushUnsubscribeError`: no próximo login,
+  reenvie o `DELETE` de cada `endpoint` guardado e limpe a lista. Descartar o erro
+  com `.catch(() => false)` jogaria fora justamente o `endpoint` da linha órfã.
+- Na expiração automática o servidor já recusa esse token, o `DELETE` volta 401 —
+  e o navegador é liberado do mesmo jeito, porque o `unsubscribe()` sempre libera.
+  A linha órfã some no próximo envio, com o `404`/`410`.
+
+A ordem completa, e o que mais limpar no mesmo hook, está em
+[Auth → Fim de sessão](./auth.md#fim-de-sessao-createtempestauth-e-onsessionend).
+Sem o `createTempestAuth`, chame o mesmo `push.unsubscribe()` no seu logout
+**antes** de descartar o token, e também no caminho em que o seu cliente HTTP
+desiste da sessão.
 
 !!! tip "Se você não quer perder a permissão conquistada"
     `unsubscribe()` no logout mantém a permissão (veja acima), então o próximo
@@ -26637,13 +26795,51 @@ import { queryClient } from "@/lib/query";
 const persistence = persistQueryClientOffline({ queryClient });
 await persistence.restore(); // antes do primeiro render
 
-// no logout:
-await persistence.clear();
+export async function logout(): Promise<void> {
+    await persistence.clear({ resetClient: true });
+}
+
 // no teardown:
 persistence.unsubscribe();
 ```
 
-As gravações são throttled (`throttleMs`, default 1s) e assinam o cache. `flush()` grava na hora; `clear()` apaga o snapshot; `unsubscribe()` para de persistir. Dexie é peer dependency do store offline — instale (`npm i dexie`).
+As gravações são throttled (`throttleMs`, default 1s) e assinam o cache. `flush()` grava na hora; `unsubscribe()` para de persistir; `clear()` encerra a sessão persistida.
+
+### Logout: `clear()` é terminal
+
+`clear()` cancela a gravação pendente, para de ouvir o cache, espera a gravação que já estiver em voo e só então apaga o snapshot. Depois dele, `restore()` e `flush()` desse handle não fazem nada. É isso que impede o cache do usuário anterior de voltar: antes da 0.77.0, `clear()` só apagava a linha, e tanto a gravação pendente na última janela de throttle quanto o primeiro evento de cache depois do logout (a primeira query do próximo usuário) regravavam as respostas autenticadas de quem saiu — que o `restore()` do próximo boot hidratava para quem estivesse no navegador.
+
+- **Chame `persistence.clear()` no seu fluxo de logout** (ou no hook de fim de sessão do seu auth). É idempotente e pode ser chamado mais de uma vez, inclusive em paralelo.
+- **`clear({ resetClient: true })` é o logout em uma chamada**: depois de parar a persistência e apagar o snapshot, ele também faz `queryClient.clear()`, então nada do usuário anterior fica nem no disco nem em memória.
+- **Sem a opção (default `false`), o `QueryClient` em memória não é tocado** — ele é do app, que pode querer manter queries públicas (um catálogo, feature flags) e tirar só as keys do usuário com `removeQueries`. Como a persistência já parou, a ordem entre `persistence.clear()` e a sua limpeza manual não importa.
+- **Para persistir a próxima sessão, crie um handle novo no login**: o handle antigo não volta a gravar. Em build de dev, o primeiro `restore()`, `flush()` ou query nova num handle encerrado gera **um** `console.warn` avisando disso.
+- **Handles de sessões diferentes não se atropelam.** Enquanto um `clear()` está rodando, o `restore()` e as gravações de um handle novo com o mesmo `databaseName` + `key` esperam ele terminar — mesmo que o logout não tenha sido aguardado.
+- Se a remoção no IndexedDB falhar, `resetClient` limpa o `QueryClient` mesmo assim, e o erro chega a quem chamou.
+
+!!! warning "Mudou na 0.77.0: o handle morre no `clear()`"
+    Antes, o mesmo handle continuava gravando depois do `clear()`. Se o seu app guarda a `persistence` no nível do módulo e reaproveita depois do login, ele **para de persistir** a partir da 0.77.0. Crie o handle dentro da sessão:
+
+```ts
+import { persistQueryClientOffline, type OfflineQueryPersistence } from "tempest-react-sdk";
+import { QueryClient } from "@tanstack/react-query";
+
+const queryClient = new QueryClient();
+let persistence: OfflineQueryPersistence | null = null;
+
+export async function startSession(): Promise<void> {
+    persistence = persistQueryClientOffline({ queryClient });
+    await persistence.restore();
+}
+
+export async function endSession(): Promise<void> {
+    await persistence?.clear({ resetClient: true });
+    persistence = null;
+}
+```
+
+Chame `startSession()` no boot com usuário logado e depois de cada login; `endSession()` no logout.
+
+Dexie é peer dependency do store offline — instale (`npm i dexie`).
 
 ## Recap
 
@@ -30868,6 +31064,7 @@ Pedaço por pedaço:
 
 - **`endpoint`** — a URL inteira da rota.
 - **`getToken`** — opcional. A rota é pública: erro antes do login, ou com sessão vencida, também tem que chegar. Token ausente, vazio ou que lança vira envio anônimo; o backend tira o `user_id` do token, **nunca** do body.
+- **`getPrincipal`** — opcional. Quem está logado, lido na hora do erro, para o `foreignReports: "drop"`; veja [Logout e de quem é cada relato](#logout-e-de-quem-e-cada-relato).
 - **`device`** — lido **na hora do erro**, não na hora do envio. Um relato enfileirado offline na `1.4.0` não pode sair rotulado `1.5.0`.
 - **`report(error, context)`** — nunca lança. Descreve o erro, carimba o aparelho, enfileira e tenta enviar.
 
@@ -30894,7 +31091,7 @@ Error: Falha ao ler a foto
 
 Tudo passa por uma fila em `localStorage` **antes** da rede. Sem sinal, o relato espera; quando o navegador dispara `online`, a fila drena sozinha. Duas regras seguram o tamanho dela:
 
-- **Relato idêntico vira contador.** Um erro em loop entra uma vez, e sai com `[repeated N×]` no começo do `message`.
+- **Relato idêntico (com o mesmo carimbo) vira contador.** Um erro em loop entra uma vez, e sai com `[repeated N×]` no começo do `message`.
 - **Teto de 50** (`maxEntries`) — o mais antigo sai primeiro.
 
 O que cada resposta faz:
@@ -30907,6 +31104,50 @@ O que cada resposta faz:
 | outro 4xx | é descartado — o backend recusaria aquele body para sempre, e ele travaria os de trás |
 
 `flush()` drena na hora e devolve `{ sent, dropped, pending, retryAfterMs }`; chamadas concorrentes compartilham a mesma execução. `dispose()` remove o listener de `online` e o timer.
+
+### Logout e de quem é cada relato
+
+O token é lido **na hora do envio**, não na hora do erro — e a fila sobrevive ao logout. Sem cuidado, um erro que a Ana teve offline sairia com o token do Bruno, se ele entrasse no mesmo navegador antes de a fila drenar: o backend tira o `user_id` do token e atribuiria ao Bruno a mensagem, o contexto e a stack da Ana.
+
+Por isso cada relato é **carimbado com uma impressão digital de mão única do token em vigor quando o erro aconteceu** (`entry.session`), e só sai com Bearer se o token do envio for **esse mesmo**:
+
+```ts
+import { createAppErrorReporter } from "tempest-react-sdk";
+
+let currentUserId: string | null = null;
+
+export const reporter = createAppErrorReporter({
+    endpoint: "/api/app-errors",
+    getToken: () => sessionStorage.getItem("access_token"),
+    getPrincipal: () => currentUserId,
+    foreignReports: "drop",
+});
+
+export function onLogout(): void {
+    currentUserId = null;
+    reporter.clear();
+}
+```
+
+- **O Bearer depende só do token.** Mesmo token no erro e no envio → Bearer; qualquer outro → anônimo. Um refresh entre o erro e o envio também faz o relato sair anônimo: a atribuição se perde, **nunca** vai para a pessoa errada.
+- **`getPrincipal`** — opcional. Um id **estável e não secreto** de quem está logado (o id do usuário, não o e-mail), guardado só como impressão digital (`entry.owner`). Ele **não** libera o Bearer — principal e token vêm de fontes diferentes, e um store de usuário atrasado em relação ao login mandaria o relato da Ana com o token do Bruno. Ele serve para o `"drop"` saber de quem é cada relato. Só string ou número contam como id; um getter `async` ou que lança vale "ninguém".
+- **`foreignReports`** — o que fazer com relato que não pode sair com o Bearer atual:
+    - `"anonymous"` (padrão) envia sem `Authorization`. A rota é pública e o erro continua útil.
+    - `"drop"` descarta todo relato que **não se prova** do principal atual: de outra pessoa, de ninguém (levantado sem sessão) ou de dono desconhecido (fila antiga, ou ninguém logado agora). Para app em que o texto do erro do usuário anterior não pode sair do aparelho. **Exige `getPrincipal`**: sem ele, a única identidade é o token, que muda no refresh — então divergência não prova dono alheio, e o reporter envia anônimo em vez de apagar os relatos do próprio usuário (em dev, um `console.warn` único avisa).
+- **`reporter.clear()` no logout** esvazia a fila, interrompe um `flush` em andamento antes do próximo envio e descarta relatos que ainda esperavam um `getToken` assíncrono.
+- **`getToken` assíncrono tem prazo**: depois de 5 s sem resposta, o relato entra na fila sem sessão e o `flush` segue sem token — nada trava esperando.
+
+| Relato levantado com | Enviado com | `"anonymous"` (padrão) | `"drop"` + `getPrincipal` |
+| --- | --- | --- | --- |
+| token da Ana | o mesmo token | Bearer da Ana | Bearer da Ana |
+| token da Ana | token renovado da Ana | anônimo | anônimo |
+| token da Ana | token do Bruno, ou nenhum | anônimo | descartado |
+| nenhum token (antes do login) | qualquer um | anônimo | descartado |
+| fila antiga, sem carimbo | qualquer um | anônimo | descartado |
+
+!!! check "Nada de credencial em disco"
+    O `localStorage` guarda o relato e carimbos como `t:3f1c…` — 64 bits de
+    hash, que não viram token de volta. O token continua só onde o app o guarda.
 
 ### Com o `TelemetryProvider`
 
@@ -30973,7 +31214,7 @@ const telemetry = useTelemetry();
 - **`useTelemetry()` pode ser `null`** — sempre `telemetry?.track(...)` com optional chaining.
 - **Adapters injetam a instância** (`{ sentry }`, `{ posthog }`) — nunca peer dep.
 - **Adapter custom** é ~20 linhas mapeando 4 métodos.
-- **`createAppErrorReporter`** leva erro do campo ao `/api/app-errors` do backend Tempest, com fila offline, dedup e respeito ao 429.
+- **`createAppErrorReporter`** leva erro do campo ao `/api/app-errors` do backend Tempest, com fila offline, dedup e respeito ao 429 — e cada relato só sai com Bearer sob o mesmo token com que foi levantado (`clear()` no logout).
 
 ### Veja também
 

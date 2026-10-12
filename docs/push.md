@@ -410,14 +410,29 @@ export function PushToggle() {
 
 `unsubscribe()` faz duas coisas, **nessa ordem**:
 
-1. chama `onUnsubscribe(subscription)` — a sua rota de exclusão;
-2. só então chama `subscription.unsubscribe()` no navegador.
+1. chama `onUnsubscribe(subscription)` — a sua rota de exclusão, enquanto o
+   `endpoint` ainda está ativo;
+2. chama `subscription.unsubscribe()` no navegador — **sempre**, mesmo que o
+   passo 1 tenha falhado.
 
-A ordem é escolhida: se o backend falhar, a inscrição **continua** no navegador e
-o `unsubscribe()` lança. É o lado seguro do erro — o oposto (apagar no navegador
-primeiro) perderia o `endpoint`, e sem ele o backend nunca saberia qual linha
-apagar. Ficaria mandando push pra um endpoint morto até o push service devolver
-`410`.
+Se o backend falhou, o `unsubscribe()` lança `WebPushUnsubscribeError` **depois**
+de liberar o navegador. O erro carrega `subscription` (com o `endpoint`, para você
+tentar o `DELETE` de novo mais tarde), `browserUnsubscribed` e o `cause` original —
+um `AggregateError` com os dois erros (backend primeiro) quando o navegador também
+falhou, para o `endpoint` nunca virar um `DOMException` cru.
+O `usePushSubscription` já reflete isso: `subscribed` vira `false` e `error` fica
+com o `WebPushUnsubscribeError`.
+
+Por que liberar o navegador mesmo assim: as duas falhas não custam o mesmo.
+
+| O que sobra quando o backend falha | Custo |
+| --- | --- |
+| Linha órfã no banco (navegador liberado) | um envio para um endpoint morto, que o push service responde com `404`/`410` — e o backend apaga a linha ([veja abaixo](#404410-do-push-service-apague-no-backend)) |
+| Inscrição viva no navegador (o comportamento antes da 0.77.0) | o navegador continua entregando as notificações **desta conta** para quem usar o navegador depois |
+
+E o `DELETE` falha justamente quando desinscrever mais importa: no fim da sessão,
+quando o token que o autentica já foi embora. O `endpoint` também não se perde —
+ele é lido antes das duas chamadas e viaja no erro.
 
 #### Apague pelo `endpoint`, não pela sessão
 
@@ -459,28 +474,55 @@ Chrome, o endpoint continua o mesmo — e continua amarrado à Ana no seu banco.
 Bruno passa a receber as notificações da Ana, no aparelho dele, com o app
 mostrando a conta dele.
 
-Desinscreva no logout, **antes** de jogar o token fora:
+Desinscreva **no fim da sessão** — não só no botão de sair. A sessão também acaba
+sozinha (refresh token revogado, refresh que falhou), e esse caminho não passa
+pelo seu `logout()`. Com o `createTempestAuth`, o lugar é o `onSessionEnd`, que
+roda nos dois:
 
 ```ts
-// src/stores/auth.ts — ou onde seu logout mora
-import { WebPushClient } from "tempest-react-sdk";
+import { WebPushClient, WebPushUnsubscribeError, createTempestAuth } from "tempest-react-sdk";
 
-async function logout() {
-    const push = new WebPushClient({
-        vapidPublicKey: import.meta.env.VITE_VAPID_PUBLIC_KEY,
-        onSubscribe: () => {},
-        onUnsubscribe: (sub) =>
-            api.delete("/webpush/subscribe", { body: { endpoint: sub.endpoint } }),
-    });
+const ORPHANED_PUSH_KEY = "push-orphaned-subscriptions";
 
-    // Sem token, o DELETE volta 401 e a inscrição fica órfã no banco.
-    await push.unsubscribe().catch(() => {
-        // Rede caiu: o backend limpa quando o push service devolver 404/410.
-    });
-
-    auth.clear();
-}
+export const auth = createTempestAuth({
+    baseURL: import.meta.env.VITE_API_URL,
+    onSessionEnd: async (session) => {
+        const push = new WebPushClient({
+            vapidPublicKey: import.meta.env.VITE_VAPID_PUBLIC_KEY,
+            onSubscribe: () => {},
+            onUnsubscribe: (sub) =>
+                session.api.delete("/webpush/subscribe", { body: { endpoint: sub.endpoint } }),
+        });
+        try {
+            await push.unsubscribe();
+        } catch (error) {
+            if (!(error instanceof WebPushUnsubscribeError)) return;
+            const pending: PushSubscriptionJSON[] = JSON.parse(
+                localStorage.getItem(ORPHANED_PUSH_KEY) ?? "[]",
+            );
+            localStorage.setItem(ORPHANED_PUSH_KEY, JSON.stringify([...pending, error.subscription]));
+        }
+    },
+});
 ```
+
+Duas peças fazem isso funcionar sem aviso nenhum para você lembrar:
+
+- `session.api` ainda manda o token da sessão que acabou — o store já foi limpo,
+  então `auth.api` não manda mais. No logout explícito o `DELETE` sai
+  autenticado e apaga a linha.
+- O `catch` guarda o `subscription` do `WebPushUnsubscribeError`: no próximo login,
+  reenvie o `DELETE` de cada `endpoint` guardado e limpe a lista. Descartar o erro
+  com `.catch(() => false)` jogaria fora justamente o `endpoint` da linha órfã.
+- Na expiração automática o servidor já recusa esse token, o `DELETE` volta 401 —
+  e o navegador é liberado do mesmo jeito, porque o `unsubscribe()` sempre libera.
+  A linha órfã some no próximo envio, com o `404`/`410`.
+
+A ordem completa, e o que mais limpar no mesmo hook, está em
+[Auth → Fim de sessão](./auth.md#fim-de-sessao-createtempestauth-e-onsessionend).
+Sem o `createTempestAuth`, chame o mesmo `push.unsubscribe()` no seu logout
+**antes** de descartar o token, e também no caminho em que o seu cliente HTTP
+desiste da sessão.
 
 !!! tip "Se você não quer perder a permissão conquistada"
     `unsubscribe()` no logout mantém a permissão (veja acima), então o próximo

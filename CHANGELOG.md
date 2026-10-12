@@ -4,6 +4,22 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`tempestCsp` não abre mais um `connect-src` que o app bloqueou com `'NONE'` ou lista vazia
+  (#482).** A checagem de bloqueio comparava com o literal `'none'` em minúsculas e exigia
+  exatamente um item, mas palavra-chave de CSP não diferencia maiúsculas e lista vazia também não
+  casa nada (CSP3 §6.7.2.5). Medido antes, com `connect: ["https://api.example.com"]`:
+  `connect-src 'NONE'` virava `connect-src 'NONE' https://api.example.com wss://api.example.com`,
+  `connect-src` vazio virava `connect-src https://api.example.com wss://api.example.com`, e
+  `default-src 'NONE'` ganhava um `connect-src` com as origens — nenhum com aviso. Agora os três
+  ficam como escritos e o build avisa cada origem deixada de fora. As outras comparações de
+  palavra-chave do plugin também passaram a ignorar a caixa: `'UNSAFE-INLINE'` e `'SHA256-…'`
+  declarados não geram mais aviso falso de `<script>` inline bloqueado, e um
+  `directives: { "style-src": ["'UNSAFE-INLINE'"] }` não recebe mais hashes de `<style>` (com
+  hash presente, o browser ignora o `'unsafe-inline'`). Teste:
+  `npx vitest run src/vite/tempest-csp.test.ts -t "482"`.
+
 ## [0.77.0] — 2026-10-12
 
 ### Breaking

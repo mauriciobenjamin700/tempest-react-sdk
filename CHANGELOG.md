@@ -4,6 +4,21 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`tempest gen icons` volta a funcionar no pacote instalado** (#485). O bin importava o barril
+  `dist/icons.js` para ler as tabelas de slug, e o barril alcança o `.css` do `<IconPicker>` desde o
+  CSS por componente (0.63.0): em Node puro, que é como `npx tempest` roda, o import morria com
+  `ERR_UNKNOWN_FILE_EXTENSION ".css"` e o comando saía com "Could not read the icon tables" em todo
+  app (reproduzido com `npm pack` + install num app limpo). Agora o CLI importa só os dois módulos
+  de dados (`dist/icons/generated/icon-names.js` e `aliases.js`), que não importam nada — em vez de
+  registrar o `/node-css-loader` no processo inteiro e ainda carregar React e o grafo de componentes
+  para ler duas listas. Três guardas novos: um teste que chama `loadIconTables` num `node` filho sem
+  loader, o `check-dist-guards` (roda em Node puro após todo build) chamando o mesmo
+  `loadIconTables` contra o `dist` real, e `scripts/smoke-cli.sh`, que roda `tempest gen icons`
+  contra o tarball no CI e no job de smoke do release. `doctor`, `lint`, `gen api` e
+  `gen component` não importam `dist/` e rodaram limpos em Node puro contra o tarball.
+
 ## [0.77.0] — 2026-10-12
 
 ### Breaking

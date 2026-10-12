@@ -167,6 +167,14 @@ jobs:
                   TARBALL: ${{ needs.build.outputs.tarball }}
               run: scripts/smoke-vitest.sh "$TARBALL"
 
+            # The `tempest` bin, run the way `npx tempest` runs it: plain Node, no
+            # `--import`. `gen icons` imported a barrel that reaches a `.css` and failed
+            # in every installed app until 0.77.0 (#485).
+            - name: Smoke the tempest CLI against the tarball
+              env:
+                  TARBALL: ${{ needs.build.outputs.tarball }}
+              run: scripts/smoke-cli.sh "$TARBALL"
+
     publish:
         name: Publish tempest-react-sdk
         needs: [build, smoke]

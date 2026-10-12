@@ -5,7 +5,7 @@
  * throughout. Every stage reads the same cursor and the same abort signal, and
  * createResumableUpload is the closure that owns them.
  */
-import { appErrorOwner } from "@/telemetry/app-error-owner";
+import { ownerFingerprint } from "@/utils/owner-fingerprint";
 import { bytesToBase64 } from "@/utils/base64";
 import { isTrustedCredentialTarget, reportSuppressedCredential } from "./credential-scope";
 import { csrfHeaders } from "./csrf";
@@ -656,7 +656,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
      * is what keeps creation idempotent across `resume()` without storage.
      */
     async function ensureUpload(): Promise<string> {
-        const current = getPrincipal ? appErrorOwner("p", getPrincipal()) : undefined;
+        const current = getPrincipal ? ownerFingerprint("p", getPrincipal()) : undefined;
         if (attached && current !== owner) idempotencyKey = null;
         owner = current;
         attached = true;

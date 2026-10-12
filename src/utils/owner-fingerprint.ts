@@ -39,24 +39,26 @@ function fnv1a(text: string, seed: number): number {
  *
  * Not a cryptographic hash, and it does not need to be: it only has to tell
  * two signed-in identities apart on one device, and it must not let anyone
- * holding the stored queue send as the user. Sixty-four bits cannot be turned
+ * holding a stored record send as the user. Sixty-four bits cannot be turned
  * back into a bearer token, and two different users colliding on one browser
- * is a one-in-2^64 event. A synchronous hash is what lets `report()` stamp the
- * owner without awaiting `crypto.subtle`.
+ * is a one-in-2^64 event. A synchronous hash is what lets a caller such as the
+ * error reporter's `report()` stamp the owner without awaiting
+ * `crypto.subtle`.
  *
  * @param text - The principal or token to fingerprint.
  * @returns Sixteen lowercase hex characters.
  */
-export function fingerprintAppErrorOwner(text: string): string {
+export function fingerprintOwner(text: string): string {
     const first = fnv1a(text, FNV_OFFSET_BASIS_32).toString(16).padStart(8, "0");
     const second = fnv1a(text, SECOND_SEED).toString(16).padStart(8, "0");
     return `${first}${second}`;
 }
 
 /**
- * Turn a principal or a token into the fingerprint a queue entry stores.
+ * Turn a principal or a token into the fingerprint a persisted record stores —
+ * an error-report queue entry, a resumable-upload record.
  *
- * The prefix keeps the two sources from ever matching each other: a report
+ * The prefix keeps the two sources from ever matching each other: a record
  * stamped from a principal is never taken for one stamped from a token.
  *
  * Only a non-empty string or a finite number is an identity. Anything else —
@@ -68,12 +70,12 @@ export function fingerprintAppErrorOwner(text: string): string {
  * @param value - The identity, or nothing when nobody is signed in.
  * @returns `"<source>:<fingerprint>"`, or `null` when `value` is no identity.
  */
-export function appErrorOwner(source: "p" | "t", value: unknown): string | null {
+export function ownerFingerprint(source: "p" | "t", value: unknown): string | null {
     const text =
         typeof value === "string"
             ? value
             : typeof value === "number" && Number.isFinite(value)
               ? String(value)
               : "";
-    return text ? `${source}:${fingerprintAppErrorOwner(text)}` : null;
+    return text ? `${source}:${fingerprintOwner(text)}` : null;
 }

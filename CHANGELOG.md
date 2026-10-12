@@ -16,7 +16,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   recusa dist-tag que seja range semver (`Tag name must not be a valid SemVer range: v0.75`, medido).
   `CURRENT_LATEST` ausente reprova em vez de assumir pacote novo. O read-back espera o dist-tag certo e
   só quando a run fez o upload, para o re-run completo de uma versão já publicada continuar sendo
-  recuperação. Publicar de commit fora da `main` segue dependendo do revisor obrigatório no environment
+  recuperação. O GitHub Release é criado com `--latest` só quando o npm recebeu `latest` (`--latest=false`
+  no resto); Release existente não tem o flag alterado no re-run. Publicar de commit fora da `main` segue dependendo do revisor obrigatório no environment
   `npm-release` e do vínculo do Trusted Publisher — configuração externa, documentada em
   `docs/release.md`.
 

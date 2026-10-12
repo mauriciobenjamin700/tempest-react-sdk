@@ -469,3 +469,18 @@ describe("release-npm.yml reads the registry's latest for the guard (#472)", () 
         expect(body).toMatch(/echo "published=true" >> "\$GITHUB_OUTPUT"/);
     });
 });
+
+describe("release-npm.yml marks the GitHub Release Latest like the npm dist-tag (#472)", () => {
+    it("passes --latest only for the latest dist-tag, on create only", () => {
+        const [, body] = onlyJob(/contents: write/);
+        expect(body).toMatch(/DIST_TAG: \$\{\{ needs\.build\.outputs\.dist_tag \}\}/);
+        expect(body).toMatch(
+            /if \[ "\$DIST_TAG" = "latest" \]; then\n\s+LATEST_FLAG=--latest\n\s+else\n\s+LATEST_FLAG=--latest=false\n\s+fi/,
+        );
+        const create = /gh release create [^\n]*/.exec(body)?.[0] ?? "";
+        expect(create).toContain('"$LATEST_FLAG"');
+        const edit = /gh release edit [^\n]*/.exec(body)?.[0] ?? "";
+        expect(edit).not.toMatch(/latest/i);
+        expect(body).toMatch(/FLAGS\+=\(--prerelease\)/);
+    });
+});

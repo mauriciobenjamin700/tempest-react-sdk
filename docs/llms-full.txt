@@ -27307,6 +27307,8 @@ Até a 0.77.0 toda versão estável ia para `latest`, então um backport `v0.75.
 !!! info "Por que `release-0.75` e não `v0.75`"
     O npm recusa dist-tag que seja range semver válido, e `v0.75` é um (`>=0.75.0 <0.76.0-0`): `npm publish --tag v0.75` sai com `Tag name must not be a valid SemVer range: v0.75` (medido no npm 12.2.0, o que o job `publish` instala).
 
+O **GitHub Release** segue o mesmo dist-tag: o `gh release create` leva `--latest` quando o npm recebeu `latest`, e `--latest=false` para backport e prerelease (que continua com `--prerelease`). Release que já existe não tem o flag alterado — o re-run cai no `gh release edit` + `upload --clobber`, sem `--latest`, porque um re-run completo da versão publicada deriva `release-<major>.<minor>` e desmarcaria a Release que de fato é a última. Caso de borda: se a run original publicou no npm e falhou antes de criar a Release, um re-run completo a cria com `--latest=false`; marque-a à mão (`gh release edit <tag> --latest`).
+
 O guard roda offline: `CURRENT_LATEST` é variável de ambiente, e `test/release-workflow.test.ts` exercita cada linha da tabela num repositório git de fixture. Ausente, o guard falha em vez de assumir pacote novo.
 
 ### Environment `npm-release`

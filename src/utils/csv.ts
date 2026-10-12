@@ -62,11 +62,11 @@ export interface CsvOptions {
      * because the BOM and the `;` delimiter already aim the file at a spreadsheet,
      * and because the app that exports rarely controls every value in it.
      *
-     * The same rule applies to every segment after a `,`, `;` or TAB, and text
-     * holding any of them is quoted whatever the delimiter: a spreadsheet whose
-     * list separator is not the file's may split the field there, and the split
-     * cell must not start a formula either (#481) — `x;=1+2` is written
-     * `"x;'=1+2"`.
+     * Text holding a `,`, `;` or TAB is also quoted whatever the delimiter
+     * (#481): a spreadsheet whose list separator is not the file's would otherwise
+     * split the bare field there and could start a cell with `=`. A quoted field is
+     * not split, so the quotes close that path without touching the text —
+     * `x;=1+2` is written `"x;=1+2"`.
      *
      * Numbers are never prefixed: a `number` cell, or a text field that is only a
      * number (`"-5"`, `"-1.234,56"`, `"+42"`, `"1e-7"`), cannot be a formula, and
@@ -90,7 +90,7 @@ const FORMULA_TRIGGER = /^[=+\-@\t\r]/;
 const PLAIN_NUMBER = /^[+-]?(?:\d+(?:[.,]\d+)*|\d*[.,]\d+)(?:e[+-]?\d+)?$/i;
 
 /**
- * Neutralize one cell's worth of text that a spreadsheet would evaluate.
+ * Neutralize a text field a spreadsheet would evaluate.
  *
  * Two shapes are exempt from the OWASP trigger list: a plain number (see
  * {@link PLAIN_NUMBER}) and a lone `-`, the usual "no value" placeholder in a
@@ -104,10 +104,15 @@ const PLAIN_NUMBER = /^[+-]?(?:\d+(?:[.,]\d+)*|\d*[.,]\d+)(?:e[+-]?\d+)?$/i;
  * as formula starts, and that is what OWASP's list is for. A space or newline
  * before `=` is not added: it read as text, not as a formula.
  *
- * @param value - The text that would start a cell.
- * @returns The text with a leading `'` when it would read as a formula.
+ * Only the field start is checked. A `,`, `;` or TAB inside the text does not
+ * get a `'` after it: the field is quoted (see {@link escapeField}), a quoted
+ * field is not split by a spreadsheet whatever its list separator, and a `'`
+ * mid-text would corrupt the value in every spreadsheet for no protection.
+ *
+ * @param value - The already-stringified field.
+ * @returns The field with a leading `'` when it would read as a formula.
  */
-function neutralizeSegment(value: string): string {
+function neutralizeFormula(value: string): string {
     if (value === "-" || PLAIN_NUMBER.test(value)) return value;
     return FORMULA_TRIGGER.test(value) ? `'${value}` : value;
 }
@@ -116,41 +121,10 @@ function neutralizeSegment(value: string): string {
  * Characters a spreadsheet may split a bare field on: either locale's list
  * separator (`,` in en-US, `;` in pt-BR) and TAB, which Excel's import also
  * offers. A file written with one delimiter is routinely opened by a spreadsheet
- * that splits on the other.
+ * that splits on the other, so text holding any of them is quoted (see
+ * {@link escapeField}).
  */
 const LIST_SEPARATORS = /[,;\t]/;
-
-/** One list separator and the segment after it, up to the next separator. */
-const SEPARATED_SEGMENT = /([,;\t])([^,;\t]*)/g;
-
-/**
- * Neutralize every segment of a text field that a spreadsheet could read as the
- * start of a cell.
- *
- * The field start gets the rule of {@link neutralizeSegment}. Then each segment
- * after a `,`, `;` or TAB gets the same rule, because a spreadsheet whose list
- * separator differs from the file's delimiter may split the field there: with the
- * default `,`, a value `x;=HYPERLINK(CHAR(104)&A1)` was written bare (#481), and
- * an Excel splitting on `;` would see a cell starting with `=`. Prefixing only
- * the whole field would not help — the `'` stays in the first cell and the split
- * segment still starts with `=` — so the `'` goes in front of the segment
- * itself: `x;'=HYPERLINK(…)`. Read whole, the cell shows that `'` mid-text; split,
- * every cell is text. The field is also quoted (see {@link escapeField}), which
- * is what keeps a quote-aware spreadsheet from splitting it at all.
- *
- * A plain number and a lone `-` are exempt as a whole field and as a segment, so
- * `-1.234,56` and `a;-5` keep their numbers.
- *
- * @param value - The already-stringified field.
- * @returns The field with a `'` before every segment that would read as a formula.
- */
-function neutralizeFormula(value: string): string {
-    return neutralizeSegment(value).replace(
-        SEPARATED_SEGMENT,
-        (_match: string, separator: string, segment: string) =>
-            `${separator}${neutralizeSegment(segment)}`,
-    );
-}
 
 /**
  * Quote one field per RFC 4180.

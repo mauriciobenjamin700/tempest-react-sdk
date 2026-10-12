@@ -471,7 +471,7 @@ Como cada entrada é lida, medido convertendo o CSV com o LibreOffice 26.2 headl
 | `+55 (11) 99999-9999` | texto | texto `'+55 (11) 99999-9999` |
 | `@maria` | texto | texto `'@maria` |
 | `-` | texto | texto `-` (isento) |
-| TAB + `=1+1` | texto | texto `'` + TAB + `=1+1` (medido antes do #481; hoje sai `"'` + TAB + `'=1+1"`, ver abaixo) |
+| TAB + `=1+1` | texto | texto `'` + TAB + `=1+1` (medido antes do #481; hoje o campo também sai entre aspas, ver abaixo) |
 | espaço + `=1+1` | texto | texto (não é gatilho) |
 | `\n=1+1` (campo entre aspas) | texto | texto (não é gatilho) |
 
@@ -480,18 +480,18 @@ O LibreOffice só avaliou o `=`. `+`, `@` e TAB seguem no gatilho porque Excel e
 !!! tip "Delimitador `;` é o certo em locale pt-BR"
     Onde o separador decimal é a vírgula, o Excel abre um CSV separado por vírgula **em uma coluna só**. `{ delimiter: ";" }` resolve — e o escaping acompanha, citando o campo que contém `;`.
 
-!!! check "Fórmula depois do separador do outro locale também vira texto"
-    O mesmo arquivo costuma ser aberto por planilhas com separadores diferentes: num CSV com `,`, um Excel pt-BR pode partir a linha em `;`. Por isso o texto que tem `,`, `;` ou TAB **sempre** sai entre aspas — o que já impede a divisão numa planilha que respeita aspas — e cada trecho depois de um desses separadores passa pela mesma regra do início do campo. Com o delimitador padrão:
+!!! check "Texto com o separador do outro locale sai entre aspas"
+    O mesmo arquivo costuma ser aberto por planilhas com separadores diferentes: num CSV com `,`, um Excel pt-BR pode partir a linha em `;`. Por isso o texto que tem `,`, `;` ou TAB **sempre** sai entre aspas, seja qual for o delimitador. Campo entre aspas não é dividido pela planilha, então o trecho depois do separador nunca começa uma célula — e o texto do usuário sai intacto, sem `'` no meio. Com o delimitador padrão:
 
     | Entrada | Antes (até a 0.77) | Agora |
     | --- | --- | --- |
-    | `x;=HYPERLINK(CHAR(104)&A1)` | `x;=HYPERLINK(CHAR(104)&A1)` | `"x;'=HYPERLINK(CHAR(104)&A1)"` |
-    | `a,=1+2` (com `delimiter: ";"`) | `a,=1+2` | `"a,'=1+2"` |
-    | `x` + TAB + `=1+2` | `x` + TAB + `=1+2` | `"x` + TAB + `'=1+2"` |
-    | `-1.234,56` (com `delimiter: ";"`) | `-1.234,56` | `-1.234,56` (número puro: sem aspas, sem prefixo) |
-    | `a;-5`, `a;-` | `a;-5`, `a;-` | `"a;-5"`, `"a;-"` (trecho numérico e `-` sozinho isentos) |
+    | `x;=HYPERLINK(CHAR(104)&A1)` | `x;=HYPERLINK(CHAR(104)&A1)` | `"x;=HYPERLINK(CHAR(104)&A1)"` |
+    | `a,=1+2` (com `delimiter: ";"`) | `a,=1+2` | `"a,=1+2"` |
+    | `x` + TAB + `=1+2` | `x` + TAB + `=1+2` | `"x` + TAB + `=1+2"` |
+    | TAB + `=1+1` | `'` + TAB + `=1+1` | `"'` + TAB + `=1+1"` (um prefixo só, no início) |
+    | `-1.234,56` (com `delimiter: ";"`) | `-1.234,56` | `-1.234,56` (número puro: sem aspas) |
 
-    O `'` vai na frente do **trecho**, não do campo: prefixar só o campo deixaria o `'` na primeira célula e o trecho dividido ainda começaria com `=`. Lido inteiro, o valor mostra o `'` no meio do texto; dividido, toda célula é texto. Saída medida com `toCsv` nas duas versões; nenhuma planilha estava disponível no ambiente, então **como** o Excel e o LibreOffice leem esses arquivos não foi medido. `{ neutralizeFormulas: false }` desliga as duas coisas e mantém a citação só pelo delimitador.
+    O `'` continua só no início do campo, como antes. Saída medida com `toCsv` nas duas versões; nenhuma planilha estava disponível no ambiente, então **como** o Excel e o LibreOffice leem esses arquivos não foi medido. `{ neutralizeFormulas: false }` desliga isso também e mantém a citação só pelo delimitador.
 
 !!! info "`0` e `false` são exportados; `null` e `undefined` viram campo vazio"
     Vazio é ausência, não falsidade. Tratar `0` como vazio é como um relatório passa a sub-reportar toda linha que legitimamente vale zero. `Date` sai em ISO, que qualquer sistema reimporta sem adivinhar formato.

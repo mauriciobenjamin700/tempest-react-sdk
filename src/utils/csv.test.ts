@@ -183,12 +183,12 @@ describe("toCsv — formula injection (#446)", () => {
 
     /**
      * This used to assert `'\t=1+1`, bare. Rewritten on purpose (#481): TAB is a
-     * list separator a spreadsheet may split on, so the field is quoted and the
-     * `=1+1` after the TAB gets its own `'` — split there, the second cell would
-     * otherwise start with `=`.
+     * list separator a spreadsheet may split on, so the field is now quoted. It
+     * keeps a single `'` at the start: a quoted field is not split, so the `=1+1`
+     * after the TAB never starts a cell and needs no prefix of its own.
      */
-    it("prefixes a leading TAB and the formula after it, and quotes the field", () => {
-        expect(cell("\t=1+1")).toBe("\"'\t'=1+1\"");
+    it("prefixes a leading TAB once and quotes the field", () => {
+        expect(cell("\t=1+1")).toBe('"\'\t=1+1"');
     });
 
     it("neutralizes and still quotes a formula that carries the delimiter and quotes", () => {
@@ -241,25 +241,32 @@ describe("toCsv — formula injection (#446)", () => {
         expect(cell("ana@example.com")).toBe("ana@example.com");
     });
 
+    /**
+     * A first version of the #481 fix also put a `'` before every segment after a
+     * separator (`"x;'=HYPERLINK(…)"`). Reversed on purpose: a quoted field is not
+     * split by a spreadsheet whatever its list separator, so the quotes alone keep
+     * `=HYPERLINK` from starting a cell, while a `'` mid-text corrupts the user's
+     * value visibly in every spreadsheet and adds no protection.
+     */
     it.each([",", ";"] as const)(
-        "neutralizes a formula that would start a cell after a , ; or TAB in a %j file (#481)",
+        "quotes a formula after a , ; or TAB in a %j file instead of prefixing it mid-text (#481)",
         (delimiter) => {
             const written = (raw: string): string => cell(raw, { delimiter });
-            expect(written("x;=HYPERLINK(CHAR(104)&A1)")).toBe('"x;\'=HYPERLINK(CHAR(104)&A1)"');
-            expect(written("a,=1+2")).toBe('"a,\'=1+2"');
-            expect(written("x\t=1+2")).toBe('"x\t\'=1+2"');
-            expect(written("x;+1+2")).toBe('"x;\'+1+2"');
-            expect(written("x;@SUM(1)")).toBe('"x;\'@SUM(1)"');
-            expect(written("=1;=2")).toBe("\"'=1;'=2\"");
-            for (const segment of written("a;=1,b\t@c;-d")
-                .slice(1, -1)
-                .split(/[,;\t]/)) {
-                expect(segment).not.toMatch(/^[=+\-@\t\r]/);
+            expect(written("x;=HYPERLINK(CHAR(104)&A1)")).toBe('"x;=HYPERLINK(CHAR(104)&A1)"');
+            expect(written("a,=1+2")).toBe('"a,=1+2"');
+            expect(written("x\t=1+2")).toBe('"x\t=1+2"');
+            expect(written("x;+1+2")).toBe('"x;+1+2"');
+            expect(written("x;@SUM(1)")).toBe('"x;@SUM(1)"');
+            expect(written("=1;=2")).toBe('"\'=1;=2"');
+            for (const raw of ["a;=1,b\t@c;-d", "x;=1", "a,=1", "x\t=1"]) {
+                const field = written(raw);
+                expect(field.startsWith('"') && field.endsWith('"')).toBe(true);
+                expect(field.slice(1, -1)).toBe(raw);
             }
         },
     );
 
-    it("leaves a plain number and a lone dash alone after a separator, and does not quote a plain number for the other separator", () => {
+    it("leaves the text after a separator unprefixed, and does not quote a plain number for the other separator", () => {
         expect(cell("-1.234,56", { delimiter: ";" })).toBe("-1.234,56");
         expect(cell("1,5")).toBe('"1,5"');
         expect(cell("a;-5")).toBe('"a;-5"');

@@ -6,25 +6,24 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Alterado
 
-- **`toCsv` / `downloadCsv` neutralizam fórmula depois do separador do outro locale (#481).** A
-  neutralização só olhava o início do campo e a citação só o delimitador configurado, então com o
-  `,` padrão o valor `x;=HYPERLINK(CHAR(104)&A1)` saía sem aspas e sem prefixo — e um Excel pt-BR,
-  que separa em `;`, veria uma célula começando com `=`. O espelho valia para `a,=1+2` num arquivo
-  com `;`. Agora, com `neutralizeFormulas` ligado (o padrão), texto que tem `,`, `;` ou TAB sai
-  sempre entre aspas e cada trecho depois de um desses separadores recebe o mesmo `'` do início do
-  campo: `"x;'=HYPERLINK(CHAR(104)&A1)"`. O `'` vai no trecho, não no campo, porque prefixar o
-  campo deixaria o trecho dividido começando com `=`. Número puro (`-1.234,56`) e `-` sozinho
-  continuam isentos, como campo e como trecho, e número puro não ganha aspas pelo outro
-  separador. Saída medida com `toCsv` na `main` e nesta mudança; não havia planilha no ambiente
+- **`toCsv` / `downloadCsv` põem entre aspas o texto com o separador do outro locale (#481).** A
+  citação só olhava o delimitador configurado, então com o `,` padrão o valor
+  `x;=HYPERLINK(CHAR(104)&A1)` saía sem aspas — e um Excel pt-BR, que separa em `;`, partiria o
+  campo e veria uma célula começando com `=`. O espelho valia para `a,=1+2` num arquivo com `;`.
+  Agora, com `neutralizeFormulas` ligado (o padrão), texto que tem `,`, `;` ou TAB sai sempre entre
+  aspas, seja qual for o delimitador: `"x;=HYPERLINK(CHAR(104)&A1)"`. Campo entre aspas não é
+  dividido pela planilha, então as aspas fecham o caminho sem tocar o texto; o `'` continua só no
+  início do campo, como na 0.77. Número puro (`-1.234,56`) não ganha aspas pelo outro separador.
+  Saída medida com `toCsv` na `main` e nesta mudança; não havia planilha no ambiente
   (`which soffice libreoffice localc` vazio), então a leitura pelo Excel/LibreOffice não foi
-  medida. **Migração:** a saída padrão muda — campo de texto com `,`, `;` ou TAB passa a vir entre
-  aspas (transparente para leitor RFC 4180), um campo que começa com TAB sai `"'` + TAB + `…"`, e
-  texto com `=`, `+`, `-` ou `@` logo depois de `,`, `;` ou TAB ganha um `'` no meio do valor. Quem
-  importa o arquivo noutro sistema e precisa dos bytes como vieram passa
+  medida. **Migração:** a saída padrão muda só na citação — campo de texto com `,`, `;` ou TAB passa
+  a vir entre aspas, o que é transparente para leitor RFC 4180, e um campo que começa com TAB sai
+  `"'` + TAB + `…"`. Quem importa o arquivo noutro sistema e precisa dos bytes como vieram passa
   `{ neutralizeFormulas: false }`, que mantém a saída da 0.77 sem mudança.
-- **Teto do barrel ESM no `size-limit`: 145 → 145,2 kB.** As correções de #482, #475 e #481 juntas
-  levam o barrel ESM de 144,97 kB (`main`) a 145,11 kB; o CJS fica em 172,42 kB, abaixo do teto de
-  172,5 kB. Fatias tocadas: CSV ("admin plumbing") 2196 → 2259 B, Pix 6355 → 6443 B
+- **Teto do barrel ESM no `size-limit`: 145 → 145,2 kB.** Com a primeira versão do #481, as
+  correções de #482, #475 e #481 juntas levavam o barrel ESM de 144,97 kB (`main`) a 145,11 kB. Com
+  a versão final do #481, que só põe aspas, o barrel ESM mede 144,88 kB e o CJS 172,50 kB (teto de
+  172,5 kB). Fatias tocadas: CSV ("admin plumbing") 2196 → 2223 B, Pix 6355 → 6443 B
   (`npx size-limit --json`, `main` × esta branch).
 
 ### Corrigido

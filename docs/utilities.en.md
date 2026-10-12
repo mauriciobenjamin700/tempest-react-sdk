@@ -472,7 +472,7 @@ How each input is read, measured by converting the CSV with LibreOffice 26.2 hea
 | `+55 (11) 99999-9999` | text | text `'+55 (11) 99999-9999` |
 | `@maria` | text | text `'@maria` |
 | `-` | text | text `-` (exempt) |
-| TAB + `=1+1` | text | text `'` + TAB + `=1+1` (measured before #481; today it is written `"'` + TAB + `'=1+1"`, see below) |
+| TAB + `=1+1` | text | text `'` + TAB + `=1+1` (measured before #481; today the field is also quoted, see below) |
 | space + `=1+1` | text | text (not a trigger) |
 | `\n=1+1` (quoted field) | text | text (not a trigger) |
 
@@ -481,18 +481,18 @@ LibreOffice only evaluated `=`. `+`, `@` and TAB stay in the trigger because Exc
 !!! tip "`;` is the right delimiter in a pt-BR locale"
     Where the decimal separator is the comma, Excel opens a comma-separated CSV **in a single column**. `{ delimiter: ";" }` fixes it — and the escaping follows, quoting the field that contains `;`.
 
-!!! check "A formula after the other locale's separator becomes text too"
-    The same file is routinely opened by spreadsheets with different separators: in a `,` CSV, a pt-BR Excel may split the line on `;`. So text holding `,`, `;` or TAB is **always** quoted — which already stops the split in a quote-aware spreadsheet — and every segment after one of those separators goes through the same rule as the field start. With the default delimiter:
+!!! check "Text holding the other locale's separator is quoted"
+    The same file is routinely opened by spreadsheets with different separators: in a `,` CSV, a pt-BR Excel may split the line on `;`. So text holding `,`, `;` or TAB is **always** quoted, whatever the delimiter. A quoted field is not split by the spreadsheet, so the segment after the separator never starts a cell — and the user's text goes out intact, with no `'` mid-text. With the default delimiter:
 
     | Input | Before (up to 0.77) | Now |
     | --- | --- | --- |
-    | `x;=HYPERLINK(CHAR(104)&A1)` | `x;=HYPERLINK(CHAR(104)&A1)` | `"x;'=HYPERLINK(CHAR(104)&A1)"` |
-    | `a,=1+2` (with `delimiter: ";"`) | `a,=1+2` | `"a,'=1+2"` |
-    | `x` + TAB + `=1+2` | `x` + TAB + `=1+2` | `"x` + TAB + `'=1+2"` |
-    | `-1.234,56` (with `delimiter: ";"`) | `-1.234,56` | `-1.234,56` (plain number: no quotes, no prefix) |
-    | `a;-5`, `a;-` | `a;-5`, `a;-` | `"a;-5"`, `"a;-"` (numeric segment and lone `-` exempt) |
+    | `x;=HYPERLINK(CHAR(104)&A1)` | `x;=HYPERLINK(CHAR(104)&A1)` | `"x;=HYPERLINK(CHAR(104)&A1)"` |
+    | `a,=1+2` (with `delimiter: ";"`) | `a,=1+2` | `"a,=1+2"` |
+    | `x` + TAB + `=1+2` | `x` + TAB + `=1+2` | `"x` + TAB + `=1+2"` |
+    | TAB + `=1+1` | `'` + TAB + `=1+1` | `"'` + TAB + `=1+1"` (a single prefix, at the start) |
+    | `-1.234,56` (with `delimiter: ";"`) | `-1.234,56` | `-1.234,56` (plain number: not quoted) |
 
-    The `'` goes in front of the **segment**, not the field: prefixing only the field would leave the `'` in the first cell while the split segment still starts with `=`. Read whole, the value shows the `'` mid-text; split, every cell is text. Output measured with `toCsv` on both versions; no spreadsheet was available in the environment, so **how** Excel and LibreOffice read these files was not measured. `{ neutralizeFormulas: false }` turns both off and keeps quoting by the delimiter only.
+    The `'` still goes only at the start of the field, as before. Output measured with `toCsv` on both versions; no spreadsheet was available in the environment, so **how** Excel and LibreOffice read these files was not measured. `{ neutralizeFormulas: false }` turns this off too and keeps quoting by the delimiter only.
 
 !!! info "`0` and `false` are exported; `null` and `undefined` become empty fields"
     Empty means absent, not falsy. Treating `0` as empty is how a report starts under-reporting every row that legitimately holds a zero. A `Date` is written as ISO, which any system re-imports without guessing a format.

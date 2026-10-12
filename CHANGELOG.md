@@ -358,7 +358,7 @@ range: v0.75`, medido). O `latest` é lido de `npm view <pkg> dist-tags --json` 
   `npx vitest run src/components/Markdown/markdown-parse.test.ts` (2 testes de teto de tempo
   falhavam com 1583/1577 ms e agora passam com folga).
 
-### Tamanho
+### Interno
 
 - **Os tetos dos barrels sobem: CJS de 172,5 para 172,7 kB e ESM de 145,0 para 145,2 kB.**
   As mudanças do `CodeBlock` (#476, #477) e do `Markdown` (#478) mexem pouco na fatia

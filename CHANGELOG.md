@@ -4,6 +4,18 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`CodeBlock` apara o espaço final em tempo linear (#476).** O
+  `code.replace(/\s+$/, "")` era quadrático: num código com uma corrida longa de espaços
+  seguida de um caractere não-espaço ele tentava casar em cada posição da corrida e falhava
+  no `$`. Como o `Markdown` manda todo bloco cercado ao `CodeBlock` por padrão, um bloco de
+  outro usuário travava a thread a cada render. Medido com `performance.now()` em Node 24
+  (12/10/2026): `" ".repeat(80_000) + "x"` levava **1378 ms** na regex e **0,06 ms** em
+  `trimEnd()`, que remove o mesmo conjunto de caracteres. Reproduzido em
+  `npx vitest run src/components/CodeBlock/CodeBlock.test.tsx` (o teste de teto de tempo
+  falhava com 1650 ms e agora passa com folga).
+
 ## [0.77.0] — 2026-10-12
 
 ### Breaking

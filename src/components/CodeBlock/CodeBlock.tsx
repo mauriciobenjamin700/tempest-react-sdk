@@ -65,7 +65,7 @@ export function CodeBlock({
     className,
     ...rest
 }: CodeBlockProps) {
-    const trimmed = useMemo(() => code.replace(/^\n+/, "").replace(/\s+$/, ""), [code]);
+    const trimmed = useMemo(() => code.replace(/^\n+/, "").trimEnd(), [code]);
     const lines = useMemo(() => tokenizeLines(trimmed, language), [trimmed, language]);
     const resolved = resolveLanguage(language);
     const marked = useMemo(() => new Set(highlightLines ?? []), [highlightLines]);

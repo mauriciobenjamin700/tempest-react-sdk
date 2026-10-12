@@ -249,8 +249,43 @@ export function serializeCsp(
         .join("; ");
 }
 
+/**
+ * Compare a source with a CSP keyword (`'self'`, `'none'`, `'unsafe-inline'`…).
+ * Keywords are ASCII case-insensitive (CSP3 §2.3.1), so `'NONE'` is `'none'`.
+ *
+ * @param source - A source expression as written.
+ * @param keyword - The keyword, quoted and lowercase.
+ * @returns Whether the source is that keyword.
+ */
+function isKeyword(source: string, keyword: string): boolean {
+    return source.toLowerCase() === keyword;
+}
+
+/**
+ * Whether a source list matches nothing: CSP3 §6.7.2.5 gives "does not match"
+ * for an empty list and for one that holds only `'none'` — in any letter case.
+ *
+ * @param sources - The directive's sources.
+ * @returns `true` for `[]`, `['none']`, `['NONE']`, `['none', 'None']`.
+ */
+function matchesNothing(sources: readonly string[]): boolean {
+    return sources.every((source) => isKeyword(source, "'none'"));
+}
+
+/**
+ * Lowercase the algorithm (or `nonce`) prefix of a hash or nonce source,
+ * leaving the case-sensitive base64 value alone, so `'SHA256-…'` compares
+ * equal to the `'sha256-…'` the plugin computes.
+ *
+ * @param source - A source expression as written.
+ * @returns The source with a normalized prefix.
+ */
+function normalizeHashSource(source: string): string {
+    return source.replace(/^'(?:sha\d{3}|nonce)-/i, (prefix) => prefix.toLowerCase());
+}
+
 function union(base: readonly string[], extra: readonly string[]): string[] {
-    const out = base.filter((source) => source !== "'none'" || extra.length === 0);
+    const out = base.filter((source) => !isKeyword(source, "'none'") || extra.length === 0);
     for (const source of extra) if (!out.includes(source)) out.push(source);
     return out.length === 0 ? ["'none'"] : out;
 }
@@ -374,9 +409,11 @@ function bundleModuleIds(ctx: IndexHtmlTransformContext): string[] {
  * merge never loosens what the app wrote:
  *
  * - a directive it declares is kept verbatim, except `connect-src`, which gains
- *   the resolved origins (the list the plugin exists to maintain) unless it is
- *   `'none'` — declared or inherited from `default-src` — in which case the
- *   origins stay out and each one is reported as a build warning. Sources in
+ *   the resolved origins (the list the plugin exists to maintain) unless it
+ *   matches nothing — `'none'` in any letter case, or an empty list, declared or
+ *   inherited from `default-src` — in which case the origins stay out and each
+ *   one is reported as a build warning. Keywords are compared case-insensitively
+ *   throughout, as browsers do. Sources in
  *   {@link TempestCspOptions.directives} for a declared directive are not added
  *   (a build warning names them); `false` there removes it;
  * - a fetch directive it does not declare but already governs through the CSP3
@@ -522,7 +559,7 @@ export function tempestCsp(options: TempestCspOptions = {}): TempestVitePlugin {
             const added = configured[name];
             if (inherited === undefined) merged[name] = sources;
             else if (Array.isArray(added)) merged[name] = union(inherited, added);
-            else if (sources.length === 1 && sources[0] === "'none'") merged[name] = sources;
+            else if (sources.length > 0 && matchesNothing(sources)) merged[name] = sources;
         }
         for (const [name, sources] of Object.entries(declared)) merged[name] ??= sources;
         for (const [name, sources] of Object.entries(configured)) {
@@ -563,11 +600,12 @@ export function tempestCsp(options: TempestCspOptions = {}): TempestVitePlugin {
         effective: readonly string[] | undefined,
     ): void {
         if (!effective || !config) return;
+        const normalized = effective.map(normalizeHashSource);
         const unsafeInline =
-            effective.includes("'unsafe-inline'") &&
-            !effective.some((source) => /^'(?:sha\d{3}|nonce)-/.test(source));
+            effective.some((source) => isKeyword(source, "'unsafe-inline'")) &&
+            !normalized.some((source) => /^'(?:sha\d{3}|nonce)-/.test(source));
         if (unsafeInline) return;
-        const blocked = inlineHashes(html, "script").filter((hash) => !effective.includes(hash));
+        const blocked = inlineHashes(html, "script").filter((hash) => !normalized.includes(hash));
         if (blocked.length === 0) return;
         config.logger.warn(
             `tempestCsp: the Content-Security-Policy declared in index.html blocks ${blocked.length} inline <script> ` +
@@ -612,7 +650,7 @@ export function tempestCsp(options: TempestCspOptions = {}): TempestVitePlugin {
                 if (
                     filled("style-src") &&
                     !("style-src-elem" in declared) &&
-                    !policy["style-src"]?.includes("'unsafe-inline'")
+                    !policy["style-src"]?.some((source) => isKeyword(source, "'unsafe-inline'"))
                 ) {
                     policy["style-src"] = union(
                         policy["style-src"] ?? [],
@@ -624,13 +662,13 @@ export function tempestCsp(options: TempestCspOptions = {}): TempestVitePlugin {
                 const inheritedConnect = inheritedSources(declared, "connect-src");
                 const declaredConnect = merged["connect-src"] ?? inheritedConnect;
                 const declaredNone =
-                    declaredConnect?.length === 1 &&
-                    declaredConnect[0] === "'none'" &&
+                    declaredConnect !== undefined &&
+                    matchesNothing(declaredConnect) &&
                     ("connect-src" in declared || inheritedConnect !== undefined);
                 if (declaredNone) {
                     if (origins.length > 0) {
                         config?.logger.warn(
-                            `tempestCsp: index.html declares connect-src 'none'${"connect-src" in declared ? "" : " (through default-src)"}, ` +
+                            `tempestCsp: index.html declares connect-src ${declaredConnect.join(" ") || "with no source"}${"connect-src" in declared ? "" : " (through default-src)"}, ` +
                                 `so these origins stay out and requests to them will be blocked: ${origins.join(" ")}`,
                         );
                     }

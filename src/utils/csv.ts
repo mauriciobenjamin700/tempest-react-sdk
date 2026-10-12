@@ -62,11 +62,18 @@ export interface CsvOptions {
      * because the BOM and the `;` delimiter already aim the file at a spreadsheet,
      * and because the app that exports rarely controls every value in it.
      *
+     * Text holding a `,`, `;` or TAB is also quoted whatever the delimiter
+     * (#481): a spreadsheet whose list separator is not the file's would otherwise
+     * split the bare field there and could start a cell with `=`. A quoted field is
+     * not split, so the quotes close that path without touching the text —
+     * `x;=1+2` is written `"x;=1+2"`.
+     *
      * Numbers are never prefixed: a `number` cell, or a text field that is only a
      * number (`"-5"`, `"-1.234,56"`, `"+42"`, `"1e-7"`), cannot be a formula, and
      * neither can a lone `"-"`, which is left alone too. Pass
      * `false` when the file feeds another system's importer rather than a person's
-     * spreadsheet, so the bytes round-trip unchanged.
+     * spreadsheet, so the bytes round-trip unchanged and only the delimiter, quotes
+     * and line breaks decide the quoting.
      */
     neutralizeFormulas?: boolean;
 }
@@ -97,6 +104,11 @@ const PLAIN_NUMBER = /^[+-]?(?:\d+(?:[.,]\d+)*|\d*[.,]\d+)(?:e[+-]?\d+)?$/i;
  * as formula starts, and that is what OWASP's list is for. A space or newline
  * before `=` is not added: it read as text, not as a formula.
  *
+ * Only the field start is checked. A `,`, `;` or TAB inside the text does not
+ * get a `'` after it: the field is quoted (see {@link escapeField}), a quoted
+ * field is not split by a spreadsheet whatever its list separator, and a `'`
+ * mid-text would corrupt the value in every spreadsheet for no protection.
+ *
  * @param value - The already-stringified field.
  * @returns The field with a leading `'` when it would read as a formula.
  */
@@ -106,19 +118,36 @@ function neutralizeFormula(value: string): string {
 }
 
 /**
+ * Characters a spreadsheet may split a bare field on: either locale's list
+ * separator (`,` in en-US, `;` in pt-BR) and TAB, which Excel's import also
+ * offers. A file written with one delimiter is routinely opened by a spreadsheet
+ * that splits on the other, so text holding any of them is quoted (see
+ * {@link escapeField}).
+ */
+const LIST_SEPARATORS = /[,;\t]/;
+
+/**
  * Quote one field per RFC 4180.
  *
  * A field is quoted when it contains the delimiter, a double quote, or a line
- * break; inside a quoted field, each double quote is doubled. Fields that need
- * none of this are written bare, which keeps the common file readable.
+ * break; inside a quoted field, each double quote is doubled. With
+ * `guardSeparators`, a text field holding any list separator (`,`, `;`, TAB —
+ * see {@link LIST_SEPARATORS}) is quoted as well, whatever the delimiter, so a
+ * spreadsheet that splits on the other locale's separator keeps it in one cell
+ * (#481). A plain number is left out of that rule: it cannot carry a formula,
+ * and `-1.234,56` in a `;` file stays as it was. Fields that need none of this
+ * are written bare, which keeps the common file readable.
  *
  * @param value - The already-stringified field.
  * @param delimiter - The separator in use, which decides part of the quoting.
+ * @param guardSeparators - Also quote text holding the other list separators;
+ *   on whenever formula neutralization is.
  * @returns The field, quoted if it has to be.
  */
-function escapeField(value: string, delimiter: string): string {
+function escapeField(value: string, delimiter: string, guardSeparators: boolean): string {
     const mustQuote =
         value.includes(delimiter) ||
+        (guardSeparators && LIST_SEPARATORS.test(value) && !PLAIN_NUMBER.test(value)) ||
         value.includes('"') ||
         value.includes("\n") ||
         value.includes("\r");
@@ -181,7 +210,13 @@ export function toCsv<T>(
 
     const lines = [
         columns
-            .map((column) => escapeField(cellText(column.header, neutralizeFormulas), delimiter))
+            .map((column) =>
+                escapeField(
+                    cellText(column.header, neutralizeFormulas),
+                    delimiter,
+                    neutralizeFormulas,
+                ),
+            )
             .join(delimiter),
     ];
 
@@ -190,7 +225,7 @@ export function toCsv<T>(
             const raw = column.csv
                 ? column.csv(row)
                 : (row as Record<string, unknown>)[column.key as string];
-            return escapeField(cellText(raw, neutralizeFormulas), delimiter);
+            return escapeField(cellText(raw, neutralizeFormulas), delimiter, neutralizeFormulas);
         });
         lines.push(cells.join(delimiter));
     }

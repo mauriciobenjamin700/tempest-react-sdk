@@ -4,6 +4,23 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Alterado
+
+- **`toCsv` / `downloadCsv` põem entre aspas o texto com o separador do outro locale (#481).** A
+  citação só olhava o delimitador configurado, então com o `,` padrão o valor
+  `x;=HYPERLINK(CHAR(104)&A1)` saía sem aspas — e um Excel pt-BR, que separa em `;`, partiria o
+  campo e veria uma célula começando com `=`. O espelho valia para `a,=1+2` num arquivo com `;`.
+  Agora, com `neutralizeFormulas` ligado (o padrão), texto que tem `,`, `;` ou TAB sai sempre entre
+  aspas, seja qual for o delimitador: `"x;=HYPERLINK(CHAR(104)&A1)"`. Campo entre aspas não é
+  dividido pela planilha, então as aspas fecham o caminho sem tocar o texto; o `'` continua só no
+  início do campo, como na 0.77. Número puro (`-1.234,56`) não ganha aspas pelo outro separador.
+  Saída medida com `toCsv` na `main` e nesta mudança; não havia planilha no ambiente
+  (`which soffice libreoffice localc` vazio), então a leitura pelo Excel/LibreOffice não foi
+  medida. **Migração:** a saída padrão muda só na citação — campo de texto com `,`, `;` ou TAB passa
+  a vir entre aspas, o que é transparente para leitor RFC 4180, e um campo que começa com TAB sai
+  `"'` + TAB + `…"`. Quem importa o arquivo noutro sistema e precisa dos bytes como vieram passa
+  `{ neutralizeFormulas: false }`, que mantém a saída da 0.77 sem mudança.
+
 ### Corrigido
 
 - **`retry(factory, { retries: 0 })` nunca chamava a `factory` e rejeitava com `undefined`** (#486). O
@@ -46,6 +63,29 @@ range: v0.75`, medido). O `latest` é lido de `npm view <pkg> dist-tags --json` 
   precisa ter este workflow na branch: o tag push roda o `release-npm.yml` do commit da tag. Publicar
   de commit fora da `main` segue dependendo do revisor obrigatório no environment `npm-release` e do
   vínculo do Trusted Publisher — configuração externa, documentada em `docs/release.md`.
+
+- **`tempestCsp` não abre mais um `connect-src` que o app bloqueou com `'NONE'` ou lista vazia
+  (#482).** A checagem de bloqueio comparava com o literal `'none'` em minúsculas e exigia
+  exatamente um item, mas palavra-chave de CSP não diferencia maiúsculas e lista vazia também não
+  casa nada (CSP3 §6.7.2.5). Medido antes, com `connect: ["https://api.example.com"]`:
+  `connect-src 'NONE'` virava `connect-src 'NONE' https://api.example.com wss://api.example.com`,
+  `connect-src` vazio virava `connect-src https://api.example.com wss://api.example.com`, e
+  `default-src 'NONE'` ganhava um `connect-src` com as origens — nenhum com aviso. Agora os três
+  ficam como escritos e o build avisa cada origem deixada de fora. As outras comparações de
+  palavra-chave do plugin também passaram a ignorar a caixa: `'UNSAFE-INLINE'` e `'SHA256-…'`
+  declarados não geram mais aviso falso de `<script>` inline bloqueado, e um
+  `directives: { "style-src": ["'UNSAFE-INLINE'"] }` não recebe mais hashes de `<style>` (com
+  hash presente, o browser ignora o `'unsafe-inline'`). Teste:
+  `npx vitest run src/vite/tempest-csp.test.ts -t "482"`.
+- **`parsePixPayload` recusa tag 63 que não é a última e tag 00 que não é a primeira (#475).** O
+  parser só conferia os 8 caracteres finais como `6304` + CRC e tratava uma tag 63 anterior como
+  campo comum. Medido antes: `pixPayload(...)` + `540599.99` + `6304` + CRC era aceito com
+  `amount: 99.99` e `crcValid: true`, o mesmo texto cortado no primeiro CRC também era válido e
+  sem valor, e uma tag 63 interna com CRC `0000` também passava — duas leituras do mesmo payload,
+  justamente o que o leitor promete recusar. Agora qualquer campo raiz com id `63` lança
+  `PixError`, assim como uma raiz que não começa pela tag `00`: o EMV® QRCPS-MPM, que o manual do
+  BR Code do Bacen segue, fixa a `00` como primeiro objeto e a `63` como último. Payload emitido
+  por PSP conforme não muda. Teste: `npx vitest run src/br/pix.test.ts -t "475"`.
 
 ## [0.77.0] — 2026-10-12
 

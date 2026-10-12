@@ -456,6 +456,57 @@ export function App() {
 
 **Safe-area aware**.
 
+### Ícone e alinhamento
+
+`ToastOptions.icon` recebe qualquer `ReactNode` — normalmente um asset do app — e o renderiza numa coluna própria à esquerda do texto. `<img>` e `<svg>` em qualquer nível dentro dela ficam limitados a 32px, sem distorcer. Nó que não renderiza nada (`null`, `false`, `[]`, fragment vazio) conta como sem ícone.
+
+```tsx
+import { ToastProvider, useToast } from "tempest-react-sdk";
+
+function Conquista() {
+    const toast = useToast();
+
+    return (
+        <button
+            onClick={() =>
+                toast.show({
+                    icon: <img src={"/assets/invict.svg"} alt="" />,
+                    title: "Título Invicto desbloqueado!",
+                    variant: "success",
+                    duration: 4000,
+                    align: "center",
+                })
+            }
+        >
+            Desbloquear
+        </button>
+    );
+}
+
+export function App() {
+    return (
+        <ToastProvider>
+            <Conquista />
+        </ToastProvider>
+    );
+}
+```
+
+| Opção       | Tipo                    | Default   | O que faz                                                                    |
+| ----------- | ----------------------- | --------- | ---------------------------------------------------------------------------- |
+| `icon`      | `ReactNode`             | —         | Slot à esquerda do texto, para ícone. `inert`; decorativo (`aria-hidden`) se não houver `iconLabel`. |
+| `iconLabel` | `string`                | —         | Nome acessível do ícone: o slot vira `role="img"` e é anunciado com o toast. |
+| `align`     | `"start" \| "center"`   | `"start"` | Alinhamento do título e da descrição.                                       |
+
+O ícone é **decorativo por padrão** porque quase sempre repete o título ("Título Invicto desbloqueado!" ao lado da medalha). Sem isso, uma imagem sem rótulo dentro da região `aria-live` seria lida como "imagem" ou pelo nome do arquivo. Quando o ícone carrega informação que o texto não tem, passe `iconLabel` — não é preciso mexer no `alt` do asset.
+
+O slot é para **ícone, não para controle**: o wrapper é `inert`, então um botão ou link colocado ali não recebe foco nem clique. Ação sobre a notificação fica fora do toast — se o usuário precisa agir, use `Alert`.
+
+!!! note "Por que o texto não é centralizado por padrão"
+    O toast é lido como uma frase ao lado do botão de fechar, e quase sempre empilhado com outros. Alinhado à esquerda, o texto divide a mesma borda com o ícone e com os toasts vizinhos, e uma descrição de duas linhas continua escaneável — centralizada, cada linha começa num ponto diferente. `align: "center"` fica para o toast curto e comemorativo, de uma linha, como o do exemplo.
+
+`variant`, `duration` e a fila não mudam com o ícone: a borda colorida continua indicando a variante, e o toast sem ícone mantém exatamente o layout anterior.
+
 !!! danger "`useToast` só existe sob um `<ToastProvider>`"
     Fora dele o hook **lança** `useToast must be used inside a <ToastProvider>`.
     O provider vai na raiz do app, acima do router — se ele estiver dentro de uma
@@ -586,7 +637,7 @@ Renderiza nada com `open={false}`. `onDismiss` (opcional) mostra o botão de dis
 ## A11y geral
 
 - `Alert`/`Banner` com variant `warning`/`danger` usam `role="alert"` (anunciado imediatamente).
-- `Toast` container é `aria-live="polite"` + `aria-atomic="true"`.
+- `Toast` container é `aria-live="polite"` + `aria-atomic="false"` — só o toast novo é anunciado, não a pilha inteira. O ícone sem `iconLabel` fica `aria-hidden`.
 - `Spinner`/`Progress.indeterminate` adicionam `aria-busy="true"`.
 - `Skeleton` é decorativo — não anuncia (`aria-hidden`).
 - `Stat.value` com tabular-nums alinha valores numéricos em colunas.

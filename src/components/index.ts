@@ -267,6 +267,7 @@ export type { TooltipPlacement, TooltipProps } from "./Tooltip";
 
 export { ToastProvider, useToast } from "./Toast";
 export type {
+    ToastAlign,
     ToastApi,
     ToastOptions,
     ToastPosition,

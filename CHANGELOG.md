@@ -23,6 +23,68 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   página que responda, a entrada fica pendente (até `maxRetentionMinutes`) em vez de sair sem
   credencial; resposta `null` descarta. `credentialHeaders: []` restaura o comportamento antigo.
 
+### Segurança
+
+- **`release-npm.yml` — o job que pode publicar não roda mais código resolvido do registry
+  na hora do release (#451).** Era um job só, com `id-token: write` (Trusted Publishing) e
+  `contents: write`, e o checkout deixava o `GITHUB_TOKEN` no `.git/config`. Dentro dele
+  rodavam `npm install -g npm@latest`, o `npm install` flutuante do smoke
+  (`react@^19 react-dom@^19 react-router@^8 esbuild`) e o `scripts/smoke-vitest.sh`
+  (`npx --yes npm@11`, `vite@^8 vitest@^4 happy-dom`) — script de instalação de qualquer um
+  desses tinha acesso ao endpoint OIDC. E o `npm publish` de diretório re-rodava o
+  `prepublishOnly` inteiro (typecheck + lint + suíte + build) dentro do job, então o tarball
+  publicado era um pack **novo**, não o que o smoke testou: no log da v0.76.0 o publish leva
+  ~5 min porque roda a suíte de novo. Medido nos logs das runs (`gh api …/actions/jobs/<id>/logs`):
+  `npm@latest` já resolvia para o npm **12** nas releases v0.74.0–v0.76.0 (`npm notice run`,
+  `allowScripts`), e hoje `npm view npm dist-tags.latest` devolve `12.2.0` — o major mudou
+  10 → 11 → 12 debaixo do job sem ninguém escolher. Agora o workflow parte de
+  `permissions: {}` e são quatro jobs: `build` (`contents: read`: `npm ci`, gates, build,
+  `npm pack` + SHA-256 como output), `smoke` (`contents: read`: as instalações flutuantes),
+  `publish` (só `id-token: write`: `npm install -g npm@12.2.0`, a versão exata que publicou as
+  três últimas releases, e `npm publish "./<tarball>"`, que não roda script de ciclo de vida —
+  conferido com `npm publish <tgz> --dry-run` num pacote-fixture cujos `prepublishOnly`,
+  `prepack`, `prepare` e `publish` só imprimem: no diretório os quatro rodam, no tarball
+  nenhum) e `release` (só `contents: write`, sem instalar nada). Todo checkout tem
+  `persist-credentials: false`, toda action é fixada por SHA (`checkout` v5.1.0,
+  `setup-node` v5.0.0, `upload-artifact` v4.6.2, `download-artifact` v4.3.0) e todo job que
+  baixa o tarball confere o digest antes de usá-lo. `test/release-workflow.test.ts` fixa
+  essas regras: contra o workflow da `main`, 9 dos 10 casos falham. `actionlint` 1.7.12
+  (`uvx --from actionlint-py actionlint`) limpo. Docs: `docs/release.md` + `.en.md`.
+- **`release-npm.yml` — só uma tag `vX.Y.Z` publica, e tag, npm e GitHub Release apontam
+  para o mesmo commit (#452).** O `workflow_dispatch` não tinha restrição: disparado de uma
+  branch, o guard de versão era pulado (`GITHUB_REF_TYPE` ≠ `tag`) e a tag saía do
+  `package.json` daquela árvore, que ia para o npm com provenance. Reproduzido rodando o passo
+  antigo com `GITHUB_REF_TYPE=branch` sobre um `package.json` `9.9.9`: exit 0 e
+  `tag=v9.9.9`. Depois, o `gh release create "$TAG"` rodava sem `--target` nem
+  `--verify-tag`, e o `gh release create --help` documenta o default: tag inexistente é
+  criada "from the latest state of the default branch" — outro commit. Agora o
+  `scripts/check-release-ref.sh` reprova, antes de qualquer instalação, o ref que não é tag
+  `vX.Y.Z`/`vX.Y.Z-pre`, a tag que não descreve o `package.json` e a tag que não aponta para o
+  `GITHUB_SHA` (tag anotada é resolvida para o commit); o re-run manual passa a ser
+  `gh workflow run release-npm.yml --ref vX.Y.Z`. O job `release` confere de novo a tag contra o
+  SHA via API, cria com `--verify-tag` e só anexa o tarball cujo sha512 é o `dist.integrity`
+  que o npm serve, então o `upload --clobber` não troca mais o asset por um build de outra ref.
+  O job `publish` roda no environment `npm-release` — sem configuração não barra nada; com
+  revisores obrigatórios e o Trusted Publisher do npm amarrado a ele vira o gate humano
+  (`docs/release.md` diz como ligar). `test/release-workflow.test.ts` ganhou 10 casos, que
+  falham no workflow anterior: 6 executam o guard num repo git descartável (branch, versão
+  divergente, tag fora do formato, tag em outro commit, caminho feliz, prerelease anotada).
+- **`release-npm.yml` — prerelease vai para o dist-tag `next`, e a recuperação de uma run
+  falhada funciona pelos dois caminhos de re-run.** Achados da revisão das duas entradas acima:
+  uma tag `v0.77.0-rc.1` era publicada em `latest` (já era assim antes), e virava o default de
+  todo `npm install`; agora o `scripts/check-release-ref.sh` emite `dist_tag` (`next` para
+  versão com `-`, `latest` no resto), o publish passa `--tag "$DIST_TAG"` e o read-back espera
+  esse dist-tag — o GitHub Release continua marcado como prerelease. O read-back do dist-tag
+  tinha 12 tentativas (3 min) contra 120 (30 min) da versão; agora as duas esperas, e a leitura
+  do `dist.integrity` no job `release` (que era uma chamada única, sem retry, e no `bash -e`
+  morria sem `::error::`), usam a mesma janela de 120 × 15 s e erro anotado. O artifact passa a
+  se chamar `npm-tarball-<run_attempt>`: com nome fixo, um "Re-run all jobs" colidiria com o
+  da primeira tentativa; "Re-run failed jobs" herda os outputs do `build` e baixa o artifact da
+  tentativa que publicou. A mensagem de pack divergente deixa de mandar para um caminho que não
+  existe e aponta `make releases-sync`. `concurrency` por ref, sem `cancel-in-progress`, enfileira
+  um tag push e um dispatch da mesma tag. `test/release-workflow.test.ts` ganhou 8 casos (7
+  falham no commit anterior; o oitavo só fixa o formato `@<sha> # vX.Y.Z` das actions).
+
 ### Adicionado
 
 - **`persistence.clear({ resetClient: true })` — logout em uma chamada.** Opção nova (tipo
@@ -242,6 +304,29 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   sessão por cookie reenviar com cookie.
 - **Template PWA e doc nomeiam os caches `tempest-api`/`tempest-media`**, e a doc troca a limpeza de
   logout por `clearSessionData()`.
+
+### Interno
+
+- **Lockfile: `brace-expansion` 5.0.9 → 5.0.12, `fast-uri` 3.1.7 → 3.1.8 e `source-map-js`
+  1.2.1 → 1.2.2, só dependência de desenvolvimento (#450).** Bump mínimo, dentro dos ranges
+  que já estavam declarados (`npm update brace-expansion fast-uri source-map-js`): o
+  `package.json` não muda, e o lockfile muda só essas três entradas. O `npm audit fix`
+  sugerido na issue foi descartado porque arrastava junto o `@microsoft/api-extractor`
+  7.59.0 → 7.59.4 e a árvore `@microsoft/*`/`@rushstack/*` dele. O `source-map-js` (via
+  `vite` → `postcss`, `jsdom` → `css-tree` e `@vitest/coverage-v8`) não estava na issue: o
+  advisory GHSA-68fv-2mgg-jv7q saiu depois dela. Medido com `npm audit` e
+  `npm audit --omit=dev`:
+
+  | Lockfile | `npm audit`                             | `npm audit --omit=dev` |
+  | -------- | --------------------------------------- | ---------------------- |
+  | antes    | 7 (2 high, 5 moderate)                  | 0                      |
+  | depois   | 4 moderate, todos a mesma cadeia abaixo | 0                      |
+
+  O que sobra é o `sprintf-js` (GHSA-hp3w-g68c-fv3c, faixa afetada `*`: **nenhuma** versão
+  corrigida existe), puxado por `@microsoft/api-extractor` → `@rushstack/ts-command-line` →
+  `argparse@~1.0.9`. A única saída que o `npm audit fix --force` oferece é rebaixar o
+  api-extractor para 7.7.8, o que quebraria o rollup de tipos — fica registrado, sem ação, até
+  o upstream publicar correção. Nada disso chega ao consumidor.
 
 ## [0.76.0] — 2026-10-10
 

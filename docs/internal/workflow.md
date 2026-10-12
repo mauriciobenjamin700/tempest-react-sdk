@@ -63,13 +63,39 @@ Screenshots, Outras mudanças, Notas sobre deploy + as três listas finais).
 
 Cinco workflows: `ci.yml` (PR: format + lint + typecheck + test + build, node
 22/24), `size-limit.yml`, `e2e.yml` (gallery + axe), `docs.yml` (Pages) e
-`release-npm.yml` (tag push → guard de versão + smoke + publish OIDC + read-back
+`release-npm.yml` (tag `vX.Y.Z` → guard de ref + smoke + publish OIDC + read-back
 do registry + GitHub Release).
 
 O smoke do release empacota o tarball **com esbuild** e roda o resultado — que é
 o caminho de todo consumidor — e depois roda as mesmas asserções em Node cru com
 o loader publicado. Os dois guards antigos continuam medidos: peer faltando faz o
 esbuild sair 1, export faltando faz o `node` sair 1.
+
+O `release-npm.yml` é quatro jobs, não um (#451): `build` e `smoke` com
+`contents: read`, `publish` só com `id-token: write`, `release` só com
+`contents: write`. **Nada resolvido do registry na hora roda ao lado de
+`id-token`** — o job de publish instala um npm de versão exata e publica o
+tarball que o `build` empacotou e o `smoke` testou, conferindo o SHA-256 que
+veio como output do `build`. `test/release-workflow.test.ts` reprova o workflow
+que voltar a juntar as coisas: action sem SHA, checkout sem
+`persist-credentials: false`, `npm@latest`, `npm ci`/`npx`/smoke no job com
+`id-token`, publish de diretório. Ao subir o npm ou uma action, troque a versão
+exata/o SHA de propósito — o comentário ao lado diz de onde veio.
+
+**Só uma tag publica, inclusive no disparo manual** (#452). O
+`scripts/check-release-ref.sh` reprova a run cujo ref não é `vX.Y.Z`, cuja tag
+não bate com o `package.json` ou não aponta para o `GITHUB_SHA` — então o
+re-run manual é `gh workflow run release-npm.yml --ref vX.Y.Z`, nunca
+`--ref main`. O job `release` confere de novo a tag contra o SHA, cria com
+`--verify-tag` e só anexa o tarball cujo sha512 é o `dist.integrity` do npm. Para
+recuperar uma run que publicou e falhou depois, use **Re-run failed jobs**, que
+reaproveita o artifact da tentativa que publicou (o artifact é
+`npm-tarball-<run_attempt>`). O re-run completo reempacota, e o job `release`
+não anexa nada se o pack novo não for byte a byte o publicado — a saída é
+`make releases-sync`. Prerelease publica em `next`, não em `latest`; runs da
+mesma tag entram em fila (`concurrency`), sem cancelar a que está rodando. Revisor obrigatório no environment `npm-release` e o
+vínculo do Trusted Publisher a ele são configuração do GitHub/npm, não do repo —
+`docs/release.md` diz como ligar.
 
 ## Release
 

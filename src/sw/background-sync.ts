@@ -81,8 +81,8 @@ export type BackgroundSyncOwnerState = "bound" | "unbound" | "unknown";
  * How the default `beforeReplay` treats an `"unknown"` owner on an entry that
  * carried no credential header:
  * - `"strict"` (default): it asks the open pages like any other entry — replayed
- *   only with an answer without a principal, dropped when every answer has one,
- *   pending while nobody answers.
+ *   only when every answer lacks a principal, dropped as soon as one answer has
+ *   one, pending while nobody answers.
  * - `"lenient"`: it is replayed as-is, without asking (the behavior up to 0.77.0).
  *
  * An entry with stripped credentials always asks, under either policy.
@@ -225,8 +225,10 @@ export interface InstallBackgroundSyncOptions {
      * {@link provideBackgroundSyncCredentials}) and picks the answer that fits:
      * - `"bound"`: the answer whose owner matches; none among valid answers →
      *   dropped, never sent anonymously or as somebody else;
-     * - `"unknown"`: only an answer without a principal (an app that does not use
-     *   `getPrincipal`); every answer has one → dropped. This holds for an entry
+     * - `"unknown"`: only when every answer lacks a principal (an app that does
+     *   not use `getPrincipal`); a single answer with one → dropped, since a
+     *   stale tab without `getPrincipal` says nothing about who is signed in
+     *   next to it. This holds for an entry
      *   with no credential header too, since the browser attaches the cookies of
      *   whoever is signed in at replay time;
      * - `"unbound"`: any answer, preferring one without a principal.
@@ -578,7 +580,14 @@ function createReplayRun(sw: BgSwGlobal): ReplayRun {
     };
 }
 
-/** Pick the answer an entry may be replayed with, per its owner state. */
+/**
+ * Pick the answer an entry may be replayed with, per its owner state.
+ *
+ * An `"unknown"` owner replays only when every valid answer lacks a principal:
+ * one tab reporting a principal (even `null`) is enough to drop it, because a
+ * principal-less answer — say a tab still running a bundle from before the app
+ * adopted `getPrincipal` — says nothing about whose cookie the replay carries.
+ */
 function chooseAnswer(
     answers: readonly ClientAnswer[],
     context: BackgroundSyncReplayContext,
@@ -587,7 +596,7 @@ function chooseAnswer(
         case "bound":
             return answers.find((answer) => answer.hasPrincipal && answer.owner === context.owner);
         case "unknown":
-            return answers.find((answer) => !answer.hasPrincipal);
+            return answers.every((answer) => !answer.hasPrincipal) ? answers[0] : undefined;
         case "unbound":
             return answers.find((answer) => !answer.hasPrincipal) ?? answers[0];
     }

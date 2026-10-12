@@ -159,7 +159,7 @@ The owner is in one of three states:
 | -- | -- | -- |
 | **owned** | the tab answered with `getPrincipal` | only goes out with the answer of a tab where the **same** owner is signed in; none matches → dropped |
 | **unowned** | the tab answered without `getPrincipal` | any answer will do (preferring one without a principal) |
-| **unknown** | nobody answered, `getPrincipal` threw, the tab was gone (or there was none), the stamp was lost past the 6 s, or the entry predates 0.77 | **fails closed**, with or without a credential header: only goes out with the answer of a tab without a principal; every tab has one → dropped; no answer → stays pending |
+| **unknown** | nobody answered, `getPrincipal` threw, the tab was gone (or there was none), the stamp was lost past the 6 s, or the entry predates 0.77 | **fails closed**, with or without a credential header: only goes out when **every** tab that answered lacks a principal; a single tab with one → dropped; no answer → stays pending |
 
 On replay the worker asks **every** tab in parallel, under one 3 s deadline, and uses the answer that fits — another account's tab answering first no longer drops A's mutation. Then:
 
@@ -170,7 +170,7 @@ On replay the worker asks **every** tab in parallel, under one 3 s deadline, and
 | `null` (no session) | dropped, unsent |
 | no valid answer | stays pending until `maxRetentionMinutes` |
 
-Only an **unowned** entry with no credential header is replayed as it was, without asking. An entry whose owner is **unknown** asks even without a header: on a cookie-session API (`credentials: "include"`), the browser attaches on replay the cookie of whoever is signed in at that moment, so replaying unchecked would send A's mutation with B's session (as it did up to 0.77.0; `ownerPolicy: "lenient"` restores that, see below). A provider error (`getHeaders` or `getPrincipal` throwing) comes back as an explicit `{ error: true }`, never as silence.
+Only an **unowned** entry with no credential header is replayed as it was, without asking. An entry whose owner is **unknown** asks even without a header: on a cookie-session API (`credentials: "include"`), the browser attaches on replay the cookie of whoever is signed in at that moment, so replaying unchecked would send A's mutation with B's session (as it did up to 0.77.0; `ownerPolicy: "lenient"` restores that, see below). And a tab without `getPrincipal` — say, still running the bundle from before the deploy — does not authorize the replay when another tab answers with a principal: it says nothing about the cookie that rides along. A provider error (`getHeaders` or `getPrincipal` throwing) comes back as an explicit `{ error: true }`, never as silence.
 
 Measured in Chromium 153 (11/10/2026), with a real service worker, IndexedDB and two tabs: A queues offline, B signs in without clearing anything, the sync fires — the server receives no POST; with B's tab open next to it, A's mutation goes out with A's refreshed token.
 
@@ -200,7 +200,7 @@ installBackgroundSync({ match: /\/api\//, ownerPolicy: "lenient" });
 
 | Entry | `"strict"` (default) | `"lenient"` |
 | -- | -- | -- |
-| **unknown** owner, no credential header | asks the pages: replayed with an answer without a principal, dropped when every answer has one, pending with no answer | replayed as it was, without asking |
+| **unknown** owner, no credential header | asks the pages: replayed only if every answer lacks a principal, dropped if any has one, pending with no answer | replayed as it was, without asking |
 | **unknown** owner, credential header stripped | asks the pages (same rule) | asks the pages (same rule) |
 | **owned** / **unowned** | same in both modes | same in both modes |
 

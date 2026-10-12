@@ -958,13 +958,34 @@ describe("installBackgroundSync — an unknown owner fails closed without creden
             expect(await readQueue(queue)).toHaveLength(1);
         });
 
-        it(`${variant}: replays a cookie-session mutation once a page answers without a principal`, async () => {
+        it(`${variant}: drops a cookie-session mutation when a stale principal-less tab answers next to a signed-in one`, async () => {
             const queue = nextQueue();
             if (variant !== "legacy v1 entry") installBackgroundSync({ queueName: queue });
             await queueUnknown(variant, queue);
             if (variant === "legacy v1 entry") installBackgroundSync({ queueName: queue });
 
             windowClients = [fakePage("user-b", null), fakePage(null, null, false)];
+            fetchMock.mockClear();
+            fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+            await fireSync(queue);
+
+            expect(
+                fetchMock,
+                "This test used to expect a replay: any principal-less answer was enough. But a " +
+                    "tab from a pre-deploy bundle answering without getPrincipal says nothing " +
+                    "about the cookie jar, and B's tab proves somebody is signed in, so the " +
+                    "replay would carry B's cookie. Any answer with a principal now drops it.",
+            ).not.toHaveBeenCalled();
+            expect(await readQueue(queue)).toEqual([]);
+        });
+
+        it(`${variant}: replays a cookie-session mutation once every page answers without a principal`, async () => {
+            const queue = nextQueue();
+            if (variant !== "legacy v1 entry") installBackgroundSync({ queueName: queue });
+            await queueUnknown(variant, queue);
+            if (variant === "legacy v1 entry") installBackgroundSync({ queueName: queue });
+
+            windowClients = [fakePage(null, null, false), fakePage(null, null, false)];
             fetchMock.mockClear();
             fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
             await fireSync(queue);
@@ -1059,6 +1080,18 @@ describe('installBackgroundSync — ownerPolicy: "lenient" for an app without si
 
         expect(pageB.postMessage).toHaveBeenCalled();
         expect(fetchMock).not.toHaveBeenCalled();
+        expect(await readQueue(queue)).toEqual([]);
+    });
+
+    it("still drops an unknown credentialed entry when a principal-less tab answers next to a signed-in one", async () => {
+        const queue = nextQueue();
+        installBackgroundSync({ queueName: queue, ownerPolicy: "lenient" });
+        await failOffline(postAs("A"), "gone");
+        windowClients = [fakePage("user-b", "B"), fakePage(null, "STALE", false)];
+        fetchMock.mockClear();
+        fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+        await fireSync(queue);
+        expect(sentAuthorizations()).toEqual([]);
         expect(await readQueue(queue)).toEqual([]);
     });
 

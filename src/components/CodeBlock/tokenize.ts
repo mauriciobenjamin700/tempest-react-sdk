@@ -86,6 +86,58 @@ const JS_LITERALS = "true|false|null|undefined|NaN|Infinity";
  * Order carries meaning: comments and strings come first so a keyword inside a
  * string stays a string. Every pattern is sticky (`y`) and anchored by
  * `lastIndex`, so a rule can only match where the scanner currently stands.
+ *
+ * Every string and comment pattern makes its closing delimiter **optional** —
+ * `"..."?`, `/*...*?` / `<!--...--?` — so an unterminated opener is consumed as a
+ * single token instead of failing and being rescanned from the next opener.
+ * Without that, a `"` followed by many escaped quotes was re-read to the end of
+ * the input from each opening quote, quadratic in the input (#477).
+ *
+ * A well-formed string that closes on a later line stays one token where the
+ * language allows the newline: bash, SQL, HTML and the JavaScript template
+ * literal carry a raw `\n`, and every grammar lets an escape cross the line feed
+ * (`\\[\s\S]`), so `"a\` + LF + `b"` is one string. A quote string that cannot
+ * hold a raw newline — the JavaScript and JSON `"`/`'`, CSS, the Python
+ * `"`/`'` — still ends at the line when it is unterminated, which is the only
+ * case the optional close cuts at the line. A JSX attribute value is the
+ * exception in the JavaScript family: `="…"` has its own rule, ahead of the
+ * plain JS strings, so it may hold a raw line feed — `<input placeholder="a` +
+ * LF + `b">` is one string where the plain JS rule would have ended it at the
+ * line. The rule matches at the `=` and looks behind for it, so `=` keeps its
+ * paint; `(?<==\s)` covers the spaced `= "…"` form too.
+ *
+ * Each grammar also ends with a `plain` rule that consumes a run of identifier
+ * characters in one step. The rules that need a lookahead — the JavaScript
+ * `function`, the HTML `attribute`, the CSS `property` and `function`, the
+ * Python `function` — match a whole run and then fail if the character after it
+ * is not the expected one; with only `at++` to fall back on, the scanner retried
+ * that run from every character in it. A code fence holding a long run of word
+ * characters and no punctuation (a base64 blob, a minified token) took 6 s at
+ * 80 KB and 25 s at 160 KB; the fallback consumes the run once, so the scan
+ * stays linear (#477 sweep).
+ *
+ * The `plain` rule matches an identifier run while the scanner's fallback
+ * collects whatever no rule matched, so one plain stretch arrives in pieces;
+ * `tokenize` fuses adjacent `plain` tokens back into one, which is the array
+ * shape — and the one span per run — that predates the fallback (#477).
+ *
+ * The JavaScript fallback does **not** start at `$` — it takes a `$` run and an
+ * identifier run separately — so a leading `$type`, `$default` and `$this` keep
+ * the `$` plain and the name a keyword. Inside an identifier the `$` is an
+ * ordinary character, so `foo$this`, `a$true` and `x$1` are one `plain` token
+ * instead of painting `this`, `true` and `1` out of them; the `'` string rule
+ * carries the same boundary in a lookbehind, so an apostrophe in prose
+ * (`Don't`) does not open a string that runs to the end of the input.
+ *
+ * The CSS `property` and `function` rules match a whole word where it stands —
+ * `font-size` and `translate3d` paint as one token rather than splitting the
+ * tail — and a `#rgb`/`#rrggbb` colour paints as a number. A word before a
+ * colon only counts as a property when the colon starts a value boundary
+ * (whitespace, `;`, `}`): after a `.`/`#`/`(`/`,`/`>`/`+`/`~`/`:` it is a
+ * selector, and when the colon is followed by an identifier character it could
+ * be a pseudo-class (`li:hover`) or a declaration with no space (`color:red`) —
+ * neither can be told apart without a parser, so both stay `plain`, which is
+ * what `origin/main` painted (`#477`).
  */
 const GRAMMARS: Record<CodeLanguage, Rule[]> = {
     typescript: jsRules(false),
@@ -93,31 +145,34 @@ const GRAMMARS: Record<CodeLanguage, Rule[]> = {
     tsx: jsRules(true),
     jsx: jsRules(true),
     json: [
-        { kind: "property", pattern: /"(?:[^"\\]|\\.)*"(?=\s*:)/y },
-        { kind: "string", pattern: /"(?:[^"\\]|\\.)*"/y },
+        { kind: "property", pattern: /"(?:[^"\\\n]|\\[\s\S])*"(?=\s*:)/y },
+        { kind: "string", pattern: /"(?:[^"\\\n]|\\[\s\S])*"?/y },
         { kind: "number", pattern: /-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/y },
         { kind: "literal", pattern: /\b(?:true|false|null)\b/y },
         { kind: "punctuation", pattern: /[{}[\],:]/y },
     ],
     css: [
-        { kind: "comment", pattern: /\/\*[\s\S]*?\*\//y },
-        { kind: "string", pattern: /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/y },
+        { kind: "comment", pattern: /\/\*[\s\S]*?(?:\*\/|$)/y },
+        { kind: "string", pattern: /"(?:[^"\\\n]|\\[\s\S])*"?|'(?:[^'\\\n]|\\[\s\S])*'?/y },
         { kind: "keyword", pattern: /@[a-zA-Z-]+/y },
-        { kind: "property", pattern: /--?[a-zA-Z][\w-]*(?=\s*:)/y },
-        { kind: "function", pattern: /[a-zA-Z-]+(?=\()/y },
-        { kind: "number", pattern: /-?\d+(?:\.\d+)?(?:px|rem|em|%|s|ms|vh|vw|fr|deg)?/y },
+        { kind: "property", pattern: /(?<![.#[\](),>+~:])[\w-]+(?=\s*:(?![\w/:]))/y },
+        { kind: "function", pattern: /[\w-]+(?=\()/y },
+        { kind: "number", pattern: /#[0-9a-fA-F]{3,8}\b/y },
+        { kind: "number", pattern: /(?<![\w-])-?\d+(?:\.\d+)?(?:px|rem|em|%|s|ms|vh|vw|fr|deg)?/y },
         { kind: "punctuation", pattern: /[{}();:,>+~]/y },
+        { kind: "plain", pattern: /[\w-]+/y },
     ],
     html: [
-        { kind: "comment", pattern: /<!--[\s\S]*?-->/y },
-        { kind: "string", pattern: /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/y },
+        { kind: "comment", pattern: /<!--[\s\S]*?(?:-->|$)/y },
+        { kind: "string", pattern: /"(?:[^"\\]|\\[\s\S])*"?|'(?:[^'\\]|\\[\s\S])*'?/y },
         { kind: "tag", pattern: /<\/?[a-zA-Z][\w:-]*/y },
         { kind: "attribute", pattern: /[a-zA-Z][\w:-]*(?==)/y },
         { kind: "punctuation", pattern: /\/?>|=/y },
+        { kind: "plain", pattern: /[a-zA-Z][\w:-]*/y },
     ],
     bash: [
         { kind: "comment", pattern: /#[^\n]*/y },
-        { kind: "string", pattern: /"(?:[^"\\]|\\.)*"|'[^']*'/y },
+        { kind: "string", pattern: /"(?:[^"\\]|\\[\s\S])*"?|'[^']*'?/y },
         {
             kind: "keyword",
             pattern:
@@ -131,7 +186,8 @@ const GRAMMARS: Record<CodeLanguage, Rule[]> = {
         { kind: "comment", pattern: /#[^\n]*/y },
         {
             kind: "string",
-            pattern: /"""[\s\S]*?"""|'''[\s\S]*?'''|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/y,
+            pattern:
+                /"""[\s\S]*?(?:"""|$)|'''[\s\S]*?(?:'''|$)|"(?:[^"\\\n]|\\[\s\S])*"?|'(?:[^'\\\n]|\\[\s\S])*'?/y,
         },
         {
             kind: "keyword",
@@ -142,10 +198,11 @@ const GRAMMARS: Record<CodeLanguage, Rule[]> = {
         { kind: "number", pattern: /\b\d+(?:\.\d+)?\b/y },
         { kind: "function", pattern: /[A-Za-z_]\w*(?=\()/y },
         { kind: "punctuation", pattern: /[{}[\]().,:;=+\-*/<>!]/y },
+        { kind: "plain", pattern: /[A-Za-z_]\w*/y },
     ],
     sql: [
-        { kind: "comment", pattern: /--[^\n]*|\/\*[\s\S]*?\*\//y },
-        { kind: "string", pattern: /'(?:[^']|'')*'/y },
+        { kind: "comment", pattern: /--[^\n]*|\/\*[\s\S]*?(?:\*\/|$)/y },
+        { kind: "string", pattern: /'(?:[^']|'')*'?/y },
         {
             kind: "keyword",
             // Case-insensitive: SQL is written both ways and both should paint.
@@ -161,10 +218,11 @@ const GRAMMARS: Record<CodeLanguage, Rule[]> = {
 /** The shared JavaScript-family rules, with JSX tags added for tsx/jsx. */
 function jsRules(withJsx: boolean): Rule[] {
     const rules: Rule[] = [
-        { kind: "comment", pattern: /\/\/[^\n]*|\/\*[\s\S]*?\*\//y },
+        { kind: "comment", pattern: /\/\/[^\n]*|\/\*[\s\S]*?(?:\*\/|$)/y },
         {
             kind: "string",
-            pattern: /`(?:[^`\\]|\\.)*`|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/y,
+            pattern:
+                /`(?:[^`\\]|\\[\s\S])*`?|"(?:[^"\\\n]|\\[\s\S])*"?|(?<![\w$])'(?:[^'\\\n]|\\[\s\S])*'?/y,
         },
         { kind: "keyword", pattern: new RegExp(`\\b(?:${JS_KEYWORDS})\\b`, "y") },
         { kind: "literal", pattern: new RegExp(`\\b(?:${JS_LITERALS})\\b`, "y") },
@@ -174,10 +232,16 @@ function jsRules(withJsx: boolean): Rule[] {
         },
         { kind: "function", pattern: /[A-Za-z_$][\w$]*(?=\s*\()/y },
         { kind: "punctuation", pattern: /[{}[\]().,;:?!=<>+\-*/%&|^~]/y },
+        { kind: "plain", pattern: /(?:[A-Za-z_][\w$]*|\$+)/y },
     ];
     if (withJsx) {
-        // Before the keyword rule, so `<Button` reads as a tag and not as `<`.
-        rules.splice(2, 0, { kind: "tag", pattern: /<\/?[A-Za-z][\w.]*|\/>/y });
+        rules.splice(
+            1,
+            0,
+            { kind: "string", pattern: /(?:(?<==)|(?<==\s))"[^"]*"?/y },
+            { kind: "string", pattern: /(?:(?<==)|(?<==\s))'[^']*'?/y },
+        );
+        rules.splice(4, 0, { kind: "tag", pattern: /<\/?[A-Za-z][\w.]*|\/>/y });
     }
     return rules;
 }
@@ -195,13 +259,18 @@ function jsRules(withJsx: boolean): Rule[] {
  * Unknown languages produce a single `plain` token, so an unhighlighted block is
  * a normal outcome and never an error.
  *
+ * The scan is linear in the source: an unterminated string or comment becomes a
+ * single token that runs to its close, or to the end of the input — or, for a
+ * quote that cannot hold a newline and never closes, to the end of the line — so
+ * the openers inside it are never rescanned (#477).
+ *
  * @param code - The source.
  * @param language - Grammar name or alias.
  * @returns Tokens covering the input exactly, in order.
  *
  * @example
  * tokenize("const x = 1;", "ts");
- * // [{kind: "keyword", value: "const"}, {kind: "plain", value: " x "}, …]
+ * // [{kind: "keyword", value: "const"}, {kind: "plain", value: " "}, …]
  */
 export function tokenize(code: string, language: string | undefined): Token[] {
     const rules = GRAMMARS[resolveLanguage(language)];
@@ -211,8 +280,26 @@ export function tokenize(code: string, language: string | undefined): Token[] {
     let plainFrom = 0;
     let at = 0;
 
+    /**
+     * Append a token, fusing it with the previous one when both are `plain`.
+     *
+     * The `plain` rule matches an identifier run while the scanner's fallback
+     * collects the characters no rule matched, so one plain stretch of source
+     * arrives in pieces. Fusing them keeps the array shape `origin/main`
+     * produced, where a plain run was a single token and each got one span in
+     * the DOM rather than one per identifier (#477).
+     */
+    const push = (token: Token) => {
+        const last = tokens[tokens.length - 1];
+        if (last && last.kind === "plain" && token.kind === "plain") {
+            last.value += token.value;
+        } else {
+            tokens.push(token);
+        }
+    };
+
     const flushPlain = (until: number) => {
-        if (until > plainFrom) tokens.push({ kind: "plain", value: code.slice(plainFrom, until) });
+        if (until > plainFrom) push({ kind: "plain", value: code.slice(plainFrom, until) });
     };
 
     while (at < code.length) {
@@ -227,7 +314,7 @@ export function tokenize(code: string, language: string | undefined): Token[] {
         }
         if (matched) {
             flushPlain(at);
-            tokens.push(matched);
+            push(matched);
             at += matched.value.length;
             plainFrom = at;
         } else {

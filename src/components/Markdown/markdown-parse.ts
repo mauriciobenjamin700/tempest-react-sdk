@@ -64,8 +64,62 @@ const FENCE = /^\s{0,3}(`{3,}|~{3,})\s*([\w+-]*)$/;
 const HEADING_OPEN = /^\s{0,3}(#{1,6})\s+/;
 const RULE = /^\s{0,3}([-*_])\s*(?:\1\s*){2,}$/;
 const QUOTE = /^\s{0,3}>\s?(.*)$/;
-const BULLET = /^(\s*)([-*+])\s+(.*)$/;
-const ORDERED = /^(\s*)(\d{1,9})[.)]\s+(.*)$/;
+/**
+ * The opener of a list item: indentation, marker and the whitespace that
+ * separates the marker from the content.
+ *
+ * The content is sliced off with a string operation rather than captured,
+ * because it may not hold U+2028/U+2029. Those are line terminators the old
+ * `(.*)$` could not cross, so a line with one after the marker was a paragraph
+ * and has to stay one. Capturing the content with a regex that stops at them (a
+ * `[^\u2028\u2029]*`) would put the separator and the content back to racing for
+ * a run of spaces — quadratic, 3.6 s for a bullet padded with 80 000 spaces
+ * (#478). Matching only the opener and slicing sidesteps that entirely.
+ *
+ * The separator is `[^\S\n\r]`: every whitespace character except CR and LF,
+ * which a line never contains. That keeps a separator a person pastes from Word
+ * or Docs — NBSP, a form feed, a leading BOM — reading as a list, exactly as the
+ * old `\s+` did, instead of silently turning the line into a paragraph.
+ */
+const BULLET_OPENER = /^([^\S\n\r]*)([-*+])[^\S\n\r]+/;
+const ORDERED_OPENER = /^([^\S\n\r]*)(\d{1,9})[.)][^\S\n\r]+/;
+
+/** A list item's opener: how far it is indented, its marker and its content. */
+interface ListOpener {
+    indent: string;
+    marker: string;
+    content: string;
+}
+
+/**
+ * Read a list item's opener, or `null` when the line is not one.
+ *
+ * A line whose content holds U+2028/U+2029 is not a list item: the old `(.*)$`
+ * stopped at the separator, never reached `$`, and left the line a paragraph,
+ * and {@link parseMarkdown} still splits only on `\n` and `\r`. Keeping that
+ * here is what lets the opener stay a plain pattern with no `.*` to race.
+ *
+ * @param pattern - {@link BULLET_OPENER} or {@link ORDERED_OPENER}.
+ * @param line - One source line.
+ * @returns The opener, or `null` when the line is not a list item.
+ */
+function matchListOpener(pattern: RegExp, line: string): ListOpener | null {
+    const match = pattern.exec(line);
+    if (!match) return null;
+    const content = line.slice(match[0].length);
+    if (content.includes("\u2028") || content.includes("\u2029")) return null;
+    return { indent: match[1], marker: match[2], content };
+}
+
+/** {@link matchListOpener} for a bullet. */
+function matchBullet(line: string): ListOpener | null {
+    return matchListOpener(BULLET_OPENER, line);
+}
+
+/** {@link matchListOpener} for an ordered marker. */
+function matchOrdered(line: string): ListOpener | null {
+    return matchListOpener(ORDERED_OPENER, line);
+}
 /**
  * A table's delimiter row, matched against the line **after** `trimEnd()`.
  *
@@ -212,7 +266,7 @@ function parseBlocks(lines: string[], depth: number): MarkdownBlock[] {
             continue;
         }
 
-        if (BULLET.test(line) || ORDERED.test(line)) {
+        if (matchBullet(line) || matchOrdered(line)) {
             const [list, next] = parseList(lines, i, depth);
             blocks.push(list);
             i = next;
@@ -239,8 +293,8 @@ function parseBlocks(lines: string[], depth: number): MarkdownBlock[] {
                 RULE.test(current) ||
                 FENCE.test(current.trimEnd()) ||
                 QUOTE.test(current) ||
-                BULLET.test(current) ||
-                ORDERED.test(current)
+                matchBullet(current) ||
+                matchOrdered(current)
             ) {
                 break;
             }
@@ -292,14 +346,14 @@ function joinParagraph(lines: readonly string[], hardBreaks: readonly boolean[])
  * @returns The list node and the index of the first line after it.
  */
 function parseList(lines: string[], start: number, depth: number): [MarkdownBlock, number] {
-    const bulletStart = BULLET.exec(lines[start]);
-    const orderedStart = ORDERED.exec(lines[start]);
+    const bulletStart = matchBullet(lines[start]);
+    const orderedStart = matchOrdered(lines[start]);
     // The two markers are mutually exclusive — `-*+` versus digits — so whichever
     // matched decides the list kind.
     const ordered = orderedStart !== null;
     const first = orderedStart ?? bulletStart;
-    const baseIndent = (first?.[1] ?? "").length;
-    const startNumber = ordered ? Number(orderedStart?.[2] ?? 1) : 1;
+    const baseIndent = first?.indent.length ?? 0;
+    const startNumber = ordered ? Number(orderedStart?.marker ?? 1) : 1;
 
     const items: MarkdownBlock[][] = [];
     let buffer: string[] = [];
@@ -323,15 +377,15 @@ function parseList(lines: string[], start: number, depth: number): [MarkdownBloc
             }
             break;
         }
-        const bullet = BULLET.exec(line);
-        const numbered = ORDERED.exec(line);
+        const bullet = matchBullet(line);
+        const numbered = matchOrdered(line);
         const match = bullet ?? numbered;
 
-        if (match && match[1].length <= baseIndent) {
+        if (match && match.indent.length <= baseIndent) {
             const sameKind = ordered ? Boolean(numbered) : Boolean(bullet);
             if (!sameKind) break;
             flush();
-            buffer.push(match[3]);
+            buffer.push(match.content);
             i += 1;
             continue;
         }

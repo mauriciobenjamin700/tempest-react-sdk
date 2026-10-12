@@ -185,6 +185,8 @@ import { Markdown } from "tempest-react-sdk";
 !!! check "Hostile text does not freeze the tab"
     Parsing is **linear** in the length of the text: no regex in the parser has two quantifiers competing for the same run. Before 0.77.0, `"# a" + " ".repeat(4000) + "b"` — 4 KB in a comment — cost 4.7 s of main thread on every render, and the cost grew cubically. Today a heading line with 50 KB of spaces parses in under 1 ms (measured with `performance.now()` on Node 24; the time ceiling is pinned by a test in `markdown-parse.test.ts`).
 
+    Since 0.78.0 the same holds for list items: `- ` or `1. ` followed by 80 KB of spaces and a line separator (U+2028/U+2029) made the list regexes race for the run — 3.6 s per line, twice per line. Today it parses under the same ceiling.
+
     Quotes and lists nest up to **32 levels**. Past that the content becomes a paragraph: the words stay, only the nesting is dropped. Without the cap, `"- ".repeat(20000)` overflowed the stack (`RangeError`) and took down the React tree of whoever merely opened the conversation.
 
 !!! warning "It is a subset, and that is the chosen ceiling"

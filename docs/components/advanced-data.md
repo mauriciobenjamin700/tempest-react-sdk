@@ -188,6 +188,8 @@ import { Markdown } from "tempest-react-sdk";
 !!! check "Texto hostil não trava a aba"
     O parse é **linear** no tamanho do texto: nenhuma regex do parser tem dois quantificadores disputando o mesmo trecho. Antes da 0.77.0, `"# a" + " ".repeat(4000) + "b"` — 4 KB num comentário — custava 4,7 s de main thread a cada render, e o custo crescia ao cubo. Hoje uma linha de heading com 50 KB de espaços parseia em menos de 1 ms (medido com `performance.now()` em Node 24; o teto de tempo está fixado em teste no `markdown-parse.test.ts`).
 
+    Desde a 0.78.0 o mesmo vale para os itens de lista: `- ` ou `1. ` seguido de 80 KB de espaços e um separador de linha (U+2028/U+2029) fazia as regex de lista disputarem a corrida — 3,6 s por linha, duas vezes por linha. Hoje parseia no mesmo teto.
+
     Citação e lista aninham até **32 níveis**. Dali em diante o conteúdo vira parágrafo: as palavras ficam, só o aninhamento cai. Sem o teto, `"- ".repeat(20000)` estourava a pilha (`RangeError`) e derrubava a árvore React de quem só abriu a conversa.
 
 !!! warning "É um subconjunto, e isso é o teto escolhido"

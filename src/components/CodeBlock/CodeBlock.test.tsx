@@ -32,6 +32,15 @@ describe("CodeBlock — the code itself", () => {
         expect(kinds).toContain("number");
     });
 
+    it("renders one plain span per plain run, not one per identifier", () => {
+        const { container } = render(
+            <CodeBlock code="alpha beta gamma" language="ts" copyable={false} />,
+        );
+        const plains = [...container.querySelectorAll('[data-token="plain"]')];
+        expect(plains).toHaveLength(1);
+        expect(plains[0].textContent).toBe("alpha beta gamma");
+    });
+
     it("renders an unknown language as plain text rather than failing", () => {
         const { container } = render(<CodeBlock code="MOVE A TO B." language="cobol" />);
         expect(rendered(container)).toBe("MOVE A TO B.");
@@ -142,5 +151,35 @@ describe("CodeBlock — layout", () => {
         const wrapper = container.firstElementChild as HTMLElement;
         expect(wrapper).toHaveClass("x");
         expect(wrapper).toHaveAttribute("data-testid", "cb");
+    });
+});
+
+/**
+ * Run `work` and return how long it took, in milliseconds.
+ *
+ * The budget is well above what trimming a single block needs under coverage
+ * instrumentation, and below what the trailing-whitespace regex took before
+ * #476: `"a" + " ".repeat(80_000) + "x"` cost about 1.3 s, quadratic in the run.
+ */
+function elapsed(work: () => unknown): number {
+    const start = performance.now();
+    work();
+    return performance.now() - start;
+}
+
+/** Ceiling for one render of an adversarial input, in milliseconds. */
+const BUDGET_MS = 250;
+
+describe("CodeBlock — hostile input stays linear (#476)", () => {
+    it("trims a long inner run of spaces without quadratic backtracking", () => {
+        const code = `const a = 1;${" ".repeat(80_000)}x`;
+        expect(
+            elapsed(() => render(<CodeBlock code={code} language="plain" copyable={false} />)),
+        ).toBeLessThan(BUDGET_MS);
+    });
+
+    it("trims trailing whitespace including tabs and newlines", () => {
+        const { container } = render(<CodeBlock code={"const a = 1;\t \n\n"} language="ts" />);
+        expect(rendered(container)).toBe("const a = 1;");
     });
 });

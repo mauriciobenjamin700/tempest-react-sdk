@@ -100,8 +100,11 @@ registry é a versão; Release existente não é tocado). `latest` só para vers
 maior ou igual (igual = re-run), prerelease `next`, menor `release-<maj>.<min>` —
 `v0.75` não serve, o npm recusa dist-tag que é range semver. Dist-tag se lê de
 `npm view <pkg> dist-tags --json`: `dist-tags.release-0.75` é lido como caminho e
-volta vazio. Só `E404` é pacote novo; vazio com código 0 reprova. O job `publish`
-não faz checkout, então o script viaja no artifact com SHA-256 conferido. Um
+volta vazio. Só `E404` é pacote novo; vazio com código 0 reprova. Os jobs `publish`
+e `release` rodam o script de um checkout próprio do `GITHUB_SHA` (no `publish`,
+esparso, só do arquivo); o artifact leva só o tarball e é baixado fora do
+checkout — script que viaja no artifact sai de um workspace que já rodou `npm ci`
+(#495). Um
 release por vez: `concurrency` de grupo único `release-npm` (o GitHub guarda um
 pendente por grupo, o terceiro cancela o segundo). Backport precisa ter este
 workflow — tag push roda o `release-npm.yml` do commit da tag. Revisor obrigatório no environment `npm-release` e o

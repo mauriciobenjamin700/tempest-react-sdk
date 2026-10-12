@@ -122,8 +122,13 @@ describe("generate — FastAPI-style spec", () => {
         // create with Zod input validation
         expect(svc).toContain("S.UserCreateSchema.parse(body);");
         expect(svc).toMatch(/async createUser\(body: UserCreate\): Promise<User>/);
-        // path param interpolation
         expect(svc).toMatch(/async getUser\(id: number\): Promise<User>/);
-        expect(svc).toContain("return this.api.get<User>(`/users/${id}`);");
+    });
+
+    it("wraps every path param in encodeIdSegment — the raw `${id}` this used to pin sent '../../account' to /account with the Bearer (#499, the class #438 closed)", () => {
+        const svc = files["users/service.ts"];
+        expect(svc).not.toContain("`/users/${id}`");
+        expect(svc).toContain("return this.api.get<User>(`/users/${encodeIdSegment(id)}`);");
+        expect(svc).toContain('import { encodeIdSegment } from "tempest-react-sdk";');
     });
 });

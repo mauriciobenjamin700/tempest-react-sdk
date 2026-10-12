@@ -104,6 +104,32 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **Os serviços do `tempest gen api` interpolavam o parâmetro de path cru, e `../` no id levava a
+  requisição — com o Bearer — para outro endpoint** (#499). `deleteComment("../../account")` saía
+  como `DELETE /account`; com `baseURL` `https://api/v1`, `"../../../account"` escapava do `/v1`; e
+  `"7?role=admin"` injetava query string. Agora todo parâmetro de path entra na URL como
+  `${encodeIdSegment(id)}` — o mesmo helper que fechou a #438 no `createDataProvider` —, e o
+  `service.ts` que o usa ganha `import { encodeIdSegment } from "tempest-react-sdk"`. `/`, `?`, `#` e
+  `%` ficam no segmento; `""`, `"."`, `".."`, `null` e `undefined` lançam `TypeError` antes do
+  `fetch`. Parâmetro `boolean`, array ou objeto passa com `as never` (o helper converte com `String()`
+  e mantém a rejeição de `null`). Nenhuma assinatura de método gerado muda; parâmetro de path chamado
+  `encodeIdSegment` vira `encodeIdSegmentParam` e schema com esse nome ganha prefixo `_`. **Regenere**
+  os serviços (`tempest gen api`) para receber a proteção.
+
+- **`release-npm.yml` — o `release-dist-tag.sh` que roda nos jobs privilegiados sai do commit, não do
+  workspace do build** (#495). O digest do script era tirado no passo Pack, depois de `npm ci`, testes e
+  build, e o script viajava no artifact; o `publish` (`id-token: write`) e o `release`
+  (`contents: write`) conferiam a cópia contra esse digest e a executavam. Um `postinstall` de
+  dependência que reescrevesse o script passava na conferência: reproduzido em sandbox da auditoria
+  (`evidence-hashchain-npmci.txt`), a conferência no estilo do workflow deu `OK` com o script trocado e
+  ele rodou; contra o digest do commit, `FAILED`. Agora o artifact leva só o tarball, o output
+  `release_script_sha256` e as conferências dele saem, e os dois jobs rodam o script de um
+  `actions/checkout` próprio de `github.sha` (`persist-credentials: false`; no `publish`, esparso, só do
+  arquivo, sem instalação depois), baixando o artifact em `$RUNNER_TEMP/npm-tarball`, fora do checkout.
+  Guard novo em `test/release-workflow.test.ts` (`npx vitest run test/release-workflow.test.ts`): no
+  workflow anterior, 8 de 55 testes falham; depois, 55/55. A execução no runner hospedado não foi
+  observada — a medição é do workflow lido como texto.
+
 - **`createTempestAuth`: um 401 sem token durante o `login()` não dispara mais refresh** (#496). A
   #474 fechou o caso todo deslogado, mas com um `login()` em voo o 401 ainda renovava — e no modo
   cookie esse refresh ia com o cookie que o navegador tivesse: depois do `logout()` sem `logoutPath`
@@ -122,6 +148,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   que, sem revogação no servidor funcionando, a conta que saiu continua restaurável pelo `refresh()`
   do boot. Custo, medido com `npx size-limit` (`b0dc694` × esta mudança): barrel CJS 173,51 →
   173,73 kB (teto 173,6 → 173,75 kB); barrel ESM 145,92 → 145,94 kB, dentro do teto.
+
 - **`retry(factory, { retries: 0 })` nunca chamava a `factory` e rejeitava com `undefined`** (#486). O
   laço era `while (attempt < retries)`, então `0`, qualquer negativo e `NaN` pulavam a tentativa: a
   request não saía e o erro não dizia nada. Agora a primeira tentativa sempre roda — `0`/negativo fazem

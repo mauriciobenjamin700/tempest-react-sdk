@@ -63,6 +63,7 @@ export type UserCreate = z.infer<typeof S.UserCreateSchema>;
 
 ```ts
 import type { ApiClient } from "tempest-react-sdk";
+import { encodeIdSegment } from "tempest-react-sdk";
 import * as S from "./schemas";
 import type { User, UserCreate } from "./types";
 
@@ -82,10 +83,36 @@ export class UsersService {
 
   /** `GET /users/{id}` */
   async getUser(id: number): Promise<User> {
-    return this.api.get<User>(`/users/${id}`);
+    return this.api.get<User>(`/users/${encodeIdSegment(id)}`);
   }
 }
 ```
+
+### A path parameter becomes **exactly one segment**
+
+Note the `encodeIdSegment(id)` above: every path parameter goes through it
+before reaching the URL. The `id` value often comes from outside the app — a
+React Router param, a search param, a value another user stored. Left raw,
+`"../../account"` would send `DELETE /users/{id}` to `DELETE /account`, **with
+the signed-in user's Bearer**, and `"7?role=admin"` would inject a query string.
+It is the same protection [`createDataProvider`](./data-provider.md) has applied
+since 0.77.0:
+
+| Value passed | Request sent |
+| --- | --- |
+| `7` | `GET /users/7` |
+| `"../../account"` | `GET /users/..%2F..%2Faccount` |
+| `"7?role=admin"` | `GET /users/7%3Frole%3Dadmin` |
+| `"7#x"` | `GET /users/7%23x` |
+| `""`, `"."`, `".."`, `null`, `undefined` | none — throws `TypeError` before the `fetch` |
+
+A parameter typed as `boolean`, array or object goes through `encodeIdSegment`
+too (with a type assertion, since it accepts `string | number`): `true` becomes
+`true`, `["a", "b"]` becomes `a%2Cb`.
+
+!!! tip "Regenerate to get the protection"
+    Services generated before this version interpolate the parameter raw. Run
+    `tempest gen api` again — no method signature changes.
 
 ## How to use it
 
@@ -160,10 +187,11 @@ function UserList() {
     is not a declared parameter — there is no safe variable for it.
 
     The same goes for names the generator itself uses. A path parameter that
-    would land on `body`, `params` or `S` becomes `bodyParam`/`paramsParam`/
-    `SParam`; an `operationId` of `constructor` or `api` becomes
-    `constructor2`/`api2`; a schema named `ApiClient`, `OffsetPage`, `CursorPage`,
-    `Promise`, `Record`, `z` or `S` gets a `_` prefix; and two tags whose barrel
+    would land on `body`, `params`, `S` or `encodeIdSegment` becomes
+    `bodyParam`/`paramsParam`/`SParam`/`encodeIdSegmentParam`; an `operationId`
+    of `constructor` or `api` becomes `constructor2`/`api2`; a schema named
+    `ApiClient`, `OffsetPage`, `CursorPage`, `Promise`, `Record`, `z`, `S` or
+    `encodeIdSegment` gets a `_` prefix; and two tags whose barrel
     names coincide (`user 1` and `user1`) are refused, naming both. A `pattern`
     that does not compile as a JavaScript regex fails **generation**, naming the
     schema and the property path — instead of breaking the app on import.
@@ -172,5 +200,6 @@ function UserList() {
 
 - `tempest gen api <url|file> --out src/api` generates, **per route group**, three files: `schemas.ts` (Zod), `types.ts` (`z.infer`) and `service.ts` (class).
 - The service class takes an injected `ApiClient` and **validates the body with Zod** before calling the API.
+- Every path parameter goes through `encodeIdSegment`: it stays in one segment, and `""`/`"."`/`".."` throw before the request.
 - Treat `src/api/` as a generated artifact — **regenerate** when the contract changes.
 - See also: [HTTP / `createApiClient`](./http.md) · [Query](./query.md) · [`tempest` CLI](./cli.md).

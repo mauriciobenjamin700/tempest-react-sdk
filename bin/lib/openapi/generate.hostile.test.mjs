@@ -6,6 +6,7 @@ import vm from "node:vm";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
+import { encodeIdSegment } from "../../../src/data";
 import { generate } from "./generate.mjs";
 
 const require = createRequire(import.meta.url);
@@ -14,7 +15,9 @@ const require = createRequire(import.meta.url);
  *
  * The context gets its own `globalThis`, so any `globalThis.PWNED_*` an injected
  * statement sets lands on `context` and the test can read it back. `zod` is the
- * real package; `./schemas` resolves to the module evaluated before it.
+ * real package, `tempest-react-sdk` exposes the real `encodeIdSegment` every path
+ * parameter goes through (#499); `./schemas` resolves to the module evaluated
+ * before it.
  *
  * @param {string} source - The generated `.ts` contents.
  * @param {object} context - The VM context shared by the group's files.
@@ -33,7 +36,8 @@ function evaluate(source, context, modules) {
     const module = { exports: {} };
     const localRequire = (id) => {
         if (id in modules) return modules[id];
-        if (id === "zod" || id === "tempest-react-sdk") return id === "zod" ? require("zod") : {};
+        if (id === "zod") return require("zod");
+        if (id === "tempest-react-sdk") return { encodeIdSegment };
         throw new Error(`unexpected import ${id}`);
     };
     vm.runInContext(`(function (exports, require, module) {\n${outputText}\n})`, context)(
@@ -398,7 +402,7 @@ const REPO = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
  *
  * Files live in a virtual folder under the repository so `zod` resolves from its
  * `node_modules`; `tempest-react-sdk` is swapped for a stub with the three types
- * the generator imports from it.
+ * and the `encodeIdSegment` value the generator imports from it.
  *
  * @param {Record<string, string>} files - The generator output.
  * @param {string} slug - The group folder.
@@ -409,7 +413,7 @@ function typecheck(files, slug) {
     const virtual = new Map(
         ["schemas.ts", "types.ts", "service.ts"].map((f) => [
             join(root, f),
-            files[`${slug}/${f}`].replace('from "tempest-react-sdk"', 'from "./sdk"'),
+            files[`${slug}/${f}`].replaceAll('from "tempest-react-sdk"', 'from "./sdk"'),
         ]),
     );
     virtual.set(
@@ -419,6 +423,7 @@ function typecheck(files, slug) {
             "export type ApiClient = { get: Call; post: Call; put: Call; patch: Call; delete: Call };",
             "export type OffsetPage<T> = { items: T[]; total: number };",
             "export type CursorPage<T> = { items: T[]; next_cursor: string | null };",
+            "export declare function encodeIdSegment(id: string | number): string;",
         ].join("\n"),
     );
     const options = {
@@ -451,11 +456,11 @@ const JSON_BODY = (ref) => ({
 const JSON_OK = (ref) => ({ 200: JSON_BODY(ref) });
 
 describe("generate — names that collide with what the generator itself declares", () => {
-    it("a path parameter named body, params or S is renamed, not duplicated or shadowing", async () => {
+    it("a path parameter named body, params, S or encodeIdSegment is renamed, not duplicated or shadowing", async () => {
         const { files } = generate(
             spec(
                 {
-                    "/a/{body}/{params}/{S}": {
+                    "/a/{body}/{params}/{S}/{encodeIdSegment}": {
                         post: {
                             tags: ["t"],
                             operationId: "send",
@@ -463,6 +468,7 @@ describe("generate — names that collide with what the generator itself declare
                                 { name: "body", in: "path", required: true },
                                 { name: "params", in: "path", required: true },
                                 { name: "S", in: "path", required: true },
+                                { name: "encodeIdSegment", in: "path", required: true },
                                 { name: "q", in: "query" },
                             ],
                             requestBody: JSON_BODY("Req"),
@@ -479,8 +485,11 @@ describe("generate — names that collide with what the generator itself declare
         const mod = evaluate(files["t/service.ts"], context, { "./schemas": S });
         const calls = [];
         const api = { post: async (url, opts) => calls.push({ url, opts }) };
-        await new mod.TService(api).send("b", "p", "s", { k: 1 }, { q: "x" });
-        expect(calls).toEqual([{ url: "/a/b/p/s", opts: { body: { k: 1 }, params: { q: "x" } } }]);
+        await new mod.TService(api).send("b", "p", "s", "e/x", { k: 1 }, { q: "x" });
+        expect(files["t/service.ts"]).toContain("${encodeIdSegment(encodeIdSegmentParam)}");
+        expect(calls).toEqual([
+            { url: "/a/b/p/s/e%2Fx", opts: { body: { k: 1 }, params: { q: "x" } } },
+        ]);
     });
 
     it("an operationId of constructor or api becomes a distinct method", async () => {
@@ -541,7 +550,16 @@ describe("generate — names that collide with what the generator itself declare
                 size: { type: "integer" },
             },
         };
-        const names = ["ApiClient", "OffsetPage", "CursorPage", "Promise", "Record", "z", "S"];
+        const names = [
+            "ApiClient",
+            "OffsetPage",
+            "CursorPage",
+            "Promise",
+            "Record",
+            "z",
+            "S",
+            "encodeIdSegment",
+        ];
         const paths = Object.fromEntries(
             names.map((n, i) => [
                 `/n${i}`,
@@ -556,10 +574,21 @@ describe("generate — names that collide with what the generator itself declare
                 },
             },
         };
+        paths["/p/{id}"] = {
+            get: {
+                tags: ["t"],
+                parameters: [{ name: "id", in: "path", required: true }],
+                responses: OK,
+            },
+        };
         const schemas = Object.fromEntries(names.map((n) => [n, { type: "object" }]));
         schemas.Page = page;
         const { files } = generate(spec(paths, schemas));
         expect(files["t/service.ts"]).toContain("OffsetPage<_Promise>");
+        expect(files["t/service.ts"]).toContain(
+            'import { encodeIdSegment } from "tempest-react-sdk";',
+        );
+        expect(files["t/types.ts"]).toContain("export type _encodeIdSegment =");
         expect(typecheck(files, "t")).toEqual([]);
     });
 

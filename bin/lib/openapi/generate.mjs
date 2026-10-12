@@ -51,11 +51,34 @@ const CLASS_MEMBERS = ["constructor", "api"];
 
 /**
  * Names a generated method body uses besides its path parameters: the `body` and
- * `params` arguments and the `S` schemas import. A path parameter that maps to one
- * of them becomes `<name>Param` (`{body}` → `bodyParam`), so it neither duplicates
- * an argument nor shadows the import.
+ * `params` arguments, the `S` schemas import and the `encodeIdSegment` import. A
+ * path parameter that maps to one of them becomes `<name>Param` (`{body}` →
+ * `bodyParam`), so it neither duplicates an argument nor shadows the import.
  */
-const METHOD_LOCALS = new Set(["body", "params", "S"]);
+const METHOD_LOCALS = new Set(["body", "params", "S", "encodeIdSegment"]);
+
+/**
+ * Whether a path parameter's schema only ever produces a `string` or a `number` —
+ * the types `encodeIdSegment(id: string | number)` accepts — so the generated call
+ * can pass the argument as is.
+ *
+ * `$ref` chains are followed, and `anyOf`/`oneOf`/single-member `allOf` qualify
+ * when every branch does. `null`, `boolean`, arrays, objects and anything
+ * unrecognised do not.
+ *
+ * @param {object | undefined} schema - The parameter's schema.
+ * @param {Record<string, object>} schemas - `components.schemas`.
+ * @param {number} [depth] - Recursion guard for self-referencing unions.
+ * @returns {boolean} `true` when the TypeScript type is assignable to `string | number`.
+ */
+function isSegmentScalar(schema, schemas, depth = 0) {
+    const node = resolveSchema(schema, schemas);
+    if (!node || typeof node !== "object" || depth > 16) return false;
+    const branches = node.anyOf ?? node.oneOf ?? (node.allOf?.length === 1 ? node.allOf : null);
+    if (branches) return branches.every((b) => isSegmentScalar(b, schemas, depth + 1));
+    if (node.nullable || Array.isArray(node.type)) return false;
+    return node.type === "string" || node.type === "integer" || node.type === "number";
+}
 
 /**
  * Check every `pattern` in a schema compiles as a JavaScript regex.
@@ -311,8 +334,13 @@ export function generate(doc) {
         const sdkTypes = ["ApiClient"];
         if (body.includes("OffsetPage<")) sdkTypes.push("OffsetPage");
         if (body.includes("CursorPage<")) sdkTypes.push("CursorPage");
+        const sdkValues = body.includes("encodeIdSegment(")
+            ? `import { encodeIdSegment } from "tempest-react-sdk";\n`
+            : "";
         files[`${slug}/service.ts`] =
-            `import type { ${sdkTypes.join(", ")} } from "tempest-react-sdk";\n\n` +
+            `import type { ${sdkTypes.join(", ")} } from "tempest-react-sdk";\n` +
+            sdkValues +
+            "\n" +
             schemaImport +
             typeImport +
             `\n/** Generated service for the "${commentText(tag)}" routes. Inject an ApiClient (createApiClient). */\n` +
@@ -353,6 +381,13 @@ function emitMethod(method, path, op, schemas, usedNames = new Set()) {
         return METHOD_LOCALS.has(id) ? `${id}Param` : id;
     };
     const paramIds = new Map(pathParams.map((p) => [p.name, paramId(p.name)]));
+    const segmentArgs = new Map(
+        pathParams.map((p) => {
+            const id = paramIds.get(p.name);
+            const schema = p.schema ?? { type: "string" };
+            return [p.name, isSegmentScalar(schema, schemas) ? id : `${id} as never`];
+        }),
+    );
     assertNoCollision(
         [
             ...[...paramIds],
@@ -389,7 +424,7 @@ function emitMethod(method, path, op, schemas, usedNames = new Set()) {
         args.push(`params: { ${q} }`);
     }
 
-    const url = urlTemplate(path, paramIds);
+    const url = urlTemplate(path, segmentArgs);
 
     const callOpts = [];
     if (body) callOpts.push("body");

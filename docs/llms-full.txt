@@ -25195,6 +25195,7 @@ export type UserCreate = z.infer<typeof S.UserCreateSchema>;
 
 ```ts
 import type { ApiClient } from "tempest-react-sdk";
+import { encodeIdSegment } from "tempest-react-sdk";
 import * as S from "./schemas";
 import type { User, UserCreate } from "./types";
 
@@ -25214,10 +25215,36 @@ export class UsersService {
 
   /** `GET /users/{id}` */
   async getUser(id: number): Promise<User> {
-    return this.api.get<User>(`/users/${id}`);
+    return this.api.get<User>(`/users/${encodeIdSegment(id)}`);
   }
 }
 ```
+
+### Parâmetro de path vira **um segmento só**
+
+Repare no `encodeIdSegment(id)` acima: todo parâmetro de path passa por ele
+antes de entrar na URL. O valor do `id` costuma vir de fora do app — um param do
+React Router, um search param, um valor que outro usuário gravou. Se ele
+entrasse cru, `"../../account"` levaria o `DELETE /users/{id}` para
+`DELETE /account`, **com o Bearer do usuário logado**, e `"7?role=admin"`
+injetaria query string. É a mesma proteção que o
+[`createDataProvider`](./data-provider.md) aplica desde a 0.77.0:
+
+| Valor passado | Requisição enviada |
+| --- | --- |
+| `7` | `GET /users/7` |
+| `"../../account"` | `GET /users/..%2F..%2Faccount` |
+| `"7?role=admin"` | `GET /users/7%3Frole%3Dadmin` |
+| `"7#x"` | `GET /users/7%23x` |
+| `""`, `"."`, `".."`, `null`, `undefined` | nenhuma — lança `TypeError` antes do `fetch` |
+
+Parâmetro tipado como `boolean`, array ou objeto também passa pelo
+`encodeIdSegment` (com uma asserção de tipo, já que ele aceita
+`string | number`): `true` vira `true`, `["a", "b"]` vira `a%2Cb`.
+
+!!! tip "Regenere para receber a proteção"
+    Serviços gerados antes desta versão interpolam o parâmetro cru. Rode
+    `tempest gen api` de novo — nenhuma assinatura de método muda.
 
 ## Como usar
 
@@ -25292,10 +25319,11 @@ function UserList() {
     variável segura para ele.
 
     O mesmo vale para nomes que o próprio gerador já usa. Parâmetro de path que
-    cairia em `body`, `params` ou `S` vira `bodyParam`/`paramsParam`/`SParam`;
-    `operationId` `constructor` ou `api` vira `constructor2`/`api2`; schema
-    chamado `ApiClient`, `OffsetPage`, `CursorPage`, `Promise`, `Record`, `z` ou
-    `S` ganha prefixo `_`; e duas tags cujo nome no barrel coincide (`user 1` e
+    cairia em `body`, `params`, `S` ou `encodeIdSegment` vira
+    `bodyParam`/`paramsParam`/`SParam`/`encodeIdSegmentParam`; `operationId`
+    `constructor` ou `api` vira `constructor2`/`api2`; schema chamado
+    `ApiClient`, `OffsetPage`, `CursorPage`, `Promise`, `Record`, `z`, `S` ou
+    `encodeIdSegment` ganha prefixo `_`; e duas tags cujo nome no barrel coincide (`user 1` e
     `user1`) são recusadas citando as duas. Um `pattern` que não compila como
     regex JavaScript falha a **geração**, citando o schema e o caminho da
     propriedade — em vez de quebrar o app no import.
@@ -25304,6 +25332,7 @@ function UserList() {
 
 - `tempest gen api <url|file> --out src/api` gera, **por grupo de rotas**, três arquivos: `schemas.ts` (Zod), `types.ts` (`z.infer`) e `service.ts` (classe).
 - A classe de serviço recebe um `ApiClient` injetado e **valida o body com Zod** antes de chamar a API.
+- Todo parâmetro de path passa por `encodeIdSegment`: fica num segmento só, e `""`/`"."`/`".."` lançam antes da requisição.
 - Trate `src/api/` como artefato gerado — **regenere** quando o contrato mudar.
 - Veja também: [HTTP / `createApiClient`](./http.md) · [Query](./query.md) · [CLI `tempest`](./cli.md).
 
@@ -27443,7 +27472,7 @@ Passos, na ordem:
 2. **Node 22** + cache npm.
 3. **Guard de ref** (`scripts/check-release-ref.sh`) — **aborta**, antes de qualquer instalação, se o ref da run não é uma tag `vX.Y.Z` (ou `vX.Y.Z-pre`), se a tag não descreve o `version` do `package.json`, ou se ela não aponta para o commit em checkout (`GITHUB_SHA`). Vale para tag push e para `workflow_dispatch`. Também deriva `prerelease` (versão com `-`) para marcar o Release corretamente, e escolhe o dist-tag comparando a versão com o `latest` atual do registry, que o passo anterior lê com `scripts/release-dist-tag.sh current-latest` (veja [Dist-tags](#dist-tags)).
 4. **`npm ci`**, **lint**, **format check**, **typecheck**, **testes** e **build**.
-5. **`npm pack`** — o tarball sobe como artifact `npm-tarball-<tentativa>` (um nome por `run_attempt`, para um re-run completo não colidir com o artifact da primeira tentativa) e o SHA-256 dele vira output do job. Output de job não pode ser reescrito por job posterior, então todo job que baixa o artifact confere o digest antes de usá-lo (`sha256sum --check`).
+5. **`npm pack`** — o tarball sobe como artifact `npm-tarball-<tentativa>` (um nome por `run_attempt`, para um re-run completo não colidir com o artifact da primeira tentativa) e o SHA-256 dele vira output do job. Output de job não pode ser reescrito por job posterior, então todo job que baixa o artifact confere o digest antes de usá-lo (`sha256sum --check`). O artifact leva **só o tarball**: o workspace do `build` já rodou `npm ci`, testes e build, e um arquivo dali pode ter sido reescrito por código de dependência — um digest tirado depois disso só atestaria a troca. Os jobs `publish` e `release` rodam `scripts/` de um checkout próprio do `GITHUB_SHA` (`persist-credentials: false`; no `publish`, checkout esparso só de `scripts/release-dist-tag.sh`, sem instalação nenhuma depois) e baixam o artifact em `$RUNNER_TEMP/npm-tarball`, fora do checkout, para ele não sobrescrever nada.
 6. **Smoke** (job `smoke`) — instala o tarball em `/tmp/sdk-smoke` com `react@^19 react-dom@^19 react-router@^8` e empacota com esbuild, roda as mesmas asserções em Node cru com o `node-css-loader` publicado, e roda uma suíte Vitest de consumidor (`scripts/smoke-vitest.sh`). Essas instalações resolvem versões flutuantes do registry — por isso moram num job sem permissão de escrita nenhuma.
 7. **`npm publish "./<tarball>" --provenance --access public`** (job `publish`) via **Trusted Publishing (OIDC)** — sem `NPM_TOKEN`. Publica **o arquivo** que o `build` empacotou e o `smoke` testou: publish de diretório re-rodaria o `prepublishOnly` (typecheck + lint + a suíte inteira + build) dentro do job com `id-token`, e mandaria um pack novo em vez do testado; publish de tarball não roda script de ciclo de vida nenhum. O `--tag` é escolhido de novo **imediatamente antes** do upload, relendo o `latest` do registry com o mesmo script do guard — o `build` leu minutos antes, e outro release pode tê-lo movido (veja [Dist-tags](#dist-tags)). O npm CLI é instalado em versão exata (`npm install -g npm@12.2.0`), não `@latest`.
 8. **Read-back do registry** — confirma que o npm serve `tempest-react-sdk@<versão>` (até 30 minutos, porque o registry processa o upload de forma assíncrona) **e** que o dist-tag dela (`latest`, `next` ou `release-<major>.<minor>`) aponta para ela — com a mesma janela de 30 minutos, porque o dist-tag atrasa tanto quanto a versão. Falha o job caso contrário: publish que aterrissou em outra tag deixaria de parecer verde. A espera do dist-tag só roda quando esta run fez o upload: num re-run o publish é pulado, não aplica tag nenhuma, e a run que publicou já esperou pela dela.

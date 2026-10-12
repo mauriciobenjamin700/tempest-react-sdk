@@ -1,7 +1,11 @@
 /* eslint-disable react-hooks/refs -- the ref is read inside deferred callbacks, not during render */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLatestRef } from "@/hooks/use-latest-ref";
-import { WebPushClient, type WebPushClientConfig } from "./web-push-client";
+import {
+    WebPushClient,
+    WebPushUnsubscribeError,
+    type WebPushClientConfig,
+} from "./web-push-client";
 import { isPushSupported } from "./utils";
 
 export interface UsePushSubscriptionResult {
@@ -96,6 +100,7 @@ export function usePushSubscription(config: WebPushClientConfig): UsePushSubscri
             await client.unsubscribe();
             setSubscribed(false);
         } catch (err) {
+            if (err instanceof WebPushUnsubscribeError) setSubscribed(!err.browserUnsubscribed);
             setError(err instanceof Error ? err : new Error(String(err)));
             throw err;
         } finally {

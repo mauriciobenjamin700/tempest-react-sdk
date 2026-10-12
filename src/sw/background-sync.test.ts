@@ -49,9 +49,11 @@ afterEach(() => {
 
 function countQueue(name: string): Promise<number> {
     return new Promise((resolve, reject) => {
-        const open = indexedDB.open(name, 1);
-        open.onupgradeneeded = () =>
-            open.result.createObjectStore("requests", { keyPath: "id", autoIncrement: true });
+        const open = indexedDB.open(name);
+        open.onupgradeneeded = () => {
+            if (!open.result.objectStoreNames.contains("requests"))
+                open.result.createObjectStore("requests", { keyPath: "id", autoIncrement: true });
+        };
         open.onsuccess = () => {
             const db = open.result;
             const req = db.transaction("requests", "readonly").objectStore("requests").count();
@@ -430,7 +432,7 @@ describe("installBackgroundSync — when IndexedDB itself refuses", () => {
     it("swallows a replay the fallback listener could not even open", async () => {
         const queue = "test-q-fallback-broken";
         await new Promise<void>((resolve, reject) => {
-            const open = indexedDB.open(queue, 2);
+            const open = indexedDB.open(queue, 3);
             open.onupgradeneeded = () => open.result.createObjectStore("requests");
             open.onsuccess = () => {
                 open.result.close();
@@ -455,7 +457,7 @@ describe("installBackgroundSync — when IndexedDB itself refuses", () => {
     it("rejects when the database cannot be opened at the version it wants", async () => {
         const queue = "test-q-newer-db";
         await new Promise<void>((resolve, reject) => {
-            const open = indexedDB.open(queue, 2);
+            const open = indexedDB.open(queue, 3);
             open.onupgradeneeded = () => open.result.createObjectStore("requests");
             open.onsuccess = () => {
                 open.result.close();

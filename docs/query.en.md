@@ -230,13 +230,51 @@ import { queryClient } from "@/lib/query";
 const persistence = persistQueryClientOffline({ queryClient });
 await persistence.restore(); // before the first render
 
-// on logout:
-await persistence.clear();
+export async function logout(): Promise<void> {
+    await persistence.clear({ resetClient: true });
+}
+
 // on teardown:
 persistence.unsubscribe();
 ```
 
-Writes are throttled (`throttleMs`, default 1s) and subscribe to the cache. `flush()` writes immediately; `clear()` drops the snapshot; `unsubscribe()` stops persisting. Dexie is a peer dependency of the offline store — install it (`npm i dexie`).
+Writes are throttled (`throttleMs`, default 1s) and subscribe to the cache. `flush()` writes immediately; `unsubscribe()` stops persisting; `clear()` ends the persisted session.
+
+### Logout: `clear()` is terminal
+
+`clear()` cancels the pending write, stops listening to the cache, waits for any write already in flight and only then deletes the snapshot. After it, `restore()` and `flush()` on that handle do nothing. That is what keeps the previous user's cache from coming back: before 0.77.0, `clear()` only deleted the row, and both a write pending in the last throttle window and the first cache event after logout (the next user's first query) re-wrote the signed-out user's authenticated responses — which the next boot's `restore()` hydrated for whoever was using the browser.
+
+- **Call `persistence.clear()` in your logout flow** (or in your auth's session-end hook). It is idempotent and can be called more than once, concurrently included.
+- **`clear({ resetClient: true })` is the one-call logout**: after stopping persistence and deleting the snapshot, it also runs `queryClient.clear()`, so nothing from the previous user is left on disk or in memory.
+- **Without the option (default `false`), the in-memory `QueryClient` is left alone** — the app owns it and may want to keep public queries (a catalog, feature flags) and drop only the user-scoped keys with `removeQueries`. Since persistence has already stopped, the order of `persistence.clear()` and your manual cleanup does not matter.
+- **To persist the next session, create a new handle on login**: the old handle never writes again. In a dev build, the first `restore()`, `flush()` or new query on an ended handle logs **one** `console.warn` saying so.
+- **Handles from different sessions don't trample each other.** While a `clear()` is running, a new handle's `restore()` and writes on the same `databaseName` + `key` wait for it to finish — even when the logout was not awaited.
+- If the IndexedDB delete fails, `resetClient` still clears the `QueryClient`, and the error reaches the caller.
+
+!!! warning "Changed in 0.77.0: the handle ends at `clear()`"
+    Before, the same handle kept writing after `clear()`. If your app keeps `persistence` at module scope and reuses it after login, it **stops persisting** from 0.77.0 on. Create the handle inside the session:
+
+```ts
+import { persistQueryClientOffline, type OfflineQueryPersistence } from "tempest-react-sdk";
+import { QueryClient } from "@tanstack/react-query";
+
+const queryClient = new QueryClient();
+let persistence: OfflineQueryPersistence | null = null;
+
+export async function startSession(): Promise<void> {
+    persistence = persistQueryClientOffline({ queryClient });
+    await persistence.restore();
+}
+
+export async function endSession(): Promise<void> {
+    await persistence?.clear({ resetClient: true });
+    persistence = null;
+}
+```
+
+Call `startSession()` on boot with a signed-in user and after every login; `endSession()` on logout.
+
+Dexie is a peer dependency of the offline store — install it (`npm i dexie`).
 
 ## Recap
 

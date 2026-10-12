@@ -64,6 +64,29 @@ describe("Chat — attachments", () => {
     });
 
     /**
+     * #447: the suite runs React 19, which swaps a `javascript:` href for a
+     * throwing stub — but React 18 writes it verbatim, and Chromium 153 and
+     * Firefox 155 run it on click even with `download`. So the assertion is that
+     * the row is not a link at all, not that React happened to neuter it.
+     */
+    it("renders a file whose URL is not http, https, blob or relative as a row without a link", async () => {
+        renderThread([
+            message({
+                id: "m1",
+                attachments: [
+                    { kind: "file", url: 'javascript:document.title="x"', name: "a.pdf" },
+                    { kind: "file", url: "blob:https://app.x.dev/9a2e", name: "b.pdf" },
+                ],
+            }),
+        ]);
+
+        const safe = await screen.findByRole("link", { name: /b\.pdf/ });
+        expect(safe).toHaveAttribute("href", "blob:https://app.x.dev/9a2e");
+        expect(screen.getByText("a.pdf").closest("a")).toBeNull();
+        expect(document.querySelector('[href^="javascript:" i]')).toBeNull();
+    });
+
+    /**
      * A voice note without a waveform is a grey rectangle. The bars are drawn from
      * the peaks the app measured, and a flat fallback keeps the shape when it has
      * none — never an empty box.

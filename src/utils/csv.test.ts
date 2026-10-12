@@ -97,11 +97,25 @@ describe("toCsv — escaping", () => {
         expect(lines(toCsv([], [{ key: "v", header: "Total, R$" }]))[0]).toBe('"Total, R$"');
     });
 
-    it("quotes against the semicolon when that is the delimiter", () => {
-        const csv = toCsv([{ v: "a;b" }, { v: "a,b" }], [{ key: "v", header: "V" }], {
+    /**
+     * This used to assert that `"a,b"` stays bare in a `;` file. Reversed on
+     * purpose (#481): a spreadsheet whose list separator is the other one may split
+     * the bare field there, so text holding `,`, `;` or TAB is quoted whatever the
+     * delimiter. `neutralizeFormulas: false` keeps the old, delimiter-only quoting.
+     */
+    it("quotes text holding either list separator or a TAB, whatever the delimiter", () => {
+        const csv = toCsv(
+            [{ v: "a;b" }, { v: "a,b" }, { v: "a\tb" }],
+            [{ key: "v", header: "V" }],
+            { delimiter: ";" },
+        );
+        expect(lines(csv)).toEqual(["V", '"a;b"', '"a,b"', '"a\tb"']);
+        expect(quote("a;b")).toBe('"a;b"');
+        const verbatim = toCsv([{ v: "a,b" }], [{ key: "v", header: "V" }], {
             delimiter: ";",
+            neutralizeFormulas: false,
         });
-        expect(lines(csv)).toEqual(["V", '"a;b"', "a,b"]);
+        expect(lines(verbatim)[1]).toBe("a,b");
     });
 });
 
@@ -162,10 +176,19 @@ describe("toCsv — formula injection (#446)", () => {
         ["+3+4", "'+3+4"],
         ["-5+1", "'-5+1"],
         ["@SUM(1+1)", "'@SUM(1+1)"],
-        ["\t=1+1", "'\t=1+1"],
         ["-- nota", "'-- nota"],
     ])("prefixes a quote to the string %j so a spreadsheet reads it as text", (raw, written) => {
         expect(cell(raw)).toBe(written);
+    });
+
+    /**
+     * This used to assert `'\t=1+1`, bare. Rewritten on purpose (#481): TAB is a
+     * list separator a spreadsheet may split on, so the field is now quoted. It
+     * keeps a single `'` at the start: a quoted field is not split, so the `=1+1`
+     * after the TAB never starts a cell and needs no prefix of its own.
+     */
+    it("prefixes a leading TAB once and quotes the field", () => {
+        expect(cell("\t=1+1")).toBe('"\'\t=1+1"');
     });
 
     it("neutralizes and still quotes a formula that carries the delimiter and quotes", () => {
@@ -218,12 +241,47 @@ describe("toCsv — formula injection (#446)", () => {
         expect(cell("ana@example.com")).toBe("ana@example.com");
     });
 
+    /**
+     * A first version of the #481 fix also put a `'` before every segment after a
+     * separator (`"x;'=HYPERLINK(…)"`). Reversed on purpose: a quoted field is not
+     * split by a spreadsheet whatever its list separator, so the quotes alone keep
+     * `=HYPERLINK` from starting a cell, while a `'` mid-text corrupts the user's
+     * value visibly in every spreadsheet and adds no protection.
+     */
+    it.each([",", ";"] as const)(
+        "quotes a formula after a , ; or TAB in a %j file instead of prefixing it mid-text (#481)",
+        (delimiter) => {
+            const written = (raw: string): string => cell(raw, { delimiter });
+            expect(written("x;=HYPERLINK(CHAR(104)&A1)")).toBe('"x;=HYPERLINK(CHAR(104)&A1)"');
+            expect(written("a,=1+2")).toBe('"a,=1+2"');
+            expect(written("x\t=1+2")).toBe('"x\t=1+2"');
+            expect(written("x;+1+2")).toBe('"x;+1+2"');
+            expect(written("x;@SUM(1)")).toBe('"x;@SUM(1)"');
+            expect(written("=1;=2")).toBe('"\'=1;=2"');
+            for (const raw of ["a;=1,b\t@c;-d", "x;=1", "a,=1", "x\t=1"]) {
+                const field = written(raw);
+                expect(field.startsWith('"') && field.endsWith('"')).toBe(true);
+                expect(field.slice(1, -1)).toBe(raw);
+            }
+        },
+    );
+
+    it("leaves the text after a separator unprefixed, and does not quote a plain number for the other separator", () => {
+        expect(cell("-1.234,56", { delimiter: ";" })).toBe("-1.234,56");
+        expect(cell("1,5")).toBe('"1,5"');
+        expect(cell("a;-5")).toBe('"a;-5"');
+        expect(cell("a;-")).toBe('"a;-"');
+        expect(cell("a; =1")).toBe('"a; =1"');
+        expect(cell(-5, { delimiter: ";" })).toBe("-5");
+    });
+
     it("neutralizes a header too, since column names can come from data", () => {
         expect(lines(toCsv([], [{ key: "v", header: "=1+2" }]))[0]).toBe("'=1+2");
     });
 
     it("writes the field verbatim when neutralizeFormulas is false", () => {
         expect(cell("=1+2", { neutralizeFormulas: false })).toBe("=1+2");
+        expect(cell("x;=1+2", { neutralizeFormulas: false })).toBe("x;=1+2");
         expect(cell("@x", { neutralizeFormulas: false })).toBe("@x");
     });
 });

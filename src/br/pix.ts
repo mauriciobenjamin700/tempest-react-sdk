@@ -594,9 +594,15 @@ function readAmountField(field: string): number {
  * *not* tolerated is a broken frame — a length prefix that runs off the end, a
  * missing tag 63 — a checksum mismatch, which means the string was corrupted in
  * transit, or a payload with two readings: a tag repeated at the root or inside
- * tags 26 and 62, a tag 26 with both a key and a URL, or a tag 54 outside the EMV
- * amount format. A preview built from one reading while the wallet pays the
- * other is the failure those rules exist for.
+ * tags 26 and 62, a tag 63 anywhere but at the end, a tag 26 with both a key and
+ * a URL, or a tag 54 outside the EMV amount format. A preview built from one
+ * reading while the wallet pays the other is the failure those rules exist for.
+ *
+ * Position is checked where EMV® QRCPS-MPM — the reference the BACEN manual
+ * defers to — fixes it: tag 00 is the first object and tag 63 the last; every
+ * other root tag may appear in any order. Before #475 an inner `6304` + CRC
+ * followed by `5405…` and a second `6304` + CRC parsed as a priced payload,
+ * while the same text cut at the first CRC was a valid payload with no amount.
  *
  * The CRC detects corruption, not authorship: whoever crafts a payload
  * recomputes it, so a valid CRC says nothing about who published the account.
@@ -604,7 +610,8 @@ function readAmountField(field: string): number {
  * @param payload - The copia-e-cola string. Surrounding whitespace is ignored.
  * @param options - See {@link ParsePixOptions}.
  * @returns The decoded payload.
- * @throws {PixError} On a malformed frame, a missing CRC tag, a repeated tag, a
+ * @throws {PixError} On a malformed frame, a missing CRC tag, a tag 00 that is
+ * not first or a tag 63 that is not last, a repeated tag, a
  * tag 26 that is not a Pix account or that carries both a key and a URL, an
  * amount outside the EMV format, or — unless `requireCrc` is `false` — a CRC
  * mismatch.
@@ -630,6 +637,14 @@ export function parsePixPayload(payload: string, options: ParsePixOptions = {}):
     }
 
     const fields = parseTlv(text.slice(0, crcHeaderAt), "payload");
+    if (fields[0]?.id !== TAG_PAYLOAD_FORMAT) {
+        throw new PixError("Tag 00 (payload format indicator) must be the first tag of a BR Code.");
+    }
+    if (fields.some((field) => field.id === TAG_CRC)) {
+        throw new PixError(
+            "Tag 63 (CRC) must be the last tag of a BR Code; this payload carries another one before the end.",
+        );
+    }
     const merchantAccount = pick(fields, TAG_MERCHANT_ACCOUNT_INFO);
     if (merchantAccount === undefined) {
         throw new PixError("Payload has no tag 26 (merchant account information).");

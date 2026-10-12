@@ -4,7 +4,88 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Alterado
+
+- **`toCsv` / `downloadCsv` põem entre aspas o texto com o separador do outro locale (#481).** A
+  citação só olhava o delimitador configurado, então com o `,` padrão o valor
+  `x;=HYPERLINK(CHAR(104)&A1)` saía sem aspas — e um Excel pt-BR, que separa em `;`, partiria o
+  campo e veria uma célula começando com `=`. O espelho valia para `a,=1+2` num arquivo com `;`.
+  Agora, com `neutralizeFormulas` ligado (o padrão), texto que tem `,`, `;` ou TAB sai sempre entre
+  aspas, seja qual for o delimitador: `"x;=HYPERLINK(CHAR(104)&A1)"`. Campo entre aspas não é
+  dividido pela planilha, então as aspas fecham o caminho sem tocar o texto; o `'` continua só no
+  início do campo, como na 0.77. Número puro (`-1.234,56`) não ganha aspas pelo outro separador.
+  Saída medida com `toCsv` na `main` e nesta mudança; não havia planilha no ambiente
+  (`which soffice libreoffice localc` vazio), então a leitura pelo Excel/LibreOffice não foi
+  medida. **Migração:** a saída padrão muda só na citação — campo de texto com `,`, `;` ou TAB passa
+  a vir entre aspas, o que é transparente para leitor RFC 4180, e um campo que começa com TAB sai
+  `"'` + TAB + `…"`. Quem importa o arquivo noutro sistema e precisa dos bytes como vieram passa
+  `{ neutralizeFormulas: false }`, que mantém a saída da 0.77 sem mudança.
+
 ### Corrigido
+
+- **`retry(factory, { retries: 0 })` nunca chamava a `factory` e rejeitava com `undefined`** (#486). O
+  laço era `while (attempt < retries)`, então `0`, qualquer negativo e `NaN` pulavam a tentativa: a
+  request não saía e o erro não dizia nada. Agora a primeira tentativa sempre roda — `0`/negativo fazem
+  uma e repassam o erro dela, `NaN` vale o default, fração arredonda pra baixo. Vale também para
+  `createApiClient({ retry: { retries: 0 } })` e o `retry` do `createResumableUpload`. A semântica
+  **não muda**: `retries` continua sendo o total de tentativas (default 3 = a primeira + 2
+  repetições), que é o que o JSDoc, o `createApiClient`, o upload resumível e o `lazyWithRetry` já
+  contavam; o número de requests com o default e com qualquer `retries >= 1` é o mesmo de antes. O
+  JSDoc e a doc (`http` → "O que `retries` conta") agora dizem isso explicitamente.
+
+- **`tempest gen icons` volta a funcionar no pacote instalado** (#485). O bin importava o barril
+  `dist/icons.js` para ler as tabelas de slug, e o barril alcança o `.css` do `<IconPicker>` desde o
+  CSS por componente (0.63.0): em Node puro, que é como `npx tempest` roda, o import morria com
+  `ERR_UNKNOWN_FILE_EXTENSION ".css"` e o comando saía com "Could not read the icon tables" em todo
+  app (reproduzido com `npm pack` + install num app limpo). Agora o CLI importa só os dois módulos
+  de dados (`dist/icons/generated/icon-names.js` e `aliases.js`), que não importam nada — em vez de
+  registrar o `/node-css-loader` no processo inteiro e ainda carregar React e o grafo de componentes
+  para ler duas listas. Três guardas novos: um teste que chama `loadIconTables` num `node` filho sem
+  loader, o `check-dist-guards` (roda em Node puro após todo build) chamando o mesmo
+  `loadIconTables` contra o `dist` real, e `scripts/smoke-cli.sh`, que roda `tempest gen icons`
+  contra o tarball no CI e no job de smoke do release. `doctor`, `lint`, `gen api` e
+  `gen component` não importam `dist/` e rodaram limpos em Node puro contra o tarball.
+
+- **`release-npm.yml` — o `latest` do npm não anda mais para trás** (#472). O
+  `scripts/check-release-ref.sh` mandava toda versão estável para `latest`; medido num repo git de
+  fixture, uma tag `v0.75.1` com o registry em `0.77.0` saía com `dist_tag=latest`, e um backport viraria
+  o default de todo `npm install`. A regra agora mora em `scripts/release-dist-tag.sh`: versão maior ou
+  igual ao `latest` do registry (igual só no re-run) vai para `latest`, prerelease continua em `next`, e
+  versão menor vai para `release-<major>.<minor>` (`v0.75.1` → `release-0.75`). O nome não é `v0.75`
+  porque o npm 12.2.0 recusa dist-tag que seja range semver (`Tag name must not be a valid SemVer
+range: v0.75`, medido). O `latest` é lido de `npm view <pkg> dist-tags --json` (o caminho
+  `dist-tags.release-0.75` volta sempre vazio no `npm view`); só `E404` conta como pacote novo, e resposta
+  vazia, pacote sem `latest` ou `CURRENT_LATEST` ausente reprovam a run. O job `publish` relê o
+  `latest` e escolhe o dist-tag de novo imediatamente antes do upload, e o workflow passa a rodar um
+  release por vez (`concurrency` de grupo único `release-npm`). O read-back espera o dist-tag escolhido,
+  só quando a run fez o upload. O GitHub Release é criado com `--latest` só quando o `latest` do
+  registry é a versão (`--latest=false` no resto); Release existente não tem o flag alterado. Backport
+  precisa ter este workflow na branch: o tag push roda o `release-npm.yml` do commit da tag. Publicar
+  de commit fora da `main` segue dependendo do revisor obrigatório no environment `npm-release` e do
+  vínculo do Trusted Publisher — configuração externa, documentada em `docs/release.md`.
+
+- **`tempestCsp` não abre mais um `connect-src` que o app bloqueou com `'NONE'` ou lista vazia
+  (#482).** A checagem de bloqueio comparava com o literal `'none'` em minúsculas e exigia
+  exatamente um item, mas palavra-chave de CSP não diferencia maiúsculas e lista vazia também não
+  casa nada (CSP3 §6.7.2.5). Medido antes, com `connect: ["https://api.example.com"]`:
+  `connect-src 'NONE'` virava `connect-src 'NONE' https://api.example.com wss://api.example.com`,
+  `connect-src` vazio virava `connect-src https://api.example.com wss://api.example.com`, e
+  `default-src 'NONE'` ganhava um `connect-src` com as origens — nenhum com aviso. Agora os três
+  ficam como escritos e o build avisa cada origem deixada de fora. As outras comparações de
+  palavra-chave do plugin também passaram a ignorar a caixa: `'UNSAFE-INLINE'` e `'SHA256-…'`
+  declarados não geram mais aviso falso de `<script>` inline bloqueado, e um
+  `directives: { "style-src": ["'UNSAFE-INLINE'"] }` não recebe mais hashes de `<style>` (com
+  hash presente, o browser ignora o `'unsafe-inline'`). Teste:
+  `npx vitest run src/vite/tempest-csp.test.ts -t "482"`.
+- **`parsePixPayload` recusa tag 63 que não é a última e tag 00 que não é a primeira (#475).** O
+  parser só conferia os 8 caracteres finais como `6304` + CRC e tratava uma tag 63 anterior como
+  campo comum. Medido antes: `pixPayload(...)` + `540599.99` + `6304` + CRC era aceito com
+  `amount: 99.99` e `crcValid: true`, o mesmo texto cortado no primeiro CRC também era válido e
+  sem valor, e uma tag 63 interna com CRC `0000` também passava — duas leituras do mesmo payload,
+  justamente o que o leitor promete recusar. Agora qualquer campo raiz com id `63` lança
+  `PixError`, assim como uma raiz que não começa pela tag `00`: o EMV® QRCPS-MPM, que o manual do
+  BR Code do Bacen segue, fixa a `00` como primeiro objeto e a `63` como último. Payload emitido
+  por PSP conforme não muda. Teste: `npx vitest run src/br/pix.test.ts -t "475"`.
 
 - **`tempest fix` não reescreve mais arquivo fora do projeto através de symlink.** Achado na
   varredura das escritas da CLI ao fechar #483/#484: com `src` plantado como symlink para outra
@@ -36,6 +117,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   escrita, o `--out`, cada pasta de grupo e cada arquivo são recusados se forem symlink (inclusive
   pendente), se existirem com o tipo errado ou se caírem fora do projeto depois de resolver
   symlinks. Ancestral que é symlink pendente agora conta como fora do projeto.
+
 
 ## [0.77.0] — 2026-10-12
 

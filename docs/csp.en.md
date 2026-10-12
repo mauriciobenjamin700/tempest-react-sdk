@@ -206,11 +206,30 @@ React Refresh preamble is allowed the same way.
 If `index.html` already declares a `<meta http-equiv="Content-Security-Policy">`,
 the plugin **merges, it does not overwrite**:
 
-- every directive the app declared stays **exactly as written** — the plugin
-  never loosens a choice you made;
-- the exception is `connect-src`, which **gains** the resolved origins (that is
-  the list the plugin exists to maintain);
-- directives the app did not declare come from the defaults.
+the result is never more permissive than the policy you wrote. Each directive
+falls into one of these rows:
+
+| The directive in your `<meta>` | What the plugin emits | Example |
+| --- | --- | --- |
+| declared | **exactly as written**; sources in `directives` for it are **not** added and become a build warning; `false` in `directives` removes it (removing is your explicit choice) | `script-src 'self'` stays `script-src 'self'`, no hash, no `'wasm-unsafe-eval'` |
+| `connect-src` declared | your value **+** the resolved origins; with `'none'` (declared or inherited from `default-src`), nothing is added and the build warns about each origin left out | `connect-src 'self'` → `connect-src 'self' https://api.example.com` |
+| not declared, but inherited through the CSP3 fallback chain (`img-src` → `default-src`; `worker-src` → `child-src` → `script-src` → `default-src`) | **nothing** — it keeps falling back to the inherited value | with `default-src 'none'`, no `img-src 'self' data: blob:` appears |
+| `connect-src` inherited | the inherited value **+** the resolved origins; nothing when there is no origin | `default-src 'self'` → `connect-src 'self' https://api.example.com` |
+| inherited, with sources in `directives` | the inherited value **+** the `directives` sources | `default-src 'self'` + `{ "img-src": ["https://tiles.example.com"] }` → `img-src 'self' https://tiles.example.com` |
+| inherited, with a `'none'` default (`object-src`) | the default, which only restricts | `object-src 'none'` |
+| no fallback (`base-uri`, `form-action`) | the default, which only restricts | `base-uri 'self'` |
+| nothing in your `<meta>` governs it | the default | without `default-src`, `img-src` comes out as `'self' data: blob:` |
+
+!!! warning "Inheriting from `default-src` turns off what the default allowed"
+    With `default-src 'self'` and no `script-src`, the `'wasm-unsafe-eval'` that
+    `/vision` needs and the inline-script hash are **not** added: they would loosen
+    your policy. An inline `<script>` your policy blocks — judged by
+    `script-src-elem` when you declare it, since that is what governs `<script>` — becomes a **build
+    warning**, with the hash ready to paste into `script-src`. If the app needs
+    WebAssembly, declare the directive in the `<meta>` or pass the sources in
+    `directives` — for example `directives: { "script-src": ["'wasm-unsafe-eval'"] }`.
+    The build cannot see the `<style>` that `applyTheme` injects at runtime: with
+    a `default-src` lacking `'unsafe-inline'`, declare a `style-src` that allows it.
 
 Two CSP `<meta>` tags on the same page fail the build: the browser enforces the
 **intersection** of both, and merging them into one would loosen the policy.

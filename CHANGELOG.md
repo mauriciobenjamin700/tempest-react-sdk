@@ -534,6 +534,48 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `createPeerMesh` 3164 B → 3392 B (+228 B, teto 3,3 kB → 3,4 kB); barrel ESM 139 861 B → 140 195 B
   (+334 B, dentro do teto); barrel CJS 167 019 B → 167 169 B (+150 B, dentro do teto).
 
+- **Revisão do #439 e do #448, cada item com teste que falhava antes da correção.**
+  `tempestCsp`: um `connect-src 'none'` declarado (ou herdado de `default-src 'none'`) não é mais
+  substituído pelas origens resolvidas; elas ficam de fora e o build lista cada uma num aviso (o teste
+  que fixava a substituição foi invertido, com o porquê no nome). Fontes em `directives` para uma
+  diretiva declarada não entram e geram aviso, em vez de sumir em silêncio; `false` em `directives`
+  agora remove a diretiva declarada. Script inline passa a ser julgado pelo `script-src-elem`
+  declarado, que é quem governa `<script>`: o hash não vai mais para um `script-src` que não decide
+  nada, e o aviso dispara. `prefetch-src` entrou na tabela de fallback, que agora cita a lista do CSP3
+  §6.8.3 e o motivo de cada entrada além dela; medido antes, a falta dele não afrouxava política
+  nenhuma — só mudava a base de `directives: { "prefetch-src": [...] }` de vazia para a herdada.
+  `pixPayload`: o valor é conferido depois do `toFixed(2)`, então `amount: 0.004` lança em vez de
+  emitir `54="0.00"`; texto fora do conjunto de caracteres comum do EMV (ASCII imprimível) lança em
+  qualquer TLV, como a chave `joão@exemplo.com` que antes entrava. `parsePixPayload` conta o tamanho
+  de cada TLV em caracteres, como o EMV define, e lê um template com texto não ASCII sem desalinhar.
+
+- **`tempestCsp` não afrouxa mais uma CSP declarada ao preencher diretivas que caíam no
+  `default-src` (#439).** Com `<meta http-equiv="Content-Security-Policy" content="default-src 'none';
+style-src 'self'">` e um `<script>` inline, o build emitia `script-src 'self' 'wasm-unsafe-eval'
+'sha256-…'`, `img-src 'self' data: blob:`, `connect-src 'self' blob: data:`, `worker-src 'self'
+blob:` e o resto dos defaults — cada um mais permissivo que o `'none'` herdado; com
+  `default-src 'self'`, o mesmo, mais `style-src 'self' 'unsafe-inline'`. Agora a diretiva que o app
+  não declarou, mas já governa pela cadeia de fallback do CSP3 §6.8.3 (`img-src` → `default-src`,
+  `worker-src` → `child-src` → `script-src` → `default-src`), fica de fora e continua herdando: sem
+  hash inline, sem `'wasm-unsafe-eval'`, sem `data:`/`blob:`. O `connect-src` parte do valor herdado
+  e ganha só as origens resolvidas (se o herdado é `'none'`, nada entra e o build avisa); fontes passadas em `directives` também somam ao herdado, não aos
+  defaults. Default que só restringe (`object-src 'none'`, `base-uri`, `form-action`) continua
+  entrando. Script inline que a política declarada bloqueia vira aviso no build, com o hash para
+  colar — antes ficava liberado em silêncio. Semântica completa numa tabela em `docs/csp.md`
+  (`.en.md`). Reproduzido com 5 testes em `src/vite/tempest-csp.test.ts` que falhavam na `main`.
+- **`parsePixPayload` recusa payload com duas leituras (#448).** Com CRC válido (quem monta o
+  payload recalcula), a `main` devolvia `amount: 1` para a tag `54` repetida (`1.00` e `1000.00`),
+  a primeira chave para duas subtags `01` na `26`, `kind: "static"` para uma `26` com chave e URL, e
+  lia a tag `54` com `Number()`: `1e3` → `1000`, `-1` → `-1`, `0x10` → `16`, `,5` → `NaN`. Agora
+  lança `PixError` em ID repetido na raiz (regra que o manual do BR Code do Bacen v2 cita do EMV®
+  QRCPS-MPM) e dentro das tags `26` e `62`, em `26` com `01` e `25` juntos, e em `54` fora do formato
+  EMV — só dígitos e um `.` decimal (`"98."` vale), até duas casas (unidade menor do BRL na ISO
+  4217), até 13 caracteres (Tabela 1 do manual). Zero (`"0"`, `"0.00"`) é lido como `amount: 0`, porque o
+  manual do Bacen traz `"0"` como exemplo da tag `54`; o `pixPayload` continua recusando valor não
+  positivo. O CRC continua obrigatório, e a
+  doc deixa de apresentá-lo como prova de autoria: ele detecta corrupção. Tabela das recusas em
+  `docs/br-pagamentos.md` (`.en.md`); 24 casos novos em `src/br/pix.test.ts`, 15 falhavam na `main`.
+
 ### Interno
 
 - **Lockfile: `brace-expansion` 5.0.9 → 5.0.12, `fast-uri` 3.1.7 → 3.1.8 e `source-map-js`

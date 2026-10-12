@@ -185,6 +185,17 @@ parsePixPayload(colado, { requireCrc: false }); // crcValid: false, sem lançar
 !!! danger "CRC divergente não é aviso"
     Um BR Code com checksum errado foi corrompido no caminho, e a conta que ele aponta agora **não é** a conta que o recebedor publicou. Por isso o default lança.
 
+O CRC detecta **corrupção**, não **autoria**: quem monta um payload recalcula o checksum, então um CRC válido não diz quem publicou a conta. Por isso o leitor também recusa payload que admite **duas leituras** — a prévia mostraria uma, e a carteira do banco pode pagar a outra:
+
+| Recusado (`PixError`) | Por quê |
+| --- | --- |
+| tag repetida na raiz (`54`, `59`, `26`, …) | o manual do BR Code do Bacen, citando o EMV® QRCPS-MPM: não há ID duplicado na raiz |
+| subtag repetida dentro da `26` ou da `62` (duas chaves `01`, dois `txid` `05`) | mesma ambiguidade um nível abaixo; nenhum emissor conforme repete |
+| tag `26` com chave (`01`) **e** URL (`25`) | o BR Code é estático ou dinâmico, não os dois |
+| tag `54` fora do formato EMV: `1e3`, `-1`, `,5`, `0x10`, `1.005`, mais de 13 caracteres | só dígitos e um `.` decimal, até duas casas (BRL) — o que `Number()` leria como `1000`, `-1`, `NaN` ou `16` |
+
+`"98"` e `"98."` continuam valendo: o EMV permite o `.` sem casas decimais. Zero (`"0"`, `"0.00"`) é lido como `amount: 0`, porque o manual do BR Code do Bacen traz `"0"` como exemplo da tag `54` — o leitor é tolerante com o que a spec do Bacen aceita. O `pixPayload` continua recusando valor não positivo — conferido **depois** do arredondamento, então `0.004` lança em vez de emitir `"0.00"` — e recusa texto fora do conjunto de caracteres comum do EMV (ASCII imprimível), como uma chave `joão@exemplo.com` — nome, cidade e descrição perdem o acento antes da checagem (`"São Paulo"` → `"Sao Paulo"`, caixa preservada) e só lançam se sobrar emoji ou CJK; a chave não é transliterada, porque outra grafia é outra chave: o tamanho de cada TLV conta caracteres, e só nesse conjunto caractere, unidade UTF-16 e byte coincidem. Na leitura, o tamanho é contado em caracteres, para um template de outro PSP com texto não ASCII não desalinhar as tags seguintes.
+
 ### `pixCrc16`, se você precisa do checksum sozinho
 
 ```ts
@@ -580,7 +591,7 @@ export function DepositRequestButton({ booking }: { booking: Booking }) {
 
 ## Recapitulando
 
-- **Pix** — `pixPayload` monta o BR Code EMV com o CRC-16/CCITT-FALSE certo (incluindo os literais `6304`); `parsePixPayload` lê de volta, tolerante com tag desconhecida e intolerante com checksum errado; `<PixQRCode>` desenha o símbolo **e** a copia-e-cola, porque num celular só o QR não serve.
+- **Pix** — `pixPayload` monta o BR Code EMV com o CRC-16/CCITT-FALSE certo (incluindo os literais `6304`); `parsePixPayload` lê de volta, tolerante com tag desconhecida e intolerante com checksum errado, tag repetida e valor fora do formato EMV; `<PixQRCode>` desenha o símbolo **e** a copia-e-cola, porque num celular só o QR não serve.
 - **Boleto** — `parseLinhaDigitavel` / `parseCodigoBarras` convertem 47↔44 e 48↔44 conferindo todo DV; cobrança e arrecadação são layouts diferentes e o SDK nunca confunde os dois; o fator de vencimento tem **duas** bases desde fev/2025 e a escolha é explícita.
 - **NFe** — `parseChaveNFe` abre os 44 dígitos e resolve o `cUF` no tipo `UF` do módulo; `validateChaveNFe` confere tamanho, UF e DV.
 - **Feriados** — `holidaysFor` devolve os 9 feriados nacionais + os 4 dias bancários móveis, marcados; estado e município entram por `extra`; `isBusinessDay` / `nextBusinessDay` / `addBusinessDays` fazem a conta no calendário local.

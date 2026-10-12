@@ -125,6 +125,65 @@ const SDK_ORIGINS: ReadonlyArray<{ module: RegExp; origin: string; from: string 
     },
 ];
 
+/**
+ * Where each fetch directive falls back when a policy does not declare it, in
+ * order. Ported from CSP3 §6.8.3, "Get fetch directive fallback list"
+ * (https://w3c.github.io/webappsec-csp/#directive-fallback-list, checked
+ * 11/10/2026), which lists twelve effective directives: `script-src-elem`,
+ * `script-src-attr`, `style-src-elem`, `style-src-attr`, `worker-src`,
+ * `connect-src`, `manifest-src`, `object-src`, `frame-src`, `media-src`,
+ * `font-src` and `img-src`. Four more are listed here on purpose:
+ *
+ * - `script-src`, `style-src` and `child-src` are never an effective directive,
+ *   but every chain that reaches them continues to `default-src`;
+ * - `fenced-frame-src` comes from the Fenced Frame spec, which extends the
+ *   `frame-src` chain;
+ * - `prefetch-src` was in earlier CSP3 drafts (→ `default-src`) and is gone from
+ *   the current one; a browser that still resolves it does so through
+ *   `default-src`, so it is treated as inherited.
+ *
+ * A directive absent from this map does not fall back at all (`base-uri`,
+ * `form-action`, `frame-ancestors`, …): leaving it out of a policy allows
+ * everything, so adding it only ever restricts.
+ */
+const CSP_FALLBACK: Readonly<Record<string, readonly string[]>> = {
+    "script-src-elem": ["script-src", "default-src"],
+    "script-src-attr": ["script-src", "default-src"],
+    "style-src-elem": ["style-src", "default-src"],
+    "style-src-attr": ["style-src", "default-src"],
+    "worker-src": ["child-src", "script-src", "default-src"],
+    "frame-src": ["child-src", "default-src"],
+    "fenced-frame-src": ["frame-src", "child-src", "default-src"],
+    "child-src": ["default-src"],
+    "connect-src": ["default-src"],
+    "font-src": ["default-src"],
+    "img-src": ["default-src"],
+    "manifest-src": ["default-src"],
+    "media-src": ["default-src"],
+    "object-src": ["default-src"],
+    "prefetch-src": ["default-src"],
+    "script-src": ["default-src"],
+    "style-src": ["default-src"],
+};
+
+/**
+ * The sources a declared policy already applies to a directive it does not
+ * name, by walking {@link CSP_FALLBACK}.
+ *
+ * @param declared - The policy the app declared.
+ * @param name - A directive the app did not declare.
+ * @returns The inherited sources, or `undefined` when nothing governs the directive.
+ */
+function inheritedSources(
+    declared: Readonly<Record<string, string[]>>,
+    name: string,
+): string[] | undefined {
+    for (const parent of CSP_FALLBACK[name] ?? []) {
+        if (parent in declared) return declared[parent];
+    }
+    return undefined;
+}
+
 const ABSOLUTE_URL = /^(?:https?|wss?):\/\//i;
 const WILDCARD_SOURCE = /^((?:https?|wss?):\/\/\*\.[a-z0-9.-]+(?::\d+)?)(?:[/?#].*)?$/i;
 
@@ -311,11 +370,27 @@ function bundleModuleIds(ctx: IndexHtmlTransformContext): string[] {
  * `index.html` (a `themeInitScript()` anti-flash script, say) are allowed by
  * SHA-256 hash, never by `'unsafe-inline'`.
  *
- * An existing CSP `<meta>` in `index.html` is merged, not overwritten: every
- * directive it declares is kept verbatim — the plugin never loosens a choice the
- * app wrote — except `connect-src`, which gains the resolved origins, since
- * that is the list the plugin exists to maintain. Directives it does not declare
- * come from the defaults.
+ * An existing CSP `<meta>` in `index.html` is merged, not overwritten, and the
+ * merge never loosens what the app wrote:
+ *
+ * - a directive it declares is kept verbatim, except `connect-src`, which gains
+ *   the resolved origins (the list the plugin exists to maintain) unless it is
+ *   `'none'` — declared or inherited from `default-src` — in which case the
+ *   origins stay out and each one is reported as a build warning. Sources in
+ *   {@link TempestCspOptions.directives} for a declared directive are not added
+ *   (a build warning names them); `false` there removes it;
+ * - a fetch directive it does not declare but already governs through the CSP3
+ *   fallback chain (§6.8.3 — `img-src` → `default-src`,
+ *   `worker-src` → `child-src` → `script-src` → `default-src`) is left out, so it
+ *   keeps falling back. Filling it from the defaults would replace a
+ *   `default-src 'none'` with `'self' data: blob:`. No inline-script hash and no
+ *   `'wasm-unsafe-eval'` is added to it, and an inline `<script>` is judged by a
+ *   declared `script-src-elem` before `script-src`; `connect-src` starts from the inherited
+ *   value, and so does any directive passed in {@link TempestCspOptions.directives};
+ * - a default that is exactly `'none'` (`object-src`), or a directive that does
+ *   not fall back (`base-uri`, `form-action`), is still added: it can only
+ *   restrict;
+ * - a directive nothing in the declared policy governs comes from the defaults.
  *
  * @param options - See {@link TempestCspOptions}.
  * @returns A Vite plugin, to be placed in `plugins`. It runs as a `post` HTML
@@ -343,6 +418,9 @@ export function tempestCsp(options: TempestCspOptions = {}): TempestVitePlugin {
         onPolicy,
     } = options;
 
+    const configured: Record<string, readonly string[] | false> = Object.fromEntries(
+        Object.entries(extra).map(([name, sources]) => [name.toLowerCase(), sources]),
+    );
     let config: ResolvedConfig | undefined;
     let resolved: TempestCspSource[] = [];
     let lastLogged = "";
@@ -412,12 +490,89 @@ export function tempestCsp(options: TempestCspOptions = {}): TempestVitePlugin {
             "base-uri": ["'self'"],
             "form-action": ["'self'"],
         };
-        for (const [name, sources] of Object.entries(extra)) {
-            const key = name.toLowerCase();
-            if (sources === false) delete policy[key];
-            else policy[key] = union(policy[key] ?? [], sources);
+        for (const [name, sources] of Object.entries(configured)) {
+            if (sources === false) delete policy[name];
+            else policy[name] = union(policy[name] ?? [], sources);
         }
         return policy;
+    }
+
+    /**
+     * Merge the defaults, the declared policy and the configured
+     * {@link TempestCspOptions.directives}, never loosening what was declared. A
+     * declared directive is kept verbatim: configured sources for it are not
+     * added — adding would loosen the app's policy — and each ignored source is
+     * reported as a build warning, while a configured `false` removes it, since
+     * removing is an explicit choice. An inherited directive (see
+     * {@link inheritedSources}) is omitted unless the default is `'none'` or the
+     * config adds sources, which then extend the inherited value instead of the
+     * defaults.
+     */
+    function mergePolicy(
+        policy: Readonly<Record<string, string[]>>,
+        declared: Readonly<Record<string, string[]>>,
+    ): Record<string, string[]> {
+        const merged: Record<string, string[]> = {};
+        for (const [name, sources] of Object.entries(policy)) {
+            if (name in declared) {
+                merged[name] = declared[name]!;
+                continue;
+            }
+            const inherited = inheritedSources(declared, name);
+            const added = configured[name];
+            if (inherited === undefined) merged[name] = sources;
+            else if (Array.isArray(added)) merged[name] = union(inherited, added);
+            else if (sources.length === 1 && sources[0] === "'none'") merged[name] = sources;
+        }
+        for (const [name, sources] of Object.entries(declared)) merged[name] ??= sources;
+        for (const [name, sources] of Object.entries(configured)) {
+            if (!(name in declared)) continue;
+            if (sources === false) {
+                delete merged[name];
+                continue;
+            }
+            const ignored = sources.filter((source) => !declared[name]!.includes(source));
+            if (ignored.length > 0) {
+                config?.logger.warn(
+                    `tempestCsp: index.html declares ${name}, so directives["${name}"] is not added to it ` +
+                        `(${ignored.join(" ")}); the plugin never loosens a declared policy — add them to the <meta> instead`,
+                );
+            }
+        }
+        return merged;
+    }
+
+    /**
+     * Report every inline `<script>` the final policy blocks. It only happens when
+     * the app's declared policy governs `script-src` — directly or through
+     * `default-src` — since the plugin then adds no hash, and the symptom would
+     * otherwise be a script that silently never runs (under `vite dev`, the React
+     * Refresh preamble, which takes the page down with it).
+     *
+     * `<script>` elements are governed by `script-src-elem` when the policy has
+     * one, so that is the directive judged and named.
+     *
+     * @param html - The page, without its CSP `<meta>`.
+     * @param directive - `"script-src-elem"` when declared, else `"script-src"`.
+     * @param effective - The sources the browser will apply to inline `<script>`
+     *   elements, or `undefined` when no directive governs them.
+     */
+    function warnBlockedInlineScripts(
+        html: string,
+        directive: string,
+        effective: readonly string[] | undefined,
+    ): void {
+        if (!effective || !config) return;
+        const unsafeInline =
+            effective.includes("'unsafe-inline'") &&
+            !effective.some((source) => /^'(?:sha\d{3}|nonce)-/.test(source));
+        if (unsafeInline) return;
+        const blocked = inlineHashes(html, "script").filter((hash) => !effective.includes(hash));
+        if (blocked.length === 0) return;
+        config.logger.warn(
+            `tempestCsp: the Content-Security-Policy declared in index.html blocks ${blocked.length} inline <script> ` +
+                `(${directive} ${effective.join(" ")}); the plugin never loosens a declared policy, so add ${blocked.join(" ")} to ${directive}`,
+        );
     }
 
     const plugin: Plugin = {
@@ -446,14 +601,17 @@ export function tempestCsp(options: TempestCspOptions = {}): TempestVitePlugin {
 
                 const { html, declared = {} } = extractMetaPolicy(source);
                 const policy = defaults(baseOrigin, serve);
-                if (!("script-src" in declared)) {
+                const filled = (name: string): boolean =>
+                    !(name in declared) && inheritedSources(declared, name) === undefined;
+                if (filled("script-src") && !("script-src-elem" in declared)) {
                     policy["script-src"] = union(
                         policy["script-src"] ?? [],
                         inlineHashes(html, "script"),
                     );
                 }
                 if (
-                    !("style-src" in declared) &&
+                    filled("style-src") &&
+                    !("style-src-elem" in declared) &&
                     !policy["style-src"]?.includes("'unsafe-inline'")
                 ) {
                     policy["style-src"] = union(
@@ -461,11 +619,34 @@ export function tempestCsp(options: TempestCspOptions = {}): TempestVitePlugin {
                         inlineHashes(html, "style"),
                     );
                 }
-                const merged: Record<string, string[]> = { ...policy };
-                for (const [name, sources] of Object.entries(declared)) merged[name] = sources;
-                merged["connect-src"] = union(
-                    merged["connect-src"] ?? ["'self'"],
-                    allSources.map((entry) => entry.origin),
+                const merged = mergePolicy(policy, declared);
+                const origins = allSources.map((entry) => entry.origin);
+                const inheritedConnect = inheritedSources(declared, "connect-src");
+                const declaredConnect = merged["connect-src"] ?? inheritedConnect;
+                const declaredNone =
+                    declaredConnect?.length === 1 &&
+                    declaredConnect[0] === "'none'" &&
+                    ("connect-src" in declared || inheritedConnect !== undefined);
+                if (declaredNone) {
+                    if (origins.length > 0) {
+                        config?.logger.warn(
+                            `tempestCsp: index.html declares connect-src 'none'${"connect-src" in declared ? "" : " (through default-src)"}, ` +
+                                `so these origins stay out and requests to them will be blocked: ${origins.join(" ")}`,
+                        );
+                    }
+                } else if (
+                    "connect-src" in merged ||
+                    origins.length > 0 ||
+                    inheritedConnect === undefined
+                ) {
+                    merged["connect-src"] = union(declaredConnect ?? ["'self'"], origins);
+                }
+
+                const scriptElem = "script-src-elem" in declared ? "script-src-elem" : "script-src";
+                warnBlockedInlineScripts(
+                    html,
+                    scriptElem,
+                    merged[scriptElem] ?? inheritedSources(declared, scriptElem),
                 );
 
                 const result: TempestCspPolicy = {
@@ -481,7 +662,7 @@ export function tempestCsp(options: TempestCspOptions = {}): TempestVitePlugin {
                     const lines = allSources.map((entry) => `  ${entry.origin}  ← ${entry.from}`);
                     config.logger.info(
                         [
-                            `tempest-csp: connect-src ${merged["connect-src"].join(" ")}`,
+                            `tempest-csp: connect-src ${(merged["connect-src"] ?? inheritedConnect ?? []).join(" ")}`,
                             ...(lines.length > 0
                                 ? lines
                                 : ["  (no cross-origin endpoint: only 'self')"]),

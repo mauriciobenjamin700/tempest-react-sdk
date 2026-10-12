@@ -148,6 +148,12 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   sai — conferido num app de `create-tempest-app` com `tsc -b`, `eslint src`, `prettier --check`
   e `vite build`, e fixado em `bin/lib/component/generate.test.mjs`. Docs em `docs/cli.md`.
 
+- **`safeLinkUrl`, `safeImageUrl` e `safeAttachmentUrl` na raiz (#447).** A allowlist de esquema
+  que o `Markdown` já aplicava saiu de `components/Markdown/markdown-url.ts` para
+  `utils/safe-url.ts` e virou export público, mais um terceiro helper para arquivo:
+  `safeAttachmentUrl` aceita `http`, `https`, `blob`, relativa e `data:image/` raster, e devolve a
+  URL como veio (normalizar apaga espaço de nome de arquivo). Doc em `docs/utilities.md`.
+
 ### Alterado
 
 - **`persistQueryClientOffline`: o handle fica encerrado depois de `clear()` (#440).** Antes, o
@@ -188,6 +194,39 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   contexto da tentativa (`token` + `epoch`) em `refresh`/`onUnauthorized`; `slice: typical app`
   11,73 → 11,79 kB (teto 11,8 → 11,9 kB); barrel ESM 139,86 → 140,52 kB (teto 140,2 → 140,8 kB);
   barrel CJS 167,02 → 167,82 kB (teto 167,2 → 168 kB).
+
+- **Tetos dos barris no `size-limit`: ESM 140,2 → 140,7 kB, CJS 167,2 → 167,7 kB.** Medido com
+  `npx size-limit` depois de `npm run build`, brotli: `main` 139,86 / 167,02 kB → #437 (parser
+  linear + teto de aninhamento) 140,29 / 167,38 → #446 (neutralização de fórmula no CSV) 140,37 /
+  167,30 → #447 (`safe-url` público + linha de anexo) 140,62 / 167,63. E a fatia `{ Chat }` (com
+  mídia e menu inline): 11,2 → 11,4 kB, `main` 11,12 → 11,38 kB — o `safe-url` entra inteiro no
+  caminho da linha de anexo (#447). Os bytes compram os três guards.
+
+- **`toCsv`/`downloadCsv` neutralizam fórmula por padrão — CSV injection (#446). Muda a saída
+  padrão.** Campo de texto (e cabeçalho) que começa com `=`, `+`, `-`, `@`, TAB ou CR sai com `'` na
+  frente, a lista da OWASP. Ficam de fora a célula `number`, o texto que é só número (`"-5"`,
+  `"-1.234,56"`, `"+42"`) e o `"-"` sozinho, placeholder comum de "sem valor" que não tem operando
+  para ser fórmula. Medido convertendo cada CSV com o LibreOffice 26.2 headless
+  (`soffice --headless --infilter="CSV:59,34,76,1" --convert-to fods`) e lendo o `table:formula`
+  de cada célula:
+
+  | Entrada                             | Sem prefixo        | Com prefixo                  |
+  | ----------------------------------- | ------------------ | ---------------------------- |
+  | `=1+2`                              | fórmula, valor `3` | texto `'=1+2`                |
+  | `=HYPERLINK("http://…/?d="&A1,"x")` | fórmula            | texto                        |
+  | `+55 (11) 99999-9999`               | texto              | texto `'+55 (11) 99999-9999` |
+  | `@maria`                            | texto              | texto `'@maria`              |
+  | `-`                                 | texto              | texto `-` (isento)           |
+  | TAB + `=1+1`                        | texto              | texto `'` + TAB + `=1+1`     |
+  | espaço + `=1+1`                     | texto              | texto (não é gatilho)        |
+  | `\n=1+1` (campo entre aspas)        | texto              | texto (não é gatilho)        |
+
+  O LibreOffice só avaliou o `=`; `+`, `@` e TAB continuam no gatilho porque Excel e Google Sheets
+  os leem como início de fórmula (não medido aqui, sem Excel no ambiente). Espaço e quebra de linha
+  antes do `=` leram como texto e não entraram.
+
+  **Migração:** quem exporta CSV para o importador de outro sistema, e não para a planilha de uma
+  pessoa, passa `{ neutralizeFormulas: false }` (novo em `CsvOptions`) e recebe os bytes de antes.
 
 ### Corrigido
 
@@ -351,6 +390,33 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   então ele só renomeava o `_gitignore` do próprio usuário por cima de um `.gitignore` dele. Testes
   em `bin/create-tempest-app.e2e.test.mjs`. A janela entre a checagem e a escrita (TOCTOU) fica
   como risco aceito, registrada na docstring.
+
+- **Anexo de arquivo do `Chat` não vira mais `href` `javascript:` (#447).** A linha de download
+  renderizava `<a href={attachment.url} download>` sem allowlist. Medido: com `react-dom` 18.3.1
+  (`renderToStaticMarkup` num fixture com `react@18.3.1`), o `href="javascript:..."` saía literal; com
+  `@playwright/test`, clicar um `<a href="javascript:void(document.title='x')" download>` mudou o
+  título no Chromium 153 e no Firefox 155 — o `download` não impede. A suíte roda React 19.2.8, que
+  troca o `href` por um stub que lança erro, e é por isso que o teste afirma que a linha **não é
+  link**, não que o React a neutralizou. Agora a URL passa por `safeAttachmentUrl` e a recusada
+  vira a mesma linha sem link. O `src` de imagem, vídeo e áudio fica como está: medido nos mesmos
+  dois navegadores, `<img>`, `<video>` e `<audio>` com `src="javascript:..."` não executam.
+- **`Markdown` (e o corpo do `AIChat`) não trava mais a aba com texto hostil (#437).** A regex de
+  heading `/^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/` tinha backtracking cúbico: `"# a" + " ".repeat(n) +
+"b"` custava 82 ms com n = 1000, 2,0 s com 3000 e 4,8 s com 4000, a cada render, também dentro de
+  citação e lista. Agora só o marcador de abertura é regex e o fechamento sai por `trimEnd` — a
+  mesma linha com 50 000 espaços parseia em 0,3 ms. A varredura do mesmo módulo achou o padrão em
+  mais cinco lugares, todos corrigidos e fixados em teste com teto de 250 ms (o caso mais lento leva
+  ~35 ms sob instrumentação de cobertura): abertura de fence (` ``` ` + 20 000 espaços + `!`: 362 ms
+  → 0,3 ms), linha delimitadora de tabela (`- |` + 50 000 espaços: 1,2 s → 0,1 ms), quebra forçada
+  `/ {2,}$/` e a regra inline `^ {2,}\n` (parágrafo com 50 000 espaços internos: 1,1 s → 0,3 ms), e
+  link/imagem/autolink sem fechamento, que reescaneavam até o fim a partir de cada abertura
+  (`"[".repeat(50000)`: 605 ms → 8 ms; cada regra inline agora só roda no próprio primeiro
+  caractere). E um defeito que não é regex: citação e lista aninhadas recursavam sem limite, e `"-
+".repeat(20000)` lançava `RangeError: Maximum call stack size exceeded` de dentro do componente —
+  o aninhamento agora para em 32 níveis e o resto vira parágrafo, sem perder texto. Medido em Node
+  24 com `performance.now()` em volta de `parseMarkdown` (script bundlado com `esbuild`). Os casos
+  de heading com fechamento `#`, níveis 1–6, `#` sozinho e `#título` (não são heading) seguem iguais
+  e estão fixados em teste.
 
 ### Interno
 

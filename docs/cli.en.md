@@ -393,7 +393,9 @@ What it rewrites in the TSX:
     | no other rule in the sheet mentions the class | a `.row:hover` or `.row .child` would be left without its subject |
     | the module keeps at least one other rule | otherwise the import becomes dead code, ESLint removes it, and the remaining rules **stop loading** |
     | the class is only read as `styles.row` / `styles["row"]` | `styles[key]` or `Object.keys(styles)` make the module **opaque**: nothing in it is extracted |
+    | no declaration has a line break | copied into the global sheet, it would become a new line outside the rule |
     | the global sheet exists **and** something imports it | appending to a stylesheet nobody loads is a silent no-op |
+    | the global sheet is a regular file inside the project, with no symlink on its path | the write follows the link: a `src/index.css` pointing outside would carry the CSS into another file on disk |
     | the new name collides with nothing in the global sheet | use `--css-prefix` |
 
     ```console

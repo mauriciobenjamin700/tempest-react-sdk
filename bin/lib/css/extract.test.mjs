@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { analyzeCss } from "./analyze.mjs";
@@ -295,10 +295,111 @@ describe("planExtraction — refusals", () => {
         expect(result.message).toContain("é um CSS Module");
     });
 
+    it("refuses a declaration with a line break instead of copying it into the global sheet", () => {
+        twoCopies();
+        const broken =
+            ".row {\n    --payload: x\necho INJECTED\n;\n    display: flex;\n    align-items: center;\n    gap: 8px;\n}\n.title {\n    font-weight: 600;\n}\n";
+        write("src/components/Card.module.css", broken);
+        write("src/components/List.module.css", broken.replace(".row", ".line"));
+        const result = plan();
+        expect(result.groups).toEqual([]);
+        expect(result.refusals.map((r) => r.reason)).toEqual([
+            expect.stringContaining("tem quebra de linha"),
+            expect.stringContaining("tem quebra de linha"),
+        ]);
+    });
+
     it("reports a missing TypeScript instead of guessing at the call sites", () => {
         twoCopies();
         rmSync(join(root, "node_modules", "typescript"), { recursive: true, force: true });
         const result = plan();
         expect(result.status).toBe("no-typescript");
+    });
+});
+
+describe("planExtraction — the global sheet stays inside the project (#483)", () => {
+    let outside;
+
+    beforeEach(() => {
+        project();
+        twoCopies();
+        outside = mkdtempSync(join(tmpdir(), "tempest-extract-outside-"));
+    });
+
+    afterEach(() => {
+        rmSync(outside, { recursive: true, force: true });
+    });
+
+    /** Plan and apply, the way `tempest fix --extract-css` does. */
+    const run = () => {
+        const result = plan();
+        applyExtraction({ plan: result });
+        return result;
+    };
+
+    it("refuses a src/index.css that is a symlink to a file outside the project", () => {
+        const victim = join(outside, "victimrc");
+        writeFileSync(victim, "echo ORIGINAL\n");
+        rmSync(join(root, "src/index.css"));
+        symlinkSync(victim, join(root, "src/index.css"));
+
+        const result = run();
+
+        expect(result.status).toBe("no-target");
+        expect(result.message).toContain("é um symlink");
+        expect(readFileSync(victim, "utf8")).toBe("echo ORIGINAL\n");
+    });
+
+    it("refuses a dangling src/index.css symlink instead of falling through to another sheet", () => {
+        rmSync(join(root, "src/index.css"));
+        symlinkSync(join(outside, "not-yet.css"), join(root, "src/index.css"));
+        write("src/app.css", ":root {}\n");
+        write("src/main.tsx", 'import "./index.css";\nimport "./app.css";\n');
+
+        const result = run();
+
+        expect(result.status).toBe("no-target");
+        expect(result.message).toContain("src/index.css é um symlink");
+    });
+
+    it("refuses a global sheet under a folder that is a symlink leaving the project", () => {
+        writeFileSync(join(outside, "globals.css"), ":root {}\n");
+        symlinkSync(outside, join(root, "src/styles"));
+        write("src/main.tsx", 'import "./styles/globals.css";\n');
+
+        const result = run();
+
+        expect(result.status).toBe("no-target");
+        expect(result.message).toContain("pasta que é symlink");
+        expect(readFileSync(join(outside, "globals.css"), "utf8")).toBe(":root {}\n");
+    });
+
+    it("refuses a symlinked folder even when it stays inside the project", () => {
+        write("theme/globals.css", ":root {}\n");
+        symlinkSync(join(root, "theme"), join(root, "src/styles"));
+        write("src/main.tsx", 'import "./styles/globals.css";\n');
+
+        const result = run();
+
+        expect(result.status).toBe("no-target");
+        expect(readFileSync(join(root, "theme/globals.css"), "utf8")).toBe(":root {}\n");
+    });
+
+    it("refuses a --css-target outside the project", () => {
+        writeFileSync(join(outside, "x.css"), "");
+        const result = plan({ target: relative(root, join(outside, "x.css")) });
+        expect(result.status).toBe("no-target");
+        expect(result.message).toContain("fora do projeto");
+    });
+
+    it("matches importers by realpath, so a project under a symlinked path still works", () => {
+        const linked = join(outside, "linked-project");
+        symlinkSync(root, linked);
+        const result = planExtraction({
+            analysis: analyzeCss({ root: linked, targets: ["."], selfDir: SELF_DIR }),
+            root: linked,
+        });
+        expect(result.status).toBe("ok");
+        expect(result.groups).toHaveLength(1);
     });
 });

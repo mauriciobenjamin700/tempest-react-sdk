@@ -18,11 +18,14 @@
 //     dead and take the remaining styles down with it;
 //   - the class is only ever read as `styles.row` / `styles["row"]`, never
 //     through a computed key or by handing the whole object around;
-//   - the target global sheet exists AND some source file imports it, because
-//     appending to a stylesheet nobody loads is a silent no-op;
+//   - no declaration carries a line terminator, so the appended rule is the
+//     same lines it was in the module and cannot open a new line of its own;
+//   - the target global sheet is a regular file reached without a symlink, inside
+//     the project, AND some source file imports it, because appending to a
+//     stylesheet nobody loads is a silent no-op;
 //   - the new global name collides with nothing already in that sheet.
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { lstatSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { isAbsolute, join, relative, sep } from "node:path";
 
 import { discoverAlias } from "../alias/discover.mjs";
 import { loadTypeScript, typeScriptUnavailableReason } from "../alias/typescript.mjs";
@@ -32,6 +35,9 @@ import { declSignature } from "./semantic.mjs";
 
 /** A repeated block is only worth extracting from this many declarations up. */
 const MIN_DECLS = 3;
+
+/** CSS newlines (`\n`, `\r`, `\f`) plus the two Unicode line separators. */
+const LINE_TERMINATOR = /[\n\r\f\u2028\u2029]/;
 
 /** Stylesheets treated as "the project's global sheet", in order of preference. */
 const TARGET_CANDIDATES = [
@@ -82,7 +88,7 @@ export function classNamesIn(parsed) {
  */
 export function findGlobalSheet({ root, explicit, alias }) {
     const candidates = explicit ? [explicit] : TARGET_CANDIDATES;
-    const found = candidates.map((rel) => join(root, rel)).find(existsSync);
+    const found = candidates.map((rel) => join(root, rel)).find((path) => lstatOrNull(path));
     if (!found) {
         return {
             error: explicit
@@ -95,6 +101,9 @@ export function findGlobalSheet({ root, explicit, alias }) {
             error: `${relative(root, found)} é um CSS Module — a folha alvo tem que ser global`,
         };
     }
+    const unsafe = unsafeTargetReason(root, found);
+    if (unsafe) return { error: `${relative(root, found)} ${unsafe} — recusado` };
+    const realFound = realpathSync(found);
 
     const imported = collectSources({ root }).some((file) => {
         let text;
@@ -106,7 +115,7 @@ export function findGlobalSheet({ root, explicit, alias }) {
         if (!text.includes(".css")) return false;
         for (const match of text.matchAll(/["']([^"']+\.css)["']/g)) {
             const target = resolveSpecifier({ specifier: match[1], fromFile: file, alias });
-            if (target === found) return true;
+            if (target !== null && realpathOrNull(target) === realFound) return true;
         }
         return false;
     });
@@ -116,6 +125,67 @@ export function findGlobalSheet({ root, explicit, alias }) {
         };
     }
     return { path: found, file: relative(root, found) };
+}
+
+/**
+ * `lstat` that answers `null` for a missing path instead of throwing.
+ *
+ * @param {string} path - Absolute path.
+ * @returns {import("node:fs").Stats | null}
+ */
+function lstatOrNull(path) {
+    try {
+        return lstatSync(path);
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * `realpath` that answers `null` for a missing or dangling path.
+ *
+ * @param {string} path - Absolute path.
+ * @returns {string | null}
+ */
+function realpathOrNull(path) {
+    try {
+        return realpathSync(path);
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Why the candidate global sheet must not be appended to, or `null`.
+ *
+ * `writeFileSync` follows symlinks, so a `src/index.css` that is a link — or
+ * that sits under a linked folder — carries the append to wherever it points:
+ * measured before this check, a link to a shell rc file got the extracted rule
+ * appended, and a custom property value with a newline in it became a line the
+ * shell ran. The sheet is accepted only when it is a regular file and its
+ * `realpath` is exactly `realpath(root)` joined with its path relative to the
+ * root — which holds only when no component below the root is a symlink, and
+ * implies the sheet is inside the project. A link that stays in the project is
+ * refused too: the target is a stylesheet the CLI picked by name, and the real
+ * file is one `--css-target` away.
+ *
+ * @param {string} root - Project root.
+ * @param {string} path - Absolute candidate path, which `lstat` sees.
+ * @returns {string | null} A phrase completing "`<file>` …", or `null`.
+ */
+function unsafeTargetReason(root, path) {
+    const rel = relative(root, path);
+    if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+        return "fica fora do projeto";
+    }
+    const stat = lstatOrNull(path);
+    if (stat?.isSymbolicLink()) return "é um symlink, e a escrita seguiria o link";
+    if (!stat?.isFile()) return "não é um arquivo comum";
+    const realRoot = realpathOrNull(root);
+    if (realRoot === null || realpathOrNull(path) !== join(realRoot, rel)) {
+        return "está sob uma pasta que é symlink, e a escrita seguiria o link";
+    }
+    return null;
 }
 
 /** Group the analysed sheets by identical declaration block. */
@@ -144,6 +214,13 @@ function occurrenceRefusal({ sheet, block, className, uses, opaqueModules }) {
         return `está dentro de \`${block.context.join(" › ")}\` — mover pra fora mudaria quando a regra vale`;
     }
     if (!className) return `\`${block.prelude}\` não é uma classe simples`;
+
+    const broken = block.decls.find(
+        (d) => LINE_TERMINATOR.test(d.prop) || LINE_TERMINATOR.test(d.value),
+    );
+    if (broken) {
+        return `a declaração \`${broken.prop.split(LINE_TERMINATOR)[0]}\` tem quebra de linha — copiada pra folha global, viraria uma linha nova fora da regra`;
+    }
 
     const mentions = sheet.parsed.blocks.filter(
         (other) =>

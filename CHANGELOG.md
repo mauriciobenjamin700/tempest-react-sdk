@@ -6,6 +6,17 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **`tempest fix --extract-css` não acrescenta mais através de uma folha global que é symlink**
+  (#483). A folha alvo era escolhida com `existsSync` e escrita com `writeFileSync`, ambos seguindo
+  link: com `src/index.css` apontando para um rc de shell fora do projeto (e importado pelo
+  `main.tsx`), a regra extraída ia para o rc, e um valor de custom property com quebra de linha
+  virava uma linha que o shell executava (reproduzido em dir temporário). Agora a folha só é aceita
+  se o `lstat` disser arquivo comum e o `realpath` for exatamente `realpath(raiz)` + o caminho
+  relativo — o que recusa symlink no próprio arquivo, pendente inclusive, e em qualquer pasta acima
+  dele, mesmo que aponte para dentro do projeto (passe o arquivo real em `--css-target`). Os
+  importadores são comparados pelo `realpath`. Declaração com terminador de linha (`\n`, `\r`, `\f`,
+  U+2028, U+2029) no nome ou no valor é recusada com o motivo, como as outras recusas da passada.
+
 - **`tempest gen api` e `tempest gen icons` não escrevem mais através de symlink nem fora do projeto**
   (#484). Com `src/api` ou `src/icons.generated.ts` plantados como symlink num repo clonado, o
   `gen api` criava os 5 arquivos gerados na pasta apontada e o `gen icons` sobrescrevia o arquivo

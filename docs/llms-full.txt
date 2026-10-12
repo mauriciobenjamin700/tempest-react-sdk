@@ -5922,7 +5922,9 @@ O que ele reescreve no TSX:
     | nenhuma outra regra da folha menciona a classe | um `.row:hover` ou `.row .child` ficaria sem sujeito |
     | o módulo continua com pelo menos outra regra | senão o import vira código morto, o ESLint remove, e as regras que sobraram **param de carregar** |
     | a classe é lida só como `styles.row` / `styles["row"]` | `styles[key]` ou `Object.keys(styles)` tornam o módulo **opaco**: nada nele é extraído |
+    | nenhuma declaração tem quebra de linha | copiada pra folha global, ela viraria uma linha nova fora da regra |
     | a folha global existe **e** alguém a importa | escrever numa folha que ninguém carrega é no-op silencioso |
+    | a folha global é arquivo comum dentro do projeto, sem symlink no caminho | a escrita segue o link: um `src/index.css` que aponta pra fora levaria o CSS pra outro arquivo do disco |
     | o nome novo não colide na folha global | use `--css-prefix` |
 
     ```console

@@ -425,6 +425,7 @@ Worth knowing:
 - A retry wraps the **whole** request, refresh included. One attempt that spends the full 401 → refresh → replay cycle counts as a single attempt.
 - Each attempt carries its own `X-Request-ID`, so the backend can tell the attempts apart in its logs.
 - `Retry-After` (on `429`/`503`) is honoured and overrides the backoff for that attempt.
+- `retry: true` makes **3 attempts in total** (the first + 2 replays). `retry: { retries: N }` makes `N` in total, and `retries: 0` makes just one — see [what `retries` counts](#what-retries-counts).
 ## Timeout and cancellation
 
 The client abandons a request after **15 s** by default, and after **5 min** when the body is `FormData`.
@@ -625,7 +626,7 @@ import { api } from "./api";
 import type { ApiError } from "tempest-react-sdk";
 
 const data = await retry(() => api.get("/flaky-endpoint"), {
-  retries: 5,
+  retries: 5, // 5 attempts in total: the first + 4 replays
   initialDelay: 300,
   maxDelay: 10_000,
   // Do not retry client errors (4xx) — only transient failures
@@ -633,6 +634,23 @@ const data = await retry(() => api.get("/flaky-endpoint"), {
   onRetry: ({ attempt, delay }) => console.warn(`Attempt ${attempt} in ${delay}ms`),
 });
 ```
+
+### What `retries` counts
+
+`retries` is the **total number of attempts**, the first one included — not the number of replays after it. The default is `3`: one call and up to two replays.
+
+| `retries` | Attempts |
+| --------- | -------- |
+| omitted or `NaN` | 3 |
+| `5` | 5 |
+| `1` | 1 |
+| `0` or negative | 1 |
+| `2.5` | 2 (rounded down) |
+
+The first attempt **always** runs: `retries: 0` turns replaying off, and the promise rejects with that attempt's error.
+
+??? info "Why a total, and not replays"
+    The name suggests "replays", but every surface that forwards the value has always counted totals: `createApiClient`'s `retry` option, `createResumableUpload` ("5 attempts") and `lazyWithRetry`'s `retries`. Switching to replays would add one request to every caller that passes a number — and no change of default can hide that. Up to 0.77.0, `retries: 0` (and any negative value) never called the factory and rejected with `undefined` (#486).
 
 !!! note "The default already avoids retrying what won't improve"
     You do **not** need the `shouldRetry` in the example above. Without it, the

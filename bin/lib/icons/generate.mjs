@@ -15,18 +15,43 @@ const SOURCE_FILE = /\.[cm]?[jt]sx?$/;
 const SKIP_DIRS = new Set(["node_modules", "dist", "build", "coverage"]);
 
 /**
+ * The two catalogue modules `loadIconTables` reads, relative to `dist/`.
+ *
+ * Both are pure data (`export { e as iconNames }`, `export { e as iconAliases }`)
+ * with no import of their own, which `scripts/check-dist-guards.mjs` asserts
+ * after every build.
+ */
+export const ICON_TABLE_MODULES = {
+    names: "icons/generated/icon-names.js",
+    aliases: "icons/generated/aliases.js",
+};
+
+/**
  * Read the slug tables out of the installed SDK build.
  *
  * Deliberately reads `dist/` rather than embedding a copy: the CLI must agree with
  * the `<Icon>` the app actually renders, and both come from the same install.
  *
+ * It imports the two catalogue modules directly instead of the `dist/icons.js`
+ * barrel. Since 0.63.0 every component module imports its own stylesheet, and the
+ * barrel reaches `<IconPicker>` and its `.css`: in plain Node — which is how the
+ * `tempest` bin runs — that import died with `ERR_UNKNOWN_FILE_EXTENSION ".css"`
+ * and `gen icons` failed in every installed app (#485). Registering the
+ * `/node-css-loader` hooks would also have worked, but it changes module loading
+ * for the whole CLI process to read two arrays, and the barrel would still pull
+ * React and the component graph just to list slugs; the data modules need
+ * neither.
+ *
  * @param {string} selfDir - Directory holding this CLI (`bin/`).
  * @returns {Promise<{ known: Set<string>, aliases: Record<string, string> }>}
  */
 export async function loadIconTables(selfDir) {
-    const dist = join(selfDir, "..", "dist", "icons.js");
-    const mod = await import(pathToFileURL(dist).href);
-    return { known: new Set(mod.iconNames), aliases: mod.iconAliases };
+    const dist = join(selfDir, "..", "dist");
+    const [names, aliases] = await Promise.all([
+        import(pathToFileURL(join(dist, ICON_TABLE_MODULES.names)).href),
+        import(pathToFileURL(join(dist, ICON_TABLE_MODULES.aliases)).href),
+    ]);
+    return { known: new Set(names.iconNames), aliases: aliases.iconAliases };
 }
 
 /**

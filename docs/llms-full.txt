@@ -21494,6 +21494,7 @@ Detalhes que valem saber:
 - A retentativa envolve a requisição **inteira**, refresh incluído. Uma tentativa que gasta o ciclo de 401 → refresh → repetição conta como uma tentativa só.
 - Cada tentativa carrega o seu próprio `X-Request-ID`, então o backend consegue distinguir as tentativas nos logs.
 - `Retry-After` (em `429`/`503`) é respeitado e sobrepõe o backoff daquela tentativa.
+- `retry: true` faz **3 tentativas no total** (a primeira + 2 repetições). `retry: { retries: N }` faz `N` no total, e `retries: 0` faz uma só — veja [o que `retries` conta](#o-que-retries-conta).
 ## Timeout e cancelamento
 
 O cliente abandona uma requisição depois de **15 s** por default, e depois de **5 min** quando o body é `FormData`.
@@ -21674,7 +21675,7 @@ import { api } from "./api";
 import type { ApiError } from "tempest-react-sdk";
 
 const data = await retry(() => api.get("/flaky-endpoint"), {
-  retries: 5,
+  retries: 5, // 5 tentativas no total: a primeira + 4 repetições
   initialDelay: 300,
   maxDelay: 10_000,
   // Não retentar erros de cliente (4xx) — só falhas transitórias
@@ -21682,6 +21683,23 @@ const data = await retry(() => api.get("/flaky-endpoint"), {
   onRetry: ({ attempt, delay }) => console.warn(`Tentativa ${attempt} em ${delay}ms`),
 });
 ```
+
+### O que `retries` conta
+
+`retries` é o **total de tentativas**, a primeira incluída — não o número de repetições depois dela. O default é `3`: uma chamada e até duas repetições.
+
+| `retries` | Tentativas |
+| --------- | ---------- |
+| omitido ou `NaN` | 3 |
+| `5` | 5 |
+| `1` | 1 |
+| `0` ou negativo | 1 |
+| `2.5` | 2 (arredonda pra baixo) |
+
+A primeira tentativa **sempre** acontece: `retries: 0` desliga a repetição, e a promise rejeita com o erro daquela tentativa.
+
+??? info "Por que total, e não repetições"
+    O nome sugere "repetições", mas toda superfície que repassa o valor sempre contou total: a opção `retry` do `createApiClient`, o `createResumableUpload` ("5 tentativas") e o `retries` do `lazyWithRetry`. Trocar para repetições somaria uma request a todo chamador que passa um número — e nenhuma troca de default esconde isso. Até a 0.77.0, `retries: 0` (e qualquer negativo) não chamava a factory nenhuma vez e rejeitava com `undefined` (#486).
 
 !!! note "O default já evita retentar o que não vai melhorar"
     Você **não precisa** escrever o `shouldRetry` do exemplo acima. Sem ele, o
@@ -27172,7 +27190,7 @@ Local:                                  GitHub Actions:
                                        │    --provenance            │
                                        │ 8. read-back: registry     │
                                        │    serve a versão e o      │
-                                       │    dist-tag latest bate?   │
+                                       │    o dist-tag bate?        │
                                        │ release (contents: write)  │
                                        │ 9. GitHub Release da tag   │
                                        │    (notas = CHANGELOG,     │
@@ -27182,7 +27200,7 @@ Local:                                  GitHub Actions:
 
 **As três superfícies andam juntas**: a git tag, a versão no npm e o GitHub
 Release. O workflow falha se a tag não descrever a versão do `package.json`, e
-falha se o registry não estiver servindo a versão como `latest` — então "workflow
+falha se o registry não estiver servindo a versão sob o dist-tag dela — então "workflow
 verde" significa de fato "publicado e visível".
 
 Uma tag `vX.Y.Z` é a **única** coisa que publica — o disparo manual também roda sobre a tag, nunca sobre uma branch. Não há "publish via PR merge" — o merge do release PR é apenas para sincronizar `main` com `package.json` + `RELEASES.md` atualizados.
@@ -27270,7 +27288,7 @@ Disparado por:
 - **`push: tags: [v*.*.*]`** — fluxo principal. `make release TAG=X` push uma tag e o workflow dispara automaticamente.
 - **`workflow_dispatch`** — manual, **sempre sobre a tag**: `gh workflow run release-npm.yml --ref vX.Y.Z`. Útil quando o publish de uma tag falhou e você quer re-rodar sem incrementar versão. Disparado de uma branch (`--ref main`), o guard do passo 3 reprova a run antes de instalar qualquer coisa — até a 0.76.0 ele derivava a tag do `package.json` da branch e publicava aquela árvore.
 
-O workflow parte de `permissions: {}`, enfileira runs da mesma tag (`concurrency` por ref, sem cancelar a que está em andamento — o publish dela pode já ter acontecido) e se divide em quatro jobs, cada um com só a permissão de que precisa. A divisão é o ponto: o único job que **pode** publicar não roda nada resolvido do registry na hora do release.
+O workflow parte de `permissions: {}`, roda um release por vez, de qualquer tag (`concurrency` com grupo único `release-npm`, sem cancelar o que está em andamento — o publish dele pode já ter acontecido) e se divide em quatro jobs, cada um com só a permissão de que precisa. A divisão é o ponto: o único job que **pode** publicar não roda nada resolvido do registry na hora do release.
 
 | Job       | Permissão         | O que roda                                                                 |
 | --------- | ----------------- | -------------------------------------------------------------------------- |
@@ -27283,26 +27301,62 @@ Passos, na ordem:
 
 1. **Checkout** (`actions/checkout`, fixado por SHA como toda action do workflow) com `fetch-depth: 0` e `persist-credentials: false` — o `GITHUB_TOKEN` não fica gravado no `.git/config` para os passos seguintes.
 2. **Node 22** + cache npm.
-3. **Guard de ref** (`scripts/check-release-ref.sh`) — **aborta**, antes de qualquer instalação, se o ref da run não é uma tag `vX.Y.Z` (ou `vX.Y.Z-pre`), se a tag não descreve o `version` do `package.json`, ou se ela não aponta para o commit em checkout (`GITHUB_SHA`). Vale para tag push e para `workflow_dispatch`. Também deriva `prerelease` (versão com `-`) para marcar o Release corretamente.
+3. **Guard de ref** (`scripts/check-release-ref.sh`) — **aborta**, antes de qualquer instalação, se o ref da run não é uma tag `vX.Y.Z` (ou `vX.Y.Z-pre`), se a tag não descreve o `version` do `package.json`, ou se ela não aponta para o commit em checkout (`GITHUB_SHA`). Vale para tag push e para `workflow_dispatch`. Também deriva `prerelease` (versão com `-`) para marcar o Release corretamente, e escolhe o dist-tag comparando a versão com o `latest` atual do registry, que o passo anterior lê com `scripts/release-dist-tag.sh current-latest` (veja [Dist-tags](#dist-tags)).
 4. **`npm ci`**, **lint**, **format check**, **typecheck**, **testes** e **build**.
 5. **`npm pack`** — o tarball sobe como artifact `npm-tarball-<tentativa>` (um nome por `run_attempt`, para um re-run completo não colidir com o artifact da primeira tentativa) e o SHA-256 dele vira output do job. Output de job não pode ser reescrito por job posterior, então todo job que baixa o artifact confere o digest antes de usá-lo (`sha256sum --check`).
 6. **Smoke** (job `smoke`) — instala o tarball em `/tmp/sdk-smoke` com `react@^19 react-dom@^19 react-router@^8` e empacota com esbuild, roda as mesmas asserções em Node cru com o `node-css-loader` publicado, e roda uma suíte Vitest de consumidor (`scripts/smoke-vitest.sh`). Essas instalações resolvem versões flutuantes do registry — por isso moram num job sem permissão de escrita nenhuma.
-7. **`npm publish "./<tarball>" --provenance --access public`** (job `publish`) via **Trusted Publishing (OIDC)** — sem `NPM_TOKEN`. Publica **o arquivo** que o `build` empacotou e o `smoke` testou: publish de diretório re-rodaria o `prepublishOnly` (typecheck + lint + a suíte inteira + build) dentro do job com `id-token`, e mandaria um pack novo em vez do testado; publish de tarball não roda script de ciclo de vida nenhum. Prerelease (`vX.Y.Z-rc.1`) vai com `--tag next`, versão estável com `--tag latest` — antes, uma `-rc` publicada viraria o default de todo `npm install`. O npm CLI é instalado em versão exata (`npm install -g npm@12.2.0`), não `@latest`.
-8. **Read-back do registry** — confirma que o npm serve `tempest-react-sdk@<versão>` (até 30 minutos, porque o registry processa o upload de forma assíncrona) **e** que o dist-tag dela (`latest`, ou `next` para prerelease) aponta para ela — com a mesma janela de 30 minutos, porque o dist-tag atrasa tanto quanto a versão. Falha o job caso contrário: publish que aterrissou em outra tag deixaria de parecer verde.
+7. **`npm publish "./<tarball>" --provenance --access public`** (job `publish`) via **Trusted Publishing (OIDC)** — sem `NPM_TOKEN`. Publica **o arquivo** que o `build` empacotou e o `smoke` testou: publish de diretório re-rodaria o `prepublishOnly` (typecheck + lint + a suíte inteira + build) dentro do job com `id-token`, e mandaria um pack novo em vez do testado; publish de tarball não roda script de ciclo de vida nenhum. O `--tag` é escolhido de novo **imediatamente antes** do upload, relendo o `latest` do registry com o mesmo script do guard — o `build` leu minutos antes, e outro release pode tê-lo movido (veja [Dist-tags](#dist-tags)). O npm CLI é instalado em versão exata (`npm install -g npm@12.2.0`), não `@latest`.
+8. **Read-back do registry** — confirma que o npm serve `tempest-react-sdk@<versão>` (até 30 minutos, porque o registry processa o upload de forma assíncrona) **e** que o dist-tag dela (`latest`, `next` ou `release-<major>.<minor>`) aponta para ela — com a mesma janela de 30 minutos, porque o dist-tag atrasa tanto quanto a versão. Falha o job caso contrário: publish que aterrissou em outra tag deixaria de parecer verde. A espera do dist-tag só roda quando esta run fez o upload: num re-run o publish é pulado, não aplica tag nenhuma, e a run que publicou já esperou pela dela.
 9. **GitHub Release** (job `release`) — `gh release create <tag>` com o tarball do artifact anexado e as notas extraídas da seção do `CHANGELOG.md` (`scripts/changelog.mjs notes <versão> --allow-unreleased`), acrescidas do link para a versão no npm. Antes, confere que a tag ainda resolve para o `GITHUB_SHA` publicado e que o sha512 do tarball é o `dist.integrity` que o npm serve (lido com a mesma janela de 30 minutos); o `gh release create` leva `--verify-tag`, então nunca cria uma tag faltante na HEAD da branch padrão. Se o Release já existe, faz `gh release edit` + `upload --clobber` em vez de falhar — e o `--clobber` só re-sobe os mesmos bytes que o npm serve. Para recuperar uma run que publicou e falhou depois, use **Re-run failed jobs**: os jobs re-rodados herdam os outputs do `build` e baixam o artifact da tentativa que publicou. Um **Re-run all jobs** também roda (o artifact tem nome próprio), mas reempacota — e se o pack novo não for byte a byte o publicado, o job `release` não anexa nada e falha apontando para `make releases-sync` (cria o Release sem asset) ou para anexar à mão o tarball do próprio registry (`npm pack tempest-react-sdk@<versão>`).
 
 !!! note "Por que o npm é fixado em 12.2.0"
     Trusted Publishing exige npm >= 11.5.1, e o Node 22 traz 10.x. Até a 0.76.0 o passo instalava `npm@latest`, e o `latest` mudou de major duas vezes debaixo do job sem ninguém escolher: os logs das runs da v0.74.0 à v0.76.0 mostram o npm 12 (`npm notice run …`, `allowScripts`). A 12.2.0 é a versão que publicou essas três releases. Subir o npm é uma mudança deliberada nessa linha, revisada como qualquer outra.
 
+### Dist-tags
+
+O `latest` é **monotônico**: só anda para a frente. A regra mora num script só, `scripts/release-dist-tag.sh`, chamado em três lugares: pelo guard no job `build`, pelo job `publish` imediatamente antes do `npm publish`, e pelo job `release` para marcar o GitHub Release.
+
+| Versão da tag                                     | Dist-tag                   | Exemplo, com `latest` em `0.77.0` |
+| ------------------------------------------------- | -------------------------- | --------------------------------- |
+| prerelease (`X.Y.Z-algo`)                         | `next`                     | `v0.78.0-rc.1` → `next`           |
+| estável, maior que o `latest` (ou sem `latest`)   | `latest`                   | `v0.78.0` → `latest`              |
+| estável, igual ao `latest` (re-run da publicada)  | `latest`                   | `v0.77.0` → `latest`              |
+| estável, menor que o `latest`                     | `release-<major>.<minor>`  | `v0.75.1` → `release-0.75`        |
+
+Até a 0.77.0 toda versão estável ia para `latest`, então um backport `v0.75.1` cortado depois da 0.77.0 viraria o default de todo `npm install`. Quem quer a linha antiga instala pelo dist-tag dela: `npm install tempest-react-sdk@release-0.75`. "Igual" só acontece no re-run de uma versão já publicada (o npm não aceita publicar a mesma versão duas vezes), e por isso fica em `latest`.
+
+Como o `latest` é lido:
+
+- **Por `npm view <pacote> dist-tags --json`**, com a chave extraída em Node. Nunca `npm view <pacote> dist-tags.<nome>`: o npm trata o ponto como caminho, e `dist-tags.release-0.75` volta sempre vazio.
+- **Só `E404` explícito é pacote novo** (sem `latest`). Resposta vazia com código 0, ou pacote que existe sem `latest`, **reprova a run** — tratar isso como pacote novo mandaria um backport para `latest`. Outras falhas do `npm view` são retentadas 10 vezes, com 15 s entre elas, e depois reprovam.
+
+Duas runs nunca disputam o `latest`: o workflow tem um grupo de `concurrency` único, então releases de tags diferentes entram em fila. E o job `publish` relê o `latest` segundos antes do upload; se ele mudou desde o `build`, o publish usa o dist-tag novo e deixa um `::notice::`.
+
+!!! warning "Fila do GitHub: só um pendente por grupo"
+    O GitHub mantém **uma** run pendente por grupo de `concurrency`. Com um release rodando e duas tags enfileiradas, a terceira cancela a segunda enquanto ela ainda espera. A cancelada não publicou nada; dispare de novo com `gh workflow run release-npm.yml --ref vX.Y.Z`.
+
+!!! warning "Backport precisa desta versão do workflow"
+    Num tag push, o GitHub roda o `release-npm.yml` **do commit da tag**. Uma tag `v0.75.1` cortada de uma branch que parte da 0.75.0 roda o workflow antigo, que manda tudo para `latest`. A branch de backport precisa ter o `release-npm.yml`, o `scripts/check-release-ref.sh` e o `scripts/release-dist-tag.sh` desta versão em diante (cherry-pick do fix da #472).
+
+O **GitHub Release** segue o registry: o `gh release create` leva `--latest` quando o `latest` do npm **é** esta versão, e `--latest=false` caso contrário (backport, ou prerelease, que continua com `--prerelease`). O flag vem do registry, não do dist-tag escolhido, então um re-run que cria o Release de uma versão já publicada como `latest` ainda a marca. Release que já existe não tem o flag alterado: o re-run cai no `gh release edit` + `upload --clobber`, sem `--latest`.
+
+!!! info "Por que `release-0.75` e não `v0.75`"
+    O npm recusa dist-tag que seja range semver válido, e `v0.75` é um (`>=0.75.0 <0.76.0-0`): `npm publish --tag v0.75` sai com `Tag name must not be a valid SemVer range: v0.75` (medido no npm 12.2.0, o que o job `publish` instala).
+
+O script roda offline: o guard recebe `CURRENT_LATEST` por variável de ambiente (ausente, ele falha em vez de assumir pacote novo), e `test/release-workflow.test.ts` exercita cada linha da tabela num repositório git de fixture e cada resposta do registry com um `npm` falso no `PATH`.
+
 ### Environment `npm-release`
 
-O job `publish` roda no environment `npm-release`. Sem configuração, o GitHub o cria vazio e ele não barra nada — o workflow funciona igual. Ele é o gancho para dois controles que moram fora do repositório, e que valem a pena:
+O job `publish` roda no environment `npm-release`. Sem configuração, o GitHub o cria vazio e ele não barra nada — o workflow funciona igual. Ele é o gancho para dois controles que moram fora do repositório, e que continuam necessários:
 
 - **Em Settings → Environments → `npm-release`**: _Required reviewers_ (o publish espera aprovação humana, mesmo depois de todos os gates verdes) e _Deployment branches and tags_ restrito a tags `v*`.
 - **No Trusted Publisher do npmjs.com**: o campo _Environment_ preenchido com `npm-release`. Daí em diante o npm só aceita a troca OIDC de um job nesse environment — outro workflow ou outro job do mesmo arquivo não publica.
 
 !!! tip "Ligue os dois juntos"
     O revisor obrigatório sem o vínculo no npm deixa um job fora do environment publicar; o vínculo sem o revisor deixa qualquer run do environment publicar sem ninguém olhar.
+
+!!! warning "O guard não confere se o commit passou por revisão"
+    O `check-release-ref.sh` exige que a tag descreva o `package.json` e aponte para o commit da run, mas não que o commit esteja na `main`: o próprio `scripts/release.sh` empurra a tag da branch de release antes do merge, então publicar commit ainda não mergeado é o fluxo normal. O dist-tag monotônico impede que esse publish leve o `latest` para trás, não que ele aconteça. Quem barra commit não revisado é o revisor obrigatório no environment `npm-release`, junto com uma regra de tag `v*` (_Settings → Rules → Rulesets_) restringindo quem cria a tag — configuração do GitHub e do npm, a cargo do dono do repositório.
 
 ## Segredos necessários no GitHub
 

@@ -145,7 +145,6 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
     Os conjuntos de tokens emitidos/aposentados, que cresciam a cada refresh numa sessão longa, foram
     removidos: a época lida na saída de cada tentativa cobre o que eles cobriam.
 
-
 ## [0.76.0] — 2026-10-10
 
 ### Adicionado

@@ -321,6 +321,28 @@ describe("tokenize — a `$` inside an identifier stays one plain token", () => 
         expect(of(tokens, "number")).toEqual([]);
         expect(of(tokens, "plain")).toEqual(["foo$this a$true x$1"]);
     });
+
+    it.each([
+        ["if$foo(1)", "if$foo"],
+        ["this$x()", "this$x"],
+        ["true$y()", "true$y"],
+    ])("paints %s as one called identifier, not a keyword plus a `$` call (#498)", (code, name) => {
+        const tokens = tokenize(code, "ts");
+        expect(of(tokens, "function")).toEqual([name]);
+        expect(of(tokens, "keyword")).toEqual([]);
+        expect(of(tokens, "literal")).toEqual([]);
+        assertLossless(code, "ts");
+    });
+
+    it.each(["1$foo(3)", "0x1$a()"])(
+        "leaves the invalid %s plain instead of painting a call from its middle (#498)",
+        (code) => {
+            const tokens = tokenize(code, "ts");
+            expect(of(tokens, "function")).toEqual([]);
+            expect(tokens[0]).toEqual({ kind: "plain", value: code.slice(0, code.indexOf("(")) });
+            assertLossless(code, "ts");
+        },
+    );
 });
 
 describe("tokenize — every token is consumed in one pass, so the scan is linear (#477)", () => {
@@ -376,6 +398,21 @@ describe("tokenize — every token is consumed in one pass, so the scan is linea
     ])("consumes a long %s identifier run in one pass", (language, code) => {
         expect(elapsed(() => tokenize(code, language))).toBeLessThan(BUDGET_MS);
     });
+
+    it.each([
+        ["typescript", "$1".repeat(40_000)],
+        ["javascript", "true$".repeat(16_000)],
+        ["tsx", "if$".repeat(40_000)],
+        ["jsx", "0x1$".repeat(20_000)],
+        ["typescript", "$if".repeat(40_000)],
+        ["tsx", "$this$".repeat(13_000)],
+    ])(
+        "reads a %s identifier run cut at every `$` a constant number of times (#498)",
+        (language, code) => {
+            expect(elapsed(() => tokenize(code, language))).toBeLessThan(BUDGET_MS);
+            assertLossless(code, language);
+        },
+    );
 });
 
 describe("tokenizeLines", () => {

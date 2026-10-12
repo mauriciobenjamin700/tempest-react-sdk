@@ -129,6 +129,19 @@ const JS_LITERALS = "true|false|null|undefined|NaN|Infinity";
  * carries the same boundary in a lookbehind, so an apostrophe in prose
  * (`Don't`) does not open a string that runs to the end of the input.
  *
+ * The same boundary closes the JavaScript keyword, literal and number rules:
+ * they end at `(?![\w$])` rather than `\b`, because `\b` holds before a `$`, so
+ * `if$foo` would paint `if` and leave the scanner standing on the `$` in the
+ * middle of the identifier. The `function` rule only starts where no identifier
+ * character precedes it (`(?<![\w$])`). Without that lookbehind a rule that
+ * stopped inside a run — the leading-`$` split above stops at every `$1` of
+ * `$1$1$1…` — handed the rest of the run to `function`, which read it to the end
+ * and failed for want of a `(`, once per `$`: 80 KB of `$1` took 2.8 s and
+ * 120 KB of `if$` 4.2 s (#498). With both boundaries every rule that can start
+ * inside a run fails at once or consumes a bounded piece of it, so each run is
+ * read a constant number of times and `if$foo(`, `this$x(` and `true$y(` paint
+ * as the one called identifier they are.
+ *
  * The CSS `property` and `function` rules match a whole word where it stands —
  * `font-size` and `translate3d` paint as one token rather than splitting the
  * tail — and a `#rgb`/`#rrggbb` colour paints as a number. A word before a
@@ -224,13 +237,13 @@ function jsRules(withJsx: boolean): Rule[] {
             pattern:
                 /`(?:[^`\\]|\\[\s\S])*`?|"(?:[^"\\\n]|\\[\s\S])*"?|(?<![\w$])'(?:[^'\\\n]|\\[\s\S])*'?/y,
         },
-        { kind: "keyword", pattern: new RegExp(`\\b(?:${JS_KEYWORDS})\\b`, "y") },
-        { kind: "literal", pattern: new RegExp(`\\b(?:${JS_LITERALS})\\b`, "y") },
+        { kind: "keyword", pattern: new RegExp(`\\b(?:${JS_KEYWORDS})(?![\\w$])`, "y") },
+        { kind: "literal", pattern: new RegExp(`\\b(?:${JS_LITERALS})(?![\\w$])`, "y") },
         {
             kind: "number",
-            pattern: /\b(?:0[xX][\da-fA-F_]+|\d[\d_]*(?:\.[\d_]+)?(?:[eE][+-]?\d+)?)\b/y,
+            pattern: /\b(?:0[xX][\da-fA-F_]+|\d[\d_]*(?:\.[\d_]+)?(?:[eE][+-]?\d+)?)(?![\w$])/y,
         },
-        { kind: "function", pattern: /[A-Za-z_$][\w$]*(?=\s*\()/y },
+        { kind: "function", pattern: /(?<![\w$])[A-Za-z_$][\w$]*(?=\s*\()/y },
         { kind: "punctuation", pattern: /[{}[\]().,;:?!=<>+\-*/%&|^~]/y },
         { kind: "plain", pattern: /(?:[A-Za-z_][\w$]*|\$+)/y },
     ];

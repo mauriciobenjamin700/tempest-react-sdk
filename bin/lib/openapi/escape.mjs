@@ -180,13 +180,23 @@ function templateText(text) {
  *
  * Static segments are escaped for the template literal; each `{name}` placeholder
  * is matched by the spec's original name against the declared path parameters
- * and becomes `${identifier}`, the variable that parameter was mapped to
- * (`{user-id}` → `${userId}`). A path without placeholders is emitted as a JSON
- * string literal.
+ * and becomes `${encodeIdSegment(identifier)}`, the variable that parameter was
+ * mapped to passed through the SDK's segment encoder (`{user-id}` →
+ * `${encodeIdSegment(userId)}`). A path without placeholders is emitted as a
+ * JSON string literal.
+ *
+ * The encoder is what keeps a runtime value inside its own segment: interpolated
+ * raw, `"../../account"` turned `DELETE /api/comments/{id}` into
+ * `DELETE /account` carrying the Bearer, and `"7?role=admin"` injected a query
+ * string (#499 — the class #438 closed for the data provider). Encoded, `/`, `?`,
+ * `#` and `%` stay in the segment, and `null`, `undefined`, `""`, `"."` and
+ * `".."` throw before the request is built.
  *
  * @param {string} path - The OpenAPI path key ("/users/{user-id}").
- * @param {Map<string, string>} declared - Original name → identifier of each of
- *   the operation's `in: "path"` params.
+ * @param {Map<string, string>} declared - Original name → argument expression of
+ *   each of the operation's `in: "path"` params: the identifier, or the
+ *   identifier with a type assertion when its type is wider than
+ *   `encodeIdSegment` accepts.
  * @returns {string} A TypeScript expression evaluating to the URL.
  * @throws {Error} When a placeholder is not a declared path parameter — there is
  *   no variable it could safely map to.
@@ -202,7 +212,11 @@ export function urlTemplate(path, declared) {
                 `OpenAPI path ${JSON.stringify(path)}: placeholder ${JSON.stringify(name)} is not a declared path parameter.`,
             );
         }
-        out += templateText(path.slice(last, match.index)) + "${" + declared.get(name) + "}";
+        out +=
+            templateText(path.slice(last, match.index)) +
+            "${encodeIdSegment(" +
+            declared.get(name) +
+            ")}";
         last = match.index + match[0].length;
     }
     out += templateText(path.slice(last));

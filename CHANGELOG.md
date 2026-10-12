@@ -218,7 +218,6 @@ range: v0.75`, medido). O `latest` é lido de `npm view <pkg> dist-tags --json` 
   `SessionSupersededError` (`src/auth/create-tempest-auth.races.test.ts`, três testes que falhavam
   na `main`).
 
-
 ## [0.77.0] — 2026-10-12
 
 ### Breaking

@@ -1,6 +1,8 @@
+import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { iconAliases, iconNames } from "@/icons";
@@ -121,5 +123,59 @@ describe("renderRegistry — reserved names", () => {
         const out = renderRegistry(["infinity"], iconAliases);
         expect(out).toContain(`import { Infinity as InfinityIcon } from "lucide-react";`);
         expect(out).toContain(`"infinity": InfinityIcon,`);
+    });
+});
+
+describe("loadIconTables in plain Node (#485)", () => {
+    let pkg;
+
+    beforeEach(() => {
+        pkg = mkdtempSync(join(tmpdir(), "tempest-icon-tables-"));
+    });
+
+    afterEach(() => {
+        rmSync(pkg, { recursive: true, force: true });
+    });
+
+    /**
+     * Lay out a package the way `npm pack` ships it: a `dist/icons.js` barrel that
+     * imports a stylesheet, as every component module has since 0.63.0, next to the
+     * two pure data modules. Vitest would load the `.css` on its own, so the call
+     * runs in a child `node` with no loader — exactly how the `tempest` bin runs.
+     */
+    function loadInPlainNode() {
+        const dist = join(pkg, "dist");
+        mkdirSync(join(dist, "icons", "generated"), { recursive: true });
+        mkdirSync(join(pkg, "bin"));
+        writeFileSync(join(dist, "icons", "IconPicker.css"), ".a{color:red}");
+        writeFileSync(
+            join(dist, "icons.js"),
+            'import "./icons/IconPicker.css";\nexport const iconNames = [];\nexport const iconAliases = {};\n',
+        );
+        writeFileSync(
+            join(dist, "icons", "generated", "icon-names.js"),
+            'var e = ["check", "house"];\nexport { e as iconNames };\n',
+        );
+        writeFileSync(
+            join(dist, "icons", "generated", "aliases.js"),
+            'var e = { home: "house" };\nexport { e as iconAliases };\n',
+        );
+        const generator = join(dirname(fileURLToPath(import.meta.url)), "generate.mjs");
+        const script = `const { loadIconTables } = await import(${JSON.stringify(generator)});
+const t = await loadIconTables(${JSON.stringify(join(pkg, "bin"))});
+console.log(JSON.stringify({ known: [...t.known], aliases: t.aliases }));`;
+        return spawnSync(process.execPath, ["--input-type=module", "-e", script], {
+            encoding: "utf8",
+        });
+    }
+
+    it("reads the tables without importing a stylesheet", () => {
+        const result = loadInPlainNode();
+        expect(result.stderr).not.toMatch(/ERR_UNKNOWN_FILE_EXTENSION/);
+        expect(result.status).toBe(0);
+        expect(JSON.parse(result.stdout)).toEqual({
+            known: ["check", "house"],
+            aliases: { home: "house" },
+        });
     });
 });

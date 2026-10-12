@@ -6,16 +6,6 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
-- **`retry(factory, { retries: 0 })` nunca chamava a `factory` e rejeitava com `undefined`** (#486). O
-  laço era `while (attempt < retries)`, então `0`, qualquer negativo e `NaN` pulavam a tentativa: a
-  request não saía e o erro não dizia nada. Agora a primeira tentativa sempre roda — `0`/negativo fazem
-  uma e repassam o erro dela, `NaN` vale o default, fração arredonda pra baixo. Vale também para
-  `createApiClient({ retry: { retries: 0 } })` e o `retry` do `createResumableUpload`. A semântica
-  **não muda**: `retries` continua sendo o total de tentativas (default 3 = a primeira + 2
-  repetições), que é o que o JSDoc, o `createApiClient`, o upload resumível e o `lazyWithRetry` já
-  contavam; o número de requests com o default e com qualquer `retries >= 1` é o mesmo de antes. O
-  JSDoc e a doc (`http` → "O que `retries` conta") agora dizem isso explicitamente.
-
 ## [0.77.0] — 2026-10-12
 
 ### Breaking

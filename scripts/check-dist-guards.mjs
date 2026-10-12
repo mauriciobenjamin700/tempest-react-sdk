@@ -9,7 +9,7 @@
  * like the right one, and invisible to the test suite, which runs before the
  * bundler folds anything. It is only visible here, in `dist`.
  *
- * Four invariants, checked after every build:
+ * Five invariants, checked after every build:
  *
  * 1. `dist/utils/dev-mode.js` still contains the live `process.env.NODE_ENV`
  *    read — the expression the *consumer's* bundler replaces.
@@ -24,10 +24,16 @@
  *    renders a single icon, and nothing in the source would look wrong.
  * 4. Every CSS-module key the source reads exists in the published module
  *    (issue #405) — see the section above `cssModuleImports`.
+ * 5. `tempest gen icons` can read the slug tables from this `dist` in plain Node,
+ *    the way the bin runs (issue #485). This script is itself plain Node, so it
+ *    calls the CLI's own `loadIconTables`: an import that reaches a stylesheet
+ *    fails here with `ERR_UNKNOWN_FILE_EXTENSION`, not in a consumer's app.
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { loadIconTables } from "../bin/lib/icons/generate.mjs";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const DIST = join(ROOT, "dist");
@@ -352,6 +358,22 @@ if (cssModuleImports === 0) {
     );
 }
 
+let iconTableSize = 0;
+try {
+    const tables = await loadIconTables(join(ROOT, "bin"));
+    iconTableSize = tables.known.size;
+    if (iconTableSize === 0 || Object.keys(tables.aliases ?? {}).length === 0) {
+        problems.push(
+            "loadIconTables read empty slug tables from dist — `tempest gen icons` would emit an empty registry",
+        );
+    }
+} catch (error) {
+    problems.push(
+        `loadIconTables failed in plain Node (${error?.code ?? error}) — \`tempest gen icons\` ` +
+            "is broken in every installed app. It must import only modules that reach no stylesheet.",
+    );
+}
+
 if (problems.length > 0) {
     console.error("check-dist-guards: FAIL");
     for (const problem of problems) console.error(`  - ${problem}`);
@@ -361,5 +383,6 @@ if (problems.length > 0) {
 console.log(
     "check-dist-guards: ok (live dev guard present, no ungated console calls, " +
         `Icon reaches ${iconGraph.size} modules and none is the slug list, ` +
-        `${cssModuleLookups} CSS-module lookups in ${cssModuleImports} imports all resolve)`,
+        `${cssModuleLookups} CSS-module lookups in ${cssModuleImports} imports all resolve, ` +
+        `gen icons reads ${iconTableSize} slugs in plain Node)`,
 );

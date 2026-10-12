@@ -608,6 +608,12 @@ What happens to the name and the folder:
     asked for and stays as an alias — for `component` only, so `new` does not
     become a second name for every generator.
 
+!!! check "Every generator checks its destination the same way"
+    `gen api`, `gen icons` and `gen component` run the same check before writing:
+    a symlink in place of a folder they create or a file they write (a dangling
+    one included), a path outside the project and an ancestor that is a symlink
+    leading out are refused, and nothing is written.
+
 ## `tempest lint` and `tempest format`
 
 ```bash

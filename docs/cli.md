@@ -605,6 +605,12 @@ O que acontece com o nome e com a pasta:
     issue e fica como alias — só para `component`, para `new` não virar um
     segundo nome de todo gerador.
 
+!!! check "Todo gerador confere o destino do mesmo jeito"
+    `gen api`, `gen icons` e `gen component` passam pela mesma checagem antes de
+    escrever: symlink no lugar de uma pasta criada ou de um arquivo escrito
+    (inclusive symlink pendente), caminho fora do projeto e ancestral que é
+    symlink para fora são recusados, e nada é escrito.
+
 ## `tempest lint` e `tempest format`
 
 ```bash

@@ -449,6 +449,11 @@ Re-run it after adding new icons. A slug the scan cannot see (a name built by
 concatenation, say) still works through the shard path — it just does not get the
 static route.
 
+The output file and its folder cannot be a symlink (dangling included) nor land
+outside the project: `gen icons` refuses before writing, so a
+`src/icons.generated.ts` that is a link in a cloned repository does not overwrite
+the file it points to.
+
 ## The icon picker, already built
 
 Every panel that lets someone choose an icon was rewriting the same screen:

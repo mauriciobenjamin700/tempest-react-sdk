@@ -6137,6 +6137,12 @@ O que acontece com o nome e com a pasta:
     issue e fica como alias — só para `component`, para `new` não virar um
     segundo nome de todo gerador.
 
+!!! check "Todo gerador confere o destino do mesmo jeito"
+    `gen api`, `gen icons` e `gen component` passam pela mesma checagem antes de
+    escrever: symlink no lugar de uma pasta criada ou de um arquivo escrito
+    (inclusive symlink pendente), caminho fora do projeto e ancestral que é
+    symlink para fora são recusados, e nada é escrito.
+
 ## `tempest lint` e `tempest format`
 
 ```bash
@@ -22606,6 +22612,11 @@ Re-rode depois de adicionar ícones novos. Um slug que o scan não vê (nome mon
 por concatenação, por exemplo) continua funcionando pelo shard — só não ganha o
 caminho estático.
 
+O arquivo de saída e a pasta dele não podem ser symlink (nem pendente) nem ficar
+fora do projeto: o `gen icons` recusa antes de escrever, então um
+`src/icons.generated.ts` que é link num repo clonado não sobrescreve o arquivo
+para onde aponta.
+
 ## Seletor de ícone pronto
 
 Todo painel que deixa alguém escolher um ícone reescrevia a mesma tela: filtrar a
@@ -25123,6 +25134,13 @@ function UserList() {
     Rode `tempest gen api` de novo após mexer no backend — os arquivos em
     `src/api/` são **gerados**, então trate-os como build artifact (não edite à
     mão; versione se quiser, mas regenere ao mudar o contrato).
+
+!!! note "A saída fica dentro do projeto"
+    Antes da primeira escrita, o `gen api` confere o `--out`, cada pasta de grupo
+    e cada arquivo: symlink (inclusive pendente) no lugar de qualquer um deles,
+    caminho fora do projeto e ancestral que é symlink para fora são recusados, e
+    nada é escrito. Um `src/api` que é link num repo clonado não leva os arquivos
+    gerados para outro lugar do disco.
 
 !!! note "Validação de **entrada**, tipagem na **saída**"
     O método valida o **body** com `Schema.parse(...)` (erro cedo se você mandar

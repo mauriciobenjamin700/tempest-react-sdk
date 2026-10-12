@@ -4,6 +4,17 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`tempest gen api` e `tempest gen icons` não escrevem mais através de symlink nem fora do projeto**
+  (#484). Com `src/api` ou `src/icons.generated.ts` plantados como symlink num repo clonado, o
+  `gen api` criava os 5 arquivos gerados na pasta apontada e o `gen icons` sobrescrevia o arquivo
+  apontado, ambos com exit 0 (reproduzido em dir temporário com `src/api -> <fora>`). Os dois agora
+  usam a mesma checagem do `gen component`, extraída para um helper único: antes da primeira
+  escrita, o `--out`, cada pasta de grupo e cada arquivo são recusados se forem symlink (inclusive
+  pendente), se existirem com o tipo errado ou se caírem fora do projeto depois de resolver
+  symlinks. Ancestral que é symlink pendente agora conta como fora do projeto.
+
 ## [0.77.0] — 2026-10-12
 
 ### Breaking

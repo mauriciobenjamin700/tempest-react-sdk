@@ -151,6 +151,38 @@ describe("tokenize — the other grammars", () => {
     });
 });
 
+describe("tokenize — a well-formed string that closes across lines stays one token", () => {
+    it.each([
+        ["bash", `echo "linha 1\nlinha 2" $HOME`, `"linha 1\nlinha 2"`],
+        ["bash", `echo 'linha 1\nlinha 2'`, `'linha 1\nlinha 2'`],
+        ["bash", `git commit -m "titulo\n\ncorpo"`, `"titulo\n\ncorpo"`],
+        ["sql", `INSERT INTO t VALUES ('linha 1\nlinha 2', 3);`, `'linha 1\nlinha 2'`],
+        ["html", `<path d="M0 0\n L10 10"/>`, `"M0 0\n L10 10"`],
+        ["typescript", "const s = `a\\\nb`; const k = 1;", "`a\\\nb`"],
+    ])("keeps the %s string in %j as one token", (language, code, expected) => {
+        expect(of(tokenize(code, language), "string")).toEqual([expected]);
+        assertLossless(code, language);
+    });
+
+    it("does not swallow the rest of the input after a line-continued template", () => {
+        const code = "const s = `a\\\nb`;\nconst k = 1;";
+        const tokens = tokenize(code, "ts");
+        expect(of(tokens, "string")).toEqual(["`a\\\nb`"]);
+        expect(of(tokens, "keyword")).toEqual(["const", "const"]);
+        expect(of(tokens, "number")).toEqual(["1"]);
+        assertLossless(code, "ts");
+    });
+});
+
+describe("tokenize — a `$` identifier paints as it did before the plain rule", () => {
+    it.each(["$type", "$default", "$this"])("keeps %s as plain `$` plus its keyword", (name) => {
+        expect(tokenize(name, "ts")).toEqual([
+            { kind: "plain", value: "$" },
+            { kind: "keyword", value: name.slice(1) },
+        ]);
+    });
+});
+
 describe("tokenize — every token is consumed in one pass, so the scan is linear (#477)", () => {
     /**
      * Run `work` and return how long it took, in milliseconds.

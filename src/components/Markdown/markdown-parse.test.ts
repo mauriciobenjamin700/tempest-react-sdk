@@ -154,6 +154,24 @@ describe("parseMarkdown — blocks", () => {
     });
 });
 
+describe("parseMarkdown — what counts as a list item is unchanged", () => {
+    it.each([
+        ["-\u00a0item"], // NBSP right after the marker, as Word and Docs paste
+        ["-\fitem"], // form feed
+        ["\ufeff- item"], // BOM before the marker
+        ["- \titem"], // tab
+    ])("reads %j as a list", (source) => {
+        expect(kinds(source)).toEqual(["list"]);
+    });
+
+    it.each([["- a\u2028b"], ["1. a\u2029b"], ["- a\u2028"]])(
+        "keeps %j a paragraph, because the separator is not a line break",
+        (source) => {
+            expect(kinds(source)).toEqual(["paragraph"]);
+        },
+    );
+});
+
 describe("parseInline", () => {
     it("parses bold, italic and strikethrough", () => {
         expect(parseInline("**b**")[0]).toMatchObject({ type: "strong" });

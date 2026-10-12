@@ -18,9 +18,13 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - **O `tokenize` do `CodeBlock` consome cada token numa passada, então a tokenização é linear
   no tamanho da entrada (#477).** Com o `at++` como único fallback, uma string ou comentário
   sem fechamento era reescaneada a partir de cada abertura seguinte. Agora todo padrão de
-  string e comentário tem o **fecho opcional** (`"..."?`, `/*...*?`, `<!--...--?`): a aspa vai
-  até o fecho ou o fim da linha, e o template literal, a tripla do Python e o comentário de
-  bloco vão até o fecho ou o fim da entrada. Aplicado em JSON, família JS, CSS, HTML, bash,
+  string e comentário tem o **fecho opcional** (`"..."?`, `/*...*?`, `<!--...--?`): a aspa vai até o fecho ou o fim
+  da entrada, e o template literal, a tripla do Python e o comentário de bloco vão até o
+  fecho ou o fim da entrada. Onde a linguagem deixa a string atravessar a linha — bash, SQL,
+  HTML, o template literal do JS — o fecho só corta quando não há fecho nenhum; uma string
+  que fecha numa linha seguinte continua um token só, e o escape (`\\[\s\S]`) atravessa o
+  LF. O corte no fim da linha vale só para a aspa sem fecho de JS, JSON, CSS e Python.
+  Aplicado em JSON, família JS, CSS, HTML, bash,
   python e SQL. Medido com `performance.now()` em Node 24 (12/10/2026), JSON de 80 KB com uma
   aspa seguida de `\"` repetido: **1998 ms** antes, **< 1 ms** depois. Reproduzido em
   `npx vitest run src/components/CodeBlock/tokenize.test.ts` (9 testes de teto de tempo
@@ -32,26 +36,32 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   partir de cada caractere. Uma cerca com 80 KB de caracteres de palavra sem pontuação (blob
   base64, token minificado) levava **6,2 s** e 160 KB levavam **24,7 s**. Cada gramática ganhou
   uma regra `plain` final que consome a corrida numa passada: os mesmos casos caíram para
-  **0,4 ms** (160 KB).
+  **0,4 ms** (160 KB). No JS a regra `plain` não começa em `$`: um `$` e a corrida de
+  identificador seguinte são tokens separados, então `$type`, `$default` e `$this` seguem
+  pintados como em `origin/main` (o `$` plain e o nome como keyword).
 
 - **A regex de item de lista do `Markdown` é linear numa linha com U+2028/U+2029 (#478).** As
   regex `BULLET`/`ORDERED` deixavam o `\s+` e o `(.*)` disputarem os mesmos espaços; como o
   separador de linha e o de parágrafo não são `\n`, o `.` parava neles e o `$` nunca era
-  alcançado, então o motor tentava toda divisão da corrida. O separador virou `[ \t]+` e a
-  captura virou `([^]*)`, que sempre casa. Medido com `performance.now()` em Node 24
-  (12/10/2026), em `parseMarkdown`: **57 / 227 / 913 / 3650 ms** a 10 / 20 / 40 / 80 mil
-  espaços, cerca de 4× por duplicação; depois, no teto do teste de tempo. U+2028/U+2029 **não**
-  são tratados como quebra de linha — `parseMarkdown` continua quebrando só em `\n`/`\r`, e o
-  separador fica no texto do item, como já ficava no parágrafo. Reproduzido em
+  alcançado, então o motor tentava toda divisão da corrida. Agora só a abertura é casada — o
+  separador é `[^\S\n\r]`, todo espaço menos CR/LF — e o conteúdo é fatiado com `slice`, sem
+  `.*` para disputar com o separador. O separador largo mantém NBSP, `\f` e um BOM
+  inicial contando como lista, igual ao `\s+` antigo. Medido com `performance.now()` em Node
+  24 (12/10/2026), em `parseMarkdown`: **57 / 227 / 913 / 3650 ms** a 10 / 20 / 40 / 80 mil
+  espaços, cerca de 4× por duplicação; depois, no teto do teste de tempo. A linha cujo
+  conteúdo traz U+2028/U+2029 não é item de lista: o `(.*)` antigo parava no separador, nunca
+  alcançava o `$`, e a linha ficava parágrafo — e continua parágrafo. U+2028/U+2029 **não**
+  são tratados como quebra de linha; `parseMarkdown` quebra só em `\n`/`\r`. Reproduzido em
   `npx vitest run src/components/Markdown/markdown-parse.test.ts` (2 testes de teto de tempo
   falhavam com 1583/1577 ms e agora passam com folga).
 
 ### Tamanho
 
-- **O teto do barrel CJS sobe de 172,5 para 172,7 kB.** O tokenizador linear do `CodeBlock`
-  (#477) e as regex de lista do `Markdown` (#478) acrescentam ~0,19 kB brotliado à fatia
-  pior-caso (`ceiling: full barrel CJS`). Medido com `npx size-limit` sobre o build do `main`
-  (**172,46 kB**) e desta branch (**172,65 kB**) em 12/10/2026.
+- **Os tetos dos barrels sobem: CJS de 172,5 para 172,7 kB e ESM de 145,0 para 145,2 kB.** O
+  tokenizador linear do `CodeBlock` (#476, #477) e as regex de lista do `Markdown` (#478)
+  acrescentam ~0,07 kB brotliado à fatia pior-caso (`ceiling: full barrel CJS`) e ~0,17 kB ao
+  barrel ESM. Medido com `npx size-limit` sobre o build do `main` (CJS **172,46 kB**, ESM
+  **144,97 kB**) e desta branch (CJS **172,53 kB**, ESM **145,14 kB**) em 12/10/2026.
 
 ## [0.77.0] — 2026-10-12
 

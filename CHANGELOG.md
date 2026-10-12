@@ -6,6 +6,16 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **`tempest fix` não reescreve mais arquivo fora do projeto através de symlink.** Achado na
+  varredura das escritas da CLI ao fechar #483/#484: com `src` plantado como symlink para outra
+  pasta, a passada de alias seguia o link (o `readdirSync` da base segue) e convertia os imports
+  `../` dos arquivos de lá para `@/` (reproduzido em dir temporário: `import { b } from "../b"`
+  virou `"@/b"` no arquivo de fora). A passada de CSS fazia o mesmo com um alvo explícito que é
+  link (`tempest fix src`). As duas agora deixam de fora todo arquivo cujo `realpath` cai fora do
+  projeto; o `doctor` lista a folha pulada com o motivo. A checagem `landsInside` sai do
+  `tempest.mjs` para `bin/lib/fs/contain.mjs`, onde os geradores e as passadas do `fix` a
+  compartilham.
+
 - **`tempest fix --extract-css` não acrescenta mais através de uma folha global que é symlink**
   (#483). A folha alvo era escolhida com `existsSync` e escrita com `writeFileSync`, ambos seguindo
   link: com `src/index.css` apontando para um rc de shell fora do projeto (e importado pelo

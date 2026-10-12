@@ -9,7 +9,7 @@
 //   tempest gen <api|icons|component> …   code generators (`new component` = alias)
 //   tempest --help | --version
 import { spawnSync } from "node:child_process";
-import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,6 +17,7 @@ import { aliasImports } from "./lib/alias/index.mjs";
 import { describeTypeScript, loadTypeScript } from "./lib/alias/typescript.mjs";
 import { readTsconfig } from "./lib/alias/tsconfig.mjs";
 import { componentFiles } from "./lib/component/generate.mjs";
+import { landsInside, lstatOrNull } from "./lib/fs/contain.mjs";
 import { analyzeCss, applyCssFixes, applyExtraction, planExtraction } from "./lib/css/index.mjs";
 import { analyzeDesign } from "./lib/design/index.mjs";
 import { checkLucide } from "./lib/doctor/lucide.mjs";
@@ -1402,48 +1403,6 @@ async function genIcons(args) {
 // ------------------------------------------------------- gen component ----
 
 /**
- * `lstat` that answers `null` for a missing path instead of throwing.
- *
- * @param {string} path - Absolute path.
- * @returns {import("node:fs").Stats | null}
- */
-function lstatOrNull(path) {
-    try {
-        return lstatSync(path);
-    } catch {
-        return null;
-    }
-}
-
-/**
- * Whether `path` would be created inside the project.
- *
- * Resolves the nearest ancestor that exists through `realpath`, so `../x`, an
- * absolute path and an ancestor that is a symlink to somewhere else
- * (`src/components -> /elsewhere`) are all seen where they really land. The walk
- * stops at the nearest ancestor `lstat` sees, so a dangling symlink on the way is
- * not skipped over: its `realpath` throws and the path counts as outside, since
- * `mkdir` would create whatever the link names.
- *
- * @param {string} path - Absolute path about to be created.
- * @returns {boolean}
- */
-function landsInsideProject(path) {
-    let existing = path;
-    while (lstatOrNull(existing) === null && dirname(existing) !== existing) {
-        existing = dirname(existing);
-    }
-    let real;
-    try {
-        real = realpathSync(existing);
-    } catch {
-        return false;
-    }
-    const rel = relative(realpathSync(ROOT), real);
-    return !(rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel));
-}
-
-/**
  * Why a generator must not write `path`, or `null` when it may.
  *
  * The one check every generator (`gen api`, `gen icons`, `gen component`) runs on
@@ -1452,7 +1411,7 @@ function landsInsideProject(path) {
  * - `path` itself must not be a symlink — dangling included, since `mkdir` and
  *   `writeFile` follow a link to wherever it points, existing or not;
  * - it must land inside the project once symlinks are resolved
- *   ({@link landsInsideProject});
+ *   ({@link landsInside});
  * - if it exists, it must be what is about to be written there: a folder for
  *   `"dir"`, a regular file for `"file"`.
  *
@@ -1466,7 +1425,7 @@ function landsInsideProject(path) {
 function writeTargetProblem(path, kind) {
     const stat = lstatOrNull(path);
     if (stat?.isSymbolicLink()) return "is a symlink; refusing to write through it";
-    if (!landsInsideProject(path)) {
+    if (!landsInside(ROOT, path)) {
         return `is outside the project (${ROOT}) once symlinks are resolved`;
     }
     if (stat && kind === "dir" && !stat.isDirectory()) return "exists and is not a folder";

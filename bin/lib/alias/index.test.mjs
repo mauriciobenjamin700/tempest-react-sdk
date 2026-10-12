@@ -136,3 +136,27 @@ describe("aliasImports — degraded projects", () => {
         expect(read("src/pages/admin/Login.tsx")).toBe(before);
     });
 });
+
+describe("aliasImports — files outside the project", () => {
+    let outside;
+
+    beforeEach(() => {
+        outside = mkdtempSync(join(tmpdir(), "tempest-alias-outside-"));
+    });
+
+    afterEach(() => {
+        rmSync(outside, { recursive: true, force: true });
+    });
+
+    it("does not rewrite through an alias base that is a symlink leaving the project", () => {
+        const before = `import { b } from "../b";\nexport const a = b;\n`;
+        mkdirSync(join(outside, "sub"));
+        writeFileSync(join(outside, "b.ts"), "export const b = 1;\n");
+        writeFileSync(join(outside, "sub", "a.ts"), before);
+        rmSync(join(root, "src"), { recursive: true });
+        symlinkSync(outside, join(root, "src"), "dir");
+
+        expect(run()).toMatchObject({ total: 0, files: [] });
+        expect(readFileSync(join(outside, "sub", "a.ts"), "utf8")).toBe(before);
+    });
+});

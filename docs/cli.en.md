@@ -342,6 +342,12 @@ $ npx tempest fix
     duplicated selector, and does not turn a repeated block into a global class.
     All of that is design editing, not cleanup.
 
+!!! note "Nothing outside the project is rewritten"
+    A file that lands outside the project once symlinks are followed is left out
+    of both passes: a `src` that links to another folder does not make `fix`
+    rewrite the CSS or the imports there. `doctor` lists a skipped sheet with the
+    reason.
+
 ### `--extract-css`: move the repeated block into a global class
 
 Plain `fix` **reports** a repeated block and leaves it alone. With the flag it acts:

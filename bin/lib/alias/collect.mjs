@@ -2,6 +2,7 @@
 import { readdirSync, statSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
 
+import { landsInside } from "../fs/contain.mjs";
 import { isInsideBase } from "./specifier.mjs";
 
 const SOURCE_EXTS = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"]);
@@ -40,6 +41,11 @@ function kindOf(path) {
  * the base; a target that is merely *outside* it yields nothing, so
  * `tempest fix e2e` rewrites nothing instead of quietly rewriting `src/`.
  *
+ * A file that resolves outside the project once symlinks are followed is dropped
+ * too: the walk descends into the base with `readdirSync`, which follows a base
+ * that is itself a link (`src -> /elsewhere`), and the codemod would otherwise
+ * rewrite files that are not the project's.
+ *
  * Results are sorted so the report — and any diff a reviewer reads — is stable
  * across runs and platforms.
  *
@@ -53,7 +59,7 @@ export function collectFiles({ root, targets, baseDir }) {
     const out = new Map();
 
     const addFile = (path) => {
-        if (out.has(path) || !isInsideBase(path, baseDir)) return;
+        if (out.has(path) || !isInsideBase(path, baseDir) || !landsInside(root, path)) return;
         const kind = kindOf(path);
         if (kind) out.set(path, { path, kind });
     };

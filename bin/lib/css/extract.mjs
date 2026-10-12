@@ -24,10 +24,11 @@
 //     the project, AND some source file imports it, because appending to a
 //     stylesheet nobody loads is a silent no-op;
 //   - the new global name collides with nothing already in that sheet.
-import { lstatSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { isAbsolute, join, relative, sep } from "node:path";
 
 import { discoverAlias } from "../alias/discover.mjs";
+import { lstatOrNull } from "../fs/contain.mjs";
 import { loadTypeScript, typeScriptUnavailableReason } from "../alias/typescript.mjs";
 import { collectSources, indexClassUses, resolveSpecifier } from "./references.mjs";
 import { parseCss } from "./parse.mjs";
@@ -125,20 +126,6 @@ export function findGlobalSheet({ root, explicit, alias }) {
         };
     }
     return { path: found, file: relative(root, found) };
-}
-
-/**
- * `lstat` that answers `null` for a missing path instead of throwing.
- *
- * @param {string} path - Absolute path.
- * @returns {import("node:fs").Stats | null}
- */
-function lstatOrNull(path) {
-    try {
-        return lstatSync(path);
-    } catch {
-        return null;
-    }
 }
 
 /**

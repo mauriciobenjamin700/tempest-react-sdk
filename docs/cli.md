@@ -339,6 +339,11 @@ $ npx tempest fix
     duplicado e não converte bloco repetido em classe global. Tudo isso é edição
     de design, não limpeza.
 
+!!! note "Nada fora do projeto é reescrito"
+    Arquivo que, seguindo symlink, cai fora do projeto fica de fora das duas
+    passadas: um `src` que é link para outra pasta não leva o `fix` a reescrever
+    o CSS nem os imports de lá. No `doctor`, a folha pulada aparece com o motivo.
+
 ### `--extract-css`: mover o bloco repetido pra classe global
 
 O `fix` normal **reporta** bloco repetido e não mexe. Com a flag, ele executa: o

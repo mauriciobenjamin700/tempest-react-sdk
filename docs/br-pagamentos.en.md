@@ -191,6 +191,8 @@ The CRC detects **corruption**, not **authorship**: whoever crafts a payload rec
 | --- | --- |
 | a tag repeated at the root (`54`, `59`, `26`, …) | the Central Bank's BR Code manual, citing EMV® QRCPS-MPM: no duplicate IDs in the root |
 | a sub-tag repeated inside `26` or `62` (two `01` keys, two `05` txids) | the same ambiguity one level down; no conforming emitter repeats one |
+| a tag `63` before the end (a `6304` + CRC mid-payload, followed by more tags and a second `6304` + CRC) | EMV® QRCPS-MPM, which the Bacen manual follows, makes `63` the last object; cut at the first CRC, the same text is another valid payload, without the `54` that follows |
+| a first tag other than `00` (Payload Format Indicator) | the same EMV spec makes `00` the first object; every other root tag may come in any order |
 | a tag `26` with a key (`01`) **and** a URL (`25`) | a BR Code is static or dynamic, not both |
 | a tag `54` outside the EMV format: `1e3`, `-1`, `,5`, `0x10`, `1.005`, over 13 characters | digits and one `.` decimal mark only, up to two decimals (BRL) — what `Number()` would read as `1000`, `-1`, `NaN` or `16` |
 

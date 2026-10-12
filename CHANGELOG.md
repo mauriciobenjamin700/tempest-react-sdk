@@ -19,6 +19,15 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `directives: { "style-src": ["'UNSAFE-INLINE'"] }` não recebe mais hashes de `<style>` (com
   hash presente, o browser ignora o `'unsafe-inline'`). Teste:
   `npx vitest run src/vite/tempest-csp.test.ts -t "482"`.
+- **`parsePixPayload` recusa tag 63 que não é a última e tag 00 que não é a primeira (#475).** O
+  parser só conferia os 8 caracteres finais como `6304` + CRC e tratava uma tag 63 anterior como
+  campo comum. Medido antes: `pixPayload(...)` + `540599.99` + `6304` + CRC era aceito com
+  `amount: 99.99` e `crcValid: true`, o mesmo texto cortado no primeiro CRC também era válido e
+  sem valor, e uma tag 63 interna com CRC `0000` também passava — duas leituras do mesmo payload,
+  justamente o que o leitor promete recusar. Agora qualquer campo raiz com id `63` lança
+  `PixError`, assim como uma raiz que não começa pela tag `00`: o EMV® QRCPS-MPM, que o manual do
+  BR Code do Bacen segue, fixa a `00` como primeiro objeto e a `63` como último. Payload emitido
+  por PSP conforme não muda. Teste: `npx vitest run src/br/pix.test.ts -t "475"`.
 
 ## [0.77.0] — 2026-10-12
 

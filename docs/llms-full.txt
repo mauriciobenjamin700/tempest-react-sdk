@@ -4024,6 +4024,8 @@ O CRC detecta **corrupção**, não **autoria**: quem monta um payload recalcula
 | --- | --- |
 | tag repetida na raiz (`54`, `59`, `26`, …) | o manual do BR Code do Bacen, citando o EMV® QRCPS-MPM: não há ID duplicado na raiz |
 | subtag repetida dentro da `26` ou da `62` (duas chaves `01`, dois `txid` `05`) | mesma ambiguidade um nível abaixo; nenhum emissor conforme repete |
+| tag `63` antes do fim (um `6304` + CRC no meio, seguido de mais tags e de outro `6304` + CRC) | o EMV® QRCPS-MPM, que o manual do Bacen segue, fixa a `63` como último objeto; cortado no primeiro CRC, o mesmo texto é outro payload válido, sem a `54` que vem depois |
+| primeira tag diferente de `00` (Payload Format Indicator) | o mesmo EMV fixa a `00` como primeiro objeto; as demais tags da raiz podem vir em qualquer ordem |
 | tag `26` com chave (`01`) **e** URL (`25`) | o BR Code é estático ou dinâmico, não os dois |
 | tag `54` fora do formato EMV: `1e3`, `-1`, `,5`, `0x10`, `1.005`, mais de 13 caracteres | só dígitos e um `.` decimal, até duas casas (BRL) — o que `Number()` leria como `1000`, `-1`, `NaN` ou `16` |
 

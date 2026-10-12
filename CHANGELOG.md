@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.78.0] — 2026-10-12
+
 ### Breaking
 
 - **`installBackgroundSync`: entrada de dono desconhecido falha fechado mesmo sem header de

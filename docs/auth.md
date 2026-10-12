@@ -369,7 +369,9 @@ Os refreshes também colapsam por **rotação**, não só por sobreposição no 
 
 Com `withCredentials: true`, o refresh token mora num cookie HttpOnly, e o `logout()` não alcança esse cookie: ele limpa o store e o refresh token guardado, e o cookie continua no navegador, resgatável até o backend revogá-lo. Duas peças fecham isso.
 
-A primeira é do próprio preset e não tem opção: **um 401 de uma request que saiu sem token, sem sessão instalada** (sem access token, sem refresh token guardado e sem `login()` em curso), **só rejeita com o 401** — não dispara refresh. Antes, esse 401 chegava depois do `logout()`, o refresh ia com o cookie de A, e o próximo usuário do navegador agia como A (#474).
+A primeira é do próprio preset e não tem opção: **um 401 de uma request que saiu sem token, sem sessão instalada** (sem access token e sem refresh token guardado), **só rejeita com o 401** — não dispara refresh. Antes, esse 401 chegava depois do `logout()`, o refresh ia com o cookie de A, e o próximo usuário do navegador agia como A (#474).
+
+Com um `login()` em curso, esse 401 **espera o login assentar**, ainda sem refresh: se o login instalou um token, a request é repetida com ele; se falhou, a request rejeita com o 401 e o cliente continua deslogado. Até a 0.77.0, o login em curso contava como "sessão chegando" e o 401 disparava refresh — que ia com o cookie que o navegador tivesse, o da conta que tinha saído. Login de B que falhava deixava o cliente logado como A; login de B que dava certo podia ter o cookie sobrescrito pelo `Set-Cookie` tardio desse refresh, e o refresh seguinte instalava o token de A com o store mostrando B (#496).
 
 O que continua funcionando é restaurar a sessão pelo cookie quando o app recarrega: chame `auth.refresh()` no boot, explicitamente. É o caminho legítimo — o app decide restaurar —, e não um efeito colateral de qualquer request anônima. Uma request sem token que volta 401 **enquanto** esse refresh do boot está em voo entra nele e é repetida com o token restaurado; e um 401 sem sessão nenhuma não encerra nada — não roda o `onSessionEnd`, não navega para o `redirectTo` e não supera o refresh do boot.
 
@@ -418,6 +420,9 @@ export async function signOut(): Promise<void> {
 - Dois `logout()` sobrepostos mandam cada um a sua revogação, e o `login()` espera **todas** — no máximo 10 segundos: uma revogação que nunca volta atrasa o login, não o trava.
 - Um `logout()` durante um `login()` ou refresh em voo: no modo cookie, a revogação espera a resposta dele (no mesmo limite de 10 segundos), porque é ela que grava o cookie da sessão que está acabando; no modo corpo, o refresh token que essa resposta superada traz é revogado à parte.
 - Uma revogação que falha chama `onLogoutError(error)` e, em build de dev, avisa no console — o `logout()` resolve do mesmo jeito.
+
+!!! warning "Sem revogação no servidor, a conta que saiu continua restaurável pelo `refresh()` do boot"
+    O preset não manda refresh por conta própria depois do `logout()`, mas o cookie HttpOnly de A continua no navegador e válido no servidor quando o `logoutPath` não está configurado (o default), quando a revogação falha (rede, `4xx`, `5xx`) ou quando ela passa dos 10 segundos. Nesse caso, o próximo carregamento que chamar `auth.refresh()` no boot restaura A para quem estiver no navegador — é o mesmo cookie, e nada no cliente distingue "A recarregou a página" de "A saiu e outra pessoa abriu o app". Só o servidor fecha isso: configure o `logoutPath` com a rota que revoga o cookie e trate o `onLogoutError`. Backend com refresh token stateless (JWT), que não tem como revogar, deixa essa janela aberta até o cookie expirar.
 
 !!! info "A rota no tempest-fastapi-sdk"
     O `make_auth_router` monta `POST /auth/logout` (`204`, idempotente) quando o serviço guarda refresh token no banco (`refresh_token_model`): no modo corpo ele lê `{ refresh_token }`, no modo cookie lê o cookie e apaga os dois cookies de auth. Com `AUTH_TOKEN_DELIVERY=both`, a rota de cookie fica em `/auth/cookie/logout`. Refresh token stateless (JWT) não tem como ser revogado, e a rota não existe — ali o cookie só morre quando expira.

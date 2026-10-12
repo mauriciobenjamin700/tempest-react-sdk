@@ -284,11 +284,15 @@ function defaultParseTokens(data: unknown): { token: string; refreshToken?: stri
  * showed B (#435). A `401` from a request sent under an ended session is
  * refused the same way, instead of being replayed as the account signed in now.
  *
- * A `401` from a request that carried no token, while no session is installed
- * or being installed, surfaces without a refresh: in cookie mode that refresh
- * would be answered by the HttpOnly cookie `logout()` cannot clear, signing the
- * previous account back in (#474). Restore a session at boot with an explicit
- * `refresh()`, and pass `logoutPath` so the backend revokes the cookie.
+ * A `401` from a request that carried no token, while no session is installed,
+ * surfaces without a refresh: in cookie mode that refresh would be answered by
+ * the HttpOnly cookie `logout()` cannot clear, signing the previous account
+ * back in (#474). With a `login()` in flight, that `401` waits for it and
+ * replays with the token it installed, or surfaces when it failed — still
+ * without a refresh (#496). Restore a session at boot with an explicit
+ * `refresh()`, and pass `logoutPath` so the backend revokes the cookie:
+ * without a working revocation, that boot `refresh()` restores the previous
+ * account for whoever uses the browser next.
  *
  * Refreshes are collapsed per rotation, not just per overlap: a `401` whose
  * request left with a token that has since been replaced in the same session
@@ -387,7 +391,7 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
     let epoch = 0;
     let ending: Promise<void> = Promise.resolve();
     let hooksRunning = 0;
-    let loginsInFlight = 0;
+    const loginsInFlight = new Set<Promise<unknown>>();
     const revocations = new Set<Promise<void>>();
     const credentialRequests = new Set<Promise<unknown>>();
     const rotatingEpochs = new Set<number>();
@@ -561,18 +565,45 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
 
     /**
      * Whether nothing could make a tokenless `401` worth a refresh: no access
-     * token, no stored refresh token and no `login()` in flight.
+     * token and no stored refresh token.
      *
      * With `withCredentials`, the refresh would otherwise be answered by an
      * HttpOnly cookie the client cannot see or clear — after `logout()`, that
      * signed the previous account back in for whoever used the browser next
-     * (#474). Restoring a session from the cookie is an explicit `refresh()`,
+     * (#474). A `login()` in flight does not count as a session either: the
+     * cookie a refresh would present during it is still the ended account's
+     * (#496). Restoring a session from the cookie is an explicit `refresh()`,
      * typically at boot, which this does not touch.
      *
-     * @returns Whether no session is installed or being installed.
+     * @returns Whether no session is installed.
      */
     function signedOut(): boolean {
-        return getToken() === null && readRefreshToken() === null && loginsInFlight === 0;
+        return getToken() === null && readRefreshToken() === null;
+    }
+
+    /**
+     * Settle a tokenless `401` that arrived with no session installed while a
+     * `login()` is in flight: wait for every login in flight, then let the
+     * request replay when one of them installed a token.
+     *
+     * No refresh is sent. In cookie mode one would present whatever cookie
+     * the browser holds — after `logout()` without a working `logoutPath`,
+     * the previous account's: a failed login then left the client signed in
+     * as that account, and a successful one could have its cookie overwritten
+     * by the refresh's late `Set-Cookie` (#496).
+     *
+     * Skipped while an `onSessionEnd` hook runs: an account switch waits on
+     * that hook, so a hook awaiting `auth.api` would wait on itself.
+     *
+     * @throws {Error} When no login is in flight, a hook is running, or every
+     *   login settled without installing a token — the `401` surfaces as is.
+     */
+    async function awaitLogins(): Promise<void> {
+        if (loginsInFlight.size > 0 && hooksRunning === 0) {
+            await Promise.allSettled([...loginsInFlight]);
+            if (getToken() !== null) return;
+        }
+        throw new Error("anonymous 401 with no session");
     }
 
     /**
@@ -583,10 +614,11 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      * - A token this session already rotated past: the replay just picks up the
      *   new one — no second refresh.
      * - No token, while a session is now installed: the `401` surfaces as is.
-     * - No token, and no session installed or being installed: joins this
-     *   epoch's refresh when one is already in flight — the boot `refresh()`
-     *   restoring a session from the cookie, which the request then replays
-     *   under — and otherwise surfaces the `401` as is, see `signedOut`.
+     * - No token, and no session installed: joins this epoch's refresh when
+     *   one is already in flight — the boot `refresh()` restoring a session
+     *   from the cookie, which the request then replays under; otherwise waits
+     *   for a `login()` in flight and replays with its token, see
+     *   `awaitLogins`; otherwise surfaces the `401` as is, see `signedOut`.
      * - Otherwise: join or start this epoch's refresh.
      *
      * @param context - The credential and epoch the rejected attempt left with.
@@ -601,7 +633,7 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
         }
         if (context.token === null && signedOut()) {
             if (rotatingEpochs.has(epoch)) return queue();
-            throw new Error("anonymous 401 with no session");
+            return awaitLogins();
         }
         return queue();
     }
@@ -651,20 +683,20 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      */
     async function login(credentials: TCredentials): Promise<TUser | null> {
         if (revocations.size > 0) await settleWithin([...revocations], LOGOUT_REVOCATION_WAIT_MS);
-        loginsInFlight += 1;
+        const run = signIn(credentials);
+        loginsInFlight.add(run);
         try {
-            return await signIn(credentials);
+            return await run;
         } finally {
-            loginsInFlight -= 1;
+            loginsInFlight.delete(run);
         }
     }
 
     /**
-     * The body of `login()`, counted in `loginsInFlight` by its caller so a
-     * tokenless `401` during the sign-in is not mistaken for one with no
-     * session coming. The count starts only after a pending revocation
-     * settled: until then the cookie a refresh would present is the ended
-     * session's.
+     * The body of `login()`, tracked in `loginsInFlight` by its caller so a
+     * tokenless `401` during the sign-in waits for it and replays with the
+     * token it installs, see `awaitLogins`. Tracking starts only after a
+     * pending revocation settled.
      *
      * @param credentials - Sent as the login body.
      * @returns The user of the new session, or null.

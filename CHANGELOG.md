@@ -4,6 +4,25 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Alterado
+
+- **`toCsv` / `downloadCsv` neutralizam fórmula depois do separador do outro locale (#481).** A
+  neutralização só olhava o início do campo e a citação só o delimitador configurado, então com o
+  `,` padrão o valor `x;=HYPERLINK(CHAR(104)&A1)` saía sem aspas e sem prefixo — e um Excel pt-BR,
+  que separa em `;`, veria uma célula começando com `=`. O espelho valia para `a,=1+2` num arquivo
+  com `;`. Agora, com `neutralizeFormulas` ligado (o padrão), texto que tem `,`, `;` ou TAB sai
+  sempre entre aspas e cada trecho depois de um desses separadores recebe o mesmo `'` do início do
+  campo: `"x;'=HYPERLINK(CHAR(104)&A1)"`. O `'` vai no trecho, não no campo, porque prefixar o
+  campo deixaria o trecho dividido começando com `=`. Número puro (`-1.234,56`) e `-` sozinho
+  continuam isentos, como campo e como trecho, e número puro não ganha aspas pelo outro
+  separador. Saída medida com `toCsv` na `main` e nesta mudança; não havia planilha no ambiente
+  (`which soffice libreoffice localc` vazio), então a leitura pelo Excel/LibreOffice não foi
+  medida. **Migração:** a saída padrão muda — campo de texto com `,`, `;` ou TAB passa a vir entre
+  aspas (transparente para leitor RFC 4180), um campo que começa com TAB sai `"'` + TAB + `…"`, e
+  texto com `=`, `+`, `-` ou `@` logo depois de `,`, `;` ou TAB ganha um `'` no meio do valor. Quem
+  importa o arquivo noutro sistema e precisa dos bytes como vieram passa
+  `{ neutralizeFormulas: false }`, que mantém a saída da 0.77 sem mudança.
+
 ### Corrigido
 
 - **`tempestCsp` não abre mais um `connect-src` que o app bloqueou com `'NONE'` ou lista vazia

@@ -235,6 +235,7 @@ Piece by piece:
 
 - **`endpoint`** — the full URL of the route.
 - **`getToken`** — optional. The route is public: an error before login, or with an expired session, still has to get through. A missing, empty or throwing token sends anonymously; the backend takes `user_id` from the token, **never** from the body.
+- **`getPrincipal`** — optional. Who is signed in, read when the error happens, for `foreignReports: "drop"`; see [Logout and who owns each report](#logout-and-who-owns-each-report).
 - **`device`** — read **when the error happens**, not when it is sent. A report queued offline on `1.4.0` must not go out labelled `1.5.0`.
 - **`report(error, context)`** — never throws. It describes the error, stamps the device, queues it and tries to send.
 
@@ -261,7 +262,7 @@ Error: Could not read the photo
 
 Everything goes through a `localStorage` queue **before** the network. With no signal, the report waits; when the browser fires `online`, the queue drains on its own. Two rules bound it:
 
-- **An identical report becomes a counter.** A failure in a loop is stored once, and goes out with `[repeated N×]` at the start of `message`.
+- **An identical report (with the same stamp) becomes a counter.** A failure in a loop is stored once, and goes out with `[repeated N×]` at the start of `message`.
 - **A ceiling of 50** (`maxEntries`) — the oldest leaves first.
 
 What each answer does:
@@ -274,6 +275,51 @@ What each answer does:
 | any other 4xx | is dropped — the backend would refuse that body forever, and it would block the ones behind it |
 
 `flush()` drains now and returns `{ sent, dropped, pending, retryAfterMs }`; concurrent calls share one run. `dispose()` removes the `online` listener and the timer.
+
+### Logout and who owns each report
+
+The token is read **when the queue drains**, not when the error happens — and the queue survives a logout. Left alone, an error Ana had offline would go out with Bruno's token if he signed in on the same browser before the queue drained: the backend takes `user_id` from the token and would credit Bruno with Ana's message, context and stack.
+
+That is why each report is **stamped with a one-way fingerprint of the token in force when the error happened** (`entry.session`), and only goes out with a bearer when the token at send time is **that very one**:
+
+```ts
+import { createAppErrorReporter } from "tempest-react-sdk";
+
+let currentUserId: string | null = null;
+
+export const reporter = createAppErrorReporter({
+    endpoint: "/api/app-errors",
+    getToken: () => sessionStorage.getItem("access_token"),
+    getPrincipal: () => currentUserId,
+    foreignReports: "drop",
+});
+
+export function onLogout(): void {
+    currentUserId = null;
+    reporter.clear();
+}
+```
+
+- **The bearer depends on the token alone.** Same token at error and at send → bearer; any other → anonymous. A refresh between the error and the send also makes the report go out anonymously: attribution is lost, **never** misplaced.
+- **`getPrincipal`** — optional. A **stable, non-secret** id of who is signed in (the user id, not the email), stored only as a fingerprint (`entry.owner`). It does **not** grant the bearer — the principal and the token come from different sources, and a user store lagging behind a login would send Ana's report with Bruno's token. It lets `"drop"` tell whose report is whose. Only a string or a number counts as an id; an `async` or throwing getter reads as nobody.
+- **`foreignReports`** — what to do with a report that cannot go out with the current bearer:
+    - `"anonymous"` (default) sends it without `Authorization`. The route is public and the error is still useful.
+    - `"drop"` discards every report **not proven** to be the current principal's: someone else's, nobody's (raised with no session) or of unknown owner (old queue, or nobody signed in now). For apps where the previous user's error text must not leave the device. **Needs `getPrincipal`**: without it the only identity is the token, which changes on refresh — so a mismatch proves nothing, and the reporter sends anonymously instead of deleting the user's own reports (in dev, a one-time `console.warn` says so).
+- **`reporter.clear()` on logout** empties the queue, stops a `flush` in flight before its next send, and discards reports still waiting for an async `getToken`.
+- **An async `getToken` has a deadline**: after 5 s with no answer, the report is queued with no session and the `flush` goes on without a token — nothing hangs waiting.
+
+| Report raised under | Sent under | `"anonymous"` (default) | `"drop"` + `getPrincipal` |
+| --- | --- | --- | --- |
+| Ana's token | the same token | Ana's bearer | Ana's bearer |
+| Ana's token | Ana's refreshed token | anonymous | anonymous |
+| Ana's token | Bruno's token, or none | anonymous | dropped |
+| no token (before login) | anything | anonymous | dropped |
+| old queue, no stamp | anything | anonymous | dropped |
+
+!!! check "No credential on disk"
+    `localStorage` holds the report and stamps such as `t:3f1c…` — 64 bits of
+    hash that do not turn back into a token. The token stays only where the
+    app keeps it.
 
 ### With `TelemetryProvider`
 
@@ -340,7 +386,7 @@ const telemetry = useTelemetry();
 - **`useTelemetry()` can be `null`** — always `telemetry?.track(...)` with optional chaining.
 - **Adapters inject the instance** (`{ sentry }`, `{ posthog }`) — never a peer dep.
 - **A custom adapter** is ~20 lines mapping 4 methods.
-- **`createAppErrorReporter`** takes field errors to a Tempest backend's `/api/app-errors`, with an offline queue, dedup and 429 handling.
+- **`createAppErrorReporter`** takes field errors to a Tempest backend's `/api/app-errors`, with an offline queue, dedup and 429 handling — and each report only leaves with a bearer under the same token it was raised with (`clear()` on logout).
 
 ### See also
 

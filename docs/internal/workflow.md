@@ -19,8 +19,9 @@ npm run docs:gallery -- --check   # guard das capturas por seção
 npx size-limit         # budgets por fatia importada
 
 make validate          # sanidade completa, sem release
-make release TAG=0.64.0            # branch + bump + validate + tag + push + PR
+make release TAG=0.64.0            # branch + bump + validate + push + PR (sem tag)
 make release TAG=0.64.0 DRY_RUN=1  # local, sem push
+make release-tag TAG=0.64.0        # depois do merge: tag no commit do merge + push (publica)
 make releases-check                # audita tag ↔ npm ↔ GitHub Release
 ```
 
@@ -84,7 +85,11 @@ exata/o SHA de propósito — o comentário ao lado diz de onde veio.
 
 **Só uma tag publica, inclusive no disparo manual** (#452). O
 `scripts/check-release-ref.sh` reprova a run cujo ref não é `vX.Y.Z`, cuja tag
-não bate com o `package.json` ou não aponta para o `GITHUB_SHA` — então o
+não bate com o `package.json`, não aponta para o `GITHUB_SHA` ou aponta para
+commit que não é ancestral de `origin/main` (#472; backport só de
+`origin/release-<maj>.<min>` e só para esse dist-tag) — o checkout do `build`
+com `fetch-depth: 0` é o que traz `origin/main`, e sem ela o guard falha
+fechado. Então o
 re-run manual é `gh workflow run release-npm.yml --ref vX.Y.Z`, nunca
 `--ref main`. O job `release` confere de novo a tag contra o SHA, cria com
 `--verify-tag` e só anexa o tarball cujo sha512 é o `dist.integrity` do npm. Para
@@ -107,33 +112,42 @@ checkout — script que viaja no artifact sai de um workspace que já rodou `npm
 (#495). Um
 release por vez: `concurrency` de grupo único `release-npm` (o GitHub guarda um
 pendente por grupo, o terceiro cancela o segundo). Backport precisa ter este
-workflow — tag push roda o `release-npm.yml` do commit da tag. Revisor obrigatório no environment `npm-release` e o
-vínculo do Trusted Publisher a ele são configuração do GitHub/npm, não do repo —
-`docs/release.md` diz como ligar. Eles continuam sendo o único freio para tag em
-commit fora da `main` (o `release.sh` taggeia antes do merge, de propósito): o
-dist-tag monotônico só impede que esse publish leve o `latest` para trás.
+workflow — tag push roda o `release-npm.yml` do commit da tag. Revisor obrigatório no environment `npm-release`, ruleset de tag
+`v*` e o vínculo do Trusted Publisher ao environment são configuração do
+GitHub/npm, não do repo — `docs/release.md` diz como ligar. O guard garante "está
+na `main`"; é a branch protection da `main` (e de `release-*`) que transforma
+isso em "foi revisado".
 
 ## Release
 
 Pipeline **tag-push**, sem Changesets. Três superfícies ficam sincronizadas: a
 tag git, a versão no npm e o GitHub Release.
 
-A ordem dentro do `scripts/release.sh` importa, e custou duas tentativas: o bump e
-o fechamento do `[Unreleased]` vêm primeiro, depois o commit, **a tag local e o
-`RELEASES.md`**, e só então a validação. Invertido — validando antes da tag —
-`test/docs-counts.test.ts` reprova todo release novo, porque a versão que acabou
-de ganhar seção no CHANGELOG ainda não aparece no `RELEASES.md`, que é gerado das
-tags. Ovo e galinha, não defeito do guard. Validar por último também afere
-exatamente a árvore que vai ser empurrada; se falhar, o script apaga a tag local
-e não empurra nada.
+O release é **dois comandos**, com a revisão do PR no meio (#472):
 
-A segunda tentativa reprovou na **CI**, com o local verde, e a diferença é qual
-commit a tag aponta. `make releases-md` lê as git tags, então a tag tem de nascer
-antes do refresh — e o refresh vira um commit *depois* dela. O conteúdo taggeado
-ficava com a seção `[X.Y.Z]` no CHANGELOG e sem a linha dela no `RELEASES.md`, e
-é esse conteúdo, e só ele, que o `release-npm.yml` faz checkout. Por isso o
-script move a tag (`git tag -f`) para o commit do refresh. **A árvore que a tag
-aponta é a única que a CI de release vê** — validar a branch não substitui isso.
+1. `make release TAG=X.Y.Z` — branch `release/vX.Y.Z`, bump, `[Unreleased]`
+   fechado, `RELEASES.md`, validação, push da branch, PR. **Não taggeia.**
+2. Revisão e merge do PR na `main`.
+3. `make release-tag TAG=X.Y.Z` — busca `origin/main`, taggeia o **primeiro**
+   commit first-parent com a versão (o merge do PR; PR mergeado depois fica de
+   fora), confere a linha no `RELEASES.md` e empurra a tag. `DRY_RUN=1` só mostra
+   o commit; `REF=<sha>` quando a `main` já andou de versão.
+
+A ordem dentro do `scripts/release.sh` importa, e custou duas tentativas: o bump e
+o fechamento do `[Unreleased]` vêm primeiro, depois o commit, **o `RELEASES.md`**,
+e só então a validação. Invertido, `test/docs-counts.test.ts` reprova todo release
+novo, porque a versão que acabou de ganhar seção no CHANGELOG ainda não aparece no
+`RELEASES.md`. Ovo e galinha, não defeito do guard. `make releases-md` lê as git
+tags, então o script cria uma tag local **provisória** só para esse comando e a
+apaga logo depois — a tag de verdade nasce no merge commit. A coluna Commit da
+linha nova aponta para o `chore: release` da branch; o próximo `releases-md` a
+reescreve.
+
+**A árvore que a tag aponta é a única que a CI de release vê** — validar a branch
+não substitui isso. Na v0.65.0 a tag apontava para o commit anterior ao refresh do
+`RELEASES.md` e o "Run tests" do `release-npm.yml` reprovou; com a tag no merge
+commit, a árvore taggeada é a do PR mergeado, `RELEASES.md` incluído, e o
+`release-tag.sh` recusa commit sem a linha da versão.
 
 A terceira coisa que o pipeline não faz por você: **o snapshot do `CLAUDE.md`
 entra no commit de release**, não depois. `test/docs-counts.test.ts` afere a
@@ -146,7 +160,7 @@ tags, exports de runtime e a linha de testes antes de taggear.
 uma frase explicando o problema com um número literal dentro reprova o release
 que ela tenta evitar. Aconteceu.)
 
-Antes de taggear:
+Antes do `make release` (tudo isto entra no PR, e o PR mergeado é a árvore taggeada):
 
 - [ ] `CHANGELOG.md` com entrada `## [X.Y.Z] — YYYY-MM-DD` cobrindo toda mudança
       pública, com os números medidos.

@@ -160,7 +160,8 @@ npm run docs:gallery -- --check   # guard das capturas por seção
 npx size-limit                    # budgets por fatia importada
 
 make validate                     # sanidade completa, sem release
-make release TAG=0.64.0           # branch + bump + validate + tag + push + PR
+make release TAG=0.64.0           # branch + bump + validate + push + PR (sem tag)
+make release-tag TAG=0.64.0       # depois do merge: tag no commit do merge + push (publica)
 make releases-check               # audita tag ↔ npm ↔ GitHub Release
 ```
 

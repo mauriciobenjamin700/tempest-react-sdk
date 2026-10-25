@@ -15,7 +15,18 @@ Propor o oposto sem isso é refazer uma conversa que já aconteceu.
   explodir fora do browser (teste, service worker, plugin de build), não para
   prometer render no servidor.
 - **Sem Storybook.** Docs em markdown + `examples/gallery` (app Vite real).
-- **Sem Changesets.** Pipeline tag-push (`make release TAG=X`).
+- **Sem Changesets.** Pipeline tag-push: `make release TAG=X` abre o PR,
+  `make release-tag TAG=X` taggeia depois do merge.
+- **A tag nasce depois do merge, no commit da `main`** (#472). Até a 0.78.0 o
+  `release.sh` empurrava a tag da branch de release antes do merge e o guard
+  aceitava qualquer commit — publicar código não revisado era o fluxo normal. O
+  `check-release-ref.sh` agora reprova commit que não é ancestral de
+  `origin/main`. Única exceção: backport abaixo do `latest` do registry, de
+  `origin/release-<maj>.<min>` (o nome do dist-tag), e só para esse dist-tag —
+  branch de manutenção nunca publica em `latest`/`next`. Prerelease também sai só
+  da `main`. Alternativas rejeitadas: só-`main` sem exceção (mataria o dist-tag
+  `release-<maj>.<min>` que a #472 acabou de criar) e qualquer branch `release-*`
+  para qualquer versão (abriria `latest` a quem empurra numa branch sem PR).
 - **i18n minimalista in-house.** Quem precisa de plural avançado, namespace ou
   carga async usa `i18next` direto; o SDK cobre o caso simples (~1,5 kB gzip).
 

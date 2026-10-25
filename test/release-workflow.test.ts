@@ -173,6 +173,10 @@ const GUARD = resolve(import.meta.dirname, "..", "scripts", "check-release-ref.s
 /**
  * A throwaway git repo with one commit and a `package.json` at a given version.
  *
+ * Both commits are on `refs/remotes/origin/main`, the way the build job's
+ * `fetch-depth: 0` checkout has them, so the guard's main-ancestry check (#472)
+ * passes; `offMainRepo` builds the case where it must not.
+ *
  * @param version - The `version` written to `package.json`.
  * @returns The repo path and the commit SHA.
  */
@@ -193,6 +197,7 @@ function fixtureRepo(version: string): { dir: string; sha: string } {
     git("commit", "-q", "-m", "two");
     git("tag", "v-later", "HEAD");
     git("tag", `v${version}`, sha);
+    git("update-ref", "refs/remotes/origin/main", "HEAD");
     return { dir, sha };
 }
 
@@ -323,6 +328,303 @@ describe("scripts/check-release-ref.sh (#452)", () => {
         expect(run.written).toBe(
             "tag=v2.0.0-rc.1\nversion=2.0.0-rc.1\nprerelease=true\ndist_tag=next\n",
         );
+    });
+});
+
+/**
+ * Run a git command in a fixture repo with a fixed identity.
+ *
+ * @param dir - The repo to run in.
+ * @param args - The git arguments.
+ * @returns The trimmed stdout.
+ */
+function gitIn(dir: string, ...args: string[]): string {
+    return execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], {
+        cwd: dir,
+        encoding: "utf8",
+    }).trim();
+}
+
+/**
+ * A fixture repo where `main` is at `0.78.0` and the tag `v<version>` sits on a
+ * commit of another branch, not reachable from `origin/main` — the commit
+ * `scripts/release.sh` used to tag before its PR was merged (#472).
+ *
+ * @param version - The version of the off-main commit, tagged `v<version>`.
+ * @param branch - The branch that holds the off-main commit; it is also published
+ *   as `refs/remotes/origin/<branch>`.
+ * @returns The repo path, the off-main commit (checked out, detached, the way the
+ *   workflow checks out a tag) and the `main` commit.
+ */
+function offMainRepo(
+    version: string,
+    branch = "release/v" + version,
+): { dir: string; off: string; main: string } {
+    const dir = mkdtempSync(join(tmpdir(), "tempest-release-offmain-"));
+    gitIn(dir, "init", "-q", "-b", "main");
+    writeFileSync(join(dir, "package.json"), JSON.stringify({ version: "0.78.0" }));
+    gitIn(dir, "add", ".");
+    gitIn(dir, "commit", "-q", "-m", "main");
+    const main = gitIn(dir, "rev-parse", "HEAD");
+    gitIn(dir, "update-ref", "refs/remotes/origin/main", main);
+    gitIn(dir, "checkout", "-q", "-b", branch);
+    writeFileSync(join(dir, "package.json"), JSON.stringify({ version }));
+    gitIn(dir, "add", ".");
+    gitIn(dir, "commit", "-q", "-m", "off main");
+    const off = gitIn(dir, "rev-parse", "HEAD");
+    gitIn(dir, "update-ref", `refs/remotes/origin/${branch}`, off);
+    gitIn(dir, "tag", `v${version}`, off);
+    gitIn(dir, "checkout", "-q", "--detach", off);
+    return { dir, off, main };
+}
+
+/**
+ * Up to 0.78.0 the guard accepted a tag on any commit whose `package.json`
+ * matched, and `scripts/release.sh` pushed the tag from the release branch before
+ * the PR was merged, so publishing unreviewed code was the normal flow. Measured
+ * against the old guard: a `v0.79.0` tag on a commit `git merge-base
+ * --is-ancestor` says is not on main exited 0 with `dist_tag=latest`. The tag is
+ * now cut after the merge (`make release-tag`) and the guard refuses the rest.
+ */
+describe("scripts/check-release-ref.sh publishes only what is on main (#472)", () => {
+    it("refuses a tag on a commit that is not on main", () => {
+        const { dir, off } = offMainRepo("0.79.0");
+        const run = runGuard(dir, {
+            GITHUB_REF_TYPE: "tag",
+            GITHUB_REF_NAME: "v0.79.0",
+            GITHUB_SHA: off,
+            CURRENT_LATEST: "0.78.0",
+        });
+        expect(run.status).toBe(1);
+        expect(run.output).toContain("which is not on main");
+        expect(run.output).toContain("make release-tag TAG=0.79.0");
+        expect(run.written).toBe("");
+    });
+
+    it("accepts the same tag once it sits on the merge commit in main", () => {
+        const { dir } = offMainRepo("0.79.0");
+        gitIn(dir, "checkout", "-q", "main");
+        gitIn(dir, "merge", "-q", "--no-ff", "-m", "Merge release", "release/v0.79.0");
+        const merge = gitIn(dir, "rev-parse", "HEAD");
+        gitIn(dir, "update-ref", "refs/remotes/origin/main", merge);
+        gitIn(dir, "tag", "-f", "v0.79.0", merge);
+        const run = runGuard(dir, {
+            GITHUB_REF_TYPE: "tag",
+            GITHUB_REF_NAME: "v0.79.0",
+            GITHUB_SHA: merge,
+            CURRENT_LATEST: "0.78.0",
+        });
+        expect(run.status).toBe(0);
+        expect(run.output).toContain("on origin/main");
+        expect(run.written).toBe(
+            "tag=v0.79.0\nversion=0.79.0\nprerelease=false\ndist_tag=latest\n",
+        );
+    });
+
+    it("refuses an off-main prerelease, which would go to next", () => {
+        const { dir, off } = offMainRepo("0.79.0-rc.1");
+        const run = runGuard(dir, {
+            GITHUB_REF_TYPE: "tag",
+            GITHUB_REF_NAME: "v0.79.0-rc.1",
+            GITHUB_SHA: off,
+            CURRENT_LATEST: "0.78.0",
+        });
+        expect(run.status).toBe(1);
+        expect(run.output).toContain("which is not on main");
+        expect(run.written).toBe("");
+    });
+
+    it("fails closed when the checkout has no origin/main", () => {
+        const { dir, sha } = fixtureRepo("1.2.3");
+        gitIn(dir, "update-ref", "-d", "refs/remotes/origin/main");
+        const run = runGuard(dir, {
+            GITHUB_REF_TYPE: "tag",
+            GITHUB_REF_NAME: "v1.2.3",
+            GITHUB_SHA: sha,
+        });
+        expect(run.status).toBe(1);
+        expect(run.output).toContain("fetch-depth: 0");
+        expect(run.written).toBe("");
+    });
+
+    it("accepts a backport from its own maintenance branch, under its release line", () => {
+        const { dir, off } = offMainRepo("0.75.1", "release-0.75");
+        const run = runGuard(dir, {
+            GITHUB_REF_TYPE: "tag",
+            GITHUB_REF_NAME: "v0.75.1",
+            GITHUB_SHA: off,
+            CURRENT_LATEST: "0.78.0",
+        });
+        expect(run.status).toBe(0);
+        expect(run.output).toContain("on origin/release-0.75");
+        expect(run.written).toContain("dist_tag=release-0.75\n");
+    });
+
+    it("never lets a maintenance branch publish to latest", () => {
+        const { dir, off } = offMainRepo("0.79.0", "release-0.79");
+        const run = runGuard(dir, {
+            GITHUB_REF_TYPE: "tag",
+            GITHUB_REF_NAME: "v0.79.0",
+            GITHUB_SHA: off,
+            CURRENT_LATEST: "0.78.0",
+        });
+        expect(run.status).toBe(1);
+        expect(run.output).toContain("which is not on main");
+        expect(run.written).toBe("");
+    });
+
+    it("refuses a backport from another line's maintenance branch", () => {
+        const { dir, off } = offMainRepo("0.75.1", "release-0.76");
+        const run = runGuard(dir, {
+            GITHUB_REF_TYPE: "tag",
+            GITHUB_REF_NAME: "v0.75.1",
+            GITHUB_SHA: off,
+            CURRENT_LATEST: "0.78.0",
+        });
+        expect(run.status).toBe(1);
+        expect(run.output).toContain("may instead come from origin/release-0.75");
+    });
+
+    it("keeps the full-history checkout the guard reads origin/main from", () => {
+        const [, build] = onlyJob(/scripts\/check-release-ref\.sh/);
+        const checkout = build.split("uses: actions/checkout@")[1]?.split(/\n {12}- /)[0] ?? "";
+        expect(checkout).toMatch(/fetch-depth: 0/);
+        expect(checkout).toMatch(/persist-credentials: false/);
+    });
+});
+
+const RELEASE_SH = readFileSync(
+    resolve(import.meta.dirname, "..", "scripts", "release.sh"),
+    "utf8",
+);
+const RELEASE_TAG = resolve(import.meta.dirname, "..", "scripts", "release-tag.sh");
+
+/**
+ * A bare `origin` plus a clone whose `main` went through a release PR: `0.78.0`,
+ * then the merge of `release/v0.79.0` (bump + RELEASES.md line), then an
+ * unrelated PR merged after it, still at `0.79.0`. No network: `origin` is a
+ * directory.
+ *
+ * @returns The clone path, the bare origin path and the two `main` commits.
+ */
+function mergedReleaseRepo(): { dir: string; origin: string; merge: string; after: string } {
+    const root = mkdtempSync(join(tmpdir(), "tempest-release-tag-"));
+    const origin = join(root, "origin.git");
+    const dir = join(root, "clone");
+    execFileSync("git", ["init", "-q", "--bare", "-b", "main", origin]);
+    execFileSync("git", ["clone", "-q", origin, dir], { stdio: "ignore" });
+    gitIn(dir, "checkout", "-q", "-b", "main");
+    writeFileSync(join(dir, "package.json"), JSON.stringify({ version: "0.78.0" }));
+    writeFileSync(join(dir, "RELEASES.md"), "| v0.78.0 | 2026-10-12 | aaaaaaa |\n");
+    gitIn(dir, "add", ".");
+    gitIn(dir, "commit", "-q", "-m", "0.78.0");
+    gitIn(dir, "checkout", "-q", "-b", "release/v0.79.0");
+    writeFileSync(join(dir, "package.json"), JSON.stringify({ version: "0.79.0" }));
+    writeFileSync(
+        join(dir, "RELEASES.md"),
+        "| v0.79.0 | 2026-10-25 | bbbbbbb |\n| v0.78.0 | 2026-10-12 | aaaaaaa |\n",
+    );
+    gitIn(dir, "add", ".");
+    gitIn(dir, "commit", "-q", "-m", "chore: release v0.79.0");
+    gitIn(dir, "checkout", "-q", "main");
+    gitIn(dir, "merge", "-q", "--no-ff", "-m", "Merge release/v0.79.0", "release/v0.79.0");
+    const merge = gitIn(dir, "rev-parse", "HEAD");
+    writeFileSync(join(dir, "other.txt"), "after");
+    gitIn(dir, "add", ".");
+    gitIn(dir, "commit", "-q", "-m", "fix: merged after the release");
+    const after = gitIn(dir, "rev-parse", "HEAD");
+    gitIn(dir, "push", "-q", "origin", "main", "release/v0.79.0");
+    return { dir, origin, merge, after };
+}
+
+/**
+ * Run `scripts/release-tag.sh` in a fixture clone.
+ *
+ * @param dir - The clone to run in.
+ * @param tag - The version argument.
+ * @param env - Extra environment (`DRY_RUN`, `REF`).
+ * @returns Exit status and combined output.
+ */
+function runReleaseTag(
+    dir: string,
+    tag: string,
+    env: Record<string, string> = {},
+): { status: number | null; output: string } {
+    const result = spawnSync("bash", [RELEASE_TAG, tag], {
+        cwd: dir,
+        encoding: "utf8",
+        env: { ...process.env, DRY_RUN: "", REF: "", BASE_BRANCH: "", ...env },
+    });
+    return { status: result.status, output: `${result.stdout}${result.stderr}` };
+}
+
+describe("the tag is cut after the release PR is merged (#472)", () => {
+    it("never pushes the tag from scripts/release.sh", () => {
+        const code = RELEASE_SH.split("\n")
+            .filter((line) => !line.trimStart().startsWith("#"))
+            .join("\n");
+        expect(code).not.toMatch(/git push[^\n]*GIT_TAG/);
+        expect(code).toMatch(/git tag -d "\$GIT_TAG"/);
+        expect(code).toMatch(/make release-tag TAG=/);
+    });
+
+    it("tags the merge commit of the release PR, not the tip of main, and pushes it", () => {
+        const { dir, origin, merge } = mergedReleaseRepo();
+        const run = runReleaseTag(dir, "0.79.0");
+        expect(run.status).toBe(0);
+        expect(gitIn(origin, "rev-parse", "refs/tags/v0.79.0^{commit}")).toBe(merge);
+    });
+
+    it("creates nothing on a dry run", () => {
+        const { dir, origin } = mergedReleaseRepo();
+        const run = runReleaseTag(dir, "0.79.0", { DRY_RUN: "1" });
+        expect(run.status).toBe(0);
+        expect(run.output).toContain("DRY_RUN");
+        expect(gitIn(dir, "tag", "-l")).toBe("");
+        expect(gitIn(origin, "tag", "-l")).toBe("");
+    });
+
+    it("refuses a version main is not at, which is a release PR not merged yet", () => {
+        const { dir, origin } = mergedReleaseRepo();
+        const run = runReleaseTag(dir, "0.80.0");
+        expect(run.status).toBe(1);
+        expect(run.output).toContain("não em 0.80.0");
+        expect(gitIn(origin, "tag", "-l")).toBe("");
+    });
+
+    it("refuses REF on a commit that is not on main", () => {
+        const { dir, origin } = mergedReleaseRepo();
+        const branchTip = gitIn(dir, "rev-parse", "release/v0.79.0");
+        gitIn(dir, "checkout", "-q", "release/v0.79.0");
+        writeFileSync(join(dir, "extra.txt"), "unreviewed");
+        gitIn(dir, "add", ".");
+        gitIn(dir, "commit", "-q", "-m", "unreviewed");
+        const unreviewed = gitIn(dir, "rev-parse", "HEAD");
+        expect(unreviewed).not.toBe(branchTip);
+        const run = runReleaseTag(dir, "0.79.0", { REF: unreviewed });
+        expect(run.status).toBe(1);
+        expect(run.output).toContain("não está em origin/main");
+        expect(gitIn(origin, "tag", "-l")).toBe("");
+    });
+
+    it("refuses a tag that already exists on origin", () => {
+        const { dir, origin, merge } = mergedReleaseRepo();
+        gitIn(origin, "tag", "v0.79.0", merge);
+        const run = runReleaseTag(dir, "0.79.0");
+        expect(run.status).toBe(1);
+        expect(run.output).toContain("já existe no origin");
+    });
+
+    it("refuses a commit whose RELEASES.md lacks the version's row", () => {
+        const { dir, origin, after } = mergedReleaseRepo();
+        writeFileSync(join(dir, "RELEASES.md"), "| v0.78.0 | 2026-10-12 | aaaaaaa |\n");
+        gitIn(dir, "commit", "-q", "-am", "drop the row");
+        gitIn(dir, "push", "-q", "origin", "main");
+        const run = runReleaseTag(dir, "0.79.0", { REF: gitIn(dir, "rev-parse", "HEAD") });
+        expect(run.status).toBe(1);
+        expect(run.output).toContain("RELEASES.md");
+        expect(after).not.toBe("");
+        expect(gitIn(origin, "tag", "-l")).toBe("");
     });
 });
 

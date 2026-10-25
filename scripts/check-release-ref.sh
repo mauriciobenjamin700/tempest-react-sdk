@@ -6,7 +6,21 @@
 # 1. é o ref da run — em `workflow_dispatch` também, então o disparo manual é
 #    `gh workflow run release-npm.yml --ref vX.Y.Z`, nunca `--ref main`;
 # 2. descreve o `version` do `package.json` do commit em checkout;
-# 3. aponta para o commit da run (`GITHUB_SHA`), que é o que vai para o npm.
+# 3. aponta para o commit da run (`GITHUB_SHA`), que é o que vai para o npm;
+# 4. aponta para um commit que já está na `main` (#472) — ancestral de
+#    `origin/main`, ou seja, revisado e mergeado. A tag nasce depois do merge
+#    (`make release-tag`), nunca na branch de release.
+#
+# A única exceção ao item 4 é o backport: um commit fora da `main` passa só se é
+# ancestral de `origin/release-<maj>.<min>` (a branch de manutenção da linha da
+# própria versão) **e** o dist-tag escolhido é esse mesmo `release-<maj>.<min>`.
+# Assim uma branch de manutenção nunca publica em `latest` nem em `next`: esses
+# dois saem só da `main`. Proteger `release-*` (PR obrigatório) é configuração do
+# repositório, como proteger a `main`.
+#
+# O item 4 precisa do histórico das branches: o checkout do job `build` usa
+# `fetch-depth: 0`, que traz `refs/remotes/origin/*`. Sem `origin/main` no
+# checkout o guard falha fechado, em vez de pular a conferência.
 #
 # Antes, um dispatch de branch derivava a tag do `package.json` sem conferir nada,
 # publicava aquela árvore e o `gh release create` criava a tag na HEAD da branch
@@ -67,10 +81,28 @@ DIST_TAG=$(bash "$DIST_TAG_SCRIPT" pick "$PKG_VERSION" "$CURRENT_LATEST" 2> "$PI
 }
 rm -f "$PICK_ERR"
 
+if ! git rev-parse --verify --quiet "refs/remotes/origin/main^{commit}" >/dev/null; then
+    echo "::error::origin/main is not in this checkout, so ${TAG} cannot be checked against it. The build job's checkout needs fetch-depth: 0."
+    exit 1
+fi
+if git merge-base --is-ancestor "${GITHUB_SHA}" refs/remotes/origin/main; then
+    REACHED_FROM=main
+else
+    MAINTENANCE="release-$(echo "$PKG_VERSION" | cut -d. -f1,2)"
+    if [ "$DIST_TAG" = "$MAINTENANCE" ] &&
+        git rev-parse --verify --quiet "refs/remotes/origin/${MAINTENANCE}^{commit}" >/dev/null &&
+        git merge-base --is-ancestor "${GITHUB_SHA}" "refs/remotes/origin/${MAINTENANCE}"; then
+        REACHED_FROM="$MAINTENANCE"
+    else
+        echo "::error::${TAG} points at ${GITHUB_SHA}, which is not on main. Tag the merge commit after the release PR is merged: make release-tag TAG=${PKG_VERSION}. A backport below the registry's latest may instead come from origin/${MAINTENANCE}."
+        exit 1
+    fi
+fi
+
 {
     echo "tag=${TAG}"
     echo "version=${PKG_VERSION}"
     echo "prerelease=${PRERELEASE}"
     echo "dist_tag=${DIST_TAG}"
 } >> "$GITHUB_OUTPUT"
-echo "✓ ${TAG} == package.json ${PKG_VERSION} @ ${GITHUB_SHA} → dist-tag ${DIST_TAG} (registry latest: '${CURRENT_LATEST}')"
+echo "✓ ${TAG} == package.json ${PKG_VERSION} @ ${GITHUB_SHA} (on origin/${REACHED_FROM}) → dist-tag ${DIST_TAG} (registry latest: '${CURRENT_LATEST}')"

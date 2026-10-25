@@ -4,12 +4,16 @@
 #   make help                       # lista todos os alvos
 #   make releases                   # mostra histórico (a partir das git tags)
 #   make validate                   # roda typecheck + lint + format-check + test + build + pack dry-run
-#   make release TAG=0.1.1          # bump + validate + commit + tag + push + PR
+#   make release TAG=0.1.1          # branch + bump + validate + commit + push + PR (sem tag)
 #   make release TAG=0.1.1 DRY_RUN=1
+#   make release-tag TAG=0.1.1      # depois do merge: tag no commit do merge + push (publica)
+#   make release-tag TAG=0.1.1 DRY_RUN=1
 #
 # Variáveis aceitas:
 #   TAG              número de versão sem prefixo (ex.: 0.1.1)
-#   DRY_RUN=1        executa todo o pipeline mas NÃO faz push (cria branch + commit + tag locais)
+#   DRY_RUN=1        release: cria branch + commits locais, sem push nem PR
+#                    release-tag: mostra o commit que seria taggeado, sem criar tag
+#   REF=<sha>        release-tag: commit a taggear, quando a main já andou de versão
 #   SKIP_VALIDATE=1  pula passo de validação (lint/typecheck/build)
 #   BASE_BRANCH=...  branch alvo do PR (default: main)
 
@@ -21,6 +25,7 @@ TAG           ?=
 DRY_RUN       ?= 0
 SKIP_VALIDATE ?= 0
 BASE_BRANCH   ?= main
+REF           ?=
 
 RELEASES_FILE  := RELEASES.md
 VERSION_FILES  := package.json package-lock.json
@@ -118,11 +123,15 @@ validate: ## typecheck + lint + format-check + test + build + pack dry-run
 # Release pipeline
 # ---------------------------------------------------------------------------
 
-.PHONY: release
+.PHONY: release release-tag
 
-release: _require-tag ## Pipeline completo: make release TAG=0.1.1
+release: _require-tag ## Abre o PR de release, sem taggear: make release TAG=0.1.1
 	@DRY_RUN=$(DRY_RUN) SKIP_VALIDATE=$(SKIP_VALIDATE) BASE_BRANCH=$(BASE_BRANCH) \
 	  ./scripts/release.sh "$(TAG)"
+
+release-tag: _require-tag ## Depois do merge: tag no commit do merge + push (publica): make release-tag TAG=0.1.1
+	@DRY_RUN=$(DRY_RUN) BASE_BRANCH=$(BASE_BRANCH) REF=$(REF) \
+	  ./scripts/release-tag.sh "$(TAG)"
 
 # ---------------------------------------------------------------------------
 # Publish manual (fallback caso CI falhe) — exige token com bypass 2FA

@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
-# scripts/release.sh — pipeline de release com release branch + tag push + PR.
+# scripts/release.sh — abre o PR de release: branch + bump + CHANGELOG + PR.
 #
 # Uso:
 #   scripts/release.sh <TAG>
 #
+# Este script NÃO taggeia (#472). A tag `vX.Y.Z` é o que publica no npm, e o
+# guard do `release-npm.yml` só aceita tag em commit que já está na `main`.
+# Depois do merge do PR, o passo seguinte é `make release-tag TAG=<TAG>`
+# (`scripts/release-tag.sh`), que taggeia o commit do merge e faz o push.
+#
 # Variáveis de ambiente:
-#   DRY_RUN=1         cria branch + commit + tag local mas pula push e PR
+#   DRY_RUN=1         cria branch + commits locais mas pula push e PR
 #   SKIP_VALIDATE=1   pula validação local (lint/typecheck/build/test)
 #   BASE_BRANCH=main  branch alvo do PR (default: main)
 
@@ -21,7 +26,7 @@ usage() {
 Uso: $0 <TAG>
 
 Variáveis:
-  DRY_RUN=1         cria branch + commit + tag local mas pula push e PR
+  DRY_RUN=1         cria branch + commits locais mas pula push e PR
   SKIP_VALIDATE=1   pula validação local (lint/typecheck/build/test)
   BASE_BRANCH=main  branch alvo do PR (default: main)
 EOF
@@ -40,7 +45,6 @@ fi
 GIT_TAG="v$TAG"
 REGISTRY="npm"
 WORKFLOW_FILE="release-npm.yml"
-DEPLOY_NOTE="- Workflow \`npm publish\` roda automaticamente assim que a tag é pusheada (sem aprovação manual)."
 
 CHANGELOG="CHANGELOG.md"
 RELEASE_BRANCH="release/$GIT_TAG"
@@ -93,50 +97,49 @@ git add "${VERSION_PATHSPEC[@]}" "$CHANGELOG"
 if ! git diff --cached --quiet; then
   git commit -m "chore: release $GIT_TAG"
 else
-  echo "  (sem mudanças nos arquivos de versão — taggeando HEAD existente)"
+  echo "  (sem mudanças nos arquivos de versão)"
 fi
 
-# A tag nasce aqui porque `make releases-md` lê as git tags — sem ela, a linha da
-# versão que está sendo lançada não existe para ser gerada. Ela é movida logo
-# abaixo, depois do commit que traz o RELEASES.md atualizado.
-echo "→ Tag local $GIT_TAG (provisória, para o RELEASES.md poder vê-la)"
+# `make releases-md` lê as git tags, então a linha da versão sendo lançada só é
+# gerada com uma tag local provisória. Ela existe só durante o comando e é
+# apagada logo depois: a tag de verdade nasce no commit do merge, na `main`,
+# pelo `make release-tag` (#472). A coluna Commit da linha nova aponta para o
+# `chore: release` desta branch — que o merge commit leva para a `main` — e o
+# próximo `make releases-md` a reescreve com o commit da tag.
+#
+# O RELEASES.md com a linha nova tem de estar no commit que vai ser taggeado:
+# `test/docs-counts.test.ts` exige que toda versão com seção no CHANGELOG
+# apareça nele, e é essa árvore, e só ela, que o `release-npm.yml` vê.
+echo "→ Regenerando RELEASES.md (com tag local provisória $GIT_TAG)"
 git tag "$GIT_TAG"
-
-echo "→ Regenerando RELEASES.md"
-make releases-md >/dev/null
+if ! make releases-md >/dev/null; then
+  git tag -d "$GIT_TAG" >/dev/null
+  echo "ERROR: make releases-md falhou"
+  exit 1
+fi
+git tag -d "$GIT_TAG" >/dev/null
 if ! git diff --quiet -- RELEASES.md 2>/dev/null; then
   git add RELEASES.md
-  git commit -m "docs: refresh RELEASES.md after $GIT_TAG"
-
-  # Sem isto a tag fica no commit ANTERIOR ao refresh, e o conteúdo taggeado é o
-  # único que a CI do release enxerga: CHANGELOG com a seção `[X.Y.Z]` e
-  # RELEASES.md sem a linha dela, que é exatamente o que
-  # `test/docs-counts.test.ts` reprova. Medido na v0.65.0: a tag apontava para
-  # `chore: release`, o refresh ficava no commit seguinte, e o job "Run tests" do
-  # `release-npm.yml` falhava antes de publicar.
-  echo "→ Movendo $GIT_TAG para o commit com o RELEASES.md atualizado"
-  git tag -f "$GIT_TAG" >/dev/null
+  git commit -m "docs: refresh RELEASES.md for $GIT_TAG"
 fi
 
-# A validação roda DEPOIS da tag e do RELEASES.md, e antes de qualquer push.
+# A validação roda DEPOIS do RELEASES.md, e antes de qualquer push.
 #
 # Ordem invertida antes da 0.65.0, e ela não sobrevive ao guard que o `e4b6791`
 # adicionou: `test/docs-counts.test.ts` exige que toda versão com seção no
-# CHANGELOG apareça em `RELEASES.md`, que é gerado das tags. Fechando o
-# `[Unreleased]` em `[X.Y.Z]` antes de a tag existir, a versão sendo lançada é
-# sempre "documentada e não publicada", então o release de QUALQUER versão nova
-# reprovava — ovo e galinha, não defeito do guard.
+# CHANGELOG apareça em `RELEASES.md`. Fechando o `[Unreleased]` em `[X.Y.Z]`
+# sem a linha nova no RELEASES.md, a versão sendo lançada é sempre "documentada e
+# não publicada", então o release de QUALQUER versão nova reprovava — ovo e
+# galinha, não defeito do guard.
 #
-# Validar aqui também é mais correto: a árvore aferida passa a ser exatamente a
-# que vai ser empurrada, tag e RELEASES.md incluídos. Se a validação falhar, a
-# tag local é removida para a próxima tentativa achar o repo limpo, e nada foi
-# empurrado.
+# Validar aqui também é mais correto: a árvore aferida é exatamente a que vai
+# para o PR e, depois do merge, para a tag.
 #
 # Os passos vão encadeados com `&&`, não com `set -e` no subshell: dentro de
 # `if ! ( ... )` o bash ignora o `set -e`, e só o exit do último comando contava.
 # Até a 0.69.0 um teste, lint ou build quebrado passava como validado.
 if [[ "$SKIP_VALIDATE" != "1" ]]; then
-  echo "→ Validando build localmente (tag e RELEASES.md já no lugar)"
+  echo "→ Validando build localmente (RELEASES.md já no lugar)"
   if ! {
     npm ci &&
       npm run typecheck &&
@@ -147,28 +150,25 @@ if [[ "$SKIP_VALIDATE" != "1" ]]; then
       npm pack --dry-run
   }; then
     echo ""
-    echo "ERROR: validação falhou — removendo a tag local $GIT_TAG"
+    echo "ERROR: validação falhou"
     echo "       nada foi empurrado; a branch $RELEASE_BRANCH continua aqui para inspeção"
-    git tag -d "$GIT_TAG" >/dev/null
     exit 1
   fi
 fi
 
 if [[ "$DRY_RUN" == "1" ]]; then
   echo ""
-  echo "✓ DRY_RUN — branch '$RELEASE_BRANCH' e tag '$GIT_TAG' criados localmente"
+  echo "✓ DRY_RUN — branch '$RELEASE_BRANCH' criada localmente (sem tag)"
   echo "  para finalizar manualmente:"
   echo "    git push -u origin $RELEASE_BRANCH"
-  echo "    git push origin $GIT_TAG"
   echo "    gh pr create --base $BASE_BRANCH --head $RELEASE_BRANCH --title \"chore: release $GIT_TAG\""
+  echo "  e, depois do merge do PR:"
+  echo "    make release-tag TAG=$TAG"
   exit 0
 fi
 
 echo "→ Push da branch $RELEASE_BRANCH"
 git push -u origin "$RELEASE_BRANCH"
-
-echo "→ Push da tag $GIT_TAG (dispara workflow $WORKFLOW_FILE)"
-git push origin "$GIT_TAG"
 
 PR_BODY=$(mktemp)
 trap "rm -f '$PR_BODY'" EXIT
@@ -179,8 +179,8 @@ Tem Script? | Novas Env Vars
 Não | Não
 
 > :warning: **NOTA**
-> - A tag \`$GIT_TAG\` já foi pusheada — o workflow [\`$WORKFLOW_FILE\`](.github/workflows/$WORKFLOW_FILE) está rodando no GitHub Actions, independente do merge deste PR.
-> - O merge propaga para \`$BASE_BRANCH\` o bump de versão e a entrada em \`RELEASES.md\`.
+> - **Nada foi publicado ainda.** A tag \`$GIT_TAG\` nasce depois do merge, no commit que entrar na \`$BASE_BRANCH\`: \`make release-tag TAG=$TAG\`. O push dela dispara o [\`$WORKFLOW_FILE\`](.github/workflows/$WORKFLOW_FILE).
+> - O guard do workflow reprova tag em commit que não está na \`$BASE_BRANCH\` (#472).
 
 ## Problema
 
@@ -189,8 +189,8 @@ Liberar a versão $TAG do pacote \`tempest-react-sdk\` no $REGISTRY.
 ## Solução
 
 - Bump de versão para $TAG em \`package.json\` e \`package-lock.json\`
-- Tag \`$GIT_TAG\` criada e pushed → workflow de release disparado
-- \`RELEASES.md\` regenerado a partir das git tags
+- \`CHANGELOG.md\`: \`[Unreleased]\` fechado em \`[$TAG]\`
+- \`RELEASES.md\` regenerado com a linha de \`$GIT_TAG\`
 
 ## Screenshots
 
@@ -203,7 +203,8 @@ Não se aplica — release de SDK (sem mudança de UI).
 
 ## Notas sobre deploy
 
-$DEPLOY_NOTE
+1. Merge deste PR.
+2. \`make release-tag TAG=$TAG\` — taggeia o commit do merge na \`$BASE_BRANCH\` e faz o push da tag, que dispara o \`$WORKFLOW_FILE\`.
 
 **Validação local executada**:
 - \`make validate\` (typecheck + lint + format-check + test + build + pack dry-run)
@@ -226,6 +227,6 @@ PR_URL=$(gh pr create \
   --body-file "$PR_BODY")
 
 echo ""
-echo "✓ Release $GIT_TAG iniciada:"
-echo "  - tag pushed → workflow $REGISTRY rodando em GitHub Actions"
-echo "  - PR aberto: $PR_URL"
+echo "✓ PR de release $GIT_TAG aberto: $PR_URL"
+echo "  nada foi publicado. Depois do merge:"
+echo "    make release-tag TAG=$TAG"

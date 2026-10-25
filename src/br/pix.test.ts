@@ -660,6 +660,96 @@ describe("pix — what the spec says about amounts and characters (review of #44
     });
 });
 
+/**
+ * A TLV whose length counts code points, the unit `parsePixPayload` reads in.
+ * {@link rawTlv} counts UTF-16 units, which is the same thing only for text
+ * without astral characters.
+ */
+function codePointTlv(id: string, value: string): string {
+    return `${id}${String(Array.from(value).length).padStart(2, "0")}${value}`;
+}
+
+/**
+ * A CRC-valid static payload around one extra root TLV, shaped like the one in
+ * #497: tag 26 with key `a@b.co`, tags 52/53/58, tag 60 `SP` and tag 62 `***`.
+ */
+function withRootField(field: string, merchantName: string = codePointTlv("59", "Loja")): string {
+    const body =
+        codePointTlv("00", "01") +
+        codePointTlv("26", codePointTlv("00", "br.gov.bcb.pix") + codePointTlv("01", "a@b.co")) +
+        codePointTlv("52", "0000") +
+        codePointTlv("53", "986") +
+        codePointTlv("58", "BR") +
+        merchantName +
+        codePointTlv("60", "SP") +
+        field +
+        codePointTlv("62", codePointTlv("05", "***")) +
+        "6304";
+    return body + pixCrc16(body);
+}
+
+describe("parsePixPayload — a payload whose length unit changes the reading is refused (#497)", () => {
+    const hidden = "5406999.00";
+
+    it("refuses non-ASCII in an `ans` root field, which a UTF-8 byte reader splits into a hidden amount", () => {
+        const payload = withRootField("", codePointTlv("59", "é".repeat(10) + hidden));
+        expect(() => parsePixPayload(payload)).toThrow(/tag 59.*common character set/i);
+    });
+
+    it("refuses non-ASCII inside tags 26 and 62, whose subfields are `ans` too", () => {
+        const body =
+            codePointTlv("00", "01") +
+            codePointTlv(
+                "26",
+                codePointTlv("00", "br.gov.bcb.pix") +
+                    codePointTlv("01", "a@b.co") +
+                    codePointTlv("02", "café"),
+            ) +
+            codePointTlv("52", "0000") +
+            codePointTlv("53", "986") +
+            codePointTlv("58", "BR") +
+            codePointTlv("59", "Loja") +
+            codePointTlv("60", "SP") +
+            codePointTlv("62", codePointTlv("05", "pedidoé")) +
+            "6304";
+        expect(() => parsePixPayload(body + pixCrc16(body))).toThrow(/tag 26/i);
+        const additional =
+            codePointTlv("00", "01") +
+            codePointTlv(
+                "26",
+                codePointTlv("00", "br.gov.bcb.pix") + codePointTlv("01", "a@b.co"),
+            ) +
+            codePointTlv("59", "Loja") +
+            codePointTlv("62", codePointTlv("05", "pedidoé")) +
+            "6304";
+        expect(() => parsePixPayload(additional + pixCrc16(additional))).toThrow(/tag 62/i);
+    });
+
+    it("refuses a String template whose text a UTF-8 byte reader ends early, exposing a tag 54", () => {
+        const payload = withRootField(codePointTlv("80", "é".repeat(10) + hidden));
+        expect(() => parsePixPayload(payload)).toThrow(/UTF-8 bytes/);
+    });
+
+    it("refuses a String template whose text a UTF-16 unit reader ends early, exposing a tag 54", () => {
+        const payload = withRootField(codePointTlv("80", "😀".repeat(10) + hidden));
+        expect(() => parsePixPayload(payload)).toThrow(/UTF-16 units/);
+    });
+
+    it("refuses the same hidden reading in tag 64, the alternate-language template", () => {
+        const payload = withRootField(codePointTlv("64", "é".repeat(10) + hidden));
+        expect(() => parsePixPayload(payload)).toThrow(/UTF-8 bytes/);
+    });
+
+    it("keeps non-ASCII in tags 64 and 80–99 when no other length unit frames a valid payload", () => {
+        const data = parsePixPayload(
+            withRootField(codePointTlv("64", "0002ptçã") + codePointTlv("99", "日本語")),
+        );
+        expect(data.fields.find((field) => field.id === "64")?.value).toBe("0002ptçã");
+        expect(data.fields.find((field) => field.id === "99")?.value).toBe("日本語");
+        expect(data.amount).toBeUndefined();
+    });
+});
+
 describe("pixPayload — accents in free text are stripped, a key with one is refused", () => {
     it("writes São Paulo and João as Sao Paulo and Joao, keeping the case the caller gave", () => {
         const payload = pixPayload({

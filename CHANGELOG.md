@@ -4,6 +4,28 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Segurança
+
+- **`parsePixPayload` recusa payload cuja leitura depende da unidade de tamanho do TLV (#497).**
+  O builder já recusava texto fora do conjunto comum do EMV (ASCII imprimível); o leitor contava
+  o tamanho em code points em toda tag da raiz, então um copia-e-cola forjado com a tag `59` =
+  10 × `é` + `5406999.00` saía como `merchantName` `"éééééééééé5406999.00"`, sem `amount` e com
+  `crcValid: true`, enquanto um leitor que conta bytes UTF-8 lê `59` = `"éééééééééé"` e `54` =
+  `999.00` com o mesmo CRC. A medição achou o mesmo buraco onde a issue não olhava: o texto na
+  tag `80` (formato `String`) escondia o valor igual, e 10 × `😀` + `5406999.00` o escondia de um
+  leitor que conta unidades UTF-16. Agora texto não ASCII numa tag `ans` (toda tag da raiz menos
+  a `64` e as `80`–`99`, logo todo subcampo da `26` e da `62`) lança `PixError`, e a `64`/`80`–`99`
+  mantêm o texto não ASCII só enquanto nenhuma outra unidade enquadrar a raiz numa leitura
+  diferente. Medido com `npx vitest run src/br/pix.test.ts -t "#497"`: na 0.78.0, 5 dos 6 casos
+  falham (os três payloads acima parseiam sem valor, mais a `26`/`62` com acento e a `64` com o
+  valor escondido); depois, 6/6. Impacto em carteira real não medido — depende de como cada app
+  conta o tamanho. **Migração:** payload de PSP com acento em nome, cidade, descrição ou `txid`
+  passa a lançar; o `pixPayload` nunca emitiu um assim.
+
+- **Teto do `size-limit`** para a correção acima, medido com `npx size-limit` (`e3cb51c` × esta
+  mudança): fatia do Pix 6,44 → 6,76 kB (teto 6,5 → 6,8 kB); barrel ESM, CJS e a fatia dos trilhos de
+  pagamento BR seguem dentro dos tetos atuais.
+
 ### Adicionado
 
 - **Superfície client-side inteira do React Router re-exportada pela raiz** (#508). O módulo

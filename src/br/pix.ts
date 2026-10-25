@@ -148,6 +148,8 @@ const TAG_MERCHANT_CITY = "60";
 const TAG_POSTAL_CODE = "61";
 const TAG_ADDITIONAL_DATA = "62";
 const TAG_CRC = "63";
+const TAG_ALTERNATE_LANGUAGE = "64";
+const FIRST_UNRESERVED_TAG = 80;
 
 const MAI_TAG_GUI = "00";
 const MAI_TAG_KEY = "01";
@@ -253,8 +255,9 @@ function toPayloadText(value: string, field: string): string {
  * and the BACEN BR Code manual (v2, May 2020) only widened it from alphanumeric —
  * "The restriction that established that only alphanumeric characters could be
  * used has been removed" — not past it. Only the alternate-language template
- * (tag 64) is `String` and may carry another character set, and the builder
- * never writes it.
+ * (tag 64) and the unreserved templates 80–99 a PSP defines are `String` and
+ * may carry another character set; the builder writes neither, and the reader
+ * enforces the set on every other root tag (#497).
  */
 const COMMON_CHARACTER_SET = /^[\x20-\x7E]*$/;
 
@@ -563,6 +566,108 @@ function parseTlv(text: string, where: string): PixField[] {
     return fields;
 }
 
+/**
+ * Whether a root tag is `String` format, the only kind that may leave the
+ * {@link COMMON_CHARACTER_SET}: tag 64 (alternate language) and the unreserved
+ * templates 80–99 a PSP may define — the two {@link parseTlv} counts code points
+ * for. Every other root tag is `ans`, and so is every subfield of tags 26 and 62,
+ * which sit inside an `ans` root value.
+ */
+function isStringFormatTag(id: string): boolean {
+    return id === TAG_ALTERNATE_LANGUAGE || Number(id) >= FIRST_UNRESERVED_TAG;
+}
+
+/**
+ * The other length units a reader of a BR Code is known to count in, each as the
+ * width of one code point. EMV counts characters, but a wallet that slices bytes
+ * reads UTF-8 bytes and a JavaScript reader that trusts `.length` reads UTF-16
+ * units; inside the {@link COMMON_CHARACTER_SET} all three agree.
+ */
+const ALTERNATE_LENGTH_UNITS: readonly {
+    readonly name: string;
+    readonly width: (codePoint: number) => number;
+}[] = [
+    {
+        name: "UTF-8 bytes",
+        width: (codePoint: number): number =>
+            codePoint < 0x80 ? 1 : codePoint < 0x800 ? 2 : codePoint < 0x10000 ? 3 : 4,
+    },
+    {
+        name: "UTF-16 units",
+        width: (codePoint: number): number => (codePoint > 0xffff ? 2 : 1),
+    },
+];
+
+/**
+ * Frame a run of TLVs counting each length in another unit, or `null` when that
+ * unit frames no complete reading.
+ *
+ * A length that ends inside a code point counts as no reading: the next "tag"
+ * would start on a UTF-8 continuation byte or a low surrogate, never on two ASCII
+ * digits, so a reader in that unit rejects the payload instead of paying it.
+ */
+function frameIn(
+    chars: readonly string[],
+    width: (codePoint: number) => number,
+): PixField[] | null {
+    const fields: PixField[] = [];
+    let cursor = 0;
+    while (cursor < chars.length) {
+        const id = chars.slice(cursor, cursor + 2).join("");
+        const rawLength = chars.slice(cursor + 2, cursor + 4).join("");
+        if (!/^\d{2}$/.test(id) || !/^\d{2}$/.test(rawLength)) return null;
+        let remaining = Number(rawLength);
+        let end = cursor + 4;
+        while (remaining > 0 && end < chars.length) {
+            remaining -= width(chars[end]?.codePointAt(0) ?? 0);
+            end += 1;
+        }
+        if (remaining !== 0) return null;
+        fields.push({ id, value: chars.slice(cursor + 4, end).join("") });
+        cursor = end;
+    }
+    return fields;
+}
+
+/**
+ * Refuse a root reading that depends on the unit its lengths are counted in.
+ *
+ * Measured for #497 on 0.78.0, each payload CRC-valid and built around tag 26
+ * `a@b.co`: tag 59 = 10 × `é` + `5406999.00` parsed as `merchantName`
+ * `"éééééééééé5406999.00"`, no amount, `crcValid: true`, while a reader counting
+ * UTF-8 bytes reads tag 59 = `"éééééééééé"` plus tag 54 = `999.00` — the CRC
+ * hashes the same bytes either way. The same text in tag 80 hid the amount the
+ * same way, and 10 × `😀` + `5406999.00` hid it from a UTF-16 unit reader.
+ *
+ * Two rules close it. An `ans` field (see {@link isStringFormatTag}) outside the
+ * {@link COMMON_CHARACTER_SET} throws, as the builder's {@link tlv} does. A
+ * `String` field may keep its non-ASCII text, but only while no other length
+ * unit frames the root into a different complete reading.
+ *
+ * @throws {PixError} When an `ans` root field leaves the common character set,
+ * or when another length unit reads the root differently.
+ */
+function assertSingleReading(body: string, fields: readonly PixField[]): void {
+    for (const field of fields) {
+        if (!isStringFormatTag(field.id) && !COMMON_CHARACTER_SET.test(field.value)) {
+            throw new PixError(
+                `Tag ${field.id} has characters outside the EMV common character set (printable ASCII): ` +
+                    `${JSON.stringify(field.value)}. Only tag 64 and the unreserved templates 80–99 may carry other text.`,
+            );
+        }
+    }
+    if (COMMON_CHARACTER_SET.test(body)) return;
+    const chars = Array.from(body);
+    for (const unit of ALTERNATE_LENGTH_UNITS) {
+        const other = frameIn(chars, unit.width);
+        if (other !== null && JSON.stringify(other) !== JSON.stringify(fields)) {
+            throw new PixError(
+                `Payload reads as other tags when its TLV lengths count ${unit.name}: ${other.map((field) => field.id).join()}.`,
+            );
+        }
+    }
+}
+
 /** The value of a tag — unique per level, see {@link parseTlv} — or `undefined`. */
 function pick(fields: readonly PixField[], id: string): string | undefined {
     return fields.find((field) => field.id === id)?.value;
@@ -595,7 +700,10 @@ function readAmountField(field: string): number {
  * missing tag 63 — a checksum mismatch, which means the string was corrupted in
  * transit, or a payload with two readings: a tag repeated at the root or inside
  * tags 26 and 62, a tag 63 anywhere but at the end, a tag 26 with both a key and
- * a URL, or a tag 54 outside the EMV amount format. A preview built from one
+ * a URL, a tag 54 outside the EMV amount format, non-ASCII text in an `ans`
+ * field (every root tag but 64 and 80–99, and so every subfield of tags 26 and
+ * 62), or `String` text that a reader counting UTF-8 bytes or UTF-16 units
+ * frames into other tags (#497). A preview built from one
  * reading while the wallet pays the other is the failure those rules exist for.
  *
  * Position is checked where EMV® QRCPS-MPM — the reference the BACEN manual
@@ -613,7 +721,8 @@ function readAmountField(field: string): number {
  * @throws {PixError} On a malformed frame, a missing CRC tag, a tag 00 that is
  * not first or a tag 63 that is not last, a repeated tag, a
  * tag 26 that is not a Pix account or that carries both a key and a URL, an
- * amount outside the EMV format, or — unless `requireCrc` is `false` — a CRC
+ * amount outside the EMV format, non-ASCII text in an `ans` field, a payload
+ * that another length unit reads differently, or — unless `requireCrc` is `false` — a CRC
  * mismatch.
  *
  * @example
@@ -636,7 +745,9 @@ export function parsePixPayload(payload: string, options: ParsePixOptions = {}):
         throw new PixError(`CRC mismatch: payload says ${crc}, recomputed ${expected}.`);
     }
 
-    const fields = parseTlv(text.slice(0, crcHeaderAt), "payload");
+    const body = text.slice(0, crcHeaderAt);
+    const fields = parseTlv(body, "payload");
+    assertSingleReading(body, fields);
     if (fields[0]?.id !== TAG_PAYLOAD_FORMAT) {
         throw new PixError("Tag 00 (payload format indicator) must be the first tag of a BR Code.");
     }

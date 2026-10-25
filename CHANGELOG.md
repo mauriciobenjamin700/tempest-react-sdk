@@ -4,6 +4,20 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Breaking
+
+- **`zod` passa a exigir `^4.6.6`** (antes `^3.23.0 || ^4.0.0`). Todo zod até a 4.6.5 tem o
+  GHSA-mrhx-c7xc-m3w5 (high): um array sem limite de tamanho que falha a validação acumula um issue
+  por elemento, sem teto, até estourar a memória. O zod 3 não tem correção, então o range antigo
+  deixava o SDK resolver versão vulnerável em qualquer app. No SDK o zod valida resposta do próprio
+  backend (`parseResponse`) e formulários (`zodResolver`, `useZodForm`, `validateForm`), então o
+  risco prático era baixo, mas a dependência é direta e o range é nosso.
+  **Migração:** app em zod 4 só precisa de `npm install zod@^4.6.6` se o lock estiver abaixo disso.
+  App em zod 3 passa a ter duas cópias (a sua e a 4.6.6 do SDK): os schemas que você passa ao
+  `zodResolver`, ao `useZodForm` e ao `parseResponse` deixam de bater com os tipos do SDK. Migre
+  para zod 4 (`npm install zod@^4.6.6`). As opções que aceitam `SchemaLike` (`schema` de SSE e
+  WebSocket) continuam aceitando schema de zod 3.23+ pelo `.safeParse` ou pelo `~standard`.
+
 ### Segurança
 
 - **`parsePixPayload` recusa payload cuja leitura depende da unidade de tamanho do TLV (#497).**
@@ -90,6 +104,23 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   ordem, `import * as S` usado só em `typeof` no `types.ts` (`consistent-type-imports`) e os
   re-exports dos `index.ts` fora da ordem do `simple-import-sort`. Grupo sem schema agora gera
   `schemas.ts`/`types.ts` com `export {};`. Regenere o client para receber a correção.
+
+### Interno
+
+- **Dependências de desenvolvimento sem advisory aberto** (`npm audit`: 7 → 0 na raiz, 3 → 0 na
+  gallery). `vite` ^8.3.3 (launch-editor e `server.fs`, GHSA-587h-7wmj-h5pm e mais 5), `vitest` e
+  `@vitest/coverage-v8` ^4.1.12 (GHSA-qxg6-89mg-rqv8, GHSA-xp26-3454-mjgp), `zod` de dev ^4.6.6
+  (GHSA-mrhx-c7xc-m3w5), e pelo lock `undici` 8.12.3 (via `jsdom`), `fast-uri` 3.1.9 e
+  `source-map-js` 1.2.2. Tudo é ferramenta de build/teste: nada disso entra no pacote publicado. O
+  `template/` passa a pedir `vite` ^8.3.3. O range de runtime do `zod` (`^3.23.0 || ^4.0.0`) não
+  muda nesta entrada.
+
+- **`overrides.rolldown` fixado em 1.2.14.** O `rolldown` 1.2.15 (21/10/2026), que o `vite` 8.3
+  resolve, faz o `scripts/split-css.mjs` jogar o CSS de todo componente na fundação:
+  `dist/styles/core.css` vai de 17 864 B para 255 474 B e o `npx size-limit` reprova
+  `styles/core.css` (30,56 kB contra 4 kB). Bisseção com `overrides` + `npm run build` +
+  `stat -c %s dist/styles/core.css`: 1.2.7, 1.2.11, 1.2.13 e 1.2.14 dão 17 864 B; 1.2.15 dá
+  255 474 B. O override vale só para o build deste repo (npm ignora `overrides` de dependência).
 
 ## [0.78.0] — 2026-10-12
 

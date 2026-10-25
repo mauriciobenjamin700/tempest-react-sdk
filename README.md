@@ -172,7 +172,7 @@ Everything else (`zod`, `zustand`, `dexie`, `react-hook-form`, `@tanstack/react-
 | `react`, `react-dom` (`^18 \|\| ^19`) | **Peer (required)** | Everything                                                              |
 | `react-router` (`^7 \|\| ^8`)         | **Peer (required)** | `AppRouter`, `defineRoutes`, `RouteGuard`, routing re-exports           |
 | `@tanstack/react-query` (`^5`)        | Direct dep (auto)   | `QueryProvider`, `createQueryKeys`, `AppProviders`                      |
-| `zod` (`^3.23 \|\| ^4`)               | Direct dep (auto)   | `parseResponse`, `validateForm`, `zodResolver`, `useZodForm`            |
+| `zod` (`^4.6.6`)                      | Direct dep (auto)   | `parseResponse`, `validateForm`, `zodResolver`, `useZodForm`            |
 | `zustand` (`^4 \|\| ^5`)              | Direct dep (auto)   | `createAuthStore`, `createStore`, `createSelectors`                     |
 | `dexie` (`^4.4`)                      | Direct dep (auto)   | `createOfflineStore`                                                    |
 | `react-hook-form` (`^7.76`)           | Direct dep (auto)   | `zodResolver`, `useZodForm`, masked inputs                              |
@@ -189,7 +189,7 @@ npm install tempest-react-sdk react react-dom react-router
 
 **Bundle impact**: every bundled dep is externalised in the SDK's Rollup config, and `dist/` ships with the module graph preserved (one file per source module), so your bundler drops what you don't import instead of inheriting one opaque blob — importing `cn` alone costs **153 B** brotli, a full app shell around **6.8 KB**. Your app's bundler (Vite / webpack / Rspack) resolves the deps from `node_modules` and tree-shakes them the same way — if you never call `createOfflineStore`, Dexie never enters your final bundle.
 
-**Version conflicts**: if your app already pins (say) `zod@3.20`, npm dedupes when the range is compatible. If ranges diverge you get two copies — pin a single version in your own `package.json` to force one, or open an issue if the SDK's range is too tight.
+**Version conflicts**: if your app already pins (say) `zod@4.6.6`, npm dedupes when the range is compatible. If ranges diverge you get two copies — pin a single version in your own `package.json` to force one, or open an issue if the SDK's range is too tight.
 
 Adapters for external SDKs (`@sentry/browser`, `posthog-js`, `@growthbook/growthbook`, `launchdarkly-js-client-sdk`) are **not** bundled — install those only when you opt into the adapter. The caller passes the SDK instance to the factory.
 

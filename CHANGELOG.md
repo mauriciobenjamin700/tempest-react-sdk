@@ -4,6 +4,30 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **Release: só publica commit que já está na `main`; a tag nasce depois do merge** (#472). O
+  `scripts/check-release-ref.sh` exigia tag igual ao `package.json` e apontando para o
+  `GITHUB_SHA`, mas não que o commit estivesse na `main`, e o próprio `scripts/release.sh`
+  empurrava a tag da branch de release antes do merge do PR — publicar código não revisado era o
+  fluxo normal. Medido numa fixture git offline (`main` em `0.78.0`, tag `v0.79.0` num commit da
+  branch `release/v0.79.0` que `git merge-base --is-ancestor` diz não estar na `main`,
+  `CURRENT_LATEST=0.78.0`): na 0.78.0 o guard sai com código 0 e `dist_tag=latest`; depois, código 1
+  ("not on main"), e a mesma tag no merge commit sai 0. O guard agora reprova commit que não é
+  ancestral de `origin/main` (o checkout com `fetch-depth: 0` traz a ref; sem ela, falha fechado).
+  Única exceção: backport abaixo do `latest` do registry, de `origin/release-<maj>.<min>` e só para
+  o dist-tag `release-<maj>.<min>` — branch de manutenção nunca publica em `latest` nem em `next`.
+  **Migração do fluxo de release:** `make release TAG=X` agora só abre o PR (branch, bump,
+  CHANGELOG, `RELEASES.md`, validação) e **não cria nem empurra tag**. Depois do merge,
+  `make release-tag TAG=X` (`scripts/release-tag.sh`, novo) busca `origin/main`, taggeia o
+  primeiro commit first-parent com a versão (o merge do PR), confere a linha no `RELEASES.md` e
+  empurra a tag; `DRY_RUN=1` só mostra o commit, `REF=<sha>` cobre a `main` que já andou de versão.
+  Testes de regressão em `test/release-workflow.test.ts` (fixtures git sem rede, `origin` num repo
+  bare local): 7 casos do guard falham contra o guard da 0.78.0 e passam agora
+  (`npx vitest run test/release-workflow.test.ts -t "#472"`). Continuam a cargo do dono do
+  repositório: revisor obrigatório e regra de tag `v*` no environment `npm-release`, ruleset de tag
+  `v*`, proteção de `main` e `release-*`, e o campo Environment do Trusted Publisher no npmjs.com.
+
 ## [0.78.0] — 2026-10-12
 
 ### Breaking

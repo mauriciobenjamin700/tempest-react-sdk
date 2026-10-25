@@ -43,6 +43,10 @@ jobs:
             tarball: ${{ steps.pack.outputs.tarball }}
             sha256: ${{ steps.pack.outputs.sha256 }}
         steps:
+            # fetch-depth: 0 is load-bearing: it brings every branch as
+            # refs/remotes/origin/*, and the ref guard below refuses a tag whose
+            # commit is not an ancestor of origin/main (#472). Without the
+            # history the guard fails closed.
             - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
               with:
                   fetch-depth: 0
@@ -72,6 +76,10 @@ jobs:
             # Publishes from a vX.Y.Z tag only — workflow_dispatch included —
             # that matches package.json and points at the checked-out commit
             # (#452). The tag, the npm version and the Release share one SHA.
+            # That commit must already be on main (#472): the tag is cut after
+            # the release PR is merged (`make release-tag`), so nothing
+            # unreviewed publishes. The one exception is a backport below the
+            # registry's latest, from origin/release-<maj>.<min>.
             - name: Check the ref is a release tag for this commit
               id: version
               env:

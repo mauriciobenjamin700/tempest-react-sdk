@@ -27390,18 +27390,31 @@ Local:                                  GitHub Actions:
   │  3. fecha o CHANGELOG   │
   │     ([Unreleased] →     │
   │      [TAG] — data)      │
-  │  4. validate (lint +    │
+  │  4. commit + RELEASES.md│
+  │  5. validate (lint +    │
   │     format + typecheck  │
   │     + test + build)     │
-  │  5. commit + tag local  │
-  │  6. push branch + tag   │──────────► tag push triggers
-  │  7. abre PR via gh      │            .github/workflows/release-npm.yml
-  └─────────────────────────┘                     │
+  │  6. push da branch      │
+  │  7. abre PR via gh      │
+  │     (sem tag)           │
+  └─────────────────────────┘
+       │ revisão + merge do PR na main
+       ▼
+  make release-tag TAG=X.Y.Z
+  ┌─────────────────────────┐
+  │ scripts/release-tag.sh: │
+  │  1. acha o commit do    │
+  │     merge na main       │
+  │  2. tag vTAG nele       │
+  │  3. push da tag         │──────────► tag push triggers
+  └─────────────────────────┘            .github/workflows/release-npm.yml
+                                                  │
                                                   ▼
                                        ┌────────────────────────────┐
                                        │ build (contents: read)     │
                                        │ 1. Checkout @ tag          │
-                                       │ 2. tag == package.json?    │
+                                       │ 2. tag == package.json, e  │
+                                       │    o commit está na main?  │
                                        │ 3. npm ci + lint + format  │
                                        │ 4. Typecheck + tests       │
                                        │ 5. Build + npm pack        │
@@ -27426,25 +27439,46 @@ Release. O workflow falha se a tag não descrever a versão do `package.json`, e
 falha se o registry não estiver servindo a versão sob o dist-tag dela — então "workflow
 verde" significa de fato "publicado e visível".
 
-Uma tag `vX.Y.Z` é a **única** coisa que publica — o disparo manual também roda sobre a tag, nunca sobre uma branch. Não há "publish via PR merge" — o merge do release PR é apenas para sincronizar `main` com `package.json` + `RELEASES.md` atualizados.
+Uma tag `vX.Y.Z` é a **única** coisa que publica — o disparo manual também roda sobre a tag, nunca sobre uma branch. O merge do PR de release não publica nada sozinho: ele leva o bump para a `main`, e **só depois** a tag nasce no commit do merge (`make release-tag`). O guard do workflow reprova tag em commit que não está na `main` (#472), então nada que não passou pela revisão do PR chega ao npm.
 
 ## Comandos
 
+O release é **dois passos**, com a revisão do PR no meio:
+
+```bash
+make release TAG=0.1.5       # 1. abre o PR de release (não taggeia, não publica)
+# ... revisão e merge do PR na main ...
+make release-tag TAG=0.1.5   # 2. tag no commit do merge + push → publica
+```
+
 ### `make release TAG=0.1.5`
 
-Pipeline completo. Requer working tree limpo + tag inexistente local/remoto.
+Abre o PR de release: branch `release/v0.1.5`, bump, `[Unreleased]` fechado em `[0.1.5]`, `RELEASES.md` regenerado, validação local, push da branch e PR via `gh`. **Não cria nem empurra tag** — nada é publicado neste passo. Requer working tree limpo + tag inexistente local/remoto.
 
 Bloqueia se `CHANGELOG.md` não mencionar `[TAG]` ou `[Unreleased]` (com prompt para forçar continuação).
 
+!!! info "A tag provisória do `RELEASES.md`"
+    `make releases-md` gera a tabela a partir das git tags, e a linha da versão nova precisa estar no commit que vai ser taggeado (é o que o `test/docs-counts.test.ts` confere). O script cria uma tag local provisória só durante esse comando e a apaga em seguida. A coluna Commit da linha nova aponta para o `chore: release` da branch; o próximo `make releases-md` a reescreve com o commit da tag de verdade.
+
 ### `make release TAG=0.1.5 DRY_RUN=1`
 
-Idêntico, mas para antes do push — você inspeciona a branch e o tag locais antes de continuar manualmente:
+Idêntico, mas para antes do push — você inspeciona a branch local antes de continuar manualmente:
 
 ```bash
 git push -u origin release/v0.1.5
-git push origin v0.1.5
 gh pr create --base main --head release/v0.1.5 --title "chore: release v0.1.5"
+# depois do merge:
+make release-tag TAG=0.1.5
 ```
+
+### `make release-tag TAG=0.1.5`
+
+Roda **depois do merge** do PR de release. Busca `origin/main`, escolhe o commit e empurra a tag `v0.1.5` nele — o push é o que dispara o `release-npm.yml`.
+
+O commit escolhido é o **primeiro** da história first-parent da `main` cujo `package.json` está em `0.1.5`: o merge (ou o squash) do PR de release. Um PR mergeado depois dele, ainda na mesma versão, fica de fora — está no `[Unreleased]` e não pode ir para o npm sob uma versão que não o documenta. Antes de taggear, o script confere a versão do `package.json`, a linha `| v0.1.5 |` no `RELEASES.md` desse commit e que a tag não existe, local nem no origin.
+
+- `DRY_RUN=1` mostra o commit que seria taggeado e para, sem criar nada.
+- `REF=<sha>` taggeia um commit específico, para quando a `main` já andou para outra versão antes do tag. O commit precisa estar na `main` e ter a versão certa.
 
 ### `make release TAG=0.1.5 SKIP_VALIDATE=1`
 
@@ -27476,7 +27510,7 @@ Lista todas as tags `v*.*.*` ordenadas por versão (mais recentes primeiro).
 
 ### `make releases-md`
 
-Regenera `RELEASES.md` a partir das git tags. Chamado automaticamente pelo `scripts/release.sh` após criar a tag.
+Regenera `RELEASES.md` a partir das git tags. Chamado automaticamente pelo `scripts/release.sh`, com uma tag local provisória da versão nova que é apagada logo depois.
 
 ### `make releases-check`
 
@@ -27508,7 +27542,7 @@ Necessário porque o publish no npm e a criação do Release passaram a andar ju
 
 Disparado por:
 
-- **`push: tags: [v*.*.*]`** — fluxo principal. `make release TAG=X` push uma tag e o workflow dispara automaticamente.
+- **`push: tags: [v*.*.*]`** — fluxo principal. `make release-tag TAG=X`, depois do merge do PR de release, empurra a tag e o workflow dispara automaticamente.
 - **`workflow_dispatch`** — manual, **sempre sobre a tag**: `gh workflow run release-npm.yml --ref vX.Y.Z`. Útil quando o publish de uma tag falhou e você quer re-rodar sem incrementar versão. Disparado de uma branch (`--ref main`), o guard do passo 3 reprova a run antes de instalar qualquer coisa — até a 0.76.0 ele derivava a tag do `package.json` da branch e publicava aquela árvore.
 
 O workflow parte de `permissions: {}`, roda um release por vez, de qualquer tag (`concurrency` com grupo único `release-npm`, sem cancelar o que está em andamento — o publish dele pode já ter acontecido) e se divide em quatro jobs, cada um com só a permissão de que precisa. A divisão é o ponto: o único job que **pode** publicar não roda nada resolvido do registry na hora do release.
@@ -27524,7 +27558,7 @@ Passos, na ordem:
 
 1. **Checkout** (`actions/checkout`, fixado por SHA como toda action do workflow) com `fetch-depth: 0` e `persist-credentials: false` — o `GITHUB_TOKEN` não fica gravado no `.git/config` para os passos seguintes.
 2. **Node 22** + cache npm.
-3. **Guard de ref** (`scripts/check-release-ref.sh`) — **aborta**, antes de qualquer instalação, se o ref da run não é uma tag `vX.Y.Z` (ou `vX.Y.Z-pre`), se a tag não descreve o `version` do `package.json`, ou se ela não aponta para o commit em checkout (`GITHUB_SHA`). Vale para tag push e para `workflow_dispatch`. Também deriva `prerelease` (versão com `-`) para marcar o Release corretamente, e escolhe o dist-tag comparando a versão com o `latest` atual do registry, que o passo anterior lê com `scripts/release-dist-tag.sh current-latest` (veja [Dist-tags](#dist-tags)).
+3. **Guard de ref** (`scripts/check-release-ref.sh`) — **aborta**, antes de qualquer instalação, se o ref da run não é uma tag `vX.Y.Z` (ou `vX.Y.Z-pre`), se a tag não descreve o `version` do `package.json`, se ela não aponta para o commit em checkout (`GITHUB_SHA`), ou se esse commit **não está na `main`** (não é ancestral de `origin/main`, #472) — o checkout com `fetch-depth: 0` é o que traz `origin/main`, e sem ela o guard falha fechado. Vale para tag push e para `workflow_dispatch`. Também deriva `prerelease` (versão com `-`) para marcar o Release corretamente, e escolhe o dist-tag comparando a versão com o `latest` atual do registry, que o passo anterior lê com `scripts/release-dist-tag.sh current-latest` (veja [Dist-tags](#dist-tags)).
 4. **`npm ci`**, **lint**, **format check**, **typecheck**, **testes** e **build**.
 5. **`npm pack`** — o tarball sobe como artifact `npm-tarball-<tentativa>` (um nome por `run_attempt`, para um re-run completo não colidir com o artifact da primeira tentativa) e o SHA-256 dele vira output do job. Output de job não pode ser reescrito por job posterior, então todo job que baixa o artifact confere o digest antes de usá-lo (`sha256sum --check`). O artifact leva **só o tarball**: o workspace do `build` já rodou `npm ci`, testes e build, e um arquivo dali pode ter sido reescrito por código de dependência — um digest tirado depois disso só atestaria a troca. Os jobs `publish` e `release` rodam `scripts/` de um checkout próprio do `GITHUB_SHA` (`persist-credentials: false`; no `publish`, checkout esparso só de `scripts/release-dist-tag.sh`, sem instalação nenhuma depois) e baixam o artifact em `$RUNNER_TEMP/npm-tarball`, fora do checkout, para ele não sobrescrever nada.
 6. **Smoke** (job `smoke`) — instala o tarball em `/tmp/sdk-smoke` com `react@^19 react-dom@^19 react-router@^8` e empacota com esbuild, roda as mesmas asserções em Node cru com o `node-css-loader` publicado, e roda uma suíte Vitest de consumidor (`scripts/smoke-vitest.sh`). Essas instalações resolvem versões flutuantes do registry — por isso moram num job sem permissão de escrita nenhuma.
@@ -27561,6 +27595,9 @@ Duas runs nunca disputam o `latest`: o workflow tem um grupo de `concurrency` ú
 !!! warning "Backport precisa desta versão do workflow"
     Num tag push, o GitHub roda o `release-npm.yml` **do commit da tag**. Uma tag `v0.75.1` cortada de uma branch que parte da 0.75.0 roda o workflow antigo, que manda tudo para `latest`. A branch de backport precisa ter o `release-npm.yml`, o `scripts/check-release-ref.sh` e o `scripts/release-dist-tag.sh` desta versão em diante (cherry-pick do fix da #472).
 
+!!! note "De onde um backport pode sair"
+    Um commit fora da `main` só publica se for ancestral de `origin/release-<major>.<minor>` — a branch de manutenção da linha da própria versão, com o mesmo nome do dist-tag — **e** se o dist-tag escolhido for esse `release-<major>.<minor>`. O `v0.75.1` sai de `release-0.75`, mergeado por PR, com a tag no commit do merge (`make release-tag TAG=0.75.1 BASE_BRANCH=release-0.75`). Uma branch de manutenção nunca publica em `latest` nem em `next`: esses saem só da `main`. Proteja `release-*` como a `main` (PR obrigatório); sem isso, quem empurra na branch publica na linha antiga.
+
 O **GitHub Release** segue o registry: o `gh release create` leva `--latest` quando o `latest` do npm **é** esta versão, e `--latest=false` caso contrário (backport, ou prerelease, que continua com `--prerelease`). O flag vem do registry, não do dist-tag escolhido, então um re-run que cria o Release de uma versão já publicada como `latest` ainda a marca. Release que já existe não tem o flag alterado: o re-run cai no `gh release edit` + `upload --clobber`, sem `--latest`.
 
 !!! info "Por que `release-0.75` e não `v0.75`"
@@ -27578,8 +27615,8 @@ O job `publish` roda no environment `npm-release`. Sem configuração, o GitHub 
 !!! tip "Ligue os dois juntos"
     O revisor obrigatório sem o vínculo no npm deixa um job fora do environment publicar; o vínculo sem o revisor deixa qualquer run do environment publicar sem ninguém olhar.
 
-!!! warning "O guard não confere se o commit passou por revisão"
-    O `check-release-ref.sh` exige que a tag descreva o `package.json` e aponte para o commit da run, mas não que o commit esteja na `main`: o próprio `scripts/release.sh` empurra a tag da branch de release antes do merge, então publicar commit ainda não mergeado é o fluxo normal. O dist-tag monotônico impede que esse publish leve o `latest` para trás, não que ele aconteça. Quem barra commit não revisado é o revisor obrigatório no environment `npm-release`, junto com uma regra de tag `v*` (_Settings → Rules → Rulesets_) restringindo quem cria a tag — configuração do GitHub e do npm, a cargo do dono do repositório.
+!!! warning "O guard confere a `main`; quem protege a `main` é o repositório"
+    Desde a #472 o `check-release-ref.sh` só aceita tag em commit que já está na `main` (ou, no backport, na `release-<major>.<minor>` da linha). Até a 0.78.0 o `scripts/release.sh` empurrava a tag da branch de release antes do merge, e o guard aceitava: numa fixture, uma `v0.79.0` em commit fora da `main` saía com código 0 e `dist_tag=latest`. O guard vale tanto quanto a proteção da `main`: ele garante "está na `main`", e é a branch protection (PR obrigatório com revisão) que transforma isso em "foi revisado". Ainda ficam com o dono do repositório o revisor obrigatório no environment `npm-release`, uma regra de tag `v*` (_Settings → Rules → Rulesets_) restringindo quem cria a tag, e o campo Environment do Trusted Publisher — configuração do GitHub e do npm.
 
 ## Segredos necessários no GitHub
 

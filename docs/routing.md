@@ -20,7 +20,7 @@ Com o módulo `routing` você ganha:
 - **Baterias inclusas.** `<AppRouter>` já constrói o router, o `<Suspense>` e as `<Routes>`. `defineRoutes` te dá tipagem. Guards e lazy loading são campos da própria rota.
 
 !!! info "Primitivos re-exportados"
-    O SDK re-exporta os primitivos declarativos do React Router para você importar tudo do mesmo lugar: `BrowserRouter`, `HashRouter`, `MemoryRouter`, `Routes`, `Route`, `Outlet`, `Navigate`, `Link`, `NavLink`, `useNavigate`, `useParams`, `useSearchParams`, `useLocation`, `useMatch`, `useRouteError` e `redirect`.
+    O SDK re-exporta a superfície client-side inteira do React Router para você importar tudo do mesmo lugar — componentes (`BrowserRouter`, `Routes`, `Route`, `Outlet`, `Link`, `NavLink`, `Navigate`, …), hooks (`useNavigate`, `useParams`, `useSearchParams`, `useLocation`, `useMatch`, `useRouteError`, …) e utilitários (`matchPath`, `generatePath`, `redirect`, …). A lista completa está em [Tudo o que vem do React Router](#tudo-o-que-vem-do-react-router).
 
     Importar direto de `react-router` também funciona e resolve para a mesma cópia — o re-export existe por conveniência, não por isolamento. Isso torna a adoção incremental possível: um app que já usa `react-router` direto pode passar a usar o SDK sem reescrever import nenhum.
 
@@ -375,6 +375,46 @@ test("renders the dashboard route", () => {
 !!! note "`initialEntries` é só do router `memory`"
     `initialEntries` define o histórico inicial e só faz sentido com `router="memory"`. Nos routers `browser`/`hash` a rota inicial vem da própria URL do navegador.
 
+## Tudo o que vem do React Router
+
+Precisa de `matchPath` para saber se a URL atual casa com um padrão, ou de `generatePath` para montar um link a partir dos params? Importe do SDK, como o resto:
+
+```tsx
+// ActiveTourBanner.tsx
+import { generatePath, Link, matchPath, useLocation } from "tempest-react-sdk";
+
+export function ActiveTourBanner() {
+  const { pathname } = useLocation();
+  const match = matchPath("/tours/:tourId/*", pathname);
+
+  if (match === null) return null;
+
+  const editUrl = generatePath("/tours/:tourId/edit", { tourId: match.params.tourId ?? "" });
+  return <Link to={editUrl}>Editar o tour {match.params.tourId}</Link>;
+}
+```
+
+O SDK re-exporta **toda** a superfície client-side do `react-router` que é idêntica no v7 e no v8:
+
+| Grupo | Nomes |
+| --- | --- |
+| Routers | `BrowserRouter`, `HashRouter`, `MemoryRouter`, `Router`, `RouterProvider`, `createBrowserRouter`, `createHashRouter`, `createMemoryRouter` |
+| Componentes | `Routes`, `Route`, `Outlet`, `Navigate`, `Link`, `NavLink`, `Await`, `ScrollRestoration`, `RouterForm` (o `Form` do React Router) |
+| Navegação e URL | `useNavigate`, `useLocation`, `useParams`, `useSearchParams`, `useMatch`, `useMatches`, `useHref`, `useResolvedPath`, `useLinkClickHandler`, `useInRouterContext`, `useNavigationType`, `useOutlet`, `useOutletContext`, `useRoutes`, `useViewTransitionState` |
+| Data router | `useLoaderData`, `useActionData`, `useRouteLoaderData`, `useRouteError`, `useNavigation`, `useRevalidator`, `useFetcher`, `useFetchers`, `useSubmit`, `useFormAction`, `useAsyncValue`, `useAsyncError`, `useBlocker`, `useBeforeUnload` |
+| Utilitários | `matchPath`, `matchRoutes`, `generatePath`, `resolvePath`, `createPath`, `parsePath`, `createSearchParams`, `createRoutesFromElements`, `createRoutesFromChildren`, `renderMatches`, `redirect`, `redirectDocument`, `replace`, `data`, `isRouteErrorResponse` |
+| Constantes | `NavigationType`, `IDLE_NAVIGATION`, `IDLE_FETCHER`, `IDLE_BLOCKER` |
+
+Os tipos mais usados também vêm junto: `Location`, `NavigateFunction`, `NavigateOptions`, `To`, `Params`, `PathMatch`, `PathPattern`, `RouteObject`, `LoaderFunctionArgs`, `ActionFunctionArgs`, `SetURLSearchParams`, `LinkProps`, `NavLinkProps`, `RouterFormProps`, entre outros.
+
+!!! note "Por que `Form` vira `RouterForm`"
+    A raiz do SDK já exporta o seu próprio `Form` (o de `react-hook-form`). Para os dois conviverem, o `Form` do React Router sai como `RouterForm` — mesmo componente, outro nome. Pelo mesmo motivo o tipo `Path` do React Router não é re-exportado: o `Path` da raiz é o caminho de campo do módulo `forms`.
+
+!!! info "O que fica de fora, de propósito"
+    O SDK é client-side, então não re-exporta o que só existe em framework mode ou no servidor: `Links`, `Meta`, `Scripts`, `PrefetchPageLinks`, `href`, `ServerRouter`, `StaticRouter`, `createStaticHandler`, `createRequestHandler`, cookies e sessões. Também ficam fora o middleware de rota (`createContext`, `RouterContextProvider`), o `createRoutesStub` e todo nome `UNSAFE_`/`unstable_`. Se precisar de algum deles, importe de `react-router` — é a mesma cópia.
+
+    Um guard (`test/router-reexports.test.ts`) reprova o build quando uma versão nova do `react-router` traz um export que não foi nem re-exportado nem excluído com motivo. A lista não envelhece em silêncio.
+
 ## Recap
 
 - O módulo `routing` embrulha o **React Router v8 declarativo** e te dá uma **superfície única de import** — tudo vem de `"tempest-react-sdk"`.
@@ -385,3 +425,4 @@ test("renders the dashboard route", () => {
 - Proteja rotas com `guard` (booleano ou função) + `redirectTo`, ou com `<RouteGuard when={...}>` no JSX. O guard roda na renderização, então pode chamar hooks — nomeie a função `use…` para o ESLint aceitar.
 - Permissão que resolve de forma assíncrona responde `"pending"`: a decisão fica segura e o `guardFallback` (ou o `fallback` do `<AppRouter>`) aparece, em vez de redirecionar quem tem acesso ou vazar a tela para quem não tem.
 - Escolha o router com a prop `router`: `"browser"` em produção, `"memory"` + `initialEntries` em testes.
+- Precisa de `matchPath`, `generatePath`, `useOutletContext` ou qualquer outro nome client-side do React Router? Também vem de `"tempest-react-sdk"`; o `Form` dele sai como `RouterForm`.

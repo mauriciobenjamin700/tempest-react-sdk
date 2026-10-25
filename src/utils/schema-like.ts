@@ -13,9 +13,9 @@
  * - [Standard Schema](https://standardschema.dev) (`~standard`), which zod
  *   (>=3.24), valibot and arktype all implement, so the SDK validates against
  *   any of them without depending on one;
- * - `.safeParse`, because the SDK's own zod range starts at `^3.23.0`, which
- *   predates `~standard`, and because it is the method every zod user already
- *   knows.
+ * - `.safeParse`, because it is the method every zod user already knows, and
+ *   because an app may still build its schemas with its own copy of zod 3.23,
+ *   which predates `~standard`, even though the SDK itself requires `^4.6.6`.
  */
 
 /** One field-level complaint from a schema validation. */

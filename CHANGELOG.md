@@ -4,6 +4,20 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Breaking
+
+- **`zod` passa a exigir `^4.6.6`** (antes `^3.23.0 || ^4.0.0`). Todo zod até a 4.6.5 tem o
+  GHSA-mrhx-c7xc-m3w5 (high): um array sem limite de tamanho que falha a validação acumula um issue
+  por elemento, sem teto, até estourar a memória. O zod 3 não tem correção, então o range antigo
+  deixava o SDK resolver versão vulnerável em qualquer app. No SDK o zod valida resposta do próprio
+  backend (`parseResponse`) e formulários (`zodResolver`, `useZodForm`, `validateForm`), então o
+  risco prático era baixo, mas a dependência é direta e o range é nosso.
+  **Migração:** app em zod 4 só precisa de `npm install zod@^4.6.6` se o lock estiver abaixo disso.
+  App em zod 3 passa a ter duas cópias (a sua e a 4.6.6 do SDK): os schemas que você passa ao
+  `zodResolver`, ao `useZodForm` e ao `parseResponse` deixam de bater com os tipos do SDK. Migre
+  para zod 4 (`npm install zod@^4.6.6`). As opções que aceitam `SchemaLike` (`schema` de SSE e
+  WebSocket) continuam aceitando schema de zod 3.23+ pelo `.safeParse` ou pelo `~standard`.
+
 ### Segurança
 
 - **`parsePixPayload` recusa payload cuja leitura depende da unidade de tamanho do TLV (#497).**

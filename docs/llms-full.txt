@@ -594,7 +594,7 @@ tree-shake).
 | `react-router` (`^7 \|\| ^8`)  | **Peer (obrigat.)** | `AppRouter`, `defineRoutes`, `RouteGuard`, re-exports                                    |
 | `zustand`                      | Dep direta          | `createStore`, `createSelectors`, `createAuthStore`                                      |
 | `@tanstack/react-query`        | Dep direta          | `QueryProvider`, `createQueryKeys`, `AppProviders`                                       |
-| `zod`                          | Dep direta          | `parseResponse`, `validateForm`, `zodResolver`, `useZodForm`                             |
+| `zod` (`^4.6.6`)               | Dep direta          | `parseResponse`, `validateForm`, `zodResolver`, `useZodForm`                             |
 | `react-hook-form`              | Dep direta          | `useZodForm`, `FormField`, inputs mascarados                                             |
 | `dexie`                        | Dep direta          | `createOfflineStore`                                                                     |
 | `lucide-react`                 | Dep direta          | Ícones (`leftIcon`/`rightIcon`)                                                          |

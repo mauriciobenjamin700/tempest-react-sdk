@@ -77,7 +77,7 @@ and tree-shakes).
 | `react-router` (`^7 \|\| ^8`)  | **Peer (required)** | `AppRouter`, `defineRoutes`, `RouteGuard`, re-exports                           |
 | `zustand`                      | Direct dep          | `createStore`, `createSelectors`, `createAuthStore`                             |
 | `@tanstack/react-query`        | Direct dep          | `QueryProvider`, `createQueryKeys`, `AppProviders`                              |
-| `zod`                          | Direct dep          | `parseResponse`, `validateForm`, `zodResolver`, `useZodForm`                    |
+| `zod` (`^4.6.6`)               | Direct dep          | `parseResponse`, `validateForm`, `zodResolver`, `useZodForm`                    |
 | `react-hook-form`              | Direct dep          | `useZodForm`, `FormField`, masked inputs                                        |
 | `dexie`                        | Direct dep          | `createOfflineStore`                                                            |
 | `lucide-react`                 | Direct dep          | Icons (`leftIcon`/`rightIcon`)                                                  |

@@ -186,7 +186,7 @@ export const AUDIOS = {
 If all you want is a voice note, it is one line. `AudioRecorder` handles the permission, the level meter, the clock and the review before you ever see the audio:
 
 ```tsx
-import { AudioRecorder } from "tempest-react-sdk";
+import { encodeIdSegment, AudioRecorder } from "tempest-react-sdk";
 
 export function VoiceNote({ ticketId }: { ticketId: string }) {
   return (
@@ -196,7 +196,7 @@ export function VoiceNote({ ticketId }: { ticketId: string }) {
         const form = new FormData();
         form.append("audio", blob, `note.${mimeType.includes("mp4") ? "m4a" : "webm"}`);
         form.append("duration", String(durationMs));
-        void fetch(`/api/tickets/${ticketId}/audio`, { method: "POST", body: form });
+        void fetch(`/api/tickets/${encodeIdSegment(ticketId)}/audio`, { method: "POST", body: form });
       }}
       footer={<small>Two minutes maximum.</small>}
     />

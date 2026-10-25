@@ -186,7 +186,7 @@ different behavior between desktop and mobile.
 `ConfirmDialog` components.
 
 ```tsx
-import { ModalsProvider, useModals, Button } from "tempest-react-sdk";
+import { encodeIdSegment, ModalsProvider, useModals, Button } from "tempest-react-sdk";
 
 // app root
 <ModalsProvider>
@@ -206,7 +206,7 @@ function DeleteButton({ id }: { id: string }) {
           confirmLabel: "Delete",
           danger: true,
           onConfirm: async () => {
-            await fetch(`/api/items/${id}`, { method: "DELETE" });
+            await fetch(`/api/items/${encodeIdSegment(id)}`, { method: "DELETE" });
           },
         })
       }

@@ -175,7 +175,7 @@ export function Compartilhar() {
 `<ModalsProvider>` monta uma vez perto da raiz e gerencia uma pilha de modais; `useModals()` expõe a API imperativa sobre os componentes `Modal` e `ConfirmDialog` já existentes.
 
 ```tsx
-import { ModalsProvider, useModals, Button } from "tempest-react-sdk";
+import { encodeIdSegment, ModalsProvider, useModals, Button } from "tempest-react-sdk";
 
 // raiz do app
 <ModalsProvider>
@@ -195,7 +195,7 @@ function DeleteButton({ id }: { id: string }) {
           confirmLabel: "Excluir",
           danger: true,
           onConfirm: async () => {
-            await fetch(`/api/items/${id}`, { method: "DELETE" });
+            await fetch(`/api/items/${encodeIdSegment(id)}`, { method: "DELETE" });
           },
         })
       }

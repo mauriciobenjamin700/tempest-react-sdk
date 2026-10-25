@@ -263,7 +263,7 @@ changes — editing is strictly opt-in, and a `DataTable` with no editable colum
 exactly what it rendered before.
 
 ```tsx
-import { DataTable, type DataTableColumn } from "tempest-react-sdk";
+import { encodeIdSegment, DataTable, type DataTableColumn } from "tempest-react-sdk";
 import { api } from "@/lib/api";
 
 interface Employee {
@@ -298,7 +298,7 @@ export function Team({ people }: { people: Employee[] }) {
       columns={columns}
       rowKey={(row) => row.id}
       onCellChange={({ row, key, value }) =>
-        api.patch(`/api/employees/${row.id}`, { body: { [key]: value } })
+        api.patch(`/api/employees/${encodeIdSegment(row.id)}`, { body: { [key]: value } })
       }
     />
   );
@@ -337,7 +337,7 @@ old value **and** shows the reason in a `role="alert"` tied to it via
 
 ```tsx
 onCellChange={async ({ row, key, value }) => {
-  const res = await fetch(`/api/employees/${row.id}`, { /* … */ });
+  const res = await fetch(`/api/employees/${encodeIdSegment(row.id)}`, { /* … */ });
   if (!res.ok) throw new Error("That e-mail is already taken.");
 }}
 ```

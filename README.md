@@ -647,7 +647,7 @@ Every method throws `ApiError` (`status`, `body`, `url`, `code`) on non-2xx resp
 The HTTP client returns untyped JSON (`unknown`). `parseResponse` validates against a zod schema and gives you a `ZodError`-aware failure message tied to the request.
 
 ```ts
-import { createApiClient, parseResponse } from "tempest-react-sdk";
+import { encodeIdSegment, createApiClient, parseResponse } from "tempest-react-sdk";
 import { z } from "zod";
 
 const userSchema = z.object({
@@ -657,7 +657,7 @@ const userSchema = z.object({
 });
 
 export async function getUser(id: string) {
-  const raw = await api.get<unknown>(`/users/${id}`);
+  const raw = await api.get<unknown>(`/users/${encodeIdSegment(id)}`);
   return parseResponse(userSchema, raw, `GET /users/${id}`);
 }
 ```

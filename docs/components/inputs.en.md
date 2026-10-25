@@ -1005,7 +1005,7 @@ The `ref` exposes `{ crop, reset }`. `crop()` resolves `Promise<Blob | null>`.
 A canvas driven by `pointer` events (mouse, finger and stylus down the same path). Strokes are kept as **point lists** and the canvas is redrawn from them — that is what makes `undo` possible at all: a canvas holds pixels, not history, so dropping the last stroke means repainting the rest.
 
 ```tsx
-import { Button, SignaturePad, type SignaturePadHandle } from "tempest-react-sdk";
+import { encodeIdSegment, Button, SignaturePad, type SignaturePadHandle } from "tempest-react-sdk";
 import { useRef, useState } from "react";
 
 export function DeliverySignature({ deliveryId }: { deliveryId: string }) {
@@ -1017,7 +1017,7 @@ export function DeliverySignature({ deliveryId }: { deliveryId: string }) {
     if (!blob) return;
     const form = new FormData();
     form.append("signature", blob, `${deliveryId}.png`);
-    await api.post(`/deliveries/${deliveryId}/signature`, form);
+    await api.post(`/deliveries/${encodeIdSegment(deliveryId)}/signature`, form);
   }
 
   return (

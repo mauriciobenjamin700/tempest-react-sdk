@@ -186,7 +186,7 @@ export const AUDIOS = {
 Se você só quer uma nota de voz, é uma linha. O `AudioRecorder` cuida da permissão, do medidor de nível, do relógio e da revisão antes de você receber o áudio:
 
 ```tsx
-import { AudioRecorder } from "tempest-react-sdk";
+import { encodeIdSegment, AudioRecorder } from "tempest-react-sdk";
 
 export function NotaDeVoz({ ticketId }: { ticketId: string }) {
   return (
@@ -196,7 +196,7 @@ export function NotaDeVoz({ ticketId }: { ticketId: string }) {
         const form = new FormData();
         form.append("audio", blob, `nota.${mimeType.includes("mp4") ? "m4a" : "webm"}`);
         form.append("duracao", String(durationMs));
-        void fetch(`/api/tickets/${ticketId}/audio`, { method: "POST", body: form });
+        void fetch(`/api/tickets/${encodeIdSegment(ticketId)}/audio`, { method: "POST", body: form });
       }}
       footer={<small>Máximo 2 minutos.</small>}
     />

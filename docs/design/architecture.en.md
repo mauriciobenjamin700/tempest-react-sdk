@@ -118,7 +118,7 @@ export const api = createApiClient({
 
 ```ts
 // src/features/orders/orders.service.ts
-import { parseResponse } from "tempest-react-sdk";
+import { encodeIdSegment, parseResponse } from "tempest-react-sdk";
 
 import { api } from "@/lib/api";
 
@@ -136,7 +136,7 @@ export async function listOrders(page: number): Promise<Order[]> {
 
 /** Advance an order to the paid state. */
 export async function payOrder(id: string): Promise<Order> {
-  const raw = await api.post<unknown>(`/orders/${id}/pay`);
+  const raw = await api.post<unknown>(`/orders/${encodeIdSegment(id)}/pay`);
   return parseResponse(orderSchema, raw, "payOrder");
 }
 ```

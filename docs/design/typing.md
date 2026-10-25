@@ -252,7 +252,7 @@ ligado (o template já deixa) e trate na borda:
 ```ts
 // ✅ o tipo diz que pode não achar; quem chama é obrigado a tratar
 export async function findOrder(id: string): Promise<Order | null> {
-  const raw = await api.get<unknown>(`/orders/${id}`).catch(() => null);
+  const raw = await api.get<unknown>(`/orders/${encodeIdSegment(id)}`).catch(() => null);
   return raw === null ? null : parseResponse(orderSchema, raw, "findOrder");
 }
 ```

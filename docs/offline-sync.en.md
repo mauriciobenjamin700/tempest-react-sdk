@@ -26,7 +26,7 @@ It's the counterpart to the backend recipe: **[Offline-First Sync — tempest-fa
 
 ```ts
 // src/sync/engine.ts
-import { createOfflineSync } from "tempest-react-sdk";
+import { encodeIdSegment, createOfflineSync } from "tempest-react-sdk";
 import { api } from "@/lib/api";
 import { analyses } from "./store"; // createOfflineStore
 import { fromDto, toPayload, type Analysis, type AnalysisDto } from "./types";
@@ -38,10 +38,10 @@ export const sync = createOfflineSync<Analysis, AnalysisDto>({
   // push: deliver one queued mutation
   deliver: async (entry) => {
     if (entry.op === "delete") {
-      await api.delete(`/api/analyses/${entry.recordId}`);
+      await api.delete(`/api/analyses/${encodeIdSegment(entry.recordId)}`);
       return;
     }
-    await api.put(`/api/analyses/${entry.recordId}`, { body: toPayload(entry.payload!) });
+    await api.put(`/api/analyses/${encodeIdSegment(entry.recordId)}`, { body: toPayload(entry.payload!) });
   },
 
   // pull: one delta page since the watermark
@@ -199,6 +199,7 @@ Write **to the local store first** (instant UI), then upsert to the server. Beca
 
 ```ts
 // src/sync/push.ts
+import { encodeIdSegment } from "tempest-react-sdk";
 import { analyses } from "./store";
 import { api } from "@/lib/api";
 import type { Analysis } from "./types";
@@ -226,7 +227,7 @@ export async function saveAnalysis(
 
   // 2. Upsert on the server (idempotent by id). If it fails offline, the
   //    service worker queues and replays it for you (step 5).
-  await api.put(`/api/analyses/${record.id}`, { body: record });
+  await api.put(`/api/analyses/${encodeIdSegment(record.id)}`, { body: record });
 
   return record;
 }
@@ -235,7 +236,7 @@ export async function saveAnalysis(
 export async function deleteAnalysis(userId: string, id: string): Promise<void> {
   const now = new Date().toISOString();
   await analyses.update(id, { is_deleted: true, deleted_at: now, updated_at: now });
-  await api.put(`/api/analyses/${id}`, {
+  await api.put(`/api/analyses/${encodeIdSegment(id)}`, {
     body: { ...(await analyses.get(id)) },
   });
 }

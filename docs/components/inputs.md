@@ -970,7 +970,7 @@ O `ref` expõe `{ crop, reset }`. O `crop()` devolve `Promise<Blob | null>`.
 Canvas com captura por `pointer` (mouse, dedo e caneta pelo mesmo caminho). Os traços são guardados como **listas de pontos** e o canvas é redesenhado a partir delas — é isso que torna o `undo` possível: canvas guarda pixel, não histórico, então remover o último traço significa repintar o resto.
 
 ```tsx
-import { Button, SignaturePad, type SignaturePadHandle } from "tempest-react-sdk";
+import { encodeIdSegment, Button, SignaturePad, type SignaturePadHandle } from "tempest-react-sdk";
 import { useRef, useState } from "react";
 
 export function AssinaturaDaEntrega({ entregaId }: { entregaId: string }) {
@@ -982,7 +982,7 @@ export function AssinaturaDaEntrega({ entregaId }: { entregaId: string }) {
     if (!blob) return;
     const form = new FormData();
     form.append("assinatura", blob, `${entregaId}.png`);
-    await api.post(`/entregas/${entregaId}/assinatura`, form);
+    await api.post(`/entregas/${encodeIdSegment(entregaId)}/assinatura`, form);
   }
 
   return (

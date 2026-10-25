@@ -243,7 +243,7 @@ Multi-tab: other tabs receive the update through an internal
 ### Async — `useAsync`
 
 ```tsx
-import { useAsync, Spinner, ErrorState } from "tempest-react-sdk";
+import { encodeIdSegment, useAsync, Spinner, ErrorState } from "tempest-react-sdk";
 
 interface User {
   id: string;
@@ -252,7 +252,7 @@ interface User {
 
 function UserPanel({ id }: { id: string }) {
   const { status, data, error, run } = useAsync<User>(
-    () => fetch(`/api/users/${id}`).then((r) => r.json()),
+    () => fetch(`/api/users/${encodeIdSegment(id)}`).then((r) => r.json()),
     [id],
     { immediate: true },
   );

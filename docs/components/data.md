@@ -255,7 +255,7 @@ nada muda — a edição é estritamente opt-in, e um `DataTable` sem coluna edi
 renderiza exatamente o que renderizava antes.
 
 ```tsx
-import { DataTable, type DataTableColumn } from "tempest-react-sdk";
+import { encodeIdSegment, DataTable, type DataTableColumn } from "tempest-react-sdk";
 import { api } from "@/lib/api";
 
 interface Colaborador {
@@ -290,7 +290,7 @@ export function Equipe({ pessoas }: { pessoas: Colaborador[] }) {
       columns={columns}
       rowKey={(row) => row.id}
       onCellChange={({ row, key, value }) =>
-        api.patch(`/api/colaboradores/${row.id}`, { body: { [key]: value } })
+        api.patch(`/api/colaboradores/${encodeIdSegment(row.id)}`, { body: { [key]: value } })
       }
     />
   );
@@ -328,7 +328,7 @@ antigo **e** mostra o motivo num `role="alert"` amarrado a ela por `aria-describ
 
 ```tsx
 onCellChange={async ({ row, key, value }) => {
-  const res = await fetch(`/api/colaboradores/${row.id}`, { /* … */ });
+  const res = await fetch(`/api/colaboradores/${encodeIdSegment(row.id)}`, { /* … */ });
   if (!res.ok) throw new Error("Este e-mail já está em uso.");
 }}
 ```

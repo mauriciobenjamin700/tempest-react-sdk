@@ -253,7 +253,7 @@ template already does) and handle it at the edge:
 ```ts
 // ✅ the type says it may not find anything; the caller must handle it
 export async function findOrder(id: string): Promise<Order | null> {
-  const raw = await api.get<unknown>(`/orders/${id}`).catch(() => null);
+  const raw = await api.get<unknown>(`/orders/${encodeIdSegment(id)}`).catch(() => null);
   return raw === null ? null : parseResponse(orderSchema, raw, "findOrder");
 }
 ```

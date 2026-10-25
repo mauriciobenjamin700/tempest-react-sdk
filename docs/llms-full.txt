@@ -847,7 +847,7 @@ export const AUDIOS = {
 Se você só quer uma nota de voz, é uma linha. O `AudioRecorder` cuida da permissão, do medidor de nível, do relógio e da revisão antes de você receber o áudio:
 
 ```tsx
-import { AudioRecorder } from "tempest-react-sdk";
+import { encodeIdSegment, AudioRecorder } from "tempest-react-sdk";
 
 export function NotaDeVoz({ ticketId }: { ticketId: string }) {
   return (
@@ -857,7 +857,7 @@ export function NotaDeVoz({ ticketId }: { ticketId: string }) {
         const form = new FormData();
         form.append("audio", blob, `nota.${mimeType.includes("mp4") ? "m4a" : "webm"}`);
         form.append("duracao", String(durationMs));
-        void fetch(`/api/tickets/${ticketId}/audio`, { method: "POST", body: form });
+        void fetch(`/api/tickets/${encodeIdSegment(ticketId)}/audio`, { method: "POST", body: form });
       }}
       footer={<small>Máximo 2 minutos.</small>}
     />
@@ -3066,7 +3066,7 @@ Qualquer resposta fora de 2xx vira um `TempestApiError` com `status`, `detail`,
 Para um caso pontual em componente, o `useAsync` dá os três estados prontos:
 
 ```tsx
-import { createApiClient, useAsync } from "tempest-react-sdk";
+import { encodeIdSegment, createApiClient, useAsync } from "tempest-react-sdk";
 
 interface Usuario {
     id: string;
@@ -3076,7 +3076,7 @@ interface Usuario {
 const api = createApiClient({ baseURL: "/api" });
 
 function PerfilUsuario({ id }: { id: string }) {
-    const { data, status, error } = useAsync(() => api.get<Usuario>(`/users/${id}`), [id], {
+    const { data, status, error } = useAsync(() => api.get<Usuario>(`/users/${encodeIdSegment(id)}`), [id], {
         immediate: true,
     });
 
@@ -9108,7 +9108,7 @@ nada muda — a edição é estritamente opt-in, e um `DataTable` sem coluna edi
 renderiza exatamente o que renderizava antes.
 
 ```tsx
-import { DataTable, type DataTableColumn } from "tempest-react-sdk";
+import { encodeIdSegment, DataTable, type DataTableColumn } from "tempest-react-sdk";
 import { api } from "@/lib/api";
 
 interface Colaborador {
@@ -9143,7 +9143,7 @@ export function Equipe({ pessoas }: { pessoas: Colaborador[] }) {
       columns={columns}
       rowKey={(row) => row.id}
       onCellChange={({ row, key, value }) =>
-        api.patch(`/api/colaboradores/${row.id}`, { body: { [key]: value } })
+        api.patch(`/api/colaboradores/${encodeIdSegment(row.id)}`, { body: { [key]: value } })
       }
     />
   );
@@ -9181,7 +9181,7 @@ antigo **e** mostra o motivo num `role="alert"` amarrado a ela por `aria-describ
 
 ```tsx
 onCellChange={async ({ row, key, value }) => {
-  const res = await fetch(`/api/colaboradores/${row.id}`, { /* … */ });
+  const res = await fetch(`/api/colaboradores/${encodeIdSegment(row.id)}`, { /* … */ });
   if (!res.ok) throw new Error("Este e-mail já está em uso.");
 }}
 ```
@@ -11754,7 +11754,7 @@ O `ref` expõe `{ crop, reset }`. O `crop()` devolve `Promise<Blob | null>`.
 Canvas com captura por `pointer` (mouse, dedo e caneta pelo mesmo caminho). Os traços são guardados como **listas de pontos** e o canvas é redesenhado a partir delas — é isso que torna o `undo` possível: canvas guarda pixel, não histórico, então remover o último traço significa repintar o resto.
 
 ```tsx
-import { Button, SignaturePad, type SignaturePadHandle } from "tempest-react-sdk";
+import { encodeIdSegment, Button, SignaturePad, type SignaturePadHandle } from "tempest-react-sdk";
 import { useRef, useState } from "react";
 
 export function AssinaturaDaEntrega({ entregaId }: { entregaId: string }) {
@@ -11766,7 +11766,7 @@ export function AssinaturaDaEntrega({ entregaId }: { entregaId: string }) {
     if (!blob) return;
     const form = new FormData();
     form.append("assinatura", blob, `${entregaId}.png`);
-    await api.post(`/entregas/${entregaId}/assinatura`, form);
+    await api.post(`/entregas/${encodeIdSegment(entregaId)}/assinatura`, form);
   }
 
   return (
@@ -13388,7 +13388,7 @@ export function Compartilhar() {
 `<ModalsProvider>` monta uma vez perto da raiz e gerencia uma pilha de modais; `useModals()` expõe a API imperativa sobre os componentes `Modal` e `ConfirmDialog` já existentes.
 
 ```tsx
-import { ModalsProvider, useModals, Button } from "tempest-react-sdk";
+import { encodeIdSegment, ModalsProvider, useModals, Button } from "tempest-react-sdk";
 
 // raiz do app
 <ModalsProvider>
@@ -13408,7 +13408,7 @@ function DeleteButton({ id }: { id: string }) {
           confirmLabel: "Excluir",
           danger: true,
           onConfirm: async () => {
-            await fetch(`/api/items/${id}`, { method: "DELETE" });
+            await fetch(`/api/items/${encodeIdSegment(id)}`, { method: "DELETE" });
           },
         })
       }
@@ -15700,7 +15700,7 @@ export const api = createApiClient({
 
 ```ts
 // src/features/orders/orders.service.ts
-import { parseResponse } from "tempest-react-sdk";
+import { encodeIdSegment, parseResponse } from "tempest-react-sdk";
 
 import { api } from "@/lib/api";
 
@@ -15718,7 +15718,7 @@ export async function listOrders(page: number): Promise<Order[]> {
 
 /** Advance an order to the paid state. */
 export async function payOrder(id: string): Promise<Order> {
-  const raw = await api.post<unknown>(`/orders/${id}/pay`);
+  const raw = await api.post<unknown>(`/orders/${encodeIdSegment(id)}/pay`);
   return parseResponse(orderSchema, raw, "payOrder");
 }
 ```
@@ -17878,7 +17878,7 @@ ligado (o template já deixa) e trate na borda:
 ```ts
 // ✅ o tipo diz que pode não achar; quem chama é obrigado a tratar
 export async function findOrder(id: string): Promise<Order | null> {
-  const raw = await api.get<unknown>(`/orders/${id}`).catch(() => null);
+  const raw = await api.get<unknown>(`/orders/${encodeIdSegment(id)}`).catch(() => null);
   return raw === null ? null : parseResponse(orderSchema, raw, "findOrder");
 }
 ```
@@ -20452,7 +20452,7 @@ Multi-tab: outras abas recebem update via `window.addEventListener("storage", ..
 ### Async — `useAsync`
 
 ```tsx
-import { useAsync, Spinner, ErrorState } from "tempest-react-sdk";
+import { encodeIdSegment, useAsync, Spinner, ErrorState } from "tempest-react-sdk";
 
 interface User {
   id: string;
@@ -20461,7 +20461,7 @@ interface User {
 
 function UserPanel({ id }: { id: string }) {
   const { status, data, error, run } = useAsync<User>(
-    () => fetch(`/api/users/${id}`).then((r) => r.json()),
+    () => fetch(`/api/users/${encodeIdSegment(id)}`).then((r) => r.json()),
     [id],
     { immediate: true },
   );
@@ -21232,7 +21232,7 @@ const created = await api.post<User>("/users", {
 });
 
 // DELETE
-await api.delete<void>(`/users/${id}`);
+await api.delete<void>(`/users/${encodeIdSegment(id)}`);
 ```
 
 Comportamento:
@@ -21254,12 +21254,37 @@ Comportamento:
 
     **O erro do hook não vaza mais.** O cliente aguarda o `onUnauthorized` e captura o que ele lançar, então quem chamou continua recebendo o `ApiError` da requisição original — antes da v0.48.0 o throw do hook tomava o lugar do 401, e o console mostrava dois erros onde havia um, o segundo sem relação com a requisição que falhou. Com um `logger` configurado, a falha do hook sai como `warn` em vez de desaparecer.
 
+### Id dinâmico no path: `encodeIdSegment`
+
+Todo exemplo desta página que põe um id no path passa por `encodeIdSegment` — e o seu código também deveria:
+
+```ts
+import { createApiClient, encodeIdSegment } from "tempest-react-sdk";
+
+const api = createApiClient({ baseURL: import.meta.env.VITE_API_URL });
+
+export async function removeUser(id: string): Promise<void> {
+  await api.delete<void>(`/users/${encodeIdSegment(id)}`);
+}
+```
+
+O id é a parte da URL que pode vir de fora do app: um search param, o hash, um param de rota decodificado, um valor que outro usuário gravou. Interpolado cru, `"../../admin/users"` leva a requisição — **com o `Authorization` anexado** — para outro endpoint, `"7?role=admin"` injeta query string e `"7#x"` corta o path. `encodeIdSegment` aplica `encodeURIComponent` (neutraliza `/`, `?`, `#` e `%`) e lança `TypeError` para `""`, `"."`, `".."`, `null` e `undefined`, que o parser de URL resolveria como outro caminho ou viraria o segmento literal `"null"`.
+
+| `id`          | Path                                 |
+| ------------- | ------------------------------------ |
+| `42`          | `/users/42`                          |
+| `"../admin"`  | `/users/..%2Fadmin`                  |
+| `"7?role=x"`  | `/users/7%3Frole%3Dx`                |
+| `".."`        | `TypeError`, sem requisição          |
+
+É o mesmo helper que o [data provider](./data-provider.md#o-id-nunca-sai-do-proprio-segmento) aplica em todo id desde a 0.77.0 (#438), e que o código gerado pelo `tempest gen api` usa (#499). Só valores que **não** são id — query string — vão em `params`, que o cliente já serializa.
+
 ## Download de binário
 
 Baixar uma imagem, um PDF ou um `.zip` **não sai do cliente**: `blob()` e `arrayBuffer()` rodam o mesmo caminho de `request()` — base URL, `Authorization`, refresh na 401, `onUnauthorized`, log, timeout e retentativa — e só trocam o parse pelo corpo cru.
 
 ```ts
-import { createApiClient } from "tempest-react-sdk";
+import { encodeIdSegment, createApiClient } from "tempest-react-sdk";
 
 const api = createApiClient({
   baseURL: import.meta.env.VITE_API_URL,
@@ -21267,7 +21292,7 @@ const api = createApiClient({
   refresh,
 });
 
-const imagem = await api.blob(`/analyses/${id}/image`);
+const imagem = await api.blob(`/analyses/${encodeIdSegment(id)}/image`);
 const url = URL.createObjectURL(imagem);
 
 const pesos = await api.arrayBuffer("/models/classifier.onnx");
@@ -21823,7 +21848,7 @@ A primeira tentativa **sempre** acontece: `retries: 0` desliga a repetição, e 
 Chama uma factory async num intervalo fixo, pulando ticks enquanto a chamada anterior não terminou. Ideal pra acompanhar o status de um job:
 
 ```tsx
-import { usePoll } from "tempest-react-sdk";
+import { encodeIdSegment, usePoll } from "tempest-react-sdk";
 import { api } from "./api";
 
 interface Job {
@@ -21832,7 +21857,7 @@ interface Job {
 }
 
 export function JobStatus({ jobId }: { jobId: string }) {
-  const { data, loading, error, stop } = usePoll<Job>(() => api.get<Job>(`/jobs/${jobId}`), {
+  const { data, loading, error, stop } = usePoll<Job>(() => api.get<Job>(`/jobs/${encodeIdSegment(jobId)}`), {
     interval: 3000,
     stopWhen: (job) => job.status !== "pending",
     onError: (err) => console.error(err),
@@ -22051,6 +22076,7 @@ const { mutate } = useMutation({
 - `uploadWithProgress` usa XHR pra reportar progresso byte a byte; para arquivo grande, `createResumableUpload` divide em chunks e retoma — veja [Upload resumível](./resumable-upload.md).
 - `retry` (backoff exponencial + `shouldRetry`) e `usePoll` (intervalo com guarda de overlap) cobrem operações instáveis e acompanhamento de jobs.
 - `generateIdempotencyKey` — gere uma vez por operação, reutilize nos retries.
+- Id dinâmico no path sempre passa por `encodeIdSegment(id)`: um `../` ou `?` no id não leva a requisição autenticada para outro endpoint.
 - `csrf: true` ecoa o cookie `csrf_token` em `X-CSRF-Token` em toda escrita, nunca em leitura, nunca para outra origem, inclusive em `skipAuth` — o par que a sessão em cookie (`withCredentials`) exige. Os defaults são os do `CSRFMiddleware` do `tempest-fastapi-sdk`.
 - `describeApiError(error, fallback)` (puro) e `useDescribeApiError()` (com i18n) transformam o erro tipado na frase da tela, tratando `status === 0` como offline em vez de "erro 0" e o erro com **vários** campos como frase de validação em vez do `detail`. A rejeição de **um** campo cuja mensagem é o próprio `detail` mostra o `detail` — é a frase que o servidor escreveu para aquele campo. `useDetail: false` recusa.
 - `error.fields` indexa as mensagens por campo — da lista do 422 do FastAPI ou das chaves `detail.field` / `field` / `details.field` que um backend `tempest-fastapi-sdk` manda. É o que vai direto pro `setError` do formulário.
@@ -24611,7 +24637,7 @@ O `createOfflineSync` empacota o motor inteiro — **outbox** durável (IndexedD
 
 ```ts
 // src/sync/engine.ts
-import { createOfflineSync } from "tempest-react-sdk";
+import { encodeIdSegment, createOfflineSync } from "tempest-react-sdk";
 import { api } from "@/lib/api";
 import { analyses } from "./store"; // createOfflineStore
 import { fromDto, toPayload, type Analysis, type AnalysisDto } from "./types";
@@ -24623,10 +24649,10 @@ export const sync = createOfflineSync<Analysis, AnalysisDto>({
   // push: entregue uma mutação da fila
   deliver: async (entry) => {
     if (entry.op === "delete") {
-      await api.delete(`/api/analyses/${entry.recordId}`);
+      await api.delete(`/api/analyses/${encodeIdSegment(entry.recordId)}`);
       return;
     }
-    await api.put(`/api/analyses/${entry.recordId}`, { body: toPayload(entry.payload!) });
+    await api.put(`/api/analyses/${encodeIdSegment(entry.recordId)}`, { body: toPayload(entry.payload!) });
   },
 
   // pull: uma página do delta desde o watermark
@@ -24784,6 +24810,7 @@ Grave **primeiro no local** (UI responde na hora), depois faça o upsert no serv
 
 ```ts
 // src/sync/push.ts
+import { encodeIdSegment } from "tempest-react-sdk";
 import { analyses } from "./store";
 import { api } from "@/lib/api";
 import type { Analysis } from "./types";
@@ -24811,7 +24838,7 @@ export async function saveAnalysis(
 
   // 2. Upsert no servidor (idempotente por id). Se falhar offline, o
   //    service worker enfileira e reenvia sozinho (passo 5).
-  await api.put(`/api/analyses/${record.id}`, { body: record });
+  await api.put(`/api/analyses/${encodeIdSegment(record.id)}`, { body: record });
 
   return record;
 }
@@ -24820,7 +24847,7 @@ export async function saveAnalysis(
 export async function deleteAnalysis(userId: string, id: string): Promise<void> {
   const now = new Date().toISOString();
   await analyses.update(id, { is_deleted: true, deleted_at: now, updated_at: now });
-  await api.put(`/api/analyses/${id}`, {
+  await api.put(`/api/analyses/${encodeIdSegment(id)}`, {
     body: { ...(await analyses.get(id)) },
   });
 }

@@ -71,7 +71,7 @@ const created = await api.post<User>("/users", {
 });
 
 // DELETE
-await api.delete<void>(`/users/${id}`);
+await api.delete<void>(`/users/${encodeIdSegment(id)}`);
 ```
 
 Comportamento:
@@ -93,12 +93,37 @@ Comportamento:
 
     **O erro do hook não vaza mais.** O cliente aguarda o `onUnauthorized` e captura o que ele lançar, então quem chamou continua recebendo o `ApiError` da requisição original — antes da v0.48.0 o throw do hook tomava o lugar do 401, e o console mostrava dois erros onde havia um, o segundo sem relação com a requisição que falhou. Com um `logger` configurado, a falha do hook sai como `warn` em vez de desaparecer.
 
+### Id dinâmico no path: `encodeIdSegment`
+
+Todo exemplo desta página que põe um id no path passa por `encodeIdSegment` — e o seu código também deveria:
+
+```ts
+import { createApiClient, encodeIdSegment } from "tempest-react-sdk";
+
+const api = createApiClient({ baseURL: import.meta.env.VITE_API_URL });
+
+export async function removeUser(id: string): Promise<void> {
+  await api.delete<void>(`/users/${encodeIdSegment(id)}`);
+}
+```
+
+O id é a parte da URL que pode vir de fora do app: um search param, o hash, um param de rota decodificado, um valor que outro usuário gravou. Interpolado cru, `"../../admin/users"` leva a requisição — **com o `Authorization` anexado** — para outro endpoint, `"7?role=admin"` injeta query string e `"7#x"` corta o path. `encodeIdSegment` aplica `encodeURIComponent` (neutraliza `/`, `?`, `#` e `%`) e lança `TypeError` para `""`, `"."`, `".."`, `null` e `undefined`, que o parser de URL resolveria como outro caminho ou viraria o segmento literal `"null"`.
+
+| `id`          | Path                                 |
+| ------------- | ------------------------------------ |
+| `42`          | `/users/42`                          |
+| `"../admin"`  | `/users/..%2Fadmin`                  |
+| `"7?role=x"`  | `/users/7%3Frole%3Dx`                |
+| `".."`        | `TypeError`, sem requisição          |
+
+É o mesmo helper que o [data provider](./data-provider.md#o-id-nunca-sai-do-proprio-segmento) aplica em todo id desde a 0.77.0 (#438), e que o código gerado pelo `tempest gen api` usa (#499). Só valores que **não** são id — query string — vão em `params`, que o cliente já serializa.
+
 ## Download de binário
 
 Baixar uma imagem, um PDF ou um `.zip` **não sai do cliente**: `blob()` e `arrayBuffer()` rodam o mesmo caminho de `request()` — base URL, `Authorization`, refresh na 401, `onUnauthorized`, log, timeout e retentativa — e só trocam o parse pelo corpo cru.
 
 ```ts
-import { createApiClient } from "tempest-react-sdk";
+import { encodeIdSegment, createApiClient } from "tempest-react-sdk";
 
 const api = createApiClient({
   baseURL: import.meta.env.VITE_API_URL,
@@ -106,7 +131,7 @@ const api = createApiClient({
   refresh,
 });
 
-const imagem = await api.blob(`/analyses/${id}/image`);
+const imagem = await api.blob(`/analyses/${encodeIdSegment(id)}/image`);
 const url = URL.createObjectURL(imagem);
 
 const pesos = await api.arrayBuffer("/models/classifier.onnx");
@@ -662,7 +687,7 @@ A primeira tentativa **sempre** acontece: `retries: 0` desliga a repetição, e 
 Chama uma factory async num intervalo fixo, pulando ticks enquanto a chamada anterior não terminou. Ideal pra acompanhar o status de um job:
 
 ```tsx
-import { usePoll } from "tempest-react-sdk";
+import { encodeIdSegment, usePoll } from "tempest-react-sdk";
 import { api } from "./api";
 
 interface Job {
@@ -671,7 +696,7 @@ interface Job {
 }
 
 export function JobStatus({ jobId }: { jobId: string }) {
-  const { data, loading, error, stop } = usePoll<Job>(() => api.get<Job>(`/jobs/${jobId}`), {
+  const { data, loading, error, stop } = usePoll<Job>(() => api.get<Job>(`/jobs/${encodeIdSegment(jobId)}`), {
     interval: 3000,
     stopWhen: (job) => job.status !== "pending",
     onError: (err) => console.error(err),
@@ -890,6 +915,7 @@ const { mutate } = useMutation({
 - `uploadWithProgress` usa XHR pra reportar progresso byte a byte; para arquivo grande, `createResumableUpload` divide em chunks e retoma — veja [Upload resumível](./resumable-upload.md).
 - `retry` (backoff exponencial + `shouldRetry`) e `usePoll` (intervalo com guarda de overlap) cobrem operações instáveis e acompanhamento de jobs.
 - `generateIdempotencyKey` — gere uma vez por operação, reutilize nos retries.
+- Id dinâmico no path sempre passa por `encodeIdSegment(id)`: um `../` ou `?` no id não leva a requisição autenticada para outro endpoint.
 - `csrf: true` ecoa o cookie `csrf_token` em `X-CSRF-Token` em toda escrita, nunca em leitura, nunca para outra origem, inclusive em `skipAuth` — o par que a sessão em cookie (`withCredentials`) exige. Os defaults são os do `CSRFMiddleware` do `tempest-fastapi-sdk`.
 - `describeApiError(error, fallback)` (puro) e `useDescribeApiError()` (com i18n) transformam o erro tipado na frase da tela, tratando `status === 0` como offline em vez de "erro 0" e o erro com **vários** campos como frase de validação em vez do `detail`. A rejeição de **um** campo cuja mensagem é o próprio `detail` mostra o `detail` — é a frase que o servidor escreveu para aquele campo. `useDetail: false` recusa.
 - `error.fields` indexa as mensagens por campo — da lista do 422 do FastAPI ou das chaves `detail.field` / `field` / `details.field` que um backend `tempest-fastapi-sdk` manda. É o que vai direto pro `setError` do formulário.

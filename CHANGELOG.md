@@ -4,6 +4,22 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **Superfície client-side inteira do React Router re-exportada pela raiz** (#508). O módulo
+  `router` re-exportava 16 nomes escolhidos à mão, então `import { matchPath } from
+"tempest-react-sdk"` falhava com `TS2305` e o app voltava a misturar dois import paths. Agora sai
+  tudo o que o `react-router` exporta no lado do cliente e é idêntico no v7 e no v8 (medido em
+  25/10/2026: 129 exports de runtime em 7.18.4 e em 8.3.1, 128 em comum): `matchPath`,
+  `generatePath`, `matchRoutes`, `createBrowserRouter`/`RouterProvider`, `useOutletContext`,
+  `useLoaderData`, `useFetcher`, `useBlocker` e o resto, mais os tipos mais usados (`Location`,
+  `NavigateFunction`, `RouteObject`, `PathMatch`, …). O `Form` do React Router sai como
+  **`RouterForm`** (tipo `RouterFormProps`), porque a raiz já exporta o `Form` do SDK; o tipo `Path`
+  fica de fora pelo mesmo motivo. Framework mode, servidor, middleware de rota, `createRoutesStub` e
+  nomes `UNSAFE_`/`unstable_` ficam de fora de propósito. `test/router-reexports.test.ts` reprova o
+  export novo do `react-router` que não for nem re-exportado nem excluído com motivo
+  (`npx vitest run test/router-reexports.test.ts`: 4 de 6 falham na 0.78.0, 6/6 depois).
+
 ### Corrigido
 
 - **Release: só publica commit que já está na `main`; a tag nasce depois do merge** (#472). O

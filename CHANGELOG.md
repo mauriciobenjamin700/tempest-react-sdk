@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.79.0] — 2026-10-25
+
 ### Breaking
 
 - **`zod` passa a exigir `^4.6.6`** (antes `^3.23.0 || ^4.0.0`). Todo zod até a 4.6.5 tem o

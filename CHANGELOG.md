@@ -91,6 +91,23 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   re-exports dos `index.ts` fora da ordem do `simple-import-sort`. Grupo sem schema agora gera
   `schemas.ts`/`types.ts` com `export {};`. Regenere o client para receber a correção.
 
+### Interno
+
+- **Dependências de desenvolvimento sem advisory aberto** (`npm audit`: 7 → 0 na raiz, 3 → 0 na
+  gallery). `vite` ^8.3.3 (launch-editor e `server.fs`, GHSA-587h-7wmj-h5pm e mais 5), `vitest` e
+  `@vitest/coverage-v8` ^4.1.12 (GHSA-qxg6-89mg-rqv8, GHSA-xp26-3454-mjgp), `zod` de dev ^4.6.6
+  (GHSA-mrhx-c7xc-m3w5), e pelo lock `undici` 8.12.3 (via `jsdom`), `fast-uri` 3.1.9 e
+  `source-map-js` 1.2.2. Tudo é ferramenta de build/teste: nada disso entra no pacote publicado. O
+  `template/` passa a pedir `vite` ^8.3.3. O range de runtime do `zod` (`^3.23.0 || ^4.0.0`) não
+  muda nesta entrada.
+
+- **`overrides.rolldown` fixado em 1.2.14.** O `rolldown` 1.2.15 (21/10/2026), que o `vite` 8.3
+  resolve, faz o `scripts/split-css.mjs` jogar o CSS de todo componente na fundação:
+  `dist/styles/core.css` vai de 17 864 B para 255 474 B e o `npx size-limit` reprova
+  `styles/core.css` (30,56 kB contra 4 kB). Bisseção com `overrides` + `npm run build` +
+  `stat -c %s dist/styles/core.css`: 1.2.7, 1.2.11, 1.2.13 e 1.2.14 dão 17 864 B; 1.2.15 dá
+  255 474 B. O override vale só para o build deste repo (npm ignora `overrides` de dependência).
+
 ## [0.78.0] — 2026-10-12
 
 ### Breaking

@@ -69,6 +69,28 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   repositório: revisor obrigatório e regra de tag `v*` no environment `npm-release`, ruleset de tag
   `v*`, proteção de `main` e `release-*`, e o campo Environment do Trusted Publisher no npmjs.com.
 
+- **`tempest gen api`: parâmetro tipado por `$ref` importa o tipo que cita** (#504). Um parâmetro
+  de path com `$ref` para um enum de `components/schemas` gerava `kind: Kind` no `service.ts` sem
+  importar `Kind` — e sem declará-lo no `types.ts`, porque só body e resposta alimentavam a lista de
+  schemas do grupo. O `tsc` do app acusava `TS2304 Cannot find name 'Kind'`. Agora o tipo de cada
+  assinatura registra os schemas que cita, e eles entram no `types.ts` e no `import type` do
+  `service.ts`. Na query, o mesmo `$ref` era estreitado para `string`; parâmetro de query escalar
+  (inclusive via `$ref`) mantém o tipo, e só objeto/array continua virando `string`. Header e
+  `parameters` no nível do path não são lidos pelo gerador e ficam fora.
+
+- **`tempest gen api`: o código gerado passa no ESLint e no `tsc` do template** (#505). Medido com uma
+  spec que põe `$ref` em toda posição lida (path, query, body em array, resposta, envelope de página
+  offset e cursor, schema aninhado) mais um grupo sem schema, rodando o `tsconfig.json` e o
+  `eslint.config.js` do `template/` sobre a saída
+  (`npx vitest run bin/lib/openapi/generate.test.mjs`): antes, 9 diagnósticos de `tsc` e 19 de
+  ESLint; depois, 0 e 0. A spec FastAPI dos testes, sem nenhum caso exótico, já dava 2 erros de lint.
+  As causas eram mais do que a issue listava: `z`/`S` sem uso em grupo sem schema e linha em branco
+  dupla (as duas relatadas), mas também `S` importado em todo grupo sem body validado, envelope de
+  página e schema aninhado importados sem uso no `service.ts`, `OffsetPage`/`CursorPage` fora de
+  ordem, `import * as S` usado só em `typeof` no `types.ts` (`consistent-type-imports`) e os
+  re-exports dos `index.ts` fora da ordem do `simple-import-sort`. Grupo sem schema agora gera
+  `schemas.ts`/`types.ts` com `export {};`. Regenere o client para receber a correção.
+
 ## [0.78.0] — 2026-10-12
 
 ### Breaking

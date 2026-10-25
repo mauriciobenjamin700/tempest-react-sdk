@@ -53,7 +53,8 @@ export const UserCreateSchema = z.object({
 
 ```ts
 import type { z } from "zod";
-import * as S from "./schemas";
+
+import type * as S from "./schemas";
 
 export type User = z.infer<typeof S.UserSchema>;
 export type UserCreate = z.infer<typeof S.UserCreateSchema>;
@@ -64,6 +65,7 @@ export type UserCreate = z.infer<typeof S.UserCreateSchema>;
 ```ts
 import type { ApiClient } from "tempest-react-sdk";
 import { encodeIdSegment } from "tempest-react-sdk";
+
 import * as S from "./schemas";
 import type { User, UserCreate } from "./types";
 
@@ -113,6 +115,29 @@ too (with a type assertion, since it accepts `string | number`): `true` becomes
 !!! tip "Regenerate to get the protection"
     Services generated before this version interpolate the parameter raw. Run
     `tempest gen api` again — no method signature changes.
+
+### Passes the template's lint and `tsc` as generated
+
+The generated code drops into a `create-tempest-app` app with no error from
+`npm run lint` or `tsc --noEmit`: it compiles under the template's strict
+`tsconfig` (`noUnusedLocals`, `verbatimModuleSyntax`) and passes its
+`eslint.config.js`, warnings included. In practice:
+
+- **Only the imports that are used.** `service.ts` imports the types its
+  signatures name, `S` only when a body is validated, and
+  `OffsetPage`/`CursorPage`/`encodeIdSegment` only when they appear. A group
+  with no schema at all gets `schemas.ts` and `types.ts` holding `export {};`.
+- **A parameter typed by a `$ref` keeps its name.** An enum from
+  `components/schemas` used in a path or query parameter becomes `kind: Kind` —
+  and `Kind` is declared in `types.ts` and imported into `service.ts`. In the
+  query, the type is only narrowed to `string` when the value is not a scalar
+  (object, array).
+- **Imports and re-exports in `simple-import-sort` order**, with one blank line
+  between the package imports and the local ones, and never a double blank line.
+
+!!! tip "Regenerate to clear the lint"
+    Clients generated before this version can report `Cannot find name` (#504) or
+    lint errors in generated files (#505). Run `tempest gen api` again.
 
 ## How to use it
 

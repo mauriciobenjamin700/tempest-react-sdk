@@ -128,13 +128,30 @@ function collectRefs(node, schemas, acc = new Set(), seen = new Set()) {
     return acc;
 }
 
-/** TS type expression for a schema node (uses generated type names for $refs). */
-function tsType(schema) {
+/**
+ * TS type expression for a schema node (uses generated type names for $refs).
+ *
+ * Every component schema the expression names is added to `refs`, so the caller
+ * imports exactly the types its signatures mention: a path parameter typed by a
+ * `$ref` used to print `kind: Kind` without importing `Kind` (#504), and a page
+ * envelope or a nested schema used to be imported without being mentioned, which
+ * the template's `unused-imports/no-unused-imports` and `noUnusedLocals` reject
+ * (#505).
+ *
+ * @param {object | undefined} schema - The schema node.
+ * @param {Set<string>} [refs] - Collects the spec names of the referenced schemas.
+ * @returns {string} The TypeScript type expression.
+ */
+function tsType(schema, refs = new Set()) {
     if (!schema || typeof schema !== "object") return "unknown";
-    if (schema.$ref) return typeName(refName(schema.$ref));
-    if (schema.allOf) return schema.allOf.map(tsType).join(" & ");
+    if (schema.$ref) {
+        const name = refName(schema.$ref);
+        refs.add(name);
+        return typeName(name);
+    }
+    if (schema.allOf) return schema.allOf.map((s) => tsType(s, refs)).join(" & ");
     if (schema.anyOf || schema.oneOf) {
-        const parts = (schema.anyOf ?? schema.oneOf).map(tsType);
+        const parts = (schema.anyOf ?? schema.oneOf).map((s) => tsType(s, refs));
         return [...new Set(parts)].join(" | ");
     }
     const t = Array.isArray(schema.type) ? schema.type.find((x) => x !== "null") : schema.type;
@@ -156,7 +173,7 @@ function tsType(schema) {
         case "null":
             return "null";
         case "array":
-            base = `${tsType(schema.items)}[]`;
+            base = `${tsType(schema.items, refs)}[]`;
             break;
         case "object":
         default:
@@ -165,16 +182,44 @@ function tsType(schema) {
     return nul ? `${base} | null` : base;
 }
 
+/** JSON Schema types whose TypeScript type the client's `params` values accept. */
+const QUERY_SCALARS = new Set(["string", "integer", "number", "boolean", "null"]);
+
+/**
+ * Whether a query parameter's schema only ever produces a value the client's
+ * `params` accepts (`string | number | boolean | null`).
+ *
+ * `$ref` chains are followed, so an enum declared in `components/schemas` keeps
+ * its name in the signature instead of being narrowed to `string`; unions qualify
+ * when every branch does.
+ *
+ * @param {object | undefined} schema - The parameter's schema.
+ * @param {Record<string, object>} schemas - `components.schemas`.
+ * @param {number} [depth] - Recursion guard for self-referencing unions.
+ * @returns {boolean} `true` when the TypeScript type is assignable to the client's `params` values.
+ */
+function isQueryScalar(schema, schemas, depth = 0) {
+    const node = resolveSchema(schema, schemas);
+    if (!node || typeof node !== "object" || depth > 16) return false;
+    const branches = node.anyOf ?? node.oneOf ?? (node.allOf?.length === 1 ? node.allOf : null);
+    if (branches) return branches.every((b) => isQueryScalar(b, schemas, depth + 1));
+    const types = Array.isArray(node.type) ? node.type : [node.type];
+    return types.every((t) => QUERY_SCALARS.has(t));
+}
+
 /**
  * TS type for a query-param value. Query params serialize to strings, so the
  * client only accepts `string | number | boolean | null`. Anything richer
- * (objects, arrays of objects) is narrowed to `string` to stay assignable.
+ * (objects, arrays) is narrowed to `string` to stay assignable.
+ *
+ * @param {object | undefined} schema - The parameter's schema.
+ * @param {Record<string, object>} schemas - `components.schemas`.
+ * @param {Set<string>} refs - Collects the schemas the type names.
+ * @returns {string} The TypeScript type expression.
  */
-function queryParamType(schema) {
-    const t = tsType(schema ?? { type: "string" });
-    const allowed = new Set(["string", "number", "boolean", "null"]);
-    const ok = t.split("|").every((part) => allowed.has(part.trim()));
-    return ok ? t : "string";
+function queryParamType(schema, schemas, refs) {
+    const node = schema ?? { type: "string" };
+    return isQueryScalar(node, schemas) ? tsType(node, refs) : "string";
 }
 
 /** Turn a tag slug into a JS-safe identifier ("chat-messages" → "chatMessages"). */
@@ -221,22 +266,23 @@ function resolveSchema(schema, schemas) {
  *   items + total + pages + (size | page_size).
  * Cursor (`CursorPaginationSchema`): items + next_cursor + has_more.
  *
+ * @param {object} schema - The success response schema.
+ * @param {Record<string, object>} schemas - `components.schemas`.
+ * @param {Set<string>} [refs] - Collects the schemas the item type names.
  * @returns {{ kind: "offset"|"cursor", itemType: string }|null}
  */
-function detectPage(schema, schemas) {
+function detectPage(schema, schemas, refs = new Set()) {
     const node = resolveSchema(schema, schemas);
     const props = node?.properties;
     if (!props || !props.items || resolveSchema(props.items, schemas)?.type !== "array") {
         return null;
     }
-    const itemType = tsType(resolveSchema(props.items, schemas).items);
-    if ("total" in props && "pages" in props && ("size" in props || "page_size" in props)) {
-        return { kind: "offset", itemType };
-    }
-    if ("next_cursor" in props && "has_more" in props) {
-        return { kind: "cursor", itemType };
-    }
-    return null;
+    const offset =
+        "total" in props && "pages" in props && ("size" in props || "page_size" in props);
+    const cursor = "next_cursor" in props && "has_more" in props;
+    if (!offset && !cursor) return null;
+    const itemType = tsType(resolveSchema(props.items, schemas).items, refs);
+    return { kind: offset ? "offset" : "cursor", itemType };
 }
 
 /** Extract the success ($2xx) JSON response schema of an operation. */
@@ -255,7 +301,47 @@ function bodySchema(op) {
 }
 
 /**
+ * Contents of a `schemas.ts` / `types.ts` for a group whose routes reference no
+ * component schema. The file still exists so every group has the same layout and
+ * `index.ts` re-exports it unconditionally, but it imports nothing: an unused `z`
+ * or `S` fails the template's lint and `noUnusedLocals` (#505).
+ */
+const EMPTY_MODULE = "export {};\n";
+
+/**
+ * Collator `eslint-plugin-simple-import-sort` orders import sources and
+ * specifiers with. Ported from eslint-plugin-simple-import-sort's `compare`
+ * (`shared.js`, v14).
+ */
+const IMPORT_COLLATOR = new Intl.Collator("en", { sensitivity: "base", numeric: true });
+
+/**
+ * Order two import sources or specifiers the way the template's
+ * `simple-import-sort` rules do, so the generated imports and barrels pass them
+ * without an autofix. Ported from eslint-plugin-simple-import-sort's `compare`
+ * (`shared.js`, v14): case-insensitive and numeric-aware, with a code-unit
+ * tie-break.
+ *
+ * @param {string} a - First name.
+ * @param {string} b - Second name.
+ * @returns {number} Negative when `a` sorts first, positive when `b` does.
+ */
+function compareNames(a, b) {
+    return IMPORT_COLLATOR.compare(a, b) || (a < b ? -1 : a > b ? 1 : 0);
+}
+
+/**
  * Generate the per-tag files from a parsed OpenAPI document.
+ *
+ * Each group gets `schemas.ts` (Zod, for every component schema its bodies,
+ * responses and parameters reach transitively), `types.ts`, `service.ts` and an
+ * `index.ts`; the root barrel re-exports each group as a namespace so a schema
+ * name shared by two groups does not collide. `service.ts` imports only what its
+ * signatures and bodies use — the types they name, `S` when a body is validated,
+ * the pagination envelopes and `encodeIdSegment` when they appear — and every
+ * import and re-export is emitted in the order the `create-tempest-app`
+ * template's ESLint enforces, so the output passes its lint and `tsc` with
+ * `noUnusedLocals` as generated (#504, #505).
  *
  * @param {object} doc - The parsed OpenAPI 3.x spec.
  * @returns {{ files: Record<string, string>, tags: string[] }}
@@ -291,7 +377,12 @@ export function generate(doc) {
         tags.push(tag);
         const Class = `${slugIdent(pascal(slug))}Service`;
 
-        // 1. Which component schemas does this group touch (transitively)?
+        const usedNames = new Set(CLASS_MEMBERS);
+        const signature = { refs: new Set(), validates: false };
+        const methods = ops.map(({ method, path, op }) =>
+            emitMethod(method, path, op, schemas, usedNames, signature),
+        );
+
         const used = new Set();
         for (const { op } of ops) {
             const b = bodySchema(op);
@@ -299,10 +390,10 @@ export function generate(doc) {
             if (b) collectRefs(b, schemas, used);
             if (r) collectRefs(r, schemas, used);
         }
+        for (const name of signature.refs) collectRefs({ $ref: name }, schemas, used);
         const { sorted, cyclic } = topoSort(used, schemas);
         for (const name of sorted) assertPatterns(schemas[name], name);
 
-        // 2. schemas.ts
         const schemaLines = sorted.map((name) => {
             const expr = schemaToZod(schemas[name], (ref) => {
                 const n = refName(ref);
@@ -310,64 +401,77 @@ export function generate(doc) {
             });
             return `export const ${zodName(name)} = ${expr};`;
         });
-        files[`${slug}/schemas.ts`] = `import { z } from "zod";\n\n${schemaLines.join("\n\n")}\n`;
+        files[`${slug}/schemas.ts`] = sorted.length
+            ? `import { z } from "zod";\n\n${schemaLines.join("\n\n")}\n`
+            : EMPTY_MODULE;
 
-        // 3. types.ts
         const typeLines = sorted.map(
             (name) => `export type ${typeName(name)} = z.infer<typeof S.${zodName(name)}>;`,
         );
-        files[`${slug}/types.ts`] =
-            `import type { z } from "zod";\n\nimport * as S from "./schemas";\n\n${typeLines.join("\n")}\n`;
+        files[`${slug}/types.ts`] = sorted.length
+            ? `import type { z } from "zod";\n\nimport type * as S from "./schemas";\n\n${typeLines.join("\n")}\n`
+            : EMPTY_MODULE;
 
-        // 4. service.ts
-        const usedNames = new Set(CLASS_MEMBERS);
-        const methods = ops.map(({ method, path, op }) =>
-            emitMethod(method, path, op, schemas, usedNames),
-        );
-        const usedTypeNames = [...used].map(typeName).sort();
-        const typeImport = usedTypeNames.length
-            ? `import type { ${usedTypeNames.join(", ")} } from "./types";\n`
-            : "";
-        const schemaImport = usedTypeNames.length ? `import * as S from "./schemas";\n` : "";
         const body = methods.join("\n\n");
-        // Pagination envelopes are re-exported from the SDK; import what we used.
         const sdkTypes = ["ApiClient"];
         if (body.includes("OffsetPage<")) sdkTypes.push("OffsetPage");
         if (body.includes("CursorPage<")) sdkTypes.push("CursorPage");
-        const sdkValues = body.includes("encodeIdSegment(")
-            ? `import { encodeIdSegment } from "tempest-react-sdk";\n`
-            : "";
+        const packageImports = [
+            `import type { ${sdkTypes.sort(compareNames).join(", ")} } from "tempest-react-sdk";`,
+        ];
+        if (body.includes("encodeIdSegment(")) {
+            packageImports.push(`import { encodeIdSegment } from "tempest-react-sdk";`);
+        }
+        const localImports = [];
+        if (signature.validates) localImports.push(`import * as S from "./schemas";`);
+        const signatureTypes = [...signature.refs].map(typeName).sort(compareNames);
+        if (signatureTypes.length) {
+            localImports.push(`import type { ${signatureTypes.join(", ")} } from "./types";`);
+        }
         files[`${slug}/service.ts`] =
-            `import type { ${sdkTypes.join(", ")} } from "tempest-react-sdk";\n` +
-            sdkValues +
-            "\n" +
-            schemaImport +
-            typeImport +
-            `\n/** Generated service for the "${commentText(tag)}" routes. Inject an ApiClient (createApiClient). */\n` +
+            [packageImports, localImports]
+                .filter((group) => group.length)
+                .map((group) => group.join("\n"))
+                .join("\n\n") +
+            `\n\n/** Generated service for the "${commentText(tag)}" routes. Inject an ApiClient (createApiClient). */\n` +
             `export class ${Class} {\n` +
             `    constructor(private readonly api: ApiClient) {}\n\n` +
             body +
             `\n}\n`;
 
-        // 5. index.ts (re-export)
         files[`${slug}/index.ts`] =
-            `export * from "./schemas";\nexport * from "./types";\nexport { ${Class} } from "./service";\n`;
+            `export * from "./schemas";\nexport { ${Class} } from "./service";\nexport * from "./types";\n`;
     }
 
-    // Root barrel — namespaced per group so schema/type names shared across
-    // groups (e.g. UserResponseSchema in both `admin` and `auth`) don't collide.
     files["index.ts"] =
         [...groups.values()]
-            .map(({ slug }) => `export * as ${slugIdent(slug)} from "./${slug}";`)
+            .map(({ slug }) => slug)
+            .sort((a, b) => compareNames(`./${a}`, `./${b}`))
+            .map((slug) => `export * as ${slugIdent(slug)} from "./${slug}";`)
             .join("\n") + "\n";
 
     return { files, tags };
 }
 
-/** Emit a single class method for one operation. */
-function emitMethod(method, path, op, schemas, usedNames = new Set()) {
+/**
+ * Emit a single class method for one operation.
+ *
+ * A method name already taken in the group is deduplicated with a numeric suffix
+ * (operationIds `home__get` / `home_get` → `homeGet`, `homeGet2`). A Tempest
+ * pagination envelope maps to `OffsetPage<T>` / `CursorPage<T>`, and a body typed
+ * by a `$ref` is validated with its Zod schema before the call.
+ *
+ * @param {string} method - The HTTP method, lower case.
+ * @param {string} path - The OpenAPI path template.
+ * @param {object} op - The operation object.
+ * @param {Record<string, object>} schemas - `components.schemas`.
+ * @param {Set<string>} usedNames - Member names already taken in the class.
+ * @param {{ refs: Set<string>, validates: boolean }} signature - Collects the
+ *   component schemas the emitted types name, and whether `S` was used.
+ * @returns {string} The method source.
+ */
+function emitMethod(method, path, op, schemas, usedNames, signature) {
     let name = methodName(op, method, path);
-    // Dedupe collisions within a group (e.g. operationIds "home__get" / "home_get").
     if (usedNames.has(name)) {
         let n = 2;
         while (usedNames.has(`${name}${n}`)) n += 1;
@@ -401,24 +505,25 @@ function emitMethod(method, path, op, schemas, usedNames = new Set()) {
     const queryParams = (op.parameters ?? []).filter((p) => p.in === "query");
     const body = bodySchema(op);
     const resp = successSchema(op);
-    // Map a Tempest pagination envelope to OffsetPage<T>/CursorPage<T>.
-    const page = resp ? detectPage(resp, schemas) : null;
+    const page = resp ? detectPage(resp, schemas, signature.refs) : null;
     const retType = page
         ? `${page.kind === "offset" ? "OffsetPage" : "CursorPage"}<${page.itemType}>`
         : resp
-          ? tsType(resp)
+          ? tsType(resp, signature.refs)
           : "void";
 
     const args = [];
     for (const p of pathParams) {
-        args.push(`${paramIds.get(p.name)}: ${tsType(p.schema ?? { type: "string" })}`);
+        args.push(
+            `${paramIds.get(p.name)}: ${tsType(p.schema ?? { type: "string" }, signature.refs)}`,
+        );
     }
-    if (body) args.push(`body: ${tsType(body)}`);
+    if (body) args.push(`body: ${tsType(body, signature.refs)}`);
     if (queryParams.length) {
         const q = queryParams
             .map(
                 (p) =>
-                    `${JSON.stringify(p.name)}${p.required ? "" : "?"}: ${queryParamType(p.schema)}`,
+                    `${JSON.stringify(p.name)}${p.required ? "" : "?"}: ${queryParamType(p.schema, schemas, signature.refs)}`,
             )
             .join("; ");
         args.push(`params: { ${q} }`);
@@ -431,11 +536,10 @@ function emitMethod(method, path, op, schemas, usedNames = new Set()) {
     if (queryParams.length) callOpts.push("params");
     const optsArg = callOpts.length ? `, { ${callOpts.join(", ")} }` : "";
 
-    // Zod input validation: validate the body when it references a known schema.
     let validation = "";
     if (body && body.$ref) {
-        const schemaConst = `S.${zodName(refName(body.$ref))}`;
-        validation = `        ${schemaConst}.parse(body);\n`;
+        signature.validates = true;
+        validation = `        S.${zodName(refName(body.$ref))}.parse(body);\n`;
     }
 
     const ret = retType === "void" ? "Promise<void>" : `Promise<${retType}>`;

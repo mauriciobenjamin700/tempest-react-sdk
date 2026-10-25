@@ -53,7 +53,8 @@ export const UserCreateSchema = z.object({
 
 ```ts
 import type { z } from "zod";
-import * as S from "./schemas";
+
+import type * as S from "./schemas";
 
 export type User = z.infer<typeof S.UserSchema>;
 export type UserCreate = z.infer<typeof S.UserCreateSchema>;
@@ -64,6 +65,7 @@ export type UserCreate = z.infer<typeof S.UserCreateSchema>;
 ```ts
 import type { ApiClient } from "tempest-react-sdk";
 import { encodeIdSegment } from "tempest-react-sdk";
+
 import * as S from "./schemas";
 import type { User, UserCreate } from "./types";
 
@@ -113,6 +115,29 @@ Parâmetro tipado como `boolean`, array ou objeto também passa pelo
 !!! tip "Regenere para receber a proteção"
     Serviços gerados antes desta versão interpolam o parâmetro cru. Rode
     `tempest gen api` de novo — nenhuma assinatura de método muda.
+
+### Passa no lint e no `tsc` do template como saiu
+
+O código gerado entra num app do `create-tempest-app` sem erro no
+`npm run lint` nem no `tsc --noEmit`: compila no `tsconfig` estrito do template
+(`noUnusedLocals`, `verbatimModuleSyntax`) e passa no `eslint.config.js` dele,
+com aviso e tudo. Na prática:
+
+- **Só entra o import que é usado.** O `service.ts` importa os tipos que as
+  assinaturas citam, o `S` só quando algum body é validado e
+  `OffsetPage`/`CursorPage`/`encodeIdSegment` só quando aparecem. Grupo sem
+  nenhum schema ganha `schemas.ts` e `types.ts` com `export {};`.
+- **Parâmetro tipado por `$ref` mantém o nome.** Um enum de
+  `components/schemas` usado num parâmetro de path ou de query vira
+  `kind: Kind` — e o `Kind` é declarado no `types.ts` e importado no
+  `service.ts`. Na query, o tipo só é estreitado para `string` quando o valor
+  não é escalar (objeto, array).
+- **Imports e re-exports na ordem do `simple-import-sort`**, com uma linha em
+  branco entre os do pacote e os locais, e nenhuma linha em branco dupla.
+
+!!! tip "Regenere para limpar o lint"
+    Clients gerados antes desta versão podem acusar `Cannot find name` (#504) ou
+    erro de lint em arquivo gerado (#505). Rode `tempest gen api` de novo.
 
 ## Como usar
 

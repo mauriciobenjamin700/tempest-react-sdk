@@ -19,6 +19,9 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   nomes `UNSAFE_`/`unstable_` ficam de fora de propósito. `test/router-reexports.test.ts` reprova o
   export novo do `react-router` que não for nem re-exportado nem excluído com motivo
   (`npx vitest run test/router-reexports.test.ts`: 4 de 6 falham na 0.78.0, 6/6 depois).
+  O teto do barrel CJS sobe de 173,75 kB para 174,5 kB: os getters de re-export custam 515 B
+  brotli no `require()` do barrel inteiro (`npx size-limit`: 174,26 kB), com o `react-router` já
+  fora da medição; o ESM tree-shaken não muda.
 
 ### Corrigido
 

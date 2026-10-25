@@ -78,9 +78,10 @@ describe("generate — pagination envelopes", () => {
         expect(svc).toMatch(/async feedPosts\(\): Promise<CursorPage<Post>>/);
     });
 
-    it("imports the page types from the SDK", () => {
+    it("imports the page types from the SDK, in the order simple-import-sort enforces (#505)", () => {
         expect(svc).toContain(
-            'import type { ApiClient, OffsetPage, CursorPage } from "tempest-react-sdk";',
+            'import type { ApiClient, CursorPage, OffsetPage } from "tempest-react-sdk";',
         );
+        expect(svc).not.toContain("ApiClient, OffsetPage, CursorPage");
     });
 });

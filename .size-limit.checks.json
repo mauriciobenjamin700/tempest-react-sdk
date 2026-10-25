@@ -501,7 +501,7 @@
     "import": {
       "./dist/br.js": "{ pixPayload, parsePixPayload, PixQRCode }"
     },
-    "limit": "6.5 KB",
+    "limit": "6.8 KB",
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {

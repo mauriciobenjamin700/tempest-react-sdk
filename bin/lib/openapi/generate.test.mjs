@@ -6,6 +6,7 @@ import { ESLint } from "eslint";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
+import { encodeIdSegment } from "../../../src/data";
 import { generate } from "./generate.mjs";
 
 const SPEC = {
@@ -175,7 +176,7 @@ function templateTsc(files) {
     virtual.set(
         join(OUT, "node_modules", "tempest-react-sdk", "index.d.ts"),
         [
-            "type Call = <T = unknown>(url: string, opts?: { body?: unknown; params?: Record<string, string | number | boolean | undefined | null> }) => Promise<T>;",
+            "type Call = <T = unknown>(url: string, opts?: { body?: unknown; params?: Record<string, string | number | boolean | undefined | null>; headers?: Record<string, string> }) => Promise<T>;",
             "export type ApiClient = { get: Call; post: Call; put: Call; patch: Call; delete: Call };",
             "export type OffsetPage<T> = { items: T[]; total: number };",
             "export type CursorPage<T> = { items: T[]; next_cursor: string | null };",
@@ -244,8 +245,8 @@ const json = (schema) => ({ content: { "application/json": { schema } } });
  * | every `types.ts` | `import * as S` used only in `typeof` — `@typescript-eslint/consistent-type-imports` |
  * | every `index.ts` + root barrel | `simple-import-sort/exports` |
  *
- * Header parameters and path-item-level `parameters` are not read by the
- * generator at all, so they cannot produce an import.
+ * The `X-Trace` header parameter was not read at all then; since #509 it is, and
+ * its `Code` type is imported like any other signature type.
  */
 const EVERY_POSITION = {
     openapi: "3.1.0",
@@ -361,7 +362,7 @@ describe("generate — output passes the create-tempest-app template's tsc and E
 
     it("service.ts imports only the types its signatures name, and S only when a body is validated", () => {
         expect(files["items/service.ts"]).toContain(
-            'import type { Item, ItemCreate, Kind, Sort } from "./types";',
+            'import type { Code, Item, ItemCreate, Kind, Sort } from "./types";',
         );
         expect(files["items/service.ts"]).not.toContain('import * as S from "./schemas";');
         expect(files["reports/service.ts"]).not.toContain("./schemas");
@@ -392,5 +393,203 @@ describe("generate — output passes the create-tempest-app template's tsc and E
         expect(out["users/service.ts"]).toContain('import * as S from "./schemas";');
         expect(templateTsc(out)).toEqual([]);
         expect(await templateLint(out)).toEqual([]);
+    });
+});
+
+/**
+ * Transpile a generated `service.ts` and instantiate its class with a recording
+ * `ApiClient`, to read back the URL and options each call actually sends.
+ * `encodeIdSegment` is the SDK's real one.
+ *
+ * @param {string} source - The generated `service.ts`.
+ * @returns {{ service: object, calls: Array<[string, object | undefined]> }}
+ */
+function instantiate(source) {
+    const { outputText } = ts.transpileModule(source, {
+        compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+    });
+    const module = { exports: {} };
+    const requireStub = (id) => {
+        if (id === "tempest-react-sdk") return { encodeIdSegment };
+        throw new Error(`unexpected import ${id}`);
+    };
+    new Function("exports", "require", "module", outputText)(module.exports, requireStub, module);
+    const calls = [];
+    const api = new Proxy(
+        {},
+        {
+            get: () => async (url, opts) => {
+                calls.push([url, opts]);
+            },
+        },
+    );
+    const Class = Object.values(module.exports).find((v) => typeof v === "function");
+    return { service: new Class(api), calls };
+}
+
+/**
+ * Measured on `main` before #509 with minimal specs run through `generate`:
+ *
+ * | Spec | Output before the fix |
+ * | --- | --- |
+ * | `{id}` declared only on the path item | `getItem(): Promise<void>` calling `"/items/{id}"` — placeholder sent literally |
+ * | path item declares `{x}`, operation declares `{y}` | refused: `placeholder "x" is not a declared path parameter` |
+ * | required `in: "header"` | `list()` — no argument, nothing sent |
+ * | `in: "cookie"` | ignored (stays ignored, on purpose: `fetch` cannot set `Cookie`) |
+ * | path-item query + operation override | the path item's `q` lost; the override only looked right because the path item was never read |
+ * | parameter `$ref` into `components.parameters` | dropped like the path-item case: `"/items/{id}"` literal |
+ */
+const PARAMS = {
+    openapi: "3.1.0",
+    components: {
+        schemas: { Region: { type: "string", enum: ["br", "us"] } },
+        parameters: {
+            Version: { name: "v", in: "path", required: true, schema: { type: "integer" } },
+        },
+    },
+    paths: {
+        "/items/{id}": {
+            parameters: [
+                { name: "id", in: "path", required: true, schema: { type: "string" } },
+                { name: "X-Tenant-Id", in: "header", required: true, schema: { type: "string" } },
+                { name: "limit", in: "query", schema: { type: "string" } },
+            ],
+            get: {
+                tags: ["items"],
+                operationId: "get_item",
+                parameters: [
+                    { name: "limit", in: "query", required: true, schema: { type: "integer" } },
+                    { name: "X-Region", in: "header", schema: ref("Region") },
+                    { name: "Retry-Count", in: "header", schema: { type: "integer" } },
+                    { name: "session", in: "cookie", schema: { type: "string" } },
+                    { name: "Authorization", in: "header", schema: { type: "string" } },
+                ],
+                responses: { 200: { description: "ok" } },
+            },
+            delete: {
+                tags: ["items"],
+                operationId: "delete_item",
+                parameters: [
+                    {
+                        name: "X-Tenant-Id",
+                        in: "header",
+                        required: false,
+                        schema: { type: "string" },
+                    },
+                ],
+                responses: { 204: { description: "gone" } },
+            },
+        },
+        "/v{v}/items": {
+            post: {
+                tags: ["items"],
+                operationId: "create_item",
+                parameters: [
+                    { $ref: "#/components/parameters/Version" },
+                    { name: "Idempotency-Key", in: "header", schema: { type: "string" } },
+                ],
+                responses: { 201: { description: "ok" } },
+            },
+        },
+    },
+};
+
+describe("generate — path-item, header and $ref parameters (#509)", () => {
+    const { files } = generate(PARAMS);
+    const svc = files["items/service.ts"];
+
+    it("a path parameter declared only on the path item is an argument and goes through encodeIdSegment", () => {
+        expect(svc).not.toContain('"/items/{id}"');
+        expect(svc).toContain("`/items/${encodeIdSegment(id)}`");
+    });
+
+    it("path-item and operation parameters merge, the operation winning on the same (name, in)", () => {
+        expect(svc).toContain(
+            'async getItem(id: string, params: { "limit": number }, headers: { "X-Tenant-Id": string; "X-Region"?: Region; "Retry-Count"?: number }): Promise<void>',
+        );
+        expect(svc).toContain(
+            'async deleteItem(id: string, params: { "limit"?: string }, headers: { "X-Tenant-Id"?: string } = {}): Promise<void>',
+        );
+    });
+
+    it("a parameter $ref into components.parameters is resolved", () => {
+        expect(svc).toContain("async createItem(v: number, headers: ");
+        expect(svc).toContain("`/v${encodeIdSegment(v)}/items`");
+    });
+
+    it("cookie parameters and the Accept/Content-Type/Authorization headers are not emitted", () => {
+        expect(svc).not.toContain("session");
+        expect(svc).not.toContain("Authorization");
+    });
+
+    it("header values are sent as strings, and an optional header left out is not sent as 'undefined'", async () => {
+        const { service, calls } = instantiate(svc);
+        await service.getItem("a/b", { limit: 5 }, { "X-Tenant-Id": "t1", "Retry-Count": 3 });
+        await service.deleteItem("7", {});
+        await service.createItem(2);
+        expect(calls).toEqual([
+            [
+                "/items/a%2Fb",
+                { params: { limit: 5 }, headers: { "X-Tenant-Id": "t1", "Retry-Count": "3" } },
+            ],
+            ["/items/7", { params: {}, headers: {} }],
+            ["/v2/items", { headers: {} }],
+        ]);
+    });
+
+    it("type-checks and lints clean under the create-tempest-app template", async () => {
+        expect(templateTsc(files)).toEqual([]);
+        expect(await templateLint(files)).toEqual([]);
+    });
+});
+
+/**
+ * FastAPI publishes a component for every `Enum`-annotated field even when the
+ * field's own schema carries a narrower inline enum, so `ImageMediaType` appears
+ * with no `$ref` pointing at it. Measured on `main` before #516: it was already
+ * left out of every group, because a group only emits the schemas its routes
+ * reach. What did break was the name check, which ran over every
+ * `components.schemas` entry — an orphan whose name collided with another
+ * (`ImageMediaType` / `Image-Media-Type`) aborted the whole run.
+ */
+const ORPHAN_ENUM = {
+    openapi: "3.1.0",
+    components: {
+        schemas: {
+            ImageMediaType: { type: "string", enum: ["image/png", "image/jpeg", "image/webp"] },
+            "Image-Media-Type": { type: "string", enum: ["image/gif"] },
+            Kind: { type: "string", enum: ["photo", "avatar"] },
+            Upload: {
+                type: "object",
+                properties: {
+                    kind: ref("Kind"),
+                    media_type: { type: "string", enum: ["image/png", "image/jpeg"] },
+                },
+            },
+        },
+    },
+    paths: {
+        "/uploads": {
+            post: {
+                tags: ["uploads"],
+                operationId: "create_upload",
+                requestBody: json(ref("Upload")),
+                responses: { 201: json(ref("Upload")) },
+            },
+        },
+    },
+};
+
+describe("generate — enum schemas no $ref reaches (#516)", () => {
+    it("keeps an enum reached transitively and drops the orphan, even when the orphan's name collides", async () => {
+        const { files } = generate(ORPHAN_ENUM);
+        expect(files["uploads/types.ts"]).toContain("export type Kind = ");
+        expect(files["uploads/schemas.ts"]).toContain(
+            'export const KindSchema = z.enum(["photo", "avatar"]);',
+        );
+        expect(Object.values(files).join("\n")).not.toContain("ImageMediaType");
+        expect(Object.values(files).join("\n")).not.toContain("image/webp");
+        expect(templateTsc(files)).toEqual([]);
+        expect(await templateLint(files)).toEqual([]);
     });
 });

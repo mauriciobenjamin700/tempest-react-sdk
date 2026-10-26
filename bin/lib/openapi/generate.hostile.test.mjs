@@ -84,6 +84,8 @@ function spec(paths, schemas = {}) {
 }
 
 const OK = { 200: { description: "ok" } };
+const schemaRef = (name) => ({ $ref: `#/components/schemas/${name}` });
+const json = (schema) => ({ content: { "application/json": { schema } } });
 
 describe("generate — hostile spec text never becomes code (#434)", () => {
     it("a tag that closes the class doc comment stays inside it", async () => {
@@ -233,10 +235,43 @@ describe("generate — hostile spec text never becomes code (#434)", () => {
         await runGroup(files, "t");
     });
 
+    /**
+     * Rewritten for #516: this used to pass with `spec({}, …)`, two schemas no
+     * route reaches. The check now runs over the schemas a group emits, so the
+     * pair has to be referenced to collide — and still is refused, naming both.
+     */
     it("two schema names that map to the same identifier are refused, naming both", () => {
+        const both = {
+            200: json({ anyOf: [schemaRef("User-Out"), schemaRef("user.Out")] }),
+        };
         expect(() =>
-            generate(spec({}, { "User-Out": { type: "object" }, "user.Out": { type: "object" } })),
+            generate(
+                spec(
+                    { "/a": { get: { tags: ["t"], responses: both } } },
+                    { "User-Out": { type: "object" }, "user.Out": { type: "object" } },
+                ),
+            ),
         ).toThrow(/"User-Out" and "user\.Out" both map to the TypeScript identifier "UserOut"/);
+    });
+
+    it("schema names no route reaches are neither emitted nor checked, so an orphan cannot abort the run (#516)", () => {
+        const { files } = generate(
+            spec(
+                {
+                    "/a": {
+                        get: { tags: ["t"], responses: { 200: json(schemaRef("MediaType")) } },
+                    },
+                },
+                {
+                    MediaType: { type: "string", enum: ["image/png"] },
+                    "Media-Type": { type: "string", enum: ["image/png", "image/webp"] },
+                    "***": { type: "object" },
+                },
+            ),
+        );
+        expect(files["t/types.ts"]).toContain("export type MediaType = ");
+        expect(files["t/schemas.ts"]).not.toContain("image/webp");
+        expect(files["t/types.ts"].match(/export type/g)).toHaveLength(1);
     });
 
     it("a path parameter that maps onto another method argument is refused", () => {
@@ -258,10 +293,16 @@ describe("generate — hostile spec text never becomes code (#434)", () => {
         ).toThrow(/"user-id" and "userId" both map to the TypeScript identifier "userId"/);
     });
 
+    /** Rewritten for #516 like the collision above: the schema is now referenced. */
     it("a name with nothing to build an identifier from is refused", () => {
-        expect(() => generate(spec({}, { "***": { type: "object" } }))).toThrow(
-            /schema name "\*\*\*" has no letter or digit/,
-        );
+        expect(() =>
+            generate(
+                spec(
+                    { "/a": { get: { tags: ["t"], responses: { 200: json(schemaRef("***")) } } } },
+                    { "***": { type: "object" } },
+                ),
+            ),
+        ).toThrow(/schema name "\*\*\*" has no letter or digit/);
     });
 
     it("a regex pattern with an escaped slash or a line break compiles to the same regex", () => {

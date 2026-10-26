@@ -116,6 +116,78 @@ Parâmetro tipado como `boolean`, array ou objeto também passa pelo
     Serviços gerados antes desta versão interpolam o parâmetro cru. Rode
     `tempest gen api` de novo — nenhuma assinatura de método muda.
 
+### Parâmetros de header, do path item e por `$ref`
+
+O OpenAPI deixa declarar parâmetro em dois níveis: dentro da operação e no
+**path item** (`paths["/items/{id}"].parameters`), valendo para todas as
+operações daquele path. O gerador lê os dois e junta: quando os dois níveis
+declaram o mesmo par (`name`, `in`), **a operação vence**, como manda a spec. Um
+parâmetro escrito como `$ref` para `components/parameters` também é resolvido.
+
+Parâmetro `in: "header"` vira o último argumento, `headers`, tipado como os de
+query, e vai no `headers` da requisição:
+
+```ts
+import type { ApiClient } from "tempest-react-sdk";
+import { encodeIdSegment } from "tempest-react-sdk";
+
+/** Header parameters as strings, without the ones left out (`fetch` would send `undefined` as text). */
+function headerRecord(
+  values: Record<string, string | number | boolean | null | undefined>,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [name, value] of Object.entries(values)) {
+    if (value !== undefined && value !== null) out[name] = String(value);
+  }
+  return out;
+}
+
+export class ItemsService {
+  constructor(private readonly api: ApiClient) {}
+
+  /** `GET /items/{id}` */
+  async getItem(
+    id: string,
+    headers: { "X-Tenant-Id": string; "Retry-Count"?: number },
+  ): Promise<void> {
+    return this.api.get(`/items/${encodeIdSegment(id)}`, { headers: headerRecord(headers) });
+  }
+
+  /** `POST /items` */
+  async createItem(headers: { "Idempotency-Key"?: string } = {}): Promise<void> {
+    return this.api.post("/items", { headers: headerRecord(headers) });
+  }
+}
+```
+
+- **Header obrigatório deixa o argumento obrigatório.** Quando todos são
+  opcionais, `headers` tem default `{}` — um header opcional novo no backend
+  não quebra quem já chamava o método.
+- **Header omitido não é enviado.** O `fetch` mandaria `undefined` como texto;
+  o `headerRecord` descarta o que ficou de fora e passa o resto por `String()`.
+- **`Accept`, `Content-Type` e `Authorization` são ignorados**, como a spec
+  manda: o client já os monta (o `Authorization` vem do `getToken`).
+- **`in: "cookie"` não é gerado.** O browser não deixa o `fetch` definir o
+  header `Cookie` — o cookie chega ao servidor pelo próprio browser, com
+  `withCredentials` no [`createApiClient`](./http.md).
+
+Path param declarado só no path item passa pelo mesmo `encodeIdSegment` dos
+demais.
+
+!!! tip "Regenere se o backend declara header ou parâmetro no path item"
+    Antes, o `{id}` declarado só no path item saía **literal** na URL
+    (`"/items/{id}"`), e o header obrigatório simplesmente não era enviado. Rode
+    `tempest gen api` de novo: o método ganha o argumento que faltava.
+
+### Schema que nenhuma rota usa fica de fora
+
+Cada grupo só emite os schemas que as rotas dele alcançam (body, resposta e
+parâmetros, seguindo os `$ref` em cadeia). Um schema que nenhum `$ref` alcança
+não vira código — caso do enum órfão que o FastAPI publica para todo campo
+anotado com `Enum` (`ImageMediaType`), mesmo quando o campo traz um enum inline
+mais restrito. O nome dele também não é conferido: um órfão cujo nome colide com
+outro schema (`ImageMediaType` e `Image-Media-Type`) não derruba a geração.
+
 ### Passa no lint e no `tsc` do template como saiu
 
 O código gerado entra num app do `create-tempest-app` sem erro no
@@ -192,8 +264,8 @@ function UserList() {
 
 !!! warning "Suporte atual"
     v1 cobre o comum de specs FastAPI: `components.schemas` (object, enum, array,
-    `$ref`, nullable, anyOf/oneOf/allOf), parâmetros de path/query, body e
-    resposta JSON, agrupados pela primeira `tag`. YAML e múltiplos content-types
+    `$ref`, nullable, anyOf/oneOf/allOf), parâmetros de path/query/header (da
+    operação e do path item), body e resposta JSON, agrupados pela primeira `tag`. YAML e múltiplos content-types
     ainda não — aponte para o `/openapi.json` (JSON).
 
 !!! info "Spec de terceiro não vira código"
@@ -206,17 +278,19 @@ function UserList() {
     palavra reservada ou dígito inicial (`_string`, `_2fa`). Onde o nome importa
     em runtime, vale o original: a URL monta `{user-id}` com o valor de `userId`,
     e chave de objeto sai como string escapada (`"display-name"`). Nome que já é
-    identificador fica como está. Dois nomes que viram o mesmo identificador
-    (`User-Out` e `user.Out`) são recusados com erro que cita os dois, e um
+    identificador fica como está. Dois schemas emitidos no mesmo grupo que viram
+    o mesmo identificador (`User-Out` e `user.Out`) são recusados com erro que
+    cita os dois, e um
     `{placeholder}` do path que não é parâmetro declarado também — não há
     variável segura para ele.
 
     O mesmo vale para nomes que o próprio gerador já usa. Parâmetro de path que
-    cairia em `body`, `params`, `S` ou `encodeIdSegment` vira
-    `bodyParam`/`paramsParam`/`SParam`/`encodeIdSegmentParam`; `operationId`
+    cairia em `body`, `params`, `headers`, `S`, `encodeIdSegment` ou
+    `headerRecord` vira `bodyParam`/`paramsParam`/`headersParam`/`SParam`/
+    `encodeIdSegmentParam`/`headerRecordParam`; `operationId`
     `constructor` ou `api` vira `constructor2`/`api2`; schema chamado
-    `ApiClient`, `OffsetPage`, `CursorPage`, `Promise`, `Record`, `z`, `S` ou
-    `encodeIdSegment` ganha prefixo `_`; e duas tags cujo nome no barrel coincide (`user 1` e
+    `ApiClient`, `OffsetPage`, `CursorPage`, `Promise`, `Record`, `z`, `S`,
+    `encodeIdSegment` ou `headerRecord` ganha prefixo `_`; e duas tags cujo nome no barrel coincide (`user 1` e
     `user1`) são recusadas citando as duas. Um `pattern` que não compila como
     regex JavaScript falha a **geração**, citando o schema e o caminho da
     propriedade — em vez de quebrar o app no import.
@@ -226,5 +300,7 @@ function UserList() {
 - `tempest gen api <url|file> --out src/api` gera, **por grupo de rotas**, três arquivos: `schemas.ts` (Zod), `types.ts` (`z.infer`) e `service.ts` (classe).
 - A classe de serviço recebe um `ApiClient` injetado e **valida o body com Zod** antes de chamar a API.
 - Todo parâmetro de path passa por `encodeIdSegment`: fica num segmento só, e `""`/`"."`/`".."` lançam antes da requisição.
+- Parâmetros do path item entram junto com os da operação (a operação vence no mesmo `name` + `in`); header vira o argumento `headers`, e cookie fica com o browser.
+- Schema que nenhuma rota alcança, como o enum órfão do FastAPI, não é gerado.
 - Trate `src/api/` como artefato gerado — **regenere** quando o contrato mudar.
 - Veja também: [HTTP / `createApiClient`](./http.md) · [Query](./query.md) · [CLI `tempest`](./cli.md).

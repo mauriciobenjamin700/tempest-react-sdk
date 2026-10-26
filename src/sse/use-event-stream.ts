@@ -5,6 +5,7 @@ import {
     type CreateEventStreamOptions,
     type EventStreamMessage,
     type EventStreamStatus,
+    type EventStreamUrl,
 } from "./create-event-stream";
 
 export interface UseEventStreamOptions<T> extends Omit<
@@ -27,6 +28,11 @@ export interface UseEventStreamResult<T> {
  * React hook wrapper around {@link createEventStream}. Connection lifecycle is
  * tied to the component (and the `url`/`enabled` dependencies); the stream
  * closes on unmount.
+ *
+ * A string `url` reopens the stream when it changes. A function `url` does not:
+ * an inline arrow is a new function every render, and keying on its identity
+ * would reconnect on every render. The latest function is the one called on the
+ * next connection, so call `reconnect()` when what it resolves to must change now.
  *
  * Pass `schema` to have every frame validated before it reaches `onMessage`,
  * instead of trusting the type argument: without it `data` is announced as `T`
@@ -52,7 +58,7 @@ export interface UseEventStreamResult<T> {
  * });
  */
 export function useEventStream<T = unknown>(
-    url: string,
+    url: EventStreamUrl,
     options: UseEventStreamOptions<T> = {},
 ): UseEventStreamResult<T> {
     const { enabled = true, onMessage, ...rest } = options;
@@ -61,14 +67,22 @@ export function useEventStream<T = unknown>(
     const reconnectRef = useRef<(() => void) | null>(null);
 
     const onMessageRef = useLatestRef(onMessage);
+    const urlRef = useLatestRef(url);
+    const fixedUrl = typeof url === "string" ? url : null;
 
     useEffect(() => {
-        if (!enabled || !url) {
+        if (!enabled || fixedUrl === "") {
             setStatus("idle");
             return;
         }
 
-        const controller = createEventStream<T>(url, {
+        const target: EventStreamUrl =
+            fixedUrl ??
+            (() => {
+                const latest = urlRef.current;
+                return typeof latest === "string" ? latest : latest();
+            });
+        const controller = createEventStream<T>(target, {
             ...rest,
             onStatusChange: setStatus,
             onMessage: (message) => {
@@ -83,7 +97,7 @@ export function useEventStream<T = unknown>(
             reconnectRef.current = null;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [url, enabled]);
+    }, [fixedUrl, enabled]);
 
     return {
         status,

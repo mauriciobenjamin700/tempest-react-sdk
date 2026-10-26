@@ -116,6 +116,80 @@ too (with a type assertion, since it accepts `string | number`): `true` becomes
     Services generated before this version interpolate the parameter raw. Run
     `tempest gen api` again — no method signature changes.
 
+### Header, path-item and `$ref` parameters
+
+OpenAPI lets a parameter be declared at two levels: inside the operation and on
+the **path item** (`paths["/items/{id}"].parameters`), applying to every
+operation on that path. The generator reads both and merges them: when the two
+levels declare the same (`name`, `in`) pair, **the operation wins**, as the spec
+says. A parameter written as a `$ref` into `components/parameters` is resolved
+too.
+
+An `in: "header"` parameter becomes the last argument, `headers`, typed like the
+query ones, and goes out in the request's `headers`:
+
+```ts
+import type { ApiClient } from "tempest-react-sdk";
+import { encodeIdSegment } from "tempest-react-sdk";
+
+/** Header parameters as strings, without the ones left out (`fetch` would send `undefined` as text). */
+function headerRecord(
+  values: Record<string, string | number | boolean | null | undefined>,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [name, value] of Object.entries(values)) {
+    if (value !== undefined && value !== null) out[name] = String(value);
+  }
+  return out;
+}
+
+export class ItemsService {
+  constructor(private readonly api: ApiClient) {}
+
+  /** `GET /items/{id}` */
+  async getItem(
+    id: string,
+    headers: { "X-Tenant-Id": string; "Retry-Count"?: number },
+  ): Promise<void> {
+    return this.api.get(`/items/${encodeIdSegment(id)}`, { headers: headerRecord(headers) });
+  }
+
+  /** `POST /items` */
+  async createItem(headers: { "Idempotency-Key"?: string } = {}): Promise<void> {
+    return this.api.post("/items", { headers: headerRecord(headers) });
+  }
+}
+```
+
+- **A required header makes the argument required.** When every header is
+  optional, `headers` defaults to `{}` — a new optional header on the backend
+  does not break existing callers.
+- **A header left out is not sent.** `fetch` would send `undefined` as text;
+  `headerRecord` drops what was left out and passes the rest through `String()`.
+- **`Accept`, `Content-Type` and `Authorization` are ignored**, as the spec
+  requires: the client already builds them (`Authorization` comes from
+  `getToken`).
+- **`in: "cookie"` is not generated.** The browser does not let `fetch` set the
+  `Cookie` header — the cookie reaches the server through the browser itself,
+  with `withCredentials` on [`createApiClient`](./http.md).
+
+A path parameter declared only on the path item goes through the same
+`encodeIdSegment` as the others.
+
+!!! tip "Regenerate if the backend declares headers or path-item parameters"
+    Before, an `{id}` declared only on the path item was sent **literally** in
+    the URL (`"/items/{id}"`), and a required header was simply not sent. Run
+    `tempest gen api` again: the method gains the argument it was missing.
+
+### A schema no route uses is left out
+
+Each group only emits the schemas its routes reach (body, response and
+parameters, following `$ref` chains). A schema no `$ref` reaches does not become
+code — the case of the orphan enum FastAPI publishes for every `Enum`-annotated
+field (`ImageMediaType`), even when the field carries a narrower inline enum. Its
+name is not checked either: an orphan whose name collides with another schema
+(`ImageMediaType` and `Image-Media-Type`) does not abort generation.
+
 ### Passes the template's lint and `tsc` as generated
 
 The generated code drops into a `create-tempest-app` app with no error from
@@ -192,8 +266,8 @@ function UserList() {
 
 !!! warning "Current support"
     v1 covers the common FastAPI spec: `components.schemas` (object, enum, array,
-    `$ref`, nullable, anyOf/oneOf/allOf), path/query params, JSON body and
-    response, grouped by the first `tag`. YAML and multiple content-types are not
+    `$ref`, nullable, anyOf/oneOf/allOf), path/query/header params (from the
+    operation and the path item), JSON body and response, grouped by the first `tag`. YAML and multiple content-types are not
     supported yet — point at the `/openapi.json` (JSON).
 
 !!! info "Third-party spec text never becomes code"
@@ -207,16 +281,17 @@ function UserList() {
     (`_string`, `_2fa`). Wherever the name matters at runtime the original wins:
     the URL fills `{user-id}` with the value of `userId`, and an object key is an
     escaped string (`"display-name"`). A name that already is an identifier is
-    kept. Two names that map to the same identifier (`User-Out` and `user.Out`)
-    are refused with an error naming both, and so is a path `{placeholder}` that
+    kept. Two schemas emitted in the same group that map to the same identifier
+    (`User-Out` and `user.Out`) are refused with an error naming both, and so is a path `{placeholder}` that
     is not a declared parameter — there is no safe variable for it.
 
     The same goes for names the generator itself uses. A path parameter that
-    would land on `body`, `params`, `S` or `encodeIdSegment` becomes
-    `bodyParam`/`paramsParam`/`SParam`/`encodeIdSegmentParam`; an `operationId`
+    would land on `body`, `params`, `headers`, `S`, `encodeIdSegment` or
+    `headerRecord` becomes `bodyParam`/`paramsParam`/`headersParam`/`SParam`/
+    `encodeIdSegmentParam`/`headerRecordParam`; an `operationId`
     of `constructor` or `api` becomes `constructor2`/`api2`; a schema named
-    `ApiClient`, `OffsetPage`, `CursorPage`, `Promise`, `Record`, `z`, `S` or
-    `encodeIdSegment` gets a `_` prefix; and two tags whose barrel
+    `ApiClient`, `OffsetPage`, `CursorPage`, `Promise`, `Record`, `z`, `S`,
+    `encodeIdSegment` or `headerRecord` gets a `_` prefix; and two tags whose barrel
     names coincide (`user 1` and `user1`) are refused, naming both. A `pattern`
     that does not compile as a JavaScript regex fails **generation**, naming the
     schema and the property path — instead of breaking the app on import.
@@ -226,5 +301,7 @@ function UserList() {
 - `tempest gen api <url|file> --out src/api` generates, **per route group**, three files: `schemas.ts` (Zod), `types.ts` (`z.infer`) and `service.ts` (class).
 - The service class takes an injected `ApiClient` and **validates the body with Zod** before calling the API.
 - Every path parameter goes through `encodeIdSegment`: it stays in one segment, and `""`/`"."`/`".."` throw before the request.
+- Path-item parameters join the operation's (the operation wins on the same `name` + `in`); headers become the `headers` argument, and cookies stay with the browser.
+- A schema no route reaches, such as FastAPI's orphan enum, is not generated.
 - Treat `src/api/` as a generated artifact — **regenerate** when the contract changes.
 - See also: [HTTP / `createApiClient`](./http.md) · [Query](./query.md) · [`tempest` CLI](./cli.md).

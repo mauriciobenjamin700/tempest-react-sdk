@@ -15,9 +15,9 @@ export function refName(ref) {
 /**
  * Names the generated files declare, import or rely on as globals next to the
  * schema types: the SDK types and the `encodeIdSegment` value `service.ts`
- * imports, the `z` and `S` imports, and the `Promise` / `Record` globals the
- * emitted signatures use. A schema with one of these names would collide with
- * the import or shadow the global.
+ * imports, the `headerRecord` helper it declares, the `z` and `S` imports, and
+ * the `Promise` / `Record` globals the emitted signatures use. A schema with one
+ * of these names would collide with the import or shadow the global.
  */
 export const GENERATED_NAMES = new Set([
     "ApiClient",
@@ -27,6 +27,7 @@ export const GENERATED_NAMES = new Set([
     "Record",
     "S",
     "encodeIdSegment",
+    "headerRecord",
     "z",
 ]);
 

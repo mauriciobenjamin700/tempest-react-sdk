@@ -15,7 +15,10 @@ A wrapper over `EventSource` with exponential reconnect, opt-in heartbeat, and J
 
 - One-way server → client push, with no need for the client to send.
 - Cheap automatic reconnection.
-- Cookie-based authentication (`withCredentials: true`).
+- Cookie-based authentication (`withCredentials: true`) against a backend that reads the cookie on the stream itself.
+
+!!! warning "`tempest-fastapi-sdk` >= 0.331.0 backend: the stream does not read cookies"
+    The backend's ready-made SSE router opens the stream only with `?ticket=` (or `Authorization: Bearer`, which `EventSource` cannot send). The session cookie counts on the ticket request, not on the stream. For that backend, use [`useTicketEventStream`](#ticket-authentication-useticketeventstream) — with a header **or** a cookie session.
 
 ## Imperative API — `createEventStream`
 
@@ -122,7 +125,7 @@ short-lived JWT, and only that goes in the stream URL.
 | Backend route | What it does |
 | --- | --- |
 | `POST /sse/ticket` | authenticated (header or cookie). Responds `{ "ticket": "<jwt>", "expires_in": 60 }` |
-| `GET /sse/stream?ticket=<jwt>` | opens the stream; the channel comes from inside the ticket |
+| `GET /sse/stream?ticket=<jwt>` | opens the stream; the channel comes from inside the ticket. Accepts `?ticket=` or `Authorization: Bearer` — **does not read cookies** |
 
 The helper makes both calls for you — and repeats them on every reconnect:
 
@@ -166,11 +169,55 @@ export function Notifications({ signedIn }: { signedIn: boolean }) {
 3. **Every reconnect requests a new ticket.** A ticket only opens streams for
    `expires_in` seconds; reconnecting with the old one after that is a `401`.
 
+What goes over the network, from the first stream to a drop after the ticket expired:
+
+```text
+POST https://api.example.com/api/sse/ticket                   200  {"ticket":"eyJ…A","expires_in":60}
+GET  https://api.example.com/api/sse/stream?ticket=eyJ…A      200  text/event-stream
+     … 3 min later the network drops; 1 s backoff …
+POST https://api.example.com/api/sse/ticket                   200  {"ticket":"eyJ…B","expires_in":60}
+GET  https://api.example.com/api/sse/stream?ticket=eyJ…B      200  text/event-stream
+```
+
+An open stream does **not** drop when the ticket expires — the ticket only counts
+for opening. The reconnect is what needs a new one, and it asks for it.
+
 !!! warning "Why `useEventStream` with a fixed URL does not work here"
     With `` useEventStream(`${API}/sse/stream?ticket=${ticket}`) `` the first stream
     opens, but the reconnect reuses the same string. If the network drops after
     60 s, the backend answers `401` to every attempt, the stream spends its
     `maxRetries` on that and ends in `"error"` — with the user still signed in.
+
+### Cookie session
+
+If sign-in keeps the session in a cookie (`AUTH_TOKEN_DELIVERY="cookie"` on the
+backend), the ticket comes out the same way — only the client changes. `POST
+/ticket` is a write, so the cookie needs its CSRF pair:
+
+```tsx
+import { createApiClient, useTicketEventStream } from "tempest-react-sdk";
+
+const api = createApiClient({
+    baseURL: "https://api.example.com",
+    prefix: "/api",
+    withCredentials: true,
+    csrf: true,
+});
+
+export function Orders({ signedIn }: { signedIn: boolean }) {
+    const { status } = useTicketEventStream<{ id: string; status: string }>({
+        client: api,
+        enabled: signedIn,
+        onMessage: ({ data }) => console.log("order", data.id, data.status),
+    });
+
+    return <span>Stream: {status}</span>;
+}
+```
+
+The cookie goes on `POST /ticket` (with `X-CSRF-Token`, echoed from the
+`csrf_token` cookie); `GET /stream` carries only the ticket. `csrf` details in
+[HTTP → CSRF](./http.md#csrf-a-session-cookie-needs-its-pair).
 
 ### When the ticket is refused
 
@@ -226,12 +273,25 @@ stream.close();
   the latest one is used on the next connection. Call `reconnect()` to apply it
   now. A `string` URL still reopens when it changes.
 
-!!! info "Migrating to `tempest-fastapi-sdk` >= 0.331.0"
-    The `?access_token=` path is off by default on the backend
-    (`allow_access_token_query=False`). Replace
-    `` useEventStream(`${API}/sse/stream?access_token=${token}`, options) `` with
-    `useTicketEventStream({ client: api, ...options })`. The options are the
-    same, minus the URL.
+### Migrating to `tempest-fastapi-sdk` >= 0.331.0
+
+Upgrading the backend replaces the stream route. Find your row:
+
+| How your front end opens the stream today | What happens after upgrading the backend | What to do |
+| --- | --- | --- |
+| `` useEventStream(`${API}/sse/stream?access_token=${token}`) `` | `401` — `allow_access_token_query` is `False` by default | switch to `useTicketEventStream({ client: api })` |
+| `useEventStream(url, { withCredentials: true })` with a cookie session | `401` — the stream does not read cookies | switch to `useTicketEventStream` with the client in `withCredentials` + `csrf` ([above](#cookie-session)) |
+| `createEventStream(url, ...)` outside React | same as the rows above | `createTicketEventStream({ client: api, ... })` |
+| your own SSE endpoint, not the backend's ready-made router | nothing changes | nothing — `useEventStream` stays the same |
+
+The options (`schema`, `namedEvents`, `onMessage`, `enabled`, …) are the same;
+only the URL goes, which the helper builds from the client's `baseURL` and `prefix`.
+
+!!! tip "Migrate without a breaking window"
+    Upgrade the backend with `sse_router(..., allow_access_token_query=True)`: it
+    accepts the ticket **and** the old `?access_token=`. Ship the front end with
+    the helper, wait for old clients to go away, then turn the option off. Server
+    side: [`tempest-fastapi-sdk` SSE recipe](https://mauriciobenjamin700.github.io/tempest-fastapi-sdk/en/recipes/sse/) ("Authentication" section).
 
 ## A frame that is not JSON
 

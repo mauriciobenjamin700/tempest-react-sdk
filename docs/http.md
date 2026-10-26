@@ -118,6 +118,30 @@ O id é a parte da URL que pode vir de fora do app: um search param, o hash, um 
 
 É o mesmo helper que o [data provider](./data-provider.md#o-id-nunca-sai-do-proprio-segmento) aplica em todo id desde a 0.77.0 (#438), e que o código gerado pelo `tempest gen api` usa (#499). Só valores que **não** são id — query string — vão em `params`, que o cliente já serializa.
 
+!!! warning "Mock de `ApiClient` escrito à mão: acrescente `url` (0.80.0)"
+    O `url(path, params?)` entrou na interface `ApiClient` como método
+    obrigatório. Quem usa `createApiClient` não muda nada; um objeto que
+    **finge** ser o cliente — o mock de teste mais comum — passa a dar erro de
+    tipo até ganhar o método:
+
+    ```ts
+    import { vi } from "vitest";
+    import type { ApiClient } from "tempest-react-sdk";
+
+    export const apiFalso: ApiClient = {
+        request: vi.fn(),
+        get: vi.fn(),
+        post: vi.fn(),
+        put: vi.fn(),
+        patch: vi.fn(),
+        delete: vi.fn(),
+        blob: vi.fn(),
+        arrayBuffer: vi.fn(),
+        upload: vi.fn(),
+        url: (path) => `https://api.exemplo.com${path}`,
+    };
+    ```
+
 ## Download de binário
 
 Baixar uma imagem, um PDF ou um `.zip` **não sai do cliente**: `blob()` e `arrayBuffer()` rodam o mesmo caminho de `request()` — base URL, `Authorization`, refresh na 401, `onUnauthorized`, log, timeout e retentativa — e só trocam o parse pelo corpo cru.
@@ -629,7 +653,7 @@ manda 5 GB. O `POST` pré-assinado do `tempest-fastapi-sdk` **0.331.0** carrega
 uma política assinada com teto (`max_bytes`), tipo e chave — e o storage recusa o
 que sair dela.
 
-A rota do seu serviço devolve o formulário:
+A rota do seu serviço devolve o formulário — no backend, ele sai de `SubjectObjectStorage.presign_post(...)` ou `presigned_post_policy(...)` ([receita do `tempest-fastapi-sdk`](https://mauriciobenjamin700.github.io/tempest-fastapi-sdk/recipes/subject-data/), seção "Teto aplicado pelo próprio store"):
 
 ```json
 { "url": "https://storage.exemplo.com/bucket", "fields": { "key": "...", "Content-Type": "image/jpeg", "policy": "...", "x-amz-signature": "..." }, "max_bytes": 5242880 }
@@ -676,6 +700,12 @@ export function EnviarAvatar() {
     );
 }
 ```
+
+O que o usuário vê:
+
+- escolhe uma foto de 6 MB → **"A imagem passa de 5 MB."** na hora, e nenhuma requisição sai para o storage;
+- deixa a tela parada além da validade da política e envia → **"O link expirou. Tente de novo."** (o `403` do S3 virou `SIGNED_URL_EXPIRED`);
+- envia uma foto de 2 MB → a barra vai a 100% e a promessa resolve (`204` do S3).
 
 O que o helper garante:
 

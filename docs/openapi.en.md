@@ -181,6 +181,11 @@ A path parameter declared only on the path item goes through the same
     the URL (`"/items/{id}"`), and a required header was simply not sent. Run
     `tempest gen api` again: the method gains the argument it was missing.
 
+    **Expect compile errors** at the call sites: a method that gained a
+    required header (or a path param that used to be left out) needs a new
+    argument, and `tsc` points at every call that does not pass it. That is
+    the point — before, the request went out without it.
+
 ### A schema no route uses is left out
 
 Each group only emits the schemas its routes reach (body, response and

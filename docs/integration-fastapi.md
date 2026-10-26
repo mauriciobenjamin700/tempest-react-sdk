@@ -67,6 +67,13 @@ interface ApiError {
 !!! tip "Branch por `code`, não por `detail`"
     O `detail` é texto para humanos e pode ser traduzido/mudar. O `code` é estável — use-o para lógica (`if (err.code === "INSUFFICIENT_FUNDS")`).
 
+!!! info "Códigos do storage chegam iguais, qualquer que seja o backend"
+    O `uploadPresignedPost` normaliza o XML do S3 para os códigos do storage
+    local do backend: `FILE_TOO_LARGE` (`413`), `FILE_TOO_SMALL` (`400`),
+    `SIGNED_URL_INVALID` (`403`) e `SIGNED_URL_EXPIRED` (`403`). O branch por
+    `code` acima vale para os dois. Tabela medida em
+    [HTTP → Upload direto com teto](./http.md#upload-direto-com-teto-uploadpresignedpost).
+
 !!! check "Nada para configurar"
     Isso já é o comportamento padrão. Qualquer chamada via `createApiClient` ou pela classe gerada pelo codegen (que usa o `ApiClient` por baixo) entrega o erro nesse formato.
 
@@ -449,7 +456,9 @@ usePaginatedQuery / useCursorQuery  ──►  UI tipada, correlação por reque
 
 | Frontend (este SDK) | Backend (`tempest-fastapi-sdk`) |
 | --- | --- |
-| `createEventStream` / `useEventStream` | SSE (Real-time) |
+| `useTicketEventStream` / `createTicketEventStream` | `sse_router` — SSE por ticket (>= 0.331.0). Ver [SSE → migração](./sse.md#migrando-para-o-tempest-fastapi-sdk-03310) |
+| `createEventStream` / `useEventStream` | endpoint SSE próprio (sem o router pronto) |
+| `uploadPresignedPost` | `presign_post` / `presigned_post_policy` — upload direto com teto (>= 0.331.0). Ver [HTTP](./http.md#upload-direto-com-teto-uploadpresignedpost) |
 | `WebPushClient` / `usePushSubscription` | Web Push (VAPID) |
 | `validateCPF` / `validateCNPJ` / `useViaCEP` | Brazilian Helpers |
 | `createApiClient` (retry, idempotency) | HTTP Client (retry/backoff) |
@@ -462,3 +471,5 @@ usePaginatedQuery / useCursorQuery  ──►  UI tipada, correlação por reque
 - **`usePaginatedQuery`** (offset) e **`useCursorQuery`** (cursor) consomem os envelopes do backend sem mapeamento manual. ✅
 - **`createTempestAuth`** entrega login + Bearer + refresh/retry em uma chamada. ✅
 - **`tempest gen api`** gera serviços tipados que já falam todos esses contratos. ✅
+- **SSE do backend >= 0.331.0** abre por ticket: `useTicketEventStream({ client: api })`, com sessão em header ou cookie. ✅
+- **Upload direto ao storage** com teto: `uploadPresignedPost(post, file)`, um `code` só para S3 e storage local. ✅

@@ -179,6 +179,11 @@ demais.
     (`"/items/{id}"`), e o header obrigatório simplesmente não era enviado. Rode
     `tempest gen api` de novo: o método ganha o argumento que faltava.
 
+    **Espere erro de compilação** nos call sites: um método que ganhou header
+    obrigatório (ou um path param que antes ficava de fora) exige um argumento
+    novo, e o `tsc` aponta cada chamada que não o passa. É o comportamento
+    desejado — antes a requisição saía sem ele.
+
 ### Schema que nenhuma rota usa fica de fora
 
 Cada grupo só emite os schemas que as rotas dele alcançam (body, resposta e

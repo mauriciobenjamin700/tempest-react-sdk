@@ -25,6 +25,28 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   render; URL `string` continua igual. Não medido em browser: o `EventSource` nativo diante de um
   `401` — o SDK fecha e reconecta por conta própria em todo `error`, então o resultado não muda.
 
+- **`tempest gen api` lê parâmetros do path item, de header e por `$ref` (#509).** Medido com specs
+  mínimas no `generate` da 0.79.0: um `{id}` declarado só em `paths["/items/{id}"].parameters`
+  saía **literal** na URL (`getItem()` chamando `"/items/{id}"`); path item com `{x}` e operação
+  com `{y}` recusava gerar (`placeholder "x" is not a declared path parameter`); header
+  obrigatório não virava argumento nem era enviado; e parâmetro `$ref` para
+  `components/parameters` caía do mesmo jeito que o do path item — esse último a issue não citava.
+  Agora os dois níveis se juntam com a operação vencendo no mesmo (`name`, `in`), o `$ref` é
+  resolvido, path param do path item passa pelo `encodeIdSegment`, e header vira o argumento
+  `headers` (tipado como os de query, default `{}` quando nenhum é obrigatório) enviado pelo
+  `headers` da requisição por um `headerRecord` local, que descarta o omitido — o `fetch`
+  mandaria `undefined` como texto. `Accept`, `Content-Type` e `Authorization` são ignorados, como
+  manda a spec, e `in: "cookie"` continua fora: o browser não deixa o `fetch` definir `Cookie`.
+  Saída checada com o `tsc` e o ESLint do template (`npx vitest run bin/lib/openapi`).
+  **Migração:** rode `tempest gen api` de novo; método com header obrigatório ganha o argumento.
+- **Enum órfão no OpenAPI não derruba mais o `tempest gen api` (#516, item 4).** A issue dizia que
+  o gerador emitia tipo para todo `components.schemas`; medido na 0.79.0, não emitia — cada grupo
+  só gera os schemas que as rotas alcançam, e o `ImageMediaType` órfão do FastAPI já ficava de
+  fora. O que o órfão ainda fazia era passar pela checagem de nome, que rodava sobre todo
+  `components.schemas`: um órfão cujo nome colide com outro schema (`ImageMediaType` e
+  `Image-Media-Type`) ou que não tem letra nem dígito abortava a geração inteira. A checagem agora
+  roda por grupo, sobre os schemas emitidos.
+
 ### Adicionado
 
 - **`useTicketEventStream` / `createTicketEventStream`** para o router SSE do

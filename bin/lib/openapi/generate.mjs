@@ -50,12 +50,88 @@ function methodName(op, method, path) {
 const CLASS_MEMBERS = ["constructor", "api"];
 
 /**
- * Names a generated method body uses besides its path parameters: the `body` and
- * `params` arguments, the `S` schemas import and the `encodeIdSegment` import. A
- * path parameter that maps to one of them becomes `<name>Param` (`{body}` →
- * `bodyParam`), so it neither duplicates an argument nor shadows the import.
+ * Names a generated method body uses besides its path parameters: the `body`,
+ * `params` and `headers` arguments, the `S` schemas import, the `encodeIdSegment`
+ * import and the module-level `headerRecord` helper. A path parameter that maps to
+ * one of them becomes `<name>Param` (`{body}` → `bodyParam`), so it neither
+ * duplicates an argument nor shadows the import.
  */
-const METHOD_LOCALS = new Set(["body", "params", "S", "encodeIdSegment"]);
+const METHOD_LOCALS = new Set([
+    "body",
+    "params",
+    "headers",
+    "S",
+    "encodeIdSegment",
+    "headerRecord",
+]);
+
+/**
+ * Header parameter names OpenAPI 3 says a generator SHALL ignore: the client sets
+ * `Accept` and `Content-Type` from the request it builds and `Authorization` from
+ * its `getToken`, so a spec that also declares them must not open a second way to
+ * send them. Compared case-insensitively, as HTTP header names are.
+ */
+const IGNORED_HEADERS = new Set(["accept", "content-type", "authorization"]);
+
+/**
+ * Module-level helper a `service.ts` declares when one of its methods sends header
+ * parameters. `fetch` turns a header value of `undefined` into the literal text
+ * `"undefined"`, and `RequestOptions.headers` only takes strings, so an optional
+ * header left out is dropped and every other value goes through `String()`.
+ */
+const HEADER_RECORD_HELPER = [
+    "/** Header parameters as strings, without the ones left out (`fetch` would send `undefined` as text). */",
+    "function headerRecord(",
+    "    values: Record<string, string | number | boolean | null | undefined>,",
+    "): Record<string, string> {",
+    "    const out: Record<string, string> = {};",
+    "    for (const [name, value] of Object.entries(values)) {",
+    "        if (value !== undefined && value !== null) out[name] = String(value);",
+    "    }",
+    "    return out;",
+    "}",
+].join("\n");
+
+/**
+ * Follow a `#/components/parameters/...` `$ref` chain to the parameter object.
+ *
+ * @param {object | undefined} param - A parameter object or a reference to one.
+ * @param {Record<string, object>} components - `components.parameters`.
+ * @returns {object | undefined} The parameter object, or `undefined` when the
+ *   chain does not resolve.
+ */
+function resolveParameter(param, components) {
+    let node = param;
+    let guard = 0;
+    while (node && node.$ref && guard++ < 16) node = components[refName(node.$ref)];
+    return node && !node.$ref ? node : undefined;
+}
+
+/**
+ * The parameters that apply to one operation: the path item's `parameters`
+ * merged with the operation's, the operation winning on the same `(name, in)` —
+ * the rule OpenAPI 3 sets for the two levels.
+ *
+ * Before #509 only `operation.parameters` was read, so a `{id}` declared on the
+ * path item reached the URL literally (`"/items/{id}"`, measured), and a path item
+ * declaring one placeholder while the operation declared the other refused to
+ * generate. `$ref`s into `components.parameters` are resolved here too: they were
+ * dropped the same way, because a reference object has no `in`.
+ *
+ * @param {object} item - The path item.
+ * @param {object} op - The operation.
+ * @param {Record<string, object>} components - `components.parameters`.
+ * @returns {object[]} The effective parameter objects, path-item order first.
+ */
+function operationParameters(item, op, components) {
+    const merged = new Map();
+    for (const raw of [...(item.parameters ?? []), ...(op.parameters ?? [])]) {
+        const param = resolveParameter(raw, components);
+        if (!param || typeof param.name !== "string" || typeof param.in !== "string") continue;
+        merged.set(`${param.in}\u0000${param.name}`, param);
+    }
+    return [...merged.values()];
+}
 
 /**
  * Whether a path parameter's schema only ever produces a `string` or a `number` —
@@ -208,16 +284,17 @@ function isQueryScalar(schema, schemas, depth = 0) {
 }
 
 /**
- * TS type for a query-param value. Query params serialize to strings, so the
- * client only accepts `string | number | boolean | null`. Anything richer
- * (objects, arrays) is narrowed to `string` to stay assignable.
+ * TS type for a query- or header-param value. Both serialize to strings, so the
+ * client's `params` and the generated `headerRecord` only accept
+ * `string | number | boolean | null`. Anything richer (objects, arrays) is
+ * narrowed to `string` to stay assignable.
  *
  * @param {object | undefined} schema - The parameter's schema.
  * @param {Record<string, object>} schemas - `components.schemas`.
  * @param {Set<string>} refs - Collects the schemas the type names.
  * @returns {string} The TypeScript type expression.
  */
-function queryParamType(schema, schemas, refs) {
+function scalarParamType(schema, schemas, refs) {
     const node = schema ?? { type: "string" };
     return isQueryScalar(node, schemas) ? tsType(node, refs) : "string";
 }
@@ -343,16 +420,25 @@ function compareNames(a, b) {
  * template's ESLint enforces, so the output passes its lint and `tsc` with
  * `noUnusedLocals` as generated (#504, #505).
  *
+ * A component schema no route reaches is never emitted — FastAPI publishes an
+ * unreferenced enum for every `Enum`-annotated field (`ImageMediaType`, #516),
+ * and it lands in no group. Its name is not checked either: the identifier
+ * collision check runs per group over the schemas that group emits, so an orphan
+ * named `Media-Type` next to a referenced `MediaType` no longer aborts the whole
+ * run for a type nobody would see.
+ *
+ * Parameters are read from the path item and the operation, merged by
+ * `(name, in)` (see {@link operationParameters}); `in: "cookie"` is skipped,
+ * because a browser `fetch` cannot set `Cookie` — the browser sends its own
+ * cookies with `credentials`, which is how a cookie parameter reaches the server.
+ *
  * @param {object} doc - The parsed OpenAPI 3.x spec.
  * @returns {{ files: Record<string, string>, tags: string[] }}
  */
 export function generate(doc) {
     const schemas = doc.components?.schemas ?? {};
-    assertNoCollision(
-        Object.keys(schemas).map((n) => [n, typeName(n)]),
-        "schema names",
-    );
-    const groups = new Map(); // slug → { tag, ops: [...] }
+    const parameterComponents = doc.components?.parameters ?? {};
+    const groups = new Map();
 
     for (const [path, item] of Object.entries(doc.paths ?? {})) {
         for (const method of HTTP_METHODS) {
@@ -361,7 +447,8 @@ export function generate(doc) {
             const tag = op.tags?.[0] ?? "default";
             const slug = tagSlug(tag);
             if (!groups.has(slug)) groups.set(slug, { tag, slug, ops: [] });
-            groups.get(slug).ops.push({ method, path, op });
+            const params = operationParameters(item, op, parameterComponents);
+            groups.get(slug).ops.push({ method, path, op, params });
         }
     }
 
@@ -378,9 +465,9 @@ export function generate(doc) {
         const Class = `${slugIdent(pascal(slug))}Service`;
 
         const usedNames = new Set(CLASS_MEMBERS);
-        const signature = { refs: new Set(), validates: false };
-        const methods = ops.map(({ method, path, op }) =>
-            emitMethod(method, path, op, schemas, usedNames, signature),
+        const signature = { refs: new Set(), validates: false, sendsHeaders: false };
+        const methods = ops.map(({ method, path, op, params }) =>
+            emitMethod(method, path, op, params, schemas, usedNames, signature),
         );
 
         const used = new Set();
@@ -392,6 +479,10 @@ export function generate(doc) {
         }
         for (const name of signature.refs) collectRefs({ $ref: name }, schemas, used);
         const { sorted, cyclic } = topoSort(used, schemas);
+        assertNoCollision(
+            sorted.map((n) => [n, typeName(n)]),
+            "schema names",
+        );
         for (const name of sorted) assertPatterns(schemas[name], name);
 
         const schemaLines = sorted.map((name) => {
@@ -433,6 +524,7 @@ export function generate(doc) {
                 .filter((group) => group.length)
                 .map((group) => group.join("\n"))
                 .join("\n\n") +
+            (signature.sendsHeaders ? `\n\n${HEADER_RECORD_HELPER}` : "") +
             `\n\n/** Generated service for the "${commentText(tag)}" routes. Inject an ApiClient (createApiClient). */\n` +
             `export class ${Class} {\n` +
             `    constructor(private readonly api: ApiClient) {}\n\n` +
@@ -461,16 +553,27 @@ export function generate(doc) {
  * pagination envelope maps to `OffsetPage<T>` / `CursorPage<T>`, and a body typed
  * by a `$ref` is validated with its Zod schema before the call.
  *
+ * Arguments come in a fixed order: path parameters, `body`, `params` (query),
+ * `headers`. Header parameters are typed like query parameters and sent through
+ * the request's `headers`, via `headerRecord`; the `headers` argument defaults to
+ * `{}` when none of them is required, so a spec gaining an optional header does
+ * not break the call sites. `Accept`, `Content-Type` and `Authorization` are left
+ * out ({@link IGNORED_HEADERS}), and so is every `in: "cookie"` parameter: a
+ * browser `fetch` cannot set `Cookie` (forbidden header name), the cookie jar
+ * sends it with `credentials`.
+ *
  * @param {string} method - The HTTP method, lower case.
  * @param {string} path - The OpenAPI path template.
  * @param {object} op - The operation object.
+ * @param {object[]} parameters - The effective parameters, from {@link operationParameters}.
  * @param {Record<string, object>} schemas - `components.schemas`.
  * @param {Set<string>} usedNames - Member names already taken in the class.
- * @param {{ refs: Set<string>, validates: boolean }} signature - Collects the
- *   component schemas the emitted types name, and whether `S` was used.
+ * @param {{ refs: Set<string>, validates: boolean, sendsHeaders: boolean }} signature -
+ *   Collects the component schemas the emitted types name, whether `S` was used
+ *   and whether `headerRecord` was.
  * @returns {string} The method source.
  */
-function emitMethod(method, path, op, schemas, usedNames, signature) {
+function emitMethod(method, path, op, parameters, schemas, usedNames, signature) {
     let name = methodName(op, method, path);
     if (usedNames.has(name)) {
         let n = 2;
@@ -478,7 +581,11 @@ function emitMethod(method, path, op, schemas, usedNames, signature) {
         name = `${name}${n}`;
     }
     usedNames.add(name);
-    const pathParams = (op.parameters ?? []).filter((p) => p.in === "path");
+    const pathParams = parameters.filter((p) => p.in === "path");
+    const queryParams = parameters.filter((p) => p.in === "query");
+    const headerParams = parameters.filter(
+        (p) => p.in === "header" && !IGNORED_HEADERS.has(p.name.toLowerCase()),
+    );
     const where = `${method.toUpperCase()} ${path}`;
     const paramId = (name) => {
         const id = toIdentifier(name, "camel", `path parameter in ${where}`);
@@ -496,13 +603,11 @@ function emitMethod(method, path, op, schemas, usedNames, signature) {
         [
             ...[...paramIds],
             ...(bodySchema(op) ? [["the request body argument", "body"]] : []),
-            ...((op.parameters ?? []).some((p) => p.in === "query")
-                ? [["the query argument", "params"]]
-                : []),
+            ...(queryParams.length ? [["the query argument", "params"]] : []),
+            ...(headerParams.length ? [["the headers argument", "headers"]] : []),
         ],
         `method arguments of ${where}`,
     );
-    const queryParams = (op.parameters ?? []).filter((p) => p.in === "query");
     const body = bodySchema(op);
     const resp = successSchema(op);
     const page = resp ? detectPage(resp, schemas, signature.refs) : null;
@@ -512,6 +617,14 @@ function emitMethod(method, path, op, schemas, usedNames, signature) {
           ? tsType(resp, signature.refs)
           : "void";
 
+    const fields = (list) =>
+        list
+            .map(
+                (p) =>
+                    `${JSON.stringify(p.name)}${p.required ? "" : "?"}: ${scalarParamType(p.schema, schemas, signature.refs)}`,
+            )
+            .join("; ");
+
     const args = [];
     for (const p of pathParams) {
         args.push(
@@ -519,14 +632,11 @@ function emitMethod(method, path, op, schemas, usedNames, signature) {
         );
     }
     if (body) args.push(`body: ${tsType(body, signature.refs)}`);
-    if (queryParams.length) {
-        const q = queryParams
-            .map(
-                (p) =>
-                    `${JSON.stringify(p.name)}${p.required ? "" : "?"}: ${queryParamType(p.schema, schemas, signature.refs)}`,
-            )
-            .join("; ");
-        args.push(`params: { ${q} }`);
+    if (queryParams.length) args.push(`params: { ${fields(queryParams)} }`);
+    if (headerParams.length) {
+        const optional = headerParams.every((p) => !p.required);
+        args.push(`headers: { ${fields(headerParams)} }${optional ? " = {}" : ""}`);
+        signature.sendsHeaders = true;
     }
 
     const url = urlTemplate(path, segmentArgs);
@@ -534,6 +644,7 @@ function emitMethod(method, path, op, schemas, usedNames, signature) {
     const callOpts = [];
     if (body) callOpts.push("body");
     if (queryParams.length) callOpts.push("params");
+    if (headerParams.length) callOpts.push("headers: headerRecord(headers)");
     const optsArg = callOpts.length ? `, { ${callOpts.join(", ")} }` : "";
 
     let validation = "";

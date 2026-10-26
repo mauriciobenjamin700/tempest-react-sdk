@@ -173,6 +173,15 @@ export class ItemsService {
   `Cookie` header — the cookie reaches the server through the browser itself,
   with `withCredentials` on [`createApiClient`](./http.md).
 
+Calling `await new ItemsService(api).getItem("a/b", { "X-Tenant-Id": "acme" })` sends:
+
+```text
+GET https://api.example.com/items/a%2Fb
+X-Tenant-Id: acme
+```
+
+`Retry-Count`, left out, is not sent; the slash in the id becomes `%2F` and stays in one segment.
+
 A path parameter declared only on the path item goes through the same
 `encodeIdSegment` as the others.
 

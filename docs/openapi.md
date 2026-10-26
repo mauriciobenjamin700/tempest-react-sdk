@@ -171,6 +171,15 @@ export class ItemsService {
   header `Cookie` — o cookie chega ao servidor pelo próprio browser, com
   `withCredentials` no [`createApiClient`](./http.md).
 
+Chamar `await new ItemsService(api).getItem("a/b", { "X-Tenant-Id": "acme" })` manda:
+
+```text
+GET https://api.exemplo.com/items/a%2Fb
+X-Tenant-Id: acme
+```
+
+O `Retry-Count`, omitido, não sai; a barra do id vira `%2F` e fica num segmento só.
+
 Path param declarado só no path item passa pelo mesmo `encodeIdSegment` dos
 demais.
 

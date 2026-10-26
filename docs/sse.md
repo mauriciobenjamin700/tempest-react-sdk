@@ -218,6 +218,13 @@ export function Pedidos({ logado }: { logado: boolean }) {
 O cookie vai no `POST /ticket` (com `X-CSRF-Token`, ecoado do cookie `csrf_token`);
 o `GET /stream` leva só o ticket. Detalhes do `csrf` em [HTTP → CSRF](./http.md#csrf-o-cookie-de-sessao-precisa-de-um-par).
 
+Com um pedido mudando de status no backend, o console mostra:
+
+```text
+pedido 8f2c pago
+pedido 8f2c enviado
+```
+
 ### Quando o ticket é recusado
 
 Um ticket negado com status que nenhuma espera resolve **não é re-tentado**: o
@@ -232,6 +239,14 @@ stream vai direto para `status: "error"` e `onUrlError` recebe o
 | resposta sem `ticket` | para em `"error"` — contrato diferente do esperado |
 
 A política é `isRetriableTicketError`; passe `shouldRetryUrl` para trocar.
+
+Uma conta desativada, por exemplo, termina assim — uma requisição só, sem stream e sem nova tentativa:
+
+```text
+POST https://api.exemplo.com/api/sse/ticket   403  {"detail":"…","code":"ACCOUNT_INACTIVE"}
+status: "connecting" → "error"
+onUrlError(erro)  →  erro.status === 403, erro.code === "ACCOUNT_INACTIVE"
+```
 
 !!! tip "Prefixo e nome do parâmetro"
     Os defaults batem com o `make_sse_router` do backend: `prefix: "/sse"` e
@@ -262,6 +277,15 @@ const stream = createEventStream(
 );
 
 stream.close();
+```
+
+Cada conexão chama a função de novo — a reconexão inclusive:
+
+```text
+POST /api/stream-url   200  {"url":"https://eventos.exemplo.com/s?sig=A"}
+GET  https://eventos.exemplo.com/s?sig=A          (aberto; a rede cai)
+POST /api/stream-url   200  {"url":"https://eventos.exemplo.com/s?sig=B"}
+GET  https://eventos.exemplo.com/s?sig=B          (aberto)
 ```
 
 - Se a função lança ou rejeita, `onUrlError` é chamado e o stream re-tenta com

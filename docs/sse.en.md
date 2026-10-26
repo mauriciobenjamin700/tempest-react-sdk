@@ -219,6 +219,13 @@ The cookie goes on `POST /ticket` (with `X-CSRF-Token`, echoed from the
 `csrf_token` cookie); `GET /stream` carries only the ticket. `csrf` details in
 [HTTP → CSRF](./http.md#csrf-a-session-cookie-needs-its-pair).
 
+With an order changing status on the backend, the console shows:
+
+```text
+order 8f2c paid
+order 8f2c shipped
+```
+
 ### When the ticket is refused
 
 A ticket denied with a status no amount of waiting fixes is **not retried**: the
@@ -233,6 +240,14 @@ stream goes straight to `status: "error"` and `onUrlError` receives the
 | response without `ticket` | stops at `"error"` — contract differs from expected |
 
 The policy is `isRetriableTicketError`; pass `shouldRetryUrl` to replace it.
+
+A disabled account, for instance, ends like this — a single request, no stream and no retry:
+
+```text
+POST https://api.example.com/api/sse/ticket   403  {"detail":"…","code":"ACCOUNT_INACTIVE"}
+status: "connecting" → "error"
+onUrlError(error)  →  error.status === 403, error.code === "ACCOUNT_INACTIVE"
+```
 
 !!! tip "Prefix and parameter name"
     The defaults match the backend's `make_sse_router`: `prefix: "/sse"` and
@@ -263,6 +278,15 @@ const stream = createEventStream(
 );
 
 stream.close();
+```
+
+Every connection calls the function again — reconnects included:
+
+```text
+POST /api/stream-url   200  {"url":"https://events.example.com/s?sig=A"}
+GET  https://events.example.com/s?sig=A           (open; the network drops)
+POST /api/stream-url   200  {"url":"https://events.example.com/s?sig=B"}
+GET  https://events.example.com/s?sig=B           (open)
 ```
 
 - If the function throws or rejects, `onUrlError` is called and the stream

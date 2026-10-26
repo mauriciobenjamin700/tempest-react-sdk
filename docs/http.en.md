@@ -72,6 +72,10 @@ const created = await api.post<User>("/users", {
 
 // DELETE
 await api.delete<void>(`/users/${encodeIdSegment(id)}`);
+
+// Absolute URL, nothing sent (EventSource, <img src>, a download link)
+api.url("/files/report.pdf", { inline: true });
+// → "<VITE_API_URL>/files/report.pdf?inline=true" — no Authorization, no token in the query
 ```
 
 Behavior:

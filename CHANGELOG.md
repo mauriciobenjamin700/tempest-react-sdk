@@ -4,6 +4,47 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Breaking
+
+- **`ApiClient` ganha o método obrigatório `url(path, params?)`** (ver Adicionado). Só quebra tipo, e
+  só para quem implementa a interface à mão — tipicamente um mock de teste.
+  **Migração:** acrescente `` url: (path) => `https://api.exemplo.com${path}` `` (ou `vi.fn()`) ao
+  objeto que finge ser o cliente. Quem usa `createApiClient` não muda nada.
+
+### Corrigido
+
+- **SSE autenticado por ticket morria na primeira reconexão depois do vencimento (#516).**
+  `createEventStream`/`useEventStream` reabriam toda reconexão com a URL capturada na criação, então
+  com o ticket de 60 s do `tempest-fastapi-sdk` 0.331.0 a reconexão depois de um minuto apresentava
+  o ticket vencido, levava `401` e gastava as `maxRetries` nisso até `status: "error"`, com o usuário
+  logado. Reproduzido antes da correção: erro no stream com `initialBackoff: 10` → as duas instâncias
+  de `EventSource` abrem `"/sse/stream?ticket=t1"`. Agora `url` aceita
+  `() => string | Promise<string>`, chamada antes de cada conexão; falha da função vai para
+  `onUrlError` e só é re-tentada se `shouldRetryUrl` deixar (default: sempre). Resolução que termina
+  depois de `close()`/`reconnect()` é descartada. No hook, uma função inline não reconecta a cada
+  render; URL `string` continua igual. Não medido em browser: o `EventSource` nativo diante de um
+  `401` — o SDK fecha e reconecta por conta própria em todo `error`, então o resultado não muda.
+
+### Adicionado
+
+- **`useTicketEventStream` / `createTicketEventStream`** para o router SSE do
+  `tempest-fastapi-sdk` >= 0.331.0: `POST {prefix}/ticket` pelo `ApiClient` autenticado (header ou
+  cookie, CSRF e refresh inclusos) e `GET {prefix}/stream?ticket=…`, com ticket novo a cada
+  reconexão — sem cache pelo `expires_in`, porque toda conexão depois da primeira segue uma falha que
+  pode ter sido o próprio ticket. `401` e `403 ACCOUNT_INACTIVE` no ticket não são re-tentados
+  (`isRetriableTicketError`: só status `0`, `408`, `425`, `429` e `5xx`). Tipos `SseTicketResponse`,
+  `TicketEventStreamSource`, `EventStreamUrl`. Docs SSE PT/EN com nota de migração do
+  `?access_token=`.
+- **`ApiClient.url(path, params?)`**: a URL absoluta que uma requisição atingiria (mesmo `baseURL` e
+  `prefix`), sem enviar nada e sem credencial — para `EventSource`, `<img src>` e links.
+
+### Budgets
+
+- `slice: http client` 4.7 → 4.72 KB e o teto do barrel ESM 146.2 → 146.5 KB. Medido com
+  `npm run build && npx size-limit --json` na `main` (`c5ea347`) e na branch: fatia http 4690 →
+  4701 B (+11, o método `url`) e barrel 145879 → 146371 B (+492, o `url` mais os helpers de ticket).
+  Os bytes compram a URL do stream montada pelo próprio cliente, sem duplicar `baseURL`/`prefix`.
+
 ## [0.79.0] — 2026-10-25
 
 ### Breaking

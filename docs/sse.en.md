@@ -111,6 +111,128 @@ export function NotificationListener({ user }: { user: { id: string } | null }) 
 !!! warning "`error` means it exhausted its attempts"
     When the status reaches `"error"`, the stream gave up on its own. Offer a button calling `reconnect()` (which resets the counter) instead of waiting for an automatic reconnect that won't come.
 
+## Ticket authentication — `useTicketEventStream`
+
+`EventSource` cannot send headers. For a long time the way to authenticate the
+stream was to put the access token in the URL (`?access_token=…`), which ends up
+in the log of every proxy along the way. `tempest-fastapi-sdk` **0.331.0**
+replaced that with a **ticket**: a normal authenticated call asks for a
+short-lived JWT, and only that goes in the stream URL.
+
+| Backend route | What it does |
+| --- | --- |
+| `POST /sse/ticket` | authenticated (header or cookie). Responds `{ "ticket": "<jwt>", "expires_in": 60 }` |
+| `GET /sse/stream?ticket=<jwt>` | opens the stream; the channel comes from inside the ticket |
+
+The helper makes both calls for you — and repeats them on every reconnect:
+
+```tsx
+import { createApiClient, useTicketEventStream } from "tempest-react-sdk";
+import { z } from "zod";
+
+const api = createApiClient({
+    baseURL: "https://api.example.com",
+    prefix: "/api",
+    getToken: () => localStorage.getItem("token"),
+});
+
+const notificationSchema = z.object({ id: z.string(), message: z.string() });
+
+type Notification = z.infer<typeof notificationSchema>;
+
+export function Notifications({ signedIn }: { signedIn: boolean }) {
+    const { status, lastMessage, reconnect } = useTicketEventStream<Notification>({
+        client: api,
+        enabled: signedIn,
+        schema: notificationSchema,
+        onUrlError: (error) => console.warn("ticket refused:", error),
+    });
+
+    return (
+        <div>
+            <span>Stream: {status}</span>
+            {status === "error" && <button onClick={reconnect}>Reconnect</button>}
+            {lastMessage && <p>{lastMessage.data.message}</p>}
+        </div>
+    );
+}
+```
+
+1. The ticket is requested through **`api`**: it carries `Authorization` (or the
+   session cookie and `X-CSRF-Token`), and a `401` goes through the client's
+   refresh before it reaches this code.
+2. The stream URL is built with `api.url("/sse/stream", { ticket })` — same
+   `baseURL`, same `prefix`. The access token **never** enters it.
+3. **Every reconnect requests a new ticket.** A ticket only opens streams for
+   `expires_in` seconds; reconnecting with the old one after that is a `401`.
+
+!!! warning "Why `useEventStream` with a fixed URL does not work here"
+    With `` useEventStream(`${API}/sse/stream?ticket=${ticket}`) `` the first stream
+    opens, but the reconnect reuses the same string. If the network drops after
+    60 s, the backend answers `401` to every attempt, the stream spends its
+    `maxRetries` on that and ends in `"error"` — with the user still signed in.
+
+### When the ticket is refused
+
+A ticket denied with a status no amount of waiting fixes is **not retried**: the
+stream goes straight to `status: "error"` and `onUrlError` receives the
+`TempestApiError`.
+
+| Ticket request failure | What happens |
+| --- | --- |
+| network, timeout, `429`, `5xx` | retried with the usual backoff |
+| `401` (after the client's refresh) | stops at `"error"` — the session is over |
+| `403 ACCOUNT_INACTIVE` | stops at `"error"` — account disabled |
+| response without `ticket` | stops at `"error"` — contract differs from expected |
+
+The policy is `isRetriableTicketError`; pass `shouldRetryUrl` to replace it.
+
+!!! tip "Prefix and parameter name"
+    The defaults match the backend's `make_sse_router`: `prefix: "/sse"` and
+    `ticketParam: "ticket"`. If the router is mounted elsewhere, pass both.
+    Outside React, `createTicketEventStream({ client: api, ... })` does the same
+    and returns the controller with `close`/`reconnect`/`status`.
+
+### URL resolved per connection
+
+The helper rests on a `createEventStream`/`useEventStream` feature you can use
+directly: **`url` can be a function**, called before every connection — the
+first one and each reconnect. It may be `async`. Useful for any short-lived
+credential in the URL:
+
+```ts
+import { createEventStream } from "tempest-react-sdk";
+
+const stream = createEventStream(
+    async () => {
+        const response = await fetch("/api/stream-url", { method: "POST" });
+        const { url } = (await response.json()) as { url: string };
+        return url;
+    },
+    {
+        shouldRetryUrl: (error) => !(error instanceof TypeError),
+        onUrlError: (error) => console.error("could not build the URL:", error),
+    },
+);
+
+stream.close();
+```
+
+- If the function throws or rejects, `onUrlError` is called and the stream
+  retries with backoff — unless `shouldRetryUrl` returns `false`, which goes
+  straight to `"error"`. These failures count against `maxRetries`.
+- A resolution that settles after `close()` or `reconnect()` is discarded.
+- In the hook, a function created inline does **not** reconnect on every render:
+  the latest one is used on the next connection. Call `reconnect()` to apply it
+  now. A `string` URL still reopens when it changes.
+
+!!! info "Migrating to `tempest-fastapi-sdk` >= 0.331.0"
+    The `?access_token=` path is off by default on the backend
+    (`allow_access_token_query=False`). Replace
+    `` useEventStream(`${API}/sse/stream?access_token=${token}`, options) `` with
+    `useTicketEventStream({ client: api, ...options })`. The options are the
+    same, minus the URL.
+
 ## A frame that is not JSON
 
 Both transports `JSON.parse` the frame by default. When that fails — the server
@@ -240,6 +362,7 @@ What the option guarantees:
 ## Recap
 
 - `createEventStream(url, options)` opens an SSE with exponential reconnect; the controller exposes `close`, `reconnect`, and `status`.
+- `url` can be a function called on every connection; `useTicketEventStream({ client })` uses that to request a fresh ticket on every reconnect, with no token in the URL.
 - `useEventStream(url, options)` is the React wrapper: ties the lifecycle to the component, exposes `status`/`lastMessage`/`reconnect`, and respects `enabled`.
 - Heartbeats (default `["ping"]`) keep the socket alive without firing `onMessage`.
 - `schema` validates each frame before delivering it: what does not match never reaches `onMessage`, and `onValidationError` says why.

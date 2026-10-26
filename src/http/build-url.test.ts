@@ -150,3 +150,25 @@ describe("buildApiUrl — absolute paths and relative bases", () => {
 afterEach(() => {
     vi.restoreAllMocks();
 });
+
+describe("buildApiUrl — signed URLs", () => {
+    /**
+     * A signed URL covers its query, so a URL the API handed back must reach
+     * `<img src>`/`fetch` byte for byte. Before the fix a round trip through
+     * `URL` re-encoded `'` as `%27` (measured); the S3 shapes below already
+     * survived, and are pinned so a future rewrite cannot slip in.
+     */
+    const SIGNED = [
+        "https://s3.example.com/b/a%20b.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AK%2F20261026%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261026T000000Z&X-Amz-Expires=300&X-Amz-SignedHeaders=host&response-content-disposition=attachment%3B%20filename%3D%22rel%C3%B3rio.pdf%22&response-content-type=application%2Fpdf&X-Amz-Signature=abc",
+        "https://api.example.com/files/x?z=1&sig=a+b&name=a%2Bb&a=2",
+        "https://s3.example.com/b/k?a=1&a=2&empty=&flag",
+        "https://s3.example.com/b/k?q=a'b(c)*~!",
+    ];
+
+    it.each(SIGNED)("returns %s unchanged", (url) => {
+        expect(buildApiUrl("https://api.example.com", url, { prefix: "/api" })).toBe(url);
+        expect(buildApiUrl("https://api.example.com", url, { params: { gone: undefined } })).toBe(
+            url,
+        );
+    });
+});

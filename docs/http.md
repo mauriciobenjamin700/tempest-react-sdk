@@ -621,6 +621,92 @@ export function AvatarUpload() {
 
     A opção `csrf` segue o mesmo escopo, com uma diferença: **sem** `credentialOrigin` ela fica presa à origem da própria página, não aberta. O `Authorization` fica aberto só por compatibilidade; o `csrf` é novo e nasce fechado. API em outra origem declara `credentialOrigin` para receber o token.
 
+## Upload direto com teto — `uploadPresignedPost`
+
+Mandar o arquivo **direto para o storage** (S3/MinIO) tira o upload do caminho da
+API. O `PUT` pré-assinado faz isso, mas **não limita tamanho**: quem tem a URL
+manda 5 GB. O `POST` pré-assinado do `tempest-fastapi-sdk` **0.331.0** carrega
+uma política assinada com teto (`max_bytes`), tipo e chave — e o storage recusa o
+que sair dela.
+
+A rota do seu serviço devolve o formulário:
+
+```json
+{ "url": "https://storage.exemplo.com/bucket", "fields": { "key": "...", "Content-Type": "image/jpeg", "policy": "...", "x-amz-signature": "..." }, "max_bytes": 5242880 }
+```
+
+E o front envia:
+
+```tsx
+import { useState } from "react";
+import { createApiClient, describeApiError, uploadPresignedPost } from "tempest-react-sdk";
+import type { PresignedPost } from "tempest-react-sdk";
+
+const api = createApiClient({ baseURL: "https://api.exemplo.com", getToken: () => null });
+
+export function EnviarAvatar() {
+    const [progresso, setProgresso] = useState(0);
+    const [erro, setErro] = useState<string | null>(null);
+
+    async function enviar(arquivo: File) {
+        setErro(null);
+        try {
+            const formulario = await api.post<PresignedPost>("/avatars/upload-form");
+            await uploadPresignedPost(formulario, arquivo, {
+                onProgress: ({ fraction }) => fraction !== null && setProgresso(fraction),
+            });
+        } catch (e) {
+            setErro(
+                describeApiError(e, "Não deu para enviar.", {
+                    codes: {
+                        FILE_TOO_LARGE: "A imagem passa de 5 MB.",
+                        SIGNED_URL_EXPIRED: "O link expirou. Tente de novo.",
+                    },
+                }),
+            );
+        }
+    }
+
+    return (
+        <label>
+            <input type="file" onChange={(e) => e.target.files?.[0] && enviar(e.target.files[0])} />
+            <progress value={progresso} max={1} />
+            {erro && <p role="alert">{erro}</p>}
+        </label>
+    );
+}
+```
+
+O que o helper garante:
+
+- **Formulário no formato do S3**: todos os `fields` na ordem e o arquivo **por último**, no campo `file` — o S3 ignora o que vem depois do arquivo.
+- **Nenhuma credencial vai junto**: sem `Authorization`, sem `X-CSRF-Token`, sem `X-Request-ID`, sem cookie. A `url` é o host do storage, fora da origem da API, e a assinatura nos `fields` é toda a autorização. Sem header customizado a requisição também não depende de preflight CORS.
+- **Arquivo acima de `max_bytes` é recusado antes de sair**, com o mesmo `413 FILE_TOO_LARGE` que o servidor daria — sem gastar o upload.
+- **Um erro só, qualquer que seja o backend.** O serviço troca entre S3 e storage local por settings, então o front não sabe quem respondeu:
+
+| Resposta do storage | `TempestApiError` |
+| --- | --- |
+| S3 `400` XML `EntityTooLarge` · local `413 FILE_TOO_LARGE` | `413`, `code: "FILE_TOO_LARGE"` |
+| S3 `400` XML `EntityTooSmall` · local `400 FILE_TOO_SMALL` | `400`, `code: "FILE_TOO_SMALL"` |
+| S3 `403` XML `AccessDenied` (condição da política) · local `403 SIGNED_URL_INVALID` | `403`, `code: "SIGNED_URL_INVALID"` |
+| S3 `403` XML `AccessDenied` "Policy expired" · local `403 SIGNED_URL_EXPIRED` | `403`, `code: "SIGNED_URL_EXPIRED"` |
+| S3 `204` sem corpo | sucesso |
+
+!!! info "De onde vem a tabela"
+    As respostas do S3 foram medidas contra MinIO `RELEASE.2025-04-22T22-12-26Z`,
+    postando do Chrome a partir de outra origem: o corpo XML do erro é legível
+    (o MinIO manda header CORS no erro), e política vencida e condição quebrada são
+    ambas `AccessDenied` — só a mensagem as separa. O código do S3 que não está na
+    tabela (`NoSuchBucket`, …) chega como `code`, com a `Message` em `detail`.
+
+!!! warning "O `PUT` pré-assinado não limita tamanho"
+    Se o arquivo tem teto, use o `POST`. Um `PUT` pré-assinado aceita qualquer
+    tamanho; checar no front é conveniência, não garantia.
+
+!!! tip "Comprimir antes"
+    Imagem grande? Comprima antes de enviar ([Imagens](./imaging.md)) — o teto é
+    conferido sobre o `Blob` que você passar.
+
 ## `retry` — backoff exponencial
 
 Reexecuta uma factory async com delays crescentes (`initialDelay` dobrando a cada tentativa, limitado por `maxDelay`):
@@ -912,6 +998,8 @@ const { mutate } = useMutation({
 - `retry: true` liga a retentativa dentro do cliente: só método idempotente, só falha de rede/`408`/`425`/`429`/`5xx`. Escrita nunca repete sozinha.
 - `logger` é opt-in e o client não escreve em console sem ele: uma linha por tentativa (`debug` abaixo de 400, `warn` de 400 pra cima) com `requestId`, `status` e `ms`, nunca body/header/query.
 - `parseResponse(schema, raw, context)` valida o payload com zod e aponta o campo divergente em um build de desenvolvimento; em qualquer outro build, só a frase genérica. Em app **Vite**, chame `setDevBuild(import.meta.env.DEV)` uma vez no bootstrap — sem isso o SDK não tem como saber, e o relatório fica mudo.
+- `uploadPresignedPost(post, file)` manda direto ao storage pelo `POST` pré-assinado: checa `max_bytes` antes, não leva credencial nenhuma e devolve um `code` só (`FILE_TOO_LARGE`, `FILE_TOO_SMALL`, `SIGNED_URL_INVALID`, `SIGNED_URL_EXPIRED`) seja S3 ou storage local.
+- URL absoluta sem `params` sai de `buildApiUrl` exatamente como entrou — link assinado não é reescrito.
 - `uploadWithProgress` usa XHR pra reportar progresso byte a byte; para arquivo grande, `createResumableUpload` divide em chunks e retoma — veja [Upload resumível](./resumable-upload.md).
 - `retry` (backoff exponencial + `shouldRetry`) e `usePoll` (intervalo com guarda de overlap) cobrem operações instáveis e acompanhamento de jobs.
 - `generateIdempotencyKey` — gere uma vez por operação, reutilize nos retries.

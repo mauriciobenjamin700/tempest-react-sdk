@@ -77,7 +77,10 @@ export interface BuildApiUrlOptions {
  *
  * A path that is itself an absolute URL wins over all of this, which is how a
  * client reaches a second host (a signed upload endpoint, a CDN) without a
- * second client.
+ * second client. Without `params` it is returned exactly as given: a signed
+ * URL covers its query, and a round trip through `URL` re-encodes characters
+ * outside the canonical form (`'` became `%27`, measured), which is a rewrite
+ * of a string the server signed.
  *
  * @example
  * buildApiUrl("https://api.example.com", "/auth/login", { prefix: "/api" });
@@ -98,6 +101,9 @@ export function buildApiUrl(
     options: BuildApiUrlOptions = {},
 ): string {
     const { prefix, params } = options;
+    if (ABSOLUTE_URL.test(path) && !Object.values(params ?? {}).some((value) => value != null)) {
+        return path;
+    }
     const url = ABSOLUTE_URL.test(path) ? new URL(path) : new URL(resolve(baseURL, path, prefix));
 
     if (params) {

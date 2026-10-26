@@ -4,6 +4,36 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`uploadPresignedPost(post, file, { onProgress, signal, fileName })` e o tipo `PresignedPost`**
+  (#516) para o `POST` pré-assinado com teto do `tempest-fastapi-sdk` >= 0.331.0. Monta o
+  `FormData` com os `fields` na ordem e o arquivo por último no campo `file`; não manda
+  `Authorization`, `X-CSRF-Token`, `X-Request-ID` nem cookie (a `url` é o host do storage, e sem
+  header customizado a requisição não depende de preflight CORS); recusa arquivo acima de
+  `max_bytes` antes de enviar com `413 FILE_TOO_LARGE`; normaliza o XML do S3 e o envelope JSON do
+  storage local num `TempestApiError` só. Medido contra MinIO `RELEASE.2025-04-22T22-12-26Z` do
+  Chrome em outra origem: dentro do teto `204`; 1 byte acima `400 EntityTooLarge`; abaixo do mínimo
+  `400 EntityTooSmall`; outro `Content-Type` `403 AccessDenied` ("Policy Condition failed"); política
+  vencida `403 AccessDenied` ("Policy expired") — corpo XML legível via CORS. A última linha não
+  estava na issue e vira `SIGNED_URL_EXPIRED`. Com `X-Request-ID` o MinIO default também aceitou o
+  preflight; S3 da AWS depende do CORS do bucket (não medido), por isso o helper não manda header.
+
+### Budgets
+
+- `slice: http client` 4.7 → 4.73 KB, teto do barrel ESM 146.2 → 146.5 KB e CJS 174.5 → 174.8 KB.
+  Medido com `npm run build && npx size-limit --json` na `main` (`c5ea347`) e na branch: fatia http
+  4690 → 4724 B (+34, a guarda de URL absoluta no `buildApiUrl`), barrel ESM 145879 → 146444 B
+  (+565) e CJS 174135 → 174699 B (+564), o `uploadPresignedPost` com o mapa de erros do S3.
+
+### Corrigido
+
+- **`buildApiUrl` devolve URL absoluta sem `params` exatamente como recebeu** (#516). Um link
+  assinado cobre a query, e o round trip por `URL` re-codificava caractere fora da forma canônica
+  (`'` → `%27`, medido). As URLs no formato S3/MinIO (`%2F`, `%3B`, `%22`, parâmetro repetido, valor
+  vazio) já passavam intactas e agora estão fixadas em teste. Afeta `createApiClient` com caminho
+  absoluto, que passa por `buildApiUrl`.
+
 ## [0.79.0] — 2026-10-25
 
 ### Breaking

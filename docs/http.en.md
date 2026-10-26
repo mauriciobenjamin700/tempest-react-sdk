@@ -641,6 +641,92 @@ export function AvatarUpload() {
 
     The `csrf` option follows the same scope, with one difference: **without** `credentialOrigin` it is scoped to the page's own origin rather than left open. `Authorization` stays open only for compatibility; `csrf` is new and starts closed. An API on another origin declares `credentialOrigin` to receive the token.
 
+## Direct upload with a ceiling — `uploadPresignedPost`
+
+Sending the file **straight to storage** (S3/MinIO) takes the upload off the
+API's path. A pre-signed `PUT` does that, but **does not limit size**: anyone
+holding the URL can send 5 GB. The pre-signed `POST` of `tempest-fastapi-sdk`
+**0.331.0** carries a signed policy with a ceiling (`max_bytes`), type and key —
+and storage refuses whatever falls outside it.
+
+Your service's route hands out the form:
+
+```json
+{ "url": "https://storage.example.com/bucket", "fields": { "key": "...", "Content-Type": "image/jpeg", "policy": "...", "x-amz-signature": "..." }, "max_bytes": 5242880 }
+```
+
+And the front end sends it:
+
+```tsx
+import { useState } from "react";
+import { createApiClient, describeApiError, uploadPresignedPost } from "tempest-react-sdk";
+import type { PresignedPost } from "tempest-react-sdk";
+
+const api = createApiClient({ baseURL: "https://api.example.com", getToken: () => null });
+
+export function AvatarUpload() {
+    const [progress, setProgress] = useState(0);
+    const [error, setError] = useState<string | null>(null);
+
+    async function send(file: File) {
+        setError(null);
+        try {
+            const form = await api.post<PresignedPost>("/avatars/upload-form");
+            await uploadPresignedPost(form, file, {
+                onProgress: ({ fraction }) => fraction !== null && setProgress(fraction),
+            });
+        } catch (e) {
+            setError(
+                describeApiError(e, "Could not upload.", {
+                    codes: {
+                        FILE_TOO_LARGE: "The image is over 5 MB.",
+                        SIGNED_URL_EXPIRED: "The link expired. Try again.",
+                    },
+                }),
+            );
+        }
+    }
+
+    return (
+        <label>
+            <input type="file" onChange={(e) => e.target.files?.[0] && send(e.target.files[0])} />
+            <progress value={progress} max={1} />
+            {error && <p role="alert">{error}</p>}
+        </label>
+    );
+}
+```
+
+What the helper guarantees:
+
+- **A form in the S3 shape**: every `fields` entry in order and the file **last**, in the `file` part — S3 ignores whatever follows the file.
+- **No credential goes along**: no `Authorization`, no `X-CSRF-Token`, no `X-Request-ID`, no cookie. The `url` is the storage host, outside the API's origin, and the signature in `fields` is the whole authorization. Without custom headers the request does not depend on a CORS preflight either.
+- **A file above `max_bytes` is refused before it leaves**, with the same `413 FILE_TOO_LARGE` the server would answer — without spending the upload.
+- **One error, whichever backend answered.** The service switches between S3 and local storage through settings, so the front end cannot know which one responded:
+
+| Storage response | `TempestApiError` |
+| --- | --- |
+| S3 `400` XML `EntityTooLarge` · local `413 FILE_TOO_LARGE` | `413`, `code: "FILE_TOO_LARGE"` |
+| S3 `400` XML `EntityTooSmall` · local `400 FILE_TOO_SMALL` | `400`, `code: "FILE_TOO_SMALL"` |
+| S3 `403` XML `AccessDenied` (policy condition) · local `403 SIGNED_URL_INVALID` | `403`, `code: "SIGNED_URL_INVALID"` |
+| S3 `403` XML `AccessDenied` "Policy expired" · local `403 SIGNED_URL_EXPIRED` | `403`, `code: "SIGNED_URL_EXPIRED"` |
+| S3 `204` with no body | success |
+
+!!! info "Where the table comes from"
+    The S3 responses were measured against MinIO `RELEASE.2025-04-22T22-12-26Z`,
+    posting from Chrome on another origin: the XML error body is readable (MinIO
+    sends CORS headers on errors), and an expired policy and a broken condition
+    are both `AccessDenied` — only the message tells them apart. An S3 code not in
+    the table (`NoSuchBucket`, …) arrives as `code`, with its `Message` in `detail`.
+
+!!! warning "A pre-signed `PUT` does not limit size"
+    If the file has a ceiling, use the `POST`. A pre-signed `PUT` accepts any
+    size; checking in the front end is convenience, not a guarantee.
+
+!!! tip "Compress first"
+    Large image? Compress it before sending ([Images](./imaging.md)) — the ceiling
+    is checked against the `Blob` you pass.
+
 ## `retry` — exponential backoff
 
 Re-runs an async factory with increasing delays (`initialDelay` doubling each attempt, capped by `maxDelay`):
@@ -933,6 +1019,8 @@ const { mutate } = useMutation({
 - `retry: true` turns on replays inside the client: idempotent methods only, network/`408`/`425`/`429`/`5xx` only. Writes never replay on their own.
 - `logger` is opt-in and the client writes to no console without it: one line per attempt (`debug` under 400, `warn` from 400 up) carrying `requestId`, `status` and `ms`, never a body/header/query string.
 - `parseResponse(schema, raw, context)` validates the payload with zod and points at the divergent field in a development build; in any other build, just the generic sentence. In a **Vite** app, call `setDevBuild(import.meta.env.DEV)` once at bootstrap — without it the SDK has no way to know, and the report stays silent.
+- `uploadPresignedPost(post, file)` sends straight to storage through the pre-signed `POST`: checks `max_bytes` first, carries no credential at all and returns one `code` (`FILE_TOO_LARGE`, `FILE_TOO_SMALL`, `SIGNED_URL_INVALID`, `SIGNED_URL_EXPIRED`) whether S3 or local storage answered.
+- An absolute URL without `params` leaves `buildApiUrl` exactly as it came in — a signed link is not rewritten.
 - `uploadWithProgress` uses XHR to report byte-level progress; for a large file, `createResumableUpload` chunks and resumes — see [Resumable upload](./resumable-upload.md).
 - `retry` (exponential backoff + `shouldRetry`) and `usePoll` (interval with overlap guard) cover flaky operations and job tracking.
 - `generateIdempotencyKey` — generate once per operation, reuse across retries.

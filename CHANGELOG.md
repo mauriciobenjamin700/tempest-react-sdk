@@ -47,6 +47,12 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `Image-Media-Type`) ou que não tem letra nem dígito abortava a geração inteira. A checagem agora
   roda por grupo, sobre os schemas emitidos.
 
+- **`buildApiUrl` devolve URL absoluta sem `params` exatamente como recebeu** (#516). Um link
+  assinado cobre a query, e o round trip por `URL` re-codificava caractere fora da forma canônica
+  (`'` → `%27`, medido). As URLs no formato S3/MinIO (`%2F`, `%3B`, `%22`, parâmetro repetido, valor
+  vazio) já passavam intactas e agora estão fixadas em teste. Afeta `createApiClient` com caminho
+  absoluto, que passa por `buildApiUrl`.
+
 ### Adicionado
 
 - **`useTicketEventStream` / `createTicketEventStream`** para o router SSE do
@@ -60,12 +66,26 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - **`ApiClient.url(path, params?)`**: a URL absoluta que uma requisição atingiria (mesmo `baseURL` e
   `prefix`), sem enviar nada e sem credencial — para `EventSource`, `<img src>` e links.
 
+- **`uploadPresignedPost(post, file, { onProgress, signal, fileName })` e o tipo `PresignedPost`**
+  (#516) para o `POST` pré-assinado com teto do `tempest-fastapi-sdk` >= 0.331.0. Monta o
+  `FormData` com os `fields` na ordem e o arquivo por último no campo `file`; não manda
+  `Authorization`, `X-CSRF-Token`, `X-Request-ID` nem cookie (a `url` é o host do storage, e sem
+  header customizado a requisição não depende de preflight CORS); recusa arquivo acima de
+  `max_bytes` antes de enviar com `413 FILE_TOO_LARGE`; normaliza o XML do S3 e o envelope JSON do
+  storage local num `TempestApiError` só. Medido contra MinIO `RELEASE.2025-04-22T22-12-26Z` do
+  Chrome em outra origem: dentro do teto `204`; 1 byte acima `400 EntityTooLarge`; abaixo do mínimo
+  `400 EntityTooSmall`; outro `Content-Type` `403 AccessDenied` ("Policy Condition failed"); política
+  vencida `403 AccessDenied` ("Policy expired") — corpo XML legível via CORS. A última linha não
+  estava na issue e vira `SIGNED_URL_EXPIRED`. Com `X-Request-ID` o MinIO default também aceitou o
+  preflight; S3 da AWS depende do CORS do bucket (não medido), por isso o helper não manda header.
+
 ### Budgets
 
-- `slice: http client` 4.7 → 4.72 KB e o teto do barrel ESM 146.2 → 146.5 KB. Medido com
-  `npm run build && npx size-limit --json` na `main` (`c5ea347`) e na branch: fatia http 4690 →
-  4701 B (+11, o método `url`) e barrel 145879 → 146371 B (+492, o `url` mais os helpers de ticket).
-  Os bytes compram a URL do stream montada pelo próprio cliente, sem duplicar `baseURL`/`prefix`.
+- `slice: http client` 4.7 → 4.74 KB, teto do barrel ESM 146.2 → 146.6 KB e CJS 174.5 → 175.1 KB.
+  Medido com `npm run build && npx size-limit --json` na v0.79.0 (`c5ea347`) e na árvore com #517,
+  #518 e #519 juntos: fatia http 4690 → 4733 B (+43: o `ApiClient.url`, +11, e a guarda de URL
+  absoluta no `buildApiUrl`), barrel ESM 145879 → 146539 B (+660) e CJS 174135 → 175014 B (+879),
+  o `url`, os helpers de ticket do SSE e o `uploadPresignedPost` com o mapa de erros do S3.
 
 ## [0.79.0] — 2026-10-25
 

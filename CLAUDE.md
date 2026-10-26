@@ -74,9 +74,16 @@ seção na gallery (ou isenção escrita em `scripts/docs-gallery.mjs`).
 
 ## Gates que precisam passar
 
-`npm run lint` · `npm run typecheck` · `npm run test:run` ·
-`npm run format:check` · `npm run build` · `npx size-limit` ·
-`npm run docs:gallery -- --check`.
+**`make check`** (`scripts/check.sh`, ~6 min medido em 26/10/2026, e2e incluso):
+`npm ci` · ícones × lucide · `format:check` · `lint` · `typecheck` ·
+`test:coverage` (pisos) · `build` · `size-limit` · `docs:gallery -- --check` ·
+smokes do tarball (Vitest do consumidor + CLI) · e2e da gallery (Playwright + axe).
+`SKIP_E2E=1` só para iterar. `make test-matrix` repete a suíte no node 22.
+
+**A CI não testa PR** (decisão de 26/10/2026, #521): `ci.yml`, `size-limit.yml` e
+`e2e.yml` saíram; ficam só `docs.yml` (Pages) e `release-npm.yml` (publish). O
+`make check` local é o gate de merge e o último passo do `make release` antes do
+push. Guard: `test/ci-policy.test.ts`.
 
 Além deles, cinco guards que reprovam o que o compilador não vê:
 `test/public-surface.test.ts` (todo export de runtime está documentado),
@@ -90,6 +97,22 @@ código compila**), `test/docs-anchors.test.ts` (âncora interna viva),
 em perfil `quick` sobre os módulos tocados. Custa ondas de agente, então não entra
 no caminho de todo PR. O relatório sai em inglês, no formato da skill; a conversa
 continua PT-BR.
+
+## PR com `make check` local verde é mergeado
+
+**Não peça confirmação para mergear.** PR deste repo — aberto por você ou por
+agente — cujo `make check` passou **localmente, sobre o branch atualizado com a
+`main`**, e que está `mergeable` é mergeado na hora com `gh pr merge <n> --merge`
+(merge commit, o padrão do histórico). Esta seção é a autorização durável; não a
+trate como algo a renovar a cada PR.
+
+- **Verde é o `make check` inteiro**, não "os testes da área". Teste vermelho não
+  se mergeia por "não é deste PR": rode de novo e abra issue para o intermitente.
+- **Vários PRs paralelos: um por vez.** Cada merge move a `main`; o próximo recebe
+  a `main` nova por **merge** (force-push é barrado) e roda o `make check` de novo.
+  `CHANGELOG.md` se resolve concatenando por seção; budget do `size-limit` tocado
+  por dois PRs se **remede** sobre a soma, a partir da última tag.
+- **Mergear não é publicar.** Tag continua pedindo o pedido explícito de release.
 
 ## Armadilhas que mais custam
 
@@ -110,6 +133,9 @@ mais voltam:
   reinicie antes de concluir que a mudança de CSS não funcionou.
 - **`[Unreleased]` conflita N-1 vezes** quando N PRs o tocam: é concatenação, o
   que está na `main` primeiro.
+- **Worktree novo não tem os hooks do husky** até o primeiro `npm ci`: commit feito
+  antes disso não passa pelo lint-staged. Parou a v0.80.0 (`RELEASES.md` sem
+  formatar); o `release.sh` hoje roda `npm ci` e formata sozinho.
 
 ## Estado atual (snapshot pós-v0.80.0 — `[Unreleased]` abre o ciclo 0.81.0)
 
@@ -124,7 +150,7 @@ mais voltam:
   [`architecture.md`](./docs/internal/architecture.md).
 - **Testes**: 8199 em 666 arquivos, medido em 26/10/2026 (`npm run test:run`).
   Cobertura em 23/09/2026: 99,14% linhas / 98,26% statements / 99,39% funções /
-  95,32% branches (`npx vitest run --coverage`); pisos do CI em 99/98/99/95 — o
+  95,32% branches (`npx vitest run --coverage`); pisos do `test:coverage` em 99/98/99/95 — o
   node 22 mede ~0,02 pp abaixo do 24 em branches.
 - **Empacotamento**: `dist/` com `preserveModules`; CSS por componente carregado
   pelo próprio componente (0.63.0); loader `/node-css-loader` para Node cru.
@@ -159,7 +185,10 @@ npm run docs:llms                 # regenera llms.txt + llms-full.txt
 npm run docs:gallery -- --check   # guard das capturas por seção
 npx size-limit                    # budgets por fatia importada
 
-make validate                     # sanidade completa, sem release
+make check                        # todo gate (~6 min): libera merge e release
+SKIP_E2E=1 make check             # iteração rápida, sem o e2e da gallery
+make test-matrix                  # a suíte também no node 22
+make validate                     # subconjunto rápido, sem budgets/smokes/e2e
 make release TAG=0.64.0           # branch + bump + validate + push + PR (sem tag)
 make release-tag TAG=0.64.0       # depois do merge: tag no commit do merge + push (publica)
 make releases-check               # audita tag ↔ npm ↔ GitHub Release

@@ -93,7 +93,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ createApiClient, parseResponse, uploadWithProgress, retry, usePoll }"
     },
-    "limit": "4.7 KB",
+    "limit": "4.72 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -385,7 +385,7 @@
   {
     "name": "ceiling: full barrel ESM (nobody imports this — tree-shaking is the real cost)",
     "path": "dist/tempest-react-sdk.js",
-    "limit": "146.2 KB",
+    "limit": "146.5 KB",
     "ignore": [
       "react",
       "react-dom",

@@ -406,5 +406,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         arrayBuffer: (path: string, options?: RequestOptions) =>
             run<ArrayBuffer>(path, { ...options }, (response) => response.arrayBuffer()),
         upload,
+        url: (path: string, params?: RequestOptions["params"]) =>
+            buildApiUrl(config.baseURL, path, { prefix: config.prefix, params }),
     };
 }

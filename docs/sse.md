@@ -111,6 +111,128 @@ export function NotificationListener({ user }: { user: { id: string } | null }) 
 !!! warning "`error` significa que esgotou as tentativas"
     Quando o status chega em `"error"`, o stream desistiu sozinho. Ofereça um botão chamando `reconnect()` (que zera o contador) em vez de esperar uma reconexão automática que não vem mais.
 
+## Autenticação por ticket — `useTicketEventStream`
+
+`EventSource` não manda header. Durante muito tempo o jeito de autenticar o
+stream foi pôr o access token na URL (`?access_token=…`), que acaba no log de
+todo proxy no caminho. O `tempest-fastapi-sdk` **0.331.0** trocou isso por um
+**ticket**: uma chamada autenticada normal pede um JWT de vida curta, e só ele
+vai na URL do stream.
+
+| Rota do backend | O que faz |
+| --- | --- |
+| `POST /sse/ticket` | autenticada (header ou cookie). Responde `{ "ticket": "<jwt>", "expires_in": 60 }` |
+| `GET /sse/stream?ticket=<jwt>` | abre o stream; o canal vem de dentro do ticket |
+
+O helper faz as duas chamadas para você — e as repete a cada reconexão:
+
+```tsx
+import { createApiClient, useTicketEventStream } from "tempest-react-sdk";
+import { z } from "zod";
+
+const api = createApiClient({
+    baseURL: "https://api.exemplo.com",
+    prefix: "/api",
+    getToken: () => localStorage.getItem("token"),
+});
+
+const notificacaoSchema = z.object({ id: z.string(), message: z.string() });
+
+type Notificacao = z.infer<typeof notificacaoSchema>;
+
+export function Notificacoes({ logado }: { logado: boolean }) {
+    const { status, lastMessage, reconnect } = useTicketEventStream<Notificacao>({
+        client: api,
+        enabled: logado,
+        schema: notificacaoSchema,
+        onUrlError: (erro) => console.warn("ticket recusado:", erro),
+    });
+
+    return (
+        <div>
+            <span>Stream: {status}</span>
+            {status === "error" && <button onClick={reconnect}>Reconectar</button>}
+            {lastMessage && <p>{lastMessage.data.message}</p>}
+        </div>
+    );
+}
+```
+
+1. O ticket é pedido pelo **`api`**: sai com `Authorization` (ou com o cookie de
+   sessão e o `X-CSRF-Token`), e um `401` passa pelo refresh do cliente antes de
+   chegar aqui.
+2. A URL do stream é montada com `api.url("/sse/stream", { ticket })` — mesmo
+   `baseURL`, mesmo `prefix`. O access token **nunca** entra nela.
+3. **Toda reconexão pede um ticket novo.** O ticket só abre stream por
+   `expires_in` segundos; reconectar com o antigo depois disso é um `401`.
+
+!!! warning "Por que `useEventStream` com uma URL fixa não serve aqui"
+    Com `` useEventStream(`${API}/sse/stream?ticket=${ticket}`) `` o primeiro stream
+    abre, mas a reconexão reusa a mesma string. Se a rede cair depois dos 60 s, o
+    backend responde `401` a cada tentativa, o stream gasta as `maxRetries` nisso
+    e termina em `"error"` — com o usuário ainda logado.
+
+### Quando o ticket é recusado
+
+Um ticket negado com status que nenhuma espera resolve **não é re-tentado**: o
+stream vai direto para `status: "error"` e `onUrlError` recebe o
+`TempestApiError`.
+
+| Falha ao pedir o ticket | O que acontece |
+| --- | --- |
+| rede, timeout, `429`, `5xx` | nova tentativa com o backoff de sempre |
+| `401` (depois do refresh do cliente) | para em `"error"` — a sessão acabou |
+| `403 ACCOUNT_INACTIVE` | para em `"error"` — conta desativada |
+| resposta sem `ticket` | para em `"error"` — contrato diferente do esperado |
+
+A política é `isRetriableTicketError`; passe `shouldRetryUrl` para trocar.
+
+!!! tip "Prefixo e nome do parâmetro"
+    Os defaults batem com o `make_sse_router` do backend: `prefix: "/sse"` e
+    `ticketParam: "ticket"`. Se o router foi montado em outro lugar, passe os dois.
+    Fora de React, `createTicketEventStream({ client: api, ... })` faz o mesmo e
+    devolve o controller com `close`/`reconnect`/`status`.
+
+### URL resolvida por conexão
+
+O helper se apoia num recurso do `createEventStream`/`useEventStream` que você
+pode usar direto: **`url` pode ser uma função**, chamada antes de cada conexão —
+a primeira e cada reconexão. Ela pode ser `async`. Útil para qualquer credencial
+curta na URL:
+
+```ts
+import { createEventStream } from "tempest-react-sdk";
+
+const stream = createEventStream(
+    async () => {
+        const resposta = await fetch("/api/stream-url", { method: "POST" });
+        const { url } = (await resposta.json()) as { url: string };
+        return url;
+    },
+    {
+        shouldRetryUrl: (erro) => !(erro instanceof TypeError),
+        onUrlError: (erro) => console.error("não deu para montar a URL:", erro),
+    },
+);
+
+stream.close();
+```
+
+- Se a função lança ou rejeita, `onUrlError` é chamado e o stream re-tenta com
+  backoff — a não ser que `shouldRetryUrl` devolva `false`, que leva direto a
+  `"error"`. Essas falhas contam no `maxRetries`.
+- Uma resolução que termina depois de `close()` ou `reconnect()` é descartada.
+- No hook, uma função criada inline **não** reconecta a cada render: a mais
+  recente é a usada na próxima conexão. Chame `reconnect()` para aplicar agora.
+  Uma URL `string` continua reabrindo quando muda.
+
+!!! info "Migração para o `tempest-fastapi-sdk` >= 0.331.0"
+    O caminho `?access_token=` ficou desligado por padrão no backend
+    (`allow_access_token_query=False`). Troque
+    `` useEventStream(`${API}/sse/stream?access_token=${token}`, opções) `` por
+    `useTicketEventStream({ client: api, ...opções })`. As opções são as mesmas,
+    menos a URL.
+
 ## Frame que não é JSON
 
 Por padrão os dois transportes fazem `JSON.parse` do frame. Quando o parse falha —
@@ -238,6 +360,7 @@ O que a opção garante:
 ## Recap
 
 - `createEventStream(url, options)` abre um SSE com reconnect exponencial; o controller expõe `close`, `reconnect` e `status`.
+- `url` pode ser uma função chamada a cada conexão; `useTicketEventStream({ client })` usa isso para pedir um ticket novo em toda reconexão, sem token na URL.
 - `useEventStream(url, options)` é o wrapper React: amarra o ciclo de vida ao componente, expõe `status`/`lastMessage`/`reconnect` e respeita `enabled`.
 - Heartbeats (default `["ping"]`) mantêm o socket vivo sem disparar `onMessage`.
 - `schema` valida cada frame antes de entregar: o que não casa não chega em `onMessage`, e `onValidationError` diz por quê.

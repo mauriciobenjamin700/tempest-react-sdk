@@ -7,6 +7,19 @@ import { decodeFrame } from "../utils/json-frame";
 import type { SchemaIssue, SchemaLike } from "../utils/schema-like";
 export type EventStreamStatus = "idle" | "connecting" | "open" | "closed" | "error";
 
+/**
+ * Where the stream connects: a fixed URL, or a function resolved again before
+ * every connection, the first one and each reconnect.
+ *
+ * The function form exists for short-lived credentials carried in the URL,
+ * such as the `?ticket=` of the `tempest-fastapi-sdk` SSE router. `EventSource`
+ * cannot send headers, so the credential has to ride in the query, and one that
+ * expires makes a fixed URL a trap: the reconnect after the expiry presents the
+ * same dead credential, gets a `401`, and burns every retry on it while the user
+ * is still signed in.
+ */
+export type EventStreamUrl = string | (() => string | Promise<string>);
+
 export interface EventStreamMessage<T> {
     /** Server-named event (default `"message"`). */
     event: string;
@@ -71,6 +84,21 @@ export interface CreateEventStreamOptions<T> {
      * `isDevBuild()` to be able to answer, and this callback is the app's own.
      */
     onValidationError?: (issues: SchemaIssue[], raw: string) => void;
+    /**
+     * The URL function threw or rejected, so no connection was attempted.
+     *
+     * `onError` cannot carry this: it receives the `EventSource` `Event`, and a
+     * URL that never resolved never had an `EventSource`.
+     */
+    onUrlError?: (error: unknown) => void;
+    /**
+     * Whether a URL-resolution failure is worth another attempt. Default: always.
+     *
+     * Return `false` for failures no backoff can fix — a `401` or a `403` when
+     * fetching a ticket is a session decision, not a network blip — and the stream
+     * stops at `status: "error"` instead of spending `maxRetries` on it.
+     */
+    shouldRetryUrl?: (error: unknown) => boolean;
     onOpen?: () => void;
     onMessage?: (message: EventStreamMessage<T>) => void;
     onError?: (error: Event) => void;
@@ -92,12 +120,16 @@ export interface EventStreamController {
  * `onMessage`. Pass `withCredentials: true` when the backend authenticates via
  * cookies. Call `close()` from the returned controller to tear down.
  *
- * @param url - Full SSE endpoint URL.
+ * When `url` is a function it is called before every connection, so a
+ * reconnect presents a fresh credential instead of the one that expired. A
+ * resolution still pending when `close()` or `reconnect()` runs is discarded.
+ *
+ * @param url - Full SSE endpoint URL, or a function returning it per connection.
  * @param options - Stream configuration and callbacks.
  * @returns A controller exposing `close`, `reconnect` and the current `status`.
  */
 export function createEventStream<T = unknown>(
-    url: string,
+    url: EventStreamUrl,
     options: CreateEventStreamOptions<T> = {},
 ): EventStreamController {
     const {
@@ -114,6 +146,8 @@ export function createEventStream<T = unknown>(
         onParseError,
         schema,
         onValidationError,
+        onUrlError,
+        shouldRetryUrl = () => true,
         onStatusChange,
     } = options;
 
@@ -122,6 +156,7 @@ export function createEventStream<T = unknown>(
     let retries = 0;
     let status: EventStreamStatus = "idle";
     let closed = false;
+    let attempt = 0;
 
     function setStatus(next: EventStreamStatus): void {
         if (status === next) return;
@@ -156,12 +191,43 @@ export function createEventStream<T = unknown>(
         retryTimer = setTimeout(connect, delay);
     }
 
+    function failUrl(error: unknown): void {
+        onUrlError?.(error);
+        if (!shouldRetryUrl(error)) {
+            setStatus("error");
+            return;
+        }
+        setStatus("closed");
+        scheduleReconnect();
+    }
+
     function connect(): void {
         if (closed) return;
-        if (source) source.close();
+        if (source) {
+            source.close();
+            source = null;
+        }
         setStatus("connecting");
+        attempt += 1;
+        if (typeof url === "string") {
+            open(url);
+            return;
+        }
+        const current = attempt;
+        Promise.resolve()
+            .then(url)
+            .then(
+                (resolved) => {
+                    if (!closed && current === attempt) open(resolved);
+                },
+                (error: unknown) => {
+                    if (!closed && current === attempt) failUrl(error);
+                },
+            );
+    }
 
-        const es = new EventSource(url, { withCredentials });
+    function open(target: string): void {
+        const es = new EventSource(target, { withCredentials });
         source = es;
 
         es.onopen = () => {

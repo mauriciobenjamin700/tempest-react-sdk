@@ -57,7 +57,7 @@ Options (everything except `baseURL` is optional):
 - `headers` — default headers merged into every request.
 - `fetcher` — alternative `fetch` implementation (default `globalThis.fetch`) — handy in tests.
 
-Methods: `get`, `post`, `put`, `patch`, `delete`, `blob`, `arrayBuffer`, `upload`, `request`. Each accepts `RequestOptions` (`body`, `params`, and any `RequestInit` field except `body`):
+Methods: `get`, `post`, `put`, `patch`, `delete`, `blob`, `arrayBuffer`, `upload`, `request`, plus `url(path, params?)`, which returns the absolute URL a request to `path` would hit — same `baseURL`, same `prefix` — without sending anything and without credentials, for what does not go through `fetch` (`EventSource`, `<img src>`, a download link). The request methods accept `RequestOptions` (`body`, `params`, and any `RequestInit` field except `body`):
 
 ```ts
 // GET with query params (serialized automatically)

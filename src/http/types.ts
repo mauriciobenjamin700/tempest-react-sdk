@@ -351,4 +351,18 @@ export interface ApiClient {
         method?: "POST" | "PUT" | "PATCH",
         options?: Omit<RequestOptions, "body" | "method">,
     ): Promise<T>;
+    /**
+     * The absolute URL a request to `path` would hit, without sending one.
+     *
+     * For the consumers that cannot go through `fetch` but must land on the
+     * same host: an `EventSource`, an `<img src>`, a download link. Rebuilding
+     * the URL by hand duplicates `baseURL` and `prefix`, and a forgotten prefix
+     * is a silent 404. No credential is attached: the URL is a string, and a
+     * token placed in it would end up in every proxy log.
+     *
+     * @param path - Path joined onto the client's base URL and prefix.
+     * @param params - Query params to append; `undefined` and `null` are skipped.
+     * @returns The absolute URL.
+     */
+    url(path: string, params?: RequestOptions["params"]): string;
 }

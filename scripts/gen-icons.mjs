@@ -10,7 +10,7 @@
 // app installed.
 //
 // Every emitted module goes through prettier with the repo's own config before
-// it is written. That is what lets `.github/workflows/ci.yml` run this script
+// it is written. That is what lets `scripts/check.sh` (`make check`) run this script
 // and fail on a non-empty `git diff`: unformatted output would make the diff
 // non-empty on every run, and the guard would be noise instead of a signal.
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -100,7 +100,7 @@ async function readIconModules() {
  * ~10 KB chunk — small enough that fetching one to draw one icon is not absurd.
  *
  * Override with `--shard-size=N` when experimenting; the default is what the
- * committed output was generated with, and CI regenerates to compare.
+ * committed output was generated with, and `make check` regenerates to compare.
  */
 const DEFAULT_SHARD_SIZE = 40;
 

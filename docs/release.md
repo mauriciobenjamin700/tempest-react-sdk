@@ -108,7 +108,7 @@ O commit escolhido é o **primeiro** da história first-parent da `main` cujo `p
 
 ### `make release TAG=0.1.5 SKIP_VALIDATE=1`
 
-Pula a validação local (`npm ci`, lint, format-check, typecheck, test, build, pack dry-run). Use apenas em emergências — o CI vai validar novamente do zero.
+Pula o `make check` local — o único lugar onde budgets, cobertura, smokes e o e2e da gallery rodam, porque a CI não testa PR. O workflow da tag ainda roda lint, format-check, typecheck, testes, build e os smokes do tarball antes de publicar, mas não o `size-limit` nem o e2e. Use apenas em emergências.
 
 ### `make validate`
 

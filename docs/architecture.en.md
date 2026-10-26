@@ -117,7 +117,7 @@ declared — the caller injects the instance into the factory.
 
 Vite library mode → ESM (`tempest-react-sdk.js`) + CJS (`.cjs`) + rolled-up
 `.d.ts` + `styles.css` (CSS Modules in a single file, `cssCodeSplit: false`).
-Budget monitored by `size-limit` in CI.
+Budget monitored by `size-limit` in `make check`.
 
 ## Recap
 

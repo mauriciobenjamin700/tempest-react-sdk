@@ -111,8 +111,10 @@ The commit it picks is the **first** one in `main`'s first-parent history whose 
 
 ### `make release TAG=0.1.5 SKIP_VALIDATE=1`
 
-Skips local validation (`npm ci`, lint, format-check, typecheck, test, build,
-pack dry-run). Use it only in emergencies — CI will validate again from scratch.
+Skips the local `make check` — the only place where budgets, coverage, smokes and
+the gallery e2e run, because CI does not test pull requests. The tag workflow still
+runs lint, format-check, typecheck, tests, build and the tarball smokes before
+publishing, but not `size-limit` nor the e2e. Use it only in emergencies.
 
 ### `make validate`
 

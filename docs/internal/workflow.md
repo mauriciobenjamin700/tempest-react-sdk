@@ -62,10 +62,19 @@ Screenshots, Outras mudanças, Notas sobre deploy + as três listas finais).
 
 ## CI
 
-Cinco workflows: `ci.yml` (PR: format + lint + typecheck + test + build, node
-22/24), `size-limit.yml`, `e2e.yml` (gallery + axe), `docs.yml` (Pages) e
-`release-npm.yml` (tag `vX.Y.Z` → guard de ref + smoke + publish OIDC + read-back
-do registry + GitHub Release).
+**A CI só publica** (decisão de 26/10/2026). Ficam dois workflows: `docs.yml`
+(Pages) e `release-npm.yml` (tag `vX.Y.Z` → guard de ref + lint/test/build +
+smokes + publish OIDC + read-back do registry + GitHub Release). Saíram
+`ci.yml` (format + lint + typecheck + cobertura + build + smokes, node 22/24),
+`size-limit.yml` e `e2e.yml` (gallery + axe): cada PR esperava 8–12 min por
+checks que nenhuma branch protection exigia.
+
+O que eles rodavam é o `make check` (`scripts/check.sh`), na máquina local — ~6 min
+medido em 26/10/2026, dos quais 169 s são o e2e e 89 s a suíte com cobertura. É o
+gate de merge e o último passo do `make release` antes do push. A matriz de node
+vira `make test-matrix` (suíte no node 22 via `npx`). O `test/ci-policy.test.ts`
+reprova quem tirar um passo do script, desligar a chamada no release ou devolver
+`pull_request` a um workflow.
 
 O smoke do release empacota o tarball **com esbuild** e roda o resultado — que é
 o caminho de todo consumidor — e depois roda as mesmas asserções em Node cru com

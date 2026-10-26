@@ -99,10 +99,11 @@ bump: _require-tag ## Atualiza versão em package.json + package-lock.json (use 
 	@echo "✓ tempest-react-sdk bumped → $(TAG)"
 
 # ---------------------------------------------------------------------------
-# Validação local (mesmos checks que o CI roda)
+# Validação local. A CI só publica (desde 2026-10-26): `make check` é o gate
+# de merge e de release, e `scripts/check.sh` é a lista de passos.
 # ---------------------------------------------------------------------------
 
-.PHONY: validate install clean
+.PHONY: validate check test-matrix install clean
 
 install: ## npm ci (instala deps do lockfile)
 	npm ci
@@ -110,7 +111,16 @@ install: ## npm ci (instala deps do lockfile)
 clean: ## Remove dist/ e coverage/
 	rm -rf dist coverage
 
-validate: ## typecheck + lint + format-check + test + build + pack dry-run
+check: ## Todo gate antes de merge/release: validate + ícones + cobertura + size-limit + gallery + smokes + e2e (~6 min)
+	./scripts/check.sh
+
+# A CI rodava a suíte em node 22 e 24. A máquina local roda o node que tiver
+# (24 no `make check`); este alvo repete a suíte no 22, baixado sob demanda pelo
+# npx, sem trocar o node do sistema.
+test-matrix: ## Suíte no node 22 (o check roda no node local)
+	npx -y -p node@22 node node_modules/vitest/vitest.mjs run
+
+validate: ## typecheck + lint + format-check + test + build + pack dry-run (subconjunto rápido do check)
 	npm ci
 	npm run typecheck
 	npm run lint

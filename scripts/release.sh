@@ -11,7 +11,7 @@
 #
 # Variáveis de ambiente:
 #   DRY_RUN=1         cria branch + commits locais mas pula push e PR
-#   SKIP_VALIDATE=1   pula validação local (lint/typecheck/build/test)
+#   SKIP_VALIDATE=1   pula o make check local (o único gate: a CI não testa)
 #   BASE_BRANCH=main  branch alvo do PR (default: main)
 
 set -euo pipefail
@@ -27,7 +27,7 @@ Uso: $0 <TAG>
 
 Variáveis:
   DRY_RUN=1         cria branch + commits locais mas pula push e PR
-  SKIP_VALIDATE=1   pula validação local (lint/typecheck/build/test)
+  SKIP_VALIDATE=1   pula o make check local (o único gate: a CI não testa)
   BASE_BRANCH=main  branch alvo do PR (default: main)
 EOF
 }
@@ -118,8 +118,19 @@ if ! make releases-md >/dev/null; then
   exit 1
 fi
 git tag -d "$GIT_TAG" >/dev/null
-if ! git diff --quiet -- RELEASES.md 2>/dev/null; then
-  git add RELEASES.md
+
+# Formatado aqui, não pelo hook: num worktree recém-criado o `npm ci` ainda não
+# rodou, os hooks do husky não existem e o lint-staged não formata nada — a
+# tabela sai crua e o `format:check` do `make check` reprova o release (foi o que
+# parou a v0.80.0). Pelo mesmo motivo a contagem de tags do snapshot do
+# CLAUDE.md, que `test/docs-counts.test.ts` confere contra o RELEASES.md, é
+# atualizada no mesmo commit.
+npm ci --no-audit --no-fund >/dev/null
+npx --no-install prettier --write RELEASES.md >/dev/null
+TAG_ROWS=$(grep -cE '^\| v[0-9]' RELEASES.md)
+sed -i -E "s/— [0-9]+ tags publicadas/— $TAG_ROWS tags publicadas/; s/\(0\.1\.0 → [0-9.]+\)/(0.1.0 → $TAG)/" CLAUDE.md
+if ! git diff --quiet -- RELEASES.md CLAUDE.md 2>/dev/null; then
+  git add RELEASES.md CLAUDE.md
   git commit -m "docs: refresh RELEASES.md for $GIT_TAG"
 fi
 
@@ -133,22 +144,16 @@ fi
 # galinha, não defeito do guard.
 #
 # Validar aqui também é mais correto: a árvore aferida é exatamente a que vai
-# para o PR e, depois do merge, para a tag.
+# para o PR e, depois do merge, para a tag. Desde 2026-10-26 é o `make check`
+# inteiro (scripts/check.sh): a CI não roda mais suíte em PR, então este é o
+# último gate antes da tag.
 #
 # Os passos vão encadeados com `&&`, não com `set -e` no subshell: dentro de
 # `if ! ( ... )` o bash ignora o `set -e`, e só o exit do último comando contava.
 # Até a 0.69.0 um teste, lint ou build quebrado passava como validado.
 if [[ "$SKIP_VALIDATE" != "1" ]]; then
-  echo "→ Validando build localmente (RELEASES.md já no lugar)"
-  if ! {
-    npm ci &&
-      npm run typecheck &&
-      npm run lint &&
-      npm run format:check &&
-      npm run test:run &&
-      npm run build &&
-      npm pack --dry-run
-  }; then
+  echo "→ make check (RELEASES.md já no lugar)"
+  if ! { ./scripts/check.sh && npm pack --dry-run; }; then
     echo ""
     echo "ERROR: validação falhou"
     echo "       nada foi empurrado; a branch $RELEASE_BRANCH continua aqui para inspeção"
@@ -207,7 +212,7 @@ Não se aplica — release de SDK (sem mudança de UI).
 2. \`make release-tag TAG=$TAG\` — taggeia o commit do merge na \`$BASE_BRANCH\` e faz o push da tag, que dispara o \`$WORKFLOW_FILE\`.
 
 **Validação local executada**:
-- \`make validate\` (typecheck + lint + format-check + test + build + pack dry-run)
+- \`make check\` (ícones + format + lint + typecheck + cobertura + build + size-limit + gallery + smokes do tarball + e2e) + pack dry-run
 
 **Novas Variáveis de Ambiente**:
 - Nenhuma

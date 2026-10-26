@@ -1,7 +1,6 @@
 # tempest-react-sdk
 
 [![npm version](https://img.shields.io/npm/v/tempest-react-sdk.svg)](https://www.npmjs.com/package/tempest-react-sdk)
-[![CI](https://github.com/mauriciobenjamin700/tempest-react-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/mauriciobenjamin700/tempest-react-sdk/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![React 18 / 19](https://img.shields.io/badge/react-18%20%7C%2019-61dafb.svg?logo=react)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/types-TypeScript-3178c6.svg?logo=typescript)](https://www.typescriptlang.org/)

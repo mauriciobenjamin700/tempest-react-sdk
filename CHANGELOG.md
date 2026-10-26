@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.80.0] — 2026-10-26
+
 ### Breaking
 
 - **`ApiClient` ganha o método obrigatório `url(path, params?)`** (ver Adicionado). Só quebra tipo, e

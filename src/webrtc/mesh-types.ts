@@ -163,6 +163,23 @@ export interface PeerMeshOptions {
     onState?: (state: MeshState, detail?: string) => void;
     /** Called for a failure worth surfacing that is not fatal to the mesh. */
     onNotice?: (reason: string) => void;
+    /**
+     * Decide whether an offer from a peer the mesh has no link to is answered.
+     *
+     * By default the mesh answers any offer that reaches {@link PeerMesh.accept},
+     * opening a link and publishing the local tracks to it — the answering side
+     * usually learns of a peer from its offer, so that is the documented flow.
+     * It also means whether the microphone and camera reach someone rests only
+     * on the signalling server relaying offers to the right people. Pass a gate
+     * — typically "is this user in the room roster I fetched" — to make that
+     * the app's decision too. A refused offer opens nothing, answers nothing and
+     * reports `onNotice("offer_refused")`. Peers added with `addPeer` are not
+     * asked: adding them was the decision.
+     *
+     * @param peerId - The `from` of the offer.
+     * @returns `true` to answer it.
+     */
+    acceptPeer?: (peerId: string) => boolean;
     /** Initial encoder limits. */
     quality?: MeshQuality;
     /** Measure every link, on one timer the mesh owns. See {@link MeshStatsOptions}. */

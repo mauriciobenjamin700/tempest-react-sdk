@@ -42,6 +42,7 @@ interface SwGlobal {
         }) => void,
     ): void;
     skipWaiting(): Promise<void>;
+    location?: { origin: string };
 }
 
 function getSwScope(): SwGlobal {
@@ -93,7 +94,14 @@ export interface PushPayload {
     dir?: NotificationDirection;
     /** BCP 47 language tag of the title and body. */
     lang?: string;
-    /** Arbitrary extra data forwarded to `event.notification.data`. */
+    /**
+     * Arbitrary extra data forwarded to `event.notification.data`.
+     *
+     * Its `url` and `actionUrls` keys are overwritten by the top-level `url` and
+     * the actions' `url`s: those two keys decide where a click goes, and a
+     * free-form bag — often filled from the record that triggered the push — must
+     * not be able to redirect it.
+     */
     data?: Record<string, unknown>;
 }
 
@@ -134,6 +142,11 @@ const FORWARDED_OPTIONS = [
  * `data.actionUrls` (only when at least one action carries one) and stripped
  * from the actions handed to the browser.
  *
+ * `payload.data` is spread **first**, so its own `url` or `actionUrls` can never
+ * replace the destinations the payload declares: until 0.81.0 it was spread last,
+ * and `{ url: "/orders/9", data: { url: "https://elsewhere" } }` opened
+ * `https://elsewhere` on click.
+ *
  * @param payload - The parsed (and transformed) push payload.
  * @param defaultIcon - Icon used when the payload omits one.
  * @param defaultBadge - Badge used when the payload omits one.
@@ -152,7 +165,8 @@ function buildNotificationOptions(
         if (payload[key] !== undefined) options[key] = payload[key];
     }
 
-    const data: Record<string, unknown> = { url: payload.url ?? "/", ...(payload.data ?? {}) };
+    const data: Record<string, unknown> = { ...(payload.data ?? {}), url: payload.url ?? "/" };
+    delete data.actionUrls;
     if (payload.actions) {
         const actionUrls: Record<string, string> = {};
         options.actions = payload.actions.map(({ url, ...action }) => {
@@ -186,8 +200,9 @@ export interface InstallPushHandlerOptions {
  * Every `NotificationOptions` member the payload carries is forwarded —
  * `actions`, `requireInteraction`, `vibrate`, `silent`, `renotify`,
  * `timestamp`, `dir` and `lang` alongside `body`, `icon`, `badge`, `image` and
- * `tag`. `data` receives the top-level `url` (default `"/"`), the payload's
- * own `data`, and `actionUrls` mapping each action id to its `url`.
+ * `tag`. `data` receives the payload's own `data`, then the top-level `url`
+ * (default `"/"`) and `actionUrls` mapping each action id to its `url` — in that
+ * order, so `payload.data` cannot override where a click goes.
  */
 export function installPushHandler(options: InstallPushHandlerOptions = {}): void {
     const sw = getSwScope();
@@ -218,6 +233,12 @@ export interface InstallNotificationClickHandlerOptions {
      * Resolve the destination URL from the notification data and the clicked
      * action id (`""` or `undefined` for a click on the body). Default: the
      * action's entry in `data.actionUrls`, else `data.url`, else `"/"`.
+     *
+     * The default only ever opens a page of the worker's **own origin**: a URL on
+     * another origin, or with a scheme other than `http:`/`https:`, becomes `"/"`.
+     * A resolver of your own is how an app opts into another origin — what it
+     * returns may point anywhere `http:`/`https:`, and any other scheme still
+     * becomes `"/"`.
      */
     resolveUrl?: (data: unknown, action: string | undefined) => string;
 }
@@ -238,6 +259,43 @@ function defaultResolveUrl(data: unknown, action: string | undefined): string {
         if (typeof actionUrl === "string") return actionUrl;
     }
     return typeof record.url === "string" ? record.url : "/";
+}
+
+/**
+ * The URL a click may open, given the worker's origin.
+ *
+ * The push payload is written by the app's server, but its `url` is often
+ * copied from the record that triggered the push — a chat message, a ticket —
+ * and `openWindow` opens it with the app's notification as the only context the
+ * user sees. So the default resolver keeps to the worker's own origin, the same
+ * line `safeLinkUrl` draws for rendered links, and a custom resolver is the
+ * explicit opt-in to leave it. Neither may open a non-`http(s)` scheme.
+ *
+ * The URL comes back as given, not resolved, so a relative path stays relative —
+ * `openWindow` resolves it against the worker's location exactly like this check
+ * did.
+ *
+ * @param target - What the resolver returned.
+ * @param origin - The worker's origin; `undefined` outside a worker, where
+ *   nothing can be judged and only `"/"` is opened.
+ * @param sameOriginOnly - Whether another origin is refused too.
+ * @returns `target` when it may be opened, `"/"` otherwise.
+ */
+function allowedTarget(
+    target: string,
+    origin: string | undefined,
+    sameOriginOnly: boolean,
+): string {
+    if (origin === undefined) return "/";
+    let url: URL;
+    try {
+        url = new URL(target, origin);
+    } catch {
+        return "/";
+    }
+    if (url.protocol !== "http:" && url.protocol !== "https:") return "/";
+    if (sameOriginOnly && url.origin !== origin) return "/";
+    return target;
 }
 
 /**
@@ -266,17 +324,24 @@ function clientShowsTarget(clientUrl: string, target: string): boolean {
  *
  * A click on an action button opens that action's URL (see
  * {@link PushNotificationAction.url}); a click on the body, or on an action
- * without one, opens the top-level `url`.
+ * without one, opens the top-level `url`. Only a same-origin `http(s)` URL is
+ * opened by default; see {@link InstallNotificationClickHandlerOptions.resolveUrl}
+ * for opting into another origin.
  */
 export function installNotificationClickHandler(
     options: InstallNotificationClickHandlerOptions = {},
 ): void {
     const sw = getSwScope();
     const resolveUrl = options.resolveUrl ?? defaultResolveUrl;
+    const sameOriginOnly = options.resolveUrl === undefined;
 
     sw.addEventListener("notificationclick", (event) => {
         event.notification.close();
-        const target = resolveUrl(event.notification.data, event.action);
+        const target = allowedTarget(
+            resolveUrl(event.notification.data, event.action),
+            sw.location?.origin,
+            sameOriginOnly,
+        );
 
         event.waitUntil(
             (async () => {

@@ -10,12 +10,18 @@ import { useAnchorPosition } from "@/components/Portal/anchor-position";
 import { useEscapeLayer } from "@/components/Portal/escape-layer";
 import { usePortalTabOrder } from "@/components/Portal/tab-bridge";
 import { cn } from "@/utils/cn";
+import { vettedHref } from "@/utils/safe-url";
 import styles from "./NavigationMenu.module.css";
 
 export interface NavigationMenuItem {
     /** Visible label for the entry. */
     label: ReactNode;
-    /** When set, the entry renders as an anchor. */
+    /**
+     * When set, the entry renders as an anchor. The URL is checked against
+     * `safeLinkUrl`'s allowlist: a scheme outside `http:`/`https:`/`mailto:`/`tel:`/`sms:`
+     * renders the entry as a button instead, so a menu built from API data cannot
+     * put a clickable `javascript:` link on the page under React 18.
+     */
     href?: string;
     /** Invoked when the entry is activated (click / Enter). */
     onSelect?: () => void;
@@ -118,10 +124,11 @@ export function NavigationMenu({ items, portal = true, className, ...props }: Na
             item.onSelect?.();
             close();
         };
-        if (item.href) {
+        const href = vettedHref(item.href);
+        if (href) {
             return (
                 <a
-                    href={item.href}
+                    href={href}
                     role={role === "menuitem" ? "menuitem" : undefined}
                     className={styles.link}
                     onClick={handleClick}

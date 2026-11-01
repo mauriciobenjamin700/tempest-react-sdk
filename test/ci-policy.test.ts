@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -39,6 +40,81 @@ describe("CI only publishes", () => {
 
     it.each(["docs.yml", "release-npm.yml"])("%s does not run on pull requests", (file) => {
         expect(code(read(".github", "workflows", file))).not.toMatch(/pull_request/);
+    });
+});
+
+/**
+ * Measured on `b054c16` (#532): `docs.yml` granted `pages: write` and
+ * `id-token: write` at workflow level, so they reached the build job that runs an
+ * unpinned `pip install` and every mkdocs plugin; it pinned five actions by
+ * mutable major tags and left `persist-credentials` at its default. These rules
+ * now hold for every workflow, not only for `release-npm.yml`.
+ */
+describe("every workflow runs least privilege on pinned code (#532)", () => {
+    const WORKFLOWS = ["docs.yml", "release-npm.yml"];
+
+    it.each(WORKFLOWS)("%s starts from no permissions at workflow level", (file) => {
+        expect(code(read(".github", "workflows", file))).toMatch(/^permissions: \{\}$/m);
+    });
+
+    it.each(WORKFLOWS)("%s pins every action by commit SHA, labelled with its tag", (file) => {
+        const uses = [...read(".github", "workflows", file).matchAll(/uses: (.+)/g)].map(
+            (m) => m[1],
+        );
+        expect(uses.length).toBeGreaterThan(0);
+        for (const ref of uses) {
+            expect(ref).toMatch(/^[\w.-]+\/[\w.-]+@[0-9a-f]{40} # v\d+\.\d+\.\d+$/);
+        }
+    });
+
+    it.each(WORKFLOWS)("%s never leaves the token in .git/config after a checkout", (file) => {
+        const checkouts = code(read(".github", "workflows", file))
+            .split("uses: actions/checkout@")
+            .slice(1);
+        expect(checkouts.length).toBeGreaterThan(0);
+        for (const step of checkouts) {
+            expect(step.split(/\n {12}- /)[0]).toMatch(/persist-credentials: false/);
+        }
+    });
+
+    it("gives docs.yml's build job read access only, and Pages and OIDC to deploy alone", () => {
+        const docs = code(read(".github", "workflows", "docs.yml"));
+        const build = docs.slice(docs.indexOf("\n    build:"), docs.indexOf("\n    deploy:"));
+        const deploy = docs.slice(docs.indexOf("\n    deploy:"));
+        expect(build).toMatch(/permissions:\n {12}contents: read\n {8}steps:/);
+        expect(build).not.toMatch(/id-token|pages: write/);
+        expect(deploy).toMatch(/permissions:\n {12}pages: write\n {12}id-token: write\n/);
+        expect(deploy).not.toMatch(/run:/);
+    });
+
+    it("installs the docs toolchain only from hash-pinned requirements", () => {
+        expect(code(read(".github", "workflows", "docs.yml"))).toMatch(
+            /run: pip install --require-hashes -r docs\/requirements\.txt/,
+        );
+        const requirements = code(read("docs", "requirements.txt"))
+            .split("\n")
+            .filter((line) => /^[A-Za-z]/.test(line));
+        expect(requirements.length).toBeGreaterThan(0);
+        for (const line of requirements) expect(line).toMatch(/^[\w.-]+==[\w.]+ \\$/);
+        expect(requirements.map((line) => line.split("==")[0])).toEqual(
+            expect.arrayContaining(["mkdocs-material", "mkdocs-static-i18n"]),
+        );
+    });
+});
+
+describe("nothing publishes outside release-npm.yml (#532)", () => {
+    it("makes make publish refuse, with no npm publish behind it", () => {
+        const makefile = read("Makefile");
+        const target = makefile.slice(makefile.indexOf("\npublish:"));
+        const recipe = target.split("\n\n")[0] ?? "";
+        expect(recipe).not.toMatch(/npm publish(?! --dry-run)/);
+        expect(recipe).toMatch(/\n\t@exit 1$/);
+        const run = spawnSync("make", ["--no-print-directory", "publish"], {
+            cwd: ROOT,
+            encoding: "utf8",
+        });
+        expect(run.status).not.toBe(0);
+        expect(run.stdout).toContain("make release-tag TAG=X.Y.Z");
     });
 });
 

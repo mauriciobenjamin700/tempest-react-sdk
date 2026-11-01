@@ -12,7 +12,14 @@ class FakeCache {
     async match(req: Request | string): Promise<Response | undefined> {
         return this.store.get(this.key(req));
     }
+    /**
+     * Rejects a response whose `Vary` lists `*`, as the Cache API does (Service
+     * Workers spec, `Cache.put`: a `Vary` header whose value contains `*` makes
+     * it return a promise rejected with a `TypeError`).
+     */
     async put(req: Request | string, res: Response): Promise<void> {
+        const vary = (res.headers.get("vary") ?? "").split(",").map((name) => name.trim());
+        if (vary.includes("*")) throw new TypeError("Vary header contains *");
         this.store.set(this.key(req), res);
     }
     async addAll(urls: string[]): Promise<void> {
@@ -754,12 +761,19 @@ describe("installRuntimeCache — review findings", () => {
         expect(await dispatchFetch(keyed)).toBe("passthrough");
     });
 
-    it("4: still caches a plain same-origin GET, whatever its credentials mode", async () => {
+    it("4: still caches an <img>/<audio> GET, whose no-cors request carries credentials: include", async () => {
         fetchMock.mockResolvedValue(new Response("img"));
         installRuntimeCache([{ match: /\/img\//, strategy: "cache-first", cacheName: "img" }]);
         const res = await dispatchFetch(
-            new Request("https://app.test/img/a.png", { credentials: "include" }),
+            new Request("https://app.test/img/a.png", { credentials: "include", mode: "no-cors" }),
         );
+        expect(res).not.toBe("passthrough");
+    });
+
+    it("4: still caches a plain same-origin fetch, whose credentials mode is same-origin", async () => {
+        fetchMock.mockResolvedValue(new Response("[]"));
+        installRuntimeCache([{ match: /\/api\//, strategy: "network-first", cacheName: "api" }]);
+        const res = await dispatchFetch(new Request("https://app.test/api/catalog"));
         expect(res).not.toBe("passthrough");
     });
 
@@ -804,5 +818,62 @@ describe("installRuntimeCache — review findings", () => {
         expect(
             await (await cacheStorage.open("swr4")).store.get("https://app.test/swr4/a")?.text(),
         ).toBe("fresh");
+    });
+});
+
+describe("installRuntimeCache — session-bound requests (#531, #534)", () => {
+    it("leaves a CORS request sent with credentials: include to the network — what ApiClient withCredentials sends", async () => {
+        installRuntimeCache([{ match: /\/api\//, strategy: "network-first", cacheName: "api" }]);
+        const cookieRequest = new Request("https://app.test/api/me", {
+            credentials: "include",
+            mode: "cors",
+        });
+
+        expect(await dispatchFetch(cookieRequest)).toBe("passthrough");
+    });
+
+    it("caches a credentials: include request again when the route opts in with cacheAuthenticated", async () => {
+        fetchMock.mockResolvedValue(new Response("me"));
+        installRuntimeCache([
+            {
+                match: /\/api\//,
+                strategy: "network-first",
+                cacheName: "api",
+                cacheAuthenticated: true,
+            },
+        ]);
+        const res = await dispatchFetch(
+            new Request("https://app.test/api/me", { credentials: "include", mode: "cors" }),
+        );
+
+        expect(await (res as Response).text()).toBe("me");
+        expect((await (await cacheStorage.open("api")).keys()).length).toBe(1);
+    });
+
+    it.each(["network-first", "cache-first", "stale-while-revalidate"] as const)(
+        "%s serves a Vary: * response instead of failing on the Cache API rejecting it",
+        async (strategy) => {
+            fetchMock.mockResolvedValue(new Response("live", { headers: { vary: "*" } }));
+            installRuntimeCache([{ match: /\/v\//, strategy, cacheName: "v" }]);
+
+            const res = await dispatchFetch(new Request("https://app.test/v/a"));
+
+            expect(await (res as Response).text()).toBe("live");
+            expect((await (await cacheStorage.open("v")).keys()).length).toBe(0);
+        },
+    );
+
+    it("does not store a Vary: * response under cacheAuthenticated either", async () => {
+        fetchMock.mockResolvedValue(new Response("live", { headers: { vary: "Accept, *" } }));
+        installRuntimeCache([
+            { match: /\/v\//, strategy: "cache-first", cacheName: "v", cacheAuthenticated: true },
+        ]);
+
+        const res = await dispatchFetch(
+            new Request("https://app.test/v/a", { headers: { Authorization: "Bearer A" } }),
+        );
+
+        expect(await (res as Response).text()).toBe("live");
+        expect((await (await cacheStorage.open("v")).keys()).length).toBe(0);
     });
 });

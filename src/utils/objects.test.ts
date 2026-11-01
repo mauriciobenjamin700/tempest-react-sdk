@@ -137,3 +137,38 @@ describe("deepMerge — non-record operands", () => {
         expect(deepMerge({ tags: ["a", "b"] }, { tags: ["c"] })).toEqual({ tags: ["c"] });
     });
 });
+
+describe("deepMerge — prototype keys", () => {
+    it("never lets a parsed __proto__ key replace the result's prototype", () => {
+        const source = JSON.parse('{"__proto__": {"isAdmin": true}, "name": "Ana"}') as Record<
+            string,
+            unknown
+        >;
+        const result = deepMerge<Record<string, unknown>>({ role: "user" }, source);
+        expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
+        expect(result.isAdmin).toBeUndefined();
+        expect(result).toEqual({ role: "user", name: "Ana" });
+    });
+
+    it("skips __proto__ in nested records too", () => {
+        const source = JSON.parse('{"nested": {"__proto__": {"x": 1}, "y": 2}}') as Record<
+            string,
+            unknown
+        >;
+        const result = deepMerge<Record<string, unknown>>({ nested: { z: 3 } }, source);
+        const nested = result.nested as Record<string, unknown>;
+        expect(Object.getPrototypeOf(nested)).toBe(Object.prototype);
+        expect(nested.x).toBeUndefined();
+        expect(nested).toEqual({ z: 3, y: 2 });
+    });
+
+    it("skips constructor and prototype keys", () => {
+        const source = JSON.parse('{"constructor": {"a": 1}, "prototype": {"b": 2}}') as Record<
+            string,
+            unknown
+        >;
+        const result = deepMerge<Record<string, unknown>>({}, source);
+        expect(Object.keys(result)).toEqual([]);
+        expect(result.constructor).toBe(Object);
+    });
+});

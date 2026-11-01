@@ -131,6 +131,9 @@ export function PostActions({ postId }: { postId: string }) {
 !!! note "`reason` explains the `false`"
     When `allowed` is `false`, `reason` usually carries why (`"missing permission"` from `createRoleAccessControl`, or the error message from an async policy that rejected). Useful for a tooltip ("You don't have permission to X") instead of just hiding.
 
+!!! check "Switching resources does not reuse the previous answer"
+    The answer is stored with the `control` and the params it answers, and is only returned while both match. Until 0.81.0, in the render between a params change and the effect that re-runs the check, `useCan` returned the previous resource's `allowed` with `isLoading: false` — and `<Can>` showed the new resource's children for one frame. Now the first render with new params reads `{ allowed: false, isLoading: true }`.
+
 ## `<Can>` — conditional render
 
 `<Can action resource fallback>` renders `children` when the action is allowed, otherwise the `fallback` (or nothing):

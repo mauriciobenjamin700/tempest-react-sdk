@@ -83,8 +83,9 @@ export interface RuntimeRoute {
      */
     rangeRequests?: boolean;
     /**
-     * Opt in to caching requests that carry a credential header (see
-     * `credentialHeaders`), and responses marked `Cache-Control: private`.
+     * Opt in to caching credentialed requests — those that carry a credential
+     * header (see `credentialHeaders`) or are a CORS-mode `fetch` sent with
+     * `credentials: "include"` — and responses marked `Cache-Control: private`.
      * Default `false`.
      *
      * Cache Storage is keyed by URL and outlives the session: without this
@@ -101,11 +102,18 @@ export interface RuntimeRoute {
      * `clearSessionData()` on logout, which removes the entries themselves.
      * `Cache-Control: no-store` is never cached, opt-in or not.
      *
-     * A cookie session is invisible here: the worker cannot see `Cookie`, and
-     * gating on `request.credentials` would switch off caching for every
-     * same-origin image and font. A cookie-authenticated API stays private only
+     * A cookie session is only partly visible here: the worker cannot see
+     * `Cookie`. What it can see is a `fetch` that asked for cookies explicitly —
+     * `mode: "cors"` with `credentials: "include"`, which is what `ApiClient`
+     * sends under `withCredentials` — and since 0.82.0 that request is treated
+     * as credentialed too (#531). `<img>`, `<audio>` and `<video>` also send
+     * `credentials: "include"`, but in `no-cors` mode, so they keep caching. A
+     * plain same-origin `fetch` (`credentials: "same-origin"`, the default)
+     * carries the cookie without saying so; such an API stays private only
      * through `Cache-Control: private`/`no-store` on its responses and
-     * `clearSessionData()` on logout.
+     * `clearSessionData()` on logout. Opting a cookie request in caches it by
+     * URL — there is no credential header to vary on — so `clearSessionData()`
+     * is then its only isolation.
      */
     cacheAuthenticated?: boolean;
     /**
@@ -175,15 +183,43 @@ function cacheControlDirectives(response: Response): string[] {
         .map((directive) => directive.trim().split("=")[0]);
 }
 
+/** The comma-separated names of a response's `Vary` header, trimmed and lower-cased. */
+function varyNames(vary: string | null): string[] {
+    return (vary ?? "")
+        .toLowerCase()
+        .split(",")
+        .map((name) => name.trim());
+}
+
 /**
  * Whether a network response may be written to the route's cache: it must be
- * `ok`, never `no-store`, and `private` only under `cacheAuthenticated`.
+ * `ok`, never `no-store`, never `Vary: *`, and `private` only under
+ * `cacheAuthenticated`.
+ *
+ * `Vary: *` says no later request can be proven to match, and `Cache.put`
+ * rejects it with a `TypeError`. Before 0.82.0 that rejection escaped the
+ * strategy, so a response the network had delivered became the offline
+ * fallback path (network-first), an error (cache-first) or nothing at all
+ * (stale-while-revalidate) (#534).
  */
 function isStorable(response: Response, route: RuntimeRoute): boolean {
     if (!response.ok) return false;
+    if (varyNames(response.headers.get("vary")).includes("*")) return false;
     const directives = cacheControlDirectives(response);
     if (directives.includes("no-store")) return false;
     return route.cacheAuthenticated === true || !directives.includes("private");
+}
+
+/**
+ * Whether a request is session-bound for its route: it carries a credential
+ * header, or it is a CORS `fetch` that asked for cookies with
+ * `credentials: "include"` (`ApiClient` under `withCredentials`). A `no-cors`
+ * request — `<img>`, `<audio>`, `<video>` — also sends `include` by default and
+ * is not counted, or every image would bypass the cache.
+ */
+function isCredentialed(request: Request, route: RuntimeRoute): boolean {
+    if (request.mode === "cors" && request.credentials === "include") return true;
+    return credentialsOn(request, route).length > 0;
 }
 
 /** The credential headers, lower-cased, that a request carries for its route. */
@@ -211,12 +247,9 @@ async function store(
     headers.set(CACHED_AT_HEADER, String(Date.now()));
     if (route.cacheAuthenticated) {
         const vary = headers.get("vary");
-        const varies = (vary ?? "")
-            .toLowerCase()
-            .split(",")
-            .map((name) => name.trim());
+        const varies = varyNames(vary);
         const missing = credentialsOn(request, route).filter((name) => !varies.includes(name));
-        if (missing.length > 0 && !varies.includes("*")) {
+        if (missing.length > 0) {
             headers.set("vary", [vary, ...missing].filter(Boolean).join(", "));
         }
     }
@@ -399,9 +432,10 @@ export async function createPartialResponse(
  * `respondWith`), so a later {@link installPrecache} can handle them.
  *
  * A request carrying a credential header (`Authorization`, `X-Api-Key`, … — the
- * route's `credentialHeaders`) is also left untouched unless its route sets
+ * route's `credentialHeaders`), or a CORS `fetch` sent with
+ * `credentials: "include"`, is also left untouched unless its route sets
  * `cacheAuthenticated`, and a response with `Cache-Control: no-store`
- * (or `private`, without that opt-in) is served but never stored. `maxAgeSeconds`
+ * (or `private`, without that opt-in) or `Vary: *` is served but never stored. `maxAgeSeconds`
  * applies to every read, including the offline fallback: an expired entry is a
  * miss, never a last resort. Under `rangeRequests`, the full resource is cached
  * once (the `Range` header stripped) and each range is sliced from it.
@@ -420,7 +454,7 @@ export function installRuntimeCache(routes: RuntimeRoute[]): void {
         const url = new URL(request.url);
         const route = routes.find((candidate) => routeMatches(candidate, url, request));
         if (!route) return;
-        if (!route.cacheAuthenticated && credentialsOn(request, route).length > 0) return;
+        if (!route.cacheAuthenticated && isCredentialed(request, route)) return;
         const extend = (promise: Promise<unknown>): void => event.waitUntil(promise);
 
         if (route.rangeRequests && request.headers.has("range")) {

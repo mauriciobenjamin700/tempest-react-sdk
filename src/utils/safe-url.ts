@@ -127,3 +127,23 @@ export function safeAttachmentUrl(raw: string): string | null {
     const scheme = schemeOf(url);
     return scheme === null || RESOURCE_SCHEMES.has(scheme) ? raw : null;
 }
+
+/**
+ * The `href` a component renders from a navigation prop, or `undefined`.
+ *
+ * {@link safeLinkUrl}'s allowlist, but the URL comes back **as given**, like
+ * {@link safeAttachmentUrl}: an app route such as `/arquivos/relatório final` must
+ * keep its space, and the normalization only removes characters the browser's
+ * parser also strips, so it cannot hide a scheme. `Button`, `Breadcrumbs`,
+ * `NavigationMenu`, `Sidebar`, `AuthForm` and `AuthPage` call it so a menu or a
+ * call to action built from API data never puts a clickable `javascript:` link
+ * on the page — React 19 blocks one, React 18 (inside the peer range) does not.
+ *
+ * @internal
+ * @param raw - The prop as the app passed it.
+ * @returns `raw` when it is safe to link, `undefined` when it is absent or not.
+ */
+export function vettedHref(raw: string | undefined): string | undefined {
+    if (raw === undefined || safeLinkUrl(raw) === null) return undefined;
+    return raw;
+}

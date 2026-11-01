@@ -469,6 +469,20 @@ it in `onSubmit`, where it also decides what an expired token looks like. `hints
 becomes a list above the button — the copy is yours, because only the backend
 knows its rules.
 
+## Link destinations
+
+The presets' `links` (`forgotPassword`, `signUp`, `signIn`) and `AuthPage`'s `back` go to react-router's `Link`, which writes the string to `href`. Both pass through `safeLinkUrl`'s list first (`http:`, `https:`, `mailto:`, `tel:`, `sms:` and relative URLs):
+
+| What arrived | What renders |
+| --- | --- |
+| `"/cadastro"`, `"https://account.example.com"` | the link, as before |
+| `"javascript:..."` in a form link | nothing — as if the route was never passed |
+| `"javascript:..."` in `back` with `onClick` | the button, with only the `onClick` |
+| `"javascript:..."` in `back` without `onClick` | nothing — a back button that does nothing is worse than none |
+
+!!! info "Why the library filters instead of asking for care"
+    Measured: on React 19 a `javascript:` `href` is swapped for a throwing stub; on React 18 — inside the peer range — it reaches the DOM as given. It is only exploitable if the app forwards untrusted data (a tenant's config, a query string) to these props, but the right answer is always the same, so it lives in the component.
+
 ## Migrating a hand-built screen
 
 The pattern these components replace, as it shows up in the apps:

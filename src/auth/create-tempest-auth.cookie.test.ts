@@ -501,12 +501,43 @@ describe("createTempestAuth — logoutPath", () => {
         const auth = createTempestAuth<User>({
             baseURL: "https://api.example.test",
             logoutPath: "/api/auth/logout",
+            withCredentials: true,
             fetcher,
         });
         await auth.login({ email: "a@x.test", password: "x" });
         await auth.login({ email: "b@x.test", password: "x" });
 
         expect(calls.filter((call) => call.path === "/api/auth/logout")).toHaveLength(0);
+    });
+
+    /**
+     * Inverted on purpose. This used to assert that a switch sends no
+     * revocation in body mode too, which left the replaced account's refresh
+     * token redeemable on the server until it expired (run-7 hardening note).
+     * In body mode the token is still in the client's hands at the switch, and
+     * the tempest-fastapi-sdk revokes by rotation family, so revoking it cannot
+     * touch the session the new login just opened — even for the same user.
+     */
+    it("revokes the replaced session's refresh token on an account switch in body mode", async () => {
+        const { fetcher, calls } = cookieBackend();
+        const auth = createTempestAuth<User>({
+            baseURL: "https://api.example.test",
+            logoutPath: "/api/auth/logout",
+            fetcher,
+        });
+        await auth.login({ email: "a@x.test", password: "x" });
+        await auth.login({ email: "b@x.test", password: "x" });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(calls.filter((call) => call.path === "/api/auth/logout")).toEqual([
+            {
+                path: "/api/auth/logout",
+                method: "POST",
+                bearer: "A-tok-1",
+                body: { refresh_token: "A-ref-1" },
+            },
+        ]);
+        expect(auth.getToken()).toBe("B-tok-1");
     });
 });
 

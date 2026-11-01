@@ -1,7 +1,7 @@
 # Release pipeline
 
 How `tempest-react-sdk` is published to npm — an automatic tag-push workflow,
-with a manual fallback.
+and nothing else.
 
 ## Overview
 
@@ -66,7 +66,7 @@ Release. The workflow fails when the tag does not describe the `package.json`
 version, and fails when the registry is not serving that version under its dist-tag — so
 "green workflow" really does mean "published and visible".
 
-A `vX.Y.Z` tag is the **only** thing that publishes — a manual dispatch runs on the tag too, never on a branch. Merging the release PR publishes nothing by itself: it brings the bump to `main`, and **only then** is the tag cut on the merge commit (`make release-tag`). The workflow's guard refuses a tag on a commit that is not on `main` (#472), so nothing that skipped the PR review reaches npm.
+A `vX.Y.Z` tag is the **only** thing that publishes — a manual dispatch runs on the tag too, never on a branch. Merging the release PR publishes nothing by itself: it brings the bump to `main`, and **only then** is the tag cut on the merge commit (`make release-tag`). The workflow's guard refuses a tag on a commit that is not on `main` (#472). That becomes "nothing unreviewed reaches npm" only once the repository and npm settings are on — see the [owner checklist](#repository-owner-checklist).
 
 ## Commands
 
@@ -123,21 +123,9 @@ block.
 
 ### `make publish`
 
-The manual fallback. Requires `NPM_TOKEN` in `~/.npmrc` (a token with 2FA bypass)
-or an interactive `npm login`. **It does not trigger the workflow** — it's a
-direct publish.
+**Refuses and exits 1** (#532). Up to 0.81.0 it was a fallback that ran `npm publish --access public` from your machine with a long-lived npm token in `~/.npmrc` — skipping everything `release-npm.yml` guarantees: the tag guard, the check against `main`, the tarball smokes, provenance and the GitHub Release. Publishing goes through the workflow only: `make release`, merge the PR, `make release-tag`. When a run fails, the recovery is re-running it (see step 9 below), not publishing around it.
 
-```bash
-npm config set //registry.npmjs.org/:_authToken=npm_xxx... --location=user
-npm run build
-make publish
-```
-
-Without a 2FA-bypass token, npm requires an OTP:
-
-```bash
-npm publish --access public --otp=123456
-```
+`make publish-dry` stays: it runs `npm publish --dry-run` and publishes nothing.
 
 ### `make releases`
 
@@ -195,16 +183,16 @@ Steps, in order:
 
 1. **Checkout** (`actions/checkout`, pinned by SHA like every action in the workflow) with `fetch-depth: 0` and `persist-credentials: false` — the `GITHUB_TOKEN` is not left in `.git/config` for later steps.
 2. **Node 22** + npm cache.
-3. **Ref guard** (`scripts/check-release-ref.sh`) — **aborts**, before anything is installed, when the run's ref is not a `vX.Y.Z` (or `vX.Y.Z-pre`) tag, when the tag does not describe `package.json`'s `version`, when it does not point at the checked-out commit (`GITHUB_SHA`), or when that commit **is not on `main`** (not an ancestor of `origin/main`, #472) — the `fetch-depth: 0` checkout is what brings `origin/main`, and without it the guard fails closed. It applies to tag pushes and to `workflow_dispatch` alike. It also derives `prerelease` (a version containing `-`) so the Release is marked correctly, and picks the dist-tag by comparing the version with the registry's current `latest`, which the step before reads with `scripts/release-dist-tag.sh current-latest` (see [Dist-tags](#dist-tags)).
+3. **Ref guard** (`scripts/check-release-ref.sh`, the copy on `origin/main` — see [Who decides who publishes](#who-decides-who-publishes)) — **aborts**, before anything is installed, when the run's ref is not a `vX.Y.Z` (or `vX.Y.Z-pre`) tag, when the tag does not describe `package.json`'s `version`, when it does not point at the checked-out commit (`GITHUB_SHA`), or when that commit **is not on `main`** (not an ancestor of `origin/main`, #472) — the `fetch-depth: 0` checkout is what brings `origin/main`, and without it the guard fails closed. It applies to tag pushes and to `workflow_dispatch` alike. It also derives `prerelease` (a version containing `-`) so the Release is marked correctly, and picks the dist-tag by comparing the version with the registry's current `latest`, which the step before reads with `scripts/release-dist-tag.sh current-latest` (see [Dist-tags](#dist-tags)).
 4. **`npm ci`**, **lint**, **format check**, **typecheck**, **tests** and **build**.
 5. **`npm pack`** — the tarball is uploaded as an `npm-tarball-<attempt>` artifact (one name per `run_attempt`, so a full re-run does not collide with the first attempt's artifact) and its SHA-256 becomes a job output. A later job cannot rewrite a job output, so every job that downloads the artifact checks the digest before using it (`sha256sum --check`). The artifact carries **the tarball alone**: the `build` workspace has already run `npm ci`, the tests and the build, so any file in it may have been rewritten by dependency code — a digest taken after that would only vouch for the rewrite. The `publish` and `release` jobs run `scripts/` from their own checkout of `GITHUB_SHA` (`persist-credentials: false`; in `publish`, a sparse checkout of `scripts/release-dist-tag.sh` alone, with no install after it) and download the artifact into `$RUNNER_TEMP/npm-tarball`, outside the checkout, so it cannot overwrite anything.
 6. **Smoke** (`smoke` job) — installs the tarball in `/tmp/sdk-smoke` with `react@^19 react-dom@^19 react-router@^8` and bundles it with esbuild, runs the same assertions in bare Node with the published `node-css-loader`, and runs a consumer Vitest suite (`scripts/smoke-vitest.sh`). Those installs resolve floating versions from the registry — which is why they live in a job with no write permission at all.
-7. **`npm publish "./<tarball>" --provenance --access public`** (`publish` job) via **Trusted Publishing (OIDC)** — no `NPM_TOKEN`. It publishes **the file** `build` packed and `smoke` tested: a directory publish would re-run `prepublishOnly` (typecheck + lint + the whole suite + build) inside the `id-token` job and ship a fresh pack instead of the tested one; a tarball publish runs no lifecycle script at all. The `--tag` is picked again **right before** the upload, re-reading the registry's `latest` with the same script the guard ran — `build` read it minutes earlier, and another release may have moved it (see [Dist-tags](#dist-tags)). The npm CLI is installed at an exact version (`npm install -g npm@12.2.0`), not `@latest`.
+7. **`npm publish "./<tarball>" --provenance --access public`** (`publish` job) via **Trusted Publishing (OIDC)** — no `NPM_TOKEN`. It publishes **the file** `build` packed and `smoke` tested: a directory publish would re-run `prepublishOnly` (typecheck + lint + the whole suite + build) inside the `id-token` job and ship a fresh pack instead of the tested one; a tarball publish runs no lifecycle script at all. The `--tag` is picked again **right before** the upload, re-reading the registry's `latest` with the same script the guard ran — `build` read it minutes earlier, and another release may have moved it (see [Dist-tags](#dist-tags)). The npm CLI is exactly 12.2.0, not `@latest`: its tarball is downloaded by URL, checked against the `sha512` pinned in the workflow, and only then installed with `npm install -g --offline` (#532).
 8. **Registry read-back** — confirms npm serves `tempest-react-sdk@<version>` (up to 30 minutes, since the registry processes the upload asynchronously) **and** that its dist-tag (`latest`, `next` or `release-<major>.<minor>`) points at it — with the same 30-minute window, because the dist-tag lags as much as the version. Fails the job otherwise: a publish that landed under a different tag would no longer look green. The dist-tag wait only runs when this run uploaded: on a re-run the publish is skipped and sets no tag, and the run that published already waited for its own.
 9. **GitHub Release** (`release` job) — `gh release create <tag>` with the artifact's tarball attached and the notes extracted from the `CHANGELOG.md` section (`scripts/changelog.mjs notes <version> --allow-unreleased`), plus a link to the npm version. First it checks that the tag still resolves to the published `GITHUB_SHA` and that the tarball's sha512 is the `dist.integrity` npm serves (read with the same 30-minute window); `gh release create` gets `--verify-tag`, so it never creates a missing tag at the default branch's HEAD. When the Release already exists it does `gh release edit` + `upload --clobber` instead of failing — and `--clobber` can only re-upload the bytes npm serves. To recover a run that published and failed afterwards, use **Re-run failed jobs**: the re-run jobs inherit the `build` outputs and download the artifact of the attempt that published. A **Re-run all jobs** works too (the artifact has its own name), but it repacks — and if the new pack is not byte-identical to the published one, the `release` job attaches nothing and fails, pointing at `make releases-sync` (creates the Release with no asset) or at attaching the registry's own tarball by hand (`npm pack tempest-react-sdk@<version>`).
 
 !!! note "Why npm is pinned to 12.2.0"
-    Trusted Publishing needs npm >= 11.5.1, and Node 22 ships 10.x. Up to 0.76.0 the step installed `npm@latest`, and `latest` changed major twice under the job without anyone choosing it: the run logs from v0.74.0 to v0.76.0 show npm 12 (`npm notice run …`, `allowScripts`). 12.2.0 is the version that published those three releases. Bumping npm is a deliberate change to that line, reviewed like any other.
+    Trusted Publishing needs npm >= 11.5.1, and Node 22 ships 10.x. Up to 0.76.0 the step installed `npm@latest`, and `latest` changed major twice under the job without anyone choosing it: the run logs from v0.74.0 to v0.76.0 show npm 12 (`npm notice run …`, `allowScripts`). 12.2.0 is the version that published those three releases. Bumping npm is a deliberate change to that line, reviewed like any other: `NPM_CLI_VERSION` and `NPM_CLI_INTEGRITY` change together, with the integrity read from `npm view npm@<version> dist.integrity`. Up to 0.81.0 the step was `npm install -g npm@12.2.0`, which trusted whatever the registry served at that moment, next to `id-token: write`; now a different tarball fails the job before anything is installed. npm has no dependency outside its own tarball, which is why `--offline` is enough.
 
 ### Dist-tags
 
@@ -230,10 +218,10 @@ Two runs never fight over `latest`: the workflow has a single `concurrency` grou
     GitHub keeps **one** pending run per `concurrency` group. With a release running and two tags queued, the third cancels the second while it is still waiting. The cancelled one published nothing; dispatch it again with `gh workflow run release-npm.yml --ref vX.Y.Z`.
 
 !!! warning "A backport needs this version of the workflow"
-    On a tag push, GitHub runs the `release-npm.yml` **of the tag's commit**. A `v0.75.1` tag cut from a branch that starts at 0.75.0 runs the old workflow, which sends everything to `latest`. The backport branch needs `release-npm.yml`, `scripts/check-release-ref.sh` and `scripts/release-dist-tag.sh` from this version on (cherry-pick the #472 fix).
+    On a tag push, GitHub runs the `release-npm.yml` **of the tag's commit**. A `v0.75.1` tag cut from a branch that starts at 0.75.0 runs the old workflow, which sends everything to `latest`. The backport branch needs `release-npm.yml` from this version on (cherry-pick the #472 and #527 fixes); the guard and `release-dist-tag.sh` already come from `origin/main`.
 
 !!! note "Where a backport may come from"
-    A commit off `main` publishes only when it is an ancestor of `origin/release-<major>.<minor>` — the maintenance branch of the version's own line, named like its dist-tag — **and** the picked dist-tag is that same `release-<major>.<minor>`. `v0.75.1` comes from `release-0.75`, merged through a PR, with the tag on the merge commit (`make release-tag TAG=0.75.1 BASE_BRANCH=release-0.75`). A maintenance branch never publishes to `latest` or `next`: those come from `main` only. Protect `release-*` like `main` (PR required); without that, whoever pushes to the branch publishes on the old line.
+    A commit off `main` publishes only when it is an ancestor of `origin/release-<major>.<minor>` — the maintenance branch of the version's own line, named like its dist-tag —, when the picked dist-tag is that same `release-<major>.<minor>`, **and** when the line is open in the `RELEASE_BACKPORT_LINES` repository variable (#527). `v0.75.1` comes from `release-0.75`, merged through a PR, with the tag on the merge commit (`make release-tag TAG=0.75.1 BASE_BRANCH=release-0.75`), after the owner added `release-0.75` to the variable (_Settings → Secrets and variables → Actions → Variables_; space- or comma-separated). Up to 0.81.0 creating the branch was enough: in a fixture, a new `release-0.79` with an unreviewed commit tagged `v0.79.50` (with `latest` at 0.80.0) exited 0 with `dist_tag=release-0.79` — and a consumer's `^0.79` takes the highest 0.79.x, whatever the dist-tag. A maintenance branch never publishes to `latest` or `next`: those come from `main` only. Protect `release-*` like `main` (PR required), and close the line by removing it from the variable once it ends.
 
 The **GitHub Release** follows the registry: `gh release create` gets `--latest` when npm's `latest` **is** this version, and `--latest=false` otherwise (a backport, or a prerelease, which keeps `--prerelease`). The flag comes from the registry, not from the picked dist-tag, so a re-run that creates the Release of a version already published as `latest` still marks it. An existing Release keeps its flag: a re-run goes through `gh release edit` + `upload --clobber`, with no `--latest`.
 
@@ -242,18 +230,37 @@ The **GitHub Release** follows the registry: `gh release create` gets `--latest`
 
 The script runs offline: the guard takes `CURRENT_LATEST` from an environment variable (unset, it fails instead of assuming a new package), and `test/release-workflow.test.ts` exercises every row of the table in a fixture git repo and every registry answer with a fake `npm` on the `PATH`.
 
-### The `npm-release` environment
+### Who decides who publishes
 
-The `publish` job runs in the `npm-release` environment. Unconfigured, GitHub creates it empty and it gates nothing — the workflow behaves the same. It is the hook for two controls that live outside the repository, and that are still needed:
+The ref guard stops **mistakes**: a tag on a commit off `main`, a version that does not match, a backport from a line nobody opened. It is **not** an authorization boundary, and cannot be: on a tag push GitHub runs the `release-npm.yml` of the tagged commit, so whoever pushes a commit and a `v*` tag controls the whole workflow, guard included. That is why the guard runs from the copy on `origin/main`, not from the tagged commit's own (#527) — in a fixture, a commit that rewrote its own `check-release-ref.sh` to approve anything exited 0 with `dist_tag=latest`; with `main`'s copy, it is refused. That closes the shortcut of editing only the script, not the one of editing the workflow.
 
-- **In Settings → Environments → `npm-release`**: _Required reviewers_ (the publish waits for a human approval, even after every gate is green) and _Deployment branches and tags_ restricted to `v*` tags.
-- **On the npmjs.com Trusted Publisher**: the _Environment_ field set to `npm-release`. From then on npm only accepts the OIDC exchange from a job in that environment — another workflow, or another job in the same file, cannot publish.
+What actually decides is GitHub and npm configuration, which the code cannot see:
 
-!!! tip "Turn both on together"
+- the **`npm-release` environment** with a required reviewer: the `publish` job waits for a human approval before it gets the `id-token`;
+- the npmjs.com **Trusted Publisher** bound to that environment: npm only accepts the OIDC exchange from a job in `npm-release`, so an edited workflow that drops the job's `environment:` cannot publish;
+- **rulesets** restricting who creates `v*` tags and who pushes to `main` and `release-*`.
+
+!!! tip "Turn the reviewer and the npm binding on together"
     A required reviewer without the npm binding lets a job outside the environment publish; the binding without a reviewer lets any run in the environment publish with nobody looking.
 
-!!! warning "The guard checks `main`; protecting `main` is the repository's job"
-    Since #472 `check-release-ref.sh` only accepts a tag on a commit that is already on `main` (or, for a backport, on the line's `release-<major>.<minor>`). Up to 0.78.0 `scripts/release.sh` pushed the tag from the release branch before the merge, and the guard accepted it: in a fixture, a `v0.79.0` on a commit off `main` exited 0 with `dist_tag=latest`. The guard is worth as much as `main`'s protection: it guarantees "is on `main`", and branch protection (a required, reviewed PR) is what turns that into "was reviewed". Still owned by the repository owner: the required reviewer on the `npm-release` environment, a `v*` tag rule (_Settings → Rules → Rulesets_) restricting who creates the tag, and the Trusted Publisher's Environment field — GitHub and npm configuration.
+#### Repository owner checklist
+
+State read on 2026-11-01, read-only, with `gh api repos/mauriciobenjamin700/tempest-react-sdk/environments/npm-release`, `…/rulesets`, `…/branches/main/protection`, `…/actions/secrets` and `…/actions/permissions`. None of this is configured from the repository:
+
+| # | Where | What to turn on | State on 2026-11-01 |
+| - | ----- | --------------- | ------------------- |
+| 1 | _Settings → Environments → `npm-release`_ | _Required reviewers_ with the owner; uncheck _Allow administrators to bypass_; _Deployment branches and tags_ → _Selected_, only the `v*` tag rule | **off**: `protection_rules: []`, `deployment_branch_policy: null`, `can_admins_bypass: true` |
+| 2 | npmjs.com → `tempest-react-sdk` → _Settings → Trusted Publisher_ | _Environment_ field = `npm-release` (the repository and `release-npm.yml` are already there) | not observable from here; left empty at 0.7.0 |
+| 3 | _Settings → Rules → Rulesets_, target `v*` tags | restrict _creation_, _update_ and _deletion_, bypass for the administrator only | **no ruleset** (`[]`) |
+| 4 | _Settings → Rules → Rulesets_, target `main` and `release-*` | require a PR, block _force push_ and _deletion_ | **`main` unprotected** (404 _Branch not protected_) |
+| 5 | _Settings → Secrets and variables → Actions_ and _Environments → `NPM_TOKEN`_ | delete the repository secret `NPM_TOKEN` and the `NPM_TOKEN` environment, and revoke the token on npmjs.com | **both exist**, and no workflow has used them since 0.7.0 |
+| 6 | _Settings → Actions → General_ | _Require actions to be pinned to a full-length commit SHA_ | off (`sha_pinning_required: false`); both workflows already comply |
+| 7 | _Settings → Secrets and variables → Actions → Variables_ | `RELEASE_BACKPORT_LINES` only while a backport line is open | absent — correct, no line is open |
+
+!!! warning "Single maintainer"
+    With one collaborator, _Prevent self-review_ on the environment and a required PR approval would block every release: there is no second person to approve. Turn on the required reviewer (the owner approves their own deployment — still a human step that a leaked workflow token does not grant) and the required PR with no minimum approvals. Once a second maintainer joins, turn both on.
+
+With 1, 2 and 3 on, pushing a commit and a tag is not enough to publish: the environment approval is missing, and without the environment npm refuses the OIDC exchange.
 
 ## Secrets needed on GitHub
 
@@ -261,8 +268,8 @@ The `publish` job runs in the `npm-release` environment. Unconfigured, GitHub cr
 
 The `GITHUB_TOKEN` used to cut the Release is provided automatically by the Actions runtime — only the job's `permissions: contents: write` needs declaring, and it is.
 
-!!! warning "`NPM_TOKEN` is still the local fallback's business"
-    `make publish` publishes from your machine and does need a token in `~/.npmrc` (Classic Automation, or Granular with "Allow bypass 2FA" checked). That path produces **no** provenance and **no** GitHub Release — if you use the fallback, run `make releases-sync` afterwards so the Release is not left missing.
+!!! warning "There is no local publish"
+    Up to 0.81.0 `make publish` published from your machine with a long-lived token in `~/.npmrc`, with no provenance and no GitHub Release. Since #532 it refuses. A publish token stored anywhere — in `~/.npmrc` or in the `NPM_TOKEN` secret the repository still holds (item 5 of the [checklist](#repository-owner-checklist)) — is a publish path that goes through no guard at all: revoke it on npmjs.com.
 
 `GITHUB_TOKEN` is provided automatically by the Actions runtime.
 
@@ -280,7 +287,7 @@ linking the tarball to the commit + workflow run that produced it. Visible on th
 provenance" badge.
 
 A local manual publish **cannot** get provenance — there's no OIDC provider
-outside CI. `make publish` always runs without `--provenance`.
+outside CI. That is why `make publish` refuses instead of publishing without it.
 
 ## History
 

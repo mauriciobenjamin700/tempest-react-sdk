@@ -179,6 +179,9 @@ and `oneQueryKey(resource, id)` returns `["data", <resource>, "one", id]`.
 Hand-writing that array works right up to the day the shape changes — the
 functions do not.
 
+!!! warning "Pagination and sort win over a filter with the same name"
+    `filters` go into the query **before** `pagination` and `sort`. A filter keyed like one of those params (`page`, `size`, `order_by`, `ascending` by default) is overridden when the structured value is set. Until 0.81.0 it was the other way round: `filters: { page: 1 }` from a table's filter state pinned every request to page 1. Without `pagination`, the filter is sent as given.
+
 ### The `OffsetPage<T>` envelope
 
 `useList` resolves with the offset-pagination envelope from the `tempest-fastapi-sdk` — you map nothing by hand:

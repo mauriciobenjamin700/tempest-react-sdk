@@ -50,6 +50,7 @@ import { Form, FormSection, FormRow, FormActions, Input, Select, Button } from "
 `columns` aceita `number` (`repeat(N, minmax(0, 1fr))`) ou `string` (`"2fr 1fr"`, `"min-content auto"`).
 
 `gap` aceita `number` (escala 4px: `2` → `8px`, `4` → `16px`) ou `string` (qualquer CSS length: `"1.5rem"`, `"20px"`).
+O número é passo, não pixel: `gap={24}` dá 96px, e em desenvolvimento um número acima de `12` avisa no console uma vez — detalhes em [`gap={24}` não é 24px](components/layout.md#stack).
 
 ### Stacked
 
@@ -236,6 +237,9 @@ import { zodResolver } from "tempest-react-sdk";
 
 const form = useForm({ resolver: zodResolver(loginSchema) });
 ```
+
+!!! check "Campo com nome de membro de `Object.prototype`"
+    `validateForm` e `zodResolver` gravam cada erro como propriedade **própria** e conferem com `hasOwnProperty`. Antes, um campo chamado `constructor` ou `toString` parecia já ter erro (herdado do protótipo) e perdia a mensagem, e um issue que um `superRefine` registrasse em `__proto__` trocava o protótipo do mapa em vez de virar chave.
 
 ### 3. `useZodForm` — tudo-em-um
 

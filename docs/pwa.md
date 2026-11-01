@@ -67,10 +67,12 @@ installPrecache(); // app shell + navegação offline
 
 O Cache Storage guarda por **URL** e sobrevive ao logout. Sem cuidado, o `GET /api/me` da conta A fica lá e é servido para a conta B no mesmo navegador assim que a rede cai — ou demora mais que `networkTimeoutSeconds`. Medido no Chromium 153 (11/10/2026), antes da 0.77.0: B, offline, recebia o corpo de A.
 
-Por isso o `installRuntimeCache` aplica quatro regras sozinho:
+Por isso o `installRuntimeCache` aplica seis regras sozinho:
 
 - **Requisição com header de credencial passa direto para a rede** — `Authorization`, `X-Api-Key`, `X-Auth-Token` e o resto de `DEFAULT_CREDENTIAL_HEADERS` (troque por rota com `credentialHeaders`): a rota não lê nem grava o cache, como se o service worker não existisse para ela.
+- **`fetch` CORS com `credentials: "include"` também passa direto** — é o que o `ApiClient` manda com `withCredentials`, mesmo na própria origem. `<img>`, `<audio>` e `<video>` também mandam `include`, mas em modo `no-cors`, então continuam no cache (desde a 0.82.0).
 - **`Cache-Control: no-store` nunca é gravado**, e **`private`** só com opt-in.
+- **`Vary: *` nunca é gravado**: o Cache API rejeita essa resposta no `put`, e até a 0.81.0 a rejeição virava erro — o `network-first` caía no fallback offline e o `cache-first` falhava, com a resposta da rede na mão. Agora ela é servida e só não entra no cache.
 - **`maxAgeSeconds` vale também no fallback**: entrada vencida é miss, nunca "último recurso" offline. Isso vale para `network-first` e `stale-while-revalidate`.
 - **A idade conta da gravação**, não do header `Date` — que não é exposto em resposta CORS, então numa API em outra origem o `maxAgeSeconds` nunca vencia nada.
 
@@ -96,8 +98,8 @@ Com o opt-in, cada entrada é gravada com `Vary` em cada header de credencial qu
 
 A revalidação que continua depois da resposta — o refresh do `stale-while-revalidate` e a rede que perdeu para o `networkTimeoutSeconds` — vai para o `event.waitUntil`, então o navegador não derruba o worker no meio da gravação.
 
-!!! warning "Limite: sessão por cookie"
-    O service worker **não enxerga** o `Cookie` da requisição, então não distingue uma API com sessão por cookie de um GET público. Bloquear por `request.credentials` não resolve: desligaria o cache de toda imagem e fonte da mesma origem. Numa API com sessão por cookie, a privacidade do cache depende de duas coisas fora do SDK:
+!!! warning "Limite: sessão por cookie com `fetch` padrão"
+    O service worker **não enxerga** o `Cookie` da requisição. O que ele enxerga é o `fetch` que pede cookie explicitamente (`credentials: "include"` em modo CORS), e esse já passa direto. Um `fetch` simples na mesma origem (`credentials: "same-origin"`, o default) leva o cookie sem dizer — e bloquear por esse modo desligaria o cache de toda requisição da origem. Numa API assim, a privacidade do cache depende de duas coisas fora do SDK:
 
     - o servidor mandar `Cache-Control: private` (ou `no-store`) nas respostas pessoais — o SDK respeita;
     - o app chamar [`clearSessionData()`](#6-logout-apague-os-dados-da-sessao) no logout.
@@ -149,7 +151,7 @@ provideBackgroundSyncCredentials(
 ```
 
 !!! warning "Sem provedor, nenhuma mutação é reenviada"
-    A fila não guarda o token, então só a página pode devolvê-lo — e só a página diz quem está logado. Sem `provideBackgroundSyncCredentials`, a aba não responde, o dono da entrada fica **desconhecido** e ela fica pendente até `maxRetentionMinutes` e some, tenha ou não header de credencial. Em build de desenvolvimento o worker avisa no console (uma vez por replay). API com sessão por cookie e sem token instala o provedor do mesmo jeito: `provideBackgroundSyncCredentials(() => null, { getPrincipal })`. App sem login nenhum usa [`ownerPolicy: "lenient"`](#ownerpolicy-app-sem-login).
+    A fila não guarda o token, então só a página pode devolvê-lo — e só a página diz quem está logado. Sem `provideBackgroundSyncCredentials`, a aba não responde, o dono da entrada fica **desconhecido** e ela fica pendente até `maxRetentionMinutes` e some, tenha ou não header de credencial. Em build de desenvolvimento o worker avisa no console (uma vez por replay), e o próprio `provideBackgroundSyncCredentials` chamado **sem** `getPrincipal` também avisa: sem ele, toda entrada fica **sem dono** e sai com a sessão de quem responder — a de B, se A saiu sem `clearSessionData()`. API com sessão por cookie e sem token instala o provedor do mesmo jeito: `provideBackgroundSyncCredentials(() => null, { getPrincipal })`. App sem login nenhum usa [`ownerPolicy: "lenient"`](#ownerpolicy-app-sem-login).
 
 #### Cada entrada tem dono
 

@@ -420,12 +420,13 @@ describe("notificationclick client matching", () => {
         expect(sw.clients.openWindow).toHaveBeenCalledWith("/");
     });
 
-    it("focuses a client on an absolute target url", async () => {
+    it("focuses a client on an absolute target url of the worker's own origin", async () => {
         const sw = stubSw();
         const focus = vi.fn().mockResolvedValue(undefined);
-        sw.clients.matchAll.mockResolvedValue([{ url: "https://app.test/a#alo", focus }]);
+        const target = `${globalThis.location.origin}/a#alo`;
+        sw.clients.matchAll.mockResolvedValue([{ url: target, focus }]);
         installNotificationClickHandler();
-        await clickTo(sw, "https://app.test/a#alo");
+        await clickTo(sw, target);
         expect(focus).toHaveBeenCalled();
     });
 
@@ -437,5 +438,110 @@ describe("notificationclick client matching", () => {
         await clickTo(sw, "/x");
         expect(focus).not.toHaveBeenCalled();
         expect(sw.clients.openWindow).toHaveBeenCalledWith("/x");
+    });
+});
+
+describe("push handlers — click destination policy", () => {
+    function clickWith(
+        sw: ReturnType<typeof stubSw>,
+        data: unknown,
+        action?: string,
+    ): Promise<unknown> | undefined {
+        let pending: Promise<unknown> | undefined;
+        sw.listeners.notificationclick?.({
+            notification: { close: vi.fn(), data },
+            action,
+            waitUntil: (promise: Promise<unknown>) => (pending = promise),
+        });
+        return pending;
+    }
+
+    function shownData(sw: ReturnType<typeof stubSw>): Record<string, unknown> {
+        const [, options] = sw.registration.showNotification.mock.calls[0] as [
+            string,
+            { data: Record<string, unknown> },
+        ];
+        return options.data;
+    }
+
+    it("never lets payload.data override the declared url or actionUrls", () => {
+        const sw = stubSw();
+        installPushHandler();
+        sw.listeners.push?.({
+            data: {
+                json: () => ({
+                    url: "/orders/9",
+                    actions: [{ action: "alo", title: "Alô", url: "/alo" }],
+                    data: {
+                        url: "https://evil.test/phish",
+                        actionUrls: { alo: "https://evil.test/a", later: "https://evil.test/b" },
+                        orderId: 9,
+                    },
+                }),
+            },
+            waitUntil: vi.fn(),
+        });
+        expect(shownData(sw)).toEqual({
+            url: "/orders/9",
+            actionUrls: { alo: "/alo" },
+            orderId: 9,
+        });
+    });
+
+    it("drops payload.data.actionUrls when no action declares a url", () => {
+        const sw = stubSw();
+        installPushHandler();
+        sw.listeners.push?.({
+            data: { json: () => ({ data: { actionUrls: { later: "https://evil.test" } } }) },
+            waitUntil: vi.fn(),
+        });
+        expect(shownData(sw)).toEqual({ url: "/" });
+    });
+
+    it.each([
+        "https://evil.test/phish",
+        "//evil.test/phish",
+        "javascript:alert(1)",
+        "data:text/html,<script>1</script>",
+    ])("opens / instead of %j with the default resolver", async (url) => {
+        const sw = stubSw();
+        installNotificationClickHandler();
+        await clickWith(sw, { url, actionUrls: { alo: url } }, "alo");
+        await clickWith(sw, { url }, "");
+        expect(sw.clients.openWindow.mock.calls).toEqual([["/"], ["/"]]);
+    });
+
+    it("lets a custom resolveUrl open another http(s) origin", async () => {
+        const sw = stubSw();
+        installNotificationClickHandler({ resolveUrl: () => "https://partner.test/x" });
+        await clickWith(sw, {}, "");
+        expect(sw.clients.openWindow).toHaveBeenCalledWith("https://partner.test/x");
+    });
+
+    it("refuses a non-http(s) scheme even from a custom resolveUrl", async () => {
+        const sw = stubSw();
+        installNotificationClickHandler({ resolveUrl: () => "javascript:alert(1)" });
+        await clickWith(sw, {}, "");
+        expect(sw.clients.openWindow).toHaveBeenCalledWith("/");
+    });
+
+    it("opens / for a target the URL parser rejects", async () => {
+        const sw = stubSw();
+        installNotificationClickHandler();
+        await clickWith(sw, { url: "http://[bad" }, "");
+        expect(sw.clients.openWindow).toHaveBeenCalledWith("/");
+    });
+
+    it("opens only / when there is no worker location to judge against", async () => {
+        const sw = stubSw();
+        const descriptor = Object.getOwnPropertyDescriptor(globalThis, "location");
+        Object.defineProperty(globalThis, "location", { value: undefined, configurable: true });
+        try {
+            installNotificationClickHandler();
+            await clickWith(sw, { url: "/orders/9" }, "");
+        } finally {
+            if (descriptor) Object.defineProperty(globalThis, "location", descriptor);
+        }
+        expect(sw.clients.openWindow).toHaveBeenCalledWith("/");
     });
 });

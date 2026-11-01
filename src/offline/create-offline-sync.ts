@@ -6,6 +6,7 @@
  * the right sequence.
  */
 import { randomId } from "../utils/ids";
+import { ownerFingerprint } from "../utils/owner-fingerprint";
 import { createOfflineStore } from "./create-offline-store";
 
 /**
@@ -44,6 +45,13 @@ export interface OutboxEntry<TPayload = unknown> {
     lastError?: string;
     /** Record snapshot for `create`/`update`. Omitted for `delete`. */
     payload?: TPayload;
+    /**
+     * One-way fingerprint of whoever was signed in when the entry was queued
+     * (`null` for nobody), stamped only when the engine has
+     * {@link OfflineSyncConfig.getPrincipal}. Absent on entries queued without
+     * it, which are delivered as before.
+     */
+    owner?: string | null;
 }
 
 /**
@@ -104,6 +112,17 @@ export interface SyncRunSummary {
      * run that went to completion.
      */
     interrupted?: true;
+    /**
+     * Entries left queued because nobody is signed in and they belong to
+     * somebody (see {@link OfflineSyncConfig.getPrincipal}). Absent when zero.
+     */
+    held?: number;
+    /**
+     * Entries deleted unsent because they were queued under another principal —
+     * or while signed out — and somebody else is signed in now (see
+     * {@link OfflineSyncConfig.getPrincipal}). Absent when zero.
+     */
+    dropped?: number;
 }
 
 /**
@@ -208,6 +227,30 @@ export interface OfflineSyncConfig<TPayload, TRemote> {
     crossTab?: boolean;
     /** Channel name when `crossTab` is on. Default `tempest-sync:${databaseName}`. */
     broadcastChannelName?: string;
+    /**
+     * Who is signed in right now — a stable, non-secret id such as the user id;
+     * `null`/`undefined` when nobody is. Read synchronously when an entry is
+     * queued, which stamps it with a one-way fingerprint (`entry.owner`, never
+     * the id itself), and again right before each delivery:
+     *
+     * - same principal → delivered;
+     * - nobody signed in now → held: it stays queued and goes out when its owner
+     *   signs back in, so a flush fired by the `online` event before login loses
+     *   nothing;
+     * - anybody else → deleted unsent and counted in `summary.dropped`, because
+     *   delivering it would send the previous account's mutation with the next
+     *   account's session.
+     *
+     * `clearOutbox()` on logout already empties the queue; this covers the app
+     * that forgets it, or a session that ends without a logout (#531). Entries
+     * queued before this option was set carry no stamp and are delivered as
+     * before — they are the user's own unsynced edits, and holding them would
+     * strand every queue on upgrade.
+     *
+     * A non-string, non-number value (the `Promise` of an `async` getter) or a
+     * getter that throws reads as nobody. Default: no owner binding.
+     */
+    getPrincipal?: () => string | number | null | undefined;
 }
 
 /**
@@ -347,6 +390,36 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
     const isOnline =
         config.isOnline ?? (() => (typeof navigator !== "undefined" ? navigator.onLine : true));
 
+    const { getPrincipal } = config;
+
+    /**
+     * Fingerprint whoever `getPrincipal` says is signed in.
+     *
+     * @param principal - The app's principal getter.
+     * @returns The fingerprint, or `null` for nobody, a non-identity value or a
+     *   getter that throws.
+     */
+    function currentOwner(principal: () => unknown): string | null {
+        try {
+            return ownerFingerprint("p", principal());
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * What the current session may do with an entry, by its owner stamp.
+     *
+     * @param entry - The queued entry.
+     * @returns `"deliver"`, `"hold"` (nobody signed in) or `"drop"` (someone else).
+     */
+    function ownership(entry: OutboxEntry<TPayload>): "deliver" | "hold" | "drop" {
+        if (!getPrincipal || entry.owner === undefined) return "deliver";
+        const owner = currentOwner(getPrincipal);
+        if (owner === entry.owner) return "deliver";
+        return owner === null ? "hold" : "drop";
+    }
+
     let inflight: Promise<SyncRunSummary> | null = null;
     let generation = 0;
 
@@ -431,7 +504,11 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
      * The entry list is a snapshot, so before each `deliver` the run checks that
      * its session is still current (see `endSession`) and that the entry is still
      * in the outbox — another tab sharing the IndexedDB may have cleared it on
-     * logout. A delivery already in progress when the session ended still has its
+     * logout. With `getPrincipal`, the entry's owner stamp is checked at the same
+     * point (see `ownership`): another principal's entry is deleted unsent, and
+     * one owned by somebody while nobody is signed in stays queued; neither blocks
+     * later entries of the same record. A delivery already in progress when the
+     * session ended still has its
      * row deleted or its attempt bumped, because that outcome is true for the
      * server; its `onEntryDelivered`/`onEntryFailed` callback is not fired, since
      * it would act on the next user's local state.
@@ -451,6 +528,16 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
             const stillQueued = await outbox.get(entry.id);
             if (generation !== runGeneration) return false;
             if (!stillQueued) continue;
+            const verdict = ownership(entry);
+            if (verdict === "hold") {
+                summary.held = (summary.held ?? 0) + 1;
+                continue;
+            }
+            if (verdict === "drop") {
+                await outbox.delete(entry.id);
+                summary.dropped = (summary.dropped ?? 0) + 1;
+                continue;
+            }
             try {
                 await config.deliver(entry);
                 await outbox.delete(entry.id);
@@ -610,6 +697,7 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
                 attempts: 0,
                 payload,
             };
+            if (getPrincipal) entry.owner = currentOwner(getPrincipal);
             await outbox.put(entry);
             await refreshPending();
             return entry.id;

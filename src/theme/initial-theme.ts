@@ -28,9 +28,33 @@ export function getInitialTheme(options: GetInitialThemeOptions = {}): ResolvedT
 }
 
 /**
+ * A string as a JavaScript literal that is also safe inside an HTML `<script>`.
+ *
+ * `JSON.stringify` produces a valid literal but leaves `<`, `>`, `&` and the
+ * line separators U+2028/U+2029 as they are, and the HTML parser ends a script
+ * element at the first `</script` whatever JavaScript thinks of it: a
+ * `storageKey` of `"</script><script>alert(1)</script>"` closed the snippet and
+ * ran the second script. Each of those characters is written as its `\uXXXX`
+ * escape, which JavaScript reads back to the same string.
+ *
+ * @param value - The option value to embed.
+ * @returns The quoted, escaped literal.
+ */
+function scriptLiteral(value: string): string {
+    return JSON.stringify(value).replace(
+        /[<>&\u2028\u2029]/g,
+        (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`,
+    );
+}
+
+/**
  * Plain HTML snippet that sets `data-tempest-theme` on `<html>` before React
  * hydrates. Inline this in `<head>` to avoid a flash of the wrong theme on
  * first paint.
+ *
+ * Both options are embedded through an escaper that keeps them inside the
+ * `<script>` element whatever they contain, so the snippet is safe to inline
+ * even when the storage key comes from configuration.
  *
  * @example
  * <script dangerouslySetInnerHTML={{ __html: themeInitScript() }} />
@@ -40,8 +64,8 @@ export function themeInitScript(options: GetInitialThemeOptions = {}): string {
     const defaultTheme = options.defaultTheme ?? "system";
     return `
 (function(){try{
-  var key=${JSON.stringify(storageKey)};
-  var def=${JSON.stringify(defaultTheme)};
+  var key=${scriptLiteral(storageKey)};
+  var def=${scriptLiteral(defaultTheme)};
   var stored=localStorage.getItem(key);
   var mode=stored||def;
   var resolved=mode==="dark"||mode==="light"?mode:(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");

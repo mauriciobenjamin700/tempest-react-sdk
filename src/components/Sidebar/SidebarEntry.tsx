@@ -1,4 +1,5 @@
 import { cn } from "@/utils/cn";
+import { vettedHref } from "@/utils/safe-url";
 
 import type { SidebarItem } from "./Sidebar";
 import styles from "./Sidebar.module.css";
@@ -10,6 +11,10 @@ import styles from "./Sidebar.module.css";
  * the status bar preview all come from the element, not from the handler. A
  * disabled entry falls back to the button, because a disabled anchor does not
  * exist in HTML.
+ *
+ * The `href` is vetted with `safeLinkUrl`'s allowlist; an entry whose URL uses another
+ * scheme renders as the button, so a menu built from API data cannot put a
+ * `javascript:` link in the sidebar on React 18.
  */
 export function SidebarEntry({
     item,
@@ -33,10 +38,11 @@ export function SidebarEntry({
         </>
     );
 
-    if (item.href && !item.disabled) {
+    const href = vettedHref(item.href);
+    if (href && !item.disabled) {
         return (
             <a
-                href={item.href}
+                href={href}
                 className={cn(styles.item, active && styles.active)}
                 aria-current={active ? "page" : undefined}
                 onClick={() => onSelect?.(item.key)}

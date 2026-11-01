@@ -6,6 +6,72 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Breaking
 
+- **`tempest gen api` recusa spec que gerava código enganoso, e `create-tempest-app <nome>` recusa
+  destino que é symlink (#533).** Passam a falhar, antes da primeira escrita: path key que não
+  começa com `/` (`https://outro.example/x`) ou que tem segmento `.`/`..` (inclusive `%2e` e `\`);
+  propriedade chamada `__proto__`; chave `__proto__` dentro de `default`; e, no scaffold,
+  `create-tempest-app my-app` com `my-app` sendo link simbólico. **Migração:** nenhuma para spec
+  válido — o OpenAPI exige path relativo começando com `/`. Se o seu falhar, corrija o path no
+  backend (a origem vai no `baseURL` do `createApiClient`) ou renomeie a propriedade
+  (`alias` no Pydantic); no scaffold, passe o caminho real da pasta em vez do link.
+
+- **`createTempestAuth`: a troca de conta no modo corpo revoga a sessão substituída, e um novo
+  login da mesma conta em outra aba conta como troca.** Ver Segurança (#544 e notas da run-7). Com
+  `logoutPath` e sem `withCredentials`, um `login()` que substitui uma sessão viva manda
+  `POST logoutPath` com o refresh token dela (e o access token dela no bearer) — antes, nada; o
+  token ficava resgatável até expirar. E como a continuidade entre abas passou a ser a linhagem do
+  login, não o usuário, um `login()` da **mesma** conta numa aba agora encerra a sessão nas outras
+  com `onSessionEnd({ reason: "switch", elsewhere: true })` — antes era adotado como renovação, sem
+  hook. **Migração:** se a sua rota de `logoutPath` revoga **todas** as sessões do usuário (e não
+  só a família do token recebido, como o tempest-fastapi-sdk), um re-login da mesma conta no modo
+  corpo derruba a sessão nova — restrinja a rota ao token recebido. Hook que não pode rodar num
+  re-login da mesma conta compara `session.user` com o usuário novo.
+
+- **`installRuntimeCache` deixa passar direto o `fetch` CORS com `credentials: "include"` (#531).**
+  O worker não enxerga `Cookie`, então um `GET` de API com sessão por cookie que casava uma rota
+  era gravado por URL e servido offline para a próxima conta do navegador. O que ele enxerga é o
+  `fetch` que pede cookie explicitamente — `mode: "cors"` + `credentials: "include"`, exatamente o
+  que o `ApiClient` manda com `withCredentials`, inclusive na própria origem —, e agora essa
+  requisição é tratada como credenciada: passa direto para a rede, como a que leva
+  `Authorization`. A sugestão da issue de bloquear todo `credentials: "include"` foi medida e
+  recusada: `<img>`, `<audio>` e `<video>` mandam `include` em modo `no-cors`, então ela desligaria o
+  cache de mídia; o teste existente que fixava isso foi reescrito para o `no-cors` real, e não
+  apagado. `fetch` simples na mesma origem (`credentials: "same-origin"`) continua invisível — a
+  doc diz o que cobre esse caso. Reproduzido antes da correção em `src/sw/cache.test.ts`
+  (`npx vitest run src/sw/cache.test.ts`: o `GET /api/me` com `include` era servido pela rota).
+  **Migração:** rota que **quer** cachear a API por cookie liga `cacheAuthenticated: true` — a
+  entrada fica por URL (não há header para o `Vary`), então chame `clearSessionData()` no logout.
+
+- **`href` de navegação passa pela lista do `safeLinkUrl` (#534).** `Button`, `Breadcrumbs`,
+  `NavigationMenu`, `Sidebar`, os `links` dos presets do `AuthForm` e o `back` do `AuthPage`
+  escreviam o `href` como vinha. Medido com `npx vitest run src/components/link-href-vetting.test.tsx`
+  sobre as fontes da `main` em `b054c16`: 25 dos 28 casos de componente falhavam (os 3 restantes fixam o caminho seguro) — `javascript:`,
+  `JaVaScRiPt:`, `java\tscript:` e `" javascript:"` chegavam ao DOM nos seis componentes (no React
+  19 como o stub `javascript:throw…`, no React 18 — dentro do peer range — como vieram, clicáveis).
+  Agora só `http:`, `https:`, `mailto:`, `tel:`, `sms:` e URL relativa viram link, e a URL sai
+  **como foi passada** (um caminho com espaço continua com espaço). Fora da lista: `Button` vira o
+  link inerte `aria-disabled` do caso desabilitado; item de `Sidebar`/`NavigationMenu` vira
+  `<button>`; item de `Breadcrumbs` vira texto (ou continua clicável pelo `onClick`); link do
+  `AuthForm` some, como rota não passada; `back` do `AuthPage` cai no `onClick` ou some.
+  **Migração:** link para esquema próprio (`whatsapp:`, `intent:`, deep link de app) no `Button` vai
+  pelo `ButtonSlot` com o seu `<a>`; num item de menu, use `onSelect`/`onChange` e navegue no
+  handler.
+- **Clique em notificação só abre página da própria origem por padrão (#534).** Duas mudanças no
+  `tempest-react-sdk/sw`: o `installPushHandler` espalha `payload.data` **antes** de gravar `url` e
+  `actionUrls` — até a 0.81.0 era depois, e `data.url` sobrescrevia o destino declarado — e o
+  resolver padrão do `installNotificationClickHandler` troca por `"/"` toda URL de outra origem ou
+  com esquema que não seja `http(s)` (`//host`, `javascript:`, `data:`). Um `resolveUrl` próprio
+  continua podendo abrir outra origem `http(s)`; esquema diferente disso vira `"/"` nele também.
+  Medido com `npx vitest run src/sw/create-push-handler.test.ts` sobre a `main`: 9 dos 10 casos novos
+  falhavam (o primeiro gravava `url: "https://evil.test/phish"`). **Migração:** quem punha o
+  destino em `data.url` passa a mandá-lo no `url` de topo; app cujo clique abre outra origem passa
+  um `resolveUrl` que decida qual.
+- **`getList` do data provider: `pagination` e `sort` ganham de filtro com o mesmo nome (#534).**
+  Os `filters` eram copiados depois, então `filters: { page: 1 }` vindo do estado de filtros de uma
+  tabela prendia toda requisição na página 1. Agora entram antes. Sem `pagination`/`sort`, o filtro
+  continua indo como veio. **Migração:** quem usava um filtro para forçar `page`/`size` passa o
+  valor em `pagination`.
+
 - **`uploadWithProgress` não manda mais o bearer para outra origem sem `credentialOrigin` (#530).**
   Sem `credentialOrigin`, o escopo do `Authorization` passa a ser a origem da página
   (`location.origin`) — o mesmo que o `csrf` já tinha. Até a 0.81.0 o token ia para qualquer `url`.
@@ -32,6 +98,168 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Segurança
 
+- **Release: o guard não confia mais no commit taggeado nem numa branch `release-*` recém-criada
+  (#527, #472).** Medido em fixture git na `b054c16` (sem rede), com
+  `npx vitest run test/release-workflow.test.ts`: uma `release-0.79` nova com um commit não
+  revisado e a tag `v0.79.50` (`latest` em 0.80.0) passava com código 0 e `dist_tag=release-0.79`,
+  e um commit que reescrevia o próprio `check-release-ref.sh` passava com `dist_tag=latest`, porque
+  o workflow rodava a cópia do commit da tag. A parte de código da #472 já estava resolvida (tag
+  fora da `main` e backport para `latest` saem com código 1 desde a 0.79.0). Agora o job `build`
+  roda o guard e o `release-dist-tag.sh` **copiados de `origin/main`**, e backport só passa para
+  linha aberta na variável de repositório `RELEASE_BACKPORT_LINES`. Os 8 testes novos ou
+  reescritos falhavam contra a `main`. **Limite, escrito em `docs/release.md`:** num tag push o
+  `release-npm.yml` vem do commit da tag, então o guard barra engano, não um ator que empurra tag;
+  a fronteira é o environment `npm-release` com revisor e o Trusted Publisher amarrado a ele —
+  lidos em 01/11/2026 com `gh api`, **desligados**, e o checklist do dono diz o que ligar.
+  **Migração (mantenedor):** para publicar um backport, ponha `release-<maj>.<min>` em
+  `RELEASE_BACKPORT_LINES` (_Settings → Secrets and variables → Actions → Variables_) antes da tag.
+- **Workflows e publish com menos privilégio e código fixado (#532).** O `docs.yml` dava
+  `pages: write` e `id-token: write` ao workflow inteiro, alcançando o job que roda
+  `pip install` sem pin e os plugins do mkdocs; agora começa de `permissions: {}`, o `build` só tem
+  `contents: read` e o `deploy` leva Pages e OIDC. Suas cinco actions saem de tag mutável para SHA
+  (as mesmas versões que as tags resolviam, mais `checkout`/`setup-node` iguais aos do
+  `release-npm.yml`), com `persist-credentials: false`. O `docs/requirements.txt` vira 30 pacotes
+  com hash (`uv pip compile --generate-hashes`, cooldown de 14 dias) e é instalado com
+  `--require-hashes` — instalado e conferido com `mkdocs build --strict` no Python 3.12. O job
+  `publish` baixa o npm 12.2.0 por URL, confere o `sha512` fixado e instala `--offline` (simulado
+  localmente: hash certo instala 12.2.0, hash errado sai 1 antes de instalar). O
+  `make publish` **recusa**: publicava da máquina com token de vida longa, sem guard, smoke,
+  provenance nem Release. Guardas em `test/ci-policy.test.ts` (6 testes que falhavam contra a
+  `main`). **Migração (mantenedor):** não há publish local; publique por `make release` +
+  `make release-tag`, e revogue o secret `NPM_TOKEN` legado (item 5 do checklist).
+
+- **Hardening do `create-tempest-app` e do `tempest gen api` contra spec hostil (#533).** Medido na
+  `main` antes da correção, com um spec montado para isso (os testes novos em
+  `bin/lib/openapi/generate.hostile.test.mjs`, `bin/tempest-gen.test.mjs` e
+  `bin/create-tempest-app.e2e.test.mjs` — 17 falhavam, `npx vitest run bin/`):
+  - a tag `"a\u001b]0;PWNED\u0007"` era impressa crua depois de `✓ Generated` — escape OSC que
+    troca o título do terminal; OSC 8 imprimia link com alvo escondido. O `JSON.stringify` das
+    mensagens de erro escapa C0 mas deixa C1 (`\u009b`, CSI de 8 bits) cru. Agora tags, avisos e
+    erros passam por `terminalText`, que remove C0/C1 (menos tab e LF), e o comentário gerado
+    também perde esses caracteres. A dica de uso no fim imprimia `@/api/<tag crua>` — errada para
+    `"Items API"` (a pasta é `items-api`, a classe `ItemsApiService`); agora usa a pasta e a
+    classe geradas.
+  - a path key `https://other.example/x` virava `this.api.get("https://other.example/x")`, que o
+    `buildApiUrl` repassa intacta: o bearer era retido pelo `isTrustedCredentialTarget`, mas body
+    e cookies (com `credentials: "include"`) iam junto. `/../y` virava `get("/../y")`. Recusados.
+  - `properties: { "__proto__": … }` virava `z.object({ "__proto__": z.string() })`, cujo shape
+    ficava sem o campo (`Object.keys(shape)` = `["x"]`), e um `required` aceitava `{}`. Escrever
+    como chave computada não resolve: o Zod 4.6.7 descarta `__proto__` mesmo assim (aceitou `5`
+    para um `z.string()` obrigatório). Recusado.
+  - `pattern: "^(a+)+$"` virava `new RegExp(...)` sem aviso; no V8 ele leva 873 ms em 28
+    caracteres e dobra a cada um (`/^(a+)+$/.test("a".repeat(28) + "!")`, Node 24.15). Agora o
+    gerador marca quantificador aninhado com aviso `!` e gera normalmente — é heurística, não
+    prova, então não reprova a geração.
+  - o scaffold com `my-app -> ../outro` (link para pasta vazia) escrevia o template no alvo do
+    link. Recusado, como o modo merge já fazia com symlink no destino.
+  - A janela check-then-write (TOCTOU) entre a checagem de contenção e a escrita continua: o Node
+    não tem walk `openat`/`O_NOFOLLOW`, e o processo que ganharia a corrida já escreve no projeto
+    do usuário. Fica documentada como risco aceito no `create-tempest-app.mjs` e no
+    `bin/lib/fs/contain.mjs`.
+
+- **Aba sem usuário carregado adotava o token de outra conta que entrou durante o `/me` (#544).**
+  Reproduzido antes da correção em `src/auth/create-tempest-auth.lineage.test.ts`, com
+  `npx vitest run src/auth/create-tempest-auth.lineage.test.ts` (6 dos 11 casos falhavam em
+  `b054c16`): a aba 1 terminava com `{ user: A, token: "B-tok-1" }` no store e no `localStorage`, e
+  `GET /api/orders` respondia `acting_as: "B"`. A issue acertou a causa (`null === null` no
+  `followSharedSession`), mas o defeito era maior: **sem** o evento `storage` ter chegado, o `/me` da
+  aba 1 gravava `{ user: A, token: "A-tok-1" }` ao lado do refresh token `B-ref-1`, e a aba de **B**,
+  ao seguir essa gravação, passava a mostrar A com o refresh token de B. Agora o `login()` cria uma
+  **linhagem de sessão** (`<storeName>-lineage`), mantida em toda renovação e limpa no fim da
+  sessão, e é ela — não o usuário — que decide se a sessão guardada continua a da aba. O
+  `fetchUser` segue o storage compartilhado antes de gravar o perfil e o descarta se a sessão mudou
+  de linhagem. A amarração ao token sugerida na issue **não** foi feita: uma renovação da mesma
+  sessão em outra aba durante o `/me` muda o token e faria um login bem-sucedido rejeitar — o teste
+  "adopts a rotation made by another tab before its own user loaded" fixa isso. Exigir
+  `user !== null` também não: transformaria toda renovação sem modelo de usuário em troca de conta.
+  Sessão gravada antes da linhagem existir segue a regra antiga até o próximo login. Os 16 testes de
+  `create-tempest-auth.cross-tab.test.ts` continuam verdes sem alteração.
+- **Duas abas resgatavam o mesmo refresh token ao mesmo tempo** (nota da run-7). Com backend que
+  detecta reuso — o tempest-fastapi-sdk detecta —, o segundo resgate revoga a família e derruba a
+  sessão em todas as abas; o gatilho comum é o navegador reabrindo várias abas, cada uma chamando
+  `refresh()` no boot. Medido em `src/auth/create-tempest-auth.refresh-lock.test.ts` (o primeiro
+  caso é a linha de base, sem a API): dois presets apresentaram `ref-1`, a família foi revogada e
+  nenhum refresh token ficou vivo. Agora, com `storage: "local"`, o resgate roda sob um Web Lock da
+  origem (`navigator.locks`), e a aba que esperou adota o token que a outra trouxe: um resgate só.
+  Fail-open: sem a API, com erro ao adquirir ou depois de 10 s esperando, resgata sem o lock, como
+  antes.
+- **A troca de conta não revogava o refresh token da sessão substituída** (nota da run-7). Ver
+  Breaking. No modo cookie continua sem revogar: o cookie no navegador já é o da conta nova.
+- **`withCredentials` sem `logoutPath` avisa em build de dev** (item de `src/auth` da #531). Medido
+  com o `cookieBackend` de `create-tempest-auth.cookie.test.ts`: login, `logout()`, preset novo e
+  `refresh()` restauram `A-tok-cookie-1` — o `logout()` não alcança o cookie HttpOnly. **Aviso, não
+  exigência:** exigir `logoutPath` quebraria app cujo backend não revoga (refresh token stateless,
+  sem rota) sem fechar nada para ele, e recusar o `refresh()` do boot depois do logout quebraria o
+  login que grava o cookie fora do `login()` (callback de OAuth). Uma vez por `storeName`.
+- **Tamanho:** os tetos do barrel inteiro sobem — ESM 150,1 → 150,4 kB (150 003 → 150 376 B br, sobre a `main` já
+  com #548) e CJS 179,4 → 179,6 kB (179 282 → 179 534 B), medido com `npm run build && npx size-limit --json`
+  contra `origin/main` (`b054c16`). Nenhuma fatia mudou.
+
+- **Stream SSE por ticket continuava entregando os eventos do usuário anterior depois de uma troca
+  de conta na mesma aba (#522).** Um stream aberto por `useTicketEventStream` sob o usuário A ficava
+  aberto e entregava os eventos de A ao `onMessage` (e ao `lastMessage`) depois que a aba passava
+  para o usuário B, se `enabled` não passasse por `false` no meio: as deps do efeito eram só
+  `[url, enabled]`. A dúvida da issue sobre o backend foi resolvida lendo o `tempest-fastapi-sdk`
+  (`origin/main` em `31002afa`): o `make_sse_router` confere o ticket **só na abertura**, o
+  `SSEBroker` só desregistra o stream quando o cliente desconecta, e nem o logout nem o
+  `revoke_user_sessions`/`revoke_refresh_token` tocam o broker — o servidor nunca derruba um stream
+  aberto, então quem fecha é o cliente. Nova opção **`sessionKey`**: no `useEventStream` e no
+  `useTicketEventStream` é um valor primitivo (o id do usuário) que entra nas deps — a troca fecha o
+  stream, zera `lastMessage` e pede ticket novo; no `createEventStream` e no
+  `createTicketEventStream` é uma função lida a cada conexão, quando a URL resolve e antes de cada
+  frame — frame que chega com a chave trocada é descartado e o stream reconecta para a sessão atual,
+  e uma URL (ticket) resolvida enquanto a chave mudava é descartada. Novo tipo exportado
+  `SessionKey`. Reproduzido antes da correção em `src/sse/session-key.test.tsx` (9 dos 12 casos
+  falhavam; os 3 restantes fixam que nada muda com a chave estável), com
+  `npx vitest run src/sse/session-key.test.tsx`. Opt-in, sem default automático: o epoch de sessão
+  do `createTempestAuth` não é público (`TempestAuth`/`ApiClient` não o expõem), então o hook não
+  tem de onde ler a sessão sozinho. **Migração:** nenhuma obrigatória; app com login passa
+  `sessionKey: user?.id ?? null` ao hook do stream. De carona, o `createEventStream` passa a ignorar
+  frame de um `EventSource` que já não é o atual (fechado por `close()` ou trocado numa reconexão):
+  sem isso, a conferência de sessão reabriria um controller já fechado. No browser um `EventSource`
+  fechado não dispara, então só muda para quem simula a fonte em teste; o teste
+  `drops messages that arrive after close`, que pelo nome já devia descartar mas afirmava uma
+  entrega, foi invertido. **Tamanho:** sobre a `main` já com #549, o barrel ESM fica dentro do teto (150 376 → 150 327 B br, ruído
+  do brotli) e o CJS sobe 179 534 → 179 659 B (+125, teto 179,6 → 179,7 kB), medido com
+  `npm run build && npx size-limit --json` na `main` e nesta branch atualizada; nenhuma fatia por
+  import mudou.
+
+- **Estado local amarrado ao dono da sessão (#531).** Três filas e um snapshot sobreviviam à
+  troca de conta quando o app não limpava no logout (token vencido, crash, aba fechada logada).
+  Cada um ganha `getPrincipal` opcional — o mesmo contrato do `createAppErrorReporter`: id estável e
+  não secreto, lido de forma síncrona, guardado só como impressão de 64 bits (`p:<16 hex>`), e
+  getter que lança ou devolve `Promise` lê como "ninguém". Sem a opção, nada muda.
+  - **`persistQueryClientOffline`**: cada gravação carimba o snapshot; `restore()` só hidrata o do
+    **mesmo** dono. O de outra pessoa é ignorado, não apagado (app com cookie que só conhece o
+    usuário depois do `/me` não perde o próprio cache), e a próxima gravação o substitui.
+  - **`createOfflineSync`**: `OutboxEntry.owner` carimbado no `enqueue`; no flush, entrada do mesmo
+    dono sai, entrada de alguém com ninguém logado fica (`summary.held`) e entrada de outra pessoa
+    é apagada sem envio (`summary.dropped`). Entrada sem carimbo (de antes da opção) sai como antes.
+    A cerca de sessão do #525 cobria só quem chamava `clearOutbox()`.
+  - **`createWebSocket` / `useWebSocket`**: payload bufferizado por `queueWhileClosed` leva o dono, e
+    no `open` seguinte só sai o do mesmo dono. Socket por cookie reabre o handshake como quem
+    estiver logado na reconexão, então o frame de A saía com o cookie de B se o app não fechasse o
+    socket no logout.
+  - **`provideBackgroundSyncCredentials` sem `getPrincipal`** avisa em build de desenvolvimento: as
+    entradas ficam "sem dono" e saem com a sessão de quem responder. A outra sugestão da issue —
+    tratar entrada credenciada sem dono como "desconhecida" — foi descartada por não mudar nada: o
+    "desconhecido" é reenviado justamente quando nenhuma aba reporta principal, que é a página sem
+    `getPrincipal`.
+
+  Reproduzido antes da correção: 13 casos falhavam em `src/query/offline-persistence.owner.test.ts`,
+  `src/offline/create-offline-sync.owner.test.ts`, `src/ws/create-web-socket.owner.test.ts` e
+  `src/sw/background-sync.unbound.test.ts` (`npx vitest run <arquivo>`); o primeiro de cada um
+  hidratava, entregava ou enviava o dado de A na sessão de B.
+
+- **`template-pwa` limpa o dispositivo quando a conta sai (#531).** O `src/sw.ts` do scaffold
+  mandava chamar `clearSessionData()` no logout, e nenhum caminho do scaffold chamava. O
+  `src/pwa.tsx` agora observa o auth store: quando a conta logada some — botão Sair, `401` no
+  `onUnauthorized` ou outra conta entrando por cima —, ele chama `clearSessionData()` e cancela a
+  inscrição de push no navegador, para o próximo usuário do aparelho não receber as notificações
+  do anterior. Refresh de token mantém o usuário e não limpa nada. Guard em
+  `test/scaffold-template.test.ts`. O `template/` sem PWA não tem service worker, então não há
+  cache de runtime nem fila para limpar.
+
 - **Escopo da credencial fecha por padrão (#530).** Medido em `b054c16` com
   `npx vitest run src/http/credential-scope.hardening.test.ts src/http/resumable-upload.test.ts src/oauth/GoogleSignIn.test.tsx`:
   15 casos falhavam em `b054c16` (8 + 6 + 1).
@@ -53,8 +281,99 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **Aviso em desenvolvimento quando um `gap` numérico parece pixel (#536).** `Stack`, `Grid`,
+  `Form`, `FormSection`, `FormRow` e `FormActions` leem `gap` numérico como passo da escala de 4px
+  — `gap={24}` virava um buraco de 96px sem erro nem aviso. Agora, em build de desenvolvimento
+  (`isDevBuild()`), um número acima de `12` (48px) loga **uma vez por valor**
+  `<Stack gap={24}> renders a 96px gap: numeric gap counts 4px steps, not pixels. For 24px use gap={6}. For 96px on purpose, pass gap="96px".`
+  O limite saiu da medição, não da issue (que sugeria `> 16`, deixando passar o `gap={16}` → 64px,
+  o gap em pixel mais comum): as classes `tempest-gap-*` param em `12`, nenhuma folha do SDK usa
+  `gap` acima de `--tempest-space-12`, e os 125 `gap` numéricos literais de `src/`, `docs/`,
+  `examples/gallery/src`, `template/` e `template-pwa/` vão até `8`
+  (`grep -rhoE "gap=\{[^}]*\}+" src examples/gallery/src docs template template-pwa`). String nunca
+  avisa — é a saída para quem quer mesmo 96px (`gap="96px"`, `gap="var(--tempest-space-24)"`) — e
+  produção fica em silêncio. Nada muda no valor renderizado. Teste:
+  `npx vitest run src/components/Layout/gap.test.tsx` (10 dos 13 casos falhavam na `main`; os 3 que
+  passavam são os de silêncio). A opção de tipar a escala (`gap?: SpaceToken | string`) ficou de
+  fora: é breaking, e fica para uma major.
+
+- **`acceptPeer` no `createPeerMesh` (#534).** A mesh responde qualquer oferta que chega no
+  `accept` — é o fluxo documentado, o lado que responde conhece o par pela oferta —, o que deixa a
+  publicação de microfone e câmera dependendo só do servidor de sinalização. `acceptPeer(peerId)`
+  devolvendo `false` recusa a oferta de par sem link: não abre conexão, não responde e chama
+  `onNotice("offer_refused")`. Par adicionado com `addPeer` não é consultado. Sem a opção, nada muda.
+
 - **`<GoogleSignIn nonce>`** repassa o nonce emitido pelo servidor ao `GoogleLogin`, para o
   backend prender o ID token a ele (#530). Antes o wrapper descartava a prop.
+
+### Corrigido
+
+- **README dizia "Vitest needs nothing." (#535).** Só vale quando o Vitest lê o `createViteConfig`,
+  que liga o `tempestVitest()`. Reproduzido com o tarball da 0.81.0 num projeto descartável
+  (Vitest 4.1.12, Node 24): `vitest.config.ts` com `defineConfig` do `vitest/config`, um
+  `vite.config.ts` com `defineConfig` do `vite` e **nenhuma config** caem os três com
+  `Unknown file extension ".css"`; com `plugins: [tempestVitest()]`, 1 passed. O defeito é um pouco
+  maior que o da issue: não é só o `vitest.config.ts` próprio, é todo arranjo que não passa pelo
+  `createViteConfig`. O README agora diz isso e aponta para "Testes com Vitest" do site, que já
+  estava certo.
+
+- **Resposta com `Vary: *` virava falha no cache de runtime (#534).** O Cache API rejeita esse
+  `put` com `TypeError`, e a rejeição escapava da estratégia: o `network-first` caía no fallback
+  offline, o `cache-first` falhava e o `stale-while-revalidate` não respondia — com a resposta da
+  rede em mãos. Agora ela é servida e só não é gravada. Reproduzido com o fake de cache rejeitando
+  como a spec (`npx vitest run src/sw/cache.test.ts`: 4 casos falhavam).
+
+- **Tamanho:** os tetos do barrel inteiro sobem — ESM 150,4 → 150,8 kB (150 327 → 150 701 B br, sobre a
+  `main` já com #550) e CJS 179,7 → 180,1 kB (179 659 → 180 042 B br); a fatia offline + PWA vai de 4 747 para 5 064 B,
+  dentro dos 6 kB. Medido com `npm run build && npx size-limit --json` sobre a `origin/main`
+  (`b054c16`) e sobre esta branch.
+
+- **`useCan` devolvia por um frame a resposta do recurso anterior (#534).** No render entre a troca
+  dos params e o efeito que refaz a checagem, o hook devolvia o `allowed` antigo com
+  `isLoading: false`, e o `<Can>` mostrava os filhos do recurso novo. A resposta agora fica guardada
+  com o `control` e os params que responde; o primeiro render com params novos (ou `control` novo)
+  lê `{ allowed: false, isLoading: true }`. Reproduzido em `src/access/use-can.test.tsx` (2 casos
+  falhavam na `main`).
+- **`themeInitScript` seguro para inline com qualquer opção (#534).** `storageKey`/`defaultTheme`
+  entravam por `JSON.stringify`, que não escapa `</script>`: parseando o HTML resultante com
+  `DOMParser`, uma `storageKey` `"</script><script>…</script>"` gerava dois `<script>`. Agora `<`,
+  `>`, `&`, U+2028 e U+2029 viram `\uXXXX` (`npx vitest run src/theme/initial-theme.test.ts`).
+- **`deepMerge` pula `__proto__`, `constructor` e `prototype` (#534).** Uma chave `__proto__` vinda
+  de `JSON.parse` trocava o protótipo do objeto retornado (sem poluição global). Medido em
+  `src/utils/objects.test.ts`: 3 casos falhavam na `main`.
+- **`validateForm`/`zodResolver` perdiam a mensagem de campo com nome de membro de
+  `Object.prototype` (#534).** `constructor`/`toString` pareciam já ter erro por herança; um issue em
+  `__proto__` (possível só via `superRefine` — medido: o zod 4.6.7 não reporta issue para uma chave
+  `__proto__` do shape) trocava o protótipo do mapa. Erros agora são propriedades próprias.
+- **`decompressFromString` limita a saída a 64 MiB (#534).** O fflate dimensiona a saída pelo
+  trailer do gzip e nunca passa dele (medido: payload de 1 MB com trailer de 10 bytes inflou para
+  exatamente 10), então recusar trailer acima do limite limita a alocação antes de inflar. Razão
+  medida do deflate: 20 MB de `"A"` → 19 551 B (1023:1).
+- **`CompactPredictor` recusa árvore malformada no `create` (#534).** O percurso não tem limite de
+  passos, então um filho apontando para trás travava a aba no primeiro `predict`, e um índice fora
+  do array respondia `NaN`. O `create` agora prova `nó < filho < fim da árvore` (invariante do
+  scikit-learn — 0 violações em 1 761 nós dos fixtures) e lança `CompactFormatError`.
+- **`loadEdgePackage` confere o `sha256` do manifesto (#534).** O cache é por URL e cache-first;
+  modelo republicado no mesmo nome continuava respondendo com os bytes antigos ao lado do manifesto
+  novo. Divergência refaz o download uma vez (trocando a entrada do cache); a segunda lança
+  `ModelFetchError`. Não conferido: `cache: false` (o runtime busca a URL sozinho) e contexto não
+  seguro (sem `crypto.subtle`).
+
+### Budgets
+
+- Teto do barrel ESM 149,9 → 150,1 kB e CJS 178,9 → 179,4 kB, pelo aviso de `gap` (#536). Medido
+  com `npm run build && npx size-limit --json` na `main` em `b054c16` e na mesma árvore com a
+  mudança: barrel ESM 149 789 → 150 003 B (+214) e CJS 178 824 → 179 282 B (+458);
+  `slice: auth screens` 8753 → 8967 B (+214, dentro do limite de 9,2 kB, pelo `Form`). Nenhuma
+  outra fatia mudou.
+
+- Medido com `npm run build && npx size-limit --json` sobre as fontes da `main` em `b054c16` e na
+  mesma árvore com o #534: `slice: Button` 1203 → 1390 B (+187, teto 1,3 → 1,4 kB), `slice: typical
+app` 12 158 → 12 303 B (+145, teto 12,2 → 12,35 kB), `slice: createPeerMesh` 3394 → 3412 B (+18,
+  teto 3,4 → 3,45 kB), barrel ESM 150 701 → 151 071 B (+370, teto 150,8 → 151,1 kB) e CJS
+  180 042 → 180 205 B (+163, teto 180,1 → 180,3 kB), os dois remedidos sobre a `main` já com #551. O custo é o `safeLinkUrl` entrando em `Button` e nos
+  componentes de navegação; o leitor compacto do `tabular` sobe 1499 → 1827 B com a validação das
+  árvores, dentro do teto de 3 kB.
 
 ### Decidido sem mudança de código (#530)
 

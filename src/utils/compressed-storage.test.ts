@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { gzipSync } from "fflate";
 import {
     compressToString,
     compressedStorage,
     compressedStorageCodec,
     decompressFromString,
 } from "./compressed-storage";
+import { bytesToBase64 } from "./base64";
 
 const MARKER = "~tgz1:";
 
@@ -54,6 +56,19 @@ describe("compressToString / decompressFromString", () => {
     it("throws on a payload that is neither compressed nor JSON", () => {
         expect(() => decompressFromString("not json at all")).toThrow();
         expect(() => decompressFromString(`${MARKER}!!!not-base64!!!`)).toThrow();
+    });
+
+    it("refuses to inflate a value that declares more than 64 MiB, before allocating it", () => {
+        const bytes = gzipSync(new TextEncoder().encode('"small"'));
+        new DataView(bytes.buffer).setUint32(bytes.length - 4, 64 * 1024 * 1024 + 1, true);
+        expect(() => decompressFromString(`${MARKER}${bytesToBase64(bytes)}`)).toThrow(
+            /above the 67108864-byte limit/,
+        );
+    });
+
+    it("still inflates a value declaring less than the limit", () => {
+        const bytes = gzipSync(new TextEncoder().encode('"small"'));
+        expect(decompressFromString(`${MARKER}${bytesToBase64(bytes)}`)).toBe("small");
     });
 });
 

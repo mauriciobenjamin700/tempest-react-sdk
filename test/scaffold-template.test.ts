@@ -101,3 +101,25 @@ describe("scaffold Content-Security-Policy", () => {
         },
     );
 });
+
+describe("scaffold session teardown (#531)", () => {
+    const shell = readFileSync(join(ROOT, "template-pwa", "src", "pwa.tsx"), "utf8");
+
+    it("template-pwa clears the service worker's session data whenever the signed-in account goes away", () => {
+        expect(
+            shell,
+            "template-pwa/src/pwa.tsx must watch the auth store and call clearSessionData(): " +
+                "the runtime caches and the background-sync queue otherwise survive logout " +
+                "into the next account's session.",
+        ).toMatch(/useAuth\.subscribe\(/);
+        expect(shell).toMatch(/clearSessionData\(\)/);
+    });
+
+    it("template-pwa releases the browser's push subscription on the same teardown", () => {
+        expect(
+            shell,
+            "a push subscription left behind keeps delivering the previous account's " +
+                "notifications to whoever uses the device next.",
+        ).toMatch(/subscription\?\.unsubscribe\(\)/);
+    });
+});

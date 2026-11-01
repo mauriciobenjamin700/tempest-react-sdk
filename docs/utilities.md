@@ -96,6 +96,9 @@ isEmpty(""); // true
 
 ---
 
+!!! check "`deepMerge` ignora `__proto__`, `constructor` e `prototype`"
+    Atribuir `result["__proto__"]` não cria chave: **troca o protótipo** do resultado. Um JSON de configuração com `{"__proto__": {"isAdmin": true}}` produzia um objeto cujo `isAdmin` lia `true` por herança enquanto `Object.keys` não mostrava nada. Nenhum protótipo global era tocado; as três chaves agora são puladas, em qualquer nível.
+
 ## Type guards
 
 Narrowing seguro de tipos. Combinam bem com `Array.prototype.filter` e `switch` exaustivos.
@@ -579,6 +582,9 @@ const save = compressedStorage.get("save", null);
     Se o codec **lançar**, o valor é gravado como JSON puro em vez de descartado:
     registro maior ainda carrega, registro ausente não. Só um valor que nem JSON
     representa (referência circular) perde a escrita.
+
+!!! check "Leitura limitada a 64 MiB descomprimidos"
+    O deflate chega a ~1000:1 em dado repetitivo (medido com fflate: 20 MB de `"A"` viram 19 551 bytes), então os ~5 MB de `localStorage` de uma origem poderiam pedir gigabytes na leitura. O `decompressFromString` lê o tamanho declarado no trailer do gzip e recusa acima de 64 MiB **antes** de alocar — o fflate nunca passa do tamanho declarado, então o limite vale mesmo quando o trailer mente. Valor corrompido falha rápido em vez de travar a aba; o `compressedStorage` devolve o fallback, como em qualquer leitura que falha.
 
 ### O formato é autodescritivo
 

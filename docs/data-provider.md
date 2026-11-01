@@ -178,6 +178,9 @@ queryClient.invalidateQueries({ queryKey: oneQueryKey("posts", 42) });
 e `oneQueryKey(resource, id)` devolve `["data", <recurso>, "one", id]`. Montar
 esse array à mão funciona até o dia em que o formato mudar — as funções não.
 
+!!! warning "Paginação e ordenação ganham do filtro com o mesmo nome"
+    Os `filters` entram na query **antes** de `pagination` e `sort`. Um filtro com a chave de um desses parâmetros (`page`, `size`, `order_by`, `ascending` no default) é sobrescrito quando o valor estruturado vem preenchido. Até a 0.81.0 era o contrário: `filters: { page: 1 }` vindo do estado de filtros de uma tabela prendia toda requisição na página 1. Sem `pagination`, o filtro continua indo como veio.
+
 ### O envelope `OffsetPage<T>`
 
 `useList` resolve com o envelope de paginação offset do `tempest-fastapi-sdk` — você não mapeia nada à mão:

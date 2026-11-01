@@ -107,6 +107,7 @@ export function NotificationListener({ user }: { user: { id: string } | null }) 
 ```
 
 - `enabled: false` disconnects the stream (use it while waiting for `user` to load).
+- `sessionKey` (the user's id) binds the stream to the session: switching accounts closes the stream and clears `lastMessage` — see [switching accounts](#switching-accounts-in-the-same-tab-sessionkey).
 - Changing the URL re-opens the connection; changing `onMessage` does **not** (callback held in an internal ref — no pointless reconnects).
 - `lastMessage` holds the last received message (heartbeats don't count).
 - Automatic cleanup on unmount.
@@ -254,6 +255,67 @@ onUrlError(error)  →  error.status === 403, error.code === "ACCOUNT_INACTIVE"
     `ticketParam: "ticket"`. If the router is mounted elsewhere, pass both.
     Outside React, `createTicketEventStream({ client: api, ... })` does the same
     and returns the controller with `close`/`reconnect`/`status`.
+
+### Switching accounts in the same tab — `sessionKey`
+
+The ticket opens the channel **of the user who asked for it**, and the backend
+checks the ticket only when the stream opens: neither logout nor refresh-token
+revocation ends a stream already open — it lives until the client leaves
+(checked in `tempest-fastapi-sdk`'s `make_sse_router` and
+`UserAuthService.sse_router`). If the tab switches from user A to user B
+**without** `enabled` passing through `false`, A's stream keeps delivering A's
+events under B.
+
+Pass the session identity as `sessionKey` and the hook takes care of it:
+
+```tsx
+import { createApiClient, useTicketEventStream } from "tempest-react-sdk";
+
+const api = createApiClient({
+    baseURL: "https://api.example.com",
+    prefix: "/api",
+    getToken: () => localStorage.getItem("token"),
+});
+
+export function Notices({ user }: { user: { id: string } | null }) {
+    const { status, lastMessage } = useTicketEventStream<{ text: string }>({
+        client: api,
+        enabled: user !== null,
+        sessionKey: user?.id ?? null,
+        onMessage: ({ data }) => console.log("notice", data.text),
+    });
+
+    return (
+        <div>
+            <span>Stream: {status}</span>
+            {lastMessage && <p>{lastMessage.data.text}</p>}
+        </div>
+    );
+}
+```
+
+When `user.id` changes from `"a"` to `"b"`:
+
+```text
+EventSource …/sse/stream?ticket=<of a>   closed
+lastMessage                              null
+POST …/sse/ticket                        200  {"ticket":"<of b>","expires_in":60}
+GET  …/sse/stream?ticket=<of b>          200  text/event-stream
+```
+
+- A key change closes the stream, clears `lastMessage` and asks for a new ticket.
+- A frame of A arriving between the render and the effect that closes the
+  stream is **dropped**, not delivered.
+- The key is a primitive (`string | number | boolean | null | undefined`): an
+  object built inline would reopen the stream on every render.
+- Without `sessionKey`, nothing changes: the stream follows `url` and `enabled` alone.
+
+Outside React, `createEventStream` and `createTicketEventStream` take
+`sessionKey` as a **function** (`() => store.getState().user?.id ?? null`). The
+key is read on every connection and before every frame: a frame arriving with a
+changed key is dropped and the stream reconnects for the current session. Since
+the check runs when a frame arrives, a quiet stream only closes at its next frame
+or at `close()`.
 
 ### URL resolved per connection
 
@@ -448,6 +510,7 @@ What the option guarantees:
 - `createEventStream(url, options)` opens an SSE with exponential reconnect; the controller exposes `close`, `reconnect`, and `status`.
 - `url` can be a function called on every connection; `useTicketEventStream({ client })` uses that to request a fresh ticket on every reconnect, with no token in the URL.
 - `useEventStream(url, options)` is the React wrapper: ties the lifecycle to the component, exposes `status`/`lastMessage`/`reconnect`, and respects `enabled`.
+- `sessionKey` binds the stream to the session: the server does not end an open stream on logout, so switching accounts closes the previous user's stream on the client.
 - Heartbeats (default `["ping"]`) keep the socket alive without firing `onMessage`.
 - `schema` validates each frame before delivering it: what does not match never reaches `onMessage`, and `onValidationError` says why.
 - Status `"error"` = attempts exhausted; offer the user a `reconnect()`.

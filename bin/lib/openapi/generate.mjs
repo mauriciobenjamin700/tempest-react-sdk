@@ -1,6 +1,13 @@
 // OpenAPI 3.x → per-tag { schemas.ts (Zod), types.ts, service.ts (class) }.
 // Pure: takes the parsed spec object, returns a { path: contents } map. No I/O.
-import { assertNoCollision, commentText, toIdentifier, urlTemplate } from "./escape.mjs";
+import {
+    assertNoCollision,
+    assertSafePath,
+    commentText,
+    toIdentifier,
+    urlTemplate,
+} from "./escape.mjs";
+import { hasNestedQuantifier } from "./pattern-risk.mjs";
 import { refName, schemaToZod, typeName, zodName } from "./schema-to-zod.mjs";
 
 const HTTP_METHODS = ["get", "post", "put", "patch", "delete"];
@@ -157,30 +164,77 @@ function isSegmentScalar(schema, schemas, depth = 0) {
 }
 
 /**
- * Check every `pattern` in a schema compiles as a JavaScript regex.
+ * Whether a JSON value has an own key `__proto__` at any depth.
  *
- * The generated Zod schema builds it with `new RegExp(...)` when the module is
- * imported, so an invalid one would only surface in the app at runtime — a blank
- * screen. Failing here names the schema and where in it the pattern sits.
+ * @param {unknown} value - A value parsed from the spec.
+ * @returns {boolean}
+ */
+function hasProtoKey(value) {
+    if (!value || typeof value !== "object") return false;
+    if (Object.hasOwn(value, "__proto__")) return true;
+    return Object.values(value).some(hasProtoKey);
+}
+
+/**
+ * Check a component schema before it is turned into Zod source.
+ *
+ * - Every `pattern` must compile as a JavaScript regex. The generated schema
+ *   builds it with `new RegExp(...)` when the module is imported, so an invalid
+ *   one would only surface in the app at runtime — a blank screen.
+ * - A `pattern` with the nested-quantifier shape ({@link hasNestedQuantifier})
+ *   is pushed to `warnings`: it compiles, and it can freeze the tab on one
+ *   crafted value, but a heuristic does not get to fail the run.
+ * - A property, or a key inside a `default`, named `__proto__` is refused. The
+ *   generated source is an object literal, where `"__proto__": ...` sets the
+ *   prototype instead of adding a key: the field vanished from the Zod shape and
+ *   the value went unvalidated, and Zod 4 drops the key even when it is written
+ *   as a computed `["__proto__"]` (measured on 4.6.7: a required `__proto__:
+ *   z.string()` accepted `{}` and `5`). There is no source that validates it, so
+ *   the spec is refused (#533).
+ *
+ * Every failure names the schema and where in it the problem sits.
  *
  * @param {unknown} node - The schema (sub)node.
- * @param {string} schema - The component schema name, for the error.
+ * @param {string} schema - The component schema name, for the messages.
+ * @param {string[]} warnings - Collects the non-fatal findings.
  * @param {string[]} [at] - Keys from the schema root to `node`.
- * @throws {Error} When a pattern does not compile.
+ * @throws {Error} When a pattern does not compile, or a `__proto__` key would be
+ *   emitted.
  */
-function assertPatterns(node, schema, at = []) {
+function checkSchema(node, schema, warnings, at = []) {
     if (!node || typeof node !== "object") return;
+    const where = `OpenAPI schema ${JSON.stringify(schema)} at ${at.join(".") || "(root)"}`;
     if (typeof node.pattern === "string") {
         try {
             new RegExp(node.pattern);
         } catch (err) {
             throw new Error(
-                `OpenAPI schema ${JSON.stringify(schema)} at ${at.join(".") || "(root)"}: pattern ${JSON.stringify(node.pattern)} is not a valid JavaScript regular expression (${err.message}).`,
+                `${where}: pattern ${JSON.stringify(node.pattern)} is not a valid JavaScript regular expression (${err.message}).`,
+            );
+        }
+        if (hasNestedQuantifier(node.pattern)) {
+            warnings.push(
+                `${where}: pattern ${JSON.stringify(node.pattern)} repeats a group that ends in a repetition; it can backtrack exponentially on a near-miss value and freeze the tab that validates it.`,
             );
         }
     }
+    if (
+        node.properties &&
+        typeof node.properties === "object" &&
+        Object.hasOwn(node.properties, "__proto__")
+    ) {
+        throw new Error(
+            `${where}: a property named "__proto__" cannot be validated — in the generated object literal it sets the prototype instead of declaring the field. Rename it in the spec.`,
+        );
+    }
+    if (hasProtoKey(node.default)) {
+        throw new Error(
+            `${where}: the default value has a "__proto__" key, which the generated object literal would turn into its prototype. Remove it from the spec.`,
+        );
+    }
     for (const [key, value] of Object.entries(node)) {
-        if (key !== "pattern") assertPatterns(value, schema, [...at, key]);
+        if (key !== "pattern" && key !== "default")
+            checkSchema(value, schema, warnings, [...at, key]);
     }
 }
 
@@ -432,8 +486,15 @@ function compareNames(a, b) {
  * because a browser `fetch` cannot set `Cookie` — the browser sends its own
  * cookies with `credentials`, which is how a cookie parameter reaches the server.
  *
+ * Every path key that has an operation goes through {@link assertSafePath}, and
+ * every emitted component schema through {@link checkSchema}: spec text that
+ * would turn into a call to another origin, or into an object literal whose
+ * prototype the spec picks, fails the run before anything is written (#533).
+ *
  * @param {object} doc - The parsed OpenAPI 3.x spec.
- * @returns {{ files: Record<string, string>, tags: string[] }}
+ * @returns {{ files: Record<string, string>, tags: string[], services: { slug: string, className: string }[], warnings: string[] }}
+ *   The files by relative path; each group's spec tag, folder and service class
+ *   (in the same order); and the non-fatal findings the CLI prints.
  */
 export function generate(doc) {
     const schemas = doc.components?.schemas ?? {};
@@ -444,6 +505,7 @@ export function generate(doc) {
         for (const method of HTTP_METHODS) {
             const op = item[method];
             if (!op) continue;
+            assertSafePath(path);
             const tag = op.tags?.[0] ?? "default";
             const slug = tagSlug(tag);
             if (!groups.has(slug)) groups.set(slug, { tag, slug, ops: [] });
@@ -459,10 +521,13 @@ export function generate(doc) {
 
     const files = {};
     const tags = [];
+    const services = [];
+    const warnings = [];
 
     for (const { tag, slug, ops } of groups.values()) {
         tags.push(tag);
         const Class = `${slugIdent(pascal(slug))}Service`;
+        services.push({ slug, className: Class });
 
         const usedNames = new Set(CLASS_MEMBERS);
         const signature = { refs: new Set(), validates: false, sendsHeaders: false };
@@ -483,7 +548,7 @@ export function generate(doc) {
             sorted.map((n) => [n, typeName(n)]),
             "schema names",
         );
-        for (const name of sorted) assertPatterns(schemas[name], name);
+        for (const name of sorted) checkSchema(schemas[name], name, warnings);
 
         const schemaLines = sorted.map((name) => {
             const expr = schemaToZod(schemas[name], (ref) => {
@@ -542,7 +607,7 @@ export function generate(doc) {
             .map((slug) => `export * as ${slugIdent(slug)} from "./${slug}";`)
             .join("\n") + "\n";
 
-    return { files, tags };
+    return { files, tags, services, warnings };
 }
 
 /**

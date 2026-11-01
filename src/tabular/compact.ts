@@ -151,6 +151,8 @@ export class CompactPredictor {
             cursor += section.length * 4;
         }
 
+        if (header.kind === "tree_ensemble") assertTreesTerminate(header, arrays);
+
         return new CompactPredictor(header, arrays, {
             kind: header.kind,
             classes: header.classes,
@@ -379,6 +381,70 @@ async function toBuffer(
         ) as ArrayBuffer;
     }
     return source;
+}
+
+/**
+ * Prove once, at load, that every tree walk ends inside its arrays.
+ *
+ * The walk in `treeScores` follows `node_left`/`node_right` until it meets a
+ * leaf, with no step limit — a limit there would be paid on every node of every
+ * row. So a file whose child index points back up the tree spun the tab forever
+ * on the first `predict`, and one pointing past the arrays read `undefined` and
+ * answered `NaN`. scikit-learn numbers a node before its children, and
+ * `export_sklearn_to_compact` keeps that order with each tree's nodes contiguous,
+ * so a well-formed file satisfies `node < child < next tree's offset` everywhere
+ * — measured on every tree fixture in `__fixtures__` (1 761 nodes, 0 violations).
+ * Checking that invariant is linear in the node count and rules out a cycle by
+ * construction, since every step strictly increases the index.
+ *
+ * @param header The parsed header.
+ * @param arrays The sections, by name.
+ * @throws {@link CompactFormatError} when a tree could loop, leave its arrays,
+ *   read a feature the model does not have, or a leaf slot past the values.
+ */
+function assertTreesTerminate(
+    header: CompactHeader,
+    arrays: Record<string, Float32Array | Int32Array>,
+): void {
+    const feature = arrays.node_feature;
+    const left = arrays.node_left;
+    const right = arrays.node_right;
+    const leaf = arrays.leaf_value;
+    const offsets = arrays.tree_offset;
+    if (!feature || !left || !right || !leaf || !offsets || offsets.length < 2) {
+        throw new CompactFormatError("This tree model is missing its node or offset sections.");
+    }
+    const nodes = feature.length;
+    const outputs = header.n_outputs;
+    const broken = (detail: string): CompactFormatError =>
+        new CompactFormatError(`This tree model is malformed: ${detail}. Re-export it.`);
+
+    if (left.length !== nodes || right.length !== nodes || offsets[0] !== 0) {
+        throw broken("the node sections disagree on the node count");
+    }
+    if (offsets[offsets.length - 1] !== nodes) {
+        throw broken("the last tree does not end at the last node");
+    }
+    for (let tree = 0; tree < offsets.length - 1; tree += 1) {
+        const start = offsets[tree] as number;
+        const end = offsets[tree + 1] as number;
+        if (end <= start) throw broken(`tree ${tree} has no nodes`);
+        for (let node = start; node < end; node += 1) {
+            const column = feature[node] as number;
+            if (column >= 0) {
+                const lower = left[node] as number;
+                const upper = right[node] as number;
+                if (column >= header.n_features) {
+                    throw broken(`node ${node} splits on feature ${column}`);
+                }
+                if (lower <= node || upper <= node || lower >= end || upper >= end) {
+                    throw broken(`node ${node} points outside its tree or back up it`);
+                }
+            } else if ((-1 - column) * outputs + outputs > leaf.length) {
+                throw broken(`leaf ${node} reads past the leaf values`);
+            }
+        }
+    }
 }
 
 /**

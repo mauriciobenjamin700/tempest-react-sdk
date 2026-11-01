@@ -1,8 +1,8 @@
 /**
  * @tempest-limits props-count — component, theme, text, shape, size and width are
- * Google's own button parameters, passed through with their names intact so the
- * reader can match them to Google's documentation;
- * onSuccess/onError/locale/disableOneTap are the wrapper's.
+ * Google's own button parameters, and nonce Google's ID-token parameter, passed
+ * through with their names intact so the reader can match them to Google's
+ * documentation; onSuccess/onError/locale/disableOneTap are the wrapper's.
  */
 import type { CSSProperties, ReactNode } from "react";
 import type { OAuthCredential, OAuthError } from "./types";
@@ -37,6 +37,16 @@ export interface GoogleSignInProps {
     disableOneTap?: boolean;
     /** Optional `width` override (px) — Google's button is fixed-width. */
     width?: number;
+    /**
+     * Server-issued nonce Google copies into the ID token's `nonce` claim.
+     *
+     * The backend issues one per sign-in attempt, keeps it, and rejects an
+     * `id_token` whose claim does not match — which is what stops a token
+     * captured elsewhere from being replayed against your API. Until 0.82.0
+     * the wrapper dropped it, so an app could not bind the token through
+     * `<GoogleSignIn>` at all (#530).
+     */
+    nonce?: string;
     /** Optional className applied to the wrapper. */
     className?: string;
     /** Optional inline style applied to the wrapper. */
@@ -78,6 +88,7 @@ export function GoogleSignIn({
     size,
     disableOneTap,
     width,
+    nonce,
     className,
     style,
 }: GoogleSignInProps) {
@@ -112,6 +123,7 @@ export function GoogleSignIn({
                 size,
                 useOneTap: !disableOneTap,
                 width,
+                nonce,
             })}
         </div>
     );

@@ -7,7 +7,11 @@
  */
 import { ownerFingerprint } from "@/utils/owner-fingerprint";
 import { bytesToBase64 } from "@/utils/base64";
-import { isTrustedCredentialTarget, reportSuppressedCredential } from "./credential-scope";
+import {
+    isTrustedCredentialTarget,
+    reportSuppressedCredential,
+    resolveRequestUrl,
+} from "./credential-scope";
 import { csrfHeaders } from "./csrf";
 import type { CsrfOptions } from "./csrf";
 import { buildApiError, isApiError, isRetriableStatus, TempestApiError } from "./errors";
@@ -130,10 +134,11 @@ export interface ResumableUploadRecord {
     /** Epoch ms of the last write, so an app can sweep stale records. */
     updatedAt: number;
     /**
-     * One-way fingerprint of the principal that created the upload (`"p:<hex>"`),
-     * `null` for an anonymous one. Absent when the upload ran without
-     * {@link ResumableUploadOptions.getPrincipal}, and on records written before
-     * 0.78.0.
+     * One-way fingerprint of the principal that created the upload (`"p:<hex>"`)
+     * or, without {@link ResumableUploadOptions.getPrincipal}, of the bearer
+     * token of its last write (`"t:<hex>"`, since 0.82.0); `null` for an
+     * anonymous one. Absent when the upload ran with neither getter, and on
+     * records written before 0.78.0.
      */
     owner?: string | null;
 }
@@ -183,7 +188,11 @@ export interface ResumableUploadOptions {
     chunkSize?: number;
     /** Sent as `Upload-Metadata` (base64-encoded values), e.g. `{ filename }`. */
     metadata?: Record<string, string>;
-    /** Extra headers on every request. */
+    /**
+     * Extra headers on every request inside the credential scope — the
+     * `endpoint`'s origin plus {@link trustedOrigins}. A `Location` on another
+     * host gets only the tus headers, never these (since 0.82.0).
+     */
     headers?: Record<string, string>;
     /** Returns the current bearer token, read before each request. */
     getToken?: () => string | null | undefined;
@@ -195,13 +204,14 @@ export interface ResumableUploadOptions {
      * The resume record is stamped with a one-way fingerprint of it, and a
      * record stamped by anyone else — another user, nobody, or no stamp at all
      * — is deleted instead of resumed: its upload URL is not probed, and its
-     * `Idempotency-Key` is never replayed. Without it, the record is bound to
-     * the file alone (endpoint, name, size, type, mtime), so after user A
-     * signed out leaving an upload half-done, user B picking an identical file
-     * sent `HEAD`/`PATCH` to A's upload URL with B's token, and on refusal
-     * replayed A's `Idempotency-Key` with B's token (#479). Pass it on every
-     * app with more than one account per browser, and also clear the storage
-     * at session end (`createLocalUploadStorage().clear()` in `onSessionEnd`).
+     * `Idempotency-Key` is never replayed (#479).
+     *
+     * Without it, since 0.82.0 the record is bound to a fingerprint of the
+     * `getToken` token instead, so another account's record is still never
+     * adopted (#528) — but a token rotates: a reload after a refresh that no
+     * chunk landed under starts the upload over. Pass `getPrincipal` to keep
+     * resuming across refreshes, and always with a cookie session, where there
+     * is no token to bind to and the record stays unbound.
      *
      * It is read again before every chunk and every record write: when it
      * names someone else mid-run, the run stops with
@@ -540,19 +550,25 @@ function failed(response: RawResponse, detail: string): TempestApiError {
 }
 
 /**
- * Resolve a `Location` header against the page, so a relative upload URL works.
+ * Resolve a `Location` header against the creation endpoint, so a relative
+ * upload URL works.
  *
  * tus servers are free to answer creation with either an absolute URL or a
  * path, and the spec does not prefer one — a client that only handles absolute
  * URLs breaks against half the implementations.
  *
+ * The base is the URL the creation `POST` went to, as RFC 9110 §10.2.2 says
+ * for `Location`, resolved the way the transport resolved it. Until 0.82.0 it
+ * was the page's address: with an absolute `endpoint` on a tus host, a
+ * `Location: /files/abc` pointed the chunks at the app's own origin (#530).
+ *
  * @param value - The raw `Location` header.
+ * @param endpoint - The creation endpoint the `POST` went to.
  * @returns An absolute URL, or the input when there is no base to resolve against.
  */
-function resolveUploadUrl(value: string): string {
-    const base = typeof window === "undefined" ? undefined : window.location.href;
+function resolveUploadUrl(value: string, endpoint: string): string {
     try {
-        return new URL(value, base).href;
+        return new URL(value, resolveRequestUrl(endpoint) ?? undefined).href;
     } catch {
         return value;
     }
@@ -640,6 +656,32 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
     let generation = generationOf?.() ?? 0;
 
     /**
+     * Who the resume record belongs to right now, as the fingerprint it is
+     * stamped with.
+     *
+     * `getPrincipal` wins when given (`"p:…"`). Without it, a `getToken` getter
+     * still names the credential every request carries, so the record is bound
+     * to a fingerprint of the token (`"t:…"`) — never the token itself. Until
+     * 0.82.0 a record written without `getPrincipal` had no owner at all and
+     * was adopted by whoever picked an identical file next: `HEAD`/`PATCH` with
+     * their token to the previous user's upload URL, and the previous user's
+     * `Idempotency-Key` replayed on their creation (#528).
+     *
+     * A token rotates, a principal does not, which is why `getPrincipal` is
+     * still the better binding: a reload after a refresh that happened while
+     * no chunk was landing starts the upload over. `undefined` — no binding —
+     * only when there is neither getter: an anonymous upload, or a cookie
+     * session the SDK cannot see.
+     *
+     * @returns The fingerprint, `null` for nobody, `undefined` for unbound.
+     */
+    function currentOwner(): string | null | undefined {
+        if (getPrincipal) return ownerFingerprint("p", getPrincipal());
+        if (getToken) return ownerFingerprint("t", getToken());
+        return undefined;
+    }
+
+    /**
      * Throw when the run can no longer go on as the account that attached it:
      * the principal changed, or the local storage was cleared under it.
      *
@@ -684,17 +726,23 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
      * file bytes.
      *
      * The CSRF token follows the same scope, and only on the methods that
-     * write — which is why the method is a parameter too.
+     * write — which is why the method is a parameter too. So do the static
+     * `headers` since 0.82.0: an `X-Api-Key` there is a credential, and until
+     * then it went to a foreign `Location` along with the bytes (#530).
      *
      * @param target - The URL this particular request goes to.
      * @param method - The HTTP method of this request.
      * @returns The headers to send.
      */
     function baseHeaders(target: string, method: string): Record<string, string> {
-        const result: Record<string, string> = { ...headers, "Tus-Resumable": TUS_VERSION };
+        const inScope = isTrustedCredentialTarget(target, endpoint, trustedOrigins);
+        const result: Record<string, string> = {
+            ...(inScope ? headers : {}),
+            "Tus-Resumable": TUS_VERSION,
+        };
         const token = getToken?.();
-        if (token && !("Authorization" in result)) {
-            if (isTrustedCredentialTarget(target, endpoint, trustedOrigins)) {
+        if (token && !("Authorization" in headers)) {
+            if (inScope) {
                 result.Authorization = `Bearer ${token}`;
             } else {
                 reportSuppressedCredential(target, endpoint);
@@ -718,9 +766,18 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
         inFlight = xhr;
     }
 
+    /**
+     * Write the resume record, stamped with whoever owns it now.
+     *
+     * Restamped on every write rather than fixed at attach, so a token refresh
+     * mid-upload does not orphan the record: the next reload, with the new
+     * token, still resumes it. With `getPrincipal` the stamp cannot drift —
+     * {@link assertCurrentOwner} stops the run first.
+     */
     async function persist(): Promise<void> {
         if (!storage || !url || !idempotencyKey) return;
         assertCurrentOwner();
+        owner = currentOwner();
         await storage.set(key, {
             url,
             offset,
@@ -760,20 +817,27 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
      * offset it holds is re-checked with `HEAD` — the client's copy can be ahead of
      * the server's whenever the last response was lost.
      *
-     * With `getPrincipal`, it is also only trusted when it carries the current
-     * principal's fingerprint; anyone else's is deleted, and the creation that
-     * follows gets a fresh `Idempotency-Key`. The key this handle kept in memory
-     * from an earlier run is reused only while the principal is the same, which
-     * is what keeps creation idempotent across `resume()` without storage.
+     * It is also only trusted when it carries the current owner's fingerprint
+     * (see {@link currentOwner}); anyone else's is deleted, and the creation
+     * that follows gets a fresh `Idempotency-Key`. With `getPrincipal`, the key
+     * this handle kept in memory from an earlier run is reused only while the
+     * principal is the same, which is what keeps creation idempotent across
+     * `resume()` without storage.
+     *
+     * Bound by token, the handle's own record is the exception: a `resume()`
+     * after a refresh finds the record it wrote itself, stamped with the token
+     * of its last write, and continues it instead of starting over.
      */
     async function ensureUpload(): Promise<string> {
-        const current = getPrincipal ? ownerFingerprint("p", getPrincipal()) : undefined;
-        if (attached && current !== owner) idempotencyKey = null;
+        const current = currentOwner();
+        if (attached && getPrincipal && current !== owner) idempotencyKey = null;
+        const ownUrl = attached && !getPrincipal ? url : null;
         owner = current;
         attached = true;
         generation = generationOf?.() ?? 0;
         let stored = storage ? await storage.get(key) : null;
-        if (stored && owner !== undefined && stored.owner !== owner) {
+        const ownRecord = stored !== null && ownUrl !== null && stored.url === ownUrl;
+        if (stored && owner !== undefined && stored.owner !== owner && !ownRecord) {
             await storage?.delete(key);
             stored = null;
         }
@@ -824,7 +888,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
         const locationHeader = response.header("Location");
         if (!locationHeader) throw failed(response, "Criação do upload sem cabeçalho Location.");
 
-        url = resolveUploadUrl(locationHeader);
+        url = resolveUploadUrl(locationHeader, endpoint);
         await persist();
         return url;
     }

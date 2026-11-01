@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ownerFingerprint } from "@/utils/owner-fingerprint";
 import { resetCsrfReports } from "./csrf";
 import {
     createLocalUploadStorage,
@@ -978,6 +979,8 @@ describe("createResumableUpload — the edges the protocol still has to survive"
         server = acceptingServer(4);
         installXhr();
         vi.stubGlobal("window", undefined);
+        vi.stubGlobal("document", undefined);
+        vi.stubGlobal("location", undefined);
         const upload = createResumableUpload({
             endpoint: "/api/uploads",
             file: blobOf(4),
@@ -1150,6 +1153,7 @@ describe("createResumableUpload — the credential is scoped to the endpoint's o
             size: 8,
             idempotencyKey: "k",
             updatedAt: 1,
+            owner: ownerFingerprint("t", "token-1"),
         };
         server = acceptingServer(8, "https://storage.other/u/abc");
         installXhr();
@@ -1363,8 +1367,14 @@ describe("createResumableUpload — the resume record belongs to a principal", (
     });
 
     it("does not resume a record written before the owner existed once getPrincipal is passed", async () => {
-        const legacy = await abandonUploadAsA(undefined);
-        expect(legacy).not.toHaveProperty("owner");
+        const legacy: ResumableUploadRecord = {
+            url: "http://localhost:3000/api/uploads/A",
+            offset: 4,
+            size: 10,
+            idempotencyKey: "legacy-key",
+            updatedAt: 1,
+        };
+        createLocalUploadStorage().set(uploadFingerprint("/api/uploads", file), legacy);
         server = acceptingServer(10, "/api/uploads/B");
         installXhr();
 
@@ -1421,9 +1431,18 @@ describe("createResumableUpload — the resume record belongs to a principal", (
         expect(server.countOf("POST")).toBe(0);
     });
 
-    it("keeps resuming any record without getPrincipal, as before 0.78.0", async () => {
-        await abandonUploadAsA(undefined);
-        server = acceptingServer(10, "/api/uploads/A");
+    /**
+     * Until 0.82.0 this asserted the opposite — "keeps resuming any record
+     * without getPrincipal, as before 0.78.0" — and B's first request was a
+     * `HEAD` to A's upload URL carrying B's token (#528). Without
+     * `getPrincipal` the record is now bound to a fingerprint of the bearer
+     * token, so a record left by another token is deleted, not adopted.
+     */
+    it("does not resume another token's record without getPrincipal (#528)", async () => {
+        const recordOfA = await abandonUploadAsA(undefined);
+        expect(recordOfA.owner).toMatch(/^t:[0-9a-f]{16}$/);
+        expect(JSON.stringify(recordOfA)).not.toContain("tok-A");
+        server = acceptingServer(10, "/api/uploads/B");
         installXhr();
 
         await createResumableUpload({
@@ -1433,10 +1452,211 @@ describe("createResumableUpload — the resume record belongs to a principal", (
             getToken: () => "tok-B",
         }).start();
 
+        expect(server.requests.filter((request) => request.url.endsWith("/api/uploads/A"))).toEqual(
+            [],
+        );
+        expect(
+            server.requests.find((request) => request.method === "POST")?.headers[
+                "Idempotency-Key"
+            ],
+        ).not.toBe(recordOfA.idempotencyKey);
+    });
+
+    it("still resumes the same token's own record without getPrincipal", async () => {
+        await abandonUploadAsA(undefined);
+        server = acceptingServer(10, "/api/uploads/A");
+        installXhr();
+
+        await createResumableUpload({
+            endpoint: "/api/uploads",
+            file,
+            chunkSize: 4,
+            getToken: () => "tok-A",
+        }).start();
+
         expect(server.requests[0]).toMatchObject({
             method: "HEAD",
             url: "http://localhost:3000/api/uploads/A",
         });
+        expect(server.countOf("POST")).toBe(0);
+    });
+
+    it("does not adopt a record stamped by nobody once a token is present", async () => {
+        const legacy: ResumableUploadRecord = {
+            url: "http://localhost:3000/api/uploads/A",
+            offset: 4,
+            size: 10,
+            idempotencyKey: "legacy-key",
+            updatedAt: 1,
+        };
+        server = acceptingServer(10, "/api/uploads/B");
+        installXhr();
+
+        await createResumableUpload({
+            endpoint: "/api/uploads",
+            file,
+            chunkSize: 4,
+            getToken: () => "tok-B",
+            storage: memoryStorage(legacy),
+        }).start();
+
+        expect(server.countOf("HEAD")).toBe(0);
+        expect(
+            server.requests.find((request) => request.method === "POST")?.headers[
+                "Idempotency-Key"
+            ],
+        ).not.toBe("legacy-key");
+    });
+
+    it("keeps the token-less behaviour: an anonymous record with no owner still resumes", async () => {
+        await abandonUploadAsAnonymous();
+        server = acceptingServer(10, "/api/uploads/A");
+        installXhr();
+
+        await createResumableUpload({ endpoint: "/api/uploads", file, chunkSize: 4 }).start();
+
+        expect(server.requests[0]).toMatchObject({ method: "HEAD" });
+    });
+
+    it("survives a token refresh inside one handle: resume() continues the same upload", async () => {
+        let token = "tok-1";
+        server = acceptingServer(12, "/api/uploads/R");
+        installXhr();
+        const upload = createResumableUpload({
+            endpoint: "/api/uploads",
+            file: new File([new Uint8Array(12)], "r.bin", { lastModified: 1 }),
+            chunkSize: 4,
+            getToken: () => token,
+        });
+        server.onOpen = () => {
+            if (server.countOf("PATCH") === 1) {
+                server.onOpen = null;
+                upload.pause();
+            }
+        };
+        await upload.start();
+        token = "tok-2";
+
+        await expect(upload.resume()).resolves.toMatchObject({
+            url: "http://localhost:3000/api/uploads/R",
+        });
+        expect(server.countOf("POST")).toBe(1);
+    });
+
+    it("restamps the record with the refreshed token, so a reload after the refresh resumes", async () => {
+        let token = "tok-1";
+        const storage = memoryStorage();
+        server = acceptingServer(12, "/api/uploads/R");
+        server.queue("PATCH", { status: 204, headers: { "Upload-Offset": "4" } });
+        server.queue("PATCH", { status: 500 });
+        installXhr();
+        const picked = new File([new Uint8Array(12)], "r.bin", { lastModified: 1 });
+        server.onOpen = () => {
+            if (server.countOf("PATCH") === 1) token = "tok-2";
+        };
+        await createResumableUpload({
+            endpoint: "/api/uploads",
+            file: picked,
+            chunkSize: 4,
+            getToken: () => token,
+            storage,
+            retry: { shouldRetry: () => false },
+        })
+            .start()
+            .catch(() => undefined);
+
+        expect([...storage.records.values()][0]?.owner).toBe(ownerFingerprint("t", "tok-2"));
+    });
+
+    /**
+     * Leave an anonymous upload half-done: no token and no principal.
+     */
+    async function abandonUploadAsAnonymous(): Promise<void> {
+        server = acceptingServer(10, "/api/uploads/A");
+        server.queue("PATCH", { status: 204, headers: { "Upload-Offset": "4" } });
+        server.queue("PATCH", { status: 500 });
+        installXhr();
+        await createResumableUpload({
+            endpoint: "/api/uploads",
+            file,
+            chunkSize: 4,
+            retry: { shouldRetry: () => false },
+        })
+            .start()
+            .catch(() => undefined);
+    }
+});
+
+/**
+ * #530: a relative `Location` resolves against the creation endpoint, as RFC
+ * 9110 says it does, and the static `headers` follow the credential scope.
+ * Each failed against b054c16.
+ */
+describe("createResumableUpload — the Location and the headers follow the endpoint", () => {
+    it("resolves a relative Location against an absolute endpoint, not the page", async () => {
+        server = acceptingServer(4, "/files/abc");
+        installXhr();
+
+        const upload = createResumableUpload({
+            endpoint: "https://tus.acme.com/files/",
+            file: blobOf(4),
+            storage: null,
+        });
+        await upload.start();
+
+        expect(upload.url).toBe("https://tus.acme.com/files/abc");
+        expect(server.requests.find((request) => request.method === "PATCH")?.url).toBe(
+            "https://tus.acme.com/files/abc",
+        );
+    });
+
+    it("resolves a path-relative Location against the endpoint's path", async () => {
+        server = acceptingServer(4, "abc");
+        installXhr();
+
+        const upload = createResumableUpload({
+            endpoint: "/api/uploads/",
+            file: blobOf(4),
+            storage: null,
+        });
+        await upload.start();
+
+        expect(upload.url).toBe("http://localhost:3000/api/uploads/abc");
+    });
+
+    it("withholds the static headers from a Location on another origin", async () => {
+        server = acceptingServer(4, "https://storage.other/u/abc");
+        installXhr();
+
+        await createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(4),
+            headers: { "X-Api-Key": "secret" },
+            storage: null,
+        }).start();
+
+        const creation = server.requests.find((request) => request.method === "POST");
+        const chunk = server.requests.find((request) => request.method === "PATCH");
+        expect(creation?.headers["X-Api-Key"]).toBe("secret");
+        expect(chunk?.headers["X-Api-Key"]).toBeUndefined();
+        expect(chunk?.headers["Tus-Resumable"]).toBe(TUS_VERSION);
+    });
+
+    it("sends the static headers to a storage origin the app declared trusted", async () => {
+        server = acceptingServer(4, "https://storage.acme.com/u/abc");
+        installXhr();
+
+        await createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(4),
+            headers: { "X-Api-Key": "secret" },
+            trustedOrigins: ["https://storage.acme.com"],
+            storage: null,
+        }).start();
+
+        expect(
+            server.requests.find((request) => request.method === "PATCH")?.headers["X-Api-Key"],
+        ).toBe("secret");
     });
 });
 

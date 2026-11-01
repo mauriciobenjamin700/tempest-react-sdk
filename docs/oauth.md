@@ -63,8 +63,24 @@ Peça por peça:
 | `size`          | `"large" \| "medium" \| "small"`             | Tamanho.                                                                  |
 | `disableOneTap` | `boolean`                                    | Desliga o auto-prompt "One Tap". Default `false` (One Tap **ligado**).     |
 | `width`         | `number`                                     | Largura em px — o botão do Google é fixo por padrão.                      |
+| `nonce`         | `string`                                     | Nonce emitido pelo seu backend; o Google o copia no claim `nonce` do ID token (0.82.0). |
 | `className`     | `string`                                     | Aplicada no wrapper.                                                      |
 | `style`         | `CSSProperties`                              | Aplicado no wrapper.                                                      |
+
+!!! tip "Prenda o ID token a um `nonce` do servidor"
+    O backend gera um `nonce` por tentativa de login, guarda, e recusa o `id_token` cujo claim `nonce` não bate — é o que impede um token capturado em outro lugar de ser reapresentado à sua API. Até a 0.81.0 o wrapper descartava a prop; desde a 0.82.0 ela chega ao `GoogleLogin`:
+
+    ```tsx
+    import { GoogleLogin } from "@react-oauth/google";
+    import { GoogleSignIn, type OAuthCredential } from "tempest-react-sdk";
+
+    declare const nonceDoServidor: string;
+    declare function entrar(credential: OAuthCredential): Promise<void>;
+
+    export function BotaoGoogle() {
+      return <GoogleSignIn component={GoogleLogin} nonce={nonceDoServidor} onSuccess={entrar} />;
+    }
+    ```
 
 !!! warning "One Tap vem ligado"
     `disableOneTap` tem default `false`, ou seja o SDK passa `useOneTap: true` pro Google. Se você não quer o prompt automático aparecendo sozinho no canto da tela (comum em telas que não são de login), passe `disableOneTap`.

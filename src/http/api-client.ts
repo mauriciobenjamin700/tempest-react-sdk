@@ -149,7 +149,10 @@ async function parseError(response: Response, sentRequestId?: string): Promise<T
  * destination of a credentialed request could come from a value read off the
  * network. A request to another origin still goes out; it goes without the
  * header, and a development build says so once. Declare the exceptions in
- * {@link ApiClientConfig.trustedOrigins}.
+ * {@link ApiClientConfig.trustedOrigins}. Since 0.82.0 the static
+ * {@link ApiClientConfig.headers} follow the same scope, and a `401` from
+ * outside it is thrown without `refresh` or `onUnauthorized` — it answered a
+ * request that never carried this session's credential.
  *
  * **CSRF** is off unless you set `csrf`. With it, every unsafe request (anything
  * but `GET`/`HEAD`/`OPTIONS`/`TRACE`) echoes the `csrf_token` cookie in an
@@ -186,48 +189,54 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     const fetcher = config.fetcher ?? globalThis.fetch.bind(globalThis);
 
     /**
-     * The `Authorization` header for a request, or nothing.
+     * The headers that belong to the client's credential scope — the static
+     * `config.headers` and the `Authorization` header — or nothing.
      *
      * Takes the resolved URL rather than reading `config.baseURL`, because an
      * absolute path overrides the base entirely (see `buildApiUrl`) and the
-     * credential is scoped to an origin, not to a client.
+     * credential is scoped to an origin, not to a client. Static headers ride
+     * with the token since 0.82.0: an `X-Api-Key` set once on the client is as
+     * much a credential as the bearer (#530).
      *
      * @param url - The absolute URL the request is going to.
+     * @param inScope - Whether `url` is inside the credential scope.
      * @param skipAuth - Whether the caller opted this request out of auth.
-     * @returns The header, or an empty object.
+     * @returns The headers, or an empty object.
      */
-    function authHeaders(url: string, skipAuth: boolean): Record<string, string> {
-        if (skipAuth) return {};
-        const token = config.getToken?.();
-        if (!token) return {};
-        if (!isTrustedCredentialTarget(url, config.baseURL, config.trustedOrigins)) {
-            reportSuppressedCredential(url, config.baseURL);
+    function scopedHeaders(
+        url: string,
+        inScope: boolean,
+        skipAuth: boolean,
+    ): Record<string, string> {
+        const token = skipAuth ? null : config.getToken?.();
+        if (!inScope) {
+            if (token) reportSuppressedCredential(url, config.baseURL);
+            const names = Object.keys(config.headers ?? {});
+            if (names.length > 0) reportSuppressedCredential(url, config.baseURL, names.join(", "));
             return {};
         }
-        return { Authorization: `Bearer ${token}` };
+        return { ...config.headers, ...(token ? { Authorization: `Bearer ${token}` } : {}) };
     }
 
     async function rawRequest(
-        path: string,
+        url: string,
+        inScope: boolean,
         options: RequestOptions,
         requestId: string | undefined,
         skipAuth: boolean,
     ): Promise<Response> {
-        const { body, params, headers, signal, timeout, ...rest } = options;
+        const { body, headers, signal, timeout, ...rest } = options;
         const isForm = isFormData(body);
         const configured = isForm ? config.uploadTimeout : config.timeout;
         const fallback = isForm ? DEFAULT_UPLOAD_TIMEOUT : DEFAULT_TIMEOUT;
         const limit =
             timeout !== undefined ? timeout : configured !== undefined ? configured : fallback;
 
-        const url = buildApiUrl(config.baseURL, path, { prefix: config.prefix, params });
-
         const callerHeaders = headers as Record<string, string> | undefined;
         const finalHeaders: Record<string, string> = {
             ...(isForm ? {} : { "Content-Type": "application/json" }),
             ...(requestId ? { "X-Request-ID": requestId } : {}),
-            ...config.headers,
-            ...authHeaders(url, skipAuth),
+            ...scopedHeaders(url, inScope, skipAuth),
             ...csrfHeaders({
                 method: rest.method ?? "GET",
                 url,
@@ -270,18 +279,20 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
 
     async function send(
         path: string,
+        url: string,
+        inScope: boolean,
         options: RequestOptions,
         requestId: string,
         method: string,
         skipAuth: boolean,
     ): Promise<Response> {
         const log = config.logger;
-        if (!log) return rawRequest(path, options, requestId, skipAuth);
+        if (!log) return rawRequest(url, inScope, options, requestId, skipAuth);
 
         const target = `${method} ${pathForLog(path)}`;
         const startedAt = performance.now();
         try {
-            const response = await rawRequest(path, options, requestId, skipAuth);
+            const response = await rawRequest(url, inScope, options, requestId, skipAuth);
             const entry = { requestId, status: response.status, ms: elapsedMs(startedAt) };
             const line = `${target} → ${response.status}`;
             if (response.status >= 400) log.warn(line, entry);
@@ -342,24 +353,40 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         };
     }
 
+    /**
+     * One request, with the `401` refresh-and-replay around it.
+     *
+     * The refresh path runs only for a target inside the credential scope. A
+     * `401` from any other origin answers a request that never carried this
+     * session's credential, so it says nothing about the session; until 0.82.0
+     * it still drove `refresh()` and `onUnauthorized()`, so a foreign host could
+     * spend a refresh and end the user's session (#530).
+     *
+     * @param path - The path as the call site wrote it.
+     * @param options - Request options, policy fields included.
+     * @param decode - How to turn the response into a value.
+     * @returns The decoded value.
+     */
     async function attempt<T>(
         path: string,
         options: RequestOptions,
         decode: ResponseDecoder<T>,
     ): Promise<T> {
-        const { skipAuth = false, skipAuthRetry = false, ...init } = options;
+        const { skipAuth = false, skipAuthRetry = false, params, ...init } = options;
         const requestId = config.requestId ? config.requestId() : randomId();
         const method = (init.method ?? "GET").toUpperCase();
+        const url = buildApiUrl(config.baseURL, path, { prefix: config.prefix, params });
+        const inScope = isTrustedCredentialTarget(url, config.baseURL, config.trustedOrigins);
         const sent = authContext(skipAuth);
-        let response = await send(path, init, requestId, method, skipAuth);
+        let response = await send(path, url, inScope, init, requestId, method, skipAuth);
 
-        if (response.status === 401 && !skipAuth && !skipAuthRetry) {
+        if (response.status === 401 && inScope && !skipAuth && !skipAuthRetry) {
             if (config.refresh) {
                 let replayed: RequestAuthContext;
                 try {
                     await config.refresh(sent);
                     replayed = authContext(skipAuth);
-                    response = await send(path, init, requestId, method, skipAuth);
+                    response = await send(path, url, inScope, init, requestId, method, skipAuth);
                 } catch (error) {
                     if (error instanceof SessionSupersededError) throw error;
                     await notifyUnauthorized(response, requestId, sent);

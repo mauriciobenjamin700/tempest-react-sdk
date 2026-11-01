@@ -73,9 +73,8 @@ describe("uploadWithProgress — csrf sends the token with the upload", () => {
 });
 
 /**
- * The bearer token's scope is opt-in here for compatibility with every version
- * before 0.66.0. The CSRF option is new, so it starts closed: with no
- * `credentialOrigin`, the scope is the page's own origin.
+ * The CSRF option started closed: with no `credentialOrigin`, the scope is the
+ * page's own origin. Since 0.82.0 the bearer token shares that default.
  */
 describe("uploadWithProgress — the token is scoped even without credentialOrigin", () => {
     it("withholds it from another origin when no origin is declared", async () => {

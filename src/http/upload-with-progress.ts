@@ -29,18 +29,22 @@ export interface UploadWithProgressOptions {
     getToken?: () => string | null | undefined;
     /**
      * Origin the `getToken` credential belongs to, normally the API's.
+     * Defaults to the page's own origin (`location.origin`).
      *
      * Unlike `createApiClient`, this helper has no base URL to infer a scope
-     * from — the caller names the destination on every call. Set this when the
-     * `url` can come from somewhere other than your own code (a signed URL the
-     * API handed back, a value from a response body) and the token must not
-     * follow it off-origin. Left unset, the header goes wherever `url` points,
-     * which is the behaviour every version before 0.66.0 had.
+     * from — the caller names the destination on every call, and the `url` can
+     * come from somewhere other than your own code (a signed URL the API handed
+     * back, a value from a response body). Until 0.82.0 an unset scope sent the
+     * token wherever `url` pointed; it now starts closed, like the CSRF token
+     * always did, and an API on another origin sets this to receive it (#530).
+     *
+     * Outside a browsing context there is no page origin, and the scope falls
+     * back to `url` itself.
      */
     credentialOrigin?: string;
     /**
      * Extra origins allowed to receive the credential, on top of
-     * {@link credentialOrigin}. Ignored when that one is unset.
+     * {@link credentialOrigin} (or the page origin it defaults to).
      */
     trustedOrigins?: readonly string[];
     /** Send cookies. Defaults to false. */
@@ -49,12 +53,9 @@ export interface UploadWithProgressOptions {
      * Send a CSRF token with the upload, as `createApiClient`'s `csrf` does.
      * Off by default; `true` reads the `csrf_token` cookie into `X-CSRF-Token`.
      *
-     * Scoped to {@link credentialOrigin} plus {@link trustedOrigins} — and,
-     * unlike the bearer token, scoped even when `credentialOrigin` is unset:
-     * then the scope is the page's own origin. The bearer default stays open
-     * only for compatibility with every version before 0.66.0; this option is
-     * new, so it starts closed. An API on another origin sets
-     * `credentialOrigin` to receive the token.
+     * Scoped exactly like the bearer token: to {@link credentialOrigin} (the
+     * page's own origin when unset) plus {@link trustedOrigins}. An API on
+     * another origin sets `credentialOrigin` to receive the token.
      */
     csrf?: boolean | CsrfOptions;
     /** Called on every `progress` event from the XHR upload channel. */
@@ -118,14 +119,12 @@ export function uploadWithProgress<T = unknown>(options: UploadWithProgressOptio
         const token = getToken?.();
         const sentRequestId = requestId ? requestId() : randomId();
         const finalHeaders: Record<string, string> = { ...headers };
+        const scope = credentialOrigin ?? globalThis.location?.origin ?? url;
         if (token && !("Authorization" in finalHeaders)) {
-            if (
-                credentialOrigin === undefined ||
-                isTrustedCredentialTarget(url, credentialOrigin, trustedOrigins)
-            ) {
+            if (isTrustedCredentialTarget(url, scope, trustedOrigins)) {
                 finalHeaders.Authorization = `Bearer ${token}`;
             } else {
-                reportSuppressedCredential(url, credentialOrigin);
+                reportSuppressedCredential(url, scope);
             }
         }
         Object.assign(
@@ -133,7 +132,7 @@ export function uploadWithProgress<T = unknown>(options: UploadWithProgressOptio
             csrfHeaders({
                 method,
                 url,
-                reference: credentialOrigin ?? globalThis.location?.origin ?? url,
+                reference: scope,
                 csrf,
                 trustedOrigins,
                 headers,

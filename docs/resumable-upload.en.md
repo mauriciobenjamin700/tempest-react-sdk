@@ -73,7 +73,7 @@ What happens: a `POST` creates the upload, a series of `PATCH`es pushes 5 MiB at
 
 ## Resuming after a reload
 
-That is the reason it exists. The client stores `{ url, offset, size, idempotencyKey }` (plus `owner`, with `getPrincipal`) under a **resume key** and, on the next `start()`, re-attaches to the upload:
+That is the reason it exists. The client stores `{ url, offset, size, idempotencyKey }` (plus `owner`, with `getPrincipal` or `getToken`) under a **resume key** and, on the next `start()`, re-attaches to the upload:
 
 ```ts
 const upload = createResumableUpload({ endpoint: "/api/uploads", file });
@@ -178,8 +178,20 @@ export async function send(): Promise<string | null> {
 
 `clear()` only removes values shaped like an upload record: a prefix with no delimiter (`"app"`) does not take the app's own keys (`"appSettings"`) with it.
 
-!!! warning "Without `getPrincipal`, the behavior is the old one"
-    Without `getPrincipal`, any record under the same key is still resumed, whoever wrote it, and a run in progress does not notice the account switch. That is fine for a one-account-per-browser app; with more than one, pass the getter and clear at session end — and, without the getter, call `abort()` on the uploads in progress from `onSessionEnd`.
+#### Without `getPrincipal`: the record belongs to the token (0.82.0)
+
+Up to 0.81.0, without `getPrincipal` any record under the same key was resumed, whoever wrote it (#528). Since **0.82.0**, with `getToken` and no `getPrincipal`, the record is stamped with a one-way fingerprint of the **token** (`owner: "t:…"`, never the token itself), and a record stamped by another token — or not stamped at all — is deleted instead of resumed. B never again sends a `HEAD` to A's URL or reuses A's `Idempotency-Key`.
+
+The price is that tokens **rotate**. The stamp is rewritten on every record write, and the handle itself carries on with its upload after a refresh (`pause()` → `resume()`). But a reload after a refresh during which no chunk was written finds the old token's stamp and **starts over**. `getPrincipal` has no such cost — the user does not rotate — so it stays the recommendation:
+
+| Configuration | Another user's record | Resumes after refresh + reload |
+| --- | --- | --- |
+| `getPrincipal` | deleted | yes |
+| `getToken` only (0.82.0 default) | deleted | only if a chunk was written after the refresh |
+| neither (anonymous, cookie session) | **resumed** | yes |
+
+!!! warning "A cookie session needs `getPrincipal`"
+    Without `getToken` the SDK cannot see who is signed in: the record has no owner and is resumed by whoever comes next, as before. With a cookie session and more than one account per browser, pass `getPrincipal` and clear at session end — and, without the getter, call `abort()` on the uploads in progress from `onSessionEnd`, because a running upload only notices an account switch through `getPrincipal`.
 
 ## The failure that actually happens
 
@@ -229,7 +241,7 @@ Every request carries `Tus-Resumable: 1.0.0`.
 
 Details that tend to bite:
 
-- **`Location` may be relative.** The client resolves it against the page, so `/api/uploads/abc` is fine.
+- **`Location` may be relative.** The client resolves it against the `endpoint` the `POST` went to (RFC 9110), so `/files/abc` from `https://tus.example.com/files/` becomes `https://tus.example.com/files/abc`. Up to 0.81.0 it resolved against the page and sent the chunks to the app's origin.
 - **`Upload-Metadata`** is comma-separated `key base64(value)`, with the value encoded as **UTF-8 before** base64 — that is how `note-ação.webm` survives an HTTP header.
 - **`HEAD` answering `404`/`410`** is read as "the server forgot this upload": the client recreates it from scratch instead of getting stuck.
 - **A missing `Upload-Offset` on a successful `PATCH`** is tolerated — the client assumes the end of the chunk — but sending it is better.
@@ -277,6 +289,8 @@ const upload = createResumableUpload({
 
     The same applies to the persisted record: a `url` in `localStorage` pointing off-origin does not get the token back on resume.
 
+    Since **0.82.0** the static `headers` follow the same scope: an `X-Api-Key` goes on the creation `POST` and not to a `Location` on another origin, which gets only the tus headers.
+
     The `csrf` option follows the same rule: the CSRF token goes on the creation `POST`, every `PATCH` and the discarding `DELETE` — never on the offset `HEAD` — and only to the `endpoint`'s origin and the `trustedOrigins`. See [CSRF](./http.md#csrf-a-session-cookie-needs-its-pair).
 
 !!! warning "`XMLHttpRequest`, not `fetch`"
@@ -287,7 +301,7 @@ const upload = createResumableUpload({
 - **`createResumableUpload({ endpoint, file })`** — 5 MiB chunks, resume across network drops and reloads, tus 1.0.0 on the wire.
 - **`start()` / `pause()` / `resume()` / `abort({ discard })`**; `start()` resolves `null` when you stopped on purpose.
 - The resume point lives in `localStorage` by default; swap it with `storage`, disable it with `null`.
-- **`getPrincipal`** binds the record to the user; **`createLocalUploadStorage().clear()`** in `onSessionEnd` removes what is left.
+- **`getPrincipal`** binds the record to the user; without it, since 0.82.0, the record belongs to the `getToken` token. **`createLocalUploadStorage().clear()`** in `onSessionEnd` removes what is left.
 - A lost response is handled by **addressed offsets + a `HEAD` before every retry**, and creation by an **`Idempotency-Key`**.
 - The backoff is the SDK's `retry` — there is no second one.
 

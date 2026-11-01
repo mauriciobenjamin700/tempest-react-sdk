@@ -268,7 +268,41 @@ Em build de desenvolvimento, a primeira supressão por origem escreve uma linha 
 !!! info "`baseURL` relativa não precisa de nada"
     Atrás de um proxy de dev-server, `baseURL: "/api"` resolve contra o documento — mesma origem da página. Os dois lados são resolvidos antes de comparar, então a checagem passa.
 
-Um `Authorization` que **você** escreveu à mão em `headers` nunca é tocado: o escopo governa só o header derivado de `getToken`.
+!!! info "`baseURL` relativa e `<base href>`"
+    O destino é resolvido como o `fetch`/XHR resolvem — contra o `document.baseURI` —, e a referência contra o endereço da própria página. Um `<base href>` injetado muda para onde a requisição vai, mas não muda a âncora: a requisição que ele desvia sai sem o token.
+
+Um `Authorization` que **você** escreveu à mão nos `headers` **da chamada** nunca é tocado: o escopo governa o header derivado de `getToken` e os `headers` fixos do cliente.
+
+### O que mais segue o escopo (0.82.0)
+
+Desde a **0.82.0** o escopo do token também governa:
+
+- **Os `headers` fixos do cliente.** Um `X-Api-Key` declarado em `createApiClient({ headers })` é credencial tanto quanto o bearer, então vai só para a origem da `baseURL` e para as `trustedOrigins`. Os `headers` que você passa numa chamada específica continuam indo para onde aquela chamada vai — foi você que os escreveu para aquela URL.
+- **O ciclo de `401`.** Um `401` de uma origem fora do escopo responde a uma requisição que nunca levou a credencial desta sessão, então não diz nada sobre ela: é lançado como `TempestApiError` **sem** chamar `refresh` nem `onUnauthorized`. Antes, um host qualquer devolvendo `401` gastava um refresh e encerrava a sessão do usuário.
+- **Alvo que não parseia.** `isTrustedCredentialTarget` recusa (`false`) uma URL malformada e uma origem opaca (`data:`, `file:`). Antes ela devolvia `true`, e um `fetcher` customizado que aceitasse a string recebia o token.
+
+```ts
+const api = createApiClient({
+  baseURL: "https://api.exemplo.com",
+  headers: { "X-Api-Key": chave },
+  getToken: () => useAuthStore.getState().token,
+  onUnauthorized: () => useAuthStore.getState().logout(),
+});
+
+await api.get("https://cdn.outro.com/arquivo.json");
+// → sem Authorization e sem X-Api-Key; um 401 daqui não chama logout()
+```
+
+!!! warning "Redirect entre origens: o escopo olha a URL inicial"
+    Quem tira o `Authorization` de um redirect para outra origem é o navegador, pela regra do Fetch (whatwg/fetch#1544). Segundo o [caniuse](https://caniuse.com/mdn-api_fetch_authorization_removed_cross_origin), consultado em 01/11/2026, Firefox 111+ e Safari 16.1+ a seguem; o Chrome **não** consta como suportado. Então, no Chrome, um open redirect numa origem confiável pode levar o token adiante.
+
+    O SDK não muda o default de `redirect` porque o redirect mais comum de um backend Tempest é legítimo e da mesma origem: o `307` de barra final do FastAPI (`redirect_slashes`). `redirect: "manual"` o transformaria numa resposta opaca e `redirect: "error"` numa falha. Numa chamada para uma URL que você não controla, peça você mesmo — a opção passa direto para o `fetch`:
+
+    ```ts
+    await api.get(urlQueVeioDaRede, { redirect: "error" });
+    ```
+
+    O XHR dos uploads (`uploadWithProgress`, `createResumableUpload`) não tem modo equivalente.
 
 O mesmo predicado está exportado, para quando você monta a requisição por fora:
 
@@ -650,8 +684,8 @@ export function AvatarUpload() {
 
 `onProgress` recebe `{ loaded, total, fraction, lengthComputable }`. `fraction` é `null` quando o tamanho total é desconhecido. Abortar via `signal` rejeita com `DOMException("Aborted")`.
 
-!!! tip "`credentialOrigin` quando a `url` não vem do seu código"
-    Este helper não tem `baseURL` de onde deduzir um escopo — você nomeia o destino em toda chamada —, então a checagem de origem é **opcional** aqui. Ligue-a quando a `url` puder vir de um corpo de resposta em vez do seu próprio código:
+!!! tip "`credentialOrigin` quando a API está em outra origem"
+    Este helper não tem `baseURL` de onde deduzir um escopo, então desde a **0.82.0** o escopo padrão é a **origem da própria página** (`location.origin`): o `Authorization` vai para uma `url` relativa ou da mesma origem, e não vai para nenhuma outra. API em outra origem — ou um storage que precisa do token — se declara:
 
     ```ts
     await uploadWithProgress({
@@ -663,9 +697,7 @@ export function AvatarUpload() {
     });
     ```
 
-    Sem `credentialOrigin`, o header vai para onde a `url` apontar — o comportamento de toda versão anterior à 0.66.0.
-
-    A opção `csrf` segue o mesmo escopo, com uma diferença: **sem** `credentialOrigin` ela fica presa à origem da própria página, não aberta. O `Authorization` fica aberto só por compatibilidade; o `csrf` é novo e nasce fechado. API em outra origem declara `credentialOrigin` para receber o token.
+    Até a 0.81.0, sem `credentialOrigin` o header ia para onde a `url` apontasse — inclusive uma URL assinada que veio de um corpo de resposta. A opção `csrf` segue exatamente o mesmo escopo. Os `headers` que você passa aqui são da chamada e vão para a `url` dela.
 
 ## Upload direto com teto — `uploadPresignedPost`
 

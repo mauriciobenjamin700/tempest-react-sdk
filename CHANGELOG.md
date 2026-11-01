@@ -4,6 +4,69 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Breaking
+
+- **`uploadWithProgress` não manda mais o bearer para outra origem sem `credentialOrigin` (#530).**
+  Sem `credentialOrigin`, o escopo do `Authorization` passa a ser a origem da página
+  (`location.origin`) — o mesmo que o `csrf` já tinha. Até a 0.81.0 o token ia para qualquer `url`.
+  **Migração:** upload para uma API em outra origem declara
+  `uploadWithProgress({ url, getToken, credentialOrigin: import.meta.env.VITE_API_URL })`
+  (e `trustedOrigins` para um storage que precisa do token). URL relativa ou da mesma origem não
+  muda.
+- **`headers` fixos do `createApiClient` e do `createResumableUpload` seguem o escopo da
+  credencial (#530).** Um `X-Api-Key` em `createApiClient({ headers })` ia para toda URL absoluta
+  de outra origem, e em `createResumableUpload({ headers })` para um `Location` em outro host.
+  Agora vão só para a origem da `baseURL`/`endpoint` e as `trustedOrigins`; os headers do tus e os
+  `headers` passados numa chamada específica continuam saindo. **Migração:** segundo host que
+  precisa desses headers entra em `trustedOrigins`.
+- **Registro de upload resumível sem `getPrincipal` fica preso ao token (#528).** Com `getToken` e
+  sem `getPrincipal`, o registro é carimbado com uma impressão digital de mão única do token
+  (`owner: "t:…"`) e o de outro token — ou sem carimbo — é apagado em vez de retomado. Até a 0.81.0
+  o registro de A era adotado por B: `HEAD`/`PATCH` com o token de B na URL de A e a
+  `Idempotency-Key` de A reaproveitada; o teste que afirmava isso ("keeps resuming any record
+  without getPrincipal, as before 0.78.0") foi invertido. O carimbo é refeito a cada gravação e o
+  próprio handle continua depois de um refresh, mas um reload após um refresh sem chunk gravado
+  recomeça do zero, e registros gravados antes desta versão (sem carimbo) recomeçam uma vez.
+  **Migração:** passe `getPrincipal` para retomar através de refresh do token; sessão por cookie
+  (sem `getToken`) continua sem dono e precisa de `getPrincipal` para essa proteção.
+
+### Segurança
+
+- **Escopo da credencial fecha por padrão (#530).** Medido em `b054c16` com
+  `npx vitest run src/http/credential-scope.hardening.test.ts src/http/resumable-upload.test.ts src/oauth/GoogleSignIn.test.tsx`:
+  15 casos falhavam em `b054c16` (8 + 6 + 1).
+  - `isTrustedCredentialTarget` devolvia `true` para alvo que não parseia (`"http://[bad"`) e para
+    origem opaca (`data:`); agora `false`. Alvo relativo fora de qualquer contexto continua
+    permitido.
+  - O alvo é resolvido contra o `document.baseURI` (para onde o XHR/`fetch` mandam) e a referência
+    contra o endereço da página: um `<base href>` injetado não faz mais um par `url`/
+    `credentialOrigin` relativo comparar igual enquanto a requisição vai para o host do `<base>`.
+  - Um `401` de origem fora do escopo é lançado sem `refresh()` nem `onUnauthorized()` (antes:
+    `refresh` 1 vez, `onUnauthorized` 1 vez para `https://evil.test`).
+  - `createResumableUpload` resolve um `Location` relativo contra o `endpoint` (RFC 9110), não
+    contra a página: `Location: /files/abc` de `https://tus.acme.com/files/` ia para a origem do
+    app.
+  - **Tamanho** (`npm run build && npx size-limit --json`, `b054c16` → esta mudança, B brotli):
+    fatia http client 4778 → 4896 (+118), resumable upload 4458 → 4607 (+149), app típico
+    12 158 → 12 308 (+150), barrel ESM 149 789 → 149 958 (+169), CJS 178 824 → 179 202 (+378).
+    Tetos sobem para 4,91 / 4,65 / 12,35 / 150,1 / 179,3 kB.
+
+### Adicionado
+
+- **`<GoogleSignIn nonce>`** repassa o nonce emitido pelo servidor ao `GoogleLogin`, para o
+  backend prender o ID token a ele (#530). Antes o wrapper descartava a prop.
+
+### Decidido sem mudança de código (#530)
+
+- `uploadPresignedPost` com `max_bytes` não numérico: medido, uma string numérica (`"4"`) já
+  compara como número e recusa o arquivo de 5 bytes; ausente (boto3 puro não manda) pula só a
+  pré-checagem, e quem limita é o `content-length-range` assinado. Fechar quebraria esse uso;
+  documentado no JSDoc e fixado em teste.
+- Redirect cross-origin com bearer: o default `redirect` não muda, porque o `307` de barra final
+  do FastAPI é o redirect comum e legítimo. Documentado em `docs/http.md` com `{ redirect: "error" }`
+  por chamada para URL que veio da rede (Chrome não consta no caniuse como removendo o header,
+  consultado em 01/11/2026).
+
 ## [0.81.0] — 2026-11-01
 
 ### Breaking
